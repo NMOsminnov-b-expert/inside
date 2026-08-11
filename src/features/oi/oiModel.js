@@ -20,15 +20,32 @@ export function autoCategory(oi) {
   return oi.catClass || 'Гражданское';
 }
 
-export function requiredFlags(oi) {
+// Правила видимости/обязательности полей карточки ОИ.
+// Единственная точка, где кодируются условия из продуктовых заметок.
+export function oiFieldRules(oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
-  return { height: prod, walls: prod, buildType: !prod };
+  const ml = (oi.origin || 'manual') === 'ml';
+  return {
+    heightRequired: prod,
+    wallsRequired: prod,
+    buildTypeRequired: !prod,
+    // Категория жилого строения — только у жилых ОИ.
+    showResCat: !!oi.residential,
+    // Цепочка «сверен/удостоверен» и флаг «Сопоставлено» — только у ML-импорта;
+    // у ручных ОИ дополнительного статуса нет.
+    showMatched: ml,
+  };
 }
 
+// Статус выводится автоматически из происхождения и флагов — вручную не проставляется.
 export function oiVerbal(oi) {
   const f = oi.flags || {};
-  if (f.entered && f.matched) return { t: 'сверен с осмотром', c: 'pill-done' };
-  if (f.entered) return { t: 'заполнен', c: 'pill-pend' };
+  if ((oi.origin || 'manual') === 'ml') {
+    if (f.entered && f.matched) return { t: 'проверено (сверено с документами — удостоверено)', c: 'pill-done' };
+    return { t: f.entered ? 'импортировано по ML — ожидает проверки' : 'импортировано по ML', c: 'pill-pend' };
+  }
+  // Ручное происхождение: дополнительного статуса нет.
+  if (f.entered) return { t: 'введено вручную', c: 'pill-done' };
   return { t: 'не заполнено', c: 'pill-gray' };
 }
 
@@ -45,6 +62,7 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
   const oi = {
     id: 'oi-r' + Date.now(), kind: 'realty', letter, name, status: 'Основное',
     eni: String(147561681380 + OI.length), year: '', flags: { entered: false, matched: false },
+    origin: 'manual', residential: name === 'Жилой дом' || name === 'Квартира', resCat: '',
     areas: { tp: '', pud: '', fact: '', build: '' }, floors: 1, floorList: [],
     heights: { ext: '', int: '' }, buildType: 'Отдельностоящее',
     struct: { foundation: 'Не указано', wallsExt: 'Не указано', ceilings: 'Не указано', roof: 'Не указано', floors: 'Не указано', windows: 'Не указано', doors: 'Не указано' },
@@ -57,8 +75,8 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
 export function createLandOi() {
   return {
     id: 'oi-l' + Date.now(), kind: 'land', name: 'Земельный участок', purpose: '', area: '',
-    eni: String(147561681370 + OI.length), flags: { entered: false, matched: false },
-    docs: [], photos: {}, notes: [],
+    eni: String(147561681370 + OI.length), status: 'Основное',
+    flags: { entered: false, matched: false }, docs: [], photos: {}, notes: [],
   };
 }
 

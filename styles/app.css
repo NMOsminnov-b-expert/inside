@@ -290,3 +290,6 @@ td[data-acc-cell]:hover{background:var(--blue-100)!important}
   background: var(--bg-hover, #eef2f7);
   border-color: var(--border-soft, #cbd5e1);
 }
+
+/* Земельный участок: строка в общей таблице ОИ, отделена линией. */
+.tbl tbody tr.land-row td{border-top:2px solid var(--line);}

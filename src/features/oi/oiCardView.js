@@ -160,9 +160,11 @@ function movableCards(oi) {
 function landCards(oi) {
   return `<div class="oi-stack">
   <div class="card t-teal"><div class="card-head"><span class="card-idx">01</span><h3>Земельный участок (один ЕНИ)</h3></div>
-  <div class="card-pad"><div class="grid g-3">
+  <div class="card-pad"><div class="grid g-4">
   <div class="field"><label>Назначение</label><input class="input" data-land-purpose value="${esc(oi.purpose)}"></div>
   <div class="field"><label>Общая площадь, м²</label><input class="input" data-land-area value="${esc(oi.area)}"></div>
+  <div class="field"><label>Статус</label>
+  <select class="select" data-status>${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
   <div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
   </div></div></div>
   <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
