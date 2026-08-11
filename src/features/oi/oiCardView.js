@@ -22,31 +22,65 @@ function realtyCards(oi) {
   const f = oi.flags || {};
   return `<div class="oi-stack">
   <div class="card t-blue" id="q-gen">
-    <div class="card-head" data-card-toggle><span class="card-idx">01</span><h3>Общие параметры</h3>
-      <span class="letter-badge">${esc(oi.letter)}</span>
-      <span class="hint">${esc(oi.name)}</span><span class="chev">▾</span></div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="inline-row" style="margin-bottom:10px">
-        ${appState.letterEdit ? `<input class="input" style="width:80px;text-align:center;font-weight:700" data-letter-input value="${esc(oi.letter)}"><button class="btn btn-primary btn-sm" data-letter-save>Сохранить</button><button class="btn btn-ghost btn-sm" data-letter-cancel>Отмена</button>` : `<button class="btn btn-ghost btn-sm" data-edit-letter title="Переименовать литеру">✎ Переименовать</button>`}
-        <input class="input" style="max-width:240px" data-oi-name value="${esc(oi.name)}">
-        <select class="select" style="max-width:150px" data-status>${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        <input class="eni-corner" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
-      </div>
-      <div class="inline-row" style="margin-bottom:10px">
-        <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-        <label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>
-      </div>
-      <div class="grid g-3">
-        <div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
-        <div class="field"><label>Тип строения (ранее «Архитектура»)${rq.buildType ? '<span class="req">*</span>' : ''}</label>
-          <select class="select" data-buildtype>${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
-        <div class="field"><label>Категория ОИ (категория → класс)</label>
-          <select class="select" data-catclass ${oi.dis ? '' : 'disabled'}>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-          <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
-          <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span></div>
-      </div>
-    </div></div>
+  <div class="card-head" data-card-toggle>
+    <span class="card-idx">01</span>
+    <h3>Общие параметры</h3>
+    <!-- Убрали <span class="letter-badge"> -->
+    <span class="hint">${esc(oi.name)}</span>
+    <span class="chev">▾</span>
   </div>
+  <div class="card-body-wrap"><div class="card-pad">
+    <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+      <!-- Литера: кликабельная, при клике переключает режим редактирования -->
+      <!-- Литера: кликабельная, при клике переключает режим редактирования -->
+<div class="field" style="flex:0 0 auto;">
+  <label>Литера</label>
+  ${appState.letterEdit
+    ? `<div style="display:flex; gap:4px; align-items:center;">
+         <input class="input" style="width:80px; text-align:center; font-weight:700;" 
+                data-letter-input value="${esc(oi.letter)}" 
+                data-letter-id="${oi.id}">
+         <button class="btn btn-primary btn-sm" data-letter-save data-letter-id="${oi.id}">Сохранить</button>
+         <button class="btn btn-ghost btn-sm" data-letter-cancel data-letter-id="${oi.id}">Отмена</button>
+       </div>`
+    : `<span class="letter-clickable" data-edit-letter data-letter-id="${oi.id}" 
+             title="Кликните чтобы редактировать">${esc(oi.letter)}</span>`
+  }
+</div>
+      <!-- Наименование -->
+      <div class="field" style="flex:1 1 180px;">
+        <label>Наименование</label>
+        <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
+      </div>
+      <!-- Статус -->
+      <div class="field" style="flex:0 0 150px;">
+        <label>Статус</label>
+        <select class="select" style="width:100%;" data-status>
+          ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <!-- ЕНИ код -->
+      <div class="field" style="flex:0 0 160px;">
+        <label>ЕНИ код</label>
+        <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
+      </div>
+    </div>
+    <!-- Остальные поля (флаги, год, тип, категория) остаются без изменений -->
+    <div class="inline-row" style="margin-bottom:10px">
+      <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
+      <label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>
+    </div>
+    <div class="grid g-3">
+  <div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
+  <div class="field"><label>Тип строения (ранее «Архитектура»)${rq.buildType ? '<span class="req">*</span>' : ''}</label>
+    <select class="select" data-buildtype>${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+  <div class="field"><label>Категория ОИ (категория → класс)</label>
+    <select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+    <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
+    <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span></div>
+</div>
+  </div></div>
+</div>
   <div class="card t-blue" id="q-areas">
     <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
     <div class="card-body-wrap"><div class="card-pad">
@@ -139,6 +173,7 @@ function landCards(oi) {
   </div></div></div>
   </div>`;
 }
+
 
 export function viewOI() {
   const oi = OI.find((o) => o.id === appState.openOi);
