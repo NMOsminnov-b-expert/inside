@@ -1,0 +1,1 @@
+Get-ChildItem -Recurse -File | ForEach-Object { "n=== Файл: \((\)_.FullName) ===n"; Get-Content $_.FullName } > output.txt
