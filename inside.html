@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inside — Объект оценки</title>
+<style>
+:root{
+  --bg:#e9f1f8; --panel:#ffffff;
+  --line:#c3cfdd; --line-soft:#dbe4ee; --line-input:#a9bcd4;
+  --ink:#16233a; --muted:#526073;
+  --blue-700:#14508c; --blue-600:#1668c9; --blue-500:#2f83c4;
+  --blue-300:#8fb8e0; --blue-200:#bcd6f0; --blue-100:#dcebf8; --blue-50:#eef6ff;
+  --teal-700:#0b6b5d; --teal-600:#0e8172; --teal-100:#bfe3db; --teal-50:#eafaf6;
+  --amber-700:#8a5a10; --amber-600:#c07c1e; --amber-100:#f3ddae; --amber-50:#fdf4e3;
+  --slate-700:#2c4460; --slate-500:#54718f; --slate-50:#e6eef6;
+  --danger:#c02626; --warn:#8a6d1f;
+  --radius:10px; --shadow:0 1px 2px rgba(19,41,62,.07),0 4px 14px rgba(19,41,62,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:13px/1.45 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
+button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+.muted{color:var(--muted)}
+.app{display:flex;height:100vh}
+@keyframes accIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sidebar{width:216px;background:#fff;border-right:1.5px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+.side-logo{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+.logo-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--blue-600),var(--teal-600));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.logo-text b{font-size:13.5px;display:block}
+.logo-text span{font-size:10px;color:var(--muted)}
+.side-nav{padding:8px 6px;display:flex;flex-direction:column;gap:2px;flex:1}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:#33445c;font-size:12.5px;width:100%;text-align:left;transition:background .12s}
+.nav-item:hover{background:var(--blue-50)}
+.nav-item.active{background:var(--blue-100);color:var(--blue-700);font-weight:600}
+.nav-ico{width:16px;text-align:center;color:#7d93a6}
+.nav-item.active .nav-ico{color:var(--blue-700)}
+.nav-soon{margin-left:auto;font-size:9.5px;color:#7d93a6;background:var(--blue-50);border-radius:4px;padding:1px 5px}
+.side-foot{padding:8px 14px;border-top:1px solid var(--line-soft);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.main-row{display:flex;flex:1;min-height:0}
+.topbar{height:44px;background:#fff;border-bottom:1.5px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 18px;flex-shrink:0}
+.crumbs{font-size:11.5px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.crumbs b{color:var(--ink)}
+.crumbs [data-crumb]{cursor:pointer}
+.crumbs [data-crumb]:hover{color:var(--blue-700);text-decoration:underline}
+.top-user{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.content{flex:1;overflow:auto;padding:14px 18px;min-width:0}
+.notes-drawer{position:relative;width:0;transition:width .25s ease;flex-shrink:0}
+.notes-drawer.open{width:340px}
+.notes-drawer.hidden{display:none}
+.drawer-inner{position:absolute;left:0;top:0;bottom:0;width:340px;overflow:auto;background:#fff;border-left:1.5px solid var(--line);box-shadow:-8px 0 24px rgba(19,41,62,.08);padding:14px 16px}
+.notes-tab{position:absolute;left:-30px;top:24px;writing-mode:vertical-rl;text-orientation:mixed;background:var(--amber-600);color:#fff;border:1px solid var(--amber-600);border-right:none;border-radius:8px 0 0 8px;padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:40}
+.notes-tab .pill-mini{writing-mode:horizontal-tb;background:#fff;color:var(--amber-700)}
+.drawer-head{font-size:12px;font-weight:700;color:var(--amber-700);text-transform:uppercase;letter-spacing:.5px;margin:0 0 12px}
+.ctx-plate{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--blue-700);border-radius:8px;
+  padding:8px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
+.ctx-plate.ctx-oc{border-left-color:var(--blue-700)}
+.ctx-plate.ctx-oi{border-left-color:var(--blue-500)}
+.ctx-plate.ctx-form{border-left-color:var(--teal-600)}
+.ctx-kind{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.ctx-plate b{font-size:13px;color:var(--blue-700)}
+.ctx-chip{font-size:10.5px;background:var(--blue-50);border:1px solid var(--blue-200);color:var(--blue-700);border-radius:999px;padding:2px 9px;font-weight:600}
+.ctx-chip.ctx-warn{background:var(--blue-50);border-color:var(--blue-300);color:var(--blue-700)}
+.ctx-chip.ctx-ok{background:var(--teal-50);border-color:var(--teal-100);color:var(--teal-700)}
+.ctx-back-hint{font-size:10.5px;color:#7d93a6}
+.card{background:var(--panel);border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);transition:box-shadow .15s}
+.card-pad{padding:14px 16px}
+.card.collapsed>.card-body,.card.collapsed>.card-pad,.card.collapsed>.card-body-wrap{display:none}
+.card:not(.collapsed)>.card-body-wrap{animation:accIn .16s ease}
+.card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap}
+.card-head h3{font-size:13px;font-weight:700}
+.card-head .hint{font-size:11px;color:var(--muted);font-weight:400}
+.card-head .chev{margin-left:auto;transition:transform .15s;color:#7d93a6}
+.card.collapsed .card-head .chev{transform:rotate(-90deg)}
+.card-idx{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 6px;letter-spacing:.5px}
+.card.t-blue{border-left:4px solid var(--blue-600)}
+.card.t-blue .card-head{background:#d9e9fb}
+.card.t-blue .card-head h3{color:#123f74}
+.card.t-blue .card-idx{background:var(--blue-600)}
+.card.t-amber{border-left:4px solid var(--amber-600)}
+.card.t-amber .card-head{background:var(--amber-50)}
+.card.t-amber .card-head h3{color:var(--amber-700)}
+.card.t-amber .card-idx{background:var(--amber-600)}
+.card.t-slate{border-left:4px solid var(--slate-500)}
+.card.t-slate .card-head{background:var(--slate-50)}
+.card.t-slate .card-head h3{color:var(--slate-700)}
+.card.t-slate .card-idx{background:var(--slate-500)}
+.card.t-teal{border-left:4px solid var(--teal-600)}
+.card.t-teal .card-head{background:#d7f0ea}
+.card.t-teal .card-head h3{color:#0a5c50}
+.card.t-teal .card-idx{background:var(--teal-600)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid transparent;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn-primary{background:var(--blue-600);color:#fff}
+.btn-primary:hover{background:var(--blue-700)}
+.btn-ghost{background:#fff;border-color:var(--line);color:#33445c}
+.btn-ghost:hover{background:var(--blue-50);border-color:var(--blue-500)}
+.btn-danger{background:#fff;border-color:#f3c1c1;color:var(--danger)}
+.btn-danger:hover{background:#fdf3f3}
+.btn-sm{padding:3px 8px;font-size:11.5px}
+.row-actions{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:nowrap}
+.clickable{cursor:pointer}
+.clickable:hover td{background:var(--blue-50)}
+.rowchev-open{color:#7d93a6;font-size:12px}
+.tbl td.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.pill-status{background:var(--blue-100);color:var(--blue-700)}
+.pill-status .dot{width:6px;height:6px;border-radius:50%;background:var(--blue-600)}
+.pill-cat{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+.pill-gray{background:var(--blue-50);color:#33445c;border:1px solid var(--blue-200)}
+.head-meta{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;min-width:0;overflow:hidden}
+.hm{min-width:0;flex-shrink:1}
+.hm label{display:block;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#61799a;font-weight:700}
+.hm b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:280px;color:var(--blue-700)}
+.tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--line);margin:0 0 12px;position:sticky;top:0;z-index:8;background:var(--bg)}
+.tab{padding:8px 14px;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;font-weight:600;transition:color .12s}
+.tab.active{color:var(--blue-700);border-color:var(--blue-600)}
+table.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+.tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#3f4c63;text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line);font-weight:700;background:#eef4fb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle;font-size:13px;overflow:hidden;text-overflow:ellipsis}
+.tbl tbody tr:nth-child(even) td{background:#f8fbff}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr.rowlink{cursor:pointer}
+.tbl tr.rowlink:hover td{background:var(--blue-50)}
+.grid{display:grid;gap:10px 12px;align-items:end}
+.g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>label{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
+.req{color:var(--danger)}
+.input,.select,.textarea{border:1px solid var(--line-input);border-radius:7px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
+.textarea{resize:vertical;min-height:46px}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
+.input[readonly],.select:disabled{background:var(--blue-50);color:#46536b}
+.sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-700);font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:10px}
+.sec-h::after{content:'';flex:1;height:1px;background:var(--line-soft)}
+.sec-h:first-child{margin-top:0}
+.sec-h.teal{color:var(--teal-700)}
+.acc{border:1px solid var(--line);border-radius:8px;margin-top:6px;overflow:hidden;background:#fff}
+.acc-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f4f8fd;cursor:pointer;font-size:12px;font-weight:600;user-select:none;flex-wrap:wrap;color:#5b6c85;transition:background .12s}
+.acc-head:hover{background:#eaf2fb}
+.acc.open .acc-head{border-bottom:1px solid var(--line-soft)}
+.acc-head .chev{transition:transform .15s;color:#8ba3c0}
+.acc.open .acc-head .chev{transform:rotate(180deg)}
+.acc-body{display:none;padding:10px 12px}
+.acc.open .acc-body{display:block;animation:accIn .16s ease}
+.sum-ok{color:var(--teal-700);font-weight:700}
+.sum-warn{color:var(--warn);font-weight:700}
+.acc-row td{background:#eef5fc!important;padding:12px 14px!important}
+td[data-acc-cell]{cursor:pointer}
+td[data-acc-cell]:hover{background:var(--blue-100)!important}
+.chev-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--blue-50);border:1.5px solid var(--blue-200);color:var(--blue-700);font-size:13px;margin-right:6px;transition:transform .15s,background .12s;vertical-align:middle}
+.chev-btn:hover{background:var(--blue-100);border-color:var(--blue-500)}
+.chev-btn.open{transform:rotate(90deg);background:var(--blue-100);border-color:var(--blue-500)}
+.acc-inner{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;margin:4px 0;box-shadow:0 1px 2px rgba(19,41,62,.04)}
+.acc-inner .params-grid{background:#f4f8fd;border:1px solid var(--line-soft);border-radius:7px;padding:10px 12px}
+.acc-inner.notes-tint{background:var(--amber-50);border-color:var(--amber-100)}
+.acc-inner.notes-tint .sec-h{color:var(--amber-700)}
+.ph-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ph{width:76px;height:56px;border-radius:7px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:flex-end;padding:4px;font-size:9px;color:#5d7292;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+.ph:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
+.ph-mini{width:26px;height:20px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);cursor:pointer;flex-shrink:0}
+.ph-mini:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
+/* Фото-плитки (проводник) */
+.photo-sec{margin-top:16px}
+.photo-sec:first-child{margin-top:0}
+.photo-sec-h{font-size:12px;font-weight:700;color:var(--blue-700);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tile{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;transition:box-shadow .12s,border-color .12s;box-shadow:var(--shadow)}
+.tile:hover{border-color:var(--blue-500);box-shadow:0 4px 14px rgba(22,104,201,.18)}
+.tile-img{height:110px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:12px;font-weight:600}
+.tile-cap{padding:6px 8px;font-size:11px;color:#46536b;border-top:1px solid var(--line-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nb-group{margin-top:14px;padding-top:12px;border-top:1px dashed var(--amber-100)}
+.nb-group:first-child{margin-top:0;padding-top:0;border-top:none}
+.pill-mini{font-size:9.5px;background:var(--blue-50);color:#33445c;border:1px solid var(--blue-200);padding:1px 7px;border-radius:999px;font-weight:600}
+.pill-mini.pill-pend{background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-300)}
+.pill-mini.pill-done{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
+.notes-list{display:flex;flex-direction:column;gap:4px}
+.note-row{display:flex;align-items:flex-start;gap:10px;padding:7px 10px;border-radius:7px;background:#fff;border:1px solid var(--amber-100);transition:background .12s,border-color .12s}
+.note-row:hover{background:var(--amber-50);border-color:var(--amber-600)}
+.note-row:hover .note-del{opacity:1}
+.note-row input[type=checkbox]{margin-top:6px;width:15px;height:15px;flex-shrink:0;accent-color:var(--amber-600);cursor:pointer}
+.note-input{flex:1;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 8px;font-size:12.5px;color:var(--ink);outline:none;min-width:0;line-height:1.4}
+.note-input::placeholder{color:#b3a184;font-style:italic}
+.note-input:hover{border-color:var(--line-input);background:#fff}
+.note-input:focus{border-color:var(--amber-600);background:#fff;box-shadow:0 0 0 3px rgba(192,124,30,.15)}
+.note-row.done{background:var(--teal-50);border-color:var(--teal-100)}
+.note-row.done .note-input{color:#7fa8a0;text-decoration:line-through}
+.note-row.done .note-input:focus{color:var(--ink);text-decoration:none}
+.note-row.done input[type=checkbox]{accent-color:var(--teal-600)}
+.note-del{opacity:0;color:#8ba3c0;font-size:14px;padding:0 4px;transition:opacity .15s;cursor:pointer;margin-top:4px}
+.note-del:hover{color:var(--danger)}
+.note-empty{font-size:12px;color:#8ba3c0;padding:4px 0}
+.note-add{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:11.5px;color:var(--amber-700);font-weight:600;margin-top:8px;cursor:pointer;background:transparent;border:1px dashed var(--amber-600);border-radius:7px;transition:background .12s}
+.note-add:hover{background:var(--amber-50)}
+.done-toggle{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;font-weight:700;color:var(--teal-700);padding:4px 8px;border-radius:6px;transition:background .12s}
+.done-toggle:hover{background:var(--teal-50)}
+.done-toggle .chev{transition:transform .15s;font-size:10px}
+.done-toggle.open .chev{transform:rotate(90deg)}
+.done-list{margin-top:6px;padding:8px;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:7px}
+.split{display:flex;gap:0;align-items:flex-start;--vw:48%;min-width:0}
+.vsplit{width:7px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s}
+.vsplit:hover{background:var(--blue-500)}
+.grow{flex:1;min-width:620px;padding-left:12px}
+.viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 120px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+.vmode{display:flex;gap:4px;padding:6px 8px;background:#eef4fb;border-bottom:1px solid var(--line-soft);flex-shrink:0}
+.vmode-btn{padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;color:#46536b;border:1px solid transparent;transition:background .12s}
+.vmode-btn:hover{background:#fff}
+.vmode-btn.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
+.vtabs{display:flex;gap:2px;padding:6px 8px 0;background:#e8f1fa;border-bottom:1px solid var(--line-soft);overflow-x:auto;flex-shrink:0}
+.vtab{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:7px 7px 0 0;font-size:11px;color:#46536b;border:1px solid transparent;border-bottom:none;cursor:pointer;white-space:nowrap;font-weight:600}
+.vtab.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
+.vtab span{color:#8ba3c0}
+.vtab span:hover{color:var(--danger)}
+.vtoolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fbfdff;border-bottom:1px solid var(--line-soft);flex-wrap:wrap;flex-shrink:0}
+.tool-group{display:flex;align-items:center;gap:4px}
+.tool-group.right{margin-left:auto}
+.tool-btn{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#46536b;border:1px solid transparent;font-size:13px;transition:background .12s}
+.tool-btn:hover{background:var(--blue-50);border-color:var(--line)}
+.page-input{width:40px;text-align:center;border:1px solid var(--line-input);border-radius:6px;padding:3px;outline:none;font-size:12px}
+.zoom-label{min-width:42px;text-align:center;font-size:11.5px;color:#46536b}
+.vtitle{font-size:11.5px;font-weight:700;color:var(--blue-700);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vcat{font-size:11.5px;padding:3px 6px;border-radius:6px;width:auto}
+.vbody{flex:1;display:flex;min-height:0}
+.vrail{width:92px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0}
+.vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.rail-cat{font-size:8.5px;font-weight:700;color:#61799a;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
+.vthumb{width:56px;height:72px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
+.vthumb.doc::after{content:'';position:absolute;inset:8px 6px 14px;background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
+.vthumb.pho::after{content:'';position:absolute;inset:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);border-radius:3px}
+.vthumb.active{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.2)}
+.vthumb-num{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:9px;color:var(--muted)}
+.vthumb-del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;z-index:2}
+.vthumb:hover .vthumb-del{display:flex}
+.vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4}
+.vribbon{display:flex;flex-direction:column;gap:14px;align-items:center}
+.vgroup-h{width:430px;text-align:left;font-size:11px;font-weight:700;color:var(--blue-700);background:#eef4fb;border:1px solid var(--blue-200);border-radius:7px;padding:6px 10px}
+.vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative}
+.vpage.photo-page{padding:10px;min-height:420px}
+.photo-fill{width:100%;height:540px;border-radius:8px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:13px}
+.vempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#dfe9f4}
+.vempty-box{font-size:12.5px;color:#61799a}
+.cmp{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
+.cmp-col{flex:1;display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+.cmp-h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eef4fb;border-bottom:1px solid var(--line-soft);font-size:11px;font-weight:700;flex-wrap:wrap;color:var(--blue-700)}
+.cmp-body{flex:1;overflow:auto;background:#dfe9f4;padding:10px;display:flex;justify-content:flex-start}
+.cmp-body .vpage{width:380px;min-height:500px}
+.cmp-body .photo-fill{height:460px}
+.pp-h{text-align:center;font-size:15px;letter-spacing:1px;margin:6px 0 2px;color:#0e2f4f;font-weight:700}
+.pp-sub{text-align:center;font-size:10.5px;color:#5d7292;margin-bottom:12px}
+.sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
+.sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
+.sk-table{width:100%;border-collapse:collapse;margin:10px 0}
+.sk-table td{border:1px solid var(--blue-200);height:18px}
+.qnav{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:6;background:var(--panel);padding:9px 14px;border-bottom:1px solid var(--line-soft);border-radius:var(--radius) var(--radius) 0 0}
+.qn{padding:4px 11px;border-radius:999px;border:1px solid var(--line-input);font-size:11.5px;color:#46536b;background:#fff;font-weight:600;transition:border-color .12s,color .12s}
+.qn:hover{border-color:var(--blue-500);color:var(--blue-700)}
+.dd{position:relative}
+.dd-menu{position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);min-width:250px;padding:6px;display:none;z-index:60;animation:accIn .14s ease}
+.dd.open .dd-menu{display:block}
+.dd-group{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#61799a;padding:6px 9px 3px;font-weight:700}
+.dd-menu button{display:block;width:100%;text-align:left;padding:6px 9px;border-radius:7px;font-size:12.5px;color:#33445c}
+.dd-menu button:hover{background:var(--blue-50)}
+.toast-wrap{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:#0e2f4f;color:#eaf3f8;padding:9px 14px;border-radius:9px;font-size:12.5px;box-shadow:0 8px 20px rgba(15,23,42,.35);animation:tin .18s ease;max-width:420px}
+.toast.ok{background:var(--teal-700)}
+.toast.warn{background:var(--warn)}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+.view-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:8px 12px;box-shadow:var(--shadow)}
+.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;padding:5px 8px;border-radius:8px;transition:background .12s}
+.back-btn:hover{background:var(--blue-50);color:var(--blue-700)}
+.eni-corner{margin-left:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--blue-700);background:#f4f8fd;border:1px solid var(--blue-200);border-radius:7px;padding:5px 9px}
+.inline-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.tag-mini{font-size:9.5px;background:var(--blue-50);border:1px solid var(--blue-200);border-radius:4px;padding:1px 5px;color:#33445c;white-space:nowrap}
+.letter-badge{min-width:34px;height:32px;padding:0 8px;border-radius:8px;background:var(--blue-100);border:1.5px solid var(--blue-300);color:var(--blue-700);font-weight:800;font-size:14px;display:inline-flex;align-items:center;justify-content:center}
+.flag-lbl{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#46536b}
+.flag-lbl input{width:15px;height:15px;accent-color:var(--teal-600);cursor:pointer}
+.ms-control{min-height:34px;border:1px solid var(--line-input);border-radius:7px;background:#fff;padding:4px 6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;cursor:pointer}
+.ms-control:hover{border-color:var(--blue-500)}
+.ms-add{font-size:11px;color:var(--blue-700);font-weight:600;padding:2px 6px;margin-left:2px}
+.ms-tag{display:inline-flex;align-items:center;gap:6px;background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
+.ms-tag span{cursor:pointer;font-size:12px;line-height:1;margin-left:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-logo">
+      <div class="logo-mark">I</div>
+      <div class="logo-text"><b>Inside</b><span>Система оценки имущества</span></div>
+    </div>
+    <nav class="side-nav">
+      <button class="nav-item"><span class="nav-ico">▤</span>Учреждения</button>
+      <button class="nav-item active"><span class="nav-ico">▣</span>Объекты оценки</button>
+      <button class="nav-item"><span class="nav-ico">◈</span>Документы</button>
+      <button class="nav-item"><span class="nav-ico">☰</span>Справочники<span class="nav-soon">скоро</span></button>
+      <button class="nav-item"><span class="nav-ico">◎</span>Пользователи<span class="nav-soon">скоро</span></button>
+    </nav>
+    <div class="side-foot"><span>v0.29.0</span><span>Осминов Н.</span></div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <nav class="crumbs" id="crumbs"></nav>
+      <div class="top-user"><span>Осминов Н.</span><span class="avatar">ОН</span></div>
+    </header>
+    <div class="main-row">
+      <div class="content" id="content"></div>
+      <aside class="notes-drawer hidden" id="notesDrawer">
+        <button class="notes-tab" data-notes-toggle><span>Заметки</span><span class="pill-mini" id="drawerCount">0</span></button>
+        <div class="drawer-inner" id="drawerNotes"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=s=>{const n=parseFloat(String(s??'').replace(',','.'));return isNaN(n)?0:n};
+const fmt=n=>n.toFixed(2).replace('.',',');
+const round2=x=>Math.round(x*100)/100;
+const norm=s=>(s||'').toLowerCase().replace(/ё/g,'е');
+function toast(msg,type){const el=document.createElement('div');el.className='toast'+(type?' '+type:'');el.textContent=msg;$('#toastWrap').appendChild(el);setTimeout(()=>el.remove(),3400)}
+let _noteId=1;
+function mkNote(text,done){return{id:'n'+(_noteId++),text:text,done:!!done}}
+const NOTE_DEFAULT='Новая заметка';
+
+const DICT={
+  statusOC:['В заполнении','Удостоверен по документам','Осмотрен','Удостоверен после осмотра','На юридической экспертизе'],
+  statusBuild:['Основное','Вспомогательное'],
+  buildType:['Отдельностоящее','Встроенное'],
+  foundation:['Не указано','Бетонный','Блочный','Бутобетонный','Кирпичный','Прочее (ручной ввод)'],
+  wallsExt:['Не указано','Бетон','Брус цельный','Газобетон','Жжёный кирпич','Клееный брус','Саман','Силикатный кирпич','Сэндвич-панели','Шлакоблок','Щитовой'],
+  floors:['Не указано','Бетонные','Деревянные','Ламинат','Линолеум','Плитка'],
+  ceilings:['Не указано','Деревянные балки','Железобетонные плиты','Металлические балки','Монолит'],
+  roof:['Не указано','Металл','Мягкая','Плоская','Шифер'],
+  windows:['Не указано','Алюминиевые','Деревянные','Отсутствуют','ПВХ (стеклопакет)'],
+  doors:['Не указано','Деревянные','Металлические','Пластиковые (ПВХ)'],
+};
+const HEATING=['Центральное','Автономное','Печное','Современные радиаторы','Чугунные радиаторы','Тёплый водяной пол','Тёплый электрический пол','Прочее (ручной ввод)'];
+const PREM_CAT=['Помещение','Подвал','Цоколь','Мансарда','Мансарда капитальная','Мансарда полукапитальная'];
+const PHOTO_CAT=['Фасад','Внутр. помещения','Кровля','Конструкции','Земельный участок','Прочее'];
+const DOC_TYPES=['Техпаспорт','ПУД','Гос. акт на землю','Акт осмотра','Прочее'];
+const REALTY_TYPES=['Гражданское здание','Жилой дом','Квартира','Производственное строение','Прочее строение','Земельный участок'];
+const CATCLASS=['Гражданское','Нежилое · офисное','Производственно-складское','Прочее'];
+const LETTER_SEQ=['А','Б','В','Г','Д','Е','Ж','И','К','Л','М'];
+const PEOPLE=['Абдылдаев Айсултан Марсович','Айдай','Молчанов Кирилл Витальевич','Карабекова Анара Тариеловна','Бабашова Даяна Алтынбековна','Осминов Н.'];
+
+const OC={
+  category:'Недвижимое', type:'Жилое здание (дом)', purposeTP:'Жилое',
+  eni:'147561681351', address:'г. Бишкек, ул. Фрунзе, д. 35', gps:'42.8746, 74.5698',
+  status:'В заполнении', institution:'Министерство для ТЕСТА', podved:'Подвед Министерства для ТЕСТ',
+  complex:true, owners:['Министерство для ТЕСТА'], users:[],
+  resp:{gov:'Абдылдаев Айсултан Марсович', cod:'Айдай', appr:'Молчанов Кирилл Витальевич', insp:'Карабекова Анара Тариеловна'},
+  notes:[
+    mkNote('Не полный ПУД — не хватает страниц 4-7', false),
+    mkNote('Нет гос. акта на землю', false),
+    mkNote('Техпаспорт от 2020 года — проверить актуальность', true),
+  ]
+};
+let OI=[
+  {id:'oi-a',kind:'realty',letter:'А',name:'Жилой дом',status:'Основное',eni:'147561681351',year:'1990',flags:{entered:true,matched:false},
+   areas:{tp:'96.40',pud:'96.40',fact:'96.40',build:'98.60'},
+   floors:2,floorList:[],heights:{ext:'5.90',int:'2.70'},buildType:'Отдельностоящее',
+   struct:{foundation:'Бетонный',wallsExt:'Жжёный кирпич',ceilings:'Железобетонные плиты',roof:'Шифер',floors:'Деревянные',windows:'Деревянные',doors:'Деревянные'},
+   heating:['Центральное'],heatingOther:'',comment:'Капитальный ремонт кровли — 2018 г.',
+   catClass:'Гражданское',dis:false,
+   premises:[{cat:'Помещение',name:'Кухня',area:'12.40'},{cat:'Помещение',name:'Жилая комната',area:'24.80'},{cat:'Мансарда',name:'Мансарда',area:'18.00'}],
+   photos:{'Фасад':3,'Внутр. помещения':4,'Кровля':2,'Конструкции':2},
+   notes:[
+     mkNote('Нет страницы 5 в техпаспорте', false),
+     mkNote('Плохое качество скана фото фасада', false),
+     mkNote('Уточнить год постройки — расхождение в документах', true),
+   ]},
+  {id:'oi-b',kind:'realty',letter:'Б',name:'Сарай',status:'Вспомогательное',eni:'147561681352',year:'1985',flags:{entered:false,matched:false},
+   areas:{tp:'18.20',pud:'',fact:'18.20',build:'18.60'},floors:1,floorList:[],
+   heights:{ext:'',int:''},buildType:'Отдельностоящее',
+   struct:{foundation:'Бетонный',wallsExt:'Шлакоблок',ceilings:'Деревянные балки',roof:'Шифер',floors:'Бетонные',windows:'Деревянные',doors:'Металлические'},
+   heating:['Печное'],heatingOther:'',comment:'',catClass:'Нежилое · офисное',dis:false,
+   premises:[],photos:{'Фасад':2},
+   notes:[ mkNote('Фото внутри помещений отсутствуют', false) ]},
+  {id:'oi-l',kind:'land',name:'Земельный участок',purpose:'Жилое',area:'640.00',eni:'147561681350',flags:{entered:true,matched:true},
+   docs:[{id:'ld1',type:'Гос. акт на землю',name:'Гос. акт №44/07',date:'03.02.2019'}],
+   notes:[mkNote('Границы участка на плане не совпадают с фактическими', false)]}
+];
+let DOCS=[
+  {id:'d1',type:'Техпаспорт',name:'Техпаспорт от 12.05.2020',date:'12.05.2020',pages:null},
+  {id:'d2',type:'ПУД',name:'ПУД №118',date:'12.05.2020',pages:null},
+  {id:'d3',type:'Гос. акт на землю',name:'Гос. акт №44/07',date:'03.02.2019',pages:null}
+];
+const state={view:'oc',tab:'general',openOi:null,expanded:{},viewer:null,viewerDoc:null,mechMode:'mono',mechKind:'МЕХ',heatOpen:false,letterEdit:false,mechDocs:[],accOpen:{},doneOpen:{},notesOpen:false,photoQuery:''};
+const VS={zoom:100,docs:{},photos:{},openTabs:{}};
+
+function ensureDocPages(d){ if(!d.pages) d.pages=Array.from({length:3},(_,i)=>({kind:i===0?'title':'skel'})); }
+function docListFor(scope){
+  if(scope==='oc') return DOCS;
+  if(scope==='mech-new') return state.mechDocs||[];
+  return ((OI.find(o=>o.id===scope)||{}).docs||[]);
+}
+function scopeLabel(sc){ return sc==='oc'?'ОЦ':(sc==='mech-new'?'Новый':'ОИ'); }
+function photoPages(oi){ const arr=[]; Object.keys(oi.photos||{}).forEach(cat=>{for(let i=0;i<oi.photos[cat];i++)arr.push({cat:cat,i:i})}); return arr; }
+function photoGroups(oi){ return Object.keys(oi.photos||{}).map(c=>({cat:c,items:Array.from({length:oi.photos[c]},(_,i)=>({cat:c,i:i}))})); }
+function autoCategory(oi){
+  if(oi.kind==='vehicle') return 'Движимое · ТС';
+  if(oi.kind==='mech') return 'Движимое · Механизм';
+  if(oi.kind==='office') return 'Движимое · Офисная техника';
+  if(oi.kind==='land') return 'Земельный участок';
+  return oi.catClass||'Гражданское';
+}
+function requiredFlags(oi){
+  const prod=(oi.catClass||'')==='Производственно-складское';
+  return {height:prod, walls:prod, buildType:!prod};
+}
+function oiVerbal(oi){const f=oi.flags||{}; if(f.entered&&f.matched)return{t:'сверен с осмотром',c:'pill-done'}; if(f.entered)return{t:'заполнен',c:'pill-pend'}; return{t:'не заполнено',c:'pill-gray'}}
+function buildFloors(oi){
+  const n=Math.max(1,oi.floors|0);
+  const he=oi.heights.ext||''; const hi=oi.heights.int||'';
+  const keep=oi.floorList||[];
+  const list=[];
+  const mk=(name,on,special)=>{
+    const ex=keep.find(f=>f.name===name&&!!f.special===special);
+    return ex || {name,on,special,area:'',hExt:special?'':he,hInt:special?'':hi};
+  };
+  for(let i=0;i<n;i++) list.push(mk('Этаж '+(i+1), true, false));
+  ['Подвал','Мансарда','Цоколь'].forEach(sp=>list.push(mk(sp,false,true)));
+  oi.floorList=list;
+  recalcFloors(oi);
+}
+function recalcFloors(oi){
+  const total=num(oi.areas.tp);
+  const manual=oi.floorList.filter(f=>!f.on);
+  const auto=oi.floorList.filter(f=>f.on);
+  const mSum=manual.reduce((s,f)=>s+num(f.area),0);
+  const rem=Math.max(0,total-mSum);
+  if(auto.length){
+    const base=Math.floor(rem/auto.length*100)/100; let acc=0;
+    auto.forEach((f,i)=>{const a=i===auto.length-1?round2(rem-acc):base; acc+=a; f.area=fmt(a);});
+  }
+}
+function floorsSum(oi){return (oi.floorList||[]).reduce((s,f)=>s+num(f.area),0)}
+OI.filter(o=>o.kind==='realty').forEach(buildFloors);
+
+function crumbsHTML(){
+  const home=`<span data-crumb="oc">Главная</span>`;
+  const list=`<span data-crumb="oc">Объекты оценки</span>`;
+  const obj=`<span data-crumb="oc">Объект ${esc(OC.eni)}</span>`;
+  if(state.view==='oc') return `${home}<span>/</span>${list}<span>/</span><b>${esc(OC.type)}</b>`;
+  if(state.view==='oi'){
+    const oi=OI.find(o=>o.id===state.openOi);
+    const t=oi?(oi.kind==='realty'?`Литера ${esc(oi.letter)} · ${esc(oi.name)}`:esc(oi.name)):'';
+    return `${home}<span>/</span>${list}<span>/</span>${obj}<span>/</span><b>${t}</b>`;
+  }
+  if(state.view==='ocform') return `${home}<span>/</span>${list}<span>/</span>${obj}<span>/</span><b>Редактирование ОЦ</b>`;
+  return `${home}<span>/</span>${list}<span>/</span>${obj}<span>/</span><b>Создание объекта</b>`;
+}
+function totalPendingNotes(){ return (OC.notes||[]).filter(n=>!n.done).length + OI.reduce((s,o)=>s+(o.notes||[]).filter(n=>!n.done).length,0); }
+function noteCounts(scope){ const notes=scope==='oc'?(OC.notes||[]):((OI.find(o=>o.id===scope)||{}).notes||[]); return {p:notes.filter(n=>!n.done).length, d:notes.filter(n=>n.done).length}; }
+
+function ctxPlate(){
+  if(state.view==='oi'){
+    const oi=OI.find(o=>o.id===state.openOi);
+    if(oi){
+      const pend=(oi.notes||[]).filter(n=>!n.done).length;
+      const isR=oi.kind==='realty';
+      const v=oiVerbal(oi);
+      return `<div class="ctx-plate ctx-oi">
+        <span class="ctx-kind">ОЦ → ${isR?'литера':'ОИ'}</span>
+        <b>${isR?'Литера '+esc(oi.letter)+' · ':''}${esc(oi.name)}</b>
+        ${isR?`<span class="ctx-chip">${fmt(num(oi.areas.tp||0))} м² общая</span><span class="ctx-chip">этажей: ${oi.floors}</span><span class="ctx-chip ${v.c}">${v.t}</span>`:''}
+        <span class="ctx-chip ${pend?'':'ctx-ok'}">${pend?pend+' невып. заметок':'заметки выполнены'}</span>
+        <span class="ctx-back-hint">возврат — «К объекту оценки»</span>
+      </div>`;
+    }
+  }
+  if(state.view==='ocform') return `<div class="ctx-plate ctx-form"><span class="ctx-kind">Редактирование</span><b>ОЦ · ${esc(OC.type)}</b><span class="ctx-chip">${esc(OC.address)}</span><span class="ctx-chip">${esc(OC.status)}</span></div>`;
+  if(state.view==='mech') return `<div class="ctx-plate ctx-form"><span class="ctx-kind">Создание</span><b>${state.mechKind==='МЕХ'?'Механизм':'Офисная техника'}</b><span class="ctx-chip">${state.mechMode==='mono'?'монолит':'комплекс'}</span></div>`;
+  return null; /* на главной ОЦ плашка не нужна */
+}
+function updateCtxPlate(){const w=$('#ctxPlateWrap'); if(w){const h=ctxPlate(); w.innerHTML=h||''; w.style.display=h?'':'none';}}
+
+function render(){
+  const c=$('#content');
+  let body='';
+  if(state.view==='oc') body=viewOC();
+  else if(state.view==='oi') body=viewOI();
+  else if(state.view==='ocform') body=viewOCForm();
+  else body=viewMech();
+  $('#crumbs').innerHTML=crumbsHTML();
+  const plate=ctxPlate();
+  c.innerHTML=`<div id="ctxPlateWrap" style="${plate?'':'display:none'}">${plate||''}</div>`+body;
+  syncDrawer();
+  bind();
+}
+function syncDrawer(){
+  const dr=$('#notesDrawer');
+  const show=(state.view==='oc'&&state.tab==='general')||state.view==='oi';
+  if(show){
+    dr.classList.remove('hidden');
+    dr.classList.toggle('open',state.notesOpen);
+    $('#drawerNotes').innerHTML=drawerNotesHTML();
+    const c=$('#drawerCount'); if(c){const tp=totalPendingNotes(); c.textContent=tp; c.className='pill-mini '+(tp?'pill-pend':'pill-done');}
+  } else dr.classList.add('hidden');
+}
+
+/* ============ Просмотрщик ============ */
+function docPageHTML(d,n){
+  if(n===1||d.pages[n-1].kind==='title')
+    return `<div class="pp-h">${esc(d.type)}</div><div class="pp-sub">${esc(d.name)} · страница 1</div>
+      <div class="sk-h"></div>${[100,94,97,88].map(w=>`<div class="sk-line" style="width:${w}%"></div>`).join('')}
+      <table class="sk-table"><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></table>
+      <div class="sk-h" style="width:30%"></div>${[96,90].map(w=>`<div class="sk-line" style="width:${w}%"></div>`).join('')}`;
+  return `<div class="pp-sub" style="margin-top:0">${esc(d.name)} · страница ${n}</div>
+    <div class="sk-h"></div>${[100,92,96,85,93,60].map(w=>`<div class="sk-line" style="width:${w}%"></div>`).join('')}
+    ${n%2===0?`<table class="sk-table"><tr><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td></tr></table>`:''}
+    <div class="sk-h" style="width:34%"></div>${[95,88].map(w=>`<div class="sk-line" style="width:${w}%"></div>`).join('')}`;
+}
+function openTabOnly(scope,id){ VS.openTabs[scope]=VS.openTabs[scope]||[]; if(!VS.openTabs[scope].includes(id)) VS.openTabs[scope].push(id); }
+function openDocViewer(scope,id){
+  if(!id) return;
+  openTabOnly(scope,id);
+  state.viewerDoc={scope,id};
+  state.viewer={mode:(state.viewer&&state.viewer.mode==='compare')?'compare':'doc'};
+  render();
+}
+function openPhotoViewer(oiId,pageIdx){
+  VS.photos[oiId]=VS.photos[oiId]||{page:1,rot:0,scroll:0};
+  if(pageIdx) VS.photos[oiId].page=pageIdx;
+  state.openOi=oiId; state.letterEdit=false; state.view='oi';
+  state.viewer={mode:'photo'};
+  render();
+}
+function openPhotoInPlace(oiId,idx){
+  VS.photos[oiId]=VS.photos[oiId]||{page:1,rot:0,scroll:0};
+  if(idx) VS.photos[oiId].page=idx;
+  state.openOi=oiId;
+  state.viewer={mode:'photo'};
+  render();
+}
+function vSt(){
+  const v=state.viewer; if(!v) return null;
+  if(v.mode==='doc'||v.mode==='compare'){
+    const d=state.viewerDoc? docListFor(state.viewerDoc.scope).find(x=>x.id===state.viewerDoc.id):null;
+    return d? (VS.docs[d.id]||(VS.docs[d.id]={page:1,rot:0,scroll:0})):null;
+  }
+  return VS.photos[state.openOi]||(VS.photos[state.openOi]={page:1,rot:0,scroll:0});
+}
+function vPages(){
+  const v=state.viewer; if(!v) return [];
+  if(v.mode==='doc'||v.mode==='compare'){
+    const d=state.viewerDoc? docListFor(state.viewerDoc.scope).find(x=>x.id===state.viewerDoc.id):null;
+    return d? d.pages:[];
+  }
+  return photoPages(OI.find(o=>o.id===state.openOi));
+}
+function vGo(n){
+  const st=vSt(); if(!st) return; const pages=vPages();
+  st.page=Math.min(pages.length,Math.max(1,n));
+  const blk=document.querySelector(`[data-vpageblk="${st.page}"]`); const vs=document.querySelector('[data-vstage]');
+  if(blk&&vs){ const r=blk.getBoundingClientRect(), s=vs.getBoundingClientRect(); vs.scrollTo({top:vs.scrollTop+(r.top-s.top)-10,behavior:'smooth'}); }
+  else render();
+}
+function setVZoom(z){
+  VS.zoom=Math.min(220,Math.max(40,z));
+  const r=document.querySelector('[data-vribbon]'); if(r)r.style.zoom=String(VS.zoom/100);
+  const c=document.querySelector('[data-cmp]'); if(c)c.style.zoom=String(VS.zoom/100);
+  const l=document.querySelector('[data-zoomlabel]'); if(l)l.textContent=VS.zoom+'%';
+}
+function viewerHTML(){
+  if(!state.viewer) return '';
+  const mode=state.viewer.mode;
+  const inOi=state.view==='oi';
+  const oi=inOi?OI.find(o=>o.id===state.openOi):null;
+  const scopes=inOi?((oi&&(oi.docs||[]).length?[oi.id,'oc']:(DOCS.length?['oc']:[]))):(state.view==='mech'?['mech-new']:['oc']);
+  if(mode!=='photo'){
+    let vd=state.viewerDoc;
+    const all=[]; scopes.forEach(sc=>{(VS.openTabs[sc]||[]).forEach(id=>all.push({scope:sc,id}))});
+    if(!vd||!all.some(x=>x.scope===vd.scope&&x.id===vd.id)){
+      if(all.length) vd=all[all.length-1]; else vd=null;
+      state.viewerDoc=vd;
+    }
+  }
+  const vd=state.viewerDoc;
+  const d= vd? docListFor(vd.scope).find(x=>x.id===vd.id):null;
+  if(d) ensureDocPages(d);
+  const dSt= d? (VS.docs[d.id]||(VS.docs[d.id]={page:1,rot:0,scroll:0})):null;
+  const pages= oi? photoPages(oi):[];
+  const groups= oi? photoGroups(oi):[];
+  const pSt= oi? (VS.photos[oi.id]||(VS.photos[oi.id]={page:1,rot:0,scroll:0})):null;
+  const curPhoto= pages[pSt?Math.min(pSt.page,pages.length)-1:0];
+  const modeBar=inOi?`<div class="vmode">
+    <button class="vmode-btn ${mode==='photo'?'active':''}" data-vmode="photo">Фото · ${pages.length}</button>
+    <button class="vmode-btn ${mode==='doc'?'active':''}" data-vmode="doc">Документы</button>
+    <button class="vmode-btn ${mode==='compare'?'active':''}" data-vmode="compare">Сравнение</button>
+  </div>`:'';
+  let tabsBar=''; let toolbar=''; let body='';
+  if(mode==='photo'){
+    toolbar=`<div class="vtoolbar">
+      <div class="tool-group"><button class="tool-btn" data-vprev>‹</button>
+        <input class="page-input" data-vpage value="${Math.min(pSt.page,pages.length||1)}"><span class="muted">/ ${pages.length}</span>
+        <button class="tool-btn" data-vnext>›</button></div>
+      <div class="tool-group"><select class="select vcat" data-vjump>
+        <option value="">К категории…</option>
+        ${groups.map(g=>`<option value="${esc(g.cat)}">${esc(g.cat)} · ${g.items.length}</option>`).join('')}
+      </select></div>
+      <div class="tool-group"><button class="tool-btn" data-vrot>⟳</button></div>
+      <div class="tool-group"><button class="tool-btn" data-vzoom->−</button><span class="zoom-label" data-zoomlabel>${VS.zoom}%</span><button class="tool-btn" data-vzoom+>+</button></div>
+      <div class="tool-group right"><span class="vtitle">Фото · ${esc(curPhoto?curPhoto.cat:'—')}</span><button class="tool-btn" data-vclose>×</button></div>
+    </div>`;
+    let gi=0;
+    const ribbon=groups.map(g=>{
+      const inner=g.items.map(it=>{gi++;
+        return `<div class="vpage-wrap" data-vpageblk="${gi}"><div class="vpage photo-page" data-vpageinner style="transform:rotate(${pSt.rot}deg)">
+          <div class="photo-fill">${esc(it.cat)} · фото ${it.i+1}</div></div></div>`;}).join('');
+      return `<div class="vgroup-h">${esc(g.cat)} · ${g.items.length}</div>${inner}`;
+    }).join('')||'<div class="vpage photo-page"><div class="photo-fill">Фото не загружены</div></div>';
+    const rail=groups.map(g=>`<div class="rail-cat">${esc(g.cat)}</div>`+g.items.map(it=>{
+      const idx=pages.findIndex(p=>p.cat===it.cat&&p.i===it.i)+1;
+      return `<div class="vthumb pho ${idx===pSt.page?'active':''}" data-vthumb="${idx}" title="${esc(it.cat)} ${it.i+1}"><span class="vthumb-num">${idx}</span></div>`;
+    }).join('')).join('');
+    body=`<div class="vbody"><div class="vrail"><div class="vrail-list">${rail}</div></div>
+      <div class="vstage" data-vstage><div class="vribbon" data-vribbon>${ribbon}</div></div></div>`;
+  } else if(mode==='doc'){
+    if(!d){
+      toolbar=`<div class="vtoolbar"><div class="tool-group right"><span class="vtitle">Документы</span><button class="tool-btn" data-vclose>×</button></div></div>`;
+      body=`<div class="vempty"><div class="vempty-box">Нет прикреплённых документов</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`;
+    } else {
+      const all=[]; scopes.forEach(sc=>{(VS.openTabs[sc]||[]).forEach(id=>{const t=docListFor(sc).find(x=>x.id===id); if(t)all.push({sc,t})})});
+      const remaining=[]; scopes.forEach(sc=>{docListFor(sc).forEach(t=>{ if(!(VS.openTabs[sc]||[]).includes(t.id)) remaining.push({sc,t}); })});
+      tabsBar=`<div class="vtabs">
+        ${all.map(x=>`<button class="vtab ${vd&&vd.scope===x.sc&&vd.id===x.t.id?'active':''}" data-vtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)}${all.length>1?`<span data-vtabclose="${x.sc}|${x.t.id}">×</span>`:''}</button>`).join('')}
+        ${remaining.length?`<div class="dd"><button class="btn btn-ghost btn-sm" data-dd-toggle style="margin:0 0 4px 4px">+ документ</button>
+          <div class="dd-menu">${remaining.map(x=>`<button data-vaddtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)} · ${esc(x.t.name)}</button>`).join('')}</div></div>`:''}
+      </div>`;
+      toolbar=`<div class="vtoolbar">
+        <div class="tool-group"><button class="tool-btn" data-vprev>‹</button>
+          <input class="page-input" data-vpage value="${dSt.page}"><span class="muted">/ ${d.pages.length}</span>
+          <button class="tool-btn" data-vnext>›</button></div>
+        <div class="tool-group"><button class="tool-btn" data-vrot>⟳</button></div>
+        <div class="tool-group"><button class="tool-btn" data-vzoom->−</button><span class="zoom-label" data-zoomlabel>${VS.zoom}%</span><button class="tool-btn" data-vzoom+>+</button></div>
+        <div class="tool-group right"><span class="vtitle">${esc(d.type)} · ${esc(d.name)}</span><button class="tool-btn" data-vclose>×</button></div>
+      </div>`;
+      body=`<div class="vbody"><div class="vrail"><div class="vrail-list">
+        ${d.pages.map((p,i)=>`<div class="vthumb doc ${i+1===dSt.page?'active':''}" data-vthumb="${i+1}" title="Страница ${i+1}">
+          <button class="vthumb-del" data-vdelpage="${i+1}">×</button><span class="vthumb-num">${i+1}</span></div>`).join('')}
+        </div><button class="btn btn-ghost btn-sm" data-vaddpage style="margin:6px">+ Страница</button></div>
+        <div class="vstage" data-vstage><div class="vribbon" data-vribbon>
+          ${d.pages.map((p,i)=>`<div class="vpage-wrap" data-vpageblk="${i+1}"><div class="vpage" data-vpageinner style="transform:rotate(${dSt.rot}deg)">${docPageHTML(d,i+1)}</div></div>`).join('')}
+        </div></div></div>`;
+    }
+  } else {
+    toolbar=`<div class="vtoolbar">
+      <div class="tool-group"><button class="tool-btn" data-cmp-ph-prev>‹</button><span class="muted">фото</span>
+        <button class="tool-btn" data-cmp-ph-next>›</button></div>
+      <div class="tool-group"><button class="tool-btn" data-cmp-dc-prev>‹</button><span class="muted">документ</span>
+        <button class="tool-btn" data-cmp-dc-next>›</button></div>
+      <div class="tool-group"><button class="tool-btn" data-vzoom->−</button><span class="zoom-label" data-zoomlabel>${VS.zoom}%</span><button class="tool-btn" data-vzoom+>+</button></div>
+      <div class="tool-group right"><span class="vtitle">Фото + документ рядом</span><button class="tool-btn" data-vclose>×</button></div>
+    </div>`;
+    body=`<div class="cmp" data-cmp>
+      <div class="cmp-col"><div class="cmp-h">ФОТО · ${esc(curPhoto?curPhoto.cat:'—')} ${pSt?Math.min(pSt.page,pages.length||1):0}/${pages.length}</div>
+        <div class="cmp-body">${curPhoto?`<div class="vpage photo-page"><div class="photo-fill">${esc(curPhoto.cat)} · фото ${curPhoto.i+1}</div></div>`:'<div class="muted">Нет фото</div>'}</div></div>
+      <div class="cmp-col"><div class="cmp-h">${d?esc(d.type):'Нет документа'} ${dSt?dSt.page+'/'+d.pages.length:''}</div>
+        <div class="cmp-body">${d?`<div class="vpage">${docPageHTML(d,dSt.page)}</div>`:'<div class="muted">Откройте документ во вкладке «Документы»</div>'}</div></div>
+    </div>`;
+  }
+  return `<div class="viewer">${modeBar}${tabsBar}${toolbar}${body}</div>`;
+}
+function splitWrap(viewerInner, growInner){
+  if(!viewerInner) return `<div class="split" style="--vw:0%"><div class="grow" style="padding-left:0">${growInner}</div></div>`;
+  return `<div class="split">${viewerInner}<div class="vsplit" data-vsplit title="Потяните, чтобы изменить соотношение"></div><div class="grow">${growInner}</div></div>`;
+}
+
+/* ============ Заметки ============ */
+function noteRowHTML(scope,n){
+  return `<div class="note-row ${n.done?'done':''}">
+    <input type="checkbox" data-note-check="${scope}|${n.id}" ${n.done?'checked':''} title="${n.done?'Снять отметку — вернуть в работу':'Отметить выполненной'}">
+    <input class="note-input" data-note-edit="${scope}|${n.id}" value="${esc(n.text)}" placeholder="${NOTE_DEFAULT}" title="Введите текст; если оставить пустым — «${NOTE_DEFAULT}»">
+    <span class="note-del" data-note-del="${scope}|${n.id}" title="Удалить">×</span>
+  </div>`;
+}
+function notesGroupAcc(scope,label,notes,opts={}){
+  const list=notes||[];
+  const {p,d}=noteCounts(scope);
+  const open = opts.open!==undefined ? opts.open : state.accOpen['grp|'+scope]===true;
+  const doneOpen=!!state.doneOpen[scope];
+  return `<div class="acc ${open?'open':''}">
+    <div class="acc-head" data-acc-toggle="grp|${scope}"><span class="chev">▾</span>${label}
+      <span class="pill-mini ${p?'pill-pend':'pill-done'}" data-notecount-pend="${scope}">${p} невып.</span>
+      ${d?`<span class="pill-mini pill-done" data-notecount-done="${scope}">${d} вып.</span>`:''}
+      <button class="btn btn-ghost btn-sm" data-note-add="${scope}" style="margin-left:auto">+ Заметка</button>
+    </div>
+    <div class="acc-body">
+      <div class="notes-list">${list.filter(n=>!n.done).map(n=>noteRowHTML(scope,n)).join('')||`<div class="note-empty">${opts.emptyPending||'Невыполненных заметок нет.'}</div>`}</div>
+      ${d?`
+        <button class="done-toggle ${doneOpen?'open':''}" data-done-toggle="${scope}" title="Показать/скрыть выполненные; отметку можно снять">
+          <span class="chev">▸</span> Выполненные <span class="pill-mini pill-done">${d}</span>
+        </button>
+        <div class="done-list" ${doneOpen?'':'hidden'}>
+          <div class="notes-list">${list.filter(n=>n.done).map(n=>noteRowHTML(scope,n)).join('')}</div>
+        </div>`:''}
+    </div>
+  </div>`;
+}
+function drawerNotesHTML(){
+  const groups=[{scope:'oc',label:'ОЦ',notes:OC.notes||[]},...OI.map(o=>({scope:o.id,label:oiLabel(o),notes:o.notes||[]}))];
+  return `<div class="drawer-head">Заметки по объекту</div>` +
+    groups.map(g=>`<div class="nb-group">${notesGroupAcc(g.scope,g.label,g.notes)}</div>`).join('');
+}
+function addNote(scope){
+  let target;
+  if(scope==='oc'){ target=(OC.notes=OC.notes||[]); }
+  else { const oi=OI.find(o=>o.id===scope); if(!oi)return; target=(oi.notes=oi.notes||[]); }
+  const n=mkNote('',false);
+  target.push(n);
+  state.accOpen['grp|'+scope]=true;
+  refreshNotesRegion();
+  const inp=document.querySelector(`[data-note-edit="${scope}|${n.id}"]`);
+  if(inp) inp.focus();
+}
+function removeNote(scope,id){
+  if(scope==='oc'){ OC.notes=(OC.notes||[]).filter(n=>n.id!==id); }
+  else{ const oi=OI.find(o=>o.id===scope); if(oi) oi.notes=(oi.notes||[]).filter(n=>n.id!==id); }
+  refreshNotesRegion(); toast('Заметка удалена');
+}
+function toggleDoneList(btn){
+  const scope=btn.dataset.doneToggle;
+  state.doneOpen=state.doneOpen||{};
+  state.doneOpen[scope]=!state.doneOpen[scope];
+  const list=btn.nextElementSibling;
+  if(list&&list.classList.contains('done-list')) list.hidden=!state.doneOpen[scope];
+  btn.classList.toggle('open',!!state.doneOpen[scope]);
+}
+function refreshNotesRegion(){
+  syncDrawer();
+  updateCtxPlate();
+}
+
+/* ============ Поиск фото ============ */
+function extractLetterRef(qn){
+  let m=qn.match(/лит(?:ера)?\s*([а-яa-z])/);
+  if(m) return {letter:m[1].toUpperCase(), rest:qn.replace(m[0],' ')};
+  const tokens=qn.split(/\s+/).filter(Boolean);
+  const lt=tokens.find(t=>t.length===1 && LETTER_SEQ.includes(t.toUpperCase()));
+  if(lt) return {letter:lt.toUpperCase(), rest:tokens.filter(t=>t!==lt).join(' ')};
+  return null;
+}
+function photoMatches(oi,cat,idx,q){
+  if(!q||!q.trim()) return true;
+  const qn=norm(q);
+  const ref=extractLetterRef(qn);
+  if(ref && ref.letter!==oi.letter.toUpperCase()) return false;
+  const rest=ref?ref.rest:qn;
+  const words=rest.split(/\s+/).filter(w=>w.length>2);
+  if(!words.length) return true;
+  const hay=norm(`${oi.letter} ${oi.name} ${cat} фото`);
+  return words.some(w=>hay.includes(w));
+}
+function photoSectionsHTML(){
+  const q=state.photoQuery||'';
+  const letters=OI.filter(o=>o.kind==='realty');
+  const sections=letters.map(oi=>{
+    const pages=photoPages(oi).map((p,i)=>({cat:p.cat,i:p.i,idx:i})).filter(p=>photoMatches(oi,p.cat,p.idx,q));
+    if(!pages.length) return '';
+    return `<div class="photo-sec">
+      <div class="photo-sec-h">Литера ${esc(oi.letter)} · ${esc(oi.name)} <span class="tag-mini">${pages.length}</span></div>
+      <div class="tile-grid">${pages.map(p=>`<div class="tile" data-tile-photo="${oi.id}|${p.idx}" title="${esc(p.cat)} · фото ${p.i+1}">
+        <div class="tile-img">${esc(p.cat)}</div>
+        <div class="tile-cap">${esc(p.cat)} · фото ${p.i+1}</div>
+      </div>`).join('')}</div>
+    </div>`;
+  }).join('');
+  return sections||`<div class="note-empty">Ничего не найдено по запросу «${esc(q)}».</div>`;
+}
+function photosTab(){
+  return splitWrap(
+    (state.viewer&&state.viewer.mode==='photo')?viewerHTML():null,
+    `<div class="card t-blue">
+      <div class="card-head"><span class="card-idx">03</span><h3>Фото по литерам</h3><span class="hint">крупные плитки; поиск по литере и названию</span>
+        <input class="input" id="photoSearch" style="margin-left:auto;max-width:340px" placeholder="Напр.: Лит А фасад" value="${esc(state.photoQuery||'')}">
+      </div>
+      <div class="card-pad" id="photoSections">${photoSectionsHTML()}</div>
+    </div>`);
+}
+
+/* ============ ОЦ ============ */
+function headOC(){
+  return `<div class="card card-pad t-blue">
+    <div class="head-meta">
+      <span class="pill pill-cat">${esc(OC.category)}</span>
+      <div class="hm"><label>Тип ОЦ</label><b>${esc(OC.type)}</b></div>
+      <div class="hm"><label>Назначение по ТП</label><b>${esc(OC.purposeTP)}</b></div>
+      <div class="hm"><label>Код ЕНИ</label><b>${esc(OC.eni)}</b></div>
+      <div class="hm"><label>Адрес</label><b>${esc(OC.address)}</b></div>
+      <span class="pill pill-status" style="margin-left:auto"><span class="dot"></span>${esc(OC.status)}</span>
+      <div class="dd" id="ddAddOi">
+        <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ</button>
+        <div class="dd-menu">
+          <div class="dd-group">Недвижимость</div>
+          ${REALTY_TYPES.map(t=>`<button data-add-oi="${esc(t)}">${esc(t)}</button>`).join('')}
+          ${OC.complex?`<div class="dd-group">Движимое имущество</div>
+            <button data-add-oi="МЕХ">Механизмы и производственное оборудование</button>
+            <button data-add-oi="ОФИС">Офисная техника и мебель</button>`:''}
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
+      <button class="btn btn-danger" id="btnDelOc">Удалить</button>
+    </div>
+  </div>`;
+}
+function miniThumbs(oi){
+  const pages=photoPages(oi);
+  if(!pages.length) return '<span class="muted">—</span>';
+  return `<div class="inline-row" style="gap:4px">${pages.slice(0,3).map(p=>`<div class="ph-mini" data-open-photo="${oi.id}|${p.cat}:${p.i}" title="${esc(p.cat)} ${p.i+1}"></div>`).join('')}<span class="tag-mini">${pages.length}</span></div>`;
+}
+function photoAccordions(oi,withAdd){
+  const cats=Object.keys(oi.photos||{});
+  if(!cats.length) return '<span class="muted">Фото не загружены</span>';
+  return cats.map((cat,ci)=>{
+    const key='ph|'+oi.id+'|'+cat;
+    const isOpen=state.accOpen[key]===true;
+    return `<div class="acc ${isOpen?'open':''}">
+      <div class="acc-head" data-acc-toggle="${key}"><span class="chev">▾</span>${esc(cat)}<span class="muted" style="font-weight:400">${oi.photos[cat]} фото</span></div>
+      <div class="acc-body"><div class="ph-row">
+        ${Array.from({length:oi.photos[cat]},(_,i)=>`<div class="ph" data-open-photo="${oi.id}|${esc(cat)}:${i}">${esc(cat)} ${i+1}</div>`).join('')}
+        ${withAdd?`<button class="btn btn-ghost btn-sm" data-add-photo="${esc(cat)}">+ Загрузить</button>`:''}
+      </div></div>
+    </div>`;
+  }).join('');
+}
+function oiAccordion(oi){
+  return `<div style="padding:4px 2px">
+    <div class="acc-inner">
+      <div class="sec-h">Основные параметры</div>
+      <div class="params-grid">
+        <div class="grid g-4">
+          <div class="field"><label>Общая площадь (ТП)</label><b>${esc(oi.areas&&oi.areas.tp?oi.areas.tp:'—')} м²</b></div>
+          <div class="field"><label>Этажей</label><b>${oi.floors||'—'}</b></div>
+          <div class="field"><label>Тип строения</label><b>${esc(oi.buildType||'—')}</b></div>
+          <div class="field"><label>Категория/класс</label><b>${esc(autoCategory(oi))}</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="acc-inner">
+      <div class="sec-h">Фотографии по категориям</div>
+      ${photoAccordions(oi,true)}
+    </div>
+  </div>`;
+}
+function tableOI(){
+  const rows=OI.filter(o=>o.kind!=='land');
+  const land=OI.find(o=>o.kind==='land');
+  return `<div class="card t-blue" style="margin-top:12px">
+    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Перечень ОИ</h3><span class="hint">клик по строке — карточка; шеврон — аккордеон</span>
+      <button class="btn btn-primary btn-sm" data-add-letter style="margin-left:auto">+ Добавить литеру</button><span class="chev">▾</span></div>
+    <div class="card-body-wrap">
+    <table class="tbl">
+      <colgroup><col style="width:86px"><col><col style="width:150px"><col style="width:110px"><col style="width:100px"><col style="width:130px"><col style="width:100px"><col style="width:120px"></colgroup>
+      <thead><tr><th>Литера</th><th>Наименование</th><th>Категория</th><th>Статус</th><th>Общая площадь</th><th>Код ЕНИ</th><th>Фото</th><th>Действия</th></tr></thead>
+      <tbody>
+      ${rows.map(o=>{
+        const isR=o.kind==='realty';
+        const expanded=!!state.expanded[o.id];
+        const chev=isR?`<button class="chev-btn ${expanded?'open':''}" title="Показать/скрыть фото">▸</button>`:'';
+        const lit=isR?`${chev}${esc(o.letter)}`:`<span class="tag-mini">${o.kind==='vehicle'?'ТС':o.kind==='office'?'Офис. техника':'Механизм'}</span>`;
+        const area=isR?(o.areas&&o.areas.tp?fmt(num(o.areas.tp))+' м²':'—'):'—';
+        return `<tr class="rowlink" data-open-oi="${o.id}" ${isR?`data-acc-id="${o.id}"`:''} title="Клик по строке — карточка; по литере — аккордеон">
+          <td ${isR?'data-acc-cell':''}>${lit}</td><td>${esc(o.name)}</td><td class="ell">${esc(autoCategory(o))}</td><td>${esc(o.status||'—')}</td><td>${area}</td>
+          <td style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${esc(o.eni)}</td>
+          <td>${isR?miniThumbs(o):'<span class="muted">—</span>'}</td>
+          <td><div class="row-actions">
+            <button class="btn btn-ghost btn-sm" data-open-oi="${o.id}">Открыть</button>
+            ${isR?`<button class="btn btn-danger btn-sm" data-del-oi="${o.id}" title="Удалить литеру">×</button>`:''}
+          </div></td>
+        </tr>
+        ${isR&&expanded?`<tr class="acc-row" data-accrow="${o.id}"><td colspan="8">${oiAccordion(o)}</td></tr>`:''}`;
+      }).join('')}
+      </tbody>
+    </table>
+    <div class="card-pad" style="border-top:1px solid var(--line-soft);padding-top:8px">
+      <div class="sec-h teal" style="margin:0 0 6px">Земельный участок</div>
+      ${land?`<table class="tbl"><colgroup><col><col style="width:120px"><col style="width:150px"><col style="width:150px"></colgroup><thead><tr><th>Назначение</th><th>Площадь</th><th>ЕНИ</th><th>Действия</th></tr></thead>
+        <tbody><tr class="clickable" data-open-oi="${land.id}" title="Открыть карточку участка">
+          <td>${esc(land.purpose)}</td><td>${fmt(num(land.area))} м²</td>
+          <td style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${esc(land.eni)}</td>
+          <td><div class="row-actions"><span class="rowchev-open">›</span></div></td>
+        </tr></tbody></table>
+        <div class="muted" style="font-size:10.5px;margin-top:6px">Строка справочная: редактирование и документы — в карточке участка.</div>`
+      :'<span class="muted">Не добавлен. Добавление — только через «Добавить ОИ/ОЦ».</span>'}
+    </div>
+    </div>
+  </div>`;
+}
+function ownersUsersHTML(){
+  return `<div class="grid g-2">
+    <div class="field"><label>Собственники</label>
+      <div class="inline-row">${OC.owners.map((o,i)=>`<span class="ms-tag">${esc(o)}<span data-owner-rm="${i}" title="Убрать">×</span></span>`).join('')||'<span class="muted">не указаны</span>'}
+      <button class="btn btn-ghost btn-sm" data-add-party="owner">+ Добавить</button></div></div>
+    <div class="field"><label>Пользователь</label>
+      <div class="inline-row">${OC.users.map((o,i)=>`<span class="ms-tag">${esc(o)}<span data-user-rm="${i}" title="Убрать">×</span></span>`).join('')||'<span class="muted">не указан</span>'}
+      <button class="btn btn-ghost btn-sm" data-add-party="user">+ Добавить</button></div></div>
+  </div>`;
+}
+function responsiblesHTML(){
+  const personSelect=(key,label)=>`<div class="field"><label>${label}</label>
+    <select class="select" data-resp="${key}">${PEOPLE.map(p=>`<option ${p===OC.resp[key]?'selected':''}>${esc(p)}</option>`).join('')}</select></div>`;
+  return `<div class="grid g-4">
+    ${personSelect('gov','Ответственный от гос. учреждения')}
+    ${personSelect('cod','Оператор ЦОД')}
+    ${personSelect('appr','Оценщик')}
+    ${personSelect('insp','Осмотрщик')}
+  </div>`;
+}
+function oiLabel(o){
+  if(o.kind==='realty') return `Лит ${esc(o.letter)} · ${esc(o.name)}`;
+  if(o.kind==='land') return 'Земельный участок';
+  if(o.kind==='vehicle') return `ТС · ${esc(o.name)}`;
+  if(o.kind==='mech') return `Механизм · ${esc(o.name)}`;
+  if(o.kind==='office') return `Офис. техника · ${esc(o.name)}`;
+  return esc(o.name);
+}
+function partiesOC(){
+  return `<div class="card t-slate" style="margin-top:12px">
+    <div class="card-head" data-card-toggle><span class="card-idx">01</span><h3>Учреждение, собственники и ответственные</h3><span class="hint">редактируется в форме ОЦ</span><span class="chev">▾</span></div>
+    <div class="card-body-wrap"><div class="card-pad">
+      <div class="grid g-4">
+        <div class="field"><label>Учреждение</label><b>${esc(OC.institution)}</b></div>
+        <div class="field"><label>Подвед</label><b>${esc(OC.podved)}</b></div>
+        <div class="field"><label>Собственники</label>
+          <div class="inline-row">${OC.owners.map((o,i)=>`<span class="ms-tag">${esc(o)}<span data-owner-rm="${i}" title="Убрать">×</span></span>`).join('')||'<span class="muted">не указаны</span>'}
+          <button class="btn btn-ghost btn-sm" data-add-party="owner">+ Добавить</button></div></div>
+        <div class="field"><label>Пользователь</label>
+          <div class="inline-row">${OC.users.map((o,i)=>`<span class="ms-tag">${esc(o)}<span data-user-rm="${i}" title="Убрать">×</span></span>`).join('')||'<span class="muted">не указан</span>'}
+          <button class="btn btn-ghost btn-sm" data-add-party="user">+ Добавить</button></div></div>
+      </div>
+      <div class="sec-h">Ответственные (без юриста)</div>
+      ${responsiblesHTML()}
+    </div></div>
+  </div>`;
+}
+function docsTableHTML(withDel){
+  return `<table class="tbl">
+    <colgroup><col style="width:150px"><col><col style="width:90px"><col style="width:${withDel?60:40}px"></colgroup>
+    <thead><tr><th>Тип</th><th>Наименование</th><th>Дата</th><th></th></tr></thead>
+    <tbody>${DOCS.map(d=>`<tr class="clickable" data-open-doc="${d.id}" title="Открыть документ в просмотрщике">
+      <td><span class="tag-mini">${esc(d.type)}</span></td><td class="ell">${esc(d.name)}</td><td>${esc(d.date)}</td>
+      <td><div class="row-actions">${withDel?`<button class="btn btn-danger btn-sm" data-doc-del="${d.id}" title="Открепить документ">×</button>`:''}<span class="rowchev-open">›</span></div></td></tr>`).join('')}</tbody>
+  </table>`;
+}
+function docsTab(){
+  return splitWrap(
+    (state.viewer&&state.viewerDoc&&state.viewerDoc.scope==='oc')?viewerHTML():null,
+    `<div class="card t-slate">
+      <div class="card-head"><span class="card-idx">03</span><h3>Перечень документов</h3><span class="hint">клик по строке — просмотрщик</span>
+        <div class="dd" style="margin-left:auto">
+          <button class="btn btn-primary btn-sm" data-dd-toggle>+ Прикрепить документ</button>
+          <div class="dd-menu">${DOC_TYPES.map(t=>`<button data-attach="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+        </div>
+      </div>
+      ${docsTableHTML(true)}
+      <div class="muted" style="font-size:10.5px;padding:8px 14px 12px">Открытые документы накапливаются вкладками.</div>
+    </div>`);
+}
+function viewOC(){
+  return `${headOC()}
+  <div class="tabs">
+    <button class="tab ${state.tab==='general'?'active':''}" data-tab="general">Общие данные</button>
+    <button class="tab ${state.tab==='docs'?'active':''}" data-tab="docs">Документы ${DOCS.length}</button>
+    <button class="tab ${state.tab==='photo'?'active':''}" data-tab="photo">Фото</button>
+  </div>
+  ${state.tab==='general'?partiesOC()+tableOI():state.tab==='docs'?docsTab():photosTab()}`;
+}
+
+/* ============ ОИ ============ */
+function structField(key,label,opts,val,req){
+  const isOther=String(val).includes('Прочее');
+  return `<div class="field"><label>${label}${req?'<span class="req">*</span>':''}</label>
+    <select class="select" data-struct="${key}">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>
+    ${isOther?`<input class="input" placeholder="Укажите вручную" value="">`:''}
+  </div>`;
+}
+function heatingMS(oi){
+  return `<div class="field"><label>Отопление (мультивыбор)</label>
+    <div class="ms">
+      <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
+        ${oi.heating.length?oi.heating.map(h=>`<span class="ms-tag">${esc(h)}&nbsp;<span data-heat-rm="${esc(h)}" title="Убрать">×</span></span>`).join('')+'<span class="ms-add">+ выбрать</span>':'<span class="muted">не выбрано</span><span class="ms-add">+ выбрать</span>'}
+      </div>
+      <div class="ms-drop" ${state.heatOpen?'':'hidden'}>
+        ${HEATING.map(h=>`<label class="ms-opt"><input type="checkbox" data-heat-opt="${esc(h)}" ${oi.heating.includes(h)?'checked':''}>${esc(h)}</label>`).join('')}
+      </div>
+    </div>
+    ${oi.heating.includes('Прочее (ручной ввод)')?`<input class="input" data-heat-other placeholder="Укажите отопление вручную" value="${esc(oi.heatingOther)}" style="margin-top:5px">`:''}
+  </div>`;
+}
+function floorsBlock(oi){
+  const s=floorsSum(oi),t=num(oi.areas.tp);
+  const ok=Math.abs(s-t)<0.01;
+  const fkey='fl|'+oi.id;
+  const anyAuto=(oi.floorList||[]).some(f=>f.on);
+  const open=state.accOpen[fkey]===true||(state.accOpen[fkey]===undefined&&(oi.floors>1||anyAuto));
+  return `<div class="field" style="max-width:220px"><label>Количество этажей</label>
+    <input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>
+    <div class="acc ${open?'open':''}" style="margin-top:6px">
+      <div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка (включая подвал, мансарду, цоколь)
+        <span style="margin-left:auto" data-floor-sum class="${ok?'sum-ok':'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
+        <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
+      </div>
+      <div class="acc-body" style="padding:8px">
+        <table class="tbl"><thead><tr><th style="width:30px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
+        <tbody>${(oi.floorList||[]).map((f,i)=>`<tr>
+          <td><input type="checkbox" data-floor-on="${i}" ${f.on?'checked':''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
+          <td>${esc(f.name)}${f.special?' <span class="tag-mini">вручную</span>':''}</td>
+          <td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.special||f.on?'':'disabled'}></td>
+          <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
+          <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
+        </tr>`).join('')}</tbody></table>
+        <div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог − сумма ручных) поровну; снятый чекбокс = площадь вручную. Высоты по внешним и внутренним замерам — по каждому этажу.</div>
+      </div>
+    </div>`;
+}
+function realtyCards(oi){
+  const rq=requiredFlags(oi); const f=oi.flags||{};
+  return `<div class="oi-stack">
+  <div class="card t-blue" id="q-gen">
+    <div class="card-head" data-card-toggle><span class="card-idx">01</span><h3>Общие параметры</h3>
+      <span class="letter-badge">${esc(oi.letter)}</span>
+      <span class="hint">${esc(oi.name)}</span><span class="chev">▾</span></div>
+    <div class="card-body-wrap"><div class="card-pad">
+      <div class="inline-row" style="margin-bottom:10px">
+        ${state.letterEdit?`<input class="input" style="width:80px;text-align:center;font-weight:700" data-letter-input value="${esc(oi.letter)}"><button class="btn btn-primary btn-sm" data-letter-save>Сохранить</button><button class="btn btn-ghost btn-sm" data-letter-cancel>Отмена</button>`:`<button class="btn btn-ghost btn-sm" data-edit-letter title="Переименовать литеру">✎ Переименовать</button>`}
+        <input class="input" style="max-width:240px" data-oi-name value="${esc(oi.name)}">
+        <select class="select" style="max-width:150px" data-status>${DICT.statusBuild.map(o=>`<option ${o===oi.status?'selected':''}>${o}</option>`).join('')}</select>
+        <input class="eni-corner" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
+      </div>
+      <div class="inline-row" style="margin-bottom:10px">
+        <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered?'checked':''}> Введено</label>
+        <label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched?'checked':''}> Сопоставлено с фото</label>
+      </div>
+      <div class="grid g-3">
+        <div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year||'')}" inputmode="numeric"></div>
+        <div class="field"><label>Тип строения (ранее «Архитектура»)${rq.buildType?'<span class="req">*</span>':''}</label>
+          <select class="select" data-buildtype>${DICT.buildType.map(o=>`<option ${o===oi.buildType?'selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="field"><label>Категория ОИ (категория → класс)</label>
+          <select class="select" data-catclass ${oi.dis?'':'disabled'}>${CATCLASS.map(o=>`<option ${o===(oi.catClass||'Гражданское')?'selected':''}>${o}</option>`).join('')}</select>
+          <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis?'checked':''}> расхождение ТП и фото с осмотров</label>
+          <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="card t-blue" id="q-areas">
+    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
+    <div class="card-body-wrap"><div class="card-pad">
+      <div class="grid g-4">
+        <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(oi.areas.tp)}"></div>
+        <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(oi.areas.pud)}"></div>
+        <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(oi.areas.fact)}"></div>
+        <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(oi.areas.build)}"></div>
+      </div>
+      <div style="margin-top:10px">${floorsBlock(oi)}</div>
+      <div class="grid g-2" style="margin-top:10px">
+        <div class="field"><label>Высота по внешним замерам, м${rq.height?'<span class="req">*</span>':''}</label><input class="input" data-height="ext" value="${esc(oi.heights.ext)}"></div>
+        <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(oi.heights.int)}"></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="card t-teal" id="q-struct">
+    <div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
+    <div class="card-body-wrap"><div class="card-pad">
+      <div class="grid g-4">
+        ${structField('foundation','Фундамент',DICT.foundation,oi.struct.foundation)}
+        ${structField('wallsExt','Наружные стены',DICT.wallsExt,oi.struct.wallsExt,rq.walls)}
+        ${structField('ceilings','Перекрытия',DICT.ceilings,oi.struct.ceilings)}
+        ${structField('roof','Кровля',DICT.roof,oi.struct.roof)}
+      </div>
+      <div class="grid g-4" style="margin-top:8px">
+        ${structField('floors','Полы',DICT.floors,oi.struct.floors)}
+        ${structField('windows','Окна',DICT.windows,oi.struct.windows)}
+        ${structField('doors','Двери',DICT.doors,oi.struct.doors)}
+        ${heatingMS(oi)}
+      </div>
+      <div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment||'')}</textarea></div>
+    </div></div>
+  </div>
+  <div class="card t-slate" id="q-docs">
+    <div class="card-head" data-card-toggle><span class="card-idx">04</span><h3>Документы</h3><span class="chev">▾</span></div>
+    <div class="card-body-wrap"><div class="card-pad">
+      ${docsBlockInner(oi,oi.id)}
+    </div></div>
+  </div>
+  <div class="card t-blue" id="q-photo">
+    <div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3>
+      <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div>
+    <div class="card-body-wrap"><div class="card-pad">
+      ${photoAccordions(oi,true)}
+    </div></div>
+  </div>
+  </div>`;
+}
+function docsBlockInner(oi,scope){
+  return `<table class="tbl"><colgroup><col style="width:130px"><col><col style="width:90px"><col style="width:40px"></colgroup><thead><tr><th>Тип</th><th>Наименование</th><th>Дата</th><th></th></tr></thead>
+  <tbody>${(oi.docs||[]).map(d=>`<tr class="clickable" data-open-movdoc="${scope}|${d.id}" title="Открыть документ в просмотрщике">
+    <td><span class="tag-mini">${esc(d.type)}</span></td><td class="ell">${esc(d.name)}</td><td>${esc(d.date)}</td>
+    <td><span class="rowchev-open">›</span></td></tr>`).join('')||'<tr><td colspan="4" class="muted">Нет документов</td></tr>'}</tbody></table>
+  <button class="btn btn-ghost btn-sm" data-add-movdoc style="margin-top:6px">+ Добавить документ</button>`;
+}
+function movableCards(oi){
+  const isV=oi.kind==='vehicle'; const f=oi.flags||{};
+  return `<div class="oi-stack">
+  <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>${isV?'Данные ТС':oi.kind==='mech'?'Данные механизма':'Данные офисной техники'}</h3></div>
+    <div class="card-pad">
+    <div class="inline-row" style="margin-bottom:10px">
+      <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered?'checked':''}> Введено</label>
+      <label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched?'checked':''}> Сопоставлено с фото</label>
+    </div>
+    ${isV?`<div class="grid g-3">
+      <div class="field"><label>Марка</label><input class="input" data-mv-make value="${esc(oi.make)}"></div>
+      <div class="field"><label>Модель</label><input class="input" data-mv-model value="${esc(oi.model)}"></div>
+      <div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year)}"></div>
+      <div class="field"><label>VIN</label><input class="input" data-mv-vin value="${esc(oi.vin)}"></div>
+      <div class="field"><label>Гос. номер</label><input class="input" data-mv-plate value="${esc(oi.plate)}"></div>
+    </div>`:`<div class="grid g-3">
+      <div class="field"><label>Наименование</label><input class="input" data-mv-name value="${esc(oi.name)}"></div>
+      <div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year||'')}"></div>
+      <div class="field"><label>Заводской / инв. номер</label><input class="input" data-mv-serial value="${esc(oi.serial||'')}"></div>
+    </div>`}
+    </div></div>
+  <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi,oi.id)}</div></div>
+  </div>`;
+}
+function landCards(oi){
+  return `<div class="oi-stack">
+  <div class="card t-teal"><div class="card-head"><span class="card-idx">01</span><h3>Земельный участок (один ЕНИ)</h3></div>
+    <div class="card-pad"><div class="grid g-3">
+      <div class="field"><label>Назначение</label><input class="input" data-land-purpose value="${esc(oi.purpose)}"></div>
+      <div class="field"><label>Общая площадь, м²</label><input class="input" data-land-area value="${esc(oi.area)}"></div>
+      <div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
+    </div></div></div>
+  <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi,oi.id)}</div></div>
+  </div>`;
+}
+function viewOI(){
+  const oi=OI.find(o=>o.id===state.openOi); if(!oi) return viewOC();
+  const isR=oi.kind==='realty'; const f=oi.flags||{};
+  return `<div class="view-head">
+    <button class="back-btn" data-back>← К объекту оценки</button>
+    <span class="pill pill-gray">${isR?'Карточка ОИ (литера)':oi.kind==='land'?'Земельный участок':oi.kind==='vehicle'?'Транспортное средство':oi.kind==='office'?'Офисная техника':'Механизм'}</span>
+    ${isR?`<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered?'checked':''}> Введено</label><label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched?'checked':''}> Сопоставлено с фото</label>`:''}
+    ${isR?`<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>`:''}
+    <button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
+    <button class="btn btn-primary" data-save-oi>Сохранить</button>
+    <button class="btn btn-ghost" data-back>Отмена</button>
+  </div>
+  ${splitWrap(state.viewer?viewerHTML():null, (isR?realtyCards(oi):oi.kind==='land'?landCards(oi):movableCards(oi)))}`;
+}
+
+function viewOCForm(){
+  const mov=OC.category==='Движимое';
+  return `<div class="view-head">
+    <button class="back-btn" data-back>← К карточке объекта</button>
+    <span class="pill pill-gray">Редактирование ОЦ · ${esc(OC.eni)}</span>
+    <button class="btn btn-primary" id="btnSaveOc">Сохранить и вернуться</button>
+    <button class="btn btn-ghost" data-back>Отмена</button>
+  </div>
+  ${splitWrap((state.viewer&&state.viewerDoc&&state.viewerDoc.scope==='oc')?viewerHTML():null, `<div class="oi-stack">
+      <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>Основные параметры</h3></div>
+        <div class="card-pad">
+          <div class="grid g-3">
+            <div class="field"><label>Тип ОЦ</label><select class="select" id="fType">${['Жилое здание (дом)','Гражданское здание','Производственное строение','Прочее строение'].map(t=>`<option ${t===OC.type?'selected':''}>${t}</option>`).join('')}</select></div>
+            <div class="field"><label>Назначение по ТП</label><input class="input" id="fPurpose" value="${esc(OC.purposeTP)}"></div>
+            <div class="field"><label>Статус ОЦ</label><select class="select" id="fStatus">${DICT.statusOC.map(s=>`<option ${s===OC.status?'selected':''}>${s}</option>`).join('')}</select></div>
+          </div>
+          <div class="grid g-4" style="margin-top:10px">
+            <div class="field"><label>Категория ОЦ</label><select class="select" id="fCat">${['Недвижимое','Движимое','Имущественный комплекс'].map(c=>`<option ${c===OC.category?'selected':''}>${c}</option>`).join('')}</select></div>
+            <div class="field"><label>Код ЕНИ</label><input class="input" id="fEni" value="${esc(OC.eni)}"></div>
+            <div class="field"><label>Учреждение</label><input class="input" id="fInst" value="${esc(OC.institution)}"></div>
+            <div class="field"><label>Подвед</label><input class="input" id="fPodved" value="${esc(OC.podved)}"></div>
+          </div>
+          <div class="grid g-2" style="margin-top:10px">
+            <div class="field"><label>Адрес</label><input class="input" id="fAddr" value="${esc(OC.address)}"></div>
+            <div class="field"><label>GPS-координаты</label><input class="input" id="fGps" value="${esc(OC.gps)}"><span class="muted" style="font-size:10px">впоследствии заполняется автоматически</span></div>
+          </div>
+        </div></div>
+      <div class="card t-teal"><div class="card-head"><span class="card-idx">02</span><h3>Состав и тип имущества</h3></div>
+        <div class="card-pad">
+          ${mov?`<div class="grid g-3">
+            <div class="field"><label>Вид движимого</label><select class="select" id="fMovType">${['ТС','Механизмы и производственное оборудование','Офисная техника и мебель'].map(t=>`<option ${t===(OC.movType||'ТС')?'selected':''}>${t}</option>`).join('')}</select></div>
+            ${(OC.movType||'ТС')!=='ТС'?`<div class="field"><label>Состав</label>
+              <label class="inline-row" style="cursor:pointer"><input type="checkbox" id="fMovComplex" ${OC.movComplex?'checked':''}> Многосоставной объект (комплекс)</label></div>`:''}
+          </div>
+          <div class="grid g-3" style="margin-top:10px">
+            <div class="field"><label>Наименование</label><input class="input" id="fMovName" value="${esc(OC.movName||'')}"></div>
+            <div class="field"><label>Год</label><input class="input" id="fMovYear"></div>
+            <div class="field"><label>Заводской номер / VIN</label><input class="input" id="fMovSerial"></div>
+          </div>`
+          :`<label class="inline-row" style="cursor:pointer"><input type="checkbox" id="fComplex" ${OC.complex?'checked':''}> Имущественный комплекс — разрешить добавление ТС и механизмов в состав ОЦ</label>`}
+        </div></div>
+      <div class="card t-slate"><div class="card-head"><span class="card-idx">03</span><h3>Собственники, пользователи и ответственные</h3><span class="hint">без юриста</span></div>
+        <div class="card-pad">${ownersUsersHTML()}<div class="sec-h">Ответственные</div>${responsiblesHTML()}</div></div>
+      <div class="card t-slate"><div class="card-head"><span class="card-idx">04</span><h3>Документы ОЦ</h3><span class="hint">клик по строке — просмотрщик</span>
+        <div class="dd" style="margin-left:auto">
+          <button class="btn btn-primary btn-sm" data-dd-toggle>+ Прикрепить документ</button>
+          <div class="dd-menu">${DOC_TYPES.map(t=>`<button data-attach="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+        </div></div>
+        ${docsTableHTML(true)}</div>
+    </div>`)}`;
+}
+
+function viewMech(){
+  const isMech=state.mechKind==='МЕХ';
+  return `<div class="view-head"><button class="back-btn" data-back>← Отмена</button>
+    <span class="pill pill-gray">${isMech?'Механизмы и производственное оборудование':'Офисная техника и мебель'}</span></div>
+  ${splitWrap((state.viewer&&state.viewerDoc&&state.viewerDoc.scope==='mech-new')?viewerHTML():null, `<div class="card">
+      <div class="card-head"><h3>Создание объекта</h3>
+        <div class="inline-row" style="margin-left:auto">
+          <span class="qn" data-mech-mode="mono" style="${state.mechMode==='mono'?'border-color:var(--blue-600);color:var(--blue-700);background:var(--blue-100)':''}">Монолит (единичный)</span>
+          <span class="qn" data-mech-mode="complex" style="${state.mechMode==='complex'?'border-color:var(--blue-600);color:var(--blue-700);background:var(--blue-100)':''}">Комплекс (многосоставной)</span>
+        </div>
+      </div>
+      <div class="card-pad">
+      ${state.mechMode==='mono'?`
+        <div class="grid g-3">
+          <div class="field"><label>Наименование</label><input class="input" id="mName" placeholder="${isMech?'Напр.: станок токарный':'Напр.: МФУ'}"></div>
+          <div class="field"><label>Год выпуска</label><input class="input" id="mYear"></div>
+          <div class="field"><label>Заводской номер</label><input class="input" id="mSerial"></div>
+        </div>
+        ${docsBlockInner({docs:state.mechDocs||[]},'mech-new')}
+      `:`
+        <div class="muted" style="margin-bottom:6px">У комплекса вместо полей самого объекта создаются его ОИ (иерархия ОЦ → ОИ).</div>
+        <table class="tbl"><thead><tr><th>Наименование ОИ</th><th style="width:160px">Тип</th><th>Код ЕНИ</th><th style="width:36px"></th></tr></thead>
+        <tbody id="mechRows"></tbody></table>
+        <button class="btn btn-ghost btn-sm" data-mech-add style="margin-top:6px">+ Добавить ОИ</button>
+      `}
+      <div class="inline-row" style="margin-top:14px">
+        <button class="btn btn-primary" data-mech-save>Создать</button>
+        <button class="btn btn-ghost" data-back>Отмена</button>
+      </div>
+      </div>
+    </div>`)}`;
+}
+
+/* ============ CRUD ============ */
+function nextLetter(){
+  const used=new Set(OI.filter(o=>o.kind==='realty').map(o=>o.letter));
+  return LETTER_SEQ.find(x=>!used.has(x))||('Л'+(used.size+1));
+}
+function addLetter(){
+  const letter=nextLetter();
+  const oi={id:'oi-r'+Date.now(),kind:'realty',letter,name:'Новое строение',status:'Основное',
+    eni:String(147561681380+OI.length),year:'',flags:{entered:false,matched:false},areas:{tp:'',pud:'',fact:'',build:''},floors:1,floorList:[],
+    heights:{ext:'',int:''},buildType:'Отдельностоящее',
+    struct:{foundation:'Не указано',wallsExt:'Не указано',ceilings:'Не указано',roof:'Не указано',floors:'Не указано',windows:'Не указано',doors:'Не указано'},
+    heating:[],heatingOther:'',comment:'',catClass:'Гражданское',dis:false,premises:[],photos:{},notes:[]};
+  buildFloors(oi); OI.push(oi);
+  state.openOi=oi.id; state.letterEdit=false;
+  state.viewer={mode:'doc'}; state.viewerDoc=null;
+  state.view='oi'; render();
+  toast('Литера '+letter+' добавлена — заполните карточку','ok');
+}
+function deleteOi(id){
+  const oi=OI.find(o=>o.id===id); if(!oi) return;
+  const label=oi.letter?'Литера '+oi.letter:'ОИ';
+  if(!confirm(`Удалить «${label}» (${oi.name})? Действие нельзя отменить.`)) return;
+  OI=OI.filter(o=>o.id!==id);
+  if(state.openOi===id){state.view='oc';state.openOi=null;state.letterEdit=false}
+  render(); toast(label+' удалён');
+}
+function addOi(type){
+  document.querySelectorAll('.dd').forEach(d=>d.classList.remove('open'));
+  if(type==='МЕХ'||type==='ОФИС'){state.view='mech';state.mechKind=type;state.mechMode='mono';state.mechDocs=[];state.viewer={mode:'doc'};state.viewerDoc=null;render();return}
+  if(type==='Земельный участок'){
+    if(OI.find(o=>o.kind==='land')){toast('Земельный участок уже добавлен (один ЕНИ на объект)','warn');return}
+    OI.push({id:'oi-l'+Date.now(),kind:'land',name:'Земельный участок',purpose:'',area:'',eni:String(147561681370+OI.length),flags:{entered:false,matched:false},docs:[],notes:[]});
+    state.openOi=OI[OI.length-1].id; state.letterEdit=false;
+    state.viewer={mode:'doc'}; state.viewerDoc=null;
+    state.view='oi'; render();return;
+  }
+  const letter=nextLetter();
+  const oi={id:'oi-r'+Date.now(),kind:'realty',letter,name:type,status:'Основное',eni:String(147561681380+OI.length),year:'',flags:{entered:false,matched:false},
+    areas:{tp:'',pud:'',fact:'',build:''},floors:1,floorList:[],heights:{ext:'',int:''},buildType:'Отдельностоящее',
+    struct:{foundation:'Не указано',wallsExt:'Не указано',ceilings:'Не указано',roof:'Не указано',floors:'Не указано',windows:'Не указано',doors:'Не указано'},
+    heating:[],heatingOther:'',comment:'',catClass:type==='Производственное строение'?'Производственно-складское':'Гражданское',dis:false,premises:[],photos:{},notes:[]};
+  buildFloors(oi); OI.push(oi);
+  state.openOi=oi.id; state.letterEdit=false;
+  state.viewer={mode:'doc'}; state.viewerDoc=null;
+  state.view='oi'; render();
+  toast('Литера '+letter+' создана','ok');
+}
+function findNote(scope,id){
+  if(scope==='oc') return (OC.notes||[]).find(n=>n.id===id);
+  const oi=OI.find(o=>o.id===scope);
+  return oi? (oi.notes||[]).find(n=>n.id===id) : null;
+}
+function currentOI(){return state.view==='oi'?OI.find(o=>o.id===state.openOi):null}
+function updateHeatingUI(oi){const mc=document.querySelector('[data-ms-control]'); if(mc)mc.innerHTML=oi.heating.length?oi.heating.map(h=>`<span class="ms-tag">${esc(h)}<span data-heat-rm="${esc(h)}">×</span></span>`).join('')+'<span class="ms-add">+ выбрать</span>':'<span class="muted">не выбрано</span><span class="ms-add">+ выбрать</span>';}
+function updateFloorsUI(oi){
+  oi.floorList.forEach((f,i)=>{
+    const a=document.querySelector(`[data-floor-area="${i}"]`);
+    if(a){ if(document.activeElement!==a)a.value=f.area; a.readOnly=f.on; }
+    const on=document.querySelector(`[data-floor-on="${i}"]`); if(on)on.checked=f.on;
+    const he=document.querySelector(`[data-floor-hext="${i}"]`); if(he&&document.activeElement!==he)he.value=f.hExt;
+    const hi=document.querySelector(`[data-floor-hint="${i}"]`); if(hi&&document.activeElement!==hi)hi.value=f.hInt;
+  });
+  const s=document.querySelector('[data-floor-sum]');
+  if(s){const ssum=floorsSum(oi),tot=num(oi.areas.tp); s.textContent=`Σ этажей: ${fmt(ssum)} / ${fmt(tot)} м²`; s.className=Math.abs(ssum-tot)<0.01?'sum-ok':'sum-warn';}
+}
+function rerenderFloors(oi){const w=document.getElementById('floors-'+oi.id); if(w)w.outerHTML=`<div id="floors-${oi.id}">${floorsBlock(oi)}</div>`;}
+
+/* ============ Делегированные действия ============ */
+document.addEventListener('click', e=>{
+  const addB=e.target.closest('[data-note-add]');
+  if(addB){ e.stopPropagation(); addNote(addB.dataset.noteAdd); return; }
+  const delB=e.target.closest('[data-note-del]');
+  if(delB){ e.stopPropagation(); const [s,id]=delB.dataset.noteDel.split('|'); removeNote(s,id); return; }
+  const dt=e.target.closest('[data-done-toggle]');
+  if(dt){ e.stopPropagation(); toggleDoneList(dt); return; }
+
+  if(!e.target.closest('.dd')) document.querySelectorAll('.dd.open').forEach(d=>d.classList.remove('open'));
+  if(!e.target.closest('.ms')){ document.querySelectorAll('.ms-drop').forEach(d=>d.hidden=true); state.heatOpen=false; }
+
+  const ah=e.target.closest('[data-acc-toggle]');
+  if(ah && !e.target.closest('button') && !e.target.closest('input') && !e.target.closest('select')){
+    e.stopPropagation();
+    const acc=ah.closest('.acc');
+    if(acc){ acc.classList.toggle('open'); state.accOpen[ah.dataset.accToggle]=acc.classList.contains('open'); }
+    return;
+  }
+  const ch=e.target.closest('[data-card-toggle]');
+  if(ch && !e.target.closest('button') && !e.target.closest('input') && !e.target.closest('select')){
+    e.stopPropagation();
+    ch.closest('.card').classList.toggle('collapsed');
+    return;
+  }
+});
+document.addEventListener('change', e=>{
+  const chk=e.target.closest('[data-note-check]');
+  if(chk){ const [s,id]=chk.dataset.noteCheck.split('|'); const n=findNote(s,id);
+    if(n){ n.done=chk.checked; refreshNotesRegion(); toast(chk.checked?'Заметка выполнена — доступна в «Выполненные», отметку можно снять':'Заметка возвращена в работу','ok'); }
+    return; }
+  const ne=e.target.closest('[data-note-edit]');
+  if(ne){ const [s,id]=ne.dataset.noteEdit.split('|'); const n=findNote(s,id);
+    if(n){ const t=ne.value.trim(); n.text = t || NOTE_DEFAULT; if(!t) ne.value=n.text; }
+    return; }
+});
+document.addEventListener('keydown', e=>{
+  const ne=e.target.closest('[data-note-edit]');
+  if(ne && e.key==='Enter'){ e.preventDefault(); ne.blur(); }
+});
+
+function bindTiles(){
+  document.querySelectorAll('[data-tile-photo]').forEach(t=>{
+    t.onclick=()=>{ const [oiId,idx]=t.dataset.tilePhoto.split('|'); openPhotoInPlace(oiId,+idx); };
+  });
+}
+function bind(){
+  document.querySelectorAll('[data-crumb]').forEach(s=>s.onclick=()=>{state.view='oc';state.viewer=null;state.tab='general';render()});
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+    state.tab=b.dataset.tab;
+    if(state.tab==='docs'){ state.viewer={mode:'doc'}; if(!state.viewerDoc&&DOCS.length) state.viewerDoc={scope:'oc',id:DOCS[0].id}; }
+    else if(state.tab==='photo'){ if(state.viewer&&state.viewer.mode!=='photo') state.viewer=null; }
+    else state.viewer=null;
+    render();
+  });
+  document.querySelectorAll('[data-dd-toggle]').forEach(b=>b.onclick=e=>{e.stopPropagation();b.closest('.dd').classList.toggle('open')});
+  document.querySelectorAll('[data-add-oi]').forEach(b=>b.onclick=e=>{e.stopPropagation();addOi(b.dataset.addOi)});
+  const be=$('#btnEditOc'); if(be) be.onclick=()=>{state.view='ocform'; state.viewer={mode:'doc'}; state.viewerDoc=null; render()};
+  const bd=$('#btnDelOc'); if(bd) bd.onclick=()=>toast('Удаление ОЦ — с подтверждением и проверкой связей','warn');
+  const al=document.querySelector('[data-add-letter]'); if(al) al.onclick=addLetter;
+  const nt=document.querySelector('[data-notes-toggle]'); if(nt) nt.onclick=()=>{state.notesOpen=!state.notesOpen; const dr=$('#notesDrawer'); if(dr)dr.classList.toggle('open',state.notesOpen);};
+
+  const ps=$('#photoSearch');
+  if(ps) ps.oninput=()=>{ state.photoQuery=ps.value; const sec=$('#photoSections'); if(sec) sec.innerHTML=photoSectionsHTML(); bindTiles(); };
+  bindTiles();
+
+  document.querySelectorAll('[data-del-oi]').forEach(b=>b.onclick=e=>{e.stopPropagation();deleteOi(b.dataset.delOi)});
+
+  document.querySelectorAll('tr[data-open-oi]').forEach(tr=>{
+    tr.onclick=e=>{
+      const accId=tr.dataset.accId;
+      if(accId && (e.target.closest('[data-acc-cell]')||e.target.closest('.chev-btn'))){
+        e.stopPropagation();
+        const row=document.querySelector(`[data-accrow="${accId}"]`);
+        const btn=tr.querySelector('.chev-btn');
+        const open=state.expanded[accId]=!state.expanded[accId];
+        if(row) row.style.display=open?'':'none';
+        if(btn) btn.classList.toggle('open',open);
+        return;
+      }
+      if(e.target.closest('button')||e.target.closest('.ph-mini'))return;
+      state.openOi=tr.dataset.openOi; state.letterEdit=false;
+      const oi=OI.find(o=>o.id===tr.dataset.openOi);
+      state.viewer={mode:(oi&&oi.photos&&Object.keys(oi.photos).length)?'photo':'doc'}; state.viewerDoc=null;
+      state.view='oi'; render();
+    };
+  });
+
+  document.querySelectorAll('[data-vsplit]').forEach(sp=>{
+    sp.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      const split=sp.parentElement; const rect=split.getBoundingClientRect();
+      const maxVW=Math.min(70, Math.max(25, ((rect.width-620)/rect.width)*100));
+      const move=ev=>{ const pct=((ev.clientX-rect.left)/rect.width)*100; split.style.setProperty('--vw', Math.min(maxVW,Math.max(25,pct))+'%'); };
+      const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+      window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+    });
+  });
+
+  document.querySelectorAll('[data-vmode]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const mode=b.dataset.vmode;
+    if(mode==='photo'){ state.viewer={mode:'photo'}; }
+    else if(mode==='doc'){ state.viewer={mode:'doc'}; if(!state.viewerDoc){ const sc=(state.view==='oi'&&currentOI()&&(currentOI().docs||[]).length)?currentOI().id:'oc'; const list=docListFor(sc); if(list.length) state.viewerDoc={scope:sc,id:list[0].id}; } }
+    else { state.viewer={mode:'compare'}; if(!state.viewerDoc){ const sc=(state.view==='oi'&&currentOI()&&(currentOI().docs||[]).length)?currentOI().id:'oc'; const list=docListFor(sc); if(list.length) state.viewerDoc={scope:sc,id:list[0].id}; } }
+    render();
+  });
+
+  document.querySelectorAll('[data-resp]').forEach(s=>s.onchange=()=>{OC.resp[s.dataset.resp]=s.value;toast('Ответственный обновлён','ok')});
+  document.querySelectorAll('[data-owner-rm]').forEach(x=>x.onclick=e=>{e.stopPropagation();OC.owners.splice(+x.dataset.ownerRm,1);render()});
+  document.querySelectorAll('[data-user-rm]').forEach(x=>x.onclick=e=>{e.stopPropagation();OC.users.splice(+x.dataset.userRm,1);render()});
+  document.querySelectorAll('[data-add-party]').forEach(b=>b.onclick=()=>{
+    const who=b.dataset.addParty==='owner'?'Собственник':'Пользователь';
+    const v=prompt(who+': ФИО/организация'); if(v){(b.dataset.addParty==='owner'?OC.owners:OC.users).push(v);render();toast(who+' добавлен','ok')}});
+  document.querySelectorAll('[data-attach]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const t=b.dataset.attach; const name=prompt('Наименование документа ('+t+')');
+    if(name){DOCS.push({id:'d'+Date.now(),type:t,name,date:'07.08.2026',pages:null});render();toast('Документ прикреплён: '+t,'ok')}});
+  document.querySelectorAll('[data-attach-default]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const scope=state.viewer?state.viewer.scope||'oc':'oc';
+    const t=prompt('Тип документа: '+DOC_TYPES.join(', '), DOC_TYPES[0]); if(!t)return;
+    const name=prompt('Наименование документа:'); if(!name)return;
+    if(scope==='oc'){ DOCS.push({id:'d'+Date.now(),type:t,name,date:'07.08.2026',pages:null}); }
+    else { const oi=OI.find(o=>o.id===scope); if(oi)(oi.docs=oi.docs||[]).push({id:'md'+Date.now(),type:t,name,date:'07.08.2026'}); }
+    render(); toast('Документ прикреплён: '+t,'ok');});
+  document.querySelectorAll('[data-doc-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const id=b.dataset.docDel; DOCS=DOCS.filter(d=>d.id!==id);
+    VS.openTabs.oc=(VS.openTabs.oc||[]).filter(x=>x!==id);
+    if(state.viewerDoc&&state.viewerDoc.id===id){
+      state.viewerDoc=(VS.openTabs.oc.length)?{scope:'oc',id:VS.openTabs.oc[VS.openTabs.oc.length-1]}:null;
+      if(!state.viewerDoc) state.viewer=null;
+    }
+    render(); toast('Документ откреплён');});
+  document.querySelectorAll('[data-open-doc]').forEach(tr=>tr.onclick=e=>{
+    if(e.target.closest('[data-doc-del]'))return;
+    openDocViewer('oc',tr.dataset.openDoc);});
+  document.querySelectorAll('[data-open-ocdocs]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const tabs=VS.openTabs['oc']||[];
+    openDocViewer('oc', tabs.length?tabs[tabs.length-1]:(DOCS[0]?DOCS[0].id:null));});
+  document.querySelectorAll('[data-open-movdoc]').forEach(tr=>tr.onclick=e=>{
+    const [scope,id]=tr.dataset.openMovdoc.split('|');openDocViewer(scope,id);});
+  document.querySelectorAll('[data-open-photo]').forEach(p=>p.onclick=e=>{e.stopPropagation();
+    const [oiId,rest]=p.dataset.openPhoto.split('|'); const [cat,i]=rest.split(':');
+    const oi=OI.find(o=>o.id===oiId);
+    const idx=photoPages(oi).findIndex(x=>x.cat===cat&&x.i===+i)+1;
+    openPhotoViewer(oiId,idx);});
+  document.querySelectorAll('[data-add-photo]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const oi=OI.find(o=>o.id===state.openOi); if(oi){oi.photos[b.dataset.addPhoto]=(oi.photos[b.dataset.addPhoto]||0)+1;render();toast('Фото загружено','ok')}});
+  document.querySelectorAll('[data-open-pviewer]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    state.viewer={mode:'photo'}; render();});
+  document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{state.view='oc';state.viewer=null;state.heatOpen=false;state.letterEdit=false;render()});
+
+  const elBtn=document.querySelector('[data-edit-letter]');
+  if(elBtn) elBtn.onclick=()=>{state.letterEdit=true;render();const i=document.querySelector('[data-letter-input]');if(i){i.focus();i.select();}};
+  const ls=document.querySelector('[data-letter-save]');
+  if(ls) ls.onclick=()=>{
+    const oi=currentOI(); if(!oi)return;
+    const inp=document.querySelector('[data-letter-input]');
+    const v=(inp?inp.value:'').trim();
+    if(!v||v===oi.letter){state.letterEdit=false;render();return;}
+    const taken=OI.some(o=>o!==oi&&o.kind==='realty'&&o.letter===v);
+    if(taken){toast('Литера занята','warn');return;}
+    oi.letter=v; state.letterEdit=false; render(); toast('Литера переименована','ok');
+  };
+  const lc=document.querySelector('[data-letter-cancel]'); if(lc) lc.onclick=()=>{state.letterEdit=false;render()};
+
+  const vp=document.querySelector('[data-vpage]'); if(vp) vp.onchange=()=>vGo(+vp.value||1);
+  const vpr=document.querySelector('[data-vprev]'); if(vpr) vpr.onclick=()=>vGo(vSt().page-1);
+  const vn=document.querySelector('[data-vnext]'); if(vn) vn.onclick=()=>vGo(vSt().page+1);
+  const vr=document.querySelector('[data-vrot]'); if(vr) vr.onclick=()=>{ const st=vSt(); if(!st)return; st.rot=(st.rot+90)%360;
+    document.querySelectorAll('[data-vpageinner]').forEach(p=>p.style.transform=`rotate(${st.rot}deg)`); };
+  const zm=document.querySelector('[data-vzoom-]'); if(zm) zm.onclick=()=>setVZoom(VS.zoom-10);
+  const zp=document.querySelector('[data-vzoom\\+]'); if(zp) zp.onclick=()=>setVZoom(VS.zoom+10);
+  const vc=document.querySelector('[data-vclose]'); if(vc) vc.onclick=()=>{state.viewer=null;render()};
+  document.querySelectorAll('[data-vthumb]').forEach(t=>t.onclick=e=>{ if(e.target.closest('[data-vdelpage]'))return; vGo(+t.dataset.vthumb); });
+  document.querySelectorAll('[data-vdelpage]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const d=docListFor(state.viewerDoc.scope).find(x=>x.id===state.viewerDoc.id);
+    if(!d||d.pages.length<=1){toast('Нельзя удалить единственную страницу','warn');return}
+    d.pages.splice(+b.dataset.vdelpage-1,1); const st=vSt(); if(st) st.page=Math.min(st.page,d.pages.length); render();});
+  const vap=document.querySelector('[data-vaddpage]'); if(vap) vap.onclick=()=>{
+    const d=docListFor(state.viewerDoc.scope).find(x=>x.id===state.viewerDoc.id);
+    if(!d)return; d.pages.push({kind:'skel'}); render(); toast('Страница добавлена','ok');};
+  const cpp=document.querySelector('[data-cmp-ph-prev]'); if(cpp) cpp.onclick=()=>{const st=VS.photos[state.openOi]; st.page=Math.max(1,st.page-1);render()};
+  const cpn=document.querySelector('[data-cmp-ph-next]'); if(cpn) cpn.onclick=()=>{const st=VS.photos[state.openOi]; st.page=Math.min(photoPages(OI.find(o=>o.id===state.openOi)).length,st.page+1);render()};
+  const cdp=document.querySelector('[data-cmp-dc-prev]'); if(cdp) cdp.onclick=()=>{const st=vSt(); if(st){st.page=Math.max(1,st.page-1);render();}};
+  const cdn=document.querySelector('[data-cmp-dc-next]'); if(cdn) cdn.onclick=()=>{const st=vSt(); if(st){st.page=Math.min(vPages().length,st.page+1);render();}};
+
+  const vstageEl=document.querySelector('[data-vstage]');
+  if(vstageEl&&state.viewer&&state.viewer.mode!=='compare'){
+    const st=vSt();
+    vstageEl.scrollTop=st.scroll||0;
+    const ribbonEl=document.querySelector('[data-vribbon]');
+    if(ribbonEl) ribbonEl.style.zoom=String(VS.zoom/100);
+    vstageEl.addEventListener('scroll',()=>{
+      st.scroll=vstageEl.scrollTop;
+      const top=vstageEl.getBoundingClientRect().top; let cur=1;
+      ribbonEl.querySelectorAll('[data-vpageblk]').forEach(bl=>{ if(bl.getBoundingClientRect().top-top<=60) cur=+bl.dataset.vpageblk; });
+      if(cur!==st.page){ st.page=cur; const inp=document.querySelector('[data-vpage]'); if(inp) inp.value=cur;
+        document.querySelectorAll('[data-vthumb]').forEach(t=>t.classList.toggle('active',+t.dataset.vthumb===cur)); }
+    });
+    vstageEl.addEventListener('wheel',e=>{ if(!e.ctrlKey)return; e.preventDefault(); setVZoom(VS.zoom+(e.deltaY<0?10:-10)); },{passive:false});
+  }
+  const cmpEl=document.querySelector('[data-cmp]');
+  if(cmpEl){ cmpEl.style.zoom=String(VS.zoom/100);
+    cmpEl.addEventListener('wheel',e=>{ if(!e.ctrlKey)return; e.preventDefault(); setVZoom(VS.zoom+(e.deltaY<0?10:-10)); },{passive:false}); }
+
+  const oi=OI.find(o=>o.id===state.openOi);
+  if(oi&&state.view==='oi'){
+    if(oi.kind==='realty'){
+      document.querySelectorAll('[data-area]').forEach(i=>i.onchange=()=>{oi.areas[i.dataset.area]=i.value;recalcFloors(oi);updateFloorsUI(oi);updateCtxPlate()});
+      document.querySelectorAll('[data-height]').forEach(i=>i.onchange=()=>{oi.heights[i.dataset.height]=i.value});
+      const fn=document.querySelector('[data-floors-n]');
+      if(fn) fn.onchange=()=>{oi.floors=Math.max(1,parseInt(fn.value,10)||1);buildFloors(oi);rerenderFloors(oi);updateCtxPlate()};
+      const rd=document.querySelector('[data-redistribute]');
+      if(rd) rd.onclick=e=>{e.stopPropagation();recalcFloors(oi);updateFloorsUI(oi);toast('Отмеченные этажи выровнены по остатку','ok')};
+      document.querySelectorAll('[data-floor-on]').forEach(c=>c.onchange=()=>{oi.floorList[+c.dataset.floorOn].on=c.checked;recalcFloors(oi);updateFloorsUI(oi)});
+      document.querySelectorAll('[data-floor-area]').forEach(i=>i.onchange=()=>{oi.floorList[+i.dataset.floorArea].area=i.value;recalcFloors(oi);updateFloorsUI(oi)});
+      document.querySelectorAll('[data-floor-hext]').forEach(i=>i.onchange=()=>{oi.floorList[+i.dataset.floorHext].hExt=i.value});
+      document.querySelectorAll('[data-floor-hint]').forEach(i=>i.onchange=()=>{oi.floorList[+i.dataset.floorHint].hInt=i.value});
+      const bt=document.querySelector('[data-buildtype]'); if(bt) bt.onchange=()=>{oi.buildType=bt.value;updateCtxPlate()};
+      const yr=document.querySelector('[data-year]'); if(yr) yr.onchange=()=>{oi.year=yr.value};
+      const cm=document.querySelector('[data-comment]'); if(cm) cm.onchange=()=>{oi.comment=cm.value};
+      const dis=document.querySelector('[data-dis]'); if(dis) dis.onchange=()=>{oi.dis=dis.checked};
+      const cc=document.querySelector('[data-catclass]'); if(cc) cc.onchange=()=>{oi.catClass=cc.value};
+    }
+    document.querySelectorAll('[data-status]').forEach(s=>s.onchange=()=>{oi.status=s.value;updateCtxPlate()});
+    const nm=document.querySelector('[data-oi-name]'); if(nm) nm.onchange=()=>{oi.name=nm.value;updateCtxPlate()};
+    const en=document.querySelector('[data-oi-eni]'); if(en) en.onchange=()=>{oi.eni=en.value.trim()||oi.eni};
+    document.querySelectorAll('[data-flag]').forEach(c=>c.onchange=()=>{oi.flags=oi.flags||{}; oi.flags[c.dataset.flag]=c.checked; updateCtxPlate();});
+    if(oi.kind!=='realty'&&oi.kind!=='land'){
+      const mk=document.querySelector('[data-mv-make]'); if(mk) mk.onchange=()=>{oi.make=mk.value};
+      const md=document.querySelector('[data-mv-model]'); if(md) md.onchange=()=>{oi.model=md.value};
+      const vy=document.querySelector('[data-mv-year]'); if(vy) vy.onchange=()=>{oi.year=vy.value};
+      const vv=document.querySelector('[data-mv-vin]'); if(vv) vv.onchange=()=>{oi.vin=vv.value};
+      const pl=document.querySelector('[data-mv-plate]'); if(pl) pl.onchange=()=>{oi.plate=pl.value};
+      const mn=document.querySelector('[data-mv-name]'); if(mn) mn.onchange=()=>{oi.name=mn.value;updateCtxPlate()};
+      const sr=document.querySelector('[data-mv-serial]'); if(sr) sr.onchange=()=>{oi.serial=sr.value};
+    }
+    if(oi.kind==='land'){
+      const lp=document.querySelector('[data-land-purpose]'); if(lp) lp.onchange=()=>{oi.purpose=lp.value};
+      const la=document.querySelector('[data-land-area]'); if(la) la.onchange=()=>{oi.area=la.value};
+    }
+    document.querySelectorAll('[data-struct]').forEach(s=>s.onchange=()=>{oi.struct[s.dataset.struct]=s.value});
+    document.querySelectorAll('[data-ms-toggle]').forEach(c=>c.onclick=e=>{
+      e.stopPropagation();
+      const drop=c.parentElement.querySelector('.ms-drop');
+      document.querySelectorAll('.ms-drop').forEach(d=>{if(d!==drop)d.hidden=true});
+      drop.hidden=!drop.hidden; state.heatOpen=!drop.hidden;
+    });
+    document.querySelectorAll('[data-heat-opt]').forEach(cb=>cb.onchange=()=>{
+      const h=cb.dataset.heatOpt; const i=oi.heating.indexOf(h);
+      if(i>=0)oi.heating.splice(i,1);else oi.heating.push(h);
+      updateHeatingUI(oi);
+    });
+    document.querySelectorAll('[data-heat-rm]').forEach(x=>x.onclick=e=>{
+      e.stopPropagation();
+      const oi2=currentOI(); if(!oi2)return;
+      const h=x.dataset.heatRm; const i=oi2.heating.indexOf(h);
+      if(i>=0)oi2.heating.splice(i,1); updateHeatingUI(oi2);
+    });
+    const ho=document.querySelector('[data-heat-other]'); if(ho) ho.onchange=()=>{oi.heatingOther=ho.value};
+    const am=document.querySelector('[data-add-movdoc]'); if(am) am.onclick=()=>{
+      (oi.docs=oi.docs||[]).push({id:'md'+Date.now(),type:'ПУД',name:'Новый документ',date:'07.08.2026'});render();toast('Документ добавлен','ok')};
+    const sv=document.querySelector('[data-save-oi]'); if(sv) sv.onclick=()=>{state.view='oc';state.viewer=null;state.letterEdit=false;render();toast('ОИ сохранён','ok')};
+  }
+
+  const fc=$('#fCat'); if(fc) fc.onchange=()=>{OC.category=fc.value;render()};
+  const f2=$('#fMovType'); if(f2) f2.onchange=()=>{OC.movType=f2.value;render()};
+  const so=$('#btnSaveOc');
+  if(so) so.onclick=()=>{
+    OC.type=$('#fType').value;OC.purposeTP=$('#fPurpose').value;OC.status=$('#fStatus').value;
+    OC.eni=$('#fEni').value;OC.institution=$('#fInst').value;OC.podved=$('#fPodved').value;
+    OC.address=$('#fAddr').value;OC.gps=$('#fGps').value;
+    if(OC.category==='Движимое'){OC.movType=$('#fMovType')?$('#fMovType').value:'ТС';OC.movComplex=!!$('#fMovComplex')?.checked;OC.movName=$('#fMovName')?.value||'';}
+    else OC.complex=!!$('#fComplex')?.checked;
+    state.view='oc';render();toast('ОЦ сохранён','ok');
+  };
+
+  document.querySelectorAll('[data-mech-mode]').forEach(c=>c.onclick=()=>{state.mechMode=c.dataset.mechMode;render()});
+  if(state.view==='mech'){
+    const am=document.querySelector('[data-add-movdoc]');
+    if(am) am.onclick=()=>{ state.mechDocs=state.mechDocs||[];
+      state.mechDocs.push({id:'md'+Date.now(),type:'ПУД',name:'Новый документ',date:'07.08.2026'});
+      render(); toast('Документ добавлен','ok'); };
+  }
+  const ma=document.querySelector('[data-mech-add]');
+  if(ma) ma.onclick=()=>{
+    const tb=$('#mechRows');
+    tb.insertAdjacentHTML('beforeend',`<tr><td><input class="input" placeholder="Наименование ОИ"></td>
+      <td><select class="select">${['Узел','Агрегат','Станция','Прочее'].map(o=>`<option>${o}</option>`).join('')}</select></td>
+      <td><input class="input" placeholder="Код ЕНИ"></td><td><button class="btn btn-ghost btn-sm" data-mech-del>×</button></td></tr>`);
+    tb.querySelectorAll('[data-mech-del]').forEach(b=>b.onclick=()=>b.closest('tr').remove());
+  };
+  const ms2=document.querySelector('[data-mech-save]');
+  if(ms2) ms2.onclick=()=>{
+    const kind=state.mechKind==='МЕХ'?'mech':'office';
+    OI.push({id:'oi-m'+Date.now(),kind,name:state.mechMode==='mono'?($('#mName')?.value||(state.mechKind==='МЕХ'?'Механизм':'Офисная техника')):(state.mechKind==='МЕХ'?'Механизм-комплекс':'Комплекс техники'),
+      eni:String(147561681360+OI.length),status:'',flags:{entered:false,matched:false},docs:(state.mechDocs||[]).slice(),year:$('#mYear')?.value||'',serial:$('#mSerial')?.value||'',notes:[]});
+    state.mechDocs=[];
+    state.view='oc';render();toast(state.mechMode==='mono'?'Объект добавлен (монолит)':'Комплекс добавлен, ОИ создаются внутри','ok');
+  };
+}
+render();
+</script>
+</body>
+</html>

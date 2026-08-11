@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inside — Объект оценки</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-logo"><div class="logo-mark">I</div><div class="logo-text"><b>Inside</b><span>Система оценки имущества</span></div></div>
+    <nav class="side-nav">
+      <button class="nav-item"><span class="nav-ico">▤</span>Учреждения</button>
+      <button class="nav-item active"><span class="nav-ico">▣</span>Объекты оценки</button>
+      <button class="nav-item"><span class="nav-ico">◈</span>Документы</button>
+      <button class="nav-item"><span class="nav-ico">☰</span>Справочники<span class="nav-soon">скоро</span></button>
+      <button class="nav-item"><span class="nav-ico">◎</span>Пользователи<span class="nav-soon">скоро</span></button>
+    </nav>
+    <div class="side-foot"><span>v0.30.0</span><span>Осминов Н.</span></div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <nav class="crumbs" id="crumbs"></nav>
+      <div class="top-user"><span>Осминов Н.</span><span class="avatar">ОН</span></div>
+    </header>
+    <div class="main-row">
+      <div class="content" id="content"></div>
+      <aside class="notes-drawer hidden" id="notesDrawer">
+        <button class="notes-tab" data-notes-toggle><span>Заметки</span><span class="pill-mini" id="drawerCount">0</span></button>
+        <div class="drawer-inner" id="drawerNotes"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+<script src="js/data.js"></script>
+<script src="js/core.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
