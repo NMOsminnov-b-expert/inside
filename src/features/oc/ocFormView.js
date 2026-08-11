@@ -17,7 +17,7 @@ export function viewOCForm() {
       <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>Основные параметры</h3></div>
         <div class="card-pad">
           <div class="grid g-3">
-            <div class="field"><label>Тип ОЦ</label><select class="select" id="fType">${['Жилое здание (дом)', 'Гражданское здание', 'Производственное строение', 'Прочее строение'].map((t) => `<option ${t === OC.type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+            <div class="field"><label>Тип ОЦ</label><select class="select" id="fType">${['Жилое здание (дом)', 'Гражданское здание', 'Производственное строение', 'Прочее строение', 'Квартира'].map((t) => `<option ${t === OC.type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
             <div class="field"><label>Назначение по ТП</label><input class="input" id="fPurpose" value="${esc(OC.purposeTP)}"></div>
             <div class="field"><label>Статус ОЦ</label><select class="select" id="fStatus">${DICT.statusOC.map((s) => `<option ${s === OC.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
           </div>
