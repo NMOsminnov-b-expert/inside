@@ -1,4 +1,5 @@
 import { appState } from '../../core/state.js';
+import { PHOTO_CAT } from '../../core/dictionaries.js';
 import { esc } from '../../core/utils.js';
 import { photoPages } from './photoModel.js';
 
@@ -10,15 +11,23 @@ export function miniThumbs(oi) {
 
 export function photoAccordions(oi, withAdd) {
   const cats = Object.keys(oi.photos || {});
-  if (!cats.length) return '<span class="muted">Фото не загружены</span>';
+  if (!cats.length) {
+    if (!withAdd) return '<span class="muted">Фото не загружены</span>';
+    // Пустое состояние: первое фото добавляется выбором категории.
+    return `<div class="dd">
+      <button class="btn btn-ghost btn-sm" data-dd-toggle>+ Добавить фото</button>
+      <div class="dd-menu">${PHOTO_CAT.map((c) => `<button data-add-photo="${esc(c)}" data-photo-oi="${oi.id}">${esc(c)}</button>`).join('')}</div>
+    </div>
+    <div class="muted" style="font-size:10.5px;margin-top:6px">Выберите категорию, чтобы загрузить первое фото.</div>`;
+  }
   return cats.map((cat) => {
     const key = 'ph|' + oi.id + '|' + cat;
     const isOpen = appState.accOpen[key] === true;
     return `<div class="acc ${isOpen ? 'open' : ''}">
       <div class="acc-head" data-acc-toggle="${key}"><span class="chev">▾</span>${esc(cat)}<span class="muted" style="font-weight:400">${oi.photos[cat]} фото</span></div>
       <div class="acc-body"><div class="ph-row">
-        ${Array.from({ length: oi.photos[cat] }, (_, i) => `<div class="ph" data-open-photo="${oi.id}|${esc(cat)}:${i}">${esc(cat)} ${i + 1}</div>`).join('')}
-        ${withAdd ? `<button class="btn btn-ghost btn-sm" data-add-photo="${esc(cat)}" data-photo-oi="${oi.id}">+ Загрузить</button>` : ''}
+      ${Array.from({ length: oi.photos[cat] }, (_, i) => `<div class="ph" data-open-photo="${oi.id}|${esc(cat)}:${i}">${esc(cat)} ${i + 1}</div>`).join('')}
+      ${withAdd ? `<button class="btn btn-ghost btn-sm" data-add-photo="${esc(cat)}" data-photo-oi="${oi.id}">+ Загрузить</button>` : ''}
       </div></div>
     </div>`;
   }).join('');

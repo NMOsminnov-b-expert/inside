@@ -93,6 +93,34 @@ export function bindViewer() {
 
   // Переход к категории фото из тулбара.
   const vj = document.querySelector('[data-vjump]');
+  // Перенос текущего фото к другой литере.
+  const mv = document.querySelector('[data-move-photo]');
+  if (mv) mv.onchange = () => {
+    const targetId = mv.value;
+    if (!targetId) return;
+    const src = OI.find((o) => o.id === appState.openOi);
+    const dst = OI.find((o) => o.id === targetId);
+    if (!src || !dst) return;
+    const st = VS.photos[src.id];
+    const pages = photoPages(src);
+    const cur = pages[Math.min(st ? st.page : 1, pages.length) - 1];
+    if (!cur) return;
+    // Фото хранится счётчиком в категории: минус у источника, плюс у получателя.
+    src.photos[cur.cat] = (src.photos[cur.cat] || 0) - 1;
+    if (src.photos[cur.cat] <= 0) delete src.photos[cur.cat];
+    dst.photos = dst.photos || {};
+    dst.photos[cur.cat] = (dst.photos[cur.cat] || 0) + 1;
+    // Позиция ленты источника не должна выйти за пределы.
+    if (st) st.page = Math.max(1, Math.min(st.page, photoPages(src).length));
+    // Подводим просмотрщик получателя к перенесённому фото.
+    const dstPages = photoPages(dst);
+    let lastIdx = dstPages.length - 1;
+    dstPages.forEach((p, i) => { if (p.cat === cur.cat) lastIdx = i; });
+    const dstSt = VS.photos[dst.id] || (VS.photos[dst.id] = { page: 1, rot: 0, scroll: 0 });
+    dstSt.page = lastIdx + 1;
+    render();
+    toast(`Фото «${cur.cat}» перенесено к литере ${dst.letter}`, 'ok');
+  };
   if (vj) vj.onchange = () => {
     const cat = vj.value;
     if (!cat) return;

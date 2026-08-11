@@ -6,12 +6,15 @@ import { openPhotoInPlace } from '../viewer/viewerState.js';
 
 export function photoSectionsHTML() {
   const q = appState.photoQuery || '';
-  const letters = OI.filter((o) => o.kind === 'realty');
-  const sections = letters.map((oi) => {
+  const objects = OI.filter((o) => o.kind === 'realty' || o.kind === 'land');
+  const sections = objects.map((oi) => {
     const pages = photoPages(oi).map((p, i) => ({ cat: p.cat, i: p.i, idx: i })).filter((p) => photoMatches(oi, p.cat, p.idx, q));
     if (!pages.length) return '';
+    const head = oi.kind === 'land'
+      ? 'Земельный участок'
+      : `Литера ${esc(oi.letter)} · ${esc(oi.name)}`;
     return `<div class="photo-sec">
-      <div class="photo-sec-h">Литера ${esc(oi.letter)} · ${esc(oi.name)} <span class="tag-mini">${pages.length}</span></div>
+      <div class="photo-sec-h">${head} <span class="tag-mini">${pages.length}</span></div>
       <div class="tile-grid">${pages.map((p) => `<div class="tile" data-tile-photo="${oi.id}|${p.idx}" title="${esc(p.cat)} · фото ${p.i + 1}">
         <div class="tile-img">${esc(p.cat)}</div>
         <div class="tile-cap">${esc(p.cat)} · фото ${p.i + 1}</div>

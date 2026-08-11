@@ -5,7 +5,7 @@ import { nextLetter, createRealtyOi, createLandOi, currentOI } from './oiModel.j
 import { buildFloors, recalcFloors } from './floorsModel.js';
 import { updateFloorsUI, rerenderFloors } from './floorsView.js';
 import { updateHeatingUI } from './heating.js';
-import { openDocViewer, openPhotoViewer, VS } from '../viewer/viewerState.js';
+import { openDocViewer,openPhotoInPlace, /*openPhotoViewer,*/ VS } from '../viewer/viewerState.js';
 import { photoPages } from '../photos/photoModel.js';
 import { updateCtxPlate } from '../../ui/ctxPlate.js';
 
@@ -91,13 +91,16 @@ export function bindOi() {
   document.querySelectorAll('tr[data-open-oi]').forEach((tr) => {
     tr.onclick = (e) => {
       const accId = tr.dataset.accId;
+      // Клик по ячейке литеры или шеврону управляет аккордеоном строки.
       if (accId && (e.target.closest('[data-acc-cell]') || e.target.closest('.chev-btn'))) {
         e.stopPropagation();
-        const row = document.querySelector(`[data-accrow="${accId}"]`);
-        const btn = tr.querySelector('.chev-btn');
-        const open = appState.expanded[accId] = !appState.expanded[accId];
-        if (row) row.style.display = open ? '' : 'none';
-        if (btn) btn.classList.toggle('open', open);
+        appState.expanded[accId] = !appState.expanded[accId];
+        // Полный рендер гарантирует, что строка-аккордеон появится в DOM.
+        // Позицию прокрутки сохраняем, чтобы таблица не прыгала.
+        const sc = document.getElementById('content');
+        const top = sc ? sc.scrollTop : 0;
+        render();
+        if (sc) sc.scrollTop = top;
         return;
       }
       if (e.target.closest('button') || e.target.closest('.ph-mini')) return;
@@ -132,8 +135,11 @@ export function bindOi() {
       const [oiId, rest] = p.dataset.openPhoto.split('|');
       const [cat, i] = rest.split(':');
       const oi = OI.find((o) => o.id === oiId);
+      if (!oi) return;
       const idx = photoPages(oi).findIndex((x) => x.cat === cat && x.i === +i) + 1;
-      openPhotoViewer(oiId, idx);
+      // Фото открывается в просмотрщике текущего представления (ОЦ или ОИ),
+      // без перехода в карточку ОИ.
+      openPhotoInPlace(oiId, idx);
     };
   });
 
@@ -141,11 +147,13 @@ export function bindOi() {
     b.onclick = (e) => {
       e.stopPropagation();
       const oi = OI.find((o) => o.id === (b.dataset.photoOi || appState.openOi));
-      if (oi) {
-        oi.photos[b.dataset.addPhoto] = (oi.photos[b.dataset.addPhoto] || 0) + 1;
-        render();
-        toast('Фото загружено', 'ok');
-      }
+      if (!oi) return;
+      const cat = b.dataset.addPhoto;
+      oi.photos = oi.photos || {};
+      oi.photos[cat] = (oi.photos[cat] || 0) + 1;
+      appState.accOpen['ph|' + oi.id + '|' + cat] = true;
+      render();
+      toast('Фото загружено', 'ok');
     };
   });
 

@@ -54,6 +54,7 @@ export function createOI() {
       id: 'oi-l', kind: 'land', name: 'Земельный участок', purpose: 'Жилое', area: '640.00',
       eni: '147561681350', flags: { entered: true, matched: true },
       docs: [{ id: 'ld1', type: 'Гос. акт на землю', name: 'Гос. акт №44/07', date: '03.02.2019' }],
+      photos: { 'Земельный участок': 2 },
       notes: [mkNote('Границы участка на плане не совпадают с фактическими', false)],
     },
   ];

@@ -28,7 +28,7 @@ export function tableOI() {
   const rows = OI.filter((o) => o.kind !== 'land');
   const land = OI.find((o) => o.kind === 'land');
   return `<div class="card t-blue" style="margin-top:12px">
-    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Перечень ОИ</h3><span class="hint">клик по строке — карточка; шеврон — аккордеон</span>
+    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Перечень ОИ</h3><span class="hint">клик по строке — карточка; шеврон — аккордеон; мини-фото — просмотрщик</span>
       <button class="btn btn-primary btn-sm" data-add-letter style="margin-left:auto">+ Добавить литеру</button><span class="chev">▾</span></div>
     <div class="card-body-wrap">
     <table class="tbl">
@@ -46,7 +46,6 @@ export function tableOI() {
           <td style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${esc(o.eni)}</td>
           <td>${isR ? miniThumbs(o) : '<span class="muted">—</span>'}</td>
           <td><div class="row-actions">
-            <button class="btn btn-ghost btn-sm" data-open-oi="${o.id}">Открыть</button>
             ${isR ? `<button class="btn btn-danger btn-sm" data-del-oi="${o.id}" title="Удалить литеру">×</button>` : ''}
           </div></td>
         </tr>

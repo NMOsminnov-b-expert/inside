@@ -1,4 +1,4 @@
-import { OC } from '../../core/state.js';
+import { OC, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
 import { DICT, DOC_TYPES } from '../../core/dictionaries.js';
 import { ownersUsersHTML, responsiblesHTML } from './partiesView.js';

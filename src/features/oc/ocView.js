@@ -68,11 +68,13 @@ function docsTab() {
 }
 
 export function viewOC() {
+  // Просмотрщик доступен и на главной: открывается с мини-фото таблицы ОИ.
+  const generalTab = splitWrap(appState.viewer ? viewerHTML() : null, partiesOC() + tableOI());
   return `${headOC()}
   <div class="tabs">
     <button class="tab ${appState.tab === 'general' ? 'active' : ''}" data-tab="general">Общие данные</button>
     <button class="tab ${appState.tab === 'docs' ? 'active' : ''}" data-tab="docs">Документы ${DOCS.length}</button>
     <button class="tab ${appState.tab === 'photo' ? 'active' : ''}" data-tab="photo">Фото</button>
   </div>
-  ${appState.tab === 'general' ? partiesOC() + tableOI() : appState.tab === 'docs' ? docsTab() : photosTab()}`;
+  ${appState.tab === 'general' ? generalTab : appState.tab === 'docs' ? docsTab() : photosTab()}`;
 }

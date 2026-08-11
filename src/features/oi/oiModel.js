@@ -57,7 +57,8 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
 export function createLandOi() {
   return {
     id: 'oi-l' + Date.now(), kind: 'land', name: 'Земельный участок', purpose: '', area: '',
-    eni: String(147561681370 + OI.length), flags: { entered: false, matched: false }, docs: [], notes: [],
+    eni: String(147561681370 + OI.length), flags: { entered: false, matched: false },
+    docs: [], photos: {}, notes: [],
   };
 }
 

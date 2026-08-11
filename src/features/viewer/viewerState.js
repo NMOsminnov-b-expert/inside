@@ -18,7 +18,7 @@ export function openDocViewer(scope, id) {
   appState.viewer = { mode: (appState.viewer && appState.viewer.mode === 'compare') ? 'compare' : 'doc' };
   render();
 }
-
+/*
 export function openPhotoViewer(oiId, pageIdx) {
   VS.photos[oiId] = VS.photos[oiId] || { page: 1, rot: 0, scroll: 0 };
   if (pageIdx) VS.photos[oiId].page = pageIdx;
@@ -28,6 +28,7 @@ export function openPhotoViewer(oiId, pageIdx) {
   appState.viewer = { mode: 'photo' };
   render();
 }
+  */
 
 export function openPhotoInPlace(oiId, idx) {
   VS.photos[oiId] = VS.photos[oiId] || { page: 1, rot: 0, scroll: 0 };

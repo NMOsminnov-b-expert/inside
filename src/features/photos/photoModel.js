@@ -31,10 +31,11 @@ export function photoMatches(oi, cat, idx, q) {
   if (!q || !q.trim()) return true;
   const qn = norm(q);
   const ref = extractLetterRef(qn);
-  if (ref && ref.letter !== oi.letter.toUpperCase()) return false;
+  // Запрос с литерой отсекает объекты без литеры (земельный участок).
+  if (ref && (!oi.letter || ref.letter !== oi.letter.toUpperCase())) return false;
   const rest = ref ? ref.rest : qn;
   const words = rest.split(/\s+/).filter((w) => w.length > 2);
   if (!words.length) return true;
-  const hay = norm(`${oi.letter} ${oi.name} ${cat} фото`);
+  const hay = norm(`${oi.letter || ''} ${oi.name} ${cat} фото`);
   return words.some((w) => hay.includes(w));
 }
