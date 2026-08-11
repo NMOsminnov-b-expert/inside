@@ -1,5 +1,5 @@
 import { OC, DOCS, appState } from '../../core/state.js';
-import { render } from '../../core/renderer.js';
+import { render, renderKeepScroll } from '../../core/renderer.js';
 import { $ } from '../../core/dom.js';
 import { toast } from '../../core/utils.js';
 import { addOi } from '../oi/oiController.js';
@@ -95,7 +95,11 @@ export function bindOc() {
   if (fc) fc.onchange = () => { OC.category = fc.value; render(); };
   const f2 = $('#fMovType');
   if (f2) f2.onchange = () => { OC.movType = f2.value; render(); };
-  const so = $('#btnSaveOc');
+  const ft = $('#fType');
+  if (ft) ft.onchange = () => { OC.type = ft.value; renderKeepScroll(); };
+  const fp = $('#fPurpose');
+  if (fp) fp.onchange = () => { OC.purposeTP = fp.value; renderKeepScroll(); };
+    const so = $('#btnSaveOc');
   if (so) so.onclick = () => {
     OC.type = $('#fType').value;
     OC.purposeTP = $('#fPurpose').value;

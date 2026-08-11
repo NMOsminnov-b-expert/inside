@@ -22,6 +22,7 @@ export function createOI() {
   return [
     {
       id: 'oi-a', kind: 'realty', letter: 'А', name: 'Жилой дом', status: 'Основное',
+      origin: 'ml', residential: true, resCat: 'Обособленный',
       eni: '147561681351', year: '1990', flags: { entered: true, matched: false },
       areas: { tp: '96.40', pud: '96.40', fact: '96.40', build: '98.60' },
       floors: 2, floorList: [], heights: { ext: '5.90', int: '2.70' }, buildType: 'Отдельностоящее',
@@ -42,6 +43,7 @@ export function createOI() {
     },
     {
       id: 'oi-b', kind: 'realty', letter: 'Б', name: 'Сарай', status: 'Вспомогательное',
+      origin: 'manual', residential: false, resCat: '',
       eni: '147561681352', year: '1985', flags: { entered: false, matched: false },
       areas: { tp: '18.20', pud: '', fact: '18.20', build: '18.60' }, floors: 1, floorList: [],
       heights: { ext: '', int: '' }, buildType: 'Отдельностоящее',

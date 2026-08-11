@@ -5,9 +5,20 @@ import { nextLetter, createRealtyOi, createLandOi, currentOI } from './oiModel.j
 import { buildFloors, recalcFloors } from './floorsModel.js';
 import { updateFloorsUI, rerenderFloors } from './floorsView.js';
 import { updateHeatingUI } from './heating.js';
-import { openDocViewer,openPhotoInPlace, /*openPhotoViewer,*/ VS } from '../viewer/viewerState.js';
+import { openDocViewer, openPhotoInPlace, VS } from '../viewer/viewerState.js';
 import { photoPages } from '../photos/photoModel.js';
 import { updateCtxPlate } from '../../ui/ctxPlate.js';
+
+// Локальный рендер с сохранением прокрутки: используется при смене полей,
+// от которых зависят правила отображения (категория, происхождение, флаги).
+function renderKeepScroll() {
+  const sc = document.getElementById('content');
+  const top = sc ? sc.scrollTop : 0;
+  // Полный рендер, чтобы правила из oiFieldRules и oiVerbal
+  // пересчитались во всех местах: карточка, плашка, аккордеоны.
+  render();
+  if (sc) sc.scrollTop = top;
+}
 
 export function addLetter() {
   const letter = nextLetter();
@@ -91,12 +102,9 @@ export function bindOi() {
   document.querySelectorAll('tr[data-open-oi]').forEach((tr) => {
     tr.onclick = (e) => {
       const accId = tr.dataset.accId;
-      // Клик по ячейке литеры или шеврону управляет аккордеоном строки.
       if (accId && (e.target.closest('[data-acc-cell]') || e.target.closest('.chev-btn'))) {
         e.stopPropagation();
         appState.expanded[accId] = !appState.expanded[accId];
-        // Полный рендер гарантирует, что строка-аккордеон появится в DOM.
-        // Позицию прокрутки сохраняем, чтобы таблица не прыгала.
         const sc = document.getElementById('content');
         const top = sc ? sc.scrollTop : 0;
         render();
@@ -137,8 +145,6 @@ export function bindOi() {
       const oi = OI.find((o) => o.id === oiId);
       if (!oi) return;
       const idx = photoPages(oi).findIndex((x) => x.cat === cat && x.i === +i) + 1;
-      // Фото открывается в просмотрщике текущего представления (ОЦ или ОИ),
-      // без перехода в карточку ОИ.
       openPhotoInPlace(oiId, idx);
     };
   });
@@ -231,8 +237,13 @@ export function bindOi() {
       if (cm) cm.onchange = () => { oi.comment = cm.value; };
       const dis = document.querySelector('[data-dis]');
       if (dis) dis.onchange = () => { oi.dis = dis.checked; };
+      // Категория ОИ влияет на правила обязательности (высоты, стены) —
+      // перерисовываем с сохранением скролла, чтобы карточка не прыгала.
       const cc = document.querySelector('[data-catclass]');
-      if (cc) cc.onchange = () => { oi.catClass = cc.value; };
+      if (cc) cc.onchange = () => { oi.catClass = cc.value; renderKeepScroll(); };
+      // Категория жилого строения — чисто справочное поле, перерисовка не нужна.
+      const rc = document.querySelector('[data-rescat]');
+      if (rc) rc.onchange = () => { oi.resCat = rc.value; };
     }
 
     document.querySelectorAll('[data-status]').forEach((s) => s.onchange = () => { oi.status = s.value; updateCtxPlate(); });
@@ -240,10 +251,12 @@ export function bindOi() {
     if (nm) nm.onchange = () => { oi.name = nm.value; updateCtxPlate(); };
     const en = document.querySelector('[data-oi-eni]');
     if (en) en.onchange = () => { oi.eni = en.value.trim() || oi.eni; };
+    // Флаги «Введено» / «Сопоставлено» влияют на статус на плашке —
+    // пересчитываем весь экран, чтобы плашка и шапка обновились одновременно.
     document.querySelectorAll('[data-flag]').forEach((c) => c.onchange = () => {
       oi.flags = oi.flags || {};
       oi.flags[c.dataset.flag] = c.checked;
-      updateCtxPlate();
+      renderKeepScroll();
     });
 
     if (oi.kind !== 'realty' && oi.kind !== 'land') {

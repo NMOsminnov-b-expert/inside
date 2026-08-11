@@ -4,23 +4,12 @@ import { autoCategory } from './oiModel.js';
 import { miniThumbs, photoAccordions } from '../photos/photoBlocks.js';
 
 function oiAccordion(oi) {
-  return `<div style="padding:4px 2px">
-  <div class="acc-inner">
-  <div class="sec-h">Основные параметры</div>
-  <div class="params-grid">
-  <div class="grid g-4">
-  <div class="field"><label>Общая площадь (ТП)</label><b>${esc(oi.areas && oi.areas.tp ? oi.areas.tp : '—')} м²</b></div>
-  <div class="field"><label>Этажей</label><b>${oi.floors || '—'}</b></div>
-  <div class="field"><label>Тип строения</label><b>${esc(oi.buildType || '—')}</b></div>
-  <div class="field"><label>Категория/класс</label><b>${esc(autoCategory(oi))}</b></div>
-  </div>
-  </div>
-  </div>
-  <div class="acc-inner">
-  <div class="sec-h">Фотографии по категориям</div>
-  ${photoAccordions(oi, true)}
-  </div>
-  </div>`;
+return `<div style="padding:4px 2px">
+<div class="acc-inner">
+<div class="sec-h">Фотографии по категориям</div>
+${photoAccordions(oi, true)}
+</div>
+</div>`;
 }
 
 export function tableOI() {
