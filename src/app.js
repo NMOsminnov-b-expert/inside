@@ -18,26 +18,57 @@ import { bindPhotoExplorer } from './features/photos/photoExplorer.js';
 
 export function render() {
   const c = $('#content');
+
   let body = '';
+
   if (appState.view === 'oc') body = viewOC();
   else if (appState.view === 'oi') body = viewOI();
   else if (appState.view === 'ocform') body = viewOCForm();
   else body = viewMech();
 
   $('#crumbs').innerHTML = crumbsHTML();
+
   const plate = ctxPlate();
+
   c.innerHTML = `<div id="ctxPlateWrap" style="${plate ? '' : 'display:none'}">${plate || ''}</div>` + body;
+
   syncDrawer();
   bindAll();
 }
 
+function bindSidebar() {
+  const sidebar = document.getElementById('appSidebar');
+  const toggle = document.querySelector('[data-sidebar-toggle]');
+
+  if (!sidebar || !toggle) {
+    return;
+  }
+
+  sidebar.classList.toggle('collapsed', !!appState.sidebarCollapsed);
+
+  toggle.textContent = appState.sidebarCollapsed ? '▶' : '◀';
+  toggle.title = appState.sidebarCollapsed ? 'Развернуть меню' : 'Свернуть меню';
+
+  toggle.onclick = () => {
+    appState.sidebarCollapsed = !appState.sidebarCollapsed;
+
+    sidebar.classList.toggle('collapsed', appState.sidebarCollapsed);
+
+    toggle.textContent = appState.sidebarCollapsed ? '▶' : '◀';
+    toggle.title = appState.sidebarCollapsed ? 'Развернуть меню' : 'Свернуть меню';
+  };
+}
+
 function bindShell() {
+  bindSidebar();
+
   document.querySelectorAll('[data-crumb]').forEach((s) => s.onclick = () => {
     appState.view = 'oc';
     appState.viewer = null;
     appState.tab = 'general';
     render();
   });
+
   document.querySelectorAll('[data-back]').forEach((b) => b.onclick = () => {
     appState.view = 'oc';
     appState.viewer = null;
@@ -45,12 +76,20 @@ function bindShell() {
     appState.letterEdit = false;
     render();
   });
+
   const nt = document.querySelector('[data-notes-toggle]');
-  if (nt) nt.onclick = () => {
-    appState.notesOpen = !appState.notesOpen;
-    const dr = $('#notesDrawer');
-    if (dr) dr.classList.toggle('open', appState.notesOpen);
-  };
+
+  if (nt) {
+    nt.onclick = () => {
+      appState.notesOpen = !appState.notesOpen;
+
+      const dr = $('#notesDrawer');
+
+      if (dr) {
+        dr.classList.toggle('open', appState.notesOpen);
+      }
+    };
+  }
 }
 
 function bindAll() {

@@ -1,0 +1,88 @@
+/*
+  Доработки layout:
+  1. Сворачивание сайдбара.
+  2. Видимость выпадающих меню в шапке ОЦ и в заголовке таблицы ОИ.
+*/
+
+.sidebar {
+  transition: width 0.18s ease;
+}
+
+.sidebar.collapsed {
+  width: 56px;
+}
+
+.sidebar-toggle {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #7d93a6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+  background: var(--blue-50);
+  color: var(--blue-700);
+  border-color: var(--line);
+}
+
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .logo-mark,
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-soon,
+.sidebar.collapsed .side-foot {
+  display: none;
+}
+
+.sidebar.collapsed .side-logo {
+  justify-content: center;
+  padding: 12px 8px;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  margin: 0;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 8px 6px;
+}
+
+.sidebar.collapsed .nav-ico {
+  width: auto;
+}
+
+/*
+  В исходном app.css у .head-meta стоит overflow: hidden.
+  Из-за этого выпадающее меню кнопки «Добавить ОИ» обрезается.
+*/
+.head-meta,
+.card-head {
+  overflow: visible;
+}
+
+.dd-menu {
+  z-index: 300;
+  max-height: 340px;
+  overflow: auto;
+}
+
+.head-meta .dd-menu,
+.card-head .dd-menu {
+  left: auto;
+  right: 0;
+}

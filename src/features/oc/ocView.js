@@ -1,11 +1,12 @@
 import { OC, DOCS, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
-import { REALTY_TYPES, DOC_TYPES } from '../../core/dictionaries.js';
+import { DOC_TYPES } from '../../core/dictionaries.js';
 import { ownersUsersHTML, responsiblesHTML } from './partiesView.js';
 import { tableOI } from '../oi/oiTable.js';
 import { docsTableHTML } from '../docs/docsTable.js';
 import { photosTab } from '../photos/photoExplorer.js';
 import { splitWrap, viewerHTML } from '../viewer/viewerShell.js';
+import { addOiMenuHTML } from './addOiMenu.js';
 
 function headOC() {
   return `<div class="card card-pad t-blue">
@@ -21,14 +22,8 @@ function headOC() {
 
       <div class="dd" id="ddAddOi">
         <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ ▾</button>
-
         <div class="dd-menu">
-          <div class="dd-group">Недвижимость</div>
-          ${REALTY_TYPES.map((t) => `<button data-add-oi="${esc(t)}">${esc(t)}</button>`).join('')}
-
-          ${OC.complex ? `<div class="dd-group">Движимое имущество</div>
-            <button data-add-oi="МЕХ">Механизмы и производственное оборудование</button>
-            <button data-add-oi="ОФИС">Офисная техника и мебель</button>` : ''}
+          ${addOiMenuHTML()}
         </div>
       </div>
 
@@ -49,12 +44,12 @@ function partiesOC() {
 
         <div class="field"><label>Собственники</label>
           <div class="inline-row">${OC.owners.map((o, i) => `<span class="ms-tag">${esc(o)}<span data-owner-rm="${i}" title="Убрать">×</span></span>`).join('') || '<span class="muted">не указаны</span>'}
-            <button class="btn btn-ghost btn-sm" data-add-party="owner">+ Добавить</button></div>
+          <button class="btn btn-ghost btn-sm" data-add-party="owner">+ Добавить</button></div>
         </div>
 
         <div class="field"><label>Пользователь</label>
           <div class="inline-row">${OC.users.map((o, i) => `<span class="ms-tag">${esc(o)}<span data-user-rm="${i}" title="Убрать">×</span></span>`).join('') || '<span class="muted">не указан</span>'}
-            <button class="btn btn-ghost btn-sm" data-add-party="user">+ Добавить</button></div>
+          <button class="btn btn-ghost btn-sm" data-add-party="user">+ Добавить</button></div>
         </div>
       </div>
 

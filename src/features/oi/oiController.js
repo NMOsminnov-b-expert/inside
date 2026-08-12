@@ -1,13 +1,14 @@
-import { OI, DOCS, appState } from '../../core/state.js';
+import { OI, DOCS, appState, OC } from '../../core/state.js';
 import { render } from '../../core/renderer.js';
 import { toast } from '../../core/utils.js';
-import { nextLetter, createRealtyOi, createLandOi, currentOI, isApartmentOi } from './oiModel.js';
+import { nextLetter, createRealtyOi, createLandOi, currentOI } from './oiModel.js';
 import { buildFloors, recalcFloors } from './floorsModel.js';
 import { updateFloorsUI, rerenderFloors } from './floorsView.js';
 import { updateHeatingUI } from './heating.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../viewer/viewerState.js';
 import { photoPages } from '../photos/photoModel.js';
 import { updateCtxPlate } from '../../ui/ctxPlate.js';
+import { canAddOiType } from '../oc/ocRules.js';
 
 // Локальный рендер с сохранением прокрутки: используется при смене полей,
 // от которых зависят правила отображения (категория, происхождение, флаги).
@@ -20,92 +21,6 @@ function renderKeepScroll() {
   render();
 
   if (sc) sc.scrollTop = top;
-}
-
-function ensureApartmentState(oi) {
-  if (!oi.apartment) {
-    oi.apartment = {
-      floor: '',
-      buildingFloors: '',
-      rooms: '',
-      series: '',
-      location: '',
-      locationOther: '',
-    };
-  }
-
-  return oi.apartment;
-}
-
-function bindApartmentFields(oi) {
-  const apartment = ensureApartmentState(oi);
-
-  const floorInput = document.querySelector('[data-apt-floor]');
-  if (floorInput) {
-    floorInput.onchange = () => {
-      apartment.floor = floorInput.value;
-      updateCtxPlate();
-    };
-  }
-
-  const buildingFloorsInput = document.querySelector('[data-apt-building-floors]');
-  if (buildingFloorsInput) {
-    buildingFloorsInput.onchange = () => {
-      apartment.buildingFloors = buildingFloorsInput.value;
-      updateCtxPlate();
-    };
-  }
-
-  const roomsInput = document.querySelector('[data-apt-rooms]');
-  if (roomsInput) {
-    roomsInput.onchange = () => {
-      apartment.rooms = roomsInput.value;
-      updateCtxPlate();
-    };
-  }
-
-  const seriesInput = document.querySelector('[data-apt-series]');
-  if (seriesInput) {
-    seriesInput.onchange = () => {
-      apartment.series = seriesInput.value;
-    };
-  }
-
-  const locationSelect = document.querySelector('[data-apt-location]');
-  const locationOtherInput = document.querySelector('[data-apt-location-other]');
-
-  const syncLocationOtherVisibility = () => {
-    if (!locationOtherInput) {
-      return;
-    }
-
-    locationOtherInput.style.display = apartment.location === 'Прочее' ? '' : 'none';
-  };
-
-  if (locationSelect) {
-    locationSelect.onchange = () => {
-      apartment.location = locationSelect.value;
-
-      if (apartment.location !== 'Прочее') {
-        apartment.locationOther = '';
-
-        if (locationOtherInput) {
-          locationOtherInput.value = '';
-        }
-      }
-
-      syncLocationOtherVisibility();
-      updateCtxPlate();
-    };
-  }
-
-  if (locationOtherInput) {
-    locationOtherInput.onchange = () => {
-      apartment.locationOther = locationOtherInput.value;
-    };
-  }
-
-  syncLocationOtherVisibility();
 }
 
 export function addLetter() {
@@ -132,6 +47,11 @@ export function addLetter() {
 export function addOi(type) {
   document.querySelectorAll('.dd').forEach((d) => d.classList.remove('open'));
 
+  if (!canAddOiType(type, OC)) {
+    toast('Для текущего типа ОЦ этот вид ОИ недоступен', 'warn');
+    return;
+  }
+
   if (type === 'МЕХ' || type === 'ОФИС') {
     appState.view = 'mech';
     appState.mechKind = type;
@@ -139,7 +59,9 @@ export function addOi(type) {
     appState.mechDocs = [];
     appState.viewer = { mode: 'doc' };
     appState.viewerDoc = null;
+
     render();
+
     return;
   }
 
@@ -158,6 +80,7 @@ export function addOi(type) {
     appState.view = 'oi';
 
     render();
+
     return;
   }
 
@@ -214,10 +137,16 @@ export function deleteOi(id) {
 
 export function bindOi() {
   const al = document.querySelector('[data-add-letter]');
-  if (al) al.onclick = addLetter;
+
+  if (al) {
+    al.onclick = addLetter;
+  }
 
   document.querySelectorAll('[data-del-oi]').forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); deleteOi(b.dataset.delOi); };
+    b.onclick = (e) => {
+      e.stopPropagation();
+      deleteOi(b.dataset.delOi);
+    };
   });
 
   document.querySelectorAll('tr[data-open-oi]').forEach((tr) => {
@@ -235,17 +164,23 @@ export function bindOi() {
         render();
 
         if (sc) sc.scrollTop = top;
+
         return;
       }
 
-      if (e.target.closest('button') || e.target.closest('.ph-mini')) return;
+      if (e.target.closest('button') || e.target.closest('.ph-mini')) {
+        return;
+      }
 
       appState.openOi = tr.dataset.openOi;
       appState.letterEdit = false;
 
       const oi = OI.find((o) => o.id === tr.dataset.openOi);
 
-      appState.viewer = { mode: (oi && oi.photos && Object.keys(oi.photos).length) ? 'photo' : 'doc' };
+      appState.viewer = {
+        mode: (oi && oi.photos && Object.keys(oi.photos).length) ? 'photo' : 'doc',
+      };
+
       appState.viewerDoc = null;
       appState.view = 'oi';
 
@@ -259,13 +194,17 @@ export function bindOi() {
 
       const tabs = VS.openTabs['oc'] || [];
 
-      openDocViewer('oc', tabs.length ? tabs[tabs.length - 1] : (DOCS[0] ? DOCS[0].id : null));
+      openDocViewer(
+        'oc',
+        tabs.length ? tabs[tabs.length - 1] : (DOCS[0] ? DOCS[0].id : null)
+      );
     };
   });
 
   document.querySelectorAll('[data-open-movdoc]').forEach((tr) => {
     tr.onclick = () => {
       const [scope, id] = tr.dataset.openMovdoc.split('|');
+
       openDocViewer(scope, id);
     };
   });
@@ -313,57 +252,76 @@ export function bindOi() {
   });
 
   document.querySelectorAll('[data-open-pviewer]').forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); appState.viewer = { mode: 'photo' }; render(); };
+    b.onclick = (e) => {
+      e.stopPropagation();
+
+      appState.viewer = { mode: 'photo' };
+
+      render();
+    };
   });
 
   // Переименование литеры.
   const elBtn = document.querySelector('[data-edit-letter]');
-  if (elBtn) elBtn.onclick = () => {
-    appState.letterEdit = true;
-    render();
 
-    const i = document.querySelector('[data-letter-input]');
+  if (elBtn) {
+    elBtn.onclick = () => {
+      appState.letterEdit = true;
 
-    if (i) {
-      i.focus();
-      i.select();
-    }
-  };
+      render();
+
+      const i = document.querySelector('[data-letter-input]');
+
+      if (i) {
+        i.focus();
+        i.select();
+      }
+    };
+  }
 
   const ls = document.querySelector('[data-letter-save]');
-  if (ls) ls.onclick = () => {
-    const oi = currentOI();
 
-    if (!oi) {
-      return;
-    }
+  if (ls) {
+    ls.onclick = () => {
+      const oi = currentOI();
 
-    const inp = document.querySelector('[data-letter-input]');
-    const v = (inp ? inp.value : '').trim();
+      if (!oi) {
+        return;
+      }
 
-    if (!v || v === oi.letter) {
+      const inp = document.querySelector('[data-letter-input]');
+      const v = (inp ? inp.value : '').trim();
+
+      if (!v || v === oi.letter) {
+        appState.letterEdit = false;
+        render();
+        return;
+      }
+
+      const taken = OI.some((o) => o !== oi && o.kind === 'realty' && o.letter === v);
+
+      if (taken) {
+        toast('Литера занята', 'warn');
+        return;
+      }
+
+      oi.letter = v;
       appState.letterEdit = false;
+
       render();
-      return;
-    }
 
-    const taken = OI.some((o) => o !== oi && o.kind === 'realty' && o.letter === v);
-
-    if (taken) {
-      toast('Литера занята', 'warn');
-      return;
-    }
-
-    oi.letter = v;
-    appState.letterEdit = false;
-
-    render();
-
-    toast('Литера переименована', 'ok');
-  };
+      toast('Литера переименована', 'ok');
+    };
+  }
 
   const lc = document.querySelector('[data-letter-cancel]');
-  if (lc) lc.onclick = () => { appState.letterEdit = false; render(); };
+
+  if (lc) {
+    lc.onclick = () => {
+      appState.letterEdit = false;
+      render();
+    };
+  }
 
   // Поля карточки ОИ.
   const oi = OI.find((o) => o.id === appState.openOi);
@@ -372,88 +330,115 @@ export function bindOi() {
     if (oi.kind === 'realty') {
       document.querySelectorAll('[data-area]').forEach((i) => i.onchange = () => {
         oi.areas[i.dataset.area] = i.value;
+
         recalcFloors(oi);
         updateFloorsUI(oi);
         updateCtxPlate();
       });
 
-      document.querySelectorAll('[data-height]').forEach((i) => i.onchange = () => { oi.heights[i.dataset.height] = i.value; });
+      document.querySelectorAll('[data-height]').forEach((i) => i.onchange = () => {
+        oi.heights[i.dataset.height] = i.value;
+      });
 
       const fn = document.querySelector('[data-floors-n]');
 
-      if (fn) fn.onchange = () => {
-        oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
-        buildFloors(oi);
-        rerenderFloors(oi);
-        updateCtxPlate();
-      };
+      if (fn) {
+        fn.onchange = () => {
+          oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
+
+          buildFloors(oi);
+          rerenderFloors(oi);
+          updateCtxPlate();
+        };
+      }
 
       const rd = document.querySelector('[data-redistribute]');
 
-      if (rd) rd.onclick = (e) => {
-        e.stopPropagation();
+      if (rd) {
+        rd.onclick = (e) => {
+          e.stopPropagation();
 
-        recalcFloors(oi);
-        updateFloorsUI(oi);
+          recalcFloors(oi);
+          updateFloorsUI(oi);
 
-        toast('Отмеченные этажи выровнены по остатку', 'ok');
-      };
+          toast('Отмеченные этажи выровнены по остатку', 'ok');
+        };
+      }
 
       document.querySelectorAll('[data-floor-on]').forEach((c) => c.onchange = () => {
         oi.floorList[+c.dataset.floorOn].on = c.checked;
+
         recalcFloors(oi);
         updateFloorsUI(oi);
       });
 
       document.querySelectorAll('[data-floor-area]').forEach((i) => i.onchange = () => {
         oi.floorList[+i.dataset.floorArea].area = i.value;
+
         recalcFloors(oi);
         updateFloorsUI(oi);
       });
 
-      document.querySelectorAll('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
-      document.querySelectorAll('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+      document.querySelectorAll('[data-floor-hext]').forEach((i) => i.onchange = () => {
+        oi.floorList[+i.dataset.floorHext].hExt = i.value;
+      });
+
+      document.querySelectorAll('[data-floor-hint]').forEach((i) => i.onchange = () => {
+        oi.floorList[+i.dataset.floorHint].hInt = i.value;
+      });
 
       const bt = document.querySelector('[data-buildtype]');
 
-      if (bt) bt.onchange = () => {
-        oi.buildType = bt.value;
-        updateCtxPlate();
-      };
+      if (bt) {
+        bt.onchange = () => {
+          oi.buildType = bt.value;
+          updateCtxPlate();
+        };
+      }
 
       const yr = document.querySelector('[data-year]');
 
-      if (yr) yr.onchange = () => {
-        oi.year = yr.value;
-      };
+      if (yr) {
+        yr.onchange = () => {
+          oi.year = yr.value;
+        };
+      }
 
       const cm = document.querySelector('[data-comment]');
 
-      if (cm) cm.onchange = () => {
-        oi.comment = cm.value;
-      };
+      if (cm) {
+        cm.onchange = () => {
+          oi.comment = cm.value;
+        };
+      }
 
       const dis = document.querySelector('[data-dis]');
 
-      if (dis) dis.onchange = () => {
-        oi.dis = dis.checked;
-      };
+      if (dis) {
+        dis.onchange = () => {
+          oi.dis = dis.checked;
+        };
+      }
 
       // Категория ОИ влияет на правила обязательности (высоты, стены) —
       // перерисовываем с сохранением скролла, чтобы карточка не прыгала.
       const cc = document.querySelector('[data-catclass]');
 
-      if (cc) cc.onchange = () => {
-        oi.catClass = cc.value;
-        renderKeepScroll();
-      };
+      if (cc) {
+        cc.onchange = () => {
+          oi.catClass = cc.value;
+          renderKeepScroll();
+        };
+      }
 
       // Категория жилого строения — чисто справочное поле, перерисовка не нужна.
       const rc = document.querySelector('[data-rescat]');
 
-      if (rc) rc.onchange = () => {
-        oi.resCat = rc.value;
-      };
+      if (rc) {
+        rc.onchange = () => {
+          oi.resCat = rc.value;
+        };
+      }
     }
 
     document.querySelectorAll('[data-status]').forEach((s) => s.onchange = () => {
@@ -463,16 +448,20 @@ export function bindOi() {
 
     const nm = document.querySelector('[data-oi-name]');
 
-    if (nm) nm.onchange = () => {
-      oi.name = nm.value;
-      updateCtxPlate();
-    };
+    if (nm) {
+      nm.onchange = () => {
+        oi.name = nm.value;
+        updateCtxPlate();
+      };
+    }
 
     const en = document.querySelector('[data-oi-eni]');
 
-    if (en) en.onchange = () => {
-      oi.eni = en.value.trim() || oi.eni;
-    };
+    if (en) {
+      en.onchange = () => {
+        oi.eni = en.value.trim() || oi.eni;
+      };
+    }
 
     // Флаги «Введено» / «Сопоставлено» влияют на статус на плашке —
     // пересчитываем весь экран, чтобы плашка и шапка обновились одновременно.
@@ -501,10 +490,12 @@ export function bindOi() {
 
       const mn = document.querySelector('[data-mv-name]');
 
-      if (mn) mn.onchange = () => {
-        oi.name = mn.value;
-        updateCtxPlate();
-      };
+      if (mn) {
+        mn.onchange = () => {
+          oi.name = mn.value;
+          updateCtxPlate();
+        };
+      }
 
       const sr = document.querySelector('[data-mv-serial]');
       if (sr) sr.onchange = () => { oi.serial = sr.value; };
@@ -532,6 +523,7 @@ export function bindOi() {
       });
 
       drop.hidden = !drop.hidden;
+
       appState.heatOpen = !drop.hidden;
     });
 
@@ -564,39 +556,41 @@ export function bindOi() {
 
     const ho = document.querySelector('[data-heat-other]');
 
-    if (ho) ho.onchange = () => {
-      oi.heatingOther = ho.value;
-    };
+    if (ho) {
+      ho.onchange = () => {
+        oi.heatingOther = ho.value;
+      };
+    }
 
     const am = document.querySelector('[data-add-movdoc]');
 
-    if (am) am.onclick = () => {
-      (oi.docs = oi.docs || []).push({
-        id: 'md' + Date.now(),
-        type: 'ПУД',
-        name: 'Новый документ',
-        date: '07.08.2026',
-      });
+    if (am) {
+      am.onclick = () => {
+        (oi.docs = oi.docs || []).push({
+          id: 'md' + Date.now(),
+          type: 'ПУД',
+          name: 'Новый документ',
+          date: '07.08.2026',
+        });
 
-      render();
+        render();
 
-      toast('Документ добавлен', 'ok');
-    };
+        toast('Документ добавлен', 'ok');
+      };
+    }
 
     const sv = document.querySelector('[data-save-oi]');
 
-    if (sv) sv.onclick = () => {
-      appState.view = 'oc';
-      appState.viewer = null;
-      appState.letterEdit = false;
+    if (sv) {
+      sv.onclick = () => {
+        appState.view = 'oc';
+        appState.viewer = null;
+        appState.letterEdit = false;
 
-      render();
+        render();
 
-      toast('ОИ сохранён', 'ok');
-    };
-
-    if (isApartmentOi(oi)) {
-      bindApartmentFields(oi);
+        toast('ОИ сохранён', 'ok');
+      };
     }
   }
 }

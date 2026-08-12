@@ -293,3 +293,33 @@ td[data-acc-cell]:hover{background:var(--blue-100)!important}
 
 /* Земельный участок: строка в общей таблице ОИ, отделена линией. */
 .tbl tbody tr.land-row td{border-top:2px solid var(--line);}
+
+/*
+  Исправление видимости выпадающих меню.
+  В исходном стиле .head-meta имеет overflow: hidden,
+  из-за чего абсолютное меню дропдауна обрезается.
+*/
+
+.head-meta {
+  overflow: visible;
+}
+
+.card-head {
+  overflow: visible;
+}
+
+.dd-menu {
+  z-index: 300;
+  max-height: 340px;
+  overflow: auto;
+}
+
+/*
+  Меню в шапке ОЦ и в шапке таблицы ОИ лучше открывать влево,
+  чтобы не вылезать за правый край экрана.
+*/
+.head-meta .dd-menu,
+.card-head .dd-menu {
+  left: auto;
+  right: 0;
+}

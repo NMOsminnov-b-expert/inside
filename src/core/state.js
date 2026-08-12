@@ -24,4 +24,7 @@ export const appState = {
   doneOpen: {},
   notesOpen: false,
   photoQuery: '',
+
+  // Новое состояние сворачивания левого сайдбара.
+  sidebarCollapsed: false,
 };
