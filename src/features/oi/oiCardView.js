@@ -1,12 +1,6 @@
 import { OI, OC, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
-import {
-  DICT,
-  CATCLASS,
-  RES_BUILD_CAT,
-  APARTMENT_SERIES,
-  APARTMENT_LOCATIONS,
-} from '../../core/dictionaries.js';
+import { DICT, CATCLASS, RES_BUILD_CAT, APARTMENT_SERIES, APARTMENT_LOCATIONS } from '../../core/dictionaries.js';
 import { oiFieldRules, isApartmentOi } from './oiModel.js';
 import { floorsBlock } from './floorsView.js';
 import { heatingMS } from './heating.js';
@@ -16,7 +10,7 @@ import { splitWrap, viewerHTML } from '../viewer/viewerShell.js';
 import { viewOC } from '../oc/ocView.js';
 
 function structField(key, label, opts, val, req) {
-  const isOther = String(val).includes('Прочее');
+  const isOther = String(val || '').includes('Прочее');
 
   return `<div class="field"><label>${label}${req ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-struct="${key}">${opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
@@ -41,20 +35,16 @@ function letterControlHTML(oi) {
 
 function flagsRowHTML(oi) {
   const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
 
   return `<div class="inline-row" style="margin-bottom:10px">
     <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-    ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
+    <label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>
   </div>`;
 }
 
 function realtyGeneralCard(oi) {
   const rq = oiFieldRules(oi);
 
-  // Категория жилого строения показывается только если:
-  // 1) ОИ помечен как жилой (rq.showResCat)
-  // 2) тип ОЦ — «Жилое здание (дом)» (иначе ОЦ не жилой)
   const showResCat = rq.showResCat && OC.type === 'Жилое здание (дом)';
 
   return `<div class="card t-blue" id="q-gen">
@@ -104,7 +94,7 @@ function realtyGeneralCard(oi) {
         </div>` : ''}
 
         <div class="field"><label>Категория ОИ (категория → класс)</label>
-          <select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+          <select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || CATCLASS[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
           <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
           <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
         </div>
@@ -312,16 +302,11 @@ function apartmentCards(oi) {
 
 function movableCards(oi) {
   const isV = oi.kind === 'vehicle';
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
 
   return `<div class="oi-stack">
     <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>${isV ? 'Данные ТС' : oi.kind === 'mech' ? 'Данные механизма' : 'Данные офисной техники'}</h3></div>
       <div class="card-pad">
-        <div class="inline-row" style="margin-bottom:10px">
-          <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-          ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
-        </div>
+        ${flagsRowHTML(oi)}
 
         ${isV ? `<div class="grid g-3">
           <div class="field"><label>Марка</label><input class="input" data-mv-make value="${esc(oi.make)}"></div>
@@ -376,9 +361,6 @@ export function viewOI() {
   const f = oi.flags || {};
   const isApartment = isApartmentOi(oi);
 
-  // Флаг «Сопоставлено с фото» в шапке карточки — только у ML-ОИ.
-  const isMl = (oi.origin || 'manual') === 'ml';
-
   const cardLabel = isR
     ? isApartment
       ? 'Карточка квартиры'
@@ -404,7 +386,7 @@ export function viewOI() {
 
     <span class="pill pill-gray">${cardLabel}</span>
 
-    ${isR ? `<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}` : ''}
+    ${isR ? `<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label><label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
     ${isR ? `<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>` : ''}
 
     <button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
