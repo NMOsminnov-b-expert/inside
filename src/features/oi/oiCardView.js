@@ -45,11 +45,9 @@ function flagsRowHTML(oi) {
     ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
   </div>`;
 }
-
 function realtyGeneralCard(oi) {
   const rq = oiFieldRules(oi);
   const showResCat = rq.showResCat && OC.type === 'Жилое здание (дом)';
-
   return `<div class="card t-blue" id="q-gen">
     <div class="card-head" data-card-toggle>
       <span class="card-idx">01</span>
@@ -211,20 +209,26 @@ function apartmentAreasCard(oi) {
 
 function realtyStructCard(oi) {
   const rq = oiFieldRules(oi);
+  const struct = oi.struct || {};
+  const heatingSource = {
+    ...oi,
+    heating: Array.isArray(oi.heating) ? oi.heating : [],
+    heatingOther: oi.heatingOther || '',
+  };
   return `<div class="card t-teal" id="q-struct">
     <div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
-        ${structField('foundation', 'Фундамент', DICT.foundation, oi.struct.foundation)}
-        ${structField('wallsExt', 'Наружные стены', DICT.wallsExt, oi.struct.wallsExt, rq.wallsRequired)}
-        ${structField('ceilings', 'Перекрытия', DICT.ceilings, oi.struct.ceilings)}
-        ${structField('roof', 'Кровля', DICT.roof, oi.struct.roof)}
+        ${structField('foundation', 'Фундамент', DICT.foundation, struct.foundation)}
+        ${structField('wallsExt', 'Наружные стены', DICT.wallsExt, struct.wallsExt, rq.wallsRequired)}
+        ${structField('ceilings', 'Перекрытия', DICT.ceilings, struct.ceilings)}
+        ${structField('roof', 'Кровля', DICT.roof, struct.roof)}
       </div>
       <div class="grid g-4" style="margin-top:8px">
-        ${structField('floors', 'Полы', DICT.floors, oi.struct.floors)}
-        ${structField('windows', 'Окна', DICT.windows, oi.struct.windows)}
-        ${structField('doors', 'Двери', DICT.doors, oi.struct.doors)}
-        ${heatingMS(oi)}
+        ${structField('floors', 'Полы', DICT.floors, struct.floors)}
+        ${structField('windows', 'Окна', DICT.windows, struct.windows)}
+        ${structField('doors', 'Двери', DICT.doors, struct.doors)}
+        ${heatingMS(heatingSource)}
       </div>
       <div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
     </div></div>
@@ -265,6 +269,7 @@ function apartmentCards(oi) {
   return `<div class="oi-stack">
     ${apartmentGeneralCard(oi)}
     ${apartmentAreasCard(oi)}
+    ${realtyStructCard(oi)}
     ${docsCard(oi)}
     ${photosCard(oi)}
   </div>`;

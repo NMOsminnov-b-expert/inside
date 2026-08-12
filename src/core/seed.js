@@ -2,6 +2,7 @@ import { mkNote } from '../features/notes/notesStore.js';
 
 export function createOC() {
   return {
+    residential: true,
     category: 'Недвижимое',
     type: 'Жилое здание (дом)',
     purposeTP: 'Жилое',

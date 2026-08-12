@@ -93,8 +93,6 @@ FILE: .\index.html
           <b>Inside</b>
           <span>Система оценки имущества</span>
         </div>
-
-        <button class="sidebar-toggle" data-sidebar-toggle title="Свернуть меню">◀</button>
       </div>
 
       <nav class="side-nav">
@@ -130,6 +128,8 @@ FILE: .\index.html
         <span>v0.29.0</span>
         <span>Осминов Н.</span>
       </div>
+
+      <button class="sidebar-toggle" data-sidebar-toggle title="Свернуть меню">◀</button>
     </aside>
 
     <div class="main">
@@ -2090,7 +2090,7 @@ export function createOI() {
       heating: ['Центральное'],
       heatingOther: '',
       comment: 'Капитальный ремонт кровли — 2018 г.',
-      catClass: 'Гражданское здание',
+      catClass: 'Жилое здание',
       dis: false,
       premises: [
         { cat: 'Помещение', name: 'Кухня', area: '12.40' },
@@ -3652,7 +3652,6 @@ import { viewOC } from '../oc/ocView.js';
 
 function structField(key, label, opts, val, req) {
   const isOther = String(val).includes('Прочее');
-
   return `<div class="field"><label>${label}${req ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-struct="${key}">${opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
 ${isOther ? `<input class="input" placeholder="Укажите вручную" value="">` : ''}
@@ -3669,7 +3668,6 @@ function letterControlHTML(oi) {
       <button class="btn btn-ghost btn-sm" data-letter-cancel data-letter-id="${oi.id}">Отмена</button>
     </div>`;
   }
-
   return `<span class="letter-clickable" data-edit-letter data-letter-id="${oi.id}"
     title="Кликните чтобы редактировать">${esc(oi.letter)}</span>`;
 }
@@ -3677,7 +3675,6 @@ function letterControlHTML(oi) {
 function flagsRowHTML(oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
-
   return `<div class="inline-row" style="margin-bottom:10px">
     <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
     ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
@@ -3686,9 +3683,7 @@ function flagsRowHTML(oi) {
 
 function realtyGeneralCard(oi) {
   const rq = oiFieldRules(oi);
-
   const showResCat = rq.showResCat && OC.type === 'Жилое здание (дом)';
-
   return `<div class="card t-blue" id="q-gen">
     <div class="card-head" data-card-toggle>
       <span class="card-idx">01</span>
@@ -3696,45 +3691,36 @@ function realtyGeneralCard(oi) {
       <span class="hint">${esc(oi.name)}</span>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
         <div class="field" style="flex:0 0 auto;">
           <label>Литера</label>
           ${letterControlHTML(oi)}
         </div>
-
         <div class="field" style="flex:1 1 180px;">
           <label>Наименование</label>
           <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
         </div>
-
         <div class="field" style="flex:0 0 150px;">
           <label>Статус</label>
           <select class="select" style="width:100%;" data-status>
             ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
         </div>
-
         <div class="field" style="flex:0 0 160px;">
           <label>ЕНИ код</label>
           <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
         </div>
       </div>
-
       ${flagsRowHTML(oi)}
-
       <div class="grid g-3">
         <div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
-
         <div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
           <select class="select" data-buildtype>${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
         </div>
-
         ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
           <select class="select" data-rescat>${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
         </div>` : ''}
-
         <div class="field"><label>Категория ОИ (категория → класс)</label>
           <select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
           <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
@@ -3748,7 +3734,6 @@ function realtyGeneralCard(oi) {
 function apartmentGeneralCard(oi) {
   const apt = oi.apartment || {};
   const showLocationOther = apt.location === 'Прочее';
-
   return `<div class="card t-blue" id="q-gen">
     <div class="card-head" data-card-toggle>
       <span class="card-idx">01</span>
@@ -3756,51 +3741,42 @@ function apartmentGeneralCard(oi) {
       <span class="hint">${esc(oi.name)}</span>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
         <div class="field" style="flex:0 0 auto;">
           <label>Литера</label>
           ${letterControlHTML(oi)}
         </div>
-
         <div class="field" style="flex:1 1 180px;">
           <label>Наименование</label>
           <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
         </div>
-
         <div class="field" style="flex:0 0 150px;">
           <label>Статус</label>
           <select class="select" style="width:100%;" data-status>
             ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
         </div>
-
         <div class="field" style="flex:0 0 160px;">
           <label>ЕНИ код</label>
           <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
         </div>
       </div>
-
       ${flagsRowHTML(oi)}
-
       <div class="grid g-3">
         <div class="field">
           <label>Этаж</label>
           <input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
         </div>
-
         <div class="field">
           <label>Этажность дома</label>
           <input class="input" data-apt-building-floors value="${esc(apt.buildingFloors || '')}" inputmode="numeric">
         </div>
-
         <div class="field">
           <label>Количество комнат</label>
           <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
         </div>
       </div>
-
       <div class="grid g-2" style="margin-top:10px">
         <div class="field">
           <label>Серия</label>
@@ -3809,7 +3785,6 @@ function apartmentGeneralCard(oi) {
             ${APARTMENT_SERIES.map((series) => `<option value="${esc(series)}">`).join('')}
           </datalist>
         </div>
-
         <div class="field">
           <label>Расположение</label>
           <div class="inline-row">
@@ -3817,7 +3792,6 @@ function apartmentGeneralCard(oi) {
               <option value="">Не выбрано</option>
               ${APARTMENT_LOCATIONS.map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
             </select>
-
             <input
               class="input"
               data-apt-location-other
@@ -3836,10 +3810,8 @@ function realtyAreasCard(oi) {
   const rq = oiFieldRules(oi);
   const areas = oi.areas || {};
   const heights = oi.heights || {};
-
   return `<div class="card t-blue" id="q-areas">
     <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
         <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
@@ -3847,9 +3819,7 @@ function realtyAreasCard(oi) {
         <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
         <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
       </div>
-
       <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(oi)}</div>
-
       <div class="grid g-2" style="margin-top:10px">
         <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
         <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
@@ -3860,10 +3830,8 @@ function realtyAreasCard(oi) {
 
 function apartmentAreasCard(oi) {
   const areas = oi.areas || {};
-
   return `<div class="card t-blue" id="q-areas">
     <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
         <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
@@ -3877,25 +3845,27 @@ function apartmentAreasCard(oi) {
 
 function realtyStructCard(oi) {
   const rq = oiFieldRules(oi);
-
+  const struct = oi.struct || {};
+  const heatingSource = {
+    ...oi,
+    heating: Array.isArray(oi.heating) ? oi.heating : [],
+    heatingOther: oi.heatingOther || '',
+  };
   return `<div class="card t-teal" id="q-struct">
     <div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
-        ${structField('foundation', 'Фундамент', DICT.foundation, oi.struct.foundation)}
-        ${structField('wallsExt', 'Наружные стены', DICT.wallsExt, oi.struct.wallsExt, rq.wallsRequired)}
-        ${structField('ceilings', 'Перекрытия', DICT.ceilings, oi.struct.ceilings)}
-        ${structField('roof', 'Кровля', DICT.roof, oi.struct.roof)}
+        ${structField('foundation', 'Фундамент', DICT.foundation, struct.foundation)}
+        ${structField('wallsExt', 'Наружные стены', DICT.wallsExt, struct.wallsExt, rq.wallsRequired)}
+        ${structField('ceilings', 'Перекрытия', DICT.ceilings, struct.ceilings)}
+        ${structField('roof', 'Кровля', DICT.roof, struct.roof)}
       </div>
-
       <div class="grid g-4" style="margin-top:8px">
-        ${structField('floors', 'Полы', DICT.floors, oi.struct.floors)}
-        ${structField('windows', 'Окна', DICT.windows, oi.struct.windows)}
-        ${structField('doors', 'Двери', DICT.doors, oi.struct.doors)}
-        ${heatingMS(oi)}
+        ${structField('floors', 'Полы', DICT.floors, struct.floors)}
+        ${structField('windows', 'Окна', DICT.windows, struct.windows)}
+        ${structField('doors', 'Двери', DICT.doors, struct.doors)}
+        ${heatingMS(heatingSource)}
       </div>
-
       <div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
     </div></div>
   </div>`;
@@ -3904,7 +3874,6 @@ function realtyStructCard(oi) {
 function docsCard(oi) {
   return `<div class="card t-slate" id="q-docs">
     <div class="card-head" data-card-toggle><span class="card-idx">04</span><h3>Документы</h3><span class="chev">▾</span></div>
-
     <div class="card-body-wrap"><div class="card-pad">
       ${docsBlockInner(oi, oi.id)}
     </div></div>
@@ -3916,7 +3885,6 @@ function photosCard(oi) {
     <div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3>
       <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       ${photoAccordions(oi, true)}
     </div></div>
@@ -3937,6 +3905,7 @@ function apartmentCards(oi) {
   return `<div class="oi-stack">
     ${apartmentGeneralCard(oi)}
     ${apartmentAreasCard(oi)}
+    ${realtyStructCard(oi)}
     ${docsCard(oi)}
     ${photosCard(oi)}
   </div>`;
@@ -3946,7 +3915,6 @@ function movableCards(oi) {
   const isV = oi.kind === 'vehicle';
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
-
   return `<div class="oi-stack">
     <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>${isV ? 'Данные ТС' : oi.kind === 'mech' ? 'Данные механизма' : 'Данные офисной техники'}</h3></div>
       <div class="card-pad">
@@ -3954,7 +3922,6 @@ function movableCards(oi) {
           <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
           ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
         </div>
-
         ${isV ? `<div class="grid g-3">
           <div class="field"><label>Марка</label><input class="input" data-mv-make value="${esc(oi.make)}"></div>
           <div class="field"><label>Модель</label><input class="input" data-mv-model value="${esc(oi.model)}"></div>
@@ -3968,7 +3935,6 @@ function movableCards(oi) {
         </div>`}
       </div>
     </div>
-
     <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
   </div>`;
 }
@@ -3985,9 +3951,7 @@ function landCards(oi) {
         <div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
       </div></div>
     </div>
-
     <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
-
     <div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Фото по категориям</h3>
       <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div>
       <div class="card-body-wrap"><div class="card-pad">
@@ -3999,16 +3963,13 @@ function landCards(oi) {
 
 export function viewOI() {
   const oi = OI.find((o) => o.id === appState.openOi);
-
   if (!oi) {
     return viewOC();
   }
-
   const isR = oi.kind === 'realty';
   const f = oi.flags || {};
   const isApartment = isApartmentOi(oi);
   const isMl = (oi.origin || 'manual') === 'ml';
-
   const cardLabel = isR
     ? isApartment
       ? 'Карточка квартиры'
@@ -4020,7 +3981,6 @@ export function viewOI() {
         : oi.kind === 'office'
           ? 'Офисная техника'
           : 'Механизм';
-
   const cardBody = isR
     ? isApartment
       ? apartmentCards(oi)
@@ -4028,20 +3988,15 @@ export function viewOI() {
     : oi.kind === 'land'
       ? landCards(oi)
       : movableCards(oi);
-
   return `<div class="view-head">
     <button class="back-btn" data-back>← К объекту оценки</button>
-
     <span class="pill pill-gray">${cardLabel}</span>
-
     ${isR ? `<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}` : ''}
     ${isR ? `<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>` : ''}
-
     <button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
     <button class="btn btn-primary" data-save-oi>Сохранить</button>
     <button class="btn btn-ghost" data-back>Отмена</button>
   </div>
-
   ${splitWrap(appState.viewer ? viewerHTML() : null, cardBody)}`;
 }
 
@@ -4443,7 +4398,7 @@ FILE: .\src\features\oi\oiModel.js
 ==================================================
 
 import { LETTER_SEQ } from '../../core/dictionaries.js';
-import { OI, appState } from '../../core/state.js';
+import { OI, OC, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
 import { buildFloors } from './floorsModel.js';
 
@@ -4463,6 +4418,13 @@ export function isApartmentOi(oi) {
   if (!oi) return false;
   if (oi.subtype === OI_SUBTYPE.REALTY_APARTMENT) return true;
   return String(oi.name || '').toLowerCase().includes('квартира');
+}
+
+export function isResidentialOi(oi) {
+  if (!oi) return false;
+  if (oi.subtype === OI_SUBTYPE.REALTY_RESIDENTIAL) return true;
+  // Фоллбэк по имени для старых объектов без subtype.
+  return String(oi.name || '').toLowerCase().includes('жилой дом');
 }
 
 function createApartmentState() {
@@ -4497,25 +4459,33 @@ export function autoCategory(oi) {
 export function oiFieldRules(oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
   const ml = (oi.origin || 'manual') === 'ml';
+  const isApartment = isApartmentOi(oi);
+
+  // Категория ОИ скрывается, когда:
+  // 1) ОЦ является «Жилым зданием (домом)», и
+  // 2) ОИ по подтипу является «Жилым зданием».
+  const hideCatClassForResidential =
+    isResidentialOi(oi)
+    && OC
+    && String(OC.type || '').toLowerCase().includes('жилое здание');
 
   return {
     heightRequired: prod,
     wallsRequired: prod,
     buildTypeRequired: !prod,
-    showResCat: !!oi.residential && !isApartmentOi(oi),
+    showResCat: !!oi.residential && !isApartment,
     showMatched: ml,
-    isApartment: isApartmentOi(oi),
+    isApartment,
+    showCatClass: !hideCatClassForResidential,
   };
 }
 
 export function oiVerbal(oi) {
   const f = oi.flags || {};
-
   if ((oi.origin || 'manual') === 'ml') {
     if (f.entered && f.matched) return { t: 'проверено (сверено с документами — удостоверено)', c: 'pill-done' };
     return { t: f.entered ? 'импортировано по ML — ожидает проверки' : 'импортировано по ML', c: 'pill-pend' };
   }
-
   if (f.entered) return { t: 'введено вручную', c: 'pill-done' };
   return { t: 'не заполнено', c: 'pill-gray' };
 }
@@ -4531,19 +4501,16 @@ export function nextLetter() {
 
 function resolveRealtySubtype(name, catClass) {
   const lowerName = String(name || '').toLowerCase();
-
   if (lowerName.includes('квартира')) return OI_SUBTYPE.REALTY_APARTMENT;
-  if (lowerName.includes('жилой дом')) return OI_SUBTYPE.REALTY_RESIDENTIAL;
+  if (lowerName.includes('жилой дом') || lowerName.includes('жилое здание')) return OI_SUBTYPE.REALTY_RESIDENTIAL;
   if (catClass === 'Производственно-складское' || lowerName.includes('производственное')) return OI_SUBTYPE.REALTY_PRODUCTION;
   if (lowerName.includes('прочее')) return OI_SUBTYPE.REALTY_OTHER;
-
   return OI_SUBTYPE.REALTY_CIVIL;
 }
 
 export function createRealtyOi({ letter, name, catClass = 'Гражданское здание' }) {
   const subtype = resolveRealtySubtype(name, catClass);
   const isApartment = subtype === OI_SUBTYPE.REALTY_APARTMENT;
-
   const oi = {
     id: 'oi-r' + Date.now(),
     kind: 'realty',
@@ -4581,9 +4548,7 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
     notes: [],
     apartment: isApartment ? createApartmentState() : null,
   };
-
   buildFloors(oi);
-
   return oi;
 }
 
@@ -4610,7 +4575,6 @@ export function createMovableOi({ kind, name, docs = [], year = '', serial = '' 
     : kind === 'vehicle'
       ? OI_SUBTYPE.VEHICLE
       : OI_SUBTYPE.OFFICE;
-
   return {
     id: 'oi-m' + Date.now(),
     kind,
@@ -5126,7 +5090,12 @@ FILE: .\src\features\oi\cardTypes\realtyApartmentCard.js
 
 import { esc } from '../../../core/utils.js';
 import { DICT } from '../../../core/dictionaries.js';
-import { letterControl, renderOiDocsCard, renderOiPhotosCard } from './realtySections.js';
+import {
+  letterControl,
+  renderRealtyStructCard,
+  renderOiDocsCard,
+  renderOiPhotosCard,
+} from './realtySections.js';
 
 export const realtyApartmentCard = {
   id: 'realty_apartment',
@@ -5146,48 +5115,40 @@ export const realtyApartmentCard = {
           <span class="hint">${esc(oi.name)}</span>
           <span class="chev">▾</span>
         </div>
-
         <div class="card-body-wrap"><div class="card-pad">
           <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
             <div class="field" style="flex:0 0 auto;">
               <label>Литера</label>
               ${letterControl(oi)}
             </div>
-
             <div class="field" style="flex:1 1 180px;">
               <label>Наименование</label>
               <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
             </div>
-
             <div class="field" style="flex:0 0 150px;">
               <label>Статус</label>
               <select class="select" style="width:100%;" data-status>
                 ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
               </select>
             </div>
-
             <div class="field" style="flex:0 0 160px;">
               <label>ЕНИ код</label>
               <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
             </div>
           </div>
-
           <div class="inline-row" style="margin-bottom:10px">
             <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
             ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
           </div>
-
           <div class="grid g-3">
             <div class="field">
               <label>Год постройки</label>
               <input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric">
             </div>
-
             <div class="field">
               <label>Этаж расположения</label>
               <input class="input" data-apartment-floor value="${esc(oi.apartmentFloor || '')}">
             </div>
-
             <div class="field">
               <label>Количество комнат</label>
               <input class="input" data-apartment-rooms value="${esc(oi.rooms || '')}">
@@ -5202,24 +5163,20 @@ export const realtyApartmentCard = {
           <h3>Площади квартиры</h3>
           <span class="chev">▾</span>
         </div>
-
         <div class="card-body-wrap"><div class="card-pad">
           <div class="grid g-4">
             <div class="field">
               <label>Общая площадь, м²</label>
               <input class="input" data-area="tp" value="${esc(areas.tp || '')}">
             </div>
-
             <div class="field">
               <label>Жилая площадь, м²</label>
               <input class="input" data-area="living" value="${esc(areas.living || '')}">
             </div>
-
             <div class="field">
               <label>Площадь по ПУД, м²</label>
               <input class="input" data-area="pud" value="${esc(areas.pud || '')}">
             </div>
-
             <div class="field">
               <label>Площадь по факту, м²</label>
               <input class="input" data-area="fact" value="${esc(areas.fact || '')}">
@@ -5228,6 +5185,7 @@ export const realtyApartmentCard = {
         </div></div>
       </div>
 
+      ${renderRealtyStructCard(oi)}
       ${renderOiDocsCard(oi)}
       ${renderOiPhotosCard(oi)}
     </div>`;
@@ -5422,7 +5380,6 @@ import { docsBlockInner } from '../../docs/docsTable.js';
 
 export function structField(key, label, opts, val, req) {
   const isOther = String(val || '').includes('Прочее');
-
   return `<div class="field"><label>${label}${req ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-struct="${key}">${opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
 ${isOther ? `<input class="input" placeholder="Укажите вручную" value="">` : ''}
@@ -5439,7 +5396,6 @@ export function letterControl(oi) {
       <button class="btn btn-ghost btn-sm" data-letter-cancel data-letter-id="${oi.id}">Отмена</button>
     </div>`;
   }
-
   return `<span class="letter-clickable" data-edit-letter data-letter-id="${oi.id}"
     title="Кликните, чтобы редактировать">${esc(oi.letter)}</span>`;
 }
@@ -5448,11 +5404,9 @@ export function renderRealtyGeneralCard(oi, options = {}) {
   const rq = oiFieldRules(oi);
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
-
   const showResCat = options.showResCat !== undefined
     ? options.showResCat
     : rq.showResCat && OC.type === 'Жилое здание (дом)';
-
   const title = options.generalTitle || 'Общие параметры';
 
   return `<div class="card t-blue" id="q-gen">
@@ -5462,67 +5416,58 @@ export function renderRealtyGeneralCard(oi, options = {}) {
       <span class="hint">${esc(oi.name)}</span>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
         <div class="field" style="flex:0 0 auto;">
           <label>Литера</label>
           ${letterControl(oi)}
         </div>
-
         <div class="field" style="flex:1 1 180px;">
           <label>Наименование</label>
           <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
         </div>
-
         <div class="field" style="flex:0 0 150px;">
           <label>Статус</label>
           <select class="select" style="width:100%;" data-status>
             ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
         </div>
-
         <div class="field" style="flex:0 0 160px;">
           <label>ЕНИ код</label>
           <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
         </div>
       </div>
-
       <div class="inline-row" style="margin-bottom:10px">
         <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
         ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
       </div>
-
       <div class="grid g-3">
         <div class="field">
           <label>Год постройки</label>
           <input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric">
         </div>
-
         <div class="field">
           <label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
           <select class="select" data-buildtype>
             ${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
         </div>
-
         ${showResCat ? `<div class="field">
           <label>Категория жилого строения</label>
           <select class="select" data-rescat>
             ${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
         </div>` : ''}
-
-        <div class="field">
+        ${rq.showCatClass ? `<div class="field">
           <label>Категория ОИ</label>
           <select class="select" data-catclass>
-            ${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское') ? 'selected' : ''}>${o}</option>`).join('')}
+            ${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
           <label class="inline-row" style="font-size:10.5px;font-weight:400">
             <input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров
           </label>
           <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
-        </div>
+        </div>` : ''}
       </div>
     </div></div>
   </div>`;
@@ -5532,7 +5477,6 @@ export function renderRealtyAreasCard(oi, options = {}) {
   const rq = oiFieldRules(oi);
   const areas = oi.areas || {};
   const heights = oi.heights || {};
-
   const showFloors = options.showFloors !== false;
   const showHeights = options.showHeights !== false;
 
@@ -5542,38 +5486,31 @@ export function renderRealtyAreasCard(oi, options = {}) {
       <h3>Площади и этажность</h3>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
         <div class="field">
           <label>Общая по техпаспорту, м²</label>
           <input class="input" data-area="tp" value="${esc(areas.tp || '')}">
         </div>
-
         <div class="field">
           <label>Общая по ПУД, м²</label>
           <input class="input" data-area="pud" value="${esc(areas.pud || '')}">
         </div>
-
         <div class="field">
           <label>Общая по факту, м²</label>
           <input class="input" data-area="fact" value="${esc(areas.fact || '')}">
         </div>
-
         <div class="field">
           <label>Площадь застройки, м²</label>
           <input class="input" data-area="build" value="${esc(areas.build || '')}">
         </div>
       </div>
-
       ${showFloors ? `<div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(oi)}</div>` : ''}
-
       ${showHeights ? `<div class="grid g-2" style="margin-top:10px">
         <div class="field">
           <label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label>
           <input class="input" data-height="ext" value="${esc(heights.ext || '')}">
         </div>
-
         <div class="field">
           <label>Высота по внутренним замерам, м</label>
           <input class="input" data-height="int" value="${esc(heights.int || '')}">
@@ -5586,7 +5523,6 @@ export function renderRealtyAreasCard(oi, options = {}) {
 export function renderRealtyStructCard(oi) {
   const rq = oiFieldRules(oi);
   const struct = oi.struct || {};
-
   const heatingSource = {
     ...oi,
     heating: Array.isArray(oi.heating) ? oi.heating : [],
@@ -5599,7 +5535,6 @@ export function renderRealtyStructCard(oi) {
       <h3>Конструктивный состав</h3>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
         ${structField('foundation', 'Фундамент', DICT.foundation, struct.foundation)}
@@ -5607,14 +5542,12 @@ export function renderRealtyStructCard(oi) {
         ${structField('ceilings', 'Перекрытия', DICT.ceilings, struct.ceilings)}
         ${structField('roof', 'Кровля', DICT.roof, struct.roof)}
       </div>
-
       <div class="grid g-4" style="margin-top:8px">
         ${structField('floors', 'Полы', DICT.floors, struct.floors)}
         ${structField('windows', 'Окна', DICT.windows, struct.windows)}
         ${structField('doors', 'Двери', DICT.doors, struct.doors)}
         ${heatingMS(heatingSource)}
       </div>
-
       <div class="field" style="margin-top:8px">
         <label>Комментарий</label>
         <textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea>
@@ -5630,7 +5563,6 @@ export function renderOiDocsCard(oi) {
       <h3>Документы</h3>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       ${docsBlockInner(oi, oi.id)}
     </div></div>
@@ -5645,7 +5577,6 @@ export function renderOiPhotosCard(oi) {
       <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button>
       <span class="chev">▾</span>
     </div>
-
     <div class="card-body-wrap"><div class="card-pad">
       ${photoAccordions(oi, true)}
     </div></div>
@@ -6599,7 +6530,7 @@ input,select,textarea{font:inherit;color:inherit}
 @keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .sidebar{width:216px;background:#fff;border-right:1.5px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
 .side-logo{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
-.logo-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--blue-600),var(--teal-600));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+.logo-mark{min-width:28px;width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--blue-600),var(--teal-600));color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
 .logo-text b{font-size:13.5px;display:block}
 .logo-text span{font-size:10px;color:var(--muted)}
 .side-nav{padding:8px 6px;display:flex;flex-direction:column;gap:2px;flex:1}
@@ -6902,41 +6833,130 @@ td[data-acc-cell]:hover{background:var(--blue-100)!important}
   right: 0;
 }
 
+.apartmentSeriesList {
+  border: 1px solid var(--line-input);
+  border-radius: 7px;
+  background: #fff;
+  padding: 4px 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 ==================================================
 FILE: .\styles\layout-fixes.css
 ==================================================
 
 /*
   Доработки layout:
-  1. Сворачивание сайдбара.
-  2. Видимость выпадающих меню в шапке ОЦ и в заголовке таблицы ОИ.
+  1. Переключатель сайдбара в правом нижнем углу.
+  2. Плавное сворачивание без подёргиваний.
+  3. Видимость выпадающих меню в шапке ОЦ и в заголовке таблицы ОИ.
 */
 
 .sidebar {
+  position: relative;
+  overflow: hidden;
   transition: width 0.18s ease;
+  will-change: width;
 }
 
 .sidebar.collapsed {
   width: 56px;
 }
 
+/*
+  Кнопка переключения фиксируется в правом нижнем углу сайдбара.
+  Она не участвует в потоке, поэтому не влияет на пересчёт layout.
+*/
 .sidebar-toggle {
-  margin-left: auto;
-  width: 24px;
-  height: 24px;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+
+  width: 30px;
+  height: 30px;
+
   border-radius: 6px;
   color: #7d93a6;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   border: 1px solid transparent;
   flex-shrink: 0;
+
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .sidebar-toggle:hover {
   background: var(--blue-50);
   color: var(--blue-700);
   border-color: var(--line);
+}
+
+/*
+  Текстовые части скрываем через opacity/visibility,
+  а не через display: none, чтобы не было резких скачков.
+*/
+.logo-text,
+.nav-label,
+.nav-soon,
+.side-foot {
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-soon,
+.sidebar.collapsed .side-foot {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/*
+  Оставляем нижний блок видимым по высоте,
+  чтобы кнопка не прыгала при скрытии текста.
+*/
+.sidebar.collapsed .side-foot {
+  visibility: hidden;
+}
+
+/*
+  При сворачивании иконки центрируются только за счёт padding.
+  justify-content не меняем, чтобы не было скачка позиции.
+*/
+.side-logo,
+.nav-item {
+  transition: padding 0.18s ease;
+}
+
+.sidebar.collapsed .nav-item {
+  padding: 7px 20px;
+}
+
+.sidebar.collapsed .nav-ico {
+  width: auto;
+}
+
+/*
+  Чтобы скрытые подписи не вылезали за пределы сайдбара.
+*/
+.side-logo {
+  overflow: hidden;
+}
+
+.side-nav {
+  overflow: hidden;
+}
+
+.side-foot {
+  padding-top: 20px;
+  overflow: hidden;
+  padding-right: 45px;
+  height: 50px;
 }
 
 .nav-label {
@@ -6947,36 +6967,10 @@ FILE: .\styles\layout-fixes.css
   white-space: nowrap;
 }
 
-.sidebar.collapsed .logo-mark,
-.sidebar.collapsed .logo-text,
-.sidebar.collapsed .nav-label,
-.sidebar.collapsed .nav-soon,
-.sidebar.collapsed .side-foot {
-  display: none;
-}
-
-.sidebar.collapsed .side-logo {
-  justify-content: center;
-  padding: 12px 8px;
-  gap: 0;
-}
-
-.sidebar.collapsed .sidebar-toggle {
-  margin: 0;
-}
-
-.sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 8px 6px;
-}
-
-.sidebar.collapsed .nav-ico {
-  width: auto;
-}
-
 /*
-  В исходном app.css у .head-meta стоит overflow: hidden.
-  Из-за этого выпадающее меню кнопки «Добавить ОИ» обрезается.
+  Исправление видимости выпадающих меню.
+  В исходном стиле .head-meta имеет overflow: hidden,
+  из-за чего абсолютное меню дропдауна обрезается.
 */
 .head-meta,
 .card-head {
@@ -6989,6 +6983,10 @@ FILE: .\styles\layout-fixes.css
   overflow: auto;
 }
 
+/*
+  Меню в шапке ОЦ и в шапке таблицы ОИ лучше открывать влево,
+  чтобы не вылезать за правый край экрана.
+*/
 .head-meta .dd-menu,
 .card-head .dd-menu {
   left: auto;
