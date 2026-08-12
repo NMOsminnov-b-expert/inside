@@ -1,5 +1,5 @@
 import { LETTER_SEQ } from '../../core/dictionaries.js';
-import { OI, appState } from '../../core/state.js';
+import { OI, OC, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
 import { buildFloors } from './floorsModel.js';
 
@@ -16,15 +16,16 @@ export const OI_SUBTYPE = {
 };
 
 export function isApartmentOi(oi) {
-  if (!oi) {
-    return false;
-  }
-
-  if (oi.subtype === OI_SUBTYPE.REALTY_APARTMENT) {
-    return true;
-  }
-
+  if (!oi) return false;
+  if (oi.subtype === OI_SUBTYPE.REALTY_APARTMENT) return true;
   return String(oi.name || '').toLowerCase().includes('квартира');
+}
+
+export function isResidentialOi(oi) {
+  if (!oi) return false;
+  if (oi.subtype === OI_SUBTYPE.REALTY_RESIDENTIAL) return true;
+  // Фоллбэк по имени для старых объектов без subtype.
+  return String(oi.name || '').toLowerCase().includes('жилой дом');
 }
 
 function createApartmentState() {
@@ -48,60 +49,45 @@ export function oiLabel(o) {
 }
 
 export function autoCategory(oi) {
-  if (isApartmentOi(oi)) {
-    return 'Квартира';
-  }
-
+  if (isApartmentOi(oi)) return 'Квартира';
   if (oi.kind === 'vehicle') return 'Движимое · ТС';
   if (oi.kind === 'mech') return 'Движимое · Механизм';
   if (oi.kind === 'office') return 'Движимое · Офисная техника';
   if (oi.kind === 'land') return 'Земельный участок';
-
-  return oi.catClass || 'Гражданское';
+  return oi.catClass || 'Гражданское здание';
 }
 
-// Правила видимости/обязательности полей карточки ОИ.
-// Единственная точка, где кодируются условия из продуктовых заметок.
 export function oiFieldRules(oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
   const ml = (oi.origin || 'manual') === 'ml';
+  const isApartment = isApartmentOi(oi);
+
+  // Категория ОИ скрывается, когда:
+  // 1) ОЦ является «Жилым зданием (домом)», и
+  // 2) ОИ по подтипу является «Жилым зданием».
+  const hideCatClassForResidential =
+    isResidentialOi(oi)
+    && OC
+    && String(OC.type || '').toLowerCase().includes('жилое здание');
 
   return {
     heightRequired: prod,
     wallsRequired: prod,
     buildTypeRequired: !prod,
-
-    // Категория жилого строения — только у жилых ОИ.
-    showResCat: !!oi.residential && !isApartmentOi(oi),
-
-    // Цепочка «сверен/удостоверен» и флаг «Сопоставлено» — только у ML-импорта;
-    // у ручных ОИ дополнительного статуса нет.
+    showResCat: !!oi.residential && !isApartment,
     showMatched: ml,
-
-    isApartment: isApartmentOi(oi),
+    isApartment,
+    showCatClass: !hideCatClassForResidential,
   };
 }
 
-// Статус выводится автоматически из происхождения и флагов — вручную не проставляется.
 export function oiVerbal(oi) {
   const f = oi.flags || {};
-
   if ((oi.origin || 'manual') === 'ml') {
-    if (f.entered && f.matched) {
-      return { t: 'проверено (сверено с документами — удостоверено)', c: 'pill-done' };
-    }
-
-    return {
-      t: f.entered ? 'импортировано по ML — ожидает проверки' : 'импортировано по ML',
-      c: 'pill-pend',
-    };
+    if (f.entered && f.matched) return { t: 'проверено (сверено с документами — удостоверено)', c: 'pill-done' };
+    return { t: f.entered ? 'импортировано по ML — ожидает проверки' : 'импортировано по ML', c: 'pill-pend' };
   }
-
-  // Ручное происхождение: дополнительного статуса нет.
-  if (f.entered) {
-    return { t: 'введено вручную', c: 'pill-done' };
-  }
-
+  if (f.entered) return { t: 'введено вручную', c: 'pill-done' };
   return { t: 'не заполнено', c: 'pill-gray' };
 }
 
@@ -116,30 +102,16 @@ export function nextLetter() {
 
 function resolveRealtySubtype(name, catClass) {
   const lowerName = String(name || '').toLowerCase();
-
-  if (lowerName.includes('квартира')) {
-    return OI_SUBTYPE.REALTY_APARTMENT;
-  }
-
-  if (lowerName.includes('жилой дом')) {
-    return OI_SUBTYPE.REALTY_RESIDENTIAL;
-  }
-
-  if (catClass === 'Производственно-складское' || lowerName.includes('производственное')) {
-    return OI_SUBTYPE.REALTY_PRODUCTION;
-  }
-
-  if (lowerName.includes('прочее')) {
-    return OI_SUBTYPE.REALTY_OTHER;
-  }
-
+  if (lowerName.includes('квартира')) return OI_SUBTYPE.REALTY_APARTMENT;
+  if (lowerName.includes('жилой дом') || lowerName.includes('жилое здание')) return OI_SUBTYPE.REALTY_RESIDENTIAL;
+  if (catClass === 'Производственно-складское' || lowerName.includes('производственное')) return OI_SUBTYPE.REALTY_PRODUCTION;
+  if (lowerName.includes('прочее')) return OI_SUBTYPE.REALTY_OTHER;
   return OI_SUBTYPE.REALTY_CIVIL;
 }
 
-export function createRealtyOi({ letter, name, catClass = 'Гражданское' }) {
+export function createRealtyOi({ letter, name, catClass = 'Гражданское здание' }) {
   const subtype = resolveRealtySubtype(name, catClass);
   const isApartment = subtype === OI_SUBTYPE.REALTY_APARTMENT;
-
   const oi = {
     id: 'oi-r' + Date.now(),
     kind: 'realty',
@@ -177,9 +149,7 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
     notes: [],
     apartment: isApartment ? createApartmentState() : null,
   };
-
   buildFloors(oi);
-
   return oi;
 }
 
@@ -206,7 +176,6 @@ export function createMovableOi({ kind, name, docs = [], year = '', serial = '' 
     : kind === 'vehicle'
       ? OI_SUBTYPE.VEHICLE
       : OI_SUBTYPE.OFFICE;
-
   return {
     id: 'oi-m' + Date.now(),
     kind,

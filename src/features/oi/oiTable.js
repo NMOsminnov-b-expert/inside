@@ -17,8 +17,6 @@ export function tableOI() {
   const rows = OI.filter((o) => o.kind !== 'land');
   const land = OI.find((o) => o.kind === 'land');
 
-  // Участок выводится строкой в той же таблице и с тем же colgroup,
-  // поэтому колонки совпадают с колонками литер без смещений.
   const landRow = land
     ? `<tr class="rowlink land-row" data-open-oi="${land.id}" title="Открыть карточку участка">
         <td>—</td>

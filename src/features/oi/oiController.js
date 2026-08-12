@@ -10,26 +10,17 @@ import { photoPages } from '../photos/photoModel.js';
 import { updateCtxPlate } from '../../ui/ctxPlate.js';
 import { canAddOiType } from '../oc/ocRules.js';
 
-// Локальный рендер с сохранением прокрутки: используется при смене полей,
-// от которых зависят правила отображения (категория, происхождение, флаги).
 function renderKeepScroll() {
   const sc = document.getElementById('content');
   const top = sc ? sc.scrollTop : 0;
-
-  // Полный рендер, чтобы правила из oiFieldRules и oiVerbal
-  // пересчитались во всех местах: карточка, плашка, аккордеоны.
   render();
-
   if (sc) sc.scrollTop = top;
 }
 
 export function addLetter() {
   const letter = nextLetter();
 
-  const oi = createRealtyOi({
-    letter,
-    name: 'Новое строение',
-  });
+  const oi = createRealtyOi({ letter, name: 'Новое строение' });
 
   OI.push(oi);
 
@@ -59,9 +50,7 @@ export function addOi(type) {
     appState.mechDocs = [];
     appState.viewer = { mode: 'doc' };
     appState.viewerDoc = null;
-
     render();
-
     return;
   }
 
@@ -80,7 +69,6 @@ export function addOi(type) {
     appState.view = 'oi';
 
     render();
-
     return;
   }
 
@@ -89,7 +77,7 @@ export function addOi(type) {
   const oi = createRealtyOi({
     letter,
     name: type,
-    catClass: type === 'Производственное строение' ? 'Производственно-складское' : 'Гражданское',
+    catClass: type === 'Производственное строение' ? 'Производственно-складское' : 'Гражданское здание',
   });
 
   OI.push(oi);
@@ -107,10 +95,7 @@ export function addOi(type) {
 
 export function deleteOi(id) {
   const oi = OI.find((o) => o.id === id);
-
-  if (!oi) {
-    return;
-  }
+  if (!oi) return;
 
   const label = oi.letter ? 'Литера ' + oi.letter : 'ОИ';
 
@@ -119,10 +104,7 @@ export function deleteOi(id) {
   }
 
   const i = OI.findIndex((o) => o.id === id);
-
-  if (i >= 0) {
-    OI.splice(i, 1);
-  }
+  if (i >= 0) OI.splice(i, 1);
 
   if (appState.openOi === id) {
     appState.view = 'oc';
@@ -131,22 +113,15 @@ export function deleteOi(id) {
   }
 
   render();
-
   toast(label + ' удалён');
 }
 
 export function bindOi() {
   const al = document.querySelector('[data-add-letter]');
-
-  if (al) {
-    al.onclick = addLetter;
-  }
+  if (al) al.onclick = addLetter;
 
   document.querySelectorAll('[data-del-oi]').forEach((b) => {
-    b.onclick = (e) => {
-      e.stopPropagation();
-      deleteOi(b.dataset.delOi);
-    };
+    b.onclick = (e) => { e.stopPropagation(); deleteOi(b.dataset.delOi); };
   });
 
   document.querySelectorAll('tr[data-open-oi]').forEach((tr) => {
@@ -155,22 +130,17 @@ export function bindOi() {
 
       if (accId && (e.target.closest('[data-acc-cell]') || e.target.closest('.chev-btn'))) {
         e.stopPropagation();
-
         appState.expanded[accId] = !appState.expanded[accId];
 
         const sc = document.getElementById('content');
         const top = sc ? sc.scrollTop : 0;
 
         render();
-
         if (sc) sc.scrollTop = top;
-
         return;
       }
 
-      if (e.target.closest('button') || e.target.closest('.ph-mini')) {
-        return;
-      }
+      if (e.target.closest('button') || e.target.closest('.ph-mini')) return;
 
       appState.openOi = tr.dataset.openOi;
       appState.letterEdit = false;
@@ -180,7 +150,6 @@ export function bindOi() {
       appState.viewer = {
         mode: (oi && oi.photos && Object.keys(oi.photos).length) ? 'photo' : 'doc',
       };
-
       appState.viewerDoc = null;
       appState.view = 'oi';
 
@@ -191,20 +160,14 @@ export function bindOi() {
   document.querySelectorAll('[data-open-ocdocs]').forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();
-
       const tabs = VS.openTabs['oc'] || [];
-
-      openDocViewer(
-        'oc',
-        tabs.length ? tabs[tabs.length - 1] : (DOCS[0] ? DOCS[0].id : null)
-      );
+      openDocViewer('oc', tabs.length ? tabs[tabs.length - 1] : (DOCS[0] ? DOCS[0].id : null));
     };
   });
 
   document.querySelectorAll('[data-open-movdoc]').forEach((tr) => {
     tr.onclick = () => {
       const [scope, id] = tr.dataset.openMovdoc.split('|');
-
       openDocViewer(scope, id);
     };
   });
@@ -212,18 +175,11 @@ export function bindOi() {
   document.querySelectorAll('[data-open-photo]').forEach((p) => {
     p.onclick = (e) => {
       e.stopPropagation();
-
       const [oiId, rest] = p.dataset.openPhoto.split('|');
       const [cat, i] = rest.split(':');
-
       const oi = OI.find((o) => o.id === oiId);
-
-      if (!oi) {
-        return;
-      }
-
+      if (!oi) return;
       const idx = photoPages(oi).findIndex((x) => x.cat === cat && x.i === +i) + 1;
-
       openPhotoInPlace(oiId, idx);
     };
   });
@@ -231,244 +187,124 @@ export function bindOi() {
   document.querySelectorAll('[data-add-photo]').forEach((b) => {
     b.onclick = (e) => {
       e.stopPropagation();
-
       const oi = OI.find((o) => o.id === (b.dataset.photoOi || appState.openOi));
-
-      if (!oi) {
-        return;
-      }
+      if (!oi) return;
 
       const cat = b.dataset.addPhoto;
-
       oi.photos = oi.photos || {};
       oi.photos[cat] = (oi.photos[cat] || 0) + 1;
 
       appState.accOpen['ph|' + oi.id + '|' + cat] = true;
 
       render();
-
       toast('Фото загружено', 'ok');
     };
   });
 
   document.querySelectorAll('[data-open-pviewer]').forEach((b) => {
-    b.onclick = (e) => {
-      e.stopPropagation();
-
-      appState.viewer = { mode: 'photo' };
-
-      render();
-    };
+    b.onclick = (e) => { e.stopPropagation(); appState.viewer = { mode: 'photo' }; render(); };
   });
 
-  // Переименование литеры.
   const elBtn = document.querySelector('[data-edit-letter]');
-
-  if (elBtn) {
-    elBtn.onclick = () => {
-      appState.letterEdit = true;
-
-      render();
-
-      const i = document.querySelector('[data-letter-input]');
-
-      if (i) {
-        i.focus();
-        i.select();
-      }
-    };
-  }
+  if (elBtn) elBtn.onclick = () => {
+    appState.letterEdit = true;
+    render();
+    const i = document.querySelector('[data-letter-input]');
+    if (i) { i.focus(); i.select(); }
+  };
 
   const ls = document.querySelector('[data-letter-save]');
-
-  if (ls) {
-    ls.onclick = () => {
-      const oi = currentOI();
-
-      if (!oi) {
-        return;
-      }
-
-      const inp = document.querySelector('[data-letter-input]');
-      const v = (inp ? inp.value : '').trim();
-
-      if (!v || v === oi.letter) {
-        appState.letterEdit = false;
-        render();
-        return;
-      }
-
-      const taken = OI.some((o) => o !== oi && o.kind === 'realty' && o.letter === v);
-
-      if (taken) {
-        toast('Литера занята', 'warn');
-        return;
-      }
-
-      oi.letter = v;
-      appState.letterEdit = false;
-
-      render();
-
-      toast('Литера переименована', 'ok');
-    };
-  }
+  if (ls) ls.onclick = () => {
+    const oi = currentOI();
+    if (!oi) return;
+    const inp = document.querySelector('[data-letter-input]');
+    const v = (inp ? inp.value : '').trim();
+    if (!v || v === oi.letter) { appState.letterEdit = false; render(); return; }
+    const taken = OI.some((o) => o !== oi && o.kind === 'realty' && o.letter === v);
+    if (taken) { toast('Литера занята', 'warn'); return; }
+    oi.letter = v;
+    appState.letterEdit = false;
+    render();
+    toast('Литера переименована', 'ok');
+  };
 
   const lc = document.querySelector('[data-letter-cancel]');
+  if (lc) lc.onclick = () => { appState.letterEdit = false; render(); };
 
-  if (lc) {
-    lc.onclick = () => {
-      appState.letterEdit = false;
-      render();
-    };
-  }
-
-  // Поля карточки ОИ.
   const oi = OI.find((o) => o.id === appState.openOi);
 
   if (oi && appState.view === 'oi') {
     if (oi.kind === 'realty') {
       document.querySelectorAll('[data-area]').forEach((i) => i.onchange = () => {
         oi.areas[i.dataset.area] = i.value;
-
         recalcFloors(oi);
         updateFloorsUI(oi);
         updateCtxPlate();
       });
 
-      document.querySelectorAll('[data-height]').forEach((i) => i.onchange = () => {
-        oi.heights[i.dataset.height] = i.value;
-      });
+      document.querySelectorAll('[data-height]').forEach((i) => i.onchange = () => { oi.heights[i.dataset.height] = i.value; });
 
       const fn = document.querySelector('[data-floors-n]');
-
-      if (fn) {
-        fn.onchange = () => {
-          oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
-
-          buildFloors(oi);
-          rerenderFloors(oi);
-          updateCtxPlate();
-        };
-      }
+      if (fn) fn.onchange = () => {
+        oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
+        buildFloors(oi);
+        rerenderFloors(oi);
+        updateCtxPlate();
+      };
 
       const rd = document.querySelector('[data-redistribute]');
-
-      if (rd) {
-        rd.onclick = (e) => {
-          e.stopPropagation();
-
-          recalcFloors(oi);
-          updateFloorsUI(oi);
-
-          toast('Отмеченные этажи выровнены по остатку', 'ok');
-        };
-      }
+      if (rd) rd.onclick = (e) => {
+        e.stopPropagation();
+        recalcFloors(oi);
+        updateFloorsUI(oi);
+        toast('Отмеченные этажи выровнены по остатку', 'ok');
+      };
 
       document.querySelectorAll('[data-floor-on]').forEach((c) => c.onchange = () => {
         oi.floorList[+c.dataset.floorOn].on = c.checked;
-
         recalcFloors(oi);
         updateFloorsUI(oi);
       });
 
       document.querySelectorAll('[data-floor-area]').forEach((i) => i.onchange = () => {
         oi.floorList[+i.dataset.floorArea].area = i.value;
-
         recalcFloors(oi);
         updateFloorsUI(oi);
       });
 
-      document.querySelectorAll('[data-floor-hext]').forEach((i) => i.onchange = () => {
-        oi.floorList[+i.dataset.floorHext].hExt = i.value;
-      });
-
-      document.querySelectorAll('[data-floor-hint]').forEach((i) => i.onchange = () => {
-        oi.floorList[+i.dataset.floorHint].hInt = i.value;
-      });
+      document.querySelectorAll('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
+      document.querySelectorAll('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
 
       const bt = document.querySelector('[data-buildtype]');
-
-      if (bt) {
-        bt.onchange = () => {
-          oi.buildType = bt.value;
-          updateCtxPlate();
-        };
-      }
+      if (bt) bt.onchange = () => { oi.buildType = bt.value; updateCtxPlate(); };
 
       const yr = document.querySelector('[data-year]');
-
-      if (yr) {
-        yr.onchange = () => {
-          oi.year = yr.value;
-        };
-      }
+      if (yr) yr.onchange = () => { oi.year = yr.value; };
 
       const cm = document.querySelector('[data-comment]');
-
-      if (cm) {
-        cm.onchange = () => {
-          oi.comment = cm.value;
-        };
-      }
+      if (cm) cm.onchange = () => { oi.comment = cm.value; };
 
       const dis = document.querySelector('[data-dis]');
+      if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
-      if (dis) {
-        dis.onchange = () => {
-          oi.dis = dis.checked;
-        };
-      }
-
-      // Категория ОИ влияет на правила обязательности (высоты, стены) —
-      // перерисовываем с сохранением скролла, чтобы карточка не прыгала.
       const cc = document.querySelector('[data-catclass]');
+      if (cc) cc.onchange = () => { oi.catClass = cc.value; renderKeepScroll(); };
 
-      if (cc) {
-        cc.onchange = () => {
-          oi.catClass = cc.value;
-          renderKeepScroll();
-        };
-      }
-
-      // Категория жилого строения — чисто справочное поле, перерисовка не нужна.
       const rc = document.querySelector('[data-rescat]');
-
-      if (rc) {
-        rc.onchange = () => {
-          oi.resCat = rc.value;
-        };
-      }
+      if (rc) rc.onchange = () => { oi.resCat = rc.value; };
     }
 
-    document.querySelectorAll('[data-status]').forEach((s) => s.onchange = () => {
-      oi.status = s.value;
-      updateCtxPlate();
-    });
+    document.querySelectorAll('[data-status]').forEach((s) => s.onchange = () => { oi.status = s.value; updateCtxPlate(); });
 
     const nm = document.querySelector('[data-oi-name]');
-
-    if (nm) {
-      nm.onchange = () => {
-        oi.name = nm.value;
-        updateCtxPlate();
-      };
-    }
+    if (nm) nm.onchange = () => { oi.name = nm.value; updateCtxPlate(); };
 
     const en = document.querySelector('[data-oi-eni]');
+    if (en) en.onchange = () => { oi.eni = en.value.trim() || oi.eni; };
 
-    if (en) {
-      en.onchange = () => {
-        oi.eni = en.value.trim() || oi.eni;
-      };
-    }
-
-    // Флаги «Введено» / «Сопоставлено» влияют на статус на плашке —
-    // пересчитываем весь экран, чтобы плашка и шапка обновились одновременно.
     document.querySelectorAll('[data-flag]').forEach((c) => c.onchange = () => {
       oi.flags = oi.flags || {};
       oi.flags[c.dataset.flag] = c.checked;
-
       renderKeepScroll();
     });
 
@@ -489,13 +325,7 @@ export function bindOi() {
       if (pl) pl.onchange = () => { oi.plate = pl.value; };
 
       const mn = document.querySelector('[data-mv-name]');
-
-      if (mn) {
-        mn.onchange = () => {
-          oi.name = mn.value;
-          updateCtxPlate();
-        };
-      }
+      if (mn) mn.onchange = () => { oi.name = mn.value; updateCtxPlate(); };
 
       const sr = document.querySelector('[data-mv-serial]');
       if (sr) sr.onchange = () => { oi.serial = sr.value; };
@@ -509,88 +339,50 @@ export function bindOi() {
       if (la) la.onchange = () => { oi.area = la.value; };
     }
 
-    document.querySelectorAll('[data-struct]').forEach((s) => s.onchange = () => {
-      oi.struct[s.dataset.struct] = s.value;
-    });
+    document.querySelectorAll('[data-struct]').forEach((s) => s.onchange = () => { oi.struct[s.dataset.struct] = s.value; });
 
     document.querySelectorAll('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
       e.stopPropagation();
-
       const drop = c.parentElement.querySelector('.ms-drop');
-
-      document.querySelectorAll('.ms-drop').forEach((d) => {
-        if (d !== drop) d.hidden = true;
-      });
-
+      document.querySelectorAll('.ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
       drop.hidden = !drop.hidden;
-
       appState.heatOpen = !drop.hidden;
     });
 
     document.querySelectorAll('[data-heat-opt]').forEach((cb) => cb.onchange = () => {
       const h = cb.dataset.heatOpt;
       const i = oi.heating.indexOf(h);
-
-      if (i >= 0) oi.heating.splice(i, 1);
-      else oi.heating.push(h);
-
+      if (i >= 0) oi.heating.splice(i, 1); else oi.heating.push(h);
       updateHeatingUI(oi);
     });
 
     document.querySelectorAll('[data-heat-rm]').forEach((x) => x.onclick = (e) => {
       e.stopPropagation();
-
       const cur = currentOI();
-
-      if (!cur) {
-        return;
-      }
-
+      if (!cur) return;
       const h = x.dataset.heatRm;
       const i = cur.heating.indexOf(h);
-
       if (i >= 0) cur.heating.splice(i, 1);
-
       updateHeatingUI(cur);
     });
 
     const ho = document.querySelector('[data-heat-other]');
-
-    if (ho) {
-      ho.onchange = () => {
-        oi.heatingOther = ho.value;
-      };
-    }
+    if (ho) ho.onchange = () => { oi.heatingOther = ho.value; };
 
     const am = document.querySelector('[data-add-movdoc]');
-
-    if (am) {
-      am.onclick = () => {
-        (oi.docs = oi.docs || []).push({
-          id: 'md' + Date.now(),
-          type: 'ПУД',
-          name: 'Новый документ',
-          date: '07.08.2026',
-        });
-
-        render();
-
-        toast('Документ добавлен', 'ok');
-      };
-    }
+    if (am) am.onclick = () => {
+      (oi.docs = oi.docs || []).push({ id: 'md' + Date.now(), type: 'ПУД', name: 'Новый документ', date: '07.08.2026' });
+      render();
+      toast('Документ добавлен', 'ok');
+    };
 
     const sv = document.querySelector('[data-save-oi]');
-
-    if (sv) {
-      sv.onclick = () => {
-        appState.view = 'oc';
-        appState.viewer = null;
-        appState.letterEdit = false;
-
-        render();
-
-        toast('ОИ сохранён', 'ok');
-      };
-    }
+    if (sv) sv.onclick = () => {
+      appState.view = 'oc';
+      appState.viewer = null;
+      appState.letterEdit = false;
+      render();
+      toast('ОИ сохранён', 'ok');
+    };
   }
 }

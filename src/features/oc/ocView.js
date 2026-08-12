@@ -78,7 +78,6 @@ function docsTab() {
 }
 
 export function viewOC() {
-  // Просмотрщик доступен и на главной: открывается с мини-фото таблицы ОИ.
   const generalTab = splitWrap(appState.viewer ? viewerHTML() : null, partiesOC() + tableOI());
 
   return `${headOC()}
