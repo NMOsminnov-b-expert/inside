@@ -37,7 +37,7 @@ export function tableOI() {
   <div class="card-body-wrap">
   <table class="tbl">
   <colgroup><col style="width:86px"><col><col style="width:150px"><col style="width:110px"><col style="width:100px"><col style="width:130px"><col style="width:100px"><col style="width:120px"></colgroup>
-  <thead><tr><th>Литера</th><th>Наименование</th><th>Категория</th><th>Статус</th><th>Общая площадь</th><th>Код ЕНИ</th><th>Фото</th><th>Действия</th></tr></thead>
+  <thead><tr><th>Литера</th><th>Наименование</th><th>Категория</th><th>Статус</th><th>Общая площадь</th><th>Код ЕНИ</th><th>Фото</th><th></th></tr></thead>
   <tbody>
   ${rows.map((o) => {
     const isR = o.kind === 'realty';
