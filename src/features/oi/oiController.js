@@ -272,6 +272,65 @@ export function bindOi() {
         updateFloorsUI(oi);
       });
 
+      // Привязка полей квартиры (apartment).
+      if (oi.apartment || oi.subtype === 'realty_apartment') {
+        const apt = () => {
+          if (!oi.apartment) oi.apartment = {};
+          return oi.apartment;
+        };
+
+        const bindAptField = (selector, key) => {
+          const el = document.querySelector(selector);
+          if (!el) return;
+          el.onchange = () => { apt()[key] = el.value; };
+        };
+
+        bindAptField('[data-apt-floor]', 'floor');
+        bindAptField('[data-apt-storeys]', 'storeys');
+        bindAptField('[data-apt-rooms]', 'rooms');
+        bindAptField('[data-apt-series]', 'series');
+        bindAptField('[data-apt-loggia-count]', 'loggiaCount');
+        bindAptField('[data-apt-balcony-count]', 'balconyCount');
+        bindAptField('[data-apt-loggia-area]', 'loggiaBuildArea');
+        bindAptField('[data-apt-balcony-area]', 'balconyBuildArea');
+
+        // Положение на этаже: select + условный input.
+        const locSel = document.querySelector('[data-apt-location]');
+        if (locSel) {
+          locSel.onchange = () => {
+            const a = apt();
+            a.location = locSel.value;
+            const other = document.querySelector('[data-apt-location-other]');
+            if (other) {
+              other.style.display = a.location === 'Прочее' ? '' : 'none';
+              if (a.location !== 'Прочее') { other.value = ''; a.locationOther = ''; }
+            }
+          };
+        }
+        const locOther = document.querySelector('[data-apt-location-other]');
+        if (locOther) {
+          locOther.onchange = () => { apt().locationOther = locOther.value; };
+        }
+
+        // Права на строение: select + условный input.
+        const rightsSel = document.querySelector('[data-apt-rights]');
+        if (rightsSel) {
+          rightsSel.onchange = () => {
+            const a = apt();
+            a.rights = rightsSel.value;
+            const other = document.querySelector('[data-apt-rights-other]');
+            if (other) {
+              other.style.display = a.rights === 'Иное' ? '' : 'none';
+              if (a.rights !== 'Иное') { other.value = ''; a.rightsOther = ''; }
+            }
+          };
+        }
+        const rightsOther = document.querySelector('[data-apt-rights-other]');
+        if (rightsOther) {
+          rightsOther.onchange = () => { apt().rightsOther = rightsOther.value; };
+        }
+      }
+
       document.querySelectorAll('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
       document.querySelectorAll('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
 

@@ -129,6 +129,13 @@ export function createOI() {
         series: 'Серия 105',
         location: 'Неугловое',
         locationOther: '',
+        storeys: '',
+        loggiaCount: '',
+        balconyCount: '',
+        loggiaBuildArea: '',
+        balconyBuildArea: '',
+        rights: '',
+        rightsOther: '',
       },
     },
 

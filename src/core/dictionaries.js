@@ -52,3 +52,9 @@ export const APARTMENT_LOCATIONS = [
   '4 стороны',
   'Прочее',
 ];
+
+export const APARTMENT_RIGHTS = [
+  'Собственность',
+  'Бессрочное пользование',
+  'Иное',
+];

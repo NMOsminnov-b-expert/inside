@@ -6,6 +6,7 @@ import {
   RES_BUILD_CAT,
   APARTMENT_SERIES,
   APARTMENT_LOCATIONS,
+  APARTMENT_RIGHTS,
 } from '../../core/dictionaries.js';
 import { oiFieldRules, isApartmentOi } from './oiModel.js';
 import { floorsBlock } from './floorsView.js';
@@ -94,10 +95,11 @@ function realtyGeneralCard(oi) {
     </div></div>
   </div>`;
 }
-
 function apartmentGeneralCard(oi) {
   const apt = oi.apartment || {};
   const showLocationOther = apt.location === 'Прочее';
+  const showRightsOther = apt.rights === 'Иное';
+
   return `<div class="card t-blue" id="q-gen">
     <div class="card-head" data-card-toggle>
       <span class="card-idx">01</span>
@@ -126,43 +128,67 @@ function apartmentGeneralCard(oi) {
           <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
         </div>
       </div>
+
       ${flagsRowHTML(oi)}
-      <div class="grid g-3">
+
+      <div class="grid g-4">
         <div class="field">
-          <label>Этаж</label>
+          <label>Год постройки</label>
+          <input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>Этаж расположения</label>
           <input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
         </div>
         <div class="field">
-          <label>Этажность дома</label>
-          <input class="input" data-apt-building-floors value="${esc(apt.buildingFloors || '')}" inputmode="numeric">
+          <label>Этажность квартиры</label>
+          <input class="input" data-apt-storeys value="${esc(apt.storeys || '')}"
+                 inputmode="numeric" min="1" max="30" placeholder="до 30">
         </div>
         <div class="field">
           <label>Количество комнат</label>
           <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
         </div>
       </div>
+
       <div class="grid g-2" style="margin-top:10px">
         <div class="field">
           <label>Серия</label>
-          <input class="input" list="apartmentSeriesList" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
+          <input class="input" list="apartmentSeriesList" data-apt-series
+                 value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
           <datalist id="apartmentSeriesList">
-            ${APARTMENT_SERIES.map((series) => `<option value="${esc(series)}">`).join('')}
+            ${APARTMENT_SERIES.map((s) => `<option value="${esc(s)}">`).join('')}
           </datalist>
         </div>
         <div class="field">
-          <label>Расположение</label>
+          <label>Положение на этаже</label>
           <div class="inline-row">
             <select class="select" data-apt-location style="flex:1 1 160px;">
               <option value="">Не выбрано</option>
-              ${APARTMENT_LOCATIONS.map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
+              ${APARTMENT_LOCATIONS.map((l) => `<option ${l === apt.location ? 'selected' : ''}>${l}</option>`).join('')}
             </select>
-            <input
-              class="input"
-              data-apt-location-other
-              placeholder="Укажите положение"
-              value="${esc(apt.locationOther || '')}"
-              style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}"
-            >
+            <input class="input" data-apt-location-other
+                   placeholder="Укажите положение"
+                   value="${esc(apt.locationOther || '')}"
+                   maxlength="50"
+                   style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g-2" style="margin-top:10px">
+        <div class="field">
+          <label>Права на строение</label>
+          <div class="inline-row">
+            <select class="select" data-apt-rights style="flex:1 1 200px;">
+              <option value="">Не выбрано</option>
+              ${APARTMENT_RIGHTS.map((r) => `<option ${r === apt.rights ? 'selected' : ''}>${r}</option>`).join('')}
+            </select>
+            <input class="input" data-apt-rights-other
+                   placeholder="Укажите право"
+                   value="${esc(apt.rightsOther || '')}"
+                   maxlength="100"
+                   style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}">
           </div>
         </div>
       </div>
@@ -194,14 +220,60 @@ function realtyAreasCard(oi) {
 
 function apartmentAreasCard(oi) {
   const areas = oi.areas || {};
+  const apt = oi.apartment || {};
+
   return `<div class="card t-blue" id="q-areas">
-    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
+    <div class="card-head" data-card-toggle>
+      <span class="card-idx">02</span>
+      <h3>Площади квартиры</h3>
+      <span class="chev">▾</span>
+    </div>
     <div class="card-body-wrap"><div class="card-pad">
       <div class="grid g-4">
-        <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
-        <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-        <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-        <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+        <div class="field">
+          <label>Общая площадь, м²</label>
+          <input class="input" data-area="tp" value="${esc(areas.tp || '')}">
+        </div>
+        <div class="field">
+          <label>Жилая площадь, м²</label>
+          <input class="input" data-area="living" value="${esc(areas.living || '')}">
+        </div>
+        <div class="field">
+          <label>Площадь по ПУД, м²</label>
+          <input class="input" data-area="pud" value="${esc(areas.pud || '')}">
+        </div>
+        <div class="field">
+          <label>Площадь по факту, м²</label>
+          <input class="input" data-area="fact" value="${esc(areas.fact || '')}">
+        </div>
+      </div>
+
+      <div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
+      <div class="grid g-4">
+        <div class="field">
+          <label>Кол-во лоджий</label>
+          <input class="input" data-apt-loggia-count
+                 value="${esc(apt.loggiaCount || '')}"
+                 inputmode="numeric" min="0" max="10" placeholder="до 10">
+        </div>
+        <div class="field">
+          <label>Кол-во балконов / террас</label>
+          <input class="input" data-apt-balcony-count
+                 value="${esc(apt.balconyCount || '')}"
+                 inputmode="numeric" min="0" max="10" placeholder="до 10">
+        </div>
+        <div class="field">
+          <label>Площадь застройки лоджий, м²</label>
+          <input class="input" data-apt-loggia-area
+                 value="${esc(apt.loggiaBuildArea || '')}"
+                 inputmode="decimal" min="0" max="500" placeholder="до 500">
+        </div>
+        <div class="field">
+          <label>Площадь застройки балконов / террас, м²</label>
+          <input class="input" data-apt-balcony-area
+                 value="${esc(apt.balconyBuildArea || '')}"
+                 inputmode="decimal" min="0" max="500" placeholder="до 500">
+        </div>
       </div>
     </div></div>
   </div>`;
