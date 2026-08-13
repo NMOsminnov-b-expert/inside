@@ -1954,7 +1954,7 @@ export const PEOPLE = ['Абдылдаев Айсултан Марсович', '
 export const RES_BUILD_CAT = ['Таунхаус', 'Обособленный', 'Пай-дома'];
 
 // Типы ОЦ.
-export const OC_TYPES = ['Жилое здание (дом)', 'Квартира', 'Гражданское здание', 'Производственное строение', 'Прочее строение'];
+export const OC_TYPES = ['Жилое здание (дом)', 'Жилое здание (квартира)', 'Гражданское здание', 'Производственное строение', 'Прочее строение'];
 
 // Справочник серий для карточки квартиры.
 export const APARTMENT_SERIES = [
@@ -1965,27 +1965,6 @@ export const APARTMENT_SERIES = [
   'Серия 105',
   'Серия 106',
   'Серия 111',
-  'Серия 112',
-  'Серия 114',
-  'Серия 119',
-  'Серия 121',
-  'Серия 135',
-  'Серия 137',
-  'Серия 138',
-  'Серия 141',
-  'Серия 143',
-  'Серия 147',
-  'Серия 155',
-  'Серия 335',
-  'Серия 464',
-  'Серия 467',
-  'Серия 468',
-  'Серия 502',
-  'Серия 504',
-  'Серия 511',
-  'Серия 515',
-  'Серия 606',
-  'Серия 611',
 ];
 
 // Расположение квартиры.
@@ -1995,6 +1974,12 @@ export const APARTMENT_LOCATIONS = [
   '3 стороны',
   '4 стороны',
   'Прочее',
+];
+
+export const APARTMENT_RIGHTS = [
+  'Собственность',
+  'Бессрочное пользование',
+  'Иное',
 ];
 
 ==================================================
@@ -2032,6 +2017,7 @@ import { mkNote } from '../features/notes/notesStore.js';
 
 export function createOC() {
   return {
+    residential: true,
     category: 'Недвижимое',
     type: 'Жилое здание (дом)',
     purposeTP: 'Жилое',
@@ -2158,6 +2144,13 @@ export function createOI() {
         series: 'Серия 105',
         location: 'Неугловое',
         locationOther: '',
+        storeys: '1',
+        loggiaCount: '',
+        balconyCount: '',
+        loggiaBuildArea: '',
+        balconyBuildArea: '',
+        rights: '',
+        rightsOther: '',
       },
     },
 
@@ -3641,6 +3634,7 @@ import {
   RES_BUILD_CAT,
   APARTMENT_SERIES,
   APARTMENT_LOCATIONS,
+  APARTMENT_RIGHTS,
 } from '../../core/dictionaries.js';
 import { oiFieldRules, isApartmentOi } from './oiModel.js';
 import { floorsBlock } from './floorsView.js';
@@ -3661,149 +3655,175 @@ ${isOther ? `<input class="input" placeholder="Укажите вручную" va
 function letterControlHTML(oi) {
   if (appState.letterEdit) {
     return `<div style="display:flex; gap:4px; align-items:center;">
-      <input class="input" style="width:80px; text-align:center; font-weight:700;"
-        data-letter-input value="${esc(oi.letter)}"
-        data-letter-id="${oi.id}">
-      <button class="btn btn-primary btn-sm" data-letter-save data-letter-id="${oi.id}">Сохранить</button>
-      <button class="btn btn-ghost btn-sm" data-letter-cancel data-letter-id="${oi.id}">Отмена</button>
-    </div>`;
+<input class="input" style="width:80px; text-align:center; font-weight:700;"
+data-letter-input value="${esc(oi.letter)}"
+data-letter-id="${oi.id}">
+<button class="btn btn-primary btn-sm" data-letter-save data-letter-id="${oi.id}">Сохранить</button>
+<button class="btn btn-ghost btn-sm" data-letter-cancel data-letter-id="${oi.id}">Отмена</button>
+</div>`;
   }
   return `<span class="letter-clickable" data-edit-letter data-letter-id="${oi.id}"
-    title="Кликните чтобы редактировать">${esc(oi.letter)}</span>`;
+title="Кликните чтобы редактировать">${esc(oi.letter)}</span>`;
 }
 
 function flagsRowHTML(oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
   return `<div class="inline-row" style="margin-bottom:10px">
-    <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-    ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
-  </div>`;
+<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
+${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
+</div>`;
 }
 
 function realtyGeneralCard(oi) {
   const rq = oiFieldRules(oi);
   const showResCat = rq.showResCat && OC.type === 'Жилое здание (дом)';
   return `<div class="card t-blue" id="q-gen">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">01</span>
-      <h3>Общие параметры</h3>
-      <span class="hint">${esc(oi.name)}</span>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-        <div class="field" style="flex:0 0 auto;">
-          <label>Литера</label>
-          ${letterControlHTML(oi)}
-        </div>
-        <div class="field" style="flex:1 1 180px;">
-          <label>Наименование</label>
-          <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
-        </div>
-        <div class="field" style="flex:0 0 150px;">
-          <label>Статус</label>
-          <select class="select" style="width:100%;" data-status>
-            ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field" style="flex:0 0 160px;">
-          <label>ЕНИ код</label>
-          <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
-        </div>
-      </div>
-      ${flagsRowHTML(oi)}
-      <div class="grid g-3">
-        <div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
-        <div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-          <select class="select" data-buildtype>${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        </div>
-        ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
-          <select class="select" data-rescat>${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        </div>` : ''}
-        <div class="field"><label>Категория ОИ (категория → класс)</label>
-          <select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-          <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
-          <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
-        </div>
-      </div>
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle>
+<span class="card-idx">01</span>
+<h3>Общие параметры</h3>
+<span class="hint">${esc(oi.name)}</span>
+<span class="chev">▾</span>
+</div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+<div class="field" style="flex:0 0 auto;">
+<label>Литера</label>
+${letterControlHTML(oi)}
+</div>
+<div class="field" style="flex:1 1 180px;">
+<label>Наименование</label>
+<input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
+</div>
+<div class="field" style="flex:0 0 150px;">
+<label>Статус</label>
+<select class="select" style="width:100%;" data-status>
+${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+</select>
+</div>
+<div class="field" style="flex:0 0 160px;">
+<label>ЕНИ код</label>
+<input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
+</div>
+</div>
+${flagsRowHTML(oi)}
+<div class="grid g-3">
+<div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
+<div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
+<select class="select" data-buildtype>${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+${showResCat ? `<div class="field"><label>Категория жилого строения</label>
+<select class="select" data-rescat>${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>` : ''}
+${rq.showCatClass ? `<div class="field"><label>Категория ОИ (категория → класс)</label>
+<select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
+<span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
+</div>` : ''}
+</div>
+</div></div>
+</div>`;
 }
 
 function apartmentGeneralCard(oi) {
   const apt = oi.apartment || {};
   const showLocationOther = apt.location === 'Прочее';
+  const showRightsOther = apt.rights === 'Иное';
   return `<div class="card t-blue" id="q-gen">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">01</span>
-      <h3>Общие параметры квартиры</h3>
-      <span class="hint">${esc(oi.name)}</span>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-        <div class="field" style="flex:0 0 auto;">
-          <label>Литера</label>
-          ${letterControlHTML(oi)}
-        </div>
-        <div class="field" style="flex:1 1 180px;">
-          <label>Наименование</label>
-          <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
-        </div>
-        <div class="field" style="flex:0 0 150px;">
-          <label>Статус</label>
-          <select class="select" style="width:100%;" data-status>
-            ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field" style="flex:0 0 160px;">
-          <label>ЕНИ код</label>
-          <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
-        </div>
-      </div>
-      ${flagsRowHTML(oi)}
-      <div class="grid g-3">
-        <div class="field">
-          <label>Этаж</label>
-          <input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
-        </div>
-        <div class="field">
-          <label>Этажность дома</label>
-          <input class="input" data-apt-building-floors value="${esc(apt.buildingFloors || '')}" inputmode="numeric">
-        </div>
-        <div class="field">
-          <label>Количество комнат</label>
-          <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
-        </div>
-      </div>
-      <div class="grid g-2" style="margin-top:10px">
-        <div class="field">
-          <label>Серия</label>
-          <input class="input" list="apartmentSeriesList" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
-          <datalist id="apartmentSeriesList">
-            ${APARTMENT_SERIES.map((series) => `<option value="${esc(series)}">`).join('')}
-          </datalist>
-        </div>
-        <div class="field">
-          <label>Расположение</label>
-          <div class="inline-row">
-            <select class="select" data-apt-location style="flex:1 1 160px;">
-              <option value="">Не выбрано</option>
-              ${APARTMENT_LOCATIONS.map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
-            </select>
-            <input
-              class="input"
-              data-apt-location-other
-              placeholder="Укажите положение"
-              value="${esc(apt.locationOther || '')}"
-              style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}"
-            >
-          </div>
-        </div>
-      </div>
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle>
+<span class="card-idx">01</span>
+<h3>Общие параметры квартиры</h3>
+<span class="hint">${esc(oi.name)}</span>
+<span class="chev">▾</span>
+</div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+<div class="field" style="flex:0 0 auto;">
+<label>Литера</label>
+${letterControlHTML(oi)}
+</div>
+<div class="field" style="flex:1 1 180px;">
+<label>Наименование</label>
+<input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
+</div>
+<div class="field" style="flex:0 0 150px;">
+<label>Статус</label>
+<select class="select" style="width:100%;" data-status>
+${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+</select>
+</div>
+<div class="field" style="flex:0 0 160px;">
+<label>ЕНИ код</label>
+<input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
+</div>
+</div>
+${flagsRowHTML(oi)}
+<div class="grid g-4">
+<div class="field">
+<label>Этаж</label>
+<input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
+</div>
+<div class="field">
+<label>Этажность дома</label>
+<input class="input" data-apt-building-floors value="${esc(apt.buildingFloors || '')}" inputmode="numeric">
+</div>
+<div class="field">
+<label>Количество этажей в квартире</label>
+<input class="input" data-apt-storeys value="${esc(apt.storeys || '1')}"
+inputmode="numeric" min="1" max="30" title="Количество этажей квартиры (до 30)">
+</div>
+<div class="field">
+<label>Количество комнат</label>
+<input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
+</div>
+</div>
+<div class="grid g-2" style="margin-top:10px">
+<div class="field">
+<label>Серия</label>
+<input class="input" list="apartmentSeriesList" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
+<datalist id="apartmentSeriesList">
+${APARTMENT_SERIES.map((series) => `<option value="${esc(series)}">`).join('')}
+</datalist>
+</div>
+<div class="field">
+<label>Положение на этаже</label>
+<div class="inline-row">
+<select class="select" data-apt-location style="flex:1 1 160px;">
+<option value="">Не выбрано</option>
+${APARTMENT_LOCATIONS.map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
+</select>
+<input
+class="input"
+data-apt-location-other
+placeholder="Укажите положение"
+value="${esc(apt.locationOther || '')}"
+maxlength="50"
+style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}"
+>
+</div>
+</div>
+</div>
+<div class="grid g-2" style="margin-top:10px">
+<div class="field">
+<label>Права на строение</label>
+<div class="inline-row">
+<select class="select" data-apt-rights style="flex:1 1 200px;">
+<option value="">Не выбрано</option>
+${APARTMENT_RIGHTS.map((right) => `<option ${right === apt.rights ? 'selected' : ''}>${right}</option>`).join('')}
+</select>
+<input
+class="input"
+data-apt-rights-other
+placeholder="Укажите право"
+value="${esc(apt.rightsOther || '')}"
+maxlength="100"
+style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
+>
+</div>
+</div>
+</div>
+</div></div>
+</div>`;
 }
 
 function realtyAreasCard(oi) {
@@ -3811,39 +3831,77 @@ function realtyAreasCard(oi) {
   const areas = oi.areas || {};
   const heights = oi.heights || {};
   return `<div class="card t-blue" id="q-areas">
-    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="grid g-4">
-        <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
-        <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-        <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-        <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
-      </div>
-      <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(oi)}</div>
-      <div class="grid g-2" style="margin-top:10px">
-        <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
-        <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
-      </div>
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="grid g-4">
+<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
+<div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+</div>
+<div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(oi)}</div>
+<div class="grid g-2" style="margin-top:10px">
+<div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
+<div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
+</div>
+</div></div>
+</div>`;
 }
 
 function apartmentAreasCard(oi) {
   const areas = oi.areas || {};
+  const apt = oi.apartment || {};
   return `<div class="card t-blue" id="q-areas">
-    <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="grid g-4">
-        <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
-        <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-        <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-        <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
-      </div>
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="grid g-4">
+<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
+<div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+</div>
+<div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
+<div class="grid g-4">
+<div class="field">
+<label>Кол-во лоджий</label>
+<input class="input" data-apt-loggia-count value="${esc(apt.loggiaCount || '')}"
+inputmode="numeric" min="0" max="10" placeholder="до 10">
+</div>
+<div class="field">
+<label>Кол-во балконов / террас</label>
+<input class="input" data-apt-balcony-count value="${esc(apt.balconyCount || '')}"
+inputmode="numeric" min="0" max="10" placeholder="до 10">
+</div>
+<div class="field">
+<label>Площадь застройки лоджий, м²</label>
+<input class="input" data-apt-loggia-area value="${esc(apt.loggiaBuildArea || '')}"
+inputmode="decimal" min="0" max="500" placeholder="до 500">
+</div>
+<div class="field">
+<label>Площадь застройки балконов / террас, м²</label>
+<input class="input" data-apt-balcony-area value="${esc(apt.balconyBuildArea || '')}"
+inputmode="decimal" min="0" max="500" placeholder="до 500">
+</div>
+</div>
+</div></div>
+</div>`;
 }
 
-function realtyStructCard(oi) {
+// Поэтажная развёртка квартиры: отдельный блок, показывается только при этажности > 1.
+function apartmentFloorsCard(oi, idx) {
+  return `<div class="card t-blue" id="q-apt-floors">
+<div class="card-head" data-card-toggle>
+<span class="card-idx">${String(idx).padStart(2, '0')}</span>
+<h3>Поэтажная развёртка</h3>
+<span class="chev">▾</span>
+</div>
+<div class="card-body-wrap"><div class="card-pad">
+<div id="floors-${oi.id}">${floorsBlock(oi)}</div>
+</div></div>
+</div>`;
+}
+
+function realtyStructCard(oi, idx = 3) {
   const rq = oiFieldRules(oi);
   const struct = oi.struct || {};
   const heatingSource = {
@@ -3852,63 +3910,79 @@ function realtyStructCard(oi) {
     heatingOther: oi.heatingOther || '',
   };
   return `<div class="card t-teal" id="q-struct">
-    <div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="grid g-4">
-        ${structField('foundation', 'Фундамент', DICT.foundation, struct.foundation)}
-        ${structField('wallsExt', 'Наружные стены', DICT.wallsExt, struct.wallsExt, rq.wallsRequired)}
-        ${structField('ceilings', 'Перекрытия', DICT.ceilings, struct.ceilings)}
-        ${structField('roof', 'Кровля', DICT.roof, struct.roof)}
-      </div>
-      <div class="grid g-4" style="margin-top:8px">
-        ${structField('floors', 'Полы', DICT.floors, struct.floors)}
-        ${structField('windows', 'Окна', DICT.windows, struct.windows)}
-        ${structField('doors', 'Двери', DICT.doors, struct.doors)}
-        ${heatingMS(heatingSource)}
-      </div>
-      <div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="grid g-4">
+${structField('foundation', 'Фундамент', DICT.foundation, struct.foundation)}
+${structField('wallsExt', 'Наружные стены', DICT.wallsExt, struct.wallsExt, rq.wallsRequired)}
+${structField('ceilings', 'Перекрытия', DICT.ceilings, struct.ceilings)}
+${structField('roof', 'Кровля', DICT.roof, struct.roof)}
+</div>
+<div class="grid g-4" style="margin-top:8px">
+${structField('floors', 'Полы', DICT.floors, struct.floors)}
+${structField('windows', 'Окна', DICT.windows, struct.windows)}
+${structField('doors', 'Двери', DICT.doors, struct.doors)}
+${heatingMS(heatingSource)}
+</div>
+<div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
+</div></div>
+</div>`;
 }
 
-function docsCard(oi) {
+function docsCard(oi, idx = 4) {
   return `<div class="card t-slate" id="q-docs">
-    <div class="card-head" data-card-toggle><span class="card-idx">04</span><h3>Документы</h3><span class="chev">▾</span></div>
-    <div class="card-body-wrap"><div class="card-pad">
-      ${docsBlockInner(oi, oi.id)}
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Документы</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${docsBlockInner(oi, oi.id)}
+</div></div>
+</div>`;
 }
 
-function photosCard(oi) {
+function photosCard(oi, idx = 5) {
   return `<div class="card t-blue" id="q-photo">
-    <div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3>
-      <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      ${photoAccordions(oi, true)}
-    </div></div>
-  </div>`;
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
+<button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
+</div>
+<div class="card-body-wrap"><div class="card-pad">
+${photoAccordions(oi, true)}
+</div></div>
+</div>`;
 }
 
 function realtyCards(oi) {
   return `<div class="oi-stack">
-    ${realtyGeneralCard(oi)}
-    ${realtyAreasCard(oi)}
-    ${realtyStructCard(oi)}
-    ${docsCard(oi)}
-    ${photosCard(oi)}
-  </div>`;
+${realtyGeneralCard(oi)}
+${realtyAreasCard(oi)}
+${realtyStructCard(oi, 3)}
+${docsCard(oi, 4)}
+${photosCard(oi, 5)}
+</div>`;
 }
 
 function apartmentCards(oi) {
-  return `<div class="oi-stack">
-    ${apartmentGeneralCard(oi)}
-    ${apartmentAreasCard(oi)}
-    ${realtyStructCard(oi)}
-    ${docsCard(oi)}
-    ${photosCard(oi)}
-  </div>`;
+  const apt = oi.apartment || {};
+  const storeys = parseInt(apt.storeys, 10) || 1;
+  const showFloors = storeys > 1;
+
+  let idx = 2;
+  let html = `<div class="oi-stack">
+${apartmentGeneralCard(oi)}
+${apartmentAreasCard(oi)}`;
+
+  if (showFloors) {
+    idx += 1;
+    html += apartmentFloorsCard(oi, idx);
+  }
+
+  idx += 1;
+  html += realtyStructCard(oi, idx);
+  idx += 1;
+  html += docsCard(oi, idx);
+  idx += 1;
+  html += photosCard(oi, idx);
+
+  html += `</div>`;
+  return html;
 }
 
 function movableCards(oi) {
@@ -3916,49 +3990,49 @@ function movableCards(oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
   return `<div class="oi-stack">
-    <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>${isV ? 'Данные ТС' : oi.kind === 'mech' ? 'Данные механизма' : 'Данные офисной техники'}</h3></div>
-      <div class="card-pad">
-        <div class="inline-row" style="margin-bottom:10px">
-          <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-          ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
-        </div>
-        ${isV ? `<div class="grid g-3">
-          <div class="field"><label>Марка</label><input class="input" data-mv-make value="${esc(oi.make)}"></div>
-          <div class="field"><label>Модель</label><input class="input" data-mv-model value="${esc(oi.model)}"></div>
-          <div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year)}"></div>
-          <div class="field"><label>VIN</label><input class="input" data-mv-vin value="${esc(oi.vin)}"></div>
-          <div class="field"><label>Гос. номер</label><input class="input" data-mv-plate value="${esc(oi.plate)}"></div>
-        </div>` : `<div class="grid g-3">
-          <div class="field"><label>Наименование</label><input class="input" data-mv-name value="${esc(oi.name)}"></div>
-          <div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year || '')}"></div>
-          <div class="field"><label>Заводской / инв. номер</label><input class="input" data-mv-serial value="${esc(oi.serial || '')}"></div>
-        </div>`}
-      </div>
-    </div>
-    <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
-  </div>`;
+<div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>${isV ? 'Данные ТС' : oi.kind === 'mech' ? 'Данные механизма' : 'Данные офисной техники'}</h3></div>
+<div class="card-pad">
+<div class="inline-row" style="margin-bottom:10px">
+<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
+${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
+</div>
+${isV ? `<div class="grid g-3">
+<div class="field"><label>Марка</label><input class="input" data-mv-make value="${esc(oi.make)}"></div>
+<div class="field"><label>Модель</label><input class="input" data-mv-model value="${esc(oi.model)}"></div>
+<div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year)}"></div>
+<div class="field"><label>VIN</label><input class="input" data-mv-vin value="${esc(oi.vin)}"></div>
+<div class="field"><label>Гос. номер</label><input class="input" data-mv-plate value="${esc(oi.plate)}"></div>
+</div>` : `<div class="grid g-3">
+<div class="field"><label>Наименование</label><input class="input" data-mv-name value="${esc(oi.name)}"></div>
+<div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year || '')}"></div>
+<div class="field"><label>Заводской / инв. номер</label><input class="input" data-mv-serial value="${esc(oi.serial || '')}"></div>
+</div>`}
+</div>
+</div>
+<div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
+</div>`;
 }
 
 function landCards(oi) {
   return `<div class="oi-stack">
-    <div class="card t-teal"><div class="card-head"><span class="card-idx">01</span><h3>Земельный участок (один ЕНИ)</h3></div>
-      <div class="card-pad"><div class="grid g-4">
-        <div class="field"><label>Назначение</label><input class="input" data-land-purpose value="${esc(oi.purpose)}"></div>
-        <div class="field"><label>Общая площадь, м²</label><input class="input" data-land-area value="${esc(oi.area)}"></div>
-        <div class="field"><label>Статус</label>
-          <select class="select" data-status>${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        </div>
-        <div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
-      </div></div>
-    </div>
-    <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
-    <div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Фото по категориям</h3>
-      <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div>
-      <div class="card-body-wrap"><div class="card-pad">
-        ${photoAccordions(oi, true)}
-      </div></div>
-    </div>
-  </div>`;
+<div class="card t-teal"><div class="card-head"><span class="card-idx">01</span><h3>Земельный участок (один ЕНИ)</h3></div>
+<div class="card-pad"><div class="grid g-4">
+<div class="field"><label>Назначение</label><input class="input" data-land-purpose value="${esc(oi.purpose)}"></div>
+<div class="field"><label>Общая площадь, м²</label><input class="input" data-land-area value="${esc(oi.area)}"></div>
+<div class="field"><label>Статус</label>
+<select class="select" data-status>${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+<div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
+</div></div>
+</div>
+<div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
+<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Фото по категориям</h3>
+<button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${photoAccordions(oi, true)}
+</div></div>
+</div>
+</div>`;
 }
 
 export function viewOI() {
@@ -3989,15 +4063,15 @@ export function viewOI() {
       ? landCards(oi)
       : movableCards(oi);
   return `<div class="view-head">
-    <button class="back-btn" data-back>← К объекту оценки</button>
-    <span class="pill pill-gray">${cardLabel}</span>
-    ${isR ? `<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}` : ''}
-    ${isR ? `<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>` : ''}
-    <button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
-    <button class="btn btn-primary" data-save-oi>Сохранить</button>
-    <button class="btn btn-ghost" data-back>Отмена</button>
-  </div>
-  ${splitWrap(appState.viewer ? viewerHTML() : null, cardBody)}`;
+<button class="back-btn" data-back>← К объекту оценки</button>
+<span class="pill pill-gray">${cardLabel}</span>
+${isR ? `<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}` : ''}
+${isR ? `<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>` : ''}
+<button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
+<button class="btn btn-primary" data-save-oi>Сохранить</button>
+<button class="btn btn-ghost" data-back>Отмена</button>
+</div>
+${splitWrap(appState.viewer ? viewerHTML() : null, cardBody)}`;
 }
 
 ==================================================
@@ -4007,7 +4081,7 @@ FILE: .\src\features\oi\oiController.js
 import { OI, DOCS, appState, OC } from '../../core/state.js';
 import { render } from '../../core/renderer.js';
 import { toast } from '../../core/utils.js';
-import { nextLetter, createRealtyOi, createLandOi, currentOI } from './oiModel.js';
+import { nextLetter, createRealtyOi, createLandOi, currentOI, isApartmentOi } from './oiModel.js';
 import { buildFloors, recalcFloors } from './floorsModel.js';
 import { updateFloorsUI, rerenderFloors } from './floorsView.js';
 import { updateHeatingUI } from './heating.js';
@@ -4025,30 +4099,23 @@ function renderKeepScroll() {
 
 export function addLetter() {
   const letter = nextLetter();
-
   const oi = createRealtyOi({ letter, name: 'Новое строение' });
-
   OI.push(oi);
-
   appState.openOi = oi.id;
   appState.letterEdit = false;
   appState.viewer = { mode: 'doc' };
   appState.viewerDoc = null;
   appState.view = 'oi';
-
   render();
-
   toast('Литера ' + letter + ' добавлена — заполните карточку', 'ok');
 }
 
 export function addOi(type) {
   document.querySelectorAll('.dd').forEach((d) => d.classList.remove('open'));
-
   if (!canAddOiType(type, OC)) {
     toast('Для текущего типа ОЦ этот вид ОИ недоступен', 'warn');
     return;
   }
-
   if (type === 'МЕХ' || type === 'ОФИС') {
     appState.view = 'mech';
     appState.mechKind = type;
@@ -4059,65 +4126,50 @@ export function addOi(type) {
     render();
     return;
   }
-
   if (type === 'Земельный участок') {
     if (OI.find((o) => o.kind === 'land')) {
       toast('Земельный участок уже добавлен (один ЕНИ на объект)', 'warn');
       return;
     }
-
     OI.push(createLandOi());
-
     appState.openOi = OI[OI.length - 1].id;
     appState.letterEdit = false;
     appState.viewer = { mode: 'doc' };
     appState.viewerDoc = null;
     appState.view = 'oi';
-
     render();
     return;
   }
-
   const letter = nextLetter();
-
   const oi = createRealtyOi({
     letter,
     name: type,
     catClass: type === 'Производственное строение' ? 'Производственно-складское' : 'Гражданское здание',
   });
-
   OI.push(oi);
-
   appState.openOi = oi.id;
   appState.letterEdit = false;
   appState.viewer = { mode: 'doc' };
   appState.viewerDoc = null;
   appState.view = 'oi';
-
   render();
-
   toast('Литера ' + letter + ' создана', 'ok');
 }
 
 export function deleteOi(id) {
   const oi = OI.find((o) => o.id === id);
   if (!oi) return;
-
   const label = oi.letter ? 'Литера ' + oi.letter : 'ОИ';
-
   if (!confirm(`Удалить «${label}» (${oi.name})? Действие нельзя отменить.`)) {
     return;
   }
-
   const i = OI.findIndex((o) => o.id === id);
   if (i >= 0) OI.splice(i, 1);
-
   if (appState.openOi === id) {
     appState.view = 'oc';
     appState.openOi = null;
     appState.letterEdit = false;
   }
-
   render();
   toast(label + ' удалён');
 }
@@ -4133,32 +4185,24 @@ export function bindOi() {
   document.querySelectorAll('tr[data-open-oi]').forEach((tr) => {
     tr.onclick = (e) => {
       const accId = tr.dataset.accId;
-
       if (accId && (e.target.closest('[data-acc-cell]') || e.target.closest('.chev-btn'))) {
         e.stopPropagation();
         appState.expanded[accId] = !appState.expanded[accId];
-
         const sc = document.getElementById('content');
         const top = sc ? sc.scrollTop : 0;
-
         render();
         if (sc) sc.scrollTop = top;
         return;
       }
-
       if (e.target.closest('button') || e.target.closest('.ph-mini')) return;
-
       appState.openOi = tr.dataset.openOi;
       appState.letterEdit = false;
-
       const oi = OI.find((o) => o.id === tr.dataset.openOi);
-
       appState.viewer = {
         mode: (oi && oi.photos && Object.keys(oi.photos).length) ? 'photo' : 'doc',
       };
       appState.viewerDoc = null;
       appState.view = 'oi';
-
       render();
     };
   });
@@ -4195,13 +4239,10 @@ export function bindOi() {
       e.stopPropagation();
       const oi = OI.find((o) => o.id === (b.dataset.photoOi || appState.openOi));
       if (!oi) return;
-
       const cat = b.dataset.addPhoto;
       oi.photos = oi.photos || {};
       oi.photos[cat] = (oi.photos[cat] || 0) + 1;
-
       appState.accOpen['ph|' + oi.id + '|' + cat] = true;
-
       render();
       toast('Фото загружено', 'ok');
     };
@@ -4218,7 +4259,6 @@ export function bindOi() {
     const i = document.querySelector('[data-letter-input]');
     if (i) { i.focus(); i.select(); }
   };
-
   const ls = document.querySelector('[data-letter-save]');
   if (ls) ls.onclick = () => {
     const oi = currentOI();
@@ -4233,12 +4273,10 @@ export function bindOi() {
     render();
     toast('Литера переименована', 'ok');
   };
-
   const lc = document.querySelector('[data-letter-cancel]');
   if (lc) lc.onclick = () => { appState.letterEdit = false; render(); };
 
   const oi = OI.find((o) => o.id === appState.openOi);
-
   if (oi && appState.view === 'oi') {
     if (oi.kind === 'realty') {
       document.querySelectorAll('[data-area]').forEach((i) => i.onchange = () => {
@@ -4247,14 +4285,20 @@ export function bindOi() {
         updateFloorsUI(oi);
         updateCtxPlate();
       });
-
       document.querySelectorAll('[data-height]').forEach((i) => i.onchange = () => { oi.heights[i.dataset.height] = i.value; });
 
       const fn = document.querySelector('[data-floors-n]');
       if (fn) fn.onchange = () => {
         oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
         buildFloors(oi);
-        rerenderFloors(oi);
+        if (isApartmentOi(oi)) {
+          // Для квартиры количество этажей в развёртке синхронизируется с этажностью квартиры.
+          oi.apartment = oi.apartment || {};
+          oi.apartment.storeys = String(oi.floors);
+          renderKeepScroll();
+        } else {
+          rerenderFloors(oi);
+        }
         updateCtxPlate();
       };
 
@@ -4265,49 +4309,107 @@ export function bindOi() {
         updateFloorsUI(oi);
         toast('Отмеченные этажи выровнены по остатку', 'ok');
       };
-
       document.querySelectorAll('[data-floor-on]').forEach((c) => c.onchange = () => {
         oi.floorList[+c.dataset.floorOn].on = c.checked;
         recalcFloors(oi);
         updateFloorsUI(oi);
       });
-
       document.querySelectorAll('[data-floor-area]').forEach((i) => i.onchange = () => {
         oi.floorList[+i.dataset.floorArea].area = i.value;
         recalcFloors(oi);
         updateFloorsUI(oi);
       });
-
       document.querySelectorAll('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
       document.querySelectorAll('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
 
       const bt = document.querySelector('[data-buildtype]');
       if (bt) bt.onchange = () => { oi.buildType = bt.value; updateCtxPlate(); };
-
       const yr = document.querySelector('[data-year]');
       if (yr) yr.onchange = () => { oi.year = yr.value; };
-
       const cm = document.querySelector('[data-comment]');
       if (cm) cm.onchange = () => { oi.comment = cm.value; };
-
       const dis = document.querySelector('[data-dis]');
       if (dis) dis.onchange = () => { oi.dis = dis.checked; };
-
       const cc = document.querySelector('[data-catclass]');
       if (cc) cc.onchange = () => { oi.catClass = cc.value; renderKeepScroll(); };
-
       const rc = document.querySelector('[data-rescat]');
       if (rc) rc.onchange = () => { oi.resCat = rc.value; };
+
+      // Специфичные поля квартиры.
+      if (isApartmentOi(oi)) {
+        const ensureApartment = () => {
+          if (!oi.apartment) oi.apartment = {};
+          return oi.apartment;
+        };
+        const bindAptField = (selector, key) => {
+          const el = document.querySelector(selector);
+          if (!el) return;
+          el.onchange = () => { ensureApartment()[key] = el.value; };
+        };
+
+        bindAptField('[data-apt-floor]', 'floor');
+        bindAptField('[data-apt-building-floors]', 'buildingFloors');
+        bindAptField('[data-apt-rooms]', 'rooms');
+        bindAptField('[data-apt-series]', 'series');
+        bindAptField('[data-apt-loggia-count]', 'loggiaCount');
+        bindAptField('[data-apt-balcony-count]', 'balconyCount');
+        bindAptField('[data-apt-loggia-area]', 'loggiaBuildArea');
+        bindAptField('[data-apt-balcony-area]', 'balconyBuildArea');
+
+        // Этажность квартиры: управляет видимостью блока поэтажной развёртки.
+        const aptStoreys = document.querySelector('[data-apt-storeys]');
+        if (aptStoreys) {
+          aptStoreys.onchange = () => {
+            const val = Math.max(1, Math.min(30, parseInt(aptStoreys.value, 10) || 1));
+            aptStoreys.value = val;
+            ensureApartment().storeys = String(val);
+            oi.floors = val;
+            buildFloors(oi);
+            // Полный ререндер: блок развёртки появляется или исчезает.
+            renderKeepScroll();
+            updateCtxPlate();
+          };
+        }
+
+        // Положение на этаже: select + условный ручной ввод.
+        const locSel = document.querySelector('[data-apt-location]');
+        if (locSel) {
+          locSel.onchange = () => {
+            const a = ensureApartment();
+            a.location = locSel.value;
+            const other = document.querySelector('[data-apt-location-other]');
+            if (other) {
+              other.style.display = a.location === 'Прочее' ? '' : 'none';
+              if (a.location !== 'Прочее') { other.value = ''; a.locationOther = ''; }
+            }
+          };
+        }
+        const locOther = document.querySelector('[data-apt-location-other]');
+        if (locOther) locOther.onchange = () => { ensureApartment().locationOther = locOther.value; };
+
+        // Права на строение: select + условный ручной ввод.
+        const rightsSel = document.querySelector('[data-apt-rights]');
+        if (rightsSel) {
+          rightsSel.onchange = () => {
+            const a = ensureApartment();
+            a.rights = rightsSel.value;
+            const other = document.querySelector('[data-apt-rights-other]');
+            if (other) {
+              other.style.display = a.rights === 'Иное' ? '' : 'none';
+              if (a.rights !== 'Иное') { other.value = ''; a.rightsOther = ''; }
+            }
+          };
+        }
+        const rightsOther = document.querySelector('[data-apt-rights-other]');
+        if (rightsOther) rightsOther.onchange = () => { ensureApartment().rightsOther = rightsOther.value; };
+      }
     }
 
     document.querySelectorAll('[data-status]').forEach((s) => s.onchange = () => { oi.status = s.value; updateCtxPlate(); });
-
     const nm = document.querySelector('[data-oi-name]');
     if (nm) nm.onchange = () => { oi.name = nm.value; updateCtxPlate(); };
-
     const en = document.querySelector('[data-oi-eni]');
     if (en) en.onchange = () => { oi.eni = en.value.trim() || oi.eni; };
-
     document.querySelectorAll('[data-flag]').forEach((c) => c.onchange = () => {
       oi.flags = oi.flags || {};
       oi.flags[c.dataset.flag] = c.checked;
@@ -4317,22 +4419,16 @@ export function bindOi() {
     if (oi.kind !== 'realty' && oi.kind !== 'land') {
       const mk = document.querySelector('[data-mv-make]');
       if (mk) mk.onchange = () => { oi.make = mk.value; };
-
       const md = document.querySelector('[data-mv-model]');
       if (md) md.onchange = () => { oi.model = md.value; };
-
       const vy = document.querySelector('[data-mv-year]');
       if (vy) vy.onchange = () => { oi.year = vy.value; };
-
       const vv = document.querySelector('[data-mv-vin]');
       if (vv) vv.onchange = () => { oi.vin = vv.value; };
-
       const pl = document.querySelector('[data-mv-plate]');
       if (pl) pl.onchange = () => { oi.plate = pl.value; };
-
       const mn = document.querySelector('[data-mv-name]');
       if (mn) mn.onchange = () => { oi.name = mn.value; updateCtxPlate(); };
-
       const sr = document.querySelector('[data-mv-serial]');
       if (sr) sr.onchange = () => { oi.serial = sr.value; };
     }
@@ -4340,13 +4436,11 @@ export function bindOi() {
     if (oi.kind === 'land') {
       const lp = document.querySelector('[data-land-purpose]');
       if (lp) lp.onchange = () => { oi.purpose = lp.value; };
-
       const la = document.querySelector('[data-land-area]');
       if (la) la.onchange = () => { oi.area = la.value; };
     }
 
     document.querySelectorAll('[data-struct]').forEach((s) => s.onchange = () => { oi.struct[s.dataset.struct] = s.value; });
-
     document.querySelectorAll('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
       e.stopPropagation();
       const drop = c.parentElement.querySelector('.ms-drop');
@@ -4354,14 +4448,12 @@ export function bindOi() {
       drop.hidden = !drop.hidden;
       appState.heatOpen = !drop.hidden;
     });
-
     document.querySelectorAll('[data-heat-opt]').forEach((cb) => cb.onchange = () => {
       const h = cb.dataset.heatOpt;
       const i = oi.heating.indexOf(h);
       if (i >= 0) oi.heating.splice(i, 1); else oi.heating.push(h);
       updateHeatingUI(oi);
     });
-
     document.querySelectorAll('[data-heat-rm]').forEach((x) => x.onclick = (e) => {
       e.stopPropagation();
       const cur = currentOI();
@@ -4371,7 +4463,6 @@ export function bindOi() {
       if (i >= 0) cur.heating.splice(i, 1);
       updateHeatingUI(cur);
     });
-
     const ho = document.querySelector('[data-heat-other]');
     if (ho) ho.onchange = () => { oi.heatingOther = ho.value; };
 
@@ -4435,6 +4526,13 @@ function createApartmentState() {
     series: '',
     location: '',
     locationOther: '',
+    storeys: '1',
+    loggiaCount: '',
+    balconyCount: '',
+    loggiaBuildArea: '',
+    balconyBuildArea: '',
+    rights: '',
+    rightsOther: '',
   };
 }
 
@@ -5089,7 +5187,12 @@ FILE: .\src\features\oi\cardTypes\realtyApartmentCard.js
 ==================================================
 
 import { esc } from '../../../core/utils.js';
-import { DICT } from '../../../core/dictionaries.js';
+import {
+  DICT,
+  APARTMENT_SERIES,
+  APARTMENT_LOCATIONS,
+  APARTMENT_RIGHTS,
+} from '../../../core/dictionaries.js';
 import {
   letterControl,
   renderRealtyStructCard,
@@ -5106,6 +5209,7 @@ export const realtyApartmentCard = {
     const f = oi.flags || {};
     const isMl = (oi.origin || 'manual') === 'ml';
     const areas = oi.areas || {};
+    const apt = oi.apartment || {};
 
     return `<div class="oi-stack">
       <div class="card t-blue" id="q-gen">
@@ -5136,22 +5240,77 @@ export const realtyApartmentCard = {
               <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
             </div>
           </div>
+
           <div class="inline-row" style="margin-bottom:10px">
             <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
             ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
           </div>
-          <div class="grid g-3">
+
+          <div class="grid g-4">
             <div class="field">
               <label>Год постройки</label>
               <input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric">
             </div>
             <div class="field">
               <label>Этаж расположения</label>
-              <input class="input" data-apartment-floor value="${esc(oi.apartmentFloor || '')}">
+              <input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
+            </div>
+            <div class="field">
+              <label>Количество этажей в квартире</label>
+              <input class="input" data-apt-storeys value="${esc(apt.storeys || '')}"
+                     inputmode="numeric" min="1" max="30" placeholder="до 30">
             </div>
             <div class="field">
               <label>Количество комнат</label>
-              <input class="input" data-apartment-rooms value="${esc(oi.rooms || '')}">
+              <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
+            </div>
+          </div>
+
+          <div class="grid g-2" style="margin-top:10px">
+            <div class="field">
+              <label>Серия</label>
+              <div class="dd dd-combo" data-series-dd>
+                <div class="dd-combo-input-wrap">
+                  <input class="input" data-apt-series value="${esc(apt.series || '')}"
+                         placeholder="Введите или выберите серию" autocomplete="off">
+                  <button type="button" class="dd-combo-toggle" data-series-toggle
+                          title="Показать варианты">▾</button>
+                </div>
+                <div class="dd-menu dd-menu-series" data-series-menu>
+                  ${APARTMENT_SERIES.map((s) => `<button type="button" data-series-opt="${esc(s)}">${esc(s)}</button>`).join('')}
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Положение на этаже</label>
+              <div class="inline-row">
+                <select class="select" data-apt-location style="flex:1 1 160px;">
+                  <option value="">Не выбрано</option>
+                  ${APARTMENT_LOCATIONS.map((l) => `<option ${l === apt.location ? 'selected' : ''}>${l}</option>`).join('')}
+                </select>
+                <input class="input" data-apt-location-other
+                       placeholder="Укажите положение"
+                       value="${esc(apt.locationOther || '')}"
+                       maxlength="50"
+                       style="flex:1 1 160px; ${apt.location === 'Прочее' ? '' : 'display:none;'}">
+              </div>
+            </div>
+          </div>
+
+          <div class="grid g-2" style="margin-top:10px">
+            <div class="field">
+              <label>Права на строение</label>
+              <div class="inline-row">
+                <select class="select" data-apt-rights style="flex:1 1 200px;">
+                  <option value="">Не выбрано</option>
+                  ${APARTMENT_RIGHTS.map((r) => `<option ${r === apt.rights ? 'selected' : ''}>${r}</option>`).join('')}
+                </select>
+                <input class="input" data-apt-rights-other
+                       placeholder="Укажите право"
+                       value="${esc(apt.rightsOther || '')}"
+                       maxlength="100"
+                       style="flex:1 1 200px; ${apt.rights === 'Иное' ? '' : 'display:none;'}">
+              </div>
             </div>
           </div>
         </div></div>
@@ -5182,6 +5341,34 @@ export const realtyApartmentCard = {
               <input class="input" data-area="fact" value="${esc(areas.fact || '')}">
             </div>
           </div>
+
+          <div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
+          <div class="grid g-4">
+            <div class="field">
+              <label>Кол-во лоджий</label>
+              <input class="input" data-apt-loggia-count
+                     value="${esc(apt.loggiaCount || '')}"
+                     inputmode="numeric" min="0" max="10" placeholder="до 10">
+            </div>
+            <div class="field">
+              <label>Кол-во балконов / террас</label>
+              <input class="input" data-apt-balcony-count
+                     value="${esc(apt.balconyCount || '')}"
+                     inputmode="numeric" min="0" max="10" placeholder="до 10">
+            </div>
+            <div class="field">
+              <label>Площадь застройки лоджий, м²</label>
+              <input class="input" data-apt-loggia-area
+                     value="${esc(apt.loggiaBuildArea || '')}"
+                     inputmode="decimal" min="0" max="500" placeholder="до 500">
+            </div>
+            <div class="field">
+              <label>Площадь застройки балконов / террас, м²</label>
+              <input class="input" data-apt-balcony-area
+                     value="${esc(apt.balconyBuildArea || '')}"
+                     inputmode="decimal" min="0" max="500" placeholder="до 500">
+            </div>
+          </div>
         </div></div>
       </div>
 
@@ -5192,34 +5379,156 @@ export const realtyApartmentCard = {
   },
 
   bind(oi) {
-    const floorInput = document.querySelector('[data-apartment-floor]');
-    if (floorInput) {
-      floorInput.onchange = () => {
-        oi.apartmentFloor = floorInput.value;
+    const ensureApartment = () => {
+      if (!oi.apartment) oi.apartment = {};
+      return oi.apartment;
+    };
+
+    const bindField = (selector, key) => {
+      const el = document.querySelector(selector);
+      if (!el) return;
+      el.onchange = () => {
+        ensureApartment()[key] = el.value;
+      };
+    };
+
+    bindField('[data-apt-floor]', 'floor');
+    bindField('[data-apt-storeys]', 'storeys');
+    bindField('[data-apt-rooms]', 'rooms');
+    bindField('[data-apt-series]', 'series');
+    bindField('[data-apt-loggia-count]', 'loggiaCount');
+    bindField('[data-apt-balcony-count]', 'balconyCount');
+    bindField('[data-apt-loggia-area]', 'loggiaBuildArea');
+    bindField('[data-apt-balcony-area]', 'balconyBuildArea');
+
+    const locationSelect = document.querySelector('[data-apt-location]');
+    if (locationSelect) {
+      locationSelect.onchange = () => {
+        const apt = ensureApartment();
+        apt.location = locationSelect.value;
+        const otherInput = document.querySelector('[data-apt-location-other]');
+        if (otherInput) {
+          otherInput.style.display = apt.location === 'Прочее' ? '' : 'none';
+          if (apt.location !== 'Прочее') {
+            otherInput.value = '';
+            apt.locationOther = '';
+          }
+        }
       };
     }
 
-    const roomsInput = document.querySelector('[data-apartment-rooms]');
-    if (roomsInput) {
-      roomsInput.onchange = () => {
-        oi.rooms = roomsInput.value;
+    const locationOther = document.querySelector('[data-apt-location-other]');
+    if (locationOther) {
+      locationOther.onchange = () => {
+        ensureApartment().locationOther = locationOther.value;
       };
     }
+
+    const rightsSelect = document.querySelector('[data-apt-rights]');
+    if (rightsSelect) {
+      rightsSelect.onchange = () => {
+        const apt = ensureApartment();
+        apt.rights = rightsSelect.value;
+        const otherInput = document.querySelector('[data-apt-rights-other]');
+        if (otherInput) {
+          otherInput.style.display = apt.rights === 'Иное' ? '' : 'none';
+          if (apt.rights !== 'Иное') {
+            otherInput.value = '';
+            apt.rightsOther = '';
+          }
+        }
+      };
+    }
+
+    const rightsOther = document.querySelector('[data-apt-rights-other]');
+    if (rightsOther) {
+      rightsOther.onchange = () => {
+        ensureApartment().rightsOther = rightsOther.value;
+      };
+    }
+
+    bindSeriesDropdown();
   },
 
   validate(oi) {
     const errors = [];
-
     if (!String(oi.name || '').trim()) {
       errors.push('Не заполнено наименование квартиры');
     }
-
-    return {
-      valid: errors.length === 0,
-      errors,
+    const apt = oi.apartment || {};
+    const checkRange = (value, min, max, label) => {
+      if (value === '' || value === undefined || value === null) return;
+      const n = Number(value);
+      if (isNaN(n) || n < min || n > max) {
+        errors.push(`${label}: допустимое значение от ${min} до ${max}`);
+      }
     };
+    checkRange(apt.storeys, 1, 30, 'Этажность квартиры');
+    checkRange(apt.loggiaCount, 0, 10, 'Кол-во лоджий');
+    checkRange(apt.balconyCount, 0, 10, 'Кол-во балконов/террас');
+    checkRange(apt.loggiaBuildArea, 0, 500, 'Площадь застройки лоджий');
+    checkRange(apt.balconyBuildArea, 0, 500, 'Площадь застройки балконов/террас');
+    return { valid: errors.length === 0, errors };
   },
 };
+
+function bindSeriesDropdown() {
+  const dd = document.querySelector('[data-series-dd]');
+  const menu = document.querySelector('[data-series-menu]');
+  const toggle = document.querySelector('[data-series-toggle]');
+  const input = document.querySelector('[data-apt-series]');
+  if (!dd || !menu || !input) return;
+
+  const filterOptions = () => {
+    const val = (input.value || '').toLowerCase().trim();
+    menu.querySelectorAll('[data-series-opt]').forEach((btn) => {
+      const optVal = (btn.dataset.seriesOpt || '').toLowerCase();
+      btn.style.display = (!val || optVal.includes(val)) ? '' : 'none';
+    });
+  };
+
+  const openMenu = () => {
+    document.querySelectorAll('.dd.open').forEach((d) => {
+      if (d !== dd) d.classList.remove('open');
+    });
+    dd.classList.add('open');
+    filterOptions();
+  };
+
+  const closeMenu = () => {
+    dd.classList.remove('open');
+  };
+
+  if (toggle) {
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dd.classList.contains('open')) {
+        closeMenu();
+      } else {
+        openMenu();
+        input.focus();
+      }
+    });
+  }
+
+  input.addEventListener('focus', openMenu);
+  input.addEventListener('input', () => {
+    if (!dd.classList.contains('open')) {
+      openMenu();
+    } else {
+      filterOptions();
+    }
+  });
+
+  menu.querySelectorAll('[data-series-opt]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      input.value = btn.dataset.seriesOpt || '';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      closeMenu();
+    });
+  });
+}
 
 ==================================================
 FILE: .\src\features\oi\cardTypes\realtyCivilCard.js
@@ -6833,13 +7142,65 @@ td[data-acc-cell]:hover{background:var(--blue-100)!important}
   right: 0;
 }
 
-.apartmentSeriesList {
-  border: 1px solid var(--line-input);
-  border-radius: 7px;
-  background: #fff;
+/* Кастомный dropdown для выбора серии квартиры */
+/* Кастомный dropdown с поиском для серии квартиры */
+.dd-combo {
+  position: relative;
+}
+
+.dd-combo-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.dd-combo-input-wrap .input {
+  padding-right: 32px;
+}
+
+.dd-combo-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #7d93a6;
+  font-size: 11px;
+  cursor: pointer;
   padding: 4px 6px;
-  max-height: 200px;
+  border-radius: 4px;
+  transition: background 0.12s ease, color 0.12s ease;
+  line-height: 1;
+}
+
+.dd-combo-toggle:hover {
+  background: var(--blue-50);
+  color: var(--blue-700);
+}
+
+/* Главное правило - ограничиваем высоту списка */
+.dd-menu-series {
+  max-height: 220px;
   overflow-y: auto;
+  width: 100%;
+}
+
+.dd-menu-series button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 9px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: #33445c;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.dd-menu-series button:hover {
+  background: var(--blue-50);
 }
 
 ==================================================

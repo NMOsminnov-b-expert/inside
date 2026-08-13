@@ -36,7 +36,7 @@ function createApartmentState() {
     series: '',
     location: '',
     locationOther: '',
-    storeys: '',
+    storeys: '1',
     loggiaCount: '',
     balconyCount: '',
     loggiaBuildArea: '',

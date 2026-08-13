@@ -68,7 +68,7 @@ export const realtyApartmentCard = {
               <input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
             </div>
             <div class="field">
-              <label>Этажность квартиры</label>
+              <label>Количество этажей в квартире</label>
               <input class="input" data-apt-storeys value="${esc(apt.storeys || '')}"
                      inputmode="numeric" min="1" max="30" placeholder="до 30">
             </div>
