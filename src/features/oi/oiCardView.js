@@ -9,7 +9,7 @@ import {
   APARTMENT_RIGHTS,
 } from '../../core/dictionaries.js';
 import { oiFieldRules, isApartmentOi } from './oiModel.js';
-import { floorsBlock } from './floorsView.js';
+import { floorsBlock, apartmentFloorsBlock } from './floorsView.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../photos/photoBlocks.js';
 import { docsBlockInner } from '../docs/docsTable.js';
@@ -220,9 +220,12 @@ function realtyAreasCard(oi) {
 </div>`;
 }
 
+// Блок 02 квартиры: площади + лоджии/балконы + развёртка (при этажности > 1).
 function apartmentAreasCard(oi) {
   const areas = oi.areas || {};
   const apt = oi.apartment || {};
+  const storeys = parseInt(apt.storeys, 10) || 1;
+  const showFloors = storeys > 1;
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
@@ -231,6 +234,10 @@ function apartmentAreasCard(oi) {
 <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+
+</div>
+<div>
+${showFloors ? apartmentFloorsBlock(oi) : ''}
 </div>
 <div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
 <div class="grid g-4">
@@ -255,20 +262,7 @@ inputmode="decimal" min="0" max="500" placeholder="до 500">
 inputmode="decimal" min="0" max="500" placeholder="до 500">
 </div>
 </div>
-</div></div>
-</div>`;
-}
 
-// Поэтажная развёртка квартиры: отдельный блок, показывается только при этажности > 1.
-function apartmentFloorsCard(oi, idx) {
-  return `<div class="card t-blue" id="q-apt-floors">
-<div class="card-head" data-card-toggle>
-<span class="card-idx">${String(idx).padStart(2, '0')}</span>
-<h3>Поэтажная развёртка</h3>
-<span class="chev">▾</span>
-</div>
-<div class="card-body-wrap"><div class="card-pad">
-<div id="floors-${oi.id}">${floorsBlock(oi)}</div>
 </div></div>
 </div>`;
 }
@@ -332,29 +326,13 @@ ${photosCard(oi, 5)}
 }
 
 function apartmentCards(oi) {
-  const apt = oi.apartment || {};
-  const storeys = parseInt(apt.storeys, 10) || 1;
-  const showFloors = storeys > 1;
-
-  let idx = 2;
-  let html = `<div class="oi-stack">
+  return `<div class="oi-stack">
 ${apartmentGeneralCard(oi)}
-${apartmentAreasCard(oi)}`;
-
-  if (showFloors) {
-    idx += 1;
-    html += apartmentFloorsCard(oi, idx);
-  }
-
-  idx += 1;
-  html += realtyStructCard(oi, idx);
-  idx += 1;
-  html += docsCard(oi, idx);
-  idx += 1;
-  html += photosCard(oi, idx);
-
-  html += `</div>`;
-  return html;
+${apartmentAreasCard(oi)}
+${realtyStructCard(oi, 3)}
+${docsCard(oi, 4)}
+${photosCard(oi, 5)}
+</div>`;
 }
 
 function movableCards(oi) {

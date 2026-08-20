@@ -2,7 +2,7 @@ import { OI, DOCS, appState, OC } from '../../core/state.js';
 import { render } from '../../core/renderer.js';
 import { toast } from '../../core/utils.js';
 import { nextLetter, createRealtyOi, createLandOi, currentOI, isApartmentOi } from './oiModel.js';
-import { buildFloors, recalcFloors } from './floorsModel.js';
+import { buildFloors, buildApartmentFloors, recalcFloors } from './floorsModel.js';
 import { updateFloorsUI, rerenderFloors } from './floorsView.js';
 import { updateHeatingUI } from './heating.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../viewer/viewerState.js';
@@ -211,14 +211,7 @@ export function bindOi() {
       if (fn) fn.onchange = () => {
         oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
         buildFloors(oi);
-        if (isApartmentOi(oi)) {
-          // Для квартиры количество этажей в развёртке синхронизируется с этажностью квартиры.
-          oi.apartment = oi.apartment || {};
-          oi.apartment.storeys = String(oi.floors);
-          renderKeepScroll();
-        } else {
-          rerenderFloors(oi);
-        }
+        rerenderFloors(oi);
         updateCtxPlate();
       };
 
@@ -276,7 +269,7 @@ export function bindOi() {
         bindAptField('[data-apt-loggia-area]', 'loggiaBuildArea');
         bindAptField('[data-apt-balcony-area]', 'balconyBuildArea');
 
-        // Этажность квартиры: управляет видимостью блока поэтажной развёртки.
+        // Этажность квартиры: управляет видимостью аккордеона развёртки в блоке 01.
         const aptStoreys = document.querySelector('[data-apt-storeys]');
         if (aptStoreys) {
           aptStoreys.onchange = () => {
@@ -284,8 +277,8 @@ export function bindOi() {
             aptStoreys.value = val;
             ensureApartment().storeys = String(val);
             oi.floors = val;
-            buildFloors(oi);
-            // Полный ререндер: блок развёртки появляется или исчезает.
+            buildApartmentFloors(oi);
+            // Полный ререндер: аккордеон развёртки появляется или исчезает.
             renderKeepScroll();
             updateCtxPlate();
           };

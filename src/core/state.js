@@ -1,11 +1,16 @@
 import { createOC, createOI, createDOCS } from './seed.js';
-import { buildFloors } from '../features/oi/floorsModel.js';
+import { buildFloors, buildApartmentFloors } from '../features/oi/floorsModel.js';
 
 export const OC = createOC();
 export const OI = createOI();
 export const DOCS = createDOCS();
 
-OI.filter((o) => o.kind === 'realty').forEach(buildFloors);
+// Этажные списки: у квартир отдельная модель без подвала/мансарды/цоколя.
+// Подтип проверяется строковым литералом, чтобы не тянуть лишние импорты в state.
+OI.filter((o) => o.kind === 'realty').forEach((o) => {
+  if (o.subtype === 'realty_apartment') buildApartmentFloors(o);
+  else buildFloors(o);
+});
 
 // Единое изменяемое состояние UI (навигация, раскрытия, режимы).
 export const appState = {
@@ -24,7 +29,6 @@ export const appState = {
   doneOpen: {},
   notesOpen: false,
   photoQuery: '',
-
-  // Новое состояние сворачивания левого сайдбара.
+  // Состояние сворачивания левого сайдбара.
   sidebarCollapsed: false,
 };

@@ -2213,13 +2213,18 @@ FILE: .\src\core\state.js
 ==================================================
 
 import { createOC, createOI, createDOCS } from './seed.js';
-import { buildFloors } from '../features/oi/floorsModel.js';
+import { buildFloors, buildApartmentFloors } from '../features/oi/floorsModel.js';
 
 export const OC = createOC();
 export const OI = createOI();
 export const DOCS = createDOCS();
 
-OI.filter((o) => o.kind === 'realty').forEach(buildFloors);
+// Этажные списки: у квартир отдельная модель без подвала/мансарды/цоколя.
+// Подтип проверяется строковым литералом, чтобы не тянуть лишние импорты в state.
+OI.filter((o) => o.kind === 'realty').forEach((o) => {
+  if (o.subtype === 'realty_apartment') buildApartmentFloors(o);
+  else buildFloors(o);
+});
 
 // Единое изменяемое состояние UI (навигация, раскрытия, режимы).
 export const appState = {
@@ -2238,8 +2243,7 @@ export const appState = {
   doneOpen: {},
   notesOpen: false,
   photoQuery: '',
-
-  // Новое состояние сворачивания левого сайдбара.
+  // Состояние сворачивания левого сайдбара.
   sidebarCollapsed: false,
 };
 
@@ -3506,6 +3510,21 @@ export function buildFloors(oi) {
   recalcFloors(oi);
 }
 
+// Этажный список квартиры: только этажи 1..N.
+// Подвал, мансарда и цоколь не создаются, внешний замер высоты не используется.
+export function buildApartmentFloors(oi) {
+  const n = Math.max(1, oi.floors | 0);
+  const keep = oi.floorList || [];
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const name = 'Этаж ' + (i + 1);
+    const ex = keep.find((f) => f.name === name && !f.special);
+    list.push(ex || { name, on: true, special: false, area: '', hExt: '', hInt: '' });
+  }
+  oi.floorList = list;
+  recalcFloors(oi);
+}
+
 export function recalcFloors(oi) {
   const total = num(oi.areas.tp);
   const manual = oi.floorList.filter((f) => !f.on);
@@ -3543,24 +3562,50 @@ export function floorsBlock(oi) {
   const anyAuto = (oi.floorList || []).some((f) => f.on);
   const open = appState.accOpen[fkey] === true || (appState.accOpen[fkey] === undefined && (oi.floors > 1 || anyAuto));
   return `<div class="field" style="max-width:220px"><label>Количество этажей</label>
-    <input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>
-    <div class="acc ${open ? 'open' : ''}" style="margin-top:6px">
-      <div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка (включая подвал, мансарду, цоколь)
-        <span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
-        <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
-      </div>
-      <div class="acc-body" style="padding:8px">
-        <table class="tbl"><thead><tr><th style="width:30px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
-        <tbody>${(oi.floorList || []).map((f, i) => `<tr>
-          <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
-          <td>${esc(f.name)}${f.special ? ' <span class="tag-mini">вручную</span>' : ''}</td>
-          <td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.special || f.on ? '' : 'disabled'}></td>
-          <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
-          <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
-        </tr>`).join('')}</tbody></table>
-        <div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог − сумма ручных) поровну; снятый чекбокс = площадь вручную. Высоты по внешним и внутренним замерам — по каждому этажу.</div>
-      </div>
-    </div>`;
+<input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>
+<div class="acc ${open ? 'open' : ''}" style="margin-top:6px">
+<div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка (включая подвал, мансарду, цоколь)
+<span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
+<button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
+</div>
+<div class="acc-body" style="padding:8px">
+<table class="tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
+<tbody>${(oi.floorList || []).map((f, i) => `<tr>
+<td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
+<td>${esc(f.name)}${f.special ? ' <span class="tag-mini">вручную</span>' : ''}</td>
+<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.special || f.on ? '' : 'disabled'}></td>
+<td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
+<td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
+</tr>`).join('')}</tbody></table>
+<div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог − сумма ручных) поровну; снятый чекбокс = площадь вручную. Высоты по внешним и внутренним замерам — по каждому этажу.</div>
+</div>
+</div>`;
+}
+
+// Поэтажная развёртка квартиры: только этажи, без подвала/мансарды/цоколя
+// и без внешнего замера высоты. Встраивается в блок 02 карточки квартиры.
+export function apartmentFloorsBlock(oi) {
+  const s = floorsSum(oi);
+  const t = num(oi.areas.tp);
+  const ok = Math.abs(s - t) < 0.01;
+  const fkey = 'fl|' + oi.id;
+  const open = appState.accOpen[fkey] !== false;
+  return `<div class="acc ${open ? 'open' : ''}" style="margin-top:14px">
+<div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка
+<span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
+<button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
+</div>
+<div class="acc-body" style="padding:8px">
+<table class="tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:140px">Площадь, м²</th><th style="width:140px">Высота внутр, м</th></tr></thead>
+<tbody>${(oi.floorList || []).map((f, i) => `<tr>
+<td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
+<td>${esc(f.name)}</td>
+<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.on ? '' : 'disabled'}></td>
+<td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
+</tr>`).join('')}</tbody></table>
+<div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог − сумма ручных) поровну; снятый чекбокс = площадь вручную. Высота указывается по внутреннему замеру для каждого этажа.</div>
+</div>
+</div>`;
 }
 
 export function updateFloorsUI(oi) {
@@ -3637,7 +3682,7 @@ import {
   APARTMENT_RIGHTS,
 } from '../../core/dictionaries.js';
 import { oiFieldRules, isApartmentOi } from './oiModel.js';
-import { floorsBlock } from './floorsView.js';
+import { floorsBlock, apartmentFloorsBlock } from './floorsView.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../photos/photoBlocks.js';
 import { docsBlockInner } from '../docs/docsTable.js';
@@ -3848,9 +3893,12 @@ function realtyAreasCard(oi) {
 </div>`;
 }
 
+// Блок 02 квартиры: площади + лоджии/балконы + развёртка (при этажности > 1).
 function apartmentAreasCard(oi) {
   const areas = oi.areas || {};
   const apt = oi.apartment || {};
+  const storeys = parseInt(apt.storeys, 10) || 1;
+  const showFloors = storeys > 1;
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
@@ -3859,6 +3907,10 @@ function apartmentAreasCard(oi) {
 <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+
+</div>
+<div>
+${showFloors ? apartmentFloorsBlock(oi) : ''}
 </div>
 <div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
 <div class="grid g-4">
@@ -3883,20 +3935,7 @@ inputmode="decimal" min="0" max="500" placeholder="до 500">
 inputmode="decimal" min="0" max="500" placeholder="до 500">
 </div>
 </div>
-</div></div>
-</div>`;
-}
 
-// Поэтажная развёртка квартиры: отдельный блок, показывается только при этажности > 1.
-function apartmentFloorsCard(oi, idx) {
-  return `<div class="card t-blue" id="q-apt-floors">
-<div class="card-head" data-card-toggle>
-<span class="card-idx">${String(idx).padStart(2, '0')}</span>
-<h3>Поэтажная развёртка</h3>
-<span class="chev">▾</span>
-</div>
-<div class="card-body-wrap"><div class="card-pad">
-<div id="floors-${oi.id}">${floorsBlock(oi)}</div>
 </div></div>
 </div>`;
 }
@@ -3960,29 +3999,13 @@ ${photosCard(oi, 5)}
 }
 
 function apartmentCards(oi) {
-  const apt = oi.apartment || {};
-  const storeys = parseInt(apt.storeys, 10) || 1;
-  const showFloors = storeys > 1;
-
-  let idx = 2;
-  let html = `<div class="oi-stack">
+  return `<div class="oi-stack">
 ${apartmentGeneralCard(oi)}
-${apartmentAreasCard(oi)}`;
-
-  if (showFloors) {
-    idx += 1;
-    html += apartmentFloorsCard(oi, idx);
-  }
-
-  idx += 1;
-  html += realtyStructCard(oi, idx);
-  idx += 1;
-  html += docsCard(oi, idx);
-  idx += 1;
-  html += photosCard(oi, idx);
-
-  html += `</div>`;
-  return html;
+${apartmentAreasCard(oi)}
+${realtyStructCard(oi, 3)}
+${docsCard(oi, 4)}
+${photosCard(oi, 5)}
+</div>`;
 }
 
 function movableCards(oi) {
@@ -4082,7 +4105,7 @@ import { OI, DOCS, appState, OC } from '../../core/state.js';
 import { render } from '../../core/renderer.js';
 import { toast } from '../../core/utils.js';
 import { nextLetter, createRealtyOi, createLandOi, currentOI, isApartmentOi } from './oiModel.js';
-import { buildFloors, recalcFloors } from './floorsModel.js';
+import { buildFloors, buildApartmentFloors, recalcFloors } from './floorsModel.js';
 import { updateFloorsUI, rerenderFloors } from './floorsView.js';
 import { updateHeatingUI } from './heating.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../viewer/viewerState.js';
@@ -4291,14 +4314,7 @@ export function bindOi() {
       if (fn) fn.onchange = () => {
         oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
         buildFloors(oi);
-        if (isApartmentOi(oi)) {
-          // Для квартиры количество этажей в развёртке синхронизируется с этажностью квартиры.
-          oi.apartment = oi.apartment || {};
-          oi.apartment.storeys = String(oi.floors);
-          renderKeepScroll();
-        } else {
-          rerenderFloors(oi);
-        }
+        rerenderFloors(oi);
         updateCtxPlate();
       };
 
@@ -4356,7 +4372,7 @@ export function bindOi() {
         bindAptField('[data-apt-loggia-area]', 'loggiaBuildArea');
         bindAptField('[data-apt-balcony-area]', 'balconyBuildArea');
 
-        // Этажность квартиры: управляет видимостью блока поэтажной развёртки.
+        // Этажность квартиры: управляет видимостью аккордеона развёртки в блоке 01.
         const aptStoreys = document.querySelector('[data-apt-storeys]');
         if (aptStoreys) {
           aptStoreys.onchange = () => {
@@ -4364,8 +4380,8 @@ export function bindOi() {
             aptStoreys.value = val;
             ensureApartment().storeys = String(val);
             oi.floors = val;
-            buildFloors(oi);
-            // Полный ререндер: блок развёртки появляется или исчезает.
+            buildApartmentFloors(oi);
+            // Полный ререндер: аккордеон развёртки появляется или исчезает.
             renderKeepScroll();
             updateCtxPlate();
           };
@@ -4491,7 +4507,7 @@ FILE: .\src\features\oi\oiModel.js
 import { LETTER_SEQ } from '../../core/dictionaries.js';
 import { OI, OC, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
-import { buildFloors } from './floorsModel.js';
+import { buildFloors, buildApartmentFloors } from './floorsModel.js';
 
 export const OI_SUBTYPE = {
   REALTY_RESIDENTIAL: 'realty_residential',
@@ -4558,7 +4574,6 @@ export function oiFieldRules(oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
   const ml = (oi.origin || 'manual') === 'ml';
   const isApartment = isApartmentOi(oi);
-
   // Категория ОИ скрывается, когда:
   // 1) ОЦ является «Жилым зданием (домом)», и
   // 2) ОИ по подтипу является «Жилым зданием».
@@ -4566,7 +4581,6 @@ export function oiFieldRules(oi) {
     isResidentialOi(oi)
     && OC
     && String(OC.type || '').toLowerCase().includes('жилое здание');
-
   return {
     heightRequired: prod,
     wallsRequired: prod,
@@ -4646,7 +4660,8 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
     notes: [],
     apartment: isApartment ? createApartmentState() : null,
   };
-  buildFloors(oi);
+  if (isApartment) buildApartmentFloors(oi);
+  else buildFloors(oi);
   return oi;
 }
 
@@ -4921,1019 +4936,6 @@ export function tableOI() {
     </div>
   </div>`;
 }
-
-==================================================
-FILE: .\src\features\oi\cardTypes\index.js
-==================================================
-
-import { OI_SUBTYPE, resolveOiSubtype } from '../oiSubtypes.js';
-
-import { realtyResidentialCard } from './realtyResidentialCard.js';
-import { realtyApartmentCard } from './realtyApartmentCard.js';
-import { realtyCivilCard } from './realtyCivilCard.js';
-import { realtyProductionCard } from './realtyProductionCard.js';
-import { realtyOtherCard } from './realtyOtherCard.js';
-
-import { landCard } from './landCard.js';
-import { vehicleCard } from './vehicleCard.js';
-import { mechCard } from './mechCard.js';
-import { officeCard } from './officeCard.js';
-
-const registry = new Map();
-
-export function registerOiCard(subtype, definition) {
-  registry.set(subtype, definition);
-}
-
-export function getOiCardDefinitionBySubtype(subtype) {
-  return registry.get(subtype) || registry.get(OI_SUBTYPE.REALTY_CIVIL);
-}
-
-export function getOiCardDefinition(oi) {
-  const subtype = resolveOiSubtype(oi);
-  return getOiCardDefinitionBySubtype(subtype);
-}
-
-registerOiCard(OI_SUBTYPE.REALTY_RESIDENTIAL, realtyResidentialCard);
-registerOiCard(OI_SUBTYPE.REALTY_APARTMENT, realtyApartmentCard);
-registerOiCard(OI_SUBTYPE.REALTY_CIVIL, realtyCivilCard);
-registerOiCard(OI_SUBTYPE.REALTY_PRODUCTION, realtyProductionCard);
-registerOiCard(OI_SUBTYPE.REALTY_OTHER, realtyOtherCard);
-
-registerOiCard(OI_SUBTYPE.LAND, landCard);
-registerOiCard(OI_SUBTYPE.VEHICLE, vehicleCard);
-registerOiCard(OI_SUBTYPE.MECH, mechCard);
-registerOiCard(OI_SUBTYPE.OFFICE, officeCard);
-
-==================================================
-FILE: .\src\features\oi\cardTypes\landCard.js
-==================================================
-
-import { esc } from '../../../core/utils.js';
-import { DICT } from '../../../core/dictionaries.js';
-import { docsBlockInner } from '../../docs/docsTable.js';
-import { photoAccordions } from '../../photos/photoBlocks.js';
-
-export const landCard = {
-  id: 'land',
-  label: 'Земельный участок',
-  kind: 'land',
-
-  render(oi) {
-    return `<div class="oi-stack">
-      <div class="card t-teal">
-        <div class="card-head">
-          <span class="card-idx">01</span>
-          <h3>Земельный участок</h3>
-        </div>
-
-        <div class="card-pad">
-          <div class="grid g-4">
-            <div class="field">
-              <label>Назначение</label>
-              <input class="input" data-land-purpose value="${esc(oi.purpose || '')}">
-            </div>
-
-            <div class="field">
-              <label>Общая площадь, м²</label>
-              <input class="input" data-land-area value="${esc(oi.area || '')}">
-            </div>
-
-            <div class="field">
-              <label>Статус</label>
-              <select class="select" data-status>
-                ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
-              </select>
-            </div>
-
-            <div class="field">
-              <label>ЕНИ</label>
-              <input class="input" readonly value="${esc(oi.eni)}">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card t-slate">
-        <div class="card-head">
-          <span class="card-idx">02</span>
-          <h3>Документы</h3>
-        </div>
-
-        <div class="card-pad">
-          ${docsBlockInner(oi, oi.id)}
-        </div>
-      </div>
-
-      <div class="card t-blue">
-        <div class="card-head" data-card-toggle>
-          <span class="card-idx">03</span>
-          <h3>Фото по категориям</h3>
-          <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button>
-          <span class="chev">▾</span>
-        </div>
-
-        <div class="card-body-wrap"><div class="card-pad">
-          ${photoAccordions(oi, true)}
-        </div></div>
-      </div>
-    </div>`;
-  },
-
-  bind() {
-    // Общие поля участка уже обрабатываются контроллером ОИ.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование земельного участка');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\mechCard.js
-==================================================
-
-import { renderMovableCard } from './movableSections.js';
-
-export const mechCard = {
-  id: 'mech',
-  label: 'Механизм',
-  kind: 'mech',
-
-  render(oi) {
-    return renderMovableCard(oi);
-  },
-
-  bind() {
-    // Общие поля механизма уже обрабатываются контроллером ОИ.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование механизма');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\movableSections.js
-==================================================
-
-import { esc } from '../../../core/utils.js';
-import { docsBlockInner } from '../../docs/docsTable.js';
-
-export function renderMovableCard(oi) {
-  const isV = oi.kind === 'vehicle';
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
-
-  const title = isV
-    ? 'Данные ТС'
-    : oi.kind === 'mech'
-      ? 'Данные механизма'
-      : 'Данные офисной техники';
-
-  return `<div class="oi-stack">
-    <div class="card t-blue">
-      <div class="card-head">
-        <span class="card-idx">01</span>
-        <h3>${title}</h3>
-      </div>
-
-      <div class="card-pad">
-        <div class="inline-row" style="margin-bottom:10px">
-          <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-          ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
-        </div>
-
-        ${isV ? `<div class="grid g-3">
-          <div class="field"><label>Марка</label><input class="input" data-mv-make value="${esc(oi.make || '')}"></div>
-          <div class="field"><label>Модель</label><input class="input" data-mv-model value="${esc(oi.model || '')}"></div>
-          <div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year || '')}"></div>
-          <div class="field"><label>VIN</label><input class="input" data-mv-vin value="${esc(oi.vin || '')}"></div>
-          <div class="field"><label>Гос. номер</label><input class="input" data-mv-plate value="${esc(oi.plate || '')}"></div>
-        </div>` : `<div class="grid g-3">
-          <div class="field"><label>Наименование</label><input class="input" data-mv-name value="${esc(oi.name || '')}"></div>
-          <div class="field"><label>Год выпуска</label><input class="input" data-mv-year value="${esc(oi.year || '')}"></div>
-          <div class="field"><label>Заводской / инв. номер</label><input class="input" data-mv-serial value="${esc(oi.serial || '')}"></div>
-        </div>`}
-      </div>
-    </div>
-
-    <div class="card t-slate">
-      <div class="card-head">
-        <span class="card-idx">02</span>
-        <h3>Документы</h3>
-      </div>
-
-      <div class="card-pad">
-        ${docsBlockInner(oi, oi.id)}
-      </div>
-    </div>
-  </div>`;
-}
-
-==================================================
-FILE: .\src\features\oi\cardTypes\officeCard.js
-==================================================
-
-import { renderMovableCard } from './movableSections.js';
-
-export const officeCard = {
-  id: 'office',
-  label: 'Офисная техника',
-  kind: 'office',
-
-  render(oi) {
-    return renderMovableCard(oi);
-  },
-
-  bind() {
-    // Общие поля офисной техники уже обрабатываются контроллером ОИ.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование офисной техники');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\realtyApartmentCard.js
-==================================================
-
-import { esc } from '../../../core/utils.js';
-import {
-  DICT,
-  APARTMENT_SERIES,
-  APARTMENT_LOCATIONS,
-  APARTMENT_RIGHTS,
-} from '../../../core/dictionaries.js';
-import {
-  letterControl,
-  renderRealtyStructCard,
-  renderOiDocsCard,
-  renderOiPhotosCard,
-} from './realtySections.js';
-
-export const realtyApartmentCard = {
-  id: 'realty_apartment',
-  label: 'Квартира',
-  kind: 'realty',
-
-  render(oi) {
-    const f = oi.flags || {};
-    const isMl = (oi.origin || 'manual') === 'ml';
-    const areas = oi.areas || {};
-    const apt = oi.apartment || {};
-
-    return `<div class="oi-stack">
-      <div class="card t-blue" id="q-gen">
-        <div class="card-head" data-card-toggle>
-          <span class="card-idx">01</span>
-          <h3>Общие параметры квартиры</h3>
-          <span class="hint">${esc(oi.name)}</span>
-          <span class="chev">▾</span>
-        </div>
-        <div class="card-body-wrap"><div class="card-pad">
-          <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-            <div class="field" style="flex:0 0 auto;">
-              <label>Литера</label>
-              ${letterControl(oi)}
-            </div>
-            <div class="field" style="flex:1 1 180px;">
-              <label>Наименование</label>
-              <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
-            </div>
-            <div class="field" style="flex:0 0 150px;">
-              <label>Статус</label>
-              <select class="select" style="width:100%;" data-status>
-                ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
-              </select>
-            </div>
-            <div class="field" style="flex:0 0 160px;">
-              <label>ЕНИ код</label>
-              <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
-            </div>
-          </div>
-
-          <div class="inline-row" style="margin-bottom:10px">
-            <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-            ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
-          </div>
-
-          <div class="grid g-4">
-            <div class="field">
-              <label>Год постройки</label>
-              <input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric">
-            </div>
-            <div class="field">
-              <label>Этаж расположения</label>
-              <input class="input" data-apt-floor value="${esc(apt.floor || '')}" inputmode="numeric">
-            </div>
-            <div class="field">
-              <label>Количество этажей в квартире</label>
-              <input class="input" data-apt-storeys value="${esc(apt.storeys || '')}"
-                     inputmode="numeric" min="1" max="30" placeholder="до 30">
-            </div>
-            <div class="field">
-              <label>Количество комнат</label>
-              <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
-            </div>
-          </div>
-
-          <div class="grid g-2" style="margin-top:10px">
-            <div class="field">
-              <label>Серия</label>
-              <div class="dd dd-combo" data-series-dd>
-                <div class="dd-combo-input-wrap">
-                  <input class="input" data-apt-series value="${esc(apt.series || '')}"
-                         placeholder="Введите или выберите серию" autocomplete="off">
-                  <button type="button" class="dd-combo-toggle" data-series-toggle
-                          title="Показать варианты">▾</button>
-                </div>
-                <div class="dd-menu dd-menu-series" data-series-menu>
-                  ${APARTMENT_SERIES.map((s) => `<button type="button" data-series-opt="${esc(s)}">${esc(s)}</button>`).join('')}
-                </div>
-              </div>
-            </div>
-            <div class="field">
-              <label>Положение на этаже</label>
-              <div class="inline-row">
-                <select class="select" data-apt-location style="flex:1 1 160px;">
-                  <option value="">Не выбрано</option>
-                  ${APARTMENT_LOCATIONS.map((l) => `<option ${l === apt.location ? 'selected' : ''}>${l}</option>`).join('')}
-                </select>
-                <input class="input" data-apt-location-other
-                       placeholder="Укажите положение"
-                       value="${esc(apt.locationOther || '')}"
-                       maxlength="50"
-                       style="flex:1 1 160px; ${apt.location === 'Прочее' ? '' : 'display:none;'}">
-              </div>
-            </div>
-          </div>
-
-          <div class="grid g-2" style="margin-top:10px">
-            <div class="field">
-              <label>Права на строение</label>
-              <div class="inline-row">
-                <select class="select" data-apt-rights style="flex:1 1 200px;">
-                  <option value="">Не выбрано</option>
-                  ${APARTMENT_RIGHTS.map((r) => `<option ${r === apt.rights ? 'selected' : ''}>${r}</option>`).join('')}
-                </select>
-                <input class="input" data-apt-rights-other
-                       placeholder="Укажите право"
-                       value="${esc(apt.rightsOther || '')}"
-                       maxlength="100"
-                       style="flex:1 1 200px; ${apt.rights === 'Иное' ? '' : 'display:none;'}">
-              </div>
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="card t-blue" id="q-areas">
-        <div class="card-head" data-card-toggle>
-          <span class="card-idx">02</span>
-          <h3>Площади квартиры</h3>
-          <span class="chev">▾</span>
-        </div>
-        <div class="card-body-wrap"><div class="card-pad">
-          <div class="grid g-4">
-            <div class="field">
-              <label>Общая площадь, м²</label>
-              <input class="input" data-area="tp" value="${esc(areas.tp || '')}">
-            </div>
-            <div class="field">
-              <label>Жилая площадь, м²</label>
-              <input class="input" data-area="living" value="${esc(areas.living || '')}">
-            </div>
-            <div class="field">
-              <label>Площадь по ПУД, м²</label>
-              <input class="input" data-area="pud" value="${esc(areas.pud || '')}">
-            </div>
-            <div class="field">
-              <label>Площадь по факту, м²</label>
-              <input class="input" data-area="fact" value="${esc(areas.fact || '')}">
-            </div>
-          </div>
-
-          <div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
-          <div class="grid g-4">
-            <div class="field">
-              <label>Кол-во лоджий</label>
-              <input class="input" data-apt-loggia-count
-                     value="${esc(apt.loggiaCount || '')}"
-                     inputmode="numeric" min="0" max="10" placeholder="до 10">
-            </div>
-            <div class="field">
-              <label>Кол-во балконов / террас</label>
-              <input class="input" data-apt-balcony-count
-                     value="${esc(apt.balconyCount || '')}"
-                     inputmode="numeric" min="0" max="10" placeholder="до 10">
-            </div>
-            <div class="field">
-              <label>Площадь застройки лоджий, м²</label>
-              <input class="input" data-apt-loggia-area
-                     value="${esc(apt.loggiaBuildArea || '')}"
-                     inputmode="decimal" min="0" max="500" placeholder="до 500">
-            </div>
-            <div class="field">
-              <label>Площадь застройки балконов / террас, м²</label>
-              <input class="input" data-apt-balcony-area
-                     value="${esc(apt.balconyBuildArea || '')}"
-                     inputmode="decimal" min="0" max="500" placeholder="до 500">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      ${renderRealtyStructCard(oi)}
-      ${renderOiDocsCard(oi)}
-      ${renderOiPhotosCard(oi)}
-    </div>`;
-  },
-
-  bind(oi) {
-    const ensureApartment = () => {
-      if (!oi.apartment) oi.apartment = {};
-      return oi.apartment;
-    };
-
-    const bindField = (selector, key) => {
-      const el = document.querySelector(selector);
-      if (!el) return;
-      el.onchange = () => {
-        ensureApartment()[key] = el.value;
-      };
-    };
-
-    bindField('[data-apt-floor]', 'floor');
-    bindField('[data-apt-storeys]', 'storeys');
-    bindField('[data-apt-rooms]', 'rooms');
-    bindField('[data-apt-series]', 'series');
-    bindField('[data-apt-loggia-count]', 'loggiaCount');
-    bindField('[data-apt-balcony-count]', 'balconyCount');
-    bindField('[data-apt-loggia-area]', 'loggiaBuildArea');
-    bindField('[data-apt-balcony-area]', 'balconyBuildArea');
-
-    const locationSelect = document.querySelector('[data-apt-location]');
-    if (locationSelect) {
-      locationSelect.onchange = () => {
-        const apt = ensureApartment();
-        apt.location = locationSelect.value;
-        const otherInput = document.querySelector('[data-apt-location-other]');
-        if (otherInput) {
-          otherInput.style.display = apt.location === 'Прочее' ? '' : 'none';
-          if (apt.location !== 'Прочее') {
-            otherInput.value = '';
-            apt.locationOther = '';
-          }
-        }
-      };
-    }
-
-    const locationOther = document.querySelector('[data-apt-location-other]');
-    if (locationOther) {
-      locationOther.onchange = () => {
-        ensureApartment().locationOther = locationOther.value;
-      };
-    }
-
-    const rightsSelect = document.querySelector('[data-apt-rights]');
-    if (rightsSelect) {
-      rightsSelect.onchange = () => {
-        const apt = ensureApartment();
-        apt.rights = rightsSelect.value;
-        const otherInput = document.querySelector('[data-apt-rights-other]');
-        if (otherInput) {
-          otherInput.style.display = apt.rights === 'Иное' ? '' : 'none';
-          if (apt.rights !== 'Иное') {
-            otherInput.value = '';
-            apt.rightsOther = '';
-          }
-        }
-      };
-    }
-
-    const rightsOther = document.querySelector('[data-apt-rights-other]');
-    if (rightsOther) {
-      rightsOther.onchange = () => {
-        ensureApartment().rightsOther = rightsOther.value;
-      };
-    }
-
-    bindSeriesDropdown();
-  },
-
-  validate(oi) {
-    const errors = [];
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование квартиры');
-    }
-    const apt = oi.apartment || {};
-    const checkRange = (value, min, max, label) => {
-      if (value === '' || value === undefined || value === null) return;
-      const n = Number(value);
-      if (isNaN(n) || n < min || n > max) {
-        errors.push(`${label}: допустимое значение от ${min} до ${max}`);
-      }
-    };
-    checkRange(apt.storeys, 1, 30, 'Этажность квартиры');
-    checkRange(apt.loggiaCount, 0, 10, 'Кол-во лоджий');
-    checkRange(apt.balconyCount, 0, 10, 'Кол-во балконов/террас');
-    checkRange(apt.loggiaBuildArea, 0, 500, 'Площадь застройки лоджий');
-    checkRange(apt.balconyBuildArea, 0, 500, 'Площадь застройки балконов/террас');
-    return { valid: errors.length === 0, errors };
-  },
-};
-
-function bindSeriesDropdown() {
-  const dd = document.querySelector('[data-series-dd]');
-  const menu = document.querySelector('[data-series-menu]');
-  const toggle = document.querySelector('[data-series-toggle]');
-  const input = document.querySelector('[data-apt-series]');
-  if (!dd || !menu || !input) return;
-
-  const filterOptions = () => {
-    const val = (input.value || '').toLowerCase().trim();
-    menu.querySelectorAll('[data-series-opt]').forEach((btn) => {
-      const optVal = (btn.dataset.seriesOpt || '').toLowerCase();
-      btn.style.display = (!val || optVal.includes(val)) ? '' : 'none';
-    });
-  };
-
-  const openMenu = () => {
-    document.querySelectorAll('.dd.open').forEach((d) => {
-      if (d !== dd) d.classList.remove('open');
-    });
-    dd.classList.add('open');
-    filterOptions();
-  };
-
-  const closeMenu = () => {
-    dd.classList.remove('open');
-  };
-
-  if (toggle) {
-    toggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (dd.classList.contains('open')) {
-        closeMenu();
-      } else {
-        openMenu();
-        input.focus();
-      }
-    });
-  }
-
-  input.addEventListener('focus', openMenu);
-  input.addEventListener('input', () => {
-    if (!dd.classList.contains('open')) {
-      openMenu();
-    } else {
-      filterOptions();
-    }
-  });
-
-  menu.querySelectorAll('[data-series-opt]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      input.value = btn.dataset.seriesOpt || '';
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      closeMenu();
-    });
-  });
-}
-
-==================================================
-FILE: .\src\features\oi\cardTypes\realtyCivilCard.js
-==================================================
-
-import { renderRealtyBase } from './realtySections.js';
-
-export const realtyCivilCard = {
-  id: 'realty_civil',
-  label: 'Гражданское здание',
-  kind: 'realty',
-
-  render(oi) {
-    return renderRealtyBase(oi, {
-      generalTitle: 'Общие параметры гражданского здания',
-      showResCat: false,
-    });
-  },
-
-  bind() {
-    // Специфичные биндинги гражданского здания при необходимости добавляются здесь.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование гражданского здания');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\realtyOtherCard.js
-==================================================
-
-import { renderRealtyBase } from './realtySections.js';
-
-export const realtyOtherCard = {
-  id: 'realty_other',
-  label: 'Прочее строение',
-  kind: 'realty',
-
-  render(oi) {
-    return renderRealtyBase(oi, {
-      generalTitle: 'Общие параметры прочего строения',
-      showResCat: false,
-    });
-  },
-
-  bind() {
-    // Специфичные биндинги прочего строения при необходимости добавляются здесь.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование строения');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\realtyProductionCard.js
-==================================================
-
-import { renderRealtyBase } from './realtySections.js';
-
-export const realtyProductionCard = {
-  id: 'realty_production',
-  label: 'Производственное строение',
-  kind: 'realty',
-
-  render(oi) {
-    return renderRealtyBase(oi, {
-      generalTitle: 'Общие параметры производственного строения',
-      showResCat: false,
-    });
-  },
-
-  bind() {
-    // Специфичные биндинги производственного строения при необходимости добавляются здесь.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование производственного строения');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\realtyResidentialCard.js
-==================================================
-
-import { renderRealtyBase } from './realtySections.js';
-
-export const realtyResidentialCard = {
-  id: 'realty_residential',
-  label: 'Жилое здание',
-  kind: 'realty',
-
-  render(oi) {
-    return renderRealtyBase(oi, {
-      generalTitle: 'Общие параметры жилого здания',
-      showResCat: true,
-    });
-  },
-
-  bind() {
-    // Специфичные биндинги жилого здания при необходимости добавляются здесь.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование жилого здания');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
-
-==================================================
-FILE: .\src\features\oi\cardTypes\realtySections.js
-==================================================
-
-import { appState, OC } from '../../../core/state.js';
-import { esc } from '../../../core/utils.js';
-import { DICT, CATCLASS, RES_BUILD_CAT } from '../../../core/dictionaries.js';
-import { oiFieldRules } from '../oiModel.js';
-import { floorsBlock } from '../floorsView.js';
-import { heatingMS } from '../heating.js';
-import { photoAccordions } from '../../photos/photoBlocks.js';
-import { docsBlockInner } from '../../docs/docsTable.js';
-
-export function structField(key, label, opts, val, req) {
-  const isOther = String(val || '').includes('Прочее');
-  return `<div class="field"><label>${label}${req ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-struct="${key}">${opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
-${isOther ? `<input class="input" placeholder="Укажите вручную" value="">` : ''}
-</div>`;
-}
-
-export function letterControl(oi) {
-  if (appState.letterEdit) {
-    return `<div style="display:flex; gap:4px; align-items:center;">
-      <input class="input" style="width:80px; text-align:center; font-weight:700;"
-        data-letter-input value="${esc(oi.letter)}"
-        data-letter-id="${oi.id}">
-      <button class="btn btn-primary btn-sm" data-letter-save data-letter-id="${oi.id}">Сохранить</button>
-      <button class="btn btn-ghost btn-sm" data-letter-cancel data-letter-id="${oi.id}">Отмена</button>
-    </div>`;
-  }
-  return `<span class="letter-clickable" data-edit-letter data-letter-id="${oi.id}"
-    title="Кликните, чтобы редактировать">${esc(oi.letter)}</span>`;
-}
-
-export function renderRealtyGeneralCard(oi, options = {}) {
-  const rq = oiFieldRules(oi);
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
-  const showResCat = options.showResCat !== undefined
-    ? options.showResCat
-    : rq.showResCat && OC.type === 'Жилое здание (дом)';
-  const title = options.generalTitle || 'Общие параметры';
-
-  return `<div class="card t-blue" id="q-gen">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">01</span>
-      <h3>${title}</h3>
-      <span class="hint">${esc(oi.name)}</span>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="inline-row" style="margin-bottom:10px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-        <div class="field" style="flex:0 0 auto;">
-          <label>Литера</label>
-          ${letterControl(oi)}
-        </div>
-        <div class="field" style="flex:1 1 180px;">
-          <label>Наименование</label>
-          <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
-        </div>
-        <div class="field" style="flex:0 0 150px;">
-          <label>Статус</label>
-          <select class="select" style="width:100%;" data-status>
-            ${DICT.statusBuild.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-        </div>
-        <div class="field" style="flex:0 0 160px;">
-          <label>ЕНИ код</label>
-          <input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
-        </div>
-      </div>
-      <div class="inline-row" style="margin-bottom:10px">
-        <label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-        ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
-      </div>
-      <div class="grid g-3">
-        <div class="field">
-          <label>Год постройки</label>
-          <input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric">
-        </div>
-        <div class="field">
-          <label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-          <select class="select" data-buildtype>
-            ${DICT.buildType.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-        </div>
-        ${showResCat ? `<div class="field">
-          <label>Категория жилого строения</label>
-          <select class="select" data-rescat>
-            ${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-        </div>` : ''}
-        ${rq.showCatClass ? `<div class="field">
-          <label>Категория ОИ</label>
-          <select class="select" data-catclass>
-            ${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}
-          </select>
-          <label class="inline-row" style="font-size:10.5px;font-weight:400">
-            <input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров
-          </label>
-          <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
-        </div>` : ''}
-      </div>
-    </div></div>
-  </div>`;
-}
-
-export function renderRealtyAreasCard(oi, options = {}) {
-  const rq = oiFieldRules(oi);
-  const areas = oi.areas || {};
-  const heights = oi.heights || {};
-  const showFloors = options.showFloors !== false;
-  const showHeights = options.showHeights !== false;
-
-  return `<div class="card t-blue" id="q-areas">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">02</span>
-      <h3>Площади и этажность</h3>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="grid g-4">
-        <div class="field">
-          <label>Общая по техпаспорту, м²</label>
-          <input class="input" data-area="tp" value="${esc(areas.tp || '')}">
-        </div>
-        <div class="field">
-          <label>Общая по ПУД, м²</label>
-          <input class="input" data-area="pud" value="${esc(areas.pud || '')}">
-        </div>
-        <div class="field">
-          <label>Общая по факту, м²</label>
-          <input class="input" data-area="fact" value="${esc(areas.fact || '')}">
-        </div>
-        <div class="field">
-          <label>Площадь застройки, м²</label>
-          <input class="input" data-area="build" value="${esc(areas.build || '')}">
-        </div>
-      </div>
-      ${showFloors ? `<div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(oi)}</div>` : ''}
-      ${showHeights ? `<div class="grid g-2" style="margin-top:10px">
-        <div class="field">
-          <label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label>
-          <input class="input" data-height="ext" value="${esc(heights.ext || '')}">
-        </div>
-        <div class="field">
-          <label>Высота по внутренним замерам, м</label>
-          <input class="input" data-height="int" value="${esc(heights.int || '')}">
-        </div>
-      </div>` : ''}
-    </div></div>
-  </div>`;
-}
-
-export function renderRealtyStructCard(oi) {
-  const rq = oiFieldRules(oi);
-  const struct = oi.struct || {};
-  const heatingSource = {
-    ...oi,
-    heating: Array.isArray(oi.heating) ? oi.heating : [],
-    heatingOther: oi.heatingOther || '',
-  };
-
-  return `<div class="card t-teal" id="q-struct">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">03</span>
-      <h3>Конструктивный состав</h3>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      <div class="grid g-4">
-        ${structField('foundation', 'Фундамент', DICT.foundation, struct.foundation)}
-        ${structField('wallsExt', 'Наружные стены', DICT.wallsExt, struct.wallsExt, rq.wallsRequired)}
-        ${structField('ceilings', 'Перекрытия', DICT.ceilings, struct.ceilings)}
-        ${structField('roof', 'Кровля', DICT.roof, struct.roof)}
-      </div>
-      <div class="grid g-4" style="margin-top:8px">
-        ${structField('floors', 'Полы', DICT.floors, struct.floors)}
-        ${structField('windows', 'Окна', DICT.windows, struct.windows)}
-        ${structField('doors', 'Двери', DICT.doors, struct.doors)}
-        ${heatingMS(heatingSource)}
-      </div>
-      <div class="field" style="margin-top:8px">
-        <label>Комментарий</label>
-        <textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea>
-      </div>
-    </div></div>
-  </div>`;
-}
-
-export function renderOiDocsCard(oi) {
-  return `<div class="card t-slate" id="q-docs">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">04</span>
-      <h3>Документы</h3>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      ${docsBlockInner(oi, oi.id)}
-    </div></div>
-  </div>`;
-}
-
-export function renderOiPhotosCard(oi) {
-  return `<div class="card t-blue" id="q-photo">
-    <div class="card-head" data-card-toggle>
-      <span class="card-idx">05</span>
-      <h3>Фото по категориям</h3>
-      <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button>
-      <span class="chev">▾</span>
-    </div>
-    <div class="card-body-wrap"><div class="card-pad">
-      ${photoAccordions(oi, true)}
-    </div></div>
-  </div>`;
-}
-
-export function renderRealtyBase(oi, options = {}) {
-  return `<div class="oi-stack">
-    ${renderRealtyGeneralCard(oi, options)}
-    ${options.showAreas !== false ? renderRealtyAreasCard(oi, options) : ''}
-    ${options.showStruct !== false ? renderRealtyStructCard(oi) : ''}
-    ${renderOiDocsCard(oi)}
-    ${renderOiPhotosCard(oi)}
-  </div>`;
-}
-
-==================================================
-FILE: .\src\features\oi\cardTypes\vehicleCard.js
-==================================================
-
-import { renderMovableCard } from './movableSections.js';
-
-export const vehicleCard = {
-  id: 'vehicle',
-  label: 'Транспортное средство',
-  kind: 'vehicle',
-
-  render(oi) {
-    return renderMovableCard(oi);
-  },
-
-  bind() {
-    // Общие поля ТС уже обрабатываются контроллером ОИ.
-  },
-
-  validate(oi) {
-    const errors = [];
-
-    if (!String(oi.name || '').trim()) {
-      errors.push('Не заполнено наименование ТС');
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  },
-};
 
 ==================================================
 FILE: .\src\features\photos\photoBlocks.js
@@ -6917,7 +5919,7 @@ input,select,textarea{font:inherit;color:inherit}
 .clickable{cursor:pointer}
 .clickable:hover td{background:var(--blue-50)}
 .rowchev-open{color:#7d93a6;font-size:12px}
-.tbl td.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.tbl td.ell{white-space:nowrap;overflow:hidden;max-width:200px}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
 .pill-status{background:var(--blue-100);color:var(--blue-700)}
 .pill-status .dot{width:6px;height:6px;border-radius:50%;background:var(--blue-600)}

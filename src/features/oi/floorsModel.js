@@ -16,6 +16,21 @@ export function buildFloors(oi) {
   recalcFloors(oi);
 }
 
+// Этажный список квартиры: только этажи 1..N.
+// Подвал, мансарда и цоколь не создаются, внешний замер высоты не используется.
+export function buildApartmentFloors(oi) {
+  const n = Math.max(1, oi.floors | 0);
+  const keep = oi.floorList || [];
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const name = 'Этаж ' + (i + 1);
+    const ex = keep.find((f) => f.name === name && !f.special);
+    list.push(ex || { name, on: true, special: false, area: '', hExt: '', hInt: '' });
+  }
+  oi.floorList = list;
+  recalcFloors(oi);
+}
+
 export function recalcFloors(oi) {
   const total = num(oi.areas.tp);
   const manual = oi.floorList.filter((f) => !f.on);

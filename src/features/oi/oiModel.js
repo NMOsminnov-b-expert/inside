@@ -1,7 +1,7 @@
 import { LETTER_SEQ } from '../../core/dictionaries.js';
 import { OI, OC, appState } from '../../core/state.js';
 import { esc } from '../../core/utils.js';
-import { buildFloors } from './floorsModel.js';
+import { buildFloors, buildApartmentFloors } from './floorsModel.js';
 
 export const OI_SUBTYPE = {
   REALTY_RESIDENTIAL: 'realty_residential',
@@ -68,7 +68,6 @@ export function oiFieldRules(oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
   const ml = (oi.origin || 'manual') === 'ml';
   const isApartment = isApartmentOi(oi);
-
   // Категория ОИ скрывается, когда:
   // 1) ОЦ является «Жилым зданием (домом)», и
   // 2) ОИ по подтипу является «Жилым зданием».
@@ -76,7 +75,6 @@ export function oiFieldRules(oi) {
     isResidentialOi(oi)
     && OC
     && String(OC.type || '').toLowerCase().includes('жилое здание');
-
   return {
     heightRequired: prod,
     wallsRequired: prod,
@@ -156,7 +154,8 @@ export function createRealtyOi({ letter, name, catClass = 'Гражданско�
     notes: [],
     apartment: isApartment ? createApartmentState() : null,
   };
-  buildFloors(oi);
+  if (isApartment) buildApartmentFloors(oi);
+  else buildFloors(oi);
   return oi;
 }
 
