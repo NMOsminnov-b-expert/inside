@@ -1,6 +1,7 @@
 import { manifest } from './manifest.js';
 import { MENU_HREF } from '../../kernel/router.js';
-import { getRecord, getOi, ui, resetViewer } from './data/store.js';
+import { getOi, ui, resetViewer } from './data/store.js';
+import { loadRecord } from './records.js';
 import { viewOC } from './card/ocCard.view.js';
 import { bindOcCard } from './card/ocCard.ctrl.js';
 import { viewOCForm } from './card/ocForm.view.js';
@@ -26,7 +27,7 @@ export function main(host) {
   const cardCache = new Map();
 
   let route = host.route;
-  let rec = getRecord(route.ocId);
+  let rec = loadRecord(route.ocId);
 
   // Контекст, который получают все виды и контроллеры этого модуля.
   const ctx = {
@@ -228,7 +229,7 @@ export function main(host) {
   return {
     onRoute(next) {
       route = next;
-      const nextRec = getRecord(next.ocId);
+      const nextRec = loadRecord(next.ocId);
       if (nextRec !== rec) {
         rec = nextRec;
         resetViewer();

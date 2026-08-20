@@ -1,285 +1,30 @@
 import { esc } from '../../kernel/dom.js';
-import { fmt } from '../../kernel/fmt.js';
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { build, MENU_HREF } from '../../kernel/router.js';
-import { formDialog, selectDialog } from '../../kernel/dialog.js';
+import { formDialog, selectDialog, promptDialog } from '../../kernel/dialog.js';
+import {
+  createState, applyQueryToState, hashFor, emptyFilter, isFilterEmpty,
+  ROLES, COLUMNS,
+} from './state.js';
+import {
+  queryAll, countAll, facetsAll, setBulkTotal, bulkTotal, totalObjects, mutate, recordOf,
+} from './query.js';
+import { locatorHTML, locatorDropHTML, locatorSingle } from './locator.js';
+import { slicesHTML, sliceDefs, filterForSlice, invalidateSliceCounts } from './slices.js';
+import {
+  facetsHTML, toggleSection, toggleExpanded, setSearch,
+} from './facets.js';
+import { ROW_H, tableShellHTML, rowsHTML, columnsMenuHTML, activeColumns, csvOf } from './table.js';
+import { previewHTML } from './preview.js';
 
-// Меню выбора ОЦ. Ничего не знает о предметной области: работает только
-// со сводками, которые отдают модули (см. contracts в README).
-const state = {
-  q: '',
-  type: 'all',
-  status: '',
-  institution: '',
-  city: '',
-  onlyNotes: false,
-  sort: 'updated',
-  view: 'tiles',
-  group: true,
-};
-
-function collect() {
-  const rows = [];
-  sortedTypes().forEach((t) => {
-    (t.records.listRecords ? t.records.listRecords() : []).forEach((s) => {
-      rows.push(Object.assign({}, s, { manifest: t.manifest }));
-    });
-  });
-  return rows;
-}
-
-function applyFilters(rows) {
-  const q = state.q.trim().toLowerCase();
-
-  let out = rows.filter((r) => {
-    if (state.type !== 'all' && r.typeId !== state.type) return false;
-    if (state.status && r.filters.status !== state.status) return false;
-    if (state.institution && r.filters.institution !== state.institution) return false;
-    if (state.city && r.filters.city !== state.city) return false;
-    if (state.onlyNotes && !r.filters.hasPendingNotes) return false;
-    if (q && !r.search.includes(q)) return false;
-    return true;
-  });
-
-  const cmp = {
-    updated: (a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)),
-    address: (a, b) => a.title.localeCompare(b.title, 'ru'),
-    area: (a, b) => (b.metrics.area || 0) - (a.metrics.area || 0),
-    oi: (a, b) => (b.metrics.oiCount || 0) - (a.metrics.oiCount || 0),
-    notes: (a, b) => (b.metrics.pendingNotes || 0) - (a.metrics.pendingNotes || 0),
-  }[state.sort];
-
-  return out.sort(cmp);
-}
-
-function uniq(rows, key) {
-  return [...new Set(rows.map((r) => r.filters[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
-}
-
-function badge(b) {
-  const tone = b.tone === 'status' ? 'pill-status' : b.tone === 'info' ? 'pill-cat' : 'pill-gray';
-  return `<span class="pill ${tone}">${b.tone === 'status' ? '<span class="dot"></span>' : ''}${esc(b.label)}</span>`;
-}
-
-function tile(r) {
-  return `<div class="oc-tile" data-open-oc="${esc(r.typeId)}|${esc(r.id)}" title="Открыть карточку объекта">
-    <div class="oc-tile-head">
-      <span class="oc-tile-ico">${esc(r.manifest.icon)}</span>
-      <div class="oc-tile-ttl">
-        <b>${esc(r.title)}</b>
-        <span>${esc(r.typeLabel)}${r.subtitle ? ' · ' + esc(r.subtitle) : ''}</span>
-      </div>
-    </div>
-
-    <div class="oc-tile-badges">${r.badges.map(badge).join('')}</div>
-
-    <div class="oc-tile-facts">
-      ${r.facts.map((f) => `<div class="oc-fact"><label>${esc(f.label)}</label><b ${f.mono ? 'class="mono"' : ''}>${esc(f.value)}</b></div>`).join('')}
-    </div>
-
-    <div class="oc-tile-foot">
-      <span class="pill-mini ${r.metrics.pendingNotes ? 'pill-pend' : 'pill-done'}">${r.metrics.pendingNotes ? r.metrics.pendingNotes + ' невып. заметок' : 'заметки выполнены'}</span>
-      <span class="tag-mini">док. ${r.metrics.docs}</span>
-      <span class="oc-tile-upd">обновлён ${esc(r.updatedAt || '—')}</span>
-    </div>
-  </div>`;
-}
-
-function table(rows) {
-  return `<table class="tbl oc-table">
-    <colgroup><col style="width:190px"><col><col style="width:150px"><col style="width:170px"><col style="width:110px"><col style="width:90px"><col style="width:70px"><col style="width:120px"></colgroup>
-    <thead><tr>
-      <th>Тип ОЦ</th><th>Адрес</th><th>Код ЕНИ</th><th>Учреждение</th>
-      <th>Статус</th><th>Площадь</th><th>ОИ</th><th>Заметки</th>
-    </tr></thead>
-    <tbody>${rows.map((r) => `<tr class="rowlink" data-open-oc="${esc(r.typeId)}|${esc(r.id)}">
-      <td class="ell">${esc(r.manifest.icon)} ${esc(r.typeLabel)}</td>
-      <td class="ell">${esc(r.title)}</td>
-      <td class="mono">${esc(r.facts[0] ? r.facts[0].value : '')}</td>
-      <td class="ell">${esc(r.subtitle || '—')}</td>
-      <td>${esc(r.filters.status)}</td>
-      <td>${r.metrics.area ? fmt(r.metrics.area) + ' м²' : '—'}</td>
-      <td>${r.metrics.oiCount}</td>
-      <td><span class="pill-mini ${r.metrics.pendingNotes ? 'pill-pend' : 'pill-done'}">${r.metrics.pendingNotes || 'нет'}</span></td>
-    </tr>`).join('')}</tbody>
-  </table>`;
-}
-
-function groupsHTML(rows) {
-  if (!rows.length) {
-    return `<div class="oc-empty">
-      <b>Ничего не найдено</b>
-      <span>Измените запрос или сбросьте фильтры.</span>
-      <button class="btn btn-ghost btn-sm" data-reset>Сбросить фильтры</button>
-    </div>`;
-  }
-
-  if (state.view === 'table') return `<div class="card">${table(rows)}</div>`;
-
-  if (!state.group) return `<div class="oc-grid">${rows.map(tile).join('')}</div>`;
-
-  const byType = new Map();
-  rows.forEach((r) => {
-    if (!byType.has(r.typeId)) byType.set(r.typeId, []);
-    byType.get(r.typeId).push(r);
-  });
-
-  return sortedTypes()
-    .filter((t) => byType.has(t.manifest.id))
-    .map((t) => {
-      const list = byType.get(t.manifest.id);
-      return `<div class="oc-group">
-        <div class="oc-group-h">
-          <span class="oc-group-ico">${esc(t.manifest.icon)}</span>
-          <b>${esc(t.manifest.plural)}</b>
-          <span class="tag-mini">${list.length}</span>
-          <span class="oc-group-hint">${esc(t.manifest.hint || '')}</span>
-        </div>
-        <div class="oc-grid">${list.map(tile).join('')}</div>
-      </div>`;
-    }).join('');
-}
-
-function render(ctx) {
-  const all = collect();
-  const rows = applyFilters(all);
-  const types = sortedTypes();
-
-  const countByType = (id) => all.filter((r) => r.typeId === id).length;
-
-  const chips = [`<button class="oc-chip ${state.type === 'all' ? 'active' : ''}" data-type="all">Все <span class="tag-mini">${all.length}</span></button>`]
-    .concat(types.map((t) => `<button class="oc-chip ${state.type === t.manifest.id ? 'active' : ''}" data-type="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.plural)} <span class="tag-mini">${countByType(t.manifest.id)}</span></button>`))
-    .join('');
-
-  const opts = (list, cur, empty) => `<option value="">${empty}</option>`
-    + list.map((v) => `<option ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('');
-
-  ctx.scope.setHTML(`
-    <div class="card card-pad t-blue oc-head">
-      <div class="head-meta">
-        <span class="pill pill-cat">Объекты оценки</span>
-        <div class="hm"><label>Всего объектов</label><b>${all.length}</b></div>
-        <div class="hm"><label>Показано</label><b>${rows.length}</b></div>
-        <div class="hm"><label>Типов ОЦ</label><b>${types.length}</b></div>
-
-        <input class="input oc-search" data-q value="${esc(state.q)}" placeholder="Поиск: адрес, ЕНИ, учреждение, собственник, литера…">
-
-        <div class="dd" style="margin-left:auto">
-          <button class="btn btn-primary" data-dd-toggle>+ Создать ОЦ ▾</button>
-          <div class="dd-menu">
-            <div class="dd-group">Тип нового объекта</div>
-            ${types.map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="oc-filters">
-      <div class="oc-chips">${chips}</div>
-
-      <div class="oc-filter-row">
-        <div class="field"><label>Статус</label>
-          <select class="select" data-f="status">${opts(uniq(all, 'status'), state.status, 'любой')}</select></div>
-        <div class="field"><label>Учреждение</label>
-          <select class="select" data-f="institution">${opts(uniq(all, 'institution'), state.institution, 'любое')}</select></div>
-        <div class="field"><label>Город</label>
-          <select class="select" data-f="city">${opts(uniq(all, 'city'), state.city, 'любой')}</select></div>
-        <div class="field"><label>Сортировка</label>
-          <select class="select" data-sort>
-            <option value="updated" ${state.sort === 'updated' ? 'selected' : ''}>по дате обновления</option>
-            <option value="address" ${state.sort === 'address' ? 'selected' : ''}>по адресу</option>
-            <option value="area" ${state.sort === 'area' ? 'selected' : ''}>по площади</option>
-            <option value="oi" ${state.sort === 'oi' ? 'selected' : ''}>по числу ОИ</option>
-            <option value="notes" ${state.sort === 'notes' ? 'selected' : ''}>по невыполненным заметкам</option>
-          </select></div>
-
-        <div class="oc-toggles">
-          <label class="flag-lbl"><input type="checkbox" data-only-notes ${state.onlyNotes ? 'checked' : ''}> только с невып. заметками</label>
-          <label class="flag-lbl"><input type="checkbox" data-group ${state.group ? 'checked' : ''}> группировать по типу</label>
-          <div class="oc-view">
-            <button class="oc-view-btn ${state.view === 'tiles' ? 'active' : ''}" data-view="tiles" title="Плитки">▦</button>
-            <button class="oc-view-btn ${state.view === 'table' ? 'active' : ''}" data-view="table" title="Таблица">▤</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="oc-body">${groupsHTML(rows)}</div>
-  `);
-
-  bind(ctx);
-}
-
-function bind(ctx) {
-  const s = ctx.scope;
-
-  const q = s.$('[data-q]');
-  if (q) {
-    q.oninput = () => {
-      state.q = q.value;
-      const pos = q.selectionStart;
-      render(ctx);
-      const nq = ctx.scope.$('[data-q]');
-      if (nq) { nq.focus(); nq.setSelectionRange(pos, pos); }
-    };
-  }
-
-  s.$$('[data-type]').forEach((b) => b.onclick = () => { state.type = b.dataset.type; render(ctx); });
-  s.$$('[data-f]').forEach((sel) => sel.onchange = () => { state[sel.dataset.f] = sel.value; render(ctx); });
-
-  const sort = s.$('[data-sort]');
-  if (sort) sort.onchange = () => { state.sort = sort.value; render(ctx); };
-
-  const on = s.$('[data-only-notes]');
-  if (on) on.onchange = () => { state.onlyNotes = on.checked; render(ctx); };
-
-  const gr = s.$('[data-group]');
-  if (gr) gr.onchange = () => { state.group = gr.checked; render(ctx); };
-
-  s.$$('[data-view]').forEach((b) => b.onclick = () => { state.view = b.dataset.view; render(ctx); });
-
-  const reset = s.$('[data-reset]');
-  if (reset) reset.onclick = () => {
-    Object.assign(state, { q: '', type: 'all', status: '', institution: '', city: '', onlyNotes: false });
-    render(ctx);
-  };
-
-  s.$$('[data-open-oc]').forEach((el) => el.onclick = () => {
-    const [typeId, ocId] = el.dataset.openOc.split('|');
-    location.hash = build({ typeId, ocId });
-  });
-
-  s.$$('[data-dd-toggle]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const dd = b.closest('.dd');
-    const wasOpen = dd.classList.contains('open');
-    s.$$('.dd.open').forEach((d) => d.classList.remove('open'));
-    if (!wasOpen) dd.classList.add('open');
-  });
-
-  // Создание нового ОЦ: форму описывает модуль выбранного типа.
-  s.$$('[data-create]').forEach((b) => b.onclick = async (e) => {
-    e.stopPropagation();
-    s.$$('.dd.open').forEach((d) => d.classList.remove('open'));
-
-    const type = getType(b.dataset.create);
-    if (!type || !type.records.createRecord) {
-      ctx.host.toast('Создание для этого типа пока не описано в модуле', 'warn');
-      return;
-    }
-
-    const form = type.records.createForm || { title: 'Новый объект', fields: [] };
-    const values = await formDialog({ title: form.title, fields: form.fields, okLabel: 'Создать' });
-    if (!values) return;
-
-    const rec = type.records.createRecord(values);
-    ctx.host.toast('Объект оценки создан — заполните карточку', 'ok');
-    location.hash = build({ typeId: type.manifest.id, ocId: rec.id });
-  });
-}
+// Состояние переживает уход в карточку и возврат: фильтр не сбрасывается.
+const state = createState();
+let dataVersion = 0;      // растёт при изменении данных — сбрасывает кэш срезов
+let cursor = -1;
 
 export function mountOcMenu(host) {
-  const ctx = { host, scope: host.scope };
+  const scope = host.scope;
+  const ctx = { host, scope };
 
   host.setCrumbs([
     { label: 'Главная', to: MENU_HREF },
@@ -288,17 +33,589 @@ export function mountOcMenu(host) {
   host.setDrawer(null);
   host.ensureStyle('./app/pages/ocMenu/ocMenu.css');
 
-  // Клик вне дропдауна закрывает меню создания.
-  host.scope.onDocument('click', (e) => {
-    if (!e.target.closest('.dd')) {
+  applyQueryToState(state, host.route.query || {});
+
+  let locatorTimer = null;
+  let lastTotal = 0;
+  let alive = true;   // после уxода со страницы отложенные рендеры не выполняются
+
+  // --- Адрес --------------------------------------------------------------
+  function syncHash() {
+    if (!alive) return;
+    const h = hashFor(state);
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+
+  // --- Рендер -------------------------------------------------------------
+  function toolbarHTML(total) {
+    const people = Object.keys(lastFacets.insp || {}).filter(Boolean).sort();
+    const sel = state.selected.size;
+
+    return `<div class="reg-toolbar">
+      <div class="reg-count">
+        <b>${total.toLocaleString('ru')}</b>
+        <span>${plural(total)}</span>
+        ${isFilterEmpty(state.filter) ? '' : '<button class="btn btn-ghost btn-sm" data-reset-filters>сбросить фильтр</button>'}
+      </div>
+
+      ${sel ? `<div class="reg-bulk">
+        <span>выбрано <b>${sel}</b></span>
+        <button class="btn btn-ghost btn-sm" data-bulk="insp">Назначить осмотрщика</button>
+        <button class="btn btn-ghost btn-sm" data-bulk="status">Сменить статус</button>
+        <button class="btn btn-ghost btn-sm" data-bulk="clear">Снять выбор</button>
+      </div>` : ''}
+
+      <div class="reg-tools">
+        <button class="btn btn-ghost btn-sm" data-export title="Выгрузить текущую выборку в CSV для Excel">Экспорт CSV</button>
+        <div class="dd">
+          <button class="reg-icon-btn" data-dd-toggle title="Столбцы">⋮⋮</button>
+          <div class="dd-menu reg-cols">${columnsMenuHTML(state)}</div>
+        </div>
+        <button class="reg-icon-btn" data-density title="${state.density === 'compact' ? 'Плотные строки' : 'Обычные строки'}">${state.density === 'compact' ? '≡' : '☰'}</button>
+      </div>
+    </div>`;
+  }
+
+  function plural(n) {
+    const a = n % 10, b = n % 100;
+    if (a === 1 && b !== 11) return 'объект';
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'объекта';
+    return 'объектов';
+  }
+
+  function viewHTML() {
+    return tableShellHTML(state);
+  }
+
+  function emptyHTML() {
+    return `<div class="reg-empty">
+      <b>Ничего не найдено</b>
+      <span>Уточните запрос или снимите часть фильтров.</span>
+      <button class="btn btn-ghost btn-sm" data-reset-filters>Сбросить фильтр</button>
+    </div>`;
+  }
+
+  let lastFacets = { status: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
+
+  function render() {
+    if (!alive) return;
+    const active = document.activeElement;
+    const wasLocator = active && active.hasAttribute && active.hasAttribute('data-locator');
+    const caret = wasLocator ? active.selectionStart : null;
+    const vpOld = scope.$('[data-viewport]');
+    const scrollTop = vpOld ? vpOld.scrollTop : 0;
+
+    lastFacets = facetsAll(state.filter);
+    const total = countAll(state.filter);
+    lastTotal = total;
+
+    const types = sortedTypes();
+
+    scope.setHTML(`
+      <div class="reg">
+        <div class="reg-head">
+          ${locatorHTML(state)}
+
+          <div class="reg-head-right">
+            <div class="reg-who" title="От чьего имени работаем — влияет на срезы «мои»">
+              <span class="muted">я:</span>
+              <b>${esc(state.person)}</b>
+              <select class="select" data-role>
+                ${ROLES.map((r) => `<option value="${r.key}" ${state.role === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="dd">
+              <button class="btn btn-primary" data-dd-toggle>+ Создать ОЦ ▾</button>
+              <div class="dd-menu">
+                <div class="dd-group">Тип нового объекта</div>
+                ${types.map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="reg-bar">
+          ${slicesHTML(state, dataVersion)}
+          ${state.recent.length ? `<div class="reg-recent">
+            <span class="muted">недавние:</span>
+            ${state.recent.map((r) => `<button class="reg-chip" data-row="${esc(r.typeId)}|${esc(r.id)}" title="${esc(r.title)}">${esc(r.typeIcon)} ${esc(shorten(r.title))}</button>`).join('')}
+          </div>` : ''}
+        </div>
+
+        <div class="reg-main">
+          <aside class="reg-facets">${facetsHTML(state, lastFacets)}</aside>
+
+          <section class="reg-body">
+            ${toolbarHTML(total)}
+            <div class="reg-view-box is-table d-${state.density}">${viewHTML()}</div>
+          </section>
+
+          ${state.previewId ? `<aside class="reg-preview">${previewHTML(state)}</aside>` : ''}
+        </div>
+
+        <div class="reg-foot">
+          <span class="muted">демо-объём (только макет):</span>
+          <select class="select" data-bulk-count>
+            ${[0, 1000, 5000, 20000].map((n) => `<option value="${n}" ${bulkTotal() === n ? 'selected' : ''}>${n ? n.toLocaleString('ru') + ' синтетических' : 'только сид'}</option>`).join('')}
+          </select>
+          <span class="muted">всего в реестре: ${totalObjects().toLocaleString('ru')}</span>
+          <span class="muted" style="margin-left:auto">/ — поиск · j k — по списку · Enter — карточка · Space — превью</span>
+        </div>
+      </div>`);
+
+    bind();
+
+    const vp = scope.$('[data-viewport]');
+    if (vp) vp.scrollTop = scrollTop;
+    updateRows();
+
+    if (wasLocator) {
+      const inp = scope.$('[data-locator]');
+      if (inp) { inp.focus(); if (caret != null) inp.setSelectionRange(caret, caret); }
+      if (state.filter.q) showDrop();
+    }
+
+    syncHash();
+  }
+
+  function shorten(s) {
+    return s.length > 26 ? s.slice(0, 25) + '…' : s;
+  }
+
+  // --- Виртуализация ------------------------------------------------------
+  function updateRows() {
+    const vp = scope.$('[data-viewport]');
+    const spacer = scope.$('[data-spacer]');
+    const rowsEl = scope.$('[data-rows]');
+    if (!vp || !spacer || !rowsEl) return;
+
+    const rowH = ROW_H[state.density];
+    spacer.style.height = (lastTotal * rowH) + 'px';
+
+    if (!lastTotal) {
+      rowsEl.innerHTML = `<div class="reg-empty-row">${emptyHTML()}</div>`;
+      rowsEl.style.transform = 'translateY(0)';
+      bindRows();
+      return;
+    }
+
+    const visible = Math.ceil(vp.clientHeight / rowH) + 8;
+    const offset = Math.max(0, Math.floor(vp.scrollTop / rowH) - 4);
+    const res = queryAll({ filter: state.filter, sort: state.sort, offset, limit: visible });
+
+    rowsEl.style.transform = `translateY(${offset * rowH}px)`;
+    rowsEl.innerHTML = rowsHTML(state, res.rows, offset);
+
+    if (cursor >= 0) {
+      const el = rowsEl.querySelector(`[data-index="${cursor}"]`);
+      if (el) el.classList.add('cur');
+    }
+
+    bindRows();
+  }
+
+  // --- Обработчики --------------------------------------------------------
+  function openRow(typeId, id) {
+    // Уходим со страницы: снимаем отложенный рендер, иначе он перепишет адрес.
+    clearTimeout(locatorTimer);
+    alive = false;
+
+    const t = getType(typeId);
+    const summary = t ? t.records.getSummary(id) : null;
+
+    if (summary) {
+      state.recent = [{ typeId, id, title: summary.title, typeIcon: summary.typeIcon }]
+        .concat(state.recent.filter((r) => r.id !== id))
+        .slice(0, 6);
+    }
+
+    location.hash = build({ typeId, ocId: id });
+  }
+
+  function bindRows() {
+    scope.$$('[data-row]').forEach((el) => {
+      el.onclick = (e) => {
+        if (e.target.closest('input')) return;
+        const [typeId, id] = el.dataset.row.split('|');
+        if (e.metaKey || e.ctrlKey) { togglePreview(typeId, id); return; }
+        openRow(typeId, id);
+      };
+    });
+
+    scope.$$('[data-select]').forEach((cb) => {
+      cb.onclick = (e) => e.stopPropagation();
+      cb.onchange = () => {
+        const row = cb.closest('[data-row]');
+        const [typeId, id] = row.dataset.row.split('|');
+        if (cb.checked) state.selected.set(id, typeId);
+        else state.selected.delete(id);
+        render();
+      };
+    });
+
+    // Перетаскивание карточек доски меняет статус.
+    scope.$$('[data-card]').forEach((card) => {
+      card.ondragstart = (e) => {
+        e.dataTransfer.setData('text/plain', card.dataset.card);
+        card.classList.add('drag');
+      };
+      card.ondragend = () => card.classList.remove('drag');
+    });
+
+    scope.$$('[data-stage-col]').forEach((col) => {
+      col.ondragover = (e) => { e.preventDefault(); col.classList.add('over'); };
+      col.ondragleave = () => col.classList.remove('over');
+      col.ondrop = (e) => {
+        e.preventDefault();
+        col.classList.remove('over');
+        const [typeId, id] = String(e.dataTransfer.getData('text/plain')).split('|');
+        const stage = col.dataset.stageCol;
+        mutate(typeId, id, (api) => api.setStatus(id, stage));
+        dataVersion++;
+        invalidateSliceCounts();
+        host.toast('Статус изменён: ' + stage, 'ok');
+        render();
+      };
+    });
+  }
+
+  function togglePreview(typeId, id) {
+    if (state.previewId === id) { state.previewId = null; state.previewType = null; }
+    else { state.previewId = id; state.previewType = typeId; }
+    render();
+  }
+
+  function showDrop() {
+    const drop = scope.$('[data-locator-drop]');
+    if (!drop) return;
+    drop.hidden = false;
+    drop.innerHTML = locatorDropHTML(state.filter.q, lastTotal);
+
+    drop.querySelectorAll('[data-goto]').forEach((b) => {
+      b.onclick = () => {
+        const [typeId, id] = b.dataset.goto.split('|');
+        openRow(typeId, id);
+      };
+    });
+
+    const all = drop.querySelector('[data-locator-all]');
+    if (all) all.onclick = () => { drop.hidden = true; render(); };
+  }
+
+  function hideDrop() {
+    const drop = scope.$('[data-locator-drop]');
+    if (drop) drop.hidden = true;
+  }
+
+  function resetFilters() {
+    state.filter = emptyFilter();
+    state.sliceKey = null;
+    state.selected.clear();
+    cursor = -1;
+    render();
+  }
+
+  async function bulkAction(kind) {
+    const ids = [...state.selected.entries()];
+    if (!ids.length) return;
+
+    if (kind === 'clear') { state.selected.clear(); render(); return; }
+
+    if (kind === 'insp') {
+      const people = Object.keys(lastFacets.insp || {}).filter(Boolean).sort();
+      const person = await selectDialog({ title: `Назначить осмотрщика (${ids.length})`, options: people });
+      if (!person) return;
+      ids.forEach(([id, typeId]) => mutate(typeId, id, (api) => api.assignResponsible(id, 'insp', person)));
+      host.toast(`Осмотрщик назначен: ${person} (${ids.length})`, 'ok');
+    }
+
+    if (kind === 'status') {
+      const stages = Object.keys(lastFacets.status || {});
+      const stage = await selectDialog({ title: `Сменить статус (${ids.length})`, options: stages });
+      if (!stage) return;
+      ids.forEach(([id, typeId]) => mutate(typeId, id, (api) => api.setStatus(id, stage)));
+      host.toast(`Статус изменён: ${stage} (${ids.length})`, 'ok');
+    }
+
+    state.selected.clear();
+    dataVersion++;
+    invalidateSliceCounts();
+    render();
+  }
+
+  const EXPORT_LIMIT = 20000;
+
+  function exportCsv() {
+    const sel = [...state.selected.keys()];
+    const rows = sel.length
+      ? queryAll({ filter: state.filter, sort: state.sort, offset: 0, limit: EXPORT_LIMIT })
+        .rows.filter((r) => state.selected.has(r.id))
+      : queryAll({ filter: state.filter, sort: state.sort, offset: 0, limit: EXPORT_LIMIT }).rows;
+
+    const csv = csvOf(state, rows);
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `oc-reestr-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    host.toast(`Выгружено строк: ${rows.length}${lastTotal > EXPORT_LIMIT ? ' (ограничение ' + EXPORT_LIMIT + ')' : ''}`, 'ok');
+  }
+
+  function bind() {
+    const s = scope;
+
+    // Локатор
+    const loc = s.$('[data-locator]');
+    if (loc) {
+      loc.oninput = () => {
+        state.filter.q = loc.value.trim().toLowerCase();
+        clearTimeout(locatorTimer);
+        locatorTimer = setTimeout(() => render(), 170);
+      };
+      loc.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          const single = locatorSingle(state.filter.q);
+          if (single) { openRow(single.typeId, single.id); return; }
+          hideDrop();
+        }
+        if (e.key === 'Escape') { hideDrop(); loc.blur(); }
+      };
+      loc.onfocus = () => { if (state.filter.q) showDrop(); };
+    }
+
+    const clear = s.$('[data-locator-clear]');
+    if (clear) clear.onclick = () => { state.filter.q = ''; hideDrop(); render(); };
+
+    s.onDocument('click', (e) => {
+      if (!e.target.closest('.reg-locator')) hideDrop();
+      if (!e.target.closest('.dd')) document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+    });
+
+    // Роль
+    const role = s.$('[data-role]');
+    if (role) role.onchange = () => {
+      state.role = role.value;
+      if (state.filter.mine) state.filter.mine = { role: state.role, person: state.person };
+      invalidateSliceCounts();
+      render();
+    };
+
+    // Срезы и воронка
+    s.$$('[data-slice]').forEach((b) => b.onclick = () => {
+      const def = sliceDefs().find((d) => d.key === b.dataset.slice);
+      if (!def) return;
+      if (state.sliceKey === def.key) { resetFilters(); return; }
+      state.filter = filterForSlice(def, state.person);
+      state.sliceKey = def.key;
+      state.selected.clear();
+      render();
+    });
+
+    s.$$('[data-stage]').forEach((b) => b.onclick = () => {
+      const stage = b.dataset.stage;
+      const list = state.filter.status;
+      state.filter.status = list.includes(stage) ? list.filter((x) => x !== stage) : [...list, stage];
+      state.sliceKey = null;
+      render();
+    });
+
+    // Фасеты
+    s.$$('[data-facet]').forEach((cb) => cb.onchange = () => {
+      const key = cb.dataset.facet;
+      const v = cb.value;
+      const list = state.filter[key];
+      state.filter[key] = cb.checked ? [...list, v] : list.filter((x) => x !== v);
+      state.sliceKey = null;
+      render();
+    });
+
+    s.$$('[data-facet-toggle]').forEach((b) => b.onclick = () => { toggleSection(b.dataset.facetToggle); render(); });
+    s.$$('[data-facet-more]').forEach((b) => b.onclick = () => { toggleExpanded(b.dataset.facetMore); render(); });
+
+    s.$$('[data-facet-search]').forEach((inp) => inp.oninput = () => {
+      setSearch(inp.dataset.facetSearch, inp.value);
+      clearTimeout(locatorTimer);
+      locatorTimer = setTimeout(() => {
+        render();
+        const again = scope.$(`[data-facet-search="${inp.dataset.facetSearch}"]`);
+        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+      }, 170);
+    });
+
+    const stale = s.$('[data-stale]');
+    if (stale) stale.onchange = () => { state.filter.staleDays = stale.checked ? 30 : 0; render(); };
+
+    s.$$('[data-reset-filters]').forEach((b) => b.onclick = resetFilters);
+
+    // Панель инструментов
+    s.$$('[data-view]').forEach((b) => b.onclick = () => {
+      state.view = b.dataset.view;
+      // Доска сама является измерением «статус», поэтому фильтр по статусу
+      // на ней снимается — иначе видна одна колонка из пяти.
+      if (state.view === 'kanban' && state.filter.status.length) {
+        state.filter.status = [];
+        state.sliceKey = null;
+      }
+      cursor = -1;
+      render();
+    });
+
+    const sortSel = s.$('[data-sort-sel]');
+    if (sortSel) sortSel.onchange = () => { state.sort = { key: sortSel.value, dir: state.sort.dir }; render(); };
+
+    const sortDir = s.$('[data-sort-dir]');
+    if (sortDir) sortDir.onclick = () => {
+      state.sort = { key: state.sort.key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' };
+      render();
+    };
+
+    const dens = s.$('[data-density]');
+    if (dens) dens.onclick = () => { state.density = state.density === 'compact' ? 'normal' : 'compact'; render(); };
+
+    s.$$('[data-column]').forEach((cb) => cb.onchange = (e) => {
+      e.stopPropagation();
+      const key = cb.dataset.column;
+      state.columns = cb.checked
+        ? COLUMNS.filter((c) => state.columns.includes(c.key) || c.key === key).map((c) => c.key)
+        : state.columns.filter((k) => k !== key);
+      render();
+    });
+
+    s.$$('[data-dd-toggle]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const dd = b.closest('.dd');
+      const wasOpen = dd.classList.contains('open');
       document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+      if (!wasOpen) dd.classList.add('open');
+    });
+
+    s.$$('[data-sort]').forEach((th) => th.onclick = () => {
+      const key = th.dataset.sort;
+      state.sort = (state.sort.key === key)
+        ? { key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'desc' };
+      render();
+    });
+
+    const selPage = s.$('[data-select-page]');
+    if (selPage) selPage.onchange = () => {
+      const res = queryAll({ filter: state.filter, sort: state.sort, offset: 0, limit: 200 });
+      if (selPage.checked) res.rows.forEach((r) => state.selected.set(r.id, r.typeId));
+      else res.rows.forEach((r) => state.selected.delete(r.id));
+      render();
+    };
+
+    s.$$('[data-bulk]').forEach((b) => b.onclick = () => bulkAction(b.dataset.bulk));
+
+    // Виртуализация
+    const vp = s.$('[data-viewport]');
+    if (vp) vp.addEventListener('scroll', () => updateRows());
+
+    // Экспорт в CSV — привычный выход в Excel.
+    const exportBtn = s.$('[data-export]');
+    if (exportBtn) exportBtn.onclick = () => exportCsv();
+
+    // Превью
+    const peekClose = s.$('[data-peek-close]');
+    if (peekClose) peekClose.onclick = () => { state.previewId = null; render(); };
+
+    const openPeek = s.$('[data-open-peek]');
+    if (openPeek) openPeek.onclick = () => openRow(state.previewType, state.previewId);
+
+    // Демо-объём
+    const bulk = s.$('[data-bulk-count]');
+    if (bulk) bulk.onchange = () => {
+      setBulkTotal(+bulk.value);
+      dataVersion++;
+      invalidateSliceCounts();
+      state.selected.clear();
+      cursor = -1;
+      host.toast(+bulk.value ? `Загружено ${(+bulk.value).toLocaleString('ru')} синтетических записей` : 'Синтетические записи выключены', 'ok');
+      render();
+    };
+
+    // Создание ОЦ
+    s.$$('[data-create]').forEach((b) => b.onclick = async (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+
+      const type = getType(b.dataset.create);
+      if (!type || !type.records.createRecord) return;
+
+      const form = type.records.createForm;
+      const values = await formDialog({ title: form.title, fields: form.fields, okLabel: 'Создать' });
+      if (!values) return;
+
+      const rec = type.records.createRecord(values);
+      dataVersion++;
+      invalidateSliceCounts();
+      host.toast('Объект оценки создан — заполните карточку', 'ok');
+      openRow(type.manifest.id, rec.id);
+    });
+
+    bindRows();
+  }
+
+  // --- Клавиатура ---------------------------------------------------------
+  scope.onDocument('keydown', (e) => {
+    const inField = e.target.matches('input, select, textarea');
+
+    if (e.key === '/' && !inField) {
+      e.preventDefault();
+      const inp = scope.$('[data-locator]');
+      if (inp) inp.focus();
+      return;
+    }
+
+    if (inField) return;
+
+    if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); moveCursor(1); }
+    else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); moveCursor(-1); }
+    else if (e.key === 'Enter' && cursor >= 0) { e.preventDefault(); actOnCursor(true); }
+    else if (e.key === ' ' && cursor >= 0) { e.preventDefault(); actOnCursor(false); }
+    else if (e.key === 'Escape') {
+      if (state.previewId) { state.previewId = null; render(); }
     }
   });
 
-  render(ctx);
+  function moveCursor(delta) {
+    if (!lastTotal) return;
+
+    cursor = Math.max(0, Math.min(lastTotal - 1, (cursor < 0 ? -1 : cursor) + delta));
+
+    const vp = scope.$('[data-viewport]');
+    const rowH = ROW_H[state.density];
+    if (vp) {
+      const top = cursor * rowH;
+      if (top < vp.scrollTop) vp.scrollTop = top;
+      else if (top + rowH > vp.scrollTop + vp.clientHeight) vp.scrollTop = top + rowH - vp.clientHeight;
+    }
+
+    updateRows();
+  }
+
+  function actOnCursor(open) {
+    const res = queryAll({ filter: state.filter, sort: state.sort, offset: cursor, limit: 1 });
+    const s = res.rows[0];
+    if (!s) return;
+    if (open) openRow(s.typeId, s.id);
+    else togglePreview(s.typeId, s.id);
+  }
+
+  render();
 
   return {
-    onRoute() { render(ctx); },
-    destroy() {},
+    onRoute(route) {
+      alive = true;
+      applyQueryToState(state, route.query || {});
+      render();
+    },
+    destroy() {
+      alive = false;
+      clearTimeout(locatorTimer);
+    },
   };
 }
