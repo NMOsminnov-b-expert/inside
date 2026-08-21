@@ -1,0 +1,6 @@
+# Локальный кэш графа знаний — производный от .claude/knowledge-graph/log/*,
+# пересобирается командой `python .claude/knowledge-graph/tools/rebuild_memory.py`.
+# Не коммитить: у каждого в рабочей копии свой файл, который MCP-сервер
+# постоянно перезаписывает целиком — при коммите он был бы гарантированным
+# конфликтом на merge между ветками.
+.claude/knowledge-graph/memory.jsonl
