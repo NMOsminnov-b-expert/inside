@@ -1,5 +1,5 @@
 import { esc } from '../../kernel/dom.js';
-import { emptyFilter } from './state.js';
+import { emptyFilter, rolePerms } from './state.js';
 import { countAll } from './query.js';
 
 // Срезы — именованные фильтры. Это замена «всего объектов N»:
@@ -59,10 +59,13 @@ export function invalidateSliceCounts() {
 
 export function slicesHTML(state, version) {
   const counts = sliceCounts(state.person, version);
+  // Показываем только срезы «мне…», уместные для текущей роли — остальные
+  // роли эту работу не выполняют, и им незачем предлагать её в списке.
+  const allowed = rolePerms(state.role).slices;
+  const defs = sliceDefs().filter((d) => !d.key.startsWith('my-') || allowed.includes(d.key));
 
   return `<div class="reg-slice-row">
-    <span class="muted">срезы:</span>
-    ${sliceDefs().map((d) => `<button class="reg-slice ${state.sliceKey === d.key ? 'active' : ''}"
+    ${defs.map((d) => `<button class="reg-slice ${state.sliceKey === d.key ? 'active' : ''}"
       data-slice="${esc(d.key)}" title="${esc(d.hint)}">
       ${esc(d.label)}
       <b class="${counts[d.key] ? '' : 'zero'}">${counts[d.key]}</b>

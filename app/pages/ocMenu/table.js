@@ -12,7 +12,8 @@ const STAGE_INDEX = new Map([
 
 // Виртуализированная таблица: в DOM живут только видимые строки,
 // запрос идёт ровно за тот срез, который сейчас на экране.
-export const ROW_H = { compact: 30, normal: 38 };
+// Высота строки одна — без сжатого режима: реже устаёшь от чтения.
+export const ROW_H = 38;
 
 function cell(col, s) {
   switch (col.key) {
@@ -69,14 +70,6 @@ export function rowsHTML(state, rows, startIndex) {
     ${cols.map((c) => `<div class="reg-td ${c.align === 'right' ? 'right' : ''} ${c.mono ? 'mono' : ''}"
       style="${c.width ? `width:${c.width}px;flex:0 1 ${c.width}px` : 'flex:1 1 240px;min-width:190px'}">${cell(c, s)}</div>`).join('')}
   </div>`).join('');
-}
-
-export function tableShellHTML(state) {
-  return `${tableHeadHTML(state)}
-    <div class="reg-viewport" data-viewport>
-      <div class="reg-spacer" data-spacer></div>
-      <div class="reg-rows" data-rows></div>
-    </div>`;
 }
 
 // Значение ячейки в виде простого текста — для выгрузки в Excel.

@@ -1,20 +1,20 @@
 import { esc } from '../../kernel/dom.js';
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { build, MENU_HREF } from '../../kernel/router.js';
-import { formDialog, selectDialog, promptDialog } from '../../kernel/dialog.js';
+import { formDialog, selectDialog } from '../../kernel/dialog.js';
 import {
   createState, applyQueryToState, hashFor, emptyFilter, isFilterEmpty,
-  ROLES, COLUMNS,
+  ROLES, COLUMNS, rolePerms, roleHint,
 } from './state.js';
 import {
-  queryAll, countAll, facetsAll, setBulkTotal, bulkTotal, totalObjects, mutate, recordOf,
+  queryAll, countAll, facetsAll, setBulkTotal, bulkTotal, totalObjects, mutate,
 } from './query.js';
-import { locatorHTML, locatorDropHTML, locatorSingle } from './locator.js';
+import { locatorHTML, locatorSingle } from './locator.js';
 import { slicesHTML, sliceDefs, filterForSlice, invalidateSliceCounts } from './slices.js';
 import {
   facetsHTML, toggleSection, toggleExpanded, setSearch,
 } from './facets.js';
-import { ROW_H, tableShellHTML, rowsHTML, columnsMenuHTML, activeColumns, csvOf } from './table.js';
+import { ROW_H, tableHeadHTML, rowsHTML, columnsMenuHTML, csvOf } from './table.js';
 import { previewHTML } from './preview.js';
 
 // Состояние переживает уход в карточку и возврат: фильтр не сбрасывается.
@@ -24,7 +24,6 @@ let cursor = -1;
 
 export function mountOcMenu(host) {
   const scope = host.scope;
-  const ctx = { host, scope };
 
   host.setCrumbs([
     { label: 'Главная', to: MENU_HREF },
@@ -38,42 +37,13 @@ export function mountOcMenu(host) {
   let locatorTimer = null;
   let lastTotal = 0;
   let alive = true;   // после уxода со страницы отложенные рендеры не выполняются
+  let lastFacets = { status: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
 
   // --- Адрес --------------------------------------------------------------
   function syncHash() {
     if (!alive) return;
     const h = hashFor(state);
     if (location.hash !== h) history.replaceState(null, '', h);
-  }
-
-  // --- Рендер -------------------------------------------------------------
-  function toolbarHTML(total) {
-    const people = Object.keys(lastFacets.insp || {}).filter(Boolean).sort();
-    const sel = state.selected.size;
-
-    return `<div class="reg-toolbar">
-      <div class="reg-count">
-        <b>${total.toLocaleString('ru')}</b>
-        <span>${plural(total)}</span>
-        ${isFilterEmpty(state.filter) ? '' : '<button class="btn btn-ghost btn-sm" data-reset-filters>сбросить фильтр</button>'}
-      </div>
-
-      ${sel ? `<div class="reg-bulk">
-        <span>выбрано <b>${sel}</b></span>
-        <button class="btn btn-ghost btn-sm" data-bulk="insp">Назначить осмотрщика</button>
-        <button class="btn btn-ghost btn-sm" data-bulk="status">Сменить статус</button>
-        <button class="btn btn-ghost btn-sm" data-bulk="clear">Снять выбор</button>
-      </div>` : ''}
-
-      <div class="reg-tools">
-        <button class="btn btn-ghost btn-sm" data-export title="Выгрузить текущую выборку в CSV для Excel">Экспорт CSV</button>
-        <div class="dd">
-          <button class="reg-icon-btn" data-dd-toggle title="Столбцы">⋮⋮</button>
-          <div class="dd-menu reg-cols">${columnsMenuHTML(state)}</div>
-        </div>
-        <button class="reg-icon-btn" data-density title="${state.density === 'compact' ? 'Плотные строки' : 'Обычные строки'}">${state.density === 'compact' ? '≡' : '☰'}</button>
-      </div>
-    </div>`;
   }
 
   function plural(n) {
@@ -83,8 +53,91 @@ export function mountOcMenu(host) {
     return 'объектов';
   }
 
-  function viewHTML() {
-    return tableShellHTML(state);
+  function shorten(s) {
+    return s.length > 26 ? s.slice(0, 25) + '…' : s;
+  }
+
+  // --- Фрагменты разметки ---------------------------------------------------
+  // Каждый фрагмент рендерится в свой контейнер (data-region-*), поэтому
+  // ввод в поиске/фильтре не задевает локатор, роль и остальную страницу —
+  // только те куски, которые от него реально зависят.
+
+  // Роль/аккаунт — рядом с локатором: там всё равно остаётся свободное
+  // место (локатор не тянется на весь экран), новая строка ради одной
+  // маленькой панели не нужна.
+  function whoHTML() {
+    return `<div class="reg-who" title="${esc(roleHint(state.role))}">
+      <span class="muted">я:</span>
+      <b>${esc(state.person)}</b>
+      <select class="select" data-role>
+        ${ROLES.map((r) => `<option value="${r.key}" ${state.role === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+
+  // Кнопка создания — действие уровня таблицы (как экспорт/столбцы), поэтому
+  // стоит в панели инструментов над таблицей, а не отдельной строкой сверху.
+  function createDdHTML() {
+    const perms = rolePerms(state.role);
+    const types = sortedTypes();
+    const role = ROLES.find((r) => r.key === state.role);
+
+    return `<div class="dd">
+      <button class="btn btn-primary" data-dd-toggle ${perms.create ? '' : 'disabled'}
+        title="${perms.create ? '' : `Роль «${esc(role ? role.label : '')}» новые ОЦ не создаёт`}">+ Создать ОЦ ▾</button>
+      <div class="dd-menu reg-create-menu">
+        <div class="dd-group">Тип нового объекта</div>
+        ${types.map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // «Срезы» и «Недавние» — видимые секции с заголовком и рамкой (как у
+  // фасетов), а не голый ряд кнопок без подписи. Обе сворачиваются, но не
+  // через renderData()/renderShell() — сворачивание не должно требовать
+  // рендера, это просто toggle класса (см. bindData: data-bar-toggle).
+  function barSectionHTML(key, label, bodyHTML) {
+    return `<div class="reg-section ${state.barOpen[key] ? 'open' : ''}">
+      <button class="reg-section-h" data-bar-toggle="${key}">
+        <span class="chev">▾</span>${esc(label)}
+      </button>
+      <div class="reg-section-body">${bodyHTML}</div>
+    </div>`;
+  }
+
+  function barHTML() {
+    const recent = state.recent.length ? barSectionHTML('recent', 'Недавние', `<div class="reg-recent">
+      ${state.recent.map((r) => `<button class="reg-chip" data-row="${esc(r.typeId)}|${esc(r.id)}" title="${esc(r.title)}">${esc(r.typeIcon)} ${esc(shorten(r.title))}</button>`).join('')}
+    </div>`) : '';
+
+    return `${barSectionHTML('slices', 'Срезы', slicesHTML(state, dataVersion))}${recent}`;
+  }
+
+  function toolbarHTML(total) {
+    const perms = rolePerms(state.role);
+    const sel = state.selected.size;
+
+    return `<div class="reg-count">
+        <b>${total.toLocaleString('ru')}</b>
+        <span>${plural(total)}</span>
+        ${isFilterEmpty(state.filter) ? '' : '<button class="btn btn-ghost btn-sm" data-reset-filters>сбросить фильтр</button>'}
+      </div>
+
+      ${sel ? `<div class="reg-bulk">
+        <span>выбрано <b>${sel}</b></span>
+        ${perms.assignInsp ? '<button class="btn btn-ghost btn-sm" data-bulk="insp">Назначить осмотрщика</button>' : ''}
+        ${perms.setStatus ? '<button class="btn btn-ghost btn-sm" data-bulk="status">Сменить статус</button>' : ''}
+        <button class="btn btn-ghost btn-sm" data-bulk="clear">Снять выбор</button>
+      </div>` : ''}
+
+      <div class="reg-tools">
+        <button class="btn btn-ghost btn-sm" data-export title="Выгрузить текущую выборку в CSV для Excel">Экспорт CSV</button>
+        <div class="dd">
+          <button class="reg-icon-btn" data-dd-toggle title="Столбцы">⋮⋮</button>
+          <div class="dd-menu reg-cols">${columnsMenuHTML(state)}</div>
+        </div>
+        ${createDdHTML()}
+      </div>`;
   }
 
   function emptyHTML() {
@@ -95,13 +148,38 @@ export function mountOcMenu(host) {
     </div>`;
   }
 
-  let lastFacets = { status: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
+  function footHTML() {
+    return `<span class="muted">демо-объём (только макет):</span>
+      <select class="select" data-bulk-count>
+        ${[0, 1000, 5000, 20000].map((n) => `<option value="${n}" ${bulkTotal() === n ? 'selected' : ''}>${n ? n.toLocaleString('ru') + ' синтетических' : 'только сид'}</option>`).join('')}
+      </select>
+      <span class="muted">всего в реестре: ${totalObjects().toLocaleString('ru')}</span>
+      <span class="muted" style="margin-left:auto">/ — поиск · j k — по списку · Enter — карточка · Space — превью</span>`;
+  }
 
-  function render() {
+  // Вкладка панели фильтров: стрелка и подпись — отдельные элементы, а не
+  // смешанный текст внутри вертикального writing-mode (из-за этого подпись
+  // вылезала за пределы кнопки). Подпись видна всегда; стрелка тоже видна
+  // всегда и просто разворачивается на 180° — как шевроны у секций фильтров
+  // ниже, а не исчезает.
+  function facetsTabInnerHTML(open) {
+    return `<span class="reg-facets-tab-arrow ${open ? '' : 'closed'}">◂</span><span class="reg-facets-tab-label">Фильтры</span>`;
+  }
+
+  // --- Полный рендер: каркас страницы --------------------------------------
+  // Вызывается только при заходе на страницу/возврате в неё (onRoute) —
+  // единственные случаи, когда состав данных может быть совсем другим.
+  // Любое взаимодействие внутри страницы (поиск, фильтры, роль, срезы,
+  // сортировка, превью, сворачивание панели, объём демо-данных) идёт через
+  // renderData() или прямые точечные правки DOM — без setHTML() всего блока,
+  // поэтому не теряются ни фокус в поле поиска, ни скролл внутри фильтров,
+  // ни позиция самой панели.
+  function renderShell() {
     if (!alive) return;
-    const active = document.activeElement;
-    const wasLocator = active && active.hasAttribute && active.hasAttribute('data-locator');
-    const caret = wasLocator ? active.selectionStart : null;
+
+    // Уход в карточку и возврат — самый частый повод для renderShell (onRoute).
+    // Позицию в списке (иногда на десятках тысяч строк) в этот момент терять
+    // нельзя, поэтому сохраняем и восстанавливаем скролл явно.
     const vpOld = scope.$('[data-viewport]');
     const scrollTop = vpOld ? vpOld.scrollTop : 0;
 
@@ -109,89 +187,95 @@ export function mountOcMenu(host) {
     const total = countAll(state.filter);
     lastTotal = total;
 
-    const types = sortedTypes();
-
     scope.setHTML(`
       <div class="reg">
-        <div class="reg-head">
+        <div class="reg-search-row">
           ${locatorHTML(state)}
-
-          <div class="reg-head-right">
-            <div class="reg-who" title="От чьего имени работаем — влияет на срезы «мои»">
-              <span class="muted">я:</span>
-              <b>${esc(state.person)}</b>
-              <select class="select" data-role>
-                ${ROLES.map((r) => `<option value="${r.key}" ${state.role === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}
-              </select>
-            </div>
-
-            <div class="dd">
-              <button class="btn btn-primary" data-dd-toggle>+ Создать ОЦ ▾</button>
-              <div class="dd-menu">
-                <div class="dd-group">Тип нового объекта</div>
-                ${types.map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
-              </div>
-            </div>
-          </div>
+          <div data-region-who>${whoHTML()}</div>
         </div>
 
-        <div class="reg-bar">
-          ${slicesHTML(state, dataVersion)}
-          ${state.recent.length ? `<div class="reg-recent">
-            <span class="muted">недавние:</span>
-            ${state.recent.map((r) => `<button class="reg-chip" data-row="${esc(r.typeId)}|${esc(r.id)}" title="${esc(r.title)}">${esc(r.typeIcon)} ${esc(shorten(r.title))}</button>`).join('')}
-          </div>` : ''}
-        </div>
+        <div class="reg-bar" data-region-bar>${barHTML()}</div>
 
         <div class="reg-main">
-          <aside class="reg-facets">${facetsHTML(state, lastFacets)}</aside>
+          <button class="reg-facets-tab" data-facets-toggle
+            title="${state.facetsOpen ? 'Скрыть фильтры' : 'Показать фильтры'}">${facetsTabInnerHTML(state.facetsOpen)}</button>
+
+          <aside class="reg-facets-wrap ${state.facetsOpen ? '' : 'closed'}" data-facets-wrap>
+            <div class="reg-facets" data-region-facets>${facetsHTML(state, lastFacets)}</div>
+          </aside>
 
           <section class="reg-body">
-            ${toolbarHTML(total)}
-            <div class="reg-view-box is-table d-${state.density}">${viewHTML()}</div>
+            <div class="reg-toolbar" data-region-toolbar>${toolbarHTML(total)}</div>
+            <div class="reg-view-box">
+              <div data-region-thead>${tableHeadHTML(state)}</div>
+              <div class="reg-viewport" data-viewport>
+                <div class="reg-spacer" data-spacer></div>
+                <div class="reg-rows" data-rows></div>
+              </div>
+            </div>
           </section>
 
-          ${state.previewId ? `<aside class="reg-preview">${previewHTML(state)}</aside>` : ''}
+          <aside class="reg-preview ${state.previewId ? '' : 'hidden'}" data-region-preview>${previewHTML(state)}</aside>
         </div>
 
-        <div class="reg-foot">
-          <span class="muted">демо-объём (только макет):</span>
-          <select class="select" data-bulk-count>
-            ${[0, 1000, 5000, 20000].map((n) => `<option value="${n}" ${bulkTotal() === n ? 'selected' : ''}>${n ? n.toLocaleString('ru') + ' синтетических' : 'только сид'}</option>`).join('')}
-          </select>
-          <span class="muted">всего в реестре: ${totalObjects().toLocaleString('ru')}</span>
-          <span class="muted" style="margin-left:auto">/ — поиск · j k — по списку · Enter — карточка · Space — превью</span>
-        </div>
+        <div class="reg-foot" data-region-foot>${footHTML()}</div>
       </div>`);
 
-    bind();
+    bindShell();
+    bindData();
+    bindPreview();
 
     const vp = scope.$('[data-viewport]');
     if (vp) vp.scrollTop = scrollTop;
     updateRows();
-
-    if (wasLocator) {
-      const inp = scope.$('[data-locator]');
-      if (inp) { inp.focus(); if (caret != null) inp.setSelectionRange(caret, caret); }
-      if (state.filter.q) showDrop();
-    }
-
     syncHash();
   }
 
-  function shorten(s) {
-    return s.length > 26 ? s.slice(0, 25) + '…' : s;
+  // --- Частичный рендер: всё, что зависит от фильтра/поиска/данных --------
+  // Локатор, панель фильтров (как контейнер) и превью не пересобираются —
+  // фокус, скролл и позиция панели не теряются.
+  function renderData() {
+    if (!alive) return;
+
+    lastFacets = facetsAll(state.filter);
+    const total = countAll(state.filter);
+    lastTotal = total;
+
+    const who = scope.$('[data-region-who]');
+    if (who) who.innerHTML = whoHTML();
+
+    const bar = scope.$('[data-region-bar]');
+    if (bar) bar.innerHTML = barHTML();
+
+    const facetsBox = scope.$('[data-region-facets]');
+    if (facetsBox) {
+      const facetsScroll = facetsBox.scrollTop;
+      facetsBox.innerHTML = facetsHTML(state, lastFacets);
+      facetsBox.scrollTop = facetsScroll;
+    }
+
+    const toolbar = scope.$('[data-region-toolbar]');
+    if (toolbar) toolbar.innerHTML = toolbarHTML(total);
+
+    const thead = scope.$('[data-region-thead]');
+    if (thead) thead.innerHTML = tableHeadHTML(state);
+
+    const foot = scope.$('[data-region-foot]');
+    if (foot) foot.innerHTML = footHTML();
+
+    bindData();
+    updateRows();
+    syncHash();
   }
 
-  // --- Виртуализация ------------------------------------------------------
+  // --- Виртуализация --------------------------------------------------------
   function updateRows() {
     const vp = scope.$('[data-viewport]');
     const spacer = scope.$('[data-spacer]');
     const rowsEl = scope.$('[data-rows]');
     if (!vp || !spacer || !rowsEl) return;
 
-    const rowH = ROW_H[state.density];
-    spacer.style.height = (lastTotal * rowH) + 'px';
+    spacer.style.height = (lastTotal * ROW_H) + 'px';
 
     if (!lastTotal) {
       rowsEl.innerHTML = `<div class="reg-empty-row">${emptyHTML()}</div>`;
@@ -200,11 +284,11 @@ export function mountOcMenu(host) {
       return;
     }
 
-    const visible = Math.ceil(vp.clientHeight / rowH) + 8;
-    const offset = Math.max(0, Math.floor(vp.scrollTop / rowH) - 4);
+    const visible = Math.ceil(vp.clientHeight / ROW_H) + 8;
+    const offset = Math.max(0, Math.floor(vp.scrollTop / ROW_H) - 4);
     const res = queryAll({ filter: state.filter, sort: state.sort, offset, limit: visible });
 
-    rowsEl.style.transform = `translateY(${offset * rowH}px)`;
+    rowsEl.style.transform = `translateY(${offset * ROW_H}px)`;
     rowsEl.innerHTML = rowsHTML(state, res.rows, offset);
 
     if (cursor >= 0) {
@@ -250,62 +334,40 @@ export function mountOcMenu(host) {
         const [typeId, id] = row.dataset.row.split('|');
         if (cb.checked) state.selected.set(id, typeId);
         else state.selected.delete(id);
-        render();
+        renderData();
       };
     });
+  }
 
-    // Перетаскивание карточек доски меняет статус.
-    scope.$$('[data-card]').forEach((card) => {
-      card.ondragstart = (e) => {
-        e.dataTransfer.setData('text/plain', card.dataset.card);
-        card.classList.add('drag');
-      };
-      card.ondragend = () => card.classList.remove('drag');
-    });
+  // Превью — постоянный контейнер в разметке (data-region-preview), просто
+  // прячется классом hidden: не нужно пересобирать всю страницу, чтобы
+  // открыть/закрыть узкую панель справа.
+  function updatePreview() {
+    const box = scope.$('[data-region-preview]');
+    if (!box) return;
+    box.classList.toggle('hidden', !state.previewId);
+    box.innerHTML = previewHTML(state);
+    bindPreview();
+  }
 
-    scope.$$('[data-stage-col]').forEach((col) => {
-      col.ondragover = (e) => { e.preventDefault(); col.classList.add('over'); };
-      col.ondragleave = () => col.classList.remove('over');
-      col.ondrop = (e) => {
-        e.preventDefault();
-        col.classList.remove('over');
-        const [typeId, id] = String(e.dataTransfer.getData('text/plain')).split('|');
-        const stage = col.dataset.stageCol;
-        mutate(typeId, id, (api) => api.setStatus(id, stage));
-        dataVersion++;
-        invalidateSliceCounts();
-        host.toast('Статус изменён: ' + stage, 'ok');
-        render();
-      };
-    });
+  function bindPreview() {
+    const peekClose = scope.$('[data-peek-close]');
+    if (peekClose) peekClose.onclick = closePreview;
+
+    const openPeek = scope.$('[data-open-peek]');
+    if (openPeek) openPeek.onclick = () => openRow(state.previewType, state.previewId);
+  }
+
+  function closePreview() {
+    state.previewId = null;
+    state.previewType = null;
+    updatePreview();
   }
 
   function togglePreview(typeId, id) {
     if (state.previewId === id) { state.previewId = null; state.previewType = null; }
     else { state.previewId = id; state.previewType = typeId; }
-    render();
-  }
-
-  function showDrop() {
-    const drop = scope.$('[data-locator-drop]');
-    if (!drop) return;
-    drop.hidden = false;
-    drop.innerHTML = locatorDropHTML(state.filter.q, lastTotal);
-
-    drop.querySelectorAll('[data-goto]').forEach((b) => {
-      b.onclick = () => {
-        const [typeId, id] = b.dataset.goto.split('|');
-        openRow(typeId, id);
-      };
-    });
-
-    const all = drop.querySelector('[data-locator-all]');
-    if (all) all.onclick = () => { drop.hidden = true; render(); };
-  }
-
-  function hideDrop() {
-    const drop = scope.$('[data-locator-drop]');
-    if (drop) drop.hidden = true;
+    updatePreview();
   }
 
   function resetFilters() {
@@ -313,14 +375,17 @@ export function mountOcMenu(host) {
     state.sliceKey = null;
     state.selected.clear();
     cursor = -1;
-    render();
+    renderData();
   }
 
   async function bulkAction(kind) {
+    const perms = rolePerms(state.role);
     const ids = [...state.selected.entries()];
     if (!ids.length) return;
 
-    if (kind === 'clear') { state.selected.clear(); render(); return; }
+    if (kind === 'clear') { state.selected.clear(); renderData(); return; }
+    if (kind === 'insp' && !perms.assignInsp) return;
+    if (kind === 'status' && !perms.setStatus) return;
 
     if (kind === 'insp') {
       const people = Object.keys(lastFacets.insp || {}).filter(Boolean).sort();
@@ -341,7 +406,7 @@ export function mountOcMenu(host) {
     state.selected.clear();
     dataVersion++;
     invalidateSliceCounts();
-    render();
+    renderData();
   }
 
   const EXPORT_LIMIT = 20000;
@@ -354,7 +419,7 @@ export function mountOcMenu(host) {
       : queryAll({ filter: state.filter, sort: state.sort, offset: 0, limit: EXPORT_LIMIT }).rows;
 
     const csv = csvOf(state, rows);
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `oc-reestr-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -364,168 +429,79 @@ export function mountOcMenu(host) {
     host.toast(`Выгружено строк: ${rows.length}${lastTotal > EXPORT_LIMIT ? ' (ограничение ' + EXPORT_LIMIT + ')' : ''}`, 'ok');
   }
 
-  function bind() {
+  // Вешается один раз при построении каркаса (renderShell) — элементы,
+  // которые сама renderData() никогда не пересобирает: локатор, вкладка
+  // панели фильтров, вьюпорт таблицы (его скролл-слушатель нельзя навешивать
+  // повторно — узел переживает renderData, и addEventListener задвоился бы).
+  function bindShell() {
     const s = scope;
 
-    // Локатор
     const loc = s.$('[data-locator]');
+    const clear = s.$('[data-locator-clear]');
     if (loc) {
       loc.oninput = () => {
         state.filter.q = loc.value.trim().toLowerCase();
+        if (clear) clear.classList.toggle('hidden', !state.filter.q);
         clearTimeout(locatorTimer);
-        locatorTimer = setTimeout(() => render(), 170);
+        locatorTimer = setTimeout(() => renderData(), 170);
       };
       loc.onkeydown = (e) => {
         if (e.key === 'Enter') {
           const single = locatorSingle(state.filter.q);
-          if (single) { openRow(single.typeId, single.id); return; }
-          hideDrop();
+          if (single) openRow(single.typeId, single.id);
         }
-        if (e.key === 'Escape') { hideDrop(); loc.blur(); }
       };
-      loc.onfocus = () => { if (state.filter.q) showDrop(); };
     }
+    if (clear) clear.onclick = () => {
+      state.filter.q = '';
+      if (loc) { loc.value = ''; loc.focus(); }
+      clear.classList.add('hidden');
+      renderData();
+    };
 
-    const clear = s.$('[data-locator-clear]');
-    if (clear) clear.onclick = () => { state.filter.q = ''; hideDrop(); render(); };
+    // Панель фильтров сворачивается точечной правкой DOM — без единого
+    // renderShell()/renderData(), поэтому позиция внутри неё (открытые
+    // секции, скролл списка учреждений) никогда не сбивается.
+    const facetsToggle = s.$('[data-facets-toggle]');
+    const facetsWrap = s.$('[data-facets-wrap]');
+    if (facetsToggle) facetsToggle.onclick = () => {
+      state.facetsOpen = !state.facetsOpen;
+      if (facetsWrap) facetsWrap.classList.toggle('closed', !state.facetsOpen);
+      facetsToggle.title = state.facetsOpen ? 'Скрыть фильтры' : 'Показать фильтры';
+      facetsToggle.innerHTML = facetsTabInnerHTML(state.facetsOpen);
+    };
 
-    s.onDocument('click', (e) => {
-      if (!e.target.closest('.reg-locator')) hideDrop();
-      if (!e.target.closest('.dd')) document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
-    });
+    const vp = s.$('[data-viewport]');
+    if (vp) vp.addEventListener('scroll', () => updateRows());
+  }
 
-    // Роль
+  // Переключатели внутри регионов, которые пересобираются при каждом
+  // изменении фильтра/поиска — навешиваются заново после каждой замены их
+  // innerHTML.
+  function bindData() {
+    const s = scope;
+
     const role = s.$('[data-role]');
     if (role) role.onchange = () => {
       state.role = role.value;
-      if (state.filter.mine) state.filter.mine = { role: state.role, person: state.person };
-      invalidateSliceCounts();
-      render();
-    };
+      const perms = rolePerms(state.role);
 
-    // Срезы и воронка
-    s.$$('[data-slice]').forEach((b) => b.onclick = () => {
-      const def = sliceDefs().find((d) => d.key === b.dataset.slice);
-      if (!def) return;
-      if (state.sliceKey === def.key) { resetFilters(); return; }
-      state.filter = filterForSlice(def, state.person);
-      state.sliceKey = def.key;
-      state.selected.clear();
-      render();
-    });
-
-    s.$$('[data-stage]').forEach((b) => b.onclick = () => {
-      const stage = b.dataset.stage;
-      const list = state.filter.status;
-      state.filter.status = list.includes(stage) ? list.filter((x) => x !== stage) : [...list, stage];
-      state.sliceKey = null;
-      render();
-    });
-
-    // Фасеты
-    s.$$('[data-facet]').forEach((cb) => cb.onchange = () => {
-      const key = cb.dataset.facet;
-      const v = cb.value;
-      const list = state.filter[key];
-      state.filter[key] = cb.checked ? [...list, v] : list.filter((x) => x !== v);
-      state.sliceKey = null;
-      render();
-    });
-
-    s.$$('[data-facet-toggle]').forEach((b) => b.onclick = () => { toggleSection(b.dataset.facetToggle); render(); });
-    s.$$('[data-facet-more]').forEach((b) => b.onclick = () => { toggleExpanded(b.dataset.facetMore); render(); });
-
-    s.$$('[data-facet-search]').forEach((inp) => inp.oninput = () => {
-      setSearch(inp.dataset.facetSearch, inp.value);
-      clearTimeout(locatorTimer);
-      locatorTimer = setTimeout(() => {
-        render();
-        const again = scope.$(`[data-facet-search="${inp.dataset.facetSearch}"]`);
-        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
-      }, 170);
-    });
-
-    const stale = s.$('[data-stale]');
-    if (stale) stale.onchange = () => { state.filter.staleDays = stale.checked ? 30 : 0; render(); };
-
-    s.$$('[data-reset-filters]').forEach((b) => b.onclick = resetFilters);
-
-    // Панель инструментов
-    s.$$('[data-view]').forEach((b) => b.onclick = () => {
-      state.view = b.dataset.view;
-      // Доска сама является измерением «статус», поэтому фильтр по статусу
-      // на ней снимается — иначе видна одна колонка из пяти.
-      if (state.view === 'kanban' && state.filter.status.length) {
-        state.filter.status = [];
+      // «Мои…» срезы относятся к роли: при смене роли старый личный срез
+      // может стать недоступным — тогда сбрасываем фильтр, а не оставляем
+      // невидимый активный срез.
+      if (state.sliceKey && state.sliceKey.startsWith('my-') && !perms.slices.includes(state.sliceKey)) {
+        state.filter = emptyFilter();
         state.sliceKey = null;
+        state.selected.clear();
+        cursor = -1;
+      } else if (state.filter.mine) {
+        state.filter.mine = { role: state.role, person: state.person };
       }
-      cursor = -1;
-      render();
-    });
 
-    const sortSel = s.$('[data-sort-sel]');
-    if (sortSel) sortSel.onchange = () => { state.sort = { key: sortSel.value, dir: state.sort.dir }; render(); };
-
-    const sortDir = s.$('[data-sort-dir]');
-    if (sortDir) sortDir.onclick = () => {
-      state.sort = { key: state.sort.key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' };
-      render();
+      invalidateSliceCounts();
+      renderData();
     };
 
-    const dens = s.$('[data-density]');
-    if (dens) dens.onclick = () => { state.density = state.density === 'compact' ? 'normal' : 'compact'; render(); };
-
-    s.$$('[data-column]').forEach((cb) => cb.onchange = (e) => {
-      e.stopPropagation();
-      const key = cb.dataset.column;
-      state.columns = cb.checked
-        ? COLUMNS.filter((c) => state.columns.includes(c.key) || c.key === key).map((c) => c.key)
-        : state.columns.filter((k) => k !== key);
-      render();
-    });
-
-    s.$$('[data-dd-toggle]').forEach((b) => b.onclick = (e) => {
-      e.stopPropagation();
-      const dd = b.closest('.dd');
-      const wasOpen = dd.classList.contains('open');
-      document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
-      if (!wasOpen) dd.classList.add('open');
-    });
-
-    s.$$('[data-sort]').forEach((th) => th.onclick = () => {
-      const key = th.dataset.sort;
-      state.sort = (state.sort.key === key)
-        ? { key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' }
-        : { key, dir: 'desc' };
-      render();
-    });
-
-    const selPage = s.$('[data-select-page]');
-    if (selPage) selPage.onchange = () => {
-      const res = queryAll({ filter: state.filter, sort: state.sort, offset: 0, limit: 200 });
-      if (selPage.checked) res.rows.forEach((r) => state.selected.set(r.id, r.typeId));
-      else res.rows.forEach((r) => state.selected.delete(r.id));
-      render();
-    };
-
-    s.$$('[data-bulk]').forEach((b) => b.onclick = () => bulkAction(b.dataset.bulk));
-
-    // Виртуализация
-    const vp = s.$('[data-viewport]');
-    if (vp) vp.addEventListener('scroll', () => updateRows());
-
-    // Экспорт в CSV — привычный выход в Excel.
-    const exportBtn = s.$('[data-export]');
-    if (exportBtn) exportBtn.onclick = () => exportCsv();
-
-    // Превью
-    const peekClose = s.$('[data-peek-close]');
-    if (peekClose) peekClose.onclick = () => { state.previewId = null; render(); };
-
-    const openPeek = s.$('[data-open-peek]');
-    if (openPeek) openPeek.onclick = () => openRow(state.previewType, state.previewId);
-
-    // Демо-объём
     const bulk = s.$('[data-bulk-count]');
     if (bulk) bulk.onchange = () => {
       setBulkTotal(+bulk.value);
@@ -534,13 +510,14 @@ export function mountOcMenu(host) {
       state.selected.clear();
       cursor = -1;
       host.toast(+bulk.value ? `Загружено ${(+bulk.value).toLocaleString('ru')} синтетических записей` : 'Синтетические записи выключены', 'ok');
-      render();
+      renderData();
     };
 
-    // Создание ОЦ
     s.$$('[data-create]').forEach((b) => b.onclick = async (e) => {
       e.stopPropagation();
       document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+
+      if (!rolePerms(state.role).create) return;
 
       const type = getType(b.dataset.create);
       if (!type || !type.records.createRecord) return;
@@ -556,8 +533,98 @@ export function mountOcMenu(host) {
       openRow(type.manifest.id, rec.id);
     });
 
+    s.$$('[data-bar-toggle]').forEach((b) => b.onclick = () => {
+      const key = b.dataset.barToggle;
+      state.barOpen[key] = !state.barOpen[key];
+      const section = b.closest('.reg-section');
+      if (section) section.classList.toggle('open', state.barOpen[key]);
+    });
+
+    s.$$('[data-slice]').forEach((b) => b.onclick = () => {
+      const def = sliceDefs().find((d) => d.key === b.dataset.slice);
+      if (!def) return;
+      if (state.sliceKey === def.key) { resetFilters(); return; }
+      state.filter = filterForSlice(def, state.person);
+      state.sliceKey = def.key;
+      state.selected.clear();
+      renderData();
+    });
+
+    s.$$('[data-facet]').forEach((cb) => cb.onchange = () => {
+      const key = cb.dataset.facet;
+      const v = cb.value;
+      const list = state.filter[key];
+      state.filter[key] = cb.checked ? [...list, v] : list.filter((x) => x !== v);
+      state.sliceKey = null;
+      renderData();
+    });
+
+    s.$$('[data-facet-toggle]').forEach((b) => b.onclick = () => { toggleSection(b.dataset.facetToggle); renderData(); });
+    s.$$('[data-facet-more]').forEach((b) => b.onclick = () => { toggleExpanded(b.dataset.facetMore); renderData(); });
+
+    s.$$('[data-facet-search]').forEach((inp) => inp.oninput = () => {
+      setSearch(inp.dataset.facetSearch, inp.value);
+      clearTimeout(locatorTimer);
+      locatorTimer = setTimeout(() => {
+        renderData();
+        const again = scope.$(`[data-facet-search="${inp.dataset.facetSearch}"]`);
+        if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+      }, 170);
+    });
+
+    const stale = s.$('[data-stale]');
+    if (stale) stale.onchange = () => { state.filter.staleDays = stale.checked ? 30 : 0; renderData(); };
+
+    s.$$('[data-reset-filters]').forEach((b) => b.onclick = resetFilters);
+
+    const selPage = s.$('[data-select-page]');
+    if (selPage) selPage.onchange = () => {
+      const res = queryAll({ filter: state.filter, sort: state.sort, offset: 0, limit: 200 });
+      if (selPage.checked) res.rows.forEach((r) => state.selected.set(r.id, r.typeId));
+      else res.rows.forEach((r) => state.selected.delete(r.id));
+      renderData();
+    };
+
+    s.$$('[data-bulk]').forEach((b) => b.onclick = () => bulkAction(b.dataset.bulk));
+
+    s.$$('[data-column]').forEach((cb) => cb.onchange = (e) => {
+      e.stopPropagation();
+      const key = cb.dataset.column;
+      state.columns = cb.checked
+        ? COLUMNS.filter((c) => state.columns.includes(c.key) || c.key === key).map((c) => c.key)
+        : state.columns.filter((k) => k !== key);
+      renderData();
+    });
+
+    s.$$('[data-dd-toggle]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const dd = b.closest('.dd');
+      const wasOpen = dd.classList.contains('open');
+      document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+      if (!wasOpen) dd.classList.add('open');
+    });
+
+    s.$$('[data-sort]').forEach((th) => th.onclick = () => {
+      const key = th.dataset.sort;
+      state.sort = (state.sort.key === key)
+        ? { key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'desc' };
+      renderData();
+    });
+
+    const exportBtn = s.$('[data-export]');
+    if (exportBtn) exportBtn.onclick = () => exportCsv();
+
     bindRows();
   }
+
+  // Закрытие дропдаунов по клику вне них — регистрируется один раз на весь
+  // срок жизни страницы. scope.onDocument добавляет слушатель без снятия
+  // старого, поэтому вешать его на каждый renderShell()/renderData() нельзя:
+  // слушатели накапливались бы с каждым действием пользователя.
+  scope.onDocument('click', (e) => {
+    if (!e.target.closest('.dd')) document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+  });
 
   // --- Клавиатура ---------------------------------------------------------
   scope.onDocument('keydown', (e) => {
@@ -577,7 +644,7 @@ export function mountOcMenu(host) {
     else if (e.key === 'Enter' && cursor >= 0) { e.preventDefault(); actOnCursor(true); }
     else if (e.key === ' ' && cursor >= 0) { e.preventDefault(); actOnCursor(false); }
     else if (e.key === 'Escape') {
-      if (state.previewId) { state.previewId = null; render(); }
+      if (state.previewId) closePreview();
     }
   });
 
@@ -587,11 +654,10 @@ export function mountOcMenu(host) {
     cursor = Math.max(0, Math.min(lastTotal - 1, (cursor < 0 ? -1 : cursor) + delta));
 
     const vp = scope.$('[data-viewport]');
-    const rowH = ROW_H[state.density];
     if (vp) {
-      const top = cursor * rowH;
+      const top = cursor * ROW_H;
       if (top < vp.scrollTop) vp.scrollTop = top;
-      else if (top + rowH > vp.scrollTop + vp.clientHeight) vp.scrollTop = top + rowH - vp.clientHeight;
+      else if (top + ROW_H > vp.scrollTop + vp.clientHeight) vp.scrollTop = top + ROW_H - vp.clientHeight;
     }
 
     updateRows();
@@ -605,13 +671,13 @@ export function mountOcMenu(host) {
     else togglePreview(s.typeId, s.id);
   }
 
-  render();
+  renderShell();
 
   return {
     onRoute(route) {
       alive = true;
       applyQueryToState(state, route.query || {});
-      render();
+      renderShell();
     },
     destroy() {
       alive = false;

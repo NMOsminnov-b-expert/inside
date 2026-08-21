@@ -1,12 +1,35 @@
 // Состояние реестра. Всё, что влияет на выборку, живёт в адресе:
 // ссылку на подборку можно переслать коллеге.
+
+// Роли соответствуют этапам конвейера ОЦ (см. STAGE_INDEX в table.js):
+// ЦОД заполняет и удостоверяет → осмотрщик осматривает → оценщик оценивает.
+// «От учреждения» — сторона-заказчик, по этапам объект не ведёт.
 export const ROLES = [
-  { key: 'any', label: 'любая роль' },
-  { key: 'insp', label: 'осмотрщик' },
-  { key: 'appr', label: 'оценщик' },
-  { key: 'cod', label: 'оператор ЦОД' },
-  { key: 'gov', label: 'от учреждения' },
+  { key: 'any', label: 'любая роль', hint: 'без ограничений — как у администратора' },
+  { key: 'insp', label: 'осмотрщик', hint: 'осматривает объекты, уже удостоверенные по документам' },
+  { key: 'appr', label: 'оценщик', hint: 'оценивает объекты после осмотра' },
+  { key: 'cod', label: 'оператор ЦОД', hint: 'заполняет и удостоверяет данные до осмотра, назначает осмотрщика' },
+  { key: 'gov', label: 'от учреждения', hint: 'отвечает за объект со стороны учреждения; этапы не ведёт' },
 ];
+
+// Что роли можно делать в реестре — какие срезы «мне…» видны и какие
+// действия доступны. «any» — не выбранная роль, видно как администратору.
+const ROLE_PERMS = {
+  any: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
+  insp: { slices: ['my-insp', 'my-all'], create: false, assignInsp: false, setStatus: false },
+  appr: { slices: ['my-appr', 'my-all'], create: false, assignInsp: false, setStatus: false },
+  cod: { slices: ['my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
+  gov: { slices: ['my-all'], create: true, assignInsp: false, setStatus: false },
+};
+
+export function rolePerms(key) {
+  return ROLE_PERMS[key] || ROLE_PERMS.any;
+}
+
+export function roleHint(key) {
+  const r = ROLES.find((x) => x.key === key);
+  return r ? r.hint : '';
+}
 
 export const FLAG_LABELS = {
   pendingNotes: 'есть невып. заметки',
@@ -57,9 +80,9 @@ export function createState() {
   return {
     filter: emptyFilter(),
     sort: { key: 'updatedAt', dir: 'desc' },
-    density: 'compact',
     columns: DEFAULT_COLUMNS.slice(),
-    columnsOpen: false,
+    facetsOpen: true,
+    barOpen: { slices: true, recent: true },
     selected: new Map(),
     previewId: null,
     previewType: null,
