@@ -6,6 +6,8 @@ import { viewOC } from './card/ocCard.view.js';
 import { bindOcCard } from './card/ocCard.ctrl.js';
 import { viewOCForm } from './card/ocForm.view.js';
 import { bindOcForm } from './card/ocForm.ctrl.js';
+import { viewOCCreate } from './card/ocCreateForm.view.js';
+import { bindOcCreate } from './card/ocCreateForm.ctrl.js';
 import { ctxPlate, updatePlate } from './card/ctxPlate.js';
 import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
@@ -76,6 +78,7 @@ export function main(host) {
   function viewName() {
     if (route.rest[0] === 'oi') return 'oi';
     if (route.rest[0] === 'form') return 'form';
+    if (route.rest[0] === 'create') return 'create';
     return 'oc';
   }
 
@@ -99,6 +102,7 @@ export function main(host) {
     items.push({ label: `Объект ${rec.eni}`, to: ocHref });
 
     if (ctx.view === 'form') items.push({ label: 'Редактирование ОЦ', current: true });
+    else if (ctx.view === 'create') items.push({ label: 'Создание ОЦ', current: true });
     else if (ctx.oi) items.push({ label: cardMeta(ctx.oi).crumbLabel(ctx.oi), current: true });
     else items.push({ label: manifest.label, current: true });
 
@@ -184,6 +188,9 @@ export function main(host) {
     } else if (ctx.view === 'form') {
       body = viewOCForm(ctx);
       bindBody = () => bindOcForm(ctx);
+    } else if (ctx.view === 'create') {
+      body = viewOCCreate(ctx);
+      bindBody = () => bindOcCreate(ctx);
     } else {
       body = viewOC(ctx);
       bindBody = () => bindOcCard(ctx);

@@ -530,7 +530,7 @@ export function mountOcMenu(host) {
       dataVersion++;
       invalidateSliceCounts();
       host.toast('Объект оценки создан — заполните форму', 'ok');
-      openRow(type.manifest.id, rec.id, ['form']);
+      openRow(type.manifest.id, rec.id, ['create']);
     });
 
     s.$$('[data-bar-toggle]').forEach((b) => b.onclick = () => {
