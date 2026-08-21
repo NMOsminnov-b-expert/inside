@@ -1,7 +1,7 @@
 import { esc } from '../../kernel/dom.js';
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { build, MENU_HREF } from '../../kernel/router.js';
-import { formDialog, selectDialog } from '../../kernel/dialog.js';
+import { selectDialog } from '../../kernel/dialog.js';
 import {
   createState, applyQueryToState, hashFor, emptyFilter, isFilterEmpty,
   ROLES, COLUMNS, rolePerms, roleHint,
@@ -300,7 +300,7 @@ export function mountOcMenu(host) {
   }
 
   // --- Обработчики --------------------------------------------------------
-  function openRow(typeId, id) {
+  function openRow(typeId, id, rest = []) {
     // Уходим со страницы: снимаем отложенный рендер, иначе он перепишет адрес.
     clearTimeout(locatorTimer);
     alive = false;
@@ -314,7 +314,7 @@ export function mountOcMenu(host) {
         .slice(0, 6);
     }
 
-    location.hash = build({ typeId, ocId: id });
+    location.hash = build({ typeId, ocId: id, rest });
   }
 
   function bindRows() {
@@ -513,7 +513,11 @@ export function mountOcMenu(host) {
       renderData();
     };
 
-    s.$$('[data-create]').forEach((b) => b.onclick = async (e) => {
+    // Создание ОЦ подхватывается из самого модуля: никакого отдельного
+    // диалога/формы создания на уровне меню — модуль сразу отдаёт пустую
+    // запись, и мы ведём прямо на её форму редактирования (пока что это
+    // и есть форма создания — та же форма, тот же экран).
+    s.$$('[data-create]').forEach((b) => b.onclick = (e) => {
       e.stopPropagation();
       document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
 
@@ -522,15 +526,11 @@ export function mountOcMenu(host) {
       const type = getType(b.dataset.create);
       if (!type || !type.records.createRecord) return;
 
-      const form = type.records.createForm;
-      const values = await formDialog({ title: form.title, fields: form.fields, okLabel: 'Создать' });
-      if (!values) return;
-
-      const rec = type.records.createRecord(values);
+      const rec = type.records.createRecord();
       dataVersion++;
       invalidateSliceCounts();
-      host.toast('Объект оценки создан — заполните карточку', 'ok');
-      openRow(type.manifest.id, rec.id);
+      host.toast('Объект оценки создан — заполните форму', 'ok');
+      openRow(type.manifest.id, rec.id, ['form']);
     });
 
     s.$$('[data-bar-toggle]').forEach((b) => b.onclick = () => {

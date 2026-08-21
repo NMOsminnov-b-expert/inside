@@ -184,17 +184,10 @@ export { setBulkCount, bulkCount };
 
 // --- Создание записи ----------------------------------------------------
 
-export const createForm = {
-  title: 'Новая квартира (ОЦ)',
-  fields: [
-    { key: 'address', label: 'Адрес', placeholder: 'г. Бишкек, ул. …, д. …, кв. …', required: true },
-    { key: 'eni', label: 'Код ЕНИ', placeholder: '1475…', required: true },
-    { key: 'institution', label: 'Учреждение', placeholder: 'Наименование учреждения' },
-    { key: 'podved', label: 'Подвед', placeholder: 'Подведомственная организация' },
-  ],
-};
-
-export function createRecord(values) {
+// Создание ОЦ не открывает отдельную форму/диалог — модуль сразу отдаёт
+// пустую запись (статус «В заполнении»), меню открывает её форму
+// редактирования (см. app/pages/ocMenu/ocMenu.js). Один экран, а не два.
+export function createRecord() {
   const today = new Date().toISOString().slice(0, 10);
 
   const rec = {
@@ -204,16 +197,16 @@ export function createRecord(values) {
     category: 'Недвижимое',
     type: 'Жилое здание (квартира)',
     purposeTP: 'Жилое',
-    eni: values.eni || '',
-    address: values.address || '',
-    city: (values.address || '').includes('Ош') ? 'Ош' : 'Бишкек',
+    eni: '',
+    address: '',
+    city: '',
     gps: '',
     status: 'В заполнении',
-    institution: values.institution || '',
-    podved: values.podved || '',
+    institution: '',
+    podved: '',
     complex: false,
     updatedAt: today,
-    owners: values.institution ? [values.institution] : [],
+    owners: [],
     users: [],
     resp: { gov: '', cod: '', appr: '', insp: '' },
     notes: [],

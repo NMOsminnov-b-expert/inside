@@ -19,6 +19,7 @@ export function bindOcForm(ctx) {
     rec.institution = s.$('#fInst').value;
     rec.podved = s.$('#fPodved').value;
     rec.address = s.$('#fAddr').value;
+    rec.city = rec.address.includes('Ош') ? 'Ош' : 'Бишкек';
     rec.gps = s.$('#fGps').value;
     rec.complex = !!(s.$('#fComplex') && s.$('#fComplex').checked);
     rec.updatedAt = ctx.today;

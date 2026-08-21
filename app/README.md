@@ -56,9 +56,11 @@ app/
 export const manifest = { id, label, plural, icon, accent, order, hint };
 
 // modules/<тип>/records.js
-export function listRecords();          // массив сводок для меню
-export const createForm;                // описание полей формы создания
-export function createRecord(values);   // создание записи ОЦ этого типа
+export function createRecord();   // создаёт пустую запись ОЦ (статус «В заполнении»),
+                                   // без аргументов — меню сразу ведёт на её форму
+                                   // редактирования; отдельной формы/диалога создания
+                                   // на уровне меню нет — создание подхватывается
+                                   // из модуля этого же ОЦ.
 
 // modules/<тип>/index.js
 export function main(host);              // ГЛАВНАЯ ФУНКЦИЯ: монтирует карточку ОЦ
