@@ -53,7 +53,7 @@ export function bind(ctx, oi) {
   s.$$('[data-flag]').forEach((c) => c.onchange = () => {
     oi.flags = oi.flags || {};
     oi.flags[c.dataset.flag] = c.checked;
-    ctx.renderKeepScroll();
+    ctx.render();
   });
 
   // --- Поля квартиры ------------------------------------------------------
@@ -81,7 +81,7 @@ export function bind(ctx, oi) {
     apt().storeys = String(val);
     oi.floors = val;
     buildApartmentFloors(oi);
-    ctx.renderKeepScroll();
+    ctx.render();
     ctx.updatePlate();
   };
 
@@ -119,7 +119,7 @@ export function bind(ctx, oi) {
   s.$$('[data-struct]').forEach((sel) => sel.onchange = () => {
     oi.struct[sel.dataset.struct] = sel.value;
     // Ручной ввод появляется и исчезает вместе с выбором «Прочее».
-    ctx.renderKeepScroll();
+    ctx.render();
   });
 
   // Ручной ввод «Прочее» теперь сохраняется (в макете значение терялось).

@@ -16,7 +16,7 @@ export function bind(ctx, oi) {
   s.$$('[data-flag]').forEach((c) => c.onchange = () => {
     oi.flags = oi.flags || {};
     oi.flags[c.dataset.flag] = c.checked;
-    ctx.renderKeepScroll();
+    ctx.render();
   });
 
   // --- Фото ---------------------------------------------------------------

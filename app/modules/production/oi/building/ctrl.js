@@ -63,7 +63,7 @@ export function bind(ctx, oi) {
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
   const cc = s.$('[data-catclass]');
-  if (cc) cc.onchange = () => { oi.catClass = cc.value; ctx.renderKeepScroll(); };
+  if (cc) cc.onchange = () => { oi.catClass = cc.value; ctx.render(); };
 
   const rc = s.$('[data-rescat]');
   if (rc) rc.onchange = () => { oi.resCat = rc.value; };
@@ -79,14 +79,14 @@ export function bind(ctx, oi) {
   s.$$('[data-flag]').forEach((c) => c.onchange = () => {
     oi.flags = oi.flags || {};
     oi.flags[c.dataset.flag] = c.checked;
-    ctx.renderKeepScroll();
+    ctx.render();
   });
 
   // --- Конструктивный состав ----------------------------------------------
   s.$$('[data-struct]').forEach((sel) => sel.onchange = () => {
     oi.struct[sel.dataset.struct] = sel.value;
     // Ручной ввод появляется и исчезает вместе с выбором «Прочее».
-    ctx.renderKeepScroll();
+    ctx.render();
   });
 
   // Ручной ввод «Прочее» теперь сохраняется (в макете значение терялось).

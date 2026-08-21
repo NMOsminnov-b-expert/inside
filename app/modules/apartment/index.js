@@ -45,8 +45,11 @@ export function main(host) {
     toast: host.toast,
     resetViewer,
     navigate: (patch) => host.navigate(Object.assign({ ocId: rec.id }, patch)),
+    // render и renderKeepScroll были одним и тем же вызовом с разным
+    // поведением по умолчанию — 217 мест в пяти модулях звали именно
+    // render() и теряли скролл на каждом клике. Скролл теперь сохраняется
+    // всегда, поэтому оставлен один метод (см. draw()).
     render: () => draw(),
-    renderKeepScroll: () => draw({ keepScroll: true }),
     updatePlate: () => { updatePlate(ctx); refreshDrawer(); },
 
     async deleteOi(id) {
@@ -164,7 +167,7 @@ export function main(host) {
     return card;
   }
 
-  async function draw(opts = {}) {
+  async function draw() {
     if (!rec) {
       scope.setHTML(`<div class="card card-pad">Объект оценки не найден.
         <button class="btn btn-ghost btn-sm" data-to-menu style="margin-left:10px">В меню</button></div>`);
@@ -174,7 +177,10 @@ export function main(host) {
       return;
     }
 
-    const top = opts.keepScroll ? scope.root.scrollTop : null;
+    // Каждый клик (добавить документ, снять ответственного, отметить
+    // заметку и т.д.) раньше пересобирал экран с нуля и отбрасывал вверх —
+    // скролл теперь сохраняется всегда, а не только при явном keepScroll.
+    const top = scope.root.scrollTop;
 
     let body = '';
     let bindBody = () => {};
@@ -219,7 +225,7 @@ export function main(host) {
     bindViewer(ctx);
     bindSplitPanes(ctx);
 
-    if (top != null) scope.root.scrollTop = top;
+    scope.root.scrollTop = top;
   }
 
   bindCommonUI();

@@ -221,7 +221,7 @@ export function bindOcCard(ctx) {
     if (accId && (e.target.closest('[data-acc-cell]') || e.target.closest('.chev-btn'))) {
       e.stopPropagation();
       ctx.ui.expanded[accId] = !ctx.ui.expanded[accId];
-      ctx.renderKeepScroll();
+      ctx.render();
       return;
     }
 
@@ -248,7 +248,7 @@ export function bindOcCard(ctx) {
     oi.photos = oi.photos || {};
     oi.photos[cat] = (oi.photos[cat] || 0) + 1;
     ctx.ui.accOpen['ph|' + oi.id + '|' + cat] = true;
-    ctx.renderKeepScroll();
+    ctx.render();
     ctx.toast('Фото загружено', 'ok');
   });
 

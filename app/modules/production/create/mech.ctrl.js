@@ -28,12 +28,12 @@ export function bindMech(ctx) {
   if (add) add.onclick = () => {
     ui.mechRows = ui.mechRows || [];
     ui.mechRows.push({ name: '', type: 'Узел', eni: '' });
-    ctx.renderKeepScroll();
+    ctx.render();
   };
 
   s.$$('[data-mech-del]').forEach((b) => b.onclick = () => {
     ui.mechRows.splice(+b.dataset.mechDel, 1);
-    ctx.renderKeepScroll();
+    ctx.render();
   });
 
   s.$$('[data-mech-row-name]').forEach((i) => i.onchange = () => { ui.mechRows[+i.dataset.mechRowName].name = i.value; });
