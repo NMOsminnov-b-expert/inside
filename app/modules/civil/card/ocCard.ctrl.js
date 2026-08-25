@@ -1,4 +1,4 @@
-import { DOC_TYPES } from '../data/dictionaries.js';
+import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
@@ -15,6 +15,12 @@ function createOi(ctx, type) {
       name: 'Земельный участок',
       purpose: '',
       area: '',
+      areaPud: '',
+      areaBuilt: '',
+      rights: RIGHTS[0],
+      shape: LAND_SHAPE[0],
+      easements: false,
+      easementsArea: '',
       eni: nextEni(rec, rec.eni),
       status: 'Основное',
       flags: { entered: false, matched: false },
@@ -38,14 +44,24 @@ function createOi(ctx, type) {
     eni: nextEni(rec, rec.eni),
     year: '',
     flags: { entered: false, matched: false },
-    areas: { tp: '', pud: '', fact: '', build: '' },
+    rights: RIGHTS[0],
+    oiCategory: '',
+    areas: {
+      tp: '', pud: '', fact: '', build: '',
+      loggias: '', balconies: '',
+    },
     floors: 1,
     floorList: [],
     heights: { ext: '', int: '' },
     buildType: 'Отдельностоящее',
+    mansardType: MANSARD_TYPE[0],
+    loggiasCount: '',
+    balconiesCount: '',
+    rentAreas: [],
     struct: {
       foundation: 'Не указано',
       wallsExt: 'Не указано',
+      wallsInt: 'Не указано',
       ceilings: 'Не указано',
       roof: 'Не указано',
       floors: 'Не указано',
@@ -55,8 +71,18 @@ function createOi(ctx, type) {
     structOther: {},
     heating: [],
     heatingOther: '',
+    wear: {
+      finish: WEAR_LEVEL[0], insulation: WEAR_LEVEL[0], roof: WEAR_LEVEL[0], plinth: WEAR_LEVEL[0],
+      floors: WEAR_LEVEL[0], ceilings: WEAR_LEVEL[0], windows: WEAR_LEVEL[0], doors: WEAR_LEVEL[0], heating: WEAR_LEVEL[0],
+    },
     comment: '',
+    features: '',
     catClass: type.catClass || 'Гражданское здание',
+    // «Доп параметры» — заполняются только для производственно-складских строений.
+    prodHeight: '',
+    prodFrame: '',
+    prodFloors: '',
+    craneBeam: CRANE_BEAM[0],
     dis: false,
     docs: [],
     photos: {},
