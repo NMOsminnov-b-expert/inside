@@ -68,7 +68,7 @@ export function tableOI(ctx) {
             const expanded = !!ctx.ui.expanded[o.id];
 
             const chev = `<button class="chev-btn ${expanded ? 'open' : ''}" title="Показать/скрыть фото">▸</button>`;
-            const lit = meta.hasLetter ? `${chev}${esc(o.letter)}` : `${chev}<span class="tag-mini">участок</span>`;
+            const lit = meta.hasLetter ? `${chev}${esc(o.letter)}` : `${chev}`;
 
             return `<tr class="rowlink" data-open-oi="${o.id}" data-acc-id="${o.id}" title="Клик по строке — карточка; по литере — аккордеон">
               <td data-acc-cell>${lit}</td>
