@@ -1,9 +1,63 @@
 import { photoPages } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextId } from '../../data/store.js';
+import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
 
 export function bind(ctx, oi) {
   const s = ctx.scope;
+
+  const valueBindings = {
+    '[data-land-purpose]': 'purpose',
+    '[data-land-eni]': 'eni',
+    '[data-land-rights]': 'rights',
+    '[data-land-use]': 'useCategory',
+    '[data-land-irrigation]': 'irrigation',
+    '[data-land-soil]': 'soil',
+    '[data-land-bonitet]': 'bonitet',
+    '[data-land-stoniness]': 'stoniness',
+    '[data-land-gas]': 'gasification',
+    '[data-land-central-heating]': 'centralHeating',
+    '[data-land-water]': 'centralWater',
+    '[data-land-autonomous-heating]': 'autonomousHeating',
+    '[data-land-form]': 'form',
+    '[data-land-location]': 'location',
+    '[data-land-road]': 'roadLocation',
+    '[data-land-corner]': 'corner',
+    '[data-land-buildings]': 'buildings',
+    '[data-land-building-type]': 'buildingType',
+    '[data-land-building-area]': 'buildingArea',
+    '[data-land-location-features]': 'locationFeatures',
+    '[data-land-encumbrance-area]': 'encumbranceArea',
+  };
+  Object.entries(valueBindings).forEach(([selector, key]) => {
+    const input = s.$(selector);
+    if (input) input.onchange = () => { oi[key] = input.value; };
+  });
+
+  const type = s.$('[data-land-type]');
+  if (type) type.onchange = () => { oi.landType = type.value; ctx.render(); };
+
+  s.$$('[data-land-area]').forEach((input) => input.onchange = () => {
+    oi.areas = oi.areas || {};
+    oi.areas[input.dataset.landArea] = input.value;
+    ctx.updatePlate();
+  });
+
+  s.$$('[data-land-utility]').forEach((input) => input.onchange = () => {
+    oi.utilities = oi.utilities || {};
+    oi.utilities[input.dataset.landUtility] = input.checked;
+  });
+
+  const encumbrance = s.$('[data-land-encumbrance]');
+  if (encumbrance) encumbrance.onchange = () => { oi.encumbrance = encumbrance.value; ctx.render(); };
+
+  const buildings = s.$('[data-land-buildings]');
+  if (buildings) buildings.onchange = () => { oi.buildings = buildings.value; ctx.render(); };
+
+  const requiredMessage = (input, message) => {
+    input.setCustomValidity(input.value.trim() ? '' : message);
+    return input.value.trim();
+  };
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };
@@ -12,12 +66,6 @@ export function bind(ctx, oi) {
     e.stopPropagation();
     await ctx.deleteOi(b.dataset.delOi);
   });
-
-  const lp = s.$('[data-land-purpose]');
-  if (lp) lp.onchange = () => { oi.purpose = lp.value; };
-
-  const la = s.$('[data-land-area]');
-  if (la) la.onchange = () => { oi.area = la.value; ctx.updatePlate(); };
 
   s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
 
@@ -59,10 +107,14 @@ export function bind(ctx, oi) {
   });
 
   const am = s.$('[data-add-movdoc]');
-  if (am) am.onclick = () => {
-    (oi.docs = oi.docs || []).push({ id: nextId('md'), type: 'Гос. акт на землю', name: 'Новый документ', date: ctx.today });
+  if (am) am.onclick = async () => {
+    const type = await ctx.host.select({ title: 'Тип документа', options: [...DOC_TYPES, ...LAND_PLAN_DOC_TYPES] });
+    if (!type) return;
+    const name = await ctx.host.prompt({ title: 'Прикрепить документ', label: 'Наименование документа (' + type + ')', placeholder: type });
+    if (!name) return;
+    (oi.docs = oi.docs || []).push({ id: nextId('ld'), type, name, date: ctx.today, pages: null });
     ctx.render();
-    ctx.toast('Документ добавлен', 'ok');
+    ctx.toast('Документ прикреплён: ' + type, 'ok');
   };
 
   s.$$('[data-open-ocdocs]').forEach((b) => b.onclick = (e) => {
@@ -74,6 +126,12 @@ export function bind(ctx, oi) {
 
   const sv = s.$('[data-save-oi]');
   if (sv) sv.onclick = () => {
+    const encArea = s.$('[data-land-encumbrance-area]');
+    const buildingType = s.$('[data-land-building-type]');
+    const buildingArea = s.$('[data-land-building-area]');
+    if (oi.encumbrance === 'Есть' && encArea && !requiredMessage(encArea, 'Укажите площадь сервитутов и обременений')) return encArea.reportValidity();
+    if (oi.buildings === 'Есть' && buildingType && !requiredMessage(buildingType, 'Укажите тип построек')) return buildingType.reportValidity();
+    if (oi.buildings === 'Есть' && buildingArea && !requiredMessage(buildingArea, 'Укажите площадь построек')) return buildingArea.reportValidity();
     ctx.resetViewer();
     ctx.navigate({ rest: [] });
     ctx.toast('ОИ сохранён', 'ok');

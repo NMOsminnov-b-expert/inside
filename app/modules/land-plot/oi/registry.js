@@ -21,11 +21,11 @@ export const OI_CARDS = {
     plateKind: 'ОЦ → участок',
     hasLetter: false,
     tableCategory: () => 'Земельный участок',
-    tableArea: (oi) => (oi.area ? fmt(num(oi.area)) + ' м²' : '—'),
+    tableArea: (oi) => (oi.areas && oi.areas.pravo ? fmt(num(oi.areas.pravo)) + ' м²' : '—'),
     plateChips: (oi) => {
       const v = verbal(oi);
       return [
-        `<span class="ctx-chip">${oi.area ? fmt(num(oi.area)) + ' м²' : 'площадь не указана'}</span>`,
+        `<span class="ctx-chip">${oi.areas && oi.areas.pravo ? fmt(num(oi.areas.pravo)) + ' м²' : 'площадь не указана'}</span>`,
         `<span class="ctx-chip ${v.c}">${v.t}</span>`,
       ];
     },

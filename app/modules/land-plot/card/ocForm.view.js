@@ -57,12 +57,23 @@ function mainSection(rec) {
         </div>
       </div>
 
-      <div class="grid g-2" style="margin-top:10px">
+    </div>
+  </div>`;
+}
+
+function locationSection(rec) {
+  return `<div class="card t-teal">
+    <div class="card-head">
+      <span class="card-idx">02</span>
+      <h3>Местоположение</h3>
+    </div>
+
+    <div class="card-pad">
+      <div class="grid g-2">
         <div class="field">
           <label>Адрес</label>
           <input class="input" id="fAddr" value="${esc(rec.address)}">
         </div>
-
         <div class="field">
           <label>GPS-координаты</label>
           <input class="input" id="fGps" value="${esc(rec.gps)}">
@@ -76,7 +87,7 @@ function mainSection(rec) {
 function compositionSection(rec) {
   return `<div class="card t-teal">
     <div class="card-head">
-      <span class="card-idx">02</span>
+      <span class="card-idx">03</span>
       <h3>Состав и тип имущества</h3>
     </div>
 
@@ -92,7 +103,7 @@ function compositionSection(rec) {
 function partiesSection(rec) {
   return `<div class="card t-slate">
     <div class="card-head">
-      <span class="card-idx">03</span>
+      <span class="card-idx">04</span>
       <h3>Собственники, пользователи и ответственные</h3>
       <span class="hint">без юриста</span>
     </div>
@@ -108,7 +119,7 @@ function partiesSection(rec) {
 function docsSection(rec) {
   return `<div class="card t-slate">
     <div class="card-head">
-      <span class="card-idx">04</span>
+      <span class="card-idx">05</span>
       <h3>Документы ОЦ</h3>
       <span class="hint">клик по строке — просмотрщик</span>
 
@@ -129,6 +140,7 @@ export function viewOCForm(ctx) {
 
   const stack = `<div class="oi-stack">
     ${mainSection(rec)}
+    ${locationSection(rec)}
     ${compositionSection(rec)}
     ${partiesSection(rec)}
     ${docsSection(rec)}
