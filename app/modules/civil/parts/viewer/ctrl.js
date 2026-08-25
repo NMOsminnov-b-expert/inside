@@ -1,4 +1,4 @@
-import { docListFor } from '../docs/model.js';
+import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
 import { VS, vSt, vPages, vGo, setVZoom, openDocViewer } from './state.js';
@@ -156,13 +156,15 @@ export function bindViewer(ctx) {
 
     const type = await ctx.host.select({ title: 'Тип документа', options: DOC_TYPES });
     if (!type) return;
-    const name = await ctx.host.prompt({ title: 'Прикрепить документ', label: 'Наименование документа', placeholder: type });
-    if (!name) return;
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
 
     const list = docListFor(ctx, scope);
-    list.push({ id: nextId('doc'), type, name, date: ctx.today, pages: null });
+    const doc = { id: nextId('doc'), type, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
+    list.push(doc);
 
-    ctx.render();
+    openDocViewer(ctx, scope, doc.id);
     ctx.toast('Документ прикреплён: ' + type, 'ok');
   });
 

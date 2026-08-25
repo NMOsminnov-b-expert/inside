@@ -1,4 +1,5 @@
 import { openDocViewer, VS } from '../../parts/viewer/state.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
@@ -25,9 +26,14 @@ export function bind(ctx, oi) {
   });
 
   const am = s.$('[data-add-movdoc]');
-  if (am) am.onclick = () => {
-    (oi.docs = oi.docs || []).push({ id: nextId('md'), type: 'ПУД', name: 'Новый документ', date: ctx.today });
-    ctx.render();
+  if (am) am.onclick = async () => {
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+    oi.docs = oi.docs || [];
+    const doc = { id: nextId('md'), type: 'ПУД', name: file.name, date: ctx.today, file: await attachedFileFrom(file) };
+    oi.docs.push(doc);
+    openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
 
