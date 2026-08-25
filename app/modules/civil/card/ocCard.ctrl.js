@@ -2,6 +2,7 @@ import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } f
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { photoPages } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 
@@ -205,13 +206,15 @@ export function bindOcCard(ctx) {
   s.$$('[data-attach]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const t = b.dataset.attach;
-    const name = await ctx.host.prompt({ title: 'Прикрепить документ', label: 'Наименование документа (' + t + ')', placeholder: t });
-    if (!name) return;
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
 
     rec.docs = rec.docs || [];
-    rec.docs.push({ id: nextId('d'), type: t, name, date: ctx.today, pages: null });
+    const doc = { id: nextId('d'), type: t, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
+    rec.docs.push(doc);
 
-    ctx.render();
+    openDocViewer(ctx, 'oc', doc.id);
     ctx.toast('Документ прикреплён: ' + t, 'ok');
   });
 

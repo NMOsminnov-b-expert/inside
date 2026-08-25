@@ -63,21 +63,28 @@ export function splitWrap(viewerInner, growInner) {
 // Перетаскивание разделителя — часть просмотрщика, а не каркаса.
 export function bindSplitPanes(ctx) {
   ctx.scope.$$('[data-vsplit]').forEach((sp) => {
-    sp.addEventListener('pointerdown', (e) => {
+    sp.onpointerdown = (e) => {
       e.preventDefault();
+      // Захват указателя на самой ручке — без этого на части тачпадов/сенсорных
+      // экранов браузер трактует жест как touch-скролл страницы и до
+      // pointermove дело не доходит, хотя pointerdown срабатывает нормально.
+      sp.setPointerCapture(e.pointerId);
+
       const split = sp.parentElement;
       const rect = split.getBoundingClientRect();
       const maxVW = Math.min(70, Math.max(25, ((rect.width - 620) / rect.width) * 100));
+
       const move = (ev) => {
         const pct = ((ev.clientX - rect.left) / rect.width) * 100;
         split.style.setProperty('--vw', Math.min(maxVW, Math.max(25, pct)) + '%');
       };
       const up = () => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
+        sp.releasePointerCapture(e.pointerId);
+        sp.removeEventListener('pointermove', move);
+        sp.removeEventListener('pointerup', up);
       };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    });
+      sp.addEventListener('pointermove', move);
+      sp.addEventListener('pointerup', up);
+    };
   });
 }

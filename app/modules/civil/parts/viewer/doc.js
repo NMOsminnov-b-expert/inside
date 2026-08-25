@@ -2,7 +2,20 @@ import { esc } from '../../../../kernel/dom.js';
 import { docListFor, scopeLabel } from '../docs/model.js';
 import { VS } from './state.js';
 
+function realFilePageHTML(f) {
+  if (f.kind === 'image') {
+    return `<img src="${f.dataUrl}" alt="${esc(f.name)}" style="max-width:100%;display:block;margin:0 auto;">`;
+  }
+  if (f.kind === 'pdf') {
+    return `<embed src="${f.dataUrl}" type="application/pdf" style="width:100%;height:78vh;border:0;">`;
+  }
+  return `<div class="vempty-box">Предпросмотр недоступен для этого типа файла (${esc(f.mime || 'неизвестный формат')}).</div>
+<a class="btn btn-primary btn-sm" href="${f.dataUrl}" download="${esc(f.name)}" style="margin-top:8px;display:inline-block">Скачать «${esc(f.name)}»</a>`;
+}
+
 export function docPageHTML(d, n) {
+  if (d.file) return realFilePageHTML(d.file);
+
   if (n === 1 || d.pages[n - 1].kind === 'title') {
     return `<div class="pp-h">${esc(d.type)}</div><div class="pp-sub">${esc(d.name)} · страница 1</div>
       <div class="sk-h"></div>${[100, 94, 97, 88].map((w) => `<div class="sk-line" style="width:${w}%"></div>`).join('')}
@@ -57,8 +70,8 @@ export function renderDocMode(ctx, vctx) {
 
   const body = `<div class="vbody"><div class="vrail"><div class="vrail-list">
     ${d.pages.map((p, i) => `<div class="vthumb doc ${i + 1 === dSt.page ? 'active' : ''}" data-vthumb="${i + 1}" title="Страница ${i + 1}">
-      <button class="vthumb-del" data-vdelpage="${i + 1}">×</button><span class="vthumb-num">${i + 1}</span></div>`).join('')}
-    </div><button class="btn btn-ghost btn-sm" data-vaddpage style="margin:6px">+ Страница</button></div>
+      ${d.file ? '' : `<button class="vthumb-del" data-vdelpage="${i + 1}">×</button>`}<span class="vthumb-num">${i + 1}</span></div>`).join('')}
+    </div>${d.file ? '' : `<button class="btn btn-ghost btn-sm" data-vaddpage style="margin:6px">+ Страница</button>`}</div>
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>
       ${d.pages.map((p, i) => `<div class="vpage-wrap" data-vpageblk="${i + 1}"><div class="vpage" data-vpageinner style="transform:rotate(${dSt.rot}deg)">${docPageHTML(d, i + 1)}</div></div>`).join('')}
     </div></div></div>`;
