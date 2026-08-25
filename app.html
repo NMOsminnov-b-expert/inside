@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inside — Объекты оценки</title>
+
+  <link rel="stylesheet" href="./app/kernel/tokens.css">
+  <link rel="stylesheet" href="./app/shell/shell.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="appSidebar">
+      <div class="side-logo">
+        <div class="logo-mark">I</div>
+
+        <div class="logo-text">
+          <b>Inside</b>
+          <span>Система оценки имущества</span>
+        </div>
+      </div>
+
+      <nav class="side-nav">
+        <button class="nav-item" data-nav="inst" title="Учреждения">
+          <span class="nav-ico">▤</span>
+          <span class="nav-label">Учреждения</span>
+        </button>
+
+        <button class="nav-item active" data-nav="oc" title="Объекты оценки">
+          <span class="nav-ico">▣</span>
+          <span class="nav-label">Объекты оценки</span>
+        </button>
+
+        <button class="nav-item" data-nav="docs" title="Документы">
+          <span class="nav-ico">◈</span>
+          <span class="nav-label">Документы</span>
+        </button>
+
+        <button class="nav-item" data-nav="dict" title="Справочники">
+          <span class="nav-ico">☰</span>
+          <span class="nav-label">Справочники</span>
+          <span class="nav-soon">скоро</span>
+        </button>
+
+        <button class="nav-item" data-nav="users" title="Пользователи">
+          <span class="nav-ico">◎</span>
+          <span class="nav-label">Пользователи</span>
+          <span class="nav-soon">скоро</span>
+        </button>
+      </nav>
+
+      <div class="side-foot">
+        <span>v0.30.0</span>
+        <span>Осминов Н.</span>
+      </div>
+
+      <button class="sidebar-toggle" data-sidebar-toggle title="Свернуть меню">◀</button>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <nav class="crumbs" id="crumbs"></nav>
+        <div class="top-user"><span>Осминов Н.</span><span class="avatar">ОН</span></div>
+      </header>
+
+      <div class="main-row">
+        <div class="content" id="content"></div>
+
+        <aside class="notes-drawer hidden" id="notesDrawer">
+          <button class="notes-tab" data-notes-toggle>
+            <span>Заметки</span>
+            <span class="pill-mini" id="drawerCount">0</span>
+          </button>
+
+          <div class="drawer-inner" id="drawerNotes"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script type="module" src="./app/main.js"></script>
+</body>
+</html>

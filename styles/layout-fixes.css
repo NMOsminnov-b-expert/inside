@@ -1,34 +1,114 @@
 /*
   Доработки layout:
-  1. Сворачивание сайдбара.
-  2. Видимость выпадающих меню в шапке ОЦ и в заголовке таблицы ОИ.
+  1. Переключатель сайдбара в правом нижнем углу.
+  2. Плавное сворачивание без подёргиваний.
+  3. Видимость выпадающих меню в шапке ОЦ и в заголовке таблицы ОИ.
 */
 
 .sidebar {
+  position: relative;
+  overflow: hidden;
   transition: width 0.18s ease;
+  will-change: width;
 }
 
 .sidebar.collapsed {
   width: 56px;
 }
 
+/*
+  Кнопка переключения фиксируется в правом нижнем углу сайдбара.
+  Она не участвует в потоке, поэтому не влияет на пересчёт layout.
+*/
 .sidebar-toggle {
-  margin-left: auto;
-  width: 24px;
-  height: 24px;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+
+  width: 30px;
+  height: 30px;
+
   border-radius: 6px;
   color: #7d93a6;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
+
   border: 1px solid transparent;
   flex-shrink: 0;
+
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .sidebar-toggle:hover {
   background: var(--blue-50);
   color: var(--blue-700);
   border-color: var(--line);
+}
+
+/*
+  Текстовые части скрываем через opacity/visibility,
+  а не через display: none, чтобы не было резких скачков.
+*/
+.logo-text,
+.nav-label,
+.nav-soon,
+.side-foot {
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-soon,
+.sidebar.collapsed .side-foot {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/*
+  Оставляем нижний блок видимым по высоте,
+  чтобы кнопка не прыгала при скрытии текста.
+*/
+.sidebar.collapsed .side-foot {
+  visibility: hidden;
+}
+
+/*
+  При сворачивании иконки центрируются только за счёт padding.
+  justify-content не меняем, чтобы не было скачка позиции.
+*/
+.side-logo,
+.nav-item {
+  transition: padding 0.18s ease;
+}
+
+.sidebar.collapsed .nav-item {
+  padding: 7px 20px;
+}
+
+.sidebar.collapsed .nav-ico {
+  width: auto;
+}
+
+/*
+  Чтобы скрытые подписи не вылезали за пределы сайдбара.
+*/
+.side-logo {
+  overflow: hidden;
+}
+
+.side-nav {
+  overflow: hidden;
+}
+
+.side-foot {
+  padding-top: 20px;
+  overflow: hidden;
+  padding-right: 45px;
+  height: 50px;
 }
 
 .nav-label {
@@ -39,36 +119,10 @@
   white-space: nowrap;
 }
 
-.sidebar.collapsed .logo-mark,
-.sidebar.collapsed .logo-text,
-.sidebar.collapsed .nav-label,
-.sidebar.collapsed .nav-soon,
-.sidebar.collapsed .side-foot {
-  display: none;
-}
-
-.sidebar.collapsed .side-logo {
-  justify-content: center;
-  padding: 12px 8px;
-  gap: 0;
-}
-
-.sidebar.collapsed .sidebar-toggle {
-  margin: 0;
-}
-
-.sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 8px 6px;
-}
-
-.sidebar.collapsed .nav-ico {
-  width: auto;
-}
-
 /*
-  В исходном app.css у .head-meta стоит overflow: hidden.
-  Из-за этого выпадающее меню кнопки «Добавить ОИ» обрезается.
+  Исправление видимости выпадающих меню.
+  В исходном стиле .head-meta имеет overflow: hidden,
+  из-за чего абсолютное меню дропдауна обрезается.
 */
 .head-meta,
 .card-head {
@@ -81,6 +135,10 @@
   overflow: auto;
 }
 
+/*
+  Меню в шапке ОЦ и в шапке таблицы ОИ лучше открывать влево,
+  чтобы не вылезать за правый край экрана.
+*/
 .head-meta .dd-menu,
 .card-head .dd-menu {
   left: auto;
