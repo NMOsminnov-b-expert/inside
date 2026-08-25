@@ -70,7 +70,7 @@ export const PROD_FRAME = [
 
 export const PROD_FLOORS = ['Отсутствуют', 'Не усиленные', 'Усиленные для техники'];
 
-export const TEMP_MODE = ['Тёплый склад', 'Морозильник, холодильник', 'Ангар и холодный склад'];
+export const TEMP_MODE = ['Тёплый склад', 'Морозильник', 'Холодильник', 'Ангар', 'Холодный склад'];
 
 export const STRUCT_STRENGTH = ['Облегчённая', 'Усиленная'];
 
