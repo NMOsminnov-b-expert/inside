@@ -1,0 +1,541 @@
+{
+  "meta": {
+    "branch": "kartochka-zhilogo-zdaniya",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260821T035343Z",
+    "baseCommit": "c3bceb7",
+    "note": "Начальное наполнение графа: анализ архитектуры и доменной модели проекта inside (kernel, shell, ocMenu, 5 модулей ОЦ, конвенции, решения, открытые вопросы)."
+  },
+  "entities": [
+    {
+      "name": "inside",
+      "entityType": "Project",
+      "observations": [
+        "Frontend-приложение на чистом JS (без фреймворков) для учёта объектов оценки (ОЦ) и объектов инвентаризации/имущества (ОИ) — здания, квартиры, участки, движимое имущество.",
+        "Точка входа новой сборки: app.html → app/main.js → app/kernel/boot.js. Старая сборка (index.html, src/, styles/, inside.html) не изменяется и существует параллельно для сравнения.",
+        "Репозиторий: https://github.com/NMOsminnov-b-expert/inside",
+        "Иерархия навигации: меню ОЦ (#/) → карточка ОЦ (#/oc/<typeId>/<ocId>) → карточка ОИ (.../oi/<oiId>)."
+      ]
+    },
+    {
+      "name": "ОЦ (Объект Оценки)",
+      "entityType": "DomainConcept",
+      "observations": [
+        "Запись верхнего уровня учёта: дом, здание, участок.",
+        "Пять типов ОЦ реализованы как изолированные модули в app/modules/*.",
+        "Тип ОЦ в форме заблокирован — соответствует модулю; перенос записи между типами не поддерживается архитектурой."
+      ]
+    },
+    {
+      "name": "ОИ (Объект Инвентаризации/Имущества)",
+      "entityType": "DomainConcept",
+      "observations": [
+        "Единица учёта, вложенная в ОЦ: литера здания, квартира, участок, движимое имущество (МЕХ).",
+        "Виды ОИ определяются каждым модулем отдельно в oi/registry.js и oi/<вид>/.",
+        "ЕНИ — код инвентарного номера, используется как идентификатор поиска (локатор в меню ОЦ)."
+      ]
+    },
+    {
+      "name": "app/kernel",
+      "entityType": "KernelModule",
+      "observations": [
+        "Ядро приложения: не знает ни одного типа ОЦ и ни одного вида ОИ (правило из app/README.md).",
+        "Единственное исключение — kernel/registry.js, который статически импортирует manifest.js и records.js всех пяти модулей."
+      ]
+    },
+    {
+      "name": "app/kernel/boot.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Точка сборки приложения: инициализирует shell, слушает router, монтирует ocMenu или карточку ОЦ модуля через type.load().",
+        "Формирует объект host (navigate, crumbs, drawer, toast/dialog, ensureStyle) — единственный API, который получают модули и страницы."
+      ]
+    },
+    {
+      "name": "app/kernel/router.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Hash-роутинг #/oc/<typeId>/<ocId>/...rest.",
+        "parse/build адреса, эмитит hashchange (start, go)."
+      ]
+    },
+    {
+      "name": "app/kernel/registry.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Список типов ОЦ (OC_TYPES).",
+        "Единственное исключение из правила изоляции ядра: статически импортирует manifest.js и records.js каждого модуля, код карточки (index.js) — лениво через load()."
+      ]
+    },
+    {
+      "name": "app/kernel/store.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Универсальный мини-стор (createStore) с подпиской, используется внутри модулей для их данных/UI-состояния."
+      ]
+    },
+    {
+      "name": "app/kernel/scope.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "DOM-скоуп: делегирование событий и рендер строго внутри root, чтобы экраны не пересекались через document.querySelector."
+      ]
+    },
+    {
+      "name": "app/kernel/dom.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Примитивы esc, $, $$."
+      ]
+    },
+    {
+      "name": "app/kernel/dialog.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Модальные confirm/prompt/select/formDialog вместо нативных браузерных диалогов."
+      ]
+    },
+    {
+      "name": "app/kernel/toast.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Уведомления в #toastWrap."
+      ]
+    },
+    {
+      "name": "app/kernel/css.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "ensureStyle — ленивая однократная подгрузка CSS модуля по href."
+      ]
+    },
+    {
+      "name": "app/kernel/fmt.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Числа/строки: num, fmt, round2, norm."
+      ]
+    },
+    {
+      "name": "app/shell",
+      "entityType": "Shell",
+      "observations": [
+        "Чистый каркас окна: сайдбар (collapse), крошки #crumbs, ящик заметок #notesDrawer, активный пункт навигации.",
+        "Не знает про ОЦ/ОИ — только рисует то, что передают через setCrumbs/setDrawer/updateDrawer/setActiveNav."
+      ]
+    },
+    {
+      "name": "app/pages/ocMenu",
+      "entityType": "Page",
+      "observations": [
+        "«Меню ОЦ» — табличный виртуализированный реестр всех ОЦ (правился в последнем коммите «Изменение меню ОЦ», c3bceb7).",
+        "Файлы: ocMenu.js, state.js, query.js, slices.js, facets.js, table.js, locator.js, preview.js.",
+        "Локатор распознаёт ЕНИ/литеру/адрес; строка срезов-чипов; фасеты; сортируемая таблица; превью; экспорт CSV (';' + BOM для Excel).",
+        "Складывает страницы всех модулей через k-way merge в query.js.",
+        "Виртуализация: 20 000 записей ведут себя как 20 (фасеты ~23мс, подсчёт итога ~1мс, окно таблицы ~12мс)."
+      ]
+    },
+    {
+      "name": "app/modules/apartment",
+      "entityType": "DomainModule",
+      "observations": [
+        "ОЦ-тип «Жилое здание (квартира)»: квартиры в МКД.",
+        "Виды ОИ: apartment, building (oi/registry.js).",
+        "Стандартная внутренняя структура: manifest.js, records.js, data/*, card/ (ocCard, ocForm, oiTable.view.js, ctxPlate.js, addOiMenu.js, parties.view.js), oi/<вид>/, parts/{docs,notes,photos,viewer}."
+      ]
+    },
+    {
+      "name": "app/modules/residential-house",
+      "entityType": "DomainModule",
+      "observations": [
+        "ОЦ-тип «Жилое здание (дом)»: индивидуальные дома с литерами (building), квартирами (apartment), землёй (land).",
+        "Виды ОИ: building, apartment, land."
+      ]
+    },
+    {
+      "name": "app/modules/civil",
+      "entityType": "DomainModule",
+      "observations": [
+        "ОЦ-тип «Гражданское здание»: административные/общественные здания.",
+        "Виды ОИ: building, land, movable (МЕХ/офисная техника).",
+        "create/mech.* — мастер создания комплекса; строки комплекса живут в состоянии модуля и попадают в созданный ОИ (complexItems)."
+      ]
+    },
+    {
+      "name": "app/modules/production",
+      "entityType": "DomainModule",
+      "observations": [
+        "ОЦ-тип «Производственное строение»: цеха/склады/оборудование.",
+        "Высота и стены обязательны для заполнения."
+      ]
+    },
+    {
+      "name": "app/modules/land-plot",
+      "entityType": "DomainModule",
+      "observations": [
+        "ОЦ-тип «Земельный участок»: участок как самостоятельный ОЦ.",
+        "Виды ОИ: land, building."
+      ]
+    },
+    {
+      "name": "convention: изоляция модулей",
+      "entityType": "Convention",
+      "observations": [
+        "modules/* → kernel — можно; modules/* → modules/* — нельзя; kernel|shell|pages → modules/* — нельзя, кроме kernel/registry.js.",
+        "Проверяется на код-ревью (зафиксировано в app/README.md).",
+        "Следствие: перенос ОЦ между типами не поддерживается — требует обмена данными между модулями."
+      ]
+    },
+    {
+      "name": "convention: CSS-копии по модулям",
+      "entityType": "Convention",
+      "observations": [
+        "modules/<тип>/module.css — копия правил карточек/полей/таблиц/аккордеонов/просмотрщика, ограниченная body[data-module=\"<тип>\"].",
+        "Копии намеренные: типы ОЦ должны расходиться независимо; на старте все копии идентичны (визуал совпадает со старой сборкой попиксельно).",
+        "Ядро ставит document.body.dataset.module при монтировании модуля."
+      ]
+    },
+    {
+      "name": "convention: сводки и запросы реестра",
+      "entityType": "Convention",
+      "observations": [
+        "Модуль отдаёт не «все сводки», а страницы по запросу: queryRecords, countRecords, facets, locate, getSummary, loadRecord, totalCount, setStatus, assignResponsible.",
+        "Рассчитано на десятки тысяч записей."
+      ]
+    },
+    {
+      "name": "decision: блокировка типа/категории ОЦ в форме",
+      "entityType": "Decision",
+      "observations": [
+        "Поля «Тип ОЦ» и «Категория ОЦ» в форме ОЦ заблокированы: тип = модуль.",
+        "Перенос записи между типами — отдельная задача, требует обмена данными между модулями (архитектурой запрещён).",
+        "Зафиксировано в app/README.md, раздел «Что сделано иначе, чем в макете»."
+      ]
+    },
+    {
+      "name": "decision: меню ОЦ как табличный реестр",
+      "entityType": "Decision",
+      "observations": [
+        "Меню ОЦ переписано под масштаб: вместо плиток-каталога — табличный реестр с локатором, срезами, фасетами и виртуализацией.",
+        "Приоритет — ПК и пользователи, привыкшие к Excel."
+      ]
+    },
+    {
+      "name": "decision: адрес хранит вкладку и открытый ОИ",
+      "entityType": "Decision",
+      "observations": [
+        "#/oc/<тип>/<ocId>/oi/<oiId>?tab=docs — ссылку можно переслать, F5 не сбрасывает экран."
+      ]
+    },
+    {
+      "name": "open: стилизация .ms-drop/.ms-opt (список отопления)",
+      "entityType": "OpenQuestion",
+      "observations": [
+        "В исходном CSS дропдаун списка отопления не описан вообще — рисуется без оформления.",
+        "Сохранено 1:1 со старой сборкой; решение чинить или нет — за пользователем/командой (app/README.md, «Осталось на согласование»)."
+      ]
+    },
+    {
+      "name": "open: UI перечня помещений (oi.premises)",
+      "entityType": "OpenQuestion",
+      "observations": [
+        "oi.premises и справочник PREM_CAT есть в данных, но UI перечня помещений отсутствовал и в макете.",
+        "Перенесено как есть; в модулях полей для этого нет (app/README.md, «Осталось на согласование»)."
+      ]
+    },
+    {
+      "name": "collect_context.py",
+      "entityType": "Tool",
+      "observations": [
+        "Рекурсивно собирает текстовые файлы проекта (.py/.js/.ts/.html/.css/.md/...) в один context.txt с маркерами FILE: — подготовка контекста для LLM."
+      ]
+    },
+    {
+      "name": "tools/visual-parity",
+      "entityType": "Tool",
+      "observations": [
+        "compare.py поднимает старую и новую сборки, попиксельно сравнивает область #content в 12 состояниях (нужен playwright+pillow).",
+        "walk-new-build.py — smoke-прогон новой сборки (реестр на 20000 записей + все 5 карточек) с отловом консольных ошибок.",
+        "baseline/ — эталонные скриншоты старой сборки v0.29.0.",
+        "Текущий результат: 11 из 12 состояний — 0 отличий; форма ОЦ отличается только двумя заблокированными полями."
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/kernel/router.js",
+      "relationType": "uses"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/kernel/registry.js",
+      "relationType": "uses"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/kernel/dialog.js",
+      "relationType": "uses"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/kernel/toast.js",
+      "relationType": "uses"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/kernel/css.js",
+      "relationType": "uses"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/shell",
+      "relationType": "mounts"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/pages/ocMenu",
+      "relationType": "mounts"
+    },
+    {
+      "from": "app/kernel/scope.js",
+      "to": "app/kernel/dom.js",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/kernel/dialog.js",
+      "to": "app/kernel/dom.js",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/kernel/registry.js",
+      "to": "app/modules/apartment",
+      "relationType": "references"
+    },
+    {
+      "from": "app/kernel/registry.js",
+      "to": "app/modules/residential-house",
+      "relationType": "references"
+    },
+    {
+      "from": "app/kernel/registry.js",
+      "to": "app/modules/civil",
+      "relationType": "references"
+    },
+    {
+      "from": "app/kernel/registry.js",
+      "to": "app/modules/production",
+      "relationType": "references"
+    },
+    {
+      "from": "app/kernel/registry.js",
+      "to": "app/modules/land-plot",
+      "relationType": "references"
+    },
+    {
+      "from": "app/modules/apartment",
+      "to": "app/kernel",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/modules/residential-house",
+      "to": "app/kernel",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/modules/civil",
+      "to": "app/kernel",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/modules/production",
+      "to": "app/kernel",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/modules/land-plot",
+      "to": "app/kernel",
+      "relationType": "depends_on"
+    },
+    {
+      "from": "app/pages/ocMenu",
+      "to": "app/modules/apartment",
+      "relationType": "aggregates_records_from"
+    },
+    {
+      "from": "app/pages/ocMenu",
+      "to": "app/modules/residential-house",
+      "relationType": "aggregates_records_from"
+    },
+    {
+      "from": "app/pages/ocMenu",
+      "to": "app/modules/civil",
+      "relationType": "aggregates_records_from"
+    },
+    {
+      "from": "app/pages/ocMenu",
+      "to": "app/modules/production",
+      "relationType": "aggregates_records_from"
+    },
+    {
+      "from": "app/pages/ocMenu",
+      "to": "app/modules/land-plot",
+      "relationType": "aggregates_records_from"
+    },
+    {
+      "from": "convention: изоляция модулей",
+      "to": "app/kernel",
+      "relationType": "governs"
+    },
+    {
+      "from": "convention: изоляция модулей",
+      "to": "app/modules/apartment",
+      "relationType": "governs"
+    },
+    {
+      "from": "convention: изоляция модулей",
+      "to": "app/modules/residential-house",
+      "relationType": "governs"
+    },
+    {
+      "from": "convention: изоляция модулей",
+      "to": "app/modules/civil",
+      "relationType": "governs"
+    },
+    {
+      "from": "convention: изоляция модулей",
+      "to": "app/modules/production",
+      "relationType": "governs"
+    },
+    {
+      "from": "convention: изоляция модулей",
+      "to": "app/modules/land-plot",
+      "relationType": "governs"
+    },
+    {
+      "from": "decision: блокировка типа/категории ОЦ в форме",
+      "to": "convention: изоляция модулей",
+      "relationType": "caused_by"
+    },
+    {
+      "from": "decision: меню ОЦ как табличный реестр",
+      "to": "app/pages/ocMenu",
+      "relationType": "affects"
+    },
+    {
+      "from": "decision: адрес хранит вкладку и открытый ОИ",
+      "to": "app/kernel/router.js",
+      "relationType": "affects"
+    },
+    {
+      "from": "open: стилизация .ms-drop/.ms-opt (список отопления)",
+      "to": "tools/visual-parity",
+      "relationType": "tracked_by"
+    },
+    {
+      "from": "tools/visual-parity",
+      "to": "inside",
+      "relationType": "verifies"
+    },
+    {
+      "from": "collect_context.py",
+      "to": "inside",
+      "relationType": "supports"
+    },
+    {
+      "from": "app/kernel",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/shell",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/pages/ocMenu",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/modules/apartment",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/modules/residential-house",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/modules/civil",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/modules/production",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/modules/land-plot",
+      "to": "inside",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/boot.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/router.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/registry.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/store.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/scope.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/dom.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/dialog.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/toast.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/css.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "app/kernel/fmt.js",
+      "to": "app/kernel",
+      "relationType": "part_of"
+    },
+    {
+      "from": "ОЦ (Объект Оценки)",
+      "to": "ОИ (Объект Инвентаризации/Имущества)",
+      "relationType": "contains"
+    }
+  ]
+}

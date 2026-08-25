@@ -1,0 +1,70 @@
+/*
+  Токены и базовые примитивы: переменные, reset, кнопки, пилюли, дропдауны, тосты.
+  Перенесено из styles/app.css без изменения значений.
+*/
+:root{
+  --bg:#e9f1f8; --panel:#ffffff;
+  --line:#c3cfdd; --line-soft:#dbe4ee; --line-input:#a9bcd4;
+  --ink:#16233a; --muted:#526073;
+  --blue-700:#14508c; --blue-600:#1668c9; --blue-500:#2f83c4;
+  --blue-300:#8fb8e0; --blue-200:#bcd6f0; --blue-100:#dcebf8; --blue-50:#eef6ff;
+  --teal-700:#0b6b5d; --teal-600:#0e8172; --teal-100:#bfe3db; --teal-50:#eafaf6;
+  --amber-700:#8a5a10; --amber-600:#c07c1e; --amber-100:#f3ddae; --amber-50:#fdf4e3;
+  --slate-700:#2c4460; --slate-500:#54718f; --slate-50:#e6eef6;
+  --danger:#c02626; --warn:#8a6d1f;
+  --radius:10px; --shadow:0 1px 2px rgba(19,41,62,.07),0 4px 14px rgba(19,41,62,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:13px/1.45 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
+button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+.muted{color:var(--muted)}
+@keyframes accIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid transparent;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn-primary{background:var(--blue-600);color:#fff}
+.btn-primary:hover{background:var(--blue-700)}
+.btn-ghost{background:#fff;border-color:var(--line);color:#33445c}
+.btn-ghost:hover{background:var(--blue-50);border-color:var(--blue-500)}
+.btn-danger{background:#fff;border-color:#f3c1c1;color:var(--danger)}
+.btn-danger:hover{background:#fdf3f3}
+.btn-sm{padding:3px 8px;font-size:11.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.pill-status{background:var(--blue-100);color:var(--blue-700)}
+.pill-status .dot{width:6px;height:6px;border-radius:50%;background:var(--blue-600)}
+.pill-cat{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+.pill-gray{background:var(--blue-50);color:#33445c;border:1px solid var(--blue-200)}
+.pill-mini{font-size:9.5px;background:var(--blue-50);color:#33445c;border:1px solid var(--blue-200);padding:1px 7px;border-radius:999px;font-weight:600}
+.pill-mini.pill-pend{background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-300)}
+.pill-mini.pill-done{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
+.dd{position:relative}
+.dd-menu{position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);min-width:250px;padding:6px;display:none;z-index:60;animation:accIn .14s ease}
+.dd.open .dd-menu{display:block}
+.dd-group{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#61799a;padding:6px 9px 3px;font-weight:700}
+.dd-menu button{display:block;width:100%;text-align:left;padding:6px 9px;border-radius:7px;font-size:12.5px;color:#33445c}
+.dd-menu button:hover{background:var(--blue-50)}
+.toast-wrap{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:#0e2f4f;color:#eaf3f8;padding:9px 14px;border-radius:9px;font-size:12.5px;box-shadow:0 8px 20px rgba(15,23,42,.35);animation:tin .18s ease;max-width:420px}
+.toast.ok{background:var(--teal-700)}
+.toast.warn{background:var(--warn)}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+.inline-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.tag-mini{font-size:9.5px;background:var(--blue-50);border:1px solid var(--blue-200);border-radius:4px;padding:1px 5px;color:#33445c;white-space:nowrap}
+.dd-menu{
+  z-index: 300;
+  max-height: 340px;
+  overflow: auto;
+}
+
+/* Модальные окна ядра (замена нативных confirm/prompt). Визуал — по карточкам системы. */
+.modal-back{position:fixed;inset:0;background:rgba(14,47,79,.34);display:flex;align-items:center;justify-content:center;z-index:400;animation:tin .14s ease}
+.modal{background:var(--panel);border:1.5px solid var(--line);border-left:4px solid var(--blue-600);border-radius:var(--radius);box-shadow:0 18px 48px rgba(15,23,42,.28);min-width:380px;max-width:520px;animation:cardIn .16s ease}
+.modal-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);background:#d9e9fb;color:#123f74;font-size:13px;font-weight:700;border-radius:6px 6px 0 0}
+.modal-body{padding:14px 16px;font-size:13px}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--line-soft)}
+.modal-list{display:flex;flex-direction:column;gap:2px;max-height:320px;overflow:auto}
+.modal-opt{display:block;width:100%;text-align:left;padding:7px 10px;border-radius:7px;font-size:12.5px;color:#33445c}
+.modal-opt:hover{background:var(--blue-50)}
+.modal-opt.active{background:var(--blue-100);color:var(--blue-700);font-weight:600}
+.modal-err{margin-top:10px;font-size:11.5px;color:var(--danger);font-weight:600}

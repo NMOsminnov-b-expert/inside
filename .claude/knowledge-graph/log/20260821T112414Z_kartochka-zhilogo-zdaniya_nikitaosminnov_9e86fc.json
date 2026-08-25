@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "branch": "kartochka-zhilogo-zdaniya",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260821T112414Z",
+    "baseCommit": "c84fc9a",
+    "note": "Прямой запрос пользователя: 'любой запрос к js вызывает перерисовку' по всему проекту, с явным разрешением на тотальный рефактор, если потребуется. Расследование сузило проблему до конкретной, узкой причины (см. Decision) и позволило исправить её в 5 файлах вместо сотен."
+  },
+  "entities": [
+    {
+      "name": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "entityType": "Decision",
+      "observations": [
+        "Расследование: в app/modules/*/index.js draw(opts) сохраняла/восстанавливала scope.root.scrollTop (= #content, единственный скроллящийся контейнер страницы) только при явном opts.keepScroll — а renderKeepScroll() этот флаг передавала, а render() (обычный) — нет. При этом ctx.render() вызывается 217 раз по всем 5 модулям (добавить/убрать документ, собственника, пользователя, ответственного, заметку и т.д.), а ctx.renderKeepScroll() — только 41 раз. Каждое из этих 217 действий отбрасывало экран карточки/ОИ в самый верх — это и есть «любой запрос к js вызывает перерисовку».",
+        "Проверено (grep по всему app/modules): реального бага «теряется фокус при вводе» (как раньше был в ocMenu-локаторе) в модулях нет — единственный oninput во всём дереве модулей (photos/explorer.js, поиск по фото) уже сам обновляет только свой кусок DOM (#photoSections), не трогая остальной экран. Поэтому не хватало не re-render-архитектуры уровня ocMenu (regions/renderShell-renderData), а одной вещи — сохранения скролла при обычном render().",
+        "Исправлено: draw() в каждом из 5 index.js больше не принимает opts — scrollTop сохраняется и восстанавливается всегда, безусловно. render и renderKeepScroll стали одинаковыми по поведению, поэтому renderKeepScroll как отдельный метод убран из ctx (сама раздвоенность была источником бага — 217 вызовов «обычного» варианта, о котором никто не думал как об опасном), все 41 вызов ctx.renderKeepScroll() по 20 файлам (ocCard.ctrl.js, create/mech.ctrl.js, oi/<вид>/ctrl.js во всех модулях) переименованы в ctx.render().",
+        "Сознательно НЕ делался ocMenu-style разнос на renderShell/renderData/точечные DOM-патчи для карточек ОЦ/ОИ — для этого нет реального повода (клики, не потоковый ввод в фокусе), а строить эту инфраструктуру «на всякий случай» само по себе было бы тем обобщением, которого пользователь просил избегать.",
+        "Проверено playwright на apartment/civil/production: узкий viewport форсирует реальный скролл контента, scrollTop выставлен вручную, вызвано настоящее действие (добавление собственника через модалку) — scrollTop не изменился после рендера. Плюс штатный smoke-тест проекта (walk-new-build.py) на реестре 20000 записей и всех 5 карточках — 0 ошибок консоли."
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "to": "app/modules/apartment",
+      "relationType": "affects"
+    },
+    {
+      "from": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "to": "app/modules/residential-house",
+      "relationType": "affects"
+    },
+    {
+      "from": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "to": "app/modules/civil",
+      "relationType": "affects"
+    },
+    {
+      "from": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "to": "app/modules/production",
+      "relationType": "affects"
+    },
+    {
+      "from": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "to": "app/modules/land-plot",
+      "relationType": "affects"
+    },
+    {
+      "from": "decision: render() всегда сохраняет скролл во всех 5 модулях",
+      "to": "decision: частичный ре-рендер ocMenu (renderShell/renderData)",
+      "relationType": "relates_to"
+    }
+  ]
+}
