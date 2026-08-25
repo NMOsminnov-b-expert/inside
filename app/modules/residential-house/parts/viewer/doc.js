@@ -19,9 +19,29 @@ export function renderDocMode(ctx, vctx) {
   const { scopes, vd, d, dSt } = vctx;
 
   if (!d) {
+    const toolbar = `<div class="vtoolbar"><div class="tool-group right"><span class="vtitle">Документы</span><button class="tool-btn" data-vclose>×</button></div></div>`;
+
+    // Просмотрщик — индикатор наличия документов: если они есть (просто
+    // ни один не открыт как вкладка), предлагаем выбрать, а не пишем
+    // «нет документов» — эта фраза только для случая, когда их правда нет.
+    const available = scopes.flatMap((sc) => docListFor(ctx, sc).map((t) => ({ sc, t })));
+    if (!available.length) {
+      return {
+        toolbar,
+        body: `<div class="vempty"><div class="vempty-box">Нет прикреплённых документов</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`,
+      };
+    }
+
     return {
-      toolbar: `<div class="vtoolbar"><div class="tool-group right"><span class="vtitle">Документы</span><button class="tool-btn" data-vclose>×</button></div></div>`,
-      body: `<div class="vempty"><div class="vempty-box">Нет прикреплённых документов</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`,
+      toolbar,
+      body: `<div class="vempty">
+        <div class="vempty-box">Документы есть — выберите, что открыть</div>
+        <div class="dd">
+          <button class="btn btn-primary btn-sm" data-dd-toggle>Открыть документ ▾</button>
+          <div class="dd-menu">${available.map((x) => `<button data-vaddtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)} · ${esc(x.t.name)}</button>`).join('')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-attach-default>Прикрепить ещё документ</button>
+      </div>`,
     };
   }
 

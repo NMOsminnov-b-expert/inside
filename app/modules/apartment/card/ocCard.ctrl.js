@@ -94,9 +94,11 @@ export function bindOcCard(ctx) {
       const docs = rec.docs || [];
       if (!ctx.ui.viewerDoc && docs.length) ctx.ui.viewerDoc = { scope: 'oc', id: docs[0].id };
     } else if (tab === 'photo') {
-      if (ctx.ui.viewer && ctx.ui.viewer.mode !== 'photo') ctx.ui.viewer = null;
+      ctx.ui.viewer = { mode: 'photo' };
     } else {
-      ctx.ui.viewer = null;
+      // Просмотрщик остаётся показанным и на общей вкладке — скрывается
+      // только явным закрытием, не переключением вкладок.
+      ctx.ui.viewer = { mode: 'doc' };
     }
 
     ctx.navigate({ rest: [], query: tab === 'general' ? {} : { tab } });
@@ -203,7 +205,8 @@ export function bindOcCard(ctx) {
       ctx.ui.viewerDoc = VS.openTabs.oc.length
         ? { scope: 'oc', id: VS.openTabs.oc[VS.openTabs.oc.length - 1] }
         : null;
-      if (!ctx.ui.viewerDoc) ctx.ui.viewer = null;
+      // Просмотрщик остаётся видимым (индикатор наличия документов), даже
+      // если открытых вкладок не осталось — покажет приглашение открыть.
     }
 
     ctx.render();

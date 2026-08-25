@@ -77,7 +77,7 @@ export function bindOcForm(ctx) {
       ctx.ui.viewerDoc = VS.openTabs.oc.length
         ? { scope: 'oc', id: VS.openTabs.oc[VS.openTabs.oc.length - 1] }
         : null;
-      if (!ctx.ui.viewerDoc) ctx.ui.viewer = null;
+      // Просмотрщик остаётся видимым — покажет приглашение открыть документ.
     }
     ctx.render();
     ctx.toast('Документ откреплён');

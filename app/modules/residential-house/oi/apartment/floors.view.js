@@ -21,7 +21,7 @@ export function apartmentFloorsBlock(ctx, oi) {
 <tbody>${(oi.floorList || []).map((f, i) => `<tr>
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
 <td>${esc(f.name)}</td>
-<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.on ? '' : 'disabled'}></td>
+<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.on ? 'readonly' : ''} title="${f.on ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : ''}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 </tr>`).join('')}</tbody></table>
 <div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог − сумма ручных) поровну; снятый чекбокс = площадь вручную. Высота указывается по внутреннему замеру для каждого этажа.</div>
@@ -37,7 +37,6 @@ export function updateFloorsUI(ctx, oi) {
     if (a) {
       if (document.activeElement !== a) a.value = f.area;
       a.readOnly = f.on;
-      a.disabled = !f.on;
     }
     const on = s.$(`[data-floor-on="${i}"]`);
     if (on) on.checked = f.on;

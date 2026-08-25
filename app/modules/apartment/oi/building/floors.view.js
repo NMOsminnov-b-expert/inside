@@ -31,10 +31,8 @@ function catSection(ctx, oi, cat, fkey) {
   return `<div class="acc ${open ? 'open' : ''}" style="margin-top:8px">
 <div class="acc-head" data-acc-toggle="${ckey}">
 <span class="chev">▾</span>
-<label class="inline-row" style="margin:0;gap:6px">
 <input type="checkbox" data-cat-all="${cat.key}" ${onCount === rows.length ? 'checked' : ''} title="Выбрать/снять всю категорию — площадь распределится автоматически">
-${cat.label}
-</label>
+<span>${cat.label}</span>
 <span style="margin-left:auto" data-cat-summary="${cat.key}">${catSummary(rows.map(({ f }) => f))}</span>
 </div>
 <div class="acc-body" style="padding:8px">
@@ -43,7 +41,7 @@ ${cat.key === 'mansard' ? mansardTypeField(oi) : ''}
 <tbody>${rows.map(({ f, i }) => `<tr>
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
 <td>${esc(f.name)}${cat.key !== 'over' ? ' <span class="tag-mini">вручную</span>' : ''}</td>
-<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${cat.key !== 'over' || f.on ? '' : 'disabled'}></td>
+<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.on ? 'readonly' : ''} title="${f.on ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : ''}"></td>
 <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 </tr>`).join('')}</tbody></table>
@@ -75,7 +73,6 @@ export function updateFloorsUI(ctx, oi) {
     if (a) {
       if (document.activeElement !== a) a.value = f.area;
       a.readOnly = f.on;
-      a.disabled = f.cat === 'over' && !f.on;
     }
     const on = s.$(`[data-floor-on="${i}"]`);
     if (on) on.checked = f.on;

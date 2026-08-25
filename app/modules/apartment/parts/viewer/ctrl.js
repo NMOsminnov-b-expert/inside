@@ -95,7 +95,7 @@ export function bindViewer(ctx) {
     if (ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope === sc && ctx.ui.viewerDoc.id === id) {
       const rest = VS.openTabs[sc] || [];
       ctx.ui.viewerDoc = rest.length ? { scope: sc, id: rest[rest.length - 1] } : null;
-      if (!ctx.ui.viewerDoc) ctx.ui.viewer = null;
+      // Просмотрщик остаётся видимым, даже если закрыты все вкладки.
     }
     ctx.render();
   });
