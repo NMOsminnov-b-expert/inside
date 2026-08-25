@@ -16,6 +16,11 @@ export function bind(ctx, oi) {
     ctx.updatePlate();
   });
 
+  s.$$('[data-height]').forEach((i) => i.onchange = () => {
+    oi.heights = oi.heights || {};
+    oi.heights[i.dataset.height] = i.value;
+  });
+
   const rd = s.$('[data-redistribute]');
   if (rd) rd.onclick = (e) => {
     e.stopPropagation();

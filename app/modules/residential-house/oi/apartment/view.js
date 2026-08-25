@@ -149,6 +149,7 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 // Блок 02 квартиры: площади + лоджии/балконы + развёртка (при этажности > 1).
 function areasCard(ctx, oi) {
   const areas = oi.areas || {};
+  const heights = oi.heights || {};
   const apt = oi.apartment || {};
   const storeys = parseInt(apt.storeys, 10) || 1;
   const showFloors = storeys > 1;
@@ -165,6 +166,10 @@ function areasCard(ctx, oi) {
 </div>
 <div>
 ${showFloors ? apartmentFloorsBlock(ctx, oi) : ''}
+</div>
+<div class="grid g-2" style="margin-top:10px">
+<div class="field"><label>Высота по внешним замерам, м</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
+<div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
 <div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
 <div class="grid g-4">
