@@ -138,11 +138,15 @@ export function bind(ctx, oi) {
     e.stopPropagation();
     const drop = c.parentElement.querySelector('.ms-drop');
     s.$$('.ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
+    s.$$('.ms-control').forEach((mc) => { if (mc !== c) mc.classList.remove('open'); });
     drop.hidden = !drop.hidden;
+    c.classList.toggle('open', !drop.hidden);
     ctx.ui.heatOpen = !drop.hidden;
   });
 
-  s.$$('[data-heat-opt]').forEach((cb) => cb.onchange = () => {
+  // Делегирование — список «Выбрано/Не выбрано» перестраивается через
+  // innerHTML (updateHeatingUI), обычная прямая привязка терялась бы.
+  s.on('change', '[data-heat-opt]', (e, cb) => {
     const h = cb.dataset.heatOpt;
     oi.heating = Array.isArray(oi.heating) ? oi.heating : [];
     const i = oi.heating.indexOf(h);
@@ -150,21 +154,13 @@ export function bind(ctx, oi) {
     updateHeatingUI(ctx, oi);
   });
 
-  s.on('click', '[data-heat-rm]', (e, x) => {
-    e.stopPropagation();
-    const h = x.dataset.heatRm;
-    const i = (oi.heating || []).indexOf(h);
-    if (i >= 0) oi.heating.splice(i, 1);
-    updateHeatingUI(ctx, oi);
-  });
-
-  const ho = s.$('[data-heat-other]');
-  if (ho) ho.onchange = () => { oi.heatingOther = ho.value; };
+  s.on('change', '[data-heat-other]', (e, inp) => { oi.heatingOther = inp.value; });
 
   // Закрытие списка отопления по клику вне него — снимается при уходе с экрана.
   s.onDocument('click', (e) => {
     if (!e.target.closest('.ms')) {
       s.$$('.ms-drop').forEach((d) => d.hidden = true);
+      s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
       ctx.ui.heatOpen = false;
     }
   });
