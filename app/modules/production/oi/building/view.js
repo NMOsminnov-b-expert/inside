@@ -119,7 +119,6 @@ ${rq.showCatClass ? `<div class="field"><label>Назначение по тех 
 </div>
 ${rq.showCatClass ? `<div class="inline-row" style="margin-top:10px; gap:14px; flex-wrap:wrap; align-items:center;">
 <label class="flag-lbl"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
-<span class="muted" style="font-size:10px">Категория ОИ — пока вручную; авто-присвоение по типу и параметрам строения появится отдельным алгоритмом</span>
 </div>` : ''}
 </div></div>
 </div>`;
