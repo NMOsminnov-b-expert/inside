@@ -4,22 +4,24 @@
 // Роли соответствуют этапам конвейера ОЦ (см. STAGE_INDEX в table.js):
 // ЦОД заполняет и удостоверяет → осмотрщик осматривает → оценщик оценивает.
 // «От учреждения» — сторона-заказчик, по этапам объект не ведёт.
-export const ROLES = [
-  { key: 'any', label: 'любая роль', hint: 'без ограничений — как у администратора' },
-  { key: 'insp', label: 'осмотрщик', hint: 'осматривает объекты, уже удостоверенные по документам' },
-  { key: 'appr', label: 'оценщик', hint: 'оценивает объекты после осмотра' },
-  { key: 'cod', label: 'оператор ЦОД', hint: 'заполняет и удостоверяет данные до осмотра, назначает осмотрщика' },
-  { key: 'gov', label: 'от учреждения', hint: 'отвечает за объект со стороны учреждения; этапы не ведёт' },
-];
+// «Администратор» видит панель логов изменений в карточке ОЦ (см.
+// kernel/auditLog.js) — в остальном права как у «любая роль».
+// Сам список ролей и текущая роль/пользователь — общие с карточками ОЦ
+// всех 5 модулей (kernel/session.js), поэтому смена роли здесь сразу
+// видна и внутри карточек.
+import { session, ROLES } from '../../kernel/session.js';
+
+export { ROLES };
 
 // Что роли можно делать в реестре — какие срезы «мне…» видны и какие
-// действия доступны. «any» — не выбранная роль, видно как администратору.
+// действия доступны. «any» и «admin» — видно как администратору.
 const ROLE_PERMS = {
   any: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
   insp: { slices: ['my-insp', 'my-all'], create: false, assignInsp: false, setStatus: false },
   appr: { slices: ['my-appr', 'my-all'], create: false, assignInsp: false, setStatus: false },
   cod: { slices: ['my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
   gov: { slices: ['my-all'], create: true, assignInsp: false, setStatus: false },
+  admin: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
 };
 
 export function rolePerms(key) {
@@ -77,7 +79,7 @@ export function emptyFilter() {
 }
 
 export function createState() {
-  return {
+  const s = {
     filter: emptyFilter(),
     sort: { key: 'updatedAt', dir: 'desc' },
     columns: DEFAULT_COLUMNS.slice(),
@@ -86,11 +88,24 @@ export function createState() {
     selected: new Map(),
     previewId: null,
     previewType: null,
-    person: 'Осминов Н.',
-    role: 'any',
     recent: [],
     sliceKey: null,
   };
+
+  // person/role — не собственное поле, а прямой доступ к общей сессии
+  // (kernel/session.js), чтобы смена роли здесь была видна и в карточках.
+  Object.defineProperty(s, 'person', {
+    enumerable: true,
+    get() { return session.state.person; },
+    set(v) { session.set({ person: v }); },
+  });
+  Object.defineProperty(s, 'role', {
+    enumerable: true,
+    get() { return session.state.role; },
+    set(v) { session.set({ role: v }); },
+  });
+
+  return s;
 }
 
 const LIST_KEYS = ['status', 'typeId', 'city', 'institution', 'insp', 'flags'];
