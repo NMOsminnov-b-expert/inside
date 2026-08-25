@@ -59,6 +59,9 @@ export function bind(ctx, oi) {
   const cm = s.$('[data-comment]');
   if (cm) cm.onchange = () => { oi.comment = cm.value; };
 
+  const oic = s.$('[data-oi-category]');
+  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
+
   // --- Площади и стоимость аренды (строки заводит пользователь) -----------
   oi.rentAreas = oi.rentAreas || [];
 
@@ -130,9 +133,6 @@ export function bind(ctx, oi) {
   });
 
   // --- Доп параметры (производственное строение) ---------------------------
-  const pcl = s.$('[data-prod-class]');
-  if (pcl) pcl.onchange = () => { oi.prodClass = pcl.value; };
-
   const phe = s.$('[data-prod-height]');
   if (phe) phe.onchange = () => { oi.prodHeight = phe.value; };
 
@@ -143,7 +143,13 @@ export function bind(ctx, oi) {
   if (pfl) pfl.onchange = () => { oi.prodFloors = pfl.value; };
 
   const pcr = s.$('[data-prod-crane]');
-  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.checked; };
+  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.value; };
+
+  const tmo = s.$('[data-temp-mode]');
+  if (tmo) tmo.onchange = () => { oi.tempMode = tmo.value; };
+
+  const sst = s.$('[data-struct-strength]');
+  if (sst) sst.onchange = () => { oi.structStrength = sst.value; };
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {

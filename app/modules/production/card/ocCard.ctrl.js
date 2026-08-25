@@ -1,4 +1,4 @@
-import { DOC_TYPES, WEAR_LEVEL } from '../data/dictionaries.js';
+import { DOC_TYPES, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
@@ -38,6 +38,7 @@ function createOi(ctx, type) {
     eni: nextEni(rec, rec.eni),
     year: '',
     flags: { entered: false, matched: false },
+    oiCategory: '',
     areas: { tp: '', pud: '', fact: '', build: '' },
     floors: 1,
     floorList: [],
@@ -64,11 +65,12 @@ function createOi(ctx, type) {
     comment: '',
     catClass: type.catClass || 'Производственно-складское',
     // «Доп параметры» — заполняются только для производственно-складских строений.
-    prodClass: '',
     prodHeight: '',
     prodFrame: '',
     prodFloors: '',
-    craneBeam: false,
+    craneBeam: CRANE_BEAM[0],
+    tempMode: '',
+    structStrength: '',
     dis: false,
     docs: [],
     photos: {},

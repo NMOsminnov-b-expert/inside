@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, WEAR_LEVEL, CLASS_TYPE, PROD_FRAME, PROD_FLOORS } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, TEMP_MODE, STRUCT_STRENGTH, CRANE_BEAM } from '../../data/dictionaries.js';
 import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -30,6 +30,18 @@ function structField(oi, key, label, opts, val, req) {
 <select class="select" data-struct="${key}">${opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
 ${isOther ? `<input class="input" data-struct-other="${key}" placeholder="Укажите вручную" value="${esc(other)}">` : ''}
 </div>`;
+}
+
+// Категория ОИ: сгруппированный select (optgroup по типу помещений, классы внутри).
+function oiCategoryOptions(selected) {
+  const groups = OI_CATEGORY_GROUPS.map((g) => `<optgroup label="${esc(g.label)}">
+${g.classes.map((c, i) => {
+    const val = `${g.key}-${i + 1}`;
+    return `<option value="${val}" ${val === selected ? 'selected' : ''}>${esc(c)}</option>`;
+  }).join('')}
+</optgroup>`).join('');
+
+  return `${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
 }
 
 function letterControlHTML(ctx, oi) {
@@ -95,15 +107,20 @@ ${flagsRowHTML(oi)}
 <div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${BUILD_TYPE.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
+<div class="field"><label>Категория ОИ</label>
+<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
+</div>
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
 <select class="select" data-rescat>${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>` : ''}
-${rq.showCatClass ? `<div class="field"><label>Категория ОИ (категория → класс)</label>
-<select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-<label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
-<span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
+${rq.showCatClass ? `<div class="field"><label>Назначение по тех паспорту</label>
+<input class="input" data-catclass value="${esc(oi.catClass || '')}" placeholder="Укажите назначение вручную">
 </div>` : ''}
 </div>
+${rq.showCatClass ? `<div class="inline-row" style="margin-top:10px; gap:14px; flex-wrap:wrap; align-items:center;">
+<label class="flag-lbl"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
+<span class="muted" style="font-size:10px">Категория ОИ — пока вручную; авто-присвоение по типу и параметрам строения появится отдельным алгоритмом</span>
+</div>` : ''}
 </div></div>
 </div>`;
 }
@@ -225,21 +242,24 @@ function prodExtraCard(ctx, oi, idx) {
   return `<div class="card t-teal" id="q-prod">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Доп параметры (производственное строение)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
-<div class="field"><label>Класс</label>
-<select class="select" data-prod-class>${CLASS_TYPE.map((o) => `<option ${o === (oi.prodClass || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>
+<div class="grid g-3">
 <div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(oi.prodHeight || '')}" inputmode="decimal"></div>
+<div class="field"><label>Температурный режим</label>
+<select class="select" data-temp-mode>${TEMP_MODE.map((o) => `<option ${o === (oi.tempMode || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="grid g-3" style="margin-top:8px">
+<div class="field"><label>Усиленность конструкции</label>
+<select class="select" data-struct-strength>${STRUCT_STRENGTH.map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+</div>
+<div class="grid g-3" style="margin-top:10px">
 <div class="field"><label>Конструктив</label>
 <select class="select" data-prod-frame>${PROD_FRAME.map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 <div class="field"><label>Полы (несущая способность)</label>
 <select class="select" data-prod-floors>${PROD_FLOORS.map((o) => `<option ${o === (oi.prodFloors || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>&nbsp;</label>
-<label class="flag-lbl"><input type="checkbox" data-prod-crane ${oi.craneBeam ? 'checked' : ''}> Наличие/возможность кран-балки</label>
+<div class="field"><label>Наличие/возможность кран-балки</label>
+<select class="select" data-prod-crane>${CRANE_BEAM.map((o) => `<option ${o === (oi.craneBeam || CRANE_BEAM[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 </div>
 </div></div>

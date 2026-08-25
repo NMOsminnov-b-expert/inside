@@ -1,4 +1,4 @@
-import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL } from '../data/dictionaries.js';
+import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
@@ -45,6 +45,7 @@ function createOi(ctx, type) {
     year: '',
     flags: { entered: false, matched: false },
     rights: RIGHTS[0],
+    oiCategory: '',
     areas: {
       tp: '', pud: '', fact: '', build: '',
       loggias: '', balconies: '',
@@ -78,11 +79,10 @@ function createOi(ctx, type) {
     features: '',
     catClass: type.catClass || 'Гражданское здание',
     // «Доп параметры» — заполняются только для производственно-складских строений.
-    prodClass: '',
     prodHeight: '',
     prodFrame: '',
     prodFloors: '',
-    craneBeam: false,
+    craneBeam: CRANE_BEAM[0],
     dis: false,
     docs: [],
     photos: {},

@@ -65,6 +65,9 @@ export function bind(ctx, oi) {
   const rg = s.$('[data-rights]');
   if (rg) rg.onchange = () => { oi.rights = rg.value; };
 
+  const oic = s.$('[data-oi-category]');
+  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
+
   const mt = s.$('[data-mansard]');
   if (mt) mt.onchange = () => { oi.mansardType = mt.value; };
 
@@ -145,9 +148,6 @@ export function bind(ctx, oi) {
   });
 
   // --- Доп параметры (производственное строение) ---------------------------
-  const pcl = s.$('[data-prod-class]');
-  if (pcl) pcl.onchange = () => { oi.prodClass = pcl.value; };
-
   const phe = s.$('[data-prod-height]');
   if (phe) phe.onchange = () => { oi.prodHeight = phe.value; };
 
@@ -158,7 +158,7 @@ export function bind(ctx, oi) {
   if (pfl) pfl.onchange = () => { oi.prodFloors = pfl.value; };
 
   const pcr = s.$('[data-prod-crane]');
-  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.checked; };
+  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.value; };
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {

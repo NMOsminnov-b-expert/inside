@@ -2,6 +2,11 @@ import { esc } from '../../../../kernel/dom.js';
 import { fmt, num } from '../../../../kernel/fmt.js';
 import { floorsSum } from './floors.model.js';
 
+export function floorsCountField(oi) {
+  return `<div class="field"><label>Количество этажей</label>
+<input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>`;
+}
+
 export function floorsBlock(ctx, oi) {
   const s = floorsSum(oi);
   const t = num(oi.areas.tp);
@@ -11,9 +16,7 @@ export function floorsBlock(ctx, oi) {
   const open = ctx.ui.accOpen[fkey] === true
     || (ctx.ui.accOpen[fkey] === undefined && (oi.floors > 1 || anyAuto));
 
-  return `<div class="field" style="max-width:220px"><label>Количество этажей</label>
-<input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>
-<div class="acc ${open ? 'open' : ''}" style="margin-top:6px">
+  return `<div class="acc ${open ? 'open' : ''}">
 <div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка (включая подвал, мансарду, цоколь)
 <span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
