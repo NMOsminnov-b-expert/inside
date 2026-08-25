@@ -40,6 +40,13 @@ export function bind(ctx, oi) {
     updateFloorsUI(ctx, oi);
   });
 
+  s.$$('[data-cat-all]').forEach((c) => c.onchange = () => {
+    const cat = c.dataset.catAll;
+    oi.floorList.filter((f) => f.cat === cat).forEach((f) => { f.on = c.checked; });
+    recalcFloors(oi);
+    updateFloorsUI(ctx, oi);
+  });
+
   s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
     oi.floorList[+i.dataset.floorArea].area = i.value;
     recalcFloors(oi);
@@ -59,6 +66,9 @@ export function bind(ctx, oi) {
   const cm = s.$('[data-comment]');
   if (cm) cm.onchange = () => { oi.comment = cm.value; };
 
+  const feat = s.$('[data-features]');
+  if (feat) feat.onchange = () => { oi.features = feat.value; };
+
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
@@ -67,6 +77,48 @@ export function bind(ctx, oi) {
 
   const rc = s.$('[data-rescat]');
   if (rc) rc.onchange = () => { oi.resCat = rc.value; };
+
+  // Тип строения: select + условный ручной ввод.
+  const skSel = s.$('[data-structure-kind]');
+  if (skSel) skSel.onchange = () => {
+    oi.structureKind = skSel.value;
+    const other = s.$('[data-structure-kind-other]');
+    if (other) {
+      other.style.display = oi.structureKind === 'Прочее' ? '' : 'none';
+      if (oi.structureKind !== 'Прочее') { other.value = ''; oi.structureKindOther = ''; }
+    }
+  };
+
+  const skOther = s.$('[data-structure-kind-other]');
+  if (skOther) skOther.onchange = () => { oi.structureKindOther = skOther.value; };
+
+  // Права на строение: select + условный ручной ввод.
+  const rightsSel = s.$('[data-bld-rights]');
+  if (rightsSel) rightsSel.onchange = () => {
+    oi.rights = rightsSel.value;
+    const other = s.$('[data-bld-rights-other]');
+    if (other) {
+      other.style.display = oi.rights === 'Иное' ? '' : 'none';
+      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
+    }
+  };
+
+  const rightsOther = s.$('[data-bld-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
+
+  // Лоджии и балконы.
+  const bindBld = (selector, key) => {
+    const el = s.$(selector);
+    if (el) el.onchange = () => { oi[key] = el.value; };
+  };
+
+  bindBld('[data-bld-loggia-count]', 'loggiaCount');
+  bindBld('[data-bld-balcony-count]', 'balconyCount');
+  bindBld('[data-bld-loggia-area]', 'loggiaBuildArea');
+  bindBld('[data-bld-balcony-area]', 'balconyBuildArea');
+
+  const mt = s.$('[data-mansard-type]');
+  if (mt) mt.onchange = () => { oi.mansardType = mt.value; };
 
   s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
 

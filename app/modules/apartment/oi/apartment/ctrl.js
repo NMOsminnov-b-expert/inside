@@ -209,6 +209,22 @@ export function bind(ctx, oi) {
     openDocViewer(ctx, 'oc', tabs.length ? tabs[tabs.length - 1] : (docs[0] ? docs[0].id : null));
   });
 
+  // --- Планировки -----------------------------------------------------------
+  const ap = s.$('[data-add-plan]');
+  if (ap) ap.onclick = () => {
+    (oi.plans = oi.plans || []).push({ id: nextId('pl'), name: 'Новая планировка', date: ctx.today });
+    ctx.render();
+    ctx.toast('Планировка добавлена', 'ok');
+  };
+
+  s.$$('[data-plan-del]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const i = (oi.plans || []).findIndex((pl) => pl.id === b.dataset.planDel);
+    if (i >= 0) oi.plans.splice(i, 1);
+    ctx.render();
+    ctx.toast('Планировка удалена');
+  });
+
   // --- Литера -------------------------------------------------------------
   const elBtn = s.$('[data-edit-letter]');
   if (elBtn) elBtn.onclick = () => {

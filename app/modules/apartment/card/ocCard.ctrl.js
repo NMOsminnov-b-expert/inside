@@ -65,6 +65,19 @@ function createOi(ctx, type) {
 
   if (type.card === 'apartment') oi.apartment = null;
 
+  if (type.card === 'building') {
+    oi.structureKind = '';
+    oi.structureKindOther = '';
+    oi.rights = '';
+    oi.rightsOther = '';
+    oi.loggiaCount = '';
+    oi.balconyCount = '';
+    oi.loggiaBuildArea = '';
+    oi.balconyBuildArea = '';
+    oi.mansardType = '';
+    oi.features = '';
+  }
+
   return oi;
 }
 

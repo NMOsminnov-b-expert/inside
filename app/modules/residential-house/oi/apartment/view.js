@@ -158,7 +158,7 @@ function areasCard(ctx, oi) {
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
 <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
-<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
 
@@ -217,6 +217,22 @@ ${heatingMS(ctx, oi)}
 </div>`;
 }
 
+function plansCard(oi, idx = 3) {
+  const plans = oi.plans || [];
+
+  return `<div class="card t-slate" id="q-plans">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Планировки</h3><span class="hint">отдельно от документов — для осмотрщиков</span><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<table class="tbl"><colgroup><col><col style="width:90px"><col style="width:40px"></colgroup>
+<thead><tr><th>Наименование</th><th>Дата</th><th></th></tr></thead>
+<tbody>${plans.map((pl) => `<tr>
+<td class="ell">${esc(pl.name)}</td><td>${esc(pl.date)}</td>
+<td><button class="btn btn-danger btn-sm" data-plan-del="${pl.id}" title="Удалить планировку">×</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Нет планировок</td></tr>'}</tbody></table>
+<button class="btn btn-ghost btn-sm" data-add-plan style="margin-top:6px">+ Добавить планировку</button>
+</div></div>
+</div>`;
+}
+
 function docsCard(oi, idx = 4) {
   return `<div class="card t-slate" id="q-docs">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Документы</h3><span class="chev">▾</span></div>
@@ -244,9 +260,10 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi)}
 ${areasCard(ctx, oi)}
-${structCard(ctx, oi, 3)}
-${docsCard(oi, 4)}
-${photosCard(ctx, oi, 5)}
+${plansCard(oi, 3)}
+${structCard(ctx, oi, 4)}
+${docsCard(oi, 5)}
+${photosCard(ctx, oi, 6)}
 </div>`;
 
   return `<div class="view-head">

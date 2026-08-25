@@ -4,3 +4,7 @@
 # постоянно перезаписывает целиком — при коммите он был бы гарантированным
 # конфликтом на merge между ветками.
 .claude/knowledge-graph/memory.jsonl
+
+# Скриншоты smoke-тестов/screenshot.py — временный вывод, не эталон
+# (в отличие от tools/visual-parity/baseline/, который коммитится).
+tools/visual-parity/out/

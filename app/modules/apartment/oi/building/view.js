@@ -1,5 +1,8 @@
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT } from '../../data/dictionaries.js';
+import {
+  STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT,
+  STRUCTURE_KIND, APARTMENT_RIGHTS,
+} from '../../data/dictionaries.js';
 import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -60,6 +63,8 @@ ${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f
 function generalCard(ctx, oi) {
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;
+  const showStructureKindOther = oi.structureKind === 'Прочее';
+  const showRightsOther = oi.rights === 'Иное';
 
   return `<div class="card t-blue" id="q-gen">
 <div class="card-head" data-card-toggle>
@@ -92,7 +97,7 @@ ${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</op
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
 <div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
-<div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
+<div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${BUILD_TYPE.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
@@ -103,6 +108,42 @@ ${rq.showCatClass ? `<div class="field"><label>Категория ОИ (кате
 <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
 <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
 </div>` : ''}
+</div>
+<div class="grid g-2" style="margin-top:10px">
+<div class="field">
+<label>Тип строения</label>
+<div class="inline-row">
+<select class="select" data-structure-kind style="flex:1 1 160px;">
+<option value="">Не выбрано</option>
+${STRUCTURE_KIND.map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
+</select>
+<input
+class="input"
+data-structure-kind-other
+placeholder="Укажите тип"
+value="${esc(oi.structureKindOther || '')}"
+maxlength="60"
+style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
+>
+</div>
+</div>
+<div class="field">
+<label>Права на строение</label>
+<div class="inline-row">
+<select class="select" data-bld-rights style="flex:1 1 200px;">
+<option value="">Не выбрано</option>
+${APARTMENT_RIGHTS.map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
+</select>
+<input
+class="input"
+data-bld-rights-other
+placeholder="Укажите право"
+value="${esc(oi.rightsOther || '')}"
+maxlength="100"
+style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
+>
+</div>
+</div>
 </div>
 </div></div>
 </div>`;
@@ -118,14 +159,37 @@ function areasCard(ctx, oi) {
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
 <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
-<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+<div class="field"><label>Площадь застройки по техпаспорту, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
 </div>
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
+</div>
+<div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
+<div class="grid g-4">
+<div class="field">
+<label>Кол-во лоджий</label>
+<input class="input" data-bld-loggia-count value="${esc(oi.loggiaCount || '')}"
+inputmode="numeric" min="0" max="10" placeholder="до 10">
+</div>
+<div class="field">
+<label>Кол-во балконов / террас</label>
+<input class="input" data-bld-balcony-count value="${esc(oi.balconyCount || '')}"
+inputmode="numeric" min="0" max="10" placeholder="до 10">
+</div>
+<div class="field">
+<label>Площадь застройки лоджий, м²</label>
+<input class="input" data-bld-loggia-area value="${esc(oi.loggiaBuildArea || '')}"
+inputmode="decimal" min="0" max="500" placeholder="до 500">
+</div>
+<div class="field">
+<label>Площадь застройки балконов / террас, м²</label>
+<input class="input" data-bld-balcony-area value="${esc(oi.balconyBuildArea || '')}"
+inputmode="decimal" min="0" max="500" placeholder="до 500">
+</div>
 </div>
 </div></div>
 </div>`;
@@ -150,7 +214,10 @@ ${structField(oi, 'windows', 'Окна', STRUCT.windows, struct.windows)}
 ${structField(oi, 'doors', 'Двери', STRUCT.doors, struct.doors)}
 ${heatingMS(ctx, oi)}
 </div>
-<div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
+<div class="grid g-2" style="margin-top:8px">
+<div class="field"><label>Особенности</label><textarea class="textarea" data-features placeholder="Нестандартная высота потолков и т.п. — для оценки">${esc(oi.features || '')}</textarea></div>
+<div class="field"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
+</div>
 </div></div>
 </div>`;
 }

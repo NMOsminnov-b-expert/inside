@@ -14,9 +14,12 @@ function createOi(ctx, type) {
       card: 'land',
       name: 'Земельный участок',
       purpose: '',
-      area: '',
+      areas: { pravo: '', fact: '', build: '' },
       eni: nextEni(rec, rec.eni),
       status: 'Основное',
+      rights: '', rightsOther: '',
+      form: '', formOther: '',
+      encumbrance: 'Нет', encumbranceOther: '', encumbranceArea: '',
       flags: { entered: false, matched: false },
       docs: [],
       photos: {},
@@ -64,6 +67,19 @@ function createOi(ctx, type) {
   };
 
   if (type.card === 'apartment') oi.apartment = null;
+
+  if (type.card === 'building') {
+    oi.structureKind = '';
+    oi.structureKindOther = '';
+    oi.rights = '';
+    oi.rightsOther = '';
+    oi.loggiaCount = '';
+    oi.balconyCount = '';
+    oi.loggiaBuildArea = '';
+    oi.balconyBuildArea = '';
+    oi.mansardType = '';
+    oi.features = '';
+  }
 
   return oi;
 }

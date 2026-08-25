@@ -68,8 +68,11 @@ function photosFor(p, share) {
   return out;
 }
 
+const STRUCTURE_KINDS = ['Дом', 'Полдома', 'Коттедж', 'Хозпостройка', 'Сарай', 'Гараж'];
+
 function buildingOi(id, i, p, letter, opts = {}) {
   const area = fmt(Math.max(12, p.metrics.area * (opts.share || 1)));
+  const hasLoggia = opts.residential && i % 3 === 0;
 
   return {
     id: `${id}-oi${letter}`,
@@ -88,6 +91,16 @@ function buildingOi(id, i, p, letter, opts = {}) {
     floorList: [],
     heights: { ext: fmt(3 + (i % 7)), int: fmt(2.6 + (i % 3) * 0.2) },
     buildType: i % 5 ? 'Отдельностоящее' : 'Встроенное',
+    structureKind: opts.residential ? STRUCTURE_KINDS[i % STRUCTURE_KINDS.length] : '',
+    structureKindOther: '',
+    rights: opts.residential ? 'Собственность' : '',
+    rightsOther: '',
+    loggiaCount: hasLoggia ? String(1 + (i % 2)) : '',
+    balconyCount: hasLoggia ? String(1 + (i % 3)) : '',
+    loggiaBuildArea: hasLoggia ? fmt(4 + (i % 5)) : '',
+    balconyBuildArea: hasLoggia ? fmt(3 + (i % 4)) : '',
+    mansardType: '',
+    features: '',
     struct: structFor(i),
     structOther: {},
     heating: i % 3 === 0 ? ['Центральное'] : (i % 3 === 1 ? ['Автономное', 'Современные радиаторы'] : ['Печное']),
@@ -102,14 +115,24 @@ function buildingOi(id, i, p, letter, opts = {}) {
 }
 
 function landOi(id, i, p, suffix, opts = {}) {
+  const rawArea = opts.area === undefined ? p.metrics.area * 3 : opts.area;
+  const area = fmt(rawArea);
+
   return {
     id: `${id}-oil${suffix}`,
     card: 'land',
     name: opts.name || 'Земельный участок',
     purpose: p.purpose,
-    area: fmt(opts.area === undefined ? p.metrics.area * 3 : opts.area),
+    areas: { pravo: area, fact: area, build: fmt(Math.max(8, rawArea * 0.3)) },
     eni: String(+p.eni + 90 + suffix),
     status: opts.status || 'Основное',
+    rights: 'Собственность',
+    rightsOther: '',
+    form: i % 2 ? 'Прямоугольная' : 'Близкая к прямоугольной',
+    formOther: '',
+    encumbrance: i % 5 === 0 ? 'Да' : 'Нет',
+    encumbranceOther: '',
+    encumbranceArea: i % 5 === 0 ? fmt(Math.max(4, rawArea * 0.1)) : '',
     origin: 'manual',
     flags: { entered: true, matched: true },
     docs: [],

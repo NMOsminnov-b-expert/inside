@@ -2,7 +2,7 @@
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
 import { fmt, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
-import { records, addRecord, nextId } from './data/store.js';
+import { records, addRecord, nextId, nextLetter, nextEni } from './data/store.js';
 import { totalPendingNotes } from './parts/notes/model.js';
 import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
 import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from './data/bulk.js';
@@ -184,9 +184,54 @@ export { setBulkCount, bulkCount };
 
 // --- Создание записи ----------------------------------------------------
 
+// Пустая карточка квартиры внутри ОЦ — тот же набор полей, что и у ОИ,
+// создаваемого вручную через «+ Добавить ОИ» (см. card/ocCard.ctrl.js).
+function blankApartmentOi(rec) {
+  return {
+    id: nextId('oi'),
+    card: 'apartment',
+    letter: nextLetter(rec),
+    name: 'Квартира',
+    status: 'Основное',
+    origin: 'manual',
+    residential: true,
+    resCat: '',
+    eni: nextEni(rec, rec.eni),
+    year: '',
+    flags: { entered: false, matched: false },
+    areas: { tp: '', pud: '', fact: '', build: '' },
+    floors: 1,
+    floorList: [],
+    heights: { ext: '', int: '' },
+    buildType: 'Отдельностоящее',
+    struct: {
+      foundation: 'Не указано',
+      wallsExt: 'Не указано',
+      ceilings: 'Не указано',
+      roof: 'Не указано',
+      floors: 'Не указано',
+      windows: 'Не указано',
+      doors: 'Не указано',
+    },
+    structOther: {},
+    heating: [],
+    heatingOther: '',
+    comment: '',
+    catClass: 'Гражданское здание',
+    dis: false,
+    docs: [],
+    photos: {},
+    notes: [],
+    apartment: null,
+  };
+}
+
 // Создание ОЦ не открывает отдельную форму/диалог — модуль сразу отдаёт
 // пустую запись (статус «В заполнении»), меню открывает её форму
 // редактирования (см. app/pages/ocMenu/ocMenu.js). Один экран, а не два.
+// ОЦ этого типа почти всегда содержит ровно одну квартиру, поэтому её
+// карточка (литера А) создаётся сразу вместе с ОЦ — без отдельного клика
+// «+ Добавить ОИ → Квартира».
 export function createRecord() {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -213,6 +258,8 @@ export function createRecord() {
     docs: [],
     oi: [],
   };
+
+  rec.oi.push(blankApartmentOi(rec));
 
   return addRecord(rec);
 }

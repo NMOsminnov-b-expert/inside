@@ -65,7 +65,7 @@ export const OI_CARDS = {
     plateKind: 'ОЦ → ОИ',
     hasLetter: false,
     tableCategory: () => 'Земельный участок',
-    tableArea: (oi) => (oi.area ? fmt(num(oi.area)) + ' м²' : '—'),
+    tableArea: (oi) => (oi.areas && oi.areas.pravo ? fmt(num(oi.areas.pravo)) + ' м²' : '—'),
     plateChips: () => [],
     load: () => import('./land/index.js'),
   },

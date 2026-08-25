@@ -17,6 +17,7 @@ export const card = {
       };
     }
     if (!oi.floorList || !oi.floorList.length) buildApartmentFloors(oi);
+    if (!oi.plans) oi.plans = [];
   },
 
   render,
