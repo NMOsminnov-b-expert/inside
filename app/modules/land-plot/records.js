@@ -12,7 +12,7 @@ function areaOf(rec) {
     // У участкового ОЦ считаем площадь земли, а не строений.
   return rec.oi
     .filter((o) => o.card === 'land')
-    .reduce((s, o) => s + num(o.area), 0);
+    .reduce((s, o) => s + num(o.areas && o.areas.pravo), 0);
 }
 
 function metricsOf(rec) {
