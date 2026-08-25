@@ -1,6 +1,7 @@
 import { num, fmt, round2 } from '../../../../kernel/fmt.js';
 
-// Этажный список строения: этажи 1..N плюс подвал, мансарда и цоколь.
+// Этажный список строения: этажи 1..N (категория "Надземные") плюс
+// подвал/цоколь ("Подземные") и мансарда ("Мансардные", своя категория).
 export function buildFloors(oi) {
   const n = Math.max(1, oi.floors | 0);
   const he = oi.heights.ext || '';
@@ -8,13 +9,15 @@ export function buildFloors(oi) {
   const keep = oi.floorList || [];
   const list = [];
 
-  const mk = (name, on, special) => {
-    const ex = keep.find((f) => f.name === name && !!f.special === special);
-    return ex || { name, on, special, area: '', hExt: special ? '' : he, hInt: special ? '' : hi };
+  const mk = (name, cat, on) => {
+    const ex = keep.find((f) => f.name === name && f.cat === cat);
+    return ex || { name, cat, on, area: '', hExt: cat === 'over' ? he : '', hInt: cat === 'over' ? hi : '' };
   };
 
-  for (let i = 0; i < n; i++) list.push(mk('Этаж ' + (i + 1), true, false));
-  ['Подвал', 'Мансарда', 'Цоколь'].forEach((sp) => list.push(mk(sp, false, true)));
+  for (let i = 0; i < n; i++) list.push(mk('Этаж ' + (i + 1), 'over', true));
+  list.push(mk('Подвал', 'under', false));
+  list.push(mk('Цоколь', 'under', false));
+  list.push(mk('Мансарда', 'mansard', false));
 
   oi.floorList = list;
   recalcFloors(oi);
@@ -40,4 +43,10 @@ export function recalcFloors(oi) {
 
 export function floorsSum(oi) {
   return (oi.floorList || []).reduce((s, f) => s + num(f.area), 0);
+}
+
+// Площадь одной категории — используется, в частности, как «площадь чистых
+// надземных этажей» (cat: 'over'), отдельно от подвала/цоколя/мансарды.
+export function floorsSumByCat(oi, cat) {
+  return (oi.floorList || []).filter((f) => f.cat === cat).reduce((s, f) => s + num(f.area), 0);
 }

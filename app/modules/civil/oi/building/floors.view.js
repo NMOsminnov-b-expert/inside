@@ -2,37 +2,65 @@ import { esc } from '../../../../kernel/dom.js';
 import { fmt, num } from '../../../../kernel/fmt.js';
 import { floorsSum } from './floors.model.js';
 
+// Конструктивный тип мансарды здесь не дублируется — контрол уже есть в
+// общей карточке (data-mansard, читает/пишет oi.mansardType).
+const CATS = [
+  { key: 'over', label: 'Надземные' },
+  { key: 'under', label: 'Подземные' },
+  { key: 'mansard', label: 'Мансардные' },
+];
+
+function catSummary(rows) {
+  const sum = rows.reduce((s, f) => s + num(f.area), 0);
+  return `${rows.length} · ${fmt(sum)} м²`;
+}
+
+function catSection(ctx, oi, cat, fkey) {
+  const rows = oi.floorList.map((f, i) => ({ f, i })).filter(({ f }) => f.cat === cat.key);
+  if (!rows.length) return '';
+
+  const onCount = rows.filter(({ f }) => f.on).length;
+  const ckey = `${fkey}|${cat.key}`;
+  const open = ctx.ui.accOpen[ckey] === true
+    || (ctx.ui.accOpen[ckey] === undefined && cat.key === 'over');
+
+  return `<div class="acc ${open ? 'open' : ''}" style="margin-top:8px">
+<div class="acc-head" data-acc-toggle="${ckey}">
+<span class="chev">▾</span>
+<input type="checkbox" data-cat-all="${cat.key}" ${onCount === rows.length ? 'checked' : ''} title="Выбрать/снять всю категорию — площадь распределится автоматически">
+<span>${cat.label}</span>
+<span style="margin-left:auto" data-cat-summary="${cat.key}">${catSummary(rows.map(({ f }) => f))}</span>
+</div>
+<div class="acc-body" style="padding:8px">
+<table class="tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
+<tbody>${rows.map(({ f, i }) => `<tr>
+<td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
+<td>${esc(f.name)}${cat.key !== 'over' ? ' <span class="tag-mini">вручную</span>' : ''}</td>
+<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.on ? 'readonly' : ''} title="${f.on ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : ''}"></td>
+<td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
+<td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
+</tr>`).join('')}</tbody></table>
+</div>
+</div>`;
+}
+
 export function floorsCountField(oi) {
   return `<div class="field"><label>Количество этажей</label>
 <input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>`;
 }
 
 export function floorsBlock(ctx, oi) {
-  const s = floorsSum(oi);
-  const t = num(oi.areas.tp);
-  const ok = Math.abs(s - t) < 0.01;
+  const total = num(oi.areas.tp);
+  const allSum = floorsSum(oi);
+  const ok = Math.abs(allSum - total) < 0.01;
   const fkey = 'fl|' + oi.id;
-  const anyAuto = (oi.floorList || []).some((f) => f.on);
-  const open = ctx.ui.accOpen[fkey] === true
-    || (ctx.ui.accOpen[fkey] === undefined && (oi.floors > 1 || anyAuto));
 
-  return `<div class="acc ${open ? 'open' : ''}">
-<div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка (включая подвал, мансарду, цоколь)
-<span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
+  return `<div class="inline-row" style="margin-top:8px; align-items:center;">
+<span data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ по зданию: ${fmt(allSum)} / ${fmt(total)} м² (общая по ТП)</span>
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
 </div>
-<div class="acc-body" style="padding:8px">
-<table class="tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
-<tbody>${(oi.floorList || []).map((f, i) => `<tr>
-<td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
-<td>${esc(f.name)}${f.special ? ' <span class="tag-mini">вручную</span>' : ''}</td>
-<td><input class="input" data-floor-area="${i}" value="${esc(f.area)}" ${f.special || f.on ? '' : 'disabled'}></td>
-<td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
-<td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
-</tr>`).join('')}</tbody></table>
-<div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог − сумма ручных) поровну; снятый чекбокс = площадь вручную. Высоты по внешним и внутренним замерам — по каждому этажу.</div>
-</div>
-</div>`;
+${CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
+<div class="muted" style="font-size:10.5px;margin-top:5px">Отмеченные этажи получают оставшуюся площадь (итог по техпаспорту − сумма ручных) поровну; снятый чекбокс = площадь вручную. Чекбокс у категории — отметить/снять её целиком. «Надземные» — чистая площадь этажей дома, без подвала/цоколя/мансарды.</div>`;
 }
 
 export function updateFloorsUI(ctx, oi) {
@@ -43,7 +71,6 @@ export function updateFloorsUI(ctx, oi) {
     if (a) {
       if (document.activeElement !== a) a.value = f.area;
       a.readOnly = f.on;
-      a.disabled = !f.special && !f.on;
     }
     const on = s.$(`[data-floor-on="${i}"]`);
     if (on) on.checked = f.on;
@@ -53,11 +80,26 @@ export function updateFloorsUI(ctx, oi) {
     if (hi && document.activeElement !== hi) hi.value = f.hInt;
   });
 
+  CATS.forEach((cat) => {
+    const rows = oi.floorList.filter((f) => f.cat === cat.key);
+    if (!rows.length) return;
+    const onCount = rows.filter((f) => f.on).length;
+
+    const summaryEl = s.$(`[data-cat-summary="${cat.key}"]`);
+    if (summaryEl) summaryEl.textContent = catSummary(rows);
+
+    const allCb = s.$(`[data-cat-all="${cat.key}"]`);
+    if (allCb) {
+      allCb.checked = onCount === rows.length;
+      allCb.indeterminate = onCount > 0 && onCount < rows.length;
+    }
+  });
+
   const sum = s.$('[data-floor-sum]');
   if (sum) {
     const ssum = floorsSum(oi);
     const tot = num(oi.areas.tp);
-    sum.textContent = `Σ этажей: ${fmt(ssum)} / ${fmt(tot)} м²`;
+    sum.textContent = `Σ по зданию: ${fmt(ssum)} / ${fmt(tot)} м² (общая по ТП)`;
     sum.className = Math.abs(ssum - tot) < 0.01 ? 'sum-ok' : 'sum-warn';
   }
 }

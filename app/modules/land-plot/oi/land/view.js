@@ -18,7 +18,7 @@ function selectField(label, attr, values, value) {
 
 function commonCard(oi) {
   const areas = oi.areas || {};
-  return `<div class="card t-teal"><div class="card-head"><span class="card-idx">01</span><h3>Основные параметры</h3></div><div class="card-pad">
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>Основные параметры</h3></div><div class="card-pad">
 <div class="grid g-4"><div class="field"><label>Тип земельного участка</label><select class="select" data-land-type>${options(LAND_TYPES, oi.landType)}</select></div>
 <div class="field"><label>Назначение</label><input class="input" data-land-purpose value="${esc(oi.purpose || '')}"></div>
 <div class="field"><label>Статус</label><select class="select" data-status>${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
@@ -47,7 +47,7 @@ ${selectField('Наличие газификации', 'data-land-gas', LAND_UTI
 function locationCard(oi) {
   const showEncArea = oi.encumbrance === 'Есть';
   const showBuildings = oi.buildings === 'Есть';
-    return `<div class="card t-teal"><div class="card-head"><span class="card-idx">03</span><h3>Местоположение и застройка</h3></div><div class="card-pad"><div class="grid g-3">
+    return `<div class="card t-blue"><div class="card-head"><span class="card-idx">03</span><h3>Местоположение и застройка</h3></div><div class="card-pad"><div class="grid g-3">
   ${selectField('Расположение в районе', 'data-land-location', LAND_LOCATION, oi.location)}${selectField('Расположение к трассе', 'data-land-road', LAND_ROAD_LOCATION, oi.roadLocation)}${selectField('Угловой/Неугловой', 'data-land-corner', LAND_CORNER, oi.corner)}</div>
 <div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea" data-land-location-features>${esc(oi.locationFeatures || '')}</textarea></div>
 <div class="grid g-2" style="margin-top:10px">${selectField('Наличие сервитутов и обременений', 'data-land-encumbrance', LAND_ENCUMBRANCE, oi.encumbrance || 'Нет')}${showEncArea ? `<div class="field"><label>Площадь сервитутов и обременений, кв.м. <span class="req">*</span></label><input class="input" data-land-encumbrance-area value="${esc(oi.encumbranceArea || '')}" required></div>` : ''}</div>

@@ -5,30 +5,13 @@ import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { photoPages } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
+import { createLandOi } from '../../land-plot/oi/land/model.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
   if (type.card === 'land') {
-    return {
-      id: nextId('oi-l'),
-      card: 'land',
-      name: 'Земельный участок',
-      purpose: '',
-      area: '',
-      areaPud: '',
-      areaBuilt: '',
-      rights: RIGHTS[0],
-      shape: LAND_SHAPE[0],
-      easements: false,
-      easementsArea: '',
-      eni: nextEni(rec, rec.eni),
-      status: 'Основное',
-      flags: { entered: false, matched: false },
-      docs: [],
-      photos: {},
-      notes: [],
-    };
+    return createLandOi(rec, { nextId, nextEni, multiple: false });
   }
 
   const letter = nextLetter(rec);

@@ -4,47 +4,13 @@ import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
+import { createLandOi } from '../oi/land/model.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
   if (type.card === 'land') {
-    return {
-      id: nextId('oi-l'),
-      card: 'land',
-      name: rec.oi.filter((o) => o.card === 'land').length ? `Участок №${rec.oi.filter((o) => o.card === 'land').length + 1}` : 'Земельный участок',
-      purpose: '',
-      landType: 'Сельскохозяйственный',
-      areas: { pravo: '', fact: '', build: '' },
-      eni: nextEni(rec, rec.eni),
-      rights: '',
-      rightsOther: '',
-      useCategory: '',
-      irrigation: '',
-      soil: '',
-      bonitet: '',
-      stoniness: '',
-      utilities: { electricity: false, water: false, sewerage: false, heating: false },
-      form: '',
-      location: '',
-      locationFeatures: '',
-      roadLocation: '',
-      corner: '',
-      encumbrance: 'Нет',
-      encumbranceArea: '',
-      buildings: 'Нет',
-      buildingType: '',
-      buildingArea: '',
-      gasification: '',
-      centralHeating: '',
-      centralWater: '',
-      autonomousHeating: '',
-      status: 'Основное',
-      flags: { entered: false, matched: false },
-      docs: [],
-      photos: {},
-      notes: [],
-    };
+    return createLandOi(rec, { nextId, nextEni, multiple: true });
   }
 
   const letter = nextLetter(rec);
