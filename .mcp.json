@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-memory"],
       "env": {
-        "MEMORY_FILE_PATH": "c:/vs code/inside/.claude/knowledge-graph/memory.jsonl"
+        "MEMORY_FILE_PATH": ".claude/knowledge-graph/memory.jsonl"
       }
     }
   }

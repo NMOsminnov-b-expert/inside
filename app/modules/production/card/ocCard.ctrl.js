@@ -1,4 +1,4 @@
-import { DOC_TYPES } from '../data/dictionaries.js';
+import { DOC_TYPES, WEAR_LEVEL } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
@@ -43,9 +43,11 @@ function createOi(ctx, type) {
     floorList: [],
     heights: { ext: '', int: '' },
     buildType: 'Отдельностоящее',
+    rentAreas: [],
     struct: {
       foundation: 'Не указано',
       wallsExt: 'Не указано',
+      wallsInt: 'Не указано',
       ceilings: 'Не указано',
       roof: 'Не указано',
       floors: 'Не указано',
@@ -55,8 +57,18 @@ function createOi(ctx, type) {
     structOther: {},
     heating: [],
     heatingOther: '',
+    wear: {
+      finish: WEAR_LEVEL[0], insulation: WEAR_LEVEL[0], roof: WEAR_LEVEL[0], plinth: WEAR_LEVEL[0],
+      floors: WEAR_LEVEL[0], ceilings: WEAR_LEVEL[0], windows: WEAR_LEVEL[0], doors: WEAR_LEVEL[0], heating: WEAR_LEVEL[0],
+    },
     comment: '',
     catClass: type.catClass || 'Производственно-складское',
+    // «Доп параметры» — заполняются только для производственно-складских строений.
+    prodClass: '',
+    prodHeight: '',
+    prodFrame: '',
+    prodFloors: '',
+    craneBeam: false,
     dis: false,
     docs: [],
     photos: {},

@@ -11,6 +11,27 @@ export function bind(ctx, oi) {
   const la = s.$('[data-land-area]');
   if (la) la.onchange = () => { oi.area = la.value; ctx.updatePlate(); };
 
+  const ap = s.$('[data-area-pud]');
+  if (ap) ap.onchange = () => { oi.areaPud = ap.value; };
+
+  const ab = s.$('[data-area-built]');
+  if (ab) ab.onchange = () => { oi.areaBuilt = ab.value; };
+
+  const en = s.$('[data-oi-eni]');
+  if (en) en.onchange = () => { oi.eni = en.value.trim() || oi.eni; };
+
+  const rg = s.$('[data-rights]');
+  if (rg) rg.onchange = () => { oi.rights = rg.value; };
+
+  const sh = s.$('[data-shape]');
+  if (sh) sh.onchange = () => { oi.shape = sh.value; };
+
+  const es = s.$('[data-easements]');
+  if (es) es.onchange = () => { oi.easements = es.checked; ctx.render(); };
+
+  const ea = s.$('[data-easements-area]');
+  if (ea) ea.onchange = () => { oi.easementsArea = ea.value; };
+
   s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
 
   s.$$('[data-flag]').forEach((c) => c.onchange = () => {

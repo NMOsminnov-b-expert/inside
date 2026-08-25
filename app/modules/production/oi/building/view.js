@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, WEAR_LEVEL, CLASS_TYPE, PROD_FRAME, PROD_FLOORS } from '../../data/dictionaries.js';
 import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -12,6 +12,7 @@ export function fieldRules(ctx, oi) {
   const ml = (oi.origin || 'manual') === 'ml';
 
   return {
+    prod,
     heightRequired: prod,
     wallsRequired: prod,
     buildTypeRequired: !prod,
@@ -130,6 +131,62 @@ function areasCard(ctx, oi) {
 </div>`;
 }
 
+// Разбивка площадей/стоимости аренды — отдельный блок, строки заводит
+// пользователь сам (без заготовленного списка этажей/помещений).
+// Работа с документами по данному разделу (договоры аренды и т.п.)
+// начнётся не ранее чем через 3 месяца — пока это просто табличный ввод.
+const RENT_COLS = [
+  { key: 'total', label: 'Общая площадь' },
+  { key: 'useful', label: 'Полезная площадь' },
+  { key: 'rentable', label: 'Сдаваемая площадь' },
+  { key: 'rentValue', label: 'Стоимость сдаваемых площадей' },
+];
+
+function rentAreasCard(ctx, oi, idx = 3) {
+  const rows = oi.rentAreas || [];
+
+  return `<div class="card t-slate" id="q-rent">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и стоимость аренды по этажам</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="muted" style="font-size:11px;margin-bottom:8px">Раздел про работу с документами (договоры аренды и т.п.) — начнётся не ранее чем через 3 месяца; пока доступен только табличный ввод. Строки (этажи/помещения) добавляются вручную.</div>
+${rows.length ? `<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th style="width:260px">Строка (этаж/помещение)</th>${RENT_COLS.map((c) => `<th>${c.label}</th>`).join('')}<th style="width:36px"></th></tr></thead>
+<tbody>
+${rows.map((r) => `<tr>
+<td><input class="input" data-rent-label="${r.id}" value="${esc(r.label || '')}" placeholder="Например: Подвал"></td>
+${RENT_COLS.map((c) => `<td><input class="input" data-rent-cell="${c.key}|${r.id}" value="${esc(r[c.key] || '')}"></td>`).join('')}
+<td><button class="btn btn-ghost btn-sm" data-rent-del="${r.id}" title="Удалить строку">✕</button></td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>` : ''}
+<button class="btn btn-ghost btn-sm" data-rent-add style="margin-top:8px">+ Добавить строку</button>
+</div></div>
+</div>`;
+}
+
+const WEAR_ITEMS = [
+  { key: 'finish', label: 'Отделка' },
+  { key: 'insulation', label: 'Утепление' },
+  { key: 'roof', label: 'Кровля' },
+  { key: 'plinth', label: 'Цоколь' },
+  { key: 'floors', label: 'Полы' },
+  { key: 'ceilings', label: 'Перекрытия' },
+  { key: 'windows', label: 'Окна' },
+  { key: 'doors', label: 'Двери' },
+  { key: 'heating', label: 'Отопление' },
+];
+
+function wearField(oi, key, label) {
+  const wear = oi.wear || {};
+  const val = wear[key] || WEAR_LEVEL[0];
+
+  return `<div class="field"><label>${label}</label>
+<select class="select" data-wear="${key}">${WEAR_LEVEL.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>`;
+}
+
 function structCard(ctx, oi, idx = 3) {
   const rq = fieldRules(ctx, oi);
   const struct = oi.struct || {};
@@ -140,16 +197,51 @@ function structCard(ctx, oi, idx = 3) {
 <div class="grid g-4">
 ${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
 ${structField(oi, 'wallsExt', 'Наружные стены', STRUCT.wallsExt, struct.wallsExt, rq.wallsRequired)}
+${structField(oi, 'wallsInt', 'Внутренние стены', STRUCT.wallsExt, struct.wallsInt)}
 ${structField(oi, 'ceilings', 'Перекрытия', STRUCT.ceilings, struct.ceilings)}
-${structField(oi, 'roof', 'Кровля', STRUCT.roof, struct.roof)}
 </div>
 <div class="grid g-4" style="margin-top:8px">
+${structField(oi, 'roof', 'Кровля', STRUCT.roof, struct.roof)}
 ${structField(oi, 'floors', 'Полы', STRUCT.floors, struct.floors)}
 ${structField(oi, 'windows', 'Окна', STRUCT.windows, struct.windows)}
 ${structField(oi, 'doors', 'Двери', STRUCT.doors, struct.doors)}
+</div>
+<div class="grid g-3" style="margin-top:8px">
 ${heatingMS(ctx, oi)}
 </div>
+<div style="margin-top:12px">
+<div class="sec-h">Износ конструктивных элементов</div>
+<div class="grid g-3" style="margin-top:6px">
+${WEAR_ITEMS.map((w) => wearField(oi, w.key, w.label)).join('')}
+</div>
+</div>
 <div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
+</div></div>
+</div>`;
+}
+
+// «Доп параметры» — только для строений с catClass «Производственно-складское».
+function prodExtraCard(ctx, oi, idx) {
+  return `<div class="card t-teal" id="q-prod">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Доп параметры (производственное строение)</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="grid g-4">
+<div class="field"><label>Класс</label>
+<select class="select" data-prod-class>${CLASS_TYPE.map((o) => `<option ${o === (oi.prodClass || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+<div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(oi.prodHeight || '')}" inputmode="decimal"></div>
+</div>
+<div class="grid g-3" style="margin-top:8px">
+<div class="field"><label>Конструктив</label>
+<select class="select" data-prod-frame>${PROD_FRAME.map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+<div class="field"><label>Полы (несущая способность)</label>
+<select class="select" data-prod-floors>${PROD_FLOORS.map((o) => `<option ${o === (oi.prodFloors || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+<div class="field"><label>&nbsp;</label>
+<label class="flag-lbl"><input type="checkbox" data-prod-crane ${oi.craneBeam ? 'checked' : ''}> Наличие/возможность кран-балки</label>
+</div>
+</div>
 </div></div>
 </div>`;
 }
@@ -177,13 +269,17 @@ ${photoAccordions(ctx.ui, oi, true)}
 export function render(ctx, oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
+  const rq = fieldRules(ctx, oi);
+  const docsIdx = rq.prod ? 6 : 5;
 
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi)}
 ${areasCard(ctx, oi)}
-${structCard(ctx, oi, 3)}
-${docsCard(oi, 4)}
-${photosCard(ctx, oi, 5)}
+${rentAreasCard(ctx, oi, 3)}
+${structCard(ctx, oi, 4)}
+${rq.prod ? prodExtraCard(ctx, oi, 5) : ''}
+${docsCard(oi, docsIdx)}
+${photosCard(ctx, oi, docsIdx + 1)}
 </div>`;
 
   return `<div class="view-head">

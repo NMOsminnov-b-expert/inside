@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "branch": "kirill",
+    "author": "kiril.com1310@gmail.com",
+    "createdAt": "20260825T045805Z",
+    "baseCommit": "af367d0",
+    "note": "Починен .mcp.json: MEMORY_FILE_PATH был захардкожен на локальный путь другого разработчика (c:/vs code/inside/...), из-за чего живой MCP-сервер памяти на этой машине стартовал с пустым графом."
+  },
+  "entities": [
+    {
+      "name": "inside",
+      "entityType": "Project",
+      "observations": [
+        "Баг найден 2026-08-25: .mcp.json (в git) хранил MEMORY_FILE_PATH как абсолютный путь c:/vs code/inside/.claude/knowledge-graph/memory.jsonl — путь конкретной машины/чекаута одного из разработчиков, не существующий на других машинах (в этом репо — c:/project/inside). Из-за этого сервер памяти запускался с MEMORY_FILE_PATH в никуда и read_graph() возвращал пустой граф, хотя .claude/knowledge-graph/memory.jsonl (пересобранный из log/*.json) был полон.",
+        "Исправлено на относительный путь .claude/knowledge-graph/memory.jsonl (сервер запускается с cwd = корень репозитория, поэтому относительный путь переносится между машинами). Изменение требует перезапуска MCP-соединения (reload window / новая сессия) — на лету переменные окружения уже запущенного процесса npx не подхватываются."
+      ]
+    }
+  ],
+  "relations": []
+}

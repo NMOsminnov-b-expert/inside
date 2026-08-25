@@ -59,6 +59,49 @@ export function bind(ctx, oi) {
   const cm = s.$('[data-comment]');
   if (cm) cm.onchange = () => { oi.comment = cm.value; };
 
+  const ft = s.$('[data-features]');
+  if (ft) ft.onchange = () => { oi.features = ft.value; };
+
+  const rg = s.$('[data-rights]');
+  if (rg) rg.onchange = () => { oi.rights = rg.value; };
+
+  const mt = s.$('[data-mansard]');
+  if (mt) mt.onchange = () => { oi.mansardType = mt.value; };
+
+  const lgc = s.$('[data-loggias-count]');
+  if (lgc) lgc.onchange = () => { oi.loggiasCount = lgc.value; };
+
+  const bc = s.$('[data-balconies-count]');
+  if (bc) bc.onchange = () => { oi.balconiesCount = bc.value; };
+
+  // --- Площади и стоимость аренды (строки заводит пользователь) -----------
+  oi.rentAreas = oi.rentAreas || [];
+
+  s.$$('[data-rent-label]').forEach((i) => i.onchange = () => {
+    const row = oi.rentAreas.find((r) => r.id === i.dataset.rentLabel);
+    if (row) row.label = i.value;
+  });
+
+  s.$$('[data-rent-cell]').forEach((i) => i.onchange = () => {
+    const [col, id] = i.dataset.rentCell.split('|');
+    const row = oi.rentAreas.find((r) => r.id === id);
+    if (row) row[col] = i.value;
+  });
+
+  const ra = s.$('[data-rent-add]');
+  if (ra) ra.onclick = (e) => {
+    e.stopPropagation();
+    oi.rentAreas.push({ id: nextId('ra'), label: '', total: '', useful: '', rentable: '', rentValue: '' });
+    ctx.render();
+  };
+
+  s.$$('[data-rent-del]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const i = oi.rentAreas.findIndex((r) => r.id === b.dataset.rentDel);
+    if (i >= 0) oi.rentAreas.splice(i, 1);
+    ctx.render();
+  });
+
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
@@ -94,6 +137,28 @@ export function bind(ctx, oi) {
     oi.structOther = oi.structOther || {};
     oi.structOther[inp.dataset.structOther] = inp.value;
   });
+
+  // --- Износ конструктивных элементов --------------------------------------
+  s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
+    oi.wear = oi.wear || {};
+    oi.wear[sel.dataset.wear] = sel.value;
+  });
+
+  // --- Доп параметры (производственное строение) ---------------------------
+  const pcl = s.$('[data-prod-class]');
+  if (pcl) pcl.onchange = () => { oi.prodClass = pcl.value; };
+
+  const phe = s.$('[data-prod-height]');
+  if (phe) phe.onchange = () => { oi.prodHeight = phe.value; };
+
+  const pfr = s.$('[data-prod-frame]');
+  if (pfr) pfr.onchange = () => { oi.prodFrame = pfr.value; };
+
+  const pfl = s.$('[data-prod-floors]');
+  if (pfl) pfl.onchange = () => { oi.prodFloors = pfl.value; };
+
+  const pcr = s.$('[data-prod-crane]');
+  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.checked; };
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
