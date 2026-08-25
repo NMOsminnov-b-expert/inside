@@ -9,6 +9,7 @@ import { openDocViewer, openPhotoInPlace, VS } from '../viewer/viewerState.js';
 import { photoPages } from '../photos/photoModel.js';
 import { updateCtxPlate } from '../../ui/ctxPlate.js';
 import { canAddOiType } from '../oc/ocRules.js';
+import { getOiCardDefinition } from './cardTypes/index.js';
 
 // Локальный рендер с сохранением прокрутки: используется при смене полей,
 // от которых зависят правила отображения (категория, происхождение, флаги).
@@ -502,11 +503,43 @@ export function bindOi() {
     }
 
     if (oi.kind === 'land') {
-      const lp = document.querySelector('[data-land-purpose]');
-      if (lp) lp.onchange = () => { oi.purpose = lp.value; };
+      const lt = document.querySelector('[data-land-type]');
+      if (lt) lt.onchange = () => {
+        oi.landType = lt.value;
+        renderKeepScroll();
+      };
 
-      const la = document.querySelector('[data-land-area]');
-      if (la) la.onchange = () => { oi.area = la.value; };
+      document.querySelectorAll('[data-land-field]').forEach((field) => {
+        if (field.dataset.landField === 'eni') {
+          return;
+        }
+
+        field.onchange = () => {
+          oi[field.dataset.landField] = field.value;
+          if (field.dataset.landField === 'status') {
+            updateCtxPlate();
+          }
+        };
+      });
+
+      document.querySelectorAll('[data-land-communication]').forEach((checkbox) => {
+        checkbox.onchange = () => {
+          oi.communications = oi.communications || {};
+          oi.communications[checkbox.dataset.landCommunication] = checkbox.checked;
+        };
+      });
+
+      const le = document.querySelector('[data-land-encumbrance]');
+      if (le) le.onchange = () => {
+        oi.hasEncumbrance = le.value === 'true';
+        renderKeepScroll();
+      };
+
+      const lb = document.querySelector('[data-land-buildings]');
+      if (lb) lb.onchange = () => {
+        oi.hasBuildings = lb.value === 'true';
+        renderKeepScroll();
+      };
     }
 
     document.querySelectorAll('[data-struct]').forEach((s) => s.onchange = () => {
@@ -583,6 +616,15 @@ export function bindOi() {
 
     if (sv) {
       sv.onclick = () => {
+        if (oi.kind === 'land') {
+          const result = getOiCardDefinition(oi).validate(oi);
+
+          if (!result.valid) {
+            toast(result.errors[0], 'warn');
+            return;
+          }
+        }
+
         appState.view = 'oc';
         appState.viewer = null;
         appState.letterEdit = false;
