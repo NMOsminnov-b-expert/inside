@@ -1,5 +1,6 @@
 import { esc } from '../../../../kernel/dom.js';
 import { VS } from './state.js';
+import { photoFileAt } from '../photos/model.js';
 
 // Целевые литеры для переноса текущего фото (все литеры, кроме текущей).
 function moveTargets(ctx, oi) {
@@ -36,18 +37,24 @@ export function renderPhotoMode(ctx, vctx) {
   const ribbon = groups.map((g) => {
     const inner = g.items.map((it) => {
       gi++;
+      const f = photoFileAt(oi, it.cat, it.i);
       return `<div class="vpage-wrap" data-vpageblk="${gi}"><div class="vpage photo-page" data-vpageinner style="transform:rotate(${pSt.rot}deg)">
-      <div class="photo-fill">${esc(it.cat)} · фото ${it.i + 1}</div></div></div>`;
+      ${f ? `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`
+          : `<div class="photo-fill">${esc(it.cat)} · фото ${it.i + 1}</div>`}</div></div>`;
     }).join('');
     return `<div class="vgroup-h">${esc(g.cat)} · ${g.items.length}</div>${inner}`;
   }).join('') || '<div class="vpage photo-page"><div class="photo-fill">Фото не загружены</div></div>';
 
   const rail = groups.map((g) => `<div class="rail-cat">${esc(g.cat)}</div>` + g.items.map((it) => {
     const idx = pages.findIndex((p) => p.cat === it.cat && p.i === it.i) + 1;
-    return `<div class="vthumb pho ${idx === pSt.page ? 'active' : ''}" data-vthumb="${idx}" title="${esc(it.cat)} ${it.i + 1}"><span class="vthumb-num">${idx}</span></div>`;
+    const f = photoFileAt(oi, it.cat, it.i);
+    return `<div class="vthumb pho ${f ? 'real' : ''} ${idx === pSt.page ? 'active' : ''}" data-vthumb="${idx}" title="${esc(it.cat)} ${it.i + 1}">${f ? `<img class="vthumb-img" src="${f.dataUrl}" alt="">` : ''}<span class="vthumb-num">${idx}</span></div>`;
   }).join('')).join('');
 
-  const body = `<div class="vbody"><div class="vrail"><div class="vrail-list">${rail}</div></div>
+  const railOff = ctx.ui.railCollapsed === true;
+  const body = `<div class="vbody"><div class="vrail ${railOff ? 'collapsed' : ''}">
+    <div class="vrail-toggle" data-vrail-toggle title="${railOff ? 'Показать миниатюры' : 'Скрыть миниатюры'}">${railOff ? '»' : '« Миниатюры'}</div>
+    <div class="vrail-list">${rail}</div></div>
   <div class="vstage" data-vstage><div class="vribbon" data-vribbon>${ribbon}</div></div></div>`;
 
   return { toolbar, body };

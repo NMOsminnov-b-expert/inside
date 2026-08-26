@@ -1,6 +1,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { VS } from './state.js';
 import { docPageHTML } from './doc.js';
+import { photoFileAt } from '../photos/model.js';
 
 // Режим «Сравнение»: фото слева, документ справа.
 //
@@ -29,8 +30,10 @@ export function renderCompareMode(ctx, vctx) {
   const photoRibbon = groups.map((g) => {
     const inner = g.items.map((it) => {
       gi++;
+      const f = photoFileAt(vctx.oi, it.cat, it.i);
       return `<div class="vpage-wrap" data-cmp-phblk="${gi}"><div class="vpage photo-page">
-        <div class="photo-fill">${esc(it.cat)} · фото ${it.i + 1}</div></div></div>`;
+        ${f ? `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`
+            : `<div class="photo-fill">${esc(it.cat)} · фото ${it.i + 1}</div>`}</div></div>`;
     }).join('');
     return `<div class="vgroup-h">${esc(g.cat)} · ${g.items.length}</div>${inner}`;
   }).join('') || '<div class="vpage photo-page"><div class="photo-fill">Фото не загружены</div></div>';

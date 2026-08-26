@@ -138,7 +138,10 @@ body[data-module="civil"] .split{display:flex;gap:0;align-items:flex-start;--vw:
 body[data-module="civil"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="civil"] .vsplit:hover{background:var(--blue-500)}
 body[data-module="civil"] .grow{flex:1;min-width:620px;padding-left:12px}
-body[data-module="civil"] .viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 120px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+body[data-module="civil"] .viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 80px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+/* 80px = topbar 44 + верхний/нижний padding .content (14+14) + 8 на зазор.
+   Раньше вычиталось 120px, и при прокрутке под просмотрщиком оставалось
+   ~76px неиспользуемой пустоты. */
 body[data-module="civil"] .vmode{display:flex;gap:4px;padding:6px 8px;background:#eef4fb;border-bottom:1px solid var(--line-soft);flex-shrink:0}
 body[data-module="civil"] .vmode-btn{padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;color:#46536b;border:1px solid transparent;transition:background .12s}
 body[data-module="civil"] .vmode-btn:hover{background:#fff}
@@ -158,15 +161,24 @@ body[data-module="civil"] .zoom-label{min-width:42px;text-align:center;font-size
 body[data-module="civil"] .vtitle{font-size:11.5px;font-weight:700;color:var(--blue-700);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body[data-module="civil"] .vcat{font-size:11.5px;padding:3px 6px;border-radius:6px;width:auto}
 body[data-module="civil"] .vbody{flex:1;display:flex;min-height:0}
-body[data-module="civil"] .vrail{width:92px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0}
+/* Лента миниатюр: крупные превью, чтобы было видно СОДЕРЖИМОЕ страницы, а не
+   только её наличие. Сворачивается кнопкой (.vrail.collapsed) — на узких
+   экранах или когда нужна вся ширина под саму страницу. */
+body[data-module="civil"] .vrail{width:168px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0;transition:width .16s}
+body[data-module="civil"] .vrail.collapsed{width:30px}
+body[data-module="civil"] .vrail.collapsed .vrail-list,body[data-module="civil"] .vrail.collapsed [data-vaddpage]{display:none}
+body[data-module="civil"] .vrail-toggle{height:26px;flex-shrink:0;border-bottom:1px solid var(--line-soft);background:#eef4fb;color:#5b6c85;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;user-select:none}
+body[data-module="civil"] .vrail-toggle:hover{background:var(--blue-100)}
 body[data-module="civil"] .vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
 body[data-module="civil"] .rail-cat{font-size:8.5px;font-weight:700;color:#61799a;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
-body[data-module="civil"] .vthumb{width:56px;height:72px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
+body[data-module="civil"] .vthumb{width:132px;height:170px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
 /* Схематичные полоски — только у макетных заглушек. У реальной страницы
    (.vthumb.real) в миниатюре живёт canvas с настоящим превью, полоски под ним
    были бы просто грязью. */
 body[data-module="civil"] .vthumb.doc:not(.real)::after{content:'';position:absolute;inset:8px 6px 14px;background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
-body[data-module="civil"] .vthumb-canvas{position:absolute;inset:2px 2px 12px;width:calc(100% - 4px);height:auto;max-height:calc(100% - 14px);object-fit:contain;opacity:0;transition:opacity .12s;background:#fff}
+body[data-module="civil"] .vthumb-canvas{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:contain;opacity:0;transition:opacity .12s;background:#fff}
+body[data-module="civil"] .vthumb-img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:cover;border-radius:3px}
+body[data-module="civil"] .vthumb.pho.real::after{content:none}
 body[data-module="civil"] .vthumb-canvas.ready{opacity:1}
 /* Перетаскивание миниатюр: порядок страниц + Ctrl-множественный выбор. */
 body[data-module="civil"] .vthumb{cursor:grab}
@@ -176,7 +188,7 @@ body[data-module="civil"] .vthumb.drop-before{box-shadow:0 -3px 0 0 var(--blue-6
 body[data-module="civil"] .vthumb.drop-after{box-shadow:0 3px 0 0 var(--blue-600)}
 body[data-module="civil"] .vthumb.pho::after{content:'';position:absolute;inset:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);border-radius:3px}
 body[data-module="civil"] .vthumb.active{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.2)}
-body[data-module="civil"] .vthumb-num{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:9px;color:var(--muted)}
+body[data-module="civil"] .vthumb-num{position:absolute;bottom:2px;right:3px;font-size:9.5px;font-weight:700;color:#33445c;background:rgba(255,255,255,.86);border-radius:4px;padding:0 5px;line-height:14px}
 body[data-module="civil"] .vthumb-del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;z-index:2}
 body[data-module="civil"] .vthumb:hover .vthumb-del{display:flex}
 /* overscroll-behavior:contain — колесо над лентой прокручивает только ленту.

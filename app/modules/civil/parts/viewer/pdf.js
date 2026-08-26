@@ -126,8 +126,13 @@ async function paintOne(canvas, zoom, thumbWidth) {
 // Вызывается после отрисовки экрана (bindViewer): canvas'ы уже в DOM, но пустые.
 // Сюда попадают и большие страницы, и миниатюры — у миниатюр свой data-атрибут
 // с целевой шириной, потому что их разрешение не зависит от зума ленты.
-export function paintPdfCanvases(ctx, zoom) {
-  ctx.scope.$$('canvas[data-pdf-src]').forEach((canvas) => {
+//
+// root — необязательное ограничение области. Обязателен там, где зум свой у
+// каждого блока (режим «Сравнение»): без него смена зума в одной колонке
+// перерисовывала бы страницы и в другой, чужим масштабом.
+export function paintPdfCanvases(ctx, zoom, root) {
+  const within = root || ctx.scope.root;
+  within.querySelectorAll('canvas[data-pdf-src]').forEach((canvas) => {
     const thumbWidth = canvas.dataset.pdfThumb ? +canvas.dataset.pdfThumb : 0;
     paintOne(canvas, zoom, thumbWidth).catch((e) => {
       console.warn('PDF: не удалось отрисовать страницу', e);

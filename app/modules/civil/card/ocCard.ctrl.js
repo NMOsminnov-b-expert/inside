@@ -3,7 +3,7 @@ import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
-import { photoPages } from '../parts/photos/model.js';
+import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 
@@ -251,17 +251,23 @@ export function bindOcCard(ctx) {
     await ctx.deleteOi(b.dataset.delOi);
   });
 
-  // Фото в аккордеоне перечня и мини-превью в строках.
-  s.$$('[data-add-photo]').forEach((b) => b.onclick = (e) => {
+  // Фото в аккордеоне перечня и мини-превью в строках. Теперь это РЕАЛЬНАЯ
+  // загрузка файла (как у документов), а не просто инкремент счётчика: файл
+  // кладётся в oi.photoFiles, счётчик увеличивает addPhotoFile.
+  s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const oi = rec.oi.find((o) => o.id === b.dataset.photoOi);
     if (!oi) return;
     const cat = b.dataset.addPhoto;
-    oi.photos = oi.photos || {};
-    oi.photos[cat] = (oi.photos[cat] || 0) + 1;
+
+    const file = await pickFile('image/*');
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+
+    addPhotoFile(oi, cat, await attachedFileFrom(file));
     ctx.ui.accOpen['ph|' + oi.id + '|' + cat] = true;
     ctx.render();
-    ctx.toast('Фото загружено', 'ok');
+    ctx.toast('Фото загружено: ' + file.name, 'ok');
   });
 
   s.$$('[data-open-photo]').forEach((p) => p.onclick = (e) => {

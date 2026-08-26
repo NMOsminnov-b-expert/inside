@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { photoPages, photoMatches } from './model.js';
+import { photoPages, photoMatches, photoFileAt } from './model.js';
 import { splitWrap, viewerHTML } from '../viewer/shell.js';
 import { openPhotoInPlace } from '../viewer/state.js';
 
@@ -21,7 +21,7 @@ export function photoSectionsHTML(ctx) {
     return `<div class="photo-sec">
       <div class="photo-sec-h">${head} <span class="tag-mini">${pages.length}</span></div>
       <div class="tile-grid">${pages.map((p) => `<div class="tile" data-tile-photo="${oi.id}|${p.idx}" title="${esc(p.cat)} · фото ${p.i + 1}">
-        <div class="tile-img">${esc(p.cat)}</div>
+        <div class="tile-img">${(() => { const f = photoFileAt(oi, p.cat, p.i); return f ? `<img src="${f.dataUrl}" alt="">` : esc(p.cat); })()}</div>
         <div class="tile-cap">${esc(p.cat)} · фото ${p.i + 1}</div>
       </div>`).join('')}</div>
     </div>`;

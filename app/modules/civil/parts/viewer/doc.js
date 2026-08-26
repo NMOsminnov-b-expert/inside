@@ -116,10 +116,13 @@ export function renderDocMode(ctx, vctx) {
   // понять, где какая страница. draggable — перетаскивание для смены порядка,
   // Ctrl+клик — множественный выбор (см. parts/viewer/ctrl.js).
   const sel = ctx.ui.pageSel || [];
-  const body = `<div class="vbody"><div class="vrail"><div class="vrail-list" data-vrail-list>
+  const railOff = ctx.ui.railCollapsed === true;
+  const body = `<div class="vbody"><div class="vrail ${railOff ? 'collapsed' : ''}">
+    <div class="vrail-toggle" data-vrail-toggle title="${railOff ? 'Показать миниатюры' : 'Скрыть миниатюры'}">${railOff ? '»' : '« Миниатюры'}</div>
+    <div class="vrail-list" data-vrail-list>
     ${d.pages.map((p, i) => `<div class="vthumb doc ${p.kind === 'pdf' ? 'real' : ''} ${i + 1 === dSt.page ? 'active' : ''} ${sel.includes(i + 1) ? 'sel' : ''}"
       data-vthumb="${i + 1}" draggable="true" title="Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько">
-      ${p.kind === 'pdf' ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="52"></canvas>` : ''}
+      ${p.kind === 'pdf' ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="128"></canvas>` : ''}
       <button class="vthumb-del" data-vdelpage="${i + 1}">×</button><span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div>${d.file ? '' : `<button class="btn btn-ghost btn-sm" data-vaddpage style="margin:6px">+ Страница</button>`}</div>
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>

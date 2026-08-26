@@ -23,6 +23,7 @@ export const ui = {
   letterEdit: false,
   heatOpen: false,
   photoQuery: '',
+  railCollapsed: false,   // лента миниатюр просмотрщика свёрнута
   mechMode: 'mono',
   mechDocs: [],
   mechRows: [],

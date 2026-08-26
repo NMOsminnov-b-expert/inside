@@ -9,8 +9,6 @@ import { paintPdfCanvases } from './pdf.js';
 // зовут и кнопки панели, и горячие клавиши (которые навешиваются однократно, см.
 // bindViewerHotkeys), поведение обязано быть идентичным.
 
-// При 90°/270° повёрнутый лист вылезал за рамку и обрезался — поэтому вместе с
-// самим transform меняем габариты обёртки местами.
 // Повёрнутый на 90°/270° лист меняет габариты местами: отдаём обёртке
 // поменянные размеры, а центрирование листа внутри обёртки (CSS .vpage-wrap)
 // делает так, что повёрнутый лист ровно её заполняет и никуда не вылезает.
@@ -46,7 +44,8 @@ function rotateViewer(ctx) {
 // в новом разрешении, когда масштаб переходит на другую «ступень».
 function zoomViewer(ctx, value) {
   setVZoom(ctx, value);
-  paintPdfCanvases(ctx, VS.zoom);
+  // Только лента страниц: миниатюры живут вне неё и от зума не зависят.
+  paintPdfCanvases(ctx, VS.zoom, ctx.scope.$('[data-vribbon]') || undefined);
 }
 
 // Горячие клавиши просмотрщика. Работают одинаково на реальных страницах PDF и на
@@ -137,6 +136,11 @@ export function bindViewer(ctx) {
 
   const zp = s.$('[data-vzoom\\+]');
   if (zp) zp.onclick = () => zoomViewer(ctx, VS.zoom + 10);
+
+  // Лента миниатюр сворачивается: миниатюры крупные (видно содержимое страницы),
+  // но иногда нужна вся ширина под саму страницу.
+  const railBtn = s.$('[data-vrail-toggle]');
+  if (railBtn) railBtn.onclick = () => { ctx.ui.railCollapsed = !ctx.ui.railCollapsed; ctx.render(); };
 
   const vc = s.$('[data-vclose]');
   if (vc) vc.onclick = () => { ctx.ui.viewer = null; ctx.render(); };
@@ -328,7 +332,9 @@ function bindCompareColumns(ctx) {
     if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
     const label = s.$(`[data-cmp-zoomlabel="${which}"]`);
     if (label) label.textContent = VS.cmpZoom[which] + '%';
-    paintPdfCanvases(ctx, VS.cmpZoom[which]);
+    // Только своя колонка: без ограничения области перерисовывалась и чужая,
+    // причём чужим масштабом.
+    if (ribbon) paintPdfCanvases(ctx, VS.cmpZoom[which], ribbon);
   };
 
   s.$$('[data-cmp-zoom]').forEach((b) => b.onclick = () => {
