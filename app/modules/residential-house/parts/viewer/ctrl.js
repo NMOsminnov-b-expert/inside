@@ -2,7 +2,8 @@ import { docListFor } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
 import { VS, vSt, vPages, vGo, setVZoom, openDocViewer } from './state.js';
-import { nextId } from '../../data/store.js';
+import { nextDocId } from '../../data/store.js';
+import { pushDocPageLog } from '../../audit/model.js';
 
 export function bindViewer(ctx) {
   const s = ctx.scope;
@@ -62,7 +63,9 @@ export function bindViewer(ctx) {
     if (!vd) return;
     const d = docListFor(ctx, vd.scope).find((x) => x.id === vd.id);
     if (!d || d.pages.length <= 1) { ctx.toast('Нельзя удалить единственную страницу', 'warn'); return; }
-    d.pages.splice(+b.dataset.vdelpage - 1, 1);
+    const pageNumber = +b.dataset.vdelpage;
+    d.pages.splice(pageNumber - 1, 1);
+    pushDocPageLog(ctx.rec, d, 'delete', pageNumber);
     const st = vSt(ctx);
     if (st) st.page = Math.min(st.page, d.pages.length);
     ctx.render();
@@ -75,6 +78,7 @@ export function bindViewer(ctx) {
     const d = docListFor(ctx, vd.scope).find((x) => x.id === vd.id);
     if (!d) return;
     d.pages.push({ kind: 'skel' });
+    pushDocPageLog(ctx.rec, d, 'create', d.pages.length);
     ctx.render();
     ctx.toast('Страница добавлена', 'ok');
   };
@@ -160,7 +164,7 @@ export function bindViewer(ctx) {
     if (!name) return;
 
     const list = docListFor(ctx, scope);
-    list.push({ id: nextId('doc'), type, name, date: ctx.today, pages: null });
+    list.push({ id: nextDocId(ctx.rec), type, name, date: ctx.today, pages: null });
 
     ctx.render();
     ctx.toast('Документ прикреплён: ' + type, 'ok');

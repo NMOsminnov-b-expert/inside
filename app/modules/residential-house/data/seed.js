@@ -33,9 +33,9 @@ export function createSeed() {
         mkNote('Техпаспорт от 2020 года — проверить актуальность', true),
       ],
       docs: [
-        { id: 'd1', type: 'Техпаспорт', name: 'Техпаспорт от 12.05.2020', date: '12.05.2020', pages: null },
-        { id: 'd2', type: 'ПУД', name: 'ПУД №118', date: '12.05.2020', pages: null },
-        { id: 'd3', type: 'Гос. акт на землю', name: 'Гос. акт №44/07', date: '03.02.2019', pages: null },
+        { id: '147561681351-1', type: 'Техпаспорт', name: 'Техпаспорт от 12.05.2020', date: '12.05.2020', pages: null },
+        { id: '147561681351-2', type: 'ПУД', name: 'ПУД №118', date: '12.05.2020', pages: null },
+        { id: '147561681351-3', type: 'Гос. акт на землю', name: 'Гос. акт №44/07', date: '03.02.2019', pages: null },
       ],
       oi: [
         {
@@ -165,7 +165,7 @@ export function createSeed() {
           autonomousHeating: 'Подведены',
           flags: { entered: true, matched: true },
           docs: [
-            { id: 'ld1', type: 'Гос. акт на землю', name: 'Гос. акт №44/07', date: '03.02.2019' },
+            { id: '147561681351-4', type: 'Гос. акт на землю', name: 'Гос. акт №44/07', date: '03.02.2019' },
           ],
           photos: { 'Земельный участок': 2 },
           notes: [mkNote('Границы участка на плане не совпадают с фактическими', false)],
@@ -199,8 +199,8 @@ export function createSeed() {
       },
       notes: [mkNote('Сверить площадь застройки с обмерами', false)],
       docs: [
-        { id: 'd21', type: 'Техпаспорт', name: 'Техпаспорт от 04.03.2021', date: '04.03.2021', pages: null },
-        { id: 'd22', type: 'Акт осмотра', name: 'Акт осмотра №77', date: '19.07.2026', pages: null },
+        { id: '147561682204-1', type: 'Техпаспорт', name: 'Техпаспорт от 04.03.2021', date: '04.03.2021', pages: null },
+        { id: '147561682204-2', type: 'Акт осмотра', name: 'Акт осмотра №77', date: '19.07.2026', pages: null },
       ],
       oi: [
         {
@@ -274,7 +274,7 @@ export function createSeed() {
           centralWater: 'Подведены',
           autonomousHeating: 'Подведены',
           flags: { entered: true, matched: true },
-          docs: [{ id: 'ld21', type: 'Гос. акт на землю', name: 'Гос. акт №12/21', date: '15.06.2021' }],
+          docs: [{ id: '147561682204-3', type: 'Гос. акт на землю', name: 'Гос. акт №12/21', date: '15.06.2021' }],
           photos: { 'Земельный участок': 1 },
           notes: [],
         },
@@ -307,7 +307,7 @@ export function createSeed() {
       },
       notes: [],
       docs: [
-        { id: 'd31', type: 'Техпаспорт', name: 'Техпаспорт от 22.09.2019', date: '22.09.2019', pages: null },
+        { id: '147561683917-1', type: 'Техпаспорт', name: 'Техпаспорт от 22.09.2019', date: '22.09.2019', pages: null },
       ],
       oi: [
         {

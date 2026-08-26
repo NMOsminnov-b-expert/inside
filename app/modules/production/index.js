@@ -14,7 +14,6 @@ import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer } from './parts/viewer/ctrl.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
-import { takeSnapshot, logDiff } from '../../kernel/auditLog.js';
 import { viewMech } from './create/mech.view.js';
 import { bindMech } from './create/mech.ctrl.js';
 
@@ -237,34 +236,20 @@ export function main(host) {
     scope.root.scrollTop = top;
   }
 
-  // Лог изменений (только для роли «администратор», см. card/ocCard.view.js):
-  // снимок записи снимается при входе, сравнивается с текущим состоянием
-  // при выходе (смена маршрута/записи, размонтирование модуля) — см.
-  // kernel/auditLog.js. Так фиксируется любое поле любой карточки без
-  // ручной расстановки логирования по каждому onchange.
-  let recSnapshot = rec ? takeSnapshot(rec) : null;
-
-  function flushAuditLog() {
-    if (recSnapshot) logDiff(rec, rec.eni || rec.address, recSnapshot, rec);
-  }
-
   bindCommonUI();
   draw();
 
   return {
     onRoute(next) {
-      flushAuditLog();
       route = next;
       const nextRec = loadRecord(next.ocId);
       if (nextRec !== rec) {
         rec = nextRec;
         resetViewer();
       }
-      recSnapshot = rec ? takeSnapshot(rec) : null;
       draw();
     },
     destroy() {
-      flushAuditLog();
       resetViewer();
     },
   };

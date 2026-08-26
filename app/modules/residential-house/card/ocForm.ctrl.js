@@ -1,4 +1,4 @@
-import { nextId } from '../data/store.js';
+import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
 
 export function bindOcForm(ctx) {
@@ -62,7 +62,7 @@ export function bindOcForm(ctx) {
     const name = await ctx.host.prompt({ title: 'Прикрепить документ', label: 'Наименование документа (' + t + ')', placeholder: t });
     if (!name) return;
     rec.docs = rec.docs || [];
-    rec.docs.push({ id: nextId('d'), type: t, name, date: ctx.today, pages: null });
+    rec.docs.push({ id: nextDocId(rec), type: t, name, date: ctx.today, pages: null });
     ctx.render();
     ctx.toast('Документ прикреплён: ' + t, 'ok');
   });

@@ -1,6 +1,6 @@
 import { photoPages } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
-import { nextId } from '../../data/store.js';
+import { nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
   const s = ctx.scope;
@@ -93,7 +93,7 @@ export function bind(ctx, oi) {
 
   const am = s.$('[data-add-movdoc]');
   if (am) am.onclick = () => {
-    (oi.docs = oi.docs || []).push({ id: nextId('md'), type: 'Гос. акт на землю', name: 'Новый документ', date: ctx.today });
+    (oi.docs = oi.docs || []).push({ id: nextDocId(ctx.rec), type: 'Гос. акт на землю', name: 'Новый документ', date: ctx.today });
     ctx.render();
     ctx.toast('Документ добавлен', 'ok');
   };

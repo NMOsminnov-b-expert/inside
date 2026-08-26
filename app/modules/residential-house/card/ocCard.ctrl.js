@@ -1,10 +1,11 @@
 import { DOC_TYPES } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
+import { nextLetter, nextId, nextEni, nextDocId, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { bindAuditTab } from '../audit/ctrl.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
@@ -74,6 +75,8 @@ export function bindOcCard(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
 
+  if (ctx.tab === 'audit') bindAuditTab(ctx);
+
   // --- Вкладки ------------------------------------------------------------
   s.$$('[data-tab]').forEach((b) => b.onclick = () => {
     const tab = b.dataset.tab;
@@ -84,6 +87,9 @@ export function bindOcCard(ctx) {
       if (!ctx.ui.viewerDoc && docs.length) ctx.ui.viewerDoc = { scope: 'oc', id: docs[0].id };
     } else if (tab === 'photo') {
       ctx.ui.viewer = { mode: 'photo' };
+    } else if (tab === 'audit') {
+      // Лог действий — на всю ширину, без просмотрщика документов рядом.
+      ctx.ui.viewer = null;
     } else {
       // Просмотрщик остаётся показанным и на общей вкладке — скрывается
       // только явным закрытием, не переключением вкладок.
@@ -175,7 +181,7 @@ export function bindOcCard(ctx) {
     if (!name) return;
 
     rec.docs = rec.docs || [];
-    rec.docs.push({ id: nextId('d'), type: t, name, date: ctx.today, pages: null });
+    rec.docs.push({ id: nextDocId(rec), type: t, name, date: ctx.today, pages: null });
 
     ctx.render();
     ctx.toast('Документ прикреплён: ' + t, 'ok');

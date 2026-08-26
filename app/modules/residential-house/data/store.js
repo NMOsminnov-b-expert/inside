@@ -25,6 +25,8 @@ export const ui = {
   photoQuery: '',
   mechMode: 'mono',
   mechDocs: [],
+  auditCatOpen: false,
+  auditCatFilter: ['oi', 'oc', 'docs', 'photos'],
 };
 
 export function resetViewer() {
@@ -50,6 +52,28 @@ export function nextEni(rec, base) {
   const used = rec.oi.map((o) => parseInt(o.eni, 10)).filter((n) => !isNaN(n));
   const max = used.length ? Math.max(...used) : parseInt(base, 10) || 147561681300;
   return String(max + 1);
+}
+
+// Id вида «<ЕНИ записи>-<порядковый номер>» — для документов и записей лога
+// действий (см. audit/model.js). Тот же принцип, что у nextEni: порядковый
+// номер берётся от максимума уже использованных суффиксов, а не от длины
+// массива, — переживает удаления. Пока у записи ещё нет ЕНИ (создание ОЦ до
+// заполнения формы) — используем rec.id как временную базу.
+export function nextEniScoped(rec, existingIds) {
+  const used = (existingIds || [])
+    .map((id) => { const m = /-(\d+)$/.exec(id || ''); return m ? parseInt(m[1], 10) : NaN; })
+    .filter((n) => !isNaN(n));
+  const base = rec.eni || rec.id;
+  return `${base}-${(used.length ? Math.max(...used) : 0) + 1}`;
+}
+
+// Документ — это то, что прикреплено к ОЦ (см. audit/model.js), независимо
+// от того, лежит ли он технически в rec.docs или в docs конкретного ОИ —
+// поэтому счётчик общий на всю запись, не на каждый массив по отдельности.
+export function nextDocId(rec) {
+  const ids = (rec.docs || []).map((d) => d.id)
+    .concat((rec.oi || []).flatMap((o) => (o.docs || []).map((d) => d.id)));
+  return nextEniScoped(rec, ids);
 }
 
 export function addRecord(rec) {

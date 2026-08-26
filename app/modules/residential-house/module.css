@@ -237,3 +237,19 @@ body[data-module="residential-house"] .head-meta .dd-menu, body[data-module="res
 body[data-module="residential-house"] .head-meta, body[data-module="residential-house"] .card-head{
   overflow: visible;
 }
+
+/* Лог действий — карточка модуля, см. app/modules/residential-house/audit/.
+   Категории (ОИ/ОЦ/Документы/Фото) размечены левой границей + бейджем в тон
+   card.t-* — та же палитра, что у карточек модуля, без новых токенов. */
+body[data-module="residential-house"] .audit-row{border-left-width:4px;border-left-style:solid}
+body[data-module="residential-house"] .audit-row.t-blue{border-left-color:var(--blue-600)}
+body[data-module="residential-house"] .audit-row.t-teal{border-left-color:var(--teal-600)}
+body[data-module="residential-house"] .audit-row.t-slate{border-left-color:var(--slate-500)}
+body[data-module="residential-house"] .audit-row.t-amber{border-left-color:var(--amber-600)}
+body[data-module="residential-house"] .audit-row-head{align-items:center}
+body[data-module="residential-house"] .audit-cat-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#7d93a6;background:#eef2f7;border-radius:5px;padding:2px 7px}
+body[data-module="residential-house"] .audit-tbl th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;text-align:left;padding:4px 8px}
+body[data-module="residential-house"] .audit-tbl td{font-size:12px;color:#33445c;padding:6px 8px;border-top:1px solid var(--line-soft);vertical-align:top}
+body[data-module="residential-house"] .audit-change{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}
+body[data-module="residential-house"] .audit-change-attr{font-size:12px;font-weight:600;color:#33445c;display:flex;align-items:center;flex-wrap:wrap}
+body[data-module="residential-house"] .audit-change:first-child{margin-top:0}

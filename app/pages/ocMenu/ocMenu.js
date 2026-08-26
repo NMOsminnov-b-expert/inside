@@ -66,12 +66,19 @@ export function mountOcMenu(host) {
   // место (локатор не тянется на весь экран), новая строка ради одной
   // маленькой панели не нужна.
   function whoHTML() {
+    // «Мои учреждения» — тестовый переключатель для ролей, не видящих всё
+    // (сотрудник в логе действий видит только свои учреждения; admin/«любая
+    // роль» — все). Реальных учётных записей пока нет, поэтому это ручной
+    // ввод, а не выбор из профиля.
+    const showInst = state.role !== 'admin' && state.role !== 'any';
+
     return `<div class="reg-who" title="${esc(roleHint(state.role))}">
       <span class="muted">я:</span>
       <b>${esc(state.person)}</b>
       <select class="select" data-role>
         ${ROLES.map((r) => `<option value="${r.key}" ${state.role === r.key ? 'selected' : ''}>${r.label}</option>`).join('')}
       </select>
+      ${showInst ? `<input class="input" data-institutions style="width:180px" placeholder="мои учреждения, через запятую" value="${esc((state.institutions || []).join(', '))}" title="Для лога действий: сотрудник видит только объекты этих учреждений">` : ''}
     </div>`;
   }
 
@@ -500,6 +507,11 @@ export function mountOcMenu(host) {
 
       invalidateSliceCounts();
       renderData();
+    };
+
+    const inst = s.$('[data-institutions]');
+    if (inst) inst.onchange = () => {
+      state.institutions = inst.value.split(',').map((x) => x.trim()).filter(Boolean);
     };
 
     const bulk = s.$('[data-bulk-count]');

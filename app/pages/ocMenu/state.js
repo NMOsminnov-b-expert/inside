@@ -104,6 +104,11 @@ export function createState() {
     get() { return session.state.role; },
     set(v) { session.set({ role: v }); },
   });
+  Object.defineProperty(s, 'institutions', {
+    enumerable: true,
+    get() { return session.state.institutions; },
+    set(v) { session.set({ institutions: v }); },
+  });
 
   return s;
 }

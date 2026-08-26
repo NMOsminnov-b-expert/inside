@@ -14,7 +14,7 @@ import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer } from './parts/viewer/ctrl.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
-import { takeSnapshot, logDiff } from '../../kernel/auditLog.js';
+import { takeSnapshot, recordChanges } from './audit/model.js';
 
 function todayStr() {
   const d = new Date();
@@ -233,25 +233,35 @@ export function main(host) {
   // явным закрытием (крестик, data-vclose). Если что-то оставило его пустым
   // (первая загрузка, переход без явного выбора режима), включаем режим
   // документов; при их отсутствии viewerHTML сам покажет приглашение
-  // прикрепить документ.
+  // прикрепить документ. Исключение — вкладка «Логи»: там просмотрщику
+  // не место, она на всю ширину.
   function ensureViewerDefault() {
+    if (route.rest.length === 0 && route.query.tab === 'audit') return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };
   }
 
-  // Лог изменений (только для роли «администратор», см. card/ocCard.view.js):
+  // Лог действий (вкладка «Логи» в карточке ОЦ, см. card/ocCard.view.js):
   // снимок записи снимается при входе, сравнивается с текущим состоянием
   // при выходе (смена маршрута/записи, размонтирование модуля) — см.
-  // kernel/auditLog.js. Так фиксируется любое поле любой карточки без
-  // ручной расстановки логирования по каждому onchange.
-  let recSnapshot = rec ? takeSnapshot(rec) : null;
+  // audit/model.js. Так фиксируется любое поле любой карточки без ручной
+  // расстановки логирования по каждому onchange. Снимок берётся ПОСЛЕ
+  // отрисовки, а не до — иначе ленивая инициализация карточки ОИ
+  // (buildFloors и т.п., которая просто заполняет структуру этажей при
+  // первом открытии, а не правит её) оказывается «после снимка» и попадает
+  // в диф как будто это правка пользователя.
+  let recSnapshot = null;
+
+  function resnapshot() {
+    recSnapshot = rec ? takeSnapshot(rec) : null;
+  }
 
   function flushAuditLog() {
-    if (recSnapshot) logDiff(rec, rec.eni || rec.address, recSnapshot, rec);
+    if (recSnapshot) recordChanges(rec, recSnapshot, rec);
   }
 
   bindCommonUI();
   ensureViewerDefault();
-  draw();
+  draw().then(resnapshot);
 
   return {
     onRoute(next) {
@@ -262,9 +272,8 @@ export function main(host) {
         rec = nextRec;
         resetViewer();
       }
-      recSnapshot = rec ? takeSnapshot(rec) : null;
       ensureViewerDefault();
-      draw();
+      draw().then(resnapshot);
     },
     destroy() {
       flushAuditLog();

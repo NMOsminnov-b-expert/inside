@@ -43,7 +43,7 @@ function base(id, i, p) {
     notes: [],
     docs: p.docs
       ? Array.from({ length: p.docs }, (_, k) => ({
-        id: `${id}-d${k}`,
+        id: `${p.eni}-${k + 1}`,
         type: ['Техпаспорт', 'ПУД', 'Гос. акт на землю', 'Акт осмотра', 'Прочее'][k % 5],
         name: `Документ №${100 + i % 900 + k}`,
         date: '12.05.2024',
