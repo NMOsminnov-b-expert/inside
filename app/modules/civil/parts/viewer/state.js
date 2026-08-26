@@ -2,7 +2,10 @@ import { docListFor } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 
 // Состояние просмотрщика этого модуля: зум, страница, открытые вкладки.
-export const VS = { zoom: 100, docs: {}, photos: {}, openTabs: {} };
+// cmpZoom — зум режима «Сравнение», СВОЙ на каждую колонку: сравнивают обычно
+// мелкую деталь на фото с крупным планом в документе, общий зум для этого не
+// годится (см. parts/viewer/compare.js).
+export const VS = { zoom: 100, cmpZoom: { photo: 100, doc: 100 }, docs: {}, photos: {}, openTabs: {} };
 
 export function openTabOnly(scope, id) {
   VS.openTabs[scope] = VS.openTabs[scope] || [];

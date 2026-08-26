@@ -1,4 +1,4 @@
-// Отрисовка реальных PDF в макетные «листы» просмотрщика.
+// Отрисовка реальных PDF в макетные «листы» просмотрщика и в миниатюры.
 //
 // Зачем вообще: до этого реальный файл вставлялся как <embed src="blob:">, то есть
 // внутрь листа попадал встроенный PDF-ридер браузера со своей панелью, скроллом и
@@ -13,6 +13,10 @@
 
 const VENDOR = '../../../../vendor/pdfjs/pdf.min.js';
 const WORKER = new URL('../../../../vendor/pdfjs/pdf.worker.min.js', import.meta.url).href;
+
+// Верхняя граница разрешения рендера: без неё на 400% зума канвас A4 раздувался бы
+// в десятки мегапикселей на страницу.
+const MAX_SCALE = 6;
 
 let libPromise = null;
 
@@ -61,39 +65,50 @@ export async function getPdfAspect(blobUrl) {
   }
 }
 
-// Отрисованное состояние конкретного canvas: чтобы не перерисовывать страницу на
+// Что уже нарисовано в конкретном canvas: чтобы не перерисовывать страницу на
 // каждый клик по интерфейсу (ctx.render() зовётся часто), но перерисовывать при
 // реальной смене масштаба — иначе canvas мылится при зуме.
-const painted = new WeakMap();  // canvas -> `${blobUrl}|${srcPage}|${bucket}`
+const painted = new WeakMap();  // canvas -> ключ (url|страница|ступень масштаба)
 
-// Масштаб рендера берётся из ФАКТИЧЕСКОЙ ширины листа, а не из константы: в режиме
-// «Сравнение» лист узкий (.cmp-body .vpage{width:380px}) против 430px в обычном
-// режиме, и на константе страница оказалась бы мыльной или обрезанной.
-function renderScaleFor(canvas, viewportAt1) {
+// Масштаб рендера. Берётся из ФАКТИЧЕСКОЙ ширины листа, а не из константы: в
+// режиме «Сравнение» лист узкий (.cmp-body .vpage{width:380px}) против 430px в
+// обычном режиме, и на константе страница оказалась бы мыльной или обрезанной.
+//
+// Зум ОБЯЗАТЕЛЬНО входит в масштаб: лист увеличивается через CSS zoom на ленте,
+// то есть растягивается уже готовый битмап. Без этого множителя на 200% в canvas
+// шириной 430px показывалось 860px — ровно вдвое мыльно.
+function renderScaleFor(canvas, viewportAt1, zoom) {
   const cssWidth = canvas.clientWidth || canvas.parentElement.clientWidth || 430;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  return (cssWidth / viewportAt1.width) * dpr;
+  const zoomFactor = Math.max(1, (zoom || 100) / 100);
+  return Math.min(MAX_SCALE, (cssWidth / viewportAt1.width) * dpr * zoomFactor);
 }
 
-// «Ступени» зума: перерисовываем не на каждый процент, а при заметном изменении,
-// иначе на каждом шаге зума пересчитывался бы весь документ.
+// «Ступень» масштаба = шаг зума в интерфейсе (10%). Более крупная ступень
+// экономила бы перерисовки, но тогда битмап не совпадает с реальным размером
+// показа и страница слегка мылится — именно на это была жалоба.
 function zoomBucket(zoom) {
-  return Math.round(zoom / 25) * 25;
+  return Math.round((zoom || 100) / 10) * 10;
 }
 
-async function paintOne(canvas, zoom) {
+async function paintOne(canvas, zoom, thumbWidth) {
   const blobUrl = canvas.dataset.pdfUrl;
   const srcPage = +canvas.dataset.pdfSrc;
   if (!blobUrl || !srcPage) return;
 
-  const key = `${blobUrl}|${srcPage}|${zoomBucket(zoom)}`;
-  if (painted.get(canvas) === key) return;
-
   const doc = await loadDoc(blobUrl);
   const page = await doc.getPage(Math.min(srcPage, doc.numPages));
-
   const base = page.getViewport({ scale: 1 });
-  const viewport = page.getViewport({ scale: renderScaleFor(canvas, base) });
+
+  // Миниатюра рисуется в фиксированную ширину и от зума не зависит.
+  const scale = thumbWidth
+    ? (thumbWidth * Math.min(window.devicePixelRatio || 1, 2)) / base.width
+    : renderScaleFor(canvas, base, zoom);
+
+  const key = `${blobUrl}|${srcPage}|${thumbWidth ? 'thumb' : zoomBucket(zoom)}`;
+  if (painted.get(canvas) === key) return;
+
+  const viewport = page.getViewport({ scale });
 
   // Canvas мог уйти из DOM, пока грузилась страница (пользователь переключил
   // вкладку/режим) — тогда рисовать некуда и незачем.
@@ -109,9 +124,12 @@ async function paintOne(canvas, zoom) {
 }
 
 // Вызывается после отрисовки экрана (bindViewer): canvas'ы уже в DOM, но пустые.
+// Сюда попадают и большие страницы, и миниатюры — у миниатюр свой data-атрибут
+// с целевой шириной, потому что их разрешение не зависит от зума ленты.
 export function paintPdfCanvases(ctx, zoom) {
   ctx.scope.$$('canvas[data-pdf-src]').forEach((canvas) => {
-    paintOne(canvas, zoom).catch((e) => {
+    const thumbWidth = canvas.dataset.pdfThumb ? +canvas.dataset.pdfThumb : 0;
+    paintOne(canvas, zoom, thumbWidth).catch((e) => {
       console.warn('PDF: не удалось отрисовать страницу', e);
       canvas.classList.add('failed');
     });

@@ -11,31 +11,26 @@ import { paintPdfCanvases } from './pdf.js';
 
 // При 90°/270° повёрнутый лист вылезал за рамку и обрезался — поэтому вместе с
 // самим transform меняем габариты обёртки местами.
+// Повёрнутый на 90°/270° лист меняет габариты местами: отдаём обёртке
+// поменянные размеры, а центрирование листа внутри обёртки (CSS .vpage-wrap)
+// делает так, что повёрнутый лист ровно её заполняет и никуда не вылезает.
+// Если он шире ленты — лента прокручивается по горизонтали, как в обычных
+// просмотрщиках.
+//
+// Масштаб «вписать в ширину» здесь СОЗНАТЕЛЬНО не применяется: он зависел бы от
+// текущего зума, а зум реализован через CSS zoom на ленте — из-за этого после
+// «повернуть, затем изменить зум» лист скакал и уезжал за рамку на сотни
+// пикселей. Габариты же считаются в неотмасштабированных px (offsetWidth/
+// offsetHeight их и дают), поэтому от зума не зависят вовсе.
 function applyRotation(ctx, st) {
-  const stage = ctx.scope.$('[data-vstage]');
   const quarter = st.rot === 90 || st.rot === 270;
 
   ctx.scope.$$('[data-vpageinner]').forEach((p) => {
     const wrap = p.parentElement;
-
-    if (!quarter) {
-      p.style.transform = `rotate(${st.rot}deg)`;
-      if (wrap) { wrap.style.width = ''; wrap.style.height = ''; }
-      return;
-    }
-
-    // Повёрнутый на 90°/270° лист меняет габариты местами: его «ширина» — это
-    // высота листа (609px у A4), которая шире доступного места. Без масштаба он
-    // вылезал за рамку и обрезался, поэтому при нехватке ширины досаживаем
-    // scale, а обёртке отдаём итоговые габариты — иначе лента центрирует лист
-    // по прежней ширине и он уезжает влево.
-    const avail = stage ? Math.max(120, stage.clientWidth - 32) : p.offsetHeight;
-    const k = Math.min(1, avail / p.offsetHeight);
-    p.style.transform = `rotate(${st.rot}deg) scale(${k})`;
-    if (wrap) {
-      wrap.style.width = Math.round(p.offsetHeight * k) + 'px';
-      wrap.style.height = Math.round(p.offsetWidth * k) + 'px';
-    }
+    p.style.transform = `rotate(${st.rot}deg)`;
+    if (!wrap) return;
+    wrap.style.width = quarter ? p.offsetHeight + 'px' : '';
+    wrap.style.height = quarter ? p.offsetWidth + 'px' : '';
   });
 }
 
@@ -270,23 +265,7 @@ export function bindViewer(ctx) {
     ctx.toast('Документ прикреплён: ' + type, 'ok');
   });
 
-  const cpp = s.$('[data-cmp-ph-prev]');
-  if (cpp) cpp.onclick = () => {
-    const st = ctx.oi ? VS.photos[ctx.oi.id] : null;
-    if (st) { st.page = Math.max(1, st.page - 1); ctx.render(); }
-  };
-
-  const cpn = s.$('[data-cmp-ph-next]');
-  if (cpn) cpn.onclick = () => {
-    const st = ctx.oi ? VS.photos[ctx.oi.id] : null;
-    if (st) { st.page = Math.min(photoPages(ctx.oi).length, st.page + 1); ctx.render(); }
-  };
-
-  const cdp = s.$('[data-cmp-dc-prev]');
-  if (cdp) cdp.onclick = () => { const st = vSt(ctx); if (st) { st.page = Math.max(1, st.page - 1); ctx.render(); } };
-
-  const cdn = s.$('[data-cmp-dc-next]');
-  if (cdn) cdn.onclick = () => { const st = vSt(ctx); if (st) { st.page = Math.min(vPages(ctx).length, st.page + 1); ctx.render(); } };
+  bindCompareColumns(ctx);
 
   // Синхронизация скролла ленты и зум колесом с Ctrl.
   const vstageEl = s.$('[data-vstage]');
@@ -330,16 +309,149 @@ export function bindViewer(ctx) {
     }
   }
 
-  const cmpEl = s.$('[data-cmp]');
-  if (cmpEl) {
-    cmpEl.style.zoom = String(VS.zoom / 100);
-    cmpEl.addEventListener('wheel', (e) => {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      zoomViewer(ctx, VS.zoom + (e.deltaY < 0 ? 10 : -10));
-    }, { passive: false });
-  }
+  bindThumbReorder(ctx);
 
   // Страницы реального PDF рисуются после того, как разметка уже в DOM.
   paintPdfCanvases(ctx, VS.zoom);
+}
+
+// --- Режим «Сравнение»: две независимые прокручиваемые колонки ---------------
+//
+// Обе колонки ведут себя как лента обычного просмотра: колесо листает (фото —
+// тоже, отдельным требованием), Ctrl+колесо меняет зум ИМЕННО ЭТОЙ колонки.
+function bindCompareColumns(ctx) {
+  const s = ctx.scope;
+
+  const setZoom = (which, value) => {
+    VS.cmpZoom[which] = Math.min(220, Math.max(40, value));
+    const ribbon = s.$(`[data-cmp-ribbon="${which}"]`);
+    if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
+    const label = s.$(`[data-cmp-zoomlabel="${which}"]`);
+    if (label) label.textContent = VS.cmpZoom[which] + '%';
+    paintPdfCanvases(ctx, VS.cmpZoom[which]);
+  };
+
+  s.$$('[data-cmp-zoom]').forEach((b) => b.onclick = () => {
+    const [which, sign] = b.dataset.cmpZoom.split('|');
+    setZoom(which, VS.cmpZoom[which] + (sign === '+' ? 10 : -10));
+  });
+
+  s.$$('[data-cmp-stage]').forEach((stage) => {
+    const which = stage.dataset.cmpStage;
+    const blkAttr = which === 'photo' ? 'data-cmp-phblk' : 'data-cmp-dcblk';
+    const numEl = s.$(which === 'photo' ? '[data-cmp-phnum]' : '[data-cmp-dcnum]');
+    const st = which === 'photo'
+      ? (ctx.oi ? VS.photos[ctx.oi.id] : null)
+      : vSt(ctx);
+    const total = which === 'photo' ? photoPages(ctx.oi).length : vPages(ctx).length;
+
+    stage.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoom(which, VS.cmpZoom[which] + (e.deltaY < 0 ? 10 : -10));
+    }, { passive: false });
+
+    // Номер текущей страницы/фото — из позиции прокрутки, как в обычной ленте.
+    if (!st) return;
+    stage.addEventListener('scroll', () => {
+      const top = stage.getBoundingClientRect().top;
+      let cur = 1;
+      stage.querySelectorAll(`[${blkAttr}]`).forEach((bl) => {
+        if (bl.getBoundingClientRect().top - top <= 60) cur = +bl.getAttribute(blkAttr);
+      });
+      if (stage.scrollTop + stage.clientHeight >= stage.scrollHeight - 2) {
+        const blocks = stage.querySelectorAll(`[${blkAttr}]`);
+        if (blocks.length) cur = +blocks[blocks.length - 1].getAttribute(blkAttr);
+      }
+      if (cur !== st.page) {
+        st.page = cur;
+        if (numEl) numEl.textContent = `${cur}/${total}`;
+      }
+    });
+  });
+}
+
+// --- Перетаскивание миниатюр: порядок страниц + Ctrl-множественный выбор -----
+
+function currentDoc(ctx) {
+  const vd = ctx.ui.viewerDoc;
+  return vd ? docListFor(ctx, vd.scope).find((x) => x.id === vd.id) : null;
+}
+
+// Переставляет выбранные страницы перед позицией toIdx (1-based, в исходном
+// массиве). Порядок самих переносимых страниц сохраняется.
+function reorderPages(d, fromIdxs, toIdx) {
+  const moving = fromIdxs.map((i) => d.pages[i - 1]);
+  const rest = d.pages.filter((_, i) => !fromIdxs.includes(i + 1));
+  const removedBefore = fromIdxs.filter((i) => i < toIdx).length;
+  const insertAt = Math.max(0, (toIdx - 1) - removedBefore);
+  rest.splice(insertAt, 0, ...moving);
+  d.pages = rest;
+}
+
+function bindThumbReorder(ctx) {
+  const s = ctx.scope;
+  const sel = () => (ctx.ui.pageSel || (ctx.ui.pageSel = []));
+
+  s.$$('[data-vthumb][draggable]').forEach((el) => {
+    const idx = +el.dataset.vthumb;
+
+    // Ctrl+клик — набрать несколько страниц; обычный клик — как раньше, переход
+    // (переход навешен в bindViewer, поэтому здесь только выбор и стоп-всплытие).
+    el.addEventListener('click', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const arr = sel();
+      const at = arr.indexOf(idx);
+      if (at >= 0) arr.splice(at, 1); else arr.push(idx);
+      el.classList.toggle('sel', arr.includes(idx));
+    });
+
+    el.addEventListener('dragstart', (e) => {
+      // Тащим либо весь набранный выбор (если тянут одну из выбранных), либо
+      // ровно ту миниатюру, за которую взялись.
+      const arr = sel();
+      const dragged = arr.includes(idx) ? arr.slice().sort((a, b) => a - b) : [idx];
+      e.dataTransfer.setData('text/plain', dragged.join(','));
+      e.dataTransfer.effectAllowed = 'move';
+      el.classList.add('dragging');
+    });
+
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      s.$$('[data-vthumb]').forEach((t) => t.classList.remove('drop-before', 'drop-after'));
+    });
+
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const r = el.getBoundingClientRect();
+      const after = (e.clientY - r.top) > r.height / 2;
+      el.classList.toggle('drop-after', after);
+      el.classList.toggle('drop-before', !after);
+    });
+
+    el.addEventListener('dragleave', () => el.classList.remove('drop-before', 'drop-after'));
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const raw = e.dataTransfer.getData('text/plain');
+      const fromIdxs = raw.split(',').map(Number).filter((n) => n > 0);
+      if (!fromIdxs.length) return;
+
+      const d = currentDoc(ctx);
+      if (!d) return;
+
+      const r = el.getBoundingClientRect();
+      const after = (e.clientY - r.top) > r.height / 2;
+      const toIdx = after ? idx + 1 : idx;
+      if (fromIdxs.length === 1 && (toIdx === fromIdxs[0] || toIdx === fromIdxs[0] + 1)) return;
+
+      reorderPages(d, fromIdxs, toIdx);
+      ctx.ui.pageSel = [];
+      ctx.render();
+      ctx.toast(fromIdxs.length > 1 ? `Порядок изменён: ${fromIdxs.length} страниц` : 'Порядок страниц изменён', 'ok');
+    });
+  });
 }

@@ -109,8 +109,17 @@ export function renderDocMode(ctx, vctx) {
   // лишние страницы скана) — сам файл при этом не меняется, «отрезание» живёт на
   // уровне списка страниц. А вот «+ Страница» у реального файла скрыта: вставлять
   // пустую макетную заглушку посреди скана нечем и незачем.
-  const body = `<div class="vbody"><div class="vrail"><div class="vrail-list">
-    ${d.pages.map((p, i) => `<div class="vthumb doc ${i + 1 === dSt.page ? 'active' : ''}" data-vthumb="${i + 1}" title="Страница ${i + 1}">
+  //
+  // Миниатюра реальной страницы — тот же canvas, что и большой лист, но с
+  // data-pdf-thumb (фиксированная ширина, от зума не зависит): раньше все
+  // миниатюры были одинаковыми схематичными полосками и по ним нельзя было
+  // понять, где какая страница. draggable — перетаскивание для смены порядка,
+  // Ctrl+клик — множественный выбор (см. parts/viewer/ctrl.js).
+  const sel = ctx.ui.pageSel || [];
+  const body = `<div class="vbody"><div class="vrail"><div class="vrail-list" data-vrail-list>
+    ${d.pages.map((p, i) => `<div class="vthumb doc ${p.kind === 'pdf' ? 'real' : ''} ${i + 1 === dSt.page ? 'active' : ''} ${sel.includes(i + 1) ? 'sel' : ''}"
+      data-vthumb="${i + 1}" draggable="true" title="Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько">
+      ${p.kind === 'pdf' ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="52"></canvas>` : ''}
       <button class="vthumb-del" data-vdelpage="${i + 1}">×</button><span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div>${d.file ? '' : `<button class="btn btn-ghost btn-sm" data-vaddpage style="margin:6px">+ Страница</button>`}</div>
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>
