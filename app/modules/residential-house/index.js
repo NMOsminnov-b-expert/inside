@@ -14,7 +14,7 @@ import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer } from './parts/viewer/ctrl.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
-import { takeSnapshot, recordChanges } from './audit/model.js';
+import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 
 function todayStr() {
   const d = new Date();
@@ -65,6 +65,18 @@ export function main(host) {
         danger: true,
       });
       if (!ok) return;
+
+      // Фото литеры не удаляются вместе с ней — переезжают в «Фото без
+      // литеры» на уровне ОЦ (см. parts/photos/explorer.js), а сам факт
+      // удаления каскадом попадает в лог поле за полем (pushOiDeletionLog) —
+      // литера остаётся видна в логе как «(удалена)», см. audit/model.js.
+      const photos = oi.photos || {};
+      const hasPhotos = Object.values(photos).some((n) => n > 0);
+      if (hasPhotos) {
+        rec.ocOrphanPhotos = rec.ocOrphanPhotos || [];
+        rec.ocOrphanPhotos.push({ fromOiId: oi.id, letter: oi.letter, name: oi.name, photos: { ...photos } });
+      }
+      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 
       const i = rec.oi.findIndex((o) => o.id === id);
       if (i >= 0) rec.oi.splice(i, 1);

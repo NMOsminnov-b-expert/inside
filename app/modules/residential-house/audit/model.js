@@ -6,31 +6,41 @@
 // на другой маршрут/запись, размонтирование) сравнивает с текущим
 // состоянием (recordChanges) — так фиксируется любое поле любой карточки
 // без ручной расстановки логирования по каждому onchange. Несколько правок
-// одного поля между двумя переходами схлопываются в одну запись (значение
+// одного поля между двумя переходами схлопываются в одну строку (значение
 // на входе → значение на выходе) — читаемый лог, а не поток по клавише.
 //
-// Записи делятся на 4 категории (см. audit/categories.js): 'oi' (Литеры —
-// правки полей ОИ, создание/удаление литеры), 'oc' (правки записи ОЦ),
-// 'docs' (документы — вложения к ОЦ, включая постраничные действия),
-// 'photos' (счётчики фото по категориям внутри литеры). Один флаш может
-// дать НЕСКОЛЬКО записей лога — по одной на каждую задетую категорию.
+// rec.auditLog — ПЛОСКИЙ список строк (не сгруппированных по времени
+// записей): каждая строка — одно изменение, с собственными id/at/person/role.
+// Группировка «одна карточка на объект (литеру/ОЦ), внутри — вся его
+// история» строится на этапе отображения (audit/view.js), не хранения —
+// см. граф знаний, решение про группировку по объекту (2026-08-26).
+//
+// 4 категории (см. audit/categories.js): 'oi' (Литеры — правки полей ОИ,
+// создание/удаление литеры), 'oc' (правки записи ОЦ), 'docs' (документы —
+// вложения к ОЦ, включая постраничные действия), 'photos' (счётчики фото по
+// категориям внутри литеры).
 import { session } from '../../../kernel/session.js';
 import { nextEniScoped } from '../data/store.js';
 
-const IGNORED_KEYS = new Set(['auditLog', 'updatedAt']);
+// Служебные поля, которые пользователю не показываются никогда, поэтому не
+// логируются — в том числе при каскаде удаления литеры: auditLog/updatedAt/
+// ocOrphanPhotos — служебные поля записи ОЦ; id/card — служебные поля ОИ;
+// notes — заметки логировать не просили (прямое указание пользователя).
+// Проверяется на корне каждого вызова walk (path.length === 0), то есть и для
+// полей записи ОЦ, и для полей литеры — оба обхода стартуют с пустого path.
+const IGNORED_KEYS = new Set(['auditLog', 'updatedAt', 'ocOrphanPhotos', 'id', 'card', 'notes']);
 
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-function nowStr() {
-  const d = new Date();
+function nowStr(d) {
   const p = (n) => String(n).padStart(2, '0');
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 function nextLogId(rec) {
-  return nextEniScoped(rec, (rec.auditLog || []).map((e) => e.id));
+  return nextEniScoped(rec, (rec.auditLog || []).map((r) => r.id));
 }
 
 export function takeSnapshot(obj) {
@@ -60,8 +70,16 @@ function docLabel(item) {
 
 // --- Обход дерева записи с категоризацией по ключу -----------------------
 
-function walk(before, after, path, category, target, cardType, out) {
-  if (before === after) return;
+function walk(beforeRaw, afterRaw, path, category, target, cardType, out) {
+  if (beforeRaw === afterRaw) return;
+
+  // Вложенная структура ИСЧЕЗЛА целиком (каскад удаления литеры: снимок
+  // диффится против {}) — раскрываем её по полям, а не пишем сырым JSON
+  // одной строкой (было «struct {"foundation":"Бетонный",...} → —»).
+  const before = beforeRaw;
+  let after = afterRaw;
+  if (after === undefined && isPlainObject(before)) after = {};
+  if (after === undefined && Array.isArray(before)) after = [];
 
   if (Array.isArray(before) && Array.isArray(after)) {
     diffPlainArray(before, after, path, category, target, cardType, out);
@@ -79,7 +97,9 @@ function walk(before, after, path, category, target, cardType, out) {
         return;
       }
       // docs — что на уровне ОЦ, что внутри литеры: категория 'docs', без
-      // литеры в target (по прямому указанию пользователя).
+      // литеры в target (по прямому указанию пользователя — документы
+      // всегда живут в логе ОЦ, а не литеры, независимо от того, где
+      // технически прикреплены).
       if (k === 'docs') {
         diffDocsArray(before.docs || [], after.docs || [], out);
         return;
@@ -102,21 +122,37 @@ function walk(before, after, path, category, target, cardType, out) {
   // (строка/число/булево), появившиеся из undefined, всё ещё логируются.
   if (before === undefined && (after === '' || typeof after === 'object')) return;
 
-  out.push({ category, target, cardType, field: path.join('.'), action: 'update', before: displayValue(before), after: displayValue(after) });
+  // Оба значения выглядят одинаково для пользователя (чаще всего «— → —»:
+  // пустое поле «очистилось» при каскаде удаления литеры) — это не
+  // изменение, в лог не пишем.
+  const beforeStr = displayValue(before);
+  const afterStr = displayValue(after);
+  if (beforeStr === afterStr) return;
+
+  out.push({ category, target, cardType, field: path.join('.'), action: 'update', before: beforeStr, after: afterStr });
 }
 
 // Простые массивы (owners, users, heating...) — сравниваются как значение
 // целиком; для photos-объекта эта ветка не используется (это plain object,
 // не массив).
 function diffPlainArray(before, after, path, category, target, cardType, out) {
-  const a = JSON.stringify(before);
-  const b = JSON.stringify(after);
-  if (a !== b) out.push({ category, target, cardType, field: path.join('.'), action: 'update', before: displayValue(before), after: displayValue(after) });
+  if (JSON.stringify(before) === JSON.stringify(after)) return;
+
+  const beforeStr = displayValue(before);
+  const afterStr = displayValue(after);
+  if (beforeStr === afterStr) return;
+
+  out.push({ category, target, cardType, field: path.join('.'), action: 'update', before: beforeStr, after: afterStr });
 }
 
-// rec.oi — матчинг по id: добавление/удаление литеры целиком — одна запись
-// категории 'oi'; у совпавших литер — обычный обход полей, target/cardType
-// берутся из самой литеры (а не наследуются от записи ОЦ).
+// rec.oi — матчинг по id: добавление литеры — одна запись категории 'oi';
+// у совпавших литер — обычный обход полей, target/cardType берутся из самой
+// литеры (а не наследуются от записи ОЦ). Удаление обрабатывается ОТДЕЛЬНО
+// через pushOiDeletionLog (см. ниже) — здесь ветки delete больше нет
+// намеренно: deleteOi (index.js) сам решает, когда литера удаляется, и сам
+// вызывает pushOiDeletionLog ДО rec.oi.splice — обычный снимок-и-сравнение
+// на удаление уже не сработает (литеры к моменту следующего flush просто
+// не станет в обоих снимках).
 function diffOiArray(before, after, out) {
   const beforeMap = new Map(before.map((x) => [x.id, x]));
   const afterMap = new Map(after.map((x) => [x.id, x]));
@@ -127,12 +163,6 @@ function diffOiArray(before, after, out) {
       out.push({ category: 'oi', target, cardType: item.card, field: '(объект)', action: 'create', before: '—', after: oiLabel(item) });
     } else {
       walk(beforeMap.get(id), item, [], 'oi', target, item.card, out);
-    }
-  });
-
-  beforeMap.forEach((item, id) => {
-    if (!afterMap.has(id)) {
-      out.push({ category: 'oi', target: { id: item.id, letter: item.letter, name: item.name }, cardType: item.card, field: '(объект)', action: 'delete', before: oiLabel(item), after: '—' });
     }
   });
 }
@@ -160,52 +190,45 @@ function diffDocsArray(before, after, out) {
   });
 }
 
-// --- Группировка плоского диффа в записи лога -----------------------------
+// --- Запись плоских строк в rec.auditLog ----------------------------------
 
-function groupKey(c) {
-  return c.category + '|' + (c.target ? c.target.letter || c.target.name : '');
-}
-
-function pushEntries(rec, flat) {
+// Каждый элемент плоского диффа становится СВОЕЙ строкой лога — свой id,
+// общие at/atTs/person/role на весь вызов (один flush/одно действие).
+function pushRows(rec, flat) {
   if (!flat.length) return [];
 
-  const groups = new Map();
-  const order = [];
-  flat.forEach((c) => {
-    const key = groupKey(c);
-    if (!groups.has(key)) { groups.set(key, []); order.push(key); }
-    groups.get(key).push(c);
-  });
-
-  const at = nowStr();
+  const now = new Date();
+  const at = nowStr(now);
+  const atTs = now.getTime();
   const { person, role } = session.state;
   rec.auditLog = rec.auditLog || [];
 
-  const created = order.map((key) => {
-    const changes = groups.get(key);
-    const first = changes[0];
-    const entry = {
+  return flat.map((c) => {
+    const row = {
       id: nextLogId(rec),
-      at, person, role,
-      category: first.category,
-      target: first.target,
-      cardType: first.cardType,
-      changes: changes.map(({ field, action, before, after, docId, docLabel }) => ({ field, action, before, after, docId, docLabel })),
+      at, atTs, person, role,
+      category: c.category,
+      targetId: c.target ? c.target.id : null,
+      targetLetter: c.target ? c.target.letter : null,
+      targetName: c.target ? c.target.name : null,
+      cardType: c.cardType,
+      field: c.field,
+      action: c.action,
+      before: c.before,
+      after: c.after,
+      docId: c.docId,
+      docLabel: c.docLabel,
     };
-    rec.auditLog.push(entry);
-    return entry;
+    rec.auditLog.push(row);
+    return row;
   });
-
-  return created;
 }
 
-// target записей больше не передаётся снаружи — каждая категория строит его
-// сама при обходе (литера — для 'oi'/'photos', ничего — для 'oc'/'docs').
 export function recordChanges(rec, before, after) {
   if (!rec || !before || !after) return [];
   const flat = [];
   walk(before, after, [], 'oc', null, null, flat);
-  return pushEntries(rec, flat);
+  return pushRows(rec, flat);
 }
 
 // Постраничные действия в документе (data-vaddpage/data-vdelpage,
@@ -220,8 +243,39 @@ export function pushDocPageLog(rec, doc, action, pageNumber) {
     ? { field: 'pages', action: 'create', before: '—', after: `№ ${pageNumber}`, docId: doc.id, docLabel: label }
     : { field: 'pages', action: 'delete', before: `№ ${pageNumber}`, after: '—', docId: doc.id, docLabel: label };
 
-  const [entry] = pushEntries(rec, [{ category: 'docs', target: null, cardType: null, ...change }]);
-  return entry;
+  const [row] = pushRows(rec, [{ category: 'docs', target: null, cardType: null, ...change }]);
+  return row;
+}
+
+// Удаление литеры (index.js deleteOi, ДО rec.oi.splice): каждое непустое
+// поле литеры каскадом даёт свою строку «было X → —» — переиспользуем walk,
+// диффя снимок литеры против {}. photos сознательно исключены из снимка —
+// они физически не удаляются (переезжают в rec.ocOrphanPhotos), поэтому для
+// них отдельная явная строка «перенесено», а не «—» (было бы неверно читать
+// как утрату данных). docs литеры каскадируют обычным порядком (сохранять
+// их не просили — только фото).
+export function pushOiDeletionLog(rec, oi, movedPhotos) {
+  if (!rec || !oi) return [];
+
+  const target = { id: oi.id, letter: oi.letter, name: oi.name };
+  const snapshot = { ...oi };
+  delete snapshot.photos;
+
+  const flat = [];
+  walk(snapshot, {}, [], 'oi', target, oi.card, flat);
+
+  if (movedPhotos) {
+    Object.entries(movedPhotos).forEach(([cat, count]) => {
+      if (count > 0) {
+        flat.push({
+          category: 'photos', target, cardType: null, field: `photos.${cat}`,
+          action: 'update', before: String(count), after: 'перенесено в «Фото без литеры»',
+        });
+      }
+    });
+  }
+
+  return pushRows(rec, flat);
 }
 
 // Ищет документ по id среди rec.docs и docs каждой литеры — для кнопки

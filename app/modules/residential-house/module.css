@@ -109,6 +109,9 @@ body[data-module="residential-house"] .tile{border:1px solid var(--line);border-
 body[data-module="residential-house"] .tile:hover{border-color:var(--blue-500);box-shadow:0 4px 14px rgba(22,104,201,.18)}
 body[data-module="residential-house"] .tile-img{height:110px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:12px;font-weight:600}
 body[data-module="residential-house"] .tile-cap{padding:6px 8px;font-size:11px;color:#46536b;border-top:1px solid var(--line-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="residential-house"] .tile-orphan{cursor:default;opacity:.72}
+body[data-module="residential-house"] .tile-orphan:hover{border-color:var(--line);box-shadow:var(--shadow)}
+body[data-module="residential-house"] .tile-orphan .tile-img{background:linear-gradient(135deg,var(--slate-50),#fdfeff);color:#8ba0b8}
 body[data-module="residential-house"] .nb-group{margin-top:14px;padding-top:12px;border-top:1px dashed var(--amber-100)}
 body[data-module="residential-house"] .nb-group:first-child{margin-top:0;padding-top:0;border-top:none}
 body[data-module="residential-house"] .notes-list{display:flex;flex-direction:column;gap:4px}
@@ -244,10 +247,19 @@ body[data-module="residential-house"] .head-meta, body[data-module="residential-
 body[data-module="residential-house"] .audit-row{border-left-width:4px;border-left-style:solid}
 body[data-module="residential-house"] .audit-row.t-blue{border-left-color:var(--blue-600)}
 body[data-module="residential-house"] .audit-row.t-teal{border-left-color:var(--teal-600)}
-body[data-module="residential-house"] .audit-row.t-slate{border-left-color:var(--slate-500)}
-body[data-module="residential-house"] .audit-row.t-amber{border-left-color:var(--amber-600)}
 body[data-module="residential-house"] .audit-row-head{align-items:center}
-body[data-module="residential-house"] .audit-cat-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#7d93a6;background:#eef2f7;border-radius:5px;padding:2px 7px}
+/* Панель фильтров лога — отдельная тонированная зона, чтобы органы
+   управления не сливались со списком записей под ними. */
+body[data-module="residential-house"] .audit-filters{background:#f4f8fd;border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:14px}
+body[data-module="residential-house"] .audit-filters-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#5b6c85;margin-bottom:10px}
+body[data-module="residential-house"] .audit-filters-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+body[data-module="residential-house"] .audit-filters .field label{font-size:10.5px;white-space:nowrap}
+body[data-module="residential-house"] .audit-filter-field{flex:0 0 168px}
+body[data-module="residential-house"] .audit-filter-search{flex:1 1 220px;min-width:200px}
+/* Открытый список фильтра — плотный белый блок с заметной тенью: раньше
+   он сливался с таблицей под собой и читался как часть записей лога. */
+body[data-module="residential-house"] .audit-filters .ms-drop{min-width:230px;padding:6px;border-color:var(--blue-300);box-shadow:0 14px 34px rgba(15,23,42,.22)}
+body[data-module="residential-house"] .audit-filters .ms-opt{white-space:nowrap}
 body[data-module="residential-house"] .audit-tbl th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;text-align:left;padding:4px 8px}
 body[data-module="residential-house"] .audit-tbl td{font-size:12px;color:#33445c;padding:6px 8px;border-top:1px solid var(--line-soft);vertical-align:top}
 body[data-module="residential-house"] .audit-change{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}

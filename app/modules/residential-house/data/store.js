@@ -25,8 +25,19 @@ export const ui = {
   photoQuery: '',
   mechMode: 'mono',
   mechDocs: [],
+  // Фильтры вкладки «Логи» — везде пустой массив значит «без ограничения,
+  // показаны все» (единая семантика для всех мультивыборов панели).
   auditCatOpen: false,
-  auditCatFilter: ['oi', 'oc', 'docs', 'photos'],
+  auditCatFilter: [],
+  auditPersonOpen: false,
+  auditPersonFilter: [],
+  auditActionOpen: false,
+  auditActionFilter: [],
+  auditObjectOpen: false,
+  auditObjectFilter: [],
+  auditDateFrom: '',
+  auditDateTo: '',
+  auditSearchText: '',
 };
 
 export function resetViewer() {

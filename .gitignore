@@ -8,3 +8,4 @@
 # Скриншоты smoke-тестов/screenshot.py — временный вывод, не эталон
 # (в отличие от tools/visual-parity/baseline/, который коммитится).
 tools/visual-parity/out/
+tools/visual-parity/baseline/
