@@ -12,7 +12,7 @@ import { ctxPlate, updatePlate } from './card/ctxPlate.js';
 import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
-import { bindViewer } from './parts/viewer/ctrl.js';
+import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
 import { viewMech } from './create/mech.view.js';
 import { bindMech } from './create/mech.ctrl.js';
@@ -236,7 +236,20 @@ export function main(host) {
     scope.root.scrollTop = top;
   }
 
+  // Просмотрщик по умолчанию должен быть виден всегда — прячется только явным
+  // закрытием (крестик, data-vclose). Если что-то оставило его пустым (первая
+  // загрузка, переход без явного выбора режима), включаем режим документов; при
+  // их отсутствии viewerHTML сам покажет приглашение прикрепить документ.
+  function ensureViewerDefault() {
+    if (!ui.viewer) ui.viewer = { mode: 'doc' };
+  }
+
   bindCommonUI();
+  // Клавиши просмотрщика — однократно на монтирование модуля, рядом с
+  // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
+  // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
+  bindViewerHotkeys(ctx);
+  ensureViewerDefault();
   draw();
 
   return {
@@ -247,6 +260,7 @@ export function main(host) {
         rec = nextRec;
         resetViewer();
       }
+      ensureViewerDefault();
       draw();
     },
     destroy() {

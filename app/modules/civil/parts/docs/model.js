@@ -1,10 +1,28 @@
 // Списки документов внутри записи ОЦ.
 // scope: 'oc' | 'mech-new' | <oi.id>
+import { getPdfPageCount, getPdfAspect } from '../viewer/pdf.js';
+
+// Страницы документа. У реального PDF — по странице на каждую страницу файла:
+// именно из этого списка живут лента миниатюр, счётчик «/ N» и навигация, поэтому
+// одной «real»-страницей (как было) весь этот функционал оказывался мёртвым.
+// kind: 'pdf' — рисуется в canvas через viewer/pdf.js; src — номер страницы В
+// ИСХОДНОМ файле. src обязателен и не равен позиции в массиве: после удаления
+// лишней страницы остальные должны продолжать показывать свои исходные страницы,
+// а не съехать на одну.
 export function ensureDocPages(d) {
   if (d.pages) return;
-  // Реальный загруженный файл — одна «страница» с настоящим содержимым;
-  // документ без файла (старые/сидовые записи) — как раньше, макет-заглушка.
-  d.pages = d.file ? [{ kind: 'real' }] : Array.from({ length: 3 }, (_, i) => ({ kind: i === 0 ? 'title' : 'skel' }));
+
+  if (d.file && d.file.kind === 'pdf') {
+    const n = Math.max(1, d.file.pageCount || 1);
+    d.pages = Array.from({ length: n }, (_, i) => ({ kind: 'pdf', src: i + 1 }));
+  } else if (d.file && d.file.kind === 'image') {
+    d.pages = [{ kind: 'image' }];
+  } else if (d.file) {
+    d.pages = [{ kind: 'other' }];
+  } else {
+    // Документ без файла (сидовые записи) — как раньше, макет-заглушка.
+    d.pages = Array.from({ length: 3 }, (_, i) => ({ kind: i === 0 ? 'title' : 'skel' }));
+  }
 }
 
 // Выбор реального файла системным диалогом. Возвращает null, если пользователь отменил.
@@ -32,11 +50,24 @@ function fileKindOf(mime) {
   return 'other';
 }
 
-// object URL (blob:) вместо data:-URI — <embed type="application/pdf"> у Chrome
-// не всегда отрисовывает PDF, встроенный как data:-URI (пустая белая страница),
-// а blob: работает надёжно и для PDF, и для картинок, и для скачивания.
-export function attachedFileFrom(file) {
-  return { name: file.name, mime: file.type || '', kind: fileKindOf(file.type), dataUrl: URL.createObjectURL(file), size: file.size };
+// object URL (blob:) вместо data:-URI: работает и для PDF.js, и для картинок,
+// и для скачивания, и не раздувает память base64-строкой.
+//
+// Асинхронная: у PDF сразу выясняем число страниц и пропорции — из них строятся
+// d.pages (лента миниатюр, счётчик «/ N») и габариты листа. Все 6 мест вызова
+// уже были написаны как `await attachedFileFrom(file)`, поэтому переход на
+// настоящую асинхронность не потребовал правок ни в одном из них.
+export async function attachedFileFrom(file) {
+  const dataUrl = URL.createObjectURL(file);
+  const kind = fileKindOf(file.type);
+  const f = { name: file.name, mime: file.type || '', kind, dataUrl, size: file.size };
+
+  if (kind === 'pdf') {
+    f.pageCount = await getPdfPageCount(dataUrl);
+    f.aspect = await getPdfAspect(dataUrl);
+  }
+
+  return f;
 }
 
 export function docListFor(ctx, scope) {

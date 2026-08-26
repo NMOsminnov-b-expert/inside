@@ -168,10 +168,28 @@ body[data-module="civil"] .vthumb.active{border-color:var(--blue-600);box-shadow
 body[data-module="civil"] .vthumb-num{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:9px;color:var(--muted)}
 body[data-module="civil"] .vthumb-del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;z-index:2}
 body[data-module="civil"] .vthumb:hover .vthumb-del{display:flex}
-body[data-module="civil"] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4}
+/* overscroll-behavior:contain — колесо над лентой прокручивает только ленту.
+   Без него на достижении границы прокрутка «перетекает» на внешний контейнер, и
+   выглядит это как «колесом уехала вся страница». */
+body[data-module="civil"] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4;overscroll-behavior:contain}
 body[data-module="civil"] .vribbon{display:flex;flex-direction:column;gap:14px;align-items:center}
 body[data-module="civil"] .vgroup-h{width:430px;text-align:left;font-size:11px;font-weight:700;color:var(--blue-700);background:#eef4fb;border:1px solid var(--blue-200);border-radius:7px;padding:6px 10px}
-body[data-module="civil"] .vpage{width:900px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative}
+/* Лист центрируется в своей обёртке: поворот идёт вокруг центра ЛИСТА, и если
+   лист прижат к левому краю более широкой (после поворота) обёртки, повёрнутый
+   результат уезжает за левую границу ленты. */
+body[data-module="civil"] .vpage-wrap{display:flex;align-items:center;justify-content:center}
+body[data-module="civil"] .vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative;flex:0 0 auto}
+/* Лист с реальным файлом: содержимое само задаёт высоту по своим пропорциям,
+   поэтому портретный min-height снимается — иначе альбомный скан болтался бы
+   в пустом высоком листе. Отступы тоже убраны: скан занимает лист целиком. */
+body[data-module="civil"] .vpage:has(> .vpdf-canvas), body[data-module="civil"] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
+body[data-module="civil"] .vpdf-canvas{display:block;width:100%;height:auto;opacity:0;transition:opacity .12s}
+body[data-module="civil"] .vpdf-canvas.ready{opacity:1}
+body[data-module="civil"] .vimg{display:block;width:100%;height:auto}
+/* Скелетон, пока страница PDF ещё не отрисована: лежит под canvas и скрывается,
+   когда тот готов — чтобы лист не мигал пустотой. */
+body[data-module="civil"] .vpdf-load{position:absolute;inset:0;padding:26px;background:#fff}
+body[data-module="civil"] .vpdf-canvas.ready + .vpdf-load, body[data-module="civil"] .vpdf-canvas.failed + .vpdf-load{display:none}
 body[data-module="civil"] .vpage.photo-page{padding:10px;min-height:420px}
 body[data-module="civil"] .photo-fill{width:100%;height:540px;border-radius:8px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:13px}
 body[data-module="civil"] .vempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#dfe9f4}
@@ -181,6 +199,13 @@ body[data-module="civil"] .cmp-col{flex:1;display:flex;flex-direction:column;min
 body[data-module="civil"] .cmp-h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eef4fb;border-bottom:1px solid var(--line-soft);font-size:11px;font-weight:700;flex-wrap:wrap;color:var(--blue-700)}
 body[data-module="civil"] .cmp-body{flex:1;overflow:auto;background:#dfe9f4;padding:10px;display:flex;justify-content:flex-start}
 body[data-module="civil"] .cmp-body .vpage{width:380px;min-height:500px}
+/* В сравнении лист с реальным файлом тоже живёт по своим пропорциям. Правило
+   обязано идти ПОСЛЕ .cmp-body .vpage: специфичность у них одинаковая, поэтому
+   иначе побеждает min-height:500px и страница висит в высоком листе.
+   align-self:flex-start — .cmp-body это flex-контейнер, и по умолчанию
+   (align-items:stretch) лист растягивался на всю высоту колонки, оставляя под
+   страницей белое поле. */
+body[data-module="civil"] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module="civil"] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
 body[data-module="civil"] .cmp-body .photo-fill{height:460px}
 body[data-module="civil"] .pp-h{text-align:center;font-size:15px;letter-spacing:1px;margin:6px 0 2px;color:#0e2f4f;font-weight:700}
 body[data-module="civil"] .pp-sub{text-align:center;font-size:10.5px;color:#5d7292;margin-bottom:12px}

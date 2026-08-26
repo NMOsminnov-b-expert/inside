@@ -2,19 +2,36 @@ import { esc } from '../../../../kernel/dom.js';
 import { docListFor, scopeLabel } from '../docs/model.js';
 import { VS } from './state.js';
 
-function realFilePageHTML(f) {
-  if (f.kind === 'image') {
-    return `<img src="${f.dataUrl}" alt="${esc(f.name)}" style="max-width:100%;display:block;margin:0 auto;">`;
-  }
-  if (f.kind === 'pdf') {
-    return `<embed src="${f.dataUrl}" type="application/pdf" style="width:100%;height:78vh;border:0;">`;
-  }
+// Страница реального PDF — canvas внутри обычного листа, который асинхронно
+// заполняет viewer/pdf.js (paintPdfCanvases). Раньше здесь был <embed>, то есть
+// встроенный ридер браузера со своей панелью и зумом: он подменял весь лист и
+// поэтому лента миниатюр, «‹ n/N ›», зум и поворот макета на реальном файле не
+// работали. Пока страница не отрисована — скелетон, чтобы не мигало пустотой.
+function pdfPageHTML(d, page) {
+  const aspect = d.file.aspect ? `aspect-ratio:${1} / ${d.file.aspect};` : '';
+  return `<canvas class="vpdf-canvas" style="${aspect}"
+    data-pdf-src="${page.src}" data-pdf-url="${d.file.dataUrl}"
+    data-pdf-doc="${esc(d.id)}" aria-label="${esc(d.name)} · страница ${page.src}"></canvas>
+    <div class="vpdf-load"><div class="sk-h"></div>${[100, 92, 96, 85].map((w) => `<div class="sk-line" style="width:${w}%"></div>`).join('')}</div>`;
+}
+
+function imagePageHTML(f) {
+  return `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`;
+}
+
+function otherPageHTML(f) {
   return `<div class="vempty-box">Предпросмотр недоступен для этого типа файла (${esc(f.mime || 'неизвестный формат')}).</div>
 <a class="btn btn-primary btn-sm" href="${f.dataUrl}" download="${esc(f.name)}" style="margin-top:8px;display:inline-block">Скачать «${esc(f.name)}»</a>`;
 }
 
+// Переключение по виду КОНКРЕТНОЙ страницы, а не по наличию файла у документа:
+// у реального PDF страниц столько же, сколько в файле, и каждая — свой лист.
 export function docPageHTML(d, n) {
-  if (d.file) return realFilePageHTML(d.file);
+  const page = d.pages[n - 1];
+
+  if (page && page.kind === 'pdf') return pdfPageHTML(d, page);
+  if (page && page.kind === 'image') return imagePageHTML(d.file);
+  if (page && page.kind === 'other') return otherPageHTML(d.file);
 
   if (n === 1 || d.pages[n - 1].kind === 'title') {
     return `<div class="pp-h">${esc(d.type)}</div><div class="pp-sub">${esc(d.name)} · страница 1</div>
@@ -32,9 +49,29 @@ export function renderDocMode(ctx, vctx) {
   const { scopes, vd, d, dSt } = vctx;
 
   if (!d) {
+    const toolbar = `<div class="vtoolbar"><div class="tool-group right"><span class="vtitle">Документы</span><button class="tool-btn" data-vclose>×</button></div></div>`;
+
+    // Просмотрщик — индикатор наличия документов: если они есть (просто ни один
+    // не открыт как вкладка), предлагаем выбрать, а не пишем «нет документов» —
+    // эта фраза только для случая, когда их правда нет.
+    const available = scopes.flatMap((sc) => docListFor(ctx, sc).map((t) => ({ sc, t })));
+    if (!available.length) {
+      return {
+        toolbar,
+        body: `<div class="vempty"><div class="vempty-box">Нет прикреплённых документов</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`,
+      };
+    }
+
     return {
-      toolbar: `<div class="vtoolbar"><div class="tool-group right"><span class="vtitle">Документы</span><button class="tool-btn" data-vclose>×</button></div></div>`,
-      body: `<div class="vempty"><div class="vempty-box">Нет прикреплённых документов</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`,
+      toolbar,
+      body: `<div class="vempty">
+        <div class="vempty-box">Документы есть — выберите, что открыть</div>
+        <div class="dd">
+          <button class="btn btn-primary btn-sm" data-dd-toggle>Открыть документ ▾</button>
+          <div class="dd-menu">${available.map((x) => `<button data-vaddtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)} · ${esc(x.t.name)}</button>`).join('')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-attach-default>Прикрепить ещё документ</button>
+      </div>`,
     };
   }
 
@@ -68,9 +105,13 @@ export function renderDocMode(ctx, vctx) {
     <div class="tool-group right"><span class="vtitle">${esc(d.type)} · ${esc(d.name)}</span><button class="tool-btn" data-vclose>×</button></div>
   </div>`;
 
+  // Удаление страницы разрешено и у реального документа (нужно отрезать пустые/
+  // лишние страницы скана) — сам файл при этом не меняется, «отрезание» живёт на
+  // уровне списка страниц. А вот «+ Страница» у реального файла скрыта: вставлять
+  // пустую макетную заглушку посреди скана нечем и незачем.
   const body = `<div class="vbody"><div class="vrail"><div class="vrail-list">
     ${d.pages.map((p, i) => `<div class="vthumb doc ${i + 1 === dSt.page ? 'active' : ''}" data-vthumb="${i + 1}" title="Страница ${i + 1}">
-      ${d.file ? '' : `<button class="vthumb-del" data-vdelpage="${i + 1}">×</button>`}<span class="vthumb-num">${i + 1}</span></div>`).join('')}
+      <button class="vthumb-del" data-vdelpage="${i + 1}">×</button><span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div>${d.file ? '' : `<button class="btn btn-ghost btn-sm" data-vaddpage style="margin:6px">+ Страница</button>`}</div>
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>
       ${d.pages.map((p, i) => `<div class="vpage-wrap" data-vpageblk="${i + 1}"><div class="vpage" data-vpageinner style="transform:rotate(${dSt.rot}deg)">${docPageHTML(d, i + 1)}</div></div>`).join('')}

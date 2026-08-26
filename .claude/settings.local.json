@@ -3,7 +3,11 @@
     "allow": [
       "Bash(python verify_audit_v3.py)",
       "Bash(PYTHONIOENCODING=utf-8 python verify_audit_v3.py)",
-      "Bash(PYTHONIOENCODING=utf-8 python verify_audit_v6.py)"
+      "Bash(PYTHONIOENCODING=utf-8 python verify_audit_v6.py)",
+      "Bash(npm --version)",
+      "Bash(npm pack *)",
+      "Bash(tar -tzf pdfjs-dist-4.6.82.tgz)",
+      "Bash(grep -E \"build/\\(pdf|pdf\\\\.worker\\)\\(\\\\.min\\)?\\\\.mjs$\")"
     ]
   }
 }
