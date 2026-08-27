@@ -40,12 +40,15 @@ export const FLAG_LABELS = {
   ml: 'импорт ML',
 };
 
+// Столбцы реестра. width — ширина ПО УМОЛЧАНИЮ: изменённую вручную держит
+// state.colWidths, механика общая для всех таблиц (kernel/columns.js).
+// Столбец «Адрес» с width: 0 — тянущийся, он забирает остаток строки.
 export const COLUMNS = [
   { key: 'eni', label: 'Код ЕНИ', width: 126, mono: true, sort: 'eni' },
   { key: 'title', label: 'Адрес', width: 0, sort: 'title' },
   { key: 'typeLabel', label: 'Тип ОЦ', width: 150 },
   { key: 'status', label: 'Статус', width: 142, sort: 'status' },
-  { key: 'institution', label: 'Учреждение', width: 168 },
+  { key: 'institution', label: 'Учреждение', width: 150 },
   { key: 'city', label: 'Город / район', width: 130 },
   { key: 'area', label: 'Площадь, м²', width: 104, align: 'right', sort: 'area' },
   { key: 'oiCount', label: 'ОИ', width: 46, align: 'right', sort: 'oiCount' },
@@ -57,7 +60,7 @@ export const COLUMNS = [
   { key: 'updatedAt', label: 'Обновлён', width: 98, sort: 'updatedAt' },
 ];
 
-const DEFAULT_COLUMNS = ['eni', 'title', 'typeLabel', 'status', 'institution', 'area', 'oiCount', 'notes', 'insp', 'updatedAt'];
+export const DEFAULT_COLUMNS = ['eni', 'title', 'typeLabel', 'status', 'institution', 'area', 'oiCount', 'notes', 'insp', 'updatedAt'];
 
 export function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -82,7 +85,10 @@ export function createState() {
   const s = {
     filter: emptyFilter(),
     sort: { key: 'updatedAt', dir: 'desc' },
+    // Порядок = порядок показа (kernel/columns.js), состав = что в массиве.
     columns: DEFAULT_COLUMNS.slice(),
+    // Только изменённые вручную ширины; остальные берутся из COLUMNS.
+    colWidths: {},
     facetsOpen: true,
     barOpen: { slices: true, recent: true },
     selected: new Map(),

@@ -1,3 +1,4 @@
+import { parseEni } from '../../../../kernel/fmt.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
@@ -19,7 +20,8 @@ export function bind(ctx, oi) {
   if (ab) ab.onchange = () => { oi.areaBuilt = ab.value; };
 
   const en = s.$('[data-oi-eni]');
-  if (en) en.onchange = () => { oi.eni = en.value.trim() || oi.eni; };
+  // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
+  if (en) en.onchange = () => { oi.eni = parseEni(en.value) || oi.eni; };
 
   const rg = s.$('[data-rights]');
   if (rg) rg.onchange = () => { oi.rights = rg.value; };

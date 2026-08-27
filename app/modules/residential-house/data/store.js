@@ -23,6 +23,11 @@ export const ui = {
   letterEdit: false,
   heatOpen: false,
   photoQuery: '',
+  photoPop: null,        // id литеры, у которой открыто окно со списком фото
+  // Столбцы перечня ОИ: порядок и изменённые вручную ширины
+  // (общий механизм — kernel/columns.js).
+  oiCols: null,
+  oiColWidths: {},
   mechMode: 'mono',
   mechDocs: [],
   // Фильтры вкладки «Логи» — везде пустой массив значит «без ограничения,

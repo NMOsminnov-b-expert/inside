@@ -27,10 +27,13 @@ export function totalPendingNotes(rec) {
     + rec.oi.reduce((s, o) => s + (o.notes || []).filter((n) => !n.done).length, 0);
 }
 
-export function addNote(rec, scope) {
+// Автор и дата ставятся в момент добавления (Л3.4): кто поставил заметку и
+// когда. Кто именно — знает только вызывающий (общая сессия, kernel/session.js),
+// поэтому передаётся снаружи, а часть заметок этого не знать не должна.
+export function addNote(rec, scope, author, date, text) {
   const arr = notesOf(rec, scope);
   if (!arr) return null;
-  const n = mkNote('', false);
+  const n = mkNote(text || '', false, author, date);
   arr.push(n);
   return n;
 }

@@ -1,5 +1,5 @@
 import { esc } from '../../../kernel/dom.js';
-import { fmt, num } from '../../../kernel/fmt.js';
+import { fmtNum, num } from '../../../kernel/fmt.js';
 
 // Реестр карточек ОИ модуля «Гражданское здание».
 function verbal(oi) {
@@ -21,11 +21,11 @@ export const OI_CARDS = {
     plateKind: 'ОЦ → литера',
     hasLetter: true,
     tableCategory: (oi) => oi.catClass || 'Гражданское здание',
-    tableArea: (oi) => (oi.areas && oi.areas.tp ? fmt(num(oi.areas.tp)) + ' м²' : '—'),
+    tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
     plateChips: (oi) => {
       const v = verbal(oi);
       return [
-        `<span class="ctx-chip">${fmt(num(oi.areas.tp || 0))} м² общая</span>`,
+        `<span class="ctx-chip">${fmtNum(num(oi.areas.tp || 0))} м² общая</span>`,
         `<span class="ctx-chip">этажей: ${oi.floors}</span>`,
         `<span class="ctx-chip ${v.c}">${v.t}</span>`,
       ];
@@ -41,7 +41,8 @@ export const OI_CARDS = {
     plateKind: 'ОЦ → ОИ',
     hasLetter: false,
     tableCategory: () => 'Земельный участок',
-    tableArea: (oi) => (oi.area ? fmt(num(oi.area)) + ' м²' : '—'),
+    tableArea: (oi) => ((oi.areas && oi.areas.pravo) ? fmtNum(num(oi.areas.pravo)) + ' м²'
+      : (oi.area ? fmtNum(num(oi.area)) + ' м²' : '—')),
     plateChips: () => [],
     load: () => import('./land/index.js'),
   },

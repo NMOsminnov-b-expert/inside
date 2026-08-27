@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { fmt, num } from '../../../../kernel/fmt.js';
+import { fmtNum, num } from '../../../../kernel/fmt.js';
 import { floorsSum } from './floors.model.js';
 
 // Поэтажная развёртка квартиры: только этажи, без подвала/мансарды/цоколя
@@ -13,7 +13,7 @@ export function apartmentFloorsBlock(ctx, oi) {
 
   return `<div class="acc ${open ? 'open' : ''}" style="margin-top:14px">
 <div class="acc-head" data-acc-toggle="${fkey}"><span class="chev">▾</span>Поэтажная развёртка
-<span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmt(s)} / ${fmt(t)} м²</span>
+<span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmtNum(s)} / ${fmtNum(t)} м²</span>
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
 </div>
 <div class="acc-body" style="padding:8px">
@@ -48,7 +48,7 @@ export function updateFloorsUI(ctx, oi) {
   if (sum) {
     const ssum = floorsSum(oi);
     const tot = num(oi.areas.tp);
-    sum.textContent = `Σ этажей: ${fmt(ssum)} / ${fmt(tot)} м²`;
+    sum.textContent = `Σ этажей: ${fmtNum(ssum)} / ${fmtNum(tot)} м²`;
     sum.className = Math.abs(ssum - tot) < 0.01 ? 'sum-ok' : 'sum-warn';
   }
 }

@@ -1,3 +1,6 @@
+import { migrateStruct } from './parts/struct/ms.js';
+import { migrateSpecials } from './parts/specials/model.js';
+import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { MENU_HREF } from '../../kernel/router.js';
 import { getOi, ui, resetViewer } from './data/store.js';
@@ -78,6 +81,12 @@ export function main(host) {
       }
       pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 
+      // Удаление участка не уносит литеры: они остаются в записи и теряют
+      // привязку, то есть уезжают в группу «Без участка» (Л2.1, Л2.2).
+      if (oi.card === 'land') {
+        rec.oi.forEach((o) => { if (o.landId === oi.id) o.landId = null; });
+      }
+
       const i = rec.oi.findIndex((o) => o.id === id);
       if (i >= 0) rec.oi.splice(i, 1);
 
@@ -85,6 +94,8 @@ export function main(host) {
         ui.letterEdit = false;
         ctx.navigate({ rest: [] });
       } else {
+        migrateSpecials(rec);
+        migrateStruct(rec);
         draw();
       }
       host.toast(label + ' удалён');
@@ -115,7 +126,7 @@ export function main(host) {
       return items;
     }
 
-    items.push({ label: `Объект ${rec.eni}`, to: ocHref });
+    items.push({ label: `Объект ${fmtEni(rec.eni)}`, to: ocHref });
 
     if (ctx.view === 'form') items.push({ label: 'Редактирование ОЦ', current: true });
     else if (ctx.view === 'create') items.push({ label: 'Создание ОЦ', current: true });
@@ -273,6 +284,8 @@ export function main(host) {
 
   bindCommonUI();
   ensureViewerDefault();
+  migrateSpecials(rec);
+  migrateStruct(rec);
   draw().then(resnapshot);
 
   return {
@@ -285,6 +298,8 @@ export function main(host) {
         resetViewer();
       }
       ensureViewerDefault();
+      migrateSpecials(rec);
+      migrateStruct(rec);
       draw().then(resnapshot);
     },
     destroy() {

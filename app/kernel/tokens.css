@@ -68,3 +68,43 @@ input,select,textarea{font:inherit;color:inherit}
 .modal-opt:hover{background:var(--blue-50)}
 .modal-opt.active{background:var(--blue-100);color:var(--blue-700);font-weight:600}
 .modal-err{margin-top:10px;font-size:11.5px;color:var(--danger);font-weight:600}
+
+/* Столбцы таблиц: перемещение, ширина, меню состава (kernel/columns.js).
+   Стили общие — механика одна на реестр и на таблицы внутри карточек. */
+/* Граница столбца. right:0, а не отрицательный отступ: ячейка шапки обрезает
+   содержимое по себе (overflow:hidden), поэтому свисающая наружу часть ручки
+   не рисовалась и не нащупывалась. Полоска видна всегда — иначе непонятно, где
+   можно ухватиться. */
+.col-grip{position:absolute;top:0;right:0;width:9px;height:100%;cursor:col-resize;z-index:3;touch-action:none}
+.col-grip::after{content:"";position:absolute;top:22%;bottom:22%;right:3px;width:1px;background:var(--line);transition:background .12s,top .12s,bottom .12s}
+.col-grip:hover::after,.col-grip.active::after{top:0;bottom:0;width:2px;background:var(--blue-600)}
+[data-col]{position:relative}
+[data-col][draggable="true"]{cursor:grab}
+[data-col].col-dragging{opacity:.5}
+/* Цель переноса подсвечивается по левому краю — столбец встанет ПЕРЕД ней. */
+[data-col].col-drop{box-shadow:inset 2px 0 0 var(--blue-600)}
+.col-resizing{cursor:col-resize;user-select:none}
+.col-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Меню состава и порядка столбцов.
+   Селекторы намеренно с запасом по специфичности: в этом же файле выше живёт
+   `.dd-menu button{display:block;width:100%}` — правило с типом элемента,
+   которое перебивает одиночный класс. Из-за него кнопка «сброс» растягивалась
+   на всю ширину, а список (у него overflow:auto, то есть свой контекст
+   форматирования) не заходил под флоат и сжимался в ноль. Поэтому и флоата
+   здесь больше нет — шапка меню обычный flex. */
+.dd-menu .dd-group.col-head{display:flex;align-items:baseline;gap:8px}
+.dd-menu .col-reset{width:auto;margin-left:auto;padding:0;text-align:right;font-size:9.5px;text-transform:none;letter-spacing:0;color:var(--blue-600);font-weight:600;flex:0 0 auto}
+.dd-menu .col-reset:hover{text-decoration:underline;background:none}
+.dd-menu .col-list{display:flex;flex-direction:column;gap:1px}
+.dd-menu .col-opt{display:flex;align-items:center;gap:6px;padding:2px 4px 2px 9px;border-radius:7px}
+.dd-menu .col-opt:hover{background:var(--blue-50)}
+.dd-menu .col-opt.off .col-opt-lb{color:#8fa2b8}
+.dd-menu .col-opt-lb{display:flex;align-items:center;gap:7px;flex:1 1 auto;min-width:0;font-size:12.5px;color:#33445c;cursor:pointer}
+.dd-menu .col-opt-lb input{width:13px;height:13px;accent-color:var(--blue-600);flex:0 0 auto}
+.dd-menu .col-opt-move{display:flex;gap:1px;flex:0 0 auto}
+.dd-menu .col-opt-btn{display:block;width:20px;padding:2px 0;text-align:center;border-radius:5px;font-size:8px;color:#7d93a6;line-height:1.2}
+.dd-menu .col-opt-btn:hover:not(:disabled){background:var(--blue-100);color:var(--blue-700)}
+.dd-menu .col-opt-btn:disabled{opacity:.28;cursor:default}
+.dd-menu .col-sep{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:#8fa2b8;padding:6px 9px 2px;font-weight:700}
+.dd-menu .col-hint{font-size:10px;color:#8fa2b8;padding:6px 9px 3px;border-top:1px solid var(--line-soft);margin-top:4px;line-height:1.35}

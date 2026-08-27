@@ -1,3 +1,4 @@
+import { parseEni } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
 
@@ -17,7 +18,7 @@ export function bindOcCreate(ctx) {
   if (save) save.onclick = () => {
     rec.purposeTP = s.$('#fPurpose').value;
     rec.status = s.$('#fStatus').value;
-    rec.eni = s.$('#fEni').value;
+    rec.eni = parseEni(s.$('#fEni').value);
     rec.institution = s.$('#fInst').value;
     rec.podved = s.$('#fPodved').value;
     rec.address = s.$('#fAddr').value;

@@ -1,5 +1,9 @@
 import { esc } from '../../kernel/dom.js';
-import { fmt } from '../../kernel/fmt.js';
+import { fmtNum, fmtInt, fmtEni } from '../../kernel/fmt.js';
+import {
+  orderedColumns, cellStyle, columnVarsStyle, headAttrs, resizeGripHTML,
+  colLabelHTML, columnsMenuHTML as kernelColumnsMenuHTML,
+} from '../../kernel/columns.js';
 import { COLUMNS } from './state.js';
 
 const STAGE_INDEX = new Map([
@@ -17,34 +21,43 @@ export const ROW_H = 38;
 
 function cell(col, s) {
   switch (col.key) {
-    case 'eni': return `<span class="mono">${esc(s.eni)}</span>`;
+    case 'eni': return `<span class="mono" title="${esc(s.eni)}">${esc(fmtEni(s.eni))}</span>`;
     case 'title': return `<span class="reg-cell-title">
       <span class="reg-ico">${esc(s.typeIcon)}</span>
-      <span class="ell">${esc(s.title)}</span>
+      <span class="ell" title="${esc(s.title)}">${esc(s.title)}</span>
       ${s.flags.pendingNotes ? '<span class="reg-badge notes" title="есть невыполненные заметки">⚑</span>' : ''}
       ${s.flags.defects ? '<span class="reg-badge warn" title="расхождение ТП и фото">⚠</span>' : ''}
       ${s.flags.mlUnverified ? '<span class="reg-badge ml" title="импорт ML без проверки">ML</span>' : ''}
     </span>`;
-    case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 9}"><i></i><span class="ell">${esc(s.status)}</span></span>`;
-    case 'area': return s.metrics.area ? fmt(s.metrics.area) : '—';
-    case 'oiCount': return String(s.metrics.oiCount);
-    case 'photos': return String(s.metrics.photos);
-    case 'docs': return String(s.metrics.docs);
+    case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 9}"><i></i><span class="ell" title="${esc(s.status)}">${esc(s.status)}</span></span>`;
+    case 'area': return s.metrics.area ? fmtNum(s.metrics.area) : '—';
+    case 'oiCount': return fmtInt(s.metrics.oiCount);
+    case 'photos': return fmtInt(s.metrics.photos);
+    case 'docs': return fmtInt(s.metrics.docs);
     case 'notes': return s.metrics.pendingNotes
       ? `<span class="pill-mini pill-pend">${s.metrics.pendingNotes}</span>`
       : '<span class="muted">—</span>';
-    case 'insp': return `<span class="ell">${esc(s.resp.insp || '—')}</span>`;
-    case 'appr': return `<span class="ell">${esc(s.resp.appr || '—')}</span>`;
-    case 'typeLabel': return `<span class="ell">${esc(s.typeLabel)}</span>`;
-    case 'institution': return `<span class="ell">${esc(s.institution || '—')}</span>`;
-    case 'city': return `<span class="ell">${esc(s.city || '—')}</span>`;
+    case 'insp': return `<span class="ell" title="${esc(s.resp.insp || '')}">${esc(s.resp.insp || '—')}</span>`;
+    case 'appr': return `<span class="ell" title="${esc(s.resp.appr || '')}">${esc(s.resp.appr || '—')}</span>`;
+    case 'typeLabel': return `<span class="ell" title="${esc(s.typeLabel)}">${esc(s.typeLabel)}</span>`;
+    case 'institution': return `<span class="ell" title="${esc(s.institution || '')}">${esc(s.institution || '—')}</span>`;
+    case 'city': return `<span class="ell" title="${esc(s.city || '')}">${esc(s.city || '—')}</span>`;
     case 'updatedAt': return esc(s.updatedAt || '—');
     default: return '';
   }
 }
 
+// Порядок показа задаёт state.columns, а не порядок описаний в COLUMNS —
+// иначе перетаскивание столбцов не имело бы смысла (kernel/columns.js).
 export function activeColumns(state) {
-  return COLUMNS.filter((c) => state.columns.includes(c.key));
+  return orderedColumns(COLUMNS, state.columns);
+}
+
+// Ширины объявляются переменными на контейнере таблицы: при растягивании
+// мышью меняется одно свойство, и строки его подхватывают без перерисовки —
+// на 20 000 записей это принципиально (см. kernel/columns.js).
+export function tableVarsStyle(state) {
+  return columnVarsStyle(activeColumns(state), state.colWidths);
 }
 
 export function tableHeadHTML(state) {
@@ -52,11 +65,13 @@ export function tableHeadHTML(state) {
 
   return `<div class="reg-thead">
     <div class="reg-th check"><input type="checkbox" data-select-page title="Выбрать страницу"></div>
-    ${cols.map((c) => `<div class="reg-th ${c.align === 'right' ? 'right' : ''} ${c.sort ? 'sortable' : ''}"
-      style="${c.width ? `width:${c.width}px;flex:0 1 ${c.width}px` : 'flex:1 1 240px;min-width:190px'}"
-      ${c.sort ? `data-sort="${esc(c.sort)}"` : ''}>
-      ${esc(c.label)}
+    ${cols.map((c, i) => `<div class="reg-th ${c.align === 'right' ? 'right' : ''} ${c.sort ? 'sortable' : ''}"
+      style="${cellStyle(c, state.colWidths)}" ${headAttrs(c)}
+      ${c.sort ? `data-sort="${esc(c.sort)}"` : ''}
+      title="${esc(c.label)}${c.sort ? ' — клик сортирует' : ''}; перетащите, чтобы переставить">
+      ${colLabelHTML(c)}
       ${state.sort.key === c.sort ? `<span class="reg-sort">${state.sort.dir === 'asc' ? '▲' : '▼'}</span>` : ''}
+      ${resizeGripHTML(c, i === cols.length - 1)}
     </div>`).join('')}
   </div>`;
 }
@@ -68,11 +83,12 @@ export function rowsHTML(state, rows, startIndex) {
     data-row="${esc(s.typeId)}|${esc(s.id)}" data-index="${startIndex + i}" tabindex="-1">
     <div class="reg-td check"><input type="checkbox" data-select="${esc(s.id)}" ${state.selected.has(s.id) ? 'checked' : ''}></div>
     ${cols.map((c) => `<div class="reg-td ${c.align === 'right' ? 'right' : ''} ${c.mono ? 'mono' : ''}"
-      style="${c.width ? `width:${c.width}px;flex:0 1 ${c.width}px` : 'flex:1 1 240px;min-width:190px'}">${cell(c, s)}</div>`).join('')}
+      style="${cellStyle(c, state.colWidths)}">${cell(c, s)}</div>`).join('')}
   </div>`).join('');
 }
 
 // Значение ячейки в виде простого текста — для выгрузки в Excel.
+// Без разделителей разрядов: с ними Excel не разберёт число.
 function plain(col, s) {
   switch (col.key) {
     case 'eni': return s.eni;
@@ -94,6 +110,7 @@ function plain(col, s) {
 }
 
 // CSV с «;» и BOM — так Excel в русской локали открывает файл без импорта.
+// Столбцы и их порядок — те, что на экране: выгружается то, что видно.
 export function csvOf(state, rows) {
   const cols = activeColumns(state);
   const cell = (v) => (/[";\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : v);
@@ -105,9 +122,5 @@ export function csvOf(state, rows) {
 }
 
 export function columnsMenuHTML(state) {
-  return `<div class="dd-group">Столбцы</div>
-    ${COLUMNS.map((c) => `<label class="reg-col-opt">
-      <input type="checkbox" data-column="${esc(c.key)}" ${state.columns.includes(c.key) ? 'checked' : ''}>
-      ${esc(c.label)}
-    </label>`).join('')}`;
+  return kernelColumnsMenuHTML(COLUMNS, state.columns);
 }

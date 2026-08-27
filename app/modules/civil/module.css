@@ -65,6 +65,7 @@ body[data-module="civil"] .grid{display:grid;gap:10px 12px;align-items:end}
 body[data-module="civil"] .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 body[data-module="civil"] .g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 body[data-module="civil"] .g-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+body[data-module="civil"] .grid.g-top{align-items:start}
 body[data-module="civil"] .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 body[data-module="civil"] .field>label{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
 body[data-module="civil"] .req{color:var(--danger)}
@@ -351,3 +352,86 @@ body[data-module="civil"] .audit-tbl td{font-size:12px;color:#33445c;padding:6px
 body[data-module="civil"] .audit-change{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}
 body[data-module="civil"] .audit-change-attr{font-size:12px;font-weight:600;color:#33445c;display:flex;align-items:center;flex-wrap:wrap}
 body[data-module="civil"] .audit-change:first-child{margin-top:0}
+
+/* Перечень ОИ — дерево «участок → литеры» (card/oiTable.view.js).
+   Два уровня: узел-аккордеон = участок либо группа «Без участка», внутри —
+   таблица литер. Литеру можно перетащить в другой узел. */
+body[data-module="civil"] .oi-tree{padding:10px 12px 12px}
+body[data-module="civil"] .oi-node{margin-top:8px}
+body[data-module="civil"] .oi-node:first-child{margin-top:0}
+body[data-module="civil"] .oi-node-head{gap:8px;padding:8px 12px;background:#eef4fb}
+body[data-module="civil"] .oi-node-head b{font-size:12.5px;color:var(--blue-700)}
+body[data-module="civil"] .oi-node-eni{font-size:11px;color:#5b6c85;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+body[data-module="civil"] .oi-node-count{font-size:10.5px;font-weight:600;color:#7d93a6;margin-left:auto;white-space:nowrap}
+body[data-module="civil"] .oi-node-area{font-size:11.5px;font-weight:600;color:#33445c;white-space:nowrap}
+body[data-module="civil"] .oi-node-actions{display:flex;gap:4px;align-items:center}
+body[data-module="civil"] .oi-tree-tbl{border-top:1px solid var(--line-soft)}
+/* Узел-цель переноса подсвечивается по всей рамке, а не только по строке —
+   бросать можно в любое место узла, включая пустой. */
+body[data-module="civil"] .oi-node.drop-target{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.22)}
+body[data-module="civil"] .oi-letter.dragging{opacity:.45}
+body[data-module="civil"] .drag-grip{display:inline-block;margin-right:6px;color:#a9bccf;cursor:grab;font-size:11px}
+body[data-module="civil"] .oi-letter:hover .drag-grip{color:var(--blue-600)}
+
+/* Ячейка «Фото»: один прямоугольник с количеством вместо ряда миниатюр (Л4.7).
+   Превью — первое прикреплённое фото. */
+body[data-module="civil"] .ph-cell{position:relative;width:52px;height:34px;border:1px solid var(--line);border-radius:6px;
+  background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat;cursor:pointer;display:block;transition:border-color .12s,box-shadow .12s}
+body[data-module="civil"] .ph-cell:hover{border-color:var(--blue-500);box-shadow:0 2px 8px rgba(22,104,201,.18)}
+body[data-module="civil"] .ph-cell-n{position:absolute;right:2px;bottom:1px;font-size:10px;font-weight:700;color:#33445c;background:rgba(255,255,255,.9);border-radius:4px;padding:0 4px;line-height:14px}
+
+/* Всплывающее окно со всеми фото литеры. */
+body[data-module="civil"] .ph-pop{position:absolute;z-index:80;right:16px;top:52px;width:330px;max-height:60vh;display:flex;flex-direction:column;
+  background:#fff;border:1.5px solid var(--blue-300);border-radius:10px;box-shadow:0 14px 34px rgba(15,23,42,.22);animation:accIn .14s ease}
+body[data-module="civil"] .ph-pop-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11.5px;font-weight:700;color:#33445c}
+body[data-module="civil"] .ph-pop-head .muted{margin-left:auto;font-weight:400}
+body[data-module="civil"] .ph-pop-body{flex:1;overflow:auto;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overscroll-behavior:contain}
+body[data-module="civil"] .ph-pop-item{display:flex;flex-direction:column;gap:3px;cursor:pointer;background:none;border:none;padding:0}
+body[data-module="civil"] .ph-pop-img{height:62px;border:1px solid var(--line);border-radius:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
+body[data-module="civil"] .ph-pop-item:hover .ph-pop-img{border-color:var(--blue-500)}
+body[data-module="civil"] .ph-pop-cap{font-size:9.5px;color:#5b6c85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Окно позиционируется от карточки перечня. */
+body[data-module="civil"] .card-body-wrap{position:relative}
+
+/* Адрес объекта закреплён в плашке карточки ОИ: параметры литеры вбивают,
+   глядя на неё, и возвращаться к ОЦ ради адреса не нужно. Длинный адрес
+   укорачиваем, а не растягиваем плашку. */
+body[data-module="civil"] .ctx-plate-addr{max-width:320px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+
+/* Блок «Особенности» (parts/specials). Нумерованные записи по образцу заметок,
+   но без отметки «выполнено»: это другая сущность (Л3.6, Л4.5). */
+body[data-module="civil"] .sp-block{margin-top:10px}
+body[data-module="civil"] .sp-list{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+body[data-module="civil"] .sp-row{display:flex;align-items:center;gap:7px}
+body[data-module="civil"] .sp-num{flex:0 0 auto;font-size:10px;font-weight:700;color:#7d93a6;background:var(--blue-50);border:1px solid var(--blue-200);border-radius:5px;padding:2px 5px;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .sp-input{flex:1;min-width:0;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:#fff;color:#22314a}
+body[data-module="civil"] .sp-input:focus{outline:none;border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(22,104,201,.14)}
+body[data-module="civil"] .sp-date{flex:0 0 auto;font-size:10.5px;color:#8fa2b8;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .sp-del{flex:0 0 auto;cursor:pointer;color:#a9bccf;font-size:14px;line-height:1;padding:0 3px}
+body[data-module="civil"] .sp-del:hover{color:var(--danger)}
+body[data-module="civil"] .sp-empty{font-size:11.5px;color:#8fa2b8;padding:2px 0 2px 2px}
+
+/* Заметки: автор и дата, разворачивание длинного текста, шаблоны (Л3.4).
+   Текст в textarea — одной строкой длинная заметка не читается; свёрнутая она
+   занимает одну строку, при наведении и в фокусе разворачивается целиком. */
+body[data-module="civil"] .note-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+body[data-module="civil"] .note-input{width:100%;height:26px;resize:none;overflow:hidden;font-family:inherit;transition:height .12s}
+body[data-module="civil"] .note-input:focus{height:64px;overflow:auto}
+/* Полный текст заметки — в окошке при наведении: строка остаётся одной, список
+   не раздувается. Позиционирование fixed и координаты из JS (parts/notes/ctrl.js):
+   ящик заметок прокручиваемый, и обычное absolute окошко им обрезалось. */
+body[data-module="civil"] .note-row{position:relative}
+body[data-module="civil"] .note-pop{display:none;position:fixed;width:340px;z-index:500;
+  background:#fff;border:1px solid var(--amber-600);border-radius:8px;box-shadow:0 12px 30px rgba(15,23,42,.22);
+  padding:9px 11px;font-size:12.5px;line-height:1.45;color:var(--ink);white-space:pre-wrap;max-height:260px;overflow:auto}
+body[data-module="civil"] .note-row:hover .note-pop{display:block}
+body[data-module="civil"] .note-row:focus-within .note-pop{display:none}
+body[data-module="civil"] .note-meta{display:flex;gap:8px;align-items:center;padding:0 8px;font-size:10px;color:#a1906f}
+body[data-module="civil"] .note-date{font-variant-numeric:tabular-nums}
+body[data-module="civil"] .note-add-wrap{display:flex;align-items:center;gap:2px;margin-left:auto}
+body[data-module="civil"] .note-tpl-dd .dd-menu{right:0;left:auto;min-width:270px}
+body[data-module="civil"] .note-tpl-menu button{white-space:normal;line-height:1.35}
+
+body[data-module="civil"] .nb-group .acc-head{flex-wrap:nowrap}
+body[data-module="civil"] .note-add-btn{padding:2px 8px;font-size:14px;line-height:1}
+body[data-module="civil"] .note-tpl-dd>button{padding:2px 6px;font-size:10px;line-height:1.4}

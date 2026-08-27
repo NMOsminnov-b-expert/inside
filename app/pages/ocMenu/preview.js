@@ -1,5 +1,5 @@
 import { esc } from '../../kernel/dom.js';
-import { fmt } from '../../kernel/fmt.js';
+import { fmtNum } from '../../kernel/fmt.js';
 import { summaryOf, recordOf } from './query.js';
 
 // Превью строки: состав ОИ и заметки без перехода в карточку.
@@ -35,7 +35,7 @@ export function previewHTML(state) {
       ${oi.length ? oi.map((o) => `<div class="reg-peek-oi">
         <span class="tag-mini">${o.letter ? esc(o.letter) : (o.card === 'land' ? 'уч.' : 'ОИ')}</span>
         <span class="ell">${esc(o.name)}</span>
-        <span class="muted">${o.card === 'land' ? (o.area ? fmt(+String(o.area).replace(',', '.')) + ' м²' : '—') : (o.areas && o.areas.tp ? fmt(+String(o.areas.tp).replace(',', '.')) + ' м²' : '—')}</span>
+        <span class="muted">${o.card === 'land' ? (o.area ? fmtNum(+String(o.area).replace(',', '.')) + ' м²' : '—') : (o.areas && o.areas.tp ? fmtNum(+String(o.areas.tp).replace(',', '.')) + ' м²' : '—')}</span>
       </div>`).join('') : '<div class="muted">ОИ не добавлены</div>'}
     </div>
 

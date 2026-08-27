@@ -1,6 +1,7 @@
 // Контракт модуля для меню ОЦ: сводки, запросы, фасеты, локатор, создание.
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
-import { fmt, num } from '../../kernel/fmt.js';
+import { recHasSpecials } from './parts/specials/model.js';
+import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { records, addRecord, nextId } from './data/store.js';
 import { totalPendingNotes } from './parts/notes/model.js';
@@ -37,6 +38,9 @@ function flagsOf(rec) {
     mlUnverified: rec.oi.some((o) => (o.origin || 'manual') === 'ml' && !(o.flags || {}).matched),
     defects: rec.oi.some((o) => !!o.dis),
     pendingNotes: totalPendingNotes(rec) > 0,
+    // Есть ли у объекта особенности — признак записи, по нему будут столбец и
+    // фильтр в реестре (Л4.5, пункт E3 в docs/tz/00-tz.md).
+    specials: recHasSpecials(rec),
   };
 }
 
@@ -69,7 +73,7 @@ export function summarize(rec) {
     ],
     facts: [
       { label: 'Код ЕНИ', value: rec.eni, mono: true },
-      { label: 'Площадь участков', value: m.area ? fmt(m.area) + ' м²' : '—' },
+      { label: 'Площадь участков', value: m.area ? fmtNum(m.area) + ' м²' : '—' },
       { label: 'Участков и строений', value: String(m.oiCount) },
       { label: 'Фото', value: String(m.photos) },
     ],
@@ -109,7 +113,7 @@ function bulkSummary(raw) {
     ],
     facts: [
       { label: 'Код ЕНИ', value: raw.eni, mono: true },
-      { label: 'Общая площадь', value: m.area ? fmt(m.area) + ' м²' : '—' },
+      { label: 'Общая площадь', value: m.area ? fmtNum(m.area) + ' м²' : '—' },
       { label: 'ОИ', value: String(m.oiCount) },
       { label: 'Фото', value: String(m.photos) },
     ],

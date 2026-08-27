@@ -82,6 +82,9 @@ function paramsFor(i) {
   const photos = int(rnd, 0, 14);
   const docs = int(rnd, 0, 5);
   const pendingNotes = rnd() < 0.42 ? int(rnd, 1, 6) : 0;
+  // Особенности отмечены примерно у трети объектов — чтобы столбец и фильтр
+  // по ним (Л4.5, E3) было на чём проверять.
+  const specials = rnd() < 0.34;
 
   const ml = rnd() < 0.55;
   const mlUnverified = ml && rnd() < 0.6;
@@ -93,7 +96,7 @@ function paramsFor(i) {
     city, street, house, institution, status, purpose, eni, resp, docs,
     ml, mlUnverified, defects, updatedAt,
     metrics: { oiCount, area, photos, docs, pendingNotes },
-    flags: { ml, mlUnverified, defects, pendingNotes: pendingNotes > 0 },
+    flags: { ml, mlUnverified, defects, pendingNotes: pendingNotes > 0, specials },
   };
 }
 

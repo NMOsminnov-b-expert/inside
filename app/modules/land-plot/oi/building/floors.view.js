@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { fmt, num } from '../../../../kernel/fmt.js';
+import { fmtNum, num } from '../../../../kernel/fmt.js';
 import { floorsSum } from './floors.model.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
 
@@ -16,7 +16,7 @@ function mansardTypeField(oi) {
 
 function catSummary(rows) {
   const sum = rows.reduce((s, f) => s + num(f.area), 0);
-  return `${rows.length} · ${fmt(sum)} м²`;
+  return `${rows.length} · ${fmtNum(sum)} м²`;
 }
 
 function catSection(ctx, oi, cat, fkey) {
@@ -58,7 +58,7 @@ export function floorsBlock(ctx, oi) {
   return `<div class="field" style="max-width:220px"><label>Количество этажей</label>
 <input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"></div>
 <div class="inline-row" style="margin-top:8px; align-items:center;">
-<span data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ по зданию: ${fmt(allSum)} / ${fmt(total)} м² (общая по ТП)</span>
+<span data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ по зданию: ${fmtNum(allSum)} / ${fmtNum(total)} м² (общая по ТП)</span>
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
 </div>
 ${CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
@@ -101,7 +101,7 @@ export function updateFloorsUI(ctx, oi) {
   if (sum) {
     const ssum = floorsSum(oi);
     const tot = num(oi.areas.tp);
-    sum.textContent = `Σ по зданию: ${fmt(ssum)} / ${fmt(tot)} м² (общая по ТП)`;
+    sum.textContent = `Σ по зданию: ${fmtNum(ssum)} / ${fmtNum(tot)} м² (общая по ТП)`;
     sum.className = Math.abs(ssum - tot) < 0.01 ? 'sum-ok' : 'sum-warn';
   }
 }

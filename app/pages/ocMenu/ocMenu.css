@@ -118,8 +118,6 @@ body[data-page="oc-menu"] .reg-tools{display:flex;align-items:center;gap:7px;mar
 body[data-page="oc-menu"] .reg-icon-btn{width:29px;height:29px;border:1px solid var(--line);border-radius:7px;background:#fff;color:#46536b;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 body[data-page="oc-menu"] .reg-icon-btn:hover{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
 body[data-page="oc-menu"] .reg-cols{right:0;left:auto;min-width:210px;max-height:340px;overflow:auto}
-body[data-page="oc-menu"] .reg-col-opt{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer}
-body[data-page="oc-menu"] .reg-col-opt:hover{background:var(--blue-50)}
 
 /* --- виртуальная таблица --- */
 body[data-page="oc-menu"] .reg-view-box{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow)}

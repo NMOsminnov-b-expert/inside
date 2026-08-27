@@ -16,6 +16,11 @@ export function getOi(rec, oiId) {
 // Навигация (какая запись, какой ОИ, какая вкладка) живёт в маршруте.
 export const ui = {
   expanded: {},
+  photoPop: null,        // id литеры, у которой открыто окно со списком фото
+  // Столбцы перечня ОИ: порядок и изменённые вручную ширины
+  // (общий механизм — kernel/columns.js).
+  oiCols: null,
+  oiColWidths: {},
   accOpen: {},
   doneOpen: {},
   viewer: null,        // { mode: 'doc' | 'photo' | 'compare' }

@@ -39,3 +39,12 @@ export function photoMatches(oi, cat, idx, q) {
   const hay = norm(`${oi.letter || ''} ${oi.name} ${cat} фото`);
   return words.some((w) => hay.includes(w));
 }
+
+// Реальный файл фото, если он есть. Читатель добавлен во все модули сразу, хотя
+// загрузку файлов пока умеет только civil: разметка перечня ОИ одна на все
+// модули, и ей нужен единый API. Пока photoFiles нет — вернёт null, и плитка
+// покажет макетную заглушку.
+export function photoFileAt(oi, cat, i) {
+  const arr = ((oi && oi.photoFiles) || {})[cat];
+  return (arr && arr[i]) || null;
+}

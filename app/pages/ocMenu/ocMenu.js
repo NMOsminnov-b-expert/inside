@@ -3,8 +3,7 @@ import { sortedTypes, getType } from '../../kernel/registry.js';
 import { build, MENU_HREF } from '../../kernel/router.js';
 import { selectDialog } from '../../kernel/dialog.js';
 import {
-  createState, applyQueryToState, hashFor, emptyFilter, isFilterEmpty,
-  ROLES, COLUMNS, rolePerms, roleHint,
+  createState, applyQueryToState, hashFor, emptyFilter, isFilterEmpty, ROLES, COLUMNS, rolePerms, roleHint, DEFAULT_COLUMNS,
 } from './state.js';
 import {
   queryAll, countAll, facetsAll, setBulkTotal, bulkTotal, totalObjects, mutate,
@@ -14,13 +13,19 @@ import { slicesHTML, sliceDefs, filterForSlice, invalidateSliceCounts } from './
 import {
   facetsHTML, toggleSection, toggleExpanded, setSearch,
 } from './facets.js';
-import { ROW_H, tableHeadHTML, rowsHTML, columnsMenuHTML, csvOf } from './table.js';
+import { ROW_H, tableHeadHTML, rowsHTML, columnsMenuHTML, csvOf, tableVarsStyle, activeColumns } from './table.js';
+import { bindColumnResize, bindColumnReorder, bindColumnsMenu, normalizeOrder, applyFit } from '../../kernel/columns.js';
 import { previewHTML } from './preview.js';
 
 // Состояние переживает уход в карточку и возврат: фильтр не сбрасывается.
 const state = createState();
 let dataVersion = 0;      // растёт при изменении данных — сбрасывает кэш срезов
 let cursor = -1;
+// Меню столбцов держим открытым между перерисовками: состав меняют сразу по
+// нескольким столбцам, а панель инструментов перерисовывается на каждое
+// изменение и иначе схлопывала бы меню после первого щелчка.
+let colsMenuOpen = false;
+let colsObserver = null;   // следит за шириной таблицы, см. fitColumns()
 
 export function mountOcMenu(host) {
   const scope = host.scope;
@@ -139,7 +144,7 @@ export function mountOcMenu(host) {
 
       <div class="reg-tools">
         <button class="btn btn-ghost btn-sm" data-export title="Выгрузить текущую выборку в CSV для Excel">Экспорт CSV</button>
-        <div class="dd">
+        <div class="dd ${colsMenuOpen ? 'open' : ''}" data-cols-dd>
           <button class="reg-icon-btn" data-dd-toggle title="Столбцы">⋮⋮</button>
           <div class="dd-menu reg-cols">${columnsMenuHTML(state)}</div>
         </div>
@@ -181,6 +186,10 @@ export function mountOcMenu(host) {
   // renderData() или прямые точечные правки DOM — без setHTML() всего блока,
   // поэтому не теряются ни фокус в поле поиска, ни скролл внутри фильтров,
   // ни позиция самой панели.
+  function disposeColsObserver() {
+    if (colsObserver) { colsObserver.disconnect(); colsObserver = null; }
+  }
+
   function renderShell() {
     if (!alive) return;
 
@@ -193,6 +202,8 @@ export function mountOcMenu(host) {
     lastFacets = facetsAll(state.filter);
     const total = countAll(state.filter);
     lastTotal = total;
+
+    disposeColsObserver();   // старый смотрел на узел, который сейчас заменим
 
     scope.setHTML(`
       <div class="reg">
@@ -213,7 +224,7 @@ export function mountOcMenu(host) {
 
           <section class="reg-body">
             <div class="reg-toolbar" data-region-toolbar>${toolbarHTML(total)}</div>
-            <div class="reg-view-box">
+            <div class="reg-view-box" data-cols-box style="${tableVarsStyle(state)}">
               <div data-region-thead>${tableHeadHTML(state)}</div>
               <div class="reg-viewport" data-viewport>
                 <div class="reg-spacer" data-spacer></div>
@@ -234,6 +245,7 @@ export function mountOcMenu(host) {
 
     const vp = scope.$('[data-viewport]');
     if (vp) vp.scrollTop = scrollTop;
+    fitColumns();
     updateRows();
     syncHash();
   }
@@ -267,12 +279,37 @@ export function mountOcMenu(host) {
     const thead = scope.$('[data-region-thead]');
     if (thead) thead.innerHTML = tableHeadHTML(state);
 
+    // Переменные ширины переобъявляем вместе с шапкой: состав столбцов мог
+    // измениться, а растягивание пишет их напрямую в style контейнера.
+    const colsBox = scope.$('[data-cols-box]');
+    if (colsBox) colsBox.setAttribute('style', tableVarsStyle(state));
+
     const foot = scope.$('[data-region-foot]');
     if (foot) foot.innerHTML = footHTML();
 
     bindData();
+    fitColumns();
     updateRows();
     syncHash();
+  }
+
+  // Раскладка столбцов: ширины точные, их сумма подгоняется под ширину
+  // таблицы (kernel/columns.js, fitWidths). Мерить можно только по факту, из
+  // DOM, поэтому это отдельный проход после отрисовки шапки. Ширина таблицы
+  // меняется не только с окном, но и когда свернули панель фильтров, — за этим
+  // следит ResizeObserver.
+  const CHECK_COL_W = 34;   // служебный столбец с флажком, в механике не участвует
+  let fitting = false;
+
+  function fitColumns() {
+    const box = scope.$('[data-cols-box]');
+    if (!box || fitting) return;
+    fitting = true;
+    // Результат подгонки сохраняем: раскладка должна лежать в состоянии
+    // целиком, иначе следующая подгонка возьмёт за основу другие числа и
+    // передвинет то, что человек уже настроил вручную.
+    Object.assign(state.colWidths, applyFit(box, activeColumns(state), state.colWidths, CHECK_COL_W));
+    fitting = false;
   }
 
   // --- Виртуализация --------------------------------------------------------
@@ -480,6 +517,17 @@ export function mountOcMenu(host) {
 
     const vp = s.$('[data-viewport]');
     if (vp) vp.addEventListener('scroll', () => updateRows());
+
+    // Ширина таблицы меняется и от окна, и от сворачивания панели фильтров
+    // (она правится точечно, без перерисовки), поэтому следим за самим блоком,
+    // а не за окном. Подгонка меняет только переменные на контейнере, ширину
+    // блока не трогает, — зацикливания не будет.
+    const colsBox = scope.$('[data-cols-box]');
+    if (colsBox && typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(() => fitColumns());
+      ro.observe(colsBox);
+      colsObserver = ro;
+    }
   }
 
   // Переключатели внутри регионов, которые пересобираются при каждом
@@ -532,6 +580,7 @@ export function mountOcMenu(host) {
     s.$$('[data-create]').forEach((b) => b.onclick = (e) => {
       e.stopPropagation();
       document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+      colsMenuOpen = false;
 
       if (!rolePerms(state.role).create) return;
 
@@ -599,13 +648,37 @@ export function mountOcMenu(host) {
 
     s.$$('[data-bulk]').forEach((b) => b.onclick = () => bulkAction(b.dataset.bulk));
 
-    s.$$('[data-column]').forEach((cb) => cb.onchange = (e) => {
-      e.stopPropagation();
-      const key = cb.dataset.column;
-      state.columns = cb.checked
-        ? COLUMNS.filter((c) => state.columns.includes(c.key) || c.key === key).map((c) => c.key)
-        : state.columns.filter((k) => k !== key);
+    // Состав, порядок и ширина столбцов — общим механизмом ядра
+    // (kernel/columns.js), одинаково с таблицами внутри карточек.
+    const applyOrder = (order) => {
+      state.columns = normalizeOrder(COLUMNS, order, DEFAULT_COLUMNS);
       renderData();
+    };
+
+    bindColumnsMenu(s, {
+      defs: COLUMNS,
+      order: state.columns,
+      onOrder: applyOrder,
+      onReset() {
+        state.columns = DEFAULT_COLUMNS.slice();
+        state.colWidths = {};
+        renderData();
+      },
+    });
+
+    bindColumnReorder(s, { headSel: '[data-region-thead]', order: state.columns, onCommit: applyOrder });
+
+    bindColumnResize(s, {
+      rootSel: '[data-cols-box]',
+      cols: activeColumns(state),
+      widths: state.colWidths,
+      onCommit(patch) {
+        // Перерисовка не нужна: ширины уже показали переменные на контейнере,
+        // а шапка и строки читают их же. Пишем, чтобы они уцелели при
+        // следующей перерисовке (сортировка, фильтр, прокрутка). Приходит
+        // сразу набор: перегородка меняет ширину не одного столбца.
+        Object.assign(state.colWidths, patch);
+      },
     });
 
     s.$$('[data-dd-toggle]').forEach((b) => b.onclick = (e) => {
@@ -614,9 +687,13 @@ export function mountOcMenu(host) {
       const wasOpen = dd.classList.contains('open');
       document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
       if (!wasOpen) dd.classList.add('open');
+      colsMenuOpen = dd.hasAttribute('data-cols-dd') && !wasOpen;
     });
 
-    s.$$('[data-sort]').forEach((th) => th.onclick = () => {
+    s.$$('[data-sort]').forEach((th) => th.onclick = (e) => {
+      // Ручка изменения ширины живёт внутри ячейки шапки — клик по ней
+      // сортировкой не является.
+      if (e.target.closest('[data-col-grip]')) return;
       const key = th.dataset.sort;
       state.sort = (state.sort.key === key)
         ? { key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' }
@@ -635,7 +712,9 @@ export function mountOcMenu(host) {
   // старого, поэтому вешать его на каждый renderShell()/renderData() нельзя:
   // слушатели накапливались бы с каждым действием пользователя.
   scope.onDocument('click', (e) => {
-    if (!e.target.closest('.dd')) document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+    if (e.target.closest('.dd')) return;
+    document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
+    colsMenuOpen = false;
   });
 
   // --- Клавиатура ---------------------------------------------------------

@@ -1,13 +1,26 @@
 import { esc } from '../../../../kernel/dom.js';
-import { NOTE_DEFAULT } from './store.js';
+import { NOTE_DEFAULT, NOTE_TEMPLATES } from './store.js';
 import { noteCounts, totalPendingNotes } from './model.js';
 import { cardMeta } from '../../oi/registry.js';
 
 export function noteRowHTML(scope, n) {
+  // Текст остаётся одной строкой, а целиком показывается в окошке при наведении
+  // (решение пользователя 2026-08-27: «пускай весь текст показывается в окошке,
+  // что бы и интерфейс не перегружать и читать было удобно»). Разворачивание
+  // самой строки пробовалось и отклонено — оно раздувало список.
+  // Окошко не мешает правке: в фокусе оно скрыто.
   return `<div class="note-row ${n.done ? 'done' : ''}">
     <input type="checkbox" data-note-check="${scope}|${n.id}" ${n.done ? 'checked' : ''} title="${n.done ? 'Снять отметку — вернуть в работу' : 'Отметить выполненной'}">
-    <input class="note-input" data-note-edit="${scope}|${n.id}" value="${esc(n.text)}" placeholder="${NOTE_DEFAULT}" title="Введите текст; если оставить пустым — «${NOTE_DEFAULT}»">
+    <span class="note-body">
+      <textarea class="note-input" rows="1" data-note-edit="${scope}|${n.id}"
+        placeholder="${NOTE_DEFAULT}" title="${esc(n.text)}">${esc(n.text)}</textarea>
+      ${(n.author || n.date) ? `<span class="note-meta">
+        <span class="note-author" title="Кто поставил заметку">${esc(n.author || '')}</span>
+        <span class="note-date" title="Когда поставлена">${esc(n.date || '')}</span>
+      </span>` : ''}
+    </span>
     <span class="note-del" data-note-del="${scope}|${n.id}" title="Удалить">×</span>
+    ${n.text ? `<span class="note-pop">${esc(n.text)}</span>` : ''}
   </div>`;
 }
 
@@ -21,7 +34,16 @@ export function notesGroupAcc(rec, ui, scope, label, notes, opts = {}) {
     <div class="acc-head" data-acc-toggle="grp|${scope}"><span class="chev">▾</span>${label}
       <span class="pill-mini ${p ? 'pill-pend' : 'pill-done'}" data-notecount-pend="${scope}">${p} невып.</span>
       ${d ? `<span class="pill-mini pill-done" data-notecount-done="${scope}">${d} вып.</span>` : ''}
-      <button class="btn btn-ghost btn-sm" data-note-add="${scope}" style="margin-left:auto">+ Заметка</button>
+      <span class="note-add-wrap">
+        <button class="btn btn-ghost btn-sm note-add-btn" data-note-add="${scope}" title="Добавить заметку">+</button>
+        <span class="dd note-tpl-dd">
+          <button class="btn btn-ghost btn-sm" data-note-tpl-toggle="${scope}" title="Заметка по шаблону">▾</button>
+          <span class="dd-menu note-tpl-menu">
+            <span class="dd-group">По шаблону</span>
+            ${NOTE_TEMPLATES.map((t) => `<button data-note-tpl="${scope}" data-note-tpl-text="${esc(t)}">${esc(t)}</button>`).join('')}
+          </span>
+        </span>
+      </span>
     </div>
     <div class="acc-body">
       <div class="notes-list">${list.filter((n) => !n.done).map((n) => noteRowHTML(scope, n)).join('') || `<div class="note-empty">${opts.emptyPending || 'Невыполненных заметок нет.'}</div>`}</div>

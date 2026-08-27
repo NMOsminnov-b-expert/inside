@@ -1,3 +1,7 @@
+import { structList, updateStructUI } from '../../parts/struct/ms.js';
+import { STRUCT } from '../../data/dictionaries.js';
+import { parseEni } from '../../../../kernel/fmt.js';
+import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { buildFloors, recalcFloors } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI } from './heating.js';
@@ -7,6 +11,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindSpecials(ctx, oi);
   const s = ctx.scope;
 
   // --- Площади и этажность -------------------------------------------------
@@ -128,7 +133,8 @@ export function bind(ctx, oi) {
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };
 
   const en = s.$('[data-oi-eni]');
-  if (en) en.onchange = () => { oi.eni = en.value.trim() || oi.eni; };
+  // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
+  if (en) en.onchange = () => { oi.eni = parseEni(en.value) || oi.eni; };
 
   s.$$('[data-flag]').forEach((c) => c.onchange = () => {
     oi.flags = oi.flags || {};
@@ -137,10 +143,18 @@ export function bind(ctx, oi) {
   });
 
   // --- Конструктивный состав ----------------------------------------------
-  s.$$('[data-struct]').forEach((sel) => sel.onchange = () => {
-    oi.struct[sel.dataset.struct] = sel.value;
-    // Ручной ввод появляется и исчезает вместе с выбором «Прочее».
-    ctx.render();
+  // Материалы конструктивного состава — мультивыбор, как отопление.
+  // Делегирование: список «Выбрано/Не выбрано» перестраивается через innerHTML
+  // (updateStructUI), прямая привязка на checkbox терялась бы. Полного render()
+  // здесь быть не должно — он закрыл бы открытый список.
+  s.on('change', '[data-struct-opt]', (e, cb) => {
+    const [key, value] = cb.dataset.structOpt.split('|');
+    oi.struct = oi.struct || {};
+    const list = structList(oi, key);
+    const i = list.indexOf(value);
+    if (i >= 0) list.splice(i, 1); else list.push(value);
+    oi.struct[key] = list;
+    updateStructUI(s, oi, key, STRUCT[key] || []);
   });
 
   // Ручной ввод «Прочее» теперь сохраняется (в макете значение терялось).

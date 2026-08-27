@@ -1,3 +1,4 @@
+import { fmtEni } from '../../../../kernel/fmt.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD, APARTMENT_RIGHTS, LAND_FORM, LAND_ENCUMBRANCE } from '../../data/dictionaries.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -19,7 +20,7 @@ export function render(ctx, oi) {
 <div class="field"><label>Статус</label>
 <select class="select" data-status>${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
+<div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(fmtEni(oi.eni))}"></div>
 </div>
 <div class="grid g-4" style="margin-top:10px">
 <div class="field"><label>Площадь по правоустанавливающим документам, м²</label><input class="input" data-land-area="pravo" value="${esc(areas.pravo || '')}"></div>

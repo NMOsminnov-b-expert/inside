@@ -1,3 +1,4 @@
+import { fmtEni } from '../../../../kernel/fmt.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD } from '../../data/dictionaries.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -13,7 +14,7 @@ export function render(ctx, oi) {
 <div class="field"><label>Статус</label>
 <select class="select" data-status>${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(oi.eni)}"></div>
+<div class="field"><label>ЕНИ</label><input class="input" readonly value="${esc(fmtEni(oi.eni))}"></div>
 </div></div>
 </div>
 <div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>

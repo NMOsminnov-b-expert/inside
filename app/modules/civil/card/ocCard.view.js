@@ -1,3 +1,4 @@
+import { fmtEni } from '../../../kernel/fmt.js';
 import { canViewAuditLog } from '../audit/access.js';
 import { auditTab } from '../audit/view.js';
 import { esc } from '../../../kernel/dom.js';
@@ -16,7 +17,7 @@ function headOC(rec) {
 
       <div class="hm"><label>Тип ОЦ</label><b>${esc(rec.type)}</b></div>
       <div class="hm"><label>Назначение по ТП</label><b>${esc(rec.purposeTP)}</b></div>
-      <div class="hm"><label>Код ЕНИ</label><b>${esc(rec.eni)}</b></div>
+      <div class="hm"><label>Код ЕНИ</label><b>${esc(fmtEni(rec.eni))}</b></div>
       <div class="hm"><label>Адрес</label><b>${esc(rec.address)}</b></div>
 
       <span class="pill pill-status" style="margin-left:auto"><span class="dot"></span>${esc(rec.status)}</span>
@@ -39,7 +40,10 @@ function partiesOC(rec) {
     <div class="card-head" data-card-toggle><span class="card-idx">01</span><h3>Учреждение, собственники и ответственные</h3><span class="hint">редактируется в форме ОЦ</span><span class="chev">▾</span></div>
 
     <div class="card-body-wrap"><div class="card-pad">
-      <div class="grid g-4">
+      <!-- g-top: в этой строке поля разной высоты (значение текстом против
+           плашек с кнопкой), а .grid по умолчанию равняет по низу — из-за этого
+           подписи «Учреждение» и «Подвед» опускались ниже соседних. -->
+      <div class="grid g-4 g-top">
         <div class="field"><label>Учреждение</label><b>${esc(rec.institution)}</b></div>
         <div class="field"><label>Подвед</label><b>${esc(rec.podved)}</b></div>
 

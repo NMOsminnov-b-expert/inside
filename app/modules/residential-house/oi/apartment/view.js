@@ -1,3 +1,6 @@
+import { structMS } from '../../parts/struct/ms.js';
+import { fmtEni } from '../../../../kernel/fmt.js';
+import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import {
   STATUS_BUILD, STRUCT,
@@ -9,14 +12,12 @@ import { photoAccordions } from '../../parts/photos/blocks.js';
 import { docsBlockInner } from '../../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
+// Материал теперь мультивыбор: в одном элементе их может быть несколько
+// (кирпич и монолит, металл и профлист), одним значением это не описать.
+// Поле работает так же, как «Отопление» — см. parts/struct/ms.js.
+// Аргумент val больше не нужен: значения читаются из oi.struct.
 function structField(oi, key, label, opts, val, req) {
-  const isOther = String(val).includes('Прочее');
-  const other = (oi.structOther || {})[key] || '';
-
-  return `<div class="field"><label>${label}${req ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-struct="${key}">${opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
-${isOther ? `<input class="input" data-struct-other="${key}" placeholder="Укажите вручную" value="${esc(other)}">` : ''}
-</div>`;
+  return structMS(oi, key, label, opts, req);
 }
 
 function letterControlHTML(ctx, oi) {
@@ -74,7 +75,7 @@ ${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</op
 </div>
 <div class="field" style="flex:0 0 160px;">
 <label>ЕНИ код</label>
-<input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(oi.eni)}" title="ЕНИ-код">
+<input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(fmtEni(oi.eni))}" title="ЕНИ-код">
 </div>
 </div>
 ${flagsRowHTML(oi)}
@@ -217,7 +218,7 @@ ${structField(oi, 'windows', 'Окна', STRUCT.windows, struct.windows)}
 ${structField(oi, 'doors', 'Двери', STRUCT.doors, struct.doors)}
 ${heatingMS(ctx, oi)}
 </div>
-<div class="field" style="margin-top:8px"><label>Комментарий</label><textarea class="textarea" data-comment>${esc(oi.comment || '')}</textarea></div>
+${specialsBlockHTML(oi)}
 </div></div>
 </div>`;
 }

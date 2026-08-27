@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { fmt, num } from '../../../../kernel/fmt.js';
+import { fmtNum, num } from '../../../../kernel/fmt.js';
 import { floorsSum } from './floors.model.js';
 
 // Конструктивный тип мансарды здесь не дублируется — контрол уже есть в
@@ -12,7 +12,7 @@ const CATS = [
 
 function catSummary(rows) {
   const sum = rows.reduce((s, f) => s + num(f.area), 0);
-  return `${rows.length} · ${fmt(sum)} м²`;
+  return `${rows.length} · ${fmtNum(sum)} м²`;
 }
 
 function catSection(ctx, oi, cat, fkey) {
@@ -56,7 +56,7 @@ export function floorsBlock(ctx, oi) {
   const fkey = 'fl|' + oi.id;
 
   return `<div class="inline-row" style="margin-top:8px; align-items:center;">
-<span data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ по зданию: ${fmt(allSum)} / ${fmt(total)} м² (общая по ТП)</span>
+<span data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ по зданию: ${fmtNum(allSum)} / ${fmtNum(total)} м² (общая по ТП)</span>
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
 </div>
 ${CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
@@ -99,7 +99,7 @@ export function updateFloorsUI(ctx, oi) {
   if (sum) {
     const ssum = floorsSum(oi);
     const tot = num(oi.areas.tp);
-    sum.textContent = `Σ по зданию: ${fmt(ssum)} / ${fmt(tot)} м² (общая по ТП)`;
+    sum.textContent = `Σ по зданию: ${fmtNum(ssum)} / ${fmtNum(tot)} м² (общая по ТП)`;
     sum.className = Math.abs(ssum - tot) < 0.01 ? 'sum-ok' : 'sum-warn';
   }
 }

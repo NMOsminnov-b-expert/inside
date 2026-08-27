@@ -1,6 +1,6 @@
 // Правила состава ОЦ «Производственное строение».
 export const REALTY_OI_TYPES = [
-  { label: 'Земельный участок', card: 'land', single: true },
+  { label: 'Земельный участок', card: 'land' },
   { label: 'Производственное строение', card: 'building', catClass: 'Производственно-складское' },
   { label: 'Гражданское здание', card: 'building' },
   { label: 'Прочее строение', card: 'building' },

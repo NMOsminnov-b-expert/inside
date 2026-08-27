@@ -1,3 +1,4 @@
+import { fmtEni } from '../../../../kernel/fmt.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD, RIGHTS, LAND_SHAPE } from '../../data/dictionaries.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -18,7 +19,7 @@ export function render(ctx, oi) {
 <div class="field"><label>Статус</label>
 <select class="select" data-status>${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>ЕНИ</label><input class="input" data-oi-eni value="${esc(oi.eni)}" title="дублируется с ЕНИ дома; можно поправить вручную"></div>
+<div class="field"><label>ЕНИ</label><input class="input" data-oi-eni value="${esc(fmtEni(oi.eni))}" title="дублируется с ЕНИ дома; можно поправить вручную"></div>
 <div class="field"><label>Права на земельный участок</label>
 <select class="select" data-rights>${RIGHTS.map((o) => `<option ${o === (oi.rights || RIGHTS[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
