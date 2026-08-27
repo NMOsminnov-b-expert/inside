@@ -296,3 +296,58 @@ body[data-module="civil"] .head-meta .dd-menu, body[data-module="civil"] .card-h
 body[data-module="civil"] .head-meta, body[data-module="civil"] .card-head{
   overflow: visible;
 }
+
+/* Сайдбар выбора документа/фото просмотрщика (parts/viewer/sidebar.js).
+   Кнопка-гамбургер в левом верхнем углу; панель выезжает поверх ленты.
+   ВАЖНО: здесь НЕЛЬЗЯ переопределять .viewer{position:relative} — просмотрщик
+   объявлен position:sticky выше, и это правило (идущее позже) отменяло липкость:
+   просмотрщик уезжал за экран, и заполнять поля, глядя в документ, можно было
+   только в самом верху страницы. Отдельный контейнер позиционирования сайдбару
+   не нужен — sticky сам является containing block для absolute-потомков. */
+body[data-module="civil"] .vmode{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line-soft);background:#f4f8fd;flex-shrink:0}
+body[data-module="civil"] .vburger{width:28px;height:28px;flex-shrink:0;border:1px solid var(--line-input);border-radius:7px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:background .12s,border-color .12s}
+body[data-module="civil"] .vburger span{display:block;width:14px;height:2px;border-radius:1px;background:#5b6c85}
+body[data-module="civil"] .vburger:hover{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-module="civil"] .vburger.on{background:var(--blue-600);border-color:var(--blue-600)}
+body[data-module="civil"] .vburger.on span{background:#fff}
+body[data-module="civil"] .vsb{position:absolute;top:0;left:0;bottom:0;width:290px;z-index:70;background:#fff;border-right:1.5px solid var(--line);box-shadow:6px 0 24px rgba(15,23,42,.18);display:flex;flex-direction:column;animation:vsbIn .16s ease}
+@keyframes vsbIn{from{transform:translateX(-16px);opacity:0}to{transform:none;opacity:1}}
+body[data-module="civil"] .vsb-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5b6c85}
+body[data-module="civil"] .vsb-body{flex:1;overflow:auto;padding:6px;overscroll-behavior:contain}
+body[data-module="civil"] .vsb-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--blue-700);padding:8px 6px 4px}
+body[data-module="civil"] .vsb-group{font-size:10.5px;font-weight:700;color:#5b6c85;background:#f4f8fd;border-radius:6px;padding:4px 8px;margin:6px 0 3px}
+body[data-module="civil"] .vsb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;border-radius:7px;background:none;border:1px solid transparent;cursor:pointer;transition:background .12s,border-color .12s}
+body[data-module="civil"] .vsb-item:hover{background:var(--blue-50);border-color:var(--blue-200)}
+body[data-module="civil"] .vsb-item.on{background:var(--blue-100);border-color:var(--blue-500)}
+body[data-module="civil"] .vsb-tag{flex:0 0 auto;font-size:9.5px;font-weight:700;color:var(--blue-700);background:var(--blue-50);border:1px solid var(--blue-200);border-radius:999px;padding:1px 7px}
+body[data-module="civil"] .vsb-main{flex:1;min-width:0;display:flex;flex-direction:column}
+body[data-module="civil"] .vsb-main b{font-size:12px;color:#33445c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="civil"] .vsb-sub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="civil"] .vsb-count{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--muted)}
+body[data-module="civil"] .vsb-thumb{flex:0 0 auto;width:34px;height:26px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
+body[data-module="civil"] .vsb-empty{font-size:11.5px;color:var(--muted);padding:8px 10px}
+
+/* Лог действий — карточка модуля, см. app/modules/civil/audit/.
+   Категории (ОИ/ОЦ/Документы/Фото) размечены левой границей + бейджем в тон
+   card.t-* — та же палитра, что у карточек модуля, без новых токенов. */
+body[data-module="civil"] .audit-row{border-left-width:4px;border-left-style:solid}
+body[data-module="civil"] .audit-row.t-blue{border-left-color:var(--blue-600)}
+body[data-module="civil"] .audit-row.t-teal{border-left-color:var(--teal-600)}
+body[data-module="civil"] .audit-row-head{align-items:center}
+/* Панель фильтров лога — отдельная тонированная зона, чтобы органы
+   управления не сливались со списком записей под ними. */
+body[data-module="civil"] .audit-filters{background:#f4f8fd;border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:14px}
+body[data-module="civil"] .audit-filters-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#5b6c85;margin-bottom:10px}
+body[data-module="civil"] .audit-filters-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+body[data-module="civil"] .audit-filters .field label{font-size:10.5px;white-space:nowrap}
+body[data-module="civil"] .audit-filter-field{flex:0 0 168px}
+body[data-module="civil"] .audit-filter-search{flex:1 1 220px;min-width:200px}
+/* Открытый список фильтра — плотный белый блок с заметной тенью: раньше
+   он сливался с таблицей под собой и читался как часть записей лога. */
+body[data-module="civil"] .audit-filters .ms-drop{min-width:230px;padding:6px;border-color:var(--blue-300);box-shadow:0 14px 34px rgba(15,23,42,.22)}
+body[data-module="civil"] .audit-filters .ms-opt{white-space:nowrap}
+body[data-module="civil"] .audit-tbl th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;text-align:left;padding:4px 8px}
+body[data-module="civil"] .audit-tbl td{font-size:12px;color:#33445c;padding:6px 8px;border-top:1px solid var(--line-soft);vertical-align:top}
+body[data-module="civil"] .audit-change{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}
+body[data-module="civil"] .audit-change-attr{font-size:12px;font-weight:600;color:#33445c;display:flex;align-items:center;flex-wrap:wrap}
+body[data-module="civil"] .audit-change:first-child{margin-top:0}

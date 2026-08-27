@@ -1,3 +1,4 @@
+import { bindAuditTab } from '../audit/ctrl.js';
 import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
@@ -79,6 +80,8 @@ function createOi(ctx, type) {
 }
 
 export function bindOcCard(ctx) {
+  if (ctx.tab === 'audit') bindAuditTab(ctx);
+
   const s = ctx.scope;
   const rec = ctx.rec;
 
@@ -92,6 +95,9 @@ export function bindOcCard(ctx) {
       if (!ctx.ui.viewerDoc && docs.length) ctx.ui.viewerDoc = { scope: 'oc', id: docs[0].id };
     } else if (tab === 'photo') {
       if (ctx.ui.viewer && ctx.ui.viewer.mode !== 'photo') ctx.ui.viewer = null;
+    } else if (tab === 'audit') {
+      // Лог действий — на всю ширину, без просмотрщика документов рядом.
+      ctx.ui.viewer = null;
     } else {
       ctx.ui.viewer = null;
     }

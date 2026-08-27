@@ -1,9 +1,10 @@
 import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
-import { VS, vSt, vPages, vGo, setVZoom, openDocViewer } from './state.js';
+import { VS, vSt, vPages, vGo, setVZoom, openDocViewer, openPhotoInPlace } from './state.js';
 import { nextId } from '../../data/store.js';
 import { paintPdfCanvases } from './pdf.js';
+import { pushDocPageLog } from '../../audit/model.js';
 
 // Поворот и зум — функции уровня модуля, а не замыкания внутри bindViewer: их
 // зовут и кнопки панели, и горячие клавиши (которые навешиваются однократно, см.
@@ -142,6 +143,32 @@ export function bindViewer(ctx) {
   const railBtn = s.$('[data-vrail-toggle]');
   if (railBtn) railBtn.onclick = () => { ctx.ui.railCollapsed = !ctx.ui.railCollapsed; ctx.render(); };
 
+  // Сайдбар выбора документа/фото (кнопка-гамбургер слева вверху).
+  const sbToggle = s.$('[data-vsb-toggle]');
+  if (sbToggle) sbToggle.onclick = (e) => {
+    e.stopPropagation();
+    ctx.ui.viewerSidebar = !ctx.ui.viewerSidebar;
+    ctx.render();
+  };
+
+  const sbClose = s.$('[data-vsb-close]');
+  if (sbClose) sbClose.onclick = () => { ctx.ui.viewerSidebar = false; ctx.render(); };
+
+  s.$$('[data-vsb-doc]').forEach((b) => b.onclick = () => {
+    const [scope, id] = b.dataset.vsbDoc.split('|');
+    ctx.ui.viewerSidebar = false;
+    // Документ может лежать у другой литеры — режим переключаем на документы,
+    // иначе выбор из сайдбара в фоторежиме визуально ничего бы не изменил.
+    ctx.ui.viewer = { mode: ctx.ui.viewer && ctx.ui.viewer.mode === 'compare' ? 'compare' : 'doc' };
+    openDocViewer(ctx, scope, id);
+  });
+
+  s.$$('[data-vsb-photo]').forEach((b) => b.onclick = () => {
+    const [oiId, idx] = b.dataset.vsbPhoto.split('|');
+    ctx.ui.viewerSidebar = false;
+    openPhotoInPlace(ctx, oiId, +idx);
+  });
+
   const vc = s.$('[data-vclose]');
   if (vc) vc.onclick = () => { ctx.ui.viewer = null; ctx.render(); };
 
@@ -161,7 +188,9 @@ export function bindViewer(ctx) {
     if (!vd) return;
     const d = docListFor(ctx, vd.scope).find((x) => x.id === vd.id);
     if (!d || d.pages.length <= 1) { ctx.toast('Нельзя удалить единственную страницу', 'warn'); return; }
-    d.pages.splice(+b.dataset.vdelpage - 1, 1);
+    const pageNumber = +b.dataset.vdelpage;
+    d.pages.splice(pageNumber - 1, 1);
+    pushDocPageLog(ctx.rec, d, 'delete', pageNumber);
     const st = vSt(ctx);
     if (st) st.page = Math.min(st.page, d.pages.length);
     ctx.render();
@@ -174,6 +203,7 @@ export function bindViewer(ctx) {
     const d = docListFor(ctx, vd.scope).find((x) => x.id === vd.id);
     if (!d) return;
     d.pages.push({ kind: 'skel' });
+    pushDocPageLog(ctx.rec, d, 'create', d.pages.length);
     ctx.render();
     ctx.toast('Страница добавлена', 'ok');
   };
@@ -327,7 +357,7 @@ function bindCompareColumns(ctx) {
   const s = ctx.scope;
 
   const setZoom = (which, value) => {
-    VS.cmpZoom[which] = Math.min(220, Math.max(40, value));
+    VS.cmpZoom[which] = Math.min(500, Math.max(40, value));
     const ribbon = s.$(`[data-cmp-ribbon="${which}"]`);
     if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
     const label = s.$(`[data-cmp-zoomlabel="${which}"]`);

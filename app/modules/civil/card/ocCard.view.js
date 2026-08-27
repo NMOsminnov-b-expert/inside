@@ -1,3 +1,5 @@
+import { canViewAuditLog } from '../audit/access.js';
+import { auditTab } from '../audit/view.js';
 import { esc } from '../../../kernel/dom.js';
 import { DOC_TYPES } from '../data/dictionaries.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
@@ -85,7 +87,11 @@ export function viewOC(ctx) {
       <button class="tab ${ctx.tab === 'general' ? 'active' : ''}" data-tab="general">Общие данные</button>
       <button class="tab ${ctx.tab === 'docs' ? 'active' : ''}" data-tab="docs">Документы ${(rec.docs || []).length}</button>
       <button class="tab ${ctx.tab === 'photo' ? 'active' : ''}" data-tab="photo">Фото</button>
+      ${canViewAuditLog(rec) ? `<button class="tab ${ctx.tab === 'audit' ? 'active' : ''}" data-tab="audit">Логи</button>` : ''}
     </div>
 
-    ${ctx.tab === 'general' ? generalTab : ctx.tab === 'docs' ? docsTab(ctx) : photosTab(ctx)}`;
+    ${ctx.tab === 'general' ? generalTab
+      : ctx.tab === 'docs' ? docsTab(ctx)
+      : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
+      : photosTab(ctx)}`;
 }

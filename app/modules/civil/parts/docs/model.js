@@ -1,6 +1,6 @@
 // Списки документов внутри записи ОЦ.
 // scope: 'oc' | 'mech-new' | <oi.id>
-import { getPdfPageCount, getPdfAspect } from '../viewer/pdf.js';
+import { getPdfPageCount, getPdfPageAspects } from '../viewer/pdf.js';
 
 // Страницы документа. У реального PDF — по странице на каждую страницу файла:
 // именно из этого списка живут лента миниатюр, счётчик «/ N» и навигация, поэтому
@@ -64,7 +64,10 @@ export async function attachedFileFrom(file) {
 
   if (kind === 'pdf') {
     f.pageCount = await getPdfPageCount(dataUrl);
-    f.aspect = await getPdfAspect(dataUrl);
+    // Пропорции на КАЖДУЮ страницу: у документа со смешанной ориентацией
+    // одной общей пропорции недостаточно (см. viewer/pdf.js).
+    f.pageAspects = await getPdfPageAspects(dataUrl);
+    f.aspect = f.pageAspects[0] || null;
   }
 
   return f;

@@ -23,7 +23,21 @@ export const ui = {
   letterEdit: false,
   heatOpen: false,
   photoQuery: '',
-  railCollapsed: false,   // лента миниатюр просмотрщика свёрнута
+  railCollapsed: false,
+  viewerSidebar: false,   // выехал сайдбар выбора документа/фото
+  // Фильтры вкладки «Логи»: пустой массив = «без ограничения, показаны все».
+  auditCatOpen: false,
+  auditCatFilter: [],
+  auditPersonOpen: false,
+  auditPersonFilter: [],
+  auditActionOpen: false,
+  auditActionFilter: [],
+  auditObjectOpen: false,
+  auditObjectFilter: [],
+  auditDateFrom: '',
+  auditDateTo: '',
+  auditSearchText: '',
+  pageSel: [],   // лента миниатюр просмотрщика свёрнута
   mechMode: 'mono',
   mechDocs: [],
   mechRows: [],
@@ -53,6 +67,18 @@ export function nextEni(rec, base) {
   const used = rec.oi.map((o) => parseInt(o.eni, 10)).filter((n) => !isNaN(n));
   const max = used.length ? Math.max(...used) : parseInt(base, 10) || 147561681300;
   return String(max + 1);
+}
+
+// Id вида «<ЕНИ записи>-<порядковый номер>» — для записей лога действий
+// (см. audit/model.js). Тот же принцип, что у nextEni: порядковый номер берётся
+// от максимума уже использованных суффиксов, а не от длины массива, — переживает
+// удаления. Пока у записи ещё нет ЕНИ — базой служит rec.id.
+export function nextEniScoped(rec, existingIds) {
+  const used = (existingIds || [])
+    .map((id) => { const m = /-(\d+)$/.exec(id || ''); return m ? parseInt(m[1], 10) : NaN; })
+    .filter((n) => !isNaN(n));
+  const base = rec.eni || rec.id;
+  return `${base}-${(used.length ? Math.max(...used) : 0) + 1}`;
 }
 
 export function addRecord(rec) {

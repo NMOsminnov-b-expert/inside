@@ -13,6 +13,7 @@ import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
+import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
 import { viewMech } from './create/mech.view.js';
 import { bindMech } from './create/mech.ctrl.js';
@@ -67,6 +68,20 @@ export function main(host) {
         danger: true,
       });
       if (!ok) return;
+
+      // Фото литеры не пропадают вместе с ней — переезжают в «Фото без литеры»
+      // на уровне ОЦ, а сам факт удаления каскадом попадает в лог поле за полем
+      // (см. audit/model.js), поэтому литера остаётся видна в логе как «удалена».
+      const photos = oi.photos || {};
+      const hasPhotos = Object.values(photos).some((n) => n > 0);
+      if (hasPhotos) {
+        rec.ocOrphanPhotos = rec.ocOrphanPhotos || [];
+        rec.ocOrphanPhotos.push({
+          fromOiId: oi.id, letter: oi.letter, name: oi.name,
+          photos: { ...photos }, photoFiles: { ...(oi.photoFiles || {}) },
+        });
+      }
+      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 
       const i = rec.oi.findIndex((o) => o.id === id);
       if (i >= 0) rec.oi.splice(i, 1);
@@ -241,8 +256,18 @@ export function main(host) {
   // загрузка, переход без явного выбора режима), включаем режим документов; при
   // их отсутствии viewerHTML сам покажет приглашение прикрепить документ.
   function ensureViewerDefault() {
+    // Исключение — вкладка «Логи»: она на всю ширину, просмотрщику там не место.
+    if (route.rest.length === 0 && route.query.tab === 'audit') return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };
   }
+
+  // Лог действий (вкладка «Логи»): снимок записи снимается ПОСЛЕ отрисовки,
+  // сравнивается с текущим состоянием при уходе со страницы. Снимок именно
+  // после draw() — иначе ленивая инициализация карточки ОИ попадала бы в дифф
+  // как правка пользователя (см. audit/model.js).
+  let recSnapshot = null;
+  function resnapshot() { recSnapshot = rec ? takeSnapshot(rec) : null; }
+  function flushAuditLog() { if (recSnapshot) recordChanges(rec, recSnapshot, rec); }
 
   bindCommonUI();
   // Клавиши просмотрщика — однократно на монтирование модуля, рядом с
@@ -250,10 +275,11 @@ export function main(host) {
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
   ensureViewerDefault();
-  draw();
+  draw().then(resnapshot);
 
   return {
     onRoute(next) {
+      flushAuditLog();
       route = next;
       const nextRec = loadRecord(next.ocId);
       if (nextRec !== rec) {
@@ -261,9 +287,10 @@ export function main(host) {
         resetViewer();
       }
       ensureViewerDefault();
-      draw();
+      draw().then(resnapshot);
     },
     destroy() {
+      flushAuditLog();
       resetViewer();
     },
   };

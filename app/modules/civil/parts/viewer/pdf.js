@@ -16,7 +16,7 @@ const WORKER = new URL('../../../../vendor/pdfjs/pdf.worker.min.js', import.meta
 
 // Верхняя граница разрешения рендера: без неё на 400% зума канвас A4 раздувался бы
 // в десятки мегапикселей на страницу.
-const MAX_SCALE = 6;
+const MAX_SCALE = 9;
 
 let libPromise = null;
 
@@ -52,16 +52,22 @@ export async function getPdfPageCount(blobUrl) {
   }
 }
 
-// Соотношение сторон первой страницы — чтобы лист принял пропорции реального
-// документа (альбомный скан не должен растягиваться в портретный min-height).
-export async function getPdfAspect(blobUrl) {
+// Соотношение сторон КАЖДОЙ страницы — чтобы лист принял пропорции реальной
+// страницы ещё до её отрисовки. Раньше бралась пропорция только первой страницы
+// и применялась ко всем: в документе со смешанной ориентацией альбомная
+// страница до отрисовки сидела в портретном боксе и выглядела перевёрнутой.
+export async function getPdfPageAspects(blobUrl) {
   try {
     const doc = await loadDoc(blobUrl);
-    const page = await doc.getPage(1);
-    const vp = page.getViewport({ scale: 1 });
-    return vp.height / vp.width;
-  } catch {
-    return null;
+    const out = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      const vp = (await doc.getPage(n)).getViewport({ scale: 1 });
+      out.push(vp.height / vp.width);
+    }
+    return out;
+  } catch (e) {
+    console.warn('PDF: не удалось прочитать пропорции страниц', e);
+    return [];
   }
 }
 

@@ -8,7 +8,11 @@ import { VS } from './state.js';
 // поэтому лента миниатюр, «‹ n/N ›», зум и поворот макета на реальном файле не
 // работали. Пока страница не отрисована — скелетон, чтобы не мигало пустотой.
 function pdfPageHTML(d, page) {
-  const aspect = d.file.aspect ? `aspect-ratio:${1} / ${d.file.aspect};` : '';
+  // Пропорция именно этой страницы, а не первой: иначе в документе со
+  // смешанной ориентацией альбомная страница до отрисовки показывалась в
+  // портретном боксе («переворачивалась»).
+  const ratio = (d.file.pageAspects || [])[page.src - 1] || d.file.aspect;
+  const aspect = ratio ? `aspect-ratio:${1} / ${ratio};` : '';
   return `<canvas class="vpdf-canvas" style="${aspect}"
     data-pdf-src="${page.src}" data-pdf-url="${d.file.dataUrl}"
     data-pdf-doc="${esc(d.id)}" aria-label="${esc(d.name)} · страница ${page.src}"></canvas>

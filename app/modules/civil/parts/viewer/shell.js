@@ -4,6 +4,7 @@ import { VS } from './state.js';
 import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
 import { renderCompareMode } from './compare.js';
+import { viewerSidebarHTML } from './sidebar.js';
 
 function buildViewerContext(ctx) {
   const mode = ctx.ui.viewer.mode;
@@ -41,18 +42,24 @@ export function viewerHTML(ctx) {
   if (!ctx.ui.viewer) return '';
   const vctx = buildViewerContext(ctx);
 
-  const modeBar = vctx.inOi ? `<div class="vmode">
-    <button class="vmode-btn ${vctx.mode === 'photo' ? 'active' : ''}" data-vmode="photo">Фото · ${vctx.pages.length}</button>
+  // Кнопка-гамбургер в левом верхнем углу открывает сайдбар выбора (см.
+  // sidebar.js): оттуда доступен любой документ записи ОЦ и любое фото, а не
+  // только уже открытое вкладкой.
+  const burger = `<button class="vburger ${ctx.ui.viewerSidebar ? 'on' : ''}" data-vsb-toggle title="Выбрать документ или фото"><span></span><span></span><span></span></button>`;
+
+  const modeBar = `<div class="vmode">
+    ${burger}
+    ${vctx.inOi ? `<button class="vmode-btn ${vctx.mode === 'photo' ? 'active' : ''}" data-vmode="photo">Фото · ${vctx.pages.length}</button>
     <button class="vmode-btn ${vctx.mode === 'doc' ? 'active' : ''}" data-vmode="doc">Документы</button>
-    <button class="vmode-btn ${vctx.mode === 'compare' ? 'active' : ''}" data-vmode="compare">Сравнение</button>
-  </div>` : '';
+    <button class="vmode-btn ${vctx.mode === 'compare' ? 'active' : ''}" data-vmode="compare">Сравнение</button>` : ''}
+  </div>`;
 
   let parts;
   if (vctx.mode === 'photo') parts = renderPhotoMode(ctx, vctx);
   else if (vctx.mode === 'doc') parts = renderDocMode(ctx, vctx);
   else parts = renderCompareMode(ctx, vctx);
 
-  return `<div class="viewer">${modeBar}${parts.tabsBar || ''}${parts.toolbar}${parts.body}</div>`;
+  return `<div class="viewer">${modeBar}${parts.tabsBar || ''}${parts.toolbar}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}</div>`;
 }
 
 export function splitWrap(viewerInner, growInner) {

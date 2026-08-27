@@ -77,7 +77,7 @@ export function vGo(ctx, n) {
 }
 
 export function setVZoom(ctx, z) {
-  VS.zoom = Math.min(220, Math.max(40, z));
+  VS.zoom = Math.min(500, Math.max(40, z));
   const r = ctx.scope.$('[data-vribbon]');
   if (r) r.style.zoom = String(VS.zoom / 100);
   const c = ctx.scope.$('[data-cmp]');
