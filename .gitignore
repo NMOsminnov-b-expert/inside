@@ -9,3 +9,4 @@
 # (в отличие от tools/visual-parity/baseline/, который коммитится).
 tools/visual-parity/out/
 tools/visual-parity/baseline/
+docs/screens/
