@@ -159,28 +159,38 @@ function landUtils(land) {
   return on.length ? on.map((k) => UTIL_LABELS[k]).join(', ') : 'не отмечены';
 }
 
-// Сводка по участку: то, что нужно видеть, не открывая его карточку.
-function landSummary(ctx, land) {
-  const meta = cardMeta(land);
-  const rows = [
-    ['Площадь', meta.tableArea(land)],
-    ['Назначение (ПУД)', esc(land.purpose || '—')],
-    ['Тип ЗУ', esc(land.landType || '—')],
-    ['Ограничения и сервитуты', esc(landLimits(land))],
-    ['Коммуникации', esc(landUtils(land))],
-  ];
+// Сводка по участку: то, что нужно видеть, не открывая его карточку. Таблицей —
+// как перечень литер под ней: это такой же объект, и разный вид сбивал с толку.
+// Ширины долями: сводка стоит над перечнем литер и должна сжиматься вместе с
+// ним, а не выталкивать блок. Полное значение — в подсказке при наведении.
+const LAND_SUM_COLS = [
+  { label: 'Код ЕНИ', width: '19%', cls: 'mono', get: (l) => esc(fmtEni(l.eni)), plain: (l) => fmtEni(l.eni) },
+  { label: 'Площадь', width: '13%', get: (l) => cardMeta(l).tableArea(l) },
+  { label: 'Назначение (ПУД)', width: '20%', get: (l) => esc(l.purpose || '—'), plain: (l) => l.purpose || '' },
+  { label: 'Тип ЗУ', width: '16%', get: (l) => esc(l.landType || '—'), plain: (l) => l.landType || '' },
+  { label: 'Ограничения и сервитуты', width: '16%', get: (l) => esc(landLimits(l)), plain: (l) => landLimits(l) },
+  { label: 'Коммуникации', width: '16%', get: (l) => esc(landUtils(l)), plain: (l) => landUtils(l) },
+];
 
+function landSummary(ctx, land) {
   return `<div class="oi-land-sum">
-    ${rows.map(([k, v]) => `<div class="oi-land-f"><label>${k}</label><b>${v}</b></div>`).join('')}
-    <button class="btn btn-primary btn-sm oi-land-open" data-open-oi="${land.id}"
-      title="Открыть карточку земельного участка">Карточка участка →</button>
+    <table class="tbl oi-land-tbl">
+      <thead><tr>
+        ${LAND_SUM_COLS.map((c) => `<th style="width:${c.width}">${c.label}</th>`).join('')}
+      </tr></thead>
+      <tbody><tr>
+        ${LAND_SUM_COLS.map((c) => `<td class="ell ${c.cls || ''}" title="${c.plain ? c.plain(land) : ''}">${c.get(land)}</td>`).join('')}
+      </tr></tbody>
+    </table>
   </div>`;
 }
 
 function landMeta(ctx, land) {
-  const meta = cardMeta(land);
-  void meta;
+  // Переход в карточку — рядом с удалением: это действия над самим узлом.
+  // В сводке ему места не хватало, из-за него схлопывалась колонка данных.
   return `<span class="oi-node-actions">
+      <button class="btn btn-primary btn-sm oi-land-open" data-open-oi="${esc(land.id)}"
+        title="Открыть карточку земельного участка">Карточка участка →</button>
       <button class="btn btn-danger btn-sm" data-del-oi="${land.id}" title="Удалить участок — литеры останутся, но потеряют привязку">×</button>
     </span>`;
 }

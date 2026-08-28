@@ -55,6 +55,9 @@ function generalCard(ctx, oi) {
 <span class="card-idx">01</span>
 <h3>Общие параметры квартиры</h3>
 <span class="hint">${esc(oi.name)}</span>
+<span class="head-eni" title="Код ЕНИ — правится здесь">
+<label>ЕНИ</label>
+<input class="input mono" data-head-eni value="${esc(fmtEni(oi.eni))}"></span>
 <span class="chev">▾</span>
 </div>
 <div class="card-body-wrap"><div class="card-pad">
@@ -263,13 +266,5 @@ ${structCard(ctx, oi, 5)}
 ${photosCard(ctx, oi, 7)}
 </div>`;
 
-  return `<div class="view-head">
-<button class="back-btn" data-back>← К объекту оценки</button>
-<span class="pill pill-gray">Карточка квартиры</span>
-<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>
-<button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
-<button class="btn btn-primary" data-save-oi>Сохранить</button>
-<button class="btn btn-ghost" data-back>Отмена</button>
-</div>
-${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
+  return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
 }

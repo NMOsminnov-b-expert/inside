@@ -45,8 +45,13 @@ input,select,textarea{font:inherit;color:inherit}
 .notes-drawer{position:relative;width:0;transition:width .25s ease;flex-shrink:0}
 .notes-drawer.open{width:340px}
 .notes-drawer.hidden{display:none}
+.notes-drawer:not(.open) .drawer-inner{display:none}
 .drawer-inner{position:absolute;left:0;top:0;bottom:0;width:340px;overflow:auto;background:#fff;border-left:1.5px solid var(--line);box-shadow:-8px 0 24px rgba(19,41,62,.08);padding:14px 16px}
-.notes-tab{position:absolute;left:-30px;top:24px;writing-mode:vertical-rl;text-orientation:mixed;background:var(--amber-600);color:#fff;border:1px solid var(--amber-600);border-right:none;border-radius:8px 0 0 8px;padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:40}
+/* Закладка начинается ПОД закреплённой плашкой карточки: --plate-h ставит
+   bindStickyHead модуля. 26px — это отступ области контента (14px) плюс зазор:
+   плашка начинается не от края панели заметок, а ниже. Без плашки переменной
+   нет, и закладка встаёт на прежнее место. */
+.notes-tab{position:absolute;left:-30px;top:calc(var(--plate-h, 0px) + 26px);writing-mode:vertical-rl;text-orientation:mixed;background:var(--amber-600);color:#fff;border:1px solid var(--amber-600);border-right:none;border-radius:8px 0 0 8px;padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:40}
 .notes-tab .pill-mini{writing-mode:horizontal-tb;background:#fff;color:var(--amber-700)}
 .drawer-head{font-size:12px;font-weight:700;color:var(--amber-700);text-transform:uppercase;letter-spacing:.5px;margin:0 0 12px}
 .ctx-plate{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
@@ -198,8 +203,11 @@ td[data-acc-cell]:hover{background:var(--blue-100)!important}
 .split{display:flex;gap:0;align-items:flex-start;--vw:48%;min-width:0}
 .vsplit{width:7px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s}
 .vsplit:hover{background:var(--blue-500)}
-.grow{flex:1;min-width:620px;padding-left:12px}
-.viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 120px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+/* Колонка карточки сжимается вместе с окном (минимум — ширина поэтажной
+   развёртки с отступами), а просмотрщик при нехватке места уступает, но не
+   схлопывается. Раньше оба были жёсткими и вместе выходили за экран. */
+.grow{flex:1 1 0;min-width:460px;padding-left:12px}
+.viewer{width:var(--vw);flex:0 1 var(--vw);min-width:320px;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 120px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
 .vmode{display:flex;gap:4px;padding:6px 8px;background:#eef4fb;border-bottom:1px solid var(--line-soft);flex-shrink:0}
 .vmode-btn{padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;color:#46536b;border:1px solid transparent;transition:background .12s}
 .vmode-btn:hover{background:#fff}

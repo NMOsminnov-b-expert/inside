@@ -61,5 +61,5 @@ function locationCard(oi) {
 export function render(ctx, oi) {
   const agricultural = oi.landType !== 'Несельскохозяйственный';
   const body = `<div class="oi-stack">${commonCard(oi)}${agricultural ? agriculturalCard(ctx, oi) : nonAgriculturalCard(oi)}${locationCard(oi)}<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div></div>`;
-  return `<div class="view-head"><button class="back-btn" data-back>← К объекту оценки</button><span class="pill pill-gray">Земельный участок</span><button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button><button class="btn btn-primary" data-save-oi>Сохранить</button><button class="btn btn-ghost" data-back>Отмена</button></div>${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body)}`;
+  return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body)}`;
 }

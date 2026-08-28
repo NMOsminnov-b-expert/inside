@@ -1,3 +1,4 @@
+import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
@@ -138,11 +139,14 @@ export function bind(ctx, oi) {
   const bt = s.$('[data-buildtype]');
   if (bt) bt.onchange = () => {
     oi.buildType = bt.value;
-    // Категория, не подходящая новому расположению, сбрасывается: держать её
-    // молча означало бы хранить противоречие в данных.
+    // Категория ПОДСТАВЛЯЕТСЯ под новое расположение, но остаётся доступной для
+    // правки вручную: список полный, особые случаи бывают (уточнение
+    // пользователя 28.08.2026).
     const detached = oi.buildType === 'Отдельностоящее';
-    if (detached && oi.resCat && oi.resCat !== 'Обособленный') oi.resCat = 'Обособленный';
-    if (!detached && oi.resCat === 'Обособленный') oi.resCat = '';
+    if (detached && oi.resCat !== 'Обособленный') oi.resCat = 'Обособленный';
+    if (!detached && oi.resCat === 'Обособленный') {
+      oi.resCat = RES_BUILD_CAT.find((o) => o !== 'Обособленный') || '';
+    }
     ctx.updatePlate();
     ctx.render();
   };
@@ -168,7 +172,7 @@ export function bind(ctx, oi) {
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  const en = s.$('[data-plate-eni]');
+  const en = s.$('[data-head-eni]') || s.$('[data-land-eni]');
   if (en) en.onchange = () => {
     oi.eni = parseEni(en.value) || oi.eni;
     ctx.updatePlate();

@@ -32,11 +32,11 @@ function catSection(ctx, oi, cat, fkey) {
   // Заголовок категории показывается даже когда строк нет — иначе добавить
   // первую было бы негде (объект может состоять из одного цоколя).
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th style="width:40px"></th><th style="width:190px">Этаж</th>
-${isMansard ? '<th style="width:150px">Тип</th>' : ''}
-${AREA_FIELDS.map((a) => `<th style="width:120px" title="итог: ${a.title}">${a.label}</th>`).join('')}
-<th style="width:110px">Высота внешн, м</th><th style="width:110px">Высота внутр, м</th>
-<th style="width:44px"></th></tr></thead>
+    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c"></th><th style="width:22%">Этаж</th>
+${isMansard ? '<th style="width:16%">Тип</th>' : ''}
+${AREA_FIELDS.map((a) => `<th style="width:17%" title="итог: ${a.title}">${a.label}</th>`).join('')}
+<th style="width:14%">Высота внешн, м</th><th style="width:14%">Высота внутр, м</th>
+<th class="fl-c"></th></tr></thead>
 <tbody>${rows.map(({ f, i }) => `<tr>
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площади распределяются автоматически; снято — задаются вручную"></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>

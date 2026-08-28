@@ -30,7 +30,6 @@ export const OI_CARDS = {
       const v = verbal(oi);
       return [
         `<span class="ctx-chip">${fmtNum(num(oi.areas.tp || 0))} м² общая</span>`,
-        `<span class="ctx-chip">этажей: ${oi.floors}</span>`,
         `<span class="ctx-chip ${v.c}">${v.t}</span>`,
       ];
     },
@@ -50,7 +49,6 @@ export const OI_CARDS = {
       const v = verbal(oi);
       return [
         `<span class="ctx-chip">${fmtNum(num(oi.areas.tp || 0))} м² общая</span>`,
-        `<span class="ctx-chip">этажей: ${oi.floors}</span>`,
         `<span class="ctx-chip ${v.c}">${v.t}</span>`,
       ];
     },

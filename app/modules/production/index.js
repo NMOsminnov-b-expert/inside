@@ -17,7 +17,7 @@ import { viewOCForm } from './card/ocForm.view.js';
 import { bindOcForm } from './card/ocForm.ctrl.js';
 import { viewOCCreate } from './card/ocCreateForm.view.js';
 import { bindOcCreate } from './card/ocCreateForm.ctrl.js';
-import { ctxPlate, updatePlate } from './card/ctxPlate.js';
+import { ctxPlate, updatePlate, bindPlateActions } from './card/ctxPlate.js';
 import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
@@ -261,10 +261,12 @@ export function main(host) {
     } : null);
 
     bindBody();
+    bindPlateActions(ctx);
     bindViewer(ctx);
     bindSplitPanes(ctx);
 
     scope.root.scrollTop = top;
+    if (scope.watchStickyHead) scope.watchStickyHead();
     if (scope.syncStickyHead) scope.syncStickyHead();
   }
 
@@ -345,7 +347,6 @@ export function main(host) {
   // scope.root между ними не меняется.
   function bindStickyHead() {
     const root = scope.root;
-    if (root.dataset.stickyHeadBound) { if (scope.syncStickyHead) scope.syncStickyHead(); return; }
 
     // Высота плашки нужна просмотрщику: он липкий и должен начинаться ПОД ней,
     // а не под ней прятаться. Отдаём её переменной, а не константой в стилях, —
@@ -371,6 +372,10 @@ export function main(host) {
       const hh = head && head.offsetParent !== null ? head.offsetHeight : 0;
       const pinnedH = Math.max(hp, hh);
       root.style.setProperty('--plate-h', pinnedH + 'px');
+      // И на корень документа: закладка заметок живёт в шелле (app.html), вне
+      // дерева модуля, — переменную со scope.root она не видит и оставалась бы
+      // под плашкой.
+      document.documentElement.style.setProperty('--plate-h', pinnedH + 'px');
 
       // Высоту просмотрщика считаем по факту, а не формулой из констант:
       // высота плашки меняется (одна строка или две), и любая константа
@@ -382,11 +387,31 @@ export function main(host) {
       }
     };
 
-    root.addEventListener('scroll', sync);
-    window.addEventListener('resize', sync);
+    // Слушатели — один раз на сам узел, а функцию они берут текущую: контейнер
+    // переиспользуется между модулями, и жёстко привязанный sync остался бы от
+    // предыдущего.
+    root.syncStickyHeadFn = sync;
+    if (!root.dataset.stickyHeadBound) {
+      root.dataset.stickyHeadBound = '1';
+      const call = () => { if (root.syncStickyHeadFn) root.syncStickyHeadFn(); };
+      root.addEventListener('scroll', call);
+      window.addEventListener('resize', call);
+    }
+
+    // Плашка появляется в DOM позже первого sync и меняет высоту от
+    // содержимого — следим за её размером, а не гадаем, когда пересчитать.
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => sync());
+      const watch = () => {
+        ro.disconnect();
+        [root.querySelector('#ctxPlateWrap'), root.querySelector('[data-oc-head]')]
+          .forEach((el) => { if (el) ro.observe(el); });
+      };
+      watch();
+      scope.watchStickyHead = watch;
+    }
     // Пересчитываем и после каждой отрисовки: при переходе между карточками
     // меняется и прокрутка, и сама плашка.
-    root.dataset.stickyHeadBound = '1';
     scope.syncStickyHead = sync;
     sync();
   }

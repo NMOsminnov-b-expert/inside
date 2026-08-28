@@ -169,10 +169,52 @@ body[data-module="production"] .reg-badge.ml{background:var(--teal-50);color:var
 body[data-module="production"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
 /* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
 body[data-module="production"] .floors-note{display:block;font-size:10.5px;margin-top:3px}
+/* Поэтажная развёртка шире доступной ширины (открыт просмотрщик, узкий экран)
+   прокручивается ВНУТРИ своего блока: иначе она растягивала карточку и уезжала
+   за край экрана. Заголовки и подписи полей при этом остаются на месте. */
+body[data-module="production"] .al .acc-body{overflow-x:auto}
+/* Ширины колонок заданы долями, поэтому таблица сжимается вместе с областью.
+   Порог низкий: до него всё помещается без прокрутки даже при открытом
+   просмотрщике на небольшом экране. */
+body[data-module="production"] .al-tbl{min-width:430px;table-layout:fixed}
+body[data-module="production"] .al-tbl .input{min-width:0;width:100%}
+/* Служебные колонки — чекбокс и крестик: не тянутся и не сжимаются. */
+body[data-module="production"] .al-tbl th.fl-c,body[data-module="production"] .al-tbl td.al-act,body[data-module="production"] .al-tbl td:first-child{width:32px}
+/* Заголовки переносятся по словам, а не режутся многоточием: «Высота внешн, м»
+   в узкой колонке иначе превращается в «Высота вн…». */
+body[data-module="production"] .al-tbl th{white-space:normal;line-height:1.2;overflow-wrap:anywhere;text-overflow:clip}
+/* Редактируемый ЕНИ в правом углу шапки блока «Общие параметры» (решение
+   пользователя 28.08.2026). В плашке над карточкой остался нередактируемый
+   дубль — он виден при прокрутке. */
+body[data-module="production"] .head-eni{margin-left:auto;display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+body[data-module="production"] .head-eni label{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#7d93a6}
+body[data-module="production"] .head-eni .input{width:190px;height:26px;padding:2px 8px;font-size:12px}
+/* Шеврон сворачивания стоит после поля — «margin-left:auto» уже занят полем. */
+body[data-module="production"] .card-head .head-eni + .chev{margin-left:8px}
+
+/* Несколько итогов по площадям читаются столбиком, а не строкой: рядом они
+   сливались в одну длинную фразу (решение пользователя 28.08.2026). */
+body[data-module="production"] .floors-sums{display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 10px}
+body[data-module="production"] .floors-sums [data-floor-sum]{flex:1 1 100%;display:block}
+body[data-module="production"] .floors-sums [data-redistribute]{margin-left:auto;flex:0 0 auto}
+/* Действия карточки литеры — в самой плашке (решение пользователя 28.08.2026):
+   отдельная строка кнопок под ней дублировала их и занимала высоту. */
+body[data-module="production"] .ctx-actions{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
+body[data-module="production"] .ctx-del{white-space:nowrap;height:32px;padding:0 14px;font-size:12.5px}
+body[data-module="production"] .ctx-act{width:34px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line-input);border-radius:7px;background:#fff;color:#5b6c85;cursor:pointer;
+  transition:background .12s,border-color .12s,color .12s}
+body[data-module="production"] .ctx-act:hover{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
+body[data-module="production"] .ctx-act.primary{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+body[data-module="production"] .ctx-act.primary:hover{background:var(--blue-700);border-color:var(--blue-700);color:#fff}
+body[data-module="production"] .ctx-act.danger:hover{background:#fdf3f3;border-color:#f3c1c1;color:var(--danger)}
 body[data-module="production"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="production"] .vsplit:hover{background:var(--blue-500)}
-body[data-module="production"] .grow{flex:1;min-width:620px;padding-left:12px}
-body[data-module="production"] .viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 80px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+/* Колонка карточки сжимается вместе с окном (минимум — ширина поэтажной
+   развёртки с отступами), а просмотрщик при нехватке места уступает, но не
+   схлопывается. Раньше оба были жёсткими и вместе выходили за экран. */
+body[data-module="production"] .grow{flex:1 1 0;min-width:460px;padding-left:12px}
+body[data-module="production"] .viewer{width:var(--vw);flex:0 1 var(--vw);min-width:320px;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 80px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
 /* 80px = topbar 44 + верхний/нижний padding .content (14+14) + 8 на зазор.
    Раньше вычиталось 120px, и при прокрутке под просмотрщиком оставалось
    ~76px неиспользуемой пустоты. */
@@ -472,11 +514,11 @@ body[data-module="production"] .note-tpl-dd>button{padding:2px 6px;font-size:10p
 
 /* Код ЕНИ правится прямо в шапке карточки ОИ: он нужен и в общих параметрах,
    и при вводе любых значений, а отдельным полем в форме занимал место зря. */
-body[data-module="production"] .ctx-plate-eni{display:inline-flex;align-items:center;gap:5px;padding:1px 6px}
+/* ЕНИ в плашке — только показ (правится в шапке блока 01), поэтому это ровный
+   чип: подпись и код в одну строку, код не переносится и не растягивает плашку. */
+body[data-module="production"] .ctx-plate-eni{display:inline-flex;align-items:baseline;gap:6px;padding:2px 9px;white-space:nowrap}
 body[data-module="production"] .ctx-plate-eni label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#7d93a6;font-weight:700}
-body[data-module="production"] .ctx-plate-eni input{border:1px solid transparent;background:transparent;border-radius:5px;padding:1px 4px;font-size:11.5px;color:#22314a;width:120px}
-body[data-module="production"] .ctx-plate-eni input:hover{border-color:var(--line)}
-body[data-module="production"] .ctx-plate-eni input:focus{outline:none;border-color:var(--blue-500);background:#fff}
+body[data-module="production"] .ctx-plate-eni b{font-size:12.5px;color:var(--blue-700);letter-spacing:.2px;font-weight:700}
 
 /* Зона открепления — свободное место под узлами дерева. Подсвечиваем так же,
    как узел-цель, иначе непонятно, что бросок сюда снимет привязку. */
@@ -569,11 +611,13 @@ body[data-module="production"] .ctx-back-btn:hover{background:var(--blue-50);bor
    то, что нужно видеть, не открывая карточку участка; кнопка перехода стоит
    в ней же, у края — там её ищут после чтения сводки, а не в шапке среди
    служебных кнопок. */
-body[data-module="production"] .oi-land-sum{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px;
-  padding:9px 12px;background:#f6faff;border-bottom:1px solid var(--line-soft)}
-body[data-module="production"] .oi-land-f{display:flex;flex-direction:column;gap:2px;min-width:0}
-body[data-module="production"] .oi-land-f label{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:#7d93a6;font-weight:700}
-body[data-module="production"] .oi-land-f b{font-size:12px;color:#22314a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+body[data-module="production"] .oi-land-sum{background:#f6faff;border-bottom:1px solid var(--line-soft)}
+/* Сводка участка — такая же таблица, как перечень литер под ней: одинаковые
+   размеры шапки и ячеек, поэтому блок читается как одно целое. */
+body[data-module="production"] .oi-land-tbl{width:100%;table-layout:fixed}
+body[data-module="production"] .oi-land-tbl td{vertical-align:middle}
+body[data-module="production"] .oi-land-tbl .ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="production"] .oi-land-open{white-space:nowrap}
 body[data-module="production"] .oi-land-open{margin-left:auto;flex:0 0 auto}
 
 /* Объекты на участке: литеры и движимое — раздельно. */
@@ -614,7 +658,6 @@ body[data-module="production"] .oi-node-cnt.mov{background:var(--amber-50);color
 
 /* ЕНИ читают и сверяют цифра за цифрой — мелким его набирать неудобно. */
 body[data-module="production"] .oi-node-eni{font-size:12.5px;padding:2px 8px;letter-spacing:.2px}
-body[data-module="production"] .ctx-plate-eni input{font-size:13px;width:150px;letter-spacing:.2px}
 
 /* Зона «Без участка» отделяется от участков перегородкой: это не ещё один
    участок, а служебная группа, и сливаться с ними она не должна.
@@ -645,9 +688,9 @@ body[data-module="production"] .oi-node-eni{font-size:12.5px;font-weight:600}
 
 /* Сводка по участку — своя зона: светлее узла, с явной чертой снизу, чтобы не
    слипалась с шапкой колонок. */
-body[data-module="production"] .oi-land-sum{background:#eef7f2;border-bottom:2px solid var(--teal-100);padding:11px 12px}
-body[data-module="production"] .oi-land-f label{font-size:9.5px;font-weight:700;color:#6f8a7e}
-body[data-module="production"] .oi-land-f b{font-size:13px;font-weight:600;color:#1d3b2f}
+body[data-module="production"] .oi-land-sum{background:#eef7f2;border-bottom:2px solid var(--teal-100)}
+body[data-module="production"] .oi-land-tbl th{color:#6f8a7e}
+body[data-module="production"] .oi-land-tbl td{color:#1d3b2f;font-weight:600}
 
 /* Заголовок раздела — заметный, а не служебная надпись. */
 body[data-module="production"] .oi-sub-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;

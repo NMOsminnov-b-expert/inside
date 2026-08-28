@@ -79,6 +79,9 @@ function generalCard(ctx, oi) {
 <span class="card-idx">01</span>
 <h3>Общие параметры</h3>
 <span class="hint">${esc(oi.name)}</span>
+<span class="head-eni" title="Код ЕНИ — правится здесь">
+<label>ЕНИ</label>
+<input class="input mono" data-head-eni value="${esc(fmtEni(oi.eni))}"></span>
 <span class="chev">▾</span>
 </div>
 <div class="card-body-wrap"><div class="card-pad">
@@ -108,7 +111,7 @@ ${yearFieldHTML(oi, 'Год постройки')}
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
 </div>
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
-<select class="select" data-rescat>${resCatOptions(oi).map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>` : ''}
 ${rq.showCatClass ? `<div class="field"><label>Назначение по тех паспорту</label>
 <input class="input" data-catclass value="${esc(oi.catClass || '')}" placeholder="Укажите назначение вручную">
@@ -274,28 +277,18 @@ ${photoAccordions(ctx.ui, oi, true)}
 </div>`;
 }
 
-// Два поля не должны противоречить друг другу (Л2.5, решение пользователя
-// 28.08.2026). Ведёт «Расположение строения», подстраивается «Категория жилого
-// строения»:
-//   Отдельностоящее → только «Обособленный»;
-//   Встроенное      → всё остальное (таунхаус, полдома, барак).
+// Два поля не должны противоречить друг другу (Л2.5). Ведёт «Расположение
+// строения», подстраивается «Категория жилого строения»:
+//   Отдельностоящее → «Обособленный»;
+//   Встроенное      → таунхаус, полдома, барак.
 // Так и в жизни: обособленным бывает частный дом, а таунхаус или полдома — это
 // всегда часть чего-то большего. Квартира сюда не попадает вовсе: она по
 // определению внутри здания, и категории жилого строения у неё нет.
-//
-// Расположение НЕ фильтруется — оно первично и доступно целиком.
-//
-// Уже сохранённое значение из списка не выбрасываем: иначе смена расположения
-// молча переписала бы данные. Оно остаётся видимым, чтобы расхождение заметили
-// и исправили руками.
-function resCatOptions(oi) {
-  const detached = (oi.buildType || '') === 'Отдельностоящее';
-  const list = detached
-    ? RES_BUILD_CAT.filter((o) => o === 'Обособленный')
-    : RES_BUILD_CAT.filter((o) => o !== 'Обособленный');
-
-  if (oi.resCat && !list.includes(oi.resCat)) list.push(oi.resCat);
-  return list;
+// Список ПОЛНЫЙ: пункты не прячем — они могут понадобиться для особых случаев
+// (уточнение пользователя 28.08.2026). Согласованность обеспечивает автовыбор
+// при смене расположения (см. обработчик data-buildtype в ctrl.js), а не запрет.
+function resCatOptions() {
+  return RES_BUILD_CAT.slice();
 }
 
 export function render(ctx, oi) {
@@ -313,13 +306,5 @@ ${rq.prod ? prodExtraCard(ctx, oi, 5) : ''}
 ${photosCard(ctx, oi, docsIdx + 1)}
 </div>`;
 
-  return `<div class="view-head">
-<button class="back-btn" data-back>← К объекту оценки</button>
-<span class="pill pill-gray">Карточка ОИ (литера)</span>
-<button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>
-<button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
-<button class="btn btn-primary" data-save-oi>Сохранить</button>
-<button class="btn btn-ghost" data-back>Отмена</button>
-</div>
-${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
+  return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
 }

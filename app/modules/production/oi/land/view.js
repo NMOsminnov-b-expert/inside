@@ -26,12 +26,5 @@ ${photoAccordions(ctx.ui, oi, true)}
 </div>
 </div>`;
 
-  return `<div class="view-head">
-<button class="back-btn" data-back>← К объекту оценки</button>
-<span class="pill pill-gray">Земельный участок</span>
-<button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
-<button class="btn btn-primary" data-save-oi>Сохранить</button>
-<button class="btn btn-ghost" data-back>Отмена</button>
-</div>
-${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
+  return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
 }

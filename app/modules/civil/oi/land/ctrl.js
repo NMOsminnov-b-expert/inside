@@ -23,7 +23,7 @@ export function bind(ctx, oi) {
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  const en = s.$('[data-plate-eni]');
+  const en = s.$('[data-head-eni]') || s.$('[data-land-eni]');
   if (en) en.onchange = () => {
     oi.eni = parseEni(en.value) || oi.eni;
     ctx.updatePlate();
