@@ -1,3 +1,4 @@
+import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
@@ -12,6 +13,8 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindAreaList(ctx, oi, 'loggias');
+  bindAreaList(ctx, oi, 'balconies');
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
@@ -83,12 +86,6 @@ export function bind(ctx, oi) {
 
   const mt = s.$('[data-mansard]');
   if (mt) mt.onchange = () => { oi.mansardType = mt.value; };
-
-  const lgc = s.$('[data-loggias-count]');
-  if (lgc) lgc.onchange = () => { oi.loggiasCount = lgc.value; };
-
-  const bc = s.$('[data-balconies-count]');
-  if (bc) bc.onchange = () => { oi.balconiesCount = bc.value; };
 
   // --- Площади и стоимость аренды (строки заводит пользователь) -----------
   oi.rentAreas = oi.rentAreas || [];

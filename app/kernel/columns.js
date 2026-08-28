@@ -145,7 +145,11 @@ export function fitWidths(cols, widths, avail) {
   if (!movable.length || avail <= 0) return {};
 
   const w = movable.map((c) => columnWidth(c, widths) || c.width || FLEX_BASIS);
-  const mins = movable.map((c) => c.minWidth || ((c.width || 0) ? MIN_W : FLEX_MIN));
+  // Минимум не может быть больше уже заданной ширины. Иначе подгонка «поднимает»
+  // столбец до минимума и отбирает разницу у соседей — вручную выставленная
+  // перегородкой ширина уезжала при первой же перерисовке, и подгонка
+  // переставала быть повторяемой.
+  const mins = movable.map((c, i) => Math.min(c.minWidth || ((c.width || 0) ? MIN_W : FLEX_MIN), w[i]));
   const rubber = movable.findIndex((c) => !(c.width || 0));
 
   let diff = Math.round(avail - w.reduce((a, x) => a + x, 0));
@@ -179,10 +183,13 @@ export function fitWidths(cols, widths, avail) {
   return out;
 }
 
-// Проставить подогнанную раскладку переменными на контейнере и вернуть её.
-// Возвращённое нужно сохранить в состояние (`Object.assign(widths, fit)`):
-// раскладка обязана быть в состоянии целиком, иначе следующая подгонка возьмёт
-// за основу другие числа и передвинет то, что человек уже настроил вручную.
+// Проставить подогнанную раскладку переменными на контейнере.
+//
+// Результат НЕ сохраняется в состояние намеренно. В состоянии лежит исходная
+// раскладка — умолчания плюс то, что человек задал перегородками, — и подгонка
+// каждый раз считается от неё. Если сохранять подогнанное, следующий пересчёт
+// пойдёт уже от него: при сжатии ужимаются все столбцы, а при обратном
+// расширении растёт только «резиновый», и раскладка не возвращается в исходную.
 export function applyFit(box, cols, widths, reserve = 0) {
   const fit = fitWidths(cols, widths, box.clientWidth - reserve);
   Object.entries(fit).forEach(([k, v]) => box.style.setProperty(colVar(k), v + 'px'));
@@ -283,7 +290,19 @@ export function bindColumnResize(scope, opts) {
         grip.removeEventListener('pointerup', up);
         box.classList.remove('col-resizing');
         grip.classList.remove('active');
-        if (d) onCommit({ [keyL]: wL + d, [keyR]: wR - d });
+        if (!d) return;
+
+        // Сохраняем ВСЮ раскладку, а не только две изменённые ячейки. В
+        // состоянии до этого лежали умолчания, а на экране — подогнанные под
+        // ширину величины; записав только две, мы получили бы смесь, сумма
+        // которой не сходится с шириной таблицы, и следующая подгонка тут же
+        // переставила бы столбцы.
+        const patch = {};
+        th.parentElement.querySelectorAll('[data-col]').forEach((cell) => {
+          const k = cell.dataset.col;
+          patch[k] = k === keyL ? wL + d : (k === keyR ? wR - d : Math.round(cell.getBoundingClientRect().width));
+        });
+        onCommit(patch);
       };
 
       grip.addEventListener('pointermove', move);
@@ -327,6 +346,11 @@ export function bindColumnReorder(scope, opts) {
     th.addEventListener('dragleave', () => th.classList.remove('col-drop'));
 
     th.addEventListener('drop', (e) => {
+      // Тащат не столбец, а что-то другое (например, литеру в дереве ОИ) —
+      // не вмешиваемся: иначе stopPropagation ниже съедал бы чужой бросок, и
+      // литера, брошенная на шапку таблицы, никуда не попадала.
+      if (!dragKey) return;
+
       e.preventDefault();
       e.stopPropagation();
       th.classList.remove('col-drop');

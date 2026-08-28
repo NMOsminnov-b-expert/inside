@@ -1,3 +1,4 @@
+import { areaListHTML } from '../../../../kernel/areaList.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
@@ -165,29 +166,8 @@ function areasCard(ctx, oi) {
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
-<div class="sec-h" style="margin-top:14px">Лоджии и балконы</div>
-<div class="grid g-4">
-<div class="field">
-<label>Кол-во лоджий</label>
-<input class="input" data-bld-loggia-count value="${esc(oi.loggiaCount || '')}"
-inputmode="numeric" min="0" max="10" placeholder="до 10">
-</div>
-<div class="field">
-<label>Кол-во балконов / террас</label>
-<input class="input" data-bld-balcony-count value="${esc(oi.balconyCount || '')}"
-inputmode="numeric" min="0" max="10" placeholder="до 10">
-</div>
-<div class="field">
-<label>Площадь застройки лоджий, м²</label>
-<input class="input" data-bld-loggia-area value="${esc(oi.loggiaBuildArea || '')}"
-inputmode="decimal" min="0" max="500" placeholder="до 500">
-</div>
-<div class="field">
-<label>Площадь застройки балконов / террас, м²</label>
-<input class="input" data-bld-balcony-area value="${esc(oi.balconyBuildArea || '')}"
-inputmode="decimal" min="0" max="500" placeholder="до 500">
-</div>
-</div>
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия')}
+${areaListHTML(oi, 'balconies', 'Балконы и террасы', 'Балкон')}
 </div></div>
 </div>`;
 }

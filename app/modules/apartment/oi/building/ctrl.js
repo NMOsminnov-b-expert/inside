@@ -1,3 +1,4 @@
+import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
@@ -11,6 +12,8 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindAreaList(ctx, oi, 'loggias');
+  bindAreaList(ctx, oi, 'balconies');
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
@@ -119,10 +122,6 @@ export function bind(ctx, oi) {
     if (el) el.onchange = () => { oi[key] = el.value; };
   };
 
-  bindBld('[data-bld-loggia-count]', 'loggiaCount');
-  bindBld('[data-bld-balcony-count]', 'balconyCount');
-  bindBld('[data-bld-loggia-area]', 'loggiaBuildArea');
-  bindBld('[data-bld-balcony-area]', 'balconyBuildArea');
 
   const mt = s.$('[data-mansard-type]');
   if (mt) mt.onchange = () => { oi.mansardType = mt.value; };

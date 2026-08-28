@@ -331,3 +331,7 @@ body[data-module="land-plot"] .ctx-plate-eni label{font-size:9px;text-transform:
 body[data-module="land-plot"] .ctx-plate-eni input{border:1px solid transparent;background:transparent;border-radius:5px;padding:1px 4px;font-size:11.5px;color:#22314a;width:120px}
 body[data-module="land-plot"] .ctx-plate-eni input:hover{border-color:var(--line)}
 body[data-module="land-plot"] .ctx-plate-eni input:focus{outline:none;border-color:var(--blue-500);background:#fff}
+
+/* Зона открепления — свободное место под узлами дерева. Подсвечиваем так же,
+   как узел-цель, иначе непонятно, что бросок сюда снимет привязку. */
+body[data-module="land-plot"] .oi-tree.drop-unlink{box-shadow:inset 0 -3px 0 var(--blue-500)}

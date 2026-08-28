@@ -1,3 +1,4 @@
+import { areaListHTML } from '../../../../kernel/areaList.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
@@ -143,13 +144,9 @@ ${floorsCountField(oi)}
 <div class="field"><label>Конструктивный тип мансарды</label>
 <select class="select" data-mansard>${MANSARD_TYPE.map((o) => `<option ${o === (oi.mansardType || MANSARD_TYPE[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>Кол-во лоджий</label><input class="input" data-loggias-count value="${esc(oi.loggiasCount || '')}" inputmode="numeric"></div>
-<div class="field"><label>Кол-во балконов/террас</label><input class="input" data-balconies-count value="${esc(oi.balconiesCount || '')}" inputmode="numeric"></div>
 </div>
-<div class="grid g-2" style="margin-top:10px">
-<div class="field"><label>Общая площадь застройки лоджий, м²</label><input class="input" data-area="loggias" value="${esc(areas.loggias || '')}"></div>
-<div class="field"><label>Общая площадь застройки балконов/террас, м²</label><input class="input" data-area="balconies" value="${esc(areas.balconies || '')}"></div>
-</div>
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия')}
+${areaListHTML(oi, 'balconies', 'Балконы и террасы', 'Балкон')}
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>

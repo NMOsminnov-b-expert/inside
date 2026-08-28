@@ -1,3 +1,4 @@
+import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -101,6 +102,7 @@ export function main(host) {
       } else {
         migrateSpecials(rec);
         migrateStruct(rec);
+        migrateAnnexes(rec);
         draw();
       }
       host.toast(label + ' удалён');
@@ -279,6 +281,24 @@ export function main(host) {
   let recSnapshot = null;
   function resnapshot() { recSnapshot = rec ? takeSnapshot(rec) : null; }
   function flushAuditLog() { if (recSnapshot) recordChanges(rec, recSnapshot, rec); }
+
+  // Лоджии и балконы: было количество и общая площадь, стало список с площадью
+  // у каждого (Л2.9). Перевод идёт до отрисовки, иначе попал бы в лог правок
+  // как правка пользователя.
+  function migrateAnnexes(r) {
+    if (!r || !Array.isArray(r.oi)) return;
+    r.oi.forEach((o) => {
+      migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
+      migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
+      migrateAreaList(o, 'loggias', 'loggiaCount', 'loggiaBuildArea');
+      migrateAreaList(o, 'balconies', 'balconyCount', 'balconyBuildArea');
+      if (o.apartment) {
+        migrateAreaList(o.apartment, 'loggias', 'loggiaCount', 'loggiaBuildArea');
+        migrateAreaList(o.apartment, 'balconies', 'balconyCount', 'balconyBuildArea');
+      }
+    });
+  }
+
   bindCommonUI();
   // Клавиши просмотрщика — однократно на монтирование модуля, рядом с
   // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
@@ -287,6 +307,7 @@ export function main(host) {
   ensureViewerDefault();
   migrateSpecials(rec);
   migrateStruct(rec);
+  migrateAnnexes(rec);
   draw().then(resnapshot);
 
   return {
@@ -301,6 +322,7 @@ export function main(host) {
       ensureViewerDefault();
       migrateSpecials(rec);
       migrateStruct(rec);
+      migrateAnnexes(rec);
       draw().then(resnapshot);
     },
     destroy() {

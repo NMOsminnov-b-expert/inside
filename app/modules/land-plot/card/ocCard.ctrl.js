@@ -206,59 +206,109 @@ export function bindOcCard(ctx) {
   // дерева (`[data-oi-drop]`): участок либо служебная группа «Без участка»
   // (пустой id = снять привязку). Перенос подтверждается модалкой: это правка
   // структуры объекта, случайным движением мыши её делать нельзя.
+  // Что именно тащим, помним отдельно от dataTransfer: браузер в некоторых
+  // случаях отдаёт его пустым при drop, и перенос молча не срабатывал.
+  // Хранится в ui, а не в локальной переменной: документный слушатель ниже
+  // вешается ОДИН раз, а контроллер перепривязывается на каждой отрисовке —
+  // локальную переменную он бы видел устаревшей.
+
   s.$$('[data-drag-oi]').forEach((row) => {
     row.addEventListener('dragstart', (e) => {
+      ctx.ui.dragOiId = row.dataset.dragOi;
       e.dataTransfer.setData('text/plain', row.dataset.dragOi);
       e.dataTransfer.effectAllowed = 'move';
       row.classList.add('dragging');
     });
     row.addEventListener('dragend', () => {
+      ctx.ui.dragOiId = null;
       row.classList.remove('dragging');
       s.$$('[data-oi-drop]').forEach((n) => n.classList.remove('drop-target'));
     });
   });
 
-  s.$$('[data-oi-drop]').forEach((node) => {
-    const targetId = node.dataset.oiDrop;
+  // Куда попал бросок. Узлы разделены промежутками, и попасть точно в узел
+  // тяжело — поэтому промежуток между узлами считаем принадлежащим ближайшему
+  // узлу сверху, а откреплением считается только область НИЖЕ всех узлов.
+  // Так обе зоны большие: прикрепление — почти всё дерево, открепление —
+  // свободное место под ним.
+  const nodeAt = (y) => {
+    const list = s.$$('[data-oi-drop]');
+    let hit = null;
+    list.forEach((n) => {
+      const r = n.getBoundingClientRect();
+      if (y >= r.top - 6) hit = n;          // промежуток отходит верхнему узлу
+      if (y >= r.top - 6 && y <= r.bottom + 6) hit = n;
+    });
+    const last = list[list.length - 1];
+    if (last && y > last.getBoundingClientRect().bottom + 6) return null;   // пустота внизу
+    return hit;
+  };
 
-    node.addEventListener('dragover', (e) => {
+  const applyDrop = async (targetId, isUnlink) => {
+    const oi = ctx.rec.oi.find((o) => o.id === ctx.ui.dragOiId);
+    if (!oi) return;
+    if (!isUnlink && (oi.landId || '') === targetId) return;
+    if (isUnlink && !oi.landId) return;
+
+    const label = oi.letter ? 'Литеру ' + oi.letter : 'ОИ «' + oi.name + '»';
+    const land = targetId ? rec.oi.find((o) => o.id === targetId) : null;
+
+    const ok = await ctx.host.confirm(isUnlink
+      ? { title: 'Открепить литеру', okLabel: 'Открепить',
+          text: `Открепить ${label} от участка? Она уйдёт в группу «Без участка».` }
+      : { title: 'Перенос литеры', okLabel: 'Перенести',
+          text: `Перенести ${label} в ${land ? `участок «${land.name}» (${fmtEni(land.eni)})` : 'группу «Без участка»'}?` });
+    if (!ok) return;
+
+    oi.landId = isUnlink ? null : (targetId || null);
+    ctx.render();
+    ctx.toast(oi.landId ? 'Перенесено в участок' : 'Привязка к участку снята', 'ok');
+  };
+
+  ctx.ui.applyOiDrop = applyDrop;
+
+  const tree = s.$('[data-oi-cols-box]');
+  if (tree) {
+    tree.addEventListener('dragover', (e) => {
+      if (!ctx.ui.dragOiId) return;
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      node.classList.add('drop-target');
+      const n = nodeAt(e.clientY);
+      s.$$('[data-oi-drop]').forEach((x) => x.classList.toggle('drop-target', x === n));
+      tree.classList.toggle('drop-unlink', !n);
     });
-    node.addEventListener('dragleave', (e) => {
-      // Уход на вложенный элемент — не уход из узла.
-      if (!node.contains(e.relatedTarget)) node.classList.remove('drop-target');
+    tree.addEventListener('dragleave', (e) => {
+      if (!tree.contains(e.relatedTarget)) {
+        s.$$('[data-oi-drop]').forEach((x) => x.classList.remove('drop-target'));
+        tree.classList.remove('drop-unlink');
+      }
     });
-
-    node.addEventListener('drop', async (e) => {
+    tree.addEventListener('drop', async (e) => {
       e.preventDefault();
-      e.stopPropagation();
-      node.classList.remove('drop-target');
-
-      const oiId = e.dataTransfer.getData('text/plain');
-      const oi = rec.oi.find((o) => o.id === oiId);
-      if (!oi) return;
-      if ((oi.landId || '') === targetId) return;   // уже здесь
-
-      const land = targetId ? rec.oi.find((o) => o.id === targetId) : null;
-      const label = oi.letter ? 'Литеру ' + oi.letter : 'ОИ «' + oi.name + '»';
-      const to = land
-        ? `участок «${land.name}» (${fmtEni(land.eni)})`
-        : 'группу «Без участка»';
-
-      const ok = await ctx.host.confirm({
-        title: 'Перенос литеры',
-        text: `Перенести ${label} в ${to}?`,
-        okLabel: 'Перенести',
-      });
-      if (!ok) return;
-
-      oi.landId = targetId || null;
-      ctx.render();
-      ctx.toast(land ? 'Перенесено в участок' : 'Привязка к участку снята', 'ok');
+      const n = nodeAt(e.clientY);
+      s.$$('[data-oi-drop]').forEach((x) => x.classList.remove('drop-target'));
+      tree.classList.remove('drop-unlink');
+      await applyDrop(n ? n.dataset.oiDrop : '', !n);
     });
-  });
+  }
+
+  // Бросок ВНЕ перечня ОИ — тоже открепление: тащить литеру некуда, кроме как
+  // «убрать отсюда», и заставлять целиться в узкую полосу под узлами незачем.
+  // Вешается один раз на скоуп: контроллер перепривязывается на каждой
+  // отрисовке, а документные слушатели снимаются только при уходе с экрана.
+  if (!s.root.dataset.dragUnlinkBound) {
+    s.root.dataset.dragUnlinkBound = '1';
+
+    s.onDocument('dragover', (e) => {
+      if (!ctx.ui.dragOiId || e.target.closest('[data-oi-cols-box]')) return;
+      e.preventDefault();
+    });
+
+    s.onDocument('drop', async (e) => {
+      if (!ctx.ui.dragOiId || e.target.closest('[data-oi-cols-box]')) return;
+      e.preventDefault();
+      await ctx.ui.applyOiDrop('', true);
+    });
+  }
 
   // --- Ячейка «Фото» в перечне: одно окно вместо ряда миниатюр -------------
   s.$$('[data-photo-pop]').forEach((btn) => btn.onclick = (e) => {
@@ -322,7 +372,28 @@ export function bindOcCard(ctx) {
   // столбцу «Наименование» не остаётся места, он схлопывается в ноль, и
   // перегородке нечего у него забрать — растягивание не работает вовсе.
   const oiBox = s.$('[data-oi-cols-box]');
-  if (oiBox) Object.assign(ctx.ui.oiColWidths, applyFit(oiBox, orderedColumns(OI_COLUMNS, oiOrder), ctx.ui.oiColWidths));
+  const fitOiCols = () => {
+    if (!oiBox) return;
+    // Мерить надо место, где реально лежит таблица, а не контейнер дерева:
+    // у узла есть свои поля и рамка, и таблица, подогнанная под внешний
+    // контейнер, вылезала за него на их толщину.
+    const tbl = oiBox.querySelector('table');
+    const host = tbl ? tbl.parentElement : oiBox;
+    const reserve = Math.max(0, oiBox.clientWidth - host.clientWidth);
+    applyFit(oiBox, orderedColumns(OI_COLUMNS, oiOrder), ctx.ui.oiColWidths, reserve);
+  };
+  fitOiCols();
+
+  // Ширина перечня меняется не только с окном: открытый просмотрщик забирает
+  // половину экрана, и таблица становится уже без всякой перерисовки. Поэтому
+  // следим за самим блоком. Подгонка меняет только переменные ширины на
+  // контейнере, ширину блока не трогает — зацикливания не будет.
+  if (oiBox && typeof ResizeObserver === 'function') {
+    if (ctx.ui.oiColsObserver) ctx.ui.oiColsObserver.disconnect();
+    const ro = new ResizeObserver(() => fitOiCols());
+    ro.observe(oiBox);
+    ctx.ui.oiColsObserver = ro;
+  }
 
   bindDocsColumns(s);
 

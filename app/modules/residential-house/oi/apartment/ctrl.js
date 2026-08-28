@@ -1,3 +1,4 @@
+import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
@@ -10,6 +11,8 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js
 import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindAreaList(ctx, oi.apartment, 'loggias');
+  bindAreaList(ctx, oi.apartment, 'balconies');
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
   const s = ctx.scope;
@@ -84,10 +87,6 @@ export function bind(ctx, oi) {
   bindApt('[data-apt-building-floors]', 'buildingFloors');
   bindApt('[data-apt-rooms]', 'rooms');
   bindApt('[data-apt-series]', 'series');
-  bindApt('[data-apt-loggia-count]', 'loggiaCount');
-  bindApt('[data-apt-balcony-count]', 'balconyCount');
-  bindApt('[data-apt-loggia-area]', 'loggiaBuildArea');
-  bindApt('[data-apt-balcony-area]', 'balconyBuildArea');
 
   // Этажность квартиры управляет наличием поэтажной развёртки.
   const aptStoreys = s.$('[data-apt-storeys]');

@@ -1,3 +1,4 @@
+import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -86,6 +87,7 @@ export function main(host) {
       } else {
         migrateSpecials(rec);
         migrateStruct(rec);
+        migrateAnnexes(rec);
         draw();
       }
       host.toast(label + ' удалён');
@@ -246,9 +248,28 @@ export function main(host) {
 
     scope.root.scrollTop = top;
   }
+
+  // Лоджии и балконы: было количество и общая площадь, стало список с площадью
+  // у каждого (Л2.9). Перевод идёт до отрисовки, иначе попал бы в лог правок
+  // как правка пользователя.
+  function migrateAnnexes(r) {
+    if (!r || !Array.isArray(r.oi)) return;
+    r.oi.forEach((o) => {
+      migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
+      migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
+      migrateAreaList(o, 'loggias', 'loggiaCount', 'loggiaBuildArea');
+      migrateAreaList(o, 'balconies', 'balconyCount', 'balconyBuildArea');
+      if (o.apartment) {
+        migrateAreaList(o.apartment, 'loggias', 'loggiaCount', 'loggiaBuildArea');
+        migrateAreaList(o.apartment, 'balconies', 'balconyCount', 'balconyBuildArea');
+      }
+    });
+  }
+
   bindCommonUI();
   migrateSpecials(rec);
   migrateStruct(rec);
+  migrateAnnexes(rec);
   draw();
 
   return {
@@ -261,6 +282,7 @@ export function main(host) {
       }
       migrateSpecials(rec);
       migrateStruct(rec);
+      migrateAnnexes(rec);
       draw();
     },
     destroy() {

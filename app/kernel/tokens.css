@@ -144,3 +144,14 @@ input,select,textarea{font:inherit;color:inherit}
 .yf-pick-y{padding:5px 0;border-radius:6px;font-size:11.5px;color:#33445c;background:none;border:1px solid transparent;cursor:pointer;font-variant-numeric:tabular-nums}
 .yf-pick-y:hover{background:var(--blue-50);border-color:var(--blue-200)}
 .yf-pick-y.on{background:var(--blue-100);color:var(--blue-700);font-weight:700;border-color:var(--blue-300)}
+
+/* Списки элементов с площадью — лоджии, балконы (kernel/areaList.js).
+   Устроены как поэтажная развёртка: у каждого элемента своя площадь. */
+.al{margin-top:12px}
+.al .sec-h{display:flex;align-items:center;gap:8px}
+.al-sum{font-size:11px;font-weight:600;color:#33445c;font-variant-numeric:tabular-nums}
+.al-tbl{margin-top:6px}
+.al-tbl .al-n{color:#8fa2b8;font-size:11px;font-variant-numeric:tabular-nums}
+.al-tbl td{padding:4px 6px}
+.al-tbl .input{padding:4px 7px;font-size:12.5px}
+.al-empty{font-size:11.5px;color:#8fa2b8;padding:4px 0 2px 2px}

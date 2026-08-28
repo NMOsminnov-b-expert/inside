@@ -305,10 +305,10 @@ export function mountOcMenu(host) {
     const box = scope.$('[data-cols-box]');
     if (!box || fitting) return;
     fitting = true;
-    // Результат подгонки сохраняем: раскладка должна лежать в состоянии
-    // целиком, иначе следующая подгонка возьмёт за основу другие числа и
-    // передвинет то, что человек уже настроил вручную.
-    Object.assign(state.colWidths, applyFit(box, activeColumns(state), state.colWidths, CHECK_COL_W));
+    // Результат подгонки НЕ сохраняем: в состоянии лежит исходная раскладка, и
+    // подгонка считается от неё каждый раз — иначе сжатие и обратное
+    // расширение области не возвращают столбцы на место.
+    applyFit(box, activeColumns(state), state.colWidths, CHECK_COL_W);
     fitting = false;
   }
 
