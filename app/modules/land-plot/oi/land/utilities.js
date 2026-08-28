@@ -1,3 +1,4 @@
+import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 import { ENGINEERING } from '../../data/dictionaries.js';
 
@@ -33,18 +34,9 @@ export function migrateUtilities(oi) {
   oi.utilities = Object.keys(LEGACY).filter((k) => old[k]).map((k) => LEGACY[k]);
 }
 
-function optionRow(v, checked) {
-  return `<label class="ms-opt"><input type="checkbox" data-util-opt="${esc(v)}" ${checked ? 'checked' : ''}>${esc(v)}</label>`;
-}
-
+// Тело списка — общее для всех мультивыборов проекта (kernel/multiSelect.js).
 function dropBodyHTML(list) {
-  const sel = ENGINEERING.filter((v) => list.includes(v));
-  const rest = ENGINEERING.filter((v) => !list.includes(v));
-
-  return `<div class="dd-group">Выбрано${sel.length ? ` (${sel.length})` : ''}</div>
-${sel.length ? sel.map((v) => optionRow(v, true)).join('') : '<div class="muted" style="padding:4px 9px">Ничего не выбрано</div>'}
-<div class="dd-group">Не выбрано</div>
-${rest.length ? rest.map((v) => optionRow(v, false)).join('') : '<div class="muted" style="padding:4px 9px">Выбрано всё</div>'}`;
+  return msDropBodyHTML({ options: ENGINEERING, selected: list, optAttr: 'util-opt' });
 }
 
 // Разделитель « / », как у материалов: в названиях встречается запятая.
@@ -93,6 +85,8 @@ export function updateUtilitiesUI(ctx, oi) {
 function bindUtilOpts(ctx, oi) {
   const box = ctx.scope.$('[data-util-field]');
   if (!box) return;
+
+  bindMsSearch(box.querySelector('.ms-drop'));
 
   box.querySelectorAll('[data-util-opt]').forEach((cb) => {
     cb.onchange = () => {

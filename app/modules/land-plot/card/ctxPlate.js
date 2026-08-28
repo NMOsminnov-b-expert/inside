@@ -1,3 +1,5 @@
+import { flagBadgesHTML } from '../../../kernel/flagBadges.js';
+import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
 import { cardMeta } from '../oi/registry.js';
@@ -20,6 +22,7 @@ export function ctxPlate(ctx) {
         <span class="ctx-chip ctx-plate-addr ell" title="${esc(ctx.rec.address)}">${esc(ctx.rec.address)}</span>
         ${chips}
         <span class="ctx-chip ${pend ? '' : 'ctx-ok'}">${pend ? pend + ' невып. заметок' : 'заметки выполнены'}</span>
+        ${flagBadgesHTML(recFlags(ctx.rec))}
         <button class="ctx-back-btn" data-back title="Вернуться к объекту оценки">← К объекту оценки</button>
       </div>`;
   }

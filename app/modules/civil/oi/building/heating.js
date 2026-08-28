@@ -1,20 +1,10 @@
+import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 import { HEATING } from '../../data/dictionaries.js';
 
-function optionRow(h, checked) {
-  return `<label class="ms-opt"><input type="checkbox" data-heat-opt="${esc(h)}" ${checked ? 'checked' : ''}>${esc(h)}</label>`;
-}
-
-// Список перегруппирован на «Выбрано» / «Не выбрано» — иначе при большом
-// количестве вариантов приходится долго искать, что уже отмечено.
+// Тело списка — общее для всех мультивыборов проекта (kernel/multiSelect.js).
 function dropBodyHTML(heating) {
-  const selected = HEATING.filter((h) => heating.includes(h));
-  const rest = HEATING.filter((h) => !heating.includes(h));
-
-  return `<div class="dd-group">Выбрано${selected.length ? ` (${selected.length})` : ''}</div>
-${selected.length ? selected.map((h) => optionRow(h, true)).join('') : '<div class="muted" style="padding:4px 9px">Ничего не выбрано</div>'}
-<div class="dd-group">Не выбрано</div>
-${rest.length ? rest.map((h) => optionRow(h, false)).join('') : '<div class="muted" style="padding:4px 9px">Выбрано всё</div>'}`;
+  return msDropBodyHTML({ options: HEATING, selected: heating, optAttr: 'heat-opt' });
 }
 
 // Сводка в закрытом виде — одна строка с обрезкой (раньше теги переносились
@@ -83,6 +73,8 @@ export function updateHeatingUI(ctx, oi) {
 function bindHeatOpts(ctx, oi) {
   const box = ctx.scope.$('[data-heat-field]');
   if (!box) return;
+
+  bindMsSearch(box.querySelector('.ms-drop'));
 
   box.querySelectorAll('[data-heat-opt]').forEach((cb) => {
     cb.onchange = () => {

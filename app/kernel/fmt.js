@@ -52,10 +52,11 @@ export function fmtInt(n) {
 // определяет регион по ПЕРВОЙ цифре кода, значит первая группа обязана остаться
 // ровно одной цифрой. При разбиении справа налево у 12-значного кода первая
 // группа склеивалась в «147», и признак региона терялся.
-// Кодов короче 18 цифр в данных хватает — у них неполной остаётся последняя
-// группа. Правило может смениться, см. вопрос 2.1 в
-// docs/tz/90-na-soglasovanie.md.
+// Длина кода СТРОГАЯ: 18 цифр, другой быть не может (подтверждено пользователем
+// 28.08.2026). Код другой длины — это ошибка данных, а не иной формат: показываем
+// как есть и помечаем через eniError, а не подгоняем под маску молча.
 const ENI_GROUPS = [1, 2, 2, 4, 4, 2, 3];
+export const ENI_LENGTH = ENI_GROUPS.reduce((a, b) => a + b, 0);
 
 export function fmtEni(value) {
   const digits = String(value ?? '').replace(/\D/g, '');
@@ -73,11 +74,46 @@ export function fmtEni(value) {
   return out.join('-');
 }
 
-// Область по первой цифре ЕНИ (Л1.7). Справочник «цифра → область» ещё не
-// утверждён (вопрос 2.2), поэтому здесь только извлечение признака.
+// Пустой код — не ошибка (поле просто не заполнено). Ошибка — заполненный код,
+// в котором цифр не ровно 18.
+export function eniError(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length !== ENI_LENGTH) {
+    return `В коде ЕНИ ${digits.length} ${digits.length % 10 === 1 && digits.length % 100 !== 11 ? 'цифра' : 'цифр'} вместо ${ENI_LENGTH}`;
+  }
+  return '';
+}
+
+// Область по первой цифре ЕНИ (Л1.7). Справочник дан пользователем 28.08.2026.
+export const ENI_REGIONS = {
+  1: 'Бишкек',
+  2: 'Иссык-Куль',
+  3: 'Жалал-Абад',
+  4: 'Нарын',
+  5: 'Ош',
+  6: 'Талас',
+  7: 'Чуй',
+  8: 'Баткен',
+};
+
 export const eniRegionCode = (value) => String(value ?? '').replace(/\D/g, '').charAt(0) || '';
+
+// Название области или пустая строка, если первая цифра не из справочника.
+export const eniRegion = (value) => ENI_REGIONS[eniRegionCode(value)] || '';
 
 export const parseEni = (value) => String(value ?? '').replace(/\D/g, '');
 
 export const round2 = (x) => Math.round(x * 100) / 100;
 export const norm = (s) => (s || '').toLowerCase().replace(/ё/g, 'е');
+
+// Слово по числу: 1 этаж, 2 этажа, 5 этажей. Русские правила счёта — часть
+// показа величины, поэтому живут рядом с остальным форматированием.
+export function plural(n, one, few, many) {
+  const a = Math.abs(Math.round(n)) % 100;
+  if (a > 10 && a < 20) return many;
+  const b = a % 10;
+  if (b === 1) return one;
+  if (b >= 2 && b <= 4) return few;
+  return many;
+}

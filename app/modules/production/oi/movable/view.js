@@ -1,5 +1,4 @@
 import { esc } from '../../../../kernel/dom.js';
-import { docsBlockInner } from '../../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
 export function render(ctx, oi) {
@@ -24,7 +23,6 @@ ${oi.complexItems ? `<div class="sec-h" style="margin-top:14px">Состав к�
 <tbody>${oi.complexItems.length ? oi.complexItems.map((it) => `<tr><td>${esc(it.name)}</td><td>${esc(it.type)}</td><td style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${esc(it.eni)}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">Состав не заполнен</td></tr>'}</tbody></table>` : ''}
 </div>
 </div>
-<div class="card t-slate"><div class="card-head"><span class="card-idx">02</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>
 </div>`;
 
   return `<div class="view-head">

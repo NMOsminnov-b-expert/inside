@@ -42,7 +42,7 @@ export function mountOcMenu(host) {
   let locatorTimer = null;
   let lastTotal = 0;
   let alive = true;   // после уxода со страницы отложенные рендеры не выполняются
-  let lastFacets = { status: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
+  let lastFacets = { status: {}, region: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
 
   // --- Адрес --------------------------------------------------------------
   function syncHash() {

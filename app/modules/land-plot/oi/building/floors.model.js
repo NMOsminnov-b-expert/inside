@@ -11,76 +11,92 @@ export const AREA_FIELDS = [
   { key: 'areaBuild', total: 'build', label: 'Застройка, м²', title: 'площадь застройки' },
 ];
 
-// Этажный список строения: этажи 1..N (категория "Надземные") плюс
-// подвал/цоколь ("Подземные") и мансарды ("Мансардные", своя категория).
-//
-// Мансард может быть несколько, и у КАЖДОЙ свой конструктивный тип — мансарда
-// и полумансарда встречаются в одном здании (Л5.3). Поэтому тип живёт в строке
-// (f.mansardType), а не одним полем на всю литеру, как было.
+// Категории строк развёртки. Строки ЛЮБОЙ категории добавляются и удаляются
+// вручную (решение пользователя 2026-08-28): подвалов и цоколей может быть
+// несколько, мансард тоже, а бывает и объект вообще без надземных этажей —
+// только цоколь и мансарда. Поэтому фиксированного набора строк больше нет.
+export const FLOOR_CATS = [
+  { key: 'over', label: 'Надземные', add: 'Этаж', auto: true },
+  { key: 'under', label: 'Подземные', add: 'Подвал', auto: false },
+  { key: 'mansard', label: 'Мансардные', add: 'Мансарда', auto: false },
+];
+
+const catDef = (cat) => FLOOR_CATS.find((c) => c.key === cat) || FLOOR_CATS[0];
+
+function mkRow(name, cat, oi) {
+  const row = {
+    name, cat,
+    on: catDef(cat).auto,
+    area: '', areaExt: '', areaBuild: '',
+    hExt: cat === 'over' ? (oi.heights?.ext || '') : '',
+    hInt: cat === 'over' ? (oi.heights?.int || '') : '',
+  };
+  if (cat === 'mansard') row.mansardType = oi.mansardType || MANSARD_TYPE[0];
+  return row;
+}
+
+// Имя новой строки: «Этаж 3», «Подвал 2», «Мансарда 2». Первая в категории —
+// без номера, как было до появления нескольких: переименование потеряло бы
+// уже введённые по ней данные.
+export function nextRowName(oi, cat) {
+  const base = catDef(cat).add;
+  const n = (oi.floorList || []).filter((f) => f.cat === cat).length;
+  return n === 0 ? base : `${base} ${n + 1}`;
+}
+
+// Первое построение развёртки: этажи 1..N плюс по одному подвалу, цоколю и
+// мансарде — как ориентир. Дальше состав правит человек.
 export function buildFloors(oi) {
-  const n = Math.max(1, oi.floors | 0);
-  const he = oi.heights.ext || '';
-  const hi = oi.heights.int || '';
+  const n = Math.max(0, oi.floors | 0);
   const keep = oi.floorList || [];
   const list = [];
 
-  const mk = (name, cat, on) => {
-    const ex = keep.find((f) => f.name === name && f.cat === cat);
-    if (ex) return ex;
-    return {
-      name, cat, on,
-      area: '', areaExt: '', areaBuild: '',
-      hExt: cat === 'over' ? he : '', hInt: cat === 'over' ? hi : '',
-    };
-  };
+  const reuse = (name, cat) => keep.find((f) => f.name === name && f.cat === cat);
 
-  for (let i = 0; i < n; i++) list.push(mk('Этаж ' + (i + 1), 'over', true));
-  list.push(mk('Подвал', 'under', false));
-  list.push(mk('Цоколь', 'under', false));
+  for (let i = 0; i < n; i++) {
+    const name = 'Этаж ' + (i + 1);
+    list.push(reuse(name, 'over') || mkRow(name, 'over', oi));
+  }
 
-  // Сколько мансардных строк было — столько и остаётся; при первом построении
-  // одна, как и раньше.
-  const mansards = keep.filter((f) => f.cat === 'mansard');
-  const mCount = Math.max(1, mansards.length);
-  for (let i = 0; i < mCount; i++) {
-    const row = mk(mansardName(i), 'mansard', false);
-    if (!row.mansardType) row.mansardType = oi.mansardType || MANSARD_TYPE[0];
-    list.push(row);
+  // Строки, заведённые вручную (переименованные этажи, лишние подвалы и
+  // мансарды), переносим как есть — их состав не наш.
+  keep.forEach((f) => {
+    if (f.cat === 'over' && list.includes(f)) return;
+    if (f.cat === 'over' && /^Этаж \d+$/.test(f.name) && +f.name.slice(5) <= n) return;
+    if (!list.includes(f)) list.push(f);
+  });
+
+  if (!keep.length) {
+    ['Подвал', 'Цоколь'].forEach((name) => list.push(mkRow(name, 'under', oi)));
+    list.push(mkRow('Мансарда', 'mansard', oi));
   }
 
   oi.floorList = list;
   recalcFloors(oi);
 }
 
-// Первая мансарда называется просто «Мансарда» — так она звалась до появления
-// нескольких, и переименование потеряло бы уже введённые по ней данные (mk
-// ищет строку по имени).
-export function mansardName(i) {
-  return i === 0 ? 'Мансарда' : 'Мансарда ' + (i + 1);
-}
-
-export function addMansard(oi) {
+export function addFloorRow(oi, cat) {
   const list = oi.floorList || (oi.floorList = []);
-  const n = list.filter((f) => f.cat === 'mansard').length;
-  list.push({
-    name: mansardName(n), cat: 'mansard', on: false,
-    area: '', areaExt: '', areaBuild: '', hExt: '', hInt: '',
-    mansardType: MANSARD_TYPE[0],
-  });
+  list.push(mkRow(nextRowName(oi, cat), cat, oi));
+  if (cat === 'over') oi.floors = list.filter((f) => f.cat === 'over').length;
   recalcFloors(oi);
 }
 
-export function removeMansard(oi, index) {
+// Удалить можно любую строку — и этаж, и подвал, и мансарду. Последнюю строку
+// категории тоже: категория просто исчезает из развёртки, добавить новую можно
+// кнопкой в её заголовке, а заголовки показываются всегда.
+export function removeFloorRow(oi, index) {
   const list = oi.floorList || [];
-  const row = list[index];
-  if (!row || row.cat !== 'mansard') return;
-  // Последнюю мансардную строку не убираем: категория должна остаться видимой,
-  // иначе добавить новую будет негде.
-  if (list.filter((f) => f.cat === 'mansard').length <= 1) return;
+  if (!list[index]) return;
+  const wasOver = list[index].cat === 'over';
   list.splice(index, 1);
-  // Имена пересобираем, чтобы не осталось дыр в нумерации.
-  list.filter((f) => f.cat === 'mansard').forEach((f, i) => { f.name = mansardName(i); });
+  if (wasOver) oi.floors = list.filter((f) => f.cat === 'over').length;
   recalcFloors(oi);
+}
+
+export function renameFloorRow(oi, index, name) {
+  const row = (oi.floorList || [])[index];
+  if (row) row.name = name;
 }
 
 // Каждая площадь распределяется независимо: свой итог, своя сумма ручных
@@ -88,8 +104,8 @@ export function removeMansard(oi, index) {
 // она про сам этаж, а не про отдельную колонку.
 export function recalcFloors(oi) {
   const areas = oi.areas || {};
-  const manual = oi.floorList.filter((f) => !f.on);
-  const auto = oi.floorList.filter((f) => f.on);
+  const manual = (oi.floorList || []).filter((f) => !f.on);
+  const auto = (oi.floorList || []).filter((f) => f.on);
   if (!auto.length) return;
 
   AREA_FIELDS.forEach(({ key, total }) => {

@@ -141,12 +141,32 @@ body[data-module="production"] .split{display:flex;gap:0;align-items:flex-start;
    Класс не .vtab: тот уже занят вкладками документов ВНУТРИ просмотрщика.
    Липкая: экран длинный, а вернуть просмотрщик нужно с любого места. */
 body[data-module="production"] .split-closed{position:relative}
-body[data-module="production"] .vopen-tab{position:sticky;top:0;align-self:flex-start;flex-shrink:0;margin-right:10px;
+/* Закладка начинается ПОД закреплённой плашкой (--plate-h её проставляет
+   bindStickyHead) — иначе плашка её накрывала: у плашки z-index выше, и поднимать
+   закладку над ней нельзя, она бы закрывала адрес и ЕНИ.
+   Прижата к левому краю области контента: отрицательный отступ гасит padding
+   .content (18px), поэтому закладка не висит в воздухе, а выходит из края. */
+body[data-module="production"] .vopen-tab{position:sticky;top:calc(var(--plate-h, 0px) + 10px);align-self:flex-start;
+  flex-shrink:0;margin:0 12px 0 -18px;
   writing-mode:vertical-rl;text-orientation:mixed;background:var(--blue-600);color:#fff;
   border:1px solid var(--blue-600);border-left:none;border-radius:0 8px 8px 0;
-  padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;
+  padding:10px 6px 10px 8px;font-weight:700;font-size:12px;cursor:pointer;display:flex;
   align-items:center;gap:6px;z-index:20;transition:background .12s}
 body[data-module="production"] .vopen-tab:hover{background:var(--blue-700)}
+/* Поиск внутри мультивыбора (kernel/multiSelect.js). Липкий: список бывает
+   длинным, а поле должно оставаться на виду при прокрутке значений. */
+body[data-module="production"] .ms-search-wrap{position:sticky;top:0;z-index:1;background:#fff;padding:4px 4px 6px;margin:-2px -2px 0}
+body[data-module="production"] .ms-search{width:100%;height:26px;font-size:12px;padding:2px 8px}
+body[data-module="production"] .ms-nores{font-size:11.5px}
+/* Значки состояния записи в шапке ОЦ и плашке литеры — те же, что в реестре
+   (kernel/flagBadges.js). Решение пользователя 28.08.2026. */
+body[data-module="production"] .flag-badges{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+body[data-module="production"] .reg-badge{font-size:10.5px;padding:1px 6px;border-radius:5px;font-weight:700;line-height:16px;
+  box-shadow:0 1px 2px rgba(15,23,42,.10)}
+body[data-module="production"] .reg-badge.notes{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100)}
+body[data-module="production"] .reg-badge.warn{background:#fdf3f3;color:var(--danger);border:1px solid #f3c1c1}
+body[data-module="production"] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+body[data-module="production"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
 body[data-module="production"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="production"] .vsplit:hover{background:var(--blue-500)}
 body[data-module="production"] .grow{flex:1;min-width:620px;padding-left:12px}
@@ -273,6 +293,9 @@ body[data-module="production"] .ms-summary{overflow:hidden;text-overflow:ellipsi
 body[data-module="production"] .ms-count{flex:0 0 auto;background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
 body[data-module="production"] .ms-drop{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);z-index:60;padding:6px;max-height:260px;overflow:auto;animation:accIn .14s ease}
 body[data-module="production"] .ms-opt{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;font-size:12.5px;color:#33445c;cursor:pointer}
+/* Строка, скрытая поиском: .ms-opt объявлен display:flex и сам по себе
+   перебивает [hidden]{display:none}. */
+body[data-module="production"] .ms-opt[hidden]{display:none}
 body[data-module="production"] .ms-opt:hover{background:var(--blue-50)}
 body[data-module="production"] .ms-opt input{cursor:pointer}
 body[data-module="production"] .ms-tag{display:inline-flex;align-items:center;gap:6px;background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}

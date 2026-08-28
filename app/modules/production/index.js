@@ -1,4 +1,5 @@
 import { migrateAreaList } from '../../kernel/areaList.js';
+import { migrateTempMode } from './oi/building/tempMode.js';
 // Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
 // поэтому и перевод её данных берётся оттуда же.
 import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
@@ -315,6 +316,8 @@ export function main(host) {
       // (инженерное оснащение). Перевод до отрисовки, иначе попал бы в лог
       // правок как правка пользователя.
       if (o.card === 'land') migrateUtilities(o);
+      // Температурный режим был строкой, стал списком (Л6.2).
+      migrateTempMode(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
       // Террасы отделены от балконов (решение пользователя 2026-08-27):

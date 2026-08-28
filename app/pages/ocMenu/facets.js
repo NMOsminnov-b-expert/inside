@@ -15,6 +15,7 @@ import { FLAG_LABELS } from './state.js';
 const SECTIONS = [
   { key: 'typeId', label: 'Тип ОЦ', limit: 8 },
   { key: 'status', label: 'Статус', limit: 8 },
+  { key: 'region', label: 'Область', limit: 8 },
   { key: 'institution', label: 'Учреждение', limit: 8, searchable: true },
   { key: 'city', label: 'Город / район', limit: 6, searchable: true },
   { key: 'insp', label: 'Осмотрщик', limit: 6, searchable: true },

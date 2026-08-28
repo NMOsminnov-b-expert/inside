@@ -1,6 +1,5 @@
 import { esc } from '../../../kernel/dom.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
-import { docsBlockInner } from '../parts/docs/table.js';
 
 const COMPLEX_TYPES = ['Узел', 'Агрегат', 'Станция', 'Прочее'];
 
@@ -27,7 +26,6 @@ export function viewMech(ctx) {
           <div class="field"><label>Год выпуска</label><input class="input" id="mYear" value="${esc(ui.mechDraft.year || '')}"></div>
           <div class="field"><label>Заводской номер</label><input class="input" id="mSerial" value="${esc(ui.mechDraft.serial || '')}"></div>
         </div>
-        ${docsBlockInner({ docs: ui.mechDocs || [] }, 'mech-new')}
       ` : `
         <div class="muted" style="margin-bottom:6px">У комплекса вместо полей самого объекта создаются его ОИ (иерархия ОЦ → ОИ).</div>
         <table class="tbl"><thead><tr><th>Наименование ОИ</th><th style="width:160px">Тип</th><th>Код ЕНИ</th><th style="width:36px"></th></tr></thead>

@@ -8,7 +8,6 @@ import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, STRUCTURE_KI
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
-import { docsBlockInner } from '../../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
 // Правила полей строения: что обязательно и что показывать.
@@ -97,10 +96,10 @@ ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-buildtype>${buildTypeOptions(oi).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-buildtype>${BUILD_TYPE.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
-<select class="select" data-rescat>${RES_BUILD_CAT.map((o) => `<option ${o === (oi.resCat || RES_BUILD_CAT[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-rescat>${resCatOptions(oi).map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>` : ''}
 ${rq.showCatClass ? `<div class="field"><label>Категория ОИ (категория → класс)</label>
 <select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
@@ -200,15 +199,6 @@ ${specialsBlockHTML(oi)}
 </div>`;
 }
 
-function docsCard(oi, idx = 4) {
-  return `<div class="card t-slate" id="q-docs">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Документы</h3><span class="chev">▾</span></div>
-<div class="card-body-wrap"><div class="card-pad">
-${docsBlockInner(oi, oi.id)}
-</div></div>
-</div>`;
-}
-
 function photosCard(ctx, oi, idx = 5) {
   return `<div class="card t-blue" id="q-photo">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
@@ -220,22 +210,27 @@ ${photoAccordions(ctx.ui, oi, true)}
 </div>`;
 }
 
-// «Отдельностоящее» доступно только обособленным строениям (Л2.5): это признак
-// категории жилого строения, а не самостоятельный выбор. Пока категория не
-// «Обособленный», такого варианта в списке нет.
+// Два поля не должны противоречить друг другу (Л2.5, решение пользователя
+// 28.08.2026). Ведёт «Расположение строения», подстраивается «Категория жилого
+// строения»:
+//   Отдельностоящее → только «Обособленный»;
+//   Встроенное      → всё остальное (таунхаус, полдома, барак).
+// Так и в жизни: обособленным бывает частный дом, а таунхаус или полдома — это
+// всегда часть чего-то большего. Квартира сюда не попадает вовсе: она по
+// определению внутри здания, и категории жилого строения у неё нет.
 //
-// Уже сохранённое значение из списка не выбрасываем: иначе смена категории
-// молча переписала бы данные. Оно остаётся видимым с пометкой, чтобы
-// расхождение было заметно и его исправили руками.
-function buildTypeOptions(oi) {
-  // Правило действует только там, где рядом есть «Категория жилого строения»
-  // (жилые строения). В гражданском и производственном такой категории нет
-  // вовсе, и отбирать у них «Отдельностоящее» не за что.
-  if (!oi.residential) return BUILD_TYPE.slice();
+// Расположение НЕ фильтруется — оно первично и доступно целиком.
+//
+// Уже сохранённое значение из списка не выбрасываем: иначе смена расположения
+// молча переписала бы данные. Оно остаётся видимым, чтобы расхождение заметили
+// и исправили руками.
+function resCatOptions(oi) {
+  const detached = (oi.buildType || '') === 'Отдельностоящее';
+  const list = detached
+    ? RES_BUILD_CAT.filter((o) => o === 'Обособленный')
+    : RES_BUILD_CAT.filter((o) => o !== 'Обособленный');
 
-  const detached = (oi.resCat || '') === 'Обособленный';
-  const list = detached ? BUILD_TYPE.slice() : BUILD_TYPE.filter((o) => o !== 'Отдельностоящее');
-  if (oi.buildType && !list.includes(oi.buildType)) list.push(oi.buildType);
+  if (oi.resCat && !list.includes(oi.resCat)) list.push(oi.resCat);
   return list;
 }
 
@@ -261,7 +256,6 @@ ${generalCard(ctx, oi)}
 ${areasCard(ctx, oi)}
 ${annexesCard(ctx, oi, 3)}
 ${structCard(ctx, oi, 4)}
-${docsCard(oi, 5)}
 ${photosCard(ctx, oi, 6)}
 </div>`;
 

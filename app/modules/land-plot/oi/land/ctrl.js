@@ -28,6 +28,7 @@ export function bind(ctx, oi) {
     '[data-land-location]': 'location',
     '[data-land-road]': 'roadLocation',
     '[data-land-corner]': 'corner',
+    '[data-land-relief]': 'relief',
     '[data-land-buildings]': 'buildings',
     '[data-land-building-type]': 'buildingType',
     '[data-land-building-area]': 'buildingArea',

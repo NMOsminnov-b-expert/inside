@@ -60,35 +60,6 @@ export function bindOcCreate(ctx) {
     ctx.toast(who + ' добавлен', 'ok');
   });
 
-  s.$$('[data-attach]').forEach((b) => b.onclick = async (e) => {
-    e.stopPropagation();
-    const t = b.dataset.attach;
-    const file = await pickFile();
-    if (!file) return;
-    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
-    rec.docs = rec.docs || [];
-    const doc = { id: nextDocId(rec), type: t, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
-    rec.docs.push(doc);
-    openDocViewer(ctx, 'oc', doc.id);
-    ctx.toast('Документ прикреплён: ' + t, 'ok');
-  });
-
-  s.$$('[data-doc-del]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const id = b.dataset.docDel;
-    const i = (rec.docs || []).findIndex((d) => d.id === id);
-    if (i >= 0) rec.docs.splice(i, 1);
-    VS.openTabs.oc = (VS.openTabs.oc || []).filter((x) => x !== id);
-    if (ctx.ui.viewerDoc && ctx.ui.viewerDoc.id === id) {
-      ctx.ui.viewerDoc = VS.openTabs.oc.length
-        ? { scope: 'oc', id: VS.openTabs.oc[VS.openTabs.oc.length - 1] }
-        : null;
-      if (!ctx.ui.viewerDoc) ctx.ui.viewer = null;
-    }
-    ctx.render();
-    ctx.toast('Документ откреплён');
-  });
-
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {
     if (e.target.closest('[data-doc-del]')) return;
     openDocViewer(ctx, 'oc', tr.dataset.openDoc);

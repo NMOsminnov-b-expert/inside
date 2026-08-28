@@ -224,7 +224,7 @@ export function buildBulkRecord(id, i, p) {
   rec.oi.push(buildingOi(id, i, p, 'А', {
     name: 'Жилой дом',
     residential: true,
-    resCat: ['Обособленный', 'Таунхаус', 'Пай-дома'][i % 3],
+    resCat: ['Обособленный', 'Таунхаус', 'Полдома'][i % 3],
     catClass: 'Жилое здание',
     photoShare: 0.7,
   }));

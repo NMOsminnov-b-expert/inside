@@ -2,6 +2,7 @@
 // Копия в каждом модуле — модуль может добавить свои поля фильтра, не ломая
 // остальные. Общий у всех только СМЫСЛ полей (см. app/README.md, контракты).
 import { STATUS_OC } from './dictionaries.js';
+import { eniRegion } from '../../../kernel/fmt.js';
 
 const STATUS_ORDER = new Map(STATUS_OC.map((s, i) => [s, i]));
 
@@ -23,6 +24,9 @@ export function matches(s, f, skip) {
   if (skip !== 'city' && !inList(f.city, s.city)) return false;
   if (skip !== 'institution' && !inList(f.institution, s.institution)) return false;
   if (skip !== 'insp' && !inList(f.insp, s.resp.insp)) return false;
+
+  // Область считается из ЕНИ, поэтому проверяется не полем записи, а разбором кода.
+  if (skip !== 'region' && !inList(f.region, eniRegion(s.eni))) return false;
 
   if (skip !== 'flags' && f.flags && f.flags.length) {
     for (const flag of f.flags) {
@@ -71,14 +75,24 @@ const CMP = {
   status: (a, b) => (STATUS_ORDER.get(a.status) ?? 99) - (STATUS_ORDER.get(b.status) ?? 99),
 };
 
+// Сортировка по флажку: сначала записи, где он поднят. Компаратор строится на
+// лету — флажков несколько, и заводить каждому свою строку в CMP значит
+// забывать про новые (так и вышло: сортировка была только по заметкам).
+const flagCmp = (flag) => (a, b) => (b.flags[flag] ? 1 : 0) - (a.flags[flag] ? 1 : 0);
+const FLAG_SORT_KEYS = ['specials', 'pendingNotes', 'mlUnverified', 'defects', 'ml'];
+
 export function sortRows(rows, sort) {
-  const base = CMP[sort && sort.key] || CMP.updatedAt;
+  const key = sort && sort.key;
+  const base = (FLAG_SORT_KEYS.includes(key) && key !== 'pendingNotes' ? flagCmp(key) : CMP[key])
+    || CMP.updatedAt;
   const cmp = (sort && sort.dir === 'asc') ? (a, b) => -base(a, b) : base;
   return rows.sort(cmp);
 }
 
 const FACET_KEYS = {
   status: (s) => s.status,
+  // Область — не поле записи, а признак кода ЕНИ: его первая цифра (Л1.7).
+  region: (s) => eniRegion(s.eni),
   city: (s) => s.city,
   institution: (s) => s.institution,
   insp: (s) => s.resp.insp,
@@ -88,10 +102,10 @@ const FACET_KEYS = {
 // Счётчики по каждому фасету: критерий самого фасета исключается,
 // иначе после первого выбора остальные варианты исчезают.
 // Когда фасетные критерии не выбраны, всё считается одной проходкой.
-const FLAG_KEYS = ['pendingNotes', 'mlUnverified', 'defects', 'ml'];
+const FLAG_KEYS = ['specials', 'pendingNotes', 'mlUnverified', 'defects', 'ml'];
 
 function emptyFacets() {
-  return { status: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
+  return { status: {}, region: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
 }
 
 export function computeFacets(all, f) {

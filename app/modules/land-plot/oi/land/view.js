@@ -2,11 +2,10 @@ import { esc } from '../../../../kernel/dom.js';
 import {
   STATUS_BUILD, DOC_TYPES, LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
   LAND_LOCATION, LAND_ROAD_LOCATION, LAND_CORNER, LAND_ENCUMBRANCE,
-  LAND_BUILDINGS, LAND_UTILITY_STATUS, LAND_FORM, IRRIGATION_TYPE,
+  LAND_BUILDINGS, LAND_UTILITY_STATUS, LAND_FORM, IRRIGATION_TYPE, LAND_RELIEF,
 } from '../../data/dictionaries.js';
 import { utilitiesMS } from './utilities.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
-import { docsBlockInner } from '../../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
 function options(values, value) {
@@ -53,18 +52,14 @@ function locationCard(oi) {
   const showEncArea = oi.encumbrance === 'Есть';
   const showBuildings = oi.buildings === 'Есть';
     return `<div class="card t-blue"><div class="card-head"><span class="card-idx">03</span><h3>Местоположение и застройка</h3></div><div class="card-pad"><div class="grid g-3">
-  ${selectField('Расположение в районе', 'data-land-location', LAND_LOCATION, oi.location)}${selectField('Расположение к трассе', 'data-land-road', LAND_ROAD_LOCATION, oi.roadLocation)}${selectField('Угловой/Неугловой', 'data-land-corner', LAND_CORNER, oi.corner)}</div>
+  ${selectField('Расположение в районе', 'data-land-location', LAND_LOCATION, oi.location)}${selectField('Расположение к трассе', 'data-land-road', LAND_ROAD_LOCATION, oi.roadLocation)}${selectField('Угловой/Неугловой', 'data-land-corner', LAND_CORNER, oi.corner)}${selectField('Рельеф участка', 'data-land-relief', LAND_RELIEF, oi.relief)}</div>
 <div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea" data-land-location-features>${esc(oi.locationFeatures || '')}</textarea></div>
 <div class="grid g-2" style="margin-top:10px">${selectField('Наличие сервитутов и обременений', 'data-land-encumbrance', LAND_ENCUMBRANCE, oi.encumbrance || 'Нет')}${showEncArea ? `<div class="field"><label>Площадь сервитутов и обременений, кв.м. <span class="req">*</span></label><input class="input" data-land-encumbrance-area value="${esc(oi.encumbranceArea || '')}" required></div>` : ''}</div>
 <div class="grid g-3" style="margin-top:10px">${selectField('Наличие построек', 'data-land-buildings', LAND_BUILDINGS, oi.buildings || 'Нет')}${showBuildings ? `<div class="field"><label>Тип построек <span class="req">*</span></label><input class="input" data-land-building-type value="${esc(oi.buildingType || '')}" required></div>` : ''}${showBuildings ? `<div class="field"><label>Площадь построек, кв.м. <span class="req">*</span></label><input class="input" data-land-building-area value="${esc(oi.buildingArea || '')}" required></div>` : ''}</div></div></div>`;
 }
 
-function documentsCard(oi) {
-  return `<div class="card t-slate"><div class="card-head"><span class="card-idx">04</span><h3>Документы</h3></div><div class="card-pad">${docsBlockInner(oi, oi.id)}</div></div>`;
-}
-
 export function render(ctx, oi) {
   const agricultural = oi.landType !== 'Несельскохозяйственный';
-  const body = `<div class="oi-stack">${commonCard(oi)}${agricultural ? agriculturalCard(ctx, oi) : nonAgriculturalCard(oi)}${locationCard(oi)}${documentsCard(oi)}<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div></div>`;
+  const body = `<div class="oi-stack">${commonCard(oi)}${agricultural ? agriculturalCard(ctx, oi) : nonAgriculturalCard(oi)}${locationCard(oi)}<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div></div>`;
   return `<div class="view-head"><button class="back-btn" data-back>← К объекту оценки</button><span class="pill pill-gray">Земельный участок</span><button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button><button class="btn btn-primary" data-save-oi>Сохранить</button><button class="btn btn-ghost" data-back>Отмена</button></div>${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body)}`;
 }

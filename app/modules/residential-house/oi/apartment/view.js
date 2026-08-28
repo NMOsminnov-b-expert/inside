@@ -10,7 +10,6 @@ import {
 import { apartmentFloorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
-import { docsBlockInner } from '../../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
 // Материал теперь мультивыбор: в одном элементе их может быть несколько
@@ -227,15 +226,6 @@ function plansCard(oi, idx = 3) {
 </div>`;
 }
 
-function docsCard(oi, idx = 4) {
-  return `<div class="card t-slate" id="q-docs">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Документы</h3><span class="chev">▾</span></div>
-<div class="card-body-wrap"><div class="card-pad">
-${docsBlockInner(oi, oi.id)}
-</div></div>
-</div>`;
-}
-
 function photosCard(ctx, oi, idx = 5) {
   return `<div class="card t-blue" id="q-photo">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
@@ -271,7 +261,6 @@ ${areasCard(ctx, oi)}
 ${annexesCard(ctx, oi, 3)}
 ${plansCard(oi, 4)}
 ${structCard(ctx, oi, 5)}
-${docsCard(oi, 6)}
 ${photosCard(ctx, oi, 7)}
 </div>`;
 

@@ -56,7 +56,7 @@ export function countAll(filter) {
 }
 
 export function facetsAll(filter) {
-  const merged = { status: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
+  const merged = { status: {}, region: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
 
   // Фасет «тип ОЦ» считаем по всем модулям, остальные — по отобранным.
   sortedTypes().forEach((t) => {
@@ -66,7 +66,7 @@ export function facetsAll(filter) {
 
   typesFor(filter).forEach((t) => {
     const f = t.records.facets(filter);
-    ['status', 'city', 'institution', 'insp'].forEach((key) => {
+    ['status', 'region', 'city', 'institution', 'insp'].forEach((key) => {
       Object.keys(f[key]).forEach((k) => { merged[key][k] = (merged[key][k] || 0) + f[key][k]; });
     });
     Object.keys(f.flags).forEach((k) => { merged.flags[k] = (merged.flags[k] || 0) + f.flags[k]; });

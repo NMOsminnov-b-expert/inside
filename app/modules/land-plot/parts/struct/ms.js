@@ -1,3 +1,4 @@
+import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 
 // Мультивыбор материалов в конструктивном составе (Л3.х): фундамент, стены,
@@ -25,20 +26,16 @@ const OPTS = new Map();
 
 const isOther = (list) => list.some((v) => String(v).includes('Прочее'));
 
-function optionRow(key, v, checked) {
-  return `<label class="ms-opt"><input type="checkbox" data-struct-opt="${esc(key)}|${esc(v)}" ${checked ? 'checked' : ''}>${esc(v)}</label>`;
-}
-
-// Список делится на «Выбрано» / «Не выбрано» — как у отопления: иначе при
-// длинном перечне материалов приходится искать, что уже отмечено.
+// Тело списка — общее для всех мультивыборов проекта (kernel/multiSelect.js):
+// деление на «Выбрано / Не выбрано» и поиск по значениям. Материалов в словаре
+// много, и без поиска нужный ищется глазами по всему перечню.
 function dropBodyHTML(key, opts, list) {
-  const sel = opts.filter((o) => list.includes(o));
-  const rest = opts.filter((o) => !list.includes(o));
-
-  return `<div class="dd-group">Выбрано${sel.length ? ` (${sel.length})` : ''}</div>
-${sel.length ? sel.map((o) => optionRow(key, o, true)).join('') : '<div class="muted" style="padding:4px 9px">Ничего не выбрано</div>'}
-<div class="dd-group">Не выбрано</div>
-${rest.length ? rest.map((o) => optionRow(key, o, false)).join('') : '<div class="muted" style="padding:4px 9px">Выбрано всё</div>'}`;
+  return msDropBodyHTML({
+    options: opts,
+    selected: list,
+    optAttr: 'struct-opt',
+    value: (v) => `${key}|${v}`,
+  });
 }
 
 // Свёрнутый вид — одна строка с обрезкой: перенос тегов раздувал бы поле по
@@ -121,6 +118,9 @@ export function migrateStruct(rec) {
 // умирают вместе со своими элементами, поэтому накопиться не могут; после
 // точечной перерисовки списка их вешает сама updateStructUI.
 function bindOpts(scope, oi, box) {
+  // Поиск по списку — общая часть всех мультивыборов (kernel/multiSelect.js).
+  bindMsSearch(box.querySelector('.ms-drop'));
+
   box.querySelectorAll('[data-struct-opt]').forEach((cb) => {
     cb.onchange = () => {
       const [key, value] = cb.dataset.structOpt.split('|');

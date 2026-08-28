@@ -57,7 +57,9 @@ export const COLUMNS = [
   { key: 'landArea', label: 'Площадь ЗУ, м²', width: 112, align: 'right', sort: 'landArea' },
   { key: 'owners', label: 'Собственники', width: 160 },
   { key: 'users', label: 'Пользователи', width: 150 },
-  { key: 'tags', label: 'Теги', width: 150 },
+  // Сортировка по флажкам: наверх поднимаются отмеченные (решение
+  // пользователя 28.08.2026).
+  { key: 'tags', label: 'Теги', width: 150, sort: 'specials' },
   { key: 'area', label: 'Площадь, м²', width: 104, align: 'right', sort: 'area' },
   { key: 'oiCount', label: 'ОИ', width: 46, align: 'right', sort: 'oiCount' },
   { key: 'photos', label: 'Фото', width: 56, align: 'right' },
@@ -79,6 +81,8 @@ export function emptyFilter() {
     q: '',
     status: [],
     typeId: [],
+    // Область берётся из первой цифры ЕНИ (Л1.7), отдельного поля в записи нет.
+    region: [],
     city: [],
     institution: [],
     insp: [],

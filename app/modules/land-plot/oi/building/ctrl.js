@@ -4,7 +4,7 @@ import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
-import { buildFloors, recalcFloors, addMansard, removeMansard } from './floors.model.js';
+import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
@@ -38,10 +38,11 @@ export function bind(ctx, oi) {
     };
     fn.onchange = () => {
       const n = parseInt(fn.value, 10);
-      // Пустое поле — не повод обнулять этажи: оставляем прежнее значение.
-      if (!n) { fn.value = oi.floors; return; }
+      // Пустое поле — не повод менять состав: оставляем прежнее значение.
+      // А вот ноль допустим: бывает объект из одного цоколя и мансарды.
+      if (fn.value.trim() === '') { fn.value = oi.floors; return; }
 
-      oi.floors = Math.min(200, Math.max(1, n));
+      oi.floors = Math.min(200, Math.max(0, n || 0));
       fn.value = oi.floors;
       buildFloors(oi);
       redrawFloors();
@@ -54,6 +55,14 @@ export function bind(ctx, oi) {
   // на выброшенных узлах — то есть перестают работать после смены этажности
   // или добавления мансарды.
   const redrawFloors = () => { rerenderFloors(ctx, oi); bindFloors(); };
+
+  // Количество надземных этажей — производное от состава развёртки: строку
+  // могли добавить или убрать прямо в таблице.
+  const syncFloorsCount = () => {
+    const el = ctx.scope.$('[data-floors-n]');
+    if (el) el.value = oi.floors;
+    ctx.updatePlate();
+  };
 
   function bindFloors() {
     const rd = s.$('[data-redistribute]');
@@ -89,33 +98,54 @@ export function bind(ctx, oi) {
     s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
     s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
 
+    // Название строки правится вручную: этажи бывают «−1», подвалов и цоколей
+    // может быть несколько. Перерисовки не делаем — сбился бы курсор в поле.
+    s.$$('[data-floor-name]').forEach((inp) => inp.onchange = () => {
+      renameFloorRow(oi, +inp.dataset.floorName, inp.value);
+    });
+
     // Тип у каждой мансардной строки: мансарда и полумансарда бывают в одном
     // здании, поэтому одного поля на литеру не хватает (Л5.3).
     s.$$('[data-floor-mansard]').forEach((sel) => sel.onchange = () => {
       oi.floorList[+sel.dataset.floorMansard].mansardType = sel.value;
     });
 
-    const addM = s.$('[data-add-mansard]');
-    if (addM) addM.onclick = (e) => {
+    // Строку любой категории можно добавить и убрать: состав развёртки задаёт
+    // человек, а не формула. Поле «Количество этажей» после этого пересчитано
+    // по надземным строкам, поэтому обновляем и его.
+    s.$$('[data-add-floor]').forEach((b) => b.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      addMansard(oi);
+      addFloorRow(oi, b.dataset.addFloor);
       redrawFloors();
-    };
+      syncFloorsCount();
+    });
 
-    s.$$('[data-del-mansard]').forEach((b) => b.onclick = (e) => {
+    s.$$('[data-del-floor]').forEach((b) => b.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      removeMansard(oi, +b.dataset.delMansard);
+      removeFloorRow(oi, +b.dataset.delFloor);
       redrawFloors();
+      syncFloorsCount();
     });
   }
 
   bindFloors();
 
   // --- Общие параметры ----------------------------------------------------
+  // Перерисовка обязательна: от расположения зависит список категорий
+  // жилого строения (обособленный бывает только у отдельностоящего).
   const bt = s.$('[data-buildtype]');
-  if (bt) bt.onchange = () => { oi.buildType = bt.value; ctx.updatePlate(); };
+  if (bt) bt.onchange = () => {
+    oi.buildType = bt.value;
+    // Категория, не подходящая новому расположению, сбрасывается: держать её
+    // молча означало бы хранить противоречие в данных.
+    const detached = oi.buildType === 'Отдельностоящее';
+    if (detached && oi.resCat && oi.resCat !== 'Обособленный') oi.resCat = 'Обособленный';
+    if (!detached && oi.resCat === 'Обособленный') oi.resCat = '';
+    ctx.updatePlate();
+    ctx.render();
+  };
 
   const cm = s.$('[data-comment]');
   if (cm) cm.onchange = () => { oi.comment = cm.value; };

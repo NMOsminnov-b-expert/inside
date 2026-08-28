@@ -309,7 +309,7 @@ export function createSeed() {
           status: 'Основное',
           origin: 'manual',
           residential: true,
-          resCat: 'Пай-дома',
+          resCat: 'Полдома',
           eni: '147561683917',
           year: '1978',
           flags: { entered: true, matched: false },

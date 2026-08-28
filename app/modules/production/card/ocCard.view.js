@@ -1,11 +1,11 @@
+import { flagBadgesHTML } from '../../../kernel/flagBadges.js';
+import { recFlags } from '../records.js';
 import { canViewAuditLog } from '../audit/access.js';
 import { auditTab } from '../audit/view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
-import { DOC_TYPES } from '../data/dictionaries.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { tableOI } from './oiTable.view.js';
-import { docsTableHTML } from '../parts/docs/table.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
@@ -21,6 +21,8 @@ function headOC(rec) {
       <div class="hm"><label>Назначение по ТП</label><b>${esc(rec.purposeTP)}</b></div>
       <div class="hm"><label>Код ЕНИ</label><b>${esc(fmtEni(rec.eni))}</b></div>
       <div class="hm"><label>Адрес</label><b>${esc(rec.address)}</b></div>
+
+      ${flagBadgesHTML(recFlags(rec))}
 
       <span class="pill pill-status" style="margin-left:auto"><span class="dot"></span>${esc(rec.status)}</span>
 
@@ -66,28 +68,6 @@ function partiesOC(rec) {
   </div>`;
 }
 
-function docsTab(ctx) {
-  return splitWrap(
-    // Просмотрщик рисуется всегда, а не только когда документ уже выбран: без
-    // этого на пустом экране его не было вовсе, хотя на соседней вкладке той же
-    // карточки он есть. Что показать, решает сам viewerHTML — открытый документ
-    // либо приглашение выбрать/прикрепить.
-    ctx.ui.viewer ? viewerHTML(ctx) : null,
-    `<div class="card t-slate">
-      <div class="card-head"><span class="card-idx">03</span><h3>Перечень документов</h3><span class="hint">клик по строке — просмотрщик</span>
-        <div class="dd" style="margin-left:auto">
-          <button class="btn btn-primary btn-sm" data-dd-toggle>+ Прикрепить документ</button>
-          <div class="dd-menu">${DOC_TYPES.map((t) => `<button data-attach="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-        </div>
-      </div>
-
-      ${docsTableHTML(ctx.rec, true)}
-
-      ${(ctx.rec.docs || []).length ? '<div class="muted" style="font-size:10.5px;padding:8px 14px 12px">Открытые документы накапливаются вкладками.</div>' : ''}
-    </div>`
-  );
-}
-
 export function viewOC(ctx) {
   const rec = ctx.rec;
   const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx));
@@ -95,13 +75,11 @@ export function viewOC(ctx) {
   return `${headOC(rec)}
     <div class="tabs">
       <button class="tab ${ctx.tab === 'general' ? 'active' : ''}" data-tab="general">Общие данные</button>
-      <button class="tab ${ctx.tab === 'docs' ? 'active' : ''}" data-tab="docs">Документы ${(rec.docs || []).length}</button>
       <button class="tab ${ctx.tab === 'photo' ? 'active' : ''}" data-tab="photo">Фото</button>
       ${canViewAuditLog(rec) ? `<button class="tab ${ctx.tab === 'audit' ? 'active' : ''}" data-tab="audit">Логи</button>` : ''}
     </div>
 
     ${ctx.tab === 'general' ? generalTab
-      : ctx.tab === 'docs' ? docsTab(ctx)
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
       : photosTab(ctx)}`;
 }

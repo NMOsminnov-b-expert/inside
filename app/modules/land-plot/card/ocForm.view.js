@@ -1,8 +1,7 @@
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
-import { STATUS_OC, DOC_TYPES } from '../data/dictionaries.js';
+import { STATUS_OC } from '../data/dictionaries.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
-import { docsTableHTML } from '../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 
 function mainSection(rec) {
@@ -117,25 +116,6 @@ function partiesSection(rec) {
   </div>`;
 }
 
-function docsSection(rec) {
-  return `<div class="card t-slate">
-    <div class="card-head">
-      <span class="card-idx">05</span>
-      <h3>Документы ОЦ</h3>
-      <span class="hint">клик по строке — просмотрщик</span>
-
-      <div class="dd" style="margin-left:auto">
-        <button class="btn btn-primary btn-sm" data-dd-toggle>+ Прикрепить документ</button>
-        <div class="dd-menu">
-          ${DOC_TYPES.map((t) => `<button data-attach="${esc(t)}">${esc(t)}</button>`).join('')}
-        </div>
-      </div>
-    </div>
-
-    ${docsTableHTML(rec, true)}
-  </div>`;
-}
-
 export function viewOCForm(ctx) {
   const rec = ctx.rec;
 
@@ -144,7 +124,6 @@ export function viewOCForm(ctx) {
     ${locationSection(rec)}
     ${compositionSection(rec)}
     ${partiesSection(rec)}
-    ${docsSection(rec)}
   </div>`;
 
   return `<div class="view-head">

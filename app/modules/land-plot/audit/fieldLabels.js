@@ -97,6 +97,7 @@ const BY_CARD = {
     location: 'Расположение в районе',
     roadLocation: 'Расположение к трассе',
     corner: 'Угловой/неугловой',
+    relief: 'Рельеф участка',
     locationFeatures: 'Особенности местоположения',
     encumbrance: 'Наличие сервитутов и обременений',
     encumbranceArea: 'Площадь сервитутов и обременений',

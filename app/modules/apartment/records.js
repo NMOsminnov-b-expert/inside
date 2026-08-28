@@ -40,6 +40,12 @@ function metricsOf(rec) {
   };
 }
 
+// Публично — та же функция нужна карточке: значки состояния показываются
+// и в реестре, и в шапке ОЦ, и в плашке литеры.
+export function recFlags(rec) {
+  return flagsOf(rec);
+}
+
 function flagsOf(rec) {
   const ml = rec.oi.some((o) => (o.origin || 'manual') === 'ml');
   return {

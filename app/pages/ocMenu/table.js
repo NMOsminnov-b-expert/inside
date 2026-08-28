@@ -1,3 +1,4 @@
+import { flagBadgesHTML } from '../../kernel/flagBadges.js';
 import { esc } from '../../kernel/dom.js';
 import { fmtNum, fmtInt, fmtEni } from '../../kernel/fmt.js';
 import {
@@ -29,21 +30,10 @@ function listCell(list) {
 // Теги вынесены в свой столбец (Л1.10). Пока это те же признаки записи, что
 // раньше жили значками в столбце адреса; окончательный состав тегов — на
 // согласовании (вопрос 2.3 в docs/tz/90-na-soglasovanie.md).
-const TAGS = [
-  ['ml', 'ML', 'ml', 'импорт ML'],
-  ['mlUnverified', 'ML', 'ml warn', 'импорт ML без проверки'],
-  ['defects', '⚠', 'warn', 'расхождение ТП и фото'],
-  ['pendingNotes', '⚑', 'notes', 'есть невыполненные заметки'],
-  ['specials', '✦', 'spec', 'отмечены особенности'],
-];
-
 function tagsCell(flags) {
-  const f = flags || {};
-  const on = TAGS.filter(([k]) => f[k]);
-  if (!on.length) return '<span class="muted">—</span>';
-  return `<span class="ell" title="${esc(on.map((t) => t[3]).join(', '))}">`
-    + on.map(([, ico, cls, t]) => `<span class="reg-badge ${cls}" title="${esc(t)}">${ico}</span>`).join(' ')
-    + '</span>';
+  // Набор и вид значков общие с карточками (kernel/flagBadges.js): держать
+  // здесь свою копию значило получить два разных набора при первой же правке.
+  return flagBadgesHTML(flags) || '<span class="muted">—</span>';
 }
 
 function cell(col, s) {
