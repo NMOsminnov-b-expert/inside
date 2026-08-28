@@ -43,9 +43,14 @@ ${rest.length ? rest.map((o) => optionRow(key, o, false)).join('') : '<div class
 
 // Свёрнутый вид — одна строка с обрезкой: перенос тегов раздувал бы поле по
 // высоте и ломал сетку. Полный перечень — в подсказке и в открытом списке.
+//
+// Разделитель — « / », а не запятая (Л3.2): в названиях материалов запятая
+// встречается сама по себе («кирпич, силикатный»), и перечисление через неё
+// читается как один длинный материал.
 function summaryHTML(list) {
+  const text = list.join(' / ');
   return list.length
-    ? `<span class="ms-summary" title="${esc(list.join(', '))}">${esc(list.join(', '))}</span><span class="ms-count">${list.length}</span>`
+    ? `<span class="ms-summary" title="${esc(text)}">${esc(text)}</span><span class="ms-count">${list.length}</span>`
     : '<span class="muted">не выбрано</span>';
 }
 

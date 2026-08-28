@@ -1,8 +1,8 @@
 import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
-import { VS, vSt, vPages, vGo, setVZoom, openDocViewer, openPhotoInPlace } from './state.js';
-import { nextId } from '../../data/store.js';
+import { VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace } from './state.js';
+import { nextDocId } from '../../data/store.js';
 import { paintPdfCanvases } from './pdf.js';
 import { pushDocPageLog } from '../../audit/model.js';
 
@@ -44,7 +44,8 @@ function rotateViewer(ctx) {
 // отрисованный canvas и на больших значениях мылит его — pdf.js рисует заново
 // в новом разрешении, когда масштаб переходит на другую «ступень».
 function zoomViewer(ctx, value) {
-  setVZoom(ctx, value);
+  // Страница под курсором остаётся той же — см. keepPageOnZoom.
+  keepPageOnZoom(ctx.scope.$('[data-vstage]'), 'data-vpageblk', () => setVZoom(ctx, value));
   // Только лента страниц: миниатюры живут вне неё и от зума не зависят.
   paintPdfCanvases(ctx, VS.zoom, ctx.scope.$('[data-vribbon]') || undefined);
 }
@@ -169,8 +170,22 @@ export function bindViewer(ctx) {
     openPhotoInPlace(ctx, oiId, +idx);
   });
 
+  // Крестик не просто прячет панель, а ЗАПОМИНАЕТ закрытие: иначе на следующем
+  // же переходе ensureViewerDefault включал бы её обратно, и закрыть насовсем
+  // было нельзя. Снимается только закладкой.
   const vc = s.$('[data-vclose]');
-  if (vc) vc.onclick = () => { ctx.ui.viewer = null; ctx.render(); };
+  if (vc) vc.onclick = () => {
+    ctx.ui.viewer = null;
+    ctx.ui.viewerClosed = true;
+    ctx.render();
+  };
+
+  const vo = s.$('[data-vopen]');
+  if (vo) vo.onclick = () => {
+    ctx.ui.viewerClosed = false;
+    ctx.ui.viewer = { mode: 'doc' };
+    ctx.render();
+  };
 
   // Габариты повёрнутого листа надо выставить и на первой отрисовке, а не только
   // по клику: состояние поворота живёт в VS и переживает перерисовку экрана.
@@ -195,18 +210,6 @@ export function bindViewer(ctx) {
     if (st) st.page = Math.min(st.page, d.pages.length);
     ctx.render();
   });
-
-  const vap = s.$('[data-vaddpage]');
-  if (vap) vap.onclick = () => {
-    const vd = ctx.ui.viewerDoc;
-    if (!vd) return;
-    const d = docListFor(ctx, vd.scope).find((x) => x.id === vd.id);
-    if (!d) return;
-    d.pages.push({ kind: 'skel' });
-    pushDocPageLog(ctx.rec, d, 'create', d.pages.length);
-    ctx.render();
-    ctx.toast('Страница добавлена', 'ok');
-  };
 
   // Вкладки документов просмотрщика.
   s.$$('[data-vtab]').forEach((b) => b.onclick = (e) => {
@@ -292,7 +295,7 @@ export function bindViewer(ctx) {
     if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
 
     const list = docListFor(ctx, scope);
-    const doc = { id: nextId('doc'), type, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
+    const doc = { id: nextDocId(ctx.rec), type, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
     list.push(doc);
 
     openDocViewer(ctx, scope, doc.id);
@@ -358,11 +361,15 @@ function bindCompareColumns(ctx) {
   const s = ctx.scope;
 
   const setZoom = (which, value) => {
-    VS.cmpZoom[which] = Math.min(500, Math.max(40, value));
     const ribbon = s.$(`[data-cmp-ribbon="${which}"]`);
-    if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
-    const label = s.$(`[data-cmp-zoomlabel="${which}"]`);
-    if (label) label.textContent = VS.cmpZoom[which] + '%';
+    // Как и в обычной ленте, масштаб не должен перелистывать колонку.
+    const blkAttr = which === 'photo' ? 'data-cmp-phblk' : 'data-cmp-dcblk';
+    keepPageOnZoom(s.$(`[data-cmp-stage="${which}"]`), blkAttr, () => {
+      VS.cmpZoom[which] = Math.min(500, Math.max(40, value));
+      if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
+      const label = s.$(`[data-cmp-zoomlabel="${which}"]`);
+      if (label) label.textContent = VS.cmpZoom[which] + '%';
+    });
     // Только своя колонка: без ограничения области перерисовывалась и чужая,
     // причём чужим масштабом.
     if (ribbon) paintPdfCanvases(ctx, VS.cmpZoom[which], ribbon);
@@ -430,6 +437,26 @@ function bindThumbReorder(ctx) {
   const s = ctx.scope;
   const sel = () => (ctx.ui.pageSel || (ctx.ui.pageSel = []));
 
+  // Лента миниатюр во время перетаскивания сама прокручивается у краёв: без
+  // этого страницу нельзя утащить дальше видимой части ленты — курсор с
+  // зажатой страницей упирается в край, а список стоит на месте.
+  const rail = s.$('.vrail');
+  // Прокручивается внутренний список, а не сама лента — обработчик нужен
+  // именно на нём, иначе scrollTop менялся бы у элемента без прокрутки.
+  const scroller = rail && (rail.querySelector('.vrail-list') || rail);
+  if (scroller && !scroller.dataset.dragScrollBound) {
+    scroller.dataset.dragScrollBound = '1';
+
+    const EDGE = 46;    // зона у края, в которой начинается прокрутка
+    const STEP = 18;    // шаг за одно событие — плавно, но заметно
+
+    scroller.addEventListener('dragover', (e) => {
+      const r = scroller.getBoundingClientRect();
+      if (e.clientY < r.top + EDGE) scroller.scrollTop -= STEP;
+      else if (e.clientY > r.bottom - EDGE) scroller.scrollTop += STEP;
+    });
+  }
+
   s.$$('[data-vthumb][draggable]').forEach((el) => {
     const idx = +el.dataset.vthumb;
 
@@ -486,6 +513,10 @@ function bindThumbReorder(ctx) {
       if (fromIdxs.length === 1 && (toIdx === fromIdxs[0] || toIdx === fromIdxs[0] + 1)) return;
 
       reorderPages(d, fromIdxs, toIdx);
+      // Перестановка страниц — такая же правка документа, как удаление и
+      // добавление, и в логе должна быть видна наравне с ними: иначе порядок
+      // страниц меняется бесследно. Записываем позицию, КУДА перенесли.
+      pushDocPageLog(ctx.rec, d, 'move', toIdx + 1);
       ctx.ui.pageSel = [];
       ctx.render();
       ctx.toast(fromIdxs.length > 1 ? `Порядок изменён: ${fromIdxs.length} страниц` : 'Порядок страниц изменён', 'ok');

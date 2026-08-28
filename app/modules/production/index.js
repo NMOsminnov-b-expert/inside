@@ -1,4 +1,7 @@
 import { migrateAreaList } from '../../kernel/areaList.js';
+// Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
+// поэтому и перевод её данных берётся оттуда же.
+import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
 import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -16,8 +19,9 @@ import { ctxPlate, updatePlate } from './card/ctxPlate.js';
 import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
-import { bindViewer } from './parts/viewer/ctrl.js';
+import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
+import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { viewMech } from './create/mech.view.js';
 import { bindMech } from './create/mech.ctrl.js';
 
@@ -77,6 +81,18 @@ export function main(host) {
         rec.oi.forEach((o) => { if (o.landId === oi.id) o.landId = null; });
       }
 
+
+      // Фото литеры не удаляются вместе с ней — переезжают в «Фото без
+      // литеры» на уровне ОЦ (см. parts/photos/explorer.js), а сам факт
+      // удаления каскадом попадает в лог поле за полем (pushOiDeletionLog) —
+      // литера остаётся видна в логе как «(удалена)», см. audit/model.js.
+      const photos = oi.photos || {};
+      const hasPhotos = Object.values(photos).some((n) => n > 0);
+      if (hasPhotos) {
+        rec.ocOrphanPhotos = rec.ocOrphanPhotos || [];
+        rec.ocOrphanPhotos.push({ fromOiId: oi.id, letter: oi.letter, name: oi.name, photos: { ...photos } });
+      }
+      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 
       const i = rec.oi.findIndex((o) => o.id === id);
       if (i >= 0) rec.oi.splice(i, 1);
@@ -250,12 +266,55 @@ export function main(host) {
     if (scope.syncStickyHead) scope.syncStickyHead();
   }
 
+  // Просмотрщик по умолчанию должен быть виден всегда — прячется только явным
+  // закрытием (крестик, data-vclose). Если что-то оставило его пустым (первая
+  // загрузка, переход без явного выбора режима), включаем режим документов; при
+  // их отсутствии viewerHTML сам покажет приглашение прикрепить документ.
+  function ensureViewerDefault() {
+    // Исключение — вкладка «Логи»: она на всю ширину, просмотрщику там не место.
+    if (route.rest.length === 0 && route.query.tab === 'audit') return;
+    // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
+    if (ui.viewerClosed) return;
+    if (!ui.viewer) ui.viewer = { mode: 'doc' };
+
+    // Фото и сравнение — про литеру: и то и другое берётся из ctx.oi. На
+    // экранах уровня ОЦ (формы редактирования и создания, мастер объекта) литеры
+    // нет, и оставшийся с прошлого экрана режим «Фото» открыл бы просмотрщик
+    // пустым. Вкладка «Фото» самой карточки ОЦ — исключение: там режим фото
+    // осмысленный (плитки по литерам, см. parts/photos/explorer.js).
+    const onOi = route.rest[0] === 'oi';
+    const onOcPhotoTab = route.rest.length === 0 && route.query.tab === 'photo';
+    if (!onOi && !onOcPhotoTab && ui.viewer.mode !== 'doc') ui.viewer = { mode: 'doc' };
+  }
+
+  // Лог действий (вкладка «Логи» в карточке ОЦ, см. card/ocCard.view.js):
+  // снимок записи снимается при входе, сравнивается с текущим состоянием при
+  // выходе (смена маршрута/записи, размонтирование модуля) — см. audit/model.js.
+  // Так фиксируется любое поле любой карточки без ручной расстановки
+  // логирования по каждому onchange. Снимок берётся ПОСЛЕ отрисовки, а не до —
+  // иначе ленивая инициализация карточки ОИ (построение поэтажной развёртки и
+  // т.п., которое просто заполняет структуру при первом открытии, а не правит
+  // её) оказывается «после снимка» и попадает в дифф как правка пользователя.
+  let recSnapshot = null;
+
+  function resnapshot() {
+    recSnapshot = rec ? takeSnapshot(rec) : null;
+  }
+
+  function flushAuditLog() {
+    if (recSnapshot) recordChanges(rec, recSnapshot, rec);
+  }
+
   // Лоджии и балконы: было количество и общая площадь, стало список с площадью
   // у каждого (Л2.9). Перевод идёт до отрисовки, иначе попал бы в лог правок
   // как правка пользователя.
   function migrateAnnexes(r) {
     if (!r || !Array.isArray(r.oi)) return;
     r.oi.forEach((o) => {
+      // Коммуникации участка были объектом с четырьмя флажками, стали списком
+      // (инженерное оснащение). Перевод до отрисовки, иначе попал бы в лог
+      // правок как правка пользователя.
+      if (o.card === 'land') migrateUtilities(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
       // Террасы отделены от балконов (решение пользователя 2026-08-27):
@@ -329,25 +388,33 @@ export function main(host) {
 
   bindCommonUI();
   bindStickyHead();
+  // Клавиши просмотрщика — однократно на монтирование модуля, рядом с
+  // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
+  // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
+  bindViewerHotkeys(ctx);
+  ensureViewerDefault();
   migrateSpecials(rec);
   migrateStruct(rec);
   migrateAnnexes(rec);
-  draw();
+  draw().then(resnapshot);
 
   return {
     onRoute(next) {
+      flushAuditLog();
       route = next;
       const nextRec = loadRecord(next.ocId);
       if (nextRec !== rec) {
         rec = nextRec;
         resetViewer();
       }
+      ensureViewerDefault();
       migrateSpecials(rec);
       migrateStruct(rec);
       migrateAnnexes(rec);
-      draw();
+      draw().then(resnapshot);
     },
     destroy() {
+      flushAuditLog();
       resetViewer();
     },
   };

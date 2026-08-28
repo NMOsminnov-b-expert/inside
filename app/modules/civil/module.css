@@ -136,6 +136,17 @@ body[data-module="civil"] .done-toggle .chev{transition:transform .15s;font-size
 body[data-module="civil"] .done-toggle.open .chev{transform:rotate(90deg)}
 body[data-module="civil"] .done-list{margin-top:6px;padding:8px;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:7px}
 body[data-module="civil"] .split{display:flex;gap:0;align-items:flex-start;--vw:48%;min-width:0}
+/* Закладка закрытого просмотрщика — тот же приём, что у блока заметок
+   (.notes-tab в app.html), только с левой стороны и в синем тоне панели.
+   Класс не .vtab: тот уже занят вкладками документов ВНУТРИ просмотрщика.
+   Липкая: экран длинный, а вернуть просмотрщик нужно с любого места. */
+body[data-module="civil"] .split-closed{position:relative}
+body[data-module="civil"] .vopen-tab{position:sticky;top:0;align-self:flex-start;flex-shrink:0;margin-right:10px;
+  writing-mode:vertical-rl;text-orientation:mixed;background:var(--blue-600);color:#fff;
+  border:1px solid var(--blue-600);border-left:none;border-radius:0 8px 8px 0;
+  padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;
+  align-items:center;gap:6px;z-index:20;transition:background .12s}
+body[data-module="civil"] .vopen-tab:hover{background:var(--blue-700)}
 body[data-module="civil"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="civil"] .vsplit:hover{background:var(--blue-500)}
 body[data-module="civil"] .grow{flex:1;min-width:620px;padding-left:12px}
@@ -242,12 +253,8 @@ body[data-module="civil"] .cmp-body .vpage{width:380px;min-height:500px}
    страницей белое поле. */
 body[data-module="civil"] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module="civil"] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
 body[data-module="civil"] .cmp-body .photo-fill{height:460px}
-body[data-module="civil"] .pp-h{text-align:center;font-size:15px;letter-spacing:1px;margin:6px 0 2px;color:#0e2f4f;font-weight:700}
-body[data-module="civil"] .pp-sub{text-align:center;font-size:10.5px;color:#5d7292;margin-bottom:12px}
 body[data-module="civil"] .sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
 body[data-module="civil"] .sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
-body[data-module="civil"] .sk-table{width:100%;border-collapse:collapse;margin:10px 0}
-body[data-module="civil"] .sk-table td{border:1px solid var(--blue-200);height:18px}
 body[data-module="civil"] .qnav{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:6;background:var(--panel);padding:9px 14px;border-bottom:1px solid var(--line-soft);border-radius:var(--radius) var(--radius) 0 0}
 body[data-module="civil"] .qn{padding:4px 11px;border-radius:999px;border:1px solid var(--line-input);font-size:11.5px;color:#46536b;background:#fff;font-weight:600;transition:border-color .12s,color .12s}
 body[data-module="civil"] .qn:hover{border-color:var(--blue-500);color:var(--blue-700)}
@@ -478,6 +485,11 @@ body[data-module="civil"] .cmp-fold:hover{background:var(--blue-100);color:var(-
 /* Свёрнутая половина — узкая полоса: значок остаётся на месте, содержимое скрыто. */
 body[data-module="civil"] .cmp.cmp-folded-photo .cmp-col[data-cmp-side="photo"]{flex:0 0 38px}
 body[data-module="civil"] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="doc"]{flex:0 0 38px}
+/* Оставшаяся половина забирает всю освободившуюся ширину. Для документа это
+   работало само (у него flex:1 1 auto), а фото сидит на жёсткой доле
+   --cmp-photo и без этого правила оставалось шириной в половину экрана,
+   прижатое к левому краю, с пустым серым полем справа. */
+body[data-module="civil"] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="photo"]{flex:1 1 auto}
 body[data-module="civil"] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-body,
 body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-body{display:none}
 body[data-module="civil"] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h,
@@ -485,6 +497,19 @@ body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h{w
 body[data-module="civil"] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h > *:not(.cmp-fold),
 body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h > *:not(.cmp-fold){display:none}
 body[data-module="civil"] .cmp-folded-photo .cmp-split,body[data-module="civil"] .cmp-folded-doc .cmp-split{display:none}
+
+/* Свёрнута одна половина — вся полезная площадь уходит оставшейся: лист тянется
+   на всю ширину колонки, а не висит узкой полосой (380px) посреди серого поля.
+   max-width — чтобы на широком экране страница не разъезжалась до нечитаемых
+   пропорций. Мыла при этом нет: масштаб рендера PDF берётся из ФАКТИЧЕСКОЙ
+   ширины canvas, а ширина входит в ключ кэша отрисовки (viewer/pdf.js). */
+body[data-module="civil"] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage-wrap,
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
+body[data-module="civil"] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage,
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
+/* Плитка фото в развёрнутой половине тоже растёт — её высота была прибита к
+   460px под узкую колонку. */
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .photo-fill{height:auto;aspect-ratio:4 / 3}
 
 /* Краткая сводка вверху всегда: при прокрутке шапка карточки уезжает вверх, а
    плашка «ОЦ → литера» закрепляется на её месте. Плашка и так стоит сразу под
@@ -574,3 +599,90 @@ body[data-module="civil"] .ctx-plate-eni input{font-size:13px;width:150px;letter
 body[data-module="civil"] .oi-sep{height:1px;background:#c3cfdd;margin:18px 2px}
 body[data-module="civil"] .oi-node[data-oi-drop=""]{margin-top:0}
 body[data-module="civil"] .oi-node[data-oi-drop=""]:first-child{margin-top:0}
+
+/* ===== Типографика перечня ОИ ==============================================
+   Три уровня, различимых с одного взгляда — по размеру и насыщенности, а не по
+   капсу. Капс остаётся ТОЛЬКО у названий колонок: там он служебный и не спорит
+   с содержимым.
+
+     объект (шапка узла)   14px / 700, обычный регистр  — «на что смотрим»
+     раздел внутри узла    11.5px / 700, обычный регистр — «какая это группа»
+     названия колонок      10px / 700, КАПС, приглушённые
+     значения в строках    13px / 500, литера 700
+
+   Раньше здесь всё было 10–11px и почти всё капсом: шапка узла, разделы и
+   колонки читались одинаково, и глазу не за что было зацепиться. */
+
+body[data-module="civil"] .oi-node-head{padding:10px 12px}
+body[data-module="civil"] .oi-node-head b{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module="civil"] .oi-node-head .muted{font-size:12px}
+body[data-module="civil"] .oi-node-eni{font-size:12.5px;font-weight:600}
+
+/* Сводка по участку — своя зона: светлее узла, с явной чертой снизу, чтобы не
+   слипалась с шапкой колонок. */
+body[data-module="civil"] .oi-land-sum{background:#eef7f2;border-bottom:2px solid var(--teal-100);padding:11px 12px}
+body[data-module="civil"] .oi-land-f label{font-size:9.5px;font-weight:700;color:#6f8a7e}
+body[data-module="civil"] .oi-land-f b{font-size:13px;font-weight:600;color:#1d3b2f}
+
+/* Заголовок раздела — заметный, а не служебная надпись. */
+body[data-module="civil"] .oi-sub-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;
+  padding:8px 12px}
+body[data-module="civil"] .oi-sub[data-oi-sub="real"] .oi-sub-h{background:var(--blue-100);color:var(--blue-700);
+  box-shadow:inset 4px 0 0 var(--blue-600)}
+body[data-module="civil"] .oi-sub[data-oi-sub="movable"] .oi-sub-h{background:var(--amber-50);color:var(--amber-700);
+  box-shadow:inset 4px 0 0 var(--amber-600)}
+
+/* Названия колонок: капс сохранён, но приглушён — это подписи, а не заголовки. */
+body[data-module="civil"] .oi-tree-tbl th{font-size:10px;font-weight:700;color:#7d93a6;letter-spacing:.5px;
+  background:#fbfdff;padding:7px 10px}
+body[data-module="civil"] .oi-cols-row{border-bottom:1px solid var(--line)}
+
+/* Значения: литера — якорь строки, поэтому заметно плотнее остального. */
+body[data-module="civil"] .oi-letter td{font-size:13px;font-weight:500;color:#22314a}
+body[data-module="civil"] .oi-letter td:first-child{font-size:13.5px;font-weight:700}
+
+/* ===== Та же шкала — на карточки и блоки ===================================
+   Уровни те же, что в перечне ОИ, чтобы по шрифту сразу читалось, на что
+   смотришь: заголовок карточки → заголовок блока → подпись поля → значение.
+   Капс остаётся только у подписей полей и названий колонок. */
+
+body[data-module="civil"] .card-head h3{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module="civil"] .card-head .hint{font-size:11px;font-weight:400}
+body[data-module="civil"] .sec-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--blue-700)}
+body[data-module="civil"] .field>label{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
+body[data-module="civil"] .field>b{font-size:13.5px;font-weight:600;color:#22314a}
+body[data-module="civil"] .tbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#7d93a6}
+body[data-module="civil"] .tbl td{font-size:13px;font-weight:500}
+
+/* Списки площадей и поэтажка — заголовок блока по той же шкале. */
+body[data-module="civil"] .al.acc > .acc-head{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module="civil"] .al-sum{font-size:12px;font-weight:600}
+
+/* ===== Блок 01 «Учреждение, собственники и ответственные» ===================
+   Верхняя половина не билась с остальными блоками: значения полей и плашки
+   участников были разного кегля, а подзаголовок «Ответственные» терялся.
+   Приводим к общей шкале и отделяем зону ответственных фоном — это вторая
+   смысловая половина блока, а не продолжение первой. */
+
+body[data-module="civil"] .card.t-slate .field>b,
+body[data-module="civil"] .card.t-slate .field>.muted{font-size:13.5px;font-weight:600;color:#22314a;line-height:1.35}
+body[data-module="civil"] .card.t-slate .field>.muted{font-weight:500;color:#8fa2b8}
+
+/* Плашки собственников и пользователей — один кегль со значениями полей. */
+body[data-module="civil"] .ms-tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:7px;line-height:1.3}
+
+/* Подзаголовок второй половины: заголовок раздела, а не подпись. */
+body[data-module="civil"] .card.t-slate .sec-h{margin-top:14px;padding-top:10px;border-top:1px solid var(--line-soft);
+  font-size:11.5px;font-weight:700;color:var(--blue-700)}
+body[data-module="civil"] .card.t-slate .sec-h::after{display:none}
+
+body[data-module="civil"] .card.t-slate .select{font-size:13px;font-weight:500}
+/* Кнопки «+ Добавить» рядом с плашками — вспомогательные, не спорят со значением. */
+body[data-module="civil"] .card.t-slate .inline-row .btn-sm{font-size:11px;padding:3px 9px}
+
+/* Плитка фото удалённой литеры («Фото без литеры», parts/photos/explorer.js) —
+   приглушена и не кликабельна: литеры, к которой она относилась, уже нет.
+   Класс использовался с самого появления раздела, а стиля к нему не было. */
+body[data-module="civil"] .tile-orphan{cursor:default;opacity:.72}
+body[data-module="civil"] .tile-orphan:hover{border-color:var(--line);box-shadow:var(--shadow)}
+body[data-module="civil"] .tile-orphan .tile-img{background:linear-gradient(135deg,var(--slate-50),#fdfeff);color:#8ba0b8}

@@ -74,9 +74,7 @@ export function createSeed() {
         mkNote('Нет ПУД на квартиру — запросить в учреждении', false),
         mkNote('Уточнить серию дома', true),
       ],
-      docs: [
-        { id: 'ap1-d1', type: 'Техпаспорт', name: 'Техпаспорт от 08.09.2022', date: '08.09.2022', pages: null },
-      ],
+      docs: [],
       oi: [
         apartmentOi({
           id: 'oi-ap1-a',
@@ -132,10 +130,7 @@ export function createSeed() {
         insp: 'Абдылдаев Айсултан Марсович',
       },
       notes: [],
-      docs: [
-        { id: 'ap2-d1', type: 'Техпаспорт', name: 'Техпаспорт от 14.02.2018', date: '14.02.2018', pages: null },
-        { id: 'ap2-d2', type: 'ПУД', name: 'ПУД №2214', date: '14.02.2018', pages: null },
-      ],
+      docs: [],
       oi: [
         apartmentOi({
           id: 'oi-ap2-a',

@@ -1,5 +1,6 @@
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { parseEni } from '../../../kernel/fmt.js';
-import { nextId } from '../data/store.js';
+import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
 
 export function bindOcForm(ctx) {
@@ -60,11 +61,13 @@ export function bindOcForm(ctx) {
   s.$$('[data-attach]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const t = b.dataset.attach;
-    const name = await ctx.host.prompt({ title: 'Прикрепить документ', label: 'Наименование документа (' + t + ')', placeholder: t });
-    if (!name) return;
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
     rec.docs = rec.docs || [];
-    rec.docs.push({ id: nextId('d'), type: t, name, date: ctx.today, pages: null });
-    ctx.render();
+    const doc = { id: nextDocId(rec), type: t, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
+    rec.docs.push(doc);
+    openDocViewer(ctx, 'oc', doc.id);
     ctx.toast('Документ прикреплён: ' + t, 'ok');
   });
 

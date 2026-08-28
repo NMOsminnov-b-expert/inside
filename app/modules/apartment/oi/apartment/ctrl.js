@@ -1,3 +1,4 @@
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
@@ -6,9 +7,9 @@ import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { buildApartmentFloors, recalcFloors } from './floors.model.js';
 import { updateFloorsUI } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
-import { photoPages } from '../../parts/photos/model.js';
+import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
-import { nextId } from '../../data/store.js';
+import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
 
@@ -104,6 +105,18 @@ export function bind(ctx, oi) {
   bindApt('[data-apt-rooms]', 'rooms');
   bindApt('[data-apt-series]', 'series');
 
+  // Выбор серии из списка. Без render(): он закрыл бы выпадашку, а значение
+  // достаточно проставить в поле — привязка выше уже пишет его в данные.
+  s.$$('[data-apt-series-pick]').forEach((b) => b.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const inp = s.$('[data-apt-series]');
+    if (inp) inp.value = b.dataset.aptSeriesPick;
+    apt().series = b.dataset.aptSeriesPick;
+    const dd = b.closest('.dd');
+    if (dd) dd.classList.remove('open');
+  });
+
   // Этажность квартиры управляет наличием поэтажной развёртки.
   const aptStoreys = s.$('[data-apt-storeys]');
   if (aptStoreys) aptStoreys.onchange = () => {
@@ -178,14 +191,20 @@ export function bind(ctx, oi) {
   }
 
   // --- Фото ---------------------------------------------------------------
-  s.$$('[data-add-photo]').forEach((b) => b.onclick = (e) => {
+  // Настоящая загрузка файла, а не инкремент счётчика: файл кладётся в
+  // oi.photoFiles, счётчик увеличивает addPhotoFile (см. parts/photos/model.js).
+  s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const cat = b.dataset.addPhoto;
-    oi.photos = oi.photos || {};
-    oi.photos[cat] = (oi.photos[cat] || 0) + 1;
+
+    const file = await pickFile('image/*');
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+
+    addPhotoFile(oi, cat, await attachedFileFrom(file));
     ctx.ui.accOpen['ph|' + oi.id + '|' + cat] = true;
     ctx.render();
-    ctx.toast('Фото загружено', 'ok');
+    ctx.toast('Фото загружено: ' + file.name, 'ok');
   });
 
   s.$$('[data-open-photo]').forEach((p) => p.onclick = (e) => {
@@ -209,9 +228,14 @@ export function bind(ctx, oi) {
   });
 
   const am = s.$('[data-add-movdoc]');
-  if (am) am.onclick = () => {
-    (oi.docs = oi.docs || []).push({ id: nextId('md'), type: 'ПУД', name: 'Новый документ', date: ctx.today });
-    ctx.render();
+  if (am) am.onclick = async () => {
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+    oi.docs = oi.docs || [];
+    const doc = { id: nextDocId(ctx.rec), type: 'ПУД', name: file.name, date: ctx.today, file: await attachedFileFrom(file) };
+    oi.docs.push(doc);
+    openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
 

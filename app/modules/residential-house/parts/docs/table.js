@@ -33,7 +33,8 @@ export function docsTableHTML(rec, withDel) {
 
   return shell(`<tbody>${docs.map((d) => `<tr class="clickable" data-open-doc="${d.id}" title="Открыть документ в просмотрщике">
     <td><span class="tag-mini">${esc(d.type)}</span></td><td class="ell" title="${esc(d.name)}">${esc(d.name)}</td><td>${esc(d.date)}</td>
-    <td><div class="row-actions">${withDel ? `<button class="btn btn-danger btn-sm" data-doc-del="${d.id}" title="Открепить документ">×</button>` : ''}<span class="rowchev-open">›</span></div></td></tr>`).join('')}</tbody>`);
+    <td><div class="row-actions">${withDel ? `<button class="btn btn-danger btn-sm" data-doc-del="${d.id}" title="Открепить документ">×</button>` : ''}<span class="rowchev-open">›</span></div></td></tr>`).join('')
+    || '<tr><td colspan="4" class="muted">Нет документов</td></tr>'}</tbody>`);
 }
 
 export function docsBlockInner(oi, scope) {

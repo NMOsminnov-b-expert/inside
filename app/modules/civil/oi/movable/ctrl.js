@@ -1,7 +1,7 @@
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { openDocViewer, VS } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
-import { nextId } from '../../data/store.js';
+import { nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
   bindDocsColumns(ctx.scope);
@@ -33,7 +33,7 @@ export function bind(ctx, oi) {
     if (!file) return;
     if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
     oi.docs = oi.docs || [];
-    const doc = { id: nextId('md'), type: 'ПУД', name: file.name, date: ctx.today, file: await attachedFileFrom(file) };
+    const doc = { id: nextDocId(ctx.rec), type: 'ПУД', name: file.name, date: ctx.today, file: await attachedFileFrom(file) };
     oi.docs.push(doc);
     openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');

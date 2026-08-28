@@ -31,10 +31,7 @@ export function createSeed() {
         mkNote('Нужны обмеры высоты цеха по внешним замерам', false),
         mkNote('Проверить состав оборудования по инвентарным номерам', false),
       ],
-      docs: [
-        { id: 'pr1-d1', type: 'Техпаспорт', name: 'Техпаспорт от 05.06.2017', date: '05.06.2017', pages: null },
-        { id: 'pr1-d2', type: 'Акт осмотра', name: 'Акт осмотра №14', date: '02.08.2026', pages: null },
-      ],
+      docs: [],
       oi: [
         {
           id: 'oi-pr1-a',
@@ -186,9 +183,7 @@ export function createSeed() {
         insp: 'Бабашова Даяна Алтынбековна',
       },
       notes: [],
-      docs: [
-        { id: 'pr2-d1', type: 'Техпаспорт', name: 'Техпаспорт от 19.10.2014', date: '19.10.2014', pages: null },
-      ],
+      docs: [],
       oi: [
         {
           id: 'oi-pr2-a',

@@ -28,9 +28,7 @@ export function createSeed() {
         insp: 'Карабекова Анара Тариеловна',
       },
       notes: [mkNote('Нет свежей выписки по границам', false)],
-      docs: [
-        { id: 'lp1-d1', type: 'Гос. акт на землю', name: 'Гос. акт №91/16', date: '11.11.2016', pages: null },
-      ],
+      docs: [],
       oi: [
         {
           id: 'oi-lp1-l1',

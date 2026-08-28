@@ -3,6 +3,7 @@
 import { recHasSpecials } from './parts/specials/model.js';
 import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
+import { session } from '../../kernel/session.js';
 import { records, addRecord, nextId } from './data/store.js';
 import { totalPendingNotes } from './parts/notes/model.js';
 import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
@@ -228,7 +229,12 @@ export function createRecord() {
     updatedAt: today,
     owners: [],
     users: [],
-    resp: { gov: '', cod: '', appr: '', insp: '' },
+    // Оператор ЦОД — тот, кто создаёт карточку (Л2.14). Реальных учётных
+    // записей в макете нет, поэтому берётся выбранный переключателем роли.
+    // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь должен встать идентификатор пользователя из
+    // сессии, а не его отображаемое имя, — имя может измениться, и старые
+    // карточки тогда начнут ссылаться в пустоту.
+    resp: { gov: '', cod: session.state.person || '', appr: '', insp: '' },
     notes: [],
     docs: [],
     oi: [],

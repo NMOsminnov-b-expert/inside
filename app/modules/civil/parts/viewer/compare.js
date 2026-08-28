@@ -38,9 +38,13 @@ export function renderCompareMode(ctx, vctx) {
     return `<div class="vgroup-h">${esc(g.cat)} · ${g.items.length}</div>${inner}`;
   }).join('') || '<div class="vpage photo-page"><div class="photo-fill">Фото не загружены</div></div>';
 
-  const docRibbon = d
-    ? d.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-dcblk="${i + 1}"><div class="vpage">${docPageHTML(d, i + 1)}</div></div>`).join('')
-    : '<div class="muted" style="padding:12px">Откройте документ во вкладке «Документы»</div>';
+  // Документ без страниц — значит без файла: раньше на его месте рисовались
+  // страницы-заглушки, теперь пишем как есть.
+  const docRibbon = !d
+    ? '<div class="muted" style="padding:12px">Откройте документ во вкладке «Документы»</div>'
+    : (d.pages.length
+      ? d.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-dcblk="${i + 1}"><div class="vpage">${docPageHTML(d, i + 1)}</div></div>`).join('')
+      : '<div class="muted" style="padding:12px">Файл не прикреплён</div>');
 
   // Половины можно свернуть значком-папкой (Л3.9): фото убирается влево,
   // документ вправо. Свёрнутая половина остаётся узкой полосой с тем же
@@ -57,7 +61,7 @@ export function renderCompareMode(ctx, vctx) {
     </div>
     <div class="cmp-split" data-cmp-split title="Потяните, чтобы изменить соотношение"></div>
     <div class="cmp-col" data-cmp-side="doc">
-      <div class="cmp-h">${fold('doc', 'Свернуть документ вправо')}${d ? esc(d.type) : 'Нет документа'} <span data-cmp-dcnum>${d ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
+      <div class="cmp-h">${fold('doc', 'Свернуть документ вправо')}${d ? esc(d.type) : 'Нет документа'} <span data-cmp-dcnum>${d && d.pages.length ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
       <div class="cmp-body" data-cmp-stage="doc"><div class="cmp-ribbon" data-cmp-ribbon="doc" style="zoom:${VS.cmpZoom.doc / 100}">${docRibbon}</div></div>
     </div>
   </div>`;

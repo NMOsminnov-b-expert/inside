@@ -13,7 +13,7 @@ export function viewMech(ctx) {
 
   return `<div class="view-head"><button class="back-btn" data-back>← Отмена</button>
     <span class="pill pill-gray">${isMech ? 'Механизмы и производственное оборудование' : 'Офисная техника и мебель'}</span></div>
-  ${splitWrap((ui.viewer && ui.viewerDoc && ui.viewerDoc.scope === 'mech-new') ? viewerHTML(ctx) : null, `<div class="card">
+  ${splitWrap(ui.viewer ? viewerHTML(ctx) : null, `<div class="card">
       <div class="card-head"><h3>Создание объекта</h3>
         <div class="inline-row" style="margin-left:auto">
           <span class="qn" data-mech-mode="mono" style="${ui.mechMode === 'mono' ? 'border-color:var(--blue-600);color:var(--blue-700);background:var(--blue-100)' : ''}">Монолит (единичный)</span>

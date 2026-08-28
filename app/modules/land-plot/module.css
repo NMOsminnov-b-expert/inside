@@ -136,10 +136,24 @@ body[data-module="land-plot"] .done-toggle .chev{transition:transform .15s;font-
 body[data-module="land-plot"] .done-toggle.open .chev{transform:rotate(90deg)}
 body[data-module="land-plot"] .done-list{margin-top:6px;padding:8px;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:7px}
 body[data-module="land-plot"] .split{display:flex;gap:0;align-items:flex-start;--vw:48%;min-width:0}
-body[data-module="land-plot"] .vsplit{width:7px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s}
+/* Закладка закрытого просмотрщика — тот же приём, что у блока заметок
+   (.notes-tab в app.html), только с левой стороны и в синем тоне панели.
+   Класс не .vtab: тот уже занят вкладками документов ВНУТРИ просмотрщика.
+   Липкая: экран длинный, а вернуть просмотрщик нужно с любого места. */
+body[data-module="land-plot"] .split-closed{position:relative}
+body[data-module="land-plot"] .vopen-tab{position:sticky;top:0;align-self:flex-start;flex-shrink:0;margin-right:10px;
+  writing-mode:vertical-rl;text-orientation:mixed;background:var(--blue-600);color:#fff;
+  border:1px solid var(--blue-600);border-left:none;border-radius:0 8px 8px 0;
+  padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;
+  align-items:center;gap:6px;z-index:20;transition:background .12s}
+body[data-module="land-plot"] .vopen-tab:hover{background:var(--blue-700)}
+body[data-module="land-plot"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="land-plot"] .vsplit:hover{background:var(--blue-500)}
 body[data-module="land-plot"] .grow{flex:1;min-width:620px;padding-left:12px}
-body[data-module="land-plot"] .viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 120px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+body[data-module="land-plot"] .viewer{width:var(--vw);flex-shrink:0;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 80px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+/* 80px = topbar 44 + верхний/нижний padding .content (14+14) + 8 на зазор.
+   Раньше вычиталось 120px, и при прокрутке под просмотрщиком оставалось
+   ~76px неиспользуемой пустоты. */
 body[data-module="land-plot"] .vmode{display:flex;gap:4px;padding:6px 8px;background:#eef4fb;border-bottom:1px solid var(--line-soft);flex-shrink:0}
 body[data-module="land-plot"] .vmode-btn{padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;color:#46536b;border:1px solid transparent;transition:background .12s}
 body[data-module="land-plot"] .vmode-btn:hover{background:#fff}
@@ -159,20 +173,62 @@ body[data-module="land-plot"] .zoom-label{min-width:42px;text-align:center;font-
 body[data-module="land-plot"] .vtitle{font-size:11.5px;font-weight:700;color:var(--blue-700);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body[data-module="land-plot"] .vcat{font-size:11.5px;padding:3px 6px;border-radius:6px;width:auto}
 body[data-module="land-plot"] .vbody{flex:1;display:flex;min-height:0}
-body[data-module="land-plot"] .vrail{width:92px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0}
+/* Лента миниатюр: крупные превью, чтобы было видно СОДЕРЖИМОЕ страницы, а не
+   только её наличие. Сворачивается кнопкой (.vrail.collapsed) — на узких
+   экранах или когда нужна вся ширина под саму страницу. */
+body[data-module="land-plot"] .vrail{width:168px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0;transition:width .16s}
+body[data-module="land-plot"] .vrail.collapsed{width:30px}
+body[data-module="land-plot"] .vrail.collapsed .vrail-list,body[data-module="land-plot"] .vrail.collapsed [data-vaddpage]{display:none}
+body[data-module="land-plot"] .vrail-toggle{height:26px;flex-shrink:0;border-bottom:1px solid var(--line-soft);background:#eef4fb;color:#5b6c85;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;user-select:none}
+body[data-module="land-plot"] .vrail-toggle:hover{background:var(--blue-100)}
 body[data-module="land-plot"] .vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
 body[data-module="land-plot"] .rail-cat{font-size:8.5px;font-weight:700;color:#61799a;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
-body[data-module="land-plot"] .vthumb{width:56px;height:72px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
-body[data-module="land-plot"] .vthumb.doc::after{content:'';position:absolute;inset:8px 6px 14px;background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
+body[data-module="land-plot"] .vthumb{width:132px;height:170px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
+/* Схематичные полоски — только у макетных заглушек. У реальной страницы
+   (.vthumb.real) в миниатюре живёт canvas с настоящим превью, полоски под ним
+   были бы просто грязью. */
+body[data-module="land-plot"] .vthumb.doc:not(.real)::after{content:'';position:absolute;inset:8px 6px 14px;background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
+body[data-module="land-plot"] .vthumb-canvas{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:contain;opacity:0;transition:opacity .12s;background:#fff}
+body[data-module="land-plot"] .vthumb-img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:cover;border-radius:3px}
+body[data-module="land-plot"] .vthumb.pho.real::after{content:none}
+body[data-module="land-plot"] .vthumb-canvas.ready{opacity:1}
+/* Перетаскивание миниатюр: порядок страниц + Ctrl-множественный выбор. */
+body[data-module="land-plot"] .vthumb{cursor:grab}
+body[data-module="land-plot"] .vthumb.dragging{opacity:.4}
+body[data-module="land-plot"] .vthumb.sel{border-color:var(--teal-600);box-shadow:0 0 0 2px rgba(10,92,80,.25)}
+body[data-module="land-plot"] .vthumb.drop-before{box-shadow:0 -3px 0 0 var(--blue-600)}
+body[data-module="land-plot"] .vthumb.drop-after{box-shadow:0 3px 0 0 var(--blue-600)}
 body[data-module="land-plot"] .vthumb.pho::after{content:'';position:absolute;inset:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);border-radius:3px}
 body[data-module="land-plot"] .vthumb.active{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.2)}
-body[data-module="land-plot"] .vthumb-num{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:9px;color:var(--muted)}
+body[data-module="land-plot"] .vthumb-num{position:absolute;bottom:2px;right:3px;font-size:9.5px;font-weight:700;color:#33445c;background:rgba(255,255,255,.86);border-radius:4px;padding:0 5px;line-height:14px}
 body[data-module="land-plot"] .vthumb-del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;z-index:2}
 body[data-module="land-plot"] .vthumb:hover .vthumb-del{display:flex}
-body[data-module="land-plot"] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4}
-body[data-module="land-plot"] .vribbon{display:flex;flex-direction:column;gap:14px;align-items:center}
+/* overscroll-behavior:contain — колесо над лентой прокручивает только ленту.
+   Без него на достижении границы прокрутка «перетекает» на внешний контейнер, и
+   выглядит это как «колесом уехала вся страница». */
+body[data-module="land-plot"] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4;overscroll-behavior:contain}
+/* align-items:safe center — когда лист шире ленты (большой зум, повёрнутая
+   страница), обычное center выпихивает его за ОБА края, и левая часть
+   становится недостижимой скроллом. safe center в этом случае прижимает к
+   началу, и лист доступен горизонтальной прокруткой. */
+body[data-module="land-plot"] .vribbon{display:flex;flex-direction:column;gap:14px;align-items:center;align-items:safe center}
 body[data-module="land-plot"] .vgroup-h{width:430px;text-align:left;font-size:11px;font-weight:700;color:var(--blue-700);background:#eef4fb;border:1px solid var(--blue-200);border-radius:7px;padding:6px 10px}
-body[data-module="land-plot"] .vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative}
+/* Лист центрируется в своей обёртке: поворот идёт вокруг центра ЛИСТА, и если
+   лист прижат к левому краю более широкой (после поворота) обёртки, повёрнутый
+   результат уезжает за левую границу ленты. */
+body[data-module="land-plot"] .vpage-wrap{display:flex;align-items:center;justify-content:center}
+body[data-module="land-plot"] .vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative;flex:0 0 auto}
+/* Лист с реальным файлом: содержимое само задаёт высоту по своим пропорциям,
+   поэтому портретный min-height снимается — иначе альбомный скан болтался бы
+   в пустом высоком листе. Отступы тоже убраны: скан занимает лист целиком. */
+body[data-module="land-plot"] .vpage:has(> .vpdf-canvas), body[data-module="land-plot"] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
+body[data-module="land-plot"] .vpdf-canvas{display:block;width:100%;height:auto;opacity:0;transition:opacity .12s}
+body[data-module="land-plot"] .vpdf-canvas.ready{opacity:1}
+body[data-module="land-plot"] .vimg{display:block;width:100%;height:auto}
+/* Скелетон, пока страница PDF ещё не отрисована: лежит под canvas и скрывается,
+   когда тот готов — чтобы лист не мигал пустотой. */
+body[data-module="land-plot"] .vpdf-load{position:absolute;inset:0;padding:26px;background:#fff}
+body[data-module="land-plot"] .vpdf-canvas.ready + .vpdf-load, body[data-module="land-plot"] .vpdf-canvas.failed + .vpdf-load{display:none}
 body[data-module="land-plot"] .vpage.photo-page{padding:10px;min-height:420px}
 body[data-module="land-plot"] .photo-fill{width:100%;height:540px;border-radius:8px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:13px}
 body[data-module="land-plot"] .vempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#dfe9f4}
@@ -180,15 +236,25 @@ body[data-module="land-plot"] .vempty-box{font-size:12.5px;color:#61799a}
 body[data-module="land-plot"] .cmp{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
 body[data-module="land-plot"] .cmp-col{flex:1;display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
 body[data-module="land-plot"] .cmp-h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eef4fb;border-bottom:1px solid var(--line-soft);font-size:11px;font-weight:700;flex-wrap:wrap;color:var(--blue-700)}
-body[data-module="land-plot"] .cmp-body{flex:1;overflow:auto;background:#dfe9f4;padding:10px;display:flex;justify-content:flex-start}
+/* Колонка сравнения — такая же прокручиваемая лента, как обычный просмотр:
+   колесо листает и фото, и документ; overscroll-behavior не даёт прокрутке
+   утечь на страницу. */
+body[data-module="land-plot"] .cmp-body{flex:1;overflow:auto;background:#dfe9f4;padding:10px;overscroll-behavior:contain}
+body[data-module="land-plot"] .cmp-ribbon{display:flex;flex-direction:column;gap:12px;align-items:center;align-items:safe center}
+body[data-module="land-plot"] .cmp-h .cmp-zoom{margin-left:auto}
+body[data-module="land-plot"] .cmp-h .cmp-zoom .tool-btn{width:22px;height:22px}
+body[data-module="land-plot"] .cmp-h .zoom-label{font-size:10.5px;min-width:38px;text-align:center}
 body[data-module="land-plot"] .cmp-body .vpage{width:380px;min-height:500px}
+/* В сравнении лист с реальным файлом тоже живёт по своим пропорциям. Правило
+   обязано идти ПОСЛЕ .cmp-body .vpage: специфичность у них одинаковая, поэтому
+   иначе побеждает min-height:500px и страница висит в высоком листе.
+   align-self:flex-start — .cmp-body это flex-контейнер, и по умолчанию
+   (align-items:stretch) лист растягивался на всю высоту колонки, оставляя под
+   страницей белое поле. */
+body[data-module="land-plot"] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module="land-plot"] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
 body[data-module="land-plot"] .cmp-body .photo-fill{height:460px}
-body[data-module="land-plot"] .pp-h{text-align:center;font-size:15px;letter-spacing:1px;margin:6px 0 2px;color:#0e2f4f;font-weight:700}
-body[data-module="land-plot"] .pp-sub{text-align:center;font-size:10.5px;color:#5d7292;margin-bottom:12px}
 body[data-module="land-plot"] .sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
 body[data-module="land-plot"] .sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
-body[data-module="land-plot"] .sk-table{width:100%;border-collapse:collapse;margin:10px 0}
-body[data-module="land-plot"] .sk-table td{border:1px solid var(--blue-200);height:18px}
 body[data-module="land-plot"] .qnav{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:6;background:var(--panel);padding:9px 14px;border-bottom:1px solid var(--line-soft);border-radius:var(--radius) var(--radius) 0 0}
 body[data-module="land-plot"] .qn{padding:4px 11px;border-radius:999px;border:1px solid var(--line-input);font-size:11.5px;color:#46536b;background:#fff;font-weight:600;transition:border-color .12s,color .12s}
 body[data-module="land-plot"] .qn:hover{border-color:var(--blue-500);color:var(--blue-700)}
@@ -238,6 +304,61 @@ body[data-module="land-plot"] .head-meta .dd-menu, body[data-module="land-plot"]
 body[data-module="land-plot"] .head-meta, body[data-module="land-plot"] .card-head{
   overflow: visible;
 }
+
+/* Сайдбар выбора документа/фото просмотрщика (parts/viewer/sidebar.js).
+   Кнопка-гамбургер в левом верхнем углу; панель выезжает поверх ленты.
+   ВАЖНО: здесь НЕЛЬЗЯ переопределять .viewer{position:relative} — просмотрщик
+   объявлен position:sticky выше, и это правило (идущее позже) отменяло липкость:
+   просмотрщик уезжал за экран, и заполнять поля, глядя в документ, можно было
+   только в самом верху страницы. Отдельный контейнер позиционирования сайдбару
+   не нужен — sticky сам является containing block для absolute-потомков. */
+body[data-module="land-plot"] .vmode{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line-soft);background:#f4f8fd;flex-shrink:0}
+body[data-module="land-plot"] .vburger{width:28px;height:28px;flex-shrink:0;border:1px solid var(--line-input);border-radius:7px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:background .12s,border-color .12s}
+body[data-module="land-plot"] .vburger span{display:block;width:14px;height:2px;border-radius:1px;background:#5b6c85}
+body[data-module="land-plot"] .vburger:hover{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-module="land-plot"] .vburger.on{background:var(--blue-600);border-color:var(--blue-600)}
+body[data-module="land-plot"] .vburger.on span{background:#fff}
+body[data-module="land-plot"] .vsb{position:absolute;top:0;left:0;bottom:0;width:290px;z-index:70;background:#fff;border-right:1.5px solid var(--line);box-shadow:6px 0 24px rgba(15,23,42,.18);display:flex;flex-direction:column;animation:vsbIn .16s ease}
+@keyframes vsbIn{from{transform:translateX(-16px);opacity:0}to{transform:none;opacity:1}}
+body[data-module="land-plot"] .vsb-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5b6c85}
+body[data-module="land-plot"] .vsb-body{flex:1;overflow:auto;padding:6px;overscroll-behavior:contain}
+body[data-module="land-plot"] .vsb-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--blue-700);padding:8px 6px 4px}
+body[data-module="land-plot"] .vsb-group{font-size:10.5px;font-weight:700;color:#5b6c85;background:#f4f8fd;border-radius:6px;padding:4px 8px;margin:6px 0 3px}
+body[data-module="land-plot"] .vsb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;border-radius:7px;background:none;border:1px solid transparent;cursor:pointer;transition:background .12s,border-color .12s}
+body[data-module="land-plot"] .vsb-item:hover{background:var(--blue-50);border-color:var(--blue-200)}
+body[data-module="land-plot"] .vsb-item.on{background:var(--blue-100);border-color:var(--blue-500)}
+body[data-module="land-plot"] .vsb-tag{flex:0 0 auto;font-size:9.5px;font-weight:700;color:var(--blue-700);background:var(--blue-50);border:1px solid var(--blue-200);border-radius:999px;padding:1px 7px}
+body[data-module="land-plot"] .vsb-main{flex:1;min-width:0;display:flex;flex-direction:column}
+body[data-module="land-plot"] .vsb-main b{font-size:12px;color:#33445c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="land-plot"] .vsb-sub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="land-plot"] .vsb-count{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--muted)}
+body[data-module="land-plot"] .vsb-thumb{flex:0 0 auto;width:34px;height:26px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
+body[data-module="land-plot"] .vsb-empty{font-size:11.5px;color:var(--muted);padding:8px 10px}
+
+/* Лог действий — карточка модуля, см. app/modules/land-plot/audit/.
+   Категории (ОИ/ОЦ/Документы/Фото) размечены левой границей + бейджем в тон
+   card.t-* — та же палитра, что у карточек модуля, без новых токенов. */
+body[data-module="land-plot"] .audit-row{border-left-width:4px;border-left-style:solid}
+body[data-module="land-plot"] .audit-row.t-blue{border-left-color:var(--blue-600)}
+body[data-module="land-plot"] .audit-row.t-teal{border-left-color:var(--teal-600)}
+body[data-module="land-plot"] .audit-row-head{align-items:center}
+/* Панель фильтров лога — отдельная тонированная зона, чтобы органы
+   управления не сливались со списком записей под ними. */
+body[data-module="land-plot"] .audit-filters{background:#f4f8fd;border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:14px}
+body[data-module="land-plot"] .audit-filters-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#5b6c85;margin-bottom:10px}
+body[data-module="land-plot"] .audit-filters-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+body[data-module="land-plot"] .audit-filters .field label{font-size:10.5px;white-space:nowrap}
+body[data-module="land-plot"] .audit-filter-field{flex:0 0 168px}
+body[data-module="land-plot"] .audit-filter-search{flex:1 1 220px;min-width:200px}
+/* Открытый список фильтра — плотный белый блок с заметной тенью: раньше
+   он сливался с таблицей под собой и читался как часть записей лога. */
+body[data-module="land-plot"] .audit-filters .ms-drop{min-width:230px;padding:6px;border-color:var(--blue-300);box-shadow:0 14px 34px rgba(15,23,42,.22)}
+body[data-module="land-plot"] .audit-filters .ms-opt{white-space:nowrap}
+body[data-module="land-plot"] .audit-tbl th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;text-align:left;padding:4px 8px}
+body[data-module="land-plot"] .audit-tbl td{font-size:12px;color:#33445c;padding:6px 8px;border-top:1px solid var(--line-soft);vertical-align:top}
+body[data-module="land-plot"] .audit-change{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}
+body[data-module="land-plot"] .audit-change-attr{font-size:12px;font-weight:600;color:#33445c;display:flex;align-items:center;flex-wrap:wrap}
+body[data-module="land-plot"] .audit-change:first-child{margin-top:0}
 
 /* Перечень ОИ — дерево «участок → литеры» (card/oiTable.view.js).
    Два уровня: узел-аккордеон = участок либо группа «Без участка», внутри —
@@ -336,6 +457,60 @@ body[data-module="land-plot"] .ctx-plate-eni input:focus{outline:none;border-col
    как узел-цель, иначе непонятно, что бросок сюда снимет привязку. */
 body[data-module="land-plot"] .oi-tree.drop-unlink{box-shadow:inset 0 -3px 0 var(--blue-500)}
 
+/* Сайдбар просмотрщика: документы сгруппированы по типу (Л3.5). Заголовок
+   группы липкий — при длинном списке видно, к какому типу относится строка. */
+body[data-module="land-plot"] .vsb-group{margin-bottom:6px}
+body[data-module="land-plot"] .vsb-group-h{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:6px;
+  padding:5px 9px;background:#eef4fb;border-radius:6px;font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.4px;font-weight:700;color:#5b6c85}
+body[data-module="land-plot"] .vsb-group-n{margin-left:auto;font-size:9.5px;color:#7d93a6;font-weight:600}
+
+/* Сравнение: подвижная граница между фото и документом и сворачивание половин
+   (Л3.9). Ширина левой колонки — переменная --cmp-photo, её двигает ручка;
+   правая забирает остаток, поэтому сумма всегда равна ширине области и ничего
+   не уезжает (та же логика, что у столбцов таблиц).
+
+   ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: соотношение и свёрнутая половина — личная настройка
+   пользователя, сейчас живёт только в памяти сессии. */
+body[data-module="land-plot"] .cmp-col[data-cmp-side="photo"]{flex:0 0 var(--cmp-photo);min-width:0}
+body[data-module="land-plot"] .cmp-col[data-cmp-side="doc"]{flex:1 1 auto;min-width:0}
+body[data-module="land-plot"] .cmp-split{flex:0 0 8px;align-self:stretch;cursor:col-resize;border-radius:4px;
+  background:transparent;position:relative;touch-action:none}
+body[data-module="land-plot"] .cmp-split::after{content:"";position:absolute;top:12px;bottom:12px;left:3px;width:2px;
+  background:var(--line);border-radius:2px;transition:background .12s}
+body[data-module="land-plot"] .cmp-split:hover::after,body[data-module="land-plot"] .cmp.cmp-resizing .cmp-split::after{background:var(--blue-500)}
+body[data-module="land-plot"] .cmp-fold{flex:0 0 auto;width:20px;height:20px;padding:0;margin-right:6px;border:none;
+  border-radius:5px;background:none;color:#8fa2b8;font-size:11px;line-height:1;cursor:pointer}
+body[data-module="land-plot"] .cmp-fold:hover{background:var(--blue-100);color:var(--blue-700)}
+/* Свёрнутая половина — узкая полоса: значок остаётся на месте, содержимое скрыто. */
+body[data-module="land-plot"] .cmp.cmp-folded-photo .cmp-col[data-cmp-side="photo"]{flex:0 0 38px}
+body[data-module="land-plot"] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="doc"]{flex:0 0 38px}
+/* Оставшаяся половина забирает всю освободившуюся ширину. Для документа это
+   работало само (у него flex:1 1 auto), а фото сидит на жёсткой доле
+   --cmp-photo и без этого правила оставалось шириной в половину экрана,
+   прижатое к левому краю, с пустым серым полем справа. */
+body[data-module="land-plot"] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="photo"]{flex:1 1 auto}
+body[data-module="land-plot"] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-body,
+body[data-module="land-plot"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-body{display:none}
+body[data-module="land-plot"] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h,
+body[data-module="land-plot"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h{writing-mode:vertical-rl;justify-content:flex-start;gap:6px;padding:8px 0}
+body[data-module="land-plot"] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h > *:not(.cmp-fold),
+body[data-module="land-plot"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h > *:not(.cmp-fold){display:none}
+body[data-module="land-plot"] .cmp-folded-photo .cmp-split,body[data-module="land-plot"] .cmp-folded-doc .cmp-split{display:none}
+
+/* Свёрнута одна половина — вся полезная площадь уходит оставшейся: лист тянется
+   на всю ширину колонки, а не висит узкой полосой (380px) посреди серого поля.
+   max-width — чтобы на широком экране страница не разъезжалась до нечитаемых
+   пропорций. Мыла при этом нет: масштаб рендера PDF берётся из ФАКТИЧЕСКОЙ
+   ширины canvas, а ширина входит в ключ кэша отрисовки (viewer/pdf.js). */
+body[data-module="land-plot"] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage-wrap,
+body[data-module="land-plot"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
+body[data-module="land-plot"] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage,
+body[data-module="land-plot"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
+/* Плитка фото в развёрнутой половине тоже растёт — её высота была прибита к
+   460px под узкую колонку. */
+body[data-module="land-plot"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .photo-fill{height:auto;aspect-ratio:4 / 3}
+
 /* Краткая сводка вверху всегда: при прокрутке шапка карточки уезжает вверх, а
    плашка «ОЦ → литера» закрепляется на её месте. Плашка и так стоит сразу под
    шапкой, поэтому смена одного другим не сдвигает содержимое.
@@ -424,3 +599,90 @@ body[data-module="land-plot"] .ctx-plate-eni input{font-size:13px;width:150px;le
 body[data-module="land-plot"] .oi-sep{height:1px;background:#c3cfdd;margin:18px 2px}
 body[data-module="land-plot"] .oi-node[data-oi-drop=""]{margin-top:0}
 body[data-module="land-plot"] .oi-node[data-oi-drop=""]:first-child{margin-top:0}
+
+/* ===== Типографика перечня ОИ ==============================================
+   Три уровня, различимых с одного взгляда — по размеру и насыщенности, а не по
+   капсу. Капс остаётся ТОЛЬКО у названий колонок: там он служебный и не спорит
+   с содержимым.
+
+     объект (шапка узла)   14px / 700, обычный регистр  — «на что смотрим»
+     раздел внутри узла    11.5px / 700, обычный регистр — «какая это группа»
+     названия колонок      10px / 700, КАПС, приглушённые
+     значения в строках    13px / 500, литера 700
+
+   Раньше здесь всё было 10–11px и почти всё капсом: шапка узла, разделы и
+   колонки читались одинаково, и глазу не за что было зацепиться. */
+
+body[data-module="land-plot"] .oi-node-head{padding:10px 12px}
+body[data-module="land-plot"] .oi-node-head b{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module="land-plot"] .oi-node-head .muted{font-size:12px}
+body[data-module="land-plot"] .oi-node-eni{font-size:12.5px;font-weight:600}
+
+/* Сводка по участку — своя зона: светлее узла, с явной чертой снизу, чтобы не
+   слипалась с шапкой колонок. */
+body[data-module="land-plot"] .oi-land-sum{background:#eef7f2;border-bottom:2px solid var(--teal-100);padding:11px 12px}
+body[data-module="land-plot"] .oi-land-f label{font-size:9.5px;font-weight:700;color:#6f8a7e}
+body[data-module="land-plot"] .oi-land-f b{font-size:13px;font-weight:600;color:#1d3b2f}
+
+/* Заголовок раздела — заметный, а не служебная надпись. */
+body[data-module="land-plot"] .oi-sub-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;
+  padding:8px 12px}
+body[data-module="land-plot"] .oi-sub[data-oi-sub="real"] .oi-sub-h{background:var(--blue-100);color:var(--blue-700);
+  box-shadow:inset 4px 0 0 var(--blue-600)}
+body[data-module="land-plot"] .oi-sub[data-oi-sub="movable"] .oi-sub-h{background:var(--amber-50);color:var(--amber-700);
+  box-shadow:inset 4px 0 0 var(--amber-600)}
+
+/* Названия колонок: капс сохранён, но приглушён — это подписи, а не заголовки. */
+body[data-module="land-plot"] .oi-tree-tbl th{font-size:10px;font-weight:700;color:#7d93a6;letter-spacing:.5px;
+  background:#fbfdff;padding:7px 10px}
+body[data-module="land-plot"] .oi-cols-row{border-bottom:1px solid var(--line)}
+
+/* Значения: литера — якорь строки, поэтому заметно плотнее остального. */
+body[data-module="land-plot"] .oi-letter td{font-size:13px;font-weight:500;color:#22314a}
+body[data-module="land-plot"] .oi-letter td:first-child{font-size:13.5px;font-weight:700}
+
+/* ===== Та же шкала — на карточки и блоки ===================================
+   Уровни те же, что в перечне ОИ, чтобы по шрифту сразу читалось, на что
+   смотришь: заголовок карточки → заголовок блока → подпись поля → значение.
+   Капс остаётся только у подписей полей и названий колонок. */
+
+body[data-module="land-plot"] .card-head h3{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module="land-plot"] .card-head .hint{font-size:11px;font-weight:400}
+body[data-module="land-plot"] .sec-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--blue-700)}
+body[data-module="land-plot"] .field>label{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
+body[data-module="land-plot"] .field>b{font-size:13.5px;font-weight:600;color:#22314a}
+body[data-module="land-plot"] .tbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#7d93a6}
+body[data-module="land-plot"] .tbl td{font-size:13px;font-weight:500}
+
+/* Списки площадей и поэтажка — заголовок блока по той же шкале. */
+body[data-module="land-plot"] .al.acc > .acc-head{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module="land-plot"] .al-sum{font-size:12px;font-weight:600}
+
+/* ===== Блок 01 «Учреждение, собственники и ответственные» ===================
+   Верхняя половина не билась с остальными блоками: значения полей и плашки
+   участников были разного кегля, а подзаголовок «Ответственные» терялся.
+   Приводим к общей шкале и отделяем зону ответственных фоном — это вторая
+   смысловая половина блока, а не продолжение первой. */
+
+body[data-module="land-plot"] .card.t-slate .field>b,
+body[data-module="land-plot"] .card.t-slate .field>.muted{font-size:13.5px;font-weight:600;color:#22314a;line-height:1.35}
+body[data-module="land-plot"] .card.t-slate .field>.muted{font-weight:500;color:#8fa2b8}
+
+/* Плашки собственников и пользователей — один кегль со значениями полей. */
+body[data-module="land-plot"] .ms-tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:7px;line-height:1.3}
+
+/* Подзаголовок второй половины: заголовок раздела, а не подпись. */
+body[data-module="land-plot"] .card.t-slate .sec-h{margin-top:14px;padding-top:10px;border-top:1px solid var(--line-soft);
+  font-size:11.5px;font-weight:700;color:var(--blue-700)}
+body[data-module="land-plot"] .card.t-slate .sec-h::after{display:none}
+
+body[data-module="land-plot"] .card.t-slate .select{font-size:13px;font-weight:500}
+/* Кнопки «+ Добавить» рядом с плашками — вспомогательные, не спорят со значением. */
+body[data-module="land-plot"] .card.t-slate .inline-row .btn-sm{font-size:11px;padding:3px 9px}
+
+/* Плитка фото удалённой литеры («Фото без литеры», parts/photos/explorer.js) —
+   приглушена и не кликабельна: литеры, к которой она относилась, уже нет.
+   Класс использовался с самого появления раздела, а стиля к нему не было. */
+body[data-module="land-plot"] .tile-orphan{cursor:default;opacity:.72}
+body[data-module="land-plot"] .tile-orphan:hover{border-color:var(--line);box-shadow:var(--shadow)}
+body[data-module="land-plot"] .tile-orphan .tile-img{background:linear-gradient(135deg,var(--slate-50),#fdfeff);color:#8ba0b8}

@@ -48,6 +48,9 @@ export const ui = {
 export function resetViewer() {
   ui.viewer = null;
   ui.viewerDoc = null;
+  // Закладка «Документы» — состояние ЭКРАНА, а не записи: перешли к другому
+  // объекту оценки, значит просмотрщик снова открыт по умолчанию.
+  ui.viewerClosed = false;
 }
 
 export function nextLetter(rec) {

@@ -25,8 +25,10 @@ export function ensureDocPages(d) {
   } else if (d.file) {
     d.pages = [{ kind: 'other' }];
   } else {
-    // Документ без файла (сидовые записи) — как раньше, макет-заглушка.
-    d.pages = Array.from({ length: 3 }, (_, i) => ({ kind: i === 0 ? 'title' : 'skel' }));
+    // Файла нет — страниц нет. Раньше здесь строились три НАРИСОВАННЫЕ страницы
+    // (kind 'title'/'skel'): серые полоски, изображавшие скан. Убраны целиком —
+    // документ приходит настоящим файлом, а рисованный лист выдавал себя за него.
+    d.pages = [];
   }
 }
 
@@ -80,7 +82,11 @@ export async function attachedFileFrom(file) {
 
 export function docListFor(ctx, scope) {
   if (scope === 'oc') { ctx.rec.docs = ctx.rec.docs || []; return ctx.rec.docs; }
-  if (scope === 'mech-new') return ctx.ui.mechDocs || [];
+  // Массив создаётся здесь же, как и для ОЦ с литерой: раньше при незаданном
+  // ui.mechDocs возвращался ВРЕМЕННЫЙ пустой массив, и прикреплённый в него
+  // документ молча пропадал. Пока просмотрщик в мастере не показывался без
+  // документа, кнопка прикрепления была недостижима и дефект не проявлялся.
+  if (scope === 'mech-new') { ctx.ui.mechDocs = ctx.ui.mechDocs || []; return ctx.ui.mechDocs; }
   const oi = ctx.rec.oi.find((o) => o.id === scope);
   if (!oi) return [];
   oi.docs = oi.docs || [];

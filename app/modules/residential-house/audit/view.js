@@ -4,8 +4,10 @@ import { fieldLabel } from './fieldLabels.js';
 import { CATEGORIES, categoryLabel, categoryTone } from './categories.js';
 import { resolveDocRef } from './model.js';
 
-const ACTION_LABEL = { create: 'Добавлено', delete: 'Удалено', update: 'Изменено' };
-const ACTIONS = ['create', 'update', 'delete'];
+// «Перенесено» — про перестановку страниц документа: это не изменение
+// значения поля и не удаление, порядок страниц значим сам по себе.
+const ACTION_LABEL = { create: 'Добавлено', delete: 'Удалено', update: 'Изменено', move: 'Перенесено' };
+const ACTIONS = ['create', 'update', 'delete', 'move'];
 
 // --- Панель фильтров --------------------------------------------------------
 // Все мультивыборы — один и тот же .ms/.ms-drop паттерн (oi/building/heating.js),

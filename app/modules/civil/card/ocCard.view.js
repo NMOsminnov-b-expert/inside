@@ -68,7 +68,11 @@ function partiesOC(rec) {
 
 function docsTab(ctx) {
   return splitWrap(
-    (ctx.ui.viewer && ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope === 'oc') ? viewerHTML(ctx) : null,
+    // Просмотрщик рисуется всегда, а не только когда документ уже выбран: без
+    // этого на пустом экране его не было вовсе, хотя на соседней вкладке той же
+    // карточки он есть. Что показать, решает сам viewerHTML — открытый документ
+    // либо приглашение выбрать/прикрепить.
+    ctx.ui.viewer ? viewerHTML(ctx) : null,
     `<div class="card t-slate">
       <div class="card-head"><span class="card-idx">03</span><h3>Перечень документов</h3><span class="hint">клик по строке — просмотрщик</span>
         <div class="dd" style="margin-left:auto">
@@ -79,7 +83,7 @@ function docsTab(ctx) {
 
       ${docsTableHTML(ctx.rec, true)}
 
-      <div class="muted" style="font-size:10.5px;padding:8px 14px 12px">Открытые документы накапливаются вкладками.</div>
+      ${(ctx.rec.docs || []).length ? '<div class="muted" style="font-size:10.5px;padding:8px 14px 12px">Открытые документы накапливаются вкладками.</div>' : ''}
     </div>`
   );
 }

@@ -4,11 +4,8 @@ import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
-import {
-  STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT,
-  STRUCTURE_KIND, APARTMENT_RIGHTS,
-} from '../../data/dictionaries.js';
-import { floorsBlock } from './floors.view.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, STRUCTURE_KIND, APARTMENT_RIGHTS } from '../../data/dictionaries.js';
+import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { docsBlockInner } from '../../parts/docs/table.js';
@@ -66,6 +63,10 @@ function generalCard(ctx, oi) {
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;
   const showStructureKindOther = oi.structureKind === 'Прочее';
+  // «Тип строения» (дом, пристройка, времянка, баня, гараж…) описывает
+  // ВСПОМОГАТЕЛЬНОЕ здание. У основного он бессмысленен и конфликтует с
+  // категорией — поле скрыто (решение пользователя 2026-08-28).
+  const showStructureKind = oi.status === 'Вспомогательное';
   const showRightsOther = oi.rights === 'Иное';
 
   return `<div class="card t-blue" id="q-gen">
@@ -108,7 +109,7 @@ ${rq.showCatClass ? `<div class="field"><label>Категория ОИ (кате
 </div>` : ''}
 </div>
 <div class="grid g-2" style="margin-top:10px">
-<div class="field">
+${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
 <select class="select" data-structure-kind style="flex:1 1 160px;">
@@ -124,7 +125,7 @@ maxlength="60"
 style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
 >
 </div>
-</div>
+</div>` : ''}
 <div class="field">
 <label>Права на строение</label>
 <div class="inline-row">
@@ -161,14 +162,14 @@ function areasCard(ctx, oi) {
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Площадь застройки по техпаспорту, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
 </div>
+<div class="grid g-4" style="margin-top:10px">
+${floorsCountField(oi)}
+</div>
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
-${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 </div></div>
 </div>`;
 }
@@ -178,7 +179,7 @@ function structCard(ctx, oi, idx = 3) {
   const struct = oi.struct || {};
 
   return `<div class="card t-teal" id="q-struct">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
 ${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
@@ -238,6 +239,19 @@ function buildTypeOptions(oi) {
   return list;
 }
 
+// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
+// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
+function annexesCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-annexes">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
@@ -245,9 +259,10 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi)}
 ${areasCard(ctx, oi)}
-${structCard(ctx, oi, 3)}
-${docsCard(oi, 4)}
-${photosCard(ctx, oi, 5)}
+${annexesCard(ctx, oi, 3)}
+${structCard(ctx, oi, 4)}
+${docsCard(oi, 5)}
+${photosCard(ctx, oi, 6)}
 </div>`;
 
   return `<div class="view-head">

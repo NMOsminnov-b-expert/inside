@@ -2,10 +2,22 @@ import { esc } from '../../../../kernel/dom.js';
 import { PHOTO_CAT } from '../../data/dictionaries.js';
 import { photoPages, photoFileAt } from './model.js';
 
+// Плитка фото: настоящая картинка, если файл загружен, иначе прежняя макетная
+// заглушка с подписью (сидовые фото файлов не имеют).
+function phTileInner(oi, cat, i) {
+  const f = photoFileAt(oi, cat, i);
+  return f
+    ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">`
+    : `${esc(cat)} ${i + 1}`;
+}
+
 export function miniThumbs(oi) {
   const pages = photoPages(oi);
   if (!pages.length) return '<span class="muted">—</span>';
-  return `<div class="inline-row" style="gap:4px">${pages.slice(0, 3).map((p) => `<div class="ph-mini" data-open-photo="${oi.id}|${p.cat}:${p.i}" title="${esc(p.cat)} ${p.i + 1}"></div>`).join('')}<span class="tag-mini">${pages.length}</span></div>`;
+  return `<div class="inline-row" style="gap:4px">${pages.slice(0, 3).map((p) => {
+    const f = photoFileAt(oi, p.cat, p.i);
+    return `<div class="ph-mini" data-open-photo="${oi.id}|${p.cat}:${p.i}" title="${esc(p.cat)} ${p.i + 1}"${f ? ` style="background-image:url('${f.dataUrl}');background-size:cover;background-position:center"` : ''}></div>`;
+  }).join('')}<span class="tag-mini">${pages.length}</span></div>`;
 }
 
 export function photoAccordions(ui, oi, withAdd) {
@@ -28,7 +40,7 @@ export function photoAccordions(ui, oi, withAdd) {
     return `<div class="acc ${isOpen ? 'open' : ''}">
       <div class="acc-head" data-acc-toggle="${key}"><span class="chev">▾</span>${esc(cat)}<span class="muted" style="font-weight:400">${oi.photos[cat]} фото</span></div>
       <div class="acc-body"><div class="ph-row">
-        ${Array.from({ length: oi.photos[cat] }, (_, i) => `<div class="ph" data-open-photo="${oi.id}|${esc(cat)}:${i}">${esc(cat)} ${i + 1}</div>`).join('')}
+        ${Array.from({ length: oi.photos[cat] }, (_, i) => `<div class="ph" data-open-photo="${oi.id}|${esc(cat)}:${i}" title="${esc(cat)} ${i + 1}">${phTileInner(oi, cat, i)}</div>`).join('')}
         ${withAdd ? `<button class="btn btn-ghost btn-sm" data-add-photo="${esc(cat)}" data-photo-oi="${oi.id}">+ Загрузить</button>` : ''}
       </div></div>
     </div>`;

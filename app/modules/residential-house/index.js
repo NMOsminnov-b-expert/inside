@@ -1,4 +1,7 @@
 import { migrateAreaList } from '../../kernel/areaList.js';
+// Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
+// поэтому и перевод её данных берётся оттуда же.
+import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
 import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -16,7 +19,7 @@ import { ctxPlate, updatePlate } from './card/ctxPlate.js';
 import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
-import { bindViewer } from './parts/viewer/ctrl.js';
+import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 
@@ -263,7 +266,17 @@ export function main(host) {
   // не место, она на всю ширину.
   function ensureViewerDefault() {
     if (route.rest.length === 0 && route.query.tab === 'audit') return;
+    // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
+    if (ui.viewerClosed) return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };
+    // Фото и сравнение — про литеру: и то и другое берётся из ctx.oi. На
+    // экранах уровня ОЦ (формы редактирования и создания) литеры нет, и
+    // оставшийся с прошлого экрана режим «Фото» открыл бы просмотрщик пустым.
+    // Вкладка «Фото» самой карточки ОЦ — исключение: там режим фото
+    // осмысленный (плитки по литерам, см. parts/photos/explorer.js).
+    const onOi = route.rest[0] === 'oi';
+    const onOcPhotoTab = route.rest.length === 0 && route.query.tab === 'photo';
+    if (!onOi && !onOcPhotoTab && ui.viewer.mode !== 'doc') ui.viewer = { mode: 'doc' };
   }
 
   // Лог действий (вкладка «Логи» в карточке ОЦ, см. card/ocCard.view.js):
@@ -291,6 +304,10 @@ export function main(host) {
   function migrateAnnexes(r) {
     if (!r || !Array.isArray(r.oi)) return;
     r.oi.forEach((o) => {
+      // Коммуникации участка были объектом с четырьмя флажками, стали списком
+      // (инженерное оснащение). Перевод до отрисовки, иначе попал бы в лог
+      // правок как правка пользователя.
+      if (o.card === 'land') migrateUtilities(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
       // Террасы отделены от балконов (решение пользователя 2026-08-27):
@@ -365,6 +382,10 @@ export function main(host) {
 
   bindCommonUI();
   bindStickyHead();
+  // Клавиши просмотрщика — однократно на монтирование модуля, рядом с
+  // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
+  // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
+  bindViewerHotkeys(ctx);
   ensureViewerDefault();
   migrateSpecials(rec);
   migrateStruct(rec);

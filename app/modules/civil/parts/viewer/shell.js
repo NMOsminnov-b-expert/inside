@@ -62,8 +62,16 @@ export function viewerHTML(ctx) {
   return `<div class="viewer">${modeBar}${parts.tabsBar || ''}${parts.toolbar}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}</div>`;
 }
 
+// Закрытый просмотрщик оставляет после себя закладку — так же, как блок
+// заметок справа (.notes-tab в app.html): иначе вернуть его на этом же экране
+// нечем. Закладка слева, потому что и сам просмотрщик слева.
 export function splitWrap(viewerInner, growInner) {
-  if (!viewerInner) return `<div class="split" style="--vw:0%"><div class="grow" style="padding-left:0">${growInner}</div></div>`;
+  if (!viewerInner) {
+    return `<div class="split split-closed" style="--vw:0%">
+      <button class="vopen-tab" data-vopen title="Открыть просмотрщик документов"><span>Документы</span></button>
+      <div class="grow">${growInner}</div>
+    </div>`;
+  }
   return `<div class="split">${viewerInner}<div class="vsplit" data-vsplit title="Потяните, чтобы изменить соотношение"></div><div class="grow">${growInner}</div></div>`;
 }
 

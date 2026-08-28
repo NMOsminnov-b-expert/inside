@@ -57,6 +57,9 @@ export const ui = {
 export function resetViewer() {
   ui.viewer = null;
   ui.viewerDoc = null;
+  // Закладка «Документы» — состояние ЭКРАНА, а не записи: перешли к другому
+  // объекту оценки, значит просмотрщик снова открыт по умолчанию.
+  ui.viewerClosed = false;
 }
 
 export function nextLetter(rec) {
@@ -89,6 +92,15 @@ export function nextEniScoped(rec, existingIds) {
     .filter((n) => !isNaN(n));
   const base = rec.eni || rec.id;
   return `${base}-${(used.length ? Math.max(...used) : 0) + 1}`;
+}
+
+// Документ — это то, что прикреплено к ОЦ (см. audit/model.js), независимо
+// от того, лежит ли он технически в rec.docs или в docs конкретного ОИ —
+// поэтому счётчик общий на всю запись, не на каждый массив по отдельности.
+export function nextDocId(rec) {
+  const ids = (rec.docs || []).map((d) => d.id)
+    .concat((rec.oi || []).flatMap((o) => (o.docs || []).map((d) => d.id)));
+  return nextEniScoped(rec, ids);
 }
 
 export function addRecord(rec) {

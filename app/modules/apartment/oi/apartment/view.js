@@ -97,10 +97,13 @@ inputmode="numeric" min="1" max="30" title="Количество этажей к
 <div class="grid g-2" style="margin-top:10px">
 <div class="field">
 <label>Серия</label>
-<input class="input" list="apartmentSeriesList" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
-<datalist id="apartmentSeriesList">
-${APARTMENT_SERIES.map((series) => `<option value="${esc(series)}">`).join('')}
-</datalist>
+<div class="dd combo">
+<input class="input" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
+<button class="combo-arrow" type="button" data-dd-toggle title="Выбрать серию из списка">▾</button>
+<div class="dd-menu combo-menu">
+${APARTMENT_SERIES.map((series) => `<button type="button" data-apt-series-pick="${esc(series)}">${esc(series)}</button>`).join('')}
+</div>
+</div>
 </div>
 <div class="field">
 <label>Положение на этаже</label>
@@ -168,9 +171,6 @@ ${showFloors ? apartmentFloorsBlock(ctx, oi) : ''}
 <div class="field"><label>Высота по внешним замерам, м</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
-${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi.apartment, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi.apartment, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 
 </div></div>
 </div>`;
@@ -180,7 +180,7 @@ function structCard(ctx, oi, idx = 3) {
   const struct = oi.struct || {};
 
   return `<div class="card t-teal" id="q-struct">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
 ${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
@@ -247,6 +247,20 @@ ${photoAccordions(ctx.ui, oi, true)}
 </div>`;
 }
 
+// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей» они
+// оказывались ниже высот, и их там не находили. У квартиры списки живут в
+// oi.apartment, а не в самой литере.
+function annexesCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-annexes">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi.apartment, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi.apartment, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
@@ -254,10 +268,11 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi)}
 ${areasCard(ctx, oi)}
-${plansCard(oi, 3)}
-${structCard(ctx, oi, 4)}
-${docsCard(oi, 5)}
-${photosCard(ctx, oi, 6)}
+${annexesCard(ctx, oi, 3)}
+${plansCard(oi, 4)}
+${structCard(ctx, oi, 5)}
+${docsCard(oi, 6)}
+${photosCard(ctx, oi, 7)}
 </div>`;
 
   return `<div class="view-head">

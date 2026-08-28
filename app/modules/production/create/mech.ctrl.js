@@ -1,4 +1,6 @@
 import { nextId, nextEni } from '../data/store.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
+import { openDocViewer } from '../parts/viewer/state.js';
 
 // Строки комплекса живут в состоянии модуля, а не только в DOM
 // (в макете они терялись при любом ререндере).
@@ -17,10 +19,14 @@ export function bindMech(ctx) {
   });
 
   const am = s.$('[data-add-movdoc]');
-  if (am) am.onclick = () => {
+  if (am) am.onclick = async () => {
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
     ui.mechDocs = ui.mechDocs || [];
-    ui.mechDocs.push({ id: nextId('md'), type: 'ПУД', name: 'Новый документ', date: ctx.today });
-    ctx.render();
+    const doc = { id: nextId('md'), type: 'ПУД', name: file.name, date: ctx.today, file: await attachedFileFrom(file) };
+    ui.mechDocs.push(doc);
+    openDocViewer(ctx, 'mech-new', doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
 

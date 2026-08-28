@@ -5,7 +5,7 @@ import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
+import { nextLetter, nextId, nextEni, nextDocId, removeRecord } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
@@ -92,6 +92,14 @@ export function bindOcCard(ctx) {
   // --- Вкладки ------------------------------------------------------------
   s.$$('[data-tab]').forEach((b) => b.onclick = () => {
     const tab = b.dataset.tab;
+
+    // Закрыт крестиком — вкладки его не возвращают: открыть можно только
+    // закладкой «Документы» (как блок заметок).
+    if (ctx.ui.viewerClosed) {
+      ctx.ui.viewer = null;
+      ctx.navigate({ rest: [], query: tab === 'general' ? {} : { tab } });
+      return;
+    }
 
     if (tab === 'docs') {
       ctx.ui.viewer = { mode: 'doc' };
@@ -213,7 +221,7 @@ export function bindOcCard(ctx) {
     if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
 
     rec.docs = rec.docs || [];
-    const doc = { id: nextId('d'), type: t, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
+    const doc = { id: nextDocId(rec), type: t, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
     rec.docs.push(doc);
 
     openDocViewer(ctx, 'oc', doc.id);

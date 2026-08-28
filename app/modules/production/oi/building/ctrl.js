@@ -1,14 +1,15 @@
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
-import { buildFloors, recalcFloors } from './floors.model.js';
+import { buildFloors, recalcFloors, addMansard, removeMansard } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
-import { photoPages } from '../../parts/photos/model.js';
+import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
-import { nextId } from '../../data/store.js';
+import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
   bindYearField(ctx, oi);
@@ -43,43 +44,74 @@ export function bind(ctx, oi) {
       oi.floors = Math.min(200, Math.max(1, n));
       fn.value = oi.floors;
       buildFloors(oi);
-      rerenderFloors(ctx, oi);
+      redrawFloors();
       ctx.updatePlate();
     };
   }
 
-  const rd = s.$('[data-redistribute]');
-  if (rd) rd.onclick = (e) => {
-    e.stopPropagation();
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-    ctx.toast('Отмеченные этажи выровнены по остатку', 'ok');
-  };
+  // Слушатели развёртки вынесены в функцию: rerenderFloors заменяет разметку
+  // блока целиком, и без повторной привязки чекбоксы и поля площадей остаются
+  // на выброшенных узлах — то есть перестают работать после смены этажности
+  // или добавления мансарды.
+  const redrawFloors = () => { rerenderFloors(ctx, oi); bindFloors(); };
 
-  s.$$('[data-floor-on]').forEach((c) => c.onchange = () => {
-    oi.floorList[+c.dataset.floorOn].on = c.checked;
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-  });
+  function bindFloors() {
+    const rd = s.$('[data-redistribute]');
+    if (rd) rd.onclick = (e) => {
+      e.stopPropagation();
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+      ctx.toast('Отмеченные этажи выровнены по остатку', 'ok');
+    };
 
-  s.$$('[data-cat-all]').forEach((c) => c.onchange = () => {
-    const cat = c.dataset.catAll;
-    oi.floorList.filter((f) => f.cat === cat).forEach((f) => { f.on = c.checked; });
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-  });
+    s.$$('[data-floor-on]').forEach((c) => c.onchange = () => {
+      oi.floorList[+c.dataset.floorOn].on = c.checked;
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+    });
 
-  const mt = s.$('[data-mansard-type]');
-  if (mt) mt.onchange = () => { oi.mansardType = mt.value; };
+    s.$$('[data-cat-all]').forEach((c) => c.onchange = () => {
+      const cat = c.dataset.catAll;
+      oi.floorList.filter((f) => f.cat === cat).forEach((f) => { f.on = c.checked; });
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+    });
 
-  s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
-    oi.floorList[+i.dataset.floorArea].area = i.value;
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-  });
+    // Ключ поля — «<колонка>|<индекс>»: площадей у этажа три, и каждая
+    // распределяется от своего итога (см. floors.model.js).
+    s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
+      const [key, idx] = i.dataset.floorArea.split('|');
+      oi.floorList[+idx][key] = i.value;
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+    });
 
-  s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
-  s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+    s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
+    s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+
+    // Тип у каждой мансардной строки: мансарда и полумансарда бывают в одном
+    // здании, поэтому одного поля на литеру не хватает (Л5.3).
+    s.$$('[data-floor-mansard]').forEach((sel) => sel.onchange = () => {
+      oi.floorList[+sel.dataset.floorMansard].mansardType = sel.value;
+    });
+
+    const addM = s.$('[data-add-mansard]');
+    if (addM) addM.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      addMansard(oi);
+      redrawFloors();
+    };
+
+    s.$$('[data-del-mansard]').forEach((b) => b.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeMansard(oi, +b.dataset.delMansard);
+      redrawFloors();
+    });
+  }
+
+  bindFloors();
 
   // --- Общие параметры ----------------------------------------------------
   const bt = s.$('[data-buildtype]');
@@ -206,14 +238,20 @@ export function bind(ctx, oi) {
   }
 
   // --- Фото ---------------------------------------------------------------
-  s.$$('[data-add-photo]').forEach((b) => b.onclick = (e) => {
+  // Настоящая загрузка файла, а не инкремент счётчика: файл кладётся в
+  // oi.photoFiles, счётчик увеличивает addPhotoFile (см. parts/photos/model.js).
+  s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const cat = b.dataset.addPhoto;
-    oi.photos = oi.photos || {};
-    oi.photos[cat] = (oi.photos[cat] || 0) + 1;
+
+    const file = await pickFile('image/*');
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+
+    addPhotoFile(oi, cat, await attachedFileFrom(file));
     ctx.ui.accOpen['ph|' + oi.id + '|' + cat] = true;
     ctx.render();
-    ctx.toast('Фото загружено', 'ok');
+    ctx.toast('Фото загружено: ' + file.name, 'ok');
   });
 
   s.$$('[data-open-photo]').forEach((p) => p.onclick = (e) => {
@@ -237,9 +275,14 @@ export function bind(ctx, oi) {
   });
 
   const am = s.$('[data-add-movdoc]');
-  if (am) am.onclick = () => {
-    (oi.docs = oi.docs || []).push({ id: nextId('md'), type: 'ПУД', name: 'Новый документ', date: ctx.today });
-    ctx.render();
+  if (am) am.onclick = async () => {
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+    oi.docs = oi.docs || [];
+    const doc = { id: nextDocId(ctx.rec), type: 'ПУД', name: file.name, date: ctx.today, file: await attachedFileFrom(file) };
+    oi.docs.push(doc);
+    openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
 

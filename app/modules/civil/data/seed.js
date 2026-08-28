@@ -31,11 +31,7 @@ export function createSeed() {
         mkNote('Нет акта осмотра котельной', false),
         mkNote('Сверить площади по ПУД и техпаспорту', false),
       ],
-      docs: [
-        { id: 'cv1-d1', type: 'Техпаспорт', name: 'Техпаспорт от 30.01.2020', date: '30.01.2020', pages: null },
-        { id: 'cv1-d2', type: 'ПУД', name: 'ПУД №501', date: '30.01.2020', pages: null },
-        { id: 'cv1-d3', type: 'Гос. акт на землю', name: 'Гос. акт №7/09', date: '18.04.2009', pages: null },
-      ],
+      docs: [],
       oi: [
         {
           id: 'oi-cv1-a',

@@ -143,7 +143,11 @@ export function viewOCForm(ctx) {
   </div>
 
   ${splitWrap(
-    (ctx.ui.viewer && ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope === 'oc') ? viewerHTML(ctx) : null,
+    // Просмотрщик рисуется всегда, а не только когда документ уже выбран: без
+    // этого на пустом экране его не было вовсе, хотя на соседней вкладке той же
+    // карточки он есть. Что показать, решает сам viewerHTML — открытый документ
+    // либо приглашение выбрать/прикрепить.
+    ctx.ui.viewer ? viewerHTML(ctx) : null,
     stack
   )}`;
 }

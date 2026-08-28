@@ -1,12 +1,14 @@
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
+import { bindAuditTab } from '../audit/ctrl.js';
 import { DOC_TYPES } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextEni, removeRecord } from '../data/store.js';
+import { nextLetter, nextId, nextEni, removeRecord, nextDocId } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
-import { photoPages } from '../parts/photos/model.js';
+import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../oi/land/model.js';
 
@@ -65,9 +67,19 @@ export function bindOcCard(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
 
+  if (ctx.tab === 'audit') bindAuditTab(ctx);
+
   // --- Вкладки ------------------------------------------------------------
   s.$$('[data-tab]').forEach((b) => b.onclick = () => {
     const tab = b.dataset.tab;
+
+    // Закрыт крестиком — вкладки его не возвращают: открыть можно только
+    // закладкой «Документы» (как блок заметок).
+    if (ctx.ui.viewerClosed) {
+      ctx.ui.viewer = null;
+      ctx.navigate({ rest: [], query: tab === 'general' ? {} : { tab } });
+      return;
+    }
 
     if (tab === 'docs') {
       ctx.ui.viewer = { mode: 'doc' };
@@ -165,13 +177,15 @@ export function bindOcCard(ctx) {
   s.$$('[data-attach]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const t = b.dataset.attach;
-    const name = await ctx.host.prompt({ title: 'Прикрепить документ', label: 'Наименование документа (' + t + ')', placeholder: t });
-    if (!name) return;
+    const file = await pickFile();
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
 
     rec.docs = rec.docs || [];
-    rec.docs.push({ id: nextId('d'), type: t, name, date: ctx.today, pages: null });
+    const doc = { id: nextDocId(rec), type: t, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
+    rec.docs.push(doc);
 
-    ctx.render();
+    openDocViewer(ctx, 'oc', doc.id);
     ctx.toast('Документ прикреплён: ' + t, 'ok');
   });
 
@@ -443,17 +457,23 @@ export function bindOcCard(ctx) {
     await ctx.deleteOi(b.dataset.delOi);
   });
 
-  // Фото в аккордеоне перечня и мини-превью в строках.
-  s.$$('[data-add-photo]').forEach((b) => b.onclick = (e) => {
+  // Фото в аккордеоне перечня и мини-превью в строках. Теперь это РЕАЛЬНАЯ
+  // загрузка файла (как у документов), а не просто инкремент счётчика: файл
+  // кладётся в oi.photoFiles, счётчик увеличивает addPhotoFile.
+  s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const oi = rec.oi.find((o) => o.id === b.dataset.photoOi);
     if (!oi) return;
     const cat = b.dataset.addPhoto;
-    oi.photos = oi.photos || {};
-    oi.photos[cat] = (oi.photos[cat] || 0) + 1;
+
+    const file = await pickFile('image/*');
+    if (!file) return;
+    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
+
+    addPhotoFile(oi, cat, await attachedFileFrom(file));
     ctx.ui.accOpen['ph|' + oi.id + '|' + cat] = true;
     ctx.render();
-    ctx.toast('Фото загружено', 'ok');
+    ctx.toast('Фото загружено: ' + file.name, 'ok');
   });
 
   s.$$('[data-open-photo]').forEach((p) => p.onclick = (e) => {

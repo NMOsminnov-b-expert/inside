@@ -1,3 +1,5 @@
+import { canViewAuditLog } from '../audit/access.js';
+import { auditTab } from '../audit/view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
 import { DOC_TYPES } from '../data/dictionaries.js';
@@ -66,7 +68,11 @@ function partiesOC(rec) {
 
 function docsTab(ctx) {
   return splitWrap(
-    (ctx.ui.viewer && ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope === 'oc') ? viewerHTML(ctx) : null,
+    // Просмотрщик рисуется всегда, а не только когда документ уже выбран: без
+    // этого на пустом экране его не было вовсе, хотя на соседней вкладке той же
+    // карточки он есть. Что показать, решает сам viewerHTML — открытый документ
+    // либо приглашение выбрать/прикрепить.
+    ctx.ui.viewer ? viewerHTML(ctx) : null,
     `<div class="card t-slate">
       <div class="card-head"><span class="card-idx">03</span><h3>Перечень документов</h3><span class="hint">клик по строке — просмотрщик</span>
         <div class="dd" style="margin-left:auto">
@@ -77,7 +83,7 @@ function docsTab(ctx) {
 
       ${docsTableHTML(ctx.rec, true)}
 
-      <div class="muted" style="font-size:10.5px;padding:8px 14px 12px">Открытые документы накапливаются вкладками.</div>
+      ${(ctx.rec.docs || []).length ? '<div class="muted" style="font-size:10.5px;padding:8px 14px 12px">Открытые документы накапливаются вкладками.</div>' : ''}
     </div>`
   );
 }
@@ -91,7 +97,11 @@ export function viewOC(ctx) {
       <button class="tab ${ctx.tab === 'general' ? 'active' : ''}" data-tab="general">Общие данные</button>
       <button class="tab ${ctx.tab === 'docs' ? 'active' : ''}" data-tab="docs">Документы ${(rec.docs || []).length}</button>
       <button class="tab ${ctx.tab === 'photo' ? 'active' : ''}" data-tab="photo">Фото</button>
+      ${canViewAuditLog(rec) ? `<button class="tab ${ctx.tab === 'audit' ? 'active' : ''}" data-tab="audit">Логи</button>` : ''}
     </div>
 
-    ${ctx.tab === 'general' ? generalTab : ctx.tab === 'docs' ? docsTab(ctx) : photosTab(ctx)}`;
+    ${ctx.tab === 'general' ? generalTab
+      : ctx.tab === 'docs' ? docsTab(ctx)
+      : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
+      : photosTab(ctx)}`;
 }

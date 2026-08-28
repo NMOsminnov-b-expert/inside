@@ -4,7 +4,7 @@ import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, MANSARD_TYPE, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM } from '../../data/dictionaries.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -141,13 +141,7 @@ function areasCard(ctx, oi) {
 </div>
 <div class="grid g-4" style="margin-top:10px">
 ${floorsCountField(oi)}
-<div class="field"><label>Конструктивный тип мансарды</label>
-<select class="select" data-mansard>${MANSARD_TYPE.map((o) => `<option ${o === (oi.mansardType || MANSARD_TYPE[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-</div>
-${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
@@ -218,7 +212,7 @@ function structCard(ctx, oi, idx = 3) {
   const struct = oi.struct || {};
 
   return `<div class="card t-teal" id="q-struct">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
 ${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
@@ -306,18 +300,33 @@ function buildTypeOptions(oi) {
   return list;
 }
 
+// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
+// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
+function annexesCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-annexes">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
   const rq = fieldRules(ctx, oi);
-  const docsIdx = rq.prod ? 6 : 5;
+  // +1 ко всем номерам: между площадями и составом встал блок лоджий (Л5.4).
+  const docsIdx = rq.prod ? 7 : 6;
 
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi)}
 ${areasCard(ctx, oi)}
-${rentAreasCard(ctx, oi, 3)}
-${structCard(ctx, oi, 4)}
-${rq.prod ? prodExtraCard(ctx, oi, 5) : ''}
+${annexesCard(ctx, oi, 3)}
+${rentAreasCard(ctx, oi, 4)}
+${structCard(ctx, oi, 5)}
+${rq.prod ? prodExtraCard(ctx, oi, 6) : ''}
 ${docsCard(oi, docsIdx)}
 ${photosCard(ctx, oi, docsIdx + 1)}
 </div>`;
