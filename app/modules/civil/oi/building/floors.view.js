@@ -24,15 +24,17 @@ function catSection(ctx, oi, cat, fkey) {
   const open = ctx.ui.accOpen[ckey] === true
     || (ctx.ui.accOpen[ckey] === undefined && cat.key === 'over');
 
-  return `<div class="acc ${open ? 'open' : ''}" style="margin-top:8px">
-<div class="acc-head" data-acc-toggle="${ckey}">
+  // Оформление общее с лоджиями и балконами (класс al): таблица идёт вплотную
+  // к краям блока, без зазоров и прямых углов внутри скругления.
+  return `<div class="al acc ${open ? 'open' : ''}">
+<div class="acc-head" data-acc-toggle="${ckey}" style="display:flex;align-items:center;gap:8px">
 <span class="chev">▾</span>
 <input type="checkbox" data-cat-all="${cat.key}" ${onCount === rows.length ? 'checked' : ''} title="Выбрать/снять всю категорию — площадь распределится автоматически">
 <span>${cat.label}</span>
 <span style="margin-left:auto" data-cat-summary="${cat.key}">${catSummary(rows.map(({ f }) => f))}</span>
 </div>
-<div class="acc-body" style="padding:8px">
-<table class="tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
+<div class="acc-body">
+<table class="tbl al-tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:120px">Площадь, м²</th><th style="width:120px">Высота внешн, м</th><th style="width:120px">Высота внутр, м</th></tr></thead>
 <tbody>${rows.map(({ f, i }) => `<tr>
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
 <td>${esc(f.name)}${cat.key !== 'over' ? ' <span class="tag-mini">вручную</span>' : ''}</td>

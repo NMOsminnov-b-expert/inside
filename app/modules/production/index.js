@@ -247,6 +247,7 @@ export function main(host) {
     bindSplitPanes(ctx);
 
     scope.root.scrollTop = top;
+    if (scope.syncStickyHead) scope.syncStickyHead();
   }
 
   // Лоджии и балконы: было количество и общая площадь, стало список с площадью
@@ -257,16 +258,77 @@ export function main(host) {
     r.oi.forEach((o) => {
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
+      // Террасы отделены от балконов (решение пользователя 2026-08-27):
+      // раньше это была одна графа, переносить в неё из старых данных нечего.
+      o.terraces = o.terraces || [];
       migrateAreaList(o, 'loggias', 'loggiaCount', 'loggiaBuildArea');
       migrateAreaList(o, 'balconies', 'balconyCount', 'balconyBuildArea');
       if (o.apartment) {
         migrateAreaList(o.apartment, 'loggias', 'loggiaCount', 'loggiaBuildArea');
         migrateAreaList(o.apartment, 'balconies', 'balconyCount', 'balconyBuildArea');
+        o.apartment.terraces = o.apartment.terraces || [];
       }
     });
   }
 
+  // Краткая сводка должна быть видна всегда, даже когда карточку прокрутили
+  // вниз. Поэтому при прокрутке шапка карточки уезжает вверх, а её место
+  // занимает плашка «ОЦ → литера» — она и так стоит сразу под шапкой и
+  // закреплена липко (см. #ctxPlateWrap в module.css).
+  //
+  // Слушатель вешается один раз на корень: он переживает перерисовки, а
+  // scope.root между ними не меняется.
+  function bindStickyHead() {
+    const root = scope.root;
+    if (root.dataset.stickyHeadBound) { if (scope.syncStickyHead) scope.syncStickyHead(); return; }
+
+    // Высота плашки нужна просмотрщику: он липкий и должен начинаться ПОД ней,
+    // а не под ней прятаться. Отдаём её переменной, а не константой в стилях, —
+    // плашка бывает в одну и в две строки.
+    // Пороги РАЗНЫЕ на скрытие и возврат. С одним порогом получался дребезг:
+    // шапка схлопывается, содержимое становится ниже, прокрутка сама уезжает
+    // обратно за порог, шапка возвращается — и так по кругу, из-за чего плашку
+    // приходилось «догонять» колесом.
+    const HIDE_AT = 90;
+    const SHOW_AT = 20;
+
+    const sync = () => {
+      const y = root.scrollTop;
+      const on = root.classList.contains('scrolled');
+      if (!on && y > HIDE_AT) root.classList.add('scrolled');
+      else if (on && y < SHOW_AT) root.classList.remove('scrolled');
+      // Вверху закреплено РАЗНОЕ: в карточке литеры — плашка «ОЦ → литера»,
+      // в карточке ОЦ — её шапка. Просмотрщик должен начинаться под тем, что
+      // закреплено сейчас, иначе он заезжает под него.
+      const plate = root.querySelector('#ctxPlateWrap');
+      const head = root.querySelector('[data-oc-head]');
+      const hp = plate && plate.offsetParent !== null ? plate.offsetHeight : 0;
+      const hh = head && head.offsetParent !== null ? head.offsetHeight : 0;
+      const pinnedH = Math.max(hp, hh);
+      root.style.setProperty('--plate-h', pinnedH + 'px');
+
+      // Высоту просмотрщика считаем по факту, а не формулой из констант:
+      // высота плашки меняется (одна строка или две), и любая константа
+      // промахивается — просмотрщик то вылезал за экран, то оставлял поле.
+      const viewer = root.querySelector('.viewer');
+      if (viewer) {
+        const top = viewer.getBoundingClientRect().top;
+        viewer.style.setProperty('--viewer-h', Math.max(320, window.innerHeight - top - 14) + 'px');
+      }
+    };
+
+    root.addEventListener('scroll', sync);
+    window.addEventListener('resize', sync);
+    // Пересчитываем и после каждой отрисовки: при переходе между карточками
+    // меняется и прокрутка, и сама плашка.
+    root.dataset.stickyHeadBound = '1';
+    scope.syncStickyHead = sync;
+    sync();
+  }
+
+
   bindCommonUI();
+  bindStickyHead();
   migrateSpecials(rec);
   migrateStruct(rec);
   migrateAnnexes(rec);

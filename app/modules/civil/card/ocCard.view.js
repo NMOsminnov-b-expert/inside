@@ -11,7 +11,9 @@ import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
 
 function headOC(rec) {
-  return `<div class="card card-pad t-blue">
+  // data-oc-head: при прокрутке шапка уезжает вверх, а её место занимает
+  // закреплённая плашка «ОЦ → литера» (см. bindStickyHead в index.js).
+  return `<div class="card card-pad t-blue" data-oc-head>
     <div class="head-meta">
       <span class="pill pill-cat">${esc(rec.category)}</span>
 

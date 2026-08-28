@@ -145,8 +145,9 @@ ${floorsCountField(oi)}
 <select class="select" data-mansard>${MANSARD_TYPE.map((o) => `<option ${o === (oi.mansardType || MANSARD_TYPE[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 </div>
-${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия')}
-${areaListHTML(oi, 'balconies', 'Балконы и террасы', 'Балкон')}
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>

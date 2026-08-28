@@ -4,6 +4,7 @@ import { start, parse, build, go, MENU_HREF } from './router.js';
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
+import { installOverflowTip } from './overflowTip.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 
@@ -113,6 +114,9 @@ async function onRoute(route) {
 
 export function boot() {
   initShell();
+  // Полный текст обрезанного значения при наведении — один механизм на весь
+  // проект (Л1.4), см. kernel/overflowTip.js.
+  installOverflowTip();
   start((route) => { onRoute(route); });
 }
 

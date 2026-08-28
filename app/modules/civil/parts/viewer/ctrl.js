@@ -300,6 +300,7 @@ export function bindViewer(ctx) {
   });
 
   bindCompareColumns(ctx);
+  bindCompareSplit(ctx);
 
   // Синхронизация скролла ленты и зум колесом с Ctrl.
   const vstageEl = s.$('[data-vstage]');
@@ -490,4 +491,49 @@ function bindThumbReorder(ctx) {
       ctx.toast(fromIdxs.length > 1 ? `Порядок изменён: ${fromIdxs.length} страниц` : 'Порядок страниц изменён', 'ok');
     });
   });
+}
+
+// Граница между фото и документом внутри сравнения и сворачивание половин
+// (Л3.9). Ширину левой колонки держим в переменной --cmp-photo: правая
+// забирает остаток, поэтому сумма всегда равна ширине области — уехать нечему
+// (та же логика, что у столбцов таблиц).
+export function bindCompareSplit(ctx) {
+  const s = ctx.scope;
+
+  s.$$('[data-cmp-fold]').forEach((b) => b.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const side = b.dataset.cmpFold;
+    ctx.ui.cmpHidden = ctx.ui.cmpHidden === side ? null : side;
+    ctx.render();
+  });
+
+  const sp = s.$('[data-cmp-split]');
+  if (!sp) return;
+
+  sp.onpointerdown = (e) => {
+    e.preventDefault();
+    sp.setPointerCapture(e.pointerId);
+
+    const cmp = sp.parentElement;
+    const rect = cmp.getBoundingClientRect();
+    cmp.classList.add('cmp-resizing');
+    let pct = ctx.ui.cmpSplit || 50;
+
+    const move = (ev) => {
+      // Не даём половине схлопнуться совсем: по 20 % минимум с каждой стороны.
+      pct = Math.min(80, Math.max(20, ((ev.clientX - rect.left) / rect.width) * 100));
+      cmp.style.setProperty('--cmp-photo', pct + '%');
+    };
+    const up = () => {
+      sp.releasePointerCapture(e.pointerId);
+      sp.removeEventListener('pointermove', move);
+      sp.removeEventListener('pointerup', up);
+      cmp.classList.remove('cmp-resizing');
+      ctx.ui.cmpSplit = Math.round(pct);
+    };
+
+    sp.addEventListener('pointermove', move);
+    sp.addEventListener('pointerup', up);
+  };
 }

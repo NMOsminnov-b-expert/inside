@@ -67,6 +67,33 @@ export function splitWrap(viewerInner, growInner) {
   return `<div class="split">${viewerInner}<div class="vsplit" data-vsplit title="Потяните, чтобы изменить соотношение"></div><div class="grow">${growInner}</div></div>`;
 }
 
+// Ширина просмотрщика запоминается ОТДЕЛЬНО ДЛЯ КАЖДОГО РЕЖИМА (Л3.8).
+// В сравнении рядом стоят фото и документ, и места нужно заметно больше, чем
+// в обычном просмотре, — поэтому при переходе в сравнение зона параметров
+// сжимается сама. Если человек подвинул границу руками, дальше используется
+// его значение — но тоже своё для каждого режима.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: соотношение колонок — личная настройка пользователя.
+// В макете она живёт только в памяти сессии и теряется при перезагрузке. На
+// сервере это либо поле в профиле пользователя, либо localStorage у него на
+// машине. Что практичнее — решать разработчикам: профиль переезжает вместе с
+// человеком на другой компьютер, localStorage не требует запроса к серверу на
+// каждый показ карточки.
+const DEFAULT_VW = { doc: null, photo: null, compare: 64 };   // ключ режима — 'compare' (см. parts/viewer/ctrl.js)
+
+const modeOf = (ctx) => (ctx.ui.viewer && ctx.ui.viewer.mode) || 'doc';
+
+export function applySplitForMode(ctx) {
+  const split = ctx.scope.$('.split');
+  if (!split) return;
+
+  const mode = modeOf(ctx);
+  const saved = (ctx.ui.splitVW || {})[mode];
+  const vw = saved != null ? saved : DEFAULT_VW[mode];
+
+  if (vw == null) split.style.removeProperty('--vw');
+  else split.style.setProperty('--vw', vw + '%');
+}
+
 // Перетаскивание разделителя — часть просмотрщика, а не каркаса.
 export function bindSplitPanes(ctx) {
   ctx.scope.$$('[data-vsplit]').forEach((sp) => {
@@ -83,7 +110,12 @@ export function bindSplitPanes(ctx) {
 
       const move = (ev) => {
         const pct = ((ev.clientX - rect.left) / rect.width) * 100;
-        split.style.setProperty('--vw', Math.min(maxVW, Math.max(25, pct)) + '%');
+        const vw = Math.min(maxVW, Math.max(25, pct));
+        split.style.setProperty('--vw', vw + '%');
+        // Запоминаем для текущего режима: в сравнении и в обычном просмотре
+        // удобны разные соотношения.
+        ctx.ui.splitVW = ctx.ui.splitVW || {};
+        ctx.ui.splitVW[modeOf(ctx)] = Math.round(vw);
       };
       const up = () => {
         sp.releasePointerCapture(e.pointerId);
@@ -94,4 +126,6 @@ export function bindSplitPanes(ctx) {
       sp.addEventListener('pointerup', up);
     };
   });
+
+  applySplitForMode(ctx);
 }

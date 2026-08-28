@@ -42,13 +42,22 @@ export function renderCompareMode(ctx, vctx) {
     ? d.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-dcblk="${i + 1}"><div class="vpage">${docPageHTML(d, i + 1)}</div></div>`).join('')
     : '<div class="muted" style="padding:12px">Откройте документ во вкладке «Документы»</div>';
 
-  const body = `<div class="cmp" data-cmp>
-    <div class="cmp-col">
-      <div class="cmp-h">ФОТО <span data-cmp-phnum>${pages.length ? Math.min(pSt.page, pages.length) : 0}/${pages.length}</span>${zoomCtl('photo')}</div>
+  // Половины можно свернуть значком-папкой (Л3.9): фото убирается влево,
+  // документ вправо. Свёрнутая половина остаётся узкой полосой с тем же
+  // значком — развернуть её можно там же, где свернули.
+  const hidden = ctx.ui.cmpHidden || null;
+  const fold = (side, title) =>
+    `<button class="cmp-fold" data-cmp-fold="${side}" title="${title}">${side === 'photo' ? '⯇' : '⯈'}</button>`;
+
+  const body = `<div class="cmp ${hidden ? 'cmp-folded-' + hidden : ''}" data-cmp
+    style="--cmp-photo:${ctx.ui.cmpSplit || 50}%">
+    <div class="cmp-col" data-cmp-side="photo">
+      <div class="cmp-h">${fold('photo', 'Свернуть фото влево')}ФОТО <span data-cmp-phnum>${pages.length ? Math.min(pSt.page, pages.length) : 0}/${pages.length}</span>${zoomCtl('photo')}</div>
       <div class="cmp-body" data-cmp-stage="photo"><div class="cmp-ribbon" data-cmp-ribbon="photo" style="zoom:${VS.cmpZoom.photo / 100}">${photoRibbon}</div></div>
     </div>
-    <div class="cmp-col">
-      <div class="cmp-h">${d ? esc(d.type) : 'Нет документа'} <span data-cmp-dcnum>${d ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
+    <div class="cmp-split" data-cmp-split title="Потяните, чтобы изменить соотношение"></div>
+    <div class="cmp-col" data-cmp-side="doc">
+      <div class="cmp-h">${fold('doc', 'Свернуть документ вправо')}${d ? esc(d.type) : 'Нет документа'} <span data-cmp-dcnum>${d ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
       <div class="cmp-body" data-cmp-stage="doc"><div class="cmp-ribbon" data-cmp-ribbon="doc" style="zoom:${VS.cmpZoom.doc / 100}">${docRibbon}</div></div>
     </div>
   </div>`;

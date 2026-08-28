@@ -20,7 +20,7 @@ export function ctxPlate(ctx) {
         <span class="ctx-chip ctx-plate-addr ell" title="${esc(ctx.rec.address)}">${esc(ctx.rec.address)}</span>
         ${chips}
         <span class="ctx-chip ${pend ? '' : 'ctx-ok'}">${pend ? pend + ' невып. заметок' : 'заметки выполнены'}</span>
-        <span class="ctx-back-hint">возврат — «К объекту оценки»</span>
+        <button class="ctx-back-btn" data-back title="Вернуться к объекту оценки">← К объекту оценки</button>
       </div>`;
   }
 

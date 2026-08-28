@@ -28,8 +28,8 @@ function catSection(ctx, oi, cat, fkey) {
   const open = ctx.ui.accOpen[ckey] === true
     || (ctx.ui.accOpen[ckey] === undefined && cat.key === 'over');
 
-  return `<div class="acc ${open ? 'open' : ''}" style="margin-top:8px">
-<div class="acc-head" data-acc-toggle="${ckey}">
+  return `<div class="al acc ${open ? 'open' : ''}">
+<div class="acc-head" data-acc-toggle="${ckey}" style="display:flex;align-items:center;gap:8px">
 <span class="chev">▾</span>
 <input type="checkbox" data-cat-all="${cat.key}" ${onCount === rows.length ? 'checked' : ''} title="Выбрать/снять всю категорию — площадь распределится автоматически">
 <span>${cat.label}</span>

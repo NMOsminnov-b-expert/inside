@@ -42,8 +42,13 @@ export function migrateAreaList(oi, key, countKey, totalKey) {
   if (oi.areas) delete oi.areas[totalKey];
 }
 
-export function areaListHTML(oi, key, label, unitLabel) {
+// Блок сворачивается: списков теперь три (лоджии, балконы, террасы), и
+// развёрнутыми все сразу они занимают полэкрана. Состояние открытости пишет
+// общий переключатель аккордеонов модуля — в ui.accOpen по ключу «al|<список>»,
+// поэтому и читаем его оттуда же.
+export function areaListHTML(oi, key, label, unitLabel, ui) {
   const items = itemsOf(oi, key);
+  const open = !ui || !ui.accOpen || ui.accOpen['al|' + key] !== false;
 
   const rows = items.map((it, i) => `<tr>
     <td class="al-n">${i + 1}</td>
@@ -51,20 +56,24 @@ export function areaListHTML(oi, key, label, unitLabel) {
       placeholder="${unitLabel} №${i + 1}"></td>
     <td><input class="input" data-al-area="${key}|${it.id}" value="${it.area || ''}"
       inputmode="decimal" placeholder="м²"></td>
-    <td><button class="btn btn-danger btn-sm" data-al-del="${key}|${it.id}" title="Удалить">×</button></td>
+    <td class="al-act"><button class="btn btn-danger btn-sm" data-al-del="${key}|${it.id}" title="Удалить">×</button></td>
   </tr>`).join('');
 
-  return `<div class="al" data-al-block="${key}">
-    <div class="sec-h">${label}
-      <span class="pill-mini ${items.length ? 'pill-pend' : ''}">${items.length}</span>
-      <span class="al-sum">Σ ${fmtNum(areaSum(oi, key))} м²</span>
-      <button class="btn btn-ghost btn-sm" data-al-add="${key}" style="margin-left:auto">+ ${unitLabel}</button>
+  return `<div class="al acc ${open ? 'open' : ''}" data-al-block="${key}">
+    <div class="sec-h acc-head" data-acc-toggle="al|${key}"
+      style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <span class="al-head-left" style="display:flex;align-items:center;gap:8px;min-width:0">
+        <span class="chev">▾</span>${label}
+        <span class="pill-mini ${items.length ? 'pill-pend' : ''}">${items.length}</span>
+        <span class="al-sum">Σ ${fmtNum(areaSum(oi, key))} м²</span>
+      </span>
+      <button class="btn btn-ghost btn-sm" data-al-add="${key}">+ ${unitLabel}</button>
     </div>
-    ${items.length ? `<table class="tbl al-tbl">
+    <div class="acc-body">${items.length ? `<table class="tbl al-tbl">
       <colgroup><col style="width:34px"><col><col style="width:120px"><col style="width:44px"></colgroup>
       <thead><tr><th>№</th><th>Наименование</th><th>Площадь, м²</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>` : `<div class="al-empty">Не добавлено.</div>`}
+    </table>` : `<div class="al-empty">Не добавлено.</div>`}</div>
   </div>`;
 }
 

@@ -82,37 +82,101 @@ function emptyRow(ctx, text) {
 
 // Узел дерева: земельный участок либо служебная группа «Без участка».
 // dropId — куда переносить литеру, брошенную на этот узел ('' = снять привязку).
-function treeNode(ctx, { key, dropId, head, meta, letters, open }) {
+// Объекты на участке разделены: литеры отдельно, движимое отдельно — это
+// разные сущности, и смешивать их в одной таблице неудобно (решение
+// пользователя 2026-08-28).
+// Шапка столбцов рисуется ОДИН раз, у первого раздела: столбцы у разделов
+// одни и те же, и повторять их у движимого — лишний шум.
+// Названия колонок стоят ОДИН раз и ВЫШЕ заголовков разделов: заголовок
+// «Здания и сооружения…» относится к строкам под ним, а шапка столбцов — ко
+// всей таблице сразу, и подчинять её разделу нелогично. Ширины у всех таблиц
+// общие (переменные на контейнере), поэтому колонки совпадают.
+function colsRowHTML(ctx) {
+  return `<table class="tbl oi-tree-tbl oi-cols-row">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${headHTML(ctx)}</table>`;
+}
+
+function sub(ctx, label, list, emptyText, kind, withHead) {
+  return `<div class="oi-sub" data-oi-sub="${kind}">
+    ${label ? `<div class="oi-sub-h">${label}</div>` : ''}
+    <table class="tbl oi-tree-tbl">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${withHead ? headHTML(ctx) : ''}
+      <tbody>${list.length ? list.map((oi) => letterRow(ctx, oi)).join('') : emptyRow(ctx, emptyText)}</tbody>
+    </table>
+  </div>`;
+}
+
+function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
   return `<div class="acc oi-node ${open ? 'open' : ''}" data-oi-drop="${esc(dropId)}">
     <div class="acc-head oi-node-head" data-acc-toggle="${esc(key)}">
       <span class="chev">▾</span>
       ${head}
-      <span class="oi-node-count">${letters.length ? `литер: ${letters.length}` : 'литер нет'}</span>
+      <span class="oi-node-count">
+        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => o.card !== 'movable').length}</span>
+        <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter((o) => o.card === 'movable').length}</span>
+      </span>
       ${meta}
     </div>
     <div class="acc-body" style="padding:0">
-      <table class="tbl oi-tree-tbl">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${headHTML(ctx)}
-        <tbody>
-          ${letters.length
-            ? letters.map((oi) => letterRow(ctx, oi)).join('')
-            : emptyRow(ctx, 'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».')}
-        </tbody>
-      </table>
+      ${summary || ''}
+      ${colsRowHTML(ctx)}
+      ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : '',
+        letters.filter((o) => o.card !== 'movable'),
+        'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false)}
+      ${sub(ctx, 'Движимое имущество', letters.filter((o) => o.card === 'movable'),
+        'Движимого имущества нет.', 'movable', false)}
     </div>
   </div>`;
 }
 
-function landHead(land) {
-  return `<b>${esc(land.name || 'Земельный участок')}</b>
-    <span class="mono oi-node-eni" title="${esc(land.eni)}">${esc(fmtEni(land.eni))}</span>
-    <span class="muted">${esc(land.purpose || '—')}</span>`;
+// В шапке узла — только имя участка и его ЕНИ (решение пользователя
+// 2026-08-28). Всё остальное — назначение, площадь, ограничения, коммуникации —
+// в сводке под шапкой: в одну строку они не влезают и читаются плохо.
+function landHead(land, num) {
+  return `<span class="oi-node-num" title="Участок №${num}">${num}</span>
+    <b>${esc(land.name || 'Земельный участок')}</b>
+    <span class="mono oi-node-eni" title="${esc(land.eni)}">${esc(fmtEni(land.eni))}</span>`;
+}
+
+// Есть ли ограничения или сервитуты. В данных это строка «Нет» либо описание.
+function landLimits(land) {
+  const v = String(land.encumbrance || '').trim();
+  if (!v || v.toLowerCase() === 'нет') return 'нет';
+  return land.encumbranceArea ? `${v} · ${land.encumbranceArea} м²` : v;
+}
+
+const UTIL_LABELS = {
+  electricity: 'электричество',
+  water: 'вода',
+  sewerage: 'канализация',
+  heating: 'отопление',
+};
+
+function landUtils(land) {
+  const on = Object.keys(UTIL_LABELS).filter((k) => (land.utilities || {})[k]);
+  return on.length ? on.map((k) => UTIL_LABELS[k]).join(', ') : 'не отмечены';
+}
+
+// Сводка по участку: то, что нужно видеть, не открывая его карточку.
+function landSummary(ctx, land) {
+  const meta = cardMeta(land);
+  const rows = [
+    ['Площадь', meta.tableArea(land)],
+    ['Назначение (ПУД)', esc(land.purpose || '—')],
+    ['Тип ЗУ', esc(land.landType || '—')],
+    ['Ограничения и сервитуты', esc(landLimits(land))],
+    ['Коммуникации', esc(landUtils(land))],
+  ];
+
+  return `<div class="oi-land-sum">
+    ${rows.map(([k, v]) => `<div class="oi-land-f"><label>${k}</label><b>${v}</b></div>`).join('')}
+    <button class="btn btn-primary btn-sm oi-land-open" data-open-oi="${land.id}"
+      title="Открыть карточку земельного участка">Карточка участка →</button>
+  </div>`;
 }
 
 function landMeta(ctx, land) {
   const meta = cardMeta(land);
-  return `<span class="oi-node-area">${meta.tableArea(land)}</span>
-    <span class="oi-node-actions">
-      <button class="btn btn-ghost btn-sm" data-open-oi="${land.id}" title="Открыть карточку участка">Открыть</button>
+  void meta;
+  return `<span class="oi-node-actions">
       <button class="btn btn-danger btn-sm" data-del-oi="${land.id}" title="Удалить участок — литеры останутся, но потеряют привязку">×</button>
     </span>`;
 }
@@ -132,11 +196,12 @@ export function tableOI(ctx) {
   // Всплывающее окно со фото — одно на перечень, для литеры, по которой кликнули.
   const popOi = ctx.ui.photoPop ? rec.oi.find((o) => o.id === ctx.ui.photoPop) : null;
 
-  const nodes = lands.map((land) => treeNode(ctx, {
+  const nodes = lands.map((land, i) => treeNode(ctx, {
     key: 'oiland|' + land.id,
     dropId: land.id,
-    head: landHead(land),
+    head: landHead(land, i + 1),
     meta: landMeta(ctx, land),
+    summary: landSummary(ctx, land),
     letters: byLand.get(land.id),
     // По умолчанию узлы раскрыты: скрывать содержимое объекта при заходе в
     // карточку смысла нет, а вот свернуть лишний участок — полезно.
@@ -146,6 +211,11 @@ export function tableOI(ctx) {
   // Группа «Без участка» показывается, только если в ней что-то есть или
   // участков нет вовсе — иначе это пустой лишний узел.
   if (orphans.length || !lands.length) {
+    // Разделитель — настоящий элемент, а не тень или псевдоэлемент узла: узел
+    // обрезает содержимое по своим скруглениям, и линия либо пропадала, либо
+    // наслаивалась на его шапку.
+    if (lands.length) nodes.push('<div class="oi-sep" aria-hidden="true"></div>');
+
     nodes.push(treeNode(ctx, {
       key: 'oiland|none',
       dropId: '',

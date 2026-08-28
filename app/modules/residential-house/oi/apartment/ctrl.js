@@ -11,8 +11,24 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js
 import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+
+  // Планировки правятся прямо в строке. Слушатели прямые: карточка
+  // перепривязывается на каждой отрисовке, делегированные накапливались бы.
+  ctx.scope.$$('[data-plan-name]').forEach((inp) => {
+    inp.oninput = () => {
+      const pl = (oi.plans || []).find((x) => x.id === inp.dataset.planName);
+      if (pl) pl.name = inp.value;
+    };
+  });
+  ctx.scope.$$('[data-plan-date]').forEach((inp) => {
+    inp.oninput = () => {
+      const pl = (oi.plans || []).find((x) => x.id === inp.dataset.planDate);
+      if (pl) pl.date = inp.value;
+    };
+  });
   bindAreaList(ctx, oi.apartment, 'loggias');
   bindAreaList(ctx, oi.apartment, 'balconies');
+  bindAreaList(ctx, oi.apartment, 'terraces');
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
   const s = ctx.scope;

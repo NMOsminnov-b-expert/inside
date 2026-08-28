@@ -26,13 +26,27 @@ export function bind(ctx, oi) {
 
   s.$$('[data-height]').forEach((i) => i.onchange = () => { oi.heights[i.dataset.height] = i.value; });
 
+  // Количество этажей: только цифры и разумные границы. Раньше поле принимало
+  // что угодно, а любая нечисловая строка молча превращалась в 1 — этаж
+  // пропадал вместе с введёнными по нему площадями.
   const fn = s.$('[data-floors-n]');
-  if (fn) fn.onchange = () => {
-    oi.floors = Math.max(1, parseInt(fn.value, 10) || 1);
-    buildFloors(oi);
-    rerenderFloors(ctx, oi);
-    ctx.updatePlate();
-  };
+  if (fn) {
+    fn.oninput = () => {
+      const clean = fn.value.replace(/\D/g, '').slice(0, 3);
+      if (clean !== fn.value) fn.value = clean;
+    };
+    fn.onchange = () => {
+      const n = parseInt(fn.value, 10);
+      // Пустое поле — не повод обнулять этажи: оставляем прежнее значение.
+      if (!n) { fn.value = oi.floors; return; }
+
+      oi.floors = Math.min(200, Math.max(1, n));
+      fn.value = oi.floors;
+      buildFloors(oi);
+      rerenderFloors(ctx, oi);
+      ctx.updatePlate();
+    };
+  }
 
   const rd = s.$('[data-redistribute]');
   if (rd) rd.onclick = (e) => {

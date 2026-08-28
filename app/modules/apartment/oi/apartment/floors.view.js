@@ -16,8 +16,8 @@ export function apartmentFloorsBlock(ctx, oi) {
 <span style="margin-left:auto" data-floor-sum class="${ok ? 'sum-ok' : 'sum-warn'}">Σ этажей: ${fmtNum(s)} / ${fmtNum(t)} м²</span>
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:8px">Выровнять отмеченные</button>
 </div>
-<div class="acc-body" style="padding:8px">
-<table class="tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:140px">Площадь, м²</th><th style="width:140px">Высота внутр, м</th></tr></thead>
+<div class="acc-body">
+<table class="tbl al-tbl"><thead><tr><th style="width:40px"></th><th>Этаж</th><th style="width:140px">Площадь, м²</th><th style="width:140px">Высота внутр, м</th></tr></thead>
 <tbody>${(oi.floorList || []).map((f, i) => `<tr>
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площадь распределяется автоматически; снято — задаётся вручную"></td>
 <td>${esc(f.name)}</td>

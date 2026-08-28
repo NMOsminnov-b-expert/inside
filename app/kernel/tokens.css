@@ -145,13 +145,47 @@ input,select,textarea{font:inherit;color:inherit}
 .yf-pick-y:hover{background:var(--blue-50);border-color:var(--blue-200)}
 .yf-pick-y.on{background:var(--blue-100);color:var(--blue-700);font-weight:700;border-color:var(--blue-300)}
 
-/* Списки элементов с площадью — лоджии, балконы (kernel/areaList.js).
-   Устроены как поэтажная развёртка: у каждого элемента своя площадь. */
-.al{margin-top:12px}
-.al .sec-h{display:flex;align-items:center;gap:8px}
-.al-sum{font-size:11px;font-weight:600;color:#33445c;font-variant-numeric:tabular-nums}
-.al-tbl{margin-top:6px}
-.al-tbl .al-n{color:#8fa2b8;font-size:11px;font-variant-numeric:tabular-nums}
-.al-tbl td{padding:4px 6px}
-.al-tbl .input{padding:4px 7px;font-size:12.5px}
-.al-empty{font-size:11.5px;color:#8fa2b8;padding:4px 0 2px 2px}
+/* Списки элементов с площадью — лоджии, балконы, террасы (kernel/areaList.js).
+   По сути такая же таблица, как перечень литер, поэтому и оформлена так же:
+   узел-аккордеон, внутри которого таблица идёт вплотную к краям.
+
+   Селекторы намеренно с запасом по весу (.al.acc — два класса плюс третий):
+   module.css грузится ПОСЛЕ tokens.css, и его body[data-module=…] .acc-body
+   с отступами 10px 12px перебивал бы эти правила при равном весе — из-за него
+   таблица и висела внутри аккордеона отдельным прямоугольником с зазорами. */
+.al{margin-top:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+.al.acc > .acc-head{display:flex;align-items:center;gap:8px;margin:0;padding:8px 12px;
+  background:#eef4fb;border-bottom:1px solid transparent;cursor:pointer;font-size:12.5px;color:var(--blue-700)}
+.al.acc.open > .acc-head{border-bottom-color:var(--line-soft)}
+.al.acc > .acc-head:hover{background:var(--blue-100)}
+.al.acc > .acc-head .chev{transition:transform .12s;color:#7d93a6;font-size:11px}
+.al.acc.open > .acc-head .chev{transform:rotate(180deg)}
+.al.acc > .acc-head > .btn{margin-left:auto}
+/* У .sec-h есть декоративная линия-продолжение (::after). В шапке аккордеона
+   она оказывается третьим элементом раскладки и отжимает кнопку от правого
+   края — здесь она не нужна, шапка и так очерчена рамкой блока. */
+.al.acc > .acc-head::after{content:none;display:none}
+.al-sum{font-size:11.5px;font-weight:600;color:#33445c;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Тело аккордеона без отступов, таблица во всю его ширину и без своей рамки —
+   иначе получается прямоугольник с прямыми углами внутри скругления. */
+.al.acc > .acc-body{padding:0;background:#fff}
+.al.acc .acc-head input[type=checkbox]{margin:0}
+.al.acc table.al-tbl{width:100%;margin:0;border:none;border-radius:0;background:transparent}
+.al.acc .al-tbl th{background:#f6faff;border-bottom:1px solid var(--line-soft);font-size:10px;padding:6px 10px}
+.al.acc .al-tbl td{padding:6px 10px;border-bottom:1px solid var(--line-soft)}
+.al.acc .al-tbl tbody tr:last-child td{border-bottom:none}
+.al.acc .al-tbl .al-n{color:#8fa2b8;font-size:11px;font-variant-numeric:tabular-nums;text-align:center}
+.al.acc .al-tbl .input{padding:4px 8px;font-size:12.5px}
+/* Ячейка с кнопкой удаления не обрезается: .tbl td ставит многоточие всем
+   ячейкам, и браузер рисовал «…» прямо за крестиком. */
+.al.acc .al-tbl .al-act{overflow:visible;text-overflow:clip;text-align:center}
+.al-empty{font-size:11.5px;color:#8fa2b8;padding:10px 12px}
+
+/* Окошко с полным текстом обрезанного значения (kernel/overflowTip.js).
+   position:fixed и в <body>: значения живут внутри прокручиваемых панелей и
+   таблиц, обычный absolute обрезался бы их границами. */
+.ov-tip{position:fixed;z-index:600;max-width:420px;padding:7px 10px;border-radius:8px;
+  background:#0e2f4f;color:#eaf3f8;font-size:12px;line-height:1.4;white-space:pre-wrap;
+  box-shadow:0 10px 26px rgba(15,23,42,.28);pointer-events:none}
+.ov-tip[hidden]{display:none}

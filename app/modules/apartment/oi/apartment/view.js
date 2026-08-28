@@ -168,8 +168,9 @@ ${showFloors ? apartmentFloorsBlock(ctx, oi) : ''}
 <div class="field"><label>Высота по внешним замерам, м</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
-${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия')}
-${areaListHTML(oi.apartment, 'balconies', 'Балконы и террасы', 'Балкон')}
+${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi.apartment, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi.apartment, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 
 </div></div>
 </div>`;
@@ -204,12 +205,24 @@ function plansCard(oi, idx = 3) {
   return `<div class="card t-slate" id="q-plans">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Планировки</h3><span class="hint">отдельно от документов — для осмотрщиков</span><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<table class="tbl"><colgroup><col><col style="width:90px"><col style="width:40px"></colgroup>
-<thead><tr><th>Наименование</th><th>Дата</th><th></th></tr></thead>
-<tbody>${plans.map((pl) => `<tr>
-<td class="ell" title="${esc(pl.name)}">${esc(pl.name)}</td><td>${esc(pl.date)}</td>
-<td><button class="btn btn-danger btn-sm" data-plan-del="${pl.id}" title="Удалить планировку">×</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Нет планировок</td></tr>'}</tbody></table>
-<button class="btn btn-ghost btn-sm" data-add-plan style="margin-top:6px">+ Добавить планировку</button>
+<!-- Оформление общее с лоджиями и поэтажкой (класс al): таблица идёт вплотную
+     к краям блока, без зазоров и прямых углов внутри скругления. -->
+<div class="al acc open">
+<div class="acc-head" style="display:flex;align-items:center;gap:8px">
+<span>Планировки</span>
+<span class="pill-mini ${plans.length ? 'pill-pend' : ''}">${plans.length}</span>
+<button class="btn btn-ghost btn-sm" data-add-plan>+ Планировка</button>
+</div>
+<div class="acc-body">
+<table class="tbl al-tbl"><colgroup><col style="width:34px"><col><col style="width:110px"><col style="width:44px"></colgroup>
+<thead><tr><th>№</th><th>Наименование</th><th>Дата</th><th></th></tr></thead>
+<tbody>${plans.map((pl, i) => `<tr>
+<td class="al-n">${i + 1}</td>
+<td><input class="input" data-plan-name="${pl.id}" value="${esc(pl.name)}" placeholder="Наименование планировки"></td>
+<td><input class="input" data-plan-date="${pl.id}" value="${esc(pl.date)}" placeholder="ДД.ММ.ГГГГ"></td>
+<td class="al-act"><button class="btn btn-danger btn-sm" data-plan-del="${pl.id}" title="Удалить планировку">×</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Планировок нет.</td></tr>'}</tbody></table>
+</div>
+</div>
 </div></div>
 </div>`;
 }

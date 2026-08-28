@@ -166,8 +166,9 @@ function areasCard(ctx, oi) {
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
-${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия')}
-${areaListHTML(oi, 'balconies', 'Балконы и террасы', 'Балкон')}
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 </div></div>
 </div>`;
 }
