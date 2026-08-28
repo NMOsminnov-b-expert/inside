@@ -167,6 +167,8 @@ body[data-module="civil"] .reg-badge.notes{background:var(--amber-50);color:var(
 body[data-module="civil"] .reg-badge.warn{background:#fdf3f3;color:var(--danger);border:1px solid #f3c1c1}
 body[data-module="civil"] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
 body[data-module="civil"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+/* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
+body[data-module="civil"] .floors-note{display:block;font-size:10.5px;margin-top:3px}
 body[data-module="civil"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="civil"] .vsplit:hover{background:var(--blue-500)}
 body[data-module="civil"] .grow{flex:1;min-width:620px;padding-left:12px}

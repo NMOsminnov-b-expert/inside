@@ -1,4 +1,5 @@
 import { migrateAreaList } from '../../kernel/areaList.js';
+import { migrateFloorAreas } from './oi/building/floors.model.js';
 import { migrateTempMode } from './oi/building/tempMode.js';
 // Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
 // поэтому и перевод её данных берётся оттуда же.
@@ -316,6 +317,8 @@ export function main(host) {
       // (инженерное оснащение). Перевод до отрисовки, иначе попал бы в лог
       // правок как правка пользователя.
       if (o.card === 'land') migrateUtilities(o);
+      // Колонка «Площадь внешн.» слилась с застройкой — переносим значения.
+      migrateFloorAreas(o);
       // Температурный режим был строкой, стал списком (Л6.2).
       migrateTempMode(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');

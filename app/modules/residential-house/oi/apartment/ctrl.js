@@ -1,17 +1,20 @@
+import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
-import { buildApartmentFloors, recalcFloors } from './floors.model.js';
-import { updateFloorsUI } from './floors.view.js';
+import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow } from './floors.model.js';
+import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindYearField(ctx, oi);
+
 
   // Планировки правятся прямо в строке. Слушатели прямые: карточка
   // перепривязывается на каждой отрисовке, делегированные накапливались бы.
@@ -47,27 +50,92 @@ export function bind(ctx, oi) {
     oi.heights[i.dataset.height] = i.value;
   });
 
-  const rd = s.$('[data-redistribute]');
-  if (rd) rd.onclick = (e) => {
-    e.stopPropagation();
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-    ctx.toast('Отмеченные этажи выровнены по остатку', 'ok');
+  // Слушатели развёртки вынесены в функцию: rerenderFloors заменяет разметку
+  // блока целиком, и без повторной привязки чекбоксы и поля площадей остаются
+  // на выброшенных узлах — то есть перестают работать после смены этажности
+  // или добавления мансарды.
+  const redrawFloors = () => { rerenderFloors(ctx, oi); bindFloors(); };
+
+  // Количество надземных этажей — производное от состава развёртки: строку
+  // могли добавить или убрать прямо в таблице.
+  // У квартиры счётчик этажей живёт не в развёртке, а в общих параметрах —
+  // поле «Кол-во этажей квартиры». Держим его в согласии с составом надземных
+  // строк, иначе после добавления этажа в таблице оно врало бы.
+  const syncFloorsCount = () => {
+    apt().storeys = String(oi.floors);
+    const el = ctx.scope.$('[data-apt-storeys]');
+    if (el) el.value = oi.floors;
+    ctx.updatePlate();
   };
 
-  s.$$('[data-floor-on]').forEach((c) => c.onchange = () => {
-    oi.floorList[+c.dataset.floorOn].on = c.checked;
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-  });
+  function bindFloors() {
+    const rd = s.$('[data-redistribute]');
+    if (rd) rd.onclick = (e) => {
+      e.stopPropagation();
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+      ctx.toast('Отмеченные этажи выровнены по остатку', 'ok');
+    };
 
-  s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
-    oi.floorList[+i.dataset.floorArea].area = i.value;
-    recalcFloors(oi);
-    updateFloorsUI(ctx, oi);
-  });
+    s.$$('[data-floor-on]').forEach((c) => c.onchange = () => {
+      oi.floorList[+c.dataset.floorOn].on = c.checked;
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+    });
 
-  s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+    s.$$('[data-cat-all]').forEach((c) => c.onchange = () => {
+      const cat = c.dataset.catAll;
+      oi.floorList.filter((f) => f.cat === cat).forEach((f) => { f.on = c.checked; });
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+    });
+
+    // Ключ поля — «<колонка>|<индекс>»: площадей у этажа три, и каждая
+    // распределяется от своего итога (см. floors.model.js).
+    s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
+      const [key, idx] = i.dataset.floorArea.split('|');
+      oi.floorList[+idx][key] = i.value;
+      recalcFloors(oi);
+      updateFloorsUI(ctx, oi);
+    });
+
+    s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
+    s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+
+    // Название строки правится вручную: этажи бывают «−1», подвалов и цоколей
+    // может быть несколько. Перерисовки не делаем — сбился бы курсор в поле.
+    s.$$('[data-floor-name]').forEach((inp) => inp.onchange = () => {
+      renameFloorRow(oi, +inp.dataset.floorName, inp.value);
+    });
+
+    // Тип у каждой мансардной строки: мансарда и полумансарда бывают в одном
+    // здании, поэтому одного поля на литеру не хватает (Л5.3).
+    s.$$('[data-floor-mansard]').forEach((sel) => sel.onchange = () => {
+      oi.floorList[+sel.dataset.floorMansard].mansardType = sel.value;
+    });
+
+    // Строку любой категории можно добавить и убрать: состав развёртки задаёт
+    // человек, а не формула. Поле «Количество этажей» после этого пересчитано
+    // по надземным строкам, поэтому обновляем и его.
+    s.$$('[data-add-floor]').forEach((b) => b.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      addFloorRow(oi, b.dataset.addFloor);
+      redrawFloors();
+      syncFloorsCount();
+    });
+
+    s.$$('[data-del-floor]').forEach((b) => b.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removeFloorRow(oi, +b.dataset.delFloor);
+      redrawFloors();
+      syncFloorsCount();
+    });
+  }
+
+  bindFloors();
+
 
   // --- Общие параметры ----------------------------------------------------
   const cm = s.$('[data-comment]');
@@ -120,11 +188,13 @@ export function bind(ctx, oi) {
   // Этажность квартиры управляет наличием поэтажной развёртки.
   const aptStoreys = s.$('[data-apt-storeys]');
   if (aptStoreys) aptStoreys.onchange = () => {
-    const val = Math.max(1, Math.min(30, parseInt(aptStoreys.value, 10) || 1));
+    // Ноль допустим: квартира бывает целиком в подвале или мансарде (Л4.3) —
+    // тогда надземных этажей у неё нет вовсе.
+    const val = Math.max(0, Math.min(30, parseInt(aptStoreys.value, 10) || 0));
     aptStoreys.value = val;
     apt().storeys = String(val);
     oi.floors = val;
-    buildApartmentFloors(oi);
+    buildFloors(oi);
     ctx.render();
     ctx.updatePlate();
   };

@@ -60,20 +60,29 @@ ${rows.length ? `<input type="checkbox" data-cat-all="${cat.key}" ${onCount === 
 </div>`;
 }
 
-// Сноска под развёрткой: сколько получилось надземных этажей и какая у них
-// площадь. Слово согласуется с числом (Л2.8) — «1 этаж», «2 этажа», «5 этажей».
+// Сноска под развёрткой — та же величина, что в приписке у поля.
 function floorsHint(oi) {
-  const rows = (oi.floorList || []).filter((f) => f.cat === 'over');
-  const n = rows.length;
-  const area = floorsSumByCat(oi, 'over');
+  const n = (oi.floorList || []).filter((f) => f.cat === 'over').length;
   if (!n) return '<b>Надземных этажей нет</b> — объект из подземных и мансардных строк.';
-  return `<b>${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²</b> надземных.`;
+  return `<b>${floorsNote(oi)}</b> надземных.`;
 }
 
 export function floorsCountField(oi) {
+  // Приписка прямо под полем (Л2.8): сколько получилось надземных этажей и
+  // какая у них площадь. Слово согласовано с числом — «1 этаж», «2 этажа».
   return `<div class="field"><label>Количество этажей</label>
 <input class="input" data-floors-n value="${oi.floors}" inputmode="numeric"
-  title="Надземные этажи. Подвалы, цоколи и мансарды добавляются в самой развёртке"></div>`;
+  title="Надземные этажи. Подвалы, цоколи и мансарды добавляются в самой развёртке">
+<span class="muted floors-note" data-floors-note>${floorsNote(oi)}</span></div>`;
+}
+
+// Текст приписки: «2 этажа · 96,40 м²». Отдельной функцией, потому что его же
+// обновляет updateFloorsUI после правки площадей.
+export function floorsNote(oi) {
+  const n = (oi.floorList || []).filter((f) => f.cat === 'over').length;
+  const area = floorsSumByCat(oi, 'over');
+  if (!n) return 'надземных этажей нет';
+  return `${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²`;
 }
 
 // По одному итогу на каждую площадь: у них разные источники, и сходиться они
@@ -95,7 +104,7 @@ ${sumsRow(oi)}
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:auto">Выровнять отмеченные</button>
 </div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
-<div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Отмеченные строки получают оставшуюся площадь поровну — КАЖДАЯ колонка от своего итога (по техпаспорту, по факту, застройка); снятый чекбокс = площади вручную. Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
+<div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Отмеченные строки получают оставшуюся площадь поровну — каждая колонка от своего итога (по техпаспорту и застройка); снятый чекбокс = площади вручную. Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }
 
 export function updateFloorsUI(ctx, oi) {
@@ -130,6 +139,9 @@ export function updateFloorsUI(ctx, oi) {
       allCb.indeterminate = onCount > 0 && onCount < rows.length;
     }
   });
+
+  const note = s.$('[data-floors-note]');
+  if (note) note.textContent = floorsNote(oi);
 
   AREA_FIELDS.forEach((a) => {
     const sum = s.$(`[data-floor-sum="${a.key}"]`);

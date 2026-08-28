@@ -178,6 +178,8 @@ body[data-module="residential-house"] .reg-badge.notes{background:var(--amber-50
 body[data-module="residential-house"] .reg-badge.warn{background:#fdf3f3;color:var(--danger);border:1px solid #f3c1c1}
 body[data-module="residential-house"] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
 body[data-module="residential-house"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+/* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
+body[data-module="residential-house"] .floors-note{display:block;font-size:10.5px;margin-top:3px}
 body[data-module="residential-house"] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
 body[data-module="residential-house"] .vsplit:hover{background:var(--blue-500)}
 body[data-module="residential-house"] .grow{flex:1;min-width:620px;padding-left:12px}

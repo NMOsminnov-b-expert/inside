@@ -1,6 +1,6 @@
 import { render } from './view.js';
 import { bind } from './ctrl.js';
-import { buildApartmentFloors } from './floors.model.js';
+import { buildFloors } from './floors.model.js';
 
 // Карточка ОИ «квартира» внутри модуля «Жилое здание (дом)».
 // Отдельная копия: её поля и правила меняются независимо от строения.
@@ -16,7 +16,7 @@ export const card = {
         rights: '', rightsOther: '',
       };
     }
-    if (!oi.floorList || !oi.floorList.length) buildApartmentFloors(oi);
+    if (!oi.floorList || !oi.floorList.length) buildFloors(oi);
     if (!oi.plans) oi.plans = [];
   },
 

@@ -1,3 +1,4 @@
+import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { areaListHTML } from '../../../../kernel/areaList.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
@@ -7,7 +8,7 @@ import {
   STATUS_BUILD, STRUCT,
   APARTMENT_SERIES, APARTMENT_LOCATIONS, APARTMENT_RIGHTS,
 } from '../../data/dictionaries.js';
-import { apartmentFloorsBlock } from './floors.view.js';
+import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
@@ -92,6 +93,7 @@ inputmode="numeric" min="1" max="30" title="Количество этажей к
 <label>Количество комнат</label>
 <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
 </div>
+${yearFieldHTML(oi, 'Год постройки')}
 </div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field">
@@ -150,8 +152,7 @@ function areasCard(ctx, oi) {
   const areas = oi.areas || {};
   const heights = oi.heights || {};
   const apt = oi.apartment || {};
-  const storeys = parseInt(apt.storeys, 10) || 1;
-  const showFloors = storeys > 1;
+
 
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
@@ -160,12 +161,10 @@ function areasCard(ctx, oi) {
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
+<div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
 
 </div>
-<div>
-${showFloors ? apartmentFloorsBlock(ctx, oi) : ''}
-</div>
+<div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
 <div class="field"><label>Высота по внешним замерам, м</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
