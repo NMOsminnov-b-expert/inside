@@ -14,7 +14,9 @@ export function ctxPlate(ctx) {
     return `<div class="ctx-plate ctx-oi">
         <span class="ctx-kind">${meta.plateKind}</span>
         <b>${meta.hasLetter ? 'Литера ' + esc(oi.letter) + ' · ' : ''}${esc(oi.name)}</b>
-        <span class="ctx-chip ctx-plate-eni mono" title="Код ЕНИ">${esc(fmtEni(oi.eni))}</span>
+        <span class="ctx-chip ctx-plate-eni" title="Код ЕНИ — можно править прямо здесь">
+          <label>ЕНИ</label>
+          <input class="mono" data-plate-eni value="${esc(fmtEni(oi.eni))}" size="18"></span>
         <span class="ctx-chip ctx-plate-addr ell" title="${esc(ctx.rec.address)}">${esc(ctx.rec.address)}</span>
         ${chips}
         <span class="ctx-chip ${pend ? '' : 'ctx-ok'}">${pend ? pend + ' невып. заметок' : 'заметки выполнены'}</span>

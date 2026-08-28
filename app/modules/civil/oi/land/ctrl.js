@@ -1,3 +1,4 @@
+import { bindDocsColumns } from '../../parts/docs/table.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
@@ -5,6 +6,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindDocsColumns(ctx.scope);
   const s = ctx.scope;
 
   const lp = s.$('[data-land-purpose]');
@@ -18,10 +20,14 @@ export function bind(ctx, oi) {
 
   const ab = s.$('[data-area-built]');
   if (ab) ab.onchange = () => { oi.areaBuilt = ab.value; };
-
-  const en = s.$('[data-oi-eni]');
+  // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
+  // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  if (en) en.onchange = () => { oi.eni = parseEni(en.value) || oi.eni; };
+  const en = s.$('[data-plate-eni]');
+  if (en) en.onchange = () => {
+    oi.eni = parseEni(en.value) || oi.eni;
+    ctx.updatePlate();
+  };
 
   const rg = s.$('[data-rights]');
   if (rg) rg.onchange = () => { oi.rights = rg.value; };

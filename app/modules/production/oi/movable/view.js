@@ -11,8 +11,7 @@ export function render(ctx, oi) {
 <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>${isMech ? 'Данные механизма' : 'Данные офисной техники'}</h3></div>
 <div class="card-pad">
 <div class="inline-row" style="margin-bottom:10px">
-<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
+
 </div>
 <div class="grid g-3">
 <div class="field"><label>Наименование</label><input class="input" data-mv-name value="${esc(oi.name)}"></div>

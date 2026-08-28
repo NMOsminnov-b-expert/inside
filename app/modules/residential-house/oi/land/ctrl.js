@@ -1,8 +1,10 @@
+import { bindDocsColumns } from '../../parts/docs/table.js';
 import { photoPages } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindDocsColumns(ctx.scope);
   const s = ctx.scope;
 
   const lp = s.$('[data-land-purpose]');

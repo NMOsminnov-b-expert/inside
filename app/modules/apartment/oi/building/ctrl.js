@@ -1,15 +1,18 @@
-import { structList, updateStructUI } from '../../parts/struct/ms.js';
-import { STRUCT } from '../../data/dictionaries.js';
+import { bindYearField } from '../../../../kernel/yearField.js';
+import { bindDocsColumns } from '../../parts/docs/table.js';
+import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { buildFloors, recalcFloors } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors } from './floors.view.js';
-import { updateHeatingUI } from './heating.js';
+import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindYearField(ctx, oi);
+  bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
   const s = ctx.scope;
 
@@ -65,9 +68,6 @@ export function bind(ctx, oi) {
   const bt = s.$('[data-buildtype]');
   if (bt) bt.onchange = () => { oi.buildType = bt.value; ctx.updatePlate(); };
 
-  const yr = s.$('[data-year]');
-  if (yr) yr.onchange = () => { oi.year = yr.value; };
-
   const cm = s.$('[data-comment]');
   if (cm) cm.onchange = () => { oi.comment = cm.value; };
 
@@ -81,7 +81,9 @@ export function bind(ctx, oi) {
   if (cc) cc.onchange = () => { oi.catClass = cc.value; ctx.render(); };
 
   const rc = s.$('[data-rescat]');
-  if (rc) rc.onchange = () => { oi.resCat = rc.value; };
+  // Перерисовка обязательна: от категории зависит состав «Расположения
+  // строения» — «Отдельностоящее» доступно только обособленным (Л2.5).
+  if (rc) rc.onchange = () => { oi.resCat = rc.value; ctx.render(); };
 
   // Тип строения: select + условный ручной ввод.
   const skSel = s.$('[data-structure-kind]');
@@ -129,10 +131,14 @@ export function bind(ctx, oi) {
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };
-
-  const en = s.$('[data-oi-eni]');
+  // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
+  // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  if (en) en.onchange = () => { oi.eni = parseEni(en.value) || oi.eni; };
+  const en = s.$('[data-plate-eni]');
+  if (en) en.onchange = () => {
+    oi.eni = parseEni(en.value) || oi.eni;
+    ctx.updatePlate();
+  };
 
   s.$$('[data-flag]').forEach((c) => c.onchange = () => {
     oi.flags = oi.flags || {};
@@ -141,25 +147,8 @@ export function bind(ctx, oi) {
   });
 
   // --- Конструктивный состав ----------------------------------------------
-  // Материалы конструктивного состава — мультивыбор, как отопление.
-  // Делегирование: список «Выбрано/Не выбрано» перестраивается через innerHTML
-  // (updateStructUI), прямая привязка на checkbox терялась бы. Полного render()
-  // здесь быть не должно — он закрыл бы открытый список.
-  s.on('change', '[data-struct-opt]', (e, cb) => {
-    const [key, value] = cb.dataset.structOpt.split('|');
-    oi.struct = oi.struct || {};
-    const list = structList(oi, key);
-    const i = list.indexOf(value);
-    if (i >= 0) list.splice(i, 1); else list.push(value);
-    oi.struct[key] = list;
-    updateStructUI(s, oi, key, STRUCT[key] || []);
-  });
+  bindStruct(ctx, oi);
 
-  // Ручной ввод «Прочее» теперь сохраняется (в макете значение терялось).
-  s.$$('[data-struct-other]').forEach((inp) => inp.onchange = () => {
-    oi.structOther = oi.structOther || {};
-    oi.structOther[inp.dataset.structOther] = inp.value;
-  });
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
@@ -172,26 +161,21 @@ export function bind(ctx, oi) {
     ctx.ui.heatOpen = !drop.hidden;
   });
 
-  // Делегирование — список «Выбрано/Не выбрано» перестраивается через
-  // innerHTML (updateHeatingUI), обычная прямая привязка терялась бы.
-  s.on('change', '[data-heat-opt]', (e, cb) => {
-    const h = cb.dataset.heatOpt;
-    oi.heating = Array.isArray(oi.heating) ? oi.heating : [];
-    const i = oi.heating.indexOf(h);
-    if (i >= 0) oi.heating.splice(i, 1); else oi.heating.push(h);
-    updateHeatingUI(ctx, oi);
-  });
+  bindHeating(ctx, oi);
 
-  s.on('change', '[data-heat-other]', (e, inp) => { oi.heatingOther = inp.value; });
-
-  // Закрытие списка отопления по клику вне него — снимается при уходе с экрана.
-  s.onDocument('click', (e) => {
+  // Закрытие списков по клику вне них. Вешается ОДИН раз на скоуп: контроллер
+  // перепривязывается на каждой отрисовке, а документные слушатели снимаются
+  // только при уходе с экрана — иначе они копились бы всю сессию.
+  if (!s.root.dataset.msOutsideBound) {
+    s.root.dataset.msOutsideBound = '1';
+    s.onDocument('click', (e) => {
     if (!e.target.closest('.ms')) {
       s.$$('.ms-drop').forEach((d) => d.hidden = true);
       s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
       ctx.ui.heatOpen = false;
     }
-  });
+    });
+  }
 
   // --- Фото ---------------------------------------------------------------
   s.$$('[data-add-photo]').forEach((b) => b.onclick = (e) => {

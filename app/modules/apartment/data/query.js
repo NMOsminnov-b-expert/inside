@@ -65,6 +65,7 @@ const CMP = {
   title: (a, b) => a.title.localeCompare(b.title, 'ru'),
   eni: (a, b) => String(a.eni).localeCompare(String(b.eni)),
   area: (a, b) => (b.metrics.area || 0) - (a.metrics.area || 0),
+  landArea: (a, b) => (b.metrics.landArea || 0) - (a.metrics.landArea || 0),
   oiCount: (a, b) => (b.metrics.oiCount || 0) - (a.metrics.oiCount || 0),
   pendingNotes: (a, b) => (b.metrics.pendingNotes || 0) - (a.metrics.pendingNotes || 0),
   status: (a, b) => (STATUS_ORDER.get(a.status) ?? 99) - (STATUS_ORDER.get(b.status) ?? 99),

@@ -1,8 +1,10 @@
+import { bindDocsColumns } from '../../parts/docs/table.js';
 import { openDocViewer, VS } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindDocsColumns(ctx.scope);
   const s = ctx.scope;
 
   const mn = s.$('[data-mv-name]');

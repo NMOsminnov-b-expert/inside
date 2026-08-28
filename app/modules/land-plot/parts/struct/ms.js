@@ -17,6 +17,12 @@ export function structList(oi, key) {
   return v ? [v] : [];
 }
 
+// Список значений запоминаем при отрисовке, по ключу поля. Брать его по ключу
+// из словаря нельзя: у «Внутренних стен» ключ wallsInt, а значения — STRUCT.wallsExt
+// (свой список для внутренних стен не заводили). При точечной перерисовке
+// STRUCT[key] давал undefined, и поле перерисовывалось с пустым списком.
+const OPTS = new Map();
+
 const isOther = (list) => list.some((v) => String(v).includes('Прочее'));
 
 function optionRow(key, v, checked) {
@@ -51,6 +57,7 @@ function otherHTML(oi, key, list) {
 
 export function structMS(oi, key, label, opts, req) {
   const list = structList(oi, key);
+  OPTS.set(key, opts || []);
 
   return `<div class="field" data-struct-field="${esc(key)}">
     <label>${label}${req ? '<span class="req">*</span>' : ''}</label>
@@ -67,9 +74,10 @@ export function structMS(oi, key, label, opts, req) {
 
 // Точечная перерисовка одного поля после выбора: сводка, перегруппированный
 // список и поле ручного ввода. Полный render() закрыл бы список.
-export function updateStructUI(scope, oi, key, opts) {
+export function updateStructUI(scope, oi, key) {
   const box = scope.$(`[data-struct-field="${key}"]`);
   if (!box) return;
+  const opts = OPTS.get(key) || [];
 
   const list = structList(oi, key);
   const mc = box.querySelector('[data-ms-control]');
@@ -79,6 +87,10 @@ export function updateStructUI(scope, oi, key, opts) {
   if (mc) mc.innerHTML = `${summaryHTML(list)}<span class="chev">▾</span>`;
   if (drop) drop.innerHTML = dropBodyHTML(key, opts, list);
   if (wrap) wrap.innerHTML = otherHTML(oi, key, list);
+
+  // Список и поле ручного ввода перерисованы — слушатели на прежних элементах
+  // умерли вместе с ними, вешаем на новые.
+  bindOpts(scope, oi, box);
 }
 
 // Перевод старых записей на новую форму данных: материал был строкой, стал
@@ -94,4 +106,36 @@ export function migrateStruct(rec) {
       if (!Array.isArray(st[k])) st[k] = st[k] ? [st[k]] : [];
     });
   });
+}
+
+// Слушатели выбора вешаются ПРЯМО на флажки, а не делегированием на скоуп.
+// Причина: контроллер карточки ОИ перепривязывается на каждой отрисовке, а
+// делегированный слушатель живёт на скоупе и переживает замену разметки —
+// они накапливались, и один щелчок обрабатывался столько раз, сколько было
+// отрисовок (при чётном числе выбор просто не срабатывал). Прямые слушатели
+// умирают вместе со своими элементами, поэтому накопиться не могут; после
+// точечной перерисовки списка их вешает сама updateStructUI.
+function bindOpts(scope, oi, box) {
+  box.querySelectorAll('[data-struct-opt]').forEach((cb) => {
+    cb.onchange = () => {
+      const [key, value] = cb.dataset.structOpt.split('|');
+      oi.struct = oi.struct || {};
+      const list = structList(oi, key);
+      const i = list.indexOf(value);
+      if (i >= 0) list.splice(i, 1); else list.push(value);
+      oi.struct[key] = list;
+      updateStructUI(scope, oi, key);
+    };
+  });
+
+  const other = box.querySelector('[data-struct-other]');
+  if (other) other.onchange = () => {
+    oi.structOther = oi.structOther || {};
+    oi.structOther[other.dataset.structOther] = other.value;
+  };
+}
+
+export function bindStruct(ctx, oi) {
+  if (!oi) return;
+  ctx.scope.$$('[data-struct-field]').forEach((box) => bindOpts(ctx.scope, oi, box));
 }

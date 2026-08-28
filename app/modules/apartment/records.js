@@ -15,6 +15,14 @@ function areaOf(rec) {
     .reduce((s, o) => s + num(o.areas && o.areas.tp), 0);
 }
 
+// Площадь земельных участков — отдельно от площади литер (Л1.8): это разные
+// величины, складывать их нельзя.
+function landAreaOf(rec) {
+  return rec.oi
+    .filter((o) => o.card === 'land')
+    .reduce((s, o) => s + num((o.areas && o.areas.pravo) || o.area), 0);
+}
+
 function metricsOf(rec) {
   const photos = rec.oi.reduce(
     (s, o) => s + Object.values(o.photos || {}).reduce((a, b) => a + b, 0), 0
@@ -24,6 +32,7 @@ function metricsOf(rec) {
   return {
     oiCount: rec.oi.length,
     area: areaOf(rec),
+    landArea: landAreaOf(rec),
     photos,
     docs,
     pendingNotes: totalPendingNotes(rec),
@@ -64,6 +73,9 @@ export function summarize(rec) {
     status: rec.status,
     city: rec.city || '',
     institution: rec.institution || '',
+    podved: rec.podved || '',
+    owners: rec.owners || [],
+    users: rec.users || [],
     purposeTP: rec.purposeTP || '',
     resp: Object.assign({ gov: '', cod: '', appr: '', insp: '' }, rec.resp),
     badges: [
@@ -104,6 +116,9 @@ function bulkSummary(raw) {
     status: raw.status,
     city: raw.city,
     institution: raw.institution,
+    podved: raw.podved || '',
+    owners: raw.owners || [],
+    users: raw.users || [],
     purposeTP: raw.purposeTP || '',
     resp: raw.resp,
     badges: [

@@ -1,3 +1,4 @@
+import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
@@ -341,6 +342,8 @@ export function bindOcCard(ctx) {
   // перегородке нечего у него забрать — растягивание не работает вовсе.
   const oiBox = s.$('[data-oi-cols-box]');
   if (oiBox) Object.assign(ctx.ui.oiColWidths, applyFit(oiBox, orderedColumns(OI_COLUMNS, oiOrder), ctx.ui.oiColWidths));
+
+  bindDocsColumns(s);
 
   bindColumnResize(s, {
     rootSel: '[data-oi-cols-box]',

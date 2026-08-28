@@ -19,6 +19,33 @@ const STAGE_INDEX = new Map([
 // Высота строки одна — без сжатого режима: реже устаёшь от чтения.
 export const ROW_H = 38;
 
+// Список значений в одну строку: полностью — в подсказке (Л1.4).
+function listCell(list) {
+  const arr = (list || []).filter(Boolean);
+  if (!arr.length) return '<span class="muted">—</span>';
+  return `<span class="ell" title="${esc(arr.join(', '))}">${esc(arr.join(', '))}</span>`;
+}
+
+// Теги вынесены в свой столбец (Л1.10). Пока это те же признаки записи, что
+// раньше жили значками в столбце адреса; окончательный состав тегов — на
+// согласовании (вопрос 2.3 в docs/tz/90-na-soglasovanie.md).
+const TAGS = [
+  ['ml', 'ML', 'ml', 'импорт ML'],
+  ['mlUnverified', 'ML', 'ml warn', 'импорт ML без проверки'],
+  ['defects', '⚠', 'warn', 'расхождение ТП и фото'],
+  ['pendingNotes', '⚑', 'notes', 'есть невыполненные заметки'],
+  ['specials', '✦', 'spec', 'отмечены особенности'],
+];
+
+function tagsCell(flags) {
+  const f = flags || {};
+  const on = TAGS.filter(([k]) => f[k]);
+  if (!on.length) return '<span class="muted">—</span>';
+  return `<span class="ell" title="${esc(on.map((t) => t[3]).join(', '))}">`
+    + on.map(([, ico, cls, t]) => `<span class="reg-badge ${cls}" title="${esc(t)}">${ico}</span>`).join(' ')
+    + '</span>';
+}
+
 function cell(col, s) {
   switch (col.key) {
     case 'eni': return `<span class="mono" title="${esc(s.eni)}">${esc(fmtEni(s.eni))}</span>`;
@@ -28,6 +55,7 @@ function cell(col, s) {
       ${s.flags.pendingNotes ? '<span class="reg-badge notes" title="есть невыполненные заметки">⚑</span>' : ''}
       ${s.flags.defects ? '<span class="reg-badge warn" title="расхождение ТП и фото">⚠</span>' : ''}
       ${s.flags.mlUnverified ? '<span class="reg-badge ml" title="импорт ML без проверки">ML</span>' : ''}
+      ${s.flags.specials ? '<span class="reg-badge spec" title="отмечены особенности">✦</span>' : ''}
     </span>`;
     case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 9}"><i></i><span class="ell" title="${esc(s.status)}">${esc(s.status)}</span></span>`;
     case 'area': return s.metrics.area ? fmtNum(s.metrics.area) : '—';
@@ -42,6 +70,11 @@ function cell(col, s) {
     case 'typeLabel': return `<span class="ell" title="${esc(s.typeLabel)}">${esc(s.typeLabel)}</span>`;
     case 'institution': return `<span class="ell" title="${esc(s.institution || '')}">${esc(s.institution || '—')}</span>`;
     case 'city': return `<span class="ell" title="${esc(s.city || '')}">${esc(s.city || '—')}</span>`;
+    case 'podved': return `<span class="ell" title="${esc(s.podved || '')}">${esc(s.podved || '—')}</span>`;
+    case 'landArea': return s.metrics.landArea ? fmtNum(s.metrics.landArea) : '—';
+    case 'owners': return listCell(s.owners);
+    case 'users': return listCell(s.users);
+    case 'tags': return tagsCell(s.flags);
     case 'updatedAt': return esc(s.updatedAt || '—');
     default: return '';
   }
@@ -97,6 +130,11 @@ function plain(col, s) {
     case 'status': return s.status;
     case 'institution': return s.institution;
     case 'city': return s.city;
+    case 'podved': return s.podved || '';
+    case 'landArea': return s.metrics.landArea ? String(s.metrics.landArea).replace('.', ',') : '';
+    case 'owners': return (s.owners || []).join(', ');
+    case 'users': return (s.users || []).join(', ');
+    case 'tags': return TAGS.filter(([k]) => (s.flags || {})[k]).map((t) => t[3]).join(', ');
     case 'area': return s.metrics.area ? String(s.metrics.area).replace('.', ',') : '';
     case 'oiCount': return String(s.metrics.oiCount);
     case 'photos': return String(s.metrics.photos);

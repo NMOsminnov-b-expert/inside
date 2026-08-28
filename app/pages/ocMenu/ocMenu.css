@@ -181,3 +181,5 @@ body[data-page="oc-menu"] .reg-status.st-1 i{background:#2f83c4}
 body[data-page="oc-menu"] .reg-status.st-2 i{background:#1668c9}
 body[data-page="oc-menu"] .reg-status.st-3 i{background:#0e8172}
 body[data-page="oc-menu"] .reg-status.st-4 i{background:#54718f}
+/* Значок особенностей — в столбце тегов и в строке адреса (Л1.10, Л4.5). */
+body[data-page="oc-menu"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}

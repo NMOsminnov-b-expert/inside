@@ -1,3 +1,4 @@
+import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
@@ -65,8 +66,7 @@ function flagsRowHTML(oi) {
   const isMl = (oi.origin || 'manual') === 'ml';
 
   return `<div class="inline-row" style="margin-bottom:10px">
-<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
+
 </div>`;
 }
 
@@ -97,16 +97,12 @@ ${letterControlHTML(ctx, oi)}
 ${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 </div>
-<div class="field" style="flex:0 0 160px;">
-<label>ЕНИ код</label>
-<input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(fmtEni(oi.eni))}" title="ЕНИ-код">
-</div>
 </div>
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
-<div class="field"><label>Год постройки</label><input class="input" data-year value="${esc(oi.year || '')}" inputmode="numeric"></div>
+${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-buildtype>${BUILD_TYPE.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-buildtype>${buildTypeOptions(oi).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 <div class="field"><label>Права на строение</label>
 <select class="select" data-rights>${RIGHTS.map((o) => `<option ${o === (oi.rights || RIGHTS[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
@@ -137,8 +133,8 @@ function areasCard(ctx, oi) {
 <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
 </div>
@@ -293,6 +289,25 @@ ${photoAccordions(ctx.ui, oi, true)}
 </div>`;
 }
 
+// «Отдельностоящее» доступно только обособленным строениям (Л2.5): это признак
+// категории жилого строения, а не самостоятельный выбор. Пока категория не
+// «Обособленный», такого варианта в списке нет.
+//
+// Уже сохранённое значение из списка не выбрасываем: иначе смена категории
+// молча переписала бы данные. Оно остаётся видимым с пометкой, чтобы
+// расхождение было заметно и его исправили руками.
+function buildTypeOptions(oi) {
+  // Правило действует только там, где рядом есть «Категория жилого строения»
+  // (жилые строения). В гражданском и производственном такой категории нет
+  // вовсе, и отбирать у них «Отдельностоящее» не за что.
+  if (!oi.residential) return BUILD_TYPE.slice();
+
+  const detached = (oi.resCat || '') === 'Обособленный';
+  const list = detached ? BUILD_TYPE.slice() : BUILD_TYPE.filter((o) => o !== 'Отдельностоящее');
+  if (oi.buildType && !list.includes(oi.buildType)) list.push(oi.buildType);
+  return list;
+}
+
 export function render(ctx, oi) {
   const f = oi.flags || {};
   const isMl = (oi.origin || 'manual') === 'ml';
@@ -312,7 +327,6 @@ ${photosCard(ctx, oi, docsIdx + 1)}
   return `<div class="view-head">
 <button class="back-btn" data-back>← К объекту оценки</button>
 <span class="pill pill-gray">Карточка ОИ (литера)</span>
-<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
 <button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>
 <button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
 <button class="btn btn-primary" data-save-oi>Сохранить</button>

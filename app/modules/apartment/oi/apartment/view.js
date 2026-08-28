@@ -40,8 +40,7 @@ function flagsRowHTML(oi) {
   const isMl = (oi.origin || 'manual') === 'ml';
 
   return `<div class="inline-row" style="margin-bottom:10px">
-<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>
-${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
+
 </div>`;
 }
 
@@ -72,10 +71,6 @@ ${letterControlHTML(ctx, oi)}
 <select class="select" style="width:100%;" data-status>
 ${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
-</div>
-<div class="field" style="flex:0 0 160px;">
-<label>ЕНИ код</label>
-<input class="eni-corner" style="width:100%;" data-oi-eni value="${esc(fmtEni(oi.eni))}" title="ЕНИ-код">
 </div>
 </div>
 ${flagsRowHTML(oi)}
@@ -159,8 +154,8 @@ function areasCard(ctx, oi) {
 <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}"></div>
 
@@ -232,7 +227,7 @@ function plansCard(oi, idx = 3) {
 <table class="tbl"><colgroup><col><col style="width:90px"><col style="width:40px"></colgroup>
 <thead><tr><th>Наименование</th><th>Дата</th><th></th></tr></thead>
 <tbody>${plans.map((pl) => `<tr>
-<td class="ell">${esc(pl.name)}</td><td>${esc(pl.date)}</td>
+<td class="ell" title="${esc(pl.name)}">${esc(pl.name)}</td><td>${esc(pl.date)}</td>
 <td><button class="btn btn-danger btn-sm" data-plan-del="${pl.id}" title="Удалить планировку">×</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Нет планировок</td></tr>'}</tbody></table>
 <button class="btn btn-ghost btn-sm" data-add-plan style="margin-top:6px">+ Добавить планировку</button>
 </div></div>
@@ -275,7 +270,6 @@ ${photosCard(ctx, oi, 6)}
   return `<div class="view-head">
 <button class="back-btn" data-back>← К объекту оценки</button>
 <span class="pill pill-gray">Карточка квартиры</span>
-<label class="flag-lbl"><input type="checkbox" data-flag="entered" ${f.entered ? 'checked' : ''}> Введено</label>${isMl ? `<label class="flag-lbl"><input type="checkbox" data-flag="matched" ${f.matched ? 'checked' : ''}> Сопоставлено с фото</label>` : ''}
 <button class="btn btn-danger" data-del-oi="${oi.id}">Удалить литеру</button>
 <button class="btn btn-ghost" data-open-ocdocs>Документы ОЦ</button>
 <button class="btn btn-primary" data-save-oi>Сохранить</button>

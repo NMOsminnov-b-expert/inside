@@ -66,6 +66,11 @@ function paramsFor(i) {
   const street = pick(rnd, P.streets);
   const house = int(rnd, 1, 260);
   const institution = pick(rnd, P.institutions);
+  // Подвед, собственники и пользователи — для новых столбцов реестра (Л1.5,
+  // Л1.9). Без них на 20 000 синтетических строк эти столбцы были бы пустыми.
+  const podved = 'Подвед ' + institution.split(' ').slice(0, 2).join(' ');
+  const owners = [institution];
+  const users = rnd() < 0.55 ? [pick(rnd, P.people)] : [];
   const status = pick(rnd, P.statuses);
   const purpose = pick(rnd, P.purposes);
   const eni = String(P.eniBase + i * 7 + int(rnd, 0, 6));
@@ -93,9 +98,9 @@ function paramsFor(i) {
   const updatedAt = dateStr(rnd, -400, -1);
 
   return {
-    city, street, house, institution, status, purpose, eni, resp, docs,
+    city, street, house, institution, podved, owners, users, status, purpose, eni, resp, docs,
     ml, mlUnverified, defects, updatedAt,
-    metrics: { oiCount, area, photos, docs, pendingNotes },
+    metrics: { oiCount, area, landArea: Math.round(area * (0.4 + (rnd() * 1.6)) * 100) / 100, photos, docs, pendingNotes },
     flags: { ml, mlUnverified, defects, pendingNotes: pendingNotes > 0, specials },
   };
 }
@@ -113,6 +118,9 @@ export function bulkSummaries(makeSummary) {
       address: addressOf(p, i),
       city: p.city,
       institution: p.institution,
+      podved: p.podved,
+      owners: p.owners,
+      users: p.users,
       status: p.status,
       purposeTP: p.purpose,
       eni: p.eni,

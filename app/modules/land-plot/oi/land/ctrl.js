@@ -1,9 +1,11 @@
+import { bindDocsColumns } from '../../parts/docs/table.js';
 import { photoPages } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextId } from '../../data/store.js';
 import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
 
 export function bind(ctx, oi) {
+  bindDocsColumns(ctx.scope);
   const s = ctx.scope;
 
   const valueBindings = {

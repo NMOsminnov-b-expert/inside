@@ -34,6 +34,7 @@ export function roleHint(key) {
 }
 
 export const FLAG_LABELS = {
+  specials: 'есть особенности',
   pendingNotes: 'есть невып. заметки',
   mlUnverified: 'ML без проверки',
   defects: 'расхождение ТП/фото',
@@ -50,6 +51,13 @@ export const COLUMNS = [
   { key: 'status', label: 'Статус', width: 142, sort: 'status' },
   { key: 'institution', label: 'Учреждение', width: 150 },
   { key: 'city', label: 'Город / район', width: 130 },
+  // Новые столбцы (Л1.5, Л1.8, Л1.9, Л1.10). По умолчанию скрыты — иначе
+  // таблица при первом открытии перегружена; включаются в меню столбцов.
+  { key: 'podved', label: 'Подвед', width: 160 },
+  { key: 'landArea', label: 'Площадь ЗУ, м²', width: 112, align: 'right', sort: 'landArea' },
+  { key: 'owners', label: 'Собственники', width: 160 },
+  { key: 'users', label: 'Пользователи', width: 150 },
+  { key: 'tags', label: 'Теги', width: 150 },
   { key: 'area', label: 'Площадь, м²', width: 104, align: 'right', sort: 'area' },
   { key: 'oiCount', label: 'ОИ', width: 46, align: 'right', sort: 'oiCount' },
   { key: 'photos', label: 'Фото', width: 56, align: 'right' },
