@@ -1,6 +1,6 @@
 import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav } from '../shell/shell.js';
 import { createScope } from './scope.js';
-import { start, parse, build, go, MENU_HREF } from './router.js';
+import { start, parse, build, go, MENU_HREF, INSTITUTIONS_HREF } from './router.js';
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
@@ -8,6 +8,7 @@ import { installOverflowTip } from './overflowTip.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
+import { mountInstitutions } from '../pages/institutions/institutions.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -86,6 +87,20 @@ async function onRoute(route) {
 
     const instance = mountArchive(host);
     current = { kind: 'archive', instance, scope };
+    return;
+  }
+
+  if (route.name === 'institutions') {
+    unmount();
+    resetShellSlots();
+    setActiveNav('inst');
+
+    document.body.dataset.page = 'institutions';
+
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    const instance = mountInstitutions(host);
+    current = { kind: 'institutions', instance, scope };
     return;
   }
 

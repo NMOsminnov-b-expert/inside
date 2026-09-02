@@ -21,6 +21,11 @@ export function parse(hash = location.hash) {
     return { name: 'archive', query };
   }
 
+  // Учреждения — отдельный экран.
+  if (segs[0] === 'inst') {
+    return { name: 'institutions', query };
+  }
+
   if (segs[0] === 'oc' && segs[1]) {
     return {
       name: 'module',
@@ -44,6 +49,8 @@ export function build({ typeId, ocId, rest = [], query = {} }) {
 }
 
 export const MENU_HREF = '#/';
+
+export const INSTITUTIONS_HREF = '#/inst';
 
 export function go(href, { replace = false } = {}) {
   if (replace) {
