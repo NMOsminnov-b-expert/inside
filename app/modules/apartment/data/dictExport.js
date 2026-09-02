@@ -8,6 +8,9 @@
 //
 // Сами значения НЕ дублируются: берутся из dictionaries.js этого же модуля.
 import * as D from './dictionaries.js';
+// Перечни полей карточки участка — общие для всех типов ОЦ: сама карточка
+// тоже одна на проект (см. oi/land/index.js).
+import { LAND_DICT_SOURCES } from '../../land-plot/data/landDicts.js';
 
 export const DICT_SOURCES = [
   {
@@ -231,4 +234,6 @@ export const DICT_SOURCES = [
       { card: 'building', field: 'struct.doors', label: 'Двери' },
     ],
   },
+
+  ...LAND_DICT_SOURCES,
 ];

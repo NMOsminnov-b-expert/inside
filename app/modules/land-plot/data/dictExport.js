@@ -8,8 +8,40 @@
 //
 // Сами значения НЕ дублируются: берутся из dictionaries.js этого же модуля.
 import * as D from './dictionaries.js';
+// Перечни полей участка — общие для всех типов ОЦ (см. landDicts.js).
+import { LAND_DICT_SOURCES } from './landDicts.js';
 
 export const DICT_SOURCES = [
+  {
+    key: 'APARTMENT_LOCATIONS',
+    title: 'Расположение квартиры',
+    kind: 'list',
+    system: false,
+    values: D.APARTMENT_LOCATIONS,
+    slots: [
+      { card: 'apartment', field: 'location', label: 'Расположение' },
+    ],
+  },
+  {
+    key: 'APARTMENT_RIGHTS',
+    title: 'Права на строение',
+    kind: 'list',
+    system: false,
+    values: D.APARTMENT_RIGHTS,
+    slots: [
+      { card: 'apartment', field: 'rights', label: 'Права на строение' },
+    ],
+  },
+  {
+    key: 'APARTMENT_SERIES',
+    title: 'Серии жилых домов',
+    kind: 'list',
+    system: false,
+    values: D.APARTMENT_SERIES,
+    slots: [
+      { card: 'apartment', field: 'series', label: 'Серия' },
+    ],
+  },
   {
     key: 'BUILD_TYPE',
     title: 'Расположение строения',
@@ -41,16 +73,6 @@ export const DICT_SOURCES = [
     ],
   },
   {
-    key: 'ENGINEERING',
-    title: 'Инженерное оснащение участка',
-    kind: 'list',
-    system: false,
-    values: D.ENGINEERING,
-    slots: [
-      { card: 'land', field: 'utilities', label: 'Инженерное оснащение' },
-    ],
-  },
-  {
     key: 'HEATING',
     title: 'Отопление',
     kind: 'list',
@@ -58,149 +80,7 @@ export const DICT_SOURCES = [
     values: D.HEATING,
     slots: [
       { card: 'building', field: 'heating', label: 'Отопление' },
-    ],
-  },
-  {
-    key: 'IMPROVEMENT_GROUPS',
-    title: 'Благоустройство территории',
-    kind: 'list',
-    system: false,
-    values: D.IMPROVEMENT_GROUPS,
-    slots: [
-      { card: 'land', field: 'improvements', label: 'Благоустройство территории' },
-    ],
-  },
-  {
-    key: 'IRRIGATION_ACCESS',
-    title: 'Доступность полива',
-    kind: 'list',
-    system: false,
-    values: D.IRRIGATION_ACCESS,
-    slots: [
-      { card: 'land', field: 'irrigation', label: 'Доступность полива' },
-    ],
-  },
-  {
-    key: 'IRRIGATION_TYPE',
-    title: 'Тип полива',
-    kind: 'list',
-    system: false,
-    values: D.IRRIGATION_TYPE,
-    slots: [
-      { card: 'land', field: 'irrigationType', label: 'Тип полива' },
-    ],
-  },
-  {
-    key: 'LAND_BUILDINGS',
-    title: 'Наличие построек (да/нет)',
-    kind: 'list',
-    system: true,
-    values: D.LAND_BUILDINGS,
-    slots: [
-      { card: 'land', field: 'buildings', label: 'Наличие построек' },
-    ],
-  },
-  {
-    key: 'LAND_CORNER',
-    title: 'Угловой / неугловой участок',
-    kind: 'list',
-    system: false,
-    values: D.LAND_CORNER,
-    slots: [
-      { card: 'land', field: 'corner', label: 'Угловой/Неугловой' },
-    ],
-  },
-  {
-    key: 'LAND_ENCUMBRANCE',
-    title: 'Сервитуты и обременения (да/нет)',
-    kind: 'list',
-    system: true,
-    values: D.LAND_ENCUMBRANCE,
-    slots: [
-      { card: 'land', field: 'encumbrance', label: 'Наличие сервитутов и обременений' },
-    ],
-  },
-  {
-    key: 'LAND_FORM',
-    title: 'Формы земельного участка',
-    kind: 'list',
-    system: false,
-    values: D.LAND_FORM,
-    slots: [
-      { card: 'land', field: 'form', label: 'Форма участка' },
-    ],
-  },
-  {
-    key: 'LAND_LOCATION',
-    title: 'Расположение в районе',
-    kind: 'list',
-    system: false,
-    values: D.LAND_LOCATION,
-    slots: [
-      { card: 'land', field: 'location', label: 'Расположение в районе' },
-    ],
-  },
-  {
-    key: 'LAND_PLAN_DOC_TYPES',
-    title: 'Планы и схемы участка',
-    kind: 'list',
-    system: false,
-    values: D.LAND_PLAN_DOC_TYPES,
-    slots: [
-      { card: 'land', field: 'planDocType', label: 'Тип плана' },
-    ],
-  },
-  {
-    key: 'LAND_RELIEF',
-    title: 'Рельеф участка',
-    kind: 'list',
-    system: false,
-    values: D.LAND_RELIEF,
-    slots: [
-      { card: 'land', field: 'relief', label: 'Рельеф участка' },
-    ],
-  },
-  {
-    key: 'LAND_ROAD_LOCATION',
-    title: 'Расположение к трассе',
-    kind: 'list',
-    system: false,
-    values: D.LAND_ROAD_LOCATION,
-    slots: [
-      { card: 'land', field: 'roadLocation', label: 'Расположение к трассе' },
-    ],
-  },
-  {
-    key: 'LAND_TYPES',
-    title: 'Типы земельного участка',
-    kind: 'list',
-    system: true,
-    values: D.LAND_TYPES,
-    slots: [
-      { card: 'land', field: 'landType', label: 'Тип земельного участка' },
-    ],
-  },
-  {
-    key: 'LAND_USE_CATEGORIES',
-    title: 'Категории использования земли',
-    kind: 'list',
-    system: false,
-    values: D.LAND_USE_CATEGORIES,
-    slots: [
-      { card: 'land', field: 'useCategory', label: 'Категория и разрешённое использование' },
-    ],
-  },
-  {
-    key: 'LAND_UTILITY_STATUS',
-    title: 'Состояние коммуникаций',
-    kind: 'list',
-    system: false,
-    values: D.LAND_UTILITY_STATUS,
-    slots: [
-      { card: 'land', field: 'gasification', label: 'Наличие газификации' },
-      { card: 'land', field: 'centralHeating', label: 'Наличие центрального отопления' },
-      { card: 'land', field: 'centralWater', label: 'Наличие центрального водоснабжения' },
-      { card: 'land', field: 'autonomousHeating', label: 'Наличие автономного отопления' },
+      { card: 'apartment', field: 'heating', label: 'Отопление' },
     ],
   },
   {
@@ -211,6 +91,7 @@ export const DICT_SOURCES = [
     values: D.MANSARD_TYPE,
     slots: [
       { card: 'building', field: 'mansardType', label: 'Тип мансарды' },
+      { card: 'apartment', field: 'mansardType', label: 'Тип мансарды' },
     ],
   },
   {
@@ -341,4 +222,6 @@ export const DICT_SOURCES = [
       { card: 'building', field: 'struct.doors', label: 'Двери' },
     ],
   },
+
+  ...LAND_DICT_SOURCES,
 ];

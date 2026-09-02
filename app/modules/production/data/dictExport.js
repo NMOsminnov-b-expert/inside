@@ -8,8 +8,41 @@
 //
 // Сами значения НЕ дублируются: берутся из dictionaries.js этого же модуля.
 import * as D from './dictionaries.js';
+// Перечни полей карточки участка — общие для всех типов ОЦ: сама карточка
+// тоже одна на проект (см. oi/land/index.js).
+import { LAND_DICT_SOURCES } from '../../land-plot/data/landDicts.js';
 
 export const DICT_SOURCES = [
+  {
+    key: 'APARTMENT_LOCATIONS',
+    title: 'Расположение квартиры',
+    kind: 'list',
+    system: false,
+    values: D.APARTMENT_LOCATIONS,
+    slots: [
+      { card: 'apartment', field: 'location', label: 'Расположение' },
+    ],
+  },
+  {
+    key: 'APARTMENT_RIGHTS',
+    title: 'Права на строение',
+    kind: 'list',
+    system: false,
+    values: D.APARTMENT_RIGHTS,
+    slots: [
+      { card: 'apartment', field: 'rights', label: 'Права на строение' },
+    ],
+  },
+  {
+    key: 'APARTMENT_SERIES',
+    title: 'Серии жилых домов',
+    kind: 'list',
+    system: false,
+    values: D.APARTMENT_SERIES,
+    slots: [
+      { card: 'apartment', field: 'series', label: 'Серия' },
+    ],
+  },
   {
     key: 'BUILD_TYPE',
     title: 'Расположение строения',
@@ -48,6 +81,7 @@ export const DICT_SOURCES = [
     values: D.HEATING,
     slots: [
       { card: 'building', field: 'heating', label: 'Отопление' },
+      { card: 'apartment', field: 'heating', label: 'Отопление' },
     ],
   },
   {
@@ -58,6 +92,7 @@ export const DICT_SOURCES = [
     values: D.MANSARD_TYPE,
     slots: [
       { card: 'building', field: 'mansardType', label: 'Тип мансарды' },
+      { card: 'apartment', field: 'mansardType', label: 'Тип мансарды' },
     ],
   },
   {
@@ -248,4 +283,6 @@ export const DICT_SOURCES = [
       { card: 'building', field: 'struct.doors', label: 'Двери' },
     ],
   },
+
+  ...LAND_DICT_SOURCES,
 ];

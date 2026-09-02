@@ -8,11 +8,12 @@
 // (registry.js), а каждый модуль описывает свои перечни в data/dictExport.js.
 //
 // Решения пользователя 02.09.2026, на которых стоит модель:
-//   * ОДИН СПРАВОЧНИК — ОДНО ПОЛЕ как норма: перечни разнесены по полям
-//     («иначе система станет сложнее»). Но на справочник МОЖНО ссылаться из
-//     нескольких полей, если перечень там действительно один и тот же —
-//     например наружные и внутренние стены. Первая ссылка определяет каталог,
-//     где справочник живёт, остальные лишь читают его значения.
+//   * ОДНО ПОЛЕ — ОДИН СПРАВОЧНИК, всегда: «у каждого ОЦ ОИ на каждое поле по
+//     своему уникальному справочнику». Ссылок на общий перечень нет.
+//   * Взамен есть СВЯЗАННЫЕ справочники: те, что привязаны к одноимённым полям
+//     разных типов ОЦ («Фундамент» у гражданского, производственного, жилого).
+//     Правку значения можно применить сразу ко всем выбранным связанным — это и
+//     есть синхронизация перечней вместо общего справочника.
 //   * Каталоги жёсткие: тип ОЦ → тип ОИ. Вручную не создаются — структура
 //     повторяет саму систему, и справочник лежит там, где применяется.
 //   * Внутри типа ОИ бывают ПАПКИ: конструктивный состав — это восемь
@@ -137,14 +138,14 @@ function build() {
           // без группировки читались бы мешаниной (конструктивный состав).
           folder: src.folder || '',
           items: makeItems(src.values, src.kind, src.groupLabels),
-          // Ссылки на поля. Первая определяет каталог: тип ОЦ → тип ОИ.
-          slots: [{
+          // Привязка одна: каталог из неё и вытекает (тип ОЦ → тип ОИ).
+          slot: {
             typeId: type.manifest.id,
             typeLabel: type.manifest.label,
             card: slot.card,
             field: slot.field,
             label: slot.label,
-          }],
+          },
           createdAt: '—',
           createdBy: 'встроенный перечень',
           updatedAt: '',
@@ -188,10 +189,10 @@ export function getDict(id) {
 
 export const catalogKey = (typeId, card) => `${typeId}|${card}`;
 
-// Основная ссылка — первая: именно она говорит, в каком каталоге справочник
-// лежит. Остальные ссылки на место в дереве не влияют.
+// Привязка справочника. Оставлено функцией, а не обращением к полю: так экран
+// не знает, как она хранится, и её форма может измениться без правок экрана.
 export function mainSlot(dict) {
-  return (dict.slots && dict.slots[0]) || null;
+  return dict.slot || null;
 }
 
 export function dictCatalog(dict) {
@@ -290,7 +291,7 @@ const slotKey = (s) => `${s.typeId}|${s.card}|${s.field}`;
 
 export function dictAt(typeId, card, field) {
   const key = `${typeId}|${card}|${field}`;
-  return allDicts().find((d) => (d.slots || []).some((s) => slotKey(s) === key)) || null;
+  return allDicts().find((d) => d.slot && slotKey(d.slot) === key) || null;
 }
 
 // Значения для поля карточки. Пока поле не переведено на справочники, модуль
@@ -313,7 +314,7 @@ export function slotsWithOwners(catalog) {
     if (catalog && catalogKey(slot.typeId, slot.card) !== catalog) return;
     seen.add(key);
 
-    const owner = allDicts().find((d) => (d.slots || []).some((x) => slotKey(x) === key));
+    const owner = allDicts().find((d) => d.slot && slotKey(d.slot) === key);
     out.push({ ...slot, owner: owner || null });
   });
 
@@ -323,7 +324,7 @@ export function slotsWithOwners(catalog) {
 // Свободные точки: те, что ещё никем не заняты (одно поле — один справочник).
 export function freeSlots(catalog) {
   const taken = new Set();
-  allDicts().forEach((d) => (d.slots || []).forEach((s) => taken.add(slotKey(s))));
+  allDicts().forEach((d) => { if (d.slot) taken.add(slotKey(d.slot)); });
 
   const seen = new Set();
   return allSlots().filter((s) => {
@@ -357,11 +358,10 @@ export function usageOf(dict, value) {
   let n = 0;
   const places = [];
 
-  // Считаем по ВСЕМ ссылкам: если перечень читают два поля, значение
-  // используется в обоих, и удалять его нельзя, пока оно стоит хоть в одном.
-  (dict.slots || []).forEach((b) => {
+  const b = dict.slot;
+  if (b) {
     const type = sortedTypes().find((t) => t.manifest.id === b.typeId);
-    if (!type || !type.records.allRecords) return;
+    if (!type || !type.records.allRecords) return { count: 0, places: [] };
 
     type.records.allRecords().forEach((rec) => {
     const holders = b.card === 'oc' ? [rec] : (rec.oi || []).filter((o) => {
@@ -388,13 +388,98 @@ export function usageOf(dict, value) {
         }
       });
     });
-  });
+  }
 
   return { count: n, places };
 }
 
 export function dictUsage(dict) {
   return dict.items.reduce((sum, it) => sum + usageOf(dict, it.value).count, 0);
+}
+
+// --- связанные справочники -------------------------------------------------
+//
+// Связь по КЛЮЧУ ПОЛЯ: «Фундамент» у гражданского, производственного и жилого
+// зданий — это одно и то же поле struct.foundation разных типов ОЦ. Перечни у
+// них обычно совпадают, и правку логично применять сразу ко всем.
+//
+// Общего справочника при этом нет (пользователь просил разнести): каждый живёт
+// сам, но правку можно размножить осознанно и видеть, куда именно она уйдёт.
+
+export function linkedDicts(dict) {
+  const b = dict.slot;
+  if (!b) return [];
+
+  return allDicts().filter((d) => d !== dict && !d.system && d.slot
+    && d.slot.field === b.field);
+}
+
+// Значения, которых нет в связанном справочнике, и наоборот — чтобы показать
+// расхождение до применения правки.
+export function diffWith(dict, other) {
+  const mine = dict.items.map((x) => x.value);
+  const theirs = other.items.map((x) => x.value);
+  return {
+    onlyMine: mine.filter((v) => !theirs.includes(v)),
+    onlyTheirs: theirs.filter((v) => !mine.includes(v)),
+  };
+}
+
+// Добавить значение в выбранные связанные справочники. Возвращает, сколько
+// перечней изменилось: там, где значение уже есть, ничего не делается.
+export function addItemTo(targets, value, group) {
+  if (!canEditDicts()) return 0;
+  let n = 0;
+  targets.forEach((d) => {
+    if (d.system || hasValue(d, value)) return;
+    if (addItem(d, value, group)) n++;
+  });
+  return n;
+}
+
+// Удалить значение из выбранных связанных справочников. Где оно используется —
+// подставляется замена (та же, что выбрал человек в диалоге); где не
+// используется — просто убирается. Возвращает {dicts, objects}.
+export function removeItemFrom(targets, value, replaceWith) {
+  if (!canEditDicts()) return { dicts: 0, objects: 0 };
+
+  let dictsChanged = 0;
+  let objects = 0;
+
+  targets.forEach((d) => {
+    if (d.system) return;
+    const item = d.items.find((x) => x.value === value);
+    if (!item) return;
+
+    const { count } = usageOf(d, item.value);
+    const res = removeItem(d, item, count ? replaceWith : null);
+    if (res) {
+      dictsChanged++;
+      objects += res.touched || 0;
+    }
+  });
+
+  return { dicts: dictsChanged, objects };
+}
+
+// Переименовать значение в выбранных связанных справочниках: правка названия —
+// тоже синхронизация, и без неё перечни разойдутся при первой же опечатке.
+export function renameItemIn(targets, from, to) {
+  if (!canEditDicts()) return { dicts: 0, objects: 0 };
+
+  let dictsChanged = 0;
+  let objects = 0;
+
+  targets.forEach((d) => {
+    if (d.system || hasValue(d, to)) return;
+    const item = d.items.find((x) => x.value === from);
+    if (!item) return;
+
+    objects += replaceValue(d, from, to);
+    if (renameItem(d, item, to)) dictsChanged++;
+  });
+
+  return { dicts: dictsChanged, objects };
 }
 
 // --- изменения -------------------------------------------------------------
@@ -412,7 +497,7 @@ export function createDict(name, slot) {
   const dict = {
     id: nextId('dict'), sourceKey: '', name: name || 'Новый справочник', note: '',
     kind: 'list', system: false, items: [], folder: '',
-    slots: slot ? [{ ...slot }] : [],
+    slot: slot ? { ...slot } : null,
     createdAt: today(), createdBy: session.state.person, updatedAt: '', updatedBy: '',
   };
   allDicts().push(dict);
@@ -430,7 +515,7 @@ export function copyDict(dict) {
     name: `${dict.name} · копия`,
     system: false,
     items: dict.items.map((it) => ({ ...it, id: nextId('it') })),
-    slots: [],
+    slot: null,
     createdAt: today(), createdBy: session.state.person, updatedAt: '', updatedBy: '',
   };
   allDicts().push(copy);
@@ -439,7 +524,7 @@ export function copyDict(dict) {
 }
 
 export function removeDict(dict) {
-  if (!canEditDicts() || dict.system || (dict.slots || []).length) return false;
+  if (!canEditDicts() || dict.system || dict.slot) return false;
   const list = allDicts();
   const i = list.indexOf(dict);
   if (i < 0) return false;
@@ -464,40 +549,17 @@ export function setDictNote(dict, note) {
 
 // --- привязка и перенос между каталогами ----------------------------------
 
-// Добавить ссылку на поле. Одно поле читает ровно один справочник, поэтому
-// прежний владелец точку теряет; а вот у справочника ссылок может быть
-// несколько — этого пользователь и просил («на справочник можно ссылаться из
-// нескольких мест»).
+// Привязать справочник к полю. Одно поле — один справочник: прежний владелец
+// точку теряет и уходит в «Не привязаны».
 export function bindSlot(dict, slot) {
   if (!canEditDicts() || dict.system) return false;
   const key = slotKey(slot);
 
   allDicts().forEach((d) => {
-    if (d === dict) return;
-    const i = (d.slots || []).findIndex((s) => slotKey(s) === key);
-    if (i >= 0) d.slots.splice(i, 1);
+    if (d !== dict && d.slot && slotKey(d.slot) === key) d.slot = null;
   });
 
-  dict.slots = dict.slots || [];
-  if (!dict.slots.some((s) => slotKey(s) === key)) dict.slots.push({ ...slot });
-  touch(dict);
-  return true;
-}
-
-// Заменить основную ссылку (перенос в другой каталог): справочник переезжает
-// целиком, дополнительные ссылки остаются на своих полях.
-export function setMainSlot(dict, slot) {
-  if (!canEditDicts() || dict.system) return false;
-  const key = slotKey(slot);
-
-  allDicts().forEach((d) => {
-    if (d === dict) return;
-    const i = (d.slots || []).findIndex((s) => slotKey(s) === key);
-    if (i >= 0) d.slots.splice(i, 1);
-  });
-
-  const rest = (dict.slots || []).slice(1).filter((s) => slotKey(s) !== key);
-  dict.slots = [{ ...slot }, ...rest];
+  dict.slot = { ...slot };
   touch(dict);
   return true;
 }
@@ -520,17 +582,11 @@ export function foldersOf(typeId, card) {
   return out.sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
-// Снять ссылку. Без аргумента снимает все — справочник уходит в «Не привязаны».
-export function unbindSlot(dict, slot) {
+// Снять привязку — справочник уходит в «Не привязаны», поле возвращается к
+// встроенному перечню.
+export function unbindSlot(dict) {
   if (!canEditDicts() || dict.system) return false;
-
-  if (!slot) {
-    dict.slots = [];
-  } else {
-    const key = slotKey(slot);
-    dict.slots = (dict.slots || []).filter((s) => slotKey(s) !== key);
-  }
-
+  dict.slot = null;
   touch(dict);
   return true;
 }
@@ -543,8 +599,8 @@ export function moveToCatalog(dict, typeId, card) {
   if (!canEditDicts() || dict.system) return { ok: false, reason: 'нельзя' };
 
   const target = allSlots().filter((s) => s.typeId === typeId && s.card === card);
-  const busy = (s) => allDicts().some((d) => d !== dict
-    && (d.slots || []).some((x) => slotKey(x) === slotKey(s)));
+  const busy = (s) => allDicts().some((d) => d !== dict && d.slot
+    && slotKey(d.slot) === slotKey(s));
   const free = target.filter((s) => !busy(s));
   const from = mainSlot(dict);
 
@@ -554,17 +610,26 @@ export function moveToCatalog(dict, typeId, card) {
   const same = from && target.find((s) => s.field === from.field);
 
   if (same && !busy(same)) {
-    setMainSlot(dict, same);
+    bindSlot(dict, same);
     return { ok: true, slot: same, auto: true };
   }
 
+  // Занятые поля тоже возвращаем — с именем справочника, который их держит.
+  // Иначе при 1:1 выбирать оказывается не из чего: свободных полей в каталоге
+  // обычно нет ни одного, и созданный вручную справочник некуда прикрепить.
+  const busySlots = target.filter(busy).map((s) => ({
+    ...s,
+    byName: (allDicts().find((d) => d !== dict && d.slot
+      && slotKey(d.slot) === slotKey(s)) || {}).name || '',
+  }));
+
   if (same && busy(same)) {
-    const by = allDicts().find((d) => d !== dict
-      && (d.slots || []).some((x) => slotKey(x) === slotKey(same)));
-    return { ok: false, reason: 'занято', slot: same, by, options: free };
+    const by = allDicts().find((d) => d !== dict && d.slot
+      && slotKey(d.slot) === slotKey(same));
+    return { ok: false, reason: 'занято', slot: same, by, options: free, busySlots };
   }
 
-  return { ok: false, reason: 'выбор', options: free };
+  return { ok: false, reason: 'выбор', options: free, busySlots };
 }
 
 // --- значения --------------------------------------------------------------
@@ -649,11 +714,10 @@ export function removeItem(dict, item, replaceWith) {
 export function replaceValue(dict, from, to) {
   let touched = 0;
 
-  // По всем ссылкам: перечень один, значит и правка одна на все поля, которые
-  // его читают.
-  (dict.slots || []).forEach((b) => {
+  const b = dict.slot;
+  if (b) {
     const type = sortedTypes().find((t) => t.manifest.id === b.typeId);
-    if (!type || !type.records.allRecords) return;
+    if (!type || !type.records.allRecords) return 0;
 
     type.records.allRecords().forEach((rec) => {
     const holders = b.card === 'oc' ? [rec] : (rec.oi || []).filter((o) => {
@@ -672,7 +736,7 @@ export function replaceValue(dict, from, to) {
         }
       });
     });
-  });
+  }
 
   return touched;
 }

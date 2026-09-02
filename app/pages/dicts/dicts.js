@@ -2,7 +2,10 @@
 // ТЗ: docs/tz/10-spravochniki.md.
 //
 // Устройство (решения пользователя 02.09.2026):
-//   * один справочник — одно поле; общих перечней на несколько полей нет;
+//   * одно поле — один справочник, всегда: у каждого типа ОИ на каждое поле
+//     свой уникальный перечень;
+//   * справочники одноимённых полей связаны: правку значения можно применить
+//     сразу ко всем выбранным (аккордеон «Связанные справочники»);
 //   * слева дерево каталогов «тип ОЦ → тип ОИ»: справочник лежит там, где
 //     применяется, и искать его больше негде;
 //   * перенос в другой каталог перевешивает привязку на одноимённое поле, а
@@ -20,10 +23,26 @@ import {
   catalogTree, catalogKey, dictCatalog, createDict, copyDict, removeDict,
   renameDict, setDictNote, addItem, renameItem, removeItem, hasValue, moveItem,
   bindSlot, unbindSlot, freeSlots, moveToCatalog, setFolder, foldersOf, mainSlot,
-  slotsWithOwners,
+  slotsWithOwners, linkedDicts, diffWith, addItemTo, removeItemFrom, renameItemIn,
 } from '../../kernel/dicts.js';
 
+// Вид навигации. По умолчанию «столбцы»: они не требуют опыта с деревом —
+// три списка рядом, выбрал слева — справа появилось следующее, и ничего не
+// перестраивается. Плитки, плоская таблица и группировка по полям пробовались
+// и убраны 02.09.2026: три способа делать одно и то же только запутывали.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: выбранный вид — личная настройка, ей место в профиле
+// пользователя. Здесь он живёт в памяти вкладки.
+const VIEWS = [
+  { key: 'steps', label: 'Столбцы', hint: 'тип ОЦ → справочник → значения, три столбца рядом' },
+  { key: 'tree', label: 'Дерево', hint: 'вложенные списки' },
+];
+
 const state = {
+  view: 'steps',
+  viewMenuOpen: false, // раскрыто ли меню выбора вида
+  stepType: null,      // выбранный тип ОЦ (первый столбец)
+  stepCard: null,      // выбранный тип ОИ (второй столбец)
   selected: null,
   q: '',
   itemQ: '',
@@ -38,8 +57,10 @@ const state = {
   dragItem: null,
   moveOpen: false,     // открыт выбор каталога для переноса
   folderOpen: false,   // открыт выбор папки внутри каталога
-  refOpen: false,      // открыт выбор поля для дополнительной ссылки
-  refQ: '',            // поиск в этом выборе: полей больше сотни
+  // Аккордеон связанных справочников: раскрыт ли он и какие из них выбраны.
+  // По умолчанию выбраны ВСЕ связанные — так просил пользователь; выбор живёт
+  // на время работы с этим справочником.
+  linkedOff: {},       // id справочников, с которых галочку сняли
   movePick: null,      // автопривязка не сработала — спрашиваем поле
 };
 
@@ -59,6 +80,13 @@ const ICON_FOLDER = `<svg viewBox="0 0 14 12" width="12" height="11" aria-hidden
 const ICON_SEARCH = `<svg class="dc-field-ico" viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
   <circle cx="6" cy="6" r="4.1" fill="none" stroke="currentColor" stroke-width="1.4"/>
   <path d="M9.2 9.2 12.4 12.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+
+const ICON_GEAR = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
+  <path d="M1.6 3.6h10.8M1.6 7h10.8M1.6 10.4h10.8" stroke="currentColor" stroke-width="1.2"
+    stroke-linecap="round"/>
+  <circle cx="4.6" cy="3.6" r="1.5" fill="#fff" stroke="currentColor" stroke-width="1.2"/>
+  <circle cx="9.2" cy="7" r="1.5" fill="#fff" stroke="currentColor" stroke-width="1.2"/>
+  <circle cx="5.4" cy="10.4" r="1.5" fill="#fff" stroke="currentColor" stroke-width="1.2"/></svg>`;
 
 const ICON_CHEV = `<svg class="dc-tree-chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
   <path d="M4.4 2.6 7.8 6l-3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.6"
@@ -130,38 +158,173 @@ function treeHTML() {
     </div>`;
   }).join('');
 
-  return `<aside class="dc-list">
-    <div class="dc-list-head">
-      <div class="dc-field dc-field-search">
-        ${ICON_SEARCH}
-        <input data-dc-q value="${esc(state.q)}" autocomplete="off"
-          placeholder="Поиск по названию и значениям…">
-        ${state.q ? '<button class="dc-field-clear" data-dc-q-clear title="Очистить">×</button>' : ''}
-      </div>
-
-      <label class="dc-switch ${state.showSystem ? 'on' : ''}"
-        title="Системные перечни управляют логикой карточек и правке не подлежат">
-        <input type="checkbox" data-dc-sys ${state.showSystem ? 'checked' : ''}>
-        <span class="dc-switch-track"><i></i></span>
-        <span class="dc-switch-text">${ICON_LOCK} Системные перечни</span>
-        <b>${allDicts().filter((x) => x.system).length}</b>
-      </label>
-    </div>
-
-    <div class="dc-tree">
+  return `<div class="dc-tree">
       ${nodes || '<div class="dc-tree-empty">Ничего не найдено</div>'}
+    </div>`;
+}
+
+// --- выбор вида: настройка, а не пять вкладок -------------------------------
+//
+// Вид меняют один раз «под себя» и дальше работают — держать пять кнопок в
+// шапке значит отнимать место у поиска и фильтров ради того, чем пользуются
+// изредка. Поэтому это настройка в выпадающем меню (решение пользователя
+// 02.09.2026: «Все 4 формата. Но выбираем между ними через настройки»).
+
+function viewSwitchHTML() {
+  const cur = VIEWS.find((v) => v.key === state.view) || VIEWS[0];
+
+  return `<div class="dd dc-views ${state.viewMenuOpen ? 'open' : ''}" data-view-dd>
+    <button class="dc-views-btn" data-view-toggle title="Как показывать справочники">
+      ${ICON_GEAR}
+      <span>Вид: <b>${esc(cur.label)}</b></span>
+      <i class="dc-views-caret">▾</i>
+    </button>
+
+    <div class="dd-menu dc-views-menu">
+      <div class="dd-group">Навигация по справочникам</div>
+      ${VIEWS.map((v) => `<button class="dc-view-opt ${v.key === state.view ? 'on' : ''}"
+        data-view="${v.key}">
+        <b>${esc(v.label)}</b>
+        <span>${esc(v.hint)}</span>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+// Общая часть всех видов: поиск и тумблер системных.
+function filtersHTML() {
+  return `<div class="dc-field dc-field-search">
+      ${ICON_SEARCH}
+      <input data-dc-q value="${esc(state.q)}" autocomplete="off"
+        placeholder="Поиск по названию и значениям…">
+      ${state.q ? '<button class="dc-field-clear" data-dc-q-clear title="Очистить">×</button>' : ''}
     </div>
 
-    ${canEditDicts() ? `<div class="dc-list-foot">
-      ${state.creating
-        ? `<div class="dc-field dc-field-new">
-             <input data-dc-new-name autocomplete="off" placeholder="Название справочника — Enter">
-             <button class="dc-field-clear" data-dc-new-cancel title="Отмена">×</button>
-           </div>`
-        : '<button class="btn btn-primary dc-add" data-dc-new>+ Справочник</button>'}
-    </div>` : ''}
-  </aside>`;
+    <label class="dc-switch ${state.showSystem ? 'on' : ''}"
+      title="Системные перечни управляют логикой карточек и правке не подлежат">
+      <input type="checkbox" data-dc-sys ${state.showSystem ? 'checked' : ''}>
+      <span class="dc-switch-track"><i></i></span>
+      <span class="dc-switch-text">${ICON_LOCK} Системные</span>
+      <b>${allDicts().filter((x) => x.system).length}</b>
+    </label>`;
 }
+
+function newDictHTML() {
+  if (!canEditDicts()) return '';
+  return state.creating
+    ? `<div class="dc-field dc-field-new">
+         <input data-dc-new-name autocomplete="off" placeholder="Название справочника — Enter">
+         <button class="dc-field-clear" data-dc-new-cancel title="Отмена">×</button>
+       </div>`
+    : '<button class="btn btn-primary dc-add" data-dc-new>+ Справочник</button>';
+}
+
+// --- вид «шаги»: три списка рядом ------------------------------------------
+//
+// Самый понятный без опыта: выбрал в первом — появилось во втором. Ничего не
+// раскрывается и не сворачивается, путь виден целиком.
+
+function stepsHTML() {
+  const tree = catalogTree();
+  const type = tree.find((t) => t.typeId === state.stepType) || null;
+  const cards = type ? type.cards : [];
+  const card = cards.find((c) => c.key === state.stepCard) || null;
+  const d = state.selected ? getDict(state.selected) : null;
+
+  return `<div class="dc-steps">
+    ${typeColHTML(tree)}
+    ${cardColHTML(type, cards)}
+    ${d ? valueColHTML(d) : dictColHTML(card)}
+  </div>`;
+}
+
+// Шаг 1 — типы ОЦ.
+function typeColHTML(tree) {
+  return `<div class="dc-step">
+    <div class="dc-step-head">Шаг 1 · Тип ОЦ</div>
+    <div class="dc-step-body">
+      ${tree.map((t) => `<button class="dc-step-row ${t.typeId === state.stepType ? 'on' : ''}
+        ${t.typeId ? '' : 'unbound'}" data-step-type="${esc(t.typeId)}">
+        <span>${esc(t.label)}</span><b>${t.count}</b>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+// Шаг 2 — типы ОИ выбранного типа ОЦ.
+function cardColHTML(type, cards) {
+  return `<div class="dc-step">
+    <div class="dc-step-head">Шаг 2 · Тип ОИ</div>
+    <div class="dc-step-body">
+      ${type ? cards.map((c) => `<button class="dc-step-row ${c.key === state.stepCard ? 'on' : ''}"
+          data-step-card="${esc(c.key)}">
+          <span>${esc(c.label)}</span><b>${c.total}</b>
+        </button>`).join('')
+        : '<div class="dc-step-empty">Выберите тип объекта оценки</div>'}
+    </div>
+  </div>`;
+}
+
+// Шаг 3, первое состояние — перечисления (поля) выбранного типа ОИ списком.
+// Папка остаётся пометкой у поля: отдельным уровнем она превратила бы столбец
+// обратно в дерево. Клик по полю открывает связанный с ним справочник — второе
+// состояние этого же столбца.
+function dictColHTML(card) {
+  const rowOf = (d, folder) => `<button class="dc-step-row dict ${d.system ? 'sys' : ''}"
+    data-dict="${esc(d.id)}">
+    <span>${d.system ? `<i class="dc-lock">${ICON_LOCK}</i>` : ''}${esc(d.name)}
+      ${folder ? `<i class="dc-step-folder">${esc(folder)}</i>` : ''}</span>
+    <b>${d.items.length}</b>
+  </button>`;
+
+  const own = card ? card.dicts.filter(matchesDict) : [];
+  const inFolders = card ? (card.folders || []).map((f) => ({
+    name: f.name, dicts: f.dicts.filter(matchesDict),
+  })).filter((f) => f.dicts.length) : [];
+
+  const n = own.length + inFolders.reduce((k, f) => k + f.dicts.length, 0);
+
+  return `<div class="dc-step wide">
+    <div class="dc-step-head">Шаг 3 · Значения${n ? `<b>${n}</b>` : ''}</div>
+    <div class="dc-step-body">
+      ${!card ? '<div class="dc-step-empty">Выберите тип объекта имущества</div>'
+        : n ? `${card.key === 'unbound' ? `<div class="dc-step-hint">Эти справочники ни к чему
+              не привязаны — карточки их не видят. Откройте любой и нажмите
+              «Привязать к полю».</div>` : ''}
+            ${inFolders.map((f) => f.dicts.map((d) => rowOf(d, f.name)).join('')).join('')}
+            ${own.map((d) => rowOf(d, '')).join('')}`
+          : '<div class="dc-step-empty">Здесь пока нет справочников</div>'}
+    </div>
+  </div>`;
+}
+
+// Шаг 3, второе состояние — открытый справочник. Внутри столбца те же блоки
+// 01–04, что и в дереве: общие сведения, значения, где применяется,
+// использование (требование пользователя 02.09.2026 — «подобное обязано быть в
+// режиме столбцов»). Отличие только в том, что прокручивается сам столбец, а
+// первые два остаются на месте и не меняют ширину.
+function valueColHTML(d) {
+  const main = mainSlot(d);
+
+  return `<div class="dc-step wide">
+    <div class="dc-step-head">
+      <button class="dc-step-back" data-dc-back title="К списку значений">←</button>
+      Справочник<b>${d.items.length}</b>
+      ${d.system ? `<span class="dc-badge sys">${ICON_LOCK} системный</span>` : ''}
+      ${!main ? '<span class="dc-badge warn">не привязан к полю</span>' : ''}
+    </div>
+
+    <div class="dc-step-body cards">
+      ${generalHTML(d)}
+      ${itemsHTML(d)}
+      ${whereHTML(d)}
+      ${usageHTML(d)}
+    </div>
+  </div>`;
+}
+
+
+
 
 // --- блок 01: общие сведения ----------------------------------------------
 
@@ -176,7 +339,6 @@ function generalHTML(d) {
       <h3>Общие сведения</h3>
       ${d.system ? `<span class="dc-badge sys">${ICON_LOCK} системный</span>` : ''}
       ${!main ? '<span class="dc-badge warn">не привязан к полю</span>' : ''}
-      ${d.slots.length > 1 ? `<span class="dc-badge multi">ссылок: ${d.slots.length}</span>` : ''}
       ${canEditDicts() ? `<span class="dc-card-tools">
         <button class="btn btn-ghost btn-sm" data-dc-copy
           title="Копия со всеми значениями. Копия не привязана — её отдают другому полю">Копировать</button>
@@ -213,7 +375,10 @@ function generalHTML(d) {
 
 // --- блок 02: значения -----------------------------------------------------
 
-function itemsHTML(d) {
+// Таблица значений — одна на оба вида: в столбце она идёт как есть, в дереве
+// заворачивается в карточку блока 02. Обработчики привязаны к data-атрибутам
+// строк, поэтому оба места работают одинаково.
+function itemsTableHTML(d) {
   const edit = canEditDicts() && !d.system;
   const q = state.itemQ.trim().toLowerCase();
   const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
@@ -263,6 +428,26 @@ function itemsHTML(d) {
       <td colspan="2"></td>
     </tr>` : '';
 
+  if (!d.items.length && !edit) return '<div class="dc-empty">Ни одного значения.</div>';
+
+  return `<table class="dc-tbl">
+    <thead><tr>
+      <th class="dc-grip"></th>
+      <th>Значение</th>
+      <th>Пояснение</th>
+      <th class="dc-usage">Объектов</th>
+      <th class="dc-act"></th>
+    </tr></thead>
+    <tbody>${body}${addRow}</tbody>
+  </table>`;
+}
+
+function itemsHTML(d) {
+  const edit = canEditDicts() && !d.system;
+  const q = state.itemQ.trim().toLowerCase();
+  const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
+    || (it.note || '').toLowerCase().includes(q));
+
   return `<section class="card dc-card">
     <header class="dc-card-head">
       <span class="card-idx">02</span>
@@ -275,18 +460,7 @@ function itemsHTML(d) {
       </span>
     </header>
 
-    <div class="dc-card-body flush">
-      ${d.items.length || edit ? `<table class="dc-tbl">
-        <thead><tr>
-          <th class="dc-grip"></th>
-          <th>Значение</th>
-          <th>Пояснение</th>
-          <th class="dc-usage">Объектов</th>
-          <th class="dc-act"></th>
-        </tr></thead>
-        <tbody>${body}${addRow}</tbody>
-      </table>` : '<div class="dc-empty">Ни одного значения.</div>'}
-    </div>
+    <div class="dc-card-body flush">${itemsTableHTML(d)}</div>
   </section>`;
 }
 
@@ -294,34 +468,14 @@ function itemsHTML(d) {
 
 function whereHTML(d) {
   const edit = canEditDicts() && !d.system;
-  const main = mainSlot(d);
-  const extra = (d.slots || []).slice(1);
-
-  const chain = (s, i) => `<div class="dc-where ${i ? 'extra' : ''}">
-      ${i ? '<span class="dc-where-tag">ещё поле</span>' : ''}
-      <div class="dc-where-step">
-        <i>Тип объекта оценки</i><b>${esc(s.typeLabel)}</b>
-      </div>
-      <span class="dc-where-arrow">→</span>
-      <div class="dc-where-step">
-        <i>Тип объекта имущества</i><b>${esc(CARD_LABEL[s.card] || s.card)}</b>
-      </div>
-      <span class="dc-where-arrow">→</span>
-      <div class="dc-where-step field">
-        <i>Поле карточки</i><b>${esc(s.label)}</b>
-      </div>
-      ${edit && i ? `<button class="dc-x" data-ref-del="${i}"
-        title="Убрать ссылку — поле вернётся к встроенному перечню">×</button>` : ''}
-    </div>`;
+  const slot = mainSlot(d);
 
   return `<section class="card dc-card">
     <header class="dc-card-head">
       <span class="card-idx">03</span>
       <h3>Где применяется</h3>
-      ${d.slots.length > 1 ? `<span class="dc-count">${d.slots.length}</span>` : ''}
       ${edit ? `<span class="dc-card-tools">
-        ${main ? `<button class="btn btn-ghost btn-sm" data-ref-add>+ Ещё поле</button>
-               <button class="btn btn-ghost btn-sm" data-folder-open>Папка</button>
+        ${slot ? `<button class="btn btn-ghost btn-sm" data-folder-open>Папка</button>
                <button class="btn btn-ghost btn-sm" data-move-open>Перенести в другой каталог</button>
                <button class="btn btn-ghost btn-sm" data-unbind>Отвязать</button>`
              : '<button class="btn btn-primary btn-sm" data-move-open>Привязать к полю</button>'}
@@ -329,68 +483,28 @@ function whereHTML(d) {
     </header>
 
     <div class="dc-card-body">
-      ${main ? `${chain(main, 0)}
-        ${extra.map((x, i) => chain(x, i + 1)).join('')}
-        ${extra.length ? `<div class="dc-where-note">Все эти поля читают один перечень:
-          правка значения меняет их разом.</div>` : ''}
+      ${slot ? `<div class="dc-where">
+          <div class="dc-where-step">
+            <i>Тип объекта оценки</i><b>${esc(slot.typeLabel)}</b>
+          </div>
+          <span class="dc-where-arrow">→</span>
+          <div class="dc-where-step">
+            <i>Тип объекта имущества</i><b>${esc(CARD_LABEL[slot.card] || slot.card)}</b>
+          </div>
+          <span class="dc-where-arrow">→</span>
+          <div class="dc-where-step field">
+            <i>Поле карточки</i><b>${esc(slot.label)}</b>
+          </div>
+        </div>
         ${folderRowHTML(d)}`
       : `<div class="dc-empty">Справочник ни к чему не привязан — карточки его не видят.
          ${edit ? 'Нажмите «Привязать к полю».' : ''}</div>`}
-
-      ${state.refOpen && edit ? refPickerHTML(d) : ''}
 
       ${state.folderOpen && edit ? folderPickerHTML(d) : ''}
       ${state.moveOpen && edit ? movePickerHTML(d) : ''}
       ${state.movePick && edit ? moveChoiceHTML(d) : ''}
     </div>
   </section>`;
-}
-
-// Выбор поля для дополнительной ссылки. Свободные точки по всем каталогам:
-// перечень может понадобиться и в другом типе ОЦ (наружные и внутренние стены —
-// внутри одного, а вот «Права на строение» встречаются у нескольких).
-function refPickerHTML(d) {
-  const mine = new Set((d.slots || []).map((x) => `${x.typeId}|${x.card}|${x.field}`));
-  const q = (state.refQ || '').trim().toLowerCase();
-
-  const all = slotsWithOwners().filter((s) => {
-    if (mine.has(`${s.typeId}|${s.card}|${s.field}`)) return false;
-    if (!q) return true;
-    return `${s.label} ${s.typeLabel} ${CARD_LABEL[s.card] || s.card}`.toLowerCase().includes(q);
-  });
-
-  const byType = new Map();
-  all.forEach((s) => {
-    if (!byType.has(s.typeLabel)) byType.set(s.typeLabel, []);
-    byType.get(s.typeLabel).push(s);
-  });
-
-  return `<div class="dc-picker">
-    <div class="dc-picker-head">Ещё одно поле для этого перечня
-      <button class="btn btn-ghost btn-sm" data-ref-close style="margin-left:auto">Закрыть</button></div>
-    <div class="dc-picker-note">Поле начнёт читать значения этого справочника — например у
-      наружных и внутренних стен перечень материалов один и тот же. Поля, у которых уже есть
-      свой справочник, помечены: выбор отберёт поле у него.</div>
-
-    <div class="dc-field dc-field-refq">
-      ${ICON_SEARCH}
-      <input data-ref-q value="${esc(state.refQ || '')}" autocomplete="off"
-        placeholder="Поиск по полям и типам…">
-    </div>
-
-    ${all.length ? [...byType.entries()].map(([type, slots]) => `
-      <div class="dc-picker-type">${esc(type)}</div>
-      <div class="dc-picker-slots">
-        ${slots.map((s) => `<button class="dc-slot ${s.owner ? 'taken' : ''}"
-          data-ref-slot="${esc(s.typeId)}|${esc(s.card)}|${esc(s.field)}|${esc(s.label)}"
-          ${s.owner ? `data-ref-owner="${esc(s.owner.name)}"` : ''}>
-          <b>${esc(s.label)}</b>
-          <span>${esc(CARD_LABEL[s.card] || s.card)}${s.owner
-            ? ` · сейчас «${esc(s.owner.name)}»` : ' · свободно'}</span>
-        </button>`).join('')}
-      </div>`).join('')
-      : '<div class="dc-empty">Ничего не нашлось.</div>'}
-  </div>`;
 }
 
 // Папка справочника внутри каталога — строкой под цепочкой привязки.
@@ -451,7 +565,15 @@ function movePickerHTML(d) {
 
 // Одноимённого поля не нашлось (или оно занято) — спрашиваем, ничего не меняя.
 function moveChoiceHTML() {
-  const { options, targetLabel, taken } = state.movePick;
+  const { options, targetLabel, taken, busySlots } = state.movePick;
+  const busy = busySlots || [];
+
+  const slotBtn = (s, byName) => `<button class="dc-slot ${byName ? 'busy' : ''}"
+    data-bind-slot="${esc(s.typeId)}|${esc(s.card)}|${esc(s.field)}|${esc(s.label)}"
+    ${byName ? `data-bind-busy="${esc(byName)}"` : ''}>
+    <b>${esc(s.label)}</b>
+    <span>${byName ? `занято: ${esc(byName)}` : esc(CARD_LABEL[s.card] || s.card)}</span>
+  </button>`;
 
   return `<div class="dc-picker warn">
     <div class="dc-picker-head">${taken
@@ -460,12 +582,18 @@ function moveChoiceHTML() {
       <button class="btn btn-ghost btn-sm" data-move-cancel style="margin-left:auto">Отмена</button></div>
     <div class="dc-picker-note">Выберите поле, к которому привязать справочник.
       Пока не выберете — ничего не изменится.</div>
-    <div class="dc-picker-slots">
-      ${options.length ? options.map((s) => `<button class="dc-slot"
-        data-bind-slot="${esc(s.typeId)}|${esc(s.card)}|${esc(s.field)}|${esc(s.label)}">
-        <b>${esc(s.label)}</b><span>${esc(CARD_LABEL[s.card] || s.card)}</span></button>`).join('')
-        : '<div class="dc-empty">Свободных полей в этом каталоге нет.</div>'}
-    </div>
+
+    ${options.length ? `<div class="dc-picker-sub">Свободные поля</div>
+      <div class="dc-picker-slots">${options.map((s) => slotBtn(s, '')).join('')}</div>` : ''}
+
+    ${busy.length ? `<div class="dc-picker-sub">Занятые поля — можно заменить</div>
+      <div class="dc-picker-note">У поля уже есть справочник. Если выбрать его,
+        прежний перечень отвяжется и уйдёт в «Не привязаны» — значения при этом
+        сохранятся.</div>
+      <div class="dc-picker-slots">${busy.map((s) => slotBtn(s, s.byName)).join('')}</div>` : ''}
+
+    ${!options.length && !busy.length
+      ? '<div class="dc-empty">В этом каталоге нет ни одного поля.</div>' : ''}
   </div>`;
 }
 
@@ -511,6 +639,78 @@ function usageHTML(d) {
   </section>`;
 }
 
+// --- блок 05: связанные справочники ---------------------------------------
+//
+// Связаны те, что привязаны к одноимённым полям: «Фундамент» у гражданского,
+// производственного и жилого зданий. Общего перечня нет — каждый живёт сам,
+// но правку значения можно применить ко всем отмеченным разом. Отмечены по
+// умолчанию все (решение пользователя 02.09.2026).
+
+function linkedTargets(d) {
+  return linkedDicts(d).filter((x) => !state.linkedOff[x.id]);
+}
+
+function linkedHTML(d) {
+  const linked = d && !d.system ? linkedDicts(d) : [];
+
+  // Столбец рисуется всегда, даже пустой: если он появлялся только у части
+  // справочников, соседние столбцы прыгали в ширине на каждый выбор — ровно то,
+  // от чего уходили (пользователь 02.09.2026).
+  if (!linked.length) {
+    return `<aside class="dc-side empty">
+      <div class="dc-side-head"><b>Связанные справочники</b></div>
+      <div class="dc-side-empty">${!d
+        ? 'Выберите справочник — здесь появятся перечни того же поля у других типов объектов.'
+        : d.system
+          ? 'Системный перечень правится только вместе с кодом, связывать его не с чем.'
+          : 'У этого поля нет одноимённых в других типах объектов.'}</div>
+    </aside>`;
+  }
+
+  const chosen = linkedTargets(d);
+
+  return `<aside class="dc-side">
+    <div class="dc-side-head">
+      <b>Связанные справочники</b>
+      <span>${chosen.length} из ${linked.length}</span>
+    </div>
+
+    <div class="dc-side-note">Перечни того же поля «${esc(mainSlot(d).label)}» у других
+      типов объектов. Отмеченные меняются вместе с этим: значение добавится,
+      переименуется и удалится и у них.
+      <button class="dc-linked-all" data-linked-all="${chosen.length === linked.length ? 'off' : 'on'}">
+        ${chosen.length === linked.length ? 'снять все' : 'выбрать все'}</button>
+    </div>
+
+    <div class="dc-side-body">
+      ${linked.map((x) => {
+        const on = !state.linkedOff[x.id];
+        const diff = diffWith(d, x);
+        const same = !diff.onlyMine.length && !diff.onlyTheirs.length;
+        return `<label class="dc-linked-row ${on ? 'on' : ''}">
+          <input type="checkbox" data-linked="${esc(x.id)}" ${on ? 'checked' : ''}>
+          <span class="dc-linked-main">
+            <b>${esc(x.slot.typeLabel)}</b>
+            <span>${esc(CARD_LABEL[x.slot.card] || x.slot.card)} · ${x.items.length}
+              ${plural(x.items.length, 'значение', 'значения', 'значений')}</span>
+          </span>
+          <span class="dc-linked-diff ${same ? 'same' : ''}">${same
+            ? 'состав совпадает'
+            : `${diff.onlyMine.length ? `нет ${diff.onlyMine.length}` : ''}${
+                diff.onlyMine.length && diff.onlyTheirs.length ? ' · ' : ''}${
+                diff.onlyTheirs.length ? `лишних ${diff.onlyTheirs.length}` : ''}`}</span>
+        </label>`;
+      }).join('')}
+    </div>
+
+    ${canEditDicts() ? `<div class="dc-side-foot">
+      <button class="btn btn-ghost btn-sm" data-linked-sync
+        title="Добавить отмеченным справочникам значения, которых у них нет">
+        Догрузить недостающие</button>
+    </div>` : ''}
+  </aside>`;
+}
+
 // --- диалог удаления значения ---------------------------------------------
 //
 // Пользователь 02.09.2026: «текущее окно удаления значения при использовании в
@@ -537,9 +737,7 @@ function removeDialogHTML(d) {
           <span class="dc-warn-n">${count}</span>
           <span class="dc-warn-text">
             ${plural(count, 'объект использует', 'объекта используют', 'объектов используют')}
-            это значение ${d.slots.length > 1
-              ? `в полях ${d.slots.map((x) => '«' + esc(x.label) + '»').join(', ')}`
-              : `в поле «${esc(mainSlot(d) ? mainSlot(d).label : d.name)}»`}.
+            это значение в поле «${esc(mainSlot(d) ? mainSlot(d).label : d.name)}».
             <i>Просто удалить нельзя: в карточках осталось бы значение, которого нет
             в справочнике. Выберите, на что заменить.</i>
           </span>
@@ -604,25 +802,55 @@ function removeDialogHTML(d) {
 // --- сборка ----------------------------------------------------------------
 
 function viewHTML() {
-  const all = allDicts();
   const d = state.selected ? getDict(state.selected) : null;
 
   const notice = canEditDicts() ? '' : `<div class="dc-notice">
     Справочники правят администратор и роль «любая». Ваша роль —
     «${esc(roleLabel(session.state.role))}»: состав и привязки видны, изменения недоступны.</div>`;
 
+  const head = `<div class="dc-head">
+    ${viewSwitchHTML()}
+    <div class="dc-head-filters">${filtersHTML()}</div>
+    ${newDictHTML()}
+  </div>`;
+
+  // Столбец связанных справочников общий для обоих видов: он едет вместе с
+  // интерфейсом и виден, пока правишь значения (решение пользователя 02.09.2026).
+  const side = linkedHTML(d);
+
+  if (state.view === 'steps') {
+    return `<div class="dc dc-wide">
+      ${head}
+      ${notice}
+      <div class="dc-cols">
+        <div class="dc-browser">${stepsHTML()}</div>
+        ${side}
+      </div>
+      ${d ? removeDialogHTML(d) : ''}
+    </div>`;
+  }
+
+  const card = d
+    ? `${generalHTML(d)}${itemsHTML(d)}${whereHTML(d)}${usageHTML(d)}`
+    : `<div class="dc-choose">
+         <b>Выберите справочник</b>
+         <span>У каждого типа объекта имущества на каждое поле — свой перечень.</span>
+       </div>`;
+
   return `<div class="dc">
-    ${treeHTML()}
+    <aside class="dc-list">
+      <div class="dc-list-head">
+        ${viewSwitchHTML()}
+        ${filtersHTML()}
+      </div>
+      <div class="dc-panel">${treeHTML()}</div>
+      ${canEditDicts() ? `<div class="dc-list-foot">${newDictHTML()}</div>` : ''}
+    </aside>
     <div class="dc-main">
       ${notice}
-      ${d ? `${generalHTML(d)}${itemsHTML(d)}${whereHTML(d)}${usageHTML(d)}`
-        : `<div class="dc-choose">
-             <b>Выберите справочник в каталоге слева</b>
-             <span>Каталоги повторяют структуру системы: тип объекта оценки → тип объекта
-               имущества. Всего справочников ${all.length}, из них системных
-               ${all.filter((x) => x.system).length}.</span>
-           </div>`}
+      ${card}
     </div>
+    ${side}
     ${d ? removeDialogHTML(d) : ''}
   </div>`;
 }
@@ -637,6 +865,15 @@ export function mountDicts(host) {
     scope.setHTML(viewHTML());
     bind();
   }
+
+  // Меню вида закрывается кликом мимо — как все выпадающие меню проекта.
+  // Слушатель на документе снимается вместе с областью модуля (kernel/scope.js).
+  scope.onDocument('click', (e) => {
+    if (!state.viewMenuOpen) return;
+    if (e.target.closest('[data-view-dd]')) return;
+    state.viewMenuOpen = false;
+    render();
+  });
 
   // Перерисовка не должна выбивать курсор: таблица обновляется на каждое
   // изменение, а человек в это время печатает.
@@ -661,6 +898,45 @@ export function mountDicts(host) {
   }
 
   function bind() {
+    // --- выбор вида ---
+    const viewToggle = scope.$('[data-view-toggle]');
+    if (viewToggle) viewToggle.onclick = (e) => {
+      e.stopPropagation();
+      state.viewMenuOpen = !state.viewMenuOpen;
+      render();
+    };
+
+    scope.$$('[data-view]').forEach((b) => b.onclick = () => {
+      state.view = b.dataset.view;
+      state.viewMenuOpen = false;
+      // Шаги и плитки ведут по уровням: начинаем с того, где лежит выбранный
+      // справочник, иначе человек теряет место после переключения вида.
+      const cur = state.selected ? getDict(state.selected) : null;
+      const slot = cur ? mainSlot(cur) : null;
+      if (slot) {
+        state.stepType = slot.typeId;
+        state.stepCard = catalogKey(slot.typeId, slot.card);
+      }
+      render();
+    });
+
+    // --- столбцы ---
+    scope.$$('[data-step-type]').forEach((b) => b.onclick = () => {
+      state.stepType = b.dataset.stepType;
+      state.stepCard = null;
+      state.selected = null;
+      render();
+    });
+
+    scope.$$('[data-step-card]').forEach((b) => b.onclick = () => {
+      state.stepCard = b.dataset.stepCard;
+      state.selected = null;
+      render();
+    });
+
+    const toList = scope.$('[data-dc-back]');
+    if (toList) toList.onclick = () => { state.selected = null; render(); };
+
     // --- дерево ---
     scope.$$('[data-tree-type]').forEach((b) => b.onclick = () => {
       const key = 't|' + b.dataset.treeType;
@@ -685,8 +961,23 @@ export function mountDicts(host) {
       state.itemQ = '';
       state.moveOpen = false;
       state.folderOpen = false;
-      state.refOpen = false;
       state.movePick = null;
+      // Выбор связанных относится к конкретному справочнику: у нового своя
+      // компания, и переносить снятые галочки было бы неверно.
+      state.linkedOff = {};
+      // Столбцы и дерево показывают одно и то же: выбрал в дереве — столбцы
+      // встают на тот же путь, и наоборот.
+      const picked = getDict(state.selected);
+      const pickedSlot = picked ? mainSlot(picked) : null;
+      if (pickedSlot) {
+        state.stepType = pickedSlot.typeId;
+        state.stepCard = catalogKey(pickedSlot.typeId, pickedSlot.card);
+      } else {
+        // Непривязанный лежит в своей ветке первого столбца — туда и встаём,
+        // иначе столбцы показывают путь, которого у справочника нет.
+        state.stepType = '';
+        state.stepCard = 'unbound';
+      }
       render();
     });
 
@@ -723,6 +1014,10 @@ export function mountDicts(host) {
         if (!d) { render(); return; }
 
         state.selected = d.id;
+        // Новый справочник ни к чему не привязан, поэтому столбцы встают на
+        // ветку «Не привязаны» — там его потом и искать.
+        state.stepType = '';
+        state.stepCard = 'unbound';
         render();
         host.toast('Справочник создан — привяжите его к полю', 'ok');
         const first = scope.$('[data-item-new]');
@@ -787,10 +1082,21 @@ export function mountDicts(host) {
         return;
       }
       addItem(d, value);
+
+      // Те же значения — в отмеченные связанные справочники: перечни
+      // одноимённых полей должны держаться вместе (синхронизация).
+      const targets = linkedTargets(d);
+      const alsoIn = addItemTo(targets, value);
+
       nw.value = '';
       render();
       const again = scope.$('[data-item-new]');
       if (again) again.focus();
+
+      if (alsoIn) {
+        host.toast(`Добавлено здесь и ещё в ${alsoIn} `
+          + `${plural(alsoIn, 'справочник', 'справочника', 'справочников')}`, 'ok');
+      }
     };
 
     if (nw) {
@@ -811,10 +1117,23 @@ export function mountDicts(host) {
       input.onchange = () => {
         const it = d.items.find((x) => x.id === input.dataset.itemValue);
         if (!it || input.value.trim() === it.value) return;
-        if (!renameItem(d, it, input.value)) {
+
+        const was = it.value;
+        const to = input.value.trim();
+        if (!renameItem(d, it, to)) {
           host.toast('Такое значение уже есть — переименование отменено', 'warn');
+          render();
+          return;
         }
+
+        // Переименование в связанных: иначе перечни расходятся с первой опечатки.
+        const res = renameItemIn(linkedTargets(d), was, to);
         render();
+        if (res.dicts) {
+          host.toast(`Переименовано здесь и ещё в ${res.dicts} `
+            + `${plural(res.dicts, 'справочнике', 'справочниках', 'справочниках')}`
+            + (res.objects ? `, объектов затронуто ${res.objects}` : ''), 'ok');
+        }
       };
       input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); };
     });
@@ -840,8 +1159,12 @@ export function mountDicts(host) {
         });
         if (!ok) return;
         removeItem(d, it, null);
+        const alsoDel = removeItemFrom(linkedTargets(d), it.value, null);
         render();
-        host.toast('Значение удалено', 'ok');
+        host.toast(alsoDel.dicts
+          ? `Удалено здесь и ещё в ${alsoDel.dicts} `
+            + plural(alsoDel.dicts, 'справочнике', 'справочниках', 'справочниках')
+          : 'Значение удалено', 'ok');
         return;
       }
 
@@ -885,51 +1208,48 @@ export function mountDicts(host) {
     });
 
     // --- блок 03: привязка и перенос ---
-    // --- дополнительные ссылки на поля ---
-    const refAdd = scope.$('[data-ref-add]');
-    if (refAdd) refAdd.onclick = () => {
-      state.refOpen = true;
-      state.moveOpen = false;
-      state.folderOpen = false;
+    // --- связанные справочники ---
+    scope.$$('[data-linked]').forEach((cb) => cb.onchange = () => {
+      const id = cb.dataset.linked;
+      if (cb.checked) delete state.linkedOff[id];
+      else state.linkedOff[id] = true;
+      render();
+    });
+
+    const linkedAll = scope.$('[data-linked-all]');
+    if (linkedAll) linkedAll.onclick = (e) => {
+      e.stopPropagation();
+      const on = linkedAll.dataset.linkedAll === 'on';
+      linkedDicts(d).forEach((x) => {
+        if (on) delete state.linkedOff[x.id];
+        else state.linkedOff[x.id] = true;
+      });
       render();
     };
 
-    const refClose = scope.$('[data-ref-close]');
-    if (refClose) refClose.onclick = () => { state.refOpen = false; render(); };
+    // Догрузить связанным то, чего у них нет: самый частый случай
+    // синхронизации — «добавили материал здесь, нужен и там».
+    const linkedSync = scope.$('[data-linked-sync]');
+    if (linkedSync) linkedSync.onclick = async () => {
+      const targets = linkedTargets(d);
+      if (!targets.length) { host.toast('Не выбран ни один связанный справочник', 'warn'); return; }
 
-    const refQ = scope.$('[data-ref-q]');
-    if (refQ) refQ.oninput = () => { state.refQ = refQ.value; renderKeepFocus(); };
+      const missing = targets.reduce((n, x) => n + diffWith(d, x).onlyMine.length, 0);
+      if (!missing) { host.toast('У выбранных справочников всё уже есть', 'ok'); return; }
 
-    scope.$$('[data-ref-slot]').forEach((b) => b.onclick = async () => {
-      const [typeId, card, field, label] = b.dataset.refSlot.split('|');
-      const owner = b.dataset.refOwner;
+      const ok = await host.confirm({
+        title: 'Догрузить значения',
+        okLabel: 'Догрузить',
+        text: `Выбранным справочникам (${targets.length}) будет добавлено ${missing} `
+          + `${plural(missing, 'значение', 'значения', 'значений')}, которых у них нет.`,
+      });
+      if (!ok) return;
 
-      // Поле уже читает другой справочник — это не мелочь: у того справочника
-      // может не остаться ни одной ссылки, и он уйдёт в «Не привязаны».
-      if (owner) {
-        const ok = await host.confirm({
-          title: 'Поле занято другим справочником',
-          okLabel: 'Переключить',
-          text: `Поле «${label}» сейчас читает «${owner}». Переключить его на этот перечень?`,
-        });
-        if (!ok) return;
-      }
-
-      const type = sortedTypes().find((t) => t.manifest.id === typeId);
-      bindSlot(d, { typeId, typeLabel: type ? type.manifest.label : typeId, card, field, label });
-      state.refOpen = false;
-      state.refQ = '';
+      let added = 0;
+      d.items.forEach((it) => { added += addItemTo(targets, it.value, it.group); });
       render();
-      host.toast(`Поле «${label}» теперь читает этот перечень`, 'ok');
-    });
-
-    scope.$$('[data-ref-del]').forEach((b) => b.onclick = () => {
-      const slot = d.slots[+b.dataset.refDel];
-      if (!slot) return;
-      unbindSlot(d, slot);
-      render();
-      host.toast(`Ссылка на «${slot.label}» убрана`, 'ok');
-    });
+      host.toast(`Добавлено значений: ${added}`, 'ok');
+    };
 
     // --- папка внутри каталога ---
     const folderOpen = scope.$('[data-folder-open]');
@@ -981,9 +1301,19 @@ export function mountDicts(host) {
       const [typeId, card] = b.dataset.moveTo.split('|');
 
       // Непривязанный справочник переносить нечего — сразу выбираем поле.
+      // У непривязанного переносить нечего — сразу показываем поля каталога:
+      // свободные и занятые (занятые можно заменить, спросив подтверждение).
+      const cat = catalogKey(typeId, card);
       const res = mainSlot(d)
         ? moveToCatalog(d, typeId, card)
-        : { ok: false, reason: 'выбор', options: freeSlots(catalogKey(typeId, card)) };
+        : {
+          ok: false,
+          reason: 'выбор',
+          options: freeSlots(cat),
+          busySlots: slotsWithOwners(cat)
+            .filter((x) => x.owner && x.owner !== d)
+            .map((x) => ({ ...x, byName: x.owner.name })),
+        };
 
       if (res.ok) {
         // Папка принадлежит каталогу: в новом каталоге её может не быть.
@@ -1001,18 +1331,33 @@ export function mountDicts(host) {
         options: res.options || [],
         targetLabel: CARD_LABEL[card] || card,
         taken: res.by ? res.by.name : '',
+        busySlots: res.busySlots || [],
       };
       render();
     });
 
-    scope.$$('[data-bind-slot]').forEach((b) => b.onclick = () => {
+    scope.$$('[data-bind-slot]').forEach((b) => b.onclick = async () => {
       const [typeId, card, field, label] = b.dataset.bindSlot.split('|');
+      const busyBy = b.dataset.bindBusy || '';
+
+      // Замена — потеря привязки у чужого справочника, поэтому спрашиваем.
+      if (busyBy) {
+        const ok = await host.confirm({
+          title: 'Заменить справочник у поля',
+          okLabel: 'Заменить',
+          text: `Поле «${label}» сейчас использует справочник «${busyBy}». `
+            + 'Он отвяжется и уйдёт в «Не привязаны» — значения сохранятся.',
+        });
+        if (!ok) return;
+      }
+
       const type = sortedTypes().find((t) => t.manifest.id === typeId);
       bindSlot(d, { typeId, typeLabel: type ? type.manifest.label : typeId, card, field, label });
       state.movePick = null;
       state.moveOpen = false;
       render();
-      host.toast(`Привязан к полю «${label}»`, 'ok');
+      host.toast(busyBy ? `Поле «${label}» теперь берёт значения отсюда`
+        : `Привязан к полю «${label}»`, 'ok');
     });
 
     const unbind = scope.$('[data-unbind]');
@@ -1020,9 +1365,7 @@ export function mountDicts(host) {
       const ok = await host.confirm({
         title: 'Отвязать справочник',
         okLabel: 'Отвязать',
-        text: (d.slots.length > 1
-          ? `Все ${d.slots.length} поля вернутся к встроенным перечням.`
-          : `Поле «${mainSlot(d).label}» вернётся к встроенному перечню.`)
+        text: `Поле «${mainSlot(d).label}» вернётся к встроенному перечню.`
           + ' Справочник останется в разделе «Не привязаны».',
       });
       if (!ok) return;
@@ -1061,10 +1404,16 @@ export function mountDicts(host) {
       }
 
       const res = removeItem(d, it, replacement);
+      // Та же замена — в отмеченных связанных справочниках: где значение
+      // используется, объекты переедут на замену; где нет — просто исчезнет.
+      const also = removeItemFrom(linkedTargets(d), it.value, replacement);
+
       state.removing = null;
       render();
       if (res) {
-        host.toast(`Заменено в ${res.touched} ${plural(res.touched, 'объекте', 'объектах', 'объектах')}`, 'ok');
+        const objects = res.touched + also.objects;
+        host.toast(`Заменено в ${objects} ${plural(objects, 'объекте', 'объектах', 'объектах')}`
+          + (also.dicts ? `, справочников затронуто ${also.dicts + 1}` : ''), 'ok');
       }
     };
   }

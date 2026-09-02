@@ -28,7 +28,9 @@ function createOi(ctx, type) {
     name: type.label,
     status: 'Основное',
     origin: 'manual',
-    residential: false,
+    // Жилое помечает сам вид ОИ: «Жилой дом» и квартира — жилые, остальные
+    // строения нет. Раньше в этом модуле стояло жёсткое false.
+    residential: !!type.residential || type.card === 'apartment',
     resCat: '',
     eni: nextEni(rec, rec.eni),
     year: '',

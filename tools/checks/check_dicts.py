@@ -2,13 +2,20 @@
 """Справочники: каталоги, привязка к полю, значения, удаление с заменой.
 
 ТЗ: docs/tz/10-spravochniki.md. Проверяются решения пользователя 02.09.2026:
-  * один справочник — одно поле (общих перечней на несколько полей нет);
+  * одно поле — один справочник, всегда (ссылок на общий перечень нет);
+  * справочники одноимённых полей связаны, и правку значения можно применить
+    сразу ко всем отмеченным;
   * каталоги жёсткие: тип ОЦ → тип ОИ, вручную не создаются;
   * перенос в другой каталог перевешивает привязку на одноимённое поле, а если
     такого нет — спрашивает и до ответа ничего не меняет;
   * значение без использования удаляется сразу, используемое — только с заменой;
   * правят администратор и роль «любая»; системные перечни только читаются;
-  * значение и справочник добавляются строкой, без модальных окон.
+  * значение и справочник добавляются строкой, без модальных окон;
+  * раскладка — три столбца: тип ОЦ → тип ОИ → значения; клик по значению
+    открывает связанный с ним справочник в том же третьем столбце, а связанные
+    справочники стоят отдельным столбцом справа;
+  * непривязанные справочники ищутся в ветке «Не привязаны» первого столбца и
+    прикрепляются кнопкой «Привязать к полю».
 """
 NAME = 'справочники'
 
@@ -20,13 +27,26 @@ def _role(t, key):
     t.page.wait_for_timeout(400)
 
 
+def _view(t, key):
+    """Переключить вид навигации: он выбирается в настройках (меню «Вид»)."""
+    pg = t.page
+    if pg.locator('[data-view="%s"].on' % key).count() and not pg.locator('.dc-views.open').count():
+        return
+    if not pg.locator('.dc-views.open').count():
+        pg.locator('[data-view-toggle]').first.click()
+        pg.wait_for_timeout(200)
+    pg.locator('[data-view="%s"]' % key).first.click()
+    pg.wait_for_timeout(400)
+
+
 def _expand_all(t):
-    """Раскрыть дерево: по умолчанию оно свёрнуто (требование пользователя).
+    """Включить дерево и раскрыть его: по умолчанию вид «шаги», а дерево свёрнуто.
 
     Заодно снимаем фильтр поиска: переход на тот же hash страницу не
     перезагружает, и запрос из предыдущего шага остался бы в силе.
     """
     pg = t.page
+    _view(t, 'tree')
     q = pg.locator('[data-dc-q]')
     if q.count() and q.input_value():
         q.fill('')
@@ -91,6 +111,17 @@ def _open_in_catalog(t, catalog_part, dict_part):
     return ok
 
 
+def _linked_counts(t):
+    """Сколько значений у каждого связанного справочника — по подписи строки."""
+    texts = t.page.evaluate("""() => [...document.querySelectorAll('.dc-linked-main span')]
+        .map((x) => x.textContent)""")
+    out = []
+    for text in texts:
+        digits = ''.join(ch if ch.isdigit() else ' ' for ch in text).split()
+        out.append(int(digits[0]) if digits else 0)
+    return out
+
+
 def _add_value(t, value):
     field = t.page.locator('[data-item-new]')
     field.fill(value)
@@ -104,7 +135,11 @@ def run(t):
     # --- 1. каталоги: тип ОЦ → тип ОИ ---
     t.open('#/dicts', wait='.dc')
 
-    # По умолчанию дерево свёрнуто: видимых справочников быть не должно.
+    # Вид по умолчанию — «шаги»: он понятен без опыта с деревом.
+    t.ck(pg.locator('.dc-steps').count() == 1, 'вид по умолчанию не «шаги»')
+
+    # В дереве по умолчанию всё свёрнуто (требование пользователя).
+    _view(t, 'tree')
     visible = pg.evaluate("""() => [...document.querySelectorAll('.dc-row')]
         .filter((r) => r.offsetParent !== null).length""")
     t.ck(visible == 0, 'дерево открылось раскрытым: видно %d справочников' % visible)
@@ -369,51 +404,86 @@ def run(t):
 
     # --- 11. поиск по дереву ---
     t.open('#/dicts', wait='.dc')
+    _view(t, 'tree')
     pg.locator('[data-dc-q]').fill('полив')
     pg.wait_for_timeout(600)
     found = pg.locator('.dc-row').count()
     t.ck(0 < found < total, 'поиск по дереву не фильтрует: %d из %d' % (found, total))
 
-    # --- 11а. ссылки на справочник из нескольких полей ---
+    # --- 11а. связанные справочники: синхронизация значений ---
     #
-    # У наружных и внутренних стен перечень материалов один и тот же — ровно
-    # тот случай, ради которого ссылки и вернули.
+    # Связаны справочники одноимённых полей: «Фундамент» у гражданского,
+    # производственного, жилого. Общего перечня нет — каждый свой, но правку
+    # можно применить сразу ко всем отмеченным.
     t.open('#/dicts', wait='.dc')
     _expand_all(t)
-    if t.ck(_find_dict(t, 'Наружные стены'), 'не нашёл справочник наружных стен'):
-        was = pg.locator('.dc-where').count()
-        t.ck(was == 1, 'у справочника сразу больше одной ссылки: %d' % was)
+    if t.ck(_find_dict(t, 'Фундамент'), 'не нашёл справочник фундамента'):
+        t.ck(pg.locator('.dc-where').count() == 1,
+             'у справочника больше одной привязки — должно быть строго одно поле')
 
-        pg.locator('[data-ref-add]').first.click()
-        pg.wait_for_timeout(500)
-        slots = pg.locator('[data-ref-slot]')
-        t.ck(slots.count() > 50, 'в выборе поля показаны только свободные: %d' % slots.count())
-        t.ck(pg.locator('.dc-slot.taken').count() > 0,
-             'занятые поля не помечены — непонятно, что выбор отберёт поле')
+        linked = pg.locator('[data-linked]')
+        t.ck(linked.count() >= 3, 'связанных справочников только %d' % linked.count())
+        t.ck(pg.locator('.dc-side').count() == 1,
+             'связанные справочники не вынесены в столбец справа')
 
-        # поиск по полям: их больше сотни
-        pg.locator('[data-ref-q]').fill('Внутренние')
-        pg.wait_for_timeout(500)
-        found = pg.locator('[data-ref-slot]')
-        t.ck(0 < found.count() < 20, 'поиск по полям не фильтрует: %d' % found.count())
+        # по умолчанию отмечены все
+        checked = pg.evaluate("""() => [...document.querySelectorAll('[data-linked]')]
+            .filter((c) => c.checked).length""")
+        t.ck(checked == linked.count(),
+             'по умолчанию отмечены не все связанные: %d из %d' % (checked, linked.count()))
 
-        found.first.click()
-        pg.wait_for_timeout(500)
-        ok = pg.locator('.modal-foot .btn-primary, [data-modal-ok]')
-        t.ck(ok.count() > 0, 'переключение занятого поля прошло без подтверждения')
-        if ok.count():
-            ok.first.click()
-            pg.wait_for_timeout(700)
+        # Столбец связанных виден всегда: аккордеона больше нет — его не
+        # замечали, пока правили значения (пользователь 02.09.2026).
+        t.ck(pg.locator('.dc-linked-diff').count() == linked.count(),
+             'не показано расхождение состава со связанными')
 
-        t.ck(pg.locator('.dc-where').count() == 2, 'вторая ссылка не появилась')
-        t.ck(pg.locator('.dc-badge.multi').count() == 1, 'нет пометки о нескольких ссылках')
-        t.ck('читают один перечень' in pg.locator('.dc-card').nth(2).inner_text(),
-             'не сказано, что поля читают один перечень')
+        # добавление значения уходит в связанные
+        counts_before = _linked_counts(t)
+        field = pg.locator('[data-item-new]')
+        field.fill('Проверка синхронизации')
+        field.press('Enter')
+        pg.wait_for_timeout(900)
 
-        # снятие дополнительной ссылки
-        pg.locator('[data-ref-del]').first.click()
-        pg.wait_for_timeout(600)
-        t.ck(pg.locator('.dc-where').count() == 1, 'дополнительная ссылка не снялась')
+        toast = pg.locator('.toast')
+        t.ck(toast.count() > 0 and 'ещё в' in toast.first.inner_text(),
+             'не сообщено, что значение ушло в связанные справочники')
+        counts_after = _linked_counts(t)
+        t.ck(counts_after != counts_before,
+             'состав связанных справочников не изменился: %s' % counts_after)
+
+        # снятая галочка исключает справочник из правки
+        pg.locator('[data-linked]').first.uncheck()
+        pg.wait_for_timeout(400)
+        off = pg.evaluate("""() => [...document.querySelectorAll('[data-linked]')]
+            .filter((c) => !c.checked).length""")
+        t.ck(off == 1, 'галочка не снялась')
+
+        counts_before = _linked_counts(t)
+        field = pg.locator('[data-item-new]')
+        field.fill('Только здесь и в отмеченных')
+        field.press('Enter')
+        pg.wait_for_timeout(900)
+        counts_after = _linked_counts(t)
+        t.ck(counts_after[0] == counts_before[0],
+             'значение ушло в справочник со снятой галочкой')
+        t.ck(counts_after[1] != counts_before[1],
+             'значение не ушло в отмеченный справочник')
+
+        # Кнопка одна и меняет смысл: пока отмечены не все — «выбрать все»,
+        # когда все — «снять все». Проверяем оба перехода.
+        def linked_on():
+            return pg.evaluate("""() => [...document.querySelectorAll('[data-linked]')]
+                .filter((c) => c.checked).length""")
+
+        mode = pg.locator('[data-linked-all]').first.get_attribute('data-linked-all')
+        t.ck(mode == 'on', 'после снятия галочки кнопка не предлагает выбрать все')
+        pg.locator('[data-linked-all]').first.click()
+        pg.wait_for_timeout(400)
+        t.ck(linked_on() == linked.count(), 'кнопка «выбрать все» не отметила все')
+
+        pg.locator('[data-linked-all]').first.click()
+        pg.wait_for_timeout(400)
+        t.ck(linked_on() == 0, 'кнопка «снять все» не сняла отметки')
 
     # --- 12. создание справочника строкой ---
     pg.locator('[data-dc-q]').fill('')
@@ -433,3 +503,93 @@ def run(t):
          'созданный справочник не открылся')
     t.ck(pg.locator('.dc-badge.warn').count() == 1,
          'новый справочник не помечен как непривязанный')
+
+    # --- 13. раскладка из трёх столбцов ---
+    #
+    # Плитки, плоская таблица и группировка по полям пробовались и убраны
+    # 02.09.2026: осталось два вида — столбцы (по умолчанию) и дерево.
+    # Столбцы не должны менять ширину при выборе, поэтому третий столбец
+    # переключается между списком значений и открытым справочником, а не
+    # раскрывает карточку под собой.
+    t.open('#/dicts', wait='.dc')
+    pg.reload()
+    pg.wait_for_selector('.dc')
+    pg.wait_for_timeout(400)
+
+    t.ck(pg.locator('.dc-steps').count() == 1, 'вид по умолчанию не «столбцы»')
+    t.ck(pg.locator('.dc-step').count() == 3, 'столбцов не три: %d' % pg.locator('.dc-step').count())
+
+    pg.locator('[data-view-toggle]').first.click()
+    pg.wait_for_timeout(300)
+    t.ck(pg.locator('[data-view]').count() == 2,
+         'видов не два: %d' % pg.locator('[data-view]').count())
+    pg.locator('.dc').first.click(position={'x': 6, 'y': 6})
+    pg.wait_for_timeout(250)
+    t.ck(pg.locator('.dc-views.open').count() == 0, 'меню вида не закрывается кликом мимо')
+
+    # Ширины столбцов не скачут при переходе по шагам — ради этого раскладку и
+    # переделывали (пользователь 02.09.2026: «чтобы размеры текущих окон не скакали»).
+    def widths():
+        return pg.evaluate("""() => [...document.querySelectorAll('.dc-step')]
+            .map((e) => Math.round(e.getBoundingClientRect().width))""")
+
+    w0 = widths()
+    pg.locator('[data-step-type="civil"]').first.click()
+    pg.wait_for_timeout(300)
+    t.ck(pg.locator('[data-step-card]').count() > 0, 'типы ОИ не появились после выбора типа ОЦ')
+    w1 = widths()
+
+    pg.locator('[data-step-card]').nth(1).click()
+    pg.wait_for_timeout(300)
+    fields = pg.locator('.dc-step-row.dict').count()
+    t.ck(fields > 0, 'значения (поля) не появились после выбора типа ОИ')
+    w2 = widths()
+
+    pg.locator('.dc-step-row.dict').first.click()
+    pg.wait_for_timeout(500)
+    w3 = widths()
+    t.ck(w0 == w1 == w2 == w3, 'ширины столбцов скачут: %s → %s → %s → %s' % (w0, w1, w2, w3))
+
+    # Открытый справочник живёт в том же третьем столбце, с возвратом к списку.
+    t.ck(pg.locator('[data-dc-name]').count() == 1, 'справочник не открылся в столбце')
+    t.ck(pg.locator('.dc-tbl').count() == 1, 'в открытом справочнике нет таблицы значений')
+    # В столбце те же блоки, что и в дереве (требование пользователя 02.09.2026).
+    for block in ('Общие сведения', 'Значения', 'Где применяется', 'Использование'):
+        t.ck(block in t.text(), 'в столбце нет блока «%s»' % block)
+    t.ck(pg.locator('[data-dc-back]').count() == 1, 'нет возврата к списку значений')
+
+    # Связанные справочники — отдельный столбец справа, а не аккордеон внизу.
+    t.ck(pg.locator('.dc-side').count() == 1, 'связанные справочники не вынесены в столбец')
+    t.ck(pg.locator('.dc-side [data-linked]').count() > 0, 'столбец связанных пуст')
+
+    pg.locator('[data-dc-back]').first.click()
+    pg.wait_for_timeout(400)
+    t.ck(pg.locator('.dc-step-row.dict').count() == fields,
+         'возврат не вернул к списку значений')
+
+    # --- 14. непривязанный справочник: найти и прикрепить ---
+    pg.locator('[data-dc-new]').first.click()
+    pg.wait_for_timeout(300)
+    field = pg.locator('[data-dc-new-name]')
+    field.fill('Проверочный непривязанный')
+    field.press('Enter')
+    pg.wait_for_timeout(800)
+
+    types = pg.eval_on_selector_all('[data-step-type]',
+                                    'els => els.map((e) => e.textContent.trim())')
+    t.ck(any('Не привязаны' in x for x in types),
+         'непривязанные не выделены в первом столбце: %s' % types)
+    t.ck(pg.locator('[data-move-open]').count() == 1,
+         'у непривязанного справочника нет кнопки «Привязать к полю»')
+
+    pg.locator('[data-move-open]').first.click()
+    pg.wait_for_timeout(400)
+    t.ck(pg.locator('[data-move-to]').count() > 10,
+         'при привязке не предложены каталоги')
+
+    pg.locator('[data-move-to]').first.click()
+    pg.wait_for_timeout(600)
+    # После выбора каталога либо привязка прошла (появилась цепочка в блоке 03),
+    # либо система спросила, к какому полю привязывать.
+    bound = pg.locator('.dc-where-step').count() + pg.locator('[data-bind-slot]').count()
+    t.ck(bound > 0, 'привязка непривязанного справочника не пошла дальше выбора каталога')
