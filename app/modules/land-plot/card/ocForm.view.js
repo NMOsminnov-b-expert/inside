@@ -12,11 +12,18 @@ function mainSection(rec) {
     </div>
 
     <div class="card-pad">
-      <div class="grid g-3">
+      <div class="grid g-4 g-roomy">
         <div class="field">
           <label>Тип ОЦ</label>
           <select class="select" id="fType" disabled title="Тип задаётся модулем ОЦ">
             <option selected>${esc(rec.type)}</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Категория ОЦ</label>
+          <select class="select" id="fCat" disabled title="Категория задаётся модулем ОЦ">
+            <option selected>${esc(rec.category)}</option>
           </select>
         </div>
 
@@ -31,19 +38,10 @@ function mainSection(rec) {
             ${STATUS_OC.map((s) => `<option ${s === rec.status ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
-      </div>
-
-      <div class="grid g-4" style="margin-top:10px">
-        <div class="field">
-          <label>Категория ОЦ</label>
-          <select class="select" id="fCat" disabled title="Категория задаётся модулем ОЦ">
-            <option selected>${esc(rec.category)}</option>
-          </select>
-        </div>
 
         <div class="field">
           <label>Код ЕНИ</label>
-          <input class="input" id="fEni" value="${esc(fmtEni(rec.eni))}">
+          <input class="input mono" id="fEni" value="${esc(fmtEni(rec.eni))}">
         </div>
 
         <div class="field">
@@ -56,7 +54,6 @@ function mainSection(rec) {
           <input class="input" id="fPodved" value="${esc(rec.podved)}">
         </div>
       </div>
-
     </div>
   </div>`;
 }
@@ -77,7 +74,7 @@ function locationSection(rec) {
         <div class="field">
           <label>GPS-координаты</label>
           <input class="input" id="fGps" value="${esc(rec.gps)}">
-          <span class="muted" style="font-size:10px">впоследствии заполняется автоматически</span>
+          <span class="field-hint">впоследствии заполняется автоматически</span>
         </div>
       </div>
     </div>

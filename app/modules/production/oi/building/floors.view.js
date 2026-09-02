@@ -31,11 +31,20 @@ function catSection(ctx, oi, cat, fkey) {
 
   // Заголовок категории показывается даже когда строк нет — иначе добавить
   // первую было бы негде (объект может состоять из одного цоколя).
+  // Доли колонок — от ширины за вычетом двух служебных (чекбокс и крестик,
+  // по 36px). Если считать их от полной ширины, сумма долей плюс служебные
+  // пикселя превышает таблицу, и она уезжает под горизонтальную прокрутку —
+  // ровно это и случалось с мансардной секцией, где колонок на одну больше.
+  const col = (frac) => `width:calc((100% - 72px) * ${frac})`;
+  const w = isMansard
+    ? { name: 0.20, type: 0.16, area: 0.17, h: 0.15 }
+    : { name: 0.26, area: 0.21, h: 0.16 };
+
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c"></th><th style="width:22%">Этаж</th>
-${isMansard ? '<th style="width:16%">Тип</th>' : ''}
-${AREA_FIELDS.map((a) => `<th style="width:17%" title="итог: ${a.title}">${a.label}</th>`).join('')}
-<th style="width:14%">Высота внешн, м</th><th style="width:14%">Высота внутр, м</th>
+    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c"></th><th style="${col(w.name)}">Этаж</th>
+${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
+${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
+<th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
 <th class="fl-c"></th></tr></thead>
 <tbody>${rows.map(({ f, i }) => `<tr>
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площади распределяются автоматически; снято — задаются вручную"></td>

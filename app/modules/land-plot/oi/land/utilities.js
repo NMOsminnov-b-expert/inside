@@ -52,11 +52,11 @@ export function utilitiesMS(ctx, oi) {
 
   return `<div class="field" data-util-field><label>Инженерное оснащение (мультивыбор)</label>
     <div class="ms">
-      <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
+      <div class="ms-control" data-ms-control data-ms-toggle="util" title="Открыть список">
         ${summaryHTML(list)}
         <span class="chev">▾</span>
       </div>
-      <div class="ms-drop" ${ctx.ui.utilOpen ? '' : 'hidden'}>
+      <div class="ms-drop" ${ctx.ui.msOpen === 'util' ? '' : 'hidden'}>
         ${dropBodyHTML(list)}
       </div>
     </div>

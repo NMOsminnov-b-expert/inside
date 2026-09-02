@@ -1,10 +1,12 @@
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindUtilities } from './utilities.js';
+import { bindImprovements } from './improvements.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextDocId } from '../../data/store.js';
 import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
+import { parseEni } from '../../../../kernel/fmt.js';
 
 export function bind(ctx, oi) {
   bindDocsColumns(ctx.scope);
@@ -12,7 +14,6 @@ export function bind(ctx, oi) {
 
   const valueBindings = {
     '[data-land-purpose]': 'purpose',
-    '[data-land-eni]': 'eni',
     '[data-land-rights]': 'rights',
     '[data-land-use]': 'useCategory',
     '[data-land-irrigation]': 'irrigation',
@@ -49,8 +50,10 @@ export function bind(ctx, oi) {
     ctx.updatePlate();
   });
 
-  // Открытие/закрытие списка оснащения. В карточке участка мультивыборов
-  // раньше не было, поэтому общего обработчика здесь не заводили.
+  // Открытие/закрытие любого мультивыбора карточки. Мультивыборов здесь уже
+  // три (оснащение и две группы благоустройства), поэтому в ctx.ui хранится
+  // КЛЮЧ открытого списка, а не отдельный флаг на каждый — иначе после
+  // перерисовки открытым оказывался бы не тот список, что раскрыл человек.
   s.$$('[data-ms-toggle]').forEach((c2) => c2.onclick = (e) => {
     e.stopPropagation();
     const drop = c2.parentElement.querySelector('.ms-drop');
@@ -59,7 +62,7 @@ export function bind(ctx, oi) {
     s.$$('.ms-control').forEach((mc) => { if (mc !== c2) mc.classList.remove('open'); });
     drop.hidden = !drop.hidden;
     c2.classList.toggle('open', !drop.hidden);
-    ctx.ui.utilOpen = !drop.hidden;
+    ctx.ui.msOpen = drop.hidden ? null : c2.dataset.msToggle;
   });
 
   // Закрытие по клику вне. Вешается ОДИН раз на скоуп: контроллер
@@ -71,12 +74,13 @@ export function bind(ctx, oi) {
       if (!e.target.closest('.ms')) {
         s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
         s.$$('.ms-drop').forEach((d) => { d.hidden = true; });
-        ctx.ui.utilOpen = false;
+        ctx.ui.msOpen = null;
       }
     });
   }
 
   bindUtilities(ctx, oi);
+  bindImprovements(ctx, oi);
 
   const encumbrance = s.$('[data-land-encumbrance]');
   if (encumbrance) encumbrance.onchange = () => { oi.encumbrance = encumbrance.value; ctx.render(); };
@@ -91,6 +95,14 @@ export function bind(ctx, oi) {
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };
+
+  // ЕНИ: из поля приходит маска, в данные кладём цифры (kernel/fmt.js) — так
+  // же, как в карточках литер. Плашка над карточкой показывает тот же код.
+  const en = s.$('[data-land-eni]');
+  if (en) en.onchange = () => {
+    oi.eni = parseEni(en.value) || oi.eni;
+    ctx.render();
+  };
 
   s.$$('[data-del-oi]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
