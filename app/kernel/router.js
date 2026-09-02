@@ -2,6 +2,7 @@
 //   #/                          — меню выбора ОЦ
 //   #/oc/<typeId>/<ocId>/...    — модуль типа ОЦ; хвост принадлежит модулю
 //   #/archive                   — архив документов (все типы ОЦ сразу)
+//   #/dicts                     — справочники значений
 // Query после «?» отдаётся экрану как объект.
 export function parse(hash = location.hash) {
   const raw = String(hash || '').replace(/^#/, '');
@@ -19,6 +20,11 @@ export function parse(hash = location.hash) {
   // Архив документов — отдельный экран, общий для всех типов ОЦ.
   if (segs[0] === 'archive') {
     return { name: 'archive', query };
+  }
+
+  // Справочники — тоже общий экран: перечни значений для полей всех типов ОЦ.
+  if (segs[0] === 'dicts') {
+    return { name: 'dicts', query };
   }
 
   if (segs[0] === 'oc' && segs[1]) {
@@ -62,3 +68,5 @@ export function start(onRoute) {
 }
 
 export const ARCHIVE_HREF = '#/archive';
+
+export const DICTS_HREF = '#/dicts';

@@ -1,0 +1,482 @@
+/* Раздел «Справочники».
+   Замечания пользователя 02.09.2026, из которых выросло это оформление:
+     * поля в таблицах не должны рябить рамками — их видно только при работе
+       с ячейкой (см. .dc-cell);
+     * системные перечни отделены от пользовательских разделом, а не подписью;
+     * блоки внутри карточки различимы сами по себе, а не только по номеру.
+
+   Классы объявлены здесь заново, а не взяты из модуля: правила модулей висят
+   на body[data-module=…], а этот экран общий для всех типов ОЦ. */
+
+body[data-page="dicts"] .dc{display:flex;height:100%;overflow:hidden;background:var(--bg)}
+
+/* ============ список слева ============ */
+body[data-page="dicts"] .dc-list{width:328px;flex:0 0 328px;display:flex;flex-direction:column;
+  border-right:1.5px solid var(--line);background:var(--panel)}
+
+body[data-page="dicts"] .dc-list-head{padding:12px;display:flex;flex-direction:column;gap:9px;
+  border-bottom:1.5px solid var(--line)}
+/* Поля шапки: одна геометрия, иконка внутри, рамка отзывается на курсор.
+   До этого поиск и список были прямоугольниками разной высоты без подсказок
+   о назначении. */
+body[data-page="dicts"] .dc-field{position:relative;display:flex;align-items:center;
+  height:34px;background:#fff;border:1px solid var(--line-input);border-radius:9px;
+  transition:border-color .12s,box-shadow .12s}
+body[data-page="dicts"] .dc-field:hover{border-color:var(--blue-500)}
+body[data-page="dicts"] .dc-field:focus-within{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="dicts"] .dc-field input,
+body[data-page="dicts"] .dc-field select{flex:1 1 auto;min-width:0;height:100%;border:none;
+  background:transparent;font:inherit;font-size:12.5px;color:var(--ink);outline:none;
+  padding:0 10px}
+body[data-page="dicts"] .dc-field-search input{padding-left:31px}
+body[data-page="dicts"] .dc-field-ico{position:absolute;left:11px;color:#8ea3ba;pointer-events:none}
+body[data-page="dicts"] .dc-field-clear{position:absolute;right:8px;width:18px;height:18px;
+  border-radius:5px;color:#9fb0c4;font-size:14px;line-height:1}
+body[data-page="dicts"] .dc-field-clear:hover{background:#eef3f9;color:var(--ink)}
+/* Своя стрелка вместо системной: нативная у каждого браузера своя, и список
+   выбивался из общего вида. */
+body[data-page="dicts"] .dc-field-select select{appearance:none;-webkit-appearance:none;
+  padding-right:28px;cursor:pointer}
+body[data-page="dicts"] .dc-field-chev{position:absolute;right:10px;color:#7d93a6;pointer-events:none}
+
+/* Тумблер: состояние видно по положению ползунка, а не по цвету кнопки.
+   Кнопка со состоянием читалась двусмысленно — показывает она текущее
+   положение дел или предлагает действие (замечание пользователя 02.09.2026). */
+body[data-page="dicts"] .dc-switch{display:flex;align-items:center;gap:9px;cursor:pointer;
+  padding:5px 10px 5px 8px;border-radius:9px;transition:background .12s;user-select:none}
+body[data-page="dicts"] .dc-switch:hover{background:#f2f7fc}
+body[data-page="dicts"] .dc-switch input{position:absolute;opacity:0;width:0;height:0}
+body[data-page="dicts"] .dc-switch-track{position:relative;flex:0 0 auto;width:32px;height:18px;
+  border-radius:999px;background:#c9d5e2;transition:background .16s}
+body[data-page="dicts"] .dc-switch-track i{position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(15,23,42,.28);transition:transform .16s}
+body[data-page="dicts"] .dc-switch.on .dc-switch-track{background:var(--blue-600)}
+body[data-page="dicts"] .dc-switch.on .dc-switch-track i{transform:translateX(14px)}
+body[data-page="dicts"] .dc-switch input:focus-visible + .dc-switch-track{
+  box-shadow:0 0 0 3px rgba(22,104,201,.22)}
+body[data-page="dicts"] .dc-switch-text{flex:1 1 auto;display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--muted);white-space:nowrap}
+body[data-page="dicts"] .dc-switch.on .dc-switch-text{color:var(--ink)}
+body[data-page="dicts"] .dc-switch b{flex:0 0 auto;background:var(--slate-50);color:var(--slate-700);
+  border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:700}
+body[data-page="dicts"] .dc-switch.on b{background:var(--blue-50);color:var(--blue-700)}
+
+body[data-page="dicts"] .dc-rows{flex:1 1 auto;overflow:auto;padding:4px 6px 10px}
+
+/* Заголовок раздела списка. У системных — крупнее, с полосой и отбивкой:
+   пользователь просил, чтобы разделы «визуально били» друг от друга. */
+body[data-page="dicts"] .dc-sec-label{display:flex;align-items:center;gap:8px;
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;font-weight:700;
+  color:var(--muted);padding:10px 10px 6px}
+body[data-page="dicts"] .dc-sec-label span{background:var(--slate-50);color:var(--slate-700);
+  border-radius:999px;padding:1px 7px;font-size:10px}
+body[data-page="dicts"] .dc-sec-split{margin:14px -6px 0;padding:0 6px;
+  border-top:2px solid var(--line);background:linear-gradient(180deg,#f2f6fb,transparent 60%)}
+body[data-page="dicts"] .dc-sec-label.sys{font-size:11.5px;color:var(--slate-700);padding-top:12px}
+body[data-page="dicts"] .dc-sec-label.sys svg{color:var(--slate-500)}
+body[data-page="dicts"] .dc-sec-note{font-size:11px;color:var(--muted);padding:0 10px 8px;line-height:1.4}
+
+body[data-page="dicts"] .dc-row{display:flex;align-items:center;width:100%;text-align:left;
+  padding:8px 10px;border-radius:9px;color:var(--ink);transition:background .12s;
+  border:1px solid transparent}
+body[data-page="dicts"] .dc-row:hover{background:var(--blue-50)}
+body[data-page="dicts"] .dc-row.on{background:var(--blue-100);border-color:var(--blue-300)}
+body[data-page="dicts"] .dc-row-main{display:flex;flex-direction:column;gap:2px;min-width:0;width:100%}
+body[data-page="dicts"] .dc-row-name{display:flex;align-items:center;gap:6px;font-size:13px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="dicts"] .dc-row.on .dc-row-name{color:var(--blue-700);font-weight:600}
+/* Вторая строка вместо двух пилюль с цифрами: «6 значений · 1 поле» читается
+   с одного взгляда, а «6 1» требовало наводить курсор на подсказку. */
+body[data-page="dicts"] .dc-row-sub{font-size:11px;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="dicts"] .dc-row-idle{color:var(--amber-700)}
+body[data-page="dicts"] .dc-row.sys{color:var(--slate-700)}
+body[data-page="dicts"] .dc-row.sys .dc-row-name{font-weight:400}
+body[data-page="dicts"] .dc-lock{color:var(--slate-500);display:inline-flex;flex:0 0 auto}
+body[data-page="dicts"] .dc-warn{color:var(--amber-700);font-weight:700;flex:0 0 auto}
+body[data-page="dicts"] .dc-empty-row{padding:12px 10px;color:var(--muted);font-size:12.5px}
+body[data-page="dicts"] .dc-list-foot{padding:10px 12px 14px;border-top:1px solid var(--line-soft)}
+body[data-page="dicts"] .dc-add{width:100%}
+/* Строка ввода названия занимает место кнопки — список не подпрыгивает, когда
+   создание начинается и заканчивается. */
+body[data-page="dicts"] .dc-field-new{width:100%;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="dicts"] .dc-field-new input{padding-right:28px}
+
+/* ============ правая часть ============ */
+body[data-page="dicts"] .dc-main{flex:1 1 auto;overflow:auto;padding:14px 16px 30px;min-width:0}
+body[data-page="dicts"] .dc-notice{background:var(--amber-50);border:1px solid var(--amber-100);
+  color:var(--amber-700);border-radius:var(--radius);padding:10px 14px;font-size:12.5px;
+  margin-bottom:12px;line-height:1.5}
+body[data-page="dicts"] .dc-choose{display:flex;flex-direction:column;gap:6px;align-items:center;
+  justify-content:center;height:65%;color:var(--muted);font-size:13px;text-align:center}
+body[data-page="dicts"] .dc-choose b{font-size:15px;color:var(--ink)}
+
+/* Карточка блока: заголовок с номером, тело. Между блоками — заметный
+   промежуток, чтобы четыре карточки не читались одной простынёй. */
+body[data-page="dicts"] .dc-card{background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--blue-600);border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden;margin-bottom:14px}
+body[data-page="dicts"] .dc-card-head{display:flex;align-items:center;gap:10px;padding:9px 14px;
+  background:linear-gradient(180deg,#eff6ff,#e9f1fa);border-bottom:1px solid var(--line);
+  flex-wrap:wrap}
+body[data-page="dicts"] .dc-card-head h3{font-size:14px;font-weight:700;color:var(--blue-700)}
+body[data-page="dicts"] .card-idx{background:var(--blue-700);color:#fff;font-size:10.5px;
+  font-weight:700;border-radius:5px;padding:2px 7px;letter-spacing:.5px;flex:0 0 auto}
+body[data-page="dicts"] .dc-count{background:#fff;border:1px solid var(--line);color:var(--ink);
+  border-radius:999px;padding:1px 9px;font-size:11px;font-weight:700}
+body[data-page="dicts"] .dc-hint{font-size:11.5px;color:var(--muted)}
+body[data-page="dicts"] .dc-card-tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+body[data-page="dicts"] .dc-item-q{width:200px;height:28px;font-size:12px;padding:3px 9px}
+body[data-page="dicts"] .dc-card-body{padding:14px}
+/* Таблица занимает всю ширину карточки: рамка карточки и есть её рамка. */
+body[data-page="dicts"] .dc-card-body.flush{padding:0}
+
+body[data-page="dicts"] .dc-badge{font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  border-radius:999px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px}
+body[data-page="dicts"] .dc-badge.sys{background:var(--slate-50);color:var(--slate-700);
+  border:1px solid #cfdae6}
+body[data-page="dicts"] .dc-badge.warn{background:var(--amber-50);color:var(--amber-700);
+  border:1px solid var(--amber-100)}
+
+/* ============ блок 01 ============ */
+body[data-page="dicts"] .dc-title-row{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+body[data-page="dicts"] .dc-title-box{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:2px}
+
+/* Название — заголовок, который можно править: рамки нет, пока в него не
+   встали. Так поле не выглядит анкетой и не спорит с заголовком блока. */
+body[data-page="dicts"] .dc-title{font-size:19px;font-weight:700;color:var(--ink);
+  border:1px solid transparent;border-radius:8px;padding:4px 8px;margin-left:-8px;
+  background:transparent;width:100%;transition:background .12s,border-color .12s}
+body[data-page="dicts"] .dc-title:hover:not(.ro){background:#f3f7fc;border-color:var(--line-soft)}
+body[data-page="dicts"] .dc-title:focus{background:#fff;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14);outline:none}
+body[data-page="dicts"] .dc-subtitle{font-size:12.5px;color:var(--muted);border:1px solid transparent;
+  border-radius:8px;padding:3px 8px;margin-left:-8px;background:transparent;width:100%;
+  transition:background .12s,border-color .12s}
+body[data-page="dicts"] .dc-subtitle:hover:not(.ro){background:#f3f7fc;border-color:var(--line-soft)}
+body[data-page="dicts"] .dc-subtitle:focus{background:#fff;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14);outline:none;color:var(--ink)}
+body[data-page="dicts"] .dc-title.ro,body[data-page="dicts"] .dc-subtitle.ro{cursor:default}
+
+/* Счётчики — плитками: это показатели, а не поля ввода, и подписью снизу они
+   читаются быстрее, чем подписью сверху в общей сетке. */
+body[data-page="dicts"] .dc-metrics{display:flex;gap:10px;flex:0 0 auto}
+body[data-page="dicts"] .dc-metrics.wide{flex-wrap:wrap}
+body[data-page="dicts"] .dc-metric{background:#f4f8fd;border:1px solid var(--line-soft);
+  border-radius:10px;padding:8px 14px;min-width:96px;display:flex;flex-direction:column;gap:1px}
+body[data-page="dicts"] .dc-metric b{font-size:18px;font-weight:700;color:var(--blue-700);
+  font-variant-numeric:tabular-nums;line-height:1.15}
+body[data-page="dicts"] .dc-metric span{font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);font-weight:600}
+body[data-page="dicts"] .dc-metric.idle b{color:var(--amber-700)}
+
+body[data-page="dicts"] .dc-meta-row{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;
+  padding-top:11px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink)}
+body[data-page="dicts"] .dc-meta-row i{font-style:normal;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);font-weight:700;margin-right:6px}
+
+/* ============ блок 02: таблица значений ============ */
+body[data-page="dicts"] .dc-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+body[data-page="dicts"] .dc-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:#5a6b82;text-align:left;padding:7px 12px;border-bottom:1px solid var(--line);
+  font-weight:700;background:#f6f9fd}
+body[data-page="dicts"] .dc-tbl th.dc-grip{width:34px}
+body[data-page="dicts"] .dc-tbl th.dc-usage{width:100px;text-align:center}
+body[data-page="dicts"] .dc-tbl th.dc-act{width:44px}
+/* Столбцы разделены линиями: без них значение, пояснение и число объектов
+   читались одной строкой (замечание пользователя 02.09.2026). */
+body[data-page="dicts"] .dc-tbl td{padding:1px 12px;border-bottom:1px solid var(--line-soft);
+  border-right:1px solid var(--line-soft);font-size:13px;vertical-align:middle;
+  overflow:hidden;height:34px}
+body[data-page="dicts"] .dc-tbl td:last-child,
+body[data-page="dicts"] .dc-tbl th:last-child{border-right:none}
+body[data-page="dicts"] .dc-tbl th{border-right:1px solid var(--line)}
+body[data-page="dicts"] .dc-tbl tbody tr:last-child td{border-bottom:none}
+body[data-page="dicts"] .dc-tbl tbody tr:hover td{background:#f7fbff}
+
+/* НЕВИДИМОЕ ПОЛЕ. Прямое требование пользователя: сорок рамок подряд рябят,
+   а правят всё равно по одной ячейке. Рамка появляется при наведении на
+   строку и становится настоящим полем при фокусе. */
+body[data-page="dicts"] .dc-cell{width:100%;min-width:0;border:1px solid transparent;
+  border-radius:6px;padding:5px 8px;font:inherit;color:var(--ink);background:transparent;
+  transition:background .1s,border-color .1s}
+body[data-page="dicts"] .dc-cell.muted{color:var(--muted)}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-cell{border-color:#dfe8f3;background:#fff}
+body[data-page="dicts"] .dc-cell:focus{border-color:var(--blue-600);background:#fff;
+  box-shadow:0 0 0 3px rgba(22,104,201,.14);outline:none;color:var(--ink)}
+/* Подсказка в пустой ячейке — только под курсором: сорок серых «пояснение»
+   подряд читаются как заполненные данные. */
+body[data-page="dicts"] .dc-cell::placeholder{color:transparent}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-cell::placeholder{color:#aab8ca}
+body[data-page="dicts"] .dc-cell:focus::placeholder{color:#aab8ca}
+body[data-page="dicts"] .dc-new::placeholder{color:#8fa3ba}
+body[data-page="dicts"] .dc-cell-ro{display:block;padding:5px 8px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="dicts"] .dc-cell-ro.muted{color:var(--muted)}
+
+/* Ручка перетаскивания появляется на строке под курсором: постоянные точки
+   слева от каждого значения — тот же шум, что и рамки. */
+body[data-page="dicts"] td.dc-grip{text-align:center;color:#b6c4d4}
+body[data-page="dicts"] .dc-grip-h{display:inline-flex;opacity:0;cursor:grab;
+  transition:opacity .12s;color:#93a7bd}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-grip-h{opacity:1}
+body[data-page="dicts"] .dc-num{font-size:11px;color:#9fb0c4;font-variant-numeric:tabular-nums}
+body[data-page="dicts"] tr[data-item].dragging{opacity:.45}
+body[data-page="dicts"] tr[data-item].drop-over td{box-shadow:inset 0 2px 0 var(--blue-600)}
+
+body[data-page="dicts"] .dc-group-row td{background:#eaf2fb;font-weight:700;font-size:11px;
+  color:var(--blue-700);text-transform:uppercase;letter-spacing:.5px;padding:7px 12px;
+  height:auto;border-top:1px solid var(--blue-100)}
+body[data-page="dicts"] td.dc-usage{text-align:center}
+body[data-page="dicts"] .dc-usage-btn{font-weight:700;color:var(--blue-700);font-size:12.5px;
+  border-bottom:1px dashed var(--blue-300);font-variant-numeric:tabular-nums}
+body[data-page="dicts"] .dc-usage-btn:hover{color:var(--blue-600);border-bottom-style:solid}
+body[data-page="dicts"] .dc-usage-zero{color:#b6c4d4}
+body[data-page="dicts"] td.dc-act{text-align:right}
+
+/* Крестик — тихий, пока к строке не подошли: удаление не должно быть самым
+   заметным элементом в таблице. */
+body[data-page="dicts"] .dc-x{width:22px;height:22px;border-radius:6px;color:#b6c4d4;
+  font-size:15px;line-height:1;opacity:0;transition:opacity .12s,background .12s,color .12s}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-x,body[data-page="dicts"] .dc-bind:hover .dc-x{opacity:1}
+body[data-page="dicts"] .dc-x:hover{background:#fdecec;color:var(--danger)}
+
+/* Строка добавления — часть таблицы, а не модальное окно: значения обычно
+   вводят подряд, и Enter оставляет курсор здесь же. */
+body[data-page="dicts"] .dc-add-row td{background:#fbfdff;border-top:1px dashed var(--line)}
+body[data-page="dicts"] .dc-add-row .dc-plus{color:var(--blue-500);font-weight:700;font-size:15px}
+body[data-page="dicts"] .dc-new::placeholder{color:#8fa3ba;font-style:italic}
+body[data-page="dicts"] .dc-empty{padding:22px;text-align:center;color:var(--muted);
+  font-size:12.5px;line-height:1.6}
+
+/* ============ блок 03: назначения ============ */
+body[data-page="dicts"] .dc-binds{display:flex;flex-direction:column;gap:12px}
+body[data-page="dicts"] .dc-bind-group{display:flex;flex-direction:column;gap:5px}
+body[data-page="dicts"] .dc-bind-type{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--muted);font-weight:700}
+body[data-page="dicts"] .dc-bind-items{display:flex;flex-direction:column;gap:4px}
+/* Строкой, а не таблицей: назначений на тип бывает одно-два, и три широкие
+   колонки с одной строкой смотрелись пустыми. */
+body[data-page="dicts"] .dc-bind{display:flex;align-items:center;gap:10px;background:#f7fafd;
+  border:1px solid var(--line-soft);border-radius:9px;padding:7px 10px;font-size:12.5px}
+body[data-page="dicts"] .dc-bind:hover{border-color:var(--blue-300);background:#f2f8ff}
+body[data-page="dicts"] .dc-bind-card{color:var(--muted);flex:0 0 auto}
+body[data-page="dicts"] .dc-bind-arrow{color:#b6c4d4;flex:0 0 auto}
+body[data-page="dicts"] .dc-bind-field{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1 1 auto}
+/* Пояснение к связке: без него «одно поле — один справочник» и «один
+   справочник — много полей» выглядят одинаково, и непонятно, что правка
+   разойдётся по всем полям сразу. */
+body[data-page="dicts"] .dc-bind-note{background:#f4f9ff;border:1px solid var(--blue-100);
+  border-radius:9px;padding:9px 12px;font-size:12px;color:var(--ink);line-height:1.5;
+  margin-bottom:11px}
+body[data-page="dicts"] .dc-bind-split{flex:0 0 auto;font-size:11px;color:var(--blue-700);
+  border:1px solid var(--blue-200);background:#fff;border-radius:7px;padding:2px 9px;
+  opacity:0;transition:opacity .12s,border-color .12s}
+body[data-page="dicts"] .dc-bind:hover .dc-bind-split{opacity:1}
+body[data-page="dicts"] .dc-bind-split:hover{border-color:var(--blue-600)}
+body[data-page="dicts"] .dc-bind .dc-x{margin-left:auto}
+
+body[data-page="dicts"] .dc-picker{margin-top:14px;border:1px solid var(--blue-300);
+  border-radius:var(--radius);background:#f4f9ff;padding:10px 12px}
+body[data-page="dicts"] .dc-picker-head{display:flex;align-items:center;gap:8px;font-size:11px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--blue-700);font-weight:700;margin-bottom:8px}
+body[data-page="dicts"] .dc-picker-type{font-size:11.5px;font-weight:700;color:var(--ink);margin:9px 0 5px}
+body[data-page="dicts"] .dc-picker-slots{display:flex;flex-wrap:wrap;gap:6px}
+body[data-page="dicts"] .dc-slot{display:flex;flex-direction:column;gap:1px;text-align:left;
+  background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;
+  transition:border-color .12s,box-shadow .12s}
+body[data-page="dicts"] .dc-slot:hover{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.14)}
+body[data-page="dicts"] .dc-slot span{font-size:10.5px;color:var(--muted)}
+
+/* ============ блок 04 и общие мелочи ============ */
+body[data-page="dicts"] .dc-sub{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--muted);font-weight:700;margin:16px 0 8px;display:flex;align-items:center;gap:10px}
+body[data-page="dicts"] .dc-sub::after{content:'';flex:1;height:1px;background:var(--line-soft)}
+body[data-page="dicts"] .dc-chips{display:flex;flex-wrap:wrap;gap:6px}
+body[data-page="dicts"] .dc-chip{display:inline-flex;align-items:center;gap:7px;background:var(--blue-50);
+  border:1px solid var(--blue-100);color:var(--blue-700);border-radius:999px;padding:3px 11px;
+  font-size:12px;font-weight:600}
+body[data-page="dicts"] .dc-chip b{background:#fff;border-radius:999px;padding:0 6px;font-size:10.5px}
+body[data-page="dicts"] .dc-chip.idle{background:var(--slate-50);border-color:#d8e2ec;
+  color:var(--slate-700);font-weight:400}
+
+/* ============ диалог замены ============ */
+body[data-page="dicts"] .dc-modal-back{position:fixed;inset:0;background:rgba(15,23,42,.44);
+  display:flex;align-items:center;justify-content:center;z-index:120}
+body[data-page="dicts"] .dc-modal{background:#fff;border-radius:12px;width:min(640px,92vw);
+  max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(15,23,42,.32)}
+body[data-page="dicts"] .dc-modal-head{padding:14px 18px;font-weight:700;font-size:15px;
+  border-bottom:1px solid var(--line-soft)}
+body[data-page="dicts"] .dc-modal-body{padding:14px 18px;overflow:auto;font-size:13px;line-height:1.55}
+body[data-page="dicts"] .dc-modal-lead{margin-bottom:14px;color:var(--ink)}
+
+/* Вариант замены — карточка с радиокнопкой: выбранный вариант виден рамкой, а
+   не только точкой, и поле ввода принадлежит именно ему. */
+body[data-page="dicts"] .dc-choice{display:flex;gap:10px;align-items:flex-start;
+  border:1px solid var(--line);border-radius:10px;padding:11px 13px;margin-bottom:10px;
+  cursor:pointer;transition:border-color .12s,background .12s}
+body[data-page="dicts"] .dc-choice:hover{border-color:var(--blue-300)}
+body[data-page="dicts"] .dc-choice.on{border-color:var(--blue-600);background:#f5faff}
+body[data-page="dicts"] .dc-choice input[type="radio"]{margin-top:3px;flex:0 0 auto}
+body[data-page="dicts"] .dc-choice-body{display:flex;flex-direction:column;gap:5px;flex:1 1 auto;min-width:0}
+body[data-page="dicts"] .dc-choice-body i{font-style:normal;font-size:11.5px;color:var(--muted)}
+body[data-page="dicts"] .dc-choice .select,body[data-page="dicts"] .dc-choice .input{width:100%}
+body[data-page="dicts"] .dc-choice .select:disabled,body[data-page="dicts"] .dc-choice .input:disabled{
+  background:#f4f7fa;color:#9fb0c4}
+
+body[data-page="dicts"] .dc-modal-foot{padding:12px 18px;border-top:1px solid var(--line-soft);
+  display:flex;justify-content:flex-end;gap:10px}
+body[data-page="dicts"] .dc-places{border:1px solid var(--line-soft);border-radius:9px;overflow:hidden}
+body[data-page="dicts"] .dc-place{display:grid;grid-template-columns:140px 1fr 160px;gap:10px;
+  padding:6px 11px;border-bottom:1px solid var(--line-soft);font-size:12px}
+body[data-page="dicts"] .dc-place:nth-child(even){background:#fafcfe}
+body[data-page="dicts"] .dc-place:last-child{border-bottom:none}
+body[data-page="dicts"] .dc-place.more{display:block;color:var(--muted)}
+body[data-page="dicts"] .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="dicts"] .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--blue-700)}
+body[data-page="dicts"] .muted{color:var(--muted)}
+
+/* Узкое окно: список сжимается, но остаётся — без него не переключиться. */
+@media (max-width: 1180px) {
+  body[data-page="dicts"] .dc-list{width:250px;flex-basis:250px}
+  body[data-page="dicts"] .dc-item-q{width:140px}
+  body[data-page="dicts"] .dc-metrics{width:100%}
+}
+
+/* ============ дерево каталогов ============ */
+/* Каталоги жёсткие: тип ОЦ → тип ОИ (решение пользователя 02.09.2026).
+   Справочник лежит там, где применяется, поэтому дерево — основной способ
+   навигации, а поиск — дополнительный. */
+body[data-page="dicts"] .dc-tree{flex:1 1 auto;overflow:auto;padding:6px 6px 12px}
+
+body[data-page="dicts"] .dc-tree-type{margin-bottom:2px}
+body[data-page="dicts"] .dc-tree-head{display:flex;align-items:center;gap:7px;width:100%;
+  text-align:left;padding:7px 8px;border-radius:8px;font-size:12.5px;font-weight:700;
+  color:var(--ink);transition:background .12s}
+body[data-page="dicts"] .dc-tree-head:hover{background:var(--blue-50)}
+body[data-page="dicts"] .dc-tree-head span{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+body[data-page="dicts"] .dc-tree-head b,body[data-page="dicts"] .dc-tree-sub b{
+  flex:0 0 auto;background:var(--slate-50);color:var(--slate-700);border-radius:999px;
+  padding:1px 7px;font-size:10px;font-weight:700}
+body[data-page="dicts"] .dc-tree-chev{flex:0 0 auto;color:#93a7bd;transition:transform .14s}
+body[data-page="dicts"] .dc-tree-type.open > .dc-tree-head .dc-tree-chev,
+body[data-page="dicts"] .dc-tree-card.open > .dc-tree-sub .dc-tree-chev{transform:rotate(90deg)}
+body[data-page="dicts"] .dc-tree-body,body[data-page="dicts"] .dc-tree-list{display:none}
+body[data-page="dicts"] .dc-tree-type.open > .dc-tree-body,
+body[data-page="dicts"] .dc-tree-card.open > .dc-tree-list{display:block}
+
+/* Второй уровень — тип ОИ. Отбит слева линией: видно, что это части одного
+   типа ОЦ, а не независимые разделы. */
+body[data-page="dicts"] .dc-tree-body{margin-left:9px;padding-left:9px;
+  border-left:1px solid var(--line-soft)}
+body[data-page="dicts"] .dc-tree-sub{display:flex;align-items:center;gap:7px;width:100%;
+  text-align:left;padding:6px 8px;border-radius:8px;font-size:11.5px;color:var(--muted);
+  font-weight:600;transition:background .12s}
+body[data-page="dicts"] .dc-tree-sub:hover{background:var(--blue-50);color:var(--ink)}
+body[data-page="dicts"] .dc-tree-sub span{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+body[data-page="dicts"] .dc-tree-list{margin-left:8px;padding-left:8px;
+  border-left:1px solid var(--line-soft)}
+body[data-page="dicts"] .dc-tree-empty{padding:7px 10px;font-size:11px;color:#9fb0c4;font-style:italic}
+
+/* Справочники без привязки — отдельная ветка, помеченная янтарным: они не
+   работают, пока их не привязали, и это должно быть заметно. */
+body[data-page="dicts"] .dc-tree-type.unbound > .dc-tree-head{color:var(--amber-700)}
+body[data-page="dicts"] .dc-tree-type.unbound > .dc-tree-head b{background:var(--amber-50);
+  color:var(--amber-700)}
+
+body[data-page="dicts"] .dc-row-n{flex:0 0 auto;font-size:10.5px;font-weight:700;
+  color:var(--slate-700);background:var(--slate-50);border-radius:999px;padding:1px 7px}
+body[data-page="dicts"] .dc-row.on .dc-row-n{background:#fff;color:var(--blue-700)}
+
+/* ============ блок 03: где применяется ============ */
+/* Три шага цепочки — тип ОЦ, тип ОИ, поле: пользователь особо отметил, что
+   привязка идёт не к объекту оценки, а к конкретному типу ОИ внутри него. */
+body[data-page="dicts"] .dc-where{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap}
+body[data-page="dicts"] .dc-where-step{flex:1 1 200px;min-width:0;background:#f4f8fd;
+  border:1px solid var(--line-soft);border-radius:10px;padding:9px 13px;display:flex;
+  flex-direction:column;gap:3px}
+body[data-page="dicts"] .dc-where-step i{font-style:normal;font-size:10px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);font-weight:700}
+body[data-page="dicts"] .dc-where-step b{font-size:14px;color:var(--ink);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="dicts"] .dc-where-step.field{background:var(--blue-50);border-color:var(--blue-200)}
+body[data-page="dicts"] .dc-where-step.field b{color:var(--blue-700)}
+body[data-page="dicts"] .dc-where-arrow{align-self:center;color:#b6c4d4;font-size:15px;flex:0 0 auto}
+body[data-page="dicts"] .dc-where-note{margin-top:11px;font-size:12px;color:var(--muted);
+  line-height:1.5}
+body[data-page="dicts"] .dc-picker.warn{border-color:var(--amber-600);background:#fffaf1}
+body[data-page="dicts"] .dc-picker-note{font-size:11.5px;color:var(--muted);line-height:1.5;
+  margin-bottom:8px}
+body[data-page="dicts"] .dc-slot.here{opacity:.55;cursor:default}
+body[data-page="dicts"] .dc-slot.here:hover{border-color:var(--line);box-shadow:none}
+
+/* ============ диалог удаления значения ============ */
+/* «Окно удаления значения не проработано по дизайну» — переделано: сначала
+   последствие крупной цифрой, потом выбор замены, потом список объектов. */
+body[data-page="dicts"] .dc-modal.wide{width:min(760px,94vw)}
+body[data-page="dicts"] .dc-modal-head{display:flex;flex-direction:column;gap:2px}
+body[data-page="dicts"] .dc-modal-kicker{font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--muted);font-weight:700}
+body[data-page="dicts"] .dc-modal-head b{font-size:17px;color:var(--ink)}
+
+body[data-page="dicts"] .dc-warn-box{display:flex;gap:14px;align-items:flex-start;
+  background:var(--amber-50);border:1px solid var(--amber-100);border-radius:10px;
+  padding:12px 14px;margin-bottom:14px}
+body[data-page="dicts"] .dc-warn-n{flex:0 0 auto;font-size:26px;font-weight:700;
+  color:var(--amber-700);line-height:1;font-variant-numeric:tabular-nums}
+body[data-page="dicts"] .dc-warn-text{font-size:13px;color:var(--ink);line-height:1.5}
+body[data-page="dicts"] .dc-warn-text i{display:block;margin-top:5px;font-style:normal;
+  font-size:12px;color:var(--amber-700)}
+
+body[data-page="dicts"] .dc-choices{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+body[data-page="dicts"] .dc-choices .dc-choice{flex:1 1 280px;margin-bottom:0}
+body[data-page="dicts"] .dc-place.head{background:#f6f9fd;font-size:10px;text-transform:uppercase;
+  letter-spacing:.4px;color:#5a6b82;font-weight:700}
+body[data-page="dicts"] .dc-place{grid-template-columns:130px 1fr 150px 130px}
+body[data-page="dicts"] .dc-modal-foot{align-items:center}
+body[data-page="dicts"] .dc-modal-hint{margin-right:auto;font-size:11.5px;color:var(--muted)}
+
+/* Папки внутри типа ОИ — третий уровень дерева. Конструктивный состав это
+   восемь полей карточки; без папки они тонули среди остальных справочников. */
+body[data-page="dicts"] .dc-tree-folder{margin:2px 0}
+body[data-page="dicts"] .dc-tree-fold{display:flex;align-items:center;gap:6px;width:100%;
+  text-align:left;padding:5px 8px;border-radius:7px;font-size:11.5px;color:var(--ink);
+  font-weight:600;transition:background .12s}
+body[data-page="dicts"] .dc-tree-fold:hover{background:var(--blue-50)}
+body[data-page="dicts"] .dc-tree-fold span{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+body[data-page="dicts"] .dc-tree-fold b{flex:0 0 auto;background:var(--blue-50);color:var(--blue-700);
+  border-radius:999px;padding:1px 7px;font-size:10px}
+body[data-page="dicts"] .dc-tree-fold svg:first-child{color:#93a7bd;transition:transform .14s}
+body[data-page="dicts"] .dc-tree-folder.open > .dc-tree-fold svg:first-child{transform:rotate(90deg)}
+body[data-page="dicts"] .dc-tree-folder > .dc-tree-list{display:none;margin-left:10px;
+  padding-left:9px;border-left:1px dashed var(--line)}
+body[data-page="dicts"] .dc-tree-folder.open > .dc-tree-list{display:block}
+
+/* Папка справочника под цепочкой привязки. */
+body[data-page="dicts"] .dc-folder-row{display:flex;align-items:center;gap:7px;margin-top:11px;
+  font-size:12px;color:var(--muted)}
+body[data-page="dicts"] .dc-folder-row b{color:var(--ink)}
+body[data-page="dicts"] .dc-field-folder{margin-top:9px}
+
+/* Несколько ссылок на один перечень (например наружные и внутренние стены).
+   Дополнительные цепочки приглушены: основная говорит, где справочник живёт,
+   остальные — кто ещё его читает. */
+body[data-page="dicts"] .dc-badge.multi{background:var(--teal-50);color:var(--teal-700);
+  border:1px solid var(--teal-100)}
+body[data-page="dicts"] .dc-where.extra{margin-top:8px;opacity:.9}
+body[data-page="dicts"] .dc-where.extra .dc-where-step{background:#f8fafc}
+body[data-page="dicts"] .dc-where-tag{align-self:center;flex:0 0 auto;font-size:10px;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700;
+  background:#eef3f9;border-radius:999px;padding:2px 8px}
+body[data-page="dicts"] .dc-where .dc-x{align-self:center;opacity:1}
+
+/* Поле, у которого уже есть справочник: выбирать можно, но видно, что оно
+   занято — иначе переключение выглядело бы как случайность. */
+body[data-page="dicts"] .dc-slot.taken{border-style:dashed}
+body[data-page="dicts"] .dc-slot.taken span{color:var(--amber-700)}
+body[data-page="dicts"] .dc-field-refq{margin-bottom:9px;background:#fff}

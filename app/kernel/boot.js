@@ -8,6 +8,7 @@ import { installOverflowTip } from './overflowTip.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
+import { mountDicts } from '../pages/dicts/dicts.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -62,6 +63,20 @@ function makeHost(route, scope, typeId) {
 }
 
 async function onRoute(route) {
+  if (route.name === 'dicts') {
+    // Раздел открыт всем: состав перечней полезно видеть и оценщику, чтобы
+    // понимать, откуда взялся список. Правит только администратор — это
+    // решается внутри экрана (kernel/dicts.js, canEditDicts).
+    unmount();
+    resetShellSlots();
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/dicts/dicts.css');
+    const instance = mountDicts(host);
+    current = { kind: 'dicts', instance, scope };
+    return;
+  }
+
   if (route.name === 'archive') {
     // Доступ к архиву — тот же принцип, что у лога действий: администратор и
     // «любая роль» видят всё, сотрудник — свои учреждения. Кому показывать
