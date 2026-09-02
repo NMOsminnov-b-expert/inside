@@ -8,6 +8,7 @@ import { installOverflowTip } from './overflowTip.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
+import { mountDocs } from '../pages/docs/docs.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -86,6 +87,26 @@ async function onRoute(route) {
 
     const instance = mountArchive(host);
     current = { kind: 'archive', instance, scope };
+    return;
+  }
+
+  if (route.name === 'docs') {
+    // Реестр «Документы» — виден всем без ограничений (не зависит от типов ОЦ
+    // и от учреждений, в отличие от архива).
+    if (current && current.kind === 'docs') {
+      current.instance.onRoute(route);
+      return;
+    }
+    unmount();
+    resetShellSlots();
+    setActiveNav('docs');
+
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/docs/docs.css');
+
+    const instance = mountDocs(host);
+    current = { kind: 'docs', instance, scope };
     return;
   }
 

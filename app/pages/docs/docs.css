@@ -1,0 +1,147 @@
+/* Документы — общесистемный реестр (не относится ни к одному типу ОЦ). Оформление
+   по образцу app/pages/archive/archive.css: тот же жанр экрана (поиск + фильтры +
+   таблица), но с постраничной навигацией вместо мгновенного скролла — реестр
+   документов не виртуализирован, объём не тот, что у реестра ОЦ.
+
+   Базовые классы форм (.field/.input/.select/.grid/.card/.ms-tag) здесь свои,
+   как и на каждой другой top-level странице (ocMenu.css, module.css каждого
+   модуля) — общего файла с этими правилами в проекте нет, копии осознанные. */
+body[data-page="docs"] .docs{padding:14px 16px 24px;height:100%;overflow:auto}
+
+body[data-page="docs"] .docs-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+body[data-page="docs"] .docs-head h2{font-size:17px;font-weight:700;color:var(--blue-700)}
+
+/* --- Базовые классы форм --------------------------------------------------- */
+body[data-page="docs"] .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-page="docs"] .field>label{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center}
+body[data-page="docs"] .req{color:var(--danger)}
+body[data-page="docs"] .input,body[data-page="docs"] .select{
+  border:1px solid var(--line-input);border-radius:7px;padding:6px 9px;font-size:12.5px;background:#fff;
+  outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
+body[data-page="docs"] .input:focus,body[data-page="docs"] .select:focus{border-color:var(--blue-500);box-shadow:0 0 0 2px var(--blue-100)}
+body[data-page="docs"] .grid{display:grid;gap:10px 12px}
+body[data-page="docs"] .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+body[data-page="docs"] .g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+body[data-page="docs"] .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+body[data-page="docs"] .card-pad{padding:14px 16px}
+body[data-page="docs"] .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+body[data-page="docs"] .ell{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="docs"] .ms-tag{display:inline-flex;align-items:center;gap:6px;background:var(--blue-50);
+  border:1px solid var(--blue-200);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--blue-700)}
+body[data-page="docs"] .ms-tag span{cursor:pointer;color:var(--muted);font-weight:700}
+
+/* --- Стат-плашки ------------------------------------------------------------ */
+body[data-page="docs"] .docs-stats{display:flex;gap:26px;flex-wrap:wrap;padding:12px 16px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin:12px 0}
+body[data-page="docs"] .docs-stat{display:flex;flex-direction:column;gap:2px;min-width:64px}
+body[data-page="docs"] .docs-stat b{font-size:19px;font-weight:700;color:var(--ink)}
+body[data-page="docs"] .docs-stat span{font-size:11px;color:var(--muted);font-weight:600}
+body[data-page="docs"] .docs-stat.tone-ok b{color:var(--blue-600)}
+body[data-page="docs"] .docs-stat.tone-good b{color:var(--teal-700)}
+body[data-page="docs"] .docs-stat.tone-bad b{color:var(--danger)}
+body[data-page="docs"] .docs-stat.tone-warn b{color:var(--amber-700)}
+
+/* --- Панель поиска и фильтров ------------------------------------------------ */
+body[data-page="docs"] .docs-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+body[data-page="docs"] .docs-search{flex:1 1 280px;max-width:420px}
+body[data-page="docs"] .docs-filter{width:170px}
+body[data-page="docs"] .docs-count{font-size:12px;color:var(--muted);white-space:nowrap}
+body[data-page="docs"] .docs-toolbar .btn-primary{margin-left:auto}
+
+/* --- Таблица ----------------------------------------------------------------- */
+body[data-page="docs"] .docs-body{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+body[data-page="docs"] table.docs-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+body[data-page="docs"] .docs-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;
+  color:#3f4c63;text-align:left;padding:9px 12px;border-bottom:1.5px solid var(--line);
+  font-weight:700;background:#eef4fb;position:relative}
+body[data-page="docs"] .docs-tbl td{padding:9px 12px;border-bottom:1px solid var(--line-soft);
+  font-size:13px;vertical-align:middle;overflow:hidden}
+body[data-page="docs"] .docs-tbl tbody tr:last-child td{border-bottom:none}
+body[data-page="docs"] .docs-tbl tbody tr:hover td{background:var(--blue-50)}
+
+body[data-page="docs"] .docs-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600}
+body[data-page="docs"] .docs-status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+body[data-page="docs"] .docs-status.tone-ok{color:var(--blue-600)}
+body[data-page="docs"] .docs-status.tone-good{color:var(--teal-700)}
+body[data-page="docs"] .docs-status.tone-bad{color:var(--danger)}
+body[data-page="docs"] .docs-status.tone-warn{color:var(--amber-700)}
+
+body[data-page="docs"] .docs-empty{padding:34px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7}
+
+body[data-page="docs"] .docs-pager{display:flex;align-items:center;justify-content:flex-end;gap:10px;
+  padding:10px 12px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--muted)}
+body[data-page="docs"] .docs-pager .select{width:auto;padding:3px 7px;font-size:11.5px}
+body[data-page="docs"] .docs-pager .btn{padding:4px 8px}
+
+body[data-page="docs"] .back-btn{color:var(--blue-600);font-size:12.5px;font-weight:600;flex-shrink:0}
+body[data-page="docs"] .back-btn:hover{text-decoration:underline}
+
+/* --- Модалка создания/редактирования документа ------------------------------- */
+/* Модалка добавляется прямо в <body> (как и модалки kernel/dialog.js), поэтому
+   вложенность в .docs здесь нет — только body[data-page="docs"] снаружи. */
+body[data-page="docs"] .docs-modal{max-width:640px;width:92vw}
+body[data-page="docs"] .df-drop{border:1.5px dashed var(--line-input);border-radius:9px;padding:14px;
+  text-align:center;transition:border-color .12s,background .12s}
+body[data-page="docs"] .df-drop.drag-over{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-page="docs"] .df-drop-hint{font-size:12px;color:var(--muted)}
+body[data-page="docs"] .df-drop-btn{color:var(--blue-600);font-weight:600;text-decoration:underline}
+body[data-page="docs"] .df-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
+
+/* --- Карточка документа ------------------------------------------------------- */
+body[data-page="docs"] .docs-detail{padding:14px 16px 24px;height:100%;overflow:auto}
+body[data-page="docs"] .dd-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+body[data-page="docs"] .dd-icon{width:38px;height:38px;border-radius:9px;background:var(--blue-50);
+  border:1px solid var(--blue-200);color:var(--blue-600);display:flex;align-items:center;justify-content:center;
+  font-size:17px;flex-shrink:0}
+body[data-page="docs"] .dd-title{margin-right:auto;min-width:0}
+body[data-page="docs"] .dd-title h2{font-size:17px;font-weight:700;color:var(--ink)}
+body[data-page="docs"] .dd-meta-row{display:flex;align-items:center;gap:10px;margin-top:3px;flex-wrap:wrap}
+
+body[data-page="docs"] .dd-body{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+body[data-page="docs"] .dd-main{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);min-height:420px;padding:16px}
+body[data-page="docs"] .dd-empty{height:100%;min-height:388px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;color:var(--muted);text-align:center}
+body[data-page="docs"] .dd-empty-ico{font-size:34px;color:#b9c6d6}
+body[data-page="docs"] .dd-empty b{color:#3f4c63;font-size:13px}
+
+body[data-page="docs"] .dd-files-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+body[data-page="docs"] .dd-file-card{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);
+  border-radius:9px;padding:8px;background:#fff;font-size:11.5px;color:#33445c;text-align:center}
+body[data-page="docs"] .dd-file-card:hover{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-page="docs"] .dd-file-card img{width:100%;height:90px;object-fit:cover;border-radius:6px;background:var(--blue-50)}
+body[data-page="docs"] .dd-file-ico{font-size:28px}
+
+body[data-page="docs"] .dd-side{display:flex;flex-direction:column;gap:10px}
+body[data-page="docs"] .dd-sec{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+body[data-page="docs"] .dd-sec-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;
+  font-size:12.5px;font-weight:700;color:var(--blue-700);background:#eef4fb}
+body[data-page="docs"] .dd-sec-head .chev{transition:transform .12s;color:#7d93a6;font-size:11px}
+body[data-page="docs"] .dd-sec.collapsed .dd-sec-head .chev{transform:rotate(-90deg)}
+body[data-page="docs"] .dd-sec.collapsed .dd-sec-body{display:none}
+body[data-page="docs"] .dd-sec-count{margin-left:auto;font-size:11px;color:var(--muted);font-weight:600}
+body[data-page="docs"] .dd-sec-body{padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+
+body[data-page="docs"] .dd-field{display:flex;flex-direction:column;gap:2px}
+body[data-page="docs"] .dd-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
+body[data-page="docs"] .dd-val{font-size:13px;color:var(--ink)}
+
+body[data-page="docs"] .dd-file-row{display:flex;align-items:center;gap:8px;font-size:12.5px}
+body[data-page="docs"] .dd-file-row a{color:var(--blue-700);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="docs"] .dd-file-rm{color:var(--danger);font-size:11.5px;font-weight:600}
+body[data-page="docs"] .dd-file-rm:hover{text-decoration:underline}
+
+body[data-page="docs"] .dd-links-tbl{width:100%;border-collapse:collapse;font-size:12px}
+body[data-page="docs"] .dd-links-tbl th{text-align:left;font-size:9.5px;text-transform:uppercase;color:var(--muted);
+  padding:4px 6px;border-bottom:1px solid var(--line-soft)}
+body[data-page="docs"] .dd-links-tbl td{padding:6px;border-bottom:1px solid var(--line-soft)}
+body[data-page="docs"] .dd-links-tbl tbody tr:last-child td{border-bottom:none}
+
+/* Узкое окно: тулбар/стат-плашки/карточка документа переносятся по строкам. */
+@media (max-width: 900px) {
+  body[data-page="docs"] .docs-toolbar .btn-primary{margin-left:0;width:100%}
+  body[data-page="docs"] .docs-search{max-width:none;flex-basis:100%}
+  body[data-page="docs"] .dd-body{grid-template-columns:1fr}
+}
