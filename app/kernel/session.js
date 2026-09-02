@@ -25,6 +25,27 @@ export function isAdmin() {
   return session.state.role === 'admin';
 }
 
+// «Видит всё, независимо от учреждений» — администратор и роль «любая».
+// Отдельным понятием, потому что этим правилом пользуются и лог действий, и
+// архив документов: роль «любая роль» описана как «без ограничений», и раньше
+// расходилась с проверками, которые требовали именно admin.
+export function seesEverything() {
+  return session.state.role === 'admin' || session.state.role === 'any';
+}
+
+// Учреждения, за которыми закреплён сотрудник (у «видит всё» — не ограничивают).
+export function myInstitutions() {
+  return session.state.institutions || [];
+}
+
+// Доступ к записи по учреждению: администратору и «любой роли» — всё, остальным
+// — только свои учреждения.
+export function canSeeInstitution(institution) {
+  if (seesEverything()) return true;
+  const mine = myInstitutions();
+  return mine.length > 0 && mine.includes(institution);
+}
+
 export function roleLabel(key) {
   const r = ROLES.find((x) => x.key === key);
   return r ? r.label : key;

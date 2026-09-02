@@ -1,3 +1,4 @@
+import { bindEniField } from '../../../../kernel/eniField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindUtilities } from './utilities.js';
@@ -98,11 +99,11 @@ export function bind(ctx, oi) {
 
   // ЕНИ: из поля приходит маска, в данные кладём цифры (kernel/fmt.js) — так
   // же, как в карточках литер. Плашка над карточкой показывает тот же код.
-  const en = s.$('[data-land-eni]');
-  if (en) en.onchange = () => {
-    oi.eni = parseEni(en.value) || oi.eni;
+  // Код ЕНИ: маска и проверка длины в самом поле (kernel/eniField.js).
+  bindEniField(s.$('[data-land-eni]'), (digits) => {
+    oi.eni = digits;
     ctx.render();
-  };
+  });
 
   s.$$('[data-del-oi]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();

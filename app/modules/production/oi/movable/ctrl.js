@@ -16,12 +16,6 @@ export function bind(ctx, oi) {
   const sr = s.$('[data-mv-serial]');
   if (sr) sr.onchange = () => { oi.serial = sr.value; };
 
-  s.$$('[data-flag]').forEach((c) => c.onchange = () => {
-    oi.flags = oi.flags || {};
-    oi.flags[c.dataset.flag] = c.checked;
-    ctx.render();
-  });
-
   s.$$('[data-open-movdoc]').forEach((tr) => tr.onclick = () => {
     const [scope, id] = tr.dataset.openMovdoc.split('|');
     openDocViewer(ctx, scope, id);
@@ -38,13 +32,6 @@ export function bind(ctx, oi) {
     openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
-
-  s.$$('[data-open-ocdocs]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const tabs = VS.openTabs['oc'] || [];
-    const docs = ctx.rec.docs || [];
-    openDocViewer(ctx, 'oc', tabs.length ? tabs[tabs.length - 1] : (docs[0] ? docs[0].id : null));
-  });
 
   s.$$('[data-del-oi]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();

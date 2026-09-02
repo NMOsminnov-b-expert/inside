@@ -1,6 +1,7 @@
 // Hash-маршрутизация. Ядро разбирает только первые три сегмента:
 //   #/                          — меню выбора ОЦ
 //   #/oc/<typeId>/<ocId>/...    — модуль типа ОЦ; хвост принадлежит модулю
+//   #/archive                   — архив документов (все типы ОЦ сразу)
 // Query после «?» отдаётся экрану как объект.
 export function parse(hash = location.hash) {
   const raw = String(hash || '').replace(/^#/, '');
@@ -13,6 +14,11 @@ export function parse(hash = location.hash) {
       const [k, v] = pair.split('=');
       query[decodeURIComponent(k)] = decodeURIComponent(v || '');
     });
+  }
+
+  // Архив документов — отдельный экран, общий для всех типов ОЦ.
+  if (segs[0] === 'archive') {
+    return { name: 'archive', query };
   }
 
   if (segs[0] === 'oc' && segs[1]) {
@@ -54,3 +60,5 @@ export function start(onRoute) {
   if (!location.hash) history.replaceState(null, '', MENU_HREF);
   fire();
 }
+
+export const ARCHIVE_HREF = '#/archive';

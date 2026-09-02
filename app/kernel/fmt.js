@@ -80,7 +80,8 @@ export function eniError(value) {
   const digits = String(value ?? '').replace(/\D/g, '');
   if (!digits) return '';
   if (digits.length !== ENI_LENGTH) {
-    return `В коде ЕНИ ${digits.length} ${digits.length % 10 === 1 && digits.length % 100 !== 11 ? 'цифра' : 'цифр'} вместо ${ENI_LENGTH}`;
+    // Склонение через общий plural: своя укороченная формула давала «3 цифр».
+    return `В коде ЕНИ ${digits.length} ${plural(digits.length, 'цифра', 'цифры', 'цифр')} вместо ${ENI_LENGTH}`;
   }
   return '';
 }

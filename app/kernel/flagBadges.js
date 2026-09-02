@@ -10,18 +10,42 @@
 // заметкой, решает модуль — сюда приходит готовый набор булевых признаков.
 import { esc } from './dom.js';
 
+// Признаки, у каждого свой значок. ML здесь ОДИН (см. mlBadge ниже): в данных
+// это два поля, но человеку показывается одно состояние.
 export const FLAGS = [
   { key: 'specials', icon: '✦', cls: 'spec', title: 'отмечены особенности' },
   { key: 'pendingNotes', icon: '⚑', cls: 'notes', title: 'есть невыполненные заметки' },
   { key: 'defects', icon: '⚠', cls: 'warn', title: 'расхождение ТП и фото' },
-  { key: 'mlUnverified', icon: 'ML', cls: 'ml warn', title: 'импорт ML без проверки' },
-  { key: 'ml', icon: 'ML', cls: 'ml', title: 'импорт ML' },
 ];
+
+// Импорт ML: в данных два поля — ml (импортировано) и mlUnverified (импорт не
+// сверен человеком), причём второе поднимается только вместе с первым. Раньше
+// каждому полагался свой значок, и у непроверенной записи в строке висели два
+// «ML» подряд — дубль, который пользователь и попросил убрать (2026-09-02).
+//
+// Теперь состояние одно, а вид зависит от того, сверен импорт или нет: пока не
+// сверен — значок предупреждающий, после сверки — спокойный. Оба поля данных
+// сохранены: по ним работают фильтры и фасеты реестра.
+export function mlBadge(flags) {
+  const f = flags || {};
+  if (!f.ml && !f.mlUnverified) return null;
+  return f.mlUnverified
+    ? { key: 'mlUnverified', icon: 'ML', cls: 'ml ml-raw', title: 'импорт ML не сверен' }
+    : { key: 'ml', icon: 'ML', cls: 'ml', title: 'импорт ML сверен' };
+}
+
+// Полный набор поднятых значков в порядке важности: сначала особенности —
+// пользователь просил выделить их отдельно, они важнее, чем кажутся.
+export function activeBadges(flags) {
+  const on = FLAGS.filter((f) => (flags || {})[f.key]);
+  const ml = mlBadge(flags);
+  return ml ? [...on, ml] : on;
+}
 
 // flags — объект признаков. Показываем только поднятые: ряд из серых
 // «выключенных» значков читался бы как набор кнопок, а это индикаторы.
 export function flagBadgesHTML(flags) {
-  const on = FLAGS.filter((f) => (flags || {})[f.key]);
+  const on = activeBadges(flags);
   if (!on.length) return '';
 
   return `<span class="flag-badges" title="${esc(on.map((f) => f.title).join(', '))}">${on

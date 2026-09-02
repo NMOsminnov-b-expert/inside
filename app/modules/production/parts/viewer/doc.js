@@ -1,4 +1,11 @@
 import { esc } from '../../../../kernel/dom.js';
+
+// Убрать документ в архив: коробка с крышкой. Значком, а не словом — панель
+// просмотрщика узкая, и все её кнопки значковые.
+const ICON_ARCHIVE = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
+  <path d="M1.6 3.2h10.8v2.2H1.6zM2.6 5.4h8.8v6.1H2.6zM5.4 7.8h3.2"
+    fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
 import { docListFor, scopeLabel } from '../docs/model.js';
 import { VS } from './state.js';
 
@@ -108,7 +115,12 @@ export function renderDocMode(ctx, vctx) {
       <button class="tool-btn" data-vnext>›</button></div>
     <div class="tool-group"><button class="tool-btn" data-vrot>⟳</button></div>
     <div class="tool-group"><button class="tool-btn" data-vzoom->−</button><span class="zoom-label" data-zoomlabel>${VS.zoom}%</span><button class="tool-btn" data-vzoom+>+</button></div>
-    <div class="tool-group right"><span class="vtitle">${esc(d.type)} · ${esc(d.name)}</span><button class="tool-btn" data-vclose>×</button></div>
+    <div class="tool-group right"><span class="vtitle">${esc(d.type)} · ${esc(d.name)}</span>
+      ${ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope !== 'mech-new'
+        ? `<button class="tool-btn" data-varchive="${esc(d.id)}"
+        title="Убрать документ из карточки в архив — его можно будет найти и вернуть">${ICON_ARCHIVE}</button>`
+        : ''}
+      <button class="tool-btn" data-vclose>×</button></div>
   </div>`;
 
   // Удаление страницы — «отрезать» пустые/лишние страницы скана; сам файл при

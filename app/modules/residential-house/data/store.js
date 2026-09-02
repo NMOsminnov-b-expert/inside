@@ -43,6 +43,14 @@ export const ui = {
   auditDateFrom: '',
   auditDateTo: '',
   auditSearchText: '',
+  // Ширина просмотрщика — своя для каждого режима (parts/viewer/shell.js).
+  splitVW: {},
+  // Сравнение: соотношение колонок и свёрнутая половина (Л3.9).
+  cmpSplit: 50,
+  cmpHidden: null,
+  railCollapsed: false,
+  viewerSidebar: false,   // выехал сайдбар выбора документа/фото
+  pageSel: [],   // лента миниатюр просмотрщика свёрнута
 };
 
 export function resetViewer() {

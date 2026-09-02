@@ -1,6 +1,7 @@
 import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
-import { MENU_HREF } from '../kernel/router.js';
+import { MENU_HREF, ARCHIVE_HREF } from '../kernel/router.js';
+import { session, seesEverything, myInstitutions } from '../kernel/session.js';
 
 // Каркас окна. Ничего не знает про ОЦ/ОИ: рисует только то, что ему отдали.
 const state = { collapsed: false, drawer: null, drawerOpen: false };
@@ -16,8 +17,19 @@ function bindNav() {
   document.querySelectorAll('.nav-item').forEach((b) => {
     b.onclick = () => {
       if (b.dataset.nav === 'oc') location.hash = MENU_HREF;
+      if (b.dataset.nav === 'archive') location.hash = ARCHIVE_HREF;
     };
   });
+
+  // Пункт «Архив» виден только тем, кому есть что в нём смотреть: администратору,
+  // роли «любая» и сотруднику с закреплёнными учреждениями. Роль переключается
+  // на ходу, поэтому пересчитываем при каждом изменении сессии.
+  const archiveBtn = $('[data-nav="archive"]');
+  if (archiveBtn) {
+    const sync = () => { archiveBtn.hidden = !(seesEverything() || myInstitutions().length > 0); };
+    sync();
+    session.subscribe(sync);
+  }
 }
 
 export function contentRoot() {
@@ -63,6 +75,12 @@ export function setCrumbs(items = []) {
   box.querySelectorAll('[data-crumb]').forEach((s) => {
     s.onclick = () => { location.hash = s.dataset.crumbTo; };
   });
+
+  // Заголовок вкладки браузера — из крошек: у открытых рядом вкладок иначе
+  // одинаковое имя, и найти нужную можно только перебором.
+  const here = items.filter((it) => it.label && it.label !== 'Главная');
+  const tail = here.length ? here[here.length - 1].label : '';
+  document.title = tail ? `${tail} — Inside` : 'Inside — Объекты оценки';
 }
 
 // conf = { count: () => number, html: () => string, bind: (scope) => void } | null

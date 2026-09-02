@@ -34,8 +34,11 @@
 /* Закладка начинается ПОД закреплённой плашкой карточки: --plate-h ставит
    bindStickyHead модуля. 26px — это отступ области контента (14px) плюс зазор:
    плашка начинается не от края панели заметок, а ниже. Без плашки переменной
-   нет, и закладка встаёт на прежнее место. */
-.notes-tab{position:absolute;left:-30px;top:calc(var(--plate-h, 0px) + 26px);writing-mode:vertical-rl;text-orientation:mixed;background:var(--amber-600);color:#fff;border:1px solid var(--amber-600);border-right:none;border-radius:8px 0 0 8px;padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:40}
+   нет, и закладка встаёт на прежнее место.
+   Правый край закладки прижат к панели (right:0), а не отсчитан влево от неё:
+   при left:-30px закладка шириной 34px вылезала за окно на 4px, и внизу каждого
+   экрана висела горизонтальная полоса прокрутки. */
+.notes-tab{position:absolute;right:0;top:calc(var(--plate-h, 0px) + 26px);writing-mode:vertical-rl;text-orientation:mixed;background:var(--amber-600);color:#fff;border:1px solid var(--amber-600);border-right:none;border-radius:8px 0 0 8px;padding:10px 6px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:40}
 /* Пилюля счётчика: белая, пока у неё нет классов pill-pend/pill-done.
    Когда классы есть — цвет задают токены (как в исходном каскаде). */
 .notes-tab .pill-mini{writing-mode:horizontal-tb}

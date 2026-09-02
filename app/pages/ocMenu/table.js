@@ -1,4 +1,4 @@
-import { flagBadgesHTML } from '../../kernel/flagBadges.js';
+import { flagBadgesHTML, activeBadges } from '../../kernel/flagBadges.js';
 import { esc } from '../../kernel/dom.js';
 import { fmtNum, fmtInt, fmtEni } from '../../kernel/fmt.js';
 import {
@@ -42,10 +42,7 @@ function cell(col, s) {
     case 'title': return `<span class="reg-cell-title">
       <span class="reg-ico">${esc(s.typeIcon)}</span>
       <span class="ell" title="${esc(s.title)}">${esc(s.title)}</span>
-      ${s.flags.pendingNotes ? '<span class="reg-badge notes" title="есть невыполненные заметки">⚑</span>' : ''}
-      ${s.flags.defects ? '<span class="reg-badge warn" title="расхождение ТП и фото">⚠</span>' : ''}
-      ${s.flags.mlUnverified ? '<span class="reg-badge ml" title="импорт ML без проверки">ML</span>' : ''}
-      ${s.flags.specials ? '<span class="reg-badge spec" title="отмечены особенности">✦</span>' : ''}
+      ${flagBadgesHTML(s.flags)}
     </span>`;
     case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 9}"><i></i><span class="ell" title="${esc(s.status)}">${esc(s.status)}</span></span>`;
     case 'area': return s.metrics.area ? fmtNum(s.metrics.area) : '—';
@@ -124,7 +121,7 @@ function plain(col, s) {
     case 'landArea': return s.metrics.landArea ? String(s.metrics.landArea).replace('.', ',') : '';
     case 'owners': return (s.owners || []).join(', ');
     case 'users': return (s.users || []).join(', ');
-    case 'tags': return TAGS.filter(([k]) => (s.flags || {})[k]).map((t) => t[3]).join(', ');
+    case 'tags': return activeBadges(s.flags).map((f) => f.title).join(', ');
     case 'area': return s.metrics.area ? String(s.metrics.area).replace('.', ',') : '';
     case 'oiCount': return String(s.metrics.oiCount);
     case 'photos': return String(s.metrics.photos);

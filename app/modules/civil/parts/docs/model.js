@@ -5,7 +5,7 @@
 // сервере понадобится настоящая загрузка в хранилище, постоянный адрес файла,
 // проверка типа и размера на стороне сервера и права доступа к нему.
 // scope: 'oc' | 'mech-new' | <oi.id>
-import { getPdfPageCount, getPdfPageAspects } from '../viewer/pdf.js';
+import { getPdfPageCount, getPdfPageAspects, releasePdf } from '../viewer/pdf.js';
 
 // Страницы документа. У реального PDF — по странице на каждую страницу файла:
 // именно из этого списка живут лента миниатюр, счётчик «/ N» и навигация, поэтому
@@ -95,4 +95,18 @@ export function docListFor(ctx, scope) {
 
 export function scopeLabel(sc) {
   return sc === 'oc' ? 'ОЦ' : (sc === 'mech-new' ? 'Новый' : 'ОИ');
+}
+
+// Освободить файл: снять blob-ссылку и выбросить разобранный PDF. Вызывать
+// ТОЛЬКО когда файл больше не понадобится — после этого d.file.dataUrl уже не
+// откроется. Документ, ушедший в архив, файл сохраняет: его ещё смотрят.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь файл живёт blob-ссылкой в памяти вкладки, и
+// «освободить» значит забыть. На сервере это удаление объекта из хранилища —
+// решать, удалять ли физически или только помечать, тем, кто будет делать
+// серверную часть.
+export function releaseAttachedFile(file) {
+  if (!file || !file.dataUrl) return;
+  if (file.kind === 'pdf') releasePdf(file.dataUrl);
+  URL.revokeObjectURL(file.dataUrl);
 }

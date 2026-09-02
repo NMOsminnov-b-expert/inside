@@ -22,8 +22,18 @@ const CMP = {
   status: (a, b) => (STATUS_ORDER.get(a.status) ?? 99) - (STATUS_ORDER.get(b.status) ?? 99),
 };
 
+// Сортировка по флажку: сначала записи, где он поднят. Компаратор строится на
+// лету — ровно как в data/query.js каждого модуля. Держать здесь отдельный
+// список ключей нельзя: разъедется с модульным, что уже однажды и случилось.
+const flagCmp = (flag) => (a, b) => ((b.flags || {})[flag] ? 1 : 0) - ((a.flags || {})[flag] ? 1 : 0);
+const FLAG_SORT_KEYS = ['specials', 'pendingNotes', 'mlUnverified', 'defects', 'ml'];
+
 function comparator(sort) {
-  const base = CMP[sort && sort.key] || CMP.updatedAt;
+  const key = sort && sort.key;
+  // pendingNotes сортируется по количеству, а не по факту — у него свой
+  // компаратор в CMP, и он точнее флажкового.
+  const flag = FLAG_SORT_KEYS.includes(key) && key !== 'pendingNotes';
+  const base = (flag ? flagCmp(key) : CMP[key]) || CMP.updatedAt;
   return (sort && sort.dir === 'asc') ? (a, b) => -base(a, b) : base;
 }
 

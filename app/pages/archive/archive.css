@@ -1,0 +1,80 @@
+/* Архив документов. Оформление намеренно повторяет реестр ОЦ: это тот же жанр
+   экрана — поиск по списку с фильтрами, — и человеку не нужно заново
+   разбираться, где что. */
+body[data-page="archive"] .arc{padding:14px 16px 24px;height:100%;overflow:auto}
+
+body[data-page="archive"] .arc-head{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;
+  margin-bottom:14px}
+body[data-page="archive"] .arc-head h2{font-size:17px;font-weight:700;color:var(--blue-700)}
+body[data-page="archive"] .arc-note{font-size:12px;color:var(--muted);margin-top:4px}
+body[data-page="archive"] .arc-note b{color:var(--ink)}
+
+body[data-page="archive"] .arc-search{margin-left:auto;display:flex;gap:8px;align-items:center;
+  flex:1 1 320px;max-width:640px}
+body[data-page="archive"] .arc-search .input{flex:1 1 auto;min-width:0}
+
+/* Фильтры — чипами, а не выпадающими списками: значений немного, и видеть их
+   все сразу полезнее, чем экономить место. Рядом с каждым — сколько документов
+   за ним стоит. */
+body[data-page="archive"] .arc-facets{display:flex;flex-wrap:wrap;gap:10px 22px;
+  padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin-bottom:12px}
+body[data-page="archive"] .arc-facet{min-width:0}
+body[data-page="archive"] .arc-facet-head{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--muted);font-weight:700;margin-bottom:6px}
+body[data-page="archive"] .arc-chips{display:flex;flex-wrap:wrap;gap:6px}
+body[data-page="archive"] .arc-chip{display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;
+  font-size:12px;color:var(--ink);transition:background .12s,border-color .12s}
+body[data-page="archive"] .arc-chip:hover{border-color:var(--blue-500)}
+body[data-page="archive"] .arc-chip span{font-size:10.5px;font-weight:700;color:var(--muted)}
+body[data-page="archive"] .arc-chip.on{background:var(--blue-100);border-color:var(--blue-300);
+  color:var(--blue-700);font-weight:600}
+body[data-page="archive"] .arc-chip.on span{color:var(--blue-700)}
+body[data-page="archive"] .arc-dates{display:flex;align-items:center;gap:8px}
+body[data-page="archive"] .arc-dates .input{width:150px}
+
+body[data-page="archive"] .arc-body{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+body[data-page="archive"] .arc-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+body[data-page="archive"] .arc-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;
+  color:#3f4c63;text-align:left;padding:9px 12px;border-bottom:1.5px solid var(--line);
+  font-weight:700;background:#eef4fb}
+body[data-page="archive"] .arc-tbl td{padding:9px 12px;border-bottom:1px solid var(--line-soft);
+  font-size:13px;vertical-align:middle;overflow:hidden}
+body[data-page="archive"] .arc-tbl tbody tr:last-child td{border-bottom:none}
+body[data-page="archive"] .arc-tbl tbody tr:hover td{background:var(--blue-50)}
+
+body[data-page="archive"] .arc-doc{display:flex;flex-direction:column;gap:2px;min-width:0}
+body[data-page="archive"] .arc-doc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="archive"] .arc-type{font-size:11px;color:var(--muted)}
+
+body[data-page="archive"] .arc-from{display:flex;flex-direction:column;gap:2px;min-width:0}
+body[data-page="archive"] .arc-from .mono{font-size:11.5px;color:var(--blue-700)}
+body[data-page="archive"] .arc-scope{font-size:11px;color:var(--muted)}
+
+body[data-page="archive"] .ell{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Действия — три кнопки; столбцу отведена своя доля ширины, поэтому они
+   не выдавливают данные и не уезжают за край таблицы. */
+body[data-page="archive"] .arc-act{white-space:nowrap;text-align:right;overflow:visible}
+body[data-page="archive"] .arc-act .btn{margin-left:6px;text-decoration:none}
+
+body[data-page="archive"] .arc-count{padding:8px 12px;font-size:12px;color:var(--muted);
+  border-top:1px solid var(--line-soft)}
+body[data-page="archive"] .arc-count b{color:var(--ink)}
+
+body[data-page="archive"] .arc-empty{padding:34px 20px;text-align:center;color:var(--muted);
+  font-size:13px;line-height:1.7}
+
+/* Узкое окно: действия переезжают под данные, а не выдавливают таблицу. */
+@media (max-width: 1100px) {
+  body[data-page="archive"] .arc-tbl,
+  body[data-page="archive"] .arc-tbl tbody,
+  body[data-page="archive"] .arc-tbl tr,
+  body[data-page="archive"] .arc-tbl td{display:block;width:auto}
+  body[data-page="archive"] .arc-tbl thead{display:none}
+  body[data-page="archive"] .arc-tbl tr{border-bottom:1px solid var(--line);padding:6px 0}
+  body[data-page="archive"] .arc-tbl td{border-bottom:none;padding:4px 12px}
+  body[data-page="archive"] .arc-act{text-align:left;padding-top:8px}
+  body[data-page="archive"] .arc-act .btn{margin:0 6px 0 0}
+}

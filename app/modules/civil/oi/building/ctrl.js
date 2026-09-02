@@ -1,3 +1,4 @@
+import { bindEniField } from '../../../../kernel/eniField.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
@@ -155,18 +156,11 @@ export function bind(ctx, oi) {
     ctx.render();
   };
 
-  const cm = s.$('[data-comment]');
-  if (cm) cm.onchange = () => { oi.comment = cm.value; };
-
-  const ft = s.$('[data-features]');
-  if (ft) ft.onchange = () => { oi.features = ft.value; };
-
   const rg = s.$('[data-rights]');
   if (rg) rg.onchange = () => { oi.rights = rg.value; };
 
   const oic = s.$('[data-oi-category]');
   if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
-
 
   // --- Площади и стоимость аренды (строки заводит пользователь) -----------
   oi.rentAreas = oi.rentAreas || [];
@@ -214,21 +208,16 @@ export function bind(ctx, oi) {
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  const en = s.$('[data-head-eni]') || s.$('[data-land-eni]');
-  if (en) en.onchange = () => {
-    oi.eni = parseEni(en.value) || oi.eni;
+  // Код ЕНИ: маска и проверка длины в самом поле (kernel/eniField.js). В данные
+  // попадает только корректный код — неверный остаётся в поле подсвеченным,
+  // чтобы его исправили, а не потеряли.
+  bindEniField(s.$('[data-head-eni]') || s.$('[data-land-eni]'), (digits) => {
+    oi.eni = digits;
     ctx.updatePlate();
-  };
-
-  s.$$('[data-flag]').forEach((c) => c.onchange = () => {
-    oi.flags = oi.flags || {};
-    oi.flags[c.dataset.flag] = c.checked;
-    ctx.render();
   });
 
   // --- Конструктивный состав ----------------------------------------------
   bindStruct(ctx, oi);
-
 
   // --- Износ конструктивных элементов --------------------------------------
   s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
@@ -326,13 +315,6 @@ export function bind(ctx, oi) {
     openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
-
-  s.$$('[data-open-ocdocs]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const tabs = VS.openTabs['oc'] || [];
-    const docs = ctx.rec.docs || [];
-    openDocViewer(ctx, 'oc', tabs.length ? tabs[tabs.length - 1] : (docs[0] ? docs[0].id : null));
-  });
 
   // --- Литера -------------------------------------------------------------
   const elBtn = s.$('[data-edit-letter]');

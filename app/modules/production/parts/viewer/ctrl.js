@@ -1,3 +1,4 @@
+import { archiveDoc } from '../../../../kernel/archive.js';
 import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
@@ -178,6 +179,39 @@ export function bindViewer(ctx) {
     ctx.ui.viewer = null;
     ctx.ui.viewerClosed = true;
     ctx.render();
+  };
+
+  // Убрать документ в архив (kernel/archive.js). Не удаление: документ уходит
+  // в общий архив, где его можно найти и вернуть — решение пользователя
+  // 2026-09-02. Вкладка документа закрывается, файл остаётся доступным.
+  const va = s.$('[data-varchive]');
+  if (va) va.onclick = async () => {
+    const docId = va.dataset.varchive;
+    const vd = ctx.ui.viewerDoc;
+    if (!vd) return;
+
+    const ok = await ctx.host.confirm({
+      title: 'Убрать документ в архив?',
+      text: 'Документ исчезнет из карточки, но останется в архиве — его можно будет найти и вернуть.',
+      okLabel: 'В архив',
+    });
+    if (!ok) return;
+
+    const oi = vd.scope === 'oc' ? null : (ctx.rec.oi || []).find((o) => o.id === vd.scope);
+    const entry = archiveDoc({
+      rec: ctx.rec, oi, docId,
+      typeId: 'production', typeLabel: 'Производственное здание', today: ctx.today,
+    });
+    if (!entry) return;
+
+    // Вкладка архивированного документа больше не имеет смысла.
+    const tabs = VS.openTabs[vd.scope] || [];
+    VS.openTabs[vd.scope] = tabs.filter((x) => x !== docId);
+    const rest = VS.openTabs[vd.scope];
+    ctx.ui.viewerDoc = rest.length ? { scope: vd.scope, id: rest[rest.length - 1] } : null;
+
+    ctx.render();
+    ctx.toast('Документ в архиве: ' + entry.name, 'ok');
   };
 
   const vo = s.$('[data-vopen]');

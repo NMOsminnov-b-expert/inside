@@ -1,3 +1,4 @@
+import { bindEniField } from '../../../../kernel/eniField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
@@ -23,11 +24,13 @@ export function bind(ctx, oi) {
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  const en = s.$('[data-head-eni]') || s.$('[data-land-eni]');
-  if (en) en.onchange = () => {
-    oi.eni = parseEni(en.value) || oi.eni;
+  // Код ЕНИ: маска и проверка длины в самом поле (kernel/eniField.js). В данные
+  // попадает только корректный код — неверный остаётся в поле подсвеченным,
+  // чтобы его исправили, а не потеряли.
+  bindEniField(s.$('[data-head-eni]') || s.$('[data-land-eni]'), (digits) => {
+    oi.eni = digits;
     ctx.updatePlate();
-  };
+  });
 
   const rg = s.$('[data-rights]');
   if (rg) rg.onchange = () => { oi.rights = rg.value; };

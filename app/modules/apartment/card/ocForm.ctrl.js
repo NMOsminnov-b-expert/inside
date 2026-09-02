@@ -1,3 +1,4 @@
+import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { parseEni } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
@@ -13,8 +14,19 @@ export function bindOcForm(ctx) {
   const complex = s.$('#fComplex');
   if (complex) complex.onchange = () => { rec.complex = complex.checked; };
 
+  // Код ЕНИ: маска и проверка длины прямо в поле, чтобы неверный код было
+  // видно до сохранения, а не после выгрузки (kernel/eniField.js).
+  bindEniField(s.$('#fEni'));
+
   const save = s.$('#btnSaveOc');
   if (save) save.onclick = () => {
+    const bad = firstBadEni(s);
+    if (bad) {
+      bad.focus();
+      ctx.toast('Проверьте код ЕНИ — в нём должно быть 18 цифр', 'warn');
+      return;
+    }
+
     rec.purposeTP = s.$('#fPurpose').value;
     rec.status = s.$('#fStatus').value;
     rec.eni = parseEni(s.$('#fEni').value);

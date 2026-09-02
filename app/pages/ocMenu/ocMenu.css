@@ -147,6 +147,10 @@ body[data-page="oc-menu"] .reg-badge{font-size:10.5px;padding:1px 6px;border-rad
 body[data-page="oc-menu"] .reg-badge.notes{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100)}
 body[data-page="oc-menu"] .reg-badge.warn{background:#fdf3f3;color:var(--danger);border:1px solid #f3c1c1}
 body[data-page="oc-menu"] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+/* Импорт ML, ещё не сверенный человеком: тот же значок, но с обводкой и
+   заливкой поплотнее — раньше на такую запись вешали ДВА значка «ML» подряд
+   (см. kernel/flagBadges.js). */
+body[data-page="oc-menu"] .reg-badge.ml.ml-raw{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-600);border-style:dashed}
 body[data-page="oc-menu"] .reg-status{font-size:11px;color:#33445c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body[data-page="oc-menu"] .reg-empty-row{padding:20px}
 
@@ -184,4 +188,4 @@ body[data-page="oc-menu"] .reg-status.st-2 i{background:#1668c9}
 body[data-page="oc-menu"] .reg-status.st-3 i{background:#0e8172}
 body[data-page="oc-menu"] .reg-status.st-4 i{background:#54718f}
 /* Значок особенностей — в столбце тегов и в строке адреса (Л1.10, Л4.5). */
-body[data-page="oc-menu"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+body[data-page="oc-menu"] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}

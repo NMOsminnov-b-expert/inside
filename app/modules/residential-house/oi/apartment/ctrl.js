@@ -1,3 +1,4 @@
+import { bindEniField } from '../../../../kernel/eniField.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
@@ -14,7 +15,6 @@ import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
   bindYearField(ctx, oi);
-
 
   // Планировки правятся прямо в строке. Слушатели прямые: карточка
   // перепривязывается на каждой отрисовке, делегированные накапливались бы.
@@ -136,10 +136,7 @@ export function bind(ctx, oi) {
 
   bindFloors();
 
-
   // --- Общие параметры ----------------------------------------------------
-  const cm = s.$('[data-comment]');
-  if (cm) cm.onchange = () => { oi.comment = cm.value; };
 
   s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
 
@@ -148,16 +145,12 @@ export function bind(ctx, oi) {
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
-  const en = s.$('[data-head-eni]') || s.$('[data-land-eni]');
-  if (en) en.onchange = () => {
-    oi.eni = parseEni(en.value) || oi.eni;
+  // Код ЕНИ: маска и проверка длины в самом поле (kernel/eniField.js). В данные
+  // попадает только корректный код — неверный остаётся в поле подсвеченным,
+  // чтобы его исправили, а не потеряли.
+  bindEniField(s.$('[data-head-eni]') || s.$('[data-land-eni]'), (digits) => {
+    oi.eni = digits;
     ctx.updatePlate();
-  };
-
-  s.$$('[data-flag]').forEach((c) => c.onchange = () => {
-    oi.flags = oi.flags || {};
-    oi.flags[c.dataset.flag] = c.checked;
-    ctx.render();
   });
 
   // --- Поля квартиры ------------------------------------------------------
@@ -231,7 +224,6 @@ export function bind(ctx, oi) {
 
   // --- Конструктивный состав ----------------------------------------------
   bindStruct(ctx, oi);
-
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
@@ -308,13 +300,6 @@ export function bind(ctx, oi) {
     openDocViewer(ctx, oi.id, doc.id);
     ctx.toast('Документ добавлен', 'ok');
   };
-
-  s.$$('[data-open-ocdocs]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const tabs = VS.openTabs['oc'] || [];
-    const docs = ctx.rec.docs || [];
-    openDocViewer(ctx, 'oc', tabs.length ? tabs[tabs.length - 1] : (docs[0] ? docs[0].id : null));
-  });
 
   // --- Планировки -----------------------------------------------------------
   const ap = s.$('[data-add-plan]');

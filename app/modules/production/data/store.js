@@ -32,6 +32,26 @@ export const ui = {
   mechDocs: [],
   mechRows: [],
   mechDraft: { name: '', year: '', serial: '' },
+  // Ширина просмотрщика — своя для каждого режима (parts/viewer/shell.js).
+  splitVW: {},
+  // Сравнение: соотношение колонок и свёрнутая половина (Л3.9).
+  cmpSplit: 50,
+  cmpHidden: null,
+  railCollapsed: false,
+  viewerSidebar: false,   // выехал сайдбар выбора документа/фото
+  // Фильтры вкладки «Логи»: пустой массив = «без ограничения, показаны все».
+  auditCatOpen: false,
+  auditCatFilter: [],
+  auditPersonOpen: false,
+  auditPersonFilter: [],
+  auditActionOpen: false,
+  auditActionFilter: [],
+  auditObjectOpen: false,
+  auditObjectFilter: [],
+  auditDateFrom: '',
+  auditDateTo: '',
+  auditSearchText: '',
+  pageSel: [],   // лента миниатюр просмотрщика свёрнута
 };
 
 export function resetViewer() {

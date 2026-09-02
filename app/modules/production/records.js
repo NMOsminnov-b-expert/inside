@@ -192,6 +192,13 @@ export function getSummary(id) {
   return allSummaries().find((s) => s.id === id) || null;
 }
 
+// Записи, живущие в памяти модуля: сид плюс материализованные из массовой
+// генерации. Нужны архиву документов (kernel/archive.js) — он обходит модули
+// через реестр и собирает rec.archive.
+export function allRecords() {
+  return records;
+}
+
 export function totalCount() {
   return records.length + bulkCount();
 }

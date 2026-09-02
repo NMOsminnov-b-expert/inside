@@ -7,6 +7,7 @@ import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
+import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -61,6 +62,33 @@ function makeHost(route, scope, typeId) {
 }
 
 async function onRoute(route) {
+  if (route.name === 'archive') {
+    // Доступ к архиву — тот же принцип, что у лога действий: администратор и
+    // «любая роль» видят всё, сотрудник — свои учреждения. Кому показывать
+    // нечего, тот не должен попасть на экран и по прямой ссылке.
+    unmount();
+    resetShellSlots();
+    setActiveNav('archive');
+
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/archive/archive.css');
+
+    if (!canViewArchive()) {
+      document.body.dataset.page = 'archive';
+      scope.setHTML(`<div class="card card-pad">Архив доступен администратору и сотрудникам,
+        за которыми закреплены учреждения. Выберите роль или учреждения в реестре объектов оценки.
+        <button class="btn btn-ghost btn-sm" data-back-menu style="margin-left:10px">К объектам оценки</button></div>`);
+      scope.on('click', '[data-back-menu]', () => go(MENU_HREF));
+      current = { kind: 'archive-denied', instance: null, scope };
+      return;
+    }
+
+    const instance = mountArchive(host);
+    current = { kind: 'archive', instance, scope };
+    return;
+  }
+
   if (route.name === 'menu') {
     if (current && current.kind === 'menu') {
       current.instance.onRoute(route);

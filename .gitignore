@@ -10,3 +10,7 @@
 tools/visual-parity/out/
 tools/visual-parity/baseline/
 docs/screens/
+# Кэш байткода Python рядом со скриптами (tools/, .claude/knowledge-graph/tools/).
+# Создаётся при каждом запуске, к содержимому проекта отношения не имеет.
+__pycache__/
+*.pyc

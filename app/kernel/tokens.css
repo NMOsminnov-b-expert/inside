@@ -11,6 +11,9 @@
   --teal-700:#0b6b5d; --teal-600:#0e8172; --teal-100:#bfe3db; --teal-50:#eafaf6;
   --amber-700:#8a5a10; --amber-600:#c07c1e; --amber-100:#f3ddae; --amber-50:#fdf4e3;
   --slate-700:#2c4460; --slate-500:#54718f; --slate-50:#e6eef6;
+  /* Особенности объекта — своя ветка палитры: значок важный и не должен
+     сливаться с бирюзовым «импортом ML» (решение пользователя 2026-09-02). */
+  --violet-700:#5b2d8e; --violet-600:#7a41b8; --violet-100:#e2d4f3; --violet-50:#f6f0fd;
   --danger:#c02626; --warn:#8a6d1f;
   --radius:10px; --shadow:0 1px 2px rgba(19,41,62,.07),0 4px 14px rgba(19,41,62,.06);
 }
@@ -114,6 +117,13 @@ input,select,textarea{font:inherit;color:inherit}
    пользователя 28.08.2026), ошибка подсвечивается прямо под полем. */
 .yf{position:relative}
 .yf-input{flex:1;min-width:0}
+/* Код ЕНИ: неверная длина подсвечивается в поле, сообщение — под ним и ВНЕ
+   потока, иначе выросшее поле подняло бы соседей по строке (сетки форм
+   выравнивают поля по низу). Тот же приём, что у ошибки года. */
+.eni-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
+.eni-err{position:absolute;left:0;top:100%;font-size:10px;color:var(--danger);
+  font-weight:600;line-height:1.25;pointer-events:none}
+.field:has(> .eni-err:not(:empty)){position:relative}
 .yf-input.yf-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
 /* Сообщение об ошибке выведено из потока: место под него резервировать нельзя —
    поле года становится выше соседних и вылезает из общей сетки блока. */
@@ -187,3 +197,14 @@ input,select,textarea{font:inherit;color:inherit}
   background:#0e2f4f;color:#eaf3f8;font-size:12px;line-height:1.4;white-space:pre-wrap;
   box-shadow:0 10px 26px rgba(15,23,42,.28);pointer-events:none}
 .ov-tip[hidden]{display:none}
+
+/* Подсказка при перетаскивании литеры: что случится, если отпустить сейчас.
+   Появляется только на время перетаскивания (класс .on) и не перехватывает
+   события мыши — иначе она сама стала бы целью броска. */
+.oi-drag-hint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);
+  background:var(--blue-700);color:#fff;border-radius:999px;padding:9px 18px;font-size:12.5px;
+  font-weight:600;box-shadow:0 8px 26px rgba(15,23,42,.28);pointer-events:none;opacity:0;
+  transition:opacity .12s,transform .12s;z-index:200;max-width:min(560px,92vw);text-align:center}
+.oi-drag-hint.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Открепление — действие другого рода, чем привязка: цвет предупреждающий. */
+.oi-drag-hint.unlink{background:var(--amber-700)}

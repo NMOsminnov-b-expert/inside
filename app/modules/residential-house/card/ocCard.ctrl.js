@@ -220,25 +220,66 @@ export function bindOcCard(ctx) {
       ctx.ui.dragOiId = null;
       row.classList.remove('dragging');
       s.$$('[data-oi-drop]').forEach((n) => n.classList.remove('drop-target'));
+      hideHint();
     });
   });
 
-  // Куда попал бросок. Узлы разделены промежутками, и попасть точно в узел
-  // тяжело — поэтому промежуток между узлами считаем принадлежащим ближайшему
-  // узлу сверху, а откреплением считается только область НИЖЕ всех узлов.
-  // Так обе зоны большие: прикрепление — почти всё дерево, открепление —
-  // свободное место под ним.
+  // Куда попал бросок. Цель — только тот узел, НАД КОТОРЫМ курсор находится
+  // на самом деле; всё остальное считается откреплением. Раньше промежутки
+  // между узлами отходили ближайшему участку сверху, и открепить литеру можно
+  // было, лишь попав в полосу под последним узлом — она бывает высотой в
+  // десяток пикселей. Теперь «мимо участка» значит «открепить», где бы это
+  // «мимо» ни случилось.
   const nodeAt = (y) => {
     const list = s.$$('[data-oi-drop]');
     let hit = null;
     list.forEach((n) => {
       const r = n.getBoundingClientRect();
-      if (y >= r.top - 6) hit = n;          // промежуток отходит верхнему узлу
-      if (y >= r.top - 6 && y <= r.bottom + 6) hit = n;
+      // Допуск в 2px — на границу узла: попасть точно в пиксель края нельзя,
+      // а вот промахнуться мимо участка на пару пикселей легко.
+      if (y >= r.top - 2 && y <= r.bottom + 2) hit = n;
     });
-    const last = list[list.length - 1];
-    if (last && y > last.getBoundingClientRect().bottom + 6) return null;   // пустота внизу
     return hit;
+  };
+
+  // Подсказка на время перетаскивания: что случится, если отпустить сейчас.
+  // Без неё правило «бросай куда угодно — открепится» невидимо: человек не
+  // знает, попал он в участок или уже мимо.
+  const hintBox = () => {
+    let el = document.querySelector('[data-oi-drag-hint]');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'oi-drag-hint';
+      el.setAttribute('data-oi-drag-hint', '');
+      document.body.appendChild(el);
+    }
+    return el;
+  };
+
+  const showHint = (node) => {
+    const oi = ctx.rec.oi.find((o) => o.id === ctx.ui.dragOiId);
+    if (!oi) return;
+    const el = hintBox();
+
+    if (node) {
+      const id = node.dataset.oiDrop;
+      const land = id ? ctx.rec.oi.find((o) => o.id === id) : null;
+      el.textContent = land
+        ? `Отпустите — литера привяжется к участку «${land.name}»`
+        : 'Отпустите — литера останется без участка';
+      el.classList.toggle('unlink', !land);
+    } else {
+      el.textContent = oi.landId
+        ? 'Отпустите здесь — литера открепится от участка'
+        : 'Литера и так без участка — перетащите её на участок, чтобы привязать';
+      el.classList.toggle('unlink', !!oi.landId);
+    }
+    el.classList.add('on');
+  };
+
+  const hideHint = () => {
+    const el = document.querySelector('[data-oi-drag-hint]');
+    if (el) el.classList.remove('on');
   };
 
   const applyDrop = async (targetId, isUnlink) => {
@@ -263,6 +304,10 @@ export function bindOcCard(ctx) {
   };
 
   ctx.ui.applyOiDrop = applyDrop;
+  // Документные слушатели вешаются один раз, а контроллер перепривязывается на
+  // каждой отрисовке — поэтому подсказка передаётся через ui, как и applyOiDrop.
+  ctx.ui.showOiDragHint = showHint;
+  ctx.ui.hideOiDragHint = hideHint;
 
   const tree = s.$('[data-oi-cols-box]');
   if (tree) {
@@ -272,6 +317,7 @@ export function bindOcCard(ctx) {
       const n = nodeAt(e.clientY);
       s.$$('[data-oi-drop]').forEach((x) => x.classList.toggle('drop-target', x === n));
       tree.classList.toggle('drop-unlink', !n);
+      showHint(n);
     });
     tree.addEventListener('dragleave', (e) => {
       if (!tree.contains(e.relatedTarget)) {
@@ -284,6 +330,7 @@ export function bindOcCard(ctx) {
       const n = nodeAt(e.clientY);
       s.$$('[data-oi-drop]').forEach((x) => x.classList.remove('drop-target'));
       tree.classList.remove('drop-unlink');
+      hideHint();
       await applyDrop(n ? n.dataset.oiDrop : '', !n);
     });
   }
@@ -298,12 +345,24 @@ export function bindOcCard(ctx) {
     s.onDocument('dragover', (e) => {
       if (!ctx.ui.dragOiId || e.target.closest('[data-oi-cols-box]')) return;
       e.preventDefault();
+      // Ушли из перечня — ни один участок больше не цель.
+      s.$$('[data-oi-drop]').forEach((x) => x.classList.remove('drop-target'));
+      const box = s.$('[data-oi-cols-box]');
+      if (box) box.classList.remove('drop-unlink');
+      if (ctx.ui.showOiDragHint) ctx.ui.showOiDragHint(null);
     });
 
     s.onDocument('drop', async (e) => {
       if (!ctx.ui.dragOiId || e.target.closest('[data-oi-cols-box]')) return;
       e.preventDefault();
+      if (ctx.ui.hideOiDragHint) ctx.ui.hideOiDragHint();
       await ctx.ui.applyOiDrop('', true);
+    });
+
+    // Перетаскивание может закончиться и без drop (нажали Esc, ушли за окно) —
+    // подсказку в этом случае тоже надо убрать.
+    s.onDocument('dragend', () => {
+      if (ctx.ui.hideOiDragHint) ctx.ui.hideOiDragHint();
     });
   }
 

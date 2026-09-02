@@ -17,24 +17,26 @@ function headOC(rec) {
     <div class="head-meta">
       <span class="pill pill-cat">${esc(rec.category)}</span>
 
-      <div class="hm"><label>Тип ОЦ</label><b>${esc(rec.type)}</b></div>
-      <div class="hm"><label>Назначение по ТП</label><b>${esc(rec.purposeTP)}</b></div>
-      <div class="hm"><label>Код ЕНИ</label><b>${esc(fmtEni(rec.eni))}</b></div>
-      <div class="hm"><label>Адрес</label><b>${esc(rec.address)}</b></div>
+      <div class="hm"><span class="lbl">Тип ОЦ</span><b>${esc(rec.type)}</b></div>
+      <div class="hm"><span class="lbl">Назначение по ТП</span><b>${esc(rec.purposeTP)}</b></div>
+      <div class="hm"><span class="lbl">Код ЕНИ</span><b>${esc(fmtEni(rec.eni))}</b></div>
+      <div class="hm"><span class="lbl">Адрес</span><b>${esc(rec.address)}</b></div>
 
       ${flagBadgesHTML(recFlags(rec))}
 
-      <span class="pill pill-status" style="margin-left:auto"><span class="dot"></span>${esc(rec.status)}</span>
+      <span class="head-actions">
+        <span class="pill pill-status"><span class="dot"></span>${esc(rec.status)}</span>
 
-      <div class="dd" id="ddAddOi">
-        <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ ▾</button>
-        <div class="dd-menu">
-          ${addOiMenuHTML()}
+        <div class="dd" id="ddAddOi">
+          <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ ▾</button>
+          <div class="dd-menu">
+            ${addOiMenuHTML()}
+          </div>
         </div>
-      </div>
 
-      <button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
-      <button class="btn btn-danger" id="btnDelOc">Удалить</button>
+        <button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
+        <button class="btn btn-danger" id="btnDelOc">Удалить</button>
+      </span>
     </div>
   </div>`;
 }
@@ -48,15 +50,15 @@ function partiesOC(rec) {
            плашек с кнопкой), а .grid по умолчанию равняет по низу — из-за этого
            подписи «Учреждение» и «Подвед» опускались ниже соседних. -->
       <div class="grid g-4 g-top">
-        <div class="field"><label>Учреждение</label><b>${esc(rec.institution)}</b></div>
-        <div class="field"><label>Подвед</label><b>${esc(rec.podved)}</b></div>
+        <div class="field"><span class="lbl">Учреждение</span><b>${esc(rec.institution)}</b></div>
+        <div class="field"><span class="lbl">Подвед</span><b>${esc(rec.podved)}</b></div>
 
-        <div class="field"><label>Собственники</label>
+        <div class="field"><span class="lbl">Собственники</span>
           <div class="inline-row">${rec.owners.map((o, i) => `<span class="ms-tag">${esc(o)}<span data-owner-rm="${i}" title="Убрать">×</span></span>`).join('') || '<span class="muted">не указаны</span>'}
           <button class="btn btn-ghost btn-sm" data-add-party="owner">+ Добавить</button></div>
         </div>
 
-        <div class="field"><label>Пользователь</label>
+        <div class="field"><span class="lbl">Пользователь</span>
           <div class="inline-row">${rec.users.map((o, i) => `<span class="ms-tag">${esc(o)}<span data-user-rm="${i}" title="Убрать">×</span></span>`).join('') || '<span class="muted">не указан</span>'}
           <button class="btn btn-ghost btn-sm" data-add-party="user">+ Добавить</button></div>
         </div>

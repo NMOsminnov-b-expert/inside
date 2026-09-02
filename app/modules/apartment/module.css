@@ -47,9 +47,15 @@ body[data-module="apartment"] .clickable{cursor:pointer}
 body[data-module="apartment"] .clickable:hover td{background:var(--blue-50)}
 body[data-module="apartment"] .rowchev-open{color:#7d93a6;font-size:12px}
 body[data-module="apartment"] .tbl td.ell{white-space:nowrap;overflow:hidden;max-width:200px}
-body[data-module="apartment"] .head-meta{display:flex;align-items:center;gap:14px;flex-wrap:nowrap;min-width:0;overflow:hidden}
-body[data-module="apartment"] .hm{min-width:0;flex-shrink:1}
-body[data-module="apartment"] .hm label{display:block;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#61799a;font-weight:700}
+/* Шапка ОЦ переносится, а не ужимается: при nowrap+overflow:hidden узкое окно
+   съедало данные (тип, адрес, код ЕНИ превращались в «Г…»), а кнопки оставались
+   в полную ширину. Минимальная ширина поля — порог, ниже которого начинается
+   перенос строки. */
+body[data-module="apartment"] .head-meta{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;min-width:0}
+/* Действия держатся вместе и не разрываются между строками. */
+body[data-module="apartment"] .head-actions{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+body[data-module="apartment"] .hm{min-width:120px;flex:0 1 auto}
+body[data-module="apartment"] .hm label,body[data-module="apartment"] .hm .lbl{display:block;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#61799a;font-weight:700}
 body[data-module="apartment"] .hm b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:280px;color:var(--blue-700)}
 body[data-module="apartment"] .tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--line);margin:0 0 12px;position:sticky;top:0;z-index:8;background:var(--bg)}
 body[data-module="apartment"] .tab{padding:8px 14px;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;font-weight:600;transition:color .12s}
@@ -75,8 +81,11 @@ body[data-module="apartment"] .grid.g-top{align-items:start}
    запаса по вертикали она легла бы на метку следующей строки. */
 body[data-module="apartment"] .grid.g-roomy{row-gap:22px}
 body[data-module="apartment"] .field{display:flex;flex-direction:column;gap:4px;min-width:0}
-body[data-module="apartment"] .field>label{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
+body[data-module="apartment"] .field>label,body[data-module="apartment"] .field>.lbl{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
 body[data-module="apartment"] .req{color:var(--danger)}
+/* Точка отсчёта для сообщения о неверном ЕНИ в шапке блока «Общие параметры»:
+   поле там лежит не в .field, а в собственной обёртке. */
+body[data-module="apartment"] .head-eni{position:relative}
 /* Поле во всю ширину сетки — для длинных значений (адрес). Именно 1 / -1, а не
    span N: при сузившейся сетке span создал бы лишнюю колонку и разъехалась бы
    вся строка. */
@@ -194,7 +203,11 @@ body[data-module="apartment"] .reg-badge{font-size:10.5px;padding:1px 6px;border
 body[data-module="apartment"] .reg-badge.notes{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100)}
 body[data-module="apartment"] .reg-badge.warn{background:#fdf3f3;color:var(--danger);border:1px solid #f3c1c1}
 body[data-module="apartment"] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
-body[data-module="apartment"] .reg-badge.spec{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+/* Импорт ML, ещё не сверенный человеком: тот же значок, но с обводкой и
+   заливкой поплотнее — раньше на такую запись вешали ДВА значка «ML» подряд
+   (см. kernel/flagBadges.js). */
+body[data-module="apartment"] .reg-badge.ml.ml-raw{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-600);border-style:dashed}
+body[data-module="apartment"] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}
 /* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
 body[data-module="apartment"] .floors-note{display:block;font-size:10.5px;margin-top:3px}
 /* Поэтажная развёртка шире доступной ширины (открыт просмотрщик, узкий экран)
@@ -560,7 +573,10 @@ body[data-module="apartment"] .ctx-plate-eni b{font-size:12.5px;color:var(--blue
 
 /* Зона открепления — свободное место под узлами дерева. Подсвечиваем так же,
    как узел-цель, иначе непонятно, что бросок сюда снимет привязку. */
-body[data-module="apartment"] .oi-tree.drop-unlink{box-shadow:inset 0 -3px 0 var(--blue-500)}
+/* Курсор мимо участков: перечень подсвечивается целиком — отпускание здесь
+   открепит литеру. Раньше подчёркивалась только нижняя кромка, потому что
+   откреплением считалась узкая полоса под последним узлом. */
+body[data-module="apartment"] .oi-tree.drop-unlink{box-shadow:inset 0 0 0 2px var(--amber-600)}
 
 /* Сайдбар просмотрщика: документы сгруппированы по типу (Л3.5). Заголовок
    группы липкий — при длинном списке видно, к какому типу относится строка. */
@@ -755,7 +771,7 @@ body[data-module="apartment"] .oi-letter td:first-child{font-size:13.5px;font-we
 body[data-module="apartment"] .card-head h3{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
 body[data-module="apartment"] .card-head .hint{font-size:11px;font-weight:400}
 body[data-module="apartment"] .sec-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--blue-700)}
-body[data-module="apartment"] .field>label{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
+body[data-module="apartment"] .field>label,body[data-module="apartment"] .field>.lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
 body[data-module="apartment"] .field>b{font-size:13.5px;font-weight:600;color:#22314a}
 body[data-module="apartment"] .tbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#7d93a6}
 body[data-module="apartment"] .tbl td{font-size:13px;font-weight:500}

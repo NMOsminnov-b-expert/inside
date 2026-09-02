@@ -31,11 +31,39 @@ function loadLib() {
 }
 
 // Документ парсится один раз на файл, а не на каждую перерисовку интерфейса.
+// Кэш ограничен: на каждый разобранный документ PDF.js держит рабочий поток и
+// его буферы, и без предела память вкладки росла бы весь рабочий день. Больше
+// нескольких документов одновременно всё равно не смотрят, а вытесненный
+// разберётся заново при следующем открытии.
+const DOC_CACHE_LIMIT = 6;
 const docCache = new Map();   // blobUrl -> Promise<PDFDocumentProxy>
 
+function touch(blobUrl) {
+  // Map помнит порядок вставки: перекладываем в конец, чтобы вытеснялся тот,
+  // к которому дольше всех не обращались.
+  const v = docCache.get(blobUrl);
+  docCache.delete(blobUrl);
+  docCache.set(blobUrl, v);
+}
+
+// Освободить разобранный документ. Вызывается при вытеснении из кэша и при
+// окончательном удалении файла (parts/docs/model.js).
+export function releasePdf(blobUrl) {
+  const entry = docCache.get(blobUrl);
+  if (!entry) return;
+  docCache.delete(blobUrl);
+  Promise.resolve(entry).then((doc) => doc && doc.destroy && doc.destroy()).catch(() => {});
+}
+
 function loadDoc(blobUrl) {
-  if (!docCache.has(blobUrl)) {
-    docCache.set(blobUrl, loadLib().then((lib) => lib.getDocument(blobUrl).promise));
+  if (docCache.has(blobUrl)) {
+    touch(blobUrl);
+    return docCache.get(blobUrl);
+  }
+
+  docCache.set(blobUrl, loadLib().then((lib) => lib.getDocument(blobUrl).promise));
+  while (docCache.size > DOC_CACHE_LIMIT) {
+    releasePdf(docCache.keys().next().value);
   }
   return docCache.get(blobUrl);
 }
