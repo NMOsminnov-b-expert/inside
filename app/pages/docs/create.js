@@ -135,7 +135,7 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
     const files = Array.from(fileList || []);
     for (const file of files) {
       if (isFileTooLarge(file)) { host.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); continue; }
-      draft.files.push(attachedFileFrom(file));
+      draft.files.push(await attachedFileFrom(file));
       if (!draft._statusTouched) draft.status = await detectAutoStatus(file);
     }
     rerender();

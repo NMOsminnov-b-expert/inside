@@ -1,28 +1,26 @@
 // Карточка документа — открывается кликом по строке в реестре (решение
 // пользователя 2026-09-02, по присланному скриншоту): заголовок с статусом,
-// файлы слева (или пустое состояние с прикреплением), метаданные и привязка к
-// объектам оценки справа, в сворачиваемых секциях.
+// полноценный просмотрщик слева (или пустое состояние с прикреплением),
+// метаданные и привязка к объектам оценки справа, в сворачиваемых секциях.
 import { esc } from '../../kernel/dom.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal, openLinkModal } from './create.js';
+import { viewerHTML, bindViewer } from './viewer.js';
 
-function fileCardHTML(f) {
-  if (f.kind === 'image') {
-    return `<a href="${f.dataUrl}" target="_blank" rel="noopener" class="dd-file-card">
-      <img src="${f.dataUrl}" alt="${esc(f.name)}"><span class="ell">${esc(f.name)}</span></a>`;
-  }
-  if (f.kind === 'pdf') {
-    return `<a href="${f.dataUrl}" target="_blank" rel="noopener" class="dd-file-card dd-file-pdf">
-      <span class="dd-file-ico">📕</span><span class="ell">${esc(f.name)}</span></a>`;
-  }
-  return `<a href="${f.dataUrl}" download="${esc(f.name)}" class="dd-file-card">
-    <span class="dd-file-ico">📄</span><span class="ell">${esc(f.name)}</span></a>`;
-}
+// Какой файл документа сейчас открыт в просмотрщике — сбрасывается на первый
+// файл при переходе к другому документу.
+let activeFileId = null;
+let lastDocId = null;
 
 export function detailHTML(doc) {
   const files = doc.files || [];
   const links = doc.linkedObjects || [];
+
+  if (doc.id !== lastDocId) {
+    lastDocId = doc.id;
+    activeFileId = files[0] ? files[0].id : null;
+  }
 
   return `<div class="docs-detail">
     <div class="dd-head">
@@ -42,7 +40,7 @@ export function detailHTML(doc) {
 
     <div class="dd-body">
       <div class="dd-main">
-        ${files.length ? `<div class="dd-files-grid">${files.map(fileCardHTML).join('')}</div>` : `<div class="dd-empty">
+        ${files.length ? viewerHTML(doc, activeFileId) : `<div class="dd-empty">
           <div class="dd-empty-ico">📄</div>
           <b>К документу не прикреплены файлы</b>
           <span class="muted">Документ существует без вложений (legacy).</span>
@@ -54,8 +52,8 @@ export function detailHTML(doc) {
         <div class="dd-sec">
           <div class="dd-sec-head" data-dd-toggle><span class="chev">⌄</span>Файлы<span class="dd-sec-count">${files.length}</span></div>
           <div class="dd-sec-body">
-            ${files.length ? files.map((f) => `<div class="dd-file-row">
-              <a href="${f.dataUrl}" target="_blank" rel="noopener" class="ell">${esc(f.name)}</a>
+            ${files.length ? files.map((f) => `<div class="dd-file-row ${f.id === activeFileId ? 'active' : ''}">
+              <button class="dd-file-open ell" data-docs-file-open="${esc(f.id)}" title="Открыть в просмотрщике">${esc(f.name)}</button>
               <button class="dd-file-rm" data-docs-file-rm="${esc(f.id)}" title="Убрать">×</button>
             </div>`).join('') : '<div class="muted">К документу не прикреплены файлы</div>'}
             <button class="btn btn-ghost btn-sm" data-docs-attach style="margin-top:8px">+ Добавить файл</button>
@@ -123,12 +121,20 @@ export function bindDetail(scope, { doc, host, onBack, onChanged }) {
     const file = await pickFile();
     if (!file) return;
     if (isFileTooLarge(file)) { host.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
-    addFile(doc.id, attachedFileFrom(file));
+    const f = await attachedFileFrom(file);
+    addFile(doc.id, f);
+    activeFileId = f.id;
+    onChanged();
+  });
+
+  scope.$$('[data-docs-file-open]').forEach((b) => b.onclick = () => {
+    activeFileId = b.dataset.docsFileOpen;
     onChanged();
   });
 
   scope.$$('[data-docs-file-rm]').forEach((b) => b.onclick = () => {
     removeFile(doc.id, b.dataset.docsFileRm);
+    if (activeFileId === b.dataset.docsFileRm) activeFileId = null;
     onChanged();
   });
 
@@ -146,4 +152,12 @@ export function bindDetail(scope, { doc, host, onBack, onChanged }) {
     const sec = h.closest('.dd-sec');
     if (sec) sec.classList.toggle('collapsed');
   });
+
+  if ((doc.files || []).length) {
+    bindViewer(scope, {
+      doc,
+      activeFileId,
+      onFileChange: (id) => { activeFileId = id; onChanged(); },
+    });
+  }
 }

@@ -12,6 +12,7 @@ import { MENU_HREF, DOCS_HREF } from '../../kernel/router.js';
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import {
   colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
+  bindColumnReorder, orderedColumns, movableKeys, normalizeOrder,
 } from '../../kernel/columns.js';
 import { DOC_TYPES, DOC_STATUSES, queryDocuments, documentStats, statusTone, getDocument } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
@@ -19,9 +20,9 @@ import { detailHTML, bindDetail } from './detail.js';
 
 const state = { q: '', type: '', status: '', page: 1, pageSize: 25 };
 
-// Перестановки столбцов здесь нет намеренно — как и в docs-таблицах карточек
-// ОЦ (modules/*/parts/docs/table.js): состав фиксирован, меняется только
-// ширина перегородками (kernel/columns.js).
+// Столбцы можно и тянуть за перегородку (ширина), и перетаскивать за шапку
+// (порядок) — тот же механизм, что в реестре ОЦ и перечне ОИ (kernel/columns.js).
+// Закреплён только «№»: он не двигается и не участвует в перестановке.
 const DOCS_COLUMNS = [
   { key: 'idx', label: '№', width: 46, minWidth: 40, fixed: true },
   { key: 'type', label: 'Тип', width: 150, minWidth: 100 },
@@ -31,20 +32,29 @@ const DOCS_COLUMNS = [
   { key: 'institution', label: 'От кого', width: 260, minWidth: 140 },
   { key: 'status', label: 'Статус', width: 140, minWidth: 100 },
 ];
+const DOCS_COLUMNS_DEFAULT = movableKeys(DOCS_COLUMNS);
 const docsColWidths = {};
+// Порядок столбцов (кроме закреплённого «№») — можно перетаскивать шапку,
+// как в реестре ОЦ и в перечне ОИ (kernel/columns.js).
+let docsColOrder = DOCS_COLUMNS_DEFAULT.slice();
 
-function rowHTML(doc, n) {
-  const fname = (doc.files || [])[0];
-  const nameCell = `${esc(doc.type || '—')} · ${fname ? esc(fname.name) : '—'}`;
-  return `<tr data-doc-row="${esc(doc.id)}">
-    <td class="mono">${n}</td>
-    <td><span class="tag-mini">${esc(doc.type || '—')}</span></td>
-    <td class="ell" title="${nameCell}">${nameCell}</td>
-    <td>${esc(doc.number || '—')}</td>
-    <td>${esc(doc.date || '—')}</td>
-    <td class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</td>
-    <td><span class="docs-status ${statusTone(doc.status)}">${esc(doc.status)}</span></td>
-  </tr>`;
+function cellHTML(col, doc, n) {
+  if (col.key === 'idx') return `<td class="mono">${n}</td>`;
+  if (col.key === 'type') return `<td><span class="tag-mini">${esc(doc.type || '—')}</span></td>`;
+  if (col.key === 'name') {
+    const fname = (doc.files || [])[0];
+    const nameCell = `${esc(doc.type || '—')} · ${fname ? esc(fname.name) : '—'}`;
+    return `<td class="ell" title="${nameCell}">${nameCell}</td>`;
+  }
+  if (col.key === 'number') return `<td>${esc(doc.number || '—')}</td>`;
+  if (col.key === 'date') return `<td>${esc(doc.date || '—')}</td>`;
+  if (col.key === 'institution') return `<td class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</td>`;
+  if (col.key === 'status') return `<td><span class="docs-status ${statusTone(doc.status)}">${esc(doc.status)}</span></td>`;
+  return '<td></td>';
+}
+
+function rowHTML(cols, doc, n) {
+  return `<tr data-doc-row="${esc(doc.id)}">${cols.map((c) => cellHTML(c, doc, n)).join('')}</tr>`;
 }
 
 function listHTML() {
@@ -54,6 +64,7 @@ function listHTML() {
     q: state.q, type: state.type, status: state.status, offset, limit: state.pageSize,
   });
   const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
+  const cols = orderedColumns(DOCS_COLUMNS, docsColOrder);
 
   return `<div class="docs">
     <div class="docs-head"><h2>Документы</h2></div>
@@ -82,13 +93,13 @@ function listHTML() {
     </div>
 
     <div class="docs-body">
-      ${rows.length ? `<div class="docs-cols" data-docs-cols-box style="${columnVarsStyle(DOCS_COLUMNS, docsColWidths)}">
+      ${rows.length ? `<div class="docs-cols" data-docs-cols-box style="${columnVarsStyle(cols, docsColWidths)}">
         <table class="docs-tbl">
-          ${colGroupHTML(DOCS_COLUMNS, docsColWidths)}
-          <thead><tr>${DOCS_COLUMNS.map((c, i) => `<th ${headAttrs(c)}>
-            ${colLabelHTML(c)}${resizeGripHTML(c, i === DOCS_COLUMNS.length - 1)}
+          ${colGroupHTML(cols, docsColWidths)}
+          <thead><tr>${cols.map((c, i) => `<th ${headAttrs(c)}>
+            ${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}
           </th>`).join('')}</tr></thead>
-          <tbody>${rows.map((d, i) => rowHTML(d, offset + i + 1)).join('')}</tbody>
+          <tbody>${rows.map((d, i) => rowHTML(cols, d, offset + i + 1)).join('')}</tbody>
         </table>
       </div>` : `<div class="docs-empty">Ничего не найдено. Измените запрос или сбросьте фильтры.</div>`}
       <div class="docs-pager">
@@ -181,6 +192,15 @@ export function mountDocs(host) {
         Object.assign(docsColWidths, patch);
         const box = scope.$('[data-docs-cols-box]');
         if (box) Object.entries(docsColWidths).forEach(([k, v]) => box.style.setProperty('--cw-' + k, v + 'px'));
+      },
+    });
+
+    bindColumnReorder(scope, {
+      headSel: '[data-docs-cols-box] thead',
+      order: docsColOrder,
+      onCommit(order) {
+        docsColOrder = normalizeOrder(DOCS_COLUMNS, order, DOCS_COLUMNS_DEFAULT);
+        render();
       },
     });
   }

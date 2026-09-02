@@ -100,8 +100,9 @@ body[data-page="docs"] .dd-meta-row{display:flex;align-items:center;gap:10px;mar
 
 body[data-page="docs"] .dd-body{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
 body[data-page="docs"] .dd-main{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);min-height:420px;padding:16px}
-body[data-page="docs"] .dd-empty{height:100%;min-height:388px;display:flex;flex-direction:column;align-items:center;
+  box-shadow:var(--shadow);height:620px;padding:16px;overflow:hidden}
+body[data-page="docs"] .dd-main:has(.viewer){padding:0}
+body[data-page="docs"] .dd-empty{height:100%;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:8px;color:var(--muted);text-align:center}
 body[data-page="docs"] .dd-empty-ico{font-size:34px;color:#b9c6d6}
 body[data-page="docs"] .dd-empty b{color:#3f4c63;font-size:13px}
@@ -128,8 +129,11 @@ body[data-page="docs"] .dd-field{display:flex;flex-direction:column;gap:2px}
 body[data-page="docs"] .dd-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
 body[data-page="docs"] .dd-val{font-size:13px;color:var(--ink)}
 
-body[data-page="docs"] .dd-file-row{display:flex;align-items:center;gap:8px;font-size:12.5px}
-body[data-page="docs"] .dd-file-row a{color:var(--blue-700);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="docs"] .dd-file-row{display:flex;align-items:center;gap:8px;font-size:12.5px;border-radius:6px;padding:2px 4px}
+body[data-page="docs"] .dd-file-row.active{background:var(--blue-50)}
+body[data-page="docs"] .dd-file-open{color:var(--blue-700);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;text-align:left}
+body[data-page="docs"] .dd-file-open:hover{text-decoration:underline}
 body[data-page="docs"] .dd-file-rm{color:var(--danger);font-size:11.5px;font-weight:600}
 body[data-page="docs"] .dd-file-rm:hover{text-decoration:underline}
 
@@ -138,6 +142,57 @@ body[data-page="docs"] .dd-links-tbl th{text-align:left;font-size:9.5px;text-tra
   padding:4px 6px;border-bottom:1px solid var(--line-soft)}
 body[data-page="docs"] .dd-links-tbl td{padding:6px;border-bottom:1px solid var(--line-soft)}
 body[data-page="docs"] .dd-links-tbl tbody tr:last-child td{border-bottom:none}
+
+/* --- Просмотрщик документа (копия ключевых стилей module.css модулей ОЦ:
+   .viewer/.vtoolbar/.vrail/.vstage и т.д. — тот же жанр экрана). ---------- */
+body[data-page="docs"] .viewer{height:100%;display:flex;flex-direction:column;background:#fff}
+body[data-page="docs"] .vtabs{display:flex;gap:2px;padding:6px 8px 0;background:#e8f1fa;
+  border-bottom:1px solid var(--line-soft);overflow-x:auto;flex-shrink:0}
+body[data-page="docs"] .vtab{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:7px 7px 0 0;
+  font-size:11px;color:#46536b;border:1px solid transparent;border-bottom:none;cursor:pointer;white-space:nowrap;font-weight:600}
+body[data-page="docs"] .vtab.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
+body[data-page="docs"] .vtoolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fbfdff;
+  border-bottom:1px solid var(--line-soft);flex-wrap:wrap;flex-shrink:0}
+body[data-page="docs"] .tool-group{display:flex;align-items:center;gap:4px}
+body[data-page="docs"] .tool-group.right{margin-left:auto}
+body[data-page="docs"] .tool-btn{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  color:#46536b;border:1px solid transparent;font-size:13px;transition:background .12s}
+body[data-page="docs"] .tool-btn:hover{background:var(--blue-50);border-color:var(--line)}
+body[data-page="docs"] .page-input{width:40px;text-align:center;border:1px solid var(--line-input);border-radius:6px;
+  padding:3px;outline:none;font-size:12px}
+body[data-page="docs"] .zoom-label{min-width:42px;text-align:center;font-size:11.5px;color:#46536b}
+body[data-page="docs"] .vtitle{font-size:11.5px;font-weight:700;color:var(--blue-700);max-width:260px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+body[data-page="docs"] .vbody{flex:1;display:flex;min-height:0}
+body[data-page="docs"] .vrail{width:168px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;
+  background:#f4f8fd;flex-shrink:0}
+body[data-page="docs"] .vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
+body[data-page="docs"] .vthumb{width:132px;height:170px;border:2px solid var(--line);border-radius:6px;background:#fff;
+  position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
+body[data-page="docs"] .vthumb.doc:not(.real)::after{content:'';position:absolute;inset:8px 6px 14px;
+  background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
+body[data-page="docs"] .vthumb-canvas{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);
+  object-fit:contain;opacity:0;transition:opacity .12s;background:#fff}
+body[data-page="docs"] .vthumb-canvas.ready{opacity:1}
+body[data-page="docs"] .vthumb.active{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.2)}
+body[data-page="docs"] .vthumb-num{position:absolute;bottom:2px;right:3px;font-size:9.5px;font-weight:700;color:#33445c;
+  background:rgba(255,255,255,.86);border-radius:4px;padding:0 5px;line-height:14px}
+
+body[data-page="docs"] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4;overscroll-behavior:contain}
+body[data-page="docs"] .vribbon{display:flex;flex-direction:column;gap:14px;align-items:center;align-items:safe center}
+body[data-page="docs"] .vpage-wrap{display:flex;align-items:center;justify-content:center}
+body[data-page="docs"] .vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);
+  padding:26px;position:relative;flex:0 0 auto}
+body[data-page="docs"] .vpage:has(> .vpdf-canvas),body[data-page="docs"] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
+body[data-page="docs"] .vpdf-canvas{display:block;width:100%;height:auto;opacity:0;transition:opacity .12s}
+body[data-page="docs"] .vpdf-canvas.ready{opacity:1}
+body[data-page="docs"] .vimg{display:block;width:100%;height:auto}
+body[data-page="docs"] .vpdf-load{position:absolute;inset:0;padding:26px;background:#fff}
+body[data-page="docs"] .vpdf-canvas.ready + .vpdf-load,body[data-page="docs"] .vpdf-canvas.failed + .vpdf-load{display:none}
+body[data-page="docs"] .sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
+body[data-page="docs"] .sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
+body[data-page="docs"] .vempty-box{font-size:12.5px;color:#61799a}
 
 /* Узкое окно: тулбар/стат-плашки/карточка документа переносятся по строкам. */
 @media (max-width: 900px) {
