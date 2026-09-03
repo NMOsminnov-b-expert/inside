@@ -10,6 +10,7 @@ import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
 import { mountDocs } from '../pages/docs/docs.js';
 import { mountDicts } from '../pages/dicts/dicts.js';
+import { mountInstitutions } from '../pages/institutions/institutions.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -75,6 +76,19 @@ async function onRoute(route) {
     await host.ensureStyle('./app/pages/dicts/dicts.css');
     const instance = mountDicts(host);
     current = { kind: 'dicts', instance, scope };
+    return;
+  }
+
+  if (route.name === 'institutions') {
+    // Раздел открыт всем: он только показывает, что уже есть в объектах и
+    // документах, и уводит туда же с готовым фильтром.
+    unmount();
+    resetShellSlots();
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/institutions/institutions.css');
+    const instance = mountInstitutions(host);
+    current = { kind: 'institutions', instance, scope };
     return;
   }
 

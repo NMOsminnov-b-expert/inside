@@ -4,6 +4,7 @@
 //   #/archive                   — архив документов (все типы ОЦ сразу)
 //   #/docs                      — реестр «Документы» (не зависит от типов ОЦ)
 //   #/dicts                     — справочники значений
+//   #/institutions              — учреждения (сводка по объектам и документам)
 // Query после «?» отдаётся экрану как объект.
 export function parse(hash = location.hash) {
   const raw = String(hash || '').replace(/^#/, '');
@@ -32,6 +33,11 @@ export function parse(hash = location.hash) {
   // Справочники — тоже общий экран: перечни значений для полей всех типов ОЦ.
   if (segs[0] === 'dicts') {
     return { name: 'dicts', query };
+  }
+
+  // Учреждения — сводка по объектам оценки и документам одного учреждения.
+  if (segs[0] === 'institutions') {
+    return { name: 'institutions', query };
   }
 
   if (segs[0] === 'oc' && segs[1]) {
@@ -77,3 +83,4 @@ export function start(onRoute) {
 export const ARCHIVE_HREF = '#/archive';
 export const DOCS_HREF = '#/docs';
 export const DICTS_HREF = '#/dicts';
+export const INST_HREF = '#/institutions';

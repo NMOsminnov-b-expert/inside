@@ -14,11 +14,22 @@ import {
   colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
   bindColumnReorder, orderedColumns, movableKeys, normalizeOrder,
 } from '../../kernel/columns.js';
-import { DOC_TYPES, DOC_STATUSES, queryDocuments, documentStats, statusTone, getDocument } from '../../kernel/documentsRegistry.js';
+import {
+  DOC_TYPES, DOC_STATUSES, queryDocuments, documentStats, statusTone, getDocument,
+  documentInstitutions,
+} from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
 import { detailHTML, bindDetail } from './detail.js';
 
-const state = { q: '', type: '', status: '', page: 1, pageSize: 25 };
+const state = {
+  q: '', type: '', status: '', institution: '', dateFrom: '', dateTo: '',
+  sort: '', dir: 'asc', page: 1, pageSize: 25,
+};
+
+// Есть ли что сбрасывать: кнопка сброса появляется только когда фильтр реально
+// сужает список, иначе она просто занимает место.
+const hasFilters = () => !!(state.q || state.type || state.status || state.institution
+  || state.dateFrom || state.dateTo);
 
 // Столбцы можно и тянуть за перегородку (ширина), и перетаскивать за шапку
 // (порядок) — тот же механизм, что в реестре ОЦ и перечне ОИ (kernel/columns.js).
@@ -37,6 +48,16 @@ const docsColWidths = {};
 // Порядок столбцов (кроме закреплённого «№») — можно перетаскивать шапку,
 // как в реестре ОЦ и в перечне ОИ (kernel/columns.js).
 let docsColOrder = DOCS_COLUMNS_DEFAULT.slice();
+
+// Склонение при числе: «1 документ», «2 документа», «19 документов».
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
 
 function cellHTML(col, doc, n) {
   if (col.key === 'idx') return `<td class="mono">${n}</td>`;
@@ -61,7 +82,9 @@ function listHTML() {
   const stats = documentStats();
   const offset = (state.page - 1) * state.pageSize;
   const { rows, total } = queryDocuments({
-    q: state.q, type: state.type, status: state.status, offset, limit: state.pageSize,
+    q: state.q, type: state.type, status: state.status, institution: state.institution,
+    dateFrom: state.dateFrom, dateTo: state.dateTo,
+    sort: state.sort, dir: state.dir, offset, limit: state.pageSize,
   });
   const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
   const cols = orderedColumns(DOCS_COLUMNS, docsColOrder);
@@ -78,17 +101,40 @@ function listHTML() {
     </div>
 
     <div class="docs-toolbar">
-      <input class="input docs-search" data-docs-q value="${esc(state.q)}" autocomplete="off"
-        placeholder="Поиск по номеру и дате документа">
+      <span class="docs-search">
+        <svg class="docs-search-ico" viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
+          <circle cx="6" cy="6" r="4.1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M9.2 9.2 12.4 12.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <input data-docs-q value="${esc(state.q)}" autocomplete="off"
+          placeholder="Поиск: тип, наименование, номер, дата, от кого">
+        ${state.q ? '<button class="docs-search-clear" data-docs-q-clear title="Очистить">×</button>' : ''}
+      </span>
+
       <select class="select docs-filter" data-docs-type>
         <option value="">Тип: все</option>
         ${DOC_TYPES.map((t) => `<option ${state.type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
       </select>
+
       <select class="select docs-filter" data-docs-status>
         <option value="">Статус: все</option>
         ${DOC_STATUSES.map((s) => `<option ${state.status === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
       </select>
-      <span class="docs-count">${total} документов</span>
+
+      <select class="select docs-filter wide" data-docs-inst>
+        <option value="">От кого: все</option>
+        ${documentInstitutions().map((i) => `<option ${state.institution === i ? 'selected' : ''}>${esc(i)}</option>`).join('')}
+      </select>
+
+      <span class="docs-period" title="Дата документа">
+        <i>Дата</i>
+        <input type="date" class="input" data-docs-from value="${esc(state.dateFrom)}">
+        <span>—</span>
+        <input type="date" class="input" data-docs-to value="${esc(state.dateTo)}">
+      </span>
+
+      ${hasFilters() ? '<button class="btn btn-ghost btn-sm" data-docs-reset>Сбросить</button>' : ''}
+      <span class="docs-count">${total} ${plural(total, 'документ', 'документа', 'документов')}</span>
       <button class="btn btn-primary" data-docs-create>+ Создать документ</button>
     </div>
 
@@ -96,8 +142,12 @@ function listHTML() {
       ${rows.length ? `<div class="docs-cols" data-docs-cols-box style="${columnVarsStyle(cols, docsColWidths)}">
         <table class="docs-tbl">
           ${colGroupHTML(cols, docsColWidths)}
-          <thead><tr>${cols.map((c, i) => `<th ${headAttrs(c)}>
-            ${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}
+          <thead><tr>${cols.map((c, i) => `<th ${headAttrs(c)}
+            ${c.key === 'idx' ? '' : `data-docs-sort="${c.key}"`}
+            class="${state.sort === c.key ? 'sorted ' + state.dir : ''}">
+            ${colLabelHTML(c)}${c.key === 'idx' ? '' : `<span class="docs-sort-mark">${
+              state.sort === c.key ? (state.dir === 'asc' ? '▲' : '▼') : ''}</span>`}
+            ${resizeGripHTML(c, i === cols.length - 1)}
           </th>`).join('')}</tr></thead>
           <tbody>${rows.map((d, i) => rowHTML(cols, d, offset + i + 1)).join('')}</tbody>
         </table>
@@ -119,6 +169,13 @@ export function mountDocs(host) {
   let route = host.route;
   document.body.dataset.page = 'docs';
   setActiveNav('docs');
+
+  // Фильтр из адреса: из раздела «Учреждения» сюда приходят ссылкой
+  // #/docs?institution=<название>, как в реестре объектов оценки.
+  if (route && route.query && route.query.institution) {
+    state.institution = route.query.institution;
+    state.page = 1;
+  }
 
   function render() {
     const id = route && route.id;
@@ -167,6 +224,42 @@ export function mountDocs(host) {
 
     const s = scope.$('[data-docs-status]');
     if (s) s.onchange = () => { state.status = s.value; state.page = 1; render(); };
+
+    const inst = scope.$('[data-docs-inst]');
+    if (inst) inst.onchange = () => { state.institution = inst.value; state.page = 1; render(); };
+
+    const from = scope.$('[data-docs-from]');
+    if (from) from.onchange = () => { state.dateFrom = from.value; state.page = 1; render(); };
+
+    const to = scope.$('[data-docs-to]');
+    if (to) to.onchange = () => { state.dateTo = to.value; state.page = 1; render(); };
+
+    const qClear = scope.$('[data-docs-q-clear]');
+    if (qClear) qClear.onclick = () => { state.q = ''; state.page = 1; render(); };
+
+    const reset = scope.$('[data-docs-reset]');
+    if (reset) reset.onclick = () => {
+      state.q = '';
+      state.type = '';
+      state.status = '';
+      state.institution = '';
+      state.dateFrom = '';
+      state.dateTo = '';
+      state.page = 1;
+      render();
+    };
+
+    // Сортировка по столбцу: первый клик — по возрастанию, повторный
+    // разворачивает, третий снимает сортировку и возвращает исходный порядок.
+    scope.$$('[data-docs-sort]').forEach((th) => th.onclick = (e) => {
+      if (e.target.closest('[data-col-grip]')) return;
+      const key = th.dataset.docsSort;
+      if (state.sort !== key) { state.sort = key; state.dir = 'asc'; }
+      else if (state.dir === 'asc') state.dir = 'desc';
+      else { state.sort = ''; state.dir = 'asc'; }
+      state.page = 1;
+      render();
+    });
 
     const ps = scope.$('[data-docs-pagesize]');
     if (ps) ps.onchange = () => { state.pageSize = +ps.value; state.page = 1; render(); };

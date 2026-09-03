@@ -189,15 +189,67 @@ export function removeLink(docId, linkId) {
 
 function matchText(doc, q) {
   if (!q) return true;
-  const hay = [doc.type, doc.number, doc.date, doc.owner, doc.institution, ...(doc.files || []).map((f) => f.name)]
+  // Наименование в списке складывается из типа и имени файла, поэтому в поиск
+  // входят оба — искать по тому, что человек видит в столбце.
+  const hay = [doc.type, doc.number, doc.date, doc.owner, doc.institution,
+    ...(doc.files || []).map((f) => f.name)]
     .filter(Boolean).join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
 }
 
-// filter: { q, type, status, offset, limit }
-export function queryDocuments({ q = '', type = '', status = '', offset = 0, limit = 25 } = {}) {
-  const filtered = documents.filter((d) =>
-    (!type || d.type === type) && (!status || d.status === status) && matchText(d, q));
+// Список учреждений, встречающихся в документах, — для фильтра «от кого».
+// Собираем из самих записей, а не из отдельного справочника: реестр документов
+// ни от чего не зависит, и учреждение здесь — свободный текст.
+export function documentInstitutions() {
+  const set = new Set();
+  documents.forEach((d) => { if (d.institution) set.add(d.institution); });
+  return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+// Даты хранятся строкой ГГГГ-ММ-ДД, поэтому сравниваются как строки. Документ
+// без даты не попадает в выборку по периоду: «дата не указана» — это не «дата
+// внутри периода».
+function matchDate(doc, from, to) {
+  if (!from && !to) return true;
+  if (!doc.date) return false;
+  if (from && doc.date < from) return false;
+  if (to && doc.date > to) return false;
+  return true;
+}
+
+const SORTABLE = {
+  type: (d) => d.type || '',
+  name: (d) => ((d.files || [])[0] || {}).name || '',
+  number: (d) => d.number || '',
+  date: (d) => d.date || '',
+  institution: (d) => d.institution || '',
+  status: (d) => d.status || '',
+};
+
+// filter: { q, type, status, institution, dateFrom, dateTo, sort, dir, offset, limit }
+export function queryDocuments({
+  q = '', type = '', status = '', institution = '', dateFrom = '', dateTo = '',
+  sort = '', dir = 'asc', offset = 0, limit = 25,
+} = {}) {
+  const filtered = documents.filter((d) => (!type || d.type === type)
+    && (!status || d.status === status)
+    && (!institution || d.institution === institution)
+    && matchDate(d, dateFrom, dateTo)
+    && matchText(d, q));
+
+  const key = SORTABLE[sort];
+  if (key) {
+    const sign = dir === 'desc' ? -1 : 1;
+    // Пустые значения всегда внизу: иначе при сортировке по дате сверху
+    // оказывается десяток документов без даты, и список бесполезен.
+    filtered.sort((a, b) => {
+      const x = key(a);
+      const y = key(b);
+      if (!x !== !y) return x ? -1 : 1;
+      return sign * String(x).localeCompare(String(y), 'ru', { numeric: true });
+    });
+  }
+
   return { rows: filtered.slice(offset, offset + limit), total: filtered.length };
 }
 
