@@ -412,3 +412,83 @@ def run(t):
         back = pg.eval_on_selector('.idocs-left', 'e => e.getBoundingClientRect().width')
         t.ck(abs(back - wide) < 4,
              'ширина списка не сохранилась: было %d, стало %d' % (wide, back))
+
+    # --- 9. сводная вкладка «С подведомственными» ---
+    #
+    # Задача пользователя 03.09.2026: по крупному узлу спросить «все объекты в
+    # Бишкеке» или «все без движения больше 30 дней», не обходя подведы. Ловим
+    # то, что легко разъезжается: счётчик вкладки против числа строк, фасет,
+    # считающий сам себя (после выбора значения остальные варианты пропадают),
+    # и сброс, который не возвращает выборку.
+    _open(t)
+    pg.wait_for_timeout(400)
+
+    rows = pg.locator('.itree-row[data-inode]')
+    best, bestn = 0, -1
+    for i in range(min(rows.count(), 25)):
+        rows.nth(i).click()
+        pg.wait_for_timeout(250)
+        tab = pg.locator('[data-itab="all"]')
+        if not tab.count():
+            continue
+        n = int(tab.locator('b').inner_text().strip() or 0)
+        if n > bestn:
+            bestn, best = n, i
+
+    if t.ck(bestn > 1, 'не нашёл узла с объектами в поддереве: %s' % bestn):
+        rows.nth(best).click()
+        pg.wait_for_timeout(300)
+        pg.locator('[data-itab="all"]').click()
+        pg.wait_for_timeout(700)
+
+        total = pg.locator('[data-all-row]').count()
+        t.ck(total == bestn,
+             'счётчик вкладки (%d) не сходится с таблицей (%d)' % (bestn, total))
+        t.ck(pg.locator('.iall-facet').count() >= 5, 'фасетов меньше пяти')
+
+        # Объекты поддерева, а не только свои: узел сам по себе их не держит.
+        own = int(pg.locator('[data-itab="oc"] b').inner_text().strip() or 0)
+        t.ck(total > own, 'в своде не больше объектов, чем своих: %d и %d' % (total, own))
+
+        heads = pg.locator('[data-all-facet]')
+        for i in range(heads.count()):
+            if 'Город' in heads.nth(i).inner_text():
+                heads.nth(i).click()
+                break
+        pg.wait_for_timeout(400)
+
+        picks = pg.locator('[data-all-pick="city"]')
+        if t.ck(picks.count() > 1, 'в фасете «город» меньше двух значений'):
+            city = picks.first.get_attribute('value')
+            picks.first.check()
+            pg.wait_for_timeout(500)
+
+            after = pg.locator('[data-all-row]').count()
+            t.ck(0 < after < total, 'фильтр по городу не сузил выборку: %d из %d' % (after, total))
+            got = pg.eval_on_selector_all('[data-all-row] td:nth-child(4)',
+                                          'els => [...new Set(els.map(e => e.textContent.trim()))]')
+            t.ck(got == [city], 'в выборке чужие города: %s' % got)
+            # Счётчик фасета считается без учёта самого фасета — иначе после
+            # первого выбора остальные города исчезнут и сравнивать будет не с чем.
+            t.ck(pg.locator('[data-all-pick="city"]').count() > 1,
+                 'после выбора города остальные значения фасета пропали')
+            t.ck(pg.locator('.iall-chip').count() >= 1, 'выбранное не показано чипом')
+
+        pg.select_option('[data-all-stale-sel]', '30')
+        pg.wait_for_timeout(500)
+        stale = pg.locator('[data-all-row]').count()
+        t.ck(stale <= pg.locator('[data-all-row]').count(),
+             'фильтр «без движения» не применился')
+
+        pg.locator('[data-all-reset]').first.click()
+        pg.wait_for_timeout(500)
+        t.ck(pg.locator('[data-all-row]').count() == total, 'сброс не вернул выборку')
+
+        pg.locator('[data-all-panel-close]').first.click()
+        pg.wait_for_timeout(400)
+        t.ck(pg.locator('.iall-facets').count() == 0
+             and pg.locator('[data-all-panel-open]').count() == 1,
+             'колонка фильтров не сворачивается в закладку')
+        pg.locator('[data-all-panel-open]').first.click()
+        pg.wait_for_timeout(400)
+        t.ck(pg.locator('.iall-facets').count() == 1, 'колонка фильтров не вернулась')

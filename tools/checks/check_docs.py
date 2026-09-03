@@ -83,8 +83,20 @@ def run(t):
     crumbs = pg.locator('#crumbs').inner_text()
     t.ck('Документы' in crumbs, 'в пути нет раздела «Документы»: %s' % crumbs.replace('\n', ' '))
 
-    strip = pg.locator('.dd-strip-item').count()
-    t.ck(strip > 1, 'в карточке нет ленты соседних документов')
+    # Соседние документы — колонкой слева (пользователь 03.09.2026, «как в
+    # учреждениях»), а не полосой под шапкой: список сворачивается в закладку,
+    # и без неё вернуть его было бы нечем.
+    strip = pg.locator('.dd-list-row').count()
+    t.ck(strip > 1, 'в карточке нет списка соседних документов')
+
+    pg.locator('[data-dd-list-close]').first.click()
+    pg.wait_for_timeout(400)
+    t.ck(pg.locator('.dd-list').count() == 0, 'список соседей не свернулся')
+    t.ck(pg.locator('[data-dd-list-open]').count() == 1,
+         'после сворачивания нет закладки — список не вернуть')
+    pg.locator('[data-dd-list-open]').first.click()
+    pg.wait_for_timeout(400)
+    t.ck(pg.locator('.dd-list').count() == 1, 'список соседей не вернулся')
     t.ck(pg.locator('.dd-nav-count').count() == 1, 'нет счётчика «N из M»')
 
     before = pg.locator('.dd-nav-count').inner_text()

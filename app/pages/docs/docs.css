@@ -92,9 +92,67 @@ body[data-page="docs"] .dd-title{margin-right:auto;min-width:0}
 body[data-page="docs"] .dd-title h2{font-size:17px;font-weight:700;color:var(--ink)}
 body[data-page="docs"] .dd-meta-row{display:flex;align-items:center;gap:10px;margin-top:3px;flex-wrap:wrap}
 
-body[data-page="docs"] .dd-body{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
-body[data-page="docs"] .dd-main{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);height:620px;padding:16px;overflow:hidden}
+/* Список соседних документов — колонкой слева, как в карточке учреждения
+   (пользователь 03.09.2026). Раньше это была полоса под шапкой: она занимала
+   строку во всю ширину и всё равно вмещала немного. */
+/* Высота колонок — от экрана, а не константой: при 620px внизу оставалась
+   пустая полоса в треть окна, а правая колонка обрезала «Принадлежность»
+   (пользователь 03.09.2026). */
+body[data-page="docs"] .dd-body{display:flex;align-items:stretch;gap:12px;
+  --dd-h:clamp(460px,calc(100vh - 170px),1100px)}
+body[data-page="docs"] .dd-list{flex:0 0 var(--dd-list-w,300px);width:var(--dd-list-w,300px);
+  min-width:0;display:flex;flex-direction:column;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden;height:var(--dd-h)}
+body[data-page="docs"] .dd-list-head{display:flex;align-items:center;gap:8px;
+  padding:8px 11px;border-bottom:1px solid var(--line);background:#f6f9fd}
+body[data-page="docs"] .dd-list-head b{flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--muted)}
+body[data-page="docs"] .dd-list-n{font-size:10.5px;font-weight:700;background:var(--slate-50);
+  color:var(--slate-700);border-radius:999px;padding:1px 7px}
+body[data-page="docs"] .dd-list-hide{width:22px;height:22px;border-radius:6px;
+  color:var(--muted);font-size:13px;line-height:1}
+body[data-page="docs"] .dd-list-hide:hover{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="docs"] .dd-list-body{flex:1 1 auto;overflow:auto;min-height:0}
+
+/* Строка списка — та же сетка, что у документов учреждения: сверху тип и имя
+   файла, снизу дата и статус. */
+body[data-page="docs"] .dd-list-row{display:grid;width:100%;text-align:left;
+  grid-template-columns:auto minmax(0,1fr);
+  grid-template-areas:'type name' 'date status';
+  align-items:center;gap:4px 9px;padding:8px 11px;
+  border-bottom:1px solid var(--line-soft);cursor:pointer;transition:background .12s}
+body[data-page="docs"] .dd-list-row:hover{background:var(--blue-50)}
+body[data-page="docs"] .dd-list-row.on{background:var(--blue-100)}
+body[data-page="docs"] .dd-list-row:last-child{border-bottom:none}
+body[data-page="docs"] .dd-list-type{grid-area:type;max-width:140px;font-size:11px;
+  color:var(--blue-700);background:var(--blue-50);border-radius:999px;padding:2px 8px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="docs"] .dd-list-name{grid-area:name;font-size:12.5px;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="docs"] .dd-list-date{grid-area:date;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+body[data-page="docs"] .dd-list-row .docs-status{grid-area:status;font-size:11.5px;
+  justify-self:start}
+
+body[data-page="docs"] .dd-split{flex:0 0 9px;align-self:stretch;cursor:col-resize;
+  background:var(--line);border-radius:3px;touch-action:none;transition:background .12s}
+body[data-page="docs"] .dd-split:hover,
+body[data-page="docs"] .dd-split.active{background:var(--blue-500)}
+body[data-page="docs"] .dd-list-tab{flex:0 0 30px;align-self:stretch;
+  background:linear-gradient(180deg,#f7fafd,#eef4fa);border:1px solid var(--line);
+  border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:background .12s}
+body[data-page="docs"] .dd-list-tab:hover{background:var(--blue-50)}
+body[data-page="docs"] .dd-list-tab span{writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--muted);max-height:560px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+
+body[data-page="docs"] .dd-main{flex:1 1 auto;min-width:0;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);height:var(--dd-h);padding:16px;overflow:hidden}
 body[data-page="docs"] .dd-main:has(.viewer){padding:0}
 body[data-page="docs"] .dd-empty{height:100%;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:8px;color:var(--muted);text-align:center}
@@ -108,7 +166,8 @@ body[data-page="docs"] .dd-file-card:hover{border-color:var(--blue-500);backgrou
 body[data-page="docs"] .dd-file-card img{width:100%;height:90px;object-fit:cover;border-radius:6px;background:var(--blue-50)}
 body[data-page="docs"] .dd-file-ico{font-size:28px}
 
-body[data-page="docs"] .dd-side{display:flex;flex-direction:column;gap:10px}
+body[data-page="docs"] .dd-side{flex:0 0 320px;width:320px;display:flex;
+  flex-direction:column;gap:10px;height:var(--dd-h);overflow:auto}
 body[data-page="docs"] .dd-sec{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);overflow:hidden}
 body[data-page="docs"] .dd-sec-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;
@@ -142,7 +201,12 @@ body[data-page="docs"] .dd-links-tbl tbody tr:last-child td{border-bottom:none}
 @media (max-width: 900px) {
   body[data-page="docs"] .docs-toolbar .btn-primary{margin-left:0;width:100%}
   body[data-page="docs"] .docs-search{max-width:none;flex-basis:100%}
-  body[data-page="docs"] .dd-body{grid-template-columns:1fr}
+  body[data-page="docs"] .dd-body{flex-wrap:wrap}
+  body[data-page="docs"] .dd-list{flex:0 0 100%;width:auto;height:240px}
+  body[data-page="docs"] .dd-main{height:520px}
+  body[data-page="docs"] .dd-side{height:auto;max-height:none;overflow:visible}
+  body[data-page="docs"] .dd-split{display:none}
+  body[data-page="docs"] .dd-side{flex:0 0 100%;width:auto;max-height:none}
 }
 
 /* ============ фильтры реестра документов ============ */
@@ -228,3 +292,8 @@ body .docs-modal .df-preview-body{height:320px;overflow:hidden}
 body .docs-modal .df-preview-body .vrail{width:120px}
 body .docs-modal .df-preview-body .vthumb{width:96px;height:124px}
 body .docs-modal .df-preview-body .vpage{width:320px;min-height:420px;padding:18px}
+
+/* Колонок стало много (три новые из ветки kirill) — на узком экране их сумма
+   не помещается. Раньше остаток отдавался резиновой колонке, и при нехватке
+   места table-layout:fixed ломал раскладку; теперь таблица прокручивается. */
+body[data-page="docs"] .docs-cols{overflow-x:auto}

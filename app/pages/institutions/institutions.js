@@ -13,14 +13,18 @@ import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import { MENU_HREF, DOCS_HREF, build } from '../../kernel/router.js';
 import {
   colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
+  applyFit,
 } from '../../kernel/columns.js';
 import { session, myInstitutions } from '../../kernel/session.js';
 import {
   allNodes, getNode, childrenOf, pathOf, levelOf, subtreeOf, ocCount, docCount, totalCount,
-  ocRowsOf, docRowsOf, createNode, updateNode, moveNode, removeNode, attachRecords,
+  ocRowsOf, subtreeRowsOf, docRowsOf, createNode, updateNode, moveNode, removeNode, attachRecords,
   detachRecords, candidates, isFavorite, toggleFavorite, favoriteNodes, searchNodes, regionOf,
   canAssignStaff, staffList, staffOf, staffFilled, STAFF_ROLES,
 } from '../../kernel/institutions.js';
+import {
+  ALL_COLUMNS, emptyAllFilter, allPaneHTML, bindAllPane,
+} from './allObjects.js';
 import {
   regionTree, searchRegions, splitRegion, areaOf, districtOf, areaFromEniRegion, SEP,
 } from '../../kernel/regions.js';
@@ -36,7 +40,7 @@ const state = {
   q: '',               // поиск по дереву
   open: {},            // раскрытые узлы: { id: true }
   selected: null,      // выбранный узел
-  tab: 'oc',           // вкладка справа: 'oc' | 'docs'
+  tab: 'oc',           // вкладка справа: 'oc' | 'all' | 'docs'
   rowQ: '',            // поиск внутри таблицы
   attach: null,        // открыт диалог привязки: { q }
   edit: null,          // правка узла: { id | 'new', parentId, name, note, region }
@@ -54,6 +58,9 @@ const state = {
   docNew: null,        // черновик нового документа: { type, number, date, files }
   docAttach: null,     // панель прикрепления: { q, preview }
   docList: true,       // показан ли список документов рядом с просмотрщиком
+
+  // Сводная вкладка: фильтры по объектам всего поддерева (allObjects.js).
+  all: emptyAllFilter(),
 };
 
 // Ширина панели дерева. Тянется перегородкой — как столбцы справочников и
@@ -61,15 +68,30 @@ const state = {
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: это личная настройка показа, здесь живёт в памяти
 // вкладки.
-const PANEL_MIN = 240;
-const PANEL_MAX = 560;
+// Те же соображения, что и у перегородки документов: пределы не должны
+// упираться раньше, чем этого захочет человек.
+const PANEL_MIN = 180;
+const PANEL_MAX_SHARE = 0.55;   // не больше половины с небольшим от ширины окна
 let panelWidth = 320;
 
 // Ширина списка документов рядом с просмотрщиком. Тянется перегородкой — тот
 // же приём, что у просмотрщика в карточках ОЦ (modules/*/parts/viewer/shell.js).
-const DOC_LIST_MIN = 260;
-const DOC_LIST_MAX = 560;
+// Пределы намеренно широкие (пользователь 03.09.2026: «не даёт радикально
+// увеличивать/уменьшать»): нижний — чтобы в строке осталось видно тип и дату,
+// верхний считается от самой рамки, а не константой — просмотрщику достаточно
+// оставить DOC_VIEW_MIN, всё остальное список может забрать.
+const DOC_LIST_MIN = 150;
+const DOC_VIEW_MIN = 220;
 let docListWidth = 340;
+
+// Максимум зависит от ширины блока: на широком экране список тянется почти во
+// всю рамку, на узком — не съедает просмотрщик целиком.
+function docListMax(box) {
+  const total = box ? box.getBoundingClientRect().width : 0;
+  return Math.max(DOC_LIST_MIN, total - DOC_VIEW_MIN);
+}
+
+const allWidths = {};
 
 const OC_COLUMNS = [
   { key: 'eni', label: 'ЕНИ', width: 170, minWidth: 120 },
@@ -818,11 +840,15 @@ function contentHTML() {
 
     <div class="itabs">
       <button class="itab ${state.tab === 'oc' ? 'on' : ''}" data-itab="oc">Объекты оценки<b>${own}</b></button>
+      <button class="itab ${state.tab === 'all' ? 'on' : ''}" data-itab="all"
+        title="Объекты этого учреждения и всех подведомственных, с фильтрами">С подведомственными<b>${totalCount(node)}</b></button>
       <button class="itab ${state.tab === 'docs' ? 'on' : ''}" data-itab="docs">Документы<b>${docs}</b></button>
       <span class="itabs-acts">${tabActionsHTML(node, isRoot)}</span>
     </div>
 
-    ${state.tab === 'oc' ? ocPaneHTML(node, isRoot) : docTableHTML(node)}
+    ${state.tab === 'oc' ? ocPaneHTML(node, isRoot)
+      : state.tab === 'all' ? allPaneHTML(subtreeRowsOf(node), state.all, allWidths)
+      : docTableHTML(node)}
   </div>`;
 }
 
@@ -830,6 +856,7 @@ function contentHTML() {
 // 03.09.2026, рисунком поверх скриншота): полоса вкладок и так тянется во всю
 // ширину пустой, а действия ниже отнимали у просмотрщика отдельную строку.
 function tabActionsHTML(node, isRoot) {
+  if (state.tab === 'all') return '';
   if (state.tab === 'oc') {
     return isRoot ? '' : '<button class="btn btn-primary btn-sm" data-attach-open>+ Прикрепить ОЦ</button>';
   }
@@ -900,16 +927,52 @@ export function mountInstitutions(host) {
     ]);
   }
 
+  // Ширины столбцов считаются от ФАКТИЧЕСКОЙ ширины таблицы, а не от суммы
+  // умолчаний (пользователь 03.09.2026: «привязывайся к фактическому размеру
+  // таблицы»). Место здесь меняется не только с окном: тянется панель дерева,
+  // сворачивается колонка фильтров, прячется список документов — поэтому
+  // подгонка идёт после каждой отрисовки и по ResizeObserver.
+  const FIT_TABLES = [
+    ['[data-oc-cols-box]', OC_COLUMNS, ocWidths],
+    ['[data-doc-cols-box]', DOC_COLUMNS, docWidths],
+    ['[data-all-cols-box]', ALL_COLUMNS, allWidths],
+  ];
+
+  function fitTables() {
+    FIT_TABLES.forEach(([sel, cols, widths]) => {
+      const box = scope.$(sel);
+      if (box && box.clientWidth) applyFit(box, cols, widths);
+    });
+  }
+
+  const fitObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => fitTables())
+    : null;
+
   function render() {
     crumbs();
     scope.setHTML(viewHTML());
     bind();
+    fitTables();
+
+    if (fitObserver) {
+      fitObserver.disconnect();
+      FIT_TABLES.forEach(([sel]) => {
+        const box = scope.$(sel);
+        if (box) fitObserver.observe(box);
+      });
+    }
   }
 
   function selectNode(id) {
     state.selected = id;
     state.tab = 'oc';
     state.rowQ = '';
+    // Выбранные значения фасетов относились к прежнему поддереву — в новом их
+    // может не быть вовсе. Раскрытость самих фасетов и колонки сохраняем.
+    Object.assign(state.all, emptyAllFilter(), {
+      open: state.all.open, panel: state.all.panel,
+    });
     state.attach = null;
     state.edit = null;
     state.docOpen = null;
@@ -944,7 +1007,8 @@ export function mountInstitutions(host) {
       document.body.classList.add('col-resizing');
 
       const move = (ev) => {
-        panelWidth = Math.max(PANEL_MIN, Math.min(PANEL_MAX, w0 + Math.round(ev.clientX - x0)));
+        const max = Math.max(PANEL_MIN, Math.round(window.innerWidth * PANEL_MAX_SHARE));
+        panelWidth = Math.max(PANEL_MIN, Math.min(max, w0 + Math.round(ev.clientX - x0)));
         panel.style.setProperty('--panel-w', panelWidth + 'px');
       };
       const up = () => {
@@ -1524,9 +1588,10 @@ export function mountInstitutions(host) {
       docSplit.classList.add('active');
       document.body.classList.add('col-resizing');
 
+      const max = docListMax(box);
       const move = (ev) => {
         docListWidth = Math.max(DOC_LIST_MIN,
-          Math.min(DOC_LIST_MAX, w0 + Math.round(ev.clientX - x0)));
+          Math.min(max, w0 + Math.round(ev.clientX - x0)));
         box.style.setProperty('--doc-list-w', docListWidth + 'px');
       };
       const up = () => {
@@ -1554,6 +1619,31 @@ export function mountInstitutions(host) {
       widths: docWidths,
       onCommit(patch) { Object.assign(docWidths, patch); },
     });
+
+    bindColumnResize(scope, {
+      rootSel: '[data-all-cols-box]',
+      cols: ALL_COLUMNS,
+      widths: allWidths,
+      onCommit(patch) { Object.assign(allWidths, patch); },
+    });
+
+    // Сводная вкладка: фильтры и переход в карточку. Объект открывается с той
+    // же меткой происхождения, что и со «своей» вкладки, но возврат ведёт в
+    // тот узел, откуда смотрели, а не в тот, за которым объект числится.
+    if (state.tab === 'all') {
+      const here = getNode(state.selected);
+      bindAllPane(scope, {
+        filter: state.all,
+        render,
+        openRow(typeId, id) {
+          location.hash = build({
+            typeId,
+            ocId: id,
+            query: { from: 'inst', node: here.id, name: here.name },
+          });
+        },
+      });
+    }
   }
 
   // Первый заход: раскрываем корни, чтобы дерево не выглядело пустым.

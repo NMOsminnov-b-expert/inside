@@ -13,6 +13,15 @@ import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
 let activeFileId = null;
 let lastDocId = null;
 
+// Список соседних документов — колонкой слева, как в карточке учреждения
+// (пользователь 03.09.2026: «проработай аналогично тому, как реализовано в
+// учреждениях»). Сворачивается в закладку, ширина тянется перегородкой:
+// просмотрщику нужно место, а список нужен не всё время.
+let listOpen = true;
+let listWidth = 300;
+const LIST_MIN = 150;
+const VIEW_MIN = 320;
+
 // Соседние документы: стрелки со счётчиком в шапке и лента под ней. Список
 // тот же, из которого документ открыли (учреждение или выборка реестра),
 // поэтому переключение не выбрасывает человека из его контекста.
@@ -37,22 +46,41 @@ function docLabel(d) {
   return `${d.type || 'Документ'}${file ? ' · ' + file.name : ''}${d.date ? ' · ' + d.date : ''}`;
 }
 
-// Лента: видно, где документ в списке и что рядом. Свёрнута в одну строку —
-// просмотрщику нужно место, поэтому это полоса, а не вторая колонка.
-function stripHTML(doc, siblings) {
+// Колонка со списком, из которого документ открыт (выборка реестра или
+// документы учреждения): видно, что рядом, и переход не выбрасывает человека
+// из его контекста. Строка устроена как в учреждениях — тип, файл, дата,
+// статус, — чтобы список читался одинаково в обоих разделах.
+function listHTML(doc, siblings) {
   if (!siblings || siblings.list.length < 2) return '';
 
-  return `<div class="dd-strip">
-    <span class="dd-strip-label" title="Список, из которого открыт документ">
-      ${esc(siblings.scope)}</span>
-    <div class="dd-strip-list">
-      ${siblings.list.map((d) => `<button class="dd-strip-item ${d.id === doc.id ? 'on' : ''}"
-        data-docs-open-doc="${esc(d.id)}" title="${esc(docLabel(d))}">
-        <b>${esc(d.type || 'Документ')}</b>
-        <span>${esc(d.date || '—')}</span>
-      </button>`).join('')}
+  const rows = siblings.list.map((d) => {
+    const file = (d.files || [])[0];
+    return `<button class="dd-list-row ${d.id === doc.id ? 'on' : ''}"
+      data-docs-open-doc="${esc(d.id)}" title="${esc(docLabel(d))}">
+      <span class="dd-list-type">${esc(d.type || 'Документ')}</span>
+      <span class="dd-list-name">${esc(file ? file.name : 'без файла')}</span>
+      <span class="dd-list-date">${esc(d.date || '—')}</span>
+      <span class="docs-status ${statusTone(d.status)}">${esc(d.status)}</span>
+    </button>`;
+  }).join('');
+
+  return `<div class="dd-list">
+    <div class="dd-list-head">
+      <b title="${esc(siblings.scope)}">${esc(siblings.scope)}</b>
+      <span class="dd-list-n">${siblings.list.length}</span>
+      <button class="dd-list-hide" data-dd-list-close
+        title="Свернуть список — просмотрщику больше места">‹</button>
     </div>
-  </div>`;
+    <div class="dd-list-body">${rows}</div>
+  </div>
+  <div class="dd-split" data-dd-split title="Потяните, чтобы изменить соотношение"></div>`;
+}
+
+function listTabHTML(siblings) {
+  if (!siblings || siblings.list.length < 2) return '';
+  return `<button class="dd-list-tab" data-dd-list-open title="Показать список документов">
+    <span>${esc(siblings.scope)} · ${siblings.list.length}</span>
+  </button>`;
 }
 
 export function detailHTML(doc, siblings) {
@@ -82,9 +110,9 @@ export function detailHTML(doc, siblings) {
       <button class="btn btn-ghost" data-docs-download ${files.length ? '' : 'disabled'}>⭳ Скачать</button>
     </div>
 
-    ${stripHTML(doc, siblings)}
+    <div class="dd-body ${listOpen ? '' : 'nolist'}" style="--dd-list-w:${listWidth}px">
+      ${listOpen ? listHTML(doc, siblings) : listTabHTML(siblings)}
 
-    <div class="dd-body">
       <div class="dd-main">
         ${files.length ? viewerHTML(doc, activeFileId) : `<div class="dd-empty">
           <div class="dd-empty-ico">📄</div>
@@ -121,6 +149,9 @@ export function detailHTML(doc, siblings) {
           <div class="dd-sec-body">
             <div class="dd-field"><span class="dd-lbl">Учреждение</span><span class="dd-val">${esc(doc.institution || '—')}</span></div>
             ${doc.owner ? `<div class="dd-field"><span class="dd-lbl">Владелец</span><span class="dd-val">${esc(doc.owner)}</span></div>` : ''}
+            ${doc.regAuthority ? `<div class="dd-field"><span class="dd-lbl">Орган регистрации</span><span class="dd-val">${esc(doc.regAuthority)}</span></div>` : ''}
+            ${doc.regDate ? `<div class="dd-field"><span class="dd-lbl">Дата регистрации</span><span class="dd-val">${esc(doc.regDate)}</span></div>` : ''}
+            ${doc.affiliation ? `<div class="dd-field"><span class="dd-lbl">Принадлежность</span><span class="dd-val">${esc(doc.affiliation)}</span></div>` : ''}
           </div>
         </div>
 
@@ -162,6 +193,46 @@ export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChang
   scope.$$('[data-docs-open-doc]').forEach((b) => b.onclick = () => {
     if (b.dataset.docsOpenDoc !== doc.id && onOpen) onOpen(b.dataset.docsOpenDoc);
   });
+
+  // Сворачивание списка и перетаскивание перегородки — тот же приём, что в
+  // карточке учреждения и в карточках ОЦ: ширина живёт в переменной, при
+  // перетаскивании страница не перерисовывается (иначе теряется указатель).
+  const listClose = scope.$('[data-dd-list-close]');
+  if (listClose) listClose.onclick = () => { listOpen = false; onChanged(); };
+
+  const listShow = scope.$('[data-dd-list-open]');
+  if (listShow) listShow.onclick = () => { listOpen = true; onChanged(); };
+
+  const split = scope.$('[data-dd-split]');
+  if (split) split.onpointerdown = (e) => {
+    e.preventDefault();
+    const box = scope.$('.dd-body');
+    if (!box) return;
+
+    const x0 = e.clientX;
+    const w0 = listWidth;
+    // Верхний предел считаем от самой карточки: просмотрщику оставляем VIEW_MIN,
+    // остальное список может забрать целиком.
+    const max = Math.max(LIST_MIN, box.getBoundingClientRect().width - VIEW_MIN);
+
+    split.setPointerCapture(e.pointerId);
+    split.classList.add('active');
+    document.body.classList.add('col-resizing');
+
+    const move = (ev) => {
+      listWidth = Math.max(LIST_MIN, Math.min(max, w0 + Math.round(ev.clientX - x0)));
+      box.style.setProperty('--dd-list-w', listWidth + 'px');
+    };
+    const up = () => {
+      split.releasePointerCapture(e.pointerId);
+      split.removeEventListener('pointermove', move);
+      split.removeEventListener('pointerup', up);
+      split.classList.remove('active');
+      document.body.classList.remove('col-resizing');
+    };
+    split.addEventListener('pointermove', move);
+    split.addEventListener('pointerup', up);
+  };
 
   const edit = scope.$('[data-docs-edit]');
   if (edit) edit.onclick = () => openDocumentModal(host, { doc, onSaved: onChanged });

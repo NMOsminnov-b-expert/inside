@@ -217,6 +217,32 @@ export function ocCount(node) {
   return ocRowsOf(node).length;
 }
 
+// Объекты узла ВМЕСТЕ с подведомственными, на любую глубину. Нужны для
+// сводной вкладки: по министерству смотрят все объекты сети сразу, а не
+// перебирают подведы поодиночке.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь поддерево обходится на клиенте и выборки по
+// узлам складываются в памяти вкладки. На сервере это один запрос с условием
+// «учреждение входит в поддерево N» — иначе у крупного министерства обход
+// упрётся и в число запросов, и в объём ответа. Варианты: материализованный
+// путь узла в записи (institutionPath), либо рекурсивный CTE по дереву.
+export function subtreeRowsOf(node, { limit = 5000 } = {}) {
+  const seen = new Set();
+  const out = [];
+
+  subtreeOf(node.id).forEach((n) => {
+    ocRowsOf(n, { limit }).forEach((r) => {
+      const key = r.typeId + '|' + r.id;
+      if (seen.has(key)) return;
+      seen.add(key);
+      // Узел, за которым объект числится: по нему потом фильтруют и группируют.
+      out.push({ ...r, nodeId: n.id, nodeName: n.name });
+    });
+  });
+
+  return out;
+}
+
 export function docRowsOf(node, { q = '', limit = 200 } = {}) {
   if (!node.parentId) return [];
   return queryDocuments({ institution: node.name, q, limit }).rows;

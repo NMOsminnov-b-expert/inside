@@ -37,10 +37,18 @@ const hasFilters = () => !!(state.q || state.type || state.status || state.insti
 const DOCS_COLUMNS = [
   { key: 'idx', label: '№', width: 46, minWidth: 40, fixed: true },
   { key: 'type', label: 'Тип', width: 150, minWidth: 100 },
-  { key: 'name', label: 'Наименование', width: 0 },
+  // Ширина числом, а не «резинкой» (width:0): колонок стало больше, и остаток
+  // на узком экране уходил в минус — table-layout:fixed ломал раскладку.
+  // Вместо сжатия таблица получает горизонтальную прокрутку (docs.css).
+  { key: 'name', label: 'Наименование', width: 220, minWidth: 140 },
   { key: 'number', label: '№ документа', width: 130, minWidth: 90 },
   { key: 'date', label: 'Дата документа', width: 130, minWidth: 100 },
-  { key: 'institution', label: 'От кого', width: 260, minWidth: 140 },
+  { key: 'institution', label: 'От кого', width: 220, minWidth: 140 },
+  // Столбцы из ветки kirill (Кирилл, 03.09.2026): регистрация документа и
+  // принадлежность.
+  { key: 'regAuthority', label: 'Орган регистрации', width: 200, minWidth: 140 },
+  { key: 'regDate', label: 'Дата регистрации', width: 140, minWidth: 100 },
+  { key: 'affiliation', label: 'Принадлежность', width: 180, minWidth: 120 },
   { key: 'status', label: 'Статус', width: 140, minWidth: 100 },
 ];
 const DOCS_COLUMNS_DEFAULT = movableKeys(DOCS_COLUMNS);
@@ -65,11 +73,18 @@ function cellHTML(col, doc, n) {
   if (col.key === 'name') {
     const fname = (doc.files || [])[0];
     const nameCell = `${esc(doc.type || '—')} · ${fname ? esc(fname.name) : '—'}`;
-    return `<td class="ell" title="${nameCell}">${nameCell}</td>`;
+    return `<td><span class="ell" title="${nameCell}">${nameCell}</span></td>`;
   }
   if (col.key === 'number') return `<td>${esc(doc.number || '—')}</td>`;
   if (col.key === 'date') return `<td>${esc(doc.date || '—')}</td>`;
-  if (col.key === 'institution') return `<td class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</td>`;
+  // .ell — display:block, поэтому её нельзя вешать прямо на <td>: это снимает
+  // с ячейки display:table-cell, и несколько таких ячеек подряд складываются
+  // друг под другом вместо колонок (проявилось, как только рядом встали три
+  // новые колонки). Всегда через внутренний <span>.
+  if (col.key === 'institution') return `<td><span class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</span></td>`;
+  if (col.key === 'regAuthority') return `<td><span class="ell" title="${esc(doc.regAuthority || '')}">${esc(doc.regAuthority || '—')}</span></td>`;
+  if (col.key === 'regDate') return `<td>${esc(doc.regDate || '—')}</td>`;
+  if (col.key === 'affiliation') return `<td><span class="ell" title="${esc(doc.affiliation || '')}">${esc(doc.affiliation || '—')}</span></td>`;
   if (col.key === 'status') return `<td><span class="docs-status ${statusTone(doc.status)}">${esc(doc.status)}</span></td>`;
   return '<td></td>';
 }

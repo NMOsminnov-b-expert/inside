@@ -28,9 +28,12 @@ body[data-page="institutions"] .ipanel.collapsed:hover .ipanel-open{border-color
 body[data-page="institutions"] .ipanel-vertical{writing-mode:vertical-rl;transform:rotate(180deg);
   display:flex;align-items:center;gap:10px;padding:6px 0;font-size:11.5px;font-weight:700;
   letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+/* Счётчик читается горизонтально: writing-mode он уже сбрасывает, но подпись
+   повёрнута на 180°, и число наследовало поворот — «24» показывалось вверх
+   ногами (пользователь 03.09.2026). Компенсируем встречным поворотом. */
 body[data-page="institutions"] .ipanel-vertical b{font-size:10.5px;font-weight:700;
   color:var(--slate-700);background:#fff;border:1px solid var(--line);border-radius:999px;
-  padding:3px 5px;writing-mode:horizontal-tb}
+  padding:3px 5px;writing-mode:horizontal-tb;transform:rotate(180deg)}
 
 /* Перегородка: полоса шириной в зазор, линия появляется под курсором. */
 body[data-page="institutions"] .ipanel-grip{position:absolute;top:0;right:-3px;bottom:0;
@@ -151,8 +154,15 @@ body[data-page="institutions"] .ihead-main{flex:1 1 380px;min-width:0}
    03.09.2026): три отдельные строки на это тратили высоту зря. Назначенные
    сотрудники — строкой ниже, под названием. */
 body[data-page="institutions"] .ititle{display:flex;align-items:baseline;gap:10px;
-  flex-wrap:wrap;margin-bottom:3px}
-body[data-page="institutions"] .ihead h2{font-size:18px;color:var(--ink);margin:0}
+  min-width:0;margin-bottom:3px}
+/* Длинное название сокращается многоточием, а не переносится на вторую строку
+   (пользователь 03.09.2026): перенос сдвигал вниз всю карточку. Полный текст
+   показывает подсказка (kernel/overflowTip.js) — она ловит обрезку сама. */
+body[data-page="institutions"] .ihead h2{flex:0 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-size:18px;color:var(--ink);margin:0}
+body[data-page="institutions"] .ititle .ipath{flex:0 1 auto;min-width:0;overflow:hidden;
+  white-space:nowrap}
+body[data-page="institutions"] .iregion{flex:0 0 auto}
 body[data-page="institutions"] .ipath{display:inline-flex;align-items:baseline;gap:6px;
   flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
 body[data-page="institutions"] .iregion{font-size:11.5px;color:var(--slate-700);
@@ -193,7 +203,8 @@ body[data-page="institutions"] .iform-foot{display:flex;gap:7px;margin-top:12px}
 
 /* Вкладки объектов и документов */
 body[data-page="institutions"] .itabs{display:flex;align-items:flex-end;gap:4px;
-  border-bottom:1px solid var(--line);margin-bottom:0;position:relative;z-index:1}
+  flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:0;
+  position:relative;z-index:1}
 /* Действия вкладки — в её же строке справа (пользователь 03.09.2026): полоса
    вкладок тянулась пустой, а кнопки ниже съедали строку у просмотрщика.
    Обводка и заливка у них те же, что у блока под ними: кнопки сидят в его
@@ -204,7 +215,11 @@ body[data-page="institutions"] .itabs-acts{display:flex;align-items:center;gap:6
 body[data-page="institutions"] .itabs-acts:empty{display:none}
 body[data-page="institutions"] .itabs-acts .btn{height:28px;display:inline-flex;
   align-items:center;padding:0 12px}
-body[data-page="institutions"] .itab{display:flex;align-items:center;gap:7px;padding:8px 14px;
+/* Подпись вкладки не переносится по словам: «С подведомственными» ломалось на
+   две строки, как только рядом встали кнопки действий. Переносится, если что,
+   вся строка вкладок целиком. */
+body[data-page="institutions"] .itab{display:flex;align-items:center;gap:7px;
+  white-space:nowrap;padding:8px 14px;
   border-radius:9px 9px 0 0;font-size:13px;color:var(--muted);font-weight:600;
   border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
 body[data-page="institutions"] .itab:hover{color:var(--ink);background:var(--blue-50)}
@@ -522,6 +537,41 @@ body[data-page="institutions"] .idoc-act{width:22px;height:22px;border-radius:6p
 body[data-page="institutions"] .idoc-act:hover{background:#fff;color:var(--blue-700)}
 body[data-page="institutions"] .idoc-act.danger:hover{background:#fdeaea;color:#c8372d}
 
+/* Узкая колонка списка. Перегородку можно утянуть почти к краю (пользователь
+   03.09.2026 просил «радикальные» размеры), и на 150–260 пикселях прежняя
+   сетка ломалась: тип съедался до «Те…», имя файла слипалось с ним, дата
+   рвалась на две строки. Меряем по самой колонке, а не по окну: ширину задаёт
+   перегородка, окно тут ни при чём. */
+body[data-page="institutions"] .idocs-left{container-type:inline-size;
+  container-name:doclist}
+
+@container doclist (max-width: 270px) {
+  body[data-page="institutions"] .idoc-row{grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:'name acts' 'type date' 'status status';gap:3px 8px;
+    padding:7px 9px}
+  body[data-page="institutions"] .idoc-row .idoc-type{max-width:100%;justify-self:start}
+  body[data-page="institutions"] .idoc-row .idoc-name{white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis}
+  body[data-page="institutions"] .idoc-row .idoc-date{justify-self:end;font-size:11.5px;
+    white-space:nowrap}
+  body[data-page="institutions"] .idoc-row .docs-status{justify-self:start}
+  /* Значки действий на такой ширине не должны отнимать место у имени: они
+     появляются по наведению поверх строки. */
+  body[data-page="institutions"] .idoc-row .idoc-acts{background:var(--blue-50);
+    border-radius:7px;padding:1px 2px}
+  body[data-page="institutions"] .idoc-list-head b{overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  body[data-page="institutions"] .idoc-list-search{padding:6px 7px}
+}
+
+@container doclist (max-width: 200px) {
+  /* Совсем узко — остаются имя, тип и статус: дата на такой ширине только
+     мешает, а в карточке документа она никуда не делась. */
+  body[data-page="institutions"] .idoc-row{grid-template-areas:'name acts' 'type type' 'status status'}
+  body[data-page="institutions"] .idoc-row .idoc-date{display:none}
+  body[data-page="institutions"] .idoc-list-head b{display:none}
+}
+
 /* Новый документ — форма строкой, без отдельного окна. */
 body[data-page="institutions"] .idoc-form{background:var(--panel);
   border:1px solid var(--blue-200);border-radius:var(--radius);box-shadow:var(--shadow);
@@ -578,6 +628,12 @@ body[data-page="institutions"] .idocs-tools .isearch input{font-size:12.5px}
 body[data-page="institutions"] .iattach-search{max-width:420px}
 
 body[data-page="institutions"] .idocs{flex:1 1 auto;min-height:0}
+/* Формы над блоком (новый документ, прикрепление) не сжимаются: рамка ниже
+   тянется flex:1 1 auto и вытесняла их в полоску в 2px — строки списка
+   становились некликабельными. */
+body[data-page="institutions"] .idoc-form,
+body[data-page="institutions"] .idoc-attach,
+body[data-page="institutions"] .iattach{flex:0 0 auto}
 body[data-page="institutions"] .idocs-body{flex:1 1 auto;min-height:0}
 /* Список — ровно столько, сколько нужно строкам; остальное просмотрщику. */
 body[data-page="institutions"] .idocs-left{flex:0 0 var(--doc-list-w,340px);
@@ -607,8 +663,14 @@ body[data-page="institutions"] .idocs-tab:hover{background:var(--blue-50)}
 body[data-page="institutions"] .idocs-tab span{writing-mode:vertical-rl;
   transform:rotate(180deg);font-size:11px;font-weight:700;letter-spacing:.5px;
   text-transform:uppercase;color:var(--muted)}
-body[data-page="institutions"] .idocs-view{flex:1 1 auto;min-width:0;height:auto;
-  min-height:clamp(440px,calc(100vh - 260px),860px)}
+/* Просмотрщику нужна ОГРАНИЧЕННАЯ высота: .viewer внутри тянется height:100%,
+   и пока у контейнера высота auto, лента страниц не получала предела — она
+   вырастала во весь документ, поэтому колесо ничего не прокручивало, а всё
+   после первой страницы обрезалось (пользователь 03.09.2026). */
+body[data-page="institutions"] .idocs-view{flex:1 1 auto;min-width:0;min-height:0;
+  height:auto;display:flex;flex-direction:column}
+body[data-page="institutions"] .idocs-view > .viewer{flex:1 1 auto;min-height:0;height:auto}
+body[data-page="institutions"] .idocs-frame{min-height:clamp(440px,calc(100vh - 260px),900px)}
 body[data-page="institutions"] .idoc-attach-view{flex:0 0 46%;max-width:none;
   height:clamp(360px,calc(100vh - 420px),640px)}
 body[data-page="institutions"] .idoc-attach-list{max-height:clamp(360px,calc(100vh - 420px),640px)}
@@ -621,4 +683,103 @@ body[data-page="institutions"] .idoc-attach-list{max-height:clamp(360px,calc(100
     max-height:280px;border-right:none;border-bottom:1px solid var(--line)}
   body[data-page="institutions"] .idocs-view,
   body[data-page="institutions"] .idoc-attach-view{flex:0 0 auto;height:460px;min-height:0}
+}
+
+/* ============ сводная вкладка «С подведомственными» ============ */
+/* Объекты узла и всех подведомственных с фасетами (allObjects.js). Раскладка
+   та же, что у документов: узкая колонка слева сворачивается в закладку,
+   основное место — таблице. */
+body[data-page="institutions"] .iall{display:flex;align-items:stretch;min-height:0;
+  flex:1 1 auto}
+body[data-page="institutions"] .iall-facets{flex:0 0 210px;width:210px;display:flex;
+  flex-direction:column;min-height:0;border-right:1px solid var(--line);
+  background:#fbfdff}
+body[data-page="institutions"] .iall-facets-head{display:flex;align-items:center;gap:8px;
+  padding:7px 11px;border-bottom:1px solid var(--line);background:#f6f9fd}
+body[data-page="institutions"] .iall-facets-head b{flex:1 1 auto;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+body[data-page="institutions"] .iall-facets-body{flex:1 1 auto;overflow:auto;
+  min-height:0;padding:8px}
+
+body[data-page="institutions"] .iall-flag{display:flex;align-items:center;gap:8px;
+  padding:6px 9px;border:1px solid var(--line-input);border-radius:9px;background:#fff;
+  font-size:12.5px;cursor:pointer;margin-bottom:8px}
+body[data-page="institutions"] .iall-flag:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .iall-flag.on{border-color:var(--teal-700);
+  background:#f0faf7;color:var(--teal-700)}
+body[data-page="institutions"] .iall-stale{display:flex;flex-direction:column;gap:4px;
+  margin-bottom:10px}
+body[data-page="institutions"] .iall-stale-l{font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted)}
+body[data-page="institutions"] .iall-stale .select{height:30px;font-size:12.5px}
+
+body[data-page="institutions"] .iall-facet{border-top:1px solid var(--line-soft);
+  padding:2px 0}
+body[data-page="institutions"] .iall-facet-head{display:flex;align-items:center;gap:7px;
+  width:100%;padding:7px 4px;font-size:12.5px;font-weight:600;color:var(--slate-700);
+  text-align:left}
+body[data-page="institutions"] .iall-facet-head:hover{color:var(--blue-700)}
+body[data-page="institutions"] .iall-facet-head span:nth-child(2){flex:1 1 auto}
+body[data-page="institutions"] .iall-facet-head b{font-size:10.5px;font-weight:700;
+  background:var(--blue-50);color:var(--blue-700);border-radius:999px;padding:1px 7px}
+body[data-page="institutions"] .iall-facet .chev{font-size:9px;color:var(--muted);
+  transition:transform .12s}
+body[data-page="institutions"] .iall-facet.open .chev{transform:rotate(0)}
+body[data-page="institutions"] .iall-facet:not(.open) .chev{transform:rotate(-90deg)}
+body[data-page="institutions"] .iall-facet-body{padding:0 0 7px}
+body[data-page="institutions"] .iall-facet-q{width:100%;height:26px;margin-bottom:5px;
+  padding:0 8px;border:1px solid var(--line-input);border-radius:7px;font-size:12px;
+  background:#fff}
+body[data-page="institutions"] .iall-facet-q:focus{outline:none;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iall-opt{display:flex;align-items:center;gap:7px;
+  padding:4px 5px;border-radius:7px;font-size:12px;color:var(--slate-700);cursor:pointer}
+body[data-page="institutions"] .iall-opt:hover{background:var(--blue-50)}
+body[data-page="institutions"] .iall-opt.on{color:var(--blue-700);font-weight:600}
+body[data-page="institutions"] .iall-opt-l{flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .iall-opt-n{font-size:10.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+body[data-page="institutions"] .iall-none,
+body[data-page="institutions"] .iall-more{font-size:11px;color:var(--muted);
+  padding:3px 5px;font-style:italic}
+
+body[data-page="institutions"] .iall-main{flex:1 1 auto;min-width:0;display:flex;
+  flex-direction:column;min-height:0;padding:9px 10px 10px}
+body[data-page="institutions"] .iall-tools{display:flex;align-items:center;gap:10px;
+  margin-bottom:8px}
+body[data-page="institutions"] .iall-tools .isearch{flex:1 1 320px;max-width:520px;
+  height:30px}
+body[data-page="institutions"] .iall-count{font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Выбранное показано чипами: по фасетам в свёрнутой колонке иначе не видно,
+   что именно сузило выборку. */
+body[data-page="institutions"] .iall-chips{display:flex;flex-wrap:wrap;gap:5px;
+  margin-bottom:8px;align-items:center}
+body[data-page="institutions"] .iall-chip{display:inline-flex;align-items:center;gap:6px;
+  max-width:260px;padding:3px 9px;border-radius:999px;background:var(--blue-50);
+  color:var(--blue-700);font-size:11.5px;border:1px solid var(--blue-200)}
+body[data-page="institutions"] .iall-chip:hover{background:var(--blue-100)}
+body[data-page="institutions"] .iall-chip span{font-size:13px;line-height:1;opacity:.7}
+body[data-page="institutions"] .iall-reset{font-size:11.5px;color:var(--muted);
+  padding:3px 6px;border-radius:7px}
+body[data-page="institutions"] .iall-reset:hover{color:var(--blue-700);
+  background:var(--blue-50)}
+body[data-page="institutions"] .iall .icols{flex:1 1 auto;min-height:0;overflow:auto}
+/* Раскладка подгоняется под фактическую ширину таблицы (applyFit в
+   institutions.js). Ниже суммы минимумов сжимать некуда — там уже прокрутка,
+   а не сжатие: столбцы должны оставаться читаемыми. */
+body[data-page="institutions"] .iall .itbl{min-width:940px}
+/* Длинный статус («Удостоверен после осмотра») не должен вылезать за колонку. */
+body[data-page="institutions"] .iall .itag{display:block;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+/* Давно не менявшийся объект видно по столбцу «Обновлён» — ради таких выборок
+   вкладка и заводилась. */
+body[data-page="institutions"] .iall td.stale{color:var(--amber-700)}
+
+@media (max-width: 1100px) {
+  body[data-page="institutions"] .iall{flex-direction:column}
+  body[data-page="institutions"] .iall-facets{flex:0 0 auto;width:auto;max-height:260px;
+    border-right:none;border-bottom:1px solid var(--line)}
 }

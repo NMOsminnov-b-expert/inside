@@ -220,7 +220,45 @@ input,select,textarea{font:inherit;color:inherit}
   background-repeat:no-repeat;background-position:right 10px center;
   padding-right:28px;border-radius:9px;cursor:pointer;
 }
+/* Базовые рамка/фон/высота — чтобы поле выглядело полем даже там, где страница
+   ничего к .select не добавила (так было у «Без движения» в учреждениях). */
+.select{border:1px solid var(--line-input);background-color:#fff;height:34px;
+  padding-top:0;padding-bottom:0;padding-left:10px;font-size:13px}
 .select:hover{border-color:var(--blue-500)}
 .select:disabled{cursor:default;background-image:none}
 /* Список внутри таблицы: место у него уже, стрелку прижимаем плотнее. */
 .tbl .select,.al-tbl .select{background-position:right 7px center;padding-right:23px}
+
+/* ============ свой выпадающий список (kernel/dropdown.js) ============ */
+/* Раскрытый список нативного <select> рисует браузер — стили макета к нему не
+   применяются. Поэтому поле показывает кнопка (те же классы, что были у
+   селекта, — все размеры страниц действуют на неё), а список рисуется нами.
+   Настоящий <select> остаётся в разметке источником значения и события change:
+   код страниц и автопроверки говорят с ним, как раньше.
+   Префикс pick-, а не dd-: имя .dd в макете занято меню-кнопками (dicts.css),
+   и раскрытый список получал от них display:none. */
+.pick{display:contents}
+.pick-native{position:absolute;width:1px;height:1px;padding:0;margin:0;border:0;
+  opacity:0;pointer-events:none}
+.pick-btn{display:inline-flex;align-items:center;text-align:left;color:inherit;
+  background-color:#fff}
+.pick-btn-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.pick-btn-text.empty{color:var(--muted)}
+.pick-btn:disabled{opacity:.6}
+.pick-btn.pick-open{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+
+/* Список — в <body> и position:fixed: поля живут внутри прокручиваемых панелей
+   и таблиц, вложенный список обрезался бы их границами. */
+.pick-menu{position:fixed;z-index:400;min-width:120px;max-width:min(420px,92vw);
+  max-height:min(320px,60vh);overflow:auto;padding:4px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 12px 32px rgba(15,23,42,.18)}
+.pick-opt{padding:6px 10px;border-radius:7px;font-size:12.5px;color:var(--slate-700);
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick-opt.cursor{background:var(--blue-50)}
+.pick-opt.on{color:var(--blue-700);font-weight:600;background:var(--blue-50)}
+.pick-opt.on.cursor{background:var(--blue-100)}
+.pick-opt.off{opacity:.5;cursor:default}
+.pick-group{padding:7px 10px 3px;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted)}

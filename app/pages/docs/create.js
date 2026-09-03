@@ -12,12 +12,15 @@ function draftFrom(doc) {
   if (!doc) {
     return {
       type: '', date: '', number: '', status: DOC_STATUSES[0], files: [],
-      owner: '', institution: '', linkedObjects: [], _statusTouched: false, _err: '',
+      owner: '', institution: '', regAuthority: '', regDate: '', affiliation: '',
+      linkedObjects: [], _statusTouched: false, _err: '',
     };
   }
   return {
     type: doc.type, date: doc.date, number: doc.number, status: doc.status,
     files: (doc.files || []).slice(), owner: doc.owner, institution: doc.institution,
+    regAuthority: doc.regAuthority || '', regDate: doc.regDate || '',
+    affiliation: doc.affiliation || '',
     linkedObjects: (doc.linkedObjects || []).slice(),
     _statusTouched: true, _err: '',
   };
@@ -53,6 +56,18 @@ function formInnerHTML(draft) {
     </div>
     <div class="field"><label>Учреждение / Подвед<span class="req">*</span></label>
       <input class="input" data-df-institution value="${esc(draft.institution || '')}">
+    </div>
+  </div>
+  <!-- Регистрация документа и принадлежность — из ветки kirill (03.09.2026). -->
+  <div class="grid g-3" style="margin-top:10px">
+    <div class="field"><label>Орган регистрации</label>
+      <input class="input" data-df-reg-authority value="${esc(draft.regAuthority || '')}">
+    </div>
+    <div class="field"><label>Дата регистрации</label>
+      <input class="input" type="date" data-df-reg-date value="${esc(draft.regDate || '')}">
+    </div>
+    <div class="field"><label>Принадлежность</label>
+      <input class="input" data-df-affiliation value="${esc(draft.affiliation || '')}">
     </div>
   </div>
   <div class="field" style="margin-top:10px">
@@ -181,6 +196,15 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
 
     const inst = body.querySelector('[data-df-institution]');
     if (inst) inst.onchange = () => { draft.institution = inst.value; };
+
+    const ra = body.querySelector('[data-df-reg-authority]');
+    if (ra) ra.onchange = () => { draft.regAuthority = ra.value; };
+
+    const rd = body.querySelector('[data-df-reg-date]');
+    if (rd) rd.onchange = () => { draft.regDate = rd.value; };
+
+    const af = body.querySelector('[data-df-affiliation]');
+    if (af) af.onchange = () => { draft.affiliation = af.value; };
 
     const pick = body.querySelector('[data-df-pick]');
     if (pick) pick.onclick = async () => {

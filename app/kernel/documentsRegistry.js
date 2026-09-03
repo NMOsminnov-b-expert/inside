@@ -66,6 +66,47 @@ export function statusTone(status) {
 let seq = 0;
 const nextId = (prefix) => prefix + '-' + (++seq);
 
+// Орган регистрации, дата регистрации и назначение документа — поля из ветки
+// kirill. В синтетике заполняем правдоподобно, иначе три столбца реестра стоят
+// пустыми и по ним нечего ни искать, ни сортировать.
+//
+// «Принадлежность» — условное обозначение НАЗНАЧЕНИЯ документа (пользователь
+// 03.09.2026): передача в коммунальную собственность, изъятие актива и т. п.
+// Поэтому значение зависит от типа документа, а не от учреждения.
+const REG_AUTHORITY = {
+  'Техпаспорт': 'Госрегистр КР, районное БТИ',
+  'Свидетельство о праве собственности': 'Госрегистр КР',
+  'Госакт на земельный участок': 'Госрегистр КР',
+  'Завещание': 'Нотариальная контора',
+  'Прочее': '',
+};
+
+const AFFILIATION = {
+  'Техпаспорт': 'Техническая инвентаризация объекта',
+  'Свидетельство о праве собственности': 'Передача в коммунальную собственность',
+  'Госакт на земельный участок': 'Закрепление участка за учреждением',
+  'Завещание': 'Переход права по наследству',
+  'Прочее': 'Изъятие актива',
+};
+
+// Регистрация идёт после самого документа: дата берётся со сдвигом вперёд.
+// Сдвиг детерминированный (по позиции в списке), чтобы данные макета не
+// менялись от запуска к запуску.
+const numberPrefix = (type) => ({
+  'Техпаспорт': 'ТП',
+  'Свидетельство о праве собственности': 'СВ',
+  'Госакт на земельный участок': 'ГА',
+  'Завещание': 'ЗВ',
+}[type] || 'ДК');
+
+function regDateFrom(date, i) {
+  if (!date) return '';
+  const d = new Date(date + 'T00:00:00Z');
+  if (isNaN(d)) return '';
+  d.setUTCDate(d.getUTCDate() + 14 + (i % 5) * 21);
+  return d.toISOString().slice(0, 10);
+}
+
 function seedDocuments() {
   // По мотивам присланного пользователем скриншота: реальных файлов нет
   // (демо-записи), статус у всех «Загружен».
@@ -91,15 +132,20 @@ function seedDocuments() {
     { type: 'Госакт на земельный участок', institution: 'Государство', date: '2012-02-14' },
   ];
 
-  return rows.map((r) => ({
+  return rows.map((r, i) => ({
     id: nextId('doc'),
     type: r.type,
-    number: '',
+    // Номер тоже был пустым у всех записей — по пустому столбцу не видно ни
+    // поиска, ни сортировки. Формат условный: серия по типу и порядковый номер.
+    number: r.type === 'Прочее' ? '' : `${numberPrefix(r.type)}-${1000 + i * 7}`,
     date: r.date || '',
     status: DOC_STATUSES[0],
     files: [],
     owner: '',
     institution: r.institution,
+    regAuthority: REG_AUTHORITY[r.type] || '',
+    regDate: regDateFrom(r.date, i),
+    affiliation: AFFILIATION[r.type] || '',
     linkedObjects: [],
   }));
 }
@@ -117,6 +163,9 @@ function sanitize(data) {
     files: (data.files || []).map((f) => (f.id ? f : { ...f, id: nextId('file') })),
     owner: data.owner || '',
     institution: data.institution || '',
+    regAuthority: data.regAuthority || '',
+    regDate: data.regDate || '',
+    affiliation: data.affiliation || '',
     linkedObjects: (data.linkedObjects || []).map((l) => (l.id ? l : { ...l, id: nextId('link') })),
   };
 }
@@ -192,6 +241,7 @@ function matchText(doc, q) {
   // Наименование в списке складывается из типа и имени файла, поэтому в поиск
   // входят оба — искать по тому, что человек видит в столбце.
   const hay = [doc.type, doc.number, doc.date, doc.owner, doc.institution,
+    doc.regAuthority, doc.regDate, doc.affiliation,
     ...(doc.files || []).map((f) => f.name)]
     .filter(Boolean).join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
@@ -223,6 +273,9 @@ const SORTABLE = {
   number: (d) => d.number || '',
   date: (d) => d.date || '',
   institution: (d) => d.institution || '',
+  regAuthority: (d) => d.regAuthority || '',
+  regDate: (d) => d.regDate || '',
+  affiliation: (d) => d.affiliation || '',
   status: (d) => d.status || '',
 };
 

@@ -5,6 +5,7 @@ import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
+import { installSelectWatcher } from './dropdown.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
@@ -250,6 +251,9 @@ export function boot() {
   // Полный текст обрезанного значения при наведении — один механизм на весь
   // проект (Л1.4), см. kernel/overflowTip.js.
   installOverflowTip();
+  // Выпадающие списки — свои, а не нативные (kernel/dropdown.js): наблюдатель
+  // подхватывает и те, что появляются мимо scope.setHTML.
+  installSelectWatcher();
   start((route) => { onRoute(route); });
 }
 
