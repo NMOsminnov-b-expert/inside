@@ -1,6 +1,6 @@
 import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav } from '../shell/shell.js';
 import { createScope } from './scope.js';
-import { start, parse, build, go, MENU_HREF } from './router.js';
+import { start, parse, build, go, MENU_HREF, INST_HREF, DOCS_HREF } from './router.js';
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
@@ -28,6 +28,54 @@ function unmount() {
   current = null;
 }
 
+
+// --- откуда пришли ---------------------------------------------------------
+//
+// Карточку ОЦ открывают из двух мест: из реестра объектов и из раздела
+// «Учреждения». Путь в крошках и кнопка возврата должны вести туда же, откуда
+// пришли, поэтому адрес несёт метку: ?from=inst&node=<id>&name=<название>.
+// Название в адресе — чтобы крошка была осмысленной сразу, без обращения к
+// дереву учреждений (оно живёт в другом разделе и может быть ещё не собрано).
+
+function origin(route) {
+  const q = (route && route.query) || {};
+  if (q.from !== 'inst') return null;
+  return { node: q.node || '', name: q.name || 'Учреждение' };
+}
+
+// kind — куда возвращаться, если метки происхождения нет: 'menu' (реестр
+// объектов, по умолчанию) или 'docs' (реестр документов).
+function backHref(route, kind) {
+  const from = origin(route);
+  if (!from) return kind === 'docs' ? DOCS_HREF : MENU_HREF;
+
+  // И идентификатор, и название: id ведёт точно, а название выручает, если
+  // страницу успели перезагрузить — узлы дерева живут в памяти вкладки.
+  const parts = [];
+  if (from.node) parts.push('node=' + encodeURIComponent(from.node));
+  if (from.name) parts.push('name=' + encodeURIComponent(from.name));
+  return INST_HREF + (parts.length ? '?' + parts.join('&') : '');
+}
+
+function backLabel(route, kind) {
+  if (origin(route)) return 'К учреждению';
+  return kind === 'docs' ? 'К документам' : 'К объектам оценки';
+}
+
+function originCrumbs(route, kind) {
+  const from = origin(route);
+  if (!from) {
+    return kind === 'docs'
+      ? [{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }]
+      : [{ label: 'Главная', to: MENU_HREF }, { label: 'Объекты оценки', to: MENU_HREF }];
+  }
+  return [
+    { label: 'Главная', to: MENU_HREF },
+    { label: 'Учреждения', to: INST_HREF },
+    { label: from.name, to: backHref(route, kind) },
+  ];
+}
+
 function makeHost(route, scope, typeId) {
   return {
     root: scope.root,
@@ -36,7 +84,14 @@ function makeHost(route, scope, typeId) {
     typeId,
 
     // Навигация
-    toMenu: () => go(MENU_HREF),
+    toMenu: () => go(backHref(route)),
+
+    // Начало крошек и адрес возврата зависят от того, откуда пришли: из реестра
+    // объектов или из раздела «Учреждения» (метка ?from=inst&node=<id> в адресе).
+    // Модулю знать про разделы не нужно — он берёт готовое.
+    originCrumbs: (kind) => originCrumbs(route, kind),
+    backHref: (kind) => backHref(route, kind),
+    backLabel: (kind) => backLabel(route, kind),
     navigate: (patch) => go(build({
       typeId: patch.typeId !== undefined ? patch.typeId : typeId,
       ocId: patch.ocId !== undefined ? patch.ocId : route.ocId,

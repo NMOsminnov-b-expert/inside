@@ -4,6 +4,7 @@
 // select/date/файл/теги, поэтому модалка собрана здесь напрямую поверх тех же
 // глобальных классов .modal-back/.modal (kernel/tokens.css).
 import { esc } from '../../kernel/dom.js';
+import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { DOC_TYPES, DOC_STATUSES, detectAutoStatus, createDocument, updateDocument } from '../../kernel/documentsRegistry.js';
 
@@ -58,7 +59,10 @@ function formInnerHTML(draft) {
     <label>Файл</label>
     <div class="df-drop" data-df-drop>
       <div class="df-drop-hint">Перетащите файл сюда или <button type="button" class="df-drop-btn" data-df-pick>выберите на диске</button></div>
-      ${draft.files.length ? `<div class="df-files">${draft.files.map((f, i) => `<span class="ms-tag">${esc(f.name)}<span data-df-file-rm="${i}" title="Убрать">×</span></span>`).join('')}</div>` : ''}
+      ${draft.files.length ? `<div class="df-files">${draft.files.map((f, i) => `<span class="ms-tag ${
+        (draft._preview || draft.files[0].id) === f.id ? 'on' : ''}" data-df-file-open="${esc(f.id || '')}">
+        ${esc(f.name)}<span data-df-file-rm="${i}" title="Убрать">×</span></span>`).join('')}</div>
+        ${previewHTML(draft)}` : ''}
     </div>
   </div>
   <div class="field" style="margin-top:10px">
@@ -107,6 +111,22 @@ export function openLinkModal({ onAdd }) {
     close();
     if (onAdd) onAdd({ type, eni, letter });
   };
+}
+
+// Предпросмотр прикрепляемых файлов. Просмотрщик тот же, что в карточке
+// документа и в карточках ОЦ, поэтому и размеры, и управление привычные.
+// Показываем как «документ-черновик»: у просмотрщика на входе именно документ
+// со списком файлов.
+function previewHTML(draft) {
+  const active = draft._preview || (draft.files[0] || {}).id || null;
+
+  return `<div class="df-preview">
+    <div class="df-preview-head">
+      <b>Предпросмотр</b>
+      <span>Проверьте, что прикрепили нужный файл — до сохранения документа</span>
+    </div>
+    <div class="df-preview-body">${viewerHTML({ id: 'draft', files: draft.files }, active)}</div>
+  </div>`;
 }
 
 export function openDocumentModal(host, { doc = null, onSaved } = {}) {
@@ -180,10 +200,32 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
       });
     }
 
-    body.querySelectorAll('[data-df-file-rm]').forEach((b) => b.onclick = () => {
+    body.querySelectorAll('[data-df-file-rm]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
       draft.files.splice(+b.dataset.dfFileRm, 1);
+      draft._preview = (draft.files[0] || {}).id || null;
       rerender();
     });
+
+    // Вкладки файлов над предпросмотром: щелчок показывает выбранный файл.
+    body.querySelectorAll('[data-df-file-open]').forEach((tag) => tag.onclick = () => {
+      draft._preview = tag.dataset.dfFileOpen;
+      rerender();
+    });
+
+    // Просмотрщику нужна привязка после каждой отрисовки: он сам рисует
+    // страницы PDF и следит за прокруткой ленты.
+    if (draft.files.length) {
+      bindViewer({
+        $: (sel) => body.querySelector(sel),
+        $$: (sel) => Array.from(body.querySelectorAll(sel)),
+        on() {},
+      }, {
+        doc: { id: 'draft', files: draft.files },
+        activeFileId: draft._preview || (draft.files[0] || {}).id || null,
+        onFileChange: (fileId) => { draft._preview = fileId; rerender(); },
+      });
+    }
 
     const linkAdd = body.querySelector('[data-df-link-add]');
     if (linkAdd) linkAdd.onclick = () => openLinkModal({

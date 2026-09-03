@@ -6,14 +6,56 @@ import { esc } from '../../kernel/dom.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal, openLinkModal } from './create.js';
-import { viewerHTML, bindViewer } from './viewer.js';
+import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
 
 // Какой файл документа сейчас открыт в просмотрщике — сбрасывается на первый
 // файл при переходе к другому документу.
 let activeFileId = null;
 let lastDocId = null;
 
-export function detailHTML(doc) {
+// Соседние документы: стрелки со счётчиком в шапке и лента под ней. Список
+// тот же, из которого документ открыли (учреждение или выборка реестра),
+// поэтому переключение не выбрасывает человека из его контекста.
+function navHTML(siblings) {
+  if (!siblings || siblings.list.length < 2) return '';
+
+  const { list, index } = siblings;
+  const prev = list[index - 1];
+  const next = list[index + 1];
+
+  return `<div class="dd-nav">
+    <button class="dd-nav-btn" data-docs-prev-doc ${prev ? '' : 'disabled'}
+      title="${prev ? 'Предыдущий: ' + esc(docLabel(prev)) : 'Это первый документ'}">‹</button>
+    <span class="dd-nav-count">${index + 1} из ${list.length}</span>
+    <button class="dd-nav-btn" data-docs-next-doc ${next ? '' : 'disabled'}
+      title="${next ? 'Следующий: ' + esc(docLabel(next)) : 'Это последний документ'}">›</button>
+  </div>`;
+}
+
+function docLabel(d) {
+  const file = (d.files || [])[0];
+  return `${d.type || 'Документ'}${file ? ' · ' + file.name : ''}${d.date ? ' · ' + d.date : ''}`;
+}
+
+// Лента: видно, где документ в списке и что рядом. Свёрнута в одну строку —
+// просмотрщику нужно место, поэтому это полоса, а не вторая колонка.
+function stripHTML(doc, siblings) {
+  if (!siblings || siblings.list.length < 2) return '';
+
+  return `<div class="dd-strip">
+    <span class="dd-strip-label" title="Список, из которого открыт документ">
+      ${esc(siblings.scope)}</span>
+    <div class="dd-strip-list">
+      ${siblings.list.map((d) => `<button class="dd-strip-item ${d.id === doc.id ? 'on' : ''}"
+        data-docs-open-doc="${esc(d.id)}" title="${esc(docLabel(d))}">
+        <b>${esc(d.type || 'Документ')}</b>
+        <span>${esc(d.date || '—')}</span>
+      </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+export function detailHTML(doc, siblings) {
   const files = doc.files || [];
   const links = doc.linkedObjects || [];
 
@@ -24,7 +66,7 @@ export function detailHTML(doc) {
 
   return `<div class="docs-detail">
     <div class="dd-head">
-      <button class="back-btn" data-docs-back title="К списку документов">‹</button>
+      <button class="back-btn" data-docs-back title="Вернуться туда, откуда открыли">‹</button>
       <div class="dd-icon">📄</div>
       <div class="dd-title">
         <h2>${esc(doc.type || 'Документ')}</h2>
@@ -32,11 +74,15 @@ export function detailHTML(doc) {
           <span class="docs-status ${statusTone(doc.status)}">${esc(doc.status)}</span>
           <span class="tag-mini">${esc(doc.type || '—')}</span>
           <span class="muted">${esc(doc.date || '—')}</span>
+          ${doc.institution ? `<span class="muted">· ${esc(doc.institution)}</span>` : ''}
         </div>
       </div>
+      ${navHTML(siblings)}
       <button class="btn btn-ghost" data-docs-edit>✎ Редактировать</button>
       <button class="btn btn-ghost" data-docs-download ${files.length ? '' : 'disabled'}>⭳ Скачать</button>
     </div>
+
+    ${stripHTML(doc, siblings)}
 
     <div class="dd-body">
       <div class="dd-main">
@@ -98,9 +144,24 @@ export function detailHTML(doc) {
   </div>`;
 }
 
-export function bindDetail(scope, { doc, host, onBack, onChanged }) {
+export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChanged }) {
   const back = scope.$('[data-docs-back]');
   if (back) back.onclick = onBack;
+
+  // Переключение между соседними документами — стрелками и лентой.
+  const go = (d) => { if (d && onOpen) onOpen(d.id); };
+  const list = siblings ? siblings.list : [];
+  const index = siblings ? siblings.index : 0;
+
+  const prevBtn = scope.$('[data-docs-prev-doc]');
+  if (prevBtn) prevBtn.onclick = () => go(list[index - 1]);
+
+  const nextBtn = scope.$('[data-docs-next-doc]');
+  if (nextBtn) nextBtn.onclick = () => go(list[index + 1]);
+
+  scope.$$('[data-docs-open-doc]').forEach((b) => b.onclick = () => {
+    if (b.dataset.docsOpenDoc !== doc.id && onOpen) onOpen(b.dataset.docsOpenDoc);
+  });
 
   const edit = scope.$('[data-docs-edit]');
   if (edit) edit.onclick = () => openDocumentModal(host, { doc, onSaved: onChanged });

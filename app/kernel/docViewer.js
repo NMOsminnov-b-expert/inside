@@ -7,13 +7,17 @@
 // колесом/мышью — сама меняет номер текущей страницы (см. bindViewer: тот же
 // приём, что в modules/civil/parts/viewer/ctrl.js: 342-374).
 //
+// Живёт в ядре, потому что нужен двум разделам: реестру «Документы» и
+// учреждениям (у учреждения свои документы — решение пользователя 03.09.2026).
+// Стили — kernel/docViewer.css, их подключает страница через host.ensureStyle.
+//
 // Урезано по сравнению с карточкой ОЦ: здесь нет вкладок/ОИ, режима «Фото»,
 // режима «Сравнение» и перестановки страниц — реестру «Документы» они не
 // нужны (документ — самостоятельная сущность, не привязанная к литере ОИ).
 // Если у документа несколько файлов — между ними переключаются вкладки.
-import { esc } from '../../kernel/dom.js';
-import { ensureFilePages } from '../../kernel/fileUpload.js';
-import { paintPdfCanvases } from '../../kernel/pdfRender.js';
+import { esc } from './dom.js';
+import { ensureFilePages } from './fileUpload.js';
+import { paintPdfCanvases } from './pdfRender.js';
 
 const VS = { zoom: 100 };
 const fileState = {}; // fileId -> { page, rot, scroll }

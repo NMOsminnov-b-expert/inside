@@ -320,3 +320,23 @@ export function assignResponsible(id, role, person) {
   rec.updatedAt = new Date().toISOString().slice(0, 10);
   return rec;
 }
+
+// Привязка объекта оценки к учреждению — из раздела «Учреждения».
+//
+// В записи два поля из реестра: institution (учреждение) и podved
+// (подведомственная организация). Дерево учреждений вложено на любую глубину,
+// поэтому раздел передаёт готовую пару: имя верхнего учреждения ветки и имя
+// самого узла, если он глубже.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: на сервере у записи будет идентификатор узла дерева, а
+// не пара названий — тогда переименование учреждения не потребует обхода
+// объектов. Здесь имена, потому что реестр фильтрует и группирует по строкам.
+export function setInstitution(id, { institution = '', podved = '', nodeId = '' } = {}) {
+  const rec = loadRecord(id);
+  if (!rec) return null;
+  rec.institution = institution;
+  rec.podved = podved;
+  rec.institutionId = nodeId;
+  rec.updatedAt = new Date().toISOString().slice(0, 10);
+  return rec;
+}

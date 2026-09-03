@@ -164,11 +164,40 @@ function listHTML() {
   </div>`;
 }
 
+
+// Соседние документы — те, между которыми человек и переключается: если пришли
+// из учреждения, это его документы, иначе — текущая выборка реестра с её
+// фильтрами. Без этого из карточки приходилось возвращаться в список ради
+// каждого следующего документа.
+function siblingsFor(doc, route) {
+  const q = (route && route.query) || {};
+
+  const filter = q.from === 'inst' && q.name
+    ? { institution: q.name, limit: 200 }
+    : {
+      q: state.q, type: state.type, status: state.status, institution: state.institution,
+      dateFrom: state.dateFrom, dateTo: state.dateTo, sort: state.sort, dir: state.dir,
+      limit: 200,
+    };
+
+  const { rows } = queryDocuments(filter);
+  const list = rows.length ? rows : [doc];
+  const index = Math.max(0, list.findIndex((d) => d.id === doc.id));
+
+  return { list, index, scope: q.from === 'inst' ? (q.name || 'учреждение') : 'реестр' };
+}
+
 export function mountDocs(host) {
   const scope = host.scope;
   let route = host.route;
   document.body.dataset.page = 'docs';
-  setActiveNav('docs');
+  // Стили просмотрщика лежат отдельно: он общий с разделом «Учреждения».
+  host.ensureStyle('./app/kernel/docViewer.css');
+
+  // Подсвечиваем тот раздел, из которого пришли: документ, открытый из
+  // учреждения, принадлежит его контексту — путь и возврат ведут туда же.
+  const cameFromInst = !!(host.route && host.route.query && host.route.query.from === 'inst');
+  setActiveNav(cameFromInst ? 'inst' : 'docs');
 
   // Фильтр из адреса: из раздела «Учреждения» сюда приходят ссылкой
   // #/docs?institution=<название>, как в реестре объектов оценки.
@@ -179,11 +208,13 @@ export function mountDocs(host) {
 
   function render() {
     const id = route && route.id;
+    const fromInst = !!(route && route.query && route.query.from === 'inst');
+    setActiveNav(fromInst ? 'inst' : 'docs');
 
     if (id) {
       const doc = getDocument(id);
       if (!doc) {
-        setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }, { label: 'Не найден', current: true }]);
+        setCrumbs([...host.originCrumbs('docs'), { label: 'Не найден', current: true }]);
         scope.setHTML(`<div class="card card-pad">Документ не найден.
           <button class="btn btn-ghost btn-sm" data-docs-back-menu style="margin-left:10px">К документам</button></div>`);
         const b = scope.$('[data-docs-back-menu]');
@@ -191,11 +222,22 @@ export function mountDocs(host) {
         return;
       }
 
-      setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }, { label: doc.type || 'Документ', current: true }]);
-      scope.setHTML(detailHTML(doc));
+      // Откуда пришли — туда и вернёмся: из учреждения путь идёт через него,
+      // из реестра — как раньше. Начало крошек и адрес возврата даёт ядро.
+      setCrumbs([...host.originCrumbs('docs'), { label: doc.type || 'Документ', current: true }]);
+
+      const siblings = siblingsFor(doc, route);
+      scope.setHTML(detailHTML(doc, siblings));
       bindDetail(scope, {
-        doc, host,
-        onBack: () => { location.hash = DOCS_HREF; },
+        doc, host, siblings,
+        onBack: () => { location.hash = host.backHref('docs'); },
+        onOpen: (id) => {
+          const q = route && route.query ? route.query : {};
+          const tail = q.from === 'inst'
+            ? `?from=inst&node=${encodeURIComponent(q.node || '')}&name=${encodeURIComponent(q.name || '')}`
+            : '';
+          location.hash = DOCS_HREF + '/' + encodeURIComponent(id) + tail;
+        },
         onChanged: render,
       });
       return;
