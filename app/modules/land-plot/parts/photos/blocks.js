@@ -1,5 +1,6 @@
 import { esc } from '../../../../kernel/dom.js';
 import { PHOTO_CAT } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { photoPages, photoFileAt } from './model.js';
 
 // Плитка фото: настоящая картинка, если файл загружен, иначе прежняя макетная
@@ -28,7 +29,7 @@ export function photoAccordions(ui, oi, withAdd) {
 
     return `<div class="dd">
       <button class="btn btn-ghost btn-sm" data-dd-toggle>+ Добавить фото</button>
-      <div class="dd-menu">${PHOTO_CAT.map((c) => `<button data-add-photo="${esc(c)}" data-photo-oi="${oi.id}">${esc(c)}</button>`).join('')}</div>
+      <div class="dd-menu">${opt('building', 'photoCat', PHOTO_CAT).map((c) => `<button data-add-photo="${esc(c)}" data-photo-oi="${oi.id}">${esc(c)}</button>`).join('')}</div>
     </div>
     <div class="muted" style="font-size:10.5px;margin-top:6px">Выберите категорию, чтобы загрузить первое фото.</div>`;
   }
@@ -51,7 +52,7 @@ export function photoAccordions(ui, oi, withAdd) {
   // Дропдаун добавления фото в новую категорию.
   const addCategoryMenu = `<div class="dd" style="margin-top:8px">
     <button class="btn btn-ghost btn-sm" data-dd-toggle>+ Добавить категорию</button>
-    <div class="dd-menu">${PHOTO_CAT.map((c) => `<button data-add-photo="${esc(c)}" data-photo-oi="${oi.id}">${esc(c)}</button>`).join('')}</div>
+    <div class="dd-menu">${opt('building', 'photoCat', PHOTO_CAT).map((c) => `<button data-add-photo="${esc(c)}" data-photo-oi="${oi.id}">${esc(c)}</button>`).join('')}</div>
   </div>`;
 
   return accordionsHtml + addCategoryMenu;

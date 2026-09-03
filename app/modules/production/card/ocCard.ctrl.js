@@ -5,12 +5,15 @@ import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { DOC_TYPES, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
+import { opt } from '../data/opts.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 import { nextLetter, nextId, nextEni, removeRecord, nextDocId } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
+
+const wear0 = () => opt('building', 'wear', WEAR_LEVEL)[0];
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
@@ -28,7 +31,9 @@ function createOi(ctx, type) {
     name: type.label,
     status: 'Основное',
     origin: 'manual',
-    residential: false,
+    // Жилое помечает сам вид ОИ: «Жилой дом» и квартира — жилые, остальные
+    // строения нет. Раньше в этом модуле стояло жёсткое false.
+    residential: !!type.residential || type.card === 'apartment',
     resCat: '',
     eni: nextEni(rec, rec.eni),
     year: '',
@@ -54,8 +59,11 @@ function createOi(ctx, type) {
     heating: [],
     heatingOther: '',
     wear: {
-      finish: WEAR_LEVEL[0], insulation: WEAR_LEVEL[0], roof: WEAR_LEVEL[0], plinth: WEAR_LEVEL[0],
-      floors: WEAR_LEVEL[0], ceilings: WEAR_LEVEL[0], windows: WEAR_LEVEL[0], doors: WEAR_LEVEL[0], heating: WEAR_LEVEL[0],
+      // Значение по умолчанию берём из справочника износа, а не из встроенного
+      // перечня: иначе новая литера получала бы значение, которого в
+      // справочнике может уже не быть.
+      finish: wear0(), insulation: wear0(), roof: wear0(), plinth: wear0(),
+      floors: wear0(), ceilings: wear0(), windows: wear0(), doors: wear0(), heating: wear0(),
     },
     comment: '',
     catClass: type.catClass || 'Производственно-складское',
@@ -63,7 +71,7 @@ function createOi(ctx, type) {
     prodHeight: '',
     prodFrame: '',
     prodFloors: '',
-    craneBeam: CRANE_BEAM[0],
+    craneBeam: opt('building', 'craneBeam', CRANE_BEAM)[0],
     tempMode: '',
     structStrength: '',
     dis: false,

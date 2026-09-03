@@ -1,6 +1,7 @@
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
 import { STATUS_OC } from '../data/dictionaries.js';
+import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 
@@ -35,7 +36,7 @@ function mainSection(rec) {
         <div class="field">
           <label>Статус ОЦ</label>
           <select class="select" id="fStatus">
-            ${STATUS_OC.map((s) => `<option ${s === rec.status ? 'selected' : ''}>${s}</option>`).join('')}
+            ${opt('oc', 'status', STATUS_OC).map((s) => `<option ${s === rec.status ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
 

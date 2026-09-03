@@ -1,6 +1,7 @@
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD, APARTMENT_RIGHTS, LAND_FORM, LAND_ENCUMBRANCE } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { docsBlockInner } from '../../parts/docs/table.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
@@ -33,7 +34,7 @@ export function render(ctx, oi) {
 <div class="inline-row">
 <select class="select" data-land-rights style="flex:1 1 200px;">
 <option value="">Не выбрано</option>
-${APARTMENT_RIGHTS.map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
+${opt('land', 'rights', APARTMENT_RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
 </select>
 <input
 class="input"
@@ -50,7 +51,7 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 <div class="inline-row">
 <select class="select" data-land-form style="flex:1 1 200px;">
 <option value="">Не выбрано</option>
-${LAND_FORM.map((f) => `<option ${f === oi.form ? 'selected' : ''}>${f}</option>`).join('')}
+${opt('land', 'form', LAND_FORM).map((f) => `<option ${f === oi.form ? 'selected' : ''}>${f}</option>`).join('')}
 </select>
 <input
 class="input"
@@ -68,7 +69,7 @@ style="flex:1 1 200px; ${showFormOther ? '' : 'display:none;'}"
 <label>Сервитуты и обременения</label>
 <div class="inline-row">
 <select class="select" data-land-encumbrance style="flex:1 1 160px;">
-${LAND_ENCUMBRANCE.map((o) => `<option ${o === (oi.encumbrance || 'Нет') ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('land', 'encumbrance', LAND_ENCUMBRANCE).map((o) => `<option ${o === (oi.encumbrance || 'Нет') ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 <input
 class="input"

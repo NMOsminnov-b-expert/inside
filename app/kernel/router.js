@@ -3,6 +3,7 @@
 //   #/oc/<typeId>/<ocId>/...    — модуль типа ОЦ; хвост принадлежит модулю
 //   #/archive                   — архив документов (все типы ОЦ сразу)
 //   #/docs                      — реестр «Документы» (не зависит от типов ОЦ)
+//   #/dicts                     — справочники значений
 // Query после «?» отдаётся экрану как объект.
 export function parse(hash = location.hash) {
   const raw = String(hash || '').replace(/^#/, '');
@@ -26,6 +27,11 @@ export function parse(hash = location.hash) {
   // #/docs/<id> — карточка документа; хвост здесь не нужен, у документа его нет.
   if (segs[0] === 'docs') {
     return { name: 'docs', id: segs[1] ? decodeURIComponent(segs[1]) : null, query };
+  }
+
+  // Справочники — тоже общий экран: перечни значений для полей всех типов ОЦ.
+  if (segs[0] === 'dicts') {
+    return { name: 'dicts', query };
   }
 
   if (segs[0] === 'oc' && segs[1]) {
@@ -70,3 +76,4 @@ export function start(onRoute) {
 
 export const ARCHIVE_HREF = '#/archive';
 export const DOCS_HREF = '#/docs';
+export const DICTS_HREF = '#/dicts';

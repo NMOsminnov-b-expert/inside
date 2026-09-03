@@ -50,6 +50,27 @@ export const OI_CARDS = {
     },
     load: () => import('./building/index.js'),
   },
+
+  // Квартиру можно добавить в объект оценки любого типа (решение пользователя
+  // 02.09.2026), поэтому карточка есть и здесь — импортом из модуля квартиры.
+  apartment: {
+    id: 'apartment',
+    headLabel: 'Карточка квартиры',
+    listLabel: (oi) => `Лит ${esc(oi.letter)} · ${esc(oi.name)}`,
+    crumbLabel: (oi) => `Литера ${esc(oi.letter)} · ${esc(oi.name)}`,
+    plateKind: 'ОЦ → литера',
+    hasLetter: true,
+    tableCategory: () => 'Квартира',
+    tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
+    plateChips: (oi) => {
+      const v = verbal(oi);
+      return [
+        `<span class="ctx-chip">${fmtNum(num(oi.areas.tp || 0))} м² общая</span>`,
+        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
+      ];
+    },
+    load: () => import('./apartment/index.js'),
+  },
 };
 
 export function cardMeta(oi) {

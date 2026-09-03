@@ -2,6 +2,7 @@ import { archiveDoc } from '../../../../kernel/archive.js';
 import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace } from './state.js';
 import { nextDocId } from '../../data/store.js';
 import { paintPdfCanvases } from './pdf.js';
@@ -322,7 +323,7 @@ export function bindViewer(ctx) {
     e.stopPropagation();
     const scope = (ctx.view === 'oi' && ctx.oi) ? ctx.oi.id : (ctx.view === 'mech' ? 'mech-new' : 'oc');
 
-    const type = await ctx.host.select({ title: 'Тип документа', options: DOC_TYPES });
+    const type = await ctx.host.select({ title: 'Тип документа', options: opt('oc', 'docType', DOC_TYPES) });
     if (!type) return;
     const file = await pickFile();
     if (!file) return;
