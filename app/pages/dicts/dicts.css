@@ -192,7 +192,15 @@ body[data-page="dicts"] .dc-tbl td{padding:1px 12px;border-bottom:1px solid var(
   overflow:hidden;height:34px}
 body[data-page="dicts"] .dc-tbl td:last-child,
 body[data-page="dicts"] .dc-tbl th:last-child{border-right:none}
-body[data-page="dicts"] .dc-tbl th{border-right:1px solid var(--line)}
+/* Разделителем в шапке служит сам ползунок перегородки (kernel/columns.js):
+   своя граница у ячейки давала вторую линию рядом с ним (пользователь
+   03.09.2026 — «ползунок должен быть в шапке вместо линии»). */
+body[data-page="dicts"] .dc-tbl th{border-right:none}
+body[data-page="dicts"] .dc-tbl th .col-grip::after{top:6px;bottom:6px;right:0;
+  background:var(--line)}
+body[data-page="dicts"] .dc-tbl th .col-grip:hover::after,
+body[data-page="dicts"] .dc-tbl th .col-grip.active::after{top:0;bottom:0;
+  background:var(--blue-600)}
 body[data-page="dicts"] .dc-tbl tbody tr:last-child td{border-bottom:none}
 body[data-page="dicts"] .dc-tbl tbody tr:hover td{background:#f7fbff}
 
@@ -522,39 +530,6 @@ body[data-page="dicts"] .dc-back-row{margin-bottom:10px}
 body[data-page="dicts"] .dc-main.flat{overflow:visible;padding:0;max-width:1200px}
 body[data-page="dicts"] .dc-panel{flex:1 1 auto;overflow:auto;padding:4px 6px 10px}
 
-/* ============ вид «шаги» ============ */
-/* Три списка рядом: выбрал слева — появилось справа. Ничего не раскрывается,
-   путь виден целиком — это и делает вид понятным без опыта с деревом. */
-/* Высота — по самой длинной колонке, но не выше доступной: жёсткое height:100%
-   растягивало пустые колонки на весь экран. */
-body[data-page="dicts"] .dc-steps{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;
-  max-height:100%;min-height:220px}
-body[data-page="dicts"] .dc-step{display:flex;flex-direction:column;min-height:0;
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);overflow:hidden}
-body[data-page="dicts"] .dc-step-head{padding:9px 12px;font-size:10.5px;text-transform:uppercase;
-  letter-spacing:.5px;font-weight:700;color:var(--blue-700);background:var(--blue-50);
-  border-bottom:1px solid var(--line)}
-body[data-page="dicts"] .dc-step-body{flex:1 1 auto;overflow:auto;padding:6px}
-body[data-page="dicts"] .dc-step-row{display:flex;align-items:center;gap:10px;width:100%;
-  text-align:left;padding:8px 10px;border-radius:8px;font-size:13px;color:var(--ink);
-  transition:background .12s}
-body[data-page="dicts"] .dc-step-row:hover{background:var(--blue-50)}
-body[data-page="dicts"] .dc-step-row.on{background:var(--blue-100);color:var(--blue-700);
-  font-weight:600}
-body[data-page="dicts"] .dc-step-row span{flex:1 1 auto;display:flex;align-items:center;gap:6px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-body[data-page="dicts"] .dc-step-row b{flex:0 0 auto;background:var(--slate-50);
-  color:var(--slate-700);border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:700}
-body[data-page="dicts"] .dc-step-row.on b{background:#fff;color:var(--blue-700)}
-body[data-page="dicts"] .dc-step-row.sys{color:var(--slate-700)}
-body[data-page="dicts"] .dc-step-folder{font-style:normal;font-size:10.5px;color:var(--muted);
-  background:#eef3f9;border-radius:5px;padding:1px 6px}
-body[data-page="dicts"] .dc-step-empty{padding:16px 12px;font-size:12px;color:#9fb0c4;
-  font-style:italic;text-align:center}
-
-body[data-page="dicts"] .dc-field-list .dc-step-row span{flex:0 1 auto}
-
 /* ============ узкие окна: карточка справочника ============ */
 /* Карточка живёт в трёх разных ширинах: рядом с деревом (~300px уходит панели),
    на всю ширину в остальных видах и в окне 1024px, с которым работают на
@@ -616,12 +591,16 @@ body[data-page="dicts"] .dc-field-list .dc-step-row span{flex:0 1 auto}
    Столбцы фиксированы по ширине и не перестраиваются при выборе — «чтобы
    размеры текущих окон не скакали» (решение пользователя 02.09.2026). Каждый
    столбец прокручивается сам, страница целиком не едет. */
-body[data-page="dicts"] .dc-cols{display:flex;gap:12px;flex:1 1 auto;min-height:0}
+body[data-page="dicts"] .dc-cols{display:flex;flex:1 1 auto;min-height:0}
 body[data-page="dicts"] .dc-browser{flex:1 1 auto;min-width:0;min-height:0}
 
-body[data-page="dicts"] .dc-steps{display:grid;
-  grid-template-columns:minmax(190px,0.85fr) minmax(190px,0.85fr) minmax(400px,2fr);
-  gap:12px;height:100%;min-height:0}
+/* Ширины столбцов тянутся перегородками (см. [data-pane-split] в dicts.js):
+   первые два столбца фиксированы в пикселях, столбец справочника резиновый —
+   он и забирает разницу, поэтому горизонтальной прокрутки не появляется. */
+body[data-page="dicts"] .dc-steps{display:flex;height:100%;min-height:0}
+body[data-page="dicts"] .dc-step.pane-s1{flex:0 0 var(--pw-s1,236px);width:var(--pw-s1,236px)}
+body[data-page="dicts"] .dc-step.pane-s2{flex:0 0 var(--pw-s2,236px);width:var(--pw-s2,236px)}
+body[data-page="dicts"] .dc-step.wide{flex:1 1 auto;min-width:320px}
 body[data-page="dicts"] .dc-step{display:flex;flex-direction:column;min-height:0;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);overflow:hidden}
@@ -641,8 +620,12 @@ body[data-page="dicts"] .dc-step-row{display:flex;align-items:center;gap:10px;wi
 body[data-page="dicts"] .dc-step-row:hover{background:var(--blue-50)}
 body[data-page="dicts"] .dc-step-row.on{background:var(--blue-100);color:var(--blue-700);
   font-weight:600}
-body[data-page="dicts"] .dc-step-row span{flex:1 1 auto;display:flex;align-items:center;gap:6px;
+/* Многоточие вместо резкого обрыва: у flex-контейнера text-overflow не
+   работает, поэтому подпись — обычный блок, а замок и папка висят inline. */
+body[data-page="dicts"] .dc-step-row span{flex:1 1 auto;min-width:0;display:block;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="dicts"] .dc-step-row span .dc-lock{margin-right:5px;vertical-align:-1px}
+body[data-page="dicts"] .dc-step-row span .dc-step-folder{margin-left:6px}
 body[data-page="dicts"] .dc-step-row b{flex:0 0 auto;background:var(--slate-50);
   color:var(--slate-700);border-radius:999px;padding:1px 8px;font-size:10.5px;font-weight:700}
 body[data-page="dicts"] .dc-step-row.on b{background:#fff;color:var(--blue-700)}
@@ -686,7 +669,7 @@ body[data-page="dicts"] .dc-step-foot .dc-item-q{flex:1 1 auto;height:30px;font-
 /* Раньше это был аккордеон блока 05 внизу карточки — его не видели, пока
    правили значения. Теперь столбец едет вместе с интерфейсом и всегда на виду
    (решение пользователя 02.09.2026). */
-body[data-page="dicts"] .dc-side{flex:0 0 288px;width:288px;display:flex;flex-direction:column;
+body[data-page="dicts"] .dc-side{flex:0 0 var(--pw-side,288px);width:var(--pw-side,288px);display:flex;flex-direction:column;
   min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);overflow:hidden}
 body[data-page="dicts"] .dc-side-head{display:flex;align-items:center;gap:8px;padding:9px 12px;
@@ -725,7 +708,6 @@ body[data-page="dicts"] .dc > .dc-side{margin:12px 12px 12px 0}
 
 @media (max-width: 1400px) {
   /* Связанные ужимаются раньше, чем начинают страдать значения. */
-  body[data-page="dicts"] .dc-side{flex-basis:232px;width:232px}
   body[data-page="dicts"] .dc-linked-diff{display:none}
 }
 
@@ -733,7 +715,8 @@ body[data-page="dicts"] .dc > .dc-side{margin:12px 12px 12px 0}
   /* Столбец связанных уходит под столбцы: втроём они уже не читаются. */
   body[data-page="dicts"] .dc-cols{flex-direction:column;overflow:auto}
   body[data-page="dicts"] .dc-side{flex:0 0 auto;width:100%;max-height:280px}
-  body[data-page="dicts"] .dc-steps{height:auto;min-height:420px}
+  body[data-page="dicts"] .dc-steps{height:auto;min-height:420px;flex-wrap:wrap}
+  body[data-page="dicts"] .dc-split{display:none}
   body[data-page="dicts"] .dc > .dc-side{display:none}
 }
 
@@ -761,3 +744,115 @@ body[data-page="dicts"] .dc-picker-sub{margin:10px 0 6px;font-size:10px;text-tra
   letter-spacing:.5px;font-weight:700;color:var(--muted)}
 body[data-page="dicts"] .dc-slot.busy{border-style:dashed}
 body[data-page="dicts"] .dc-slot.busy span{color:var(--amber-700)}
+
+/* ============ перегородки между столбцами ============ */
+/* Та же идея, что у перегородок в таблицах (kernel/columns.js): полоса стоит
+   на месте, тянется ширина соседа слева, общая ширина не меняется. Сама полоса
+   прозрачная и занимает место зазора — линия появляется только под курсором,
+   чтобы не расчерчивать раздел лишними границами. */
+body[data-page="dicts"] .dc-split{flex:0 0 12px;position:relative;cursor:col-resize;
+  touch-action:none}
+body[data-page="dicts"] .dc-split::after{content:'';position:absolute;top:14px;bottom:14px;
+  left:50%;width:2px;margin-left:-1px;border-radius:2px;background:transparent;
+  transition:background .12s}
+body[data-page="dicts"] .dc-split:hover::after,
+body[data-page="dicts"] .dc-split.active::after{background:var(--blue-300)}
+body[data-page="dicts"] .dc-split.active::after{background:var(--blue-600)}
+body[data-page="dicts"] .col-resizing{cursor:col-resize;user-select:none}
+
+/* ============ блок 03: цепочка одной строкой ============ */
+/* Раньше три коробки в столбик занимали пол-экрана ради трёх слов. Теперь это
+   строка-блок-схема: ширина по содержимому, длинная цепочка прокручивается
+   внутри себя, а не растягивает карточку (пользователь 03.09.2026). */
+body[data-page="dicts"] .dc-card-body.chain{padding:10px 13px}
+/* Схема всегда в одну строку: шаги не сжимаются и не рвутся, а если цепочка
+   длиннее строки — прокручивается внутри себя. */
+body[data-page="dicts"] .dc-chain{display:flex;align-items:center;gap:6px;flex:1 1 auto;
+  min-width:0;padding:2px 0;overflow-x:auto;scrollbar-width:thin}
+body[data-page="dicts"] .dc-chain::-webkit-scrollbar{height:5px}
+body[data-page="dicts"] .dc-chain::-webkit-scrollbar-thumb{background:#dbe5f0;border-radius:3px}
+/* Шаги сжимаются с многоточием, а не режутся посередине буквы: полное
+   название остаётся в подсказке. Поле привязки сжимается последним — оно и
+   есть суть цепочки. */
+body[data-page="dicts"] .dc-chain-step{flex:0 0 auto;padding:3px 10px;
+  border-radius:999px;background:#f1f6fc;border:1px solid var(--line-soft);font-size:12px;
+  color:var(--slate-700);white-space:nowrap}
+body[data-page="dicts"] .dc-chain-step.field{background:var(--blue-50);
+  border-color:var(--blue-200);color:var(--blue-700);font-weight:600}
+body[data-page="dicts"] .dc-chain-arrow{flex:0 0 auto;display:flex;color:#b6c4d4}
+body[data-page="dicts"] .dc-chain-arrow svg{width:9px;height:9px}
+body[data-page="dicts"] .dc-chain-folder{flex:0 0 auto;display:flex;align-items:center;gap:5px;
+  margin-left:4px;padding:3px 9px;border-radius:999px;background:#fff7e8;color:var(--amber-700);
+  font-size:11.5px;white-space:nowrap}
+body[data-page="dicts"] .dc-chain.empty{color:var(--amber-700);font-size:12px}
+
+
+/* ============ таблица значений ============ */
+body[data-page="dicts"] .dc-tbl-box{width:100%}
+
+/* Служебная ячейка: номер строки, а по наведению и при выборе — флажок.
+   Ряды пустых квадратов рябили бы в глазах, поэтому флажок проявляется. */
+body[data-page="dicts"] .dc-sel-cell{position:relative;text-align:right;padding:0 8px 0 0}
+/* Номер строки — только подпись: клики он перехватывать не должен, под ним
+   лежит флажок. */
+body[data-page="dicts"] .dc-sel-cell .dc-num{font-size:10.5px;color:#adbccd;
+  font-variant-numeric:tabular-nums;transition:opacity .12s;pointer-events:none}
+body[data-page="dicts"] .dc-sel-cell .dc-grip-h{position:absolute;left:2px;top:50%;
+  transform:translateY(-50%);opacity:0;color:#c3d0de;transition:opacity .12s;
+  pointer-events:none}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-sel-cell .dc-grip-h{opacity:.9}
+
+/* Флажок правее ручки перетаскивания: по центру ячейки они перекрывались, и
+   промахнуться было легко (пользователь 03.09.2026). */
+body[data-page="dicts"] .dc-check{position:absolute;right:6px;top:50%;
+  transform:translateY(-50%);width:16px;height:16px;border-radius:5px;
+  border:1.5px solid #cfdcea;background:#fff;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;opacity:0;transition:opacity .12s,
+  border-color .12s,background .12s}
+body[data-page="dicts"] .dc-check input{position:absolute;inset:0;opacity:0;margin:0;
+  cursor:pointer}
+body[data-page="dicts"] .dc-check i{display:flex;color:#fff;transform:scale(.6);
+  opacity:0;transition:transform .12s,opacity .12s}
+body[data-page="dicts"] .dc-check:hover{border-color:var(--blue-500)}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-check{opacity:1}
+body[data-page="dicts"] .dc-check.on{opacity:1;background:var(--blue-600);
+  border-color:var(--blue-600)}
+body[data-page="dicts"] .dc-check.on i{opacity:1;transform:scale(1)}
+body[data-page="dicts"] .dc-tbl tr:hover .dc-sel-cell .dc-num{opacity:0}
+body[data-page="dicts"] .dc-tbl tr.picked .dc-sel-cell .dc-num{opacity:0}
+body[data-page="dicts"] .dc-tbl tr.picked td{background:var(--blue-50)}
+body[data-page="dicts"] .dc-tbl tr.picked:hover td{background:var(--blue-100)}
+
+/* Флажок «выбрать все» в шапке виден всегда — иначе его не найти. */
+body[data-page="dicts"] .dc-check.head{opacity:.75;border-color:#c3d0de}
+body[data-page="dicts"] .dc-check.head:hover{opacity:1}
+body[data-page="dicts"] .dc-check.head.on{opacity:1}
+
+/* Шапка блока значений в режиме выбора: счётчик уступает место действиям. */
+body[data-page="dicts"] .dc-card-head.picking{background:var(--blue-50)}
+body[data-page="dicts"] .dc-picked{font-size:11px;font-weight:700;color:var(--blue-700);
+  background:#fff;border-radius:999px;padding:2px 9px}
+
+/* Подсказка под кнопкой догрузки: объясняет, почему догружать нечего, когда
+   недостача есть, но у неотмеченных справочников. */
+body[data-page="dicts"] .dc-side-tip{margin-top:7px;font-size:11px;color:var(--amber-700);
+  line-height:1.5}
+
+/* Действия над привязкой — под «⋮»: три кнопки рядом с цепочкой съедали
+   строку, и названия типов сжимались до «Гр…». */
+body[data-page="dicts"] .dc-where-dd{flex:0 0 auto}
+body[data-page="dicts"] .dc-where-more{width:26px;height:26px;border-radius:7px;
+  color:var(--muted);font-size:15px;line-height:1}
+body[data-page="dicts"] .dc-where-more:hover{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="dicts"] .dc-where-dd.open .dc-where-more{background:var(--blue-100);
+  color:var(--blue-700)}
+body[data-page="dicts"] .dc-where-dd .dd-menu{left:auto;right:0;min-width:230px}
+body[data-page="dicts"] .dd-note{padding:6px 9px;font-size:11.5px;color:var(--muted);
+  line-height:1.5}
+body[data-page="dicts"] .dc-where-bind{flex:0 0 auto}
+
+/* Кнопка удаления живёт в столбце «Объектов»: отдельный столбец действий
+   оставлял справа пустую полосу, которая читалась как лишний отступ. */
+body[data-page="dicts"] .dc-tbl td.dc-usage{position:relative;padding-right:26px}
+body[data-page="dicts"] .dc-tbl td.dc-usage .dc-x{position:absolute;right:4px;top:50%;
+  transform:translateY(-50%)}

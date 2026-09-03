@@ -14,6 +14,9 @@
 //   * системные перечни отделены разделом, а не подписью;
 //   * правят администратор и роль «любая».
 import { esc } from '../../kernel/dom.js';
+import {
+  headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
+} from '../../kernel/columns.js';
 import { fmtEni, plural } from '../../kernel/fmt.js';
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import { session, roleLabel } from '../../kernel/session.js';
@@ -41,6 +44,8 @@ const VIEWS = [
 const state = {
   view: 'steps',
   viewMenuOpen: false, // раскрыто ли меню выбора вида
+  whereMenuOpen: false, // раскрыто ли меню действий над привязкой (блок 03)
+  picked: {},          // отмеченные значения справочника: { id: true }
   stepType: null,      // выбранный тип ОЦ (первый столбец)
   stepCard: null,      // выбранный тип ОИ (второй столбец)
   selected: null,
@@ -63,6 +68,52 @@ const state = {
   linkedOff: {},       // id справочников, с которых галочку сняли
   movePick: null,      // автопривязка не сработала — спрашиваем поле
 };
+
+// Ширины столбцов раздела. Тянутся перегородками; резиновым остаётся столбец
+// справочника — он и должен забирать свободное место.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: это личная настройка показа, как ширины столбцов таблиц
+// (kernel/columns.js). Здесь живёт в памяти вкладки; на сервере — профиль
+// пользователя либо localStorage, выбор за разработчиками серверной части.
+const PANE_MIN = { s1: 150, s2: 150, side: 210 };
+const paneW = { s1: 206, s2: 206, side: 276 };
+
+// Столбцы таблицы значений — тот же механизм, что в карточках ОЦ и ОИ.
+// Первый столбец служебный: номер строки, а по наведению — чекбокс выбора.
+const ITEM_COLUMNS = [
+  // Служебный столбец: ручка перетаскивания слева, номер и флажок справа —
+  // им нужно место, чтобы не мешать друг другу.
+  { key: 'sel', label: '', width: 48, fixed: true },
+  // share — доля остатка после служебных столбцов. Ширины считаются от
+  // фактической ширины таблицы (calc), поэтому сумма всегда ровно 100%:
+  // при пикселях таблица вылезала из блока на узких столбцах.
+  { key: 'value', label: 'Значение', share: 0.7, minWidth: 120 },
+  { key: 'note', label: 'Пояснение', share: 0.3, minWidth: 80 },
+  // Отдельного столбца действий нет: он оставлял справа пустую полосу, которую
+  // видно как лишний отступ (пользователь 03.09.2026). Кнопка удаления живёт
+  // внутри столбца «Объектов» и проявляется по наведению на строку.
+  { key: 'usage', label: 'Объектов', width: 84, minWidth: 66 },
+];
+
+// Сколько занимают столбцы с заданной шириной — остальное делится долями.
+const ITEM_FIXED_W = ITEM_COLUMNS.reduce((n, c) => n + (c.share ? 0 : c.width), 0);
+
+// Своя <colgroup>: ширина по умолчанию — доля остатка, а если человек тянул
+// перегородку, её значение приходит переменной --cw-<ключ> и перекрывает долю.
+function itemColGroup() {
+  return `<colgroup>${ITEM_COLUMNS.map((c) => {
+    const base = c.share
+      ? `calc((100% - ${ITEM_FIXED_W}px) * ${c.share})`
+      : `${c.width}px`;
+    return `<col style="width:var(--cw-${c.key}, ${base})">`;
+  }).join('')}</colgroup>`;
+}
+
+const itemWidths = {};
+
+const ICON_CHECK = `<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+  <path d="M2.4 6.2 4.7 8.5 9.6 3.6" fill="none" stroke="currentColor" stroke-width="1.9"
+    stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const ICON_LOCK = `<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
   <path d="M3.2 5.4V4a2.8 2.8 0 0 1 5.6 0v1.4M2.6 5.4h6.8v5H2.6z"
@@ -91,6 +142,20 @@ const ICON_GEAR = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="
 const ICON_CHEV = `<svg class="dc-tree-chev" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
   <path d="M4.4 2.6 7.8 6l-3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.6"
     stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+// Сколько справочников каталога проходит текущий фильтр. Нужно столбцам: при
+// поиске в них остаются только те типы ОЦ и ОИ, где что-то нашлось, иначе поиск
+// в режиме столбцов выглядел бы сломанным — список пустой, а почему, непонятно.
+function cardMatches(card) {
+  const own = card.dicts.filter(matchesDict).length;
+  const inFolders = (card.folders || [])
+    .reduce((n, f) => n + f.dicts.filter(matchesDict).length, 0);
+  return own + inFolders;
+}
+
+function typeMatches(type) {
+  return type.cards.reduce((n, c) => n + cardMatches(c), 0);
+}
 
 // --- дерево каталогов ------------------------------------------------------
 
@@ -225,42 +290,60 @@ function newDictHTML() {
 // раскрывается и не сворачивается, путь виден целиком.
 
 function stepsHTML() {
-  const tree = catalogTree();
+  const tree = catalogTree().map((t) => ({ ...t, found: typeMatches(t) }))
+    .filter((t) => !state.q || t.found);
+
   const type = tree.find((t) => t.typeId === state.stepType) || null;
-  const cards = type ? type.cards : [];
+  const cards = type
+    ? type.cards.map((c) => ({ ...c, found: cardMatches(c) })).filter((c) => !state.q || c.found)
+    : [];
   const card = cards.find((c) => c.key === state.stepCard) || null;
   const d = state.selected ? getDict(state.selected) : null;
 
-  return `<div class="dc-steps">
+  return `<div class="dc-steps" style="${paneVarsStyle()}">
     ${typeColHTML(tree)}
+    ${splitHTML('s1')}
     ${cardColHTML(type, cards)}
+    ${splitHTML('s2')}
     ${d ? valueColHTML(d) : dictColHTML(card)}
   </div>`;
 }
 
-// Шаг 1 — типы ОЦ.
+// Перегородка между столбцами раздела: тянется мышью, соседи меняются местами
+// по ширине один к одному — как перегородки в таблицах (kernel/columns.js).
+function splitHTML(key) {
+  return `<div class="dc-split" data-pane-split="${key}" title="Потянуть — изменить ширину"></div>`;
+}
+
+function paneVarsStyle() {
+  return `--pw-s1:${paneW.s1}px;--pw-s2:${paneW.s2}px;--pw-side:${paneW.side}px`;
+}
+
+// Шаг 1 — типы ОЦ. При поиске счётчик показывает найденное, а не всё.
 function typeColHTML(tree) {
-  return `<div class="dc-step">
-    <div class="dc-step-head">Шаг 1 · Тип ОЦ</div>
+  return `<div class="dc-step pane-s1">
+    <div class="dc-step-head">Шаг 1 · Тип ОЦ${state.q ? '<i>найдено</i>' : ''}</div>
     <div class="dc-step-body">
-      ${tree.map((t) => `<button class="dc-step-row ${t.typeId === state.stepType ? 'on' : ''}
+      ${tree.length ? tree.map((t) => `<button class="dc-step-row ${t.typeId === state.stepType ? 'on' : ''}
         ${t.typeId ? '' : 'unbound'}" data-step-type="${esc(t.typeId)}">
-        <span>${esc(t.label)}</span><b>${t.count}</b>
-      </button>`).join('')}
+        <span>${esc(t.label)}</span><b>${state.q ? t.found : t.count}</b>
+      </button>`).join('')
+      : '<div class="dc-step-empty">Ничего не найдено</div>'}
     </div>
   </div>`;
 }
 
 // Шаг 2 — типы ОИ выбранного типа ОЦ.
 function cardColHTML(type, cards) {
-  return `<div class="dc-step">
-    <div class="dc-step-head">Шаг 2 · Тип ОИ</div>
+  return `<div class="dc-step pane-s2">
+    <div class="dc-step-head">Шаг 2 · Тип ОИ${state.q ? '<i>найдено</i>' : ''}</div>
     <div class="dc-step-body">
-      ${type ? cards.map((c) => `<button class="dc-step-row ${c.key === state.stepCard ? 'on' : ''}"
-          data-step-card="${esc(c.key)}">
-          <span>${esc(c.label)}</span><b>${c.total}</b>
-        </button>`).join('')
-        : '<div class="dc-step-empty">Выберите тип объекта оценки</div>'}
+      ${!type ? '<div class="dc-step-empty">Выберите тип объекта оценки</div>'
+        : cards.length ? cards.map((c) => `<button class="dc-step-row ${c.key === state.stepCard ? 'on' : ''}"
+            data-step-card="${esc(c.key)}">
+            <span>${esc(c.label)}</span><b>${state.q ? c.found : c.total}</b>
+          </button>`).join('')
+        : '<div class="dc-step-empty">Ничего не найдено</div>'}
     </div>
   </div>`;
 }
@@ -316,9 +399,8 @@ function valueColHTML(d) {
 
     <div class="dc-step-body cards">
       ${generalHTML(d)}
-      ${itemsHTML(d)}
       ${whereHTML(d)}
-      ${usageHTML(d)}
+      ${itemsHTML(d)}
     </div>
   </div>`;
 }
@@ -384,13 +466,25 @@ function itemsTableHTML(d) {
   const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
     || (it.note || '').toLowerCase().includes(q));
 
+  const allPicked = shown.length && shown.every((it) => state.picked[it.id]);
+
+  // Служебная ячейка: номер строки, а по наведению и при выборе — флажок.
+  // Так множественный выбор всегда под рукой, но не рябит в глазах рядами
+  // пустых квадратов (пользователь 03.09.2026).
+  const selCell = (it, idx) => `<td class="dc-sel-cell">
+    ${edit ? `<label class="dc-check ${state.picked[it.id] ? 'on' : ''}">
+        <input type="checkbox" data-item-pick="${esc(it.id)}" ${state.picked[it.id] ? 'checked' : ''}>
+        <i>${ICON_CHECK}</i>
+      </label>` : ''}
+    <span class="dc-num">${idx + 1}</span>
+    ${edit ? `<span class="dc-grip-h" title="Перетащите, чтобы изменить порядок">${ICON_GRIP}</span>` : ''}
+  </td>`;
+
   const rowFor = (it, idx) => {
     const { count } = usageOf(d, it.value);
     return `<tr data-item="${esc(it.id)}" ${edit ? 'draggable="true"' : ''}
-        class="${state.dragItem === it.id ? 'dragging' : ''}">
-      <td class="dc-grip">${edit
-        ? `<span class="dc-grip-h" title="Перетащите, чтобы изменить порядок">${ICON_GRIP}</span>`
-        : `<span class="dc-num">${idx + 1}</span>`}</td>
+        class="${state.dragItem === it.id ? 'dragging' : ''} ${state.picked[it.id] ? 'picked' : ''}">
+      ${selCell(it, idx)}
       <td>${edit
         ? `<input class="dc-cell" data-item-value="${esc(it.id)}" value="${esc(it.value)}">`
         : `<span class="dc-cell-ro">${esc(it.value)}</span>`}</td>
@@ -401,9 +495,8 @@ function itemsTableHTML(d) {
       <td class="dc-usage">${count
         ? `<button class="dc-usage-btn" data-item-usage="${esc(it.id)}"
              title="Показать объекты">${count}</button>`
-        : '<span class="dc-usage-zero" title="Значение ни разу не выбрано">—</span>'}</td>
-      <td class="dc-act">${edit
-        ? `<button class="dc-x" data-item-del="${esc(it.id)}"
+        : '<span class="dc-usage-zero" title="Значение ни разу не выбрано">—</span>'}
+        ${edit ? `<button class="dc-x" data-item-del="${esc(it.id)}"
              title="${count ? 'Значение используется — потребуется замена' : 'Удалить значение'}">×</button>`
         : ''}</td>
     </tr>`;
@@ -418,28 +511,38 @@ function itemsTableHTML(d) {
 
   let n = 0;
   const body = [...groups.entries()].map(([group, items]) => `
-    ${group ? `<tr class="dc-group-row"><td colspan="5">${esc(group)}</td></tr>` : ''}
+    ${group ? `<tr class="dc-group-row"><td colspan="4">${esc(group)}</td></tr>` : ''}
     ${items.map((it) => rowFor(it, n++)).join('')}`).join('');
 
   const addRow = edit ? `<tr class="dc-add-row">
-      <td class="dc-grip"><span class="dc-plus">+</span></td>
+      <td class="dc-sel-cell"><span class="dc-plus">+</span></td>
       <td colspan="2"><input class="dc-cell dc-new" data-item-new
         placeholder="Новое значение — введите и нажмите Enter"></td>
-      <td colspan="2"></td>
+      <td></td>
     </tr>` : '';
 
   if (!d.items.length && !edit) return '<div class="dc-empty">Ни одного значения.</div>';
 
-  return `<table class="dc-tbl">
-    <thead><tr>
-      <th class="dc-grip"></th>
-      <th>Значение</th>
-      <th>Пояснение</th>
-      <th class="dc-usage">Объектов</th>
-      <th class="dc-act"></th>
-    </tr></thead>
-    <tbody>${body}${addRow}</tbody>
-  </table>`;
+  const head = `<thead><tr>
+    <th ${headAttrs(ITEM_COLUMNS[0])}>${edit
+      ? `<label class="dc-check head ${allPicked ? 'on' : ''}"
+           title="${allPicked ? 'Снять выделение' : 'Выбрать все'}">
+          <input type="checkbox" data-item-pick-all ${allPicked ? 'checked' : ''}>
+          <i>${ICON_CHECK}</i>
+        </label>` : ''}</th>
+    ${ITEM_COLUMNS.slice(1).map((c, i) => `<th ${headAttrs(c)}>
+      ${c.label ? colLabelHTML(c) : ''}${resizeGripHTML(c, i === ITEM_COLUMNS.length - 2)}
+    </th>`).join('')}
+  </tr></thead>`;
+
+  return `<div class="dc-tbl-box" data-item-cols-box
+      style="${columnVarsStyle(ITEM_COLUMNS, itemWidths)}">
+    <table class="dc-tbl">
+      ${itemColGroup()}
+      ${head}
+      <tbody>${body}${addRow}</tbody>
+    </table>
+  </div>`;
 }
 
 function itemsHTML(d) {
@@ -448,16 +551,26 @@ function itemsHTML(d) {
   const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
     || (it.note || '').toLowerCase().includes(q));
 
+  const picked = d.items.filter((it) => state.picked[it.id]);
+
   return `<section class="card dc-card">
-    <header class="dc-card-head">
+    <header class="dc-card-head ${picked.length ? 'picking' : ''}">
       <span class="card-idx">02</span>
       <h3>Значения</h3>
-      <span class="dc-count">${q ? `${shown.length} из ${d.items.length}` : d.items.length}</span>
-      <span class="dc-card-tools">
-        ${d.items.length > 8 ? `<input class="input dc-item-q" data-dc-item-q value="${esc(state.itemQ)}"
-          placeholder="Поиск по значениям…" autocomplete="off">` : ''}
-        ${edit ? '<button class="btn btn-ghost btn-sm" data-item-add>+ Значение</button>' : ''}
-      </span>
+      ${picked.length ? `<span class="dc-picked">выбрано ${picked.length}</span>
+        <span class="dc-card-tools">
+          <button class="btn btn-ghost btn-sm" data-pick-link
+            title="Добавить выбранные значения в отмеченные связанные справочники">
+            Догрузить в связанные</button>
+          <button class="btn btn-danger btn-sm" data-pick-del>Удалить выбранные</button>
+          <button class="btn btn-ghost btn-sm" data-pick-none>Снять</button>
+        </span>`
+      : `<span class="dc-count">${q ? `${shown.length} из ${d.items.length}` : d.items.length}</span>
+        <span class="dc-card-tools">
+          ${d.items.length > 8 ? `<input class="input dc-item-q" data-dc-item-q value="${esc(state.itemQ)}"
+            placeholder="Поиск по значениям…" autocomplete="off">` : ''}
+          ${edit ? '<button class="btn btn-ghost btn-sm" data-item-add>+ Значение</button>' : ''}
+        </span>`}
     </header>
 
     <div class="dc-card-body flush">${itemsTableHTML(d)}</div>
@@ -470,50 +583,47 @@ function whereHTML(d) {
   const edit = canEditDicts() && !d.system;
   const slot = mainSlot(d);
 
+  // Цепочка привязки — одной строкой, как блок-схема: три коробки в столбик
+  // занимали пол-экрана ради трёх слов (пользователь 03.09.2026). Ширина шагов
+  // подбирается по содержимому, длинные названия сжимаются с многоточием.
+  const chain = slot ? `<div class="dc-chain">
+      <span class="dc-chain-step" title="Тип объекта оценки: ${esc(slot.typeLabel)}">${esc(slot.typeLabel)}</span>
+      <span class="dc-chain-arrow">${ICON_CHEV}</span>
+      <span class="dc-chain-step" title="Тип объекта имущества: ${esc(CARD_LABEL[slot.card] || slot.card)}">${esc(CARD_LABEL[slot.card] || slot.card)}</span>
+      <span class="dc-chain-arrow">${ICON_CHEV}</span>
+      <span class="dc-chain-step field" title="Поле карточки: ${esc(slot.label)}">${esc(slot.label)}</span>
+      ${d.folder ? `<span class="dc-chain-folder" title="Папка внутри каталога">${ICON_FOLDER}${esc(d.folder)}</span>` : ''}
+    </div>`
+    : `<div class="dc-chain empty">Ни к чему не привязан — карточки его не видят${
+        edit ? ', нажмите «Привязать к полю»' : ''}</div>`;
+
   return `<section class="card dc-card">
     <header class="dc-card-head">
       <span class="card-idx">03</span>
       <h3>Где применяется</h3>
-      ${edit ? `<span class="dc-card-tools">
-        ${slot ? `<button class="btn btn-ghost btn-sm" data-folder-open>Папка</button>
-               <button class="btn btn-ghost btn-sm" data-move-open>Перенести в другой каталог</button>
-               <button class="btn btn-ghost btn-sm" data-unbind>Отвязать</button>`
-             : '<button class="btn btn-primary btn-sm" data-move-open>Привязать к полю</button>'}
-      </span>` : ''}
+      ${canEditDicts() ? `<span class="dc-card-tools">${!slot
+        ? '<button class="btn btn-primary btn-sm" data-move-open>Привязать к полю</button>'
+        : `<div class="dd dc-where-dd ${state.whereMenuOpen ? 'open' : ''}" data-where-dd>
+            <button class="dc-where-more" data-where-toggle title="Действия над привязкой">⋮</button>
+            <div class="dd-menu">
+              <div class="dd-group">Привязка</div>
+              ${d.system ? '<div class="dd-note">Системный перечень: привязку менять нельзя.</div>'
+                : `<button data-folder-open>Папка внутри каталога</button>
+                   <button data-move-open>Перенести в другой каталог</button>
+                   <button data-unbind>Отвязать от поля</button>`}
+            </div>
+          </div>`}</span>` : ''}
     </header>
 
-    <div class="dc-card-body">
-      ${slot ? `<div class="dc-where">
-          <div class="dc-where-step">
-            <i>Тип объекта оценки</i><b>${esc(slot.typeLabel)}</b>
-          </div>
-          <span class="dc-where-arrow">→</span>
-          <div class="dc-where-step">
-            <i>Тип объекта имущества</i><b>${esc(CARD_LABEL[slot.card] || slot.card)}</b>
-          </div>
-          <span class="dc-where-arrow">→</span>
-          <div class="dc-where-step field">
-            <i>Поле карточки</i><b>${esc(slot.label)}</b>
-          </div>
-        </div>
-        ${folderRowHTML(d)}`
-      : `<div class="dc-empty">Справочник ни к чему не привязан — карточки его не видят.
-         ${edit ? 'Нажмите «Привязать к полю».' : ''}</div>`}
-
+    <div class="dc-card-body chain">
+      ${chain}
       ${state.folderOpen && edit ? folderPickerHTML(d) : ''}
-      ${state.moveOpen && edit ? movePickerHTML(d) : ''}
-      ${state.movePick && edit ? moveChoiceHTML(d) : ''}
+      ${state.moveOpen && canEditDicts() ? movePickerHTML(d) : ''}
+      ${state.movePick && canEditDicts() ? moveChoiceHTML(d) : ''}
     </div>
   </section>`;
 }
 
-// Папка справочника внутри каталога — строкой под цепочкой привязки.
-function folderRowHTML(d) {
-  if (!d.folder) return '';
-  return `<div class="dc-folder-row">
-    ${ICON_FOLDER}<span>Лежит в папке <b>${esc(d.folder)}</b></span>
-  </div>`;
-}
 
 // Выбор папки внутри того же каталога: существующая, новая или без папки.
 // Пользователь: «раз есть папки, можно перемещать в эту папку справочник
@@ -597,47 +707,6 @@ function moveChoiceHTML() {
   </div>`;
 }
 
-// --- блок 04: использование ------------------------------------------------
-
-function usageHTML(d) {
-  let total = 0;
-  const unused = [];
-  const byStatus = new Map();
-
-  d.items.forEach((it) => {
-    const { count, places } = usageOf(d, it.value);
-    total += count;
-    if (!count) unused.push(it.value);
-    places.forEach((p) => byStatus.set(p.status || '—', (byStatus.get(p.status || '—') || 0) + 1));
-  });
-
-  const inUse = d.items.length - unused.length;
-
-  return `<section class="card dc-card">
-    <header class="dc-card-head">
-      <span class="card-idx">04</span>
-      <h3>Использование</h3>
-      <span class="dc-hint">по объектам, открытым в этой сессии</span>
-    </header>
-
-    <div class="dc-card-body">
-      <div class="dc-metrics wide">
-        <div class="dc-metric"><b>${total}</b><span>вхождений всего</span></div>
-        <div class="dc-metric"><b>${inUse} из ${d.items.length}</b><span>значений в деле</span></div>
-        <div class="dc-metric ${unused.length ? 'idle' : ''}">
-          <b>${unused.length}</b><span>ни разу не выбраны</span></div>
-      </div>
-
-      ${byStatus.size ? `<div class="dc-sub">По статусу объектов</div>
-        <div class="dc-chips">${[...byStatus.entries()].sort((a, b) => b[1] - a[1])
-          .map(([st, n]) => `<span class="dc-chip">${esc(st)}<b>${n}</b></span>`).join('')}</div>` : ''}
-
-      ${unused.length ? `<div class="dc-sub">Не встречаются ни в одном объекте</div>
-        <div class="dc-chips">${unused.map((v) => `<span class="dc-chip idle">${esc(v)}</span>`).join('')}</div>`
-      : ''}
-    </div>
-  </section>`;
-}
 
 // --- блок 05: связанные справочники ---------------------------------------
 //
@@ -648,6 +717,28 @@ function usageHTML(d) {
 
 function linkedTargets(d) {
   return linkedDicts(d).filter((x) => !state.linkedOff[x.id]);
+}
+
+// Чего не хватает связанным справочникам. Считаем УНИКАЛЬНЫЕ значения, а не
+// сумму по справочникам: «не хватает 25» при двух реально разных значениях —
+// это про количество записей, а человек считает значения (пользователь
+// 03.09.2026). Отдельно считаем то же по неотмеченным: если догружать нечего
+// только потому, что галочки сняты, это надо сказать, а не отвечать «всё есть».
+function gapsOf(d, chosen, linked) {
+  const uniq = (list) => {
+    const set = new Set();
+    list.forEach((x) => diffWith(d, x).onlyMine.forEach((v) => set.add(v)));
+    return set.size;
+  };
+
+  const off = linked.filter((x) => !chosen.includes(x));
+
+  return {
+    values: uniq(chosen),
+    dicts: chosen.filter((x) => diffWith(d, x).onlyMine.length).length,
+    records: chosen.reduce((n, x) => n + diffWith(d, x).onlyMine.length, 0),
+    offValues: uniq(off),
+  };
 }
 
 function linkedHTML(d) {
@@ -668,6 +759,7 @@ function linkedHTML(d) {
   }
 
   const chosen = linkedTargets(d);
+  const gaps = gapsOf(d, chosen, linked);
 
   return `<aside class="dc-side">
     <div class="dc-side-head">
@@ -706,7 +798,11 @@ function linkedHTML(d) {
     ${canEditDicts() ? `<div class="dc-side-foot">
       <button class="btn btn-ghost btn-sm" data-linked-sync
         title="Добавить отмеченным справочникам значения, которых у них нет">
-        Догрузить недостающие</button>
+        Догрузить недостающие${gaps.values ? ` · ${gaps.values}` : ''}</button>
+      ${!gaps.values && gaps.offValues
+        ? `<div class="dc-side-tip">У отмеченных всё есть.
+            Не хватает ${gaps.offValues} ${plural(gaps.offValues, 'значения', 'значений', 'значений')}
+            у неотмеченных — отметьте их, чтобы догрузить.</div>` : ''}
     </div>` : ''}
   </aside>`;
 }
@@ -822,8 +918,9 @@ function viewHTML() {
     return `<div class="dc dc-wide">
       ${head}
       ${notice}
-      <div class="dc-cols">
+      <div class="dc-cols" style="--pw-side:${paneW.side}px">
         <div class="dc-browser">${stepsHTML()}</div>
+        <div class="dc-split side" data-side-split title="Потянуть — изменить ширину"></div>
         ${side}
       </div>
       ${d ? removeDialogHTML(d) : ''}
@@ -831,7 +928,7 @@ function viewHTML() {
   }
 
   const card = d
-    ? `${generalHTML(d)}${itemsHTML(d)}${whereHTML(d)}${usageHTML(d)}`
+    ? `${generalHTML(d)}${whereHTML(d)}${itemsHTML(d)}`
     : `<div class="dc-choose">
          <b>Выберите справочник</b>
          <span>У каждого типа объекта имущества на каждое поле — свой перечень.</span>
@@ -868,11 +965,18 @@ export function mountDicts(host) {
 
   // Меню вида закрывается кликом мимо — как все выпадающие меню проекта.
   // Слушатель на документе снимается вместе с областью модуля (kernel/scope.js).
+  // Меню закрываются кликом мимо — как все выпадающие меню проекта. Закрываем
+  // БЕЗ перерисовки: render на этом же клике заменил бы разметку раньше, чем
+  // сработает сам элемент под курсором, и клик по тумблеру или кнопке
+  // пропадал бы (ловилось автопроверкой тумблера системных).
   scope.onDocument('click', (e) => {
-    if (!state.viewMenuOpen) return;
-    if (e.target.closest('[data-view-dd]')) return;
+    if (!state.viewMenuOpen && !state.whereMenuOpen) return;
+    if (state.viewMenuOpen && e.target.closest('[data-view-dd]')) return;
+    if (state.whereMenuOpen && e.target.closest('[data-where-dd]')) return;
+
     state.viewMenuOpen = false;
-    render();
+    state.whereMenuOpen = false;
+    scope.$$('.dd.open').forEach((dd) => dd.classList.remove('open'));
   });
 
   // Перерисовка не должна выбивать курсор: таблица обновляется на каждое
@@ -920,6 +1024,176 @@ export function mountDicts(host) {
       render();
     });
 
+    // --- меню действий над привязкой (блок 03) ---
+    const whereToggle = scope.$('[data-where-toggle]');
+    if (whereToggle) whereToggle.onclick = (e) => {
+      e.stopPropagation();
+      state.whereMenuOpen = !state.whereMenuOpen;
+      render();
+    };
+
+    // --- перегородки столбцов раздела ---
+    //
+    // Тянется ширина столбца слева от перегородки; столбец справочника
+    // остаётся резиновым и забирает разницу, поэтому раскладка не разъезжается
+    // и горизонтальной прокрутки не появляется. Пока тянем, меняется только
+    // CSS-переменная — как в таблицах (kernel/columns.js), без перерисовки.
+    scope.$$('[data-pane-split]').forEach((sp) => {
+      sp.onpointerdown = (e) => {
+        e.preventDefault();
+        const key = sp.dataset.paneSplit;
+        const box = scope.$('.dc-steps');
+        const wide = scope.$('.dc-step.wide');
+        if (!box || !wide) return;
+
+        const x0 = e.clientX;
+        const w0 = paneW[key];
+        const wideW = wide.getBoundingClientRect().width;
+        const minWide = 320;
+
+        sp.setPointerCapture(e.pointerId);
+        sp.classList.add('active');
+        box.classList.add('col-resizing');
+
+        const move = (ev) => {
+          const d = Math.round(ev.clientX - x0);
+          const next = Math.max(PANE_MIN[key], Math.min(w0 + d, w0 + wideW - minWide));
+          paneW[key] = next;
+          box.style.setProperty('--pw-' + key, next + 'px');
+        };
+        const up = () => {
+          sp.releasePointerCapture(e.pointerId);
+          sp.removeEventListener('pointermove', move);
+          sp.removeEventListener('pointerup', up);
+          sp.classList.remove('active');
+          box.classList.remove('col-resizing');
+        };
+        sp.addEventListener('pointermove', move);
+        sp.addEventListener('pointerup', up);
+      };
+    });
+
+    // Столбец связанных справочников тянется своей перегородкой.
+    const sideSplit = scope.$('[data-side-split]');
+    if (sideSplit) sideSplit.onpointerdown = (e) => {
+      e.preventDefault();
+      const cols = scope.$('.dc-cols');
+      const side = scope.$('.dc-side');
+      if (!cols || !side) return;
+
+      const x0 = e.clientX;
+      const w0 = paneW.side;
+
+      sideSplit.setPointerCapture(e.pointerId);
+      sideSplit.classList.add('active');
+      cols.classList.add('col-resizing');
+
+      const move = (ev) => {
+        // Тянем влево — столбец шире, поэтому знак обратный.
+        const next = Math.max(PANE_MIN.side, Math.min(560, w0 - Math.round(ev.clientX - x0)));
+        paneW.side = next;
+        cols.style.setProperty('--pw-side', next + 'px');
+      };
+      const up = () => {
+        sideSplit.releasePointerCapture(e.pointerId);
+        sideSplit.removeEventListener('pointermove', move);
+        sideSplit.removeEventListener('pointerup', up);
+        sideSplit.classList.remove('active');
+        cols.classList.remove('col-resizing');
+      };
+      sideSplit.addEventListener('pointermove', move);
+      sideSplit.addEventListener('pointerup', up);
+    };
+
+    // --- перегородки таблицы значений: общий механизм ---
+    //
+    // Подгонка ширин (applyFit) здесь не нужна: ширины по умолчанию заданы
+    // долями от фактической ширины таблицы прямо в colgroup, а перетаскивание
+    // перегородки перекрывает их переменной --cw-<ключ>.
+    bindColumnResize(scope, {
+      rootSel: '[data-item-cols-box]',
+      cols: ITEM_COLUMNS,
+      widths: itemWidths,
+      onCommit(patch) { Object.assign(itemWidths, patch); },
+    });
+
+    // --- множественный выбор значений ---
+    scope.$$('[data-item-pick]').forEach((cb) => cb.onchange = () => {
+      const id = cb.dataset.itemPick;
+      if (cb.checked) state.picked[id] = true;
+      else delete state.picked[id];
+      render();
+    });
+
+    const pickAll = scope.$('[data-item-pick-all]');
+    if (pickAll) pickAll.onchange = () => {
+      const q = state.itemQ.trim().toLowerCase();
+      const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
+        || (it.note || '').toLowerCase().includes(q));
+      state.picked = {};
+      if (pickAll.checked) shown.forEach((it) => { state.picked[it.id] = true; });
+      render();
+    };
+
+    const pickNone = scope.$('[data-pick-none]');
+    if (pickNone) pickNone.onclick = () => { state.picked = {}; render(); };
+
+    // Догрузить выбранные значения в отмеченные связанные справочники — та же
+    // операция, что и поштучное добавление, только пачкой.
+    const pickLink = scope.$('[data-pick-link]');
+    if (pickLink) pickLink.onclick = () => {
+      const targets = linkedTargets(d);
+      if (!targets.length) { host.toast('Не выбран ни один связанный справочник', 'warn'); return; }
+
+      let added = 0;
+      d.items.filter((it) => state.picked[it.id])
+        .forEach((it) => { added += addItemTo(targets, it.value, it.group); });
+
+      state.picked = {};
+      render();
+      host.toast(added ? `Добавлено значений: ${added}` : 'У связанных справочников всё уже есть',
+        added ? 'ok' : 'warn');
+    };
+
+    // Массовое удаление: используемые значения не трогаем — для них нужна
+    // замена, а она выбирается по одному (блок «удаление с заменой»).
+    const pickDel = scope.$('[data-pick-del]');
+    if (pickDel) pickDel.onclick = async () => {
+      const chosen = d.items.filter((it) => state.picked[it.id]);
+      const used = chosen.filter((it) => usageOf(d, it.value).count);
+      const free = chosen.filter((it) => !usageOf(d, it.value).count);
+
+      if (!free.length) {
+        host.toast('Все выбранные значения используются — удалять их нужно с заменой', 'warn');
+        return;
+      }
+
+      const ok = await host.confirm({
+        title: 'Удаление значений',
+        okLabel: `Удалить ${free.length}`,
+        danger: true,
+        text: `Будет удалено ${free.length} ${plural(free.length, 'значение', 'значения', 'значений')}.`
+          + (used.length ? ` Ещё ${used.length} используются в объектах — они останутся,`
+            + ' такие значения удаляются по одному, с заменой.' : ''),
+      });
+      if (!ok) return;
+
+      // Те же значения — из отмеченных связанных справочников: перечни
+      // одноимённых полей должны оставаться в согласии.
+      const targets = linkedTargets(d);
+      let alsoDicts = 0;
+      free.forEach((it) => {
+        removeItem(d, it, null);
+        alsoDicts = Math.max(alsoDicts, removeItemFrom(targets, it.value, null).dicts);
+      });
+
+      state.picked = {};
+      render();
+      host.toast(alsoDicts
+        ? `Удалено ${free.length}; затронуто связанных справочников: ${alsoDicts}`
+        : `Удалено значений: ${free.length}`, 'ok');
+    };
+
     // --- столбцы ---
     scope.$$('[data-step-type]').forEach((b) => b.onclick = () => {
       state.stepType = b.dataset.stepType;
@@ -965,6 +1239,7 @@ export function mountDicts(host) {
       // Выбор связанных относится к конкретному справочнику: у нового своя
       // компания, и переносить снятые галочки было бы неверно.
       state.linkedOff = {};
+      state.picked = {};
       // Столбцы и дерево показывают одно и то же: выбрал в дереве — столбцы
       // встают на тот же путь, и наоборот.
       const picked = getDict(state.selected);
@@ -1231,29 +1506,47 @@ export function mountDicts(host) {
     // синхронизации — «добавили материал здесь, нужен и там».
     const linkedSync = scope.$('[data-linked-sync]');
     if (linkedSync) linkedSync.onclick = async () => {
+      const all = linkedDicts(d);
       const targets = linkedTargets(d);
-      if (!targets.length) { host.toast('Не выбран ни один связанный справочник', 'warn'); return; }
+      const gaps = gapsOf(d, targets, all);
 
-      const missing = targets.reduce((n, x) => n + diffWith(d, x).onlyMine.length, 0);
-      if (!missing) { host.toast('У выбранных справочников всё уже есть', 'ok'); return; }
+      if (!targets.length) {
+        host.toast(all.length
+          ? 'Ни один связанный справочник не отмечен — отметьте те, куда догружать'
+          : 'Связанных справочников нет', 'warn');
+        return;
+      }
+
+      if (!gaps.values) {
+        host.toast(gaps.offValues
+          ? `У отмеченных всё есть; не хватает у неотмеченных (${gaps.offValues}) — отметьте их`
+          : 'У выбранных справочников всё уже есть', 'warn');
+        return;
+      }
 
       const ok = await host.confirm({
         title: 'Догрузить значения',
         okLabel: 'Догрузить',
-        text: `Выбранным справочникам (${targets.length}) будет добавлено ${missing} `
-          + `${plural(missing, 'значение', 'значения', 'значений')}, которых у них нет.`,
+        text: `${gaps.dicts} ${plural(gaps.dicts, 'справочнику', 'справочникам', 'справочникам')} `
+          + `не хватает ${gaps.values} ${plural(gaps.values, 'значения', 'значений', 'значений')}`
+          + (gaps.records !== gaps.values ? ` — всего ${gaps.records} `
+            + `${plural(gaps.records, 'запись', 'записи', 'записей')}.` : '.'),
       });
       if (!ok) return;
 
       let added = 0;
       d.items.forEach((it) => { added += addItemTo(targets, it.value, it.group); });
       render();
-      host.toast(`Добавлено значений: ${added}`, 'ok');
+      host.toast(`Догружено: ${gaps.values} `
+        + `${plural(gaps.values, 'значение', 'значения', 'значений')} `
+        + `в ${gaps.dicts} ${plural(gaps.dicts, 'справочник', 'справочника', 'справочников')}`
+        + (added !== gaps.values ? ` (${added} записей)` : ''), 'ok');
     };
 
     // --- папка внутри каталога ---
     const folderOpen = scope.$('[data-folder-open]');
     if (folderOpen) folderOpen.onclick = () => {
+      state.whereMenuOpen = false;
       state.folderOpen = true;
       state.moveOpen = false;
       render();
@@ -1286,6 +1579,7 @@ export function mountDicts(host) {
 
     const moveOpen = scope.$('[data-move-open]');
     if (moveOpen) moveOpen.onclick = () => {
+      state.whereMenuOpen = false;
       state.moveOpen = true;
       state.movePick = null;
       render();

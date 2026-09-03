@@ -301,6 +301,31 @@ export function optionsFor(typeId, card, field) {
   return dict ? dict.items.map((it) => it.value) : null;
 }
 
+// То же для перечней с разделами («Категория ОИ», «Благоустройство»): позиции
+// хранят пометку раздела, поэтому исходную структуру можно собрать обратно.
+// Ключ поля в разделах (`values`) один и тот же — карточки называют его
+// по-разному, поэтому отдаём и `classes`, и `options`: так вызывающему коду не
+// нужно знать, из какого поля пришли значения.
+export function groupedOptionsFor(typeId, card, field) {
+  const dict = dictAt(typeId, card, field);
+  if (!dict) return null;
+
+  const out = [];
+  const byKey = new Map();
+
+  dict.items.forEach((it) => {
+    const key = it.groupKey || it.group || '';
+    if (!byKey.has(key)) {
+      const g = { key, label: it.group || '', values: [] };
+      byKey.set(key, g);
+      out.push(g);
+    }
+    byKey.get(key).values.push(it.value);
+  });
+
+  return out.map((g) => ({ ...g, classes: g.values, options: g.values }));
+}
+
 // Все точки со сведениями о том, какой справочник их читает. Нужно выбору
 // поля для ссылки: свободных полей после разноса нет, и без пометки «занято
 // справочником N» выбирать пришлось бы наугад.

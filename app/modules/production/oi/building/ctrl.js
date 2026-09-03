@@ -1,5 +1,6 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
@@ -147,7 +148,7 @@ export function bind(ctx, oi) {
     const detached = oi.buildType === 'Отдельностоящее';
     if (detached && oi.resCat !== 'Обособленный') oi.resCat = 'Обособленный';
     if (!detached && oi.resCat === 'Обособленный') {
-      oi.resCat = RES_BUILD_CAT.find((o) => o !== 'Обособленный') || '';
+      oi.resCat = opt('building', 'buildCat', RES_BUILD_CAT).find((o) => o !== 'Обособленный') || '';
     }
     ctx.updatePlate();
     ctx.render();

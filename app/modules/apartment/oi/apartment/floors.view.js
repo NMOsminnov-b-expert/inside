@@ -1,6 +1,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { fmtNum, num, plural } from '../../../../kernel/fmt.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { floorsSum, floorsSumByCat, AREA_FIELDS, FLOOR_CATS } from './floors.model.js';
 
 // Развёрткой управляет человек, а не формула (решение пользователя 2026-08-28):
@@ -16,7 +17,7 @@ function catSummary(rows) {
 
 function mansardTypeCell(f, i) {
   return `<td><select class="select" data-floor-mansard="${i}">
-${MANSARD_TYPE.map((o) => `<option ${o === (f.mansardType || MANSARD_TYPE[0]) ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('apartment', 'mansardType', MANSARD_TYPE).map((o) => `<option ${o === (f.mansardType || opt('apartment', 'mansardType', MANSARD_TYPE)[0]) ? 'selected' : ''}>${o}</option>`).join('')}
 </select></td>`;
 }
 

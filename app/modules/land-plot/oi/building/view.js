@@ -4,6 +4,7 @@ import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -83,7 +84,7 @@ ${letterControlHTML(ctx, oi)}
 <div class="field" style="flex:0 0 150px;">
 <label>Статус</label>
 <select class="select" style="width:100%;" data-status>
-${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 </div>
 </div>
@@ -91,13 +92,13 @@ ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-buildtype>${BUILD_TYPE.map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
 <select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>` : ''}
 ${rq.showCatClass ? `<div class="field"><label>Категория ОИ (категория → класс)</label>
-<select class="select" data-catclass>${CATCLASS.map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-catclass>${opt('building', 'class', CATCLASS).map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
 <label class="inline-row" style="font-size:10.5px;font-weight:400"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
 <span class="muted" style="font-size:10px">авто; допроверка — ЦОД, при отсутствии компетенций — оценщик</span>
 </div>` : ''}
@@ -140,15 +141,15 @@ function structCard(ctx, oi, idx = 3) {
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
-${structField(oi, 'wallsExt', 'Наружные стены', STRUCT.wallsExt, struct.wallsExt, rq.wallsRequired)}
-${structField(oi, 'ceilings', 'Перекрытия', STRUCT.ceilings, struct.ceilings)}
-${structField(oi, 'roof', 'Кровля', STRUCT.roof, struct.roof)}
+${structField(oi, 'foundation', 'Фундамент', opt('building', 'struct.foundation', STRUCT.foundation), struct.foundation)}
+${structField(oi, 'wallsExt', 'Наружные стены', opt('building', 'struct.wallsExt', STRUCT.wallsExt), struct.wallsExt, rq.wallsRequired)}
+${structField(oi, 'ceilings', 'Перекрытия', opt('building', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
+${structField(oi, 'roof', 'Кровля', opt('building', 'struct.roof', STRUCT.roof), struct.roof)}
 </div>
 <div class="grid g-4" style="margin-top:8px">
-${structField(oi, 'floors', 'Полы', STRUCT.floors, struct.floors)}
-${structField(oi, 'windows', 'Окна', STRUCT.windows, struct.windows)}
-${structField(oi, 'doors', 'Двери', STRUCT.doors, struct.doors)}
+${structField(oi, 'floors', 'Полы', opt('building', 'struct.floors', STRUCT.floors), struct.floors)}
+${structField(oi, 'windows', 'Окна', opt('building', 'struct.windows', STRUCT.windows), struct.windows)}
+${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.doors), struct.doors)}
 ${heatingMS(ctx, oi)}
 </div>
 ${specialsBlockHTML(oi)}
@@ -178,7 +179,7 @@ ${photoAccordions(ctx.ui, oi, true)}
 // (уточнение пользователя 28.08.2026). Согласованность обеспечивает автовыбор
 // при смене расположения (см. обработчик data-buildtype в ctrl.js), а не запрет.
 function resCatOptions() {
-  return RES_BUILD_CAT.slice();
+  return opt('building', 'buildCat', RES_BUILD_CAT).slice();
 }
 
 export function render(ctx, oi) {

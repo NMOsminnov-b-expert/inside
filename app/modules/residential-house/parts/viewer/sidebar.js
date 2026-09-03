@@ -1,6 +1,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { photoPages, photoFileAt } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 
 // Выезжающий сайдбар просмотрщика (кнопка-гамбургер в левом верхнем углу).
 //
@@ -35,15 +36,15 @@ function docItemHTML(x, active) {
 }
 
 // Документы сгруппированы по типу — техпаспорта, ПУДы, госакты и т.д. (Л3.5).
-// Порядок групп берётся из словаря DOC_TYPES, а не из порядка прикрепления:
+// Порядок групп берётся из словаря opt('oc', 'docType', DOC_TYPES), а не из порядка прикрепления:
 // так список выглядит одинаково у любой записи. Типы, которых нет в словаре
 // (пришли из старых данных), идут в конце — терять их нельзя.
 function docsSection(ctx, active) {
   const items = allDocs(ctx.rec);
   if (!items.length) return '<div class="vsb-empty">Документов пока нет</div>';
 
-  const known = DOC_TYPES.filter((t) => items.some((x) => x.doc.type === t));
-  const rest = [...new Set(items.map((x) => x.doc.type))].filter((t) => !DOC_TYPES.includes(t));
+  const known = opt('oc', 'docType', DOC_TYPES).filter((t) => items.some((x) => x.doc.type === t));
+  const rest = [...new Set(items.map((x) => x.doc.type))].filter((t) => !opt('oc', 'docType', DOC_TYPES).includes(t));
 
   return [...known, ...rest].map((type) => {
     const group = items.filter((x) => x.doc.type === type);

@@ -1,4 +1,12 @@
-// Полный текст обрезанного значения — в окошке при наведении (Л1.4).
+// Подсказки макета: окошко при наведении вместо нативного тултипа.
+//
+// Два случая, один механизм:
+//   * полный текст обрезанного значения (Л1.4) — если ячейке не хватило ширины;
+//   * обычная подсказка `title` — у кнопок, значков, перегородок.
+//
+// Родные подсказки браузера выглядят чужеродно и появляются с задержкой в
+// полсекунды, поэтому на время показа своей мы снимаем `title` и возвращаем
+// его обратно (пользователь 03.09.2026: «подсказки не стилизованы»).
 //
 // Требование общее: ЛЮБОЕ поле или ячейка, которым не хватило ширины, при
 // наведении показывают содержимое целиком. Поэтому механизм один на весь
@@ -61,6 +69,18 @@ function isValueLike(el) {
   return textOf(el).length <= MAX_LEN;
 }
 
+// Ближайший элемент с подсказкой `title`. Ищем недалеко — у кнопки подсказка
+// на ней самой, а у значка внутри кнопки на родителе.
+function titledFrom(target) {
+  let el = target;
+  for (let i = 0; el && el !== document.body && i < UP + 1; i++, el = el.parentElement) {
+    if (el.nodeType !== 1) continue;
+    const t = el.getAttribute && el.getAttribute('title');
+    if (t && t.trim()) return el;
+  }
+  return null;
+}
+
 // Ближайший обрезанный элемент: сам наведённый или его ближайший родитель.
 // Выше не поднимаемся — иначе подсказку давали бы панели и карточки целиком.
 function clippedFrom(target) {
@@ -85,7 +105,8 @@ function hide() {
 }
 
 function show(el) {
-  const text = textOf(el);
+  // У элемента с подсказкой показываем её, у обрезанного значения — сам текст.
+  const text = (el.dataset.ovTitle || el.getAttribute('title') || '').trim() || textOf(el);
   if (!text) return;
 
   const t = box();
@@ -118,7 +139,10 @@ export function installOverflowTip() {
   document.body.dataset.ovTipBound = '1';
 
   document.addEventListener('mouseover', (e) => {
-    const el = e.target.nodeType === 1 ? clippedFrom(e.target) : null;
+    if (e.target.nodeType !== 1) return;
+    // Подсказка важнее: она объясняет, что делает элемент, а обрезанный текст
+    // виден и так — целиком он нужен реже.
+    const el = titledFrom(e.target) || clippedFrom(e.target);
     if (el === shownFor) return;
 
     hide();

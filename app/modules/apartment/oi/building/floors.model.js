@@ -1,5 +1,6 @@
 import { num, fmt, round2 } from '../../../../kernel/fmt.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 
 // Две площади у каждого этажа, и каждая распределяется ОТ СВОЕГО ИТОГА
 // (Л5.1/Л5.2). Раньше площадь была одна — «общая по техпаспорту», а застройка
@@ -46,7 +47,7 @@ function mkRow(name, cat, oi) {
     hExt: cat === 'over' ? (oi.heights?.ext || '') : '',
     hInt: cat === 'over' ? (oi.heights?.int || '') : '',
   };
-  if (cat === 'mansard') row.mansardType = oi.mansardType || MANSARD_TYPE[0];
+  if (cat === 'mansard') row.mansardType = oi.mansardType || opt('building', 'mansardType', MANSARD_TYPE)[0];
   return row;
 }
 

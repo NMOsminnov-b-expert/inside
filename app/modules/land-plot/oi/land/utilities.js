@@ -1,6 +1,7 @@
 import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 import { ENGINEERING } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 
 // Инженерное оснащение участка — мультивыбор (Л6-земля.1). Раньше это были
 // четыре жёстких флажка (электричество, водопровод, канализация, центральное
@@ -36,7 +37,7 @@ export function migrateUtilities(oi) {
 
 // Тело списка — общее для всех мультивыборов проекта (kernel/multiSelect.js).
 function dropBodyHTML(list) {
-  return msDropBodyHTML({ options: ENGINEERING, selected: list, optAttr: 'util-opt' });
+  return msDropBodyHTML({ options: opt('land', 'utilities', ENGINEERING), selected: list, optAttr: 'util-opt' });
 }
 
 // Разделитель « / », как у материалов: в названиях встречается запятая.
