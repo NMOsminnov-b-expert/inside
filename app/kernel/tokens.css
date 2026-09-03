@@ -208,3 +208,19 @@ input,select,textarea{font:inherit;color:inherit}
 .oi-drag-hint.on{opacity:1;transform:translateX(-50%) translateY(0)}
 /* Открепление — действие другого рода, чем привязка: цвет предупреждающий. */
 .oi-drag-hint.unlink{background:var(--amber-700)}
+
+/* ============ выпадающие списки ============ */
+/* Нативный <select> у каждого браузера свой: стрелка, отступы, радиус. Рядом с
+   полями макета он выглядел чужеродно (пользователь 03.09.2026), поэтому
+   системная отрисовка выключена, а стрелка нарисована фоном. Правило общее для
+   всего макета; модули добавляют к нему только размеры. */
+.select{
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1.4 5 5.4l4-4' fill='none' stroke='%237d93a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+  padding-right:28px;border-radius:9px;cursor:pointer;
+}
+.select:hover{border-color:var(--blue-500)}
+.select:disabled{cursor:default;background-image:none}
+/* Список внутри таблицы: место у него уже, стрелку прижимаем плотнее. */
+.tbl .select,.al-tbl .select{background-position:right 7px center;padding-right:23px}

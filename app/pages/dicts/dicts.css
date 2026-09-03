@@ -765,23 +765,25 @@ body[data-page="dicts"] .col-resizing{cursor:col-resize;user-select:none}
    строка-блок-схема: ширина по содержимому, длинная цепочка прокручивается
    внутри себя, а не растягивает карточку (пользователь 03.09.2026). */
 body[data-page="dicts"] .dc-card-body.chain{padding:10px 13px}
-/* Схема всегда в одну строку: шаги не сжимаются и не рвутся, а если цепочка
-   длиннее строки — прокручивается внутри себя. */
+/* Схема подстраивается под свой блок и никогда не прокручивается: полосы
+   прокрутки в одной строке — то, от чего уходили (пользователь 03.09.2026).
+   Шаги сжимаются с многоточием, полное название остаётся в подсказке. */
 body[data-page="dicts"] .dc-chain{display:flex;align-items:center;gap:6px;flex:1 1 auto;
-  min-width:0;padding:2px 0;overflow-x:auto;scrollbar-width:thin}
-body[data-page="dicts"] .dc-chain::-webkit-scrollbar{height:5px}
-body[data-page="dicts"] .dc-chain::-webkit-scrollbar-thumb{background:#dbe5f0;border-radius:3px}
+  min-width:0;padding:2px 0;overflow:hidden}
 /* Шаги сжимаются с многоточием, а не режутся посередине буквы: полное
    название остаётся в подсказке. Поле привязки сжимается последним — оно и
    есть суть цепочки. */
-body[data-page="dicts"] .dc-chain-step{flex:0 0 auto;padding:3px 10px;
+body[data-page="dicts"] .dc-chain-step{flex:0 1 auto;min-width:46px;padding:3px 10px;
   border-radius:999px;background:#f1f6fc;border:1px solid var(--line-soft);font-size:12px;
-  color:var(--slate-700);white-space:nowrap}
+  color:var(--slate-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Поле привязки — суть цепочки, поэтому сжимается последним. */
+body[data-page="dicts"] .dc-chain-step.field{flex:1 1 auto;min-width:80px}
 body[data-page="dicts"] .dc-chain-step.field{background:var(--blue-50);
   border-color:var(--blue-200);color:var(--blue-700);font-weight:600}
 body[data-page="dicts"] .dc-chain-arrow{flex:0 0 auto;display:flex;color:#b6c4d4}
 body[data-page="dicts"] .dc-chain-arrow svg{width:9px;height:9px}
-body[data-page="dicts"] .dc-chain-folder{flex:0 0 auto;display:flex;align-items:center;gap:5px;
+body[data-page="dicts"] .dc-chain-folder{flex:0 1 auto;min-width:44px;overflow:hidden;
+  display:flex;align-items:center;gap:5px;
   margin-left:4px;padding:3px 9px;border-radius:999px;background:#fff7e8;color:var(--amber-700);
   font-size:11.5px;white-space:nowrap}
 body[data-page="dicts"] .dc-chain.empty{color:var(--amber-700);font-size:12px}
@@ -856,3 +858,28 @@ body[data-page="dicts"] .dc-where-bind{flex:0 0 auto}
 body[data-page="dicts"] .dc-tbl td.dc-usage{position:relative;padding-right:26px}
 body[data-page="dicts"] .dc-tbl td.dc-usage .dc-x{position:absolute;right:4px;top:50%;
   transform:translateY(-50%)}
+
+/* Поиск по значениям — в той же оправе, что и поиск по названию вверху
+   страницы: раньше это было голое поле и выбивалось из вида (пользователь
+   03.09.2026). */
+body[data-page="dicts"] .dc-item-q{width:230px;flex:0 1 230px;height:30px}
+body[data-page="dicts"] .dc-item-q input{font-size:12.5px}
+
+/* ============ блок 03: цепочка подстраивается под свой блок ============ */
+/* Ширина блока зависит от того, как растянуты столбцы раздела, а не от окна,
+   поэтому правила пишем от контейнера (container query), а не от экрана. */
+body[data-page="dicts"] .dc-card-body.chain{container-type:inline-size;container-name:chain}
+
+@container chain (max-width: 320px) {
+  /* Совсем узкий блок: цепочка встаёт в столбик, стрелки поворачиваются вниз. */
+  body[data-page="dicts"] .dc-chain{flex-direction:column;align-items:stretch;gap:4px}
+  body[data-page="dicts"] .dc-chain-step{min-width:0;text-align:center}
+  body[data-page="dicts"] .dc-chain-arrow{align-self:center;transform:rotate(90deg)}
+  body[data-page="dicts"] .dc-chain-folder{margin-left:0;justify-content:center}
+}
+
+/* В узком столбце поиск уступает место кнопке «+ Значение», а не выдавливает
+   её за край карточки. */
+body[data-page="dicts"] .dc-item-q{min-width:110px}
+body[data-page="dicts"] .dc-card-head{flex-wrap:wrap;row-gap:6px}
+body[data-page="dicts"] .dc-card-head .dc-card-tools{flex-wrap:wrap;justify-content:flex-end}

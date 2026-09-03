@@ -567,8 +567,11 @@ function itemsHTML(d) {
         </span>`
       : `<span class="dc-count">${q ? `${shown.length} из ${d.items.length}` : d.items.length}</span>
         <span class="dc-card-tools">
-          ${d.items.length > 8 ? `<input class="input dc-item-q" data-dc-item-q value="${esc(state.itemQ)}"
-            placeholder="Поиск по значениям…" autocomplete="off">` : ''}
+            ${d.items.length > 8 ? `<span class="dc-field dc-field-search dc-item-q">
+            ${ICON_SEARCH}
+            <input data-dc-item-q value="${esc(state.itemQ)}"
+              placeholder="Поиск по значениям…" autocomplete="off">
+          </span>` : ''}
           ${edit ? '<button class="btn btn-ghost btn-sm" data-item-add>+ Значение</button>' : ''}
         </span>`}
     </header>
