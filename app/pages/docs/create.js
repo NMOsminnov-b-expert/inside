@@ -4,21 +4,34 @@
 // select/date/файл/теги, поэтому модалка собрана здесь напрямую поверх тех же
 // глобальных классов .modal-back/.modal (kernel/tokens.css).
 import { esc } from '../../kernel/dom.js';
+import { createScope } from '../../kernel/scope.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { DOC_TYPES, DOC_STATUSES, detectAutoStatus, createDocument, updateDocument } from '../../kernel/documentsRegistry.js';
+import { viewerHTML, bindViewer } from './viewer.js';
+
+// Файлы, только что прикреплённые в модалке, ещё не сохранены и не получили
+// «настоящий» id (его выдаёт documentsRegistry.sanitize при сохранении) — но
+// просмотрщику (viewer.js) id нужен уже сейчас, чтобы отличать вкладки файлов
+// и хранить состояние (страница/поворот) на каждый. Черновой id живёт только
+// до сохранения; sanitize() увидит уже проставленный id и просто оставит его.
+let draftFileSeq = 0;
+const nextDraftFileId = () => 'draft-file-' + (++draftFileSeq);
 
 function draftFrom(doc) {
   if (!doc) {
     return {
       type: '', date: '', number: '', status: DOC_STATUSES[0], files: [],
-      owner: '', institution: '', linkedObjects: [], _statusTouched: false, _err: '',
+      owner: '', institution: '', regAuthority: '', regDate: '', affiliation: '',
+      linkedObjects: [], _statusTouched: false, _err: '', _activeFileId: null,
     };
   }
+  const files = (doc.files || []).slice();
   return {
     type: doc.type, date: doc.date, number: doc.number, status: doc.status,
-    files: (doc.files || []).slice(), owner: doc.owner, institution: doc.institution,
+    files, owner: doc.owner, institution: doc.institution,
+    regAuthority: doc.regAuthority || '', regDate: doc.regDate || '', affiliation: doc.affiliation || '',
     linkedObjects: (doc.linkedObjects || []).slice(),
-    _statusTouched: true, _err: '',
+    _statusTouched: true, _err: '', _activeFileId: files[0] ? files[0].id : null,
   };
 }
 
@@ -54,6 +67,17 @@ function formInnerHTML(draft) {
       <input class="input" data-df-institution value="${esc(draft.institution || '')}">
     </div>
   </div>
+  <div class="grid g-3" style="margin-top:10px">
+    <div class="field"><label>Орган регистрации</label>
+      <input class="input" data-df-reg-authority value="${esc(draft.regAuthority || '')}">
+    </div>
+    <div class="field"><label>Дата регистрации</label>
+      <input class="input" type="date" data-df-reg-date value="${esc(draft.regDate || '')}">
+    </div>
+    <div class="field"><label>Принадлежность</label>
+      <input class="input" data-df-affiliation value="${esc(draft.affiliation || '')}">
+    </div>
+  </div>
   <div class="field" style="margin-top:10px">
     <label>Файл</label>
     <div class="df-drop" data-df-drop>
@@ -61,6 +85,10 @@ function formInnerHTML(draft) {
       ${draft.files.length ? `<div class="df-files">${draft.files.map((f, i) => `<span class="ms-tag">${esc(f.name)}<span data-df-file-rm="${i}" title="Убрать">×</span></span>`).join('')}</div>` : ''}
     </div>
   </div>
+  ${draft.files.length ? `<div class="field" style="margin-top:10px">
+    <label>Просмотр</label>
+    <div class="df-viewer" data-df-viewer>${viewerHTML({ files: draft.files }, draft._activeFileId)}</div>
+  </div>` : ''}
   <div class="field" style="margin-top:10px">
     <label>Оценочные объекты и имущество</label>
     <div class="inline-row" style="flex-wrap:wrap; gap:6px">
@@ -124,6 +152,7 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
   </div>`;
   document.body.appendChild(back);
 
+  const scope = createScope(back);
   const close = () => back.remove();
 
   function rerender() {
@@ -135,7 +164,10 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
     const files = Array.from(fileList || []);
     for (const file of files) {
       if (isFileTooLarge(file)) { host.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); continue; }
-      draft.files.push(await attachedFileFrom(file));
+      const f = await attachedFileFrom(file);
+      f.id = nextDraftFileId();
+      draft.files.push(f);
+      draft._activeFileId = f.id;
       if (!draft._statusTouched) draft.status = await detectAutoStatus(file);
     }
     rerender();
@@ -162,6 +194,15 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
     const inst = body.querySelector('[data-df-institution]');
     if (inst) inst.onchange = () => { draft.institution = inst.value; };
 
+    const ra = body.querySelector('[data-df-reg-authority]');
+    if (ra) ra.onchange = () => { draft.regAuthority = ra.value; };
+
+    const rd = body.querySelector('[data-df-reg-date]');
+    if (rd) rd.onchange = () => { draft.regDate = rd.value; };
+
+    const af = body.querySelector('[data-df-affiliation]');
+    if (af) af.onchange = () => { draft.affiliation = af.value; };
+
     const pick = body.querySelector('[data-df-pick]');
     if (pick) pick.onclick = async () => {
       const file = await pickFile();
@@ -181,7 +222,8 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
     }
 
     body.querySelectorAll('[data-df-file-rm]').forEach((b) => b.onclick = () => {
-      draft.files.splice(+b.dataset.dfFileRm, 1);
+      const [removed] = draft.files.splice(+b.dataset.dfFileRm, 1);
+      if (removed && draft._activeFileId === removed.id) draft._activeFileId = null;
       rerender();
     });
 
@@ -194,6 +236,17 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
       draft.linkedObjects.splice(+b.dataset.dfLinkRm, 1);
       rerender();
     });
+
+    // Полноценный просмотрщик прямо в модалке — тот же viewer.js, что и на
+    // карточке документа (решение пользователя 2026-09-03), а не список файлов
+    // без предпросмотра.
+    if (draft.files.length) {
+      bindViewer(scope, {
+        doc: { files: draft.files },
+        activeFileId: draft._activeFileId,
+        onFileChange: (id) => { draft._activeFileId = id; rerender(); },
+      });
+    }
   }
 
   bindFields();

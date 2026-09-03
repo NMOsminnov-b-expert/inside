@@ -100,6 +100,9 @@ function seedDocuments() {
     files: [],
     owner: '',
     institution: r.institution,
+    regAuthority: '',
+    regDate: '',
+    affiliation: '',
     linkedObjects: [],
   }));
 }
@@ -117,6 +120,9 @@ function sanitize(data) {
     files: (data.files || []).map((f) => (f.id ? f : { ...f, id: nextId('file') })),
     owner: data.owner || '',
     institution: data.institution || '',
+    regAuthority: data.regAuthority || '',
+    regDate: data.regDate || '',
+    affiliation: data.affiliation || '',
     linkedObjects: (data.linkedObjects || []).map((l) => (l.id ? l : { ...l, id: nextId('link') })),
   };
 }
@@ -189,16 +195,35 @@ export function removeLink(docId, linkId) {
 
 function matchText(doc, q) {
   if (!q) return true;
-  const hay = [doc.type, doc.number, doc.date, doc.owner, doc.institution, ...(doc.files || []).map((f) => f.name)]
-    .filter(Boolean).join(' ').toLowerCase();
+  const hay = [
+    doc.type, doc.number, doc.date, doc.owner, doc.institution,
+    doc.regAuthority, doc.regDate, doc.affiliation,
+    ...(doc.files || []).map((f) => f.name),
+  ].filter(Boolean).join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
 }
 
-// filter: { q, type, status, offset, limit }
-export function queryDocuments({ q = '', type = '', status = '', offset = 0, limit = 25 } = {}) {
-  const filtered = documents.filter((d) =>
-    (!type || d.type === type) && (!status || d.status === status) && matchText(d, q));
-  return { rows: filtered.slice(offset, offset + limit), total: filtered.length };
+// Значение документа для сортировки по клику на шапку колонки (docs.js) —
+// один источник для всех сортируемых столбцов таблицы.
+export function docColumnValue(doc, key) {
+  if (key === 'name') return `${doc.type || ''} ${(doc.files || []).map((f) => f.name).join(' ')}`;
+  return doc[key] || '';
+}
+
+// sort: { key, dir } — dir: 'asc'|'desc'. Даты хранятся строкой YYYY-MM-DD,
+// поэтому обычное сравнение строк уже сортирует их хронологически — отдельная
+// ветка для дат не нужна, тот же localeCompare годится и для дат, и для текста.
+function sortDocuments(list, sort) {
+  if (!sort || !sort.key) return list;
+  const dir = sort.dir === 'desc' ? -1 : 1;
+  return list.slice().sort((a, b) => docColumnValue(a, sort.key).localeCompare(docColumnValue(b, sort.key), 'ru') * dir);
+}
+
+// filter: { q, type, status, sort, offset, limit }
+export function queryDocuments({ q = '', type = '', status = '', sort = null, offset = 0, limit = 25 } = {}) {
+  const filtered = documents.filter((d) => (!type || d.type === type) && (!status || d.status === status) && matchText(d, q));
+  const sorted = sortDocuments(filtered, sort);
+  return { rows: sorted.slice(offset, offset + limit), total: sorted.length };
 }
 
 export function documentStats() {

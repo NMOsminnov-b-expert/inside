@@ -18,18 +18,27 @@ import { DOC_TYPES, DOC_STATUSES, queryDocuments, documentStats, statusTone, get
 import { openDocumentModal } from './create.js';
 import { detailHTML, bindDetail } from './detail.js';
 
-const state = { q: '', type: '', status: '', page: 1, pageSize: 25 };
+const state = { q: '', type: '', status: '', page: 1, pageSize: 25, sort: { key: '', dir: 'asc' } };
 
 // Столбцы можно и тянуть за перегородку (ширина), и перетаскивать за шапку
 // (порядок) — тот же механизм, что в реестре ОЦ и перечне ОИ (kernel/columns.js).
 // Закреплён только «№»: он не двигается и не участвует в перестановке.
+// «Наименование» раньше было резиновым (width:0, забирает остаток) — с
+// добавлением трёх новых колонок сумма закреплённых ширин стала настолько
+// большой, что остаток на слабых экранах уходил в отрицательный, а
+// table-layout:fixed с нулевой колонкой на это отвечает крайне заметно
+// (см. .docs-cols в docs.css — теперь горизонтальный скролл вместо сжатия).
+// Поэтому здесь тоже обычная ширина, а не «резинка».
 const DOCS_COLUMNS = [
   { key: 'idx', label: '№', width: 46, minWidth: 40, fixed: true },
   { key: 'type', label: 'Тип', width: 150, minWidth: 100 },
-  { key: 'name', label: 'Наименование', width: 0 },
+  { key: 'name', label: 'Наименование', width: 220, minWidth: 140 },
   { key: 'number', label: '№ документа', width: 130, minWidth: 90 },
   { key: 'date', label: 'Дата документа', width: 130, minWidth: 100 },
-  { key: 'institution', label: 'От кого', width: 260, minWidth: 140 },
+  { key: 'institution', label: 'От кого', width: 220, minWidth: 140 },
+  { key: 'regAuthority', label: 'Орган регистрации', width: 200, minWidth: 140 },
+  { key: 'regDate', label: 'Дата регистрации', width: 140, minWidth: 100 },
+  { key: 'affiliation', label: 'Принадлежность', width: 180, minWidth: 120 },
   { key: 'status', label: 'Статус', width: 140, minWidth: 100 },
 ];
 const DOCS_COLUMNS_DEFAULT = movableKeys(DOCS_COLUMNS);
@@ -38,19 +47,39 @@ const docsColWidths = {};
 // как в реестре ОЦ и в перечне ОИ (kernel/columns.js).
 let docsColOrder = DOCS_COLUMNS_DEFAULT.slice();
 
+// .ell — display:block, поэтому её нельзя вешать прямо на <td> (это снимает с
+// него display:table-cell и рвёт раскладку строки, особенно когда .ell-ячеек
+// в строке несколько подряд — они начинают складываться друг под другом
+// вместо того чтобы идти по колонкам). Всегда через внутренний <span>.
 function cellHTML(col, doc, n) {
   if (col.key === 'idx') return `<td class="mono">${n}</td>`;
   if (col.key === 'type') return `<td><span class="tag-mini">${esc(doc.type || '—')}</span></td>`;
   if (col.key === 'name') {
     const fname = (doc.files || [])[0];
     const nameCell = `${esc(doc.type || '—')} · ${fname ? esc(fname.name) : '—'}`;
-    return `<td class="ell" title="${nameCell}">${nameCell}</td>`;
+    return `<td><span class="ell" title="${nameCell}">${nameCell}</span></td>`;
   }
   if (col.key === 'number') return `<td>${esc(doc.number || '—')}</td>`;
   if (col.key === 'date') return `<td>${esc(doc.date || '—')}</td>`;
-  if (col.key === 'institution') return `<td class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</td>`;
+  if (col.key === 'institution') return `<td><span class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</span></td>`;
+  if (col.key === 'regAuthority') return `<td><span class="ell" title="${esc(doc.regAuthority || '')}">${esc(doc.regAuthority || '—')}</span></td>`;
+  if (col.key === 'regDate') return `<td>${esc(doc.regDate || '—')}</td>`;
+  if (col.key === 'affiliation') return `<td><span class="ell" title="${esc(doc.affiliation || '')}">${esc(doc.affiliation || '—')}</span></td>`;
   if (col.key === 'status') return `<td><span class="docs-status ${statusTone(doc.status)}">${esc(doc.status)}</span></td>`;
   return '<td></td>';
+}
+
+// Шапка колонки — клик по названию сортирует список по этой колонке (дата —
+// хронологически, текст — от А до Я), повторный клик меняет направление.
+// Закреплённый «№» не сортируется (это просто номер строки на странице).
+function headCellHTML(c, i, cols) {
+  if (c.fixed) return `<th ${headAttrs(c)}>${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}</th>`;
+
+  const active = state.sort.key === c.key;
+  const arrow = active ? `<span class="col-sort-arrow">${state.sort.dir === 'desc' ? '▼' : '▲'}</span>` : '';
+  return `<th ${headAttrs(c)} data-docs-sort="${c.key}" class="sortable ${active ? 'sorted' : ''}">
+    <span class="col-label">${c.label}</span>${arrow}${resizeGripHTML(c, i === cols.length - 1)}
+  </th>`;
 }
 
 function rowHTML(cols, doc, n) {
@@ -61,7 +90,7 @@ function listHTML() {
   const stats = documentStats();
   const offset = (state.page - 1) * state.pageSize;
   const { rows, total } = queryDocuments({
-    q: state.q, type: state.type, status: state.status, offset, limit: state.pageSize,
+    q: state.q, type: state.type, status: state.status, sort: state.sort, offset, limit: state.pageSize,
   });
   const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
   const cols = orderedColumns(DOCS_COLUMNS, docsColOrder);
@@ -96,9 +125,7 @@ function listHTML() {
       ${rows.length ? `<div class="docs-cols" data-docs-cols-box style="${columnVarsStyle(cols, docsColWidths)}">
         <table class="docs-tbl">
           ${colGroupHTML(cols, docsColWidths)}
-          <thead><tr>${cols.map((c, i) => `<th ${headAttrs(c)}>
-            ${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}
-          </th>`).join('')}</tr></thead>
+          <thead><tr>${cols.map((c, i) => headCellHTML(c, i, cols)).join('')}</tr></thead>
           <tbody>${rows.map((d, i) => rowHTML(cols, d, offset + i + 1)).join('')}</tbody>
         </table>
       </div>` : `<div class="docs-empty">Ничего не найдено. Измените запрос или сбросьте фильтры.</div>`}
@@ -167,6 +194,17 @@ export function mountDocs(host) {
 
     const s = scope.$('[data-docs-status]');
     if (s) s.onchange = () => { state.status = s.value; state.page = 1; render(); };
+
+    scope.$$('[data-docs-sort]').forEach((th) => {
+      th.addEventListener('click', (e) => {
+        if (e.target.closest('[data-col-grip]')) return;
+        const key = th.dataset.docsSort;
+        state.sort = state.sort.key === key
+          ? { key, dir: state.sort.dir === 'asc' ? 'desc' : 'asc' }
+          : { key, dir: 'asc' };
+        render();
+      });
+    });
 
     const ps = scope.$('[data-docs-pagesize]');
     if (ps) ps.onchange = () => { state.pageSize = +ps.value; state.page = 1; render(); };

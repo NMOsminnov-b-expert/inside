@@ -51,6 +51,11 @@ body[data-page="docs"] .docs-toolbar .btn-primary{margin-left:auto}
 /* --- Таблица ----------------------------------------------------------------- */
 body[data-page="docs"] .docs-body{background:var(--panel);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+/* Колонок стало много (включая три новые) — на узких экранах их суммарная
+   ширина уже не помещается. Раньше «лишнее» отдавалось резиновой колонке, и
+   table-layout:fixed при недостатке места её попросту ломал (см. коммент у
+   DOCS_COLUMNS); теперь вместо сжатия — горизонтальный скролл самой таблицы. */
+body[data-page="docs"] .docs-cols{overflow-x:auto}
 body[data-page="docs"] table.docs-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
 body[data-page="docs"] .docs-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;
   color:#3f4c63;text-align:left;padding:9px 12px;border-bottom:1.5px solid var(--line);
@@ -59,6 +64,13 @@ body[data-page="docs"] .docs-tbl td{padding:9px 12px;border-bottom:1px solid var
   font-size:13px;vertical-align:middle;overflow:hidden}
 body[data-page="docs"] .docs-tbl tbody tr:last-child td{border-bottom:none}
 body[data-page="docs"] .docs-tbl tbody tr:hover td{background:var(--blue-50)}
+
+/* Клик по названию колонки сортирует список (решение пользователя 2026-09-03):
+   дата — хронологически, текст — от А до Я, повторный клик меняет направление. */
+body[data-page="docs"] .docs-tbl th.sortable{cursor:pointer;user-select:none}
+body[data-page="docs"] .docs-tbl th.sortable:hover{background:var(--blue-100)}
+body[data-page="docs"] .docs-tbl th.sorted{color:var(--blue-700)}
+body[data-page="docs"] .col-sort-arrow{margin-left:4px;font-size:9px;color:var(--blue-600)}
 
 body[data-page="docs"] .docs-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600}
 body[data-page="docs"] .docs-status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
@@ -80,12 +92,18 @@ body[data-page="docs"] .back-btn:hover{text-decoration:underline}
 /* --- Модалка создания/редактирования документа ------------------------------- */
 /* Модалка добавляется прямо в <body> (как и модалки kernel/dialog.js), поэтому
    вложенность в .docs здесь нет — только body[data-page="docs"] снаружи. */
-body[data-page="docs"] .docs-modal{max-width:640px;width:92vw}
+body[data-page="docs"] .docs-modal{max-width:820px;width:92vw}
+body[data-page="docs"] .docs-modal .modal-body{max-height:calc(100vh - 140px);overflow-y:auto}
 body[data-page="docs"] .df-drop{border:1.5px dashed var(--line-input);border-radius:9px;padding:14px;
   text-align:center;transition:border-color .12s,background .12s}
 body[data-page="docs"] .df-drop.drag-over{border-color:var(--blue-500);background:var(--blue-50)}
 body[data-page="docs"] .df-drop-hint{font-size:12px;color:var(--muted)}
 body[data-page="docs"] .df-drop-btn{color:var(--blue-600);font-weight:600;text-decoration:underline}
+
+/* Просмотрщик файла прямо в модалке (решение пользователя 2026-09-03) — тот же
+   .viewer/.vbody/.vstage, что и на карточке документа (detail.js), только в
+   ограниченной по высоте рамке вместо всей .dd-main. */
+body[data-page="docs"] .df-viewer{height:380px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
 body[data-page="docs"] .df-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
 
 /* --- Карточка документа ------------------------------------------------------- */
