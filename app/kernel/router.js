@@ -2,6 +2,7 @@
 //   #/                          — меню выбора ОЦ
 //   #/oc/<typeId>/<ocId>/...    — модуль типа ОЦ; хвост принадлежит модулю
 //   #/archive                   — архив документов (все типы ОЦ сразу)
+//   #/docs                      — реестр «Документы» (не зависит от типов ОЦ)
 // Query после «?» отдаётся экрану как объект.
 export function parse(hash = location.hash) {
   const raw = String(hash || '').replace(/^#/, '');
@@ -19,6 +20,12 @@ export function parse(hash = location.hash) {
   // Архив документов — отдельный экран, общий для всех типов ОЦ.
   if (segs[0] === 'archive') {
     return { name: 'archive', query };
+  }
+
+  // Документы — отдельный экран, не относится ни к одному типу ОЦ.
+  // #/docs/<id> — карточка документа; хвост здесь не нужен, у документа его нет.
+  if (segs[0] === 'docs') {
+    return { name: 'docs', id: segs[1] ? decodeURIComponent(segs[1]) : null, query };
   }
 
   if (segs[0] === 'oc' && segs[1]) {
@@ -62,3 +69,4 @@ export function start(onRoute) {
 }
 
 export const ARCHIVE_HREF = '#/archive';
+export const DOCS_HREF = '#/docs';
