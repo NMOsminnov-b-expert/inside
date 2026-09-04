@@ -22,12 +22,12 @@ def _add_apartment(t):
     """Завести квартиру в открытом объекте оценки; карточка откроется сама."""
     pg = t.page
     pg.locator('[data-dd-toggle]').first.click()
-    t.wait(400)
+    t.wait_for('[data-add-oi]')
     item = pg.locator('[data-add-oi="Квартира"]')
     if not item.count():
         return False
     item.first.click()
-    t.wait(1500)
+    t.wait_for('[data-apt-series]')
     return pg.locator('[data-apt-series]').count() > 0
 
 

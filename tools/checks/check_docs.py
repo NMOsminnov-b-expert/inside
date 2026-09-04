@@ -174,7 +174,10 @@ def run(t):
     with pg.expect_file_chooser() as fc:
         pg.locator('[data-df-pick]').first.click()
     fc.value.set_files({'name': 'proverka.pdf', 'mimeType': 'application/pdf', 'buffer': pdf})
-    t.wait(1600)
+    # Предпросмотр появляется после разбора файла (PDF.js грузится динамически),
+    # а страница в это время не меняется — ждём сами страницы, а не время.
+    t.wait_for('.df-preview .viewer')
+    t.wait_until("() => document.querySelectorAll('.df-preview [data-vthumb]').length >= 2")
 
     t.ck(pg.locator('.df-preview .viewer').count() == 1,
          'после выбора файла нет предпросмотра')

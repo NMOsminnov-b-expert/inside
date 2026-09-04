@@ -130,6 +130,16 @@ class Tester:
         except Exception:
             return False
 
+    # Дождаться условия в браузере. Нужно там, где ждём не появления узла, а
+    # состояния: страниц в предпросмотре стало столько, сколько в файле; список
+    # перестроился. Условие — выражение JS, возвращающее истину.
+    def wait_until(self, js, timeout=9000):
+        try:
+            self.page.wait_for_function(js, timeout=timeout)
+            return True
+        except Exception:
+            return False
+
     def open(self, route='', wait='.card, .arc, .reg-thead', timeout=9000):
         self.page.goto(self.base + route)
         if wait:

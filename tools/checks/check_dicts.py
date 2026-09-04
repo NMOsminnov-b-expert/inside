@@ -139,7 +139,13 @@ def _add_value(t, value):
     field = t.page.locator('[data-item-new]')
     field.fill(value)
     field.press('Enter')
-    t.wait(500)
+    # Значение появляется в перечне после записи в справочник и в связанные —
+    # ждём именно его, иначе следующая проверка смотрит на неготовый список.
+    # Значения лежат в полях ввода, поэтому смотрим value, а не текст строки:
+    # по тексту ожидание висело до таймаута, и сообщение успевало исчезнуть.
+    t.wait_until("""(v) => [...document.querySelectorAll('[data-item-value]')]
+        .some((e) => e.value.trim() === v)""", value)
+
 
 
 def run(t):
@@ -462,11 +468,25 @@ def run(t):
         field = pg.locator('[data-item-new]')
         field.fill('Проверка синхронизации')
         field.press('Enter')
-        t.wait(900)
+        # Сообщение о том, куда ушло значение, появляется после записи в
+        # связанные справочники, и живёт недолго — ждём именно его текст.
+        t.wait_until("() => [...document.querySelectorAll('.toast')]"
+                     ".some((e) => e.textContent.includes('ещё в'))")
 
-        toast = pg.locator('.toast')
-        t.ck(toast.count() > 0 and 'ещё в' in toast.first.inner_text(),
-             'не сообщено, что значение ушло в связанные справочники')
+        # В сообщении о провале — состояние на момент проверки: без него
+        # непонятно, чего именно не хватило (тоста нет, текст другой,
+        # галочки сняты, значение не добавилось).
+        state = pg.evaluate('''() => ({
+          toasts: [...document.querySelectorAll(".toast")].map((e) => e.textContent.trim()),
+          linked: document.querySelectorAll("[data-linked]").length,
+          checked: [...document.querySelectorAll("[data-linked]")].filter((c) => c.checked).length,
+          added: [...document.querySelectorAll("[data-item-value]")]
+            .some((e) => e.value.trim() === "Проверка синхронизации"),
+        })''')
+        t.ck(any('ещё в' in x for x in state['toasts']),
+             'не сообщено, что значение ушло в связанные справочники '
+             '(тосты: %s, связанных %d, отмечено %d, значение добавлено: %s)'
+             % (state['toasts'], state['linked'], state['checked'], state['added']))
         counts_after = _linked_counts(t)
         t.ck(counts_after != counts_before,
              'состав связанных справочников не изменился: %s' % counts_after)

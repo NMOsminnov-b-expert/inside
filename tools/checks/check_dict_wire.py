@@ -64,7 +64,12 @@ def _add_value(t, value):
         return False
     field.fill(value)
     field.press('Enter')
-    t.wait(600)
+    # Значение появляется в перечне после записи в справочник и в связанные —
+    # ждём именно его, иначе следующая проверка смотрит на неготовый список.
+    # Значения лежат в полях ввода, поэтому смотрим value, а не текст строки:
+    # по тексту ожидание висело до таймаута, и сообщение успевало исчезнуть.
+    t.wait_until("""(v) => [...document.querySelectorAll('[data-item-value]')]
+        .some((e) => e.value.trim() === v)""", value)
     return True
 
 
@@ -177,7 +182,7 @@ def run(t):
         land = pg.locator('.oi-land-open, [data-open-land]')
         if land.count():
             land.first.click()
-            t.wait(700)
+            t.wait_for('[data-land-form]')
             options = pg.eval_on_selector_all('[data-land-form] option',
                                               'els => els.map((e) => e.textContent.trim())')
             t.ck(value in options,

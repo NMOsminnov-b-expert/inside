@@ -295,7 +295,7 @@ def run(t):
     t.ck(len(types) == 5, 'в поле «Тип ОЦ» не пять типов: %s' % types)
 
     pg.select_option('#fType', label='Производственное строение')
-    t.wait(900)
+    t.wait_for('.modal-head')
     t.ck(pg.locator('.modal-head').count() == 1, 'смена типа прошла без подтверждения')
     t.ck('Объектов имущества переедет' in (pg.locator('.modal-note').inner_text()
                                           if pg.locator('.modal-note').count() else ''),
@@ -309,9 +309,12 @@ def run(t):
          'после отказа в поле остался чужой тип')
 
     pg.select_option('#fType', label='Производственное строение')
-    t.wait(800)
+    t.wait_for('.modal-head')
     pg.locator('[data-modal-ok]').click()
-    t.wait(1500)
+    # Переезд записи между модулями идёт через динамический import(),
+    # поэтому ждём появления карточки нового типа, а не времени.
+    t.wait_for('.card')
+    t.wait(600)
 
     t.ck('/oc/production/' in pg.evaluate('() => location.hash'),
          'после смены типа маршрут не сменился: %s' % pg.evaluate('() => location.hash'))
@@ -323,9 +326,12 @@ def run(t):
     t.open('#/oc/production/oc-cv-1/form', wait='#fType')
     t.wait(600)
     pg.select_option('#fType', label='Гражданское здание')
-    t.wait(800)
+    t.wait_for('.modal-head')
     pg.locator('[data-modal-ok]').click()
-    t.wait(1500)
+    # Переезд записи между модулями идёт через динамический import(),
+    # поэтому ждём появления карточки нового типа, а не времени.
+    t.wait_for('.card')
+    t.wait(600)
     t.ck('/oc/civil/' in pg.evaluate('() => location.hash'),
          'обратная смена типа не вернула запись в исходный тип')
     t.ck(pg.locator('tr[data-open-oi]').count() == oi_before,
@@ -342,7 +348,7 @@ def run(t):
     t.open('#/oc/residential-house/oc-rh-1/form', wait='#fType')
     t.wait(600)
     pg.select_option('#fType', label='Гражданское здание')
-    t.wait(900)
+    t.wait_for('.modal-head')
 
     warn = pg.locator('.modal-body').inner_text() if pg.locator('.modal-body').count() else ''
     t.ck(pg.locator('.modal-list-facts li').count() >= 1,
@@ -368,7 +374,7 @@ def run(t):
     t.open('#/oc/civil/oc-cv-1/form', wait='#fType')
     t.wait(600)
     pg.select_option('#fType', label='Жилое здание (дом)')
-    t.wait(900)
+    t.wait_for('.modal-head')
     warn2 = pg.locator('.modal-body').inner_text() if pg.locator('.modal-body').count() else ''
     t.ck('нет карточки' in warn2,
          'не сказано, что для движимого объекта в новом типе нет карточки: %s'

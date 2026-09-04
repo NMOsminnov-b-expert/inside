@@ -1,4 +1,5 @@
 import { areaListHTML } from '../../../../kernel/areaList.js';
+import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
@@ -82,7 +83,7 @@ function flagsRowHTML(oi) {
 // назначение по техпаспорту. Расхождение согласовано с пользователем
 // 04.09.2026 и оставлено намеренно — состав полей у тех типов другой по делу.
 // Не «выравнивать» при очередном аудите (docs/reestr-kosyakov.md §5).
-function generalCard(ctx, oi) {
+function generalCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;
   const showStructureKindOther = oi.structureKind === 'Прочее';
@@ -94,7 +95,7 @@ function generalCard(ctx, oi) {
 
   return `<div class="card t-blue" id="q-gen">
 <div class="card-head" data-card-toggle>
-<span class="card-idx">01</span>
+<span class="card-idx">${String(idx).padStart(2, '0')}</span>
 <h3>Общие параметры</h3>
 <span class="hint">${esc(oi.name)}</span>
 <span class="head-eni" title="Код ЕНИ — правится здесь">
@@ -174,13 +175,13 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 </div>`;
 }
 
-function areasCard(ctx, oi) {
+function areasCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
   const areas = oi.areas || {};
   const heights = oi.heights || {};
 
   return `<div class="card t-blue" id="q-areas">
-<div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
@@ -200,7 +201,7 @@ ${floorsCountField(oi)}
 </div>`;
 }
 
-function structCard(ctx, oi, idx = 3) {
+function structCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
   const struct = oi.struct || {};
 
@@ -226,7 +227,7 @@ ${specialsBlockHTML(oi)}
 </div>`;
 }
 
-function photosCard(ctx, oi, idx = 5) {
+function photosCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-photo">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
 <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
@@ -265,15 +266,15 @@ ${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 }
 
 export function render(ctx, oi) {
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
+
+  const idx = blockNumbers();
 
   const cardBody = `<div class="oi-stack">
-${generalCard(ctx, oi)}
-${areasCard(ctx, oi)}
-${annexesCard(ctx, oi, 3)}
-${structCard(ctx, oi, 4)}
-${photosCard(ctx, oi, 6)}
+${generalCard(ctx, oi, idx())}
+${areasCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
+${structCard(ctx, oi, idx())}
+${photosCard(ctx, oi, idx())}
 </div>`;
 
   return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;

@@ -50,11 +50,15 @@ def run(t):
         # --- прикрепляем документ ---
         t.open('#/oc/civil/oc-cv-1')
         pg.locator('button:has-text("Прикрепить файл")').first.click()
-        t.wait(500)
+        t.wait_for('[data-modal-opt]')
         with pg.expect_file_chooser() as fc:
             pg.locator('[data-modal-opt]').first.click()
         fc.value.set_files(PDF_PATH)
-        t.wait(2500)
+        # Документ открывается после разбора файла (PDF.js грузится
+        # динамически), а страница в это время не меняется — ждём заголовок
+        # документа, а не время.
+        t.wait_until("() => [...document.querySelectorAll('.vtitle')]"
+                     ".some((e) => e.textContent.includes('_tmp_check.pdf'))")
         t.ck('_tmp_check.pdf' in pg.locator('.vtitle').first.inner_text(),
              'документ не открылся после прикрепления')
 

@@ -26,13 +26,15 @@ def _add(t, kind):
     """Завести ОИ через меню «+ Добавить ОИ»; карточка откроется сама."""
     pg = t.page
     pg.locator('[data-dd-toggle]').first.click()
-    t.wait(400)
+    # Меню и карточку ждём по факту: при параллельном прогоне шести браузеров
+    # фиксированного ожидания не хватало, и проверка сообщала, что ОИ «не
+    # заводится», хотя оно заводилось.
+    t.wait_for('[data-add-oi]')
     item = pg.locator('[data-add-oi="%s"]' % kind)
     if not item.count():
         return False
     item.first.click()
-    t.wait(1500)
-    return pg.locator('.oi-stack').count() > 0
+    return t.wait_for('.oi-stack') and t.wait_for('.card-idx')
 
 
 def run(t):

@@ -62,7 +62,9 @@ def _open_doc_with_file(t):
     with pg.expect_file_chooser() as fc:
         pg.locator('[data-idoc-addfile]').first.click()
     fc.value.set_files({'name': 'skan.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf()})
-    t.wait(2200)
+    # Просмотрщик появляется после разбора файла (PDF.js грузится динамически),
+    # а страница в это время не меняется — ждём саму ленту, а не время.
+    t.wait_for('.vstage')
     return pg.locator('.vstage').count() == 1
 
 
