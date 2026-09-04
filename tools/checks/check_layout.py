@@ -44,7 +44,7 @@ def run(t):
 
         # поля формы редактирования не режут содержимое
         pg.locator('#btnEditOc').click()
-        pg.wait_for_timeout(600)
+        t.wait(600)
         clipped = pg.evaluate("""() => {
           let n = 0;
           document.querySelectorAll('.card .input').forEach((el) => {
@@ -60,12 +60,12 @@ def run(t):
     # содержимое (у чекбокса дорисовывалось многоточие)
     t.open('#/oc/apartment/oc-ap-1')
     pg.locator('tr[data-open-oi]').first.click()
-    pg.wait_for_timeout(800)
+    t.wait(800)
     for head in pg.locator('.al:has([data-add-floor]) .acc-head').all():
         cls = head.evaluate('e => e.closest(".acc").className')
         if 'open' not in cls:
             head.click()
-            pg.wait_for_timeout(200)
+            t.wait(200)
 
     res = pg.evaluate("""() => {
       const out = [];

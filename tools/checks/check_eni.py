@@ -20,12 +20,12 @@ def run(t):
     # --- форма редактирования ОЦ ---
     t.open('#/oc/civil/oc-cv-1')
     pg.locator('#btnEditOc').click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
 
     eni = pg.locator('#fEni')
     eni.fill('123')
     eni.dispatch_event('input')
-    pg.wait_for_timeout(250)
+    t.wait(250)
 
     err = pg.locator('[data-eni-err]').first
     t.ck(err.count() > 0 and err.inner_text().strip() != '',
@@ -35,7 +35,7 @@ def run(t):
     t.ck(pg.locator('#fEni.eni-bad').count() == 1, 'поле с неверным ЕНИ не подсвечено')
 
     pg.locator('#btnSaveOc').click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     t.ck(pg.locator('#fEni').count() > 0, 'форма закрылась, сохранив неверный код ЕНИ')
 
     # Все три допустимых длины принимаются, промежуточная — нет.
@@ -46,7 +46,7 @@ def run(t):
                        ('247561671001234567', True)]:  # 18
         eni.fill(digits)
         eni.dispatch_event('input')
-        pg.wait_for_timeout(250)
+        t.wait(250)
         bad = pg.locator('#fEni.eni-bad').count() == 1
         t.ck(bad != ok, 'код ЕНИ из %d цифр: %s' % (
             len(digits), 'помечен ошибкой, хотя допустим' if ok else 'принят, хотя недопустим'))
@@ -56,55 +56,55 @@ def run(t):
     # и споткнулась).
     eni.fill('24756167100123')
     eni.dispatch_event('input')
-    pg.wait_for_timeout(250)
+    t.wait(250)
     err_text = pg.locator('[data-eni-err]').first.inner_text()
     t.ck('13' in err_text and '15' in err_text and '18' in err_text,
          'сообщение об ошибке не перечисляет допустимые длины: %r' % err_text)
 
     eni.fill('247561671001234567')
     eni.dispatch_event('input')
-    pg.wait_for_timeout(250)
+    t.wait(250)
     t.ck(pg.locator('#fEni.eni-bad').count() == 0, 'верный код ЕНИ помечен как ошибочный')
 
     eni.dispatch_event('change')
-    pg.wait_for_timeout(300)
+    t.wait(300)
     masked = pg.locator('#fEni').input_value()
     # 18 цифр разбиты на семь групп (kernel/fmt.js, ENI_GROUPS) — шесть разделителей.
     t.ck(masked.count('-') == 6, 'маска ЕНИ не расставлена: %r' % masked)
 
     pg.locator('#btnSaveOc').click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.locator('#fEni').count() == 0, 'форма не сохранилась с верным кодом ЕНИ')
 
     # --- карточка литеры ---
     t.open('#/oc/civil/oc-cv-1')
     pg.locator('tr[data-open-oi]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
 
     he = pg.locator('[data-head-eni]')
     if t.ck(he.count() > 0, 'в карточке литеры нет поля кода ЕНИ'):
         before = pg.locator('.ctx-plate').first.inner_text()
         he.fill('77')
         he.dispatch_event('input')
-        pg.wait_for_timeout(250)
+        t.wait(250)
         t.ck(pg.locator('[data-head-eni].eni-bad').count() == 1,
              'неверный код ЕНИ в карточке литеры не подсвечен')
 
         he.dispatch_event('change')
-        pg.wait_for_timeout(400)
+        t.wait(400)
         after = pg.locator('.ctx-plate').first.inner_text()
         t.ck(before == after, 'неверный код ЕНИ попал в плашку карточки')
 
     # --- карточка земельного участка: поле своё, правило то же ---
     t.open('#/oc/land-plot/oc-lp-1')
     pg.locator('.oi-land-open').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
 
     le = pg.locator('[data-land-eni]')
     if t.ck(le.count() > 0, 'в карточке участка нет поля кода ЕНИ'):
         le.fill('247561690013')          # 12 цифр — короче любой допустимой
         le.dispatch_event('input')
-        pg.wait_for_timeout(250)
+        t.wait(250)
         t.ck(pg.locator('[data-land-eni].eni-bad').count() == 1,
              'короткий код ЕНИ участка не помечен ошибкой')
 
@@ -112,9 +112,9 @@ def run(t):
         # первые пять групп 1-2-2-4-4 (kernel/fmt.js, ENI_GROUPS).
         le.fill('2475616900130')
         le.dispatch_event('input')
-        pg.wait_for_timeout(200)
+        t.wait(200)
         le.dispatch_event('change')
-        pg.wait_for_timeout(500)
+        t.wait(500)
         short = pg.locator('[data-land-eni]').input_value()
         t.ck(pg.locator('[data-land-eni].eni-bad').count() == 0,
              'код ЕНИ участка из 13 цифр помечен ошибкой')
@@ -122,8 +122,8 @@ def run(t):
 
         le.fill('247561690013000456')    # 18 цифр
         le.dispatch_event('input')
-        pg.wait_for_timeout(200)
+        t.wait(200)
         le.dispatch_event('change')
-        pg.wait_for_timeout(500)
+        t.wait(500)
         got = pg.locator('[data-land-eni]').input_value()
         t.ck(got.count('-') == 6, 'маска ЕНИ участка не расставлена: %r' % got)

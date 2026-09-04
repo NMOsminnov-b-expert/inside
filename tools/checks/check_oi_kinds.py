@@ -32,7 +32,7 @@ def _menu(t):
     """Раскрыть «+ Добавить ОИ» и прочитать список видов."""
     pg = t.page
     pg.locator('[data-dd-toggle]').first.click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
     return pg.eval_on_selector_all('[data-add-oi]', 'els => els.map((e) => e.textContent.trim())')
 
 
@@ -41,7 +41,7 @@ def run(t):
 
     for label, route in ROUTES.items():
         t.open(route, wait='[data-add-oi]')
-        pg.wait_for_timeout(300)
+        t.wait(300)
         items = _menu(t)
 
         missing = [x for x in REALTY if x not in items]
@@ -49,7 +49,7 @@ def run(t):
 
         # Квартира открывается настоящей карточкой квартиры, а не литерой.
         pg.locator('[data-add-oi="Квартира"]').first.click()
-        pg.wait_for_timeout(900)
+        t.wait(900)
         body = t.text()
         t.ck('Общие параметры квартиры' in body,
              '%s: карточка квартиры не открылась' % label)
@@ -62,7 +62,7 @@ def run(t):
 
     # --- справочники: в каталоге каждого типа ОЦ все четыре карточки ---
     t.open('#/dicts', wait='.dc')
-    pg.wait_for_timeout(300)
+    t.wait(300)
 
     cards = pg.evaluate("""() => {
       const out = {};
@@ -75,7 +75,7 @@ def run(t):
 
     for i in range(len(cards)):
         pg.locator('[data-step-type]').nth(i).click()
-        pg.wait_for_timeout(300)
+        t.wait(300)
         name = pg.locator('[data-step-type]').nth(i).inner_text().strip()
         got = pg.eval_on_selector_all(
             '[data-step-card]', 'els => els.map((e) => e.textContent.replace(/\\s+/g, " ").trim())')
@@ -100,10 +100,10 @@ def check_hidden_fields_warning(t):
     pg = t.page
 
     t.open('#/oc/civil/oc-cv-1', wait='tr[data-open-oi]')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     pg.locator('tr[data-open-oi]').first.click()
     pg.wait_for_selector('[data-catclass]', timeout=15000)
-    pg.wait_for_timeout(700)
+    t.wait(700)
 
     cc = pg.locator('[data-catclass]')
     if not t.ck(cc.count() == 1, 'в карточке литеры нет поля назначения по ТП'):
@@ -112,7 +112,7 @@ def check_hidden_fields_warning(t):
     # Производственное назначение: часть полей уходит, значит нужен диалог.
     cc.fill('Производственно-складское')
     cc.dispatch_event('change')
-    pg.wait_for_timeout(800)
+    t.wait(800)
 
     if t.ck(pg.locator('.modal-head').count() == 1,
             'смена назначения прошла без предупреждения о скрытых полях'):
@@ -128,7 +128,7 @@ def check_hidden_fields_warning(t):
 
         # Отказ ничего не меняет.
         pg.locator('[data-modal-cancel]').last.click(force=True)
-        pg.wait_for_timeout(600)
+        t.wait(600)
         t.ck(pg.locator('#q-prod').count() == 0,
              'после отказа состав карточки всё равно изменился')
 
@@ -138,9 +138,9 @@ def check_hidden_fields_warning(t):
     cc.fill('Производственно-складское')
     cc.dispatch_event('change')
     cc.dispatch_event('change')
-    pg.wait_for_timeout(800)
+    t.wait(800)
     t.ck(pg.locator('.modal-back').count() <= 1,
          'на экране больше одного диалога: %d' % pg.locator('.modal-back').count())
     if pg.locator('.modal-back').count():
         pg.locator('[data-modal-cancel]').last.click(force=True)
-        pg.wait_for_timeout(400)
+        t.wait(400)

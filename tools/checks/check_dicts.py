@@ -24,7 +24,7 @@ def _role(t, key):
     """Переключить роль в реестре — права раздела считаются от неё."""
     t.open('', wait='.reg-thead')
     t.page.locator('[data-role]').first.select_option(key)
-    t.page.wait_for_timeout(400)
+    t.wait(400)
 
 
 def _view(t, key):
@@ -34,9 +34,9 @@ def _view(t, key):
         return
     if not pg.locator('.dc-views.open').count():
         pg.locator('[data-view-toggle]').first.click()
-        pg.wait_for_timeout(200)
+        t.wait(200)
     pg.locator('[data-view="%s"]' % key).first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
 
 def _expand_all(t):
@@ -50,7 +50,7 @@ def _expand_all(t):
     q = pg.locator('[data-dc-q]')
     if q.count() and q.input_value():
         q.fill('')
-        pg.wait_for_timeout(300)
+        t.wait(300)
 
     for sel in ('.dc-tree-head', '.dc-tree-sub', '.dc-tree-fold'):
         nodes = pg.locator(sel)
@@ -59,8 +59,8 @@ def _expand_all(t):
             cls = node.evaluate('e => e.parentElement.className')
             if 'open' not in cls:
                 node.click()
-                pg.wait_for_timeout(60)
-    pg.wait_for_timeout(200)
+                t.wait(60)
+    t.wait(200)
 
 
 def _where_menu(t):
@@ -73,7 +73,7 @@ def _where_menu(t):
     toggle = pg.locator('[data-where-toggle]')
     if toggle.count() and not pg.locator('.dc-where-dd.open').count():
         toggle.first.click()
-        pg.wait_for_timeout(200)
+        t.wait(200)
 
 
 def _find_dict(t, name_part):
@@ -82,7 +82,7 @@ def _find_dict(t, name_part):
     for i in range(rows.count()):
         if name_part in rows.nth(i).inner_text():
             rows.nth(i).click()
-            t.page.wait_for_timeout(500)
+            t.wait(500)
             return True
     return False
 
@@ -94,13 +94,13 @@ def _used_dict(t):
     удаление на них нельзя — ищем непривязанный к системе.
     """
     t.page.locator('[data-dc-q]').fill('')
-    t.page.wait_for_timeout(300)
+    t.wait(300)
     rows = t.page.locator('.dc-row')
     for i in range(rows.count()):
         if 'sys' in (rows.nth(i).get_attribute('class') or ''):
             continue
         rows.nth(i).click()
-        t.page.wait_for_timeout(200)
+        t.wait(200)
         if t.page.locator('[data-item-usage]').count() and t.page.locator('[data-item-value]').count():
             return True
     return False
@@ -120,7 +120,7 @@ def _open_in_catalog(t, catalog_part, dict_part):
       }
       return false;
     }""", [catalog_part, dict_part])
-    t.page.wait_for_timeout(500)
+    t.wait(500)
     return ok
 
 
@@ -139,7 +139,7 @@ def _add_value(t, value):
     field = t.page.locator('[data-item-new]')
     field.fill(value)
     field.press('Enter')
-    t.page.wait_for_timeout(500)
+    t.wait(500)
 
 
 def run(t):
@@ -268,10 +268,10 @@ def run(t):
     sys_rows = pg.locator('.dc-row.sys').count()
     t.ck(sys_rows > 0, 'системные перечни не помечены в дереве')
     pg.locator('.dc-switch').first.click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     t.ck(pg.locator('.dc-row.sys').count() == 0, 'системные перечни не скрываются')
     pg.locator('.dc-switch').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.locator('.dc-row.sys').count() == sys_rows, 'системные перечни не вернулись')
 
     # --- 6. значения: строка добавления, дубликаты, правка на месте ---
@@ -289,7 +289,7 @@ def run(t):
     cell = pg.locator('[data-item-value]').last
     cell.fill('Проверочное значение 2')
     cell.press('Enter')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     values = pg.evaluate("""() => [...document.querySelectorAll('[data-item-value]')]
         .map((i) => i.value)""")
     t.ck('Проверочное значение 2' in values, 'правка значения на месте не сохранилась')
@@ -301,10 +301,10 @@ def run(t):
     if t.ck(bool(ids), 'не нашлось неиспользуемого значения'):
         before = pg.locator('[data-item-value]').count()
         pg.locator('[data-item-del="%s"]' % ids[-1]).first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         t.ck(pg.locator('.modal-head').count() > 0, 'удаление прошло без подтверждения')
         pg.locator('.modal-foot .btn-primary, [data-modal-ok]').first.click()
-        pg.wait_for_timeout(600)
+        t.wait(600)
         t.ck(pg.locator('[data-item-value]').count() == before - 1,
              'неиспользуемое значение не удалилось')
 
@@ -316,7 +316,7 @@ def run(t):
             return b ? b.dataset.itemUsage : null; }""")
         value = pg.locator('[data-item-value="%s"]' % used).input_value()
         pg.locator('[data-item-del="%s"]' % used).first.click()
-        pg.wait_for_timeout(600)
+        t.wait(600)
 
         t.ck(pg.locator('.dc-modal').count() == 1, 'не открылся диалог замены значения')
         t.ck(pg.locator('.dc-warn-n').count() == 1, 'в диалоге нет числа затронутых объектов')
@@ -327,12 +327,12 @@ def run(t):
              'кнопка подтверждения не называет действие')
 
         pg.locator('[data-rm-mode="new"]').first.check()
-        pg.wait_for_timeout(300)
+        t.wait(300)
         t.ck('Переименовать' in pg.locator('[data-rm-ok]').inner_text(),
              'при переименовании кнопка не меняет надпись')
         pg.locator('[data-rm-new]').fill('Проверка замены')
         pg.locator('[data-rm-ok]').first.click()
-        pg.wait_for_timeout(900)
+        t.wait(900)
 
         t.ck(pg.locator('.dc-modal').count() == 0, 'диалог замены не закрылся')
         values = pg.evaluate("""() => [...document.querySelectorAll('[data-item-value]')]
@@ -350,21 +350,21 @@ def run(t):
     if t.ck(_open_in_catalog(t, 'Квартира', 'Отопление'), 'не нашёл отопление у квартиры'):
         _where_menu(t)
         pg.locator('[data-unbind]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         pg.locator('.modal-foot .btn-primary, [data-modal-ok]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
 
     if t.ck(_open_in_catalog(t, 'Литера', 'Отопление'), 'не нашёл отопление у литеры'):
         before = pg.evaluate("""() => [...document.querySelectorAll('.dc-chain-step')]
             .map((b) => b.textContent.trim())""")
         _where_menu(t)
         pg.locator('[data-move-open]').first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
 
         target = pg.locator('[data-move-to]').filter(has_text='Квартира').first
         if t.ck(target.count() > 0, 'каталога «Квартира» нет среди целей переноса'):
             target.click()
-            pg.wait_for_timeout(800)
+            t.wait(800)
 
             after = pg.evaluate("""() => [...document.querySelectorAll('.dc-chain-step')]
                 .map((b) => b.textContent.trim())""")
@@ -381,18 +381,18 @@ def run(t):
             .map((b) => b.textContent.trim())""")
         _where_menu(t)
         pg.locator('[data-move-open]').first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         target = pg.locator('[data-move-to]').filter(has_text='Литера').first
         if target.count():
             target.click()
-            pg.wait_for_timeout(800)
+            t.wait(800)
             after = pg.evaluate("""() => [...document.querySelectorAll('.dc-chain-step')]
                 .map((b) => b.textContent.trim())""")
             t.ck(pg.locator('.dc-picker.warn').count() == 1,
                  'одноимённого поля нет, но выбор не предложен')
             t.ck(after == before, 'привязка изменилась до выбора поля')
             pg.locator('[data-move-cancel]').first.click()
-            pg.wait_for_timeout(300)
+            t.wait(300)
 
     # --- 10. отвязка и раздел «Не привязаны» ---
     t.open('#/dicts', wait='.dc')
@@ -402,9 +402,9 @@ def run(t):
         unbind = pg.locator('[data-unbind]')
         if t.ck(unbind.count() == 1, 'нет действия «Отвязать»'):
             unbind.first.click()
-            pg.wait_for_timeout(500)
+            t.wait(500)
             pg.locator('.modal-foot .btn-primary, [data-modal-ok]').first.click()
-            pg.wait_for_timeout(700)
+            t.wait(700)
             t.ck(pg.locator('.dc-badge.warn').count() == 1,
                  'отвязанный справочник не помечен')
             t.ck(pg.locator('.dc-tree-type.unbound').count() == 1,
@@ -413,20 +413,20 @@ def run(t):
             # и его можно привязать обратно
             _where_menu(t)
             pg.locator('[data-move-open]').first.click()
-            pg.wait_for_timeout(500)
+            t.wait(500)
             pg.locator('[data-move-to]').first.click()
-            pg.wait_for_timeout(600)
+            t.wait(600)
             slot = pg.locator('[data-bind-slot]')
             if slot.count():
                 slot.first.click()
-                pg.wait_for_timeout(600)
+                t.wait(600)
             t.ck(pg.locator('.dc-chain-step').count() == 3, 'справочник не привязался обратно')
 
     # --- 11. поиск по дереву ---
     t.open('#/dicts', wait='.dc')
     _view(t, 'tree')
     pg.locator('[data-dc-q]').fill('полив')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     found = pg.locator('.dc-row').count()
     t.ck(0 < found < total, 'поиск по дереву не фильтрует: %d из %d' % (found, total))
 
@@ -462,7 +462,7 @@ def run(t):
         field = pg.locator('[data-item-new]')
         field.fill('Проверка синхронизации')
         field.press('Enter')
-        pg.wait_for_timeout(900)
+        t.wait(900)
 
         toast = pg.locator('.toast')
         t.ck(toast.count() > 0 and 'ещё в' in toast.first.inner_text(),
@@ -473,7 +473,7 @@ def run(t):
 
         # снятая галочка исключает справочник из правки
         pg.locator('[data-linked]').first.uncheck()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         off = pg.evaluate("""() => [...document.querySelectorAll('[data-linked]')]
             .filter((c) => !c.checked).length""")
         t.ck(off == 1, 'галочка не снялась')
@@ -482,7 +482,7 @@ def run(t):
         field = pg.locator('[data-item-new]')
         field.fill('Только здесь и в отмеченных')
         field.press('Enter')
-        pg.wait_for_timeout(900)
+        t.wait(900)
         counts_after = _linked_counts(t)
         t.ck(counts_after[0] == counts_before[0],
              'значение ушло в справочник со снятой галочкой')
@@ -498,26 +498,26 @@ def run(t):
         mode = pg.locator('[data-linked-all]').first.get_attribute('data-linked-all')
         t.ck(mode == 'on', 'после снятия галочки кнопка не предлагает выбрать все')
         pg.locator('[data-linked-all]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         t.ck(linked_on() == linked.count(), 'кнопка «выбрать все» не отметила все')
 
         pg.locator('[data-linked-all]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         t.ck(linked_on() == 0, 'кнопка «снять все» не сняла отметки')
 
     # --- 12. создание справочника строкой ---
     pg.locator('[data-dc-q]').fill('')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     _expand_all(t)
     before = pg.locator('.dc-row').count()
     pg.locator('[data-dc-new]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     field = pg.locator('[data-dc-new-name]')
     t.ck(field.count() == 1, 'создание открывает отдельное окно')
     t.ck(pg.locator('.modal-head').count() == 0, 'при создании появилось модальное окно')
     field.fill('Проверочный справочник')
     field.press('Enter')
-    pg.wait_for_timeout(800)
+    t.wait(800)
     t.ck(pg.locator('.dc-row').count() == before + 1, 'справочник не создался')
     t.ck(pg.locator('[data-dc-name]').input_value() == 'Проверочный справочник',
          'созданный справочник не открылся')
@@ -534,17 +534,17 @@ def run(t):
     t.open('#/dicts', wait='.dc')
     pg.reload()
     pg.wait_for_selector('.dc')
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     t.ck(pg.locator('.dc-steps').count() == 1, 'вид по умолчанию не «столбцы»')
     t.ck(pg.locator('.dc-step').count() == 3, 'столбцов не три: %d' % pg.locator('.dc-step').count())
 
     pg.locator('[data-view-toggle]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     t.ck(pg.locator('[data-view]').count() == 2,
          'видов не два: %d' % pg.locator('[data-view]').count())
     pg.locator('.dc').first.click(position={'x': 6, 'y': 6})
-    pg.wait_for_timeout(250)
+    t.wait(250)
     t.ck(pg.locator('.dc-views.open').count() == 0, 'меню вида не закрывается кликом мимо')
 
     # Ширины столбцов не скачут при переходе по шагам — ради этого раскладку и
@@ -555,18 +555,18 @@ def run(t):
 
     w0 = widths()
     pg.locator('[data-step-type="civil"]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     t.ck(pg.locator('[data-step-card]').count() > 0, 'типы ОИ не появились после выбора типа ОЦ')
     w1 = widths()
 
     pg.locator('[data-step-card]').nth(1).click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     fields = pg.locator('.dc-step-row.dict').count()
     t.ck(fields > 0, 'значения (поля) не появились после выбора типа ОИ')
     w2 = widths()
 
     pg.locator('.dc-step-row.dict').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     w3 = widths()
     t.ck(w0 == w1 == w2 == w3, 'ширины столбцов скачут: %s → %s → %s → %s' % (w0, w1, w2, w3))
 
@@ -586,17 +586,17 @@ def run(t):
     t.ck(pg.locator('.dc-side [data-linked]').count() > 0, 'столбец связанных пуст')
 
     pg.locator('[data-dc-back]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('.dc-step-row.dict').count() == fields,
          'возврат не вернул к списку значений')
 
     # --- 14. непривязанный справочник: найти и прикрепить ---
     pg.locator('[data-dc-new]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     field = pg.locator('[data-dc-new-name]')
     field.fill('Проверочный непривязанный')
     field.press('Enter')
-    pg.wait_for_timeout(800)
+    t.wait(800)
 
     types = pg.eval_on_selector_all('[data-step-type]',
                                     'els => els.map((e) => e.textContent.trim())')
@@ -606,12 +606,12 @@ def run(t):
          'у непривязанного справочника нет кнопки «Привязать к полю»')
 
     pg.locator('[data-move-open]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('[data-move-to]').count() > 10,
          'при привязке не предложены каталоги')
 
     pg.locator('[data-move-to]').first.click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     # После выбора каталога либо привязка прошла (появилась цепочка в блоке 03),
     # либо система спросила, к какому полю привязывать.
     bound = pg.locator('.dc-chain-step').count() + pg.locator('[data-bind-slot]').count()
@@ -625,13 +625,13 @@ def run(t):
     t.open('#/dicts', wait='.dc-steps')
     pg.reload()
     pg.wait_for_selector('.dc-steps')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     pg.locator('[data-step-type="civil"]').first.click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
     pg.locator('[data-step-card]').nth(1).click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
     pg.locator('.dc-step-row.dict').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
 
     def drag(sel, dx):
         el = pg.locator(sel).first
@@ -640,7 +640,7 @@ def run(t):
         pg.mouse.down()
         pg.mouse.move(box['x'] + box['width'] / 2 + dx, box['y'] + box['height'] / 2, steps=8)
         pg.mouse.up()
-        pg.wait_for_timeout(250)
+        t.wait(250)
 
     def pane_widths():
         return pg.evaluate("""() => [...document.querySelectorAll('.dc-step, .dc-side')]
@@ -679,9 +679,9 @@ def run(t):
 
     # Флажки множественного выбора: по наведению, с массовыми действиями.
     pg.locator('.dc-tbl tbody tr').nth(1).hover()
-    pg.wait_for_timeout(200)
+    t.wait(200)
     pg.locator('.dc-tbl tbody tr').nth(1).locator('.dc-check').click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     t.ck(pg.locator('.dc-card-head.picking').count() == 1, 'шапка не перешла в режим выбора')
     t.ck('выбрано 1' in t.text(), 'не показано, сколько значений выбрано')
     t.ck(pg.locator('[data-pick-del]').count() == 1, 'нет массового удаления')
@@ -689,11 +689,11 @@ def run(t):
 
     # Флажок нарисован своим оформлением: сам input прозрачный, кликаем метку.
     pg.locator('.dc-check.head').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     picked = pg.evaluate("""() => document.querySelectorAll('.dc-tbl tbody tr.picked').length""")
     rows = pg.evaluate("""() => document.querySelectorAll('.dc-tbl tbody tr[data-item]').length""")
     t.ck(picked == rows, 'флажок в шапке выбрал %d из %d' % (picked, rows))
 
     pg.locator('[data-pick-none]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     t.ck(pg.locator('.dc-tbl tbody tr.picked').count() == 0, 'выделение не снялось')

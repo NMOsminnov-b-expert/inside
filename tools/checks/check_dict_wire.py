@@ -35,9 +35,9 @@ def _open_dict(t, type_id, card_label, name_starts):
     """
     pg = t.page
     t.open('#/dicts', wait='.dc-steps')
-    pg.wait_for_timeout(300)
+    t.wait(300)
     pg.locator('[data-step-type="%s"]' % type_id).first.click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
 
     cards = pg.eval_on_selector_all('[data-step-card]',
                                     'els => els.map((e) => e.textContent.trim())')
@@ -45,7 +45,7 @@ def _open_dict(t, type_id, card_label, name_starts):
     if not idx:
         return False
     pg.locator('[data-step-card]').nth(idx[0]).click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
 
     rows = pg.eval_on_selector_all('.dc-step-row.dict',
                                    'els => els.map((e) => e.textContent.trim())')
@@ -53,7 +53,7 @@ def _open_dict(t, type_id, card_label, name_starts):
     if not hit:
         return False
     pg.locator('.dc-step-row.dict').nth(hit[0]).click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     return True
 
 
@@ -64,7 +64,7 @@ def _add_value(t, value):
         return False
     field.fill(value)
     field.press('Enter')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     return True
 
 
@@ -76,14 +76,14 @@ def _open_letter(t, route, need=None):
     """
     pg = t.page
     t.open(route, wait='[data-open-oi]')
-    pg.wait_for_timeout(300)
+    t.wait(300)
     total = pg.locator('tr[data-open-oi]').count()
 
     for i in range(min(total, 5)):
         t.open(route, wait='[data-open-oi]')
-        pg.wait_for_timeout(250)
+        t.wait(250)
         pg.locator('tr[data-open-oi]').nth(i).click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         if not need or pg.locator(need).count():
             return True
     return False
@@ -126,11 +126,11 @@ def run(t):
     # --- 2. удаление значения тоже доходит ---
     if t.ck(_open_dict(t, 'civil', 'Литера', 'Права на строение'), 'не открыл справочник прав'):
         pg.locator('[data-item-del]').last.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         ok = pg.locator('[data-modal-ok]')
         if ok.count():
             ok.first.click()
-            pg.wait_for_timeout(600)
+            t.wait(600)
 
         _open_letter(t, '#/oc/civil/oc-cv-1', '[data-rights]')
         options = pg.eval_on_selector_all('[data-rights] option',
@@ -173,11 +173,11 @@ def run(t):
         _add_value(t, value)
 
         t.open('#/oc/civil/oc-cv-1', wait='[data-open-oi]')
-        pg.wait_for_timeout(300)
+        t.wait(300)
         land = pg.locator('.oi-land-open, [data-open-land]')
         if land.count():
             land.first.click()
-            pg.wait_for_timeout(700)
+            t.wait(700)
             options = pg.eval_on_selector_all('[data-land-form] option',
                                               'els => els.map((e) => e.textContent.trim())')
             t.ck(value in options,

@@ -29,7 +29,7 @@ def run(t):
     # --- 1. нативных списков не остаётся ни на одном экране ---
     for route, wait in SCREENS:
         t.open(route, wait=wait)
-        pg.wait_for_timeout(500)
+        t.wait(500)
         left = pg.locator('select.select').count()
         t.ck(left == 0, '%s: остались нативные списки: %d' % (route, left))
 
@@ -37,7 +37,7 @@ def run(t):
     t.open('#/oc/civil/oc-cv-1', wait='tr[data-open-oi]')
     pg.locator('tr[data-open-oi]').first.click()
     pg.wait_for_selector('.pick-btn', timeout=15000)
-    pg.wait_for_timeout(600)
+    t.wait(600)
 
     btns = pg.locator('.pick-btn')
     t.ck(btns.count() > 3, 'в карточке ОИ мало своих списков: %d' % btns.count())
@@ -46,18 +46,18 @@ def run(t):
 
     # --- 3. учреждения: выбор мышью меняет выборку ---
     t.open('#/institutions', wait='.itree')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     pg.locator('.itree-row[data-inode]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     pg.locator('[data-itab="all"]').click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
 
     before = pg.locator('[data-all-row]').count()
     stale = pg.locator('.iall-stale .pick-btn').first
     t.ck(stale.count() == 1, 'поле «без движения» не заменено своим списком')
 
     stale.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     menu = pg.locator('.pick-menu')
     t.ck(menu.count() == 1, 'список не раскрылся')
     t.ck(menu.locator('.pick-opt').count() >= 4,
@@ -106,7 +106,7 @@ def run(t):
          % (hints['titled'], hints['clipped']))
 
     menu.locator('.pick-opt').nth(2).hover()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     hover = pg.evaluate("""() => {
       const els = [...document.querySelectorAll('.pick-opt')];
       const h = els.find((e) => e.matches(':hover'));
@@ -121,7 +121,7 @@ def run(t):
          % hover['total'])
 
     menu.locator('.pick-opt').nth(2).click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     t.ck(pg.locator('.pick-menu').count() == 0, 'после выбора список не закрылся')
     t.ck(pg.input_value('[data-all-stale-sel]') not in ('', '0'),
          'выбор мышью не дошёл до селекта')
@@ -133,31 +133,31 @@ def run(t):
     # --- 4. клавиатура ---
     prev = pg.input_value('[data-all-stale-sel]')
     stale.click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
     pg.keyboard.press('ArrowDown')
     pg.keyboard.press('Enter')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.input_value('[data-all-stale-sel]') != prev,
          'стрелка и Enter не меняют значение')
 
     stale.click()
-    pg.wait_for_timeout(250)
+    t.wait(250)
     pg.keyboard.press('Escape')
-    pg.wait_for_timeout(300)
+    t.wait(300)
     t.ck(pg.locator('.pick-menu').count() == 0, 'Escape не закрывает список')
 
     # --- 5. значение, выставленное мимо списка ---
     pg.locator('.itree-row[data-inode]').nth(1).click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     if t.ck(pg.locator('[data-iedit]').count() > 0, 'у узла нет правки'):
         pg.locator('[data-iedit]').first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
 
         people = pg.eval_on_selector_all('[data-iform-staff="gov"] option',
                                          'els => els.map((e) => e.textContent.trim())')
         if t.ck(len(people) > 1, 'в списке сотрудников нет вариантов'):
             pg.select_option('[data-iform-staff="gov"]', people[1])
-            pg.wait_for_timeout(400)
+            t.wait(400)
             label = pg.locator('[data-iform-staff="gov"] ~ .pick-btn').first.inner_text().strip()
             t.ck(label == people[1],
                  'подпись кнопки не увидела значение, выставленное мимо списка: %s' % label)

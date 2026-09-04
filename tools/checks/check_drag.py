@@ -44,14 +44,16 @@ def _land_of(pg, oi_id):
     }""", oi_id)
 
 
-def _confirm(pg):
+def _confirm(pg, wait=None):
     """Подтвердить модалку переноса, если она появилась."""
     dlg = pg.locator('.modal-head')
     if not dlg.count():
         return None
     title = dlg.first.inner_text().strip()
     pg.locator('.modal-foot .btn-primary, [data-modal-ok]').first.click()
-    pg.wait_for_timeout(700)
+    # Паузу передаёт вызывающий: масштабирование пауз живёт в t.wait, а сюда
+    # приходит только страница.
+    (wait or (lambda ms: pg.wait_for_timeout(ms)))(700)
     return title
 
 
@@ -69,19 +71,19 @@ def run(t):
 
     # --- 1. привязка: бросок на узел участка ---
     res = pg.evaluate(DRAG, [letter, '[data-oi-drop] .acc-head', None])
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(res.get('hintText') and 'привяжется' in res['hintText'],
          'подсказка при наведении на участок неверна: %r' % res.get('hintText'))
-    title = _confirm(pg)
+    title = _confirm(pg, t.wait)
     t.ck(title == 'Перенос литеры', 'перенос на участок не спросил подтверждения: %r' % title)
     t.ck(_land_of(pg, letter) == land_node, 'литера не привязалась к участку')
 
     # --- 2. открепление: бросок в просмотрщик ---
     res = pg.evaluate(DRAG, [letter, '.viewer', 80])
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(res.get('hintText') and 'открепится' in res['hintText'],
          'подсказка при броске в просмотрщик неверна: %r' % res.get('hintText'))
-    title = _confirm(pg)
+    title = _confirm(pg, t.wait)
     t.ck(title == 'Открепить литеру', 'бросок в просмотрщик не открепил литеру: %r' % title)
     t.ck(_land_of(pg, letter) == '', 'литера осталась привязанной после броска в просмотрщик')
 
@@ -90,20 +92,20 @@ def run(t):
                       ('карточка «Учреждение…»', '.card.t-slate'),
                       ('боковое меню', '.sidebar')):
         pg.evaluate(DRAG, [letter, '[data-oi-drop] .acc-head', None])
-        pg.wait_for_timeout(300)
-        _confirm(pg)
+        t.wait(300)
+        _confirm(pg, t.wait)
         t.ck(_land_of(pg, letter) == land_node, '%s: подготовка — литера не привязалась' % name)
 
         pg.evaluate(DRAG, [letter, sel, None])
-        pg.wait_for_timeout(300)
-        title = _confirm(pg)
+        t.wait(300)
+        title = _confirm(pg, t.wait)
         t.ck(title == 'Открепить литеру', '%s: бросок не предложил открепление (%r)' % (name, title))
         t.ck(_land_of(pg, letter) == '', '%s: литера осталась привязанной' % name)
 
     # --- 4. промежуток внутри перечня, но мимо участка — тоже открепление ---
     pg.evaluate(DRAG, [letter, '[data-oi-drop] .acc-head', None])
-    pg.wait_for_timeout(300)
-    _confirm(pg)
+    t.wait(300)
+    _confirm(pg, t.wait)
 
     gap = pg.evaluate("""() => {
       const nodes = [...document.querySelectorAll('[data-oi-drop]')];
@@ -134,8 +136,8 @@ def run(t):
           fire(box, 'drop');
           return {hintText};
         }""", [letter])
-        pg.wait_for_timeout(300)
-        title = _confirm(pg)
+        t.wait(300)
+        title = _confirm(pg, t.wait)
         t.ck(title == 'Открепить литеру',
              'промежуток между участками по-прежнему привязывает к соседу сверху (%r)' % title)
         t.ck(_land_of(pg, letter) == '', 'литера осталась привязанной после броска в промежуток')

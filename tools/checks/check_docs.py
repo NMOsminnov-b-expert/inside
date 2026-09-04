@@ -20,36 +20,36 @@ def run(t):
 
     # --- 1. фильтры реестра ---
     t.open('#/docs', wait='[data-doc-row]')
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     total = _rows(t)
     t.ck(total > 5, 'в реестре документов всего %d строк' % total)
 
     pg.select_option('[data-docs-type]', 'Техпаспорт')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     by_type = _rows(t)
     t.ck(0 < by_type < total, 'фильтр по типу не сработал: %d из %d' % (by_type, total))
 
     pg.select_option('[data-docs-type]', '')
-    pg.wait_for_timeout(300)
+    t.wait(300)
 
     insts = pg.eval_on_selector_all('[data-docs-inst] option',
                                     'els => els.map((e) => e.textContent.trim())')
     t.ck(len(insts) > 2, 'в фильтре «от кого» нет учреждений')
     pg.select_option('[data-docs-inst]', insts[1])
-    pg.wait_for_timeout(400)
+    t.wait(400)
     by_inst = _rows(t)
     t.ck(0 < by_inst < total, 'фильтр «от кого» не сработал: %d из %d' % (by_inst, total))
 
     pg.select_option('[data-docs-inst]', '')
-    pg.wait_for_timeout(300)
+    t.wait(300)
 
     # Период даты: документ без даты в выборку по периоду не попадает.
     pg.fill('[data-docs-from]', '2010-01-01')
     pg.dispatch_event('[data-docs-from]', 'change')
     pg.fill('[data-docs-to]', '2011-12-31')
     pg.dispatch_event('[data-docs-to]', 'change')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     by_date = _rows(t)
     t.ck(0 < by_date < total, 'фильтр по периоду не сработал: %d из %d' % (by_date, total))
 
@@ -59,16 +59,16 @@ def run(t):
          'в выборку по периоду попали чужие даты: %s' % dates[:4])
 
     pg.locator('[data-docs-reset]').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(_rows(t) == total, 'сброс фильтров не вернул все строки')
 
     # --- 2. сортировка ---
     pg.locator('th[data-docs-sort="date"]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     asc = pg.eval_on_selector_all('[data-doc-row] td:nth-child(5)',
                                   'els => els.map((e) => e.textContent.trim()).filter((x) => x !== "—")')
     pg.locator('th[data-docs-sort="date"]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     desc = pg.eval_on_selector_all('[data-doc-row] td:nth-child(5)',
                                    'els => els.map((e) => e.textContent.trim()).filter((x) => x !== "—")')
     t.ck(asc and desc and asc[0] != desc[0],
@@ -77,7 +77,7 @@ def run(t):
 
     # --- 3. карточка: возврат в реестр и переход к соседям ---
     pg.locator('[data-doc-row]').first.click()
-    pg.wait_for_timeout(800)
+    t.wait(800)
     t.ck('/docs/' in pg.evaluate('() => location.hash'), 'карточка документа не открылась')
 
     crumbs = pg.locator('#crumbs').inner_text()
@@ -90,40 +90,40 @@ def run(t):
     t.ck(strip > 1, 'в карточке нет списка соседних документов')
 
     pg.locator('[data-dd-list-close]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('.dd-list').count() == 0, 'список соседей не свернулся')
     t.ck(pg.locator('[data-dd-list-open]').count() == 1,
          'после сворачивания нет закладки — список не вернуть')
     pg.locator('[data-dd-list-open]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('.dd-list').count() == 1, 'список соседей не вернулся')
     t.ck(pg.locator('.dd-nav-count').count() == 1, 'нет счётчика «N из M»')
 
     before = pg.locator('.dd-nav-count').inner_text()
     pg.locator('[data-docs-next-doc]').first.click()
-    pg.wait_for_timeout(800)
+    t.wait(800)
     t.ck(pg.locator('.dd-nav-count').inner_text() != before,
          'кнопка «следующий документ» не переключает')
 
     pg.locator('[data-docs-back]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.evaluate('() => location.hash').endswith('/docs'),
          'возврат из карточки увёл не в реестр документов')
 
     # --- 4. карточка, открытая из учреждения ---
     t.open('#/institutions', wait='.itree')
-    pg.wait_for_timeout(500)
+    t.wait(500)
 
     rows = pg.locator('.itree-row[data-inode]')
     opened = False
     for i in range(min(rows.count(), 30)):
         rows.nth(i).click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         tab = pg.locator('[data-itab="docs"]')
         if not tab.count():
             continue
         tab.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         if pg.locator('[data-idoc]').count():
             opened = True
             break
@@ -133,9 +133,9 @@ def run(t):
         # Щелчок по строке открывает предпросмотр рядом, а стрелка «↗» уводит в
         # карточку документа целиком — её и проверяем.
         pg.locator('[data-idoc]').first.hover()
-        pg.wait_for_timeout(200)
+        t.wait(200)
         pg.locator('[data-idoc-goto]').first.click()
-        pg.wait_for_timeout(900)
+        t.wait(900)
 
         crumbs = pg.locator('#crumbs').inner_text().replace('\n', ' ')
         t.ck('Учреждения' in crumbs and name[:18] in crumbs,
@@ -145,7 +145,7 @@ def run(t):
         t.ck(active == ['inst'], 'подсвечен не тот раздел сайдбара: %s' % active)
 
         pg.locator('[data-docs-back]').first.click()
-        pg.wait_for_timeout(900)
+        t.wait(900)
         t.ck('institutions' in pg.evaluate('() => location.hash'),
              'возврат из документа увёл не в учреждение')
         t.ck(pg.locator('.ihead h2').inner_text().strip() == name,
@@ -156,10 +156,10 @@ def run(t):
     # Пользователь 03.09.2026: «в документах добавь возможность просмотра
     # документов при прикреплении». До этого о содержимом судили по имени файла.
     t.open('#/docs', wait='[data-doc-row]')
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     pg.locator('[data-docs-create]').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.locator('.docs-modal').count() == 1, 'форма создания документа не открылась')
     t.ck(pg.locator('.df-preview').count() == 0, 'предпросмотр показан до выбора файла')
 
@@ -174,7 +174,7 @@ def run(t):
     with pg.expect_file_chooser() as fc:
         pg.locator('[data-df-pick]').first.click()
     fc.value.set_files({'name': 'proverka.pdf', 'mimeType': 'application/pdf', 'buffer': pdf})
-    pg.wait_for_timeout(1600)
+    t.wait(1600)
 
     t.ck(pg.locator('.df-preview .viewer').count() == 1,
          'после выбора файла нет предпросмотра')
@@ -186,4 +186,4 @@ def run(t):
          'у предпросмотра нет управления (зум, поворот, страницы)')
 
     pg.locator('[data-modal-cancel]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)

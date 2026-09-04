@@ -157,14 +157,14 @@ def run(t):
 
     for route, wait, clicks in SCREENS:
         t.open(route, wait=wait)
-        pg.wait_for_timeout(500)
+        t.wait(500)
 
         for sel in clicks:
             loc = pg.locator(sel)
             if not loc.count():
                 continue
             loc.first.click()
-            pg.wait_for_timeout(700)
+            t.wait(700)
 
         where = route + (' → ' + ' → '.join(clicks) if clicks else '')
         _check_text(t, where, _visible_text(pg))
