@@ -1,0 +1,785 @@
+/* Учреждения: панель с деревом слева, карточка учреждения справа.
+   Раскладка и приёмы — те же, что в карточке ОЦ и разделе справочников:
+   панель со своей прокруткой, таблицы на общем механизме столбцов, поля и
+   списки в общем оформлении макета. */
+
+body[data-page="institutions"] .inst-page{display:flex;height:100%;min-height:0;
+  background:var(--bg)}
+
+/* ============ панель дерева ============ */
+/* Ширина панели — переменная: её тянут перегородкой у правого края, поэтому
+   ни фиксированного значения, ни перерисовки на каждый пиксель. */
+/* Без перехода по ширине: при перетаскивании перегородки панель «догоняла»
+   курсор и плыла желе (пользователь 03.09.2026). Ширина меняется сразу. */
+body[data-page="institutions"] .ipanel{position:relative;flex:0 0 var(--panel-w,320px);
+  width:var(--panel-w,320px);display:flex;flex-direction:column;min-height:0;
+  background:var(--panel);border-right:1px solid var(--line)}
+
+/* Свёрнутая панель — узкая полоса с вертикальной подписью и счётчиком, а не
+   обрубок с кнопкой: сразу понятно, что скрыто и сколько там учреждений
+   (пользователь 03.09.2026). */
+body[data-page="institutions"] .ipanel.collapsed{flex-basis:46px;width:46px;
+  align-items:center;cursor:pointer;background:linear-gradient(180deg,#f7fafd,#eef4fa)}
+body[data-page="institutions"] .ipanel.collapsed:hover{background:var(--blue-50)}
+body[data-page="institutions"] .ipanel-open{margin:10px 0 6px;width:24px;height:24px;
+  border-radius:7px;color:var(--blue-700);background:#fff;border:1px solid var(--line);
+  font-size:13px;line-height:1}
+body[data-page="institutions"] .ipanel.collapsed:hover .ipanel-open{border-color:var(--blue-500)}
+body[data-page="institutions"] .ipanel-vertical{writing-mode:vertical-rl;transform:rotate(180deg);
+  display:flex;align-items:center;gap:10px;padding:6px 0;font-size:11.5px;font-weight:700;
+  letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+/* Счётчик читается горизонтально: writing-mode он уже сбрасывает, но подпись
+   повёрнута на 180°, и число наследовало поворот — «24» показывалось вверх
+   ногами (пользователь 03.09.2026). Компенсируем встречным поворотом. */
+body[data-page="institutions"] .ipanel-vertical b{font-size:10.5px;font-weight:700;
+  color:var(--slate-700);background:#fff;border:1px solid var(--line);border-radius:999px;
+  padding:3px 5px;writing-mode:horizontal-tb;transform:rotate(180deg)}
+
+/* Перегородка: полоса шириной в зазор, линия появляется под курсором. */
+body[data-page="institutions"] .ipanel-grip{position:absolute;top:0;right:-3px;bottom:0;
+  width:7px;cursor:col-resize;touch-action:none;z-index:3}
+body[data-page="institutions"] .ipanel-grip::after{content:'';position:absolute;top:14px;
+  bottom:14px;left:50%;width:2px;margin-left:-1px;border-radius:2px;background:transparent;
+  transition:background .12s}
+body[data-page="institutions"] .ipanel-grip:hover::after{background:var(--blue-300)}
+body[data-page="institutions"] .ipanel-grip.active::after{background:var(--blue-600)}
+body[data-page="institutions"] .ipanel-head{display:flex;align-items:center;gap:8px;
+  padding:11px 12px;border-bottom:1px solid var(--line)}
+body[data-page="institutions"] .ipanel-head b{flex:1 1 auto;font-size:13px;color:var(--ink)}
+body[data-page="institutions"] .ipanel.collapsed .ipanel-head b{display:none}
+body[data-page="institutions"] .ipanel-toggle{width:22px;height:22px;border-radius:6px;
+  color:var(--muted);font-size:13px;line-height:1}
+body[data-page="institutions"] .ipanel-toggle:hover{background:var(--blue-50);
+  color:var(--blue-700)}
+
+/* Две одинаковые вкладки: иерархия и регионы — один и тот же список, разный
+   порядок сборки, поэтому переключатель, а не два раздела. */
+body[data-page="institutions"] .ipanel-tabs{display:flex;gap:2px;margin:10px 12px 0;
+  padding:2px;background:#eef3f9;border-radius:9px}
+body[data-page="institutions"] .ipanel-tab{flex:1 1 0;padding:5px 8px;border-radius:7px;
+  font-size:12px;font-weight:600;color:var(--muted);transition:background .12s,color .12s}
+body[data-page="institutions"] .ipanel-tab:hover{color:var(--ink)}
+body[data-page="institutions"] .ipanel-tab.on{background:#fff;color:var(--blue-700);
+  box-shadow:0 1px 3px rgba(15,23,42,.12)}
+
+body[data-page="institutions"] .ipanel-search{position:relative;display:flex;
+  align-items:center;margin:10px 12px;height:32px;background:#fff;
+  border:1px solid var(--line-input);border-radius:9px;
+  transition:border-color .12s,box-shadow .12s}
+body[data-page="institutions"] .ipanel-search:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .ipanel-search:focus-within{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .ipanel-search svg{position:absolute;left:10px;color:#8ea3ba;
+  pointer-events:none}
+body[data-page="institutions"] .ipanel-search input{flex:1 1 auto;min-width:0;height:100%;
+  border:none;background:none;outline:none;padding:0 24px 0 30px;font-size:12.5px;
+  color:var(--ink)}
+body[data-page="institutions"] .ipanel-clear{position:absolute;right:7px;width:17px;height:17px;
+  border-radius:5px;color:#9fb0c4;font-size:13px;line-height:1}
+body[data-page="institutions"] .ipanel-clear:hover{background:#eef3f9;color:var(--ink)}
+
+body[data-page="institutions"] .ipanel-body{flex:1 1 auto;overflow:auto;padding:0 6px 8px}
+
+/* Дерево: отступ уровня — через переменную, чтобы вложенность любой глубины
+   рисовалась одним правилом. */
+body[data-page="institutions"] .itree-row{display:flex;align-items:center;gap:6px;
+  width:100%;padding:6px 8px 6px calc(8px + var(--depth, 0) * 14px);border-radius:8px;
+  font-size:12.5px;color:var(--ink);cursor:pointer;transition:background .12s}
+body[data-page="institutions"] .itree-row:hover{background:var(--blue-50)}
+body[data-page="institutions"] .itree-row.on{background:var(--blue-100);
+  color:var(--blue-700);font-weight:600}
+body[data-page="institutions"] .itree-row.group{cursor:default;font-weight:700;
+  color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+body[data-page="institutions"] .itree-row.group:hover{background:none}
+body[data-page="institutions"] .itree-chev{flex:0 0 auto;width:16px;height:16px;
+  border-radius:4px;color:#9fb0c4;font-size:12px;line-height:1;transition:transform .12s}
+body[data-page="institutions"] .itree-chev.open{transform:rotate(90deg)}
+body[data-page="institutions"] .itree-chev:hover{background:#e8eff8;color:var(--blue-700)}
+body[data-page="institutions"] .itree-dot{flex:0 0 auto;width:16px;text-align:center;
+  color:#c3d0de;font-size:9px}
+/* Значок узла заметен сам по себе: папка залита янтарным, конечный узел —
+   контурный лист. Контурные эмодзи, которые были раньше, сливались с текстом. */
+body[data-page="institutions"] .itree-ico{flex:0 0 auto;display:flex;align-items:center}
+body[data-page="institutions"] .itree-svg{display:block}
+body[data-page="institutions"] .itree-svg.folder{fill:#e6a53c}
+body[data-page="institutions"] .itree-row:hover .itree-svg.folder,
+body[data-page="institutions"] .itree-row.on .itree-svg.folder{fill:#d68f22}
+body[data-page="institutions"] .itree-svg.leaf{color:#8ea3ba;fill:#8ea3ba}
+body[data-page="institutions"] .itree-row.on .itree-svg.leaf{color:var(--blue-600);
+  fill:var(--blue-600)}
+body[data-page="institutions"] .itree-name{flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .itree-count{flex:0 0 auto;font-size:10.5px;font-weight:700;
+  color:var(--slate-700);background:var(--slate-50);border-radius:999px;padding:1px 7px}
+body[data-page="institutions"] .itree-row.on .itree-count{background:#fff;
+  color:var(--blue-700)}
+/* Звёздочка проявляется по наведению: ряд звёзд в дереве рябил бы. */
+body[data-page="institutions"] .itree-fav{flex:0 0 auto;width:18px;height:18px;
+  border-radius:5px;color:#d7e0ea;font-size:11px;line-height:1;opacity:0;
+  transition:opacity .12s,color .12s}
+body[data-page="institutions"] .itree-row:hover .itree-fav{opacity:1}
+body[data-page="institutions"] .itree-fav.on{opacity:1;color:var(--amber-600)}
+body[data-page="institutions"] .itree-fav:hover{color:var(--amber-700)}
+body[data-page="institutions"] .itree-row.search{flex-wrap:wrap;padding-left:8px}
+body[data-page="institutions"] .itree-path{flex:1 1 100%;font-size:10.5px;color:var(--muted);
+  padding-left:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .itree-empty{padding:14px 10px;font-size:12px;color:#9fb0c4;
+  font-style:italic;text-align:center}
+
+body[data-page="institutions"] .ipanel-foot{border-top:1px solid var(--line);
+  padding:9px 12px 12px;background:#fbfdff}
+body[data-page="institutions"] .ipanel-foot-head{font-size:10px;text-transform:uppercase;
+  letter-spacing:.5px;font-weight:700;color:var(--muted);margin-bottom:6px}
+body[data-page="institutions"] .ipanel-foot-hint{font-size:11.5px;color:#9fb0c4;
+  font-style:italic;line-height:1.5}
+body[data-page="institutions"] .ipanel-favs{display:flex;flex-wrap:wrap;gap:5px}
+body[data-page="institutions"] .ipanel-fav{max-width:100%;padding:3px 9px;border-radius:999px;
+  background:var(--amber-50);color:var(--amber-700);font-size:11.5px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .ipanel-fav:hover{background:#ffeccd}
+
+/* ============ карточка учреждения ============ */
+body[data-page="institutions"] .imain{flex:1 1 auto;min-width:0;overflow:auto;
+  padding:9px 18px 24px}
+
+/* Шапка прижата к верху окна (пользователь 03.09.2026): отступ над названием
+   не нёс смысла, а высоту у просмотрщика отнимал. */
+body[data-page="institutions"] .ihead{display:flex;align-items:flex-start;gap:16px;
+  flex-wrap:wrap;margin-bottom:8px}
+/* Базис задан числом, а не auto: путь в одной строке с названием делает
+   содержимое длинным, и при auto кнопки действий срывались бы на свою
+   строку даже на широком экране. */
+body[data-page="institutions"] .ihead-main{flex:1 1 380px;min-width:0}
+/* Название, к чему относится и город — одной строкой (пользователь
+   03.09.2026): три отдельные строки на это тратили высоту зря. Назначенные
+   сотрудники — строкой ниже, под названием. */
+body[data-page="institutions"] .ititle{display:flex;align-items:baseline;gap:10px;
+  min-width:0;margin-bottom:3px}
+/* Длинное название сокращается многоточием, а не переносится на вторую строку
+   (пользователь 03.09.2026): перенос сдвигал вниз всю карточку. Полный текст
+   показывает подсказка (kernel/overflowTip.js) — она ловит обрезку сама. */
+body[data-page="institutions"] .ihead h2{flex:0 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-size:18px;color:var(--ink);margin:0}
+body[data-page="institutions"] .ititle .ipath{flex:0 1 auto;min-width:0;overflow:hidden;
+  white-space:nowrap}
+body[data-page="institutions"] .iregion{flex:0 0 auto}
+body[data-page="institutions"] .ipath{display:inline-flex;align-items:baseline;gap:6px;
+  flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+body[data-page="institutions"] .iregion{font-size:11.5px;color:var(--slate-700);
+  background:var(--blue-50);border-radius:999px;padding:2px 9px}
+body[data-page="institutions"] .ipath button{color:var(--blue-700)}
+body[data-page="institutions"] .ipath button:hover{text-decoration:underline}
+/* Шапка без счётчиков: сколько объектов и документов — видно на вкладках, а
+   уровень и подведомственные — в дереве слева (пользователь 03.09.2026). */
+body[data-page="institutions"] .imeta{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;
+  color:var(--slate-700)}
+body[data-page="institutions"] .imeta span{display:inline-flex;align-items:center}
+body[data-page="institutions"] .imeta .inote{color:var(--muted);font-style:italic}
+body[data-page="institutions"] .ihead-actions{flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap}
+
+/* Форма учреждения — на месте, а не в модальном окне: правка названия и
+   пояснения короткая, а окно перекрывало бы дерево и таблицу. */
+body[data-page="institutions"] .iform{background:var(--panel);border:1px solid var(--blue-200);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 15px;margin-bottom:14px}
+body[data-page="institutions"] .iform-head{display:flex;align-items:baseline;gap:9px;
+  margin-bottom:11px}
+body[data-page="institutions"] .iform-head b{font-size:13.5px;color:var(--ink)}
+body[data-page="institutions"] .iform-head span{font-size:11.5px;color:var(--muted)}
+body[data-page="institutions"] .iform-grid{display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(max(230px,(100% - 12px)/2),1fr));gap:10px}
+body[data-page="institutions"] .ifield{display:flex;flex-direction:column;gap:4px}
+body[data-page="institutions"] .ifield.wide{grid-column:1 / -1}
+/* Подпись поля — только прямой потомок: иначе капсом становились и значения
+   внутри поля (в выборе региона это ловилось). */
+body[data-page="institutions"] .ifield > span{font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted);font-weight:700}
+body[data-page="institutions"] .ifield .input{height:34px;padding:6px 10px;font-size:13px;
+  border:1px solid var(--line-input);border-radius:9px;background:#fff;outline:none;width:100%}
+body[data-page="institutions"] .ifield .input:focus{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iform-error{margin-top:9px;padding:7px 10px;border-radius:8px;
+  background:var(--amber-50);color:var(--amber-700);font-size:12px}
+body[data-page="institutions"] .iform-foot{display:flex;gap:7px;margin-top:12px}
+
+/* Вкладки объектов и документов */
+body[data-page="institutions"] .itabs{display:flex;align-items:flex-end;gap:4px;
+  flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:0;
+  position:relative;z-index:1}
+/* Действия вкладки — в её же строке справа (пользователь 03.09.2026): полоса
+   вкладок тянулась пустой, а кнопки ниже съедали строку у просмотрщика.
+   Обводка и заливка у них те же, что у блока под ними: кнопки сидят в его
+   верхнем крае, а не висят отдельной группой над чертой. */
+body[data-page="institutions"] .itabs-acts{display:flex;align-items:center;gap:6px;
+  margin-left:auto;margin-bottom:-1px;padding:5px 9px;background:var(--panel);
+  border:1px solid var(--line);border-bottom:none;border-radius:9px 9px 0 0}
+body[data-page="institutions"] .itabs-acts:empty{display:none}
+body[data-page="institutions"] .itabs-acts .btn{height:28px;display:inline-flex;
+  align-items:center;padding:0 12px}
+/* Подпись вкладки не переносится по словам: «С подведомственными» ломалось на
+   две строки, как только рядом встали кнопки действий. Переносится, если что,
+   вся строка вкладок целиком. */
+body[data-page="institutions"] .itab{display:flex;align-items:center;gap:7px;
+  white-space:nowrap;padding:8px 14px;
+  border-radius:9px 9px 0 0;font-size:13px;color:var(--muted);font-weight:600;
+  border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+body[data-page="institutions"] .itab:hover{color:var(--ink);background:var(--blue-50)}
+body[data-page="institutions"] .itab.on{color:var(--blue-700);background:var(--panel);
+  border-color:var(--line);border-bottom-color:var(--panel)}
+body[data-page="institutions"] .itab b{font-size:10.5px;font-weight:700;
+  background:var(--slate-50);color:var(--slate-700);border-radius:999px;padding:1px 7px}
+body[data-page="institutions"] .itab.on b{background:var(--blue-50);color:var(--blue-700)}
+
+body[data-page="institutions"] .itoolbar{display:flex;align-items:center;gap:10px;
+  flex-wrap:wrap;margin-bottom:12px}
+body[data-page="institutions"] .isearch{position:relative;display:flex;align-items:center;
+  flex:1 1 320px;min-width:220px;height:34px;background:#fff;
+  border:1px solid var(--line-input);border-radius:9px;
+  transition:border-color .12s,box-shadow .12s}
+body[data-page="institutions"] .isearch:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .isearch:focus-within{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .isearch svg{position:absolute;left:11px;color:#8ea3ba;
+  pointer-events:none}
+body[data-page="institutions"] .isearch input{flex:1 1 auto;min-width:0;height:100%;border:none;
+  background:none;outline:none;padding:0 26px 0 31px;font-size:13px;color:var(--ink)}
+body[data-page="institutions"] .isearch-clear{position:absolute;right:8px;width:18px;height:18px;
+  border-radius:5px;color:#9fb0c4;font-size:14px;line-height:1}
+body[data-page="institutions"] .isearch-clear:hover{background:#eef3f9;color:var(--ink)}
+
+/* Таблицы */
+body[data-page="institutions"] .icols{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+body[data-page="institutions"] .itbl{width:100%;table-layout:fixed;border-collapse:collapse}
+body[data-page="institutions"] .itbl th{position:relative;padding:8px 12px;text-align:left;
+  font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#5a6b82;font-weight:700;
+  background:#f6f9fd;border-bottom:1px solid var(--line)}
+body[data-page="institutions"] .itbl td{padding:8px 12px;font-size:12.5px;color:var(--ink);
+  border-bottom:1px solid var(--line-soft);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+body[data-page="institutions"] .itbl tbody tr{cursor:pointer;transition:background .12s}
+body[data-page="institutions"] .itbl tbody tr:hover td{background:var(--blue-50)}
+body[data-page="institutions"] .itbl tbody tr:last-child td{border-bottom:none}
+body[data-page="institutions"] .itbl .num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-page="institutions"] .itag{display:inline-block;padding:1px 8px;border-radius:999px;
+  background:var(--blue-50);color:var(--blue-700);font-size:11px}
+/* Открепление — действие редкое и необратимое на вид, поэтому крестик
+   проявляется по наведению на строку, как в справочниках. */
+body[data-page="institutions"] .idetach{width:20px;height:20px;border-radius:6px;
+  color:#c3d0de;font-size:14px;line-height:1;opacity:0;transition:opacity .12s,color .12s}
+body[data-page="institutions"] .itbl tbody tr:hover .idetach{opacity:1}
+body[data-page="institutions"] .idetach:hover{background:var(--red-50,#fdeaea);
+  color:var(--red-600,#c8372d)}
+
+body[data-page="institutions"] .iempty{padding:34px 18px;text-align:center;
+  background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius)}
+body[data-page="institutions"] .iempty b{display:block;font-size:14px;color:var(--ink);
+  margin-bottom:5px}
+body[data-page="institutions"] .iempty span{font-size:12.5px;color:var(--muted);line-height:1.6}
+body[data-page="institutions"] .iempty.small{padding:16px;border:none}
+body[data-page="institutions"] .iempty.big{margin-top:60px;max-width:560px;
+  margin-left:auto;margin-right:auto}
+
+/* Привязка объектов оценки */
+body[data-page="institutions"] .iattach{background:var(--panel);border:1px solid var(--blue-300);
+  border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+body[data-page="institutions"] .iattach-head{display:flex;align-items:center;gap:10px;
+  flex-wrap:wrap;padding:11px 14px;background:var(--blue-50);
+  border-bottom:1px solid var(--line)}
+body[data-page="institutions"] .iattach-head b{font-size:13px;color:var(--blue-700)}
+body[data-page="institutions"] .iattach-head span{flex:1 1 240px;font-size:11.5px;
+  color:var(--muted);line-height:1.5}
+body[data-page="institutions"] .iattach-search{padding:10px 14px 0}
+body[data-page="institutions"] .iattach-search .input{width:100%;height:32px;padding:5px 10px;
+  font-size:12.5px;border:1px solid var(--line-input);border-radius:9px;outline:none}
+body[data-page="institutions"] .iattach-search .input:focus{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iattach-list{max-height:280px;overflow:auto;padding:8px 8px 4px}
+body[data-page="institutions"] .iattach-row{display:flex;align-items:center;gap:10px;
+  padding:7px 8px;border-radius:8px;cursor:pointer;transition:background .12s}
+body[data-page="institutions"] .iattach-row:hover{background:var(--blue-50)}
+body[data-page="institutions"] .iattach-row input{width:14px;height:14px;
+  accent-color:var(--blue-600);flex:0 0 auto}
+body[data-page="institutions"] .iattach-main{flex:1 1 auto;min-width:0;display:flex;
+  align-items:baseline;gap:10px}
+body[data-page="institutions"] .iattach-main b{flex:0 0 auto;font-size:12.5px;
+  color:var(--blue-700)}
+body[data-page="institutions"] .iattach-main span{flex:1 1 auto;min-width:0;font-size:12px;
+  color:var(--ink)}
+body[data-page="institutions"] .iattach-now{flex:0 0 auto;max-width:38%;font-size:11px;
+  color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .iattach-foot{padding:10px 14px;border-top:1px solid var(--line);
+  background:#f8fbfe}
+
+@media (max-width: 1100px) {
+  /* Панель и карточка перестают помещаться рядом: дерево уходит наверх. */
+  body[data-page="institutions"] .inst-page{flex-direction:column;overflow:auto}
+  body[data-page="institutions"] .ipanel{width:100%;flex:0 0 auto;max-height:44vh;
+    border-right:none;border-bottom:1px solid var(--line)}
+  body[data-page="institutions"] .imain{padding:12px}
+}
+
+/* Свои учреждения: точка в дереве и переключатель «Только мои» — сотруднику
+   нужно быстро добраться до своих веток (пользователь 03.09.2026). */
+body[data-page="institutions"] .itree-mine{flex:0 0 auto;font-style:normal;font-size:8px;
+  color:var(--teal-700)}
+body[data-page="institutions"] .itree-row.mine .itree-name{color:var(--teal-700)}
+
+body[data-page="institutions"] .ipanel-mine{display:flex;align-items:center;gap:8px;
+  margin:0 12px 8px;padding:6px 10px;border:1px solid var(--line-input);border-radius:9px;
+  background:#fff;font-size:12.5px;color:var(--slate-700);cursor:pointer;user-select:none;
+  transition:border-color .12s,background .12s}
+body[data-page="institutions"] .ipanel-mine:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .ipanel-mine.on{border-color:var(--teal-700);
+  background:var(--teal-50);color:var(--teal-700)}
+body[data-page="institutions"] .ipanel-mine input{width:14px;height:14px;
+  accent-color:var(--teal-700)}
+body[data-page="institutions"] .ipanel-mine span{flex:1 1 auto}
+body[data-page="institutions"] .ipanel-mine b{font-size:10.5px;font-weight:700;
+  background:var(--slate-50);color:var(--slate-700);border-radius:999px;padding:1px 7px}
+body[data-page="institutions"] .ipanel-mine.on b{background:#fff;color:var(--teal-700)}
+
+body[data-page="institutions"] .ihead-actions .btn.on{border-color:var(--teal-700);
+  color:var(--teal-700);background:var(--teal-50)}
+
+/* Закреплённый сотрудник учреждения: назначает администратор, у подведомственных
+   он наследуется от родителя — унаследованного показываем приглушённо, иначе
+   непонятно, где его менять. */
+body[data-page="institutions"] .istaff{color:var(--teal-700)}
+body[data-page="institutions"] .istaff.inherited{color:var(--muted);font-style:italic}
+body[data-page="institutions"] .istaff.none{color:var(--amber-700)}
+
+/* ============ выбор региона ============ */
+/* Регион — одно поле «область / район / населённый пункт» (структура задана
+   пользователем 03.09.2026). Выбор — список с поиском по всем уровням плюс
+   строка своего значения: полного справочника населённых пунктов в макете нет. */
+body[data-page="institutions"] .iregion{position:relative}
+body[data-page="institutions"] .iregion-value{display:flex;align-items:center;gap:8px;
+  width:100%;height:34px;padding:6px 10px;border:1px solid var(--line-input);
+  border-radius:9px;background:#fff;text-align:left;transition:border-color .12s}
+body[data-page="institutions"] .iregion-value:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .iregion.open .iregion-value{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iregion-parts{flex:1 1 auto;min-width:0;display:flex;
+  align-items:center;gap:6px;overflow:hidden;white-space:nowrap}
+body[data-page="institutions"] .iregion-parts b{font-size:12.5px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis}
+body[data-page="institutions"] .iregion-parts b.lvl1{color:var(--ink)}
+body[data-page="institutions"] .iregion-parts b.lvl2{color:var(--slate-700);font-weight:500}
+body[data-page="institutions"] .iregion-parts b.lvl3{color:var(--muted);font-weight:500}
+body[data-page="institutions"] .iregion-parts i{font-style:normal;color:#c3d0de;font-size:11px}
+body[data-page="institutions"] .iregion-empty{flex:1 1 auto;font-size:12.5px;color:#9fb0c4}
+body[data-page="institutions"] .iregion-chev{font-style:normal;font-size:9px;color:#9fb0c4}
+
+body[data-page="institutions"] .iregion-drop{position:absolute;top:calc(100% + 5px);left:0;
+  right:0;z-index:40;background:#fff;border:1px solid var(--line);border-radius:11px;
+  box-shadow:0 14px 34px rgba(15,23,42,.18);overflow:hidden;animation:iregIn .14s ease}
+@keyframes iregIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+body[data-page="institutions"] .iregion-search{padding:9px 10px 0}
+body[data-page="institutions"] .iregion-search .input{width:100%;height:32px;padding:5px 10px;
+  font-size:12.5px;border:1px solid var(--line-input);border-radius:9px;outline:none}
+body[data-page="institutions"] .iregion-search .input:focus{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iregion-list{max-height:260px;overflow:auto;padding:6px}
+body[data-page="institutions"] .iregion-item{display:flex;align-items:center;gap:6px;
+  width:100%;padding:6px 9px;border-radius:8px;text-align:left;font-size:12.5px;
+  transition:background .12s}
+body[data-page="institutions"] .iregion-item:hover{background:var(--blue-50)}
+body[data-page="institutions"] .iregion-item span.lvl1{color:var(--ink);font-weight:600}
+body[data-page="institutions"] .iregion-item span.lvl2{color:var(--slate-700)}
+body[data-page="institutions"] .iregion-item span.lvl3{color:var(--muted)}
+body[data-page="institutions"] .iregion-item i{font-style:normal;color:#c3d0de;font-size:11px}
+/* Уровень видно по отступу: область, район, населённый пункт. */
+body[data-page="institutions"] .iregion-item.lvl2{padding-left:20px}
+body[data-page="institutions"] .iregion-item.lvl3{padding-left:32px}
+body[data-page="institutions"] .iregion-none{padding:12px;font-size:12px;color:#9fb0c4;
+  font-style:italic;text-align:center}
+body[data-page="institutions"] .iregion-foot{display:flex;gap:7px;padding:9px 10px;
+  border-top:1px solid var(--line-soft);background:#f8fbfe}
+body[data-page="institutions"] .iregion-foot .input{flex:1 1 auto;height:30px;padding:4px 9px;
+  font-size:12px;border:1px solid var(--line-input);border-radius:8px;outline:none}
+
+/* ============ сотрудники учреждения ============ */
+body[data-page="institutions"] .iform-staff{margin-top:14px;padding-top:12px;
+  border-top:1px solid var(--line-soft)}
+body[data-page="institutions"] .iform-staff-head{display:flex;align-items:baseline;gap:9px;
+  flex-wrap:wrap;margin-bottom:10px}
+body[data-page="institutions"] .iform-staff-head b{font-size:12.5px;color:var(--ink)}
+body[data-page="institutions"] .iform-staff-head span{font-size:11.5px;color:var(--muted)}
+
+/* ============ прикрепление объектов оценки ============ */
+body[data-page="institutions"] .iattach-close{width:24px;height:24px;border-radius:7px;
+  color:var(--muted);font-size:15px;line-height:1}
+body[data-page="institutions"] .iattach-close:hover{background:#fff;color:var(--ink)}
+/* Все элементы панели одной высоты и по центру: поиск, список типов, счётчик и
+   кнопка стояли на разных базовых линиях. */
+body[data-page="institutions"] .iattach-tools{display:flex;align-items:center;gap:9px;
+  flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+body[data-page="institutions"] .iattach-tools > *{height:32px}
+body[data-page="institutions"] .iattach-tools .btn{display:inline-flex;align-items:center;
+  padding:0 12px}
+body[data-page="institutions"] .iattach-count{display:inline-flex;align-items:center;
+  white-space:nowrap}
+body[data-page="institutions"] .iattach-search{position:relative;display:flex;align-items:center;
+  flex:1 1 260px;min-width:200px;height:32px;background:#fff;border:1px solid var(--line-input);
+  border-radius:9px;transition:border-color .12s,box-shadow .12s}
+body[data-page="institutions"] .iattach-search:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .iattach-search:focus-within{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iattach-search svg{position:absolute;left:10px;color:#8ea3ba;
+  pointer-events:none}
+body[data-page="institutions"] .iattach-search input{flex:1 1 auto;min-width:0;height:100%;
+  border:none;background:none;outline:none;padding:0 24px 0 30px;font-size:12.5px}
+body[data-page="institutions"] .iattach-clear{position:absolute;right:7px;width:17px;height:17px;
+  border-radius:5px;color:#9fb0c4;font-size:13px;line-height:1}
+body[data-page="institutions"] .iattach-type{width:auto;min-width:170px;height:32px;
+  font-size:12.5px}
+body[data-page="institutions"] .iattach-count{font-size:11.5px;color:var(--muted)}
+
+/* Строка объекта: ЕНИ, адрес, тип и текущая принадлежность — по столбцам, иначе
+   выбирать не из чего (пользователь 03.09.2026). */
+body[data-page="institutions"] .iattach-row{display:grid;
+  grid-template-columns:18px 128px minmax(150px,1fr) 128px minmax(180px,1.4fr);
+  align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;
+  transition:background .12s}
+body[data-page="institutions"] .iattach-row:hover{background:var(--blue-50)}
+body[data-page="institutions"] .iattach-row.on{background:var(--blue-100)}
+body[data-page="institutions"] .iattach-eni{font-size:12.5px;color:var(--blue-700);
+  font-weight:600}
+body[data-page="institutions"] .iattach-addr{font-size:12px;color:var(--ink);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .iattach-type-tag{font-size:11px;color:var(--slate-700);
+  background:var(--slate-50);border-radius:999px;padding:2px 8px;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .iattach-now{font-size:11px;color:var(--muted);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .iattach-foot{display:flex;align-items:center;gap:9px;
+  padding:10px 14px;border-top:1px solid var(--line);background:#f8fbfe}
+body[data-page="institutions"] .iattach-picked{flex:1 1 auto;font-size:12px;
+  color:var(--slate-700)}
+
+/* Раскрытие ветки — короткая анимация, чтобы дерево не прыгало. */
+body[data-page="institutions"] .itree-kids{animation:itreeIn .14s ease}
+@keyframes itreeIn{from{opacity:.4;transform:translateY(-2px)}to{opacity:1;transform:none}}
+body[data-page="institutions"] .itree-row.region{cursor:pointer}
+body[data-page="institutions"] .itree-row.region .itree-name{font-weight:600}
+
+/* ============ документы учреждения ============ */
+/* Список слева, просмотрщик справа — как в карточке ОЦ: открыл строку, видишь
+   содержимое, не уходя со страницы (пользователь 03.09.2026). */
+body[data-page="institutions"] .idocs{display:flex;flex-direction:column;gap:10px;min-height:0}
+/* Кнопки лежат в «выемке» самой рамки, а не отдельной полосой над ней
+   (пользователь 03.09.2026): один инструмент — одна рамка. */
+body[data-page="institutions"] .idocs-frame{display:flex;flex-direction:column;
+  flex:1 1 auto;min-height:0;background:var(--panel);border:1px solid var(--line);
+  border-top:none;border-radius:0 0 var(--radius) var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+body[data-page="institutions"] .idocs-count{font-size:10.5px;font-weight:700;
+  background:var(--slate-50);color:var(--slate-700);border-radius:999px;padding:1px 7px}
+/* Поиск — над списком, в его же колонке. */
+body[data-page="institutions"] .idoc-list-search{padding:7px 9px;
+  border-bottom:1px solid var(--line)}
+body[data-page="institutions"] .idoc-list-search .isearch{height:30px;flex:1 1 auto;
+  min-width:0;width:100%}
+body[data-page="institutions"] .idoc-list-search .isearch input{font-size:12.5px}
+
+body[data-page="institutions"] .idocs-body{display:flex;gap:0;min-height:0;
+  align-items:stretch}
+body[data-page="institutions"] .idocs-left{flex:0 0 46%;max-width:560px;min-width:0;
+  background:var(--panel);overflow:auto;max-height:560px}
+body[data-page="institutions"] .idocs-view{flex:1 1 auto;min-width:0;height:560px;
+  background:var(--panel);overflow:hidden}
+
+/* Строка документа в узкой колонке — в две строки: сверху тип, имя файла и
+   действия, снизу дата и статус. В одну строку они не помещались, и дата со
+   статусом обрезались. */
+body[data-page="institutions"] .idoc-row{display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  grid-template-areas:'type name acts' 'date status status';
+  align-items:center;gap:4px 9px;padding:8px 11px;
+  border-bottom:1px solid var(--line-soft);cursor:pointer;transition:background .12s}
+/* Длинный тип не должен выдавливать имя файла на вторую строку. */
+body[data-page="institutions"] .idoc-row .idoc-type{grid-area:type;max-width:150px}
+body[data-page="institutions"] .idoc-row .idoc-name{white-space:nowrap}
+body[data-page="institutions"] .idoc-row .idoc-name{grid-area:name}
+body[data-page="institutions"] .idoc-row .idoc-acts{grid-area:acts}
+body[data-page="institutions"] .idoc-row .idoc-date{grid-area:date}
+body[data-page="institutions"] .idoc-row .docs-status{grid-area:status;font-size:11.5px}
+
+/* Строка в панели прикрепления: у неё своя сетка — название учреждения там
+   длинное, и в узкой колонке оно рвалось на четыре строки, выдавливая кнопку. */
+body[data-page="institutions"] .idoc-attach-row{display:grid;
+  grid-template-columns:120px minmax(110px,1fr) 92px minmax(120px,1.2fr) auto;
+  align-items:center;gap:9px;padding:8px 11px;
+  border-bottom:1px solid var(--line-soft);cursor:pointer;transition:background .12s}
+body[data-page="institutions"] .idoc-attach-row .idoc-now{overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .idoc-attach-row .btn{height:26px;padding:0 10px;
+  display:inline-flex;align-items:center;white-space:nowrap}
+body[data-page="institutions"] .idoc-row:hover,
+body[data-page="institutions"] .idoc-attach-row:hover{background:var(--blue-50)}
+body[data-page="institutions"] .idoc-row.on,
+body[data-page="institutions"] .idoc-attach-row.on{background:var(--blue-100)}
+body[data-page="institutions"] .idoc-row:last-child{border-bottom:none}
+body[data-page="institutions"] .idoc-type{font-size:11px;color:var(--blue-700);
+  background:var(--blue-50);border-radius:999px;padding:2px 8px;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .idoc-name{font-size:12.5px;color:var(--ink);min-width:0}
+body[data-page="institutions"] .idoc-date{font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+body[data-page="institutions"] .idoc-now{font-size:11px;color:var(--muted);min-width:0}
+/* Действия проявляются по наведению: открепление и удаление — редкие и заметные. */
+body[data-page="institutions"] .idoc-acts{display:flex;gap:3px;opacity:0;
+  transition:opacity .12s}
+body[data-page="institutions"] .idoc-row:hover .idoc-acts,
+body[data-page="institutions"] .idoc-row.on .idoc-acts{opacity:1}
+body[data-page="institutions"] .idoc-act{width:22px;height:22px;border-radius:6px;
+  color:var(--slate-700);font-size:13px;line-height:1}
+body[data-page="institutions"] .idoc-act:hover{background:#fff;color:var(--blue-700)}
+body[data-page="institutions"] .idoc-act.danger:hover{background:#fdeaea;color:#c8372d}
+
+/* Узкая колонка списка. Перегородку можно утянуть почти к краю (пользователь
+   03.09.2026 просил «радикальные» размеры), и на 150–260 пикселях прежняя
+   сетка ломалась: тип съедался до «Те…», имя файла слипалось с ним, дата
+   рвалась на две строки. Меряем по самой колонке, а не по окну: ширину задаёт
+   перегородка, окно тут ни при чём. */
+body[data-page="institutions"] .idocs-left{container-type:inline-size;
+  container-name:doclist}
+
+@container doclist (max-width: 270px) {
+  body[data-page="institutions"] .idoc-row{grid-template-columns:minmax(0,1fr) auto;
+    grid-template-areas:'name acts' 'type date' 'status status';gap:3px 8px;
+    padding:7px 9px}
+  body[data-page="institutions"] .idoc-row .idoc-type{max-width:100%;justify-self:start}
+  body[data-page="institutions"] .idoc-row .idoc-name{white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis}
+  body[data-page="institutions"] .idoc-row .idoc-date{justify-self:end;font-size:11.5px;
+    white-space:nowrap}
+  body[data-page="institutions"] .idoc-row .docs-status{justify-self:start}
+  /* Значки действий на такой ширине не должны отнимать место у имени: они
+     появляются по наведению поверх строки. */
+  body[data-page="institutions"] .idoc-row .idoc-acts{background:var(--blue-50);
+    border-radius:7px;padding:1px 2px}
+  body[data-page="institutions"] .idoc-list-head b{overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  body[data-page="institutions"] .idoc-list-search{padding:6px 7px}
+}
+
+@container doclist (max-width: 200px) {
+  /* Совсем узко — остаются имя, тип и статус: дата на такой ширине только
+     мешает, а в карточке документа она никуда не делась. */
+  body[data-page="institutions"] .idoc-row{grid-template-areas:'name acts' 'type type' 'status status'}
+  body[data-page="institutions"] .idoc-row .idoc-date{display:none}
+  body[data-page="institutions"] .idoc-list-head b{display:none}
+}
+
+/* Новый документ — форма строкой, без отдельного окна. */
+body[data-page="institutions"] .idoc-form{background:var(--panel);
+  border:1px solid var(--blue-200);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:12px 14px}
+body[data-page="institutions"] .idoc-form-head{display:flex;align-items:center;gap:9px;
+  flex-wrap:wrap;margin-bottom:11px}
+body[data-page="institutions"] .idoc-form-head b{font-size:13px;color:var(--ink)}
+body[data-page="institutions"] .idoc-form-head span{flex:1 1 auto;font-size:11.5px;
+  color:var(--muted)}
+body[data-page="institutions"] .idoc-form-grid{display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(max(180px,(100% - 30px)/4),1fr));gap:10px}
+body[data-page="institutions"] .idoc-file{display:flex;align-items:center;gap:7px;
+  height:34px;padding:0 10px;border:1px solid var(--line-input);border-radius:9px;
+  background:#f6f9fd}
+body[data-page="institutions"] .idoc-file b{flex:1 1 auto;min-width:0;font-size:12px;
+  font-weight:500;color:var(--ink)}
+
+/* Прикрепление документа: список и предпросмотр рядом. */
+body[data-page="institutions"] .idoc-attach-body{display:flex;gap:0;min-height:0}
+body[data-page="institutions"] .idoc-attach-list{flex:1 1 auto;min-width:0;max-height:420px;
+  overflow:auto;border-right:1px solid var(--line)}
+body[data-page="institutions"] .idoc-attach-view{flex:0 0 42%;max-width:620px;min-width:0;
+  height:420px;overflow:hidden;background:#f4f8fd}
+body[data-page="institutions"] .iempty.view{display:flex;flex-direction:column;
+  align-items:center;justify-content:center;height:100%;border:none;background:none}
+
+@media (max-width: 1400px) {
+  /* Просмотрщику нужна ширина: на узком экране он встаёт под списком. */
+  body[data-page="institutions"] .idocs-body,
+  body[data-page="institutions"] .idoc-attach-body{flex-direction:column}
+  body[data-page="institutions"] .idocs-left,
+  body[data-page="institutions"] .idoc-attach-list{flex:0 0 auto;max-width:none;
+    max-height:300px;border-right:none;border-bottom:1px solid var(--line)}
+  body[data-page="institutions"] .idocs-view,
+  body[data-page="institutions"] .idoc-attach-view{height:460px}
+}
+
+/* ============ место под просмотрщик ============ */
+/* Карточка снова во всю ширину (пользователь 03.09.2026: «доработай старый
+   вариант»), а выигрыш по месту берём там, где он нужен — во вкладке
+   «Документы»: список ужимается до необходимого, просмотрщик забирает всю
+   оставшуюся ширину и высоту экрана. */
+body[data-page="institutions"] .imain{display:flex;flex-direction:column}
+body[data-page="institutions"] .ihead{margin-bottom:8px}
+body[data-page="institutions"] .itabs{margin-bottom:10px}
+body[data-page="institutions"] .ipane{display:flex;flex-direction:column;min-height:0;
+  background:var(--panel);border:1px solid var(--line);border-top:none;
+  border-radius:0 0 var(--radius) var(--radius);box-shadow:var(--shadow);padding:10px}
+
+/* Панель над таблицей: поиск не растягивается на весь экран ради одного поля. */
+body[data-page="institutions"] .itoolbar .isearch{flex:1 1 340px;max-width:460px}
+body[data-page="institutions"] .idocs-tools .isearch{flex:1 1 280px;max-width:400px;height:30px}
+body[data-page="institutions"] .idocs-tools .isearch input{font-size:12.5px}
+body[data-page="institutions"] .iattach-search{max-width:420px}
+
+body[data-page="institutions"] .idocs{flex:1 1 auto;min-height:0}
+/* Формы над блоком (новый документ, прикрепление) не сжимаются: рамка ниже
+   тянется flex:1 1 auto и вытесняла их в полоску в 2px — строки списка
+   становились некликабельными. */
+body[data-page="institutions"] .idoc-form,
+body[data-page="institutions"] .idoc-attach,
+body[data-page="institutions"] .iattach{flex:0 0 auto}
+body[data-page="institutions"] .idocs-body{flex:1 1 auto;min-height:0}
+/* Список — ровно столько, сколько нужно строкам; остальное просмотрщику. */
+body[data-page="institutions"] .idocs-left{flex:0 0 var(--doc-list-w,340px);
+  width:var(--doc-list-w,340px);max-width:none;max-height:none;display:flex;
+  flex-direction:column;min-height:0}
+body[data-page="institutions"] .idoc-list-head{display:flex;align-items:center;gap:8px;
+  padding:7px 11px;border-bottom:1px solid var(--line);background:#f6f9fd}
+body[data-page="institutions"] .idoc-list-head b{flex:1 1 auto;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+body[data-page="institutions"] .idoc-list-hide{width:22px;height:22px;border-radius:6px;
+  color:var(--muted);font-size:13px;line-height:1}
+body[data-page="institutions"] .idoc-list-hide:hover{background:var(--blue-50);
+  color:var(--blue-700)}
+body[data-page="institutions"] .idoc-list{flex:1 1 auto;overflow:auto;min-height:0}
+
+/* Перегородка и закладка — как у просмотрщика в карточках ОЦ: свёрнутый список
+   оставляет вертикальную закладку, иначе вернуть его нечем. */
+body[data-page="institutions"] .idocs-split{flex:0 0 9px;align-self:stretch;
+  cursor:col-resize;background:var(--line);touch-action:none;transition:background .12s}
+body[data-page="institutions"] .idocs-split:hover,
+body[data-page="institutions"] .idocs-split.active{background:var(--blue-500)}
+body[data-page="institutions"] .idocs-tab{flex:0 0 30px;align-self:stretch;
+  background:linear-gradient(180deg,#f7fafd,#eef4fa);border:none;
+  border-right:1px solid var(--line);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:background .12s}
+body[data-page="institutions"] .idocs-tab:hover{background:var(--blue-50)}
+body[data-page="institutions"] .idocs-tab span{writing-mode:vertical-rl;
+  transform:rotate(180deg);font-size:11px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--muted)}
+/* Просмотрщику нужна ОГРАНИЧЕННАЯ высота: .viewer внутри тянется height:100%,
+   и пока у контейнера высота auto, лента страниц не получала предела — она
+   вырастала во весь документ, поэтому колесо ничего не прокручивало, а всё
+   после первой страницы обрезалось (пользователь 03.09.2026). */
+body[data-page="institutions"] .idocs-view{flex:1 1 auto;min-width:0;min-height:0;
+  height:auto;display:flex;flex-direction:column}
+body[data-page="institutions"] .idocs-view > .viewer{flex:1 1 auto;min-height:0;height:auto}
+body[data-page="institutions"] .idocs-frame{min-height:clamp(440px,calc(100vh - 260px),900px)}
+body[data-page="institutions"] .idoc-attach-view{flex:0 0 46%;max-width:none;
+  height:clamp(360px,calc(100vh - 420px),640px)}
+body[data-page="institutions"] .idoc-attach-list{max-height:clamp(360px,calc(100vh - 420px),640px)}
+
+@media (max-width: 1240px) {
+  body[data-page="institutions"] .idocs-body,
+  body[data-page="institutions"] .idoc-attach-body{flex-direction:column}
+  body[data-page="institutions"] .idocs-left,
+  body[data-page="institutions"] .idoc-attach-list{flex:0 0 auto;max-width:none;
+    max-height:280px;border-right:none;border-bottom:1px solid var(--line)}
+  body[data-page="institutions"] .idocs-view,
+  body[data-page="institutions"] .idoc-attach-view{flex:0 0 auto;height:460px;min-height:0}
+}
+
+/* ============ сводная вкладка «С подведомственными» ============ */
+/* Объекты узла и всех подведомственных с фасетами (allObjects.js). Раскладка
+   та же, что у документов: узкая колонка слева сворачивается в закладку,
+   основное место — таблице. */
+body[data-page="institutions"] .iall{display:flex;align-items:stretch;min-height:0;
+  flex:1 1 auto}
+body[data-page="institutions"] .iall-facets{flex:0 0 210px;width:210px;display:flex;
+  flex-direction:column;min-height:0;border-right:1px solid var(--line);
+  background:#fbfdff}
+body[data-page="institutions"] .iall-facets-head{display:flex;align-items:center;gap:8px;
+  padding:7px 11px;border-bottom:1px solid var(--line);background:#f6f9fd}
+body[data-page="institutions"] .iall-facets-head b{flex:1 1 auto;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+body[data-page="institutions"] .iall-facets-body{flex:1 1 auto;overflow:auto;
+  min-height:0;padding:8px}
+
+body[data-page="institutions"] .iall-flag{display:flex;align-items:center;gap:8px;
+  padding:6px 9px;border:1px solid var(--line-input);border-radius:9px;background:#fff;
+  font-size:12.5px;cursor:pointer;margin-bottom:8px}
+body[data-page="institutions"] .iall-flag:hover{border-color:var(--blue-500)}
+body[data-page="institutions"] .iall-flag.on{border-color:var(--teal-700);
+  background:#f0faf7;color:var(--teal-700)}
+body[data-page="institutions"] .iall-stale{display:flex;flex-direction:column;gap:4px;
+  margin-bottom:10px}
+body[data-page="institutions"] .iall-stale-l{font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--muted)}
+body[data-page="institutions"] .iall-stale .select{height:30px;font-size:12.5px}
+
+body[data-page="institutions"] .iall-facet{border-top:1px solid var(--line-soft);
+  padding:2px 0}
+body[data-page="institutions"] .iall-facet-head{display:flex;align-items:center;gap:7px;
+  width:100%;padding:7px 4px;font-size:12.5px;font-weight:600;color:var(--slate-700);
+  text-align:left}
+body[data-page="institutions"] .iall-facet-head:hover{color:var(--blue-700)}
+body[data-page="institutions"] .iall-facet-head span:nth-child(2){flex:1 1 auto}
+body[data-page="institutions"] .iall-facet-head b{font-size:10.5px;font-weight:700;
+  background:var(--blue-50);color:var(--blue-700);border-radius:999px;padding:1px 7px}
+body[data-page="institutions"] .iall-facet .chev{font-size:9px;color:var(--muted);
+  transition:transform .12s}
+body[data-page="institutions"] .iall-facet.open .chev{transform:rotate(0)}
+body[data-page="institutions"] .iall-facet:not(.open) .chev{transform:rotate(-90deg)}
+body[data-page="institutions"] .iall-facet-body{padding:0 0 7px}
+body[data-page="institutions"] .iall-facet-q{width:100%;height:26px;margin-bottom:5px;
+  padding:0 8px;border:1px solid var(--line-input);border-radius:7px;font-size:12px;
+  background:#fff}
+body[data-page="institutions"] .iall-facet-q:focus{outline:none;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="institutions"] .iall-opt{display:flex;align-items:center;gap:7px;
+  padding:4px 5px;border-radius:7px;font-size:12px;color:var(--slate-700);cursor:pointer}
+body[data-page="institutions"] .iall-opt:hover{background:var(--blue-50)}
+body[data-page="institutions"] .iall-opt.on{color:var(--blue-700);font-weight:600}
+body[data-page="institutions"] .iall-opt-l{flex:1 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="institutions"] .iall-opt-n{font-size:10.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+body[data-page="institutions"] .iall-none,
+body[data-page="institutions"] .iall-more{font-size:11px;color:var(--muted);
+  padding:3px 5px;font-style:italic}
+
+body[data-page="institutions"] .iall-main{flex:1 1 auto;min-width:0;display:flex;
+  flex-direction:column;min-height:0;padding:9px 10px 10px}
+body[data-page="institutions"] .iall-tools{display:flex;align-items:center;gap:10px;
+  margin-bottom:8px}
+body[data-page="institutions"] .iall-tools .isearch{flex:1 1 320px;max-width:520px;
+  height:30px}
+body[data-page="institutions"] .iall-count{font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Выбранное показано чипами: по фасетам в свёрнутой колонке иначе не видно,
+   что именно сузило выборку. */
+body[data-page="institutions"] .iall-chips{display:flex;flex-wrap:wrap;gap:5px;
+  margin-bottom:8px;align-items:center}
+body[data-page="institutions"] .iall-chip{display:inline-flex;align-items:center;gap:6px;
+  max-width:260px;padding:3px 9px;border-radius:999px;background:var(--blue-50);
+  color:var(--blue-700);font-size:11.5px;border:1px solid var(--blue-200)}
+body[data-page="institutions"] .iall-chip:hover{background:var(--blue-100)}
+body[data-page="institutions"] .iall-chip span{font-size:13px;line-height:1;opacity:.7}
+body[data-page="institutions"] .iall-reset{font-size:11.5px;color:var(--muted);
+  padding:3px 6px;border-radius:7px}
+body[data-page="institutions"] .iall-reset:hover{color:var(--blue-700);
+  background:var(--blue-50)}
+body[data-page="institutions"] .iall .icols{flex:1 1 auto;min-height:0;overflow:auto}
+/* Раскладка подгоняется под фактическую ширину таблицы (applyFit в
+   institutions.js). Ниже суммы минимумов сжимать некуда — там уже прокрутка,
+   а не сжатие: столбцы должны оставаться читаемыми. */
+body[data-page="institutions"] .iall .itbl{min-width:940px}
+/* Длинный статус («Удостоверен после осмотра») не должен вылезать за колонку. */
+body[data-page="institutions"] .iall .itag{display:block;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+/* Давно не менявшийся объект видно по столбцу «Обновлён» — ради таких выборок
+   вкладка и заводилась. */
+body[data-page="institutions"] .iall td.stale{color:var(--amber-700)}
+
+@media (max-width: 1100px) {
+  body[data-page="institutions"] .iall{flex-direction:column}
+  body[data-page="institutions"] .iall-facets{flex:0 0 auto;width:auto;max-height:260px;
+    border-right:none;border-bottom:1px solid var(--line)}
+}

@@ -7,13 +7,17 @@
 // колесом/мышью — сама меняет номер текущей страницы (см. bindViewer: тот же
 // приём, что в modules/civil/parts/viewer/ctrl.js: 342-374).
 //
+// Живёт в ядре, потому что нужен двум разделам: реестру «Документы» и
+// учреждениям (у учреждения свои документы — решение пользователя 03.09.2026).
+// Стили — kernel/docViewer.css, их подключает страница через host.ensureStyle.
+//
 // Урезано по сравнению с карточкой ОЦ: здесь нет вкладок/ОИ, режима «Фото»,
 // режима «Сравнение» и перестановки страниц — реестру «Документы» они не
 // нужны (документ — самостоятельная сущность, не привязанная к литере ОИ).
 // Если у документа несколько файлов — между ними переключаются вкладки.
-import { esc } from '../../kernel/dom.js';
-import { ensureFilePages } from '../../kernel/fileUpload.js';
-import { paintPdfCanvases } from '../../kernel/pdfRender.js';
+import { esc } from './dom.js';
+import { ensureFilePages } from './fileUpload.js';
+import { paintPdfCanvases } from './pdfRender.js';
 
 const VS = { zoom: 100 };
 const fileState = {}; // fileId -> { page, rot, scroll }
@@ -113,6 +117,40 @@ export function viewerHTML(doc, activeFileId) {
   return `<div class="viewer">${tabsBar}${toolbar}${body}</div>`;
 }
 
+// Горячие клавиши просмотрщика — те же, что в карточках ОЦ
+// (modules/*/parts/viewer/ctrl.js): листание, зум, поворот. Раньше их тут не
+// было вовсе, и в учреждениях просмотрщик управлялся только мышью
+// (пользователь 03.09.2026).
+//
+// Два ограничения, иначе клавиши сами станут сюрпризом:
+//   * при фокусе в поле ввода и при открытом модальном окне не срабатывают —
+//     иначе «0» или «+» в поле дёргали бы зум;
+//   * поворот на Ctrl+Alt+R, а не Ctrl+R: Ctrl+R — перезагрузка страницы.
+function bindKeys(scope, { go, setZoom, rotate, state, pages }) {
+  if (!scope.onDocument) return;   // модалки зовут bindViewer с урезанным скоупом
+
+  scope.onDocument('keydown', (e) => {
+    if (!scope.$('[data-vstage]')) return;
+
+    const t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .modal')) return;
+
+    if (e.ctrlKey && e.altKey && e.code === 'KeyR') { e.preventDefault(); rotate(); return; }
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    switch (e.key) {
+      case 'ArrowRight': case 'PageDown': e.preventDefault(); go(state.page + 1); break;
+      case 'ArrowLeft': case 'PageUp': e.preventDefault(); go(state.page - 1); break;
+      case 'Home': e.preventDefault(); go(1); break;
+      case 'End': e.preventDefault(); go(pages); break;
+      case '+': case '=': e.preventDefault(); setZoom(VS.zoom + 10); break;
+      case '-': e.preventDefault(); setZoom(VS.zoom - 10); break;
+      case '0': e.preventDefault(); setZoom(100); break;
+      default: break;
+    }
+  });
+}
+
 export function bindViewer(scope, { doc, activeFileId, onFileChange }) {
   const files = doc.files || [];
   const f = files.find((x) => x.id === activeFileId) || files[0];
@@ -155,11 +193,13 @@ export function bindViewer(scope, { doc, activeFileId, onFileChange }) {
   const vn = scope.$('[data-vnext]');
   if (vn) vn.onclick = () => go(st.page + 1);
 
-  const vr = scope.$('[data-vrot]');
-  if (vr) vr.onclick = () => {
+  function rotate() {
     st.rot = (st.rot + 90) % 360;
     scope.$$('[data-vpageinner]').forEach((p) => { p.style.transform = `rotate(${st.rot}deg)`; });
-  };
+  }
+
+  const vr = scope.$('[data-vrot]');
+  if (vr) vr.onclick = rotate;
 
   function setZoom(z) {
     const vstageEl = scope.$('[data-vstage]');
@@ -214,6 +254,8 @@ export function bindViewer(scope, { doc, activeFileId, onFileChange }) {
       setZoom(VS.zoom + (e.deltaY < 0 ? 10 : -10));
     }, { passive: false });
   }
+
+  bindKeys(scope, { go, setZoom, rotate, state: st, pages: f.pages.length });
 
   paintPdfCanvases(scope.root, VS.zoom);
 }

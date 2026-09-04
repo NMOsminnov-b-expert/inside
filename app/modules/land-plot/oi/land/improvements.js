@@ -11,6 +11,7 @@
 import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 import { IMPROVEMENT_GROUPS } from '../../data/dictionaries.js';
+import { opt, optGroups } from '../../data/opts.js';
 
 // Хранение — объект по ключу группы: oi.improvements = {structures: [...],
 // greenery: [...]}. Не два отдельных поля, чтобы третья группа (пользователь
@@ -55,13 +56,13 @@ function groupHTML(ctx, oi, group) {
 }
 
 export function improvementsMS(ctx, oi) {
-  return IMPROVEMENT_GROUPS.map((g) => groupHTML(ctx, oi, g)).join('');
+  return optGroups('land', 'improvements', IMPROVEMENT_GROUPS).map((g) => groupHTML(ctx, oi, g)).join('');
 }
 
 // Точечная перерисовка после выбора — без полного render(), иначе список
 // закрывался бы на каждом щелчке.
 export function updateImprovementsUI(ctx, oi, key) {
-  const group = IMPROVEMENT_GROUPS.find((g) => g.key === key);
+  const group = optGroups('land', 'improvements', IMPROVEMENT_GROUPS).find((g) => g.key === key);
   const box = ctx.scope.$(`[data-imp-field="${key}"]`);
   if (!group || !box) return;
 
@@ -79,7 +80,7 @@ export function updateImprovementsUI(ctx, oi, key) {
 // каждой отрисовке, и делегированные накапливались бы (этим уже отличились
 // заметки, конструктивный состав и отопление).
 function bindImpOpts(ctx, oi) {
-  IMPROVEMENT_GROUPS.forEach((group) => {
+  optGroups('land', 'improvements', IMPROVEMENT_GROUPS).forEach((group) => {
     const box = ctx.scope.$(`[data-imp-field="${group.key}"]`);
     if (!box) return;
 

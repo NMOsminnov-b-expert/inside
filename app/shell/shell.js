@@ -1,6 +1,6 @@
 import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
-import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF } from '../kernel/router.js';
+import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions } from '../kernel/session.js';
 
 // Каркас окна. Ничего не знает про ОЦ/ОИ: рисует только то, что ему отдали.
@@ -19,6 +19,8 @@ function bindNav() {
       if (b.dataset.nav === 'oc') location.hash = MENU_HREF;
       if (b.dataset.nav === 'archive') location.hash = ARCHIVE_HREF;
       if (b.dataset.nav === 'docs') location.hash = DOCS_HREF;
+      if (b.dataset.nav === 'dict') location.hash = DICTS_HREF;
+      if (b.dataset.nav === 'inst') location.hash = INST_HREF;
     };
   });
 

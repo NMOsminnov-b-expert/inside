@@ -1,4 +1,5 @@
 import { esc } from './dom.js';
+import { enhanceSelects } from './dropdown.js';
 
 // Модальные окна вместо нативных confirm/prompt: и визуал в системе,
 // и не блокируют поток (важно для просмотрщика и делегированных слушателей).
@@ -15,6 +16,8 @@ function openModal(inner, { onMount } = {}) {
   });
 
   if (onMount) onMount(back, close);
+  // Модалка живёт вне скоупа экрана, поэтому списки в ней прокачиваем здесь.
+  enhanceSelects(back);
 
   return close;
 }

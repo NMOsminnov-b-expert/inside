@@ -33,9 +33,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 BASE_DIR = os.path.join(ROOT, 'docs', 'screens')
 PORT = 8931
 
-# Блок системы. Пока в макете он один — объекты оценки; поле оставлено, потому
-# что структура папок должна пережить появление следующих блоков.
-BLOCKS = {'oc': 'Объекты оценки'}
+# Блок системы. У снимков разных блоков разная привязка: у объектов оценки
+# папка идёт по типу ОЦ и типу ОИ, а у справочников и архива такой привязки нет
+# вовсе — там снимок относится к экрану целиком, поэтому --oc для них не
+# обязателен и папка типа не создаётся.
+BLOCKS = {'oc': 'Объекты оценки', 'dicts': 'Справочники', 'archive': 'Архив',
+          'docs': 'Документы', 'institutions': 'Учреждения'}
+BLOCKS_WITH_OC = {'oc'}
 
 TRANSLIT = {
     'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh',
@@ -75,8 +79,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--route', default='', help='хэш-маршрут после app.html')
     ap.add_argument('--name', required=True, help='имя снимка: что именно показано (например, floors)')
-    ap.add_argument('--block', default='oc', choices=sorted(BLOCKS), help='блок системы (пока только oc)')
-    ap.add_argument('--oc', required=True, help='тип ОЦ: civil, apartment, residential-house, production, land-plot')
+    ap.add_argument('--block', default='oc', choices=sorted(BLOCKS),
+                    help='блок системы: oc — объекты оценки, dicts — справочники, archive — архив')
+    ap.add_argument('--oc', default='',
+                    help='тип ОЦ: civil, apartment, residential-house, production, land-plot; '
+                         'обязателен только для блока oc')
     ap.add_argument('--oi', default='', help='тип ОИ: building, apartment, land, movable; пусто — снимок уровня ОЦ')
     ap.add_argument('--wait', default='.card')
     ap.add_argument('--click', action='append', default=[])
@@ -93,7 +100,14 @@ def main():
     ap.add_argument('--settle-ms', type=int, default=400)
     args = ap.parse_args()
 
-    parts = [commit_slug(), args.block, slug(args.oc)]
+    if args.block in BLOCKS_WITH_OC and not args.oc:
+        ap.error('для блока %s нужен --oc (тип ОЦ)' % args.block)
+
+    parts = [commit_slug(), args.block]
+    # У справочников и архива тип ОЦ не обязателен: если он всё же указан
+    # (снимок каталога конкретного типа) — папка появится, иначе нет.
+    if args.oc:
+        parts.append(slug(args.oc))
     if args.oi:
         parts.append(slug(args.oi))
     out_dir = os.path.join(BASE_DIR, *parts)

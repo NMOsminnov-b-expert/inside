@@ -14,11 +14,26 @@ import {
   colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
   bindColumnReorder, orderedColumns, movableKeys, normalizeOrder,
 } from '../../kernel/columns.js';
-import { DOC_TYPES, DOC_STATUSES, queryDocuments, documentStats, statusTone, getDocument } from '../../kernel/documentsRegistry.js';
+import {
+  DOC_TYPES, DOC_STATUSES, queryDocuments, documentStats, statusTone, getDocument,
+  documentInstitutions,
+} from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
 import { detailHTML, bindDetail } from './detail.js';
 
+<<<<<<< HEAD
 const state = { q: '', type: '', status: '', page: 1, pageSize: 25, sort: { key: '', dir: 'asc' } };
+=======
+const state = {
+  q: '', type: '', status: '', institution: '', dateFrom: '', dateTo: '',
+  sort: '', dir: 'asc', page: 1, pageSize: 25,
+};
+
+// Есть ли что сбрасывать: кнопка сброса появляется только когда фильтр реально
+// сужает список, иначе она просто занимает место.
+const hasFilters = () => !!(state.q || state.type || state.status || state.institution
+  || state.dateFrom || state.dateTo);
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
 
 // Столбцы можно и тянуть за перегородку (ширина), и перетаскивать за шапку
 // (порядок) — тот же механизм, что в реестре ОЦ и перечне ОИ (kernel/columns.js).
@@ -32,10 +47,21 @@ const state = { q: '', type: '', status: '', page: 1, pageSize: 25, sort: { key:
 const DOCS_COLUMNS = [
   { key: 'idx', label: '№', width: 46, minWidth: 40, fixed: true },
   { key: 'type', label: 'Тип', width: 150, minWidth: 100 },
+<<<<<<< HEAD
+=======
+  // Ширина числом, а не «резинкой» (width:0): колонок стало больше, и остаток
+  // на узком экране уходил в минус — table-layout:fixed ломал раскладку.
+  // Вместо сжатия таблица получает горизонтальную прокрутку (docs.css).
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
   { key: 'name', label: 'Наименование', width: 220, minWidth: 140 },
   { key: 'number', label: '№ документа', width: 130, minWidth: 90 },
   { key: 'date', label: 'Дата документа', width: 130, minWidth: 100 },
   { key: 'institution', label: 'От кого', width: 220, minWidth: 140 },
+<<<<<<< HEAD
+=======
+  // Столбцы из ветки kirill (Кирилл, 03.09.2026): регистрация документа и
+  // принадлежность.
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
   { key: 'regAuthority', label: 'Орган регистрации', width: 200, minWidth: 140 },
   { key: 'regDate', label: 'Дата регистрации', width: 140, minWidth: 100 },
   { key: 'affiliation', label: 'Принадлежность', width: 180, minWidth: 120 },
@@ -47,10 +73,23 @@ const docsColWidths = {};
 // как в реестре ОЦ и в перечне ОИ (kernel/columns.js).
 let docsColOrder = DOCS_COLUMNS_DEFAULT.slice();
 
+<<<<<<< HEAD
 // .ell — display:block, поэтому её нельзя вешать прямо на <td> (это снимает с
 // него display:table-cell и рвёт раскладку строки, особенно когда .ell-ячеек
 // в строке несколько подряд — они начинают складываться друг под другом
 // вместо того чтобы идти по колонкам). Всегда через внутренний <span>.
+=======
+// Склонение при числе: «1 документ», «2 документа», «19 документов».
+function plural(n, one, few, many) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
 function cellHTML(col, doc, n) {
   if (col.key === 'idx') return `<td class="mono">${n}</td>`;
   if (col.key === 'type') return `<td><span class="tag-mini">${esc(doc.type || '—')}</span></td>`;
@@ -61,6 +100,13 @@ function cellHTML(col, doc, n) {
   }
   if (col.key === 'number') return `<td>${esc(doc.number || '—')}</td>`;
   if (col.key === 'date') return `<td>${esc(doc.date || '—')}</td>`;
+<<<<<<< HEAD
+=======
+  // .ell — display:block, поэтому её нельзя вешать прямо на <td>: это снимает
+  // с ячейки display:table-cell, и несколько таких ячеек подряд складываются
+  // друг под другом вместо колонок (проявилось, как только рядом встали три
+  // новые колонки). Всегда через внутренний <span>.
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
   if (col.key === 'institution') return `<td><span class="ell" title="${esc(doc.institution || '')}">${esc(doc.institution || '—')}</span></td>`;
   if (col.key === 'regAuthority') return `<td><span class="ell" title="${esc(doc.regAuthority || '')}">${esc(doc.regAuthority || '—')}</span></td>`;
   if (col.key === 'regDate') return `<td>${esc(doc.regDate || '—')}</td>`;
@@ -90,7 +136,13 @@ function listHTML() {
   const stats = documentStats();
   const offset = (state.page - 1) * state.pageSize;
   const { rows, total } = queryDocuments({
+<<<<<<< HEAD
     q: state.q, type: state.type, status: state.status, sort: state.sort, offset, limit: state.pageSize,
+=======
+    q: state.q, type: state.type, status: state.status, institution: state.institution,
+    dateFrom: state.dateFrom, dateTo: state.dateTo,
+    sort: state.sort, dir: state.dir, offset, limit: state.pageSize,
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
   });
   const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
   const cols = orderedColumns(DOCS_COLUMNS, docsColOrder);
@@ -107,17 +159,40 @@ function listHTML() {
     </div>
 
     <div class="docs-toolbar">
-      <input class="input docs-search" data-docs-q value="${esc(state.q)}" autocomplete="off"
-        placeholder="Поиск по номеру и дате документа">
+      <span class="docs-search">
+        <svg class="docs-search-ico" viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
+          <circle cx="6" cy="6" r="4.1" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M9.2 9.2 12.4 12.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <input data-docs-q value="${esc(state.q)}" autocomplete="off"
+          placeholder="Поиск: тип, наименование, номер, дата, от кого">
+        ${state.q ? '<button class="docs-search-clear" data-docs-q-clear title="Очистить">×</button>' : ''}
+      </span>
+
       <select class="select docs-filter" data-docs-type>
         <option value="">Тип: все</option>
         ${DOC_TYPES.map((t) => `<option ${state.type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
       </select>
+
       <select class="select docs-filter" data-docs-status>
         <option value="">Статус: все</option>
         ${DOC_STATUSES.map((s) => `<option ${state.status === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
       </select>
-      <span class="docs-count">${total} документов</span>
+
+      <select class="select docs-filter wide" data-docs-inst>
+        <option value="">От кого: все</option>
+        ${documentInstitutions().map((i) => `<option ${state.institution === i ? 'selected' : ''}>${esc(i)}</option>`).join('')}
+      </select>
+
+      <span class="docs-period" title="Дата документа">
+        <i>Дата</i>
+        <input type="date" class="input" data-docs-from value="${esc(state.dateFrom)}">
+        <span>—</span>
+        <input type="date" class="input" data-docs-to value="${esc(state.dateTo)}">
+      </span>
+
+      ${hasFilters() ? '<button class="btn btn-ghost btn-sm" data-docs-reset>Сбросить</button>' : ''}
+      <span class="docs-count">${total} ${plural(total, 'документ', 'документа', 'документов')}</span>
       <button class="btn btn-primary" data-docs-create>+ Создать документ</button>
     </div>
 
@@ -125,7 +200,17 @@ function listHTML() {
       ${rows.length ? `<div class="docs-cols" data-docs-cols-box style="${columnVarsStyle(cols, docsColWidths)}">
         <table class="docs-tbl">
           ${colGroupHTML(cols, docsColWidths)}
+<<<<<<< HEAD
           <thead><tr>${cols.map((c, i) => headCellHTML(c, i, cols)).join('')}</tr></thead>
+=======
+          <thead><tr>${cols.map((c, i) => `<th ${headAttrs(c)}
+            ${c.key === 'idx' ? '' : `data-docs-sort="${c.key}"`}
+            class="${state.sort === c.key ? 'sorted ' + state.dir : ''}">
+            ${colLabelHTML(c)}${c.key === 'idx' ? '' : `<span class="docs-sort-mark">${
+              state.sort === c.key ? (state.dir === 'asc' ? '▲' : '▼') : ''}</span>`}
+            ${resizeGripHTML(c, i === cols.length - 1)}
+          </th>`).join('')}</tr></thead>
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
           <tbody>${rows.map((d, i) => rowHTML(cols, d, offset + i + 1)).join('')}</tbody>
         </table>
       </div>` : `<div class="docs-empty">Ничего не найдено. Измените запрос или сбросьте фильтры.</div>`}
@@ -141,19 +226,57 @@ function listHTML() {
   </div>`;
 }
 
+
+// Соседние документы — те, между которыми человек и переключается: если пришли
+// из учреждения, это его документы, иначе — текущая выборка реестра с её
+// фильтрами. Без этого из карточки приходилось возвращаться в список ради
+// каждого следующего документа.
+function siblingsFor(doc, route) {
+  const q = (route && route.query) || {};
+
+  const filter = q.from === 'inst' && q.name
+    ? { institution: q.name, limit: 200 }
+    : {
+      q: state.q, type: state.type, status: state.status, institution: state.institution,
+      dateFrom: state.dateFrom, dateTo: state.dateTo, sort: state.sort, dir: state.dir,
+      limit: 200,
+    };
+
+  const { rows } = queryDocuments(filter);
+  const list = rows.length ? rows : [doc];
+  const index = Math.max(0, list.findIndex((d) => d.id === doc.id));
+
+  return { list, index, scope: q.from === 'inst' ? (q.name || 'учреждение') : 'реестр' };
+}
+
 export function mountDocs(host) {
   const scope = host.scope;
   let route = host.route;
   document.body.dataset.page = 'docs';
-  setActiveNav('docs');
+  // Стили просмотрщика лежат отдельно: он общий с разделом «Учреждения».
+  host.ensureStyle('./app/kernel/docViewer.css');
+
+  // Подсвечиваем тот раздел, из которого пришли: документ, открытый из
+  // учреждения, принадлежит его контексту — путь и возврат ведут туда же.
+  const cameFromInst = !!(host.route && host.route.query && host.route.query.from === 'inst');
+  setActiveNav(cameFromInst ? 'inst' : 'docs');
+
+  // Фильтр из адреса: из раздела «Учреждения» сюда приходят ссылкой
+  // #/docs?institution=<название>, как в реестре объектов оценки.
+  if (route && route.query && route.query.institution) {
+    state.institution = route.query.institution;
+    state.page = 1;
+  }
 
   function render() {
     const id = route && route.id;
+    const fromInst = !!(route && route.query && route.query.from === 'inst');
+    setActiveNav(fromInst ? 'inst' : 'docs');
 
     if (id) {
       const doc = getDocument(id);
       if (!doc) {
-        setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }, { label: 'Не найден', current: true }]);
+        setCrumbs([...host.originCrumbs('docs'), { label: 'Не найден', current: true }]);
         scope.setHTML(`<div class="card card-pad">Документ не найден.
           <button class="btn btn-ghost btn-sm" data-docs-back-menu style="margin-left:10px">К документам</button></div>`);
         const b = scope.$('[data-docs-back-menu]');
@@ -161,11 +284,22 @@ export function mountDocs(host) {
         return;
       }
 
-      setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }, { label: doc.type || 'Документ', current: true }]);
-      scope.setHTML(detailHTML(doc));
+      // Откуда пришли — туда и вернёмся: из учреждения путь идёт через него,
+      // из реестра — как раньше. Начало крошек и адрес возврата даёт ядро.
+      setCrumbs([...host.originCrumbs('docs'), { label: doc.type || 'Документ', current: true }]);
+
+      const siblings = siblingsFor(doc, route);
+      scope.setHTML(detailHTML(doc, siblings));
       bindDetail(scope, {
-        doc, host,
-        onBack: () => { location.hash = DOCS_HREF; },
+        doc, host, siblings,
+        onBack: () => { location.hash = host.backHref('docs'); },
+        onOpen: (id) => {
+          const q = route && route.query ? route.query : {};
+          const tail = q.from === 'inst'
+            ? `?from=inst&node=${encodeURIComponent(q.node || '')}&name=${encodeURIComponent(q.name || '')}`
+            : '';
+          location.hash = DOCS_HREF + '/' + encodeURIComponent(id) + tail;
+        },
         onChanged: render,
       });
       return;
@@ -195,6 +329,7 @@ export function mountDocs(host) {
     const s = scope.$('[data-docs-status]');
     if (s) s.onchange = () => { state.status = s.value; state.page = 1; render(); };
 
+<<<<<<< HEAD
     scope.$$('[data-docs-sort]').forEach((th) => {
       th.addEventListener('click', (e) => {
         if (e.target.closest('[data-col-grip]')) return;
@@ -204,6 +339,42 @@ export function mountDocs(host) {
           : { key, dir: 'asc' };
         render();
       });
+=======
+    const inst = scope.$('[data-docs-inst]');
+    if (inst) inst.onchange = () => { state.institution = inst.value; state.page = 1; render(); };
+
+    const from = scope.$('[data-docs-from]');
+    if (from) from.onchange = () => { state.dateFrom = from.value; state.page = 1; render(); };
+
+    const to = scope.$('[data-docs-to]');
+    if (to) to.onchange = () => { state.dateTo = to.value; state.page = 1; render(); };
+
+    const qClear = scope.$('[data-docs-q-clear]');
+    if (qClear) qClear.onclick = () => { state.q = ''; state.page = 1; render(); };
+
+    const reset = scope.$('[data-docs-reset]');
+    if (reset) reset.onclick = () => {
+      state.q = '';
+      state.type = '';
+      state.status = '';
+      state.institution = '';
+      state.dateFrom = '';
+      state.dateTo = '';
+      state.page = 1;
+      render();
+    };
+
+    // Сортировка по столбцу: первый клик — по возрастанию, повторный
+    // разворачивает, третий снимает сортировку и возвращает исходный порядок.
+    scope.$$('[data-docs-sort]').forEach((th) => th.onclick = (e) => {
+      if (e.target.closest('[data-col-grip]')) return;
+      const key = th.dataset.docsSort;
+      if (state.sort !== key) { state.sort = key; state.dir = 'asc'; }
+      else if (state.dir === 'asc') state.dir = 'desc';
+      else { state.sort = ''; state.dir = 'asc'; }
+      state.page = 1;
+      render();
+>>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
     });
 
     const ps = scope.$('[data-docs-pagesize]');

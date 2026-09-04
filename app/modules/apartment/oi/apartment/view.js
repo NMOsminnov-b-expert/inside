@@ -8,6 +8,7 @@ import {
   STATUS_BUILD, STRUCT,
   APARTMENT_SERIES, APARTMENT_LOCATIONS, APARTMENT_RIGHTS,
 } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -105,7 +106,7 @@ ${yearFieldHTML(oi, 'Год постройки')}
 <input class="input" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
 <button class="combo-arrow" type="button" data-dd-toggle title="Выбрать серию из списка">▾</button>
 <div class="dd-menu combo-menu">
-${APARTMENT_SERIES.map((series) => `<button type="button" data-apt-series-pick="${esc(series)}">${esc(series)}</button>`).join('')}
+${opt('apartment', 'series', APARTMENT_SERIES).map((series) => `<button type="button" data-apt-series-pick="${esc(series)}">${esc(series)}</button>`).join('')}
 </div>
 </div>
 </div>
@@ -114,7 +115,7 @@ ${APARTMENT_SERIES.map((series) => `<button type="button" data-apt-series-pick="
 <div class="inline-row">
 <select class="select" data-apt-location style="flex:1 1 160px;">
 <option value="">Не выбрано</option>
-${APARTMENT_LOCATIONS.map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
+${opt('apartment', 'location', APARTMENT_LOCATIONS).map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
 </select>
 <input
 class="input"
@@ -133,7 +134,7 @@ style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}"
 <div class="inline-row">
 <select class="select" data-apt-rights style="flex:1 1 200px;">
 <option value="">Не выбрано</option>
-${APARTMENT_RIGHTS.map((right) => `<option ${right === apt.rights ? 'selected' : ''}>${right}</option>`).join('')}
+${opt('apartment', 'rights', APARTMENT_RIGHTS).map((right) => `<option ${right === apt.rights ? 'selected' : ''}>${right}</option>`).join('')}
 </select>
 <input
 class="input"

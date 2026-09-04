@@ -1,6 +1,7 @@
 import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 import { TEMP_MODE } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 
 // Температурный режим — множественный выбор (Л6.2, решение пользователя
 // 28.08.2026): в одном строении бывает и морозильник, и тёплый склад, одним
@@ -23,7 +24,7 @@ export function migrateTempMode(oi) {
 }
 
 const dropBodyHTML = (list) =>
-  msDropBodyHTML({ options: TEMP_MODE, selected: list, optAttr: 'temp-opt' });
+  msDropBodyHTML({ options: opt('building', 'tempMode', TEMP_MODE), selected: list, optAttr: 'temp-opt' });
 
 // Разделитель « / », как у материалов.
 function summaryHTML(list) {

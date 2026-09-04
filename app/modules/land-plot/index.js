@@ -118,10 +118,9 @@ export function main(host) {
   }
 
   function crumbs() {
-    const items = [
-      { label: 'Главная', to: MENU_HREF },
-      { label: 'Объекты оценки', to: MENU_HREF },
-    ];
+    // Начало пути даёт ядро: из реестра объектов это «Главная / Объекты
+    // оценки», из раздела «Учреждения» — «Главная / Учреждения / <учреждение>».
+    const items = host.originCrumbs();
 
     const ocHref = host.hrefFor({ ocId: rec.id, rest: [] });
 
@@ -200,7 +199,7 @@ export function main(host) {
       scope.setHTML(`<div class="card card-pad">Объект оценки не найден.
         <button class="btn btn-ghost btn-sm" data-to-menu style="margin-left:10px">В меню</button></div>`);
       scope.$('[data-to-menu]').onclick = () => host.toMenu();
-      host.setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: 'Объекты оценки', to: MENU_HREF }, { label: 'Объект не найден', current: true }]);
+      host.setCrumbs([...host.originCrumbs(), { label: 'Объект не найден', current: true }]);
       host.setDrawer(null);
       return;
     }

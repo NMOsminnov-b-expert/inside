@@ -1,10 +1,11 @@
 import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { esc } from '../../../../kernel/dom.js';
 import { HEATING } from '../../data/dictionaries.js';
+import { opt } from '../../data/opts.js';
 
 // Тело списка — общее для всех мультивыборов проекта (kernel/multiSelect.js).
 function dropBodyHTML(heating) {
-  return msDropBodyHTML({ options: HEATING, selected: heating, optAttr: 'heat-opt' });
+  return msDropBodyHTML({ options: opt('apartment', 'heating', HEATING), selected: heating, optAttr: 'heat-opt' });
 }
 
 // Сводка в закрытом виде — одна строка с обрезкой (раньше теги переносились
