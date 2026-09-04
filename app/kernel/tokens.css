@@ -254,6 +254,11 @@ input,select,textarea{font:inherit;color:inherit}
   max-height:min(320px,60vh);overflow:auto;padding:4px;background:var(--panel);
   border:1px solid var(--line);border-radius:10px;
   box-shadow:0 12px 32px rgba(15,23,42,.18)}
+.pick-search{display:block;width:100%;height:30px;margin-bottom:4px;padding:0 9px;
+  border:1px solid var(--line-input);border-radius:8px;font-size:12.5px;background:#fff}
+.pick-search:focus{outline:none;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+.pick-list{max-height:min(280px,52vh);overflow:auto}
 .pick-opt{padding:6px 10px;border-radius:7px;font-size:12.5px;color:var(--slate-700);
   cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pick-opt.cursor{background:var(--blue-50)}
@@ -262,3 +267,48 @@ input,select,textarea{font:inherit;color:inherit}
 .pick-opt.off{opacity:.5;cursor:default}
 .pick-group{padding:7px 10px 3px;font-size:10.5px;text-transform:uppercase;
   letter-spacing:.4px;color:var(--muted)}
+
+/* ============ заметки для разработчиков (kernel/devNote.js) ============ */
+/* Значок «i» в кружке ярким цветом: требование пользователя 04.09.2026 —
+   отложенные решения должны быть видны прямо в макете, а не только в переписке.
+   Цвет намеренно чужой для интерфейса (янтарный), чтобы заметку не приняли за
+   обычную подсказку. Раскрытие на CSS: карточки перерисовываются целиком, и
+   JS-обработчик пришлось бы привязывать заново после каждой отрисовки. */
+.dev-note{position:relative;display:inline-flex;vertical-align:middle;
+  margin-left:6px;cursor:help;outline:none}
+.dev-note-ico{display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;background:var(--amber-500,#e8a33d);
+  color:#fff;font-size:11px;font-weight:700;font-style:italic;line-height:1;
+  box-shadow:0 0 0 3px rgba(232,163,61,.22)}
+.dev-note:hover .dev-note-ico,
+.dev-note:focus .dev-note-ico{background:var(--amber-700,#a4650c)}
+
+.dev-note-pop{position:absolute;left:0;top:calc(100% + 7px);z-index:520;
+  display:none;width:max-content;max-width:min(360px,70vw);padding:9px 11px;
+  border-radius:9px;background:#3a2a10;color:#fff;font-size:11.5px;
+  line-height:1.45;font-weight:400;text-transform:none;letter-spacing:0;
+  box-shadow:0 10px 28px rgba(15,23,42,.28)}
+.dev-note-pop b{display:block;margin-bottom:3px;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--amber-300,#f0c485)}
+.dev-note:hover .dev-note-pop,
+.dev-note:focus .dev-note-pop,
+.dev-note:focus-within .dev-note-pop{display:block}
+/* Положение раскрытой заметки задаёт kernel/devNote.js: он переводит текст в
+   position:fixed с координатами от значка. Так заметка не обрезается родителем
+   и не оказывается под соседним блоком. Правила ниже — на случай, если скрипт
+   не успел (первое наведение, отключённый JS): заметка хотя бы не уедет вправо.
+   z-index ниже диалога (600) намеренно: диалог должен закрывать заметку. */
+.dev-note.left .dev-note-pop{left:auto;right:0}
+.dev-note.up .dev-note-pop{top:auto;bottom:calc(100% + 7px)}
+
+/* Список «что произойдёт» в диалоге подтверждения (kernel/dialog.js, параметр
+   list). Нужен там, где решение принимают всерьёз: перечень полей, которых не
+   будет после смены типа ОЦ, сплошной строкой через запятую не читался. */
+.modal-list-facts{margin:9px 0 0;padding:0;list-style:none;display:flex;
+  flex-direction:column;gap:5px;max-height:min(320px,44vh);overflow:auto}
+.modal-list-facts li{display:flex;align-items:baseline;gap:8px;padding:6px 9px;
+  border-radius:8px;background:var(--slate-50);font-size:12.5px;color:var(--ink)}
+.modal-list-facts li b{font-weight:600}
+.modal-list-facts li span{color:var(--muted);font-size:12px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-note{margin-top:10px;font-size:12px;color:var(--muted)}

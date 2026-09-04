@@ -25,6 +25,7 @@
 import { esc } from './dom.js';
 
 const DONE = 'ddDone';           // dataset-метка: этот select уже обработан
+const SEARCH_FROM = 8;           // с какого числа пунктов показывать поиск
 let openState = null;            // { menu, btn, native, onDocClick, ... }
 
 // --- построение ------------------------------------------------------------
@@ -116,15 +117,27 @@ function openMenu(btn, select) {
   closeMenu();
 
   const items = optionsOf(select);
+
+  // Поиск появляется у длинных списков: постройки, справочники, люди — там
+  // прокручивать десятки пунктов дольше, чем набрать две буквы. У коротких
+  // списков строка поиска только мешала бы.
+  const searchable = items.filter((it) => it.group === undefined).length > SEARCH_FROM;
+
   const menu = document.createElement('div');
   menu.className = 'pick-menu';
   menu.setAttribute('role', 'listbox');
-  menu.innerHTML = items.map((it, i) => {
+
+  const optionsHTML = (q) => items.map((it, i) => {
     if (it.group !== undefined) return `<div class="pick-group">${esc(it.group)}</div>`;
+    if (q && !it.label.toLowerCase().includes(q)) return '';
     const on = it.value === select.value;
     return `<div class="pick-opt ${on ? 'on' : ''} ${it.disabled ? 'off' : ''}"
       role="option" data-pick-i="${i}" title="${esc(it.label)}">${esc(it.label) || '&nbsp;'}</div>`;
   }).join('');
+
+  menu.innerHTML = (searchable
+    ? '<input class="pick-search" data-pick-search placeholder="Найти…" autocomplete="off">'
+    : '') + `<div class="pick-list" data-pick-list>${optionsHTML('')}</div>`;
 
   document.body.appendChild(menu);
   place(menu, btn);
@@ -132,7 +145,7 @@ function openMenu(btn, select) {
   // Подсказка, всплывшая от наведения на кнопку, перекрыла бы первый пункт.
   document.querySelectorAll('.ov-tip').forEach((t) => t.remove());
 
-  const opts = Array.from(menu.querySelectorAll('.pick-opt:not(.off)'));
+  let opts = Array.from(menu.querySelectorAll('.pick-opt:not(.off)'));
   let cursor = opts.findIndex((el) => el.classList.contains('on'));
   if (cursor < 0) cursor = 0;
 
@@ -142,6 +155,19 @@ function openMenu(btn, select) {
     if (el) el.scrollIntoView({ block: 'nearest' });
   };
   mark();
+
+  const search = menu.querySelector('[data-pick-search]');
+  if (search) {
+    search.oninput = () => {
+      const list = menu.querySelector('[data-pick-list]');
+      list.innerHTML = optionsHTML(search.value.trim().toLowerCase());
+      opts = Array.from(menu.querySelectorAll('.pick-opt:not(.off)'));
+      cursor = 0;
+      mark();
+    };
+    // Фокус в поиск сразу: список открывают, чтобы найти нужное.
+    setTimeout(() => search.focus(), 0);
+  }
 
   const pick = (el) => {
     const it = items[+el.dataset.pickI];
@@ -180,6 +206,9 @@ function openMenu(btn, select) {
       mark();
       return;
     }
+    // Пока фокус в поиске, буквы набираются в него, а не листают список.
+    if (search && document.activeElement === search) return;
+
     // Набор букв — переход к первому подходящему пункту, как в нативном списке.
     if (e.key.length === 1) {
       const q = e.key.toLowerCase();

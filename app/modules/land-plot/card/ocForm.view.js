@@ -1,5 +1,6 @@
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
+import { ocTypes } from '../../../kernel/typeChange.js';
 import { STATUS_OC } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
@@ -16,8 +17,9 @@ function mainSection(rec) {
       <div class="grid g-4 g-roomy">
         <div class="field">
           <label>Тип ОЦ</label>
-          <select class="select" id="fType" disabled title="Тип задаётся модулем ОЦ">
-            <option selected>${esc(rec.type)}</option>
+          <select class="select" id="fType"
+            title="Смена типа переносит объект в карточки другого типа — сначала покажем, что изменится">
+            ${ocTypes().map((t) => `<option value="${esc(t.id)}" ${t.id === rec.typeId ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
           </select>
         </div>
 

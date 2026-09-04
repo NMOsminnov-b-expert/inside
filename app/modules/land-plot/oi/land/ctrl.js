@@ -2,7 +2,7 @@ import { bindEniField } from '../../../../kernel/eniField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindUtilities } from './utilities.js';
-import { bindImprovements } from './improvements.js';
+import { bindAuxBuildings } from './buildings.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextDocId } from '../../data/store.js';
@@ -14,8 +14,6 @@ export function bind(ctx, oi) {
   const s = ctx.scope;
 
   const valueBindings = {
-    '[data-land-purpose]': 'purpose',
-    '[data-land-rights]': 'rights',
     '[data-land-use]': 'useCategory',
     '[data-land-irrigation]': 'irrigation',
     '[data-land-irrigation-type]': 'irrigationType',
@@ -25,15 +23,28 @@ export function bind(ctx, oi) {
     '[data-land-gas]': 'gasification',
     '[data-land-central-heating]': 'centralHeating',
     '[data-land-water]': 'centralWater',
-    '[data-land-autonomous-heating]': 'autonomousHeating',
+    // Электроснабжение и канализация добавлены 04.09.2026 в блок «Инженерные
+    // сети»; автономное отопление оттуда убрано (ТЗ §4).
+    '[data-land-electricity]': 'electricity',
+    '[data-land-sewerage]': 'sewerage',
+
+    // Местоположение: координаты и деление крупных городов на зону и
+    // микрорайон, удалённость от райцентра у сельхоза (ТЗ §5).
+    '[data-land-gps]': 'gps',
+    '[data-land-zone]': 'zone',
+    '[data-land-microdistrict]': 'microdistrict',
+    '[data-land-distance]': 'distanceToCenter',
+
+    // Благоустройство: ранг и описание вместо двух мультивыборов (ТЗ §6).
+    '[data-land-improve-note]': 'improvementNote',
+
+    // Комментарий к сервитуту (ТЗ §2, пункт 1.4).
+    '[data-land-encumbrance-note]': 'encumbranceNote',
 
     '[data-land-location]': 'location',
     '[data-land-road]': 'roadLocation',
     '[data-land-corner]': 'corner',
     '[data-land-relief]': 'relief',
-    '[data-land-buildings]': 'buildings',
-    '[data-land-building-type]': 'buildingType',
-    '[data-land-building-area]': 'buildingArea',
     '[data-land-location-features]': 'locationFeatures',
     '[data-land-encumbrance-area]': 'encumbranceArea',
   };
@@ -44,6 +55,39 @@ export function bind(ctx, oi) {
 
   const type = s.$('[data-land-type]');
   if (type) type.onchange = () => { oi.landType = type.value; ctx.render(); };
+
+  // Категория земель — только у несельхоза (ТЗ §2.1), перерисовка не нужна:
+  // состав полей от неё не зависит.
+  // Назначение по правоудостоверяющему документу — справочник с тем же
+  // приёмом, что у прав: «Иное» открывает поле ручного ввода, поэтому нужна
+  // перерисовка (от значения зависит видимость поля).
+  const purpose = s.$('[data-land-purpose]');
+  if (purpose) purpose.onchange = () => {
+    oi.purpose = purpose.value;
+    if (oi.purpose !== 'Иное') oi.purposeOther = '';
+    ctx.render();
+  };
+
+  const purposeOther = s.$('[data-land-purpose-other]');
+  if (purposeOther) purposeOther.onchange = () => { oi.purposeOther = purposeOther.value; };
+
+  // Права — справочник; «Иное» открывает поле ручного ввода (тот же приём, что
+  // у прав на строение). Перерисовка нужна: от значения зависит видимость поля.
+  const rights = s.$('[data-land-rights]');
+  if (rights) rights.onchange = () => {
+    oi.rights = rights.value;
+    if (oi.rights !== 'Иное') oi.rightsOther = '';
+    ctx.render();
+  };
+
+  const rightsOther = s.$('[data-land-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
+
+  const cat = s.$('[data-land-category]');
+  if (cat) cat.onchange = () => { oi.landCategory = cat.value; };
+
+  const rank = s.$('[data-land-improve-rank]');
+  if (rank) rank.onchange = () => { oi.improvementRank = rank.value; };
 
   s.$$('[data-land-area]').forEach((input) => input.onchange = () => {
     oi.areas = oi.areas || {};
@@ -81,7 +125,7 @@ export function bind(ctx, oi) {
   }
 
   bindUtilities(ctx, oi);
-  bindImprovements(ctx, oi);
+  bindAuxBuildings(ctx, oi);
 
   const encumbrance = s.$('[data-land-encumbrance]');
   if (encumbrance) encumbrance.onchange = () => { oi.encumbrance = encumbrance.value; ctx.render(); };

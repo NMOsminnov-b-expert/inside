@@ -28,13 +28,94 @@ export const LAND_DICT_SOURCES = [
     ],
   },
   {
-    key: 'IMPROVEMENT_GROUPS',
-    title: 'Благоустройство территории',
+    key: 'AUX_BUILDING_GROUPS',
+    title: 'Вспомогательные постройки',
+    // Разделы по типу участка: сельхозу и несельхозу подходят разные постройки.
+    kind: 'group',
+    system: false,
+    values: D.AUX_BUILDING_GROUPS,
+    slots: [
+      { card: 'land', field: 'auxBuildingKind', label: 'Вспомогательная постройка' },
+    ],
+  },
+  {
+    key: 'AUX_CONDITION',
+    title: 'Состояние постройки',
     kind: 'list',
     system: false,
-    values: D.IMPROVEMENT_GROUPS,
+    values: D.AUX_CONDITION,
     slots: [
-      { card: 'land', field: 'improvements', label: 'Благоустройство территории' },
+      { card: 'land', field: 'auxCondition', label: 'Состояние постройки' },
+    ],
+  },
+  {
+    key: 'AUX_CLASS',
+    title: 'Класс постройки',
+    kind: 'list',
+    system: false,
+    values: D.AUX_CLASS,
+    slots: [
+      { card: 'land', field: 'auxClass', label: 'Класс постройки' },
+    ],
+  },
+  {
+    key: 'IMPROVEMENT_RANKS',
+    title: 'Ранг благоустройства',
+    kind: 'list',
+    system: false,
+    values: D.IMPROVEMENT_RANKS,
+    slots: [
+      { card: 'land', field: 'improvementRank', label: 'Ранг благоустройства' },
+    ],
+  },
+  {
+    key: 'LAND_PURPOSE_DOC',
+    title: 'Назначение по правоудостоверяющему документу',
+    kind: 'list',
+    system: false,
+    values: D.LAND_PURPOSE_DOC,
+    slots: [
+      { card: 'land', field: 'purpose', label: 'Назначение по правоудостоверяющему документу' },
+    ],
+  },
+  {
+    key: 'LAND_SOIL',
+    title: 'Тип почвы',
+    kind: 'list',
+    system: false,
+    values: D.LAND_SOIL,
+    slots: [
+      { card: 'land', field: 'soil', label: 'Тип почвы' },
+    ],
+  },
+  {
+    key: 'LAND_STONINESS',
+    title: 'Каменистость',
+    kind: 'list',
+    system: false,
+    values: D.LAND_STONINESS,
+    slots: [
+      { card: 'land', field: 'stoniness', label: 'Каменистость' },
+    ],
+  },
+  {
+    key: 'LAND_RIGHTS',
+    title: 'Права на земельный участок',
+    kind: 'list',
+    system: false,
+    values: D.LAND_RIGHTS,
+    slots: [
+      { card: 'land', field: 'rights', label: 'Права на земельный участок' },
+    ],
+  },
+  {
+    key: 'LAND_CATEGORIES',
+    title: 'Категория земель',
+    kind: 'list',
+    system: false,
+    values: D.LAND_CATEGORIES,
+    slots: [
+      { card: 'land', field: 'landCategory', label: 'Категория земель' },
     ],
   },
   {

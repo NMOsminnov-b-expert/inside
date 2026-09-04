@@ -1,6 +1,6 @@
 import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
-import { parseEni } from '../../../kernel/fmt.js';
+import { parseEni, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
 
@@ -25,7 +25,7 @@ export function bindOcCreate(ctx) {
     const bad = firstBadEni(s);
     if (bad) {
       bad.focus();
-      ctx.toast('Проверьте код ЕНИ — в нём должно быть 18 цифр', 'warn');
+      ctx.toast(`Проверьте код ЕНИ — в нём должно быть ${ENI_LENGTHS.join(', ')} цифр`, 'warn');
       return;
     }
 

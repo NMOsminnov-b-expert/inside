@@ -199,6 +199,15 @@ export function getSummary(id) {
 // остаётся единственным, кто трогает свой список записей.
 export { takeRecord, restoreRecord } from './data/store.js';
 
+// Подписи полей и виды ОИ — для смены типа ОЦ и вида ОИ (kernel/typeChange.js):
+// ядро не знает ни одного типа, поэтому человеческие названия полей и список
+// видов ОИ приходят из модуля.
+export { fieldLabel } from './audit/fieldLabels.js';
+// Какие карточки ОИ есть у этого модуля — по ним ядро понимает, найдётся ли
+// куда открыть объект имущества после смены типа ОЦ (kernel/typeChange.js).
+export { OI_CARDS as oiCards } from './oi/registry.js';
+export { OI_TYPES as oiTypes } from './data/rules.js';
+
 export function allRecords() {
   return records;
 }

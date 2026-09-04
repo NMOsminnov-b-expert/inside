@@ -22,11 +22,24 @@ function openModal(inner, { onMount } = {}) {
   return close;
 }
 
-export function confirmDialog({ title = 'Подтверждение', text = '', okLabel = 'Подтвердить', danger = false }) {
+// list — перечень «что произойдёт»: пары «подпись → значение». Появился для
+// смены типа ОЦ (kernel/typeChange.js): там список полей, которых не будет в
+// новой карточке, сплошным текстом через запятую читался как каша, а решение
+// по нему человек принимает всерьёз. Экранируется так же, как text.
+export function confirmDialog({
+  title = 'Подтверждение', text = '', note = '', list = [],
+  okLabel = 'Подтвердить', danger = false,
+}) {
+  const listHTML = list.length
+    ? `<ul class="modal-list-facts">${list.map((it) => (typeof it === 'string'
+      ? `<li>${esc(it)}</li>`
+      : `<li><b>${esc(it.label)}</b>${it.value ? `<span>${esc(it.value)}</span>` : ''}</li>`)).join('')}</ul>`
+    : '';
+
   return new Promise((resolve) => {
     openModal(
       `<div class="modal-head">${esc(title)}</div>
-       <div class="modal-body">${esc(text)}</div>
+       <div class="modal-body">${esc(text)}${listHTML}${note ? `<div class="modal-note">${esc(note)}</div>` : ''}</div>
        <div class="modal-foot">
          <button class="btn btn-ghost" data-modal-cancel>Отмена</button>
          <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-modal-ok>${esc(okLabel)}</button>

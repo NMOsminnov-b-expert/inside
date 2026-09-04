@@ -2,6 +2,8 @@ import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
 import { migrateUtilities } from './oi/land/utilities.js';
+import { migrateImprovements } from './oi/land/improvements.js';
+import { migrateLandDicts } from './oi/land/dictMigrate.js';
 import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -311,7 +313,9 @@ export function main(host) {
       // Коммуникации участка были объектом с четырьмя флажками, стали списком
       // (инженерное оснащение). Перевод до отрисовки, иначе попал бы в лог
       // правок как правка пользователя.
-      if (o.card === 'land') migrateUtilities(o);
+      if (o.card === 'land') {
+        migrateUtilities(o); migrateImprovements(o); migrateLandDicts(o);
+      }
       // Колонка «Площадь внешн.» слилась с застройкой — переносим значения.
       migrateFloorAreas(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');

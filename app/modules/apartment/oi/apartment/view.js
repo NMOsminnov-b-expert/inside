@@ -102,12 +102,13 @@ ${yearFieldHTML(oi, 'Год постройки')}
 <div class="grid g-2" style="margin-top:10px">
 <div class="field">
 <label>Серия</label>
-<div class="dd combo">
-<input class="input" data-apt-series value="${esc(apt.series || '')}" placeholder="Введите или выберите серию">
-<button class="combo-arrow" type="button" data-dd-toggle title="Выбрать серию из списка">▾</button>
-<div class="dd-menu combo-menu">
-${opt('apartment', 'series', APARTMENT_SERIES).map((series) => `<button type="button" data-apt-series-pick="${esc(series)}">${esc(series)}</button>`).join('')}
-</div>
+<div class="inline-row">
+<select class="select" data-apt-series style="flex:1 1 160px">
+<option value="">Не выбрано</option>
+${opt('apartment', 'series', APARTMENT_SERIES).map((series) => `<option ${series === apt.series ? 'selected' : ''}>${esc(series)}</option>`).join('')}
+</select>
+<input class="input" data-apt-series-other placeholder="Укажите серию" maxlength="60"
+  value="${esc(apt.seriesOther || '')}" style="flex:1 1 140px;${apt.series === 'Прочее' ? '' : 'display:none'}">
 </div>
 </div>
 <div class="field">

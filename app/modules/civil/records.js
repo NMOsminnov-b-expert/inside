@@ -199,6 +199,18 @@ export function getSummary(id) {
 // остаётся единственным, кто трогает свой список записей.
 export { takeRecord, restoreRecord } from './data/store.js';
 
+// Подписи полей и виды ОИ — для смены типа ОЦ и вида ОИ (kernel/typeChange.js):
+// ядро не знает ни одного типа, поэтому человеческие названия полей и список
+// видов ОИ приходят из модуля.
+export { fieldLabel } from './audit/fieldLabels.js';
+// Какие карточки ОИ есть у этого модуля — по ним ядро понимает, найдётся ли
+// куда открыть объект имущества после смены типа ОЦ (kernel/typeChange.js).
+export { OI_CARDS as oiCards } from './oi/registry.js';
+import { REALTY_OI_TYPES, MOVABLE_OI_TYPES } from './data/rules.js';
+// У этого модуля виды ОИ разделены на недвижимость и движимое —
+// ядру отдаём объединённый список (kernel/typeChange.js).
+export const oiTypes = [...REALTY_OI_TYPES, ...MOVABLE_OI_TYPES];
+
 export function allRecords() {
   return records;
 }

@@ -164,19 +164,19 @@ export function bind(ctx, oi) {
   bindApt('[data-apt-floor]', 'floor');
   bindApt('[data-apt-building-floors]', 'buildingFloors');
   bindApt('[data-apt-rooms]', 'rooms');
-  bindApt('[data-apt-series]', 'series');
+  // Серия — справочник; «Прочее» открывает поле ручного ввода, поэтому нужна
+  // перерисовка (от значения зависит видимость поля). Тот же приём, что у прав
+  // и назначения участка.
+  const series = s.$('[data-apt-series]');
+  if (series) series.onchange = () => {
+    const a = apt();
+    a.series = series.value;
+    if (a.series !== 'Прочее') a.seriesOther = '';
+    ctx.render();
+  };
 
-  // Выбор серии из списка. Без render(): он закрыл бы выпадашку, а значение
-  // достаточно проставить в поле — привязка выше уже пишет его в данные.
-  s.$$('[data-apt-series-pick]').forEach((b) => b.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const inp = s.$('[data-apt-series]');
-    if (inp) inp.value = b.dataset.aptSeriesPick;
-    apt().series = b.dataset.aptSeriesPick;
-    const dd = b.closest('.dd');
-    if (dd) dd.classList.remove('open');
-  });
+  const seriesOther = s.$('[data-apt-series-other]');
+  if (seriesOther) seriesOther.onchange = () => { apt().seriesOther = seriesOther.value; };
 
   // Этажность квартиры управляет наличием поэтажной развёртки.
   const aptStoreys = s.$('[data-apt-storeys]');

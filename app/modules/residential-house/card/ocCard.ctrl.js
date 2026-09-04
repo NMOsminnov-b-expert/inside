@@ -142,6 +142,10 @@ export function bindOcCard(ctx) {
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------
+
+
+
+
   const be = s.$('#btnEditOc');
   if (be) be.onclick = () => {
     ctx.ui.viewer = { mode: 'doc' };

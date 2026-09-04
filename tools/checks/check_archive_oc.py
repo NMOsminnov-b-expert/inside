@@ -129,3 +129,40 @@ def run(t):
         t.open('#/archive', wait='.arc')
         pg.wait_for_timeout(400)
         t.ck(_rows(pg) == 0, 'после возврата литеры запись осталась в архиве')
+
+    # --- 5. кнопка «в архив» работает во всех пяти модулях ---
+    #
+    # Дефект, ради которого это здесь: импорт archiveRecord однажды добавился
+    # только в два модуля из пяти, а сценарий смотрел лишь civil — в остальных
+    # кнопка падала с ошибкой и объект не уезжал никуда.
+    MODULES = [
+        ('apartment', 'oc-ap-1'),
+        ('residential-house', 'oc-rh-1'),
+        ('production', 'oc-pr-1'),
+        ('land-plot', 'oc-lp-1'),
+    ]
+
+    for mod, ocid in MODULES:
+        t.open('#/oc/%s/%s' % (mod, ocid), wait='.card')
+        pg.wait_for_timeout(600)
+        if not pg.locator('#btnDelOc').count():
+            t.ck(False, '%s: в карточке нет кнопки «в архив»' % mod)
+            continue
+
+        pg.locator('#btnDelOc').click()
+        pg.wait_for_timeout(600)
+        head = pg.locator('.modal-head').inner_text() if pg.locator('.modal-head').count() else ''
+        if not t.ck('архив' in head.lower(), '%s: диалог не про архив: «%s»' % (mod, head)):
+            continue
+        pg.locator('[data-modal-ok], .modal-foot .btn-primary').first.click()
+        pg.wait_for_timeout(1200)
+
+        t.open('#/archive', wait='.arc')
+        pg.wait_for_timeout(400)
+        t.ck(pg.locator('[data-arc-kind="oc"]').count() >= 1,
+             '%s: объект не попал в архив — кнопка не сработала' % mod)
+
+        restore = pg.locator('[data-arc-kind="oc"] [data-arc-restore]')
+        if restore.count():
+            restore.first.click()
+            pg.wait_for_timeout(1000)
