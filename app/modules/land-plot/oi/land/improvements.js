@@ -11,7 +11,7 @@
 // разработчиков (kernel/devNote.js): без признаков соседние ранги два оценщика
 // поставят по-разному.
 import { esc } from '../../../../kernel/dom.js';
-import { devNote } from '../../../../kernel/devNote.js';
+import { devNote, noteAfter } from '../../../../kernel/devNote.js';
 import { IMPROVEMENT_RANKS } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 
@@ -53,14 +53,14 @@ export function improvementsFields(ctx, oi) {
   const ranks = opt('land', 'improvementRank', IMPROVEMENT_RANKS);
 
   return `<div class="field">
-    <label>Ранг благоустройства ${devNote(RANK_NOTE)}</label>
+    <label>${noteAfter('Ранг благоустройства', RANK_NOTE)}</label>
     <select class="select" data-land-improve-rank>
       <option value="">Не выбрано</option>
       ${ranks.map((r) => `<option ${r === oi.improvementRank ? 'selected' : ''}>${esc(r)}</option>`).join('')}
     </select>
   </div>
   <div class="field">
-    <label>Особенности благоустройства ${devNote(SADY_NOTE, { align: 'left' })}</label>
+    <label>${noteAfter('Особенности благоустройства', SADY_NOTE, { align: 'left' })}</label>
     <textarea class="textarea ta-wide" data-land-improve-note
       placeholder="Что именно есть на участке: ограждение, покрытие, освещение, насаждения…">${esc(oi.improvementNote || '')}</textarea>
   </div>`;

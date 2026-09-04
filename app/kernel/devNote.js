@@ -30,7 +30,11 @@ import { esc } from './dom.js';
 export function devNote(text, { title = 'Заметка для разработчиков', align = 'auto' } = {}) {
   if (!text) return '';
 
-  return `<span class="dev-note ${align === 'left' ? 'left' : ''}" tabindex="0" role="note"
+  // Неразрывный пробел в начале — часть разметки, а не украшение: без него у
+  // длинной подписи («Назначение по правоудостоверяющему документу») значок
+  // переносился на отдельную строку и выглядел оторванным от поля. Поэтому в
+  // местах вызова перед вставкой заметки обычного пробела быть не должно.
+  return `&nbsp;<span class="dev-note ${align === 'left' ? 'left' : ''}" tabindex="0" role="note"
     data-dev-note data-dev-align="${esc(align)}">
     <span class="dev-note-ico" aria-hidden="true">i</span>
     <span class="dev-note-pop">
@@ -122,4 +126,12 @@ export function installDevNoteBounds() {
 
 // Заметка рядом с подписью поля: <label>Название devNote(...)</label>.
 // Отдельная функция ради читаемости вызова в разметке карточек.
-export const noteAfter = (label, text, opts) => `${label} ${devNote(text, opts)}`;
+// Заметка рядом с подписью поля: <label>${noteAfter('Название', TEXT)}</label>.
+//
+// Обёртка обязательна, а не для красоты: подпись поля (.field>label в
+// styles/app.css) — это flex-контейнер с переносом, поэтому значок оказывался
+// ОТДЕЛЬНЫМ элементом и при переносе длинной подписи уезжал на свою строку —
+// у «Назначения по правоудостоверяющему документу» он висел третьей строкой
+// под текстом. Внутри span поток обычный, и неразрывный пробел из devNote
+// держит значок при последнем слове.
+export const noteAfter = (label, text, opts) => `<span class="lbl-note">${label}${devNote(text, opts)}</span>`;

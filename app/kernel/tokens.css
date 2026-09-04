@@ -120,10 +120,13 @@ input,select,textarea{font:inherit;color:inherit}
 /* Код ЕНИ: неверная длина подсвечивается в поле, сообщение — под ним и ВНЕ
    потока, иначе выросшее поле подняло бы соседей по строке (сетки форм
    выравнивают поля по низу). Тот же приём, что у ошибки года. */
-.eni-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
-.eni-err{position:absolute;left:0;top:100%;font-size:10px;color:var(--danger);
+.eni-bad,
+.field-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
+.eni-err,
+.field-err{position:absolute;left:0;top:100%;font-size:10px;color:var(--danger);
   font-weight:600;line-height:1.25;pointer-events:none}
-.field:has(> .eni-err:not(:empty)){position:relative}
+.field:has(> .eni-err:not(:empty)),
+.field:has(> .field-err:not(:empty)){position:relative}
 .yf-input.yf-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
 /* Сообщение об ошибке выведено из потока: место под него резервировать нельзя —
    поле года становится выше соседних и вылезает из общей сетки блока. */
@@ -251,14 +254,21 @@ input,select,textarea{font:inherit;color:inherit}
 /* Список — в <body> и position:fixed: поля живут внутри прокручиваемых панелей
    и таблиц, вложенный список обрезался бы их границами. */
 .pick-menu{position:fixed;z-index:400;min-width:120px;max-width:min(420px,92vw);
-  max-height:min(320px,60vh);overflow:auto;padding:4px;background:var(--panel);
-  border:1px solid var(--line);border-radius:10px;
+  display:flex;flex-direction:column;overflow:hidden;padding:4px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
   box-shadow:0 12px 32px rgba(15,23,42,.18)}
-.pick-search{display:block;width:100%;height:30px;margin-bottom:4px;padding:0 9px;
-  border:1px solid var(--line-input);border-radius:8px;font-size:12.5px;background:#fff}
+/* Поиск не прокручивается вместе со списком: он всегда на месте, сверху. */
+.pick-search{flex:0 0 auto;display:block;width:100%;height:30px;margin-bottom:4px;
+  padding:0 9px;border:1px solid var(--line-input);border-radius:8px;
+  font-size:12.5px;background:#fff}
 .pick-search:focus{outline:none;border-color:var(--blue-600);
   box-shadow:0 0 0 3px rgba(22,104,201,.14)}
-.pick-list{max-height:min(280px,52vh);overflow:auto}
+/* Прокручивается ТОЛЬКО список пунктов. Раньше высоту ограничивали и меню, и
+   список, причём меню (320px) было ниже суммы своего содержимого (поиск 34 +
+   список 280 + отступы 8), поэтому появлялись ДВА ползунка рядом — вскрылось,
+   когда в справочник серий добавили пункт (пользователь 04.09.2026).
+   Теперь ограничение одно, у списка; меню просто обрезает лишнее. */
+.pick-list{flex:1 1 auto;min-height:0;max-height:min(280px,52vh);overflow:auto}
 .pick-opt{padding:6px 10px;border-radius:7px;font-size:12.5px;color:var(--slate-700);
   cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pick-opt.cursor{background:var(--blue-50)}
@@ -274,8 +284,16 @@ input,select,textarea{font:inherit;color:inherit}
    Цвет намеренно чужой для интерфейса (янтарный), чтобы заметку не приняли за
    обычную подсказку. Раскрытие на CSS: карточки перерисовываются целиком, и
    JS-обработчик пришлось бы привязывать заново после каждой отрисовки. */
+/* Подпись поля вместе со значком заметки: один элемент внутри flex-подписи,
+   иначе значок при переносе уезжает на отдельную строку (kernel/devNote.js,
+   noteAfter). min-width нужен, чтобы длинная подпись переносилась по словам,
+   а не растягивала колонку. */
+.lbl-note{display:inline;min-width:0}
+
+/* Отступ слева даёт неразрывный пробел из kernel/devNote.js — он же не даёт
+   значку оторваться от подписи на отдельную строку. */
 .dev-note{position:relative;display:inline-flex;vertical-align:middle;
-  margin-left:6px;cursor:help;outline:none}
+  cursor:help;outline:none}
 .dev-note-ico{display:inline-flex;align-items:center;justify-content:center;
   width:16px;height:16px;border-radius:50%;background:var(--amber-500,#e8a33d);
   color:#fff;font-size:11px;font-weight:700;font-style:italic;line-height:1;

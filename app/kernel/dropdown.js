@@ -131,8 +131,12 @@ function openMenu(btn, select) {
     if (it.group !== undefined) return `<div class="pick-group">${esc(it.group)}</div>`;
     if (q && !it.label.toLowerCase().includes(q)) return '';
     const on = it.value === select.value;
+    // title НЕ ставим здесь: подсказка нужна только тем пунктам, чей текст не
+    // уместился (см. hintClipped ниже). Иначе она всплывает над каждым пунктом,
+    // повторяя ровно то, что и так видно, и закрывает соседние строки
+    // (замечание пользователя 04.09.2026).
     return `<div class="pick-opt ${on ? 'on' : ''} ${it.disabled ? 'off' : ''}"
-      role="option" data-pick-i="${i}" title="${esc(it.label)}">${esc(it.label) || '&nbsp;'}</div>`;
+      role="option" data-pick-i="${i}">${esc(it.label) || '&nbsp;'}</div>`;
   }).join('');
 
   menu.innerHTML = (searchable
@@ -145,16 +149,38 @@ function openMenu(btn, select) {
   // Подсказка, всплывшая от наведения на кнопку, перекрыла бы первый пункт.
   document.querySelectorAll('.ov-tip').forEach((t) => t.remove());
 
+  // Подсказку получает только обрезанный пункт: сравниваем полную ширину
+  // текста с видимой. Считается один раз на открытие (и после поиска) — не по
+  // наведению, чтобы не мерить в момент, когда человек ведёт мышью.
+  const hintClipped = () => {
+    menu.querySelectorAll('.pick-opt').forEach((el) => {
+      if (el.scrollWidth > el.clientWidth + 1) el.title = el.textContent;
+      else el.removeAttribute('title');
+    });
+  };
+
   let opts = Array.from(menu.querySelectorAll('.pick-opt:not(.off)'));
   let cursor = opts.findIndex((el) => el.classList.contains('on'));
   if (cursor < 0) cursor = 0;
 
-  const mark = () => {
+  // Пометка «где я сейчас» одна на список: мышь и клавиатура ведут один и тот
+  // же курсор. Иначе подсвеченных пунктов оказывается два — под мышью и под
+  // клавиатурой — и непонятно, что выберет Enter.
+  const mark = ({ scroll = true } = {}) => {
     opts.forEach((el, i) => el.classList.toggle('cursor', i === cursor));
     const el = opts[cursor];
-    if (el) el.scrollIntoView({ block: 'nearest' });
+    if (el && scroll) el.scrollIntoView({ block: 'nearest' });
   };
   mark();
+  hintClipped();
+
+  menu.addEventListener('mousemove', (e) => {
+    const el = e.target.closest('.pick-opt');
+    if (!el || el.classList.contains('off')) return;
+    const i = opts.indexOf(el);
+    // Прокрутку при наведении не трогаем: список дёргался бы под мышью.
+    if (i >= 0 && i !== cursor) { cursor = i; mark({ scroll: false }); }
+  });
 
   const search = menu.querySelector('[data-pick-search]');
   if (search) {
@@ -164,6 +190,7 @@ function openMenu(btn, select) {
       opts = Array.from(menu.querySelectorAll('.pick-opt:not(.off)'));
       cursor = 0;
       mark();
+      hintClipped();
     };
     // Фокус в поиск сразу: список открывают, чтобы найти нужное.
     setTimeout(() => search.focus(), 0);

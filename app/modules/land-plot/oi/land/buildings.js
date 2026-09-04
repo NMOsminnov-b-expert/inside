@@ -81,7 +81,7 @@ export function auxBuildingsHTML(ctx, oi) {
     <div class="sec-h acc-head" data-acc-toggle="aux|land"
       style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <span class="al-head-left" style="display:flex;align-items:center;gap:8px;min-width:0">
-        <span class="chev">▾</span>Вспомогательные постройки ${devNote(AUX_NOTE)}
+        <span class="chev">▾</span>Вспомогательные постройки${devNote(AUX_NOTE)}
         <span class="pill-mini ${items.length ? 'pill-pend' : ''}">${items.length}</span>
         <span class="al-sum">Σ ${fmtNum(areaSum(oi))} м²</span>
       </span>

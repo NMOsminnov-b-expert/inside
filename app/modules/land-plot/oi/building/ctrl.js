@@ -1,3 +1,6 @@
+import { fieldsThatDisappear } from '../../../../kernel/fieldsPreview.js';
+import { confirmDialog } from '../../../../kernel/dialog.js';
+import { render } from './view.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -156,8 +159,30 @@ export function bind(ctx, oi) {
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
+  // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
+  // перед сменой показываем, что скроется. Значения при этом сохраняются в
+  // записи и вернутся, если категорию поставить обратно — об этом в диалоге
+  // сказано прямо, иначе человек не решится нажать.
+  const warnCategory = (next, apply) => {
+    const lost = fieldsThatDisappear(render, ctx, oi, next);
+    if (!lost.length) { apply(); return; }
+
+    confirmDialog({
+      title: 'Сменить категорию объекта имущества?',
+      text: 'В новой категории эти поля не показываются. Значения сохранятся '
+        + 'и вернутся, если поставить категорию обратно.',
+      list: lost,
+      okLabel: 'Сменить категорию',
+    }).then((ok) => { if (ok) apply(); });
+  };
+
   const cc = s.$('[data-catclass]');
-  if (cc) cc.onchange = () => { oi.catClass = cc.value; ctx.render(); };
+  if (cc) cc.onchange = () => {
+    warnCategory({ catClass: cc.value }, () => { oi.catClass = cc.value; ctx.render(); });
+    // Пока человек не ответил, поле показывает прежнее значение: иначе при
+    // отказе в нём осталось бы то, что он не выбрал.
+    cc.value = oi.catClass || cc.value;
+  };
 
   const rc = s.$('[data-rescat]');
   // Перерисовка обязательна: от категории зависит состав «Расположения

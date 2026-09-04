@@ -68,6 +68,58 @@ def run(t):
     # Первый пункт должен быть кликабелен: подсказка не должна его накрывать.
     t.ck(menu.locator('.pick-opt').first.is_visible(), 'первый пункт списка не виден')
 
+    # Один ползунок, а не два. Высоту раньше ограничивали и меню, и список
+    # внутри него, причём меню было ниже суммы своего содержимого — рядом
+    # появлялись две полосы прокрутки (замечание пользователя 04.09.2026,
+    # вскрылось при добавлении пункта в справочник серий).
+    box = pg.evaluate('''() => {
+      const menu = document.querySelector('.pick-menu');
+      const st = getComputedStyle(menu);
+      const scrollers = [menu, ...menu.querySelectorAll('*')]
+        .filter((el) => {
+          const s = getComputedStyle(el);
+          return (s.overflowY === 'auto' || s.overflowY === 'scroll');
+        })
+        .map((el) => el.className);
+      return { menuOverflow: st.overflowY, scrollers };
+    }''')
+    t.ck(box['menuOverflow'] not in ('auto', 'scroll'),
+         'само меню списка прокручивается — это второй ползунок: overflow-y=%s'
+         % box['menuOverflow'])
+    t.ck(len(box['scrollers']) <= 1,
+         'в списке больше одной полосы прокрутки: %s' % box['scrollers'])
+
+    # Интерактивность пунктов (замечание пользователя 04.09.2026): подсказка
+    # только у пункта, чей текст не уместился, и подсветка идёт за мышью.
+    # Раньше title стоял у каждого пункта — подсказка всплывала над каждым,
+    # повторяя видимое и закрывая соседние строки, а наведение не подсвечивало
+    # ничего: пометка двигалась только с клавиатуры.
+    hints = pg.evaluate("""() => {
+      const els = [...document.querySelectorAll('.pick-opt')];
+      return {
+        titled: els.filter((e) => e.hasAttribute('title')).length,
+        clipped: els.filter((e) => e.scrollWidth > e.clientWidth + 1).length,
+      };
+    }""")
+    t.ck(hints['titled'] == hints['clipped'],
+         'подсказки не по обрезке текста: с подсказкой %d, обрезано %d'
+         % (hints['titled'], hints['clipped']))
+
+    menu.locator('.pick-opt').nth(2).hover()
+    pg.wait_for_timeout(300)
+    hover = pg.evaluate("""() => {
+      const els = [...document.querySelectorAll('.pick-opt')];
+      const h = els.find((e) => e.matches(':hover'));
+      return {
+        marked: h ? h.classList.contains('cursor') : false,
+        total: els.filter((e) => e.classList.contains('cursor')).length,
+      };
+    }""")
+    t.ck(hover['marked'], 'пункт под мышью не подсвечен')
+    t.ck(hover['total'] == 1,
+         'подсвечено несколько пунктов сразу: %d — непонятно, что выберет Enter'
+         % hover['total'])
+
     menu.locator('.pick-opt').nth(2).click()
     pg.wait_for_timeout(600)
     t.ck(pg.locator('.pick-menu').count() == 0, 'после выбора список не закрылся')

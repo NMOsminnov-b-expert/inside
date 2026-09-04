@@ -209,6 +209,37 @@ def run(t):
     t.ck(pg.locator('[data-land-location]').count() == 0,
          'в крупном городе осталось прежнее «расположение в районе»')
 
+    # --- 6б. проверка формата координат (ТЗ §5.1) ---
+    #
+    # Перепутанные или оборванные координаты сами себя не проявляют: точка
+    # окажется не там, и заметят это на карте, много позже. Проверка сторожит,
+    # что сообщение появляется и снимается.
+    _open_land(t)
+    for value, expect_err, what in [
+        ('42.874722, 74.612222', False, 'верные координаты помечены ошибкой'),
+        ('42.874722 74.612222', True, 'координаты без запятой приняты'),
+        ('42,874722, 74,612222', True, 'запятая как десятичный разделитель принята'),
+        ('74.612222, 42.874722', True, 'перепутанные широта и долгота приняты'),
+        ('42.874722', True, 'одна широта без долготы принята'),
+        ('', False, 'пустое поле координат помечено ошибкой'),
+    ]:
+        gps = pg.locator('[data-land-gps]')
+        gps.fill(value)
+        gps.dispatch_event('input')
+        pg.wait_for_timeout(220)
+        bad = pg.locator('[data-land-gps].field-bad').count() == 1
+        t.ck(bad == expect_err, what)
+
+    msg = (pg.locator('[data-field-err]').first.inner_text()
+           if pg.locator('[data-field-err]').count() else '')
+    pg.locator('[data-land-gps]').fill('74.612222, 42.874722')
+    pg.locator('[data-land-gps]').dispatch_event('input')
+    pg.wait_for_timeout(250)
+    msg = (pg.locator('[data-field-err]').first.inner_text()
+           if pg.locator('[data-field-err]').count() else '')
+    t.ck('перепутан' in msg.lower(),
+         'сообщение не объясняет, что широта и долгота перепутаны: %r' % msg)
+
     # --- 7. заметка для разработчиков ---
     notes = pg.locator('.dev-note')
     t.ck(notes.count() >= 2, 'заметок «i» меньше двух: %d' % notes.count())

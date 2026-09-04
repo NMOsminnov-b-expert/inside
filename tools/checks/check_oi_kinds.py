@@ -83,3 +83,64 @@ def run(t):
         for need in ('Объект оценки', 'Литера (строение)', 'Квартира', 'Земельный участок'):
             t.ck(need in got, 'каталог «%s»: нет карточки «%s» (есть: %s)'
                  % (name.splitlines()[0], need, got))
+
+    check_hidden_fields_warning(t)
+
+
+# --- предупреждение о скрывающихся полях (ТЗ 30 §9.6) --------------------
+#
+# От назначения по техпаспорту зависит состав ОСТАЛЬНЫХ полей карточки: у
+# производственно-складского открывается блок «Доп параметры». Человек менял
+# значение и не видел, что вместе с ним со страницы ушли заполненные поля —
+# они просто перестают показываться, данные остаются в записи.
+#
+# Проверка сторожит и обратное: диалог не должен выскакивать, когда ничего не
+# исчезает, иначе на него перестанут смотреть.
+def check_hidden_fields_warning(t):
+    pg = t.page
+
+    t.open('#/oc/civil/oc-cv-1', wait='tr[data-open-oi]')
+    pg.wait_for_timeout(500)
+    pg.locator('tr[data-open-oi]').first.click()
+    pg.wait_for_selector('[data-catclass]', timeout=15000)
+    pg.wait_for_timeout(700)
+
+    cc = pg.locator('[data-catclass]')
+    if not t.ck(cc.count() == 1, 'в карточке литеры нет поля назначения по ТП'):
+        return
+
+    # Производственное назначение: часть полей уходит, значит нужен диалог.
+    cc.fill('Производственно-складское')
+    cc.dispatch_event('change')
+    pg.wait_for_timeout(800)
+
+    if t.ck(pg.locator('.modal-head').count() == 1,
+            'смена назначения прошла без предупреждения о скрытых полях'):
+        items = pg.eval_on_selector_all('.modal-list-facts li',
+                                        'els => els.map((e) => e.textContent.trim())')
+        t.ck(len(items) >= 1, 'в диалоге пустой список полей')
+        # Значение рядом с подписью: без него человек не понимает, что теряет.
+        t.ck(any('(' in it for it in items),
+             'в списке нет значений полей: %s' % items)
+        # Никаких ключей данных в тексте — только подписи (реестр косяков §2).
+        t.ck(not any(ch in ''.join(items) for ch in ('_', '{', '}')),
+             'в списке полей технические ключи: %s' % items)
+
+        # Отказ ничего не меняет.
+        pg.locator('[data-modal-cancel]').last.click(force=True)
+        pg.wait_for_timeout(600)
+        t.ck(pg.locator('#q-prod').count() == 0,
+             'после отказа состав карточки всё равно изменился')
+
+    # Два диалога поверх друг друга — тупик: кнопки нижнего перехватывает фон
+    # верхнего. Ядро оставляет один (kernel/dialog.js).
+    cc = pg.locator('[data-catclass]')
+    cc.fill('Производственно-складское')
+    cc.dispatch_event('change')
+    cc.dispatch_event('change')
+    pg.wait_for_timeout(800)
+    t.ck(pg.locator('.modal-back').count() <= 1,
+         'на экране больше одного диалога: %d' % pg.locator('.modal-back').count())
+    if pg.locator('.modal-back').count():
+        pg.locator('[data-modal-cancel]').last.click(force=True)
+        pg.wait_for_timeout(400)

@@ -7,7 +7,7 @@ import {
   LAND_CATEGORIES, LAND_RIGHTS, LAND_PURPOSE_DOC, LAND_SOIL, LAND_STONINESS,
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { devNote } from '../../../../kernel/devNote.js';
+import { devNote, noteAfter } from '../../../../kernel/devNote.js';
 import { utilitiesMS } from './utilities.js';
 import { auxBuildingsHTML } from './buildings.js';
 import { improvementsFields } from './improvements.js';
@@ -42,7 +42,7 @@ function commonCard(oi) {
 <div class="grid g-4">
 <div class="field"><label>Тип земельного участка</label><select class="select" data-land-type>${options(opt('land', 'landType', LAND_TYPES), oi.landType)}</select></div>
 ${nonAgricultural ? selectField('Категория земель', 'data-land-category', opt('land', 'landCategory', LAND_CATEGORIES), oi.landCategory) : ''}
-<div class="field"><label>Назначение по правоудостоверяющему документу ${devNote(PURPOSE_NOTE)}</label>
+<div class="field"><label>${noteAfter('Назначение по правоудостоверяющему документу', PURPOSE_NOTE)}</label>
 <div class="inline-row">
 <select class="select" data-land-purpose style="flex:1 1 200px">${options(opt('land', 'purpose', LAND_PURPOSE_DOC), oi.purpose)}</select>
 <input class="input" data-land-purpose-other placeholder="Укажите назначение" maxlength="120"
@@ -148,15 +148,15 @@ function locationCard(ctx, oi) {
   const agricultural = oi.landType !== 'Несельскохозяйственный';
 
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">03</span><h3>Местоположение</h3></div><div class="card-pad">
-<div class="sec-h">Расположение ${devNote(CITY_NOTE)}</div>
+<div class="sec-h">Расположение${devNote(CITY_NOTE)}</div>
 <div class="grid g-4">
 <div class="field"><label>Координаты (широта, долгота)</label>
   <input class="input mono" data-land-gps value="${esc(oi.gps || '')}"
     placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота"></div>
 ${bigCity
-    ? `<div class="field"><label>Крупная зона ${devNote(ZONE_NOTE)}</label>
+    ? `<div class="field"><label>${noteAfter('Крупная зона', ZONE_NOTE)}</label>
         <input class="input" data-land-zone value="${esc(oi.zone || '')}" placeholder="Центр"></div>
-       <div class="field"><label>Микрорайон ${devNote(ZONE_NOTE)}</label>
+       <div class="field"><label>${noteAfter('Микрорайон', ZONE_NOTE)}</label>
         <input class="input" data-land-microdistrict value="${esc(oi.microdistrict || '')}" placeholder="Военторг"></div>`
     : selectField('Расположение в районе', 'data-land-location', opt('land', 'location', LAND_LOCATION), oi.location)}
 ${selectField('Расположение к трассе', 'data-land-road', opt('land', 'roadLocation', LAND_ROAD_LOCATION), oi.roadLocation)}

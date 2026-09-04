@@ -1,5 +1,7 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
+import { bindCheckedField } from '../../../../kernel/fieldError.js';
+import { gpsError } from './gps.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindUtilities } from './utilities.js';
 import { bindAuxBuildings } from './buildings.js';
@@ -30,7 +32,6 @@ export function bind(ctx, oi) {
 
     // Местоположение: координаты и деление крупных городов на зону и
     // микрорайон, удалённость от райцентра у сельхоза (ТЗ §5).
-    '[data-land-gps]': 'gps',
     '[data-land-zone]': 'zone',
     '[data-land-microdistrict]': 'microdistrict',
     '[data-land-distance]': 'distanceToCenter',
@@ -58,6 +59,11 @@ export function bind(ctx, oi) {
 
   // Категория земель — только у несельхоза (ТЗ §2.1), перерисовка не нужна:
   // состав полей от неё не зависит.
+  // Координаты: проверка формата (ТЗ §5.1, oi/land/gps.js). Через общий
+  // механизм сообщений ядра — тот же, что у кода ЕНИ: перепутанные или
+  // оборванные координаты сами себя не проявляют, точка просто окажется не там.
+  bindCheckedField(s.$('[data-land-gps]'), gpsError, (v) => { oi.gps = v; });
+
   // Назначение по правоудостоверяющему документу — справочник с тем же
   // приёмом, что у прав: «Иное» открывает поле ручного ввода, поэтому нужна
   // перерисовка (от значения зависит видимость поля).

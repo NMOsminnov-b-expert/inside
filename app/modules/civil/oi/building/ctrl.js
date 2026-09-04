@@ -1,3 +1,6 @@
+import { fieldsThatDisappear } from '../../../../kernel/fieldsPreview.js';
+import { confirmDialog } from '../../../../kernel/dialog.js';
+import { render } from './view.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -160,6 +163,23 @@ export function bind(ctx, oi) {
   const rg = s.$('[data-rights]');
   if (rg) rg.onchange = () => { oi.rights = rg.value; };
 
+  // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
+  // перед сменой показываем, что скроется. Значения при этом сохраняются в
+  // записи и вернутся, если категорию поставить обратно — об этом в диалоге
+  // сказано прямо, иначе человек не решится нажать.
+  const warnCategory = (next, apply) => {
+    const lost = fieldsThatDisappear(render, ctx, oi, next);
+    if (!lost.length) { apply(); return; }
+
+    confirmDialog({
+      title: 'Сменить назначение по тех паспорту?',
+      text: 'При этом назначении поля ниже не показываются. Значения '
+        + 'сохранятся и вернутся, если поставить назначение обратно.',
+      list: lost,
+      okLabel: 'Сменить назначение',
+    }).then((ok) => { if (ok) apply(); });
+  };
+
   const oic = s.$('[data-oi-category]');
   if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
 
@@ -195,7 +215,12 @@ export function bind(ctx, oi) {
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
   const cc = s.$('[data-catclass]');
-  if (cc) cc.onchange = () => { oi.catClass = cc.value; ctx.render(); };
+  if (cc) cc.onchange = () => {
+    // Именно это поле открывает блок «Доп параметры (производственное
+    // строение)», поэтому предупреждение здесь, а не у категории ОИ.
+    warnCategory({ catClass: cc.value }, () => { oi.catClass = cc.value; ctx.render(); });
+    cc.value = oi.catClass || '';
+  };
 
   const rc = s.$('[data-rescat]');
   // Перерисовка обязательна: от категории зависит состав «Расположения
