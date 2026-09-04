@@ -11,6 +11,7 @@ import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
+import { setActiveOcType } from '../../kernel/ocType.js';
 import { MENU_HREF } from '../../kernel/router.js';
 import { getOi, ui, resetViewer } from './data/store.js';
 import { loadRecord } from './records.js';
@@ -38,6 +39,10 @@ function todayStr() {
 
 // ГЛАВНАЯ ФУНКЦИЯ МОДУЛЯ: её вызывает меню ОЦ при клике по объекту этого типа.
 export function main(host) {
+  // Открыт экран этого типа ОЦ: справочники карточек читаются по нему,
+  // включая карточки, приехавшие из чужих модулей (kernel/ocType.js).
+  setActiveOcType(manifest.id);
+
   const scope = host.scope;
   const cardCache = new Map();
 
