@@ -5,7 +5,8 @@ import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { DOC_TYPES } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextEni, nextDocId, removeRecord } from '../data/store.js';
+import { nextLetter, nextId, nextEni, nextDocId } from '../data/store.js';
+import { archiveRecord } from '../../../kernel/archive.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
@@ -150,16 +151,21 @@ export function bindOcCard(ctx) {
 
   const bd = s.$('#btnDelOc');
   if (bd) bd.onclick = async () => {
+    // Не удаление: объект уезжает в архив вместе с литерами и документами,
+    // откуда его можно вернуть целиком (ТЗ docs/tz/20-arhiv.md, §4.2).
     const ok = await ctx.host.confirm({
-      title: 'Удаление объекта оценки',
-      text: `Удалить «${rec.address}» вместе с ${rec.oi.length} ОИ? Действие нельзя отменить.`,
-      okLabel: 'Удалить',
-      danger: true,
+      title: 'Убрать объект оценки в архив?',
+      text: `Вместе с «${rec.address}» уедут ${rec.oi.length} ОИ и все документы. `
+        + 'Вернуть можно из архива целиком.',
+      okLabel: 'В архив',
     });
     if (!ok) return;
-    removeRecord(rec.id);
+
+    archiveRecord({
+      typeId: 'residential-house', typeLabel: 'Жилое здание (дом)', rec, today: ctx.today,
+    });
     ctx.host.toMenu();
-    ctx.toast('Объект оценки удалён');
+    ctx.toast('Убрано в архив: объект оценки');
   };
 
   // --- Стороны ------------------------------------------------------------

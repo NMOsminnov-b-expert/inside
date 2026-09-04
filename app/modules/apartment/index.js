@@ -1,3 +1,4 @@
+import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
 // Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
@@ -92,8 +93,12 @@ export function main(host) {
       }
       pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 
-      const i = rec.oi.findIndex((o) => o.id === id);
-      if (i >= 0) rec.oi.splice(i, 1);
+      // Литера уезжает в архив, а не удаляется: снимок уносит её площади,
+      // документы и фото, и её можно вернуть (ТЗ docs/tz/20-arhiv.md, §4.3).
+      archiveOi({
+        typeId: 'apartment', typeLabel: 'Квартира (жилое помещение)',
+        rec, oi, movedPhotos: hasPhotos ? photos : null, today: ctx.today,
+      });
 
       if (ctx.oi && ctx.oi.id === id) {
         ui.letterEdit = false;

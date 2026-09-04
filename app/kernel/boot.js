@@ -6,6 +6,8 @@ import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
 import { installSelectWatcher } from './dropdown.js';
+import { setInstitutionProbe } from './archive.js';
+import { allNodes } from './institutions.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
@@ -254,6 +256,10 @@ export function boot() {
   // Выпадающие списки — свои, а не нативные (kernel/dropdown.js): наблюдатель
   // подхватывает и те, что появляются мимо scope.setHTML.
   installSelectWatcher();
+  // Архив спрашивает, живо ли учреждение (возврат объекта после каскада), но
+  // не импортирует дерево: иначе получился бы цикл, ведь учреждения зовут
+  // архив сами. Проверку связываем здесь, в одной точке сборки.
+  setInstitutionProbe((name) => allNodes().some((n) => n.name === name));
   start((route) => { onRoute(route); });
 }
 

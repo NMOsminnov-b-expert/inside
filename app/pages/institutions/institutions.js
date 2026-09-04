@@ -33,6 +33,7 @@ import {
   getDocument, queryDocuments, addFile, detectAutoStatus,
 } from '../../kernel/documentsRegistry.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
+import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
 
 const state = {
@@ -449,7 +450,7 @@ function docTableHTML(node) {
             ${edit ? `<button class="idoc-act" data-idoc-detach="${esc(d.id)}"
                 title="Открепить от учреждения: документ останется в реестре">⤴</button>
               <button class="idoc-act danger" data-idoc-del="${esc(d.id)}"
-                title="Удалить документ из реестра">×</button>` : ''}
+                title="Убрать документ в архив — оттуда его можно вернуть">×</button>` : ''}
           </span>
         </div>`;
       }).join('')}
@@ -1551,19 +1552,20 @@ export function mountInstitutions(host) {
       e.stopPropagation();
       const id = b.dataset.idocDel;
       const doc = getDocument(id);
+      // Не удаление: документ уезжает в архив, откуда его можно вернуть
+      // (ТЗ docs/tz/20-arhiv.md, §4.1).
       const ok = await host.confirm({
-        title: 'Удалить документ',
-        okLabel: 'Удалить',
-        danger: true,
-        text: `«${doc ? doc.type : 'Документ'}» будет удалён из реестра вместе с файлами. `
-          + 'Действие нельзя отменить.',
+        title: 'Убрать документ в архив?',
+        okLabel: 'В архив',
+        text: `«${doc ? doc.type : 'Документ'}» исчезнет из реестра, но останется `
+          + 'в разделе «Архив» — оттуда его можно найти и вернуть.',
       });
       if (!ok) return;
 
-      removeDocument(id);
+      archiveRegistryDoc({ docId: id, place: 'institution', node: getNode(state.selected) });
       if (state.docOpen === id) state.docOpen = null;
       render();
-      host.toast('Документ удалён', 'ok');
+      host.toast('Убрано в архив: документ', 'ok');
     });
 
     // --- список документов: свернуть, развернуть, потянуть ---

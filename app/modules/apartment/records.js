@@ -194,6 +194,10 @@ export function getSummary(id) {
 // Записи, живущие в памяти модуля: сид плюс материализованные из массовой
 // генерации. Нужны архиву документов (kernel/archive.js) — он обходит модули
 // через реестр и собирает rec.archive.
+// Изъятие и возврат записи — для архива (kernel/archive.js). Реестр модуля
+// остаётся единственным, кто трогает свой список записей.
+export { takeRecord, restoreRecord } from './data/store.js';
+
 export function allRecords() {
   return records;
 }
