@@ -4,6 +4,14 @@ import { enhanceSelects } from './dropdown.js';
 // Модальные окна вместо нативных confirm/prompt: и визуал в системе,
 // и не блокируют поток (важно для просмотрщика и делегированных слушателей).
 function openModal(inner, { onMount } = {}) {
+  // Один диалог на экране. Второй, открытый поверх первого, выглядит как
+  // затемнение без кнопок: клик по кнопке нижнего окна перехватывает верхний
+  // фон, и человек оказывается в тупике. Такое случается не от небрежности, а
+  // просто когда событие пришло дважды (быстрый повторный выбор в поле,
+  // change от синтетического ввода). Прежний диалог к этому моменту уже
+  // неактуален — его вопрос задан по устаревшему состоянию, поэтому снимаем.
+  document.querySelectorAll('.modal-back').forEach((old) => old.remove());
+
   const back = document.createElement('div');
   back.className = 'modal-back';
   back.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${inner}</div>`;
@@ -22,11 +30,24 @@ function openModal(inner, { onMount } = {}) {
   return close;
 }
 
-export function confirmDialog({ title = 'Подтверждение', text = '', okLabel = 'Подтвердить', danger = false }) {
+// list — перечень «что произойдёт»: пары «подпись → значение». Появился для
+// смены типа ОЦ (kernel/typeChange.js): там список полей, которых не будет в
+// новой карточке, сплошным текстом через запятую читался как каша, а решение
+// по нему человек принимает всерьёз. Экранируется так же, как text.
+export function confirmDialog({
+  title = 'Подтверждение', text = '', note = '', list = [],
+  okLabel = 'Подтвердить', danger = false,
+}) {
+  const listHTML = list.length
+    ? `<ul class="modal-list-facts">${list.map((it) => (typeof it === 'string'
+      ? `<li>${esc(it)}</li>`
+      : `<li><b>${esc(it.label)}</b>${it.value ? `<span>${esc(it.value)}</span>` : ''}</li>`)).join('')}</ul>`
+    : '';
+
   return new Promise((resolve) => {
     openModal(
       `<div class="modal-head">${esc(title)}</div>
-       <div class="modal-body">${esc(text)}</div>
+       <div class="modal-body">${esc(text)}${listHTML}${note ? `<div class="modal-note">${esc(note)}</div>` : ''}</div>
        <div class="modal-foot">
          <button class="btn btn-ghost" data-modal-cancel>Отмена</button>
          <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-modal-ok>${esc(okLabel)}</button>

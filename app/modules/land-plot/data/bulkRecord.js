@@ -2,6 +2,7 @@
 // Параметры те же, что использовались для сводки, поэтому список и карточка
 // не расходятся.
 import { fmt } from '../../../kernel/fmt.js';
+import { landPurposeSample } from '../oi/land/model.js';
 import { addressOf } from './bulk.js';
 
 function structFor(i) {
@@ -106,7 +107,7 @@ function landOi(id, i, p, suffix, opts = {}) {
     id: `${id}-oil${suffix}`,
     card: 'land',
     name: opts.name || 'Земельный участок',
-    purpose: p.purpose,
+    purpose: landPurposeSample(i),
     landType: i % 2 ? 'Несельскохозяйственный' : 'Сельскохозяйственный',
     areas: {
       pravo: fmt(opts.area === undefined ? p.metrics.area * 3 : opts.area),
@@ -117,7 +118,7 @@ function landOi(id, i, p, suffix, opts = {}) {
     rights: 'Собственность',
     useCategory: i % 2 ? '' : 'Орошаемая пашня',
     irrigation: i % 2 ? '' : 'Средняя',
-    soil: i % 2 ? '' : 'Чернозем',
+    soil: i % 2 ? '' : 'Чернозёмная',
     bonitet: i % 2 ? '' : '65',
     stoniness: i % 2 ? '' : 'Нет',
     utilities: { electricity: true, water: i % 2 === 0, sewerage: false, heating: false },
@@ -178,7 +179,7 @@ function apartmentOi(id, i, p, letter) {
       floor: String(1 + (i % 12)),
       buildingFloors: String(4 + (i % 9)),
       rooms: String(1 + (i % 4)),
-      series: ['Индивидуальная', 'Серия 97', 'Серия 104', 'Серия 105', 'Серия 106'][i % 5],
+      series: ['Индивидуальная', '104', '105/106', 'Хрущёвка', 'Сталинка'][i % 5],
       location: i % 4 ? 'Неугловое' : 'Угловое',
       locationOther: '',
       storeys: '1',

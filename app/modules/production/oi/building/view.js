@@ -71,6 +71,10 @@ function flagsRowHTML(oi) {
 </div>`;
 }
 
+// Назначение по техпаспорту — свободный текст, и это намеренно: формулировка
+// переписывается из документа как есть. В квартире, жилом доме и участке этого
+// поля нет вовсе, а ключ catClass там держит категорию из справочника.
+// Расхождение согласовано с пользователем 04.09.2026 (docs/reestr-kosyakov.md §5).
 function generalCard(ctx, oi) {
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;

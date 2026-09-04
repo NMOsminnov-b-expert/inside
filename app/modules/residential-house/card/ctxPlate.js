@@ -39,7 +39,7 @@ export function ctxPlate(ctx) {
         ${flagBadgesHTML(recFlags(ctx.rec))}
         <span class="ctx-actions">
           <button class="btn btn-danger btn-sm ctx-del" data-del-oi="${esc(oi.id)}"
-            title="Удалить литеру — действие нельзя отменить">Удалить литеру</button>
+            title="Убрать в архив — оттуда литеру можно вернуть">Убрать в архив</button>
           <button class="ctx-act primary" data-save-oi title="Сохранить">${ICON_SAVE}</button>
           <button class="ctx-act" data-back title="Отмена — вернуться к объекту оценки">${ICON_BACK}</button>
         </span>

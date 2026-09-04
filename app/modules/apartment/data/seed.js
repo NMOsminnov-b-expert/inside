@@ -96,7 +96,7 @@ export function createSeed() {
           photos: { 'Фасад': 2, 'Внутр. помещения': 4 },
           notes: [mkNote('Фото санузла нечитаемое', false)],
           apartment: {
-            floor: '7', buildingFloors: '12', rooms: '3', series: 'Серия 106',
+            floor: '7', buildingFloors: '12', rooms: '3', series: '105/106',
             location: 'Угловое', locationOther: '', storeys: '1',
             loggiaCount: '1', balconyCount: '1', loggiaBuildArea: '4.20', balconyBuildArea: '3.10',
             rights: 'Собственность', rightsOther: '',
@@ -150,7 +150,7 @@ export function createSeed() {
           heating: ['Центральное', 'Чугунные радиаторы'],
           photos: { 'Фасад': 1, 'Внутр. помещения': 2 },
           apartment: {
-            floor: '2', buildingFloors: '5', rooms: '2', series: 'Серия 105',
+            floor: '2', buildingFloors: '5', rooms: '2', series: '105/106',
             location: 'Неугловое', locationOther: '', storeys: '1',
             loggiaCount: '', balconyCount: '1', loggiaBuildArea: '', balconyBuildArea: '2.80',
             rights: 'Собственность', rightsOther: '',

@@ -109,7 +109,7 @@ export function createSeed() {
           id: 'oi-cv1-l',
           card: 'land',
           name: 'Земельный участок',
-          purpose: 'Административное',
+          purpose: 'Под общественную застройку',
           area: '3200.00',
           eni: '147561671000',
           status: 'Основное',

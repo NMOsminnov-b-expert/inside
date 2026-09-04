@@ -1,3 +1,5 @@
+import { ocTypes, previewOcTypeChange, changeOcType } from '../../../kernel/typeChange.js';
+import { plural, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { parseEni } from '../../../kernel/fmt.js';
@@ -7,6 +9,45 @@ import { openDocViewer, VS } from '../parts/viewer/state.js';
 export function bindOcForm(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
+
+  // Смена типа объекта оценки (ТЗ docs/tz/30-uchastok-pravki.md §9).
+  //
+  // Тип ОЦ — это модуль, в котором живёт запись, поэтому смена типа означает
+  // переезд между модулями (kernel/typeChange.js). Перед переездом человек
+  // видит списком, чего не будет в новой карточке, и что значения не пропадут.
+  const fType = s.$('#fType');
+  if (fType) fType.onchange = async () => {
+    const toId = fType.value;
+    if (!toId || toId === rec.typeId) return;
+
+    const info = await previewOcTypeChange(rec, toId);
+    const named = info.lost.filter((f) => f.label);
+    const unnamed = info.lost.reduce((n, f) => n + (f.unnamed || 0), 0);
+    if (unnamed) named.push({ label: `И ещё ${unnamed} ${plural(unnamed, 'поле', 'поля', 'полей')}`, value: '' });
+
+    const ok = await ctx.host.confirm({
+      title: `Сменить тип на «${info.toLabel}»?`,
+      text: named.length
+        ? 'В новой карточке не показываются:'
+        : 'Все заполненные поля показываются и в новом типе.',
+      list: named.map((f) => ({ label: f.label, value: f.value })),
+      note: `Объектов имущества переедет: ${info.oiCount}. Документов: ${info.docs}. `
+        + 'Значения сохранятся и вернутся, если сменить тип обратно.',
+      okLabel: 'Сменить тип',
+    });
+
+    if (!ok) { fType.value = rec.typeId; return; }
+
+    const res = changeOcType(rec, toId);
+    if (!res) {
+      fType.value = rec.typeId;
+      ctx.toast('Сменить тип не удалось', 'warn');
+      return;
+    }
+
+    ctx.toast(`Тип изменён: ${info.toLabel}`, 'ok');
+    location.hash = `#/oc/${encodeURIComponent(toId)}/${encodeURIComponent(rec.id)}`;
+  };
 
   const fp = s.$('#fPurpose');
   if (fp) fp.onchange = () => { rec.purposeTP = fp.value; ctx.updatePlate(); };
@@ -23,7 +64,7 @@ export function bindOcForm(ctx) {
     const bad = firstBadEni(s);
     if (bad) {
       bad.focus();
-      ctx.toast('Проверьте код ЕНИ — в нём должно быть 18 цифр', 'warn');
+      ctx.toast(`Проверьте код ЕНИ — в нём должно быть ${ENI_LENGTHS.join(', ')} цифр`, 'warn');
       return;
     }
 

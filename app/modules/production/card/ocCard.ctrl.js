@@ -1,3 +1,4 @@
+import { archiveRecord } from '../../../kernel/archive.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
@@ -8,7 +9,7 @@ import { DOC_TYPES, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
-import { nextLetter, nextId, nextEni, removeRecord, nextDocId } from '../data/store.js';
+import { nextLetter, nextId, nextEni, nextDocId } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
@@ -162,6 +163,10 @@ export function bindOcCard(ctx) {
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------
+
+
+
+
   const be = s.$('#btnEditOc');
   if (be) be.onclick = () => {
     ctx.ui.viewer = { mode: 'doc' };
