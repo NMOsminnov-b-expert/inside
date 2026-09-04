@@ -110,3 +110,23 @@ export function removeRecord(id) {
   const i = records.findIndex((r) => r.id === id);
   if (i >= 0) records.splice(i, 1);
 }
+
+// Изъять запись, отдав её содержимое: так объект уезжает в архив, а не
+// исчезает (kernel/archive.js, ТЗ docs/tz/20-arhiv.md §4.2). Отличие от
+// removeRecord ровно в том, что запись возвращается вызывающему.
+export function takeRecord(id) {
+  const i = records.findIndex((r) => r.id === id);
+  if (i < 0) return null;
+  const [rec] = records.splice(i, 1);
+  return rec;
+}
+
+// Вернуть запись из архива — С ТЕМ ЖЕ идентификатором: на него ссылаются
+// документы, привязки и лог действий. Если запись с таким id уже есть,
+// возврат ничего не делает: повторный возврат не должен создавать дубль.
+export function restoreRecord(rec) {
+  if (!rec || !rec.id) return null;
+  if (records.some((r) => r.id === rec.id)) return null;
+  records.push(rec);
+  return rec;
+}

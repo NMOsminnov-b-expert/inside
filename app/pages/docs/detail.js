@@ -5,6 +5,7 @@
 import { esc } from '../../kernel/dom.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kernel/documentsRegistry.js';
+import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { openDocumentModal, openLinkModal } from './create.js';
 import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
 
@@ -108,6 +109,8 @@ export function detailHTML(doc, siblings) {
       ${navHTML(siblings)}
       <button class="btn btn-ghost" data-docs-edit>✎ Редактировать</button>
       <button class="btn btn-ghost" data-docs-download ${files.length ? '' : 'disabled'}>⭳ Скачать</button>
+      <button class="btn btn-ghost" data-docs-archive
+        title="Убрать документ в архив — оттуда его можно найти и вернуть">🗄 В архив</button>
     </div>
 
     <div class="dd-body ${listOpen ? '' : 'nolist'}" style="--dd-list-w:${listWidth}px">
@@ -232,6 +235,23 @@ export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChang
     };
     split.addEventListener('pointermove', move);
     split.addEventListener('pointerup', up);
+  };
+
+  // Убрать в архив: документ исчезает из реестра, но не из системы
+  // (ТЗ docs/tz/20-arhiv.md, §4.1).
+  const arc = scope.$('[data-docs-archive]');
+  if (arc) arc.onclick = async () => {
+    const ok = await host.confirm({
+      title: 'Убрать документ в архив?',
+      okLabel: 'В архив',
+      text: 'Документ исчезнет из реестра, но останется в разделе «Архив» — '
+        + 'оттуда его можно найти и вернуть.',
+    });
+    if (!ok) return;
+
+    archiveRegistryDoc({ docId: doc.id, place: 'docs' });
+    host.toast('Убрано в архив: документ', 'ok');
+    if (onBack) onBack();
   };
 
   const edit = scope.$('[data-docs-edit]');

@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Архив документов: убрать, найти, вернуть, права доступа.
+"""Архив: убрать, найти, вернуть, права доступа.
 
 Решение пользователя 2026-09-02: документ из карточки не удаляется, а уходит в
 архив; архив виден администратору и сотрудникам по их учреждениям.
+
+Этап 2 ТЗ (docs/tz/20-arhiv.md, 03.09.2026): в архив уезжают документы СО ВСЕХ
+мест, а не только из карточек ОЦ. Поэтому здесь же проверяется реестр
+«Документы» и документы учреждения, и отдельно — что открепление документа от
+учреждения не путается с архивированием: открепить значит снять связь, документ
+остаётся в реестре.
 """
 import os
 
@@ -129,6 +135,129 @@ def run(t):
                 hidden2 = pg.evaluate("""() => { const b = document.querySelector('[data-nav="archive"]');
                     return b ? b.hidden : null; }""")
                 t.ck(hidden2 is False, 'пункт «Архив» скрыт от сотрудника с учреждением')
+        # --- документ РЕЕСТРА уезжает в архив и возвращается -------------
+        #
+        # Раньше запись документа удалялась безвозвратно (removeDocument), и
+        # файлы уходили вместе с ней. Теперь удаление — это архив.
+        t.open('', wait='.reg-thead')
+        role = pg.locator('[data-role]')
+        if role.count():
+            role.first.select_option('admin')
+            pg.wait_for_timeout(600)
+
+        t.open('#/docs', wait='[data-doc-row]')
+        pg.wait_for_timeout(400)
+        before = pg.locator('[data-doc-row]').count()
+        pg.locator('[data-doc-row]').first.click()
+        pg.wait_for_timeout(800)
+
+        arc_btn = pg.locator('[data-docs-archive]')
+        if t.ck(arc_btn.count() == 1, 'в карточке документа нет кнопки «В архив»'):
+            arc_btn.first.click()
+            pg.wait_for_timeout(500)
+            t.ck(pg.locator('.modal-head').count() > 0,
+                 'документ реестра ушёл в архив без подтверждения')
+            pg.locator('[data-modal-ok], .modal-foot .btn-primary').first.click()
+            pg.wait_for_timeout(1000)
+
+            t.open('#/docs', wait='[data-doc-row]')
+            pg.wait_for_timeout(500)
+            after = pg.locator('[data-doc-row]').count()
+            t.ck(after == before - 1,
+                 'документ не исчез из реестра: было %d, стало %d' % (before, after))
+
+            t.open('#/archive', wait='.arc')
+            pg.wait_for_timeout(400)
+            rows = pg.locator('[data-arc-row]')
+            t.ck(rows.count() == 1, 'документ реестра не появился в архиве')
+            if rows.count():
+                t.ck('Реестр документов' in rows.first.inner_text(),
+                     'в архиве не указано, что документ из реестра')
+
+                pg.locator('[data-arc-restore]').first.click()
+                pg.wait_for_timeout(900)
+                t.ck(pg.locator('[data-arc-row]').count() == 0,
+                     'документ реестра остался в архиве после возврата')
+
+                t.open('#/docs', wait='[data-doc-row]')
+                pg.wait_for_timeout(500)
+                t.ck(pg.locator('[data-doc-row]').count() == before,
+                     'документ не вернулся в реестр: %d вместо %d'
+                     % (pg.locator('[data-doc-row]').count(), before))
+
+        # --- учреждения: удаление ведёт в архив, открепление — нет ---------
+        t.open('#/institutions', wait='.itree')
+        pg.wait_for_timeout(600)
+        rows = pg.locator('.itree-row[data-inode]')
+        found = False
+        for i in range(min(rows.count(), 30)):
+            rows.nth(i).click()
+            pg.wait_for_timeout(250)
+            tab = pg.locator('[data-itab="docs"]')
+            if not tab.count():
+                continue
+            tab.click()
+            pg.wait_for_timeout(350)
+            if pg.locator('[data-idoc]').count():
+                found = True
+                break
+
+        if t.ck(found, 'не нашёл учреждение с документами'):
+            docs_before = pg.locator('[data-idoc]').count()
+            pg.locator('[data-idoc]').first.hover()
+            pg.wait_for_timeout(200)
+
+            # Открепление: документ уходит из учреждения, но остаётся в реестре
+            # и в архив НЕ попадает.
+            det = pg.locator('[data-idoc-detach]')
+            if det.count():
+                det.first.click()
+                pg.wait_for_timeout(600)
+                if pg.locator('[data-modal-ok]').count():
+                    pg.locator('[data-modal-ok]').first.click()
+                    pg.wait_for_timeout(700)
+                t.ck(pg.locator('[data-idoc]').count() == docs_before - 1,
+                     'открепление не убрало документ из учреждения')
+                t.open('#/archive', wait='.arc')
+                pg.wait_for_timeout(400)
+                t.ck(pg.locator('[data-arc-row]').count() == 0,
+                     'открепление положило документ в архив — это разные действия')
+
+            # Удаление: документ уезжает в архив.
+            t.open('#/institutions', wait='.itree')
+            pg.wait_for_timeout(500)
+            rows = pg.locator('.itree-row[data-inode]')
+            for i in range(min(rows.count(), 30)):
+                rows.nth(i).click()
+                pg.wait_for_timeout(250)
+                tab = pg.locator('[data-itab="docs"]')
+                if not tab.count():
+                    continue
+                tab.click()
+                pg.wait_for_timeout(350)
+                if pg.locator('[data-idoc-del]').count():
+                    break
+
+            if pg.locator('[data-idoc-del]').count():
+                pg.locator('[data-idoc]').first.hover()
+                pg.wait_for_timeout(200)
+                pg.locator('[data-idoc-del]').first.click()
+                pg.wait_for_timeout(600)
+                head = (pg.locator('.modal-head').inner_text()
+                        if pg.locator('.modal-head').count() else '')
+                t.ck('архив' in head.lower(),
+                     'диалог удаления документа не говорит про архив: «%s»' % head)
+                pg.locator('[data-modal-ok], .modal-foot .btn-primary').first.click()
+                pg.wait_for_timeout(900)
+
+                t.open('#/archive', wait='.arc')
+                pg.wait_for_timeout(400)
+                arc_rows = pg.locator('[data-arc-row]')
+                t.ck(arc_rows.count() == 1,
+                     'удалённый документ учреждения не попал в архив')
+                if arc_rows.count():
+                    t.ck('Документы учреждения' in arc_rows.first.inner_text(),
+                         'в архиве не указано, что документ из учреждения')
     finally:
         if os.path.exists(PDF_PATH):
             os.remove(PDF_PATH)

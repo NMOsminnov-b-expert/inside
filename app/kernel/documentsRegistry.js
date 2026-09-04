@@ -190,6 +190,26 @@ export function removeDocument(id) {
   return true;
 }
 
+// Изъять запись из реестра, но вернуть её содержимое: так документ уезжает в
+// архив, а не исчезает (kernel/archive.js). Отличается от removeDocument
+// ровно тем, что отдаёт саму запись.
+export function takeDocument(id) {
+  const i = documents.findIndex((d) => d.id === id);
+  if (i < 0) return null;
+  const [doc] = documents.splice(i, 1);
+  return doc;
+}
+
+// Вернуть запись в реестр С ТЕМ ЖЕ идентификатором: ссылки на документ
+// (привязки к объектам, документы учреждений) считают по нему, и новый id
+// разорвал бы их. Если запись с таким id уже есть — ничего не делаем.
+export function restoreDocument(doc) {
+  if (!doc || !doc.id) return null;
+  if (documents.some((d) => d.id === doc.id)) return null;
+  documents.unshift(doc);
+  return doc;
+}
+
 export function getDocument(id) {
   return documents.find((d) => d.id === id) || null;
 }
