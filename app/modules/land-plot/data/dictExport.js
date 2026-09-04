@@ -13,6 +13,46 @@ import { LAND_DICT_SOURCES } from './landDicts.js';
 
 export const DICT_SOURCES = [
   {
+    key: 'STRUCTURE_KIND',
+    title: 'Тип строения',
+    kind: 'list',
+    system: false,
+    values: D.STRUCTURE_KIND,
+    slots: [
+      { card: 'building', field: 'structureKind', label: 'Тип строения' },
+    ],
+  },
+  {
+    key: 'WEAR_LEVEL',
+    title: 'Степень износа',
+    kind: 'list',
+    system: false,
+    values: D.WEAR_LEVEL,
+    slots: [
+      { card: 'building', field: 'wear', label: 'Степень износа' },
+    ],
+  },
+  {
+    key: 'OI_CATEGORY_GROUPS',
+    title: 'Категории объектов имущества',
+    kind: 'list',
+    system: true,
+    values: D.OI_CATEGORY_GROUPS,
+    slots: [
+      { card: 'building', field: 'category', label: 'Категория ОИ' },
+    ],
+  },
+  {
+    key: 'RIGHTS',
+    title: 'Права на строение',
+    kind: 'list',
+    system: false,
+    values: D.RIGHTS,
+    slots: [
+      { card: 'building', field: 'rights', label: 'Права на строение' },
+    ],
+  },
+  {
     key: 'APARTMENT_LOCATIONS',
     title: 'Расположение квартиры',
     kind: 'list',

@@ -14,6 +14,16 @@ import { LAND_DICT_SOURCES } from '../../land-plot/data/landDicts.js';
 
 export const DICT_SOURCES = [
   {
+    key: 'STRUCTURE_KIND',
+    title: 'Тип строения',
+    kind: 'list',
+    system: false,
+    values: D.STRUCTURE_KIND,
+    slots: [
+      { card: 'building', field: 'structureKind', label: 'Тип строения' },
+    ],
+  },
+  {
     key: 'APARTMENT_LOCATIONS',
     title: 'Расположение квартиры',
     kind: 'list',

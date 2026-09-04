@@ -5,9 +5,10 @@ import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, STRUCTURE_KIND, APARTMENT_RIGHTS } from '../../data/dictionaries.js';
+import { devNote } from '../../../../kernel/devNote.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, STRUCTURE_KIND, APARTMENT_RIGHTS , OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, WEAR_LEVEL} from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
-import { opt } from '../../data/opts.js';
+import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -51,6 +52,20 @@ export function fieldRules(ctx, oi) {
 // Аргумент val больше не нужен: значения читаются из oi.struct.
 function structField(oi, key, label, opts, val, req) {
   return structMS(oi, key, label, opts, req);
+}
+
+// Категория ОИ: сгруппированный select (optgroup по типу помещений, классы
+// внутри). Значение — ключ раздела с номером класса (admin-1, prod-3): классы
+// в разделах называются одинаково, и без ключа они бы слились.
+function oiCategoryOptions(selected) {
+  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS).map((g) => `<optgroup label="${esc(g.label)}">
+${g.classes.map((c, i) => {
+    const val = `${g.key}-${i + 1}`;
+    return `<option value="${val}" ${val === selected ? 'selected' : ''}>${esc(c)}</option>`;
+  }).join('')}
+</optgroup>`).join('');
+
+  return `${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
 }
 
 function letterControlHTML(ctx, oi) {
@@ -153,6 +168,9 @@ style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
 >
 </div>
 </div>` : ''}
+<div class="field"><label>Категория ОИ</label>
+<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
+</div>
 <div class="field">
 <label>Права на строение</label>
 <div class="inline-row">
@@ -201,6 +219,38 @@ ${floorsCountField(oi)}
 </div>`;
 }
 
+const WEAR_ITEMS = [
+  { key: 'finish', label: 'Отделка' },
+  { key: 'insulation', label: 'Утепление' },
+  { key: 'roof', label: 'Кровля' },
+  { key: 'plinth', label: 'Цоколь' },
+  { key: 'floors', label: 'Полы' },
+  { key: 'ceilings', label: 'Перекрытия' },
+  { key: 'windows', label: 'Окна' },
+  { key: 'doors', label: 'Двери' },
+  { key: 'heating', label: 'Отопление' },
+];
+
+function wearField(oi, key, label) {
+  const wear = oi.wear || {};
+  const val = wear[key] || opt('building', 'wear', WEAR_LEVEL)[0];
+
+  return `<div class="field"><label>${label}</label>
+<select class="select" data-wear="${key}">${opt('building', 'wear', WEAR_LEVEL).map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>`;
+}
+
+// Открытый вопрос методики: в каком виде нужен износ. Сейчас это три ступени на
+// каждый элемент — шкала грубая, и два оценщика поставят по-разному. По
+// методике износ может считаться процентом или годами с последнего ремонта, и
+// тогда состав раздела другой. Держим вопрос на виду заметкой (решение
+// пользователя 04.09.2026: «износ распространяем, но с заметкой»).
+const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
+  + 'ступени на элемент: «не указано», «умеренный», «значительный». Соседние '
+  + 'ступени два оценщика поставят по-разному, а по методике износ может '
+  + 'считаться процентом или годами с последнего ремонта — тогда и состав '
+  + 'раздела изменится. Обсудить до того, как по нему начнут считать.';
+
 function structCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
   const struct = oi.struct || {};
@@ -221,6 +271,12 @@ ${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.
 ${heatingMS(ctx, oi)}
 </div>
 <div class="grid g-2" style="margin-top:8px">
+<div style="margin-top:12px">
+<div class="sec-h">Износ конструктивных элементов${devNote(WEAR_NOTE)}</div>
+<div class="grid g-3" style="margin-top:6px">
+${WEAR_ITEMS.map((w) => wearField(oi, w.key, w.label)).join('')}
+</div>
+</div>
 ${specialsBlockHTML(oi)}
 </div>
 </div></div>

@@ -14,6 +14,26 @@ import { LAND_DICT_SOURCES } from '../../land-plot/data/landDicts.js';
 
 export const DICT_SOURCES = [
   {
+    key: 'WEAR_LEVEL',
+    title: 'Степень износа',
+    kind: 'list',
+    system: false,
+    values: D.WEAR_LEVEL,
+    slots: [
+      { card: 'building', field: 'wear', label: 'Степень износа' },
+    ],
+  },
+  {
+    key: 'OI_CATEGORY_GROUPS',
+    title: 'Категории объектов имущества',
+    kind: 'list',
+    system: true,
+    values: D.OI_CATEGORY_GROUPS,
+    slots: [
+      { card: 'building', field: 'category', label: 'Категория ОИ' },
+    ],
+  },
+  {
     key: 'APARTMENT_LOCATIONS',
     title: 'Положение квартиры на этаже',
     kind: 'list',

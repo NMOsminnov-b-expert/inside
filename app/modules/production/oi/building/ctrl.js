@@ -1,6 +1,7 @@
 import { fieldsThatDisappear } from '../../../../kernel/fieldsPreview.js';
 import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
+import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -19,6 +20,9 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js
 import { nextId, nextDocId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
+  bindAreaList(ctx, oi, 'loggias');
+  bindAreaList(ctx, oi, 'balconies');
+  bindAreaList(ctx, oi, 'terraces');
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
@@ -208,6 +212,34 @@ export function bind(ctx, oi) {
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
+  // Права на строение: справочник плюс ручной ввод варианта «Иное».
+  const rightsSel = s.$('[data-bld-rights]');
+  if (rightsSel) rightsSel.onchange = () => {
+    oi.rights = rightsSel.value;
+    const other = s.$('[data-bld-rights-other]');
+    if (other) {
+      other.style.display = oi.rights === 'Иное' ? '' : 'none';
+      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
+    }
+  };
+
+  const rightsOther = s.$('[data-bld-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
+
+  // Тип строения: справочник плюс ручной ввод варианта «Прочее».
+  const skSel = s.$('[data-structure-kind]');
+  if (skSel) skSel.onchange = () => {
+    oi.structureKind = skSel.value;
+    const other = s.$('[data-structure-kind-other]');
+    if (other) {
+      other.style.display = oi.structureKind === 'Прочее' ? '' : 'none';
+      if (oi.structureKind !== 'Прочее') { other.value = ''; oi.structureKindOther = ''; }
+    }
+  };
+
+  const skOther = s.$('[data-structure-kind-other]');
+  if (skOther) skOther.onchange = () => { oi.structureKindOther = skOther.value; };
+
   const cc = s.$('[data-catclass]');
   if (cc) cc.onchange = () => {
     // Именно это поле открывает блок «Доп параметры (производственное
@@ -221,7 +253,13 @@ export function bind(ctx, oi) {
   // строения» — «Отдельностоящее» доступно только обособленным (Л2.5).
   if (rc) rc.onchange = () => { oi.resCat = rc.value; ctx.render(); };
 
-  s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
+  // Перерисовка обязательна: от статуса зависит видимость «Типа строения»
+  // (он есть только у вспомогательных).
+  s.$$('[data-status]').forEach((sel) => sel.onchange = () => {
+    oi.status = sel.value;
+    ctx.updatePlate();
+    ctx.render();
+  });
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };

@@ -1,12 +1,14 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
+import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT } from '../../data/dictionaries.js';
+import { devNote } from '../../../../kernel/devNote.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT , RIGHTS, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, WEAR_LEVEL, STRUCTURE_KIND} from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
-import { opt } from '../../data/opts.js';
+import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -52,6 +54,20 @@ function structField(oi, key, label, opts, val, req) {
   return structMS(oi, key, label, opts, req);
 }
 
+// Категория ОИ: сгруппированный select (optgroup по типу помещений, классы
+// внутри). Значение — ключ раздела с номером класса (admin-1, prod-3): классы
+// в разделах называются одинаково, и без ключа они бы слились.
+function oiCategoryOptions(selected) {
+  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS).map((g) => `<optgroup label="${esc(g.label)}">
+${g.classes.map((c, i) => {
+    const val = `${g.key}-${i + 1}`;
+    return `<option value="${val}" ${val === selected ? 'selected' : ''}>${esc(c)}</option>`;
+  }).join('')}
+</optgroup>`).join('');
+
+  return `${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
+}
+
 function letterControlHTML(ctx, oi) {
   if (ctx.ui.letterEdit) {
     return `<div style="display:flex; gap:4px; align-items:center;">
@@ -83,6 +99,11 @@ function flagsRowHTML(oi) {
 // 04.09.2026 и оставлено намеренно — состав полей у тех типов другой по делу.
 // Не «выравнивать» при очередном аудите (docs/reestr-kosyakov.md §5).
 function generalCard(ctx, oi, idx) {
+  const showStructureKindOther = oi.structureKind === 'Прочее';
+  // «Тип строения» описывает ВСПОМОГАТЕЛЬНОЕ здание: у основного он
+  // бессмысленен и конфликтует с категорией (решение 2026-08-28).
+  const showStructureKind = oi.status === 'Вспомогательное';
+
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;
 
@@ -116,7 +137,44 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
-<div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
+<div class="field"><label>Категория ОИ</label>
+<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
+</div>
+${showStructureKind ? `<div class="field">
+<label>Тип строения</label>
+<div class="inline-row">
+<select class="select" data-structure-kind style="flex:1 1 160px;">
+<option value="">Не выбрано</option>
+${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
+</select>
+<input
+class="input"
+data-structure-kind-other
+placeholder="Укажите тип"
+value="${esc(oi.structureKindOther || '')}"
+maxlength="60"
+style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
+>
+</div>
+</div>` : ''}
+<div class="field">
+<label>Права на строение</label>
+<div class="inline-row">
+<select class="select" data-bld-rights style="flex:1 1 200px;">
+<option value="">Не выбрано</option>
+${opt('building', 'rights', RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${esc(r)}</option>`).join('')}
+</select>
+<input
+class="input"
+data-bld-rights-other
+placeholder="Укажите право"
+value="${esc(oi.rightsOther || '')}"
+maxlength="100"
+style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
+>
+</div>
+</div>
+<div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
@@ -141,7 +199,7 @@ function areasCard(ctx, oi, idx) {
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
@@ -157,6 +215,38 @@ ${floorsCountField(oi)}
 </div></div>
 </div>`;
 }
+
+const WEAR_ITEMS = [
+  { key: 'finish', label: 'Отделка' },
+  { key: 'insulation', label: 'Утепление' },
+  { key: 'roof', label: 'Кровля' },
+  { key: 'plinth', label: 'Цоколь' },
+  { key: 'floors', label: 'Полы' },
+  { key: 'ceilings', label: 'Перекрытия' },
+  { key: 'windows', label: 'Окна' },
+  { key: 'doors', label: 'Двери' },
+  { key: 'heating', label: 'Отопление' },
+];
+
+function wearField(oi, key, label) {
+  const wear = oi.wear || {};
+  const val = wear[key] || opt('building', 'wear', WEAR_LEVEL)[0];
+
+  return `<div class="field"><label>${label}</label>
+<select class="select" data-wear="${key}">${opt('building', 'wear', WEAR_LEVEL).map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>`;
+}
+
+// Открытый вопрос методики: в каком виде нужен износ. Сейчас это три ступени на
+// каждый элемент — шкала грубая, и два оценщика поставят по-разному. По
+// методике износ может считаться процентом или годами с последнего ремонта, и
+// тогда состав раздела другой. Держим вопрос на виду заметкой (решение
+// пользователя 04.09.2026: «износ распространяем, но с заметкой»).
+const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
+  + 'ступени на элемент: «не указано», «умеренный», «значительный». Соседние '
+  + 'ступени два оценщика поставят по-разному, а по методике износ может '
+  + 'считаться процентом или годами с последнего ремонта — тогда и состав '
+  + 'раздела изменится. Обсудить до того, как по нему начнут считать.';
 
 function structCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
@@ -176,6 +266,12 @@ ${structField(oi, 'floors', 'Полы', opt('building', 'struct.floors', STRUCT.
 ${structField(oi, 'windows', 'Окна', opt('building', 'struct.windows', STRUCT.windows), struct.windows)}
 ${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.doors), struct.doors)}
 ${heatingMS(ctx, oi)}
+</div>
+<div style="margin-top:12px">
+<div class="sec-h">Износ конструктивных элементов${devNote(WEAR_NOTE)}</div>
+<div class="grid g-3" style="margin-top:6px">
+${WEAR_ITEMS.map((w) => wearField(oi, w.key, w.label)).join('')}
+</div>
 </div>
 ${specialsBlockHTML(oi)}
 </div></div>
@@ -207,6 +303,19 @@ function resCatOptions() {
   return opt('building', 'buildCat', RES_BUILD_CAT).slice();
 }
 
+// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
+// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
+function annexesCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-annexes">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
 
   const idx = blockNumbers();
@@ -214,6 +323,7 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${photosCard(ctx, oi, idx())}
 </div>`;

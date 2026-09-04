@@ -1,10 +1,11 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
+import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, STRUCT_STRENGTH, CRANE_BEAM } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, STRUCT_STRENGTH, CRANE_BEAM , RIGHTS, STRUCTURE_KIND} from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
@@ -94,6 +95,11 @@ function flagsRowHTML(oi) {
 // поля нет вовсе, а ключ catClass там держит категорию из справочника.
 // Расхождение согласовано с пользователем 04.09.2026 (docs/reestr-kosyakov.md §5).
 function generalCard(ctx, oi, idx) {
+  const showStructureKindOther = oi.structureKind === 'Прочее';
+  // «Тип строения» описывает ВСПОМОГАТЕЛЬНОЕ здание: у основного он
+  // бессмысленен и конфликтует с категорией (решение 2026-08-28).
+  const showStructureKind = oi.status === 'Вспомогательное';
+
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;
 
@@ -127,7 +133,41 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
-<div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
+${showStructureKind ? `<div class="field">
+<label>Тип строения</label>
+<div class="inline-row">
+<select class="select" data-structure-kind style="flex:1 1 160px;">
+<option value="">Не выбрано</option>
+${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
+</select>
+<input
+class="input"
+data-structure-kind-other
+placeholder="Укажите тип"
+value="${esc(oi.structureKindOther || '')}"
+maxlength="60"
+style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
+>
+</div>
+</div>` : ''}
+<div class="field">
+<label>Права на строение</label>
+<div class="inline-row">
+<select class="select" data-bld-rights style="flex:1 1 200px;">
+<option value="">Не выбрано</option>
+${opt('building', 'rights', RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${esc(r)}</option>`).join('')}
+</select>
+<input
+class="input"
+data-bld-rights-other
+placeholder="Укажите право"
+value="${esc(oi.rightsOther || '')}"
+maxlength="100"
+style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
+>
+</div>
+</div>
+<div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 <div class="field"><label>Категория ОИ</label>
@@ -156,7 +196,7 @@ function areasCard(ctx, oi, idx) {
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
@@ -314,6 +354,19 @@ function resCatOptions() {
   return opt('building', 'buildCat', RES_BUILD_CAT).slice();
 }
 
+// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
+// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
+function annexesCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-annexes">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
+${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
+${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
   const rq = fieldRules(ctx, oi);
 
@@ -322,6 +375,7 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
 ${rentAreasCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}

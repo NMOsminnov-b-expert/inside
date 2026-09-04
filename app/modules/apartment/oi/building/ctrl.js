@@ -180,6 +180,14 @@ export function bind(ctx, oi) {
     }).then((ok) => { if (ok) apply(); });
   };
 
+  const oic = s.$('[data-oi-category]');
+  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
+
+  s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
+    oi.wear = oi.wear || {};
+    oi.wear[sel.dataset.wear] = sel.value;
+  });
+
   const cc = s.$('[data-catclass]');
   if (cc) cc.onchange = () => {
     warnCategory({ catClass: cc.value }, () => { oi.catClass = cc.value; ctx.render(); });

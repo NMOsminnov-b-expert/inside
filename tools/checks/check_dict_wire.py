@@ -16,7 +16,7 @@ NAME = 'справочники в карточках'
 
 # Тип ОЦ → (маршрут объекта, как открыть литеру, поле, метка справочника)
 CASES = [
-    ('civil', '#/oc/civil/oc-cv-1', 'Права на строение', '[data-rights] option'),
+    ('civil', '#/oc/civil/oc-cv-1', 'Права на строение', '[data-bld-rights] option'),
     ('production', '#/oc/production/oc-pr-1', 'Каркас', '[data-prod-frame] option'),
     ('residential-house', '#/oc/residential-house/oc-rh-1', 'Категория строения',
      '[data-rescat] option'),
@@ -137,8 +137,8 @@ def run(t):
             ok.first.click()
             t.wait(600)
 
-        _open_letter(t, '#/oc/civil/oc-cv-1', '[data-rights]')
-        options = pg.eval_on_selector_all('[data-rights] option',
+        _open_letter(t, '#/oc/civil/oc-cv-1', '[data-bld-rights]')
+        options = pg.eval_on_selector_all('[data-bld-rights] option',
                                           'els => els.map((e) => e.textContent.trim())')
         t.ck(not any(o.startswith(MARK) for o in options),
              'удалённое значение осталось в поле карточки: %s' % options)
