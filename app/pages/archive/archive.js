@@ -550,7 +550,15 @@ function ocPanelHTML(entry) {
   const rec = (entry.payload && entry.payload.rec) || {};
   const resp = rec.resp || {};
   const oiList = rec.oi || [];
-  const docsN = (rec.docs || []).length + oiList.reduce((a, o) => a + (o.docs || []).length, 0);
+  // buildOcEntries изымает документы из снимка объекта при архивировании
+  // (решение пользователя 04.09.2026 — возврат документа не должен тащить за
+  // собой все остальные документы объекта, см. kernel/archive.js), поэтому
+  // rec.docs/oi.docs у ещё-не-возвращённого объекта пусты — число документов
+  // считаем по дочерним записям пакета (batchOf), это и есть исходный состав,
+  // независимо от того, сколько из них уже вернули по отдельности.
+  const docsN = entry.batchId
+    ? batchOf(entry.batchId).filter((e) => e.kind === 'document' && e.from && e.from.ocId === rec.id).length
+    : 0;
 
   return `<div class="arc-panel-body">
     <div class="arc-panel-row"><span>Адрес</span><b class="ell">${esc(rec.address || rec.title || '—')}</b></div>
@@ -794,12 +802,11 @@ export function mountArchive(host) {
       host.toast('Вернуть может администратор или сотрудник этого объекта', 'warn');
       return null;
     }
-    const needsRecord = entry.kind === 'document' || entry.kind === 'oi';
-    const fromCard = entry.from.place === 'oc' || entry.from.place === 'oi';
-    if (needsRecord && fromCard && !findRecordOf(entry)) {
-      host.toast('Объект оценки не найден — вернуть документ некуда', 'warn');
-      return null;
-    }
+    // Объект/литеру/учреждение объекта, если те ещё в архиве, поднимают сами
+    // restoreDoc/restoreRecordEntry/restoreInstitutionBranchByName (решение
+    // пользователя 04.09.2026) — отдельной блокирующей проверки здесь больше
+    // не нужно; для ОИ, чей ОЦ не нашёлся вовсе, restoreOiEntry вернёт
+    // {blocked:'oc'} — обработано ниже тем же сообщением, что и раньше.
 
     const res = await restoreEntry(entry.id);
     if (!res) {
@@ -1048,9 +1055,6 @@ export function mountArchive(host) {
   async function doRestoreSilently(id) {
     const entry = entryById(id);
     if (!entry || !canRestore(entry)) return null;
-    const needsRecord = entry.kind === 'document' || entry.kind === 'oi';
-    const fromCard = entry.from.place === 'oc' || entry.from.place === 'oi';
-    if (needsRecord && fromCard && !findRecordOf(entry)) return null;
     return restoreEntry(entry.id);
   }
 

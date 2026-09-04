@@ -261,11 +261,24 @@ export async function buildOcEntries({ typeId, typeLabel, taken, today, who }) {
     payload: { rec: taken, eniIndex: taken.eniIndex },
   };
 
-  // Документы карточки и литер — дочерними записями, но БЕЗ изъятия: они уже
-  // внутри снимка объекта, здесь только «карточки поиска».
+  // Документы карточки и литер — дочерними записями, ИЗЫМАЮТСЯ из снимка (были
+  // «БЕЗ изъятия» до уточнения пользователя 04.09.2026: возврат ОДНОГО
+  // документа не должен молча возвращать вместе с ним и все остальные
+  // документы объекта — значит документ не может просто «лежать внутри»
+  // снимка, а обязан быть самостоятельной единицей возврата. payload.rec
+  // (= taken, та же ссылка) после этого хранит объект БЕЗ документов; сами
+  // документы живут только в payload.doc дочерних записей, а обратно в
+  // rec.docs/oi.docs их кладёт восстановление (restoreRecordEntry ниже) —
+  // по умолчанию все ещё-не-возвращённые сразу, а если запись понадобилась
+  // только как площадка под ОДИН конкретный документ (ensureOcLive) — ни
+  // одного лишнего.
   const docs = [];
   (taken.docs || []).forEach((doc) => docs.push({ doc, oi: null }));
-  oiList.forEach((oi) => (oi.docs || []).forEach((doc) => docs.push({ doc, oi })));
+  taken.docs = [];
+  oiList.forEach((oi) => {
+    (oi.docs || []).forEach((doc) => docs.push({ doc, oi }));
+    oi.docs = [];
+  });
 
   const children = docs.map(({ doc, oi }) => ({
     kind: 'document',
@@ -312,10 +325,33 @@ export async function archiveRecord({ typeId, typeLabel, rec, today }) {
   return entries[0];
 }
 
+// Положить документ обратно туда, откуда он был изъят при архивировании
+// объекта (buildOcEntries) — общий кусок для восстановления вместе с
+// объектом (см. ниже) и для одиночного восстановления самого документа
+// (restoreDoc).
+function attachDocToHolder(rec, childEntry) {
+  const oi = childEntry.from.oiId ? (rec.oi || []).find((o) => o.id === childEntry.from.oiId) : null;
+  const holder = oi || rec;
+  holder.docs = holder.docs || [];
+  holder.docs.push(childEntry.payload.doc);
+  return oi;
+}
+
 // Вернуть объект оценки. Совпадение кода ЕНИ возврату не мешает: запись
 // получает свободный скрытый индекс (§6.3). При ENI_UNIQUE = true возврат
 // запрещён, если код уже занят живой записью.
-export async function restoreRecordEntry(entryId, today) {
+//
+// opts.skipDocs — не возвращать вместе с объектом ОСТАЛЬНЫЕ его документы
+// (только сам объект, пустым по документам). Нужен ensureOcLive ниже: если
+// объект понадобился только как площадка под ОДИН конкретный документ
+// (пользователь восстанавливает документ, чей объект ещё в архиве), нельзя
+// молча возвращать заодно и все остальные документы того же объекта —
+// решение пользователя 04.09.2026. При обычном (не через ensureOcLive)
+// восстановлении объекта — например, кликом по самой записи в архиве, или
+// как часть возврата целой ветки учреждения — skipDocs не передаётся, и
+// все ещё-не-возвращённые документы объекта возвращаются вместе с ним, как
+// и раньше.
+export async function restoreRecordEntry(entryId, today, opts = {}) {
   const entry = entryById(entryId);
   if (!entry || entry.restoredAt || entry.kind !== 'oc') return null;
 
@@ -344,8 +380,25 @@ export async function restoreRecordEntry(entryId, today) {
     rec.eniIndex = idx;
   }
 
-  // Учреждение могло уехать в архив — объект возвращается нераспределённым.
-  const lostInstitution = !!(rec.institution && !institutionAlive(rec.institution));
+  // Учреждение (или подведка) могло уехать в архив вместе с объектом (или
+  // отдельно) — по решению пользователя 04.09.2026 объект поднимает ветку
+  // учреждения следом за собой, а не остаётся нераспределённым. Смотрим
+  // сначала на подведку (она конкретнее): если её нет в архиве, но нет и в
+  // живом дереве, восстановление её цепочки поднимет и главное учреждение
+  // над ней — оно окажется архивным предком того же узла. Если подведка жива
+  // или не указана вовсе — проверяем главное учреждение отдельно.
+  // Нераспределённым объект становится, только если для найденного имени не
+  // нашлось архивной записи вовсе — такое бывает, если запись переименовали
+  // или удалили насовсем на сервере (в макете такого не происходит, но
+  // защититься дёшево).
+  const missingName = (rec.podved && !institutionAlive(rec.podved)) ? rec.podved
+    : (rec.institution && !institutionAlive(rec.institution)) ? rec.institution
+      : null;
+  let lostInstitution = !!missingName;
+  if (lostInstitution && institutionBranchRestorer) {
+    const restoredNode = institutionBranchRestorer(missingName, today || todayIso());
+    if (restoredNode) lostInstitution = false;
+  }
   if (lostInstitution) {
     rec.institution = '';
     rec.podved = '';
@@ -357,12 +410,23 @@ export async function restoreRecordEntry(entryId, today) {
   const audit = await auditFor(entry.from.typeId);
   if (audit && audit.pushRecordRestoreLog) audit.pushRecordRestoreLog(rec);
 
-  // Дочерние записи документов возвращаются вместе с объектом: они уже внутри
-  // снимка, и держать их «живыми» в архиве было бы неправдой.
+  // Дочерние записи ДОКУМЕНТОВ ЭТОГО объекта — если не skipDocs (см. выше),
+  // возвращаются вместе с ним: buildOcEntries изымает документы из снимка при
+  // архивировании, и без этого шага объект восстановился бы вовсе без них.
+  //
+  // Отбор — строго по from.ocId === rec.id, а НЕ «весь пакет» (было багом,
+  // найденным пользователем 04.09.2026): у объекта, убранного каскадом
+  // учреждения (kernel/institutions.js: archiveNodeCascade), batchId ОДИН на
+  // ВСЮ ветку — узлы учреждения, все объекты поддерева и их документы разом
+  // (addEntries зовётся один раз на весь список). Отбор по from.ocId отличает
+  // «мои документы» от документов/объектов/узлов, которые просто оказались в
+  // одном пакете по совпадению происхождения.
   let docs = 0;
-  if (entry.batchId) {
+  if (entry.batchId && !opts.skipDocs) {
     pendingBatch(entry.batchId).forEach((child) => {
       if (child.id === entry.id) return;
+      if (child.kind !== 'document' || !child.from || child.from.ocId !== rec.id) return;
+      attachDocToHolder(rec, child);
       markRestored(child.id, session.state.person, today || todayIso());
       docs++;
     });
@@ -411,6 +475,18 @@ let dictRestorer = null;
 
 export function setDictRestorer(fn) {
   dictRestorer = typeof fn === 'function' ? fn : null;
+}
+
+// Восстановление ветки учреждения по названию — вызывается из
+// restoreRecordEntry ниже, когда учреждение объекта ещё в архиве. Решение
+// пользователя 04.09.2026: объект не должен становиться «нераспределённым» —
+// вместе с ним поднимается и сама ветка учреждения (только цепочка узлов до
+// первого живого предка, без остальных объектов и документов, которые могли
+// уехать в архив тем же каскадом — тех восстанавливать никто не просил).
+let institutionBranchRestorer = null;
+
+export function setInstitutionBranchRestorer(fn) {
+  institutionBranchRestorer = typeof fn === 'function' ? fn : null;
 }
 
 // --- литера / объект имущества --------------------------------------------
@@ -508,6 +584,30 @@ function staffOfRecord(rec, oi) {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: время возврата ставит сервер, а не браузер.
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+// Объект оценки, к которому привязана запись document/oi — если он ещё в
+// архиве, поднимает его сам (решение пользователя 04.09.2026: возврат
+// документа поднимает ОЦ, а тот — свою ветку учреждения, а не отказывает со
+// словами «сначала верните объект»). skipDocs:true — объект поднимается
+// ПУСТЫМ по документам: остальные документы, которые были у него на момент
+// архивирования, остаются в архиве, а не возвращаются молча заодно с этим
+// одним (тоже решение пользователя 04.09.2026 — возврат документа не должен
+// без спроса возвращать и все остальные документы того же объекта; сам
+// документ, ради которого всё это вызвано, прикладывает уже вызвавший код).
+// Возвращает живую запись или null, если объекта нет ни живого, ни архивного
+// вовсе (устаревшая/битая ссылка).
+async function ensureOcLive(entry, today) {
+  const rec = findRecordOf(entry);
+  if (rec) return rec;
+  if (!entry.from.ocId) return null;
+
+  const ocEntry = allEntries().find((e) => e.kind === 'oc' && !e.restoredAt
+    && e.from.typeId === entry.from.typeId && e.from.ocId === entry.from.ocId);
+  if (!ocEntry) return null;
+
+  const res = await restoreRecordEntry(ocEntry.id, today, { skipDocs: true });
+  return res && !res.blocked ? res.rec : null;
+}
+
 // Вернуть документ туда, откуда он был убран. Если литеры больше нет (её могли
 // удалить, пока документ лежал в архиве), возвращаем в документы самого ОЦ —
 // иначе документ было бы некуда положить и он застрял бы в архиве навсегда.
@@ -518,15 +618,12 @@ export async function restoreDoc(recOrNull, entryId, today) {
   const entry = entryById(entryId) || findByDocId(recOrNull, entryId);
   if (!entry || entry.restoredAt) return null;
 
-  const rec = recOrNull && recOrNull.id === entry.from.ocId ? recOrNull : findRecordOf(entry);
+  const rec = (recOrNull && recOrNull.id === entry.from.ocId ? recOrNull : null)
+    || await ensureOcLive(entry, today || todayIso());
   if (!rec) return null;
 
-  const oi = entry.from.oiId ? (rec.oi || []).find((o) => o.id === entry.from.oiId) : null;
-  const holder = oi || rec;
-  holder.docs = holder.docs || [];
-
+  const oi = attachDocToHolder(rec, entry);
   const doc = entry.payload.doc;
-  holder.docs.push(doc);
   markRestored(entry.id, session.state.person, today || todayIso());
 
   const audit = await auditFor(entry.from.typeId);

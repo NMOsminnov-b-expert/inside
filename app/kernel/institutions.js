@@ -27,8 +27,8 @@ import { queryDocuments, documentInstitutions, takeDocument, restoreDocument, ge
 import { eniRegion } from './fmt.js';
 import { seesEverything, session } from './session.js';
 import { sortedTypes } from './registry.js';
-import { buildOcEntries, buildRegistryDocEntry, auditFor } from './archive.js';
-import { addEntries, markRestored, pendingBatch, batchOf } from './archiveStore.js';
+import { buildOcEntries, buildRegistryDocEntry, restoreRecordEntry } from './archive.js';
+import { addEntries, markRestored, pendingBatch, batchOf, allEntries } from './archiveStore.js';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -84,7 +84,14 @@ function scanFromRecords() {
 function syncFromData() {
   const facets = facetsAll(emptyFilter()).institution;
 
+  // '—' здесь — не название учреждения, а заглушка фасета для записей БЕЗ
+  // учреждения (data/query.js: computeFacets, `FACET_KEYS[key](s) || '—'`,
+  // нужна только для показа в фильтре реестра). Без этой проверки у объекта,
+  // вернувшегося из архива нераспределённым (§4.2 ТЗ — его учреждение ещё в
+  // архиве), в дереве заводился призрачный узел с именем «—»: заглушка
+  // отображения просачивалась в данные как будто это настоящее название.
   Object.keys(facets).forEach((name) => {
+    if (name === '—') return;
     if (!byName(name)) {
       nodes.push({ id: nextId(), name, parentId: rootFor(name), auto: true });
     }
@@ -536,33 +543,85 @@ function restoreSingleNode(entry, today) {
   return getNode(p.node.id);
 }
 
+// Восстановить цепочку узлов учреждения от entry ВВЕРХ до первого живого
+// предка — не «перепрыгнуть» к нему (так раньше делал restoreSingleNode сам
+// по себе), а поднять КАЖДОГО промежуточного архивного предка. Решение
+// пользователя 04.09.2026: если возвращают подведку, подведу подведа или
+// объект оценки — вместе с ними должна вернуться вся ветка учреждения выше,
+// а не только сама запись с перепрыжкой через ещё-архивные звенья.
+//
+// НЕ восстанавливает остальные объекты/документы того же исходного
+// каскадного пакета — если ветка уезжала в архив вместе с другими объектами,
+// те остаются в архиве: их возврата никто не просил, только дерево, чтобы
+// было куда встать текущей записи.
+//
+// Общая для восстановления учреждения по самой записи (restoreInstitutionEntry,
+// случай «не корень пакета») и по имени (restoreInstitutionBranchByName —
+// для объекта оценки и документа, зовётся из kernel/archive.js).
+function restoreChainToLivingAncestor(entry, today) {
+  const chain = [entry];
+  let pid = entry.payload.parentId;
+  while (pid && !getNode(pid)) {
+    const parentEntry = allEntries().find((e) => e.kind === 'institution' && !e.restoredAt && e.payload.node.id === pid);
+    if (!parentEntry) break;
+    chain.push(parentEntry);
+    pid = parentEntry.payload.parentId;
+  }
+
+  // Сверху вниз: у ребёнка к моменту его restoreSingleNode родитель уже жив.
+  chain.reverse().forEach((e) => restoreSingleNode(e, today));
+  return getNode(entry.payload.node.id);
+}
+
+// Восстановить ветку учреждения по названию узла — зовётся из
+// kernel/archive.js (setInstitutionBranchRestorer), когда возвращают объект
+// оценки или документ, чьё учреждение (или подведка) ещё в архиве.
+export function restoreInstitutionBranchByName(name, today) {
+  if (!name) return null;
+
+  const already = nodes.find((n) => n.name === name);
+  if (already) return already;
+
+  const found = allEntries().find((e) => e.kind === 'institution' && !e.restoredAt && e.payload.node.name === name);
+  if (!found) return null;
+
+  return restoreChainToLivingAncestor(found, today);
+}
+
 // Возврат ветки целиком (или одного узла отдельно от неё — ТЗ §5.4): вызывает
 // kernel/archive.js через setInstitutionRestorer, чтобы обратный импорт не
 // понадобился ни ему, ни этому файлу.
 export async function restoreInstitutionEntry(entry, today) {
   if (!entry || entry.restoredAt || entry.kind !== 'institution') return null;
 
-  // Не корень пакета — только этот узел, остальная ветка остаётся в архиве.
+  // Не корень пакета — эта подведка (и всё, что архивно между ней и первым
+  // живым предком — например, главное учреждение, если оно тоже ещё в
+  // архиве) восстанавливается, остальная ветка остаётся в архиве.
   if (entry.batchId && entry.batchRole !== 'root') {
-    return { node: restoreSingleNode(entry, today), single: true };
+    return { node: restoreChainToLivingAncestor(entry, today), single: true };
   }
 
   const batch = entry.batchId ? pendingBatch(entry.batchId) : [entry];
   const nodeItems = batch.filter((e) => e.kind === 'institution');
   const ocItems = batch.filter((e) => e.kind === 'oc');
-  const docItems = batch.filter((e) => e.kind === 'document');
+  // Документы объекта (from.ocId задан) возвращает сам restoreRecordEntry
+  // (kernel/archive.js) вместе со своим объектом — здесь остаются только
+  // документы, прикреплённые к самому учреждению (buildRegistryDocEntry, без
+  // ocId). До этой правки оба вида документов сваливались в одну кучу и
+  // документы карточки ОЦ по ошибке уезжали в общий реестр документов вместо
+  // возврата в rec.docs/oi.docs — просто раньше это было незаметно, пока
+  // buildOcEntries не изымал документы из снимка объекта (см. коммент там).
+  const docItems = batch.filter((e) => e.kind === 'document' && !e.from.ocId);
 
   const restoredNodes = nodeItems.map((e) => restoreSingleNode(e, today));
 
+  // restoreRecordEntry сама восстанавливает и объект, и его документы
+  // (from.ocId в этом же пакете), и, если понадобится, свободный скрытый
+  // индекс ЕНИ, и лог — дублировать эту логику здесь не нужно.
   let ocN = 0;
   for (const e of ocItems) {
-    const type = sortedTypes().find((t) => t.manifest.id === e.from.typeId);
-    if (!type || !type.records.restoreRecord) continue;
-    type.records.restoreRecord(e.payload.rec);
-    markRestored(e.id, session.state.person, today);
-    const audit = await auditFor(e.from.typeId);
-    if (audit && audit.pushRecordRestoreLog) audit.pushRecordRestoreLog(e.payload.rec);
-    ocN++;
+    const res = await restoreRecordEntry(e.id, today);
+    if (res && !res.blocked) ocN++;
   }
 
   let docN = 0;

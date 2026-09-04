@@ -6,8 +6,8 @@ import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
 import { installSelectWatcher } from './dropdown.js';
-import { setInstitutionProbe, setInstitutionRestorer, setDictRestorer } from './archive.js';
-import { allNodes, restoreInstitutionEntry } from './institutions.js';
+import { setInstitutionProbe, setInstitutionRestorer, setInstitutionBranchRestorer, setDictRestorer } from './archive.js';
+import { allNodes, restoreInstitutionEntry, restoreInstitutionBranchByName } from './institutions.js';
 import { restoreDictEntry } from './dicts.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
@@ -264,6 +264,9 @@ export function boot() {
   // Возврат учреждения из архива (каскад, §4.4) — тот же приём: дерево само
   // зовёт архив при удалении, обратный импорт замкнул бы цикл.
   setInstitutionRestorer((entry, today) => restoreInstitutionEntry(entry, today));
+  // Возврат объекта оценки, чьё учреждение ещё в архиве, поднимает ветку
+  // учреждения следом (решение пользователя 04.09.2026) — тот же приём.
+  setInstitutionBranchRestorer((name, today) => restoreInstitutionBranchByName(name, today));
   // Возврат справочника из архива (ТЗ §4.5) — та же причина: раздел
   // «Справочники» не знает про архив, а обратный импорт замкнул бы цикл.
   setDictRestorer((entry, today) => restoreDictEntry(entry, today));

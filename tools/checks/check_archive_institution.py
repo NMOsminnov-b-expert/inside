@@ -167,3 +167,113 @@ def run(t):
         _open_institutions(t)
         t.ck('Одиночный узел для архива' in pg.locator('.itree').inner_text(),
              'одиночный узел не вернулся из архива')
+
+    # --- 6. возврат ОБЪЕКТА раньше учреждения поднимает ветку следом --------
+    # Решение пользователя 04.09.2026: объект не должен становиться
+    # нераспределённым, если вернули его раньше самого учреждения — ветка
+    # учреждения поднимается вместе с ним. Заодно ловит регресс «фасета
+    # без значения»: computeFacets() подставляет '—' для записей без
+    # учреждения (только для показа в фильтре реестра), и до фикса
+    # institutions.js: syncFromData() принимала эту заглушку за настоящее имя
+    # и заводила в дереве призрачный узел «—».
+    _open_institutions(t)
+    pg.locator('.itree-row[data-inode]').first.click()
+    pg.wait_for_timeout(400)
+    pg.locator('[data-inew]').first.click()
+    pg.wait_for_timeout(300)
+    pg.fill('[data-iform-name]', 'Узел для проверки возврата объекта')
+    pg.locator('[data-iform-save]').first.click()
+    pg.wait_for_timeout(700)
+
+    pg.locator('[data-attach-open]').first.click()
+    pg.wait_for_timeout(600)
+    picks2 = pg.locator('[data-attach-pick]')
+    if t.ck(picks2.count() > 0, 'нет кандидатов на привязку — шаг 6 некому проверить'):
+        picks2.first.check()
+        pg.locator('[data-attach-apply]').first.click()
+        pg.wait_for_timeout(800)
+
+        pg.locator('[data-idel]').first.click()
+        pg.wait_for_timeout(500)
+        pg.locator('[data-modal-ok]').first.click()
+        pg.wait_for_timeout(700)
+
+        t.open('#/archive', wait='.arc')
+        pg.wait_for_timeout(500)
+        oc_row = pg.locator('[data-arc-kind="oc"]').filter(has_text='Узел для проверки возврата объекта')
+        if t.ck(oc_row.count() >= 1, 'объект узла из шага 6 не нашёлся в архиве'):
+            oc_row.first.locator('[data-arc-restore]').first.click()
+            pg.wait_for_timeout(1200)
+
+            _open_institutions(t)
+            tree_text = pg.locator('.itree').inner_text()
+            t.ck('Узел для проверки возврата объекта' in tree_text,
+                 'учреждение не поднялось вместе с возвращённым объектом')
+            t.ck('—' not in [r.strip() for r in tree_text.split('\n')],
+                 'в дереве появился призрачный узел «—» (заглушка фасета вместо имени учреждения)')
+
+            pg.locator('.itree-row').filter(has_text='Узел для проверки возврата объекта').first.click()
+            pg.wait_for_timeout(500)
+            t.ck(pg.locator('[data-itab="oc"] b').inner_text().strip() != '0',
+                 'после возврата объект не оказался закреплён за поднятым учреждением')
+
+    # --- 7. возврат ОДНОГО объекта каскада не должен «съедать» остальные ----
+    # Баг, найденный пользователем 04.09.2026: у объекта, убранного каскадом
+    # учреждения, batchId ОДИН на всю ветку (узлы + все объекты поддерева +
+    # их документы — archiveNodeCascade кладёт всё одним addEntries). Прежний
+    # restoreRecordEntry в kernel/archive.js помечал restoredAt ВСЕМ соседям
+    # по batchId без разбора belonging — соседние объекты и узлы пропадали из
+    # архива (список их больше не показывает), хотя их данные никуда не
+    # восстанавливались: запись «уже вернули», а по факту потеряна.
+    _open_institutions(t)
+    pg.locator('.itree-row[data-inode]').first.click()
+    pg.wait_for_timeout(400)
+    pg.locator('[data-inew]').first.click()
+    pg.wait_for_timeout(300)
+    pg.fill('[data-iform-name]', 'Узел с двумя объектами для проверки батча')
+    pg.locator('[data-iform-save]').first.click()
+    pg.wait_for_timeout(700)
+
+    pg.locator('[data-attach-open]').first.click()
+    pg.wait_for_timeout(600)
+    picks3 = pg.locator('[data-attach-pick]')
+    n_picks = picks3.count()
+    if t.ck(n_picks >= 2, 'нужно хотя бы 2 объекта-кандидата для проверки шага 7, найдено %d' % n_picks):
+        picks3.nth(0).check()
+        picks3.nth(1).check()
+        pg.locator('[data-attach-apply]').first.click()
+        pg.wait_for_timeout(800)
+        oc_before = pg.locator('[data-itab="oc"] b').inner_text().strip()
+        t.ck(oc_before == '2', 'к узлу шага 7 не привязались оба объекта: %s' % oc_before)
+
+        pg.locator('[data-idel]').first.click()
+        pg.wait_for_timeout(500)
+        pg.locator('[data-modal-ok]').first.click()
+        pg.wait_for_timeout(900)
+
+        t.open('#/archive', wait='.arc')
+        pg.wait_for_timeout(500)
+        oc_rows7 = pg.locator('[data-arc-kind="oc"]').filter(has_text='Узел с двумя объектами')
+        if t.ck(oc_rows7.count() == 2, 'после каскада в архиве не 2 объекта узла шага 7, а %d' % oc_rows7.count()):
+            oc_rows7.first.locator('[data-arc-restore]').first.click()
+            pg.wait_for_timeout(1200)
+
+            t.open('#/archive', wait='.arc')
+            pg.wait_for_timeout(500)
+            show_restored7 = pg.locator('[data-arc-show-restored]')
+            if show_restored7.count():
+                show_restored7.first.check()
+                pg.wait_for_timeout(500)
+
+            after7 = pg.locator('[data-arc-kind="oc"]').filter(has_text='Узел с двумя объектами')
+            t.ck(after7.count() == 2,
+                 'после возврата одного объекта второй пропал из архива вместо того, чтобы остаться в нём: %d вместо 2'
+                 % after7.count())
+
+            still_archived = 0
+            for i in range(after7.count()):
+                cls = after7.nth(i).get_attribute('class') or ''
+                if 'arc-restored' not in cls:
+                    still_archived += 1
+            t.ck(still_archived == 1,
+                 'второй объект узла шага 7 должен остаться НЕвозвращённым в архиве, а таких %d' % still_archived)
