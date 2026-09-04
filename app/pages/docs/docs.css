@@ -65,22 +65,6 @@ body[data-page="docs"] .docs-tbl td{padding:9px 12px;border-bottom:1px solid var
 body[data-page="docs"] .docs-tbl tbody tr:last-child td{border-bottom:none}
 body[data-page="docs"] .docs-tbl tbody tr:hover td{background:var(--blue-50)}
 
-<<<<<<< HEAD
-/* Клик по названию колонки сортирует список (решение пользователя 2026-09-03):
-   дата — хронологически, текст — от А до Я, повторный клик меняет направление. */
-body[data-page="docs"] .docs-tbl th.sortable{cursor:pointer;user-select:none}
-body[data-page="docs"] .docs-tbl th.sortable:hover{background:var(--blue-100)}
-body[data-page="docs"] .docs-tbl th.sorted{color:var(--blue-700)}
-body[data-page="docs"] .col-sort-arrow{margin-left:4px;font-size:9px;color:var(--blue-600)}
-
-body[data-page="docs"] .docs-status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600}
-body[data-page="docs"] .docs-status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-body[data-page="docs"] .docs-status.tone-ok{color:var(--blue-600)}
-body[data-page="docs"] .docs-status.tone-good{color:var(--teal-700)}
-body[data-page="docs"] .docs-status.tone-bad{color:var(--danger)}
-body[data-page="docs"] .docs-status.tone-warn{color:var(--amber-700)}
-=======
->>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
 
 body[data-page="docs"] .docs-empty{padding:34px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7}
 
@@ -103,10 +87,6 @@ body[data-page="docs"] .df-drop.drag-over{border-color:var(--blue-500);backgroun
 body[data-page="docs"] .df-drop-hint{font-size:12px;color:var(--muted)}
 body[data-page="docs"] .df-drop-btn{color:var(--blue-600);font-weight:600;text-decoration:underline}
 
-/* Просмотрщик файла прямо в модалке (решение пользователя 2026-09-03) — тот же
-   .viewer/.vbody/.vstage, что и на карточке документа (detail.js), только в
-   ограниченной по высоте рамке вместо всей .dd-main. */
-body[data-page="docs"] .df-viewer{height:380px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
 body[data-page="docs"] .df-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
 
 /* --- Карточка документа ------------------------------------------------------- */
@@ -319,8 +299,3 @@ body .docs-modal .df-preview-body{height:320px;overflow:hidden}
 body .docs-modal .df-preview-body .vrail{width:120px}
 body .docs-modal .df-preview-body .vthumb{width:96px;height:124px}
 body .docs-modal .df-preview-body .vpage{width:320px;min-height:420px;padding:18px}
-
-/* Колонок стало много (три новые из ветки kirill) — на узком экране их сумма
-   не помещается. Раньше остаток отдавался резиновой колонке, и при нехватке
-   места table-layout:fixed ломал раскладку; теперь таблица прокручивается. */
-body[data-page="docs"] .docs-cols{overflow-x:auto}

@@ -4,20 +4,17 @@
 // select/date/файл/теги, поэтому модалка собрана здесь напрямую поверх тех же
 // глобальных классов .modal-back/.modal (kernel/tokens.css).
 import { esc } from '../../kernel/dom.js';
-<<<<<<< HEAD
 import { createScope } from '../../kernel/scope.js';
-=======
-import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
->>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { DOC_TYPES, DOC_STATUSES, detectAutoStatus, createDocument, updateDocument } from '../../kernel/documentsRegistry.js';
-import { viewerHTML, bindViewer } from './viewer.js';
+import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
 
 // Файлы, только что прикреплённые в модалке, ещё не сохранены и не получили
 // «настоящий» id (его выдаёт documentsRegistry.sanitize при сохранении) — но
-// просмотрщику (viewer.js) id нужен уже сейчас, чтобы отличать вкладки файлов
-// и хранить состояние (страница/поворот) на каждый. Черновой id живёт только
-// до сохранения; sanitize() увидит уже проставленный id и просто оставит его.
+// просмотрщику (kernel/docViewer.js) id нужен уже сейчас, чтобы отличать
+// вкладки файлов и хранить состояние (страница/поворот) на каждый. Черновой id
+// живёт только до сохранения; sanitize() увидит уже проставленный id и просто
+// оставит его.
 let draftFileSeq = 0;
 const nextDraftFileId = () => 'draft-file-' + (++draftFileSeq);
 
@@ -26,31 +23,37 @@ function draftFrom(doc) {
     return {
       type: '', date: '', number: '', status: DOC_STATUSES[0], files: [],
       owner: '', institution: '', regAuthority: '', regDate: '', affiliation: '',
-<<<<<<< HEAD
-      linkedObjects: [], _statusTouched: false, _err: '', _activeFileId: null,
-=======
-      linkedObjects: [], _statusTouched: false, _err: '',
->>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
+      linkedObjects: [], _statusTouched: false, _err: '', _preview: null,
     };
   }
   const files = (doc.files || []).slice();
   return {
     type: doc.type, date: doc.date, number: doc.number, status: doc.status,
-<<<<<<< HEAD
     files, owner: doc.owner, institution: doc.institution,
     regAuthority: doc.regAuthority || '', regDate: doc.regDate || '', affiliation: doc.affiliation || '',
-=======
-    files: (doc.files || []).slice(), owner: doc.owner, institution: doc.institution,
-    regAuthority: doc.regAuthority || '', regDate: doc.regDate || '',
-    affiliation: doc.affiliation || '',
->>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
     linkedObjects: (doc.linkedObjects || []).slice(),
-    _statusTouched: true, _err: '', _activeFileId: files[0] ? files[0].id : null,
+    _statusTouched: true, _err: '', _preview: files[0] ? files[0].id : null,
   };
 }
 
 function linkLabel(l) {
   return `${l.type}${l.eni ? ` · ЕНИ ${l.eni}` : ''}${l.letter ? ` · Лит ${l.letter}` : ''}`;
+}
+
+// Предпросмотр прикрепляемых файлов. Просмотрщик тот же, что в карточке
+// документа и в карточках ОЦ, поэтому и размеры, и управление привычные.
+// Показываем как «документ-черновик»: у просмотрщика на входе именно документ
+// со списком файлов.
+function previewHTML(draft) {
+  const active = draft._preview || (draft.files[0] || {}).id || null;
+
+  return `<div class="df-preview">
+    <div class="df-preview-head">
+      <b>Предпросмотр</b>
+      <span>Проверьте, что прикрепили нужный файл — до сохранения документа</span>
+    </div>
+    <div class="df-preview-body">${viewerHTML({ id: 'draft', files: draft.files }, active)}</div>
+  </div>`;
 }
 
 function formInnerHTML(draft) {
@@ -81,10 +84,7 @@ function formInnerHTML(draft) {
       <input class="input" data-df-institution value="${esc(draft.institution || '')}">
     </div>
   </div>
-<<<<<<< HEAD
-=======
   <!-- Регистрация документа и принадлежность — из ветки kirill (03.09.2026). -->
->>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
   <div class="grid g-3" style="margin-top:10px">
     <div class="field"><label>Орган регистрации</label>
       <input class="input" data-df-reg-authority value="${esc(draft.regAuthority || '')}">
@@ -106,10 +106,6 @@ function formInnerHTML(draft) {
         ${previewHTML(draft)}` : ''}
     </div>
   </div>
-  ${draft.files.length ? `<div class="field" style="margin-top:10px">
-    <label>Просмотр</label>
-    <div class="df-viewer" data-df-viewer>${viewerHTML({ files: draft.files }, draft._activeFileId)}</div>
-  </div>` : ''}
   <div class="field" style="margin-top:10px">
     <label>Оценочные объекты и имущество</label>
     <div class="inline-row" style="flex-wrap:wrap; gap:6px">
@@ -158,22 +154,6 @@ export function openLinkModal({ onAdd }) {
   };
 }
 
-// Предпросмотр прикрепляемых файлов. Просмотрщик тот же, что в карточке
-// документа и в карточках ОЦ, поэтому и размеры, и управление привычные.
-// Показываем как «документ-черновик»: у просмотрщика на входе именно документ
-// со списком файлов.
-function previewHTML(draft) {
-  const active = draft._preview || (draft.files[0] || {}).id || null;
-
-  return `<div class="df-preview">
-    <div class="df-preview-head">
-      <b>Предпросмотр</b>
-      <span>Проверьте, что прикрепили нужный файл — до сохранения документа</span>
-    </div>
-    <div class="df-preview-body">${viewerHTML({ id: 'draft', files: draft.files }, active)}</div>
-  </div>`;
-}
-
 export function openDocumentModal(host, { doc = null, onSaved } = {}) {
   const draft = draftFrom(doc);
 
@@ -189,8 +169,13 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
   </div>`;
   document.body.appendChild(back);
 
+  // createScope (не голый querySelector) — просмотрщику (kernel/docViewer.js)
+  // нужен scope.root, иначе paintPdfCanvases не находит canvas'ы и PDF в
+  // предпросмотре остаётся пустым; destroy() на закрытии снимает глобальный
+  // keydown-слушатель горячих клавиш просмотрщика (scope.onDocument), иначе он
+  // копится с каждым открытием модалки и не снимается никогда.
   const scope = createScope(back);
-  const close = () => back.remove();
+  const close = () => { scope.destroy(); back.remove(); };
 
   function rerender() {
     back.querySelector('[data-df-body]').innerHTML = formInnerHTML(draft);
@@ -204,7 +189,7 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
       const f = await attachedFileFrom(file);
       f.id = nextDraftFileId();
       draft.files.push(f);
-      draft._activeFileId = f.id;
+      draft._preview = f.id;
       if (!draft._statusTouched) draft.status = await detectAutoStatus(file);
     }
     rerender();
@@ -258,16 +243,10 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
       });
     }
 
-<<<<<<< HEAD
-    body.querySelectorAll('[data-df-file-rm]').forEach((b) => b.onclick = () => {
-      const [removed] = draft.files.splice(+b.dataset.dfFileRm, 1);
-      if (removed && draft._activeFileId === removed.id) draft._activeFileId = null;
-=======
     body.querySelectorAll('[data-df-file-rm]').forEach((b) => b.onclick = (e) => {
       e.stopPropagation();
-      draft.files.splice(+b.dataset.dfFileRm, 1);
-      draft._preview = (draft.files[0] || {}).id || null;
->>>>>>> 0de8378df4a674c22c6d7026709d648ee3e9a48d
+      const [removed] = draft.files.splice(+b.dataset.dfFileRm, 1);
+      if (removed && draft._preview === removed.id) draft._preview = (draft.files[0] || {}).id || null;
       rerender();
     });
 
@@ -276,20 +255,6 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
       draft._preview = tag.dataset.dfFileOpen;
       rerender();
     });
-
-    // Просмотрщику нужна привязка после каждой отрисовки: он сам рисует
-    // страницы PDF и следит за прокруткой ленты.
-    if (draft.files.length) {
-      bindViewer({
-        $: (sel) => body.querySelector(sel),
-        $$: (sel) => Array.from(body.querySelectorAll(sel)),
-        on() {},
-      }, {
-        doc: { id: 'draft', files: draft.files },
-        activeFileId: draft._preview || (draft.files[0] || {}).id || null,
-        onFileChange: (fileId) => { draft._preview = fileId; rerender(); },
-      });
-    }
 
     const linkAdd = body.querySelector('[data-df-link-add]');
     if (linkAdd) linkAdd.onclick = () => openLinkModal({
@@ -301,14 +266,14 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
       rerender();
     });
 
-    // Полноценный просмотрщик прямо в модалке — тот же viewer.js, что и на
-    // карточке документа (решение пользователя 2026-09-03), а не список файлов
-    // без предпросмотра.
+    // Полноценный просмотрщик прямо в модалке — тот же kernel/docViewer.js,
+    // что и на карточке документа (решение пользователя 2026-09-03), а не
+    // список файлов без предпросмотра.
     if (draft.files.length) {
       bindViewer(scope, {
         doc: { files: draft.files },
-        activeFileId: draft._activeFileId,
-        onFileChange: (id) => { draft._activeFileId = id; rerender(); },
+        activeFileId: draft._preview,
+        onFileChange: (id) => { draft._preview = id; rerender(); },
       });
     }
   }
