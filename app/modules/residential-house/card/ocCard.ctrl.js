@@ -161,7 +161,7 @@ export function bindOcCard(ctx) {
     });
     if (!ok) return;
 
-    archiveRecord({
+    await archiveRecord({
       typeId: 'residential-house', typeLabel: 'Жилое здание (дом)', rec, today: ctx.today,
     });
     ctx.host.toMenu();

@@ -6,8 +6,9 @@ import { toast } from './toast.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
 import { installSelectWatcher } from './dropdown.js';
-import { setInstitutionProbe } from './archive.js';
-import { allNodes } from './institutions.js';
+import { setInstitutionProbe, setInstitutionRestorer, setDictRestorer } from './archive.js';
+import { allNodes, restoreInstitutionEntry } from './institutions.js';
+import { restoreDictEntry } from './dicts.js';
 import { OC_TYPES, getType } from './registry.js';
 import { mountOcMenu } from '../pages/ocMenu/ocMenu.js';
 import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
@@ -260,6 +261,12 @@ export function boot() {
   // не импортирует дерево: иначе получился бы цикл, ведь учреждения зовут
   // архив сами. Проверку связываем здесь, в одной точке сборки.
   setInstitutionProbe((name) => allNodes().some((n) => n.name === name));
+  // Возврат учреждения из архива (каскад, §4.4) — тот же приём: дерево само
+  // зовёт архив при удалении, обратный импорт замкнул бы цикл.
+  setInstitutionRestorer((entry, today) => restoreInstitutionEntry(entry, today));
+  // Возврат справочника из архива (ТЗ §4.5) — та же причина: раздел
+  // «Справочники» не знает про архив, а обратный импорт замкнул бы цикл.
+  setDictRestorer((entry, today) => restoreDictEntry(entry, today));
   start((route) => { onRoute(route); });
 }
 

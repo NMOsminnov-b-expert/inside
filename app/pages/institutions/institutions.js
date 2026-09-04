@@ -18,9 +18,10 @@ import {
 import { session, myInstitutions } from '../../kernel/session.js';
 import {
   allNodes, getNode, childrenOf, pathOf, levelOf, subtreeOf, ocCount, docCount, totalCount,
-  ocRowsOf, subtreeRowsOf, docRowsOf, createNode, updateNode, moveNode, removeNode, attachRecords,
+  ocRowsOf, subtreeRowsOf, docRowsOf, createNode, updateNode, moveNode, attachRecords,
   detachRecords, candidates, isFavorite, toggleFavorite, favoriteNodes, searchNodes, regionOf,
   canAssignStaff, staffList, staffOf, staffFilled, STAFF_ROLES,
+  institutionCascadePreview, archiveNodeCascade,
 } from '../../kernel/institutions.js';
 import {
   ALL_COLUMNS, emptyAllFilter, allPaneHTML, bindAllPane,
@@ -1244,48 +1245,41 @@ export function mountInstitutions(host) {
       host.toast(created ? 'Учреждение создано' : 'Изменения сохранены', 'ok');
     };
 
+    // Удаление — каскад в архив, а не безвозвратное стирание (ТЗ
+    // docs/tz/20-arhiv.md, §4.4, решение пользователя 03.09.2026): прежний
+    // запрет «нельзя удалить учреждение с объектами» снят, состав диалога
+    // считается institutionCascadePreview — тем же обходом, что и сам каскад.
     const del = scope.$('[data-idel]');
     if (del) del.onclick = async () => {
       const node = getNode(state.selected);
-      const kids = childrenOf(node.id);
+      if (!node.parentId) { host.toast('Корневой узел удалить нельзя', 'warn'); return; }
 
-      const probe = removeNode(node.id, { withChildren: false });
-      if (!probe.ok && probe.busy) {
-        await host.confirm({
-          title: 'Удалить нельзя',
-          okLabel: 'Понятно',
-          text: `${probe.reason}: ${probe.busy.map((b) => `${b.name} — ${b.oc}`).join('; ')}. `
-            + 'Сначала перенесите или открепите объекты.',
-        });
-        return;
+      const preview = institutionCascadePreview(node.id);
+      if (!preview) return;
+
+      const parts = ['1 учреждение'];
+      if (preview.podvedCount) {
+        parts.push(`${preview.podvedCount} ${plural(preview.podvedCount, 'подведомственная', 'подведомственных', 'подведомственных')}`);
+      }
+      if (preview.ocCount) {
+        parts.push(`${preview.ocCount} ${plural(preview.ocCount, 'объект оценки', 'объекта оценки', 'объектов оценки')}`);
+      }
+      if (preview.docCount) {
+        parts.push(`${preview.docCount} ${plural(preview.docCount, 'документ', 'документа', 'документов')}`);
       }
 
-      if (!probe.ok && probe.children) {
-        const ok = await host.confirm({
-          title: 'Удалить вместе с подведомственными',
-          okLabel: `Удалить ${kids.length + 1}`,
-          danger: true,
-          text: `У «${node.name}» ${kids.length} подведомственных. Будет удалена вся ветка. `
-            + 'Объектов оценки за ней не числится, поэтому данные не потеряются.',
-        });
-        if (!ok) return;
+      const ok = await host.confirm({
+        title: 'Убрать учреждение в архив?',
+        okLabel: 'В архив',
+        danger: true,
+        text: `Уедет в архив: ${parts.join(', ')}. Вернуть можно целиком из архива.`,
+      });
+      if (!ok) return;
 
-        const res = removeNode(node.id, { withChildren: true });
-        if (!res.ok) { host.toast(res.reason, 'warn'); return; }
-        state.selected = node.parentId;
-        render();
-        host.toast(`Удалено учреждений: ${res.removed}`, 'ok');
-        return;
-      }
-
-      if (probe.ok) {
-        state.selected = node.parentId;
-        render();
-        host.toast('Учреждение удалено', 'ok');
-        return;
-      }
-
-      host.toast(probe.reason, 'warn');
+      await archiveNodeCascade(node.id);
+      state.selected = node.parentId;
+      render();
+      host.toast(`Убрано в архив: ${node.name}`, 'ok');
     };
 
     // --- привязка объектов ---

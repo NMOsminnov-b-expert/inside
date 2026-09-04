@@ -69,11 +69,13 @@ export function main(host) {
       const oi = getOi(rec, id);
       if (!oi) return;
 
+      // Не удаление: литера уезжает в архив, откуда её можно вернуть (ТЗ
+      // docs/tz/20-arhiv.md, §4.3).
       const label = oi.letter ? 'Литера ' + oi.letter : 'ОИ';
       const ok = await host.confirm({
-        title: 'Удаление ОИ',
-        text: `Удалить «${label}» (${oi.name})? Действие нельзя отменить.`,
-        okLabel: 'Удалить',
+        title: 'Убрать литеру в архив?',
+        text: `Убрать «${label}» (${oi.name}) в архив? Она останется доступна в разделе «Архив», откуда её можно вернуть.`,
+        okLabel: 'В архив',
         danger: true,
       });
       if (!ok) return;
@@ -90,7 +92,7 @@ export function main(host) {
           photos: { ...photos }, photoFiles: { ...(oi.photoFiles || {}) },
         });
       }
-      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
+      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null, true);
       // Удаление участка не уносит литеры: они остаются в записи и теряют
       // привязку, то есть уезжают в группу «Без участка» (Л2.1, Л2.2).
       if (oi.card === 'land') {

@@ -31,6 +31,7 @@
 import { sortedTypes } from './registry.js';
 import { session, seesEverything } from './session.js';
 import { createStore } from './store.js';
+import { addEntries, markRestored } from './archiveStore.js';
 
 export const CARD_LABEL = {
   oc: 'Объект оценки',
@@ -548,14 +549,108 @@ export function copyDict(dict) {
   return copy;
 }
 
-export function removeDict(dict) {
-  if (!canEditDicts() || dict.system || dict.slot) return false;
+// --- общий лог действий раздела (ТЗ §9) -------------------------------------
+//
+// Справочник ни к какому объекту оценки не относится, писать в чужой лог
+// (audit/model.js модулей) было бы неправдой — «строкой в общем логе
+// действий», без версий и отката, уже названо политикой раздела в шапке этого
+// файла. Плоский список — тот же принцип, что и rec.auditLog у модулей,
+// только без своего экрана-вкладки: если он понадобится, dictActionLog() уже
+// отдаёт готовые строки.
+const dictLog = [];
+
+function pushDictActionLog(message) {
+  dictLog.push({
+    id: 'dictlog-' + (dictLog.length + 1),
+    at: today(),
+    person: session.state.person,
+    role: session.state.role,
+    message,
+  });
+}
+
+// Свежие сверху — тот же порядок, что и в остальных логах проекта.
+export function dictActionLog() {
+  return dictLog.slice().reverse();
+}
+
+// --- архив (ТЗ docs/tz/20-arhiv.md, §4.5, этап 5) ---------------------------
+//
+// Удаление справочника уводит его в архив вместо безвозвратной потери значений
+// (решение пользователя 03.09.2026). Системные не трогаем — это структура
+// системы, а не пользовательские данные (см. §6.1). Привязку (если была)
+// уносим в снимок: поле сразу переходит на встроенный перечень — то же
+// поведение, что и сегодня (optionsFor/dictAt возвращают null при отсутствии
+// справочника, модуль это уже умеет).
+//
+// Архив это не импортирует напрямую (не нужно — addEntries/markRestored не
+// знают ни одного вида записи), а kernel/archive.js получает обратный вызов
+// через setDictRestorer — тем же приёмом, что и с деревом учреждений.
+export function archiveDict(dict, { today: day } = {}) {
+  if (!canEditDicts() || dict.system) return null;
   const list = allDicts();
   const i = list.indexOf(dict);
-  if (i < 0) return false;
+  if (i < 0) return null;
+
+  const cat = dict.slot ? CARD_LABEL[dict.slot.card] || dict.slot.card : '';
+  const entry = {
+    kind: 'dict',
+    title: dict.name,
+    subtitle: dict.slot ? `${dict.slot.typeLabel} · ${cat} · ${dict.slot.label}` : 'Не привязан',
+    archivedAt: day || today(),
+    archivedBy: session.state.person,
+    from: { place: 'dicts', scopeLabel: 'Справочник', institution: '' },
+    payload: { dict: { ...dict, items: dict.items.map((it) => ({ ...it })) } },
+  };
+
   list.splice(i, 1);
   dicts.touch();
-  return true;
+  pushDictActionLog(`«${dict.name}» убран в архив${entry.subtitle !== 'Не привязан' ? ' (' + entry.subtitle + ')' : ''}`);
+
+  const [created] = addEntries(entry);
+  return created;
+}
+
+// Возврат (ТЗ §4.5). Крайние случаи:
+//   * каталога больше нет (тип ОИ убрали) — справочник возвращается без
+//     привязки, нераспределённым;
+//   * поле занято другим справочником — тоже без привязки: привязать вручную
+//     («тот же диалог, что при переносе между каталогами» — bindSlot уже сам
+//     снимает прежнего владельца поля, второй раз этот диалог изобретать
+//     незачем).
+export function restoreDictEntry(entry, day) {
+  if (!entry || entry.restoredAt || entry.kind !== 'dict') return null;
+
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: возврат заводит новые id (справочника и его позиций),
+  // а не восстанавливает прежние, — здесь это ничему не мешает, потому что
+  // ссылок на справочник по id в проекте нет (привязка к полю — по slot, не
+  // по id). На сервере, если появятся внешние ссылки на id справочника
+  // (например, из лога действий), решение может понадобиться другое —
+  // сохранять исходный id при возврате.
+  const saved = entry.payload.dict;
+  const restored = {
+    ...saved,
+    id: nextId('dict'),
+    items: saved.items.map((it) => ({ ...it, id: nextId('it') })),
+  };
+
+  let conflict = null;
+  let catalogGone = false;
+  if (restored.slot) {
+    catalogGone = !allSlots().some((s) => s.typeId === restored.slot.typeId && s.card === restored.slot.card);
+    const busy = !catalogGone && allDicts().find((d) => d.slot && slotKey(d.slot) === slotKey(restored.slot));
+    if (catalogGone || busy) {
+      if (busy) conflict = busy;
+      restored.slot = null;
+    }
+  }
+
+  allDicts().push(restored);
+  dicts.touch();
+  markRestored(entry.id, session.state.person, day || today());
+  pushDictActionLog(`«${restored.name}» возвращён из архива${restored.slot ? ' и снова привязан к полю «' + restored.slot.label + '»' : ' без привязки'}`);
+
+  return { dict: restored, conflict, catalogGone };
 }
 
 export function renameDict(dict, name) {

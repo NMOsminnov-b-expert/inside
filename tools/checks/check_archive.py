@@ -66,7 +66,18 @@ def run(t):
         pg.wait_for_timeout(500)
         t.ck(pg.locator('.modal-head').count() > 0, 'архивация прошла без подтверждения')
         pg.locator('.modal-foot .btn-primary, [data-modal-ok]').first.click()
-        pg.wait_for_timeout(900)
+        pg.wait_for_timeout(400)
+
+        # Тост после архивирования звал entry.name — у архивной записи такого
+        # поля нет (есть entry.title), и в интерфейсе печаталось «Документ в
+        # архиве: undefined» (найдено вручную 04.09.2026, мимо проходили все
+        # проверки — тост исчезает раньше, чем check_ui_text.py сканирует
+        # экран после действия).
+        toast = pg.locator('.toast')
+        if toast.count():
+            t.ck('undefined' not in toast.first.inner_text(),
+                 'тост после архивирования документа показывает undefined: %r' % toast.first.inner_text())
+        pg.wait_for_timeout(500)
 
         # --- документ в архиве, со всем контекстом ---
         t.open('#/archive', wait='.arc')
@@ -102,6 +113,23 @@ def run(t):
         pg.locator('[data-arc-restore]').first.click()
         pg.wait_for_timeout(900)
         t.ck(pg.locator('[data-arc-row]').count() == 0, 'документ остался в архиве после возврата')
+
+        # --- возвращённые скрыты по умолчанию, но не пропадают — флажок §7.6 ---
+        toggle = pg.locator('[data-arc-show-restored]')
+        if t.ck(toggle.count() > 0, 'на экране архива нет флажка «показывать возвращённые»'):
+            toggle.first.check()
+            pg.wait_for_timeout(400)
+            restored_row = pg.locator('tr.arc-restored')
+            t.ck(restored_row.count() >= 1, 'возвращённая запись не появилась по флажку «показывать возвращённые»')
+            if restored_row.count():
+                row_text = restored_row.first.inner_text()
+                t.ck('возвращено' in row_text.lower(), 'у возвращённой записи нет подписи «возвращено …»')
+                t.ck(restored_row.first.locator('[data-arc-restore]').count() == 0,
+                     'у уже возвращённой записи всё ещё есть кнопка «Вернуть»')
+            toggle.first.uncheck()
+            pg.wait_for_timeout(400)
+            t.ck(pg.locator('tr.arc-restored').count() == 0,
+                 'снятие флажка не спрятало обратно возвращённую запись')
 
         t.open('#/oc/civil/oc-cv-1')
         sb = pg.locator('[data-vsb-toggle]')

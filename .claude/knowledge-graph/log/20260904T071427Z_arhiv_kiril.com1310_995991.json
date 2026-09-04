@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "branch": "arhiv",
+    "author": "kiril.com1310@gmail.com",
+    "createdAt": "20260904T071427Z",
+    "baseCommit": "d9c6fb7"
+  },
+  "entities": [
+    {
+      "name": "app/pages/archive/archive.js",
+      "entityType": "Page",
+      "observations": [
+        "Этап 6 ТЗ (docs/tz/20-arhiv.md, §7): полная переделка экрана архива на три зоны — сворачиваемая колонка фильтров слева (паттерн institutions/allObjects.js: .arc-filters/.arc-filters-tab, вертикальная закладка, writing-mode:vertical-rl), центр — таблица на kernel/columns.js (реальный <table>+colgroup, а не flex-div реестра ocMenu.js), справа — сворачиваемая/растягиваемая перегородкой панель содержимого (паттерн docs/detail.js: .arc-content/.arc-split, ширина в CSS-переменной --arc-content-w, module-level let, сессионная).",
+        "Столбцы (§7.2): COLUMNS с двумя fixed — 'sel' (флажок, ведущий) и 'act' (кнопка «Вернуть», хвостовой) — оба НЕ входят в movable/меню столбцов (kernel/columns.js сам держит fixed-колонки на своих краях независимо от order). По умолчанию показаны 6 движимых (kind/title/from/institution/archivedBy/archivedAt) + act = 7, как требует ТЗ. Скрытые по умолчанию: docType/typeLabel/eni/size/restoredAt.",
+        "Группировка «по объекту» (§7.4): группа — по from.ocId (обычные записи), from.nodeId (учреждения), from.fieldKey/catalog (справочники); одиночная запись без объекта (документ реестра) рендерится БЕЗ заголовка группы (ключ 'solo|'+id, список длины 1). Порядок строк внутри группы: сначала корень пакета + его batchId-собратья в порядке добавления, затем остальное — по текущей сортировке (orderGroupRows).",
+        "Панель содержимого (§7.5): docViewer.js встраивается для kind:'document' через docFilesOf(doc) — нормализатор двух несовместимых форм архивного документа (doc.files массив у реестра/учреждений против doc.file единственного у карточек ОЦ). Для остальных kind — свой снимок-карточка (реквизиты объекта/литеры/учреждения/справочника), без импорта модулей ОЦ (страница остаётся module-agnostic, использует только kernel/dicts.js: CARD_LABEL для читаемых названий видов ОИ).",
+        "Фасеты (§7.3) считаются с самоисключением: computeFacets/matchesAllBut в самой странице — kernel/archive.js получил новый export visibleEntries(seeFn) (сырой видимый список без фильтров) специально для этого, т.к. существующие queryArchive/archiveFacets фильтруют по ВСЕМ условиям сразу и не годятся для «что покажет фасет X, если снять только X».",
+        "Виртуализация списка (§15) сознательно НЕ реализована — при демо-масштабе архива (десятки-сотни записей) прямой рендер всех строк работает нормально; если объём вырастет, паттерн для копирования есть в ocMenu.js (updateRows/spacer/translateY, ROW_H). Это заметка на будущее, а не «ДЛЯ СЕРВЕРНОЙ ВЕРСИИ» — виртуализация нужна и в браузере независимо от бэкенда.",
+        "Клавиатура (§15) реализована: ↑/↓ двигают state.cursor по ПЛОСКОМУ списку видимых строк (cursorRows() учитывает группировку — свёрнутые группы не листаются), Enter открывает панель содержимого, Space — флажок, Esc — снять весь выбор."
+      ]
+    },
+    {
+      "name": "app/kernel/archive.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "auditFor(typeId) + type.loadAudit (kernel/registry.js) — этап 9 ТЗ (лог действий). loadAudit — ЛЕНИВЫЙ import() по тому же принципу, что и load (код карточки): audit/model.js тянет data/store.js → nextEniScoped → createSeed() (синтетика). Статический импорт audit заставил бы грузить синтетику всех 5 модулей при каждом старте приложения. Из-за этого archiveDoc/buildOcEntries/archiveRecord/restoreRecordEntry/restoreOiEntry/restoreDoc/restoreEntry стали async — цепочка await пробросилась и в kernel/institutions.js (archiveNodeCascade/restoreInstitutionEntry), и во все 5 модулей (ocCard.ctrl.js archiveRecord, parts/viewer/ctrl.js archiveDoc), и в app/pages/archive/archive.js, app/pages/institutions/institutions.js, app/pages/dicts/dicts.js.",
+        "matchText(entry, q) — поиск по архиву теперь учитывает имя файла документа (doc.files/doc.file), как явно требует §7.3 ('Поиск: … имя файла') — раньше файлы не участвовали в текстовом поиске вовсе.",
+        "Новый export visibleEntries(seeFn) — сырой видимый список (migrateAll + фильтр по canSee/seeFn), БЕЗ применения filter-условий. Нужен экрану архива для самоисключающихся счётчиков фасетов (§7.3, §11) — queryArchive/archiveFacets для этого не годятся, они фильтруют по всем условиям сразу.",
+        "Re-export batchOf из archiveStore.js добавлен — экран архива использует его для показа состава пакета в панели содержимого учреждения (кто ещё уехал в архив одной операцией с этим узлом)."
+      ]
+    },
+    {
+      "name": "bug:archive-docFilesOf-object-identity",
+      "entityType": "Decision",
+      "observations": [
+        "kernel/docViewer.js хранит page-состояние файла (fileState[f.id], в т.ч. f.pages от ensureFilePages) НА САМОМ ОБЪЕКТЕ файла между вызовом viewerHTML() (рендер) и bindViewer() (биндинг после рендера) — это ДВА РАЗНЫХ вызова, и они обязаны получать ОДИН И ТОТ ЖЕ объект файла, иначе bindViewer падает на f.pages.length (pages undefined).",
+        "Первая версия docFilesOf(doc) в app/pages/archive/archive.js создавала НОВЫЙ объект spread'ом ({...doc.file, id}) при КАЖДОМ вызове для карточек ОЦ (doc.file — единственный, без своего id, в отличие от doc.files реестра) — viewerHTML() мутировал .pages на одном экземпляре, bindViewer() получал другой, свежий, без .pages → TypeError 'Cannot read properties of undefined (reading length)' при клике на документ в архиве.",
+        "Исправление: docFilesOf мутирует doc.file.id ОДИН раз (if (!doc.file.id) doc.file.id = doc.id) и дальше всегда возвращает ТОТ ЖЕ doc.file — та же ошибка легко повторится, если где-то ещё в проекте понадобится обернуть doc.file → doc.files для docViewer.js; решение — не копировать файл-объект, только дополнять его."
+      ],
+      "relations": []
+    },
+    {
+      "name": "bug:archive-select-all-checked-state",
+      "entityType": "Decision",
+      "observations": [
+        "Заголовочный флажок «выбрать все видимые» в app/pages/archive/archive.js изначально рендерился БЕЗ учёта текущего state.selected — после клика/render() он всегда становился визуально невыбранным, даже когда все строки реально выбраны. Кроме введения в заблуждение пользователя, это ломало автоматизированный клик (Playwright .check() ждёт, что состояние 'приклеится', и ретраит до таймаута, потому что каждый render() сбрасывает чекбокс).",
+        "Исправление: theadHTML(rows) теперь считает allSelected = rows.length>0 && rows.every(r => state.selected.has(r.id)) и проставляет checked явно. Общий урок: любой чекбокс/переключатель, чьё визуальное состояние в разметке не читается из общего state, а просто 'как получится по умолчанию', будет мигать/сбрасываться после первого же render() — проверять это нужно явно при ревью новых интерактивных элементов."
+      ]
+    },
+    {
+      "name": "bug:archive-toast-entry-name-undefined",
+      "entityType": "Decision",
+      "observations": [
+        "Во всех 5 modules/*/parts/viewer/ctrl.js (строка ~215) тост после архивирования документа из карточки ОЦ звал entry.name — у архивной записи (что возвращает kernel/archive.js: archiveDoc) такого поля нет, есть entry.title. В интерфейсе печаталось буквально 'Документ в архиве: undefined' — ровно тот класс дефекта, который должен ловить check_ui_text.py (§8.3), но проходил незамеченным 600+ прогонов проверок, потому что тост исчезает раньше, чем существующие сценарии сканируют экран ПОСЛЕ действия (check_ui_text.py сканирует #/archive отдельно, уже без тоста).",
+        "Найдено вручную визуальной проверкой (скриншот панели документа в архиве) при работе над этапом 6, не автопроверкой — предупреждение на будущее: тосты и другие переходные состояния UI нужно либо проверять СРАЗУ после действия (текстом .toast, как теперь делает check_archive.py), либо не доверять их корректности только на основании прохождения общих проверок.",
+        "Исправлено на entry.title во всех 5 модулях; добавлена регрессионная проверка в tools/checks/check_archive.py (текст .toast сразу после архивирования не содержит 'undefined')."
+      ]
+    },
+    {
+      "name": "tools/checks/check_archive_screen.py",
+      "entityType": "Tool",
+      "observations": [
+        "Новый сценарий проверок — механика экрана архива этапа 6 (§7/§8/§11), а не бизнес-правила архивирования (те уже покрыты check_archive.py/check_archive_dict.py/check_archive_institution.py и check_archive_audit.py). Ловит: столбцы (меню состава, сброс, сортировка кликом по шапке), группировка «по объекту» (сумма записей сходится с плоским списком), панель содержимого — разный снимок для document/oi/oc/dict без утечки кода/id в текст, флажки+панель групповых действий (счётчик выбранного, снятие), самоисключение счётчиков фасетов, выгрузка CSV, групповой возврат с пометкой «возвращено».",
+        "Импортирует _check_text/_check_tables/_visible_text из check_ui_text.py напрямую (sys.path уже настроен run.py) — переиспользует его же машинную проверку §8.3/§8.4, но на РЕАЛЬНО заполненном архиве: check_ui_text.py сам по себе сканирует #/archive только в пустом состоянии (архив при старте пуст, демо-записей архива в синтетике нет — открытый пункт §16), поэтому его сканирование никогда не видело настоящую таблицу/группы/панель этого экрана."
+      ]
+    }
+  ],
+  "relations": [
+    {"from": "app/pages/archive/archive.js", "to": "docs/tz/20-arhiv.md", "relationType": "implements"},
+    {"from": "app/pages/archive/archive.js", "to": "app/kernel/archive.js", "relationType": "uses"},
+    {"from": "app/pages/archive/archive.js", "to": "app/kernel/columns.js", "relationType": "uses"},
+    {"from": "app/pages/archive/archive.js", "to": "app/kernel/docViewer.js", "relationType": "uses"},
+    {"from": "app/pages/archive/archive.js", "to": "app/kernel/dicts.js", "relationType": "uses"},
+    {"from": "bug:archive-docFilesOf-object-identity", "to": "app/kernel/docViewer.js", "relationType": "concerns"},
+    {"from": "bug:archive-docFilesOf-object-identity", "to": "app/pages/archive/archive.js", "relationType": "fixed in"},
+    {"from": "bug:archive-select-all-checked-state", "to": "app/pages/archive/archive.js", "relationType": "fixed in"},
+    {"from": "bug:archive-toast-entry-name-undefined", "to": "app/kernel/archive.js", "relationType": "concerns"},
+    {"from": "tools/checks/check_archive_screen.py", "to": "app/pages/archive/archive.js", "relationType": "tests"},
+    {"from": "tools/checks/check_archive_screen.py", "to": "tools/checks/check_ui_text.py", "relationType": "reuses"}
+  ]
+}

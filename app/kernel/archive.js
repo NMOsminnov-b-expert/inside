@@ -27,7 +27,28 @@ import { takeDocument, restoreDocument, getDocument } from './documentsRegistry.
 import { eniIndexes, pendingBatch } from './archiveStore.js';
 import { ENI_UNIQUE } from './fmt.js';
 
-export { entryById } from './archiveStore.js';
+export { entryById, subscribe, batchOf } from './archiveStore.js';
+
+// --- лог действий (ТЗ §9) ---------------------------------------------------
+//
+// Каждый модуль ведёт СВОЙ лог на записи (modules/*/audit/model.js) — ядро не
+// умеет его писать напрямую (не знает форму записи ни одного типа ОЦ) и не
+// импортирует его статически: audit/model.js тянет data/store.js за
+// nextEniScoped, а там — синтетика (seed.js). Статический импорт заставил бы
+// грузить синтетику всех пяти модулей при каждом старте приложения — ровно то,
+// от чего уже избавились ленивой загрузкой кода карточки (registry.js:
+// `load`). Поэтому `type.loadAudit()` — тоже лениво, а функции архива,
+// которые пишут в лог, стали async.
+export async function auditFor(typeId) {
+  const type = sortedTypes().find((t) => t.manifest.id === typeId);
+  if (!type || !type.loadAudit) return null;
+  try {
+    return await type.loadAudit();
+  } catch (e) {
+    console.warn('Не удалось загрузить лог действий модуля', typeId, e);
+    return null;
+  }
+}
 
 // Куда именно был прикреплён документ: к самому ОЦ или к литере/участку.
 // Подпись нужна в архиве — без неё непонятно, откуда документ пришёл.
@@ -83,7 +104,7 @@ function migrateAll() {
 // Убрать документ карточки ОЦ/ОИ в архив. Сигнатура сохранена: её зовут все
 // пять модулей (parts/viewer/ctrl.js). Возвращает архивную запись либо null,
 // если документа в списке не оказалось.
-export function archiveDoc({ rec, oi, docId, typeId, typeLabel, today }) {
+export async function archiveDoc({ rec, oi, docId, typeId, typeLabel, today }) {
   const holder = oi || rec;
   const list = holder && holder.docs;
   if (!list) return null;
@@ -116,7 +137,44 @@ export function archiveDoc({ rec, oi, docId, typeId, typeLabel, today }) {
     payload: { doc },
   });
 
+  const audit = await auditFor(typeId);
+  if (audit && audit.pushDocArchiveLog) audit.pushDocArchiveLog(rec, doc);
+
   return entry;
+}
+
+// Убрать документ РЕЕСТРА в архив: из реестра «Документы» или из документов
+// учреждения. Отличие от archiveDoc: там документ лежал в карточке объекта, а
+// здесь — в общем реестре, и место возврата у него другое.
+//
+// Открепление и архивирование — разные вещи (ТЗ §4.1): открепить документ от
+// учреждения значит снять связь, документ остаётся в реестре. В архив уезжает
+// только то, что человек удаляет.
+// Собрать архивную запись документа реестра БЕЗ записи в хранилище — нужно и
+// одиночному архивированию (archiveRegistryDoc ниже), и каскаду учреждения
+// (kernel/institutions.js), который кладёт документы узлов в ОДИН общий пакет
+// вместе с самими узлами и их объектами, а не отдельными addEntries на каждый.
+export function buildRegistryDocEntry({ doc, place = 'docs', node = null, today, who }) {
+  const file = (doc.files || [])[0];
+  return {
+    kind: 'document',
+    title: `${doc.type || 'Документ'}${file ? ' · ' + file.name : ''}`,
+    subtitle: place === 'institution' ? (node ? node.name : 'Учреждение') : 'Реестр документов',
+    archivedAt: today || todayIso(),
+    archivedBy: who || session.state.person,
+    from: {
+      place,
+      institution: doc.institution || (node ? node.name : ''),
+      nodeId: node ? node.id : null,
+      nodeName: node ? node.name : '',
+      ocTitle: '',
+      eni: '',
+      scopeLabel: place === 'institution'
+        ? `Документы учреждения${node ? ' · ' + node.name : ''}`
+        : 'Реестр документов',
+    },
+    payload: { doc },
+  };
 }
 
 // Убрать документ РЕЕСТРА в архив: из реестра «Документы» или из документов
@@ -130,27 +188,7 @@ export function archiveRegistryDoc({ docId, place = 'docs', node = null, today }
   const doc = takeDocument(docId);
   if (!doc) return null;
 
-  const file = (doc.files || [])[0];
-  const [entry] = addEntries({
-    kind: 'document',
-    title: `${doc.type || 'Документ'}${file ? ' · ' + file.name : ''}`,
-    subtitle: place === 'institution' ? (node ? node.name : 'Учреждение') : 'Реестр документов',
-    archivedAt: today || todayIso(),
-    archivedBy: session.state.person,
-    from: {
-      place,
-      institution: doc.institution || (node ? node.name : ''),
-      nodeId: node ? node.id : null,
-      nodeName: node ? node.name : '',
-      ocTitle: '',
-      eni: '',
-      scopeLabel: place === 'institution'
-        ? `Документы учреждения${node ? ' · ' + node.name : ''}`
-        : 'Реестр документов',
-    },
-    payload: { doc },
-  });
-
+  const [entry] = addEntries(buildRegistryDocEntry({ doc, place, node, today }));
   return entry;
 }
 
@@ -187,22 +225,15 @@ function linkAlive(link) {
 
 // --- объект оценки --------------------------------------------------------
 
-// Убрать объект оценки в архив вместе со всем содержимым (ТЗ §4.2).
-//
-// Пакетом: корневая запись `oc` со снимком всей записи плюс по одной записи
-// `document` на каждый документ карточки и литер. Зачем дублировать документы
-// отдельными записями — чтобы документ находился в архиве поиском по имени
-// файла, а не только внутри объекта; возврат корня их не задваивает (проверяет
-// restoredAt).
-export function archiveRecord({ typeId, typeLabel, rec, today }) {
+// Собрать [корень-oc, ...дочерние-document] БЕЗ записи в хранилище — нужно и
+// одиночному архивированию объекта (archiveRecord ниже), и каскаду учреждения
+// (kernel/institutions.js), который кладёт объекты всех узлов поддерева в ОДИН
+// общий пакет вместе с самими узлами, а не отдельным addEntries на каждый.
+// `taken` — запись, уже изъятая из модуля (type.records.takeRecord).
+export async function buildOcEntries({ typeId, typeLabel, taken, today, who }) {
   const type = sortedTypes().find((t) => t.manifest.id === typeId);
-  if (!type || !type.records.takeRecord) return null;
-
-  const taken = type.records.takeRecord(rec.id);
-  if (!taken) return null;
-
   const day = today || todayIso();
-  const who = session.state.person;
+  const author = who || session.state.person;
   const oiList = taken.oi || [];
 
   // Скрытый индекс кода: у второй записи с тем же кодом он равен 2 и т. д.
@@ -211,7 +242,7 @@ export function archiveRecord({ typeId, typeLabel, rec, today }) {
 
   const base = {
     typeId,
-    typeLabel: typeLabel || type.manifest.label,
+    typeLabel: typeLabel || (type ? type.manifest.label : typeId),
     ocId: taken.id,
     ocTitle: taken.address || taken.title || taken.id,
     eni: taken.eni || '',
@@ -225,7 +256,7 @@ export function archiveRecord({ typeId, typeLabel, rec, today }) {
     title: base.ocTitle,
     subtitle: `${base.typeLabel} · ${oiList.length} ${plural(oiList.length, 'объект имущества', 'объекта имущества', 'объектов имущества')}`,
     archivedAt: day,
-    archivedBy: who,
+    archivedBy: author,
     from: { place: 'oc', ...base, scopeLabel: 'Объект оценки' },
     payload: { rec: taken, eniIndex: taken.eniIndex },
   };
@@ -241,7 +272,7 @@ export function archiveRecord({ typeId, typeLabel, rec, today }) {
     title: doc.name || doc.type || 'Документ',
     subtitle: docScopeLabel(taken, oi),
     archivedAt: day,
-    archivedBy: who,
+    archivedBy: author,
     from: {
       place: oi ? 'oi' : 'oc',
       ...base,
@@ -252,14 +283,39 @@ export function archiveRecord({ typeId, typeLabel, rec, today }) {
     payload: { doc },
   }));
 
-  const entries = addEntries([root, ...children]);
+  // Один на объект — «Объект оценки убран в архив (N документов, M литер)»
+  // (ТЗ §9), в лог самого объекта. Пишем на taken, а не на копию: снимок в
+  // payload.rec — та же ссылка, и запись лога уезжает в архив вместе с
+  // остальным, а после возврата видна как обычная история объекта. Каскад
+  // учреждения (kernel/institutions.js) зовёт этот же buildOcEntries на каждый
+  // затронутый объект — тем самым и он получает свою строку в логе, без
+  // отдельного «общего лога учреждения» (то же самое просит ТЗ: «в логи всех
+  // затронутых объектов», а не в новый журнал).
+  const audit = await auditFor(typeId);
+  if (audit && audit.pushRecordArchiveLog) {
+    audit.pushRecordArchiveLog(taken, { oiCount: oiList.length, docsCount: docs.length });
+  }
+
+  return [root, ...children];
+}
+
+// Убрать объект оценки в архив вместе со всем содержимым (ТЗ §4.2) — одиночный
+// случай: изымает запись сама и кладёт buildOcEntries отдельным пакетом.
+export async function archiveRecord({ typeId, typeLabel, rec, today }) {
+  const type = sortedTypes().find((t) => t.manifest.id === typeId);
+  if (!type || !type.records.takeRecord) return null;
+
+  const taken = type.records.takeRecord(rec.id);
+  if (!taken) return null;
+
+  const entries = addEntries(await buildOcEntries({ typeId, typeLabel, taken, today }));
   return entries[0];
 }
 
 // Вернуть объект оценки. Совпадение кода ЕНИ возврату не мешает: запись
 // получает свободный скрытый индекс (§6.3). При ENI_UNIQUE = true возврат
 // запрещён, если код уже занят живой записью.
-export function restoreRecordEntry(entryId, today) {
+export async function restoreRecordEntry(entryId, today) {
   const entry = entryById(entryId);
   if (!entry || entry.restoredAt || entry.kind !== 'oc') return null;
 
@@ -298,6 +354,9 @@ export function restoreRecordEntry(entryId, today) {
   type.records.restoreRecord(rec);
   markRestored(entry.id, session.state.person, today || todayIso());
 
+  const audit = await auditFor(entry.from.typeId);
+  if (audit && audit.pushRecordRestoreLog) audit.pushRecordRestoreLog(rec);
+
   // Дочерние записи документов возвращаются вместе с объектом: они уже внутри
   // снимка, и держать их «живыми» в архиве было бы неправдой.
   let docs = 0;
@@ -334,6 +393,24 @@ export function setInstitutionProbe(fn) {
 function institutionAlive(name) {
   if (!institutionProbe) return true;
   return institutionProbe(name);
+}
+
+// Возврат учреждения (каскад, ТЗ §4.4) — та же причина держать это снаружи:
+// дерево учреждений само зовёт архив при удалении, и обратный импорт замкнул
+// бы цикл. boot.js регистрирует настоящую функцию через setInstitutionRestorer;
+// пока не зарегистрирована, возврат недоступен (только на время инициализации).
+let institutionRestorer = null;
+
+export function setInstitutionRestorer(fn) {
+  institutionRestorer = typeof fn === 'function' ? fn : null;
+}
+
+// Тот же приём для справочников (ТЗ §4.5) — раздел «Справочники» тоже не
+// импортируется архивом напрямую.
+let dictRestorer = null;
+
+export function setDictRestorer(fn) {
+  dictRestorer = typeof fn === 'function' ? fn : null;
 }
 
 // --- литера / объект имущества --------------------------------------------
@@ -378,7 +455,7 @@ export function archiveOi({ typeId, typeLabel, rec, oi, movedPhotos, today }) {
 
 // Вернуть литеру в её объект. Если объект в архиве — возврат невозможен:
 // сначала нужно поднять объект (ТЗ §4.3), и об этом говорит экран.
-export function restoreOiEntry(entryId, today) {
+export async function restoreOiEntry(entryId, today) {
   const entry = entryById(entryId);
   if (!entry || entry.restoredAt || entry.kind !== 'oi') return null;
 
@@ -393,6 +470,9 @@ export function restoreOiEntry(entryId, today) {
 
   rec.oi.push(entry.payload.oi);
   markRestored(entry.id, session.state.person, today || todayIso());
+
+  const audit = await auditFor(entry.from.typeId);
+  if (audit && audit.pushOiRestoreLog) audit.pushOiRestoreLog(rec, entry.payload.oi);
 
   return { oi: entry.payload.oi, restoredTo: entry.from.ocTitle };
 }
@@ -434,7 +514,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 //
 // Первый аргумент — либо запись ОЦ (как было раньше), либо ничего: запись
 // находится по архивной записи.
-export function restoreDoc(recOrNull, entryId, today) {
+export async function restoreDoc(recOrNull, entryId, today) {
   const entry = entryById(entryId) || findByDocId(recOrNull, entryId);
   if (!entry || entry.restoredAt) return null;
 
@@ -448,6 +528,9 @@ export function restoreDoc(recOrNull, entryId, today) {
   const doc = entry.payload.doc;
   holder.docs.push(doc);
   markRestored(entry.id, session.state.person, today || todayIso());
+
+  const audit = await auditFor(entry.from.typeId);
+  if (audit && audit.pushDocRestoreLog) audit.pushDocRestoreLog(rec, doc);
 
   return {
     doc,
@@ -466,7 +549,7 @@ function findByDocId(rec, docId) {
 
 // Общий вход возврата: экран не должен знать, какой именно вид записи он
 // возвращает — иначе каждая новая разновидность требовала бы правки экрана.
-export function restoreEntry(entryId, today) {
+export async function restoreEntry(entryId, today) {
   const entry = entryById(entryId);
   if (!entry || entry.restoredAt) return null;
 
@@ -478,8 +561,9 @@ export function restoreEntry(entryId, today) {
 
   if (entry.kind === 'oc') return restoreRecordEntry(entry.id, today);
   if (entry.kind === 'oi') return restoreOiEntry(entry.id, today);
+  if (entry.kind === 'institution') return institutionRestorer ? institutionRestorer(entry, today || todayIso()) : null;
+  if (entry.kind === 'dict') return dictRestorer ? dictRestorer(entry, today || todayIso()) : null;
 
-  // institution, dict — этапы 4–5 ТЗ.
   return null;
 }
 
@@ -498,6 +582,15 @@ export function canRestore(entry) {
 
   const me = session.state.person;
   if (!me) return false;
+
+  // Учреждение (каскад, §4.4): дерева уже нет, поэтому состав берётся из
+  // снимка узла (staffOf с уже разрешённым наследованием на момент удаления),
+  // а не из живой записи, — узла для «живого» состава попросту не осталось.
+  if (entry.kind === 'institution') {
+    const staff = (entry.payload && entry.payload.staff) || {};
+    if (['gov', 'cod', 'appr', 'insp'].some((key) => staff[key] === me)) return true;
+    return myInstitutions().includes(entry.from.institution);
+  }
 
   // Живой состав блока сильнее снимка: человека могли назначить и после того,
   // как документ убрали, — за объект отвечает он.
@@ -519,9 +612,12 @@ export function canRestore(entry) {
 function matchText(entry, q) {
   if (!q) return true;
   const from = entry.from || {};
+  const doc = entry.payload && entry.payload.doc;
+  const fileNames = doc ? (doc.files || (doc.file ? [doc.file] : [])).map((f) => f.name) : [];
   const hay = [
-    entry.title, entry.subtitle, (entry.payload && entry.payload.doc && entry.payload.doc.type),
+    entry.title, entry.subtitle, doc && doc.type,
     from.ocTitle, from.eni, from.institution, from.scopeLabel, entry.archivedBy,
+    ...fileNames,
   ].filter(Boolean).join(' ').toLowerCase();
   return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
 }
@@ -535,7 +631,18 @@ export function canSee(entry) {
   return mine.length > 0 && mine.includes((entry.from || {}).institution);
 }
 
-const docTypeOf = (entry) => (entry.payload && entry.payload.doc && entry.payload.doc.type) || '';
+export const docTypeOf = (entry) => (entry.payload && entry.payload.doc && entry.payload.doc.type) || '';
+
+// Сырой видимый список — без фильтров и без сортировки. Нужен экрану архива
+// для самоисключающихся счётчиков фасетов (ТЗ §7.3): считать, что останется
+// при снятии ОДНОГО конкретного фильтра, можно только имея под рукой все
+// видимые записи и применяя к ним остальные условия самостоятельно —
+// queryArchive() и archiveFacets() всегда фильтруют по ВСЕМ условиям сразу.
+export function visibleEntries(seeFn) {
+  migrateAll();
+  const visible = seeFn ? (e) => seeFn((e.from || {}).institution) : canSee;
+  return allEntries().filter(visible);
+}
 
 // filter: { q, typeId, docType, institution, kind, from, to, showRestored }
 export function queryArchive(filter = {}, seeFn) {

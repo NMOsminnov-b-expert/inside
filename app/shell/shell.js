@@ -2,6 +2,7 @@ import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
 import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions } from '../kernel/session.js';
+import { archiveCount, subscribe as onArchiveChange } from '../kernel/archive.js';
 
 // Каркас окна. Ничего не знает про ОЦ/ОИ: рисует только то, что ему отдали.
 const state = { collapsed: false, drawer: null, drawerOpen: false };
@@ -29,9 +30,23 @@ function bindNav() {
   // на ходу, поэтому пересчитываем при каждом изменении сессии.
   const archiveBtn = $('[data-nav="archive"]');
   if (archiveBtn) {
-    const sync = () => { archiveBtn.hidden = !(seesEverything() || myInstitutions().length > 0); };
+    const badge = archiveBtn.querySelector('[data-archive-count]');
+
+    // Число записей, доступных этому сотруднику (без возвращённых) — рядом с
+    // пунктом «Архив» (ТЗ docs/tz/20-arhiv.md, §7.9). Пересчитывается и при
+    // смене роли/учреждений (archiveCount зависит от них), и при самом
+    // архивировании/возврате (archiveStore.subscribe — один источник для всех
+    // мест, откуда что-то может уехать в архив).
+    const sync = () => {
+      archiveBtn.hidden = !(seesEverything() || myInstitutions().length > 0);
+      if (!badge) return;
+      const n = archiveCount();
+      badge.textContent = String(n);
+      badge.hidden = n === 0;
+    };
     sync();
     session.subscribe(sync);
+    onArchiveChange(sync);
   }
 }
 

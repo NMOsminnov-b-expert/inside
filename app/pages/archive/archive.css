@@ -1,88 +1,198 @@
-/* Архив документов. Оформление намеренно повторяет реестр ОЦ: это тот же жанр
-   экрана — поиск по списку с фильтрами, — и человеку не нужно заново
-   разбираться, где что. */
-body[data-page="archive"] .arc{padding:14px 16px 24px;height:100%;overflow:auto}
+/* Архив (docs/tz/20-arhiv.md, §7-§8) — три зоны: сворачиваемые фильтры слева,
+   таблица со столбцами kernel/columns.js в центре, сворачиваемая панель
+   содержимого справа. Раскладка повторяет учреждения (app/pages/institutions)
+   и реестр документов (app/pages/docs): тот же жанр экрана, то же поведение
+   свёрнутых панелей и перегородок — человеку не нужно разбираться заново. */
 
-body[data-page="archive"] .arc-head{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;
-  margin-bottom:14px}
+body[data-page="archive"] .arc{padding:14px 16px 16px;height:100%;display:flex;flex-direction:column;min-height:0}
+
+body[data-page="archive"] .arc-head{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;flex:0 0 auto}
 body[data-page="archive"] .arc-head h2{font-size:17px;font-weight:700;color:var(--blue-700)}
 body[data-page="archive"] .arc-note{font-size:12px;color:var(--muted);margin-top:4px}
 body[data-page="archive"] .arc-note b{color:var(--ink)}
 
-body[data-page="archive"] .arc-search{margin-left:auto;display:flex;gap:8px;align-items:center;
-  flex:1 1 320px;max-width:640px}
+body[data-page="archive"] .arc-search{margin-left:auto;display:flex;gap:8px;align-items:center;flex:1 1 320px;max-width:640px}
 body[data-page="archive"] .arc-search .input{flex:1 1 auto;min-width:0}
 
-/* Фильтры — чипами, а не выпадающими списками: значений немного, и видеть их
-   все сразу полезнее, чем экономить место. Рядом с каждым — сколько документов
-   за ним стоит. */
-body[data-page="archive"] .arc-facets{display:flex;flex-wrap:wrap;gap:10px 22px;
-  padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);margin-bottom:12px}
-body[data-page="archive"] .arc-facet{min-width:0}
-body[data-page="archive"] .arc-facet-head{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--muted);font-weight:700;margin-bottom:6px}
-body[data-page="archive"] .arc-chips{display:flex;flex-wrap:wrap;gap:6px}
-body[data-page="archive"] .arc-chip{display:inline-flex;align-items:center;gap:6px;
-  border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;
-  font-size:12px;color:var(--ink);transition:background .12s,border-color .12s}
-body[data-page="archive"] .arc-chip:hover{border-color:var(--blue-500)}
-body[data-page="archive"] .arc-chip span{font-size:10.5px;font-weight:700;color:var(--muted)}
-body[data-page="archive"] .arc-chip.on{background:var(--blue-100);border-color:var(--blue-300);
-  color:var(--blue-700);font-weight:600}
-body[data-page="archive"] .arc-chip.on span{color:var(--blue-700)}
-body[data-page="archive"] .arc-dates{display:flex;align-items:center;gap:8px}
-body[data-page="archive"] .arc-dates .input{width:150px}
+body[data-page="archive"] .arc-group-toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);
+  align-self:center;white-space:nowrap;cursor:pointer}
+body[data-page="archive"] .arc-group-toggle input{accent-color:var(--blue-600)}
 
-body[data-page="archive"] .arc-body{background:var(--panel);border:1px solid var(--line);
-  border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+/* Чипы выбранных фильтров (§7.3) — над таблицей, каждый со своим крестиком. */
+body[data-page="archive"] .arc-chips-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;flex:0 0 auto}
+body[data-page="archive"] .arc-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--blue-300);
+  background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:3px 6px 3px 10px;font-size:11.5px;font-weight:600}
+body[data-page="archive"] .arc-chip button{color:var(--blue-700);font-size:13px;line-height:1;padding:0 2px}
+body[data-page="archive"] .arc-chip button:hover{color:var(--danger)}
+
+/* --- три зоны -------------------------------------------------------------- */
+body[data-page="archive"] .arc-main{display:flex;align-items:stretch;gap:10px;flex:1 1 auto;min-height:0;margin-top:10px}
+
+/* Фильтры: раскрытая колонка / свёрнутая вертикальная закладка (§7.1, §8.5). */
+body[data-page="archive"] .arc-filters{flex:0 0 236px;width:236px;display:flex;flex-direction:column;min-height:0;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+body[data-page="archive"] .arc-filters-head{display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+body[data-page="archive"] .arc-filters-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:6px 10px 10px;display:flex;flex-direction:column;gap:0}
+body[data-page="archive"] .arc-filters-tab{flex:0 0 30px;align-self:stretch;background:linear-gradient(180deg,#f7fafd,#eef4fa);
+  border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:background .12s}
+body[data-page="archive"] .arc-filters-tab:hover{background:var(--blue-50)}
+body[data-page="archive"] .arc-filters-tab span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;
+  font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+
+body[data-page="archive"] .arc-f-group{border-bottom:1px solid var(--line-soft)}
+body[data-page="archive"] .arc-f-group:last-child{border-bottom:none}
+body[data-page="archive"] .arc-f-head{display:flex;align-items:center;gap:6px;padding:8px 4px;cursor:pointer;
+  font-size:11.5px;user-select:none}
+body[data-page="archive"] .arc-f-head .chev{font-size:9px;color:var(--muted);transition:transform .12s;flex:0 0 auto}
+body[data-page="archive"] .arc-f-group:not(.open) .chev{transform:rotate(-90deg)}
+body[data-page="archive"] .arc-f-group:not(.open) .arc-f-body{display:none}
+body[data-page="archive"] .arc-f-body{display:flex;flex-direction:column;gap:1px;padding-bottom:6px}
+body[data-page="archive"] .arc-f-opt{display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:6px;
+  font-size:12px;color:var(--ink);cursor:pointer}
+body[data-page="archive"] .arc-f-opt:hover{background:var(--blue-50)}
+body[data-page="archive"] .arc-f-opt input{accent-color:var(--blue-600);flex:0 0 auto}
+body[data-page="archive"] .arc-f-n{margin-left:auto;font-size:10.5px;color:var(--muted);flex:0 0 auto}
+body[data-page="archive"] .arc-f-dates{flex-direction:row !important;gap:6px}
+body[data-page="archive"] .arc-f-dates .input{flex:1 1 0;min-width:0;font-size:11.5px;padding:5px 6px}
+body[data-page="archive"] .arc-f-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);
+  padding:8px 4px;cursor:pointer}
+body[data-page="archive"] .arc-f-check input{accent-color:var(--blue-600)}
+
+/* Центр: панель инструментов + таблица + счётчик. */
+body[data-page="archive"] .arc-center{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0}
+body[data-page="archive"] .arc-toolbar{display:flex;align-items:center;gap:8px;flex:0 0 auto;margin-bottom:8px}
+body[data-page="archive"] .arc-toolbar-tools{display:flex;gap:8px}
+body[data-page="archive"] .arc-bulk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);
+  background:var(--blue-50);border:1px solid var(--blue-200);border-radius:var(--radius);padding:6px 10px}
+body[data-page="archive"] .arc-bulk b{color:var(--blue-700)}
+body[data-page="archive"] .arc-cols-dd{margin-left:auto;flex:0 0 auto}
+body[data-page="archive"] .reg-icon-btn{width:29px;height:29px;border:1px solid var(--line);border-radius:7px;
+  background:#fff;color:#46536b;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+body[data-page="archive"] .reg-icon-btn:hover{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
+body[data-page="archive"] .reg-cols{right:0;left:auto;min-width:220px;max-height:360px;overflow:auto}
+
+/* Таблица (§7.2, §8.4): ширины — только от kernel/columns.js, тянущийся
+   столбец один («Что убрано»), «Действия» закреплён. Контейнерный запрос
+   вместо @media (§8.7) — раскладку узкой строки решает ширина блока, а не
+   ширина окна: панель содержимого сужает список без перезагрузки страницы. */
+body[data-page="archive"] .arc-list{flex:1 1 auto;min-height:0;overflow:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);container-type:inline-size}
 body[data-page="archive"] .arc-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
-body[data-page="archive"] .arc-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;
-  color:#3f4c63;text-align:left;padding:9px 12px;border-bottom:1.5px solid var(--line);
-  font-weight:700;background:#eef4fb}
-body[data-page="archive"] .arc-tbl td{padding:9px 12px;border-bottom:1px solid var(--line-soft);
-  font-size:13px;vertical-align:middle;overflow:hidden}
+body[data-page="archive"] .arc-tbl thead{position:sticky;top:0;z-index:2}
+body[data-page="archive"] .arc-tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#3f4c63;
+  text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line);font-weight:700;background:#eef4fb}
+body[data-page="archive"] .arc-tbl th.right{text-align:right}
+body[data-page="archive"] .arc-tbl th.sortable{cursor:pointer}
+body[data-page="archive"] .arc-tbl th.sortable:hover{color:var(--blue-700)}
+body[data-page="archive"] .arc-tbl th[data-col="sel"]{padding:8px 0 8px 10px}
+body[data-page="archive"] .reg-sort{font-size:8px;color:var(--blue-600);margin-left:3px}
+body[data-page="archive"] .arc-tbl td{padding:7px 10px;border-bottom:1px solid var(--line-soft);font-size:12.5px;
+  vertical-align:middle;overflow:hidden}
+body[data-page="archive"] .arc-tbl td.right{text-align:right}
 body[data-page="archive"] .arc-tbl tbody tr:last-child td{border-bottom:none}
-body[data-page="archive"] .arc-tbl tbody tr:hover td{background:var(--blue-50)}
+body[data-page="archive"] .arc-tbl tbody tr.arc-tr{cursor:pointer}
+body[data-page="archive"] .arc-tbl tbody tr.arc-tr:hover td{background:var(--blue-50)}
+body[data-page="archive"] .arc-tbl tbody tr.arc-tr.open td{background:var(--blue-100)}
+body[data-page="archive"] .arc-tbl tbody tr.arc-tr.cur td{box-shadow:inset 0 0 0 1.5px var(--blue-500)}
+body[data-page="archive"] .arc-tbl tbody tr.arc-restored td{opacity:.62}
+body[data-page="archive"] .arc-tbl tbody tr.arc-child{box-shadow:inset 3px 0 0 var(--line)}
+body[data-page="archive"] .arc-tbl input[type="checkbox"]{accent-color:var(--blue-600)}
 
-body[data-page="archive"] .arc-doc{display:flex;flex-direction:column;gap:2px;min-width:0}
-body[data-page="archive"] .arc-doc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-body[data-page="archive"] .arc-type{font-size:11px;color:var(--muted)}
+body[data-page="archive"] .arc-kind{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--slate-700)}
+body[data-page="archive"] .arc-kind-ico{font-size:14px;line-height:1;flex:0 0 auto}
+body[data-page="archive"] .arc-doc{display:flex;flex-direction:column;gap:1px;min-width:0}
+body[data-page="archive"] .arc-doc b{font-weight:600;display:block}
+body[data-page="archive"] .arc-sub{font-size:10.5px;color:var(--muted);display:block}
+body[data-page="archive"] .arc-from{display:flex;flex-direction:column;gap:1px;min-width:0}
+body[data-page="archive"] .arc-scope{font-size:10.5px;color:var(--muted);display:block}
+body[data-page="archive"] .arc-tbl .ell{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="archive"] .arc-act{white-space:nowrap}
+body[data-page="archive"] .arc-restored-note{font-size:11px;color:var(--muted);font-style:italic}
+body[data-page="archive"] .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
 
-body[data-page="archive"] .arc-from{display:flex;flex-direction:column;gap:2px;min-width:0}
-body[data-page="archive"] .arc-from .mono{font-size:11.5px;color:var(--blue-700)}
-body[data-page="archive"] .arc-scope{font-size:11px;color:var(--muted)}
+/* Группировка по объекту (§7.4): шапка группы — объект/ЕНИ/учреждение/состав. */
+body[data-page="archive"] .arc-group-head{background:#f3f7fc;cursor:pointer}
+body[data-page="archive"] .arc-group-head:hover{background:var(--blue-50)}
+body[data-page="archive"] .arc-group-head td{padding:0;border-bottom:1px solid var(--line)}
+body[data-page="archive"] .arc-group-row{padding:8px 10px;display:flex;align-items:center;gap:8px;
+  font-size:12.5px;white-space:nowrap;overflow:hidden}
+body[data-page="archive"] .arc-group-head .chev{font-size:9px;color:var(--muted);transition:transform .12s;flex:0 0 auto}
+body[data-page="archive"] .arc-group-head.collapsed .chev{transform:rotate(-90deg)}
+body[data-page="archive"] .arc-group-head b{overflow:hidden;text-overflow:ellipsis;max-width:280px}
+body[data-page="archive"] .arc-group-collapsed{margin-left:auto;font-size:10.5px;color:var(--muted);flex:0 0 auto}
 
-body[data-page="archive"] .ell{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Действия — три кнопки; столбцу отведена своя доля ширины, поэтому они
-   не выдавливают данные и не уезжают за край таблицы. */
-body[data-page="archive"] .arc-act{white-space:nowrap;text-align:right;overflow:visible}
-body[data-page="archive"] .arc-act .btn{margin-left:6px;text-decoration:none}
-
-body[data-page="archive"] .arc-count{padding:8px 12px;font-size:12px;color:var(--muted);
-  border-top:1px solid var(--line-soft)}
+body[data-page="archive"] .arc-count{padding:8px 12px;font-size:12px;color:var(--muted);flex:0 0 auto}
 body[data-page="archive"] .arc-count b{color:var(--ink)}
+body[data-page="archive"] .arc-empty{padding:34px 20px;text-align:center;color:var(--muted);font-size:13px;
+  line-height:1.7;flex:1 1 auto;display:flex;align-items:center;justify-content:center}
 
-body[data-page="archive"] .arc-empty{padding:34px 20px;text-align:center;color:var(--muted);
-  font-size:13px;line-height:1.7}
-
-/* Узкое окно: действия переезжают под данные, а не выдавливают таблицу. */
-@media (max-width: 1100px) {
+@container (max-width: 460px) {
+  body[data-page="archive"] .arc-tbl thead{display:none}
   body[data-page="archive"] .arc-tbl,
   body[data-page="archive"] .arc-tbl tbody,
   body[data-page="archive"] .arc-tbl tr,
   body[data-page="archive"] .arc-tbl td{display:block;width:auto}
-  body[data-page="archive"] .arc-tbl thead{display:none}
-  body[data-page="archive"] .arc-tbl tr{border-bottom:1px solid var(--line);padding:6px 0}
-  body[data-page="archive"] .arc-tbl td{border-bottom:none;padding:4px 12px}
-  body[data-page="archive"] .arc-act{text-align:left;padding-top:8px}
-  body[data-page="archive"] .arc-act .btn{margin:0 6px 0 0}
+  body[data-page="archive"] .arc-tbl tr.arc-tr{border-bottom:1px solid var(--line);padding:6px 0}
+  body[data-page="archive"] .arc-tbl td{border-bottom:none;padding:3px 10px}
+  body[data-page="archive"] .arc-act{text-align:left;padding-top:6px}
+  body[data-page="archive"] .arc-group-head td{white-space:normal}
 }
 
-/* Вид записи — значок плюс подпись: в архиве теперь не только документы, и без
-   вида непонятно, что именно вернёшь (ТЗ docs/tz/20-arhiv.md, §7.2). */
-body[data-page="archive"] .arc-kind{display:flex;align-items:center;gap:7px;
-  font-size:12.5px;color:var(--slate-700)}
-body[data-page="archive"] .arc-kind-ico{font-size:15px;line-height:1}
-body[data-page="archive"] .arc-sub{display:block;font-size:11px;color:var(--muted);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* --- панель содержимого (§7.5) --------------------------------------------- */
+body[data-page="archive"] .arc-content{flex:0 0 var(--arc-content-w,420px);width:var(--arc-content-w,420px);
+  min-width:0;display:flex;flex-direction:column;position:relative;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;container-type:inline-size}
+body[data-page="archive"] .arc-split{position:absolute;left:-6px;top:0;bottom:0;width:11px;cursor:col-resize;
+  touch-action:none;z-index:5}
+body[data-page="archive"] .arc-split::after{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;
+  background:var(--line);transition:background .12s,width .12s}
+body[data-page="archive"] .arc-split:hover::after,
+body[data-page="archive"] .arc-split.active::after{background:var(--blue-500);width:2px}
+body[data-page="archive"] .arc-content-head{display:flex;align-items:center;gap:8px;padding:9px 12px;
+  border-bottom:1px solid var(--line-soft);flex:0 0 auto}
+body[data-page="archive"] .arc-content-head .reg-icon-btn{margin-left:auto}
+body[data-page="archive"] .arc-content-title{display:flex;align-items:center;gap:9px;padding:10px 12px;
+  border-bottom:1px solid var(--line-soft);flex:0 0 auto;min-width:0}
+body[data-page="archive"] .arc-content-title .arc-kind-ico{font-size:20px;flex:0 0 auto}
+body[data-page="archive"] .arc-content-title div{min-width:0}
+body[data-page="archive"] .arc-content-title b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="archive"] .arc-content-title .muted{font-size:11px;display:block}
+body[data-page="archive"] .arc-content-tab{flex:0 0 30px;align-self:stretch;background:linear-gradient(180deg,#f7fafd,#eef4fa);
+  border:1px solid var(--line);border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:background .12s}
+body[data-page="archive"] .arc-content-tab:hover{background:var(--blue-50)}
+body[data-page="archive"] .arc-content-tab span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;
+  font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+
+body[data-page="archive"] .arc-panel-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:10px 12px;display:flex;flex-direction:column}
+body[data-page="archive"] .arc-panel-doc{padding:0;min-height:0}
+body[data-page="archive"] .arc-panel-viewer{flex:1 1 auto;min-height:0;overflow:hidden;display:flex}
+body[data-page="archive"] .arc-panel-viewer .viewer{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;width:100%}
+body[data-page="archive"] .arc-panel-meta{flex:0 0 auto;padding:10px 12px;border-top:1px solid var(--line-soft);
+  display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto;overscroll-behavior:contain}
+body[data-page="archive"] .arc-panel-row{display:flex;gap:8px;font-size:12px;padding:3px 0;
+  border-bottom:1px solid var(--line-soft)}
+body[data-page="archive"] .arc-panel-row span{flex:0 0 128px;color:var(--muted)}
+body[data-page="archive"] .arc-panel-row b{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:600;color:var(--ink)}
+body[data-page="archive"] .arc-panel-sub{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--muted);font-weight:700;margin:10px 0 4px}
+body[data-page="archive"] .arc-panel-list{list-style:none;display:flex;flex-direction:column;gap:2px;font-size:12px}
+body[data-page="archive"] .arc-panel-list li{padding:3px 6px;background:#f7fafd;border-radius:6px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+body[data-page="archive"] .arc-panel-warn{margin-top:8px;padding:8px 10px;background:var(--amber-50);
+  border:1px solid var(--amber-100);border-radius:var(--radius);font-size:12px;color:var(--amber-700)}
+body[data-page="archive"] .arc-panel-empty{padding:24px 16px;text-align:center;color:var(--muted);font-size:12.5px;
+  line-height:1.6;margin:auto}
+body[data-page="archive"] .arc-panel-foot{flex:0 0 auto;padding:10px 12px;border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;background:var(--panel)}
+body[data-page="archive"] .arc-panel-foot .muted{font-size:11px}
+
+@container (max-width: 300px) {
+  body[data-page="archive"] .arc-panel-row{flex-direction:column;gap:0}
+  body[data-page="archive"] .arc-panel-row span{flex:0 0 auto}
+}

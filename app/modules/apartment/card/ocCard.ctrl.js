@@ -161,7 +161,7 @@ export function bindOcCard(ctx) {
     });
     if (!ok) return;
 
-    archiveRecord({
+    await archiveRecord({
       typeId: 'apartment', typeLabel: 'Квартира (жилое помещение)', rec, today: ctx.today,
     });
     ctx.host.toMenu();

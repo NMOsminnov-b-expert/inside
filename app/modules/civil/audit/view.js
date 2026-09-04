@@ -6,8 +6,15 @@ import { resolveDocRef } from './model.js';
 
 // «Перенесено» — про перестановку страниц документа: это не изменение
 // значения поля и не удаление, порядок страниц значим сам по себе.
-const ACTION_LABEL = { create: 'Добавлено', delete: 'Удалено', update: 'Изменено', move: 'Перенесено' };
-const ACTIONS = ['create', 'update', 'delete', 'move'];
+// archive/restore — отдельно от create/delete (ТЗ docs/tz/20-arhiv.md, §9):
+// объект/документ/литера не стёрлись, а уехали в архив, и это не то же самое,
+// что «удалено» — путать эти два действия и значило бы вернуть то самое
+// «пугает словом удалить», от которого архив специально уводит (§13).
+const ACTION_LABEL = {
+  create: 'Добавлено', delete: 'Удалено', update: 'Изменено', move: 'Перенесено',
+  archive: 'Убрано в архив', restore: 'Возвращено из архива',
+};
+const ACTIONS = ['create', 'update', 'delete', 'move', 'archive', 'restore'];
 
 // --- Панель фильтров --------------------------------------------------------
 // Все мультивыборы — один и тот же .ms/.ms-drop паттерн (oi/building/heating.js),
@@ -146,7 +153,11 @@ function rowsForObject(rows, obj) {
 // --- Раздел «Правки» (таблица Кто|Когда|Параметр|Предыдущее|Новое) ----------
 
 function paramLabel(row) {
-  if (row.field === '(объект)') return row.action === 'create' ? 'Создание' : 'Удаление';
+  if (row.field === '(объект)') {
+    if (row.action === 'create') return 'Создание';
+    if (row.action === 'archive' || row.action === 'restore') return ACTION_LABEL[row.action];
+    return 'Удаление';
+  }
   return fieldLabel(row.field, row.cardType);
 }
 

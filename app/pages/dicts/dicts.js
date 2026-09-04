@@ -23,7 +23,7 @@ import { session, roleLabel } from '../../kernel/session.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import {
   allDicts, getDict, CARD_LABEL, canEditDicts, usageOf, dictUsage,
-  catalogTree, catalogKey, dictCatalog, createDict, copyDict, removeDict,
+  catalogTree, catalogKey, dictCatalog, createDict, copyDict, archiveDict, dictActionLog,
   renameDict, setDictNote, addItem, renameItem, removeItem, hasValue, moveItem,
   bindSlot, unbindSlot, freeSlots, moveToCatalog, setFolder, foldersOf, mainSlot,
   slotsWithOwners, linkedDicts, diffWith, addItemTo, removeItemFrom, renameItemIn,
@@ -424,8 +424,8 @@ function generalHTML(d) {
       ${canEditDicts() ? `<span class="dc-card-tools">
         <button class="btn btn-ghost btn-sm" data-dc-copy
           title="Копия со всеми значениями. Копия не привязана — её отдают другому полю">Копировать</button>
-        ${!d.system && !main ? `<button class="btn btn-danger btn-sm" data-dc-del
-          title="Удалить справочник">Удалить</button>` : ''}
+        ${!d.system ? `<button class="btn btn-danger btn-sm" data-dc-del
+          title="Убрать справочник в архив">Убрать в архив</button>` : ''}
       </span>` : ''}
     </header>
 
@@ -910,6 +910,7 @@ function viewHTML() {
   const head = `<div class="dc-head">
     ${viewSwitchHTML()}
     <div class="dc-head-filters">${filtersHTML()}</div>
+    <button class="btn btn-ghost btn-sm" data-dc-log title="Журнал действий раздела — кто и когда убирал/возвращал справочники">Журнал</button>
     ${newDictHTML()}
   </div>`;
 
@@ -953,6 +954,37 @@ function viewHTML() {
     ${side}
     ${d ? removeDialogHTML(d) : ''}
   </div>`;
+}
+
+// Журнал раздела (ТЗ §9) — простое окно поверх .modal-back/.modal
+// (kernel/tokens.css), тот же приём, что openLinkModal в реестре документов:
+// десяток строк не стоит отдельного экрана.
+function openDictLogModal() {
+  const rows = dictActionLog();
+  const back = document.createElement('div');
+  back.className = 'modal-back';
+  back.innerHTML = `<div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head">Журнал действий раздела</div>
+    <div class="modal-body" style="max-height:60vh;overflow-y:auto">
+      ${rows.length ? `<table class="tbl" style="width:100%">
+        <thead><tr><th>Когда</th><th>Кто</th><th>Что</th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>
+          <td class="mono" style="white-space:nowrap">${esc(r.at)}</td>
+          <td style="white-space:nowrap">${esc(r.person)} <span class="tag-mini">${esc(roleLabel(r.role))}</span></td>
+          <td>${esc(r.message)}</td>
+        </tr>`).join('')}</tbody>
+      </table>` : '<div class="muted">Пока пусто — сюда попадают архивирование и возврат справочников.</div>'}
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" data-modal-cancel>Закрыть</button>
+    </div>
+  </div>`;
+  document.body.appendChild(back);
+
+  const close = () => back.remove();
+  back.querySelector('[data-modal-cancel]').onclick = close;
+  back.addEventListener('mousedown', (e) => { if (e.target === back) close(); });
+  back.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 }
 
 export function mountDicts(host) {
@@ -1268,6 +1300,12 @@ export function mountDicts(host) {
     const sys = scope.$('[data-dc-sys]');
     if (sys) sys.onchange = () => { state.showSystem = sys.checked; render(); };
 
+    // Журнал раздела (ТЗ §9) — справочник ни к какому объекту не относится,
+    // поэтому лог свой, не в карточке объекта; окно простое, как openLinkModal
+    // в реестре документов, а не отдельная страница ради десятка строк.
+    const logBtn = scope.$('[data-dc-log]');
+    if (logBtn) logBtn.onclick = () => openDictLogModal();
+
     // --- создание строкой, без отдельного окна ---
     const add = scope.$('[data-dc-new]');
     if (add) add.onclick = () => {
@@ -1340,11 +1378,16 @@ export function mountDicts(host) {
     const del = scope.$('[data-dc-del]');
     if (del) del.onclick = async () => {
       const ok = await host.confirm({
-        title: 'Удалить справочник', okLabel: 'Удалить', danger: true,
-        text: `Удалить «${d.name}»? Значения будут потеряны.`,
+        title: 'Убрать справочник в архив?', okLabel: 'В архив', danger: true,
+        text: `Убрать «${d.name}» в архив? ${mainSlot(d) ? 'Поле вернётся к встроенному перечню. ' : ''}`
+          + 'Справочник можно вернуть из архива.',
       });
       if (!ok) return;
-      if (removeDict(d)) { state.selected = null; render(); host.toast('Справочник удалён', 'ok'); }
+      if (archiveDict(d)) {
+        state.selected = null;
+        render();
+        host.toast(`Убрано в архив: ${d.name}`, 'ok');
+      }
     };
 
     // --- блок 02 ---

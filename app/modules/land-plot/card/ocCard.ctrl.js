@@ -143,7 +143,7 @@ export function bindOcCard(ctx) {
     });
     if (!ok) return;
 
-    archiveRecord({
+    await archiveRecord({
       typeId: 'land-plot', typeLabel: 'Земельный участок', rec, today: ctx.today,
     });
     ctx.host.toMenu();

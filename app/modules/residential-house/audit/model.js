@@ -22,6 +22,7 @@
 // вложения к ОЦ, включая постраничные действия), 'photos' (счётчики фото по
 // категориям внутри литеры).
 import { session } from '../../../kernel/session.js';
+import { plural } from '../../../kernel/fmt.js';
 import { nextEniScoped } from '../data/store.js';
 
 // Служебные поля, которые пользователю не показываются никогда, поэтому не
@@ -261,7 +262,11 @@ export function pushDocPageLog(rec, doc, action, pageNumber) {
 // них отдельная явная строка «перенесено», а не «—» (было бы неверно читать
 // как утрату данных). docs литеры каскадируют обычным порядком (сохранять
 // их не просили — только фото).
-export function pushOiDeletionLog(rec, oi, movedPhotos) {
+// archived — литера уезжает в архив, а не удаляется безвозвратно (ТЗ
+// docs/tz/20-arhiv.md, §9): дополняет обычный постатейный дифф ОДНОЙ итоговой
+// строкой «убрана в архив», чтобы в логе было видно не только что изменилось
+// в полях, но и сам факт архивирования.
+export function pushOiDeletionLog(rec, oi, movedPhotos, archived) {
   if (!rec || !oi) return [];
 
   const target = { id: oi.id, letter: oi.letter, name: oi.name };
@@ -282,7 +287,56 @@ export function pushOiDeletionLog(rec, oi, movedPhotos) {
     });
   }
 
+  if (archived) {
+    flat.push({ category: 'oi', target, cardType: oi.card, field: '(объект)', action: 'archive', before: '—', after: 'убрана в архив' });
+  }
+
   return pushRows(rec, flat);
+}
+
+// --- архив (ТЗ §9) — документ/объект убраны в архив или возвращены ---------
+//
+// Отдельные функции, а не диффом (recordChanges): архивирование убирает
+// документ/объект из записи целиком, и к следующему снимку сравнивать уже не
+// с чем — то же ограничение, что и у pushOiDeletionLog (см. его комментарий).
+
+export function pushDocArchiveLog(rec, doc) {
+  if (!rec || !doc) return null;
+  const [row] = pushRows(rec, [{
+    category: 'docs', target: null, cardType: null, field: '(объект)', action: 'archive',
+    before: 'прикреплён', after: 'убран в архив', docId: doc.id, docLabel: docLabel(doc),
+  }]);
+  return row || null;
+}
+
+export function pushDocRestoreLog(rec, doc) {
+  if (!rec || !doc) return null;
+  const [row] = pushRows(rec, [{
+    category: 'docs', target: null, cardType: null, field: '(объект)', action: 'restore',
+    before: 'в архиве', after: 'возвращён из архива', docId: doc.id, docLabel: docLabel(doc),
+  }]);
+  return row || null;
+}
+
+export function pushRecordArchiveLog(rec, { oiCount = 0, docsCount = 0 } = {}) {
+  if (!rec) return null;
+  const after = `убран в архив (${docsCount} ${plural(docsCount, 'документ', 'документа', 'документов')}, `
+    + `${oiCount} ${plural(oiCount, 'литера', 'литеры', 'литер')})`;
+  const [row] = pushRows(rec, [{ category: 'oc', target: null, cardType: null, field: '(объект)', action: 'archive', before: '—', after }]);
+  return row || null;
+}
+
+export function pushRecordRestoreLog(rec) {
+  if (!rec) return null;
+  const [row] = pushRows(rec, [{ category: 'oc', target: null, cardType: null, field: '(объект)', action: 'restore', before: 'в архиве', after: 'возвращён из архива' }]);
+  return row || null;
+}
+
+export function pushOiRestoreLog(rec, oi) {
+  if (!rec || !oi) return null;
+  const target = { id: oi.id, letter: oi.letter, name: oi.name };
+  const [row] = pushRows(rec, [{ category: 'oi', target, cardType: oi.card, field: '(объект)', action: 'restore', before: 'в архиве', after: 'возвращена из архива' }]);
+  return row || null;
 }
 
 // Ищет документ по id среди rec.docs и docs каждой литеры — для кнопки

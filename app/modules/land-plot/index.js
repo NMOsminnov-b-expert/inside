@@ -64,11 +64,13 @@ export function main(host) {
       const oi = getOi(rec, id);
       if (!oi) return;
 
+      // Не удаление: литера уезжает в архив, откуда её можно вернуть (ТЗ
+      // docs/tz/20-arhiv.md, §4.3).
       const label = oi.letter ? 'Литера ' + oi.letter : 'ОИ';
       const ok = await host.confirm({
-        title: 'Удаление ОИ',
-        text: `Удалить «${label}» (${oi.name})? Действие нельзя отменить.`,
-        okLabel: 'Удалить',
+        title: 'Убрать литеру в архив?',
+        text: `Убрать «${label}» (${oi.name}) в архив? Она останется доступна в разделе «Архив», откуда её можно вернуть.`,
+        okLabel: 'В архив',
         danger: true,
       });
       if (!ok) return;
@@ -89,7 +91,7 @@ export function main(host) {
         rec.ocOrphanPhotos = rec.ocOrphanPhotos || [];
         rec.ocOrphanPhotos.push({ fromOiId: oi.id, letter: oi.letter, name: oi.name, photos: { ...photos } });
       }
-      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
+      pushOiDeletionLog(rec, oi, hasPhotos ? photos : null, true);
 
       // Литера уезжает в архив, а не удаляется: снимок уносит её площади,
       // документы и фото, и её можно вернуть (ТЗ docs/tz/20-arhiv.md, §4.3).

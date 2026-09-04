@@ -15,6 +15,8 @@
 .nav-ico{width:16px;text-align:center;color:#7d93a6}
 .nav-item.active .nav-ico{color:var(--blue-700)}
 .nav-soon{margin-left:auto;font-size:9.5px;color:#7d93a6;background:var(--blue-50);border-radius:4px;padding:1px 5px}
+.nav-badge{margin-left:auto;font-size:10px;font-weight:700;color:#fff;background:var(--blue-600);
+  border-radius:999px;padding:1px 6px;min-width:16px;text-align:center;line-height:1.4}
 .side-foot{padding:8px 14px;border-top:1px solid var(--line-soft);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between}
 .main{flex:1;display:flex;flex-direction:column;min-width:0}
 .main-row{display:flex;flex:1;min-height:0}
@@ -82,6 +84,7 @@
 .logo-text,
 .nav-label,
 .nav-soon,
+.nav-badge,
 .side-foot{
   transition: opacity 0.18s ease, visibility 0.18s ease;
   white-space: nowrap;
@@ -89,6 +92,7 @@
 .sidebar.collapsed .logo-text,
 .sidebar.collapsed .nav-label,
 .sidebar.collapsed .nav-soon,
+.sidebar.collapsed .nav-badge,
 .sidebar.collapsed .side-foot{
   opacity: 0;
   visibility: hidden;

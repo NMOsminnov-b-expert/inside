@@ -23,9 +23,14 @@
 // права: кто какие ветки видит и правит.
 import { facetsAll, queryAll, mutate } from '../pages/ocMenu/query.js';
 import { emptyFilter } from '../pages/ocMenu/state.js';
-import { queryDocuments, documentInstitutions } from './documentsRegistry.js';
+import { queryDocuments, documentInstitutions, takeDocument, restoreDocument, getDocument } from './documentsRegistry.js';
 import { eniRegion } from './fmt.js';
 import { seesEverything, session } from './session.js';
+import { sortedTypes } from './registry.js';
+import { buildOcEntries, buildRegistryDocEntry, auditFor } from './archive.js';
+import { addEntries, markRestored, pendingBatch, batchOf } from './archiveStore.js';
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 let seq = 0;
 const nextId = () => 'inst-' + (++seq);
@@ -390,31 +395,185 @@ export function moveNode(id, newParentId) {
   return { ok: true, node };
 }
 
-// Удаление. Узел с объектами не удаляем: сначала их надо перенести — иначе
-// объекты потеряют учреждение молча.
-export function removeNode(id, { withChildren = false } = {}) {
-  const node = getNode(id);
-  if (!node) return { ok: false, reason: 'Учреждение не найдено' };
-  if (!node.parentId) return { ok: false, reason: 'Корневой узел удалить нельзя' };
+// --- удаление: каскад в архив (ТЗ §4.4, решение пользователя 03.09.2026) ---
+//
+// Прежний запрет «нельзя удалить учреждение с объектами» снят: одной операцией
+// в архив уезжают сам узел, всё его поддерево на любую глубину, объекты оценки
+// закреплённых узлов (пакетом kind:'oc') и документы — и этих объектов, и самих
+// учреждений (kind:'document'). Возврат поднимает всю ветку целиком.
+//
+// Архив это дерево не импортирует (см. комментарий у institutionProbe в
+// archive.js — обратный импорт замкнул бы цикл), поэтому сам каскад собран
+// здесь, а не там: buildOcEntries/buildRegistryDocEntry — чистые сборщики
+// записи без обращения к хранилищу, addEntries кладёт всё одним пакетом.
 
-  const sub = subtreeOf(id);
-  const busy = sub.filter((n) => ocCount(n) > 0);
-  if (busy.length) {
-    return {
-      ok: false,
-      reason: `За ${busy.length === 1 ? 'учреждением' : 'учреждениями'} числятся объекты оценки`,
-      busy: busy.map((n) => ({ name: n.name, oc: ocCount(n) })),
-    };
+function resolvedStaff(node) {
+  const s = staffOf(node);
+  const out = {};
+  STAFF_ROLES.forEach(({ key }) => { if (s[key]) out[key] = s[key].name; });
+  return out;
+}
+
+function ocDocCount(rec) {
+  const own = (rec.docs || []).length;
+  const oi = (rec.oi || []).reduce((n, o) => n + (o.docs || []).length, 0);
+  return own + oi;
+}
+
+// Точный состав для диалога подтверждения — тем же обходом, что и сам каскад,
+// чтобы текст диалога не мог разойтись с тем, что происходит на самом деле.
+export function institutionCascadePreview(nodeId) {
+  const root = getNode(nodeId);
+  if (!root || !root.parentId) return null;
+
+  const subtree = subtreeOf(nodeId);
+  let ocN = 0;
+  let docN = 0;
+
+  subtree.forEach((n) => {
+    docN += docRowsOf(n, { limit: 5000 }).length;
+    ocRowsOf(n, { limit: 5000 }).forEach((row) => {
+      ocN++;
+      const type = sortedTypes().find((t) => t.manifest.id === row.typeId);
+      const rec = type && type.records.allRecords
+        ? type.records.allRecords().find((r) => r.id === row.id) : null;
+      if (rec) docN += ocDocCount(rec);
+    });
+  });
+
+  return { root, podvedCount: subtree.length - 1, ocCount: ocN, docCount: docN };
+}
+
+// Сам каскад. Возвращает корневую архивную запись узла (batchRole:'root') —
+// по ней потом идёт возврат всей ветки.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь каскад — это цикл на клиенте (изъять объекты,
+// изъять документы, убрать узлы из дерева), а не атомарная операция. Если
+// вкладку закрыть или произойдёт ошибка на середине — часть уже уехала в
+// архив, часть ещё нет, и восстановить согласованное состояние нечем. На
+// сервере это должна быть транзакция: либо всё поддерево целиком уехало в
+// архив, либо ничего (ТЗ §10).
+export async function archiveNodeCascade(nodeId, { today } = {}) {
+  const root = getNode(nodeId);
+  if (!root || !root.parentId) return null;
+
+  const subtree = subtreeOf(nodeId);
+  const day = today || todayIso();
+  const who = session.state.person;
+
+  // Снимки узлов — со ЖИВЫМ деревом ещё на месте: staffOf/pathOf читают
+  // родительскую цепочку, которая после splice ниже перестанет существовать.
+  const nodeEntries = subtree.map((n) => ({
+    kind: 'institution',
+    title: n.name,
+    subtitle: n.id === root.id ? '' : `Подведомственная · ${root.name}`,
+    archivedAt: day,
+    archivedBy: who,
+    from: { place: 'institution', nodeId: n.id, institution: n.name, scopeLabel: 'Учреждение' },
+    payload: {
+      node: { id: n.id, name: n.name, note: n.note || '', region: n.region || '', staff: n.staff || {} },
+      parentId: n.parentId,
+      favorite: isFavorite(n.id),
+      staff: resolvedStaff(n),
+    },
+  }));
+
+  // buildOcEntries сама пишет «объект убран в архив» в лог каждого объекта
+  // (kernel/archive.js) — тем самым каскад пишет в логи всех затронутых
+  // объектов, как просит ТЗ §9, без отдельного «общего лога учреждения».
+  const ocEntries = [];
+  for (const n of subtree) {
+    for (const row of ocRowsOf(n, { limit: 5000 })) {
+      const type = sortedTypes().find((t) => t.manifest.id === row.typeId);
+      if (!type || !type.records.takeRecord) continue;
+      const taken = type.records.takeRecord(row.id);
+      if (!taken) continue;
+      ocEntries.push(...await buildOcEntries({ typeId: row.typeId, typeLabel: row.typeLabel, taken, today: day, who }));
+    }
   }
 
-  const kids = childrenOf(id);
-  if (kids.length && !withChildren) {
-    return { ok: false, reason: 'У учреждения есть подведомственные', children: kids.length };
-  }
+  const docEntries = [];
+  subtree.forEach((n) => {
+    docRowsOf(n, { limit: 5000 }).forEach((doc) => {
+      const taken = takeDocument(doc.id);
+      if (!taken) return;
+      docEntries.push(buildRegistryDocEntry({ doc: taken, place: 'institution', node: n, today: day, who }));
+    });
+  });
 
-  const ids = new Set(sub.map((n) => n.id));
+  // Дерево обновляем последним: снимки и выборки объектов/документов выше уже
+  // не нуждаются в живой родительской цепочке.
+  const ids = new Set(subtree.map((n) => n.id));
   for (let i = nodes.length - 1; i >= 0; i--) if (ids.has(nodes[i].id)) nodes.splice(i, 1);
-  return { ok: true, removed: ids.size };
+
+  const created = addEntries([...nodeEntries, ...ocEntries, ...docEntries]);
+  return created[0];
+}
+
+// Один узел из снимка — обратно в дерево. Если его прежнего родителя больше
+// нет (тоже в архиве), поднимаемся по цепочке снимков пакета до ближайшего
+// живого предка; нет такого — узел встаёт на верхний уровень (ТЗ §4.4).
+function restoreSingleNode(entry, today) {
+  const p = entry.payload;
+  let parentId = p.parentId;
+
+  if (parentId && !getNode(parentId)) {
+    const siblings = entry.batchId ? batchOf(entry.batchId).filter((e) => e.kind === 'institution') : [];
+    let pid = parentId;
+    while (pid && !getNode(pid)) {
+      const parentEntry = siblings.find((e) => e.payload.node.id === pid);
+      pid = parentEntry ? parentEntry.payload.parentId : null;
+    }
+    parentId = pid || null;
+  }
+
+  if (!getNode(p.node.id)) {
+    nodes.push({ id: p.node.id, name: p.node.name, note: p.node.note, region: p.node.region, staff: p.node.staff, parentId });
+  }
+  if (p.favorite) favorites.add(p.node.id);
+
+  markRestored(entry.id, session.state.person, today);
+  return getNode(p.node.id);
+}
+
+// Возврат ветки целиком (или одного узла отдельно от неё — ТЗ §5.4): вызывает
+// kernel/archive.js через setInstitutionRestorer, чтобы обратный импорт не
+// понадобился ни ему, ни этому файлу.
+export async function restoreInstitutionEntry(entry, today) {
+  if (!entry || entry.restoredAt || entry.kind !== 'institution') return null;
+
+  // Не корень пакета — только этот узел, остальная ветка остаётся в архиве.
+  if (entry.batchId && entry.batchRole !== 'root') {
+    return { node: restoreSingleNode(entry, today), single: true };
+  }
+
+  const batch = entry.batchId ? pendingBatch(entry.batchId) : [entry];
+  const nodeItems = batch.filter((e) => e.kind === 'institution');
+  const ocItems = batch.filter((e) => e.kind === 'oc');
+  const docItems = batch.filter((e) => e.kind === 'document');
+
+  const restoredNodes = nodeItems.map((e) => restoreSingleNode(e, today));
+
+  let ocN = 0;
+  for (const e of ocItems) {
+    const type = sortedTypes().find((t) => t.manifest.id === e.from.typeId);
+    if (!type || !type.records.restoreRecord) continue;
+    type.records.restoreRecord(e.payload.rec);
+    markRestored(e.id, session.state.person, today);
+    const audit = await auditFor(e.from.typeId);
+    if (audit && audit.pushRecordRestoreLog) audit.pushRecordRestoreLog(e.payload.rec);
+    ocN++;
+  }
+
+  let docN = 0;
+  docItems.forEach((e) => {
+    const doc = e.payload.doc;
+    if (!getDocument(doc.id)) restoreDocument(doc);
+    markRestored(e.id, session.state.person, today);
+    docN++;
+  });
+
+  return { nodes: restoredNodes.length, oc: ocN, docs: docN, root: restoredNodes[0] };
 }
 
 // --- привязка объектов оценки ----------------------------------------------

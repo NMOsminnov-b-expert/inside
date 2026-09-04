@@ -24,6 +24,21 @@ const entries = [];
 let seq = 0;
 let batchSeq = 0;
 
+// Подписка на изменения — нужна счётчику в меню (ТЗ §7.9: «обновляется при
+// архивировании и возврате»). Живёт здесь, а не в архивном экране, потому что
+// класть в архив умеют все пять модулей ОЦ и три общих раздела — подписка в
+// одном источнике избавляет от необходимости звать её из каждого места.
+const listeners = new Set();
+
+export function subscribe(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function notify() {
+  listeners.forEach((fn) => fn());
+}
+
 export const nextArchiveId = () => 'arc-' + (++seq);
 export const nextBatchId = () => 'arcb-' + (++batchSeq);
 
@@ -46,6 +61,7 @@ export function addEntries(list) {
     entries.push(entry);
   });
 
+  notify();
   return arr;
 }
 
@@ -54,6 +70,7 @@ export function markRestored(id, who, when) {
   if (!entry) return null;
   entry.restoredAt = when;
   entry.restoredBy = who;
+  notify();
   return entry;
 }
 

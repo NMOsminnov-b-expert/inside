@@ -120,10 +120,16 @@ input,select,textarea{font:inherit;color:inherit}
 /* Код ЕНИ: неверная длина подсвечивается в поле, сообщение — под ним и ВНЕ
    потока, иначе выросшее поле подняло бы соседей по строке (сетки форм
    выравнивают поля по низу). Тот же приём, что у ошибки года. */
-.eni-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
+.eni-bad,.eni-dup-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
 .eni-err{position:absolute;left:0;top:100%;font-size:10px;color:var(--danger);
   font-weight:600;line-height:1.25;pointer-events:none}
 .field:has(> .eni-err:not(:empty)){position:relative}
+/* Совпадение кода ЕНИ (docs/tz/20-arhiv.md §6.3) — жёлтая при ENI_UNIQUE=false
+   (сохранение не блокируется, просто предупреждаем), красная при true (та же
+   плашка, что и у ошибки формата, — в этом случае это и есть ошибка). Ссылка —
+   единственный интерактивный элемент плашки, поэтому дырка в pointer-events. */
+.eni-err.eni-dup-warn{color:var(--amber-700)}
+.eni-err a{pointer-events:auto;color:var(--blue-600);text-decoration:underline;font-weight:700}
 .yf-input.yf-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
 /* Сообщение об ошибке выведено из потока: место под него резервировать нельзя —
    поле года становится выше соседних и вылезает из общей сетки блока. */

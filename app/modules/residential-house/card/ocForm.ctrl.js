@@ -16,11 +16,11 @@ export function bindOcForm(ctx) {
 
   // Код ЕНИ: маска и проверка длины прямо в поле, чтобы неверный код было
   // видно до сохранения, а не после выгрузки (kernel/eniField.js).
-  bindEniField(s.$('#fEni'));
+  bindEniField(s.$('#fEni'), null, rec.id);
 
   const save = s.$('#btnSaveOc');
   if (save) save.onclick = () => {
-    const bad = firstBadEni(s);
+    const bad = firstBadEni(s, rec.id);
     if (bad) {
       bad.focus();
       ctx.toast('Проверьте код ЕНИ — в нём должно быть 18 цифр', 'warn');

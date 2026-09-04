@@ -23,11 +23,17 @@ import { manifest as landPlotManifest } from '../modules/land-plot/manifest.js';
 import * as landPlotRecords from '../modules/land-plot/records.js';
 import * as landPlotDicts from '../modules/land-plot/data/dictExport.js';
 
+// audit — лениво (как load, код карточки): audit/model.js тянет
+// data/store.js за nextEniScoped, а там — seed.js с синтетикой записей. Если
+// импортировать его статически здесь, все пять модулей грузили бы свою
+// синтетику при каждом старте приложения, а не только при открытии карточки —
+// ровно то, ради чего load уже сделан ленивым (см. комментарий вверху файла).
 export const OC_TYPES = [
   {
     manifest: residentialHouseManifest,
     records: residentialHouseRecords,
     dictExport: residentialHouseDicts,
+    loadAudit: () => import('../modules/residential-house/audit/model.js'),
     styleHref: './app/modules/residential-house/module.css',
     load: () => import('../modules/residential-house/index.js'),
   },
@@ -35,6 +41,7 @@ export const OC_TYPES = [
     manifest: apartmentManifest,
     records: apartmentRecords,
     dictExport: apartmentDicts,
+    loadAudit: () => import('../modules/apartment/audit/model.js'),
     styleHref: './app/modules/apartment/module.css',
     load: () => import('../modules/apartment/index.js'),
   },
@@ -42,6 +49,7 @@ export const OC_TYPES = [
     manifest: civilManifest,
     records: civilRecords,
     dictExport: civilDicts,
+    loadAudit: () => import('../modules/civil/audit/model.js'),
     styleHref: './app/modules/civil/module.css',
     load: () => import('../modules/civil/index.js'),
   },
@@ -49,6 +57,7 @@ export const OC_TYPES = [
     manifest: productionManifest,
     records: productionRecords,
     dictExport: productionDicts,
+    loadAudit: () => import('../modules/production/audit/model.js'),
     styleHref: './app/modules/production/module.css',
     load: () => import('../modules/production/index.js'),
   },
@@ -56,6 +65,7 @@ export const OC_TYPES = [
     manifest: landPlotManifest,
     records: landPlotRecords,
     dictExport: landPlotDicts,
+    loadAudit: () => import('../modules/land-plot/audit/model.js'),
     styleHref: './app/modules/land-plot/module.css',
     load: () => import('../modules/land-plot/index.js'),
   },

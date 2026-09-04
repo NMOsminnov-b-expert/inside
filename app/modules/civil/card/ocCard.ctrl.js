@@ -185,7 +185,7 @@ export function bindOcCard(ctx) {
     });
     if (!ok) return;
 
-    archiveRecord({
+    await archiveRecord({
       typeId: 'civil', typeLabel: 'Гражданское здание', rec, today: ctx.today,
     });
     ctx.host.toMenu();

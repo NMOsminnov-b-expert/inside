@@ -199,7 +199,7 @@ export function bindViewer(ctx) {
     if (!ok) return;
 
     const oi = vd.scope === 'oc' ? null : (ctx.rec.oi || []).find((o) => o.id === vd.scope);
-    const entry = archiveDoc({
+    const entry = await archiveDoc({
       rec: ctx.rec, oi, docId,
       typeId: 'civil', typeLabel: 'Гражданское здание', today: ctx.today,
     });
@@ -212,7 +212,7 @@ export function bindViewer(ctx) {
     ctx.ui.viewerDoc = rest.length ? { scope: vd.scope, id: rest[rest.length - 1] } : null;
 
     ctx.render();
-    ctx.toast('Документ в архиве: ' + entry.name, 'ok');
+    ctx.toast('Документ в архиве: ' + entry.title, 'ok');
   };
 
   const vo = s.$('[data-vopen]');

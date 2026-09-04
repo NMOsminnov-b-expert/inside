@@ -181,7 +181,7 @@ export function bindOcCard(ctx) {
     });
     if (!ok) return;
 
-    archiveRecord({
+    await archiveRecord({
       typeId: 'production', typeLabel: 'Производственное строение', rec, today: ctx.today,
     });
     ctx.host.toMenu();
