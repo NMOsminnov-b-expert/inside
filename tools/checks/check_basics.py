@@ -22,7 +22,9 @@ def run(t):
         openers = pg.locator('tr[data-open-oi], .oi-land-open')
         if openers.count():
             openers.first.click()
-            t.wait(700)
+            # Карточка ОИ грузится лениво, поэтому ждём саму плашку: затишья
+            # DOM тут недостаточно — оно наступает до прихода модуля карточки.
+            t.wait_for('.ctx-plate')
             t.ck(pg.locator('.ctx-plate').count() > 0, '%s: карточка ОИ без плашки' % mod)
 
     # --- несуществующие маршруты не роняют приложение ---

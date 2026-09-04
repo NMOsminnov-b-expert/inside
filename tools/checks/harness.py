@@ -119,6 +119,17 @@ class Tester:
             # Страница перезагружается или закрыта — ожидание тут не нужно.
             pass
 
+    # Дождаться появления элемента. Нужно там, где содержимое приходит ПОСЛЕ
+    # затишья DOM: карточки ОИ грузятся лениво (import()), и t.wait возвращает
+    # управление раньше, чем модуль карточки доехал. Ждать «подольше» здесь
+    # неправильно — ждать надо ровно того, чего ждём.
+    def wait_for(self, selector, timeout=9000):
+        try:
+            self.page.wait_for_selector(selector, timeout=timeout)
+            return True
+        except Exception:
+            return False
+
     def open(self, route='', wait='.card, .arc, .reg-thead', timeout=9000):
         self.page.goto(self.base + route)
         if wait:

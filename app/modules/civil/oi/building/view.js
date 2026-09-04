@@ -5,25 +5,42 @@ import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM } from '../../data/dictionaries.js';
+import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
+
+// Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
+// «жилое здание» в названии типа: название — текст для человека, его правят.
+const OWN_TYPE = 'civil';
+const HOUSING_OC = ['apartment', 'residential-house'];
+
 // Правила полей строения: что обязательно и что показывать.
+//
+// Жилой дом описывается одинаково во всех типах ОЦ (решение пользователя
+// 04.09.2026): признак «жилое» ставит сам вид ОИ при создании, а карточка по
+// нему показывает «Категорию жилого строения». Раньше это работало только в
+// модуле «жилое здание (дом)», хотя завести жилой дом можно в любом ОЦ.
 export function fieldRules(ctx, oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
   const ml = (oi.origin || 'manual') === 'ml';
+
+  // В жилом объекте оценки категория ОИ у жилого строения не нужна: она там
+  // и без того очевидна. В нежилых ОЦ (гражданское, производственное,
+  // участок) жилой дом — исключение из состава, и категорию видеть надо.
+  const housingOc = HOUSING_OC.includes(activeOcType() || OWN_TYPE);
 
   return {
     prod,
     heightRequired: prod,
     wallsRequired: prod,
     buildTypeRequired: !prod,
-    showResCat: false,
+    showResCat: !!oi.residential,
     showMatched: ml,
-    showCatClass: true,
+    showCatClass: !(oi.residential && housingOc),
   };
 }
 
