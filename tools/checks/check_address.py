@@ -141,35 +141,71 @@ def run(t):
     # --- 7. столбцы реестра: тип земель и свёрнутые коды ---
     t.open('#/', wait='.reg-thead')
     t.wait(400)
+    # Тип земель по умолчанию скрыт — включаем его через меню столбцов.
+    # Отдельного столбца кодов ОИ больше нет: коды показываются в столбце «Код
+    # ЕНИ» одной строкой (решение пользователя 05.09.2026).
     pg.locator('[data-cols-dd] [data-dd-toggle]').first.click()
     t.wait_for('[data-column="landKind"]')
-    for key in ('landKind', 'eniList'):
-        box = pg.locator('[data-column="%s"]' % key)
-        t.ck(box.count() == 1, 'в меню столбцов нет «%s»' % key)
-        if box.count():
-            box.first.check()
-            t.wait(300)
+    box = pg.locator('[data-column="landKind"]')
+    t.ck(box.count() == 1, 'в меню столбцов нет «Тип земель»')
+    if box.count():
+        box.first.check()
+        t.wait(300)
     pg.mouse.click(900, 60)
     t.wait(300)
 
     head = pg.locator('.reg-thead').inner_text().upper()
     t.ck('ТИП ЗЕМЕЛЬ' in head, 'в реестре нет столбца типа земель')
-    t.ck('КОДЫ ЕНИ' in head, 'в реестре нет столбца кодов ЕНИ')
 
     kinds = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr .tag-mini')]
         .map((e) => e.textContent.trim())""")
     t.ck(any(k in ('Сельхоз', 'Несельхоз', 'Смешанный') for k in kinds),
          'столбец типа земель пуст у всех записей: %s' % kinds[:5])
 
-    # Формат свёртки выбран пользователем 05.09.2026: общее начало один раз,
-    # различающиеся хвосты в скобках через запятую и по возрастанию. Второй
-    # вариант (перечисление целых кодов) отклонён — сторожим, чтобы свёртка не
-    # «расклеилась» обратно.
-    folded = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr .mono')]
-        .map((e) => e.textContent.trim()).filter((x) => x.includes('('))""")
-    t.ck(folded, 'ни одна запись не показала свёрнутые коды ЕНИ')
+    # --- 8. столбец «Код ЕНИ»: коды записи и её ОИ одной строкой ---
+    #
+    # Решение пользователя 05.09.2026: отдельного столбца под коды объектов
+    # имущества нет — всё показывается в столбце «Код ЕНИ» одной строкой,
+    # свёрнутой по общему началу. Что не влезло, сокращается многоточием, полное
+    # значение — в подсказке.
+    t.open('#/', wait='.reg-thead')
+    t.wait(500)
+    t.ck('КОДЫ ЕНИ ОИ' not in pg.locator('.reg-thead').inner_text().upper(),
+         'вернулся отдельный столбец кодов ОИ — коды показываются в столбце ЕНИ')
 
-    for value in folded[:6]:
+    cells = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr')].slice(0, 8).map((tr) => {
+      // Класс mono стоит и на самой ячейке (описание столбца), и на теге со
+      // значением — берём именно внутренний, у него подсказка и многоточие.
+      const td = tr.querySelector('.reg-td.mono, td.mono') || tr.querySelector('.mono');
+      const span = td && (td.querySelector('span') || td);
+      if (!span) return null;
+      return {
+        text: span.textContent.trim(),
+        title: span.title,
+        cut: span.scrollWidth > span.clientWidth + 1,
+        ellipsis: getComputedStyle(span).textOverflow === 'ellipsis',
+        fits: td.scrollWidth <= td.clientWidth + 1,
+      };
+    }).filter(Boolean)""")
+
+    t.ck(cells, 'в реестре не нашлось ячеек с кодом ЕНИ')
+    t.ck(any('(' in c['text'] for c in cells),
+         'ни одна запись не показала свёрнутые коды в столбце ЕНИ: %s'
+         % [c['text'] for c in cells[:4]])
+
+    for c in cells:
+        t.ck(c['fits'], 'ячейка кода шире столбца — значение обрезается краем: %s' % c['text'])
+        t.ck(c['ellipsis'], 'у кода нет многоточия при нехватке места: %s' % c['text'])
+        t.ck(c['title'], 'у кода нет подсказки с полным значением: %s' % c['text'])
+        if c['cut']:
+            t.ck(len(c['title']) >= len(c['text']),
+                 'подсказка короче видимого текста: %s' % c['text'])
+
+    # Формат свёртки: общее начало один раз, хвосты по возрастанию.
+    for c in cells:
+        if '(' not in c['text'] and '(' not in c['title']:
+            continue
+        value = c['title'] or c['text']
         m = re.match(r'^([\d-]+)-\(([\d, -]+)\)$', value)
         if not t.ck(m, 'свёрнутый код записан не по правилу: %s' % value):
             continue
@@ -177,3 +213,25 @@ def run(t):
         t.ck(len(tails) > 1, 'в скобках один хвост — свёртка не нужна: %s' % value)
         t.ck(tails == sorted(tails), 'хвосты не по возрастанию: %s' % value)
         t.ck(len(set(tails)) == len(tails), 'хвост повторяется: %s' % value)
+
+    # --- 9. длинные значения: многоточие и подсказка, а не обрыв краем ---
+    #
+    # Правило пользователя 05.09.2026 на весь макет. Смотрим и реестр, и перечень
+    # ОИ в карточке: раньше там обрывались площадь, статус и код.
+    CUT = r"""() => [...document.querySelectorAll('td, .reg-td, span')]
+      .filter((e) => !e.children.length && e.scrollWidth > e.clientWidth + 1)
+      .map((e) => ({
+        text: e.textContent.trim().slice(0, 40),
+        ellipsis: getComputedStyle(e).textOverflow === 'ellipsis',
+        title: !!(e.title || (e.closest('[title]') && e.closest('[title]').title)),
+      }))"""
+
+    for where, route, wait in (('реестр', '#/', '.reg-thead'),
+                               ('перечень ОИ', '#/oc/civil/oc-cv-1', '[data-open-oi]')):
+        t.open(route, wait=wait)
+        t.wait(500)
+        for row in pg.evaluate(CUT):
+            t.ck(row['ellipsis'] and row['title'],
+                 '%s: «%s» обрезано без %s'
+                 % (where, row['text'],
+                    'многоточия' if not row['ellipsis'] else 'подсказки'))

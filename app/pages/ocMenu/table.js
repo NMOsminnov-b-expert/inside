@@ -38,7 +38,13 @@ function tagsCell(flags) {
 
 function cell(col, s) {
   switch (col.key) {
-    case 'eni': return `<span class="mono" title="${esc(s.eni)}">${esc(fmtEni(s.eni))}</span>`;
+    // Коды записи и её объектов имущества — одной строкой, свёрнутые по общему
+    // началу. Что не влезло, сокращается многоточием, полное значение в
+    // подсказке (решение пользователя 05.09.2026).
+    case 'eni': {
+      const codes = s.eniAll || fmtEni(s.eni);
+      return `<span class="mono ell" title="${esc(codes)}">${esc(codes)}</span>`;
+    }
     case 'title': return `<span class="reg-cell-title">
       <span class="reg-ico">${esc(s.typeIcon)}</span>
       <span class="ell" title="${esc(s.title)}">${esc(s.title)}</span>
@@ -60,13 +66,12 @@ function cell(col, s) {
     case 'landKind': return s.landKind
       ? `<span class="tag-mini">${esc(s.landKind)}</span>`
       : '<span class="muted">—</span>';
-    case 'eniList': return `<span class="ell mono" title="${esc(s.eniList || '')}">${esc(s.eniList || '—')}</span>`;
+    case 'updatedAt': return `<span class="ell" title="${esc(s.updatedAt || '')}">${esc(s.updatedAt || '—')}</span>`;
     case 'podved': return `<span class="ell" title="${esc(s.podved || '')}">${esc(s.podved || '—')}</span>`;
     case 'landArea': return s.metrics.landArea ? fmtNum(s.metrics.landArea) : '—';
     case 'owners': return listCell(s.owners);
     case 'users': return listCell(s.users);
     case 'tags': return tagsCell(s.flags);
-    case 'updatedAt': return esc(s.updatedAt || '—');
     default: return '';
   }
 }
@@ -122,7 +127,6 @@ function plain(col, s) {
     case 'institution': return s.institution;
     case 'city': return s.city;
     case 'landKind': return s.landKind || '';
-    case 'eniList': return s.eniList || '';
     case 'podved': return s.podved || '';
     case 'landArea': return s.metrics.landArea ? String(s.metrics.landArea).replace('.', ',') : '';
     case 'owners': return (s.owners || []).join(', ');

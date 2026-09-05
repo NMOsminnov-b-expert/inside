@@ -61,9 +61,9 @@ function cellHTML(ctx, oi, key) {
     case 'letter': return `<span class="drag-grip" title="Перетащить">⠿</span>${esc(oi.letter || '—')}`;
     case 'name': return `<span class="ell" title="${esc(oi.name)}">${esc(oi.name)}</span>`;
     case 'category': return `<span class="ell" title="${esc(meta.tableCategory(oi))}">${esc(meta.tableCategory(oi))}</span>`;
-    case 'status': return esc(oi.status || '—');
-    case 'area': return meta.tableArea(oi);
-    case 'eni': return `<span class="mono" title="${esc(oi.eni)}">${esc(fmtEni(oi.eni))}</span>`;
+    case 'status': return `<span class="ell" title="${esc(oi.status || '')}">${esc(oi.status || '—')}</span>`;
+    case 'area': return `<span class="ell" title="${esc(meta.tableArea(oi))}">${esc(meta.tableArea(oi))}</span>`;
+    case 'eni': return `<span class="mono ell" title="${esc(fmtEni(oi.eni))}">${esc(fmtEni(oi.eni))}</span>`;
     case 'photos': return photoCell(oi);
     case 'act': return `<div class="row-actions">
       <button class="btn btn-danger btn-sm" data-del-oi="${oi.id}" title="Удалить литеру">×</button>
@@ -165,7 +165,7 @@ function landUtils(land) {
 // ним, а не выталкивать блок. Полное значение — в подсказке при наведении.
 const LAND_SUM_COLS = [
   { label: 'Код ЕНИ', width: '19%', cls: 'mono', get: (l) => esc(fmtEni(l.eni)), plain: (l) => fmtEni(l.eni) },
-  { label: 'Площадь', width: '13%', get: (l) => cardMeta(l).tableArea(l) },
+  { label: 'Площадь', width: '13%', get: (l) => cardMeta(l).tableArea(l), plain: (l) => cardMeta(l).tableArea(l) },
   { label: 'Назначение (ПУД)', width: '20%', get: (l) => esc(l.purpose || '—'), plain: (l) => l.purpose || '' },
   { label: 'Тип ЗУ', width: '16%', get: (l) => esc(l.landType || '—'), plain: (l) => l.landType || '' },
   { label: 'Ограничения и сервитуты', width: '16%', get: (l) => esc(landLimits(l)), plain: (l) => landLimits(l) },

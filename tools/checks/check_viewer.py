@@ -136,7 +136,11 @@ def run(t):
         with pg.expect_file_chooser() as fc:
             pg.locator('[data-docs-attach]').first.click()
         fc.value.set_files({'name': 'skan.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf()})
-        t.wait(2200)
+        # Ждём саму ленту и разобранные страницы, а не время: PDF.js грузится
+        # ленивым import(), и при занятой машине он не успевал за отведённые
+        # 2,2 с — сценарий падал через раз (конвенция «ожидание по факту»).
+        t.wait_for('.vstage')
+        t.wait_until("() => document.querySelectorAll('.vstage .vpage').length > 0")
 
         if t.ck(pg.locator('.vstage').count() == 1, 'в карточке документа нет ленты просмотрщика'):
             box = pg.eval_on_selector('.vstage', 'e => ({ h: e.clientHeight, s: e.scrollHeight })')
