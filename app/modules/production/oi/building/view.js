@@ -62,16 +62,34 @@ function structField(oi, key, label, opts, val, req) {
   return structMS(oi, key, label, opts, req);
 }
 
-// Категория ОИ: сгруппированный select (optgroup по типу помещений, классы внутри).
-function oiCategoryOptions(selected) {
-  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS).map((g) => `<optgroup label="${esc(g.label)}">
+// Категория ОИ: сгруппированный select (optgroup по типу помещений, классы
+// внутри). Значение — ключ раздела с номером класса (admin-1, prod-3): классы
+// в разделах называются одинаково, и без ключа они бы слились.
+//
+// Показывается раздел СВОЕЙ группы: производственно-складские классы — у
+// производственного строения, остальные — у гражданского и прочих (решение
+// пользователя 05.09.2026). Прочие постройки низкого качества нужны и там и
+// там, поэтому стоят отдельным пунктом всегда. Раньше поле показывало оба
+// раздела сразу — восемь пунктов, половина из которых к строению не относится,
+// и различаются они только заголовком раздела.
+function oiCategoryOptions(selected, prod) {
+  const want = prod ? 'prod' : 'admin';
+  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS)
+    // Раздел с уже выбранным значением остаётся видимым, даже если он «чужой»:
+    // назначение строения правится текстом, и смена назначения не должна молча
+    // стирать выбранную категорию.
+    .filter((g) => g.key === want || String(selected || '').startsWith(g.key + '-'))
+    .map((g) => `<optgroup label="${esc(g.label)}">
 ${g.classes.map((c, i) => {
     const val = `${g.key}-${i + 1}`;
     return `<option value="${val}" ${val === selected ? 'selected' : ''}>${esc(c)}</option>`;
   }).join('')}
 </optgroup>`).join('');
 
-  return `${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
+  // Пустой пункт первым: без него новая литера получала «Первого класса»,
+  // которого никто не выбирал (решение пользователя 05.09.2026 — то же правило,
+  // что и в остальных полях с выбором).
+  return `${emptyOptionHTML()}${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
 }
 
 function letterControlHTML(ctx, oi) {
@@ -179,7 +197,7 @@ style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 ${rq.showOiCategory ? `<div class="field"><label>Категория ОИ</label>
-<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
+<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
 </div>` : ''}
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
 <select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>

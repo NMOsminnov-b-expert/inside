@@ -26,6 +26,8 @@
 остаются. Сценарий сторожит обе стороны сразу, иначе очередное «выравнивание»
 карточек вернуло бы поля жилому дому.
 """
+import json
+
 NAME = 'строение единообразно'
 
 ROUTES = {
@@ -122,6 +124,82 @@ def run(t):
         for sel, what in MUST_PROD:
             t.ck(pg.locator(sel).count() > 0,
                  'в %s у производственного строения нет: %s' % (oc, what))
+
+    # --- категория ОИ показывает классы своей группы ---
+    #
+    # Решение пользователя 05.09.2026: производственно-складские классы — у
+    # производственного строения, остальные — у гражданского и прочих; «Прочие
+    # постройки низкого качества» нужны и там и там. Раньше поле показывало оба
+    # раздела сразу — восемь пунктов, где классы называются одинаково и
+    # различаются только заголовком раздела.
+    CAT_GROUPS = """() => {
+      const s = document.querySelector('[data-oi-category]');
+      if (!s) return null;
+      return JSON.stringify({
+        groups: [...s.querySelectorAll('optgroup')]
+          .map((g) => [...g.children].map((o) => o.value.split('-')[0])[0]),
+        other: [...s.children].some((n) => n.tagName === 'OPTION' && n.value === 'other'),
+        firstEmpty: s.options[0] ? s.options[0].value === '' : false,
+        value: s.value,
+      });
+    }"""
+
+    WANT = {
+        'Гражданское здание': ['admin'],
+        'Производственное строение': ['prod'],
+        'Прочее строение': ['admin'],
+    }
+
+    for oc, route in ROUTES.items():
+        for kind, want in WANT.items():
+            t.open(route, wait='[data-open-oi]')
+            t.wait(300)
+            if not t.ck(_add(t, kind), 'в %s не заводится «%s»' % (oc, kind)):
+                continue
+
+            got = pg.evaluate(CAT_GROUPS)
+            if not t.ck(got, 'в %s у «%s» нет поля категории ОИ' % (oc, kind)):
+                continue
+            g = json.loads(got)
+
+            t.ck(g['groups'] == want,
+                 'в %s у «%s» в категории ОИ разделы %s, ожидались %s'
+                 % (oc, kind, g['groups'], want))
+            t.ck(g['other'],
+                 'в %s у «%s» нет пункта «прочие постройки низкого качества»'
+                 % (oc, kind))
+
+            # Новая литера не должна получать класс, которого никто не выбирал
+            # (решение пользователя 05.09.2026).
+            t.ck(g['firstEmpty'],
+                 'в %s у «%s» в категории ОИ нет пустого пункта' % (oc, kind))
+            t.ck(g['value'] == '',
+                 'в %s у новой литеры «%s» категория заполнена сама: %s'
+                 % (oc, kind, g['value']))
+
+    # --- смена назначения применяется и не теряет выбранную категорию ---
+    #
+    # Диалог подтверждения асинхронный, а поле возвращалось к прежнему значению
+    # сразу же — обработчик применял старое значение, и назначение не менялось
+    # вовсе (дефект найден 05.09.2026). Заодно проверяем, что выбранный ранее
+    # производственный класс остаётся виден и после смены назначения.
+    t.open(ROUTES['квартира'], wait='[data-open-oi]')
+    t.wait(300)
+    if _add(t, 'Производственное строение'):
+        pg.select_option('[data-oi-category]', 'prod-2')
+        t.wait(200)
+        pg.select_option('[data-catclass]', 'Гражданское здание')
+        t.wait_for('[data-modal-ok]')
+        pg.locator('[data-modal-ok]').first.click()
+        t.wait_until("""() => !document.querySelector('#q-prod')""")
+
+        t.ck(pg.eval_on_selector('[data-catclass]', 'e => e.value') == 'Гражданское здание',
+             'смена назначения не применилась после подтверждения')
+        t.ck(pg.eval_on_selector('[data-oi-category]', 'e => e.value') == 'prod-2',
+             'выбранная категория потерялась при смене назначения')
+        g = json.loads(pg.evaluate(CAT_GROUPS))
+        t.ck('prod' in g['groups'],
+             'раздел с выбранной категорией пропал из списка: %s' % g['groups'])
 
     # --- жилой дом: без класса капитальности и без аренды по этажам ---
     for oc, route in ROUTES.items():
