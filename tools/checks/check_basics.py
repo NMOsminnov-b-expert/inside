@@ -22,7 +22,9 @@ def run(t):
         openers = pg.locator('tr[data-open-oi], .oi-land-open')
         if openers.count():
             openers.first.click()
-            pg.wait_for_timeout(700)
+            # Карточка ОИ грузится лениво, поэтому ждём саму плашку: затишья
+            # DOM тут недостаточно — оно наступает до прихода модуля карточки.
+            t.wait_for('.ctx-plate')
             t.ck(pg.locator('.ctx-plate').count() > 0, '%s: карточка ОИ без плашки' % mod)
 
     # --- несуществующие маршруты не роняют приложение ---
@@ -33,26 +35,26 @@ def run(t):
     # --- правка карточки переживает уход и возврат ---
     t.open('#/oc/civil/oc-cv-1')
     pg.locator('tr[data-open-oi]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     nm = pg.locator('[data-oi-name]')
     if t.ck(nm.count() > 0, 'в карточке литеры нет поля названия'):
         nm.fill('Проверка сохранения')
         nm.dispatch_event('change')
-        pg.wait_for_timeout(400)
+        t.wait(400)
         pg.locator('[data-back]').first.dispatch_event('click')
-        pg.wait_for_timeout(800)
+        t.wait(800)
         pg.locator('tr[data-open-oi]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         t.ck(pg.locator('[data-oi-name]').input_value() == 'Проверка сохранения',
              'правка названия литеры не сохранилась')
 
     # --- лог действий доступен и пишется ---
     pg.locator('[data-back]').first.dispatch_event('click')
-    pg.wait_for_timeout(800)
+    t.wait(800)
     logs = [x for x in pg.locator('.tab').all() if 'ог' in x.inner_text()]
     if t.ck(bool(logs), 'вкладки лога действий нет при роли по умолчанию'):
         logs[0].click()
-        pg.wait_for_timeout(800)
+        t.wait(800)
         rows = pg.locator('.tbl tbody tr').count()
         t.ck(rows > 0, 'лог действий пуст после правки карточки')
 

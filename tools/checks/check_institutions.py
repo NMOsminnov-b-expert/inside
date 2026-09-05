@@ -17,7 +17,7 @@ NAME = 'учреждения'
 
 def _open(t):
     t.open('#/institutions', wait='.itree')
-    t.page.wait_for_timeout(500)
+    t.wait(500)
 
 
 def _select_with_objects(t):
@@ -27,7 +27,7 @@ def _select_with_objects(t):
 
     for i in range(min(rows.count(), 30)):
         rows.nth(i).click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         if pg.locator('[data-oc-row]').count():
             return True
     return False
@@ -72,32 +72,32 @@ def run(t):
     # таблице показан с разделителями, а в данных лежит цифрами.
     address = pg.locator('[data-oc-row] td').nth(1).inner_text().strip()
     pg.fill('[data-irowq]', address.split(',')[0][:10] if address and address != '—' else 'а')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.locator('[data-oc-row]').count() >= 1, 'поиск по таблице ничего не нашёл')
     pg.fill('[data-irowq]', 'заведомо-ничего-нет')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.locator('[data-oc-row]').count() == 0, 'поиск по таблице не фильтрует')
     pg.locator('[data-irowq-clear]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('[data-oc-row]').count() == rows_before, 'очистка поиска не вернула строки')
 
     # --- 3. удалить узел с объектами нельзя ---
     pg.locator('[data-idel]').first.click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     modal = pg.locator('.modal')
     t.ck(modal.count() == 1 and 'Удалить нельзя' in modal.inner_text(),
          'узел с объектами удаляется без предупреждения')
     pg.locator('[data-modal-ok]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     # --- 4. вложенность любой глубины ---
     level_before = _level(pg)
 
     pg.locator('[data-inew]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     pg.fill('[data-iform-name]', 'Проверочный подвед')
     pg.locator('[data-iform-save]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.locator('.ihead h2').inner_text().strip() == 'Проверочный подвед',
          'подведомственное учреждение не создалось')
 
@@ -107,22 +107,22 @@ def run(t):
 
     # ещё уровень глубже — «у подведа свой подвед»
     pg.locator('[data-inew]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     pg.fill('[data-iform-name]', 'Проверочный подвед второго уровня')
     pg.locator('[data-iform-save]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     level_grand = _level(pg)
     t.ck(level_grand == level_child + 1,
          'третий уровень вложенности не создался: %d' % level_grand)
 
     # --- 5. привязка объекта оценки ---
     pg.locator('[data-attach-open]').first.click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     picks = pg.locator('[data-attach-pick]')
     if t.ck(picks.count() > 0, 'нет кандидатов на привязку'):
         picks.first.check()
         pg.locator('[data-attach-apply]').first.click()
-        pg.wait_for_timeout(800)
+        t.wait(800)
         t.ck(pg.locator('[data-oc-row]').count() == 1,
              'объект не прикрепился к учреждению')
 
@@ -133,58 +133,58 @@ def run(t):
 
     # --- 6. переименование ---
     pg.locator('[data-iedit]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     pg.fill('[data-iform-name]', 'Проверочный подвед (переименован)')
     pg.locator('[data-iform-save]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.locator('.ihead h2').inner_text().strip() == 'Проверочный подвед (переименован)',
          'переименование не применилось')
 
     # --- 7. открепление и удаление ---
     pg.locator('[data-detach]').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     ok = pg.locator('[data-modal-ok]')
     if ok.count():
         ok.first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
     t.ck(pg.locator('[data-oc-row]').count() == 0, 'объект не открепился')
 
     pg.locator('[data-idel]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     if pg.locator('[data-modal-ok]').count():
         pg.locator('[data-modal-ok]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
     t.ck('Проверочный подвед (переименован)' not in pg.locator('.itree').inner_text(),
          'учреждение не удалилось из дерева')
 
     # --- 8. поиск по дереву, регионы, избранное ---
     _open(t)
     pg.fill('[data-iq]', 'мэри')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     found = pg.locator('.itree-row[data-inode]').count()
     t.ck(found > 0, 'поиск по дереву ничего не нашёл')
     t.ck(pg.locator('.itree-row.search').count() == found,
          'результаты поиска не показывают путь до учреждения')
 
     pg.locator('[data-iq-clear]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     pg.locator('[data-imode="region"]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     # Группы регионов — узлы дерева области/района/НП (класс region).
     t.ck(pg.locator('.itree-row.region').count() > 0,
          'вид «по регионам» не сгруппировал учреждения')
 
     pg.locator('[data-imode="tree"]').first.click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
 
     fav = pg.locator('[data-inode-fav]')
     if t.ck(fav.count() > 0, 'в дереве нет значка избранного'):
         fav.first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         t.ck(pg.locator('.ipanel-fav').count() > 0, 'избранное не пополнилось')
         fav.first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         t.ck(pg.locator('.ipanel-fav').count() == 0, 'избранное не очистилось')
 
     # --- 9. закреплённый сотрудник (назначает администратор) ---
@@ -194,10 +194,10 @@ def run(t):
     _open(t)
     rows = pg.locator('.itree-row[data-inode]')
     rows.nth(1).click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
 
     pg.locator('[data-iedit]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     staff = pg.locator('[data-iform-staff]')
     # Состав тот же, что у объекта оценки: четыре роли (пользователь 03.09.2026).
     if t.ck(staff.count() == 4,
@@ -209,44 +209,44 @@ def run(t):
         person = people[1]
         pg.select_option('[data-iform-staff="gov"]', person)
         pg.locator('[data-iform-save]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         meta = pg.locator('.imeta').inner_text()
         t.ck('Сотрудники: 1 из 4' in meta,
              'в шапке нет сводки по сотрудникам: %s' % meta.replace(chr(10), ' '))
 
         # Подведомственное наследует роли родителя, пока не назначены свои.
         pg.locator('[data-inew]').first.click()
-        pg.wait_for_timeout(300)
+        t.wait(300)
         pg.fill('[data-iform-name]', 'Подвед для проверки сотрудника')
         pg.locator('[data-iform-save]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         meta = pg.locator('.imeta').inner_text()
         t.ck('Сотрудники: 1 из 4' in meta and 'от родителя' in meta,
              'подведомственное не унаследовало сотрудника: %s' % meta.replace(chr(10), ' '))
 
         # Убираем за собой: узел без объектов удаляется сразу.
         pg.locator('[data-idel]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         if pg.locator('[data-modal-ok]').count():
             pg.locator('[data-modal-ok]').first.click()
-            pg.wait_for_timeout(600)
+            t.wait(600)
 
     # Роль без прав администратора видит сотрудника, но не назначает.
     t.open('', wait='.reg-thead')
     pg.locator('[data-role]').first.select_option('insp')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     _open(t)
     rows = pg.locator('.itree-row[data-inode]')
     rows.nth(1).click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     pg.locator('[data-iedit]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('[data-iform-staff]').count() == 0,
          'роль без прав администратора может назначать сотрудника')
 
     t.open('', wait='.reg-thead')
     pg.locator('[data-role]').first.select_option('admin')
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     # --- 10. регион деревом «область / район / населённый пункт» ---
     #
@@ -254,16 +254,16 @@ def run(t):
     # kernel/regions.js (реальное деление КР).
     _open(t)
     pg.locator('.itree-row[data-inode]').nth(2).click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     pg.locator('[data-iedit]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     pg.locator('[data-iregion-open]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('[data-iregion-pick]').count() > 10, 'список регионов пуст')
 
     pg.fill('[data-iregion-q]', 'сокулук')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     found = pg.eval_on_selector_all('[data-iregion-pick]',
                                     'els => els.map((e) => e.dataset.iregionPick)')
     t.ck(found and all('Сокулук' in x for x in found),
@@ -273,9 +273,9 @@ def run(t):
 
     pick = [x for x in found if x.count('/') == 2][0]
     pg.locator('[data-iregion-pick="%s"]' % pick).first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     pg.locator('[data-iform-save]').first.click()
-    pg.wait_for_timeout(600)
+    t.wait(600)
     # Регион стоит в одной строке с названием (пользователь 03.09.2026), а не
     # в строке сотрудников — там теперь только они и примечание.
     t.ck(pick.split('/')[-1].strip() in pg.locator('.iregion').inner_text(),
@@ -283,13 +283,13 @@ def run(t):
 
     # Вид «по регионам» повторяет ту же структуру: область → район → НП.
     pg.locator('[data-imode="region"]').first.click()
-    pg.wait_for_timeout(800)
+    t.wait(800)
     depths = pg.evaluate("""() => [...document.querySelectorAll('.itree-row.region')]
         .map((e) => +(e.style.getPropertyValue('--depth') || 0))""")
     t.ck(max(depths) >= 2, 'в виде «по регионам» нет трёх уровней: %s' % depths)
 
     pg.locator('[data-imode="tree"]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     # --- 11. ширина панели тянется, свёрнутая панель подписана ---
     def panel_width():
@@ -303,16 +303,16 @@ def run(t):
     pg.mouse.down()
     pg.mouse.move(box['x'] + box['width'] / 2 + 100, box['y'] + box['height'] / 2, steps=8)
     pg.mouse.up()
-    pg.wait_for_timeout(300)
+    t.wait(300)
     t.ck(panel_width() > w0 + 50, 'ширина панели не тянется: %d → %d' % (w0, panel_width()))
 
     pg.locator('[data-ipanel]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(panel_width() < 60, 'свёрнутая панель занимает %dpx' % panel_width())
     t.ck(pg.locator('.ipanel-vertical').count() == 1,
          'у свёрнутой панели нет подписи с числом учреждений')
     pg.locator('[data-ipanel]').first.click()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(panel_width() > 200, 'панель не раскрылась обратно')
 
     # --- 12. свои документы учреждения ---
@@ -325,12 +325,12 @@ def run(t):
     found = False
     for i in range(min(rows.count(), 30)):
         rows.nth(i).click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         tab = pg.locator('[data-itab="docs"]')
         if not tab.count():
             continue
         tab.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         if pg.locator('[data-idoc]').count():
             found = True
             break
@@ -341,49 +341,49 @@ def run(t):
         # Открытый документ показывается рядом — просмотрщик или честное
         # «файлов нет» с прикреплением файла.
         pg.locator('[data-idoc]').first.click()
-        pg.wait_for_timeout(600)
+        t.wait(600)
         view = pg.locator('.idocs-view').inner_text()
         t.ck('.viewer' and (pg.locator('.idocs-view .viewer').count()
              or 'файлов нет' in view), 'область просмотра пуста: %s' % view[:60])
 
         # Новый документ заводится строкой, без модального окна.
         pg.locator('[data-idoc-new]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         t.ck(pg.locator('.idoc-form').count() == 1, 'форма нового документа не открылась')
         t.ck(pg.locator('.modal').count() == 0, 'создание документа открыло модальное окно')
 
         pg.fill('[data-idoc-number]', 'ПР-проверка')
         pg.locator('[data-idoc-save]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         t.ck(pg.locator('[data-idoc]').count() == before + 1,
              'документ не добавился к учреждению')
 
         # Прикрепление существующего — со предпросмотром выбранного документа.
         pg.locator('[data-idoc-attach-open]').first.click()
-        pg.wait_for_timeout(600)
+        t.wait(600)
         t.ck(pg.locator('[data-idoc-preview]').count() > 0, 'нет документов для прикрепления')
         t.ck(pg.locator('.idoc-attach-view').count() == 1,
              'в панели прикрепления нет области предпросмотра')
 
         pg.locator('[data-idoc-preview]').first.click()
-        pg.wait_for_timeout(600)
+        t.wait(600)
         preview = pg.locator('.idoc-attach-view').inner_text()
         t.ck(pg.locator('.idoc-attach-view .viewer').count() or 'файлов нет' in preview,
              'предпросмотр не показал выбранный документ: %s' % preview[:60])
 
         pg.locator('[data-idoc-attach-apply]').first.click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
         t.ck(pg.locator('[data-idoc]').count() == before + 2,
              'прикреплённый документ не появился у учреждения')
 
         # Открепление возвращает документ в реестр, а не удаляет.
         pg.locator('[data-idoc]').first.hover()
-        pg.wait_for_timeout(200)
+        t.wait(200)
         pg.locator('[data-idoc-detach]').first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         if pg.locator('[data-modal-ok]').count():
             pg.locator('[data-modal-ok]').first.click()
-            pg.wait_for_timeout(600)
+            t.wait(600)
         t.ck(pg.locator('[data-idoc]').count() == before + 1, 'документ не откреплён')
 
         # Список документов прячется, как просмотрщик в карточках ОЦ
@@ -397,18 +397,18 @@ def run(t):
         pg.mouse.down()
         pg.mouse.move(b['x'] + 84, b['y'] + 60, steps=6)
         pg.mouse.up()
-        pg.wait_for_timeout(300)
+        t.wait(300)
         wide = pg.eval_on_selector('.idocs-left', 'e => e.getBoundingClientRect().width')
         t.ck(wide > 380, 'перегородка не расширила список: %d' % wide)
 
         pg.locator('[data-idoc-list-close]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         t.ck(pg.locator('.idocs-left').count() == 0, 'список не свернулся')
         t.ck(pg.locator('[data-idoc-list-open]').count() == 1,
              'после сворачивания нет закладки — список не вернуть')
 
         pg.locator('[data-idoc-list-open]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         back = pg.eval_on_selector('.idocs-left', 'e => e.getBoundingClientRect().width')
         t.ck(abs(back - wide) < 4,
              'ширина списка не сохранилась: было %d, стало %d' % (wide, back))
@@ -421,13 +421,13 @@ def run(t):
     # считающий сам себя (после выбора значения остальные варианты пропадают),
     # и сброс, который не возвращает выборку.
     _open(t)
-    pg.wait_for_timeout(400)
+    t.wait(400)
 
     rows = pg.locator('.itree-row[data-inode]')
     best, bestn = 0, -1
     for i in range(min(rows.count(), 25)):
         rows.nth(i).click()
-        pg.wait_for_timeout(250)
+        t.wait(250)
         tab = pg.locator('[data-itab="all"]')
         if not tab.count():
             continue
@@ -437,9 +437,9 @@ def run(t):
 
     if t.ck(bestn > 1, 'не нашёл узла с объектами в поддереве: %s' % bestn):
         rows.nth(best).click()
-        pg.wait_for_timeout(300)
+        t.wait(300)
         pg.locator('[data-itab="all"]').click()
-        pg.wait_for_timeout(700)
+        t.wait(700)
 
         total = pg.locator('[data-all-row]').count()
         t.ck(total == bestn,
@@ -455,13 +455,13 @@ def run(t):
             if 'Город' in heads.nth(i).inner_text():
                 heads.nth(i).click()
                 break
-        pg.wait_for_timeout(400)
+        t.wait(400)
 
         picks = pg.locator('[data-all-pick="city"]')
         if t.ck(picks.count() > 1, 'в фасете «город» меньше двух значений'):
             city = picks.first.get_attribute('value')
             picks.first.check()
-            pg.wait_for_timeout(500)
+            t.wait(500)
 
             after = pg.locator('[data-all-row]').count()
             t.ck(0 < after < total, 'фильтр по городу не сузил выборку: %d из %d' % (after, total))
@@ -475,20 +475,20 @@ def run(t):
             t.ck(pg.locator('.iall-chip').count() >= 1, 'выбранное не показано чипом')
 
         pg.select_option('[data-all-stale-sel]', '30')
-        pg.wait_for_timeout(500)
+        t.wait(500)
         stale = pg.locator('[data-all-row]').count()
         t.ck(stale <= pg.locator('[data-all-row]').count(),
              'фильтр «без движения» не применился')
 
         pg.locator('[data-all-reset]').first.click()
-        pg.wait_for_timeout(500)
+        t.wait(500)
         t.ck(pg.locator('[data-all-row]').count() == total, 'сброс не вернул выборку')
 
         pg.locator('[data-all-panel-close]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         t.ck(pg.locator('.iall-facets').count() == 0
              and pg.locator('[data-all-panel-open]').count() == 1,
              'колонка фильтров не сворачивается в закладку')
         pg.locator('[data-all-panel-open]').first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
         t.ck(pg.locator('.iall-facets').count() == 1, 'колонка фильтров не вернулась')

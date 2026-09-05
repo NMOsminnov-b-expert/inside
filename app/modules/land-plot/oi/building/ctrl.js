@@ -1,6 +1,7 @@
 import { fieldsThatDisappear } from '../../../../kernel/fieldsPreview.js';
 import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
+import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -15,9 +16,13 @@ import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
-import { nextDocId } from '../../data/store.js';
+import { nextDocId, nextId } from '../../data/store.js';
+import { bindTempMode } from './tempMode.js';
 
 export function bind(ctx, oi) {
+  bindAreaList(ctx, oi, 'loggias');
+  bindAreaList(ctx, oi, 'balconies');
+  bindAreaList(ctx, oi, 'terraces');
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
@@ -156,6 +161,43 @@ export function bind(ctx, oi) {
     ctx.render();
   };
 
+  oi.rentAreas = oi.rentAreas || [];
+
+  s.$$('[data-rent-label]').forEach((i) => i.onchange = () => {
+    const row = oi.rentAreas.find((r) => r.id === i.dataset.rentLabel);
+    if (row) row.label = i.value;
+  });
+
+  s.$$('[data-rent-cell]').forEach((i) => i.onchange = () => {
+    const [col, id] = i.dataset.rentCell.split('|');
+    const row = oi.rentAreas.find((r) => r.id === id);
+    if (row) row[col] = i.value;
+  });
+
+  const ra = s.$('[data-rent-add]');
+  if (ra) ra.onclick = (e) => {
+    e.stopPropagation();
+    oi.rentAreas.push({ id: nextId('ra'), label: '', total: '', useful: '', rentable: '', rentValue: '' });
+    ctx.render();
+  };
+
+  s.$$('[data-rent-del]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const i = oi.rentAreas.findIndex((r) => r.id === b.dataset.rentDel);
+    if (i >= 0) oi.rentAreas.splice(i, 1);
+    ctx.render();
+  });
+
+  // Доп. параметры производственного строения.
+  [['prod-height', 'prodHeight'], ['prod-frame', 'prodFrame'],
+    ['prod-floors', 'prodFloors'], ['prod-crane', 'craneBeam'],
+    ['struct-strength', 'structStrength']].forEach(([attr, key]) => {
+    const el = s.$('[data-' + attr + ']');
+    if (el) el.onchange = () => { oi[key] = el.value; };
+  });
+
+  bindTempMode(ctx, oi);
+
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
@@ -176,6 +218,42 @@ export function bind(ctx, oi) {
     }).then((ok) => { if (ok) apply(); });
   };
 
+  // Права на строение: справочник плюс ручной ввод варианта «Иное».
+  const rightsSel = s.$('[data-bld-rights]');
+  if (rightsSel) rightsSel.onchange = () => {
+    oi.rights = rightsSel.value;
+    const other = s.$('[data-bld-rights-other]');
+    if (other) {
+      other.style.display = oi.rights === 'Иное' ? '' : 'none';
+      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
+    }
+  };
+
+  const rightsOther = s.$('[data-bld-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
+
+  const oic = s.$('[data-oi-category]');
+  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
+
+  s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
+    oi.wear = oi.wear || {};
+    oi.wear[sel.dataset.wear] = sel.value;
+  });
+
+  // Тип строения: справочник плюс ручной ввод варианта «Прочее».
+  const skSel = s.$('[data-structure-kind]');
+  if (skSel) skSel.onchange = () => {
+    oi.structureKind = skSel.value;
+    const other = s.$('[data-structure-kind-other]');
+    if (other) {
+      other.style.display = oi.structureKind === 'Прочее' ? '' : 'none';
+      if (oi.structureKind !== 'Прочее') { other.value = ''; oi.structureKindOther = ''; }
+    }
+  };
+
+  const skOther = s.$('[data-structure-kind-other]');
+  if (skOther) skOther.onchange = () => { oi.structureKindOther = skOther.value; };
+
   const cc = s.$('[data-catclass]');
   if (cc) cc.onchange = () => {
     warnCategory({ catClass: cc.value }, () => { oi.catClass = cc.value; ctx.render(); });
@@ -189,7 +267,13 @@ export function bind(ctx, oi) {
   // строения» — «Отдельностоящее» доступно только обособленным (Л2.5).
   if (rc) rc.onchange = () => { oi.resCat = rc.value; ctx.render(); };
 
-  s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
+  // Перерисовка обязательна: от статуса зависит видимость «Типа строения»
+  // (он есть только у вспомогательных).
+  s.$$('[data-status]').forEach((sel) => sel.onchange = () => {
+    oi.status = sel.value;
+    ctx.updatePlate();
+    ctx.render();
+  });
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };

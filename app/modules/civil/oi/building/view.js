@@ -1,29 +1,48 @@
 import { areaListHTML } from '../../../../kernel/areaList.js';
+import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM , STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';
+import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { tempModeMS } from './tempMode.js';
+
+
+// Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
+// «жилое здание» в названии типа: название — текст для человека, его правят.
+const OWN_TYPE = 'civil';
+const HOUSING_OC = ['apartment', 'residential-house'];
 
 // Правила полей строения: что обязательно и что показывать.
+//
+// Жилой дом описывается одинаково во всех типах ОЦ (решение пользователя
+// 04.09.2026): признак «жилое» ставит сам вид ОИ при создании, а карточка по
+// нему показывает «Категорию жилого строения». Раньше это работало только в
+// модуле «жилое здание (дом)», хотя завести жилой дом можно в любом ОЦ.
 export function fieldRules(ctx, oi) {
   const prod = (oi.catClass || '') === 'Производственно-складское';
   const ml = (oi.origin || 'manual') === 'ml';
+
+  // В жилом объекте оценки категория ОИ у жилого строения не нужна: она там
+  // и без того очевидна. В нежилых ОЦ (гражданское, производственное,
+  // участок) жилой дом — исключение из состава, и категорию видеть надо.
+  const housingOc = HOUSING_OC.includes(activeOcType() || OWN_TYPE);
 
   return {
     prod,
     heightRequired: prod,
     wallsRequired: prod,
     buildTypeRequired: !prod,
-    showResCat: false,
+    showResCat: !!oi.residential,
     showMatched: ml,
-    showCatClass: true,
+    showCatClass: !(oi.residential && housingOc),
   };
 }
 
@@ -75,13 +94,18 @@ function flagsRowHTML(oi) {
 // переписывается из документа как есть. В квартире, жилом доме и участке этого
 // поля нет вовсе, а ключ catClass там держит категорию из справочника.
 // Расхождение согласовано с пользователем 04.09.2026 (docs/reestr-kosyakov.md §5).
-function generalCard(ctx, oi) {
+function generalCard(ctx, oi, idx) {
+  const showStructureKindOther = oi.structureKind === 'Прочее';
+  // «Тип строения» описывает ВСПОМОГАТЕЛЬНОЕ здание: у основного он
+  // бессмысленен и конфликтует с категорией (решение 2026-08-28).
+  const showStructureKind = oi.status === 'Вспомогательное';
+
   const rq = fieldRules(ctx, oi);
   const showResCat = rq.showResCat;
 
   return `<div class="card t-blue" id="q-gen">
 <div class="card-head" data-card-toggle>
-<span class="card-idx">01</span>
+<span class="card-idx">${String(idx).padStart(2, '0')}</span>
 <h3>Общие параметры</h3>
 <span class="hint">${esc(oi.name)}</span>
 <span class="head-eni" title="Код ЕНИ — правится здесь">
@@ -109,11 +133,42 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
-<div class="field"><label>Тип строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
+<div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>Права на строение</label>
-<select class="select" data-rights>${opt('building', 'rights', RIGHTS).map((o) => `<option ${o === (oi.rights || opt('building', 'rights', RIGHTS)[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
+${showStructureKind ? `<div class="field">
+<label>Тип строения</label>
+<div class="inline-row">
+<select class="select" data-structure-kind style="flex:1 1 160px;">
+<option value="">Не выбрано</option>
+${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
+</select>
+<input
+class="input"
+data-structure-kind-other
+placeholder="Укажите тип"
+value="${esc(oi.structureKindOther || '')}"
+maxlength="60"
+style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
+>
+</div>
+</div>` : ''}
+<div class="field">
+<label>Права на строение</label>
+<div class="inline-row">
+<select class="select" data-bld-rights style="flex:1 1 200px;">
+<option value="">Не выбрано</option>
+${opt('building', 'rights', RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${esc(r)}</option>`).join('')}
+</select>
+<input
+class="input"
+data-bld-rights-other
+placeholder="Укажите право"
+value="${esc(oi.rightsOther || '')}"
+maxlength="100"
+style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
+>
+</div>
 </div>
 <div class="field"><label>Категория ОИ</label>
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
@@ -132,16 +187,16 @@ ${rq.showCatClass ? `<div class="inline-row" style="margin-top:10px; gap:14px; f
 </div>`;
 }
 
-function areasCard(ctx, oi) {
+function areasCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
   const areas = oi.areas || {};
   const heights = oi.heights || {};
 
   return `<div class="card t-blue" id="q-areas">
-<div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>Общая по ПУД, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
+<div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
 <div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
@@ -169,7 +224,7 @@ const RENT_COLS = [
   { key: 'rentValue', label: 'Стоимость сдаваемых площадей' },
 ];
 
-function rentAreasCard(ctx, oi, idx = 3) {
+function rentAreasCard(ctx, oi, idx) {
   const rows = oi.rentAreas || [];
 
   return `<div class="card t-slate" id="q-rent">
@@ -214,7 +269,7 @@ function wearField(oi, key, label) {
 </div>`;
 }
 
-function structCard(ctx, oi, idx = 3) {
+function structCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
   const struct = oi.struct || {};
 
@@ -252,8 +307,14 @@ function prodExtraCard(ctx, oi, idx) {
   return `<div class="card t-teal" id="q-prod">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Доп параметры (производственное строение)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
+<div class="grid g-3">
 <div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(oi.prodHeight || '')}" inputmode="decimal"></div>
+${tempModeMS(ctx, oi)}
+<div class="field"><label>Усиленность конструкции</label>
+<select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+</div>
+<div class="grid g-3" style="margin-top:10px">
 <div class="field"><label>Конструктив</label>
 <select class="select" data-prod-frame>${opt('building', 'frame', PROD_FRAME).map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
@@ -268,7 +329,7 @@ function prodExtraCard(ctx, oi, idx) {
 </div>`;
 }
 
-function photosCard(ctx, oi, idx = 5) {
+function photosCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-photo">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
 <button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
@@ -307,20 +368,18 @@ ${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 }
 
 export function render(ctx, oi) {
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
   const rq = fieldRules(ctx, oi);
-  // +1 ко всем номерам: между площадями и составом встал блок лоджий (Л5.4).
-  const docsIdx = rq.prod ? 7 : 6;
+
+  const idx = blockNumbers();
 
   const cardBody = `<div class="oi-stack">
-${generalCard(ctx, oi)}
-${areasCard(ctx, oi)}
-${annexesCard(ctx, oi, 3)}
-${rentAreasCard(ctx, oi, 4)}
-${structCard(ctx, oi, 5)}
-${rq.prod ? prodExtraCard(ctx, oi, 6) : ''}
-${photosCard(ctx, oi, docsIdx + 1)}
+${generalCard(ctx, oi, idx())}
+${areasCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
+${rentAreasCard(ctx, oi, idx())}
+${structCard(ctx, oi, idx())}
+${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
+${photosCard(ctx, oi, idx())}
 </div>`;
 
   return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;

@@ -13,6 +13,96 @@ import { LAND_DICT_SOURCES } from './landDicts.js';
 
 export const DICT_SOURCES = [
   {
+    key: 'TEMP_MODE',
+    title: 'Температурный режим',
+    kind: 'list',
+    system: false,
+    values: D.TEMP_MODE,
+    slots: [
+      { card: 'building', field: 'tempMode', label: 'Температурный режим' },
+    ],
+  },
+  {
+    key: 'STRUCT_STRENGTH',
+    title: 'Капитальность конструкций',
+    kind: 'list',
+    system: false,
+    values: D.STRUCT_STRENGTH,
+    slots: [
+      { card: 'building', field: 'structStrength', label: 'Капитальность' },
+    ],
+  },
+  {
+    key: 'CRANE_BEAM',
+    title: 'Кран-балка',
+    kind: 'list',
+    system: false,
+    values: D.CRANE_BEAM,
+    slots: [
+      { card: 'building', field: 'craneBeam', label: 'Наличие/возможность кран-балки' },
+    ],
+  },
+  {
+    key: 'PROD_FLOORS',
+    title: 'Полы производственных зданий',
+    kind: 'list',
+    system: false,
+    values: D.PROD_FLOORS,
+    slots: [
+      { card: 'building', field: 'floorsType', label: 'Полы' },
+    ],
+  },
+  {
+    key: 'PROD_FRAME',
+    title: 'Каркас производственного здания',
+    kind: 'list',
+    system: false,
+    values: D.PROD_FRAME,
+    slots: [
+      { card: 'building', field: 'frame', label: 'Каркас' },
+    ],
+  },
+  {
+    key: 'STRUCTURE_KIND',
+    title: 'Тип строения',
+    kind: 'list',
+    system: false,
+    values: D.STRUCTURE_KIND,
+    slots: [
+      { card: 'building', field: 'structureKind', label: 'Тип строения' },
+    ],
+  },
+  {
+    key: 'WEAR_LEVEL',
+    title: 'Степень износа',
+    kind: 'list',
+    system: false,
+    values: D.WEAR_LEVEL,
+    slots: [
+      { card: 'building', field: 'wear', label: 'Степень износа' },
+    ],
+  },
+  {
+    key: 'OI_CATEGORY_GROUPS',
+    title: 'Категории объектов имущества',
+    kind: 'list',
+    system: true,
+    values: D.OI_CATEGORY_GROUPS,
+    slots: [
+      { card: 'building', field: 'category', label: 'Категория ОИ' },
+    ],
+  },
+  {
+    key: 'RIGHTS',
+    title: 'Права на строение',
+    kind: 'list',
+    system: false,
+    values: D.RIGHTS,
+    slots: [
+      { card: 'building', field: 'rights', label: 'Права на строение' },
+    ],
+  },
+  {
     key: 'APARTMENT_LOCATIONS',
     title: 'Расположение квартиры',
     kind: 'list',

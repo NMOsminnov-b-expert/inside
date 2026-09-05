@@ -256,7 +256,7 @@ export function tableOI(ctx) {
 
     <div class="card-body-wrap"><div class="oi-tree" data-oi-cols-box style="${oiColsVarsStyle(ctx)}">${nodes.join('')}</div>
       <div class="muted" style="font-size:10.5px;padding:0 14px 12px">Участков может быть несколько — каждый со своим ЕНИ и своими документами.</div>
-      ${popOi ? photoPopHTML(popOi) : ''}
+      ${popOi ? photoPopHTML(popOi, ctx.ui) : ''}
     </div>
   </div>`;
 }

@@ -25,10 +25,10 @@ def _open_land(t, route='#/oc/land-plot/oc-lp-1'):
     """Открыть карточку участка объекта."""
     pg = t.page
     t.open(route, wait='[data-open-oi]')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     pg.locator('[data-open-oi]').first.click()
     pg.wait_for_selector('[data-land-type]', timeout=15000)
-    pg.wait_for_timeout(500)
+    t.wait(500)
 
 
 def run(t):
@@ -50,7 +50,7 @@ def run(t):
     pg.dispatch_event('[data-land-area="pravoUd"]', 'change')
     pg.fill('[data-land-area="build"]', '55')
     pg.dispatch_event('[data-land-area="build"]', 'change')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.input_value('[data-land-area="pravoUd"]') == '777'
          and pg.input_value('[data-land-area="build"]') == '55',
          'значения площадей перепутались между полями')
@@ -69,11 +69,11 @@ def run(t):
     t.ck(pg.locator('[data-land-encumbrance-note]').count() == 0,
          'комментарий к сервитуту показан, когда обременений нет')
     pg.select_option('[data-land-encumbrance]', 'Есть')
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.locator('[data-land-encumbrance-note]').count() == 1,
          'при «Есть» не появился комментарий к сервитуту')
     pg.select_option('[data-land-encumbrance]', 'Нет')
-    pg.wait_for_timeout(600)
+    t.wait(600)
 
     # --- 2. сельхоз: категории земель нет, разрешённое использование осталось ---
     t.ck(pg.locator('[data-land-category]').count() == 0,
@@ -90,7 +90,7 @@ def run(t):
 
     # --- 3. несельхоз: инженерные сети ---
     pg.select_option('[data-land-type]', 'Несельскохозяйственный')
-    pg.wait_for_timeout(900)
+    t.wait(900)
 
     heads = pg.eval_on_selector_all('.card-head h3', 'els => els.map((e) => e.textContent.trim())')
     t.ck('Инженерные сети' in heads, 'блок 02 не назван «Инженерные сети»: %s' % heads)
@@ -114,7 +114,7 @@ def run(t):
     # --- 4. вспомогательные постройки ---
     t.ck(pg.locator('[data-aux-add]').count() == 1, 'нет списка вспомогательных построек')
     pg.locator('[data-aux-add]').click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.locator('[data-aux-kind]').count() == 1, 'постройка не добавилась')
 
     # Состав полей строки задан пользователем 04.09.2026: постройка, площадь,
@@ -142,11 +142,11 @@ def run(t):
          'состояний постройки не пять: %s' % conds)
 
     pg.locator('[data-aux-area]').first.fill('18')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck('18' in pg.locator('.al-sum').first.inner_text(),
          'сумма площадей построек не пересчиталась: %s' % pg.locator('.al-sum').first.inner_text())
     pg.locator('[data-aux-del]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     t.ck(pg.locator('[data-aux-kind]').count() == 0, 'постройка не удалилась')
 
     # --- 4б. поля-справочники вместо свободного текста ---
@@ -162,7 +162,7 @@ def run(t):
     # несельхоз. Открытие карточки состояние не сбрасывает — маршрут меняется
     # хэшем, без перезагрузки страницы.
     pg.select_option('[data-land-type]', 'Сельскохозяйственный')
-    pg.wait_for_timeout(600)
+    t.wait(600)
 
     for attr, title in [('[data-land-rights]', 'права на участок'),
                         ('[data-land-purpose]', 'назначение по правоудостоверяющему документу'),
@@ -182,7 +182,7 @@ def run(t):
 
     # «Иное» открывает поле ручного ввода — и закрывает его обратно.
     pg.select_option('[data-land-purpose]', label='Иное')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     t.ck(pg.locator('[data-land-purpose-other]').is_visible(),
          'вариант «Иное» не открыл поле ручного ввода назначения')
 
@@ -226,7 +226,7 @@ def run(t):
         gps = pg.locator('[data-land-gps]')
         gps.fill(value)
         gps.dispatch_event('input')
-        pg.wait_for_timeout(220)
+        t.wait(220)
         bad = pg.locator('[data-land-gps].field-bad').count() == 1
         t.ck(bad == expect_err, what)
 
@@ -234,7 +234,7 @@ def run(t):
            if pg.locator('[data-field-err]').count() else '')
     pg.locator('[data-land-gps]').fill('74.612222, 42.874722')
     pg.locator('[data-land-gps]').dispatch_event('input')
-    pg.wait_for_timeout(250)
+    t.wait(250)
     msg = (pg.locator('[data-field-err]').first.inner_text()
            if pg.locator('[data-field-err]').count() else '')
     t.ck('перепутан' in msg.lower(),
@@ -245,7 +245,7 @@ def run(t):
     t.ck(notes.count() >= 2, 'заметок «i» меньше двух: %d' % notes.count())
     notes.first.scroll_into_view_if_needed()
     notes.first.hover()
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('.dev-note-pop').first.is_visible(), 'заметка «i» не раскрывается')
 
     # Заметка не должна уезжать за границы окна: раньше у полей правой колонки
@@ -255,7 +255,7 @@ def run(t):
         n = notes.nth(i)
         n.scroll_into_view_if_needed()
         n.hover()
-        pg.wait_for_timeout(250)
+        t.wait(250)
         box = pg.evaluate('''(i) => {
           const p = document.querySelectorAll('.dev-note')[i].querySelector('.dev-note-pop');
           const r = p.getBoundingClientRect();
@@ -283,11 +283,11 @@ def run(t):
     # происходит на странице редактирования ОЦ». Поле «Тип ОЦ» там было
     # заблокировано, теперь оно рабочее.
     t.open('#/oc/civil/oc-cv-1', wait='tr[data-open-oi]')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     oi_before = pg.locator('tr[data-open-oi]').count()
 
     t.open('#/oc/civil/oc-cv-1/form', wait='#fType')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     t.ck(not pg.eval_on_selector('#fType', 'e => e.disabled'),
          'поле «Тип ОЦ» в форме редактирования заблокировано')
 
@@ -295,7 +295,7 @@ def run(t):
     t.ck(len(types) == 5, 'в поле «Тип ОЦ» не пять типов: %s' % types)
 
     pg.select_option('#fType', label='Производственное строение')
-    pg.wait_for_timeout(900)
+    t.wait_for('.modal-head')
     t.ck(pg.locator('.modal-head').count() == 1, 'смена типа прошла без подтверждения')
     t.ck('Объектов имущества переедет' in (pg.locator('.modal-note').inner_text()
                                           if pg.locator('.modal-note').count() else ''),
@@ -303,15 +303,18 @@ def run(t):
 
     # Отказ возвращает прежний тип в поле — иначе форма показывала бы неправду.
     pg.locator('[data-modal-cancel]').click()
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.eval_on_selector('#fType', 'e => e.options[e.selectedIndex].textContent.trim()')
          == 'Гражданское здание',
          'после отказа в поле остался чужой тип')
 
     pg.select_option('#fType', label='Производственное строение')
-    pg.wait_for_timeout(800)
+    t.wait_for('.modal-head')
     pg.locator('[data-modal-ok]').click()
-    pg.wait_for_timeout(1500)
+    # Переезд записи между модулями идёт через динамический import(),
+    # поэтому ждём появления карточки нового типа, а не времени.
+    t.wait_for('.card')
+    t.wait(600)
 
     t.ck('/oc/production/' in pg.evaluate('() => location.hash'),
          'после смены типа маршрут не сменился: %s' % pg.evaluate('() => location.hash'))
@@ -321,11 +324,14 @@ def run(t):
 
     # Обратная смена возвращает запись и её содержимое.
     t.open('#/oc/production/oc-cv-1/form', wait='#fType')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     pg.select_option('#fType', label='Гражданское здание')
-    pg.wait_for_timeout(800)
+    t.wait_for('.modal-head')
     pg.locator('[data-modal-ok]').click()
-    pg.wait_for_timeout(1500)
+    # Переезд записи между модулями идёт через динамический import(),
+    # поэтому ждём появления карточки нового типа, а не времени.
+    t.wait_for('.card')
+    t.wait(600)
     t.ck('/oc/civil/' in pg.evaluate('() => location.hash'),
          'обратная смена типа не вернула запись в исходный тип')
     t.ck(pg.locator('tr[data-open-oi]').count() == oi_before,
@@ -340,9 +346,9 @@ def run(t):
     # образец из одной живой записи (незаполненное поле объявлялось потерянным);
     # спрашивало подписи без вида карточки и показывало ключи латиницей.
     t.open('#/oc/residential-house/oc-rh-1/form', wait='#fType')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     pg.select_option('#fType', label='Гражданское здание')
-    pg.wait_for_timeout(900)
+    t.wait_for('.modal-head')
 
     warn = pg.locator('.modal-body').inner_text() if pg.locator('.modal-body').count() else ''
     t.ck(pg.locator('.modal-list-facts li').count() >= 1,
@@ -362,16 +368,16 @@ def run(t):
     t.ck(not keys, 'в предупреждении технические ключи полей: %s' % keys[:5])
 
     pg.locator('[data-modal-cancel]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)
 
     # Движимого нет у жилого дома — об этом говорится отдельно.
     t.open('#/oc/civil/oc-cv-1/form', wait='#fType')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     pg.select_option('#fType', label='Жилое здание (дом)')
-    pg.wait_for_timeout(900)
+    t.wait_for('.modal-head')
     warn2 = pg.locator('.modal-body').inner_text() if pg.locator('.modal-body').count() else ''
     t.ck('нет карточки' in warn2,
          'не сказано, что для движимого объекта в новом типе нет карточки: %s'
          % warn2.replace(chr(10), ' ')[:160])
     pg.locator('[data-modal-cancel]').first.click()
-    pg.wait_for_timeout(300)
+    t.wait(300)

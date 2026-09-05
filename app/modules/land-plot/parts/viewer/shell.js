@@ -9,7 +9,12 @@ import { viewerSidebarHTML } from './sidebar.js';
 function buildViewerContext(ctx) {
   const mode = ctx.ui.viewer.mode;
   const inOi = ctx.view === 'oi';
-  const oi = ctx.oi;
+  // В карточке литеры показываем её фото, в перечне объекта оценки — фото той
+  // литеры, снимок которой открыли из окна перечня (kernel: viewerPhotoOi).
+  const oi = ctx.oi
+    || (ctx.ui.viewerPhotoOi
+      ? (ctx.rec.oi || []).find((o) => o.id === ctx.ui.viewerPhotoOi)
+      : null);
 
   const scopes = inOi
     ? ((oi && (oi.docs || []).length ? [oi.id, 'oc'] : ((ctx.rec.docs || []).length ? ['oc'] : [])))
@@ -35,7 +40,13 @@ function buildViewerContext(ctx) {
   const pSt = oi ? (VS.photos[oi.id] || (VS.photos[oi.id] = { page: 1, rot: 0, scroll: 0 })) : null;
   const curPhoto = pages[pSt ? Math.min(pSt.page, pages.length) - 1 : 0];
 
-  return { mode, inOi, oi, scopes, vd, d, dSt, pages, groups, pSt, curPhoto };
+  // Счётчик на кнопке «Фото»: у литеры — её снимки, в карточке объекта
+  // оценки — все снимки записи (там литера выбирается в меню просмотрщика).
+  const photoCount = oi
+    ? pages.length
+    : (ctx.rec.oi || []).reduce((n, o) => n + photoPages(o).length, 0);
+
+  return { mode, inOi, oi, scopes, vd, d, dSt, pages, groups, pSt, curPhoto, photoCount };
 }
 
 export function viewerHTML(ctx) {
@@ -49,9 +60,9 @@ export function viewerHTML(ctx) {
 
   const modeBar = `<div class="vmode">
     ${burger}
-    ${vctx.inOi ? `<button class="vmode-btn ${vctx.mode === 'photo' ? 'active' : ''}" data-vmode="photo">Фото · ${vctx.pages.length}</button>
+    ${`<button class="vmode-btn ${vctx.mode === 'photo' ? 'active' : ''}" data-vmode="photo">Фото · ${vctx.photoCount}</button>
     <button class="vmode-btn ${vctx.mode === 'doc' ? 'active' : ''}" data-vmode="doc">Документы</button>
-    <button class="vmode-btn ${vctx.mode === 'compare' ? 'active' : ''}" data-vmode="compare">Сравнение</button>` : ''}
+    <button class="vmode-btn ${vctx.mode === 'compare' ? 'active' : ''}" data-vmode="compare">Сравнение</button>`}
   </div>`;
 
   let parts;

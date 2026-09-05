@@ -15,7 +15,7 @@ def _bulk(t, n='20000'):
     pg = t.page
     t.open('', wait='.reg-thead')
     pg.select_option('[data-bulk-count]', n)
-    pg.wait_for_timeout(2600)
+    t.wait(2600)
 
 
 def run(t):
@@ -39,24 +39,24 @@ def run(t):
 
     # --- сортировка по флажку не рвётся вглубь списка ---
     pg.locator('[data-cols-dd]').first.click()
-    pg.wait_for_timeout(350)
+    t.wait(350)
     tags = pg.locator('[data-column="tags"]')
     if t.ck(tags.count() > 0, 'в меню столбцов нет столбца «Теги»'):
         tags.first.click()
-        pg.wait_for_timeout(400)
+        t.wait(400)
     pg.keyboard.press('Escape')
-    pg.wait_for_timeout(300)
+    t.wait(300)
 
     th = pg.locator('[data-sort="specials"]')
     if not t.ck(th.count() > 0, 'столбец «Теги» не сортируемый'):
         return
     th.first.click()
-    pg.wait_for_timeout(900)
+    t.wait(900)
 
     def flagged_at(frac):
         pg.evaluate("""(f) => { const vp = document.querySelector('[data-viewport]');
             vp.scrollTop = vp.scrollHeight * f; }""", frac)
-        pg.wait_for_timeout(700)
+        t.wait(700)
         return pg.evaluate("""() => {
           const rows = [...document.querySelectorAll('.reg-tr')].slice(0, 20);
           return rows.filter((r) => r.querySelector('.reg-badge.spec')).length;

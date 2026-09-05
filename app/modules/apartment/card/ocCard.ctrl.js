@@ -528,6 +528,13 @@ export function bindOcCard(ctx) {
     ctx.toast('Фото загружено: ' + file.name, 'ok');
   });
 
+  // Категория в окне фото: выбор живёт в ui, поэтому переживает перерисовку.
+  s.$$('[data-photo-cat]').forEach((c) => c.onclick = (e) => {
+    e.stopPropagation();
+    ctx.ui.photoPopCat = c.dataset.photoCat || '';
+    ctx.render();
+  });
+
   s.$$('[data-open-photo]').forEach((p) => p.onclick = (e) => {
     e.stopPropagation();
     const [oiId, rest] = p.dataset.openPhoto.split('|');

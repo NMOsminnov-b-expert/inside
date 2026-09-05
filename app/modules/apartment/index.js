@@ -1,6 +1,7 @@
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
+import { migrateTempMode } from './oi/building/tempMode.js';
 // Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
 // поэтому и перевод её данных берётся оттуда же.
 import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
@@ -10,6 +11,7 @@ import { migrateStruct } from './parts/struct/ms.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
+import { setActiveOcType } from '../../kernel/ocType.js';
 import { MENU_HREF } from '../../kernel/router.js';
 import { getOi, ui, resetViewer } from './data/store.js';
 import { loadRecord } from './records.js';
@@ -35,6 +37,10 @@ function todayStr() {
 
 // ГЛАВНАЯ ФУНКЦИЯ МОДУЛЯ: её вызывает меню ОЦ при клике по объекту этого типа.
 export function main(host) {
+  // Открыт экран этого типа ОЦ: справочники карточек читаются по нему,
+  // включая карточки, приехавшие из чужих модулей (kernel/ocType.js).
+  setActiveOcType(manifest.id);
+
   const scope = host.scope;
   const cardCache = new Map();
 
@@ -321,6 +327,8 @@ export function main(host) {
       }
       // Колонка «Площадь внешн.» слилась с застройкой — переносим значения.
       migrateFloorAreas(o);
+      // Температурный режим был строкой, стал списком (Л6.2).
+      migrateTempMode(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
       // Террасы отделены от балконов (решение пользователя 2026-08-27):

@@ -17,6 +17,7 @@ import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId, nextDocId } from '../../data/store.js';
+import { bindTempMode } from './tempMode.js';
 
 export function bind(ctx, oi) {
   bindAreaList(ctx, oi, 'loggias');
@@ -160,8 +161,19 @@ export function bind(ctx, oi) {
     ctx.render();
   };
 
-  const rg = s.$('[data-rights]');
-  if (rg) rg.onchange = () => { oi.rights = rg.value; };
+  // Права на строение: справочник плюс ручной ввод варианта «Иное».
+  const rightsSel = s.$('[data-bld-rights]');
+  if (rightsSel) rightsSel.onchange = () => {
+    oi.rights = rightsSel.value;
+    const other = s.$('[data-bld-rights-other]');
+    if (other) {
+      other.style.display = oi.rights === 'Иное' ? '' : 'none';
+      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
+    }
+  };
+
+  const rightsOther = s.$('[data-bld-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
 
   // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
   // перед сменой показываем, что скроется. Значения при этом сохраняются в
@@ -211,8 +223,24 @@ export function bind(ctx, oi) {
     ctx.render();
   });
 
+  bindTempMode(ctx, oi);
+
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
+
+  // Тип строения: справочник плюс ручной ввод варианта «Прочее».
+  const skSel = s.$('[data-structure-kind]');
+  if (skSel) skSel.onchange = () => {
+    oi.structureKind = skSel.value;
+    const other = s.$('[data-structure-kind-other]');
+    if (other) {
+      other.style.display = oi.structureKind === 'Прочее' ? '' : 'none';
+      if (oi.structureKind !== 'Прочее') { other.value = ''; oi.structureKindOther = ''; }
+    }
+  };
+
+  const skOther = s.$('[data-structure-kind-other]');
+  if (skOther) skOther.onchange = () => { oi.structureKindOther = skOther.value; };
 
   const cc = s.$('[data-catclass]');
   if (cc) cc.onchange = () => {
@@ -227,7 +255,13 @@ export function bind(ctx, oi) {
   // строения» — «Отдельностоящее» доступно только обособленным (Л2.5).
   if (rc) rc.onchange = () => { oi.resCat = rc.value; ctx.render(); };
 
-  s.$$('[data-status]').forEach((sel) => sel.onchange = () => { oi.status = sel.value; ctx.updatePlate(); });
+  // Перерисовка обязательна: от статуса зависит видимость «Типа строения»
+  // (он есть только у вспомогательных).
+  s.$$('[data-status]').forEach((sel) => sel.onchange = () => {
+    oi.status = sel.value;
+    ctx.updatePlate();
+    ctx.render();
+  });
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };

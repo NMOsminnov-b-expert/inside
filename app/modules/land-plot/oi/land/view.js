@@ -1,4 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
+import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import {
   DOC_TYPES, LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
@@ -33,12 +34,12 @@ function selectField(label, attr, values, value) {
 //     местоположении, и стоять оно должно рядом с правами;
 //   * категория земель — только у несельхоза: у сельхозучастка категория
 //     известна из самого типа.
-function commonCard(oi) {
+function commonCard(oi, idx) {
   const areas = oi.areas || {};
   const nonAgricultural = oi.landType === 'Несельскохозяйственный';
   const showEncArea = oi.encumbrance === 'Есть';
 
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>Основные параметры</h3></div><div class="card-pad">
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Основные параметры</h3></div><div class="card-pad">
 <div class="grid g-4">
 <div class="field"><label>Тип земельного участка</label><select class="select" data-land-type>${options(opt('land', 'landType', LAND_TYPES), oi.landType)}</select></div>
 ${nonAgricultural ? selectField('Категория земель', 'data-land-category', opt('land', 'landCategory', LAND_CATEGORIES), oi.landCategory) : ''}
@@ -81,8 +82,8 @@ ${showEncArea ? `<div class="field" style="margin-top:10px"><label>Коммен�
 </div></div>`;
 }
 
-function agriculturalCard(ctx, oi) {
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">02</span><h3>Сельскохозяйственные характеристики</h3></div><div class="card-pad"><div class="grid g-3">
+function agriculturalCard(ctx, oi, idx) {
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Сельскохозяйственные характеристики</h3></div><div class="card-pad"><div class="grid g-3">
 ${selectField('Категория и разрешенное использование', 'data-land-use', opt('land', 'useCategory', LAND_USE_CATEGORIES), oi.useCategory)}${selectField('Доступность полива', 'data-land-irrigation', opt('land', 'irrigation', IRRIGATION_ACCESS), oi.irrigation)}${selectField('Тип полива', 'data-land-irrigation-type', opt('land', 'irrigationType', IRRIGATION_TYPE), oi.irrigationType)}${selectField('Тип почвы', 'data-land-soil', opt('land', 'soil', LAND_SOIL), oi.soil)}
 <div class="field"><label>Балл бонитета</label><input class="input" data-land-bonitet value="${esc(oi.bonitet || '')}"></div>${selectField('Каменистость', 'data-land-stoniness', opt('land', 'stoniness', LAND_STONINESS), oi.stoniness)}</div>
 <div class="grid g-3" style="margin-top:10px">${utilitiesMS(ctx, oi)}</div>
@@ -93,8 +94,8 @@ ${auxBuildingsHTML(ctx, oi)}</div></div>`;
 // в блок 01, автономное отопление убрано, добавлены электроснабжение и
 // канализация, сюда же переехало наличие построек: постройки — это про
 // застройку участка, а не про его местоположение.
-function nonAgriculturalCard(ctx, oi) {
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">02</span><h3>Инженерные сети</h3></div><div class="card-pad"><div class="grid g-3">
+function nonAgriculturalCard(ctx, oi, idx) {
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Инженерные сети</h3></div><div class="card-pad"><div class="grid g-3">
 ${selectField('Наличие электроснабжения', 'data-land-electricity', opt('land', 'electricity', LAND_UTILITY_STATUS), oi.electricity)}
 ${selectField('Наличие канализации', 'data-land-sewerage', opt('land', 'sewerage', LAND_UTILITY_STATUS), oi.sewerage)}
 ${selectField('Наличие газификации', 'data-land-gas', opt('land', 'gasification', LAND_UTILITY_STATUS), oi.gasification)}
@@ -143,11 +144,11 @@ function isBigCity(ctx) {
 // блоки 01 и 02, добавились координаты, зона с микрорайоном для крупных
 // городов и удалённость от райцентра для сельхоза; благоустройство стало
 // рангом с текстовым описанием.
-function locationCard(ctx, oi) {
+function locationCard(ctx, oi, idx) {
   const bigCity = isBigCity(ctx);
   const agricultural = oi.landType !== 'Несельскохозяйственный';
 
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">03</span><h3>Местоположение</h3></div><div class="card-pad">
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Местоположение</h3></div><div class="card-pad">
 <div class="sec-h">Расположение${devNote(CITY_NOTE)}</div>
 <div class="grid g-4">
 <div class="field"><label>Координаты (широта, долгота)</label>
@@ -174,6 +175,8 @@ ${agricultural ? `<div class="field"><label>Удалённость от райц
 
 export function render(ctx, oi) {
   const agricultural = oi.landType !== 'Несельскохозяйственный';
-  const body = `<div class="oi-stack">${commonCard(oi)}${agricultural ? agriculturalCard(ctx, oi) : nonAgriculturalCard(ctx, oi)}${locationCard(ctx, oi)}<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">05</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div></div>`;
+  const idx = blockNumbers();
+
+  const body = `<div class="oi-stack">${commonCard(oi, idx())}${agricultural ? agriculturalCard(ctx, oi, idx()) : nonAgriculturalCard(ctx, oi, idx())}${locationCard(ctx, oi, idx())}<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">${String(idx()).padStart(2, '0')}</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div></div>`;
   return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body)}`;
 }

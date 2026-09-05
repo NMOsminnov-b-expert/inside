@@ -5,17 +5,27 @@
 // запасным: если справочник не найден — например, его отвязали, — поле
 // продолжает работать со старым списком, а не пустеет.
 //
-// Тип ОЦ здесь зашит: файл лежит внутри модуля и обслуживает только его.
+// Тип ОЦ НЕ зашит: карточки квартиры и участка переиспользуются всеми пятью
+// типами ОЦ, и справочники им нужны того типа, в котором карточку открыли, а не
+// того модуля, где лежит её код (см. kernel/ocType.js — там вся история).
 import { optionsFor, groupedOptionsFor } from '../../../kernel/dicts.js';
+import { activeOcType } from '../../../kernel/ocType.js';
 
-const TYPE_ID = 'residential-house';
+// Тип ОЦ этого модуля. Он же и запасной вариант: если экран модуля не
+// открыт (страница справочников, учреждений), спрашивать не у кого.
+const OWN_TYPE = 'residential-house';
+
+// Тип ОЦ берём у ОТКРЫТОГО экрана, а не у модуля, где лежит файл: карточки
+// квартиры и участка переиспользуются всеми пятью типами, и справочники им
+// нужны того типа, в котором их открыли (kernel/ocType.js).
+const typeId = () => activeOcType() || OWN_TYPE;
 
 export function opt(card, field, fallback) {
-  return optionsFor(TYPE_ID, card, field) || fallback;
+  return optionsFor(typeId(), card, field) || fallback;
 }
 
 // Перечни с разделами («Категория ОИ», «Благоустройство»): структура собирается
 // из позиций справочника, запасной вариант — встроенный перечень модуля.
 export function optGroups(card, field, fallback) {
-  return groupedOptionsFor(TYPE_ID, card, field) || fallback;
+  return groupedOptionsFor(typeId(), card, field) || fallback;
 }

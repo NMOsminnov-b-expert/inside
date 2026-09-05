@@ -1,0 +1,818 @@
+/* Оформление карточек объекта оценки — общее для всех типов ОЦ.
+ *
+ * Раньше эти правила лежали пятью копиями, по одной в module.css каждого
+ * модуля, с префиксом body[data-module="<тип>"]. Копии расходились: правка,
+ * сделанная в одном месте, до остальных не доходила, и оформление отличалось от
+ * типа к типу — так и вышло со скруглением заливки в шапке блока (замечание
+ * пользователя 05.09.2026).
+ *
+ * Область действия сохранена ровно та же: селекторы начинаются с
+ * body[data-module], а этот признак boot.js ставит только на экранах объектов
+ * оценки и снимает на остальных страницах. Специфичность тоже прежняя (атрибут
+ * плюс класс), поэтому ничего не «перебивается» иначе, чем раньше.
+ *
+ * Что осталось в module.css модуля: только его собственное — то, чего нет у
+ * других (например, комбо серии у квартиры или блоки участка).
+ */
+
+/*
+  Визуал модуля «civil».
+  Копия правил карточек, полей, таблиц, аккордеонов и просмотрщика из
+  styles/app.css. Копия намеренная: типы ОЦ меняются независимо.
+  Все правила ограничены корнем модуля: body[data-module="civil"].
+*/
+body[data-module] .ctx-plate{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--blue-700);border-radius:8px;
+  padding:8px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
+body[data-module] .ctx-plate.ctx-oc{border-left-color:var(--blue-700)}
+body[data-module] .ctx-plate.ctx-oi{border-left-color:var(--blue-500)}
+body[data-module] .ctx-plate.ctx-form{border-left-color:var(--teal-600)}
+body[data-module] .ctx-kind{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+body[data-module] .ctx-plate b{font-size:13px;color:var(--blue-700)}
+body[data-module] .ctx-chip{font-size:10.5px;background:var(--blue-50);border:1px solid var(--blue-200);color:var(--blue-700);border-radius:999px;padding:2px 9px;font-weight:600}
+body[data-module] .ctx-chip.ctx-warn{background:var(--blue-50);border-color:var(--blue-300);color:var(--blue-700)}
+body[data-module] .ctx-chip.ctx-ok{background:var(--teal-50);border-color:var(--teal-100);color:var(--teal-700)}
+body[data-module] .ctx-back-hint{font-size:10.5px;color:#7d93a6}
+body[data-module] .card{background:var(--panel);border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);transition:box-shadow .15s}
+body[data-module] .card-pad{padding:14px 16px}
+body[data-module] .card.collapsed>.card-body, body[data-module="civil"] .card.collapsed>.card-pad, body[data-module="civil"] .card.collapsed>.card-body-wrap{display:none}
+body[data-module] .card:not(.collapsed)>.card-body-wrap{animation:accIn .16s ease}
+body[data-module] .card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap;
+  /* Шапка залита цветом разметки, поэтому её углы обязаны повторять углы
+     блока: прямоугольная заливка поверх скруглённого угла давала «срезанный»
+     верх. Радиус на пиксель меньше — рамка блока 1.5px. */
+  border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0}
+body[data-module] .card.collapsed>.card-head{border-radius:calc(var(--radius) - 1px)}
+body[data-module] .card-head h3{font-size:13px;font-weight:700}
+body[data-module] .card-head .hint{font-size:11px;color:var(--muted);font-weight:400}
+body[data-module] .card-head .chev{margin-left:auto;transition:transform .15s;color:#7d93a6}
+body[data-module] .card.collapsed .card-head .chev{transform:rotate(-90deg)}
+body[data-module] .card-idx{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 6px;letter-spacing:.5px}
+body[data-module] .card.t-blue{border-left:4px solid var(--blue-600)}
+body[data-module] .card.t-blue .card-head{background:#d9e9fb}
+body[data-module] .card.t-blue .card-head h3{color:#123f74}
+body[data-module] .card.t-blue .card-idx{background:var(--blue-600)}
+body[data-module] .card.t-amber{border-left:4px solid var(--amber-600)}
+body[data-module] .card.t-amber .card-head{background:var(--amber-50)}
+body[data-module] .card.t-amber .card-head h3{color:var(--amber-700)}
+body[data-module] .card.t-amber .card-idx{background:var(--amber-600)}
+body[data-module] .card.t-slate{border-left:4px solid var(--slate-500)}
+body[data-module] .card.t-slate .card-head{background:var(--slate-50)}
+body[data-module] .card.t-slate .card-head h3{color:var(--slate-700)}
+body[data-module] .card.t-slate .card-idx{background:var(--slate-500)}
+body[data-module] .card.t-teal{border-left:4px solid var(--teal-600)}
+body[data-module] .card.t-teal .card-head{background:#d7f0ea}
+body[data-module] .card.t-teal .card-head h3{color:#0a5c50}
+body[data-module] .card.t-teal .card-idx{background:var(--teal-600)}
+body[data-module] .row-actions{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:nowrap}
+body[data-module] .clickable{cursor:pointer}
+body[data-module] .clickable:hover td{background:var(--blue-50)}
+body[data-module] .rowchev-open{color:#7d93a6;font-size:12px}
+body[data-module] .tbl td.ell{white-space:nowrap;overflow:hidden;max-width:200px}
+/* Шапка ОЦ переносится, а не ужимается: при nowrap+overflow:hidden узкое окно
+   съедало данные (тип, адрес, код ЕНИ превращались в «Г…»), а кнопки оставались
+   в полную ширину. Минимальная ширина поля — порог, ниже которого начинается
+   перенос строки. */
+body[data-module] .head-meta{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;min-width:0}
+/* Действия держатся вместе и не разрываются между строками. */
+body[data-module] .head-actions{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+body[data-module] .hm{min-width:120px;flex:0 1 auto}
+body[data-module] .hm label,body[data-module="civil"] .hm .lbl{display:block;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#61799a;font-weight:700}
+body[data-module] .hm b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:280px;color:var(--blue-700)}
+body[data-module] .tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--line);margin:0 0 12px;position:sticky;top:0;z-index:8;background:var(--bg)}
+body[data-module] .tab{padding:8px 14px;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;font-weight:600;transition:color .12s}
+body[data-module] .tab.active{color:var(--blue-700);border-color:var(--blue-600)}
+body[data-module] table.tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+body[data-module] .tbl th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#3f4c63;text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line);font-weight:700;background:#eef4fb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-module] .tbl td{padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:middle;font-size:13px;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .tbl tbody tr:nth-child(even) td{background:#f8fbff}
+body[data-module] .tbl tr:last-child td{border-bottom:none}
+body[data-module] .tbl tr.rowlink{cursor:pointer}
+body[data-module] .tbl tr.rowlink:hover td{background:var(--blue-50)}
+body[data-module] .grid{display:grid;gap:10px 12px;align-items:end}
+/* Колонок столько, сколько влезает: при узкой колонке карточки (рядом открыт
+   просмотрщик) четыре поля ужимались до 150px и обрезали значения — от
+   «Административный департамент» до кода ЕНИ. Минимум на колонку не даёт
+   этому повториться, а max(...) с долей от 100%% удерживает верхнюю границу
+   числа колонок ровно такой, как просит класс. */
+body[data-module] .g-2{grid-template-columns:repeat(auto-fit,minmax(max(260px,(100% - 12px)/2),1fr))}
+body[data-module] .g-3{grid-template-columns:repeat(auto-fit,minmax(max(240px,(100% - 24px)/3),1fr))}
+body[data-module] .g-4{grid-template-columns:repeat(auto-fit,minmax(max(220px,(100% - 36px)/4),1fr))}
+body[data-module] .grid.g-top{align-items:start}
+/* Строки с подписью под полем: подпись вынесена из потока (.field-hint), и без
+   запаса по вертикали она легла бы на метку следующей строки. */
+body[data-module] .grid.g-roomy{row-gap:22px}
+body[data-module] .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-module] .field>label,body[data-module="civil"] .field>.lbl{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
+body[data-module] .req{color:var(--danger)}
+/* Точка отсчёта для сообщения о неверном ЕНИ в шапке блока «Общие параметры»:
+   поле там лежит не в .field, а в собственной обёртке. */
+body[data-module] .head-eni{position:relative}
+/* Поле во всю ширину сетки — для длинных значений (адрес). Именно 1 / -1, а не
+   span N: при сузившейся сетке span создал бы лишнюю колонку и разъехалась бы
+   вся строка. */
+body[data-module] .field.sp-all{grid-column:1 / -1}
+/* Подпись под полем не входит в поток: .grid выравнивает поля по низу, и
+   подпись поднимала своё поле выше соседей по строке (так «GPS-координаты»
+   стояли на 18px выше «Адреса»). */
+body[data-module] .field{position:relative}
+body[data-module] .field-hint{position:absolute;top:100%;left:0;right:0;font-size:10px;color:var(--muted);line-height:1.3;pointer-events:none}
+body[data-module] .input, body[data-module="civil"] .select, body[data-module="civil"] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
+body[data-module] .textarea{resize:vertical;min-height:46px}
+body[data-module] .input:focus, body[data-module="civil"] .select:focus, body[data-module="civil"] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
+body[data-module] .input[readonly], body[data-module="civil"] .select:disabled{background:var(--blue-50);color:#46536b}
+body[data-module] .sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-700);font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:10px}
+body[data-module] .sec-h::after{content:'';flex:1;height:1px;background:var(--line-soft)}
+body[data-module] .sec-h:first-child{margin-top:0}
+body[data-module] .sec-h.teal{color:var(--teal-700)}
+body[data-module] .acc{border:1px solid var(--line);border-radius:8px;margin-top:6px;overflow:hidden;background:#fff}
+body[data-module] .acc-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f4f8fd;cursor:pointer;font-size:12px;font-weight:600;user-select:none;flex-wrap:wrap;color:#5b6c85;transition:background .12s}
+body[data-module] .acc-head:hover{background:#eaf2fb}
+body[data-module] .acc.open .acc-head{border-bottom:1px solid var(--line-soft)}
+body[data-module] .acc-head .chev{transition:transform .15s;color:#8ba3c0}
+body[data-module] .acc.open .acc-head .chev{transform:rotate(180deg)}
+body[data-module] .acc-body{display:none;padding:10px 12px}
+body[data-module] .acc.open .acc-body{display:block;animation:accIn .16s ease}
+body[data-module] .sum-ok{color:var(--teal-700);font-weight:700}
+body[data-module] .sum-warn{color:var(--warn);font-weight:700}
+body[data-module] .acc-row td{background:#eef5fc!important;padding:12px 14px!important}
+body[data-module] td[data-acc-cell]{cursor:pointer}
+body[data-module] td[data-acc-cell]:hover{background:var(--blue-100)!important}
+body[data-module] .chev-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--blue-50);border:1.5px solid var(--blue-200);color:var(--blue-700);font-size:13px;margin-right:6px;transition:transform .15s,background .12s;vertical-align:middle}
+body[data-module] .chev-btn:hover{background:var(--blue-100);border-color:var(--blue-500)}
+body[data-module] .chev-btn.open{transform:rotate(90deg);background:var(--blue-100);border-color:var(--blue-500)}
+body[data-module] .acc-inner{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;margin:4px 0;box-shadow:0 1px 2px rgba(19,41,62,.04)}
+body[data-module] .acc-inner .params-grid{background:#f4f8fd;border:1px solid var(--line-soft);border-radius:7px;padding:10px 12px}
+body[data-module] .acc-inner.notes-tint{background:var(--amber-50);border-color:var(--amber-100)}
+body[data-module] .acc-inner.notes-tint .sec-h{color:var(--amber-700)}
+body[data-module] .ph-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+body[data-module] .ph{width:76px;height:56px;border-radius:7px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:flex-end;padding:4px;font-size:9px;color:#5d7292;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+body[data-module] .ph:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
+body[data-module] .ph-mini{width:26px;height:20px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);cursor:pointer;flex-shrink:0}
+body[data-module] .ph-mini:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
+body[data-module] .photo-sec{margin-top:16px}
+body[data-module] .photo-sec:first-child{margin-top:0}
+body[data-module] .photo-sec-h{font-size:12px;font-weight:700;color:var(--blue-700);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+body[data-module] .tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+body[data-module] .tile{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;transition:box-shadow .12s,border-color .12s;box-shadow:var(--shadow)}
+body[data-module] .tile:hover{border-color:var(--blue-500);box-shadow:0 4px 14px rgba(22,104,201,.18)}
+body[data-module] .tile-img{height:110px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:12px;font-weight:600}
+body[data-module] .tile-cap{padding:6px 8px;font-size:11px;color:#46536b;border-top:1px solid var(--line-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .nb-group{margin-top:14px;padding-top:12px;border-top:1px dashed var(--amber-100)}
+body[data-module] .nb-group:first-child{margin-top:0;padding-top:0;border-top:none}
+body[data-module] .notes-list{display:flex;flex-direction:column;gap:4px}
+body[data-module] .note-row{display:flex;align-items:flex-start;gap:10px;padding:7px 10px;border-radius:7px;background:#fff;border:1px solid var(--amber-100);transition:background .12s,border-color .12s}
+body[data-module] .note-row:hover{background:var(--amber-50);border-color:var(--amber-600)}
+body[data-module] .note-row:hover .note-del{opacity:1}
+body[data-module] .note-row input[type=checkbox]{margin-top:6px;width:15px;height:15px;flex-shrink:0;accent-color:var(--amber-600);cursor:pointer}
+body[data-module] .note-input{flex:1;border:1px solid transparent;background:transparent;border-radius:6px;padding:4px 8px;font-size:12.5px;color:var(--ink);outline:none;min-width:0;line-height:1.4}
+body[data-module] .note-input::placeholder{color:#b3a184;font-style:italic}
+body[data-module] .note-input:hover{border-color:var(--line-input);background:#fff}
+body[data-module] .note-input:focus{border-color:var(--amber-600);background:#fff;box-shadow:0 0 0 3px rgba(192,124,30,.15)}
+body[data-module] .note-row.done{background:var(--teal-50);border-color:var(--teal-100)}
+body[data-module] .note-row.done .note-input{color:#7fa8a0;text-decoration:line-through}
+body[data-module] .note-row.done .note-input:focus{color:var(--ink);text-decoration:none}
+body[data-module] .note-row.done input[type=checkbox]{accent-color:var(--teal-600)}
+body[data-module] .note-del{opacity:0;color:#8ba3c0;font-size:14px;padding:0 4px;transition:opacity .15s;cursor:pointer;margin-top:4px}
+body[data-module] .note-del:hover{color:var(--danger)}
+body[data-module] .note-empty{font-size:12px;color:#8ba3c0;padding:4px 0}
+body[data-module] .note-add{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-size:11.5px;color:var(--amber-700);font-weight:600;margin-top:8px;cursor:pointer;background:transparent;border:1px dashed var(--amber-600);border-radius:7px;transition:background .12s}
+body[data-module] .note-add:hover{background:var(--amber-50)}
+body[data-module] .done-toggle{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;font-weight:700;color:var(--teal-700);padding:4px 8px;border-radius:6px;transition:background .12s}
+body[data-module] .done-toggle:hover{background:var(--teal-50)}
+body[data-module] .done-toggle .chev{transition:transform .15s;font-size:10px}
+body[data-module] .done-toggle.open .chev{transform:rotate(90deg)}
+body[data-module] .done-list{margin-top:6px;padding:8px;background:var(--teal-50);border:1px solid var(--teal-100);border-radius:7px}
+body[data-module] .split{display:flex;gap:0;align-items:flex-start;--vw:48%;min-width:0}
+/* Закладка закрытого просмотрщика — тот же приём, что у блока заметок
+   (.notes-tab в app.html), только с левой стороны и в синем тоне панели.
+   Класс не .vtab: тот уже занят вкладками документов ВНУТРИ просмотрщика.
+   Липкая: экран длинный, а вернуть просмотрщик нужно с любого места. */
+body[data-module] .split-closed{position:relative}
+/* Закладка начинается ПОД закреплённой плашкой (--plate-h её проставляет
+   bindStickyHead) — иначе плашка её накрывала: у плашки z-index выше, и поднимать
+   закладку над ней нельзя, она бы закрывала адрес и ЕНИ.
+   Прижата к левому краю области контента: отрицательный отступ гасит padding
+   .content (18px), поэтому закладка не висит в воздухе, а выходит из края. */
+body[data-module] .vopen-tab{position:sticky;top:calc(var(--plate-h, 0px) + 10px);align-self:flex-start;
+  flex-shrink:0;margin:0 12px 0 -18px;
+  writing-mode:vertical-rl;text-orientation:mixed;background:var(--blue-600);color:#fff;
+  border:1px solid var(--blue-600);border-left:none;border-radius:0 8px 8px 0;
+  padding:10px 6px 10px 8px;font-weight:700;font-size:12px;cursor:pointer;display:flex;
+  align-items:center;gap:6px;z-index:20;transition:background .12s}
+body[data-module] .vopen-tab:hover{background:var(--blue-700)}
+/* Поиск внутри мультивыбора (kernel/multiSelect.js). Липкий: список бывает
+   длинным, а поле должно оставаться на виду при прокрутке значений. */
+body[data-module] .ms-search-wrap{position:sticky;top:0;z-index:1;background:#fff;padding:4px 4px 6px;margin:-2px -2px 0}
+body[data-module] .ms-search{width:100%;height:26px;font-size:12px;padding:2px 8px}
+body[data-module] .ms-nores{font-size:11.5px}
+/* Значки состояния записи в шапке ОЦ и плашке литеры — те же, что в реестре
+   (kernel/flagBadges.js). Решение пользователя 28.08.2026. */
+body[data-module] .flag-badges{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+body[data-module] .reg-badge{font-size:10.5px;padding:1px 6px;border-radius:5px;font-weight:700;line-height:16px;
+  box-shadow:0 1px 2px rgba(15,23,42,.10)}
+body[data-module] .reg-badge.notes{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100)}
+body[data-module] .reg-badge.warn{background:#fdf3f3;color:var(--danger);border:1px solid #f3c1c1}
+body[data-module] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+/* Импорт ML, ещё не сверенный человеком: тот же значок, но с обводкой и
+   заливкой поплотнее — раньше на такую запись вешали ДВА значка «ML» подряд
+   (см. kernel/flagBadges.js). */
+body[data-module] .reg-badge.ml.ml-raw{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-600);border-style:dashed}
+body[data-module] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}
+/* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
+body[data-module] .floors-note{display:block;font-size:10.5px;margin-top:3px}
+/* Поэтажная развёртка шире доступной ширины (открыт просмотрщик, узкий экран)
+   прокручивается ВНУТРИ своего блока: иначе она растягивала карточку и уезжала
+   за край экрана. Заголовки и подписи полей при этом остаются на месте. */
+body[data-module] .al .acc-body{overflow-x:auto}
+/* Ширины колонок заданы долями, поэтому таблица сжимается вместе с областью.
+   Порог низкий: до него всё помещается без прокрутки даже при открытом
+   просмотрщике на небольшом экране. */
+body[data-module] .al-tbl{min-width:600px;table-layout:fixed}
+/* Замороженные слева колонки: отметка и название строки видны и при
+   горизонтальной прокрутке — иначе в узком блоке непонятно, к какому этажу
+   относится ячейка, в которую вводишь площадь. Фон обязателен: без него
+   прокручиваемые ячейки просвечивают сквозь закреплённые. */
+body[data-module] .al-tbl th:nth-child(-n+2),body[data-module="civil"] .al-tbl td:nth-child(-n+2){position:sticky;z-index:2}
+body[data-module] .al-tbl td:nth-child(-n+2){background:#fff}
+body[data-module] .al-tbl tbody tr:nth-child(even) td:nth-child(-n+2){background:#f8fbff}
+body[data-module] .al-tbl th:nth-child(-n+2){background:#eef4fb;z-index:3}
+body[data-module] .al-tbl th:first-child,body[data-module="civil"] .al-tbl td:first-child{left:0}
+body[data-module] .al-tbl th:nth-child(2),body[data-module="civil"] .al-tbl td:nth-child(2){left:36px;box-shadow:1px 0 0 var(--line-soft)}
+body[data-module] .al-tbl .input{min-width:0;width:100%}
+/* Служебные колонки — чекбокс и крестик: не тянутся и не сжимаются. */
+body[data-module] .al-tbl th.fl-c,body[data-module="civil"] .al-tbl td.al-act,body[data-module="civil"] .al-tbl td:first-child{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
+/* Заголовки переносятся по словам, а не режутся многоточием: «Высота внешн, м»
+   в узкой колонке иначе превращается в «Высота вн…». */
+body[data-module] .al-tbl th{white-space:normal;line-height:1.2;overflow-wrap:anywhere;text-overflow:clip}
+/* Редактируемый ЕНИ в правом углу шапки блока «Общие параметры» (решение
+   пользователя 28.08.2026). В плашке над карточкой остался нередактируемый
+   дубль — он виден при прокрутке. */
+body[data-module] .head-eni{margin-left:auto;display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+body[data-module] .head-eni label{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#7d93a6}
+body[data-module] .head-eni .input{width:190px;height:26px;padding:2px 8px;font-size:12px}
+/* Шеврон сворачивания стоит после поля — «margin-left:auto» уже занят полем. */
+body[data-module] .card-head .head-eni + .chev{margin-left:8px}
+/* Несколько итогов по площадям читаются столбиком, а не строкой: рядом они
+   сливались в одну длинную фразу (решение пользователя 28.08.2026). */
+body[data-module] .floors-sums{display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 10px}
+body[data-module] .floors-sums [data-floor-sum]{flex:1 1 100%;display:block}
+body[data-module] .floors-sums [data-redistribute]{margin-left:auto;flex:0 0 auto}
+/* Действия карточки литеры — в самой плашке (решение пользователя 28.08.2026):
+   отдельная строка кнопок под ней дублировала их и занимала высоту. */
+body[data-module] .ctx-actions{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
+body[data-module] .ctx-del{white-space:nowrap;height:32px;padding:0 14px;font-size:12.5px}
+body[data-module] .ctx-act{width:34px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line-input);border-radius:7px;background:#fff;color:#5b6c85;cursor:pointer;
+  transition:background .12s,border-color .12s,color .12s}
+body[data-module] .ctx-act:hover{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
+body[data-module] .ctx-act.primary{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+body[data-module] .ctx-act.primary:hover{background:var(--blue-700);border-color:var(--blue-700);color:#fff}
+body[data-module] .ctx-act.danger:hover{background:#fdf3f3;border-color:#f3c1c1;color:var(--danger)}
+body[data-module] .vsplit{width:9px;cursor:col-resize;background:var(--line);flex-shrink:0;align-self:stretch;transition:background .12s;touch-action:none}
+body[data-module] .vsplit:hover{background:var(--blue-500)}
+/* Колонка карточки сжимается вместе с окном (минимум — ширина поэтажной
+   развёртки с отступами), а просмотрщик при нехватке места уступает, но не
+   схлопывается. Раньше оба были жёсткими и вместе выходили за экран. */
+body[data-module] .grow{flex:1 1 0;min-width:460px;padding-left:12px}
+body[data-module] .viewer{width:var(--vw);flex:0 1 var(--vw);min-width:320px;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 80px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
+/* 80px = topbar 44 + верхний/нижний padding .content (14+14) + 8 на зазор.
+   Раньше вычиталось 120px, и при прокрутке под просмотрщиком оставалось
+   ~76px неиспользуемой пустоты. */
+body[data-module] .vmode{display:flex;gap:4px;padding:6px 8px;background:#eef4fb;border-bottom:1px solid var(--line-soft);flex-shrink:0}
+body[data-module] .vmode-btn{padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;color:#46536b;border:1px solid transparent;transition:background .12s}
+body[data-module] .vmode-btn:hover{background:#fff}
+body[data-module] .vmode-btn.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
+body[data-module] .vtabs{display:flex;gap:2px;padding:6px 8px 0;background:#e8f1fa;border-bottom:1px solid var(--line-soft);overflow-x:auto;flex-shrink:0}
+body[data-module] .vtab{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:7px 7px 0 0;font-size:11px;color:#46536b;border:1px solid transparent;border-bottom:none;cursor:pointer;white-space:nowrap;font-weight:600}
+body[data-module] .vtab.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
+body[data-module] .vtab span{color:#8ba3c0}
+body[data-module] .vtab span:hover{color:var(--danger)}
+body[data-module] .vtoolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fbfdff;border-bottom:1px solid var(--line-soft);flex-wrap:wrap;flex-shrink:0}
+body[data-module] .tool-group{display:flex;align-items:center;gap:4px}
+body[data-module] .tool-group.right{margin-left:auto}
+body[data-module] .tool-btn{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#46536b;border:1px solid transparent;font-size:13px;transition:background .12s}
+body[data-module] .tool-btn:hover{background:var(--blue-50);border-color:var(--line)}
+body[data-module] .page-input{width:40px;text-align:center;border:1px solid var(--line-input);border-radius:6px;padding:3px;outline:none;font-size:12px}
+body[data-module] .zoom-label{min-width:42px;text-align:center;font-size:11.5px;color:#46536b}
+body[data-module] .vtitle{font-size:11.5px;font-weight:700;color:var(--blue-700);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .vcat{font-size:11.5px;padding:3px 6px;border-radius:6px;width:auto}
+body[data-module] .vbody{flex:1;display:flex;min-height:0}
+/* Лента миниатюр: крупные превью, чтобы было видно СОДЕРЖИМОЕ страницы, а не
+   только её наличие. Сворачивается кнопкой (.vrail.collapsed) — на узких
+   экранах или когда нужна вся ширина под саму страницу. */
+body[data-module] .vrail{width:168px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0;transition:width .16s}
+body[data-module] .vrail.collapsed{width:30px}
+body[data-module] .vrail.collapsed .vrail-list,body[data-module="civil"] .vrail.collapsed [data-vaddpage]{display:none}
+body[data-module] .vrail-toggle{height:26px;flex-shrink:0;border-bottom:1px solid var(--line-soft);background:#eef4fb;color:#5b6c85;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;user-select:none}
+body[data-module] .vrail-toggle:hover{background:var(--blue-100)}
+body[data-module] .vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
+body[data-module] .rail-cat{font-size:8.5px;font-weight:700;color:#61799a;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
+body[data-module] .vthumb{width:132px;height:170px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
+/* Схематичные полоски — только у макетных заглушек. У реальной страницы
+   (.vthumb.real) в миниатюре живёт canvas с настоящим превью, полоски под ним
+   были бы просто грязью. */
+body[data-module] .vthumb.doc:not(.real)::after{content:'';position:absolute;inset:8px 6px 14px;background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
+body[data-module] .vthumb-canvas{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:contain;opacity:0;transition:opacity .12s;background:#fff}
+body[data-module] .vthumb-img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:cover;border-radius:3px}
+body[data-module] .vthumb.pho.real::after{content:none}
+body[data-module] .vthumb-canvas.ready{opacity:1}
+/* Перетаскивание миниатюр: порядок страниц + Ctrl-множественный выбор. */
+body[data-module] .vthumb{cursor:grab}
+body[data-module] .vthumb.dragging{opacity:.4}
+body[data-module] .vthumb.sel{border-color:var(--teal-600);box-shadow:0 0 0 2px rgba(10,92,80,.25)}
+body[data-module] .vthumb.drop-before{box-shadow:0 -3px 0 0 var(--blue-600)}
+body[data-module] .vthumb.drop-after{box-shadow:0 3px 0 0 var(--blue-600)}
+body[data-module] .vthumb.pho::after{content:'';position:absolute;inset:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);border-radius:3px}
+body[data-module] .vthumb.active{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.2)}
+body[data-module] .vthumb-num{position:absolute;bottom:2px;right:3px;font-size:9.5px;font-weight:700;color:#33445c;background:rgba(255,255,255,.86);border-radius:4px;padding:0 5px;line-height:14px}
+body[data-module] .vthumb-del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;z-index:2}
+body[data-module] .vthumb:hover .vthumb-del{display:flex}
+/* overscroll-behavior:contain — колесо над лентой прокручивает только ленту.
+   Без него на достижении границы прокрутка «перетекает» на внешний контейнер, и
+   выглядит это как «колесом уехала вся страница». */
+body[data-module] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4;overscroll-behavior:contain}
+/* align-items:safe center — когда лист шире ленты (большой зум, повёрнутая
+   страница), обычное center выпихивает его за ОБА края, и левая часть
+   становится недостижимой скроллом. safe center в этом случае прижимает к
+   началу, и лист доступен горизонтальной прокруткой. */
+body[data-module] .vribbon{display:flex;flex-direction:column;gap:14px;align-items:center;align-items:safe center}
+body[data-module] .vgroup-h{width:430px;text-align:left;font-size:11px;font-weight:700;color:var(--blue-700);background:#eef4fb;border:1px solid var(--blue-200);border-radius:7px;padding:6px 10px}
+/* Лист центрируется в своей обёртке: поворот идёт вокруг центра ЛИСТА, и если
+   лист прижат к левому краю более широкой (после поворота) обёртки, повёрнутый
+   результат уезжает за левую границу ленты. */
+body[data-module] .vpage-wrap{display:flex;align-items:center;justify-content:center}
+body[data-module] .vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative;flex:0 0 auto}
+/* Лист с реальным файлом: содержимое само задаёт высоту по своим пропорциям,
+   поэтому портретный min-height снимается — иначе альбомный скан болтался бы
+   в пустом высоком листе. Отступы тоже убраны: скан занимает лист целиком. */
+body[data-module] .vpage:has(> .vpdf-canvas), body[data-module="civil"] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
+body[data-module] .vpdf-canvas{display:block;width:100%;height:auto;opacity:0;transition:opacity .12s}
+body[data-module] .vpdf-canvas.ready{opacity:1}
+body[data-module] .vimg{display:block;width:100%;height:auto}
+/* Скелетон, пока страница PDF ещё не отрисована: лежит под canvas и скрывается,
+   когда тот готов — чтобы лист не мигал пустотой. */
+body[data-module] .vpdf-load{position:absolute;inset:0;padding:26px;background:#fff}
+body[data-module] .vpdf-canvas.ready + .vpdf-load, body[data-module="civil"] .vpdf-canvas.failed + .vpdf-load{display:none}
+body[data-module] .vpage.photo-page{padding:10px;min-height:420px}
+body[data-module] .photo-fill{width:100%;height:540px;border-radius:8px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:13px}
+body[data-module] .vempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#dfe9f4}
+body[data-module] .vempty-box{font-size:12.5px;color:#61799a}
+body[data-module] .cmp{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
+body[data-module] .cmp-col{flex:1;display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+body[data-module] .cmp-h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eef4fb;border-bottom:1px solid var(--line-soft);font-size:11px;font-weight:700;flex-wrap:wrap;color:var(--blue-700)}
+/* Колонка сравнения — такая же прокручиваемая лента, как обычный просмотр:
+   колесо листает и фото, и документ; overscroll-behavior не даёт прокрутке
+   утечь на страницу. */
+body[data-module] .cmp-body{flex:1;overflow:auto;background:#dfe9f4;padding:10px;overscroll-behavior:contain}
+body[data-module] .cmp-ribbon{display:flex;flex-direction:column;gap:12px;align-items:center;align-items:safe center}
+body[data-module] .cmp-h .cmp-zoom{margin-left:auto}
+body[data-module] .cmp-h .cmp-zoom .tool-btn{width:22px;height:22px}
+body[data-module] .cmp-h .zoom-label{font-size:10.5px;min-width:38px;text-align:center}
+body[data-module] .cmp-body .vpage{width:380px;min-height:500px}
+/* В сравнении лист с реальным файлом тоже живёт по своим пропорциям. Правило
+   обязано идти ПОСЛЕ .cmp-body .vpage: специфичность у них одинаковая, поэтому
+   иначе побеждает min-height:500px и страница висит в высоком листе.
+   align-self:flex-start — .cmp-body это flex-контейнер, и по умолчанию
+   (align-items:stretch) лист растягивался на всю высоту колонки, оставляя под
+   страницей белое поле. */
+body[data-module] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module="civil"] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
+body[data-module] .cmp-body .photo-fill{height:460px}
+body[data-module] .sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
+body[data-module] .sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
+body[data-module] .qnav{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:6;background:var(--panel);padding:9px 14px;border-bottom:1px solid var(--line-soft);border-radius:var(--radius) var(--radius) 0 0}
+body[data-module] .qn{padding:4px 11px;border-radius:999px;border:1px solid var(--line-input);font-size:11.5px;color:#46536b;background:#fff;font-weight:600;transition:border-color .12s,color .12s}
+body[data-module] .qn:hover{border-color:var(--blue-500);color:var(--blue-700)}
+body[data-module] .view-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:8px 12px;box-shadow:var(--shadow)}
+body[data-module] .back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;padding:5px 8px;border-radius:8px;transition:background .12s}
+body[data-module] .back-btn:hover{background:var(--blue-50);color:var(--blue-700)}
+body[data-module] .eni-corner{margin-left:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--blue-700);background:#f4f8fd;border:1px solid var(--blue-200);border-radius:7px;padding:5px 9px}
+body[data-module] .flag-lbl{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#46536b}
+body[data-module] .flag-lbl input{width:15px;height:15px;accent-color:var(--teal-600);cursor:pointer}
+body[data-module] .ms{position:relative}
+body[data-module] .ms-control{height:34px;border:1px solid var(--line-input);border-radius:7px;background:#fff;padding:4px 10px;display:flex;flex-wrap:nowrap;gap:8px;align-items:center;cursor:pointer;overflow:hidden}
+body[data-module] .ms-control:hover{border-color:var(--blue-500)}
+body[data-module] .ms-control .chev{margin-left:auto;flex:0 0 auto;transition:transform .15s;color:#7d93a6}
+body[data-module] .ms-control.open .chev{transform:rotate(180deg)}
+body[data-module] .ms-summary{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#33445c;flex:1 1 auto}
+body[data-module] .ms-count{flex:0 0 auto;background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
+body[data-module] .ms-drop{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);z-index:60;padding:6px;max-height:260px;overflow:auto;animation:accIn .14s ease}
+body[data-module] .ms-opt{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;font-size:12.5px;color:#33445c;cursor:pointer}
+/* Строка, скрытая поиском: .ms-opt объявлен display:flex и сам по себе
+   перебивает [hidden]{display:none}. */
+body[data-module] .ms-opt[hidden]{display:none}
+body[data-module] .ms-opt:hover{background:var(--blue-50)}
+body[data-module] .ms-opt input{cursor:pointer}
+body[data-module] .ms-tag{display:inline-flex;align-items:center;gap:6px;background:var(--blue-100);color:var(--blue-700);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600}
+body[data-module] .ms-tag span{cursor:pointer;font-size:12px;line-height:1;margin-left:2px}
+body[data-module] .letter-clickable{
+  font-weight: 700;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border: 1px dashed transparent;
+  border-radius: 4px;
+  transition: background 0.15s, border-color 0.15s;
+}
+body[data-module] .letter-clickable:hover{
+  background: var(--bg-hover, #eef2f7);
+  border-color: var(--border-soft, #cbd5e1);
+}
+body[data-module] .tbl tbody tr.land-row td{border-top:2px solid var(--line);}
+body[data-module] .head-meta{
+  overflow: visible;
+}
+body[data-module] .card-head{
+  overflow: visible;
+}
+body[data-module] .head-meta .dd-menu, body[data-module="civil"] .card-head .dd-menu{
+  left: auto;
+  right: 0;
+}
+body[data-module] .head-meta, body[data-module="civil"] .card-head{
+  overflow: visible;
+}
+/* Сайдбар выбора документа/фото просмотрщика (parts/viewer/sidebar.js).
+   Кнопка-гамбургер в левом верхнем углу; панель выезжает поверх ленты.
+   ВАЖНО: здесь НЕЛЬЗЯ переопределять .viewer{position:relative} — просмотрщик
+   объявлен position:sticky выше, и это правило (идущее позже) отменяло липкость:
+   просмотрщик уезжал за экран, и заполнять поля, глядя в документ, можно было
+   только в самом верху страницы. Отдельный контейнер позиционирования сайдбару
+   не нужен — sticky сам является containing block для absolute-потомков. */
+body[data-module] .vmode{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line-soft);background:#f4f8fd;flex-shrink:0}
+body[data-module] .vburger{width:28px;height:28px;flex-shrink:0;border:1px solid var(--line-input);border-radius:7px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:background .12s,border-color .12s}
+body[data-module] .vburger span{display:block;width:14px;height:2px;border-radius:1px;background:#5b6c85}
+body[data-module] .vburger:hover{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-module] .vburger.on{background:var(--blue-600);border-color:var(--blue-600)}
+body[data-module] .vburger.on span{background:#fff}
+body[data-module] .vsb{position:absolute;top:0;left:0;bottom:0;width:290px;z-index:70;background:#fff;border-right:1.5px solid var(--line);box-shadow:6px 0 24px rgba(15,23,42,.18);display:flex;flex-direction:column;animation:vsbIn .16s ease}
+@keyframes vsbIn{from{transform:translateX(-16px);opacity:0}to{transform:none;opacity:1}}
+body[data-module] .vsb-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5b6c85}
+body[data-module] .vsb-body{flex:1;overflow:auto;padding:6px;overscroll-behavior:contain}
+body[data-module] .vsb-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--blue-700);padding:8px 6px 4px}
+body[data-module] .vsb-group{font-size:10.5px;font-weight:700;color:#5b6c85;background:#f4f8fd;border-radius:6px;padding:4px 8px;margin:6px 0 3px}
+body[data-module] .vsb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;border-radius:7px;background:none;border:1px solid transparent;cursor:pointer;transition:background .12s,border-color .12s}
+body[data-module] .vsb-item:hover{background:var(--blue-50);border-color:var(--blue-200)}
+body[data-module] .vsb-item.on{background:var(--blue-100);border-color:var(--blue-500)}
+body[data-module] .vsb-tag{flex:0 0 auto;font-size:9.5px;font-weight:700;color:var(--blue-700);background:var(--blue-50);border:1px solid var(--blue-200);border-radius:999px;padding:1px 7px}
+body[data-module] .vsb-main{flex:1;min-width:0;display:flex;flex-direction:column}
+body[data-module] .vsb-main b{font-size:12px;color:#33445c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .vsb-sub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .vsb-count{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--muted)}
+body[data-module] .vsb-thumb{flex:0 0 auto;width:34px;height:26px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
+body[data-module] .vsb-empty{font-size:11.5px;color:var(--muted);padding:8px 10px}
+/* Лог действий — карточка модуля, см. app/modules/civil/audit/.
+   Категории (ОИ/ОЦ/Документы/Фото) размечены левой границей + бейджем в тон
+   card.t-* — та же палитра, что у карточек модуля, без новых токенов. */
+body[data-module] .audit-row{border-left-width:4px;border-left-style:solid}
+body[data-module] .audit-row.t-blue{border-left-color:var(--blue-600)}
+body[data-module] .audit-row.t-teal{border-left-color:var(--teal-600)}
+body[data-module] .audit-row-head{align-items:center}
+/* Панель фильтров лога — отдельная тонированная зона, чтобы органы
+   управления не сливались со списком записей под ними. */
+body[data-module] .audit-filters{background:#f4f8fd;border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:14px}
+body[data-module] .audit-filters-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#5b6c85;margin-bottom:10px}
+body[data-module] .audit-filters-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+body[data-module] .audit-filters .field label{font-size:10.5px;white-space:nowrap}
+body[data-module] .audit-filter-field{flex:0 0 168px}
+body[data-module] .audit-filter-search{flex:1 1 220px;min-width:200px}
+/* Открытый список фильтра — плотный белый блок с заметной тенью: раньше
+   он сливался с таблицей под собой и читался как часть записей лога. */
+body[data-module] .audit-filters .ms-drop{min-width:230px;padding:6px;border-color:var(--blue-300);box-shadow:0 14px 34px rgba(15,23,42,.22)}
+body[data-module] .audit-filters .ms-opt{white-space:nowrap}
+body[data-module] .audit-tbl th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;text-align:left;padding:4px 8px}
+body[data-module] .audit-tbl td{font-size:12px;color:#33445c;padding:6px 8px;border-top:1px solid var(--line-soft);vertical-align:top}
+body[data-module] .audit-change{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}
+body[data-module] .audit-change-attr{font-size:12px;font-weight:600;color:#33445c;display:flex;align-items:center;flex-wrap:wrap}
+body[data-module] .audit-change:first-child{margin-top:0}
+/* Перечень ОИ — дерево «участок → литеры» (card/oiTable.view.js).
+   Два уровня: узел-аккордеон = участок либо группа «Без участка», внутри —
+   таблица литер. Литеру можно перетащить в другой узел. */
+body[data-module] .oi-tree{padding:10px 12px 12px}
+body[data-module] .oi-node{margin-top:8px}
+body[data-module] .oi-node:first-child{margin-top:0}
+body[data-module] .oi-node-head{gap:8px;padding:8px 12px;background:#eef4fb}
+body[data-module] .oi-node-head b{font-size:12.5px;color:var(--blue-700)}
+body[data-module] .oi-node-eni{font-size:11px;color:#5b6c85;background:#fff;border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+body[data-module] .oi-node-count{font-size:10.5px;font-weight:600;color:#7d93a6;margin-left:auto;white-space:nowrap}
+body[data-module] .oi-node-area{font-size:11.5px;font-weight:600;color:#33445c;white-space:nowrap}
+body[data-module] .oi-node-actions{display:flex;gap:4px;align-items:center}
+body[data-module] .oi-tree-tbl{border-top:1px solid var(--line-soft)}
+/* Узел-цель переноса подсвечивается по всей рамке, а не только по строке —
+   бросать можно в любое место узла, включая пустой. */
+body[data-module] .oi-node.drop-target{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.22)}
+body[data-module] .oi-letter.dragging{opacity:.45}
+body[data-module] .drag-grip{display:inline-block;margin-right:6px;color:#a9bccf;cursor:grab;font-size:11px}
+body[data-module] .oi-letter:hover .drag-grip{color:var(--blue-600)}
+/* Ячейка «Фото»: один прямоугольник с количеством вместо ряда миниатюр (Л4.7).
+   Превью — первое прикреплённое фото. */
+body[data-module] .ph-cell{position:relative;width:52px;height:34px;border:1px solid var(--line);border-radius:6px;
+  background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat;cursor:pointer;display:block;transition:border-color .12s,box-shadow .12s}
+body[data-module] .ph-cell:hover{border-color:var(--blue-500);box-shadow:0 2px 8px rgba(22,104,201,.18)}
+body[data-module] .ph-cell-n{position:absolute;right:2px;bottom:1px;font-size:10px;font-weight:700;color:#33445c;background:rgba(255,255,255,.9);border-radius:4px;padding:0 4px;line-height:14px}
+/* Всплывающее окно со всеми фото литеры. */
+body[data-module] .ph-pop{position:absolute;z-index:80;right:16px;top:52px;width:330px;max-height:60vh;display:flex;flex-direction:column;
+  background:#fff;border:1.5px solid var(--blue-300);border-radius:10px;box-shadow:0 14px 34px rgba(15,23,42,.22);animation:accIn .14s ease}
+body[data-module] .ph-pop-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11.5px;font-weight:700;color:#33445c}
+body[data-module] .ph-pop-head .muted{margin-left:auto;font-weight:400}
+/* Окно фото литеры: три столбца — предел, дальше снимок становится слишком
+   мелким, чтобы что-то по нему узнать. Высота ограничена четырьмя рядами
+   (3×4 = 12 снимков), дальше окно прокручивается внутри себя, а не растёт до
+   края экрана (решение пользователя 05.09.2026). Ряд — картинка 62px, подпись
+   и отступы: 62 + 3 + 12 + 8 = 85px; плюс заголовок категории 22px. */
+body[data-module] .ph-pop-body{flex:1;overflow:auto;padding:8px;
+  max-height:calc(85px * 4);overscroll-behavior:contain}
+body[data-module] .ph-pop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* Категории — чипами в шапке окна: заголовки столбцом вытягивали список, и
+   снимки нужной категории приходилось искать прокруткой. Ряд чипов
+   прокручивается по горизонтали, если категорий много. */
+body[data-module] .ph-pop-cats{display:flex;gap:5px;padding:7px 8px;overflow-x:auto;
+  border-bottom:1px solid var(--line-soft);background:#f7fafd}
+body[data-module] .ph-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;
+  border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;
+  font-size:10.5px;color:#33445c;white-space:nowrap}
+body[data-module] .ph-chip:hover{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-module] .ph-chip.on{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+body[data-module] .ph-chip span{font-weight:700;opacity:.75}
+body[data-module] .ph-pop-item{display:flex;flex-direction:column;gap:3px;cursor:pointer;background:none;border:none;padding:0}
+body[data-module] .ph-pop-img{height:62px;border:1px solid var(--line);border-radius:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
+body[data-module] .ph-pop-item:hover .ph-pop-img{border-color:var(--blue-500)}
+body[data-module] .ph-pop-cap{font-size:9.5px;color:#5b6c85;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Окно позиционируется от карточки перечня. */
+body[data-module] .card-body-wrap{position:relative}
+/* Адрес объекта закреплён в плашке карточки ОИ: параметры литеры вбивают,
+   глядя на неё, и возвращаться к ОЦ ради адреса не нужно. Длинный адрес
+   укорачиваем, а не растягиваем плашку. */
+body[data-module] .ctx-plate-addr{max-width:320px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+/* Блок «Особенности» (parts/specials). Нумерованные записи по образцу заметок,
+   но без отметки «выполнено»: это другая сущность (Л3.6, Л4.5). */
+/* Блок особенностей стоит внутри сетки полей и занимал одну колонку —
+   строки короткие, справа оставалась пустота. Растягиваем на всю ширину. */
+body[data-module] .sp-block{margin-top:10px;grid-column:1/-1}
+body[data-module] .sp-list{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+body[data-module] .sp-row{display:flex;align-items:center;gap:7px}
+body[data-module] .sp-num{flex:0 0 auto;font-size:10px;font-weight:700;color:#7d93a6;background:var(--blue-50);border:1px solid var(--blue-200);border-radius:5px;padding:2px 5px;font-variant-numeric:tabular-nums}
+body[data-module] .sp-input{flex:1;min-width:0;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:#fff;color:#22314a}
+body[data-module] .sp-input:focus{outline:none;border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(22,104,201,.14)}
+body[data-module] .sp-date{flex:0 0 auto;font-size:10.5px;color:#8fa2b8;font-variant-numeric:tabular-nums}
+body[data-module] .sp-del{flex:0 0 auto;cursor:pointer;color:#a9bccf;font-size:14px;line-height:1;padding:0 3px}
+body[data-module] .sp-del:hover{color:var(--danger)}
+body[data-module] .sp-empty{font-size:11.5px;color:#8fa2b8;padding:2px 0 2px 2px}
+/* Заметки: автор и дата, разворачивание длинного текста, шаблоны (Л3.4).
+   Текст в textarea — одной строкой длинная заметка не читается; свёрнутая она
+   занимает одну строку, при наведении и в фокусе разворачивается целиком. */
+body[data-module] .note-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+body[data-module] .note-input{width:100%;height:26px;resize:none;overflow:hidden;font-family:inherit;transition:height .12s}
+body[data-module] .note-input:focus{height:64px;overflow:auto}
+/* Полный текст заметки — в окошке при наведении: строка остаётся одной, список
+   не раздувается. Позиционирование fixed и координаты из JS (parts/notes/ctrl.js):
+   ящик заметок прокручиваемый, и обычное absolute окошко им обрезалось. */
+body[data-module] .note-row{position:relative}
+body[data-module] .note-pop{display:none;position:fixed;width:340px;z-index:500;
+  background:#fff;border:1px solid var(--amber-600);border-radius:8px;box-shadow:0 12px 30px rgba(15,23,42,.22);
+  padding:9px 11px;font-size:12.5px;line-height:1.45;color:var(--ink);white-space:pre-wrap;max-height:260px;overflow:auto}
+body[data-module] .note-row:hover .note-pop{display:block}
+body[data-module] .note-row:focus-within .note-pop{display:none}
+body[data-module] .note-meta{display:flex;gap:8px;align-items:center;padding:0 8px;font-size:10px;color:#a1906f}
+body[data-module] .note-date{font-variant-numeric:tabular-nums}
+body[data-module] .note-add-wrap{display:flex;align-items:center;gap:2px;margin-left:auto}
+body[data-module] .note-tpl-dd .dd-menu{right:0;left:auto;min-width:270px}
+body[data-module] .note-tpl-menu button{white-space:normal;line-height:1.35}
+body[data-module] .nb-group .acc-head{flex-wrap:nowrap}
+body[data-module] .note-add-btn{padding:2px 8px;font-size:14px;line-height:1}
+body[data-module] .note-tpl-dd>button{padding:2px 6px;font-size:10px;line-height:1.4}
+/* Код ЕНИ правится прямо в шапке карточки ОИ: он нужен и в общих параметрах,
+   и при вводе любых значений, а отдельным полем в форме занимал место зря. */
+/* ЕНИ в плашке — только показ (правится в шапке блока 01), поэтому это ровный
+   чип: подпись и код в одну строку, код не переносится и не растягивает плашку. */
+body[data-module] .ctx-plate-eni{display:inline-flex;align-items:baseline;gap:6px;padding:2px 9px;white-space:nowrap}
+body[data-module] .ctx-plate-eni label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#7d93a6;font-weight:700}
+body[data-module] .ctx-plate-eni b{font-size:12.5px;color:var(--blue-700);letter-spacing:.2px;font-weight:700}
+/* Зона открепления — свободное место под узлами дерева. Подсвечиваем так же,
+   как узел-цель, иначе непонятно, что бросок сюда снимет привязку. */
+/* Курсор мимо участков: перечень подсвечивается целиком — отпускание здесь
+   открепит литеру. Раньше подчёркивалась только нижняя кромка, потому что
+   откреплением считалась узкая полоса под последним узлом. */
+body[data-module] .oi-tree.drop-unlink{box-shadow:inset 0 0 0 2px var(--amber-600)}
+/* Сайдбар просмотрщика: документы сгруппированы по типу (Л3.5). Заголовок
+   группы липкий — при длинном списке видно, к какому типу относится строка. */
+body[data-module] .vsb-group{margin-bottom:6px}
+body[data-module] .vsb-group-h{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:6px;
+  padding:5px 9px;background:#eef4fb;border-radius:6px;font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.4px;font-weight:700;color:#5b6c85}
+body[data-module] .vsb-group-n{margin-left:auto;font-size:9.5px;color:#7d93a6;font-weight:600}
+/* Сравнение: подвижная граница между фото и документом и сворачивание половин
+   (Л3.9). Ширина левой колонки — переменная --cmp-photo, её двигает ручка;
+   правая забирает остаток, поэтому сумма всегда равна ширине области и ничего
+   не уезжает (та же логика, что у столбцов таблиц).
+
+   ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: соотношение и свёрнутая половина — личная настройка
+   пользователя, сейчас живёт только в памяти сессии. */
+body[data-module] .cmp-col[data-cmp-side="photo"]{flex:0 0 var(--cmp-photo);min-width:0}
+body[data-module] .cmp-col[data-cmp-side="doc"]{flex:1 1 auto;min-width:0}
+body[data-module] .cmp-split{flex:0 0 8px;align-self:stretch;cursor:col-resize;border-radius:4px;
+  background:transparent;position:relative;touch-action:none}
+body[data-module] .cmp-split::after{content:"";position:absolute;top:12px;bottom:12px;left:3px;width:2px;
+  background:var(--line);border-radius:2px;transition:background .12s}
+body[data-module] .cmp-split:hover::after,body[data-module="civil"] .cmp.cmp-resizing .cmp-split::after{background:var(--blue-500)}
+body[data-module] .cmp-fold{flex:0 0 auto;width:20px;height:20px;padding:0;margin-right:6px;border:none;
+  border-radius:5px;background:none;color:#8fa2b8;font-size:11px;line-height:1;cursor:pointer}
+body[data-module] .cmp-fold:hover{background:var(--blue-100);color:var(--blue-700)}
+/* Свёрнутая половина — узкая полоса: значок остаётся на месте, содержимое скрыто. */
+body[data-module] .cmp.cmp-folded-photo .cmp-col[data-cmp-side="photo"]{flex:0 0 38px}
+body[data-module] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="doc"]{flex:0 0 38px}
+/* Оставшаяся половина забирает всю освободившуюся ширину. Для документа это
+   работало само (у него flex:1 1 auto), а фото сидит на жёсткой доле
+   --cmp-photo и без этого правила оставалось шириной в половину экрана,
+   прижатое к левому краю, с пустым серым полем справа. */
+body[data-module] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="photo"]{flex:1 1 auto}
+body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-body,
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-body{display:none}
+body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h,
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h{writing-mode:vertical-rl;justify-content:flex-start;gap:6px;padding:8px 0}
+body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h > *:not(.cmp-fold),
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h > *:not(.cmp-fold){display:none}
+body[data-module] .cmp-folded-photo .cmp-split,body[data-module="civil"] .cmp-folded-doc .cmp-split{display:none}
+/* Свёрнута одна половина — вся полезная площадь уходит оставшейся: лист тянется
+   на всю ширину колонки, а не висит узкой полосой (380px) посреди серого поля.
+   max-width — чтобы на широком экране страница не разъезжалась до нечитаемых
+   пропорций. Мыла при этом нет: масштаб рендера PDF берётся из ФАКТИЧЕСКОЙ
+   ширины canvas, а ширина входит в ключ кэша отрисовки (viewer/pdf.js). */
+body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage-wrap,
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
+body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage,
+body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
+/* Плитка фото в развёрнутой половине тоже растёт — её высота была прибита к
+   460px под узкую колонку. */
+body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .photo-fill{height:auto;aspect-ratio:4 / 3}
+/* Краткая сводка вверху всегда: при прокрутке шапка карточки уезжает вверх, а
+   плашка «ОЦ → литера» закрепляется на её месте. Плашка и так стоит сразу под
+   шапкой, поэтому смена одного другим не сдвигает содержимое.
+   Класс scrolled ставит bindStickyHead в index.js. */
+body[data-module] #ctxPlateWrap{position:sticky;top:0;z-index:120;background:var(--bg);
+  padding-top:2px;margin:0 -2px;transition:box-shadow .14s}
+body[data-module] .scrolled #ctxPlateWrap{box-shadow:0 6px 14px rgba(15,23,42,.10)}
+/* Шапка карточки ОЦ не прячется, а ЗАКРЕПЛЯЕТСЯ вверху: в ней и есть краткая
+   сводка — тип, назначение, ЕНИ, адрес, статус. Прятать её и подставлять
+   что-то другое незачем (решение пользователя 2026-08-28). */
+body[data-module] [data-oc-head]{position:sticky;top:0;z-index:110;
+  transition:box-shadow .14s}
+body[data-module] .scrolled [data-oc-head]{box-shadow:0 6px 16px rgba(15,23,42,.12)}
+/* Просмотрщик начинается ПОД закреплённой плашкой и занимает ровно остаток
+   экрана: без нахлёста и без большого пустого поля снизу. Высоту плашки даёт
+   переменная --plate-h (её проставляет bindStickyHead), 10px — зазор между
+   плашкой и просмотрщиком, ещё 14px — отступ до низа окна. */
+/* 58px — верх области содержимого (шапка приложения плюс его отступ),
+   10px — зазор под плашкой, 14px — отступ до низа окна. */
+body[data-module] .viewer{top:calc(var(--plate-h, 0px) + 10px);
+  height:var(--viewer-h, calc(100vh - 82px))}
+/* Возврат к ОЦ — в закреплённой плашке: при прокрутке панель с кнопками уезжает
+   вверх, а вернуться к объекту нужно из любого места карточки. */
+body[data-module] .ctx-back-btn{margin-left:auto;flex:0 0 auto;padding:3px 10px;border:1px solid var(--blue-300);
+  border-radius:7px;background:#fff;color:var(--blue-700);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+body[data-module] .ctx-back-btn:hover{background:var(--blue-50);border-color:var(--blue-500)}
+/* Узел земельного участка: шапка (имя и ЕНИ) → сводка → объекты. Сводка даёт
+   то, что нужно видеть, не открывая карточку участка; кнопка перехода стоит
+   в ней же, у края — там её ищут после чтения сводки, а не в шапке среди
+   служебных кнопок. */
+body[data-module] .oi-land-sum{background:#f6faff;border-bottom:1px solid var(--line-soft)}
+/* Сводка участка — такая же таблица, как перечень литер под ней: одинаковые
+   размеры шапки и ячеек, поэтому блок читается как одно целое. */
+body[data-module] .oi-land-tbl{width:100%;table-layout:fixed}
+body[data-module] .oi-land-tbl td{vertical-align:middle}
+body[data-module] .oi-land-tbl .ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .oi-land-open{white-space:nowrap}
+body[data-module] .oi-land-open{margin-left:auto;flex:0 0 auto}
+/* Объекты на участке: литеры и движимое — раздельно. */
+body[data-module] .oi-sub + .oi-sub{border-top:1px solid var(--line-soft)}
+body[data-module] .oi-sub-h{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#fff;
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:#5b6c85;font-weight:700}
+body[data-module] .oi-sub-n{color:#8fa2b8;font-weight:600}
+/* Различимость в перечне ОИ: участки, недвижимое и движимое не должны
+   сливаться в одну ленту. Участок — зелёная полоса слева и номер в шапке;
+   литеры — синий раздел; движимое — янтарный. Цвет несёт смысл, а не украшает:
+   по нему видно, к чему относится строка, не читая заголовок. */
+body[data-module] .oi-node{border-left:3px solid var(--teal-700)}
+body[data-module] .oi-node[data-oi-drop=""]{border-left-color:#b9c6d6}
+body[data-module] .oi-node-num{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:6px;background:var(--teal-700);color:#fff;font-size:11px;font-weight:700}
+body[data-module] .oi-node[data-oi-drop=""] .oi-node-head{background:#f1f4f8}
+body[data-module] .oi-node-head{background:var(--teal-50)}
+body[data-module] .oi-node-head b{color:var(--teal-700)}
+body[data-module] .oi-sub[data-oi-sub="real"] .oi-sub-h{background:var(--blue-50);color:var(--blue-700);
+  box-shadow:inset 3px 0 0 var(--blue-500)}
+body[data-module] .oi-sub[data-oi-sub="movable"] .oi-sub-h{background:var(--amber-50);color:var(--amber-700);
+  box-shadow:inset 3px 0 0 var(--amber-600)}
+/* Литеры различаются меткой на самой строке, а не заголовком раздела:
+   заголовок «Недвижимое · литеры» был лишним — литеры и так основное
+   содержимое перечня. */
+body[data-module] .oi-sub[data-oi-sub="real"] .oi-letter td:first-child{box-shadow:inset 3px 0 0 var(--blue-500)}
+body[data-module] .oi-sub[data-oi-sub="movable"] .oi-letter td:first-child{box-shadow:inset 3px 0 0 var(--amber-600)}
+/* Счётчики литер и движимого — в одном месте, в шапке участка: раньше литеры
+   считались в шапке, а движимое в своём разделе, и сравнить было неудобно.
+   Цвет счётчика тот же, что у меток соответствующих строк. */
+body[data-module] .oi-node-cnt{display:inline-flex;align-items:center;justify-content:center;min-width:20px;
+  padding:1px 6px;border-radius:6px;font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums}
+body[data-module] .oi-node-cnt.real{background:var(--blue-50);color:var(--blue-700);border:1px solid var(--blue-200)}
+body[data-module] .oi-node-cnt.mov{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100);margin-left:4px}
+/* ЕНИ читают и сверяют цифра за цифрой — мелким его набирать неудобно. */
+body[data-module] .oi-node-eni{font-size:12.5px;padding:2px 8px;letter-spacing:.2px}
+/* Зона «Без участка» отделяется от участков перегородкой: это не ещё один
+   участок, а служебная группа, и сливаться с ними она не должна.
+   Класс-маркер oi-node-sep задаётся правилом ниже через селектор пустого
+   data-oi-drop — отдельной разметки не потребовалось. */
+/* Тонкая сплошная линия в пустом месте перед зоной «Без участка». */
+body[data-module] .oi-sep{height:1px;background:#c3cfdd;margin:18px 2px}
+body[data-module] .oi-node[data-oi-drop=""]{margin-top:0}
+body[data-module] .oi-node[data-oi-drop=""]:first-child{margin-top:0}
+/* ===== Типографика перечня ОИ ==============================================
+   Три уровня, различимых с одного взгляда — по размеру и насыщенности, а не по
+   капсу. Капс остаётся ТОЛЬКО у названий колонок: там он служебный и не спорит
+   с содержимым.
+
+     объект (шапка узла)   14px / 700, обычный регистр  — «на что смотрим»
+     раздел внутри узла    11.5px / 700, обычный регистр — «какая это группа»
+     названия колонок      10px / 700, КАПС, приглушённые
+     значения в строках    13px / 500, литера 700
+
+   Раньше здесь всё было 10–11px и почти всё капсом: шапка узла, разделы и
+   колонки читались одинаково, и глазу не за что было зацепиться. */
+body[data-module] .oi-node-head{padding:10px 12px}
+body[data-module] .oi-node-head b{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module] .oi-node-head .muted{font-size:12px}
+body[data-module] .oi-node-eni{font-size:12.5px;font-weight:600}
+/* Сводка по участку — своя зона: светлее узла, с явной чертой снизу, чтобы не
+   слипалась с шапкой колонок. */
+body[data-module] .oi-land-sum{background:#eef7f2;border-bottom:2px solid var(--teal-100)}
+body[data-module] .oi-land-tbl th{color:#6f8a7e}
+body[data-module] .oi-land-tbl td{color:#1d3b2f;font-weight:600}
+/* Заголовок раздела — заметный, а не служебная надпись. */
+body[data-module] .oi-sub-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;
+  padding:8px 12px}
+body[data-module] .oi-sub[data-oi-sub="real"] .oi-sub-h{background:var(--blue-100);color:var(--blue-700);
+  box-shadow:inset 4px 0 0 var(--blue-600)}
+body[data-module] .oi-sub[data-oi-sub="movable"] .oi-sub-h{background:var(--amber-50);color:var(--amber-700);
+  box-shadow:inset 4px 0 0 var(--amber-600)}
+/* Названия колонок: капс сохранён, но приглушён — это подписи, а не заголовки. */
+body[data-module] .oi-tree-tbl th{font-size:10px;font-weight:700;color:#7d93a6;letter-spacing:.5px;
+  background:#fbfdff;padding:7px 10px}
+body[data-module] .oi-cols-row{border-bottom:1px solid var(--line)}
+/* Значения: литера — якорь строки, поэтому заметно плотнее остального. */
+body[data-module] .oi-letter td{font-size:13px;font-weight:500;color:#22314a}
+body[data-module] .oi-letter td:first-child{font-size:13.5px;font-weight:700}
+/* ===== Та же шкала — на карточки и блоки ===================================
+   Уровни те же, что в перечне ОИ, чтобы по шрифту сразу читалось, на что
+   смотришь: заголовок карточки → заголовок блока → подпись поля → значение.
+   Капс остаётся только у подписей полей и названий колонок. */
+body[data-module] .card-head h3{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module] .card-head .hint{font-size:11px;font-weight:400}
+body[data-module] .sec-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--blue-700)}
+body[data-module] .field>label,body[data-module="civil"] .field>.lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
+body[data-module] .field>b{font-size:13.5px;font-weight:600;color:#22314a}
+body[data-module] .tbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#7d93a6}
+body[data-module] .tbl td{font-size:13px;font-weight:500}
+/* Списки площадей и поэтажка — заголовок блока по той же шкале. */
+body[data-module] .al.acc > .acc-head{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0}
+body[data-module] .al-sum{font-size:12px;font-weight:600}
+/* ===== Блок 01 «Учреждение, собственники и ответственные» ===================
+   Верхняя половина не билась с остальными блоками: значения полей и плашки
+   участников были разного кегля, а подзаголовок «Ответственные» терялся.
+   Приводим к общей шкале и отделяем зону ответственных фоном — это вторая
+   смысловая половина блока, а не продолжение первой. */
+body[data-module] .card.t-slate .field>b,
+body[data-module="civil"] .card.t-slate .field>.muted{font-size:13.5px;font-weight:600;color:#22314a;line-height:1.35}
+body[data-module] .card.t-slate .field>.muted{font-weight:500;color:#8fa2b8}
+/* Плашки собственников и пользователей — один кегль со значениями полей. */
+body[data-module] .ms-tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:7px;line-height:1.3}
+/* Подзаголовок второй половины: заголовок раздела, а не подпись. */
+body[data-module] .card.t-slate .sec-h{margin-top:14px;padding-top:10px;border-top:1px solid var(--line-soft);
+  font-size:11.5px;font-weight:700;color:var(--blue-700)}
+body[data-module] .card.t-slate .sec-h::after{display:none}
+body[data-module] .card.t-slate .select{font-size:13px;font-weight:500}
+/* Кнопки «+ Добавить» рядом с плашками — вспомогательные, не спорят со значением. */
+body[data-module] .card.t-slate .inline-row .btn-sm{font-size:11px;padding:3px 9px}
+/* Плитка фото удалённой литеры («Фото без литеры», parts/photos/explorer.js) —
+   приглушена и не кликабельна: литеры, к которой она относилась, уже нет.
+   Класс использовался с самого появления раздела, а стиля к нему не было. */
+body[data-module] .tile-orphan{cursor:default;opacity:.72}
+body[data-module] .tile-orphan:hover{border-color:var(--line);box-shadow:var(--shadow)}
+body[data-module] .tile-orphan .tile-img{background:linear-gradient(135deg,var(--slate-50),#fdfeff);color:#8ba0b8}
+/* Выпадающие списки — как во всём макете (kernel/tokens.css): своя стрелка
+   вместо системной, тот же радиус и та же реакция, что у полей ввода. */
+body[data-module] .select{
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1.4 5 5.4l4-4' fill='none' stroke='%237d93a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+  padding-right:28px;cursor:pointer;
+}
+body[data-module] .select:hover:not(:disabled){border-color:var(--blue-500)}
+body[data-module] .tbl .select,body[data-module="civil"] .al-tbl .select{background-position:right 7px center;padding-right:23px}
+
+/* Карточка земельного участка — общая для всех типов ОЦ (её код живёт в
+   land-plot/oi/land и импортируется остальными). Стили лежали только в
+   module.css участка, поэтому в других типах ОЦ те же поля выглядели
+   иначе: .field-flow был flex у участка и block у всех прочих.
+   Проверено замером 05.09.2026. */
+body[data-module] .field-flow{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+body[data-module] .field-flow>.field{flex:1 1 210px;max-width:330px}
+body[data-module] .textarea.ta-wide{min-height:64px}

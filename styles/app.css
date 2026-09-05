@@ -1,3 +1,15 @@
+/* НЕ ПОДКЛЮЧЁН К СТРАНИЦЕ.
+ *
+ * app.html грузит только app/kernel/tokens.css, app/shell/shell.css,
+ * app/kernel/cards.css и module.css текущего типа ОЦ — этого файла среди них
+ * нет. Проверено 05.09.2026: правка здесь на экран не попадает.
+ *
+ * Правила отсюда живут в app/kernel/cards.css (оформление карточек ОЦ) и в
+ * app/kernel/tokens.css (кнопки, поля, цвета). Файл оставлен как след истории:
+ * удалять его отдельным решением, чтобы не потерять то, что в нём есть, а в
+ * рабочих файлах отсутствует.
+ */
+
 :root{
   --bg:#e9f1f8; --panel:#ffffff;
   --line:#c3cfdd; --line-soft:#dbe4ee; --line-input:#a9bcd4;
@@ -70,7 +82,15 @@ input,select,textarea{font:inherit;color:inherit}
 .card-pad{padding:14px 16px}
 .card.collapsed>.card-body,.card.collapsed>.card-pad,.card.collapsed>.card-body-wrap{display:none}
 .card:not(.collapsed)>.card-body-wrap{animation:accIn .16s ease}
-.card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap}
+/* Шапка блока залита цветом разметки, поэтому её углы обязаны повторять углы
+   самого блока: прямоугольная заливка поверх скруглённого угла давала «срезанный»
+   верх — скругление есть у рамки и цветной полосы слева, но не у заливки
+   (замечание пользователя 05.09.2026). Радиус на пиксель меньше: рамка блока
+   1.5px, и полное совпадение оставляло бы тонкий светлый серп по краю.
+   У свёрнутого блока шапка — единственная видимая часть, ей нужны все четыре. */
+.card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap;
+  border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0}
+.card.collapsed>.card-head{border-radius:calc(var(--radius) - 1px)}
 .card-head h3{font-size:13px;font-weight:700}
 .card-head .hint{font-size:11px;color:var(--muted);font-weight:400}
 .card-head .chev{margin-left:auto;transition:transform .15s;color:#7d93a6}

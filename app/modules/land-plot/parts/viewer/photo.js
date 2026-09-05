@@ -9,6 +9,19 @@ function moveTargets(ctx, oi) {
 
 export function renderPhotoMode(ctx, vctx) {
   const { groups, pages, curPhoto, oi } = vctx;
+
+  // В карточке объекта оценки литера выбирается в меню просмотрщика: пока не
+  // выбрана, показывать нечего — говорим об этом прямо, а не пустой лентой.
+  if (!oi) {
+    return {
+      toolbar: `<div class="vtoolbar"><div class="tool-group right">
+        <span class="vtitle">Фото</span>
+        <button class="tool-btn" data-vclose title="Закрыть просмотрщик">×</button></div></div>`,
+      body: `<div class="vstage"><div class="vempty">
+        Выберите литеру в меню слева — её фотографии откроются здесь.
+      </div></div>`,
+    };
+  }
   const pSt = vctx.pSt || { page: 1, rot: 0 };
 
   const targets = moveTargets(ctx, oi);

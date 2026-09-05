@@ -35,17 +35,17 @@ def _open_doc_with_file(t):
     """Учреждение с документом, к которому прикреплён настоящий PDF."""
     pg = t.page
     t.open('#/institutions', wait='.itree')
-    pg.wait_for_timeout(600)
+    t.wait(600)
 
     rows = pg.locator('.itree-row[data-inode]')
     for i in range(min(rows.count(), 30)):
         rows.nth(i).click()
-        pg.wait_for_timeout(250)
+        t.wait(250)
         tab = pg.locator('[data-itab="docs"]')
         if not tab.count():
             continue
         tab.click()
-        pg.wait_for_timeout(350)
+        t.wait(350)
         if pg.locator('[data-idoc]').count():
             break
     else:
@@ -55,14 +55,16 @@ def _open_doc_with_file(t):
         return False
 
     pg.locator('[data-idoc]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
     if not pg.locator('[data-idoc-addfile]').count():
         return False
 
     with pg.expect_file_chooser() as fc:
         pg.locator('[data-idoc-addfile]').first.click()
     fc.value.set_files({'name': 'skan.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf()})
-    pg.wait_for_timeout(2200)
+    # Просмотрщик появляется после разбора файла (PDF.js грузится динамически),
+    # а страница в это время не меняется — ждём саму ленту, а не время.
+    t.wait_for('.vstage')
     return pg.locator('.vstage').count() == 1
 
 
@@ -85,7 +87,7 @@ def run(t):
 
     pg.locator('.vstage').first.hover()
     pg.mouse.wheel(0, 500)
-    pg.wait_for_timeout(400)
+    t.wait(400)
     scrolled = pg.eval_on_selector('.vstage', 'e => e.scrollTop')
     t.ck(scrolled > 0, 'колесо не прокручивает ленту')
     # Прокрутка не должна утекать на карточку: за это отвечает overscroll-behavior.
@@ -94,22 +96,22 @@ def run(t):
 
     # --- 3. горячие клавиши ---
     pg.keyboard.press('Home')
-    pg.wait_for_timeout(500)
+    t.wait(500)
     t.ck(pg.eval_on_selector('.vstage', 'e => e.scrollTop') < scrolled,
          'Home не возвращает к первой странице')
 
     pg.keyboard.press('End')
-    pg.wait_for_timeout(600)
+    t.wait(600)
     t.ck(pg.eval_on_selector('.vstage', 'e => e.scrollTop') > 100, 'End не листает в конец')
 
     zoom = pg.locator('[data-zoomlabel]').first.inner_text()
     pg.keyboard.press('+')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     bigger = pg.locator('[data-zoomlabel]').first.inner_text()
     t.ck(bigger != zoom, 'клавиша «+» не меняет масштаб: %s и %s' % (zoom, bigger))
 
     pg.keyboard.press('0')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('[data-zoomlabel]').first.inner_text() == '100%',
          'клавиша «0» не возвращает масштаб к 100%%: %s' % pg.locator('[data-zoomlabel]').first.inner_text())
 
@@ -118,23 +120,23 @@ def run(t):
     pg.fill('[data-irowq]', '')
     pg.locator('[data-irowq]').first.click()
     pg.keyboard.type('0+-')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     t.ck(pg.locator('[data-zoomlabel]').first.inner_text() == before,
          'набор в поле поиска дёргает масштаб просмотрщика')
     pg.fill('[data-irowq]', '')
-    pg.wait_for_timeout(300)
+    t.wait(300)
 
     # --- 5. то же в карточке документа реестра ---
     t.open('#/docs', wait='[data-doc-row]')
-    pg.wait_for_timeout(400)
+    t.wait(400)
     pg.locator('[data-doc-row]').first.click()
-    pg.wait_for_timeout(700)
+    t.wait(700)
 
     if pg.locator('[data-docs-attach]').count():
         with pg.expect_file_chooser() as fc:
             pg.locator('[data-docs-attach]').first.click()
         fc.value.set_files({'name': 'skan.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf()})
-        pg.wait_for_timeout(2200)
+        t.wait(2200)
 
         if t.ck(pg.locator('.vstage').count() == 1, 'в карточке документа нет ленты просмотрщика'):
             box = pg.eval_on_selector('.vstage', 'e => ({ h: e.clientHeight, s: e.scrollHeight })')
@@ -142,6 +144,6 @@ def run(t):
                  'в карточке документа лента не ограничена: %d из %d' % (box['h'], box['s']))
             pg.locator('.vstage').first.hover()
             pg.mouse.wheel(0, 400)
-            pg.wait_for_timeout(400)
+            t.wait(400)
             t.ck(pg.eval_on_selector('.vstage', 'e => e.scrollTop') > 0,
                  'в карточке документа колесо не прокручивает ленту')
