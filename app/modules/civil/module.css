@@ -20,7 +20,12 @@ body[data-module="civil"] .card{background:var(--panel);border:1.5px solid var(-
 body[data-module="civil"] .card-pad{padding:14px 16px}
 body[data-module="civil"] .card.collapsed>.card-body, body[data-module="civil"] .card.collapsed>.card-pad, body[data-module="civil"] .card.collapsed>.card-body-wrap{display:none}
 body[data-module="civil"] .card:not(.collapsed)>.card-body-wrap{animation:accIn .16s ease}
-body[data-module="civil"] .card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap}
+body[data-module="civil"] .card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap;
+  /* Шапка залита цветом разметки, поэтому её углы обязаны повторять углы
+     блока: прямоугольная заливка поверх скруглённого угла давала «срезанный»
+     верх. Радиус на пиксель меньше — рамка блока 1.5px. */
+  border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0}
+body[data-module="civil"] .card.collapsed>.card-head{border-radius:calc(var(--radius) - 1px)}
 body[data-module="civil"] .card-head h3{font-size:13px;font-weight:700}
 body[data-module="civil"] .card-head .hint{font-size:11px;color:var(--muted);font-weight:400}
 body[data-module="civil"] .card-head .chev{margin-left:auto;transition:transform .15s;color:#7d93a6}

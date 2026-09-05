@@ -122,3 +122,57 @@ def run(t):
     if _add(t):
         note = pg.locator('.sec-h .dev-note')
         t.ck(note.count() > 0, 'у раздела износа нет заметки о том, что вид ещё обсуждается')
+
+
+    check_block_styles(t)
+
+# --- оформление блоков одинаково во всех модулях -------------------------
+#
+# Стили карточек живут в module.css КАЖДОГО модуля — styles/app.css в app.html
+# не подключён вовсе. Поэтому правка оформления, сделанная в одном месте, до
+# остальных не доходит: так и получилось со скруглением шапки блока (заливка
+# цветной разметки была прямоугольной и срезала скруглённый угол).
+def check_block_styles(t):
+    pg = t.page
+
+    STYLES = """() => {
+      const out = [];
+      document.querySelectorAll('.oi-stack .card').forEach((c) => {
+        const cs = getComputedStyle(c);
+        const h = c.querySelector('.card-head');
+        const idx = c.querySelector('.card-idx');
+        out.push({
+          block: cs.borderRadius,
+          stripe: cs.borderLeftWidth,
+          head: h ? getComputedStyle(h).borderRadius : null,
+          idx: idx ? getComputedStyle(idx).borderRadius : null,
+        });
+      });
+      return out;
+    }"""
+
+    seen = {}
+    for oc, route in ROUTES.items():
+        t.open(route, wait='[data-open-oi]')
+        t.wait(300)
+        if not _add(t):
+            continue
+
+        rows = pg.evaluate(STYLES)
+        t.ck(bool(rows), 'в %s не нашёл блоков карточки' % oc)
+
+        for r in rows:
+            t.ck(r['head'] and r['head'] != '0px',
+                 'в %s заливка шапки блока не скруглена: %s' % (oc, r['head']))
+            t.ck(r['stripe'] == '4px',
+                 'в %s цветная полоса блока другой толщины: %s' % (oc, r['stripe']))
+            t.ck(r['idx'] == '5px',
+                 'в %s метка номера блока другого скругления: %s' % (oc, r['idx']))
+
+        # Между модулями оформление должно совпадать до пикселя.
+        key = (rows[0]['block'], rows[0]['head'], rows[0]['stripe'], rows[0]['idx'])
+        seen.setdefault(key, []).append(oc)
+
+    t.ck(len(seen) == 1,
+         'оформление блоков различается между типами ОЦ: %s'
+         % {str(k): v for k, v in seen.items()})
