@@ -170,7 +170,7 @@ ${agricultural ? `<div class="field"><label>Удалённость от райц
 <div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea ta-wide" data-land-location-features
   placeholder="Что важно знать об окружении: соседство, подъезд, вид, шум, затопляемость…">${esc(oi.locationFeatures || '')}</textarea></div>
 <div class="sec-h">Благоустройство территории</div>
-<div class="grid g-2">${improvementsFields(ctx, oi)}</div>
+${improvementsFields(ctx, oi)}
 </div></div>`;
 }
 
