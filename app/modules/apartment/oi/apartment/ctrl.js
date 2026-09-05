@@ -1,4 +1,5 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
+import { syncOcAddress } from '../../../../kernel/address.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
@@ -38,6 +39,33 @@ export function bind(ctx, oi) {
   const s = ctx.scope;
 
   // --- Площади и этажность -------------------------------------------------
+  // Адрес квартиры: улица, дом и номер квартиры свои, город с районом — общие
+  // для записи (kernel/address.js). После правки пересобираем адрес записи:
+  // его читают шапка, реестр, поиск и архив.
+  const street = s.$('[data-oi-street]');
+  if (street) street.onchange = () => {
+    oi.street = street.value.trim();
+    syncOcAddress(ctx.rec);
+    ctx.updatePlate();
+  };
+
+  const house = s.$('[data-oi-house]');
+  if (house) house.onchange = () => {
+    oi.house = house.value.trim();
+    syncOcAddress(ctx.rec);
+    ctx.updatePlate();
+  };
+
+  const flat = s.$('[data-oi-flat]');
+  if (flat) flat.onchange = () => {
+    oi.flat = flat.value.trim();
+    syncOcAddress(ctx.rec);
+    ctx.updatePlate();
+  };
+
+  const oiGps = s.$('[data-oi-gps]');
+  if (oiGps) oiGps.onchange = () => { oi.gps = oiGps.value.trim(); };
+
   s.$$('[data-area]').forEach((i) => i.onchange = () => {
     oi.areas[i.dataset.area] = i.value;
     recalcFloors(oi);

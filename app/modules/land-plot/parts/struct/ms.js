@@ -57,12 +57,14 @@ function otherHTML(oi, key, list) {
   return `<input class="input" data-struct-other="${esc(key)}" placeholder="Укажите вручную" value="${esc(other)}" style="margin-top:5px">`;
 }
 
-export function structMS(oi, key, label, opts, req) {
+// bare — вид без подписи: поле стоит в ячейке таблицы, где название элемента
+// уже написано в соседнем столбце (блок «Конструктив и износ»).
+export function structMS(oi, key, label, opts, req, bare) {
   const list = structList(oi, key);
   OPTS.set(key, opts || []);
 
-  return `<div class="field" data-struct-field="${esc(key)}">
-    <label>${label}${req ? '<span class="req">*</span>' : ''}</label>
+  return `<div class="field${bare ? ' f-bare' : ''}" data-struct-field="${esc(key)}">
+    ${bare ? '' : `<label>${label}${req ? '<span class="req">*</span>' : ''}</label>`}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список материалов">
         ${summaryHTML(list)}

@@ -78,7 +78,7 @@ export function nextId(prefix) {
 // иначе после удаления ОИ код повторяется (исправление дефекта макета).
 export function nextEni(rec, base) {
   const used = rec.oi.map((o) => parseInt(o.eni, 10)).filter((n) => !isNaN(n));
-  const max = used.length ? Math.max(...used) : parseInt(base, 10) || 147561681300;
+  const max = used.length ? Math.max(...used) : parseInt(base, 10) || 1475616813000;
   return String(max + 1);
 }
 

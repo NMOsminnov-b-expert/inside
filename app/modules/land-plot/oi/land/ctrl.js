@@ -1,4 +1,5 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
+import { syncOcAddress } from '../../../../kernel/address.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
 import { gpsError } from './gps.js';
@@ -29,11 +30,14 @@ export function bind(ctx, oi) {
     // сети»; автономное отопление оттуда убрано (ТЗ §4).
     '[data-land-electricity]': 'electricity',
     '[data-land-sewerage]': 'sewerage',
+    // Железнодорожная ветка — у несельхоз-участка (заметки команды).
+    '[data-land-railway]': 'railway',
 
-    // Местоположение: координаты и деление крупных городов на зону и
-    // микрорайон, удалённость от райцентра у сельхоза (ТЗ §5).
-    '[data-land-zone]': 'zone',
-    '[data-land-microdistrict]': 'microdistrict',
+    // Местоположение: свой адрес участка (улица и дом — как у остальных ОИ),
+    // координаты и удалённость от райцентра у сельхоза. Крупная зона с
+    // микрорайоном уехали в объект оценки (заметки команды 05.09.2026).
+    '[data-oi-street]': 'street',
+    '[data-oi-house]': 'house',
     '[data-land-distance]': 'distanceToCenter',
 
     // Благоустройство: ранг и описание вместо двух мультивыборов (ТЗ §6).
@@ -52,6 +56,20 @@ export function bind(ctx, oi) {
   Object.entries(valueBindings).forEach(([selector, key]) => {
     const input = s.$(selector);
     if (input) input.onchange = () => { oi[key] = input.value; };
+  });
+
+  // Улица и дом участка входят в адрес записи, поэтому после правки собираем
+  // его заново: rec.address читают шапка, реестр, поиск и архив
+  // (kernel/address.js).
+  ['[data-oi-street]', '[data-oi-house]'].forEach((sel) => {
+    const input = s.$(sel);
+    if (!input) return;
+    const prev = input.onchange;
+    input.onchange = () => {
+      if (prev) prev();
+      syncOcAddress(ctx.rec);
+      ctx.updatePlate();
+    };
   });
 
   const type = s.$('[data-land-type]');

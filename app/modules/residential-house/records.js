@@ -1,6 +1,8 @@
 // Контракт модуля для меню ОЦ: сводки, запросы, фасеты, локатор, создание.
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
 import { recHasSpecials } from './parts/specials/model.js';
+import { foldEniList, oiEniCodes } from '../../kernel/eniFold.js';
+import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
 import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { session } from '../../kernel/session.js';
@@ -22,6 +24,18 @@ function landAreaOf(rec) {
   return rec.oi
     .filter((o) => o.card === 'land')
     .reduce((s, o) => s + num((o.areas && o.areas.pravo) || o.area), 0);
+}
+
+// Тип земель записи: считается по её участкам (решение пользователя
+// 05.09.2026). Участков нет — и говорить не о чем, столбец останется пустым.
+function landKindOf(rec) {
+  const kinds = new Set((rec.oi || [])
+    .filter((o) => o.card === 'land')
+    .map((o) => (o.landType === 'Несельскохозяйственный' ? 'Несельхоз' : 'Сельхоз')));
+
+  if (!kinds.size) return '';
+  if (kinds.size > 1) return 'Смешанный';
+  return [...kinds][0];
 }
 
 function metricsOf(rec) {
@@ -74,11 +88,13 @@ export function summarize(rec) {
     typeId: manifest.id,
     typeLabel: manifest.label,
     typeIcon: manifest.icon,
-    title: rec.address,
+    title: ocFullAddress(rec),
     subtitle: rec.institution,
     eni: rec.eni,
     status: rec.status,
     city: rec.city || '',
+    landKind: landKindOf(rec),
+    eniList: foldEniList(oiEniCodes(rec)),
     institution: rec.institution || '',
     podved: rec.podved || '',
     owners: rec.owners || [],
@@ -122,6 +138,8 @@ function bulkSummary(raw) {
     eni: raw.eni,
     status: raw.status,
     city: raw.city,
+    landKind: raw.landKind || '',
+    eniList: raw.eniList || '',
     institution: raw.institution,
     podved: raw.podved || '',
     owners: raw.owners || [],
@@ -218,7 +236,10 @@ export function totalCount() {
 // Ленивая материализация: карточка синтетической записи собирается при открытии.
 export function loadRecord(id) {
   const found = records.find((r) => r.id === id);
-  if (found) return found;
+  // Адрес записи — производное от её частей и адресов ОИ (kernel/address.js).
+  // Собираем при загрузке: rec.address читают шапка, архив, лог и поиск, а
+  // строкой он больше нигде не задаётся.
+  if (found) { syncOcAddress(found); return found; }
 
   const built = materialize(id, buildBulkRecord);
   if (built) return addRecord(built);

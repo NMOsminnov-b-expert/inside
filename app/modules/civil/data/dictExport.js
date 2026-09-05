@@ -206,6 +206,18 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'BUILD_CONDITION',
+    title: 'Состояние строения',
+    kind: 'list',
+    system: false,
+    values: D.BUILD_CONDITION,
+    slots: [
+      { card: 'building', field: 'conditionInner', label: 'Внутреннее состояние' },
+      { card: 'building', field: 'conditionOuter', label: 'Внешнее состояние' },
+      { card: 'building', field: 'conditionTotal', label: 'Итоговое состояние' },
+    ],
+  },
+  {
     key: 'WEAR_LEVEL',
     title: 'Уровень износа',
     kind: 'list',

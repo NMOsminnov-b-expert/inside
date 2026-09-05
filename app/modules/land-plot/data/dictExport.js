@@ -13,6 +13,16 @@ import { LAND_DICT_SOURCES } from './landDicts.js';
 
 export const DICT_SOURCES = [
   {
+    key: 'RAILWAY_ACCESS',
+    title: 'Железнодорожная ветка',
+    kind: 'list',
+    system: false,
+    values: D.RAILWAY_ACCESS,
+    slots: [
+      { card: 'land', field: 'railway', label: 'Наличие железнодорожной ветки' },
+    ],
+  },
+  {
     key: 'TEMP_MODE',
     title: 'Температурный режим',
     kind: 'list',
@@ -70,6 +80,18 @@ export const DICT_SOURCES = [
     values: D.STRUCTURE_KIND,
     slots: [
       { card: 'building', field: 'structureKind', label: 'Тип строения' },
+    ],
+  },
+  {
+    key: 'BUILD_CONDITION',
+    title: 'Состояние строения',
+    kind: 'list',
+    system: false,
+    values: D.BUILD_CONDITION,
+    slots: [
+      { card: 'building', field: 'conditionInner', label: 'Внутреннее состояние' },
+      { card: 'building', field: 'conditionOuter', label: 'Внешнее состояние' },
+      { card: 'building', field: 'conditionTotal', label: 'Итоговое состояние' },
     ],
   },
   {

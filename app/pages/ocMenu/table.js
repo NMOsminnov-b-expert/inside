@@ -57,6 +57,10 @@ function cell(col, s) {
     case 'typeLabel': return `<span class="ell" title="${esc(s.typeLabel)}">${esc(s.typeLabel)}</span>`;
     case 'institution': return `<span class="ell" title="${esc(s.institution || '')}">${esc(s.institution || '—')}</span>`;
     case 'city': return `<span class="ell" title="${esc(s.city || '')}">${esc(s.city || '—')}</span>`;
+    case 'landKind': return s.landKind
+      ? `<span class="tag-mini">${esc(s.landKind)}</span>`
+      : '<span class="muted">—</span>';
+    case 'eniList': return `<span class="ell mono" title="${esc(s.eniList || '')}">${esc(s.eniList || '—')}</span>`;
     case 'podved': return `<span class="ell" title="${esc(s.podved || '')}">${esc(s.podved || '—')}</span>`;
     case 'landArea': return s.metrics.landArea ? fmtNum(s.metrics.landArea) : '—';
     case 'owners': return listCell(s.owners);
@@ -117,6 +121,8 @@ function plain(col, s) {
     case 'status': return s.status;
     case 'institution': return s.institution;
     case 'city': return s.city;
+    case 'landKind': return s.landKind || '';
+    case 'eniList': return s.eniList || '';
     case 'podved': return s.podved || '';
     case 'landArea': return s.metrics.landArea ? String(s.metrics.landArea).replace('.', ',') : '';
     case 'owners': return (s.owners || []).join(', ');

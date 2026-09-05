@@ -16,11 +16,13 @@ function summaryHTML(heating) {
     : '<span class="muted">не выбрано</span>';
 }
 
-export function heatingMS(ctx, oi) {
+// bare — без подписи: в таблице «Конструктив и износ» название элемента стоит
+// отдельным столбцом.
+export function heatingMS(ctx, oi, bare) {
   const heating = Array.isArray(oi.heating) ? oi.heating : [];
   const showOther = heating.includes('Прочее (ручной ввод)');
 
-  return `<div class="field" data-heat-field><label>Отопление (мультивыбор)</label>
+  return `<div class="field${bare ? ' f-bare' : ''}" data-heat-field>${bare ? '' : '<label>Отопление (мультивыбор)</label>'}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
         ${summaryHTML(heating)}

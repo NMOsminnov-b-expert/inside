@@ -1,4 +1,5 @@
 import { fmtEni } from '../../../kernel/fmt.js';
+import { ocFullAddress } from '../../../kernel/address.js';
 import { esc } from '../../../kernel/dom.js';
 import { ocTypes } from '../../../kernel/typeChange.js';
 import { STATUS_OC } from '../data/dictionaries.js';
@@ -63,9 +64,24 @@ function mainSection(rec) {
           <span class="field-hint">впоследствии заполняется автоматически</span>
         </div>
 
+        <div class="field">
+          <label>Город</label>
+          <input class="input" id="fCity" value="${esc(rec.city || '')}" placeholder="г. Бишкек">
+        </div>
+
+        <div class="field">
+          <label>Район</label>
+          <input class="input" id="fDistrict" value="${esc(rec.district || '')}" placeholder="Первомайский р-н">
+        </div>
+
+        <div class="field">
+          <label>Микрорайон</label>
+          <input class="input" id="fMicro" value="${esc(rec.micro || '')}" placeholder="мкр. Асанбай">
+        </div>
+
         <div class="field sp-all">
-          <label>Адрес</label>
-          <input class="input" id="fAddr" value="${esc(rec.address)}">
+          <label>Адрес записи</label>
+          <div class="addr-sum" data-addr-sum>${esc(ocFullAddress(rec)) || 'Заполните город; улица и дом задаются в карточках объектов имущества'}</div>
         </div>
       </div>
     </div>

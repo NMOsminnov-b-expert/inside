@@ -824,3 +824,34 @@ body[data-module] .field-flow>.field{flex:1 1 210px;max-width:330px}
    поле другого рода. Ширина та же, что у полей в сетке. */
 body[data-module] .field.f-narrow{max-width:330px}
 body[data-module] .textarea.ta-wide{min-height:64px}
+
+/* Собранный адрес записи: не поле ввода, а показ того, что получилось из частей
+   объекта оценки и адресов его объектов имущества (kernel/address.js). Поэтому
+   вид другой — рамка пунктиром, фон приглушённый: править эту строку нельзя,
+   правятся её части. */
+body[data-module] .addr-sum{min-height:32px;padding:7px 10px;border-radius:9px;
+  background:#f4f8fd;border:1px dashed var(--line);color:#33445c;font-size:12.5px;
+  line-height:1.35}
+
+/* ===== Блок «Конструктив и износ» ==========================================
+   Материалы и износ идут одной таблицей: строка — конструктивный элемент
+   (решение пользователя 05.09.2026). Поля внутри ячеек рисуются без подписей —
+   название элемента уже стоит в первом столбце. */
+body[data-module] .struct-tbl-wrap{overflow-x:auto}
+body[data-module] table.struct-tbl{min-width:620px}
+body[data-module] .struct-tbl th{padding:7px 10px}
+body[data-module] .struct-tbl td{padding:6px 10px;vertical-align:middle}
+body[data-module] .struct-tbl th.st-el,body[data-module] .struct-tbl td.st-el{width:200px;
+  font-size:12.5px;font-weight:600;color:#33445c}
+body[data-module] .struct-tbl th.st-wear,body[data-module] .struct-tbl td.st-wear{width:210px}
+/* Поле в ячейке: без подписи и без внешних отступов — иначе строки таблицы
+   разъезжаются по высоте. */
+body[data-module] .field.f-bare{gap:0}
+body[data-module] .struct-tbl .field{margin:0}
+body[data-module] .struct-tbl .ms-drop{min-width:260px}
+
+/* Адрес в шапке объекта оценки. Он составной — город, район, микрорайон и
+   свёрнутые адреса объектов имущества, — и в одну строку помещается редко.
+   Переносим по словам вместо многоточия: адрес в шапке читают целиком. */
+body[data-module] .hm.hm-wide{flex:1 1 320px;min-width:220px}
+body[data-module] .hm.hm-wide b{white-space:normal;max-width:none;line-height:1.3}

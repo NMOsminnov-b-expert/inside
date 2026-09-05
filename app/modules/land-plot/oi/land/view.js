@@ -6,7 +6,7 @@ import {
   DOC_TYPES, LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
   LAND_LOCATION, LAND_ROAD_LOCATION, LAND_CORNER, LAND_ENCUMBRANCE,
   LAND_UTILITY_STATUS, LAND_FORM, IRRIGATION_TYPE, LAND_RELIEF,
-  LAND_CATEGORIES, LAND_RIGHTS, LAND_PURPOSE_DOC, LAND_SOIL, LAND_STONINESS,
+  LAND_CATEGORIES, LAND_RIGHTS, LAND_PURPOSE_DOC, LAND_SOIL, LAND_STONINESS, RAILWAY_ACCESS,
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { devNote, noteAfter } from '../../../../kernel/devNote.js';
@@ -102,16 +102,12 @@ ${selectField('Наличие канализации', 'data-land-sewerage', opt
 ${selectField('Наличие газификации', 'data-land-gas', opt('land', 'gasification', LAND_UTILITY_STATUS), oi.gasification)}
 ${selectField('Наличие центрального отопления', 'data-land-central-heating', opt('land', 'centralHeating', LAND_UTILITY_STATUS), oi.centralHeating)}
 ${selectField('Наличие центрального водоснабжения', 'data-land-water', opt('land', 'centralWater', LAND_UTILITY_STATUS), oi.centralWater)}
+${selectField('Наличие железнодорожной ветки', 'data-land-railway', opt('land', 'railway', RAILWAY_ACCESS), oi.railway)}
 </div>
 <div class="sec-h">Постройки</div>
 ${auxBuildingsHTML(ctx, oi)}
 </div></div>`;
 }
-
-// Города, где район дробится на крупную зону и микрорайон (ТЗ §5.2). В
-// остальных населённых пунктах достаточно «расположения в районе»: деления
-// такой мелкости там просто нет.
-const BIG_CITIES = ['Бишкек', 'Ош', 'Жалал-Абад', 'Джалал-Абад', 'Манас'];
 
 // Что состав полей зависит от города, по интерфейсу не видно: оценщик просто
 // видит разный набор в двух карточках и не понимает, почему. Пользователь
@@ -121,46 +117,35 @@ const PURPOSE_NOTE = 'Перечень значений начальный и з
   + 'документам. Список правится в разделе «Справочники», вариант «Иное» '
   + 'открывает поле ручного ввода.';
 
-const CITY_NOTE = 'Состав полей здесь зависит от города объекта оценки. В '
-  + 'крупных городах (Бишкек, Ош, Жалал-Абад, Манас) район дробится на крупную '
-  + 'зону и микрорайон; в остальных населённых пунктах вместо них одно поле '
-  + '«Расположение в районе» — более мелкого деления там нет. Сам перечень '
-  + 'крупных городов пока задан в коде: нужно решить, выносить ли его в '
-  + 'справочник, чтобы список правился без разработчика.';
+// Крупная зона и микрорайон убраны из карточки участка (заметки команды
+// 05.09.2026): они общие для записи и живут теперь в объекте оценки. Вместе с
+// ними ушёл и признак крупного города — состав полей участка больше не зависит
+// от того, в каком городе объект.
+const CITY_NOTE = 'Расположение описывается относительно населённого пункта и '
+  + 'трассы. Город, район и микрорайон задаются в объекте оценки — они общие '
+  + 'для всей записи.';
 
-const ZONE_NOTE = 'Позже крупная зона и микрорайон будут подставляться '
-  + 'автоматически по координатам, с возможностью ручной правки. Сейчас — '
-  + 'свободный ввод.';
-
-// Крупный ли город. Смотрим и на адрес объекта оценки, и на город записи:
-// адрес заполняют не всегда одинаково, а ошибиться здесь — значит спрятать
-// нужные поля.
-function isBigCity(ctx) {
-  const rec = (ctx && ctx.rec) || {};
-  const hay = `${rec.city || ''} ${rec.address || ''}`.toLowerCase();
-  return BIG_CITIES.some((c) => hay.includes(c.toLowerCase()));
-}
-
-// Блок 03 после правок 04.09.2026 (ТЗ §5–6): сервитуты и постройки уехали в
-// блоки 01 и 02, добавились координаты, зона с микрорайоном для крупных
-// городов и удалённость от райцентра для сельхоза; благоустройство стало
-// рангом с текстовым описанием.
+// Блок 03: адрес участка с координатами, расположение относительно населённого
+// пункта и трассы, удалённость от райцентра у сельхоза и благоустройство.
 function locationCard(ctx, oi, idx) {
-  const bigCity = isBigCity(ctx);
   const agricultural = oi.landType !== 'Несельскохозяйственный';
 
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Местоположение</h3></div><div class="card-pad">
-<div class="sec-h">Расположение${devNote(CITY_NOTE)}</div>
+<div class="sec-h">Адрес и координаты</div>
 <div class="grid g-4">
+<div class="field"><label>Улица</label>
+  <input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Лебединовская"></div>
+<div class="field"><label>Дом</label>
+  <input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="12"></div>
 <div class="field"><label>Координаты (широта, долгота)</label>
   <input class="input mono" data-land-gps value="${esc(oi.gps || '')}"
     placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота"></div>
-${bigCity
-    ? `<div class="field"><label>${noteAfter('Крупная зона', ZONE_NOTE)}</label>
-        <input class="input" data-land-zone value="${esc(oi.zone || '')}" placeholder="Центр"></div>
-       <div class="field"><label>${noteAfter('Микрорайон', ZONE_NOTE)}</label>
-        <input class="input" data-land-microdistrict value="${esc(oi.microdistrict || '')}" placeholder="Военторг"></div>`
-    : selectField('Расположение в районе', 'data-land-location', opt('land', 'location', LAND_LOCATION), oi.location)}
+</div>
+<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
+
+<div class="sec-h" style="margin-top:12px">Расположение${devNote(CITY_NOTE)}</div>
+<div class="grid g-4">
+${selectField('Расположение в районе', 'data-land-location', opt('land', 'location', LAND_LOCATION), oi.location)}
 ${selectField('Расположение к трассе', 'data-land-road', opt('land', 'roadLocation', LAND_ROAD_LOCATION), oi.roadLocation)}
 ${selectField('Угловой/Неугловой', 'data-land-corner', opt('land', 'corner', LAND_CORNER), oi.corner)}
 ${selectField('Рельеф участка', 'data-land-relief', opt('land', 'relief', LAND_RELIEF), oi.relief)}

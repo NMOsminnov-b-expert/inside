@@ -230,40 +230,76 @@ def run(t):
     # как в остальных модулях шли на всю. Сторожим числом: сетка износа должна
     # занимать почти всю ширину блока, и колонок в ней должно быть столько же,
     # сколько у соседей.
-    WEAR_LAYOUT = r"""() => {
-      const h = [...document.querySelectorAll('.oi-stack .sec-h')]
-        .find((e) => e.textContent.includes('Износ'));
-      if (!h) return null;
-      const grid = h.parentElement.querySelector('.grid');
-      const pad = grid.closest('.card-pad');
+    # Конструктив и износ идут одной таблицей: строка — элемент, рядом его
+    # материалы и износ (решение пользователя 05.09.2026 по заметке «все поля в
+    # износе в формате материал — износ, построчно»). Сторожим состав таблицы, а
+    # не прежнюю сетку: у неё была своя болезнь — износ сжимался в половину
+    # ширины карточки, и в новом виде повториться она не может.
+    TABLE = r"""() => {
+      const t = document.querySelector('.oi-stack .struct-tbl');
+      if (!t) return null;
+      const rows = [...t.querySelectorAll('tbody tr')].map((tr) => ({
+        el: tr.children[0].textContent.replace(/\s+/g, ' ').trim(),
+        material: !!tr.children[1].querySelector('[data-struct-field], [data-heat-field]'),
+        wear: !!tr.children[2].querySelector('[data-wear]'),
+      }));
+      const pad = t.closest('.card-pad');
       return {
-        cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
-        share: grid.getBoundingClientRect().width / pad.getBoundingClientRect().width,
-        note: !!h.querySelector('.dev-note'),
+        head: [...t.querySelectorAll('thead th')].map((th) => th.textContent.replace(/\s+/g, ' ').trim()),
+        rows,
+        note: !!t.querySelector('thead .dev-note'),
+        share: t.getBoundingClientRect().width / pad.getBoundingClientRect().width,
       };
     }"""
 
-    layouts = {}
+    tables = {}
     for oc, route in ROUTES.items():
         t.open(route, wait='[data-open-oi]')
         t.wait(300)
         if not _add(t):
             continue
-        got = pg.evaluate(WEAR_LAYOUT)
-        if not t.ck(got, 'в %s нет раздела износа' % oc):
+
+        got = pg.evaluate(TABLE)
+        if not t.ck(got, 'в %s нет блока «Конструктив и износ»' % oc):
             continue
-        layouts[oc] = got
+        tables[oc] = got
 
-        t.ck(got['share'] > 0.95,
-             'в %s сетка износа занимает %d%% ширины блока вместо всей'
-             % (oc, round(got['share'] * 100)))
+        t.ck(len(got['rows']) >= 9,
+             'в %s в таблице конструктива %d строк' % (oc, len(got['rows'])))
+        t.ck(all(r['material'] for r in got['rows']),
+             'в %s есть строка без выбора материала: %s'
+             % (oc, [r['el'] for r in got['rows'] if not r['material']]))
+        t.ck(all(r['wear'] for r in got['rows']),
+             'в %s есть строка без износа: %s'
+             % (oc, [r['el'] for r in got['rows'] if not r['wear']]))
         t.ck(got['note'],
-             'в %s у раздела износа нет заметки о том, что вид ещё обсуждается' % oc)
+             'в %s у столбца износа нет заметки о том, что вид ещё обсуждается' % oc)
+        t.ck(got['share'] > 0.95,
+             'в %s таблица занимает %d%% ширины блока вместо всей'
+             % (oc, round(got['share'] * 100)))
 
-    cols = {oc: l['cols'] for oc, l in layouts.items()}
-    t.ck(len(set(cols.values())) <= 1,
-         'колонок в износе по-разному: %s' % cols)
+    # Состав строк одинаков во всех типах ОЦ — это та же карточка строения.
+    sets = {oc: tuple(r['el'] for r in v['rows']) for oc, v in tables.items()}
+    t.ck(len(set(sets.values())) <= 1, 'строки конструктива различаются: %s' % sets)
 
+    # --- состояние жилого дома: отдельный блок из трёх полей ---
+    for oc, route in ROUTES.items():
+        t.open(route, wait='[data-open-oi]')
+        t.wait(300)
+        if not _add(t, 'Жилой дом'):
+            continue
+        t.ck(pg.locator('[data-condition]').count() == 3,
+             'в %s у жилого дома не три поля состояния' % oc)
+        t.ck(pg.locator('#q-cond').count() == 1,
+             'в %s состояние не отдельным блоком' % oc)
+
+    for oc, route in ROUTES.items():
+        t.open(route, wait='[data-open-oi]')
+        t.wait(300)
+        if not _add(t, 'Гражданское здание'):
+            continue
+        t.ck(pg.locator('[data-condition]').count() == 0,
+             'в %s блок состояния показан у нежилого строения' % oc)
 
     check_block_styles(t)
 

@@ -150,6 +150,23 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 </div>
 </div>
 </div>
+<div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
+<div class="grid g-4" style="margin-top:6px">
+<div class="field"><label>Улица</label>
+<input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Байтик Баатыра">
+</div>
+<div class="field"><label>Дом</label>
+<input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="42">
+</div>
+<div class="field"><label>Квартира</label>
+<input class="input" data-oi-flat value="${esc(oi.flat || '')}" placeholder="78">
+</div>
+<div class="field"><label>Координаты (широта, долгота)</label>
+<input class="input mono" data-oi-gps value="${esc(oi.gps || '')}"
+placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота">
+</div>
+</div>
+<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
 </div></div>
 </div>`;
 }

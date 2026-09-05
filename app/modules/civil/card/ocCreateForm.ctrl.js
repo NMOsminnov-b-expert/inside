@@ -1,4 +1,5 @@
 import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
+import { syncOcAddress, ocFullAddress } from '../../../kernel/address.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { parseEni, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
@@ -34,8 +35,14 @@ export function bindOcCreate(ctx) {
     rec.eni = parseEni(s.$('#fEni').value);
     rec.institution = s.$('#fInst').value;
     rec.podved = s.$('#fPodved').value;
-    rec.address = s.$('#fAddr').value;
-    rec.city = rec.address.includes('Ош') ? 'Ош' : 'Бишкек';
+    // Адрес записи больше не вводится строкой: у объекта оценки общая часть
+    // (город, район, микрорайон), улица с домом — у каждого ОИ. Собранное
+    // значение держим в rec.address, его читают реестр, поиск, архив и лог
+    // (kernel/address.js).
+    rec.city = s.$('#fCity').value.trim();
+    rec.district = s.$('#fDistrict').value.trim();
+    rec.micro = s.$('#fMicro').value.trim();
+    syncOcAddress(rec);
     rec.gps = s.$('#fGps').value;
     rec.complex = !!(s.$('#fComplex') && s.$('#fComplex').checked);
     rec.updatedAt = ctx.today;
@@ -76,4 +83,25 @@ export function bindOcCreate(ctx) {
     if (e.target.closest('[data-doc-del]')) return;
     openDocViewer(ctx, 'oc', tr.dataset.openDoc);
   });
+
+  // Собранный адрес обновляется по ходу ввода: иначе человек правит город, а
+  // строка под полями показывает прежнее — и непонятно, что получится.
+  const addrSum = s.$('[data-addr-sum]');
+  if (addrSum) {
+    const redrawAddr = () => {
+      const preview = Object.assign({}, rec, {
+        city: (s.$('#fCity') || {}).value || '',
+        district: (s.$('#fDistrict') || {}).value || '',
+        micro: (s.$('#fMicro') || {}).value || '',
+      });
+      const text = ocFullAddress(preview);
+      addrSum.textContent = text
+        || 'Заполните город; улица и дом задаются в карточках объектов имущества';
+    };
+    ['#fCity', '#fDistrict', '#fMicro'].forEach((sel) => {
+      const el = s.$(sel);
+      if (el) el.oninput = redrawAddr;
+    });
+  }
+
 }

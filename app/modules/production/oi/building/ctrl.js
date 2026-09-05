@@ -1,4 +1,5 @@
 import { fieldsThatDisappear } from '../../../../kernel/fieldsPreview.js';
+import { syncOcAddress } from '../../../../kernel/address.js';
 import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
@@ -268,6 +269,27 @@ export function bind(ctx, oi) {
 
   const nm = s.$('[data-oi-name]');
   if (nm) nm.onchange = () => { oi.name = nm.value; ctx.updatePlate(); };
+
+  // Адрес литеры: улица с домом свои у каждого ОИ, город с районом — общие для
+  // записи. Собранный адрес записи держится в rec.address, поэтому после правки
+  // его пересобираем — иначе шапка, реестр и поиск показывали бы старое
+  // (kernel/address.js, заметки команды 05.09.2026).
+  const street = s.$('[data-oi-street]');
+  if (street) street.onchange = () => {
+    oi.street = street.value.trim();
+    syncOcAddress(ctx.rec);
+    ctx.updatePlate();
+  };
+
+  const house = s.$('[data-oi-house]');
+  if (house) house.onchange = () => {
+    oi.house = house.value.trim();
+    syncOcAddress(ctx.rec);
+    ctx.updatePlate();
+  };
+
+  const oiGps = s.$('[data-oi-gps]');
+  if (oiGps) oiGps.onchange = () => { oi.gps = oiGps.value.trim(); };
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
@@ -283,6 +305,11 @@ export function bind(ctx, oi) {
   bindStruct(ctx, oi);
 
   // --- Износ конструктивных элементов --------------------------------------
+// Состояние жилого дома: три отдельных поля (блок «Состояние»).
+  s.$$('[data-condition]').forEach((sel) => sel.onchange = () => {
+    oi[sel.dataset.condition] = sel.value;
+  });
+
   s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
     oi.wear = oi.wear || {};
     oi.wear[sel.dataset.wear] = sel.value;
