@@ -1,6 +1,7 @@
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
+import { migrateTempMode } from './oi/building/tempMode.js';
 import { migrateUtilities } from './oi/land/utilities.js';
 import { migrateImprovements } from './oi/land/improvements.js';
 import { migrateLandDicts } from './oi/land/dictMigrate.js';
@@ -323,6 +324,8 @@ export function main(host) {
       }
       // Колонка «Площадь внешн.» слилась с застройкой — переносим значения.
       migrateFloorAreas(o);
+      // Температурный режим был строкой, стал списком (Л6.2).
+      migrateTempMode(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
       // Террасы отделены от балконов (решение пользователя 2026-08-27):

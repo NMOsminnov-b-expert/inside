@@ -6,13 +6,14 @@ import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { devNote } from '../../../../kernel/devNote.js';
-import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT , RIGHTS, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, WEAR_LEVEL, STRUCTURE_KIND} from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT , RIGHTS, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, WEAR_LEVEL, STRUCTURE_KIND, PROD_FRAME, PROD_FLOORS, CRANE_BEAM, STRUCT_STRENGTH } from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { tempModeMS } from './tempMode.js';
 
 
 // Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
@@ -352,7 +353,35 @@ ${RENT_COLS.map((c) => `<td><input class="input" data-rent-cell="${c.key}|${r.id
 </div>`;
 }
 
+// «Доп параметры» — только для строений с catClass «Производственно-складское».
+function prodExtraCard(ctx, oi, idx) {
+  return `<div class="card t-teal" id="q-prod">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Доп параметры (производственное строение)</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="grid g-3">
+<div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(oi.prodHeight || '')}" inputmode="decimal"></div>
+${tempModeMS(ctx, oi)}
+<div class="field"><label>Усиленность конструкции</label>
+<select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+</div>
+<div class="grid g-3" style="margin-top:10px">
+<div class="field"><label>Конструктив</label>
+<select class="select" data-prod-frame>${opt('building', 'frame', PROD_FRAME).map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+<div class="field"><label>Полы (несущая способность)</label>
+<select class="select" data-prod-floors>${opt('building', 'floorsType', PROD_FLOORS).map((o) => `<option ${o === (oi.prodFloors || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+<div class="field"><label>Наличие/возможность кран-балки</label>
+<select class="select" data-prod-crane>${opt('building', 'craneBeam', CRANE_BEAM).map((o) => `<option ${o === (oi.craneBeam || opt('building', 'craneBeam', CRANE_BEAM)[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
+</div>
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
+  const rq = fieldRules(ctx, oi);
 
   const idx = blockNumbers();
 
@@ -362,6 +391,7 @@ ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
 ${rentAreasCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
+${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}
 </div>`;
 

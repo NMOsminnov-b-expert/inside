@@ -1,6 +1,7 @@
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
+import { migrateTempMode } from './oi/building/tempMode.js';
 // Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
 // поэтому и перевод её данных берётся оттуда же.
 import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
@@ -326,6 +327,8 @@ export function main(host) {
       }
       // Колонка «Площадь внешн.» слилась с застройкой — переносим значения.
       migrateFloorAreas(o);
+      // Температурный режим был строкой, стал списком (Л6.2).
+      migrateTempMode(o);
       migrateAreaList(o, 'loggias', 'loggiasCount', 'loggias');
       migrateAreaList(o, 'balconies', 'balconiesCount', 'balconies');
       // Террасы отделены от балконов (решение пользователя 2026-08-27):

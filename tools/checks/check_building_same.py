@@ -40,15 +40,26 @@ MUST = [
     ('[data-rent-add]', 'площади и стоимость аренды по этажам'),
 ]
 
+# Что должно появляться у строения с производственным назначением — в любом ОЦ.
+MUST_PROD = [
+    ('#q-prod', 'блок доп. параметров производственного строения'),
+    ('[data-prod-height]', 'высота по техпаспорту'),
+    ('[data-prod-frame]', 'конструктив'),
+    ('[data-prod-floors]', 'полы по несущей способности'),
+    ('[data-prod-crane]', 'кран-балка'),
+    ('[data-temp-field]', 'температурный режим'),
+    ('[data-struct-strength]', 'усиленность конструкции'),
+]
+
 LABELS = r"""() => [...document.querySelectorAll('.oi-stack .field > label')]
   .map((e) => e.textContent.replace(/\s+/g, ' ').replace('*', '').trim())"""
 
 
-def _add_building(t):
+def _add(t, kind='Гражданское здание'):
     pg = t.page
     pg.locator('[data-dd-toggle]').first.click()
     t.wait_for('[data-add-oi]')
-    item = pg.locator('[data-add-oi="Гражданское здание"]')
+    item = pg.locator('[data-add-oi="%s"]' % kind)
     if not item.count():
         return False
     item.first.click()
@@ -63,7 +74,7 @@ def run(t):
     for oc, route in ROUTES.items():
         t.open(route, wait='[data-open-oi]')
         t.wait(300)
-        if not t.ck(_add_building(t), 'в %s не заводится строение' % oc):
+        if not t.ck(_add(t), 'в %s не заводится строение' % oc):
             continue
 
         for sel, what in MUST:
@@ -89,9 +100,25 @@ def run(t):
             '[data-structure-kind] option', 'els => els.map((e) => e.textContent.trim())')
         t.ck(len(kinds) >= 10, 'в %s перечень типов строения короткий: %s' % (oc, kinds))
 
+    # --- производственное назначение открывает свой блок в любом ОЦ ---
+    #
+    # Производственное строение заводится в любом объекте оценки, а описать его
+    # было нечем в трёх типах из пяти: блок доп. параметров жил только в
+    # гражданском и производственном, а температурный режим с усиленностью —
+    # вообще только в производственном (правка 05.09.2026, эталон — он же).
+    for oc, route in ROUTES.items():
+        t.open(route, wait='[data-open-oi]')
+        t.wait(300)
+        if not t.ck(_add(t, 'Производственное строение'),
+                    'в %s не заводится производственное строение' % oc):
+            continue
+        for sel, what in MUST_PROD:
+            t.ck(pg.locator(sel).count() > 0,
+                 'в %s у производственного строения нет: %s' % (oc, what))
+
     # --- заметка о виде износа стоит и видна ---
     t.open(ROUTES['квартира'], wait='[data-open-oi]')
     t.wait(300)
-    if _add_building(t):
+    if _add(t):
         note = pg.locator('.sec-h .dev-note')
         t.ck(note.count() > 0, 'у раздела износа нет заметки о том, что вид ещё обсуждается')

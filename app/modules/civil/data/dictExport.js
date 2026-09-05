@@ -14,6 +14,26 @@ import { LAND_DICT_SOURCES } from '../../land-plot/data/landDicts.js';
 
 export const DICT_SOURCES = [
   {
+    key: 'TEMP_MODE',
+    title: 'Температурный режим',
+    kind: 'list',
+    system: false,
+    values: D.TEMP_MODE,
+    slots: [
+      { card: 'building', field: 'tempMode', label: 'Температурный режим' },
+    ],
+  },
+  {
+    key: 'STRUCT_STRENGTH',
+    title: 'Капитальность конструкций',
+    kind: 'list',
+    system: false,
+    values: D.STRUCT_STRENGTH,
+    slots: [
+      { card: 'building', field: 'structStrength', label: 'Капитальность' },
+    ],
+  },
+  {
     key: 'STRUCTURE_KIND',
     title: 'Тип строения',
     kind: 'list',

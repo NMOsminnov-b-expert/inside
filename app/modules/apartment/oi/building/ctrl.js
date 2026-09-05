@@ -17,6 +17,7 @@ import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextDocId, nextId } from '../../data/store.js';
+import { bindTempMode } from './tempMode.js';
 
 export function bind(ctx, oi) {
   bindAreaList(ctx, oi, 'loggias');
@@ -186,6 +187,16 @@ export function bind(ctx, oi) {
     if (i >= 0) oi.rentAreas.splice(i, 1);
     ctx.render();
   });
+
+  // Доп. параметры производственного строения.
+  [['prod-height', 'prodHeight'], ['prod-frame', 'prodFrame'],
+    ['prod-floors', 'prodFloors'], ['prod-crane', 'craneBeam'],
+    ['struct-strength', 'structStrength']].forEach(([attr, key]) => {
+    const el = s.$('[data-' + attr + ']');
+    if (el) el.onchange = () => { oi[key] = el.value; };
+  });
+
+  bindTempMode(ctx, oi);
 
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };

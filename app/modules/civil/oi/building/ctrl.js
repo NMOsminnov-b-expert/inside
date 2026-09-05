@@ -17,6 +17,7 @@ import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId, nextDocId } from '../../data/store.js';
+import { bindTempMode } from './tempMode.js';
 
 export function bind(ctx, oi) {
   bindAreaList(ctx, oi, 'loggias');
@@ -221,6 +222,8 @@ export function bind(ctx, oi) {
     if (i >= 0) oi.rentAreas.splice(i, 1);
     ctx.render();
   });
+
+  bindTempMode(ctx, oi);
 
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };
