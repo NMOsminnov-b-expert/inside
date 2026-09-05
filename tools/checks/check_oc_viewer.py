@@ -90,3 +90,83 @@ def run(t):
         one_n = pg.locator('.ph-pop-item').count()
         t.ck(one_n < all_n, 'выбор категории не отфильтровал снимки: было %d, стало %d'
              % (all_n, one_n))
+
+
+    check_no_drift(t)
+
+# --- рассинхрона между типами ОЦ быть не должно --------------------------
+#
+# Просмотрщик и оформление одинаковы во всех пяти модулях. Сторожим обе стороны:
+# состав просмотрщика (режимы, меню) и вычисленные стили ключевых элементов
+# карточки. Расхождения тут уже случались: стили лежали пятью копиями, а правила
+# карточки участка — только в module.css участка, хотя карточка общая
+# (.field-flow был flex у участка и block у остальных).
+ALL_ROUTES = {
+    'квартира': '#/oc/apartment/oc-ap-1',
+    'жилой дом': '#/oc/residential-house/oc-rh-1',
+    'гражданское': '#/oc/civil/oc-cv-1',
+    'производственное': '#/oc/production/oc-pr-1',
+    'участок': '#/oc/land-plot/oc-lp-1',
+}
+
+STYLE_PROBE = """() => {
+  const g = (sel, props) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    const o = {};
+    props.forEach((p) => { o[p] = cs[p]; });
+    return o;
+  };
+  return {
+    card: g('.oi-stack .card, .card', ['borderRadius', 'borderLeftWidth']),
+    head: g('.oi-stack .card-head, .card-head', ['borderRadius', 'padding']),
+    idx: g('.oi-stack .card-idx, .card-idx', ['borderRadius', 'fontSize']),
+    input: g('.card-pad .input', ['borderRadius', 'fontSize']),
+    select: g('.card-pad .select', ['borderRadius', 'fontSize']),
+    label: g('.card-pad .field > label', ['fontSize', 'fontWeight']),
+    fieldFlow: g('.field-flow', ['display']),
+  };
+}"""
+
+VIEWER_PROBE = r"""() => ({
+  modes: [...document.querySelectorAll('.vmode-btn')]
+    .map((b) => b.textContent.trim().replace(/\s*·\s*\d+/, '')),
+  burger: document.querySelectorAll('[data-vsb-toggle]').length,
+  viewer: document.querySelectorAll('.viewer').length,
+})"""
+
+
+def check_no_drift(t):
+    pg = t.page
+    styles = {}
+    viewers = {}
+
+    for oc, route in ALL_ROUTES.items():
+        # Карточка объекта оценки.
+        t.open(route, wait='.card')
+        t.wait(300)
+        viewers[oc] = pg.evaluate(VIEWER_PROBE)
+
+        # Карточка участка: она одна на все типы ОЦ, поэтому и стили её полей
+        # обязаны совпадать.
+        if pg.locator('.oi-land-open').count():
+            pg.locator('.oi-land-open').first.click()
+        else:
+            pg.locator('[data-dd-toggle]').first.click()
+            t.wait_for('[data-add-oi]')
+            pg.locator('[data-add-oi="Земельный участок"]').first.click()
+        t.wait_for('[data-land-type]')
+        styles[oc] = pg.evaluate(STYLE_PROBE)
+
+    base = 'гражданское'
+    for oc in ALL_ROUTES:
+        if oc == base:
+            continue
+        for key in styles[base]:
+            t.ck(styles[oc].get(key) == styles[base].get(key),
+                 'оформление карточки участка в «%s» отличается по %s: %s против %s'
+                 % (oc, key, styles[oc].get(key), styles[base].get(key)))
+        t.ck(viewers[oc] == viewers[base],
+             'просмотрщик ОЦ в «%s» отличается: %s против %s'
+             % (oc, viewers[oc], viewers[base]))

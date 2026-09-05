@@ -6,20 +6,7 @@
    открывает обычное .dd-menu. Нативный <datalist> заменён именно из-за того,
    что его выпадашку нельзя ни прокрутить, ни оформить. */
 
-body[data-module="residential-house"] .combo{display:block}
-
-body[data-module="residential-house"] .combo .input{width:100%;padding-right:26px}
-
-body[data-module="residential-house"] .combo-arrow{position:absolute;right:1px;top:1px;bottom:1px;width:24px;border:none;
-  background:none;color:#7d93a6;font-size:11px;cursor:pointer;border-radius:0 7px 7px 0}
-
-body[data-module="residential-house"] .combo-arrow:hover{background:var(--blue-50);color:var(--blue-700)}
-
 /* Список серий длиннее поля — прокрутка обязательна, это и была жалоба. */
-
-body[data-module="residential-house"] .combo-menu{max-height:240px;overflow:auto;min-width:100%}
-
-body[data-module="residential-house"] .combo-menu button{width:100%;text-align:left}
 
 /* Сравнение: подвижная граница между фото и документом и сворачивание половин
    (Л3.9). Ширина левой колонки — переменная --cmp-photo, её двигает ручка;
@@ -41,3 +28,7 @@ body[data-module="residential-house"] .combo-menu button{width:100%;text-align:l
 
    Раньше здесь всё было 10–11px и почти всё капсом: шапка узла, разделы и
    колонки читались одинаково, и глазу не за что было зацепиться. */
+
+/* Своих правил у этого типа ОЦ не осталось: комбо серии дома убрано
+   вместе с разметкой (серия стала справочником), всё остальное общее. */
+

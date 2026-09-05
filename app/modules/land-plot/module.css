@@ -8,14 +8,8 @@
    растягивался на пол-экрана: пустое поле шириной с карточку и читается как
    дыра. */
 
-body[data-module="land-plot"] .field-flow{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
-
-body[data-module="land-plot"] .field-flow>.field{flex:1 1 210px;max-width:330px}
-
 /* Свободный текст — поле заметно выше строки ввода: в одну строку такое
    описание всё равно не помещается, а низкое поле выглядит незаполненным. */
-
-body[data-module="land-plot"] .textarea.ta-wide{min-height:64px}
 
 /* Сравнение: подвижная граница между фото и документом и сворачивание половин
    (Л3.9). Ширина левой колонки — переменная --cmp-photo, её двигает ручка;

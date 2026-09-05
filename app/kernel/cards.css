@@ -807,3 +807,12 @@ body[data-module] .select{
 }
 body[data-module] .select:hover:not(:disabled){border-color:var(--blue-500)}
 body[data-module] .tbl .select,body[data-module="civil"] .al-tbl .select{background-position:right 7px center;padding-right:23px}
+
+/* Карточка земельного участка — общая для всех типов ОЦ (её код живёт в
+   land-plot/oi/land и импортируется остальными). Стили лежали только в
+   module.css участка, поэтому в других типах ОЦ те же поля выглядели
+   иначе: .field-flow был flex у участка и block у всех прочих.
+   Проверено замером 05.09.2026. */
+body[data-module] .field-flow{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+body[data-module] .field-flow>.field{flex:1 1 210px;max-width:330px}
+body[data-module] .textarea.ta-wide{min-height:64px}
