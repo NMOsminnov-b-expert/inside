@@ -141,26 +141,39 @@ def run(t):
     # --- 7. столбцы реестра: тип земель и свёрнутые коды ---
     t.open('#/', wait='.reg-thead')
     t.wait(400)
-    # Тип земель по умолчанию скрыт — включаем его через меню столбцов.
-    # Отдельного столбца кодов ОИ больше нет: коды показываются в столбце «Код
-    # ЕНИ» одной строкой (решение пользователя 05.09.2026).
-    pg.locator('[data-cols-dd] [data-dd-toggle]').first.click()
-    t.wait_for('[data-column="landKind"]')
-    box = pg.locator('[data-column="landKind"]')
-    t.ck(box.count() == 1, 'в меню столбцов нет «Тип земель»')
-    if box.count():
-        box.first.check()
-        t.wait(300)
-    pg.mouse.click(900, 60)
-    t.wait(300)
-
+    # --- 7. тип земель припиской к типу ОЦ ---
+    #
+    # Уточнение пользователя 05.09.2026: отдельного столбца нет, тип земель
+    # дописывается к типу объекта оценки — «Земельный участок · с/х». Считается
+    # по участкам записи: у записи без участков приписки нет.
     head = pg.locator('.reg-thead').inner_text().upper()
-    t.ck('ТИП ЗЕМЕЛЬ' in head, 'в реестре нет столбца типа земель')
+    t.ck('ТИП ЗЕМЕЛЬ' not in head,
+         'вернулся отдельный столбец типа земель — приписка идёт в типе ОЦ')
 
-    kinds = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr .tag-mini')]
-        .map((e) => e.textContent.trim())""")
-    t.ck(any(k in ('Сельхоз', 'Несельхоз', 'Смешанный') for k in kinds),
-         'столбец типа земель пуст у всех записей: %s' % kinds[:5])
+    rows = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr')].map((tr) => {
+      const cell = tr.querySelector('.reg-type');
+      if (!cell) return null;
+      const sub = cell.querySelector('.reg-sub');
+      return {
+        type: (cell.querySelector('.ell') || cell).textContent.trim(),
+        sub: sub ? sub.textContent.trim() : '',
+        full: cell.getAttribute('title') || '',
+      };
+    }).filter(Boolean)""")
+
+    withSub = [r for r in rows if r['sub']]
+    t.ck(withSub, 'ни у одной записи нет приписки типа земель')
+
+    for row in withSub:
+        t.ck(row['sub'] in ('с/х', 'не с/х', 'смеш.'),
+             'приписка типа земель записана иначе: %s' % row['sub'])
+        t.ck('·' in row['full'], 'приписка не отделена от типа ОЦ: %s' % row['full'])
+        # Приписка только у типа ОЦ «Земельный участок»: у здания участок под ним
+        # — часть объекта, а не то, чем объект является (уточнение пользователя
+        # 05.09.2026).
+        t.ck('емельный участок' in row['type'],
+             'приписка типа земель у типа «%s», а должна быть только у участка'
+             % row['type'])
 
     # --- 8. столбец «Код ЕНИ»: коды записи и её ОИ одной строкой ---
     #

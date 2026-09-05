@@ -199,3 +199,12 @@ body[data-page="oc-menu"] .select{appearance:none;-webkit-appearance:none;-moz-a
   background-position:right 9px center;padding-right:26px;cursor:pointer}
 body[data-page="oc-menu"] .reg-who .select,body[data-page="oc-menu"] .reg-foot .select{background-position:right 6px center;
   padding-right:20px}
+
+/* Тип ОЦ с припиской: тип земель записи («Земельный участок · с/х»). Название
+   сжимается многоточием, приписка — нет: она короткая, и ради неё столбец и
+   смотрят (уточнение пользователя 05.09.2026). */
+body[data-page="oc-menu"] .reg-type{display:flex;align-items:baseline;gap:5px;min-width:0}
+body[data-page="oc-menu"] .reg-type .ell{min-width:0;flex:0 1 auto}
+body[data-page="oc-menu"] .reg-sub{flex:0 0 auto;font-style:normal;color:var(--muted);
+  font-size:11px;white-space:nowrap}
+body[data-page="oc-menu"] .reg-sub::before{content:'· '}

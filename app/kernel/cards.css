@@ -855,3 +855,17 @@ body[data-module] .struct-tbl .ms-drop{min-width:260px}
    Переносим по словам вместо многоточия: адрес в шапке читают целиком. */
 body[data-module] .hm.hm-wide{flex:1 1 320px;min-width:220px}
 body[data-module] .hm.hm-wide b{white-space:normal;max-width:none;line-height:1.3}
+
+/* ===== Выбор с поиском (kernel/pickSearch.js) ==============================
+   Одиночный выбор из длинного списка: учреждение, подвед. Внешне это то же
+   поле, что мультивыбор, — разница только в том, что строки списка выбирают
+   одно значение и список сразу закрывается. */
+body[data-module] .ps .ms-drop{min-width:280px;max-height:320px;overflow:auto}
+body[data-module] .ps-opt{display:block;width:100%;text-align:left;padding:5px 9px;
+  border:none;background:none;cursor:pointer;font-size:12.5px;color:#22303f}
+body[data-module] .ps-opt:hover{background:var(--blue-50)}
+body[data-module] .ps-opt.on{background:var(--blue-100);font-weight:600}
+body[data-module] .ps-clear{display:block;width:100%;text-align:left;padding:6px 9px;
+  border:none;border-top:1px solid var(--line-soft);background:none;cursor:pointer;
+  font-size:11.5px;color:var(--muted)}
+body[data-module] .ps-clear:hover{color:var(--blue-700);background:var(--blue-50)}

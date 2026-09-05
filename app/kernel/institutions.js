@@ -495,6 +495,26 @@ export function favoriteNodes() {
   return [...favorites].map(getNode).filter(Boolean);
 }
 
+// Списки для выбора в формах объекта оценки (замечание пользователя
+// 05.09.2026: учреждение и подвед вводились текстом, и опечатка создавала
+// учреждение, которого нет в дереве).
+//
+// Учреждения — второй уровень дерева: под корнями «Государство» и «Местное
+// самоуправление». Подведы — дети выбранного учреждения.
+export function institutionNames() {
+  const roots = allNodes().filter((n) => !n.parentId).map((n) => n.id);
+  return allNodes()
+    .filter((n) => roots.includes(n.parentId))
+    .map((n) => n.name)
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+export function podvedNamesOf(institutionName) {
+  const parent = allNodes().find((n) => n.name === institutionName);
+  if (!parent) return [];
+  return childrenOf(parent.id).map((n) => n.name);
+}
+
 export function searchNodes(q) {
   const needle = String(q || '').trim().toLowerCase();
   if (!needle) return [];

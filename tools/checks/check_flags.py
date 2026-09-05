@@ -50,6 +50,9 @@ def run(t):
     th = pg.locator('[data-sort="specials"]')
     if not t.ck(th.count() > 0, 'столбец «Теги» не сортируемый'):
         return
+    # Столбец может оказаться за правым краем: включённых столбцов больше, чем
+    # помещается, и таблица прокручивается по горизонтали.
+    th.first.scroll_into_view_if_needed()
     th.first.click()
     t.wait(900)
 

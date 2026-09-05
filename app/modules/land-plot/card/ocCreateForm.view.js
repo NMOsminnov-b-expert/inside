@@ -1,4 +1,6 @@
 import { fmtEni } from '../../../kernel/fmt.js';
+import { pickSearchHTML } from '../../../kernel/pickSearch.js';
+import { institutionNames, podvedNamesOf } from '../../../kernel/institutions.js';
 import { ocFullAddress } from '../../../kernel/address.js';
 import { esc } from '../../../kernel/dom.js';
 import { STATUS_OC } from '../data/dictionaries.js';
@@ -52,12 +54,24 @@ function mainSection(rec) {
 
         <div class="field">
           <label>Учреждение</label>
-          <input class="input" id="fInst" value="${esc(rec.institution)}">
+          ${pickSearchHTML({
+    key: 'inst',
+    value: rec.institution,
+    options: institutionNames(),
+    placeholder: 'Выберите учреждение',
+    search: 'Поиск учреждения…',
+  })}
         </div>
 
         <div class="field">
           <label>Подвед</label>
-          <input class="input" id="fPodved" value="${esc(rec.podved)}">
+          ${pickSearchHTML({
+    key: 'podved',
+    value: rec.podved,
+    options: podvedNamesOf(rec.institution),
+    placeholder: rec.institution ? 'Выберите подвед' : 'Сначала выберите учреждение',
+    search: 'Поиск подведа…',
+  })}
         </div>
       </div>
 

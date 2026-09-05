@@ -1,4 +1,6 @@
 import { ocTypes, previewOcTypeChange, changeOcType } from '../../../kernel/typeChange.js';
+import { bindPickSearch } from '../../../kernel/pickSearch.js';
+import { podvedNamesOf } from '../../../kernel/institutions.js';
 import { syncOcAddress, ocFullAddress } from '../../../kernel/address.js';
 import { plural, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
@@ -72,8 +74,8 @@ export function bindOcForm(ctx) {
     rec.purposeTP = s.$('#fPurpose').value;
     rec.status = s.$('#fStatus').value;
     rec.eni = parseEni(s.$('#fEni').value);
-    rec.institution = s.$('#fInst').value;
-    rec.podved = s.$('#fPodved').value;
+    // Учреждение и подвед выбираются из дерева (kernel/pickSearch.js) и
+    // записываются сразу при выборе — здесь их брать неоткуда.
     // Адрес записи больше не вводится строкой: у объекта оценки общая часть
     // (город, район, микрорайон), улица с домом — у каждого ОИ. Собранное
     // значение держим в rec.address, его читают реестр, поиск, архив и лог
@@ -142,5 +144,21 @@ export function bindOcForm(ctx) {
       if (el) el.oninput = redrawAddr;
     });
   }
+
+
+  // Учреждение и подвед — выбор из дерева учреждений с поиском. Подвед зависит
+  // от учреждения, поэтому после смены учреждения форма перерисовывается: иначе
+  // в поле остался бы подвед чужого учреждения (замечание пользователя
+  // 05.09.2026 — раньше это были текстовые поля).
+  bindPickSearch(s, 'inst', (value) => {
+    rec.institution = value;
+    if (!podvedNamesOf(value).includes(rec.podved)) rec.podved = '';
+    ctx.render();
+  });
+
+  bindPickSearch(s, 'podved', (value) => {
+    rec.podved = value;
+    ctx.render();
+  });
 
 }

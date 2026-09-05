@@ -60,12 +60,21 @@ function cell(col, s) {
       : '<span class="muted">—</span>';
     case 'insp': return `<span class="ell" title="${esc(s.resp.insp || '')}">${esc(s.resp.insp || '—')}</span>`;
     case 'appr': return `<span class="ell" title="${esc(s.resp.appr || '')}">${esc(s.resp.appr || '—')}</span>`;
-    case 'typeLabel': return `<span class="ell" title="${esc(s.typeLabel)}">${esc(s.typeLabel)}</span>`;
+    // К типу ОЦ приписывается тип земель записи: «Земельный участок · с/х»
+    // (заметка Даниила, уточнение пользователя 05.09.2026 — приписка идёт в
+    // самом типе, отдельного столбца нет). Считается по участкам записи.
+    case 'typeLabel': {
+      const full = s.landKind ? `${s.typeLabel} · ${s.landKind}` : s.typeLabel;
+      // Приписка стоит отдельной частью ячейки и не сжимается: названия типов
+      // длинные, и в общей строке она первой уходила бы под многоточие —
+      // а ради неё столбец и читают.
+      return `<span class="reg-type" title="${esc(full)}">
+        <span class="ell">${esc(s.typeLabel)}</span>
+        ${s.landKind ? `<i class="reg-sub">${esc(s.landKind)}</i>` : ''}
+      </span>`;
+    }
     case 'institution': return `<span class="ell" title="${esc(s.institution || '')}">${esc(s.institution || '—')}</span>`;
     case 'city': return `<span class="ell" title="${esc(s.city || '')}">${esc(s.city || '—')}</span>`;
-    case 'landKind': return s.landKind
-      ? `<span class="tag-mini">${esc(s.landKind)}</span>`
-      : '<span class="muted">—</span>';
     case 'updatedAt': return `<span class="ell" title="${esc(s.updatedAt || '')}">${esc(s.updatedAt || '—')}</span>`;
     case 'podved': return `<span class="ell" title="${esc(s.podved || '')}">${esc(s.podved || '—')}</span>`;
     case 'landArea': return s.metrics.landArea ? fmtNum(s.metrics.landArea) : '—';
@@ -122,11 +131,10 @@ function plain(col, s) {
   switch (col.key) {
     case 'eni': return s.eni;
     case 'title': return s.title;
-    case 'typeLabel': return s.typeLabel;
+    case 'typeLabel': return s.landKind ? `${s.typeLabel} · ${s.landKind}` : s.typeLabel;
     case 'status': return s.status;
     case 'institution': return s.institution;
     case 'city': return s.city;
-    case 'landKind': return s.landKind || '';
     case 'podved': return s.podved || '';
     case 'landArea': return s.metrics.landArea ? String(s.metrics.landArea).replace('.', ',') : '';
     case 'owners': return (s.owners || []).join(', ');
