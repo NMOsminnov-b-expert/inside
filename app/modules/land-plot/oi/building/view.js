@@ -44,6 +44,12 @@ export function fieldRules(ctx, oi) {
     showResCat: !!oi.residential,
     showMatched: ml,
     showCatClass: !(oi.residential && housingOc),
+    // У жилого дома нет ни класса капитальности, ни аренды по этажам: и то и
+    // другое описывает нежилые здания — класс капитальности назначают
+    // административным и производственно-складским помещениям, аренда по
+    // этажам тоже про них (решение пользователя 05.09.2026).
+    showOiCategory: !oi.residential,
+    showRent: !oi.residential,
   };
 }
 
@@ -138,9 +144,9 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
-<div class="field"><label>Категория ОИ</label>
+${rq.showOiCategory ? `<div class="field"><label>Категория ОИ</label>
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
-</div>
+</div>` : ''}
 ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
@@ -389,7 +395,7 @@ export function render(ctx, oi) {
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
-${rentAreasCard(ctx, oi, idx())}
+${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 ${structCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}
