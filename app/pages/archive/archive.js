@@ -100,6 +100,7 @@ const state = {
   contentWidth: 420,
   accOpen: {},           // раскрытые группы (§7.4)
   cursor: null,          // id строки под клавиатурным курсором (§15)
+  facetQ: {},            // поиск внутри длинного фасета: { uiKey: 'текст' }
 };
 // Открытость меню столбцов не хранится в state (это не настройка, а
 // секундное состояние UI) — тот же приём, что в ocMenu.js: сама .dd открыта
@@ -290,23 +291,38 @@ function exportCsv(cols, rows) {
 
 // --- разметка: фильтры (§7.1, §7.3) -----------------------------------------
 
+// Тот же вид, что у фасетов сводной вкладки учреждений (institutions/allObjects.js:
+// .iall-facet/.iall-opt) — кнопка-заголовок со счётчиком-пилюлей, а не голый
+// div с жирным текстом; у длинных списков (>8 значений) — поиск внутри
+// фасета и потолок в 12 строк, а не сплошной список без разбора.
 function msRow(label, value, count, on, dataAttr) {
   return `<label class="arc-f-opt ${on ? 'on' : ''}">
     <input type="checkbox" data-${dataAttr}="${esc(value)}" ${on ? 'checked' : ''}>
-    <span class="ell">${esc(label)}</span><span class="arc-f-n">${count}</span>
+    <span class="arc-f-opt-l" title="${esc(label)}">${esc(label)}</span><span class="arc-f-opt-n">${count}</span>
   </label>`;
 }
 
 function facetGroupHTML(title, uiKey, entries, selected, dataAttr, labelOf) {
   if (!entries.length) return '';
   const open = state.accOpen[uiKey] !== false;
-  const sorted = entries.slice().sort((a, b) => b[1] - a[1]);
+  const withLabels = entries.map(([v, n]) => [v, labelOf ? labelOf(v) : v, n]);
+  const q = (state.facetQ[uiKey] || '').trim().toLowerCase();
+  const filtered = q ? withLabels.filter(([, label]) => label.toLowerCase().includes(q)) : withLabels;
+  const sorted = filtered.slice().sort((a, b) => b[2] - a[2]);
+  const shown = sorted.slice(0, 12);
+
   return `<div class="arc-f-group ${open ? 'open' : ''}">
-    <div class="arc-f-head" data-acc-toggle="${uiKey}">
-      <span class="chev">▾</span><b>${esc(title)}</b>
-      ${selected.length ? `<span class="tag-mini">${selected.length}</span>` : ''}
-    </div>
-    <div class="arc-f-body">${sorted.map(([v, n]) => msRow(labelOf ? labelOf(v) : v, v, n, selected.includes(v), dataAttr)).join('')}</div>
+    <button type="button" class="arc-f-head" data-acc-toggle="${uiKey}">
+      <span class="chev">▾</span><span class="arc-f-title">${esc(title)}</span>
+      ${selected.length ? `<b>${selected.length}</b>` : ''}
+    </button>
+    ${open ? `<div class="arc-f-body">
+      ${withLabels.length > 8 ? `<input class="arc-f-q" data-arc-facet-q="${uiKey}"
+        value="${esc(state.facetQ[uiKey] || '')}" placeholder="Найти…" autocomplete="off">` : ''}
+      ${shown.length ? shown.map(([v, label, n]) => msRow(label, v, n, selected.includes(v), dataAttr)).join('')
+        : '<div class="arc-f-none">нет значений</div>'}
+      ${sorted.length > shown.length ? `<div class="arc-f-more">ещё ${sorted.length - shown.length} — уточните поиском</div>` : ''}
+    </div>` : ''}
   </div>`;
 }
 
@@ -326,7 +342,7 @@ function filtersHTML(dims, typeNames) {
       ${facetGroupHTML('Учреждение', 'fInst', Object.entries(dims.institution), state.institution, 'arc-f-inst')}
       ${facetGroupHTML('Кто убрал', 'fBy', Object.entries(dims.archivedBy), state.archivedBy, 'arc-f-by')}
       <div class="arc-f-group open">
-        <div class="arc-f-head"><b>Период «убрано»</b></div>
+        <div class="arc-f-head static"><span class="arc-f-title">Период «убрано»</span></div>
         <div class="arc-f-body arc-f-dates">
           <input class="input" type="date" data-arc-from value="${esc(state.from)}" title="С этой даты">
           <input class="input" type="date" data-arc-to value="${esc(state.to)}" title="По эту дату">
@@ -693,18 +709,17 @@ function viewHTML() {
 
   return `<div class="arc arc3">
     <div class="arc-head">
-      <div>
-        <h2>Архив</h2>
-        <div class="arc-note">${scopeNote} Всего в архиве: <b>${facets.total}</b>.</div>
-      </div>
+      <h2>Архив</h2>
+      <div class="arc-note">${scopeNote} Всего в архиве: <b>${facets.total}</b>.</div>
+    </div>
+
+    <div class="arc-search-row">
       <div class="arc-search">
-        <input class="input" data-arc-q value="${esc(state.q)}" autocomplete="off"
-          placeholder="Поиск: название, тип, объект, ЕНИ, учреждение, кто убрал, имя файла…">
+        <span class="arc-search-ico">🔍</span>
+        <input class="input arc-search-input" data-arc-q value="${esc(state.q)}" autocomplete="off"
+          placeholder="Название, тип, объект, ЕНИ, учреждение, кто убрал, имя файла…">
+        <button class="arc-search-clear ${state.q ? '' : 'hidden'}" data-arc-q-clear title="Очистить">×</button>
       </div>
-      <label class="arc-group-toggle">
-        <input type="checkbox" data-arc-group ${state.group ? 'checked' : ''}>
-        По объекту
-      </label>
     </div>
 
     ${chipsHTML(typeNames)}
@@ -722,6 +737,10 @@ function viewHTML() {
           </div>` : `<div class="arc-toolbar-tools">
             <button class="btn btn-ghost btn-sm" data-arc-export title="Выгрузить видимые записи в CSV">Экспорт CSV</button>
           </div>`}
+          <label class="arc-group-toggle">
+            <input type="checkbox" data-arc-group ${state.group ? 'checked' : ''}>
+            По объекту
+          </label>
           <div class="dd arc-cols-dd ${colsMenuOpen ? 'open' : ''}" data-cols-dd>
             <button class="reg-icon-btn" data-dd-toggle title="Столбцы">⋮⋮</button>
             <div class="dd-menu reg-cols">${columnsMenuHTML(COLUMNS, state.columns)}</div>
@@ -751,6 +770,8 @@ export function mountArchive(host) {
   setActiveNav('archive');
   setCrumbs([{ label: 'Главная', to: '#/' }, { label: 'Архив', current: true }]);
   host.ensureStyle('./app/kernel/docViewer.css');
+
+  let searchTimer = null;
 
   let fitting = false;
   function fitCols() {
@@ -845,16 +866,32 @@ export function mountArchive(host) {
   }
 
   function bind() {
+    // Тот же приём, что у локатора реестра (ocMenu/locator.js): значок и
+    // крестик очистки прямо в поле, debounce перед перерисовкой — иначе
+    // каждая нажатая буква сразу перестраивает всю страницу целиком (таблицу,
+    // фасеты, панель содержимого), и на быстром вводе видно подёргивание.
     const q = scope.$('[data-arc-q]');
+    const qClear = scope.$('[data-arc-q-clear]');
     if (q) {
       q.oninput = () => {
         state.q = q.value;
+        if (qClear) qClear.classList.toggle('hidden', !state.q);
         const pos = q.selectionStart;
-        render();
-        const again = scope.$('[data-arc-q]');
-        if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+          render();
+          const again = scope.$('[data-arc-q]');
+          if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+        }, 170);
       };
     }
+    if (qClear) qClear.onclick = () => {
+      state.q = '';
+      clearTimeout(searchTimer);
+      render();
+      const again = scope.$('[data-arc-q]');
+      if (again) again.focus();
+    };
 
     // --- фильтры ---
     scope.$$('[data-arc-f-kind]').forEach((cb) => cb.onchange = () => toggleFacet('kind', cb.dataset.arcFKind, cb.checked));
@@ -867,6 +904,18 @@ export function mountArchive(host) {
       const key = h.dataset.accToggle;
       state.accOpen[key] = state.accOpen[key] === false;
       render();
+    });
+
+    // Поиск внутри длинного фасета (>8 значений) — тот же приём, что у
+    // сводной вкладки учреждений: перерисовка сразу, с восстановлением
+    // фокуса и позиции курсора (список фасета лёгкий, debounce тут не нужен).
+    scope.$$('[data-arc-facet-q]').forEach((inp) => inp.oninput = () => {
+      const key = inp.dataset.arcFacetQ;
+      state.facetQ[key] = inp.value;
+      const pos = inp.selectionStart;
+      render();
+      const again = scope.$(`[data-arc-facet-q="${key}"]`);
+      if (again) { again.focus(); again.setSelectionRange(pos, pos); }
     });
 
     const from = scope.$('[data-arc-from]');
@@ -892,7 +941,7 @@ export function mountArchive(host) {
     if (reset) reset.onclick = () => {
       state.q = ''; state.kind = []; state.docType = []; state.institution = [];
       state.typeId = []; state.archivedBy = []; state.from = ''; state.to = '';
-      state.showRestored = false; state.mine = false;
+      state.showRestored = false; state.mine = false; state.facetQ = {};
       render();
     };
 

@@ -6,16 +6,38 @@
 
 body[data-page="archive"] .arc{padding:14px 16px 16px;height:100%;display:flex;flex-direction:column;min-height:0}
 
-body[data-page="archive"] .arc-head{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;flex:0 0 auto}
+body[data-page="archive"] .arc-head{flex:0 0 auto}
 body[data-page="archive"] .arc-head h2{font-size:17px;font-weight:700;color:var(--blue-700)}
 body[data-page="archive"] .arc-note{font-size:12px;color:var(--muted);margin-top:4px}
 body[data-page="archive"] .arc-note b{color:var(--ink)}
 
-body[data-page="archive"] .arc-search{margin-left:auto;display:flex;gap:8px;align-items:center;flex:1 1 320px;max-width:640px}
-body[data-page="archive"] .arc-search .input{flex:1 1 auto;min-width:0}
+/* Строка поиска — отдельно от заголовка (тот же приём, что в реестре ОЦ:
+   ocMenu.js .reg-search-row живёт своей строкой, не деля место с h2). Раньше
+   поиск стоял в одном ряду с заголовком и заметкой под ним — из-за разной
+   высоты блоков строка выглядела кривой, а само поле — зажатым в угол. */
+body[data-page="archive"] .arc-search-row{display:flex;gap:12px;align-items:center;
+  flex:0 0 auto;margin-top:12px}
 
+/* Тот же вид, что у локатора реестра (ocMenu/locator.js: .reg-locator) —
+   значок лупы и крестик очистки прямо в поле, а не голый инпут с длинной
+   подсказкой-плейсхолдером. Ширина скромная — это фильтр в списке, а не
+   главный поиск на весь экран. */
+body[data-page="archive"] .arc-search{position:relative;flex:0 1 340px;max-width:340px;
+  display:flex;align-items:center}
+body[data-page="archive"] .arc-search-ico{position:absolute;left:10px;font-size:12px;
+  opacity:.6;pointer-events:none}
+body[data-page="archive"] .arc-search-input{width:100%;height:32px;padding-left:30px;
+  padding-right:26px;font-size:12.5px}
+body[data-page="archive"] .arc-search-clear{position:absolute;right:6px;width:18px;height:18px;
+  border-radius:50%;color:#7d93a6;font-size:13px;display:flex;align-items:center;justify-content:center}
+body[data-page="archive"] .arc-search-clear:hover{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="archive"] .arc-search-clear.hidden{display:none}
+
+/* Переключатель группировки — рядом с остальными настройками показа списка
+   (CSV/столбцы), а не в одной строке с поиском: это не условие фильтра, а
+   вид самого списка, ему место в панели инструментов над таблицей. */
 body[data-page="archive"] .arc-group-toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);
-  align-self:center;white-space:nowrap;cursor:pointer}
+  white-space:nowrap;cursor:pointer}
 body[data-page="archive"] .arc-group-toggle input{accent-color:var(--blue-600)}
 
 /* Чипы выбранных фильтров (§7.3) — над таблицей, каждый со своим крестиком. */
@@ -42,19 +64,37 @@ body[data-page="archive"] .arc-filters-tab:hover{background:var(--blue-50)}
 body[data-page="archive"] .arc-filters-tab span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;
   font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
 
+/* Фасеты — тот же вид, что у сводной вкладки учреждений
+   (institutions/allObjects.js: .iall-facet/.iall-facet-head/.iall-opt).
+   Заголовок — настоящая <button>, а не div с жирным текстом: это даёт
+   наведение/фокус бесплатно, теми же общими правилами кнопок проекта. */
 body[data-page="archive"] .arc-f-group{border-bottom:1px solid var(--line-soft)}
 body[data-page="archive"] .arc-f-group:last-child{border-bottom:none}
-body[data-page="archive"] .arc-f-head{display:flex;align-items:center;gap:6px;padding:8px 4px;cursor:pointer;
-  font-size:11.5px;user-select:none}
+body[data-page="archive"] .arc-f-head{display:flex;align-items:center;gap:7px;width:100%;
+  padding:7px 4px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--slate-700);
+  text-align:left;background:none;border:none;user-select:none}
+body[data-page="archive"] .arc-f-head:hover{color:var(--blue-700)}
+body[data-page="archive"] .arc-f-head.static{cursor:default}
+body[data-page="archive"] .arc-f-head.static:hover{color:var(--slate-700)}
+body[data-page="archive"] .arc-f-title{flex:1 1 auto}
 body[data-page="archive"] .arc-f-head .chev{font-size:9px;color:var(--muted);transition:transform .12s;flex:0 0 auto}
 body[data-page="archive"] .arc-f-group:not(.open) .chev{transform:rotate(-90deg)}
-body[data-page="archive"] .arc-f-group:not(.open) .arc-f-body{display:none}
-body[data-page="archive"] .arc-f-body{display:flex;flex-direction:column;gap:1px;padding-bottom:6px}
-body[data-page="archive"] .arc-f-opt{display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:6px;
-  font-size:12px;color:var(--ink);cursor:pointer}
+body[data-page="archive"] .arc-f-head b{font-size:10.5px;font-weight:700;background:var(--blue-50);
+  color:var(--blue-700);border-radius:999px;padding:1px 7px;flex:0 0 auto}
+body[data-page="archive"] .arc-f-body{display:flex;flex-direction:column;gap:1px;padding:0 0 7px}
+body[data-page="archive"] .arc-f-q{width:100%;height:26px;margin-bottom:5px;padding:0 8px;
+  border:1px solid var(--line-input);border-radius:7px;font-size:12px;background:#fff}
+body[data-page="archive"] .arc-f-q:focus{outline:none;border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="archive"] .arc-f-opt{display:flex;align-items:center;gap:7px;padding:4px 5px;border-radius:7px;
+  font-size:12px;color:var(--slate-700);cursor:pointer}
 body[data-page="archive"] .arc-f-opt:hover{background:var(--blue-50)}
+body[data-page="archive"] .arc-f-opt.on{color:var(--blue-700);font-weight:600}
 body[data-page="archive"] .arc-f-opt input{accent-color:var(--blue-600);flex:0 0 auto}
-body[data-page="archive"] .arc-f-n{margin-left:auto;font-size:10.5px;color:var(--muted);flex:0 0 auto}
+body[data-page="archive"] .arc-f-opt-l{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="archive"] .arc-f-opt-n{flex:0 0 auto;font-size:10.5px;color:var(--muted)}
+body[data-page="archive"] .arc-f-none,
+body[data-page="archive"] .arc-f-more{padding:4px 5px;font-size:11.5px;color:var(--muted)}
 body[data-page="archive"] .arc-f-dates{flex-direction:row !important;gap:6px}
 body[data-page="archive"] .arc-f-dates .input{flex:1 1 0;min-width:0;font-size:11.5px;padding:5px 6px}
 body[data-page="archive"] .arc-f-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);
