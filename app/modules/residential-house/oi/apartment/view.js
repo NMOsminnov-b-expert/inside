@@ -1,4 +1,5 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { structMS } from '../../parts/struct/ms.js';
@@ -105,7 +106,7 @@ ${yearFieldHTML(oi, 'Год постройки')}
 <label>Серия</label>
 <div class="inline-row">
 <select class="select" data-apt-series style="flex:1 1 160px">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('apartment', 'series', APARTMENT_SERIES))}
 ${opt('apartment', 'series', APARTMENT_SERIES).map((series) => `<option ${series === apt.series ? 'selected' : ''}>${esc(series)}</option>`).join('')}
 </select>
 <input class="input" data-apt-series-other placeholder="Укажите серию" maxlength="60"
@@ -116,7 +117,7 @@ ${opt('apartment', 'series', APARTMENT_SERIES).map((series) => `<option ${series
 <label>Положение на этаже</label>
 <div class="inline-row">
 <select class="select" data-apt-location style="flex:1 1 160px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('apartment', 'location', APARTMENT_LOCATIONS))}
 ${opt('apartment', 'location', APARTMENT_LOCATIONS).map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
 </select>
 <input
@@ -135,7 +136,7 @@ style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}"
 <label>Права на строение</label>
 <div class="inline-row">
 <select class="select" data-apt-rights style="flex:1 1 200px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('apartment', 'rights', APARTMENT_RIGHTS))}
 ${opt('apartment', 'rights', APARTMENT_RIGHTS).map((right) => `<option ${right === apt.rights ? 'selected' : ''}>${right}</option>`).join('')}
 </select>
 <input

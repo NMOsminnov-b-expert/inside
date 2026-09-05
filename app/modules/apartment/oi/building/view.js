@@ -1,4 +1,5 @@
 import { areaListHTML } from '../../../../kernel/areaList.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
@@ -162,7 +163,7 @@ ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
 <select class="select" data-structure-kind style="flex:1 1 160px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('building', 'structureKind', STRUCTURE_KIND))}
 ${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 <input
@@ -182,7 +183,7 @@ ${rq.showOiCategory ? `<div class="field"><label>Категория ОИ</label>
 <label>Права на строение</label>
 <div class="inline-row">
 <select class="select" data-bld-rights style="flex:1 1 200px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('building', 'rights', APARTMENT_RIGHTS))}
 ${opt('building', 'rights', APARTMENT_RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
 </select>
 <input

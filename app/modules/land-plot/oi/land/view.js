@@ -1,4 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import {
@@ -16,7 +17,7 @@ import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
 function options(values, value) {
-  return `<option value="">Не выбрано</option>${values.map((item) => `<option ${item === value ? 'selected' : ''}>${esc(item)}</option>`).join('')}`;
+  return `${emptyOptionHTML(values)}${values.map((item) => `<option ${item === value ? 'selected' : ''}>${esc(item)}</option>`).join('')}`;
 }
 
 function selectField(label, attr, values, value) {

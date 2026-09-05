@@ -1,4 +1,5 @@
 import { fmtEni } from '../../../../kernel/fmt.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { esc } from '../../../../kernel/dom.js';
 import { STATUS_BUILD, APARTMENT_RIGHTS, LAND_FORM, LAND_ENCUMBRANCE } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -33,7 +34,7 @@ export function render(ctx, oi) {
 <label>Права на земельный участок</label>
 <div class="inline-row">
 <select class="select" data-land-rights style="flex:1 1 200px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('land', 'rights', APARTMENT_RIGHTS))}
 ${opt('land', 'rights', APARTMENT_RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
 </select>
 <input
@@ -50,7 +51,7 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 <label>Форма участка</label>
 <div class="inline-row">
 <select class="select" data-land-form style="flex:1 1 200px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('land', 'form', LAND_FORM))}
 ${opt('land', 'form', LAND_FORM).map((f) => `<option ${f === oi.form ? 'selected' : ''}>${f}</option>`).join('')}
 </select>
 <input
