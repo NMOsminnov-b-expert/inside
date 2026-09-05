@@ -98,8 +98,11 @@ export function mountOcMenu(host) {
       <button class="btn btn-primary" data-dd-toggle ${perms.create ? '' : 'disabled'}
         title="${perms.create ? '' : `Роль «${esc(role ? role.label : '')}» новые ОЦ не создаёт`}">+ Создать ОЦ ▾</button>
       <div class="dd-menu reg-create-menu">
-        <div class="dd-group">Тип нового объекта</div>
-        ${types.map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
+        <div class="dd-group">Недвижимое имущество</div>
+        ${types.filter((t) => t.manifest.assetKind !== 'movable').map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
+        <div class="dd-group">Движимое имущество</div>
+        <button data-create="vehicle">▣ Транспортные средства</button>
+        <button data-create="mechanisms">⚙ Механизмы и оборудование</button>
       </div>
     </div>`;
   }
@@ -585,7 +588,10 @@ export function mountOcMenu(host) {
       if (!rolePerms(state.role).create) return;
 
       const type = getType(b.dataset.create);
-      if (!type || !type.records.createRecord) return;
+      if (!type || !type.records.createRecord) {
+        host.toast('Раздел находится в разработке', 'warn');
+        return;
+      }
 
       const rec = type.records.createRecord();
       dataVersion++;
