@@ -160,3 +160,20 @@ def run(t):
         .map((e) => e.textContent.trim())""")
     t.ck(any(k in ('Сельхоз', 'Несельхоз', 'Смешанный') for k in kinds),
          'столбец типа земель пуст у всех записей: %s' % kinds[:5])
+
+    # Формат свёртки выбран пользователем 05.09.2026: общее начало один раз,
+    # различающиеся хвосты в скобках через запятую и по возрастанию. Второй
+    # вариант (перечисление целых кодов) отклонён — сторожим, чтобы свёртка не
+    # «расклеилась» обратно.
+    folded = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr .mono')]
+        .map((e) => e.textContent.trim()).filter((x) => x.includes('('))""")
+    t.ck(folded, 'ни одна запись не показала свёрнутые коды ЕНИ')
+
+    for value in folded[:6]:
+        m = re.match(r'^([\d-]+)-\(([\d, -]+)\)$', value)
+        if not t.ck(m, 'свёрнутый код записан не по правилу: %s' % value):
+            continue
+        tails = [x.strip() for x in m.group(2).split(',')]
+        t.ck(len(tails) > 1, 'в скобках один хвост — свёртка не нужна: %s' % value)
+        t.ck(tails == sorted(tails), 'хвосты не по возрастанию: %s' % value)
+        t.ck(len(set(tails)) == len(tails), 'хвост повторяется: %s' % value)
