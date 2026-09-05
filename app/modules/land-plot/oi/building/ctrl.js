@@ -16,7 +16,7 @@ import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
-import { nextDocId } from '../../data/store.js';
+import { nextDocId, nextId } from '../../data/store.js';
 
 export function bind(ctx, oi) {
   bindAreaList(ctx, oi, 'loggias');
@@ -159,6 +159,33 @@ export function bind(ctx, oi) {
     ctx.updatePlate();
     ctx.render();
   };
+
+  oi.rentAreas = oi.rentAreas || [];
+
+  s.$$('[data-rent-label]').forEach((i) => i.onchange = () => {
+    const row = oi.rentAreas.find((r) => r.id === i.dataset.rentLabel);
+    if (row) row.label = i.value;
+  });
+
+  s.$$('[data-rent-cell]').forEach((i) => i.onchange = () => {
+    const [col, id] = i.dataset.rentCell.split('|');
+    const row = oi.rentAreas.find((r) => r.id === id);
+    if (row) row[col] = i.value;
+  });
+
+  const ra = s.$('[data-rent-add]');
+  if (ra) ra.onclick = (e) => {
+    e.stopPropagation();
+    oi.rentAreas.push({ id: nextId('ra'), label: '', total: '', useful: '', rentable: '', rentValue: '' });
+    ctx.render();
+  };
+
+  s.$$('[data-rent-del]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const i = oi.rentAreas.findIndex((r) => r.id === b.dataset.rentDel);
+    if (i >= 0) oi.rentAreas.splice(i, 1);
+    ctx.render();
+  });
 
   const dis = s.$('[data-dis]');
   if (dis) dis.onchange = () => { oi.dis = dis.checked; };

@@ -258,6 +258,7 @@ function structCard(ctx, oi, idx) {
 <div class="grid g-4">
 ${structField(oi, 'foundation', 'Фундамент', opt('building', 'struct.foundation', STRUCT.foundation), struct.foundation)}
 ${structField(oi, 'wallsExt', 'Наружные стены', opt('building', 'struct.wallsExt', STRUCT.wallsExt), struct.wallsExt, rq.wallsRequired)}
+${structField(oi, 'wallsInt', 'Внутренние стены', opt('building', 'struct.wallsInt', STRUCT.wallsExt), struct.wallsInt)}
 ${structField(oi, 'ceilings', 'Перекрытия', opt('building', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
 ${structField(oi, 'roof', 'Кровля', opt('building', 'struct.roof', STRUCT.roof), struct.roof)}
 </div>
@@ -316,6 +317,41 @@ ${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
 </div>`;
 }
 
+// Разбивка площадей/стоимости аренды — отдельный блок, строки заводит
+// пользователь сам (без заготовленного списка этажей/помещений).
+// Работа с документами по данному разделу (договоры аренды и т.п.)
+// начнётся не ранее чем через 3 месяца — пока это просто табличный ввод.
+const RENT_COLS = [
+  { key: 'total', label: 'Общая площадь' },
+  { key: 'useful', label: 'Полезная площадь' },
+  { key: 'rentable', label: 'Сдаваемая площадь' },
+  { key: 'rentValue', label: 'Стоимость сдаваемых площадей' },
+];
+
+function rentAreasCard(ctx, oi, idx) {
+  const rows = oi.rentAreas || [];
+
+  return `<div class="card t-slate" id="q-rent">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и стоимость аренды по этажам</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="muted" style="font-size:11px;margin-bottom:8px">Раздел про работу с документами (договоры аренды и т.п.) — начнётся не ранее чем через 3 месяца; пока доступен только табличный ввод. Строки (этажи/помещения) добавляются вручную.</div>
+${rows.length ? `<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th style="width:260px">Строка (этаж/помещение)</th>${RENT_COLS.map((c) => `<th>${c.label}</th>`).join('')}<th style="width:36px"></th></tr></thead>
+<tbody>
+${rows.map((r) => `<tr>
+<td><input class="input" data-rent-label="${r.id}" value="${esc(r.label || '')}" placeholder="Например: Подвал"></td>
+${RENT_COLS.map((c) => `<td><input class="input" data-rent-cell="${c.key}|${r.id}" value="${esc(r[c.key] || '')}"></td>`).join('')}
+<td><button class="btn btn-ghost btn-sm" data-rent-del="${r.id}" title="Удалить строку">✕</button></td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>` : ''}
+<button class="btn btn-ghost btn-sm" data-rent-add style="margin-top:8px">+ Добавить строку</button>
+</div></div>
+</div>`;
+}
+
 export function render(ctx, oi) {
 
   const idx = blockNumbers();
@@ -324,6 +360,7 @@ export function render(ctx, oi) {
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
+${rentAreasCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${photosCard(ctx, oi, idx())}
 </div>`;
