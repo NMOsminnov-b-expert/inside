@@ -11,6 +11,7 @@
 // разработчиков (kernel/devNote.js): без признаков соседние ранги два оценщика
 // поставят по-разному.
 import { esc } from '../../../../kernel/dom.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { devNote, noteAfter } from '../../../../kernel/devNote.js';
 import { IMPROVEMENT_RANKS } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -49,17 +50,23 @@ const SADY_NOTE = 'Как оценивать сады — открытый во�
   + 'насаждения дают отдельную стоимость, но полей под них (число деревьев, '
   + 'возраст, порода) пока нет: состав зависит от того, как считать.';
 
+// Поля идут двумя строками, а не рядом: ранг — короткий выбор из четырёх
+// ступеней, описание — свободный текст. Стоя в одной строке, они делили ширину
+// поровну, и текстовое поле оказывалось вдвое уже соседнего «Особенности
+// местоположения», хотя заполняется так же (замечание пользователя 05.09.2026).
+// Ранг ограничен по ширине (.f-narrow): четыре коротких слова, растянутые на
+// всю ширину блока, читаются хуже, чем поле обычного размера.
 export function improvementsFields(ctx, oi) {
   const ranks = opt('land', 'improvementRank', IMPROVEMENT_RANKS);
 
-  return `<div class="field">
+  return `<div class="field f-narrow">
     <label>${noteAfter('Ранг благоустройства', RANK_NOTE)}</label>
     <select class="select" data-land-improve-rank>
-      <option value="">Не выбрано</option>
+      ${emptyOptionHTML(ranks)}
       ${ranks.map((r) => `<option ${r === oi.improvementRank ? 'selected' : ''}>${esc(r)}</option>`).join('')}
     </select>
   </div>
-  <div class="field">
+  <div class="field" style="margin-top:10px">
     <label>${noteAfter('Особенности благоустройства', SADY_NOTE, { align: 'left' })}</label>
     <textarea class="textarea ta-wide" data-land-improve-note
       placeholder="Что именно есть на участке: ограждение, покрытие, освещение, насаждения…">${esc(oi.improvementNote || '')}</textarea>

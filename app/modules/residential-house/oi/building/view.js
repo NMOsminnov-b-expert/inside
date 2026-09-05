@@ -1,4 +1,5 @@
 import { areaListHTML } from '../../../../kernel/areaList.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
@@ -44,6 +45,12 @@ export function fieldRules(ctx, oi) {
     showResCat: !!oi.residential,
     showMatched: ml,
     showCatClass: !(oi.residential && housingOc),
+    // У жилого дома нет ни класса капитальности, ни аренды по этажам: и то и
+    // другое описывает нежилые здания — класс капитальности назначают
+    // административным и производственно-складским помещениям, аренда по
+    // этажам тоже про них (решение пользователя 05.09.2026).
+    showOiCategory: !oi.residential,
+    showRent: !oi.residential,
   };
 }
 
@@ -58,15 +65,31 @@ function structField(oi, key, label, opts, val, req) {
 // Категория ОИ: сгруппированный select (optgroup по типу помещений, классы
 // внутри). Значение — ключ раздела с номером класса (admin-1, prod-3): классы
 // в разделах называются одинаково, и без ключа они бы слились.
-function oiCategoryOptions(selected) {
-  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS).map((g) => `<optgroup label="${esc(g.label)}">
+//
+// Показывается раздел СВОЕЙ группы: производственно-складские классы — у
+// производственного строения, остальные — у гражданского и прочих (решение
+// пользователя 05.09.2026). Прочие постройки низкого качества нужны и там и
+// там, поэтому стоят отдельным пунктом всегда. Раньше поле показывало оба
+// раздела сразу — восемь пунктов, половина из которых к строению не относится,
+// и различаются они только заголовком раздела.
+function oiCategoryOptions(selected, prod) {
+  const want = prod ? 'prod' : 'admin';
+  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS)
+    // Раздел с уже выбранным значением остаётся видимым, даже если он «чужой»:
+    // назначение строения правится текстом, и смена назначения не должна молча
+    // стирать выбранную категорию.
+    .filter((g) => g.key === want || String(selected || '').startsWith(g.key + '-'))
+    .map((g) => `<optgroup label="${esc(g.label)}">
 ${g.classes.map((c, i) => {
     const val = `${g.key}-${i + 1}`;
     return `<option value="${val}" ${val === selected ? 'selected' : ''}>${esc(c)}</option>`;
   }).join('')}
 </optgroup>`).join('');
 
-  return `${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
+  // Пустой пункт первым: без него новая литера получала «Первого класса»,
+  // которого никто не выбирал (решение пользователя 05.09.2026 — то же правило,
+  // что и в остальных полях с выбором).
+  return `${emptyOptionHTML()}${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
 }
 
 function letterControlHTML(ctx, oi) {
@@ -156,7 +179,7 @@ ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
 <select class="select" data-structure-kind style="flex:1 1 160px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('building', 'structureKind', STRUCTURE_KIND))}
 ${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 <input
@@ -169,14 +192,14 @@ style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
 >
 </div>
 </div>` : ''}
-<div class="field"><label>Категория ОИ</label>
-<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '')}</select>
-</div>
+${rq.showOiCategory ? `<div class="field"><label>Категория ОИ</label>
+<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
+</div>` : ''}
 <div class="field">
 <label>Права на строение</label>
 <div class="inline-row">
 <select class="select" data-bld-rights style="flex:1 1 200px;">
-<option value="">Не выбрано</option>
+${emptyOptionHTML(opt('building', 'rights', APARTMENT_RIGHTS))}
 ${opt('building', 'rights', APARTMENT_RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
 </select>
 <input
@@ -265,14 +288,11 @@ ${structField(oi, 'wallsExt', 'Наружные стены', opt('building', 'st
 ${structField(oi, 'wallsInt', 'Внутренние стены', opt('building', 'struct.wallsInt', STRUCT.wallsExt), struct.wallsInt)}
 ${structField(oi, 'ceilings', 'Перекрытия', opt('building', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
 ${structField(oi, 'roof', 'Кровля', opt('building', 'struct.roof', STRUCT.roof), struct.roof)}
-</div>
-<div class="grid g-4" style="margin-top:8px">
 ${structField(oi, 'floors', 'Полы', opt('building', 'struct.floors', STRUCT.floors), struct.floors)}
 ${structField(oi, 'windows', 'Окна', opt('building', 'struct.windows', STRUCT.windows), struct.windows)}
 ${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.doors), struct.doors)}
 ${heatingMS(ctx, oi)}
 </div>
-<div class="grid g-2" style="margin-top:8px">
 <div style="margin-top:12px">
 <div class="sec-h">Износ конструктивных элементов${devNote(WEAR_NOTE)}</div>
 <div class="grid g-3" style="margin-top:6px">
@@ -280,7 +300,6 @@ ${WEAR_ITEMS.map((w) => wearField(oi, w.key, w.label)).join('')}
 </div>
 </div>
 ${specialsBlockHTML(oi)}
-</div>
 </div></div>
 </div>`;
 }
@@ -394,7 +413,7 @@ export function render(ctx, oi) {
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
-${rentAreasCard(ctx, oi, idx())}
+${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 ${structCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}

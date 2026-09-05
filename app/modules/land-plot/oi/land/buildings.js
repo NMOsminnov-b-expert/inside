@@ -23,6 +23,7 @@
 // на «наименование + площадь», и расширять его ради одного места — значит
 // рисковать лоджиями и террасами во всех пяти модулях.
 import { esc } from '../../../../kernel/dom.js';
+import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { num, fmtNum } from '../../../../kernel/fmt.js';
 import { AUX_BUILDING_GROUPS, AUX_CONDITION, AUX_CLASS } from '../../data/dictionaries.js';
@@ -54,7 +55,7 @@ function kindOptions(oi) {
 
 function selectCell(attr, id, values, value) {
   return `<td><select class="select" data-${attr}="${esc(id)}">
-    <option value="">Не выбрано</option>
+    ${emptyOptionHTML(values)}
     ${values.map((v) => `<option ${v === value ? 'selected' : ''}>${esc(v)}</option>`).join('')}
   </select></td>`;
 }

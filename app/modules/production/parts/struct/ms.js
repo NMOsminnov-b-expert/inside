@@ -103,10 +103,24 @@ export function migrateStruct(rec) {
 
   rec.oi.forEach((oi) => {
     const st = oi.struct;
-    if (!st) return;
-    Object.keys(st).forEach((k) => {
-      if (!Array.isArray(st[k])) st[k] = st[k] ? [st[k]] : [];
-    });
+    if (st) {
+      Object.keys(st).forEach((k) => {
+        if (!Array.isArray(st[k])) st[k] = st[k] ? [st[k]] : [];
+        // «Не указано» больше не значение перечня: пустой выбор показывается
+        // самим полем («не выбрано»), а выбранным материалом это быть не может
+        // — иначе «Не указано» отмечалось галочкой рядом с кирпичом (решение
+        // пользователя 05.09.2026).
+        st[k] = st[k].filter((v) => v !== 'Не указано');
+      });
+    }
+
+    // Износ: пустой пункт называется «Не выбрано» — одинаково по всему макету.
+    const wear = oi.wear;
+    if (wear) {
+      Object.keys(wear).forEach((k) => {
+        if (wear[k] === 'Не указано') wear[k] = 'Не выбрано';
+      });
+    }
   });
 }
 

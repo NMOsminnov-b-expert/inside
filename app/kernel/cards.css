@@ -15,12 +15,16 @@
  * других (например, комбо серии у квартиры или блоки участка).
  */
 
-/*
-  Визуал модуля «civil».
-  Копия правил карточек, полей, таблиц, аккордеонов и просмотрщика из
-  styles/app.css. Копия намеренная: типы ОЦ меняются независимо.
-  Все правила ограничены корнем модуля: body[data-module="civil"].
-*/
+/* Замечание пользователя 05.09.2026: в карточке участка текстовые поля шли с
+ * рамкой браузера, а не оформлением макета. Причина была здесь: при сведении
+ * копий префикс модуля дочищался только у ПЕРВОГО селектора группы, и правила
+ * вида `.input, body[data-module="civil"] .textarea {…}` работали лишь в
+ * гражданском модуле. Таких мест набралось 31.
+ *
+ * Отсюда правило файла: ни один селектор здесь не называет конкретный тип ОЦ.
+ * Всё, что попало в этот файл, совпадало у всех пяти модулей — иначе ему место
+ * в module.css своего модуля. Сторожится проверкой «раскладка».
+ */
 body[data-module] .ctx-plate{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--blue-700);border-radius:8px;
   padding:8px 14px;margin-bottom:12px;box-shadow:var(--shadow)}
@@ -35,7 +39,7 @@ body[data-module] .ctx-chip.ctx-ok{background:var(--teal-50);border-color:var(--
 body[data-module] .ctx-back-hint{font-size:10.5px;color:#7d93a6}
 body[data-module] .card{background:var(--panel);border:1.5px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);transition:box-shadow .15s}
 body[data-module] .card-pad{padding:14px 16px}
-body[data-module] .card.collapsed>.card-body, body[data-module="civil"] .card.collapsed>.card-pad, body[data-module="civil"] .card.collapsed>.card-body-wrap{display:none}
+body[data-module] .card.collapsed>.card-body, body[data-module] .card.collapsed>.card-pad, body[data-module] .card.collapsed>.card-body-wrap{display:none}
 body[data-module] .card:not(.collapsed)>.card-body-wrap{animation:accIn .16s ease}
 body[data-module] .card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer;user-select:none;flex-wrap:wrap;
   /* Шапка залита цветом разметки, поэтому её углы обязаны повторять углы
@@ -77,7 +81,7 @@ body[data-module] .head-meta{display:flex;align-items:center;gap:10px 14px;flex-
 /* Действия держатся вместе и не разрываются между строками. */
 body[data-module] .head-actions{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
 body[data-module] .hm{min-width:120px;flex:0 1 auto}
-body[data-module] .hm label,body[data-module="civil"] .hm .lbl{display:block;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#61799a;font-weight:700}
+body[data-module] .hm label,body[data-module] .hm .lbl{display:block;font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#61799a;font-weight:700}
 body[data-module] .hm b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:280px;color:var(--blue-700)}
 body[data-module] .tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--line);margin:0 0 12px;position:sticky;top:0;z-index:8;background:var(--bg)}
 body[data-module] .tab{padding:8px 14px;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1.5px;font-weight:600;transition:color .12s}
@@ -103,7 +107,7 @@ body[data-module] .grid.g-top{align-items:start}
    запаса по вертикали она легла бы на метку следующей строки. */
 body[data-module] .grid.g-roomy{row-gap:22px}
 body[data-module] .field{display:flex;flex-direction:column;gap:4px;min-width:0}
-body[data-module] .field>label,body[data-module="civil"] .field>.lbl{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
+body[data-module] .field>label,body[data-module] .field>.lbl{font-size:11.5px;color:#46536b;font-weight:600;display:flex;gap:4px;align-items:center;flex-wrap:wrap;min-height:17px}
 body[data-module] .req{color:var(--danger)}
 /* Точка отсчёта для сообщения о неверном ЕНИ в шапке блока «Общие параметры»:
    поле там лежит не в .field, а в собственной обёртке. */
@@ -117,10 +121,10 @@ body[data-module] .field.sp-all{grid-column:1 / -1}
    стояли на 18px выше «Адреса»). */
 body[data-module] .field{position:relative}
 body[data-module] .field-hint{position:absolute;top:100%;left:0;right:0;font-size:10px;color:var(--muted);line-height:1.3;pointer-events:none}
-body[data-module] .input, body[data-module="civil"] .select, body[data-module="civil"] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
+body[data-module] .input, body[data-module] .select, body[data-module] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
 body[data-module] .textarea{resize:vertical;min-height:46px}
-body[data-module] .input:focus, body[data-module="civil"] .select:focus, body[data-module="civil"] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
-body[data-module] .input[readonly], body[data-module="civil"] .select:disabled{background:var(--blue-50);color:#46536b}
+body[data-module] .input:focus, body[data-module] .select:focus, body[data-module] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
+body[data-module] .input[readonly], body[data-module] .select:disabled{background:var(--blue-50);color:#46536b}
 body[data-module] .sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-700);font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:10px}
 body[data-module] .sec-h::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 body[data-module] .sec-h:first-child{margin-top:0}
@@ -233,15 +237,15 @@ body[data-module] .al-tbl{min-width:600px;table-layout:fixed}
    горизонтальной прокрутке — иначе в узком блоке непонятно, к какому этажу
    относится ячейка, в которую вводишь площадь. Фон обязателен: без него
    прокручиваемые ячейки просвечивают сквозь закреплённые. */
-body[data-module] .al-tbl th:nth-child(-n+2),body[data-module="civil"] .al-tbl td:nth-child(-n+2){position:sticky;z-index:2}
+body[data-module] .al-tbl th:nth-child(-n+2),body[data-module] .al-tbl td:nth-child(-n+2){position:sticky;z-index:2}
 body[data-module] .al-tbl td:nth-child(-n+2){background:#fff}
 body[data-module] .al-tbl tbody tr:nth-child(even) td:nth-child(-n+2){background:#f8fbff}
 body[data-module] .al-tbl th:nth-child(-n+2){background:#eef4fb;z-index:3}
-body[data-module] .al-tbl th:first-child,body[data-module="civil"] .al-tbl td:first-child{left:0}
-body[data-module] .al-tbl th:nth-child(2),body[data-module="civil"] .al-tbl td:nth-child(2){left:36px;box-shadow:1px 0 0 var(--line-soft)}
+body[data-module] .al-tbl th:first-child,body[data-module] .al-tbl td:first-child{left:0}
+body[data-module] .al-tbl th:nth-child(2),body[data-module] .al-tbl td:nth-child(2){left:36px;box-shadow:1px 0 0 var(--line-soft)}
 body[data-module] .al-tbl .input{min-width:0;width:100%}
 /* Служебные колонки — чекбокс и крестик: не тянутся и не сжимаются. */
-body[data-module] .al-tbl th.fl-c,body[data-module="civil"] .al-tbl td.al-act,body[data-module="civil"] .al-tbl td:first-child{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
+body[data-module] .al-tbl th.fl-c,body[data-module] .al-tbl td.al-act,body[data-module] .al-tbl td:first-child{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
 /* Заголовки переносятся по словам, а не режутся многоточием: «Высота внешн, м»
    в узкой колонке иначе превращается в «Высота вн…». */
 body[data-module] .al-tbl th{white-space:normal;line-height:1.2;overflow-wrap:anywhere;text-overflow:clip}
@@ -303,7 +307,7 @@ body[data-module] .vbody{flex:1;display:flex;min-height:0}
    экранах или когда нужна вся ширина под саму страницу. */
 body[data-module] .vrail{width:168px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0;transition:width .16s}
 body[data-module] .vrail.collapsed{width:30px}
-body[data-module] .vrail.collapsed .vrail-list,body[data-module="civil"] .vrail.collapsed [data-vaddpage]{display:none}
+body[data-module] .vrail.collapsed .vrail-list,body[data-module] .vrail.collapsed [data-vaddpage]{display:none}
 body[data-module] .vrail-toggle{height:26px;flex-shrink:0;border-bottom:1px solid var(--line-soft);background:#eef4fb;color:#5b6c85;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;user-select:none}
 body[data-module] .vrail-toggle:hover{background:var(--blue-100)}
 body[data-module] .vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -346,14 +350,14 @@ body[data-module] .vpage{width:430px;min-height:580px;background:#fff;box-shadow
 /* Лист с реальным файлом: содержимое само задаёт высоту по своим пропорциям,
    поэтому портретный min-height снимается — иначе альбомный скан болтался бы
    в пустом высоком листе. Отступы тоже убраны: скан занимает лист целиком. */
-body[data-module] .vpage:has(> .vpdf-canvas), body[data-module="civil"] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
+body[data-module] .vpage:has(> .vpdf-canvas), body[data-module] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
 body[data-module] .vpdf-canvas{display:block;width:100%;height:auto;opacity:0;transition:opacity .12s}
 body[data-module] .vpdf-canvas.ready{opacity:1}
 body[data-module] .vimg{display:block;width:100%;height:auto}
 /* Скелетон, пока страница PDF ещё не отрисована: лежит под canvas и скрывается,
    когда тот готов — чтобы лист не мигал пустотой. */
 body[data-module] .vpdf-load{position:absolute;inset:0;padding:26px;background:#fff}
-body[data-module] .vpdf-canvas.ready + .vpdf-load, body[data-module="civil"] .vpdf-canvas.failed + .vpdf-load{display:none}
+body[data-module] .vpdf-canvas.ready + .vpdf-load, body[data-module] .vpdf-canvas.failed + .vpdf-load{display:none}
 body[data-module] .vpage.photo-page{padding:10px;min-height:420px}
 body[data-module] .photo-fill{width:100%;height:540px;border-radius:8px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:13px}
 body[data-module] .vempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#dfe9f4}
@@ -376,7 +380,7 @@ body[data-module] .cmp-body .vpage{width:380px;min-height:500px}
    align-self:flex-start — .cmp-body это flex-контейнер, и по умолчанию
    (align-items:stretch) лист растягивался на всю высоту колонки, оставляя под
    страницей белое поле. */
-body[data-module] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module="civil"] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
+body[data-module] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
 body[data-module] .cmp-body .photo-fill{height:460px}
 body[data-module] .sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
 body[data-module] .sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
@@ -425,11 +429,11 @@ body[data-module] .head-meta{
 body[data-module] .card-head{
   overflow: visible;
 }
-body[data-module] .head-meta .dd-menu, body[data-module="civil"] .card-head .dd-menu{
+body[data-module] .head-meta .dd-menu, body[data-module] .card-head .dd-menu{
   left: auto;
   right: 0;
 }
-body[data-module] .head-meta, body[data-module="civil"] .card-head{
+body[data-module] .head-meta, body[data-module] .card-head{
   overflow: visible;
 }
 /* Сайдбар выбора документа/фото просмотрщика (parts/viewer/sidebar.js).
@@ -614,7 +618,7 @@ body[data-module] .cmp-split{flex:0 0 8px;align-self:stretch;cursor:col-resize;b
   background:transparent;position:relative;touch-action:none}
 body[data-module] .cmp-split::after{content:"";position:absolute;top:12px;bottom:12px;left:3px;width:2px;
   background:var(--line);border-radius:2px;transition:background .12s}
-body[data-module] .cmp-split:hover::after,body[data-module="civil"] .cmp.cmp-resizing .cmp-split::after{background:var(--blue-500)}
+body[data-module] .cmp-split:hover::after,body[data-module] .cmp.cmp-resizing .cmp-split::after{background:var(--blue-500)}
 body[data-module] .cmp-fold{flex:0 0 auto;width:20px;height:20px;padding:0;margin-right:6px;border:none;
   border-radius:5px;background:none;color:#8fa2b8;font-size:11px;line-height:1;cursor:pointer}
 body[data-module] .cmp-fold:hover{background:var(--blue-100);color:var(--blue-700)}
@@ -627,21 +631,21 @@ body[data-module] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="doc"]{flex:0 0 38p
    прижатое к левому краю, с пустым серым полем справа. */
 body[data-module] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="photo"]{flex:1 1 auto}
 body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-body,
-body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-body{display:none}
+body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-body{display:none}
 body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h,
-body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h{writing-mode:vertical-rl;justify-content:flex-start;gap:6px;padding:8px 0}
+body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h{writing-mode:vertical-rl;justify-content:flex-start;gap:6px;padding:8px 0}
 body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h > *:not(.cmp-fold),
-body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h > *:not(.cmp-fold){display:none}
-body[data-module] .cmp-folded-photo .cmp-split,body[data-module="civil"] .cmp-folded-doc .cmp-split{display:none}
+body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h > *:not(.cmp-fold){display:none}
+body[data-module] .cmp-folded-photo .cmp-split,body[data-module] .cmp-folded-doc .cmp-split{display:none}
 /* Свёрнута одна половина — вся полезная площадь уходит оставшейся: лист тянется
    на всю ширину колонки, а не висит узкой полосой (380px) посреди серого поля.
    max-width — чтобы на широком экране страница не разъезжалась до нечитаемых
    пропорций. Мыла при этом нет: масштаб рендера PDF берётся из ФАКТИЧЕСКОЙ
    ширины canvas, а ширина входит в ключ кэша отрисовки (viewer/pdf.js). */
 body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage-wrap,
-body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
+body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
 body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage,
-body[data-module="civil"] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
+body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
 /* Плитка фото в развёрнутой половине тоже растёт — её высота была прибита к
    460px под узкую колонку. */
 body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .photo-fill{height:auto;aspect-ratio:4 / 3}
@@ -767,7 +771,7 @@ body[data-module] .oi-letter td:first-child{font-size:13.5px;font-weight:700}
 body[data-module] .card-head h3{font-size:14px;font-weight:700;text-transform:none;letter-spacing:0}
 body[data-module] .card-head .hint{font-size:11px;font-weight:400}
 body[data-module] .sec-h{font-size:11.5px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--blue-700)}
-body[data-module] .field>label,body[data-module="civil"] .field>.lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
+body[data-module] .field>label,body[data-module] .field>.lbl{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
 body[data-module] .field>b{font-size:13.5px;font-weight:600;color:#22314a}
 body[data-module] .tbl th{font-size:10px;font-weight:700;letter-spacing:.5px;color:#7d93a6}
 body[data-module] .tbl td{font-size:13px;font-weight:500}
@@ -780,7 +784,7 @@ body[data-module] .al-sum{font-size:12px;font-weight:600}
    Приводим к общей шкале и отделяем зону ответственных фоном — это вторая
    смысловая половина блока, а не продолжение первой. */
 body[data-module] .card.t-slate .field>b,
-body[data-module="civil"] .card.t-slate .field>.muted{font-size:13.5px;font-weight:600;color:#22314a;line-height:1.35}
+body[data-module] .card.t-slate .field>.muted{font-size:13.5px;font-weight:600;color:#22314a;line-height:1.35}
 body[data-module] .card.t-slate .field>.muted{font-weight:500;color:#8fa2b8}
 /* Плашки собственников и пользователей — один кегль со значениями полей. */
 body[data-module] .ms-tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:7px;line-height:1.3}
@@ -806,7 +810,7 @@ body[data-module] .select{
   padding-right:28px;cursor:pointer;
 }
 body[data-module] .select:hover:not(:disabled){border-color:var(--blue-500)}
-body[data-module] .tbl .select,body[data-module="civil"] .al-tbl .select{background-position:right 7px center;padding-right:23px}
+body[data-module] .tbl .select,body[data-module] .al-tbl .select{background-position:right 7px center;padding-right:23px}
 
 /* Карточка земельного участка — общая для всех типов ОЦ (её код живёт в
    land-plot/oi/land и импортируется остальными). Стили лежали только в
@@ -815,4 +819,8 @@ body[data-module] .tbl .select,body[data-module="civil"] .al-tbl .select{backgro
    Проверено замером 05.09.2026. */
 body[data-module] .field-flow{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
 body[data-module] .field-flow>.field{flex:1 1 210px;max-width:330px}
+/* Поле обычной ширины вне сетки: короткий выбор, стоящий отдельной строкой, не
+   должен растягиваться во всю ширину блока — рядом с ним это выглядит как
+   поле другого рода. Ширина та же, что у полей в сетке. */
+body[data-module] .field.f-narrow{max-width:330px}
 body[data-module] .textarea.ta-wide{min-height:64px}

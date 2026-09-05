@@ -102,10 +102,10 @@ export function createSeed() {
           heights: { ext: '', int: '' },
           buildType: 'Встроенное',
           struct: {
-            foundation: 'Не указано',
+            foundation: '',
             wallsExt: 'Жжёный кирпич',
             ceilings: 'Железобетонные плиты',
-            roof: 'Не указано',
+            roof: '',
             floors: 'Ламинат',
             windows: 'ПВХ (стеклопакет)',
             doors: 'Деревянные',
