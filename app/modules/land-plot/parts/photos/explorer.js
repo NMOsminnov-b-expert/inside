@@ -59,8 +59,11 @@ export function photoSectionsHTML(ctx) {
 }
 
 export function photosTab(ctx) {
+  // Просмотрщик рисуется в ЛЮБОМ режиме, а не только в фото: закладка
+  // «Документы» переключает режим, и при проверке на 'photo' просмотрщик после
+  // неё исчезал — клик выглядел как «ничего не происходит» (05.09.2026).
   return splitWrap(
-    (ctx.ui.viewer && ctx.ui.viewer.mode === 'photo') ? viewerHTML(ctx) : null,
+    ctx.ui.viewer ? viewerHTML(ctx) : null,
     `<div class="card t-blue">
       <div class="card-head"><span class="card-idx">03</span><h3>Фото по литерам</h3><span class="hint">крупные плитки; поиск по литере и названию</span>
         <input class="input" id="photoSearch" style="margin-left:auto;max-width:340px" placeholder="Напр.: Лит А фасад" value="${esc(ctx.ui.photoQuery || '')}">

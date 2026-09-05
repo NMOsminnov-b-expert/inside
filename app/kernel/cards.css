@@ -515,11 +515,29 @@ body[data-module] .ph-pop{position:absolute;z-index:80;right:16px;top:52px;width
   background:#fff;border:1.5px solid var(--blue-300);border-radius:10px;box-shadow:0 14px 34px rgba(15,23,42,.22);animation:accIn .14s ease}
 body[data-module] .ph-pop-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11.5px;font-weight:700;color:#33445c}
 body[data-module] .ph-pop-head .muted{margin-left:auto;font-weight:400}
-body[data-module] .ph-pop-body{flex:1;overflow:auto;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overscroll-behavior:contain}
+/* Окно фото литеры: три столбца — предел, дальше снимок становится слишком
+   мелким, чтобы что-то по нему узнать. Высота ограничена четырьмя рядами
+   (3×4 = 12 снимков), дальше окно прокручивается внутри себя, а не растёт до
+   края экрана (решение пользователя 05.09.2026). Ряд — картинка 62px, подпись
+   и отступы: 62 + 3 + 12 + 8 = 85px; плюс заголовок категории 22px. */
+body[data-module] .ph-pop-body{flex:1;overflow:auto;padding:8px;
+  max-height:calc(85px * 4);overscroll-behavior:contain}
+body[data-module] .ph-pop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* Категории — чипами в шапке окна: заголовки столбцом вытягивали список, и
+   снимки нужной категории приходилось искать прокруткой. Ряд чипов
+   прокручивается по горизонтали, если категорий много. */
+body[data-module] .ph-pop-cats{display:flex;gap:5px;padding:7px 8px;overflow-x:auto;
+  border-bottom:1px solid var(--line-soft);background:#f7fafd}
+body[data-module] .ph-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;
+  border:1px solid var(--line);border-radius:999px;background:#fff;cursor:pointer;
+  font-size:10.5px;color:#33445c;white-space:nowrap}
+body[data-module] .ph-chip:hover{border-color:var(--blue-500);background:var(--blue-50)}
+body[data-module] .ph-chip.on{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+body[data-module] .ph-chip span{font-weight:700;opacity:.75}
 body[data-module] .ph-pop-item{display:flex;flex-direction:column;gap:3px;cursor:pointer;background:none;border:none;padding:0}
 body[data-module] .ph-pop-img{height:62px;border:1px solid var(--line);border-radius:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
 body[data-module] .ph-pop-item:hover .ph-pop-img{border-color:var(--blue-500)}
-body[data-module] .ph-pop-cap{font-size:9.5px;color:#5b6c85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module] .ph-pop-cap{font-size:9.5px;color:#5b6c85;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Окно позиционируется от карточки перечня. */
 body[data-module] .card-body-wrap{position:relative}
 /* Адрес объекта закреплён в плашке карточки ОИ: параметры литеры вбивают,

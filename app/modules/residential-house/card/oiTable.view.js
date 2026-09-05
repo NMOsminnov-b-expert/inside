@@ -255,7 +255,7 @@ export function tableOI(ctx) {
     </div>
 
     <div class="card-body-wrap"><div class="oi-tree" data-oi-cols-box style="${oiColsVarsStyle(ctx)}">${nodes.join('')}</div>
-      ${popOi ? photoPopHTML(popOi) : ''}
+      ${popOi ? photoPopHTML(popOi, ctx.ui) : ''}
     </div>
   </div>`;
 }

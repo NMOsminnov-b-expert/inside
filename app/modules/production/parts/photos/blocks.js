@@ -1,7 +1,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { PHOTO_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { photoPages, photoFileAt } from './model.js';
+import { photoPages, photoFileAt, photoGroups } from './model.js';
 
 // Плитка фото: настоящая картинка, если файл загружен, иначе прежняя макетная
 // заглушка с подписью (сидовые фото файлов не имеют).
@@ -75,22 +75,43 @@ export function photoCell(oi) {
 }
 
 // Всплывающее окно со всеми фото литеры (открывает ячейка выше).
-export function photoPopHTML(oi) {
+//
+// Категории — чипами в шапке, а не заголовками в списке: заголовки вытягивали
+// окно, и снимки нужной категории приходилось искать прокруткой (замечание
+// пользователя 05.09.2026). Щелчок по чипу оставляет одну категорию, «Все»
+// возвращает полный набор; выбор живёт в ui, поэтому переживает перерисовку.
+//
+// Сетка ровно в три столбца, высота — четыре ряда: дальше окно прокручивается
+// внутри себя, а не растёт до края экрана.
+export function photoPopHTML(oi, ui) {
   const pages = photoPages(oi);
+  const groups = photoGroups(oi);
   const label = oi.letter ? `Литера ${esc(oi.letter)} · ${esc(oi.name)}` : esc(oi.name || 'ОИ');
+
+  const active = (ui && ui.photoPopCat) || '';
+  const shown = active ? pages.filter((p) => p.cat === active) : pages;
+
+  const chip = (cat, text, n) => `<button class="ph-chip ${cat === active ? 'on' : ''}"
+    data-photo-cat="${esc(cat)}">${esc(text)}<span>${n}</span></button>`;
+
+  const chips = `<div class="ph-pop-cats">
+    ${chip('', 'Все', pages.length)}
+    ${groups.map((g) => chip(g.cat, g.cat, g.items.length)).join('')}
+  </div>`;
+
+  const grid = `<div class="ph-pop-grid">${shown.map((p) => {
+    const f = photoFileAt(oi, p.cat, p.i);
+    return `<button class="ph-pop-item" data-open-photo="${oi.id}|${esc(p.cat)}:${p.i}"
+        title="${esc(p.cat)} · фото ${p.i + 1}">
+      <span class="ph-pop-img"${f ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
+      <span class="ph-pop-cap">${esc(active ? String(p.i + 1) : p.cat + ' · ' + (p.i + 1))}</span>
+    </button>`;
+  }).join('')}</div>`;
 
   return `<div class="ph-pop" data-photo-pop-box>
     <div class="ph-pop-head">${label}<span class="muted">${pages.length} фото</span>
       <button class="tool-btn" data-photo-pop-close title="Закрыть">×</button></div>
-    <div class="ph-pop-body">
-      ${pages.map((p, idx) => {
-        const f = photoFileAt(oi, p.cat, p.i);
-        return `<button class="ph-pop-item" data-open-photo="${oi.id}|${esc(p.cat)}:${p.i}"
-            title="${esc(p.cat)} · фото ${p.i + 1}">
-          <span class="ph-pop-img"${f ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
-          <span class="ph-pop-cap">${esc(p.cat)} · ${p.i + 1}</span>
-        </button>`;
-      }).join('')}
-    </div>
+    ${chips}
+    <div class="ph-pop-body">${grid}</div>
   </div>`;
 }

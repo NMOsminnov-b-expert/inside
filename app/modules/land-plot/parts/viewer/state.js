@@ -24,9 +24,19 @@ export function openPhotoInPlace(ctx, oiId, idx) {
   VS.photos[oiId] = VS.photos[oiId] || { page: 1, rot: 0, scroll: 0 };
   if (idx) VS.photos[oiId].page = idx;
   ctx.ui.viewer = { mode: 'photo' };
-  // Фото открывается в карточке своего ОИ.
-  if (ctx.view === 'oi' && ctx.oi && ctx.oi.id === oiId) ctx.render();
-  else ctx.navigate({ rest: ['oi', oiId] });
+
+  // Фото открывается ЗДЕСЬ ЖЕ: в карточке литеры — её просмотрщиком, в перечне
+  // объекта оценки — просмотрщиком объекта (решение пользователя 05.09.2026).
+  // Раньше клик по снимку в перечне уводил на страницу литеры и терял место, где
+  // человек работал; какие фото показывать, просмотрщик берёт из viewerPhotoOi.
+  if (ctx.view === 'oi' && ctx.oi && ctx.oi.id === oiId) {
+    ctx.ui.viewerPhotoOi = null;
+    ctx.render();
+    return;
+  }
+  ctx.ui.viewerPhotoOi = oiId;
+  ctx.ui.viewerClosed = false;
+  ctx.render();
 }
 
 export function vSt(ctx) {
