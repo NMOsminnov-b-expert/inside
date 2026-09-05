@@ -121,6 +121,10 @@ body[data-module] .field.sp-all{grid-column:1 / -1}
    стояли на 18px выше «Адреса»). */
 body[data-module] .field{position:relative}
 body[data-module] .field-hint{position:absolute;top:100%;left:0;right:0;font-size:10px;color:var(--muted);line-height:1.3;pointer-events:none}
+/* Подсказка и сообщение об ошибке стоят в одном месте (оба top:100%). Пока поле
+   с ошибкой — показываем ошибку, подсказку убираем, иначе текст ложится на текст
+   (поле «GPS-координаты» в форме ОЦ: подсказка «заполняется автоматически»). */
+body[data-module] .field:has(> .field-err:not(:empty)) .field-hint{display:none}
 body[data-module] .input, body[data-module] .select, body[data-module] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
 body[data-module] .textarea{resize:vertical;min-height:46px}
 body[data-module] .input:focus, body[data-module] .select:focus, body[data-module] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}

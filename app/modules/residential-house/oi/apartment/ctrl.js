@@ -1,4 +1,6 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
+import { bindCheckedField } from '../../../../kernel/fieldError.js';
+import { gpsError } from '../../../../kernel/gps.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
@@ -63,8 +65,9 @@ export function bind(ctx, oi) {
     ctx.updatePlate();
   };
 
-  const oiGps = s.$('[data-oi-gps]');
-  if (oiGps) oiGps.onchange = () => { oi.gps = oiGps.value.trim(); };
+  // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
+  // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
+  bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
 
   s.$$('[data-area]').forEach((i) => i.onchange = () => {
     oi.areas[i.dataset.area] = i.value;

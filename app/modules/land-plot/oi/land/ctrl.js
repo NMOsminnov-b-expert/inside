@@ -2,7 +2,7 @@ import { bindEniField } from '../../../../kernel/eniField.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
-import { gpsError } from './gps.js';
+import { gpsError } from '../../../../kernel/gps.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindUtilities } from './utilities.js';
 import { bindAuxBuildings } from './buildings.js';
@@ -77,7 +77,7 @@ export function bind(ctx, oi) {
 
   // Категория земель — только у несельхоза (ТЗ §2.1), перерисовка не нужна:
   // состав полей от неё не зависит.
-  // Координаты: проверка формата (ТЗ §5.1, oi/land/gps.js). Через общий
+  // Координаты: проверка формата (ТЗ §5.1, kernel/gps.js). Через общий
   // механизм сообщений ядра — тот же, что у кода ЕНИ: перепутанные или
   // оборванные координаты сами себя не проявляют, точка просто окажется не там.
   bindCheckedField(s.$('[data-land-gps]'), gpsError, (v) => { oi.gps = v; });

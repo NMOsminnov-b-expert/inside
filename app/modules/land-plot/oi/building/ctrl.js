@@ -4,6 +4,8 @@ import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
+import { bindCheckedField } from '../../../../kernel/fieldError.js';
+import { gpsError } from '../../../../kernel/gps.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
@@ -307,8 +309,9 @@ export function bind(ctx, oi) {
     ctx.updatePlate();
   };
 
-  const oiGps = s.$('[data-oi-gps]');
-  if (oiGps) oiGps.onchange = () => { oi.gps = oiGps.value.trim(); };
+  // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
+  // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
+  bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).

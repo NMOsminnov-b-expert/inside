@@ -124,7 +124,11 @@ input,select,textarea{font:inherit;color:inherit}
 .field-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}
 .eni-err,
 .field-err{position:absolute;left:0;top:100%;font-size:10px;color:var(--danger);
-  font-weight:600;line-height:1.25;pointer-events:none}
+  font-weight:600;line-height:1.25;pointer-events:none;
+  /* Сообщение вне потока и может лечь на подпись под соседним блоком (серая
+     строка «Город, район… общие для записи» под координатами). Подложка и
+     верхний слой держат его читаемым. */
+  background:var(--panel);padding-right:4px;z-index:3}
 .field:has(> .eni-err:not(:empty)),
 .field:has(> .field-err:not(:empty)){position:relative}
 .yf-input.yf-bad{border-color:var(--danger);box-shadow:0 0 0 2px rgba(200,50,50,.12)}

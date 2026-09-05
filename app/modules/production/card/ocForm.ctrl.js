@@ -4,6 +4,8 @@ import { podvedNamesOf } from '../../../kernel/institutions.js';
 import { syncOcAddress, ocFullAddress } from '../../../kernel/address.js';
 import { plural, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
+import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
+import { gpsError } from '../../../kernel/gps.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { parseEni } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
@@ -62,12 +64,25 @@ export function bindOcForm(ctx) {
   // видно до сохранения, а не после выгрузки (kernel/eniField.js).
   bindEniField(s.$('#fEni'));
 
+  // GPS-координаты: тот же контроль формата, что и у координат ОИ (kernel/gps.js).
+  // Поле впоследствии заполняется автоматически, но пока его вводят руками —
+  // перепутанные широта и долгота иначе всплывут только на карте.
+  bindCheckedField(s.$('#fGps'), gpsError, (v) => { rec.gps = v; });
+
   const save = s.$('#btnSaveOc');
   if (save) save.onclick = () => {
     const bad = firstBadEni(s);
     if (bad) {
       bad.focus();
       ctx.toast(`Проверьте код ЕНИ — в нём должно быть ${ENI_LENGTHS.join(', ')} цифр`, 'warn');
+      return;
+    }
+
+    const gpsBad = gpsError(s.$('#fGps').value);
+    if (gpsBad) {
+      setFieldError(s.$('#fGps'), gpsBad);
+      s.$('#fGps').focus();
+      ctx.toast(gpsBad, 'warn');
       return;
     }
 
@@ -84,7 +99,7 @@ export function bindOcForm(ctx) {
     rec.district = s.$('#fDistrict').value.trim();
     rec.micro = s.$('#fMicro').value.trim();
     syncOcAddress(rec);
-    rec.gps = s.$('#fGps').value;
+    rec.gps = s.$('#fGps').value.trim();
     rec.complex = !!(s.$('#fComplex') && s.$('#fComplex').checked);
     rec.updatedAt = ctx.today;
 
