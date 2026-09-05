@@ -1,4 +1,5 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
+import { devNote } from '../../../../kernel/devNote.js';
 import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { structMS } from '../../parts/struct/ms.js';
@@ -266,6 +267,16 @@ const WEAR_ITEMS = [
   { key: 'heating', label: 'Отопление' },
 ];
 
+// В каком виде нужен износ — вопрос ещё открытый: сейчас это три ступени на
+// элемент, а по методике он может считаться процентом или годами с ремонта, и
+// тогда состав раздела другой. Держим вопрос на виду заметкой (решение
+// пользователя 04.09.2026: «износ распространяем, но с заметкой»).
+const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
+  + 'ступени на элемент: «не указано», «умеренный», «значительный». Соседние '
+  + 'ступени два оценщика поставят по-разному, а по методике износ может '
+  + 'считаться процентом или годами с последнего ремонта — тогда и состав '
+  + 'раздела изменится. Обсудить до того, как по нему начнут считать.';
+
 function wearField(oi, key, label) {
   const wear = oi.wear || {};
   const val = wear[key] || opt('building', 'wear', WEAR_LEVEL)[0];
@@ -287,18 +298,14 @@ ${structField(oi, 'foundation', 'Фундамент', opt('building', 'struct.fo
 ${structField(oi, 'wallsExt', 'Наружные стены', opt('building', 'struct.wallsExt', STRUCT.wallsExt), struct.wallsExt, rq.wallsRequired)}
 ${structField(oi, 'wallsInt', 'Внутренние стены', opt('building', 'struct.wallsInt', STRUCT.wallsExt), struct.wallsInt)}
 ${structField(oi, 'ceilings', 'Перекрытия', opt('building', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
-</div>
-<div class="grid g-4" style="margin-top:8px">
 ${structField(oi, 'roof', 'Кровля', opt('building', 'struct.roof', STRUCT.roof), struct.roof)}
 ${structField(oi, 'floors', 'Полы', opt('building', 'struct.floors', STRUCT.floors), struct.floors)}
 ${structField(oi, 'windows', 'Окна', opt('building', 'struct.windows', STRUCT.windows), struct.windows)}
 ${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.doors), struct.doors)}
-</div>
-<div class="grid g-3" style="margin-top:8px">
 ${heatingMS(ctx, oi)}
 </div>
 <div style="margin-top:12px">
-<div class="sec-h">Износ конструктивных элементов</div>
+<div class="sec-h">Износ конструктивных элементов${devNote(WEAR_NOTE)}</div>
 <div class="grid g-3" style="margin-top:6px">
 ${WEAR_ITEMS.map((w) => wearField(oi, w.key, w.label)).join('')}
 </div>

@@ -268,8 +268,6 @@ ${structField(oi, 'wallsExt', 'Наружные стены', opt('building', 'st
 ${structField(oi, 'wallsInt', 'Внутренние стены', opt('building', 'struct.wallsInt', STRUCT.wallsExt), struct.wallsInt)}
 ${structField(oi, 'ceilings', 'Перекрытия', opt('building', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
 ${structField(oi, 'roof', 'Кровля', opt('building', 'struct.roof', STRUCT.roof), struct.roof)}
-</div>
-<div class="grid g-4" style="margin-top:8px">
 ${structField(oi, 'floors', 'Полы', opt('building', 'struct.floors', STRUCT.floors), struct.floors)}
 ${structField(oi, 'windows', 'Окна', opt('building', 'struct.windows', STRUCT.windows), struct.windows)}
 ${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.doors), struct.doors)}

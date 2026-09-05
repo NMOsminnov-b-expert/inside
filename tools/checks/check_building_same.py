@@ -144,12 +144,47 @@ def run(t):
         t.ck(idxs == ['%02d' % (i + 1) for i in range(len(idxs))],
              'в %s номера блоков жилого дома идут с пропуском: %s' % (oc, idxs))
 
-    # --- заметка о виде износа стоит и видна ---
-    t.open(ROUTES['квартира'], wait='[data-open-oi]')
-    t.wait(300)
-    if _add(t):
-        note = pg.locator('.sec-h .dev-note')
-        t.ck(note.count() > 0, 'у раздела износа нет заметки о том, что вид ещё обсуждается')
+    # --- раскладка блока материалов и износа одинакова везде ---
+    #
+    # Замечание пользователя 05.09.2026 «износ съехал»: в квартире и жилом
+    # здании раздел износа вместе с «Особенностями» был завёрнут в лишний
+    # `.grid g-2`, и девять полей сжимались в половину ширины карточки, тогда
+    # как в остальных модулях шли на всю. Сторожим числом: сетка износа должна
+    # занимать почти всю ширину блока, и колонок в ней должно быть столько же,
+    # сколько у соседей.
+    WEAR_LAYOUT = r"""() => {
+      const h = [...document.querySelectorAll('.oi-stack .sec-h')]
+        .find((e) => e.textContent.includes('Износ'));
+      if (!h) return null;
+      const grid = h.parentElement.querySelector('.grid');
+      const pad = grid.closest('.card-pad');
+      return {
+        cols: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+        share: grid.getBoundingClientRect().width / pad.getBoundingClientRect().width,
+        note: !!h.querySelector('.dev-note'),
+      };
+    }"""
+
+    layouts = {}
+    for oc, route in ROUTES.items():
+        t.open(route, wait='[data-open-oi]')
+        t.wait(300)
+        if not _add(t):
+            continue
+        got = pg.evaluate(WEAR_LAYOUT)
+        if not t.ck(got, 'в %s нет раздела износа' % oc):
+            continue
+        layouts[oc] = got
+
+        t.ck(got['share'] > 0.95,
+             'в %s сетка износа занимает %d%% ширины блока вместо всей'
+             % (oc, round(got['share'] * 100)))
+        t.ck(got['note'],
+             'в %s у раздела износа нет заметки о том, что вид ещё обсуждается' % oc)
+
+    cols = {oc: l['cols'] for oc, l in layouts.items()}
+    t.ck(len(set(cols.values())) <= 1,
+         'колонок в износе по-разному: %s' % cols)
 
 
     check_block_styles(t)

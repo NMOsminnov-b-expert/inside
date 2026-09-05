@@ -271,14 +271,11 @@ ${structField(oi, 'wallsExt', 'Наружные стены', opt('building', 'st
 ${structField(oi, 'wallsInt', 'Внутренние стены', opt('building', 'struct.wallsInt', STRUCT.wallsExt), struct.wallsInt)}
 ${structField(oi, 'ceilings', 'Перекрытия', opt('building', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
 ${structField(oi, 'roof', 'Кровля', opt('building', 'struct.roof', STRUCT.roof), struct.roof)}
-</div>
-<div class="grid g-4" style="margin-top:8px">
 ${structField(oi, 'floors', 'Полы', opt('building', 'struct.floors', STRUCT.floors), struct.floors)}
 ${structField(oi, 'windows', 'Окна', opt('building', 'struct.windows', STRUCT.windows), struct.windows)}
 ${structField(oi, 'doors', 'Двери', opt('building', 'struct.doors', STRUCT.doors), struct.doors)}
 ${heatingMS(ctx, oi)}
 </div>
-<div class="grid g-2" style="margin-top:8px">
 <div style="margin-top:12px">
 <div class="sec-h">Износ конструктивных элементов${devNote(WEAR_NOTE)}</div>
 <div class="grid g-3" style="margin-top:6px">
@@ -286,7 +283,6 @@ ${WEAR_ITEMS.map((w) => wearField(oi, w.key, w.label)).join('')}
 </div>
 </div>
 ${specialsBlockHTML(oi)}
-</div>
 </div></div>
 </div>`;
 }
