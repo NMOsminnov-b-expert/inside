@@ -83,9 +83,13 @@ def run(t):
     t.ck(pg.locator('#fEni').count() == 0, 'форма не сохранилась с верным кодом ЕНИ')
 
     # --- карточка литеры ---
-    t.open('#/oc/civil/oc-cv-1')
+    # Карточка приезжает лениво (import), поэтому ждём и строку перечня, и само
+    # поле ПО ФАКТУ: с отсчётом времени проверка падала при занятой машине —
+    # «в карточке литеры нет поля кода ЕНИ», хотя поле есть (флак 08.09.2026).
+    t.open('#/oc/civil/oc-cv-1', wait='tr[data-open-oi]')
     pg.locator('tr[data-open-oi]').first.click()
-    t.wait(700)
+    t.wait_for('[data-head-eni]')
+    t.wait(200)
 
     he = pg.locator('[data-head-eni]')
     if t.ck(he.count() > 0, 'в карточке литеры нет поля кода ЕНИ'):
@@ -102,9 +106,10 @@ def run(t):
         t.ck(before == after, 'неверный код ЕНИ попал в плашку карточки')
 
     # --- карточка земельного участка: поле своё, правило то же ---
-    t.open('#/oc/land-plot/oc-lp-1')
+    t.open('#/oc/land-plot/oc-lp-1', wait='.oi-land-open')
     pg.locator('.oi-land-open').first.click()
-    t.wait(700)
+    t.wait_for('[data-land-eni]')
+    t.wait(200)
 
     le = pg.locator('[data-land-eni]')
     if t.ck(le.count() > 0, 'в карточке участка нет поля кода ЕНИ'):
