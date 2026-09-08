@@ -69,6 +69,7 @@ const DEF_UI = {
   // Класс 'select' обязателен: по нему kernel/dropdown.js подменяет
   // нативный список своим — с поиском и оформлением макета.
   select: 'select fs-select',
+  wide: 'fs-wide',
   hint: 'fs-hint',
 };
 
@@ -125,7 +126,12 @@ export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
         rows="${field.rows || 3}">${esc(value == null ? '' : value)}</textarea>`
       : inputHTML(field, value, u);
 
-  return `<div class="${u.field}" data-fs-field="${esc(field.key)}">
+  // Поле с длинным перечнем чипов занимает всю ширину сетки: в узкой колонке
+  // одиннадцать значений встают столбиком — та же простыня, от которой
+  // избавлялись.
+  const wide = field.opts && field.opts.length > 5 && controlOf(field) === 'chips';
+
+  return `<div class="${u.field}${wide ? ' ' + (u.wide || 'fs-wide') : ''}" data-fs-field="${esc(field.key)}">
     <span class="${u.label}">${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>
     ${body}
     ${hint ? `<span class="${u.hint}${/^РАСХОДИТСЯ/.test(hint) ? ' warn' : ''}">${esc(hint)}</span>` : ''}

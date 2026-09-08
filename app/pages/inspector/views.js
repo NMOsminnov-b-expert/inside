@@ -53,6 +53,7 @@ const FS_UI = {
   input: 'ins-num',
   unit: 'ins-num-u',
   select: 'select ins-select',
+  wide: 'ins-fs-wide',
   area: 'ins-ta',
   hint: 'ins-fs-hint',
 };
