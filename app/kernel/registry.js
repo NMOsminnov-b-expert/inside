@@ -23,6 +23,10 @@ import { manifest as landPlotManifest } from '../modules/land-plot/manifest.js';
 import * as landPlotRecords from '../modules/land-plot/records.js';
 import * as landPlotDicts from '../modules/land-plot/data/dictExport.js';
 
+import { manifest as mechanismsManifest } from '../modules/mechanisms/manifest.js';
+import * as mechanismsRecords from '../modules/mechanisms/records.js';
+import * as mechanismsDicts from '../modules/mechanisms/data/dictExport.js';
+
 export const OC_TYPES = [
   {
     manifest: residentialHouseManifest,
@@ -58,6 +62,13 @@ export const OC_TYPES = [
     dictExport: landPlotDicts,
     styleHref: './app/modules/land-plot/module.css',
     load: () => import('../modules/land-plot/index.js'),
+  },
+  {
+    manifest: mechanismsManifest,
+    records: mechanismsRecords,
+    dictExport: mechanismsDicts,
+    styleHref: './app/modules/mechanisms/module.css',
+    load: () => import('../modules/mechanisms/index.js'),
   },
 ];
 

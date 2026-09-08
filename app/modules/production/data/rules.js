@@ -17,8 +17,13 @@ export const REALTY_OI_TYPES = [
   { label: 'Прочее строение', card: 'building' },
 ];
 
+// «Механизмы и производственное оборудование» — встроенная карточка mechanisms
+// (card:'mech', см. oi/registry.js и oi/mech/index.js): создаётся напрямую,
+// без мастера (нет ни kind, ни wizard — см. card/ocCard.ctrl.js createOi,
+// та же ветка, что и у card:'land'). Заменяет прежний card:'movable',
+// kind:'МЕХ' (граф знаний: решение о замене старого ОИ).
 export const MOVABLE_OI_TYPES = [
-  { label: 'Механизмы и производственное оборудование', card: 'movable', kind: 'МЕХ', wizard: 'mech' },
+  { label: 'Механизмы и производственное оборудование', card: 'mech' },
   { label: 'Офисная техника и мебель', card: 'movable', kind: 'ОФИС', wizard: 'office' },
 ];
 

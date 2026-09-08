@@ -46,6 +46,23 @@ export const OI_CARDS = {
     load: () => import('./land/index.js'),
   },
 
+  // Механизм — встроен из mechanisms (см. app/README.md, исключение из
+  // изоляции модулей). Заменяет прежний card:'movable', kind:'МЕХ' — у новой
+  // карточки нет ни flags/origin (не показывает бейдж «введено/проверено»),
+  // ни площади, поэтому shape проще, чем у movable/building.
+  mech: {
+    id: 'mech',
+    headLabel: 'Механизм',
+    listLabel: (oi) => `Механизм · ${esc(oi.name)}`,
+    crumbLabel: (oi) => esc(oi.name),
+    plateKind: 'ОЦ → ОИ',
+    hasLetter: false,
+    tableCategory: () => 'Движимое · Механизм',
+    tableArea: () => '—',
+    plateChips: () => [],
+    load: () => import('./mech/index.js'),
+  },
+
   movable: {
     id: 'movable',
     headLabel: 'Движимое имущество',

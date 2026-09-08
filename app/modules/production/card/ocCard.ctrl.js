@@ -9,6 +9,7 @@ import { DOC_TYPES, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { createMechOi } from '../../mechanisms/oi/mech/model.js';
 import { nextLetter, nextId, nextEni, nextDocId } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
@@ -21,6 +22,10 @@ function createOi(ctx, type) {
 
   if (type.card === 'land') {
     return createLandOi(rec, { nextId, nextEni, multiple: true });
+  }
+
+  if (type.card === 'mech') {
+    return createMechOi(rec, { nextId });
   }
 
   const letter = nextLetter(rec);
@@ -164,7 +169,9 @@ export function bindOcCard(ctx) {
     ctx.ui.viewerDoc = null;
 
     ctx.navigate({ rest: ['oi', oi.id] });
-    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
+    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен'
+      : oi.card === 'mech' ? 'Механизм добавлен'
+      : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------

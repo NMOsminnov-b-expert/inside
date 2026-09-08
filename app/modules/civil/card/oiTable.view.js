@@ -114,8 +114,8 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
       <span class="chev">▾</span>
       ${head}
       <span class="oi-node-count">
-        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => o.card !== 'movable').length}</span>
-        <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter((o) => o.card === 'movable').length}</span>
+        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => cardMeta(o).hasLetter).length}</span>
+        <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter((o) => !cardMeta(o).hasLetter).length}</span>
       </span>
       ${meta}
     </div>
@@ -123,9 +123,9 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
       ${summary || ''}
       ${colsRowHTML(ctx)}
       ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : '',
-        letters.filter((o) => o.card !== 'movable'),
+        letters.filter((o) => cardMeta(o).hasLetter),
         'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false)}
-      ${sub(ctx, 'Движимое имущество', letters.filter((o) => o.card === 'movable'),
+      ${sub(ctx, 'Движимое имущество', letters.filter((o) => !cardMeta(o).hasLetter),
         'Движимого имущества нет.', 'movable', false)}
     </div>
   </div>`;

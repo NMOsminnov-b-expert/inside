@@ -1,0 +1,116 @@
+/* Своё оформление типа ОЦ «mechanisms».
+ * Общие правила карточек, полей, таблиц, аккордеонов и просмотрщика — в
+ * app/kernel/cards.css (копия по body[data-module], как у остальных
+ * модулей — см. app/README.md, «Про CSS»). Здесь остаётся только то, чего
+ * у других модулей нет: конструктор полей механизма (parts/mechConstructor.js).
+ *
+ * У этого модуля нет объектов имущества, поэтому здесь нет и не будет копий
+ * building/land/heating/struct-специфичных правил остальных модулей —
+ * заводить их не с чем.
+ */
+
+/* --- Конструктор полей механизма (карточка «02», форма ОЦ и создание) ----
+ *
+ * Запись ОЦ этого модуля может описывать несколько механизмов сразу
+ * (rec.mechanisms — массив, см. records.js), поэтому раскладка сделана
+ * компактной: имя и количество — в одну строку, подпись поля — не своей
+ * строкой, а узкой колонкой перед значением (см. .mech-field-row), а каждая
+ * запись механизма — свой обособленный блок с рамкой/подложкой (.mech-entry),
+ * иначе несколько таких блоков подряд визуально сливаются в один. */
+
+body[data-module="mechanisms"] .mech-list{display:flex;flex-direction:column;gap:8px}
+
+body[data-module="mechanisms"] .mech-entry{
+  border:1px solid #d7e6e3;border-radius:8px;background:#f6fbfa;
+  padding:8px 10px;display:flex;flex-direction:column;gap:6px;
+}
+
+/* Одиночная карточка (встраиваемая ОИ «Механизмы» — production/civil) не
+   нуждается в собственной рамке лишний раз: карточка ОИ уже даёт свою. */
+body[data-module="mechanisms"] .mech-constructor > .mech-entry{
+  border:none;background:none;padding:0;gap:6px;
+}
+
+body[data-module="mechanisms"] .mech-entry-head{
+  display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;
+  /* Место под .field-hint (position:absolute;top:100% от .mech-name-field) —
+     без отступа он лёг бы поверх первой строки .mech-fields-list. */
+  margin-bottom:14px;
+}
+body[data-module="mechanisms"] .mech-entry-head .field{margin:0}
+body[data-module="mechanisms"] .mech-name-field{flex:1 1 240px;min-width:140px}
+body[data-module="mechanisms"] .mech-qty-field{flex:0 0 88px}
+body[data-module="mechanisms"] .mech-entry-rm{
+  flex:0 0 auto;margin-left:auto;color:var(--danger);border-color:#f3c1c1;
+}
+body[data-module="mechanisms"] .mech-entry-rm:hover{background:#fdf3f3}
+
+/* Раньше значение растягивалось на всю ширину карточки (grid-колонка 1fr) —
+   при широкой карточке получалось неоправданно длинное поле ради короткого
+   числа/слова. Теперь список полей сам переносится по строкам (flex-wrap),
+   а у каждого поля — своя небольшая ширина, поэтому несколько полей
+   помещаются в одну строку (правка по просьбе пользователя). */
+body[data-module="mechanisms"] .mech-fields-list{display:flex;flex-wrap:wrap;gap:6px 10px}
+
+body[data-module="mechanisms"] .mech-field-row{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex:0 0 auto;
+  width:200px;
+  padding:3px 5px;
+  border:1px solid #e3ede9;border-radius:6px;background:#fff;
+}
+
+/* Пустая обязательная подпись — красная рамка прямо на всём блоке поля,
+   чтобы было видно даже до попытки сохранить. */
+body[data-module="mechanisms"] .mech-field-row.invalid{border-color:#e2a1a1;background:#fdf6f6}
+
+/* Подпись поля — тоже инпут (можно исправить в любой момент), но визуально
+   лёгкий, без своей рамки, — рамка есть у всего блока (.mech-field-row), две
+   вложенные рамки внутри одного маленького чипа выглядели бы избыточно. */
+body[data-module="mechanisms"] .mech-field-label{
+  font-size:11.5px;font-weight:600;color:#46536b;
+  flex:0 0 55px;width:55px;
+  border:none;background:transparent;padding:2px 0;height:auto;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+body[data-module="mechanisms"] .mech-field-label:focus{
+  outline:none;background:#eef6f4;border-radius:4px;text-overflow:clip;
+}
+body[data-module="mechanisms"] .mech-field-row.invalid .mech-field-label{color:#b23b3b}
+body[data-module="mechanisms"] .mech-field-row.invalid .mech-field-label::placeholder{color:#c77}
+
+body[data-module="mechanisms"] .mech-field-value{flex:0 0 85px;width:85px}
+
+body[data-module="mechanisms"] .mech-field-rm{
+  flex:0 0 auto;color:var(--danger);border-color:#f3c1c1;
+  padding:0 5px;
+}
+body[data-module="mechanisms"] .mech-field-rm:hover{background:#fdf3f3}
+
+/* «+» на месте будущего поля — та же ширина, что и у чипа поля, чтобы плитки
+   выстраивались в общую сетку, а не торчала кнопка во всю ширину снизу. */
+body[data-module="mechanisms"] .mech-field-add{
+  flex:0 0 auto;width:36px;height:27px;
+  border:1px dashed #b8cfc9;border-radius:6px;background:none;
+  color:#4a8f7e;font-size:16px;line-height:1;cursor:pointer;
+}
+body[data-module="mechanisms"] .mech-field-add:hover{background:#eef6f4;border-color:#4a8f7e}
+
+/* Показ механизмов в карточке ОЦ (ocCard.view.js) — та же граница-подложка,
+   что и в форме редактирования, ради узнаваемости одного и того же блока. */
+body[data-module="mechanisms"] .mech-view-list{display:flex;flex-direction:column;gap:8px}
+body[data-module="mechanisms"] .mech-view-entry{
+  border:1px solid #d7e6e3;border-radius:8px;background:#f6fbfa;padding:10px 12px;
+}
+
+/* Узкая карточка (рядом открыт просмотрщик) — «Название»/«Количество» уже не
+   умещаются рядом, переходят на вертикальную раскладку. Сами поля-чипы
+   (.mech-field-row) в перестройке не нуждаются — они и так короткие и просто
+   переносятся flex-wrap'ом. */
+@media (max-width: 640px){
+  body[data-module="mechanisms"] .mech-entry-head{flex-direction:column;align-items:stretch}
+  body[data-module="mechanisms"] .mech-qty-field{flex-basis:auto}
+  body[data-module="mechanisms"] .mech-entry-rm{margin-left:0}
+}

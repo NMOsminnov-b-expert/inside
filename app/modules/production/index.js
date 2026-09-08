@@ -61,7 +61,12 @@ export function main(host) {
     get view() { return viewName(); },
     get tab() { return route.query.tab || 'general'; },
     get oi() { return route.rest[0] === 'oi' ? getOi(rec, route.rest[1]) : null; },
-    get mechKind() { return route.rest[1] === 'office' ? 'ОФИС' : 'МЕХ'; },
+    // Раньше здесь читался route.rest[1] ('mech' | 'office'): маршрут 'new'
+    // обслуживал оба вида движимого. Механизмы теперь создаются напрямую
+    // карточкой mechanisms/oi/mech (см. data/rules.js, card/ocCard.ctrl.js),
+    // без этого маршрута — значит сюда попадает только «Офисная техника и
+    // мебель», и значение всегда одно.
+    get mechKind() { return 'ОФИС'; },
 
     toast: host.toast,
     resetViewer,

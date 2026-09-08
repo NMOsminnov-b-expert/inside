@@ -73,6 +73,12 @@ def run(t):
     }""")
     t.ck(len(cards) >= 5, 'в справочниках не все типы ОЦ: %d' % len(cards))
 
+    # «Механизмы и оборудование» — исключение из этого решения (не согласие
+    # пользователя от 02.09.2026, а отдельное, более позднее): у этого типа ОЦ
+    # объектов имущества нет вообще, сама запись уже единица техники (см.
+    # app/modules/mechanisms/records.js, manifest.js — oiCards пуст). Каталог
+    # у него состоит только из «Объект оценки» — проверять на нём остальные три
+    # карточки нечего.
     for i in range(len(cards)):
         pg.locator('[data-step-type]').nth(i).click()
         t.wait(300)
@@ -80,6 +86,8 @@ def run(t):
         got = pg.eval_on_selector_all(
             '[data-step-card]', 'els => els.map((e) => e.textContent.replace(/\\s+/g, " ").trim())')
         got = ' | '.join(got)
+        if 'Механизмы и оборудование' in name:
+            continue
         for need in ('Объект оценки', 'Литера (строение)', 'Квартира', 'Земельный участок'):
             t.ck(need in got, 'каталог «%s»: нет карточки «%s» (есть: %s)'
                  % (name.splitlines()[0], need, got))

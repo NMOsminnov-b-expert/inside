@@ -49,12 +49,11 @@ export function bindMech(ctx) {
   const save = s.$('[data-mech-save]');
   if (save) save.onclick = () => {
     const rec = ctx.rec;
-    const isMech = ctx.mechKind === 'МЕХ';
     const mono = ui.mechMode === 'mono';
 
     const name = mono
-      ? (ui.mechDraft.name || (isMech ? 'Механизм' : 'Офисная техника'))
-      : (isMech ? 'Механизм-комплекс' : 'Комплекс техники');
+      ? (ui.mechDraft.name || 'Офисная техника')
+      : 'Комплекс техники';
 
     const oi = {
       id: nextId('oi-m'),

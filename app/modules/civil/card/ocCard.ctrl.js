@@ -12,12 +12,17 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { createMechOi } from '../../mechanisms/oi/mech/model.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
   if (type.card === 'land') {
     return createLandOi(rec, { nextId, nextEni, multiple: true });
+  }
+
+  if (type.card === 'mech') {
+    return createMechOi(rec, { nextId });
   }
 
   const letter = nextLetter(rec);
@@ -162,7 +167,9 @@ export function bindOcCard(ctx) {
     ctx.ui.viewerDoc = null;
 
     ctx.navigate({ rest: ['oi', oi.id] });
-    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
+    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен'
+      : oi.card === 'mech' ? 'Механизм добавлен'
+      : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------

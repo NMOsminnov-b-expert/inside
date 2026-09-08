@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "branch": "mech",
+    "author": "kiril.com1310@gmail.com",
+    "createdAt": "20260907T102541Z",
+    "baseCommit": "78e37a8"
+  },
+  "entities": [
+    {
+      "name": "app/modules/mechanisms",
+      "entityType": "DomainModule",
+      "observations": [
+        "Шестой тип ОЦ (рядом с apartment/civil/production/residential-house/land-plot), зарегистрирован в app/kernel/registry.js.",
+        "У этого типа ОЦ нет ни одного объекта имущества (ОИ) вообще — сам ОЦ уже единица техники (станок, экскаватор и т.п.), подтверждено пользователем 07.09.2026.",
+        "Основные параметры (карточка 01) без кода ЕНИ, без назначения по ТП, без GPS-координат — этих полей у записи нет вовсе (не пустые строки, а отсутствующие ключи).",
+        "Категория ОЦ навсегда 'Движимое' — manifest.js: category:'Движимое', подхватывается существующим (ранее неиспользуемым) хуком kernel/typeChange.js: changeOcType -> taken.category = to.manifest.category.",
+        "Карточка 02 — конструктор полей вместо 'Состав и тип имущества' (см. decision:mech-field-constructor-local-store).",
+        "records.js экспортирует oiCards:{} и oiTypes:[] (пустые, но в форме, которую ожидает kernel/typeChange.js даже для модулей без ОИ)."
+      ]
+    },
+    {
+      "name": "app/modules/mechanisms/data/fieldTemplates.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Не kernel-овый, а локальный для модуля mechanisms движок словарей конструктора полей: templates {name -> string[] подписей полей}, valueHistory {label -> string[] значений}.",
+        "Помечен // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: сейчас живёт в памяти вкладки, обнуляется при перезагрузке."
+      ]
+    },
+    {
+      "name": "decision:mechanisms-standalone-module-no-oi",
+      "entityType": "Decision",
+      "observations": [
+        "Пользователь подтвердил (07.09.2026, через AskUserQuestion): «Механизмы и оборудование» — самостоятельный тип ОЦ, а не подкатегория существующего модуля (например production).",
+        "Пользователь подтвердил: у этого типа ОЦ нет вложенных объектов имущества (ОИ) — сам ОЦ уже единица техники.",
+        "Причина спрашивать явно: бизнес-решение о структуре предметной области, не код/дизайн-компромисс (правило CLAUDE.md 'Бизнес-логика vs код/дизайн')."
+      ]
+    },
+    {
+      "name": "decision:mech-field-constructor-local-store",
+      "entityType": "Decision",
+      "observations": [
+        "Конструктор полей карточки 'Механизмы и оборудование' (rec.mech = {name, fields:[{id,label,value}]}) не использует kernel/dicts.js: тот строит перечень привязываемых полей (allSlots/freeSlots) только из статических data/dictExport.js каждого модуля — подпись поля, придуманную пользователем в рантайме, привязать заранее нечем.",
+        "Вместо этого — свой локальный store app/modules/mechanisms/data/fieldTemplates.js: templates (name -> подписи полей, использованные под этим названием) и valueHistory (label -> история значений для датаlist).",
+        "Побочный эффект (сообщено пользователю в плане, не решено самостоятельно): эти словари НЕ видны и не редактируются на странице «Справочники» (app/pages/dicts/dicts.js) — она читает только allDicts()/catalogTree(), построенные из тех же статических DICT_SOURCES.",
+        "При выборе ранее использовавшегося названия в поле 'Название' — под него подтягивается набор подписей полей (getTemplate(name)), но без значений (пользователь их заполняет заново) — точная бизнес-формулировка пользователя."
+      ]
+    },
+    {
+      "name": "decision:mech-replaces-movable-oi",
+      "entityType": "Decision",
+      "observations": [
+        "В production и civil уже был вид ОИ 'Механизмы и производственное оборудование' (card:'movable', kind:'МЕХ', фиксированные поля Наименование/Год/Заводской номер), включаемый чекбоксом 'Имущественный комплекс' (rec.complex), продублированный копипастой в обоих модулях (app/modules/production/oi/movable/*, app/modules/civil/oi/movable/*).",
+        "Пользователь подтвердил (07.09.2026, через AskUserQuestion): этот старый ОИ заменяется новой общей карточкой app/modules/mechanisms/oi/mech/* (card:'mech') — переиспользуется production и civil тем же приёмом, что и land-plot/oi/land/* (тонкий прокси oi/mech/index.js, прямой импорт createMechOi в card/ocCard.ctrl.js, запись в oi/registry.js и data/rules.js).",
+        "Это второе, наряду с land, осознанное исключение из правила modules/*→modules/* нельзя — CLAUDE.md нужно было дополнить (см. convention:modules-isolation-exceptions).",
+        "'Офисная техника и мебель' (второе значение того же movable/kind:'ОФИС') не тронута, осталась на старой фиксированной карточке и мастере монолит/комплекс.",
+        "Существующие сид-записи production/civil с card:'movable', kind:'МЕХ' мигрированы на card:'mech': ЕНИ/год/заводской номер стали полями конструктора; у записи-'комплекса' с вложенными узлами (нет эквивалента вложенного списка на новой плоской карточке) каждый бывший узел стал отдельной единицей ОИ со своими полями 'Тип'/'Код ЕНИ'."
+      ]
+    },
+    {
+      "name": "convention:modules-isolation-exceptions",
+      "entityType": "Convention",
+      "observations": [
+        "Правило modules/*→modules/* нельзя имеет теперь ДВА документированных исключения (было одно, land): (1) земельный участок — land-plot/oi/land/*, переиспользуется apartment/civil/production/residential-house; (2) механизм — mechanisms/oi/mech/*, переиспользуется production и civil (не всеми пятью — только там, где раньше был movable/МЕХ).",
+        "CLAUDE.md, раздел 'Архитектурные правила проекта', дополнен вторым исключением 07.09.2026."
+      ]
+    },
+    {
+      "name": "bug:oi-table-groups-by-hasLetter-not-card-literal",
+      "entityType": "Task",
+      "observations": [
+        "card/oiTable.view.js (production, civil) делил перечень ОИ на 'Литеры' и 'Движимое имущество' буквальным сравнением o.card === 'movable' — новый card:'mech' попадал бы в раздел 'Литеры'. Найдено и исправлено при подключении mech-карточки (07.09.2026): оба фильтра переведены на cardMeta(o).hasLetter — флаг, который для этого и заведён в oi/registry.js.",
+        "records.js: areaOf() исключал 'land'/'movable' из подсчёта площадей, но не 'mech' — добавлено (сейчас no-op, т.к. у mech нет .areas, но корректно на будущее).",
+        "mechanisms/parts/mechConstructor.js рендерится и в production/civil (как ОИ), но стили (.mech-constructor и т.п.) были описаны только в mechanisms/module.css — при встраивании выглядело неоформленным. Исправлено копированием блока стилей в production/module.css и civil/module.css (та же осознанная per-module копия CSS, что и везде в проекте)."
+      ]
+    }
+  ],
+  "relations": [
+    { "from": "app/modules/mechanisms", "to": "app/kernel/registry.js", "relationType": "зарегистрирован в" },
+    { "from": "app/modules/mechanisms", "to": "decision:mechanisms-standalone-module-no-oi", "relationType": "реализует" },
+    { "from": "app/modules/mechanisms/data/fieldTemplates.js", "to": "decision:mech-field-constructor-local-store", "relationType": "реализует" },
+    { "from": "decision:mech-field-constructor-local-store", "to": "app/kernel/dicts.js", "relationType": "сознательно не использует" },
+    { "from": "decision:mech-replaces-movable-oi", "to": "app/modules/production", "relationType": "затрагивает" },
+    { "from": "decision:mech-replaces-movable-oi", "to": "app/modules/civil", "relationType": "затрагивает" },
+    { "from": "decision:mech-replaces-movable-oi", "to": "app/modules/land-plot", "relationType": "по аналогии с" },
+    { "from": "convention:modules-isolation-exceptions", "to": "decision:mech-replaces-movable-oi", "relationType": "обновлено решением" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mechanisms-standalone-module-no-oi", "relationType": "документирует" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-field-constructor-local-store", "relationType": "документирует" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-replaces-movable-oi", "relationType": "документирует" },
+    { "from": "bug:oi-table-groups-by-hasLetter-not-card-literal", "to": "decision:mech-replaces-movable-oi", "relationType": "найдено при реализации" }
+  ]
+}

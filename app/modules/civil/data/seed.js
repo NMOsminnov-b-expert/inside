@@ -119,21 +119,25 @@ export function createSeed() {
           photos: { 'Земельный участок': 2 },
           notes: [],
         },
+        // Механизм (card:'mech', см. mechanisms/oi/mech/model.js) — раньше
+        // card:'movable', kind:'МЕХ' с фиксированными Наименование/Год/Зав.
+        // номер (см. граф знаний, решение о замене старого ОИ). Монолит:
+        // ЕНИ/год/зав.номер стали полями конструктора, прикреплённый документ
+        // остался как есть.
         {
           id: 'oi-cv1-m1',
-          card: 'movable',
+          card: 'mech',
           kind: 'МЕХ',
           name: 'Котёл газовый КВГ-1,25',
-          eni: '147561671010',
-          status: '',
-          origin: 'manual',
-          flags: { entered: true, matched: false },
-          year: '2015',
-          serial: 'КВГ-125-4471',
+          qty: 1,
           docs: [{ id: 'cv1-md1', type: 'ПУД', name: 'Паспорт котла', date: '12.03.2015' }],
-          photos: {},
           notes: [],
-          complexItems: null,
+          photos: {},
+          fields: [
+            { id: 'oi-cv1-m1-f1', label: 'Код ЕНИ', value: '147561671010' },
+            { id: 'oi-cv1-m1-f2', label: 'Год выпуска', value: '2015' },
+            { id: 'oi-cv1-m1-f3', label: 'Заводской номер', value: 'КВГ-125-4471' },
+          ],
         },
         {
           id: 'oi-cv1-m2',

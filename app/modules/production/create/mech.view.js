@@ -3,15 +3,19 @@ import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 
 const COMPLEX_TYPES = ['Узел', 'Агрегат', 'Станция', 'Прочее'];
 
-// Мастер создания движимого ОИ: монолит или комплекс.
+// Мастер создания движимого ОИ: монолит или комплекс. Раньше обслуживал и
+// «Механизмы и производственное оборудование» (kind:'МЕХ'), и «Офисную
+// технику и мебель» (kind:'ОФИС') — теперь только «Офисную технику и
+// мебель»: механизмы создаются напрямую карточкой mechanisms/oi/mech (см.
+// data/rules.js, card/ocCard.ctrl.js), этот маршрут для них больше не
+// открывается (ctx.mechKind в index.js теперь всегда 'ОФИС').
 export function viewMech(ctx) {
-  const isMech = ctx.mechKind === 'МЕХ';
   const ui = ctx.ui;
 
   const rows = ui.mechRows || [];
 
   return `<div class="view-head"><button class="back-btn" data-back>← Отмена</button>
-    <span class="pill pill-gray">${isMech ? 'Механизмы и производственное оборудование' : 'Офисная техника и мебель'}</span></div>
+    <span class="pill pill-gray">Офисная техника и мебель</span></div>
   ${splitWrap(ui.viewer ? viewerHTML(ctx) : null, `<div class="card">
       <div class="card-head"><h3>Создание объекта</h3>
         <div class="inline-row" style="margin-left:auto">
@@ -22,7 +26,7 @@ export function viewMech(ctx) {
       <div class="card-pad">
       ${ui.mechMode === 'mono' ? `
         <div class="grid g-3">
-          <div class="field"><label>Наименование</label><input class="input" id="mName" value="${esc(ui.mechDraft.name || '')}" placeholder="${isMech ? 'Напр.: станок токарный' : 'Напр.: МФУ'}"></div>
+          <div class="field"><label>Наименование</label><input class="input" id="mName" value="${esc(ui.mechDraft.name || '')}" placeholder="Напр.: МФУ"></div>
           <div class="field"><label>Год выпуска</label><input class="input" id="mYear" value="${esc(ui.mechDraft.year || '')}"></div>
           <div class="field"><label>Заводской номер</label><input class="input" id="mSerial" value="${esc(ui.mechDraft.serial || '')}"></div>
         </div>

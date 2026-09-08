@@ -70,6 +70,38 @@ function docLabel(item) {
   return `«${item.type}» — ${item.name} (${item.id})`;
 }
 
+// Поля конструктора карточки «Механизм» (card:'mech', встроена из
+// mechanisms — см. mechanisms/oi/mech/model.js). Подпись поля придумывает
+// пользователь в рантайме, поэтому дифф отдельный от обычных полей ОИ:
+// матчинг по id, человекочитаемая строка «Механизм: <label>» вместо
+// технического ключа «fields» (которого fieldLabel не знает) — тот же
+// приём, что и у rec.mech.fields в самом модуле mechanisms
+// (см. mechanisms/audit/model.js, diffMechFieldsArray).
+function diffMechFieldsArray(before, after, category, target, out) {
+  const beforeMap = new Map(before.map((x) => [x.id, x]));
+  const afterMap = new Map(after.map((x) => [x.id, x]));
+
+  afterMap.forEach((item, id) => {
+    const field = `Механизм: ${item.label}`;
+    if (!beforeMap.has(id)) {
+      out.push({ category, target, cardType: 'mech', field, action: 'create', before: '—', after: displayValue(item.value) });
+      return;
+    }
+    const b = beforeMap.get(id);
+    const beforeStr = displayValue(b.value);
+    const afterStr = displayValue(item.value);
+    if (beforeStr !== afterStr) {
+      out.push({ category, target, cardType: 'mech', field, action: 'update', before: beforeStr, after: afterStr });
+    }
+  });
+
+  beforeMap.forEach((item, id) => {
+    if (!afterMap.has(id)) {
+      out.push({ category, target, cardType: 'mech', field: `Механизм: ${item.label}`, action: 'delete', before: displayValue(item.value), after: '—' });
+    }
+  });
+}
+
 // --- Обход дерева записи с категоризацией по ключу -----------------------
 
 function walk(beforeRaw, afterRaw, path, category, target, cardType, out) {
@@ -110,6 +142,12 @@ function walk(beforeRaw, afterRaw, path, category, target, cardType, out) {
       // наследуется от родителя.
       if (k === 'photos') {
         walk(before.photos || {}, after.photos || {}, ['photos'], 'photos', target, cardType, out);
+        return;
+      }
+      // fields — конструктор полей карточки «Механизм» (card:'mech'), см.
+      // diffMechFieldsArray выше.
+      if (path.length === 0 && cardType === 'mech' && k === 'fields') {
+        diffMechFieldsArray(before.fields || [], after.fields || [], category, target, out);
         return;
       }
 

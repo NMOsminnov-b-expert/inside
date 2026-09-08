@@ -22,3 +22,65 @@
 
    Раньше здесь всё было 10–11px и почти всё капсом: шапка узла, разделы и
    колонки читались одинаково, и глазу не за что было зацепиться. */
+
+/* --- Конструктор полей карточки «Механизм» (oi/mech, встроена из mechanisms,
+   см. app/README.md) — та же копия правил, что и в
+   mechanisms/module.css: там она скопирована под body[data-module="mechanisms"],
+   а карточка мех. рендерится и здесь, под body[data-module="production"], —
+   без своей копии эти классы там не подхватились бы, и конструктор
+   отображался бы вообще без оформления (наплывающий текст, no layout).
+
+   Эта карточка здесь всегда ОДНА запись (один физический экземпляр — «ещё
+   один механизм» в production означает отдельный ОИ, не рост qty), поэтому
+   .mech-list/.mech-entry-rm/.mech-view-* из mechanisms/module.css сюда не
+   копируются — тут им неоткуда взяться. --- */
+
+body[data-module="production"] .mech-entry{display:flex;flex-direction:column;gap:6px}
+
+body[data-module="production"] .mech-entry-head{
+  display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;
+  /* Место под .field-hint (position:absolute;top:100% от .mech-name-field). */
+  margin-bottom:14px;
+}
+body[data-module="production"] .mech-entry-head .field{margin:0}
+body[data-module="production"] .mech-name-field{flex:1 1 240px;min-width:140px}
+body[data-module="production"] .mech-qty-field{flex:0 0 88px}
+
+body[data-module="production"] .mech-fields-list{display:flex;flex-wrap:wrap;gap:6px 10px}
+
+body[data-module="production"] .mech-field-row{
+  display:flex;align-items:center;gap:5px;flex:0 0 auto;width:200px;padding:3px 5px;
+  border:1px solid #e3ede9;border-radius:6px;background:#fff;
+}
+body[data-module="production"] .mech-field-row.invalid{border-color:#e2a1a1;background:#fdf6f6}
+
+body[data-module="production"] .mech-field-label{
+  font-size:11.5px;font-weight:600;color:#46536b;
+  flex:0 0 55px;width:55px;
+  border:none;background:transparent;padding:2px 0;height:auto;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+body[data-module="production"] .mech-field-label:focus{
+  outline:none;background:#eef6f4;border-radius:4px;text-overflow:clip;
+}
+body[data-module="production"] .mech-field-row.invalid .mech-field-label{color:#b23b3b}
+body[data-module="production"] .mech-field-row.invalid .mech-field-label::placeholder{color:#c77}
+
+body[data-module="production"] .mech-field-value{flex:0 0 85px;width:85px}
+
+body[data-module="production"] .mech-field-rm{
+  flex:0 0 auto;color:var(--danger);border-color:#f3c1c1;padding:0 5px;
+}
+body[data-module="production"] .mech-field-rm:hover{background:#fdf3f3}
+
+body[data-module="production"] .mech-field-add{
+  flex:0 0 auto;width:36px;height:27px;
+  border:1px dashed #b8cfc9;border-radius:6px;background:none;
+  color:#4a8f7e;font-size:16px;line-height:1;cursor:pointer;
+}
+body[data-module="production"] .mech-field-add:hover{background:#eef6f4;border-color:#4a8f7e}
+
+@media (max-width: 640px){
+  body[data-module="production"] .mech-entry-head{flex-direction:column;align-items:stretch}
+  body[data-module="production"] .mech-qty-field{flex-basis:auto}
+}

@@ -291,8 +291,10 @@ def run(t):
     t.ck(not pg.eval_on_selector('#fType', 'e => e.disabled'),
          'поле «Тип ОЦ» в форме редактирования заблокировано')
 
+    # Шесть типов ОЦ с добавлением «Механизмы и оборудование» (см.
+    # app/modules/mechanisms) — было пять до этого модуля.
     types = pg.eval_on_selector_all('#fType option', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(len(types) == 5, 'в поле «Тип ОЦ» не пять типов: %s' % types)
+    t.ck(len(types) == 6, 'в поле «Тип ОЦ» не шесть типов: %s' % types)
 
     pg.select_option('#fType', label='Производственное строение')
     t.wait_for('.modal-head')
