@@ -1,11 +1,8 @@
 {
   "mcpServers": {
     "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"],
-      "env": {
-        "MEMORY_FILE_PATH": "${CLAUDE_PROJECT_DIR:-.}/.claude/knowledge-graph/memory.jsonl"
-      }
+      "command": "node",
+      "args": [".claude/knowledge-graph/tools/memory-server.js"]
     }
   }
 }
