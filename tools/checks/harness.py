@@ -216,6 +216,13 @@ def run_one(mod, part=None, headless=True, browser_=None):
 
     def go(br):
         page = br.new_page(viewport={'width': 1600, 'height': 1000})
+        # Предел для действий Playwright — клика, ввода, ожидания локатора.
+        # Свои ожидания каркаса ограничены девятью секундами, а у locator.click
+        # предел по умолчанию 30 с: один клик по элементу, которого на экране
+        # нет, стоил дороже целого сценария (07.09.2026 такой клик съел 40 с
+        # прогона). Десяти секунд хватает с запасом, а на повторе упавшего
+        # предел растёт вместе с остальными — cap×3.
+        page.set_default_timeout(min(30000, int(10000 * CAP_SCALE)))
         t = Tester(page, 'http://127.0.0.1:%d/app.html' % PORT)
         page.on('pageerror', lambda e, t=t: t.console.append('PAGEERROR: ' + str(e)))
         page.on('console', lambda m, t=t: t.console.append('CONSOLE: ' + m.text)

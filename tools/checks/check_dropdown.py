@@ -57,7 +57,13 @@ def run(t):
     pg.locator('.itree-row[data-inode]').first.click()
     t.wait(300)
     pg.locator('[data-itab="all"]').click()
-    t.wait(700)
+    # Вкладка «все объекты» собирает выборку и подменяет её поля своими
+    # списками уже после отрисовки, поэтому ждём поле ПО ФАКТУ. Отсчёт времени
+    # тут держался на скорости машины: 07.09.2026 при загруженной машине поле
+    # не успевало, проверка падала, а следующий клик по отсутствующему полю
+    # висел до 30-секундного предела Playwright — один этот флак съедал 40 с
+    # прогона.
+    t.wait_for('.iall-stale .pick-btn')
 
     before = pg.locator('[data-all-row]').count()
     stale = pg.locator('.iall-stale .pick-btn').first
