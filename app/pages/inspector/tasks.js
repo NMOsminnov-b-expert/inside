@@ -176,16 +176,22 @@ export function taskDocs(rec) {
 export function oiLabel(oi) {
   if (!oi) return 'Объект имущества';
 
-  const name = String(oi.name || '').trim();
+  // Наименование не повторяем, если оно совпадает с видом: у участка name
+  // обычно и есть «Земельный участок», и подпись задваивалась.
+  const raw = String(oi.name || '').trim();
+  const same = (kind) => raw.toLowerCase() === kind.toLowerCase();
+  const name = raw;
 
   if (oi.card === 'building') {
-    return [oi.letter ? 'Литера ' + oi.letter : 'Строение', name].filter(Boolean).join(' · ');
+    const head = oi.letter ? 'Литера ' + oi.letter : 'Строение';
+    return same(head) ? head : [head, name].filter(Boolean).join(' · ');
   }
   if (oi.card === 'apartment') {
     return ['Квартира' + (oi.flat ? ' №' + oi.flat : ''), name].filter(Boolean).join(' · ');
   }
   if (oi.card === 'land') {
-    return ['Земельный участок', name].filter(Boolean).join(' · ');
+    return same('Земельный участок') ? 'Земельный участок'
+      : ['Земельный участок', name].filter(Boolean).join(' · ');
   }
   if (oi.card === 'movable') {
     const kind = oi.kind === 'ОФИС' ? 'Офисная техника'
