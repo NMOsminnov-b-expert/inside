@@ -59,11 +59,11 @@ function cellHTML(ctx, oi, key) {
 
   switch (key) {
     case 'letter': return `<span class="drag-grip" title="Перетащить">⠿</span>${esc(oi.letter || '—')}`;
-    case 'name': return `<span class="ell" title="${esc(oi.name)}">${esc(oi.name)}</span>`;
+    case 'name': return `<span class="ell" title="${esc(meta.plateName(oi))}">${esc(meta.plateName(oi))}</span>`;
     case 'category': return `<span class="ell" title="${esc(meta.tableCategory(oi))}">${esc(meta.tableCategory(oi))}</span>`;
     case 'status': return esc(oi.status || '—');
     case 'area': return meta.tableArea(oi);
-    case 'eni': return `<span class="mono" title="${esc(oi.eni)}">${esc(fmtEni(oi.eni))}</span>`;
+    case 'eni': return meta.hasEni === false ? '—' : `<span class="mono" title="${esc(oi.eni)}">${esc(fmtEni(oi.eni))}</span>`;
     case 'photos': return photoCell(oi);
     case 'act': return `<div class="row-actions">
       <button class="btn btn-danger btn-sm" data-del-oi="${oi.id}" title="Удалить литеру">×</button>

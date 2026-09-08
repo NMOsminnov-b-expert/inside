@@ -52,8 +52,54 @@
         "В production и civil уже был вид ОИ 'Механизмы и производственное оборудование' (card:'movable', kind:'МЕХ', фиксированные поля Наименование/Год/Заводской номер), включаемый чекбоксом 'Имущественный комплекс' (rec.complex), продублированный копипастой в обоих модулях (app/modules/production/oi/movable/*, app/modules/civil/oi/movable/*).",
         "Пользователь подтвердил (07.09.2026, через AskUserQuestion): этот старый ОИ заменяется новой общей карточкой app/modules/mechanisms/oi/mech/* (card:'mech') — переиспользуется production и civil тем же приёмом, что и land-plot/oi/land/* (тонкий прокси oi/mech/index.js, прямой импорт createMechOi в card/ocCard.ctrl.js, запись в oi/registry.js и data/rules.js).",
         "Это второе, наряду с land, осознанное исключение из правила modules/*→modules/* нельзя — CLAUDE.md нужно было дополнить (см. convention:modules-isolation-exceptions).",
-        "'Офисная техника и мебель' (второе значение того же movable/kind:'ОФИС') не тронута, осталась на старой фиксированной карточке и мастере монолит/комплекс.",
-        "Существующие сид-записи production/civil с card:'movable', kind:'МЕХ' мигрированы на card:'mech': ЕНИ/год/заводской номер стали полями конструктора; у записи-'комплекса' с вложенными узлами (нет эквивалента вложенного списка на новой плоской карточке) каждый бывший узел стал отдельной единицей ОИ со своими полями 'Тип'/'Код ЕНИ'."
+        "УТОЧНЕНО 07.09.2026 (отменяет прежнюю запись ниже): 'Офисная техника и мебель' тоже объединена с 'Механизмами' в один пункт меню — см. decision:mech-office-unified. Старая запись 'не тронута, осталась на фиксированной карточке' больше не верна.",
+        "Существующие сид-записи production/civil с card:'movable' мигрированы на card:'mech'. Первая версия миграции (07.09.2026, до объединения с офисной техникой) раскладывала 'комплекс' на несколько отдельных ОИ — эта версия УСТАРЕЛА, см. decision:mech-oi-holds-list."
+      ]
+    },
+    {
+      "name": "decision:mech-office-unified",
+      "entityType": "Decision",
+      "observations": [
+        "Пользователь спросил (07.09.2026) 'почему ты назвал добавление офисной техники, это может быть любой механизм или оборудование' — прямое указание, что разделение на 'Механизмы и производственное оборудование' и 'Офисная техника и мебель' искусственно.",
+        "Пользователь подтвердил через AskUserQuestion: объединить в один пункт меню 'Механизмы и оборудование' (card:'mech'). Старый movable/kind:'ОФИС', его мастер 'монолит/комплекс' (create/mech.view.js/ctrl.js) и маршрут route.rest[0]==='new' удалены из production и civil целиком.",
+        "data/rules.js: MOVABLE_OI_TYPES теперь один элемент вместо двух."
+      ]
+    },
+    {
+      "name": "decision:mech-oi-holds-list",
+      "entityType": "Decision",
+      "observations": [
+        "Пользователь спросил (07.09.2026): 'почему в ои нет функционала для добавления нескольких механизмов сразу, для каждого нужно нажимать добавить ОИ отдельно, и почему нет возможности редактировать уже созданные ОИ механизмы' — прямой запрос на список механизмов внутри одного ОИ, а не один физический экземпляр на ОИ.",
+        "Один ОИ card:'mech' в production/civil теперь контейнер: oi.mechanisms — тот же список {id,name,qty,cost,fields,photos}, что и rec.mechanisms на карточке ОЦ модуля mechanisms; oi/mech/view.js и ctrl.js переведены с renderMechFields/bindMechFields (одна запись) на renderMechList/bindMechList (список) — эти одиночные функции удалены из parts/mechConstructor.js как более не используемые нигде.",
+        "Следствие: у ОИ этого вида больше нет собственного oi.name (было имя единицы техники) — везде, где имя нужно для показа, используется mechListLabel(oi.mechanisms) (первое название + '(+N)'); в местах, которые нецелесообразно было переписывать по одному (сайдбар просмотрщика, часть тостов), oi.name поддерживается синхронной копией того же значения, обновляемой в oi/mech/ctrl.js.",
+        "Побочный найденный баг при первой реализации: bind() эагерно вызывал ctx.render() при каждом монтировании — давало бесконечную рекурсию render→bind→render (проявлялось как 'прикрепить фото не работает' — самая частая мутация). Исправлено: синхронизация oi.name — чистое присваивание без render(), render() вызывается только из настоящих онChange-мутаций."
+      ]
+    },
+    {
+      "name": "decision:mech-cost-field",
+      "entityType": "Decision",
+      "observations": [
+        "Пользователь запросил (07.09.2026) ещё один параметр 'стоимость'. Первая версия сделала его обязательным с блокировкой сохранения (по аналогии с количеством) — пользователь уточнил: НЕ обязательное, просто должно автоматически появляться при создании (значение по умолчанию 0, как и количество — 1). Итоговое поведение: clampCost — пустое/нечисловое/<0 при потере фокуса откатывается к 0, сохранение никогда не блокируется."
+      ]
+    },
+    {
+      "name": "decision:mech-photos-per-entry",
+      "entityType": "Decision",
+      "observations": [
+        "Пользователь запросил (07.09.2026) возможность прикреплять фото к механизмам. Первая версия: mech.photos = [{id,name,dataUrl,mime}] (плоский массив), открытие — window.open(dataUrl,'_blank') в новую вкладку. УСТАРЕЛО, см. decision:mech-photos-shared-viewer — пользователь попросил переиспользовать общий просмотрщик, форма данных изменена под него.",
+        "Пользователь отдельно попросил сделать кнопку 'прикрепить фото' заметнее ('не понял, что это кнопка') — добавлена CSS-плитка 64×64 с пунктирной рамкой и крупным '+', того же размера, что и миниатюры фото. Это решение осталось в силе."
+      ]
+    },
+    {
+      "name": "decision:mech-photos-shared-viewer",
+      "entityType": "Decision",
+      "observations": [
+        "Пользователь попросил (07.09.2026) 'возьми просмотрщик с других карточек для просмотра фото' — не устраивал window.open в новую вкладку (см. decision:mech-photos-per-entry). Форма данных сменена на ту же, что у остальных модулей (production/civil parts/photos/model.js): mech.photos = {категория: количество}, mech.photoFiles = {категория: [файл,...]}, категория всегда одна фиксированная (MECH_PHOTO_CAT='Фото', см. mechanisms/parts/photos/model.js) — у механизма нет содержательных категорий фото, в отличие от литеры здания.",
+        "Просмотрщик (parts/viewer/shell.js: buildViewerContext) находит, чьи фото показывать, через ctx.ui.viewerPhotoTarget — прямую ссылку на запись механизма (не член rec.oi, по id не найти), которую кладёт openPhoto(mech, idx) — колбэк, переданный в bindMechList вызывающей стороной (mechanisms/card/ocForm.ctrl.js, ocCreateForm.ctrl.js, mechanisms/oi/mech/ctrl.js), потому что parts/mechConstructor.js не должен знать про ctx/viewer конкретного модуля.",
+        "Найден и исправлен баг конфликта приоритетов: если ctx.oi уже указывает на ОИ-контейнер 'Механизмы' (мы и так внутри его экрана), 'ctx.oi || ctx.ui.viewerPhotoTarget' всегда брал контейнер (details: у него есть .card, а у записи механизма нет) — из-за этого показывались фото контейнера (пустые) и появлялся лишний 'перенос к литере'. Исправлено: viewerPhotoTarget получает приоритет, но ТОЛЬКО пока он реально входит в текущий rec.mechanisms/ctx.oi.mechanisms (иначе стух — откат на ctx.oi), никакого явного 'очистить при переходе' не потребовалось.",
+        "oi/mech/view.js/ctrl.js (встраиваемая карточка ОИ) статически импортируют splitWrap/viewerHTML/VS из СВОЕГО (mechanisms), а не из production/civil, где встраиваются — тот же приём, что и у land-plot/oi/land/*: карточка сама отвечает за свой просмотрщик. Из-за этого правки в production/civil parts/viewer/shell.js|photo.js|ctrl.js (viewerPhotoTarget-ветки) добавлены для единообразия трёх копий, но на практике не задействуются встроенной карточкой mech — только сама mechanisms/parts/viewer/* реально участвует.",
+        "moveTargets (parts/viewer/photo.js, три модуля) получил guard !oi.card — у записи механизма нет .card (не настоящий ОИ), поэтому 'перенос к другой литере' для неё не строится вовсе.",
+        "УТОЧНЕНО 07.09.2026, тот же день: после первой версии пользователь сообщил 'фото не появляются во вкладке Фото · 1' — два отдельных бага. (1) Кнопка '+Фото' только добавляла файл (addPhotoFile+onChange), не открывая просмотрщик на нём — счётчик в неактивной вкладке не обновлялся визуально, пока не кликнуть по самой миниатюре. Исправлено: addPhotoBtn.onclick теперь сам зовёт openPhoto(m, только что добавленный индекс) — то же самое, что открыть по клику на миниатюру. (2) Общая кнопка-переключатель вкладки 'Фото' (data-vmode='photo', parts/viewer/ctrl.js, все три модуля) ЯВНО сбрасывала ctx.ui.viewerPhotoTarget при каждом клике — из-за этого повторный клик по уже открытой вкладке (например, после переключения на 'Документы' и обратно) снова показывал пустое состояние, даже когда ссылка была ещё валидна. Исправлено удалением этого сброса: buildViewerContext уже сам инвалидирует ссылку, когда она перестаёт входить в текущий rec.mechanisms/ctx.oi.mechanisms (см. выше) — явный сброс по клику был лишним и вредным."
       ]
     },
     {
@@ -86,6 +132,18 @@
     { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mechanisms-standalone-module-no-oi", "relationType": "документирует" },
     { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-field-constructor-local-store", "relationType": "документирует" },
     { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-replaces-movable-oi", "relationType": "документирует" },
-    { "from": "bug:oi-table-groups-by-hasLetter-not-card-literal", "to": "decision:mech-replaces-movable-oi", "relationType": "найдено при реализации" }
+    { "from": "bug:oi-table-groups-by-hasLetter-not-card-literal", "to": "decision:mech-replaces-movable-oi", "relationType": "найдено при реализации" },
+    { "from": "decision:mech-office-unified", "to": "decision:mech-replaces-movable-oi", "relationType": "уточняет" },
+    { "from": "decision:mech-oi-holds-list", "to": "decision:mech-office-unified", "relationType": "следует из" },
+    { "from": "decision:mech-oi-holds-list", "to": "app/modules/mechanisms/parts/mechConstructor.js", "relationType": "реализовано в" },
+    { "from": "decision:mech-cost-field", "to": "app/modules/mechanisms/parts/mechConstructor.js", "relationType": "реализовано в" },
+    { "from": "decision:mech-photos-per-entry", "to": "app/modules/mechanisms/parts/mechConstructor.js", "relationType": "реализовано в" },
+    { "from": "decision:mech-photos-shared-viewer", "to": "decision:mech-photos-per-entry", "relationType": "уточняет" },
+    { "from": "decision:mech-photos-shared-viewer", "to": "app/modules/mechanisms/parts/mechConstructor.js", "relationType": "реализовано в" },
+    { "from": "decision:mech-photos-shared-viewer", "to": "app/modules/land-plot/oi/land", "relationType": "по аналогии с" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-office-unified", "relationType": "документирует" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-oi-holds-list", "relationType": "документирует" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-cost-field", "relationType": "документирует" },
+    { "from": "docs/tz/60-mekhanizmy-i-oborudovanie.md", "to": "decision:mech-photos-shared-viewer", "relationType": "документирует" }
   ]
 }

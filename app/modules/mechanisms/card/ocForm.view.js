@@ -64,7 +64,7 @@ function mainSection(rec) {
 }
 
 function mechSection(rec) {
-  rec.mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ id: uid(), name: '', qty: 1, cost: 0, fields: [] }];
+  rec.mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ id: uid(), name: '', qty: 1, cost: 0, fields: [], photos: {} }];
   return `<div class="card t-teal">
     <div class="card-head">
       <span class="card-idx">02</span>

@@ -1,21 +1,24 @@
-import { renderMechFields } from '../../parts/mechConstructor.js';
+import { renderMechList } from '../../parts/mechConstructor.js';
+import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
-// Карточка ОИ «Механизмы» — тонкая обёртка вокруг общего конструктора полей
-// (parts/mechConstructor.js), адаптированная под контракт вида ОИ
-// (render(ctx, oi), см. app/README.md). oi здесь ПЛОСКИЙ и сам является тем
-// {name, fields}, которого ждёт renderMechFields — отдельного хранения имени
-// и списка полей внутри oi не требуется.
+// Карточка ОИ «Механизмы и оборудование» — тонкая обёртка вокруг общего
+// конструктора (parts/mechConstructor.js), адаптированная под контракт вида
+// ОИ (render(ctx, oi), см. app/README.md). ОИ здесь — контейнер списка
+// механизмов (oi.mechanisms), тем же renderMechList, что и у карточки ОЦ
+// этого модуля (card/ocForm.view.js) — внутри одного ОИ можно завести сразу
+// несколько единиц техники, а не только одну (задача пользователя).
 //
-// Фото/заметки этой единицы техники — на уровне ctx (карточка ОЦ-владельца
-// уже даёт просмотрщик и ящик заметок, см. land-plot/oi/land/view.js —
-// там то же самое: свой блок фото есть, а отдельного блока заметок в
-// карточке ОИ нет, заметки — в ящике карточки). Здесь фото по категориям не
-// заводим тоже: у единицы техники, в отличие от литеры здания, нет
-// устоявшегося перечня фото-категорий, который стоило бы городить в первой
-// версии карточки.
+// splitWrap/viewerHTML — импортированы из ЭТОГО (mechanisms) модуля, не из
+// production/civil, где карточка встраивается как вид ОИ: тот же приём, что
+// и у карточки земельного участка (см. land-plot/oi/land/view.js) — карточка
+// сама отвечает за свой просмотрщик (документы записи-владельца + фото
+// механизмов через ctx.ui.viewerPhotoTarget, см. parts/mechConstructor.js:
+// openPhoto), вызывающий модуль об этом не знает.
 export function render(ctx, oi) {
-  return `<div class="card t-teal">
-    <div class="card-head"><span class="card-idx">01</span><h3>Механизм</h3></div>
-    <div class="card-pad">${renderMechFields(oi)}</div>
+  oi.mechanisms = (oi.mechanisms && oi.mechanisms.length) ? oi.mechanisms : [];
+  const body = `<div class="card t-teal">
+    <div class="card-head"><span class="card-idx">01</span><h3>Механизмы</h3></div>
+    <div class="card-pad">${renderMechList(oi.mechanisms)}</div>
   </div>`;
+  return splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body);
 }

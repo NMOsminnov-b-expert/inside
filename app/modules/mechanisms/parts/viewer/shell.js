@@ -11,10 +11,34 @@ function buildViewerContext(ctx) {
   const inOi = ctx.view === 'oi';
   // В карточке литеры показываем её фото, в перечне объекта оценки — фото той
   // литеры, снимок которой открыли из окна перечня (kernel: viewerPhotoOi).
-  const oi = ctx.oi
+  // viewerPhotoTarget — то же самое, но для фото ОДНОЙ ЗАПИСИ МЕХАНИЗМА
+  // (rec.mechanisms[] здесь, oi.mechanisms[] во встроенной карточке ОИ
+  // production/civil): прямая ссылка на объект, а не поиск по id (кладёт
+  // кнопка «Фото» механизма, см. parts/mechConstructor.js: openPhoto).
+  // ПРИОРИТЕТ выше ctx.oi нарочно: пока запись механизма ещё реально входит в
+  // текущий rec.mechanisms/ctx.oi.mechanisms — это то, что просили показать;
+  // если же успели уйти на другой ОИ/запись (viewerPhotoTarget не найти там,
+  // где ему полагается быть) — ссылка стухла сама, откатываемся на ctx.oi
+  // как раньше. У самой записи механизма нет `.card` (это не настоящий ОИ) —
+  // этим пользуется photo.js, чтобы не показывать «перенос к литере».
+  const photoTarget = ctx.ui.viewerPhotoTarget;
+  const photoTargetValid = photoTarget && (
+    (ctx.rec.mechanisms || []).includes(photoTarget)
+    || (ctx.oi && ctx.oi.mechanisms && ctx.oi.mechanisms.includes(photoTarget))
+  );
+  const oi = (photoTargetValid ? photoTarget : null) || ctx.oi
     || (ctx.ui.viewerPhotoOi
       ? (ctx.rec.oi || []).find((o) => o.id === ctx.ui.viewerPhotoOi)
       : null);
+
+  // Клик по конкретной миниатюре механизма просит открыть просмотрщик сразу
+  // на ней — заявка одноразовая (viewerPhotoJumpIdx), после первого же
+  // построения контекста стирается, дальше листает уже сам просмотрщик.
+  if (oi && oi === ctx.ui.viewerPhotoTarget && ctx.ui.viewerPhotoJumpIdx != null) {
+    const st = VS.photos[oi.id] || (VS.photos[oi.id] = { page: 1, rot: 0, scroll: 0 });
+    st.page = ctx.ui.viewerPhotoJumpIdx + 1;
+    ctx.ui.viewerPhotoJumpIdx = null;
+  }
 
   const scopes = inOi
     ? ((oi && (oi.docs || []).length ? [oi.id, 'oc'] : ((ctx.rec.docs || []).length ? ['oc'] : [])))

@@ -11,10 +11,36 @@ function buildViewerContext(ctx) {
   const inOi = ctx.view === 'oi';
   // В карточке литеры показываем её фото, в перечне объекта оценки — фото той
   // литеры, снимок которой открыли из окна перечня (kernel: viewerPhotoOi).
-  const oi = ctx.oi
+  // viewerPhotoTarget — то же, но для фото ОДНОЙ ЗАПИСИ МЕХАНИЗМА внутри ОИ
+  // «Механизмы и оборудование» (oi.mechanisms[], встроен из mechanisms) — она
+  // не член rec.oi, поэтому по id не найти; кнопка «Фото» кладёт прямую
+  // ссылку на объект (см. parts/mechConstructor.js: openPhoto,
+  // oi/mech/ctrl.js). Приоритет выше ctx.oi нарочно: пока запись механизма
+  // ещё реально входит в ctx.oi.mechanisms текущего ОИ — это то, что просили
+  // показать; если успели уйти на другой ОИ (ссылки там не найти) — она
+  // стухла сама, откатываемся на ctx.oi как раньше. У записи механизма нет
+  // `.card` (это не настоящий ОИ) — этим пользуется photo.js, чтобы не
+  // показывать для неё бессмысленный «перенос к литере».
+  //
+  // На практике эта карточка ОИ рендерится ЧЕРЕЗ mechanisms/oi/mech/view.js
+  // (импортирует splitWrap/viewerHTML из mechanisms, не отсюда — тот же
+  // приём, что и у земельного участка), поэтому ветка ниже с этим модулем не
+  // встречается — оставлена для единообразия трёх копий этого файла.
+  const photoTarget = ctx.ui.viewerPhotoTarget;
+  const photoTargetValid = photoTarget && ctx.oi && ctx.oi.mechanisms && ctx.oi.mechanisms.includes(photoTarget);
+  const oi = (photoTargetValid ? photoTarget : null) || ctx.oi
     || (ctx.ui.viewerPhotoOi
       ? (ctx.rec.oi || []).find((o) => o.id === ctx.ui.viewerPhotoOi)
       : null);
+
+  // Клик по конкретной миниатюре механизма просит открыть просмотрщик сразу
+  // на ней — заявка одноразовая (viewerPhotoJumpIdx), после первого же
+  // построения контекста стирается, дальше листает уже сам просмотрщик.
+  if (oi && oi === ctx.ui.viewerPhotoTarget && ctx.ui.viewerPhotoJumpIdx != null) {
+    const st = VS.photos[oi.id] || (VS.photos[oi.id] = { page: 1, rot: 0, scroll: 0 });
+    st.page = ctx.ui.viewerPhotoJumpIdx + 1;
+    ctx.ui.viewerPhotoJumpIdx = null;
+  }
 
   const scopes = inOi
     ? ((oi && (oi.docs || []).length ? [oi.id, 'oc'] : ((ctx.rec.docs || []).length ? ['oc'] : [])))

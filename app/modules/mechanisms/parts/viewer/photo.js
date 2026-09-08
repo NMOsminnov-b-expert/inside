@@ -2,13 +2,15 @@ import { esc } from '../../../../kernel/dom.js';
 import { VS } from './state.js';
 import { photoFileAt } from '../photos/model.js';
 
-// Целевые литеры для переноса текущего фото (все литеры, кроме текущей).
-// У этого модуля нет ни ОИ, ни литер (см. records.js): moveTargets и весь
-// связанный с ним UI ниже — мёртвый код, недостижимый без выбранной oi
-// (см. ранний return в renderPhotoMode ниже, ctx.oi/ctx.ui.viewerPhotoOi
-// в mechanisms никогда не устанавливаются).
+// Целевые литеры для переноса текущего фото (все литеры, кроме текущей). У
+// этого модуля нет ни ОИ, ни rec.oi вовсе — moveTargets всегда возвращает []
+// (ctx.rec.oi undefined). oi без .card — запись механизма (rec.mechanisms[]),
+// а не настоящий ОИ, для неё «перенос к литере» не имеет смысла в принципе,
+// даже там, где rec.oi есть (production/civil, куда эта же карточка
+// встраивается как вид ОИ).
 function moveTargets(ctx, oi) {
-  return ctx.rec.oi.filter((o) => o.card !== 'land' && (!oi || o.id !== oi.id));
+  if (!oi || !oi.card) return [];
+  return (ctx.rec.oi || []).filter((o) => o.card !== 'land' && o.id !== oi.id);
 }
 
 export function renderPhotoMode(ctx, vctx) {

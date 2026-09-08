@@ -30,10 +30,10 @@ export function ctxPlate(ctx) {
 
     return `<div class="ctx-plate ctx-oi">
         <span class="ctx-kind">${meta.plateKind}</span>
-        <b>${meta.hasLetter ? 'Литера ' + esc(oi.letter) + ' · ' : ''}${esc(oi.name)}</b>
-        <span class="ctx-chip ctx-plate-eni" title="Код ЕНИ — правится в шапке блока «Общие параметры»">
+        <b>${meta.hasLetter ? 'Литера ' + esc(oi.letter) + ' · ' : ''}${esc(meta.plateName(oi))}</b>
+        ${meta.hasEni === false ? '' : `<span class="ctx-chip ctx-plate-eni" title="Код ЕНИ — правится в шапке блока «Общие параметры»">
           <label>ЕНИ</label>
-          <b class="mono">${esc(fmtEni(oi.eni))}</b></span>
+          <b class="mono">${esc(fmtEni(oi.eni))}</b></span>`}
         <span class="ctx-chip ctx-plate-addr ell" title="${esc(ctx.rec.address)}">${esc(ctx.rec.address)}</span>
         ${chips}
         ${flagBadgesHTML(recFlags(ctx.rec))}
@@ -44,10 +44,6 @@ export function ctxPlate(ctx) {
           <button class="ctx-act" data-back title="Отмена — вернуться к объекту оценки">${ICON_BACK}</button>
         </span>
       </div>`;
-  }
-
-  if (ctx.view === 'mech') {
-    return `<div class="ctx-plate ctx-form"><span class="ctx-kind">Создание</span><b>${ctx.mechKind === 'МЕХ' ? 'Механизм' : 'Офисная техника'}</b><span class="ctx-chip">${ctx.ui.mechMode === 'mono' ? 'монолит' : 'комплекс'}</span></div>`;
   }
 
   if (ctx.view === 'form') {

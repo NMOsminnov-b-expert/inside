@@ -23,6 +23,7 @@
 // категориям внутри литеры).
 import { session } from '../../../kernel/session.js';
 import { nextEniScoped } from '../data/store.js';
+import { mechListLabel } from '../../mechanisms/parts/mechConstructor.js';
 
 // Служебные поля, которые пользователю не показываются никогда, поэтому не
 // логируются — в том числе при каскаде удаления литеры: auditLog/updatedAt/
@@ -63,6 +64,7 @@ function displayValue(v) {
 }
 
 function oiLabel(item) {
+  if (item.card === 'mech') return mechListLabel(item.mechanisms);
   return item.letter ? `Литера ${item.letter} · ${item.name}` : (item.name || item.id);
 }
 
@@ -70,19 +72,21 @@ function docLabel(item) {
   return `«${item.type}» — ${item.name} (${item.id})`;
 }
 
-// Поля конструктора карточки «Механизм» (card:'mech', встроена из
-// mechanisms — см. mechanisms/oi/mech/model.js). Подпись поля придумывает
-// пользователь в рантайме, поэтому дифф отдельный от обычных полей ОИ:
-// матчинг по id, человекочитаемая строка «Механизм: <label>» вместо
+// Поля конструктора одной записи механизма внутри карточки «Механизмы и
+// оборудование» (card:'mech', встроена из mechanisms — см.
+// mechanisms/oi/mech/model.js). Подпись поля придумывает пользователь в
+// рантайме, поэтому дифф отдельный от обычных полей ОИ: матчинг по id,
+// человекочитаемая строка «Механизм «<название>»: <label>» вместо
 // технического ключа «fields» (которого fieldLabel не знает) — тот же
-// приём, что и у rec.mech.fields в самом модуле mechanisms
+// приём, что и у rec.mechanisms[].fields в самом модуле mechanisms
 // (см. mechanisms/audit/model.js, diffMechFieldsArray).
-function diffMechFieldsArray(before, after, category, target, out) {
+function diffMechFieldsArray(before, after, category, target, out, entryLabel) {
   const beforeMap = new Map(before.map((x) => [x.id, x]));
   const afterMap = new Map(after.map((x) => [x.id, x]));
+  const prefix = `Механизм «${entryLabel}»:`;
 
   afterMap.forEach((item, id) => {
-    const field = `Механизм: ${item.label}`;
+    const field = `${prefix} ${item.label}`;
     if (!beforeMap.has(id)) {
       out.push({ category, target, cardType: 'mech', field, action: 'create', before: '—', after: displayValue(item.value) });
       return;
@@ -97,7 +101,62 @@ function diffMechFieldsArray(before, after, category, target, out) {
 
   beforeMap.forEach((item, id) => {
     if (!afterMap.has(id)) {
-      out.push({ category, target, cardType: 'mech', field: `Механизм: ${item.label}`, action: 'delete', before: displayValue(item.value), after: '—' });
+      out.push({ category, target, cardType: 'mech', field: `${prefix} ${item.label}`, action: 'delete', before: displayValue(item.value), after: '—' });
+    }
+  });
+}
+
+// Имя, которым запись механизма называется в логе — своё название, если
+// есть, иначе id (запись только что добавлена и ещё не заполнена).
+function mechEntryLabel(entry) {
+  return (entry && entry.name) ? entry.name : ((entry && entry.id) || '');
+}
+
+// oi.mechanisms — список записей механизма внутри ОИ «Механизмы и
+// оборудование» (один ОИ теперь может содержать сразу несколько единиц
+// техники — задача пользователя): матчинг по id, как и у docs/oi; для
+// записи, оставшейся в обеих версиях, — дифф её name/qty/cost плюс дифф её
+// полей (diffMechFieldsArray); для добавленной/убранной целиком записи —
+// одна сводная строка, а не построчный дамп её полей.
+function diffMechanismsArray(before, after, category, target, out) {
+  const beforeMap = new Map(before.map((x) => [x.id, x]));
+  const afterMap = new Map(after.map((x) => [x.id, x]));
+
+  afterMap.forEach((item, id) => {
+    if (!beforeMap.has(id)) {
+      const label = mechEntryLabel(item) || '—';
+      out.push({ category, target, cardType: 'mech', field: 'Механизмы (состав)', action: 'create', before: '—', after: `добавлен механизм «${label}»` });
+      return;
+    }
+
+    const b = beforeMap.get(id);
+    const label = mechEntryLabel(item) || mechEntryLabel(b) || id;
+
+    const beforeName = displayValue(b.name);
+    const afterName = displayValue(item.name);
+    if (beforeName !== afterName) {
+      out.push({ category, target, cardType: 'mech', field: `Механизм «${label}»: Название`, action: 'update', before: beforeName, after: afterName });
+    }
+
+    const beforeQty = displayValue(b.qty);
+    const afterQty = displayValue(item.qty);
+    if (beforeQty !== afterQty) {
+      out.push({ category, target, cardType: 'mech', field: `Механизм «${label}»: Количество`, action: 'update', before: beforeQty, after: afterQty });
+    }
+
+    const beforeCost = displayValue(b.cost);
+    const afterCost = displayValue(item.cost);
+    if (beforeCost !== afterCost) {
+      out.push({ category, target, cardType: 'mech', field: `Механизм «${label}»: Стоимость`, action: 'update', before: beforeCost, after: afterCost });
+    }
+
+    diffMechFieldsArray(b.fields || [], item.fields || [], category, target, out, label);
+  });
+
+  beforeMap.forEach((item, id) => {
+    if (!afterMap.has(id)) {
+      const label = mechEntryLabel(item) || '—';
+      out.push({ category, target, cardType: 'mech', field: 'Механизмы (состав)', action: 'delete', before: `удалён механизм «${label}»`, after: '—' });
     }
   });
 }
@@ -144,10 +203,10 @@ function walk(beforeRaw, afterRaw, path, category, target, cardType, out) {
         walk(before.photos || {}, after.photos || {}, ['photos'], 'photos', target, cardType, out);
         return;
       }
-      // fields — конструктор полей карточки «Механизм» (card:'mech'), см.
-      // diffMechFieldsArray выше.
-      if (path.length === 0 && cardType === 'mech' && k === 'fields') {
-        diffMechFieldsArray(before.fields || [], after.fields || [], category, target, out);
+      // mechanisms — список механизмов внутри ОИ «Механизмы и оборудование»
+      // (card:'mech'), см. diffMechanismsArray выше.
+      if (path.length === 0 && cardType === 'mech' && k === 'mechanisms') {
+        diffMechanismsArray(before.mechanisms || [], after.mechanisms || [], category, target, out);
         return;
       }
 
@@ -198,7 +257,7 @@ function diffOiArray(before, after, out) {
   const afterMap = new Map(after.map((x) => [x.id, x]));
 
   afterMap.forEach((item, id) => {
-    const target = { id: item.id, letter: item.letter, name: item.name };
+    const target = { id: item.id, letter: item.letter, name: item.card === 'mech' ? mechListLabel(item.mechanisms) : item.name };
     if (!beforeMap.has(id)) {
       out.push({ category: 'oi', target, cardType: item.card, field: '(объект)', action: 'create', before: '—', after: oiLabel(item) });
     } else {
@@ -302,7 +361,7 @@ export function pushDocPageLog(rec, doc, action, pageNumber) {
 export function pushOiDeletionLog(rec, oi, movedPhotos) {
   if (!rec || !oi) return [];
 
-  const target = { id: oi.id, letter: oi.letter, name: oi.name };
+  const target = { id: oi.id, letter: oi.letter, name: oi.card === 'mech' ? mechListLabel(oi.mechanisms) : oi.name };
   const snapshot = { ...oi };
   delete snapshot.photos;
 

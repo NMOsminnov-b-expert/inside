@@ -3,8 +3,13 @@ import { VS } from './state.js';
 import { photoFileAt } from '../photos/model.js';
 
 // Целевые литеры для переноса текущего фото (все литеры, кроме текущей).
+// oi без .card — не настоящий ОИ, а запись механизма внутри карточки
+// «Механизмы и оборудование» (oi.mechanisms[], встроена из mechanisms) —
+// переносить её фото «к литере» бессмысленно (другая единица хранения фото),
+// поэтому для неё целей нет вовсе.
 function moveTargets(ctx, oi) {
-  return ctx.rec.oi.filter((o) => o.card !== 'land' && (!oi || o.id !== oi.id));
+  if (!oi || !oi.card) return [];
+  return (ctx.rec.oi || []).filter((o) => o.card !== 'land' && o.id !== oi.id);
 }
 
 export function renderPhotoMode(ctx, vctx) {

@@ -12,8 +12,17 @@ export function bindOcForm(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
 
-  rec.mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ id: uid(), name: '', qty: 1, cost: 0, fields: [] }];
-  bindMechList(s, rec.mechanisms, () => ctx.render());
+  rec.mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ id: uid(), name: '', qty: 1, cost: 0, fields: [], photos: {} }];
+  // Фото механизма открывается общим просмотрщиком записи (parts/viewer/*),
+  // тем же, что и у документов, — не отдельным лайтбоксом (задача
+  // пользователя 07.09.2026: «возьми просмотрщик с других карточек»).
+  bindMechList(s, rec.mechanisms, () => ctx.render(), (mech, idx) => {
+    ctx.ui.viewer = { mode: 'photo' };
+    ctx.ui.viewerPhotoTarget = mech;
+    ctx.ui.viewerPhotoJumpIdx = idx;
+    ctx.ui.viewerClosed = false;
+    ctx.render();
+  });
 
   const save = s.$('#btnSaveOc');
   if (save) save.onclick = () => {

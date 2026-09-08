@@ -1,5 +1,6 @@
 import { esc } from '../../../kernel/dom.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
+import { mechListLabel } from '../../mechanisms/parts/mechConstructor.js';
 
 // Реестр карточек ОИ модуля «Гражданское здание».
 function verbal(oi) {
@@ -18,6 +19,7 @@ export const OI_CARDS = {
     headLabel: 'Карточка ОИ (литера)',
     listLabel: (oi) => `Лит ${esc(oi.letter)} · ${esc(oi.name)}`,
     crumbLabel: (oi) => `Литера ${esc(oi.letter)} · ${esc(oi.name)}`,
+    plateName: (oi) => oi.name,
     plateKind: 'ОЦ → литера',
     hasLetter: true,
     tableCategory: (oi) => oi.catClass || 'Гражданское здание',
@@ -37,6 +39,8 @@ export const OI_CARDS = {
     headLabel: 'Земельный участок',
     listLabel: () => 'Земельный участок',
     crumbLabel: (oi) => esc(oi.name),
+    plateName: (oi) => oi.name,
+    hasEni: false,
     plateKind: 'ОЦ → ОИ',
     hasLetter: false,
     tableCategory: () => 'Земельный участок',
@@ -46,38 +50,26 @@ export const OI_CARDS = {
     load: () => import('./land/index.js'),
   },
 
-  // Механизм — встроен из mechanisms (см. app/README.md, исключение из
-  // изоляции модулей). Заменяет прежний card:'movable', kind:'МЕХ' — у новой
-  // карточки нет ни flags/origin (не показывает бейдж «введено/проверено»),
-  // ни площади, поэтому shape проще, чем у movable/building.
+  // Механизмы и оборудование — встроен из mechanisms (см. app/README.md,
+  // исключение из изоляции модулей). Заменяет прежние card:'movable' с
+  // kind:'МЕХ' и kind:'ОФИС' (были два разных пункта меню — по решению
+  // пользователя объединены в один: офисная техника ничем принципиально не
+  // отличается от любого другого механизма). Один ОИ — контейнер списка
+  // механизмов (oi.mechanisms), поэтому нет ни своего oi.name (см.
+  // mechListLabel), ни ЕНИ (у механизма его нет вовсе, не только тут).
   mech: {
     id: 'mech',
-    headLabel: 'Механизм',
-    listLabel: (oi) => `Механизм · ${esc(oi.name)}`,
-    crumbLabel: (oi) => esc(oi.name),
+    headLabel: 'Механизмы',
+    listLabel: (oi) => `Механизмы · ${esc(mechListLabel(oi.mechanisms))}`,
+    crumbLabel: (oi) => esc(mechListLabel(oi.mechanisms)),
+    plateName: (oi) => mechListLabel(oi.mechanisms),
+    hasEni: false,
     plateKind: 'ОЦ → ОИ',
     hasLetter: false,
     tableCategory: () => 'Движимое · Механизм',
     tableArea: () => '—',
     plateChips: () => [],
     load: () => import('./mech/index.js'),
-  },
-
-  movable: {
-    id: 'movable',
-    headLabel: 'Движимое имущество',
-    listLabel: (oi) => `${oi.kind === 'МЕХ' ? 'Механизм' : 'Офис. техника'} · ${esc(oi.name)}`,
-    crumbLabel: (oi) => esc(oi.name),
-    plateKind: 'ОЦ → ОИ',
-    hasLetter: false,
-    tableTag: (oi) => (oi.kind === 'МЕХ' ? 'Механизм' : 'Офис. техника'),
-    tableCategory: (oi) => (oi.kind === 'МЕХ' ? 'Движимое · Механизм' : 'Движимое · Офисная техника'),
-    tableArea: () => '—',
-    plateChips: (oi) => {
-      const v = verbal(oi);
-      return [`<span class="ctx-chip ${v.c}">${v.t}</span>`];
-    },
-    load: () => import('./movable/index.js'),
   },
 
   // Квартиру можно добавить в объект оценки любого типа (решение пользователя
@@ -87,6 +79,7 @@ export const OI_CARDS = {
     headLabel: 'Карточка квартиры',
     listLabel: (oi) => `Лит ${esc(oi.letter)} · ${esc(oi.name)}`,
     crumbLabel: (oi) => `Литера ${esc(oi.letter)} · ${esc(oi.name)}`,
+    plateName: (oi) => oi.name,
     plateKind: 'ОЦ → литера',
     hasLetter: true,
     tableCategory: () => 'Квартира',

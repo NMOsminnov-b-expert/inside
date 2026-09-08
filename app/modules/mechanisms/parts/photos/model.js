@@ -1,20 +1,48 @@
-// У этого модуля нет ни одного вида ОИ (см. records.js), а значит и фото,
-// привязанных к литере/ОИ, тоже никогда не будет — в отличие от production,
-// где это полноценная модель с файлами по категориям.
+// Фото механизма — та же модель, что и в остальных модулях (production/civil,
+// см. их parts/photos/model.js): счётчики mech.photos = {категория: количество}
+// остаются источником истины по количеству, а файлы лежат параллельно в
+// mech.photoFiles = {категория: [файл, ...]}. Категория здесь всегда одна и
+// та же (MECH_PHOTO_CAT) — у механизма, в отличие от литеры здания, нет
+// устоявшегося перечня категорий фото, который стоило бы заводить.
 //
-// Файл существует ТОЛЬКО как узкая точка опоры для parts/viewer/*: эти файлы
-// скопированы из production мехнически и статически импортируют
-// `photoPages`/`photoFileAt`/`photoGroups` из '../photos/model.js' — без
-// этого модуля импорт не резолвится и весь просмотрщик не загружается.
-// Экспортированы только эти три функции (остальные из production-варианта —
-// addPhotoFile, movePhotoFile, extractLetterRef, photoMatches — здесь не
-// нужны и опущены; extractLetterRef/photoMatches к тому же тянули бы
-// LETTER_SEQ, которого в mechanisms/data/dictionaries.js нет и не может быть).
-// Все три уже защищены от oi === null/undefined в исходнике — это НЕ
-// добавленный guard, а поведение, которое было в production и раньше.
+// Смысл именно этой формы (а не более простого плоского списка, который был
+// в первой версии): она совместима «как есть» с parts/viewer/* — тем же
+// просмотрщиком (зум, поворот, лента миниатюр), которым уже пользуются
+// документы и который просят переиспользовать для фото механизма, а не
+// заводить новый (см. parts/viewer/state.js: openMechPhotoViewer,
+// parts/viewer/shell.js: buildViewerContext).
+//
+// nextEniScoped из data/store.js здесь не подходит для файлов (это не
+// документы записи, у file нет своего логового id) — id самих фото не
+// требуется вовсе, адресация — по (категория, индекс), как и у остальных
+// модулей.
+export const MECH_PHOTO_CAT = 'Фото';
+
 export function photoFileAt(oi, cat, i) {
   const arr = ((oi && oi.photoFiles) || {})[cat];
   return (arr && arr[i]) || null;
+}
+
+export function addPhotoFile(oi, cat, file) {
+  oi.photos = oi.photos || {};
+  oi.photoFiles = oi.photoFiles || {};
+  const arr = (oi.photoFiles[cat] = oi.photoFiles[cat] || []);
+  const count = oi.photos[cat] || 0;
+  while (arr.length < count) arr.push(null);
+  arr.push(file);
+  oi.photos[cat] = count + 1;
+}
+
+// Убрать одно фото по (категория, индекс) — сдвигает индексы остальных фото
+// той же категории, как и обычное удаление из массива. У остальных модулей
+// такой функции нет (там фото не убирают, только переносят к другой литере),
+// здесь понадобилась — конструктор полей это позволяет.
+export function removePhotoFile(oi, cat, i) {
+  if (!oi || !oi.photos || !oi.photos[cat]) return;
+  const arr = (oi.photoFiles && oi.photoFiles[cat]) || [];
+  if (arr.length > i) arr.splice(i, 1);
+  oi.photos[cat] = Math.max(0, oi.photos[cat] - 1);
+  if (oi.photos[cat] === 0) delete oi.photos[cat];
 }
 
 export function photoPages(oi) {

@@ -28,8 +28,6 @@ import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
-import { viewMech } from './create/mech.view.js';
-import { bindMech } from './create/mech.ctrl.js';
 
 function todayStr() {
   const d = new Date();
@@ -61,12 +59,6 @@ export function main(host) {
     get view() { return viewName(); },
     get tab() { return route.query.tab || 'general'; },
     get oi() { return route.rest[0] === 'oi' ? getOi(rec, route.rest[1]) : null; },
-    // Раньше здесь читался route.rest[1] ('mech' | 'office'): маршрут 'new'
-    // обслуживал оба вида движимого. Механизмы теперь создаются напрямую
-    // карточкой mechanisms/oi/mech (см. data/rules.js, card/ocCard.ctrl.js),
-    // без этого маршрута — значит сюда попадает только «Офисная техника и
-    // мебель», и значение всегда одно.
-    get mechKind() { return 'ОФИС'; },
 
     toast: host.toast,
     resetViewer,
@@ -85,7 +77,7 @@ export function main(host) {
       const label = oi.letter ? 'Литера ' + oi.letter : 'ОИ';
       const ok = await host.confirm({
         title: 'Удаление ОИ',
-        text: `Удалить «${label}» (${oi.name})? Действие нельзя отменить.`,
+        text: `Удалить «${label}» (${cardMeta(oi).plateName(oi)})? Действие нельзя отменить.`,
         okLabel: 'Удалить',
         danger: true,
       });
@@ -99,7 +91,7 @@ export function main(host) {
       if (hasPhotos) {
         rec.ocOrphanPhotos = rec.ocOrphanPhotos || [];
         rec.ocOrphanPhotos.push({
-          fromOiId: oi.id, letter: oi.letter, name: oi.name,
+          fromOiId: oi.id, letter: oi.letter, name: cardMeta(oi).plateName(oi),
           photos: { ...photos }, photoFiles: { ...(oi.photoFiles || {}) },
         });
       }
@@ -134,7 +126,6 @@ export function main(host) {
   function viewName() {
     if (route.rest[0] === 'oi') return 'oi';
     if (route.rest[0] === 'form') return 'form';
-    if (route.rest[0] === 'new') return 'mech';
     if (route.rest[0] === 'create') return 'create';
     return 'oc';
   }
@@ -158,7 +149,6 @@ export function main(host) {
     items.push({ label: `Объект ${fmtEni(rec.eni)}`, to: ocHref });
 
     if (ctx.view === 'form') items.push({ label: 'Редактирование ОЦ', current: true });
-    else if (ctx.view === 'mech') items.push({ label: 'Создание объекта', current: true });
     else if (ctx.view === 'create') items.push({ label: 'Создание ОЦ', current: true });
     else if (ctx.oi) items.push({ label: cardMeta(ctx.oi).crumbLabel(ctx.oi), current: true });
     else items.push({ label: manifest.label, current: true });
@@ -245,9 +235,6 @@ export function main(host) {
       const card = await ensureCard(oi);
       body = card.render(ctx, oi);
       bindBody = () => card.bind(ctx, oi);
-    } else if (ctx.view === 'mech') {
-      body = viewMech(ctx);
-      bindBody = () => bindMech(ctx);
     } else if (ctx.view === 'form') {
       body = viewOCForm(ctx);
       bindBody = () => bindOcForm(ctx);

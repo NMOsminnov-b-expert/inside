@@ -119,44 +119,73 @@ export function createSeed() {
           photos: { 'Земельный участок': 2 },
           notes: [],
         },
-        // Механизм (card:'mech', см. mechanisms/oi/mech/model.js) — раньше
-        // card:'movable', kind:'МЕХ' с фиксированными Наименование/Год/Зав.
-        // номер (см. граф знаний, решение о замене старого ОИ). Монолит:
-        // ЕНИ/год/зав.номер стали полями конструктора, прикреплённый документ
-        // остался как есть.
+        // Механизмы и оборудование (card:'mech', см.
+        // mechanisms/oi/mech/model.js) — раньше card:'movable', с
+        // kind:'МЕХ' (фиксированные Наименование/Год/Зав.номер) и отдельно
+        // kind:'ОФИС' (граф знаний: решение о замене старого ОИ и об
+        // объединении «Механизмов» и «Офисной техники» в один пункт меню).
+        // oi-cv1-m1 — монолит: ЕНИ/год/зав.номер стали полями конструктора,
+        // прикреплённый документ остался как есть. oi-cv1-m2 была «Офисная
+        // техника» с complexItems (сама техника + 2 вложенные строки) —
+        // теперь один ОИ держит сразу несколько механизмов (oi.mechanisms).
         {
           id: 'oi-cv1-m1',
           card: 'mech',
           kind: 'МЕХ',
-          name: 'Котёл газовый КВГ-1,25',
-          qty: 1,
-          cost: 98000,
           docs: [{ id: 'cv1-md1', type: 'ПУД', name: 'Паспорт котла', date: '12.03.2015' }],
           notes: [],
           photos: {},
-          fields: [
-            { id: 'oi-cv1-m1-f1', label: 'Код ЕНИ', value: '147561671010' },
-            { id: 'oi-cv1-m1-f2', label: 'Год выпуска', value: '2015' },
-            { id: 'oi-cv1-m1-f3', label: 'Заводской номер', value: 'КВГ-125-4471' },
-          ],
+          mechanisms: [{
+            id: 'oi-cv1-m1-mech1',
+            name: 'Котёл газовый КВГ-1,25',
+            qty: 1,
+            cost: 98000,
+            photos: {},
+            fields: [
+              { id: 'oi-cv1-m1-f1', label: 'Код ЕНИ', value: '147561671010' },
+              { id: 'oi-cv1-m1-f2', label: 'Год выпуска', value: '2015' },
+              { id: 'oi-cv1-m1-f3', label: 'Заводской номер', value: 'КВГ-125-4471' },
+            ],
+          }],
         },
         {
           id: 'oi-cv1-m2',
-          card: 'movable',
-          kind: 'ОФИС',
-          name: 'Комплекс техники (серверная)',
-          eni: '147561671011',
-          status: '',
-          origin: 'manual',
-          flags: { entered: false, matched: false },
-          year: '',
-          serial: '',
+          card: 'mech',
+          kind: 'МЕХ',
           docs: [],
-          photos: {},
           notes: [mkNote('Составить перечень оборудования серверной', false)],
-          complexItems: [
-            { name: 'Стойка серверная', type: 'Узел', eni: '147561671012' },
-            { name: 'ИБП APC 5000', type: 'Агрегат', eni: '147561671013' },
+          photos: {},
+          mechanisms: [
+            {
+              id: 'oi-cv1-m2-mech1',
+              name: 'Комплекс техники (серверная)',
+              qty: 1,
+              cost: 0,
+              photos: {},
+              fields: [{ id: 'oi-cv1-m2-f1', label: 'Код ЕНИ', value: '147561671011' }],
+            },
+            {
+              id: 'oi-cv1-m2-mech2',
+              name: 'Стойка серверная',
+              qty: 1,
+              cost: 0,
+              photos: {},
+              fields: [
+                { id: 'oi-cv1-m2b-f1', label: 'Тип', value: 'Узел' },
+                { id: 'oi-cv1-m2b-f2', label: 'Код ЕНИ', value: '147561671012' },
+              ],
+            },
+            {
+              id: 'oi-cv1-m2-mech3',
+              name: 'ИБП APC 5000',
+              qty: 1,
+              cost: 0,
+              photos: {},
+              fields: [
+                { id: 'oi-cv1-m2c-f1', label: 'Тип', value: 'Агрегат' },
+                { id: 'oi-cv1-m2c-f2', label: 'Код ЕНИ', value: '147561671013' },
+              ],
+            },
           ],
         },
       ],

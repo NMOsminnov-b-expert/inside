@@ -116,6 +116,12 @@ export function bindViewer(ctx) {
       if (list.length) ctx.ui.viewerDoc = { scope: sc, id: list[0].id };
     };
 
+    // Клик по вкладке «Фото» НЕ сбрасывает viewerPhotoTarget: он сам стухает,
+    // как только запись механизма перестаёт входить в текущий
+    // rec.mechanisms/ctx.oi.mechanisms (см. buildViewerContext) — если он ещё
+    // валиден, вкладка должна вернуть именно то фото, что смотрели, а не
+    // пустое состояние (жалоба пользователя: «фото не появляются во вкладке»
+    // — сброс тут и был причиной).
     if (mode === 'photo') ctx.ui.viewer = { mode: 'photo' };
     else if (mode === 'doc') { ctx.ui.viewer = { mode: 'doc' }; if (!ctx.ui.viewerDoc) pickFirstDoc(); }
     else { ctx.ui.viewer = { mode: 'compare' }; if (!ctx.ui.viewerDoc) pickFirstDoc(); }
@@ -178,6 +184,7 @@ export function bindViewer(ctx) {
   const vc = s.$('[data-vclose]');
   if (vc) vc.onclick = () => {
     ctx.ui.viewer = null;
+    ctx.ui.viewerPhotoTarget = null;
     ctx.ui.viewerClosed = true;
     ctx.render();
   };

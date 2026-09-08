@@ -172,13 +172,9 @@ const BY_CARD = {
     rights: 'Права на строение',
     rightsOther: 'Права на строение (иное)',
   },
-  movable: {
-    name: 'Наименование механизма',
-    kind: 'Вид механизма',
-    year: 'Год выпуска',
-    serial: 'Заводской номер',
-    complexItems: 'Состав комплекса',
-  },
+  // card:'mech' подписи полей своих не имеет — audit/model.js диффит его
+  // name/qty/cost/fields отдельной, уже готовой человекочитаемой строкой
+  // (diffMechanismsArray/diffMechFieldsArray), минуя fieldLabel вовсе.
 };
 
 export function fieldLabel(key, cardType) {

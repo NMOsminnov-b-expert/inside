@@ -12,23 +12,17 @@
 /* --- Конструктор полей механизма (карточка «02», форма ОЦ и создание) ----
  *
  * Запись ОЦ этого модуля может описывать несколько механизмов сразу
- * (rec.mechanisms — массив, см. records.js), поэтому раскладка сделана
- * компактной: имя и количество — в одну строку, подпись поля — не своей
- * строкой, а узкой колонкой перед значением (см. .mech-field-row), а каждая
- * запись механизма — свой обособленный блок с рамкой/подложкой (.mech-entry),
- * иначе несколько таких блоков подряд визуально сливаются в один. */
+ * (rec.mechanisms — массив, см. records.js): имя/количество/стоимость — в
+ * одну строку сверху (.mech-entry-head), сами поля — таблицей ниже (как в
+ * «Справочниках», см. .mech-fields-list), а каждая запись механизма — свой
+ * обособленный блок с рамкой/подложкой (.mech-entry), иначе несколько таких
+ * блоков подряд визуально сливаются в один. */
 
 body[data-module="mechanisms"] .mech-list{display:flex;flex-direction:column;gap:8px}
 
 body[data-module="mechanisms"] .mech-entry{
   border:1px solid #d7e6e3;border-radius:8px;background:#f6fbfa;
   padding:8px 10px;display:flex;flex-direction:column;gap:6px;
-}
-
-/* Одиночная карточка (встраиваемая ОИ «Механизмы» — production/civil) не
-   нуждается в собственной рамке лишний раз: карточка ОИ уже даёт свою. */
-body[data-module="mechanisms"] .mech-constructor > .mech-entry{
-  border:none;background:none;padding:0;gap:6px;
 }
 
 body[data-module="mechanisms"] .mech-entry-head{
@@ -47,58 +41,65 @@ body[data-module="mechanisms"] .mech-entry-rm{
 }
 body[data-module="mechanisms"] .mech-entry-rm:hover{background:#fdf3f3}
 
-/* Раньше значение растягивалось на всю ширину карточки (grid-колонка 1fr) —
-   при широкой карточке получалось неоправданно длинное поле ради короткого
-   числа/слова. Теперь список полей сам переносится по строкам (flex-wrap),
-   а у каждого поля — своя небольшая ширина, поэтому несколько полей
-   помещаются в одну строку (правка по просьбе пользователя). */
-body[data-module="mechanisms"] .mech-fields-list{display:flex;flex-wrap:wrap;gap:6px 10px}
+/* Поля конструктора — таблицей (как в разделе «Справочники»), а не рядом
+   чипов: короткая подпись и значение читаются построчно, а .tbl уже даёт
+   нужные бордер/подложку/отступы (kernel/cards.css) — здесь только то, чего
+   у обычной .tbl нет: инпуты вместо текста в ячейках, подсветка невалидной
+   строки, строка «+ добавить поле» внизу (правка по просьбе пользователя). */
+body[data-module="mechanisms"] table.mech-fields-list{margin-top:2px}
+body[data-module="mechanisms"] .mech-fields-list th:last-child,
+body[data-module="mechanisms"] .mech-fields-list td:last-child{padding-left:0;padding-right:6px}
 
-body[data-module="mechanisms"] .mech-field-row{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  flex:0 0 auto;
-  width:385px;
-  padding:3px 6px;
-  border:1px solid #e3ede9;border-radius:6px;background:#fff;
+body[data-module="mechanisms"] .mech-field-row.invalid td{background:#fdf6f6}
+
+body[data-module="mechanisms"] .mech-field-label,
+body[data-module="mechanisms"] .mech-field-value{
+  width:100%;border:none;background:transparent;padding:2px 0;height:auto;font-size:13px;
 }
-
-/* Пустая обязательная подпись — красная рамка прямо на всём блоке поля,
-   чтобы было видно даже до попытки сохранить. */
-body[data-module="mechanisms"] .mech-field-row.invalid{border-color:#e2a1a1;background:#fdf6f6}
-
-/* Подпись поля — тоже инпут (можно исправить в любой момент), но визуально
-   лёгкий, без своей рамки, — рамка есть у всего блока (.mech-field-row), две
-   вложенные рамки внутри одного маленького чипа выглядели бы избыточно. */
-body[data-module="mechanisms"] .mech-field-label{
-  font-size:11.5px;font-weight:600;color:#46536b;
-  flex:0 0 95px;width:95px;
-  border:none;background:transparent;padding:2px 0;height:auto;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-body[data-module="mechanisms"] .mech-field-label:focus{
-  outline:none;background:#eef6f4;border-radius:4px;text-overflow:clip;
+body[data-module="mechanisms"] .mech-field-label{font-weight:600;color:#46536b}
+body[data-module="mechanisms"] .mech-field-label:focus,
+body[data-module="mechanisms"] .mech-field-value:focus{
+  outline:none;background:#eef6f4;border-radius:4px;
 }
 body[data-module="mechanisms"] .mech-field-row.invalid .mech-field-label{color:#b23b3b}
 body[data-module="mechanisms"] .mech-field-row.invalid .mech-field-label::placeholder{color:#c77}
 
-body[data-module="mechanisms"] .mech-field-value{flex:1 1 145px;width:auto;min-width:0}
-
-body[data-module="mechanisms"] .mech-field-rm{
-  flex:0 0 auto;color:var(--danger);border-color:#f3c1c1;
-  padding:0 5px;
-}
+body[data-module="mechanisms"] .mech-field-rm{color:var(--danger);border-color:#f3c1c1;padding:0 5px}
 body[data-module="mechanisms"] .mech-field-rm:hover{background:#fdf3f3}
 
-/* «+» на месте будущего поля — та же ширина, что и у чипа поля, чтобы плитки
-   выстраивались в общую сетку, а не торчала кнопка во всю ширину снизу. */
-body[data-module="mechanisms"] .mech-field-add{
-  flex:0 0 auto;width:44px;height:28px;
-  border:1px dashed #b8cfc9;border-radius:6px;background:none;
-  color:#4a8f7e;font-size:16px;line-height:1;cursor:pointer;
+body[data-module="mechanisms"] .mech-field-add-row td{border-bottom:none;padding-top:6px}
+body[data-module="mechanisms"] .mech-field-add{width:100%}
+
+/* Фото механизма — миниатюры плюс отдельная плитка «+ фото» ТОГО ЖЕ размера,
+   что и миниатюры: тот же приём, что и .mech-field-add у полей, только явнее
+   (пунктирная рамка, свой текст, чуть крупнее) — иначе кнопку не отличить от
+   декоративного элемента (жалоба пользователя: «не понял, что это кнопка»). */
+body[data-module="mechanisms"] .mech-photos{margin-top:10px}
+body[data-module="mechanisms"] .mech-photos-list{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+
+body[data-module="mechanisms"] .mech-photo-tile{
+  position:relative;width:64px;height:64px;border-radius:7px;overflow:hidden;
+  border:1px solid var(--line);flex:0 0 auto;
 }
-body[data-module="mechanisms"] .mech-field-add:hover{background:#eef6f4;border-color:#4a8f7e}
+body[data-module="mechanisms"] .mech-photo-tile img{
+  width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;
+}
+body[data-module="mechanisms"] .mech-photo-rm{
+  position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;
+  border:none;background:rgba(20,20,20,.55);color:#fff;font-size:11px;line-height:1;
+  display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;
+}
+body[data-module="mechanisms"] .mech-photo-rm:hover{background:rgba(178,59,59,.9)}
+
+body[data-module="mechanisms"] .mech-photo-add{
+  flex:0 0 auto;width:64px;height:64px;border-radius:7px;
+  border:1.5px dashed #b8cfc9;background:#f6fbfa;color:#4a8f7e;
+  font-size:11.5px;font-weight:600;line-height:1.3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  cursor:pointer;
+}
+body[data-module="mechanisms"] .mech-photo-add:hover{background:#eef6f4;border-color:#4a8f7e}
+body[data-module="mechanisms"] .mech-photo-add::before{content:'+';font-size:18px;line-height:1}
 
 /* Показ механизмов в карточке ОЦ (ocCard.view.js) — та же граница-подложка,
    что и в форме редактирования, ради узнаваемости одного и того же блока. */
@@ -107,10 +108,9 @@ body[data-module="mechanisms"] .mech-view-entry{
   border:1px solid #d7e6e3;border-radius:8px;background:#f6fbfa;padding:10px 12px;
 }
 
-/* Узкая карточка (рядом открыт просмотрщик) — «Название»/«Количество» уже не
-   умещаются рядом, переходят на вертикальную раскладку. Сами поля-чипы
-   (.mech-field-row) в перестройке не нуждаются — они и так короткие и просто
-   переносятся flex-wrap'ом. */
+/* Узкая карточка (рядом открыт просмотрщик) — «Название»/«Количество»/
+   «Стоимость» уже не умещаются рядом, переходят на вертикальную раскладку.
+   Таблица полей в перестройке не нуждается — колонки и так узкие. */
 @media (max-width: 640px){
   body[data-module="mechanisms"] .mech-entry-head{flex-direction:column;align-items:stretch}
   body[data-module="mechanisms"] .mech-qty-field{flex-basis:auto}
