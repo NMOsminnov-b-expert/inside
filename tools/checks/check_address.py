@@ -23,6 +23,13 @@ import re
 
 NAME = 'адрес и ЕНИ'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/address.js', 'app/kernel/eniFold.js', 'app/kernel/fmt.js',
+    'app/modules/*/card/*', 'app/modules/*/oi/*', 'app/modules/*/records.js',
+    'app/modules/*/data/*', 'app/pages/ocMenu/*',
+)
+
 ROUTES = {
     'квартира': '#/oc/apartment/oc-ap-1',
     'жилой дом': '#/oc/residential-house/oc-rh-1',

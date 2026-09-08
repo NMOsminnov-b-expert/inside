@@ -20,6 +20,12 @@
 """
 NAME = 'карточка участка'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/modules/land-plot/*', 'app/modules/*/oi/land/*',
+    'app/modules/*/data/*', 'app/kernel/gps.js',
+)
+
 
 def _open_land(t, route='#/oc/land-plot/oc-lp-1'):
     """Открыть карточку участка объекта."""

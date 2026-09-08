@@ -14,6 +14,13 @@
 """
 NAME = 'просмотрщик ОЦ'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/modules/*/parts/viewer/*', 'app/modules/*/parts/photos/*',
+    'app/modules/*/card/*', 'app/kernel/docViewer.js',
+    'app/kernel/docViewer.css', 'app/kernel/pdfRender.js',
+)
+
 ROUTE = '#/oc/civil/oc-cv-1'
 
 

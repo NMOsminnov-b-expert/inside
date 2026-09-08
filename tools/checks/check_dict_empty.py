@@ -23,6 +23,13 @@ import re
 
 NAME = 'пустые значения'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/emptyOption.js', 'app/kernel/dicts.js',
+    'app/kernel/multiSelect.js', 'app/pages/dicts/*', 'app/modules/*/data/*',
+    'app/modules/*/oi/*',
+)
+
 ROUTES = {
     'квартира': '#/oc/apartment/oc-ap-1',
     'жилой дом': '#/oc/residential-house/oc-rh-1',

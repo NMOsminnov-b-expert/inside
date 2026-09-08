@@ -14,6 +14,14 @@
 """
 NAME = 'виды ОИ'
 
+# От каких файлов зависит: по этому списку `run.py --changed` решает, нужен ли
+# сценарий после правки (см. tools/checks/select_changed.py).
+TOUCHES = (
+    'app/modules/*/oi/*', 'app/modules/*/card/*', 'app/modules/*/data/*',
+    'app/kernel/ocType.js', 'app/kernel/typeChange.js', 'app/kernel/dialog.js',
+    'app/pages/dicts/*',
+)
+
 ROUTES = {
     'Жилое здание (дом)': '#/oc/residential-house/oc-rh-1',
     'Жилое здание (квартира)': '#/oc/apartment/oc-ap-1',
@@ -21,6 +29,12 @@ ROUTES = {
     'Производственное строение': '#/oc/production/oc-pr-1',
     'Земельный участок': '#/oc/land-plot/oc-lp-1',
 }
+
+# Части прогона. Сценарий обходит все пять типов ОЦ и целым файлом был самой
+# долгой проверкой прогона (51 с из 339 с, замер 07.09.2026) — один файл держал
+# хвост всего прогона. Части независимы: каждая открывает свой тип ОЦ, а
+# «справочники» проверяют общий каталог и предупреждение о скрытых полях.
+PARTS = tuple(ROUTES) + ('справочники',)
 
 REALTY = [
     'Земельный участок', 'Квартира', 'Жилой дом',
@@ -36,10 +50,11 @@ def _menu(t):
     return pg.eval_on_selector_all('[data-add-oi]', 'els => els.map((e) => e.textContent.trim())')
 
 
-def run(t):
+def run(t, part=None):
     pg = t.page
 
-    for label, route in ROUTES.items():
+    for label, route in ({part: ROUTES[part]} if part in ROUTES else
+                         {} if part else ROUTES).items():
         t.open(route, wait='[data-add-oi]')
         t.wait(300)
         items = _menu(t)
@@ -49,7 +64,16 @@ def run(t):
 
         # Квартира открывается настоящей карточкой квартиры, а не литерой.
         pg.locator('[data-add-oi="Квартира"]').first.click()
-        t.wait(900)
+        # Ждём карточку ПО ФАКТУ: в чужом типе ОЦ она приезжает лениво
+        # (import) и грузится впервые. Отсчёт времени тут не годится — пока
+        # сценарий обходил все пять модулей одной страницей, модуль карточки
+        # оставался в кэше браузера от предыдущего типа ОЦ и успевал за любое
+        # ожидание. С разбивкой на части (PARTS) страница у каждой части своя,
+        # и «900 мс» перестало хватать: проверка падала на гражданском и
+        # участке, хотя карточка исправна (07.09.2026).
+        t.wait_for('.oi-stack')
+        t.wait_until("""() => document.body.innerText
+            .includes('Общие параметры квартиры')""")
         body = t.text()
         t.ck('Общие параметры квартиры' in body,
              '%s: карточка квартиры не открылась' % label)
@@ -57,8 +81,12 @@ def run(t):
              '%s: в карточке квартиры нет блока площадей' % label)
 
         # Поэтажная развёртка строится сразу: без неё карточка пустая.
+        t.wait_for('[data-floor-name]')
         rows = pg.locator('[data-floor-name]').count()
         t.ck(rows > 0, '%s: в квартире не построена поэтажная развёртка' % label)
+
+    if part in ROUTES:
+        return                      # часть про свой тип ОЦ на этом закончена
 
     # --- справочники: в каталоге каждого типа ОЦ все четыре карточки ---
     t.open('#/dicts', wait='.dc')

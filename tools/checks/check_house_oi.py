@@ -13,6 +13,12 @@
 """
 NAME = 'жилой дом'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/modules/*/oi/building/*', 'app/modules/residential-house/*',
+    'app/modules/*/data/*',
+)
+
 ROUTES = {
     'квартира': '#/oc/apartment/oc-ap-1',
     'жилой дом': '#/oc/residential-house/oc-rh-1',

@@ -12,6 +12,12 @@
 """
 NAME = 'раскладка'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/*.css', 'app/modules/*/module.css', 'app/shell/shell.css',
+    'app/kernel/columns.js', 'app/kernel/overflowTip.js', 'app/pages/*',
+)
+
 SCREENS = [
     ('реестр', '', '.reg-thead'),
     ('карточка ОЦ', '#/oc/civil/oc-cv-1', '.card'),

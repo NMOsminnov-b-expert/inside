@@ -18,6 +18,12 @@
 
 NAME = 'координаты везде'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/gps.js', 'app/kernel/fieldError.js', 'app/modules/*/oi/*',
+    'app/modules/*/card/*', 'app/modules/*/create/*',
+)
+
 # value, ждём ли ошибку, что сломано если не так
 FORMAT_CASES = [
     ('42.874722, 74.612222', False, 'верные координаты помечены ошибкой'),

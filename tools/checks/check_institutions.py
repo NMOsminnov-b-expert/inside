@@ -14,6 +14,13 @@
 """
 NAME = 'учреждения'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/pages/institutions/*', 'app/pages/ocMenu/*',
+    'app/kernel/institutions.js', 'app/kernel/pickSearch.js',
+    'app/modules/*/card/*',
+)
+
 
 def _open(t):
     t.open('#/institutions', wait='.itree')

@@ -12,29 +12,40 @@
 t.open(маршрут) — переход и ожидание отрисовки, t.wait(мс) — дождаться, пока
 страница перестанет меняться.
 
+Тяжёлый сценарий может объявить PARTS — названия частей, на которые его можно
+разложить (обычно по типу ОЦ), и принимать их вторым доводом: run(t, part).
+Тогда каждая часть считается отдельной единицей прогона и раскладывается по
+потокам независимо (см. run.py). Это не про изоляцию, а про время: файл,
+который обходит пять модулей подряд, целиком занимает минуту и один держит
+весь прогон.
+
 Почему свой мини-каркас, а не pytest: проверкам нужен один поднятый сервер и
 один браузер на весь прогон, а зависимостей у проекта нет ни одной (кроме
 playwright, который уже используется в tools/visual-parity). Ставить ради
 десятка сценариев целый фреймворк — дороже, чем эти сорок строк.
 
 СКОРОСТЬ. Требование пользователя 04.09.2026: «проверки ускоряй, слишком много
-времени едят… И без конских задержек! Логикой, а не временем правь!». Две вещи,
+времени едят… И без конских задержек! Логикой, а не временем правь!». Три вещи,
 за счёт которых прогон быстрый, и ни одна из них не «подобранная задержка»:
 
-1. Файлы проверок идут ПАРАЛЛЕЛЬНО, по процессу на файл (см. run.py): у каждого
-   свой браузер, общий только раздающий файлы http-сервер. Данные макета живут в
-   памяти вкладки, поэтому сценарии друг другу не мешают.
+1. Единицы прогона идут ПАРАЛЛЕЛЬНО (см. run.py): они делятся на столько
+   частей, сколько потоков, и внутри части браузер поднимается один раз.
+   Страница у каждой единицы своя: данные макета живут в памяти вкладки, и
+   сценарии не должны видеть чужие правки.
 2. t.wait НЕ СПИТ. Он ждёт события, а не времени: смотрит на изменения DOM и
    возвращает управление, как только страница затихла (см. SETTLE). Число в
    вызове — не пауза, а верхний предел ожидания: сколько ждать, если страница
    так и не успокоилась. Поэтому в обычном случае ожидание занимает десятки
    миллисекунд вместо сотен, а в редком медленном — столько, сколько нужно.
+3. Прогоняется не всё подряд, а то, чего касается правка (`run.py --changed`):
+   каждый сценарий объявляет TOUCHES — файлы, от которых зависит.
 
 Так было не всегда: раньше в сценариях стояли фиксированные
 `wait_for_timeout(700)`, набранные на глаз с запасом. Запас в сумме давал больше
 трёх минут прогона, а надёжности не добавлял — на медленной машине его всё
 равно не хватало бы.
 """
+import contextlib
 import os
 import subprocess
 import sys
@@ -99,6 +110,9 @@ class Tester:
         self.fails = []
         self.console = []
         self.waited_ms = 0        # сколько всего простояли в ожиданиях
+        self.waits = 0            # сколько раз ждали затишья
+        self.opens = 0            # сколько раз переходили по маршруту
+        self.open_ms = 0          # и сколько это заняло
 
     def ck(self, cond, msg):
         self.checks += 1
@@ -112,6 +126,7 @@ class Tester:
         ms — не пауза, а предел: столько ждём, если изменения не прекращаются.
         """
         cap = max(MIN_CAP_MS, int(ms * CAP_SCALE))
+        self.waits += 1
         try:
             spent = self.page.evaluate(SETTLE_JS, [SETTLE_MS, cap])
             self.waited_ms += int(spent or 0)
@@ -141,6 +156,8 @@ class Tester:
             return False
 
     def open(self, route='', wait='.card, .arc, .reg-thead', timeout=9000):
+        started = time.time()
+        self.opens += 1
         self.page.goto(self.base + route)
         if wait:
             try:
@@ -148,6 +165,7 @@ class Tester:
             except Exception:
                 pass
         self.wait(450)
+        self.open_ms += int((time.time() - started) * 1000)
         return self.page
 
     def text(self):
@@ -175,8 +193,25 @@ def serve():
     return srv
 
 
-def run_one(mod, headless=True, browser=None):
-    """Прогнать один файл проверок. Возвращает (checks, fails, seconds, waited)."""
+@contextlib.contextmanager
+def browser(headless=True):
+    """Один Playwright и один браузер на несколько единиц прогона.
+
+    Подъём драйвера с Chromium стоит около 1,4 с. Раньше он повторялся на каждый
+    файл проверок — на 25 файлах это четверть всего времени прогона, потраченная
+    на старты. Страницы внутри остаются раздельными: изоляция сценариев держится
+    на своей вкладке, а не на своём браузере.
+    """
+    with sync_playwright() as p:
+        br = p.chromium.launch(headless=headless)
+        try:
+            yield br
+        finally:
+            br.close()
+
+
+def run_one(mod, part=None, headless=True, browser_=None):
+    """Прогнать файл проверок (или одну его часть). Возвращает отчёт словарём."""
     started = time.time()
 
     def go(br):
@@ -186,7 +221,7 @@ def run_one(mod, headless=True, browser=None):
         page.on('console', lambda m, t=t: t.console.append('CONSOLE: ' + m.text)
                 if m.type == 'error' else None)
         try:
-            mod.run(t)
+            mod.run(t, part) if part else mod.run(t)
         except Exception as e:
             t.fails.append('сценарий прерван ошибкой: %s' % str(e)[:160])
 
@@ -197,41 +232,49 @@ def run_one(mod, headless=True, browser=None):
         page.close()
         return t
 
-    if browser is not None:
-        t = go(browser)
+    if browser_ is not None:
+        t = go(browser_)
     else:
-        with sync_playwright() as p:
-            br = p.chromium.launch(headless=headless)
+        with browser(headless=headless) as br:
             t = go(br)
-            br.close()
 
-    return t.checks, t.fails, time.time() - started, t.waited_ms
+    return {
+        'name': mod.NAME + (' · %s' % part if part else ''),
+        'checks': t.checks, 'fails': t.fails,
+        'secs': time.time() - started, 'waited': t.waited_ms,
+        'waits': t.waits, 'opens': t.opens, 'open_ms': t.open_ms,
+    }
 
 
-def report(name, checks, fails, seconds, waited=0, retried=False):
+def report(res, profile=False, name=None):
+    fails = res.get('fails') or []
     mark = 'ok ' if not fails else 'ПРОВАЛ'
-    note = ' (повтор с полным ожиданием)' if retried else ''
-    print('%-6s %-26s проверок %3d, провалов %d, %4.1f с (в ожиданиях %4.1f с)%s'
-          % (mark, name, checks, len(fails), seconds, waited / 1000.0, note))
+    note = ' (повтор с полным ожиданием)' if res.get('retried') else ''
+    line = ('%-6s %-30s проверок %3d, провалов %d, %4.1f с (в ожиданиях %4.1f с)%s'
+            % (mark, name or res.get('name') or '?', res.get('checks', 0), len(fails),
+               res.get('secs', 0.0), res.get('waited', 0) / 1000.0, note))
+    if profile:
+        line += ('\n       переходов %d (%0.1f с), ожиданий %d'
+                 % (res.get('opens', 0), res.get('open_ms', 0) / 1000.0,
+                    res.get('waits', 0)))
+    print(line, flush=True)
     for f in fails:
-        print('        · ' + f)
+        print('        · ' + f, flush=True)
 
 
-def run_all(modules, headless=True):
+def run_all(units, headless=True, profile=False):
     """Последовательный прогон в одном браузере — для --jobs 1 и отладки."""
     srv = serve()
     total_checks = 0
     total_fails = []
 
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=headless)
-            for mod in modules:
-                checks, fails, secs, waited = run_one(mod, browser=browser)
-                report(mod.NAME, checks, fails, secs, waited)
-                total_checks += checks
-                total_fails += ['%s: %s' % (mod.NAME, f) for f in fails]
-            browser.close()
+        with browser(headless=headless) as br:
+            for u in units:
+                res = run_one(u.mod, part=u.part, browser_=br)
+                report(res, profile=profile, name=u.name)
+                total_checks += res['checks']
+                total_fails += ['%s: %s' % (u.name, f) for f in res['fails']]
     finally:
         srv.terminate()
 

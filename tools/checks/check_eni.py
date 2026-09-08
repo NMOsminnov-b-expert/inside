@@ -13,6 +13,12 @@
 """
 NAME = 'ЕНИ'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/fmt.js', 'app/kernel/eniField.js', 'app/kernel/eniFold.js',
+    'app/modules/*/card/*', 'app/modules/*/create/*',
+)
+
 
 def run(t):
     pg = t.page

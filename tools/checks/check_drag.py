@@ -8,6 +8,11 @@
 """
 NAME = 'перенос литер'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/modules/*/card/*', 'app/modules/*/oi/land/*',
+)
+
 # Перетаскивание эмулируется событиями: настоящий HTML5 drag&drop через мышь
 # Playwright не воспроизводит.
 DRAG = """([oiId, sel, dy]) => {

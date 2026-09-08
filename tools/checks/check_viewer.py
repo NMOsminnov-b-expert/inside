@@ -17,6 +17,12 @@
 """
 NAME = 'просмотрщик документов'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/docViewer.js', 'app/kernel/docViewer.css',
+    'app/kernel/pdfRender.js', 'app/pages/docs/*', 'app/pages/institutions/*',
+)
+
 
 def _pdf(pages=6):
     """Минимальный валидный многостраничный PDF — чтобы не держать бинарь в репозитории."""

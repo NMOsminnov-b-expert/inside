@@ -10,6 +10,11 @@
 """
 NAME = 'значки и сортировка'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/flagBadges.js', 'app/kernel/columns.js', 'app/pages/ocMenu/*',
+)
+
 
 def _bulk(t, n='20000'):
     pg = t.page

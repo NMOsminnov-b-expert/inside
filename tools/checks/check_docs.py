@@ -10,6 +10,13 @@
 """
 NAME = 'документы'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/pages/docs/*', 'app/pages/institutions/*',
+    'app/kernel/documentsRegistry.js', 'app/kernel/fileUpload.js',
+    'app/kernel/institutions.js',
+)
+
 
 def _rows(t):
     return t.page.locator('[data-doc-row]').count()

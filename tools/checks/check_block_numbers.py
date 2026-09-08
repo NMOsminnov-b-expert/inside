@@ -14,6 +14,12 @@
 """
 NAME = 'нумерация блоков'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/blockIndex.js', 'app/modules/*/oi/*', 'app/modules/*/card/*',
+    'app/modules/*/parts/*',
+)
+
 ROUTES = {
     'квартира': '#/oc/apartment/oc-ap-1',
     'жилой дом': '#/oc/residential-house/oc-rh-1',

@@ -17,6 +17,12 @@
 """
 NAME = 'карточка квартиры'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/modules/apartment/*', 'app/modules/*/oi/apartment/*',
+    'app/modules/*/data/*', 'app/modules/*/audit/*',
+)
+
 
 def _add_apartment(t):
     """Завести квартиру в открытом объекте оценки; карточка откроется сама."""

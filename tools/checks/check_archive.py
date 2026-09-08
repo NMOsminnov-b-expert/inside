@@ -14,6 +14,13 @@ import os
 
 NAME = 'архив документов'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/pages/archive/*', 'app/pages/docs/*', 'app/pages/institutions/*',
+    'app/kernel/archive.js', 'app/kernel/archiveStore.js',
+    'app/kernel/documentsRegistry.js',
+)
+
 PDF_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_tmp_check.pdf')
 
 

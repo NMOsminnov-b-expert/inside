@@ -15,6 +15,13 @@
 """
 NAME = 'выпадающие списки'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/dropdown.js', 'app/kernel/overflowTip.js',
+    'app/kernel/multiSelect.js', 'app/pages/*', 'app/modules/*/oi/*',
+    'app/modules/*/card/*',
+)
+
 SCREENS = [
     ('#/institutions', '.itree'),
     ('#/docs', '[data-doc-row]'),

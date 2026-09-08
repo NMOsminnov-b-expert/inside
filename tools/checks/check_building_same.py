@@ -30,6 +30,14 @@ import json
 
 NAME = 'строение единообразно'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/modules/*/oi/building/*', 'app/modules/*/parts/struct/*',
+    'app/modules/*/data/*', 'app/kernel/multiSelect.js',
+    'app/kernel/cards.css', 'app/kernel/typeChange.js',
+    'app/kernel/emptyOption.js',
+)
+
 ROUTES = {
     'квартира': '#/oc/apartment/oc-ap-1',
     'жилой дом': '#/oc/residential-house/oc-rh-1',

@@ -17,6 +17,13 @@
 """
 NAME = 'архив объектов'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/pages/archive/*', 'app/pages/ocMenu/*', 'app/kernel/archive.js',
+    'app/kernel/archiveStore.js', 'app/modules/*/records.js',
+    'app/modules/*/card/*',
+)
+
 
 def _rows(pg):
     return pg.locator('[data-arc-row]').count()

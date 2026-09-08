@@ -14,6 +14,13 @@
 """
 NAME = 'справочники в карточках'
 
+# Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
+TOUCHES = (
+    'app/kernel/dicts.js', 'app/kernel/multiSelect.js',
+    'app/kernel/dropdown.js', 'app/pages/dicts/*', 'app/modules/*/data/*',
+    'app/modules/*/oi/*',
+)
+
 # Тип ОЦ → (маршрут объекта, как открыть литеру, поле, метка справочника)
 CASES = [
     ('civil', '#/oc/civil/oc-cv-1', 'Права на строение', '[data-bld-rights] option'),
