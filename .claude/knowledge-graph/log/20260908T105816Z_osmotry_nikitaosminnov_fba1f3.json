@@ -1,0 +1,160 @@
+{
+  "meta": {
+    "branch": "osmotry",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260908T105816Z",
+    "baseCommit": "d919187"
+  },
+  "entities": [
+    {
+      "name": "app/kernel/msDrop.js",
+      "entityType": "KernelModule",
+      "observations": [
+        "Всплытие открытого мультивыбора: на время открытия .ms-drop переводится в position:fixed с координатами от контрола, направление вниз/вверх по свободному месту, z-index 400 (тот же слой, что .pick-menu).",
+        "Лечит дефект 08.09.2026: поля материалов стоят в ячейках таблицы «Конструктив и износ», у td overflow:hidden и высота 47px, у .struct-tbl-wrap overflow-x:auto (браузер делает из этого auto по обеим осям) — список 246px обрезался целиком, не было видно НИ ОДНОГО значения. Снаружи это выглядело как «пропали словари».",
+        "Точка подключения одна — scope.setHTML, рядом с enhanceSelects. Модули не правились: MutationObserver на root ловит снятие атрибута hidden у любого .ms-drop. Это покрыло 42 места открытия в 37 файлах пяти модулей.",
+        "Пока ничего не открыто, childList-мутации игнорируются по open.size — на экране реестра перерисовок много.",
+        "Для обычных списков ту же болезнь раньше вылечили иначе: kernel/dropdown.js рисует .pick-menu прямо в <body>. Мультивыбор в body переносить нельзя — точечная перерисовка (updateStructUI, updateHeatingUI) ищет список внутри своего поля."
+      ]
+    },
+    {
+      "name": "decision:slovari-polnye-perechni-rabochey-sistemy",
+      "entityType": "Decision",
+      "observations": [
+        "08.09.2026. Справочники конструктива были заполнены примерными огрызками: фундамент 5 значений против 20 в рабочей системе, наружные стены 10 против 44, кровля 4 против 14. Пользователь: «а где словари? почему они не подтягиваются в поля?».",
+        "Перечни макета оказались строгим подмножеством рабочих, поэтому замена ничего не потеряла — значения, уже стоящие в записях, остались в перечне.",
+        "Источник — сохранённый экран рабочей системы (inside.html в корне), тот же, что у формы осмотра. Итог: foundation 20, basement 20, wallsExt 44, floors 11, ceilings 8, roof 14, windows 11, doors 3.",
+        "Отопление — не замена, а объединение (15 значений): у рабочей системы «Центральное водяное отопление», у макета было «Центральное». Слить дубли — открытый вопрос."
+      ]
+    },
+    {
+      "name": "decision:tsokol-element-konstruktiva",
+      "entityType": "Decision",
+      "observations": [
+        "08.09.2026. Цоколь стал элементом конструктивного состава во всех пяти модулях: свой материал (перечень тот же, что у фундамента), справочник STRUCT_basement в папке «Конструктивный состав».",
+        "Ключ строки — plinth, а не basement: под plinth износ цоколя уже лежал в данных (card/ocCard.ctrl.js). Материал берётся через optsKey='basement' — тем же приёмом, что внутренние стены берут перечень наружных.",
+        "Раньше цоколь был только в износе — материал записать было некуда."
+      ]
+    },
+    {
+      "name": "decision:sostoyanie-u-vseh-stroeniy",
+      "entityType": "Decision",
+      "observations": [
+        "08.09.2026, указание пользователя «правки по износу и состоянию надо распространить». Блок «Состояние» (внутреннее / внешнее / итоговое) показывается теперь у ЛЮБОГО строения, а не только при oi.residential.",
+        "До этого состояния не было ни у гражданского, ни у производственного здания, хотя износ по элементам у них уже был — недоделка распространения жилого дома по типам ОЦ, а не решение.",
+        "Проверка tools/checks/check_building_same.py перевёрнута: раньше она сторожила ОТСУТСТВИЕ блока у нежилого строения, теперь требует его наличия у обоих видов.",
+        "У карточек квартиры, участка и движимого износа и состояния нет вовсе — распространять ли туда, спрошено у пользователя."
+      ]
+    },
+    {
+      "name": "decision:forma-osmotra-chitaet-spravochniki",
+      "entityType": "Decision",
+      "observations": [
+        "08.09.2026. app/pages/inspector/form.js: SECTIONS стал функцией sections(typeId), ALL_FIELDS — allFields(typeId). Десять перечней конструктива и отопление читаются через optionsFor(typeId, 'building', ...), перечни рабочей системы остались запасными — тем же приёмом, что modules/*/data/opts.js.",
+        "Тип ОЦ передаётся параметром, а не через activeOcType(): на странице осмотров нет открытого экрана модуля, и активный тип там пуст.",
+        "Износ намеренно НЕ привязан к справочнику: у карточки шкала «Не выбрано / Умеренный / Значительный», у осмотра — «Незначительный / Умеренный / Значительный». Сведение шкал — предметное решение пользователя."
+      ]
+    },
+    {
+      "name": "decision:kartochka-kvartiry-chitaet-spravochniki",
+      "entityType": "Decision",
+      "observations": [
+        "08.09.2026. В карточке квартиры (oi/apartment/view.js модулей apartment и residential-house) конструктивный состав и статус брали перечень напрямую из dictionaries.js, минуя opt(): поле выглядело словарным, но правка справочника его не меняла.",
+        "Исправлено: 8 материалов (включая новый цоколь) и статус читаются через opt('apartment', ...), в dictExport всех пяти модулей объявлены слоты card:'apartment'. У типа ОИ «Квартира» в разделе «Справочники» стало 14 справочников вместо пяти.",
+        "Карточка квартиры своя только у apartment и residential-house; остальные три модуля переиспользуют её из apartment (oi/apartment/index.js)."
+      ]
+    },
+    {
+      "name": "tools/checks/check_ms_drop.py",
+      "entityType": "Tool",
+      "observations": [
+        "Сценарий «выпадающий мультивыбор» (08.09.2026): открытый список виден целиком — его не обрезает чужой контейнер и не перекрывает соседняя карточка.",
+        "Почему прежние проверки словарей дефект не поймали: они читали значения из DOM (option, [data-struct-opt]), а обрезка — вопрос геометрии. Здесь каждый пункт проверяется границами окна и elementFromPoint.",
+        "Проверено на отключённом лечении: сценарий падает с «в списке foundation не видно ни одного значения из 20»."
+      ]
+    },
+    {
+      "name": "open:shkala-iznosa-kartochka-vs-osmotr",
+      "entityType": "OpenQuestion",
+      "observations": [
+        "У карточки износ по ступеням «Не выбрано / Умеренный / Значительный», у формы осмотра — «Незначительный / Умеренный / Значительный». Один и тот же элемент оценивается разными шкалами.",
+        "Пока не сведены: осмотр читает свою, карточка свою. Связано с уже стоящим вопросом о виде износа (проценты / годы с ремонта) — WEAR_NOTE в карточке литеры.",
+        "Задан пользователю 08.09.2026."
+      ]
+    },
+    {
+      "name": "open:otoplenie-dubli-v-spravochnike",
+      "entityType": "OpenQuestion",
+      "observations": [
+        "После объединения перечней в справочнике отопления 15 значений, среди них смысловые дубли: «Центральное» и «Центральное водяное отопление», «Печное» и «Печное отопление».",
+        "Дубли оставлены намеренно: выбросить старые значило бы обнулить поле в существующих записях. Слияние — решение пользователя.",
+        "Задан пользователю 08.09.2026."
+      ]
+    },
+    {
+      "name": "open:iznos-i-sostoyanie-u-kvartiry",
+      "entityType": "OpenQuestion",
+      "observations": [
+        "У карточек квартиры, участка и движимого нет ни износа по элементам, ни блока «Состояние». У строений теперь есть и то и другое.",
+        "Нужно ли распространять на квартиру — задано пользователю 08.09.2026 вместе с распространением состояния на нежилые строения."
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "app/kernel/msDrop.js",
+      "to": "app/kernel/scope.js",
+      "relationType": "подключается в"
+    },
+    {
+      "from": "app/kernel/msDrop.js",
+      "to": "app/kernel/multiSelect.js",
+      "relationType": "дополняет"
+    },
+    {
+      "from": "tools/checks/check_ms_drop.py",
+      "to": "app/kernel/msDrop.js",
+      "relationType": "сторожит"
+    },
+    {
+      "from": "decision:slovari-polnye-perechni-rabochey-sistemy",
+      "to": "app/kernel/dicts.js",
+      "relationType": "меняет содержимое"
+    },
+    {
+      "from": "decision:tsokol-element-konstruktiva",
+      "to": "decision:slovari-polnye-perechni-rabochey-sistemy",
+      "relationType": "следует из"
+    },
+    {
+      "from": "decision:forma-osmotra-chitaet-spravochniki",
+      "to": "app/pages/inspector",
+      "relationType": "меняет"
+    },
+    {
+      "from": "decision:kartochka-kvartiry-chitaet-spravochniki",
+      "to": "decision:slovari-polnye-perechni-rabochey-sistemy",
+      "relationType": "следует из"
+    },
+    {
+      "from": "decision:sostoyanie-u-vseh-stroeniy",
+      "to": "tools/checks/check_building_same.py",
+      "relationType": "переворачивает правило в"
+    },
+    {
+      "from": "open:shkala-iznosa-kartochka-vs-osmotr",
+      "to": "decision:forma-osmotra-chitaet-spravochniki",
+      "relationType": "остался от"
+    },
+    {
+      "from": "open:otoplenie-dubli-v-spravochnike",
+      "to": "decision:slovari-polnye-perechni-rabochey-sistemy",
+      "relationType": "остался от"
+    },
+    {
+      "from": "open:iznos-i-sostoyanie-u-kvartiry",
+      "to": "decision:sostoyanie-u-vseh-stroeniy",
+      "relationType": "остался от"
+    }
+  ]
+}

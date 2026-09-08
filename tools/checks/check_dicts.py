@@ -177,7 +177,9 @@ def run(t):
     t.ck(cards >= 10, 'в дереве только %d каталогов' % cards)
     t.ck(total > 100, 'справочники не разнесены по полям: их всего %d' % total)
 
-    # Папки внутри типа ОИ: конструктивный состав — восемь полей карточки.
+    # Папки внутри типа ОИ: конструктивный состав — девять элементов карточки
+    # (08.09.2026 добавился цоколь: в рабочей системе у него свой материал, в
+    # макете он был только в износе).
     folders = pg.locator('.dc-tree-folder').count()
     t.ck(folders >= 5, 'папок в дереве только %d — конструктивный состав не сгруппирован' % folders)
     fold_names = pg.evaluate("""() => [...document.querySelectorAll('.dc-tree-fold span')]
@@ -189,8 +191,10 @@ def run(t):
       const f = document.querySelector('.dc-tree-folder');
       return f ? [...f.querySelectorAll('.dc-row-name')].map((x) => x.textContent.trim()) : [];
     }""")
-    t.ck(len(parts) == 8, 'в папке состава %d справочников вместо восьми' % len(parts))
-    t.ck(any('Фундамент' in x for x in parts), 'в папке состава нет фундамента: %s' % parts)
+    t.ck(len(parts) == 9, 'в папке состава %d справочников вместо девяти' % len(parts))
+    for el in ('Фундамент', 'Цоколь', 'Наружные стены', 'Кровля'):
+        t.ck(any(el in x for x in parts),
+             'в папке состава нет элемента «%s»: %s' % (el, parts))
 
     # Системные — в конце каталога, а не вперемешку.
     order = pg.evaluate("""() => {

@@ -19,6 +19,7 @@
 // системе, с обязательными полями, без которых осмотр не сдаётся.
 
 import { getValue } from '../../kernel/fieldSchema.js';
+import { optionsFor } from '../../kernel/dicts.js';
 
 // Наличие сети. Ровно четыре варианта рабочей системы: «не удалось
 // установить» — это не то же самое, что «нет», а «нет (доступно подключение)»
@@ -123,10 +124,33 @@ const HEAT_AUTO = [
   'Электрокотёл',
 ];
 
+// Значение «Прочее (ручной ввод)» в перечнях рабочей системы обещает поле для
+// ввода — без него выбор ничего не сообщает. Поле появляется только при этом
+// выборе: условная видимость есть у конструктора (kernel/fieldSchema.js).
+// Значения поля: сначала справочник раздела «Справочники», встроенный перечень
+// рабочей системы — запасной. Ровно тот же порядок, что у карточек
+// (modules/*/data/opts.js): правка справочника доходит и до осмотра, а
+// отвязанный справочник не оставляет поле пустым.
+//
+// Тип ОЦ приходит параметром: активного экрана модуля на странице осмотров
+// нет, и activeOcType() там пуст (см. kernel/ocType.js).
+const dict = (typeId, field, fallback) => optionsFor(typeId, 'building', field) || fallback;
+
+const OTHER = 'Прочее (ручной ввод)';
+
+const other = (key, label) => ({
+  key: key + 'Other',
+  label,
+  max: 100,
+  placeholder: 'Опишите словами',
+  visible: (values) => values[key] === OTHER,
+});
+
 // Внутренние стены в рабочей системе — тот же перечень, что наружные.
 const WALLS_INT = WALLS;
 
-export const SECTIONS = [
+// Разделы формы — функцией от типа ОЦ: материалы берутся из его справочников.
+export const sections = (typeId) => [
   {
     key: 'comm',
     title: 'Чек-лист коммуникаций',
@@ -176,16 +200,21 @@ export const SECTIONS = [
     // ввод)» и «Прочее (указать в особенностях)» оставлены её формулировками:
     // они говорят осмотрщику, куда писать пояснение.
     fields: [
-      { key: 'foundation', label: 'Фундамент', opts: FOUNDATION },
-      { key: 'basement', label: 'Цоколь', opts: BASEMENT },
-      { key: 'wallsExt', label: 'Наружные стены', opts: WALLS },
-      { key: 'wallsInt', label: 'Внутренние стены', opts: WALLS_INT },
-      { key: 'floors', label: 'Полы', opts: FLOORS },
-      { key: 'ceilings', label: 'Перекрытия', opts: CEILINGS },
-      { key: 'roof', label: 'Кровля', opts: ROOF },
-      { key: 'windows', label: 'Окна', opts: WINDOWS },
-      { key: 'heating', label: 'Отопление', opts: HEATING_EL },
-      { key: 'doors', label: 'Двери', opts: DOORS },
+      { key: 'foundation', label: 'Фундамент', opts: dict(typeId, 'struct.foundation', FOUNDATION) },
+      other('foundation', 'Фундамент — свой вариант'),
+      { key: 'basement', label: 'Цоколь', opts: dict(typeId, 'struct.basement', BASEMENT) },
+      other('basement', 'Цоколь — свой вариант'),
+      { key: 'wallsExt', label: 'Наружные стены', opts: dict(typeId, 'struct.wallsExt', WALLS) },
+      other('wallsExt', 'Наружные стены — свой вариант'),
+      { key: 'wallsInt', label: 'Внутренние стены', opts: dict(typeId, 'struct.wallsExt', WALLS_INT) },
+      other('wallsInt', 'Внутренние стены — свой вариант'),
+      { key: 'floors', label: 'Полы', opts: dict(typeId, 'struct.floors', FLOORS) },
+      { key: 'ceilings', label: 'Перекрытия', opts: dict(typeId, 'struct.ceilings', CEILINGS) },
+      { key: 'roof', label: 'Кровля', opts: dict(typeId, 'struct.roof', ROOF) },
+      other('roof', 'Кровля — свой вариант'),
+      { key: 'windows', label: 'Окна', opts: dict(typeId, 'struct.windows', WINDOWS) },
+      { key: 'heating', label: 'Отопление', opts: dict(typeId, 'heating', HEATING_EL) },
+      { key: 'doors', label: 'Двери', opts: dict(typeId, 'struct.doors', DOORS) },
     ],
   },
   {
@@ -200,7 +229,7 @@ export const SECTIONS = [
 
 // Плоский перечень полей — для подсчёта заполненного и обязательного
 // (kernel/fieldSchema.js: requiredLeft, filledCount).
-export const ALL_FIELDS = SECTIONS.flatMap((s) => s.fields);
+export const allFields = (typeId) => sections(typeId).flatMap((s) => s.fields);
 
 // Что показать рядом с полем замера: значение из данных ЦОД.
 export function tpValue(oi, from) {

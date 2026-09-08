@@ -59,6 +59,7 @@ const COMMON = {
 
   // Конструктивный состав
   'struct.foundation': 'Фундамент',
+  'struct.plinth': 'Цоколь',
   'struct.wallsExt': 'Наружные стены',
   'struct.ceilings': 'Перекрытия',
   'struct.roof': 'Кровля',

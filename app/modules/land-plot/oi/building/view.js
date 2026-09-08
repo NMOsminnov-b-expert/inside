@@ -262,6 +262,9 @@ ${floorsCountField(oi)}
 // внутренние стены описываются тем же перечнем, что наружные.
 const STRUCT_ROWS = [
   { key: 'foundation', label: 'Фундамент' },
+  // Цоколь: материал из перечня фундамента (optsKey), а износ ложится в тот
+  // же wear.plinth, что и раньше — данные не осиротели.
+  { key: 'plinth', label: 'Цоколь', optsKey: 'basement' },
   { key: 'wallsExt', label: 'Наружные стены' },
   { key: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt' },
   { key: 'ceilings', label: 'Перекрытия' },
@@ -436,10 +439,16 @@ ${tempModeMS(ctx, oi)}
 </div>`;
 }
 
-// Состояние жилого дома — отдельным блоком, рядом с износом, но не внутри него
+// Состояние строения — отдельным блоком, рядом с износом, но не внутри него
 // (решение пользователя 05.09.2026 по заметкам Никиты и Кирилла). Внутреннее и
 // внешнее оценщик ставит по осмотру, итоговое — своё суждение по обоим: считать
 // его из двух других нельзя, пока не решено, как они взвешиваются.
+//
+// Показывается у ЛЮБОГО строения, а не только у жилого дома (указание
+// пользователя 08.09.2026 «это надо распространить»): состояние описывает и
+// гражданское, и производственное здание, а износ по элементам у них и так
+// был. Раньше блок висел на oi.residential — это была недоделка
+// распространения жилого дома по остальным типам ОЦ, а не решение.
 function conditionCard(ctx, oi, idx) {
   const cond = (key) => {
     const val = oi[key] || opt('building', key, BUILD_CONDITION)[0];
@@ -476,7 +485,7 @@ ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
 ${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 ${structCard(ctx, oi, idx())}
-${oi.residential ? conditionCard(ctx, oi, idx()) : ''}
+${conditionCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}
 </div>`;

@@ -193,6 +193,7 @@ export const DICT_SOURCES = [
     values: D.STATUS_BUILD,
     slots: [
       { card: 'building', field: 'status', label: 'Статус' },
+      { card: 'apartment', field: 'status', label: 'Статус' },
     ],
   },
   {
@@ -236,6 +237,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.foundation,
     slots: [
       { card: 'building', field: 'struct.foundation', label: 'Фундамент' },
+      { card: 'apartment', field: 'struct.foundation', label: 'Фундамент' },
     ],
   },
   {
@@ -247,6 +249,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.wallsExt,
     slots: [
       { card: 'building', field: 'struct.wallsExt', label: 'Наружные стены' },
+      { card: 'apartment', field: 'struct.wallsExt', label: 'Наружные стены' },
     ],
   },
   {
@@ -261,6 +264,18 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'STRUCT_basement',
+    title: 'Цоколь',
+    kind: 'list',
+    system: false,
+    folder: 'Конструктивный состав',
+    values: D.STRUCT.basement,
+    slots: [
+      { card: 'building', field: 'struct.basement', label: 'Цоколь' },
+      { card: 'apartment', field: 'struct.basement', label: 'Цоколь' },
+    ],
+  },
+  {
     key: 'STRUCT_ceilings',
     title: 'Перекрытия',
     kind: 'list',
@@ -269,6 +284,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.ceilings,
     slots: [
       { card: 'building', field: 'struct.ceilings', label: 'Перекрытия' },
+      { card: 'apartment', field: 'struct.ceilings', label: 'Перекрытия' },
     ],
   },
   {
@@ -280,6 +296,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.roof,
     slots: [
       { card: 'building', field: 'struct.roof', label: 'Кровля' },
+      { card: 'apartment', field: 'struct.roof', label: 'Кровля' },
     ],
   },
   {
@@ -291,6 +308,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.floors,
     slots: [
       { card: 'building', field: 'struct.floors', label: 'Полы' },
+      { card: 'apartment', field: 'struct.floors', label: 'Полы' },
     ],
   },
   {
@@ -302,6 +320,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.windows,
     slots: [
       { card: 'building', field: 'struct.windows', label: 'Окна' },
+      { card: 'apartment', field: 'struct.windows', label: 'Окна' },
     ],
   },
   {
@@ -313,6 +332,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.doors,
     slots: [
       { card: 'building', field: 'struct.doors', label: 'Двери' },
+      { card: 'apartment', field: 'struct.doors', label: 'Двери' },
     ],
   },
 

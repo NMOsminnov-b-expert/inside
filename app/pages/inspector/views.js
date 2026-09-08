@@ -16,7 +16,7 @@ import {
   sectionHTML, requiredLeft, filledCount, sectionProgress, getValue,
 } from '../../kernel/fieldSchema.js';
 import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_KINDS } from './tasks.js';
-import { SECTIONS, ALL_FIELDS, mismatchHint } from './form.js';
+import { sections, allFields, mismatchHint } from './form.js';
 
 // --- значки ---------------------------------------------------------------
 //
@@ -402,8 +402,12 @@ function foundItemHTML(f) {
 // нет вовсе. Добавили поле в описание — оно появится и здесь, и в карточке,
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
-  rec, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref,
+  rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref,
 }) {
+  // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
+  // справочников, поэтому описание формы уже не константа.
+  const SECTIONS = sections(typeId);
+  const ALL_FIELDS = allFields(typeId);
   const left = requiredLeft(ALL_FIELDS, values);
   const filled = filledCount(ALL_FIELDS, values);
 

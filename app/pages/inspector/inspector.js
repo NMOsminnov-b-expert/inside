@@ -24,7 +24,7 @@ import {
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS,
 } from './tasks.js';
-import { ALL_FIELDS, mismatchHint } from './form.js';
+import { allFields, mismatchHint } from './form.js';
 import {
   listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML,
 } from './views.js';
@@ -97,6 +97,7 @@ export function mountInspector(host) {
         scope.setHTML(assetHTML({
           rec: r,
           oi,
+          typeId,
           values: assetValues(typeId, ocId, oi.id),
           premises: premises(typeId, ocId, oi.id),
           collapsed: ui.collapsed,
@@ -119,7 +120,7 @@ export function mountInspector(host) {
         hrefFor,
         assetHref: (oiId) => inspHref({ typeId, ocId, section: 'object', oiId }),
         // Число заполненных полей у ОИ — по нему видно, что осмотр начат.
-        filledFor: (oiId) => filledCount(ALL_FIELDS, assetValues(typeId, ocId, oiId)),
+        filledFor: (oiId) => filledCount(allFields(typeId), assetValues(typeId, ocId, oiId)),
         counts,
         backHref: taskHref,
       }));
@@ -158,7 +159,7 @@ export function mountInspector(host) {
     // Функцией, а не объектом: раздел меняется, и значения должны браться на
     // момент события, а не на момент монтажа экрана.
     values: () => assetValues(route.typeId, route.ocId, route.oiId),
-    fields: ALL_FIELDS,
+    fields: allFields(route.typeId),
     onChange: (field, value, opts) => {
       if (!opts || !opts.typing) {
         render();
@@ -191,9 +192,9 @@ export function mountInspector(host) {
     if (!box) return;
 
     const values = assetValues(route.typeId, route.ocId, route.oiId);
-    const left = requiredLeft(ALL_FIELDS, values);
-    const filled = filledCount(ALL_FIELDS, values);
-    box.innerHTML = `<b>${filled}</b> из ${ALL_FIELDS.length} полей
+    const left = requiredLeft(allFields(route.typeId), values);
+    const filled = filledCount(allFields(route.typeId), values);
+    box.innerHTML = `<b>${filled}</b> из ${allFields(route.typeId).length} полей
       <i class="${left ? 'ins-warn' : 'ins-done'}">${left
     ? '· обязательных ' + left
     : '· обязательные заполнены'}</i>`;

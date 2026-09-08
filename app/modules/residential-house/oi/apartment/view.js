@@ -76,7 +76,7 @@ ${letterControlHTML(ctx, oi)}
 <div class="field" style="flex:0 0 150px;">
 <label>Статус</label>
 <select class="select" style="width:100%;" data-status>
-${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('apartment', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 </div>
 </div>
@@ -205,15 +205,16 @@ function structCard(ctx, oi, idx) {
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-4">
-${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
-${structField(oi, 'wallsExt', 'Наружные стены', STRUCT.wallsExt, struct.wallsExt)}
-${structField(oi, 'ceilings', 'Перекрытия', STRUCT.ceilings, struct.ceilings)}
-${structField(oi, 'roof', 'Кровля', STRUCT.roof, struct.roof)}
+${structField(oi, 'foundation', 'Фундамент', opt('apartment', 'struct.foundation', STRUCT.foundation), struct.foundation)}
+${structField(oi, 'plinth', 'Цоколь', opt('apartment', 'struct.basement', STRUCT.basement), struct.plinth)}
+${structField(oi, 'wallsExt', 'Наружные стены', opt('apartment', 'struct.wallsExt', STRUCT.wallsExt), struct.wallsExt)}
+${structField(oi, 'ceilings', 'Перекрытия', opt('apartment', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
+${structField(oi, 'roof', 'Кровля', opt('apartment', 'struct.roof', STRUCT.roof), struct.roof)}
 </div>
 <div class="grid g-4" style="margin-top:8px">
-${structField(oi, 'floors', 'Полы', STRUCT.floors, struct.floors)}
-${structField(oi, 'windows', 'Окна', STRUCT.windows, struct.windows)}
-${structField(oi, 'doors', 'Двери', STRUCT.doors, struct.doors)}
+${structField(oi, 'floors', 'Полы', opt('apartment', 'struct.floors', STRUCT.floors), struct.floors)}
+${structField(oi, 'windows', 'Окна', opt('apartment', 'struct.windows', STRUCT.windows), struct.windows)}
+${structField(oi, 'doors', 'Двери', opt('apartment', 'struct.doors', STRUCT.doors), struct.doors)}
 ${heatingMS(ctx, oi)}
 </div>
 ${specialsBlockHTML(oi)}
