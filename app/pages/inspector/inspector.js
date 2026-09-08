@@ -17,13 +17,14 @@
 // (kernel/fieldSchema.js) — в этом файле нет ни одной подписи поля.
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
 import { pickFile, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
-import { bindFields, filledCount } from '../../kernel/fieldSchema.js';
+import { bindFields, filledCount, requiredLeft } from '../../kernel/fieldSchema.js';
 import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
-  taskDocs, oiOptions, PHOTO_CATS,
+  taskDocs, oiOptions, premises, addPremise, removePremise,
+  foundOi, addFoundOi, removeFoundOi, PHOTO_CATS,
 } from './tasks.js';
-import { ALL_FIELDS } from './form.js';
+import { ALL_FIELDS, mismatchHint } from './form.js';
 import {
   listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML,
 } from './views.js';
@@ -42,6 +43,9 @@ export function mountInspector(host) {
     // К чему привязать следующий снимок. Пустое — возьмём первый ОИ записи.
     photoOi: '',
     cat: PHOTO_CATS[0],
+    // Разделы формы, свёрнутые ВРУЧНУЮ. По умолчанию открыты все: свёрнутое
+    // заранее приходится разворачивать (замечание пользователя 08.09.2026).
+    collapsed: [],
   };
 
   const rec = () => loadTask(route.typeId, route.ocId);
@@ -94,6 +98,11 @@ export function mountInspector(host) {
           rec: r,
           oi,
           values: assetValues(typeId, ocId, oi.id),
+          premises: premises(typeId, ocId, oi.id),
+          collapsed: ui.collapsed,
+          // Фото прикрепляются в своём разделе, но с уже выбранным объектом:
+          // осмотрщик пришёл из осмотра этой литеры, и переспрашивать нечего.
+          photoHref: inspHref({ typeId, ocId, section: 'photo' }),
           hrefFor,
           counts,
           backHref: inspHref({ typeId, ocId, section: 'object' }),
@@ -106,6 +115,7 @@ export function mountInspector(host) {
       scope.setHTML(objectHTML({
         rec: r,
         openOi: ui.openOi,
+        found: foundOi(typeId, ocId),
         hrefFor,
         assetHref: (oiId) => inspHref({ typeId, ocId, section: 'object', oiId }),
         // Число заполненных полей у ОИ — по нему видно, что осмотр начат.
@@ -150,13 +160,44 @@ export function mountInspector(host) {
     values: () => assetValues(route.typeId, route.ocId, route.oiId),
     fields: ALL_FIELDS,
     onChange: (field, value, opts) => {
-      if (!opts || !opts.typing) render();
+      if (!opts || !opts.typing) {
+        render();
+        return;
+      }
+      // По ходу набора экран не перерисовываем (поле потеряет фокус), но
+      // расхождение с документами обновляем сразу: сигнал, который появляется
+      // только после сохранения, на осмотре бесполезен.
+      if (field.tpFrom) refreshHint(field);
     },
   });
 
-  scope.on('input', '[data-asset-note]', (e, el) => {
-    assetValues(route.typeId, route.ocId, route.oiId).note = el.value;
-  });
+// Обновить подсказку одного поля, не перерисовывая экран.
+  function refreshHint(field) {
+    const box = scope.$(`[data-fs-field="${field.key}"] .ins-fs-hint`);
+    if (!box) return;
+
+    const r = rec();
+    const oi = r && (r.oi || []).find((o) => o.id === route.oiId);
+    const text = mismatchHint(field, assetValues(route.typeId, route.ocId, route.oiId), oi);
+    box.textContent = text;
+    box.classList.toggle('warn', /^РАСХОДИТСЯ/.test(text));
+    refreshSum();
+  }
+
+  // Счётчик заполненного в закреплённой полосе — тоже без перерисовки: он
+  // должен идти вместе с вводом, иначе показывает вчерашнее число.
+  function refreshSum() {
+    const box = scope.$('[data-sum] .ins-sum-t');
+    if (!box) return;
+
+    const values = assetValues(route.typeId, route.ocId, route.oiId);
+    const left = requiredLeft(ALL_FIELDS, values);
+    const filled = filledCount(ALL_FIELDS, values);
+    box.innerHTML = `<b>${filled}</b> из ${ALL_FIELDS.length} полей
+      <i class="${left ? 'ins-warn' : 'ins-done'}">${left
+    ? '· обязательных ' + left
+    : '· обязательные заполнены'}</i>`;
+  }
 
   // --- обработчики экранов ------------------------------------------------
   //
@@ -201,6 +242,78 @@ export function mountInspector(host) {
   scope.on('click', '[data-oi]', (e, el) => {
     ui.openOi = ui.openOi === el.dataset.oi ? null : el.dataset.oi;
     render();
+  });
+
+  // --- помещения --------------------------------------------------------
+
+  // Свернуть или развернуть раздел формы. По умолчанию открыты все — сворачивает
+  // только сам осмотрщик, если раздел ему сейчас не нужен.
+  scope.on('click', '[data-sec]', (e, el) => {
+    const key = el.dataset.sec;
+    const i = ui.collapsed.indexOf(key);
+    if (i >= 0) ui.collapsed.splice(i, 1); else ui.collapsed.push(key);
+    render();
+  });
+
+  scope.on('click', '[data-pm-add]', () => {
+    addPremise(route.typeId, route.ocId, route.oiId);
+    render();
+  });
+
+  scope.on('click', '[data-pm-drop]', (e, el) => {
+    removePremise(route.typeId, route.ocId, route.oiId, el.dataset.pmDrop);
+    render();
+  });
+
+  // Ввод в помещение НЕ перерисовывает экран: иначе поле теряло бы фокус.
+  scope.on('input', '[data-pm-name]', (e, el) => {
+    const pm = premises(route.typeId, route.ocId, route.oiId)
+      .find((x) => x.id === el.dataset.pmName);
+    if (pm) pm.name = el.value;
+  });
+
+  scope.on('input', '[data-pm-area]', (e, el) => {
+    const pm = premises(route.typeId, route.ocId, route.oiId)
+      .find((x) => x.id === el.dataset.pmArea);
+    if (pm) pm.area = el.value;
+  });
+
+  scope.on('click', '[data-asset-save]', () => {
+    // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь уходит осмотр литеры на сервер. В макете
+    // значения и так лежат в памяти вкладки, поэтому кнопка только
+    // подтверждает — но она есть, потому что есть в рабочей системе, и без
+    // неё непонятно, чем осмотр заканчивается.
+    host.toast('Осмотр объекта сохранён', 'ok');
+  });
+
+  // --- объекты, выявленные на осмотре -------------------------------------
+
+  scope.on('click', '[data-found-add]', () => {
+    const kind = (scope.$('[data-found-kind]') || {}).value;
+    addFoundOi(route.typeId, route.ocId, kind);
+    host.toast('Объект добавлен и помечен «выявлен на осмотре»', 'ok');
+    render();
+  });
+
+  scope.on('click', '[data-found-drop]', async (e, el) => {
+    const ok = await host.confirm({
+      title: 'Убрать объект?',
+      text: 'Выявленный объект и всё, что к нему записано, пропадёт.',
+      okText: 'Убрать',
+    });
+    if (!ok) return;
+    removeFoundOi(route.typeId, route.ocId, el.dataset.foundDrop);
+    render();
+  });
+
+  scope.on('input', '[data-found-name]', (e, el) => {
+    const f = foundOi(route.typeId, route.ocId).find((x) => x.id === el.dataset.foundName);
+    if (f) f.name = el.value;
+  });
+
+  scope.on('input', '[data-found-note]', (e, el) => {
+    const f = foundOi(route.typeId, route.ocId).find((x) => x.id === el.dataset.foundNote);
+    if (f) f.note = el.value;
   });
 
   // --- фото ---------------------------------------------------------------

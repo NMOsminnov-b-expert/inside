@@ -207,6 +207,76 @@ export function oiOptions(rec) {
   return (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o) }));
 }
 
+// --- помещения и выявленные объекты ---------------------------------------
+
+// Помещения строения. В рабочей системе такой раздел есть («Помещения» с
+// кнопкой «Добавить помещение»), но в присланном снимке он пуст — состав
+// строки оттуда не виден. Здесь пара, без которой помещение не описать:
+// наименование и площадь. Состав уточним по заполненному примеру.
+export function premises(typeId, ocId, oiId) {
+  const v = assetValues(typeId, ocId, oiId);
+  if (!Array.isArray(v.premises)) v.premises = [];
+  return v.premises;
+}
+
+let premiseSeq = 0;
+
+export function addPremise(typeId, ocId, oiId) {
+  const list = premises(typeId, ocId, oiId);
+  list.push({ id: 'pm-' + (++premiseSeq), name: '', area: '' });
+  return list;
+}
+
+export function removePremise(typeId, ocId, oiId, id) {
+  const list = premises(typeId, ocId, oiId);
+  const i = list.findIndex((x) => x.id === id);
+  if (i >= 0) list.splice(i, 1);
+}
+
+// Объекты, выявленные НА ОСМОТРЕ. Решение пользователя 08.09.2026: такие
+// объекты нужно помечать и прикреплять к ним всё, что получится.
+//
+// Держим их отдельным списком, а не добавляем в rec.oi: осмотрщик не правит
+// данные ЦОД (то же решение), и ЦОД должен видеть, что объект пришёл с
+// осмотра, а не был заведён по документам. Признак — не украшение: по нему
+// ЦОД решает, что достраивать в записи.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: на сервере это заявка на добавление объекта имущества
+// со своим автором и временем, которую ЦОД принимает или отклоняет.
+export function foundOi(typeId, ocId) {
+  const st = taskState(typeId, ocId);
+  if (!Array.isArray(st.found)) st.found = [];
+  return st.found;
+}
+
+let foundSeq = 0;
+
+export function addFoundOi(typeId, ocId, kind) {
+  const list = foundOi(typeId, ocId);
+  const item = {
+    id: 'found-' + (++foundSeq),
+    kind: kind || FOUND_KINDS[0],
+    name: '',
+    note: '',
+    foundAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+  };
+  list.push(item);
+  return item;
+}
+
+export function removeFoundOi(typeId, ocId, id) {
+  const list = foundOi(typeId, ocId);
+  const i = list.findIndex((x) => x.id === id);
+  if (i >= 0) list.splice(i, 1);
+}
+
+// Виды, которыми осмотрщик называет найденное. Перечень из ТЗ (вспомогательные
+// строения и постройки, которых нет в списке ЦОД) плюс движимое.
+export const FOUND_KINDS = [
+  'Навес', 'Сарай', 'Гараж', 'Склад', 'Времянка', 'Летняя кухня', 'Баня',
+  'Хозпостройка', 'Пристройка', 'Ограждение', 'Механизм', 'Прочее',
+];
+
 // --- фото -----------------------------------------------------------------
 
 let photoSeq = 0;

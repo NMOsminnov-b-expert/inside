@@ -125,10 +125,17 @@ body[data-module] .field-hint{position:absolute;top:100%;left:0;right:0;font-siz
    с ошибкой — показываем ошибку, подсказку убираем, иначе текст ложится на текст
    (поле «GPS-координаты» в форме ОЦ: подсказка «заполняется автоматически»). */
 body[data-module] .field:has(> .field-err:not(:empty)) .field-hint{display:none}
-body[data-module] .input, body[data-module] .select, body[data-module] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
+/* Примитивы полей — общие, а не модульные: их же используют экраны
+   осмотрщика (body[data-page="insp"]). Пока селектор был заперт на
+   data-module, поля там показывались браузерными (замечание пользователя
+   08.09.2026). */
+body[data-module] .input, body[data-module] .select, body[data-module] .textarea,
+body[data-page="insp"] .input, body[data-page="insp"] .select, body[data-page="insp"] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
 body[data-module] .textarea{resize:vertical;min-height:46px}
-body[data-module] .input:focus, body[data-module] .select:focus, body[data-module] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
-body[data-module] .input[readonly], body[data-module] .select:disabled{background:var(--blue-50);color:#46536b}
+body[data-module] .input:focus, body[data-module] .select:focus, body[data-module] .textarea:focus,
+body[data-page="insp"] .input:focus, body[data-page="insp"] .select:focus, body[data-page="insp"] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
+body[data-module] .input[readonly], body[data-module] .select:disabled,
+body[data-page="insp"] .input[readonly], body[data-page="insp"] .select:disabled{background:var(--blue-50);color:#46536b}
 body[data-module] .sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-700);font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:10px}
 body[data-module] .sec-h::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 body[data-module] .sec-h:first-child{margin-top:0}

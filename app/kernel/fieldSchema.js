@@ -66,11 +66,34 @@ const DEF_UI = {
   input: 'fs-input',
   unit: 'fs-unit',
   area: 'fs-area',
+  // Класс 'select' обязателен: по нему kernel/dropdown.js подменяет
+  // нативный список своим — с поиском и оформлением макета.
+  select: 'select fs-select',
   hint: 'fs-hint',
 };
 
+// Чипами или списком — решает длина перечня, а не вкус.
+//
+// До восьми значений чипы быстрее: все варианты видны, выбор в одно касание.
+// Дальше они превращаются в простыню — у «наружных стен» в рабочей системе 44
+// значения, это четыре экрана прокрутки на ОДНО поле. Для длинных перечней
+// нативный список лучше любого своего: на телефоне это системный выбор с
+// крупными строками и набором с клавиатуры, на настолке — обычный select.
+const CHIPS_MAX = 8;
+
+const controlOf = (field) => field.control
+  || (field.multi ? 'chips' : (field.opts.length > CHIPS_MAX ? 'select' : 'chips'));
+
 function optsHTML(field, value, ui) {
   const list = Array.isArray(value) ? value : (value ? [value] : []);
+
+  if (controlOf(field) === 'select') {
+    const cur = list[0] || '';
+    return `<select class="${ui.select}" data-fs-sel="${esc(field.key)}">
+      <option value="">${esc(field.emptyLabel || 'Не выбрано')}</option>
+      ${field.opts.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>`;
+  }
 
   return `<div class="${ui.opts}" ${field.multi ? 'data-fs-multi' : ''}>
     ${field.opts.map((o) => `<button type="button"
@@ -105,7 +128,7 @@ export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
   return `<div class="${u.field}" data-fs-field="${esc(field.key)}">
     <span class="${u.label}">${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>
     ${body}
-    ${hint ? `<span class="${u.hint}">${esc(hint)}</span>` : ''}
+    ${hint ? `<span class="${u.hint}${/^РАСХОДИТСЯ/.test(hint) ? ' warn' : ''}">${esc(hint)}</span>` : ''}
   </div>`;
 }
 
@@ -163,6 +186,13 @@ export function bindFields(scope, { values, fields, onChange }) {
     if (onChange) onChange(field, getValue(box, path));
   });
 
+  scope.on('change', '[data-fs-sel]', (e, el) => {
+    const field = byKey.get(el.dataset.fsSel);
+    if (!field) return;
+    setValue(vals(), field.path || field.key, el.value);
+    if (onChange) onChange(field, el.value);
+  });
+
   scope.on('input', '[data-fs-input]', (e, el) => {
     const field = byKey.get(el.dataset.fsInput);
     if (!field) return;
@@ -179,4 +209,17 @@ export function requiredLeft(fields, values) {
 
 export function filledCount(fields, values) {
   return (fields || []).filter((f) => isFilled(getValue(values, f.path || f.key))).length;
+}
+
+// Прогресс раздела: сколько полей заполнено и сколько обязательных осталось.
+// Нужен, чтобы свёрнутый раздел говорил о себе — иначе аккордеон прячет не
+// только поля, но и то, что в них не хватает.
+export function sectionProgress(section, values) {
+  const fields = (section.fields || []).filter((f) => !f.visible || f.visible(values));
+  return {
+    total: fields.length,
+    filled: filledCount(fields, values),
+    required: fields.filter((f) => f.req).length,
+    requiredLeft: requiredLeft(fields, values),
+  };
 }

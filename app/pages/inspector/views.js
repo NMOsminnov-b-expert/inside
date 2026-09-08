@@ -12,9 +12,11 @@
 // карточка. Это и есть «конструктор», о котором просил пользователь.
 import { esc } from '../../kernel/dom.js';
 import { fmtEni } from '../../kernel/fmt.js';
-import { sectionHTML, requiredLeft, filledCount } from '../../kernel/fieldSchema.js';
-import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel } from './tasks.js';
-import { SECTIONS, ALL_FIELDS, tpValue } from './form.js';
+import {
+  sectionHTML, requiredLeft, filledCount, sectionProgress, getValue,
+} from '../../kernel/fieldSchema.js';
+import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_KINDS } from './tasks.js';
+import { SECTIONS, ALL_FIELDS, mismatchHint } from './form.js';
 
 // --- значки ---------------------------------------------------------------
 //
@@ -50,6 +52,7 @@ const FS_UI = {
   on: 'on',
   input: 'ins-num',
   unit: 'ins-num-u',
+  select: 'select ins-select',
   area: 'ins-ta',
   hint: 'ins-fs-hint',
 };
@@ -140,7 +143,7 @@ export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyP
 
       <div class="ins-as">
         <label for="insAs">Показать осмотры</label>
-        <select class="ins-select" id="insAs" data-view-as>
+        <select class="select ins-select" id="insAs" data-view-as>
           ${inspectors.map((x) => `<option value="${esc(x.name)}" ${x.name === person ? 'selected' : ''}>${esc(x.name)} · ${x.count}</option>`).join('')}
         </select>
         <span class="ins-note">В работе осмотрщик — это вошедший пользователь;
@@ -224,7 +227,7 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
 
       <section class="ins-blk">
         <h2 class="ins-blk-h">Моя заметка с осмотра</h2>
-        <textarea class="ins-ta" data-own-note rows="4"
+        <textarea class="textarea ins-ta" data-own-note rows="4"
           placeholder="Что увидели на месте: расхождения, доступ, кто встречал">${esc(state.note)}</textarea>
         <p class="ins-hint">Заметка уйдёт в объект вместе с фотографиями.
           Голосовые примечания появятся в серверной версии.</p>
@@ -271,7 +274,7 @@ function mapLink(gps) {
 
 // --- экран 3: карточка ОЦ, только для чтения ------------------------------
 
-export function objectHTML({ rec, openOi, hrefFor, assetHref, filledFor, counts, backHref }) {
+export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, counts, backHref }) {
   const oi = rec.oi || [];
 
   return `<div class="ins">
@@ -307,6 +310,24 @@ export function objectHTML({ rec, openOi, hrefFor, assetHref, filledFor, counts,
         ${oi.length ? `<ul class="ins-oi">
           ${oi.map((o) => oiItemHTML(o, o.id === openOi, assetHref, filledFor)).join('')}
         </ul>` : '<p class="ins-empty">В объекте нет ни одного ОИ.</p>'}
+      </section>
+
+      <section class="ins-blk">
+        <h2 class="ins-blk-h">Выявлено на осмотре${found.length ? ' · ' + found.length : ''}</h2>
+        ${found.length ? `<ul class="ins-found">
+          ${found.map(foundItemHTML).join('')}
+        </ul>` : `<p class="ins-empty">Если на месте нашлось строение или механизм,
+          которого нет в списке, добавьте его здесь — ЦОД увидит, что объект пришёл
+          с осмотра.</p>`}
+        <div class="ins-cols" style="margin-top:10px">
+          <div class="ins-field">
+            <label for="insFoundKind">Что нашли</label>
+            <select class="select ins-select" id="insFoundKind" data-found-kind>
+              ${FOUND_KINDS.map((k) => `<option>${esc(k)}</option>`).join('')}
+            </select>
+          </div>
+          <button class="ins-btn ins-btn-main" data-found-add>Добавить объект</button>
+        </div>
       </section>
     </div>
 
@@ -348,14 +369,46 @@ function oiItemHTML(o, open, assetHref, filledFor) {
   </li>`;
 }
 
+// Выявленный на осмотре объект. Помечается признаком — по нему ЦОД видит, что
+// объект пришёл с осмотра, а не был заведён по документам (решение
+// пользователя 08.09.2026). Прикрепить к нему можно то, что получится:
+// наименование, заметку и фото через раздел «Фото».
+function foundItemHTML(f) {
+  return `<li class="ins-found-i">
+    <span class="ins-found-top">
+      <span class="ins-pill ins-pill-wait">выявлен на осмотре</span>
+      <span class="ins-found-kind">${esc(f.kind)}</span>
+      <span class="ins-found-at">${esc(f.foundAt)}</span>
+    </span>
+    <div class="ins-field">
+      <label>Наименование</label>
+      <input class="input ins-input" data-found-name="${esc(f.id)}" value="${esc(f.name)}"
+        placeholder="Например: навес за котельной">
+    </div>
+    <div class="ins-field">
+      <label>Что видно на месте</label>
+      <textarea class="textarea ins-ta" data-found-note="${esc(f.id)}" rows="2"
+        placeholder="Размеры на глаз, состояние, к чему примыкает">${esc(f.note)}</textarea>
+    </div>
+    <button class="ins-btn ins-btn-icon" data-found-drop="${esc(f.id)}"
+      aria-label="Убрать объект" title="Убрать объект">${ico('trash', 18)}</button>
+  </li>`;
+}
+
 // --- экран 3б: осмотр одного объекта имущества ----------------------------
 //
 // Поля строятся из описания (form.js) конструктором ядра — разметки полей тут
 // нет вовсе. Добавили поле в описание — оно появится и здесь, и в карточке,
 // когда карточка на конструктор перейдёт.
-export function assetHTML({ rec, oi, values, hrefFor, counts, backHref }) {
+export function assetHTML({
+  rec, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref,
+}) {
   const left = requiredLeft(ALL_FIELDS, values);
   const filled = filledCount(ALL_FIELDS, values);
+
+  // Все разделы открыты по умолчанию: свёрнутое заранее приходится
+  // разворачивать, а на осмотре нужно заполнять (замечание пользователя
+  // 08.09.2026). Свернуть раздел можно руками — тогда он попадает в collapsed.
 
   return `<div class="ins">
     ${headerHTML({
@@ -365,14 +418,17 @@ export function assetHTML({ rec, oi, values, hrefFor, counts, backHref }) {
     backLabel: 'К объектам имущества',
   })}
 
-    <div class="ins-body">
-      <div class="ins-sum">
-        <span>Заполнено полей: <b>${filled}</b></span>
-        <span class="${left ? 'ins-warn' : 'ins-done'}">${left
-    ? `обязательных осталось: ${left}`
-    : `${ico('ok', 14)} обязательные заполнены`}</span>
-      </div>
+    <div class="ins-sum" data-sum>
+      <span class="ins-sum-t">
+        <b>${filled}</b> из ${ALL_FIELDS.length} полей
+        <i class="${left ? 'ins-warn' : 'ins-done'}">${left
+    ? `· обязательных ${left}`
+    : '· обязательные заполнены'}</i>
+      </span>
+      <button class="ins-btn ins-btn-main ins-btn-sm" data-asset-save>Сохранить</button>
+    </div>
 
+    <div class="ins-body">
       <section class="ins-blk">
         <h2 class="ins-blk-h">Объект</h2>
         <div class="ins-cols">
@@ -387,29 +443,72 @@ export function assetHTML({ rec, oi, values, hrefFor, counts, backHref }) {
         </div>
       </section>
 
-      ${SECTIONS.map((s) => sectionHTML(s, values, {
-    ui: FS_UI,
-    rec,
-    // Рядом с замером показываем, что стоит по документам: расхождение должно
-    // быть видно сразу, а не при сверке в офисе.
-    hintFor: (f) => (f.tpFrom && tpValue(oi, f.tpFrom)
-      ? `по документам: ${tpValue(oi, f.tpFrom)}${f.unit ? ' ' + f.unit : ''}`
-      : ''),
-    wrap: (sec, inner) => `<section class="ins-blk">
-        <h2 class="ins-blk-h">${esc(sec.title)}</h2>
-        <div class="ins-fs-grid">${inner}</div>
-      </section>`,
-  })).join('')}
+      ${SECTIONS.map((sec) => accordionHTML(sec, values, oi, collapsed)).join('')}
+
+      ${premisesHTML(premises)}
 
       <section class="ins-blk">
-        <h2 class="ins-blk-h">Особенности</h2>
-        <textarea class="ins-ta" data-asset-note rows="3"
-          placeholder="Что важно знать про этот объект: перепланировка, доступ, прочее">${esc(values.note || '')}</textarea>
+        <a class="ins-btn ins-btn-wide" href="${esc(photoHref)}">${ico('photo')} Прикрепить фото или документ</a>
       </section>
     </div>
 
     ${tabsHTML('object', hrefFor, counts)}
   </div>`;
+}
+
+// Раздел. Свёрнутый ОБЯЗАН говорить о себе: сколько полей заполнено и сколько
+// обязательных осталось — иначе свёртка прячет не только поля, но и то, что в
+// них не хватает.
+function accordionHTML(sec, values, oi, collapsed) {
+  const p = sectionProgress(sec, values);
+  const open = !(collapsed || []).includes(sec.key);
+
+  const inner = sectionHTML(sec, values, {
+    ui: FS_UI,
+    hintFor: (f) => mismatchHint(f, values, oi),
+    wrap: (s, html) => `<div class="ins-fs-grid">${html}</div>`,
+  });
+
+  return `<section class="ins-blk ins-acc ${open ? 'on' : ''}">
+    <button class="ins-acc-h" data-sec="${esc(sec.key)}" aria-expanded="${open ? 'true' : 'false'}">
+      <span class="ins-acc-t">
+        <b>${esc(sec.title)}</b>
+        <span class="ins-acc-sub">${p.filled} из ${p.total}${sec.optional ? ' · по возможности' : ''}</span>
+      </span>
+      ${p.requiredLeft
+    ? `<span class="ins-acc-n ins-acc-need"
+        title="Обязательных полей осталось: ${p.requiredLeft}">${p.requiredLeft}</span>`
+    : (p.filled ? `<span class="ins-acc-n ins-acc-ok"
+        title="Обязательные поля раздела заполнены">${ico('ok', 14)}</span>` : '')}
+      <span class="ins-oi-chev">${ico('chev', 18)}</span>
+    </button>
+    ${open ? `<div class="ins-acc-b">${inner}</div>` : ''}
+  </section>`;
+}
+
+function premisesHTML(list) {
+  return `<section class="ins-blk">
+    <h2 class="ins-blk-h">Помещения${list.length ? ' · ' + list.length : ''}</h2>
+    ${list.length ? `<ul class="ins-pm">
+      ${list.map((pm) => `<li class="ins-pm-i">
+        <div class="ins-field">
+          <label>Наименование</label>
+          <input class="input ins-input" data-pm-name="${esc(pm.id)}" value="${esc(pm.name)}"
+            placeholder="Кабинет, коридор, санузел">
+        </div>
+        <div class="ins-field ins-pm-area">
+          <label>Площадь, м²</label>
+          <input class="input ins-input" data-pm-area="${esc(pm.id)}" value="${esc(pm.area)}"
+            inputmode="decimal">
+        </div>
+        <button class="ins-icon-b" data-pm-drop="${esc(pm.id)}"
+          aria-label="Убрать помещение" title="Убрать помещение">${ico('trash', 18)}</button>
+      </li>`).join('')}
+    </ul>` : '<p class="ins-empty">В строении пока нет помещений.</p>'}
+    <button class="ins-btn ins-btn-wide" data-pm-add style="margin-top:10px">Добавить помещение</button>
+    <p class="ins-hint">Поэтажные планы и экспликации — в техпаспорте, раздел «Документы».
+      Планировку определяет оценщик, на осмотре её не заполняют.</p>
+  </section>`;
 }
 
 // --- экран 4: документы ---------------------------------------------------
@@ -475,13 +574,13 @@ export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, b
         <div class="ins-cols">
           <div class="ins-field">
             <label for="insOi">Объект имущества</label>
-            <select class="ins-select" id="insOi" data-oi-pick>
+            <select class="select ins-select" id="insOi" data-oi-pick>
               ${oiList.map((o) => `<option value="${esc(o.id)}" ${o.id === oiId ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
             </select>
           </div>
           <div class="ins-field">
             <label for="insCat">Категория съёмки</label>
-            <select class="ins-select" id="insCat" data-cat>
+            <select class="select ins-select" id="insCat" data-cat>
               ${PHOTO_CATS.map((c) => `<option ${c === cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}
             </select>
           </div>
@@ -522,13 +621,13 @@ export function lightboxHTML(p, oiList) {
     <div class="ins-lb-bar">
       <div class="ins-field">
         <label for="lbOi">Объект имущества</label>
-        <select class="ins-select" id="lbOi" data-move-oi="${esc(p.id)}">
+        <select class="select ins-select" id="lbOi" data-move-oi="${esc(p.id)}">
           ${oiList.map((o) => `<option value="${esc(o.id)}" ${o.id === p.oiId ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
         </select>
       </div>
       <div class="ins-field">
         <label for="lbCat">Категория</label>
-        <select class="ins-select" id="lbCat" data-move="${esc(p.id)}">
+        <select class="select ins-select" id="lbCat" data-move="${esc(p.id)}">
           ${PHOTO_CATS.map((c) => `<option ${c === p.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}
         </select>
       </div>

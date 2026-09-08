@@ -288,9 +288,8 @@ body[data-page="insp"] .content {
 .ins-field { margin-bottom: 10px; }
 .ins-field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
 
-/* Список остаётся НАТИВНЫМ: класс не .select, поэтому его не подменяет
-   kernel/dropdown.js. Это намеренно — на телефоне системный выбор удобнее
-   любого своего: крупные строки, привычный жест, работает одной рукой. */
+/* Размеры списка. Оформление приходит из макета (.select в cards.css), здесь
+   только высота под палец: подмену на свой список делает kernel/dropdown.js. */
 .ins-select {
   width: 100%;
   min-height: 48px;
@@ -540,6 +539,10 @@ body[data-page="insp"] .content {
 .ins-fs-req { color: var(--danger); font-style: normal; margin-left: 2px; }
 .ins-fs-hint { font-size: 11.5px; color: var(--muted); }
 
+/* Расхождение с документами — сигнал, а не сноска: за этим и едут на осмотр.
+   Слово РАСХОДИТСЯ в начале подсказки поднимает её цветом и весом. */
+.ins-fs-hint.warn { color: var(--amber-700); font-weight: 700; }
+
 /* Значения — кнопками-чипами, а не списком: на осмотре видно все варианты
    сразу, выбор в одно касание, и «не удалось установить» не спрятано под
    свёрнутым списком. Так же сделано в рабочей системе. */
@@ -590,15 +593,67 @@ body[data-page="insp"] .content {
 
 /* Сводка по заполненности: на телефоне обязательные поля уезжают вниз по
    прокрутке, и «осталось 3» понятнее, чем красные рамки где-то там. */
+/* Полоса сводки закреплена под шапкой: и прогресс, и «Сохранить» должны быть
+   под рукой на любой прокрутке — в рабочей системе кнопка лежала в конце
+   простыни из двадцати восьми полей. */
 .ins-sum {
+  position: sticky;
+  top: 56px;
+  z-index: 4;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  background: var(--blue-50);
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px var(--ins-pad);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
+
+.ins-sum-t i { font-style: normal; }
+/* 44 пикселя даже в узкой полосе: это главная кнопка экрана. */
+.ins-sum .ins-btn-sm { flex: 0 0 auto; min-height: 44px; }
+
+/* --- раздел-аккордеон --------------------------------------------------- */
+.ins-acc { padding: 0; overflow: hidden; }
+
+.ins-acc-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--panel);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ins-acc-h:active { background: var(--blue-50); }
+.ins-acc.on .ins-acc-h { background: var(--blue-50); border-bottom: 1px solid var(--line-soft); }
+.ins-acc.on .ins-oi-chev { transform: rotate(180deg); }
+.ins-acc-t { flex: 1 1 auto; min-width: 0; }
+.ins-acc-t b { display: block; font-size: 14.5px; }
+.ins-acc-sub { display: block; font-size: 11.5px; color: var(--muted); }
+
+.ins-acc-n {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.ins-acc-need { background: var(--amber-100); color: var(--amber-700); }
+.ins-acc-ok { background: var(--teal-50); color: var(--teal-700); }
+.ins-acc-b { padding: 12px; }
 
 .ins-oi-n {
   flex: 0 0 auto;
@@ -638,6 +693,74 @@ body[data-page="insp"] .content {
 .ins-lb-bar .ins-field { flex: 1 1 0; margin: 0; min-width: 0; }
 .ins-lb-bar label { color: #cfe0f4; }
 .ins-lb-bar .ins-btn-icon { background: #ffffff1f; border-color: #ffffff33; color: #ffd7d7; }
+
+/* --- поля макета на мобильных размерах ---------------------------------- */
+/* Оформление берём из макета (.input/.select/.textarea в cards.css), а размеры
+   поднимаем до пальца: 44 пикселя минимум. Своя копия оформления была бы
+   вторым источником правды — как раз то, из-за чего модуль и выглядел чужим. */
+.ins .input,
+.ins .textarea,
+.ins .pick-btn {
+  min-height: 48px;
+  font-size: 15px;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.ins .textarea { min-height: 88px; }
+.ins .pick-btn { width: 100%; justify-content: space-between; gap: 8px; }
+
+/* Указатель, что это список. У кнопки макета его нет — на настолке хватает
+   контекста, а на телефоне поле без указателя читается как обычный ввод. */
+.ins .pick-btn::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  border-right: 1.6px solid var(--slate-500);
+  border-bottom: 1.6px solid var(--slate-500);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.ins .pick-btn.pick-open::after { transform: translateY(2px) rotate(225deg); }
+
+/* Список выбора на телефоне — во всю ширину и с крупными строками: тот же
+   компонент макета, но пальцем по строке высотой 28 пикселей не попасть. */
+.ins-select-menu.pick-menu { max-width: min(420px, 94vw); }
+body[data-page="insp"] .pick-menu { max-width: min(420px, 94vw); }
+body[data-page="insp"] .pick-opt { min-height: 44px; display: flex; align-items: center; font-size: 14px; }
+body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
+
+/* --- помещения и выявленные объекты ------------------------------------- */
+.ins-pm, .ins-found { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.ins-pm-i {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--blue-50);
+}
+
+.ins-pm-i .ins-field { flex: 1 1 auto; margin: 0; min-width: 0; }
+.ins-pm-area { flex: 0 0 96px !important; }
+
+.ins-found-i {
+  position: relative;
+  padding: 10px;
+  border: 1px solid var(--amber-100);
+  border-radius: 10px;
+  background: var(--amber-50);
+}
+
+.ins-found-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ins-found-kind { font-size: 13px; font-weight: 600; }
+.ins-found-at { font-size: 11.5px; color: var(--muted); }
+.ins-found-i .ins-field { margin-bottom: 8px; }
+.ins-found-i .ins-btn-icon { width: 100%; }
 
 /* --- адаптивность ------------------------------------------------------- */
 /* Задача пользователя 08.09.2026: «сам интерфейс строй адаптивным». Экраны
