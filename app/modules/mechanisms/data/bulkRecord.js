@@ -32,6 +32,7 @@ export function buildBulkRecord(id, i, p) {
       id: `${id}-m1`,
       name: p.mechName,
       qty: 1,
+      cost: (i * 3491) % 500000,
       fields: [
         { id: `${id}-f1`, label: 'Год выпуска', value: String(1970 + (i % 50)) },
         { id: `${id}-f2`, label: 'Заводской номер', value: `SN-${(i * 7919) % 100000}` },

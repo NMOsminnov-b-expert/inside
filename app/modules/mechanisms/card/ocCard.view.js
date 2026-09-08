@@ -77,6 +77,7 @@ function mechEntryHTML(mech) {
     <div class="grid g-4 g-top">
       <div class="field"><span class="lbl">Название</span><b>${esc(mech.name || '—')}</b></div>
       <div class="field"><span class="lbl">Количество</span><b>${esc(mech.qty != null ? mech.qty : 1)}</b></div>
+      <div class="field"><span class="lbl">Стоимость</span><b>${mech.cost === '' || mech.cost == null ? '—' : esc(mech.cost)}</b></div>
     </div>
 
     ${fields.length
@@ -86,7 +87,7 @@ function mechEntryHTML(mech) {
 }
 
 function mechOC(rec) {
-  const mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ name: '', qty: 1, fields: [] }];
+  const mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ name: '', qty: 1, cost: 0, fields: [] }];
 
   return `<div class="card t-teal" style="margin-top:12px">
     <div class="card-head" data-card-toggle><span class="card-idx">02</span><h3>Механизмы</h3><span class="hint">состав параметров задаётся конструктором полей — правится в форме ОЦ</span><span class="chev">▾</span></div>

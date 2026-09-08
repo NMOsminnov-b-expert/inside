@@ -130,6 +130,7 @@ export function createSeed() {
           kind: 'МЕХ',
           name: 'Котёл газовый КВГ-1,25',
           qty: 1,
+          cost: 98000,
           docs: [{ id: 'cv1-md1', type: 'ПУД', name: 'Паспорт котла', date: '12.03.2015' }],
           notes: [],
           photos: {},

@@ -4,7 +4,7 @@ import { allNames, getTemplate, valuesFor } from '../data/fieldTemplates.js';
 
 // Конструктор полей карточки «Механизмы и оборудование» — переиспользуемый
 // кусок UI. Работает с ПЛОСКИМ объектом-записью механизма
-// {id, name, qty, fields:[{id,label,value}]}, а не с rec/oi целиком, — так
+// {id, name, qty, cost, fields:[{id,label,value}]}, а не с rec/oi целиком, — так
 // же, как карточка земельного участка (land-plot/oi/land) переиспользуется
 // всеми модулями ОЦ (см. app/README.md).
 //
@@ -32,6 +32,15 @@ export function uid() {
 function clampQty(raw) {
   const n = parseInt(raw, 10);
   return (Number.isFinite(n) && n >= 1) ? n : 1;
+}
+
+// Стоимость не обязательна к заполнению вручную (уточнение пользователя) —
+// поле само появляется у каждого механизма со значением 0 по умолчанию, а
+// пустое/нечисловое/отрицательное при потере фокуса откатывается к 0, как и
+// количество к 1 (clampQty) — а не блокирует сохранение.
+function clampCost(raw) {
+  const n = parseFloat(raw);
+  return (Number.isFinite(n) && n >= 0) ? n : 0;
 }
 
 function fieldRowHTML(f) {
@@ -75,6 +84,12 @@ function entryBodyHTML(m, removeBtnHTML) {
           data-mech-qty value="${esc(m.qty != null ? m.qty : 1)}">
       </div>
 
+      <div class="field mech-cost-field">
+        <label>Стоимость</label>
+        <input class="input" type="number" min="0" step="0.01"
+          data-mech-cost value="${esc(m.cost != null ? m.cost : 0)}">
+      </div>
+
       ${removeBtnHTML || ''}
     </div>
 
@@ -84,26 +99,26 @@ function entryBodyHTML(m, removeBtnHTML) {
     </div>`;
 }
 
-// m — {id, name, qty, fields}. Разметка вставляется целиком в карточку
+// m — {id, name, qty, cost, fields}. Разметка вставляется целиком в карточку
 // вызывающей стороны (своей карточки-обёртки у конструктора нет — решает
 // вызывающий код, какой у него номер/цвет карточки). Один экземпляр на
 // карточку — используется встраиваемой карточкой ОИ «Механизмы».
 export function renderMechFields(mech) {
-  const m = mech || { name: '', fields: [], qty: 1 };
+  const m = mech || { name: '', fields: [], qty: 1, cost: 0 };
   return `<div class="mech-constructor"><div class="mech-entry">${entryBodyHTML(m, '')}</div></div>`;
 }
 
-// list — [{id, name, qty, fields}] — весь состав механизмов записи ОЦ.
+// list — [{id, name, qty, cost, fields}] — весь состав механизмов записи ОЦ.
 // Каждая запись — свой визуально обособленный блок (граница/подложка, см.
 // module.css) с собственной кнопкой «✕ убрать механизм» в шапке (рядом с
 // «Название»/«Количество» этой же записи — не путать с кнопкой «✕» у
 // отдельного ПОЛЯ, та мельче и стоит в строке самого поля).
 export function renderMechList(list) {
-  const entries = (list && list.length) ? list : [{ name: '', fields: [], qty: 1 }];
+  const entries = (list && list.length) ? list : [{ name: '', fields: [], qty: 1, cost: 0 }];
 
   return `<div class="mech-list">
     ${entries.map((m) => `<div class="mech-entry" data-mech-entry="${esc(m.id || '')}">
-      ${entryBodyHTML(m, `<button type="button" class="btn btn-ghost btn-sm mech-entry-rm" data-mech-entry-rm="${esc(m.id || '')}" title="Убрать механизм целиком">✕ убрать механизм</button>`)}
+      ${entryBodyHTML(m, `<button type="button" class="btn btn-ghost btn-sm mech-entry-rm" data-mech-entry-rm="${esc(m.id || '')}" title="Убрать механизм целиком">✕</button>`)}
     </div>`).join('')}
     <button type="button" class="btn btn-ghost btn-sm" data-mech-add-entry>+ добавить механизм</button>
   </div>`;
@@ -116,6 +131,7 @@ export function renderMechList(list) {
 function bindEntry(root, m, onChange) {
   m.fields = m.fields || [];
   if (!(Number.isFinite(m.qty) && m.qty >= 1)) m.qty = 1;
+  if (!(Number.isFinite(m.cost) && m.cost >= 0)) m.cost = 0;
 
   const nameInput = root.querySelector('[data-mech-name]');
   if (nameInput) nameInput.onchange = () => {
@@ -137,6 +153,15 @@ function bindEntry(root, m, onChange) {
     // сохраняется как есть.
     m.qty = clampQty(qtyInput.value);
     qtyInput.value = m.qty;
+    onChange();
+  };
+
+  const costInput = root.querySelector('[data-mech-cost]');
+  if (costInput) costInput.onblur = () => {
+    // Необязательна к заполнению — как и количество, просто откатывается к
+    // значению по умолчанию (0), если оставили пустым/вписали не число.
+    m.cost = clampCost(costInput.value);
+    costInput.value = m.cost;
     onChange();
   };
 
@@ -177,7 +202,7 @@ function bindEntry(root, m, onChange) {
   };
 }
 
-// scope — DOM-скоуп экрана (ctx.scope), mech — {id, name, qty, fields},
+// scope — DOM-скоуп экрана (ctx.scope), mech — {id, name, qty, cost, fields},
 // onChange — вызывается после любой правки (обычно ctx.render() —
 // конструктор сам не решает, как перерисоваться). Один экземпляр на экран.
 export function bindMechFields(scope, mech, onChange) {
@@ -207,13 +232,13 @@ export function bindMechList(scope, list, onChange) {
     if (i < 0) return;
 
     list.splice(i, 1);
-    if (!list.length) list.push({ id: uid(), name: '', qty: 1, fields: [] });
+    if (!list.length) list.push({ id: uid(), name: '', qty: 1, cost: 0, fields: [] });
     onChange();
   });
 
   const addBtn = root.querySelector('[data-mech-add-entry]');
   if (addBtn) addBtn.onclick = () => {
-    list.push({ id: uid(), name: '', qty: 1, fields: [] });
+    list.push({ id: uid(), name: '', qty: 1, cost: 0, fields: [] });
     onChange();
   };
 }

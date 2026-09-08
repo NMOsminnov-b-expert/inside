@@ -30,6 +30,7 @@ export function createSeed() {
         id: 'm-mh1-1',
         name: 'Станок токарный 16К20',
         qty: 1,
+        cost: 185000,
         fields: [
           { id: 'f-mh1-1', label: 'Год выпуска', value: '1989' },
           { id: 'f-mh1-2', label: 'Заводской номер', value: '16К20-77412' },
@@ -64,6 +65,7 @@ export function createSeed() {
         id: 'm-mh2-1',
         name: 'Экскаватор колёсный JCB 4CX',
         qty: 1,
+        cost: 4200000,
         fields: [
           { id: 'f-mh2-1', label: 'Год выпуска', value: '2015' },
           { id: 'f-mh2-2', label: 'Заводской номер', value: 'JCB4CX-20415' },
@@ -97,6 +99,7 @@ export function createSeed() {
         id: 'm-mh3-1',
         name: 'Компрессор передвижной ПКС-6',
         qty: 1,
+        cost: 98000,
         fields: [
           { id: 'f-mh3-1', label: 'Год выпуска', value: '2001' },
           { id: 'f-mh3-2', label: 'Заводской номер', value: 'ПКС6-0987' },
@@ -129,6 +132,7 @@ export function createSeed() {
         id: 'm-mh4-1',
         name: 'Генератор дизельный АД-100',
         qty: 1,
+        cost: 650000,
         fields: [
           { id: 'f-mh4-1', label: 'Год выпуска', value: '2018' },
           { id: 'f-mh4-2', label: 'Заводской номер', value: 'АД100-33210' },
@@ -163,6 +167,7 @@ export function createSeed() {
         id: 'm-mh5-1',
         name: 'Насосная станция СНП-50',
         qty: 1,
+        cost: 142000,
         fields: [
           { id: 'f-mh5-1', label: 'Год выпуска', value: '1994' },
           { id: 'f-mh5-2', label: 'Заводской номер', value: 'СНП50-1102' },
@@ -195,6 +200,7 @@ export function createSeed() {
         id: 'm-mh6-1',
         name: 'Кран башенный КБ-403',
         qty: 1,
+        cost: 310000,
         fields: [
           { id: 'f-mh6-1', label: 'Год выпуска', value: '1987' },
           { id: 'f-mh6-2', label: 'Заводской номер', value: 'КБ403-0456' },
@@ -223,6 +229,7 @@ export function createSeed() {
         id: 'm-mh7-1',
         name: '',
         qty: 1,
+        cost: 0,
         fields: [],
       }],
       notes: [],

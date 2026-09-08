@@ -12,7 +12,7 @@ export function bindOcForm(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
 
-  rec.mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ id: uid(), name: '', qty: 1, fields: [] }];
+  rec.mechanisms = (rec.mechanisms && rec.mechanisms.length) ? rec.mechanisms : [{ id: uid(), name: '', qty: 1, cost: 0, fields: [] }];
   bindMechList(s, rec.mechanisms, () => ctx.render());
 
   const save = s.$('#btnSaveOc');
@@ -24,7 +24,6 @@ export function bindOcForm(ctx) {
       ctx.toast('Заполните подпись у всех добавленных полей', 'warn');
       return;
     }
-
     rec.status = s.$('#fStatus').value;
     rec.institution = s.$('#fInst').value;
     rec.podved = s.$('#fPodved').value;

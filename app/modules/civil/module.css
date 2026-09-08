@@ -45,18 +45,19 @@ body[data-module="civil"] .mech-entry-head{
 body[data-module="civil"] .mech-entry-head .field{margin:0}
 body[data-module="civil"] .mech-name-field{flex:1 1 240px;min-width:140px}
 body[data-module="civil"] .mech-qty-field{flex:0 0 88px}
+body[data-module="civil"] .mech-cost-field{flex:0 0 120px}
 
 body[data-module="civil"] .mech-fields-list{display:flex;flex-wrap:wrap;gap:6px 10px}
 
 body[data-module="civil"] .mech-field-row{
-  display:flex;align-items:center;gap:5px;flex:0 0 auto;width:200px;padding:3px 5px;
+  display:flex;align-items:center;gap:6px;flex:0 0 auto;width:385px;padding:3px 6px;
   border:1px solid #e3ede9;border-radius:6px;background:#fff;
 }
 body[data-module="civil"] .mech-field-row.invalid{border-color:#e2a1a1;background:#fdf6f6}
 
 body[data-module="civil"] .mech-field-label{
   font-size:11.5px;font-weight:600;color:#46536b;
-  flex:0 0 55px;width:55px;
+  flex:0 0 95px;width:95px;
   border:none;background:transparent;padding:2px 0;height:auto;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
@@ -66,7 +67,7 @@ body[data-module="civil"] .mech-field-label:focus{
 body[data-module="civil"] .mech-field-row.invalid .mech-field-label{color:#b23b3b}
 body[data-module="civil"] .mech-field-row.invalid .mech-field-label::placeholder{color:#c77}
 
-body[data-module="civil"] .mech-field-value{flex:0 0 85px;width:85px}
+body[data-module="civil"] .mech-field-value{flex:1 1 145px;width:auto;min-width:0}
 
 body[data-module="civil"] .mech-field-rm{
   flex:0 0 auto;color:var(--danger);border-color:#f3c1c1;padding:0 5px;
@@ -74,7 +75,7 @@ body[data-module="civil"] .mech-field-rm{
 body[data-module="civil"] .mech-field-rm:hover{background:#fdf3f3}
 
 body[data-module="civil"] .mech-field-add{
-  flex:0 0 auto;width:36px;height:27px;
+  flex:0 0 auto;width:44px;height:28px;
   border:1px dashed #b8cfc9;border-radius:6px;background:none;
   color:#4a8f7e;font-size:16px;line-height:1;cursor:pointer;
 }
@@ -83,4 +84,5 @@ body[data-module="civil"] .mech-field-add:hover{background:#eef6f4;border-color:
 @media (max-width: 640px){
   body[data-module="civil"] .mech-entry-head{flex-direction:column;align-items:stretch}
   body[data-module="civil"] .mech-qty-field{flex-basis:auto}
+  body[data-module="civil"] .mech-cost-field{flex-basis:auto}
 }

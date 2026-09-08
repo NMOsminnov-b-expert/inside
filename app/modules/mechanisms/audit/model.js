@@ -195,6 +195,12 @@ function diffMechanismsArray(before, after, out) {
       out.push({ category: 'oc', field: `Механизм «${label}»: Количество`, action: 'update', before: beforeQty, after: afterQty });
     }
 
+    const beforeCost = displayValue(b.cost);
+    const afterCost = displayValue(item.cost);
+    if (beforeCost !== afterCost) {
+      out.push({ category: 'oc', field: `Механизм «${label}»: Стоимость`, action: 'update', before: beforeCost, after: afterCost });
+    }
+
     diffMechFieldsArray(b.fields || [], item.fields || [], label, out);
   });
 

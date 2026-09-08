@@ -23,6 +23,7 @@ export function createMechOi(rec, { nextId } = {}) {
     // не рост qty; но поле общее с card/ocForm.js этого модуля (rec.mechanisms),
     // поэтому оно есть и тут — просто обычно остаётся равным 1.
     qty: 1,
+    cost: 0,
     fields: [],
     docs: [],
     notes: [],

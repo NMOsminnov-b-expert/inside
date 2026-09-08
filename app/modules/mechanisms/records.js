@@ -235,7 +235,7 @@ export function createRecord() {
     resp: { gov: '', cod: session.state.person || '', appr: '', insp: '' },
     notes: [],
     docs: [],
-    mechanisms: [{ id: uid(), name: '', qty: 1, fields: [] }],
+    mechanisms: [{ id: uid(), name: '', qty: 1, cost: 0, fields: [] }],
   };
 
   return addRecord(rec);
