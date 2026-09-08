@@ -215,6 +215,8 @@ body[data-page="insp"] .content {
 .ins-pill-wait { background: var(--amber-50); color: var(--amber-700); }
 .ins-pill-done { background: var(--teal-50); color: var(--teal-700); }
 
+.ins-cols { display: flex; flex-direction: column; gap: 10px; }
+
 .ins-empty {
   margin: 0;
   padding: 14px 12px;
@@ -527,6 +529,156 @@ body[data-page="insp"] .content {
   background: #ffffff26;
   color: #fff;
   font-size: 12.5px;
+}
+
+/* --- поля осмотра (конструктор) ----------------------------------------- */
+/* Разметку этих полей строит kernel/fieldSchema.js по описанию из form.js —
+   классы приходят к нему снаружи, поэтому оформление остаётся здесь. */
+.ins-fs-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.ins-fs { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ins-fs-l { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ins-fs-req { color: var(--danger); font-style: normal; margin-left: 2px; }
+.ins-fs-hint { font-size: 11.5px; color: var(--muted); }
+
+/* Значения — кнопками-чипами, а не списком: на осмотре видно все варианты
+   сразу, выбор в одно касание, и «не удалось установить» не спрятано под
+   свёрнутым списком. Так же сделано в рабочей системе. */
+.ins-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ins-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--slate-700);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ins-chip.on {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ins-chip:active { transform: scale(.985); }
+
+.ins-num-wrap { position: relative; display: flex; }
+
+.ins-num {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 40px 0 12px;
+  border: 1px solid var(--line-input);
+  border-radius: 10px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-num-u {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Сводка по заполненности: на телефоне обязательные поля уезжают вниз по
+   прокрутке, и «осталось 3» понятнее, чем красные рамки где-то там. */
+.ins-sum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--blue-50);
+  font-size: 13px;
+}
+
+.ins-oi-n {
+  flex: 0 0 auto;
+  min-width: 24px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--teal-50);
+  color: var(--teal-700);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ins-oi-go { margin-top: 10px; }
+
+/* Снимки: группа по объекту имущества, внутри — по категории. */
+.ins-shots { margin-top: 10px; }
+.ins-shots:first-of-type { margin-top: 0; }
+.ins-shots-h { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+.ins-doc-owner { display: block; font-size: 12px; color: var(--blue-700); font-weight: 600; }
+
+/* Перенос и удаление снимка — в полноэкранном просмотре: в сетке для двух
+   списков и кнопки нет ширины. */
+.ins-lb-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: #0d1522f2;
+}
+
+.ins-lb-bar .ins-field { flex: 1 1 0; margin: 0; min-width: 0; }
+.ins-lb-bar label { color: #cfe0f4; }
+.ins-lb-bar .ins-btn-icon { background: #ffffff1f; border-color: #ffffff33; color: #ffd7d7; }
+
+/* --- адаптивность ------------------------------------------------------- */
+/* Задача пользователя 08.09.2026: «сам интерфейс строй адаптивным». Экраны
+   остаются своими (их структура — про осмотр, а не про карточку), но на
+   планшете и мониторе раскладываются шире: колонка растёт, парные блоки
+   встают рядом, а разделы уходят из-под большого пальца наверх — там, где
+   мышь, нижняя панель только отнимает высоту. */
+@media (min-width: 720px) {
+  .ins { max-width: 900px; }
+
+  .ins-head { order: 1; }
+  .ins-strip { order: 2; }
+  .ins-tabs { order: 3; }
+  .ins-body { order: 4; }
+
+  .ins-tabs {
+    position: static;
+    grid-template-columns: repeat(4, minmax(120px, max-content));
+    justify-content: start;
+    gap: 4px;
+    padding: 6px 8px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ins-tab { flex-direction: row; gap: 8px; min-height: 44px; padding: 0 12px; }
+  .ins-body { padding: 16px; padding-bottom: 16px; }
+  .ins-body-list { padding-bottom: 16px; }
+  .ins-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .ins-fs-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ins-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+
+  /* Мышь целится точнее пальца — на широком экране кнопки могут быть ниже
+     (так же сделано в рабочей системе: min-h-11 на телефоне, md:min-h-9). */
+  .ins-chip, .ins-btn, .ins-select, .ins-num { min-height: 38px; }
+  .ins-seg-b { min-height: 38px; }
+}
+
+@media (min-width: 1100px) {
+  .ins { max-width: 1040px; }
+  .ins-fs-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* --- доступность -------------------------------------------------------- */

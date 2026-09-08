@@ -39,8 +39,19 @@ const local = new Map();
 
 export function taskState(typeId, ocId) {
   const k = key(typeId, ocId);
-  if (!local.has(k)) local.set(k, { note: '', photos: [], done: false, seen: null });
+  if (!local.has(k)) local.set(k, { note: '', photos: [], done: false, assets: new Map() });
   return local.get(k);
+}
+
+// Значения осмотра ОДНОГО объекта имущества. Осмотр ведётся по ОИ, а не по
+// записи целиком — так устроена и рабочая система (адрес её экрана:
+// /inspections/<id>/assets/<assetId>), и это единственный способ описать
+// литеру и котельную по-разному.
+export function assetValues(typeId, ocId, oiId) {
+  const assets = taskState(typeId, ocId).assets;
+  const k = oiId || '';
+  if (!assets.has(k)) assets.set(k, {});
+  return assets.get(k);
 }
 
 // --- кто осматривает ------------------------------------------------------
@@ -149,18 +160,52 @@ export function taskDocs(rec) {
   (rec.docs || []).forEach((d) => out.push({ doc: d, owner: 'Объект оценки' }));
 
   (rec.oi || []).forEach((o) => {
-    const who = [o.letter ? 'Литера ' + o.letter : '', o.name].filter(Boolean).join(' · ');
-    (o.docs || []).forEach((d) => out.push({ doc: d, owner: who || 'Объект имущества' }));
+    (o.docs || []).forEach((d) => out.push({ doc: d, owner: oiLabel(o) }));
   });
 
   return out;
+}
+
+// Подпись объекта имущества — то, чем осмотрщик его называет вслух. Нужна и
+// фотографиям, и документам: снимок без литеры бесполезен, а «паспорт котла»
+// без указания котла не найти (требование пользователя 08.09.2026).
+//
+// Транспортных средств в макете пока нет отдельным видом ОИ, но когда они
+// появятся, они попадут в тот же перечень — подпись считается по виду
+// карточки, а не по заранее перечисленным типам.
+export function oiLabel(oi) {
+  if (!oi) return 'Объект имущества';
+
+  const name = String(oi.name || '').trim();
+
+  if (oi.card === 'building') {
+    return [oi.letter ? 'Литера ' + oi.letter : 'Строение', name].filter(Boolean).join(' · ');
+  }
+  if (oi.card === 'apartment') {
+    return ['Квартира' + (oi.flat ? ' №' + oi.flat : ''), name].filter(Boolean).join(' · ');
+  }
+  if (oi.card === 'land') {
+    return ['Земельный участок', name].filter(Boolean).join(' · ');
+  }
+  if (oi.card === 'movable') {
+    const kind = oi.kind === 'ОФИС' ? 'Офисная техника'
+      : oi.kind === 'ТС' ? 'Транспортное средство' : 'Механизм';
+    return [kind, name, oi.serial].filter(Boolean).join(' · ');
+  }
+
+  return name || 'Объект имущества';
+}
+
+// Список ОИ записи для выбора: к чему привязать снимок.
+export function oiOptions(rec) {
+  return (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o) }));
 }
 
 // --- фото -----------------------------------------------------------------
 
 let photoSeq = 0;
 
-export function addPhoto(typeId, ocId, file, cat) {
+export function addPhoto(typeId, ocId, file, { oiId = '', cat = '' } = {}) {
   const st = taskState(typeId, ocId);
   if (st.photos.length >= PHOTO_LIMIT) return { error: `Больше ${PHOTO_LIMIT} снимков на осмотр не нужно` };
 
@@ -168,6 +213,9 @@ export function addPhoto(typeId, ocId, file, cat) {
   const photo = {
     id: 'ph-' + (++photoSeq),
     name: file.name || 'снимок',
+    // К какому объекту имущества относится снимок. Без этого фото кровли не
+    // отличить от фото кровли соседней литеры.
+    oiId,
     cat: cat || PHOTO_CATS[0],
     url,
     size: file.size,
@@ -194,19 +242,38 @@ export function removePhoto(typeId, ocId, id) {
   st.photos.splice(i, 1);
 }
 
-// Перенос снимка в другую категорию — прямое требование ТЗ («должна быть
-// предусмотрена возможность переноса фото в другую позицию»).
-export function movePhoto(typeId, ocId, id, cat) {
+// Перенос снимка — прямое требование ТЗ («должна быть предусмотрена
+// возможность переноса фото в другую позицию»). Переносить можно и в другую
+// категорию, и к другому объекту имущества: на осмотре легко снять кровлю и
+// приписать её соседней литере.
+export function movePhoto(typeId, ocId, id, patch = {}) {
   const p = taskState(typeId, ocId).photos.find((x) => x.id === id);
-  if (p) p.cat = cat;
+  if (!p) return;
+  if (patch.cat !== undefined) p.cat = patch.cat;
+  if (patch.oiId !== undefined) p.oiId = patch.oiId;
 }
 
-export function photosByCat(typeId, ocId) {
+export function photoById(typeId, ocId, id) {
+  return taskState(typeId, ocId).photos.find((x) => x.id === id) || null;
+}
+
+// Снимки сгруппированы по объекту имущества, а внутри — по категории: именно
+// так их потом разбирают в отчёте, и так же их ищет сам осмотрщик («где у меня
+// кровля литеры Б»).
+export function photoGroups(rec, typeId, ocId) {
   const st = taskState(typeId, ocId);
-  const groups = new Map();
+  const byOi = new Map();
+
   st.photos.forEach((p) => {
-    if (!groups.has(p.cat)) groups.set(p.cat, []);
-    groups.get(p.cat).push(p);
+    const oi = (rec.oi || []).find((o) => o.id === p.oiId);
+    const key = p.oiId || '';
+    if (!byOi.has(key)) {
+      byOi.set(key, { label: oi ? oiLabel(oi) : 'Без привязки к объекту', cats: new Map() });
+    }
+    const cats = byOi.get(key).cats;
+    if (!cats.has(p.cat)) cats.set(p.cat, []);
+    cats.get(p.cat).push(p);
   });
-  return groups;
+
+  return byOi;
 }
