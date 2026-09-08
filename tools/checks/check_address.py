@@ -42,6 +42,20 @@ ROUTES = {
 ENI_LENGTHS = (13, 15, 18)
 
 
+def unfold(value):
+    """Развернуть свёрнутое значение обратно в отдельные коды.
+
+    «1-47-56-1671-(0010, 0020)» → два кода целиком. Нужно, чтобы проверка длины
+    смотрела на настоящие коды: свёрнутая строка сама по себе под маску не
+    подходит, и без разворота неверный код прятался бы в скобках.
+    """
+    m = re.match(r'^([\d-]+?)-?\(([\d,\s-]+)\)$', value.strip())
+    if not m:
+        return [value.strip()]
+    head, tails = m.group(1), m.group(2)
+    return ['%s-%s' % (head, x.strip()) for x in tails.split(',') if x.strip()]
+
+
 def _add(t, kind):
     pg = t.page
     pg.locator('[data-dd-toggle]').first.click()
@@ -132,18 +146,74 @@ def run(t):
          'в карточке участка остались крупная зона и микрорайон')
 
     # --- 6. коды ЕНИ проходят ту же проверку, что и поле ввода ---
+    #
+    # В шапке ОЦ с 08.09.2026 стоит не один код записи, а свёрнутые коды
+    # целиком — её собственный и коды её литер. Поэтому значение сначала
+    # разворачивается обратно в отдельные коды: длина каждого должна остаться
+    # допустимой, иначе свёртка прятала бы неверный код.
     for oc, route in ROUTES.items():
         t.open(route, wait='.hm b')
         t.wait(300)
-        codes = pg.evaluate("""() => [...document.querySelectorAll('.hm b, .ctx-plate-eni b')]
+        shown = pg.evaluate("""() => [...document.querySelectorAll('.hm b, .ctx-plate-eni b')]
             .map((e) => e.textContent.trim())
-            .filter((x) => /^\\d[\\d-]*$/.test(x))""")
-        t.ck(codes, 'в %s не нашёлся код ЕНИ' % oc)
-        for c in codes:
-            n = len(re.sub(r'\D', '', c))
-            t.ck(n in ENI_LENGTHS,
-                 'в %s код ЕНИ «%s» из %d цифр, допустимо %s'
-                 % (oc, c, n, ', '.join(map(str, ENI_LENGTHS))))
+            .filter((x) => /^\\d[\\d-]*(\\s*\\([\\d,\\s-]+\\))?$/.test(x))""")
+        t.ck(shown, 'в %s не нашёлся код ЕНИ' % oc)
+        for value in shown:
+            for c in unfold(value):
+                n = len(re.sub(r'\D', '', c))
+                t.ck(n in ENI_LENGTHS,
+                     'в %s код ЕНИ «%s» (из «%s») из %d цифр, допустимо %s'
+                     % (oc, c, value, n, ', '.join(map(str, ENI_LENGTHS))))
+
+    # --- 6б. шапка ОЦ и реестр показывают ОДНО значение ---
+    #
+    # Решение пользователя 08.09.2026: «свёрнутые коды в шапке ОЦ показываем».
+    # Считает их ядро (kernel/eniFold.js, eniAllOf), и сторожим мы именно то,
+    # что оба места читают один источник: разойдясь, они дали бы человеку два
+    # разных «кода записи» на одну запись.
+    t.open('#/', wait='.reg-thead')
+    t.wait(400)
+    # Строка реестра помечена data-row="<тип ОЦ>|<id записи>" — из этого же
+    # складывается маршрут карточки, поэтому сверять есть с чем.
+    in_reg = pg.evaluate("""() => {
+      const out = {};
+      document.querySelectorAll('.reg-tr').forEach((tr) => {
+        const cell = tr.querySelector('.reg-td .mono');
+        if (cell) out[tr.dataset.row] = (cell.getAttribute('title')
+          || cell.textContent).trim();
+      });
+      return out;
+    }""")
+
+    for oc, route in ROUTES.items():
+        t.open(route, wait='.hm b')
+        t.wait(300)
+        # Искать поле по подписи целиком, а не по вхождению «ЕНИ»: оно есть и в
+        # слове «назначЕНИе по ТП», и первая версия проверки читала именно его.
+        head_eni = pg.evaluate("""() => {
+          const box = [...document.querySelectorAll('[data-oc-head] .hm')]
+            .find((h) => {
+              const lbl = h.querySelector('.lbl, label');
+              return lbl && lbl.textContent.trim() === 'Код ЕНИ';
+            });
+          if (!box) return null;
+          const b = box.querySelector('b');
+          return { text: b.textContent.trim(), title: (b.title || '').trim() };
+        }""")
+        if not t.ck(head_eni, 'в %s в шапке нет поля кода ЕНИ' % oc):
+            continue
+
+        t.ck(head_eni['title'] == head_eni['text'],
+             'в %s у кода ЕНИ в шапке нет подсказки с полным значением: «%s» / «%s»'
+             % (oc, head_eni['text'], head_eni['title']))
+
+        # '#/oc/civil/oc-cv-1' → 'civil|oc-cv-1'
+        parts = route.strip('#/').split('/')
+        want = in_reg.get('%s|%s' % (parts[1], parts[2])) if len(parts) > 2 else None
+        if t.ck(want, 'в реестре не нашлась строка записи %s' % route):
+            t.ck(want == head_eni['title'],
+                 'в %s шапка и реестр показывают разные коды: «%s» и «%s»'
+                 % (oc, head_eni['title'], want))
 
     # --- 7. столбцы реестра: тип земель и свёрнутые коды ---
     t.open('#/', wait='.reg-thead')

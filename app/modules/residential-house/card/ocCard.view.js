@@ -1,6 +1,7 @@
 import { flagBadgesHTML } from '../../../kernel/flagBadges.js';
 import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
+import { eniAllOf } from '../../../kernel/eniFold.js';
 import { esc } from '../../../kernel/dom.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { tableOI } from './oiTable.view.js';
@@ -9,6 +10,15 @@ import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
 import { canViewAuditLog } from '../audit/access.js';
 import { auditTab } from '../audit/view.js';
+
+// Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
+// объектов имущества, ровно как в столбце реестра (решение пользователя
+// 08.09.2026). Значение считает ядро, чтобы шапка и реестр не разошлись.
+//
+// Подсказка нужна всегда, а не только когда значение обрезано: у .hm b стоит
+// многоточие по ширине, и у записи с несколькими литерами хвосты кодов уходят
+// за край первыми — а именно они и отличают коды друг от друга.
+const eniCodes = (rec) => eniAllOf(rec) || fmtEni(rec.eni);
 
 function headOC(rec) {
   // data-oc-head: при прокрутке шапка уезжает вверх, а её место занимает
@@ -19,7 +29,8 @@ function headOC(rec) {
 
       <div class="hm"><span class="lbl">Тип ОЦ</span><b>${esc(rec.type)}</b></div>
       <div class="hm"><span class="lbl">Назначение по ТП</span><b>${esc(rec.purposeTP)}</b></div>
-      <div class="hm"><span class="lbl">Код ЕНИ</span><b>${esc(fmtEni(rec.eni))}</b></div>
+      <div class="hm"><span class="lbl">Код ЕНИ</span>
+        <b title="${esc(eniCodes(rec))}">${esc(eniCodes(rec))}</b></div>
       <div class="hm hm-wide"><span class="lbl">Адрес</span><b>${esc(rec.address)}</b></div>
 
       ${flagBadgesHTML(recFlags(rec))}

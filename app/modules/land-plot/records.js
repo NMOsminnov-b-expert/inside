@@ -1,7 +1,7 @@
 // Контракт модуля для меню ОЦ: сводки, запросы, фасеты, локатор, создание.
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
 import { recHasSpecials } from './parts/specials/model.js';
-import { foldEniList, oiEniCodes } from '../../kernel/eniFold.js';
+import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
 import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
@@ -101,7 +101,7 @@ export function summarize(rec) {
     status: rec.status,
     city: rec.city || '',
     landKind: landKindOf(rec),
-    eniAll: foldEniList([rec.eni, ...oiEniCodes(rec)]),
+    eniAll: eniAllOf(rec),
     institution: rec.institution || '',
     podved: rec.podved || '',
     owners: rec.owners || [],
