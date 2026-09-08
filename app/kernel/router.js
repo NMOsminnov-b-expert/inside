@@ -40,6 +40,25 @@ export function parse(hash = location.hash) {
     return { name: 'institutions', query };
   }
 
+  // Осмотры — интерфейс осмотрщика. Отдельные экраны под телефон, а не адаптив
+  // настольных (решение пользователя 08.09.2026):
+  //   #/insp                            — мои осмотры списком
+  //   #/insp/<typeId>/<ocId>            — задача: куда ехать, сводка, примечания
+  //   #/insp/<typeId>/<ocId>/<раздел>   — object | docs | photo
+  //
+  // Раздел стоит В АДРЕСЕ, а не в состоянии экрана: у осмотрщика на телефоне
+  // кнопка «назад» — основной способ вернуться, и она должна возвращать на
+  // предыдущий раздел, а не выбрасывать из задачи целиком.
+  if (segs[0] === 'insp') {
+    return {
+      name: 'inspector',
+      typeId: segs[1] ? decodeURIComponent(segs[1]) : null,
+      ocId: segs[2] ? decodeURIComponent(segs[2]) : null,
+      section: segs[3] ? decodeURIComponent(segs[3]) : 'task',
+      query,
+    };
+  }
+
   if (segs[0] === 'oc' && segs[1]) {
     return {
       name: 'module',
@@ -78,6 +97,19 @@ export function start(onRoute) {
   window.addEventListener('hashchange', fire);
   if (!location.hash) history.replaceState(null, '', MENU_HREF);
   fire();
+}
+
+export const INSP_HREF = '#/insp';
+
+// Адрес экрана осмотрщика. Раздел 'task' в адрес не пишем — он и так по
+// умолчанию, а короткий адрес читается в отладке и в логе понятнее.
+export function inspHref({ typeId, ocId, section } = {}) {
+  const parts = ['insp'];
+  if (typeId && ocId) {
+    parts.push(typeId, ocId);
+    if (section && section !== 'task') parts.push(section);
+  }
+  return '#/' + parts.map(encodeURIComponent).join('/');
 }
 
 export const ARCHIVE_HREF = '#/archive';

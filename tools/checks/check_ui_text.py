@@ -43,6 +43,11 @@ SCREENS = [
     ('#/oc/civil/oc-cv-1', 'tr[data-open-oi]', ['tr[data-open-oi]']),
     ('#/oc/apartment/oc-ap-1', 'tr[data-open-oi]', ['tr[data-open-oi]']),
     ('#/oc/land-plot/oc-lp-1', 'tr[data-open-oi]', ['tr[data-open-oi]']),
+    # Экраны осмотрщика: правило «в интерфейсе нет кода» на них тоже
+    # распространяется, а данные они берут те же, что карточки.
+    ('#/insp', '.ins-body', []),
+    ('#/insp/civil/oc-cv-1', '.ins-body', []),
+    ('#/insp/civil/oc-cv-1/object', '.ins-oi', ['.ins-oi-h']),
 ]
 
 # Служебные значения: в интерфейсе им места нет ни при каких данных.

@@ -15,6 +15,7 @@ import { mountArchive, canViewArchive } from '../pages/archive/archive.js';
 import { mountDocs } from '../pages/docs/docs.js';
 import { mountDicts } from '../pages/dicts/dicts.js';
 import { mountInstitutions } from '../pages/institutions/institutions.js';
+import { mountInspector } from '../pages/inspector/inspector.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -135,6 +136,27 @@ async function onRoute(route) {
     await host.ensureStyle('./app/pages/dicts/dicts.css');
     const instance = mountDicts(host);
     current = { kind: 'dicts', instance, scope };
+    return;
+  }
+
+  if (route.name === 'inspector') {
+    // Осмотры — свой интерфейс под телефон. Экран сам держит и заголовок, и
+    // переключение разделов, поэтому каркас окна (сайдбар, крошки, ящик
+    // заметок) на нём скрыт: см. body[data-page="insp"] в inspector.css.
+    if (current && current.kind === 'inspector') {
+      current.instance.onRoute(route);
+      return;
+    }
+    unmount();
+    resetShellSlots();
+    setActiveNav('insp');
+    document.body.dataset.page = 'insp';
+
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, route.typeId);
+    await host.ensureStyle('./app/pages/inspector/inspector.css');
+    const instance = mountInspector(host);
+    current = { kind: 'inspector', instance, scope };
     return;
   }
 
