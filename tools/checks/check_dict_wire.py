@@ -93,7 +93,10 @@ def _open_letter(t, route, need=None):
 
     for i in range(min(total, 5)):
         t.open(route, wait='[data-open-oi]')
-        t.wait(250)
+        # Ждём именно ту строку, по которой сейчас кликнем: ожидание «любого
+        # [data-open-oi]» проходит раньше, чем перечень достроен, и клик по
+        # второй строке висел до предела Playwright (флак 08.09.2026).
+        t.wait_until('() => document.querySelectorAll("tr[data-open-oi]").length > %d' % i)
         pg.locator('tr[data-open-oi]').nth(i).click()
         t.wait(700)
         if not need or pg.locator(need).count():

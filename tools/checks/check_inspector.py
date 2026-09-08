@@ -23,7 +23,14 @@
     означает, что часть интерфейса недоступна;
   * каркас настольного окна (боковое меню, крошки, ящик заметок) на этих
     экранах скрыт — иначе на 390 пикселях от самого экрана не остаётся места.
+  * загрузка снимка целиком: файл выбирается, попадает в выбранную категорию,
+    открывается на весь экран, переносится в другую категорию и удаляется. Это
+    главная работа осмотрщика — без сценария она проверялась бы только руками.
 """
+import base64
+import os
+import tempfile
+
 NAME = 'экраны осмотрщика'
 
 # Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
@@ -46,6 +53,13 @@ SECTIONS = [
 TAP_SELECTORS = ['.ins-tab', '.ins-back', '.ins-btn', '.ins-seg-b', '.ins-oi-h', '.ins-select']
 
 MIN_TAP = 44
+
+# Снимок для проверки загрузки: 8×8 пикселей, генерируется на месте. Бинарь в
+# репозиторий тащить незачем, а настоящий файл нужен — Playwright отдаёт его
+# полю выбора файла ровно так же, как это делает телефон.
+PNG_8x8 = base64.b64decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJ0lEQVR4nGP8z8DAwMDAxIAGWBg'
+    'YGBgY/jMwMDAw/GdgYGBgYPgPADzWBB0e3n8XAAAAAElFTkSuQmCC')
 
 
 def _has(t, text):
@@ -162,12 +176,54 @@ def run(t):
     bad = [x for x in subs if x.startswith('·') or x.endswith('·')]
     t.ck(not bad, 'у ОИ висячий разделитель в подписи: %s' % bad)
 
-    # --- 5. фото: выбор категории и кнопка съёмки ---
+    # --- 5. фото: выбор категории, съёмка, просмотр, перенос, удаление ---
     t.open('#/insp/civil/oc-cv-1/photo', wait='[data-shoot]')
     t.wait(250)
     t.ck(pg.locator('[data-cat] option').count() >= 3, 'мало категорий съёмки')
     t.ck(pg.locator('[data-shoot]').count() == 1, 'нет кнопки съёмки')
     t.ck(_has(t, 'из 250'), 'не показан лимит снимков из ТЗ')
+
+    shot = os.path.join(tempfile.gettempdir(), 'inside-check-shot.png')
+    with open(shot, 'wb') as f:
+        f.write(PNG_8x8)
+
+    pg.select_option('[data-cat]', 'Кровля')
+    with pg.expect_file_chooser() as fc:
+        pg.locator('[data-shoot]').click()
+    fc.value.set_files(shot)
+
+    if t.ck(t.wait_for('.ins-shot'), 'снимок не появился в сетке'):
+        t.ck(pg.locator('.ins-shot').count() == 1,
+             'снимков в сетке не один: %d' % pg.locator('.ins-shot').count())
+        # Заголовок группы поднят стилями в верхний регистр — сравниваем без
+        # учёта регистра (см. _has выше).
+        head = pg.locator('.ins-blk-h').nth(0).inner_text()
+        t.ck('кровля' in head.lower(),
+             'снимок попал не в выбранную категорию: %s' % head)
+
+        badge = pg.locator('.ins-tab[href$="photo"] .ins-tab-n')
+        t.ck(badge.count() == 1 and badge.inner_text().strip() == '1',
+             'счётчик снимков на вкладке не обновился')
+
+        # Просмотр на весь экран и возврат по Escape.
+        pg.locator('[data-shot]').first.click()
+        t.ck(t.wait_for('.ins-lb img'), 'снимок не открылся на весь экран')
+        pg.keyboard.press('Escape')
+        t.wait_until('() => document.querySelectorAll(".ins-lb").length === 0')
+        t.ck(pg.locator('.ins-lb').count() == 0, 'просмотр не закрылся по Escape')
+
+        # Перенос в другую категорию — требование ТЗ.
+        pg.select_option('[data-move]', 'Фасад')
+        t.wait_until('() => /фасад/i.test(document.querySelector(".ins-blk-h").textContent)')
+        t.ck('фасад' in pg.locator('.ins-blk-h').nth(0).inner_text().lower(),
+             'снимок не переехал в другую категорию')
+
+        # Удаление — через подтверждение: снимок пропадает безвозвратно.
+        pg.locator('[data-drop]').first.click()
+        if t.ck(t.wait_for('.modal'), 'удаление снимка не спросило подтверждения'):
+            pg.locator('[data-modal-ok]').last.click()
+            t.wait_until('() => document.querySelectorAll(".ins-shot").length === 0')
+            t.ck(pg.locator('.ins-shot').count() == 0, 'снимок не удалился')
 
     # --- 6. пальцем попадают: размер нажимаемых элементов ---
     for route in ('#/insp', '#/insp/civil/oc-cv-1', '#/insp/civil/oc-cv-1/object',
