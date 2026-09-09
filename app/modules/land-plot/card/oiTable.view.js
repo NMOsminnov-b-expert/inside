@@ -30,7 +30,12 @@ export const OI_COLUMNS = [
   { key: 'letter', label: 'Литера', width: 76, minWidth: 60 },
   { key: 'eni', label: 'Код ЕНИ', width: 150 },
   { key: 'name', label: 'Наименование', width: 0 },
-  { key: 'category', label: 'Категория', width: 140 },
+  // Столбец показывает oi.catClass — то же поле, что в карточке литеры
+  // подписано «Назначение по тех паспорту», и то же слово стоит в шапке ОЦ.
+  // Называлось «Категория», хотя «Категория ОИ» — другое поле (oi.oiCategory,
+  // сгруппированный справочник классов), и в перечень оно не выводится вовсе
+  // (расхождение № 1, docs/tz/52-reestr-polej-kartochki-oc.md).
+  { key: 'category', label: 'Назначение по ТП', width: 140 },
   { key: 'status', label: 'Статус', width: 104 },
   { key: 'area', label: 'Общая площадь', width: 104 },
   { key: 'photos', label: 'Фото', width: 74 },
@@ -255,7 +260,6 @@ export function tableOI(ctx) {
     </div>
 
     <div class="card-body-wrap"><div class="oi-tree" data-oi-cols-box style="${oiColsVarsStyle(ctx)}">${nodes.join('')}</div>
-      <div class="muted" style="font-size:10.5px;padding:0 14px 12px">Участков может быть несколько — каждый со своим ЕНИ и своими документами.</div>
       ${popOi ? photoPopHTML(popOi, ctx.ui) : ''}
     </div>
   </div>`;

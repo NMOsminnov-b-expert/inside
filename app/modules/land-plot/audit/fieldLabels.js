@@ -12,7 +12,7 @@ const COMMON = {
   address: 'Адрес',
   city: 'Город',
   gps: 'GPS-координаты',
-  institution: 'Учреждение',
+  institution: 'Головное учреждение',
   podved: 'Подведомственность',
   status: 'Статус',
   purposeTP: 'Назначение по ТП',

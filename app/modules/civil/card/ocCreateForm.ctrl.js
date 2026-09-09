@@ -24,7 +24,12 @@ export function bindOcCreate(ctx) {
 
   // Код ЕНИ: маска и проверка длины прямо в поле, чтобы неверный код было
   // видно до сохранения, а не после выгрузки (kernel/eniField.js).
-  bindEniField(s.$('#fEni'));
+  // onCommit обязателен: без него код остаётся только в поле, и запись узнаёт о
+  // нём лишь по кнопке «Сохранить» — до тех пор перезагрузка его теряет.
+  bindEniField(s.$('#fEni'), (first, codes) => {
+    rec.eni = first;
+    rec.eniList = codes;
+  });
 
   // GPS-координаты: тот же контроль формата, что и у координат ОИ (kernel/gps.js).
   // Поле впоследствии заполняется автоматически, но пока его вводят руками —
@@ -169,7 +174,12 @@ export function bindOcCreate(ctx) {
       Object.entries(PARTS).forEach(([key, sel]) => {
         const el = s.$(sel);
         if (el && parsed[key]) el.value = parsed[key];
+        // Значение ставится программно, а change при этом не возникает —
+        // поэтому в запись пишем здесь же, иначе разобранный адрес живёт
+        // только в полях и не переживает перезагрузку.
+        if (parsed[key]) rec[key] = parsed[key];
       });
+      syncOcAddress(rec);
       redrawAddr();
     };
   }

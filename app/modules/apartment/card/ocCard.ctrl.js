@@ -12,12 +12,16 @@ import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
+import { bindParties } from './parties.ctrl.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
   if (type.card === 'land') {
-    return createLandOi(rec, { nextId, nextEni, multiple: true });
+    // У участка код не инкрементируется: по умолчанию он тот же, что первый
+    // код объекта оценки (решение пользователя 09.09.2026).
+    const landEni = () => rec.eni || nextEni(rec, rec.eni);
+    return createLandOi(rec, { nextId, nextEni: landEni, multiple: true });
   }
 
   const letter = nextLetter(rec);
@@ -178,28 +182,10 @@ export function bindOcCard(ctx) {
     rec.resp[sel.dataset.resp] = sel.value;
     ctx.toast('Ответственный обновлён', 'ok');
   });
-
-  s.$$('[data-owner-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.owners.splice(+x.dataset.ownerRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-user-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.users.splice(+x.dataset.userRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-add-party]').forEach((b) => b.onclick = async () => {
-    const isOwner = b.dataset.addParty === 'owner';
-    const who = isOwner ? 'Собственник' : 'Пользователь';
-    const v = await ctx.host.prompt({ title: who, label: 'ФИО или организация', placeholder: 'Наименование' });
-    if (!v) return;
-    (isOwner ? rec.owners : rec.users).push(v);
-    ctx.render();
-    ctx.toast(who + ' добавлен', 'ok');
-  });
+  // Собственники и пользователи: блоки с наименованием и долей, добавление на
+  // месте (parties.ctrl.js). До 09.09.2026 сторону заводили через диалог, доли
+  // не было вовсе, а обработчики лежали тремя копиями.
+  bindParties(ctx, rec);
 
   // --- Документы ОЦ -------------------------------------------------------
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {
