@@ -34,27 +34,30 @@ function errorBox(input) {
 // быть блок из четырёх последних, двух последних или трёх последних цифр —
 // блок, разделённый тирешками» (пользователь 09.09.2026).
 //
-// Ищем справа налево первую группу той же длины, что набранный хвост, и меняем
-// её; всё, что правее, отбрасываем — это уже другой объект. Так «…-3510-11» с
-// хвостом «12» даёт «…-3510-12», а с хвостом «3599» — «…-3599», а не смесь из
-// обеих записей.
-function replaceTail(base, tail) {
+// Блоков в хвосте может быть несколько: свёрнутый вид сам содержит «3510-11»,
+// и он же кладётся обратно в поле — разбирать набранное руками и своё же
+// отображение должен один и тот же код.
+function applyTail(base, tailGroups) {
   const groups = String(fmtEni(base) || '').split('-').filter(Boolean);
+  const head = tailGroups[0];
+  const tailDigits = tailGroups.join('');
+
+  // 1. Первый блок хвоста совпал по длине с последним блоком базы — это он и
+  //    есть: «…-3510» + «3511». Всё, что правее, отбрасываем: это уже другой
+  //    объект, а не приписка к прежнему.
   const last = groups[groups.length - 1] || '';
+  if (last.length === head.length) return groups.slice(0, -1).join('') + tailDigits;
 
-  // 1. Длина совпала с последним блоком — это он и есть: «…-3510» + «3511».
-  if (last.length === tail.length) return groups.slice(0, -1).join('') + tail;
-
-  // 2. Не совпала, но приписывание даёт код допустимой длины — значит набрали
-  //    ПРОДОЛЖЕНИЕ, следующий блок: «…-3510» + «11» → «…-3510-11». Ровно второй
-  //    случай из примеров пользователя.
-  const appended = groups.join('') + tail;
+  // 2. Не совпал, но приписывание даёт код допустимой длины — набрали
+  //    ПРОДОЛЖЕНИЕ, следующий блок: «…-3510» + «11» → «…-3510-11».
+  const appended = groups.join('') + tailDigits;
   if (ENI_LENGTHS.includes(appended.length)) return appended;
 
-  // 3. Ни то ни другое — меняем самый правый блок такой же длины: набрали блок
-  //    из середины кода, а не его хвост.
+  // 3. Ни то ни другое — меняем самый правый блок такой же длины и всё правее:
+  //    набрали блок из середины кода. Так «…-3510-11» с хвостом «3599» даёт
+  //    «…-3599», а не смесь двух записей.
   for (let i = groups.length - 1; i >= 0; i--) {
-    if (groups[i].length === tail.length) return groups.slice(0, i).join('') + tail;
+    if (groups[i].length === head.length) return groups.slice(0, i).join('') + tailDigits;
   }
   return appended;
 }
@@ -63,13 +66,22 @@ function replaceTail(base, tail) {
 // коду — «7-10-06-0053-0016,0017» это два кода, у второго отличается последняя
 // группа.
 export function eniCodesOf(value) {
-  const parts = String(value ?? '').split(',').map((p) => p.replace(/\D/g, '')).filter(Boolean);
+  // Блоки хвоста разбираем ДО очистки: тире внутри части — граница блока, а не
+  // мусор. Скобки свёрнутого вида отбрасываются вместе с прочими символами.
+  const parts = String(value ?? '').split(',')
+    .map((p) => p.replace(/[^\d-]/g, '').split('-').filter(Boolean))
+    .filter((g) => g.length);
   if (!parts.length) return [];
 
-  const out = [parts[0]];
-  parts.slice(1).forEach((p) => {
-    if (p.length > 4) { out.push(p); return; }
-    out.push(replaceTail(out[0], p));
+  const first = parts[0].join('');
+  const out = [first];
+
+  parts.slice(1).forEach((groups) => {
+    // Полный код узнаётся по длине: короче самого короткого допустимого кода
+    // (13 цифр) — значит это хвост, сколько бы блоков в нём ни было.
+    const digits = groups.join('');
+    if (digits.length >= Math.min(...ENI_LENGTHS)) { out.push(digits); return; }
+    out.push(applyTail(first, groups));
   });
   return out;
 }
@@ -173,9 +185,9 @@ export function bindEniField(input, onCommit) {
     const codes = eniCodesOf(input.value);
     input.value = foldEniList(codes);
 
-    // onCommit получает первый код: остальные пока хранить некуда — у записи
-    // одно поле eni (вопрос вынесен пользователю 09.09.2026).
-    if (onCommit) onCommit(codes[0] || '');
+    // onCommit получает и первый код, и весь список: у записи есть и то и
+    // другое — eni (совместимость) и eniList (все коды).
+    if (onCommit) onCommit(codes[0] || '', codes);
   };
 }
 

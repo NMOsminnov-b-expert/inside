@@ -1,4 +1,4 @@
-import { bindEniField, firstBadEni } from '../../../kernel/eniField.js';
+import { bindEniField, firstBadEni, eniCodesOf } from '../../../kernel/eniField.js';
 import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
 import { gpsError } from '../../../kernel/gps.js';
 import { bindPickSearch } from '../../../kernel/pickSearch.js';
@@ -49,7 +49,11 @@ export function bindOcCreate(ctx) {
 
     rec.purposeTP = s.$('#fPurpose').value;
     rec.status = s.$('#fStatus').value;
-    rec.eni = parseEni(s.$('#fEni').value);
+    // Кодов может быть несколько: eni — первый (его читают архив и
+    // документы), eniList — все.
+    const eniCodes = eniCodesOf(s.$('#fEni').value);
+    rec.eni = eniCodes[0] || '';
+    rec.eniList = eniCodes;
     // Учреждение и подвед выбираются из дерева (kernel/pickSearch.js) и
     // записываются сразу при выборе — здесь их брать неоткуда.
     // Адрес записи больше не вводится строкой: у объекта оценки общая часть

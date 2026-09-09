@@ -1,4 +1,4 @@
-import { fmtEni } from '../../../kernel/fmt.js';
+import { eniAllOwn } from '../../../kernel/eniFold.js';
 import { pickSearchHTML } from '../../../kernel/pickSearch.js';
 import { institutionOptions, podvedOptionsOf } from '../../../kernel/institutions.js';
 import { ocFullAddress } from '../../../kernel/address.js';
@@ -49,7 +49,7 @@ function mainSection(rec) {
         </div>
         <div class="field">
           <label>Код ЕНИ</label>
-          <input class="input mono" id="fEni" value="${esc(fmtEni(rec.eni))}">
+          <input class="input mono" id="fEni" value="${esc(eniAllOwn(rec))}">
         </div>
 
         <div class="field">
@@ -146,7 +146,7 @@ export function viewOCCreate(ctx) {
 
   return `<div class="view-head">
     <button class="back-btn" data-back>← К карточке объекта</button>
-    <span class="pill pill-gray">Создание ОЦ${rec.eni ? ' · ' + esc(fmtEni(rec.eni)) : ''}</span>
+    <span class="pill pill-gray">Создание ОЦ${rec.eni ? ' · ' + esc(eniAllOwn(rec)) : ''}</span>
     <button class="btn btn-primary" id="btnCreateOc">Создать и перейти к карточке</button>
     <button class="btn btn-ghost" data-back>Отмена</button>
   </div>
