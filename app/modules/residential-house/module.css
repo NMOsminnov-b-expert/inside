@@ -202,3 +202,32 @@ body[data-module="residential-house"] .pt-sug-o {
 
 body[data-module="residential-house"] .pt-sug-o:hover,
 body[data-module="residential-house"] .pt-sug-o:focus-visible { background: var(--blue-50, #eff6ff); }
+
+/* ===== Источник адреса — портал Кадастра (блок 02 «Местоположение») =========
+   Строка над полями адреса: откуда берётся значение, по какому коду пойдёт
+   запрос и что ответил портал. Тон блока — янтарный, как у самой карточки:
+   строка читается как часть блока, а не как чужая панель.
+
+   Ответ показывается прямо здесь, а не только всплывающим сообщением: текст
+   отказа длинный (перезапустить Live Server, поднять прокси), всплывашка
+   исчезает раньше, чем его дочитают. */
+body[data-module="residential-house"] .src-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:6px 10px;margin-bottom:12px;border-radius:8px;
+  background:var(--amber-50);border:1px solid var(--amber-100)}
+body[data-module="residential-house"] .src-ic{color:var(--amber-600);font-size:14px;line-height:1}
+body[data-module="residential-house"] .src-name{font-size:11.5px;font-weight:700;color:var(--amber-700)}
+/* Код — моноширинными цифрами: его сверяют с бланком посимвольно. */
+body[data-module="residential-house"] .src-code{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-module="residential-house"] .src-msg{flex:1;min-width:120px;font-size:11px;color:var(--muted);line-height:1.35}
+/* Пустое сообщение не должно резервировать место: иначе на узкой карточке
+   кнопка переносится на вторую строку, хотя показывать нечего. */
+body[data-module="residential-house"] .src-msg:empty{display:none}
+body[data-module="residential-house"] .src-msg.ok{color:var(--teal-700)}
+body[data-module="residential-house"] .src-msg.err{color:var(--danger)}
+body[data-module="residential-house"] .src-btn{
+  margin-left:auto;background:#fff;border-color:var(--amber-600);color:var(--amber-700);
+  padding:4px 11px;font-size:11.5px;cursor:pointer}
+body[data-module="residential-house"] .src-btn:hover:not(:disabled){background:var(--amber-50)}
+/* Без кода запрашивать нечего — кнопка выключена, а не отвечает ошибкой. */
+body[data-module="residential-house"] .src-btn:disabled{opacity:.55;cursor:default;border-color:var(--line);color:var(--muted)}
