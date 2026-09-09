@@ -51,13 +51,13 @@ function mainSection(rec) {
         </div>
 
         <div class="field">
-          <label>Учреждение</label>
+          <label>Головное учреждение</label>
           ${pickSearchHTML({
     key: 'inst',
     value: rec.institution,
     options: institutionNames(),
-    placeholder: 'Выберите учреждение',
-    search: 'Поиск учреждения…',
+    placeholder: 'Выберите головное учреждение',
+    search: 'Поиск по названию или коду…',
   })}
         </div>
 

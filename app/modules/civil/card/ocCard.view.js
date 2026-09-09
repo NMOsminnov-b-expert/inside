@@ -61,7 +61,7 @@ function partiesOC(rec) {
            плашек с кнопкой), а .grid по умолчанию равняет по низу — из-за этого
            подписи «Учреждение» и «Подвед» опускались ниже соседних. -->
       <div class="grid g-4 g-top">
-        <div class="field"><span class="lbl">Учреждение</span><b>${esc(rec.institution)}</b></div>
+        <div class="field"><span class="lbl">Головное учреждение</span><b>${esc(rec.institution)}</b></div>
         <div class="field"><span class="lbl">Подвед</span><b>${esc(rec.podved)}</b></div>
 
         <div class="field"><span class="lbl">Собственники</span>
