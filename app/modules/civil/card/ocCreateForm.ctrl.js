@@ -9,7 +9,7 @@ import { parseEni, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
-import { addressByEni } from '../../../kernel/cadastre.js';
+import { bindCadastre, ADDR_PARTS } from './cadastre.ctrl.js';
 
 // Контроллер экрана создания ОЦ. Сознательно отдельный файл от
 // ocForm.ctrl.js — см. ocCreateForm.view.js.
@@ -30,36 +30,11 @@ export function bindOcCreate(ctx) {
   bindEniField(s.$('#fEni'), (first, codes) => {
     rec.eni = first;
     rec.eniList = codes;
-    fillFromCadastre(first);
   });
 
-  // Адрес по коду ЕНИ из портала Кадастра (kernel/cadastre.js).
-  //
-  // Заполняем ТОЛЬКО пустые поля: введённое руками ценнее подсказки — человек
-  // мог поправить адрес по документу, и затирать его ответом портала нельзя.
-  // Портал не ответил или прокси не запущен — просто ничего не происходит.
-  async function fillFromCadastre(eni) {
-    const addr = await addressByEni(eni);
-    if (!addr) return;
-
-    const parsed = parseAddress(addr);
-    let filled = 0;
-
-    Object.entries(PARTS).forEach(([key, sel]) => {
-      const el = s.$(sel);
-      if (!el || !parsed[key] || el.value.trim()) return;
-      el.value = parsed[key];
-      rec[key] = parsed[key];
-      filled++;
-    });
-
-    if (!filled) return;
-
-    syncOcAddress(rec);
-    const box = s.$('[data-addr-sum]');
-    if (box) box.value = rec.address;
-    ctx.toast('Адрес подставлен из Кадастра: ' + addr, 'ok');
-  }
+  // Адрес из портала Кадастра по коду ЕНИ — по кнопке в блоке «Местоположение»
+  // (card/cadastre.ctrl.js). Обработчик общий с формой создания.
+  bindCadastre(ctx, rec);
 
   // GPS-координаты: тот же контроль формата, что и у координат ОИ (kernel/gps.js).
   // Поле впоследствии заполняется автоматически, но пока его вводят руками —
@@ -168,15 +143,7 @@ export function bindOcCreate(ctx) {
   // (требование пользователя 09.09.2026). Разбирает kernel/address.js; поля,
   // которых в строке нет, остаются как были — пустое поле честнее угаданного
   // неверно.
-  const PARTS = {
-    region: '#fRegion',
-    district: '#fDistrict',
-    city: '#fCity',
-    micro: '#fMicro',
-    street: '#fStreet',
-    house: '#fHouse',
-    flat: '#fFlat',
-  };
+  const PARTS = ADDR_PARTS;
 
   const addrSum = s.$('[data-addr-sum]');
   if (addrSum) {
