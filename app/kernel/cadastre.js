@@ -13,11 +13,16 @@
 //
 // Обходов два, пробуем по очереди:
 //
-//   1. Live Server проксирует сам — /cadastre/... уходит на портал, а для
-//      страницы это тот же источник. Настройка лежит в .vscode/settings.json,
-//      применяется при старте Live Server (уже запущенный надо перезапустить).
-//   2. Свой прокси, если макет открыт не через Live Server:
-//      python tools/cadastre/proxy.py
+//   1. Свой прокси: python tools/cadastre/proxy.py
+//   2. Прокси Live Server — /cadastre/... уходит на портал, а для страницы это
+//      тот же источник. Настройка лежит в .vscode/settings.json, применяется
+//      при старте Live Server (уже запущенный надо перезапустить).
+//
+// Свой прокси спрашиваем ПЕРВЫМ, хотя он и требует отдельной команды. Когда он
+// поднят, он отвечает сразу и разбирает ответ портала сам; когда не поднят,
+// браузер отказывает в соединении мгновенно, и мы ничего не теряем. Обратный
+// порядок обходился дорого: прокси Live Server отвечал то 405, то 500, то
+// молчал до таймаута, и рабочий путь ждал его по шесть секунд.
 //
 // Ни один не доступен — кнопка честно скажет об этом, а карточка продолжит
 // работать: подстановка помогает, но ничего не решает.
@@ -55,16 +60,36 @@ function withTimeout(promise, ms) {
   return { signal: ctl.signal, done: () => clearTimeout(timer) };
 }
 
-// Чем ответил путь через Live Server в прошлый раз: 0 — не пробовали, -1 —
-// запрос не дошёл вовсе. Нужен для внятного текста отказа: 405 и 404 значат
-// «прокси не включён», 5xx — «прокси есть, но портал или сам прокси упал», и
-// советы в этих случаях разные.
-let liveStatus = 0;
+// Чем ответил каждый обход в последний раз — для внятного текста отказа и для
+// строки в консоли: «не работает» без подробностей не диагностируется.
+const tried = { own: '', live: '' };
+
+async function askOwnProxy(code) {
+  const t = withTimeout(null, TIMEOUT);
+  try {
+    const resp = await fetch(`${VIA_OWN_PROXY}?code=${encodeURIComponent(code)}`, { signal: t.signal });
+    if (!resp.ok) { tried.own = `HTTP ${resp.status}`; return ''; }
+
+    const data = await resp.json();
+    if (data && data.address) { tried.own = 'адрес получен'; return data.address; }
+
+    // Прокси дошёл до портала, но тот не знает такого кода — это ответ по
+    // существу, а не отказ связи, и повторять его через Live Server незачем.
+    tried.own = (data && data.error) || 'адрес не найден';
+    return '';
+  } catch (e) {
+    tried.own = 'прокси не запущен';
+    return '';
+  } finally {
+    t.done();
+  }
+}
 
 async function askLiveServer(code) {
   // Если прокси не включён, повторять запрос при каждом нажатии незачем — он
   // только сорит ошибками в консоли.
-  if (liveStatus === 404 || liveStatus === 405 || liveStatus === 501) return '';
+  if (/HTTP (404|405|501)/.test(tried.live)) return '';
+
   const t = withTimeout(null, TIMEOUT);
   try {
     const body = new URLSearchParams({
@@ -83,29 +108,37 @@ async function askLiveServer(code) {
       signal: t.signal,
     });
 
-    liveStatus = resp.status;
-    if (!resp.ok) return '';
-    return addressFromHtml(await resp.text());
+    if (!resp.ok) { tried.live = `HTTP ${resp.status}`; return ''; }
+
+    const addr = addressFromHtml(await resp.text());
+    tried.live = addr ? 'адрес получен' : 'ответ без адреса';
+    return addr;
   } catch (e) {
-    liveStatus = -1;
+    tried.live = 'запрос не дошёл';
     return '';
   } finally {
     t.done();
   }
 }
 
-async function askOwnProxy(code) {
-  const t = withTimeout(null, TIMEOUT);
-  try {
-    const resp = await fetch(`${VIA_OWN_PROXY}?code=${encodeURIComponent(code)}`, { signal: t.signal });
-    if (!resp.ok) return '';
-    const data = await resp.json();
-    return (data && data.address) || '';
-  } catch (e) {
-    return '';
-  } finally {
-    t.done();
+// Почему не вышло — одной строкой, тем, кто будет разбираться.
+function whyFailed() {
+  // Портал ответил, но кода не знает: советовать тут нечего, менять надо код.
+  if (/не найдено|пустой код/.test(tried.own)) {
+    return `Кадастр не знает такого кода ЕНИ (ответ портала: ${tried.own})`;
   }
+
+  const proxy = 'Запустите прокси: python tools/cadastre/proxy.py';
+
+  // 404/405/501 отвечает сам статический сервер: запрос до портала не дошёл,
+  // прокси Live Server не включён. Настройка применяется при СТАРТЕ — уже
+  // запущенный Live Server её не видит.
+  if (/HTTP (404|405|501)/.test(tried.live) && tried.own === 'прокси не запущен') {
+    return `${proxy} — либо остановите и запустите Live Server заново, чтобы включился его прокси.`;
+  }
+
+  return `Кадастр не ответил. Свой прокси: ${tried.own || 'не пробовали'}; `
+    + `прокси Live Server: ${tried.live || 'не пробовали'}. ${proxy}`;
 }
 
 // Адрес по коду. Возвращает { address } либо { error } — кнопке нужно сказать
@@ -115,32 +148,20 @@ export async function addressByEni(eni) {
   if (!code) return { error: 'Сначала введите код ЕНИ' };
   if (cache.has(code)) return { address: cache.get(code) };
 
-  const addr = (await askLiveServer(code)) || (await askOwnProxy(code));
+  tried.own = '';
+  tried.live = '';
+
+  const addr = (await askOwnProxy(code)) || (await askLiveServer(code));
+
+  // Обходы отваливаются молча (fetch пишет в консоль только сетевую ошибку),
+  // поэтому итог каждого пишем сами: иначе «не работает» не диагностируется.
+  console.info(`[Кадастр] ${code}: свой прокси — ${tried.own || '—'}; `
+    + `Live Server — ${tried.live || 'не понадобился'}`);
 
   if (addr) {
     cache.set(code, addr);
     return { address: addr };
   }
 
-  // Разным отказам — разные советы. Раньше все сводились к «запустите прокси»,
-  // хотя причина чаще другая.
-  const PROXY = 'Запустите прокси: python tools/cadastre/proxy.py';
-
-  // 404/405/501 отвечает сам статический сервер: запрос до портала не дошёл,
-  // прокси не включён. Настройка лежит в .vscode/settings.json и применяется
-  // при СТАРТЕ Live Server — уже запущенный её не видит.
-  if (liveStatus === 404 || liveStatus === 405 || liveStatus === 501) {
-    return {
-      error: 'Прокси Live Server не включён: остановите и запустите Live Server заново. '
-        + PROXY + ' — работает в любом случае.',
-    };
-  }
-
-  // 5xx — прокси на месте, но ответить не смог: чаще всего он не справляется с
-  // https-адресом портала. Тогда выручает свой прокси, он ходит напрямую.
-  if (liveStatus >= 500) {
-    return { error: `Прокси Live Server ответил ошибкой ${liveStatus}. ` + PROXY };
-  }
-
-  return { error: 'Кадастр не ответил — проверьте код ЕНИ и соединение' };
+  return { error: whyFailed() };
 }
