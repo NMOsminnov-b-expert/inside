@@ -42,7 +42,7 @@ function catSection(ctx, oi, cat, fkey) {
     : { name: 0.26, area: 0.21, h: 0.16 };
 
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c"></th><th style="${col(w.name)}">Этаж</th>
+    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c" title="Площади отмеченных строк считаются автоматически">Авто</th><th style="${col(w.name)}">Этаж</th>
 ${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
 ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
 <th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
@@ -113,8 +113,10 @@ export function floorsBlock(ctx, oi) {
 ${sumsRow(oi)}
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:auto">Выровнять отмеченные</button>
 </div>
+<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь поровну —
+каждая колонка от своего итога. Снимите отметку, чтобы вписать площадь вручную.</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
-<div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Отмеченные строки получают оставшуюся площадь поровну — каждая колонка от своего итога (по техпаспорту и застройка); снятый чекбокс = площади вручную. Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
+<div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }
 
 export function updateFloorsUI(ctx, oi) {

@@ -270,6 +270,19 @@ body[data-module] .head-eni .input{width:190px;height:26px;padding:2px 8px;font-
 body[data-module] .card-head .head-eni + .chev{margin-left:8px}
 /* Несколько итогов по площадям читаются столбиком, а не строкой: рядом они
    сливались в одну длинную фразу (решение пользователя 28.08.2026). */
+/* Подсказка над развёрткой этажей: что делает отметка в строке.
+   Раньше это знание жило в title (только по наведению мышью) и вторым
+   предложением в мелкой сноске под блоком — с клавиатуры и на планшете смысл
+   отметки было не узнать вовсе (требование пользователя 09.09.2026).
+   Тон — синий, как у самого блока «Площади и этажность». */
+body[data-module] .floors-tip{
+  margin:8px 0 6px;padding:6px 10px;border-radius:7px;
+  background:var(--blue-50);border:1px solid var(--blue-100);
+  font-size:11px;line-height:1.4;color:var(--muted)}
+body[data-module] .floors-tip b{color:var(--blue-700)}
+/* Колонка отметок узкая (36px), поэтому подпись короткая и без переносов. */
+body[data-module] .al-tbl th.fl-c{font-size:9.5px;letter-spacing:.02em;white-space:nowrap}
+
 body[data-module] .floors-sums{display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 10px}
 body[data-module] .floors-sums [data-floor-sum]{flex:1 1 100%;display:block}
 body[data-module] .floors-sums [data-redistribute]{margin-left:auto;flex:0 0 auto}
