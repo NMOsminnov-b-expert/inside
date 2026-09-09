@@ -31,6 +31,7 @@
 import { sortedTypes } from './registry.js';
 import { session, seesEverything } from './session.js';
 import { createStore } from './store.js';
+import { registerPersisted } from './persist.js';
 
 export const CARD_LABEL = {
   oc: 'Объект оценки',
@@ -50,6 +51,20 @@ const CARD_ORDER = ['oc', 'building', 'apartment', 'land', 'movable'];
 // карточки читают её на каждом открытии, а меняется она редко — просится кэш
 // на клиенте с инвалидацией по времени правки.
 export const dicts = createStore({ list: null });
+
+// Правки справочников переживают перезагрузку: добавленное значение и
+// переименование — то, ради чего раздел и сделан (kernel/persist.js).
+//
+// Сохраняется собранный список целиком, а не «отличия от исходного»: список
+// собирается из модулей при первом обращении, и держать отдельно правки
+// значило бы сводить их с новым составом при каждом запуске.
+registerPersisted('dicts', {
+  snapshot: () => dicts.state.list,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    dicts.set({ list: saved });
+  },
+});
 
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${String(++seq).padStart(3, '0')}`;

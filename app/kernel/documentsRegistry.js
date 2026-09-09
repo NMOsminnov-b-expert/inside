@@ -10,6 +10,7 @@
 // виден всем без ограничений — решение пользователя «вкладка, где будут
 // храниться все документы из всех организаций»).
 import { fileKindOf } from './fileUpload.js';
+import { registerPersisted } from './persist.js';
 
 export const DOC_TYPES = [
   'Генплан', 'Госакт на земельный участок', 'Договор аренды', 'Договор дарения',
@@ -151,6 +152,18 @@ function seedDocuments() {
 }
 
 const documents = seedDocuments();
+
+// Реестр документов переживает перезагрузку: на документы ссылаются записи и
+// учреждения (kernel/persist.js). Сами файлы не сохраняются — ссылка
+// URL.createObjectURL живёт только до перезагрузки, — но карточка документа со
+// всеми реквизитами остаётся.
+registerPersisted('documents', {
+  snapshot: () => documents,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    documents.splice(0, documents.length, ...saved);
+  },
+});
 
 // Только «настоящие» поля документа — черновик формы попутно тащит служебные
 // (_statusTouched/_err), их в запись класть нельзя.

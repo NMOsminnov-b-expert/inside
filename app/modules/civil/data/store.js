@@ -1,6 +1,6 @@
 import { createSeed } from './seed.js';
 import { LETTER_SEQ } from './dictionaries.js';
-import { attachPersist } from '../../../kernel/persist.js';
+import { registerPersisted } from '../../../kernel/persist.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 export const records = createSeed();
@@ -11,8 +11,7 @@ export const records = createSeed();
 //
 // Массив не подменяется, а перезаполняется: на него уже ссылаются модули,
 // поэтому смена ссылки оставила бы их со старыми данными.
-attachPersist({
-  key: 'inside:civil:records:v1',
+registerPersisted('records.civil', {
   snapshot: () => records,
   restore: (saved) => {
     if (!Array.isArray(saved) || !saved.length) return;

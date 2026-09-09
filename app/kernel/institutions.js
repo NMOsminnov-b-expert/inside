@@ -26,6 +26,7 @@ import { emptyFilter } from '../pages/ocMenu/state.js';
 import { queryDocuments, documentInstitutions } from './documentsRegistry.js';
 import { eniRegion } from './fmt.js';
 import { seesEverything, session } from './session.js';
+import { registerPersisted } from './persist.js';
 
 let seq = 0;
 const nextId = () => 'inst-' + (++seq);
@@ -37,6 +38,20 @@ const ROOT_GOV = { id: nextId(), name: 'Государство', parentId: null,
 const ROOT_LOCAL = { id: nextId(), name: 'Местное самоуправление', parentId: null, note: 'Мэрии и муниципальные организации' };
 
 const nodes = [ROOT_GOV, ROOT_LOCAL];
+
+// Дерево учреждений переживает перезагрузку: заведённые узлы, коды и переносы
+// — такие же введённые данные, как записи (kernel/persist.js).
+//
+// Автоматические узлы (auto) в снимок тоже попадают: они восстановятся из
+// данных сами, но их правки — переименование, перенос, свой код — иначе бы
+// пропали.
+registerPersisted('institutions', {
+  snapshot: () => nodes,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    nodes.splice(0, nodes.length, ...saved);
+  },
+});
 
 // Кого считаем муниципальным: по названию. Правило слабое, но оно работает
 // только при первом появлении узла — дальше человек может перенести его сам.

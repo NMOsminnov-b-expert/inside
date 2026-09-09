@@ -1,8 +1,23 @@
 import { createSeed } from './seed.js';
+import { registerPersisted } from '../../../kernel/persist.js';
 import { LETTER_SEQ } from './dictionaries.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 export const records = createSeed();
+
+// Введённое переживает перезагрузку страницы (требование пользователя
+// 09.09.2026). Сохраняются только данные: раскрытия, режимы и просмотрщик
+// (ui ниже) — состояние экрана, его восстанавливать незачем.
+//
+// Массив не подменяется, а перезаполняется: на него уже ссылаются модули, и
+// смена ссылки оставила бы их со старыми данными.
+registerPersisted('records.land-plot', {
+  snapshot: () => records,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    records.splice(0, records.length, ...saved);
+  },
+});
 
 export function getRecord(id) {
   return records.find((r) => r.id === id) || null;
