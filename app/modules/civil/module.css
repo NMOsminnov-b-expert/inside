@@ -210,7 +210,10 @@ body[data-module="civil"] .src-ic{color:var(--amber-600);font-size:14px;line-hei
 body[data-module="civil"] .src-name{font-size:11.5px;font-weight:700;color:var(--amber-700)}
 /* Код — моноширинными цифрами: его сверяют с бланком посимвольно. */
 body[data-module="civil"] .src-code{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-body[data-module="civil"] .src-msg{flex:1;min-width:140px;font-size:11px;color:var(--muted);line-height:1.35}
+body[data-module="civil"] .src-msg{flex:1;min-width:120px;font-size:11px;color:var(--muted);line-height:1.35}
+/* Пустое сообщение не должно резервировать место: иначе на узкой карточке
+   кнопка переносится на вторую строку, хотя показывать нечего. */
+body[data-module="civil"] .src-msg:empty{display:none}
 body[data-module="civil"] .src-msg.ok{color:var(--teal-700)}
 body[data-module="civil"] .src-msg.err{color:var(--danger)}
 body[data-module="civil"] .src-btn{
