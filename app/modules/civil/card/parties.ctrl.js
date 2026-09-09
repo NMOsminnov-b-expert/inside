@@ -90,14 +90,16 @@ export function bindParties(ctx, rec) {
     });
   });
 
+  // Доля есть и у собственника, и у пользователя (уточнение пользователя
+  // 09.09.2026), поэтому список берётся из самого поля, а не зашит.
   s.$$('[data-pt-share]').forEach((input) => {
     input.onchange = () => {
-      const list = listOf(rec, 'owner');
-      const i = +input.dataset.ptShare;
+      const { kind, i } = parseRef(input.dataset.ptShare);
+      const list = listOf(rec, kind);
       if (!list[i]) return;
       // Запятая как разделитель: её набирают чаще точки, а хранить надо число.
       list[i].share = input.value.trim().replace(',', '.');
-      // Перерисовка нужна ради суммы долей — она считается по всем строкам.
+      // Перерисовка нужна ради суммы долей — она считается по всем блокам.
       ctx.render();
     };
   });

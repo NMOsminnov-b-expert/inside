@@ -24,46 +24,90 @@
    колонки читались одинаково, и глазу не за что было зацепиться. */
 
 /* ===== Собственники и пользователи ==========================================
-   Строки вместо тегов: у собственника есть доля, а тег показывает только имя
-   (требование пользователя 09.09.2026). Добавление идёт на месте, без диалога.
+   Каждый участник — свой блок: номер, наименование и доля (требования
+   пользователя 09.09.2026). Строкой в общей сетке это не читалось: подписи
+   стояли один раз над столбцами, и у второго участника уже не было видно, где
+   наименование, а где доля.
 
-   Оформление лежит здесь, а не в kernel/cards.css: разметку пока использует
-   только карточка гражданского здания — на ней идёт разбор. */
+   Оформление здесь, а не в kernel/cards.css: разметку пока использует только
+   карточка гражданского здания — на ней идёт разбор. */
 
-body[data-module="civil"] .pt-list { display: flex; flex-direction: column; gap: 6px; }
+body[data-module="civil"] .pt-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
 
-body[data-module="civil"] .pt-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px 32px;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+body[data-module="civil"] .pt-sec-h {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body[data-module="civil"] .pt-sum {
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--slate-500, #64748b);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-body[data-module="civil"] .pt-head-share { text-align: left; }
+body[data-module="civil"] .pt-sum.warn { color: var(--amber-700, #b45309); }
 
-body[data-module="civil"] .pt-row {
+/* Блоки идут рядом, пока хватает ширины САМОГО блока, а не окна: карточка ОЦ
+   ужимается вдвое, когда открыт просмотрщик, и медиазапрос по окну этого не
+   видит. */
+body[data-module="civil"] .pt-cards {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px 32px;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
   gap: 8px;
-  align-items: center;
+  margin-top: 6px;
 }
 
-/* У пользователя доли нет — та же сетка без среднего столбца, чтобы кнопка
-   удаления стояла ровно под кнопкой соседнего блока. */
-body[data-module="civil"] .pt-row-user { grid-template-columns: minmax(0, 1fr) 32px; }
+body[data-module="civil"] .pt-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+  padding: 8px 10px 10px;
+}
 
+body[data-module="civil"] .pt-card-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+/* Номер блока — тот же приём, что у блоков карточки («01», «02»): на участника
+   можно сослаться словами. */
+body[data-module="civil"] .pt-n {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border-radius: 6px;
+  padding: 2px 6px;
+  letter-spacing: .04em;
+}
+
+body[data-module="civil"] .pt-card-b {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 8px;
+  align-items: end;
+}
+
+body[data-module="civil"] .pt-card-b .field { margin: 0; }
 body[data-module="civil"] .pt-name { position: relative; }
 
-body[data-module="civil"] .pt-share { position: relative; display: flex; }
-body[data-module="civil"] .pt-share .input { padding-right: 26px; }
+body[data-module="civil"] .pt-share-in { position: relative; display: flex; }
+body[data-module="civil"] .pt-share-in .input { padding-right: 24px; }
 
 body[data-module="civil"] .pt-share-u {
   position: absolute;
-  right: 9px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
@@ -71,21 +115,28 @@ body[data-module="civil"] .pt-share-u {
   pointer-events: none;
 }
 
-body[data-module="civil"] .pt-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+/* Кнопка добавления — такой же блок, как участники: она стоит в их ряду и
+   показывает, что появится ещё один блок, а не строка где-то ниже. */
+body[data-module="civil"] .pt-add {
+  /* Высота — по соседям: кнопка стоит в их ряду и растягивается вместе с ним.
+     Фиксированная высота делала её то ниже блока, то выше — в зависимости от
+     того, осталось ли ей место в строке. */
+  align-self: stretch;
+  padding: 16px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: none;
+  color: var(--blue-700);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-body[data-module="civil"] .pt-sum { font-size: 11.5px; color: var(--slate-500, #64748b); }
-body[data-module="civil"] .pt-sum.warn { color: var(--amber-700, #b45309); font-weight: 700; }
-
-body[data-module="civil"] .pt-empty { font-size: 12px; padding: 2px 0; }
+body[data-module="civil"] .pt-add:hover { background: var(--blue-50, #eff6ff); border-color: var(--blue-300, #93c5fd); }
 
 /* Подсказки: тот же слой и вид, что у остальных всплывающих списков проекта
-   (kernel/cards.css, .ms-drop) — человеку не должно казаться, что это другой
-   вид списка. */
+   (kernel/cards.css, .ms-drop). */
 body[data-module="civil"] .pt-sug {
   position: absolute;
   top: calc(100% + 4px);
@@ -117,17 +168,3 @@ body[data-module="civil"] .pt-sug-o {
 
 body[data-module="civil"] .pt-sug-o:hover,
 body[data-module="civil"] .pt-sug-o:focus-visible { background: var(--blue-50, #eff6ff); }
-
-/* Узкая колонка: доля уходит под наименование, а не сплющивает его. */
-@media (max-width: 1100px) {
-  body[data-module="civil"] .pt-head { display: none; }
-  body[data-module="civil"] .pt-row { grid-template-columns: minmax(0, 1fr) 84px 32px; }
-}
-
-/* Две колонки складываются в одну по ширине САМОГО БЛОКА, а не окна: карточка
-   ОЦ ужимается вдвое, когда открыт просмотрщик, и медиазапрос по окну этого не
-   видит — наименования оказывались обрезаны в обеих колонках. */
-body[data-module="civil"] .pt-grid {
-  margin-top: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-}

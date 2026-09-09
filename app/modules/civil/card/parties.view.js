@@ -1,20 +1,21 @@
 import { esc } from '../../../kernel/dom.js';
 import { PEOPLE } from '../data/dictionaries.js';
 
-// Собственники и пользователи — строками, а не тегами с диалогом.
+// Собственники и пользователи — блоками, а не строками в общей сетке.
 //
-// Требование пользователя 09.09.2026: «добавляем без модалок», «у каждого
-// собственника есть своя доля, которую можно корректировать», поля —
-// «Наименование (с поиском по собственникам и пользователям) и доля».
+// Требования пользователя 09.09.2026: «добавляем без модалок», «разбей на
+// логичные блоки, блок состоит из наименования и доли», «доля и у пользователя
+// и у собственника есть», «при нажатии добавления добавляется блок».
 //
-// Почему строки. Тег с крестиком показывает только имя: доле в нём места нет, а
-// править имя нельзя вовсе — только удалить и завести заново через диалог.
-// Диалог же прерывает работу ради одного поля: человек вносит собственников
-// подряд, и каждый раз ждать окна незачем.
+// Почему блок, а не строка. В строке подписи стояли один раз над столбцами, и
+// у второго участника было уже не видно, где наименование, а где доля;
+// пользователи при этом жили в соседней колонке с другим набором полей, и два
+// перечня читались как один сбитый. Блок держит подписи при своих полях и
+// нумеруется — на него можно сослаться словами («во втором собственнике»).
 //
-// Доля есть только у собственника: пользователь владением не делится.
+// Доля есть у обоих: и собственник, и пользователь владеют своей частью.
 
-// Строка может быть строкой (как заводили раньше) или парой имя+доля.
+// Участник может быть строкой (как заводили раньше) или парой имя+доля.
 // Обе формы читаются одинаково — записи из данных переписывать незачем.
 export function partyOf(x) {
   if (x && typeof x === 'object') return { name: x.name || '', share: x.share || '' };
@@ -26,12 +27,14 @@ export const partiesOf = (list) => (list || []).map(partyOf);
 // Имя для поиска и выгрузки: и старая строка, и новая пара дают строку.
 export const partyName = (x) => partyOf(x).name;
 
-// Сумма долей — рядом с полями, а не в отчёте: собственников вводят по одному,
-// и «не хватает 25%» надо видеть сразу, а не после сохранения.
-export function shareSum(owners) {
-  return partiesOf(owners)
+// Сумма долей — рядом с блоками, а не в отчёте: участников вводят по одному, и
+// «не хватает 25%» надо видеть при вводе, а не после сохранения.
+export function shareSum(list) {
+  return partiesOf(list)
     .reduce((a, o) => a + (parseFloat(String(o.share).replace(',', '.')) || 0), 0);
 }
+
+const num = (n) => (Number.isInteger(n) ? n : n.toFixed(2));
 
 function suggestBox(names) {
   return `<div class="pt-sug" data-pt-sug hidden>
@@ -40,70 +43,64 @@ function suggestBox(names) {
   </div>`;
 }
 
-function nameCell(kind, i, value, names) {
-  return `<div class="pt-name">
-    <input class="input" data-pt-name="${kind}|${i}" value="${esc(value)}"
-      placeholder="ФИО или организация" autocomplete="off">
-    ${suggestBox(names)}
-  </div>`;
-}
-
-function ownerRow(o, i, names) {
-  return `<div class="pt-row" data-pt-row="owner|${i}">
-    ${nameCell('owner', i, o.name, names)}
-    <div class="pt-share">
-      <input class="input" data-pt-share="${i}" value="${esc(o.share)}"
-        inputmode="decimal" placeholder="доля">
-      <span class="pt-share-u">%</span>
+// Блок участника: номер, кнопка удаления и два поля со своими подписями.
+function partyCard(kind, i, p, names, title) {
+  return `<div class="pt-card" data-pt-row="${kind}|${i}">
+    <div class="pt-card-h">
+      <span class="pt-n">${String(i + 1).padStart(2, '0')}</span>
+      <button type="button" class="btn btn-danger btn-sm" data-pt-rm="${kind}|${i}"
+        title="Убрать: ${esc(title)}">×</button>
     </div>
-    <button type="button" class="btn btn-danger btn-sm" data-pt-rm="owner|${i}"
-      title="Убрать собственника">×</button>
+
+    <div class="pt-card-b">
+      <div class="field pt-name">
+        <label>Наименование</label>
+        <input class="input" data-pt-name="${kind}|${i}" value="${esc(p.name)}"
+          placeholder="ФИО или организация" autocomplete="off">
+        ${suggestBox(names)}
+      </div>
+
+      <div class="field pt-share">
+        <label>Доля</label>
+        <div class="pt-share-in">
+          <input class="input" data-pt-share="${kind}|${i}" value="${esc(p.share)}"
+            inputmode="decimal" placeholder="0">
+          <span class="pt-share-u">%</span>
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 
-function userRow(u, i, names) {
-  return `<div class="pt-row pt-row-user" data-pt-row="user|${i}">
-    ${nameCell('user', i, u.name, names)}
-    <button type="button" class="btn btn-danger btn-sm" data-pt-rm="user|${i}"
-      title="Убрать пользователя">×</button>
+function partySection(kind, list, names, { title, addLabel, empty }) {
+  const items = partiesOf(list);
+  const sum = shareSum(list);
+  const bad = items.length > 0 && Math.abs(sum - 100) > 0.01;
+
+  return `<div class="pt-sec">
+    <div class="sec-h pt-sec-h">
+      <span>${esc(title)}</span>
+      ${items.length ? `<span class="pt-sum ${bad ? 'warn' : ''}">Доли: ${num(sum)}%${
+    bad ? ' — не 100%' : ''}</span>` : ''}
+    </div>
+
+    <div class="pt-cards">
+      ${items.map((p, i) => partyCard(kind, i, p, names, p.name || empty)).join('')}
+      <button type="button" class="pt-add" data-pt-add="${kind}">+ ${esc(addLabel)}</button>
+    </div>
   </div>`;
 }
 
 // names — известные наименования: подсказки собираются из уже заведённых
 // собственников и пользователей всех записей (см. partyNames в records.js).
 export function ownersUsersHTML(rec, names = PEOPLE) {
-  const owners = partiesOf(rec.owners);
-  const users = partiesOf(rec.users);
-  const sum = shareSum(rec.owners);
-  const badSum = owners.length > 0 && Math.abs(sum - 100) > 0.01;
-
-  // g-top: колонки разной высоты (у собственников строк больше), а .grid по
-  // умолчанию равняет по низу — «Пользователи» уезжали вниз.
-  return `<div class="grid g-2 g-top pt-grid">
-    <div class="field">
-      <span class="lbl">Собственники</span>
-      <div class="pt-list">
-        <div class="pt-head"><span>Наименование</span><span class="pt-head-share">Доля</span></div>
-        ${owners.map((o, i) => ownerRow(o, i, names)).join('')
-    || '<div class="muted pt-empty">Не указаны</div>'}
-        <div class="pt-foot">
-          <button type="button" class="btn btn-ghost btn-sm" data-pt-add="owner">+ Собственник</button>
-          ${owners.length ? `<span class="pt-sum ${badSum ? 'warn' : ''}">Сумма долей: ${
-    Number.isInteger(sum) ? sum : sum.toFixed(2)}%${badSum ? ' — не 100%' : ''}</span>` : ''}
-        </div>
-      </div>
-    </div>
-
-    <div class="field">
-      <span class="lbl">Пользователи</span>
-      <div class="pt-list">
-        ${users.map((u, i) => userRow(u, i, names)).join('')
-    || '<div class="muted pt-empty">Не указаны</div>'}
-        <div class="pt-foot">
-          <button type="button" class="btn btn-ghost btn-sm" data-pt-add="user">+ Пользователь</button>
-        </div>
-      </div>
-    </div>
+  return `<div class="pt-wrap">
+    ${partySection('owner', rec.owners, names, {
+    title: 'Собственники', addLabel: 'Собственник', empty: 'собственник',
+  })}
+    ${partySection('user', rec.users, names, {
+    title: 'Пользователи', addLabel: 'Пользователь', empty: 'пользователь',
+  })}
   </div>`;
 }
 
