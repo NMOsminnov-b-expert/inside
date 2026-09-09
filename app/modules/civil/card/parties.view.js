@@ -43,32 +43,28 @@ function suggestBox(names) {
   </div>`;
 }
 
-// Блок участника: номер, кнопка удаления и два поля со своими подписями.
+// Блок в одну строку: номер, наименование, доля, удаление. Отдельная шапка с
+// номером и крестиком забирала строку целиком и раздувала блок вдвое
+// (замечание пользователя 09.09.2026 — «нумерацию и удаление компактнее»).
 function partyCard(kind, i, p, names, title) {
   return `<div class="pt-card" data-pt-row="${kind}|${i}">
-    <div class="pt-card-h">
-      <span class="pt-n">${String(i + 1).padStart(2, '0')}</span>
-      <button type="button" class="btn btn-danger btn-sm" data-pt-rm="${kind}|${i}"
-        title="Убрать: ${esc(title)}">×</button>
+    <span class="pt-n" aria-hidden="true">${i + 1}</span>
+
+    <div class="pt-name">
+      <input class="input" data-pt-name="${kind}|${i}" value="${esc(p.name)}"
+        placeholder="ФИО или организация" autocomplete="off"
+        aria-label="Наименование">
+      ${suggestBox(names)}
     </div>
 
-    <div class="pt-card-b">
-      <div class="field pt-name">
-        <label>Наименование</label>
-        <input class="input" data-pt-name="${kind}|${i}" value="${esc(p.name)}"
-          placeholder="ФИО или организация" autocomplete="off">
-        ${suggestBox(names)}
-      </div>
-
-      <div class="field pt-share">
-        <label>Доля</label>
-        <div class="pt-share-in">
-          <input class="input" data-pt-share="${kind}|${i}" value="${esc(p.share)}"
-            inputmode="decimal" placeholder="0">
-          <span class="pt-share-u">%</span>
-        </div>
-      </div>
+    <div class="pt-share-in">
+      <input class="input" data-pt-share="${kind}|${i}" value="${esc(p.share)}"
+        inputmode="decimal" placeholder="0" aria-label="Доля, %">
+      <span class="pt-share-u">%</span>
     </div>
+
+    <button type="button" class="pt-rm" data-pt-rm="${kind}|${i}"
+      title="Убрать: ${esc(title)}" aria-label="Убрать: ${esc(title)}">×</button>
   </div>`;
 }
 
@@ -85,6 +81,9 @@ function partySection(kind, list, names, { title, addLabel, empty }) {
     </div>
 
     <div class="pt-cards">
+      ${items.length ? `<div class="pt-head" aria-hidden="true">
+        <span></span><span>Наименование</span><span>Доля</span><span></span>
+      </div>` : ''}
       ${items.map((p, i) => partyCard(kind, i, p, names, p.name || empty)).join('')}
       <button type="button" class="pt-add" data-pt-add="${kind}">+ ${esc(addLabel)}</button>
     </div>

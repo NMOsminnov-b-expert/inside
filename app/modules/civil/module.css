@@ -59,81 +59,106 @@ body[data-module="civil"] .pt-sum.warn { color: var(--amber-700, #b45309); }
 /* Блоки идут рядом, пока хватает ширины САМОГО блока, а не окна: карточка ОЦ
    ужимается вдвое, когда открыт просмотрщик, и медиазапрос по окну этого не
    видит. */
+/* Список в одну колонку: подписи колонок стоят один раз сверху и обязаны
+   попадать точно над своими полями. В две колонки шапка сбилась бы. */
 body[data-module="civil"] .pt-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 6px;
 }
 
+/* Шапка повторяет сетку блока — иначе подпись уедет от своего поля. */
+body[data-module="civil"] .pt-head {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
+  gap: 7px;
+  padding: 0 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--slate-500, #64748b);
+}
+
+/* Блок участника — одна строка: номер, наименование, доля, крестик. Отдельная
+   шапка с номером и кнопкой удаления забирала целую строку и делала блок вдвое
+   выше содержимого (замечание пользователя 09.09.2026). */
 body[data-module="civil"] .pt-card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel, #fff);
-  padding: 8px 10px 10px;
-}
-
-body[data-module="civil"] .pt-card-h {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
+  gap: 7px;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel, #fff);
+  padding: 5px 8px;
 }
 
-/* Номер блока — тот же приём, что у блоков карточки («01», «02»): на участника
-   можно сослаться словами. */
 body[data-module="civil"] .pt-n {
   font-size: 10.5px;
   font-weight: 700;
-  color: var(--blue-700);
-  background: var(--blue-100);
+  color: var(--slate-500, #64748b);
+  text-align: right;
+  line-height: 22px;
+}
+
+/* Крестик — без рамки и заливки: в ряду из нескольких блоков кнопки-«кирпичи»
+   спорят с полями за внимание, а удаление здесь редкое действие. */
+body[data-module="civil"] .pt-rm {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
-  padding: 2px 6px;
-  letter-spacing: .04em;
+  background: none;
+  color: var(--slate-400, #94a3b8);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
 }
 
-body[data-module="civil"] .pt-card-b {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
-  gap: 8px;
-  align-items: end;
+body[data-module="civil"] .pt-rm:hover,
+body[data-module="civil"] .pt-rm:focus-visible {
+  background: var(--red-50, #fef2f2);
+  color: var(--red-600, #dc2626);
 }
 
-body[data-module="civil"] .pt-card-b .field { margin: 0; }
 body[data-module="civil"] .pt-name { position: relative; }
 
 body[data-module="civil"] .pt-share-in { position: relative; display: flex; }
-body[data-module="civil"] .pt-share-in .input { padding-right: 24px; }
+body[data-module="civil"] .pt-share-in .input { padding-right: 22px; }
 
 body[data-module="civil"] .pt-share-u {
   position: absolute;
-  right: 8px;
+  right: 7px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--slate-500, #64748b);
   pointer-events: none;
 }
 
-/* Кнопка добавления — такой же блок, как участники: она стоит в их ряду и
-   показывает, что появится ещё один блок, а не строка где-то ниже. */
+/* Кнопка добавления — компактная строка под списком, а не плитка во всю
+   ширину: плитка занимала места больше, чем сам блок участника. */
 body[data-module="civil"] .pt-add {
-  /* Высота — по соседям: кнопка стоит в их ряду и растягивается вместе с ним.
-     Фиксированная высота делала её то ниже блока, то выше — в зависимости от
-     того, осталось ли ей место в строке. */
-  align-self: stretch;
-  padding: 16px 12px;
+  align-self: start;
+  padding: 5px 10px;
   border: 1px dashed var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   background: none;
   color: var(--blue-700);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-body[data-module="civil"] .pt-add:hover { background: var(--blue-50, #eff6ff); border-color: var(--blue-300, #93c5fd); }
+body[data-module="civil"] .pt-add:hover,
+body[data-module="civil"] .pt-add:focus-visible {
+  background: var(--blue-50, #eff6ff);
+  border-color: var(--blue-300, #93c5fd);
+}
 
 /* Подсказки: тот же слой и вид, что у остальных всплывающих списков проекта
    (kernel/cards.css, .ms-drop). */
