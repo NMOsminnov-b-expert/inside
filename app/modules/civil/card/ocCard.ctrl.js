@@ -18,7 +18,12 @@ function createOi(ctx, type) {
   const rec = ctx.rec;
 
   if (type.card === 'land') {
-    return createLandOi(rec, { nextId, nextEni, multiple: true });
+    // У участка код не инкрементируется: по умолчанию он тот же, что первый код
+    // объекта оценки (решение пользователя 09.09.2026). Участок — это земля под
+    // самой записью, а не очередной объект с собственным номером; счётчик
+    // выдавал ему «следующий свободный», и код приходилось править руками.
+    const landEni = () => rec.eni || nextEni(rec, rec.eni);
+    return createLandOi(rec, { nextId, nextEni: landEni, multiple: true });
   }
 
   const letter = nextLetter(rec);

@@ -1,8 +1,24 @@
 import { createSeed } from './seed.js';
 import { LETTER_SEQ } from './dictionaries.js';
+import { attachPersist } from '../../../kernel/persist.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 export const records = createSeed();
+
+// Введённое переживает перезагрузку страницы (требование пользователя
+// 09.09.2026). Сохраняются только сами записи: раскрытия, режимы и просмотрщик
+// (ui ниже) — это состояние экрана, его восстанавливать незачем.
+//
+// Массив не подменяется, а перезаполняется: на него уже ссылаются модули,
+// поэтому смена ссылки оставила бы их со старыми данными.
+attachPersist({
+  key: 'inside:civil:records:v1',
+  snapshot: () => records,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    records.splice(0, records.length, ...saved);
+  },
+});
 
 export function getRecord(id) {
   return records.find((r) => r.id === id) || null;
