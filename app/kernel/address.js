@@ -23,8 +23,37 @@ const clean = (s) => String(s == null ? '' : s).trim();
 // «г. Лебединовка».
 export function ocAddressTop(rec) {
   if (!rec) return '';
+  // С областью адрес идёт от общего к частному — область, район, населённый
+  // пункт, микрорайон: так его и называют вслух, и так же стоят поля в блоке
+  // «Местоположение» (правка 09.09.2026 по гражданскому зданию).
+  //
+  // Без области — прежний порядок: у типов ОЦ, которых правка не касалась,
+  // адрес не должен перестраиваться сам собой.
+  if (clean(rec.region)) {
+    return [clean(rec.region), clean(rec.district), clean(rec.city), clean(rec.micro)]
+      .filter(Boolean).join(', ');
+  }
   return [clean(rec.city), clean(rec.district), clean(rec.micro)]
     .filter(Boolean).join(', ');
+}
+
+// Улица, дом и квартира САМОЙ записи.
+//
+// Изначально они были только у объектов имущества, и адрес записи собирался из
+// них. С 09.09.2026 у гражданского здания адрес целиком живёт в объекте оценки
+// — в блоке «Местоположение», а объекты имущества его больше не хранят
+// (решение пользователя: «в ОИ их не будет»).
+//
+// Возвращает пустую строку, если у записи этих полей нет: тогда адрес
+// собирается по-прежнему из ОИ, и типы ОЦ, которых правка не касалась,
+// работают как работали.
+export function ocAddressOwn(rec) {
+  if (!rec) return '';
+  return [
+    clean(rec.street) && `ул. ${clean(rec.street)}`,
+    clean(rec.house) && `д. ${clean(rec.house)}`,
+    clean(rec.flat) && `кв. ${clean(rec.flat)}`,
+  ].filter(Boolean).join(', ');
 }
 
 // Нижняя часть — из объекта имущества. Номер квартиры показывается только там,
@@ -78,6 +107,12 @@ export function groupedOiAddresses(rec) {
 // шапке карточки, в реестре и в архиве.
 export function ocFullAddress(rec) {
   const top = ocAddressTop(rec);
+
+  // Адрес записан у самой записи — берём его: объекты имущества своей улицы
+  // больше не имеют, и собирать её оттуда нечего.
+  const own = ocAddressOwn(rec);
+  if (own) return [top, own].filter(Boolean).join(', ');
+
   const parts = groupedOiAddresses(rec);
   if (!parts.length) return top;
   return [top, parts.join('; ')].filter(Boolean).join(', ');
@@ -93,4 +128,63 @@ export function syncOcAddress(rec) {
   if (!rec) return '';
   rec.address = ocFullAddress(rec);
   return rec.address;
+}
+
+// Разбор адреса, набранного или вставленного одной строкой (требование
+// пользователя 09.09.2026: «туда можно кинуть адрес, а то, что найдётся,
+// раскидается по полям»).
+//
+// Разбираем по маркерам — «обл.», «р-н», «г.», «мкр.», «ул.», «д.», «кв.»: их
+// пишут почти всегда, и по ним часть адреса узнаётся однозначно. Что не
+// опознано — не трогаем: пустое поле честнее угаданного неверно.
+//
+// Части без маркера читаются по месту: число после улицы — дом, а первое слово
+// без маркера, если населённый пункт ещё не найден, — он и есть. Так строка
+// «Бишкек, Киевская 218» тоже раскладывается.
+const MARKERS = [
+  ['region', /^(обл\.?|область)\s+|\s+(обл\.?|область)$/i],
+  ['district', /^(р-?н|район)\s+|\s+(р-?н|район)$/i],
+  ['city', /^(г\.?|гор\.?|город|с\.?|село|пгт|пос\.?|посёлок|поселок|айыл)\s+/i],
+  ['micro', /^(мкр\.?|микрорайон|м-?н)\s+/i],
+  ['street', /^(ул\.?|улица|пр\.?|проспект|пер\.?|переулок|б-?р|бульвар)\s+/i],
+  ['house', /^(д\.?|дом|№)\s*/i],
+  ['flat', /^(кв\.?|квартира|оф\.?|офис)\s*/i],
+];
+
+const STRIP = new Set(['street', 'house', 'flat']);
+
+export function parseAddress(text) {
+  const out = {};
+  const rest = [];
+
+  String(text || '').split(',').map((x) => x.trim()).filter(Boolean).forEach((part) => {
+    const hit = MARKERS.find(([, re]) => re.test(part));
+    if (hit && !out[hit[0]]) {
+      // Маркер оставляем в значении: «г. Бишкек» и «ул. Киевская» так и пишут,
+      // а поле «Дом» хранит номер — там маркер убираем.
+      const [key, re] = hit;
+      // «ул.», «д.» и «кв.» приписывает сборщик (ocAddressOwn), поэтому из
+      // значения их убираем — иначе получалось «ул. ул. Масалиева». А «г.»,
+      // «р-н», «мкр.» и «область» остаются частью значения: их пишут по-разному
+      // (город, село, айыл), и подставлять своё сокращение нельзя.
+      out[key] = STRIP.has(key) ? part.replace(re, '').trim() : part;
+      return;
+    }
+    rest.push(part);
+  });
+
+  rest.forEach((part) => {
+    // «Киевская 218» — улица с домом в одной части.
+    const withHouse = part.match(/^(.+?)\s+(\d+[а-яa-z/-]*)$/i);
+    if (withHouse && !out.street) {
+      out.street = withHouse[1].trim();
+      if (!out.house) out.house = withHouse[2];
+      return;
+    }
+    if (!out.city) { out.city = part; return; }
+    if (!out.street) { out.street = part; return; }
+    if (!out.house && /^\d/.test(part)) out.house = part;
+  });
+
+  return out;
 }

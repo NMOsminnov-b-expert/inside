@@ -1,7 +1,7 @@
 import { ocTypes, previewOcTypeChange, changeOcType } from '../../../kernel/typeChange.js';
 import { bindPickSearch } from '../../../kernel/pickSearch.js';
 import { podvedNamesOf } from '../../../kernel/institutions.js';
-import { syncOcAddress, ocFullAddress } from '../../../kernel/address.js';
+import { syncOcAddress, ocFullAddress, parseAddress } from '../../../kernel/address.js';
 import { plural, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { bindEniField, firstBadEni, eniCodesOf } from '../../../kernel/eniField.js';
 import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
@@ -100,9 +100,15 @@ export function bindOcForm(ctx) {
     // (город, район, микрорайон), улица с домом — у каждого ОИ. Собранное
     // значение держим в rec.address, его читают реестр, поиск, архив и лог
     // (kernel/address.js).
+    // Блок «Местоположение»: адрес целиком у записи, включая улицу с домом —
+    // в объектах имущества этих полей больше нет (решение 09.09.2026).
+    rec.region = s.$('#fRegion').value.trim();
     rec.city = s.$('#fCity').value.trim();
     rec.district = s.$('#fDistrict').value.trim();
     rec.micro = s.$('#fMicro').value.trim();
+    rec.street = s.$('#fStreet').value.trim();
+    rec.house = s.$('#fHouse').value.trim();
+    rec.flat = s.$('#fFlat').value.trim();
     syncOcAddress(rec);
     rec.gps = s.$('#fGps').value.trim();
     rec.complex = !!(s.$('#fComplex') && s.$('#fComplex').checked);
@@ -128,24 +134,54 @@ export function bindOcForm(ctx) {
     openDocViewer(ctx, 'oc', tr.dataset.openDoc);
   });
 
-  // Собранный адрес обновляется по ходу ввода: иначе человек правит город, а
-  // строка под полями показывает прежнее — и непонятно, что получится.
+  // Адрес записи и поля местоположения — одно значение с двух сторон.
+  //
+  // Вниз: правишь область или улицу — строка адреса пересобирается по ходу
+  // ввода, иначе человек правит поле, а адрес показывает прежнее.
+  //
+  // Вверх: вставил адрес целиком — что распозналось, раскидывается по полям
+  // (требование пользователя 09.09.2026). Разбирает kernel/address.js; поля,
+  // которых в строке нет, остаются как были — пустое поле честнее угаданного
+  // неверно.
+  const PARTS = {
+    region: '#fRegion',
+    district: '#fDistrict',
+    city: '#fCity',
+    micro: '#fMicro',
+    street: '#fStreet',
+    house: '#fHouse',
+    flat: '#fFlat',
+  };
+
   const addrSum = s.$('[data-addr-sum]');
   if (addrSum) {
-    const redrawAddr = () => {
-      const preview = Object.assign({}, rec, {
-        city: (s.$('#fCity') || {}).value || '',
-        district: (s.$('#fDistrict') || {}).value || '',
-        micro: (s.$('#fMicro') || {}).value || '',
+    const valuesOf = () => {
+      const out = {};
+      Object.entries(PARTS).forEach(([key, sel]) => {
+        out[key] = (s.$(sel) || {}).value || '';
       });
-      const text = ocFullAddress(preview);
-      addrSum.textContent = text
-        || 'Заполните город; улица и дом задаются в карточках объектов имущества';
+      return out;
     };
-    ['#fCity', '#fDistrict', '#fMicro'].forEach((sel) => {
+
+    const redrawAddr = () => {
+      addrSum.value = ocFullAddress(Object.assign({}, rec, valuesOf()));
+    };
+
+    Object.values(PARTS).forEach((sel) => {
       const el = s.$(sel);
       if (el) el.oninput = redrawAddr;
     });
+
+    // Разбор — на change, а не на каждый символ: пока адрес набирают, части
+    // ещё не дописаны, и поля прыгали бы на каждой букве.
+    addrSum.onchange = () => {
+      const parsed = parseAddress(addrSum.value);
+      Object.entries(PARTS).forEach(([key, sel]) => {
+        const el = s.$(sel);
+        if (el && parsed[key]) el.value = parsed[key];
+      });
+      redrawAddr();
+    };
   }
 
 

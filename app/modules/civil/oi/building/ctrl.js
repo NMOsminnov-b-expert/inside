@@ -278,20 +278,6 @@ export function bind(ctx, oi) {
   // записи. Собранный адрес записи держится в rec.address, поэтому после правки
   // его пересобираем — иначе шапка, реестр и поиск показывали бы старое
   // (kernel/address.js, заметки команды 05.09.2026).
-  const street = s.$('[data-oi-street]');
-  if (street) street.onchange = () => {
-    oi.street = street.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
-  const house = s.$('[data-oi-house]');
-  if (house) house.onchange = () => {
-    oi.house = house.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
   // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
   // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
   bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });

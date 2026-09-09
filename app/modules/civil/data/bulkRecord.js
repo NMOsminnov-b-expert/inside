@@ -31,7 +31,10 @@ function base(id, i, p) {
     purposeTP: p.purpose,
     eni: p.eni,
     address: addressOf(p, i),
+    // Части адреса — у записи: их правят в блоке «Местоположение».
     city: p.city,
+    street: p.street,
+    house: p.house,
     gps: '',
     status: p.status,
     institution: p.institution,

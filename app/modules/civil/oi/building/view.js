@@ -209,14 +209,12 @@ ${rq.showCatClass ? `<div class="field"><label>Назначение по тех 
 ${rq.showCatClass ? `<div class="inline-row" style="margin-top:10px; gap:14px; flex-wrap:wrap; align-items:center;">
 <label class="flag-lbl"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
 </div>` : ''}
-<div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
+<!-- Улица и дом переехали в блок «Местоположение» карточки объекта оценки
+     (решение пользователя 09.09.2026): адрес у записи один, и держать его
+     частями в каждой литере значило собирать одно и то же по кускам. У литеры
+     остались собственные координаты — они у каждого строения свои. -->
+<div class="sec-h" style="margin-top:12px">Координаты</div>
 <div class="grid g-3" style="margin-top:6px">
-<div class="field"><label>Улица</label>
-<input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Киевская">
-</div>
-<div class="field"><label>Дом</label>
-<input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="218">
-</div>
 <div class="field"><label>Координаты (широта, долгота)</label>
 <input class="input mono" data-oi-gps value="${esc(oi.gps || '')}"
 placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота">

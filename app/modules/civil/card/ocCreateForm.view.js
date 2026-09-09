@@ -74,15 +74,32 @@ function mainSection(rec) {
     search: 'Поиск подведа…',
   })}
         </div>
-        <div class="field">
-          <label>GPS-координаты</label>
-          <input class="input" id="fGps" value="${esc(rec.gps)}">
-          <span class="field-hint">впоследствии заполняется автоматически</span>
-        </div>
 
+
+
+
+      </div>
+    </div>
+  </div>`;
+}
+
+function locationSection(rec) {
+  return `<div class="card t-amber">
+    <div class="card-head">
+      <span class="card-idx">02</span>
+      <h3>Местоположение</h3>
+    </div>
+
+    <div class="card-pad">
+      <!-- Порядок полей — от общего к частному, как называют адрес вслух:
+           область, район, населённый пункт, микрорайон, улица, дом, квартира.
+           Улица и дом переехали сюда из карточек объектов имущества (решение
+           пользователя 09.09.2026): адрес у записи один, и держать его частями
+           в каждом ОИ значило собирать одно и то же по кускам. -->
+      <div class="grid g-4 g-roomy">
         <div class="field">
-          <label>Город</label>
-          <input class="input" id="fCity" value="${esc(rec.city || '')}" placeholder="г. Бишкек">
+          <label>Область</label>
+          <input class="input" id="fRegion" value="${esc(rec.region || '')}" placeholder="Чуйская область">
         </div>
 
         <div class="field">
@@ -91,13 +108,45 @@ function mainSection(rec) {
         </div>
 
         <div class="field">
+          <label>Город или село</label>
+          <input class="input" id="fCity" value="${esc(rec.city || '')}" placeholder="г. Бишкек">
+        </div>
+
+        <div class="field">
           <label>Микрорайон</label>
           <input class="input" id="fMicro" value="${esc(rec.micro || '')}" placeholder="мкр. Асанбай">
         </div>
 
+        <div class="field">
+          <label>Улица</label>
+          <input class="input" id="fStreet" value="${esc(rec.street || '')}" placeholder="Киевская">
+        </div>
+
+        <div class="field">
+          <label>Дом</label>
+          <input class="input" id="fHouse" value="${esc(rec.house || '')}" placeholder="218">
+        </div>
+
+        <div class="field">
+          <label>Квартира</label>
+          <input class="input" id="fFlat" value="${esc(rec.flat || '')}" placeholder="12">
+        </div>
+
+        <div class="field">
+          <label>GPS-координаты</label>
+          <input class="input" id="fGps" value="${esc(rec.gps)}">
+          <span class="field-hint">впоследствии заполняется автоматически</span>
+        </div>
+
+        <!-- Адрес записи можно не только читать, но и вставить целиком: что
+             распозналось, раскидывается по полям выше (требование пользователя
+             09.09.2026). Обратно он собирается из тех же полей, поэтому
+             остаётся одним значением, а не вторым источником правды. -->
         <div class="field sp-all">
           <label>Адрес записи</label>
-          <div class="addr-sum" data-addr-sum>${esc(ocFullAddress(rec)) || 'Заполните город; улица и дом задаются в карточках объектов имущества'}</div>
+          <input class="input" id="fAddress" data-addr-sum value="${esc(ocFullAddress(rec))}"
+            placeholder="Вставьте адрес целиком — разложим по полям">
+          <span class="field-hint">собирается из полей выше; вставленный адрес разбирается по частям</span>
         </div>
       </div>
     </div>
@@ -107,7 +156,7 @@ function mainSection(rec) {
 function compositionSection(rec) {
   return `<div class="card t-teal">
     <div class="card-head">
-      <span class="card-idx">02</span>
+      <span class="card-idx">03</span>
       <h3>Состав и тип имущества</h3>
     </div>
 
@@ -123,7 +172,7 @@ function compositionSection(rec) {
 function partiesSection(rec) {
   return `<div class="card t-slate">
     <div class="card-head">
-      <span class="card-idx">03</span>
+      <span class="card-idx">04</span>
       <h3>Собственники, пользователи и ответственные</h3>
       <span class="hint">без юриста</span>
     </div>
@@ -141,6 +190,7 @@ export function viewOCCreate(ctx) {
 
   const stack = `<div class="oi-stack">
     ${mainSection(rec)}
+      ${locationSection(rec)}
     ${compositionSection(rec)}
     ${partiesSection(rec)}
   </div>`;
