@@ -1,6 +1,6 @@
 import { fmtEni } from '../../../kernel/fmt.js';
 import { pickSearchHTML } from '../../../kernel/pickSearch.js';
-import { institutionNames, podvedNamesOf } from '../../../kernel/institutions.js';
+import { institutionOptions, podvedOptionsOf } from '../../../kernel/institutions.js';
 import { ocFullAddress } from '../../../kernel/address.js';
 import { esc } from '../../../kernel/dom.js';
 import { STATUS_OC } from '../data/dictionaries.js';
@@ -57,7 +57,7 @@ function mainSection(rec) {
           ${pickSearchHTML({
     key: 'inst',
     value: rec.institution,
-    options: institutionNames(),
+    options: institutionOptions(),
     placeholder: 'Выберите головное учреждение',
     search: 'Поиск по названию или коду…',
   })}
@@ -68,7 +68,7 @@ function mainSection(rec) {
           ${pickSearchHTML({
     key: 'podved',
     value: rec.podved,
-    options: podvedNamesOf(rec.institution),
+    options: podvedOptionsOf(rec.institution),
     placeholder: rec.institution ? 'Выберите подвед' : 'Сначала выберите учреждение',
     search: 'Поиск подведа…',
   })}
