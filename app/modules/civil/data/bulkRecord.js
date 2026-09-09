@@ -91,7 +91,7 @@ function buildingOi(id, i, p, letter, opts = {}) {
     buildType: i % 5 ? 'Отдельностоящее' : 'Встроенное',
     struct: structFor(i),
     structOther: {},
-    heating: i % 3 === 0 ? ['Центральное'] : (i % 3 === 1 ? ['Автономное', 'Современные радиаторы'] : ['Печное']),
+    heating: i % 3 === 0 ? ['Центральное водяное отопление'] : (i % 3 === 1 ? ['Современные радиаторы'] : ['Печное отопление']),
     heatingOther: '',
     comment: '',
     catClass: opts.catClass || 'Гражданское здание',
@@ -108,7 +108,14 @@ function landOi(id, i, p, suffix, opts = {}) {
     card: 'land',
     name: opts.name || 'Земельный участок',
     purpose: landPurposeSample(i),
-    area: fmt(opts.area === undefined ? p.metrics.area * 3 : opts.area),
+    // Тип ЗУ и площади — в том виде, что читает карточка участка
+    // (land-plot/oi/land/view.js); плоское `area` она не видит.
+    landType: i % 2 ? 'Несельскохозяйственный' : 'Сельскохозяйственный',
+    areas: {
+      pravo: fmt(opts.area === undefined ? p.metrics.area * 3 : opts.area),
+      fact: fmt(opts.area === undefined ? p.metrics.area * 3 : opts.area),
+      build: i % 2 ? '0' : '',
+    },
     eni: String(+p.eni + 90 + suffix),
     status: opts.status || 'Основное',
     origin: 'manual',
@@ -141,7 +148,7 @@ function apartmentOi(id, i, p, letter) {
     buildType: 'Встроенное',
     struct: structFor(i),
     structOther: {},
-    heating: ['Центральное', i % 2 ? 'Современные радиаторы' : 'Чугунные радиаторы'],
+    heating: ['Центральное водяное отопление', i % 2 ? 'Современные радиаторы' : 'Чугунные радиаторы'],
     heatingOther: '',
     comment: '',
     catClass: 'Гражданское здание',

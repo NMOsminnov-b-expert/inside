@@ -18,6 +18,16 @@ import * as D from './dictionaries.js';
 
 export const LAND_DICT_SOURCES = [
   {
+    key: 'RAILWAY_ACCESS',
+    title: 'Железнодорожная ветка',
+    kind: 'list',
+    system: false,
+    values: D.RAILWAY_ACCESS,
+    slots: [
+      { card: 'land', field: 'railway', label: 'Наличие железнодорожной ветки' },
+    ],
+  },
+  {
     key: 'ENGINEERING',
     title: 'Инженерное оснащение участка',
     kind: 'list',
@@ -249,6 +259,8 @@ export const LAND_DICT_SOURCES = [
       { card: 'land', field: 'centralHeating', label: 'Наличие центрального отопления' },
       { card: 'land', field: 'centralWater', label: 'Наличие центрального водоснабжения' },
       { card: 'land', field: 'autonomousHeating', label: 'Наличие автономного отопления' },
+      { card: 'land', field: 'electricity', label: 'Наличие электроснабжения' },
+      { card: 'land', field: 'sewerage', label: 'Наличие канализации' },
     ],
   },
   {

@@ -148,9 +148,20 @@ def run(t):
     _close(t)
     pg.set_viewport_size({'width': 1500, 'height': 1000})
 
-    # --- 4. карточка квартиры: тот же состав, свои словари -----------------
+    # --- 4. карточка квартиры: мультивыбор отопления -----------------------
+    #
+    # Материалов конструктива у квартиры нет (решение пользователя 08.09.2026:
+    # из чего сделаны фундамент и стены — свойство строения, его описывает
+    # литера). Мультивыбор в этой карточке остался один — отопление.
     t.open('#/oc/apartment/oc-ap-1', wait='tr[data-open-oi]')
     pg.locator('tr[data-open-oi]').first.click()
-    t.wait_for('[data-struct-field="foundation"]')
+    t.wait_for('[data-heat-field]')
     pg.locator('#q-struct').scroll_into_view_if_needed()
-    _check_field(t, '[data-struct-field="foundation"]', 'квартира · фундамент')
+
+    t.ck(pg.locator('#q-struct [data-struct-field]').count() == 0,
+         'в карточке квартиры остались поля материалов конструктива')
+    t.ck(pg.locator('#q-struct [data-wear]').count() >= 8,
+         'в карточке квартиры нет износа по элементам: %d полей'
+         % pg.locator('#q-struct [data-wear]').count())
+
+    _check_field(t, '[data-heat-field]', 'квартира · отопление')

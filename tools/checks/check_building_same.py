@@ -277,11 +277,26 @@ def run(t):
             continue
         tables[oc] = got
 
-        t.ck(len(got['rows']) >= 9,
+        t.ck(len(got['rows']) >= 11,
              'в %s в таблице конструктива %d строк' % (oc, len(got['rows'])))
-        t.ck(all(r['material'] for r in got['rows']),
-             'в %s есть строка без выбора материала: %s'
-             % (oc, [r['el'] for r in got['rows'] if not r['material']]))
+
+        # Отделка и утепление — покрытия, а не конструктив: материала у них нет
+        # по существу, стоит прочерк (08.09.2026, из ТЗ и совещания 07.09).
+        # У остальных строк материал обязателен: без него элемент нечем описать.
+        COVERINGS = ('Отделка', 'Утепление')
+        no_mat = [r['el'] for r in got['rows']
+                  if not r['material'] and r['el'] not in COVERINGS]
+        t.ck(not no_mat, 'в %s есть строка без выбора материала: %s' % (oc, no_mat))
+
+        for name in COVERINGS:
+            row = next((r for r in got['rows'] if r['el'] == name), None)
+            t.ck(row is not None, 'в %s нет строки износа «%s»' % (oc, name))
+            if row:
+                t.ck(not row['material'],
+                     'в %s у «%s» появился выбор материала — это покрытие, а не '
+                     'конструктив' % (oc, name))
+
+        # Износ обязателен у ВСЕХ строк, включая покрытия: ради него они и есть.
         t.ck(all(r['wear'] for r in got['rows']),
              'в %s есть строка без износа: %s'
              % (oc, [r['el'] for r in got['rows'] if not r['wear']]))

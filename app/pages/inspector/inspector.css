@@ -573,6 +573,69 @@ body[data-page="insp"] .content {
 
 .ins-chip:active { transform: scale(.985); }
 
+/* Многозначные перечни длиннее пяти значений — строками с отметкой, а не
+   плитками (замечание пользователя 08.09.2026). На 390 px одиннадцать плиток
+   «систем отопления» вставали в десять строк разной ширины: глазу не за что
+   зацепиться и легко промахнуться. Строка во всю ширину — крупная цель, а
+   отметка слева выстраивается в один столбец, и выбранное видно одним взглядом.
+
+   Кнопка та же (data-fs-opt), что у плиток, — отличается только оформлением. */
+.ins-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.ins-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--panel);
+  color: var(--slate-700);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Отметка — квадрат, а не галочка сама по себе: пустой квадрат сразу говорит,
+   что строку можно отметить, и что отмечено может быть несколько. */
+.ins-row-m {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--slate-300, #cbd5e1);
+  border-radius: 6px;
+  background: #fff;
+  position: relative;
+}
+
+.ins-row.on { background: var(--blue-50, #eff6ff); color: var(--blue-700); font-weight: 600; }
+
+.ins-row.on .ins-row-m { background: var(--blue-600); border-color: var(--blue-600); }
+
+.ins-row.on .ins-row-m::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.ins-row:active { background: var(--blue-50, #eff6ff); }
+
+
 .ins-num-wrap { position: relative; display: flex; }
 
 .ins-num {
@@ -799,7 +862,7 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 
   /* Мышь целится точнее пальца — на широком экране кнопки могут быть ниже
      (так же сделано в рабочей системе: min-h-11 на телефоне, md:min-h-9). */
-  .ins-chip, .ins-btn, .ins-select, .ins-num { min-height: 38px; }
+  .ins-chip, .ins-btn, .ins-select, .ins-num, .ins-row { min-height: 38px; }
   .ins-seg-b { min-height: 38px; }
 }
 

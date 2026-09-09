@@ -69,7 +69,7 @@ SECTIONS = [
 # Что должно быть нажимаемо пальцем. Селекторы, а не «все кнопки»: у скрытых и
 # служебных элементов размер не важен, а ложный провал хуже отсутствия проверки.
 TAP_SELECTORS = ['.ins-tab', '.ins-back', '.ins-btn', '.ins-seg-b', '.ins-oi-h',
-                 '.pick-btn', '.ins-chip', '.ins-acc-h']
+                 '.pick-btn', '.ins-chip', '.ins-row', '.ins-acc-h']
 
 MIN_TAP = 44
 
@@ -253,6 +253,38 @@ def run(t):
     pg.locator('.ins-chip.on').first.click()
     t.wait_until('() => document.querySelectorAll(".ins-chip.on").length === 0')
     t.ck(pg.locator('.ins-chip.on').count() == 0, 'повторное нажатие не сняло выбор')
+
+    # Многозначные перечни длиннее пяти значений — СТРОКАМИ с отметкой, а не
+    # плитками (замечание пользователя 08.09.2026: «может от плиток перейти к
+    # таблицам… при нажатии на строку появляется отметка»). Замер на 390 px
+    # показывал, ради чего: одиннадцать плиток «систем отопления» вставали в
+    # десять рядов разной ширины.
+    rows_box = pg.locator('[data-fs-field="heatSystems"] .ins-rows')
+    t.ck(rows_box.count() == 1,
+         'многозначный перечень из одиннадцати значений не стал строками')
+
+    rows = pg.locator('[data-fs-field="heatSystems"] .ins-row')
+    t.ck(rows.count() == 11, 'в строках выбора %d значений вместо одиннадцати' % rows.count())
+    t.ck(pg.locator('[data-fs-field="heatSystems"] .ins-row-m').count() == 11,
+         'у строк выбора нет отметки')
+
+    rows.nth(2).click()
+    t.wait_until('() => document.querySelectorAll(".ins-row.on").length === 1')
+    t.ck(pg.locator('.ins-row.on').count() == 1, 'нажатие на строку не отметилось')
+
+    # Несколько ответов сразу — ради этого поле и многозначное.
+    rows.nth(5).click()
+    t.wait_until('() => document.querySelectorAll(".ins-row.on").length === 2')
+    t.ck(pg.locator('.ins-row.on').count() == 2, 'вторая строка не отметилась')
+
+    rows.nth(2).click()
+    t.wait_until('() => document.querySelectorAll(".ins-row.on").length === 1')
+    t.ck(pg.locator('.ins-row.on').count() == 1, 'повторное нажатие не сняло отметку строки')
+
+    # Короткие перечни («Да / Нет / Не удалось установить») остаются плитками:
+    # там они в две строки и выбираются в одно касание.
+    t.ck(pg.locator('[data-fs-field="electric"] .ins-chip').count() >= 3,
+         'короткий перечень наличия сетей перестал быть плитками')
 
     # Замеры: единицы, значение по документам и СИГНАЛ расхождения по ходу
     # ввода — сигнал, который появляется только после сохранения, на осмотре

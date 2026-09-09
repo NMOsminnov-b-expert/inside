@@ -2,12 +2,12 @@ import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
-import { structMS } from '../../parts/struct/ms.js';
+import { devNote } from '../../../../kernel/devNote.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import {
-  STATUS_BUILD, STRUCT,
+  STATUS_BUILD, WEAR_LEVEL,
   APARTMENT_SERIES, APARTMENT_LOCATIONS, APARTMENT_RIGHTS,
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -15,14 +15,6 @@ import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
-
-// Материал теперь мультивыбор: в одном элементе их может быть несколько
-// (кирпич и монолит, металл и профлист), одним значением это не описать.
-// Поле работает так же, как «Отопление» — см. parts/struct/ms.js.
-// Аргумент val больше не нужен: значения читаются из oi.struct.
-function structField(oi, key, label, opts, val, req) {
-  return structMS(oi, key, label, opts, req);
-}
 
 function letterControlHTML(ctx, oi) {
   if (ctx.ui.letterEdit) {
@@ -198,25 +190,62 @@ function areasCard(ctx, oi, idx) {
 </div>`;
 }
 
-function structCard(ctx, oi, idx) {
-  const struct = oi.struct || {};
+// В каком виде нужен износ — вопрос ещё открытый: сейчас это три ступени на
+// элемент, а по методике он может считаться процентом или годами с последнего
+// ремонта, и тогда состав раздела другой. Тот же вопрос стоит в карточке
+// литеры — держим его на виду в обеих.
+const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
+  + 'ступени на элемент. Соседние ступени два оценщика поставят по-разному, а '
+  + 'по методике износ может считаться процентом или годами с последнего '
+  + 'ремонта — тогда и состав раздела изменится.';
 
+// Элементы, которым квартире ставят износ. Состав и порядок — как в таблице
+// «Конструктив и износ» литеры, чтобы одно и то же читалось одинаково.
+const WEAR_ROWS = [
+  { key: 'foundation', label: 'Фундамент' },
+  { key: 'plinth', label: 'Цоколь' },
+  { key: 'wallsExt', label: 'Наружные стены' },
+  { key: 'ceilings', label: 'Перекрытия' },
+  { key: 'roof', label: 'Кровля' },
+  { key: 'floors', label: 'Полы' },
+  { key: 'windows', label: 'Окна' },
+  { key: 'doors', label: 'Двери' },
+  { key: 'heating', label: 'Отопление' },
+  { key: 'finish', label: 'Отделка' },
+  { key: 'insulation', label: 'Утепление' },
+];
+
+// Износ элемента. Подпись не нужна: название элемента стоит в первом столбце
+// строки — так же, как в карточке литеры.
+function wearField(oi, key) {
+  const val = (oi.wear || {})[key] || opt('apartment', 'wear', WEAR_LEVEL)[0];
+
+  return `<div class="field f-bare">
+<select class="select" data-wear="${key}">${opt('apartment', 'wear', WEAR_LEVEL)
+    .map((o) => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+</div>`;
+}
+
+// Материалов у квартиры НЕТ (решение пользователя 08.09.2026: «в квартире
+// материалы конструкции не нужны по итогу, нужен только износ»). Из чего
+// сделаны фундамент и стены — свойство строения целиком, его описывает литера;
+// квартире от конструктива важно, насколько элементы изношены.
+function structCard(ctx, oi, idx) {
   return `<div class="card t-teal" id="q-struct">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Износ конструктивных элементов</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
-${structField(oi, 'foundation', 'Фундамент', opt('apartment', 'struct.foundation', STRUCT.foundation), struct.foundation)}
-${structField(oi, 'plinth', 'Цоколь', opt('apartment', 'struct.basement', STRUCT.basement), struct.plinth)}
-${structField(oi, 'wallsExt', 'Наружные стены', opt('apartment', 'struct.wallsExt', STRUCT.wallsExt), struct.wallsExt)}
-${structField(oi, 'ceilings', 'Перекрытия', opt('apartment', 'struct.ceilings', STRUCT.ceilings), struct.ceilings)}
-${structField(oi, 'roof', 'Кровля', opt('apartment', 'struct.roof', STRUCT.roof), struct.roof)}
+<div class="struct-tbl-wrap">
+<table class="tbl struct-tbl wear-tbl">
+<thead><tr><th class="st-el">Элемент</th><th class="st-wear">Износ${devNote(WEAR_NOTE)}</th></tr></thead>
+<tbody>
+${WEAR_ROWS.map((r) => `<tr>
+<td class="st-el">${r.label}</td>
+<td class="st-wear">${wearField(oi, r.key)}</td>
+</tr>`).join('')}
+</tbody>
+</table>
 </div>
-<div class="grid g-4" style="margin-top:8px">
-${structField(oi, 'floors', 'Полы', opt('apartment', 'struct.floors', STRUCT.floors), struct.floors)}
-${structField(oi, 'windows', 'Окна', opt('apartment', 'struct.windows', STRUCT.windows), struct.windows)}
-${structField(oi, 'doors', 'Двери', opt('apartment', 'struct.doors', STRUCT.doors), struct.doors)}
-${heatingMS(ctx, oi)}
-</div>
+<div class="grid g-4" style="margin-top:8px">${heatingMS(ctx, oi)}</div>
 ${specialsBlockHTML(oi)}
 </div></div>
 </div>`;

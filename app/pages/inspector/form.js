@@ -29,7 +29,16 @@ const YESNO = ['Да', 'Нет'];
 
 // Ступени износа словами, а не проценты: на осмотре процент не измерить, его
 // считают позже по элементам (III этап ТЗ).
-const WEAR_STEPS = ['Незначительный', 'Умеренный', 'Значительный'];
+//
+// Шкала — ОБЩАЯ с карточкой (решение пользователя 08.09.2026): один и тот же
+// элемент не может оцениваться на осмотре одной шкалой, а в карточке другой.
+// Читается из справочника «Износ»; здесь только запасной перечень.
+const WEAR_STEPS = ['Умеренный', 'Значительный'];
+
+// Пустое значение справочника («Не выбрано») в чипах не нужно: незаполненное
+// поле и так видно, а снимается выбор повторным нажатием.
+const wearOpts = (typeId) => dict(typeId, 'wear', WEAR_STEPS)
+  .filter((v) => !/^не /i.test(v));
 
 // Фундамент — перечень рабочей системы (20 значений)
 const FOUNDATION = [
@@ -183,9 +192,9 @@ export const sections = (typeId) => [
     key: 'wear',
     title: 'Износ',
     fields: [
-      { key: 'wearRoof', label: 'Кровля', opts: WEAR_STEPS },
-      { key: 'wearFinish', label: 'Отделка', opts: WEAR_STEPS },
-      { key: 'wearInsul', label: 'Утепление', opts: WEAR_STEPS },
+      { key: 'wearRoof', label: 'Кровля', opts: wearOpts(typeId) },
+      { key: 'wearFinish', label: 'Отделка', opts: wearOpts(typeId) },
+      { key: 'wearInsul', label: 'Утепление', opts: wearOpts(typeId) },
     ],
   },
   {

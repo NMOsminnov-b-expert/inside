@@ -62,6 +62,9 @@ const DEF_UI = {
   req: 'fs-req',
   opts: 'fs-opts',
   opt: 'fs-opt',
+  rows: 'fs-rows',
+  row: 'fs-row',
+  mark: 'fs-mark',
   on: 'on',
   input: 'fs-input',
   unit: 'fs-unit',
@@ -73,17 +76,26 @@ const DEF_UI = {
   hint: 'fs-hint',
 };
 
-// Чипами или списком — решает длина перечня, а не вкус.
+// Чипами, строками или списком — решает длина перечня и число ответов, а не
+// вкус.
 //
-// До восьми значений чипы быстрее: все варианты видны, выбор в одно касание.
-// Дальше они превращаются в простыню — у «наружных стен» в рабочей системе 44
-// значения, это четыре экрана прокрутки на ОДНО поле. Для длинных перечней
-// нативный список лучше любого своего: на телефоне это системный выбор с
-// крупными строками и набором с клавиатуры, на настолке — обычный select.
-const CHIPS_MAX = 8;
+// До пяти значений чипы быстрее: все варианты видны, выбор в одно касание, и на
+// телефоне они укладываются в две строки. Дальше они превращаются в простыню —
+// замер на 390 px: одиннадцать чипов «систем отопления» встают в ДЕСЯТЬ строк
+// разной ширины, и читать их тяжелее, чем обычный список (замечание
+// пользователя 08.09.2026 про «непотребство»).
+//
+// Что дальше зависит от того, сколько ответов у поля:
+//
+//   * один ответ  → список с поиском. У «наружных стен» 44 значения — это
+//     четыре экрана прокрутки, если рисовать их разом;
+//   * несколько   → СТРОКИ с отметкой: видно всё сразу, отмеченное заметно, и
+//     строка во всю ширину — крупная цель для пальца. Список тут хуже: он
+//     прячет уже отмеченное за свёрнутой подписью.
+const CHIPS_MAX = 5;
 
 const controlOf = (field) => field.control
-  || (field.multi ? 'chips' : (field.opts.length > CHIPS_MAX ? 'select' : 'chips'));
+  || (field.opts.length <= CHIPS_MAX ? 'chips' : (field.multi ? 'rows' : 'select'));
 
 function optsHTML(field, value, ui) {
   const list = Array.isArray(value) ? value : (value ? [value] : []);
@@ -96,11 +108,19 @@ function optsHTML(field, value, ui) {
     </select>`;
   }
 
-  return `<div class="${ui.opts}" ${field.multi ? 'data-fs-multi' : ''}>
+  // Строки и чипы — одна и та же кнопка выбора (data-fs-opt), отличаются
+  // только классами и оформлением: обработчикам экрана про это знать не нужно.
+  const rows = controlOf(field) === 'rows';
+  const wrap = rows ? (ui.rows || ui.opts) : ui.opts;
+  const item = rows ? (ui.row || ui.opt) : ui.opt;
+
+  return `<div class="${wrap}" ${field.multi ? 'data-fs-multi' : ''}
+    ${rows ? 'role="group"' : ''}>
     ${field.opts.map((o) => `<button type="button"
-      class="${ui.opt} ${list.includes(o) ? ui.on : ''}"
+      class="${item} ${list.includes(o) ? ui.on : ''}"
       data-fs-opt="${esc(field.key)}|${esc(o)}"
-      aria-pressed="${list.includes(o) ? 'true' : 'false'}">${esc(o)}</button>`).join('')}
+      aria-pressed="${list.includes(o) ? 'true' : 'false'}">${rows
+    ? `<span class="${ui.mark || 'fs-mark'}" aria-hidden="true"></span>` : ''}${esc(o)}</button>`).join('')}
   </div>`;
 }
 
@@ -129,7 +149,8 @@ export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
   // Поле с длинным перечнем чипов занимает всю ширину сетки: в узкой колонке
   // одиннадцать значений встают столбиком — та же простыня, от которой
   // избавлялись.
-  const wide = field.opts && field.opts.length > 5 && controlOf(field) === 'chips';
+  const wide = field.opts && field.opts.length > CHIPS_MAX
+    && ['chips', 'rows'].includes(controlOf(field));
 
   return `<div class="${u.field}${wide ? ' ' + (u.wide || 'fs-wide') : ''}" data-fs-field="${esc(field.key)}">
     <span class="${u.label}">${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>

@@ -307,19 +307,13 @@ const STRUCT_ROWS = [
   { key: 'windows', label: 'Окна' },
   { key: 'doors', label: 'Двери' },
   { key: 'heating', label: 'Отопление' },
+  // Отделка и утепление — не конструктив, а покрытия: материала у них нет,
+  // столбец материала остаётся прочерком. Износ им ставят по ТЗ, и значения
+  // для них уже пишутся в данные записи (card/ocCard.ctrl.js).
+  { key: 'finish', label: 'Отделка', wearOnly: true },
+  { key: 'insulation', label: 'Утепление', wearOnly: true },
 ];
 
-const WEAR_ITEMS = [
-  { key: 'finish', label: 'Отделка' },
-  { key: 'insulation', label: 'Утепление' },
-  { key: 'roof', label: 'Кровля' },
-  { key: 'plinth', label: 'Цоколь' },
-  { key: 'floors', label: 'Полы' },
-  { key: 'ceilings', label: 'Перекрытия' },
-  { key: 'windows', label: 'Окна' },
-  { key: 'doors', label: 'Двери' },
-  { key: 'heating', label: 'Отопление' },
-];
 
 // В каком виде нужен износ — вопрос ещё открытый: сейчас это три ступени на
 // элемент, а по методике он может считаться процентом или годами с ремонта, и
@@ -359,9 +353,11 @@ function structCard(ctx, oi, idx) {
 <tbody>
 ${STRUCT_ROWS.map((r) => `<tr>
 <td class="st-el">${r.label}${r.key === 'wallsExt' && rq.wallsRequired ? '<span class="req">*</span>' : ''}</td>
-<td>${r.key === 'heating'
-    ? heatingMS(ctx, oi, true)
-    : structField(oi, r.key, r.label, opt('building', 'struct.' + (r.optsKey || r.key), STRUCT[r.optsKey || r.key]), null, r.key === 'wallsExt' && rq.wallsRequired, true)}</td>
+<td>${r.wearOnly
+    ? '<span class="muted">—</span>'
+    : (r.key === 'heating'
+      ? heatingMS(ctx, oi, true)
+      : structField(oi, r.key, r.label, opt('building', 'struct.' + (r.optsKey || r.key), STRUCT[r.optsKey || r.key]), null, r.key === 'wallsExt' && rq.wallsRequired, true))}</td>
 <td class="st-wear">${wearField(oi, r.key, r.label, true)}</td>
 </tr>`).join('')}
 </tbody>

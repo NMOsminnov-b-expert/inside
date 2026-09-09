@@ -6,7 +6,6 @@ import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
-import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow } from './floors.model.js';
@@ -253,8 +252,13 @@ export function bind(ctx, oi) {
   const rightsOther = s.$('[data-apt-rights-other]');
   if (rightsOther) rightsOther.onchange = () => { apt().rightsOther = rightsOther.value; };
 
-  // --- Конструктивный состав ----------------------------------------------
-  bindStruct(ctx, oi);
+  // --- Износ конструктивных элементов -------------------------------------
+  // Материалов у квартиры нет: из чего сделаны фундамент и стены — свойство
+  // строения целиком, его описывает литера (решение пользователя 08.09.2026).
+  s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
+    oi.wear = oi.wear || {};
+    oi.wear[sel.dataset.wear] = sel.value;
+  });
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {

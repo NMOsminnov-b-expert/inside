@@ -860,6 +860,10 @@ body[data-module] .struct-tbl th.st-wear,body[data-module] .struct-tbl td.st-wea
 body[data-module] .field.f-bare{gap:0}
 body[data-module] .struct-tbl .field{margin:0}
 body[data-module] .struct-tbl .ms-drop{min-width:260px}
+/* Таблица износа в карточке квартиры: столбца материалов у неё нет, поэтому
+   ширина в 620px от таблицы литеры давала лишнюю горизонтальную прокрутку. */
+body[data-module] table.struct-tbl.wear-tbl{min-width:0}
+body[data-module] .wear-tbl th.st-wear,body[data-module] .wear-tbl td.st-wear{width:auto}
 
 /* Адрес в шапке объекта оценки. Он составной — город, район, микрорайон и
    свёрнутые адреса объектов имущества, — и в одну строку помещается редко.

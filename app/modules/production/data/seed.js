@@ -64,7 +64,7 @@ export function createSeed() {
             doors: 'Металлические',
           },
           structOther: {},
-          heating: ['Автономное'],
+          heating: ['Прочее (указать в особенностях)'],
           heatingOther: '',
           comment: 'Кран-балка в составе цеха',
           catClass: 'Производственно-складское',

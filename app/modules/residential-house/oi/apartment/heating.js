@@ -3,6 +3,12 @@ import { esc } from '../../../../kernel/dom.js';
 import { HEATING } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 
+// Ручной ввод открывает любое значение «Прочее», а не одна точная формулировка:
+// справочник правится пользователем, и «Прочее (ручной ввод)» уже стало «Прочее
+// (указать в особенностях)». Тот же признак, что у материалов
+// (parts/struct/ms.js).
+const isOther = (list) => list.some((v) => String(v).includes('Прочее'));
+
 // Тело списка — общее для всех мультивыборов проекта (kernel/multiSelect.js).
 function dropBodyHTML(heating) {
   return msDropBodyHTML({ options: opt('apartment', 'heating', HEATING), selected: heating, optAttr: 'heat-opt' });
@@ -18,7 +24,7 @@ function summaryHTML(heating) {
 
 export function heatingMS(ctx, oi) {
   const heating = Array.isArray(oi.heating) ? oi.heating : [];
-  const showOther = heating.includes('Прочее (ручной ввод)');
+  const showOther = isOther(heating);
 
   return `<div class="field" data-heat-field><label>Отопление (мультивыбор)</label>
     <div class="ms">
@@ -55,7 +61,7 @@ export function updateHeatingUI(ctx, oi) {
 
   const wrap = box.querySelector('[data-heat-other-wrap]');
   if (wrap) {
-    const showOther = heating.includes('Прочее (ручной ввод)');
+    const showOther = isOther(heating);
     wrap.innerHTML = showOther
       ? `<input class="input" data-heat-other placeholder="Укажите отопление вручную" value="${esc(oi.heatingOther || '')}" style="margin-top:5px">`
       : '';
