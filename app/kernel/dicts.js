@@ -31,7 +31,6 @@
 import { sortedTypes } from './registry.js';
 import { session, seesEverything } from './session.js';
 import { createStore } from './store.js';
-import { registerPersisted } from './persist.js';
 
 export const CARD_LABEL = {
   oc: 'Объект оценки',
@@ -52,19 +51,11 @@ const CARD_ORDER = ['oc', 'building', 'apartment', 'land', 'movable'];
 // на клиенте с инвалидацией по времени правки.
 export const dicts = createStore({ list: null });
 
-// Правки справочников переживают перезагрузку: добавленное значение и
-// переименование — то, ради чего раздел и сделан (kernel/persist.js).
-//
-// Сохраняется собранный список целиком, а не «отличия от исходного»: список
-// собирается из модулей при первом обращении, и держать отдельно правки
-// значило бы сводить их с новым составом при каждом запуске.
-registerPersisted('dicts', {
-  snapshot: () => dicts.state.list,
-  restore: (saved) => {
-    if (!Array.isArray(saved) || !saved.length) return;
-    dicts.set({ list: saved });
-  },
-});
+// Сохранение этого раздела ОТКЛЮЧЕНО (решение пользователя 09.09.2026:
+// «сохраняем только ОЦ, ОИ, в остальные разделы не лезь»). Механика общая и
+// готова — kernel/persist.js; чтобы включить, достаточно вернуть здесь вызов
+// registerPersisted('dicts', { snapshot, restore }) с тем же снимком, что был:
+// dicts.state.list целиком, обратно через dicts.set({ list }).
 
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${String(++seq).padStart(3, '0')}`;

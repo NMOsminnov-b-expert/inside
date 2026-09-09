@@ -67,6 +67,32 @@ export const ui = {
   pageSel: [],   // лента миниатюр просмотрщика свёрнута
 };
 
+
+// Положение и состояние элементов карточки — просмотрщик с его размерами,
+// ширины и порядок столбцов, раскрытые блоки (требование пользователя
+// 09.09.2026: «внутри ОЦ ОИ так же запоминай положение и статус элементов»).
+//
+// Сохраняем не всё подряд: сиюминутное состояние (открытое окно фото, набранный
+// в поиске текст, раскрытые списки фильтров) при возврате только мешало бы —
+// человек ждёт свою раскладку, а не чужое открытое окно.
+const UI_KEEP = [
+  'expanded', 'accOpen', 'doneOpen',
+  'splitVW', 'cmpSplit', 'cmpHidden',
+  'viewer', 'viewerDoc', 'viewerSidebar',
+  'oiCols', 'oiColWidths',
+  'railCollapsed',
+];
+
+registerPersisted('ui.land-plot', {
+  snapshot: () => Object.fromEntries(UI_KEEP.map((k) => [k, ui[k]])),
+  restore: (saved) => {
+    if (!saved || typeof saved !== 'object') return;
+    UI_KEEP.forEach((k) => {
+      if (saved[k] !== undefined) ui[k] = saved[k];
+    });
+  },
+});
+
 export function resetViewer() {
   ui.viewer = null;
   ui.viewerDoc = null;

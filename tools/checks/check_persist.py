@@ -2,7 +2,9 @@
 """Введённое переживает перезагрузку страницы — по всему проекту.
 
 Требования пользователя 09.09.2026: «те данные, что вбились, не должны
-пропадать после перезагрузки», «сохранение сделай глобальным по всему проекту».
+пропадать после перезагрузки», «сохраняем только ОЦ, ОИ, в остальные разделы не
+лезь». Учреждения, справочники, архив и реестр документов НЕ сохраняются —
+механика для них готова и помечена в самих файлах, но выключена.
 Механика — kernel/persist.js: один снимок JSON под ключом inside:data:v1,
 части объявляют сами владельцы данных.
 
@@ -24,8 +26,6 @@ NAME = 'сохранение данных'
 
 TOUCHES = (
     'app/kernel/persist.js', 'app/modules/*/data/store.js',
-    'app/kernel/institutions.js', 'app/kernel/dicts.js',
-    'app/kernel/archiveStore.js', 'app/kernel/documentsRegistry.js',
 )
 
 KEY = 'inside:data:v1'
@@ -35,7 +35,7 @@ APART = '#/oc/apartment/oc-ap-1'
 
 # Части снимка, без которых сохранение неполное. Имя не PARTS: так в run.py
 # называется разбиение сценария на куски, и каркас начал бы звать run(t, part).
-SNAPSHOT = ['records.civil', 'records.apartment', 'institutions', 'dicts']
+SNAPSHOT = ['records.civil', 'records.apartment', 'ui.civil']
 
 
 def _save_now(t):
@@ -136,46 +136,72 @@ def run(t):
     t.ck(_purpose(t, 'civil', 'oc-test-persist') is None,
          'удалённая запись вернулась после перезагрузки')
 
-    # --- 5. учреждения ------------------------------------------------------
+    # --- 4b. объекты имущества записи ---------------------------------------
+    #
+    # ОИ живут внутри записи, отдельной части снимка у них нет: если сохранять
+    # запись «плоско», литеры и участки потеряются молча.
+    t.open(CIVIL, wait='[data-open-oi]')
+    pg.locator('tr[data-open-oi]').first.click()
+    t.wait_for('[data-oi-name], [data-oi-year]')
     pg.evaluate("""async () => {
-      const inst = await import('./app/kernel/institutions.js');
-      const root = inst.allNodes().find((n) => !n.parentId);
-      inst.createNode(root.id, { name: 'ПРОВЕРКА СОХРАНЕНИЯ' });
+      const store = await import('./app/modules/civil/data/store.js');
+      const rec = store.getRecord('oc-cv-1');
+      const oi = rec.oi.find((o) => o.card === 'building');
+      oi.year = '1999';
+      oi.name = 'ЛИТЕРА-СОХРАНЕНА';
     }""")
     _save_now(t)
 
     pg.reload()
     t.wait_for('[data-oc-head]')
-    has_inst = pg.evaluate("""async () => {
-      const inst = await import('./app/kernel/institutions.js');
-      return inst.allNodes().some((n) => n.name === 'ПРОВЕРКА СОХРАНЕНИЯ');
+    oi_kept = pg.evaluate("""async () => {
+      const store = await import('./app/modules/civil/data/store.js');
+      const rec = store.getRecord('oc-cv-1');
+      const oi = (rec.oi || []).find((o) => o.card === 'building');
+      return oi ? { name: oi.name, year: oi.year } : null;
     }""")
-    t.ck(has_inst, 'заведённое учреждение не пережило перезагрузку')
+    t.ck(oi_kept and oi_kept['name'] == 'ЛИТЕРА-СОХРАНЕНА' and oi_kept['year'] == '1999',
+         'правка объекта имущества не пережила перезагрузку: %s' % oi_kept)
 
-    # --- 6. справочники -----------------------------------------------------
-    # addItem принимает сам справочник, а не его id, и правит только
-    # непользовательские перечни: системные трогать нельзя.
-    added = pg.evaluate("""async () => {
-      const d = await import('./app/kernel/dicts.js');
-      const dict = d.allDicts().find((x) => !x.system);
-      if (!dict) return false;
-      return !!d.addItem(dict, 'ПРОВЕРКА-ЗНАЧЕНИЕ');
+    # --- 4c. положение и состояние элементов карточки -----------------------
+    #
+    # Требование пользователя 09.09.2026: «внутри ОЦ ОИ так же запоминай
+    # положение и статус элементов (просмотрщик, его размеры, положения
+    # элементов в таблицах)». Раскладку человек настраивает под себя один раз, и
+    # возвращать её после каждой перезагрузки — та же потеря работы.
+    t.open(CIVIL, wait='[data-oc-head]')
+    pg.evaluate("""async () => {
+      const store = await import('./app/modules/civil/data/store.js');
+      store.ui.oiColWidths = { name: 321 };
+      store.ui.oiCols = ['letter', 'eni', 'name'];
+      store.ui.viewer = { mode: 'doc' };
+      store.ui.splitVW = { doc: 44 };
+      store.ui.railCollapsed = true;
     }""")
-    if t.ck(added, 'не удалось добавить значение в справочник'):
-        _save_now(t)
-        pg.reload()
-        t.wait_for('[data-oc-head]')
-        kept = pg.evaluate("""async () => {
-          const d = await import('./app/kernel/dicts.js');
-          return d.allDicts().some((x) => (x.items || [])
-            .some((i) => i.value === 'ПРОВЕРКА-ЗНАЧЕНИЕ'));
-        }""")
-        t.ck(kept, 'добавленное значение справочника не пережило перезагрузку')
+    _save_now(t)
 
-    # --- 7. испорченный снимок не роняет приложение -------------------------
+    pg.reload()
+    t.wait_for('[data-oc-head]')
+    kept_ui = pg.evaluate("""async () => {
+      const store = await import('./app/modules/civil/data/store.js');
+      const u = store.ui;
+      return { ширина: (u.oiColWidths || {}).name, столбцы: (u.oiCols || []).length,
+               просмотрщик: u.viewer && u.viewer.mode, размер: (u.splitVW || {}).doc,
+               рейка: u.railCollapsed };
+    }""")
+    t.ck(kept_ui['ширина'] == 321, 'ширина столбца не пережила перезагрузку: %s' % kept_ui)
+    t.ck(kept_ui['столбцы'] == 3, 'порядок столбцов не пережил перезагрузку: %s' % kept_ui)
+    t.ck(kept_ui['просмотрщик'] == 'doc', 'просмотрщик не пережил перезагрузку: %s' % kept_ui)
+    t.ck(kept_ui['размер'] == 44, 'размер просмотрщика не пережил перезагрузку: %s' % kept_ui)
+    t.ck(kept_ui['рейка'] is True, 'свёрнутая рейка не пережила перезагрузку: %s' % kept_ui)
+
+    # --- 5. испорченный снимок не роняет приложение -------------------------
     #
     # Снимок правят руками и он переживает смену формата — приложение обязано
     # подняться на засеве, а не встать с ошибкой.
+    # Возвращаемся на карточку ОЦ явно: предыдущий блок оставил экран на
+    # карточке литеры, а перезагрузка сохраняет маршрут.
+    t.open(CIVIL, wait='[data-oc-head]')
     pg.evaluate("() => localStorage.setItem('%s', '{ это не json')" % KEY)
     pg.reload()
     t.wait_for('[data-oc-head]')
@@ -185,7 +211,7 @@ def run(t):
     # Консольное предупреждение о нечитаемом снимке — ожидаемое, не провал:
     # каркас считает ошибками только console.error, а тут console.warn.
 
-    # --- 8. ссылки на файлы в снимок не попадают ----------------------------
+    # --- 6. ссылки на файлы в снимок не попадают ----------------------------
     blob_saved = pg.evaluate("""async () => {
       const store = await import('./app/modules/civil/data/store.js');
       const m = await import('./app/kernel/persist.js');

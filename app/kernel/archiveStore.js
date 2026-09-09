@@ -1,4 +1,3 @@
-import { registerPersisted } from './persist.js';
 // Хранилище архива — единый список на всю систему.
 //
 // Почему отдельно от записей ОЦ (ТЗ docs/tz/20-arhiv.md, §1.2): раньше архив
@@ -25,26 +24,11 @@ const entries = [];
 let seq = 0;
 let batchSeq = 0;
 
-// Архив переживает перезагрузку: изъятая запись живёт только здесь, и потерять
-// её — значит потерять сам объект, а не его копию (kernel/persist.js).
-//
-// Счётчики идентификаторов восстанавливаются по сохранённым записям: иначе
-// после перезагрузки первая же новая запись архива получила бы номер, который
-// уже занят.
-registerPersisted('archive', {
-  snapshot: () => entries,
-  restore: (saved) => {
-    if (!Array.isArray(saved) || !saved.length) return;
-    entries.splice(0, entries.length, ...saved);
-
-    const num = (id, prefix) => {
-      const m = new RegExp('^' + prefix + '-(\\d+)$').exec(id || '');
-      return m ? +m[1] : 0;
-    };
-    seq = entries.reduce((a, e) => Math.max(a, num(e.id, 'arc')), 0);
-    batchSeq = entries.reduce((a, e) => Math.max(a, num(e.batchId, 'arcb')), 0);
-  },
-});
+// Сохранение этого раздела ОТКЛЮЧЕНО (решение пользователя 09.09.2026:
+// «сохраняем только ОЦ, ОИ, в остальные разделы не лезь»). Механика общая и
+// готова — kernel/persist.js; чтобы включить, достаточно вернуть здесь вызов
+// registerPersisted('archive', { snapshot, restore }) с тем же снимком, что был:
+// массив entries плюс пересчёт счётчиков seq и batchSeq по сохранённым записям.
 
 export const nextArchiveId = () => 'arc-' + (++seq);
 export const nextBatchId = () => 'arcb-' + (++batchSeq);

@@ -70,6 +70,35 @@ export function bindOcForm(ctx) {
   // перепутанные широта и долгота иначе всплывут только на карте.
   bindCheckedField(s.$('#fGps'), gpsError, (v) => { rec.gps = v; });
 
+
+  // Поля пишутся в запись СРАЗУ, на change, а не только по кнопке «Сохранить».
+  // Иначе часть введённого не переживает перезагрузку: сохранение снимает
+  // снимок с записи, а в записи этих значений ещё нет (замечание пользователя
+  // 09.09.2026 — «при редактировании ОЦ ничего не сохранилось»).
+  //
+  // Кнопка «Сохранить» остаётся: она проверяет ЕНИ, пересобирает адрес и
+  // возвращает к карточке — то есть завершает правку, а не начинает её.
+  const LIVE = {
+    '#fStatus': (v) => { rec.status = v; },
+    '#fRegion': (v) => { rec.region = v; },
+    '#fDistrict': (v) => { rec.district = v; },
+    '#fCity': (v) => { rec.city = v; },
+    '#fMicro': (v) => { rec.micro = v; },
+    '#fStreet': (v) => { rec.street = v; },
+    '#fHouse': (v) => { rec.house = v; },
+    '#fFlat': (v) => { rec.flat = v; },
+  };
+
+  Object.entries(LIVE).forEach(([sel, write]) => {
+    const el = s.$(sel);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      write(el.value.trim());
+      syncOcAddress(rec);
+      ctx.updatePlate();
+    });
+  });
+
   const save = s.$('#btnSaveOc');
   if (save) save.onclick = () => {
     const bad = firstBadEni(s);
