@@ -157,8 +157,12 @@ function locationSection(rec) {
              остаётся одним значением, а не вторым источником правды. -->
         <div class="field sp-all">
           <label>Адрес записи</label>
-          <input class="input" id="fAddress" data-addr-sum value="${esc(ocFullAddress(rec))}"
-            placeholder="Вставьте адрес целиком — разложим по полям">
+          <!-- Поле переносит строку, а не режет её: адрес с областью, районом,
+               городом, улицей и домом в одну строку на узком экране не влезает
+               ни при какой ширине колонки, и конец пропадал (проверка раскладки
+               на 1024px). -->
+          <textarea class="input addr-sum" id="fAddress" data-addr-sum rows="2"
+            placeholder="Вставьте адрес целиком — разложим по полям">${esc(ocFullAddress(rec))}</textarea>
           <span class="field-hint">собирается из полей выше; вставленный адрес разбирается по частям</span>
         </div>
       </div>
