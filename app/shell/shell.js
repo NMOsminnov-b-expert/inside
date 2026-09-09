@@ -2,6 +2,7 @@ import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
 import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, INSP_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions } from '../kernel/session.js';
+import { registerPersisted } from '../kernel/persist.js';
 
 // Каркас окна. Ничего не знает про ОЦ/ОИ: рисует только то, что ему отдали.
 const state = { collapsed: false, drawer: null, drawerOpen: false };
@@ -50,6 +51,17 @@ function bindSidebar() {
     toggle.textContent = state.collapsed ? '▶' : '◀';
     toggle.title = state.collapsed ? 'Развернуть меню' : 'Свернуть меню';
   };
+
+  // Свёрнутое меню переживает перезагрузку: его сворачивают, чтобы освободить
+  // место под таблицу, и разворачивать заново после каждого обновления
+  // страницы — лишняя работа (замечание пользователя 09.09.2026).
+  // Регистрируем ДО apply(): восстановление идёт сразу при регистрации.
+  registerPersisted('ui.shell', {
+    snapshot: () => ({ collapsed: state.collapsed }),
+    restore: (saved) => {
+      if (saved && typeof saved.collapsed === 'boolean') state.collapsed = saved.collapsed;
+    },
+  });
 
   apply();
   toggle.onclick = () => { state.collapsed = !state.collapsed; apply(); };

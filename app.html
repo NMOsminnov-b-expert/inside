@@ -68,6 +68,31 @@
       <button class="sidebar-toggle" data-sidebar-toggle title="Свернуть меню">◀</button>
     </aside>
 
+    <!-- Свёрнутое меню применяется ДО первой отрисовки.
+         Разметка выше описывает меню раскрытым, а класс навешивает shell.js —
+         но он модуль, а модули исполняются после разбора страницы: меню
+         успевало отрисоваться в полную ширину и на глазах схлопывалось
+         (замечание пользователя 09.09.2026).
+
+         Поэтому здесь — единственный синхронный скрипт макета. Он читает тот
+         же снимок, что kernel/persist.js, и ставит тот же класс, которым
+         дальше управляет shell.js. Добавлять сюда что-либо ещё не нужно.
+
+         ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: на сервере личные настройки приходят вместе со
+         страницей, и класс проставляет шаблон — этот скрипт не нужен. -->
+    <script>
+      try {
+        var snap = JSON.parse(localStorage.getItem('inside:data:v1') || 'null');
+        var shell = snap && snap.data && snap.data['ui.shell'];
+        if (shell && shell.collapsed) {
+          document.getElementById('appSidebar').classList.add('collapsed');
+          // И стрелку кнопки: иначе она успевает мигнуть в другую сторону.
+          var btn = document.querySelector('[data-sidebar-toggle]');
+          if (btn) { btn.textContent = '▶'; btn.title = 'Развернуть меню'; }
+        }
+      } catch (e) { /* нет доступа к хранилищу — меню просто раскрыто */ }
+    </script>
+
     <div class="main">
       <header class="topbar">
         <nav class="crumbs" id="crumbs"></nav>
