@@ -6,6 +6,7 @@ import { canViewAuditLog } from '../audit/access.js';
 import { auditTab } from '../audit/view.js';
 import { esc } from '../../../kernel/dom.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
+import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
@@ -64,16 +65,11 @@ function partiesOC(rec) {
         <div class="field"><span class="lbl">Головное учреждение</span><b>${esc(rec.institution)}</b></div>
         <div class="field"><span class="lbl">Подвед</span><b>${esc(rec.podved)}</b></div>
 
-        <div class="field"><span class="lbl">Собственники</span>
-          <div class="inline-row">${rec.owners.map((o, i) => `<span class="ms-tag">${esc(o)}<span data-owner-rm="${i}" title="Убрать">×</span></span>`).join('') || '<span class="muted">не указаны</span>'}
-          <button class="btn btn-ghost btn-sm" data-add-party="owner">+ Добавить</button></div>
-        </div>
-
-        <div class="field"><span class="lbl">Пользователь</span>
-          <div class="inline-row">${rec.users.map((o, i) => `<span class="ms-tag">${esc(o)}<span data-user-rm="${i}" title="Убрать">×</span></span>`).join('') || '<span class="muted">не указан</span>'}
-          <button class="btn btn-ghost btn-sm" data-add-party="user">+ Добавить</button></div>
-        </div>
       </div>
+
+      <!-- Стороны — тем же блоком, что в форме ОЦ: раньше шапка держала свою
+           копию разметки, и правки доходили только до одной из них. -->
+      ${ownersUsersHTML(rec, partyNames())}
 
       <div class="sec-h">Ответственные (без юриста)</div>
       ${responsiblesHTML(rec)}

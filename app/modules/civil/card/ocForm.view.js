@@ -7,6 +7,7 @@ import { ocTypes } from '../../../kernel/typeChange.js';
 import { STATUS_OC } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
+import { partyNames } from '../records.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 
 function mainSection(rec) {
@@ -127,7 +128,7 @@ function partiesSection(rec) {
     </div>
 
     <div class="card-pad">
-      ${ownersUsersHTML(rec)}
+      ${ownersUsersHTML(rec, partyNames())}
       <div class="sec-h">Ответственные</div>
       ${responsiblesHTML(rec)}
     </div>

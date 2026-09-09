@@ -6,6 +6,7 @@ import { esc } from '../../../kernel/dom.js';
 import { STATUS_OC } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
+import { partyNames } from '../records.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 
 // Экран создания ОЦ. Сознательно отдельный файл от ocForm.view.js, не общий
@@ -128,7 +129,7 @@ function partiesSection(rec) {
     </div>
 
     <div class="card-pad">
-      ${ownersUsersHTML(rec)}
+      ${ownersUsersHTML(rec, partyNames())}
       <div class="sec-h">Ответственные</div>
       ${responsiblesHTML(rec)}
     </div>

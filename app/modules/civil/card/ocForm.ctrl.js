@@ -10,6 +10,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { parseEni } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
+import { bindParties } from './parties.ctrl.js';
 
 export function bindOcForm(ctx) {
   const s = ctx.scope;
@@ -116,28 +117,11 @@ export function bindOcForm(ctx) {
     rec.resp[sel.dataset.resp] = sel.value;
     ctx.toast('Ответственный обновлён', 'ok');
   });
-
-  s.$$('[data-owner-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.owners.splice(+x.dataset.ownerRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-user-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.users.splice(+x.dataset.userRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-add-party]').forEach((b) => b.onclick = async () => {
-    const isOwner = b.dataset.addParty === 'owner';
-    const who = isOwner ? 'Собственник' : 'Пользователь';
-    const v = await ctx.host.prompt({ title: who, label: 'ФИО или организация', placeholder: 'Наименование' });
-    if (!v) return;
-    (isOwner ? rec.owners : rec.users).push(v);
-    ctx.render();
-    ctx.toast(who + ' добавлен', 'ok');
-  });
+  // Собственники и пользователи: строки с наименованием и долей, добавление на
+  // месте (parties.ctrl.js). До 09.09.2026 сторону заводили через диалог, доли
+  // не было вовсе, а обработчики лежали тремя копиями — здесь, в форме ОЦ и в
+  // форме создания.
+  bindParties(ctx, rec);
 
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {
     if (e.target.closest('[data-doc-del]')) return;

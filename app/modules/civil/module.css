@@ -22,3 +22,112 @@
 
    Раньше здесь всё было 10–11px и почти всё капсом: шапка узла, разделы и
    колонки читались одинаково, и глазу не за что было зацепиться. */
+
+/* ===== Собственники и пользователи ==========================================
+   Строки вместо тегов: у собственника есть доля, а тег показывает только имя
+   (требование пользователя 09.09.2026). Добавление идёт на месте, без диалога.
+
+   Оформление лежит здесь, а не в kernel/cards.css: разметку пока использует
+   только карточка гражданского здания — на ней идёт разбор. */
+
+body[data-module="civil"] .pt-list { display: flex; flex-direction: column; gap: 6px; }
+
+body[data-module="civil"] .pt-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 32px;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--slate-500, #64748b);
+}
+
+body[data-module="civil"] .pt-head-share { text-align: left; }
+
+body[data-module="civil"] .pt-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+/* У пользователя доли нет — та же сетка без среднего столбца, чтобы кнопка
+   удаления стояла ровно под кнопкой соседнего блока. */
+body[data-module="civil"] .pt-row-user { grid-template-columns: minmax(0, 1fr) 32px; }
+
+body[data-module="civil"] .pt-name { position: relative; }
+
+body[data-module="civil"] .pt-share { position: relative; display: flex; }
+body[data-module="civil"] .pt-share .input { padding-right: 26px; }
+
+body[data-module="civil"] .pt-share-u {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--slate-500, #64748b);
+  pointer-events: none;
+}
+
+body[data-module="civil"] .pt-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body[data-module="civil"] .pt-sum { font-size: 11.5px; color: var(--slate-500, #64748b); }
+body[data-module="civil"] .pt-sum.warn { color: var(--amber-700, #b45309); font-weight: 700; }
+
+body[data-module="civil"] .pt-empty { font-size: 12px; padding: 2px 0; }
+
+/* Подсказки: тот же слой и вид, что у остальных всплывающих списков проекта
+   (kernel/cards.css, .ms-drop) — человеку не должно казаться, что это другой
+   вид списка. */
+body[data-module="civil"] .pt-sug {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 400;
+  max-height: 220px;
+  overflow: auto;
+  padding: 4px;
+  background: var(--panel, #fff);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .16);
+}
+
+body[data-module="civil"] .pt-sug-o {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--slate-700);
+  cursor: pointer;
+}
+
+body[data-module="civil"] .pt-sug-o:hover,
+body[data-module="civil"] .pt-sug-o:focus-visible { background: var(--blue-50, #eff6ff); }
+
+/* Узкая колонка: доля уходит под наименование, а не сплющивает его. */
+@media (max-width: 1100px) {
+  body[data-module="civil"] .pt-head { display: none; }
+  body[data-module="civil"] .pt-row { grid-template-columns: minmax(0, 1fr) 84px 32px; }
+}
+
+/* Две колонки складываются в одну по ширине САМОГО БЛОКА, а не окна: карточка
+   ОЦ ужимается вдвое, когда открыт просмотрщик, и медиазапрос по окну этого не
+   видит — наименования оказывались обрезаны в обеих колонках. */
+body[data-module="civil"] .pt-grid {
+  margin-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}

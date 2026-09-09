@@ -1,0 +1,104 @@
+import { partiesOf } from './parties.view.js';
+
+// Обработчики собственников и пользователей — один набор на все три экрана,
+// где этот блок показывается: карточка ОЦ, форма ОЦ и форма создания. Раньше
+// каждая из них держала свою копию трёх обработчиков, и добавление шло через
+// диалог (kernel/dialog.js).
+//
+// Правка идёт по месту: имя и доля пишутся в запись на blur, а не на каждый
+// символ. На каждый символ нельзя — экран перерисовывается, и поле теряет
+// фокус на первой же букве.
+
+const listOf = (rec, kind) => (kind === 'owner'
+  ? (rec.owners = partiesOf(rec.owners))
+  : (rec.users = partiesOf(rec.users)));
+
+function parseRef(ref) {
+  const [kind, i] = String(ref || '').split('|');
+  return { kind, i: +i };
+}
+
+// Подсказки: показываем те наименования, что подходят к набранному. Список
+// уже отрисован — фильтруем скрытием строк, как в остальных списках проекта
+// (kernel/multiSelect.js), чтобы не терять фокус в поле.
+function bindSuggest(input, box, onPick) {
+  if (!box) return;
+
+  const opts = Array.from(box.querySelectorAll('[data-pt-pick]'));
+  const none = box.querySelector('.pt-sug-none');
+
+  const filter = () => {
+    const q = input.value.trim().toLowerCase();
+    let shown = 0;
+    opts.forEach((o) => {
+      const hit = !q || o.dataset.ptPick.toLowerCase().includes(q);
+      o.hidden = !hit;
+      if (hit) shown++;
+    });
+    if (none) none.hidden = shown > 0;
+    box.hidden = !opts.length;
+  };
+
+  input.addEventListener('focus', () => { filter(); });
+  input.addEventListener('input', () => { filter(); });
+
+  // Закрываем не на blur, а с задержкой: blur приходит раньше клика по
+  // подсказке, и без паузы выбор мышью не срабатывал бы.
+  input.addEventListener('blur', () => { setTimeout(() => { box.hidden = true; }, 120); });
+
+  opts.forEach((o) => o.onmousedown = (e) => {
+    e.preventDefault();
+    onPick(o.dataset.ptPick);
+  });
+}
+
+export function bindParties(ctx, rec) {
+  const s = ctx.scope;
+
+  s.$$('[data-pt-add]').forEach((b) => b.onclick = () => {
+    const kind = b.dataset.ptAdd;
+    listOf(rec, kind).push({ name: '', share: '' });
+    ctx.render();
+
+    // Фокус — в новую строку: человек нажал «добавить», чтобы писать, а не
+    // чтобы потом искать поле мышью.
+    const rows = ctx.scope.$$(`[data-pt-name^="${kind}|"]`);
+    const last = rows[rows.length - 1];
+    if (last) last.focus();
+  });
+
+  s.$$('[data-pt-rm]').forEach((b) => b.onclick = () => {
+    const { kind, i } = parseRef(b.dataset.ptRm);
+    listOf(rec, kind).splice(i, 1);
+    ctx.render();
+  });
+
+  s.$$('[data-pt-name]').forEach((input) => {
+    const { kind, i } = parseRef(input.dataset.ptName);
+    const write = (v) => {
+      const list = listOf(rec, kind);
+      if (!list[i]) return;
+      list[i].name = v;
+    };
+
+    input.onchange = () => write(input.value.trim());
+
+    bindSuggest(input, input.parentElement.querySelector('[data-pt-sug]'), (v) => {
+      input.value = v;
+      write(v);
+      ctx.render();
+    });
+  });
+
+  s.$$('[data-pt-share]').forEach((input) => {
+    input.onchange = () => {
+      const list = listOf(rec, 'owner');
+      const i = +input.dataset.ptShare;
+      if (!list[i]) return;
+      // Запятая как разделитель: её набирают чаще точки, а хранить надо число.
+      list[i].share = input.value.trim().replace(',', '.');
+      // Перерисовка нужна ради суммы долей — она считается по всем строкам.
+      ctx.render();
+    };
+  });
+}
