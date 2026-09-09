@@ -27,11 +27,34 @@ export const partiesOf = (list) => (list || []).map(partyOf);
 // Имя для поиска и выгрузки: и старая строка, и новая пара дают строку.
 export const partyName = (x) => partyOf(x).name;
 
+// Доля бывает записана и процентом, и дробью: «50», «50,5», «1/2», «2/3».
+// Дробью её пишут в правоустанавливающих документах, и переводить в проценты
+// руками — лишняя работа и лишняя ошибка (требование пользователя 09.09.2026).
+//
+// Дробь — часть от целого, поэтому в процентах это её значение, умноженное на
+// сто: 1/2 → 50. Целое и десятичное по-прежнему читаются как проценты, иначе
+// уже введённые «50» стали бы означать пятьдесят долей.
+export function parseShare(v) {
+  const s = String(v == null ? '' : v).replace(',', '.').replace('%', '').trim();
+  if (!s) return 0;
+
+  const frac = /^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/.exec(s);
+  if (frac) {
+    const den = parseFloat(frac[2]);
+    return den ? (parseFloat(frac[1]) / den) * 100 : 0;
+  }
+
+  return parseFloat(s) || 0;
+}
+
+// Записана ли доля дробью — от этого зависит, показывать ли знак процента:
+// «1/2 %» читалось бы как полпроцента.
+export const isFracShare = (v) => String(v == null ? '' : v).includes('/');
+
 // Сумма долей — рядом с блоками, а не в отчёте: участников вводят по одному, и
 // «не хватает 25%» надо видеть при вводе, а не после сохранения.
 export function shareSum(list) {
-  return partiesOf(list)
-    .reduce((a, o) => a + (parseFloat(String(o.share).replace(',', '.')) || 0), 0);
+  return partiesOf(list).reduce((a, o) => a + parseShare(o.share), 0);
 }
 
 const num = (n) => (Number.isInteger(n) ? n : n.toFixed(2));
@@ -57,9 +80,10 @@ function partyCard(kind, i, p, names, title) {
       ${suggestBox(names)}
     </div>
 
-    <div class="pt-share-in">
+    <div class="pt-share-in ${isFracShare(p.share) ? 'frac' : ''}" data-pt-share-box>
       <input class="input" data-pt-share="${kind}|${i}" value="${esc(p.share)}"
-        inputmode="decimal" placeholder="0" aria-label="Доля, %">
+        placeholder="50 или 1/2" aria-label="Доля — процентом или дробью"
+        title="Процентом («50», «33,3») или дробью («1/2», «2/3»)">
       <span class="pt-share-u">%</span>
     </div>
 

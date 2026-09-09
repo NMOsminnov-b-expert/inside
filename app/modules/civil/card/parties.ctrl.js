@@ -1,4 +1,4 @@
-import { partiesOf } from './parties.view.js';
+import { partiesOf, isFracShare } from './parties.view.js';
 
 // Обработчики собственников и пользователей — один набор на все три экрана,
 // где этот блок показывается: карточка ОЦ, форма ОЦ и форма создания. Раньше
@@ -93,12 +93,23 @@ export function bindParties(ctx, rec) {
   // Доля есть и у собственника, и у пользователя (уточнение пользователя
   // 09.09.2026), поэтому список берётся из самого поля, а не зашит.
   s.$$('[data-pt-share]').forEach((input) => {
+    // Знак процента убирается сразу, как в поле появилась косая черта: он
+    // мешает читать дробь ещё до того, как её допишут.
+    const box = input.closest('[data-pt-share-box]');
+    if (box) input.addEventListener('input', () => {
+      box.classList.toggle('frac', isFracShare(input.value));
+    });
+
     input.onchange = () => {
       const { kind, i } = parseRef(input.dataset.ptShare);
       const list = listOf(rec, kind);
       if (!list[i]) return;
-      // Запятая как разделитель: её набирают чаще точки, а хранить надо число.
-      list[i].share = input.value.trim().replace(',', '.');
+
+      const v = input.value.trim();
+      // Дробь храним как написали: «1/2» человек и прочтёт, и сверит с
+      // документом, а «50» из неё уже не восстановить. В десятичной запятую
+      // приводим к точке — её набирают чаще, а хранить надо число.
+      list[i].share = v.includes('/') ? v.replace(/\s+/g, '') : v.replace(',', '.');
       // Перерисовка нужна ради суммы долей — она считается по всем блокам.
       ctx.render();
     };

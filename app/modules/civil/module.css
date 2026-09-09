@@ -194,6 +194,12 @@ body[data-module="civil"] .pt-sug-o {
 body[data-module="civil"] .pt-sug-o:hover,
 body[data-module="civil"] .pt-sug-o:focus-visible { background: var(--blue-50, #eff6ff); }
 
+/* Доля дробью: знак процента убираем — «1/2 %» читалось бы как полпроцента
+   (требование пользователя 09.09.2026: доли пишут дробью в правоустанавливающих
+   документах). Поле при этом то же: сумма долей считается и по дробям. */
+body[data-module="civil"] .pt-share-in.frac .pt-share-u{display:none}
+body[data-module="civil"] .pt-share-in.frac .input{padding-right:10px}
+
 /* ===== Источник адреса — портал Кадастра (блок 02 «Местоположение») =========
    Строка над полями адреса: откуда берётся значение, по какому коду пойдёт
    запрос и что ответил портал. Тон блока — янтарный, как у самой карточки:

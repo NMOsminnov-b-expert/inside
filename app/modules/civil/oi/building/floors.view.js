@@ -2,7 +2,7 @@ import { esc } from '../../../../kernel/dom.js';
 import { fmtNum, num, plural } from '../../../../kernel/fmt.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { floorsSum, floorsSumByCat, AREA_FIELDS, FLOOR_CATS } from './floors.model.js';
+import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS } from './floors.model.js';
 
 // Развёрткой управляет человек, а не формула (решение пользователя 2026-08-28):
 // строку любой категории можно добавить и удалить, имя строки правится прямо в
@@ -51,7 +51,7 @@ ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площади распределяются автоматически; снято — задаются вручную"></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on ? 'readonly' : ''} title="${f.on ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : ''}"></td>`).join('')}
+${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь застройки по этажам не распределяется')}"></td>`).join('')}
 <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
@@ -95,10 +95,14 @@ export function floorsNote(oi) {
   return `${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²`;
 }
 
-// По одному итогу на каждую площадь: у них разные источники, и сходиться они
-// должны каждый со своим.
+// Итог — по тем же колонкам, что распределяются: сумма по наружным замерам
+// убрана (решение пользователя 09.09.2026). Застройка повторяется от этажа к
+// этажу, её сумма ни с чем не сходилась и только краснела. Сама колонка
+// «Площадь застройки» в таблице осталась и заполняется руками.
+const SUM_FIELDS = AUTO_AREA_FIELDS;
+
 function sumsRow(oi) {
-  return AREA_FIELDS.map((a) => {
+  return SUM_FIELDS.map((a) => {
     const total = num((oi.areas || {})[a.total]);
     const s = floorsSum(oi, a.key);
     const ok = Math.abs(s - total) < 0.01;
@@ -113,8 +117,9 @@ export function floorsBlock(ctx, oi) {
 ${sumsRow(oi)}
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:auto">Выровнять отмеченные</button>
 </div>
-<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь поровну —
-каждая колонка от своего итога. Снимите отметку, чтобы вписать площадь вручную.</div>
+<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по техпаспорту
+поровну. Снимите отметку, чтобы вписать её вручную. Площадь застройки не делится — это площадь
+среза сверху, этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
 <div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }
@@ -127,7 +132,7 @@ export function updateFloorsUI(ctx, oi) {
       const el = s.$(`[data-floor-area="${a.key}|${i}"]`);
       if (!el) return;
       if (document.activeElement !== el) el.value = f[a.key] || '';
-      el.readOnly = f.on;
+      el.readOnly = f.on && a.auto;
     });
 
     const on = s.$(`[data-floor-on="${i}"]`);
@@ -155,7 +160,7 @@ export function updateFloorsUI(ctx, oi) {
   const note = s.$('[data-floors-note]');
   if (note) note.textContent = floorsNote(oi);
 
-  AREA_FIELDS.forEach((a) => {
+  SUM_FIELDS.forEach((a) => {
     const sum = s.$(`[data-floor-sum="${a.key}"]`);
     if (!sum) return;
     const ssum = floorsSum(oi, a.key);
