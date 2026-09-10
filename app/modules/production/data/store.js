@@ -95,6 +95,15 @@ registerPersisted('ui.production', {
   },
 });
 
+// Окно со списком фото привязано к ячейке перечня: как только перечень уходит
+// с экрана, окну там делать нечего. Своей функцией, а не внутри resetViewer:
+// просмотрщик сбрасывается только при смене записи, а окно фото — при любом
+// переходе, в том числе в карточку литеры и обратно.
+export function closePhotoPop() {
+  ui.photoPop = null;
+  ui.photoPopCat = '';
+}
+
 export function resetViewer() {
   ui.viewer = null;
   ui.viewerDoc = null;

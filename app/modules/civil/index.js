@@ -14,7 +14,7 @@ import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { setActiveOcType } from '../../kernel/ocType.js';
 import { MENU_HREF } from '../../kernel/router.js';
-import { getOi, ui, resetViewer } from './data/store.js';
+import { getOi, ui, resetViewer, closePhotoPop } from './data/store.js';
 import { loadRecord } from './records.js';
 import { viewOC } from './card/ocCard.view.js';
 import { bindOcCard } from './card/ocCard.ctrl.js';
@@ -444,6 +444,7 @@ export function main(host) {
   return {
     onRoute(next) {
       flushAuditLog();
+      closePhotoPop();
       route = next;
       const nextRec = loadRecord(next.ocId);
       if (nextRec !== rec) {
@@ -458,6 +459,7 @@ export function main(host) {
     },
     destroy() {
       flushAuditLog();
+      closePhotoPop();
       resetViewer();
     },
   };
