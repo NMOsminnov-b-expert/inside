@@ -84,6 +84,9 @@ const COMMON = {
   'apartment.locationOther': 'Положение на этаже (иное)',
   'apartment.rights': 'Права на строение',
   'apartment.rightsOther': 'Права на строение (иное)',
+  // Три списка собраны в таблицу пристроек (10.09.2026). Прежние подписи
+  // оставлены: по ним читаются записи лога, сделанные до перевода.
+  'apartment.annexList': 'Пристройки',
   'apartment.loggias': 'Лоджии',
   'apartment.balconies': 'Балконы',
   'apartment.terraces': 'Террасы',

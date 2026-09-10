@@ -1,6 +1,5 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
-import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
@@ -11,6 +10,7 @@ import {
   APARTMENT_SERIES, APARTMENT_LOCATIONS, APARTMENT_RIGHTS,
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
+import { annexesHTML } from './annexes.js';
 import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -290,16 +290,18 @@ ${photoAccordions(ctx.ui, oi, true)}
 </div>`;
 }
 
-// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей» они
-// оказывались ниже высот, и их там не находили. У квартиры списки живут в
-// oi.apartment, а не в самой литере.
+// Пристройки — свой блок (Л5.4): внутри «Площадей» они оказывались ниже высот,
+// и их там не находили.
+//
+// Было три списка — «Лоджии», «Балконы», «Террасы». Стала таблица, как в
+// карточке гражданского здания (указание пользователя 10.09.2026): литера, вид,
+// материалы и площадь у каждой пристройки. Данные — в oi.apartment, а не в самой
+// литере, поэтому и таблица читает их через свой host() (см. annexes.js).
 function annexesCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-annexes">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристройки</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi.apartment, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi.apartment, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }
