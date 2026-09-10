@@ -79,7 +79,13 @@ export function parseShare(v) {
     return den ? (parseFloat(frac[1]) / den) * 100 : 0;
   }
 
-  return parseFloat(s) || 0;
+  // Единица — это целая доля, весь объект, а не один процент (уточнение
+  // пользователя 10.09.2026). Так её и пишут в документах: «доля 1»,
+  // «доля 1/2». Остальные числа остаются процентами: «50» — половина, иначе
+  // уже введённые проценты сменили бы смысл.
+  const n = parseFloat(s);
+  if (!n) return 0;
+  return n === 1 ? 100 : n;
 }
 
 // Записана ли доля дробью — от этого зависит, показывать ли знак процента:
@@ -92,7 +98,12 @@ export function shareSum(list) {
   return partiesOf(list).reduce((a, o) => a + parseShare(o.share), 0);
 }
 
-const num = (n) => (Number.isInteger(n) ? n : n.toFixed(2));
+// Дробная сумма долей печаталась как «0.50%»: точка вместо запятой и хвостовой
+// ноль. Разделитель в макете везде запятая, а «33,3» человек и вводил — значит
+// столько и показываем.
+const num = (n) => (Number.isInteger(n)
+  ? String(n)
+  : n.toFixed(2).replace(/0$/, '').replace('.', ','));
 
 // Подсказка — либо строка, либо пара «значение + пояснение». Пояснение видно
 // в списке и участвует в поиске (data-pt-find).
@@ -130,8 +141,8 @@ function partyCard(kind, i, p, names, title, docs) {
 
     <div class="pt-share-in ${isFracShare(p.share) ? 'frac' : ''}" data-pt-share-box>
       <input class="input" data-pt-share="${kind}|${i}" value="${esc(p.share)}"
-        placeholder="50" aria-label="Доля — процентом или дробью"
-        title="Процентом («50», «33,3») или дробью («1/2», «2/3»)">
+        placeholder="доля" aria-label="Доля — процентом или дробью"
+        title="Процентом («50», «33,3»), дробью («1/2», «2/3») или единицей — вся доля целиком">
       <span class="pt-share-u">%</span>
     </div>
 
