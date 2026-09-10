@@ -201,12 +201,16 @@ export function render(ctx, oi) {
   const idx = blockNumbers();
 
   // Порядок блоков повторяет порядок заполнения: чем участок опознаётся и где
-  // стоит, потом площади, аренда (если он в аренде), коммуникации и уже в
-  // конце — благоустройство с особенностями.
+  // стоит, следом аренда (если он в аренде), потом площади, коммуникации и уже
+  // в конце — благоустройство с особенностями.
+  //
+  // Аренда идёт сразу за основными параметрами (решение пользователя
+  // 10.09.2026): признак «участок в аренде» стоит там же, в правах, и плата
+  // должна открываться рядом с ним, а не через блок площадей.
   const body = `<div class="oi-stack">
 ${commonCard(oi, idx())}
-${areasCard(oi, idx())}
 ${oi.leased === 'Да' ? leaseCard(oi, idx()) : ''}
+${areasCard(oi, idx())}
 ${agricultural ? agriculturalCard(ctx, oi, idx()) : nonAgriculturalCard(ctx, oi, idx())}
 ${featuresCard(ctx, oi, idx())}
 <div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">${String(idx()).padStart(2, '0')}</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div>
