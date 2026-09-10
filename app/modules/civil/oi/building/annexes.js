@@ -78,13 +78,22 @@ export function migrateAnnexList(oi) {
 }
 
 // --- разметка --------------------------------------------------------------
+//
+// Оформление взято у раздела «Справочники» (pages/dicts): поле в ячейке без
+// рамки — она появляется под курсором и становится настоящей при работе, —
+// столбцы разделены линиями, новая строка добавляется плюсиком прямо в
+// таблице. Замечание пользователя 09.09.2026: с рамкой у каждой ячейки это
+// читалось как форма, а не как таблица.
+//
+// Классы объявлены свои (ax-*), а не взяты из dicts.css: те правила висят на
+// body[data-page="dicts"], а карточка — экран модуля.
 
 function matCell(a, col) {
   const list = opt('building', 'struct.' + col.opts, STRUCT[col.opts]) || [];
   const cur = a[col.key] || '';
   const known = list.includes(cur);
 
-  return `<td><select class="select" data-ax="${col.key}|${a.id}">
+  return `<td><select class="ax-cell ax-sel" data-ax="${col.key}|${a.id}">
 <option value="" ${cur ? '' : 'selected'}>—</option>
 ${cur && !known ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : ''}
 ${list.map((v) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('')}
@@ -99,7 +108,7 @@ function kindCell(a) {
 
   if (a.kind === 'Иное') {
     return `<td><div class="ax-other">
-<input class="input" data-ax="note|${a.id}" value="${esc(a.note || '')}"
+<input class="ax-cell" data-ax="note|${a.id}" value="${esc(a.note || '')}"
   placeholder="что это" title="Вид пристройки своими словами"
   ${(a.note || '').trim() ? '' : 'data-ax-need'}>
 <button type="button" class="ax-back" data-ax-back="${a.id}"
@@ -107,7 +116,7 @@ function kindCell(a) {
 </div></td>`;
   }
 
-  return `<td><select class="select" data-ax="kind|${a.id}">
+  return `<td><select class="ax-cell ax-sel" data-ax="kind|${a.id}">
 ${kinds.map((k) => `<option ${k === a.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}
 </select></td>`;
 }
@@ -115,39 +124,43 @@ ${kinds.map((k) => `<option ${k === a.kind ? 'selected' : ''}>${esc(k)}</option>
 function annexRow(a, i) {
   return `<tr>
 <td class="ax-n">${i + 1}</td>
-<td><input class="input ax-letter" data-ax="letter|${a.id}" value="${esc(a.letter || '')}"
+<td><input class="ax-cell ax-letter" data-ax="letter|${a.id}" value="${esc(a.letter || '')}"
   placeholder="ж1" title="Литера пристройки — как в техпаспорте: ж, ж1, ж2"></td>
 ${kindCell(a)}
 ${MAT_COLS.map((c) => matCell(a, c)).join('')}
-<td><input class="input ax-area" data-ax="area|${a.id}" value="${esc(numText(a.area))}"></td>
-<td class="al-act"><button class="btn btn-danger btn-sm" data-ax-del="${a.id}" title="Убрать пристройку">×</button></td>
+<td><input class="ax-cell ax-area" data-ax="area|${a.id}" value="${esc(numText(a.area))}"></td>
+<td class="ax-act"><button class="ax-x" data-ax-del="${a.id}" title="Убрать пристройку">×</button></td>
 </tr>`;
 }
 
 export function annexesHTML(ctx, oi) {
   const list = annexesOf(oi);
 
-  // Широкая таблица (девять колонок) прокручивается внутри своей обёртки —
-  // иначе на узкой карточке вбок уезжает вся страница.
-  const body = list.length
-    ? `<div class="ax-scroll"><table class="tbl al-tbl ax-tbl">
+  // Строка добавления — часть таблицы, как в справочниках: кнопка над таблицей
+  // отрывалась от того, куда добавляет.
+  const addRow = `<tr class="ax-add-row" data-ax-add>
+<td class="ax-n"><span class="ax-plus">+</span></td>
+<td colspan="${MAT_COLS.length + 4}">Добавить пристройку</td>
+</tr>`;
+
+  // Итог — строкой таблицы, а не подписью сбоку: складывается колонка площади,
+  // и стоять он должен под ней.
+  const foot = list.length ? `<tfoot><tr>
+<td class="ax-n"></td>
+<td colspan="${MAT_COLS.length + 2}">Итого пристроек: ${list.length}</td>
+<td class="ax-area-cell" data-ax-sum>${fmtNum(annexAreaSum(oi))} м²</td>
+<td></td>
+</tr></tfoot>` : '';
+
+  return `<div class="ax-scroll"><table class="ax-tbl">
 <thead><tr>
 <th class="ax-n"></th><th>Литера</th><th>Вид</th>
 ${MAT_COLS.map((c) => `<th>${c.label}</th>`).join('')}
-<th>Площадь, м²</th><th class="al-act"></th>
+<th class="ax-area-cell">Площадь, м²</th><th class="ax-act"></th>
 </tr></thead>
-<tbody>${list.map(annexRow).join('')}</tbody>
-</table></div>`
-    : '<div class="al-empty">Пристроек нет. Добавьте кнопкой «+ Пристройка».</div>';
-
-  // Без вложенного заголовка: карточка блока уже называется «Пристройки», и
-  // второй такой же заголовок внутри читался как повтор. Сворачивать блок
-  // тоже есть чем — шапкой самой карточки.
-  return `<div class="ax-bar">
-<span class="ax-count" data-ax-sum>${list.length} · ${fmtNum(annexAreaSum(oi))} м²</span>
-<button class="btn btn-ghost btn-sm" data-ax-add>+ Пристройка</button>
-</div>
-${body}`;
+<tbody>${list.map(annexRow).join('')}${addRow}</tbody>
+${foot}
+</table></div>`;
 }
 
 // --- обработчики -----------------------------------------------------------
@@ -166,11 +179,13 @@ export function bindAnnexes(ctx, oi) {
 
   const showSum = () => {
     const el = s.$('[data-ax-sum]');
-    if (el) el.textContent = `${annexesOf(oi).length} · ${fmtNum(annexAreaSum(oi))} м²`;
+    if (el) el.textContent = `${fmtNum(annexAreaSum(oi))} м²`;
   };
 
   const find = (id) => annexesOf(oi).find((a) => a.id === id);
 
+  // Вся строка кликабельна, а не только плюсик: попасть в неё проще, а
+  // ведёт она к одному и тому же.
   const add = s.$('[data-ax-add]');
   if (add) add.onclick = () => { addAnnex(oi); redraw(); };
 
