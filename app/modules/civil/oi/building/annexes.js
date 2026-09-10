@@ -29,7 +29,15 @@ const MAT_COLS = [
 
 export const annexesOf = (oi) => (oi && Array.isArray(oi.annexList) ? oi.annexList : []);
 
-export const annexAreaSum = (oi) => annexesOf(oi).reduce((s, a) => s + num(a.area), 0);
+// Площадей у пристройки две — по внешним замерам и по внутреннему обмеру:
+// в техпаспорте есть обе (уточнение пользователя 10.09.2026).
+export const ANNEX_AREAS = [
+  { key: 'area', label: 'По внешним замерам, м²' },
+  { key: 'areaIn', label: 'По внутр. обмеру, м²' },
+];
+
+export const annexAreaSum = (oi, key = 'area') =>
+  annexesOf(oi).reduce((s, a) => s + num(a[key]), 0);
 
 let seq = 0;
 const nextAnnexId = () => `ax-${Date.now().toString(36)}-${++seq}`;
@@ -38,7 +46,7 @@ export function addAnnex(oi) {
   if (!Array.isArray(oi.annexList)) oi.annexList = [];
   oi.annexList.push({
     id: nextAnnexId(), letter: '', kind: ANNEX_KINDS[0], note: '',
-    foundation: [], walls: [], roof: [], area: '',
+    foundation: [], walls: [], roof: [], area: '', areaIn: '',
   });
 }
 
@@ -62,6 +70,8 @@ export function migrateAnnexList(oi) {
       ['foundation', 'walls', 'roof'].forEach((k) => {
         if (!Array.isArray(a[k])) a[k] = a[k] ? [a[k]] : [];
       });
+      // Вторая площадь появилась позже первой — у прежних строк её нет.
+      if (a.areaIn === undefined) a.areaIn = '';
     });
     return;
   }
@@ -81,7 +91,7 @@ export function migrateAnnexList(oi) {
         kind: named ? 'Иное' : kind,
         note: named ? label : '',
         foundation: [], walls: [], roof: [],
-        area: it.area || '',
+        area: it.area || '', areaIn: '',
       });
     });
   });
@@ -202,7 +212,7 @@ function annexRow(a, i, oi) {
   placeholder="${esc(hint)}" title="Литера пристройки — как в техпаспорте: ${esc(annexLetterHint(oi, 0))}, ${esc(annexLetterHint(oi, 1))}, ${esc(annexLetterHint(oi, 2))}"></td>
 ${kindCell(a)}
 ${MAT_COLS.map((c) => matCell(a, c)).join('')}
-<td><input class="ax-cell ax-area" data-ax="area|${a.id}" value="${esc(numText(a.area))}"></td>
+${ANNEX_AREAS.map((c) => `<td><input class="ax-cell ax-area" data-ax="${c.key}|${a.id}" value="${esc(numText(a[c.key]))}"></td>`).join('')}
 <td class="ax-act"><button class="ax-x" data-ax-del="${a.id}" title="Убрать пристройку">×</button></td>
 </tr>`;
 }
@@ -214,7 +224,7 @@ export function annexesHTML(ctx, oi) {
   // отрывалась от того, куда добавляет.
   const addRow = `<tr class="ax-add-row" data-ax-add>
 <td class="ax-n"><span class="ax-plus">+</span></td>
-<td colspan="${MAT_COLS.length + 4}">Добавить пристройку</td>
+<td colspan="${MAT_COLS.length + ANNEX_AREAS.length + 3}">Добавить пристройку</td>
 </tr>`;
 
   // Итог — строкой таблицы, а не подписью сбоку: складывается колонка площади,
@@ -222,7 +232,7 @@ export function annexesHTML(ctx, oi) {
   const foot = list.length ? `<tfoot><tr>
 <td class="ax-n"></td>
 <td colspan="${MAT_COLS.length + 2}">Итого пристроек: ${list.length}</td>
-<td class="ax-area-cell" data-ax-sum>${fmtNum(annexAreaSum(oi))} м²</td>
+${ANNEX_AREAS.map((c) => `<td class="ax-area-cell" data-ax-sum="${c.key}">${fmtNum(annexAreaSum(oi, c.key))} м²</td>`).join('')}
 <td></td>
 </tr></tfoot>` : '';
 
@@ -230,7 +240,7 @@ export function annexesHTML(ctx, oi) {
 <thead><tr>
 <th class="ax-n"></th><th>Литера</th><th>Вид</th>
 ${MAT_COLS.map((c) => `<th>${c.label}</th>`).join('')}
-<th class="ax-area-cell">Площадь, м²</th><th class="ax-act"></th>
+${ANNEX_AREAS.map((c) => `<th class="ax-area-cell">${c.label}</th>`).join('')}<th class="ax-act"></th>
 </tr></thead>
 <tbody>${list.map((a, i) => annexRow(a, i, oi)).join('')}${addRow}</tbody>
 ${foot}
@@ -252,8 +262,10 @@ export function bindAnnexes(ctx, oi) {
   };
 
   const showSum = () => {
-    const el = s.$('[data-ax-sum]');
-    if (el) el.textContent = `${fmtNum(annexAreaSum(oi))} м²`;
+    ANNEX_AREAS.forEach((c) => {
+      const el = s.$(`[data-ax-sum="${c.key}"]`);
+      if (el) el.textContent = `${fmtNum(annexAreaSum(oi, c.key))} м²`;
+    });
   };
 
   const find = (id) => annexesOf(oi).find((a) => a.id === id);
@@ -358,13 +370,13 @@ export function bindAnnexes(ctx, oi) {
   s.$$('[data-ax]').forEach((el) => {
     const [key, id] = el.dataset.ax.split('|');
 
-    // Площадь — числовое поле: на экране разряды, в запись машинное значение
+    // Площади — числовые поля: на экране разряды, в запись машинное значение
     // (kernel/numField.js).
-    if (key === 'area') {
+    if (ANNEX_AREAS.some((c) => c.key === key)) {
       bindNumField(el, (v) => {
         const a = find(id);
         if (!a) return;
-        a.area = v;
+        a[key] = v;
         showSum();
       });
       return;

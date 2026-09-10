@@ -291,7 +291,7 @@ body[data-module="civil"] .ax-scroll{overflow-x:auto;border:1px solid var(--line
    читались, а не обрезались на второй букве. Шире карточки — значит таблица
    прокручивается внутри себя; на широком экране и при закрытом просмотрщике
    она помещается целиком. */
-body[data-module="civil"] .ax-tbl{width:100%;min-width:700px;border-collapse:collapse;
+body[data-module="civil"] .ax-tbl{width:100%;min-width:800px;border-collapse:collapse;
   table-layout:fixed}
 
 body[data-module="civil"] .ax-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
@@ -312,7 +312,7 @@ body[data-module="civil"] .ax-tbl td.ax-n{width:30px;text-align:right;padding-ri
   color:#9fb0c4;font-size:11px;font-variant-numeric:tabular-nums}
 body[data-module="civil"] .ax-tbl th:nth-child(2){width:54px}
 body[data-module="civil"] .ax-tbl th:nth-child(3){width:112px}
-body[data-module="civil"] .ax-tbl th.ax-area-cell{width:92px;text-align:right}
+body[data-module="civil"] .ax-tbl th.ax-area-cell{width:96px;text-align:right}
 body[data-module="civil"] .ax-tbl th.ax-act,
 body[data-module="civil"] .ax-tbl td.ax-act{width:34px;text-align:right;padding-left:2px}
 
