@@ -196,6 +196,39 @@ export const DICT_SOURCES = [
       { card: 'apartment', field: 'status', label: 'Статус' },
     ],
   },
+  // Части адреса. Привязаны к полям блока «Местоположение» карточки ОЦ.
+  // Не системные: состав административного деления меняется, и править его
+  // должен раздел «Справочники», а не разработчик.
+  {
+    key: 'REGIONS',
+    title: 'Области',
+    kind: 'list',
+    system: false,
+    values: D.REGIONS,
+    slots: [
+      { card: 'oc', field: 'region', label: 'Область' },
+    ],
+  },
+  {
+    key: 'DISTRICTS',
+    title: 'Районы',
+    kind: 'list',
+    system: false,
+    values: D.DISTRICTS,
+    slots: [
+      { card: 'oc', field: 'district', label: 'Район' },
+    ],
+  },
+  {
+    key: 'CITIES',
+    title: 'Города и сёла',
+    kind: 'list',
+    system: false,
+    values: D.CITIES,
+    slots: [
+      { card: 'oc', field: 'city', label: 'Город или село' },
+    ],
+  },
   {
     key: 'STATUS_OC',
     title: 'Статусы объекта оценки',

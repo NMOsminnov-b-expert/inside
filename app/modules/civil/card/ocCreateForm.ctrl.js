@@ -9,7 +9,7 @@ import { parseEni, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { nextDocId } from '../data/store.js';
 import { openDocViewer, VS } from '../parts/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
-import { bindCadastre, ADDR_PARTS } from './cadastre.ctrl.js';
+import { bindCadastre, ADDR_PARTS, setAddrField } from './cadastre.ctrl.js';
 
 // Контроллер экрана создания ОЦ. Сознательно отдельный файл от
 // ocForm.ctrl.js — см. ocCreateForm.view.js.
@@ -170,7 +170,7 @@ export function bindOcCreate(ctx) {
       const parsed = parseAddress(addrSum.value);
       Object.entries(PARTS).forEach(([key, sel]) => {
         const el = s.$(sel);
-        if (el && parsed[key]) el.value = parsed[key];
+        if (el && parsed[key]) setAddrField(el, parsed[key]);
         // Значение ставится программно, а change при этом не возникает —
         // поэтому в запись пишем здесь же, иначе разобранный адрес живёт
         // только в полях и не переживает перезагрузку.
