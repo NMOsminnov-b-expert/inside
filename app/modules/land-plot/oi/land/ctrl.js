@@ -52,6 +52,14 @@ export function bind(ctx, oi) {
     '[data-land-relief]': 'relief',
     '[data-land-location-features]': 'locationFeatures',
     '[data-land-encumbrance-area]': 'encumbranceArea',
+
+    // Арендная плата — свой блок, показывается только когда участок в аренде
+    // (решение пользователя 10.09.2026). Единица измерения хранится рядом с
+    // суммой: «12 000» без неё читается и как месяц, и как год.
+    '[data-land-lease-price]': 'leasePrice',
+    '[data-land-lease-unit]': 'leaseUnit',
+    '[data-land-lease-term]': 'leaseTerm',
+    '[data-land-lease-note]': 'leaseNote',
   };
   Object.entries(valueBindings).forEach(([selector, key]) => {
     const input = s.$(selector);
@@ -153,6 +161,10 @@ export function bind(ctx, oi) {
 
   const encumbrance = s.$('[data-land-encumbrance]');
   if (encumbrance) encumbrance.onchange = () => { oi.encumbrance = encumbrance.value; ctx.render(); };
+
+  // Признак аренды показывает и прячет целый блок — перерисовываем карточку.
+  const leased = s.$('[data-land-leased]');
+  if (leased) leased.onchange = () => { oi.leased = leased.value; ctx.render(); };
 
   const buildings = s.$('[data-land-buildings]');
   if (buildings) buildings.onchange = () => { oi.buildings = buildings.value; ctx.render(); };

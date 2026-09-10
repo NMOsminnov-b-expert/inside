@@ -40,6 +40,14 @@ export function createLandOi(rec, { nextId, nextEni, multiple = false } = {}) {
     roadLocation: '',
     corner: '',
     encumbrance: 'Нет',
+    // Участок бывает сдан в аренду независимо от того, на каком праве им
+    // владеют: собственник тоже сдаёт. Поэтому признак отдельный от rights
+    // (решение пользователя 10.09.2026). При «Да» показывается блок платы.
+    leased: 'Нет',
+    leasePrice: '',
+    leaseUnit: '',
+    leaseTerm: '',
+    leaseNote: '',
     encumbranceArea: '',
     encumbranceNote: '',
     landCategory: '',

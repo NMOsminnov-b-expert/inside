@@ -16,6 +16,12 @@ import { improvementsFields } from './improvements.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
+// Признак аренды и единицы измерения платы — короткие перечни, заведены здесь,
+// а не в справочниках: править их некому и незачем, «сом / месяц» это не
+// предметная классификация, а единица суммы.
+const LEASE_YES_NO = ['Нет', 'Да'];
+const LEASE_UNITS = ['сом / месяц', 'сом / квартал', 'сом / год'];
+
 function options(values, value) {
   return `${emptyOptionHTML(values)}${values.map((item) => `<option ${item === value ? 'selected' : ''}>${esc(item)}</option>`).join('')}`;
 }
@@ -24,46 +30,53 @@ function selectField(label, attr, values, value) {
   return `<div class="field"><label>${label}</label><select class="select" ${attr}>${options(values, value)}</select></div>`;
 }
 
-// Блок 01. Правки 04.09.2026 (ТЗ docs/tz/30-uchastok-pravki.md §2):
-//   * «Статус» убран — этап процесса ведётся у объекта оценки, у участка он
-//     дублировал чужое понятие;
-//   * площадей три: правоустанавливающие, правоудостоверяющие, по факту. Это
-//     разные документы, и цифры в них расходятся;
-//   * застроенная площадь переехала сюда из несельхоз-блока и показывается у
-//     обоих типов участка;
-//   * сервитуты переехали сюда же: обременение — это о правах, а не о
-//     местоположении, и стоять оно должно рядом с правами;
-//   * категория земель — только у несельхоза: у сельхозучастка категория
-//     известна из самого типа.
+// Блок 01. Порядок полей — по тому, как участок заполняют (решение
+// пользователя 10.09.2026): сначала чем он опознаётся (ЕНИ и координаты), потом
+// адрес, где он стоит относительно района и трассы, на каком праве, какой
+// формы и рельефа. Площади вынесены в свой блок — их сверяют между собой, а не
+// заполняют по ходу описания участка.
+//
+// Прежние правки 04.09.2026 (ТЗ docs/tz/30-uchastok-pravki.md §2) в силе:
+// «Статус» убран, площадей три, застроенная показывается у обоих типов
+// участка, сервитуты стоят рядом с правами, категория земель — только у
+// несельхоза.
 function commonCard(oi, idx) {
-  const areas = oi.areas || {};
   const nonAgricultural = oi.landType === 'Несельскохозяйственный';
   const showEncArea = oi.encumbrance === 'Есть';
+  const agricultural = !nonAgricultural;
 
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Основные параметры</h3></div><div class="card-pad">
 <div class="grid g-4">
+<div class="field"><label>ЕНИ</label><input class="input mono" data-land-eni value="${esc(fmtEni(oi.eni))}"></div>
+<div class="field"><label>Координаты (широта, долгота)</label>
+  <input class="input mono" data-land-gps value="${esc(oi.gps || '')}"
+    placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота"></div>
 <div class="field"><label>Тип земельного участка</label><select class="select" data-land-type>${options(opt('land', 'landType', LAND_TYPES), oi.landType)}</select></div>
 ${nonAgricultural ? selectField('Категория земель', 'data-land-category', opt('land', 'landCategory', LAND_CATEGORIES), oi.landCategory) : ''}
-<div class="field"><label>${noteAfter('Назначение по правоудостоверяющему документу', PURPOSE_NOTE)}</label>
+<div class="field sp-all"><label>${noteAfter('Назначение по правоудостоверяющему документу', PURPOSE_NOTE)}</label>
 <div class="inline-row">
 <select class="select" data-land-purpose style="flex:1 1 200px">${options(opt('land', 'purpose', LAND_PURPOSE_DOC), oi.purpose)}</select>
 <input class="input" data-land-purpose-other placeholder="Укажите назначение" maxlength="120"
   value="${esc(oi.purposeOther || '')}" style="flex:1 1 180px;${oi.purpose === 'Иное' ? '' : 'display:none'}"></div>
 </div>
-<div class="field"><label>ЕНИ</label><input class="input mono" data-land-eni value="${esc(fmtEni(oi.eni))}"></div>
-<div class="field"><label>Форма участка</label>
-<div class="inline-row">
-<select class="select" data-land-form style="flex:1 1 200px">${options(opt('land', 'form', LAND_FORM), oi.form)}</select>
-<input class="input" data-land-form-other placeholder="Впишите форму" maxlength="80"
-  value="${esc(oi.formOther || '')}" style="flex:1 1 160px;${oi.form === 'Иное' ? '' : 'display:none'}"></div>
-</div></div>
+</div>
 
-<div class="sec-h">Площади</div>
+<div class="sec-h">Адрес</div>
 <div class="grid g-4">
-<div class="field"><label>По правоустанавливающим документам, кв.м.</label><input class="input" data-land-area="pravo" value="${esc(areas.pravo || '')}"></div>
-<div class="field"><label>По правоудостоверяющим документам, кв.м.</label><input class="input" data-land-area="pravoUd" value="${esc(areas.pravoUd || '')}"></div>
-<div class="field"><label>По факту, кв.м.</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label>Застроенная площадь, кв.м.</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
+<div class="field"><label>Улица</label>
+  <input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Лебединовская"></div>
+<div class="field"><label>Дом</label>
+  <input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="12"></div>
+</div>
+<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
+
+<div class="sec-h" style="margin-top:12px">Расположение${devNote(CITY_NOTE)}</div>
+<div class="grid g-4">
+${selectField('Расположение в районе', 'data-land-location', opt('land', 'location', LAND_LOCATION), oi.location)}
+${selectField('Расположение к трассе', 'data-land-road', opt('land', 'roadLocation', LAND_ROAD_LOCATION), oi.roadLocation)}
+${selectField('Угловой/Неугловой', 'data-land-corner', opt('land', 'corner', LAND_CORNER), oi.corner)}
+${agricultural ? `<div class="field"><label>Удалённость от райцентра, км</label>
+  <input class="input" data-land-distance value="${esc(oi.distanceToCenter || '')}" inputmode="decimal"></div>` : ''}
 </div>
 
 <div class="sec-h">Права и обременения</div>
@@ -76,10 +89,57 @@ ${nonAgricultural ? selectField('Категория земель', 'data-land-ca
 </div>
 ${selectField('Наличие сервитутов и обременений', 'data-land-encumbrance', opt('land', 'encumbrance', LAND_ENCUMBRANCE), oi.encumbrance || 'Нет')}
 ${showEncArea ? `<div class="field"><label>Площадь сервитутов и обременений, кв.м. <span class="req">*</span></label><input class="input" data-land-encumbrance-area value="${esc(oi.encumbranceArea || '')}" required></div>` : ''}
+${selectField('Участок в аренде', 'data-land-leased', LEASE_YES_NO, oi.leased || 'Нет')}
 </div>
 ${showEncArea ? `<div class="field" style="margin-top:10px"><label>Комментарий к сервитуту</label>
 <textarea class="textarea ta-wide" data-land-encumbrance-note
   placeholder="Чем обременён участок: чей проезд, какие коммуникации, на каком основании">${esc(oi.encumbranceNote || '')}</textarea></div>` : ''}
+
+<div class="sec-h">Форма и рельеф</div>
+<div class="grid g-4">
+<div class="field"><label>Форма участка</label>
+<div class="inline-row">
+<select class="select" data-land-form style="flex:1 1 200px">${options(opt('land', 'form', LAND_FORM), oi.form)}</select>
+<input class="input" data-land-form-other placeholder="Впишите форму" maxlength="80"
+  value="${esc(oi.formOther || '')}" style="flex:1 1 160px;${oi.form === 'Иное' ? '' : 'display:none'}"></div>
+</div>
+${selectField('Рельеф участка', 'data-land-relief', opt('land', 'relief', LAND_RELIEF), oi.relief)}
+</div>
+</div></div>`;
+}
+
+// Площади — своим блоком (решение пользователя 10.09.2026). Их четыре, они из
+// разных документов и расходятся между собой; внутри блока «Основные
+// параметры» они терялись между правами и формой участка.
+function areasCard(oi, idx) {
+  const areas = oi.areas || {};
+
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади</h3></div><div class="card-pad">
+<div class="grid g-4">
+<div class="field"><label>По правоустанавливающим документам, кв.м.</label><input class="input" data-land-area="pravo" value="${esc(areas.pravo || '')}"></div>
+<div class="field"><label>По правоудостоверяющим документам, кв.м.</label><input class="input" data-land-area="pravoUd" value="${esc(areas.pravoUd || '')}"></div>
+<div class="field"><label>По факту, кв.м.</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
+<div class="field"><label>Застроенная площадь, кв.м.</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
+</div>
+</div></div>`;
+}
+
+// Аренда — отдельным блоком и только когда участок в аренде (решение
+// пользователя 10.09.2026). Единица измерения рядом с суммой: «12 000» без неё
+// читается и как месяц, и как год.
+function leaseCard(oi, idx) {
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Арендная плата</h3></div><div class="card-pad">
+<div class="grid g-4">
+<div class="field"><label>Стоимость аренды</label>
+  <input class="input" data-land-lease-price value="${esc(oi.leasePrice || '')}" inputmode="decimal"></div>
+${selectField('Единица измерения', 'data-land-lease-unit', LEASE_UNITS, oi.leaseUnit || LEASE_UNITS[0])}
+<div class="field"><label>Срок аренды</label>
+  <input class="input" data-land-lease-term value="${esc(oi.leaseTerm || '')}"
+    placeholder="до 31.12.2030 или 5 лет"></div>
+</div>
+<div class="field" style="margin-top:10px"><label>Комментарий</label>
+<textarea class="textarea ta-wide" data-land-lease-note
+  placeholder="Условия договора, индексация, кто арендатор, чем подтверждается">${esc(oi.leaseNote || '')}</textarea></div>
 </div></div>`;
 }
 
@@ -125,37 +185,14 @@ const CITY_NOTE = 'Расположение описывается относи�
   + 'трассы. Город, район и микрорайон задаются в объекте оценки — они общие '
   + 'для всей записи.';
 
-// Блок 03: адрес участка с координатами, расположение относительно населённого
-// пункта и трассы, удалённость от райцентра у сельхоза и благоустройство.
-function locationCard(ctx, oi, idx) {
-  const agricultural = oi.landType !== 'Несельскохозяйственный';
-
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Местоположение</h3></div><div class="card-pad">
-<div class="sec-h">Адрес и координаты</div>
-<div class="grid g-4">
-<div class="field"><label>Улица</label>
-  <input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Лебединовская"></div>
-<div class="field"><label>Дом</label>
-  <input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="12"></div>
-<div class="field"><label>Координаты (широта, долгота)</label>
-  <input class="input mono" data-land-gps value="${esc(oi.gps || '')}"
-    placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота"></div>
-</div>
-<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
-
-<div class="sec-h" style="margin-top:12px">Расположение${devNote(CITY_NOTE)}</div>
-<div class="grid g-4">
-${selectField('Расположение в районе', 'data-land-location', opt('land', 'location', LAND_LOCATION), oi.location)}
-${selectField('Расположение к трассе', 'data-land-road', opt('land', 'roadLocation', LAND_ROAD_LOCATION), oi.roadLocation)}
-${selectField('Угловой/Неугловой', 'data-land-corner', opt('land', 'corner', LAND_CORNER), oi.corner)}
-${selectField('Рельеф участка', 'data-land-relief', opt('land', 'relief', LAND_RELIEF), oi.relief)}
-${agricultural ? `<div class="field"><label>Удалённость от райцентра, км</label>
-  <input class="input" data-land-distance value="${esc(oi.distanceToCenter || '')}" inputmode="decimal"></div>` : ''}
-</div>
+// Особенности и благоустройство. Адрес, координаты и расположение уехали в
+// блок 01 — там их и заполняют (решение пользователя 10.09.2026); здесь
+// осталось то, что описывают в конце, когда участок уже осмотрен.
+function featuresCard(ctx, oi, idx) {
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Благоустройство и особенности</h3></div><div class="card-pad">
+${improvementsFields(ctx, oi)}
 <div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea ta-wide" data-land-location-features
   placeholder="Что важно знать об окружении: соседство, подъезд, вид, шум, затопляемость…">${esc(oi.locationFeatures || '')}</textarea></div>
-<div class="sec-h">Благоустройство территории</div>
-${improvementsFields(ctx, oi)}
 </div></div>`;
 }
 
@@ -163,6 +200,17 @@ export function render(ctx, oi) {
   const agricultural = oi.landType !== 'Несельскохозяйственный';
   const idx = blockNumbers();
 
-  const body = `<div class="oi-stack">${commonCard(oi, idx())}${agricultural ? agriculturalCard(ctx, oi, idx()) : nonAgriculturalCard(ctx, oi, idx())}${locationCard(ctx, oi, idx())}<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">${String(idx()).padStart(2, '0')}</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div></div>`;
+  // Порядок блоков повторяет порядок заполнения: чем участок опознаётся и где
+  // стоит, потом площади, аренда (если он в аренде), коммуникации и уже в
+  // конце — благоустройство с особенностями.
+  const body = `<div class="oi-stack">
+${commonCard(oi, idx())}
+${areasCard(oi, idx())}
+${oi.leased === 'Да' ? leaseCard(oi, idx()) : ''}
+${agricultural ? agriculturalCard(ctx, oi, idx()) : nonAgriculturalCard(ctx, oi, idx())}
+${featuresCard(ctx, oi, idx())}
+<div class="card t-blue"><div class="card-head" data-card-toggle><span class="card-idx">${String(idx()).padStart(2, '0')}</span><h3>Фото по категориям</h3><button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span></div><div class="card-body-wrap"><div class="card-pad">${photoAccordions(ctx.ui, oi, true)}</div></div></div>
+</div>`;
+
   return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body)}`;
 }
