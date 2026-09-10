@@ -305,6 +305,26 @@ body[data-module] .fl-lock:hover{background:var(--blue-50)}
    с клавиатуры. */
 body[data-module] .fl-lock input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
 
+/* Ручка переноса строки развёртки. Тихая, как крестик удаления: перенос —
+   редкое действие, и рядом с полями ввода ручка-«кирпич» спорила бы с ними за
+   внимание. Заметной становится под курсором. */
+body[data-module] th.fl-c-grip{width:26px;padding-left:0;padding-right:0}
+body[data-module] .fl-grip-cell{width:26px;padding-left:2px;padding-right:2px;text-align:center}
+
+body[data-module] .fl-grip{
+  display:inline-block;line-height:1;font-size:13px;color:var(--ink-icon);
+  cursor:grab;user-select:none;padding:2px 3px;border-radius:4px}
+body[data-module] .fl-grip:hover{color:var(--blue-600);background:var(--fill-pick)}
+body[data-module] .fl-grip:active{cursor:grabbing}
+
+/* Строка на весу — приглушена: видно, что она сейчас «в руке», а не на месте. */
+body[data-module] tr.fl-dragging td{opacity:.45}
+
+/* Раздел, готовый принять строку. Рамка, а не заливка: заливка перекрасила бы
+   таблицу целиком и спрятала бы то, куда именно строка встанет. */
+body[data-module] .al.fl-drop{outline:2px solid var(--blue-600);outline-offset:-1px}
+body[data-module] .al.fl-drop > .acc-head{background:var(--fill-pick)}
+
 body[data-module] .fl-lock .lk{
   width:15px;height:15px;background:var(--slate-400);
   -webkit-mask:var(--lk-open) center / 15px 15px no-repeat;
