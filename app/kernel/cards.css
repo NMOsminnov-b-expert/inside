@@ -306,7 +306,7 @@ body[data-module] .fl-lock:hover{background:var(--blue-50)}
 body[data-module] .fl-lock input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
 
 body[data-module] .fl-lock .lk{
-  width:15px;height:15px;background:#94a3b8;
+  width:15px;height:15px;background:var(--slate-400);
   -webkit-mask:var(--lk-open) center / 15px 15px no-repeat;
   mask:var(--lk-open) center / 15px 15px no-repeat;
   transition:background .12s}
