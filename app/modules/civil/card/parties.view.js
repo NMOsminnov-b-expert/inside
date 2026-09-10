@@ -28,15 +28,33 @@ export function partyOf(x) {
   return { name: String(x || ''), share: '', pud: '' };
 }
 
-// Правоустанавливающие документы записи — подсказки для поля «ПУД».
-// Берём не все документы, а те, по которым и определяются права.
-const PUD_TYPES = ['ПУД', 'Гос. акт на землю'];
+// Подсказки для поля документа — всё, что уже приложено к записи и к её
+// объектам имущества.
+//
+// Список НЕ сужаем по виду документа: долю указывают и по правоустанавливающему
+// документу, и по правоудостоверяющему (уточнение пользователя 09.09.2026), а в
+// макете вид проставляют не всегда. Отфильтруй мы по виду — нужный документ
+// просто не всплыл бы, и человек решил бы, что подсказок нет вовсе.
+//
+// Возвращаем пары «название + пояснение»: у документов названия похожи, и без
+// вида с датой из списка не выбрать. Пояснение участвует и в поиске — набрал
+// «акт», нашёл и по виду.
+export function docHints(rec) {
+  const out = [];
+  const seen = new Set();
 
-export function pudNames(rec) {
-  return [...new Set((rec && rec.docs ? rec.docs : [])
-    .filter((d) => PUD_TYPES.includes(d.type))
-    .map((d) => d.name)
-    .filter(Boolean))];
+  const add = (d, where) => {
+    if (!d || !d.name || seen.has(d.name)) return;
+    seen.add(d.name);
+    out.push({ value: d.name, meta: [d.type, d.date, where].filter(Boolean).join(' · ') });
+  };
+
+  (rec && rec.docs ? rec.docs : []).forEach((d) => add(d, ''));
+  (rec && rec.oi ? rec.oi : []).forEach((oi) => {
+    (oi.docs || []).forEach((d) => add(d, oi.letter ? `литера ${oi.letter}` : oi.name));
+  });
+
+  return out;
 }
 
 export const partiesOf = (list) => (list || []).map(partyOf);
@@ -76,11 +94,22 @@ export function shareSum(list) {
 
 const num = (n) => (Number.isInteger(n) ? n : n.toFixed(2));
 
-function suggestBox(names, kind = 'name') {
-  // Пустой список подсказок тоже рисуем: поле остаётся обычным, просто
-  // подсказывать пока нечего — документы к записи могли ещё не приложить.
-  return `<div class="pt-sug" data-pt-sug="${kind}" hidden>
-    ${names.map((n) => `<button type="button" class="pt-sug-o" data-pt-pick="${esc(n)}">${esc(n)}</button>`).join('')}
+// Подсказка — либо строка, либо пара «значение + пояснение». Пояснение видно
+// в списке и участвует в поиске (data-pt-find).
+function suggestBox(items, kind = 'name') {
+  // Пустой список тоже рисуем: поле остаётся обычным, просто подсказывать пока
+  // нечего — документы к записи могли ещё не приложить.
+  const opt = (x) => {
+    const o = typeof x === 'object' ? x : { value: x, meta: '' };
+    return `<button type="button" class="pt-sug-o" data-pt-pick="${esc(o.value)}"
+      data-pt-find="${esc((o.value + ' ' + (o.meta || '')).toLowerCase())}">
+      <span class="pt-sug-t">${esc(o.value)}</span>
+      ${o.meta ? `<span class="pt-sug-m">${esc(o.meta)}</span>` : ''}
+    </button>`;
+  };
+
+  return `<div class="pt-sug pt-sug-${kind}" data-pt-sug="${kind}" hidden>
+    ${items.map(opt).join('')}
     <div class="muted pt-sug-none" hidden style="padding:4px 9px">Ничего не найдено</div>
   </div>`;
 }
@@ -88,7 +117,7 @@ function suggestBox(names, kind = 'name') {
 // Блок в одну строку: номер, наименование, доля, удаление. Отдельная шапка с
 // номером и крестиком забирала строку целиком и раздувала блок вдвое
 // (замечание пользователя 09.09.2026 — «нумерацию и удаление компактнее»).
-function partyCard(kind, i, p, names, title, puds) {
+function partyCard(kind, i, p, names, title, docs) {
   return `<div class="pt-card" data-pt-row="${kind}|${i}">
     <span class="pt-n" aria-hidden="true">${i + 1}</span>
 
@@ -101,16 +130,16 @@ function partyCard(kind, i, p, names, title, puds) {
 
     <div class="pt-share-in ${isFracShare(p.share) ? 'frac' : ''}" data-pt-share-box>
       <input class="input" data-pt-share="${kind}|${i}" value="${esc(p.share)}"
-        placeholder="50 или 1/2" aria-label="Доля — процентом или дробью"
+        placeholder="50" aria-label="Доля — процентом или дробью"
         title="Процентом («50», «33,3») или дробью («1/2», «2/3»)">
       <span class="pt-share-u">%</span>
     </div>
 
     <div class="pt-pud">
       <input class="input" data-pt-pud="${kind}|${i}" value="${esc(p.pud || '')}"
-        placeholder="документ" autocomplete="off" aria-label="Правоустанавливающий документ"
-        title="Правоустанавливающий документ, по которому указана доля">
-      ${suggestBox(puds, 'pud')}
+        placeholder="начните вводить" autocomplete="off" aria-label="Документ, по которому указана доля"
+        title="Документ, по которому указана доля. Начните вводить — предложим уже прикреплённые">
+      ${suggestBox(docs, 'pud')}
     </div>
 
     <button type="button" class="pt-rm" data-pt-rm="${kind}|${i}"
@@ -118,7 +147,7 @@ function partyCard(kind, i, p, names, title, puds) {
   </div>`;
 }
 
-function partySection(kind, list, names, puds, { title, addLabel, empty }) {
+function partySection(kind, list, names, docs, { title, addLabel, empty }) {
   const items = partiesOf(list);
   const sum = shareSum(list);
   const bad = items.length > 0 && Math.abs(sum - 100) > 0.01;
@@ -134,7 +163,7 @@ function partySection(kind, list, names, puds, { title, addLabel, empty }) {
       ${items.length ? `<div class="pt-head" aria-hidden="true">
         <span></span><span>Наименование</span><span>Доля</span><span>ПУД</span><span></span>
       </div>` : ''}
-      ${items.map((p, i) => partyCard(kind, i, p, names, p.name || empty, puds)).join('')}
+      ${items.map((p, i) => partyCard(kind, i, p, names, p.name || empty, docs)).join('')}
       <button type="button" class="pt-add" data-pt-add="${kind}">+ ${esc(addLabel)}</button>
     </div>
   </div>`;
@@ -143,12 +172,12 @@ function partySection(kind, list, names, puds, { title, addLabel, empty }) {
 // names — известные наименования: подсказки собираются из уже заведённых
 // собственников и пользователей всех записей (см. partyNames в records.js).
 export function ownersUsersHTML(rec, names = PEOPLE) {
-  const puds = pudNames(rec);
+  const docs = docHints(rec);
   return `<div class="pt-wrap">
-    ${partySection('owner', rec.owners, names, puds, {
+    ${partySection('owner', rec.owners, names, docs, {
     title: 'Собственники', addLabel: 'Собственник', empty: 'собственник',
   })}
-    ${partySection('user', rec.users, names, puds, {
+    ${partySection('user', rec.users, names, docs, {
     title: 'Пользователи', addLabel: 'Пользователь', empty: 'пользователь',
   })}
   </div>`;

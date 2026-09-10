@@ -31,7 +31,10 @@ function bindSuggest(input, box, onPick) {
     const q = input.value.trim().toLowerCase();
     let shown = 0;
     opts.forEach((o) => {
-      const hit = !q || o.dataset.ptPick.toLowerCase().includes(q);
+      // Ищем и по пояснению: у документа это вид и дата, и «акт» должен
+      // находить «Гос. акт на землю» даже без совпадения в названии.
+      const hay = o.dataset.ptFind || o.dataset.ptPick.toLowerCase();
+      const hit = !q || hay.includes(q);
       o.hidden = !hit;
       if (hit) shown++;
     });

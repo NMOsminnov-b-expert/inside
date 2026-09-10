@@ -175,7 +175,7 @@ body[data-module="civil"] .pt-sug {
   left: 0;
   right: 0;
   z-index: 400;
-  max-height: 220px;
+  max-height: 260px;
   overflow: auto;
   padding: 4px;
   background: var(--panel, #fff);
@@ -188,7 +188,7 @@ body[data-module="civil"] .pt-sug-o {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 7px 9px;
+  padding: 6px 9px;
   border: 0;
   border-radius: 7px;
   background: none;
@@ -196,6 +196,41 @@ body[data-module="civil"] .pt-sug-o {
   font-size: 12.5px;
   color: var(--slate-700);
   cursor: pointer;
+  line-height: 1.3;
+}
+
+/* Пункт списка документов — в две строки: название и под ним вид с датой.
+   Названия у документов похожи («Договор № 12», «Договор № 13»), и без вида
+   выбрать не из чего. Название не переносим — узкая колонка ломала его на
+   середине слова; что не влезло, договаривает всплывающая подсказка. */
+body[data-module="civil"] .pt-sug-t {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-module="civil"] .pt-sug-m {
+  display: block;
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Список документов шире своего поля: колонка «ПУД» узкая, а названия
+   документов длинные. Растём влево от правого края — вправо мешает карточка. */
+body[data-module="civil"] .pt-sug-pud {
+  left: auto;
+  right: 0;
+  min-width: 300px;
+}
+
+/* На узкой карточке 300px уже не помещаются — прижимаемся к её ширине. */
+@media (max-width: 1280px) {
+  body[data-module="civil"] .pt-sug-pud { min-width: 220px; }
 }
 
 body[data-module="civil"] .pt-sug-o:hover,
