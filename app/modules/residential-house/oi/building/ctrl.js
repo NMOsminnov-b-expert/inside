@@ -8,7 +8,7 @@ import { gpsError } from '../../../../kernel/gps.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
-import { bindAreaList } from '../../../../kernel/areaList.js';
+import { bindAnnexes } from './annexes.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
@@ -23,9 +23,7 @@ import { nextDocId, nextId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
 
 export function bind(ctx, oi) {
-  bindAreaList(ctx, oi, 'loggias');
-  bindAreaList(ctx, oi, 'balconies');
-  bindAreaList(ctx, oi, 'terraces');
+  bindAnnexes(ctx, oi);
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
