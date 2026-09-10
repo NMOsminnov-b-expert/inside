@@ -10,6 +10,7 @@
 // Лимита на количество нет намеренно: он и был предметом правки.
 
 import { num, fmtNum } from './fmt.js';
+import { bindNumField } from './numField.js';
 
 let seq = 1;
 
@@ -96,12 +97,26 @@ export function bindAreaList(ctx, oi, key) {
   // Сумма пересчитывается по ходу набора, но перерисовки нет — иначе сбивался
   // бы курсор в поле.
   box.querySelectorAll('[data-al-area]').forEach((inp) => {
+    const showSum = () => {
+      const sum = box.querySelector('.al-sum');
+      if (sum) sum.textContent = `Σ ${fmtNum(areaSum(oi, key))} м²`;
+    };
+
+    // Разряды в поле: «1 000 000,00» на экране, машинное значение в записи
+    // (kernel/numField.js). Форматирование снимается на время правки, поэтому
+    // с набором по ходу оно не спорит.
+    bindNumField(inp, (v) => {
+      const it = find(inp.dataset.alArea.split('|')[1]);
+      if (!it) return;
+      it.area = v;
+      showSum();
+    });
+
     inp.oninput = () => {
       const it = find(inp.dataset.alArea.split('|')[1]);
       if (!it) return;
       it.area = inp.value;
-      const sum = box.querySelector('.al-sum');
-      if (sum) sum.textContent = `Σ ${fmtNum(areaSum(oi, key))} м²`;
+      showSum();
     };
   });
 

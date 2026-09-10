@@ -1,4 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
+import { numText } from '../../../../kernel/numField.js';
 import { fmtNum, num, plural } from '../../../../kernel/fmt.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -70,13 +71,6 @@ ${rows.length ? `<input type="checkbox" data-cat-all="${cat.key}" ${onCount === 
 </div>
 <div class="acc-body">${body}</div>
 </div>`;
-}
-
-// Сноска под развёрткой — та же величина, что в приписке у поля.
-function floorsHint(oi) {
-  const n = (oi.floorList || []).filter((f) => f.cat === 'over').length;
-  if (!n) return '<b>Надземных этажей нет</b> — объект из подземных и мансардных строк.';
-  return `<b>${floorsNote(oi)}</b> надземных.`;
 }
 
 export function floorsCountField(oi) {
@@ -153,7 +147,7 @@ export function floorsBlock(ctx, oi) {
 замерам поровну. Снимите отметку, чтобы вписать её вручную. Площадь по внутреннему обмеру не
 делится — этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
-<div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
+<div class="muted" style="font-size:10.5px;margin-top:5px">Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }
 
 export function updateFloorsUI(ctx, oi) {
@@ -163,16 +157,18 @@ export function updateFloorsUI(ctx, oi) {
     AREA_FIELDS.forEach((a) => {
       const el = s.$(`[data-floor-area="${a.key}|${i}"]`);
       if (!el) return;
-      if (document.activeElement !== el) el.value = f[a.key] || '';
+      // Поле в фокусе не трогаем: человек его правит, и подмена значения под
+      // курсором сбила бы ввод. Остальные показываем с разрядами.
+      if (document.activeElement !== el) el.value = numText(f[a.key]);
       el.readOnly = f.on && a.auto;
     });
 
     const on = s.$(`[data-floor-on="${i}"]`);
     if (on) on.checked = f.on;
     const he = s.$(`[data-floor-hext="${i}"]`);
-    if (he && document.activeElement !== he) he.value = f.hExt;
+    if (he && document.activeElement !== he) he.value = numText(f.hExt);
     const hi = s.$(`[data-floor-hint="${i}"]`);
-    if (hi && document.activeElement !== hi) hi.value = f.hInt;
+    if (hi && document.activeElement !== hi) hi.value = numText(f.hInt);
   });
 
   FLOOR_CATS.forEach((cat) => {
