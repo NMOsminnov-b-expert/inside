@@ -35,7 +35,7 @@ function mainSection(rec) {
         </div>
 
         <div class="field">
-          <label>Назначение по ТП</label>
+          <label>Целевое назначение</label>
           <input class="input" id="fPurpose" value="${esc(rec.purposeTP)}">
         </div>
 

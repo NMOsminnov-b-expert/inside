@@ -70,12 +70,15 @@ export const LAND_DICT_SOURCES = [
   },
   {
     key: 'IMPROVEMENT_RANKS',
-    title: 'Ранг благоустройства',
+    // Поле 10.09.2026 переименовано в «Наличие благоустройства» — заголовок
+    // справочника держим тем же словом, иначе перечень называется одним, а
+    // поле, к которому он привязан, другим.
+    title: 'Наличие благоустройства',
     kind: 'list',
     system: false,
     values: D.IMPROVEMENT_RANKS,
     slots: [
-      { card: 'land', field: 'improvementRank', label: 'Ранг благоустройства' },
+      { card: 'land', field: 'improvementRank', label: 'Наличие благоустройства' },
     ],
   },
   {

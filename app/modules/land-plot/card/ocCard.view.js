@@ -29,7 +29,7 @@ function headOC(rec) {
       <span class="pill pill-cat">${esc(rec.category)}</span>
 
       <div class="hm"><span class="lbl">Тип ОЦ</span><b>${esc(rec.type)}</b></div>
-      <div class="hm"><span class="lbl">Назначение по ТП</span><b>${esc(rec.purposeTP)}</b></div>
+      <div class="hm"><span class="lbl">Целевое назначение</span><b>${esc(rec.purposeTP)}</b></div>
       <div class="hm"><span class="lbl">Код ЕНИ</span>
         <b title="${esc(eniCodes(rec))}">${esc(eniCodes(rec))}</b></div>
       <div class="hm hm-wide"><span class="lbl">Адрес</span><b>${esc(rec.address)}</b></div>
