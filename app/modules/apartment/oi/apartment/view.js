@@ -163,22 +163,36 @@ placeholder="42.874722, 74.612222" title="Из карты или прибора:
 </div>`;
 }
 
-// Блок 02 квартиры: площади + лоджии/балконы + развёртка (при этажности > 1).
+// Блок 02 квартиры: площади + развёртка (при этажности > 1). Оформлен как
+// «Площади и этажность» карточки гражданского здания (указание пользователя
+// 10.09.2026).
+//
+// Названия площадей — по техпаспорту: «Общая по техпаспорту» стала «Площадью по
+// внешним замерам», «Площадь застройки» — «Площадью по внутреннему обмеру».
+// Ключи данных прежние (areas.tp, areas.build), переименование только в
+// подписях. Прежняя оговорка «застройка — она же по наружным замерам» снята как
+// противоречащая — там же, где и в гражданском.
+//
+// Поле «Количество этажей» из гражданского НЕ переносится: у квартиры этажи
+// считает «Количество этажей в квартире» в блоке 01 (data-apt-storeys — он и
+// пишет oi.floors). Второе поле на ту же величину осталось бы мёртвым:
+// обработчика data-floors-n в этой карточке нет.
 function areasCard(ctx, oi, idx) {
   const areas = oi.areas || {};
   const heights = oi.heights || {};
-  const apt = oi.apartment || {};
-
 
   return `<div class="card t-blue" id="q-areas">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
+<!-- g-roomy — запас по вертикали: у площади по внешним замерам есть подпись под
+     полем, а .field-hint вынесена из потока и без запаса легла бы на метку
+     следующей строки. -->
+<div class="grid g-4 g-roomy">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label title="Со страницы «Характеристика строений и сооружений» техпаспорта">Площадь по внешним замерам, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}" title="Со страницы «Характеристика строений и сооружений» техпаспорта">
+<span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
-
+<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
 </div>
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
