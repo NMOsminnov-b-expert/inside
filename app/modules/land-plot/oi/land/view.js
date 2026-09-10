@@ -90,7 +90,7 @@ ${agricultural ? `<div class="field"><label>Удалённость от райц
   value="${esc(oi.rightsOther || '')}" style="flex:1 1 180px;${oi.rights === 'Иное' ? '' : 'display:none'}"></div>
 </div>
 ${selectField('Наличие сервитутов и обременений', 'data-land-encumbrance', opt('land', 'encumbrance', LAND_ENCUMBRANCE), oi.encumbrance || 'Нет')}
-${showEncArea ? `<div class="field"><label>Площадь сервитутов и обременений, кв.м. <span class="req">*</span></label><input class="input" data-land-encumbrance-area value="${esc(oi.encumbranceArea || '')}" required></div>` : ''}
+${showEncArea ? `<div class="field"><label>Площадь сервитутов и обременений, м² <span class="req">*</span></label><input class="input" data-land-encumbrance-area value="${esc(oi.encumbranceArea || '')}" required></div>` : ''}
 ${selectField('Участок в аренде', 'data-land-leased', LEASE_YES_NO, oi.leased || 'Нет')}
 </div>
 ${showEncArea ? `<div class="field" style="margin-top:10px"><label>Комментарий к сервитуту</label>
@@ -118,10 +118,10 @@ function areasCard(oi, idx) {
 
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади</h3></div><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>По правоустанавливающим документам, кв.м.</label><input class="input" data-land-area="pravo" value="${esc(areas.pravo || '')}"></div>
-<div class="field"><label>По правоудостоверяющим документам, кв.м.</label><input class="input" data-land-area="pravoUd" value="${esc(areas.pravoUd || '')}"></div>
-<div class="field"><label>По факту, кв.м.</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label>Застроенная площадь, кв.м.</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
+<div class="field"><label>По правоустанавливающим документам, м²</label><input class="input" data-land-area="pravo" value="${esc(areas.pravo || '')}"></div>
+<div class="field"><label>По правоудостоверяющим документам, м²</label><input class="input" data-land-area="pravoUd" value="${esc(areas.pravoUd || '')}"></div>
+<div class="field"><label>По факту, м²</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
+<div class="field"><label>Застроенная площадь, м²</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
 </div>
 </div></div>`;
 }

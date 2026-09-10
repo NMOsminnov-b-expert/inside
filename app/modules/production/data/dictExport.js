@@ -126,6 +126,16 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'ANNEX_KINDS',
+    title: 'Виды пристроек',
+    kind: 'list',
+    system: false,
+    values: D.ANNEX_KINDS,
+    slots: [
+      { card: 'building', field: 'annexKind', label: 'Вид пристройки' },
+    ],
+  },
+  {
     key: 'PHOTO_CAT',
     title: 'Категории фотографий',
     kind: 'list',

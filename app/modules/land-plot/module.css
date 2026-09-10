@@ -231,3 +231,142 @@ body[data-module="land-plot"] .src-btn{
 body[data-module="land-plot"] .src-btn:hover:not(:disabled){background:var(--amber-50)}
 /* Без кода запрашивать нечего — кнопка выключена, а не отвечает ошибкой. */
 body[data-module="land-plot"] .src-btn:disabled{opacity:.55;cursor:default;border-color:var(--line);color:var(--muted)}
+
+/* ===== Таблица пристроек (блок «Пристройки» карточки литеры) ==============
+   Строка на пристройку: литера, вид, материалы, площадь — как на странице
+   техпаспорта «Характеристика строений и сооружений».
+
+   Оформление взято у раздела «Справочники» (pages/dicts/dicts.css) по
+   замечанию пользователя 09.09.2026 — «это не таблица, загляни в оформление
+   справочников». Оттуда три вещи: поле в ячейке без рамки (рамка появляется
+   под курсором и становится настоящей при работе), столбцы разделены линиями,
+   новая строка добавляется плюсиком прямо в таблице.
+
+   Классы свои, а не из dicts.css: те правила висят на body[data-page="dicts"],
+   а карточка — экран модуля. */
+
+body[data-module="land-plot"] .ax-scroll{overflow-x:auto;border:1px solid var(--line);
+  border-radius:9px;background:var(--panel,#fff)}
+
+/* Ширина рассчитана так, чтобы названия материалов («Металлическая решётка»)
+   читались, а не обрезались на второй букве. Шире карточки — значит таблица
+   прокручивается внутри себя; на широком экране и при закрытом просмотрщике
+   она помещается целиком. */
+body[data-module="land-plot"] .ax-tbl{width:100%;min-width:800px;border-collapse:collapse;
+  table-layout:fixed}
+
+body[data-module="land-plot"] .ax-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:#5a6b82;text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);
+  font-weight:700;background:#f6f9fd}
+
+/* Столбцы разделены линиями: без них литера, вид и материалы читались одной
+   строкой. */
+body[data-module="land-plot"] .ax-tbl td{padding:1px 10px;border-bottom:1px solid var(--line-soft);
+  border-right:1px solid var(--line-soft);font-size:13px;vertical-align:middle;height:34px}
+body[data-module="land-plot"] .ax-tbl td:last-child,
+body[data-module="land-plot"] .ax-tbl th:last-child{border-right:none}
+body[data-module="land-plot"] .ax-tbl tbody tr:hover td{background:#f7fbff}
+
+/* Ширины: литера короткая, площадь по правому краю, материалы делят остаток. */
+body[data-module="land-plot"] .ax-tbl th.ax-n,
+body[data-module="land-plot"] .ax-tbl td.ax-n{width:30px;text-align:right;padding-right:4px;
+  color:#9fb0c4;font-size:11px;font-variant-numeric:tabular-nums}
+body[data-module="land-plot"] .ax-tbl th:nth-child(2){width:54px}
+body[data-module="land-plot"] .ax-tbl th:nth-child(3){width:112px}
+body[data-module="land-plot"] .ax-tbl th.ax-area-cell{width:96px;text-align:right}
+body[data-module="land-plot"] .ax-tbl th.ax-act,
+body[data-module="land-plot"] .ax-tbl td.ax-act{width:34px;text-align:right;padding-left:2px}
+
+/* НЕВИДИМОЕ ПОЛЕ — то же решение, что в справочниках: рамка у каждой ячейки
+   рябит, а правят всё равно по одной.
+   
+   Рамка не проявляется и при наведении (замечание пользователя 09.09.2026):
+   строка под курсором вспыхивала десятком прямоугольников сразу, и таблица
+   мигала при каждом движении мыши. Ячейка обводится только когда в ней
+   работают. */
+body[data-module="land-plot"] .ax-cell{width:100%;min-width:0;border:1px solid transparent;
+  border-radius:6px;padding:5px 7px;font:inherit;font-size:13px;color:var(--ink);
+  background:transparent;transition:background .1s,border-color .1s}
+body[data-module="land-plot"] .ax-cell:focus{border-color:var(--blue-600);background:#fff;
+  box-shadow:0 0 0 3px rgba(22,104,201,.14);outline:none}
+/* Подсказка в пустой ячейке — только при работе с ней: десяток серых «ж1»
+   подряд читается как заполненные данные. */
+body[data-module="land-plot"] .ax-cell::placeholder{color:transparent}
+body[data-module="land-plot"] .ax-cell:focus::placeholder{color:#aab8ca}
+/* Исключение — «Иное» без пояснения: там подсказка «что это» и объясняет, чего
+   от ячейки ждут. Пустая янтарная клетка без слов только озадачивает. */
+body[data-module="land-plot"] .ax-tbl [data-ax-need]::placeholder{color:var(--amber-700)}
+/* Списки в ячейках — те же тихие поля, что и текстовые: своей рамки у них нет,
+   она появляется, только когда список открыт (замечание пользователя
+   09.09.2026 — «ячейки видно»). Общий .ms-control из cards.css рисует рамку и
+   белый фон всегда: в форме это уместно, в таблице — рябит. */
+body[data-module="land-plot"] .ax-tbl .ms-control{
+  height:auto;min-height:26px;border-color:transparent;background:transparent;
+  padding:4px 7px;border-radius:6px;gap:6px;overflow:visible}
+body[data-module="land-plot"] .ax-tbl .ms-control:hover{border-color:transparent}
+body[data-module="land-plot"] .ax-tbl .ms-control.open{border-color:var(--blue-600);background:#fff;
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+/* Стрелка видна только у открытого списка и под курсором строки: в покое
+   ячейка должна читаться как значение, а не как элемент управления. */
+body[data-module="land-plot"] .ax-tbl .ms-control .chev{opacity:0;transition:opacity .12s,transform .15s}
+body[data-module="land-plot"] .ax-tbl tr:hover .ms-control .chev,
+body[data-module="land-plot"] .ax-tbl .ms-control.open .chev{opacity:1}
+body[data-module="land-plot"] .ax-tbl .ms-summary{font-size:13px}
+/* Счётчик выбранных — тише, чем в форме: в строке таблицы он спорит со
+   значением. */
+body[data-module="land-plot"] .ax-tbl .ms-count{padding:0 6px;font-size:10px}
+
+/* Одиночный выбор (вид пристройки): пункты списка — кнопки, а не флажки. */
+body[data-module="land-plot"] .ms-one{width:100%;text-align:left;border:0;background:none;
+  font:inherit;font-size:12.5px;color:#33445c;cursor:pointer}
+body[data-module="land-plot"] .ms-one:hover{background:var(--blue-50)}
+body[data-module="land-plot"] .ms-one.on{background:var(--blue-100);color:var(--blue-700);
+  font-weight:700}
+
+/* Литера — крупной буквой по центру, как в блоке 01 (замечание пользователя
+   09.09.2026): там она набрана так же. */
+body[data-module="land-plot"] .ax-letter{text-align:center;font-weight:700;font-size:14px}
+/* Площадь читают колонкой — цифры моноширинные и по правому краю. */
+body[data-module="land-plot"] .ax-area{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="land-plot"] .ax-tbl td.ax-area-cell{text-align:right;font-weight:700;
+  font-variant-numeric:tabular-nums}
+
+/* Вид «Иное»: поле ввода и возврат к списку в одной ячейке. */
+body[data-module="land-plot"] .ax-other{display:flex;align-items:center;gap:2px}
+body[data-module="land-plot"] .ax-back{flex:0 0 auto;width:20px;height:20px;padding:0;border:0;
+  border-radius:5px;background:none;color:#b6c4d4;font-size:12px;line-height:1;cursor:pointer}
+body[data-module="land-plot"] .ax-back:hover,
+body[data-module="land-plot"] .ax-back:focus-visible{background:var(--blue-50);color:var(--blue-700)}
+/* Вид «Иное» без пояснения — видно сразу, а не при выгрузке. Это единственная
+   ячейка, обведённая без фокуса: пометка, а не подсказка о том, что поле
+   можно править. */
+body[data-module="land-plot"] .ax-tbl [data-ax-need]{border-color:var(--amber-600);
+  background:var(--amber-50)}
+
+/* Крестик тихий, пока к строке не подошли: удаление не должно быть самым
+   заметным элементом таблицы. */
+body[data-module="land-plot"] .ax-x{width:22px;height:22px;border:0;border-radius:6px;
+  background:none;color:#b6c4d4;font-size:15px;line-height:1;cursor:pointer;
+  opacity:0;transition:opacity .12s,background .12s,color .12s}
+body[data-module="land-plot"] .ax-tbl tr:hover .ax-x{opacity:1}
+body[data-module="land-plot"] .ax-x:hover,
+body[data-module="land-plot"] .ax-x:focus-visible{opacity:1;background:#fef2f2;color:var(--danger)}
+
+/* Строка добавления — часть таблицы, как в справочниках. */
+body[data-module="land-plot"] .ax-add-row td{color:#8fa3ba;font-size:12.5px;cursor:pointer}
+body[data-module="land-plot"] .ax-add-row:hover td{background:#f2f8ff;color:var(--blue-700)}
+body[data-module="land-plot"] .ax-plus{display:inline-block;font-size:14px;font-weight:700;
+  color:#8fa3ba;line-height:1}
+body[data-module="land-plot"] .ax-add-row:hover .ax-plus{color:var(--blue-600)}
+
+/* Итоговая строка стоит под колонкой площади — там, где её и складывают. */
+body[data-module="land-plot"] .ax-tbl tfoot td{background:#f6f9fd;font-size:12px;font-weight:700;
+  color:var(--blue-700);border-top:1px solid var(--line);border-bottom:none}
+
+/* Подытог раздела перечня ОИ: стоит под колонками площадей, там же, где их и
+   складывают (требование пользователя 09.09.2026). Тон — как у шапки таблицы,
+   чтобы строка читалась служебной, а не ещё одним объектом. */
+body[data-module="land-plot"] .oi-tree-tbl tfoot .oi-total td{background:#f6f9fd;
+  border-top:1px solid var(--line);font-size:11.5px;font-weight:700;
+  color:var(--blue-700);padding:6px 10px}
+body[data-module="land-plot"] .oi-total-v{font-variant-numeric:tabular-nums}

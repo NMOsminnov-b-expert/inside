@@ -30,6 +30,7 @@ import { bindSplitPanes } from './parts/viewer/shell.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { viewMech } from './create/mech.view.js';
 import { bindMech } from './create/mech.ctrl.js';
+import { migrateAnnexList } from './oi/building/annexes.js';
 
 function todayStr() {
   const d = new Date();
@@ -343,6 +344,12 @@ export function main(host) {
       o.terraces = o.terraces || [];
       migrateAreaList(o, 'loggias', 'loggiaCount', 'loggiaBuildArea');
       migrateAreaList(o, 'balconies', 'balconyCount', 'balconyBuildArea');
+      // Три списка лоджий/балконов/террас у литеры стали одной таблицей
+      // пристроек с литерой, видом и материалами (решение пользователя
+      // 09.09.2026). Перевод идёт ПОСЛЕ migrateAreaList: тот приводит старые
+      // счётчики к спискам, а этот собирает списки в таблицу.
+      if (o.card === 'building') migrateAnnexList(o);
+
       if (o.apartment) {
         migrateAreaList(o.apartment, 'loggias', 'loggiaCount', 'loggiaBuildArea');
         migrateAreaList(o.apartment, 'balconies', 'balconyCount', 'balconyBuildArea');

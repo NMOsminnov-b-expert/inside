@@ -1,12 +1,12 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { devNote } from '../../../../kernel/devNote.js';
-import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
+import { annexesHTML } from './annexes.js';
 import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, STRUCT, RES_BUILD_CAT, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, STRUCT_STRENGTH, CRANE_BEAM , RIGHTS, STRUCTURE_KIND} from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
@@ -196,7 +196,7 @@ style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-${rq.showOiCategory ? `<div class="field"><label>Категория ОИ</label>
+${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
 </div>` : ''}
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
@@ -206,9 +206,9 @@ ${rq.showCatClass ? `<div class="field"><label>Назначение по тех 
 <input class="input" data-catclass value="${esc(oi.catClass || '')}" placeholder="Укажите назначение вручную">
 </div>` : ''}
 </div>
-${rq.showCatClass ? `<div class="inline-row" style="margin-top:10px; gap:14px; flex-wrap:wrap; align-items:center;">
-<label class="flag-lbl"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
-</div>` : ''}
+<!-- Отметка «расхождение ТП и фото с осмотров» убрана 09.09.2026 (решение
+     пользователя). Поле oi.dis в данных осталось: по нему в реестре считается
+     признак «расхождение ТП/фото». Руками отметку больше не ставят. -->
 <div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
 <div class="grid g-3" style="margin-top:6px">
 <div class="field"><label>Улица</label>
@@ -235,11 +235,15 @@ function areasCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
+<!-- g-roomy — запас по вертикали: у площади по внешним замерам есть подпись под
+     полем, а .field-hint вынесена из потока и без запаса легла бы на метку
+     следующей строки. -->
+<div class="grid g-4 g-roomy">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label title="Со страницы «Характеристика строений и сооружений» техпаспорта">Площадь по внешним замерам, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}" title="Со страницы «Характеристика строений и сооружений» техпаспорта">
+<span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
+<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
 </div>
 <div class="grid g-4" style="margin-top:10px">
 ${floorsCountField(oi)}
@@ -298,7 +302,7 @@ const STRUCT_ROWS = [
   { key: 'foundation', label: 'Фундамент' },
   // Цоколь: материал из перечня фундамента (optsKey), а износ ложится в тот
   // же wear.plinth, что и раньше — данные не осиротели.
-  { key: 'plinth', label: 'Цоколь', optsKey: 'basement' },
+  { key: 'plinth', label: 'Цоколь/подвал', optsKey: 'basement' },
   { key: 'wallsExt', label: 'Наружные стены' },
   { key: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt' },
   { key: 'ceilings', label: 'Перекрытия' },
@@ -422,13 +426,16 @@ function resCatOptions() {
 
 // Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
 // они оказывались ниже поэтажной развёртки и высот, и их там не находили.
+// Пристройки — таблицей с литерой, видом и материалами, как на странице
+// техпаспорта «Характеристика строений и сооружений» (требование пользователя
+// 09.09.2026). Было три отдельных списка с одним названием и площадью:
+// веранду и тамбур записать было некуда, литеру — тоже, а материалы нигде не
+// хранились.
 function annexesCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-annexes">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристройки</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }
@@ -477,11 +484,11 @@ export function render(ctx, oi) {
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
-${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}
+${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 </div>`;
 
   return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;

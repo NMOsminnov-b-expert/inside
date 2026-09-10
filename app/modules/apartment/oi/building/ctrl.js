@@ -4,6 +4,8 @@ import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
+import { bindNumField } from '../../../../kernel/numField.js';
+import { bindAnnexes } from './annexes.js';
 import { gpsError } from '../../../../kernel/gps.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -23,23 +25,25 @@ import { nextDocId, nextId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
 
 export function bind(ctx, oi) {
-  bindAreaList(ctx, oi, 'loggias');
-  bindAreaList(ctx, oi, 'balconies');
-  bindAreaList(ctx, oi, 'terraces');
+  bindAnnexes(ctx, oi);
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
   const s = ctx.scope;
 
   // --- Площади и этажность -------------------------------------------------
-  s.$$('[data-area]').forEach((i) => i.onchange = () => {
-    oi.areas[i.dataset.area] = i.value;
+  // Площади и высоты — числовые поля: на экране «1 840,50», в запись уходит
+  // машинное «1840,50» (kernel/numField.js).
+  s.$$('[data-area]').forEach((i) => bindNumField(i, (v) => {
+    oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
     updateFloorsUI(ctx, oi);
     ctx.updatePlate();
-  });
+  }));
 
-  s.$$('[data-height]').forEach((i) => i.onchange = () => { oi.heights[i.dataset.height] = i.value; });
+  s.$$('[data-height]').forEach((i) => bindNumField(i, (v) => {
+    oi.heights[i.dataset.height] = v;
+  }));
 
   // Количество этажей: только цифры и разумные границы. Раньше поле принимало
   // что угодно, а любая нечисловая строка молча превращалась в 1 — этаж
@@ -102,15 +106,19 @@ export function bind(ctx, oi) {
 
     // Ключ поля — «<колонка>|<индекс>»: площадей у этажа три, и каждая
     // распределяется от своего итога (см. floors.model.js).
-    s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
+    s.$$('[data-floor-area]').forEach((i) => bindNumField(i, (v) => {
       const [key, idx] = i.dataset.floorArea.split('|');
-      oi.floorList[+idx][key] = i.value;
+      oi.floorList[+idx][key] = v;
       recalcFloors(oi);
       updateFloorsUI(ctx, oi);
-    });
+    }));
 
-    s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
-    s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+    s.$$('[data-floor-hext]').forEach((i) => bindNumField(i, (v) => {
+      oi.floorList[+i.dataset.floorHext].hExt = v;
+    }));
+    s.$$('[data-floor-hint]').forEach((i) => bindNumField(i, (v) => {
+      oi.floorList[+i.dataset.floorHint].hInt = v;
+    }));
 
     // Название строки правится вручную: этажи бывают «−1», подвалов и цоколей
     // может быть несколько. Перерисовки не делаем — сбился бы курсор в поле.
@@ -201,8 +209,6 @@ export function bind(ctx, oi) {
 
   bindTempMode(ctx, oi);
 
-  const dis = s.$('[data-dis]');
-  if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
   // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
   // перед сменой показываем, что скроется. Значения при этом сохраняются в
