@@ -44,7 +44,7 @@ function catSection(ctx, oi, cat, fkey) {
     : { name: 0.26, area: 0.21, h: 0.16 };
 
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c fl-c-grip" title="Потяните строку за эту ручку, чтобы перенести её в другое размещение"></th><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
+    ? `<table class="tbl al-tbl fl-tbl"><thead><tr><th class="fl-c fl-c-grip" title="Потяните строку за эту ручку, чтобы перенести её в другое размещение"></th><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
 ${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
 ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
 <th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
@@ -52,7 +52,7 @@ ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}
 <tbody>${rows.map(({ f, i }) => `<tr data-floor-row="${i}" data-floor-of="${cat.key}">
 <td class="fl-grip-cell"><span class="fl-grip" draggable="true" data-floor-grip="${i}"
   title="Перенести «${esc(f.name)}» в другое размещение — потяните в нужный раздел" aria-hidden="true">⠿</span></td>
-<td><label class="fl-lock" title="${f.on ? 'Заперто: площадь считает распределение. Откройте, чтобы вписать вручную' : 'Открыто: площадь вписывают вручную. Заприте, чтобы её считало распределение'}">
+<td class="fl-lock-cell"><label class="fl-lock" title="${f.on ? 'Заперто: площадь считает распределение. Откройте, чтобы вписать вручную' : 'Открыто: площадь вписывают вручную. Заприте, чтобы её считало распределение'}">
 <input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} aria-label="Считать площадь автоматически">
 <span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>

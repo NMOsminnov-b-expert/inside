@@ -254,9 +254,24 @@ body[data-module] .al-tbl tbody tr:nth-child(even) td:nth-child(-n+2){background
 body[data-module] .al-tbl th:nth-child(-n+2){background:#eef4fb;z-index:3}
 body[data-module] .al-tbl th:first-child,body[data-module] .al-tbl td:first-child{left:0}
 body[data-module] .al-tbl th:nth-child(2),body[data-module] .al-tbl td:nth-child(2){left:36px;box-shadow:1px 0 0 var(--line-soft)}
+/* У развёртки служебных колонок три: ручка переноса (26px), замок (36px) и
+   только потом название строки. Заморозку сдвигаем на неё, иначе при
+   горизонтальной прокрутке на месте остаются ручка с замком, а название —
+   то, ради чего заморозка и нужна, — уезжает. */
+body[data-module] .fl-tbl th:nth-child(3),body[data-module] .fl-tbl td:nth-child(3){position:sticky;z-index:2;left:62px;box-shadow:1px 0 0 var(--line-soft)}
+body[data-module] .fl-tbl td:nth-child(3){background:var(--panel)}
+body[data-module] .fl-tbl tbody tr:nth-child(even) td:nth-child(3){background:#f8fbff}
+body[data-module] .fl-tbl th:nth-child(3){background:#eef4fb;z-index:3}
+/* А у второй колонки (замок) тени быть не должно: разделительная линия идёт
+   после названия, а не посреди служебных колонок. */
+body[data-module] .fl-tbl th:nth-child(2),body[data-module] .fl-tbl td:nth-child(2){left:26px;box-shadow:none}
 body[data-module] .al-tbl .input{min-width:0;width:100%}
 /* Служебные колонки — чекбокс и крестик: не тянутся и не сжимаются. */
 body[data-module] .al-tbl th.fl-c,body[data-module] .al-tbl td.al-act,body[data-module] .al-tbl td:first-child{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
+/* Ячейка замка в развёртке. Правило выше говорит «первая ячейка строки», но в
+   развёртке первой стала ручка переноса — и замок начал резаться многоточием:
+   в 36 пикселях от «…» оставалась одна точка рядом с замком. */
+body[data-module] .al-tbl td.fl-lock-cell{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
 /* Заголовки переносятся по словам, а не режутся многоточием: «Высота внешн, м»
    в узкой колонке иначе превращается в «Высота вн…». */
 body[data-module] .al-tbl th{white-space:normal;line-height:1.2;overflow-wrap:anywhere;text-overflow:clip}
