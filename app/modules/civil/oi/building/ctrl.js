@@ -239,8 +239,6 @@ export function bind(ctx, oi) {
 
   bindTempMode(ctx, oi);
 
-  const dis = s.$('[data-dis]');
-  if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
   // Тип строения: справочник плюс ручной ввод варианта «Прочее».
   const skSel = s.$('[data-structure-kind]');

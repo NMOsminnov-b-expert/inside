@@ -127,12 +127,15 @@ export const DICT_SOURCES = [
   },
   {
     key: 'OI_CATEGORY_GROUPS',
-    title: 'Категории объектов имущества',
+    // Поле в карточке 09.09.2026 переименовано в «Класс ОИ» — заголовок
+    // справочника держим тем же словом, иначе в разделе «Справочники» перечень
+    // называется одним, а поле, к которому он привязан, другим.
+    title: 'Классы объектов имущества',
     kind: 'list',
     system: true,
     values: D.OI_CATEGORY_GROUPS,
     slots: [
-      { card: 'building', field: 'category', label: 'Категория ОИ' },
+      { card: 'building', field: 'category', label: 'Класс ОИ' },
     ],
   },
   {
@@ -297,13 +300,13 @@ export const DICT_SOURCES = [
   },
   {
     key: 'STRUCT_basement',
-    title: 'Цоколь',
+    title: 'Цоколь/подвал',
     kind: 'list',
     system: false,
     folder: 'Конструктивный состав',
     values: D.STRUCT.basement,
     slots: [
-      { card: 'building', field: 'struct.basement', label: 'Цоколь' },
+      { card: 'building', field: 'struct.basement', label: 'Цоколь/подвал' },
     ],
   },
   {

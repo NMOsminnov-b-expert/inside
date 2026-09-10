@@ -32,7 +32,7 @@ const COMMON = {
   origin: 'Источник данных',
   residential: 'Жилое',
   resCat: 'Категория жилого строения',
-  catClass: 'Категория ОИ',
+  catClass: 'Назначение по тех паспорту',
   buildType: 'Расположение строения',
   mansardType: 'Конструктивный тип мансарды',
   dis: 'Расхождение ТП и фото',
@@ -59,7 +59,7 @@ const COMMON = {
 
   // Конструктивный состав
   'struct.foundation': 'Фундамент',
-  'struct.plinth': 'Цоколь',
+  'struct.plinth': 'Цоколь/подвал',
   'struct.wallsExt': 'Наружные стены',
   'struct.wallsInt': 'Внутренние стены',
   'struct.ceilings': 'Перекрытия',
@@ -71,7 +71,7 @@ const COMMON = {
   heatingOther: 'Отопление (иное)',
 
   // Производственно-складские параметры
-  oiCategory: 'Категория ОИ',
+  oiCategory: 'Класс ОИ',
   rentAreas: 'Арендные площади',
   prodFrame: 'Каркас',
   prodFloors: 'Этажность производственного',

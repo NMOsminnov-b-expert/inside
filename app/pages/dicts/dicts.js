@@ -17,7 +17,7 @@ import { esc } from '../../kernel/dom.js';
 import {
   headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
 } from '../../kernel/columns.js';
-import { fmtEni, plural } from '../../kernel/fmt.js';
+import { fmtEni, plural, foldSearch } from '../../kernel/fmt.js';
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { sortedTypes } from '../../kernel/registry.js';
@@ -162,8 +162,10 @@ function typeMatches(type) {
 function matchesDict(d) {
   if (!state.showSystem && d.system) return false;
   if (!state.q) return true;
-  const hay = [d.name, d.note, ...d.items.map((i) => i.value)].join(' ').toLowerCase();
-  return state.q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+  // «ё» приводится к «е» с обеих сторон (foldSearch): её пишут вперемешку, а
+  // ищут по памяти, не думая о двух точках.
+  const hay = foldSearch([d.name, d.note, ...d.items.map((i) => i.value)].join(' '));
+  return foldSearch(state.q).split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
 }
 
 function dictRowHTML(d) {
@@ -462,9 +464,9 @@ function generalHTML(d) {
 // строк, поэтому оба места работают одинаково.
 function itemsTableHTML(d) {
   const edit = canEditDicts() && !d.system;
-  const q = state.itemQ.trim().toLowerCase();
-  const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
-    || (it.note || '').toLowerCase().includes(q));
+  const q = foldSearch(state.itemQ.trim());
+  const shown = d.items.filter((it) => !q || foldSearch(it.value).includes(q)
+    || foldSearch(it.note || '').includes(q));
 
   const allPicked = shown.length && shown.every((it) => state.picked[it.id]);
 
@@ -547,9 +549,9 @@ function itemsTableHTML(d) {
 
 function itemsHTML(d) {
   const edit = canEditDicts() && !d.system;
-  const q = state.itemQ.trim().toLowerCase();
-  const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
-    || (it.note || '').toLowerCase().includes(q));
+  const q = foldSearch(state.itemQ.trim());
+  const shown = d.items.filter((it) => !q || foldSearch(it.value).includes(q)
+    || foldSearch(it.note || '').includes(q));
 
   const picked = d.items.filter((it) => state.picked[it.id]);
 
@@ -1130,9 +1132,9 @@ export function mountDicts(host) {
 
     const pickAll = scope.$('[data-item-pick-all]');
     if (pickAll) pickAll.onchange = () => {
-      const q = state.itemQ.trim().toLowerCase();
-      const shown = d.items.filter((it) => !q || it.value.toLowerCase().includes(q)
-        || (it.note || '').toLowerCase().includes(q));
+      const q = foldSearch(state.itemQ.trim());
+      const shown = d.items.filter((it) => !q || foldSearch(it.value).includes(q)
+        || foldSearch(it.note || '').includes(q));
       state.picked = {};
       if (pickAll.checked) shown.forEach((it) => { state.picked[it.id] = true; });
       render();

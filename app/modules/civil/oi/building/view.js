@@ -196,7 +196,7 @@ style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 >
 </div>
 </div>
-${rq.showOiCategory ? `<div class="field"><label>Категория ОИ</label>
+${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
 </div>` : ''}
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
@@ -206,9 +206,11 @@ ${rq.showCatClass ? `<div class="field"><label>Назначение по тех 
 <input class="input" data-catclass value="${esc(oi.catClass || '')}" placeholder="Укажите назначение вручную">
 </div>` : ''}
 </div>
-${rq.showCatClass ? `<div class="inline-row" style="margin-top:10px; gap:14px; flex-wrap:wrap; align-items:center;">
-<label class="flag-lbl"><input type="checkbox" data-dis ${oi.dis ? 'checked' : ''}> расхождение ТП и фото с осмотров</label>
-</div>` : ''}
+<!-- Отметка «расхождение ТП и фото с осмотров» убрана 09.09.2026 (решение
+     пользователя). Поле oi.dis в данных осталось: по нему в реестре считается
+     признак «расхождение ТП/фото», и записи, где оно уже проставлено или
+     придёт из импорта ML, продолжают им помечаться. Руками отметку больше не
+     ставят. -->
 <!-- Местоположение целиком переехало в блок «Местоположение» карточки объекта
      оценки: улица с домом, а следом и координаты (решения пользователя
      09.09.2026). Адрес и точка на карте у записи одни, и держать их частями в
@@ -293,7 +295,7 @@ const STRUCT_ROWS = [
   { key: 'foundation', label: 'Фундамент' },
   // Цоколь: материал из перечня фундамента (optsKey), а износ ложится в тот
   // же wear.plinth, что и раньше — данные не осиротели.
-  { key: 'plinth', label: 'Цоколь', optsKey: 'basement' },
+  { key: 'plinth', label: 'Цоколь/подвал', optsKey: 'basement' },
   { key: 'wallsExt', label: 'Наружные стены' },
   { key: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt' },
   { key: 'ceilings', label: 'Перекрытия' },
