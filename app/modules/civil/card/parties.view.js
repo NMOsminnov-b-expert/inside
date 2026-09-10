@@ -15,11 +15,28 @@ import { PEOPLE } from '../data/dictionaries.js';
 //
 // Доля есть у обоих: и собственник, и пользователь владеют своей частью.
 
-// Участник может быть строкой (как заводили раньше) или парой имя+доля.
+// Участник может быть строкой (как заводили раньше) или набором полей.
 // Обе формы читаются одинаково — записи из данных переписывать незачем.
+//
+// pud — правоустанавливающий документ, по которому указана доля: у разных
+// собственников одной записи доли нередко идут по разным документам, и без
+// ссылки на документ долю не проверить (требование пользователя 09.09.2026).
 export function partyOf(x) {
-  if (x && typeof x === 'object') return { name: x.name || '', share: x.share || '' };
-  return { name: String(x || ''), share: '' };
+  if (x && typeof x === 'object') {
+    return { name: x.name || '', share: x.share || '', pud: x.pud || '' };
+  }
+  return { name: String(x || ''), share: '', pud: '' };
+}
+
+// Правоустанавливающие документы записи — подсказки для поля «ПУД».
+// Берём не все документы, а те, по которым и определяются права.
+const PUD_TYPES = ['ПУД', 'Гос. акт на землю'];
+
+export function pudNames(rec) {
+  return [...new Set((rec && rec.docs ? rec.docs : [])
+    .filter((d) => PUD_TYPES.includes(d.type))
+    .map((d) => d.name)
+    .filter(Boolean))];
 }
 
 export const partiesOf = (list) => (list || []).map(partyOf);
@@ -59,8 +76,10 @@ export function shareSum(list) {
 
 const num = (n) => (Number.isInteger(n) ? n : n.toFixed(2));
 
-function suggestBox(names) {
-  return `<div class="pt-sug" data-pt-sug hidden>
+function suggestBox(names, kind = 'name') {
+  // Пустой список подсказок тоже рисуем: поле остаётся обычным, просто
+  // подсказывать пока нечего — документы к записи могли ещё не приложить.
+  return `<div class="pt-sug" data-pt-sug="${kind}" hidden>
     ${names.map((n) => `<button type="button" class="pt-sug-o" data-pt-pick="${esc(n)}">${esc(n)}</button>`).join('')}
     <div class="muted pt-sug-none" hidden style="padding:4px 9px">Ничего не найдено</div>
   </div>`;
@@ -69,7 +88,7 @@ function suggestBox(names) {
 // Блок в одну строку: номер, наименование, доля, удаление. Отдельная шапка с
 // номером и крестиком забирала строку целиком и раздувала блок вдвое
 // (замечание пользователя 09.09.2026 — «нумерацию и удаление компактнее»).
-function partyCard(kind, i, p, names, title) {
+function partyCard(kind, i, p, names, title, puds) {
   return `<div class="pt-card" data-pt-row="${kind}|${i}">
     <span class="pt-n" aria-hidden="true">${i + 1}</span>
 
@@ -87,12 +106,19 @@ function partyCard(kind, i, p, names, title) {
       <span class="pt-share-u">%</span>
     </div>
 
+    <div class="pt-pud">
+      <input class="input" data-pt-pud="${kind}|${i}" value="${esc(p.pud || '')}"
+        placeholder="документ" autocomplete="off" aria-label="Правоустанавливающий документ"
+        title="Правоустанавливающий документ, по которому указана доля">
+      ${suggestBox(puds, 'pud')}
+    </div>
+
     <button type="button" class="pt-rm" data-pt-rm="${kind}|${i}"
       title="Убрать: ${esc(title)}" aria-label="Убрать: ${esc(title)}">×</button>
   </div>`;
 }
 
-function partySection(kind, list, names, { title, addLabel, empty }) {
+function partySection(kind, list, names, puds, { title, addLabel, empty }) {
   const items = partiesOf(list);
   const sum = shareSum(list);
   const bad = items.length > 0 && Math.abs(sum - 100) > 0.01;
@@ -106,9 +132,9 @@ function partySection(kind, list, names, { title, addLabel, empty }) {
 
     <div class="pt-cards">
       ${items.length ? `<div class="pt-head" aria-hidden="true">
-        <span></span><span>Наименование</span><span>Доля</span><span></span>
+        <span></span><span>Наименование</span><span>Доля</span><span>ПУД</span><span></span>
       </div>` : ''}
-      ${items.map((p, i) => partyCard(kind, i, p, names, p.name || empty)).join('')}
+      ${items.map((p, i) => partyCard(kind, i, p, names, p.name || empty, puds)).join('')}
       <button type="button" class="pt-add" data-pt-add="${kind}">+ ${esc(addLabel)}</button>
     </div>
   </div>`;
@@ -117,11 +143,12 @@ function partySection(kind, list, names, { title, addLabel, empty }) {
 // names — известные наименования: подсказки собираются из уже заведённых
 // собственников и пользователей всех записей (см. partyNames в records.js).
 export function ownersUsersHTML(rec, names = PEOPLE) {
+  const puds = pudNames(rec);
   return `<div class="pt-wrap">
-    ${partySection('owner', rec.owners, names, {
+    ${partySection('owner', rec.owners, names, puds, {
     title: 'Собственники', addLabel: 'Собственник', empty: 'собственник',
   })}
-    ${partySection('user', rec.users, names, {
+    ${partySection('user', rec.users, names, puds, {
     title: 'Пользователи', addLabel: 'Пользователь', empty: 'пользователь',
   })}
   </div>`;

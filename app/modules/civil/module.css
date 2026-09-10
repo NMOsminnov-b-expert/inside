@@ -68,10 +68,12 @@ body[data-module="civil"] .pt-cards {
   margin-top: 6px;
 }
 
-/* Шапка повторяет сетку блока — иначе подпись уедет от своего поля. */
+/* Шапка повторяет сетку блока — иначе подпись уедет от своего поля.
+   Колонки: номер, наименование, доля, ПУД, удаление. ПУД уже наименования и
+   сжимается первым: название документа читают целиком реже, чем имя стороны. */
 body[data-module="civil"] .pt-head {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
+  grid-template-columns: 18px minmax(0, 1fr) 78px minmax(80px, 0.62fr) 22px;
   gap: 7px;
   padding: 0 8px;
   font-size: 9.5px;
@@ -86,7 +88,7 @@ body[data-module="civil"] .pt-head {
    выше содержимого (замечание пользователя 09.09.2026). */
 body[data-module="civil"] .pt-card {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
+  grid-template-columns: 18px minmax(0, 1fr) 78px minmax(80px, 0.62fr) 22px;
   gap: 7px;
   align-items: center;
   border: 1px solid var(--line);
@@ -125,6 +127,11 @@ body[data-module="civil"] .pt-rm:focus-visible {
 }
 
 body[data-module="civil"] .pt-name { position: relative; }
+
+/* ПУД — документ, по которому указана доля (требование пользователя
+   09.09.2026). Подсказки всплывают так же, как у наименования, поэтому нужен
+   свой контекст позиционирования. */
+body[data-module="civil"] .pt-pud { position: relative; }
 
 body[data-module="civil"] .pt-share-in { position: relative; display: flex; }
 body[data-module="civil"] .pt-share-in .input { padding-right: 22px; }
