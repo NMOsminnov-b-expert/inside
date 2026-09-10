@@ -335,14 +335,32 @@ body[data-module="civil"] .ax-cell:focus::placeholder{color:#aab8ca}
 /* Исключение — «Иное» без пояснения: там подсказка «что это» и объясняет, чего
    от ячейки ждут. Пустая янтарная клетка без слов только озадачивает. */
 body[data-module="civil"] .ax-tbl [data-ax-need]::placeholder{color:var(--amber-700)}
-/* У списка стрелка своя, браузерная — рисуем её сами, чтобы поле оставалось
-   таким же тихим, как текстовое. */
-body[data-module="civil"] .ax-sel{appearance:none;-webkit-appearance:none;cursor:pointer;
-  padding-right:18px;
-  background-image:linear-gradient(45deg,transparent 50%,#8fa3ba 50%),
-    linear-gradient(135deg,#8fa3ba 50%,transparent 50%);
-  background-position:calc(100% - 11px) 12px,calc(100% - 7px) 12px;
-  background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+/* Списки в ячейках — те же тихие поля, что и текстовые: своей рамки у них нет,
+   она появляется, только когда список открыт (замечание пользователя
+   09.09.2026 — «ячейки видно»). Общий .ms-control из cards.css рисует рамку и
+   белый фон всегда: в форме это уместно, в таблице — рябит. */
+body[data-module="civil"] .ax-tbl .ms-control{
+  height:auto;min-height:26px;border-color:transparent;background:transparent;
+  padding:4px 7px;border-radius:6px;gap:6px;overflow:visible}
+body[data-module="civil"] .ax-tbl .ms-control:hover{border-color:transparent}
+body[data-module="civil"] .ax-tbl .ms-control.open{border-color:var(--blue-600);background:#fff;
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+/* Стрелка видна только у открытого списка и под курсором строки: в покое
+   ячейка должна читаться как значение, а не как элемент управления. */
+body[data-module="civil"] .ax-tbl .ms-control .chev{opacity:0;transition:opacity .12s,transform .15s}
+body[data-module="civil"] .ax-tbl tr:hover .ms-control .chev,
+body[data-module="civil"] .ax-tbl .ms-control.open .chev{opacity:1}
+body[data-module="civil"] .ax-tbl .ms-summary{font-size:13px}
+/* Счётчик выбранных — тише, чем в форме: в строке таблицы он спорит со
+   значением. */
+body[data-module="civil"] .ax-tbl .ms-count{padding:0 6px;font-size:10px}
+
+/* Одиночный выбор (вид пристройки): пункты списка — кнопки, а не флажки. */
+body[data-module="civil"] .ms-one{width:100%;text-align:left;border:0;background:none;
+  font:inherit;font-size:12.5px;color:#33445c;cursor:pointer}
+body[data-module="civil"] .ms-one:hover{background:var(--blue-50)}
+body[data-module="civil"] .ms-one.on{background:var(--blue-100);color:var(--blue-700);
+  font-weight:700}
 
 /* Литера — крупной буквой по центру, как в блоке 01 (замечание пользователя
    09.09.2026): там она набрана так же. */

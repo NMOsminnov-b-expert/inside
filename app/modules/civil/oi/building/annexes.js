@@ -158,9 +158,20 @@ function kindCell(a) {
 </div></td>`;
   }
 
-  return `<td><select class="ax-cell ax-sel" data-ax="kind|${a.id}">
-${kinds.map((k) => `<option ${k === a.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}
-</select></td>`;
+  // Список свой, а не браузерный <select>: системный выпадающий список рисуется
+  // ОС — синяя подсветка, чужие отступы, — и в таблице он выбивался из всего
+  // остального (замечание пользователя 09.09.2026). Разметка та же, что у
+  // материалов, только выбор одиночный.
+  return `<td><div class="ms ax-ms ax-ms-one" data-ax-kind="${a.id}">
+<div class="ms-control" data-ms-control data-ms-toggle title="Выбрать вид пристройки">
+<span class="ms-summary">${esc(a.kind || '—')}</span>
+<span class="chev">▾</span>
+</div>
+<div class="ms-drop" hidden>
+${kinds.map((k) => `<button type="button" class="ms-opt ms-one${k === a.kind ? ' on' : ''}"
+  data-ax-kind-pick="${a.id}|${esc(k)}">${esc(k)}</button>`).join('')}
+</div>
+</div></td>`;
 }
 
 function annexRow(a, i) {
@@ -296,6 +307,32 @@ export function bindAnnexes(ctx, oi) {
   };
 
   bindMats();
+
+  // Вид пристройки: выбор одиночный — щёлкнул, список закрылся.
+  s.$$('[data-ax-kind]').forEach((box) => {
+    const ctrl = box.querySelector('[data-ms-toggle]');
+    if (ctrl) ctrl.onclick = (e) => {
+      e.stopPropagation();
+      const drop = box.querySelector('.ms-drop');
+      s.$$('.ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
+      s.$$('.ms-control').forEach((mc) => { if (mc !== ctrl) mc.classList.remove('open'); });
+      drop.hidden = !drop.hidden;
+      ctrl.classList.toggle('open', !drop.hidden);
+    };
+
+    box.querySelectorAll('[data-ax-kind-pick]').forEach((b) => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        const [id, value] = b.dataset.axKindPick.split('|');
+        const a = find(id);
+        if (!a) return;
+        a.kind = value;
+        // Строка перерисовывается целиком: у «Иного» ячейка вида превращается
+        // в поле ввода, а у остальных — обратно в список.
+        redraw();
+      };
+    });
+  });
 
   s.$$('[data-ax]').forEach((el) => {
     const [key, id] = el.dataset.ax.split('|');
