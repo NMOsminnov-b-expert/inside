@@ -101,22 +101,52 @@ export function floorsNote(oi) {
 // заполняется руками.
 const SUM_FIELDS = AUTO_AREA_FIELDS;
 
-function sumsRow(oi) {
-  return SUM_FIELDS.map((a) => {
-    const total = num((oi.areas || {})[a.total]);
-    const s = floorsSum(oi, a.key);
-    const ok = Math.abs(s - total) < 0.01;
-    return `<span data-floor-sum="${a.key}" class="${ok ? 'sum-ok' : 'sum-warn'}">Σ ${a.title}: ${fmtNum(s)} / ${fmtNum(total)} м²</span>`;
+// Состояние сверки по одной колонке: сколько набралось по этажам, сколько
+// должно быть и на сколько расходится. Знак diff: плюс — набрали больше итога,
+// минус — не хватает.
+function sumState(oi, a) {
+  const total = num((oi.areas || {})[a.total]);
+  const sum = floorsSum(oi, a.key);
+  const diff = Math.round((sum - total) * 100) / 100;
+  return { total, sum, diff, ok: Math.abs(diff) < 0.01 };
+}
+
+// Расхождение словами, а не знаком «+/−»: «не хватает 12,30» сразу говорит,
+// куда двигать, а «−12,30» ещё нужно истолковать.
+function diffText(diff) {
+  if (Math.abs(diff) < 0.01) return 'сходится';
+  return (diff < 0 ? 'не хватает ' : 'лишние ') + fmtNum(Math.abs(diff)) + ' м²';
+}
+
+// Панель сверки: величина, расхождение и кнопка, которая его устраняет, — в
+// одной строке. Кнопка стояла отдельно, и связь между «не сходится» и «чем это
+// исправить» приходилось додумывать.
+function sumsPanel(oi) {
+  const canLevel = (oi.floorList || []).some((f) => f.on);
+
+  const items = SUM_FIELDS.map((a) => {
+    const st = sumState(oi, a);
+    return `<span class="fs-l">Σ ${a.title}</span>
+<span class="fs-v" data-floor-sum="${a.key}">${fmtNum(st.sum)} из ${fmtNum(st.total)} м²</span>
+<span class="fs-d ${st.ok ? 'ok' : 'warn'}" data-floor-diff="${a.key}">${diffText(st.diff)}</span>`;
   }).join('');
+
+  // Кнопка заметна, только когда есть что исправлять: при сошедшихся площадях
+  // она тихая, иначе тянет внимание на себя без повода.
+  const bad = SUM_FIELDS.some((a) => !sumState(oi, a).ok);
+
+  return `<div class="floors-sums" data-floors-sums>
+${items}
+<button class="btn btn-sm fs-btn ${bad ? 'acc' : ''}" data-redistribute ${canLevel ? '' : 'disabled'}
+  title="${canLevel ? 'Разложить оставшуюся площадь между отмеченными этажами поровну'
+    : 'Нет отмеченных этажей — распределять не между чем'}">Выровнять отмеченные</button>
+</div>`;
 }
 
 export function floorsBlock(ctx, oi) {
   const fkey = 'fl|' + oi.id;
 
-  return `<div class="inline-row floors-sums" style="margin-top:8px; align-items:center;">
-${sumsRow(oi)}
-<button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:auto">Выровнять отмеченные</button>
-</div>
+  return `${sumsPanel(oi)}
 <div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по внешним
 замерам поровну. Снимите отметку, чтобы вписать её вручную. Площадь по внутреннему обмеру не
 делится — этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
@@ -160,14 +190,26 @@ export function updateFloorsUI(ctx, oi) {
   const note = s.$('[data-floors-note]');
   if (note) note.textContent = floorsNote(oi);
 
+  let anyBad = false;
   SUM_FIELDS.forEach((a) => {
+    const st = sumState(oi, a);
+    if (!st.ok) anyBad = true;
+
     const sum = s.$(`[data-floor-sum="${a.key}"]`);
-    if (!sum) return;
-    const ssum = floorsSum(oi, a.key);
-    const tot = num((oi.areas || {})[a.total]);
-    sum.textContent = `Σ ${a.title}: ${fmtNum(ssum)} / ${fmtNum(tot)} м²`;
-    sum.className = Math.abs(ssum - tot) < 0.01 ? 'sum-ok' : 'sum-warn';
+    if (sum) sum.textContent = `${fmtNum(st.sum)} из ${fmtNum(st.total)} м²`;
+
+    const d = s.$(`[data-floor-diff="${a.key}"]`);
+    if (d) {
+      d.textContent = diffText(st.diff);
+      d.className = 'fs-d ' + (st.ok ? 'ok' : 'warn');
+    }
   });
+
+  const level = s.$('[data-redistribute]');
+  if (level) {
+    level.classList.toggle('acc', anyBad);
+    level.disabled = !(oi.floorList || []).some((f) => f.on);
+  }
 }
 
 export function rerenderFloors(ctx, oi) {
