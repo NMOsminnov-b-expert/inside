@@ -4,7 +4,9 @@
 чек-листу `docs/tz/20-arhiv.md` §8. Здесь — что именно проверено, каким
 способом и чем подтверждается. Снимки лежат в
 [screens/svoi-cveta-novyh-blokov-perevedeny-na-tokeny/](screens/svoi-cveta-novyh-blokov-perevedeny-na-tokeny/)
-— папку называет комментарий коммита, на котором они сняты.
+— папку называет комментарий коммита, на котором они сняты. Сама папка
+`docs/screens/` в git не хранится (`.gitignore`): снимки живут у того, кто их
+снял, и пересобираются командой `report.py` из этого же документа.
 
 Список самих правок — [reestr-izmeneniy.md](reestr-izmeneniy.md), разбор по
 гражданскому зданию — [korrektirovka-oc-grazhdanskoe.md](korrektirovka-oc-grazhdanskoe.md).
