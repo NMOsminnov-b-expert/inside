@@ -11,7 +11,7 @@ import {
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { annexesHTML } from './annexes.js';
-import { floorsBlock } from './floors.view.js';
+import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
@@ -82,11 +82,10 @@ ${flagsRowHTML(oi)}
 <label>Этажность дома</label>
 <input class="input" data-apt-building-floors value="${esc(apt.buildingFloors || '')}" inputmode="numeric">
 </div>
-<div class="field">
-<label>Количество этажей в квартире</label>
-<input class="input" data-apt-storeys value="${esc(apt.storeys || '1')}"
-inputmode="numeric" min="1" max="30" title="Количество этажей квартиры (до 30)">
-</div>
+<!-- «Количество этажей в квартире» переехало в блок «Площади и этажность»: оно
+     задаёт состав поэтажной развёртки и стоит прямо над ней — как «Количество
+     этажей» в карточке гражданского здания (указание пользователя 10.09.2026).
+     «Этажность дома» осталась здесь: это другая величина. -->
 <div class="field">
 <label>Количество комнат</label>
 <input class="input" data-apt-rooms value="${esc(apt.rooms || '')}" inputmode="numeric">
@@ -173,10 +172,12 @@ placeholder="42.874722, 74.612222" title="Из карты или прибора:
 // подписях. Прежняя оговорка «застройка — она же по наружным замерам» снята как
 // противоречащая — там же, где и в гражданском.
 //
-// Поле «Количество этажей» из гражданского НЕ переносится: у квартиры этажи
-// считает «Количество этажей в квартире» в блоке 01 (data-apt-storeys — он и
-// пишет oi.floors). Второе поле на ту же величину осталось бы мёртвым:
-// обработчика data-floors-n в этой карточке нет.
+// Счётчик этажей стоит над развёрткой, как в гражданском, но поле здесь своё —
+// «Количество этажей в квартире»: квартиры бывают двухуровневыми и больше
+// (указание пользователя 10.09.2026). Это НЕ этажность дома — та осталась
+// отдельным полем в блоке 01. Привязка прежняя (data-apt-storeys → oi.floors),
+// поле гражданского (data-floors-n) не переносится: обработчика на него в этой
+// карточке нет, и второй контрол на ту же величину был бы мёртвым.
 function areasCard(ctx, oi, idx) {
   const areas = oi.areas || {};
   const heights = oi.heights || {};
@@ -193,6 +194,9 @@ function areasCard(ctx, oi, idx) {
 <span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
+</div>
+<div class="grid g-4" style="margin-top:10px">
+${floorsCountField(oi)}
 </div>
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
 <div class="grid g-2" style="margin-top:10px">
