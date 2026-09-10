@@ -60,13 +60,19 @@ export function removeAnnex(oi, id) {
 //
 // Вызывать ДО отрисовки, иначе перевод попадёт в лог правок как правка
 // пользователя.
+// Данные квартиры лежат в oi.apartment: карточка квартиры общая и вкладывается
+// в объект имущества. Перевод один на оба случая — иначе на каждый модуль
+// пришлось бы заводить второй вызов.
+const holderFor = (oi) => (oi && oi.apartment ? oi.apartment : oi);
+
 export function migrateAnnexList(oi) {
-  if (!oi) return;
+  const h = holderFor(oi);
+  if (!h) return;
 
   // Материал стал списком значений — старые строки приводим к массиву. Идёт
   // и для уже переведённых записей: таблица появилась раньше мультивыбора.
-  if (Array.isArray(oi.annexList)) {
-    oi.annexList.forEach((a) => {
+  if (Array.isArray(h.annexList)) {
+    h.annexList.forEach((a) => {
       ['foundation', 'walls', 'roof'].forEach((k) => {
         if (!Array.isArray(a[k])) a[k] = a[k] ? [a[k]] : [];
       });
@@ -78,7 +84,7 @@ export function migrateAnnexList(oi) {
 
   const out = [];
   [['loggias', 'Лоджия'], ['balconies', 'Балкон'], ['terraces', 'Терраса']].forEach(([key, kind]) => {
-    const list = Array.isArray(oi[key]) ? oi[key] : [];
+    const list = Array.isArray(h[key]) ? h[key] : [];
     list.forEach((it) => {
       const label = (it.label || '').trim();
       // Название, если оно было, становится видом «Иное» с этим текстом:
@@ -96,7 +102,7 @@ export function migrateAnnexList(oi) {
     });
   });
 
-  oi.annexList = out;
+  h.annexList = out;
 }
 
 // --- разметка --------------------------------------------------------------

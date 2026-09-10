@@ -338,7 +338,7 @@ export function main(host) {
       // пристроек с литерой, видом и материалами (решение пользователя
       // 09.09.2026). Перевод идёт ПОСЛЕ migrateAreaList: тот приводит старые
       // счётчики к спискам, а этот собирает списки в таблицу.
-      if (o.card === 'building') migrateAnnexList(o);
+      if (o.card === 'building' || o.card === 'apartment') migrateAnnexList(o);
 
       if (o.apartment) {
         migrateAreaList(o.apartment, 'loggias', 'loggiaCount', 'loggiaBuildArea');

@@ -11,6 +11,9 @@
 // материалы пристройки нигде не хранились, хотя в техпаспорте они есть.
 //
 // Площадь здесь — по внешним замерам, как и у самой литеры на этой странице.
+// Данные квартиры лежат в oi.apartment, а не в самом объекте имущества:
+// карточка квартиры одна на проект и вкладывается в ОИ любого типа. Поэтому
+// список пристроек берётся через holder().
 import { esc } from '../../../../kernel/dom.js';
 import { num, fmtNum } from '../../../../kernel/fmt.js';
 import { numText, bindNumField } from '../../../../kernel/numField.js';
@@ -21,13 +24,18 @@ import { opt } from '../../data/opts.js';
 // Материалы берём из тех же перечней, что и конструктив самой литеры: пристройка
 // строится из того же, и второй справочник на те же значения только разошёлся бы
 // с первым.
+const holder = (oi) => (oi && oi.apartment ? oi.apartment : oi);
+
 const MAT_COLS = [
   { key: 'foundation', label: 'Фундамент', opts: 'foundation' },
   { key: 'walls', label: 'Стены', opts: 'wallsExt' },
   { key: 'roof', label: 'Кровля', opts: 'roof' },
 ];
 
-export const annexesOf = (oi) => (oi && Array.isArray(oi.annexList) ? oi.annexList : []);
+export const annexesOf = (oi) => {
+  const h = holder(oi);
+  return h && Array.isArray(h.annexList) ? h.annexList : [];
+};
 
 // Площадей у пристройки две — по внешним замерам и по внутреннему обмеру:
 // в техпаспорте есть обе (уточнение пользователя 10.09.2026).
@@ -43,15 +51,16 @@ let seq = 0;
 const nextAnnexId = () => `ax-${Date.now().toString(36)}-${++seq}`;
 
 export function addAnnex(oi) {
-  if (!Array.isArray(oi.annexList)) oi.annexList = [];
-  oi.annexList.push({
+  const h = holder(oi);
+  if (!Array.isArray(h.annexList)) h.annexList = [];
+  h.annexList.push({
     id: nextAnnexId(), letter: '', kind: ANNEX_KINDS[0], note: '',
     foundation: [], walls: [], roof: [], area: '', areaIn: '',
   });
 }
 
 export function removeAnnex(oi, id) {
-  oi.annexList = annexesOf(oi).filter((a) => a.id !== id);
+  holder(oi).annexList = annexesOf(oi).filter((a) => a.id !== id);
 }
 
 // Перевод старых записей: были три списка «лоджии / балконы / террасы» с
@@ -60,13 +69,8 @@ export function removeAnnex(oi, id) {
 //
 // Вызывать ДО отрисовки, иначе перевод попадёт в лог правок как правка
 // пользователя.
-// Данные квартиры лежат в oi.apartment: карточка квартиры общая и вкладывается
-// в объект имущества. Перевод один на оба случая — иначе на каждый модуль
-// пришлось бы заводить второй вызов.
-const holderFor = (oi) => (oi && oi.apartment ? oi.apartment : oi);
-
 export function migrateAnnexList(oi) {
-  const h = holderFor(oi);
+  const h = holder(oi);
   if (!h) return;
 
   // Материал стал списком значений — старые строки приводим к массиву. Идёт
@@ -125,7 +129,7 @@ export function annexMats(a, key) {
   return v ? [v] : [];
 }
 
-const matOptions = (col) => opt('building', 'struct.' + col.opts, STRUCT[col.opts]) || [];
+const matOptions = (col) => opt('apartment', 'struct.' + col.opts, STRUCT[col.opts]) || [];
 
 // Сводка в свёрнутом виде — одной строкой с обрезкой, как в блоке 05: перенос
 // раздул бы строку таблицы по высоте. Разделитель « / », а не запятая: в
@@ -162,7 +166,7 @@ ${matSummary(list)}
 // Отдельной колонки под текст нет (решение пользователя 09.09.2026): ради
 // редкого случая она занимала место в каждой строке.
 function kindCell(a) {
-  const kinds = opt('building', 'annexKind', ANNEX_KINDS) || ANNEX_KINDS;
+  const kinds = opt('apartment', 'annexKind', ANNEX_KINDS) || ANNEX_KINDS;
 
   if (a.kind === 'Иное') {
     return `<td><div class="ax-other">
@@ -198,6 +202,7 @@ ${kinds.map((k) => `<button type="button" class="ms-opt ms-one${k === a.kind ? '
 // Литера строения бывает составной («Г, Г1», «А1»), поэтому берём из неё первую
 // заглавную букву: она и есть литера, остальное — номера и перечисление.
 export function annexLetterHint(oi, i) {
+  // Литера у самого объекта имущества, а не у вложенных данных квартиры.
   const src = String((oi && oi.letter) || '');
   // Сначала заглавная — она и есть литера в составной записи. Если литеру
   // завели строчными, берём первую букву как есть: подсказка «а» при литере
