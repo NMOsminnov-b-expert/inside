@@ -383,3 +383,11 @@ body[data-module="civil"] .ax-add-row:hover .ax-plus{color:var(--blue-600)}
 /* Итоговая строка стоит под колонкой площади — там, где её и складывают. */
 body[data-module="civil"] .ax-tbl tfoot td{background:#f6f9fd;font-size:12px;font-weight:700;
   color:var(--blue-700);border-top:1px solid var(--line);border-bottom:none}
+
+/* Подытог раздела перечня ОИ: стоит под колонками площадей, там же, где их и
+   складывают (требование пользователя 09.09.2026). Тон — как у шапки таблицы,
+   чтобы строка читалась служебной, а не ещё одним объектом. */
+body[data-module="civil"] .oi-tree-tbl tfoot .oi-total td{background:#f6f9fd;
+  border-top:1px solid var(--line);font-size:11.5px;font-weight:700;
+  color:var(--blue-700);padding:6px 10px}
+body[data-module="civil"] .oi-total-v{font-variant-numeric:tabular-nums}
