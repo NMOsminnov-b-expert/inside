@@ -42,13 +42,15 @@ function catSection(ctx, oi, cat, fkey) {
     : { name: 0.26, area: 0.21, h: 0.16 };
 
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c" title="Площади отмеченных строк считаются автоматически">Авто</th><th style="${col(w.name)}">Этаж</th>
+    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
 ${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
 ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
 <th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
 <th class="fl-c"></th></tr></thead>
 <tbody>${rows.map(({ f, i }) => `<tr>
-<td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площади распределяются автоматически; снято — задаются вручную"></td>
+<td><label class="fl-lock" title="${f.on ? 'Заперто: площадь считает распределение. Откройте, чтобы вписать вручную' : 'Открыто: площадь вписывают вручную. Заприте, чтобы её считало распределение'}">
+<input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} aria-label="Считать площадь автоматически">
+<span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
 ${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь по внутреннему обмеру по этажам не распределяется')}"></td>`).join('')}

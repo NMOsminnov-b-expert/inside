@@ -283,6 +283,40 @@ body[data-module] .floors-tip b{color:var(--blue-700)}
 /* Колонка отметок узкая (36px), поэтому подпись короткая и без переносов. */
 body[data-module] .al-tbl th.fl-c{font-size:9.5px;letter-spacing:.02em;white-space:nowrap}
 
+/* Отметка «авто» у строки этажа — замком, а не галочкой (указание пользователя
+   09.09.2026). Закрытый замок: поле с площадью заперто, её считает
+   распределение. Открытый: площадь вписывают руками. Галочка читалась как
+   «этаж выбран», хотя выбора там нет.
+
+   Под замком остаётся обычный checkbox — на нём обработчики, состояние и
+   работа с клавиатуры; прячем только его собственный вид. Значок нарисован
+   маской, а не эмодзи: цвет тогда наш (серый у открытого, синий у закрытого),
+   и в плотной таблице он не пестрит. */
+body[data-module] .fl-lock{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:6px;cursor:pointer;
+  transition:background .12s}
+body[data-module] .fl-lock:hover{background:var(--blue-50)}
+
+/* Сам checkbox не скрываем display:none — так он выпал бы из порядка обхода
+   с клавиатуры. */
+body[data-module] .fl-lock input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
+
+body[data-module] .fl-lock .lk{
+  width:15px;height:15px;background:#94a3b8;
+  -webkit-mask:var(--lk-open) center / 15px 15px no-repeat;
+  mask:var(--lk-open) center / 15px 15px no-repeat;
+  transition:background .12s}
+
+body[data-module] .fl-lock input:checked + .lk{
+  background:var(--blue-600);
+  -webkit-mask-image:var(--lk-closed);
+  mask-image:var(--lk-closed)}
+
+/* Фокус виден: без этого пройти по строкам с клавиатуры вслепую. */
+body[data-module] .fl-lock input:focus-visible + .lk{
+  outline:2px solid var(--blue-600);outline-offset:3px;border-radius:3px}
+
 /* Панель сверки площадей: сколько набралось по этажам, на сколько это
    расходится с итогом и кнопка, которая расхождение устраняет, — в одной
    строке. Раньше итог занимал строку целиком, кнопка уходила на следующую, и
