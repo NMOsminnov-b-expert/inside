@@ -280,8 +280,11 @@ body[data-module] .floors-tip{
   background:var(--blue-50);border:1px solid var(--blue-100);
   font-size:11px;line-height:1.4;color:var(--muted)}
 body[data-module] .floors-tip b{color:var(--blue-700)}
-/* Колонка отметок узкая (36px), поэтому подпись короткая и без переносов. */
-body[data-module] .al-tbl th.fl-c{font-size:9.5px;letter-spacing:.02em;white-space:nowrap}
+/* Колонка отметок узкая (36px), поэтому подпись короткая и без переносов.
+   overflow:hidden обязателен: без него подпись расширяет служебный столбец, и
+   таблица перестаёт помещаться в блок (чек-лист §8.4). */
+body[data-module] .al-tbl th.fl-c{font-size:9.5px;letter-spacing:.02em;white-space:nowrap;
+  overflow:hidden;text-overflow:clip}
 
 /* Отметка «авто» у строки этажа — замком, а не галочкой (указание пользователя
    09.09.2026). Закрытый замок: поле с площадью заперто, её считает

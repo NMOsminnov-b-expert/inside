@@ -252,7 +252,7 @@ body[data-module="apartment"] .ax-scroll{overflow-x:auto;border:1px solid var(--
    читались, а не обрезались на второй букве. Шире карточки — значит таблица
    прокручивается внутри себя; на широком экране и при закрытом просмотрщике
    она помещается целиком. */
-body[data-module="apartment"] .ax-tbl{width:100%;min-width:800px;border-collapse:collapse;
+body[data-module="apartment"] .ax-tbl{width:100%;min-width:760px;border-collapse:collapse;
   table-layout:fixed}
 
 body[data-module="apartment"] .ax-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
