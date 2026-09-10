@@ -78,6 +78,8 @@ ${selectField('Угловой/Неугловой', 'data-land-corner', opt('land
 ${agricultural ? `<div class="field"><label>Удалённость от райцентра, км</label>
   <input class="input" data-land-distance value="${esc(oi.distanceToCenter || '')}" inputmode="decimal"></div>` : ''}
 </div>
+<div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea ta-wide" data-land-location-features
+  placeholder="Что важно знать об окружении: соседство, подъезд, вид, шум, затопляемость…">${esc(oi.locationFeatures || '')}</textarea></div>
 
 <div class="sec-h">Права и обременения</div>
 <div class="field-flow">
@@ -185,14 +187,13 @@ const CITY_NOTE = 'Расположение описывается относи�
   + 'трассы. Город, район и микрорайон задаются в объекте оценки — они общие '
   + 'для всей записи.';
 
-// Особенности и благоустройство. Адрес, координаты и расположение уехали в
-// блок 01 — там их и заполняют (решение пользователя 10.09.2026); здесь
-// осталось то, что описывают в конце, когда участок уже осмотрен.
+// Благоустройство территории. Адрес, координаты, расположение и особенности
+// местоположения уехали в блок 01 (решения пользователя 10.09.2026):
+// особенности описывают то же, что и расположение, и стоять они должны в конце
+// той же секции, а не отдельным блоком через всю карточку.
 function featuresCard(ctx, oi, idx) {
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Благоустройство и особенности</h3></div><div class="card-pad">
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Благоустройство территории</h3></div><div class="card-pad">
 ${improvementsFields(ctx, oi)}
-<div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea ta-wide" data-land-location-features
-  placeholder="Что важно знать об окружении: соседство, подъезд, вид, шум, затопляемость…">${esc(oi.locationFeatures || '')}</textarea></div>
 </div></div>`;
 }
 
