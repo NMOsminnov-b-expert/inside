@@ -226,11 +226,15 @@ function areasCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади и этажность</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
+<!-- g-roomy — запас по вертикали: у площади по внешним замерам есть подпись под
+     полем, а .field-hint вынесена из потока и без запаса легла бы на метку
+     следующей строки. -->
+<div class="grid g-4 g-roomy">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label title="Со страницы «Характеристика строений и сооружений» техпаспорта">Площадь по внешним замерам, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}" title="Со страницы «Характеристика строений и сооружений» техпаспорта">
+<span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
+<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
 </div>
 <div class="grid g-4" style="margin-top:10px">
 ${floorsCountField(oi)}

@@ -51,7 +51,7 @@ ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}
 <td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площади распределяются автоматически; снято — задаются вручную"></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь застройки по этажам не распределяется')}"></td>`).join('')}
+${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь по внутреннему обмеру по этажам не распределяется')}"></td>`).join('')}
 <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
@@ -95,10 +95,10 @@ export function floorsNote(oi) {
   return `${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²`;
 }
 
-// Итог — по тем же колонкам, что распределяются: сумма по наружным замерам
-// убрана (решение пользователя 09.09.2026). Застройка повторяется от этажа к
-// этажу, её сумма ни с чем не сходилась и только краснела. Сама колонка
-// «Площадь застройки» в таблице осталась и заполняется руками.
+// Итог — по тем же колонкам, что распределяются: сумма по внутреннему обмеру
+// убрана (решение пользователя 09.09.2026). Она повторяется от этажа к этажу,
+// ни с чем не сходилась и только краснела. Сама колонка в таблице осталась и
+// заполняется руками.
 const SUM_FIELDS = AUTO_AREA_FIELDS;
 
 function sumsRow(oi) {
@@ -117,9 +117,9 @@ export function floorsBlock(ctx, oi) {
 ${sumsRow(oi)}
 <button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:auto">Выровнять отмеченные</button>
 </div>
-<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по техпаспорту
-поровну. Снимите отметку, чтобы вписать её вручную. Площадь застройки не делится — это площадь
-среза сверху, этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
+<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по внешним
+замерам поровну. Снимите отметку, чтобы вписать её вручную. Площадь по внутреннему обмеру не
+делится — этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
 <div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }
