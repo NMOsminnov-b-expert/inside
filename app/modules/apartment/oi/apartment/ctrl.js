@@ -3,6 +3,7 @@ import { bindCheckedField } from '../../../../kernel/fieldError.js';
 import { gpsError } from '../../../../kernel/gps.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
+import { bindNumField } from '../../../../kernel/numField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindAnnexes } from './annexes.js';
@@ -66,17 +67,21 @@ export function bind(ctx, oi) {
   // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
   bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
 
-  s.$$('[data-area]').forEach((i) => i.onchange = () => {
-    oi.areas[i.dataset.area] = i.value;
+  // Площади и высоты — числовые поля: на экране «1 840,50», в запись уходит
+  // машинное «1840,50» (kernel/numField.js). Раньше в поле стояло сырое
+  // значение из данных, и одно и то же число выглядело по-разному в поле и в
+  // итоге под ним.
+  s.$$('[data-area]').forEach((i) => bindNumField(i, (v) => {
+    oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
     updateFloorsUI(ctx, oi);
     ctx.updatePlate();
-  });
+  }));
 
-  s.$$('[data-height]').forEach((i) => i.onchange = () => {
+  s.$$('[data-height]').forEach((i) => bindNumField(i, (v) => {
     oi.heights = oi.heights || {};
-    oi.heights[i.dataset.height] = i.value;
-  });
+    oi.heights[i.dataset.height] = v;
+  }));
 
   // Слушатели развёртки вынесены в функцию: rerenderFloors заменяет разметку
   // блока целиком, и без повторной привязки чекбоксы и поля площадей остаются
@@ -120,15 +125,19 @@ export function bind(ctx, oi) {
 
     // Ключ поля — «<колонка>|<индекс>»: площадей у этажа три, и каждая
     // распределяется от своего итога (см. floors.model.js).
-    s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
+    s.$$('[data-floor-area]').forEach((i) => bindNumField(i, (v) => {
       const [key, idx] = i.dataset.floorArea.split('|');
-      oi.floorList[+idx][key] = i.value;
+      oi.floorList[+idx][key] = v;
       recalcFloors(oi);
       updateFloorsUI(ctx, oi);
-    });
+    }));
 
-    s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
-    s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+    s.$$('[data-floor-hext]').forEach((i) => bindNumField(i, (v) => {
+      oi.floorList[+i.dataset.floorHext].hExt = v;
+    }));
+    s.$$('[data-floor-hint]').forEach((i) => bindNumField(i, (v) => {
+      oi.floorList[+i.dataset.floorHint].hInt = v;
+    }));
 
     // Название строки правится вручную: этажи бывают «−1», подвалов и цоколей
     // может быть несколько. Перерисовки не делаем — сбился бы курсор в поле.
