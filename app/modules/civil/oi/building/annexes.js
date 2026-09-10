@@ -174,11 +174,32 @@ ${kinds.map((k) => `<button type="button" class="ms-opt ms-one${k === a.kind ? '
 </div></td>`;
 }
 
-function annexRow(a, i) {
+// Подсказка в поле литеры — от литеры самого строения, строчной буквой и с
+// номером: в техпаспорте пристройки литеры «Ж» подписаны «ж», «ж1», «ж2»
+// (требование пользователя 09.09.2026). Это именно подсказка — значение
+// подставляет человек.
+//
+// Литера строения бывает составной («Г, Г1», «А1»), поэтому берём из неё первую
+// заглавную букву: она и есть литера, остальное — номера и перечисление.
+export function annexLetterHint(oi, i) {
+  const src = String((oi && oi.letter) || '');
+  // Сначала заглавная — она и есть литера в составной записи. Если литеру
+  // завели строчными, берём первую букву как есть: подсказка «а» при литере
+  // «б2» сбивала бы с толку. Букв нет вовсе — показываем «а» как образец.
+  const m = /[А-ЯЁA-Z]/.exec(src) || /[А-Яа-яЁёA-Za-z]/.exec(src);
+  const base = (m ? m[0] : 'а').toLowerCase();
+  // Первая пристройка идёт без номера, дальше — с номером: так они и
+  // пронумерованы в техпаспорте.
+  return i === 0 ? base : base + i;
+}
+
+function annexRow(a, i, oi) {
+  const hint = annexLetterHint(oi, i);
+
   return `<tr>
 <td class="ax-n">${i + 1}</td>
 <td><input class="ax-cell ax-letter" data-ax="letter|${a.id}" value="${esc(a.letter || '')}"
-  placeholder="ж1" title="Литера пристройки — как в техпаспорте: ж, ж1, ж2"></td>
+  placeholder="${esc(hint)}" title="Литера пристройки — как в техпаспорте: ${esc(annexLetterHint(oi, 0))}, ${esc(annexLetterHint(oi, 1))}, ${esc(annexLetterHint(oi, 2))}"></td>
 ${kindCell(a)}
 ${MAT_COLS.map((c) => matCell(a, c)).join('')}
 <td><input class="ax-cell ax-area" data-ax="area|${a.id}" value="${esc(numText(a.area))}"></td>
@@ -211,7 +232,7 @@ export function annexesHTML(ctx, oi) {
 ${MAT_COLS.map((c) => `<th>${c.label}</th>`).join('')}
 <th class="ax-area-cell">Площадь, м²</th><th class="ax-act"></th>
 </tr></thead>
-<tbody>${list.map(annexRow).join('')}${addRow}</tbody>
+<tbody>${list.map((a, i) => annexRow(a, i, oi)).join('')}${addRow}</tbody>
 ${foot}
 </table></div>`;
 }
