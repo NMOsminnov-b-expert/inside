@@ -57,14 +57,21 @@ export function migrateAnnexList(oi) {
   const out = [];
   [['loggias', 'Лоджия'], ['balconies', 'Балкон'], ['terraces', 'Терраса']].forEach(([key, kind]) => {
     const list = Array.isArray(oi[key]) ? oi[key] : [];
-    list.forEach((it) => out.push({
-      id: nextAnnexId(),
-      letter: '',
-      kind,
-      note: it.label || '',
-      foundation: '', walls: '', roof: '',
-      area: it.area || '',
-    }));
+    list.forEach((it) => {
+      const label = (it.label || '').trim();
+      // Название, если оно было, становится видом «Иное» с этим текстом:
+      // отдельной колонки под название нет, а выбросить введённое человеком
+      // нельзя. Без названия — обычный вид из списка.
+      const named = label && label.toLowerCase() !== kind.toLowerCase();
+      out.push({
+        id: nextAnnexId(),
+        letter: '',
+        kind: named ? 'Иное' : kind,
+        note: named ? label : '',
+        foundation: '', walls: '', roof: '',
+        area: it.area || '',
+      });
+    });
   });
 
   oi.annexList = out;
@@ -84,21 +91,33 @@ ${list.map((v) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${es
 </select></td>`;
 }
 
-function annexRow(a, i) {
+// Вид: обычно список, а при «Иное» — поле ввода прямо в той же ячейке.
+// Отдельной колонки под текст нет (решение пользователя 09.09.2026): ради
+// редкого случая она занимала место в каждой строке.
+function kindCell(a) {
   const kinds = opt('building', 'annexKind', ANNEX_KINDS) || ANNEX_KINDS;
-  const other = a.kind === 'Иное';
 
+  if (a.kind === 'Иное') {
+    return `<td><div class="ax-other">
+<input class="input" data-ax="note|${a.id}" value="${esc(a.note || '')}"
+  placeholder="что это" title="Вид пристройки своими словами"
+  ${(a.note || '').trim() ? '' : 'data-ax-need'}>
+<button type="button" class="ax-back" data-ax-back="${a.id}"
+  title="Вернуться к списку видов" aria-label="Вернуться к списку видов">↩</button>
+</div></td>`;
+  }
+
+  return `<td><select class="select" data-ax="kind|${a.id}">
+${kinds.map((k) => `<option ${k === a.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}
+</select></td>`;
+}
+
+function annexRow(a, i) {
   return `<tr>
 <td class="ax-n">${i + 1}</td>
 <td><input class="input ax-letter" data-ax="letter|${a.id}" value="${esc(a.letter || '')}"
   placeholder="ж1" title="Литера пристройки — как в техпаспорте: ж, ж1, ж2"></td>
-<td><select class="select" data-ax="kind|${a.id}">
-${kinds.map((k) => `<option ${k === a.kind ? 'selected' : ''}>${esc(k)}</option>`).join('')}
-</select></td>
-<td><input class="input" data-ax="note|${a.id}" value="${esc(a.note || '')}"
-  placeholder="${other ? 'что это' : 'уточнение'}"
-  title="${other ? 'Обязательно: вид выбран «Иное»' : 'Необязательно: пояснение к пристройке'}"
-  ${other && !(a.note || '').trim() ? 'data-ax-need' : ''}></td>
+${kindCell(a)}
 ${MAT_COLS.map((c) => matCell(a, c)).join('')}
 <td><input class="input ax-area" data-ax="area|${a.id}" value="${esc(numText(a.area))}"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-ax-del="${a.id}" title="Убрать пристройку">×</button></td>
@@ -113,7 +132,7 @@ export function annexesHTML(ctx, oi) {
   const body = list.length
     ? `<div class="ax-scroll"><table class="tbl al-tbl ax-tbl">
 <thead><tr>
-<th class="ax-n"></th><th>Литера</th><th>Вид</th><th>Уточнение</th>
+<th class="ax-n"></th><th>Литера</th><th>Вид</th>
 ${MAT_COLS.map((c) => `<th>${c.label}</th>`).join('')}
 <th>Площадь, м²</th><th class="al-act"></th>
 </tr></thead>
@@ -157,6 +176,16 @@ export function bindAnnexes(ctx, oi) {
 
   s.$$('[data-ax-del]').forEach((b) => b.onclick = () => {
     removeAnnex(oi, b.dataset.axDel);
+    redraw();
+  });
+
+  // Из «Иного» обратно в список: без этой кнопки выбранный по ошибке «Иное»
+  // было не отменить — списка в ячейке уже нет.
+  s.$$('[data-ax-back]').forEach((b) => b.onclick = () => {
+    const a = find(b.dataset.axBack);
+    if (!a) return;
+    a.kind = ANNEX_KINDS[0];
+    a.note = '';
     redraw();
   });
 

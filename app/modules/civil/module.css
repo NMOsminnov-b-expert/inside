@@ -280,7 +280,7 @@ body[data-module="civil"] .src-btn:disabled{opacity:.55;cursor:default;border-co
    Колонок девять, и на узкой карточке они не помещаются. Прокручиваем таблицу
    внутри её обёртки: страница вбок ехать не должна. */
 body[data-module="civil"] .ax-scroll{overflow-x:auto;margin:0 -2px;padding:0 2px}
-body[data-module="civil"] .ax-tbl{min-width:900px}
+body[data-module="civil"] .ax-tbl{min-width:820px}
 /* Строка над таблицей: сколько пристроек, их общая площадь и добавление. */
 body[data-module="civil"] .ax-bar{display:flex;align-items:center;gap:10px;
   margin-bottom:8px}
@@ -288,16 +288,28 @@ body[data-module="civil"] .ax-count{font-size:12px;font-weight:700;color:var(--b
   font-variant-numeric:tabular-nums;margin-right:auto}
 /* Материалы — длинные названия («Металлическая решётка»); колонке нужна
    ширина, иначе в списке видно только первые буквы. */
+body[data-module="civil"] .ax-tbl td:nth-child(4),
 body[data-module="civil"] .ax-tbl td:nth-child(5),
-body[data-module="civil"] .ax-tbl td:nth-child(6),
-body[data-module="civil"] .ax-tbl td:nth-child(7){min-width:150px}
+body[data-module="civil"] .ax-tbl td:nth-child(6){min-width:150px}
+
+/* Вид «Иное»: поле ввода и кнопка возврата к списку в одной ячейке. */
+body[data-module="civil"] .ax-other{display:flex;align-items:center;gap:4px}
+body[data-module="civil"] .ax-other .input{min-width:0}
+body[data-module="civil"] .ax-back{
+  flex:0 0 auto;width:22px;height:22px;padding:0;border:0;border-radius:6px;
+  background:none;color:var(--muted);font-size:13px;line-height:1;cursor:pointer}
+body[data-module="civil"] .ax-back:hover,
+body[data-module="civil"] .ax-back:focus-visible{background:var(--blue-50);color:var(--blue-700)}
 body[data-module="civil"] .ax-tbl th.ax-n,
 body[data-module="civil"] .ax-tbl td.ax-n{width:26px;text-align:right;padding-right:4px;
   color:var(--muted);font-size:10.5px}
-/* Литера короткая — колонке столько места не нужно. */
-body[data-module="civil"] .ax-tbl .ax-letter{text-align:center}
-body[data-module="civil"] .ax-tbl td:nth-child(2){width:64px}
-body[data-module="civil"] .ax-tbl td:nth-child(3){width:118px}
+/* Литера — крупной буквой по центру узкого поля, как в блоке 01: там она
+   набрана так же, и в таблице она должна читаться тем же знаком (замечание
+   пользователя 09.09.2026). Больше двух-трёх символов в ней не бывает. */
+body[data-module="civil"] .ax-tbl .ax-letter{
+  width:46px;text-align:center;font-weight:700;font-size:14px;padding-left:4px;padding-right:4px}
+body[data-module="civil"] .ax-tbl td:nth-child(2){width:52px}
+body[data-module="civil"] .ax-tbl td:nth-child(3){width:132px}
 /* Площадь читают колонкой — цифры моноширинные и по правому краю. */
 body[data-module="civil"] .ax-tbl .ax-area{text-align:right;font-variant-numeric:tabular-nums}
 body[data-module="civil"] .ax-tbl td:nth-last-child(2){width:104px}
