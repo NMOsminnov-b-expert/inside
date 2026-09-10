@@ -14,6 +14,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { num, fmtNum } from '../../../../kernel/fmt.js';
 import { numText, bindNumField } from '../../../../kernel/numField.js';
+import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { STRUCT, ANNEX_KINDS } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 
@@ -37,7 +38,7 @@ export function addAnnex(oi) {
   if (!Array.isArray(oi.annexList)) oi.annexList = [];
   oi.annexList.push({
     id: nextAnnexId(), letter: '', kind: ANNEX_KINDS[0], note: '',
-    foundation: '', walls: '', roof: '', area: '',
+    foundation: [], walls: [], roof: [], area: '',
   });
 }
 
@@ -52,7 +53,18 @@ export function removeAnnex(oi, id) {
 // Вызывать ДО отрисовки, иначе перевод попадёт в лог правок как правка
 // пользователя.
 export function migrateAnnexList(oi) {
-  if (!oi || Array.isArray(oi.annexList)) return;
+  if (!oi) return;
+
+  // Материал стал списком значений — старые строки приводим к массиву. Идёт
+  // и для уже переведённых записей: таблица появилась раньше мультивыбора.
+  if (Array.isArray(oi.annexList)) {
+    oi.annexList.forEach((a) => {
+      ['foundation', 'walls', 'roof'].forEach((k) => {
+        if (!Array.isArray(a[k])) a[k] = a[k] ? [a[k]] : [];
+      });
+    });
+    return;
+  }
 
   const out = [];
   [['loggias', 'Лоджия'], ['balconies', 'Балкон'], ['terraces', 'Терраса']].forEach(([key, kind]) => {
@@ -68,7 +80,7 @@ export function migrateAnnexList(oi) {
         letter: '',
         kind: named ? 'Иное' : kind,
         note: named ? label : '',
-        foundation: '', walls: '', roof: '',
+        foundation: [], walls: [], roof: [],
         area: it.area || '',
       });
     });
@@ -88,16 +100,46 @@ export function migrateAnnexList(oi) {
 // Классы объявлены свои (ax-*), а не взяты из dicts.css: те правила висят на
 // body[data-page="dicts"], а карточка — экран модуля.
 
-function matCell(a, col) {
-  const list = opt('building', 'struct.' + col.opts, STRUCT[col.opts]) || [];
-  const cur = a[col.key] || '';
-  const known = list.includes(cur);
+// Материал пристройки — список значений, а не одно: пристройка бывает из
+// нескольких сразу (кирпич и профлист), одним значением это не описать. Форма
+// данных та же, что у конструктива литеры (parts/struct/ms.js).
+export function annexMats(a, key) {
+  const v = a[key];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  return v ? [v] : [];
+}
 
-  return `<td><select class="ax-cell ax-sel" data-ax="${col.key}|${a.id}">
-<option value="" ${cur ? '' : 'selected'}>—</option>
-${cur && !known ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : ''}
-${list.map((v) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join('')}
-</select></td>`;
+const matOptions = (col) => opt('building', 'struct.' + col.opts, STRUCT[col.opts]) || [];
+
+// Сводка в свёрнутом виде — одной строкой с обрезкой, как в блоке 05: перенос
+// раздул бы строку таблицы по высоте. Разделитель « / », а не запятая: в
+// названиях материалов запятая встречается сама по себе.
+function matSummary(list) {
+  const text = list.join(' / ');
+  return list.length
+    ? `<span class="ms-summary" title="${esc(text)}">${esc(text)}</span><span class="ms-count">${list.length}</span>`
+    : '<span class="muted">—</span>';
+}
+
+function matDropBody(a, col) {
+  return msDropBodyHTML({
+    options: matOptions(col),
+    selected: annexMats(a, col.key),
+    optAttr: 'ax-opt',
+    value: (v) => `${col.key}|${a.id}|${v}`,
+  });
+}
+
+function matCell(a, col) {
+  const list = annexMats(a, col.key);
+
+  return `<td><div class="ms ax-ms" data-ax-ms="${col.key}|${a.id}">
+<div class="ms-control" data-ms-control data-ms-toggle title="Открыть список материалов">
+${matSummary(list)}
+<span class="chev">▾</span>
+</div>
+<div class="ms-drop" hidden>${matDropBody(a, col)}</div>
+</div></td>`;
 }
 
 // Вид: обычно список, а при «Иное» — поле ввода прямо в той же ячейке.
@@ -203,6 +245,57 @@ export function bindAnnexes(ctx, oi) {
     a.note = '';
     redraw();
   });
+
+  // Материалы: выбор нескольких, поиск по списку и точечная перерисовка
+  // ячейки. Полная перерисовка закрыла бы список, а слушатели вешаем прямо на
+  // флажки — делегированные копились бы при каждой отрисовке карточки
+  // (та же причина, что в parts/struct/ms.js).
+  const bindMats = () => {
+    s.$$('[data-ax-ms]').forEach((box) => {
+      bindMsSearch(box.querySelector('.ms-drop'));
+
+      // Открытие списка вешаем здесь, а не полагаемся на общий обработчик
+      // карточки: он привязывается один раз, а строки таблицы появляются и
+      // перерисовываются после этого — у новых ячеек список не открывался.
+      const ctrl = box.querySelector('[data-ms-toggle]');
+      if (ctrl) ctrl.onclick = (e) => {
+        e.stopPropagation();
+        const drop = box.querySelector('.ms-drop');
+        s.$$('.ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
+        s.$$('.ms-control').forEach((mc) => { if (mc !== ctrl) mc.classList.remove('open'); });
+        drop.hidden = !drop.hidden;
+        ctrl.classList.toggle('open', !drop.hidden);
+      };
+
+      box.querySelectorAll('[data-ax-opt]').forEach((cb) => {
+        cb.onchange = () => {
+          const [key, id, value] = cb.dataset.axOpt.split('|');
+          const a = find(id);
+          if (!a) return;
+
+          const list = annexMats(a, key);
+          const i = list.indexOf(value);
+          if (i >= 0) list.splice(i, 1); else list.push(value);
+          a[key] = list;
+
+          repaintMat(box, a, key);
+        };
+      });
+    });
+  };
+
+  const repaintMat = (box, a, key) => {
+    const col = MAT_COLS.find((c) => c.key === key);
+    if (!col) return;
+
+    const mc = box.querySelector('[data-ms-control]');
+    const drop = box.querySelector('.ms-drop');
+    if (mc) mc.innerHTML = `${matSummary(annexMats(a, key))}<span class="chev">▾</span>`;
+    if (drop) drop.innerHTML = matDropBody(a, col);
+    bindMats();
+  };
+
+  bindMats();
 
   s.$$('[data-ax]').forEach((el) => {
     const [key, id] = el.dataset.ax.split('|');

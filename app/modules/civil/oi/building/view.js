@@ -474,15 +474,19 @@ export function render(ctx, oi) {
 
   const idx = blockNumbers();
 
+  // Порядок блоков — по тому, как часто в них заходят. Аренда по этажам ушла в
+  // самый низ, за фотографии (решение пользователя 09.09.2026): раздел нужен
+  // редко, а стоял четвёртым и отодвигал вниз конструктив с состоянием, к
+  // которым обращаются на каждом объекте.
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
-${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}
+${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
 </div>`;
 
   return `${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, cardBody)}`;
