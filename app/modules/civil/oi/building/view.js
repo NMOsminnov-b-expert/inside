@@ -1,4 +1,3 @@
-import { areaListHTML } from '../../../../kernel/areaList.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
@@ -7,6 +6,7 @@ import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
+import { annexesHTML } from './annexes.js';
 import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM , STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
@@ -417,15 +417,19 @@ function resCatOptions() {
   return opt('building', 'buildCat', RES_BUILD_CAT).slice();
 }
 
-// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
-// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
+// Пристройки — свой блок (Л5.4): внутри «Площадей и этажности» они оказывались
+// ниже поэтажной развёртки и высот, и их там не находили.
+//
+// Было три отдельных списка — лоджии, балконы, террасы, — у каждого только
+// название и площадь. Стала одна таблица с литерой, видом и материалами, как на
+// странице техпаспорта «Характеристика строений и сооружений» (требование
+// пользователя 09.09.2026). Веранду и тамбур записать было некуда, литеру —
+// тоже, а материалы пристройки нигде не хранились.
 function annexesCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-annexes">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристройки</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-${areaListHTML(oi, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }

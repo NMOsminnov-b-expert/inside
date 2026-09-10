@@ -270,3 +270,37 @@ body[data-module="civil"] .src-btn{
 body[data-module="civil"] .src-btn:hover:not(:disabled){background:var(--amber-50)}
 /* Без кода запрашивать нечего — кнопка выключена, а не отвечает ошибкой. */
 body[data-module="civil"] .src-btn:disabled{opacity:.55;cursor:default;border-color:var(--line);color:var(--muted)}
+
+/* ===== Таблица пристроек (блок «Пристройки» карточки литеры) ==============
+   Строка на пристройку: литера, вид, уточнение, материалы и площадь — как на
+   странице техпаспорта «Характеристика строений и сооружений» (требование
+   пользователя 09.09.2026). Раньше это были три списка с одним лишь названием
+   и площадью.
+
+   Колонок девять, и на узкой карточке они не помещаются. Прокручиваем таблицу
+   внутри её обёртки: страница вбок ехать не должна. */
+body[data-module="civil"] .ax-scroll{overflow-x:auto;margin:0 -2px;padding:0 2px}
+body[data-module="civil"] .ax-tbl{min-width:900px}
+/* Строка над таблицей: сколько пристроек, их общая площадь и добавление. */
+body[data-module="civil"] .ax-bar{display:flex;align-items:center;gap:10px;
+  margin-bottom:8px}
+body[data-module="civil"] .ax-count{font-size:12px;font-weight:700;color:var(--blue-700);
+  font-variant-numeric:tabular-nums;margin-right:auto}
+/* Материалы — длинные названия («Металлическая решётка»); колонке нужна
+   ширина, иначе в списке видно только первые буквы. */
+body[data-module="civil"] .ax-tbl td:nth-child(5),
+body[data-module="civil"] .ax-tbl td:nth-child(6),
+body[data-module="civil"] .ax-tbl td:nth-child(7){min-width:150px}
+body[data-module="civil"] .ax-tbl th.ax-n,
+body[data-module="civil"] .ax-tbl td.ax-n{width:26px;text-align:right;padding-right:4px;
+  color:var(--muted);font-size:10.5px}
+/* Литера короткая — колонке столько места не нужно. */
+body[data-module="civil"] .ax-tbl .ax-letter{text-align:center}
+body[data-module="civil"] .ax-tbl td:nth-child(2){width:64px}
+body[data-module="civil"] .ax-tbl td:nth-child(3){width:118px}
+/* Площадь читают колонкой — цифры моноширинные и по правому краю. */
+body[data-module="civil"] .ax-tbl .ax-area{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .ax-tbl td:nth-last-child(2){width:104px}
+/* Вид «Иное» без пояснения — незаполненное поле видно сразу, а не при выгрузке. */
+body[data-module="civil"] .ax-tbl [data-ax-need]{border-color:var(--amber-600);
+  background:var(--amber-50)}
