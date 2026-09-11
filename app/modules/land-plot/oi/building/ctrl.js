@@ -312,11 +312,14 @@ export function bind(ctx, oi) {
     if (row) row.label = i.value;
   });
 
-  s.$$('[data-rent-cell]').forEach((i) => i.onchange = () => {
+  // Числовые поля таблицы аренды — с разрядами и маской по ходу ввода, как в
+  // развёртке: соседние блоки одной карточки не должны показывать одно и то же
+  // число по-разному (требование пользователя 11.09.2026).
+  s.$$('[data-rent-cell]').forEach((i) => bindNumField(i, (v) => {
     const [col, id] = i.dataset.rentCell.split('|');
     const row = oi.rentAreas.find((r) => r.id === id);
-    if (row) row[col] = i.value;
-  });
+    if (row) row[col] = v;
+  }));
 
   const ra = s.$('[data-rent-add]');
   if (ra) ra.onclick = (e) => {
@@ -410,8 +413,9 @@ export function bind(ctx, oi) {
   });
 
   // --- Доп параметры (производственное строение) ---------------------------
+  // Высота — число, как площади: с разрядами и маской по ходу ввода.
   const phe = s.$('[data-prod-height]');
-  if (phe) phe.onchange = () => { oi.prodHeight = phe.value; };
+  if (phe) bindNumField(phe, (v) => { oi.prodHeight = v; });
 
   const pfr = s.$('[data-prod-frame]');
   if (pfr) pfr.onchange = () => { oi.prodFrame = pfr.value; };

@@ -11,8 +11,13 @@ import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS } 
 // Конструктивный тип мансарды — у каждой мансардной строки: мансарда и
 // полумансарда встречаются в одном здании (Л5.3).
 
+// Колонка, по которой считаются все суммы развёртки: та, что делится между
+// отмеченными этажами. Ключ берём из описания колонок — поменяется правило,
+// и сводка с припиской поедут за ним сами.
+const SUM_KEY = (AUTO_AREA_FIELDS[0] || AREA_FIELDS[0]).key;
+
 function catSummary(rows) {
-  const sum = rows.reduce((s, f) => s + num(f.area), 0);
+  const sum = rows.reduce((s, f) => s + num(f[SUM_KEY]), 0);
   return `${rows.length} · ${fmtNum(sum)} м²`;
 }
 
@@ -91,7 +96,7 @@ export function floorsCountField(oi) {
 // обновляет updateFloorsUI после правки площадей.
 export function floorsNote(oi) {
   const n = (oi.floorList || []).filter((f) => f.cat === 'over').length;
-  const area = floorsSumByCat(oi, 'over');
+  const area = floorsSumByCat(oi, 'over', SUM_KEY);
   if (!n) return 'надземных этажей нет';
   return `${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²`;
 }

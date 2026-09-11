@@ -16,6 +16,7 @@ import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 import { tempModeMS } from './tempMode.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
+import { numText } from '../../../../kernel/numField.js';
 
 
 // Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
@@ -277,7 +278,7 @@ ${rows.length ? `<div style="overflow-x:auto">
 <tbody>
 ${rows.map((r) => `<tr>
 <td><input class="input" data-rent-label="${r.id}" value="${esc(r.label || '')}" placeholder="Например: Подвал"></td>
-${RENT_COLS.map((c) => `<td><input class="input" data-rent-cell="${c.key}|${r.id}" value="${esc(r[c.key] || '')}"></td>`).join('')}
+${RENT_COLS.map((c) => `<td><input class="input" data-rent-cell="${c.key}|${r.id}" value="${esc(numText(r[c.key]))}" inputmode="decimal"></td>`).join('')}
 <td><button class="btn btn-ghost btn-sm" data-rent-del="${r.id}" title="Удалить строку">✕</button></td>
 </tr>`).join('')}
 </tbody>
@@ -373,7 +374,7 @@ function prodExtraCard(ctx, oi, idx) {
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Доп параметры (производственное строение)</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
 <div class="grid g-3">
-<div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(oi.prodHeight || '')}" inputmode="decimal"></div>
+<div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(numText(oi.prodHeight))}" inputmode="decimal"></div>
 ${tempModeMS(ctx, oi)}
 <div class="field"><label>Усиленность конструкции</label>
 <select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>

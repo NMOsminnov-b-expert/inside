@@ -11,8 +11,13 @@ import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS } 
 // Конструктивный тип мансарды — у каждой мансардной строки: мансарда и
 // полумансарда встречаются в одном здании (Л5.3).
 
+// Колонка, по которой считаются все суммы развёртки: та, что делится между
+// отмеченными этажами. Ключ берём из описания колонок — поменяется правило,
+// и сводка с припиской поедут за ним сами.
+const SUM_KEY = (AUTO_AREA_FIELDS[0] || AREA_FIELDS[0]).key;
+
 function catSummary(rows) {
-  const sum = rows.reduce((s, f) => s + num(f.area), 0);
+  const sum = rows.reduce((s, f) => s + num(f[SUM_KEY]), 0);
   return `${rows.length} · ${fmtNum(sum)} м²`;
 }
 
@@ -57,9 +62,9 @@ ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}
 <span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : `Вводится вручную: ${a.title} по этажам не распределяется`)}"></td>`).join('')}
-<td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
-<td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
+${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(numText(f[a.key]))}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : `Вводится вручную: ${a.title} по этажам не распределяется`)}"></td>`).join('')}
+<td><input class="input" data-floor-hext="${i}" value="${esc(numText(f.hExt))}" inputmode="decimal"></td>
+<td><input class="input" data-floor-hint="${i}" value="${esc(numText(f.hInt))}" inputmode="decimal"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
 </tr>`).join('')}</tbody></table>`
     : `<div class="al-empty">Строк нет. Добавьте кнопкой «+ ${esc(cat.add)}».</div>`;
@@ -91,7 +96,7 @@ export function floorsCountField(oi) {
 // обновляет updateFloorsUI после правки площадей.
 export function floorsNote(oi) {
   const n = (oi.floorList || []).filter((f) => f.cat === 'over').length;
-  const area = floorsSumByCat(oi, 'over');
+  const area = floorsSumByCat(oi, 'over', SUM_KEY);
   if (!n) return 'надземных этажей нет';
   return `${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²`;
 }
