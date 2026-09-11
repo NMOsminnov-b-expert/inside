@@ -57,7 +57,7 @@ ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}
 <span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь по внутреннему обмеру по этажам не распределяется')}"></td>`).join('')}
+${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : `Вводится вручную: ${a.title} по этажам не распределяется`)}"></td>`).join('')}
 <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
@@ -144,13 +144,29 @@ ${items}
 </div>`;
 }
 
+// Подсказка называет ту колонку, которая на самом деле делится: у литеры это
+// площадь по внешним замерам, у квартиры — по внутреннему обмеру. Текст
+// собирается из описания колонок (AREA_FIELDS), иначе одна из карточек
+// рассказывала бы про чужую площадь.
+function floorsTip() {
+  const auto = AREA_FIELDS.filter((a) => a.auto).map((a) => a.title);
+  const hand = AREA_FIELDS.filter((a) => !a.auto).map((a) => a.title);
+  // Второе предложение начинается с названия колонки, поэтому первую букву
+  // поднимаем: «площадь по внешним замерам не делится» после точки читалось
+  // как обрывок.
+  const up = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+  const handText = hand.length
+    ? ` ${up(hand.join(' и '))} не делится — её вводят руками у каждой строки.`
+    : '';
+  return `<b>Отмеченные этажи</b> делят между собой оставшуюся ${auto.join(' и ')} поровну. `
+    + `Снимите отметку, чтобы вписать её вручную.${handText}`;
+}
+
 export function floorsBlock(ctx, oi) {
   const fkey = 'fl|' + oi.id;
 
   return `${sumsPanel(oi)}
-<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по внешним
-замерам поровну. Снимите отметку, чтобы вписать её вручную. Площадь по внутреннему обмеру не
-делится — этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
+<div class="floors-tip">${floorsTip()}</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
 <div class="muted" style="font-size:10.5px;margin-top:5px">Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }

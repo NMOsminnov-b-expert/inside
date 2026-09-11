@@ -33,35 +33,40 @@ function catSection(ctx, oi, cat, fkey) {
 
   // Заголовок категории показывается даже когда строк нет — иначе добавить
   // первую было бы негде (объект может состоять из одного цоколя).
-  // Доли колонок — от ширины за вычетом двух служебных (чекбокс и крестик,
-  // по 36px). Если считать их от полной ширины, сумма долей плюс служебные
-  // пикселя превышает таблицу, и она уезжает под горизонтальную прокрутку —
-  // ровно это и случалось с мансардной секцией, где колонок на одну больше.
-  const col = (frac) => `width:calc((100% - 72px) * ${frac})`;
+  // Доли колонок — от ширины за вычетом трёх служебных (ручка переноса 26px,
+  // замок и крестик по 36px). Если считать их от полной ширины, сумма долей
+  // плюс служебные пикселя превышает таблицу, и она уезжает под горизонтальную
+  // прокрутку — ровно это и случалось с мансардной секцией, где колонок на одну
+  // больше.
+  const col = (frac) => `width:calc((100% - 98px) * ${frac})`;
   const w = isMansard
     ? { name: 0.20, type: 0.16, area: 0.17, h: 0.15 }
     : { name: 0.26, area: 0.21, h: 0.16 };
 
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
+    ? `<table class="tbl al-tbl fl-tbl"><thead><tr><th class="fl-c fl-c-grip" title="Потяните строку за эту ручку, чтобы перенести её в другое размещение"></th><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
 ${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
 ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
 <th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
 <th class="fl-c"></th></tr></thead>
-<tbody>${rows.map(({ f, i }) => `<tr>
-<td><label class="fl-lock" title="${f.on ? 'Заперто: площадь считает распределение. Откройте, чтобы вписать вручную' : 'Открыто: площадь вписывают вручную. Заприте, чтобы её считало распределение'}">
+<tbody>${rows.map(({ f, i }) => `<tr data-floor-row="${i}" data-floor-of="${cat.key}">
+<td class="fl-grip-cell"><span class="fl-grip" draggable="true" data-floor-grip="${i}"
+  title="Перенести «${esc(f.name)}» в другое размещение — потяните в нужный раздел" aria-hidden="true">⠿</span></td>
+<td class="fl-lock-cell"><label class="fl-lock" title="${f.on ? 'Заперто: площадь считает распределение. Откройте, чтобы вписать вручную' : 'Открыто: площадь вписывают вручную. Заприте, чтобы её считало распределение'}">
 <input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} aria-label="Считать площадь автоматически">
 <span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь по внутреннему обмеру по этажам не распределяется')}"></td>`).join('')}
+${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : `Вводится вручную: ${a.title} по этажам не распределяется`)}"></td>`).join('')}
 <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
 </tr>`).join('')}</tbody></table>`
     : `<div class="al-empty">Строк нет. Добавьте кнопкой «+ ${esc(cat.add)}».</div>`;
 
-  return `<div class="al acc ${open ? 'open' : ''}">
+  // Бросать можно на весь раздел, включая заголовок: раздел бывает свёрнут, и
+  // тогда единственная его видимая часть — заголовок.
+  return `<div class="al acc ${open ? 'open' : ''}" data-floor-drop="${cat.key}">
 <div class="acc-head" data-acc-toggle="${ckey}" style="display:flex;align-items:center;gap:8px">
 <span class="chev">▾</span>
 ${rows.length ? `<input type="checkbox" data-cat-all="${cat.key}" ${onCount === rows.length ? 'checked' : ''} title="Выбрать/снять всю категорию — площадь распределится автоматически">` : ''}
@@ -139,13 +144,29 @@ ${items}
 </div>`;
 }
 
+// Подсказка называет ту колонку, которая на самом деле делится: у литеры это
+// площадь по внешним замерам, у квартиры — по внутреннему обмеру. Текст
+// собирается из описания колонок (AREA_FIELDS), иначе одна из карточек
+// рассказывала бы про чужую площадь.
+function floorsTip() {
+  const auto = AREA_FIELDS.filter((a) => a.auto).map((a) => a.title);
+  const hand = AREA_FIELDS.filter((a) => !a.auto).map((a) => a.title);
+  // Второе предложение начинается с названия колонки, поэтому первую букву
+  // поднимаем: «площадь по внешним замерам не делится» после точки читалось
+  // как обрывок.
+  const up = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+  const handText = hand.length
+    ? ` ${up(hand.join(' и '))} не делится — её вводят руками у каждой строки.`
+    : '';
+  return `<b>Отмеченные этажи</b> делят между собой оставшуюся ${auto.join(' и ')} поровну. `
+    + `Снимите отметку, чтобы вписать её вручную.${handText}`;
+}
+
 export function floorsBlock(ctx, oi) {
   const fkey = 'fl|' + oi.id;
 
   return `${sumsPanel(oi)}
-<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по внешним
-замерам поровну. Снимите отметку, чтобы вписать её вручную. Площадь по внутреннему обмеру не
-делится — этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
+<div class="floors-tip">${floorsTip()}</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
 <div class="muted" style="font-size:10.5px;margin-top:5px">Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }

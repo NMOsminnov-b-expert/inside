@@ -8,7 +8,8 @@ import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
-import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow } from './floors.model.js';
+import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
+  moveFloorRow, FLOOR_CATS } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
@@ -161,6 +162,85 @@ export function bind(ctx, oi) {
       removeFloorRow(oi, +b.dataset.delFloor);
       redrawFloors();
       syncFloorsCount();
+    });
+
+    bindFloorDrag();
+  }
+
+  // Перенос строки развёртки в другое размещение: этаж — в подвалы или в
+  // мансарды и обратно. Тянут за ручку, а не за строку целиком: строка почти
+  // сплошь состоит из полей ввода, и draggable на ней отнимал бы у них
+  // выделение текста мышью.
+  //
+  // Что тащим, помним в ui, а не в локальной переменной: обработчики
+  // перевешиваются на каждой перерисовке блока, а бросок случается уже после
+  // неё — локальную переменную новый обработчик увидел бы пустой.
+  function bindFloorDrag() {
+    const clearMarks = () => {
+      s.$$('[data-floor-drop]').forEach((n) => n.classList.remove('fl-drop'));
+      s.$$('[data-floor-row]').forEach((n) => n.classList.remove('fl-dragging'));
+    };
+
+    s.$$('[data-floor-grip]').forEach((grip) => {
+      const idx = +grip.dataset.floorGrip;
+      const row = grip.closest('[data-floor-row]');
+
+      grip.addEventListener('dragstart', (e) => {
+        ctx.ui.dragFloor = { oiId: oi.id, index: idx };
+        e.dataTransfer.setData('text/plain', String(idx));
+        e.dataTransfer.effectAllowed = 'move';
+        if (row) row.classList.add('fl-dragging');
+      });
+
+      grip.addEventListener('dragend', () => {
+        ctx.ui.dragFloor = null;
+        clearMarks();
+      });
+    });
+
+    s.$$('[data-floor-drop]').forEach((box) => {
+      const cat = box.dataset.floorDrop;
+
+      const mine = () => {
+        const d = ctx.ui.dragFloor;
+        if (!d || d.oiId !== oi.id) return null;
+        const f = (oi.floorList || [])[d.index];
+        return f && f.cat !== cat ? d : null;
+      };
+
+      box.addEventListener('dragover', (e) => {
+        if (!mine()) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        box.classList.add('fl-drop');
+      });
+
+      box.addEventListener('dragleave', (e) => {
+        // Уход внутрь собственных потомков — не уход из раздела.
+        if (box.contains(e.relatedTarget)) return;
+        box.classList.remove('fl-drop');
+      });
+
+      box.addEventListener('drop', (e) => {
+        const d = mine();
+        if (!d) return;
+        e.preventDefault();
+        e.stopPropagation();
+        clearMarks();
+
+        const name = (oi.floorList[d.index] || {}).name || 'строка';
+        const to = FLOOR_CATS.find((c) => c.key === cat);
+        if (!moveFloorRow(oi, d.index, cat)) return;
+        ctx.ui.dragFloor = null;
+
+        // Раздел, куда перенесли, раскрываем: иначе строка уезжает в свёрнутый
+        // блок, и перенос выглядит как пропажа.
+        ctx.ui.accOpen['fl|' + oi.id + '|' + cat] = true;
+
+        redrawFloors();
+        syncFloorsCount();
+        ctx.toast(`«${name}» → ${to ? to.label.toLowerCase() : cat}`, 'ok');
+      });
     });
   }
 

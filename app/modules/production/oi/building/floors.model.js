@@ -53,6 +53,34 @@ export const FLOOR_CATS = [
 
 const catDef = (cat) => FLOOR_CATS.find((c) => c.key === cat) || FLOOR_CATS[0];
 
+// Поля, которые есть только у своего размещения. Строка развёртки — ОДНА
+// структура на все размещения: общие поля (название, площади, высоты, отметка
+// «авто») лежат у всех, уникальные — заводятся, когда строка в это размещение
+// попадает, и НЕ стираются, когда уходит. Иначе перенос «мансарда → этаж →
+// обратно» терял бы конструктивный тип, а человек этого не ждёт: он двигал
+// строку, а не чистил её.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь это один список floorList с полем cat. На сервере
+// то же самое — одна таблица строк развёртки с колонкой размещения и общими
+// колонками, а уникальные поля живут либо отдельными nullable-колонками (их
+// немного), либо json-полем. Разводить по трём таблицам не нужно: перенос
+// между ними стал бы удалением и вставкой, и история правок по строке рвалась
+// бы на каждом переносе.
+const CAT_ONLY_FIELDS = {
+  mansard: (oi) => ({ mansardType: oi.mansardType || opt('building', 'mansardType', MANSARD_TYPE)[0] }),
+};
+
+// Дописать строке то, чего у неё в этом размещении ещё не было. Уже
+// заполненное не трогаем — оно и есть смысл «общей структуры».
+function ensureCatFields(row, cat, oi) {
+  const mk = CAT_ONLY_FIELDS[cat];
+  if (!mk) return;
+  const extra = mk(oi);
+  Object.keys(extra).forEach((k) => {
+    if (row[k] === undefined || row[k] === '') row[k] = extra[k];
+  });
+}
+
 function mkRow(name, cat, oi) {
   const row = {
     name, cat,
@@ -122,6 +150,33 @@ export function removeFloorRow(oi, index) {
   list.splice(index, 1);
   if (wasOver) oi.floors = list.filter((f) => f.cat === 'over').length;
   recalcFloors(oi);
+}
+
+// Перенос строки в другое размещение: этаж — в подвалы или мансарды и обратно.
+// Меняем размещение и ставим строку в конец целевой группы, чтобы порядок в
+// списке совпал с тем, что человек видит на экране.
+//
+// Отметку «авто» при переносе НЕ трогаем, хотя у надземных она включена по
+// умолчанию, а у прочих нет: это выбор человека по конкретной строке, и молча
+// переигрывать его на переносе — значит менять посчитанные площади за спиной.
+// Название тоже остаётся прежним: «Этаж 3», уехавший в подвалы, переименует
+// тот, кто его туда отправил, — нам его замысел неизвестен.
+export function moveFloorRow(oi, index, cat) {
+  const list = oi.floorList || [];
+  const row = list[index];
+  if (!row || row.cat === cat || !FLOOR_CATS.some((c) => c.key === cat)) return false;
+
+  const wasOver = row.cat === 'over';
+  row.cat = cat;
+  ensureCatFields(row, cat, oi);
+
+  list.splice(index, 1);
+  const lastOfCat = list.reduce((at, f, i) => (f.cat === cat ? i : at), -1);
+  list.splice(lastOfCat + 1, 0, row);
+
+  if (wasOver || cat === 'over') oi.floors = list.filter((f) => f.cat === 'over').length;
+  recalcFloors(oi);
+  return true;
 }
 
 export function renameFloorRow(oi, index, name) {
