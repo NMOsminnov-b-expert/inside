@@ -1,4 +1,4 @@
-import { partiesOf } from './parties.view.js';
+import { partiesOf, isFracShare } from './parties.view.js';
 
 // Обработчики собственников и пользователей — один набор на все три экрана,
 // где этот блок показывается: карточка ОЦ, форма ОЦ и форма создания. Раньше
@@ -31,7 +31,10 @@ function bindSuggest(input, box, onPick) {
     const q = input.value.trim().toLowerCase();
     let shown = 0;
     opts.forEach((o) => {
-      const hit = !q || o.dataset.ptPick.toLowerCase().includes(q);
+      // Ищем и по пояснению: у документа это вид и дата, и «акт» должен
+      // находить «Гос. акт на землю» даже без совпадения в названии.
+      const hay = o.dataset.ptFind || o.dataset.ptPick.toLowerCase();
+      const hit = !q || hay.includes(q);
       o.hidden = !hit;
       if (hit) shown++;
     });
@@ -90,15 +93,46 @@ export function bindParties(ctx, rec) {
     });
   });
 
+  // ПУД — документ, по которому указана доля. Поле со свободным вводом, а не
+  // выбор из списка: документ бывает назван до того, как его приложили к
+  // записи, и запретить его вписать значило бы остановить работу.
+  s.$$('[data-pt-pud]').forEach((input) => {
+    const { kind, i } = parseRef(input.dataset.ptPud);
+    const write = (v) => {
+      const list = listOf(rec, kind);
+      if (!list[i]) return;
+      list[i].pud = v;
+    };
+
+    input.onchange = () => write(input.value.trim());
+
+    bindSuggest(input, input.parentElement.querySelector('[data-pt-sug]'), (v) => {
+      input.value = v;
+      write(v);
+      ctx.render();
+    });
+  });
+
   // Доля есть и у собственника, и у пользователя (уточнение пользователя
   // 09.09.2026), поэтому список берётся из самого поля, а не зашит.
   s.$$('[data-pt-share]').forEach((input) => {
+    // Знак процента убирается сразу, как в поле появилась косая черта: он
+    // мешает читать дробь ещё до того, как её допишут.
+    const box = input.closest('[data-pt-share-box]');
+    if (box) input.addEventListener('input', () => {
+      box.classList.toggle('frac', isFracShare(input.value));
+    });
+
     input.onchange = () => {
       const { kind, i } = parseRef(input.dataset.ptShare);
       const list = listOf(rec, kind);
       if (!list[i]) return;
-      // Запятая как разделитель: её набирают чаще точки, а хранить надо число.
-      list[i].share = input.value.trim().replace(',', '.');
+
+      const v = input.value.trim();
+      // Дробь храним как написали: «1/2» человек и прочтёт, и сверит с
+      // документом, а «50» из неё уже не восстановить. В десятичной запятую
+      // приводим к точке — её набирают чаще, а хранить надо число.
+      list[i].share = v.includes('/') ? v.replace(/\s+/g, '') : v.replace(',', '.');
       // Перерисовка нужна ради суммы долей — она считается по всем блокам.
       ctx.render();
     };

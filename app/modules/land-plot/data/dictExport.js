@@ -239,6 +239,36 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'REGIONS',
+    title: 'Области',
+    kind: 'list',
+    system: false,
+    values: D.REGIONS,
+    slots: [
+      { card: 'oc', field: 'region', label: 'Область' },
+    ],
+  },
+  {
+    key: 'DISTRICTS',
+    title: 'Районы',
+    kind: 'list',
+    system: false,
+    values: D.DISTRICTS,
+    slots: [
+      { card: 'oc', field: 'district', label: 'Район' },
+    ],
+  },
+  {
+    key: 'CITIES',
+    title: 'Города и сёла',
+    kind: 'list',
+    system: false,
+    values: D.CITIES,
+    slots: [
+      { card: 'oc', field: 'city', label: 'Город или село' },
+    ],
+  },
+  {
     key: 'STATUS_OC',
     title: 'Статусы объекта оценки',
     kind: 'list',

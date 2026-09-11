@@ -1,12 +1,12 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
-import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { esc } from '../../../../kernel/dom.js';
+import { annexesHTML } from './annexes.js';
 import {
   STATUS_BUILD, WEAR_LEVEL, STRUCT, BUILD_CONDITION,
   APARTMENT_SERIES, APARTMENT_LOCATIONS, APARTMENT_RIGHTS,
@@ -175,11 +175,14 @@ function areasCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
+<!-- g-roomy — запас по вертикали: у площади по внешним замерам есть подпись
+     под полем, а .field-hint вынесена из потока. -->
+<div class="grid g-4 g-roomy">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label title="Со страницы «Характеристика строений и сооружений» техпаспорта">Площадь по внешним замерам, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}" title="Со страницы «Характеристика строений и сооружений» техпаспорта">
+<span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
+<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
 
 </div>
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
@@ -345,13 +348,14 @@ ${photoAccordions(ctx.ui, oi, true)}
 // Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей» они
 // оказывались ниже высот, и их там не находили. У квартиры списки живут в
 // oi.apartment, а не в самой литере.
+// Пристройки — таблицей с видом, материалами и двумя площадями, как у литеры
+// (решение пользователя 10.09.2026). Было три списка с одним названием и
+// площадью: веранду записать было некуда, материалы нигде не хранились.
 function annexesCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-annexes">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристрои/Балконы/Лоджии</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi.apartment, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi.apartment, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }
