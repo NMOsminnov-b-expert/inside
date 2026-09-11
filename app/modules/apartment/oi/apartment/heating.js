@@ -22,11 +22,13 @@ function summaryHTML(heating) {
     : '<span class="muted">не выбрано</span>';
 }
 
-export function heatingMS(ctx, oi) {
+export function heatingMS(ctx, oi, bare) {
   const heating = Array.isArray(oi.heating) ? oi.heating : [];
   const showOther = isOther(heating);
 
-  return `<div class="field" data-heat-field><label>Отопление (мультивыбор)</label>
+  // bare — поле стоит ячейкой таблицы «Конструктив и износ»: подпись там уже
+  // есть в первом столбце, а вторая сбивала бы строку по высоте.
+  return `<div class="field${bare ? ' f-bare' : ''}" data-heat-field>${bare ? '' : '<label>Отопление (мультивыбор)</label>'}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
         ${summaryHTML(heating)}

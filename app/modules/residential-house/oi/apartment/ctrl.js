@@ -8,6 +8,7 @@ import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
+import { bindStruct } from '../../parts/struct/ms.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
   moveFloorRow, FLOOR_CATS } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors } from './floors.view.js';
@@ -332,9 +333,17 @@ export function bind(ctx, oi) {
   const rightsOther = s.$('[data-apt-rights-other]');
   if (rightsOther) rightsOther.onchange = () => { apt().rightsOther = rightsOther.value; };
 
+  // --- Конструктивный состав ----------------------------------------------
+  // Материалы вернулись в карточку квартиры 11.09.2026: список тот же, что у
+  // литеры, и правится тем же справочником.
+  bindStruct(ctx, oi);
+
+  // --- Состояние ----------------------------------------------------------
+  s.$$('[data-condition]').forEach((sel) => sel.onchange = () => {
+    oi[sel.dataset.condition] = sel.value;
+  });
+
   // --- Износ конструктивных элементов -------------------------------------
-  // Материалов у квартиры нет: из чего сделаны фундамент и стены — свойство
-  // строения целиком, его описывает литера (решение пользователя 08.09.2026).
   s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
     oi.wear = oi.wear || {};
     oi.wear[sel.dataset.wear] = sel.value;
