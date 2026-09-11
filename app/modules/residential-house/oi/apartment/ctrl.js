@@ -461,8 +461,9 @@ export function bind(ctx, oi) {
     const inp = s.$('[data-letter-input]');
     const v = (inp ? inp.value : '').trim();
     if (!v || v === oi.letter) { ctx.ui.letterEdit = false; ctx.render(); return; }
-    const taken = ctx.rec.oi.some((o) => o !== oi && o.card !== 'land' && o.letter === v);
-    if (taken) { ctx.toast('Литера занята', 'warn'); return; }
+    // Одинаковые литеры разрешены (решение пользователя 11.09.2026). Запрет
+    // мешал: в записи встречаются повторы — бараки, строения из разных
+    // техпаспортов. Литера не ключ, объекты различаются идентификаторами.
     oi.letter = v;
     ctx.ui.letterEdit = false;
     ctx.render();
