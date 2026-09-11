@@ -40,6 +40,7 @@ const COMMON = {
   dis: 'Расхождение ТП и фото',
   features: 'Особенности',
   comment: 'Комментарий',
+  areasNote: 'Комментарий к площадям',
   floorList: 'Этажность',
   floors: 'Кол-во этажей',
   'flags.entered': 'Введено',

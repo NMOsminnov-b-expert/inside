@@ -123,6 +123,12 @@ function areasCard(oi, idx) {
 <div class="field"><label>По факту, м²</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Застроенная площадь, м²</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
 </div>
+<!-- Комментарий к площадям: одно поле на весь блок, в самом низу (требование
+     пользователя 11.09.2026). Площади сходятся не всегда, и причину расхождения
+     записывают здесь, а не в чужих полях. -->
+<div class="field" style="margin-top:10px"><label>Комментарий к площадям</label>
+<textarea class="input" data-areas-note rows="2"
+  placeholder="Чем объясняется расхождение площадей, что уточнить при осмотре">${esc(oi.areasNote || '')}</textarea></div>
 </div></div>`;
 }
 
