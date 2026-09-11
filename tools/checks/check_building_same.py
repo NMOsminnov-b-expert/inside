@@ -84,7 +84,21 @@ def _add(t, kind='Гражданское здание'):
     item = pg.locator('[data-add-oi="%s"]' % kind)
     if not item.count():
         return False
+    before = set(pg.eval_on_selector_all(
+        'tr[data-open-oi]', 'els => els.map((e) => e.dataset.openOi)'))
     item.first.click()
+
+    # С 11.09.2026 создание НЕ переходит в карточку (решение пользователя:
+    # объекты заводят пачкой). Открываем новую строку сами — ищем её по
+    # идентификатору, а не «последнюю»: строки группируются по участкам, и
+    # новая встаёт не обязательно в конец.
+    t.wait(400)
+    new_ids = [x for x in pg.eval_on_selector_all(
+        'tr[data-open-oi]', 'els => els.map((e) => e.dataset.openOi)') if x not in before]
+    if not new_ids:
+        return False
+    pg.locator('tr[data-open-oi="%s"]' % new_ids[0]).first.click()
+
     # Ждём признак карточки ОИ, а не .card-idx: номера блоков есть и у карточки
     # объекта оценки, поэтому по ним ожидание проходит, не дождавшись перехода.
     return t.wait_for('.oi-stack') and t.wait_for('[data-status]')

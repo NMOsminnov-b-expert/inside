@@ -81,6 +81,9 @@ const UI_KEEP = [
   'splitVW', 'cmpSplit', 'cmpHidden',
   'viewer', 'viewerDoc', 'viewerSidebar',
   'oiCols', 'oiColWidths',
+  // Порядок столбцов поэтажной развёртки — человек переставил его под себя
+  // (решение пользователя 11.09.2026), и сбрасывать его на перезагрузке нельзя.
+  'floorCols',
   'railCollapsed',
 ];
 

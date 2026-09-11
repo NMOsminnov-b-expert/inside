@@ -16,6 +16,41 @@ import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS } 
 // и сводка с припиской поедут за ним сами.
 const SUM_KEY = (AUTO_AREA_FIELDS[0] || AREA_FIELDS[0]).key;
 
+// Подвижные столбцы развёртки: две площади и две высоты. Порядок человек меняет
+// перетаскиванием шапки и он запоминается (требование пользователя 11.09.2026):
+// кто-то сверяет по обмеру, кто-то по внешним замерам, и первой должна стоять
+// та колонка, по которой работают.
+//
+// Служебные столбцы — ручка переноса, замок, название строки, тип мансарды и
+// удаление — закреплены: они про саму строку, а не про данные.
+const MOVABLE_COLS = [
+  ...AREA_FIELDS.map((a) => ({ key: a.key, label: a.label, kind: 'area', field: a })),
+  { key: 'hExt', label: 'Высота внешн, м', kind: 'height', attr: 'data-floor-hext' },
+  { key: 'hInt', label: 'Высота внутр, м', kind: 'height', attr: 'data-floor-hint' },
+];
+
+const DEFAULT_COL_ORDER = MOVABLE_COLS.map((c) => c.key);
+
+// Порядок из настроек, очищенный от неизвестного и дополненный недостающим:
+// набор колонок мог измениться с тех пор, как человек его двигал.
+function colOrder(ctx) {
+  const saved = (ctx.ui && ctx.ui.floorCols) || [];
+  const known = saved.filter((k) => DEFAULT_COL_ORDER.includes(k));
+  return known.concat(DEFAULT_COL_ORDER.filter((k) => !known.includes(k)));
+}
+
+// Порядок столбцов наружу: контроллер перекладывает его при перетаскивании.
+export function floorColOrder(ctx) {
+  return colOrder(ctx);
+}
+
+export const FLOOR_COL_KEYS = DEFAULT_COL_ORDER;
+
+function colsOf(ctx) {
+  const byKey = new Map(MOVABLE_COLS.map((c) => [c.key, c]));
+  return colOrder(ctx).map((k) => byKey.get(k)).filter(Boolean);
+}
+
 function catSummary(rows) {
   const sum = rows.reduce((s, f) => s + num(f[SUM_KEY]), 0);
   return `${rows.length} · ${fmtNum(sum)} м²`;
@@ -48,11 +83,20 @@ function catSection(ctx, oi, cat, fkey) {
     ? { name: 0.20, type: 0.16, area: 0.17, h: 0.15 }
     : { name: 0.26, area: 0.21, h: 0.16 };
 
+  const cols = colsOf(ctx);
+
+  const headCell = (c) => `<th data-col="${c.key}" draggable="true"
+    style="${col(c.kind === 'area' ? w.area : w.h)}"
+    title="${c.kind === 'area' ? `итог: ${c.field.title}. ` : ''}Перетащите заголовок, чтобы переставить столбец">${c.label}</th>`;
+
+  const bodyCell = (c, f, i) => (c.kind === 'area'
+    ? `<td><input class="input" data-floor-area="${c.key}|${i}" value="${esc(numText(f[c.key]))}" ${f.on && c.field.auto ? 'readonly' : ''} title="${f.on && c.field.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (c.field.auto ? '' : `Вводится вручную: ${c.field.title} по этажам не распределяется`)}"></td>`
+    : `<td><input class="input" ${c.attr}="${i}" value="${esc(numText(f[c.key]))}" inputmode="decimal"></td>`);
+
   const body = rows.length
     ? `<table class="tbl al-tbl fl-tbl"><thead><tr><th class="fl-c fl-c-grip" title="Потяните строку за эту ручку, чтобы перенести её в другое размещение"></th><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
 ${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
-${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
-<th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
+${cols.map(headCell).join('')}
 <th class="fl-c"></th></tr></thead>
 <tbody>${rows.map(({ f, i }) => `<tr data-floor-row="${i}" data-floor-of="${cat.key}">
 <td class="fl-grip-cell"><span class="fl-grip" draggable="true" data-floor-grip="${i}"
@@ -62,9 +106,7 @@ ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}
 <span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(numText(f[a.key]))}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : `Вводится вручную: ${a.title} по этажам не распределяется`)}"></td>`).join('')}
-<td><input class="input" data-floor-hext="${i}" value="${esc(numText(f.hExt))}" inputmode="decimal"></td>
-<td><input class="input" data-floor-hint="${i}" value="${esc(numText(f.hInt))}" inputmode="decimal"></td>
+${cols.map((c) => bodyCell(c, f, i)).join('')}
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
 </tr>`).join('')}</tbody></table>`
     : `<div class="al-empty">Строк нет. Добавьте кнопкой «+ ${esc(cat.add)}».</div>`;

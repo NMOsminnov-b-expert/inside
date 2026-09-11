@@ -57,15 +57,7 @@ def unfold(value):
 
 
 def _add(t, kind):
-    pg = t.page
-    pg.locator('[data-dd-toggle]').first.click()
-    if not t.wait_for('[data-add-oi]'):
-        return False
-    item = pg.locator('[data-add-oi="%s"]' % kind)
-    if not item.count():
-        return False
-    item.first.click()
-    return t.wait_for('.oi-stack')
+    return t.add_oi(kind)
 
 
 def run(t):

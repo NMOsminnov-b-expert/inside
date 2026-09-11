@@ -155,6 +155,45 @@ class Tester:
         except Exception:
             return False
 
+    # Завести объект имущества и открыть его карточку.
+    #
+    # С 11.09.2026 создание НЕ переходит в карточку (решение пользователя:
+    # объекты заводят пачкой, и переход после каждого заставлял возвращаться).
+    # Сценариям карточка нужна, поэтому строку открываем здесь — по
+    # идентификатору, а не «последнюю»: строки группируются по участкам, и новая
+    # встаёт не обязательно в конец.
+    def add_oi(self, kind, wait=None):
+        pg = self.page
+        toggle = pg.locator('[data-dd-toggle]')
+        if not toggle.count():
+            return False
+        toggle.first.click()
+        if not self.wait_for('[data-add-oi]'):
+            return False
+
+        item = pg.locator('[data-add-oi="%s"]' % kind)
+        if not item.count():
+            return False
+
+        # Селектор без «tr»: участок открывается кнопкой «Карточка участка →»,
+        # а не строкой таблицы, и по «tr[data-open-oi]» его не видно.
+        ids = 'els => els.map((e) => e.dataset.openOi)'
+        before = set(pg.eval_on_selector_all('[data-open-oi]', ids))
+        item.first.click()
+        self.wait(400)
+
+        new = [x for x in pg.eval_on_selector_all('[data-open-oi]', ids) if x not in before]
+        if not new:
+            return False
+        pg.locator('[data-open-oi="%s"]' % new[0]).first.click()
+
+        # Карточку ОИ ждём всегда: «.card-idx» и прочие признаки есть и у
+        # карточки объекта оценки, и ожидание по ним проходит, не дождавшись
+        # перехода. `wait` — дополнительное условие поверх этого.
+        if not self.wait_for('.oi-stack'):
+            return False
+        return self.wait_for(wait) if wait else True
+
     def open(self, route='', wait='.card, .arc, .reg-thead', timeout=9000):
         started = time.time()
         self.opens += 1

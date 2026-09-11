@@ -16,7 +16,7 @@ import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
   moveFloorRow, FLOOR_CATS } from './floors.model.js';
-import { updateFloorsUI, rerenderFloors, floorsNote } from './floors.view.js';
+import { updateFloorsUI, rerenderFloors, floorColOrder, floorsNote } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
@@ -24,6 +24,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
+import { bindColumnReorder } from '../../../../kernel/columns.js';
 
 export function bind(ctx, oi) {
   bindAnnexes(ctx, oi);
@@ -171,6 +172,19 @@ export function bind(ctx, oi) {
     });
 
     bindFloorDrag();
+
+    // Порядок столбцов меняется перетаскиванием шапки — тем же механизмом, что
+    // в реестре (kernel/columns.js), чтобы поведение в проекте было одно.
+    // Порядок живёт в настройках карточки и переживает перезагрузку.
+    bindColumnReorder(s, {
+      headSel: '.fl-tbl thead',
+      order: floorColOrder(ctx),
+      onCommit: (next) => {
+        ctx.ui.floorCols = next;
+        redrawFloors();
+      },
+    });
+
   }
 
   // Перенос строки развёртки в другое размещение: этаж — в подвалы или в

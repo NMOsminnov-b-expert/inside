@@ -143,9 +143,34 @@ function bindOpts(scope, oi, box) {
       oi.struct = oi.struct || {};
       const list = structList(oi, key);
       const i = list.indexOf(value);
-      if (i >= 0) list.splice(i, 1); else list.push(value);
+      const added = i < 0;
+      if (added) list.push(value); else list.splice(i, 1);
       oi.struct[key] = list;
       updateStructUI(scope, oi, key);
+
+      // Материал наружных стен разово подсказывается внутренним (решение
+      // пользователя 11.09.2026): чаще всего они из того же материала, и его
+      // перевыбирали руками.
+      //
+      // Ровно один раз и только в эту сторону. Отмечаем подсказанное в
+      // structEcho, поэтому убранное из внутренних обратно не приходит: иначе
+      // снять его было бы нельзя, пока выбран наружный материал. Снятие
+      // наружного внутренних не трогает — там уже свой список.
+      if (added && key === 'wallsExt') {
+        oi.structEcho = oi.structEcho || {};
+        const echoed = Array.isArray(oi.structEcho.wallsInt) ? oi.structEcho.wallsInt : [];
+        if (!echoed.includes(value)) {
+          echoed.push(value);
+          oi.structEcho.wallsInt = echoed;
+
+          const inner = structList(oi, 'wallsInt');
+          if (!inner.includes(value)) {
+            inner.push(value);
+            oi.struct.wallsInt = inner;
+            updateStructUI(scope, oi, 'wallsInt');
+          }
+        }
+      }
     };
   });
 
