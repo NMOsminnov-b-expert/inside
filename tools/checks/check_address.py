@@ -141,10 +141,13 @@ def run(t):
     t.wait(300)
     if _add(t, 'Квартира'):
         t.wait(200)
-        pg.fill('[data-oi-street]', 'Байтик Баатыра')
-        pg.dispatch_event('[data-oi-street]', 'change')
-        pg.fill('[data-oi-house]', '42')
-        pg.dispatch_event('[data-oi-house]', 'change')
+        # Улица и дом квартире больше не задаются: с 11.09.2026 они приходят из
+        # записи и здесь только показываются. Свой у квартиры — её номер.
+        t.ck(pg.locator('[data-oi-street]').get_attribute('readonly') is not None,
+             'улица квартиры снова правится в карточке ОИ — адрес задаётся в записи')
+        street = pg.input_value('[data-oi-street]')
+        t.ck(bool(street.strip()),
+             'у новой квартиры пустая улица — адрес записи не подтянулся')
         pg.fill('[data-oi-flat]', '5')
         pg.dispatch_event('[data-oi-flat]', 'change')
         t.wait(300)
@@ -154,7 +157,7 @@ def run(t):
         addr = pg.evaluate("""() => [...document.querySelectorAll('.hm')]
             .filter((h) => h.textContent.includes('Адрес'))
             .map((h) => h.querySelector('b').textContent.trim())[0] || ''""")
-        t.ck(addr.count('Байтик Баатыра') == 1,
+        t.ck(addr.count(street) == 1,
              'квартиры одного дома не свёрнуты в один адрес: %s' % addr)
         t.ck('кв. 78, 5' in addr or 'кв. 5, 78' in addr,
              'номера квартир не перечислены списком: %s' % addr)

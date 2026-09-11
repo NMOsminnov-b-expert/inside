@@ -103,15 +103,49 @@ export function groupedOiAddresses(rec) {
   });
 }
 
+// Улица и дом записи без номера квартиры: к нему приписывается список номеров
+// (см. ocFullAddress).
+function ocAddressOwnHouse(rec) {
+  if (!rec) return '';
+  return [
+    clean(rec.street) && `ул. ${clean(rec.street)}`,
+    clean(rec.house) && `д. ${clean(rec.house)}`,
+  ].filter(Boolean).join(', ');
+}
+
+// Номера квартир записи: свой номер записи плюс номера её объектов имущества,
+// без повторов — две записи на одну квартиру бывают (например, доли), а номер
+// у них один.
+function recFlatNumbers(rec) {
+  const out = [];
+  const add = (v) => {
+    const f = clean(v);
+    if (f && !out.includes(f)) out.push(f);
+  };
+  if (rec) {
+    add(rec.flat);
+    ((rec.oi) || []).forEach((o) => add(o && o.flat));
+  }
+  return out;
+}
+
 // Адрес записи целиком: верх плюс свёрнутые адреса ОИ. Это то, что видно в
 // шапке карточки, в реестре и в архиве.
 export function ocFullAddress(rec) {
   const top = ocAddressTop(rec);
 
   // Адрес записан у самой записи — берём его: объекты имущества своей улицы
-  // больше не имеют, и собирать её оттуда нечего.
+  // больше не имеют, и собирать её оттуда нечего. Номера квартир при этом
+  // по-прежнему живут у объектов имущества, и их надо приписать к дому:
+  // иначе запись с пятью квартирами показывала бы один голый адрес дома, а
+  // свёртка «д. 42 — кв. 5, 78» пропала бы (замечено 11.09.2026, когда адрес
+  // квартиры переехал в запись).
   const own = ocAddressOwn(rec);
-  if (own) return [top, own].filter(Boolean).join(', ');
+  if (own) {
+    const flats = recFlatNumbers(rec);
+    const base = flats.length ? `${ocAddressOwnHouse(rec)} — кв. ${flats.join(', ')}` : own;
+    return [top, base].filter(Boolean).join(', ');
+  }
 
   const parts = groupedOiAddresses(rec);
   if (!parts.length) return top;
