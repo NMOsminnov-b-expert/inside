@@ -198,8 +198,36 @@ export function renameFloorRow(oi, index, name) {
 // Распределяется только то, что объявлено auto (см. AREA_FIELDS): свой итог,
 // своя сумма ручных значений, свой остаток. Отметка «авто» у строки — про сам
 // этаж; какие колонки она затрагивает, решает колонка.
+// Единственный надземный этаж: его площадь по внешним замерам равна площади
+// всего здания по внешним замерам — другого значения там быть не может
+// (решение пользователя 11.09.2026). Поле поэтому и заполняется само, и правке
+// не поддаётся: два разных числа означали бы ошибку в одном из них.
+//
+// Колонка берётся не по имени, а по признаку: распределяемую площадь считает
+// распределение, а эта — «вторая», ручная.
+const HAND_AREA = AREA_FIELDS.find((a) => !a.auto);
+
+export function singleOverFloor(oi) {
+  const over = (oi.floorList || []).filter((f) => f.cat === 'over');
+  return over.length === 1 ? over[0] : null;
+}
+
+// Заполнено ли это поле автоматически — по нему разметка ставит «только чтение».
+export function isAutoFilled(oi, row, key) {
+  return !!HAND_AREA && key === HAND_AREA.key && singleOverFloor(oi) === row;
+}
+
+function fillSingleFloor(oi) {
+  if (!HAND_AREA) return;
+  const row = singleOverFloor(oi);
+  if (!row) return;
+  row[HAND_AREA.key] = fmt(num((oi.areas || {})[HAND_AREA.total]));
+}
+
 export function recalcFloors(oi) {
   const areas = oi.areas || {};
+  fillSingleFloor(oi);
+
   const manual = (oi.floorList || []).filter((f) => !f.on);
   const auto = (oi.floorList || []).filter((f) => f.on);
   if (!auto.length) return;

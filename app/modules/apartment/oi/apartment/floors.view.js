@@ -3,7 +3,7 @@ import { numText } from '../../../../kernel/numField.js';
 import { fmtNum, num, plural } from '../../../../kernel/fmt.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS } from './floors.model.js';
+import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS, isAutoFilled } from './floors.model.js';
 
 // Развёрткой управляет человек, а не формула (решение пользователя 2026-08-28):
 // строку любой категории можно добавить и удалить, имя строки правится прямо в
@@ -89,9 +89,23 @@ function catSection(ctx, oi, cat, fkey) {
     style="${col(c.kind === 'area' ? w.area : w.h)}"
     title="${c.kind === 'area' ? `итог: ${c.field.title}. ` : ''}Перетащите заголовок, чтобы переставить столбец">${c.label}</th>`;
 
-  const bodyCell = (c, f, i) => (c.kind === 'area'
-    ? `<td><input class="input" data-floor-area="${c.key}|${i}" value="${esc(numText(f[c.key]))}" ${f.on && c.field.auto ? 'readonly' : ''} title="${f.on && c.field.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (c.field.auto ? '' : `Вводится вручную: ${c.field.title} по этажам не распределяется`)}"></td>`
-    : `<td><input class="input" ${c.attr}="${i}" value="${esc(numText(f[c.key]))}" inputmode="decimal"></td>`);
+  const bodyCell = (c, f, i) => {
+    if (c.kind !== 'area') {
+      return `<td><input class="input" ${c.attr}="${i}" value="${esc(numText(f[c.key]))}" inputmode="decimal"></td>`;
+    }
+
+    // У единственного надземного этажа площадь по внешним замерам равна
+    // площади здания и заполняется сама (kernel правила — floors.model.js).
+    const filled = isAutoFilled(oi, f, c.key);
+    const locked = filled || (f.on && c.field.auto);
+    const title = filled
+      ? 'Этаж один — площадь берётся из карточки, из поля «Площадь по внешним замерам»'
+      : (f.on && c.field.auto
+        ? 'Считается автоматически — снимите отметку, чтобы задать вручную'
+        : (c.field.auto ? '' : `Вводится вручную: ${c.field.title} по этажам не распределяется`));
+
+    return `<td><input class="input" data-floor-area="${c.key}|${i}" value="${esc(numText(f[c.key]))}" ${locked ? 'readonly' : ''} title="${title}"></td>`;
+  };
 
   const body = rows.length
     ? `<table class="tbl al-tbl fl-tbl"><thead><tr><th class="fl-c fl-c-grip" title="Потяните строку за эту ручку, чтобы перенести её в другое размещение"></th><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
@@ -228,7 +242,9 @@ export function updateFloorsUI(ctx, oi) {
       // Поле в фокусе не трогаем: человек его правит, и подмена значения под
       // курсором сбила бы ввод. Остальные показываем с разрядами.
       if (document.activeElement !== el) el.value = numText(f[a.key]);
-      el.readOnly = f.on && a.auto;
+      // Правило одного этажа действует и при обновлении без перерисовки: иначе
+      // поле оставалось запертым только до первой правки общей площади.
+      el.readOnly = isAutoFilled(oi, f, a.key) || (f.on && a.auto);
     });
 
     const on = s.$(`[data-floor-on="${i}"]`);
