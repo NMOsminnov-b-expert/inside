@@ -326,6 +326,11 @@ body[data-module] .fl-lock input{position:absolute;width:1px;height:1px;opacity:
    расхождение площадей — обычное дело, которое надо просто объяснить. */
 body[data-module] .areas-note{margin-top:10px;display:flex;flex-direction:column;gap:6px}
 
+/* display в правиле перебивает атрибут hidden, и скрытое предупреждение
+   оставалось видимым пустой плашкой — так было в карточке участка, где площади
+   сходятся. Прячем явно и с той же специфичностью. */
+body[data-module] .areas-warn[hidden]{display:none}
+
 body[data-module] .areas-warn{
   display:flex;gap:7px;align-items:flex-start;
   padding:7px 10px;border:1px solid var(--amber-600);border-radius:7px;

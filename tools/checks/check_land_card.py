@@ -52,13 +52,24 @@ def run(t):
          'площади не те: %s (ждём правоустанавливающие, правоудостоверяющие, факт, застроенная)' % areas)
 
     # Каждая площадь хранит своё значение — иначе перенос полей склеил бы их.
+    # Площади с 11.09.2026 — числовые поля (kernel/numField.js): при потере
+    # фокуса значение приводится к «777,00», поэтому сравниваем по числу, а не
+    # по строке. Раньше здесь ждали ровно то, что набрали.
     pg.fill('[data-land-area="pravoUd"]', '777')
     pg.dispatch_event('[data-land-area="pravoUd"]', 'change')
     pg.fill('[data-land-area="build"]', '55')
     pg.dispatch_event('[data-land-area="build"]', 'change')
     t.wait(400)
-    t.ck(pg.input_value('[data-land-area="pravoUd"]') == '777'
-         and pg.input_value('[data-land-area="build"]') == '55',
+
+    def as_num(sel):
+        raw = pg.input_value(sel).replace(' ', '').replace(' ', '').replace(',', '.')
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
+    t.ck(as_num('[data-land-area="pravoUd"]') == 777
+         and as_num('[data-land-area="build"]') == 55,
          'значения площадей перепутались между полями')
 
     # Подписи читаем по самим полям: innerText карточки включает ещё и опции

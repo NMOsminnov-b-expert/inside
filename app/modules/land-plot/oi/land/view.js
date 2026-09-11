@@ -16,6 +16,7 @@ import { improvementsFields } from './improvements.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
+import { numText } from '../../../../kernel/numField.js';
 
 // Признак аренды и единицы измерения платы — короткие перечни, заведены здесь,
 // а не в справочниках: править их некому и незачем, «сом / месяц» это не
@@ -77,7 +78,7 @@ ${selectField('Расположение в районе', 'data-land-location', 
 ${selectField('Расположение к трассе', 'data-land-road', opt('land', 'roadLocation', LAND_ROAD_LOCATION), oi.roadLocation)}
 ${selectField('Угловой/Неугловой', 'data-land-corner', opt('land', 'corner', LAND_CORNER), oi.corner)}
 ${agricultural ? `<div class="field"><label>Удалённость от райцентра, км</label>
-  <input class="input" data-land-distance value="${esc(oi.distanceToCenter || '')}" inputmode="decimal"></div>` : ''}
+  <input class="input" data-land-distance value="${esc(numText(oi.distanceToCenter))}" inputmode="decimal"></div>` : ''}
 </div>
 <div class="field" style="margin-top:10px"><label>Особенности местоположения</label><textarea class="textarea ta-wide" data-land-location-features
   placeholder="Что важно знать об окружении: соседство, подъезд, вид, шум, затопляемость…">${esc(oi.locationFeatures || '')}</textarea></div>
@@ -119,10 +120,10 @@ function areasCard(oi, idx) {
 
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади</h3></div><div class="card-pad">
 <div class="grid g-4">
-<div class="field"><label>По правоустанавливающим документам, м²</label><input class="input" data-land-area="pravo" value="${esc(areas.pravo || '')}"></div>
-<div class="field"><label>По правоудостоверяющим документам, м²</label><input class="input" data-land-area="pravoUd" value="${esc(areas.pravoUd || '')}"></div>
-<div class="field"><label>По факту, м²</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label>Застроенная площадь, м²</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
+<div class="field"><label>По правоустанавливающим документам, м²</label><input class="input" data-land-area="pravo" value="${esc(numText(areas.pravo))}" inputmode="decimal"></div>
+<div class="field"><label>По правоудостоверяющим документам, м²</label><input class="input" data-land-area="pravoUd" value="${esc(numText(areas.pravoUd))}" inputmode="decimal"></div>
+<div class="field"><label>По факту, м²</label><input class="input" data-land-area="fact" value="${esc(numText(areas.fact))}" inputmode="decimal"></div>
+<div class="field"><label>Застроенная площадь, м²</label><input class="input" data-land-area="build" value="${esc(numText(areas.build))}" inputmode="decimal"></div>
 </div>
 ${areasNoteHTML(oi, { a: areas.pravo, b: areas.fact,
   labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту' })}
@@ -136,7 +137,7 @@ function leaseCard(oi, idx) {
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Арендная плата</h3></div><div class="card-pad">
 <div class="grid g-4">
 <div class="field"><label>Стоимость аренды</label>
-  <input class="input" data-land-lease-price value="${esc(oi.leasePrice || '')}" inputmode="decimal"></div>
+  <input class="input" data-land-lease-price value="${esc(numText(oi.leasePrice))}" inputmode="decimal"></div>
 ${selectField('Единица измерения', 'data-land-lease-unit', LEASE_UNITS, oi.leaseUnit || LEASE_UNITS[0])}
 <div class="field"><label>Срок аренды</label>
   <input class="input" data-land-lease-term value="${esc(oi.leaseTerm || '')}"

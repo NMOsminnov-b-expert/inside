@@ -1,4 +1,5 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
+import { bindNumField } from '../../../../kernel/numField.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
@@ -39,7 +40,6 @@ export function bind(ctx, oi) {
     // микрорайоном уехали в объект оценки (заметки команды 05.09.2026).
     '[data-oi-street]': 'street',
     '[data-oi-house]': 'house',
-    '[data-land-distance]': 'distanceToCenter',
 
     // Благоустройство: ранг и описание вместо двух мультивыборов (ТЗ §6).
     '[data-land-improve-note]': 'improvementNote',
@@ -57,7 +57,6 @@ export function bind(ctx, oi) {
     // Арендная плата — свой блок, показывается только когда участок в аренде
     // (решение пользователя 10.09.2026). Единица измерения хранится рядом с
     // суммой: «12 000» без неё читается и как месяц, и как год.
-    '[data-land-lease-price]': 'leasePrice',
     '[data-land-lease-unit]': 'leaseUnit',
     '[data-land-lease-term]': 'leaseTerm',
     '[data-land-lease-note]': 'leaseNote',
@@ -65,6 +64,14 @@ export function bind(ctx, oi) {
   Object.entries(valueBindings).forEach(([selector, key]) => {
     const input = s.$(selector);
     if (input) input.onchange = () => { oi[key] = input.value; };
+  });
+
+  // Числовые поля вне списка выше: им нужен не просто onchange, а разбор и
+  // показ с разрядами.
+  [['[data-land-lease-price]', 'leasePrice'],
+   ['[data-land-distance]', 'distanceToCenter']].forEach(([sel, key]) => {
+    const input = s.$(sel);
+    if (input) bindNumField(input, (v) => { oi[key] = v; });
   });
 
   // Улица и дом участка входят в адрес записи, поэтому после правки собираем
@@ -122,12 +129,14 @@ export function bind(ctx, oi) {
   const rank = s.$('[data-land-improve-rank]');
   if (rank) rank.onchange = () => { oi.improvementRank = rank.value; };
 
-  s.$$('[data-land-area]').forEach((input) => input.onchange = () => {
+  // Площади — числовые поля: на экране «12 400,00», в записи машинное
+  // «12400.00». Буквы и лишние знаки поле не принимает (kernel/numField.js).
+  s.$$('[data-land-area]').forEach((input) => bindNumField(input, (v) => {
     oi.areas = oi.areas || {};
-    oi.areas[input.dataset.landArea] = input.value;
+    oi.areas[input.dataset.landArea] = v;
     updateAreasNote(s, areasPair());
     ctx.updatePlate();
-  });
+  }));
 
   // Комментарий к площадям — см. kernel/areasNote.js. У участка сверяются
   // площадь по правоустанавливающим документам и площадь по факту.
