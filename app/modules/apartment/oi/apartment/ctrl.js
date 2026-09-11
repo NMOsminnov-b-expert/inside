@@ -53,6 +53,10 @@ export function bind(ctx, oi) {
     const rec = ctx.rec || {};
     let changed = false;
     ['street', 'house', 'gps'].forEach((key) => {
+      // В записях, заведённых до этой правки, адрес лежит у объектов
+      // имущества, а у самой записи пуст. Такой адрес поднимаем наверх, а не
+      // затираем пустым: иначе открытие карточки молча стирало бы улицу.
+      if (!(rec[key] || '') && (oi[key] || '')) { rec[key] = oi[key]; changed = true; }
       const v = rec[key] || '';
       if ((oi[key] || '') !== v) { oi[key] = v; changed = true; }
     });
@@ -65,6 +69,13 @@ export function bind(ctx, oi) {
   if (pullAddress()) {
     syncOcAddress(ctx.rec);
     ctx.updatePlate();
+    // Разметка отрисована до этой строки, поэтому поднятый наверх адрес
+    // проставляем в поля сами — перерисовывать карточку ради этого незачем.
+    [['[data-oi-street]', 'street'], ['[data-oi-house]', 'house'],
+      ['[data-oi-gps]', 'gps']].forEach(([sel, key]) => {
+      const el = s.$(sel);
+      if (el) el.value = ctx.rec[key] || '';
+    });
   }
 
   const flat = s.$('[data-oi-flat]');
