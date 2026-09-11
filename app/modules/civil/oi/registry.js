@@ -83,6 +83,10 @@ export const OI_CARDS = {
     hasLetter: true,
     tableCategory: () => 'Квартира',
     tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
+    // Вторая площадь перечня — по внутреннему обмеру (в данных areas.build).
+    // Обе колонки нужны рядом: по ним и сверяют строение с техпаспортом.
+    tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
+    areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
     plateChips: (oi) => {
       const v = verbal(oi);
       return [

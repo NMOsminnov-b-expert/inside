@@ -2,7 +2,7 @@ import { esc } from '../../../kernel/dom.js';
 import {
   orderedColumns, columnVarsStyle, colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML,
 } from '../../../kernel/columns.js';
-import { fmtEni } from '../../../kernel/fmt.js';
+import { fmtEni, fmtNum } from '../../../kernel/fmt.js';
 import { cardMeta } from '../oi/registry.js';
 import { photoCell, photoPopHTML } from '../parts/photos/blocks.js';
 import { addOiMenuHTML } from './addOiMenu.js';
@@ -39,7 +39,11 @@ export const OI_COLUMNS = [
   // (решение пользователя 10.09.2026): техпаспорта у земли нет.
   { key: 'category', label: 'Целевое назначение', width: 140 },
   { key: 'status', label: 'Статус', width: 104 },
-  { key: 'area', label: 'Общая площадь', width: 104 },
+  // Названия совпадают с карточкой литеры: там площади 09.09.2026 названы по
+  // техпаспорту — по внешним замерам и по внутреннему обмеру. В перечне они
+  // назывались «Общая площадь», и одно и то же поле читалось по-разному.
+  { key: 'area', label: 'По внешним замерам', width: 118 },
+  { key: 'areaBuild', label: 'По внутр. обмеру', width: 118 },
   { key: 'photos', label: 'Фото', width: 74 },
   { key: 'act', label: '', width: 52, fixed: true },
 ];
@@ -70,6 +74,10 @@ function cellHTML(ctx, oi, key) {
     case 'category': return `<span class="ell" title="${esc(meta.tableCategory(oi))}">${esc(meta.tableCategory(oi))}</span>`;
     case 'status': return `<span class="ell" title="${esc(oi.status || '')}">${esc(oi.status || '—')}</span>`;
     case 'area': return `<span class="ell" title="${esc(meta.tableArea(oi))}">${esc(meta.tableArea(oi))}</span>`;
+    case 'areaBuild': {
+      const v = meta.tableAreaBuild ? meta.tableAreaBuild(oi) : '—';
+      return `<span class="ell" title="${esc(v)}">${esc(v)}</span>`;
+    }
     case 'eni': return `<span class="mono ell" title="${esc(fmtEni(oi.eni))}">${esc(fmtEni(oi.eni))}</span>`;
     case 'photos': return photoCell(oi);
     case 'act': return `<div class="row-actions">
@@ -85,6 +93,29 @@ function letterRow(ctx, oi) {
       title="Клик — карточка ОИ; перетащите, чтобы перенести к другому участку">
     ${cols(ctx).map((c) => `<td>${cellHTML(ctx, oi, c.key)}</td>`).join('')}
   </tr>`;
+}
+
+// Подытог раздела: сколько объектов и сколько по каждой площади. Складывается
+// колонка — итог стоит под ней, а не подписью сбоку (требование пользователя
+// 09.09.2026). Считается по значениям, а не по показанному тексту: в тексте
+// уже разряды и «м²».
+function totalRow(ctx, list) {
+  const sums = list.reduce((acc, oi) => {
+    const v = cardMeta(oi).areaValues ? cardMeta(oi).areaValues(oi) : { area: 0, build: 0 };
+    return { area: acc.area + v.area, build: acc.build + v.build };
+  }, { area: 0, build: 0 });
+
+  const cell = (key) => {
+    if (key === 'area') return `<span class="oi-total-v">${fmtNum(sums.area)} м²</span>`;
+    if (key === 'areaBuild') return `<span class="oi-total-v">${fmtNum(sums.build)} м²</span>`;
+    return '';
+  };
+
+  const list2 = cols(ctx);
+  const firstText = list2.findIndex((c) => c.key !== 'letter');
+
+  return `<tr class="oi-total">${list2.map((c, i) => `<td>${
+    i === firstText ? `Итого: ${list.length}` : cell(c.key)}</td>`).join('')}</tr>`;
 }
 
 function emptyRow(ctx, text) {
@@ -106,11 +137,14 @@ function colsRowHTML(ctx) {
   return `<table class="tbl oi-tree-tbl oi-cols-row">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${headHTML(ctx)}</table>`;
 }
 
-function sub(ctx, label, list, emptyText, kind, withHead) {
+// total — показывать ли подытог по площадям. У движимого его нет: площади там
+// не бывает, и строка «Итого: 0 м²» только сбивала бы.
+function sub(ctx, label, list, emptyText, kind, withHead, total) {
   return `<div class="oi-sub" data-oi-sub="${kind}">
     ${label ? `<div class="oi-sub-h">${label}</div>` : ''}
     <table class="tbl oi-tree-tbl">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${withHead ? headHTML(ctx) : ''}
       <tbody>${list.length ? list.map((oi) => letterRow(ctx, oi)).join('') : emptyRow(ctx, emptyText)}</tbody>
+      ${total && list.length ? `<tfoot>${totalRow(ctx, list)}</tfoot>` : ''}
     </table>
   </div>`;
 }
@@ -129,11 +163,13 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
     <div class="acc-body" style="padding:0">
       ${summary || ''}
       ${colsRowHTML(ctx)}
-      ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : '',
+      ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : 'Здания и сооружения',
         letters.filter((o) => o.card !== 'movable'),
-        'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false)}
-      ${sub(ctx, 'Движимое имущество', letters.filter((o) => o.card === 'movable'),
-        'Движимого имущества нет.', 'movable', false)}
+        'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false, true)}
+      ${letters.some((o) => o.card === 'movable')
+    ? sub(ctx, 'Движимое имущество', letters.filter((o) => o.card === 'movable'),
+      '', 'movable', false, false)
+    : ''}
     </div>
   </div>`;
 }
