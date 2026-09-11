@@ -1,6 +1,4 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
-import { bindCheckedField } from '../../../../kernel/fieldError.js';
-import { gpsError } from '../../../../kernel/gps.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
@@ -43,22 +41,31 @@ export function bind(ctx, oi) {
   const s = ctx.scope;
 
   // --- Площади и этажность -------------------------------------------------
-  // Адрес квартиры: улица, дом и номер квартиры свои, город с районом — общие
-  // для записи (kernel/address.js). После правки пересобираем адрес записи:
-  // его читают шапка, реестр, поиск и архив.
-  const street = s.$('[data-oi-street]');
-  if (street) street.onchange = () => {
-    oi.street = street.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
+  // Улица, дом и координаты берутся из записи и держатся с ней в согласии
+  // (требование пользователя 11.09.2026). Два независимых значения однажды
+  // разошлись бы, и в отчёт попал бы не тот адрес. Номер квартиры остаётся
+  // своим: в записи он один, а квартир в ней бывает несколько.
+  //
+  // Согласование одностороннее, силами самой карточки ОИ: она подхватывает
+  // адрес записи и показывает его только для чтения, а запись не переписывает —
+  // адрес правят в объекте оценки, в блоке «Местоположение».
+  const pullAddress = () => {
+    const rec = ctx.rec || {};
+    let changed = false;
+    ['street', 'house', 'gps'].forEach((key) => {
+      const v = rec[key] || '';
+      if ((oi[key] || '') !== v) { oi[key] = v; changed = true; }
+    });
+    return changed;
   };
 
-  const house = s.$('[data-oi-house]');
-  if (house) house.onchange = () => {
-    oi.house = house.value.trim();
+  // Поля адреса выведены из записи и только для чтения (см. view.js) — здесь
+  // остаётся перенести значения в сам объект имущества: их читают плашка,
+  // реестр и отчёт, и там адрес должен быть, а не пустая строка.
+  if (pullAddress()) {
     syncOcAddress(ctx.rec);
     ctx.updatePlate();
-  };
+  }
 
   const flat = s.$('[data-oi-flat]');
   if (flat) flat.onchange = () => {
@@ -66,10 +73,6 @@ export function bind(ctx, oi) {
     syncOcAddress(ctx.rec);
     ctx.updatePlate();
   };
-
-  // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
-  // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
-  bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
 
   // Площади — числовые поля: на экране «1 840,50», в запись уходит машинное
   // «1840,50» (kernel/numField.js).

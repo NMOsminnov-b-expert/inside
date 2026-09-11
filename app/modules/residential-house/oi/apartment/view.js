@@ -147,20 +147,22 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 <div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
 <div class="grid g-4" style="margin-top:6px">
 <div class="field"><label>Улица</label>
-<input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Байтик Баатыра">
+<input class="input" data-oi-street value="${esc(ctx.rec.street || '')}" readonly
+  title="Адрес записи — правится в объекте оценки, блок «Местоположение»">
 </div>
 <div class="field"><label>Дом</label>
-<input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="42">
+<input class="input" data-oi-house value="${esc(ctx.rec.house || '')}" readonly
+  title="Адрес записи — правится в объекте оценки, блок «Местоположение»">
 </div>
 <div class="field"><label>Квартира</label>
 <input class="input" data-oi-flat value="${esc(oi.flat || '')}" placeholder="78">
 </div>
 <div class="field"><label>Координаты (широта, долгота)</label>
-<input class="input mono" data-oi-gps value="${esc(oi.gps || '')}"
-placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота">
+<input class="input mono" data-oi-gps value="${esc(ctx.rec.gps || '')}" readonly
+  title="Координаты записи — правятся в объекте оценки, блок «Местоположение»">
 </div>
 </div>
-<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
+<div class="muted" style="font-size:11px;margin-top:6px">Адрес и координаты общие для записи — они задаются в объекте оценки. Свой у квартиры только её номер.</div>
 </div></div>
 </div>`;
 }
