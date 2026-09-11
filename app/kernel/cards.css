@@ -236,6 +236,19 @@ body[data-module] .reg-badge.ml.ml-raw{background:var(--amber-50);color:var(--am
 body[data-module] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}
 /* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
 body[data-module] .floors-note{display:block;font-size:10.5px;margin-top:3px}
+/* Способ оценки вспомогательных построек участка: строка над списком —
+   подпись и короткий селектор в одну линию. Полем во всю ширину он выглядел
+   заголовком раздела и спорил с заголовком самого списка, который идёт сразу
+   под ним (замечание пользователя 11.09.2026). */
+body[data-module] .aux-mode{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:14px 0 8px}
+body[data-module] .aux-mode>label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:#7d93a6;font-weight:700}
+/* Селектор в макете подменяется кнопкой (kernel/dropdown.js): настоящий
+   <select> прячется в обёртку .pick{display:contents}, а класс .select
+   переезжает на кнопку. Поэтому здесь потомок, а не прямой ребёнок. */
+body[data-module] .aux-mode .select{flex:0 0 auto;width:300px;max-width:100%;min-width:0}
+body[data-module] .aux-mode-hint{font-size:10.5px;color:var(--muted)}
+body[data-module] .aux-wrap>.al{margin-top:0}
 /* Поэтажная развёртка шире доступной ширины (открыт просмотрщик, узкий экран)
    прокручивается ВНУТРИ своего блока: иначе она растягивала карточку и уезжала
    за край экрана. Заголовки и подписи полей при этом остаются на месте. */

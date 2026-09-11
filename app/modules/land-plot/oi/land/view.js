@@ -176,7 +176,6 @@ ${selectField('Наличие газификации', 'data-land-gas', opt('lan
 ${selectField('Наличие отопления', 'data-land-central-heating', opt('land', 'centralHeating', LAND_HEATING_STATUS), oi.centralHeating)}
 ${selectField('Наличие железнодорожной ветки', 'data-land-railway', opt('land', 'railway', RAILWAY_ACCESS), oi.railway)}
 </div>
-<div class="sec-h">Постройки</div>
 ${auxBuildingsHTML(ctx, oi)}
 </div></div>`;
 }

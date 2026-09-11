@@ -88,21 +88,26 @@ export function auxBuildingsHTML(ctx, oi) {
 
   // Выбор стоит над списком, а не в блоке 01: человек видит переключатель прямо
   // над тем, что тот скрывает, и не ищет причину пропажи в другом месте.
-  const chooser = `<div class="field aux-mode" data-aux-mode-field>
+  //
+  // Строкой, а не полем во всю ширину карточки: значений два и они короткие, а
+  // растянутый селектор с подписью капсом читался как ещё один заголовок
+  // раздела — над списком, у которого заголовок уже есть (замечание
+  // пользователя 11.09.2026).
+  const chooser = `<div class="aux-mode">
     <label for="aux-valuation">Вспомогательные постройки оцениваются</label>
     <select class="select" id="aux-valuation" data-aux-valuation>
       ${opt('land', 'auxValuation', AUX_VALUATION).map((o) => `<option ${
         o === (oi.auxValuation || AUX_VALUATION[0]) ? 'selected' : ''}>${esc(o)}</option>`).join('')}
     </select>
-    ${inLand ? '' : `<span class="field-hint">перечень ведётся в карточках самих объектов имущества</span>`}
+    ${inLand ? '' : '<span class="aux-mode-hint">перечень ведётся в карточках самих объектов имущества</span>'}
   </div>`;
 
   if (!inLand) {
-    return `<div data-aux-block>${chooser}</div>`;
+    return `<div class="aux-wrap" data-aux-block>${chooser}</div>`;
   }
 
-  return `<div class="al acc ${open ? 'open' : ''}" data-aux-block>
-    ${chooser}
+  return `<div class="aux-wrap" data-aux-block>${chooser}
+    <div class="al acc ${open ? 'open' : ''}">
     <div class="sec-h acc-head" data-acc-toggle="aux|land"
       style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <span class="al-head-left" style="display:flex;align-items:center;gap:8px;min-width:0">
@@ -117,7 +122,7 @@ export function auxBuildingsHTML(ctx, oi) {
       <thead><tr><th>№</th><th>Постройка</th><th>Площадь, м²</th><th>Состояние</th><th>Класс</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>` : '<div class="al-empty">Не добавлено. Капитальные строения заводятся отдельными объектами имущества.</div>'}</div>
-  </div>`;
+  </div></div>`;
 }
 
 // Слушатели прямые, а не делегированные на скоуп: карточка перепривязывается на
