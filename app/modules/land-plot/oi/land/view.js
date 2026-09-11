@@ -15,6 +15,7 @@ import { auxBuildingsHTML } from './buildings.js';
 import { improvementsFields } from './improvements.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 
 // Признак аренды и единицы измерения платы — короткие перечни, заведены здесь,
 // а не в справочниках: править их некому и незачем, «сом / месяц» это не
@@ -123,12 +124,8 @@ function areasCard(oi, idx) {
 <div class="field"><label>По факту, м²</label><input class="input" data-land-area="fact" value="${esc(areas.fact || '')}"></div>
 <div class="field"><label>Застроенная площадь, м²</label><input class="input" data-land-area="build" value="${esc(areas.build || '')}"></div>
 </div>
-<!-- Комментарий к площадям: одно поле на весь блок, в самом низу (требование
-     пользователя 11.09.2026). Площади сходятся не всегда, и причину расхождения
-     записывают здесь, а не в чужих полях. -->
-<div class="field" style="margin-top:10px"><label>Комментарий к площадям</label>
-<textarea class="input" data-areas-note rows="2"
-  placeholder="Чем объясняется расхождение площадей, что уточнить при осмотре">${esc(oi.areasNote || '')}</textarea></div>
+${areasNoteHTML(oi, { a: areas.pravo, b: areas.fact,
+  labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту' })}
 </div></div>`;
 }
 

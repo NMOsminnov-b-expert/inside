@@ -40,7 +40,15 @@ function createOi(ctx, type) {
     // строения нет. Раньше в этом модуле стояло жёсткое false.
     residential: !!type.residential || type.card === 'apartment',
     resCat: '',
-    eni: nextEni(rec, rec.eni),
+    // Код ЕНИ не инкрементируется: по умолчанию это код самой записи (решение
+    // пользователя 09.09.2026). Адрес и координаты — тоже от записи (11.09.2026):
+    // объект имущества стоит по адресу своего объекта оценки, отличается разве
+    // что квартирой.
+    eni: rec.eni || '',
+    street: rec.street || '',
+    house: rec.house || '',
+    flat: rec.flat || '',
+    gps: rec.gps || '',
     year: '',
     flags: { entered: false, matched: false },
     oiCategory: '',

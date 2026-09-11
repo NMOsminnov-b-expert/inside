@@ -39,6 +39,13 @@ function createOi(ctx, type) {
     residential: !!type.residential || type.card === 'apartment',
     resCat: '',
     eni: rec.eni || '',
+    // Адрес и координаты — по умолчанию те же, что у записи (решение
+    // пользователя 11.09.2026). Их правят у самого объекта имущества, если он
+    // стоит иначе: другой корпус, своя квартира.
+    street: rec.street || '',
+    house: rec.house || '',
+    flat: rec.flat || '',
+    gps: rec.gps || '',
     year: '',
     flags: { entered: false, matched: false },
     rights: RIGHTS[0],

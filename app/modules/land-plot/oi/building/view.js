@@ -15,6 +15,7 @@ import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 import { tempModeMS } from './tempMode.js';
+import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 
 
 // Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
@@ -255,12 +256,8 @@ ${floorsCountField(oi)}
 <div class="field"><label>Высота по внешним замерам, м${rq.heightRequired ? '<span class="req">*</span>' : ''}</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
-<!-- Комментарий к площадям: одно поле на весь блок, в самом низу (требование
-     пользователя 11.09.2026). Площади сходятся не всегда, и причину расхождения
-     записывают здесь, а не в чужих полях. -->
-<div class="field" style="margin-top:10px"><label>Комментарий к площадям</label>
-<textarea class="input" data-areas-note rows="2"
-  placeholder="Чем объясняется расхождение площадей, что уточнить при осмотре">${esc(oi.areasNote || '')}</textarea></div>
+${areasNoteHTML(oi, { a: areas.pud, b: areas.fact,
+  labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту' })}
 </div></div>
 </div>`;
 }

@@ -25,7 +25,11 @@ export function createLandOi(rec, { nextId, nextEni, multiple = false } = {}) {
     purpose: '',
     landType: 'Сельскохозяйственный',
     areas: { pravo: '', pravoUd: '', fact: '', build: '' },
-    eni: nextEni(rec, rec.eni),
+    // Код ЕНИ участка — код записи, без инкремента (решение пользователя
+    // 09.09.2026); адрес — тоже от записи (11.09.2026).
+    eni: rec.eni || '',
+    street: rec.street || '',
+    house: rec.house || '',
     rights: '',
     rightsOther: '',
     useCategory: '',

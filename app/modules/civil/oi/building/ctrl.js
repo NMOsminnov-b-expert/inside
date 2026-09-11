@@ -23,6 +23,7 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
+import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 
 export function bind(ctx, oi) {
   bindAnnexes(ctx, oi);
@@ -40,6 +41,7 @@ export function bind(ctx, oi) {
     oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
     updateFloorsUI(ctx, oi);
+    updateAreasNote(s, areasPair());
     ctx.updatePlate();
   }));
 
@@ -47,11 +49,14 @@ export function bind(ctx, oi) {
     oi.heights[i.dataset.height] = v;
   }));
 
-  // Комментарий к площадям — один на блок (требование пользователя 11.09.2026).
-  // Пишем на change, а не на каждый символ: текст длинный, и перерисовка на
-  // каждой букве сбивала бы курсор.
-  const areasNote = s.$('[data-areas-note]');
-  if (areasNote) areasNote.onchange = () => { oi.areasNote = areasNote.value; };
+  // Комментарий к площадям: авторазмер поля, запись на change и мягкое
+  // предупреждение о расхождении площадей — всё в kernel/areasNote.js, чтобы
+  // семь карточек не разошлись формулировками.
+  const areasPair = () => ({
+    a: (oi.areas || {}).pud, b: (oi.areas || {}).fact,
+    labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту',
+  });
+  bindAreasNote(s, oi, areasPair);
 
 
   // Количество этажей: только цифры и разумные границы. Раньше поле принимало

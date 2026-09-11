@@ -320,6 +320,31 @@ body[data-module] .fl-lock:hover{background:var(--blue-50)}
    с клавиатуры. */
 body[data-module] .fl-lock input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
 
+/* Комментарий к площадям и мягкое предупреждение о расхождении.
+   Просьба, а не запрет: подсветка янтарная, не красная, и она снимается, как
+   только комментарий написан. Красный здесь означал бы ошибку ввода, а
+   расхождение площадей — обычное дело, которое надо просто объяснить. */
+body[data-module] .areas-note{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+
+body[data-module] .areas-warn{
+  display:flex;gap:7px;align-items:flex-start;
+  padding:7px 10px;border:1px solid var(--amber-600);border-radius:7px;
+  background:var(--amber-50);color:var(--amber-700);
+  font-size:12px;line-height:1.4}
+/* Значок — не вместо текста, а вместе с ним: цвет и картинка сами по себе
+   ничего не сообщают тому, кто их не различает. */
+body[data-module] .areas-warn::before{content:'!';font-weight:700;line-height:1.4}
+
+body[data-module] .areas-note-input{
+  resize:none;overflow:hidden;min-height:0;
+  transition:border-color .12s,box-shadow .12s}
+/* Поле растёт и уменьшается по содержимому (kernel/areasNote.js), поэтому
+   ручную ручку изменения размера убираем — она бы спорила с расчётом. */
+body[data-module] .areas-note.warn .areas-note-input{
+  border-color:var(--amber-600);background:var(--amber-50)}
+body[data-module] .areas-note.warn .areas-note-input:focus{
+  border-color:var(--amber-700);box-shadow:0 0 0 3px rgba(192,124,30,.16)}
+
 /* Ручка переноса строки развёртки. Тихая, как крестик удаления: перенос —
    редкое действие, и рядом с полями ввода ручка-«кирпич» спорила бы с ними за
    внимание. Заметной становится под курсором. */

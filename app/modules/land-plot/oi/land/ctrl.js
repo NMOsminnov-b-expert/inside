@@ -11,6 +11,7 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js
 import { nextDocId } from '../../data/store.js';
 import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
 import { parseEni } from '../../../../kernel/fmt.js';
+import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 
 export function bind(ctx, oi) {
   bindDocsColumns(ctx.scope);
@@ -124,14 +125,17 @@ export function bind(ctx, oi) {
   s.$$('[data-land-area]').forEach((input) => input.onchange = () => {
     oi.areas = oi.areas || {};
     oi.areas[input.dataset.landArea] = input.value;
+    updateAreasNote(s, areasPair());
     ctx.updatePlate();
   });
 
-  // Комментарий к площадям — один на блок (требование пользователя 11.09.2026).
-  // Пишем на change, а не на каждый символ: текст длинный, и перерисовка на
-  // каждой букве сбивала бы курсор.
-  const areasNote = s.$('[data-areas-note]');
-  if (areasNote) areasNote.onchange = () => { oi.areasNote = areasNote.value; };
+  // Комментарий к площадям — см. kernel/areasNote.js. У участка сверяются
+  // площадь по правоустанавливающим документам и площадь по факту.
+  const areasPair = () => ({
+    a: (oi.areas || {}).pravo, b: (oi.areas || {}).fact,
+    labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту',
+  });
+  bindAreasNote(s, oi, areasPair);
 
   // Открытие/закрытие любого мультивыбора карточки. Мультивыборов здесь уже
   // три (оснащение и две группы благоустройства), поэтому в ctx.ui хранится

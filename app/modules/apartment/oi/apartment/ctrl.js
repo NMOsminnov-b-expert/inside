@@ -17,6 +17,7 @@ import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextId, nextDocId } from '../../data/store.js';
+import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 
 export function bind(ctx, oi) {
   bindYearField(ctx, oi);
@@ -75,6 +76,7 @@ export function bind(ctx, oi) {
     oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
     updateFloorsUI(ctx, oi);
+    updateAreasNote(s, areasPair());
     ctx.updatePlate();
   }));
 
@@ -83,11 +85,14 @@ export function bind(ctx, oi) {
     oi.heights[i.dataset.height] = i.value;
   });
 
-  // Комментарий к площадям — один на блок (требование пользователя 11.09.2026).
-  // Пишем на change, а не на каждый символ: текст длинный, и перерисовка на
-  // каждой букве сбивала бы курсор.
-  const areasNote = s.$('[data-areas-note]');
-  if (areasNote) areasNote.onchange = () => { oi.areasNote = areasNote.value; };
+  // Комментарий к площадям: авторазмер поля, запись на change и мягкое
+  // предупреждение о расхождении площадей — всё в kernel/areasNote.js, чтобы
+  // семь карточек не разошлись формулировками.
+  const areasPair = () => ({
+    a: (oi.areas || {}).pud, b: (oi.areas || {}).fact,
+    labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту',
+  });
+  bindAreasNote(s, oi, areasPair);
 
   // Слушатели развёртки вынесены в функцию: rerenderFloors заменяет разметку
   // блока целиком, и без повторной привязки чекбоксы и поля площадей остаются
