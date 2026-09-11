@@ -258,12 +258,25 @@ export const LAND_DICT_SOURCES = [
     system: false,
     values: D.LAND_UTILITY_STATUS,
     slots: [
-      { card: 'land', field: 'gasification', label: 'Наличие газификации' },
-      { card: 'land', field: 'centralHeating', label: 'Наличие центрального отопления' },
-      { card: 'land', field: 'centralWater', label: 'Наличие центрального водоснабжения' },
-      { card: 'land', field: 'autonomousHeating', label: 'Наличие автономного отопления' },
       { card: 'land', field: 'electricity', label: 'Наличие электроснабжения' },
+      { card: 'land', field: 'centralWater', label: 'Наличие водоснабжения' },
       { card: 'land', field: 'sewerage', label: 'Наличие канализации' },
+      { card: 'land', field: 'gasification', label: 'Наличие газификации' },
+    ],
+  },
+  {
+    // Отопление отличается от прочих сетей: оно бывает автономным, и никакой
+    // сети к нему не ведёт (решение пользователя 11.09.2026). Поле называется
+    // просто «отопление» — в «центральном» вариант «автономное» противоречил
+    // бы подписи. Отдельного поля автономного отопления больше нет, его слот
+    // убран отсюда же.
+    key: 'LAND_HEATING_STATUS',
+    title: 'Состояние отопления',
+    kind: 'list',
+    system: false,
+    values: D.LAND_HEATING_STATUS,
+    slots: [
+      { card: 'land', field: 'centralHeating', label: 'Наличие отопления' },
     ],
   },
   {
