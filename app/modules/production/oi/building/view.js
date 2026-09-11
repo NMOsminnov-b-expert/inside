@@ -1,20 +1,20 @@
-import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
+import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';
-import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, STRUCT, RES_BUILD_CAT, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, STRUCT_STRENGTH, CRANE_BEAM , RIGHTS, STRUCTURE_KIND} from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM , STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
-import { tempModeMS } from './tempMode.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { tempModeMS } from './tempMode.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 
 
@@ -160,6 +160,9 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
+<div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
+<select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>
 ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
@@ -194,9 +197,6 @@ style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 >
 </div>
 </div>
-<div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>
 ${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
 </div>` : ''}
@@ -209,21 +209,14 @@ ${rq.showCatClass ? `<div class="field"><label>Назначение по тех 
 </div>
 <!-- Отметка «расхождение ТП и фото с осмотров» убрана 09.09.2026 (решение
      пользователя). Поле oi.dis в данных осталось: по нему в реестре считается
-     признак «расхождение ТП/фото». Руками отметку больше не ставят. -->
-<div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
-<div class="grid g-3" style="margin-top:6px">
-<div class="field"><label>Улица</label>
-<input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Киевская">
-</div>
-<div class="field"><label>Дом</label>
-<input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="218">
-</div>
-<div class="field"><label>Координаты (широта, долгота)</label>
-<input class="input mono" data-oi-gps value="${esc(oi.gps || '')}"
-placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота">
-</div>
-</div>
-<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
+     признак «расхождение ТП/фото», и записи, где оно уже проставлено или
+     придёт из импорта ML, продолжают им помечаться. Руками отметку больше не
+     ставят. -->
+<!-- Местоположение целиком переехало в блок «Местоположение» карточки объекта
+     оценки: улица с домом, а следом и координаты (решения пользователя
+     09.09.2026). Адрес и точка на карте у записи одни, и держать их частями в
+     каждой литере значило собирать одно и то же по кускам. -->
+<div class="muted" style="font-size:11px;margin-top:12px">Адрес и координаты задаются в объекте оценки, блок «Местоположение».</div>
 </div></div>
 </div>`;
 }
@@ -426,13 +419,14 @@ function resCatOptions() {
   return opt('building', 'buildCat', RES_BUILD_CAT).slice();
 }
 
-// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
-// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
-// Пристройки — таблицей с литерой, видом и материалами, как на странице
-// техпаспорта «Характеристика строений и сооружений» (требование пользователя
-// 09.09.2026). Было три отдельных списка с одним названием и площадью:
-// веранду и тамбур записать было некуда, литеру — тоже, а материалы нигде не
-// хранились.
+// Пристройки — свой блок (Л5.4): внутри «Площадей и этажности» они оказывались
+// ниже поэтажной развёртки и высот, и их там не находили.
+//
+// Было три отдельных списка — лоджии, балконы, террасы, — у каждого только
+// название и площадь. Стала одна таблица с литерой, видом и материалами, как на
+// странице техпаспорта «Характеристика строений и сооружений» (требование
+// пользователя 09.09.2026). Веранду и тамбур записать было некуда, литеру —
+// тоже, а материалы пристройки нигде не хранились.
 function annexesCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-annexes">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристройки</h3><span class="chev">▾</span></div>
@@ -482,6 +476,10 @@ export function render(ctx, oi) {
 
   const idx = blockNumbers();
 
+  // Порядок блоков — по тому, как часто в них заходят. Аренда по этажам ушла в
+  // самый низ, за фотографии (решение пользователя 09.09.2026): раздел нужен
+  // редко, а стоял четвёртым и отодвигал вниз конструктив с состоянием, к
+  // которым обращаются на каждом объекте.
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}

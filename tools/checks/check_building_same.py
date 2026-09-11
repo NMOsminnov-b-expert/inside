@@ -201,7 +201,12 @@ def run(t):
     if _add(t, 'Производственное строение'):
         pg.select_option('[data-oi-category]', 'prod-2')
         t.wait(200)
-        pg.select_option('[data-catclass]', 'Гражданское здание')
+        # Назначение по тех паспорту — текстовое поле во всех типах ОЦ с
+        # 11.09.2026 (карточка строения выровнена по эталонной, гражданской).
+        # Раньше в квартире, доме и участке тут стоял справочник, и сценарий
+        # выбирал значение через select_option.
+        pg.fill('[data-catclass]', 'Гражданское здание')
+        pg.dispatch_event('[data-catclass]', 'change')
         t.wait_for('[data-modal-ok]')
         pg.locator('[data-modal-ok]').first.click()
         t.wait_until("""() => !document.querySelector('#q-prod')""")

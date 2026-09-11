@@ -2,7 +2,6 @@ import { fieldsThatDisappear } from '../../../../kernel/fieldsPreview.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
-import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
 import { bindNumField } from '../../../../kernel/numField.js';
@@ -10,7 +9,6 @@ import { bindAnnexes } from './annexes.js';
 import { gpsError } from '../../../../kernel/gps.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
@@ -19,11 +17,12 @@ import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
   moveFloorRow, FLOOR_CATS } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors, floorsNote } from './floors.view.js';
-import { bindTempMode } from './tempMode.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId, nextDocId } from '../../data/store.js';
+import { bindTempMode } from './tempMode.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 
 export function bind(ctx, oi) {
@@ -35,7 +34,9 @@ export function bind(ctx, oi) {
 
   // --- Площади и этажность -------------------------------------------------
   // Площади и высоты — числовые поля: на экране «1 840,50», в запись уходит
-  // машинное «1840,50» (kernel/numField.js).
+  // машинное «1840,50» (kernel/numField.js). Раньше в поле стояло сырое
+  // значение из данных, и одно и то же число выглядело по-разному в поле и в
+  // итоге под ним.
   s.$$('[data-area]').forEach((i) => bindNumField(i, (v) => {
     oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
@@ -269,6 +270,20 @@ export function bind(ctx, oi) {
     ctx.render();
   };
 
+  // Права на строение: справочник плюс ручной ввод варианта «Иное».
+  const rightsSel = s.$('[data-bld-rights]');
+  if (rightsSel) rightsSel.onchange = () => {
+    oi.rights = rightsSel.value;
+    const other = s.$('[data-bld-rights-other]');
+    if (other) {
+      other.style.display = oi.rights === 'Иное' ? '' : 'none';
+      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
+    }
+  };
+
+  const rightsOther = s.$('[data-bld-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
+
   // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
   // перед сменой показываем, что скроется. Значения при этом сохраняются в
   // записи и вернутся, если категорию поставить обратно — об этом в диалоге
@@ -317,20 +332,8 @@ export function bind(ctx, oi) {
     ctx.render();
   });
 
+  bindTempMode(ctx, oi);
 
-  // Права на строение: справочник плюс ручной ввод варианта «Иное».
-  const rightsSel = s.$('[data-bld-rights]');
-  if (rightsSel) rightsSel.onchange = () => {
-    oi.rights = rightsSel.value;
-    const other = s.$('[data-bld-rights-other]');
-    if (other) {
-      other.style.display = oi.rights === 'Иное' ? '' : 'none';
-      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
-    }
-  };
-
-  const rightsOther = s.$('[data-bld-rights-other]');
-  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
 
   // Тип строения: справочник плюс ручной ввод варианта «Прочее».
   const skSel = s.$('[data-structure-kind]');
@@ -379,23 +382,8 @@ export function bind(ctx, oi) {
   // записи. Собранный адрес записи держится в rec.address, поэтому после правки
   // его пересобираем — иначе шапка, реестр и поиск показывали бы старое
   // (kernel/address.js, заметки команды 05.09.2026).
-  const street = s.$('[data-oi-street]');
-  if (street) street.onchange = () => {
-    oi.street = street.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
-  const house = s.$('[data-oi-house]');
-  if (house) house.onchange = () => {
-    oi.house = house.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
   // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
   // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
-  bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
@@ -434,11 +422,6 @@ export function bind(ctx, oi) {
   const pcr = s.$('[data-prod-crane]');
   if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.value; };
 
-  bindTempMode(ctx, oi);
-
-  const sst = s.$('[data-struct-strength]');
-  if (sst) sst.onchange = () => { oi.structStrength = sst.value; };
-
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
     e.stopPropagation();
@@ -466,11 +449,13 @@ export function bind(ctx, oi) {
     });
   }
 
-  // --- Фото ---------------------------------------------------------------
-  // Настоящая загрузка файла, а не инкремент счётчика: файл кладётся в
-  // oi.photoFiles, счётчик увеличивает addPhotoFile (см. parts/photos/model.js).
+  // Фото в аккордеоне перечня и мини-превью в строках. Теперь это РЕАЛЬНАЯ
+  // загрузка файла (как у документов), а не просто инкремент счётчика: файл
+  // кладётся в oi.photoFiles, счётчик увеличивает addPhotoFile.
   s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
+    const oi = ctx.rec.oi.find((o) => o.id === b.dataset.photoOi);
+    if (!oi) return;
     const cat = b.dataset.addPhoto;
 
     const file = await pickFile('image/*');

@@ -1,4 +1,5 @@
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
+import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
@@ -6,8 +7,7 @@ import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';
-import { devNote } from '../../../../kernel/devNote.js';
-import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, STRUCT, CATCLASS, RES_BUILD_CAT, STRUCTURE_KIND, APARTMENT_RIGHTS , OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, WEAR_LEVEL, PROD_FRAME, PROD_FLOORS, CRANE_BEAM, STRUCT_STRENGTH } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM , STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
@@ -117,21 +117,18 @@ function flagsRowHTML(oi) {
 </div>`;
 }
 
-// Категория ОИ здесь одним полем-справочником (категория → класс), и поля
-// «Назначение по тех паспорту» нет. У гражданских и производственных строений
-// иначе: там сгруппированный справочник категорий ПЛЮС отдельное текстовое
-// назначение по техпаспорту. Расхождение согласовано с пользователем
-// 04.09.2026 и оставлено намеренно — состав полей у тех типов другой по делу.
-// Не «выравнивать» при очередном аудите (docs/reestr-kosyakov.md §5).
+// Назначение по техпаспорту — свободный текст, и это намеренно: формулировка
+// переписывается из документа как есть. В квартире, жилом доме и участке этого
+// поля нет вовсе, а ключ catClass там держит категорию из справочника.
+// Расхождение согласовано с пользователем 04.09.2026 (docs/reestr-kosyakov.md §5).
 function generalCard(ctx, oi, idx) {
-  const rq = fieldRules(ctx, oi);
-  const showResCat = rq.showResCat && ctx.rec.type === 'Жилое здание (дом)';
   const showStructureKindOther = oi.structureKind === 'Прочее';
-  // «Тип строения» (дом, пристройка, времянка, баня, гараж…) описывает
-  // ВСПОМОГАТЕЛЬНОЕ здание. У основного он бессмысленен и конфликтует с
-  // категорией — поле скрыто (решение пользователя 2026-08-28).
+  // «Тип строения» описывает ВСПОМОГАТЕЛЬНОЕ здание: у основного он
+  // бессмысленен и конфликтует с категорией (решение 2026-08-28).
   const showStructureKind = oi.status === 'Вспомогательное';
-  const showRightsOther = oi.rights === 'Иное';
+
+  const rq = fieldRules(ctx, oi);
+  const showResCat = rq.showResCat;
 
   return `<div class="card t-blue" id="q-gen">
 <div class="card-head" data-card-toggle>
@@ -166,17 +163,6 @@ ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-${showResCat ? `<div class="field"><label>Категория жилого строения</label>
-<select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>` : ''}
-${rq.showCatClass ? `<div class="field"><label>Категория ОИ (категория → класс)</label>
-<select class="select" data-catclass>${opt('building', 'class', CATCLASS).map((o) => `<option ${o === (oi.catClass || 'Гражданское здание') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-<!-- Отметка «расхождение ТП и фото с осмотров» убрана 09.09.2026 (решение
-     пользователя). Поле oi.dis в данных осталось: по нему в реестре считается
-     признак «расхождение ТП/фото». Руками отметку больше не ставят. -->
-</div>` : ''}
-</div>
-<div class="grid g-2" style="margin-top:10px">
 ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
@@ -194,15 +180,12 @@ style="flex:1 1 160px; ${showStructureKindOther ? '' : 'display:none;'}"
 >
 </div>
 </div>` : ''}
-${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
-<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
-</div>` : ''}
 <div class="field">
 <label>Права на строение</label>
 <div class="inline-row">
 <select class="select" data-bld-rights style="flex:1 1 200px;">
-${emptyOptionHTML(opt('building', 'rights', APARTMENT_RIGHTS))}
-${opt('building', 'rights', APARTMENT_RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${r}</option>`).join('')}
+${emptyOptionHTML(opt('building', 'rights', RIGHTS))}
+${opt('building', 'rights', RIGHTS).map((r) => `<option ${r === oi.rights ? 'selected' : ''}>${esc(r)}</option>`).join('')}
 </select>
 <input
 class="input"
@@ -210,25 +193,30 @@ data-bld-rights-other
 placeholder="Укажите право"
 value="${esc(oi.rightsOther || '')}"
 maxlength="100"
-style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
+style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 >
 </div>
 </div>
+${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
+<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
+</div>` : ''}
+${showResCat ? `<div class="field"><label>Категория жилого строения</label>
+<select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>` : ''}
+${rq.showCatClass ? `<div class="field"><label>Назначение по тех паспорту</label>
+<input class="input" data-catclass value="${esc(oi.catClass || '')}" placeholder="Укажите назначение вручную">
+</div>` : ''}
 </div>
-<div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
-<div class="grid g-3" style="margin-top:6px">
-<div class="field"><label>Улица</label>
-<input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Киевская">
-</div>
-<div class="field"><label>Дом</label>
-<input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="218">
-</div>
-<div class="field"><label>Координаты (широта, долгота)</label>
-<input class="input mono" data-oi-gps value="${esc(oi.gps || '')}"
-placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота">
-</div>
-</div>
-<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
+<!-- Отметка «расхождение ТП и фото с осмотров» убрана 09.09.2026 (решение
+     пользователя). Поле oi.dis в данных осталось: по нему в реестре считается
+     признак «расхождение ТП/фото», и записи, где оно уже проставлено или
+     придёт из импорта ML, продолжают им помечаться. Руками отметку больше не
+     ставят. -->
+<!-- Местоположение целиком переехало в блок «Местоположение» карточки объекта
+     оценки: улица с домом, а следом и координаты (решения пользователя
+     09.09.2026). Адрес и точка на карте у записи одни, и держать их частями в
+     каждой литере значило собирать одно и то же по кускам. -->
+<div class="muted" style="font-size:11px;margin-top:12px">Адрес и координаты задаются в объекте оценки, блок «Местоположение».</div>
 </div></div>
 </div>`;
 }
@@ -261,127 +249,6 @@ ${floorsCountField(oi)}
 </div>
 ${areasNoteHTML(oi, { a: areas.pud, b: areas.fact,
   labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту' })}
-</div></div>
-</div>`;
-}
-
-// Строки блока «Конструктив и износ»: элемент, его материалы и износ в одной
-// строке (решение пользователя 05.09.2026). Список взят из конструктивного
-// состава — износ ставится тому, у чего есть материал.
-//
-// optsKey — откуда брать перечень материалов, если своего у элемента нет:
-// внутренние стены описываются тем же перечнем, что наружные.
-const STRUCT_ROWS = [
-  { key: 'foundation', label: 'Фундамент' },
-  // Цоколь: материал из перечня фундамента (optsKey), а износ ложится в тот
-  // же wear.plinth, что и раньше — данные не осиротели.
-  { key: 'plinth', label: 'Цоколь/подвал', optsKey: 'basement' },
-  { key: 'wallsExt', label: 'Наружные стены' },
-  { key: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt' },
-  { key: 'ceilings', label: 'Перекрытия' },
-  { key: 'roof', label: 'Кровля' },
-  { key: 'floors', label: 'Полы' },
-  { key: 'windows', label: 'Окна' },
-  { key: 'doors', label: 'Двери' },
-  { key: 'heating', label: 'Отопление' },
-  // Отделка и утепление — покрытия, а не несущий конструктив, но материал у них
-  // свой, из своих перечней (решение пользователя 11.09.2026).
-  { key: 'finish', label: 'Отделка' },
-  { key: 'insulation', label: 'Утепление' },
-];
-
-
-// Износ элемента. В таблице «Конструктив и износ» подпись не нужна: название
-// элемента стоит в первом столбце строки.
-function wearField(oi, key, label, bare) {
-  const wear = oi.wear || {};
-  const val = wear[key] || opt('building', 'wear', WEAR_LEVEL)[0];
-
-  return `<div class="field${bare ? ' f-bare' : ''}">${bare ? '' : `<label>${label}</label>`}
-<select class="select" data-wear="${key}">${opt('building', 'wear', WEAR_LEVEL).map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>`;
-}
-
-// Открытый вопрос методики: в каком виде нужен износ. Сейчас это три ступени на
-// каждый элемент — шкала грубая, и два оценщика поставят по-разному. По
-// методике износ может считаться процентом или годами с последнего ремонта, и
-// тогда состав раздела другой. Держим вопрос на виду заметкой (решение
-// пользователя 04.09.2026: «износ распространяем, но с заметкой»).
-const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
-  + 'ступени на элемент: «не указано», «умеренный», «значительный». Соседние '
-  + 'ступени два оценщика поставят по-разному, а по методике износ может '
-  + 'считаться процентом или годами с последнего ремонта — тогда и состав '
-  + 'раздела изменится. Обсудить до того, как по нему начнут считать.';
-
-function structCard(ctx, oi, idx) {
-  const rq = fieldRules(ctx, oi);
-  const struct = oi.struct || {};
-
-  return `<div class="card t-teal" id="q-struct">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктив и износ</h3><span class="chev">▾</span></div>
-<div class="card-body-wrap"><div class="card-pad">
-<div class="struct-tbl-wrap">
-<table class="tbl struct-tbl">
-<thead><tr>
-<th class="st-el">Элемент</th>
-<th>Материал</th>
-<th class="st-wear">Износ${devNote(WEAR_NOTE)}</th>
-</tr></thead>
-<tbody>
-${STRUCT_ROWS.map((r) => `<tr>
-<td class="st-el">${r.label}${r.key === 'wallsExt' && rq.wallsRequired ? '<span class="req">*</span>' : ''}</td>
-<td>${r.wearOnly
-    ? '<span class="muted">—</span>'
-    : (r.key === 'heating'
-      ? heatingMS(ctx, oi, true)
-      : structField(oi, r.key, r.label, opt('building', 'struct.' + (r.optsKey || r.key), STRUCT[r.optsKey || r.key]), null, r.key === 'wallsExt' && rq.wallsRequired, true))}</td>
-<td class="st-wear">${wearField(oi, r.key, r.label, true)}</td>
-</tr>`).join('')}
-</tbody>
-</table>
-</div>
-${specialsBlockHTML(oi)}
-</div></div>
-</div>`;
-}
-
-function photosCard(ctx, oi, idx) {
-  return `<div class="card t-blue" id="q-photo">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
-<button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
-</div>
-<div class="card-body-wrap"><div class="card-pad">
-${photoAccordions(ctx.ui, oi, true)}
-</div></div>
-</div>`;
-}
-
-// Два поля не должны противоречить друг другу (Л2.5). Ведёт «Расположение
-// строения», подстраивается «Категория жилого строения»:
-//   Отдельностоящее → «Обособленный»;
-//   Встроенное      → таунхаус, полдома, барак.
-// Так и в жизни: обособленным бывает частный дом, а таунхаус или полдома — это
-// всегда часть чего-то большего. Квартира сюда не попадает вовсе: она по
-// определению внутри здания, и категории жилого строения у неё нет.
-// Список ПОЛНЫЙ: пункты не прячем — они могут понадобиться для особых случаев
-// (уточнение пользователя 28.08.2026). Согласованность обеспечивает автовыбор
-// при смене расположения (см. обработчик data-buildtype в ctrl.js), а не запрет.
-function resCatOptions() {
-  return opt('building', 'buildCat', RES_BUILD_CAT).slice();
-}
-
-// Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей и этажности»
-// они оказывались ниже поэтажной развёртки и высот, и их там не находили.
-// Пристройки — таблицей с литерой, видом и материалами, как на странице
-// техпаспорта «Характеристика строений и сооружений» (требование пользователя
-// 09.09.2026). Было три отдельных списка с одним названием и площадью:
-// веранду и тамбур записать было некуда, литеру — тоже, а материалы нигде не
-// хранились.
-function annexesCard(ctx, oi, idx) {
-  return `<div class="card t-blue" id="q-annexes">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристройки</h3><span class="chev">▾</span></div>
-<div class="card-body-wrap"><div class="card-pad">
-${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }
@@ -421,6 +288,85 @@ ${RENT_COLS.map((c) => `<td><input class="input" data-rent-cell="${c.key}|${r.id
 </div>`;
 }
 
+// Строки блока «Конструктив и износ»: элемент, его материалы и износ в одной
+// строке (решение пользователя 05.09.2026). Список взят из конструктивного
+// состава — износ ставится тому, у чего есть материал.
+//
+// optsKey — откуда брать перечень материалов, если своего у элемента нет:
+// внутренние стены описываются тем же перечнем, что наружные.
+const STRUCT_ROWS = [
+  { key: 'foundation', label: 'Фундамент' },
+  // Цоколь: материал из перечня фундамента (optsKey), а износ ложится в тот
+  // же wear.plinth, что и раньше — данные не осиротели.
+  { key: 'plinth', label: 'Цоколь/подвал', optsKey: 'basement' },
+  { key: 'wallsExt', label: 'Наружные стены' },
+  { key: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt' },
+  { key: 'ceilings', label: 'Перекрытия' },
+  { key: 'roof', label: 'Кровля' },
+  { key: 'floors', label: 'Полы' },
+  { key: 'windows', label: 'Окна' },
+  { key: 'doors', label: 'Двери' },
+  { key: 'heating', label: 'Отопление' },
+  // Отделка и утепление — покрытия, а не несущий конструктив, но материал у них
+  // свой, из своих перечней (решение пользователя 11.09.2026).
+  { key: 'finish', label: 'Отделка' },
+  { key: 'insulation', label: 'Утепление' },
+];
+
+
+// В каком виде нужен износ — вопрос ещё открытый: сейчас это три ступени на
+// элемент, а по методике он может считаться процентом или годами с ремонта, и
+// тогда состав раздела другой. Держим вопрос на виду заметкой (решение
+// пользователя 04.09.2026: «износ распространяем, но с заметкой»).
+const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
+  + 'ступени на элемент: «не указано», «умеренный», «значительный». Соседние '
+  + 'ступени два оценщика поставят по-разному, а по методике износ может '
+  + 'считаться процентом или годами с последнего ремонта — тогда и состав '
+  + 'раздела изменится. Обсудить до того, как по нему начнут считать.';
+
+// Износ элемента. В таблице «Конструктив и износ» подпись не нужна: название
+// элемента стоит в первом столбце строки.
+function wearField(oi, key, label, bare) {
+  const wear = oi.wear || {};
+  const val = wear[key] || opt('building', 'wear', WEAR_LEVEL)[0];
+
+  return `<div class="field${bare ? ' f-bare' : ''}">${bare ? '' : `<label>${label}</label>`}
+<select class="select" data-wear="${key}">${opt('building', 'wear', WEAR_LEVEL).map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
+</div>`;
+}
+
+function structCard(ctx, oi, idx) {
+  const rq = fieldRules(ctx, oi);
+  const struct = oi.struct || {};
+
+  return `<div class="card t-teal" id="q-struct">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктив и износ</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="struct-tbl-wrap">
+<table class="tbl struct-tbl">
+<thead><tr>
+<th class="st-el">Элемент</th>
+<th>Материал</th>
+<th class="st-wear">Износ${devNote(WEAR_NOTE)}</th>
+</tr></thead>
+<tbody>
+${STRUCT_ROWS.map((r) => `<tr>
+<td class="st-el">${r.label}${r.key === 'wallsExt' && rq.wallsRequired ? '<span class="req">*</span>' : ''}</td>
+<td>${r.wearOnly
+    ? '<span class="muted">—</span>'
+    : (r.key === 'heating'
+      ? heatingMS(ctx, oi, true)
+      : structField(oi, r.key, r.label, opt('building', 'struct.' + (r.optsKey || r.key), STRUCT[r.optsKey || r.key]), null, r.key === 'wallsExt' && rq.wallsRequired, true))}</td>
+<td class="st-wear">${wearField(oi, r.key, r.label, true)}</td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>
+${specialsBlockHTML(oi)}
+</div></div>
+</div>`;
+}
+
 // «Доп параметры» — только для строений с catClass «Производственно-складское».
 function prodExtraCard(ctx, oi, idx) {
   return `<div class="card t-teal" id="q-prod">
@@ -444,6 +390,48 @@ ${tempModeMS(ctx, oi)}
 <select class="select" data-prod-crane>${opt('building', 'craneBeam', CRANE_BEAM).map((o) => `<option ${o === (oi.craneBeam || opt('building', 'craneBeam', CRANE_BEAM)[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 </div>
+</div></div>
+</div>`;
+}
+
+function photosCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-photo">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Фото по категориям</h3>
+<button class="btn btn-ghost btn-sm" data-open-pviewer style="margin-left:auto">Открыть просмотрщик</button><span class="chev">▾</span>
+</div>
+<div class="card-body-wrap"><div class="card-pad">
+${photoAccordions(ctx.ui, oi, true)}
+</div></div>
+</div>`;
+}
+
+// Два поля не должны противоречить друг другу (Л2.5). Ведёт «Расположение
+// строения», подстраивается «Категория жилого строения»:
+//   Отдельностоящее → «Обособленный»;
+//   Встроенное      → таунхаус, полдома, барак.
+// Так и в жизни: обособленным бывает частный дом, а таунхаус или полдома — это
+// всегда часть чего-то большего. Квартира сюда не попадает вовсе: она по
+// определению внутри здания, и категории жилого строения у неё нет.
+// Список ПОЛНЫЙ: пункты не прячем — они могут понадобиться для особых случаев
+// (уточнение пользователя 28.08.2026). Согласованность обеспечивает автовыбор
+// при смене расположения (см. обработчик data-buildtype в ctrl.js), а не запрет.
+function resCatOptions() {
+  return opt('building', 'buildCat', RES_BUILD_CAT).slice();
+}
+
+// Пристройки — свой блок (Л5.4): внутри «Площадей и этажности» они оказывались
+// ниже поэтажной развёртки и высот, и их там не находили.
+//
+// Было три отдельных списка — лоджии, балконы, террасы, — у каждого только
+// название и площадь. Стала одна таблица с литерой, видом и материалами, как на
+// странице техпаспорта «Характеристика строений и сооружений» (требование
+// пользователя 09.09.2026). Веранду и тамбур записать было некуда, литеру —
+// тоже, а материалы пристройки нигде не хранились.
+function annexesCard(ctx, oi, idx) {
+  return `<div class="card t-blue" id="q-annexes">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристройки</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }
@@ -488,6 +476,10 @@ export function render(ctx, oi) {
 
   const idx = blockNumbers();
 
+  // Порядок блоков — по тому, как часто в них заходят. Аренда по этажам ушла в
+  // самый низ, за фотографии (решение пользователя 09.09.2026): раздел нужен
+  // редко, а стоял четвёртым и отодвигал вниз конструктив с состоянием, к
+  // которым обращаются на каждом объекте.
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}

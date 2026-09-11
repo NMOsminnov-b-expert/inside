@@ -9,8 +9,6 @@ import { bindAnnexes } from './annexes.js';
 import { gpsError } from '../../../../kernel/gps.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
-import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
@@ -22,7 +20,8 @@ import { updateFloorsUI, rerenderFloors, floorsNote } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
-import { nextDocId, nextId } from '../../data/store.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
+import { nextId, nextDocId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 
@@ -35,7 +34,9 @@ export function bind(ctx, oi) {
 
   // --- Площади и этажность -------------------------------------------------
   // Площади и высоты — числовые поля: на экране «1 840,50», в запись уходит
-  // машинное «1840,50» (kernel/numField.js).
+  // машинное «1840,50» (kernel/numField.js). Раньше в поле стояло сырое
+  // значение из данных, и одно и то же число выглядело по-разному в поле и в
+  // итоге под ним.
   s.$$('[data-area]').forEach((i) => bindNumField(i, (v) => {
     oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
@@ -269,6 +270,41 @@ export function bind(ctx, oi) {
     ctx.render();
   };
 
+  // Права на строение: справочник плюс ручной ввод варианта «Иное».
+  const rightsSel = s.$('[data-bld-rights]');
+  if (rightsSel) rightsSel.onchange = () => {
+    oi.rights = rightsSel.value;
+    const other = s.$('[data-bld-rights-other]');
+    if (other) {
+      other.style.display = oi.rights === 'Иное' ? '' : 'none';
+      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
+    }
+  };
+
+  const rightsOther = s.$('[data-bld-rights-other]');
+  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
+
+  // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
+  // перед сменой показываем, что скроется. Значения при этом сохраняются в
+  // записи и вернутся, если категорию поставить обратно — об этом в диалоге
+  // сказано прямо, иначе человек не решится нажать.
+  const warnCategory = (next, apply) => {
+    const lost = fieldsThatDisappear(render, ctx, oi, next);
+    if (!lost.length) { apply(); return; }
+
+    confirmDialog({
+      title: 'Сменить назначение по тех паспорту?',
+      text: 'При этом назначении поля ниже не показываются. Значения '
+        + 'сохранятся и вернутся, если поставить назначение обратно.',
+      list: lost,
+      okLabel: 'Сменить назначение',
+    }).then((ok) => { if (ok) apply(); });
+  };
+
+  const oic = s.$('[data-oi-category]');
+  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
+
+  // --- Площади и стоимость аренды (строки заводит пользователь) -----------
   oi.rentAreas = oi.rentAreas || [];
 
   s.$$('[data-rent-label]').forEach((i) => i.onchange = () => {
@@ -296,46 +332,22 @@ export function bind(ctx, oi) {
     ctx.render();
   });
 
-  // Доп. параметры производственного строения.
-  [['prod-height', 'prodHeight'], ['prod-frame', 'prodFrame'],
-    ['prod-floors', 'prodFloors'], ['prod-crane', 'craneBeam'],
-    ['struct-strength', 'structStrength']].forEach(([attr, key]) => {
-    const el = s.$('[data-' + attr + ']');
-    if (el) el.onchange = () => { oi[key] = el.value; };
-  });
-
   bindTempMode(ctx, oi);
 
 
-  // ТЗ §9.6: от категории зависит состав ОСТАЛЬНЫХ полей карточки, поэтому
-  // перед сменой показываем, что скроется. Значения при этом сохраняются в
-  // записи и вернутся, если категорию поставить обратно — об этом в диалоге
-  // сказано прямо, иначе человек не решится нажать.
-  const warnCategory = (next, apply) => {
-    const lost = fieldsThatDisappear(render, ctx, oi, next);
-    if (!lost.length) { apply(); return; }
-
-    confirmDialog({
-      title: 'Сменить категорию объекта имущества?',
-      text: 'В новой категории эти поля не показываются. Значения сохранятся '
-        + 'и вернутся, если поставить категорию обратно.',
-      list: lost,
-      okLabel: 'Сменить категорию',
-    }).then((ok) => { if (ok) apply(); });
+  // Тип строения: справочник плюс ручной ввод варианта «Прочее».
+  const skSel = s.$('[data-structure-kind]');
+  if (skSel) skSel.onchange = () => {
+    oi.structureKind = skSel.value;
+    const other = s.$('[data-structure-kind-other]');
+    if (other) {
+      other.style.display = oi.structureKind === 'Прочее' ? '' : 'none';
+      if (oi.structureKind !== 'Прочее') { other.value = ''; oi.structureKindOther = ''; }
+    }
   };
 
-  const oic = s.$('[data-oi-category]');
-  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
-
-// Состояние жилого дома: три отдельных поля (блок «Состояние»).
-  s.$$('[data-condition]').forEach((sel) => sel.onchange = () => {
-    oi[sel.dataset.condition] = sel.value;
-  });
-
-  s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
-    oi.wear = oi.wear || {};
-    oi.wear[sel.dataset.wear] = sel.value;
-  });
+  const skOther = s.$('[data-structure-kind-other]');
+  if (skOther) skOther.onchange = () => { oi.structureKindOther = skOther.value; };
 
   const cc = s.$('[data-catclass]');
   if (cc) cc.onchange = () => {
@@ -355,40 +367,6 @@ export function bind(ctx, oi) {
   // строения» — «Отдельностоящее» доступно только обособленным (Л2.5).
   if (rc) rc.onchange = () => { oi.resCat = rc.value; ctx.render(); };
 
-  // Тип строения: select + условный ручной ввод.
-  const skSel = s.$('[data-structure-kind]');
-  if (skSel) skSel.onchange = () => {
-    oi.structureKind = skSel.value;
-    const other = s.$('[data-structure-kind-other]');
-    if (other) {
-      other.style.display = oi.structureKind === 'Прочее' ? '' : 'none';
-      if (oi.structureKind !== 'Прочее') { other.value = ''; oi.structureKindOther = ''; }
-    }
-  };
-
-  const skOther = s.$('[data-structure-kind-other]');
-  if (skOther) skOther.onchange = () => { oi.structureKindOther = skOther.value; };
-
-  // Права на строение: select + условный ручной ввод.
-  const rightsSel = s.$('[data-bld-rights]');
-  if (rightsSel) rightsSel.onchange = () => {
-    oi.rights = rightsSel.value;
-    const other = s.$('[data-bld-rights-other]');
-    if (other) {
-      other.style.display = oi.rights === 'Иное' ? '' : 'none';
-      if (oi.rights !== 'Иное') { other.value = ''; oi.rightsOther = ''; }
-    }
-  };
-
-  const rightsOther = s.$('[data-bld-rights-other]');
-  if (rightsOther) rightsOther.onchange = () => { oi.rightsOther = rightsOther.value; };
-
-  // Лоджии и балконы.
-  const bindBld = (selector, key) => {
-    const el = s.$(selector);
-    if (el) el.onchange = () => { oi[key] = el.value; };
-  };
-
   // Перерисовка обязательна: от статуса зависит видимость «Типа строения»
   // (он есть только у вспомогательных).
   s.$$('[data-status]').forEach((sel) => sel.onchange = () => {
@@ -404,23 +382,8 @@ export function bind(ctx, oi) {
   // записи. Собранный адрес записи держится в rec.address, поэтому после правки
   // его пересобираем — иначе шапка, реестр и поиск показывали бы старое
   // (kernel/address.js, заметки команды 05.09.2026).
-  const street = s.$('[data-oi-street]');
-  if (street) street.onchange = () => {
-    oi.street = street.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
-  const house = s.$('[data-oi-house]');
-  if (house) house.onchange = () => {
-    oi.house = house.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
   // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
   // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
-  bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
@@ -434,6 +397,30 @@ export function bind(ctx, oi) {
 
   // --- Конструктивный состав ----------------------------------------------
   bindStruct(ctx, oi);
+
+  // --- Износ конструктивных элементов --------------------------------------
+// Состояние жилого дома: три отдельных поля (блок «Состояние»).
+  s.$$('[data-condition]').forEach((sel) => sel.onchange = () => {
+    oi[sel.dataset.condition] = sel.value;
+  });
+
+  s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
+    oi.wear = oi.wear || {};
+    oi.wear[sel.dataset.wear] = sel.value;
+  });
+
+  // --- Доп параметры (производственное строение) ---------------------------
+  const phe = s.$('[data-prod-height]');
+  if (phe) phe.onchange = () => { oi.prodHeight = phe.value; };
+
+  const pfr = s.$('[data-prod-frame]');
+  if (pfr) pfr.onchange = () => { oi.prodFrame = pfr.value; };
+
+  const pfl = s.$('[data-prod-floors]');
+  if (pfl) pfl.onchange = () => { oi.prodFloors = pfl.value; };
+
+  const pcr = s.$('[data-prod-crane]');
+  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.value; };
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
@@ -455,18 +442,20 @@ export function bind(ctx, oi) {
     s.root.dataset.msOutsideBound = '1';
     s.onDocument('click', (e) => {
     if (!e.target.closest('.ms')) {
-      s.$$('.ms-drop').forEach((d) => d.hidden = true);
       s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
+      s.$$('.ms-drop').forEach((d) => d.hidden = true);
       ctx.ui.heatOpen = false;
     }
     });
   }
 
-  // --- Фото ---------------------------------------------------------------
-  // Настоящая загрузка файла, а не инкремент счётчика: файл кладётся в
-  // oi.photoFiles, счётчик увеличивает addPhotoFile (см. parts/photos/model.js).
+  // Фото в аккордеоне перечня и мини-превью в строках. Теперь это РЕАЛЬНАЯ
+  // загрузка файла (как у документов), а не просто инкремент счётчика: файл
+  // кладётся в oi.photoFiles, счётчик увеличивает addPhotoFile.
   s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
+    const oi = ctx.rec.oi.find((o) => o.id === b.dataset.photoOi);
+    if (!oi) return;
     const cat = b.dataset.addPhoto;
 
     const file = await pickFile('image/*');
