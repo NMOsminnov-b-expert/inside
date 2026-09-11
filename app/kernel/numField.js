@@ -80,7 +80,10 @@ export function bindNumField(el, write) {
 
   el.addEventListener('input', () => {
     const caret = el.selectionStart || 0;
-    const typedBefore = (el.value.slice(0, caret).match(/[\d,-]/g) || []).length;
+    // Точку считаем наравне с запятой: маска её в запятую и превращает, но
+    // если не учесть её здесь, курсор встанет ПЕРЕД разделителем — и «152.3»
+    // набиралось как «1523» (замечание пользователя 11.09.2026).
+    const typedBefore = (el.value.slice(0, caret).match(/[\d.,-]/g) || []).length;
 
     const next = numLive(el.value);
     if (next !== el.value) {
