@@ -366,10 +366,10 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
-${annexesCard(ctx, oi, idx())}
 ${plansCard(oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
 ${photosCard(ctx, oi, idx())}
 </div>`;
 

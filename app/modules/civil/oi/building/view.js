@@ -486,9 +486,9 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
-${annexesCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}
 ${rq.showRent ? rentAreasCard(ctx, oi, idx()) : ''}
