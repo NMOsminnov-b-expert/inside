@@ -251,29 +251,60 @@ export const LAND_DICT_SOURCES = [
       { card: 'land', field: 'useCategory', label: 'Категория и разрешённое использование' },
     ],
   },
+  // У каждой инженерной сети свой перечень (решение пользователя 11.09.2026):
+  // общий список не давал править их по отдельности. Порядок — как в карточке,
+  // по ходу подключения. Отопление стоит последним: у него, в отличие от
+  // прочих, есть «Автономное» — котёл на участке никакой сетью не подведён.
   {
-    key: 'LAND_UTILITY_STATUS',
-    title: 'Состояние коммуникаций',
+    key: 'LAND_ELECTRICITY_STATUS',
+    title: 'Состояние электроснабжения',
     kind: 'list',
     system: false,
-    values: D.LAND_UTILITY_STATUS,
+    folder: 'Инженерные сети',
+    values: D.LAND_ELECTRICITY_STATUS,
     slots: [
       { card: 'land', field: 'electricity', label: 'Наличие электроснабжения' },
+    ],
+  },
+  {
+    key: 'LAND_WATER_STATUS',
+    title: 'Состояние водоснабжения',
+    kind: 'list',
+    system: false,
+    folder: 'Инженерные сети',
+    values: D.LAND_WATER_STATUS,
+    slots: [
       { card: 'land', field: 'centralWater', label: 'Наличие водоснабжения' },
+    ],
+  },
+  {
+    key: 'LAND_SEWERAGE_STATUS',
+    title: 'Состояние канализации',
+    kind: 'list',
+    system: false,
+    folder: 'Инженерные сети',
+    values: D.LAND_SEWERAGE_STATUS,
+    slots: [
       { card: 'land', field: 'sewerage', label: 'Наличие канализации' },
+    ],
+  },
+  {
+    key: 'LAND_GAS_STATUS',
+    title: 'Состояние газификации',
+    kind: 'list',
+    system: false,
+    folder: 'Инженерные сети',
+    values: D.LAND_GAS_STATUS,
+    slots: [
       { card: 'land', field: 'gasification', label: 'Наличие газификации' },
     ],
   },
   {
-    // Отопление отличается от прочих сетей: оно бывает автономным, и никакой
-    // сети к нему не ведёт (решение пользователя 11.09.2026). Поле называется
-    // просто «отопление» — в «центральном» вариант «автономное» противоречил
-    // бы подписи. Отдельного поля автономного отопления больше нет, его слот
-    // убран отсюда же.
     key: 'LAND_HEATING_STATUS',
     title: 'Состояние отопления',
     kind: 'list',
     system: false,
+    folder: 'Инженерные сети',
     values: D.LAND_HEATING_STATUS,
     slots: [
       { card: 'land', field: 'centralHeating', label: 'Наличие отопления' },

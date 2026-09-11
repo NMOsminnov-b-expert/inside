@@ -5,7 +5,8 @@ import { fmtEni } from '../../../../kernel/fmt.js';
 import {
   DOC_TYPES, LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
   LAND_LOCATION, LAND_ROAD_LOCATION, LAND_CORNER, LAND_ENCUMBRANCE,
-  LAND_UTILITY_STATUS, LAND_HEATING_STATUS, LAND_FORM, IRRIGATION_TYPE, LAND_RELIEF,
+  LAND_ELECTRICITY_STATUS, LAND_WATER_STATUS, LAND_SEWERAGE_STATUS, LAND_GAS_STATUS,
+  LAND_HEATING_STATUS, LAND_FORM, IRRIGATION_TYPE, LAND_RELIEF,
   LAND_CATEGORIES, LAND_RIGHTS, LAND_PURPOSE_DOC, LAND_SOIL, LAND_STONINESS, RAILWAY_ACCESS,
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -161,17 +162,18 @@ ${auxBuildingsHTML(ctx, oi)}</div></div>`;
 // переехало наличие построек: постройки — это про застройку участка, а не про
 // его местоположение.
 //
-// Порядок полей — по ходу подключения: электричество, вода, канализация,
-// отопление, газ, железнодорожная ветка (решение пользователя 11.09.2026).
+// Порядок полей — по ходу подключения: электричество, вода, канализация, газ,
+// отопление, железнодорожная ветка (решение пользователя 11.09.2026). У каждой
+// сети свой перечень состояний, чтобы править их можно было по отдельности.
 // Автономное отопление вернулось, но не отдельным полем, а значением в
 // перечне отопления.
 function nonAgriculturalCard(ctx, oi, idx) {
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Инженерные сети</h3></div><div class="card-pad"><div class="grid g-3">
-${selectField('Наличие электроснабжения', 'data-land-electricity', opt('land', 'electricity', LAND_UTILITY_STATUS), oi.electricity)}
-${selectField('Наличие водоснабжения', 'data-land-water', opt('land', 'centralWater', LAND_UTILITY_STATUS), oi.centralWater)}
-${selectField('Наличие канализации', 'data-land-sewerage', opt('land', 'sewerage', LAND_UTILITY_STATUS), oi.sewerage)}
+${selectField('Наличие электроснабжения', 'data-land-electricity', opt('land', 'electricity', LAND_ELECTRICITY_STATUS), oi.electricity)}
+${selectField('Наличие водоснабжения', 'data-land-water', opt('land', 'centralWater', LAND_WATER_STATUS), oi.centralWater)}
+${selectField('Наличие канализации', 'data-land-sewerage', opt('land', 'sewerage', LAND_SEWERAGE_STATUS), oi.sewerage)}
+${selectField('Наличие газификации', 'data-land-gas', opt('land', 'gasification', LAND_GAS_STATUS), oi.gasification)}
 ${selectField('Наличие отопления', 'data-land-central-heating', opt('land', 'centralHeating', LAND_HEATING_STATUS), oi.centralHeating)}
-${selectField('Наличие газификации', 'data-land-gas', opt('land', 'gasification', LAND_UTILITY_STATUS), oi.gasification)}
 ${selectField('Наличие железнодорожной ветки', 'data-land-railway', opt('land', 'railway', RAILWAY_ACCESS), oi.railway)}
 </div>
 <div class="sec-h">Постройки</div>
