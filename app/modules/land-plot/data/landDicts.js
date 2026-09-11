@@ -59,6 +59,18 @@ export const LAND_DICT_SOURCES = [
     ],
   },
   {
+    // Способ оценки вспомогательных построек: от него зависит, ведётся ли их
+    // перечень в карточке участка (решение пользователя 11.09.2026).
+    key: 'AUX_VALUATION',
+    title: 'Оценка вспомогательных построек',
+    kind: 'list',
+    system: false,
+    values: D.AUX_VALUATION,
+    slots: [
+      { card: 'land', field: 'auxValuation', label: 'Вспомогательные постройки оцениваются' },
+    ],
+  },
+  {
     key: 'AUX_CLASS',
     title: 'Класс постройки',
     kind: 'list',

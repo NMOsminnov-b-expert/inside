@@ -26,7 +26,7 @@ import { esc } from '../../../../kernel/dom.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { num, fmtNum } from '../../../../kernel/fmt.js';
-import { AUX_BUILDING_GROUPS, AUX_CONDITION, AUX_CLASS } from '../../data/dictionaries.js';
+import { AUX_BUILDING_GROUPS, AUX_CONDITION, AUX_CLASS, AUX_VALUATION } from '../../data/dictionaries.js';
 import { opt, optGroups } from '../../data/opts.js';
 
 const AUX_NOTE = 'Здесь только вспомогательные постройки. Капитальные строения '
@@ -60,9 +60,17 @@ function selectCell(attr, id, values, value) {
   </select></td>`;
 }
 
+// Оцениваются ли постройки в составе участка. Пустое значение читаем как «в
+// составе»: так было до появления выбора, и уже заведённые списки не должны
+// пропасть у тех, кто выбор ещё не делал.
+export function auxInLand(oi) {
+  return (oi && oi.auxValuation ? oi.auxValuation : AUX_VALUATION[0]) === AUX_VALUATION[0];
+}
+
 export function auxBuildingsHTML(ctx, oi) {
   const items = auxBuildings(oi);
   const open = !ctx.ui.accOpen || ctx.ui.accOpen['aux|land'] !== false;
+  const inLand = auxInLand(oi);
 
   const kinds = kindOptions(oi);
   const conditions = opt('land', 'auxCondition', AUX_CONDITION);
@@ -78,7 +86,23 @@ export function auxBuildingsHTML(ctx, oi) {
     <td class="al-act"><button class="btn btn-danger btn-sm" data-aux-del="${esc(it.id)}" title="Убрать постройку">×</button></td>
   </tr>`).join('');
 
+  // Выбор стоит над списком, а не в блоке 01: человек видит переключатель прямо
+  // над тем, что тот скрывает, и не ищет причину пропажи в другом месте.
+  const chooser = `<div class="field aux-mode" data-aux-mode-field>
+    <label for="aux-valuation">Вспомогательные постройки оцениваются</label>
+    <select class="select" id="aux-valuation" data-aux-valuation>
+      ${opt('land', 'auxValuation', AUX_VALUATION).map((o) => `<option ${
+        o === (oi.auxValuation || AUX_VALUATION[0]) ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>
+    ${inLand ? '' : `<span class="field-hint">перечень ведётся в карточках самих объектов имущества</span>`}
+  </div>`;
+
+  if (!inLand) {
+    return `<div data-aux-block>${chooser}</div>`;
+  }
+
   return `<div class="al acc ${open ? 'open' : ''}" data-aux-block>
+    ${chooser}
     <div class="sec-h acc-head" data-acc-toggle="aux|land"
       style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <span class="al-head-left" style="display:flex;align-items:center;gap:8px;min-width:0">
@@ -102,6 +126,15 @@ export function auxBuildingsHTML(ctx, oi) {
 export function bindAuxBuildings(ctx, oi) {
   const box = ctx.scope.$('[data-aux-block]');
   if (!box) return;
+
+  // Смена способа оценки перерисовывает карточку: от него зависит, показывать
+  // ли список целиком. Уже заведённые постройки при этом не стираются — если
+  // способ вернут обратно, перечень окажется на месте.
+  const mode = box.querySelector('[data-aux-valuation]');
+  if (mode) mode.onchange = () => {
+    oi.auxValuation = mode.value;
+    ctx.render();
+  };
 
   const find = (id) => auxBuildings(oi).find((x) => x.id === id);
 
