@@ -164,27 +164,50 @@ export function removeFloorRow(oi, index) {
   recalcFloors(oi);
 }
 
-// Перенос строки в другое размещение: этаж — в подвалы или мансарды и обратно.
-// Меняем размещение и ставим строку в конец целевой группы, чтобы порядок в
-// списке совпал с тем, что человек видит на экране.
+// Перенос строки: этаж — в подвалы или мансарды и обратно, а также на другое
+// место внутри своего размещения (требование пользователя 14.09.2026 — при
+// перетаскивании видно, куда строка встанет, значит туда она и должна встать).
+//
+// `before` — строка, ПЕРЕД которой встаёт переносимая; её передают самим
+// объектом строки, а не номером: номера сдвигаются, как только строку вынули
+// из списка, и вычислять их заново пришлось бы в двух местах. `null` — в конец
+// размещения.
 //
 // Отметку «авто» при переносе НЕ трогаем, хотя у надземных она включена по
 // умолчанию, а у прочих нет: это выбор человека по конкретной строке, и молча
 // переигрывать его на переносе — значит менять посчитанные площади за спиной.
 // Название тоже остаётся прежним: «Этаж 3», уехавший в подвалы, переименует
 // тот, кто его туда отправил, — нам его замысел неизвестен.
-export function moveFloorRow(oi, index, cat) {
+export function moveFloorRow(oi, index, cat, before) {
   const list = oi.floorList || [];
   const row = list[index];
-  if (!row || row.cat === cat || !FLOOR_CATS.some((c) => c.key === cat)) return false;
+  if (!row || !FLOOR_CATS.some((c) => c.key === cat)) return false;
+  if (before === row) return false;
+
+  // Куда встанет строка, считаем на копии и сверяем с нынешним порядком: бросок
+  // без изменений (строка уже стоит на этом месте) не должен ни перерисовывать
+  // развёртку, ни писать в лог, ни показывать сообщение.
+  const next = list.filter((f) => f !== row);
+  const at = before ? next.indexOf(before) : -1;
+  if (at >= 0) next.splice(at, 0, row);
+  else {
+    // Конец размещения: за последней его строкой. Если размещение пустое —
+    // в конец списка, порядок групп на экране всё равно задаёт FLOOR_CATS.
+    const lastOfCat = next.reduce((acc, f, i) => (f.cat === cat ? i : acc), -1);
+    if (lastOfCat >= 0) next.splice(lastOfCat + 1, 0, row);
+    else next.push(row);
+  }
+
+  const sameCat = row.cat === cat;
+  const samePlace = sameCat && next.every((f, i) => f === list[i]);
+  if (samePlace) return false;
 
   const wasOver = row.cat === 'over';
   row.cat = cat;
   ensureCatFields(row, cat, oi);
 
-  list.splice(index, 1);
-  const lastOfCat = list.reduce((at, f, i) => (f.cat === cat ? i : at), -1);
-  list.splice(lastOfCat + 1, 0, row);
+  list.length = 0;
+  next.forEach((f) => list.push(f));
 
   if (wasOver || cat === 'over') oi.floors = list.filter((f) => f.cat === 'over').length;
   recalcFloors(oi);

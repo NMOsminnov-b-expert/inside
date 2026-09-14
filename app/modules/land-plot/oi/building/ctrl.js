@@ -215,6 +215,38 @@ export function bind(ctx, oi) {
     const clearMarks = () => {
       s.$$('[data-floor-drop]').forEach((n) => n.classList.remove('fl-drop'));
       s.$$('[data-floor-row]').forEach((n) => n.classList.remove('fl-dragging'));
+      clearInsert();
+    };
+
+    // Куда встанет строка: линию рисуем ровно между теми строками, между
+    // которыми она окажется, — «подсветить весь раздел» человеку не говорило
+    // ничего, кроме того, что раздел подходящий (замечание пользователя
+    // 14.09.2026).
+    const clearInsert = () => {
+      s.$$('.fl-ins-before, .fl-ins-after').forEach((n) => {
+        n.classList.remove('fl-ins-before');
+        n.classList.remove('fl-ins-after');
+      });
+    };
+
+    // Метка «вставить перед этой строкой». Храним объект строки, а не номер:
+    // номера поедут, как только строку вынут из списка.
+    const markInsert = (row, after) => {
+      clearInsert();
+      if (!row) return;
+      row.classList.add(after ? 'fl-ins-after' : 'fl-ins-before');
+    };
+
+    // Ближайшая к курсору граница между строками внутри размещения.
+    const insertPoint = (box, y) => {
+      const rows = [...box.querySelectorAll('[data-floor-row]')]
+        .filter((r) => !r.hidden && !r.classList.contains('fl-dragging'));
+      for (const r of rows) {
+        const b = r.getBoundingClientRect();
+        if (y < b.top + b.height / 2) return { el: r, after: false, index: +r.dataset.floorRow };
+      }
+      const last = rows[rows.length - 1];
+      return { el: last || box.querySelector('.fl-grp'), after: true, index: null };
     };
 
     s.$$('[data-floor-grip]').forEach((grip) => {
@@ -237,11 +269,12 @@ export function bind(ctx, oi) {
     s.$$('[data-floor-drop]').forEach((box) => {
       const cat = box.dataset.floorDrop;
 
+      // Своё размещение тоже принимает строку: внутри него её переставляют
+      // на другое место.
       const mine = () => {
         const d = ctx.ui.dragFloor;
         if (!d || d.oiId !== oi.id) return null;
-        const f = (oi.floorList || [])[d.index];
-        return f && f.cat !== cat ? d : null;
+        return (oi.floorList || [])[d.index] ? d : null;
       };
 
       box.addEventListener('dragover', (e) => {
@@ -249,12 +282,17 @@ export function bind(ctx, oi) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         box.classList.add('fl-drop');
+
+        const point = insertPoint(box, e.clientY);
+        markInsert(point.el, point.after);
+        ctx.ui.dragFloorAt = { cat, index: point.index };
       });
 
       box.addEventListener('dragleave', (e) => {
         // Уход внутрь собственных потомков — не уход из раздела.
         if (box.contains(e.relatedTarget)) return;
         box.classList.remove('fl-drop');
+        clearInsert();
       });
 
       box.addEventListener('drop', (e) => {
@@ -266,8 +304,14 @@ export function bind(ctx, oi) {
 
         const name = (oi.floorList[d.index] || {}).name || 'строка';
         const to = FLOOR_CATS.find((c) => c.key === cat);
-        if (!moveFloorRow(oi, d.index, cat)) return;
+        // Строка встаёт ровно туда, где была нарисована линия.
+        const at = ctx.ui.dragFloorAt;
+        const before = at && at.cat === cat && at.index !== null
+          ? oi.floorList[at.index] : null;
+        const sameCat = (oi.floorList[d.index] || {}).cat === cat;
+        if (!moveFloorRow(oi, d.index, cat, before)) return;
         ctx.ui.dragFloor = null;
+        ctx.ui.dragFloorAt = null;
 
         // Раздел, куда перенесли, раскрываем: иначе строка уезжает в свёрнутый
         // блок, и перенос выглядит как пропажа.
@@ -275,7 +319,9 @@ export function bind(ctx, oi) {
 
         redrawFloors();
         syncFloorsCount();
-        ctx.toast(`«${name}» → ${to ? to.label.toLowerCase() : cat}`, 'ok');
+        ctx.toast(sameCat
+          ? `«${name}» — порядок изменён`
+          : `«${name}» → ${to ? to.label.toLowerCase() : cat}`, 'ok');
       });
     });
   }

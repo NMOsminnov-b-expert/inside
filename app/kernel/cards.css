@@ -451,9 +451,24 @@ body[data-module] .fl-tbl td.fl-na{text-align:center;color:var(--muted)}
 body[data-module] .fl-tbl tr.fl-empty td{
   color:var(--muted);font-size:12px;background:#fff}
 
-/* Группа, готовая принять перенесённую строку. Рамка, а не заливка: заливка
-   перекрасила бы строки и спрятала бы то, куда именно строка встанет. */
-body[data-module] tbody.fl-g.fl-drop td{box-shadow:inset 0 0 0 1px var(--blue-600)}
+/* Перенос строки развёртки. Размещение, готовое принять строку, подсвечивается
+   целиком — но тихо, заливкой: оно отвечает только на вопрос «куда можно»,
+   а на вопрос «куда именно» отвечает линия вставки ниже. Раньше рамка стояла
+   вокруг каждой ячейки, и понять по ней место было нельзя (замечание
+   пользователя 14.09.2026). */
+body[data-module] .fl-tbl tbody.fl-g.fl-drop td,
+body[data-module] .fl-tbl tbody.fl-g.fl-drop td:nth-child(-n+3){
+  background:var(--blue-50)}
+body[data-module] .fl-tbl tbody.fl-g.fl-drop tr.fl-grp td{background:#dceafa}
+
+/* Линия вставки — ровно между теми строками, между которыми строка встанет.
+   Рисуется тенью внутрь ячеек, поэтому идёт через всю ширину таблицы и не
+   раздвигает строки: подставная строка-заполнитель дёргала бы таблицу на
+   каждое движение курсора. */
+body[data-module] .fl-tbl tr.fl-ins-before td{
+  box-shadow:inset 0 3px 0 -1px var(--blue-600)}
+body[data-module] .fl-tbl tr.fl-ins-after td{
+  box-shadow:inset 0 -3px 0 -1px var(--blue-600)}
 
 /* Узкий экран: таблица прокручивается внутри своей обёртки, а не растягивает
    карточку. Поля внутри ячеек ужимаются вместе с колонками. */
@@ -477,7 +492,7 @@ body[data-module] .fl-grip:hover{color:var(--blue-600);background:var(--fill-pic
 body[data-module] .fl-grip:active{cursor:grabbing}
 
 /* Строка на весу — приглушена: видно, что она сейчас «в руке», а не на месте. */
-body[data-module] tr.fl-dragging td{opacity:.45}
+body[data-module] tr.fl-dragging td{opacity:.4;background:var(--slate-50)}
 
 /* Раздел, готовый принять строку. Рамка, а не заливка: заливка перекрасила бы
    таблицу целиком и спрятала бы то, куда именно строка встанет. */
