@@ -28,6 +28,7 @@
     "@playwright/test": "^1.62.0",
     "dependency-cruiser": "^18.3.0",
     "eslint": "^10.10.0",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.12.0",
     "jscpd": "^5.2.0",
     "knip": "^6.35.1",

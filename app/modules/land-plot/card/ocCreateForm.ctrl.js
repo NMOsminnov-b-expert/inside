@@ -4,10 +4,8 @@ import { gpsError } from '../../../kernel/gps.js';
 import { bindPickSearch } from '../../../kernel/pickSearch.js';
 import { podvedNamesOf } from '../../../kernel/institutions.js';
 import { syncOcAddress, ocFullAddress, parseAddress } from '../../../kernel/address.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
-import { parseEni, ENI_LENGTHS } from '../../../kernel/fmt.js';
-import { nextDocId } from '../data/store.js';
-import { openDocViewer, VS } from '../parts/viewer/state.js';
+import { ENI_LENGTHS } from '../../../kernel/fmt.js';
+import { openDocViewer } from '../parts/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindCadastre, ADDR_PARTS } from './cadastre.ctrl.js';
 

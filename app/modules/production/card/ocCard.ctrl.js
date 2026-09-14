@@ -5,12 +5,12 @@ import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedC
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
-import { DOC_TYPES, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
+import { WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
-import { nextLetter, nextId, nextEni, nextDocId } from '../data/store.js';
-import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
+import { nextLetter, nextId, nextEni } from '../data/store.js';
+import { openDocViewer, openPhotoInPlace } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { bindParties } from './parties.ctrl.js';

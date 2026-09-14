@@ -1,5 +1,5 @@
 import { bindDocsColumns } from '../../parts/docs/table.js';
-import { openDocViewer, VS } from '../../parts/viewer/state.js';
+import { openDocViewer } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextDocId } from '../../data/store.js';
 

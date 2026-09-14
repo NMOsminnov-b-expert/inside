@@ -150,7 +150,7 @@ export async function lostOiFieldsOfRecord(rec, toTypeId) {
     }
 
     // Карточка та же самая — терять нечего.
-    // eslint-disable-next-line no-await-in-loop
+     
     if (await sameCard(rec.typeId, toTypeId, oi.card)) continue;
 
     const fields = oiFieldsOf(toTypeId, oi.card);

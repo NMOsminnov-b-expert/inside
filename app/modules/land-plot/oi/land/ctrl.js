@@ -11,7 +11,6 @@ import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { nextDocId } from '../../data/store.js';
 import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
-import { parseEni } from '../../../../kernel/fmt.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 
 export function bind(ctx, oi) {

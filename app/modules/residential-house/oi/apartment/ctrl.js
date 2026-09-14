@@ -5,15 +5,14 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { bindNumField } from '../../../../kernel/numField.js';
 import { bindAnnexes } from './annexes.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
-import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
   moveFloorRow, FLOOR_CATS } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors, floorColOrder } from './floors.view.js';
-import { updateHeatingUI, bindHeating } from './heating.js';
+import { bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
-import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace } from '../../parts/viewer/state.js';
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 import { bindColumnReorder } from '../../../../kernel/columns.js';

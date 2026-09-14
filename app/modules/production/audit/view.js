@@ -1,7 +1,7 @@
 import { esc } from '../../../kernel/dom.js';
 import { roleLabel } from '../../../kernel/session.js';
 import { fieldLabel } from './fieldLabels.js';
-import { CATEGORIES, categoryLabel, categoryTone } from './categories.js';
+import { CATEGORIES } from './categories.js';
 import { resolveDocRef } from './model.js';
 
 // «Перенесено» — про перестановку страниц документа: это не изменение

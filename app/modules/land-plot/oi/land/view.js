@@ -2,8 +2,7 @@ import { esc } from '../../../../kernel/dom.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
-import {
-  DOC_TYPES, LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
+import { LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
   LAND_LOCATION, LAND_ROAD_LOCATION, LAND_CORNER, LAND_ENCUMBRANCE,
   LAND_ELECTRICITY_STATUS, LAND_WATER_STATUS, LAND_SEWERAGE_STATUS, LAND_GAS_STATUS,
   LAND_HEATING_STATUS, LAND_FORM, IRRIGATION_TYPE, LAND_RELIEF,

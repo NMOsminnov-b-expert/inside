@@ -13,7 +13,7 @@
 import { esc } from '../../kernel/dom.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import {
-  sectionHTML, requiredLeft, filledCount, sectionProgress, getValue,
+  sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
 import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_KINDS } from './tasks.js';
 import { sections, allFields, mismatchHint } from './form.js';

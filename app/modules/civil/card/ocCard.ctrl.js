@@ -3,11 +3,11 @@ import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedC
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
-import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
+import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextDocId } from '../data/store.js';
+import { nextLetter, nextId } from '../data/store.js';
 import { archiveRecord } from '../../../kernel/archive.js';
-import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace } from '../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';

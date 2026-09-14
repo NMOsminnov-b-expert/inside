@@ -17,19 +17,18 @@ import {
 } from '../../kernel/columns.js';
 import { session, myInstitutions } from '../../kernel/session.js';
 import {
-  allNodes, getNode, childrenOf, pathOf, levelOf, subtreeOf, ocCount, docCount, totalCount,
-  ocRowsOf, subtreeRowsOf, docRowsOf, createNode, updateNode, moveNode, removeNode, attachRecords,
+  allNodes, getNode, childrenOf, pathOf, subtreeOf, ocCount, docCount, totalCount,
+  ocRowsOf, subtreeRowsOf, docRowsOf, createNode, updateNode, removeNode, attachRecords,
   detachRecords, candidates, isFavorite, toggleFavorite, favoriteNodes, searchNodes, regionOf,
   canAssignStaff, staffList, staffOf, staffFilled, STAFF_ROLES,
 } from '../../kernel/institutions.js';
 import {
   ALL_COLUMNS, emptyAllFilter, allPaneHTML, bindAllPane,
 } from './allObjects.js';
-import {
-  regionTree, searchRegions, splitRegion, areaOf, districtOf, areaFromEniRegion, SEP,
+import { searchRegions, splitRegion, areaFromEniRegion, SEP,
 } from '../../kernel/regions.js';
 import {
-  DOC_TYPES, DOC_STATUSES, statusTone, createDocument, updateDocument, removeDocument,
+  DOC_TYPES, DOC_STATUSES, statusTone, createDocument, updateDocument,
   getDocument, queryDocuments, addFile, detectAutoStatus,
 } from '../../kernel/documentsRegistry.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';

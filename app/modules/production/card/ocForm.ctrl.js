@@ -1,4 +1,4 @@
-import { ocTypes, previewOcTypeChange, changeOcType } from '../../../kernel/typeChange.js';
+import { previewOcTypeChange, changeOcType } from '../../../kernel/typeChange.js';
 import { bindPickSearch } from '../../../kernel/pickSearch.js';
 import { podvedNamesOf } from '../../../kernel/institutions.js';
 import { syncOcAddress, ocFullAddress, parseAddress } from '../../../kernel/address.js';
@@ -6,10 +6,7 @@ import { plural, ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { bindEniField, firstBadEni, eniCodesOf } from '../../../kernel/eniField.js';
 import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
 import { gpsError } from '../../../kernel/gps.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
-import { parseEni } from '../../../kernel/fmt.js';
-import { nextDocId } from '../data/store.js';
-import { openDocViewer, VS } from '../parts/viewer/state.js';
+import { openDocViewer } from '../parts/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindCadastre, ADDR_PARTS } from './cadastre.ctrl.js';
 

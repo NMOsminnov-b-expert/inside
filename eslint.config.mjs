@@ -11,6 +11,7 @@
 // держится комментариями и ревью.
 import js from '@eslint/js';
 import globals from 'globals';
+import unusedImports from 'eslint-plugin-unused-imports';
 
 export default [
   {
@@ -28,6 +29,7 @@ export default [
 
   {
     files: ['app/**/*.js'],
+    plugins: { 'unused-imports': unusedImports },
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
@@ -36,6 +38,11 @@ export default [
       },
     },
     rules: {
+      // Импорт, который в файле не используется, — след переезда кода. Правило
+      // отделено от общего no-unused-vars потому, что умеет само убирать такие
+      // строки (eslint --fix): вручную по полутора сотням файлов это была бы
+      // работа на день с риском задеть соседнюю строку.
+      'unused-imports/no-unused-imports': 'error',
       // Неиспользуемое — это либо забытая правка, либо оставшийся после
       // переименования хвост. Аргументы функций не считаем: обработчики часто
       // принимают событие, которое не читают.

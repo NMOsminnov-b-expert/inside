@@ -12,7 +12,7 @@
 // поставят по-разному.
 import { esc } from '../../../../kernel/dom.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
-import { devNote, noteAfter } from '../../../../kernel/devNote.js';
+import { noteAfter } from '../../../../kernel/devNote.js';
 import { IMPROVEMENT_RANKS } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 
