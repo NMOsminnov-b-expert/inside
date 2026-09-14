@@ -363,6 +363,107 @@ body[data-module] .areas-note.warn .areas-note-input{
 body[data-module] .areas-note.warn .areas-note-input:focus{
   border-color:var(--amber-700);box-shadow:0 0 0 3px rgba(192,124,30,.16)}
 
+/* ================== поэтажная развёртка: одна таблица ==================== */
+/* Развёртка стала единой таблицей (требование пользователя 14.09.2026):
+   размещения — группы строк (<tbody>), у каждой свой подытог, внизу общий
+   итог. Раньше каждое размещение было отдельной таблицей со своей шапкой, и
+   колонки в них не совпадали.
+
+   Оформление — по тому, как принято делать таблицы с числами: горизонтальные
+   разделители без вертикальных и без зебры (зебра спорит бы с выделением
+   строк-итогов), числа по правому краю цифрами одной ширины, строка итога
+   выделена фоном и весом. */
+/* Таблица развёртки — в своей рамке со скруглением (замечание пользователя
+   14.09.2026): без неё три группы, итог и поля ввода читались как продолжение
+   карточки, и глазу не за что было зацепиться. Рамка рисуется на обёртке, а не
+   на таблице: обёртка же и обрезает углы при горизонтальной прокрутке. */
+body[data-module] .fl-wrap{
+  overflow:auto;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);box-shadow:0 1px 2px rgba(19,41,62,.05)}
+/* Шапка плотнее строк и отделена от них жирной линией: это опора таблицы, по
+   ней находят нужный столбец. */
+body[data-module] .fl-tbl thead th{
+  background:#e3edf9;color:#2d3e57;border-bottom:1.5px solid var(--blue-200);
+  letter-spacing:.45px}
+/* Рамку по краям таблица не рисует дважды: боковые линии — у обёртки, а нижняя
+   у последней строки не нужна, её заменяет край рамки. */
+body[data-module] .fl-tbl tfoot tr.fl-total td{border-bottom:none}
+/* Строки данных плотные: развёртка — это таблица чисел, и лишняя высота
+   разводит соседние значения так далеко, что их приходится сравнивать по
+   одному. */
+body[data-module] .fl-tbl td{padding-top:3px;padding-bottom:3px}
+body[data-module] .fl-tbl .input{height:28px;font-size:12.5px}
+body[data-module] .fl-tbl th{padding-top:6px;padding-bottom:6px;font-size:10px}
+/* Заголовки развёртки переносятся ПО СЛОВАМ: общее правило таблиц рвёт слово
+   в любом месте (overflow-wrap:anywhere), и «по внутреннему обмеру» вставало
+   как «ВНУТРЕННЕ МУ». Длинные слова здесь короче колонки, рвать их не нужно. */
+body[data-module] .fl-tbl th{overflow-wrap:normal;word-break:normal;hyphens:none}
+/* Зебра в развёртке не нужна: строки сгруппированы по размещениям, и чередование
+   фона мешало бы видеть, где группа кончилась и начался её итог. */
+body[data-module] .fl-tbl tbody tr:nth-child(even) td{background:transparent}
+
+/* Числа: правый край и цифры одной ширины — так разряды стоят друг под другом
+   и суммы сравниваются взглядом. Правило действует и на поля ввода, и на
+   готовые числа подытогов. */
+body[data-module] .fl-tbl .fl-num,body[data-module] .fl-tbl td.fl-num{
+  text-align:right;font-variant-numeric:tabular-nums}
+body[data-module] .fl-tbl th.fl-num-h{text-align:right}
+
+/* Заголовок группы: размещение, число строк и кнопка добавления. Кликом
+   сворачивается — шеврон поворачивается, как у аккордеонов макета. */
+body[data-module] .fl-tbl tr.fl-grp td{
+  background:#eaf2fb;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  font-size:11.5px;font-weight:700;color:#3f4c63;cursor:pointer;
+  padding-top:5px;padding-bottom:5px}
+/* Подытог размещения стоит в его же строке — тем же весом, что и название:
+   это одна величина, а не подпись и значение. */
+body[data-module] .fl-tbl td.fl-grp-sum{font-size:12px;color:#3f4c63}
+/* Кнопка добавления ужата до «+»: она повторяется у каждого размещения и не
+   должна спорить с числами за внимание. */
+body[data-module] .fl-tbl td.fl-grp-act .btn{
+  min-width:24px;padding:0 7px;height:22px;line-height:20px;font-size:14px}
+body[data-module] .fl-tbl tr.fl-grp:hover td{background:#e2edfa}
+body[data-module] .fl-tbl tr.fl-grp .chev{
+  display:inline-block;color:#8ba3c0;transition:transform .15s;transform:rotate(-90deg)}
+body[data-module] .fl-tbl tr.fl-grp.open .chev{transform:none}
+body[data-module] .fl-tbl td.fl-grp-name{white-space:nowrap;text-overflow:clip}
+/* Счётчик строк размещения — рядом с названием, тихой пилюлей. */
+body[data-module] .fl-tbl .fl-grp-n{
+  display:inline-block;min-width:17px;margin-left:6px;padding:0 5px;
+  border-radius:9px;background:#fff;border:1px solid var(--line-soft);
+  font-size:10.5px;font-weight:700;color:#5b6c85;text-align:center}
+body[data-module] .fl-tbl td.fl-grp-act{text-align:center;padding:2px}
+
+/* Подытог размещения и общий итог. Подытог тише итога: оба нужны, но главный
+   один. */
+body[data-module] .fl-tbl tr.fl-sub td{
+  background:#f6f9fd;border-bottom:1px solid var(--line);
+  font-size:12px;font-weight:600;color:#5b6c85}
+body[data-module] .fl-tbl tfoot tr.fl-total td{
+  background:#e8f0fa;border-top:1.5px solid var(--blue-500);border-bottom:none;
+  font-size:12.5px;font-weight:700;color:var(--blue-700)}
+/* Строки итогов объединяют левые колонки, поэтому заморозка к ним не
+   применяется: иначе «прилипало» бы не название, а число из чужой колонки. */
+body[data-module] .fl-tbl tr.fl-sub td,body[data-module] .fl-tbl tfoot td,
+body[data-module] .fl-tbl tr.fl-empty td{position:static}
+/* Прочерк там, где поле не про эту строку: тип бывает только у мансарды. */
+body[data-module] .fl-tbl td.fl-na{text-align:center;color:var(--muted)}
+body[data-module] .fl-tbl tr.fl-empty td{
+  color:var(--muted);font-size:12px;background:#fff}
+
+/* Группа, готовая принять перенесённую строку. Рамка, а не заливка: заливка
+   перекрасила бы строки и спрятала бы то, куда именно строка встанет. */
+body[data-module] tbody.fl-g.fl-drop td{box-shadow:inset 0 0 0 1px var(--blue-600)}
+
+/* Узкий экран: таблица прокручивается внутри своей обёртки, а не растягивает
+   карточку. Поля внутри ячеек ужимаются вместе с колонками. */
+/* Числовое поле не растягивается на всю колонку: на широком экране «155,00»
+   вставало в поле шириной с ладонь, а соседние числа расходились так далеко,
+   что сравнивать их приходилось по одному. Колонка при этом остаётся гибкой —
+   тянется пустое место справа от поля, а не само поле. */
+body[data-module] .fl-tbl input.fl-num{
+  display:block;width:100%;max-width:124px;margin-left:auto}
+
 /* Ручка переноса строки развёртки. Тихая, как крестик удаления: перенос —
    редкое действие, и рядом с полями ввода ручка-«кирпич» спорила бы с ними за
    внимание. Заметной становится под курсором. */

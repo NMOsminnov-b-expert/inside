@@ -153,6 +153,22 @@ export function bind(ctx, oi) {
       updateFloorsUI(ctx, oi);
     });
 
+    // Размещение сворачивается кликом по строке-заголовку группы. Общий
+    // механизм аккордеонов модуля здесь не годится: он переключает .acc/
+    // .acc-body, а блочная разметка внутри таблицы развалила бы колонки.
+    // Поэтому прячем сами строки, а состояние держим там же, где у аккордеонов
+    // (ctx.ui.accOpen) — чтобы свёрнутое размещение таким и осталось.
+    s.$$('[data-floor-group-toggle]').forEach((head) => {
+      head.onclick = (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        const cat = head.dataset.floorGroup;
+        const open = !head.classList.contains('open');
+        head.classList.toggle('open', open);
+        s.$$(`[data-floor-in="${cat}"]`).forEach((row) => { row.hidden = !open; });
+        ctx.ui.accOpen[head.dataset.floorGroupToggle] = open;
+      };
+    });
+
     s.$$('[data-cat-all]').forEach((c) => c.onchange = () => {
       const cat = c.dataset.catAll;
       oi.floorList.filter((f) => f.cat === cat).forEach((f) => { f.on = c.checked; });
