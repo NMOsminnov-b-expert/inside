@@ -16,9 +16,26 @@ import {
 import { ROW_H, tableHeadHTML, rowsHTML, columnsMenuHTML, csvOf, tableVarsStyle, activeColumns } from './table.js';
 import { bindColumnResize, bindColumnReorder, bindColumnsMenu, normalizeOrder, applyFit } from '../../kernel/columns.js';
 import { previewHTML } from './preview.js';
+import { registerPersisted } from '../../kernel/persist.js';
 
 // Состояние переживает уход в карточку и возврат: фильтр не сбрасывается.
 const state = createState();
+
+// Что открыто и как разложены столбцы — переживает перезагрузку (замечание
+// пользователя 09.09.2026). Сами ЗНАЧЕНИЯ фильтров сюда не входят: они живут в
+// адресе, чтобы ссылку на подборку можно было переслать коллеге (state.js), и
+// второй источник тех же значений разошёлся бы с адресом.
+const UI_KEEP = ['facetsOpen', 'barOpen', 'columns', 'colWidths'];
+
+registerPersisted('ui.registry', {
+  snapshot: () => Object.fromEntries(UI_KEEP.map((k) => [k, state[k]])),
+  restore: (saved) => {
+    if (!saved || typeof saved !== 'object') return;
+    UI_KEEP.forEach((k) => {
+      if (saved[k] !== undefined) state[k] = saved[k];
+    });
+  },
+});
 let dataVersion = 0;      // растёт при изменении данных — сбрасывает кэш срезов
 let cursor = -1;
 // Меню столбцов держим открытым между перерисовками: состав меняют сразу по

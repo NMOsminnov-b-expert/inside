@@ -25,6 +25,11 @@
 всех пяти типах ОЦ; у гражданского и производственного строения оба элемента
 остаются. Сценарий сторожит обе стороны сразу, иначе очередное «выравнивание»
 карточек вернуло бы поля жилому дому.
+
+Состояние (внутреннее / внешнее / итоговое) с 08.09.2026 наоборот — у ВСЕХ
+строений: «правки по износу и состоянию надо распространить» (указание
+пользователя). Раньше блок показывался только жилому дому, хотя состояние
+описывает любое здание.
 """
 import json
 
@@ -79,7 +84,21 @@ def _add(t, kind='Гражданское здание'):
     item = pg.locator('[data-add-oi="%s"]' % kind)
     if not item.count():
         return False
+    before = set(pg.eval_on_selector_all(
+        'tr[data-open-oi]', 'els => els.map((e) => e.dataset.openOi)'))
     item.first.click()
+
+    # С 11.09.2026 создание НЕ переходит в карточку (решение пользователя:
+    # объекты заводят пачкой). Открываем новую строку сами — ищем её по
+    # идентификатору, а не «последнюю»: строки группируются по участкам, и
+    # новая встаёт не обязательно в конец.
+    t.wait(400)
+    new_ids = [x for x in pg.eval_on_selector_all(
+        'tr[data-open-oi]', 'els => els.map((e) => e.dataset.openOi)') if x not in before]
+    if not new_ids:
+        return False
+    pg.locator('tr[data-open-oi="%s"]' % new_ids[0]).first.click()
+
     # Ждём признак карточки ОИ, а не .card-idx: номера блоков есть и у карточки
     # объекта оценки, поэтому по ним ожидание проходит, не дождавшись перехода.
     return t.wait_for('.oi-stack') and t.wait_for('[data-status]')
@@ -196,7 +215,12 @@ def run(t):
     if _add(t, 'Производственное строение'):
         pg.select_option('[data-oi-category]', 'prod-2')
         t.wait(200)
-        pg.select_option('[data-catclass]', 'Гражданское здание')
+        # Назначение по тех паспорту — текстовое поле во всех типах ОЦ с
+        # 11.09.2026 (карточка строения выровнена по эталонной, гражданской).
+        # Раньше в квартире, доме и участке тут стоял справочник, и сценарий
+        # выбирал значение через select_option.
+        pg.fill('[data-catclass]', 'Гражданское здание')
+        pg.dispatch_event('[data-catclass]', 'change')
         t.wait_for('[data-modal-ok]')
         pg.locator('[data-modal-ok]').first.click()
         t.wait_until("""() => !document.querySelector('#q-prod')""")
@@ -272,11 +296,22 @@ def run(t):
             continue
         tables[oc] = got
 
-        t.ck(len(got['rows']) >= 9,
+        t.ck(len(got['rows']) >= 11,
              'в %s в таблице конструктива %d строк' % (oc, len(got['rows'])))
-        t.ck(all(r['material'] for r in got['rows']),
-             'в %s есть строка без выбора материала: %s'
-             % (oc, [r['el'] for r in got['rows'] if not r['material']]))
+
+        # Материал обязателен у ВСЕХ строк, включая отделку и утепление: с
+        # 11.09.2026 у покрытий есть свои перечни (решение пользователя). До
+        # этого на их месте стоял прочерк, и записать, чем помещение отделано,
+        # было негде — сценарий сторожил как раз прочерк, теперь наоборот.
+        COVERINGS = ('Отделка', 'Утепление')
+        no_mat = [r['el'] for r in got['rows'] if not r['material']]
+        t.ck(not no_mat, 'в %s есть строка без выбора материала: %s' % (oc, no_mat))
+
+        for name in COVERINGS:
+            row = next((r for r in got['rows'] if r['el'] == name), None)
+            t.ck(row is not None, 'в %s нет строки «%s»' % (oc, name))
+
+        # Износ обязателен у ВСЕХ строк, включая покрытия: ради него они и есть.
         t.ck(all(r['wear'] for r in got['rows']),
              'в %s есть строка без износа: %s'
              % (oc, [r['el'] for r in got['rows'] if not r['wear']]))
@@ -290,24 +325,24 @@ def run(t):
     sets = {oc: tuple(r['el'] for r in v['rows']) for oc, v in tables.items()}
     t.ck(len(set(sets.values())) <= 1, 'строки конструктива различаются: %s' % sets)
 
-    # --- состояние жилого дома: отдельный блок из трёх полей ---
-    for oc, route in ROUTES.items():
-        t.open(route, wait='[data-open-oi]')
-        t.wait(300)
-        if not _add(t, 'Жилой дом'):
-            continue
-        t.ck(pg.locator('[data-condition]').count() == 3,
-             'в %s у жилого дома не три поля состояния' % oc)
-        t.ck(pg.locator('#q-cond').count() == 1,
-             'в %s состояние не отдельным блоком' % oc)
-
-    for oc, route in ROUTES.items():
-        t.open(route, wait='[data-open-oi]')
-        t.wait(300)
-        if not _add(t, 'Гражданское здание'):
-            continue
-        t.ck(pg.locator('[data-condition]').count() == 0,
-             'в %s блок состояния показан у нежилого строения' % oc)
+    # --- состояние: отдельный блок из трёх полей у ЛЮБОГО строения ---
+    #
+    # До 08.09.2026 блок висел на признаке «жилое», и состояния не было ни у
+    # гражданского, ни у производственного здания — при том, что износ по
+    # элементам у них уже был. Указание пользователя: «правки по износу и
+    # состоянию надо распространить». Сценарий сторожит обе стороны: и что
+    # блок есть у жилого дома, и что он есть у нежилых.
+    for kind in ('Жилой дом', 'Гражданское здание'):
+        for oc, route in ROUTES.items():
+            t.open(route, wait='[data-open-oi]')
+            t.wait(300)
+            if not _add(t, kind):
+                continue
+            t.ck(pg.locator('[data-condition]').count() == 3,
+                 'в %s у «%s» не три поля состояния: %d'
+                 % (oc, kind, pg.locator('[data-condition]').count()))
+            t.ck(pg.locator('#q-cond').count() == 1,
+                 'в %s состояние у «%s» не отдельным блоком' % (oc, kind))
 
     check_block_styles(t)
 

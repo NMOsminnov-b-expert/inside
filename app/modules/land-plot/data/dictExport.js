@@ -13,16 +13,6 @@ import { LAND_DICT_SOURCES } from './landDicts.js';
 
 export const DICT_SOURCES = [
   {
-    key: 'RAILWAY_ACCESS',
-    title: 'Железнодорожная ветка',
-    kind: 'list',
-    system: false,
-    values: D.RAILWAY_ACCESS,
-    slots: [
-      { card: 'land', field: 'railway', label: 'Наличие железнодорожной ветки' },
-    ],
-  },
-  {
     key: 'TEMP_MODE',
     title: 'Температурный режим',
     kind: 'list',
@@ -102,6 +92,7 @@ export const DICT_SOURCES = [
     values: D.WEAR_LEVEL,
     slots: [
       { card: 'building', field: 'wear', label: 'Степень износа' },
+      { card: 'apartment', field: 'wear', label: 'Степень износа' },
     ],
   },
   {
@@ -207,6 +198,16 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'ANNEX_KINDS',
+    title: 'Виды пристроек',
+    kind: 'list',
+    system: false,
+    values: D.ANNEX_KINDS,
+    slots: [
+      { card: 'building', field: 'annexKind', label: 'Вид пристройки' },
+    ],
+  },
+  {
     key: 'PHOTO_CAT',
     title: 'Категории фотографий',
     kind: 'list',
@@ -234,6 +235,37 @@ export const DICT_SOURCES = [
     values: D.STATUS_BUILD,
     slots: [
       { card: 'building', field: 'status', label: 'Статус' },
+      { card: 'apartment', field: 'status', label: 'Статус' },
+    ],
+  },
+  {
+    key: 'REGIONS',
+    title: 'Области',
+    kind: 'list',
+    system: false,
+    values: D.REGIONS,
+    slots: [
+      { card: 'oc', field: 'region', label: 'Область' },
+    ],
+  },
+  {
+    key: 'DISTRICTS',
+    title: 'Районы',
+    kind: 'list',
+    system: false,
+    values: D.DISTRICTS,
+    slots: [
+      { card: 'oc', field: 'district', label: 'Район' },
+    ],
+  },
+  {
+    key: 'CITIES',
+    title: 'Города и сёла',
+    kind: 'list',
+    system: false,
+    values: D.CITIES,
+    slots: [
+      { card: 'oc', field: 'city', label: 'Город или село' },
     ],
   },
   {
@@ -247,6 +279,30 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'STRUCT_finish',
+    title: 'Отделка',
+    kind: 'list',
+    system: false,
+    folder: 'Конструктивный состав',
+    values: D.STRUCT.finish,
+    slots: [
+      { card: 'building', field: 'struct.finish', label: 'Отделка' },
+      { card: 'apartment', field: 'struct.finish', label: 'Отделка' },
+    ],
+  },
+  {
+    key: 'STRUCT_insulation',
+    title: 'Утепление',
+    kind: 'list',
+    system: false,
+    folder: 'Конструктивный состав',
+    values: D.STRUCT.insulation,
+    slots: [
+      { card: 'building', field: 'struct.insulation', label: 'Утепление' },
+      { card: 'apartment', field: 'struct.insulation', label: 'Утепление' },
+    ],
+  },
+  {
     key: 'STRUCT_foundation',
     title: 'Фундамент',
     kind: 'list',
@@ -255,6 +311,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.foundation,
     slots: [
       { card: 'building', field: 'struct.foundation', label: 'Фундамент' },
+      { card: 'apartment', field: 'struct.foundation', label: 'Фундамент' },
     ],
   },
   {
@@ -266,6 +323,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.wallsExt,
     slots: [
       { card: 'building', field: 'struct.wallsExt', label: 'Наружные стены' },
+      { card: 'apartment', field: 'struct.wallsExt', label: 'Наружные стены' },
     ],
   },
   {
@@ -277,6 +335,19 @@ export const DICT_SOURCES = [
     values: D.STRUCT.wallsExt,
     slots: [
       { card: 'building', field: 'struct.wallsInt', label: 'Внутренние стены' },
+      { card: 'apartment', field: 'struct.wallsInt', label: 'Внутренние стены' },
+    ],
+  },
+  {
+    key: 'STRUCT_basement',
+    title: 'Цоколь',
+    kind: 'list',
+    system: false,
+    folder: 'Конструктивный состав',
+    values: D.STRUCT.basement,
+    slots: [
+      { card: 'building', field: 'struct.basement', label: 'Цоколь' },
+      { card: 'apartment', field: 'struct.basement', label: 'Цоколь' },
     ],
   },
   {
@@ -288,6 +359,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.ceilings,
     slots: [
       { card: 'building', field: 'struct.ceilings', label: 'Перекрытия' },
+      { card: 'apartment', field: 'struct.ceilings', label: 'Перекрытия' },
     ],
   },
   {
@@ -299,6 +371,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.roof,
     slots: [
       { card: 'building', field: 'struct.roof', label: 'Кровля' },
+      { card: 'apartment', field: 'struct.roof', label: 'Кровля' },
     ],
   },
   {
@@ -310,6 +383,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.floors,
     slots: [
       { card: 'building', field: 'struct.floors', label: 'Полы' },
+      { card: 'apartment', field: 'struct.floors', label: 'Полы' },
     ],
   },
   {
@@ -321,6 +395,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.windows,
     slots: [
       { card: 'building', field: 'struct.windows', label: 'Окна' },
+      { card: 'apartment', field: 'struct.windows', label: 'Окна' },
     ],
   },
   {
@@ -332,6 +407,7 @@ export const DICT_SOURCES = [
     values: D.STRUCT.doors,
     slots: [
       { card: 'building', field: 'struct.doors', label: 'Двери' },
+      { card: 'apartment', field: 'struct.doors', label: 'Двери' },
     ],
   },
 

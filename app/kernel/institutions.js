@@ -38,6 +38,12 @@ const ROOT_LOCAL = { id: nextId(), name: 'Местное самоуправле�
 
 const nodes = [ROOT_GOV, ROOT_LOCAL];
 
+// Сохранение этого раздела ОТКЛЮЧЕНО (решение пользователя 09.09.2026:
+// «сохраняем только ОЦ, ОИ, в остальные разделы не лезь»). Механика общая и
+// готова — kernel/persist.js; чтобы включить, достаточно вернуть здесь вызов
+// registerPersisted('institutions', { snapshot, restore }) с тем же снимком, что был:
+// весь массив nodes, перезаполняемый через splice.
+
 // Кого считаем муниципальным: по названию. Правило слабое, но оно работает
 // только при первом появлении узла — дальше человек может перенести его сам.
 function rootFor(name) {
@@ -101,6 +107,46 @@ function syncFromData() {
       nodes.push({ id: nextId(), name: podved, parentId: parent.id, auto: true });
     }
   });
+}
+
+// --- коды ------------------------------------------------------------------
+//
+// Код узла — номер внутри своего родителя; полный код собирается по пути через
+// точку: «183.121» это подвед 121 головного учреждения 183 (требование
+// пользователя 09.09.2026 — по коду ищут не реже, чем по названию).
+//
+// Номера присваиваются по появлению узла и хранятся в самом узле: настоящие
+// коды организации задаются в разделе «Учреждения», выдумывать их за неё
+// незачем. Начинаем со 101 — трёхзначные, как в примерах пользователя.
+const CODE_FROM = 101;
+
+// Головные учреждения нумеруются СКВОЗНО, а не внутри своего корня: «Государство»
+// и «Местное самоуправление» — служебные корзины, а не ступень кода. Иначе код
+// 101 оказывался сразу у двух учреждений — по одному в каждой корзине.
+const isRoot = (n) => !n.parentId;
+const sameLevel = (node) => (isRoot(nodes.find((n) => n.id === node.parentId) || {})
+  ? nodes.filter((n) => isRoot(nodes.find((x) => x.id === n.parentId) || {}))
+  : nodes.filter((n) => n.parentId === node.parentId));
+
+function assignCode(node) {
+  if (node.code) return node.code;
+  const max = sameLevel(node)
+    .filter((n) => n.code)
+    .reduce((a, n) => Math.max(a, +n.code || 0), CODE_FROM - 1);
+  node.code = String(max + 1);
+  return node.code;
+}
+
+// Полный код: коды всех узлов пути, кроме корня («Государство» — не учреждение,
+// а корзина).
+export function codeOf(id) {
+  const parts = [];
+  let cur = nodes.find((n) => n.id === id);
+  while (cur && cur.parentId) {
+    parts.unshift(assignCode(cur));
+    cur = nodes.find((n) => n.id === cur.parentId);
+  }
+  return parts.join('.');
 }
 
 // --- чтение ----------------------------------------------------------------
@@ -513,6 +559,24 @@ export function podvedNamesOf(institutionName) {
   const parent = allNodes().find((n) => n.name === institutionName);
   if (!parent) return [];
   return childrenOf(parent.id).map((n) => n.name);
+}
+
+// То же для полей карточки, но с кодом в подписи: значение остаётся названием
+// (по нему связаны записи), а искать можно и по коду — «183.121».
+const withCode = (n) => ({ value: n.name, label: `${codeOf(n.id)} · ${n.name}` });
+
+export function institutionOptions() {
+  const roots = allNodes().filter((n) => !n.parentId).map((n) => n.id);
+  return allNodes()
+    .filter((n) => roots.includes(n.parentId))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+    .map(withCode);
+}
+
+export function podvedOptionsOf(institutionName) {
+  const parent = allNodes().find((n) => n.name === institutionName);
+  if (!parent) return [];
+  return childrenOf(parent.id).map(withCode);
 }
 
 export function searchNodes(q) {

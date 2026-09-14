@@ -64,6 +64,22 @@ export function oiEniCodes(rec) {
 // Отдельная функция, а не выражение по месту: пока свёртка собиралась в каждом
 // месте своими руками, реестр и шапка могли разойтись в том, что считают
 // «кодом записи», — а человек читает их как одно и то же значение.
+// Собственные коды записи. Их может быть несколько: в госакте у объекта оценки
+// бывает не один код (решение пользователя 09.09.2026). Список лежит в eniList,
+// а eni остаётся первым кодом — на него смотрят архив, справочники и реестр
+// документов, и им нужен код записи, а не все её коды.
+export function recEniCodes(rec) {
+  const list = (rec && rec.eniList) || [];
+  if (list.length) return list.filter(Boolean);
+  return [(rec && rec.eni) || ''].filter(Boolean);
+}
+
+// Собственные коды записи одной строкой — то, что стоит в поле формы: коды её
+// объектов имущества туда не входят, их правят в своих карточках.
+export function eniAllOwn(rec) {
+  return foldEniList(recEniCodes(rec));
+}
+
 export function eniAllOf(rec) {
-  return foldEniList([(rec && rec.eni) || '', ...oiEniCodes(rec)]);
+  return foldEniList([...recEniCodes(rec), ...oiEniCodes(rec)]);
 }

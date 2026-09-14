@@ -15,16 +15,21 @@ import { esc } from './dom.js';
 // Пустое значение показывается приглашением, а не пустотой: поле с выбором и
 // пустое текстовое поле выглядят одинаково, и человек не понимает, где щёлкать.
 export function pickSearchHTML({ key, value, options, placeholder = 'Не выбрано', search = 'Поиск…' }) {
-  const list = (options || []).filter(Boolean);
+  // Вариант — строка или пара {value, label}: у учреждений в подписи стоит код
+  // («183 · Минздрав»), чтобы искать можно было и по нему, а храниться должно
+  // название — по нему связаны записи (требование пользователя 09.09.2026).
+  const list = (options || []).filter(Boolean)
+    .map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
   const cur = String(value == null ? '' : value);
+  const curLabel = (list.find((o) => o.value === cur) || {}).label || cur;
 
-  const row = (v) => `<button type="button" class="ps-opt ${v === cur ? 'on' : ''}"
-    data-ps-opt="${esc(key)}" data-ps-value="${esc(v)}">${esc(v)}</button>`;
+  const row = (o) => `<button type="button" class="ps-opt ${o.value === cur ? 'on' : ''}"
+    data-ps-opt="${esc(key)}" data-ps-value="${esc(o.value)}">${esc(o.label)}</button>`;
 
   return `<div class="ms ps" data-ps="${esc(key)}">
     <div class="ms-control" data-ps-toggle title="Открыть список">
       ${cur
-    ? `<span class="ms-summary" title="${esc(cur)}">${esc(cur)}</span>`
+    ? `<span class="ms-summary" title="${esc(curLabel)}">${esc(curLabel)}</span>`
     : `<span class="muted">${esc(placeholder)}</span>`}
       <span class="chev">▾</span>
     </div>

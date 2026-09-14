@@ -7,11 +7,15 @@
 // постоянным адресом и проверкой типа/размера на стороне сервера.
 import { getPdfPageCount, getPdfPageAspects } from './pdfRender.js';
 
-export function pickFile(accept) {
+// capture — подсказка телефону открыть камеру, а не файловый менеджер
+// ('environment' — задняя камера). На настольном браузере довод игнорируется,
+// поэтому один и тот же вызов годится и там, и там.
+export function pickFile(accept, { capture = '' } = {}) {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
     if (accept) input.accept = accept;
+    if (capture) input.capture = capture;
     input.onchange = () => resolve(input.files && input.files[0] ? input.files[0] : null);
     input.click();
   });

@@ -1,13 +1,14 @@
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
-import { areaListHTML } from '../../../../kernel/areaList.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
-import { structMS } from '../../parts/struct/ms.js';
+import { devNote } from '../../../../kernel/devNote.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
+import { structMS } from '../../parts/struct/ms.js';
 import { esc } from '../../../../kernel/dom.js';
+import { annexesHTML } from './annexes.js';
 import {
-  STATUS_BUILD, STRUCT,
+  STATUS_BUILD, WEAR_LEVEL, STRUCT, BUILD_CONDITION,
   APARTMENT_SERIES, APARTMENT_LOCATIONS, APARTMENT_RIGHTS,
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
@@ -15,14 +16,7 @@ import { floorsBlock } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
-
-// Материал теперь мультивыбор: в одном элементе их может быть несколько
-// (кирпич и монолит, металл и профлист), одним значением это не описать.
-// Поле работает так же, как «Отопление» — см. parts/struct/ms.js.
-// Аргумент val больше не нужен: значения читаются из oi.struct.
-function structField(oi, key, label, opts, val, req) {
-  return structMS(oi, key, label, opts, req);
-}
+import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 
 function letterControlHTML(ctx, oi) {
   if (ctx.ui.letterEdit) {
@@ -76,7 +70,7 @@ ${letterControlHTML(ctx, oi)}
 <div class="field" style="flex:0 0 150px;">
 <label>Статус</label>
 <select class="select" style="width:100%;" data-status>
-${STATUS_BUILD.map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('apartment', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
 </select>
 </div>
 </div>
@@ -153,20 +147,22 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 <div class="sec-h" style="margin-top:12px">Адрес и координаты</div>
 <div class="grid g-4" style="margin-top:6px">
 <div class="field"><label>Улица</label>
-<input class="input" data-oi-street value="${esc(oi.street || '')}" placeholder="Байтик Баатыра">
+<input class="input" data-oi-street value="${esc(ctx.rec.street || '')}" readonly
+  title="Адрес записи — правится в объекте оценки, блок «Местоположение»">
 </div>
 <div class="field"><label>Дом</label>
-<input class="input" data-oi-house value="${esc(oi.house || '')}" placeholder="42">
+<input class="input" data-oi-house value="${esc(ctx.rec.house || '')}" readonly
+  title="Адрес записи — правится в объекте оценки, блок «Местоположение»">
 </div>
 <div class="field"><label>Квартира</label>
 <input class="input" data-oi-flat value="${esc(oi.flat || '')}" placeholder="78">
 </div>
 <div class="field"><label>Координаты (широта, долгота)</label>
-<input class="input mono" data-oi-gps value="${esc(oi.gps || '')}"
-placeholder="42.874722, 74.612222" title="Из карты или прибора: сначала широта, потом долгота">
+<input class="input mono" data-oi-gps value="${esc(ctx.rec.gps || '')}" readonly
+  title="Координаты записи — правятся в объекте оценки, блок «Местоположение»">
 </div>
 </div>
-<div class="muted" style="font-size:11px;margin-top:6px">Город, район и микрорайон общие для записи — они задаются в объекте оценки.</div>
+<div class="muted" style="font-size:11px;margin-top:6px">Адрес и координаты общие для записи — они задаются в объекте оценки. Свой у квартиры только её номер.</div>
 </div></div>
 </div>`;
 }
@@ -181,11 +177,14 @@ function areasCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-areas">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Площади квартиры</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
+<!-- g-roomy — запас по вертикали: у площади по внешним замерам есть подпись
+     под полем, а .field-hint вынесена из потока. -->
+<div class="grid g-4 g-roomy">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-<div class="field"><label>Общая по техпаспорту, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}"></div>
+<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
+<div class="field"><label title="Со страницы «Характеристика строений и сооружений» техпаспорта">Площадь по внешним замерам, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}" title="Со страницы «Характеристика строений и сооружений» техпаспорта">
+<span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
-<div class="field"><label title="Она же площадь по наружным (внешним) замерам">Площадь застройки, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Она же площадь по наружным (внешним) замерам"></div>
 
 </div>
 <div id="floors-${oi.id}" style="margin-top:10px">${floorsBlock(ctx, oi)}</div>
@@ -193,30 +192,118 @@ function areasCard(ctx, oi, idx) {
 <div class="field"><label>Высота по внешним замерам, м</label><input class="input" data-height="ext" value="${esc(heights.ext || '')}"></div>
 <div class="field"><label>Высота по внутренним замерам, м</label><input class="input" data-height="int" value="${esc(heights.int || '')}"></div>
 </div>
+${areasNoteHTML(oi, { a: areas.pud, b: areas.fact,
+  labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту' })}
 
 </div></div>
 </div>`;
 }
 
-function structCard(ctx, oi, idx) {
-  const struct = oi.struct || {};
+// В каком виде нужен износ — вопрос ещё открытый: сейчас это три ступени на
+// элемент, а по методике он может считаться процентом или годами с последнего
+// ремонта, и тогда состав раздела другой. Тот же вопрос стоит в карточке
+// литеры — держим его на виду в обеих.
+const WEAR_NOTE = 'В каком виде нужен износ — открытый вопрос. Сейчас три '
+  + 'ступени на элемент. Соседние ступени два оценщика поставят по-разному, а '
+  + 'по методике износ может считаться процентом или годами с последнего '
+  + 'ремонта — тогда и состав раздела изменится.';
 
+// Конструктивные элементы квартиры: материал и износ. Состав, порядок и
+// перечни — те же, что у литеры (решение пользователя 11.09.2026), чтобы одно и
+// то же читалось одинаково и правилось в одном справочнике.
+const STRUCT_ROWS = [
+  { key: 'foundation', label: 'Фундамент' },
+  // Цоколь: материал из перечня фундамента (optsKey), а износ ложится в тот
+  // же wear.plinth, что и раньше — данные не осиротели.
+  { key: 'plinth', label: 'Цоколь/подвал', optsKey: 'basement' },
+  { key: 'wallsExt', label: 'Наружные стены' },
+  { key: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt' },
+  { key: 'ceilings', label: 'Перекрытия' },
+  { key: 'roof', label: 'Кровля' },
+  { key: 'floors', label: 'Полы' },
+  { key: 'windows', label: 'Окна' },
+  { key: 'doors', label: 'Двери' },
+  { key: 'heating', label: 'Отопление' },
+  // Отделка и утепление — покрытия, а не несущий конструктив, но материал у них
+  // свой, из своих перечней (решение пользователя 11.09.2026).
+  { key: 'finish', label: 'Отделка' },
+  { key: 'insulation', label: 'Утепление' },
+];
+
+// Износ элемента. Подпись не нужна: название элемента стоит в первом столбце
+// строки — так же, как в карточке литеры.
+function wearField(oi, key) {
+  const val = (oi.wear || {})[key] || opt('apartment', 'wear', WEAR_LEVEL)[0];
+
+  return `<div class="field f-bare">
+<select class="select" data-wear="${key}">${opt('apartment', 'wear', WEAR_LEVEL)
+    .map((o) => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+</div>`;
+}
+
+// Материал элемента — мультивыбор из справочника, как у литеры: материалов у
+// одного элемента бывает несколько (стены кирпич плюс дерево).
+function structField(oi, key, label, opts) {
+  return structMS(oi, key, label, opts, false, true);
+}
+
+// Материал и износ в одной таблице (решение пользователя 11.09.2026). Раньше у
+// квартиры был только износ — считалось, что материалы описывает литера. На
+// деле квартиру оценивают и без литеры в записи, и тогда из чего она сделана
+// взять было неоткуда.
+function structCard(ctx, oi, idx) {
   return `<div class="card t-teal" id="q-struct">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктивный состав / основные материалы (под вопросом)</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктив и износ</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-<div class="grid g-4">
-${structField(oi, 'foundation', 'Фундамент', STRUCT.foundation, struct.foundation)}
-${structField(oi, 'wallsExt', 'Наружные стены', STRUCT.wallsExt, struct.wallsExt)}
-${structField(oi, 'ceilings', 'Перекрытия', STRUCT.ceilings, struct.ceilings)}
-${structField(oi, 'roof', 'Кровля', STRUCT.roof, struct.roof)}
-</div>
-<div class="grid g-4" style="margin-top:8px">
-${structField(oi, 'floors', 'Полы', STRUCT.floors, struct.floors)}
-${structField(oi, 'windows', 'Окна', STRUCT.windows, struct.windows)}
-${structField(oi, 'doors', 'Двери', STRUCT.doors, struct.doors)}
-${heatingMS(ctx, oi)}
+<div class="struct-tbl-wrap">
+<table class="tbl struct-tbl">
+<thead><tr>
+<th class="st-el">Элемент</th>
+<th>Материал</th>
+<th class="st-wear">Износ${devNote(WEAR_NOTE)}</th>
+</tr></thead>
+<tbody>
+${STRUCT_ROWS.map((r) => `<tr>
+<td class="st-el">${r.label}</td>
+<td>${r.wearOnly
+    ? '<span class="muted">—</span>'
+    : (r.key === 'heating'
+      ? heatingMS(ctx, oi, true)
+      : structField(oi, r.key, r.label, opt('apartment', 'struct.' + (r.optsKey || r.key), STRUCT[r.optsKey || r.key])))}</td>
+<td class="st-wear">${wearField(oi, r.key)}</td>
+</tr>`).join('')}
+</tbody>
+</table>
 </div>
 ${specialsBlockHTML(oi)}
+</div></div>
+</div>`;
+}
+
+// Состояние квартиры — отдельным блоком, рядом с износом, но не внутри него:
+// износ ставят поэлементно, а состояние — целиком, и мешать их в одной таблице
+// значит путать две разные оценки (как у литеры).
+function conditionCard(ctx, oi, idx) {
+  const cond = (key) => {
+    const val = oi[key] || opt('apartment', key, BUILD_CONDITION)[0];
+    return opt('apartment', key, BUILD_CONDITION)
+      .map((o) => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('');
+  };
+
+  return `<div class="card t-amber" id="q-cond">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Состояние</h3><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">
+<div class="grid g-3">
+<div class="field"><label>Внутреннее состояние</label>
+<select class="select" data-condition="conditionInner">${cond('conditionInner')}</select>
+</div>
+<div class="field"><label>Внешнее состояние</label>
+<select class="select" data-condition="conditionOuter">${cond('conditionOuter')}</select>
+</div>
+<div class="field"><label>Итоговое состояние</label>
+<select class="select" data-condition="conditionTotal">${cond('conditionTotal')}</select>
+</div>
+</div>
 </div></div>
 </div>`;
 }
@@ -263,13 +350,14 @@ ${photoAccordions(ctx.ui, oi, true)}
 // Лоджии, балконы и террасы — свой блок (Л5.4): внутри «Площадей» они
 // оказывались ниже высот, и их там не находили. У квартиры списки живут в
 // oi.apartment, а не в самой литере.
+// Пристройки — таблицей с видом, материалами и двумя площадями, как у литеры
+// (решение пользователя 10.09.2026). Было три списка с одним названием и
+// площадью: веранду записать было некуда, материалы нигде не хранились.
 function annexesCard(ctx, oi, idx) {
   return `<div class="card t-blue" id="q-annexes">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Лоджии, балконы и террасы</h3><span class="chev">▾</span></div>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Пристрои/Балконы/Лоджии</h3><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
-${areaListHTML(oi.apartment, 'loggias', 'Лоджии', 'Лоджия', ctx.ui)}
-${areaListHTML(oi.apartment, 'balconies', 'Балконы', 'Балкон', ctx.ui)}
-${areaListHTML(oi.apartment, 'terraces', 'Террасы', 'Терраса', ctx.ui)}
+${annexesHTML(ctx, oi)}
 </div></div>
 </div>`;
 }
@@ -281,9 +369,10 @@ export function render(ctx, oi) {
   const cardBody = `<div class="oi-stack">
 ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
-${annexesCard(ctx, oi, idx())}
 ${plansCard(oi, idx())}
 ${structCard(ctx, oi, idx())}
+${conditionCard(ctx, oi, idx())}
+${annexesCard(ctx, oi, idx())}
 ${photosCard(ctx, oi, idx())}
 </div>`;
 

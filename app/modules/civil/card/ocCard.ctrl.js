@@ -5,19 +5,24 @@ import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { DOC_TYPES, RIGHTS, MANSARD_TYPE, LAND_SHAPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextEni, nextDocId } from '../data/store.js';
+import { nextLetter, nextId, nextDocId } from '../data/store.js';
 import { archiveRecord } from '../../../kernel/archive.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { bindParties } from './parties.ctrl.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
+  // Код ЕНИ нового объекта имущества НЕ инкрементируется: по умолчанию это код
+  // самой записи (решение пользователя 09.09.2026). Счётчик выдавал «следующий
+  // свободный», и его всё равно правили руками — код объекту имущества
+  // присваивает Кадастр, а не макет.
   if (type.card === 'land') {
-    return createLandOi(rec, { nextId, nextEni, multiple: true });
+    return createLandOi(rec, { nextId, nextEni: () => rec.eni || '', multiple: true });
   }
 
   const letter = nextLetter(rec);
@@ -33,7 +38,14 @@ function createOi(ctx, type) {
     // строения нет. Раньше в этом модуле стояло жёсткое false.
     residential: !!type.residential || type.card === 'apartment',
     resCat: '',
-    eni: nextEni(rec, rec.eni),
+    eni: rec.eni || '',
+    // Адрес и координаты — по умолчанию те же, что у записи (решение
+    // пользователя 11.09.2026). Их правят у самого объекта имущества, если он
+    // стоит иначе: другой корпус, своя квартира.
+    street: rec.street || '',
+    house: rec.house || '',
+    flat: rec.flat || '',
+    gps: rec.gps || '',
     year: '',
     flags: { entered: false, matched: false },
     rights: RIGHTS[0],
@@ -145,23 +157,28 @@ export function bindOcCard(ctx) {
       return;
     }
 
-    // Лимит «один участок на объект» снят: участков может быть несколько
-    // (Л2.2, Л4.6). Новая литера привязывается к участку — при единственном
-    // участке автоматически, иначе попадёт в группу «Без участка», откуда её
-    // можно перетащить (см. дерево в card/oiTable.view.js).
-    // Привязка литеры к участку НЕ проставляется автоматически — никогда и ни
-    // при одном участке. Относится ли литера к этому участку, из данных не
-    // выводится: это факт с местности, его знает только оценщик. Любая новая
-    // литера появляется в группе «Без участка», оттуда её переносит человек
-    // перетаскиванием с подтверждением (решение пользователя 2026-08-27).
+    // Участков в записи может быть несколько (Л2.2, Л4.6). Если он ОДИН, новая
+    // литера привязывается к нему сразу (решение пользователя 11.09.2026):
+    // выбирать не из чего, а прежде литера уезжала в группу «Без участка», и
+    // её перетаскивали руками. При нескольких участках привязки по-прежнему
+    // нет — какой из них, из данных не выводится, это факт с местности.
     const oi = createOi(ctx, type);
+
+    if (oi.card !== 'land') {
+      const lands = rec.oi.filter((o) => o.card === 'land');
+      if (lands.length === 1) oi.landId = lands[0].id;
+    }
+
     rec.oi.push(oi);
 
     ctx.ui.letterEdit = false;
     ctx.ui.viewer = { mode: 'doc' };
     ctx.ui.viewerDoc = null;
 
-    ctx.navigate({ rest: ['oi', oi.id] });
+    // В карточку нового объекта НЕ переходим (решение пользователя 11.09.2026):
+    // объекты заводят пачкой, и переход внутрь после каждого заставлял
+    // возвращаться назад. Строка появляется в перечне, открыть её можно кликом.
+    ctx.render();
     ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
@@ -201,28 +218,11 @@ export function bindOcCard(ctx) {
     rec.resp[sel.dataset.resp] = sel.value;
     ctx.toast('Ответственный обновлён', 'ok');
   });
-
-  s.$$('[data-owner-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.owners.splice(+x.dataset.ownerRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-user-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.users.splice(+x.dataset.userRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-add-party]').forEach((b) => b.onclick = async () => {
-    const isOwner = b.dataset.addParty === 'owner';
-    const who = isOwner ? 'Собственник' : 'Пользователь';
-    const v = await ctx.host.prompt({ title: who, label: 'ФИО или организация', placeholder: 'Наименование' });
-    if (!v) return;
-    (isOwner ? rec.owners : rec.users).push(v);
-    ctx.render();
-    ctx.toast(who + ' добавлен', 'ok');
-  });
+  // Собственники и пользователи: строки с наименованием и долей, добавление на
+  // месте (parties.ctrl.js). До 09.09.2026 сторону заводили через диалог, доли
+  // не было вовсе, а обработчики лежали тремя копиями — здесь, в форме ОЦ и в
+  // форме создания.
+  bindParties(ctx, rec);
 
   // --- Документы ОЦ -------------------------------------------------------
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {

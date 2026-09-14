@@ -12,12 +12,16 @@ import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
+import { bindParties } from './parties.ctrl.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
   if (type.card === 'land') {
-    return createLandOi(rec, { nextId, nextEni, multiple: true });
+    // У участка код не инкрементируется: по умолчанию он тот же, что первый
+    // код объекта оценки (решение пользователя 09.09.2026).
+    const landEni = () => rec.eni || nextEni(rec, rec.eni);
+    return createLandOi(rec, { nextId, nextEni: landEni, multiple: true });
   }
 
   const letter = nextLetter(rec);
@@ -31,7 +35,15 @@ function createOi(ctx, type) {
     origin: 'manual',
     residential: !!type.residential || type.card === 'apartment',
     resCat: '',
-    eni: nextEni(rec, rec.eni),
+    // Код ЕНИ не инкрементируется: по умолчанию это код самой записи (решение
+    // пользователя 09.09.2026). Адрес и координаты — тоже от записи (11.09.2026):
+    // объект имущества стоит по адресу своего объекта оценки, отличается разве
+    // что квартирой.
+    eni: rec.eni || '',
+    street: rec.street || '',
+    house: rec.house || '',
+    flat: rec.flat || '',
+    gps: rec.gps || '',
     year: '',
     flags: { entered: false, matched: false },
     areas: { tp: '', pud: '', fact: '', build: '' },
@@ -123,22 +135,27 @@ export function bindOcCard(ctx) {
       return;
     }
 
-    // Новая литера привязывается к участку: при единственном участке
-    // автоматически, иначе попадёт в группу «Без участка», откуда её можно
-    // перетащить (см. дерево в card/oiTable.view.js).
-    // Привязка литеры к участку НЕ проставляется автоматически — никогда и ни
-    // при одном участке. Относится ли литера к этому участку, из данных не
-    // выводится: это факт с местности, его знает только оценщик. Любая новая
-    // литера появляется в группе «Без участка», оттуда её переносит человек
-    // перетаскиванием с подтверждением (решение пользователя 2026-08-27).
+    // Участков в записи может быть несколько (Л2.2, Л4.6). Если он ОДИН, новая
+    // литера привязывается к нему сразу (решение пользователя 11.09.2026):
+    // выбирать не из чего, а прежде литера уезжала в группу «Без участка», и
+    // её перетаскивали руками. При нескольких участках привязки по-прежнему
+    // нет — какой из них, из данных не выводится, это факт с местности.
     const oi = createOi(ctx, type);
+
+    if (oi.card !== 'land') {
+      const lands = rec.oi.filter((o) => o.card === 'land');
+      if (lands.length === 1) oi.landId = lands[0].id;
+    }
     rec.oi.push(oi);
 
     ctx.ui.letterEdit = false;
     ctx.ui.viewer = { mode: 'doc' };
     ctx.ui.viewerDoc = null;
 
-    ctx.navigate({ rest: ['oi', oi.id] });
+    // В карточку нового объекта НЕ переходим (решение пользователя 11.09.2026):
+    // объекты заводят пачкой, и переход внутрь после каждого заставлял
+    // возвращаться назад. Строка появляется в перечне, открыть её можно кликом.
+    ctx.render();
     ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
@@ -178,28 +195,10 @@ export function bindOcCard(ctx) {
     rec.resp[sel.dataset.resp] = sel.value;
     ctx.toast('Ответственный обновлён', 'ok');
   });
-
-  s.$$('[data-owner-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.owners.splice(+x.dataset.ownerRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-user-rm]').forEach((x) => x.onclick = (e) => {
-    e.stopPropagation();
-    rec.users.splice(+x.dataset.userRm, 1);
-    ctx.render();
-  });
-
-  s.$$('[data-add-party]').forEach((b) => b.onclick = async () => {
-    const isOwner = b.dataset.addParty === 'owner';
-    const who = isOwner ? 'Собственник' : 'Пользователь';
-    const v = await ctx.host.prompt({ title: who, label: 'ФИО или организация', placeholder: 'Наименование' });
-    if (!v) return;
-    (isOwner ? rec.owners : rec.users).push(v);
-    ctx.render();
-    ctx.toast(who + ' добавлен', 'ok');
-  });
+  // Собственники и пользователи: блоки с наименованием и долей, добавление на
+  // месте (parties.ctrl.js). До 09.09.2026 сторону заводили через диалог, доли
+  // не было вовсе, а обработчики лежали тремя копиями.
+  bindParties(ctx, rec);
 
   // --- Документы ОЦ -------------------------------------------------------
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {

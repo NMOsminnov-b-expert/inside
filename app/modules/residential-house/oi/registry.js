@@ -26,6 +26,10 @@ export const OI_CARDS = {
     hasLetter: true,
     tableCategory: (oi) => oi.catClass || 'Гражданское здание',
     tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
+    // Вторая площадь перечня — по внутреннему обмеру (в данных areas.build).
+    // Обе колонки нужны рядом: по ним и сверяют строение с техпаспортом.
+    tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
+    areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
     plateChips: (oi) => {
       const v = verbal(oi);
       return [
@@ -45,6 +49,10 @@ export const OI_CARDS = {
     hasLetter: true,
     tableCategory: () => 'Квартира',
     tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
+    // Вторая площадь перечня — по внутреннему обмеру (в данных areas.build).
+    // Обе колонки нужны рядом: по ним и сверяют строение с техпаспортом.
+    tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
+    areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
     plateChips: (oi) => {
       const v = verbal(oi);
       return [
@@ -64,6 +72,9 @@ export const OI_CARDS = {
     hasLetter: false,
     tableCategory: () => 'Земельный участок',
     tableArea: (oi) => (oi.areas && oi.areas.pravo ? fmtNum(num(oi.areas.pravo)) + ' м²' : '—'),
+    // У участка внутреннего обмера нет — там площадь по правоустанавливающим.
+    tableAreaBuild: () => '—',
+    areaValues: (oi) => ({ area: num((oi.areas && oi.areas.pravo) || oi.area), build: 0 }),
     plateChips: () => [],
     load: () => import('./land/index.js'),
   },

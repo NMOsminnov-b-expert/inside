@@ -4,42 +4,61 @@ import { confirmDialog } from '../../../../kernel/dialog.js';
 import { render } from './view.js';
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
+import { bindNumField } from '../../../../kernel/numField.js';
+import { bindAnnexes } from './annexes.js';
 import { gpsError } from '../../../../kernel/gps.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { bindAreaList } from '../../../../kernel/areaList.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
 import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { parseEni } from '../../../../kernel/fmt.js';
 import { bindSpecials } from '../../parts/specials/ctrl.js';
-import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow } from './floors.model.js';
-import { updateFloorsUI, rerenderFloors } from './floors.view.js';
+import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
+  moveFloorRow, FLOOR_CATS } from './floors.model.js';
+import { updateFloorsUI, rerenderFloors, floorColOrder, floorsNote } from './floors.view.js';
 import { updateHeatingUI, bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
+import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
+import { bindColumnReorder } from '../../../../kernel/columns.js';
 
 export function bind(ctx, oi) {
-  bindAreaList(ctx, oi, 'loggias');
-  bindAreaList(ctx, oi, 'balconies');
-  bindAreaList(ctx, oi, 'terraces');
+  bindAnnexes(ctx, oi);
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);
   bindSpecials(ctx, oi);
   const s = ctx.scope;
 
   // --- Площади и этажность -------------------------------------------------
-  s.$$('[data-area]').forEach((i) => i.onchange = () => {
-    oi.areas[i.dataset.area] = i.value;
+  // Площади и высоты — числовые поля: на экране «1 840,50», в запись уходит
+  // машинное «1840,50» (kernel/numField.js). Раньше в поле стояло сырое
+  // значение из данных, и одно и то же число выглядело по-разному в поле и в
+  // итоге под ним.
+  s.$$('[data-area]').forEach((i) => bindNumField(i, (v) => {
+    oi.areas[i.dataset.area] = v;
     recalcFloors(oi);
     updateFloorsUI(ctx, oi);
+    updateAreasNote(s, areasPair());
     ctx.updatePlate();
-  });
+  }));
 
-  s.$$('[data-height]').forEach((i) => i.onchange = () => { oi.heights[i.dataset.height] = i.value; });
+  s.$$('[data-height]').forEach((i) => bindNumField(i, (v) => {
+    oi.heights[i.dataset.height] = v;
+  }));
+
+  // Комментарий к площадям: авторазмер поля, запись на change и мягкое
+  // предупреждение о расхождении площадей — всё в kernel/areasNote.js, чтобы
+  // семь карточек не разошлись формулировками.
+  const areasPair = () => ({
+    a: (oi.areas || {}).pud, b: (oi.areas || {}).fact,
+    labelA: 'площадь по правоустанавливающим документам', labelB: 'площадь по факту',
+  });
+  bindAreasNote(s, oi, areasPair);
+
 
   // Количество этажей: только цифры и разумные границы. Раньше поле принимало
   // что угодно, а любая нечисловая строка молча превращалась в 1 — этаж
@@ -71,10 +90,15 @@ export function bind(ctx, oi) {
   const redrawFloors = () => { rerenderFloors(ctx, oi); bindFloors(); };
 
   // Количество надземных этажей — производное от состава развёртки: строку
-  // могли добавить или убрать прямо в таблице.
+  // могли добавить, убрать или перенести в другое размещение прямо в таблице.
+  // Вместе с полем обновляем приписку под ним: она живёт вне блока развёртки,
+  // и перерисовка блока её не задевала — после добавления строки поле уже
+  // показывало новое число, а приписка рядом ещё старое.
   const syncFloorsCount = () => {
     const el = ctx.scope.$('[data-floors-n]');
     if (el) el.value = oi.floors;
+    const note = ctx.scope.$('[data-floors-note]');
+    if (note) note.textContent = floorsNote(oi);
     ctx.updatePlate();
   };
 
@@ -102,15 +126,19 @@ export function bind(ctx, oi) {
 
     // Ключ поля — «<колонка>|<индекс>»: площадей у этажа три, и каждая
     // распределяется от своего итога (см. floors.model.js).
-    s.$$('[data-floor-area]').forEach((i) => i.onchange = () => {
+    s.$$('[data-floor-area]').forEach((i) => bindNumField(i, (v) => {
       const [key, idx] = i.dataset.floorArea.split('|');
-      oi.floorList[+idx][key] = i.value;
+      oi.floorList[+idx][key] = v;
       recalcFloors(oi);
       updateFloorsUI(ctx, oi);
-    });
+    }));
 
-    s.$$('[data-floor-hext]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHext].hExt = i.value; });
-    s.$$('[data-floor-hint]').forEach((i) => i.onchange = () => { oi.floorList[+i.dataset.floorHint].hInt = i.value; });
+    s.$$('[data-floor-hext]').forEach((i) => bindNumField(i, (v) => {
+      oi.floorList[+i.dataset.floorHext].hExt = v;
+    }));
+    s.$$('[data-floor-hint]').forEach((i) => bindNumField(i, (v) => {
+      oi.floorList[+i.dataset.floorHint].hInt = v;
+    }));
 
     // Название строки правится вручную: этажи бывают «−1», подвалов и цоколей
     // может быть несколько. Перерисовки не делаем — сбился бы курсор в поле.
@@ -141,6 +169,98 @@ export function bind(ctx, oi) {
       removeFloorRow(oi, +b.dataset.delFloor);
       redrawFloors();
       syncFloorsCount();
+    });
+
+    bindFloorDrag();
+
+    // Порядок столбцов меняется перетаскиванием шапки — тем же механизмом, что
+    // в реестре (kernel/columns.js), чтобы поведение в проекте было одно.
+    // Порядок живёт в настройках карточки и переживает перезагрузку.
+    bindColumnReorder(s, {
+      headSel: '.fl-tbl thead',
+      order: floorColOrder(ctx),
+      onCommit: (next) => {
+        ctx.ui.floorCols = next;
+        redrawFloors();
+      },
+    });
+
+  }
+
+  // Перенос строки развёртки в другое размещение: этаж — в подвалы или в
+  // мансарды и обратно. Тянут за ручку, а не за строку целиком: строка почти
+  // сплошь состоит из полей ввода, и draggable на ней отнимал бы у них
+  // выделение текста мышью.
+  //
+  // Что тащим, помним в ui, а не в локальной переменной: обработчики
+  // перевешиваются на каждой перерисовке блока, а бросок случается уже после
+  // неё — локальную переменную новый обработчик увидел бы пустой.
+  function bindFloorDrag() {
+    const clearMarks = () => {
+      s.$$('[data-floor-drop]').forEach((n) => n.classList.remove('fl-drop'));
+      s.$$('[data-floor-row]').forEach((n) => n.classList.remove('fl-dragging'));
+    };
+
+    s.$$('[data-floor-grip]').forEach((grip) => {
+      const idx = +grip.dataset.floorGrip;
+      const row = grip.closest('[data-floor-row]');
+
+      grip.addEventListener('dragstart', (e) => {
+        ctx.ui.dragFloor = { oiId: oi.id, index: idx };
+        e.dataTransfer.setData('text/plain', String(idx));
+        e.dataTransfer.effectAllowed = 'move';
+        if (row) row.classList.add('fl-dragging');
+      });
+
+      grip.addEventListener('dragend', () => {
+        ctx.ui.dragFloor = null;
+        clearMarks();
+      });
+    });
+
+    s.$$('[data-floor-drop]').forEach((box) => {
+      const cat = box.dataset.floorDrop;
+
+      const mine = () => {
+        const d = ctx.ui.dragFloor;
+        if (!d || d.oiId !== oi.id) return null;
+        const f = (oi.floorList || [])[d.index];
+        return f && f.cat !== cat ? d : null;
+      };
+
+      box.addEventListener('dragover', (e) => {
+        if (!mine()) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        box.classList.add('fl-drop');
+      });
+
+      box.addEventListener('dragleave', (e) => {
+        // Уход внутрь собственных потомков — не уход из раздела.
+        if (box.contains(e.relatedTarget)) return;
+        box.classList.remove('fl-drop');
+      });
+
+      box.addEventListener('drop', (e) => {
+        const d = mine();
+        if (!d) return;
+        e.preventDefault();
+        e.stopPropagation();
+        clearMarks();
+
+        const name = (oi.floorList[d.index] || {}).name || 'строка';
+        const to = FLOOR_CATS.find((c) => c.key === cat);
+        if (!moveFloorRow(oi, d.index, cat)) return;
+        ctx.ui.dragFloor = null;
+
+        // Раздел, куда перенесли, раскрываем: иначе строка уезжает в свёрнутый
+        // блок, и перенос выглядит как пропажа.
+        ctx.ui.accOpen['fl|' + oi.id + '|' + cat] = true;
+
+        redrawFloors();
+        syncFloorsCount();
+        ctx.toast(`«${name}» → ${to ? to.label.toLowerCase() : cat}`, 'ok');
+      });
     });
   }
 
@@ -206,11 +326,14 @@ export function bind(ctx, oi) {
     if (row) row.label = i.value;
   });
 
-  s.$$('[data-rent-cell]').forEach((i) => i.onchange = () => {
+  // Числовые поля таблицы аренды — с разрядами и маской по ходу ввода, как в
+  // развёртке: соседние блоки одной карточки не должны показывать одно и то же
+  // число по-разному (требование пользователя 11.09.2026).
+  s.$$('[data-rent-cell]').forEach((i) => bindNumField(i, (v) => {
     const [col, id] = i.dataset.rentCell.split('|');
     const row = oi.rentAreas.find((r) => r.id === id);
-    if (row) row[col] = i.value;
-  });
+    if (row) row[col] = v;
+  }));
 
   const ra = s.$('[data-rent-add]');
   if (ra) ra.onclick = (e) => {
@@ -228,8 +351,6 @@ export function bind(ctx, oi) {
 
   bindTempMode(ctx, oi);
 
-  const dis = s.$('[data-dis]');
-  if (dis) dis.onchange = () => { oi.dis = dis.checked; };
 
   // Тип строения: справочник плюс ручной ввод варианта «Прочее».
   const skSel = s.$('[data-structure-kind]');
@@ -278,23 +399,8 @@ export function bind(ctx, oi) {
   // записи. Собранный адрес записи держится в rec.address, поэтому после правки
   // его пересобираем — иначе шапка, реестр и поиск показывали бы старое
   // (kernel/address.js, заметки команды 05.09.2026).
-  const street = s.$('[data-oi-street]');
-  if (street) street.onchange = () => {
-    oi.street = street.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
-  const house = s.$('[data-oi-house]');
-  if (house) house.onchange = () => {
-    oi.house = house.value.trim();
-    syncOcAddress(ctx.rec);
-    ctx.updatePlate();
-  };
-
   // Координаты: проверка формата (kernel/gps.js) через общий механизм полей с
   // проверкой — перепутанные широта и долгота молча дают точку не в том месте.
-  bindCheckedField(s.$('[data-oi-gps]'), gpsError, (v) => { oi.gps = v; });
   // ЕНИ правится в шапке карточки (плашке): он одинаково нужен и в общих
   // параметрах, и при вводе любых значений, а место в форме занимал зря.
   // Из поля приходит маска — в данные кладём цифры (kernel/fmt.js).
@@ -321,8 +427,9 @@ export function bind(ctx, oi) {
   });
 
   // --- Доп параметры (производственное строение) ---------------------------
+  // Высота — число, как площади: с разрядами и маской по ходу ввода.
   const phe = s.$('[data-prod-height]');
-  if (phe) phe.onchange = () => { oi.prodHeight = phe.value; };
+  if (phe) bindNumField(phe, (v) => { oi.prodHeight = v; });
 
   const pfr = s.$('[data-prod-frame]');
   if (pfr) pfr.onchange = () => { oi.prodFrame = pfr.value; };
@@ -425,8 +532,9 @@ export function bind(ctx, oi) {
     const inp = s.$('[data-letter-input]');
     const v = (inp ? inp.value : '').trim();
     if (!v || v === oi.letter) { ctx.ui.letterEdit = false; ctx.render(); return; }
-    const taken = ctx.rec.oi.some((o) => o !== oi && o.card !== 'land' && o.letter === v);
-    if (taken) { ctx.toast('Литера занята', 'warn'); return; }
+    // Одинаковые литеры разрешены (решение пользователя 11.09.2026). Запрет
+    // мешал: в записи встречаются повторы — бараки, строения из разных
+    // техпаспортов. Литера не ключ, объекты различаются идентификаторами.
     oi.letter = v;
     ctx.ui.letterEdit = false;
     ctx.render();

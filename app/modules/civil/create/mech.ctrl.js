@@ -1,4 +1,4 @@
-import { nextId, nextEni } from '../data/store.js';
+import { nextId } from '../data/store.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { openDocViewer } from '../parts/viewer/state.js';
 
@@ -61,7 +61,9 @@ export function bindMech(ctx) {
       card: 'movable',
       kind: ctx.mechKind,
       name,
-      eni: nextEni(rec, rec.eni),
+      // Код записи, а не следующий по счётчику (решение пользователя
+      // 09.09.2026): код объекту имущества присваивает Кадастр.
+      eni: rec.eni || '',
       status: '',
       origin: 'manual',
       flags: { entered: false, matched: false },

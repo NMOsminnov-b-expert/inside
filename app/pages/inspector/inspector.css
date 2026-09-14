@@ -1,0 +1,886 @@
+/* Экраны осмотрщика — под телефон.
+
+   Отдельная вёрстка, а не адаптив настольных экранов (решение пользователя
+   08.09.2026): классы здесь свои (ins-*), поэтому правки не задевают ни
+   карточки ОЦ, ни реестр.
+
+   Основания размеров — не вкус: 48 пикселей на нажимаемый элемент (Android
+   48dp, iOS 44pt), не меньше 8 пикселей между соседними, базовый кегль 15 и
+   ничего мельче 11.5 — на улице и в перчатках мелкое не нажимается и не
+   читается. */
+
+/* --- каркас окна на этих экранах не нужен ------------------------------- */
+body[data-page="insp"] .sidebar,
+body[data-page="insp"] .topbar,
+body[data-page="insp"] .notes-drawer { display: none; }
+
+body[data-page="insp"] .app,
+body[data-page="insp"] .main,
+body[data-page="insp"] .main-row { display: block; height: auto; }
+
+body[data-page="insp"] { font-size: 15px; }
+
+/* Прокрутка живёт в #content: у body она отключена каркасом (tokens.css), а
+   нижней панели нужен свой скроллящийся предок, иначе position:sticky ей не
+   за что зацепиться. */
+body[data-page="insp"] .content {
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 0;
+  background: var(--bg);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* --- каркас экрана ------------------------------------------------------ */
+.ins {
+  --ins-pad: 12px;
+  --ins-map-bg: #dfeaf5;
+  --ins-map-line: #c6d7e8;
+  --ins-map-pin: var(--blue-700);
+  --ins-map-pin-fill: #fff;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  /* На настольном экране колонка не растягивается на всю ширину: смотреть
+     мобильный экран во всю ширину монитора неудобно и непохоже на телефон. */
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--line-soft);
+}
+
+.ins-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px var(--ins-pad);
+  background: var(--blue-700);
+  color: #fff;
+}
+
+.ins-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  min-height: 44px;
+  margin-left: -6px;
+  border-radius: 10px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.ins-head-txt { flex: 1 1 auto; min-width: 0; }
+
+.ins-head-title {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  /* Адрес длинный: две строки показываем, дальше многоточие — правило макета
+     о длинных значениях (docs/tz/60-pul-zadach.md, пункт 2). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ins-head-sub {
+  display: block;
+  font-size: 11.5px;
+  color: var(--blue-200);
+  margin-top: 1px;
+}
+
+.ins-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--ins-pad);
+  /* Место под нижнюю панель: она перекрывала бы последний блок. */
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+/* --- нижняя панель разделов --------------------------------------------- */
+.ins-tabs {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+
+.ins-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  border-radius: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.ins-tab.on { color: var(--blue-700); background: var(--blue-50); }
+.ins-tab:active { background: var(--blue-100); }
+
+.ins-tab-ico { position: relative; display: flex; }
+
+/* Счётчик у значка — сколько документов назначено и сколько снимков сделано:
+   осмотрщику важно видеть это, не заходя в раздел. */
+.ins-tab-n {
+  position: absolute;
+  top: -5px;
+  right: -9px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--blue-600);
+  color: #fff;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Полоса статуса под шапкой. Отдельной строкой, потому что статусы у нас
+   длинные, а адрес в шапке важнее: см. headerHTML в views.js. */
+.ins-strip {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px var(--ins-pad);
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.ins-strip-l { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; opacity: .75; }
+.ins-strip-go { background: var(--blue-50); color: var(--blue-700); }
+.ins-strip-wait { background: var(--amber-50); color: var(--amber-700); }
+.ins-strip-done { background: var(--teal-50); color: var(--teal-700); }
+
+/* Кнопка-значок рядом с широкой: подпись «Скопировать» на 390 пикселях
+   переносила кнопку в две строки. */
+.ins-btn-icon { flex: 0 0 48px; min-width: 48px; padding: 0; }
+
+/* --- блоки и строки ----------------------------------------------------- */
+.ins-blk {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.ins-blk-h {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--slate-500);
+}
+
+/* Подпись над значением, а не рядом: в узкой колонке две колонки текста
+   превращаются в лестницу из переносов. */
+.ins-row { padding: 7px 0; border-top: 1px solid var(--line-soft); }
+.ins-row:first-of-type { border-top: 0; padding-top: 0; }
+.ins-row-l { display: block; font-size: 11.5px; color: var(--muted); }
+.ins-row-v { display: block; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.ins-row-v.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; }
+
+.ins-pill {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ins-pill-go { background: var(--blue-100); color: var(--blue-700); }
+.ins-pill-wait { background: var(--amber-50); color: var(--amber-700); }
+.ins-pill-done { background: var(--teal-50); color: var(--teal-700); }
+
+.ins-cols { display: flex; flex-direction: column; gap: 10px; }
+
+.ins-empty {
+  margin: 0;
+  padding: 14px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 13.5px;
+  background: var(--blue-50);
+}
+
+.ins-hint { margin: 8px 0 0; font-size: 11.5px; color: var(--muted); }
+.ins-warn { color: var(--amber-700); font-weight: 600; }
+.ins-done { display: inline-flex; align-items: center; gap: 3px; color: var(--teal-700); font-weight: 600; }
+
+.ins-ro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--teal-50);
+  color: var(--teal-700);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* --- кнопки и поля ------------------------------------------------------ */
+.ins-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--blue-700);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ins-btn-main { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
+.ins-btn-wide { width: 100%; }
+.ins-btn-sm { min-height: 40px; padding: 0 12px; font-size: 13px; }
+.ins-btn:active { transform: scale(.985); }
+.ins-btn-main:active { background: var(--blue-700); }
+
+.ins-acts { display: flex; gap: 8px; margin-top: 10px; }
+.ins-acts .ins-btn { flex: 1 1 auto; }
+.ins-acts .ins-btn-icon { flex: 0 0 48px; }
+
+.ins-icon-b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.ins-field { margin-bottom: 10px; }
+.ins-field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+
+/* Размеры списка. Оформление приходит из макета (.select в cards.css), здесь
+   только высота под палец: подмену на свой список делает kernel/dropdown.js. */
+.ins-select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 10px;
+  border: 1px solid var(--line-input);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+
+.ins-select-sm { min-height: 40px; font-size: 12.5px; }
+
+.ins-ta {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px;
+  border: 1px solid var(--line-input);
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+}
+
+/* --- экран «мои осмотры» ------------------------------------------------ */
+.ins-body-list { padding-bottom: calc(var(--ins-pad) + env(safe-area-inset-bottom, 0px)); }
+
+.ins-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  background: var(--blue-50);
+  border-radius: 12px;
+}
+
+.ins-seg-b {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--slate-700);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ins-seg-b.on { background: var(--panel); color: var(--blue-700); box-shadow: var(--shadow); }
+
+.ins-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.ins-card {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.ins-card.is-done { opacity: .72; }
+
+.ins-card-a {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Вся карточка — одна цель нажатия: на ходу попасть в мелкую ссылку внутри
+     невозможно. */
+  min-height: 88px;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+  border-left: 3px solid var(--blue-300);
+  border-radius: var(--radius);
+}
+
+.ins-card-a:active { background: var(--blue-50); }
+.ins-card-top { display: flex; align-items: center; gap: 8px; }
+.ins-card-type { font-size: 11.5px; color: var(--muted); }
+.ins-card-title { font-size: 15px; line-height: 1.3; }
+.ins-card-eni { font-size: 12.5px; color: var(--slate-500); }
+.ins-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); }
+
+.ins-as {
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--blue-50);
+}
+
+.ins-as label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.ins-note { display: block; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+
+/* --- «куда ехать» ------------------------------------------------------- */
+.ins-map { position: relative; border-radius: 10px; overflow: hidden; }
+.ins-map-svg { display: block; width: 100%; height: auto; }
+
+.ins-map-gps {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .92);
+  color: var(--blue-700);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* --- примечания --------------------------------------------------------- */
+.ins-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.ins-notes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--amber-50);
+  border: 1px solid var(--amber-100);
+}
+
+.ins-notes li.is-done { background: var(--teal-50); border-color: var(--teal-100); }
+.ins-note-txt { flex: 1 1 auto; font-size: 13.5px; }
+.ins-note-st { flex: 0 0 auto; font-size: 11px; color: var(--muted); }
+
+/* --- перечень ОИ -------------------------------------------------------- */
+.ins-oi { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ins-oi-i { border: 1px solid var(--line-soft); border-radius: 10px; overflow: hidden; }
+.ins-oi-i.on { border-color: var(--blue-300); }
+
+.ins-oi-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 0;
+  background: var(--panel);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ins-oi-h:active { background: var(--blue-50); }
+.ins-oi-t { flex: 1 1 auto; min-width: 0; }
+.ins-oi-t b { display: block; font-size: 14.5px; }
+.ins-oi-sub { display: block; font-size: 11.5px; color: var(--muted); }
+.ins-oi-chev { flex: 0 0 auto; color: var(--slate-500); transition: transform .15s ease; }
+.ins-oi-i.on .ins-oi-chev { transform: rotate(180deg); }
+.ins-oi-b { padding: 4px 10px 10px; border-top: 1px solid var(--line-soft); background: var(--blue-50); }
+
+/* --- документы ---------------------------------------------------------- */
+.ins-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.ins-doc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.ins-doc-ico { flex: 0 0 auto; color: var(--blue-600); display: flex; }
+.ins-doc-t { flex: 1 1 auto; min-width: 0; }
+.ins-doc-t b { display: block; font-size: 14.5px; overflow-wrap: anywhere; }
+.ins-doc-sub { display: block; font-size: 11.5px; color: var(--muted); }
+.ins-doc-no { flex: 0 0 auto; font-size: 11.5px; color: var(--muted); }
+
+/* --- фото --------------------------------------------------------------- */
+.ins-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(98px, 1fr));
+  gap: 8px;
+}
+
+.ins-shot { display: flex; flex-direction: column; gap: 4px; }
+
+.ins-shot-b {
+  padding: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--blue-50);
+  cursor: pointer;
+  /* Высота задана заранее: без неё сетка дёргается по мере подгрузки
+     снимков (это и есть скачок раскладки, CLS). */
+  aspect-ratio: 4 / 3;
+}
+
+.ins-shot-b img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ins-shot-acts { display: flex; gap: 4px; align-items: center; }
+.ins-shot-acts .ins-select { flex: 1 1 auto; min-width: 0; }
+
+/* --- просмотр снимка ---------------------------------------------------- */
+.ins-lb {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d1522f2;
+}
+
+.ins-lb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.ins-lb-x {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: #ffffff26;
+  color: #fff;
+  cursor: pointer;
+}
+
+.ins-lb-cap {
+  position: absolute;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #ffffff26;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+/* --- поля осмотра (конструктор) ----------------------------------------- */
+/* Разметку этих полей строит kernel/fieldSchema.js по описанию из form.js —
+   классы приходят к нему снаружи, поэтому оформление остаётся здесь. */
+.ins-fs-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.ins-fs { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+/* Поле с длинным перечнем чипов — на всю ширину сетки: иначе одиннадцать
+   значений встают столбиком в узкой колонке. */
+.ins-fs-wide { grid-column: 1 / -1; }
+.ins-fs-l { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ins-fs-req { color: var(--danger); font-style: normal; margin-left: 2px; }
+.ins-fs-hint { font-size: 11.5px; color: var(--muted); }
+
+/* Расхождение с документами — сигнал, а не сноска: за этим и едут на осмотр.
+   Слово РАСХОДИТСЯ в начале подсказки поднимает её цветом и весом. */
+.ins-fs-hint.warn { color: var(--amber-700); font-weight: 700; }
+
+/* Значения — кнопками-чипами, а не списком: на осмотре видно все варианты
+   сразу, выбор в одно касание, и «не удалось установить» не спрятано под
+   свёрнутым списком. Так же сделано в рабочей системе. */
+.ins-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ins-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--slate-700);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ins-chip.on {
+  background: var(--blue-600);
+  border-color: var(--blue-600);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ins-chip:active { transform: scale(.985); }
+
+/* Многозначные перечни длиннее пяти значений — строками с отметкой, а не
+   плитками (замечание пользователя 08.09.2026). На 390 px одиннадцать плиток
+   «систем отопления» вставали в десять строк разной ширины: глазу не за что
+   зацепиться и легко промахнуться. Строка во всю ширину — крупная цель, а
+   отметка слева выстраивается в один столбец, и выбранное видно одним взглядом.
+
+   Кнопка та же (data-fs-opt), что у плиток, — отличается только оформлением. */
+.ins-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.ins-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--panel);
+  color: var(--slate-700);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Отметка — квадрат, а не галочка сама по себе: пустой квадрат сразу говорит,
+   что строку можно отметить, и что отмечено может быть несколько. */
+.ins-row-m {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--slate-300, #cbd5e1);
+  border-radius: 6px;
+  background: #fff;
+  position: relative;
+}
+
+.ins-row.on { background: var(--blue-50, #eff6ff); color: var(--blue-700); font-weight: 600; }
+
+.ins-row.on .ins-row-m { background: var(--blue-600); border-color: var(--blue-600); }
+
+.ins-row.on .ins-row-m::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.ins-row:active { background: var(--blue-50, #eff6ff); }
+
+
+.ins-num-wrap { position: relative; display: flex; }
+
+.ins-num {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 40px 0 12px;
+  border: 1px solid var(--line-input);
+  border-radius: 10px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-num-u {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Сводка по заполненности: на телефоне обязательные поля уезжают вниз по
+   прокрутке, и «осталось 3» понятнее, чем красные рамки где-то там. */
+/* Полоса сводки закреплена под шапкой: и прогресс, и «Сохранить» должны быть
+   под рукой на любой прокрутке — в рабочей системе кнопка лежала в конце
+   простыни из двадцати восьми полей. */
+.ins-sum {
+  position: sticky;
+  top: 56px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px var(--ins-pad);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.ins-sum-t i { font-style: normal; }
+/* 44 пикселя даже в узкой полосе: это главная кнопка экрана. */
+.ins-sum .ins-btn-sm { flex: 0 0 auto; min-height: 44px; }
+
+/* --- раздел-аккордеон --------------------------------------------------- */
+.ins-acc { padding: 0; overflow: hidden; }
+
+.ins-acc-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--panel);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ins-acc-h:active { background: var(--blue-50); }
+.ins-acc.on .ins-acc-h { background: var(--blue-50); border-bottom: 1px solid var(--line-soft); }
+.ins-acc.on .ins-oi-chev { transform: rotate(180deg); }
+.ins-acc-t { flex: 1 1 auto; min-width: 0; }
+.ins-acc-t b { display: block; font-size: 14.5px; }
+.ins-acc-sub { display: block; font-size: 11.5px; color: var(--muted); }
+
+.ins-acc-n {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.ins-acc-need { background: var(--amber-100); color: var(--amber-700); }
+.ins-acc-ok { background: var(--teal-50); color: var(--teal-700); }
+.ins-acc-b { padding: 12px; }
+
+.ins-oi-n {
+  flex: 0 0 auto;
+  min-width: 24px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--teal-50);
+  color: var(--teal-700);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ins-oi-go { margin-top: 10px; }
+
+/* Снимки: группа по объекту имущества, внутри — по категории. */
+.ins-shots { margin-top: 10px; }
+.ins-shots:first-of-type { margin-top: 0; }
+.ins-shots-h { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+.ins-doc-owner { display: block; font-size: 12px; color: var(--blue-700); font-weight: 600; }
+
+/* Перенос и удаление снимка — в полноэкранном просмотре: в сетке для двух
+   списков и кнопки нет ширины. */
+.ins-lb-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: #0d1522f2;
+}
+
+.ins-lb-bar .ins-field { flex: 1 1 0; margin: 0; min-width: 0; }
+.ins-lb-bar label { color: #cfe0f4; }
+.ins-lb-bar .ins-btn-icon { background: #ffffff1f; border-color: #ffffff33; color: #ffd7d7; }
+
+/* --- поля макета на мобильных размерах ---------------------------------- */
+/* Оформление берём из макета (.input/.select/.textarea в cards.css), а размеры
+   поднимаем до пальца: 44 пикселя минимум. Своя копия оформления была бы
+   вторым источником правды — как раз то, из-за чего модуль и выглядел чужим. */
+.ins .input,
+.ins .textarea,
+.ins .pick-btn {
+  min-height: 48px;
+  font-size: 15px;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.ins .textarea { min-height: 88px; }
+.ins .pick-btn { width: 100%; justify-content: space-between; gap: 8px; }
+
+/* Указатель, что это список. У кнопки макета его нет — на настолке хватает
+   контекста, а на телефоне поле без указателя читается как обычный ввод. */
+.ins .pick-btn::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-right: 2px;
+  border-right: 1.6px solid var(--slate-500);
+  border-bottom: 1.6px solid var(--slate-500);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.ins .pick-btn.pick-open::after { transform: translateY(2px) rotate(225deg); }
+
+/* Список выбора на телефоне — во всю ширину и с крупными строками: тот же
+   компонент макета, но пальцем по строке высотой 28 пикселей не попасть. */
+.ins-select-menu.pick-menu { max-width: min(420px, 94vw); }
+body[data-page="insp"] .pick-menu { max-width: min(420px, 94vw); }
+body[data-page="insp"] .pick-opt { min-height: 44px; display: flex; align-items: center; font-size: 14px; }
+body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
+
+/* --- помещения и выявленные объекты ------------------------------------- */
+.ins-pm, .ins-found { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.ins-pm-i {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--blue-50);
+}
+
+.ins-pm-i .ins-field { flex: 1 1 auto; margin: 0; min-width: 0; }
+.ins-pm-area { flex: 0 0 96px !important; }
+
+.ins-found-i {
+  position: relative;
+  padding: 10px;
+  border: 1px solid var(--amber-100);
+  border-radius: 10px;
+  background: var(--amber-50);
+}
+
+.ins-found-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ins-found-kind { font-size: 13px; font-weight: 600; }
+.ins-found-at { font-size: 11.5px; color: var(--muted); }
+.ins-found-i .ins-field { margin-bottom: 8px; }
+.ins-found-i .ins-btn-icon { width: 100%; }
+
+/* --- адаптивность ------------------------------------------------------- */
+/* Задача пользователя 08.09.2026: «сам интерфейс строй адаптивным». Экраны
+   остаются своими (их структура — про осмотр, а не про карточку), но на
+   планшете и мониторе раскладываются шире: колонка растёт, парные блоки
+   встают рядом, а разделы уходят из-под большого пальца наверх — там, где
+   мышь, нижняя панель только отнимает высоту. */
+@media (min-width: 720px) {
+  .ins { max-width: 900px; }
+
+  .ins-head { order: 1; }
+  .ins-strip { order: 2; }
+  .ins-tabs { order: 3; }
+  .ins-body { order: 4; }
+
+  .ins-tabs {
+    position: static;
+    grid-template-columns: repeat(4, minmax(120px, max-content));
+    justify-content: start;
+    gap: 4px;
+    padding: 6px 8px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ins-tab { flex-direction: row; gap: 8px; min-height: 44px; padding: 0 12px; }
+  .ins-body { padding: 16px; padding-bottom: 16px; }
+  .ins-body-list { padding-bottom: 16px; }
+  .ins-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .ins-fs-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ins-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+
+  /* Мышь целится точнее пальца — на широком экране кнопки могут быть ниже
+     (так же сделано в рабочей системе: min-h-11 на телефоне, md:min-h-9). */
+  .ins-chip, .ins-btn, .ins-select, .ins-num, .ins-row { min-height: 38px; }
+  .ins-seg-b { min-height: 38px; }
+}
+
+@media (min-width: 1100px) {
+  .ins { max-width: 1040px; }
+  .ins-fs-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* --- доступность -------------------------------------------------------- */
+.ins :focus-visible,
+.ins-lb :focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 2px;
+}
+
+.ins-head :focus-visible { outline-color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ins-oi-chev { transition: none; }
+  .ins-btn:active { transform: none; }
+}

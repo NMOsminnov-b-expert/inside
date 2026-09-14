@@ -2,6 +2,7 @@
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
 import { recHasSpecials } from './parts/specials/model.js';
 import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
+import { partyName } from './card/parties.view.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
 import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
@@ -124,7 +125,8 @@ export function summarize(rec) {
     updatedAt: rec.updatedAt || '',
     search: searchOf([
       rec.address, rec.eni, rec.institution, rec.podved, rec.status,
-      ...(rec.owners || []), ...(rec.users || []),
+      // Стороны могут быть парой имя+доля: в поиск идёт имя.
+      ...(rec.owners || []).map(partyName), ...(rec.users || []).map(partyName),
       ...Object.values(rec.resp || {}),
       ...rec.oi.map((o) => `${o.letter || ''} ${o.name}`),
     ]),
@@ -237,6 +239,21 @@ export const oiTypes = [...REALTY_OI_TYPES, ...MOVABLE_OI_TYPES];
 
 export function allRecords() {
   return records;
+}
+
+// Наименования сторон, уже встречавшиеся в записях, — подсказки для поля
+// «Наименование» у собственников и пользователей (требование пользователя
+// 09.09.2026: «с поиском по собственникам и пользователям»). Список общий:
+// одна и та же организация бывает и собственником, и пользователем.
+export function partyNames() {
+  const set = new Set();
+  records.forEach((r) => {
+    [...(r.owners || []), ...(r.users || [])].forEach((x) => {
+      const name = (x && typeof x === 'object' ? x.name : x) || '';
+      if (name) set.add(name);
+    });
+  });
+  return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
 export function totalCount() {

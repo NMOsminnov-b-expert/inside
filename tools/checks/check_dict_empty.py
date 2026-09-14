@@ -64,18 +64,11 @@ def _norm(s):
 
 
 def _add(t, kind):
-    pg = t.page
-    pg.locator('[data-dd-toggle]').first.click()
-    if not t.wait_for('[data-add-oi]'):
-        return False
-    item = pg.locator('[data-add-oi="%s"]' % kind)
-    if not item.count():
-        return False
-    item.first.click()
-    # Признак открытой карточки — сама стопка блоков. Ждать [data-status]
-    # нельзя: у карточки участка статуса нет, и ожидание висело до таймаута,
-    # хотя карточка была на экране.
-    if not t.wait_for('.oi-stack'):
+    # Создание объекта имущества больше не переходит в его карточку (решение
+    # пользователя 11.09.2026 — объекты заводят пачкой), поэтому заведение и
+    # открытие делает общий t.add_oi: он находит новую строку по
+    # идентификатору и кликает по ней сам.
+    if not t.add_oi(kind):
         return False
     t.wait(200)
     return True

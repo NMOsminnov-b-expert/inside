@@ -60,7 +60,7 @@ export function improvementsFields(ctx, oi) {
   const ranks = opt('land', 'improvementRank', IMPROVEMENT_RANKS);
 
   return `<div class="field f-narrow">
-    <label>${noteAfter('Ранг благоустройства', RANK_NOTE)}</label>
+    <label>${noteAfter('Наличие благоустройства', RANK_NOTE)}</label>
     <select class="select" data-land-improve-rank>
       ${emptyOptionHTML(ranks)}
       ${ranks.map((r) => `<option ${r === oi.improvementRank ? 'selected' : ''}>${esc(r)}</option>`).join('')}

@@ -51,6 +51,12 @@ const CARD_ORDER = ['oc', 'building', 'apartment', 'land', 'movable'];
 // на клиенте с инвалидацией по времени правки.
 export const dicts = createStore({ list: null });
 
+// Сохранение этого раздела ОТКЛЮЧЕНО (решение пользователя 09.09.2026:
+// «сохраняем только ОЦ, ОИ, в остальные разделы не лезь»). Механика общая и
+// готова — kernel/persist.js; чтобы включить, достаточно вернуть здесь вызов
+// registerPersisted('dicts', { snapshot, restore }) с тем же снимком, что был:
+// dicts.state.list целиком, обратно через dicts.set({ list }).
+
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${String(++seq).padStart(3, '0')}`;
 

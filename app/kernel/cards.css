@@ -125,10 +125,17 @@ body[data-module] .field-hint{position:absolute;top:100%;left:0;right:0;font-siz
    с ошибкой — показываем ошибку, подсказку убираем, иначе текст ложится на текст
    (поле «GPS-координаты» в форме ОЦ: подсказка «заполняется автоматически»). */
 body[data-module] .field:has(> .field-err:not(:empty)) .field-hint{display:none}
-body[data-module] .input, body[data-module] .select, body[data-module] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
+/* Примитивы полей — общие, а не модульные: их же используют экраны
+   осмотрщика (body[data-page="insp"]). Пока селектор был заперт на
+   data-module, поля там показывались браузерными (замечание пользователя
+   08.09.2026). */
+body[data-module] .input, body[data-module] .select, body[data-module] .textarea,
+body[data-page="insp"] .input, body[data-page="insp"] .select, body[data-page="insp"] .textarea{border:1px solid var(--line-input);border-radius:9px;padding:7px 9px;font-size:13px;background:#fff;outline:none;width:100%;transition:border-color .12s,box-shadow .12s;min-width:0}
 body[data-module] .textarea{resize:vertical;min-height:46px}
-body[data-module] .input:focus, body[data-module] .select:focus, body[data-module] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
-body[data-module] .input[readonly], body[data-module] .select:disabled{background:var(--blue-50);color:#46536b}
+body[data-module] .input:focus, body[data-module] .select:focus, body[data-module] .textarea:focus,
+body[data-page="insp"] .input:focus, body[data-page="insp"] .select:focus, body[data-page="insp"] .textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.15)}
+body[data-module] .input[readonly], body[data-module] .select:disabled,
+body[data-page="insp"] .input[readonly], body[data-page="insp"] .select:disabled{background:var(--blue-50);color:#46536b}
 body[data-module] .sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--blue-700);font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:10px}
 body[data-module] .sec-h::after{content:'';flex:1;height:1px;background:var(--line-soft)}
 body[data-module] .sec-h:first-child{margin-top:0}
@@ -229,6 +236,19 @@ body[data-module] .reg-badge.ml.ml-raw{background:var(--amber-50);color:var(--am
 body[data-module] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}
 /* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
 body[data-module] .floors-note{display:block;font-size:10.5px;margin-top:3px}
+/* Способ оценки вспомогательных построек участка: строка над списком —
+   подпись и короткий селектор в одну линию. Полем во всю ширину он выглядел
+   заголовком раздела и спорил с заголовком самого списка, который идёт сразу
+   под ним (замечание пользователя 11.09.2026). */
+body[data-module] .aux-mode{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:14px 0 8px}
+body[data-module] .aux-mode>label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:#7d93a6;font-weight:700}
+/* Селектор в макете подменяется кнопкой (kernel/dropdown.js): настоящий
+   <select> прячется в обёртку .pick{display:contents}, а класс .select
+   переезжает на кнопку. Поэтому здесь потомок, а не прямой ребёнок. */
+body[data-module] .aux-mode .select{flex:0 0 auto;width:300px;max-width:100%;min-width:0}
+body[data-module] .aux-mode-hint{font-size:10.5px;color:var(--muted)}
+body[data-module] .aux-wrap>.al{margin-top:0}
 /* Поэтажная развёртка шире доступной ширины (открыт просмотрщик, узкий экран)
    прокручивается ВНУТРИ своего блока: иначе она растягивала карточку и уезжала
    за край экрана. Заголовки и подписи полей при этом остаются на месте. */
@@ -247,9 +267,24 @@ body[data-module] .al-tbl tbody tr:nth-child(even) td:nth-child(-n+2){background
 body[data-module] .al-tbl th:nth-child(-n+2){background:#eef4fb;z-index:3}
 body[data-module] .al-tbl th:first-child,body[data-module] .al-tbl td:first-child{left:0}
 body[data-module] .al-tbl th:nth-child(2),body[data-module] .al-tbl td:nth-child(2){left:36px;box-shadow:1px 0 0 var(--line-soft)}
+/* У развёртки служебных колонок три: ручка переноса (26px), замок (36px) и
+   только потом название строки. Заморозку сдвигаем на неё, иначе при
+   горизонтальной прокрутке на месте остаются ручка с замком, а название —
+   то, ради чего заморозка и нужна, — уезжает. */
+body[data-module] .fl-tbl th:nth-child(3),body[data-module] .fl-tbl td:nth-child(3){position:sticky;z-index:2;left:62px;box-shadow:1px 0 0 var(--line-soft)}
+body[data-module] .fl-tbl td:nth-child(3){background:var(--panel)}
+body[data-module] .fl-tbl tbody tr:nth-child(even) td:nth-child(3){background:#f8fbff}
+body[data-module] .fl-tbl th:nth-child(3){background:#eef4fb;z-index:3}
+/* А у второй колонки (замок) тени быть не должно: разделительная линия идёт
+   после названия, а не посреди служебных колонок. */
+body[data-module] .fl-tbl th:nth-child(2),body[data-module] .fl-tbl td:nth-child(2){left:26px;box-shadow:none}
 body[data-module] .al-tbl .input{min-width:0;width:100%}
 /* Служебные колонки — чекбокс и крестик: не тянутся и не сжимаются. */
 body[data-module] .al-tbl th.fl-c,body[data-module] .al-tbl td.al-act,body[data-module] .al-tbl td:first-child{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
+/* Ячейка замка в развёртке. Правило выше говорит «первая ячейка строки», но в
+   развёртке первой стала ручка переноса — и замок начал резаться многоточием:
+   в 36 пикселях от «…» оставалась одна точка рядом с замком. */
+body[data-module] .al-tbl td.fl-lock-cell{width:36px;padding-left:2px;padding-right:2px;text-align:center;text-overflow:clip}
 /* Заголовки переносятся по словам, а не режутся многоточием: «Высота внешн, м»
    в узкой колонке иначе превращается в «Высота вн…». */
 body[data-module] .al-tbl th{white-space:normal;line-height:1.2;overflow-wrap:anywhere;text-overflow:clip}
@@ -263,9 +298,135 @@ body[data-module] .head-eni .input{width:190px;height:26px;padding:2px 8px;font-
 body[data-module] .card-head .head-eni + .chev{margin-left:8px}
 /* Несколько итогов по площадям читаются столбиком, а не строкой: рядом они
    сливались в одну длинную фразу (решение пользователя 28.08.2026). */
-body[data-module] .floors-sums{display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 10px}
-body[data-module] .floors-sums [data-floor-sum]{flex:1 1 100%;display:block}
-body[data-module] .floors-sums [data-redistribute]{margin-left:auto;flex:0 0 auto}
+/* Подсказка над развёрткой этажей: что делает отметка в строке.
+   Раньше это знание жило в title (только по наведению мышью) и вторым
+   предложением в мелкой сноске под блоком — с клавиатуры и на планшете смысл
+   отметки было не узнать вовсе (требование пользователя 09.09.2026).
+   Тон — синий, как у самого блока «Площади и этажность». */
+body[data-module] .floors-tip{
+  margin:8px 0 6px;padding:6px 10px;border-radius:7px;
+  background:var(--blue-50);border:1px solid var(--blue-100);
+  font-size:11px;line-height:1.4;color:var(--muted)}
+body[data-module] .floors-tip b{color:var(--blue-700)}
+/* Колонка отметок узкая (36px), поэтому подпись короткая и без переносов.
+   overflow:hidden обязателен: без него подпись расширяет служебный столбец, и
+   таблица перестаёт помещаться в блок (чек-лист §8.4). */
+body[data-module] .al-tbl th.fl-c{font-size:9.5px;letter-spacing:.02em;white-space:nowrap;
+  overflow:hidden;text-overflow:clip}
+
+/* Отметка «авто» у строки этажа — замком, а не галочкой (указание пользователя
+   09.09.2026). Закрытый замок: поле с площадью заперто, её считает
+   распределение. Открытый: площадь вписывают руками. Галочка читалась как
+   «этаж выбран», хотя выбора там нет.
+
+   Под замком остаётся обычный checkbox — на нём обработчики, состояние и
+   работа с клавиатуры; прячем только его собственный вид. Значок нарисован
+   маской, а не эмодзи: цвет тогда наш (серый у открытого, синий у закрытого),
+   и в плотной таблице он не пестрит. */
+body[data-module] .fl-lock{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:6px;cursor:pointer;
+  transition:background .12s}
+body[data-module] .fl-lock:hover{background:var(--blue-50)}
+
+/* Сам checkbox не скрываем display:none — так он выпал бы из порядка обхода
+   с клавиатуры. */
+body[data-module] .fl-lock input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
+
+/* Комментарий к площадям и мягкое предупреждение о расхождении.
+   Просьба, а не запрет: подсветка янтарная, не красная, и она снимается, как
+   только комментарий написан. Красный здесь означал бы ошибку ввода, а
+   расхождение площадей — обычное дело, которое надо просто объяснить. */
+body[data-module] .areas-note{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+
+/* display в правиле перебивает атрибут hidden, и скрытое предупреждение
+   оставалось видимым пустой плашкой — так было в карточке участка, где площади
+   сходятся. Прячем явно и с той же специфичностью. */
+body[data-module] .areas-warn[hidden]{display:none}
+
+body[data-module] .areas-warn{
+  display:flex;gap:7px;align-items:flex-start;
+  padding:7px 10px;border:1px solid var(--amber-600);border-radius:7px;
+  background:var(--amber-50);color:var(--amber-700);
+  font-size:12px;line-height:1.4}
+/* Значок — не вместо текста, а вместе с ним: цвет и картинка сами по себе
+   ничего не сообщают тому, кто их не различает. */
+body[data-module] .areas-warn::before{content:'!';font-weight:700;line-height:1.4}
+
+body[data-module] .areas-note-input{
+  resize:none;overflow:hidden;min-height:0;
+  transition:border-color .12s,box-shadow .12s}
+/* Поле растёт и уменьшается по содержимому (kernel/areasNote.js), поэтому
+   ручную ручку изменения размера убираем — она бы спорила с расчётом. */
+body[data-module] .areas-note.warn .areas-note-input{
+  border-color:var(--amber-600);background:var(--amber-50)}
+body[data-module] .areas-note.warn .areas-note-input:focus{
+  border-color:var(--amber-700);box-shadow:0 0 0 3px rgba(192,124,30,.16)}
+
+/* Ручка переноса строки развёртки. Тихая, как крестик удаления: перенос —
+   редкое действие, и рядом с полями ввода ручка-«кирпич» спорила бы с ними за
+   внимание. Заметной становится под курсором. */
+body[data-module] th.fl-c-grip{width:26px;padding-left:0;padding-right:0}
+body[data-module] .fl-grip-cell{width:26px;padding-left:2px;padding-right:2px;text-align:center}
+
+body[data-module] .fl-grip{
+  display:inline-block;line-height:1;font-size:13px;color:var(--ink-icon);
+  cursor:grab;user-select:none;padding:2px 3px;border-radius:4px}
+body[data-module] .fl-grip:hover{color:var(--blue-600);background:var(--fill-pick)}
+body[data-module] .fl-grip:active{cursor:grabbing}
+
+/* Строка на весу — приглушена: видно, что она сейчас «в руке», а не на месте. */
+body[data-module] tr.fl-dragging td{opacity:.45}
+
+/* Раздел, готовый принять строку. Рамка, а не заливка: заливка перекрасила бы
+   таблицу целиком и спрятала бы то, куда именно строка встанет. */
+body[data-module] .al.fl-drop{outline:2px solid var(--blue-600);outline-offset:-1px}
+body[data-module] .al.fl-drop > .acc-head{background:var(--fill-pick)}
+
+body[data-module] .fl-lock .lk{
+  width:15px;height:15px;background:var(--slate-400);
+  -webkit-mask:var(--lk-open) center / 15px 15px no-repeat;
+  mask:var(--lk-open) center / 15px 15px no-repeat;
+  transition:background .12s}
+
+body[data-module] .fl-lock input:checked + .lk{
+  background:var(--blue-600);
+  -webkit-mask-image:var(--lk-closed);
+  mask-image:var(--lk-closed)}
+
+/* Фокус виден: без этого пройти по строкам с клавиатуры вслепую. */
+body[data-module] .fl-lock input:focus-visible + .lk{
+  outline:2px solid var(--blue-600);outline-offset:3px;border-radius:3px}
+
+/* Панель сверки площадей: сколько набралось по этажам, на сколько это
+   расходится с итогом и кнопка, которая расхождение устраняет, — в одной
+   строке. Раньше итог занимал строку целиком, кнопка уходила на следующую, и
+   связь между «не сходится» и «чем исправить» приходилось додумывать
+   (замечание пользователя 09.09.2026). */
+body[data-module] .floors-sums{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;
+  margin-top:8px;padding:6px 10px;border-radius:8px;
+  background:var(--blue-50);border:1px solid var(--blue-100)}
+
+body[data-module] .floors-sums .fs-l{font-size:11px;font-weight:700;color:var(--blue-700)}
+/* Цифры сравнивают взглядом — держим их в колонку одинаковой ширины. */
+body[data-module] .floors-sums .fs-v{font-size:12.5px;font-weight:700;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+
+/* Расхождение — отдельной меткой: величину видно, не считая в уме. Янтарь, а
+   не красный: несошедшиеся площади — обычное состояние незаконченной работы,
+   а не ошибка ввода. */
+body[data-module] .floors-sums .fs-d{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+body[data-module] .floors-sums .fs-d.ok{color:var(--teal-700);background:var(--teal-50)}
+body[data-module] .floors-sums .fs-d.warn{color:var(--amber-700);background:var(--amber-50)}
+
+body[data-module] .floors-sums .fs-btn{
+  margin-left:auto;flex:0 0 auto;background:#fff;border-color:var(--line);color:#33445c}
+/* Заметной кнопка становится, только когда есть что исправлять. */
+body[data-module] .floors-sums .fs-btn.acc{border-color:var(--amber-600);color:var(--amber-700)}
+body[data-module] .floors-sums .fs-btn:hover:not(:disabled){background:var(--blue-50)}
+body[data-module] .floors-sums .fs-btn.acc:hover:not(:disabled){background:var(--amber-50)}
+body[data-module] .floors-sums .fs-btn:disabled{opacity:.5;cursor:default}
 /* Действия карточки литеры — в самой плашке (решение пользователя 28.08.2026):
    отдельная строка кнопок под ней дублировала их и занимала высоту. */
 body[data-module] .ctx-actions{display:inline-flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
@@ -829,13 +990,16 @@ body[data-module] .field-flow>.field{flex:1 1 210px;max-width:330px}
 body[data-module] .field.f-narrow{max-width:330px}
 body[data-module] .textarea.ta-wide{min-height:64px}
 
-/* Собранный адрес записи: не поле ввода, а показ того, что получилось из частей
-   объекта оценки и адресов его объектов имущества (kernel/address.js). Поэтому
-   вид другой — рамка пунктиром, фон приглушённый: править эту строку нельзя,
-   правятся её части. */
-body[data-module] .addr-sum{min-height:32px;padding:7px 10px;border-radius:9px;
-  background:#f4f8fd;border:1px dashed var(--line);color:#33445c;font-size:12.5px;
-  line-height:1.35}
+/* Адрес записи. Собирается из частей объекта оценки (kernel/address.js), но с
+   09.09.2026 его можно и вписать целиком — вставленная строка раскладывается по
+   полям, поэтому вид обычного поля, а не пунктирной таблички «только смотреть».
+
+   Поле переносит строку: адрес с областью, районом, городом, улицей и домом на
+   узком экране в одну строку не помещается ни при какой ширине колонки, и конец
+   пропадал (проверка раскладки на 1024px). Высота правится мышью, но не меньше
+   двух строк — столько занимает полный адрес. */
+body[data-module] textarea.addr-sum{min-height:40px;padding:7px 10px;
+  font-family:inherit;font-size:12.5px;line-height:1.35;resize:vertical}
 
 /* ===== Блок «Конструктив и износ» ==========================================
    Материалы и износ идут одной таблицей: строка — конструктивный элемент
@@ -853,6 +1017,10 @@ body[data-module] .struct-tbl th.st-wear,body[data-module] .struct-tbl td.st-wea
 body[data-module] .field.f-bare{gap:0}
 body[data-module] .struct-tbl .field{margin:0}
 body[data-module] .struct-tbl .ms-drop{min-width:260px}
+/* Таблица износа в карточке квартиры: столбца материалов у неё нет, поэтому
+   ширина в 620px от таблицы литеры давала лишнюю горизонтальную прокрутку. */
+body[data-module] table.struct-tbl.wear-tbl{min-width:0}
+body[data-module] .wear-tbl th.st-wear,body[data-module] .wear-tbl td.st-wear{width:auto}
 
 /* Адрес в шапке объекта оценки. Он составной — город, район, микрорайон и
    свёрнутые адреса объектов имущества, — и в одну строку помещается редко.

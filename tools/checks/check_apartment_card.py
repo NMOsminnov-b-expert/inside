@@ -25,14 +25,30 @@ TOUCHES = (
 
 
 def _add_apartment(t):
-    """Завести квартиру в открытом объекте оценки; карточка откроется сама."""
+    """Завести квартиру в открытом объекте оценки и открыть её карточку.
+
+    С 11.09.2026 создание не переходит в карточку (решение пользователя:
+    объекты заводят пачкой), поэтому новую строку открываем сами — ищем её по
+    идентификатору, а не «последнюю»: строки группируются по участкам.
+    """
     pg = t.page
     pg.locator('[data-dd-toggle]').first.click()
     t.wait_for('[data-add-oi]')
     item = pg.locator('[data-add-oi="Квартира"]')
     if not item.count():
         return False
+
+    before = set(pg.eval_on_selector_all(
+        'tr[data-open-oi]', 'els => els.map((e) => e.dataset.openOi)'))
     item.first.click()
+    t.wait(400)
+
+    new_ids = [x for x in pg.eval_on_selector_all(
+        'tr[data-open-oi]', 'els => els.map((e) => e.dataset.openOi)') if x not in before]
+    if not new_ids:
+        return False
+    pg.locator('tr[data-open-oi="%s"]' % new_ids[0]).first.click()
+
     t.wait_for('[data-apt-series]')
     return pg.locator('[data-apt-series]').count() > 0
 

@@ -40,6 +40,29 @@ export function parse(hash = location.hash) {
     return { name: 'institutions', query };
   }
 
+  // Осмотры — интерфейс осмотрщика. Отдельные экраны под телефон, а не адаптив
+  // настольных (решение пользователя 08.09.2026):
+  //   #/insp                            — мои осмотры списком
+  //   #/insp/<typeId>/<ocId>            — задача: куда ехать, сводка, примечания
+  //   #/insp/<typeId>/<ocId>/<раздел>   — object | docs | photo
+  //   #/insp/<typeId>/<ocId>/object/<oiId> — осмотр одного объекта имущества
+  //
+  // Раздел стоит В АДРЕСЕ, а не в состоянии экрана: у осмотрщика на телефоне
+  // кнопка «назад» — основной способ вернуться, и она должна возвращать на
+  // предыдущий раздел, а не выбрасывать из задачи целиком.
+  if (segs[0] === 'insp') {
+    return {
+      name: 'inspector',
+      typeId: segs[1] ? decodeURIComponent(segs[1]) : null,
+      ocId: segs[2] ? decodeURIComponent(segs[2]) : null,
+      section: segs[3] ? decodeURIComponent(segs[3]) : 'task',
+      // Осмотр ведётся по объекту имущества, поэтому у раздела «object» есть
+      // свой хвост: какую именно литеру (котельную, участок) осматриваем.
+      oiId: segs[4] ? decodeURIComponent(segs[4]) : null,
+      query,
+    };
+  }
+
   if (segs[0] === 'oc' && segs[1]) {
     return {
       name: 'module',
@@ -78,6 +101,20 @@ export function start(onRoute) {
   window.addEventListener('hashchange', fire);
   if (!location.hash) history.replaceState(null, '', MENU_HREF);
   fire();
+}
+
+export const INSP_HREF = '#/insp';
+
+// Адрес экрана осмотрщика. Раздел 'task' в адрес не пишем — он и так по
+// умолчанию, а короткий адрес читается в отладке и в логе понятнее.
+export function inspHref({ typeId, ocId, section, oiId } = {}) {
+  const parts = ['insp'];
+  if (typeId && ocId) {
+    parts.push(typeId, ocId);
+    if (section && section !== 'task') parts.push(section);
+    if (oiId && section === 'object') parts.push(oiId);
+  }
+  return '#/' + parts.map(encodeURIComponent).join('/');
 }
 
 export const ARCHIVE_HREF = '#/archive';

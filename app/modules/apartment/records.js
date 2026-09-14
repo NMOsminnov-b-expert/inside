@@ -11,6 +11,7 @@ import { totalPendingNotes } from './parts/notes/model.js';
 import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
 import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from './data/bulk.js';
 import { buildBulkRecord } from './data/bulkRecord.js';
+import { partyName } from './card/parties.view.js';
 
 function areaOf(rec) {
     return rec.oi
@@ -123,7 +124,8 @@ export function summarize(rec) {
     updatedAt: rec.updatedAt || '',
     search: searchOf([
       rec.address, rec.eni, rec.institution, rec.podved, rec.status,
-      ...(rec.owners || []), ...(rec.users || []),
+      // Стороны могут быть парой имя+доля: в поиск идёт имя.
+      ...(rec.owners || []).map(partyName), ...(rec.users || []).map(partyName),
       ...Object.values(rec.resp || {}),
       ...rec.oi.map((o) => `${o.letter || ''} ${o.name}`),
     ]),
@@ -233,6 +235,20 @@ export { OI_TYPES as oiTypes } from './data/rules.js';
 
 export function allRecords() {
   return records;
+}
+
+// Наименования сторон, уже встречавшиеся в записях, — подсказки для поля
+// «Наименование» у собственников и пользователей. Список общий: одна и та же
+// организация бывает и собственником, и пользователем.
+export function partyNames() {
+  const set = new Set();
+  records.forEach((r) => {
+    [...(r.owners || []), ...(r.users || [])].forEach((x) => {
+      const name = (x && typeof x === 'object' ? x.name : x) || '';
+      if (name) set.add(name);
+    });
+  });
+  return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
 export function totalCount() {

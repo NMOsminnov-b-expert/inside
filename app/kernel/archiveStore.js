@@ -24,6 +24,12 @@ const entries = [];
 let seq = 0;
 let batchSeq = 0;
 
+// Сохранение этого раздела ОТКЛЮЧЕНО (решение пользователя 09.09.2026:
+// «сохраняем только ОЦ, ОИ, в остальные разделы не лезь»). Механика общая и
+// готова — kernel/persist.js; чтобы включить, достаточно вернуть здесь вызов
+// registerPersisted('archive', { snapshot, restore }) с тем же снимком, что был:
+// массив entries плюс пересчёт счётчиков seq и batchSeq по сохранённым записям.
+
 export const nextArchiveId = () => 'arc-' + (++seq);
 export const nextBatchId = () => 'arcb-' + (++batchSeq);
 

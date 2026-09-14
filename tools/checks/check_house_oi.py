@@ -31,16 +31,9 @@ ROUTES = {
 def _add(t, kind):
     """Завести ОИ через меню «+ Добавить ОИ»; карточка откроется сама."""
     pg = t.page
-    pg.locator('[data-dd-toggle]').first.click()
-    # Меню и карточку ждём по факту: при параллельном прогоне шести браузеров
-    # фиксированного ожидания не хватало, и проверка сообщала, что ОИ «не
-    # заводится», хотя оно заводилось.
-    t.wait_for('[data-add-oi]')
-    item = pg.locator('[data-add-oi="%s"]' % kind)
-    if not item.count():
-        return False
-    item.first.click()
-    return t.wait_for('.oi-stack') and t.wait_for('.card-idx')
+    # Заводим и открываем через общий помощник: создание с 11.09.2026 не
+    # переходит в карточку, а сценарию она нужна (см. harness.add_oi).
+    return t.add_oi(kind, wait='.card-idx')
 
 
 def run(t):

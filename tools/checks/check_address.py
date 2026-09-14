@@ -57,15 +57,7 @@ def unfold(value):
 
 
 def _add(t, kind):
-    pg = t.page
-    pg.locator('[data-dd-toggle]').first.click()
-    if not t.wait_for('[data-add-oi]'):
-        return False
-    item = pg.locator('[data-add-oi="%s"]' % kind)
-    if not item.count():
-        return False
-    item.first.click()
-    return t.wait_for('.oi-stack')
+    return t.add_oi(kind)
 
 
 def run(t):
@@ -73,54 +65,89 @@ def run(t):
 
     # --- 1. форма объекта оценки: части адреса и живая сборка ---
     t.open('#/oc/civil/oc-cv-1/form', wait='[data-addr-sum]')
-    for sel, name in (('#fCity', 'город'), ('#fDistrict', 'район'), ('#fMicro', 'микрорайон')):
-        t.ck(pg.locator(sel).count() == 1, 'в форме ОЦ нет поля «%s»' % name)
-    t.ck(pg.locator('#fAddr').count() == 0,
-         'в форме ОЦ осталось поле адреса строкой — адрес собирается из частей')
 
-    before = pg.locator('[data-addr-sum]').inner_text()
+    # Блок «Местоположение»: адрес записи целиком здесь, включая улицу с домом
+    # (решение пользователя 09.09.2026 — «в ОИ их не будет»).
+    for sel, name in (('#fRegion', 'область'), ('#fDistrict', 'район'),
+                      ('#fCity', 'город или село'), ('#fMicro', 'микрорайон'),
+                      ('#fStreet', 'улица'), ('#fHouse', 'дом'), ('#fFlat', 'квартира'),
+                      ('#fGps', 'координаты')):
+        t.ck(pg.locator(sel).count() == 1, 'в форме ОЦ нет поля «%s»' % name)
+
+    before = pg.input_value('[data-addr-sum]')
     t.ck('Киевская' in before and 'Бишкек' in before,
-         'собранный адрес не показывает части записи и адреса ОИ: %s' % before)
+         'собранный адрес не показывает части записи: %s' % before)
 
     pg.fill('#fMicro', 'мкр. Проверочный')
     t.wait_until("""() => document.querySelector('[data-addr-sum]')
-        .textContent.includes('Проверочный')""")
-    t.ck('Проверочный' in pg.locator('[data-addr-sum]').inner_text(),
+        .value.includes('Проверочный')""")
+    t.ck('Проверочный' in pg.input_value('[data-addr-sum]'),
          'собранный адрес не обновляется по ходу ввода')
 
-    # --- 2. адрес и координаты в карточках ОИ ---
-    for kind, sel in (('Гражданское здание', '[data-oi-street]'),
-                      ('Квартира', '[data-oi-flat]'),
+    # Вставленный адрес разбирается по полям — то, ради чего поле сделали
+    # редактируемым.
+    pg.fill('[data-addr-sum]', 'Ошская область, Ошский р-н, г. Ош, ул. Масалиева, д. 5, кв. 12')
+    pg.dispatch_event('[data-addr-sum]', 'change')
+    t.wait_until("""() => document.querySelector('#fStreet').value.includes('Масалиева')""")
+    for sel, want in (('#fRegion', 'Ошская'), ('#fDistrict', 'Ошский'), ('#fCity', 'Ош'),
+                      ('#fStreet', 'Масалиева'), ('#fHouse', '5'), ('#fFlat', '12')):
+        t.ck(want in pg.input_value(sel),
+             'вставленный адрес не разложился: в %s «%s» вместо «%s»'
+             % (sel, pg.input_value(sel), want))
+
+    # Маркер не удваивается: сборщик сам приписывает «ул.» и «д.».
+    t.ck('ул. ул.' not in pg.input_value('[data-addr-sum]'),
+         'в собранном адресе удвоился маркер улицы: %s' % pg.input_value('[data-addr-sum]'))
+
+    # --- 2. координаты в карточках ОИ ---
+    #
+    # У литеры гражданского здания адресных полей больше нет — адрес общий на
+    # запись. Свои координаты остались: они у каждого строения свои. Квартира и
+    # участок правки не касались, их карточки общие на все типы ОЦ.
+    t.open('#/oc/civil/oc-cv-1', wait='[data-open-oi]')
+    t.wait(300)
+    if t.ck(_add(t, 'Гражданское здание'), 'не заводится «Гражданское здание»'):
+        t.wait(200)
+        t.ck(pg.locator('[data-oi-street]').count() == 0,
+             'у литеры снова появилась улица — адрес живёт в объекте оценки')
+        t.ck(pg.locator('[data-oi-house]').count() == 0,
+             'у литеры снова появился дом — адрес живёт в объекте оценки')
+        t.ck(pg.locator('[data-oi-gps]').count() == 0,
+             'у литеры снова появились координаты — местоположение живёт в '
+             'объекте оценки')
+
+    for kind, sel in (('Квартира', '[data-oi-flat]'),
                       ('Земельный участок', '[data-oi-house]')):
         t.open('#/oc/civil/oc-cv-1', wait='[data-open-oi]')
         t.wait(300)
         if not t.ck(_add(t, kind), 'не заводится «%s»' % kind):
             continue
         t.wait(200)
-        t.ck(pg.locator('[data-oi-street]').count() == 1, 'у «%s» нет улицы' % kind)
-        t.ck(pg.locator('[data-oi-house]').count() == 1, 'у «%s» нет дома' % kind)
         t.ck(pg.locator(sel).count() == 1, 'у «%s» нет поля %s' % (kind, sel))
         t.ck(pg.locator('[data-oi-gps], [data-land-gps]').count() >= 1,
              'у «%s» нет координат' % kind)
 
-    # --- 3. правка адреса ОИ пересобирает адрес записи ---
-    t.open('#/oc/civil/oc-cv-1/oi/oi-cv1-a', wait='[data-oi-street]')
-    pg.fill('[data-oi-street]', 'Проверочная')
-    pg.dispatch_event('[data-oi-street]', 'change')
-    t.wait_until("""() => document.querySelector('.ctx-plate-addr')
-        .textContent.includes('Проверочная')""")
-    t.ck('Проверочная' in pg.locator('.ctx-plate-addr').inner_text(),
-         'шапка не показала новый адрес литеры')
+    # --- 3. правка адреса записи пересобирает шапку ---
+    t.open('#/oc/civil/oc-cv-1/form', wait='#fStreet')
+    pg.fill('#fStreet', 'Проверочная')
+    pg.dispatch_event('#fStreet', 'change')
+    pg.locator('#btnSaveOc').click()
+    t.wait_until("""() => document.body.innerText.includes('Проверочная')""")
+    t.ck('Проверочная' in pg.inner_text('[data-oc-head]'),
+         'шапка не показала новый адрес записи')
 
     # --- 4. свёртка квартир одного дома ---
     t.open('#/oc/apartment/oc-ap-1', wait='[data-open-oi]')
     t.wait(300)
     if _add(t, 'Квартира'):
         t.wait(200)
-        pg.fill('[data-oi-street]', 'Байтик Баатыра')
-        pg.dispatch_event('[data-oi-street]', 'change')
-        pg.fill('[data-oi-house]', '42')
-        pg.dispatch_event('[data-oi-house]', 'change')
+        # Улица и дом квартире больше не задаются: с 11.09.2026 они приходят из
+        # записи и здесь только показываются. Свой у квартиры — её номер.
+        t.ck(pg.locator('[data-oi-street]').get_attribute('readonly') is not None,
+             'улица квартиры снова правится в карточке ОИ — адрес задаётся в записи')
+        street = pg.input_value('[data-oi-street]')
+        t.ck(bool(street.strip()),
+             'у новой квартиры пустая улица — адрес записи не подтянулся')
         pg.fill('[data-oi-flat]', '5')
         pg.dispatch_event('[data-oi-flat]', 'change')
         t.wait(300)
@@ -130,7 +157,7 @@ def run(t):
         addr = pg.evaluate("""() => [...document.querySelectorAll('.hm')]
             .filter((h) => h.textContent.includes('Адрес'))
             .map((h) => h.querySelector('b').textContent.trim())[0] || ''""")
-        t.ck(addr.count('Байтик Баатыра') == 1,
+        t.ck(addr.count(street) == 1,
              'квартиры одного дома не свёрнуты в один адрес: %s' % addr)
         t.ck('кв. 78, 5' in addr or 'кв. 5, 78' in addr,
              'номера квартир не перечислены списком: %s' % addr)

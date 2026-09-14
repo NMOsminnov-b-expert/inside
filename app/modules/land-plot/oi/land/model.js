@@ -25,7 +25,11 @@ export function createLandOi(rec, { nextId, nextEni, multiple = false } = {}) {
     purpose: '',
     landType: 'Сельскохозяйственный',
     areas: { pravo: '', pravoUd: '', fact: '', build: '' },
-    eni: nextEni(rec, rec.eni),
+    // Код ЕНИ участка — код записи, без инкремента (решение пользователя
+    // 09.09.2026); адрес — тоже от записи (11.09.2026).
+    eni: rec.eni || '',
+    street: rec.street || '',
+    house: rec.house || '',
     rights: '',
     rightsOther: '',
     useCategory: '',
@@ -40,6 +44,14 @@ export function createLandOi(rec, { nextId, nextEni, multiple = false } = {}) {
     roadLocation: '',
     corner: '',
     encumbrance: 'Нет',
+    // Участок бывает сдан в аренду независимо от того, на каком праве им
+    // владеют: собственник тоже сдаёт. Поэтому признак отдельный от rights
+    // (решение пользователя 10.09.2026). При «Да» показывается блок платы.
+    leased: 'Нет',
+    leasePrice: '',
+    leaseUnit: '',
+    leaseTerm: '',
+    leaseNote: '',
     encumbranceArea: '',
     encumbranceNote: '',
     landCategory: '',

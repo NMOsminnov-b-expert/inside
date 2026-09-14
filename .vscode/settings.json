@@ -1,2 +1,20 @@
 {
+  // Прокси Live Server к порталу Кадастра.
+  //
+  // Портал не отдаёт Access-Control-Allow-Origin, поэтому напрямую из браузера
+  // его ответ прочитать нельзя. Live Server умеет проксировать сам: запрос на
+  // /cadastre/searchAddrResult.do уходит на портал, а для страницы остаётся
+  // тем же источником — CORS не при чём.
+  //
+  // Отдельный процесс (tools/cadastre/proxy.py) после этого не нужен: он
+  // остаётся запасным вариантом для тех, кто открывает макет не через Live
+  // Server.
+  //
+  // Настройка применяется при СТАРТЕ Live Server: если он уже запущен, его
+  // нужно остановить и запустить снова.
+  "liveServer.settings.proxy": {
+    "enable": true,
+    "baseUri": "/cadastre",
+    "proxyUri": "https://cadastre.kg/svc-portal/map/"
+  }
 }

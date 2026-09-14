@@ -27,10 +27,13 @@ import { nextEniScoped } from '../data/store.js';
 // Служебные поля, которые пользователю не показываются никогда, поэтому не
 // логируются — в том числе при каскаде удаления литеры: auditLog/updatedAt/
 // ocOrphanPhotos — служебные поля записи ОЦ; id/card — служебные поля ОИ;
-// notes — заметки логировать не просили (прямое указание пользователя).
+// notes — заметки логировать не просили (прямое указание пользователя);
+// structEcho — служебная отметка «материал наружных стен уже подставлен во
+// внутренние», она про поведение поля, а не про данные объекта.
 // Проверяется на корне каждого вызова walk (path.length === 0), то есть и для
 // полей записи ОЦ, и для полей литеры — оба обхода стартуют с пустого path.
-const IGNORED_KEYS = new Set(['auditLog', 'updatedAt', 'ocOrphanPhotos', 'id', 'card', 'notes']);
+const IGNORED_KEYS = new Set(['auditLog', 'updatedAt', 'ocOrphanPhotos', 'id', 'card', 'notes',
+  'structEcho']);
 
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);

@@ -1,5 +1,6 @@
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
+import { migrateAnnexList } from './oi/building/annexes.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
 import { migrateTempMode } from './oi/building/tempMode.js';
 // Карточка ЗУ у всех модулей одна — из land-plot (см. oi/land/index.js),
@@ -13,7 +14,7 @@ import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { setActiveOcType } from '../../kernel/ocType.js';
 import { MENU_HREF } from '../../kernel/router.js';
-import { getOi, ui, resetViewer } from './data/store.js';
+import { getOi, ui, resetViewer, closePhotoPop } from './data/store.js';
 import { loadRecord } from './records.js';
 import { viewOC } from './card/ocCard.view.js';
 import { bindOcCard } from './card/ocCard.ctrl.js';
@@ -340,6 +341,12 @@ export function main(host) {
         migrateAreaList(o.apartment, 'balconies', 'balconyCount', 'balconyBuildArea');
         o.apartment.terraces = o.apartment.terraces || [];
       }
+
+      // Три списка лоджий/балконов/террас у литеры стали одной таблицей
+      // пристроек с литерой, видом и материалами (решение пользователя
+      // 09.09.2026). Перевод идёт ПОСЛЕ migrateAreaList: тот приводит старые
+      // счётчики к спискам, а этот собирает списки в таблицу.
+      if (o.card === 'building' || o.card === 'apartment') migrateAnnexList(o);
     });
   }
 
@@ -437,6 +444,7 @@ export function main(host) {
   return {
     onRoute(next) {
       flushAuditLog();
+      closePhotoPop();
       route = next;
       const nextRec = loadRecord(next.ocId);
       if (nextRec !== rec) {
@@ -451,6 +459,7 @@ export function main(host) {
     },
     destroy() {
       flushAuditLog();
+      closePhotoPop();
       resetViewer();
     },
   };

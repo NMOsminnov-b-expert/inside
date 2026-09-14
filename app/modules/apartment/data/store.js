@@ -1,8 +1,23 @@
 import { createSeed } from './seed.js';
+import { registerPersisted } from '../../../kernel/persist.js';
 import { LETTER_SEQ } from './dictionaries.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 export const records = createSeed();
+
+// Введённое переживает перезагрузку страницы (требование пользователя
+// 09.09.2026). Сохраняются только данные: раскрытия, режимы и просмотрщик
+// (ui ниже) — состояние экрана, его восстанавливать незачем.
+//
+// Массив не подменяется, а перезаполняется: на него уже ссылаются модули, и
+// смена ссылки оставила бы их со старыми данными.
+registerPersisted('records.apartment', {
+  snapshot: () => records,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    records.splice(0, records.length, ...saved);
+  },
+});
 
 export function getRecord(id) {
   return records.find((r) => r.id === id) || null;
@@ -51,6 +66,44 @@ export const ui = {
   auditSearchText: '',
   pageSel: [],   // лента миниатюр просмотрщика свёрнута
 };
+
+
+// Положение и состояние элементов карточки — просмотрщик с его размерами,
+// ширины и порядок столбцов, раскрытые блоки (требование пользователя
+// 09.09.2026: «внутри ОЦ ОИ так же запоминай положение и статус элементов»).
+//
+// Сохраняем не всё подряд: сиюминутное состояние (открытое окно фото, набранный
+// в поиске текст, раскрытые списки фильтров) при возврате только мешало бы —
+// человек ждёт свою раскладку, а не чужое открытое окно.
+const UI_KEEP = [
+  'expanded', 'accOpen', 'doneOpen',
+  'splitVW', 'cmpSplit', 'cmpHidden',
+  'viewer', 'viewerDoc', 'viewerSidebar',
+  'oiCols', 'oiColWidths',
+  // Порядок столбцов поэтажной развёртки — человек переставил его под себя
+  // (решение пользователя 11.09.2026), и сбрасывать его на перезагрузке нельзя.
+  'floorCols',
+  'railCollapsed',
+];
+
+registerPersisted('ui.apartment', {
+  snapshot: () => Object.fromEntries(UI_KEEP.map((k) => [k, ui[k]])),
+  restore: (saved) => {
+    if (!saved || typeof saved !== 'object') return;
+    UI_KEEP.forEach((k) => {
+      if (saved[k] !== undefined) ui[k] = saved[k];
+    });
+  },
+});
+
+// Окно со списком фото привязано к ячейке перечня: как только перечень уходит
+// с экрана, окну там делать нечего. Своей функцией, а не внутри resetViewer:
+// просмотрщик сбрасывается только при смене записи, а окно фото — при любом
+// переходе, в том числе в карточку литеры и обратно.
+export function closePhotoPop() {
+  ui.photoPop = null;
+  ui.photoPopCat = '';
+}
 
 export function resetViewer() {
   ui.viewer = null;

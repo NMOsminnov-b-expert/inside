@@ -36,14 +36,7 @@ NUMS = """() => [...document.querySelectorAll('.oi-stack .card .card-idx')]
 
 
 def _add(t, kind):
-    pg = t.page
-    pg.locator('[data-dd-toggle]').first.click()
-    t.wait_for('[data-add-oi]')
-    item = pg.locator('[data-add-oi="%s"]' % kind)
-    if not item.count():
-        return False
-    item.first.click()
-    return t.wait_for('.oi-stack') and t.wait_for('.card-idx')
+    return t.add_oi(kind, wait='.card-idx')
 
 
 def _check_row(t, oc, kind, note=''):

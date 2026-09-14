@@ -85,16 +85,11 @@ def _open_land(t, route):
     row = pg.locator('[data-open-oi]:has-text("Земельный участок")')
     if row.count():
         row.first.click()
-    else:
-        pg.locator('[data-dd-toggle]').first.click()
-        if not t.wait_for('[data-add-oi]'):
-            return False
-        item = pg.locator('[data-add-oi="Земельный участок"]')
-        if not item.count():
-            return False
-        item.first.click()
+        return t.wait_for('.oi-stack') and t.wait_for('[data-land-improve-rank]')
 
-    return t.wait_for('.oi-stack') and t.wait_for('[data-land-improve-rank]')
+    # Создание объекта имущества не переходит в его карточку (решение
+    # пользователя 11.09.2026), поэтому заводит и открывает общий t.add_oi.
+    return t.add_oi('Земельный участок', wait='[data-land-improve-rank]')
 
 
 def run(t):
