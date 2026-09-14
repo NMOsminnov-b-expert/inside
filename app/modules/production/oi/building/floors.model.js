@@ -59,7 +59,7 @@ export function migrateFloorAreas(oi) {
 // и развёртка читалась не в том порядке, в каком заполняется техпаспорт.
 export const FLOOR_CATS = [
   { key: 'under', label: 'Подземные', add: 'Подвал', auto: false },
-  { key: 'over', label: 'Надземные', add: 'Этаж', auto: true },
+  { key: 'over', label: 'Чистые надземные', add: 'Этаж', auto: true },
   { key: 'mansard', label: 'Мансардные', add: 'Мансарда', auto: false },
 ];
 
