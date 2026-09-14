@@ -2,7 +2,6 @@
 // Параметры те же, что использовались для сводки, поэтому список и карточка
 // не расходятся.
 import { fmt } from '../../../kernel/fmt.js';
-import { landPurposeSample } from '../../land-plot/oi/land/model.js';
 import { addressOf } from './bulk.js';
 
 function structFor(i) {
@@ -69,56 +68,6 @@ function photosFor(p, share) {
   return out;
 }
 
-function buildingOi(id, i, p, letter, opts = {}) {
-  const area = fmt(Math.max(12, p.metrics.area * (opts.share || 1)));
-
-  return {
-    id: `${id}-oi${letter}`,
-    card: 'building',
-    letter,
-    name: opts.name || 'Строение',
-    status: opts.status || 'Основное',
-    origin: p.ml ? 'ml' : 'manual',
-    residential: !!opts.residential,
-    resCat: opts.resCat || '',
-    eni: String(+p.eni + (opts.eniShift || 1)),
-    year: String(1970 + (i % 50)),
-    flags: { entered: p.status !== 'В заполнении', matched: p.ml && !p.mlUnverified },
-    areas: { tp: area, pud: area, fact: area, build: fmt(Math.max(10, p.metrics.area * 0.6)) },
-    floors: 1 + (i % 4),
-    floorList: [],
-    heights: { ext: fmt(3 + (i % 7)), int: fmt(2.6 + (i % 3) * 0.2) },
-    buildType: i % 5 ? 'Отдельностоящее' : 'Встроенное',
-    struct: structFor(i),
-    structOther: {},
-    heating: i % 3 === 0 ? ['Центральное водяное отопление'] : (i % 3 === 1 ? ['Современные радиаторы'] : ['Печное отопление']),
-    heatingOther: '',
-    comment: '',
-    catClass: opts.catClass || 'Гражданское здание',
-    dis: !!p.defects,
-    docs: [],
-    photos: photosFor(p, opts.photoShare === undefined ? 1 : opts.photoShare),
-    notes: [],
-  };
-}
-
-function landOi(id, i, p, suffix, opts = {}) {
-  return {
-    id: `${id}-oil${suffix}`,
-    card: 'land',
-    name: opts.name || 'Земельный участок',
-    purpose: landPurposeSample(i),
-    area: fmt(opts.area === undefined ? p.metrics.area * 3 : opts.area),
-    eni: String(+p.eni + 90 + suffix),
-    status: opts.status || 'Основное',
-    origin: 'manual',
-    flags: { entered: true, matched: true },
-    docs: [],
-    photos: { 'Земельный участок': 1 + (i % 3) },
-    notes: [],
-  };
-}
-
 function apartmentOi(id, i, p, letter) {
   const area = fmt(Math.max(24, p.metrics.area));
 
@@ -164,27 +113,6 @@ function apartmentOi(id, i, p, letter) {
       rights: 'Собственность',
       rightsOther: '',
     },
-  };
-}
-
-function movableOi(id, i, p, suffix, kind) {
-  return {
-    id: `${id}-oim${suffix}`,
-    card: 'movable',
-    kind,
-    name: kind === 'МЕХ'
-      ? ['Станок токарный', 'Насосная станция', 'Компрессор', 'Кран-балка'][i % 4]
-      : ['МФУ', 'Комплект мебели', 'Серверная стойка'][i % 3],
-    eni: String(+p.eni + 70 + suffix),
-    status: '',
-    origin: 'manual',
-    flags: { entered: false, matched: false },
-    year: String(1990 + (i % 34)),
-    serial: `SN-${(i * 7919) % 100000}`,
-    docs: [],
-    photos: {},
-    notes: [],
-    complexItems: null,
   };
 }
 

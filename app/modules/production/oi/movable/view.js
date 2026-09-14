@@ -2,8 +2,6 @@ import { esc } from '../../../../kernel/dom.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 
 export function render(ctx, oi) {
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
   const isMech = oi.kind === 'МЕХ';
 
   const cardBody = `<div class="oi-stack">

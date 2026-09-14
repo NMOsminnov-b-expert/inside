@@ -34,8 +34,6 @@ title="Кликните чтобы редактировать">${esc(oi.letter)}
 }
 
 function flagsRowHTML(oi) {
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
 
   return `<div class="inline-row" style="margin-bottom:10px">
 
@@ -171,7 +169,6 @@ style="flex:1 1 200px; ${showRightsOther ? '' : 'display:none;'}"
 function areasCard(ctx, oi, idx) {
   const areas = oi.areas || {};
   const heights = oi.heights || {};
-  const apt = oi.apartment || {};
 
 
   return `<div class="card t-blue" id="q-areas">

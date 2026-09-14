@@ -110,8 +110,6 @@ title="Кликните чтобы редактировать">${esc(oi.letter)}
 }
 
 function flagsRowHTML(oi) {
-  const f = oi.flags || {};
-  const isMl = (oi.origin || 'manual') === 'ml';
 
   return `<div class="inline-row" style="margin-bottom:10px">
 
@@ -338,7 +336,6 @@ function wearField(oi, key, label, bare) {
 
 function structCard(ctx, oi, idx) {
   const rq = fieldRules(ctx, oi);
-  const struct = oi.struct || {};
 
   return `<div class="card t-teal" id="q-struct">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Конструктив и износ</h3><span class="chev">▾</span></div>
