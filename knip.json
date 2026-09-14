@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "app/main.js",
+    "app/modules/*/index.js",
+    "app/pages/*/*.js",
+    "app/modules/*/oi/*/index.js"
+  ],
+  "project": ["app/**/*.js"],
+  "ignore": ["app/vendor/**"],
+  "ignoreDependencies": ["@axe-core/playwright", "@playwright/test", "jscpd", "knip", "dependency-cruiser", "stylelint*", "eslint", "globals", "@eslint/js"]
+}

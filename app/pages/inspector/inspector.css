@@ -78,6 +78,9 @@ body[data-page="insp"] .content {
 .ins-head-txt { flex: 1 1 auto; min-width: 0; }
 
 .ins-head-title {
+  /* stylelint-disable-next-line declaration-block-no-duplicate-properties --
+     display задаётся дважды намеренно: ниже -webkit-box включает обрезку в две
+     строки, а block остаётся запасным для браузеров без неё. */
   display: block;
   font-size: 15.5px;
   font-weight: 700;
