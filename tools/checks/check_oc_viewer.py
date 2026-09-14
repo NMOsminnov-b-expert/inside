@@ -159,11 +159,13 @@ def check_no_drift(t):
         # обязаны совпадать.
         if pg.locator('.oi-land-open').count():
             pg.locator('.oi-land-open').first.click()
+            t.wait_for('[data-land-type]')
         else:
-            pg.locator('[data-dd-toggle]').first.click()
-            t.wait_for('[data-add-oi]')
-            pg.locator('[data-add-oi="Земельный участок"]').first.click()
-        t.wait_for('[data-land-type]')
+            # Создание объекта имущества не переходит в его карточку (решение
+            # пользователя 11.09.2026): заводит и открывает общий t.add_oi.
+            # Пока сценарий ждал перехода сам, карточка не открывалась, и
+            # сравнение шло с пустым набором стилей.
+            t.add_oi('Земельный участок', wait='[data-land-type]')
         styles[oc] = pg.evaluate(STYLE_PROBE)
 
     base = 'гражданское'

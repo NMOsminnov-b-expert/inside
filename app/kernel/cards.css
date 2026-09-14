@@ -163,6 +163,12 @@ body[data-module] .acc-inner.notes-tint .sec-h{color:var(--amber-700)}
 body[data-module] .ph-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 body[data-module] .ph{width:76px;height:56px;border-radius:7px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:flex-end;padding:4px;font-size:9px;color:#5d7292;cursor:pointer;transition:box-shadow .12s,border-color .12s}
 body[data-module] .ph:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
+/* Прикреплённый снимок заполняет плитку целиком и обрезается по её краям
+   (object-fit), а не задаёт ей размер: плитка — постоянного размера, иначе ряд
+   миниатюр прыгал бы вслед за пропорциями каждого снимка. */
+body[data-module] .ph{position:relative;overflow:hidden}
+body[data-module] .ph-img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;display:block}
 body[data-module] .ph-mini{width:26px;height:20px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);cursor:pointer;flex-shrink:0}
 body[data-module] .ph-mini:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
 body[data-module] .photo-sec{margin-top:16px}
@@ -171,7 +177,8 @@ body[data-module] .photo-sec-h{font-size:12px;font-weight:700;color:var(--blue-7
 body[data-module] .tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 body[data-module] .tile{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;transition:box-shadow .12s,border-color .12s;box-shadow:var(--shadow)}
 body[data-module] .tile:hover{border-color:var(--blue-500);box-shadow:0 4px 14px rgba(22,104,201,.18)}
-body[data-module] .tile-img{height:110px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:12px;font-weight:600}
+body[data-module] .tile-img img{width:100%;height:100%;object-fit:cover;display:block}
+body[data-module] .tile-img{height:110px;overflow:hidden;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:12px;font-weight:600}
 body[data-module] .tile-cap{padding:6px 8px;font-size:11px;color:#46536b;border-top:1px solid var(--line-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body[data-module] .nb-group{margin-top:14px;padding-top:12px;border-top:1px dashed var(--amber-100)}
 body[data-module] .nb-group:first-child{margin-top:0;padding-top:0;border-top:none}

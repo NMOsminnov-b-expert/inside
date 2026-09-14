@@ -28,6 +28,11 @@
   --radius:10px; --shadow:0 1px 2px rgba(19,41,62,.07),0 4px 14px rgba(19,41,62,.06);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* Картинка не шире своего места. Без этого правила прикреплённый снимок
+   (а он бывает 4000 px в ширину) выводился в натуральную величину и распирал
+   плитку, ряд и всю карточку — «миниатюры разрослись» (замечание пользователя
+   14.09.2026). */
+img{max-width:100%;height:auto}
 html,body{height:100%}
 body{font:13px/1.45 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
 button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
