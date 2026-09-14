@@ -689,13 +689,6 @@ export function renameItem(dict, item, value) {
   return true;
 }
 
-export function setItemNote(dict, item, note) {
-  if (!canEditDicts() || dict.system) return false;
-  item.note = note;
-  touch(dict);
-  return true;
-}
-
 // Перенос значения на место другого — порядок правится мышью. Внутри своего
 // раздела: у конструктивного состава значение принадлежит разделу («стены»,
 // «кровля»), и перенос в чужой раздел менял бы смысл, а не порядок.

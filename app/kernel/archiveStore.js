@@ -86,10 +86,6 @@ export function pendingBatch(batchId) {
   return batchOf(batchId).filter((e) => !e.restoredAt);
 }
 
-export function countPending(match = () => true) {
-  return entries.filter((e) => !e.restoredAt && match(e)).length;
-}
-
 // --- код ЕНИ --------------------------------------------------------------
 //
 // Код ЕНИ может повторяться (уточнение пользователя 03.09.2026), и совпавшие
@@ -113,11 +109,4 @@ export function eniIndexes(eni) {
 export function eniTaken(eni) {
   if (!eni) return false;
   return entries.some((e) => e.kind === 'oc' && !e.restoredAt && eniOf(e) === String(eni));
-}
-
-// Архивная запись объекта с этим кодом — для ссылки «такой код у объекта в
-// архиве» в форме создания.
-export function ocEntryByEni(eni) {
-  if (!eni) return null;
-  return entries.find((e) => e.kind === 'oc' && !e.restoredAt && eniOf(e) === String(eni)) || null;
 }

@@ -4,4 +4,3 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 ));
 
 export const $ = (sel, root = document) => root.querySelector(sel);
-export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));

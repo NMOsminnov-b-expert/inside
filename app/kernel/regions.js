@@ -129,10 +129,6 @@ const TREE = [
 
 export const SEP = ' / ';
 
-export function regionTree() {
-  return TREE;
-}
-
 // Все возможные значения поля «регион» — плоским списком путей. По нему идут и
 // поиск при выборе, и проверка «есть ли такой регион».
 export function regionPaths() {
@@ -160,14 +156,6 @@ export function splitRegion(value) {
 
 export function areaOf(value) {
   return splitRegion(value)[0] || '';
-}
-
-export function districtOf(value) {
-  return splitRegion(value)[1] || '';
-}
-
-export function placeOf(value) {
-  return splitRegion(value)[2] || '';
 }
 
 // Поиск при выборе: слова запроса ищутся в любой части пути, поэтому «сокулук

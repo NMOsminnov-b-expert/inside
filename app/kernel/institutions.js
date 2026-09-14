@@ -176,10 +176,6 @@ export function pathOf(id) {
   return out;
 }
 
-export function levelOf(id) {
-  return Math.max(0, pathOf(id).length - 1);
-}
-
 export function isDescendant(id, maybeAncestorId) {
   return pathOf(id).slice(0, -1).some((n) => n.id === maybeAncestorId);
 }
@@ -419,23 +415,6 @@ export function updateNode(id, patch) {
   return { ok: true, node };
 }
 
-// Перенос ветки. Внутрь себя переносить нельзя — дерево перестало бы им быть.
-export function moveNode(id, newParentId) {
-  const node = getNode(id);
-  if (!node) return { ok: false, reason: 'Учреждение не найдено' };
-  if (id === newParentId) return { ok: false, reason: 'Учреждение не может быть вложено в себя' };
-  if (newParentId && isDescendant(newParentId, id)) {
-    return { ok: false, reason: 'Нельзя перенести учреждение внутрь своей же ветки' };
-  }
-  if (byName(node.name, newParentId)) {
-    return { ok: false, reason: 'В этом узле уже есть учреждение с таким названием' };
-  }
-
-  node.parentId = newParentId || null;
-  delete node.auto;
-  return { ok: true, node };
-}
-
 // Удаление. Узел с объектами не удаляем: сначала их надо перенести — иначе
 // объекты потеряют учреждение молча.
 export function removeNode(id, { withChildren = false } = {}) {
@@ -539,20 +518,6 @@ export function toggleFavorite(id) {
 
 export function favoriteNodes() {
   return [...favorites].map(getNode).filter(Boolean);
-}
-
-// Списки для выбора в формах объекта оценки (замечание пользователя
-// 05.09.2026: учреждение и подвед вводились текстом, и опечатка создавала
-// учреждение, которого нет в дереве).
-//
-// Учреждения — второй уровень дерева: под корнями «Государство» и «Местное
-// самоуправление». Подведы — дети выбранного учреждения.
-export function institutionNames() {
-  const roots = allNodes().filter((n) => !n.parentId).map((n) => n.id);
-  return allNodes()
-    .filter((n) => roots.includes(n.parentId))
-    .map((n) => n.name)
-    .sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
 export function podvedNamesOf(institutionName) {

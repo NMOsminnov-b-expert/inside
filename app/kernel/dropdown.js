@@ -94,8 +94,6 @@ function closeMenu() {
   openState = null;
 }
 
-export function closeDropdowns() { closeMenu(); }
-
 function place(menu, btn) {
   const r = btn.getBoundingClientRect();
   const gap = 4;

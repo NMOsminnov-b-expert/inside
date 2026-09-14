@@ -67,11 +67,6 @@ export function oiAddressBottom(oi) {
   ].filter(Boolean).join(', ');
 }
 
-// Полный адрес одного ОИ: верх записи плюс его собственная часть.
-export function oiFullAddress(rec, oi) {
-  return [ocAddressTop(rec), oiAddressBottom(oi)].filter(Boolean).join(', ');
-}
-
 // Свёртка адресов ОИ: группируем по «улица + дом», квартиры собираем списком.
 // Возвращаем строки вида «ул. Киевская, д. 218 — кв. 1, 5, 7».
 export function groupedOiAddresses(rec) {

@@ -103,9 +103,3 @@ export function bindNumField(el, write) {
     el.value = numText(el.value);
   });
 }
-
-// Привязать все поля по селектору. write(el) возвращает функцию записи для
-// конкретного поля — так вызывающему не нужно знать порядок обхода.
-export function bindNumFields(scope, selector, writeFor) {
-  scope.$$(selector).forEach((el) => bindNumField(el, (v) => writeFor(el, v)));
-}

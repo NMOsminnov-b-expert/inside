@@ -410,10 +410,3 @@ export function bindColumnsMenu(scope, opts) {
     onReset();
   };
 }
-
-// Всё сразу — чтобы таблице не приходилось помнить три вызова.
-export function bindColumns(scope, opts) {
-  bindColumnResize(scope, opts);
-  bindColumnReorder(scope, opts);
-  bindColumnsMenu(scope, opts);
-}

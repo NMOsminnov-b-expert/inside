@@ -21,10 +21,6 @@ export const ROLES = [
 // тестовый переключатель (см. ocMenu whoHTML), не настоящее назначение.
 export const session = createStore({ person: 'Осминов Н.', role: 'any', institutions: [] });
 
-export function isAdmin() {
-  return session.state.role === 'admin';
-}
-
 // «Видит всё, независимо от учреждений» — администратор и роль «любая».
 // Отдельным понятием, потому что этим правилом пользуются и лог действий, и
 // архив документов: роль «любая роль» описана как «без ограничений», и раньше

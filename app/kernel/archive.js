@@ -598,9 +598,3 @@ export function findRecordOf(entry) {
   if (!type || !type.records.allRecords) return null;
   return type.records.allRecords().find((r) => r.id === from.ocId) || null;
 }
-
-// Сколько записей в архиве доступно этому сотруднику — для счётчика в меню.
-export function archiveCount() {
-  migrateAll();
-  return allEntries().filter((e) => !e.restoredAt && canSee(e)).length;
-}

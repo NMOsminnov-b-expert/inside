@@ -180,20 +180,3 @@ export function registerPersisted(name, { snapshot, restore }) {
 
   listen();
 }
-
-// Забыть сохранённое — на случай, когда данные испортились и проще начать с
-// засева. Зовётся из консоли: кнопки для этого в макете нет.
-export function clearPersisted() {
-  try {
-    localStorage.removeItem(KEY);
-    localStorage.removeItem(LEGACY_CIVIL);
-  } catch (e) {
-    console.warn('[persist] не удалось очистить:', e);
-  }
-}
-
-// Что сейчас лежит в снимке — для проверок и разбора: какие части сохранены и
-// сколько в них записей.
-export function persistedNames() {
-  return [...sources.keys()].sort();
-}
