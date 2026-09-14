@@ -89,7 +89,6 @@ export function viewOC(ctx) {
     </div>
 
     ${ctx.tab === 'general' ? generalTab
-      : ctx.tab === 'docs' ? docsTab(ctx)
       : ctx.tab === 'audit' && showAudit ? auditTab(ctx)
       : photosTab(ctx)}`;
 }

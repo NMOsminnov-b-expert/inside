@@ -188,7 +188,6 @@ const BY_CARD = {
     encumbranceArea: 'Площадь сервитутов и обременений',
     buildings: 'Наличие построек',
     auxValuation: 'Вспомогательные постройки оцениваются',
-    auxBuildings: 'Вспомогательные постройки',
     buildingType: 'Тип построек',
     buildingArea: 'Площадь построек',
   },
