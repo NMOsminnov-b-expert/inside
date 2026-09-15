@@ -5,7 +5,7 @@
 карточек, и написанный однажды справочник устаревает за неделю. Здесь он
 снимается с живых экранов — открываются витрины всех типов объекта оценки и
 все карточки объектов имущества, — поэтому пересобирается одной командой и
-всегда описывает то, что на самом деле видит оценщик.
+всегда описывает то, что на самом деле видит пользователь.
 
     python tools/docs/build_reference.py
 
@@ -98,6 +98,34 @@ PROBE = r"""() => {
     return '';
   };
 
+  // Пояснение к полю: подсказка при наведении, приписка под полем и заметка
+  // для разработчиков. Это единственные места, где смысл поля описан словами.
+  const noteOf = (el) => {
+    const out = [];
+    const field = el.closest('.field');
+    const title = el.getAttribute('title')
+      || (field && field.querySelector('label') ? field.querySelector('label').getAttribute('title') : '');
+    if (title) out.push(title.trim());
+    if (field) {
+      const hint = field.querySelector('.field-hint');
+      if (hint) out.push(txt(hint));
+      const dev = field.querySelector('.dev-note-pop');
+      if (dev) out.push(txt(dev));
+    }
+    return out.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  };
+
+  // Единица измерения вынесена в подпись: «Площадь …, м²», «Высота …, м».
+  const unitOf = (label) => {
+    const m = /,\s*(м²|м|%|сом[^,]*|шт\.?)\s*$/.exec(label || '');
+    return m ? m[1] : '';
+  };
+
+  // Служебные отметки управляют отрисовкой, а не описывают объект: отметка
+  // «Авто» в развёртке включает распределение площади, «выбрать всё» относится
+  // к таблице. В состав данных они не входят.
+  const SERVICE = ['Авто', 'Считать площадь автоматически', 'Выбрать всё'];
+
   const kindOf = (el) => {
     if (el.tagName === 'TEXTAREA') return 'текст многострочный';
     if (el.tagName === 'SELECT') return 'список';
@@ -124,10 +152,14 @@ PROBE = r"""() => {
       const mark = attr + '|' + label;
       if (seen.has(mark)) return;
       seen.add(mark);
+      const kind = kindOf(el);
+      if (kind === 'отметка' && (SERVICE.includes(label) || !label)) return;
       fields.push({
         подпись: label,
         ключ: attr,
-        вид: kindOf(el),
+        вид: kind,
+        единица: unitOf(label),
+        пояснение: noteOf(el),
         в_таблице: !!el.closest('tbody tr'),
         значения: el.tagName === 'SELECT'
           ? [...el.options].map((o) => o.textContent.trim()).filter(Boolean) : null,
@@ -144,6 +176,8 @@ PROBE = r"""() => {
         подпись: txt(row ? row.querySelector('td') : el.closest('.field')),
         ключ: attr,
         вид: 'мультивыбор',
+        единица: '',
+        пояснение: noteOf(el),
         в_таблице: !!row,
         значения: [...el.querySelectorAll('.ms-opt')].map((o) => txt(o)).filter(Boolean),
       });
@@ -327,10 +361,13 @@ def build_xlsx(data, path):
         for b in first[src]:
             for f in b['поля']:
                 rows.append([where, b['номер'], b['заголовок'], f['подпись'],
-                             key(f['ключ']), f['вид'],
-                             len(f['значения']) if f['значения'] else ''])
-    sheet('Поля ОЦ', ['Раздел', '№ блока', 'Блок', 'Поле', 'Ключ', 'Вид', 'Значений'],
-          rows, [16, 9, 34, 46, 26, 20, 10])
+                             f['вид'], f.get('единица', ''),
+                             len(f['значения']) if f['значения'] else '',
+                             f.get('пояснение', '')])
+    sheet('Поля ОЦ',
+          ['Раздел', '№ блока', 'Блок', 'Поле', 'Тип значения', 'Единица',
+           'Значений в списке', 'Описание'],
+          rows, [16, 9, 30, 42, 18, 10, 12, 70])
 
     # 3. поля объектов имущества
     rows = []
@@ -343,12 +380,15 @@ def build_xlsx(data, path):
         for b in base['блоки']:
             for f in b['поля']:
                 rows.append([kind, ', '.join(SHORT[t] for t in where), b['номер'],
-                             b['заголовок'], f['подпись'], key(f['ключ']), f['вид'],
+                             b['заголовок'], f['подпись'], f['вид'],
+                             f.get('единица', ''),
+                             len(f['значения']) if f['значения'] else '',
                              'да' if f['в_таблице'] else '',
-                             len(f['значения']) if f['значения'] else ''])
-    sheet('Поля ОИ', ['Вид ОИ', 'Заводится в', '№ блока', 'Блок', 'Поле', 'Ключ',
-                      'Вид', 'В таблице', 'Значений'],
-          rows, [26, 20, 9, 32, 44, 26, 18, 10, 10])
+                             f.get('пояснение', '')])
+    sheet('Поля ОИ',
+          ['Вид ОИ', 'Заводится в', '№ блока', 'Блок', 'Поле', 'Тип значения',
+           'Единица', 'Значений в списке', 'Строка таблицы', 'Описание'],
+          rows, [24, 18, 9, 28, 40, 16, 9, 12, 12, 62])
 
     # 4. таблицы карточек
     rows = []
@@ -390,8 +430,13 @@ def build_xlsx(data, path):
                 for f in b['поля']:
                     index.setdefault((key(f['ключ']), f['подпись']), set()).add(
                         'ОИ «%s» · %s' % (kind, b['заголовок']))
-    rows = [[k, label, '; '.join(sorted(places))] for (k, label), places in sorted(index.items())]
-    sheet('Указатель', ['Ключ', 'Поле', 'Где находится'], rows, [26, 46, 80])
+    by_label = {}
+    for (k, label), places in index.items():
+        if not label:
+            continue
+        by_label.setdefault(label, set()).update(places)
+    rows = [[label, '; '.join(sorted(places))] for label, places in sorted(by_label.items())]
+    sheet('Указатель полей', ['Поле', 'Где встречается'], rows, [46, 110])
 
     wb.save(path)
     return path
@@ -402,7 +447,28 @@ def build_xlsx(data, path):
 def build_docx(data, path):
     from docx import Document
     from docx.shared import Pt, Cm
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    def add_toc(document):
+        """Поле оглавления: Word соберёт его по заголовкам при открытии."""
+        par = document.add_paragraph()
+        run = par.add_run()
+        begin = OxmlElement('w:fldChar')
+        begin.set(qn('w:fldCharType'), 'begin')
+        instr = OxmlElement('w:instrText')
+        instr.set(qn('xml:space'), 'preserve')
+        instr.text = 'TOC \\o "1-3" \\h \\z \\u'
+        sep = OxmlElement('w:fldChar')
+        sep.set(qn('w:fldCharType'), 'separate')
+        hint = OxmlElement('w:t')
+        hint.text = 'Оглавление собирается при открытии документа: '\
+                    'правая кнопка по этому полю, «Обновить поле».'
+        end = OxmlElement('w:fldChar')
+        end.set(qn('w:fldCharType'), 'end')
+        for node in (begin, instr, sep, hint, end):
+            run._r.append(node)
 
     doc = Document()
     doc.styles['Normal'].font.name = 'Calibri'
@@ -410,16 +476,15 @@ def build_docx(data, path):
     for s in doc.sections:
         s.left_margin = s.right_margin = Cm(1.8)
 
-    doc.add_heading('Справочник полей макета', level=0)
-    p = doc.add_paragraph(
-        'Состав данных: какие поля есть у объекта оценки и у каждого вида объекта '
-        'имущества, в каком типе объекта оценки они встречаются и в каком блоке '
-        'карточки находятся.')
-    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    doc.add_paragraph(
-        'Состав снят с экранов макета, поэтому описывает то, что видит оценщик. '
-        'Пересобирается командой: python tools/docs/build_reference.py')
-    doc.add_paragraph('Документ внутренний. Выгрузка за пределы компании запрещена.')
+    doc.add_heading('Справочник полей', level=0)
+    sub = doc.add_paragraph('Составлен по макету системы')
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.paragraphs[-1].runs[0].font.size = Pt(12)
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+
+    doc.add_heading('Оглавление', level=1)
+    add_toc(doc)
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
     def table(columns, rows, widths=None):
         t = doc.add_table(rows=1, cols=len(columns))
@@ -444,13 +509,14 @@ def build_docx(data, path):
         doc.add_paragraph()
 
     # 1. структура
-    doc.add_heading('1. Структура: объект оценки → объект имущества', level=1)
-    doc.add_heading('1.1. Типы объектов оценки', level=2)
+    doc.add_heading('Раздел 1. Структура объектов', level=1)
+    doc.add_heading('Глава 1.1. Типы объектов оценки', level=2)
     table(['Тип объекта оценки', 'Модуль', 'Витрина'],
           [[t, data['ОЦ'][t]['модуль'], data['ОЦ'][t]['маршрут']] for _, _, t in MODULES],
           [6.5, 4.0, 6.5])
 
-    doc.add_heading('1.2. Какие объекты имущества где заводятся', level=2)
+    doc.add_heading('Глава 1.2. Состав объектов имущества по типам объекта оценки',
+                    level=2)
     doc.add_paragraph('Цифра — место в меню «Добавить ОИ», прочерк — вид недоступен.')
     menus = menus_of(data)
     kinds = []
@@ -463,7 +529,7 @@ def build_docx(data, path):
            for k in kinds],
           [8.0] + [1.7] * len(MODULES))
 
-    doc.add_heading('1.3. Карточки объектов имущества', level=2)
+    doc.add_heading('Глава 1.3. Карточки объектов имущества', level=2)
     table(['Карточка', 'Кем используется'], [
         ['Земельный участок', 'вид «Земельный участок»'],
         ['Квартира', 'вид «Квартира»'],
@@ -472,30 +538,35 @@ def build_docx(data, path):
     ], [5.0, 12.0])
 
     # 2. объект оценки
-    doc.add_heading('2. Объект оценки', level=1)
+    doc.add_page_break()
+    doc.add_heading('Раздел 2. Объект оценки', level=1)
     doc.add_paragraph('Состав полей одинаков во всех пяти типах.')
     first = data['ОЦ'][MODULES[0][2]]
     doc.add_paragraph('Вкладки карточки: %s.'
                       % ', '.join(data['меню'][MODULES[0][2]]['вкладки']))
 
-    for src, title in (('форма', '2.1. Форма записи'), ('блоки', '2.2. Блоки карточки')):
+    for src, title in (('форма', 'Глава 2.1. Форма записи'),
+                       ('блоки', 'Глава 2.2. Блоки карточки')):
         doc.add_heading(title, level=2)
         for b in first[src]:
             if not b['поля']:
                 continue
             doc.add_heading('%s %s' % (b['номер'], b['заголовок']), level=3)
-            table(['Поле', 'Ключ', 'Вид'],
-                  [[f['подпись'], key(f['ключ']), f['вид']] for f in b['поля']],
-                  [8.0, 5.5, 3.5])
+            table(['Поле', 'Тип значения', 'Описание'],
+                  [[f['подпись'],
+                    f['вид'] + (', ' + f['единица'] if f.get('единица') else ''),
+                    f.get('пояснение', '')] for f in b['поля']],
+                  [5.5, 3.5, 8.0])
 
     # 3. объекты имущества
-    doc.add_heading('3. Объекты имущества', level=1)
+    doc.add_page_break()
+    doc.add_heading('Раздел 3. Объекты имущества', level=1)
     for n, (_, kind) in enumerate(OI_KINDS, 1):
         per_oc = data['ОИ'].get(kind)
         if not per_oc:
             continue
         where = [t for _, _, t in MODULES if t in per_oc]
-        doc.add_heading('3.%d. %s' % (n, kind), level=2)
+        doc.add_heading('Глава 3.%d. %s' % (n, kind), level=2)
         doc.add_paragraph('Заводится в: %s.' % ', '.join(where))
         base = per_oc[where[0]]
         for b in base['блоки']:
@@ -513,17 +584,20 @@ def build_docx(data, path):
             table(['Блок', 'Колонки'], [[h, ', '.join(c)] for h, c in tables], [5.0, 12.0])
 
     # 4. справочники
-    doc.add_heading('4. Справочники значений', level=1)
+    doc.add_page_break()
+    doc.add_heading('Раздел 4. Справочники значений', level=1)
     for i, (vals, users) in enumerate(
             sorted(dict_index(data).items(), key=lambda kv: -len(kv[0])), 1):
         names = sorted({u[0] for u in users if u[0]})
-        doc.add_heading('4.%d. %s — значений: %d'
-                        % (i, names[0] if names else '—', len(vals)), level=3)
+        doc.add_heading('Глава 4.%d. %s'
+                        % (i, names[0] if names else 'Без подписи'), level=2)
+        doc.add_paragraph('Значений: %d' % len(vals))
         doc.add_paragraph('Поля: %s' % '; '.join(sorted({key(u[1]) for u in users})))
         doc.add_paragraph('; '.join(vals))
 
     # 5. расхождения
-    doc.add_heading('5. Расхождения, замеченные при сборе', level=1)
+    doc.add_page_break()
+    doc.add_heading('Раздел 5. Расхождения состава полей', level=1)
     rows = divergences(data)
     if rows:
         table(['Вид ОИ', 'В каком ОЦ', 'Чего не хватает'], rows, [5.0, 6.0, 6.0])
@@ -534,16 +608,34 @@ def build_docx(data, path):
     return path
 
 
+def save(build, data, path):
+    """Сохранить документ, не потеряв работу, если файл открыт в Word или Excel.
+
+    Открытый файл заблокирован на запись — раньше сборка на этом падала целиком
+    и снятый состав пропадал. Теперь результат ложится рядом, с пометкой, и его
+    остаётся переименовать.
+    """
+    try:
+        build(data, path)
+        return path, False
+    except PermissionError:
+        base, ext = os.path.splitext(path)
+        alt = base + '-novyy' + ext
+        build(data, alt)
+        return alt, True
+
+
 def main():
     print('Снимаю состав полей с экранов макета…')
     data = collect()
 
     os.makedirs(DOCS, exist_ok=True)
-    xlsx = build_xlsx(data, os.path.join(DOCS, 'spravochnik-poley.xlsx'))
-    docx = build_docx(data, os.path.join(DOCS, 'spravochnik-poley.docx'))
-
-    for p in (xlsx, docx):
-        print('готово: %s (%d КБ)' % (os.path.relpath(p, ROOT), os.path.getsize(p) // 1024))
+    for build, name in ((build_xlsx, 'spravochnik-poley.xlsx'),
+                        (build_docx, 'spravochnik-poley.docx')):
+        path, renamed = save(build, data, os.path.join(DOCS, name))
+        note = ' (исходный файл открыт в редакторе — сохранено рядом)' if renamed else ''
+        print('готово: %s (%d КБ)%s'
+              % (os.path.relpath(path, ROOT), os.path.getsize(path) // 1024, note))
 
 
 if __name__ == '__main__':
