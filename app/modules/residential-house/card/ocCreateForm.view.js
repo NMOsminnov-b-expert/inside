@@ -3,7 +3,7 @@ import { pickSearchHTML } from '../../../kernel/pickSearch.js';
 import { institutionOptions, podvedOptionsOf } from '../../../kernel/institutions.js';
 import { ocFullAddress } from '../../../kernel/address.js';
 import { esc } from '../../../kernel/dom.js';
-import { STATUS_OC } from '../data/dictionaries.js';
+import { STATUS_OC, REGIONS, DISTRICTS, CITIES } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
@@ -13,6 +13,26 @@ import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 // с редактированием — по составу совпадает с ним на 2026-08-21, но это два
 // разных экрана, которые дальше будут меняться независимо друг от друга
 // (обобщения — враг).
+
+// Выпадающий список части адреса. Значение записи, которого нет в справочнике,
+// всё равно показывается и остаётся выбранным: адрес приходит из Кадастра и из
+// вставленной строки, там пишут как придётся («обл. Чуй» против «Чуйская
+// область»), а терять введённое из-за несовпадения со справочником нельзя.
+// Такое значение помечено — видно, что справочник его не знает.
+function addrSelect(id, field, list, value) {
+  const known = list.includes(value);
+  const opts = [`<option value="" ${value ? '' : 'selected'}>— не выбрано —</option>`];
+
+  if (value && !known) {
+    opts.push(`<option value="${esc(value)}" selected>${esc(value)} — нет в справочнике</option>`);
+  }
+
+  list.forEach((v) => {
+    opts.push(`<option value="${esc(v)}" ${v === value ? 'selected' : ''}>${esc(v)}</option>`);
+  });
+
+  return `<select class="select" id="${id}" data-addr-part="${field}">${opts.join('')}</select>`;
+}
 
 function mainSection(rec) {
   return `<div class="card t-blue">
@@ -112,17 +132,17 @@ function locationSection(rec) {
       <div class="grid g-4 g-roomy">
         <div class="field">
           <label>Область</label>
-          <input class="input" id="fRegion" value="${esc(rec.region || '')}" placeholder="Чуйская область">
+          ${addrSelect('fRegion', 'region', opt('oc', 'region', REGIONS), rec.region || '')}
         </div>
 
         <div class="field">
           <label>Район</label>
-          <input class="input" id="fDistrict" value="${esc(rec.district || '')}" placeholder="Первомайский р-н">
+          ${addrSelect('fDistrict', 'district', opt('oc', 'district', DISTRICTS), rec.district || '')}
         </div>
 
         <div class="field">
           <label>Город или село</label>
-          <input class="input" id="fCity" value="${esc(rec.city || '')}" placeholder="г. Бишкек">
+          ${addrSelect('fCity', 'city', opt('oc', 'city', CITIES), rec.city || '')}
         </div>
 
         <div class="field">

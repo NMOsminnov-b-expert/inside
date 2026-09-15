@@ -5,7 +5,7 @@ import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { DOC_TYPES } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
-import { nextLetter, nextId, nextEni, nextDocId } from '../data/store.js';
+import { nextLetter, nextId, nextDocId } from '../data/store.js';
 import { archiveRecord } from '../../../kernel/archive.js';
 import { openDocViewer, openPhotoInPlace, VS } from '../parts/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
@@ -17,11 +17,12 @@ import { bindParties } from './parties.ctrl.js';
 function createOi(ctx, type) {
   const rec = ctx.rec;
 
+  // Код ЕНИ нового объекта имущества НЕ инкрементируется: по умолчанию это код
+  // самой записи (решение пользователя 09.09.2026). Счётчик выдавал «следующий
+  // свободный», и его всё равно правили руками — код объекту имущества
+  // присваивает Кадастр, а не макет.
   if (type.card === 'land') {
-    // У участка код не инкрементируется: по умолчанию он тот же, что первый
-    // код объекта оценки (решение пользователя 09.09.2026).
-    const landEni = () => rec.eni || nextEni(rec, rec.eni);
-    return createLandOi(rec, { nextId, nextEni: landEni, multiple: true });
+    return createLandOi(rec, { nextId, nextEni: () => rec.eni || '', multiple: true });
   }
 
   const letter = nextLetter(rec);
@@ -35,7 +36,7 @@ function createOi(ctx, type) {
     origin: 'manual',
     residential: !!type.residential || type.card === 'apartment',
     resCat: '',
-    eni: nextEni(rec, rec.eni),
+    eni: rec.eni || '',
     year: '',
     flags: { entered: false, matched: false },
     areas: { tp: '', pud: '', fact: '', build: '' },

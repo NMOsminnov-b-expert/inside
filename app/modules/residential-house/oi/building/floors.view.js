@@ -1,8 +1,9 @@
 import { esc } from '../../../../kernel/dom.js';
+import { numText } from '../../../../kernel/numField.js';
 import { fmtNum, num, plural } from '../../../../kernel/fmt.js';
 import { MANSARD_TYPE } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { floorsSum, floorsSumByCat, AREA_FIELDS, FLOOR_CATS } from './floors.model.js';
+import { floorsSum, floorsSumByCat, AREA_FIELDS, AUTO_AREA_FIELDS, FLOOR_CATS } from './floors.model.js';
 
 // Развёрткой управляет человек, а не формула (решение пользователя 2026-08-28):
 // строку любой категории можно добавить и удалить, имя строки правится прямо в
@@ -42,16 +43,18 @@ function catSection(ctx, oi, cat, fkey) {
     : { name: 0.26, area: 0.21, h: 0.16 };
 
   const body = rows.length
-    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c" title="Площади отмеченных строк считаются автоматически">Авто</th><th style="${col(w.name)}">Этаж</th>
+    ? `<table class="tbl al-tbl"><thead><tr><th class="fl-c" title="Закрытый замок — площадь считает распределение, открытый — её вписывают вручную">Авто</th><th style="${col(w.name)}">Этаж</th>
 ${isMansard ? `<th style="${col(w.type)}">Тип</th>` : ''}
 ${AREA_FIELDS.map((a) => `<th style="${col(w.area)}" title="итог: ${a.title}">${a.label}</th>`).join('')}
 <th style="${col(w.h)}">Высота внешн, м</th><th style="${col(w.h)}">Высота внутр, м</th>
 <th class="fl-c"></th></tr></thead>
 <tbody>${rows.map(({ f, i }) => `<tr>
-<td><input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} title="Отмечено — площади распределяются автоматически; снято — задаются вручную"></td>
+<td><label class="fl-lock" title="${f.on ? 'Заперто: площадь считает распределение. Откройте, чтобы вписать вручную' : 'Открыто: площадь вписывают вручную. Заприте, чтобы её считало распределение'}">
+<input type="checkbox" data-floor-on="${i}" ${f.on ? 'checked' : ''} aria-label="Считать площадь автоматически">
+<span class="lk" aria-hidden="true"></span></label></td>
 <td><input class="input" data-floor-name="${i}" value="${esc(f.name)}" title="Название строки — можно править: этаж «−1», «Цоколь 2» и т. п."></td>
 ${isMansard ? mansardTypeCell(f, i) : ''}
-${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on ? 'readonly' : ''} title="${f.on ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : ''}"></td>`).join('')}
+${AREA_FIELDS.map((a) => `<td><input class="input" data-floor-area="${a.key}|${i}" value="${esc(f[a.key] || '')}" ${f.on && a.auto ? 'readonly' : ''} title="${f.on && a.auto ? 'Считается автоматически — снимите отметку, чтобы задать вручную' : (a.auto ? '' : 'Вводится вручную: площадь по внутреннему обмеру по этажам не распределяется')}"></td>`).join('')}
 <td><input class="input" data-floor-hext="${i}" value="${esc(f.hExt)}"></td>
 <td><input class="input" data-floor-hint="${i}" value="${esc(f.hInt)}"></td>
 <td class="al-act"><button class="btn btn-danger btn-sm" data-del-floor="${i}" title="Убрать строку">×</button></td>
@@ -68,13 +71,6 @@ ${rows.length ? `<input type="checkbox" data-cat-all="${cat.key}" ${onCount === 
 </div>
 <div class="acc-body">${body}</div>
 </div>`;
-}
-
-// Сноска под развёрткой — та же величина, что в приписке у поля.
-function floorsHint(oi) {
-  const n = (oi.floorList || []).filter((f) => f.cat === 'over').length;
-  if (!n) return '<b>Надземных этажей нет</b> — объект из подземных и мансардных строк.';
-  return `<b>${floorsNote(oi)}</b> надземных.`;
 }
 
 export function floorsCountField(oi) {
@@ -95,28 +91,63 @@ export function floorsNote(oi) {
   return `${n} ${plural(n, 'этаж', 'этажа', 'этажей')} · ${fmtNum(area)} м²`;
 }
 
-// По одному итогу на каждую площадь: у них разные источники, и сходиться они
-// должны каждый со своим.
-function sumsRow(oi) {
-  return AREA_FIELDS.map((a) => {
-    const total = num((oi.areas || {})[a.total]);
-    const s = floorsSum(oi, a.key);
-    const ok = Math.abs(s - total) < 0.01;
-    return `<span data-floor-sum="${a.key}" class="${ok ? 'sum-ok' : 'sum-warn'}">Σ ${a.title}: ${fmtNum(s)} / ${fmtNum(total)} м²</span>`;
+// Итог — по тем же колонкам, что распределяются: сумма по внутреннему обмеру
+// убрана (решение пользователя 09.09.2026). Она повторяется от этажа к этажу,
+// ни с чем не сходилась и только краснела. Сама колонка в таблице осталась и
+// заполняется руками.
+const SUM_FIELDS = AUTO_AREA_FIELDS;
+
+// Состояние сверки по одной колонке: сколько набралось по этажам, сколько
+// должно быть и на сколько расходится. Знак diff: плюс — набрали больше итога,
+// минус — не хватает.
+function sumState(oi, a) {
+  const total = num((oi.areas || {})[a.total]);
+  const sum = floorsSum(oi, a.key);
+  const diff = Math.round((sum - total) * 100) / 100;
+  return { total, sum, diff, ok: Math.abs(diff) < 0.01 };
+}
+
+// Расхождение словами, а не знаком «+/−»: «не хватает 12,30» сразу говорит,
+// куда двигать, а «−12,30» ещё нужно истолковать.
+function diffText(diff) {
+  if (Math.abs(diff) < 0.01) return 'сходится';
+  return (diff < 0 ? 'не хватает ' : 'лишние ') + fmtNum(Math.abs(diff)) + ' м²';
+}
+
+// Панель сверки: величина, расхождение и кнопка, которая его устраняет, — в
+// одной строке. Кнопка стояла отдельно, и связь между «не сходится» и «чем это
+// исправить» приходилось додумывать.
+function sumsPanel(oi) {
+  const canLevel = (oi.floorList || []).some((f) => f.on);
+
+  const items = SUM_FIELDS.map((a) => {
+    const st = sumState(oi, a);
+    return `<span class="fs-l">Σ ${a.title}</span>
+<span class="fs-v" data-floor-sum="${a.key}">${fmtNum(st.sum)} из ${fmtNum(st.total)} м²</span>
+<span class="fs-d ${st.ok ? 'ok' : 'warn'}" data-floor-diff="${a.key}">${diffText(st.diff)}</span>`;
   }).join('');
+
+  // Кнопка заметна, только когда есть что исправлять: при сошедшихся площадях
+  // она тихая, иначе тянет внимание на себя без повода.
+  const bad = SUM_FIELDS.some((a) => !sumState(oi, a).ok);
+
+  return `<div class="floors-sums" data-floors-sums>
+${items}
+<button class="btn btn-sm fs-btn ${bad ? 'acc' : ''}" data-redistribute ${canLevel ? '' : 'disabled'}
+  title="${canLevel ? 'Разложить оставшуюся площадь между отмеченными этажами поровну'
+    : 'Нет отмеченных этажей — распределять не между чем'}">Выровнять отмеченные</button>
+</div>`;
 }
 
 export function floorsBlock(ctx, oi) {
   const fkey = 'fl|' + oi.id;
 
-  return `<div class="inline-row floors-sums" style="margin-top:8px; align-items:center;">
-${sumsRow(oi)}
-<button class="btn btn-ghost btn-sm" data-redistribute style="margin-left:auto">Выровнять отмеченные</button>
-</div>
-<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь поровну —
-каждая колонка от своего итога. Снимите отметку, чтобы вписать площадь вручную.</div>
+  return `${sumsPanel(oi)}
+<div class="floors-tip"><b>Отмеченные этажи</b> делят между собой оставшуюся площадь по внешним
+замерам поровну. Снимите отметку, чтобы вписать её вручную. Площадь по внутреннему обмеру не
+делится — этажи на неё обычно не влияют, поэтому её вводят руками у каждой строки.</div>
 ${FLOOR_CATS.map((cat) => catSection(ctx, oi, cat, fkey)).join('')}
-<div class="muted" style="font-size:10.5px;margin-top:5px">${floorsHint(oi)} Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
+<div class="muted" style="font-size:10.5px;margin-top:5px">Название строки правится: этажи бывают «−1», подвалов и цоколей — несколько. Любую строку можно убрать крестиком.</div>`;
 }
 
 export function updateFloorsUI(ctx, oi) {
@@ -126,16 +157,18 @@ export function updateFloorsUI(ctx, oi) {
     AREA_FIELDS.forEach((a) => {
       const el = s.$(`[data-floor-area="${a.key}|${i}"]`);
       if (!el) return;
-      if (document.activeElement !== el) el.value = f[a.key] || '';
-      el.readOnly = f.on;
+      // Поле в фокусе не трогаем: человек его правит, и подмена значения под
+      // курсором сбила бы ввод. Остальные показываем с разрядами.
+      if (document.activeElement !== el) el.value = numText(f[a.key]);
+      el.readOnly = f.on && a.auto;
     });
 
     const on = s.$(`[data-floor-on="${i}"]`);
     if (on) on.checked = f.on;
     const he = s.$(`[data-floor-hext="${i}"]`);
-    if (he && document.activeElement !== he) he.value = f.hExt;
+    if (he && document.activeElement !== he) he.value = numText(f.hExt);
     const hi = s.$(`[data-floor-hint="${i}"]`);
-    if (hi && document.activeElement !== hi) hi.value = f.hInt;
+    if (hi && document.activeElement !== hi) hi.value = numText(f.hInt);
   });
 
   FLOOR_CATS.forEach((cat) => {
@@ -155,14 +188,26 @@ export function updateFloorsUI(ctx, oi) {
   const note = s.$('[data-floors-note]');
   if (note) note.textContent = floorsNote(oi);
 
-  AREA_FIELDS.forEach((a) => {
+  let anyBad = false;
+  SUM_FIELDS.forEach((a) => {
+    const st = sumState(oi, a);
+    if (!st.ok) anyBad = true;
+
     const sum = s.$(`[data-floor-sum="${a.key}"]`);
-    if (!sum) return;
-    const ssum = floorsSum(oi, a.key);
-    const tot = num((oi.areas || {})[a.total]);
-    sum.textContent = `Σ ${a.title}: ${fmtNum(ssum)} / ${fmtNum(tot)} м²`;
-    sum.className = Math.abs(ssum - tot) < 0.01 ? 'sum-ok' : 'sum-warn';
+    if (sum) sum.textContent = `${fmtNum(st.sum)} из ${fmtNum(st.total)} м²`;
+
+    const d = s.$(`[data-floor-diff="${a.key}"]`);
+    if (d) {
+      d.textContent = diffText(st.diff);
+      d.className = 'fs-d ' + (st.ok ? 'ok' : 'warn');
+    }
   });
+
+  const level = s.$('[data-redistribute]');
+  if (level) {
+    level.classList.toggle('acc', anyBad);
+    level.disabled = !(oi.floorList || []).some((f) => f.on);
+  }
 }
 
 export function rerenderFloors(ctx, oi) {

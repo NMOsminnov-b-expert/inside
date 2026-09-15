@@ -12,6 +12,26 @@ import { addressByEni } from '../../../kernel/cadastre.js';
 import { syncOcAddress, parseAddress } from '../../../kernel/address.js';
 import { eniCodesOf, formatEniText } from '../../../kernel/eniField.js';
 
+// Поставить значение в поле части адреса.
+//
+// Область, район и город — выпадающие списки из справочника, и значения, какого
+// в справочнике нет, у них просто не существует: присвоение el.value молча
+// ничего не сделало бы. Поэтому недостающий вариант добавляем в список и
+// помечаем — видно, что справочник его не знает, и значение не потеряно.
+export function setAddrField(el, value) {
+  if (!el) return;
+
+  if (el.tagName === 'SELECT' && value
+      && ![...el.options].some((o) => o.value === value)) {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = `${value} — нет в справочнике`;
+    el.appendChild(o);
+  }
+
+  el.value = value;
+}
+
 // Поля блока «Местоположение»: куда раскладывается разобранный адрес. Карта
 // общая для разбора вставленной строки и для ответа Кадастра — иначе одно из
 // двух со временем отстаёт.
@@ -87,7 +107,7 @@ export function bindCadastre(ctx, rec) {
     Object.entries(ADDR_PARTS).forEach(([key, sel]) => {
       const el = s.$(sel);
       if (!el || !parsed[key]) return;
-      el.value = parsed[key];
+      setAddrField(el, parsed[key]);
       rec[key] = parsed[key];
     });
 

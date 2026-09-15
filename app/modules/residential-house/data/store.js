@@ -79,7 +79,9 @@ export const ui = {
 const UI_KEEP = [
   'expanded', 'accOpen', 'doneOpen',
   'splitVW', 'cmpSplit', 'cmpHidden',
-  'viewer', 'viewerDoc', 'viewerSidebar',
+  // viewerClosed — закрыт ли просмотрщик крестиком. Раньше не сохранялся, и
+  // перезагрузка возвращала его на экран (замечание пользователя 09.09.2026).
+  'viewer', 'viewerDoc', 'viewerSidebar', 'viewerClosed',
   'oiCols', 'oiColWidths',
   'railCollapsed',
 ];
@@ -95,11 +97,14 @@ registerPersisted('ui.residential-house', {
 });
 
 export function resetViewer() {
+  // Какой документ открыт — про конкретную запись: перешли к другой, значит
+  // выбор сбрасывается.
   ui.viewer = null;
   ui.viewerDoc = null;
-  // Закладка «Документы» — состояние ЭКРАНА, а не записи: перешли к другому
-  // объекту оценки, значит просмотрщик снова открыт по умолчанию.
-  ui.viewerClosed = false;
+  // А вот то, что просмотрщик закрыт крестиком, НЕ сбрасываем: человек закрыл
+  // панель для себя, а не для одной записи, и возвращать её на каждом переходе
+  // — то самое, что раздражало (решение 09.09.2026). Открыть обратно —
+  // закладкой «Документы».
 }
 
 export function nextLetter(rec) {
@@ -112,14 +117,6 @@ let seq = Date.now() % 100000;
 export function nextId(prefix) {
   seq += 1;
   return `${prefix}-${seq.toString(36)}`;
-}
-
-// ЕНИ выдаётся от максимума уже использованных, а не от длины массива —
-// иначе после удаления ОИ код повторяется (исправление дефекта макета).
-export function nextEni(rec, base) {
-  const used = rec.oi.map((o) => parseInt(o.eni, 10)).filter((n) => !isNaN(n));
-  const max = used.length ? Math.max(...used) : parseInt(base, 10) || 1475616813000;
-  return String(max + 1);
 }
 
 // Id вида «<ЕНИ записи>-<порядковый номер>» — для документов и записей лога
