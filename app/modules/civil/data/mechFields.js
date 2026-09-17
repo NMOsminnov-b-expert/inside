@@ -52,8 +52,8 @@ const IP = sel('ip', 'Степень защиты', ['IP20', 'IP21', 'IP23', 'IP
 const PHASES = sel('phases', 'Число фаз', ['Однофазный', 'Трёхфазный']);
 const MOTOR = num('motorPower', 'Мощность двигателя', ['кВт', 'л.с.']);
 const MASS = num('mass', 'Масса', ['кг', 'т']);
-const LENGTH = num('length', 'Длина', 'мм');
-const WIDTH = num('width', 'Ширина (глубина)', 'мм');
+const WIDTH = num('width', 'Ширина', 'мм');
+const DEPTH = num('depth', 'Глубина', 'мм');
 const HEIGHT = num('height', 'Высота', 'мм');
 const KIT = text('kit', 'Комплектность');
 const HOURS = int('hours', 'Наработка, моточасы');
@@ -85,7 +85,7 @@ export const MECH_FIELDS = {
       ],
       extra: [
         sel('coolingMedium', 'Охлаждающая среда', ['Масляное', 'Сухое']),
-        sel('coolingMode', 'Способ охлаждения', ['Естественное', 'Принудительное']),
+        sel('coolingMode', 'Способ охлаждения', ['Пассивное (естественное)', 'Активное (принудительное)']),
         text('windingGroup', 'Схема и группа соединения обмоток', { hint: 'например, Y/Yн-0' }),
         MASS,
       ],
@@ -383,7 +383,7 @@ export const MECH_FIELDS = {
         text('purpose', 'Назначение (кабинет, процедура)'),
       ],
       extra: [
-        LENGTH, WIDTH, HEIGHT,
+        WIDTH, DEPTH, HEIGHT,
         num('loadCapacity', 'Грузоподъёмность', 'кг'),
         yes('electric', 'Электропривод'),
         text('adjustments', 'Регулировки'),
@@ -393,7 +393,7 @@ export const MECH_FIELDS = {
         'Бактерицидные облучатели, рециркуляторы воздуха': {
           main: [sel('irradiatorKind', 'Вид', ['Открытый', 'Закрытый (рециркулятор)', 'Комбинированный']),
             num('roomVolume', 'Обслуживаемый объём помещения', 'м³'), int('lamps', 'Количество ламп')],
-          omit: ['material', 'loadCapacity', 'electric', 'adjustments', 'length', 'width', 'height'],
+          omit: ['material', 'loadCapacity', 'electric', 'adjustments', 'width', 'depth', 'height'],
         },
       },
     },
@@ -408,7 +408,7 @@ export const MECH_FIELDS = {
         sel('application', 'Область применения', ['Химический анализ', 'Биологический анализ',
           'Физический анализ', 'Медицинская диагностика', 'Прочее']),
       ],
-      extra: [VERIFY, VERIFY_UNTIL, text('software', 'Программное обеспечение'), KIT],
+      extra: [VERIFY, VERIFY_UNTIL, text('software', 'Установленное программное обеспечение'), KIT],
       byType: {
         'Спектрометры / спектрофотометры': {
           main: [num('specFrom', 'Спектральный диапазон от', 'нм'), num('specTo', 'Спектральный диапазон до', 'нм'),
@@ -457,7 +457,9 @@ export const MECH_FIELDS = {
     'Компьютерная и оргтехника': {
       country: false,
       main: [MODEL, SERIAL],
-      extra: [KIT],
+      // Установленное ПО таблица спрашивает у всей подгруппы, а не только у
+      // компьютеров: софт учитывается в связке с оборудованием.
+      extra: [KIT, text('software', 'Установленное программное обеспечение')],
       byType: {
         'Персональные компьютеры (настольные, моноблоки)': {
           main: [
@@ -546,7 +548,7 @@ export const MECH_FIELDS = {
       main: [
         text('collection', 'Производитель / коллекция'),
         sel('material', 'Материал', ['ЛДСП', 'МДФ', 'Массив дерева', 'Металл', 'Стекло', 'Пластик', 'Комбинированный']),
-        LENGTH, WIDTH, HEIGHT,
+        WIDTH, DEPTH, HEIGHT,
       ],
       extra: [
         text('color', 'Цвет'),
@@ -556,7 +558,7 @@ export const MECH_FIELDS = {
       byType: {
         'Кресла и стулья офисные': {
           main: [sel('upholstery', 'Обивка', ['Ткань', 'Экокожа', 'Кожа', 'Сетка', 'Без обивки'])],
-          omit: ['length', 'width', 'height'],
+          omit: ['width', 'depth', 'height'],
         },
       },
     },
@@ -582,7 +584,7 @@ export const MECH_FIELDS = {
     'Стеллажи и складское оборудование': {
       country: false,
       main: [
-        MODEL, HEIGHT, WIDTH, LENGTH,
+        MODEL, HEIGHT, WIDTH, DEPTH,
         num('loadShelf', 'Нагрузка на полку (ярус)', ['кг', 'т']),
         num('loadTotal', 'Общая нагрузка', ['кг', 'т']),
       ],
@@ -595,7 +597,7 @@ export const MECH_FIELDS = {
         'Паллетное оборудование (роклы, штабелёры — если не относятся к спецтехнике/ТС)': {
           main: [SERIAL, num('capacity', 'Грузоподъёмность', ['кг', 'т']), num('liftHeight', 'Высота подъёма', 'м'),
             DRIVE_EM],
-          omit: ['loadShelf', 'loadTotal', 'shelves', 'height', 'width', 'length'],
+          omit: ['loadShelf', 'loadTotal', 'shelves', 'height', 'width', 'depth'],
         },
       },
     },
