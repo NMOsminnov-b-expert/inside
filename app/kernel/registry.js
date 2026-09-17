@@ -22,6 +22,9 @@ import * as productionDicts from '../modules/production/data/dictExport.js';
 import { manifest as landPlotManifest } from '../modules/land-plot/manifest.js';
 import * as landPlotRecords from '../modules/land-plot/records.js';
 import * as landPlotDicts from '../modules/land-plot/data/dictExport.js';
+import { manifest as vehicleManifest } from '../modules/vehicle/manifest.js';
+import * as vehicleRecords from '../modules/vehicle/records.js';
+import * as vehicleDicts from '../modules/vehicle/data/dictExport.js';
 
 export const OC_TYPES = [
   {
@@ -58,6 +61,13 @@ export const OC_TYPES = [
     dictExport: landPlotDicts,
     styleHref: './app/modules/land-plot/module.css',
     load: () => import('../modules/land-plot/index.js'),
+  },
+  {
+    manifest: vehicleManifest,
+    records: vehicleRecords,
+    dictExport: vehicleDicts,
+    styleHref: './app/modules/vehicle/module.css',
+    load: () => import('../modules/vehicle/index.js'),
   },
 ];
 
