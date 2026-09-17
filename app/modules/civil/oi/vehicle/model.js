@@ -7,8 +7,12 @@
 // Состав полей зависит от типа ТС и живёт в data/vehicleFields.js. Значения
 // характеристик хранятся в oi.params по ключу поля, единица измерения —
 // отдельным ключом «<ключ>@unit»: «2,5» и «т» это разные сведения.
-import { vehicleFieldsFor, VEHICLE_REG_FIELDS } from '../../data/vehicleFields.js';
+import { vehicleFieldsFor } from '../../data/vehicleFields.js';
 import { paramOf, paramUnit } from '../../parts/fields.js';
+
+// Категория ТС — из техпаспорта, одна и та же у любого типа машины.
+export const CATEGORIES = ['A', 'A1', 'B', 'B1', 'BE', 'C', 'C1', 'CE', 'C1E', 'D', 'D1', 'DE', 'D1E',
+  'T (тракторы и спецтехника)'];
 
 // VIN: 17 знаков, латиница верхнего регистра и цифры. Букв I, O и Q в коде не
 // бывает — их исключили, чтобы не путать с единицей и нулём (стандарт
@@ -34,10 +38,9 @@ export const normPlate = (value) => String(value || '').toUpperCase().replace(/\
 
 export const vehicleParams = (oi) => (oi.params = oi.params || {});
 
-// Поля характеристик по типу ТС. null — тип ещё не выбран.
-export const paramsOf = (oi) => vehicleFieldsFor(oi.vtype);
-
-export const regFields = () => VEHICLE_REG_FIELDS;
+// Поля характеристик по типу ТС. null — тип ещё не выбран. Состав зависит и от
+// значений: «Иное» в типе кузова прицепа открывает поле для своего значения.
+export const paramsOf = (oi) => vehicleFieldsFor(oi.vtype, oi.params);
 
 export const vehicleParam = (oi, key) => paramOf(oi.params, key);
 export const vehicleParamUnit = (oi, f) => paramUnit(oi.params, f);
@@ -71,17 +74,16 @@ export function createVehicleOi(base) {
     // недвижимости, а ТС стоит на учёте в органах регистрации транспорта.
     eni: '',
     vtype: '',
+    category: '',
     brand: '',
     model: '',
     plate: '',
     vin: '',
-    inv: '',
     color: '',
     year: '',
-    commissioned: '',
     country: '',
-    cost: '',
     params: {},
+    marks: '',
     comment: '',
     docs: [],
     photos: {},

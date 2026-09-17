@@ -7,21 +7,20 @@
 // характеристик нет вовсе — практика каскадных списков: дочернее поле не
 // показывается, пока не выбран родитель.
 import { esc } from '../../../../kernel/dom.js';
-import { numText } from '../../../../kernel/numField.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { fieldHTML } from '../../parts/fields.js';
 import { VEHICLE_TYPES } from '../../data/vehicleFields.js';
-import { paramsOf, regFields, vehicleTitle, vehicleSubtitle, VIN_LENGTH } from './model.js';
+import { CATEGORIES, paramsOf, vehicleTitle, vehicleSubtitle, VIN_LENGTH } from './model.js';
 
 const ATTR = 'vh-f';
 const ID = 'vh-f-';
 
-// Тип ТС, марка, госномер и VIN — то, по чему машину узнают; инвентарный номер
-// стоит рядом с ними, как в карточке механизма. Тип идёт первым: от него
-// зависят характеристики ниже (практика каскадных списков — родитель стоит
-// перед тем, что от него зависит).
+// Тип ТС, марка, госномер и VIN — то, по чему машину узнают. Всё в этом блоке
+// читается с техпаспорта, поэтому и порядок тот же, в каком оно там стоит.
+// Тип идёт первым: от него зависят характеристики ниже (практика каскадных
+// списков — родитель стоит перед тем, что от него зависит).
 function identityHTML(oi) {
   const vin = String(oi.vin || '');
   return `<div class="mu-sec">
@@ -32,6 +31,13 @@ function identityHTML(oi) {
         <select class="select" id="vh-type" data-vh-type>
           <option value="">Выберите тип</option>
           ${VEHICLE_TYPES.map((t) => `<option ${t === oi.vtype ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label for="vh-category">Категория ТС</label>
+        <select class="select" id="vh-category" data-vh-category>
+          <option value="">Не выбрано</option>
+          ${CATEGORIES.map((c) => `<option ${c === oi.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}
         </select>
       </div>
       <div class="field">
@@ -53,12 +59,17 @@ function identityHTML(oi) {
           maxlength="${VIN_LENGTH}" aria-describedby="vh-vin-hint" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field">
-        <label for="vh-inv">Инвентарный номер</label>
-        <input class="input" id="vh-inv" data-vh-inv value="${esc(oi.inv || '')}">
+        <label for="vh-year">Год выпуска</label>
+        <input class="input mu-num" id="vh-year" data-vh-year value="${esc(oi.year || '')}"
+          inputmode="numeric" maxlength="4" placeholder="ГГГГ">
       </div>
       <div class="field">
         <label for="vh-color">Цвет</label>
         <input class="input" id="vh-color" data-vh-color value="${esc(oi.color || '')}">
+      </div>
+      <div class="field">
+        <label for="vh-country">Страна-изготовитель</label>
+        <input class="input" id="vh-country" data-vh-country value="${esc(oi.country || '')}">
       </div>
     </div>
   </div>`;
@@ -81,42 +92,18 @@ function paramsHTML(oi, part, title) {
   </div>`;
 }
 
-// Учётные сведения: то, что берут из баланса и регистрационных документов.
-// Год выпуска и год ввода в эксплуатацию — разные годы: машину покупают не в
-// год выпуска, и в балансе стоит второй.
-function accountingHTML(oi) {
+// Особые отметки — поле карточки ТС как объекта оценки: приметы, которых нет
+// среди характеристик (перекрашен, следы ремонта, надпись на борту).
+// Комментарий — про саму запись: чего не хватило и в чём сомнение.
+function notesHTML(oi) {
   return `<div class="mu-sec">
-    <div class="sec-h">Учётные сведения</div>
-    <div class="grid mu-grid-general">
-      <div class="field">
-        <label for="vh-year">Год выпуска</label>
-        <input class="input mu-num" id="vh-year" data-vh-year value="${esc(oi.year || '')}"
-          inputmode="numeric" maxlength="4" placeholder="ГГГГ">
-      </div>
-      <div class="field">
-        <label for="vh-comm">Год ввода в эксплуатацию</label>
-        <input class="input mu-num" id="vh-comm" data-vh-commissioned value="${esc(oi.commissioned || '')}"
-          inputmode="numeric" maxlength="4" placeholder="ГГГГ">
-      </div>
-      <div class="field">
-        <label for="vh-country">Страна происхождения</label>
-        <input class="input" id="vh-country" data-vh-country value="${esc(oi.country || '')}">
-      </div>
-      <div class="field">
-        <label for="vh-cost">Балансовая стоимость, сом</label>
-        <input class="input mu-num" id="vh-cost" data-vh-cost value="${esc(numText(oi.cost))}"
-          data-num="dec" placeholder="не указана">
-      </div>
-      ${regFields().map((f) => fieldHTML(oi.params, f, ATTR, ID)).join('')}
-    </div>
-  </div>`;
-}
-
-function commentHTML(oi) {
-  return `<div class="mu-sec">
-    <div class="sec-h">Комментарий</div>
+    <div class="sec-h">Особые отметки и комментарий</div>
     <div class="field mu-comment-field">
-      <label for="vh-comment" class="sr-only">Комментарий</label>
+      <label for="vh-marks">Особые отметки</label>
+      <textarea class="input mu-comment" id="vh-marks" data-vh-marks rows="2">${esc(oi.marks || '')}</textarea>
+    </div>
+    <div class="field mu-comment-field">
+      <label for="vh-comment">Комментарий</label>
       <span class="mu-hint" id="vh-comment-hint">Не нашли подходящего поля или сомневаетесь в значении —
         опишите здесь своими словами.</span>
       <textarea class="input mu-comment" id="vh-comment" data-vh-comment rows="3"
@@ -137,9 +124,8 @@ function cardHTML(ctx, oi, idx) {
     <div class="card-body-wrap"><div class="card-pad">
       ${identityHTML(oi)}
       ${paramsHTML(oi, 'main', 'Характеристики')}
-      ${accountingHTML(oi)}
       ${paramsHTML(oi, 'extra', 'Дополнительные характеристики')}
-      ${commentHTML(oi)}
+      ${notesHTML(oi)}
     </div></div>
   </div>`;
 }

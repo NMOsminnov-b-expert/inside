@@ -5,6 +5,7 @@
 // курсором. Перерисовка только на смену типа ТС: от него зависит весь набор
 // характеристик.
 import { bindNumField } from '../../../../kernel/numField.js';
+import { bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { setFieldError } from '../../../../kernel/fieldError.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
@@ -30,11 +31,13 @@ export function bind(ctx, oi) {
 
   plain('brand', (el) => { oi.brand = el.value; retitle(); });
   plain('model', (el) => { oi.model = el.value; retitle(); });
-  plain('inv', (el) => { oi.inv = el.value; });
   plain('color', (el) => { oi.color = el.value; });
   plain('country', (el) => { oi.country = el.value; });
   plain('year', (el) => { oi.year = el.value; });
-  plain('commissioned', (el) => { oi.commissioned = el.value; });
+  plain('marks', (el) => { oi.marks = el.value; });
+
+  const category = s.$('[data-vh-category]');
+  if (category) category.onchange = () => { oi.category = category.value; };
 
   // Госномер приводится к верхнему регистру по ходу набора; курсор при этом не
   // прыгает — длина строки не меняется.
@@ -64,9 +67,6 @@ export function bind(ctx, oi) {
     vin.onblur = () => setFieldError(vin, vinError(vin.value));
   }
 
-  const cost = s.$('[data-vh-cost]');
-  bindNumField(cost, (v) => { oi.cost = v; });
-
   // --- Тип ТС: от него зависит набор характеристик --------------------------
   const type = s.$('[data-vh-type]');
   if (type) {
@@ -90,9 +90,62 @@ export function bind(ctx, oi) {
       return;
     }
     const set = () => write(key, el.value);
-    if (el.tagName === 'SELECT' || el.type === 'date') el.onchange = set;
-    else el.oninput = set;
+    if (el.tagName === 'SELECT' || el.type === 'date') {
+      // Тип кузова прицепа со значением «Иное» открывает поле для своего
+      // значения — состав карточки меняется, поэтому отрисовываем заново.
+      el.onchange = key === 'body' ? () => { set(); ctx.render(); } : set;
+    } else el.oninput = set;
   });
+
+  // Мультивыбор (тип топлива с завода): список общий для проекта, открывается
+  // и закрывается как остальные мультивыборы модуля.
+  s.$$('[data-vh-f-ms]').forEach((box) => {
+    const key = box.dataset.vhFMs;
+    const drop = box.querySelector('.ms-drop');
+    const control = box.querySelector('[data-ms-toggle]');
+    bindMsSearch(drop);
+
+    if (control) control.onclick = (e) => {
+      e.stopPropagation();
+      drop.hidden = !drop.hidden;
+      control.classList.toggle('open', !drop.hidden);
+    };
+
+    box.querySelectorAll('[data-vh-f-opt]').forEach((cb) => {
+      cb.onchange = () => {
+        const picked = Array.isArray(params[key]) ? params[key] : [];
+        const value = cb.dataset.vhFOpt;
+        const at = picked.indexOf(value);
+        if (at >= 0) picked.splice(at, 1); else picked.push(value);
+        params[key] = picked;
+        if (!picked.length) delete params[key];
+
+        const text = picked.join(', ');
+        const summary = box.querySelector('.ms-summary');
+        if (summary) {
+          summary.textContent = text || 'не выбрано';
+          summary.title = text;
+          summary.classList.toggle('muted', !picked.length);
+        }
+        const count = box.querySelector('.ms-count');
+        if (count) {
+          count.textContent = String(picked.length);
+          count.hidden = !picked.length;
+        }
+      };
+    });
+  });
+
+  // Закрытие списков по клику вне них — один раз на область, иначе слушатели
+  // копились бы с каждой отрисовкой.
+  if (!s.root.dataset.vhMsBound) {
+    s.root.dataset.vhMsBound = '1';
+    s.onDocument('click', (e) => {
+      if (e.target.closest('.ms')) return;
+      s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
+      s.$$('.ms-drop').forEach((d) => { d.hidden = true; });
+    });
+  }
 
   s.$$('[data-vh-f-unit]').forEach((el) => {
     el.onchange = () => write(el.dataset.vhFUnit + '@unit', el.value);

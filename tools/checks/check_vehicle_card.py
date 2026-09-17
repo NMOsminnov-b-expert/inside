@@ -16,7 +16,11 @@
   * подпись ОИ собирается из марки, модели и госномера по ходу набора: своего
     поля «наименование» у ТС нет;
   * кода ЕНИ у ТС нет — чипа «ЕНИ» в плашке быть не должно;
-  * числовые поля — общие для макета: «1200*1000» в стоимости даёт 1 200 000.
+  * состав полей — из техпаспорта и того, что видно при осмотре: учётных
+    сведений баланса (инвентарный номер, год ввода в эксплуатацию, балансовая
+    стоимость) в карточке нет (указание пользователя 17.09.2026);
+  * тип топлива — мультивыбор: машина с завода ездит и на бензине, и на газе;
+  * числовые поля — общие для макета: «12*100» в пробеге даёт 1 200.
 """
 
 NAME = 'карточка ТС'
@@ -75,11 +79,11 @@ def run(t):
          'без типа ТС нет подсказки о характеристиках')
 
     pg.select_option('[data-vh-type]', 'Легковое')
-    t.wait_until("() => !!document.querySelector('[data-vh-f=\"bodyType\"]')")
+    t.wait_until("() => !!document.querySelector('[data-vh-f=\"body\"]')")
     t.wait(300)
     keys = pg.eval_on_selector_all('[data-vh-f]', 'els => els.map((e) => e.dataset.vhF)')
-    t.ck('bodyType' in keys and 'engineVolume' in keys, 'нет характеристик легкового: %s' % keys)
-    t.ck('specialKind' not in keys, 'показаны характеристики чужого типа: %s' % keys)
+    t.ck('body' in keys and 'engineVolume' in keys, 'нет характеристик легкового: %s' % keys)
+    t.ck('specialType' not in keys, 'показаны характеристики чужого типа: %s' % keys)
 
     vol = pg.locator('[data-vh-f="engineVolume"]')
     vol.fill('2494')
@@ -87,17 +91,32 @@ def run(t):
     t.wait(200)
     t.ck(plain(vol.input_value()) == '2 494', 'объём двигателя показан не целым: %r' % vol.input_value())
 
+    # Учётные сведения баланса в карточке ТС не спрашиваются.
+    t.ck(pg.locator('[data-vh-cost]').count() == 0, 'в карточке ТС спрашивают балансовую стоимость')
+    t.ck(pg.locator('[data-vh-inv]').count() == 0, 'в карточке ТС спрашивают инвентарный номер')
+
+    # Тип топлива — мультивыбор: значений бывает несколько сразу.
+    box = pg.locator('[data-vh-f-ms="fuel"]')
+    t.ck(box.count() == 1, 'тип топлива задаётся не мультивыбором')
+    box.locator('[data-ms-toggle]').click()
+    t.wait(250)
+    box.locator('[data-vh-f-opt="Бензин"]').check()
+    box.locator('[data-vh-f-opt="Газ"]').check()
+    t.wait(250)
+    t.ck('Бензин, Газ' in box.locator('.ms-summary').inner_text(),
+         'выбранные виды топлива не попали в сводку: %r' % box.locator('.ms-summary').inner_text())
+
     # --- смена типа: общее значение остаётся -------------------------------------
     pg.select_option('[data-vh-type]', 'Спецтехника')
-    t.wait_until("() => !!document.querySelector('[data-vh-f=\"specialKind\"]')")
+    t.wait_until("() => !!document.querySelector('[data-vh-f=\"specialType\"]')")
     t.wait(300)
     keys = pg.eval_on_selector_all('[data-vh-f]', 'els => els.map((e) => e.dataset.vhF)')
-    t.ck('engineHours' in keys, 'нет характеристик спецтехники: %s' % keys)
+    t.ck('specialType' in keys and 'engineHours' in keys, 'нет характеристик спецтехники: %s' % keys)
     t.ck(plain(pg.locator('[data-vh-f="engineVolume"]').input_value()) == '2 494',
          'общее поле потеряло значение при смене типа')
 
     pg.select_option('[data-vh-type]', 'Легковое')
-    t.wait_until("() => !!document.querySelector('[data-vh-f=\"bodyType\"]')")
+    t.wait_until("() => !!document.querySelector('[data-vh-f=\"body\"]')")
     t.wait(300)
 
     # --- марка, госномер, VIN -----------------------------------------------------
@@ -115,23 +134,29 @@ def run(t):
     t.wait(200)
     t.ck(vin.input_value() == 'JTDBE32K13300123',
          'VIN не приведён к виду стандарта: %r' % vin.input_value())
-    pg.locator('[data-vh-inv]').click()
+    pg.locator('[data-vh-brand]').click()
     t.wait(250)
     t.ck(vin.evaluate('(e) => e.classList.contains("field-bad")'), 'недобранный VIN не помечен')
     vin.fill('JTDBE32K1A3300123')
-    pg.locator('[data-vh-inv]').click()
+    pg.locator('[data-vh-brand]').click()
     t.wait(250)
     t.ck(not vin.evaluate('(e) => e.classList.contains("field-bad")'), 'полный VIN помечен ошибкой')
 
     # --- числовое поле ---------------------------------------------------------------
-    cost = pg.locator('[data-vh-cost]')
-    cost.click()
+    run = pg.locator('[data-vh-f="mileage"]')
+    run.click()
     pg.keyboard.press('Control+a')
-    cost.type('1200*1000')
-    cost.press('Enter')
+    run.type('12*100')
+    run.press('Enter')
     t.wait(200)
-    t.ck(plain(cost.input_value()) == '1 200 000,00',
-         'стоимость не посчиталась выражением: %r' % cost.input_value())
+    t.ck(plain(run.input_value()) == '1 200', 'пробег не посчитался выражением: %r' % run.input_value())
+
+    # --- особые отметки и комментарий ---------------------------------------------------
+    t.ck(pg.locator('[data-vh-marks]').count() == 1, 'нет поля «Особые отметки»')
+    cm = pg.locator('[data-vh-comment]')
+    t.ck(cm.count() == 1, 'нет поля комментария')
+    cm.fill('Сверить пробег с путевыми листами.')
+    t.wait(200)
 
     # --- подпись ОИ в перечне ---------------------------------------------------------
     t.open(OC, wait='[data-add-oi]')

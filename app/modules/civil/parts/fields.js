@@ -15,6 +15,7 @@
 //            разных категориях сохраняет введённое при смене категории.
 import { esc } from '../../../kernel/dom.js';
 import { numText } from '../../../kernel/numField.js';
+import { msDropBodyHTML } from '../../../kernel/multiSelect.js';
 
 export const text = (key, label, o = {}) => ({ key, label, type: 'text', ...o });
 export const num = (key, label, units = [], o = {}) => ({ key, label, type: 'num', units: [].concat(units), ...o });
@@ -22,10 +23,18 @@ export const int = (key, label, o = {}) => ({ key, label, type: 'int', ...o });
 export const sel = (key, label, options, o = {}) => ({ key, label, type: 'select', options, ...o });
 export const date = (key, label, o = {}) => ({ key, label, type: 'date', ...o });
 export const yes = (key, label) => sel(key, label, ['Да', 'Нет']);
+// Мультивыбор — когда значений у одной величины бывает несколько сразу:
+// машина с завода ездит и на бензине, и на газе.
+export const multi = (key, label, options, o = {}) => ({ key, label, type: 'multi', options, ...o });
 
 // Значение поля и выбранная единица измерения. Единица — отдельное сведение и
 // лежит отдельным ключом: «400» и «кВА» это разные данные.
 export const paramOf = (params, key) => String((params || {})[key] || '');
+
+export const paramList = (params, key) => {
+  const v = (params || {})[key];
+  return Array.isArray(v) ? v : [];
+};
 
 export function paramUnit(params, f) {
   const saved = String((params || {})[f.key + '@unit'] || '');
@@ -48,6 +57,26 @@ export function fieldHTML(params, f, attr, idPrefix) {
   const label = esc(f.label + (one ? ', ' + one : ''));
 
   const control = () => {
+    // Мультивыбор — общий для проекта список с поиском (kernel/multiSelect.js):
+    // в закрытом виде одна строка сводки с обрезкой, чтобы поле не росло по
+    // высоте от числа выбранных значений.
+    if (f.type === 'multi') {
+      const picked = paramList(params, f.key);
+      const shown = picked.join(', ');
+
+      return `<div class="ms" data-${attr}-ms="${esc(f.key)}">
+        <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
+          <span class="ms-summary ${picked.length ? '' : 'muted'}" title="${esc(shown)}">${
+  esc(shown || 'не выбрано')}</span>
+          <span class="ms-count" ${picked.length ? '' : 'hidden'}>${picked.length}</span>
+          <span class="chev">▾</span>
+        </div>
+        <div class="ms-drop" hidden>
+          ${msDropBodyHTML({ options: f.options, selected: picked, optAttr: attr + '-opt' })}
+        </div>
+      </div>`;
+    }
+
     if (f.type === 'select') {
       return `<select class="select" id="${id}" data-${attr}="${esc(f.key)}">
         <option value="">Не выбрано</option>
