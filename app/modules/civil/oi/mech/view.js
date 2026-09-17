@@ -117,26 +117,31 @@ function listCard(ctx, oi, current, idx) {
       <span class="card-idx">${String(idx).padStart(2, '0')}</span>
       <h3>Состав</h3>
       <span class="hint">единицы техники в этом объекте имущества</span>
-      <button class="btn btn-primary btn-sm" data-mu-add style="margin-left:auto">+ Механизм</button>
+      <button class="btn btn-primary btn-sm" data-mu-add style="margin-left:auto" title="Добавить единицу техники в состав">+ Добавить ОИ</button>
       <span class="chev" style="margin-left:8px">▾</span>
     </div>
     <div class="card-body-wrap">${groupRow(oi)}${unitsTable(ctx, oi, current)}</div>
   </div>`;
 }
 
-// Общее название группы: «Комплекс техники (серверная)». Нужно, когда единиц
-// несколько, — иначе ОИ в перечне называется по первой из них («Сервер HPE
-// (+2)»), и по такой подписи группу не узнать. У одной единицы название группы
-// совпало бы с её собственным, поэтому поле не показывается, пока оно не
-// заполнено.
+// Название списка — то, под чем эта техника числится: название списка, номер
+// счёта по бухгалтерскому балансу или материально ответственное лицо
+// (уточнение пользователя 17.09.2026). Показывается всегда: список по счёту или
+// МОЛ бывает и у одной единицы. Пока не заполнено, ОИ в перечне называется по
+// первой единице — это и сказано в подсказке поля.
+//
+// Пояснение — строкой под подписью, как у комментария единицы: что именно
+// вписывать, надо видеть до ввода, а не после наведения.
 function groupRow(oi) {
   const list = mechUnits(oi);
-  if (list.length < 2 && !oi.groupName) return '';
   const fallback = list.length ? `${unitTitle(list[0])}${list.length > 1 ? ` (+${list.length - 1})` : ''}` : '';
-  return `<div class="mu-group">
-    <label for="mu-group">Общее название</label>
+  return `<div class="mu-group field">
+    <label for="mu-group">Название списка</label>
+    <span class="mu-hint" id="mu-group-hint">Можно указать номер счёта по бухгалтерскому балансу (ББ)
+      или материально ответственное лицо (МОЛ)</span>
     <input class="input" id="mu-group" data-mu-group value="${esc(oi.groupName || '')}"
-      placeholder="${esc(`Если не задано — «${fallback}»`)}">
+      aria-describedby="mu-group-hint"
+      placeholder="${esc(fallback ? `Если не указано — «${fallback}»` : '')}">
   </div>`;
 }
 
@@ -298,7 +303,7 @@ function unitCard(ctx, oi, unit, idx) {
   if (!unit) {
     return `<div class="card t-teal"><div class="card-head"><span class="card-idx">${num}</span>
       <h3>Механизм</h3></div><div class="card-pad"><div class="mu-empty">В составе нет единиц.
-      Добавьте первую кнопкой «+ Механизм».</div></div></div>`;
+      Добавьте первую кнопкой «+ Добавить ОИ».</div></div></div>`;
   }
 
   const list = mechUnits(oi);

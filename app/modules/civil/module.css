@@ -643,13 +643,10 @@ body[data-module="civil"] .mu-grid-class > .field:nth-child(3){grid-column:1 / -
 body[data-module="civil"] .mu-sec .sec-h::after{order:1}
 body[data-module="civil"] .mu-sec .sec-h .btn{order:2;margin-left:4px}
 
-/* Общее название группы — строка над таблицей состава: подпись слева, поле
-   справа, как у фильтров над таблицами. */
-body[data-module="civil"] .mu-group{display:flex;align-items:center;gap:12px;padding:10px 12px;
-  border-bottom:1px solid var(--line-soft)}
-body[data-module="civil"] .mu-group label{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:.5px;
-  text-transform:uppercase;color:var(--ink-label)}
-body[data-module="civil"] .mu-group .input{flex:1 1 auto;min-width:0}
+/* Название списка — над таблицей состава: подпись, пояснение под ней и поле,
+   как у остальных полей карточки. */
+body[data-module="civil"] .mu-group{padding:10px 12px 12px;border-bottom:1px solid var(--line-soft)}
+body[data-module="civil"] .mu-group .mu-hint{margin:0 0 2px}
 
 /* Фокус строки состава с клавиатуры — видимая рамка, как у полей. */
 body[data-module="civil"] .mu-row:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
