@@ -256,6 +256,24 @@ function extraHTML(unit) {
   </div>`;
 }
 
+// Комментарий — место для сведений, которым не нашлось поля, и для сомнений в
+// значении (требование пользователя 17.09.2026). Пояснение стоит под подписью
+// строкой, а не подсказкой внутри поля: у свободного текста нет формата, и
+// пример в поле читался бы как образец, который надо повторить (практика
+// helper text, PatternFly, CFPB).
+function commentHTML(unit) {
+  return `<div class="mu-sec">
+    <div class="sec-h">Комментарий</div>
+    <div class="field mu-comment-field">
+      <label for="mu-comment" class="sr-only">Комментарий</label>
+      <span class="mu-hint" id="mu-comment-hint">Не нашли подходящего поля или сомневаетесь в значении —
+        опишите здесь своими словами.</span>
+      <textarea class="input mu-comment" id="mu-comment" data-mu-comment rows="3"
+        aria-describedby="mu-comment-hint">${esc(unit.comment || '')}</textarea>
+    </div>
+  </div>`;
+}
+
 function photosHTML(oi, unit) {
   const n = unitPhotoCount(oi, unit);
   const tiles = Array.from({ length: n }, (_, i) => {
@@ -302,6 +320,7 @@ function unitCard(ctx, oi, unit, idx) {
       ${generalHTML(unit)}
       ${paramsHTML(unit)}
       ${extraHTML(unit)}
+      ${commentHTML(unit)}
       ${photosHTML(oi, unit)}
     </div></div>
   </div>`;

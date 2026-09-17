@@ -10,6 +10,7 @@
 //     year, maker,               // базовые параметры (у всех классов)
 //     params: {подпись: значение},   // параметры подгруппы
 //     extra: [{id, label, value}],   // свои поля, которых нет в классификаторе
+//     comment,                   // сведения, для которых не нашлось поля
 //     qty, cost,
 //   }]
 //
@@ -38,6 +39,7 @@ export function createUnit(patch = {}) {
     year: '', maker: '',
     params: {},
     extra: [],
+    comment: '',
     qty: '1',
     cost: '',
     ...patch,

@@ -194,6 +194,19 @@ export function bind(ctx, oi) {
     unit.params[inp.dataset.muParam] = inp.value;
   });
 
+  // --- Комментарий ----------------------------------------------------------
+  // Поле растёт по тексту: прокрутка внутри маленького окошка прячет
+  // написанное, а комментарий как раз и читают целиком.
+  const comment = s.$('[data-mu-comment]');
+  if (comment) {
+    const grow = () => {
+      comment.style.height = 'auto';
+      comment.style.height = comment.scrollHeight + 2 + 'px';
+    };
+    comment.oninput = () => { unit.comment = comment.value; grow(); };
+    grow();
+  }
+
   // --- Свои поля ------------------------------------------------------------
 
   const fieldOf = (id) => (unit.extra || []).find((f) => f.id === id);
