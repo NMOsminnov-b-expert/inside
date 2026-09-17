@@ -430,80 +430,63 @@ body[data-module="civil"] .oi-tree-tbl tfoot .oi-total td{background:var(--fill-
 body[data-module="civil"] .oi-total-v{font-variant-numeric:tabular-nums}
 
 /* ---------------------------------------------------------------------------
-   Вспомогательные постройки в перечне ОИ (решение пользователя 17.09.2026).
+   Вспомогательные постройки — своя таблица под перечнем ОИ (решение
+   пользователя 17.09.2026).
 
-   Цвет — сланцевый, третий после синего у литер и янтарного у движимого.
-   Выбран не «чтобы отличалось»: сланцевый тише синего, и это ровно то, чем
-   вспомогательная постройка отличается от литеры — она второстепенна. Так же,
-   как участок отмечен бирюзовым, а движимое янтарным: цвет здесь несёт смысл.
+   Колонки заданы долями, поэтому таблица всегда равна месту под ней и вбок не
+   прокручивается. Прежняя раскладка задавала ширину числом (min-width), и
+   таблица оказывалась шире отведённого места — отсюда и бралась полоса
+   прокрутки, которой до того не было.
+
+   Цвет раздела — сланцевый, третий после синего у литер и янтарного у
+   движимого: он тише, и это ровно то, чем вспомогательная постройка
+   отличается от литеры.
 --------------------------------------------------------------------------- */
 body[data-module="civil"] .oi-sub[data-oi-sub="aux"] .oi-sub-h{background:var(--slate-50);
   color:var(--slate-700);box-shadow:inset 3px 0 0 var(--slate-500)}
 body[data-module="civil"] .oi-node-cnt.aux{background:var(--slate-50);color:var(--slate-700);
   border:1px solid var(--line);margin-left:4px}
 
-/* Шеврон в начале строки — единственный признак, по которому видно, что строка
-   раскрывается, а не ведёт на свой экран (у постройки его нет). Повёрнут, пока
-   строка закрыта, — так же, как у аккордеонов макета. */
-body[data-module="civil"] .aux-chev{display:inline-block;width:12px;margin-right:2px;
-  color:var(--ink-dim);font-size:10px;transform:rotate(-90deg);transition:transform .15s}
-body[data-module="civil"] tr.oi-aux.open .aux-chev{transform:none;color:var(--slate-700)}
-body[data-module="civil"] tr.oi-aux.open td{background:var(--slate-50)}
+body[data-module="civil"] .aux-tbl{width:100%;table-layout:fixed;border-collapse:collapse}
+/* Заголовок переносится на две строки, а не режется многоточием: подпись
+   столбца должна читаться целиком даже в самом узком месте. */
+body[data-module="civil"] .aux-tbl th{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--ink-label);font-weight:700;text-align:left;padding:6px 8px;line-height:1.25;
+  white-space:normal;background:var(--fill-head);border-bottom:1px solid var(--line)}
+body[data-module="civil"] .aux-tbl td{padding:4px 5px;border-bottom:1px solid var(--line-soft);
+  vertical-align:middle;overflow:visible}
 
-/* Панель принадлежит своей строке, а не таблице: отступ слева и та же полоса
-   сланцевого цвета показывают, к чему она относится, когда строк много. */
-/* Ячейки таблицы обрезают содержимое (.tbl td{overflow:hidden}) — длинное
-   название прячется многоточием. Ячейке панели обрезка не нужна и мешает:
-   прилипание считается по ближайшему предку с обрезкой, а он не прокручивается. */
-body[data-module="civil"] .oi-aux-panel-row td{padding:0;background:var(--fill-head);
-  border-bottom:1px solid var(--line);overflow:visible}
+/* Поле занимает ячейку целиком: рамка поля и есть граница ячейки, поэтому
+   строка не распухает и таблица читается таблицей, а не набором форм. */
+body[data-module="civil"] .aux-tbl input.aux-in{width:100%;min-width:0;height:28px;
+  padding:3px 6px;font-size:12.5px}
+body[data-module="civil"] .aux-tbl .aux-num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .aux-tbl .field{margin:0}
+body[data-module="civil"] .aux-tbl .ms-control{min-height:28px;padding:3px 6px;font-size:11.5px}
 
-/* Панель прижата к левому краю окна прокрутки и шириной с ВИДИМУЮ часть
-   перечня: таблица шире экрана и прокручивается вбок, а панель уезжала вместе
-   с ней — левые поля обрезались, правое уходило за край. Ширину видимой части
-   подставляет контроллер (--oi-vis-w), потому что в CSS она не выражается:
-   колонки живут в переменных, а ширина окна прокрутки меняется ещё и от
-   просмотрщика документов. */
-body[data-module="civil"] .oi-aux-panel{position:sticky;left:0;
-  width:var(--oi-vis-w, 100%);box-sizing:border-box;
-  padding:10px 12px 12px 26px;box-shadow:inset 3px 0 0 var(--slate-500)}
-body[data-module="civil"] .oi-aux-panel .grid{display:grid;gap:10px 12px;margin-bottom:2px}
+/* Выбранное и «не выбрано» — одной строкой с многоточием: перенос на вторую
+   строку задирал высоту всей строки таблицы. Полный перечень материалов и так
+   в подсказке и в раскрытом списке. */
+body[data-module="civil"] .aux-tbl .ms-control > span{white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;min-width:0}
 
-/* Площади — числа: поле не растягивается во всю колонку (растянутое поле под
-   двузначное число читается как место для текста), значение по правому краю и
-   цифрами одной ширины, как в поэтажной развёртке. */
-body[data-module="civil"] .oi-aux-panel input[inputmode="decimal"]{max-width:150px;
-  text-align:right;font-variant-numeric:tabular-nums}
+/* Числовые заголовки — по правому краю, над своими числами: заголовок и
+   колонка должны стоять одной линией. */
+body[data-module="civil"] .aux-tbl th.aux-c-area,
+body[data-module="civil"] .aux-tbl th.aux-c-year{text-align:right}
+body[data-module="civil"] .aux-tbl .aux-c-n{color:var(--ink-dim);font-size:11px;text-align:center}
+body[data-module="civil"] .aux-tbl .aux-c-act{text-align:center}
 
-/* Первый подзаголовок панели без верхнего отступа: над ним уже граница строки. */
-body[data-module="civil"] .oi-aux-panel .oi-aux-sub:first-child{margin-top:2px}
+/* Итог по площади — под своей колонкой, тоном служебной строки. */
+body[data-module="civil"] .aux-tbl tfoot .oi-total td{background:var(--fill-head);
+  border-top:1px solid var(--line);border-bottom:none;font-size:11.5px;font-weight:700;
+  color:var(--blue-700);padding:6px 8px}
+body[data-module="civil"] .aux-tbl tfoot .oi-total .aux-c-area{text-align:right}
 
-/* Подзаголовок внутри панели: набирается тем же капсом, что заголовки
-   разделов перечня, — панель читается продолжением таблицы, а не врезкой
-   из другого экрана. */
-body[data-module="civil"] .oi-aux-sub{margin:12px 0 6px;font-size:9.5px;font-weight:700;
+/* Фото — блоком под таблицей, аккордеонами по постройкам. */
+body[data-module="civil"] .oi-aux-photos{padding:8px 12px 12px}
+body[data-module="civil"] .oi-aux-sub{margin:4px 0 6px;font-size:9.5px;font-weight:700;
   text-transform:uppercase;letter-spacing:.4px;color:var(--slate-700)}
-body[data-module="civil"] .oi-aux-photos .acc{background:#fff}
-
-/* Перечень ОИ не сжимается ниже читаемого. При открытом просмотрщике на
-   таблицу остаётся меньше половины экрана, и колонки схлопывались до 46 px:
-   «1 840,00 м²» превращалось в «184… м²», а подписи — в «НАЗНА…». Для широкой
-   таблицы в узком месте принято прокручивать её внутри своей обёртки, а не
-   сжимать колонки (ux-guidelines, Responsive → Table Handling). Ширина взята
-   по сумме ширин столбцов по умолчанию, поэтому при закрытом просмотрщике
-   ничего не меняется — прокрутка появляется только там, где иначе было бы
-   нечитаемо. */
-body[data-module="civil"] .oi-tree{overflow-x:auto}
-
-/* Узлы дерева — аккордеоны, а те обрезают содержимое по своим скруглениям
-   (.acc{overflow:hidden}). Обрезка мешает раскрытой панели постройки прилипать
-   к краю окна прокрутки: прилипание считается по ближайшему предку с
-   обрезкой, а он сам никуда не прокручивается. Поэтому у узлов перечня обрезка
-   снята, а скругление вернули их содержимому — первой и последней таблице. */
-body[data-module="civil"] .oi-tree .oi-node,
-body[data-module="civil"] .oi-tree .oi-sub{overflow:visible}
-body[data-module="civil"] .oi-tree .oi-node,
-body[data-module="civil"] .oi-tree .oi-sep,
-body[data-module="civil"] .oi-tree-tbl,
-body[data-module="civil"] .oi-land-tbl,
-body[data-module="civil"] .oi-cols-row{min-width:880px}
+body[data-module="civil"] .oi-aux-ph-item + .oi-aux-ph-item{margin-top:8px}
+body[data-module="civil"] .oi-aux-ph-h{font-size:11.5px;font-weight:600;color:var(--ink-ctl);
+  margin-bottom:4px}

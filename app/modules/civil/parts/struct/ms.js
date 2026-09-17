@@ -185,3 +185,12 @@ export function bindStruct(ctx, oi) {
   if (!oi) return;
   ctx.scope.$$('[data-struct-field]').forEach((box) => bindOpts(ctx.scope, oi, box));
 }
+
+// Один мультивыбор для одного объекта. Нужен там, где на экране рядом стоят
+// поля РАЗНЫХ объектов: в таблице вспомогательных построек у каждой строки
+// свои фундамент, стены и кровля, и общая привязка bindStruct записала бы их
+// все в один объект.
+export function bindStructBox(ctx, oi, box) {
+  if (!oi || !box) return;
+  bindOpts(ctx.scope, oi, box);
+}

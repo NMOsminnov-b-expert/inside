@@ -14,7 +14,14 @@
   <div class="app">
     <aside class="sidebar" id="appSidebar">
       <div class="side-logo">
-        <div class="logo-mark">E</div>
+        <!-- Знак E•state: три полосы, складывающиеся в «E». Разметкой, а не
+             картинкой: цвет берётся из токена, а при свёрнутом меню остаётся
+             только знак. -->
+        <svg class="logo-mark" viewBox="0 0 30 26" aria-hidden="true" focusable="false">
+          <rect x="0" y="3.4" width="29" height="4.2" rx="2.1"/>
+          <rect x="0" y="10.9" width="17" height="4.2" rx="2.1"/>
+          <rect x="0" y="18.4" width="29" height="4.2" rx="2.1"/>
+        </svg>
 
         <div class="logo-text">
           <b><span class="logo-dot">•</span>state</b>

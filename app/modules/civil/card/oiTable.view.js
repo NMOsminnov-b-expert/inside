@@ -2,7 +2,7 @@ import { esc } from '../../../kernel/dom.js';
 import {
   orderedColumns, columnVarsStyle, colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML,
 } from '../../../kernel/columns.js';
-import { fmtEni, fmtNum } from '../../../kernel/fmt.js';
+import { fmtEni, fmtNum, num } from '../../../kernel/fmt.js';
 import { cardMeta } from '../oi/registry.js';
 import { photoCell, photoPopHTML, photoAccordions } from '../parts/photos/blocks.js';
 import { addOiMenuHTML } from './addOiMenu.js';
@@ -30,30 +30,22 @@ export const OI_COLUMNS = [
   // его в шестом столбце неудобно. Первым не ставим: за литеру строку тянут
   // между участками, она должна остаться визуальным началом строки.
   // Порядок здесь — только значение по умолчанию, столбцы переставляются мышью.
-  //
-  // minWidth — граница, ниже которой столбец не сжимается. Без неё подгонка
-  // (kernel/columns.js, fitWidths) ужимала столбцы до 46 px, когда рядом
-  // открыт просмотрщик документов: «1 840,00 м²» превращалось в «184… м²», а
-  // подписи — в «НАЗНА…». Теперь вместо сжатия перечень прокручивается внутри
-  // своей обёртки — принятое решение для широкой таблицы в узком месте.
   { key: 'letter', label: 'Литера', width: 76, minWidth: 60 },
-  { key: 'eni', label: 'Код ЕНИ', width: 150, minWidth: 120 },
+  { key: 'eni', label: 'Код ЕНИ', width: 150 },
   { key: 'name', label: 'Наименование', width: 0 },
   // Столбец показывает oi.catClass — то же поле, что в карточке литеры
   // подписано «Назначение по тех паспорту», и то же слово стоит в шапке ОЦ.
   // Называлось «Категория», хотя «Категория ОИ» — другое поле (oi.oiCategory,
   // сгруппированный справочник классов), и в перечень оно не выводится вовсе
   // (расхождение № 1, docs/tz/52-reestr-polej-kartochki-oc.md).
-  { key: 'category', label: 'Назначение по ТП', width: 140, minWidth: 110 },
-    // 128, а не 104: «Вспомогательное» — самое длинное значение статуса, и при
-  // прежней ширине оно обрезалось в «Вспомогате…» у каждой постройки.
-  { key: 'status', label: 'Статус', width: 128, minWidth: 96 },
+  { key: 'category', label: 'Назначение по ТП', width: 140 },
+  { key: 'status', label: 'Статус', width: 104 },
   // Названия совпадают с карточкой литеры: там площади 09.09.2026 названы по
   // техпаспорту — по внешним замерам и по внутреннему обмеру. В перечне они
   // назывались «Общая площадь», и одно и то же поле читалось по-разному.
-  { key: 'area', label: 'По внешним замерам', width: 118, minWidth: 96 },
-  { key: 'areaBuild', label: 'По внутр. обмеру', width: 118, minWidth: 96 },
-  { key: 'photos', label: 'Фото', width: 74, minWidth: 60 },
+  { key: 'area', label: 'По внешним замерам', width: 118 },
+  { key: 'areaBuild', label: 'По внутр. обмеру', width: 118 },
+  { key: 'photos', label: 'Фото', width: 74 },
   { key: 'act', label: '', width: 52, fixed: true },
 ];
 
@@ -106,102 +98,126 @@ function letterRow(ctx, oi) {
 
 // --- Вспомогательные постройки ---------------------------------------------
 //
-// Гараж, навес, летняя кухня. Это объект имущества, но урезанный: своего экрана
-// у него нет, и всё, что о нём известно, правится прямо здесь — строка
-// раскрывается вниз (решение пользователя 17.09.2026).
+// Гараж, навес, летняя кухня. Это объект имущества, но урезанный, и своего
+// экрана у него нет: всё, что о нём известно, правится прямо в ячейках
+// (решение пользователя 17.09.2026).
 //
-// Почему раскрытием, а не отдельной карточкой и не правкой в самой строке:
-// полей семь, и три из них — выбор нескольких материалов, в ячейку такой не
-// помещается; уводить же на отдельный экран ради семи полей — лишний переход.
-// Раскрывающаяся панель под строкой — обычное решение для этого случая
-// (MUI X «Master-detail row panels», PatternFly «Inline edit»): контекст
-// соседних строк остаётся на экране.
+// СВОЯ таблица, а не раздел общего перечня: у постройки нет ни кода ЕНИ, ни
+// назначения по техпаспорту, ни статуса — в общих колонках у неё стояли
+// прочерки, а сами колонки не давали таблице поместиться по ширине. Здесь
+// колонки ровно те, что заполняют, и заданы долями, поэтому таблица всегда
+// равна месту, которое ей отведено, и не прокручивается вбок.
 //
-// Конструктив — только три элемента: фундамент, стены, кровля. Остальное у
-// вспомогательной постройки не описывают.
+// Правка прямо в ячейке — принятое решение для узкой таблицы с небольшим
+// числом полей (PatternFly «Inline edit», Pencil & Paper «Enterprise data
+// tables»): контекст соседних построек остаётся на экране, лишнего перехода
+// нет.
+//
+// Конструктив — только фундамент, стены и кровля. Остальное у вспомогательной
+// постройки не описывают.
 const AUX_STRUCT_ROWS = [
   { key: 'foundation', label: 'Фундамент' },
   { key: 'wallsExt', label: 'Стены' },
   { key: 'roof', label: 'Кровля' },
 ];
 
-// Панель открыта одна за раз: две раскрытые строки разносят перечень по высоте
-// так, что соседние постройки уже не видны, — а ради них панель и внизу строки.
-const auxOpen = (ctx, oi) => ctx.ui.auxOpen === oi.id;
+// Доли, а не пиксели: сумма всегда равна ширине таблицы, и ширина таблицы —
+// ширине места под неё. Именно этого не хватало прежней раскладке, где ширина
+// задавалась числом и таблица оказывалась шире, чем место под ней.
+// Подписи столбцов короткие, полные — в подсказке: при открытом просмотрщике
+// на таблицу остаётся около 650 px, и «По наружным замерам, м²» съедало бы
+// место у самих значений. Заголовки переносятся на две строки, поэтому
+// сокращение не превращается в загадку.
+const AUX_COLS = [
+  { key: 'n', label: '№', width: '3%' },
+  { key: 'letter', label: 'Лит.', width: '8%', full: 'Литера' },
+  { key: 'name', label: 'Наименование', width: '16%' },
+  { key: 'year', label: 'Год', width: '8%', full: 'Год постройки' },
+  // Материалам отдано больше места, чем наименованию: в свёрнутом виде список
+  // показывает выбранное одной строкой, и при меньшей ширине от него остаётся
+  // «не выб…» — по такой подписи не понять, выбрано что-нибудь или нет.
+  { key: 'foundation', label: 'Фундамент', width: '15%' },
+  { key: 'wallsExt', label: 'Стены', width: '15%' },
+  { key: 'roof', label: 'Кровля', width: '15%' },
+  { key: 'area', label: 'Площадь, м²', width: '14%', full: 'Площадь по наружным замерам' },
+  { key: 'act', label: '', width: '6%' },
+];
 
-function auxPanelHTML(ctx, oi) {
+const auxAreaSum = (list) => list.reduce((sum, oi) => sum + num((oi.areas || {}).tp), 0);
+
+function auxFieldCell(oi, key) {
   const a = oi.areas || {};
 
-  // Ширину панель берёт у ВИДИМОЙ части перечня, а не у таблицы: таблица шире
-  // экрана и прокручивается вбок, и панель уезжала вместе с ней — поля слева
-  // обрезались, правое уходило за край. Панель прижата к левому краю окна
-  // прокрутки (position:sticky), поэтому остаётся целиком на виду, куда бы
-  // таблицу ни прокрутили.
-  //
-  // Поля собраны в озаглавленные группы: постройка, конструктив, фото. Так
-  // видно, что к чему относится, — перечень полей вперемешку читался как одна
-  // длинная форма (практика группировки полей, Oracle «Field groups»).
-  return `<div class="oi-aux-panel">
-    <div class="oi-aux-sub">Постройка</div>
-    <div class="grid g-4">
-      <div class="field"><label>Наименование</label>
-        <input class="input" data-aux-name="${oi.id}" value="${esc(oi.name || '')}"
-          placeholder="Гараж, навес, летняя кухня"></div>
-      <div class="field"><label>Литера</label>
-        <input class="input" data-aux-letter="${oi.id}" value="${esc(oi.letter || '')}"></div>
-      <div class="field"><label>По внешним замерам, м²</label>
-        <input class="input fl-num" data-aux-area="${oi.id}" value="${esc(a.tp || '')}" inputmode="decimal"></div>
-      <div class="field"><label>По внутр. обмеру, м²</label>
-        <input class="input fl-num" data-aux-build="${oi.id}" value="${esc(a.build || '')}" inputmode="decimal"></div>
-    </div>
+  switch (key) {
+    case 'letter':
+      return `<input class="input aux-in" data-aux-letter="${oi.id}" value="${esc(oi.letter || '')}"
+        aria-label="Литера">`;
+    case 'name':
+      return `<input class="input aux-in" data-aux-name="${oi.id}" value="${esc(oi.name || '')}"
+        placeholder="Гараж, навес, летняя кухня" aria-label="Наименование">`;
+    case 'year':
+      return `<input class="input aux-in aux-num" data-aux-year="${oi.id}" value="${esc(oi.year || '')}"
+        inputmode="numeric" aria-label="Год постройки">`;
+    case 'area':
+      return `<input class="input aux-in aux-num" data-aux-area="${oi.id}" value="${esc(a.tp || '')}"
+        inputmode="decimal" aria-label="Площадь по наружным замерам">`;
+    case 'act':
+      return `<button class="btn btn-danger btn-sm" data-del-oi="${oi.id}"
+        title="Удалить постройку">×</button>`;
+    default: {
+      // Материалы — тот же мультивыбор, что в конструктиве литеры, в виде без
+      // подписи: название элемента уже стоит в шапке столбца.
+      const row = AUX_STRUCT_ROWS.find((r) => r.key === key);
+      return row
+        ? structMS(oi, row.key, row.label, opt('building', 'struct.' + row.key, STRUCT[row.key]), false, true)
+        : '';
+    }
+  }
+}
 
-    <div class="oi-aux-sub">Конструктив</div>
-    <div class="grid g-3">
-      ${AUX_STRUCT_ROWS.map((r) => structMS(oi, r.key, r.label,
-    opt('building', 'struct.' + r.key, STRUCT[r.key]), false, false)).join('')}
-    </div>
+function auxTableRow(ctx, oi, i) {
+  return `<tr data-aux-row="${oi.id}">${AUX_COLS.map((c) => `<td class="aux-c-${c.key}">${
+    c.key === 'n' ? `<span class="al-n">${i + 1}</span>` : auxFieldCell(oi, c.key)}</td>`).join('')}</tr>`;
+}
 
+// Итог по площади стоит ПОД своей колонкой, а не подписью сбоку. Складывается
+// только площадь: год и материалы не складываются по смыслу.
+export function auxTotalRowHTML(list) {
+  return `<tr class="oi-total">${AUX_COLS.map((c) => {
+    if (c.key === 'name') return `<td>Итого: ${list.length}</td>`;
+    if (c.key === 'area') return `<td class="aux-c-area"><span class="oi-total-v">${fmtNum(auxAreaSum(list))} м²</span></td>`;
+    return '<td></td>';
+  }).join('')}</tr>`;
+}
+
+// Фото — отдельным блоком под таблицей, раскрытым (решение пользователя
+// 17.09.2026). В ячейку таблицы снимки не помещаются, а прятать их за ещё
+// одним щелчком незачем: их и так смотрят вместе с постройками.
+function auxPhotosHTML(ctx, list) {
+  return `<div class="oi-aux-photos">
     <div class="oi-aux-sub">Фото</div>
-    <div class="oi-aux-photos">${photoAccordions(ctx.ui, oi, true)}</div>
+    ${list.map((oi) => `<div class="oi-aux-ph-item">
+      <div class="oi-aux-ph-h">${esc(oi.letter ? 'Лит ' + oi.letter : 'Без литеры')}${
+  oi.name ? ' · ' + esc(oi.name) : ''}</div>
+      ${photoAccordions(ctx.ui, oi, true)}
+    </div>`).join('')}
   </div>`;
 }
 
-// Ячейки строки — те же, что у литеры, кроме первой: вместо «взяться и
-// перетащить» там шеврон, потому что клик по строке раскрывает её, а не
-// открывает экран. Перетащить постройку в другой участок по-прежнему можно —
-// за ту же ячейку.
-function auxCellHTML(ctx, oi, key) {
-  if (key === 'letter') {
-    return `<span class="chev aux-chev">▾</span><span class="drag-grip" title="Перетащить">⠿</span>${esc(oi.letter || '—')}`;
-  }
-  return cellHTML(ctx, oi, key);
-}
+export function auxBlockHTML(ctx, list) {
+  if (!list.length) return '';
 
-// Содержимое ОДНОЙ ячейки строки: пока постройку правят в панели, строка над
-// ней обновляется по ячейкам — без отрисовки перечня, которая заменила бы и
-// саму панель вместе с полем, где стоит курсор.
-//
-// По ячейкам, а не строкой целиком: переписанная строка теряет кнопку удаления
-// вместе с её обработчиком (обработчики вешаются прямо на элементы), и постройку
-// становится нечем убрать.
-export function auxCellContentHTML(ctx, oi, key) {
-  return auxCellHTML(ctx, oi, key);
-}
-
-// Подытог того же раздела — из той же функции, что рисует его при отрисовке:
-// иначе точечное обновление считало бы сумму по своим правилам.
-export function auxTotalHTML(ctx, list) {
-  return totalRow(ctx, list);
-}
-
-function auxRow(ctx, oi) {
-  const open = auxOpen(ctx, oi);
-
-  return `<tr class="rowlink oi-aux ${open ? 'open' : ''}" draggable="true"
-      data-aux-toggle="${oi.id}" data-drag-oi="${oi.id}" aria-expanded="${open}"
-      title="Клик — развернуть постройку; перетащите, чтобы перенести к другому участку">
-    ${cols(ctx).map((c) => `<td data-aux-cell="${c.key}">${auxCellHTML(ctx, oi, c.key)}</td>`).join('')}
-  </tr>${open ? `<tr class="oi-aux-panel-row"><td colspan="${cols(ctx).length}">${auxPanelHTML(ctx, oi)}</td></tr>` : ''}`;
+  return `<div class="oi-sub oi-aux-block" data-oi-sub="aux">
+    <div class="oi-sub-h">Вспомогательные постройки</div>
+    <table class="tbl aux-tbl">
+      <colgroup>${AUX_COLS.map((c) => `<col style="width:${c.width}">`).join('')}</colgroup>
+      <thead><tr>${AUX_COLS.map((c) => `<th class="aux-c-${c.key}"${
+  c.full ? ` title="${esc(c.full)}"` : ''}>${esc(c.label)}</th>`).join('')}</tr></thead>
+      <tbody>${list.map((oi, i) => auxTableRow(ctx, oi, i)).join('')}</tbody>
+      <tfoot>${auxTotalRowHTML(list)}</tfoot>
+    </table>
+    ${auxPhotosHTML(ctx, list)}
+  </div>`;
 }
 
 // Подытог раздела: сколько объектов и сколько по каждой площади. Складывается
@@ -248,16 +264,11 @@ function colsRowHTML(ctx) {
 
 // total — показывать ли подытог по площадям. У движимого его нет: площади там
 // не бывает, и строка «Итого: 0 м²» только сбивала бы.
-//
-// row — чем рисуется строка раздела: у литер это строка-ссылка на карточку, у
-// вспомогательных построек — строка, раскрывающаяся вниз.
-function sub(ctx, { label, list, emptyText, kind, withHead, total, row }) {
-  const rowHTML = row || letterRow;
-
+function sub(ctx, { label, list, emptyText, kind, withHead, total }) {
   return `<div class="oi-sub" data-oi-sub="${kind}">
     ${label ? `<div class="oi-sub-h">${label}</div>` : ''}
     <table class="tbl oi-tree-tbl">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${withHead ? headHTML(ctx) : ''}
-      <tbody>${list.length ? list.map((oi) => rowHTML(ctx, oi)).join('') : emptyRow(ctx, emptyText)}</tbody>
+      <tbody>${list.length ? list.map((oi) => letterRow(ctx, oi)).join('') : emptyRow(ctx, emptyText)}</tbody>
       ${total && list.length ? `<tfoot>${totalRow(ctx, list)}</tfoot>` : ''}
     </table>
   </div>`;
@@ -289,19 +300,10 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
     kind: 'real',
     total: true,
   })}
-      ${aux.length
-    ? sub(ctx, {
-      label: 'Вспомогательные постройки',
-      list: aux,
-      emptyText: '',
-      kind: 'aux',
-      total: true,
-      row: auxRow,
-    })
-    : ''}
       ${movable.length
     ? sub(ctx, { label: 'Движимое имущество', list: movable, emptyText: '', kind: 'movable' })
     : ''}
+      ${auxBlockHTML(ctx, aux)}
     </div>
   </div>`;
 }
