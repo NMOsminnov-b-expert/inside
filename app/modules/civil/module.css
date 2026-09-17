@@ -543,3 +543,111 @@ body[data-module="civil"] .aux-tbl tfoot .oi-total td{background:var(--fill-head
 body[data-module="civil"] .aux-tbl tfoot .oi-total .aux-c-area{text-align:right}
 
 
+
+/* ---------------------------------------------------------------------------
+   Карточка ОИ «Механизмы и оборудование» (oi/mech).
+
+   Сверху — состав таблицей, под ним карточка выбранной единицы. Оформление
+   таблицы — как у перечня ОИ и таблиц пристроек этой же карточки: шапка
+   капсом на светлом фоне, итог в своих столбцах служебной строкой.
+--------------------------------------------------------------------------- */
+body[data-module="civil"] .mu-table-wrap{overflow-x:auto}
+body[data-module="civil"] .mu-tbl{width:100%;table-layout:fixed;border-collapse:collapse}
+body[data-module="civil"] .mu-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--ink-label);text-align:left;padding:7px 10px;font-weight:700;white-space:nowrap;
+  background:var(--fill-head);border-bottom:1px solid var(--line)}
+body[data-module="civil"] .mu-tbl td{padding:6px 10px;border-bottom:1px solid var(--line-soft);
+  font-size:13px;vertical-align:middle}
+body[data-module="civil"] .mu-tbl .mu-c-num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .mu-tbl .mu-c-act{text-align:center;padding-left:2px;padding-right:6px}
+
+/* Строка — выбор единицы. Выбранная отмечена полосой слева и фоном: по ней
+   видно, чью карточку показывают ниже, не читая заголовок. */
+body[data-module="civil"] .mu-row{cursor:pointer}
+body[data-module="civil"] .mu-row:hover td{background:var(--fill-hover)}
+body[data-module="civil"] .mu-row.on td{background:var(--teal-50)}
+body[data-module="civil"] .mu-row.on td:first-child{box-shadow:inset 3px 0 0 var(--teal-600)}
+body[data-module="civil"] .mu-name{font-weight:600;color:var(--ink)}
+body[data-module="civil"] .mu-path{font-size:11.5px;color:var(--muted);margin-top:1px}
+body[data-module="civil"] .mu-path-empty{color:var(--amber-700)}
+
+body[data-module="civil"] .mu-tbl tfoot .oi-total td{background:var(--fill-head);border-top:1px solid var(--line);
+  border-bottom:none;font-size:11.5px;font-weight:700;color:var(--blue-700);padding:6px 10px;
+  font-variant-numeric:tabular-nums}
+
+/* Удаление видно всегда — спрятанная кнопка находится вслепую. */
+body[data-module="civil"] .mu-del{opacity:1;color:var(--ink-dim)}
+body[data-module="civil"] .mu-del:hover,
+body[data-module="civil"] .mu-del:focus-visible{background:var(--red-50);color:var(--danger)}
+
+/* Заголовок карточки единицы — название, которое правят прямо под ним. */
+body[data-module="civil"] .mu-title{min-width:0;flex:0 1 auto}
+body[data-module="civil"] .mu-pager{display:inline-flex;align-items:center;gap:4px;margin-left:auto;
+  flex:0 0 auto}
+body[data-module="civil"] .mu-pos{font-size:11.5px;color:var(--muted);min-width:44px;text-align:center;
+  font-variant-numeric:tabular-nums}
+
+/* Разделы карточки единицы идут подряд; между ними — тонкая линия, чтобы
+   классификация, сведения и параметры читались отдельными группами. */
+body[data-module="civil"] .mu-sec + .mu-sec{margin-top:16px;padding-top:4px;border-top:1px solid var(--line-soft)}
+body[data-module="civil"] .mu-sec .sec-h{display:flex;align-items:center;gap:8px;margin:10px 0 8px}
+body[data-module="civil"] .mu-sec:first-child .sec-h{margin-top:0}
+body[data-module="civil"] .mu-sec-hint{font-size:11px;font-weight:400;color:var(--muted)}
+
+/* Общие сведения: наименование шире, числа уже. На узкой ширине сетка
+   складывается сама. */
+/* Поля ряда выравниваются по низу: у части подписей есть уточнение второй
+   строкой, и без выравнивания поля одного ряда стояли лесенкой. */
+body[data-module="civil"] .mu-grid-general{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;
+  align-items:end}
+body[data-module="civil"] .mu-grid-general .mu-f-name{grid-column:1 / -1}
+body[data-module="civil"] .mu-num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* Уточнение из скобок параметра классификатора («кВА / МВА», «масляное,
+   сухое…») — мелким текстом под подписью, в потоке: оно длинное, и вынесенная
+   из потока подсказка налезала бы на поле. */
+body[data-module="civil"] .mu-hint{font-size:11px;line-height:1.35;color:var(--muted);margin-top:-2px}
+body[data-module="civil"] .mu-params{align-items:end}
+
+body[data-module="civil"] .mu-empty{font-size:12.5px;color:var(--muted);padding:10px 12px;
+  background:var(--fill-head);border:1px dashed var(--line);border-radius:8px}
+body[data-module="civil"] .mu-note{font-size:12px;color:var(--muted);margin-top:8px}
+
+/* Свои поля — тихая редактируемая таблица, как у пристроек. */
+body[data-module="civil"] .mu-xtbl{width:100%;table-layout:fixed;border-collapse:collapse}
+body[data-module="civil"] .mu-xtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--ink-label);text-align:left;padding:6px 8px;font-weight:700;background:var(--fill-head);
+  border-bottom:1px solid var(--line)}
+body[data-module="civil"] .mu-xtbl td{padding:1px 6px;border-bottom:1px solid var(--line-soft);height:34px}
+body[data-module="civil"] .mu-xtbl td:focus-within{background:var(--fill-pick);box-shadow:inset 0 0 0 2px var(--blue-600)}
+body[data-module="civil"] .mu-xtbl .ax-cell:focus{border-color:transparent;background:transparent;box-shadow:none}
+
+body[data-module="civil"] .mu-ph{padding:0;cursor:zoom-in}
+
+/* Название и путь классификации в строке состава — по одной строке: перенос
+   делал строки разной высоты, и таблица читалась хуже. Полный текст — в
+   подсказке. */
+body[data-module="civil"] .mu-clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Каскад классификации: класс и подгруппа в ряд, тип на всю ширину — названия
+   типов бывают длинными («Сетевое оборудование (роутеры, коммутаторы, …)»),
+   и в трети ширины они обрезались бы. */
+body[data-module="civil"] .mu-grid-class{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+body[data-module="civil"] .mu-grid-class > .field:nth-child(3){grid-column:1 / -1}
+
+/* Кнопка действия раздела — за разделительной линией, у правого края: линия
+   заголовка тянется на всю ширину (flex:1), и кнопка перед ней вставала
+   посреди строки. */
+body[data-module="civil"] .mu-sec .sec-h::after{order:1}
+body[data-module="civil"] .mu-sec .sec-h .btn{order:2;margin-left:4px}
+
+/* Общее название группы — строка над таблицей состава: подпись слева, поле
+   справа, как у фильтров над таблицами. */
+body[data-module="civil"] .mu-group{display:flex;align-items:center;gap:12px;padding:10px 12px;
+  border-bottom:1px solid var(--line-soft)}
+body[data-module="civil"] .mu-group label{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--ink-label)}
+body[data-module="civil"] .mu-group .input{flex:1 1 auto;min-width:0}
+
+/* Фокус строки состава с клавиатуры — видимая рамка, как у полей. */
+body[data-module="civil"] .mu-row:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}

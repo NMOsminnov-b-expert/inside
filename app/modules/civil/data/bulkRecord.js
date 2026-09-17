@@ -129,24 +129,53 @@ function landOi(id, i, p, suffix, opts = {}) {
   };
 }
 
+// Механизмы и оборудование: перечень единиц, классифицированных по
+// классификатору движимого имущества (oi/mech). Набор детерминирован — берётся
+// по индексу записи, как и остальные поля генератора.
+const MECH_POOL = [
+  { name: 'Дизельный генератор АД-100', cls: 'Энергетическое оборудование', sub: 'Генераторы',
+    type: 'Дизельные генераторы' },
+  { name: 'Котёл водогрейный КВ-0,5', cls: 'Энергетическое оборудование', sub: 'Котельное оборудование',
+    type: 'Водогрейные котлы' },
+  { name: 'Кран-балка подвесная 3,2 т', cls: 'Подъёмно-транспортное оборудование', sub: 'Краны',
+    type: 'Кран-балки (подвесные/опорные)' },
+];
+const OFFICE_POOL = [
+  { name: 'МФУ Kyocera M2040', cls: 'Офисное оборудование и мебель', sub: 'Компьютерная и оргтехника',
+    type: 'Принтеры, МФУ, сканеры, копировальные аппараты' },
+  { name: 'Столы рабочие', cls: 'Офисное оборудование и мебель', sub: 'Офисная мебель',
+    type: 'Столы (рабочие, переговорные, руководителя)' },
+];
+
 function movableOi(id, i, p, suffix, kind) {
+  const pool = kind === 'МЕХ' ? MECH_POOL : OFFICE_POOL;
+  const units = [0, 1].map((k) => {
+    const it = pool[(i + k) % pool.length];
+    return {
+      id: `${id}-oim${suffix}-u${k}`,
+      name: it.name, cls: it.cls, sub: it.sub, type: it.type,
+      year: String(1990 + ((i + k * 7) % 34)),
+      maker: '',
+      params: {},
+      extra: [{ id: `${id}-oim${suffix}-u${k}-f1`, label: 'Инвентарный номер', value: `ИН-${(i * 7919 + k) % 100000}` }],
+      qty: String(1 + ((i + k) % 3)),
+      cost: '',
+    };
+  });
+
   return {
     id: `${id}-oim${suffix}`,
-    card: 'movable',
-    kind,
-    name: kind === 'МЕХ'
-      ? ['Станок токарный', 'Насосная станция', 'Компрессор', 'Кран-балка'][i % 4]
-      : ['МФУ', 'Комплект мебели', 'Серверная стойка'][i % 3],
-    eni: String(+p.eni + 70 + suffix),
+    card: 'mech',
+    name: `${units[0].name} (+1)`,
+    groupName: '',
+    eni: '',
     status: '',
     origin: 'manual',
     flags: { entered: false, matched: false },
-    year: String(1990 + (i % 34)),
-    serial: `SN-${(i * 7919) % 100000}`,
+    mechanisms: units,
     docs: [],
     photos: {},
     notes: [],
-    complexItems: null,
   };
 }
 

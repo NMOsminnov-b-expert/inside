@@ -321,7 +321,7 @@ export function bindViewer(ctx) {
   // а не всегда в документы ОЦ.
   s.$$('[data-attach-default]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
-    const scope = (ctx.view === 'oi' && ctx.oi) ? ctx.oi.id : (ctx.view === 'mech' ? 'mech-new' : 'oc');
+    const scope = (ctx.view === 'oi' && ctx.oi) ? ctx.oi.id : 'oc';
 
     const type = await ctx.host.select({ title: 'Тип документа', options: opt('oc', 'docType', DOC_TYPES) });
     if (!type) return;

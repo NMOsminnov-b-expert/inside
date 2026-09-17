@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { photoPages, photoMatches, photoFileAt } from './model.js';
+import { photoPages, photoMatches, photoFileAt, catLabel } from './model.js';
 import { splitWrap, viewerHTML } from '../viewer/shell.js';
 import { openPhotoInPlace } from '../viewer/state.js';
 
@@ -19,7 +19,7 @@ function orphanSectionsHTML(ctx) {
         const f = photoFileAt(o, p.cat, p.i);
         return `<div class="tile tile-orphan" title="${esc(p.cat)} · фото ${p.i + 1} — принадлежало литере ${esc(o.letter || '')} «${esc(o.name)}»">
         <div class="tile-img">${f ? `<img src="${f.dataUrl}" alt="">` : esc(p.cat)}</div>
-        <div class="tile-cap">${esc(p.cat)} · фото ${p.i + 1}</div>
+        <div class="tile-cap">${esc(catLabel(o, p.cat))} · фото ${p.i + 1}</div>
       </div>`;
       }).join('')}</div>
     </div>`;
@@ -37,15 +37,15 @@ export function photoSectionsHTML(ctx) {
 
     if (!pages.length) return '';
 
-    const head = oi.card === 'land'
-      ? 'Земельный участок'
-      : `Литера ${esc(oi.letter)} · ${esc(oi.name)}`;
+    const head = oi.card === 'land' ? 'Земельный участок'
+      : oi.card === 'mech' ? `Механизмы · ${esc(oi.name)}`
+        : `Литера ${esc(oi.letter)} · ${esc(oi.name)}`;
 
     return `<div class="photo-sec">
       <div class="photo-sec-h">${head} <span class="tag-mini">${pages.length}</span></div>
       <div class="tile-grid">${pages.map((p) => `<div class="tile" data-tile-photo="${oi.id}|${p.idx}" title="${esc(p.cat)} · фото ${p.i + 1}">
         <div class="tile-img">${(() => { const f = photoFileAt(oi, p.cat, p.i); return f ? `<img src="${f.dataUrl}" alt="">` : esc(p.cat); })()}</div>
-        <div class="tile-cap">${esc(p.cat)} · фото ${p.i + 1}</div>
+        <div class="tile-cap">${esc(catLabel(oi, p.cat))} · фото ${p.i + 1}</div>
       </div>`).join('')}</div>
     </div>`;
   }).join('');

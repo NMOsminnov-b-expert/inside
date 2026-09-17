@@ -18,7 +18,7 @@ function buildViewerContext(ctx) {
 
   const scopes = inOi
     ? ((oi && (oi.docs || []).length ? [oi.id, 'oc'] : ((ctx.rec.docs || []).length ? ['oc'] : [])))
-    : (ctx.view === 'mech' ? ['mech-new'] : ['oc']);
+    : ['oc'];
 
   if (mode !== 'photo') {
     let vd = ctx.ui.viewerDoc;

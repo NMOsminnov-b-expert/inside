@@ -1,5 +1,6 @@
 import { esc } from '../../../kernel/dom.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
+import { mechUnits, totalQty } from './mech/model.js';
 
 // Реестр карточек ОИ модуля «Гражданское здание».
 function verbal(oi) {
@@ -53,23 +54,32 @@ export const OI_CARDS = {
     load: () => import('./land/index.js'),
   },
 
-  movable: {
-    id: 'movable',
-    headLabel: 'Движимое имущество',
-    listLabel: (oi) => `${oi.kind === 'МЕХ' ? 'Механизм' : 'Офис. техника'} · ${esc(oi.name)}`,
+  // Механизмы и оборудование: перечень единиц техники в одном ОИ. Подпись ОИ —
+  // производная от состава (oi/mech/model.js, syncMechName), своего кода ЕНИ и
+  // литеры нет (решение пользователя 07.09.2026, ветка mech).
+  mech: {
+    id: 'mech',
+    headLabel: 'Механизмы и оборудование',
+    listLabel: (oi) => `Механизмы · ${esc(oi.name)}`,
     crumbLabel: (oi) => esc(oi.name),
     plateKind: 'ОЦ → ОИ',
     hasLetter: false,
-    tableTag: (oi) => (oi.kind === 'МЕХ' ? 'Механизм' : 'Офис. техника'),
-    tableCategory: (oi) => (oi.kind === 'МЕХ' ? 'Движимое · Механизм' : 'Движимое · Офисная техника'),
+    // Кода ЕНИ у механизма нет — пустой чип «ЕНИ» в плашке только путал
+    // (замечание пользователя 07.09.2026, ветка mech).
+    hasEni: false,
+    tableCategory: () => 'Движимое · Механизмы',
     tableArea: () => '—',
     tableAreaBuild: () => '—',
     areaValues: () => ({ area: 0, build: 0 }),
     plateChips: (oi) => {
+      const units = mechUnits(oi);
       const v = verbal(oi);
-      return [`<span class="ctx-chip ${v.c}">${v.t}</span>`];
+      return [
+        `<span class="ctx-chip">${units.length} ${units.length === 1 ? 'позиция' : (units.length < 5 ? 'позиции' : 'позиций')} · ${totalQty(oi)} шт.</span>`,
+        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
+      ];
     },
-    load: () => import('./movable/index.js'),
+    load: () => import('./mech/index.js'),
   },
 
   // Вспомогательная постройка: гараж, навес, летняя кухня. Своего экрана нет —

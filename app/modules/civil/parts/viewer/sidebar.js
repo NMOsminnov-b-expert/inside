@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { photoPages, photoFileAt } from '../photos/model.js';
+import { photoPages, photoFileAt, catLabel } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 
@@ -69,7 +69,7 @@ function photosSection(ctx) {
       const f = photoFileAt(oi, p.cat, p.i);
       rows.push(`<button class="vsb-item vsb-photo" data-vsb-photo="${esc(oi.id)}|${idx + 1}">
         <span class="vsb-thumb"${f ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
-        <span class="vsb-main"><b>${esc(p.cat)}</b><span class="vsb-sub">фото ${p.i + 1}</span></span>
+        <span class="vsb-main"><b>${esc(catLabel(oi, p.cat))}</b><span class="vsb-sub">фото ${p.i + 1}</span></span>
       </button>`);
     });
   });

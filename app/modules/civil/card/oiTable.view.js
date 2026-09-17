@@ -330,9 +330,9 @@ function sub(ctx, { label, list, emptyText, kind, withHead, total }) {
 }
 
 function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
-  const real = letters.filter((o) => o.card !== 'movable' && o.card !== 'aux');
+  const real = letters.filter((o) => o.card !== 'mech' && o.card !== 'aux');
   const aux = letters.filter((o) => o.card === 'aux');
-  const movable = letters.filter((o) => o.card === 'movable');
+  const movable = letters.filter((o) => o.card === 'mech');
 
   return `<div class="acc oi-node ${open ? 'open' : ''}" data-oi-drop="${esc(dropId)}">
     <div class="acc-head oi-node-head" data-acc-toggle="${esc(key)}">

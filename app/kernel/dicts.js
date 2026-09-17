@@ -396,7 +396,7 @@ export function usageOf(dict, value) {
 
     type.records.allRecords().forEach((rec) => {
     const holders = b.card === 'oc' ? [rec] : (rec.oi || []).filter((o) => {
-      if (b.card === 'building') return o.card !== 'land' && o.card !== 'movable';
+      if (b.card === 'building') return o.card !== 'land' && o.card !== 'movable' && o.card !== 'mech';
       return o.card === b.card;
     });
 
@@ -745,7 +745,7 @@ export function replaceValue(dict, from, to) {
 
     type.records.allRecords().forEach((rec) => {
     const holders = b.card === 'oc' ? [rec] : (rec.oi || []).filter((o) => {
-      if (b.card === 'building') return o.card !== 'land' && o.card !== 'movable';
+      if (b.card === 'building') return o.card !== 'land' && o.card !== 'movable' && o.card !== 'mech';
       return o.card === b.card;
     });
 

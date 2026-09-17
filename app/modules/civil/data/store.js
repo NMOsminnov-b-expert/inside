@@ -63,10 +63,8 @@ export const ui = {
   auditDateTo: '',
   auditSearchText: '',
   pageSel: [],   // лента миниатюр просмотрщика свёрнута
-  mechMode: 'mono',
-  mechDocs: [],
-  mechRows: [],
-  mechDraft: { name: '', year: '', serial: '' },
+  // Выбранная единица в карточке механизмов — по id ОИ.
+  mechSel: {},
 };
 
 

@@ -4,7 +4,7 @@
 // после перезагрузки страницы он пропадает, и это нормально для макета. На
 // сервере понадобится настоящая загрузка в хранилище, постоянный адрес файла,
 // проверка типа и размера на стороне сервера и права доступа к нему.
-// scope: 'oc' | 'mech-new' | <oi.id>
+// scope: 'oc' | <oi.id>
 import { getPdfPageCount, getPdfPageAspects, releasePdf } from '../viewer/pdf.js';
 
 // Страницы документа. У реального PDF — по странице на каждую страницу файла:
@@ -82,11 +82,6 @@ export async function attachedFileFrom(file) {
 
 export function docListFor(ctx, scope) {
   if (scope === 'oc') { ctx.rec.docs = ctx.rec.docs || []; return ctx.rec.docs; }
-  // Массив создаётся здесь же, как и для ОЦ с литерой: раньше при незаданном
-  // ui.mechDocs возвращался ВРЕМЕННЫЙ пустой массив, и прикреплённый в него
-  // документ молча пропадал. Пока просмотрщик в мастере не показывался без
-  // документа, кнопка прикрепления была недостижима и дефект не проявлялся.
-  if (scope === 'mech-new') { ctx.ui.mechDocs = ctx.ui.mechDocs || []; return ctx.ui.mechDocs; }
   const oi = ctx.rec.oi.find((o) => o.id === scope);
   if (!oi) return [];
   oi.docs = oi.docs || [];
@@ -94,7 +89,7 @@ export function docListFor(ctx, scope) {
 }
 
 export function scopeLabel(sc) {
-  return sc === 'oc' ? 'ОЦ' : (sc === 'mech-new' ? 'Новый' : 'ОИ');
+  return sc === 'oc' ? 'ОЦ' : 'ОИ';
 }
 
 // Освободить файл: снять blob-ссылку и выбросить разобранный PDF. Вызывать

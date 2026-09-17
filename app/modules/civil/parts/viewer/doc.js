@@ -116,7 +116,7 @@ export function renderDocMode(ctx, vctx) {
     <div class="tool-group"><button class="tool-btn" data-vrot>⟳</button></div>
     <div class="tool-group"><button class="tool-btn" data-vzoom->−</button><span class="zoom-label" data-zoomlabel>${VS.zoom}%</span><button class="tool-btn" data-vzoom+>+</button></div>
     <div class="tool-group right"><span class="vtitle">${esc(d.type)} · ${esc(d.name)}</span>
-      ${ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope !== 'mech-new'
+      ${ctx.ui.viewerDoc
         ? `<button class="tool-btn" data-varchive="${esc(d.id)}"
         title="Убрать документ из карточки в архив — его можно будет найти и вернуть">${ICON_ARCHIVE}</button>`
         : ''}

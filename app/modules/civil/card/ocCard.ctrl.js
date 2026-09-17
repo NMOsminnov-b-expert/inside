@@ -12,6 +12,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { createMechOi } from '../oi/mech/model.js';
 import { bindStructBox } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
 
@@ -24,6 +25,13 @@ function createOi(ctx, type) {
   // присваивает Кадастр, а не макет.
   if (type.card === 'land') {
     return createLandOi(rec, { nextId, nextEni: () => rec.eni || '', multiple: true });
+  }
+
+  // Механизмы и оборудование: перечень единиц со своей карточкой. Прежний
+  // мастер «монолит или комплекс» заменён тем, что в одном ОИ можно завести
+  // сколько угодно единиц (решение пользователя 07.09.2026, ветка mech).
+  if (type.card === 'mech') {
+    return createMechOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
   }
 
   const letter = nextLetter(rec);
@@ -271,18 +279,6 @@ export function bindOcCard(ctx) {
     const type = oiTypeByLabel(b.dataset.addOi, rec);
     if (!type) { ctx.toast('Для текущего типа ОЦ этот вид ОИ недоступен', 'warn'); return; }
 
-    // Движимое создаётся через мастер (монолит или комплекс).
-    if (type.wizard) {
-      ctx.ui.mechMode = 'mono';
-      ctx.ui.mechDocs = [];
-      ctx.ui.mechRows = [];
-      ctx.ui.mechDraft = { name: '', year: '', serial: '' };
-      ctx.ui.viewer = { mode: 'doc' };
-      ctx.ui.viewerDoc = null;
-      ctx.navigate({ rest: ['new', type.wizard] });
-      return;
-    }
-
     if (type.single && rec.oi.some((o) => o.card === type.card)) {
       ctx.toast('Земельный участок уже добавлен (один ЕНИ на объект)', 'warn');
       return;
@@ -310,7 +306,9 @@ export function bindOcCard(ctx) {
     // объекты заводят пачкой, и переход внутрь после каждого заставлял
     // возвращаться назад. Строка появляется в перечне, открыть её можно кликом.
     ctx.render();
-    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
+    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен'
+      : oi.card === 'mech' ? 'Механизмы и оборудование добавлены'
+        : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------
