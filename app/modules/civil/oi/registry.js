@@ -72,6 +72,23 @@ export const OI_CARDS = {
     load: () => import('./movable/index.js'),
   },
 
+  // Вспомогательная постройка: гараж, навес, летняя кухня. Своего экрана нет —
+  // всё, что у неё есть, правится раскрытием строки в перечне ОЦ, поэтому нет
+  // и load. Мета нужна ради перечня: подпись вида, площади и подытог.
+  aux: {
+    id: 'aux',
+    headLabel: 'Вспомогательная постройка',
+    listLabel: (oi) => `Лит ${esc(oi.letter)} · ${esc(oi.name)}`,
+    crumbLabel: (oi) => esc(oi.name),
+    plateKind: 'ОЦ → ОИ',
+    hasLetter: true,
+    tableCategory: () => 'Вспомогательная постройка',
+    tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
+    tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
+    areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
+    plateChips: () => [],
+  },
+
   // Квартиру можно добавить в объект оценки любого типа (решение пользователя
   // 02.09.2026), поэтому карточка есть и здесь — импортом из модуля квартиры.
   apartment: {

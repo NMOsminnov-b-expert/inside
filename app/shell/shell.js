@@ -96,7 +96,7 @@ export function setCrumbs(items = []) {
   // одинаковое имя, и найти нужную можно только перебором.
   const here = items.filter((it) => it.label && it.label !== 'Главная');
   const tail = here.length ? here[here.length - 1].label : '';
-  document.title = tail ? `${tail} — Inside` : 'Inside — Объекты оценки';
+  document.title = tail ? `${tail} — E•state` : 'E•state — Объекты оценки';
 }
 
 // conf = { count: () => number, html: () => string, bind: (scope) => void } | null

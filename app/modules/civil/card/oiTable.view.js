@@ -4,8 +4,11 @@ import {
 } from '../../../kernel/columns.js';
 import { fmtEni, fmtNum } from '../../../kernel/fmt.js';
 import { cardMeta } from '../oi/registry.js';
-import { photoCell, photoPopHTML } from '../parts/photos/blocks.js';
+import { photoCell, photoPopHTML, photoAccordions } from '../parts/photos/blocks.js';
 import { addOiMenuHTML } from './addOiMenu.js';
+import { structMS } from '../parts/struct/ms.js';
+import { STRUCT } from '../data/dictionaries.js';
+import { opt } from '../data/opts.js';
 
 // Перечень ОИ — дерево из ДВУХ уровней: земельный участок сверху, литеры внутри
 // него (вложенность аккордеонов). Третьего уровня нет: параметры литеры
@@ -27,22 +30,30 @@ export const OI_COLUMNS = [
   // его в шестом столбце неудобно. Первым не ставим: за литеру строку тянут
   // между участками, она должна остаться визуальным началом строки.
   // Порядок здесь — только значение по умолчанию, столбцы переставляются мышью.
+  //
+  // minWidth — граница, ниже которой столбец не сжимается. Без неё подгонка
+  // (kernel/columns.js, fitWidths) ужимала столбцы до 46 px, когда рядом
+  // открыт просмотрщик документов: «1 840,00 м²» превращалось в «184… м²», а
+  // подписи — в «НАЗНА…». Теперь вместо сжатия перечень прокручивается внутри
+  // своей обёртки — принятое решение для широкой таблицы в узком месте.
   { key: 'letter', label: 'Литера', width: 76, minWidth: 60 },
-  { key: 'eni', label: 'Код ЕНИ', width: 150 },
+  { key: 'eni', label: 'Код ЕНИ', width: 150, minWidth: 120 },
   { key: 'name', label: 'Наименование', width: 0 },
   // Столбец показывает oi.catClass — то же поле, что в карточке литеры
   // подписано «Назначение по тех паспорту», и то же слово стоит в шапке ОЦ.
   // Называлось «Категория», хотя «Категория ОИ» — другое поле (oi.oiCategory,
   // сгруппированный справочник классов), и в перечень оно не выводится вовсе
   // (расхождение № 1, docs/tz/52-reestr-polej-kartochki-oc.md).
-  { key: 'category', label: 'Назначение по ТП', width: 140 },
-  { key: 'status', label: 'Статус', width: 104 },
+  { key: 'category', label: 'Назначение по ТП', width: 140, minWidth: 110 },
+    // 128, а не 104: «Вспомогательное» — самое длинное значение статуса, и при
+  // прежней ширине оно обрезалось в «Вспомогате…» у каждой постройки.
+  { key: 'status', label: 'Статус', width: 128, minWidth: 96 },
   // Названия совпадают с карточкой литеры: там площади 09.09.2026 названы по
   // техпаспорту — по внешним замерам и по внутреннему обмеру. В перечне они
   // назывались «Общая площадь», и одно и то же поле читалось по-разному.
-  { key: 'area', label: 'По внешним замерам', width: 118 },
-  { key: 'areaBuild', label: 'По внутр. обмеру', width: 118 },
-  { key: 'photos', label: 'Фото', width: 74 },
+  { key: 'area', label: 'По внешним замерам', width: 118, minWidth: 96 },
+  { key: 'areaBuild', label: 'По внутр. обмеру', width: 118, minWidth: 96 },
+  { key: 'photos', label: 'Фото', width: 74, minWidth: 60 },
   { key: 'act', label: '', width: 52, fixed: true },
 ];
 
@@ -93,6 +104,92 @@ function letterRow(ctx, oi) {
   </tr>`;
 }
 
+// --- Вспомогательные постройки ---------------------------------------------
+//
+// Гараж, навес, летняя кухня. Это объект имущества, но урезанный: своего экрана
+// у него нет, и всё, что о нём известно, правится прямо здесь — строка
+// раскрывается вниз (решение пользователя 17.09.2026).
+//
+// Почему раскрытием, а не отдельной карточкой и не правкой в самой строке:
+// полей семь, и три из них — выбор нескольких материалов, в ячейку такой не
+// помещается; уводить же на отдельный экран ради семи полей — лишний переход.
+// Раскрывающаяся панель под строкой — обычное решение для этого случая
+// (MUI X «Master-detail row panels», PatternFly «Inline edit»): контекст
+// соседних строк остаётся на экране.
+//
+// Конструктив — только три элемента: фундамент, стены, кровля. Остальное у
+// вспомогательной постройки не описывают.
+const AUX_STRUCT_ROWS = [
+  { key: 'foundation', label: 'Фундамент' },
+  { key: 'wallsExt', label: 'Стены' },
+  { key: 'roof', label: 'Кровля' },
+];
+
+// Панель открыта одна за раз: две раскрытые строки разносят перечень по высоте
+// так, что соседние постройки уже не видны, — а ради них панель и внизу строки.
+const auxOpen = (ctx, oi) => ctx.ui.auxOpen === oi.id;
+
+function auxPanelHTML(ctx, oi) {
+  const a = oi.areas || {};
+
+  return `<div class="oi-aux-panel">
+    <div class="grid g-4">
+      <div class="field"><label>Наименование</label>
+        <input class="input" data-aux-name="${oi.id}" value="${esc(oi.name || '')}"
+          placeholder="Гараж, навес, летняя кухня"></div>
+      <div class="field"><label>Литера</label>
+        <input class="input" data-aux-letter="${oi.id}" value="${esc(oi.letter || '')}"></div>
+      <div class="field"><label>По внешним замерам, м²</label>
+        <input class="input" data-aux-area="${oi.id}" value="${esc(a.tp || '')}" inputmode="decimal"></div>
+      <div class="field"><label>По внутр. обмеру, м²</label>
+        <input class="input" data-aux-build="${oi.id}" value="${esc(a.build || '')}" inputmode="decimal"></div>
+    </div>
+
+    <div class="oi-aux-sub">Конструктив</div>
+    <div class="grid g-3">
+      ${AUX_STRUCT_ROWS.map((r) => structMS(oi, r.key, r.label,
+    opt('building', 'struct.' + r.key, STRUCT[r.key]), false, false)).join('')}
+    </div>
+
+    <div class="oi-aux-sub">Фото</div>
+    <div class="oi-aux-photos">${photoAccordions(ctx.ui, oi, true)}</div>
+  </div>`;
+}
+
+// Ячейки строки — те же, что у литеры, кроме первой: вместо «взяться и
+// перетащить» там шеврон, потому что клик по строке раскрывает её, а не
+// открывает экран. Перетащить постройку в другой участок по-прежнему можно —
+// за ту же ячейку.
+function auxCellHTML(ctx, oi, key) {
+  if (key === 'letter') {
+    return `<span class="chev aux-chev">▾</span><span class="drag-grip" title="Перетащить">⠿</span>${esc(oi.letter || '—')}`;
+  }
+  return cellHTML(ctx, oi, key);
+}
+
+// Ячейки строки отдельной функцией: пока постройку правят в панели, строка над
+// ней обновляется ими же — точечно, без отрисовки перечня. Полная отрисовка
+// заменила бы и саму панель вместе с полем, в котором стоит курсор.
+export function auxRowCellsHTML(ctx, oi) {
+  return cols(ctx).map((c) => `<td data-aux-cell="${c.key}">${auxCellHTML(ctx, oi, c.key)}</td>`).join('');
+}
+
+// Подытог того же раздела — из той же функции, что рисует его при отрисовке:
+// иначе точечное обновление считало бы сумму по своим правилам.
+export function auxTotalHTML(ctx, list) {
+  return totalRow(ctx, list);
+}
+
+function auxRow(ctx, oi) {
+  const open = auxOpen(ctx, oi);
+
+  return `<tr class="rowlink oi-aux ${open ? 'open' : ''}" draggable="true"
+      data-aux-toggle="${oi.id}" data-drag-oi="${oi.id}" aria-expanded="${open}"
+      title="Клик — развернуть постройку; перетащите, чтобы перенести к другому участку">
+    ${auxRowCellsHTML(ctx, oi)}
+  </tr>${open ? `<tr class="oi-aux-panel-row"><td colspan="${cols(ctx).length}">${auxPanelHTML(ctx, oi)}</td></tr>` : ''}`;
+}
+
 // Подытог раздела: сколько объектов и сколько по каждой площади. Складывается
 // колонка — итог стоит под ней, а не подписью сбоку (требование пользователя
 // 09.09.2026). Считается по значениям, а не по показанному тексту: в тексте
@@ -137,36 +234,57 @@ function colsRowHTML(ctx) {
 
 // total — показывать ли подытог по площадям. У движимого его нет: площади там
 // не бывает, и строка «Итого: 0 м²» только сбивала бы.
-function sub(ctx, label, list, emptyText, kind, withHead, total) {
+//
+// row — чем рисуется строка раздела: у литер это строка-ссылка на карточку, у
+// вспомогательных построек — строка, раскрывающаяся вниз.
+function sub(ctx, { label, list, emptyText, kind, withHead, total, row }) {
+  const rowHTML = row || letterRow;
+
   return `<div class="oi-sub" data-oi-sub="${kind}">
     ${label ? `<div class="oi-sub-h">${label}</div>` : ''}
     <table class="tbl oi-tree-tbl">${colGroupHTML(cols(ctx), ctx.ui.oiColWidths)}${withHead ? headHTML(ctx) : ''}
-      <tbody>${list.length ? list.map((oi) => letterRow(ctx, oi)).join('') : emptyRow(ctx, emptyText)}</tbody>
+      <tbody>${list.length ? list.map((oi) => rowHTML(ctx, oi)).join('') : emptyRow(ctx, emptyText)}</tbody>
       ${total && list.length ? `<tfoot>${totalRow(ctx, list)}</tfoot>` : ''}
     </table>
   </div>`;
 }
 
 function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
+  const real = letters.filter((o) => o.card !== 'movable' && o.card !== 'aux');
+  const aux = letters.filter((o) => o.card === 'aux');
+  const movable = letters.filter((o) => o.card === 'movable');
+
   return `<div class="acc oi-node ${open ? 'open' : ''}" data-oi-drop="${esc(dropId)}">
     <div class="acc-head oi-node-head" data-acc-toggle="${esc(key)}">
       <span class="chev">▾</span>
       ${head}
       <span class="oi-node-count">
-        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => o.card !== 'movable').length}</span>
-        <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter((o) => o.card === 'movable').length}</span>
+        <span class="oi-node-cnt real" title="Литеры">${real.length}</span>
+        <span class="oi-node-cnt aux" title="Вспомогательные постройки">${aux.length}</span>
+        <span class="oi-node-cnt mov" title="Движимое имущество">${movable.length}</span>
       </span>
       ${meta}
     </div>
     <div class="acc-body" style="padding:0">
       ${summary || ''}
       ${colsRowHTML(ctx)}
-      ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : 'Здания и сооружения',
-        letters.filter((o) => o.card !== 'movable'),
-        'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false, true)}
-      ${letters.some((o) => o.card === 'movable')
-    ? sub(ctx, 'Движимое имущество', letters.filter((o) => o.card === 'movable'),
-      '', 'movable', false, false)
+      ${sub(ctx, {
+    label: summary ? 'Здания и сооружения на земельном участке' : 'Здания и сооружения',
+    list: real,
+    emptyText: 'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».',
+    kind: 'real',
+    total: true,
+  })}
+      ${sub(ctx, {
+    label: 'Вспомогательные постройки',
+    list: aux,
+    emptyText: 'Не добавлено. Гараж, навес, летняя кухня добавляются через «+ Добавить ОИ».',
+    kind: 'aux',
+    total: true,
+    row: auxRow,
+  })}
+      ${movable.length
+    ? sub(ctx, { label: 'Движимое имущество', list: movable, emptyText: '', kind: 'movable' })
     : ''}
     </div>
   </div>`;

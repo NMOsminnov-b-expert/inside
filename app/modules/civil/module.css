@@ -428,3 +428,54 @@ body[data-module="civil"] .oi-tree-tbl tfoot .oi-total td{background:var(--fill-
   border-top:1px solid var(--line);font-size:11.5px;font-weight:700;
   color:var(--blue-700);padding:6px 10px}
 body[data-module="civil"] .oi-total-v{font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------------------
+   Вспомогательные постройки в перечне ОИ (решение пользователя 17.09.2026).
+
+   Цвет — сланцевый, третий после синего у литер и янтарного у движимого.
+   Выбран не «чтобы отличалось»: сланцевый тише синего, и это ровно то, чем
+   вспомогательная постройка отличается от литеры — она второстепенна. Так же,
+   как участок отмечен бирюзовым, а движимое янтарным: цвет здесь несёт смысл.
+--------------------------------------------------------------------------- */
+body[data-module="civil"] .oi-sub[data-oi-sub="aux"] .oi-sub-h{background:var(--slate-50);
+  color:var(--slate-700);box-shadow:inset 3px 0 0 var(--slate-500)}
+body[data-module="civil"] .oi-node-cnt.aux{background:var(--slate-50);color:var(--slate-700);
+  border:1px solid var(--line);margin-left:4px}
+
+/* Шеврон в начале строки — единственный признак, по которому видно, что строка
+   раскрывается, а не ведёт на свой экран (у постройки его нет). Повёрнут, пока
+   строка закрыта, — так же, как у аккордеонов макета. */
+body[data-module="civil"] .aux-chev{display:inline-block;width:12px;margin-right:2px;
+  color:var(--ink-dim);font-size:10px;transform:rotate(-90deg);transition:transform .15s}
+body[data-module="civil"] tr.oi-aux.open .aux-chev{transform:none;color:var(--slate-700)}
+body[data-module="civil"] tr.oi-aux.open td{background:var(--slate-50)}
+
+/* Панель принадлежит своей строке, а не таблице: отступ слева и та же полоса
+   сланцевого цвета показывают, к чему она относится, когда строк много. */
+body[data-module="civil"] .oi-aux-panel-row td{padding:0;background:var(--fill-head);
+  border-bottom:1px solid var(--line)}
+body[data-module="civil"] .oi-aux-panel{padding:10px 12px 12px 26px;
+  box-shadow:inset 3px 0 0 var(--slate-500)}
+body[data-module="civil"] .oi-aux-panel .grid{display:grid;gap:10px 12px;margin-bottom:2px}
+
+/* Подзаголовок внутри панели: набирается тем же капсом, что заголовки
+   разделов перечня, — панель читается продолжением таблицы, а не врезкой
+   из другого экрана. */
+body[data-module="civil"] .oi-aux-sub{margin:12px 0 6px;font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--slate-700)}
+body[data-module="civil"] .oi-aux-photos .acc{background:#fff}
+
+/* Перечень ОИ не сжимается ниже читаемого. При открытом просмотрщике на
+   таблицу остаётся меньше половины экрана, и колонки схлопывались до 46 px:
+   «1 840,00 м²» превращалось в «184… м²», а подписи — в «НАЗНА…». Для широкой
+   таблицы в узком месте принято прокручивать её внутри своей обёртки, а не
+   сжимать колонки (ux-guidelines, Responsive → Table Handling). Ширина взята
+   по сумме ширин столбцов по умолчанию, поэтому при закрытом просмотрщике
+   ничего не меняется — прокрутка появляется только там, где иначе было бы
+   нечитаемо. */
+body[data-module="civil"] .oi-tree{overflow-x:auto}
+body[data-module="civil"] .oi-tree .oi-node,
+body[data-module="civil"] .oi-tree .oi-sep,
+body[data-module="civil"] .oi-tree-tbl,
+body[data-module="civil"] .oi-land-tbl,
+body[data-module="civil"] .oi-cols-row{min-width:880px}

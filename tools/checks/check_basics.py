@@ -74,7 +74,7 @@ def run(t):
     t.open('#/oc/civil/oc-cv-1')
     card = pg.title()
     t.ck(reg != card, 'заголовок вкладки одинаков на реестре и карточке: %r' % reg)
-    t.ck('Inside' in card, 'в заголовке вкладки нет имени системы: %r' % card)
+    t.ck('E•state' in card, 'в заголовке вкладки нет имени системы: %r' % card)
 
     # --- слушатели документа не накапливаются при переходах ---
     cdp = pg.context.new_cdp_session(pg)

@@ -1,6 +1,6 @@
 import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
-import { OI_COLUMNS, OI_COLUMNS_DEFAULT } from './oiTable.view.js';
+import { OI_COLUMNS, OI_COLUMNS_DEFAULT, auxRowCellsHTML, auxTotalHTML } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
@@ -12,6 +12,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { bindStruct } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
 
 function createOi(ctx, type) {
@@ -26,6 +27,38 @@ function createOi(ctx, type) {
   }
 
   const letter = nextLetter(rec);
+
+  // Вспомогательная постройка: набор полей урезан до того, что о ней
+  // действительно заполняют (решение пользователя 17.09.2026) — название,
+  // литера, две площади, три элемента конструктива и фото. Ни развёртки, ни
+  // износа, ни прав, ни адреса: своего экрана у неё нет, и всё лишнее в
+  // раскрытой строке перечня только мешало бы.
+  //
+  // Литера берётся из общего счётчика записи: постройка стоит на участке
+  // наравне с литерами, и вторая «Б» в перечне сбивала бы с толку.
+  if (type.card === 'aux') {
+    return {
+      id: nextId('oi'),
+      card: 'aux',
+      letter,
+      name: '',
+      // Вспомогательное — это и есть её отличие от основных объектов
+      // имущества, и поле «Основное/Вспомогательное» у оценки уже есть.
+      status: 'Вспомогательное',
+      origin: 'manual',
+      residential: false,
+      // Кода ЕНИ у вспомогательной постройки нет: он присваивается
+      // Кадастром объекту, а постройка учитывается в составе участка.
+      eni: '',
+      areas: { tp: '', build: '' },
+      struct: { foundation: [], wallsExt: [], roof: [] },
+      structOther: {},
+      flags: { entered: false, matched: false },
+      docs: [],
+      photos: {},
+      notes: [],
+    };
+  }
 
   const oi = {
     id: nextId('oi'),
@@ -514,6 +547,86 @@ export function bindOcCard(ctx) {
     ctx.ui.viewerDoc = null;
     ctx.navigate({ rest: ['oi', tr.dataset.openOi] });
   });
+
+  // --- Вспомогательные постройки ------------------------------------------
+  // Строка раскрывается вниз, а не ведёт на свой экран: у постройки его нет.
+  // Открыта одна за раз — две раскрытые панели разносят перечень по высоте
+  // так, что соседние строки уходят с экрана, а ради них панель и внизу.
+  s.$$('tr[data-aux-toggle]').forEach((tr) => tr.onclick = (e) => {
+    if (e.target.closest('button') || e.target.closest('.ph-cell')
+      || e.target.closest('.drag-grip')) return;
+
+    const id = tr.dataset.auxToggle;
+    ctx.ui.auxOpen = ctx.ui.auxOpen === id ? null : id;
+    ctx.render();
+  });
+
+  // Панель раскрытой постройки закрывать кликом мимо не нужно: она не
+  // перекрывает перечень, а раздвигает его, и случайное закрытие с потерей
+  // места дороже лишнего щелчка по строке.
+  const auxOi = ctx.ui.auxOpen ? rec.oi.find((o) => o.id === ctx.ui.auxOpen) : null;
+
+  // Правка полей панели. Строка над панелью показывает те же наименование и
+  // площади, поэтому обновляется по ходу набора — но ТОЧЕЧНО: полная отрисовка
+  // заменила бы и саму панель вместе с полем, в котором стоит курсор, и
+  // набранное терялось бы на первом же символе (проверено в браузере).
+  const auxSiblings = (oi) => rec.oi.filter((o) => o.card === 'aux'
+    && (o.landId || '') === (oi.landId || ''));
+
+  const refreshAuxRow = (oi) => {
+    const tr = s.$(`tr[data-aux-toggle="${oi.id}"]`);
+    if (!tr) return;
+    tr.innerHTML = auxRowCellsHTML(ctx, oi);
+
+    // Подытог раздела складывает площади построек этого же участка.
+    const tfoot = tr.closest('table') ? tr.closest('table').querySelector('tfoot') : null;
+    if (tfoot) tfoot.innerHTML = auxTotalHTML(ctx, auxSiblings(oi));
+  };
+
+  [['aux-name', (oi, v) => { oi.name = v; }],
+    ['aux-letter', (oi, v) => { oi.letter = v; }],
+    ['aux-area', (oi, v) => { oi.areas.tp = v; }],
+    ['aux-build', (oi, v) => { oi.areas.build = v; }],
+  ].forEach(([attr, set]) => {
+    s.$$(`[data-${attr}]`).forEach((inp) => {
+      inp.oninput = () => {
+        const oi = rec.oi.find((o) => o.id === inp.getAttribute(`data-${attr}`));
+        if (!oi) return;
+        oi.areas = oi.areas || {};
+        set(oi, inp.value);
+        refreshAuxRow(oi);
+      };
+    });
+  });
+
+  // Материалы конструктива — тот же мультивыбор, что в карточке литеры. Список
+  // открывается своим обработчиком: общий живёт в контроллере карточки ОИ, а
+  // здесь его нет.
+  if (auxOi) {
+    bindStruct(ctx, auxOi);
+
+    s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {
+      e.stopPropagation();
+      const drop = c.parentElement.querySelector('.ms-drop');
+      s.$$('.ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
+      s.$$('.ms-control').forEach((mc) => { if (mc !== c) mc.classList.remove('open'); });
+      drop.hidden = !drop.hidden;
+      c.classList.toggle('open', !drop.hidden);
+    });
+
+    // Закрытие списков кликом вне них. Вешается ОДИН раз на скоуп: контроллер
+    // перепривязывается на каждой отрисовке, а документные слушатели снимаются
+    // только при уходе с экрана — иначе они копились бы всю сессию.
+    if (!s.root.dataset.auxMsOutsideBound) {
+      s.root.dataset.auxMsOutsideBound = '1';
+      s.onDocument('click', (e) => {
+        if (!e.target.closest('.ms')) {
+          s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
+          s.$$('.ms-drop').forEach((d) => { d.hidden = true; });
+        }
+      });
+    }
+  }
 
   // Кнопка «Открыть» в шапке узла-участка: она не строка таблицы, поэтому
   // обработчик строк её не ловит (и не должен — строка ещё и отсекает клики

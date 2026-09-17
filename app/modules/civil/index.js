@@ -206,7 +206,8 @@ export function main(host) {
 
   async function ensureCard(oi) {
     const meta = OI_CARDS[oi.card];
-    if (!meta) return null;
+    // Своего экрана нет у вспомогательной постройки: её правят в перечне ОЦ.
+    if (!meta || !meta.load) return null;
     if (!cardCache.has(oi.card)) {
       const mod = await meta.load();
       cardCache.set(oi.card, mod.card);
