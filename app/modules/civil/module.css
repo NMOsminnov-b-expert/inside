@@ -452,11 +452,31 @@ body[data-module="civil"] tr.oi-aux.open td{background:var(--slate-50)}
 
 /* Панель принадлежит своей строке, а не таблице: отступ слева и та же полоса
    сланцевого цвета показывают, к чему она относится, когда строк много. */
+/* Ячейки таблицы обрезают содержимое (.tbl td{overflow:hidden}) — длинное
+   название прячется многоточием. Ячейке панели обрезка не нужна и мешает:
+   прилипание считается по ближайшему предку с обрезкой, а он не прокручивается. */
 body[data-module="civil"] .oi-aux-panel-row td{padding:0;background:var(--fill-head);
-  border-bottom:1px solid var(--line)}
-body[data-module="civil"] .oi-aux-panel{padding:10px 12px 12px 26px;
-  box-shadow:inset 3px 0 0 var(--slate-500)}
+  border-bottom:1px solid var(--line);overflow:visible}
+
+/* Панель прижата к левому краю окна прокрутки и шириной с ВИДИМУЮ часть
+   перечня: таблица шире экрана и прокручивается вбок, а панель уезжала вместе
+   с ней — левые поля обрезались, правое уходило за край. Ширину видимой части
+   подставляет контроллер (--oi-vis-w), потому что в CSS она не выражается:
+   колонки живут в переменных, а ширина окна прокрутки меняется ещё и от
+   просмотрщика документов. */
+body[data-module="civil"] .oi-aux-panel{position:sticky;left:0;
+  width:var(--oi-vis-w, 100%);box-sizing:border-box;
+  padding:10px 12px 12px 26px;box-shadow:inset 3px 0 0 var(--slate-500)}
 body[data-module="civil"] .oi-aux-panel .grid{display:grid;gap:10px 12px;margin-bottom:2px}
+
+/* Площади — числа: поле не растягивается во всю колонку (растянутое поле под
+   двузначное число читается как место для текста), значение по правому краю и
+   цифрами одной ширины, как в поэтажной развёртке. */
+body[data-module="civil"] .oi-aux-panel input[inputmode="decimal"]{max-width:150px;
+  text-align:right;font-variant-numeric:tabular-nums}
+
+/* Первый подзаголовок панели без верхнего отступа: над ним уже граница строки. */
+body[data-module="civil"] .oi-aux-panel .oi-aux-sub:first-child{margin-top:2px}
 
 /* Подзаголовок внутри панели: набирается тем же капсом, что заголовки
    разделов перечня, — панель читается продолжением таблицы, а не врезкой
@@ -474,6 +494,14 @@ body[data-module="civil"] .oi-aux-photos .acc{background:#fff}
    ничего не меняется — прокрутка появляется только там, где иначе было бы
    нечитаемо. */
 body[data-module="civil"] .oi-tree{overflow-x:auto}
+
+/* Узлы дерева — аккордеоны, а те обрезают содержимое по своим скруглениям
+   (.acc{overflow:hidden}). Обрезка мешает раскрытой панели постройки прилипать
+   к краю окна прокрутки: прилипание считается по ближайшему предку с
+   обрезкой, а он сам никуда не прокручивается. Поэтому у узлов перечня обрезка
+   снята, а скругление вернули их содержимому — первой и последней таблице. */
+body[data-module="civil"] .oi-tree .oi-node,
+body[data-module="civil"] .oi-tree .oi-sub{overflow:visible}
 body[data-module="civil"] .oi-tree .oi-node,
 body[data-module="civil"] .oi-tree .oi-sep,
 body[data-module="civil"] .oi-tree-tbl,

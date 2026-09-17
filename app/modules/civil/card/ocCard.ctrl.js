@@ -1,6 +1,6 @@
 import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
-import { OI_COLUMNS, OI_COLUMNS_DEFAULT, auxRowCellsHTML, auxTotalHTML } from './oiTable.view.js';
+import { OI_COLUMNS, OI_COLUMNS_DEFAULT, auxCellContentHTML, auxTotalHTML } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
@@ -503,6 +503,11 @@ export function bindOcCard(ctx) {
     const host = tbl ? tbl.parentElement : oiBox;
     const reserve = Math.max(0, oiBox.clientWidth - host.clientWidth);
     applyFit(oiBox, orderedColumns(OI_COLUMNS, oiOrder), ctx.ui.oiColWidths, reserve);
+
+    // Ширина видимой части перечня — для раскрытой панели вспомогательной
+    // постройки: она прижата к краю окна прокрутки и должна быть ровно по
+    // нему, иначе её поля обрезаются, когда таблицу прокручивают вбок.
+    oiBox.style.setProperty('--oi-vis-w', (oiBox.clientWidth - reserve) + 'px');
   };
   fitOiCols();
 
@@ -573,10 +578,18 @@ export function bindOcCard(ctx) {
   const auxSiblings = (oi) => rec.oi.filter((o) => o.card === 'aux'
     && (o.landId || '') === (oi.landId || ''));
 
+  // Обновляются только ячейки со значениями. Ячейки с кнопками (удаление, фото)
+  // не трогаем: обработчики висят прямо на элементах, и переписанная ячейка
+  // осталась бы без них — постройку стало бы нечем удалить.
+  const AUX_LIVE_CELLS = ['name', 'letter', 'area', 'areaBuild'];
+
   const refreshAuxRow = (oi) => {
     const tr = s.$(`tr[data-aux-toggle="${oi.id}"]`);
     if (!tr) return;
-    tr.innerHTML = auxRowCellsHTML(ctx, oi);
+    AUX_LIVE_CELLS.forEach((key) => {
+      const td = tr.querySelector(`[data-aux-cell="${key}"]`);
+      if (td) td.innerHTML = auxCellContentHTML(ctx, oi, key);
+    });
 
     // Подытог раздела складывает площади построек этого же участка.
     const tfoot = tr.closest('table') ? tr.closest('table').querySelector('tfoot') : null;

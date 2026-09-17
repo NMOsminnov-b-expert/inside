@@ -132,7 +132,17 @@ const auxOpen = (ctx, oi) => ctx.ui.auxOpen === oi.id;
 function auxPanelHTML(ctx, oi) {
   const a = oi.areas || {};
 
+  // Ширину панель берёт у ВИДИМОЙ части перечня, а не у таблицы: таблица шире
+  // экрана и прокручивается вбок, и панель уезжала вместе с ней — поля слева
+  // обрезались, правое уходило за край. Панель прижата к левому краю окна
+  // прокрутки (position:sticky), поэтому остаётся целиком на виду, куда бы
+  // таблицу ни прокрутили.
+  //
+  // Поля собраны в озаглавленные группы: постройка, конструктив, фото. Так
+  // видно, что к чему относится, — перечень полей вперемешку читался как одна
+  // длинная форма (практика группировки полей, Oracle «Field groups»).
   return `<div class="oi-aux-panel">
+    <div class="oi-aux-sub">Постройка</div>
     <div class="grid g-4">
       <div class="field"><label>Наименование</label>
         <input class="input" data-aux-name="${oi.id}" value="${esc(oi.name || '')}"
@@ -140,9 +150,9 @@ function auxPanelHTML(ctx, oi) {
       <div class="field"><label>Литера</label>
         <input class="input" data-aux-letter="${oi.id}" value="${esc(oi.letter || '')}"></div>
       <div class="field"><label>По внешним замерам, м²</label>
-        <input class="input" data-aux-area="${oi.id}" value="${esc(a.tp || '')}" inputmode="decimal"></div>
+        <input class="input fl-num" data-aux-area="${oi.id}" value="${esc(a.tp || '')}" inputmode="decimal"></div>
       <div class="field"><label>По внутр. обмеру, м²</label>
-        <input class="input" data-aux-build="${oi.id}" value="${esc(a.build || '')}" inputmode="decimal"></div>
+        <input class="input fl-num" data-aux-build="${oi.id}" value="${esc(a.build || '')}" inputmode="decimal"></div>
     </div>
 
     <div class="oi-aux-sub">Конструктив</div>
@@ -167,11 +177,15 @@ function auxCellHTML(ctx, oi, key) {
   return cellHTML(ctx, oi, key);
 }
 
-// Ячейки строки отдельной функцией: пока постройку правят в панели, строка над
-// ней обновляется ими же — точечно, без отрисовки перечня. Полная отрисовка
-// заменила бы и саму панель вместе с полем, в котором стоит курсор.
-export function auxRowCellsHTML(ctx, oi) {
-  return cols(ctx).map((c) => `<td data-aux-cell="${c.key}">${auxCellHTML(ctx, oi, c.key)}</td>`).join('');
+// Содержимое ОДНОЙ ячейки строки: пока постройку правят в панели, строка над
+// ней обновляется по ячейкам — без отрисовки перечня, которая заменила бы и
+// саму панель вместе с полем, где стоит курсор.
+//
+// По ячейкам, а не строкой целиком: переписанная строка теряет кнопку удаления
+// вместе с её обработчиком (обработчики вешаются прямо на элементы), и постройку
+// становится нечем убрать.
+export function auxCellContentHTML(ctx, oi, key) {
+  return auxCellHTML(ctx, oi, key);
 }
 
 // Подытог того же раздела — из той же функции, что рисует его при отрисовке:
@@ -186,7 +200,7 @@ function auxRow(ctx, oi) {
   return `<tr class="rowlink oi-aux ${open ? 'open' : ''}" draggable="true"
       data-aux-toggle="${oi.id}" data-drag-oi="${oi.id}" aria-expanded="${open}"
       title="Клик — развернуть постройку; перетащите, чтобы перенести к другому участку">
-    ${auxRowCellsHTML(ctx, oi)}
+    ${cols(ctx).map((c) => `<td data-aux-cell="${c.key}">${auxCellHTML(ctx, oi, c.key)}</td>`).join('')}
   </tr>${open ? `<tr class="oi-aux-panel-row"><td colspan="${cols(ctx).length}">${auxPanelHTML(ctx, oi)}</td></tr>` : ''}`;
 }
 
@@ -269,20 +283,22 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
       ${summary || ''}
       ${colsRowHTML(ctx)}
       ${sub(ctx, {
-    label: summary ? 'Здания и сооружения на земельном участке' : 'Здания и сооружения',
+    label: summary ? 'Основные здания и сооружения на земельном участке' : 'Основные здания и сооружения',
     list: real,
     emptyText: 'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».',
     kind: 'real',
     total: true,
   })}
-      ${sub(ctx, {
-    label: 'Вспомогательные постройки',
-    list: aux,
-    emptyText: 'Не добавлено. Гараж, навес, летняя кухня добавляются через «+ Добавить ОИ».',
-    kind: 'aux',
-    total: true,
-    row: auxRow,
-  })}
+      ${aux.length
+    ? sub(ctx, {
+      label: 'Вспомогательные постройки',
+      list: aux,
+      emptyText: '',
+      kind: 'aux',
+      total: true,
+      row: auxRow,
+    })
+    : ''}
       ${movable.length
     ? sub(ctx, { label: 'Движимое имущество', list: movable, emptyText: '', kind: 'movable' })
     : ''}
