@@ -594,11 +594,13 @@ body[data-module="civil"] .mu-sec .sec-h{display:flex;align-items:center;gap:8px
 body[data-module="civil"] .mu-sec:first-child .sec-h{margin-top:0}
 body[data-module="civil"] .mu-sec-hint{font-size:11px;font-weight:400;color:var(--muted)}
 
-/* Общие сведения: наименование шире, числа уже. На узкой ширине сетка
-   складывается сама. */
+/* Общие сведения — ровно два столбца: год и производитель, количество и
+   балансовая стоимость. При автоподборе числа столбцов «Балансовая стоимость,
+   сом» попадала в узкую ячейку и переносилась на две строки. Наименование —
+   на всю ширину. */
 /* Поля ряда выравниваются по низу: у части подписей есть уточнение второй
    строкой, и без выравнивания поля одного ряда стояли лесенкой. */
-body[data-module="civil"] .mu-grid-general{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;
+body[data-module="civil"] .mu-grid-general{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;
   align-items:end}
 body[data-module="civil"] .mu-grid-general .mu-f-name{grid-column:1 / -1}
 body[data-module="civil"] .mu-num{text-align:right;font-variant-numeric:tabular-nums}

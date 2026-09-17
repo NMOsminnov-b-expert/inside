@@ -21,8 +21,10 @@ import {
   unitTitle, unitClassPath, totalQty, totalCost, hasCost, unitPhotoCount, BASE_PARAMS,
 } from './model.js';
 
-const COST_NOTE = 'Стоимость — за единицу или за всё количество в строке, пока не '
-  + 'решено. Итог складывает столбец как есть, без умножения на количество.';
+// Стоимость — балансовая (уточнение пользователя 17.09.2026). За единицу она
+// или за всё количество в строке, по-прежнему не решено.
+const COST_NOTE = 'Балансовая стоимость — за единицу или за всё количество в строке, пока '
+  + 'не решено. Итог складывает столбец как есть, без умножения на количество.';
 
 const CLASS_NOTE = 'На схеме «Группы движимого имущества» есть класс «Технологическое '
   + '(производственное) оборудование» — станки, технологические линии, печи, насосы. '
@@ -87,13 +89,13 @@ export function unitsTable(ctx, oi, current) {
 
   return `<div class="mu-table-wrap">
     <table class="tbl mu-tbl">
-      <colgroup><col><col style="width:56px"><col style="width:70px"><col style="width:112px">
+      <colgroup><col><col style="width:56px"><col style="width:70px"><col style="width:124px">
         <col style="width:58px"><col style="width:36px"></colgroup>
       <thead><tr>
         <th title="Наименование и классификация">Наименование</th>
         <th class="mu-c-num">Год</th>
         <th class="mu-c-num" title="Количество, шт.">Кол-во</th>
-        <th class="mu-c-num" title="Стоимость, сом">Стоимость${devNote(COST_NOTE)}</th>
+        <th class="mu-c-num" title="Балансовая стоимость, сом">Бал. стоимость</th>
         <th class="mu-c-num">Фото</th>
         <th></th>
       </tr></thead>
@@ -102,7 +104,7 @@ export function unitsTable(ctx, oi, current) {
         <td>Итого: ${list.length} ${plural(list.length, 'позиция', 'позиции', 'позиций')}</td>
         <td></td>
         <td class="mu-c-num">${totalQty(oi)} шт.</td>
-        <td class="mu-c-num" title="Сумма стоимостей, сом">${hasCost(oi) ? fmtNum(totalCost(oi)) : '—'}</td>
+        <td class="mu-c-num" title="Сумма балансовой стоимости, сом">${hasCost(oi) ? fmtNum(totalCost(oi)) : '—'}</td>
         <td></td><td></td>
       </tr></tfoot>
     </table>
@@ -198,7 +200,7 @@ function generalHTML(unit) {
         <input class="input mu-num" id="mu-qty" data-mu-qty value="${esc(unit.qty || '')}" inputmode="numeric">
       </div>
       <div class="field">
-        <label for="mu-cost">Стоимость, сом</label>
+        <label for="mu-cost">Балансовая стоимость, сом${devNote(COST_NOTE)}</label>
         <input class="input mu-num" id="mu-cost" data-mu-cost value="${esc(unit.cost || '')}"
           inputmode="decimal" placeholder="не указана">
       </div>
