@@ -6,8 +6,8 @@
 // обновляется точечно (refreshList). Полная отрисовка — только там, где меняется
 // сам состав карточки: выбор в классификаторе, добавление и удаление.
 import { confirmDialog } from '../../../../kernel/dialog.js';
-import { bindNumField } from '../../../../kernel/numField.js';
-import { bindCheckedField } from '../../../../kernel/fieldError.js';
+import { bindNumField, isExpr } from '../../../../kernel/numField.js';
+import { bindCheckedField, setFieldError } from '../../../../kernel/fieldError.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
 import { openPhotoInPlace } from '../../parts/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
@@ -188,8 +188,22 @@ export function bind(ctx, oi) {
   const maker = s.$('[data-mu-maker]');
   if (maker) maker.oninput = () => { unit.maker = maker.value; };
 
+  // Количество — такое же числовое поле, как остальные величины: принимает и
+  // «3*4». Своя проверка навешана отдельно, потому что bindCheckedField писал
+  // бы значение вторым обработчиком, поверх нормализованного.
   const qty = s.$('[data-mu-qty]');
-  bindCheckedField(qty, qtyError, (v) => { unit.qty = String(+v); refreshList(); });
+  if (qty) {
+    bindNumField(qty, (v) => {
+      if (setFieldError(qty, qtyError(v))) return;
+      unit.qty = v;
+      refreshList();
+    }, 'int');
+    // Пока набирают выражение, ошибку не показываем: «3*» — это не ошибка, это
+    // недонабранное выражение.
+    qty.addEventListener('input', () => {
+      setFieldError(qty, isExpr(qty.value) ? '' : qtyError(qty.value));
+    });
+  }
 
   bindNumField(s.$('[data-mu-cost]'), (v) => { unit.cost = v; refreshList(); });
 
@@ -209,6 +223,10 @@ export function bind(ctx, oi) {
 
   s.$$('[data-mu-f]').forEach((el) => {
     const key = el.dataset.muF;
+    if (el.dataset.num) {
+      bindNumField(el, (v) => write(key, v), el.dataset.num);
+      return;
+    }
     const set = () => write(key, el.value);
     if (el.tagName === 'SELECT' || el.type === 'date') el.onchange = set;
     else el.oninput = set;

@@ -12,6 +12,7 @@
 // «Модель» той же таблицы: три зависимых списка и параметры выбранного типа.
 import { esc } from '../../../../kernel/dom.js';
 import { fmtNum } from '../../../../kernel/fmt.js';
+import { numText } from '../../../../kernel/numField.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
@@ -172,10 +173,14 @@ function fieldHTML(unit, f) {
       return `<input class="input mu-date" type="date" id="${id}" data-mu-f="${esc(f.key)}" value="${esc(value)}">`;
     }
 
+    // Числовое поле — общее для всего макета (kernel/numField.js): разряды,
+    // запятая и вычисление выражения. `data-num` говорит контроллеру, какая это
+    // величина: «int» — штуки, дробной части у них не бывает.
     const numeric = f.type === 'num' || f.type === 'int';
-    const mode = f.type === 'num' ? 'decimal' : (f.type === 'int' ? 'numeric' : 'text');
+    const kind = f.type === 'int' ? 'int' : 'dec';
+    const shown = numeric ? numText(value, kind) : value;
     const input = `<input class="input ${numeric ? 'mu-num' : ''}" id="${id}" data-mu-f="${esc(f.key)}"
-      value="${esc(value)}" inputmode="${mode}">`;
+      ${numeric ? `data-num="${kind}"` : ''} value="${esc(shown)}">`;
 
     if (!many) return input;
     const chosen = unitParamUnit(unit, f);
@@ -259,7 +264,8 @@ function accountingHTML(unit) {
       </div>
       <div class="field">
         <label for="mu-qty">Количество, шт.</label>
-        <input class="input mu-num" id="mu-qty" data-mu-qty value="${esc(unit.qty || '')}" inputmode="numeric">
+        <input class="input mu-num" id="mu-qty" data-mu-qty value="${esc(numText(unit.qty, 'int'))}"
+          inputmode="numeric">
       </div>
       <div class="field">
         <label for="mu-cost">Балансовая стоимость, сом${devNote(COST_NOTE)}</label>

@@ -87,7 +87,9 @@ def run(t):
     t.ck(pg.locator('[data-mu-f="pressure"]').count() == 0,
          'параметр чужой подгруппы остался на экране')
     pick('sub', 'Котельное оборудование')
-    t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,6',
+    # «0,60», а не «0,6»: числовое поле макета показывает величину с сотыми
+    # (kernel/numField.js).
+    t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,60',
          'скрытое значение не вернулось при обратной смене подгруппы')
     t.ck(pg.locator('[data-mu-unit="pressure"]').input_value() == 'МПа',
          'единица измерения не вернулась вместе со значением')
@@ -136,7 +138,7 @@ def run(t):
     t.wait(300)
     t.ck(pg.locator('[data-mu-unit="pressure"]').input_value() == 'бар',
          'выбранная единица измерения не сохранилась')
-    t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,6',
+    t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,60',
          'смена единицы измерения затёрла число')
 
     # --- правка по ходу набора ------------------------------------------------
