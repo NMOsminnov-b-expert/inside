@@ -464,9 +464,19 @@ body[data-module="civil"] .oi-node-cnt.aux{background:var(--slate-50);color:var(
    таблицы. */
 body[data-module="civil"] .aux-cols{position:relative}
 body[data-module="civil"] .aux-tbl{width:100%;table-layout:fixed;border-collapse:collapse}
+/* Подпись столбца — в одну строку с многоточием, полное название в подсказке.
+   Перенос на вторую строку поднимал шапку и ломал конструкцию таблицы
+   (замечание пользователя 17.09.2026); так же подписи ведут себя в перечне
+   ОИ над этой таблицей. */
 body[data-module="civil"] .aux-tbl th{position:relative;font-size:10px;text-transform:uppercase;
   letter-spacing:.5px;color:var(--ink-label);text-align:left;padding:7px 8px;line-height:1.25;
-  white-space:normal;font-weight:700;background:var(--fill-head);border-bottom:1px solid var(--line)}
+  white-space:nowrap;overflow:hidden;font-weight:700;background:var(--fill-head);
+  border-bottom:1px solid var(--line)}
+body[data-module="civil"] .aux-tbl th .col-label{display:block;overflow:hidden;text-overflow:ellipsis}
+
+/* Ручка переноса — та же, что у литер в перечне. */
+body[data-module="civil"] .aux-tbl .aux-drag{flex:0 0 auto;margin-right:2px;cursor:grab}
+body[data-module="civil"] .aux-row.dragging{opacity:.5}
 /* Вертикальных линий в ячейках нет — только горизонтальные. Таблица стоит
    вплотную под перечнем ОИ, где столбцы разделены лишь перегородками в шапке;
    свои линии в теле не совпадали с ними по местам и читались как сломанная

@@ -146,7 +146,8 @@ const AUX_STRUCT_ROWS = [
 // Номера строк убраны: постройки различают по литере, а счёт и так виден в
 // итоговой строке.
 export const AUX_COLUMNS = [
-  { key: 'letter', label: 'Лит.', width: 56, minWidth: 44 },
+  // В ячейке литеры — ручка переноса, шеврон раскрытия и сама буква.
+  { key: 'letter', label: 'Лит.', width: 76, minWidth: 68 },
   // Резиновый столбец забирает остаток места. Минимум ему нужен свой: у
   // резинового по умолчанию он равен 190 px, и при узком окне таблица из-за
   // этого оказывалась шире отведённого ей места.
@@ -221,12 +222,18 @@ function auxDetailHTML(ctx, oi) {
 function auxTableRow(ctx, oi) {
   const open = auxRowOpen(ctx, oi);
 
+  // Перенос к другому участку — тем же механизмом, что у литер (data-drag-oi),
+  // но только за ручку: строка целиком перетаскиваемой не делается, иначе
+  // попытка выделить текст в ячейке начинала бы перенос. Ручка включает
+  // перетаскивание строки на время нажатия (см. контроллер).
   const cell = (c) => `<td class="aux-c-${c.key}">${
     c.key === 'letter'
-      ? `<span class="aux-chev" aria-hidden="true">▾</span>${auxFieldCell(oi, c.key)}`
+      ? `<span class="drag-grip aux-drag" data-aux-drag="${oi.id}"
+          title="Перетащите, чтобы перенести к другому участку">⠿</span><span class="aux-chev" aria-hidden="true">▾</span>${
+        auxFieldCell(oi, c.key)}`
       : auxFieldCell(oi, c.key)}</td>`;
 
-  return `<tr class="aux-row ${open ? 'open' : ''}" data-aux-row="${oi.id}"
+  return `<tr class="aux-row ${open ? 'open' : ''}" data-aux-row="${oi.id}" data-drag-oi="${oi.id}"
       aria-expanded="${open}" title="Клик по строке — фото постройки">
     ${AUX_COLUMNS.map(cell).join('')}
   </tr>${open ? auxDetailHTML(ctx, oi) : ''}`;
@@ -257,8 +264,8 @@ export function auxBlockHTML(ctx, list) {
     <div class="aux-cols" data-aux-cols-box style="${auxColsVarsStyle(ctx)}">
       <table class="tbl aux-tbl">
         ${colGroupHTML(AUX_COLUMNS, ctx.ui.auxColWidths)}
-        <thead><tr>${AUX_COLUMNS.map((c, i) => `<th data-col="${c.key}" class="aux-c-${c.key}"${
-  AUX_FULL[c.key] ? ` title="${esc(AUX_FULL[c.key])}"` : ''}>${esc(c.label)}${
+        <thead><tr>${AUX_COLUMNS.map((c, i) => `<th data-col="${c.key}" class="aux-c-${c.key}"
+  title="${esc(AUX_FULL[c.key] || c.label)}">${c.label ? colLabelHTML({ label: esc(c.label) }) : ''}${
   c.fixed || i === last ? '' : `<span class="col-grip" data-aux-grip="${c.key}"
       title="Потянуть — изменить ширину"></span>`}</th>`).join('')}</tr></thead>
         <tbody>${list.map((oi) => auxTableRow(ctx, oi)).join('')}</tbody>

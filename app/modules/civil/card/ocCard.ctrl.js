@@ -686,10 +686,20 @@ export function bindOcCard(ctx) {
   // Клик по строке раскрывает фото постройки. Поля, списки и кнопки из этого
   // исключены: по ним щёлкают, чтобы править, а не чтобы раскрыть.
   s.$$('tr[data-aux-row]').forEach((tr) => tr.onclick = (e) => {
-    if (e.target.closest('input, button, .ms, select, textarea')) return;
+    if (e.target.closest('input, button, .ms, select, textarea, .aux-drag')) return;
     const id = tr.dataset.auxRow;
     ctx.ui.auxOpen = ctx.ui.auxOpen === id ? null : id;
     ctx.render();
+  });
+
+  // Ручка переноса постройки: строка становится перетаскиваемой только пока
+  // нажата ручка, и снова обычной, когда кнопку отпустили или перенос
+  // закончился. Сам перенос обрабатывает общий механизм дерева ([data-drag-oi]).
+  s.$$('[data-aux-drag]').forEach((grip) => {
+    const row = grip.closest('tr');
+    grip.onpointerdown = () => { row.draggable = true; };
+    grip.onpointerup = () => { row.draggable = false; };
+    row.addEventListener('dragend', () => { row.draggable = false; });
   });
 
   const auxList = rec.oi.filter((o) => o.card === 'aux');
