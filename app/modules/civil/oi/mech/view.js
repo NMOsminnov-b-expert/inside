@@ -87,10 +87,10 @@ export function unitsTable(ctx, oi, current) {
 
   return `<div class="mu-table-wrap">
     <table class="tbl mu-tbl">
-      <colgroup><col><col style="width:56px"><col style="width:60px"><col style="width:116px">
+      <colgroup><col><col style="width:56px"><col style="width:70px"><col style="width:112px">
         <col style="width:58px"><col style="width:36px"></colgroup>
       <thead><tr>
-        <th>Наименование и классификация</th>
+        <th title="Наименование и классификация">Наименование</th>
         <th class="mu-c-num">Год</th>
         <th class="mu-c-num" title="Количество, шт.">Кол-во</th>
         <th class="mu-c-num" title="Стоимость, сом">Стоимость${devNote(COST_NOTE)}</th>
