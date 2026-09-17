@@ -121,35 +121,42 @@ const AUX_STRUCT_ROWS = [
   { key: 'roof', label: 'Кровля' },
 ];
 
-// Доли, а не пиксели: сумма всегда равна ширине таблицы, и ширина таблицы —
-// ширине места под неё. Именно этого не хватало прежней раскладке, где ширина
-// задавалась числом и таблица оказывалась шире, чем место под ней.
-// Подписи столбцов короткие, полные — в подсказке: при открытом просмотрщике
-// на таблицу остаётся около 650 px, и «По наружным замерам, м²» съедало бы
-// место у самих значений. Заголовки переносятся на две строки, поэтому
-// сокращение не превращается в загадку.
-const AUX_COLS = [
-  { key: 'n', label: '№', width: '3%' },
-  { key: 'letter', label: 'Лит.', width: '8%', full: 'Литера' },
-  { key: 'name', label: 'Наименование', width: '16%' },
-  { key: 'year', label: 'Год', width: '8%', full: 'Год постройки' },
-  // Материалам отдано больше места, чем наименованию: в свёрнутом виде список
-  // показывает выбранное одной строкой, и при меньшей ширине от него остаётся
-  // «не выб…» — по такой подписи не понять, выбрано что-нибудь или нет.
-  { key: 'foundation', label: 'Фундамент', width: '15%' },
-  { key: 'wallsExt', label: 'Стены', width: '15%' },
-  { key: 'roof', label: 'Кровля', width: '15%' },
-  { key: 'area', label: 'Площадь, м²', width: '14%', full: 'Площадь по наружным замерам' },
-  { key: 'act', label: '', width: '6%' },
+// Столбцы — те же, что у перечня ОИ: ширины в пикселях, подгонка под ширину
+// таблицы (kernel/columns.js, fitWidths) и перегородки, за которые ширину
+// тянут. Раньше ширины стояли долями: таблица помещалась, но перегородки были
+// нарисованы и не двигались — оформление обещало то, чего нет.
+//
+// Номера строк убраны: постройки различают по литере, а счёт и так виден в
+// итоговой строке.
+export const AUX_COLUMNS = [
+  { key: 'letter', label: 'Лит.', width: 56, minWidth: 44 },
+  // Резиновый столбец забирает остаток места. Минимум ему нужен свой: у
+  // резинового по умолчанию он равен 190 px, и при узком окне таблица из-за
+  // этого оказывалась шире отведённого ей места.
+  { key: 'name', label: 'Наименование', width: 0, minWidth: 70 },
+  { key: 'year', label: 'Год', width: 60, minWidth: 44 },
+  { key: 'foundation', label: 'Фундамент', width: 120, minWidth: 66 },
+  { key: 'wallsExt', label: 'Стены', width: 120, minWidth: 66 },
+  { key: 'roof', label: 'Кровля', width: 120, minWidth: 66 },
+  { key: 'area', label: 'Площадь, м²', width: 96, minWidth: 66 },
+  { key: 'act', label: '', width: 44, fixed: true },
 ];
 
-const auxAreaSum = (list) => list.reduce((sum, oi) => sum + num((oi.areas || {}).tp), 0);
+// Столбец кнопок в подгонке не участвует (он fixed), поэтому его ширину надо
+// вычесть из доступного места: иначе сумма получается на его ширину больше,
+// и таблица вылезает за свой блок.
+export const AUX_FIXED_W = AUX_COLUMNS.filter((c) => c.fixed)
+  .reduce((sum, c) => sum + (c.width || 0), 0);
 
-// Ячейки — тихие поля того же вида, что в таблице пристроек (.ax-cell):
-// рамки у них нет, она появляется только когда в ячейке работают. Рамка у
-// каждой ячейки рябит, а правят всё равно по одной — это уже решено в макете
-// и повторяется здесь, чтобы две редактируемые таблицы карточки выглядели
-// одинаково.
+const AUX_FULL = { year: 'Год постройки', letter: 'Литера', area: 'Площадь по наружным замерам' };
+
+const auxAreaSum = (list) => list.reduce((sum, oi) => sum + num((oi.areas || {}).tp), 0);
+const auxHasArea = (list) => list.some((oi) => String((oi.areas || {}).tp || '').trim());
+
+// Раскрыта одна постройка за раз: раскрытие показывает её фото, и две ленты
+// подряд разносят таблицу по высоте.
+const auxRowOpen = (ctx, oi) => ctx.ui.auxOpen === oi.id;
+
 function auxFieldCell(oi, key) {
   const a = oi.areas || {};
 
@@ -166,11 +173,12 @@ function auxFieldCell(oi, key) {
     case 'area':
       return `<input class="ax-cell ax-area" data-aux-area="${oi.id}" value="${esc(a.tp || '')}"
         inputmode="decimal" aria-label="Площадь по наружным замерам">`;
+    // Кнопка удаления видна всегда: спрятанная до наведения, она находится
+    // вслепую, и удаление становится случайным (требование пользователя
+    // 17.09.2026).
     case 'act':
-      return `<button class="ax-x" data-del-oi="${oi.id}" title="Удалить постройку">×</button>`;
+      return `<button class="ax-x aux-del" data-del-oi="${oi.id}" title="Удалить постройку">×</button>`;
     default: {
-      // Материалы — тот же мультивыбор, что в конструктиве литеры, в виде без
-      // подписи: название элемента уже стоит в шапке столбца.
       const row = AUX_STRUCT_ROWS.find((r) => r.key === key);
       return row
         ? structMS(oi, row.key, row.label, opt('building', 'struct.' + row.key, STRUCT[row.key]), false, true)
@@ -179,49 +187,67 @@ function auxFieldCell(oi, key) {
   }
 }
 
-function auxTableRow(ctx, oi, i) {
-  return `<tr data-aux-row="${oi.id}">${AUX_COLS.map((c) => `<td class="aux-c-${c.key}${
-    c.key === 'n' ? ' ax-n' : ''}${c.key === 'act' ? ' ax-act' : ''}">${
-    c.key === 'n' ? i + 1 : auxFieldCell(oi, c.key)}</td>`).join('')}</tr>`;
+// Фото и всё, что у постройки появится сверх строки, живёт в раскрытии самой
+// строки, а не общим списком под таблицей: снимки относятся к конкретной
+// литере, и их место — при ней (требование пользователя 17.09.2026).
+function auxDetailHTML(ctx, oi) {
+  return `<tr class="aux-detail-row" data-aux-detail="${oi.id}">
+    <td colspan="${AUX_COLUMNS.length}">
+      <div class="aux-detail">
+        <div class="aux-detail-h">Фото${oi.letter ? ' · лит ' + esc(oi.letter) : ''}</div>
+        ${photoAccordions(ctx.ui, oi, true)}
+      </div>
+    </td>
+  </tr>`;
 }
 
-// Итог по площади стоит ПОД своей колонкой, а не подписью сбоку. Складывается
-// только площадь: год и материалы не складываются по смыслу.
+function auxTableRow(ctx, oi) {
+  const open = auxRowOpen(ctx, oi);
+
+  const cell = (c) => `<td class="aux-c-${c.key}">${
+    c.key === 'letter'
+      ? `<span class="aux-chev" aria-hidden="true">▾</span>${auxFieldCell(oi, c.key)}`
+      : auxFieldCell(oi, c.key)}</td>`;
+
+  return `<tr class="aux-row ${open ? 'open' : ''}" data-aux-row="${oi.id}"
+      aria-expanded="${open}" title="Клик по строке — фото постройки">
+    ${AUX_COLUMNS.map(cell).join('')}
+  </tr>${open ? auxDetailHTML(ctx, oi) : ''}`;
+}
+
+// Итог по площади стоит ПОД своей колонкой. Пока ни одной площади не введено,
+// вместо «0,00 м²» — прочерк: ноль читается как «замерили и получилось ноль».
 export function auxTotalRowHTML(list) {
-  return `<tr class="oi-total">${AUX_COLS.map((c) => {
+  return `<tr class="oi-total">${AUX_COLUMNS.map((c) => {
     if (c.key === 'name') return `<td>Итого: ${list.length}</td>`;
-    if (c.key === 'area') return `<td class="aux-c-area"><span class="oi-total-v">${fmtNum(auxAreaSum(list))} м²</span></td>`;
+    if (c.key === 'area') {
+      return `<td class="aux-c-area"><span class="oi-total-v">${
+        auxHasArea(list) ? fmtNum(auxAreaSum(list)) + ' м²' : '—'}</span></td>`;
+    }
     return '<td></td>';
   }).join('')}</tr>`;
 }
 
-// Фото — отдельным блоком под таблицей, раскрытым (решение пользователя
-// 17.09.2026). В ячейку таблицы снимки не помещаются, а прятать их за ещё
-// одним щелчком незачем: их и так смотрят вместе с постройками.
-function auxPhotosHTML(ctx, list) {
-  return `<div class="oi-aux-photos">
-    <div class="oi-aux-sub">Фото</div>
-    ${list.map((oi) => `<div class="oi-aux-ph-item">
-      <div class="oi-aux-ph-h">${esc(oi.letter ? 'Лит ' + oi.letter : 'Без литеры')}${
-  oi.name ? ' · ' + esc(oi.name) : ''}</div>
-      ${photoAccordions(ctx.ui, oi, true)}
-    </div>`).join('')}
-  </div>`;
-}
+export const auxColsVarsStyle = (ctx) => columnVarsStyle(AUX_COLUMNS, ctx.ui.auxColWidths);
 
 export function auxBlockHTML(ctx, list) {
   if (!list.length) return '';
 
+  const last = AUX_COLUMNS.length - 1;
+
   return `<div class="oi-sub oi-aux-block" data-oi-sub="aux">
     <div class="oi-sub-h">Вспомогательные постройки</div>
-    <table class="tbl aux-tbl">
-      <colgroup>${AUX_COLS.map((c) => `<col style="width:${c.width}">`).join('')}</colgroup>
-      <thead><tr>${AUX_COLS.map((c) => `<th class="aux-c-${c.key}"${
-  c.full ? ` title="${esc(c.full)}"` : ''}>${esc(c.label)}</th>`).join('')}</tr></thead>
-      <tbody>${list.map((oi, i) => auxTableRow(ctx, oi, i)).join('')}</tbody>
-      <tfoot>${auxTotalRowHTML(list)}</tfoot>
-    </table>
-    ${auxPhotosHTML(ctx, list)}
+    <div class="aux-cols" data-aux-cols-box style="${auxColsVarsStyle(ctx)}">
+      <table class="tbl aux-tbl">
+        ${colGroupHTML(AUX_COLUMNS, ctx.ui.auxColWidths)}
+        <thead><tr>${AUX_COLUMNS.map((c, i) => `<th data-col="${c.key}" class="aux-c-${c.key}"${
+  AUX_FULL[c.key] ? ` title="${esc(AUX_FULL[c.key])}"` : ''}>${esc(c.label)}${
+  c.fixed || i === last ? '' : `<span class="col-grip" data-aux-grip="${c.key}"
+      title="Потянуть — изменить ширину"></span>`}</th>`).join('')}</tr></thead>
+        <tbody>${list.map((oi) => auxTableRow(ctx, oi)).join('')}</tbody>
+        <tfoot>${auxTotalRowHTML(list)}</tfoot>
+      </table>
+    </div>
   </div>`;
 }
 

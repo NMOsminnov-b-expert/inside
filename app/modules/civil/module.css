@@ -456,39 +456,78 @@ body[data-module="civil"] .oi-sub[data-oi-sub="aux"] .oi-sub-h{background:var(--
 body[data-module="civil"] .oi-node-cnt.aux{background:var(--slate-50);color:var(--slate-700);
   border:1px solid var(--line);margin-left:4px}
 
-/* Оформление — то же, что у таблицы пристроек выше: разделительные линии,
-   ровная высота строки, тихие ячейки. Две редактируемые таблицы одной карточки
-   не должны выглядеть по-разному.
+/* Оформление — то же, что у таблицы пристроек в этой карточке: ровная высота
+   строки, тихие ячейки, разделительные линии столбцов.
 
-   Ширины — долями, а не пикселями (у пристроек min-width в пикселях и своя
-   прокрутка): таблица стоит внутри перечня ОИ, и прокрутки там быть не должно. */
+   Ширины — переменными на контейнере (как в перечне ОИ), поэтому перегородки
+   в шапке действительно двигают столбцы, а сумма ширин остаётся равной ширине
+   таблицы. */
+body[data-module="civil"] .aux-cols{position:relative}
 body[data-module="civil"] .aux-tbl{width:100%;table-layout:fixed;border-collapse:collapse}
-body[data-module="civil"] .aux-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--ink-label);text-align:left;padding:7px 8px;line-height:1.25;white-space:normal;
-  font-weight:700;background:var(--fill-head);border-bottom:1px solid var(--line)}
+body[data-module="civil"] .aux-tbl th{position:relative;font-size:10px;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--ink-label);text-align:left;padding:7px 8px;line-height:1.25;
+  white-space:normal;font-weight:700;background:var(--fill-head);border-bottom:1px solid var(--line)}
 body[data-module="civil"] .aux-tbl td{padding:1px 8px;border-bottom:1px solid var(--line-soft);
   border-right:1px solid var(--line-soft);font-size:13px;vertical-align:middle;height:34px}
 body[data-module="civil"] .aux-tbl td:last-child,
 body[data-module="civil"] .aux-tbl th:last-child{border-right:none}
 body[data-module="civil"] .aux-tbl tbody tr:hover td{background:var(--fill-hover)}
 
+/* Подсветка — у ВСЕЙ ячейки, а не рамкой вокруг поля внутри неё: рамка внутри
+   рамки выглядит вложенной коробкой и спорит с сеткой таблицы. Поле при этом
+   остаётся невидимым, как и в покое. */
+body[data-module="civil"] .aux-tbl td:focus-within,
+body[data-module="civil"] .aux-tbl td:has(.ms-control.open){background:var(--fill-pick);
+  box-shadow:inset 0 0 0 2px var(--blue-600)}
+body[data-module="civil"] .aux-tbl .ax-cell:focus{border-color:transparent;background:transparent;
+  box-shadow:none}
+body[data-module="civil"] .aux-tbl .ms-control.open{border-color:transparent;background:transparent;
+  box-shadow:none}
+
+/* Выбранное и «не выбрано» — одной строкой с многоточием: перенос на вторую
+   строку поднимал высоту строки таблицы с 34 до 51 px, и таблица распухала.
+   Полный перечень материалов виден в подсказке и в раскрытом списке. */
+body[data-module="civil"] .aux-tbl .ms-control > span{white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;min-width:0}
+
+/* Шеврон показывает, что строка раскрывается: в раскрытии — фото постройки. */
+body[data-module="civil"] .aux-chev{display:inline-block;width:11px;margin-right:2px;
+  color:var(--ink-dim);font-size:9px;transform:rotate(-90deg);transition:transform .15s}
+body[data-module="civil"] .aux-row.open .aux-chev{transform:none;color:var(--slate-700)}
+body[data-module="civil"] .aux-row{cursor:pointer}
+body[data-module="civil"] .aux-row.open > td{background:var(--slate-50)}
+body[data-module="civil"] .aux-tbl .aux-c-letter{display:flex;align-items:center;height:34px}
+
+/* Кнопка удаления видна всегда: спрятанная до наведения, она находится
+   вслепую (требование пользователя 17.09.2026). Цвет тише, чем у строки, но
+   различимый — это действие, а не украшение. */
+body[data-module="civil"] .aux-tbl .aux-del{opacity:1;color:var(--ink-dim)}
+body[data-module="civil"] .aux-tbl .aux-del:hover,
+body[data-module="civil"] .aux-tbl .aux-del:focus-visible{background:var(--red-50);color:var(--danger)}
+
+/* Материалы набираются мельче подписи в ячейке: «не выбрано» со стрелкой
+   иначе не помещается в столбец и обрезается многоточием. */
+body[data-module="civil"] .aux-tbl .ms-control,
+body[data-module="civil"] .aux-tbl .ms-summary{font-size:12px}
+
 /* Числовые столбцы — заголовок над своими числами, по правому краю. */
 body[data-module="civil"] .aux-tbl th.aux-c-area,
 body[data-module="civil"] .aux-tbl th.aux-c-year{text-align:right}
-body[data-module="civil"] .aux-tbl .aux-c-n{text-align:right;padding-right:4px}
-body[data-module="civil"] .aux-tbl .aux-c-act{text-align:right;padding-left:2px}
+body[data-module="civil"] .aux-tbl .aux-c-act{text-align:center;padding-left:2px}
 
-/* Итог по площади — под своей колонкой, тоном служебной строки, как у
-   пристроек. */
+/* Раскрытие строки: фото этой постройки. */
+body[data-module="civil"] .aux-detail-row > td{padding:0;background:var(--fill-head);
+  border-bottom:1px solid var(--line)}
+body[data-module="civil"] .aux-detail{padding:8px 12px 10px 20px;
+  box-shadow:inset 3px 0 0 var(--slate-500)}
+body[data-module="civil"] .aux-detail-h{margin-bottom:6px;font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--slate-700)}
+body[data-module="civil"] .aux-detail .acc{background:#fff}
+
+/* Итог по площади — под своей колонкой, тоном служебной строки. */
 body[data-module="civil"] .aux-tbl tfoot .oi-total td{background:var(--fill-head);
   border-top:1px solid var(--line);border-bottom:none;border-right:none;
   font-size:11.5px;font-weight:700;color:var(--blue-700);padding:6px 8px;height:auto}
 body[data-module="civil"] .aux-tbl tfoot .oi-total .aux-c-area{text-align:right}
 
-/* Фото — блоком под таблицей, аккордеонами по постройкам. */
-body[data-module="civil"] .oi-aux-photos{padding:8px 12px 12px}
-body[data-module="civil"] .oi-aux-sub{margin:4px 0 6px;font-size:9.5px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.4px;color:var(--slate-700)}
-body[data-module="civil"] .oi-aux-ph-item + .oi-aux-ph-item{margin-top:8px}
-body[data-module="civil"] .oi-aux-ph-h{font-size:11.5px;font-weight:600;color:var(--ink-ctl);
-  margin-bottom:4px}
+
