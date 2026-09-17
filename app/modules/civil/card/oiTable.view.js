@@ -482,7 +482,7 @@ export function tableOI(ctx) {
 
       <div class="dd" style="margin-left:auto">
         <button class="btn btn-primary btn-sm" data-dd-toggle>+ Добавить ОИ ▾</button>
-        <div class="dd-menu">${addOiMenuHTML()}</div>
+        <div class="dd-menu">${addOiMenuHTML(ctx.rec)}</div>
       </div>
 
       <span class="chev" style="margin-left:8px">▾</span>

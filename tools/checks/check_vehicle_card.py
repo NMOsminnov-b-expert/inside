@@ -7,6 +7,11 @@
 
   * ТС добавляется из меню «+ Добавить ОИ» и попадает в раздел движимого
     имущества перечня, а не к литерам;
+  * движимое предлагают ОБА меню «+ Добавить ОИ» — и в шапке карточки, и в
+    шапке перечня: второе строилось без записи, и механизмов с транспортом в
+    нём не было даже у имущественного комплекса;
+  * у объекта оценки, который не имущественный комплекс, движимого в меню нет
+    (правило подтверждено пользователем 17.09.2026);
   * характеристики зависят от типа ТС: пока тип не выбран, их нет и стоит
     подсказка; при смене типа значения общих полей не теряются;
   * VIN приводится к виду стандарта прямо при наборе — верхний регистр, без
@@ -47,8 +52,17 @@ def run(t):
     items = pg.eval_on_selector_all('[data-add-oi]', 'els => els.map((e) => e.textContent.trim())')
     t.ck('Транспортное средство' in items, 'в меню нет «Транспортное средство»: %s' % items)
 
+    menus = pg.evaluate("""() => [...document.querySelectorAll('.dd-menu')]
+      .map((m) => [...m.querySelectorAll('[data-add-oi]')].map((b) => b.textContent.trim()))
+      .filter((list) => list.length)""")
+    t.ck(len(menus) >= 2, 'меню добавления ОИ должно быть два: в шапке карточки и в перечне')
+    for i, one in enumerate(menus, start=1):
+        t.ck('Механизмы и оборудование' in one and 'Транспортное средство' in one,
+             'в меню %d нет движимого имущества: %s' % (i, one))
+
     before = pg.locator('tr[data-open-oi]').count()
-    pg.locator('[data-add-oi]', has_text='Транспортное средство').click()
+    # Меню два, пункты в них одинаковые — заводим из первого.
+    pg.locator('[data-add-oi]', has_text='Транспортное средство').first.click()
     t.wait_until("() => document.querySelectorAll('tr[data-open-oi]').length === %d" % (before + 1))
     t.wait(300)
 
@@ -65,6 +79,16 @@ def run(t):
       const sub = tr && tr.closest('[data-oi-sub]');
       return !!sub && sub.dataset.oiSub === 'movable';
     }"""), 'ТС стоит не в разделе движимого имущества')
+
+    # У объекта оценки, который не имущественный комплекс, движимого не бывает.
+    t.open('#/oc/civil/oc-cv-2', wait='[data-add-oi]')
+    t.wait(300)
+    plain_items = pg.eval_on_selector_all('[data-add-oi]', 'els => els.map((e) => e.textContent.trim())')
+    t.ck('Транспортное средство' not in plain_items and 'Механизмы и оборудование' not in plain_items,
+         'движимое предлагают не у имущественного комплекса: %s' % plain_items)
+
+    t.open(OC, wait='[data-add-oi]')
+    t.wait(300)
 
     # --- карточка: характеристики по типу ---------------------------------------
     row.click()
