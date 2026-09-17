@@ -467,10 +467,12 @@ body[data-module="civil"] .aux-tbl{width:100%;table-layout:fixed;border-collapse
 body[data-module="civil"] .aux-tbl th{position:relative;font-size:10px;text-transform:uppercase;
   letter-spacing:.5px;color:var(--ink-label);text-align:left;padding:7px 8px;line-height:1.25;
   white-space:normal;font-weight:700;background:var(--fill-head);border-bottom:1px solid var(--line)}
+/* Вертикальных линий в ячейках нет — только горизонтальные. Таблица стоит
+   вплотную под перечнем ОИ, где столбцы разделены лишь перегородками в шапке;
+   свои линии в теле не совпадали с ними по местам и читались как сломанная
+   сетка (замечание пользователя 17.09.2026). */
 body[data-module="civil"] .aux-tbl td{padding:1px 8px;border-bottom:1px solid var(--line-soft);
-  border-right:1px solid var(--line-soft);font-size:13px;vertical-align:middle;height:34px}
-body[data-module="civil"] .aux-tbl td:last-child,
-body[data-module="civil"] .aux-tbl th:last-child{border-right:none}
+  font-size:13px;vertical-align:middle;height:34px}
 body[data-module="civil"] .aux-tbl tbody tr:hover td{background:var(--fill-hover)}
 
 /* Подсветка — у ВСЕЙ ячейки, а не рамкой вокруг поля внутри неё: рамка внутри

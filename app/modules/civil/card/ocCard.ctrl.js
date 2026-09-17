@@ -1,6 +1,6 @@
 import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns, colVar } from '../../../kernel/columns.js';
-import { OI_COLUMNS, OI_COLUMNS_DEFAULT, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';
+import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
@@ -599,7 +599,9 @@ export function bindOcCard(ctx) {
     // контейнер, вылезала за него на их толщину.
     const tbl = oiBox.querySelector('table');
     const host = tbl ? tbl.parentElement : oiBox;
-    const reserve = Math.max(0, oiBox.clientWidth - host.clientWidth);
+    // Вместе с полями узла вычитаем ширину закреплённого столбца кнопок: он в
+    // подгонке не участвует и прибавляется к её результату.
+    const reserve = Math.max(0, oiBox.clientWidth - host.clientWidth) + OI_FIXED_W;
     applyFit(oiBox, orderedColumns(OI_COLUMNS, oiOrder), ctx.ui.oiColWidths, reserve);
 
     // Ширина видимой части перечня — для раскрытой панели вспомогательной
