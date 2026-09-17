@@ -64,7 +64,9 @@ export function facets(filter) {
   return {
     status: Object.fromEntries([...new Set(rows.map((r) => r.status))].map((v) => [v, rows.filter((r) => r.status === v).length])),
     institution: Object.fromEntries([...new Set(rows.map((r) => r.institution).filter(Boolean))].map((v) => [v, rows.filter((r) => r.institution === v).length])),
-    region: {}, city: {}, institution: {}, insp: {}, typeId: { [manifest.id]: rows.length }, flags: {},
+    // institution собран выше — второй раз его писать нельзя: пустой объект
+    // затирал посчитанные учреждения, и срез по ним не работал.
+    region: {}, city: {}, insp: {}, typeId: { [manifest.id]: rows.length }, flags: {},
   };
 }
 export function locate(query) {

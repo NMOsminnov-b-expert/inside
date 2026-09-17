@@ -330,9 +330,11 @@ function sub(ctx, { label, list, emptyText, kind, withHead, total }) {
 }
 
 function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
-  const real = letters.filter((o) => o.card !== 'mech' && o.card !== 'aux');
+  // Движимое имущество — один раздел на механизмы и транспорт: в перечне их
+  // смотрят вместе, а чем именно является строка, видно в столбце категории.
   const aux = letters.filter((o) => o.card === 'aux');
-  const movable = letters.filter((o) => o.card === 'mech');
+  const movable = letters.filter((o) => o.card === 'mech' || o.card === 'vehicle');
+  const real = letters.filter((o) => !aux.includes(o) && !movable.includes(o));
 
   return `<div class="acc oi-node ${open ? 'open' : ''}" data-oi-drop="${esc(dropId)}">
     <div class="acc-head oi-node-head" data-acc-toggle="${esc(key)}">

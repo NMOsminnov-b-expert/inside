@@ -39,7 +39,8 @@ export function photoSectionsHTML(ctx) {
 
     const head = oi.card === 'land' ? 'Земельный участок'
       : oi.card === 'mech' ? `Механизмы · ${esc(oi.name)}`
-        : `Литера ${esc(oi.letter)} · ${esc(oi.name)}`;
+        : oi.card === 'vehicle' ? `ТС · ${esc(oi.name)}`
+          : `Литера ${esc(oi.letter)} · ${esc(oi.name)}`;
 
     return `<div class="photo-sec">
       <div class="photo-sec-h">${head} <span class="tag-mini">${pages.length}</span></div>

@@ -13,6 +13,7 @@ import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 import { createMechOi } from '../oi/mech/model.js';
+import { createVehicleOi } from '../oi/vehicle/model.js';
 import { bindStructBox } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
 
@@ -32,6 +33,12 @@ function createOi(ctx, type) {
   // сколько угодно единиц (решение пользователя 07.09.2026, ветка mech).
   if (type.card === 'mech') {
     return createMechOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
+  }
+
+  // Транспортное средство: одно ТС — один объект имущества, литеры и кода ЕНИ
+  // у него нет (решение пользователя 17.09.2026).
+  if (type.card === 'vehicle') {
+    return createVehicleOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
   }
 
   const letter = nextLetter(rec);
@@ -308,7 +315,8 @@ export function bindOcCard(ctx) {
     ctx.render();
     ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен'
       : oi.card === 'mech' ? 'Механизмы и оборудование добавлены'
-        : 'Литера ' + oi.letter + ' создана', 'ok');
+        : oi.card === 'vehicle' ? 'Транспортное средство добавлено'
+          : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------

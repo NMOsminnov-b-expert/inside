@@ -2,15 +2,12 @@ import { esc } from '../../kernel/dom.js';
 import { msDropBodyHTML } from '../../kernel/multiSelect.js';
 import { vehicleViewerHTML } from './viewer.js';
 
-const TYPES = [
-  ['passenger', 'Легковое'], ['cargo', 'Грузовое'], ['special', 'Спецтехника'], ['trailer', 'Прицепы и полуприцепы'],
-];
-const GEARBOX = ['МКПП', 'АКПП', 'Вариатор'];
-const FUEL = ['Бензин', 'Дизель', 'Газ', 'Электро', 'Гибрид'];
-const CARGO_TYPES = ['Бортовой', 'Тентованный', 'Фургон', 'Изотермический', 'Рефрижератор', 'Самосвал', 'Седельный тягач', 'Автовоз', 'Контейнеровоз', 'Цистерна', 'Длинномер', 'Манипулятор', 'Бетоносмеситель', 'Бетононасос', 'Мусоровоз', 'Снегоуборщик', 'Скотовоз', 'Зерновоз', 'Трал'];
-const SPECIAL_TYPES = ['Погрузчик', 'Экскаватор', 'Бульдозер', 'Грейдер', 'Фронтальный погрузчик', 'Вилочный погрузчик', 'Трактор', 'Автокран', 'Каток', 'Самосвал', 'Трал', 'Мусоровоз', 'Поливомоечная', 'Манипулятор', 'Автовышка', 'Пожарная', 'Лестница', 'Автоцистерна', 'Бензовоз', 'Водовоз', 'Бетоносмеситель'];
-const TRAILER_TYPES = ['Прицеп', 'Полуприцеп'];
-const BODY_TYPES = ['Тент', 'Платформа', 'Рефрижератор', 'Самосвал', 'Бортовой', 'Цельный фургон', 'Цистерна', 'Животновоз', 'Автовоз', 'Иное'];
+// Перечни значений — в data/dictionaries.js: те же значения показываются в
+// разделе «Справочники» (data/dictExport.js), а перечень, записанный прямо в
+// разметке, туда не попадает.
+import {
+  VEHICLE_TYPES as TYPES, GEARBOX, FUEL, CARGO_TYPES, SPECIAL_TYPES, TRAILER_TYPES, BODY_TYPES,
+} from './data/dictionaries.js';
 
 function selectField(label, key, values, rec, extra = '') {
   return `<div class="field"><label>${label}</label><select class="select" data-vehicle-field="${key}" ${extra}><option value="">Не выбрано</option>${values.map((value) => `<option value="${esc(value)}" ${rec.vehicle[key] === value ? 'selected' : ''}>${esc(value)}</option>`).join('')}</select></div>`;

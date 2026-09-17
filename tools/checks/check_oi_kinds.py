@@ -107,6 +107,14 @@ def run(t, part=None):
     }""")
     t.ck(len(cards) >= 5, 'в справочниках не все типы ОЦ: %d' % len(cards))
 
+    # Литеры, квартиры и участка не бывает у движимого имущества: у типа ОЦ
+    # «Транспортные средства» карточка одна — сам объект оценки. Поэтому четыре
+    # карточки спрашиваем только с недвижимости, а вид имущества берём из
+    # манифеста, а не угадываем по названию каталога.
+    movable = pg.evaluate(
+        "() => import('./app/kernel/registry.js').then((m) => m.OC_TYPES"
+        ".filter((t) => t.manifest.assetKind === 'movable').map((t) => t.manifest.label))")
+
     for i in range(len(cards)):
         pg.locator('[data-step-type]').nth(i).click()
         t.wait(300)
@@ -114,9 +122,11 @@ def run(t, part=None):
         got = pg.eval_on_selector_all(
             '[data-step-card]', 'els => els.map((e) => e.textContent.replace(/\\s+/g, " ").trim())')
         got = ' | '.join(got)
-        for need in ('Объект оценки', 'Литера (строение)', 'Квартира', 'Земельный участок'):
-            t.ck(need in got, 'каталог «%s»: нет карточки «%s» (есть: %s)'
-                 % (name.splitlines()[0], need, got))
+        title = name.splitlines()[0]
+        needed = ('Объект оценки',) if title in movable else (
+            'Объект оценки', 'Литера (строение)', 'Квартира', 'Земельный участок')
+        for need in needed:
+            t.ck(need in got, 'каталог «%s»: нет карточки «%s» (есть: %s)' % (title, need, got))
 
     check_hidden_fields_warning(t)
 

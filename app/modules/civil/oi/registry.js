@@ -82,6 +82,33 @@ export const OI_CARDS = {
     load: () => import('./mech/index.js'),
   },
 
+  // Транспортное средство: одно ТС — один объект имущества (решение
+  // пользователя 17.09.2026). Госномер и VIN индивидуальны, и каждая машина
+  // видна в перечне отдельной строкой; своего кода ЕНИ у неё нет — ТС стоит на
+  // учёте в органах регистрации транспорта, а не в Кадастре недвижимости.
+  vehicle: {
+    id: 'vehicle',
+    headLabel: 'Транспортное средство',
+    listLabel: (oi) => `ТС · ${esc(oi.name || 'без марки')}`,
+    crumbLabel: (oi) => esc(oi.name || 'Транспортное средство'),
+    plateKind: 'ОЦ → ОИ',
+    hasLetter: false,
+    hasEni: false,
+    tableCategory: () => 'Движимое · Транспорт',
+    tableArea: () => '—',
+    tableAreaBuild: () => '—',
+    areaValues: () => ({ area: 0, build: 0 }),
+    plateChips: (oi) => {
+      const v = verbal(oi);
+      const chips = [];
+      if (oi.vtype) chips.push(`<span class="ctx-chip">${esc(oi.vtype)}</span>`);
+      if (oi.plate) chips.push(`<span class="ctx-chip">${esc(oi.plate)}</span>`);
+      chips.push(`<span class="ctx-chip ${v.c}">${v.t}</span>`);
+      return chips;
+    },
+    load: () => import('./vehicle/index.js'),
+  },
+
   // Вспомогательная постройка: гараж, навес, летняя кухня. Своего экрана нет —
   // всё, что у неё есть, правится раскрытием строки в перечне ОЦ, поэтому нет
   // и load. Мета нужна ради перечня: подпись вида, площади и подытог.
