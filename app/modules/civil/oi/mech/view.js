@@ -17,8 +17,9 @@ import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 import { photoFileAt } from '../../parts/photos/model.js';
 import {
-  mechUnits, classNames, classOf, subgroupOf, hasSubgroups, paramsOf, splitParam,
-  unitTitle, unitClassPath, totalQty, totalCost, hasCost, unitPhotoCount, BASE_PARAMS,
+  mechUnits, classNames, classOf, subgroupOf, hasSubgroups, paramsOf, asksCountry,
+  unitParam, unitParamUnit, unitTitle, unitClassPath, totalQty, totalCost, hasCost,
+  unitPhotoCount,
 } from './model.js';
 
 // Стоимость — балансовая (уточнение пользователя 17.09.2026). За единицу она
@@ -147,13 +148,47 @@ function groupRow(oi) {
 
 // --- Карточка единицы -------------------------------------------------------
 
-function paramField(unit, label, i) {
-  const { title, hint } = splitParam(label);
-  const value = (unit.params || {})[label] || '';
+// Поле параметра по описанию из справочника полей (data/mechFields.js).
+//
+// Число с единицей измерения — одно слитное поле: число и список единиц в общей
+// рамке, подпись одна на оба (практика Filament FusedGroup, UX Collective).
+// Единственная единица списком не выбирается — она стоит в подписи через
+// запятую, как в остальных карточках макета («Высота, м»).
+function fieldHTML(unit, f) {
+  const value = unitParam(unit, f.key);
+  const id = 'mu-f-' + f.key;
+  const one = f.units && f.units.length === 1 ? f.units[0] : '';
+  const many = f.units && f.units.length > 1 ? f.units : null;
+  const label = esc(f.label + (one ? ', ' + one : ''));
+
+  const control = () => {
+    if (f.type === 'select') {
+      return `<select class="select" id="${id}" data-mu-f="${esc(f.key)}">
+        <option value="">Не выбрано</option>
+        ${f.options.map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      </select>`;
+    }
+    if (f.type === 'date') {
+      return `<input class="input mu-date" type="date" id="${id}" data-mu-f="${esc(f.key)}" value="${esc(value)}">`;
+    }
+
+    const numeric = f.type === 'num' || f.type === 'int';
+    const mode = f.type === 'num' ? 'decimal' : (f.type === 'int' ? 'numeric' : 'text');
+    const input = `<input class="input ${numeric ? 'mu-num' : ''}" id="${id}" data-mu-f="${esc(f.key)}"
+      value="${esc(value)}" inputmode="${mode}">`;
+
+    if (!many) return input;
+    const chosen = unitParamUnit(unit, f);
+    return `<span class="mu-unit-group">${input}
+      <select class="select mu-unit" data-mu-unit="${esc(f.key)}" aria-label="Единица измерения: ${label}">
+        ${many.map((u) => `<option ${u === chosen ? 'selected' : ''}>${esc(u)}</option>`).join('')}
+      </select></span>`;
+  };
+
   return `<div class="field mu-param">
-    <label for="mu-p-${i}">${esc(title)}</label>
-    ${hint ? `<span class="mu-hint">${esc(hint)}</span>` : ''}
-    <input class="input" id="mu-p-${i}" data-mu-param="${esc(label)}" value="${esc(value)}">
+    <label for="${id}">${label}</label>
+    ${f.hint ? `<span class="mu-hint">${esc(f.hint)}</span>` : ''}
+    ${control()}
   </div>`;
 }
 
@@ -175,30 +210,52 @@ function classificationHTML(unit) {
     placeholder: 'Выберите тип', locked: !s, lockedText: 'Сначала выберите подгруппу',
   }) : ''}
     </div>
-    ${withSubs ? '' : '<div class="mu-note">У этого класса в классификаторе нет подгрупп и типов — '
-      + 'сведения записываются своими полями ниже.</div>'}
+    ${withSubs ? '' : '<div class="mu-note">У этого класса нет подгрупп и типов — '
+      + 'поля заданы на сам класс.</div>'}
   </div>`;
 }
 
-function generalHTML(unit) {
-  const maker = splitParam(BASE_PARAMS[1] || 'Производитель');
+function whyNoFields(unit) {
+  if (!unit.cls) return 'Выберите класс и подгруппу — здесь появятся параметры этой категории.';
+  if (hasSubgroups(unit.cls) && !unit.sub) return 'Выберите подгруппу — здесь появятся параметры этой категории.';
+  return 'Для этой категории параметры не заданы — опишите механизм своими полями ниже.';
+}
+
+// Наименование, инвентарный номер и основные параметры — одним разделом:
+// параметры подняты к наименованию (требование пользователя 17.09.2026), потому
+// что по ним механизм и узнают, а год и стоимость — учётные сведения.
+function nameHTML(unit) {
+  const { main } = paramsOf(unit);
   const example = unit.type ? `Например: ${unit.type.toLowerCase()}` : 'Например: трансформатор ТМ-400';
+
   return `<div class="mu-sec">
-    <div class="sec-h">Общие сведения</div>
-    <div class="grid mu-grid-general">
+    <div class="sec-h">Наименование и основные параметры</div>
+    <div class="grid mu-grid-name">
       <div class="field mu-f-name">
         <label for="mu-name">Наименование</label>
         <input class="input" id="mu-name" data-mu-name value="${esc(unit.name || '')}" placeholder="${esc(example)}">
       </div>
       <div class="field">
-        <label for="mu-year">${esc(BASE_PARAMS[0] || 'Год выпуска')}</label>
+        <label for="mu-inv">Инвентарный номер</label>
+        <input class="input" id="mu-inv" data-mu-inv value="${esc(unit.inv || '')}">
+      </div>
+    </div>
+    ${main.length ? `<div class="grid g-2 mu-params">${main.map((f) => fieldHTML(unit, f)).join('')}</div>`
+    : `<div class="mu-empty">${esc(whyNoFields(unit))}</div>`}
+  </div>`;
+}
+
+// Учётные сведения: год ввода в эксплуатацию, количество, балансовая стоимость
+// и страна происхождения. Страну спрашиваем не у всех категорий — только у
+// значимого оборудования (решение пользователя 17.09.2026).
+function accountingHTML(unit) {
+  return `<div class="mu-sec">
+    <div class="sec-h">Учётные сведения</div>
+    <div class="grid mu-grid-general">
+      <div class="field">
+        <label for="mu-year">Год ввода в эксплуатацию</label>
         <input class="input mu-num" id="mu-year" data-mu-year value="${esc(unit.year || '')}"
           inputmode="numeric" maxlength="4" placeholder="ГГГГ">
-      </div>
-      <div class="field">
-        <label for="mu-maker">${esc(maker.title)}</label>
-        ${maker.hint ? `<span class="mu-hint">${esc(maker.hint)}</span>` : ''}
-        <input class="input" id="mu-maker" data-mu-maker value="${esc(unit.maker || '')}">
       </div>
       <div class="field">
         <label for="mu-qty">Количество, шт.</label>
@@ -209,37 +266,26 @@ function generalHTML(unit) {
         <input class="input mu-num" id="mu-cost" data-mu-cost value="${esc(unit.cost || '')}"
           inputmode="decimal" placeholder="не указана">
       </div>
+      ${asksCountry(unit) ? `<div class="field">
+        <label for="mu-country">Страна происхождения</label>
+        <input class="input" id="mu-country" data-mu-country value="${esc(unit.country || '')}">
+      </div>` : ''}
     </div>
   </div>`;
 }
 
 function paramsHTML(unit) {
-  const { main, extra } = paramsOf(unit);
-  const s = subgroupOf(unit.cls, unit.sub);
+  const { extra } = paramsOf(unit);
+  if (!extra.length) return '';
 
-  if (!s) {
-    const why = !unit.cls ? 'Выберите класс и подгруппу'
-      : (hasSubgroups(unit.cls) ? 'Выберите подгруппу' : '');
-    if (!why) return '';
-    return `<div class="mu-sec">
-      <div class="sec-h">Параметры</div>
-      <div class="mu-empty">${why} — здесь появятся параметры, заданные для неё классификатором.</div>
-    </div>`;
-  }
-
-  let i = 0;
-  return `${main.length ? `<div class="mu-sec">
-      <div class="sec-h">Основные параметры</div>
-      <div class="grid g-2 mu-params">${main.map((p) => paramField(unit, p, i++)).join('')}</div>
-    </div>` : ''}
-    ${extra.length ? `<div class="mu-sec">
-      <div class="sec-h">Дополнительные параметры</div>
-      <div class="grid g-2 mu-params">${extra.map((p) => paramField(unit, p, i++)).join('')}</div>
-    </div>` : ''}`;
+  return `<div class="mu-sec">
+    <div class="sec-h">Дополнительные параметры</div>
+    <div class="grid g-2 mu-params">${extra.map((f) => fieldHTML(unit, f)).join('')}</div>
+  </div>`;
 }
 
-// Свои поля — то, чего нет в классификаторе, но есть у конкретной единицы:
-// код ЕНИ, узел комплекса, инвентарный номер (конструктор полей из ветки mech).
+// Свои поля — то, чего нет в справочнике полей, но есть у конкретной единицы:
+// код ЕНИ, узел комплекса, особые отметки (конструктор полей из ветки mech).
 function extraHTML(unit) {
   const rows = (unit.extra || []).map((f) => `<tr>
       <td><input class="ax-cell" data-mu-xlabel="${f.id}" value="${esc(f.label)}"
@@ -252,7 +298,7 @@ function extraHTML(unit) {
 
   return `<div class="mu-sec">
     <div class="sec-h">Свои поля
-      <span class="mu-sec-hint">то, чего нет в классификаторе: код ЕНИ, инвентарный номер</span>
+      <span class="mu-sec-hint">то, чего нет среди полей категории</span>
       <button class="btn btn-ghost btn-sm" data-mu-xadd>+ Поле</button>
     </div>
     ${rows ? `<table class="tbl mu-xtbl">
@@ -324,7 +370,8 @@ function unitCard(ctx, oi, unit, idx) {
     </div>
     <div class="card-body-wrap"><div class="card-pad">
       ${classificationHTML(unit)}
-      ${generalHTML(unit)}
+      ${nameHTML(unit)}
+      ${accountingHTML(unit)}
       ${paramsHTML(unit)}
       ${extraHTML(unit)}
       ${commentHTML(unit)}

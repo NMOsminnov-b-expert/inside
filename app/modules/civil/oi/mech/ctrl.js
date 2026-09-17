@@ -176,6 +176,12 @@ export function bind(ctx, oi) {
   const name = s.$('[data-mu-name]');
   if (name) name.oninput = () => { unit.name = name.value; refreshList(); };
 
+  const inv = s.$('[data-mu-inv]');
+  if (inv) inv.oninput = () => { unit.inv = inv.value; };
+
+  const country = s.$('[data-mu-country]');
+  if (country) country.oninput = () => { unit.country = country.value; };
+
   const year = s.$('[data-mu-year]');
   bindCheckedField(year, yearError, (v) => { unit.year = v; refreshList(); });
 
@@ -189,9 +195,27 @@ export function bind(ctx, oi) {
 
   // --- Параметры ------------------------------------------------------------
 
-  s.$$('[data-mu-param]').forEach((inp) => inp.oninput = () => {
+  // Поля категории (data/mechFields.js). Все виды значений пишутся одинаково —
+  // по ключу поля; единица измерения лежит отдельным ключом «<ключ>@unit», это
+  // разные сведения: «400» и «кВА».
+  //
+  // Списки и даты пишутся по change, текст и числа — по ходу набора: список
+  // меняется целиком, а в текст можно вписать что угодно и передумать.
+  const write = (key, value) => {
     unit.params = unit.params || {};
-    unit.params[inp.dataset.muParam] = inp.value;
+    if (value) unit.params[key] = value;
+    else delete unit.params[key];
+  };
+
+  s.$$('[data-mu-f]').forEach((el) => {
+    const key = el.dataset.muF;
+    const set = () => write(key, el.value);
+    if (el.tagName === 'SELECT' || el.type === 'date') el.onchange = set;
+    else el.oninput = set;
+  });
+
+  s.$$('[data-mu-unit]').forEach((el) => {
+    el.onchange = () => write(el.dataset.muUnit + '@unit', el.value);
   });
 
   // --- Комментарий ----------------------------------------------------------

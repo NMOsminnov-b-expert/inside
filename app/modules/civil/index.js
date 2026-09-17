@@ -28,7 +28,7 @@ import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { bindSplitPanes } from './parts/viewer/shell.js';
-import { migrateMovable } from './oi/mech/model.js';
+import { migrateMovable, migrateMechUnits } from './oi/mech/model.js';
 
 function todayStr() {
   const d = new Date();
@@ -431,6 +431,7 @@ export function main(host) {
   bindViewerHotkeys(ctx);
   ensureViewerDefault();
   migrateMovable(rec);
+  migrateMechUnits(rec);
   migrateSpecials(rec);
   migrateStruct(rec);
   migrateAnnexes(rec);
@@ -448,6 +449,7 @@ export function main(host) {
       }
       ensureViewerDefault();
       migrateMovable(rec);
+      migrateMechUnits(rec);
       migrateSpecials(rec);
       migrateStruct(rec);
       migrateAnnexes(rec);

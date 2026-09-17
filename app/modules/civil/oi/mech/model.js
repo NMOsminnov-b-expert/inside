@@ -5,25 +5,32 @@
 // механизмов, и заводить на каждый отдельный объект имущества незачем.
 //
 //   oi.mechanisms = [{
-//     id, name,
+//     id, name, inv,             // наименование и инвентарный номер
 //     cls, sub, type,            // классификация: класс → подгруппа → тип
-//     year, maker,               // базовые параметры (у всех классов)
-//     params: {подпись: значение},   // параметры подгруппы
-//     extra: [{id, label, value}],   // свои поля, которых нет в классификаторе
+//     year,                      // год ввода в эксплуатацию
+//     country,                   // страна происхождения (не у всех категорий)
+//     params: {ключ: значение, 'ключ@unit': единица},  // поля категории
+//     extra: [{id, label, value}],   // свои поля, которых нет в справочнике
 //     comment,                   // сведения, для которых не нашлось поля
-//     qty, cost,
+//     qty, cost,                 // количество и балансовая стоимость
 //   }]
+//
+// Состав полей категории — data/mechFields.js: там каждый сводный параметр
+// таблицы разбит на отдельные поля, а перечисления стали списками.
 //
 // Фото лежат на самом ОИ, в oi.photos / oi.photoFiles, с категорией = id
 // единицы. Так снимки попадают в общий просмотрщик, счётчик фото в перечне ОИ
 // и в раздел «Фото» записи без отдельной механики, а подпись категории
 // подставляет карточка (photoCatLabel).
 import { MECH_CLASSIFIER } from '../../data/mechClassifier.js';
+import { MECH_EXTRA_CLASSES, fieldsFor } from '../../data/mechFields.js';
 
 let seq = 1;
 const uid = (prefix) => `${prefix}-${Date.now().toString(36)}-${(seq++).toString(36)}`;
 
-export const BASE_PARAMS = MECH_CLASSIFIER.base;
+// Классы: из таблицы плюс те, что есть только на листе «Схема» (см.
+// mechFields.js, MECH_EXTRA_CLASSES) — без них не описать станки и линии.
+const CLASSES = MECH_CLASSIFIER.classes.concat(MECH_EXTRA_CLASSES);
 
 export function mechUnits(oi) {
   if (!oi) return [];
@@ -35,8 +42,9 @@ export function createUnit(patch = {}) {
   return {
     id: uid('mu'),
     name: '',
+    inv: '',
     cls: '', sub: '', type: '',
-    year: '', maker: '',
+    year: '', country: '',
     params: {},
     extra: [],
     comment: '',
@@ -48,10 +56,10 @@ export function createUnit(patch = {}) {
 
 // --- Классификатор --------------------------------------------------------
 
-export const classNames = () => MECH_CLASSIFIER.classes.map((c) => c.name);
+export const classNames = () => CLASSES.map((c) => c.name);
 
 export function classOf(name) {
-  return MECH_CLASSIFIER.classes.find((c) => c.name === name) || null;
+  return CLASSES.find((c) => c.name === name) || null;
 }
 
 export function subgroupOf(clsName, subName) {
@@ -63,13 +71,27 @@ export function subgroupOf(clsName, subName) {
 // в классификаторе только название — подгруппу и тип у них не спрашиваем.
 export const hasSubgroups = (clsName) => !!(classOf(clsName) || { subgroups: [] }).subgroups.length;
 
-// Параметры единицы по её подгруппе: основные и дополнительные. Пока подгруппа
-// не выбрана — пусто: показывать чужие параметры «на всякий случай» значит
-// предлагать заполнять то, что к механизму не относится.
+// Поля единицы по её классу, подгруппе и типу (data/mechFields.js). Пока
+// классификация не выбрана настолько, чтобы знать состав, — пусто: показывать
+// чужие поля «на всякий случай» значит предлагать заполнять то, что к механизму
+// не относится.
 export function paramsOf(unit) {
-  const s = unit ? subgroupOf(unit.cls, unit.sub) : null;
-  return s ? { main: s.main, extra: s.extra } : { main: [], extra: [] };
+  const f = unit ? fieldsFor(unit.cls, unit.sub, unit.type) : null;
+  return f || { main: [], extra: [], country: false };
 }
+
+// Спрашивать ли страну происхождения: только у значимого оборудования —
+// станки, линии, энергетика, медицина, лаборатория (решение пользователя
+// 17.09.2026). У мебели и оргтехники страна для оценки не важна.
+export const asksCountry = (unit) => !!paramsOf(unit).country;
+
+// Значение поля и его единица измерения. Единица хранится отдельным ключом —
+// это разные сведения: «400» и «кВА».
+export const unitParam = (unit, key) => ((unit && unit.params) || {})[key] || '';
+export const unitParamUnit = (unit, field) => {
+  const v = unitParam(unit, field.key + '@unit');
+  return v || (field.units && field.units.length ? field.units[0] : '');
+};
 
 // Смена класса сбрасывает подгруппу и тип, смена подгруппы — тип (практика
 // каскадных списков: зависимый выбор без родителя теряет смысл). Если у
@@ -92,14 +114,6 @@ export function setSub(unit, name) {
   unit.type = '';
   const s = subgroupOf(unit.cls, name);
   if (s && s.types.length === 1) unit.type = s.types[0];
-}
-
-// Подпись параметра делится на название и уточнение в скобках на конце:
-// «Номинальная мощность (кВА / МВА)» → «Номинальная мощность» + «кВА / МВА».
-// Скобки в середине («Марка (модель) и заводской номер») — часть названия.
-export function splitParam(label) {
-  const m = /^(.*\S)\s*\(([^()]*)\)\s*$/.exec(label || '');
-  return m ? { title: m[1], hint: m[2] } : { title: label || '', hint: '' };
 }
 
 // --- Подписи ----------------------------------------------------------------
@@ -223,6 +237,51 @@ export function migrateMovable(rec) {
     delete oi.year;
     delete oi.serial;
     delete oi.complexItems;
+    syncMechName(oi);
+  });
+}
+
+
+// --- Перенос прежней формы единиц ------------------------------------------
+//
+// Первая версия карточки хранила параметры по ПОДПИСИ из таблицы и держала одно
+// поле «Производитель (страна происхождения)». После разбора таблицы на поля
+// (data/mechFields.js) значения переносятся: страна — в своё поле,
+// инвентарный номер — из своих полей в собственное, а параметры со старыми
+// подписями уходят в «свои поля»: сопоставлять их с новыми автоматически
+// нельзя, но и терять нельзя — пусть человек перенесёт их глазами.
+export function migrateMechUnits(rec) {
+  if (!rec || !Array.isArray(rec.oi)) return;
+
+  rec.oi.forEach((oi) => {
+    if (oi.card !== 'mech') return;
+
+    mechUnits(oi).forEach((u) => {
+      if (u.maker) {
+        u.country = u.country || u.maker;
+        delete u.maker;
+      }
+      if (u.inv === undefined) u.inv = '';
+
+      u.extra = (u.extra || []).filter((f) => {
+        if (String(f.label || '').toLowerCase().indexOf('инвентарный номер') < 0) return true;
+        if (!u.inv) u.inv = f.value;
+        return false;
+      });
+
+      const known = new Set();
+      const f = fieldsFor(u.cls, u.sub, u.type);
+      if (f) [...f.main, ...f.extra].forEach((x) => known.add(x.key));
+
+      Object.keys(u.params || {}).forEach((key) => {
+        if (key.endsWith('@unit') || known.has(key)) return;
+        const value = u.params[key];
+        delete u.params[key];
+        delete u.params[key + '@unit'];
+        if (value) u.extra.push({ id: uid('mf'), label: key, value: String(value) });
+      });
+    });
+
     syncMechName(oi);
   });
 }

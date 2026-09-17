@@ -16,7 +16,11 @@ mech. Сценарий ловит то, что уже ломалось при с
     поставленный до неё, пропадал;
   * у ОИ этого вида нет чипа «ЕНИ» в плашке;
   * снимки единицы подписаны в просмотрщике её названием, а не id;
-  * прежний «movable» переносится в перечень единиц без потери данных;
+  * состав полей категории: инвентарный номер рядом с наименованием, основные
+    параметры в том же разделе, год ввода в эксплуатацию, балансовая стоимость,
+    страна только у значимых категорий, списки вместо строк, выбор единицы
+    измерения — и единица хранится отдельно от числа, не склеиваясь с ним;
+  * прежний «movable» и единицы прежней разметки переносятся без потери данных;
   * меню «+ Добавить ОИ» предлагает один пункт на всё движимое;
   * комментарий единицы с пояснением: растёт по тексту и сохраняется.
 """
@@ -28,6 +32,7 @@ NAME = 'карточка механизмов'
 
 TOUCHES = (
     'app/modules/civil/oi/mech/*', 'app/modules/civil/data/mechClassifier.js',
+    'app/modules/civil/data/mechFields.js', 'app/modules/civil/data/seed.js',
     'app/modules/civil/oi/registry.js', 'app/modules/civil/card/*',
     'app/modules/civil/parts/photos/*', 'app/modules/civil/parts/viewer/*',
     'app/modules/civil/data/rules.js', 'app/modules/civil/index.js',
@@ -76,14 +81,16 @@ def run(t):
     # --- каскад и сохранение значений ------------------------------------------
     pick('sub', 'Генераторы')
     t.ck(sel('type').input_value() == '', 'смена подгруппы не сбросила тип')
-    marka = pg.locator('[data-mu-param="Марка (модель) и заводской номер"]')
-    t.ck(marka.count() == 1 and marka.input_value() == 'КВГ-1,25-95, № КВГ-125-4471',
+    marka = pg.locator('[data-mu-f="model"]')
+    t.ck(marka.count() == 1 and marka.input_value() == 'КВГ-1,25-95',
          'общий параметр потерял значение при смене подгруппы')
-    t.ck(pg.locator('[data-mu-param="Рабочее давление (МПа/бар)"]').count() == 0,
+    t.ck(pg.locator('[data-mu-f="pressure"]').count() == 0,
          'параметр чужой подгруппы остался на экране')
     pick('sub', 'Котельное оборудование')
-    t.ck(pg.locator('[data-mu-param="Рабочее давление (МПа/бар)"]').input_value() == '0,6 МПа',
+    t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,6',
          'скрытое значение не вернулось при обратной смене подгруппы')
+    t.ck(pg.locator('[data-mu-unit="pressure"]').input_value() == 'МПа',
+         'единица измерения не вернулась вместе со значением')
 
     pick('cls', 'Инвентарь и хозяйственные принадлежности')
     t.ck(sel('sub').count() == 0 and sel('type').count() == 0,
@@ -94,6 +101,43 @@ def run(t):
     pick('cls', 'Энергетическое оборудование')
     pick('sub', 'Котельное оборудование')
     pick('type', 'Водогрейные котлы')
+
+    # --- состав полей категории -------------------------------------------------
+    t.ck(pg.locator('.mu-grid-name [data-mu-inv]').count() == 1,
+         'инвентарный номер не стоит рядом с наименованием')
+    t.ck(pg.evaluate("""() => {
+      const f = document.querySelector('[data-mu-f="model"]');
+      const sec = f && f.closest('.mu-sec');
+      return !!sec && !!sec.querySelector('[data-mu-name]');
+    }"""), 'основные параметры оторваны от наименования')
+    # Подписи полей набраны заглавными через CSS, поэтому сверяем текст в разметке
+    # (text_content), а не отрисованный (inner_text отдал бы «ГОД ВВОДА…»).
+    t.ck('Год ввода в эксплуатацию' in pg.locator('label[for="mu-year"]').text_content(),
+         'год не назван годом ввода в эксплуатацию')
+    t.ck('Балансовая стоимость' in pg.locator('label[for="mu-cost"]').text_content(),
+         'стоимость не названа балансовой')
+    t.ck(pg.locator('[data-mu-country]').count() == 1,
+         'у котельного оборудования не спрашивается страна происхождения')
+    t.ck(pg.eval_on_selector('[data-mu-f="fuel"]', '(e) => e.tagName') == 'SELECT',
+         'вид топлива задаётся не списком')
+    t.ck('КПД, %' in pg.locator('label[for="mu-f-efficiency"]').text_content(),
+         'единственная единица измерения не попала в подпись поля')
+    units = pg.eval_on_selector_all('[data-mu-unit="heatOutput"] option', '(els) => els.map((e) => e.value)')
+    t.ck('МВт' in units and 'Гкал/ч' in units, 'нет выбора единиц тепловой мощности: %s' % units)
+
+    # Единица измерения — отдельное сведение и сохраняется отдельно от числа.
+    pg.select_option('[data-mu-unit="pressure"]', 'бар')
+    t.wait(200)
+    pg.locator('.mu-row').nth(1).click()
+    t.wait_for('#q-mech-unit')
+    t.wait(300)
+    pg.locator('.mu-row').first.click()
+    t.wait_for('[data-mu-unit="pressure"]')
+    t.wait(300)
+    t.ck(pg.locator('[data-mu-unit="pressure"]').input_value() == 'бар',
+         'выбранная единица измерения не сохранилась')
+    t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,6',
+         'смена единицы измерения затёрла число')
 
     # --- правка по ходу набора ------------------------------------------------
     name = pg.locator('[data-mu-name]')
@@ -164,6 +208,8 @@ def run(t):
     pg.locator('.mu-row').nth(1).click()
     t.wait_for('[data-mu-photo-add]')
     t.wait(300)
+    t.ck(pg.locator('[data-mu-country]').count() == 0,
+         'страна происхождения спрашивается у категории, где она не нужна')
     with pg.expect_file_chooser() as fc:
         pg.locator('[data-mu-photo-add]').click()
     fc.value.set_files(path)
@@ -201,3 +247,28 @@ def run(t):
     t.ck(migrated['bClass'] == 'Офисное оборудование и мебель', 'офисная техника не получила класс')
     t.ck(migrated['bGroup'] == 'Комплекс' and migrated['bName'] == 'Комплекс',
          'название комплекса потеряно: %s / %s' % (migrated['bGroup'], migrated['bName']))
+
+    # --- перенос единиц на справочник полей ------------------------------------
+    moved = pg.evaluate("""async () => {
+      const m = await import('./app/modules/civil/oi/mech/model.js');
+      const rec = { oi: [{ id: 'y1', card: 'mech', mechanisms: [{
+        id: 'u1', name: 'Котёл', maker: 'Бийский завод',
+        cls: 'Энергетическое оборудование', sub: 'Котельное оборудование',
+        params: { 'Марка (модель) и заводской номер': 'КВГ-1,25', 'Рабочее давление (МПа/бар)': '0,6 МПа' },
+        extra: [{ id: 'f1', label: 'Инвентарный номер', value: 'ИН-7' }],
+      }] }] };
+      m.migrateMechUnits(rec);
+      const u = rec.oi[0].mechanisms[0];
+      return {
+        country: u.country, maker: u.maker, inv: u.inv,
+        labels: u.extra.map((f) => f.label),
+        params: Object.keys(u.params),
+      };
+    }""")
+    t.ck(moved['country'] == 'Бийский завод' and not moved['maker'],
+         'производитель не перенесён в страну происхождения: %s' % moved)
+    t.ck(moved['inv'] == 'ИН-7' and 'Инвентарный номер' not in moved['labels'],
+         'инвентарный номер не поднялся из своих полей: %s' % moved)
+    t.ck('Марка (модель) и заводской номер' in moved['labels'],
+         'параметр прежней разметки потерян, а не сохранён своим полем: %s' % moved)
+    t.ck(moved['params'] == [], 'в параметрах остались ключи прежней разметки: %s' % moved['params'])
