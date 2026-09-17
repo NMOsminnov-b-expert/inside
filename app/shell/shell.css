@@ -4,18 +4,33 @@
 */
 .app{display:flex;height:100vh}
 .sidebar{width:216px;background:#fff;border-right:1.5px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
-.side-logo{display:flex;gap:9px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+/* Знак и название стоят по геометрии самого знака, а не «примерно по центру»:
+   точка — на уровне средней полосы, «state» — высотой от средней полосы до
+   нижней и низом букв по нижней границе полос. Поэтому выравнивание идёт от
+   ВЕРХА (знак и первая строка начинаются вместе), а не по центру блока. */
+.side-logo{display:flex;gap:9px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
 .logo-mark{min-width:30px;width:30px;height:26px;flex:0 0 auto;fill:var(--brand-600);display:block}
 /* Знак и текст читаются одним словом: «E» живёт в квадрате, точка и
    «state» — рядом. Поэтому точка того же цвета, что квадрат, а не
    цвета текста: иначе она читается знаком препинания. */
-.logo-text b{font-size:14px;display:block;letter-spacing:.2px;color:var(--brand-ink)}
+/* Высота строки равна высоте знака: так низ букв и низ нижней полосы сходятся
+   в одну линию, а точка встаёт ровно на среднюю полосу (её центр приходится на
+   середину знака). */
+.logo-text b{height:26px;display:flex;align-items:flex-end;font-size:13.5px;line-height:1;
+  letter-spacing:.2px;color:var(--brand-ink)}
+/* Компенсация нижнего выноса шрифта: строка резервирует место под «у» и «р»,
+   которых в слове нет, и без сдвига буквы висели бы выше полос. */
+/* font-size задаётся явно: общее правило .logo-text span (подпись, 10px)
+   иначе перебивает размер названия. */
+.logo-word{display:block;font-size:inherit;line-height:1;margin-bottom:3px}
 /* Точка — настоящий кружок, а не символ «•»: шрифтовая точка мелкая, сидит
    выше середины строки и на разных системах разного размера. Кружок ставится
    ровно по средней линии названия и не зависит от шрифта. */
-.logo-dot{display:inline-block;width:5px;height:5px;border-radius:50%;
-  background:var(--brand-600);vertical-align:middle;margin:0 5px 2px 0}
-.logo-text span{font-size:10px;color:var(--muted)}
+.logo-dot{align-self:center;flex:0 0 auto;width:5px;height:5px;border-radius:50%;
+  background:var(--brand-600);margin-right:4px}
+/* Прямой потомок — только подпись под названием: раньше правило цепляло и
+   то, что лежит внутри названия (точку и само слово), и сбивало им размер. */
+.logo-text > span{font-size:10px;color:var(--muted)}
 .side-nav{padding:8px 6px;display:flex;flex-direction:column;gap:2px;flex:1}
 .nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:#33445c;font-size:12.5px;width:100%;text-align:left;transition:background .12s}
 .nav-item:hover{background:var(--blue-50)}
