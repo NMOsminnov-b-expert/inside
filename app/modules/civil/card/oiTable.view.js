@@ -145,25 +145,29 @@ const AUX_COLS = [
 
 const auxAreaSum = (list) => list.reduce((sum, oi) => sum + num((oi.areas || {}).tp), 0);
 
+// Ячейки — тихие поля того же вида, что в таблице пристроек (.ax-cell):
+// рамки у них нет, она появляется только когда в ячейке работают. Рамка у
+// каждой ячейки рябит, а правят всё равно по одной — это уже решено в макете
+// и повторяется здесь, чтобы две редактируемые таблицы карточки выглядели
+// одинаково.
 function auxFieldCell(oi, key) {
   const a = oi.areas || {};
 
   switch (key) {
     case 'letter':
-      return `<input class="input aux-in" data-aux-letter="${oi.id}" value="${esc(oi.letter || '')}"
+      return `<input class="ax-cell ax-letter" data-aux-letter="${oi.id}" value="${esc(oi.letter || '')}"
         aria-label="Литера">`;
     case 'name':
-      return `<input class="input aux-in" data-aux-name="${oi.id}" value="${esc(oi.name || '')}"
+      return `<input class="ax-cell" data-aux-name="${oi.id}" value="${esc(oi.name || '')}"
         placeholder="Гараж, навес, летняя кухня" aria-label="Наименование">`;
     case 'year':
-      return `<input class="input aux-in aux-num" data-aux-year="${oi.id}" value="${esc(oi.year || '')}"
+      return `<input class="ax-cell ax-area" data-aux-year="${oi.id}" value="${esc(oi.year || '')}"
         inputmode="numeric" aria-label="Год постройки">`;
     case 'area':
-      return `<input class="input aux-in aux-num" data-aux-area="${oi.id}" value="${esc(a.tp || '')}"
+      return `<input class="ax-cell ax-area" data-aux-area="${oi.id}" value="${esc(a.tp || '')}"
         inputmode="decimal" aria-label="Площадь по наружным замерам">`;
     case 'act':
-      return `<button class="btn btn-danger btn-sm" data-del-oi="${oi.id}"
-        title="Удалить постройку">×</button>`;
+      return `<button class="ax-x" data-del-oi="${oi.id}" title="Удалить постройку">×</button>`;
     default: {
       // Материалы — тот же мультивыбор, что в конструктиве литеры, в виде без
       // подписи: название элемента уже стоит в шапке столбца.
@@ -176,8 +180,9 @@ function auxFieldCell(oi, key) {
 }
 
 function auxTableRow(ctx, oi, i) {
-  return `<tr data-aux-row="${oi.id}">${AUX_COLS.map((c) => `<td class="aux-c-${c.key}">${
-    c.key === 'n' ? `<span class="al-n">${i + 1}</span>` : auxFieldCell(oi, c.key)}</td>`).join('')}</tr>`;
+  return `<tr data-aux-row="${oi.id}">${AUX_COLS.map((c) => `<td class="aux-c-${c.key}${
+    c.key === 'n' ? ' ax-n' : ''}${c.key === 'act' ? ' ax-act' : ''}">${
+    c.key === 'n' ? i + 1 : auxFieldCell(oi, c.key)}</td>`).join('')}</tr>`;
 }
 
 // Итог по площади стоит ПОД своей колонкой, а не подписью сбоку. Складывается

@@ -358,21 +358,29 @@ body[data-module="civil"] .ax-tbl [data-ax-need]::placeholder{color:var(--amber-
    она появляется, только когда список открыт (замечание пользователя
    09.09.2026 — «ячейки видно»). Общий .ms-control из cards.css рисует рамку и
    белый фон всегда: в форме это уместно, в таблице — рябит. */
-body[data-module="civil"] .ax-tbl .ms-control{
+body[data-module="civil"] .ax-tbl .ms-control,
+body[data-module="civil"] .aux-tbl .ms-control{
   height:auto;min-height:26px;border-color:transparent;background:transparent;
   padding:4px 7px;border-radius:6px;gap:6px;overflow:visible}
-body[data-module="civil"] .ax-tbl .ms-control:hover{border-color:transparent}
-body[data-module="civil"] .ax-tbl .ms-control.open{border-color:var(--blue-600);background:var(--panel);
+body[data-module="civil"] .ax-tbl .ms-control:hover,
+body[data-module="civil"] .aux-tbl .ms-control:hover{border-color:transparent}
+body[data-module="civil"] .ax-tbl .ms-control.open,
+body[data-module="civil"] .aux-tbl .ms-control.open{border-color:var(--blue-600);background:var(--panel);
   box-shadow:0 0 0 3px rgba(22,104,201,.14)}
 /* Стрелка видна только у открытого списка и под курсором строки: в покое
    ячейка должна читаться как значение, а не как элемент управления. */
-body[data-module="civil"] .ax-tbl .ms-control .chev{opacity:0;transition:opacity .12s,transform .15s}
+body[data-module="civil"] .ax-tbl .ms-control .chev,
+body[data-module="civil"] .aux-tbl .ms-control .chev{opacity:0;transition:opacity .12s,transform .15s}
 body[data-module="civil"] .ax-tbl tr:hover .ms-control .chev,
-body[data-module="civil"] .ax-tbl .ms-control.open .chev{opacity:1}
-body[data-module="civil"] .ax-tbl .ms-summary{font-size:13px}
+body[data-module="civil"] .aux-tbl tr:hover .ms-control .chev,
+body[data-module="civil"] .ax-tbl .ms-control.open .chev,
+body[data-module="civil"] .aux-tbl .ms-control.open .chev{opacity:1}
+body[data-module="civil"] .ax-tbl .ms-summary,
+body[data-module="civil"] .aux-tbl .ms-summary{font-size:13px}
 /* Счётчик выбранных — тише, чем в форме: в строке таблицы он спорит со
    значением. */
-body[data-module="civil"] .ax-tbl .ms-count{padding:0 6px;font-size:10px}
+body[data-module="civil"] .ax-tbl .ms-count,
+body[data-module="civil"] .aux-tbl .ms-count{padding:0 6px;font-size:10px}
 
 /* Одиночный выбор (вид пристройки): пункты списка — кнопки, а не флажки. */
 body[data-module="civil"] .ms-one{width:100%;text-align:left;border:0;background:none;
@@ -406,7 +414,8 @@ body[data-module="civil"] .ax-tbl [data-ax-need]{border-color:var(--amber-600);
 body[data-module="civil"] .ax-x{width:22px;height:22px;border:0;border-radius:6px;
   background:none;color:var(--ink-icon);font-size:15px;line-height:1;cursor:pointer;
   opacity:0;transition:opacity .12s,background .12s,color .12s}
-body[data-module="civil"] .ax-tbl tr:hover .ax-x{opacity:1}
+body[data-module="civil"] .ax-tbl tr:hover .ax-x,
+body[data-module="civil"] .aux-tbl tr:hover .ax-x{opacity:1}
 body[data-module="civil"] .ax-x:hover,
 body[data-module="civil"] .ax-x:focus-visible{opacity:1;background:var(--red-50);color:var(--danger)}
 
@@ -447,40 +456,33 @@ body[data-module="civil"] .oi-sub[data-oi-sub="aux"] .oi-sub-h{background:var(--
 body[data-module="civil"] .oi-node-cnt.aux{background:var(--slate-50);color:var(--slate-700);
   border:1px solid var(--line);margin-left:4px}
 
+/* Оформление — то же, что у таблицы пристроек выше: разделительные линии,
+   ровная высота строки, тихие ячейки. Две редактируемые таблицы одной карточки
+   не должны выглядеть по-разному.
+
+   Ширины — долями, а не пикселями (у пристроек min-width в пикселях и своя
+   прокрутка): таблица стоит внутри перечня ОИ, и прокрутки там быть не должно. */
 body[data-module="civil"] .aux-tbl{width:100%;table-layout:fixed;border-collapse:collapse}
-/* Заголовок переносится на две строки, а не режется многоточием: подпись
-   столбца должна читаться целиком даже в самом узком месте. */
-body[data-module="civil"] .aux-tbl th{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;
-  color:var(--ink-label);font-weight:700;text-align:left;padding:6px 8px;line-height:1.25;
-  white-space:normal;background:var(--fill-head);border-bottom:1px solid var(--line)}
-body[data-module="civil"] .aux-tbl td{padding:4px 5px;border-bottom:1px solid var(--line-soft);
-  vertical-align:middle;overflow:visible}
+body[data-module="civil"] .aux-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--ink-label);text-align:left;padding:7px 8px;line-height:1.25;white-space:normal;
+  font-weight:700;background:var(--fill-head);border-bottom:1px solid var(--line)}
+body[data-module="civil"] .aux-tbl td{padding:1px 8px;border-bottom:1px solid var(--line-soft);
+  border-right:1px solid var(--line-soft);font-size:13px;vertical-align:middle;height:34px}
+body[data-module="civil"] .aux-tbl td:last-child,
+body[data-module="civil"] .aux-tbl th:last-child{border-right:none}
+body[data-module="civil"] .aux-tbl tbody tr:hover td{background:var(--fill-hover)}
 
-/* Поле занимает ячейку целиком: рамка поля и есть граница ячейки, поэтому
-   строка не распухает и таблица читается таблицей, а не набором форм. */
-body[data-module="civil"] .aux-tbl input.aux-in{width:100%;min-width:0;height:28px;
-  padding:3px 6px;font-size:12.5px}
-body[data-module="civil"] .aux-tbl .aux-num{text-align:right;font-variant-numeric:tabular-nums}
-body[data-module="civil"] .aux-tbl .field{margin:0}
-body[data-module="civil"] .aux-tbl .ms-control{min-height:28px;padding:3px 6px;font-size:11.5px}
-
-/* Выбранное и «не выбрано» — одной строкой с многоточием: перенос на вторую
-   строку задирал высоту всей строки таблицы. Полный перечень материалов и так
-   в подсказке и в раскрытом списке. */
-body[data-module="civil"] .aux-tbl .ms-control > span{white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis;min-width:0}
-
-/* Числовые заголовки — по правому краю, над своими числами: заголовок и
-   колонка должны стоять одной линией. */
+/* Числовые столбцы — заголовок над своими числами, по правому краю. */
 body[data-module="civil"] .aux-tbl th.aux-c-area,
 body[data-module="civil"] .aux-tbl th.aux-c-year{text-align:right}
-body[data-module="civil"] .aux-tbl .aux-c-n{color:var(--ink-dim);font-size:11px;text-align:center}
-body[data-module="civil"] .aux-tbl .aux-c-act{text-align:center}
+body[data-module="civil"] .aux-tbl .aux-c-n{text-align:right;padding-right:4px}
+body[data-module="civil"] .aux-tbl .aux-c-act{text-align:right;padding-left:2px}
 
-/* Итог по площади — под своей колонкой, тоном служебной строки. */
+/* Итог по площади — под своей колонкой, тоном служебной строки, как у
+   пристроек. */
 body[data-module="civil"] .aux-tbl tfoot .oi-total td{background:var(--fill-head);
-  border-top:1px solid var(--line);border-bottom:none;font-size:11.5px;font-weight:700;
-  color:var(--blue-700);padding:6px 8px}
+  border-top:1px solid var(--line);border-bottom:none;border-right:none;
+  font-size:11.5px;font-weight:700;color:var(--blue-700);padding:6px 8px;height:auto}
 body[data-module="civil"] .aux-tbl tfoot .oi-total .aux-c-area{text-align:right}
 
 /* Фото — блоком под таблицей, аккордеонами по постройкам. */

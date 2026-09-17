@@ -4,13 +4,17 @@
 */
 .app{display:flex;height:100vh}
 .sidebar{width:216px;background:#fff;border-right:1.5px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
-.side-logo{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+.side-logo{display:flex;gap:9px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line-soft)}
 .logo-mark{min-width:30px;width:30px;height:26px;flex:0 0 auto;fill:var(--brand-600);display:block}
 /* Знак и текст читаются одним словом: «E» живёт в квадрате, точка и
    «state» — рядом. Поэтому точка того же цвета, что квадрат, а не
    цвета текста: иначе она читается знаком препинания. */
 .logo-text b{font-size:14px;display:block;letter-spacing:.2px;color:var(--brand-ink)}
-.logo-dot{color:var(--brand-600);font-size:1.35em;margin-right:4px;line-height:0}
+/* Точка — настоящий кружок, а не символ «•»: шрифтовая точка мелкая, сидит
+   выше середины строки и на разных системах разного размера. Кружок ставится
+   ровно по средней линии названия и не зависит от шрифта. */
+.logo-dot{display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--brand-600);vertical-align:middle;margin:0 5px 2px 0}
 .logo-text span{font-size:10px;color:var(--muted)}
 .side-nav{padding:8px 6px;display:flex;flex-direction:column;gap:2px;flex:1}
 .nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;color:#33445c;font-size:12.5px;width:100%;text-align:left;transition:background .12s}
