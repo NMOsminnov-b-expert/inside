@@ -7,6 +7,7 @@
 // сам состав карточки: выбор в классификаторе, добавление и удаление.
 import { confirmDialog } from '../../../../kernel/dialog.js';
 import { bindNumField, isExpr } from '../../../../kernel/numField.js';
+import { bindAutoGrowAll } from '../../../../kernel/autoGrow.js';
 import { bindCheckedField, setFieldError } from '../../../../kernel/fieldError.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
 import { openPhotoInPlace } from '../../parts/viewer/state.js';
@@ -241,13 +242,12 @@ export function bind(ctx, oi) {
   // написанное, а комментарий как раз и читают целиком.
   const comment = s.$('[data-mu-comment]');
   if (comment) {
-    const grow = () => {
-      comment.style.height = 'auto';
-      comment.style.height = comment.scrollHeight + 2 + 'px';
-    };
-    comment.oninput = () => { unit.comment = comment.value; grow(); };
-    grow();
+    comment.oninput = () => { unit.comment = comment.value; };
   }
+
+  // Многострочные поля растут под текст, а после ручной растяжки держат размер.
+  ctx.ui.growSizes = ctx.ui.growSizes || {};
+  bindAutoGrowAll(s, ctx.ui.growSizes);
 
   // --- Свои поля ------------------------------------------------------------
 

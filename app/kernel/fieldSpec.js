@@ -29,6 +29,11 @@ export const yes = (key, label) => sel(key, label, ['Да', 'Нет']);
 // Мультивыбор — когда значений у одной величины бывает несколько сразу:
 // машина с завода ездит и на бензине, и на газе.
 export const multi = (key, label, options, o = {}) => ({ key, label, type: 'multi', options, ...o });
+// Многострочное поле: текст непредсказуемой длины (комплектация, перечень
+// особенностей). Растёт под содержимое — kernel/autoGrow.js. wide: true —
+// поле занимает всю строку сетки: перечень в половину ширины переносится
+// каждые несколько слов и читается столбиком.
+export const area = (key, label, o = {}) => ({ key, label, type: 'area', wide: true, ...o });
 
 // Значение поля и выбранная единица измерения. Единица — отдельное сведение и
 // лежит отдельным ключом: «400» и «кВА» это разные данные.
@@ -86,6 +91,10 @@ export function fieldHTML(params, f, attr, idPrefix) {
         ${f.options.map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
       </select>`;
     }
+    if (f.type === 'area') {
+      return `<textarea class="input mu-area" id="${id}" data-${attr}="${esc(f.key)}"
+        rows="2">${esc(value)}</textarea>`;
+    }
     if (f.type === 'date') {
       return `<input class="input mu-date" type="date" id="${id}" data-${attr}="${esc(f.key)}" value="${esc(value)}">`;
     }
@@ -107,7 +116,7 @@ export function fieldHTML(params, f, attr, idPrefix) {
       </select></span>`;
   };
 
-  return `<div class="field mu-param">
+  return `<div class="field mu-param${f.wide ? ' field-wide' : ''}">
     <label for="${id}">${label}</label>
     ${control()}
     ${f.hint ? `<span class="mu-hint mu-hint-under">${esc(f.hint)}</span>` : ''}

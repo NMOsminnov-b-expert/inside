@@ -5,6 +5,7 @@
 // курсором. Перерисовка только на смену типа ТС: от него зависит весь набор
 // характеристик.
 import { bindNumField } from '../../../../kernel/numField.js';
+import { bindAutoGrowAll } from '../../../../kernel/autoGrow.js';
 import { setFieldError } from '../../../../kernel/fieldError.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
@@ -123,18 +124,17 @@ export function bind(ctx, oi) {
     if (inp) inp.focus();
   };
 
-  // --- Комментарий ------------------------------------------------------------
-  // Поле растёт по тексту: прокрутка внутри маленького окошка прячет
-  // написанное, а комментарий как раз и читают целиком.
+  // --- Особые отметки и комментарий -------------------------------------------
+  // Поля растут под текст, а если человек потянул поле за уголок — держат его
+  // размер (kernel/autoGrow.js).
+  const marks = s.$('[data-vh-marks]');
+  if (marks) marks.oninput = () => { oi.marks = marks.value; };
+
   const comment = s.$('[data-vh-comment]');
-  if (comment) {
-    const grow = () => {
-      comment.style.height = 'auto';
-      comment.style.height = comment.scrollHeight + 2 + 'px';
-    };
-    comment.oninput = () => { oi.comment = comment.value; grow(); };
-    grow();
-  }
+  if (comment) comment.oninput = () => { oi.comment = comment.value; };
+
+  ctx.ui.growSizes = ctx.ui.growSizes || {};
+  bindAutoGrowAll(s, ctx.ui.growSizes);
 
   // --- Фото --------------------------------------------------------------------
   s.$$('[data-add-photo]').forEach((b) => b.onclick = async (e) => {

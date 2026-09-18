@@ -14,7 +14,7 @@
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: состав полей — справочник, который правят без
 // программиста; здесь он в коде макета.
-import { text, num, int, sel } from '../../../kernel/fieldSpec.js';
+import { text, num, int, sel, area } from '../../../kernel/fieldSpec.js';
 import * as D from './dictionaries.js';
 
 // Тип ТС — корень каскада: от него зависят и характеристики, и состав осмотра.
@@ -37,7 +37,7 @@ const AXLES = int('axles', 'Число осей');
 const WHEELS = text('wheelFormula', 'Колёсная формула', { hint: 'Например: 4x2, 6x4' });
 
 const OTHER = text('otherParts', 'Прочие элементы');
-const KIT = text('kit', 'Комплектация');
+const KIT = area('kit', 'Комплектация');
 
 // Осмотр кузовной техники — один и тот же набор у легковой и лёгкого
 // коммерческого (указание пользователя: «то же, что у легковой»).
@@ -119,7 +119,7 @@ export const VEHICLE_FIELDS = {
       state('stChassis', 'Состояние ходовой части'),
       state('stElectric', 'Состояние электрооборудования'),
       OTHER,
-      text('comfortKit', 'Комфорт и комплектация'),
+      area('comfortKit', 'Комфорт и комплектация'),
     ],
   },
 

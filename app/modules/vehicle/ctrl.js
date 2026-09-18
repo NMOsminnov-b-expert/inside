@@ -1,4 +1,5 @@
 import { bindNumField } from '../../kernel/numField.js';
+import { bindAutoGrowAll } from '../../kernel/autoGrow.js';
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   normVin, vinError, normPlate, vehicleExtra, addVehicleExtra, dropVehicleExtra,
@@ -102,6 +103,11 @@ export function bindVehicle(ctx) {
     const inp = s.$(`[data-vehicle-xlabel="${row.id}"]`);
     if (inp) inp.focus();
   };
+
+  // Многострочные поля растут под текст, а после ручной растяжки держат размер.
+  ctx.ui = ctx.ui || {};
+  ctx.ui.growSizes = ctx.ui.growSizes || {};
+  bindAutoGrowAll(s, ctx.ui.growSizes);
 
   bindVehicleViewer(ctx);
 

@@ -1305,3 +1305,16 @@ body[data-module] .mu-xtbl .mu-del:focus{opacity:1}
    PatternFly, CFPB: пояснение следует за полем, к которому относится). */
 body[data-module] .mu-hint-under{display:block;margin-top:4px;font-size:10.5px;line-height:1.3;
   color:var(--ink-dim)}
+
+
+/* ===== Многострочные поля ===================================================
+   Комплектация, особые отметки, комментарий: текст непредсказуемой длины. Поле
+   растёт под содержимое (kernel/autoGrow.js), а уголок растяжки оставлен —
+   человек может задать свой размер, и тогда поле держит его. */
+body[data-module] .mu-area,
+body[data-module] .mu-comment{resize:vertical;min-height:38px;max-height:320px;
+  overflow-y:hidden;line-height:1.4}
+
+/* Поле во всю строку сетки: перечень в половину ширины переносится каждые
+   несколько слов и читается столбиком. */
+body[data-module] .field-wide{grid-column:1 / -1}

@@ -91,7 +91,8 @@ function notesHTML(rec, idx) {
   return `<div class="card t-amber"><div class="card-head"><span class="card-idx">${idx}</span>
     <h3>Особые отметки</h3></div><div class="card-pad">
     <div class="field sp-all"><label for="vh-notes">Особые отметки</label>
-      <textarea class="input" id="vh-notes" data-vehicle-notes>${esc(rec.vehicle.notes || '')}</textarea></div>
+      <textarea class="input mu-area" id="vh-notes" data-vehicle-notes
+        rows="2">${esc(rec.vehicle.notes || '')}</textarea></div>
     </div></div>`;
 }
 
