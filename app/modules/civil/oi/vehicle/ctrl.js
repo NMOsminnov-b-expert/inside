@@ -22,8 +22,7 @@ export function bind(ctx, oi) {
   const retitle = () => {
     syncVehicleName(oi);
     const title = s.$('.mu-title');
-    if (title) title.textContent = oi.brand || oi.model ? [oi.brand, oi.model].filter(Boolean).join(' ')
-      : 'Транспортное средство';
+    if (title) title.textContent = (oi.makeModel || '').trim() || 'Транспортное средство';
   };
 
   const plain = (attr, set) => {
@@ -31,8 +30,7 @@ export function bind(ctx, oi) {
     if (el) el.oninput = () => set(el);
   };
 
-  plain('brand', (el) => { oi.brand = el.value; retitle(); });
-  plain('model', (el) => { oi.model = el.value; retitle(); });
+  plain('make', (el) => { oi.makeModel = el.value; retitle(); });
   plain('color', (el) => { oi.color = el.value; });
   plain('country', (el) => { oi.country = el.value; });
   plain('year', (el) => { oi.year = el.value; });

@@ -9,7 +9,7 @@ function nextId() {
 }
 
 function searchOf(rec) {
-  return [rec.vehicle.brand, rec.vehicle.model, rec.vehicle.plate, rec.vehicle.vin, rec.vehicle.type]
+  return [rec.vehicle.makeModel, rec.vehicle.plate, rec.vehicle.vin, rec.vehicle.type]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -19,7 +19,7 @@ export function summarize(rec) {
     typeId: manifest.id,
     typeLabel: manifest.label,
     typeIcon: manifest.icon,
-    title: [rec.vehicle.brand, rec.vehicle.model].filter(Boolean).join(' ') || 'Новое транспортное средство',
+    title: rec.vehicle.makeModel || 'Новое транспортное средство',
     subtitle: rec.vehicle.plate || 'Госномер не указан',
     eni: rec.eni,
     status: rec.status,
@@ -89,7 +89,7 @@ export function createRecord() {
     // в params по ключам справочника (data/vehicleFields.js), свободные
     // добавления — строками extra.
     vehicle: {
-      type: '', brand: '', model: '', plate: '', vin: '', year: '', color: '', country: '',
+      type: '', makeModel: '', plate: '', vin: '', year: '', color: '', country: '',
       notes: '', params: {}, extra: [],
     },
   };

@@ -109,7 +109,7 @@ export function fieldHTML(params, f, attr, idPrefix) {
 
   return `<div class="field mu-param">
     <label for="${id}">${label}</label>
-    ${f.hint ? `<span class="mu-hint">${esc(f.hint)}</span>` : ''}
     ${control()}
+    ${f.hint ? `<span class="mu-hint mu-hint-under">${esc(f.hint)}</span>` : ''}
   </div>`;
 }

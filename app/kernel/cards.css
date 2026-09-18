@@ -1245,34 +1245,44 @@ body[data-module] .fl-tbl td .input[readonly]{color:var(--muted)}
 
 
 /* ===== Таблица «наименование — значение» ====================================
-   Свои поля механизма и дополнительные параметры транспортного средства. Она
-   стоит сама по себе, а не под другой таблицей, поэтому у неё своя рамка и
-   разделитель столбцов: без них шапка сливалась со строками, и было не видно,
-   где кончается наименование и начинается значение (замечание пользователя
-   18.09.2026).
+   Свои поля механизма и дополнительные параметры транспортного средства.
+   Оформление сведено по разбору практик оформления таблиц данных (Pencil &
+   Paper «Enterprise data tables», Eleken «Table design UX», NN/g «Data tables:
+   four major user tasks»):
 
-   Поля внутри — тихие, как и в остальных таблицах карточек: обводку рисует
-   ячейка, когда в ней работают. */
+   * шапка отделена от строк фоном и границей, но не кричит: она подпись, а не
+     содержимое. Подпись столбца выровнена так же, как данные под ней;
+   * строки разделены одной светлой линией — зебру не применяем: чередование
+     фонов спорит с подсветкой строки под курсором и с работающей ячейкой;
+   * вертикальная линия одна — между наименованием и значением. Она тут по делу:
+     колонки обе текстовые и без неё сливаются (замечание пользователя
+     18.09.2026), а у столбца с крестиком линии нет — он не данные;
+   * высота строки 40px: в плотной таблице (34px) поля ввода стояли впритык, и
+     таблица читалась как сплошная простыня;
+   * таблица отделена от карточки своей рамкой, а не тяжёлой сеткой. */
 body[data-module] .mu-xtbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;
   border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
-body[data-module] .mu-xtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--ink-label);text-align:left;padding:7px 8px;font-weight:700;background:var(--fill-head);
+body[data-module] .mu-xtbl th{font-size:11px;letter-spacing:.2px;color:var(--ink-ctl);
+  text-align:left;padding:9px 12px;font-weight:600;background:var(--fill-head);
   border-bottom:1px solid var(--line)}
-body[data-module] .mu-xtbl td{padding:1px 6px;border-bottom:1px solid var(--line-soft);
-  height:34px;vertical-align:middle;font-size:13px}
+body[data-module] .mu-xtbl td{padding:3px 8px;border-bottom:1px solid var(--line-soft);
+  height:40px;vertical-align:middle;font-size:13px}
 body[data-module] .mu-xtbl tbody tr:last-child td{border-bottom:none}
 body[data-module] .mu-xtbl tbody tr:hover td{background:var(--fill-hover)}
 
-/* Разделитель столбцов — только между наименованием и значением: у столбца
-   с кнопкой удаления его нет, иначе крестик выглядит отдельной колонкой
-   данных. */
+/* Разделитель столбцов — только между наименованием и значением. */
 body[data-module] .mu-xtbl th:first-child,
 body[data-module] .mu-xtbl td:first-child{border-right:1px solid var(--line-soft)}
+
+/* Наименование — опора строки, поэтому чуть плотнее по цвету и весу, чем
+   значение: глаз ведёт по левому столбцу (практика пар «ключ — значение»,
+   Innovaccer Design System). */
+body[data-module] .mu-xtbl td:first-child .ax-cell{font-weight:600;color:var(--ink-ctl)}
 
 body[data-module] .mu-xtbl td:focus-within{background:var(--fill-pick);
   box-shadow:inset 0 0 0 2px var(--blue-600)}
 body[data-module] .mu-xtbl .ax-cell{width:100%;min-width:0;border:1px solid transparent;
-  border-radius:6px;padding:5px 7px;font:inherit;font-size:13px;color:var(--ink);
+  border-radius:6px;padding:6px 8px;font:inherit;font-size:13px;color:var(--ink);
   background:transparent}
 body[data-module] .mu-xtbl .ax-cell:focus{border-color:transparent;background:transparent;
   box-shadow:none;outline:none}
@@ -1280,3 +1290,18 @@ body[data-module] .mu-xtbl .ax-cell:focus{border-color:transparent;background:tr
    «Значение» читается как заполненные данные. */
 body[data-module] .mu-xtbl .ax-cell::placeholder{color:transparent}
 body[data-module] .mu-xtbl .ax-cell:focus::placeholder{color:var(--ink-ghost)}
+
+/* Столбец с крестиком: кнопка появляется у строки под курсором и у строки, в
+   которой работают, — ряд крестиков сверху донизу перетягивает внимание на
+   удаление (практика «действия — по одному и по месту», Eleken). */
+body[data-module] .mu-xtbl td.mu-c-act{text-align:center;padding:0}
+body[data-module] .mu-xtbl .mu-del{opacity:0;transition:opacity .12s}
+body[data-module] .mu-xtbl tr:hover .mu-del,
+body[data-module] .mu-xtbl td:focus-within ~ td .mu-del,
+body[data-module] .mu-xtbl .mu-del:focus{opacity:1}
+
+/* Подсказка поля стоит ПОД полем: над ним она раздвигала строку сетки, и поля
+   соседних колонок оказывались на разной высоте (практика helper text —
+   PatternFly, CFPB: пояснение следует за полем, к которому относится). */
+body[data-module] .mu-hint-under{display:block;margin-top:4px;font-size:10.5px;line-height:1.3;
+  color:var(--ink-dim)}

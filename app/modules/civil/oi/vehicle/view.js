@@ -41,12 +41,9 @@ function identityHTML(oi) {
         </select>
       </div>
       <div class="field">
-        <label for="vh-brand">Марка</label>
-        <input class="input" id="vh-brand" data-vh-brand value="${esc(oi.brand || '')}" placeholder="Например: Toyota">
-      </div>
-      <div class="field">
-        <label for="vh-model">Модель</label>
-        <input class="input" id="vh-model" data-vh-model value="${esc(oi.model || '')}" placeholder="Например: Camry">
+        <label for="vh-make">Марка и модель</label>
+        <input class="input" id="vh-make" data-vh-make value="${esc(oi.makeModel || '')}"
+          placeholder="Например: Toyota Camry">
       </div>
       <div class="field">
         <label for="vh-plate">Государственный номер</label>
@@ -54,9 +51,10 @@ function identityHTML(oi) {
       </div>
       <div class="field">
         <label for="vh-vin">VIN</label>
-        <span class="mu-hint" id="vh-vin-hint">${VIN_LENGTH} знаков латиницей и цифрами, без букв I, O и Q.</span>
         <input class="input vh-vin" id="vh-vin" data-vh-vin value="${esc(oi.vin || '')}"
           maxlength="${VIN_LENGTH}" aria-describedby="vh-vin-hint" autocapitalize="characters" spellcheck="false">
+        <span class="mu-hint mu-hint-under" id="vh-vin-hint">${VIN_LENGTH} знаков латиницей и цифрами,
+          без букв I, O и Q.</span>
       </div>
       <div class="field">
         <label for="vh-year">Год выпуска</label>

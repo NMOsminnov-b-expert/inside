@@ -58,11 +58,12 @@ export function dropVehicleExtra(oi, id) {
   if (at >= 0) list.splice(at, 1);
 }
 
-// Подпись ТС: марка с моделью, а госномер — примета, по которой машину и
-// находят в перечне.
+// Подпись ТС: марка с моделью одной строкой, а госномер — примета, по которой
+// машину и находят в перечне. Марка и модель — ОДНО поле (указание
+// пользователя 18.09.2026): в документах они и стоят вместе, а порознь их
+// заполняли по-разному — «Toyota» / «Hilux» и «Toyota Hilux» / пусто.
 export function vehicleTitle(oi) {
-  const name = [oi.brand, oi.model].filter(Boolean).join(' ').trim();
-  return name || 'Транспортное средство';
+  return String(oi.makeModel || '').trim() || 'Транспортное средство';
 }
 
 export function vehicleSubtitle(oi) {
@@ -87,8 +88,7 @@ export function createVehicleOi(base) {
     // недвижимости, а ТС стоит на учёте в органах регистрации транспорта.
     eni: '',
     vtype: '',
-    brand: '',
-    model: '',
+    makeModel: '',
     plate: '',
     vin: '',
     color: '',

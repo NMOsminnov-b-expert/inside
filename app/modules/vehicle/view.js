@@ -25,21 +25,18 @@ function identityHTML(rec) {
           <option value="">Выберите тип</option>
           ${VEHICLE_TYPES.map((t) => `<option ${t === v.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}
         </select></div>
-      <div class="field"><label for="vh-brand">Марка</label>
-        <input class="input" id="vh-brand" data-vehicle-brand value="${esc(v.brand || '')}"
-          placeholder="Например: Toyota"></div>
-      <div class="field"><label for="vh-model">Модель</label>
-        <input class="input" id="vh-model" data-vehicle-model value="${esc(v.model || '')}"
-          placeholder="Например: Camry"></div>
+      <div class="field"><label for="vh-make">Марка и модель</label>
+        <input class="input" id="vh-make" data-vehicle-make value="${esc(v.makeModel || '')}"
+          placeholder="Например: Toyota Camry"></div>
       <div class="field"><label for="vh-plate">Государственный номер</label>
         <input class="input" id="vh-plate" data-vehicle-plate value="${esc(v.plate || '')}"
           placeholder="01KG123ABC"></div>
       <div class="field"><label for="vh-vin">VIN</label>
-        <span class="mu-hint" id="vh-vin-hint">${VIN_LENGTH} знаков латиницей и цифрами,
-          без букв I, O и Q.</span>
         <input class="input" id="vh-vin" data-vehicle-vin value="${esc(v.vin || '')}"
           maxlength="${VIN_LENGTH}" aria-describedby="vh-vin-hint" autocapitalize="characters"
-          spellcheck="false"></div>
+          spellcheck="false">
+        <span class="mu-hint mu-hint-under" id="vh-vin-hint">${VIN_LENGTH} знаков латиницей и цифрами,
+          без букв I, O и Q.</span></div>
       <div class="field"><label for="vh-year">Год выпуска</label>
         <input class="input mu-num" id="vh-year" data-vehicle-year value="${esc(v.year || '')}"
           inputmode="numeric" maxlength="4" placeholder="ГГГГ"></div>
@@ -116,7 +113,7 @@ function formHTML(rec) {
 export function viewVehicle(ctx) {
   const v = ctx.rec.vehicle;
   return `<div class="view-head">
-      <span class="pill pill-gray">${esc(v.brand || 'Транспортное средство')} · ${esc(v.model || 'новая карточка')}</span>
+      <span class="pill pill-gray">${esc(v.makeModel || 'Транспортное средство · новая карточка')}</span>
       <span class="muted">${esc(v.plate || 'Госномер не указан')}</span>
     </div>
     <div class="split vehicle-split">${vehicleViewerHTML(ctx)}<div class="vsplit"></div>

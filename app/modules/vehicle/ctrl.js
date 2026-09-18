@@ -19,8 +19,7 @@ export function bindVehicle(ctx) {
     if (el) el.oninput = () => set(el);
   };
 
-  plain('brand', (el) => { v.brand = el.value; });
-  plain('model', (el) => { v.model = el.value; });
+  plain('make', (el) => { v.makeModel = el.value; });
   plain('color', (el) => { v.color = el.value; });
   plain('country', (el) => { v.country = el.value; });
   plain('year', (el) => { v.year = el.value; });

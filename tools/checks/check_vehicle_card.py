@@ -23,7 +23,8 @@
     букв I, O и Q, не длиннее 17 знаков, — а недобранная длина показывается
     сообщением, а не молча;
   * госномер набирается в любом регистре, а хранится в верхнем;
-  * подпись ОИ собирается из марки, модели и госномера по ходу набора: своего
+  * марка и модель — ОДНО поле (указание пользователя 18.09.2026);
+  * подпись ОИ собирается из марки с моделью и госномера по ходу набора: своего
     поля «наименование» у ТС нет;
   * кода ЕНИ у ТС нет — чипа «ЕНИ» в плашке быть не должно;
   * учётных сведений баланса (инвентарный номер, год ввода в эксплуатацию,
@@ -123,7 +124,7 @@ def run(t):
 
     vol = pg.locator('[data-vh-f="engineVolume"]')
     vol.fill('2494')
-    pg.locator('[data-vh-brand]').click()
+    pg.locator('[data-vh-make]').click()
     t.wait(200)
     t.ck(plain(vol.input_value()) == '2 494', 'объём двигателя показан не целым: %r' % vol.input_value())
 
@@ -165,8 +166,7 @@ def run(t):
     t.wait(300)
 
     # --- марка, госномер, VIN -----------------------------------------------------
-    pg.fill('[data-vh-brand]', 'Toyota')
-    pg.fill('[data-vh-model]', 'Camry')
+    pg.fill('[data-vh-make]', 'Toyota Camry')
     pg.locator('[data-vh-plate]').fill('01kg123abc')
     t.wait(200)
     t.ck(pg.input_value('[data-vh-plate]') == '01KG123ABC',
@@ -179,11 +179,11 @@ def run(t):
     t.wait(200)
     t.ck(vin.input_value() == 'JTDBE32K13300123',
          'VIN не приведён к виду стандарта: %r' % vin.input_value())
-    pg.locator('[data-vh-brand]').click()
+    pg.locator('[data-vh-make]').click()
     t.wait(250)
     t.ck(vin.evaluate('(e) => e.classList.contains("field-bad")'), 'недобранный VIN не помечен')
     vin.fill('JTDBE32K1A3300123')
-    pg.locator('[data-vh-brand]').click()
+    pg.locator('[data-vh-make]').click()
     t.wait(250)
     t.ck(not vin.evaluate('(e) => e.classList.contains("field-bad")'), 'полный VIN помечен ошибкой')
 
