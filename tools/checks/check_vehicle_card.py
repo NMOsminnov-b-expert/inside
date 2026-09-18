@@ -12,8 +12,13 @@
     нём не было даже у имущественного комплекса;
   * у объекта оценки, который не имущественный комплекс, движимого в меню нет
     (правило подтверждено пользователем 17.09.2026);
-  * характеристики зависят от типа ТС: пока тип не выбран, их нет и стоит
-    подсказка; при смене типа значения общих полей не теряются;
+  * состав зависит от типа ТС и разложен по этапам: блок «Характеристики» —
+    то, что переписывают с документов, блок «Осмотр» — то, что определяют на
+    месте (состав задан пользователем 18.09.2026 по восьми типам ТС);
+  * пока тип не выбран, полей нет и стоит подсказка; при смене типа значения
+    общих полей не теряются;
+  * дополнительные параметры — строки «наименование — значение»: добавляются и
+    убираются, кнопка добавления есть и когда строк нет;
   * VIN приводится к виду стандарта прямо при наборе — верхний регистр, без
     букв I, O и Q, не длиннее 17 знаков, — а недобранная длина показывается
     сообщением, а не молча;
@@ -21,19 +26,18 @@
   * подпись ОИ собирается из марки, модели и госномера по ходу набора: своего
     поля «наименование» у ТС нет;
   * кода ЕНИ у ТС нет — чипа «ЕНИ» в плашке быть не должно;
-  * состав полей — из техпаспорта и того, что видно при осмотре: учётных
-    сведений баланса (инвентарный номер, год ввода в эксплуатацию, балансовая
-    стоимость) в карточке нет (указание пользователя 17.09.2026);
-  * тип топлива — мультивыбор: машина с завода ездит и на бензине, и на газе;
+  * учётных сведений баланса (инвентарный номер, год ввода в эксплуатацию,
+    балансовая стоимость) в карточке нет (указание пользователя 17.09.2026);
   * числовые поля — общие для макета: «12*100» в пробеге даёт 1 200.
 """
 
 NAME = 'карточка ТС'
 
 TOUCHES = (
-    'app/modules/civil/oi/vehicle/*', 'app/modules/civil/data/vehicleFields.js',
-    'app/modules/civil/parts/fields.js', 'app/modules/civil/oi/registry.js',
-    'app/modules/civil/data/rules.js', 'app/modules/civil/card/*',
+    'app/modules/civil/oi/vehicle/*', 'app/modules/vehicle/data/vehicleFields.js',
+    'app/modules/vehicle/data/dictionaries.js', 'app/kernel/fieldSpec.js',
+    'app/modules/civil/oi/registry.js', 'app/modules/civil/data/rules.js',
+    'app/modules/civil/card/*',
 )
 
 OC = '#/oc/civil/oc-cv-1'
@@ -100,14 +104,22 @@ def run(t):
 
     t.ck(pg.locator('[data-vh-type]').count() == 1, 'нет поля «Тип ТС»')
     t.ck('Выберите тип ТС' in pg.locator('.mu-empty').first.inner_text(),
-         'без типа ТС нет подсказки о характеристиках')
+         'без типа ТС нет подсказки о полях')
 
-    pg.select_option('[data-vh-type]', 'Легковое')
-    t.wait_until("() => !!document.querySelector('[data-vh-f=\"body\"]')")
+    pg.select_option('[data-vh-type]', 'Легковая')
+    t.wait_until("() => !!document.querySelector('[data-vh-f=\"bodyType\"]')")
     t.wait(300)
     keys = pg.eval_on_selector_all('[data-vh-f]', 'els => els.map((e) => e.dataset.vhF)')
-    t.ck('body' in keys and 'engineVolume' in keys, 'нет характеристик легкового: %s' % keys)
-    t.ck('specialType' not in keys, 'показаны характеристики чужого типа: %s' % keys)
+    t.ck('bodyType' in keys and 'engineVolume' in keys and 'bodyNo' in keys,
+         'нет паспортных полей легковой: %s' % keys)
+    t.ck('superstructure' not in keys, 'показаны поля чужого типа: %s' % keys)
+
+    # Осмотр — свой блок, а не вперемешку с паспортными полями.
+    inspect = pg.eval_on_selector_all(
+        '[data-vh-sec="inspect"] [data-vh-f]', 'els => els.map((e) => e.dataset.vhF)')
+    t.ck('stBody' in inspect and 'stEngine' in inspect and 'kit' in inspect,
+         'в блоке осмотра нет состояний узлов: %s' % inspect)
+    t.ck('engineVolume' not in inspect, 'паспортное поле попало в блок осмотра: %s' % inspect)
 
     vol = pg.locator('[data-vh-f="engineVolume"]')
     vol.fill('2494')
@@ -119,28 +131,37 @@ def run(t):
     t.ck(pg.locator('[data-vh-cost]').count() == 0, 'в карточке ТС спрашивают балансовую стоимость')
     t.ck(pg.locator('[data-vh-inv]').count() == 0, 'в карточке ТС спрашивают инвентарный номер')
 
-    # Тип топлива — мультивыбор: значений бывает несколько сразу.
-    box = pg.locator('[data-vh-f-ms="fuel"]')
-    t.ck(box.count() == 1, 'тип топлива задаётся не мультивыбором')
-    box.locator('[data-ms-toggle]').click()
-    t.wait(250)
-    box.locator('[data-vh-f-opt="Бензин"]').check()
-    box.locator('[data-vh-f-opt="Газ"]').check()
-    t.wait(250)
-    t.ck('Бензин, Газ' in box.locator('.ms-summary').inner_text(),
-         'выбранные виды топлива не попали в сводку: %r' % box.locator('.ms-summary').inner_text())
+    # --- дополнительные параметры ------------------------------------------------
+    t.ck(pg.locator('[data-vh-xadd]').count() == 1,
+         'нет кнопки добавления дополнительного параметра')
+    pg.locator('[data-vh-xadd]').click()
+    t.wait_until("() => !!document.querySelector('[data-vh-xlabel]')")
+    t.wait(300)
+    row = pg.locator('[data-vh-xlabel]').first
+    t.ck(pg.evaluate("() => !!document.activeElement.hasAttribute('data-vh-xlabel')"),
+         'после добавления параметра курсор не в поле наименования')
+    row.fill('Газобаллонное оборудование')
+    pg.locator('[data-vh-xvalue]').first.fill('Метан, 2 баллона')
+    t.wait(200)
+
+    pg.locator('[data-vh-xdel]').first.click()
+    t.wait(300)
+    t.ck(pg.locator('[data-vh-xlabel]').count() == 0, 'строка параметра не убралась')
+    t.ck(pg.locator('[data-vh-xadd]').count() == 1,
+         'кнопка добавления пропала вместе с последней строкой')
 
     # --- смена типа: общее значение остаётся -------------------------------------
-    pg.select_option('[data-vh-type]', 'Спецтехника')
-    t.wait_until("() => !!document.querySelector('[data-vh-f=\"specialType\"]')")
+    pg.select_option('[data-vh-type]', 'Грузовой (свыше 3,5 т)')
+    t.wait_until("() => !!document.querySelector('[data-vh-f=\"superstructure\"]')")
     t.wait(300)
     keys = pg.eval_on_selector_all('[data-vh-f]', 'els => els.map((e) => e.dataset.vhF)')
-    t.ck('specialType' in keys and 'engineHours' in keys, 'нет характеристик спецтехники: %s' % keys)
+    t.ck('superstructure' in keys and 'engineHours' in keys and 'wheelFormula' in keys,
+         'нет паспортных полей грузового: %s' % keys)
     t.ck(plain(pg.locator('[data-vh-f="engineVolume"]').input_value()) == '2 494',
          'общее поле потеряло значение при смене типа')
 
-    pg.select_option('[data-vh-type]', 'Легковое')
-    t.wait_until("() => !!document.querySelector('[data-vh-f=\"body\"]')")
+    pg.select_option('[data-vh-type]', 'Легковая')
+    t.wait_until("() => !!document.querySelector('[data-vh-f=\"bodyType\"]')")
     t.wait(300)
 
     # --- марка, госномер, VIN -----------------------------------------------------

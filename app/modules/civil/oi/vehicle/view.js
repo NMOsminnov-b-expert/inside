@@ -1,28 +1,35 @@
 // Карточка ОИ «Транспортное средство».
 //
-// Устройство — как у остальных карточек модуля: блоки с номерами, слева
-// просмотрщик документов и фото. Набор характеристик зависит от типа ТС
-// (data/vehicleFields.js): у легкового кузов и объём двигателя, у спецтехники
-// вид машины и наработка, у прицепа — оси и тормоза. Пока тип не выбран,
-// характеристик нет вовсе — практика каскадных списков: дочернее поле не
-// показывается, пока не выбран родитель.
+// Блоки идут по этапам работы, а не по алфавиту полей (практика группировки
+// полей по смыслу, Microsoft Learn «Fields and field groups», UX Planet
+// «Designing more efficient forms»): сперва то, что переписывают с документов,
+// затем то, что определяют на осмотре, и только потом свободные добавления.
+//
+//   01  Транспортное средство      — опознавательные сведения из документов;
+//   02  Характеристики             — паспортные поля выбранного типа ТС;
+//   03  Осмотр                     — состояния узлов и комплектность;
+//   04  Дополнительные параметры   — таблица «наименование — значение»;
+//   05  Особые отметки и комментарий;
+//   06  Фото по категориям.
+//
+// Набор полей блоков 02 и 03 зависит от типа ТС (vehicle/data/vehicleFields.js).
+// Пока тип не выбран, полей нет вовсе — практика каскадных списков: дочернее
+// поле не показывается, пока не выбран родитель.
 import { esc } from '../../../../kernel/dom.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
+import { fieldHTML } from '../../../../kernel/fieldSpec.js';
+import { VEHICLE_TYPES } from '../../../vehicle/data/vehicleFields.js';
 import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
-import { fieldHTML } from '../../parts/fields.js';
-import { VEHICLE_TYPES } from '../../data/vehicleFields.js';
-import { CATEGORIES, paramsOf, vehicleTitle, vehicleSubtitle, VIN_LENGTH } from './model.js';
+import { paramsOf, vehicleExtra, vehicleTitle, vehicleSubtitle, VIN_LENGTH } from './model.js';
 
 const ATTR = 'vh-f';
 const ID = 'vh-f-';
 
-// Тип ТС, марка, госномер и VIN — то, по чему машину узнают. Всё в этом блоке
-// читается с техпаспорта, поэтому и порядок тот же, в каком оно там стоит.
-// Тип идёт первым: от него зависят характеристики ниже (практика каскадных
-// списков — родитель стоит перед тем, что от него зависит).
+// Тип ТС, марка, госномер и VIN — то, по чему машину узнают. Тип идёт первым:
+// от него зависят характеристики и состав осмотра (практика каскадных списков —
+// родитель стоит перед тем, что от него зависит).
 function identityHTML(oi) {
-  const vin = String(oi.vin || '');
   return `<div class="mu-sec">
     <div class="sec-h">Транспортное средство</div>
     <div class="grid mu-grid-general">
@@ -31,13 +38,6 @@ function identityHTML(oi) {
         <select class="select" id="vh-type" data-vh-type>
           <option value="">Выберите тип</option>
           ${VEHICLE_TYPES.map((t) => `<option ${t === oi.vtype ? 'selected' : ''}>${esc(t)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label for="vh-category">Категория ТС</label>
-        <select class="select" id="vh-category" data-vh-category>
-          <option value="">Не выбрано</option>
-          ${CATEGORIES.map((c) => `<option ${c === oi.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}
         </select>
       </div>
       <div class="field">
@@ -55,7 +55,7 @@ function identityHTML(oi) {
       <div class="field">
         <label for="vh-vin">VIN</label>
         <span class="mu-hint" id="vh-vin-hint">${VIN_LENGTH} знаков латиницей и цифрами, без букв I, O и Q.</span>
-        <input class="input vh-vin" id="vh-vin" data-vh-vin value="${esc(vin)}"
+        <input class="input vh-vin" id="vh-vin" data-vh-vin value="${esc(oi.vin || '')}"
           maxlength="${VIN_LENGTH}" aria-describedby="vh-vin-hint" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="field">
@@ -75,26 +75,54 @@ function identityHTML(oi) {
   </div>`;
 }
 
-function paramsHTML(oi, part, title) {
+// Блоки 02 и 03: паспортные поля и осмотр. Пустой набор не рисуется вовсе —
+// заголовок над пустотой ничего не сообщает.
+function fieldsHTML(oi, part, title, hint) {
   const fields = paramsOf(oi);
   if (!fields) {
-    return part === 'main' ? `<div class="mu-sec">
-      <div class="sec-h">Характеристики</div>
-      <div class="mu-empty">Выберите тип ТС — здесь появятся характеристики этого типа.</div>
+    return part === 'passport' ? `<div class="mu-sec">
+      <div class="sec-h">${esc(title)}</div>
+      <div class="mu-empty">Выберите тип ТС — здесь появятся поля этого типа.</div>
     </div>` : '';
   }
+
   const list = fields[part];
   if (!list.length) return '';
 
-  return `<div class="mu-sec">
-    <div class="sec-h">${esc(title)}</div>
+  return `<div class="mu-sec" data-vh-sec="${part}">
+    <div class="sec-h">${esc(title)}${hint ? `<span class="mu-sec-hint">${esc(hint)}</span>` : ''}</div>
     <div class="grid g-2 mu-params">${list.map((f) => fieldHTML(oi.params, f, ATTR, ID)).join('')}</div>
   </div>`;
 }
 
-// Особые отметки — поле карточки ТС как объекта оценки: приметы, которых нет
-// среди характеристик (перекрашен, следы ремонта, надпись на борту).
-// Комментарий — про саму запись: чего не хватило и в чём сомнение.
+// Дополнительные параметры — «наименование и значение» строками. Кнопка
+// добавления стоит всегда, даже когда строк нет (практика строкового ввода
+// Adobe Commerce: добавить строку можно и после того, как удалили последнюю).
+function extraHTML(oi) {
+  const rows = vehicleExtra(oi).map((f) => `<tr>
+      <td><input class="ax-cell" data-vh-xlabel="${f.id}" value="${esc(f.label)}"
+        placeholder="Наименование параметра" aria-label="Наименование параметра"></td>
+      <td><input class="ax-cell" data-vh-xvalue="${f.id}" value="${esc(f.value)}"
+        placeholder="Значение" aria-label="Значение параметра"></td>
+      <td class="mu-c-act"><button class="ax-x mu-del" data-vh-xdel="${f.id}"
+        title="Убрать параметр" aria-label="Убрать параметр">×</button></td>
+    </tr>`).join('');
+
+  return `<div class="mu-sec">
+    <div class="sec-h">Дополнительные параметры
+      <span class="mu-sec-hint">то, чего нет среди полей этого типа ТС</span>
+      <button class="btn btn-ghost btn-sm" data-vh-xadd>+ Параметр</button>
+    </div>
+    ${rows ? `<table class="tbl mu-xtbl">
+      <colgroup><col style="width:38%"><col><col style="width:40px"></colgroup>
+      <thead><tr><th>Наименование параметра</th><th>Значение</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>` : '<div class="mu-empty">Дополнительных параметров нет.</div>'}
+  </div>`;
+}
+
+// Особые отметки — приметы самой машины (перекрашен, следы ремонта, надпись на
+// борту). Комментарий — про запись: чего не хватило и в чём сомнение.
 function notesHTML(oi) {
   return `<div class="mu-sec">
     <div class="sec-h">Особые отметки и комментарий</div>
@@ -113,18 +141,18 @@ function notesHTML(oi) {
 }
 
 function cardHTML(ctx, oi, idx) {
-  const n = String(idx).padStart(2, '0');
   return `<div class="card t-teal" id="q-vehicle" data-vh-card="${esc(oi.id)}">
     <div class="card-head" data-card-toggle>
-      <span class="card-idx">${n}</span>
+      <span class="card-idx">${String(idx).padStart(2, '0')}</span>
       <h3 class="mu-title ell">${esc(vehicleTitle(oi))}</h3>
       <span class="mu-sec-hint">${esc(vehicleSubtitle(oi))}</span>
       <span class="chev" style="margin-left:auto">▾</span>
     </div>
     <div class="card-body-wrap"><div class="card-pad">
       ${identityHTML(oi)}
-      ${paramsHTML(oi, 'main', 'Характеристики')}
-      ${paramsHTML(oi, 'extra', 'Дополнительные характеристики')}
+      ${fieldsHTML(oi, 'passport', 'Характеристики', 'из документов и с шильдиков')}
+      ${fieldsHTML(oi, 'inspect', 'Осмотр', 'заполняется на месте')}
+      ${extraHTML(oi)}
       ${notesHTML(oi)}
     </div></div>
   </div>`;

@@ -1,44 +1,124 @@
 import { esc } from '../../kernel/dom.js';
-import { msDropBodyHTML } from '../../kernel/multiSelect.js';
+import { fieldHTML } from '../../kernel/fieldSpec.js';
+import { VEHICLE_TYPES, vehicleFieldsFor } from './data/vehicleFields.js';
+import { vehicleExtra, VIN_LENGTH } from './records.js';
 import { vehicleViewerHTML } from './viewer.js';
 
-// Перечни значений — в data/dictionaries.js: те же значения показываются в
-// разделе «Справочники» (data/dictExport.js), а перечень, записанный прямо в
-// разметке, туда не попадает.
-import {
-  VEHICLE_TYPES as TYPES, GEARBOX, FUEL, CARGO_TYPES, SPECIAL_TYPES, TRAILER_TYPES, BODY_TYPES,
-} from './data/dictionaries.js';
+// Карточка транспортного средства как объекта оценки.
+//
+// Блоки идут по этапам работы — тот же порядок, что у карточки ТС в составе
+// другого объекта оценки (civil/oi/vehicle): сперва опознавательные сведения из
+// документов, затем паспортные характеристики выбранного типа, затем осмотр, и
+// только потом свободные добавления. Состав полей задан одним справочником
+// (data/vehicleFields.js), чтобы одно и то же ТС описывалось одинаково, чем бы
+// оно ни было заведено.
 
-function selectField(label, key, values, rec, extra = '') {
-  return `<div class="field"><label>${label}</label><select class="select" data-vehicle-field="${key}" ${extra}><option value="">Не выбрано</option>${values.map((value) => `<option value="${esc(value)}" ${rec.vehicle[key] === value ? 'selected' : ''}>${esc(value)}</option>`).join('')}</select></div>`;
+const ATTR = 'vehicle-f';
+const ID = 'vh-f-';
+
+function identityHTML(rec) {
+  const v = rec.vehicle;
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">01</span>
+    <h3>Транспортное средство</h3></div><div class="card-pad"><div class="grid g-4 g-roomy">
+      <div class="field"><label for="vh-type">Тип ТС</label>
+        <select class="select" id="vh-type" data-vehicle-type>
+          <option value="">Выберите тип</option>
+          ${VEHICLE_TYPES.map((t) => `<option ${t === v.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+        </select></div>
+      <div class="field"><label for="vh-brand">Марка</label>
+        <input class="input" id="vh-brand" data-vehicle-brand value="${esc(v.brand || '')}"
+          placeholder="Например: Toyota"></div>
+      <div class="field"><label for="vh-model">Модель</label>
+        <input class="input" id="vh-model" data-vehicle-model value="${esc(v.model || '')}"
+          placeholder="Например: Camry"></div>
+      <div class="field"><label for="vh-plate">Государственный номер</label>
+        <input class="input" id="vh-plate" data-vehicle-plate value="${esc(v.plate || '')}"
+          placeholder="01KG123ABC"></div>
+      <div class="field"><label for="vh-vin">VIN</label>
+        <span class="mu-hint" id="vh-vin-hint">${VIN_LENGTH} знаков латиницей и цифрами,
+          без букв I, O и Q.</span>
+        <input class="input" id="vh-vin" data-vehicle-vin value="${esc(v.vin || '')}"
+          maxlength="${VIN_LENGTH}" aria-describedby="vh-vin-hint" autocapitalize="characters"
+          spellcheck="false"></div>
+      <div class="field"><label for="vh-year">Год выпуска</label>
+        <input class="input mu-num" id="vh-year" data-vehicle-year value="${esc(v.year || '')}"
+          inputmode="numeric" maxlength="4" placeholder="ГГГГ"></div>
+      <div class="field"><label for="vh-color">Цвет</label>
+        <input class="input" id="vh-color" data-vehicle-color value="${esc(v.color || '')}"></div>
+      <div class="field"><label for="vh-country">Страна-изготовитель</label>
+        <input class="input" id="vh-country" data-vehicle-country value="${esc(v.country || '')}"></div>
+    </div></div></div>`;
 }
-function inputField(label, key, rec, type = 'text') {
-  return `<div class="field"><label>${label}</label><input class="input" type="${type}" data-vehicle-field="${key}" value="${esc(rec.vehicle[key] || '')}"></div>`;
+
+function fieldsHTML(rec, part, idx, title, hint) {
+  const fields = vehicleFieldsFor(rec.vehicle.type);
+  const body = !fields
+    ? '<div class="vehicle-note">Выберите тип ТС — здесь появятся поля этого типа.</div>'
+    : `<div class="grid g-4 g-roomy">${
+      fields[part].map((f) => fieldHTML(rec.vehicle.params, f, ATTR, ID)).join('')}</div>`;
+
+  if (fields && !fields[part].length) return '';
+
+  return `<div class="card t-teal"><div class="card-head"><span class="card-idx">${idx}</span>
+    <h3>${esc(title)}</h3><span class="hint">${esc(hint)}</span></div>
+    <div class="card-pad">${body}</div></div>`;
 }
-function multiSelect(label, key, values, rec) {
-  const selected = rec.vehicle[key] || [];
-  const summary = selected.length ? selected.join(', ') : 'Не выбрано';
-  return `<div class="field sp-all" data-vehicle-ms="${key}"><label>${label}</label><div class="ms"><div class="ms-control" data-ms-toggle title="Открыть список"><span class="ms-summary" title="${esc(summary)}">${esc(summary)}</span><span class="chev">▾</span></div><div class="ms-drop" hidden>${msDropBodyHTML({ options: values, selected, optAttr: `vehicle-${key}` })}</div></div></div>`;
+
+// Дополнительные параметры — «наименование и значение» строками. Кнопка
+// добавления стоит всегда, даже когда строк нет (практика строкового ввода
+// Adobe Commerce: добавить строку можно и после того, как удалили последнюю).
+function extraHTML(rec, idx) {
+  const rows = vehicleExtra(rec).map((f) => `<tr>
+      <td><input class="ax-cell" data-vehicle-xlabel="${f.id}" value="${esc(f.label)}"
+        placeholder="Наименование параметра" aria-label="Наименование параметра"></td>
+      <td><input class="ax-cell" data-vehicle-xvalue="${f.id}" value="${esc(f.value)}"
+        placeholder="Значение" aria-label="Значение параметра"></td>
+      <td class="mu-c-act"><button class="ax-x mu-del" data-vehicle-xdel="${f.id}"
+        title="Убрать параметр" aria-label="Убрать параметр">×</button></td>
+    </tr>`).join('');
+
+  return `<div class="card t-slate"><div class="card-head"><span class="card-idx">${idx}</span>
+    <h3>Дополнительные параметры</h3>
+    <span class="hint">то, чего нет среди полей этого типа ТС</span>
+    <button class="btn btn-ghost btn-sm" data-vehicle-xadd style="margin-left:auto">+ Параметр</button>
+    </div><div class="card-pad">
+    ${rows ? `<table class="tbl mu-xtbl">
+      <colgroup><col style="width:38%"><col><col style="width:40px"></colgroup>
+      <thead><tr><th>Наименование параметра</th><th>Значение</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>` : '<div class="vehicle-note">Дополнительных параметров нет.</div>'}
+    </div></div>`;
 }
-function specificFields(rec) {
-  const type = rec.vehicle.type;
-  if (!type) return `<div class="vehicle-note">Выберите тип ТС, чтобы заполнить специальные параметры.</div>`;
-  if (type === 'passenger') return `<div class="grid g-4 g-roomy">${inputField('Объем двигателя, куб. см', 'engine', rec, 'number')}${selectField('Тип КПП', 'gearbox', GEARBOX, rec)}${multiSelect('Тип топлива с завода', 'fuel', FUEL, rec)}${inputField('Тип кузова', 'body', rec)}${selectField('Расположение руля', 'steering', ['Справа', 'Слева'], rec)}${inputField('Прочие особенности', 'features', rec)}</div>`;
-  if (type === 'cargo') return `<div class="grid g-4 g-roomy">${selectField('Тип', 'specialType', CARGO_TYPES, rec)}${inputField('Объем двигателя, куб. см', 'engine', rec, 'number')}${inputField('Грузоподъемность', 'loadCapacity', rec)}${selectField('Тип КПП', 'gearbox', GEARBOX, rec)}${multiSelect('Тип топлива с завода', 'fuel', FUEL, rec)}${selectField('Расположение руля', 'steering', ['Справа', 'Слева'], rec)}${inputField('Прочие особенности', 'features', rec)}</div>`;
-  if (type === 'special') return `<div class="grid g-4 g-roomy">${selectField('Тип', 'specialType', SPECIAL_TYPES, rec)}${inputField('Грузоподъемность', 'loadCapacity', rec)}${inputField('Объем двигателя, куб. см', 'engine', rec, 'number')}${selectField('Тип КПП', 'gearbox', GEARBOX, rec)}${multiSelect('Тип топлива с завода', 'fuel', FUEL, rec)}${selectField('Расположение руля', 'steering', ['Справа', 'Слева'], rec)}${inputField('Особенности', 'features', rec)}</div>`;
-  return `<div class="grid g-4 g-roomy">${selectField('Тип', 'specialType', TRAILER_TYPES, rec)}${selectField('Тип кузова', 'body', BODY_TYPES, rec)}${rec.vehicle.body === 'Иное' ? inputField('Укажите тип кузова', 'otherBody', rec) : ''}${inputField('Грузоподъемность', 'loadCapacity', rec)}${inputField('Количество осей', 'axles', rec, 'number')}${inputField('Прочие особенности', 'features', rec)}</div>`;
+
+function notesHTML(rec, idx) {
+  return `<div class="card t-amber"><div class="card-head"><span class="card-idx">${idx}</span>
+    <h3>Особые отметки</h3></div><div class="card-pad">
+    <div class="field sp-all"><label for="vh-notes">Особые отметки</label>
+      <textarea class="input" id="vh-notes" data-vehicle-notes>${esc(rec.vehicle.notes || '')}</textarea></div>
+    </div></div>`;
 }
 
 function formHTML(rec) {
-  const vehicleType = `<div class="field"><label>Тип ТС</label><select class="select" data-vehicle-field="type"><option value="">Не выбрано</option>${TYPES.map(([value, label]) => `<option value="${value}" ${rec.vehicle.type === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>`;
-  return `<div class="vehicle-form"><div class="vehicle-actions"><button class="back-btn" data-vehicle-back>← К объектам оценки</button><span class="pill pill-gray">Создание ОЦ</span><button class="btn btn-primary" data-vehicle-save>Сохранить</button></div>
-    <div class="card t-blue"><div class="card-head"><span class="card-idx">01</span><h3>Общие параметры транспортного средства</h3></div><div class="card-pad"><div class="grid g-4 g-roomy">
-      ${vehicleType}
-      ${inputField('Марка', 'brand', rec)}${inputField('Модель', 'model', rec)}${inputField('Госномер', 'plate', rec)}${inputField('Год выпуска', 'year', rec, 'number')}${inputField('Цвет', 'color', rec)}${inputField('VIN-код', 'vin', rec)}<div class="field sp-all"><label>Особые отметки</label><textarea class="input" data-vehicle-field="notes">${esc(rec.vehicle.notes || '')}</textarea></div>
-    </div></div></div>
-    <div class="card t-teal"><div class="card-head"><span class="card-idx">02</span><h3>Параметры выбранного типа</h3></div><div class="card-pad">${specificFields(rec)}</div></div></div>`;
+  return `<div class="vehicle-form">
+    <div class="vehicle-actions">
+      <button class="back-btn" data-vehicle-back>← К объектам оценки</button>
+      <span class="pill pill-gray">Создание ОЦ</span>
+      <button class="btn btn-primary" data-vehicle-save>Сохранить</button>
+    </div>
+    ${identityHTML(rec)}
+    ${fieldsHTML(rec, 'passport', '02', 'Характеристики', 'из документов и с шильдиков')}
+    ${fieldsHTML(rec, 'inspect', '03', 'Осмотр', 'заполняется на месте')}
+    ${extraHTML(rec, '04')}
+    ${notesHTML(rec, '05')}
+  </div>`;
 }
 
 export function viewVehicle(ctx) {
-  return `<div class="view-head"><span class="pill pill-gray">${esc(ctx.rec.vehicle.brand || 'Транспортное средство')} · ${esc(ctx.rec.vehicle.model || 'новая карточка')}</span><span class="muted">${esc(ctx.rec.vehicle.plate || 'Госномер не указан')}</span></div><div class="split vehicle-split">${vehicleViewerHTML(ctx)}<div class="vsplit"></div><div class="grow">${formHTML(ctx.rec)}</div></div>`;
+  const v = ctx.rec.vehicle;
+  return `<div class="view-head">
+      <span class="pill pill-gray">${esc(v.brand || 'Транспортное средство')} · ${esc(v.model || 'новая карточка')}</span>
+      <span class="muted">${esc(v.plate || 'Госномер не указан')}</span>
+    </div>
+    <div class="split vehicle-split">${vehicleViewerHTML(ctx)}<div class="vsplit"></div>
+    <div class="grow">${formHTML(ctx.rec)}</div></div>`;
 }

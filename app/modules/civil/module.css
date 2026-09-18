@@ -616,13 +616,6 @@ body[data-module="civil"] .mu-empty{font-size:12.5px;color:var(--muted);padding:
 body[data-module="civil"] .mu-note{font-size:12px;color:var(--muted);margin-top:8px}
 
 /* Свои поля — тихая редактируемая таблица, как у пристроек. */
-body[data-module="civil"] .mu-xtbl{width:100%;table-layout:fixed;border-collapse:collapse}
-body[data-module="civil"] .mu-xtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--ink-label);text-align:left;padding:6px 8px;font-weight:700;background:var(--fill-head);
-  border-bottom:1px solid var(--line)}
-body[data-module="civil"] .mu-xtbl td{padding:1px 6px;border-bottom:1px solid var(--line-soft);height:34px}
-body[data-module="civil"] .mu-xtbl td:focus-within{background:var(--fill-pick);box-shadow:inset 0 0 0 2px var(--blue-600)}
-body[data-module="civil"] .mu-xtbl .ax-cell:focus{border-color:transparent;background:transparent;box-shadow:none}
 
 body[data-module="civil"] .mu-ph{padding:0;cursor:zoom-in}
 

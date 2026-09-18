@@ -85,7 +85,13 @@ export function createRecord() {
     id: nextId(), typeId: manifest.id, type: manifest.label, category: 'Движимое', status: 'В заполнении',
     city: '', institution: '', podved: '', eni: '', updatedAt: new Date().toISOString().slice(0, 10),
     owners: [], users: [], resp: { gov: '', cod: '', appr: '', insp: [] }, docs: [],
-    vehicle: { type: '', brand: '', model: '', plate: '', year: '', color: '', vin: '', notes: '', engine: '', gearbox: '', fuel: [], body: '', steering: '', specialType: '', loadCapacity: '', axles: '', otherBody: '', features: '' },
+    // Опознавательные сведения лежат полями записи, характеристики и осмотр —
+    // в params по ключам справочника (data/vehicleFields.js), свободные
+    // добавления — строками extra.
+    vehicle: {
+      type: '', brand: '', model: '', plate: '', vin: '', year: '', color: '', country: '',
+      notes: '', params: {}, extra: [],
+    },
   };
   records.unshift(rec);
   return rec;
@@ -97,5 +103,37 @@ export function setInstitution(id, { institution = '', podved = '', nodeId = '' 
 export function takeRecord(id) { const i = records.findIndex((rec) => rec.id === id); return i < 0 ? null : records.splice(i, 1)[0]; }
 export function restoreRecord(rec) { if (rec && !loadRecord(rec.id)) records.push(rec); return rec; }
 export function fieldLabel(key) { return key; }
+
+// VIN: 17 знаков, без букв I, O и Q — их нет в стандарте, чтобы не путать с
+// единицей и нулём (ISO 3779 / 49 CFR 565).
+export const VIN_LENGTH = 17;
+const VIN_ALLOWED = /[^A-HJ-NPR-Z0-9]/g;
+
+export const normVin = (value) => String(value || '').toUpperCase()
+  .replace(VIN_ALLOWED, '').slice(0, VIN_LENGTH);
+
+export function vinError(value) {
+  const v = normVin(value);
+  if (!v) return '';
+  return v.length === VIN_LENGTH ? '' : `В VIN ${v.length} из ${VIN_LENGTH} знаков`;
+}
+
+export const normPlate = (value) => String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+// Дополнительные параметры записи: наименование и значение.
+export const vehicleExtra = (rec) => (rec.vehicle.extra = rec.vehicle.extra || []);
+
+let extraSeq = 1;
+export function addVehicleExtra(rec) {
+  const row = { id: `vx-${Date.now().toString(36)}-${extraSeq += 1}`, label: '', value: '' };
+  vehicleExtra(rec).push(row);
+  return row;
+}
+
+export function dropVehicleExtra(rec, id) {
+  const list = vehicleExtra(rec);
+  const at = list.findIndex((f) => f.id === id);
+  if (at >= 0) list.splice(at, 1);
+}
 export const oiCards = {};
 export const oiTypes = [];

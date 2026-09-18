@@ -5,12 +5,14 @@
 // курсором. Перерисовка только на смену типа ТС: от него зависит весь набор
 // характеристик.
 import { bindNumField } from '../../../../kernel/numField.js';
-import { bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { setFieldError } from '../../../../kernel/fieldError.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
 import { openPhotoInPlace } from '../../parts/viewer/state.js';
-import { normVin, vinError, normPlate, syncVehicleName, vehicleParams } from './model.js';
+import {
+  normVin, vinError, normPlate, syncVehicleName, vehicleParams,
+  vehicleExtra, addVehicleExtra, dropVehicleExtra,
+} from './model.js';
 
 export function bind(ctx, oi) {
   const s = ctx.scope;
@@ -35,9 +37,6 @@ export function bind(ctx, oi) {
   plain('country', (el) => { oi.country = el.value; });
   plain('year', (el) => { oi.year = el.value; });
   plain('marks', (el) => { oi.marks = el.value; });
-
-  const category = s.$('[data-vh-category]');
-  if (category) category.onchange = () => { oi.category = category.value; };
 
   // Госномер приводится к верхнему регистру по ходу набора; курсор при этом не
   // прыгает — длина строки не меняется.
@@ -90,66 +89,41 @@ export function bind(ctx, oi) {
       return;
     }
     const set = () => write(key, el.value);
-    if (el.tagName === 'SELECT' || el.type === 'date') {
-      // Тип кузова прицепа со значением «Иное» открывает поле для своего
-      // значения — состав карточки меняется, поэтому отрисовываем заново.
-      el.onchange = key === 'body' ? () => { set(); ctx.render(); } : set;
-    } else el.oninput = set;
+    if (el.tagName === 'SELECT' || el.type === 'date') el.onchange = set;
+    else el.oninput = set;
   });
-
-  // Мультивыбор (тип топлива с завода): список общий для проекта, открывается
-  // и закрывается как остальные мультивыборы модуля.
-  s.$$('[data-vh-f-ms]').forEach((box) => {
-    const key = box.dataset.vhFMs;
-    const drop = box.querySelector('.ms-drop');
-    const control = box.querySelector('[data-ms-toggle]');
-    bindMsSearch(drop);
-
-    if (control) control.onclick = (e) => {
-      e.stopPropagation();
-      drop.hidden = !drop.hidden;
-      control.classList.toggle('open', !drop.hidden);
-    };
-
-    box.querySelectorAll('[data-vh-f-opt]').forEach((cb) => {
-      cb.onchange = () => {
-        const picked = Array.isArray(params[key]) ? params[key] : [];
-        const value = cb.dataset.vhFOpt;
-        const at = picked.indexOf(value);
-        if (at >= 0) picked.splice(at, 1); else picked.push(value);
-        params[key] = picked;
-        if (!picked.length) delete params[key];
-
-        const text = picked.join(', ');
-        const summary = box.querySelector('.ms-summary');
-        if (summary) {
-          summary.textContent = text || 'не выбрано';
-          summary.title = text;
-          summary.classList.toggle('muted', !picked.length);
-        }
-        const count = box.querySelector('.ms-count');
-        if (count) {
-          count.textContent = String(picked.length);
-          count.hidden = !picked.length;
-        }
-      };
-    });
-  });
-
-  // Закрытие списков по клику вне них — один раз на область, иначе слушатели
-  // копились бы с каждой отрисовкой.
-  if (!s.root.dataset.vhMsBound) {
-    s.root.dataset.vhMsBound = '1';
-    s.onDocument('click', (e) => {
-      if (e.target.closest('.ms')) return;
-      s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
-      s.$$('.ms-drop').forEach((d) => { d.hidden = true; });
-    });
-  }
 
   s.$$('[data-vh-f-unit]').forEach((el) => {
     el.onchange = () => write(el.dataset.vhFUnit + '@unit', el.value);
   });
+
+  // --- Дополнительные параметры -------------------------------------------------
+  // Правится по ходу набора, как остальные поля; строка добавляется и убирается
+  // с перерисовкой — состав карточки меняется.
+  s.$$('[data-vh-xlabel]').forEach((inp) => inp.oninput = () => {
+    const row = vehicleExtra(oi).find((f) => f.id === inp.dataset.vhXlabel);
+    if (row) row.label = inp.value;
+  });
+
+  s.$$('[data-vh-xvalue]').forEach((inp) => inp.oninput = () => {
+    const row = vehicleExtra(oi).find((f) => f.id === inp.dataset.vhXvalue);
+    if (row) row.value = inp.value;
+  });
+
+  s.$$('[data-vh-xdel]').forEach((b) => b.onclick = () => {
+    dropVehicleExtra(oi, b.dataset.vhXdel);
+    ctx.render();
+  });
+
+  const xadd = s.$('[data-vh-xadd]');
+  if (xadd) xadd.onclick = async () => {
+    const row = addVehicleExtra(oi);
+    // Отрисовка асинхронная, поэтому фокус ставим после неё: иначе он уходит
+    // в поле, которого на экране уже нет.
+    await ctx.render();
+    const inp = s.$(`[data-vh-xlabel="${row.id}"]`);
+    if (inp) inp.focus();
+  };
 
   // --- Комментарий ------------------------------------------------------------
   // Поле растёт по тексту: прокрутка внутри маленького окошка прячет

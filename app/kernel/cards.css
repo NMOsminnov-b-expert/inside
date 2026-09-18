@@ -1242,3 +1242,41 @@ body[data-module] .fl-tbl td:focus-within .pick-btn .chev{opacity:1}
    «заперто» показывает замок в своей колонке и приглушённое число, а не
    голубая коробочка вокруг значения. */
 body[data-module] .fl-tbl td .input[readonly]{color:var(--muted)}
+
+
+/* ===== Таблица «наименование — значение» ====================================
+   Свои поля механизма и дополнительные параметры транспортного средства. Она
+   стоит сама по себе, а не под другой таблицей, поэтому у неё своя рамка и
+   разделитель столбцов: без них шапка сливалась со строками, и было не видно,
+   где кончается наименование и начинается значение (замечание пользователя
+   18.09.2026).
+
+   Поля внутри — тихие, как и в остальных таблицах карточек: обводку рисует
+   ячейка, когда в ней работают. */
+body[data-module] .mu-xtbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+body[data-module] .mu-xtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--ink-label);text-align:left;padding:7px 8px;font-weight:700;background:var(--fill-head);
+  border-bottom:1px solid var(--line)}
+body[data-module] .mu-xtbl td{padding:1px 6px;border-bottom:1px solid var(--line-soft);
+  height:34px;vertical-align:middle;font-size:13px}
+body[data-module] .mu-xtbl tbody tr:last-child td{border-bottom:none}
+body[data-module] .mu-xtbl tbody tr:hover td{background:var(--fill-hover)}
+
+/* Разделитель столбцов — только между наименованием и значением: у столбца
+   с кнопкой удаления его нет, иначе крестик выглядит отдельной колонкой
+   данных. */
+body[data-module] .mu-xtbl th:first-child,
+body[data-module] .mu-xtbl td:first-child{border-right:1px solid var(--line-soft)}
+
+body[data-module] .mu-xtbl td:focus-within{background:var(--fill-pick);
+  box-shadow:inset 0 0 0 2px var(--blue-600)}
+body[data-module] .mu-xtbl .ax-cell{width:100%;min-width:0;border:1px solid transparent;
+  border-radius:6px;padding:5px 7px;font:inherit;font-size:13px;color:var(--ink);
+  background:transparent}
+body[data-module] .mu-xtbl .ax-cell:focus{border-color:transparent;background:transparent;
+  box-shadow:none;outline:none}
+/* Подсказка в пустой ячейке — только пока в ней работают: столбец серых
+   «Значение» читается как заполненные данные. */
+body[data-module] .mu-xtbl .ax-cell::placeholder{color:transparent}
+body[data-module] .mu-xtbl .ax-cell:focus::placeholder{color:var(--ink-ghost)}
