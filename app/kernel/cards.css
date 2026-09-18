@@ -1164,3 +1164,81 @@ body[data-module] .ps-clear{display:block;width:100%;text-align:left;padding:6px
   border:none;border-top:1px solid var(--line-soft);background:none;cursor:pointer;
   font-size:11.5px;color:var(--muted)}
 body[data-module] .ps-clear:hover{color:var(--blue-700);background:var(--blue-50)}
+
+/* ===== Поля внутри таблиц карточек ОИ ======================================
+   Тихое поле: рамку и фон рисует ЯЧЕЙКА, когда в ней работают, а не коробочка
+   вокруг каждого поля. Эталон — таблица вспомогательных построек в карточке
+   объекта оценки (civil/module.css, .aux-tbl); здесь то же правило доведено до
+   остальных таблиц с правкой в строке: пристройки, конструктив и износ,
+   поэтажная развёртка (указание пользователя 18.09.2026 — привести оформление
+   полей к тому же виду).
+
+   Почему так: десяток обведённых полей в строке спорит с сеткой таблицы —
+   рамка внутри рамки читается как вложенная коробка, а строка под курсором
+   вспыхивает прямоугольниками. Пустая ячейка при этом выглядит пустой, а не
+   «полем, которое забыли заполнить». */
+body[data-module] .ax-tbl td .input,
+body[data-module] .ax-tbl td .ax-cell,
+body[data-module] .ax-tbl td .select,
+body[data-module] .ax-tbl td .ms-control,
+body[data-module] .struct-tbl td .input,
+body[data-module] .struct-tbl td .select,
+body[data-module] .struct-tbl td .ms-control,
+body[data-module] .fl-tbl td .input,
+body[data-module] .fl-tbl td .select,
+body[data-module] .fl-tbl td .ms-control{
+  border-color:transparent;background:transparent;box-shadow:none}
+
+/* Наведение на строку — общая заливка, как в остальных таблицах макета. */
+body[data-module] .struct-tbl tbody tr:hover td,
+body[data-module] .fl-tbl tbody tr:not(.fl-grp):hover td{background:var(--fill-hover)}
+
+/* Ячейка в работе: своя заливка и обводка ровно по границам ячейки. Списки
+   считаются «в работе», пока раскрыты, иначе рамка пропадает под открытым
+   списком. */
+body[data-module] .ax-tbl td:focus-within,
+body[data-module] .struct-tbl td:focus-within,
+body[data-module] .fl-tbl td:focus-within,
+body[data-module] .ax-tbl td:has(.ms-control.open),
+body[data-module] .struct-tbl td:has(.ms-control.open),
+body[data-module] .fl-tbl td:has(.ms-control.open),
+body[data-module] .ax-tbl td:has(.pick-open),
+body[data-module] .struct-tbl td:has(.pick-open),
+body[data-module] .fl-tbl td:has(.pick-open){
+  background:var(--fill-pick);box-shadow:inset 0 0 0 2px var(--blue-600)}
+
+/* Само поле в работающей ячейке остаётся тихим: обводку уже нарисовала ячейка. */
+body[data-module] .ax-tbl td .input:focus,
+body[data-module] .ax-tbl td .ax-cell:focus,
+body[data-module] .ax-tbl td .select:focus,
+body[data-module] .struct-tbl td .input:focus,
+body[data-module] .struct-tbl td .select:focus,
+body[data-module] .fl-tbl td .input:focus,
+body[data-module] .fl-tbl td .select:focus,
+body[data-module] .ax-tbl td .ms-control.open,
+body[data-module] .struct-tbl td .ms-control.open,
+body[data-module] .fl-tbl td .ms-control.open,
+body[data-module] .ax-tbl td .pick-btn.pick-open,
+body[data-module] .struct-tbl td .pick-btn.pick-open,
+body[data-module] .fl-tbl td .pick-btn.pick-open{
+  border-color:transparent;background:transparent;box-shadow:none;outline:none}
+
+/* Значок списка — только у ячейки под курсором и у раскрытой: десяток стрелок
+   в столбце читается как рябь, а пустая ячейка и так открывается щелчком. */
+body[data-module] .ax-tbl td .ms-control .chev,
+body[data-module] .struct-tbl td .ms-control .chev,
+body[data-module] .fl-tbl td .pick-btn .chev,
+body[data-module] .struct-tbl td .pick-btn .chev{opacity:0;transition:opacity .12s}
+body[data-module] .ax-tbl tr:hover td .ms-control .chev,
+body[data-module] .ax-tbl td .ms-control.open .chev,
+body[data-module] .struct-tbl tr:hover td .ms-control .chev,
+body[data-module] .struct-tbl tr:hover td .pick-btn .chev,
+body[data-module] .fl-tbl tr:hover td .pick-btn .chev,
+body[data-module] .struct-tbl td .ms-control.open .chev,
+body[data-module] .struct-tbl td:focus-within .pick-btn .chev,
+body[data-module] .fl-tbl td:focus-within .pick-btn .chev{opacity:1}
+
+/* Поле, которое считает система (площадь по распределению), остаётся тихим —
+   «заперто» показывает замок в своей колонке и приглушённое число, а не
+   голубая коробочка вокруг значения. */
+body[data-module] .fl-tbl td .input[readonly]{color:var(--muted)}

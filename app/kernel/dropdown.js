@@ -72,7 +72,11 @@ function syncButton(btn, select) {
   const text = labelOf(select);
   const el = btn.querySelector('.pick-btn-text');
   el.textContent = text || '';
-  el.classList.toggle('empty', !select.value && !text);
+  // Пусто — это пустое ЗНАЧЕНИЕ, а не пустой текст: пункт-заглушка обычно
+  // подписан («Не выбрано», «Выберите тип»), и без этого он читался тем же
+  // цветом, что заполненные значения — в таблице столбец выглядел
+  // заполненным сверху донизу.
+  el.classList.toggle('empty', !select.value);
   btn.disabled = select.disabled;
 
   // Свою подсказку ставим только если она была у селекта. Дублировать текстом

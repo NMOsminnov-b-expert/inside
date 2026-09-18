@@ -20,6 +20,12 @@
 Плюс раскладка блока «Благоустройство территории» карточки участка: ранг и
 описание идут разными строками (решение пользователя 05.09.2026 — рядом они
 выглядели полем, разрезанным пополам).
+
+И оформление полей ВНУТРИ таблиц с правкой в строке — пристройки, конструктив
+и износ, поэтажная развёртка (указание пользователя 18.09.2026: привести к тому
+же виду, что в таблице карточки объекта оценки). Поле там тихое: своей рамки и
+фона у него нет, обводку рисует ячейка, и только когда в ней работают. Десяток
+обведённых полей в строке спорит с сеткой таблицы и рябит при наведении.
 """
 import io
 import json
@@ -92,6 +98,37 @@ def _open_land(t, route):
     return t.add_oi('Земельный участок', wait='[data-land-improve-rank]')
 
 
+BUILDING = '#/oc/civil/oc-cv-1/oi/oi-cv1-a'
+
+# Поля трёх таблиц с правкой в строке: развёртка, конструктив, пристройки.
+QUIET = """() => {
+  // Только видимые поля: строки свёрнутых размещений развёртки скрыты, и у
+  // скрытого поля стили не вычисляются так, как на экране.
+  const cs = (sel) => {
+    const e = [...document.querySelectorAll(sel)].find((x) => x.offsetParent);
+    if (!e) return null;
+    const s = getComputedStyle(e);
+    return { border: s.borderColor, bg: s.backgroundColor };
+  };
+  return JSON.stringify({
+    'поэтажная развёртка': cs('.fl-tbl td .input'),
+    'конструктив и износ': cs('.struct-tbl td .ms-control'),
+    'пристройки': cs('.ax-tbl td .ax-cell') || cs('.ax-tbl td .ms-control'),
+  });
+}"""
+
+# Обводка работающей ячейки: внутренняя тень у td, а не рамка у поля.
+CELL_FOCUS = """() => {
+  const input = [...document.querySelectorAll('.fl-tbl td .input')].find((x) => x.offsetParent);
+  input.focus();
+  const td = input.closest('td');
+  return JSON.stringify({
+    inset: getComputedStyle(td).boxShadow.includes('inset'),
+    fieldShadow: getComputedStyle(input).boxShadow,
+  });
+}"""
+
+
 def run(t):
     pg = t.page
 
@@ -115,6 +152,28 @@ def run(t):
         t.ck(len(set(seen.values())) <= 1,
              'оформление «%s» различается по типам ОЦ: %s' % (key, seen))
         t.ck(all(v for v in seen.values()), 'поле «%s» не найдено: %s' % (key, seen))
+
+    # --- поля в таблицах карточки строения: тихие, обводка у ячейки ---
+    t.open(BUILDING, wait='.fl-tbl')
+    t.wait(300)
+    # В демо-данных пристроек нет — заводим строку, иначе полей этой таблицы
+    # на экране не будет вовсе.
+    if pg.locator('.ax-tbl .ax-cell').count() == 0:
+        pg.locator('[data-ax-add]').click()
+        t.wait_for('.ax-tbl .ax-cell')
+        t.wait(250)
+
+    quiet = json.loads(pg.evaluate(QUIET))
+    for name, got in quiet.items():
+        if not t.ck(got, 'в карточке строения не найдено поле таблицы «%s»' % name):
+            continue
+        t.ck(got['border'] == 'rgba(0, 0, 0, 0)' and got['bg'] == 'rgba(0, 0, 0, 0)',
+             'поле в таблице «%s» рисует свою рамку или фон: %s' % (name, got))
+
+    cell = json.loads(pg.evaluate(CELL_FOCUS))
+    t.ck(cell['inset'], 'ячейка в работе не обведена по своим границам: %s' % cell)
+    t.ck(cell['fieldShadow'] == 'none',
+         'поле внутри работающей ячейки рисует вторую обводку: %s' % cell)
 
     # --- благоустройство: два поля, две строки ---
     for oc, route in ROUTES.items():
