@@ -27,6 +27,11 @@ export const ICON_FULL_EXIT = svg('<path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4
 export const ICON_POPOUT = svg('<path d="M9 2h5v5M14 2 7.5 8.5M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>');
 export const ICON_POPIN = svg('<path d="M7 9 14 2M7 9V4.5M7 9h4.5M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>');
 
+// Загрузка файлов: лист со стрелкой вверх — для пустой зоны прикрепления.
+export const ICON_UPLOAD = `<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none"
+  stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 17v-6M9.5 13.5 12 11l2.5 2.5"/></svg>`;
+
 export const ICON_ROTATE = svg('<path d="M13 8a5 5 0 1 1-1.6-3.7"/><path d="M13.5 2v3h-3"/>');
 
 // Убрать документ в архив: коробка с крышкой.

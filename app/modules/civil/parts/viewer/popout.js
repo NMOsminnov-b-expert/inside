@@ -1,4 +1,5 @@
 import { createScope } from '../../../../kernel/scope.js';
+import { attachFiles } from './files.js';
 
 // Просмотрщик в отдельном окне — на второй монитор (решение пользователя
 // 21.09.2026: «реализуем и вынос на отдельную страницу, и компактный режим, на
@@ -73,7 +74,17 @@ export function openPopout(ctx, onKey) {
   pscope = createScope(root);
   pscope.setHTML = (html) => { root.innerHTML = html; };
 
+  // Файлы, брошенные в окно просмотра, прикрепляются так же, как в карточке.
+  const hasFiles = (e) => Array.from((e.dataTransfer && e.dataTransfer.types) || []).includes('Files');
+  doc.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  doc.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    attachFiles(ctx, e.dataTransfer.files);
+  });
+
   doc.addEventListener('keydown', (e) => onKey(popCtx(ctx), e));
+  doc.addEventListener('keyup', (e) => { if (e.code === 'Space') onKey(popCtx(ctx), e); });
 
   // Окно закрыли — просмотрщик возвращается в карточку.
   win.addEventListener('pagehide', () => {

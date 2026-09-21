@@ -1,9 +1,10 @@
 import { esc } from '../../../../kernel/dom.js';
 
 import { docListFor, scopeLabel } from '../docs/model.js';
-import { VS } from './state.js';
-import { ICON_ARCHIVE } from './icons.js';
+import { tabKey } from './state.js';
+import { ICON_ARCHIVE, ICON_UPLOAD } from './icons.js';
 import { pagerHTML, zoomHTML, rotateHTML } from './tools.js';
+import { tabs, notOpened, tabLabel } from './docActions.js';
 
 // Страница реального PDF — canvas внутри обычного листа, который асинхронно
 // заполняет viewer/pdf.js (paintPdfCanvases). Раньше здесь был <embed>, то есть
@@ -43,72 +44,81 @@ export function docPageHTML(d, n) {
   return otherPageHTML(d.file);
 }
 
+// Строка документа в списках: вид жирным, название приглушённым, область
+// меткой — так в длинном списке глаз находит вид, а название дочитывает.
+function docRowHTML(sc, d) {
+  return `<span class="vdoc-sc">${scopeLabel(sc)}</span><b>${esc(d.type)}</b><span class="vdoc-nm">${esc(d.name)}</span>`;
+}
+
+// Строка вкладок документов — видна всегда (требование пользователя 21.09.2026:
+// «нет возможности открыть ещё один документ, прикрепить ещё один»). Вкладки
+// перетаскиваются, у каждой крестик и контекстное меню; «+» — открыть другой
+// документ записи, открыть все или прикрепить файлы.
+function tabsBarHTML(ctx, vd) {
+  const list = tabs(ctx);
+  const rest = notOpened(ctx);
+  const tab = (x) => {
+    const d = docListFor(ctx, x.sc).find((t) => t.id === x.id);
+    if (!d) return '';
+    const on = vd && vd.scope === x.sc && vd.id === x.id;
+    const key = tabKey(x.sc, x.id);
+    return `<div class="vtab ${on ? 'active' : ''}" role="tab" aria-selected="${on}" tabindex="${on ? 0 : -1}"
+      data-vtab="${key}" draggable="true" title="${esc(d.type)} · ${esc(d.name)}">
+      <span class="vtab-t">${esc(tabLabel(x.sc, d))}</span>
+      <button type="button" class="vtab-x" data-vtabclose="${key}" tabindex="-1"
+        title="Закрыть вкладку (Alt+W)" aria-label="Закрыть «${esc(d.name)}»">×</button>
+    </div>`;
+  };
+  // Вкладки — в своей прокручиваемой полосе, а «+» рядом, вне прокрутки: иначе
+  // меню «+» обрезалось бы краем полосы.
+  return `<div class="vtabs">
+    <div class="vtabs-list" role="tablist" aria-label="Открытые документы">${list.map(tab).join('')}</div>
+    <div class="dd vtab-add">
+      <button type="button" class="vtab-plus" data-dd-toggle title="Открыть или прикрепить документ (Ctrl+O)"
+        aria-label="Открыть или прикрепить документ">+</button>
+      <div class="dd-menu">
+        <button data-vattach><span>Прикрепить файлы…</span><kbd>Ctrl+O</kbd></button>
+        ${rest.length ? '<div class="dd-sep"></div><div class="dd-cap">Документы записи</div>' : ''}
+        ${rest.map((x) => `<button data-vaddtab="${tabKey(x.sc, x.d.id)}" title="${esc(x.d.name)}">${docRowHTML(x.sc, x.d)}</button>`).join('')}
+        ${rest.length > 1 ? `<div class="dd-sep"></div><button data-vopenall>Открыть все · ${rest.length}</button>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Пустая лента — зона для файлов: большая, с пунктирной рамкой и кнопкой
+// выбора рядом (практика: зона не должна быть только для перетаскивания).
+function dropHTML(ctx, text) {
+  const rest = notOpened(ctx);
+  return `<div class="vempty vdropzone">
+    <div class="vdrop-card">
+      <div class="vdrop-ico" aria-hidden="true">${ICON_UPLOAD}</div>
+      <div class="vdrop-title">${esc(text)}</div>
+      <div class="vdrop-hint">Перетащите файлы сюда или вставьте из буфера — можно несколько сразу</div>
+      <button class="btn btn-primary" data-vattach>Выбрать файлы…</button>
+      <div class="vdrop-keys"><kbd>Ctrl+O</kbd> выбрать · <kbd>Ctrl+V</kbd> вставить</div>
+    </div>
+    ${rest.length ? `<div class="vdrop-list"><div class="vdrop-cap">Документы записи · ${rest.length}</div>
+      ${rest.map((x) => `<button class="vdrop-row" data-vaddtab="${tabKey(x.sc, x.d.id)}" title="${esc(x.d.name)}">${docRowHTML(x.sc, x.d)}</button>`).join('')}
+    </div>` : ''}
+  </div>`;
+}
+
 export function renderDocMode(ctx, vctx) {
-  const { scopes, vd, d, dSt } = vctx;
+  const { vd, d, dSt } = vctx;
+  const tabsBar = tabsBarHTML(ctx, vd);
 
   if (!d) {
-    // Просмотрщик — индикатор наличия документов: если они есть (просто ни один
-    // не открыт как вкладка), предлагаем выбрать, а не пишем «нет документов» —
-    // эта фраза только для случая, когда их правда нет.
-    const available = scopes.flatMap((sc) => docListFor(ctx, sc).map((t) => ({ sc, t })));
-    if (!available.length) {
-      return {
-        right: '<span class="vtitle">Документы</span>',
-        body: `<div class="vempty"><div class="vempty-box">Нет прикреплённых документов</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`,
-      };
-    }
-
+    const any = notOpened(ctx).length;
     return {
+      tabsBar,
       right: '<span class="vtitle">Документы</span>',
-      body: `<div class="vempty">
-        <div class="vempty-box">Документы есть — выберите, что открыть</div>
-        <div class="dd">
-          <button class="btn btn-primary btn-sm" data-dd-toggle>Открыть документ ▾</button>
-          <div class="dd-menu">${available.map((x) => `<button data-vaddtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)} · ${esc(x.t.name)}</button>`).join('')}</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" data-attach-default>Прикрепить ещё документ</button>
-      </div>`,
+      body: dropHTML(ctx, any ? 'Документы есть — откройте нужный или прикрепите новые' : 'Документов пока нет'),
     };
   }
 
-  const all = [];
-  scopes.forEach((sc) => {
-    (VS.openTabs[sc] || []).forEach((id) => {
-      const t = docListFor(ctx, sc).find((x) => x.id === id);
-      if (t) all.push({ sc, t });
-    });
-  });
-
-  const remaining = [];
-  scopes.forEach((sc) => {
-    docListFor(ctx, sc).forEach((t) => {
-      if (!(VS.openTabs[sc] || []).includes(t.id)) remaining.push({ sc, t });
-    });
-  });
-
-  // Строка вкладок — только когда открыто больше одного документа: с одним
-  // документом она занимала 34px ради одной кнопки. Переключиться на другой
-  // документ можно из названия в панели — это выпадающий список.
-  const tabsBar = all.length > 1 ? `<div class="vtabs">
-    ${all.map((x) => `<button class="vtab ${vd && vd.scope === x.sc && vd.id === x.t.id ? 'active' : ''}" data-vtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)}<span data-vtabclose="${x.sc}|${x.t.id}" title="Закрыть вкладку">×</span></button>`).join('')}
-  </div>` : '';
-
-  const isCur = (x) => vd && vd.scope === x.sc && vd.id === x.t.id;
-  const switcher = `<div class="tool-group vdoc-pick"><div class="dd">
-    <button class="vdoc-name" data-dd-toggle title="${esc(d.type)} · ${esc(d.name)} — выбрать другой документ">
-      <b>${esc(d.type)}</b><span>${esc(d.name)}</span><i aria-hidden="true">▾</i></button>
-    <div class="dd-menu">
-      ${all.map((x) => `<button data-vtab="${x.sc}|${x.t.id}" class="${isCur(x) ? 'on' : ''}">${scopeLabel(x.sc)} · ${esc(x.t.type)} · ${esc(x.t.name)}</button>`).join('')}
-      ${remaining.length ? '<div class="dd-sep"></div>' : ''}
-      ${remaining.map((x) => `<button data-vaddtab="${x.sc}|${x.t.id}">${scopeLabel(x.sc)} · ${esc(x.t.type)} · ${esc(x.t.name)}</button>`).join('')}
-      <div class="dd-sep"></div>
-      <button data-attach-default>+ Прикрепить документ</button>
-    </div></div></div>`;
-
-  const archive = ctx.ui.viewerDoc
-    ? `<button class="tool-btn" data-varchive="${esc(d.id)}"
-      title="Убрать документ из карточки в архив — его можно будет найти и вернуть">${ICON_ARCHIVE}</button>`
-    : '';
+  const archive = `<button class="tool-btn" data-varchive="${esc(d.id)}"
+    title="Убрать документ в архив — его можно будет найти и вернуть">${ICON_ARCHIVE}</button>`;
 
   // Документ без страниц — значит без файла. Такие больше не заводятся ни одним
   // из путей прикрепления, но старая запись в памяти вкладки ещё может их иметь:
@@ -116,13 +126,12 @@ export function renderDocMode(ctx, vctx) {
   if (!d.pages.length) {
     return {
       tabsBar,
-      tools: switcher,
       right: archive,
-      body: `<div class="vempty"><div class="vempty-box">Файл не прикреплён</div><button class="btn btn-primary" data-attach-default>Прикрепить файл</button></div>`,
+      body: dropHTML(ctx, 'У документа нет файла'),
     };
   }
 
-  const tools = `${switcher}${pagerHTML(dSt.page, d.pages.length)}${zoomHTML('doc')}${rotateHTML()}`;
+  const tools = `${pagerHTML(dSt.page, d.pages.length)}${zoomHTML('doc')}${rotateHTML()}`;
 
   // Удаление страницы — «отрезать» пустые/лишние страницы скана; сам файл при
   // этом не меняется, отрезание живёт на уровне списка страниц.

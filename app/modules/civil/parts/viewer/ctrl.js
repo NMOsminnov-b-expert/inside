@@ -1,15 +1,20 @@
-import { archiveDoc } from '../../../../kernel/archive.js';
-import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../docs/model.js';
+import { docListFor } from '../docs/model.js';
 import { photoPages } from '../photos/model.js';
-import { DOC_TYPES } from '../../data/dictionaries.js';
-import { opt } from '../../data/opts.js';
 import {
   VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace, applyFit, fitKey,
 } from './state.js';
-import { nextDocId } from '../../data/store.js';
-import { paintPdfCanvases } from './pdf.js';
+import { paintPdfCanvases, getPdfPageWidthPt } from './pdf.js';
 import { applyDock, bindDockGrip } from './dock.js';
 import { openPopout, closePopout, focusPopout } from './popout.js';
+import { attachFiles, pickFiles } from './files.js';
+import {
+  currentTab, archiveTab, docOf, closeTab, closeAll, stepDoc, shiftTab, downloadDoc, printDoc,
+  docProperties, deletePages,
+} from './docActions.js';
+import { KEYMAP } from './keys.js';
+import { showMenu } from './menu.js';
+import { showKeysHelp } from './keysHelp.js';
+import { bindTabs } from './tabs.js';
 import { pushDocPageLog } from '../../audit/model.js';
 
 // Поворот и зум — функции уровня модуля, а не замыкания внутри bindViewer: их
@@ -39,11 +44,69 @@ function applyRotation(ctx, st) {
   });
 }
 
-function rotateViewer(ctx) {
+function rotateViewer(ctx, deg = 90) {
   const st = vSt(ctx);
   if (!st) return;
-  st.rot = (st.rot + 90) % 360;
+  st.rot = (st.rot + deg + 360) % 360;
   applyRotation(ctx, st);
+}
+
+// Переход с запоминанием места — для «Предыдущий вид» (Alt+←, как в Acrobat):
+// скачок к первой, последней, заданной странице или по миниатюре кладёт
+// прежнюю страницу в историю документа. Листание по одной её не засоряет.
+function jumpTo(ctx, n) {
+  const st = vSt(ctx);
+  if (!st) return;
+  if (n !== st.page) {
+    st.hist = (st.hist || []).concat(st.page).slice(-50);
+    st.fwd = [];
+  }
+  vGo(ctx, n);
+}
+
+function stepHistory(ctx, dir) {
+  const st = vSt(ctx);
+  if (!st) return;
+  const from = dir < 0 ? (st.hist || []) : (st.fwd || []);
+  if (!from.length) return;
+  const to = from.pop();
+  if (dir < 0) st.fwd = (st.fwd || []).concat(st.page);
+  else st.hist = (st.hist || []).concat(st.page);
+  vGo(ctx, to);
+}
+
+// Реальный размер (Ctrl+1): лист в тех же сантиметрах, что на бумаге —
+// пункт PDF = 1/72 дюйма, на экране 96 точек на дюйм.
+async function actualSize(ctx) {
+  const t = currentTab(ctx);
+  const d = t && docOf(ctx, t.sc, t.id);
+  const st = vSt(ctx);
+  const ribbon = ctx.scope.$('[data-vribbon]');
+  if (!d || !d.file || !st || !ribbon) return;
+  VS.fit[fitKey(ctx)] = 'width';
+  applyFit(ctx);
+  const fitW = parseFloat(ribbon.style.getPropertyValue('--fit-w')) || 0;
+  let natural = 0;
+  const page = d.pages[st.page - 1];
+  if (page && page.kind === 'pdf') natural = (await getPdfPageWidthPt(d.file.dataUrl, page.src)) * 96 / 72;
+  else {
+    const img = ctx.scope.$('.vribbon .vimg');
+    natural = img ? img.naturalWidth : 0;
+  }
+  if (!natural || !fitW) return;
+  zoomViewer(ctx, Math.round((natural / fitW) * 100));
+}
+
+// Инструменты, как в Acrobat: выделение (обычный), рука, лупа.
+function setTool(ctx, tool) {
+  VS.tool = tool;
+  const stage = ctx.scope.$('[data-vstage]');
+  if (stage) {
+    stage.classList.toggle('tool-hand', tool === 'hand');
+    stage.classList.toggle('tool-zoom', tool === 'zoom');
+  }
+  const name = { select: 'выделение', hand: 'рука — двигать лист', zoom: 'лупа: щелчок — ближе, с Alt — дальше' }[tool];
+  ctx.toast('Инструмент: ' + name);
 }
 
 // После смены масштаба перерисовываем страницы PDF: CSS-зум растягивает уже
@@ -106,6 +169,11 @@ export function bindViewerHotkeys(ctx) {
     if (ctx.ui.viewerPopout) return;
     viewerKeydown(ctx, e);
   });
+  // Отпускание пробела снимает временную «руку».
+  ctx.scope.onDocument('keyup', (e) => {
+    if (ctx.ui.viewerPopout) return;
+    if (e.code === 'Space') viewerKeydown(ctx, e);
+  });
 }
 
 // Обработка клавиши — отдельно от подписки: её зовут и главное окно, и окно
@@ -113,58 +181,174 @@ export function bindViewerHotkeys(ctx) {
 export function viewerKeydown(ctx, e) {
   if (!ctx.ui.viewer) return;
 
-  // Не мешаем набору текста и модальным диалогам: иначе «0» или «+» в поле
-  // ввода дёргали бы зум, а буква — поворот (ровно то, чего просили избежать).
+  // Не мешаем набору текста, модальным окнам и открытому меню: иначе «0» или
+  // «+» в поле ввода дёргали бы масштаб.
   const t = e.target;
-  if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .modal')) return;
-  if (document.querySelector('.modal')) return;
+  const doc = (t && t.ownerDocument) || document;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .modal, .vmenu')) return;
+  if (doc.querySelector('.modal-back, .vmenu') || document.querySelector('.modal-back')) return;
 
-  const st = vSt(ctx);
-  const pageCount = vPages(ctx).length;
-
-  // Поворот — на Ctrl+Alt+R, а не на Ctrl+R: Ctrl+R в браузере это
-  // перезагрузка страницы, перехватывать её нельзя.
-  if (e.ctrlKey && e.altKey && e.code === 'KeyR') { e.preventDefault(); rotateViewer(ctx); return; }
-  if (e.ctrlKey || e.altKey || e.metaKey) return;
-
-  // Буквы — по физической клавише (e.code): в русской раскладке «F» — это
-  // «А», и сравнение по e.key не срабатывало бы.
-  if (e.code === 'KeyF' && !ctx.isPopout) {
+  // Пробел — временная «рука», пока его держат (как в Acrobat).
+  if (e.code === 'Space' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    const stage = ctx.scope.$('[data-vstage]');
+    const down = e.type === 'keydown';
+    VS.spaceHand = down;
+    if (stage) stage.classList.toggle('tool-hand', down || VS.tool === 'hand');
     e.preventDefault();
-    if (e.shiftKey) toggleFull(ctx);
-    else toggleDock(ctx);
     return;
   }
-  if (e.code === 'KeyW') { e.preventDefault(); fitViewer(ctx, 'width'); return; }
-  if (e.code === 'KeyP') { e.preventDefault(); fitViewer(ctx, 'page'); return; }
+  if (e.type !== 'keydown') return;
 
-  switch (e.key) {
-    case 'ArrowRight': case 'PageDown':
-      if (st) { e.preventDefault(); vGo(ctx, st.page + 1); } break;
-    case 'ArrowLeft': case 'PageUp':
-      if (st) { e.preventDefault(); vGo(ctx, st.page - 1); } break;
-    case 'Home':
-      if (st) { e.preventDefault(); vGo(ctx, 1); } break;
-    case 'End':
-      if (st && pageCount) { e.preventDefault(); vGo(ctx, pageCount); } break;
-    case '+': case '=':
-      e.preventDefault(); zoomViewer(ctx, VS.zoom + 10); break;
-    case '-':
-      e.preventDefault(); zoomViewer(ctx, VS.zoom - 10); break;
-    case '0':
-      e.preventDefault(); zoomViewer(ctx, 100); break;
-    // Esc сначала возвращает из полноэкранного режима и только следующим
-    // нажатием закрывает просмотрщик: иначе выход из «во весь экран» стоил бы
-    // закрытия документа.
-    case 'Escape':
-      e.preventDefault();
-      if (ctx.isPopout) break;
+  const k = KEYMAP.find((x) => x.match(e));
+  if (!k) return;
+  const mode = ctx.ui.viewer.mode;
+  if (k.doc && mode !== 'doc' && mode !== 'compare') return;
+  e.preventDefault();
+  k.run(keyActions(ctx), e);
+}
+
+// Действия для таблицы клавиш (keys.js) и контекстных меню.
+function keyActions(ctx) {
+  const st = vSt(ctx);
+  const cur = () => currentTab(ctx);
+  const withTab = (fn) => () => { const x = cur(); if (x) fn(ctx, x.sc, x.id); };
+  const popout = !!ctx.isPopout;
+  return {
+    attach: async () => attachFiles(ctx, await pickFiles()),
+    closeTab: () => closeTab(ctx),
+    closeAll: () => closeAll(ctx),
+    stepDoc: (dir) => stepDoc(ctx, dir),
+    shiftTab: (dir) => shiftTab(ctx, dir),
+    download: withTab(downloadDoc),
+    print: withTab(printDoc),
+    properties: withTab(docProperties),
+    deletePages: () => deletePages(ctx),
+    page: (dir) => { if (st) vGo(ctx, st.page + dir); },
+    jump: (n) => jumpTo(ctx, n < 0 ? vPages(ctx).length : n),
+    goto: () => { const i = ctx.scope.$('[data-vpage]'); if (i) { i.focus(); i.select(); } },
+    history: (dir) => stepHistory(ctx, dir),
+    fit: (m) => fitViewer(ctx, m),
+    actualSize: () => actualSize(ctx),
+    zoom: (d) => zoomViewer(ctx, VS.zoom + d),
+    zoomReset: () => zoomViewer(ctx, 100),
+    rotate: (deg) => rotateViewer(ctx, deg),
+    rail: () => { ctx.ui.railCollapsed = !ctx.ui.railCollapsed; ctx.render(); },
+    dock: () => { if (!popout) toggleDock(ctx); },
+    full: () => { if (!popout) toggleFull(ctx); },
+    tool: (name) => setTool(ctx, name),
+    menu: () => {
+      const stage = ctx.scope.$('[data-vstage]');
+      if (!stage) return;
+      const r = stage.getBoundingClientRect();
+      showMenu(stage.ownerDocument, r.left + r.width / 2 - 110, r.top + 40, stageMenuItems(ctx), stage);
+    },
+    escape: () => {
+      if (popout) return;
       if (ctx.ui.viewerFull) toggleFull(ctx, false);
       else if (ctx.ui.viewerDock) toggleDock(ctx, false);
       else { ctx.ui.viewer = null; ctx.render(); }
-      break;
-    default: break;
-  }
+    },
+    help: () => showKeysHelp(ctx.scope.root.ownerDocument),
+  };
+}
+
+// Контекстное меню листа (правая кнопка по ленте). Пункты — те же действия,
+// что у клавиш, с подписью клавиши: так клавишам и учатся.
+function stageMenuItems(ctx) {
+  const a = keyActions(ctx);
+  const isDoc = ctx.ui.viewer.mode === 'doc';
+  const st = vSt(ctx);
+  const t = currentTab(ctx);
+  const d = t && docOf(ctx, t.sc, t.id);
+  const sel = (ctx.ui.pageSel || []).length;
+  const tool = VS.tool || 'select';
+  const fit = VS.fit[fitKey(ctx)];
+  return [
+    { label: 'Предыдущая страница', keys: '←', action: () => a.page(-1) },
+    { label: 'Следующая страница', keys: '→', action: () => a.page(1) },
+    { label: 'Перейти к странице…', keys: 'Ctrl+G', action: a.goto },
+    { sep: true },
+    { label: 'Страница целиком', keys: 'Ctrl+0', checked: fit === 'page', action: () => a.fit('page') },
+    { label: 'По ширине', keys: 'Ctrl+2', checked: fit === 'width', action: () => a.fit('width') },
+    { label: 'Реальный размер', keys: 'Ctrl+1', disabled: !isDoc, action: a.actualSize },
+    { label: 'Увеличить', keys: 'Ctrl+=', action: () => a.zoom(10) },
+    { label: 'Уменьшить', keys: 'Ctrl+−', action: () => a.zoom(-10) },
+    { sep: true },
+    { label: 'Повернуть по часовой', keys: 'Ctrl+Shift+=', action: () => a.rotate(90) },
+    { label: 'Повернуть против часовой', keys: 'Ctrl+Shift+−', action: () => a.rotate(-90) },
+    { sep: true },
+    { label: 'Выделение', keys: 'V', checked: tool === 'select', action: () => a.tool('select') },
+    { label: 'Рука', keys: 'H', checked: tool === 'hand', action: () => a.tool('hand') },
+    { label: 'Лупа', keys: 'Z', checked: tool === 'zoom', action: () => a.tool('zoom') },
+    ...(isDoc && d ? [
+      { sep: true },
+      { label: sel > 1 ? `Убрать выбранные страницы · ${sel}…` : `Убрать страницу ${st ? st.page : ''}…`,
+        keys: 'Ctrl+Shift+D', danger: true, disabled: !d.pages || d.pages.length < 2, action: a.deletePages },
+      { sep: true },
+      { label: 'Скачать', keys: 'Ctrl+S', disabled: !d.file, action: a.download },
+      { label: 'Печать', keys: 'Ctrl+P', disabled: !d.file, action: a.print },
+      { label: 'Свойства документа', keys: 'Ctrl+D', action: a.properties },
+    ] : []),
+    { sep: true },
+    { label: 'Миниатюры', keys: 'F4', checked: ctx.ui.railCollapsed !== true, action: a.rail },
+    ...(ctx.isPopout ? [] : [
+      { label: 'Раскрыть во всю высоту', keys: 'F', checked: !!ctx.ui.viewerDock, action: a.dock },
+      { label: 'Во весь экран', keys: 'Ctrl+L', checked: !!ctx.ui.viewerFull, action: a.full },
+      { label: 'В отдельном окне', action: () => openPopout(ctx, viewerKeydown) },
+    ]),
+    { sep: true },
+    { label: 'Горячие клавиши', keys: '?', action: a.help },
+  ];
+}
+
+// Меню миниатюры: перейти, переставить в начало или конец, убрать.
+function thumbMenuItems(ctx, n) {
+  const t = currentTab(ctx);
+  const d = t && docOf(ctx, t.sc, t.id);
+  if (!d) return [];
+  const sel = ctx.ui.pageSel || [];
+  const many = sel.length > 1 && sel.includes(n);
+  const move = (to) => {
+    const idxs = many ? sel.slice().sort((x, y) => x - y) : [n];
+    reorderPages(d, idxs, to === 'start' ? 1 : d.pages.length + 1);
+    pushDocPageLog(ctx.rec, d, 'move', to === 'start' ? 1 : d.pages.length);
+    ctx.ui.pageSel = [];
+    ctx.render();
+  };
+  return [
+    { label: `Открыть страницу ${n}`, action: () => jumpTo(ctx, n) },
+    { sep: true },
+    { label: 'Переместить в начало', disabled: n === 1 && !many, action: () => move('start') },
+    { label: 'Переместить в конец', disabled: n === d.pages.length && !many, action: () => move('end') },
+    { sep: true },
+    { label: many ? `Убрать выбранные · ${sel.length}…` : `Убрать страницу ${n}…`, keys: 'Ctrl+Shift+D',
+      danger: true, disabled: d.pages.length < 2,
+      action: () => { if (!many) ctx.ui.pageSel = [n]; deletePages(ctx); } },
+  ];
+}
+
+// Правая кнопка по ленте и по миниатюрам. По листу — сначала делаем его
+// текущим: «Убрать страницу» должно относиться к тому листу, по которому
+// щёлкнули, а не к тому, что сверху.
+function bindContextMenus(ctx) {
+  const s = ctx.scope;
+  const doc = s.root.ownerDocument;
+  const stage = s.$('[data-vstage]');
+  if (stage) stage.oncontextmenu = (e) => {
+    e.preventDefault();
+    const blk = e.target.closest('[data-vpageblk]');
+    const st = vSt(ctx);
+    if (blk && st) {
+      st.page = +blk.dataset.vpageblk;
+      const inp = s.$('[data-vpage]');
+      if (inp) inp.value = st.page;
+    }
+    showMenu(doc, e.clientX, e.clientY, stageMenuItems(ctx), stage);
+  };
+  s.$$('[data-vthumb]').forEach((el) => el.oncontextmenu = (e) => {
+    e.preventDefault();
+    showMenu(doc, e.clientX, e.clientY, thumbMenuItems(ctx, +el.dataset.vthumb), el);
+  });
 }
 
 export function bindViewer(ctx) {
@@ -192,7 +376,7 @@ export function bindViewer(ctx) {
   });
 
   const vp = s.$('[data-vpage]');
-  if (vp) vp.onchange = () => vGo(ctx, +vp.value || 1);
+  if (vp) vp.onchange = () => jumpTo(ctx, +vp.value || 1);
 
   const vpr = s.$('[data-vprev]');
   if (vpr) vpr.onclick = () => { const st = vSt(ctx); if (st) vGo(ctx, st.page - 1); };
@@ -213,6 +397,9 @@ export function bindViewer(ctx) {
 
   const vf = s.$('[data-vfull]');
   if (vf) vf.onclick = () => toggleFull(ctx);
+
+  const vh = s.$('[data-vhelp]');
+  if (vh) vh.onclick = () => showKeysHelp(s.root.ownerDocument);
 
   const vdk = s.$('[data-vdock]');
   if (vdk) vdk.onclick = () => toggleDock(ctx);
@@ -275,36 +462,9 @@ export function bindViewer(ctx) {
 
   // Убрать документ в архив (kernel/archive.js). Не удаление: документ уходит
   // в общий архив, где его можно найти и вернуть — решение пользователя
-  // 2026-09-02. Вкладка документа закрывается, файл остаётся доступным.
+  // 2026-09-02.
   const va = s.$('[data-varchive]');
-  if (va) va.onclick = async () => {
-    const docId = va.dataset.varchive;
-    const vd = ctx.ui.viewerDoc;
-    if (!vd) return;
-
-    const ok = await ctx.host.confirm({
-      title: 'Убрать документ в архив?',
-      text: 'Документ исчезнет из карточки, но останется в архиве — его можно будет найти и вернуть.',
-      okLabel: 'В архив',
-    });
-    if (!ok) return;
-
-    const oi = vd.scope === 'oc' ? null : (ctx.rec.oi || []).find((o) => o.id === vd.scope);
-    const entry = archiveDoc({
-      rec: ctx.rec, oi, docId,
-      typeId: 'civil', typeLabel: 'Гражданское здание', today: ctx.today,
-    });
-    if (!entry) return;
-
-    // Вкладка архивированного документа больше не имеет смысла.
-    const tabs = VS.openTabs[vd.scope] || [];
-    VS.openTabs[vd.scope] = tabs.filter((x) => x !== docId);
-    const rest = VS.openTabs[vd.scope];
-    ctx.ui.viewerDoc = rest.length ? { scope: vd.scope, id: rest[rest.length - 1] } : null;
-
-    ctx.render();
-    ctx.toast('Документ в архиве: ' + entry.name, 'ok');
-  };
+  if (va) va.onclick = () => { const t = currentTab(ctx); if (t) archiveTab(ctx, t.sc, t.id); };
 
   const vo = s.$('[data-vopen]');
   if (vo) vo.onclick = () => {
@@ -320,7 +480,8 @@ export function bindViewer(ctx) {
 
   s.$$('[data-vthumb]').forEach((t) => t.onclick = (e) => {
     if (e.target.closest('[data-vdelpage]')) return;
-    vGo(ctx, +t.dataset.vthumb);
+    if (e.ctrlKey || e.metaKey) return;
+    jumpTo(ctx, +t.dataset.vthumb);
   });
 
   s.$$('[data-vdelpage]').forEach((b) => b.onclick = async (e) => {
@@ -337,34 +498,8 @@ export function bindViewer(ctx) {
     ctx.render();
   });
 
-  // Вкладки документов просмотрщика.
-  s.$$('[data-vtab]').forEach((b) => b.onclick = (e) => {
-    if (e.target.closest('[data-vtabclose]')) return;
-    const [sc, id] = b.dataset.vtab.split('|');
-    ctx.ui.viewerDoc = { scope: sc, id };
-    ctx.ui.viewer = { mode: 'doc' };
-    ctx.render();
-  });
-
-  s.$$('[data-vtabclose]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const [sc, id] = b.dataset.vtabclose.split('|');
-    VS.openTabs[sc] = (VS.openTabs[sc] || []).filter((x) => x !== id);
-    if (ctx.ui.viewerDoc && ctx.ui.viewerDoc.scope === sc && ctx.ui.viewerDoc.id === id) {
-      const rest = VS.openTabs[sc] || [];
-      ctx.ui.viewerDoc = rest.length ? { scope: sc, id: rest[rest.length - 1] } : null;
-      // Просмотрщик остаётся видимым, даже если закрыты все вкладки — он
-      // индикатор наличия документов и покажет приглашение открыть/прикрепить.
-      // Прячется только явным крестиком (data-vclose).
-    }
-    ctx.render();
-  });
-
-  s.$$('[data-vaddtab]').forEach((b) => b.onclick = (e) => {
-    e.stopPropagation();
-    const [sc, id] = b.dataset.vaddtab.split('|');
-    openDocViewer(ctx, sc, id);
-  });
+  // Вкладки, «+» и прикрепление файлов — parts/viewer/tabs.js.
+  bindTabs(ctx, viewerKeydown);
 
   // Переход к категории фото.
   const vj = s.$('[data-vjump]');
@@ -407,25 +542,12 @@ export function bindViewer(ctx) {
     ctx.toast(`Фото «${cur.cat}» перенесено к литере ${dst.letter}`, 'ok');
   };
 
-  // Прикрепление документа из пустого просмотрщика.
-  // Исправление дефекта макета: документ уходит в тот scope, который открыт,
-  // а не всегда в документы ОЦ.
-  s.$$('[data-attach-default]').forEach((b) => b.onclick = async (e) => {
+  // Прикрепление: выбор нескольких файлов сразу (files.js). Перетаскивание и
+  // вставка из буфера навешены один раз на модуль (bindFileDrop в index.js).
+  s.$$('[data-vattach], [data-attach-default]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
-    const scope = (ctx.view === 'oi' && ctx.oi) ? ctx.oi.id : 'oc';
-
-    const type = await ctx.host.select({ title: 'Тип документа', options: opt('oc', 'docType', DOC_TYPES) });
-    if (!type) return;
-    const file = await pickFile();
-    if (!file) return;
-    if (isFileTooLarge(file)) { ctx.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
-
-    const list = docListFor(ctx, scope);
-    const doc = { id: nextDocId(ctx.rec), type, name: file.name, date: ctx.today, file: await attachedFileFrom(file), pages: null };
-    list.push(doc);
-
-    openDocViewer(ctx, scope, doc.id);
-    ctx.toast('Документ прикреплён: ' + type, 'ok');
+    b.closest('.dd') && b.closest('.dd').classList.remove('open');
+    attachFiles(ctx, await pickFiles());
   });
 
   bindCompareColumns(ctx);
@@ -444,6 +566,7 @@ export function bindViewer(ctx) {
       vstageEl.scrollTop = st.scroll || 0;
       watchStage(ctx, vstageEl);
       bindPan(vstageEl);
+      vstageEl.addEventListener('vzoomtool', (ev) => zoomViewer(ctx, VS.zoom + ev.detail));
 
       vstageEl.addEventListener('scroll', () => {
         st.scroll = vstageEl.scrollTop;
@@ -479,6 +602,7 @@ export function bindViewer(ctx) {
   }
 
   bindThumbReorder(ctx);
+  bindContextMenus(ctx);
 
   // Страницы реального PDF рисуются после того, как разметка уже в DOM.
   paintPdfCanvases(ctx, VS.zoom);
@@ -513,13 +637,23 @@ function watchStage(ctx, stage) {
 // фото: pan при увеличении). Только когда есть куда двигать — иначе обычный
 // клик по листу ничего не делает. Кнопки, поля и миниатюры не трогаем.
 function bindPan(stage) {
-  const canPan = () => stage.scrollWidth > stage.clientWidth + 2 || VS.zoom > 100;
+  const canPan = () => VS.tool === 'hand' || VS.spaceHand
+    || stage.scrollWidth > stage.clientWidth + 2 || VS.zoom > 100;
+  stage.classList.toggle('tool-hand', VS.tool === 'hand');
+  stage.classList.toggle('tool-zoom', VS.tool === 'zoom');
   const mark = () => stage.classList.toggle('can-pan', canPan());
   mark();
   stage.addEventListener('scroll', mark, { passive: true });
 
   stage.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || !canPan() || e.target.closest('button, input, select, a, [data-vthumb]')) return;
+    if (e.button !== 0 || e.target.closest('button, input, select, a, [data-vthumb]')) return;
+    // Лупа (Z): щелчок — ближе, с Alt — дальше.
+    if (VS.tool === 'zoom' && !VS.spaceHand) {
+      e.preventDefault();
+      stage.dispatchEvent(new CustomEvent('vzoomtool', { detail: e.altKey ? -25 : 25 }));
+      return;
+    }
+    if (!canPan()) return;
     const start = { x: e.clientX, y: e.clientY, l: stage.scrollLeft, t: stage.scrollTop };
     stage.setPointerCapture(e.pointerId);
     stage.classList.add('panning');

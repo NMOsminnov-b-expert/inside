@@ -8,7 +8,7 @@
 обратно правкой стилей или разметки:
 
   * над листом ОДНА панель: полос «режимы» и «инструменты» по отдельности
-    нет, строки вкладок при одном открытом документе нет;
+    нет; строка вкладок с «+» одна и тонкая;
   * «по ширине» — лист во всю ширину ленты; «целиком» — лист помещается по
     высоте; 100% масштаба — выбранный режим;
   * смена режима «документы / фото» возвращает масштаб к 100%;
@@ -71,18 +71,21 @@ def run(t):
     pg.set_viewport_size({'width': 1600, 'height': 900})
 
     t.open(OC, wait='.viewer')
-    pg.locator('[data-attach-default]').first.click()
-    t.wait_for('[data-modal-opt]')
     with pg.expect_file_chooser() as fc:
-        pg.locator('[data-modal-opt]').first.click()
+        pg.locator('.vdrop-card [data-vattach]').click()
     fc.value.set_files({'name': 'tekhpasport.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf()})
+    t.wait_for('[data-att-ok]')
+    pg.click('[data-att-ok]')
     t.wait_for('.vstage canvas.ready', timeout=15000)
 
     # --- одна панель ---------------------------------------------------------------
     t.ck(pg.locator('.viewer .vbar').count() == 1, 'над листом нет общей панели')
     t.ck(pg.locator('.viewer .vmode, .viewer .vtoolbar').count() == 0,
          'вернулись отдельные полосы режимов и инструментов')
-    t.ck(pg.locator('.viewer .vtabs').count() == 0, 'строка вкладок при одном открытом документе')
+    # Строка вкладок видна всегда — с «+» (требование пользователя 21.09.2026:
+    # «нет возможности открыть ещё один документ»); она тонкая, 31px.
+    t.ck(pg.locator('.viewer .vtabs .vtab').count() == 1 and pg.locator('.viewer .vtab-plus').count() == 1,
+         'нет строки вкладок с кнопкой «+»')
 
     # --- по ширине -----------------------------------------------------------------
     g = pg.evaluate(GEOM)

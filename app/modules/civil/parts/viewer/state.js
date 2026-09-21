@@ -38,9 +38,35 @@ export function applyFit(ctx) {
   ribbon.classList.toggle('fit-width', VS.fit[fitKey(ctx)] !== 'page');
 }
 
+// Порядок вкладок — общий на объект оценки и его литеры: вкладки стоят одной
+// строкой, и человек переставляет их перетаскиванием (требование пользователя
+// 21.09.2026). Ключ вкладки — «область|документ».
+VS.tabOrder = [];
+
+export const tabKey = (scope, id) => `${scope}|${id}`;
+
 export function openTabOnly(scope, id) {
   VS.openTabs[scope] = VS.openTabs[scope] || [];
   if (!VS.openTabs[scope].includes(id)) VS.openTabs[scope].push(id);
+  if (!VS.tabOrder.includes(tabKey(scope, id))) VS.tabOrder.push(tabKey(scope, id));
+}
+
+// Области документов, видимые из текущего экрана: в карточке литеры — её
+// документы и документы объекта оценки, в карточке объекта — только его.
+export function scopesOf(ctx) {
+  if (ctx.view === 'oi' && ctx.oi) return [ctx.oi.id, 'oc'];
+  return ['oc'];
+}
+
+// Открытые вкладки видимых областей — в порядке, заданном человеком.
+export function orderedTabs(scopes) {
+  const all = [];
+  scopes.forEach((sc) => (VS.openTabs[sc] || []).forEach((id) => all.push({ sc, id })));
+  const pos = (x) => {
+    const i = VS.tabOrder.indexOf(tabKey(x.sc, x.id));
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return all.sort((a, b) => pos(a) - pos(b));
 }
 
 export function openDocViewer(ctx, scope, id) {

@@ -27,6 +27,7 @@ import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
 import { watchDockArea } from './parts/viewer/dock.js';
+import { bindFileDrop } from './parts/viewer/files.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { bindSplitPanes, viewerHTML } from './parts/viewer/shell.js';
 import { renderPopout } from './parts/viewer/popout.js';
@@ -434,6 +435,8 @@ export function main(host) {
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
   watchDockArea(ctx);
+  // Файлы: перетаскивание на карточку и вставка Ctrl+V (parts/viewer/files.js).
+  bindFileDrop(ctx);
   ensureViewerDefault();
   migrateMovable(rec);
   migrateMechUnits(rec);

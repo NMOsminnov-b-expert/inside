@@ -1,6 +1,6 @@
 import { docListFor, ensureDocPages } from '../docs/model.js';
 import { photoPages, photoGroups } from '../photos/model.js';
-import { VS } from './state.js';
+import { VS, scopesOf, orderedTabs } from './state.js';
 import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
 import { renderCompareMode } from './compare.js';
@@ -20,14 +20,12 @@ function buildViewerContext(ctx) {
       ? (ctx.rec.oi || []).find((o) => o.id === ctx.ui.viewerPhotoOi)
       : null);
 
-  const scopes = inOi
-    ? ((oi && (oi.docs || []).length ? [oi.id, 'oc'] : ((ctx.rec.docs || []).length ? ['oc'] : [])))
-    : ['oc'];
+  // Области документов: в литере — её и объекта оценки (state.js, scopesOf).
+  const scopes = scopesOf(ctx);
 
   if (mode !== 'photo') {
     let vd = ctx.ui.viewerDoc;
-    const all = [];
-    scopes.forEach((sc) => { (VS.openTabs[sc] || []).forEach((id) => all.push({ scope: sc, id })); });
+    const all = orderedTabs(scopes).map((x) => ({ scope: x.sc, id: x.id }));
     if (!vd || !all.some((x) => x.scope === vd.scope && x.id === vd.id)) {
       vd = all.length ? all[all.length - 1] : null;
       ctx.ui.viewerDoc = vd;
@@ -104,6 +102,7 @@ export function viewerHTML(ctx) {
     ${parts.tools || ''}
     <div class="tool-group right">
       ${parts.right || ''}
+      <button class="tool-btn" data-vhelp title="Горячие клавиши (?)" aria-label="Горячие клавиши">?</button>
       ${railBtn}
       ${ctx.isPopout ? `<button class="tool-btn" data-vpop-back title="Вернуть просмотрщик в карточку">${ICON_POPIN}</button>` : `
       <button class="tool-btn ${dock ? 'on' : ''}" data-vdock aria-pressed="${dock}"

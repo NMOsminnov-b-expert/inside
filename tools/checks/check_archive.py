@@ -56,17 +56,17 @@ def run(t):
     try:
         # --- прикрепляем документ ---
         t.open('#/oc/civil/oc-cv-1')
-        pg.locator('button:has-text("Прикрепить файл")').first.click()
-        t.wait_for('[data-modal-opt]')
+        # С 21.09.2026 прикрепление — выбором нескольких файлов и окном, где у
+        # каждого файла своё имя и вид (parts/viewer/files.js).
         with pg.expect_file_chooser() as fc:
-            pg.locator('[data-modal-opt]').first.click()
+            pg.locator('.vdrop-card [data-vattach]').click()
         fc.value.set_files(PDF_PATH)
+        t.wait_for('[data-att-ok]')
+        pg.click('[data-att-ok]')
         # Документ открывается после разбора файла (PDF.js грузится
-        # динамически), а страница в это время не меняется — ждём заголовок
-        # документа, а не время.
-        t.wait_until("() => [...document.querySelectorAll('.vtitle')]"
-                     ".some((e) => e.textContent.includes('_tmp_check.pdf'))")
-        t.ck('_tmp_check.pdf' in pg.locator('.vtitle').first.inner_text(),
+        # динамически) — ждём его вкладку, а не время. Полное имя — в
+        # подсказке вкладки.
+        t.ck(t.wait_until("() => !!document.querySelector('.vtab.active[title*=\"_tmp_check.pdf\"]')"),
              'документ не открылся после прикрепления')
 
         # --- убираем в архив ---

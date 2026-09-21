@@ -80,6 +80,17 @@ export async function getPdfPageCount(blobUrl) {
   }
 }
 
+// Ширина страницы в пунктах — для «реального размера» (Ctrl+1, как в Acrobat):
+// 1 пункт = 1/72 дюйма, на экране 96 точек на дюйм.
+export async function getPdfPageWidthPt(blobUrl, n) {
+  try {
+    const doc = await loadDoc(blobUrl);
+    return (await doc.getPage(Math.min(n, doc.numPages))).getViewport({ scale: 1 }).width;
+  } catch (e) {
+    return 0;
+  }
+}
+
 // Соотношение сторон КАЖДОЙ страницы — чтобы лист принял пропорции реальной
 // страницы ещё до её отрисовки. Раньше бралась пропорция только первой страницы
 // и применялась ко всем: в документе со смешанной ориентацией альбомная
