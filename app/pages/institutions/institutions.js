@@ -33,7 +33,7 @@ import {
 } from '../../kernel/documentsRegistry.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { archiveRegistryDoc } from '../../kernel/archive.js';
-import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
+import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
 
 const state = {
   mode: 'tree',        // 'tree' — по иерархии, 'region' — по регионам
@@ -56,7 +56,7 @@ const state = {
   docOpen: null,       // id документа, показанного в просмотрщике
   docFile: null,       // активный файл внутри документа
   docNew: null,        // черновик нового документа: { type, number, date, files }
-  docAttach: null,     // панель прикрепления: { q, preview }
+  docAttach: null,     // панель прикрепления: { q, preview, file }
   docList: true,       // показан ли список документов рядом с просмотрщиком
 
   // Сводная вкладка: фильтры по объектам всего поддерева (allObjects.js).
@@ -398,7 +398,7 @@ function docViewHTML(doc, edit, emptyTitle, emptyHint) {
   }
 
   const files = doc.files || [];
-  if (files.length) return viewerHTML(doc, state.docFile);
+  if (files.length) return pageViewerHTML(doc, { activeFileId: state.docFile });
 
   return `<div class="iempty small view">
     <b>${esc(doc.type || 'Документ')}: файлов нет</b>
@@ -910,8 +910,9 @@ export function mountInstitutions(host) {
   }
   if (state.selected) pathOf(state.selected).forEach((n) => { state.open[n.id] = true; });
   document.body.dataset.page = 'institutions';
-  // Просмотрщик документов общий с реестром «Документы» (kernel/docViewer.js).
-  host.ensureStyle('./app/kernel/docViewer.css');
+  // Просмотрщик документов общий с реестром «Документы» и карточками ОЦ
+  // (kernel/viewer/pageViewer.js). Клавиши — один раз за монтирование раздела.
+  bindPageViewerKeys(scope);
   setActiveNav('inst');
 
   function crumbs() {
@@ -1383,10 +1384,11 @@ export function mountInstitutions(host) {
     if (state.docOpen) {
       const doc = getDocument(state.docOpen);
       if (doc) {
-        bindViewer(scope, {
-          doc,
+        bindPageViewer(scope, doc, {
+          host,
+          within: '.idocs-view',
           activeFileId: state.docFile,
-          onFileChange: (fileId) => { state.docFile = fileId; render(); },
+          onChange: (fileId) => { state.docFile = fileId; render(); },
         });
       }
     }
@@ -1491,7 +1493,7 @@ export function mountInstitutions(host) {
     // Прикрепление существующего: список слева, предпросмотр справа.
     const attachDocOpen = scope.$('[data-idoc-attach-open]');
     if (attachDocOpen) attachDocOpen.onclick = () => {
-      state.docAttach = { q: '', preview: null };
+      state.docAttach = { q: '', preview: null, file: null };
       state.docNew = null;
       render();
     };
@@ -1511,12 +1513,23 @@ export function mountInstitutions(host) {
     scope.$$('[data-idoc-preview]').forEach((row) => row.onclick = (e) => {
       if (e.target.closest('[data-idoc-attach-apply]')) return;
       state.docAttach.preview = row.dataset.idocPreview;
+      state.docAttach.file = null;
       render();
     });
 
     if (state.docAttach && state.docAttach.preview) {
       const doc = getDocument(state.docAttach.preview);
-      if (doc) bindViewer(scope, { doc, activeFileId: null, onFileChange() {} });
+      // Предпросмотр при прикреплении — второй просмотрщик на том же экране,
+      // поэтому свой корень (within) и без горячих клавиш.
+      if (doc) {
+        bindPageViewer(scope, doc, {
+          host,
+          within: '.idoc-attach-view',
+          keys: false,
+          activeFileId: state.docAttach.file,
+          onChange: (fileId) => { state.docAttach.file = fileId; render(); },
+        });
+      }
     }
 
     scope.$$('[data-idoc-attach-apply]').forEach((b) => b.onclick = (e) => {

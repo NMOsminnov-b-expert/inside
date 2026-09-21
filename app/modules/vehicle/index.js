@@ -9,7 +9,6 @@ function todayStr() {
 }
 
 export function main(host) {
-  host.ensureStyle('./app/kernel/docViewer.css');
   const scope = host.scope;
   let route = host.route;
   let rec = loadRecord(route.ocId);

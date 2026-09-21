@@ -10,6 +10,7 @@ import {
   docProperties, deletePages,
 } from './docActions.js';
 import { KEYMAP } from './keys.js';
+import { can } from './deps.js';
 import { showMenu } from './menu.js';
 import { showKeysHelp } from './keysHelp.js';
 import { bindTabs } from './tabs.js';
@@ -220,15 +221,15 @@ function keyActions(ctx) {
   const withTab = (fn) => () => { const x = cur(); if (x) fn(ctx, x.sc, x.id); };
   const popout = !!ctx.isPopout;
   return {
-    attach: async () => attachFiles(ctx, await pickFiles(ctx.scope.root.ownerDocument)),
-    closeTab: () => closeTab(ctx),
-    closeAll: () => closeAll(ctx),
+    attach: async () => { if (can('attach')) attachFiles(ctx, await pickFiles(ctx.scope.root.ownerDocument)); },
+    closeTab: () => { if (can('closeTabs')) closeTab(ctx); },
+    closeAll: () => { if (can('closeTabs')) closeAll(ctx); },
     stepDoc: (dir) => stepDoc(ctx, dir),
     shiftTab: (dir) => shiftTab(ctx, dir),
     download: withTab(downloadDoc),
     print: withTab(printDoc),
     properties: withTab(docProperties),
-    deletePages: () => deletePages(ctx),
+    deletePages: () => { if (can('editPages')) deletePages(ctx); },
     page: (dir) => { if (st) vGo(ctx, st.page + dir); },
     jump: (n) => jumpTo(ctx, n < 0 ? vPages(ctx).length : n),
     goto: () => { const i = ctx.scope.$('[data-vpage]'); if (i) { i.focus(); i.select(); } },
@@ -239,7 +240,7 @@ function keyActions(ctx) {
     zoomReset: () => zoomViewer(ctx, 100),
     rotate: (deg) => rotateViewer(ctx, deg),
     rail: () => { ctx.ui.railCollapsed = !ctx.ui.railCollapsed; ctx.render(); },
-    dock: () => { if (!popout) toggleDock(ctx); },
+    dock: () => { if (!popout && can('dock')) toggleDock(ctx); },
     full: () => { if (!popout) toggleFull(ctx); },
     tool: (name) => setTool(ctx, name),
     menu: () => {
@@ -288,9 +289,9 @@ function stageMenuItems(ctx) {
     { label: 'Лупа', keys: 'Z', checked: tool === 'zoom', action: () => a.tool('zoom') },
     ...(isDoc && d ? [
       { sep: true },
-      { label: sel > 1 ? `Убрать выбранные страницы · ${sel}…` : `Убрать страницу ${st ? st.page : ''}…`,
+      ...(can('editPages') ? [{ label: sel > 1 ? `Убрать выбранные страницы · ${sel}…` : `Убрать страницу ${st ? st.page : ''}…`,
         keys: 'Ctrl+Shift+D', danger: true, disabled: !d.pages || d.pages.length < 2, action: a.deletePages },
-      { sep: true },
+      { sep: true }] : []),
       { label: 'Скачать', keys: 'Ctrl+S', disabled: !d.file, action: a.download },
       { label: 'Печать', keys: 'Ctrl+P', disabled: !d.file, action: a.print },
       { label: 'Свойства документа', keys: 'Ctrl+D', action: a.properties },
@@ -298,9 +299,9 @@ function stageMenuItems(ctx) {
     { sep: true },
     { label: 'Миниатюры', keys: 'F4', checked: ctx.ui.railCollapsed !== true, action: a.rail },
     ...(ctx.isPopout ? [] : [
-      { label: 'Раскрыть во всю высоту', keys: 'F', checked: !!ctx.ui.viewerDock, action: a.dock },
+      ...(can('dock') ? [{ label: 'Раскрыть во всю высоту', keys: 'F', checked: !!ctx.ui.viewerDock, action: a.dock }] : []),
       { label: 'Во весь экран', keys: 'Ctrl+L', checked: !!ctx.ui.viewerFull, action: a.full },
-      { label: 'В отдельном окне', action: () => openPopout(ctx, viewerKeydown) },
+      ...(can('popout') ? [{ label: 'В отдельном окне', action: () => openPopout(ctx, viewerKeydown) }] : []),
     ]),
     { sep: true },
     { label: 'Горячие клавиши', keys: '?', action: a.help },

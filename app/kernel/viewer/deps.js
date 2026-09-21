@@ -24,6 +24,14 @@ function need() {
   return deps;
 }
 
+// Что доступно в этом окружении: у карточки ОЦ — всё, у страниц «Документы» и
+// «Учреждения» нет фото, сравнения, прикрепления, архива и правки страниц
+// (kernel/viewer/pageViewer.js). По умолчанию доступно всё.
+export const can = (what) => {
+  const c = need().can;
+  return !c || c[what] !== false;
+};
+
 // --- документы ---------------------------------------------------------------
 export const docListFor = (ctx, scope) => need().docListFor(ctx, scope);
 export const ensureDocPages = (d) => need().ensureDocPages(d);

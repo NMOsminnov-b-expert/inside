@@ -5,6 +5,7 @@ import {
 } from './docActions.js';
 import { tabKey } from './state.js';
 import { openPopout } from './popout.js';
+import { can } from './deps.js';
 
 // Вкладки документов: переключение, закрытие, перестановка перетаскиванием,
 // клавиатура и контекстное меню (требование пользователя 21.09.2026).
@@ -20,7 +21,7 @@ export function tabMenuItems(ctx, sc, id, onKey) {
   const at = list.findIndex((x) => x.sc === sc && x.id === id);
   const d = docOf(ctx, sc, id);
   const hasFile = !!(d && d.file);
-  return [
+  const items = [
     { label: 'Закрыть', keys: 'Alt+W', action: () => closeTab(ctx, sc, id) },
     { label: 'Закрыть другие', disabled: list.length < 2, action: () => closeOthers(ctx, sc, id) },
     { label: 'Закрыть справа', disabled: at < 0 || at === list.length - 1, action: () => closeRight(ctx, sc, id) },
@@ -36,6 +37,15 @@ export function tabMenuItems(ctx, sc, id, onKey) {
     { sep: true },
     { label: 'Убрать в архив…', danger: true, action: () => archiveTab(ctx, sc, id) },
   ];
+
+  // На страницах «Документы» и «Учреждения» вкладка — файл документа: закрывать
+  // её, переименовывать и убирать в архив нечего (kernel/viewer/pageViewer.js).
+  const off = [];
+  if (!can('closeTabs')) off.push('Закрыть', 'Закрыть другие', 'Закрыть справа', 'Закрыть все');
+  if (!can('editDoc')) off.push('Переименовать…', 'Изменить вид…');
+  if (!can('archive')) off.push('Убрать в архив…');
+  if (!can('popout')) off.push('Открыть в отдельном окне');
+  return items.filter((it) => it.sep || !off.includes(it.label));
 }
 
 export function bindTabs(ctx, onKey) {

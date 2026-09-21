@@ -7,6 +7,7 @@ import {
   ICON_RAIL, ICON_FULL, ICON_FULL_EXIT, ICON_DOCK, ICON_DOCK_EXIT, ICON_POPOUT, ICON_POPIN,
 } from './icons.js';
 import { isPopoutOpen } from './popout.js';
+import { can } from './deps.js';
 import { docListFor, ensureDocPages, photoPages, photoGroups } from './deps.js';
 
 function buildViewerContext(ctx) {
@@ -82,8 +83,8 @@ export function viewerHTML(ctx) {
 
   // Кнопка-гамбургер открывает сайдбар выбора (см. sidebar.js): оттуда
   // доступен любой документ записи ОЦ и любое фото, а не только уже открытое.
-  const burger = `<button class="vburger ${ctx.ui.viewerSidebar ? 'on' : ''}" data-vsb-toggle
-    title="Выбрать документ или фото" aria-label="Выбрать документ или фото"><span></span><span></span><span></span></button>`;
+  const burger = can('sidebar') ? `<button class="vburger ${ctx.ui.viewerSidebar ? 'on' : ''}" data-vsb-toggle
+    title="Выбрать документ или фото" aria-label="Выбрать документ или фото"><span></span><span></span><span></span></button>` : '';
 
   const mode = (key, label) => `<button class="vmode-btn ${vctx.mode === key ? 'active' : ''}"
     data-vmode="${key}" aria-pressed="${vctx.mode === key}">${label}</button>`;
@@ -96,7 +97,7 @@ export function viewerHTML(ctx) {
 
   const bar = `<div class="vbar">
     <div class="tool-group vbar-modes">${burger}
-      <div class="vmodes">${mode('photo', `Фото · ${vctx.photoCount}`)}${mode('doc', 'Документы')}${mode('compare', 'Сравнение')}</div>
+      ${can('photo') || can('compare') ? `<div class="vmodes">${can('photo') ? mode('photo', `Фото · ${vctx.photoCount}`) : ''}${mode('doc', 'Документы')}${can('compare') ? mode('compare', 'Сравнение') : ''}</div>` : ''}
     </div>
     ${parts.tools || ''}
     <div class="tool-group right">
@@ -104,17 +105,17 @@ export function viewerHTML(ctx) {
       <button class="tool-btn" data-vhelp title="Горячие клавиши (?)" aria-label="Горячие клавиши">?</button>
       ${railBtn}
       ${ctx.isPopout ? `<button class="tool-btn" data-vpop-back title="Вернуть просмотрщик в карточку">${ICON_POPIN}</button>` : `
-      <button class="tool-btn ${dock ? 'on' : ''}" data-vdock aria-pressed="${dock}"
-        title="${dock ? 'Вернуть под шапку (F)' : 'Раскрыть во всю высоту: документ слева, карточка справа (F)'}">${dock ? ICON_DOCK_EXIT : ICON_DOCK}</button>
+      ${can('dock') ? `<button class="tool-btn ${dock ? 'on' : ''}" data-vdock aria-pressed="${dock}"
+        title="${dock ? 'Вернуть под шапку (F)' : 'Раскрыть во всю высоту: документ слева, карточка справа (F)'}">${dock ? ICON_DOCK_EXIT : ICON_DOCK}</button>` : ''}
       <button class="tool-btn" data-vfull aria-pressed="${full}"
         title="${full ? 'Вернуть (Esc)' : 'На весь экран поверх карточки (Shift+F)'}">${full ? ICON_FULL_EXIT : ICON_FULL}</button>
-      <button class="tool-btn" data-vpopout title="Открыть в отдельном окне — например, на втором мониторе">${ICON_POPOUT}</button>
-      <button class="tool-btn" data-vclose title="Закрыть просмотрщик" aria-label="Закрыть просмотрщик">×</button>`}
+      ${can('popout') ? `<button class="tool-btn" data-vpopout title="Открыть в отдельном окне — например, на втором мониторе">${ICON_POPOUT}</button>` : ''}
+      ${ctx.isPage ? '' : `<button class="tool-btn" data-vclose title="Закрыть просмотрщик" aria-label="Закрыть просмотрщик">×</button>`}`}
     </div>
   </div>`;
 
   return `<div class="viewer ${full ? 'is-full' : ''}" ${full ? 'role="dialog" aria-modal="true" aria-label="Просмотр во весь экран"' : ''}>
-    ${bar}${parts.tabsBar || ''}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}
+    ${bar}${parts.tabsBar || ''}${parts.body}${can('sidebar') ? viewerSidebarHTML(ctx, vctx.mode) : ''}
     ${dock && !full ? '<div class="vdock-grip" data-vdock-grip title="Потяните, чтобы изменить ширину документа"></div>' : ''}</div>`;
 }
 

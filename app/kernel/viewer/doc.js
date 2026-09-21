@@ -4,6 +4,7 @@ import { tabKey } from './state.js';
 import { ICON_ARCHIVE, ICON_UPLOAD } from './icons.js';
 import { pagerHTML, zoomHTML, rotateHTML } from './tools.js';
 import { tabs, notOpened, tabLabel } from './docActions.js';
+import { can } from './deps.js';
 import { docListFor, scopeLabel } from './deps.js';
 
 // Страница реального PDF — canvas внутри обычного листа, который асинхронно
@@ -65,24 +66,24 @@ function tabsBarHTML(ctx, vd) {
     return `<div class="vtab ${on ? 'active' : ''}" role="tab" aria-selected="${on}" tabindex="${on ? 0 : -1}"
       data-vtab="${key}" draggable="true" title="${esc(d.type)} · ${esc(d.name)}">
       <span class="vtab-t">${esc(tabLabel(x.sc, d))}</span>
-      <button type="button" class="vtab-x" data-vtabclose="${key}" tabindex="-1"
-        title="Закрыть вкладку (Alt+W)" aria-label="Закрыть «${esc(d.name)}»">×</button>
+      ${can('closeTabs') ? `<button type="button" class="vtab-x" data-vtabclose="${key}" tabindex="-1"
+        title="Закрыть вкладку (Alt+W)" aria-label="Закрыть «${esc(d.name)}»">×</button>` : ''}
     </div>`;
   };
   // Вкладки — в своей прокручиваемой полосе, а «+» рядом, вне прокрутки: иначе
   // меню «+» обрезалось бы краем полосы.
   return `<div class="vtabs">
     <div class="vtabs-list" role="tablist" aria-label="Открытые документы">${list.map(tab).join('')}</div>
-    <div class="dd vtab-add">
+    ${!can('attach') && !rest.length ? '' : `<div class="dd vtab-add">
       <button type="button" class="vtab-plus" data-dd-toggle title="Открыть или прикрепить документ (Ctrl+O)"
         aria-label="Открыть или прикрепить документ">+</button>
       <div class="dd-menu">
-        <button data-vattach><span>Прикрепить файлы…</span><kbd>Ctrl+O</kbd></button>
+        ${can('attach') ? '<button data-vattach><span>Прикрепить файлы…</span><kbd>Ctrl+O</kbd></button>' : ''}
         ${rest.length ? '<div class="dd-sep"></div><div class="dd-cap">Документы записи</div>' : ''}
         ${rest.map((x) => `<button data-vaddtab="${tabKey(x.sc, x.d.id)}" title="${esc(x.d.name)}">${docRowHTML(x.sc, x.d)}</button>`).join('')}
         ${rest.length > 1 ? `<div class="dd-sep"></div><button data-vopenall>Открыть все · ${rest.length}</button>` : ''}
       </div>
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -94,9 +95,10 @@ function dropHTML(ctx, text) {
     <div class="vdrop-card">
       <div class="vdrop-ico" aria-hidden="true">${ICON_UPLOAD}</div>
       <div class="vdrop-title">${esc(text)}</div>
-      <div class="vdrop-hint">Перетащите файлы сюда или вставьте из буфера — можно несколько сразу</div>
+      ${can('attach') ? '' : '<div class="vdrop-hint">Файлы добавляются на самой странице документа</div>'}
+      ${can('attach') ? `<div class="vdrop-hint">Перетащите файлы сюда или вставьте из буфера — можно несколько сразу</div>
       <button class="btn btn-primary" data-vattach>Выбрать файлы…</button>
-      <div class="vdrop-keys"><kbd>Ctrl+O</kbd> выбрать · <kbd>Ctrl+V</kbd> вставить</div>
+      <div class="vdrop-keys"><kbd>Ctrl+O</kbd> выбрать · <kbd>Ctrl+V</kbd> вставить</div>` : ''}
     </div>
     ${rest.length ? `<div class="vdrop-list"><div class="vdrop-cap">Документы записи · ${rest.length}</div>
       ${rest.map((x) => `<button class="vdrop-row" data-vaddtab="${tabKey(x.sc, x.d.id)}" title="${esc(x.d.name)}">${docRowHTML(x.sc, x.d)}</button>`).join('')}
@@ -117,8 +119,8 @@ export function renderDocMode(ctx, vctx) {
     };
   }
 
-  const archive = `<button class="tool-btn" data-varchive="${esc(d.id)}"
-    title="Убрать документ в архив — его можно будет найти и вернуть">${ICON_ARCHIVE}</button>`;
+  const archive = can('archive') ? `<button class="tool-btn" data-varchive="${esc(d.id)}"
+    title="Убрать документ в архив — его можно будет найти и вернуть">${ICON_ARCHIVE}</button>` : '';
 
   // Документ без страниц — значит без файла. Такие больше не заводятся ни одним
   // из путей прикрепления, но старая запись в памяти вкладки ещё может их иметь:
@@ -146,9 +148,10 @@ export function renderDocMode(ctx, vctx) {
   const body = `<div class="vbody">${railOff ? '' : `<div class="vrail">
     <div class="vrail-list" data-vrail-list>
     ${d.pages.map((p, i) => `<div class="vthumb doc ${p.kind === 'pdf' ? 'real' : ''} ${i + 1 === dSt.page ? 'active' : ''} ${sel.includes(i + 1) ? 'sel' : ''}"
-      data-vthumb="${i + 1}" draggable="true" title="Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько">
+      data-vthumb="${i + 1}" ${can('editPages') ? 'draggable="true"' : ''}
+      title="${can('editPages') ? `Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько` : `Страница ${i + 1}`}">
       ${p.kind === 'pdf' ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="96"></canvas>` : ''}
-      <button class="vthumb-del" data-vdelpage="${i + 1}" title="Убрать страницу">×</button><span class="vthumb-num">${i + 1}</span></div>`).join('')}
+      ${can('editPages') ? `<button class="vthumb-del" data-vdelpage="${i + 1}" title="Убрать страницу">×</button>` : ''}<span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div></div>`}
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>
       ${d.pages.map((p, i) => `<div class="vpage-wrap" data-vpageblk="${i + 1}"><div class="vpage" data-vpageinner style="${pageArStyle(d, p)}transform:rotate(${dSt.rot}deg)">${docPageHTML(d, i + 1)}</div></div>`).join('')}

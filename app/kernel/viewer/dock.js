@@ -18,9 +18,10 @@ const DEFAULT_PCT = 50;
 const MIN_W = 380;      // уже — не прочесть строку техпаспорта
 const MIN_REST = 520;   // карточке справа нужно хотя бы столько для полей
 
-// Только в гражданском: body[data-module] ставит оболочка при монтировании
-// модуля, и после ухода в другой модуль режим сниматься должен сам.
-const isOn = (ctx) => document.body.dataset.module === 'civil'
+// Только в карточке типа ОЦ: body[data-module] ставит оболочка при монтировании
+// модуля и снимает при уходе (kernel/boot.js), поэтому режим сам снимается и на
+// страницах «Документы»/«Учреждения», где сдвигать нечего.
+const isOn = (ctx) => !!document.body.dataset.module
   && !!(ctx.ui.viewer && ctx.ui.viewerDock && ctx.scope.$('.viewer:not(.vpop-stub)'));
 
 export function applyDock(ctx) {

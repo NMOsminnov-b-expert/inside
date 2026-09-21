@@ -35,7 +35,7 @@ NAME = 'стили полей'
 
 # Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
 TOUCHES = (
-    'app/kernel/cards.css', 'app/kernel/docViewer.css',
+    'app/kernel/cards.css', 'app/kernel/viewer.css',
     'app/modules/*/module.css', 'app/modules/*/oi/*', 'app/modules/*/card/*',
 )
 

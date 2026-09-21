@@ -4,7 +4,7 @@
 // select/date/файл/теги, поэтому модалка собрана здесь напрямую поверх тех же
 // глобальных классов .modal-back/.modal (kernel/tokens.css).
 import { esc } from '../../kernel/dom.js';
-import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
+import { pageViewerHTML, bindPageViewer, elementScope } from '../../kernel/viewer/pageViewer.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { DOC_TYPES, DOC_STATUSES, detectAutoStatus, createDocument, updateDocument } from '../../kernel/documentsRegistry.js';
 
@@ -140,7 +140,7 @@ function previewHTML(draft) {
       <b>Предпросмотр</b>
       <span>Проверьте, что прикрепили нужный файл — до сохранения документа</span>
     </div>
-    <div class="df-preview-body">${viewerHTML({ id: 'draft', files: draft.files }, active)}</div>
+    <div class="df-preview-body">${pageViewerHTML({ id: 'draft', files: draft.files }, { activeFileId: active })}</div>
   </div>`;
 }
 
@@ -239,17 +239,14 @@ export function openDocumentModal(host, { doc = null, onSaved } = {}) {
 
     // Просмотрщику нужна привязка после каждой отрисовки: он сам рисует
     // страницы PDF и следит за прокруткой ленты.
-    if (draft.files.length) {
-      bindViewer({
-        $: (sel) => body.querySelector(sel),
-        $$: (sel) => Array.from(body.querySelectorAll(sel)),
-        on() {},
-      }, {
-        doc: { id: 'draft', files: draft.files },
-        activeFileId: draft._preview || (draft.files[0] || {}).id || null,
-        onFileChange: (fileId) => { draft._preview = fileId; rerender(); },
-      });
-    }
+    // Клавиши окну не отдаём (keys: false): в модальном окне человек заполняет
+    // поля, а просмотрщик тут для проверки того, что прикрепили нужный файл.
+    bindPageViewer(elementScope(body), { id: 'draft', files: draft.files }, {
+      host,
+      keys: false,
+      activeFileId: draft._preview || (draft.files[0] || {}).id || null,
+      onChange: (fileId) => { draft._preview = fileId; rerender(); },
+    });
 
     const linkAdd = body.querySelector('[data-df-link-add]');
     if (linkAdd) linkAdd.onclick = () => openLinkModal({

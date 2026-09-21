@@ -7,7 +7,7 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kernel/documentsRegistry.js';
 import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { openDocumentModal, openLinkModal } from './create.js';
-import { viewerHTML, bindViewer } from '../../kernel/docViewer.js';
+import { pageViewerHTML, bindPageViewer } from '../../kernel/viewer/pageViewer.js';
 
 // Какой файл документа сейчас открыт в просмотрщике — сбрасывается на первый
 // файл при переходе к другому документу.
@@ -117,7 +117,7 @@ export function detailHTML(doc, siblings) {
       ${listOpen ? listHTML(doc, siblings) : listTabHTML(siblings)}
 
       <div class="dd-main">
-        ${files.length ? viewerHTML(doc, activeFileId) : `<div class="dd-empty">
+        ${files.length ? pageViewerHTML(doc, { activeFileId }) : `<div class="dd-empty">
           <div class="dd-empty-ico">📄</div>
           <b>К документу не прикреплены файлы</b>
           <span class="muted">Документ существует без вложений (legacy).</span>
@@ -305,11 +305,13 @@ export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChang
     if (sec) sec.classList.toggle('collapsed');
   });
 
-  if ((doc.files || []).length) {
-    bindViewer(scope, {
-      doc,
-      activeFileId,
-      onFileChange: (id) => { activeFileId = id; onChanged(); },
-    });
-  }
+  // Просмотрщик — тот же, что в карточке ОЦ (kernel/viewer/pageViewer.js):
+  // файлы документа показаны вкладками, какой открыт — знает и страница: она
+  // подсвечивает его в списке файлов справа.
+  bindPageViewer(scope, doc, {
+    host,
+    within: '.dd-main',
+    activeFileId,
+    onChange: (id) => { activeFileId = id; onChanged(); },
+  });
 }

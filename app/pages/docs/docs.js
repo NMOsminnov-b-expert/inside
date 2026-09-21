@@ -10,6 +10,7 @@
 import { esc } from '../../kernel/dom.js';
 import { MENU_HREF, DOCS_HREF } from '../../kernel/router.js';
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
+import { bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
 import {
   colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize,
   bindColumnReorder, orderedColumns, movableKeys, normalizeOrder,
@@ -206,8 +207,9 @@ export function mountDocs(host) {
   const scope = host.scope;
   let route = host.route;
   document.body.dataset.page = 'docs';
-  // Стили просмотрщика лежат отдельно: он общий с разделом «Учреждения».
-  host.ensureStyle('./app/kernel/docViewer.css');
+  // Клавиши просмотрщика — один раз за монтирование раздела: слушатель только
+  // добавляется, и на каждой отрисовке они бы накапливались (pageViewer.js).
+  bindPageViewerKeys(scope);
 
   // Подсвечиваем тот раздел, из которого пришли: документ, открытый из
   // учреждения, принадлежит его контексту — путь и возврат ведут туда же.

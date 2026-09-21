@@ -171,9 +171,6 @@ body[data-module] .ph-img{position:absolute;inset:0;width:100%;height:100%;
   object-fit:cover;display:block}
 body[data-module] .ph-mini{width:26px;height:20px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff);cursor:pointer;flex-shrink:0}
 body[data-module] .ph-mini:hover{border-color:var(--blue-500);box-shadow:0 0 0 2px rgba(47,131,196,.18)}
-body[data-module] .photo-sec{margin-top:16px}
-body[data-module] .photo-sec:first-child{margin-top:0}
-body[data-module] .photo-sec-h{font-size:12px;font-weight:700;color:var(--blue-700);margin-bottom:8px;display:flex;align-items:center;gap:8px}
 body[data-module] .tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 body[data-module] .tile{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;cursor:pointer;transition:box-shadow .12s,border-color .12s;box-shadow:var(--shadow)}
 body[data-module] .tile:hover{border-color:var(--blue-500);box-shadow:0 4px 14px rgba(22,104,201,.18)}
@@ -303,8 +300,6 @@ body[data-module] .head-eni label{font-size:11.5px;font-weight:700;text-transfor
 body[data-module] .head-eni .input{width:190px;height:26px;padding:2px 8px;font-size:12px}
 /* Шеврон сворачивания стоит после поля — «margin-left:auto» уже занят полем. */
 body[data-module] .card-head .head-eni + .chev{margin-left:8px}
-/* Несколько итогов по площадям читаются столбиком, а не строкой: рядом они
-   сливались в одну длинную фразу (решение пользователя 28.08.2026). */
 /* Подсказка над развёрткой этажей: что делает отметка в строке.
    Раньше это знание жило в title (только по наведению мышью) и вторым
    предложением в мелкой сноске под блоком — с клавиатуры и на планшете смысл
@@ -370,16 +365,6 @@ body[data-module] .areas-note.warn .areas-note-input{
 body[data-module] .areas-note.warn .areas-note-input:focus{
   border-color:var(--amber-700);box-shadow:0 0 0 3px rgba(192,124,30,.16)}
 
-/* ================== поэтажная развёртка: одна таблица ==================== */
-/* Развёртка стала единой таблицей (требование пользователя 14.09.2026):
-   размещения — группы строк (<tbody>), у каждой свой подытог, внизу общий
-   итог. Раньше каждое размещение было отдельной таблицей со своей шапкой, и
-   колонки в них не совпадали.
-
-   Оформление — по тому, как принято делать таблицы с числами: горизонтальные
-   разделители без вертикальных и без зебры (зебра спорит бы с выделением
-   строк-итогов), числа по правому краю цифрами одной ширины, строка итога
-   выделена фоном и весом. */
 /* Таблица развёртки — в своей рамке со скруглением (замечание пользователя
    14.09.2026): без неё три группы, итог и поля ввода читались как продолжение
    карточки, и глазу не за что было зацепиться. Рамка рисуется на обёртке, а не
@@ -477,8 +462,6 @@ body[data-module] .fl-tbl tr.fl-ins-before td{
 body[data-module] .fl-tbl tr.fl-ins-after td{
   box-shadow:inset 0 -3px 0 -1px var(--blue-600)}
 
-/* Узкий экран: таблица прокручивается внутри своей обёртки, а не растягивает
-   карточку. Поля внутри ячеек ужимаются вместе с колонками. */
 /* Числовое поле не растягивается на всю колонку: на широком экране «155,00»
    вставало в поле шириной с ладонь, а соседние числа расходились так далеко,
    что сравнивать их приходилось по одному. Колонка при этом остаётся гибкой —
@@ -568,110 +551,7 @@ body[data-module] .vsplit:hover{background:var(--blue-500)}
    схлопывается. Раньше оба были жёсткими и вместе выходили за экран. */
 body[data-module] .grow{flex:1 1 0;min-width:460px;padding-left:12px}
 body[data-module] .viewer{width:var(--vw);flex:0 1 var(--vw);min-width:320px;position:sticky;top:0;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;height:calc(100vh - 80px);min-height:440px;box-shadow:var(--shadow);animation:cardIn .2s ease}
-/* 80px = topbar 44 + верхний/нижний padding .content (14+14) + 8 на зазор.
-   Раньше вычиталось 120px, и при прокрутке под просмотрщиком оставалось
-   ~76px неиспользуемой пустоты. */
-body[data-module] .vmode{display:flex;gap:4px;padding:6px 8px;background:#eef4fb;border-bottom:1px solid var(--line-soft);flex-shrink:0}
-body[data-module] .vmode-btn{padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;color:#46536b;border:1px solid transparent;transition:background .12s}
-body[data-module] .vmode-btn:hover{background:#fff}
-body[data-module] .vmode-btn.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
-body[data-module] .vtabs{display:flex;gap:2px;padding:6px 8px 0;background:#e8f1fa;border-bottom:1px solid var(--line-soft);overflow-x:auto;flex-shrink:0}
-body[data-module] .vtab{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:7px 7px 0 0;font-size:11px;color:#46536b;border:1px solid transparent;border-bottom:none;cursor:pointer;white-space:nowrap;font-weight:600}
-body[data-module] .vtab.active{background:#fff;border-color:var(--line);color:var(--blue-700);box-shadow:inset 0 2px 0 var(--blue-600)}
-body[data-module] .vtab span{color:#8ba3c0}
-body[data-module] .vtab span:hover{color:var(--danger)}
-body[data-module] .vtoolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fbfdff;border-bottom:1px solid var(--line-soft);flex-wrap:wrap;flex-shrink:0}
-body[data-module] .tool-group{display:flex;align-items:center;gap:4px}
-body[data-module] .tool-group.right{margin-left:auto}
-body[data-module] .tool-btn{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#46536b;border:1px solid transparent;font-size:13px;transition:background .12s}
-body[data-module] .tool-btn:hover{background:var(--blue-50);border-color:var(--line)}
-body[data-module] .page-input{width:40px;text-align:center;border:1px solid var(--line-input);border-radius:6px;padding:3px;outline:none;font-size:12px}
-body[data-module] .zoom-label{min-width:42px;text-align:center;font-size:11.5px;color:#46536b}
-body[data-module] .vtitle{font-size:11.5px;font-weight:700;color:var(--blue-700);max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body[data-module] .vcat{font-size:11.5px;padding:3px 6px;border-radius:6px;width:auto}
-body[data-module] .vbody{flex:1;display:flex;min-height:0}
-/* Лента миниатюр: крупные превью, чтобы было видно СОДЕРЖИМОЕ страницы, а не
-   только её наличие. Сворачивается кнопкой (.vrail.collapsed) — на узких
-   экранах или когда нужна вся ширина под саму страницу. */
-body[data-module] .vrail{width:168px;border-right:1px solid var(--line-soft);display:flex;flex-direction:column;background:#f4f8fd;flex-shrink:0;transition:width .16s}
-body[data-module] .vrail.collapsed{width:30px}
-body[data-module] .vrail.collapsed .vrail-list,body[data-module] .vrail.collapsed [data-vaddpage]{display:none}
-body[data-module] .vrail-toggle{height:26px;flex-shrink:0;border-bottom:1px solid var(--line-soft);background:#eef4fb;color:#5b6c85;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;user-select:none}
-body[data-module] .vrail-toggle:hover{background:var(--blue-100)}
-body[data-module] .vrail-list{flex:1;overflow:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;align-items:center}
-body[data-module] .rail-cat{font-size:8.5px;font-weight:700;color:#61799a;text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
-body[data-module] .vthumb{width:132px;height:170px;border:2px solid var(--line);border-radius:6px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;transition:border-color .12s,box-shadow .12s}
-/* Схематичные полоски — только у макетных заглушек. У реальной страницы
-   (.vthumb.real) в миниатюре живёт canvas с настоящим превью, полоски под ним
-   были бы просто грязью. */
-body[data-module] .vthumb.doc:not(.real)::after{content:'';position:absolute;inset:8px 6px 14px;background:repeating-linear-gradient(to bottom,var(--blue-200) 0 2px,transparent 2px 7px);opacity:.7}
-body[data-module] .vthumb-canvas{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:contain;opacity:0;transition:opacity .12s;background:#fff}
-body[data-module] .vthumb-img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:cover;border-radius:3px}
-body[data-module] .vthumb.pho.real::after{content:none}
-body[data-module] .vthumb-canvas.ready{opacity:1}
-/* Перетаскивание миниатюр: порядок страниц + Ctrl-множественный выбор. */
-body[data-module] .vthumb{cursor:grab}
-body[data-module] .vthumb.dragging{opacity:.4}
-body[data-module] .vthumb.sel{border-color:var(--teal-600);box-shadow:0 0 0 2px rgba(10,92,80,.25)}
-body[data-module] .vthumb.drop-before{box-shadow:0 -3px 0 0 var(--blue-600)}
-body[data-module] .vthumb.drop-after{box-shadow:0 3px 0 0 var(--blue-600)}
-body[data-module] .vthumb.pho::after{content:'';position:absolute;inset:6px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);border-radius:3px}
-body[data-module] .vthumb.active{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.2)}
-body[data-module] .vthumb-num{position:absolute;bottom:2px;right:3px;font-size:9.5px;font-weight:700;color:#33445c;background:rgba(255,255,255,.86);border-radius:4px;padding:0 5px;line-height:14px}
-body[data-module] .vthumb-del{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;background:var(--danger);color:#fff;font-size:10px;display:none;align-items:center;justify-content:center;z-index:2}
-body[data-module] .vthumb:hover .vthumb-del{display:flex}
-/* overscroll-behavior:contain — колесо над лентой прокручивает только ленту.
-   Без него на достижении границы прокрутка «перетекает» на внешний контейнер, и
-   выглядит это как «колесом уехала вся страница». */
-body[data-module] .vstage{flex:1;overflow:auto;padding:16px;background:#dfe9f4;overscroll-behavior:contain}
-/* align-items:safe center — когда лист шире ленты (большой зум, повёрнутая
-   страница), обычное center выпихивает его за ОБА края, и левая часть
-   становится недостижимой скроллом. safe center в этом случае прижимает к
-   началу, и лист доступен горизонтальной прокруткой. */
-body[data-module] .vribbon{display:flex;flex-direction:column;gap:14px;align-items:center;align-items:safe center}
-body[data-module] .vgroup-h{width:430px;text-align:left;font-size:11px;font-weight:700;color:var(--blue-700);background:#eef4fb;border:1px solid var(--blue-200);border-radius:7px;padding:6px 10px}
-/* Лист центрируется в своей обёртке: поворот идёт вокруг центра ЛИСТА, и если
-   лист прижат к левому краю более широкой (после поворота) обёртки, повёрнутый
-   результат уезжает за левую границу ленты. */
-body[data-module] .vpage-wrap{display:flex;align-items:center;justify-content:center}
-body[data-module] .vpage{width:430px;min-height:580px;background:#fff;box-shadow:0 2px 14px rgba(15,23,42,.16);padding:26px;position:relative;flex:0 0 auto}
-/* Лист с реальным файлом: содержимое само задаёт высоту по своим пропорциям,
-   поэтому портретный min-height снимается — иначе альбомный скан болтался бы
-   в пустом высоком листе. Отступы тоже убраны: скан занимает лист целиком. */
-body[data-module] .vpage:has(> .vpdf-canvas), body[data-module] .vpage:has(> .vimg){padding:0;min-height:0;overflow:hidden;line-height:0}
-body[data-module] .vpdf-canvas{display:block;width:100%;height:auto;opacity:0;transition:opacity .12s}
-body[data-module] .vpdf-canvas.ready{opacity:1}
-body[data-module] .vimg{display:block;width:100%;height:auto}
-/* Скелетон, пока страница PDF ещё не отрисована: лежит под canvas и скрывается,
-   когда тот готов — чтобы лист не мигал пустотой. */
-body[data-module] .vpdf-load{position:absolute;inset:0;padding:26px;background:#fff}
-body[data-module] .vpdf-canvas.ready + .vpdf-load, body[data-module] .vpdf-canvas.failed + .vpdf-load{display:none}
-body[data-module] .vpage.photo-page{padding:10px;min-height:420px}
-body[data-module] .photo-fill{width:100%;height:540px;border-radius:8px;background:linear-gradient(135deg,var(--blue-100),#fdfeff);display:flex;align-items:center;justify-content:center;color:#61799a;font-size:13px}
-body[data-module] .vempty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#dfe9f4}
-body[data-module] .vempty-box{font-size:12.5px;color:#61799a}
 body[data-module] .cmp{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
-body[data-module] .cmp-col{flex:1;display:flex;flex-direction:column;min-width:0;border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
-body[data-module] .cmp-h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#eef4fb;border-bottom:1px solid var(--line-soft);font-size:11px;font-weight:700;flex-wrap:wrap;color:var(--blue-700)}
-/* Колонка сравнения — такая же прокручиваемая лента, как обычный просмотр:
-   колесо листает и фото, и документ; overscroll-behavior не даёт прокрутке
-   утечь на страницу. */
-body[data-module] .cmp-body{flex:1;overflow:auto;background:#dfe9f4;padding:10px;overscroll-behavior:contain}
-body[data-module] .cmp-ribbon{display:flex;flex-direction:column;gap:12px;align-items:center;align-items:safe center}
-body[data-module] .cmp-h .cmp-zoom{margin-left:auto}
-body[data-module] .cmp-h .cmp-zoom .tool-btn{width:22px;height:22px}
-body[data-module] .cmp-h .zoom-label{font-size:10.5px;min-width:38px;text-align:center}
-body[data-module] .cmp-body .vpage{width:380px;min-height:500px}
-/* В сравнении лист с реальным файлом тоже живёт по своим пропорциям. Правило
-   обязано идти ПОСЛЕ .cmp-body .vpage: специфичность у них одинаковая, поэтому
-   иначе побеждает min-height:500px и страница висит в высоком листе.
-   align-self:flex-start — .cmp-body это flex-контейнер, и по умолчанию
-   (align-items:stretch) лист растягивался на всю высоту колонки, оставляя под
-   страницей белое поле. */
-body[data-module] .cmp-body .vpage:has(> .vpdf-canvas), body[data-module] .cmp-body .vpage:has(> .vimg){min-height:0;align-self:flex-start}
-body[data-module] .cmp-body .photo-fill{height:460px}
-body[data-module] .sk-line{height:7px;border-radius:3px;background:#dfe8f2;margin-bottom:8px}
-body[data-module] .sk-h{height:10px;width:40%;background:var(--blue-200);margin:12px 0 8px;border-radius:3px}
 body[data-module] .qnav{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:0;z-index:6;background:var(--panel);padding:9px 14px;border-bottom:1px solid var(--line-soft);border-radius:var(--radius) var(--radius) 0 0}
 body[data-module] .qn{padding:4px 11px;border-radius:999px;border:1px solid var(--line-input);font-size:11.5px;color:#46536b;background:#fff;font-weight:600;transition:border-color .12s,color .12s}
 body[data-module] .qn:hover{border-color:var(--blue-500);color:var(--blue-700)}
@@ -724,35 +604,7 @@ body[data-module] .head-meta .dd-menu, body[data-module] .card-head .dd-menu{
 body[data-module] .head-meta, body[data-module] .card-head{
   overflow: visible;
 }
-/* Сайдбар выбора документа/фото просмотрщика (parts/viewer/sidebar.js).
-   Кнопка-гамбургер в левом верхнем углу; панель выезжает поверх ленты.
-   ВАЖНО: здесь НЕЛЬЗЯ переопределять .viewer{position:relative} — просмотрщик
-   объявлен position:sticky выше, и это правило (идущее позже) отменяло липкость:
-   просмотрщик уезжал за экран, и заполнять поля, глядя в документ, можно было
-   только в самом верху страницы. Отдельный контейнер позиционирования сайдбару
-   не нужен — sticky сам является containing block для absolute-потомков. */
-body[data-module] .vmode{display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line-soft);background:#f4f8fd;flex-shrink:0}
-body[data-module] .vburger{width:28px;height:28px;flex-shrink:0;border:1px solid var(--line-input);border-radius:7px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:background .12s,border-color .12s}
-body[data-module] .vburger span{display:block;width:14px;height:2px;border-radius:1px;background:#5b6c85}
-body[data-module] .vburger:hover{border-color:var(--blue-500);background:var(--blue-50)}
-body[data-module] .vburger.on{background:var(--blue-600);border-color:var(--blue-600)}
-body[data-module] .vburger.on span{background:#fff}
-body[data-module] .vsb{position:absolute;top:0;left:0;bottom:0;width:290px;z-index:70;background:#fff;border-right:1.5px solid var(--line);box-shadow:6px 0 24px rgba(15,23,42,.18);display:flex;flex-direction:column;animation:vsbIn .16s ease}
 @keyframes vsbIn{from{transform:translateX(-16px);opacity:0}to{transform:none;opacity:1}}
-body[data-module] .vsb-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line-soft);background:#eef4fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5b6c85}
-body[data-module] .vsb-body{flex:1;overflow:auto;padding:6px;overscroll-behavior:contain}
-body[data-module] .vsb-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--blue-700);padding:8px 6px 4px}
-body[data-module] .vsb-group{font-size:10.5px;font-weight:700;color:#5b6c85;background:#f4f8fd;border-radius:6px;padding:4px 8px;margin:6px 0 3px}
-body[data-module] .vsb-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;border-radius:7px;background:none;border:1px solid transparent;cursor:pointer;transition:background .12s,border-color .12s}
-body[data-module] .vsb-item:hover{background:var(--blue-50);border-color:var(--blue-200)}
-body[data-module] .vsb-item.on{background:var(--blue-100);border-color:var(--blue-500)}
-body[data-module] .vsb-tag{flex:0 0 auto;font-size:9.5px;font-weight:700;color:var(--blue-700);background:var(--blue-50);border:1px solid var(--blue-200);border-radius:999px;padding:1px 7px}
-body[data-module] .vsb-main{flex:1;min-width:0;display:flex;flex-direction:column}
-body[data-module] .vsb-main b{font-size:12px;color:#33445c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body[data-module] .vsb-sub{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body[data-module] .vsb-count{flex:0 0 auto;font-size:10px;font-weight:700;color:var(--muted)}
-body[data-module] .vsb-thumb{flex:0 0 auto;width:34px;height:26px;border-radius:4px;border:1px solid var(--line);background:linear-gradient(135deg,var(--blue-100),#fdfeff) center/cover no-repeat}
-body[data-module] .vsb-empty{font-size:11.5px;color:var(--muted);padding:8px 10px}
 /* Лог действий — карточка модуля, см. app/modules/civil/audit/.
    Категории (ОИ/ОЦ/Документы/Фото) размечены левой границей + бейджем в тон
    card.t-* — та же палитра, что у карточек модуля, без новых токенов. */
@@ -836,8 +688,6 @@ body[data-module] .card-body-wrap{position:relative}
    глядя на неё, и возвращаться к ОЦ ради адреса не нужно. Длинный адрес
    укорачиваем, а не растягиваем плашку. */
 body[data-module] .ctx-plate-addr{max-width:320px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
-/* Блок «Особенности» (parts/specials). Нумерованные записи по образцу заметок,
-   но без отметки «выполнено»: это другая сущность (Л3.6, Л4.5). */
 /* Блок особенностей стоит внутри сетки полей и занимал одну колонку —
    строки короткие, справа оставалась пустота. Растягиваем на всю ширину. */
 body[data-module] .sp-block{margin-top:10px;grid-column:1/-1}
@@ -873,70 +723,15 @@ body[data-module] .note-tpl-menu button{white-space:normal;line-height:1.35}
 body[data-module] .nb-group .acc-head{flex-wrap:nowrap}
 body[data-module] .note-add-btn{padding:2px 8px;font-size:14px;line-height:1}
 body[data-module] .note-tpl-dd>button{padding:2px 6px;font-size:10px;line-height:1.4}
-/* Код ЕНИ правится прямо в шапке карточки ОИ: он нужен и в общих параметрах,
-   и при вводе любых значений, а отдельным полем в форме занимал место зря. */
 /* ЕНИ в плашке — только показ (правится в шапке блока 01), поэтому это ровный
    чип: подпись и код в одну строку, код не переносится и не растягивает плашку. */
 body[data-module] .ctx-plate-eni{display:inline-flex;align-items:baseline;gap:6px;padding:2px 9px;white-space:nowrap}
 body[data-module] .ctx-plate-eni label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#7d93a6;font-weight:700}
 body[data-module] .ctx-plate-eni b{font-size:12.5px;color:var(--blue-700);letter-spacing:.2px;font-weight:700}
-/* Зона открепления — свободное место под узлами дерева. Подсвечиваем так же,
-   как узел-цель, иначе непонятно, что бросок сюда снимет привязку. */
 /* Курсор мимо участков: перечень подсвечивается целиком — отпускание здесь
    открепит литеру. Раньше подчёркивалась только нижняя кромка, потому что
    откреплением считалась узкая полоса под последним узлом. */
 body[data-module] .oi-tree.drop-unlink{box-shadow:inset 0 0 0 2px var(--amber-600)}
-/* Сайдбар просмотрщика: документы сгруппированы по типу (Л3.5). Заголовок
-   группы липкий — при длинном списке видно, к какому типу относится строка. */
-body[data-module] .vsb-group{margin-bottom:6px}
-body[data-module] .vsb-group-h{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:6px;
-  padding:5px 9px;background:#eef4fb;border-radius:6px;font-size:9.5px;text-transform:uppercase;
-  letter-spacing:.4px;font-weight:700;color:#5b6c85}
-body[data-module] .vsb-group-n{margin-left:auto;font-size:9.5px;color:#7d93a6;font-weight:600}
-/* Сравнение: подвижная граница между фото и документом и сворачивание половин
-   (Л3.9). Ширина левой колонки — переменная --cmp-photo, её двигает ручка;
-   правая забирает остаток, поэтому сумма всегда равна ширине области и ничего
-   не уезжает (та же логика, что у столбцов таблиц).
-
-   ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: соотношение и свёрнутая половина — личная настройка
-   пользователя, сейчас живёт только в памяти сессии. */
-body[data-module] .cmp-col[data-cmp-side="photo"]{flex:0 0 var(--cmp-photo);min-width:0}
-body[data-module] .cmp-col[data-cmp-side="doc"]{flex:1 1 auto;min-width:0}
-body[data-module] .cmp-split{flex:0 0 8px;align-self:stretch;cursor:col-resize;border-radius:4px;
-  background:transparent;position:relative;touch-action:none}
-body[data-module] .cmp-split::after{content:"";position:absolute;top:12px;bottom:12px;left:3px;width:2px;
-  background:var(--line);border-radius:2px;transition:background .12s}
-body[data-module] .cmp-split:hover::after,body[data-module] .cmp.cmp-resizing .cmp-split::after{background:var(--blue-500)}
-body[data-module] .cmp-fold{flex:0 0 auto;width:20px;height:20px;padding:0;margin-right:6px;border:none;
-  border-radius:5px;background:none;color:#8fa2b8;font-size:11px;line-height:1;cursor:pointer}
-body[data-module] .cmp-fold:hover{background:var(--blue-100);color:var(--blue-700)}
-/* Свёрнутая половина — узкая полоса: значок остаётся на месте, содержимое скрыто. */
-body[data-module] .cmp.cmp-folded-photo .cmp-col[data-cmp-side="photo"]{flex:0 0 38px}
-body[data-module] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="doc"]{flex:0 0 38px}
-/* Оставшаяся половина забирает всю освободившуюся ширину. Для документа это
-   работало само (у него flex:1 1 auto), а фото сидит на жёсткой доле
-   --cmp-photo и без этого правила оставалось шириной в половину экрана,
-   прижатое к левому краю, с пустым серым полем справа. */
-body[data-module] .cmp.cmp-folded-doc .cmp-col[data-cmp-side="photo"]{flex:1 1 auto}
-body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-body,
-body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-body{display:none}
-body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h,
-body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h{writing-mode:vertical-rl;justify-content:flex-start;gap:6px;padding:8px 0}
-body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="photo"] .cmp-h > *:not(.cmp-fold),
-body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="doc"] .cmp-h > *:not(.cmp-fold){display:none}
-body[data-module] .cmp-folded-photo .cmp-split,body[data-module] .cmp-folded-doc .cmp-split{display:none}
-/* Свёрнута одна половина — вся полезная площадь уходит оставшейся: лист тянется
-   на всю ширину колонки, а не висит узкой полосой (380px) посреди серого поля.
-   max-width — чтобы на широком экране страница не разъезжалась до нечитаемых
-   пропорций. Мыла при этом нет: масштаб рендера PDF берётся из ФАКТИЧЕСКОЙ
-   ширины canvas, а ширина входит в ключ кэша отрисовки (viewer/pdf.js). */
-body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage-wrap,
-body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
-body[data-module] .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage,
-body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
-/* Плитка фото в развёрнутой половине тоже растёт — её высота была прибита к
-   460px под узкую колонку. */
-body[data-module] .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .photo-fill{height:auto;aspect-ratio:4 / 3}
 /* Краткая сводка вверху всегда: при прокрутке шапка карточки уезжает вверх, а
    плашка «ОЦ → литера» закрепляется на её месте. Плашка и так стоит сразу под
    шапкой, поэтому смена одного другим не сдвигает содержимое.
@@ -950,10 +745,6 @@ body[data-module] .scrolled #ctxPlateWrap{box-shadow:0 6px 14px rgba(15,23,42,.1
 body[data-module] [data-oc-head]{position:sticky;top:0;z-index:110;
   transition:box-shadow .14s}
 body[data-module] .scrolled [data-oc-head]{box-shadow:0 6px 16px rgba(15,23,42,.12)}
-/* Просмотрщик начинается ПОД закреплённой плашкой и занимает ровно остаток
-   экрана: без нахлёста и без большого пустого поля снизу. Высоту плашки даёт
-   переменная --plate-h (её проставляет bindStickyHead), 10px — зазор между
-   плашкой и просмотрщиком, ещё 14px — отступ до низа окна. */
 /* 58px — верх области содержимого (шапка приложения плюс его отступ),
    10px — зазор под плашкой, 14px — отступ до низа окна. */
 body[data-module] .viewer{top:calc(var(--plate-h, 0px) + 10px);
@@ -1009,10 +800,6 @@ body[data-module] .oi-node-cnt.real{background:var(--blue-50);color:var(--blue-7
 body[data-module] .oi-node-cnt.mov{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100);margin-left:4px}
 /* ЕНИ читают и сверяют цифра за цифрой — мелким его набирать неудобно. */
 body[data-module] .oi-node-eni{font-size:12.5px;padding:2px 8px;letter-spacing:.2px}
-/* Зона «Без участка» отделяется от участков перегородкой: это не ещё один
-   участок, а служебная группа, и сливаться с ними она не должна.
-   Класс-маркер oi-node-sep задаётся правилом ниже через селектор пустого
-   data-oi-drop — отдельной разметки не потребовалось. */
 /* Тонкая сплошная линия в пустом месте перед зоной «Без участка». */
 body[data-module] .oi-sep{height:1px;background:#c3cfdd;margin:18px 2px}
 body[data-module] .oi-node[data-oi-drop=""]{margin-top:0}
