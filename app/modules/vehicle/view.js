@@ -1,8 +1,9 @@
 import { esc } from '../../kernel/dom.js';
 import { fieldHTML } from '../../kernel/fieldSpec.js';
 import { VEHICLE_TYPES, vehicleFieldsFor } from './data/vehicleFields.js';
-import { vehicleExtra, VIN_LENGTH } from './records.js';
+import { vehicleExtra, VIN_LENGTH, ownerNames } from './records.js';
 import { vehicleViewerHTML } from './viewer.js';
+import { partiesHTML } from './parties.view.js';
 
 // Карточка транспортного средства как объекта оценки.
 //
@@ -16,9 +17,9 @@ import { vehicleViewerHTML } from './viewer.js';
 const ATTR = 'vehicle-f';
 const ID = 'vh-f-';
 
-function identityHTML(rec) {
+function identityHTML(rec, idx) {
   const v = rec.vehicle;
-  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">01</span>
+  return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${idx}</span>
     <h3>Транспортное средство</h3></div><div class="card-pad"><div class="grid g-4 g-roomy">
       <div class="field"><label for="vh-type">Тип ТС</label>
         <select class="select" id="vh-type" data-vehicle-type>
@@ -103,11 +104,12 @@ function formHTML(rec) {
       <span class="pill pill-gray">Создание ОЦ</span>
       <button class="btn btn-primary" data-vehicle-save>Сохранить</button>
     </div>
-    ${identityHTML(rec)}
-    ${fieldsHTML(rec, 'passport', '02', 'Характеристики', 'из документов и с шильдиков')}
-    ${fieldsHTML(rec, 'inspect', '03', 'Осмотр', 'заполняется на месте')}
-    ${extraHTML(rec, '04')}
-    ${notesHTML(rec, '05')}
+    ${partiesHTML(rec, '01', ownerNames())}
+    ${identityHTML(rec, '02')}
+    ${fieldsHTML(rec, 'passport', '03', 'Характеристики', 'из документов и с шильдиков')}
+    ${fieldsHTML(rec, 'inspect', '04', 'Осмотр', 'заполняется на месте')}
+    ${extraHTML(rec, '05')}
+    ${notesHTML(rec, '06')}
   </div>`;
 }
 

@@ -5,6 +5,7 @@ import {
   normVin, vinError, normPlate, vehicleExtra, addVehicleExtra, dropVehicleExtra,
 } from './records.js';
 import { bindVehicleViewer } from './viewer.js';
+import { bindParties } from './parties.ctrl.js';
 
 // Контроллер карточки ТС как объекта оценки.
 //
@@ -108,6 +109,9 @@ export function bindVehicle(ctx) {
   ctx.ui = ctx.ui || {};
   ctx.ui.growSizes = ctx.ui.growSizes || {};
   bindAutoGrowAll(s, ctx.ui.growSizes);
+
+  // Учреждение, собственники и ответственные.
+  bindParties(ctx);
 
   bindVehicleViewer(ctx);
 

@@ -84,7 +84,9 @@ export function createRecord() {
   const rec = {
     id: nextId(), typeId: manifest.id, type: manifest.label, category: 'Движимое', status: 'В заполнении',
     city: '', institution: '', podved: '', eni: '', updatedAt: new Date().toISOString().slice(0, 10),
-    owners: [], users: [], resp: { gov: '', cod: '', appr: '', insp: [] }, docs: [],
+    // Пользователей у ТС не ведут — блок сторон в карточке только с
+    // собственниками; пустой список оставлен ради общих столбцов реестра.
+    owners: [], users: [], resp: { gov: '', cod: '', appr: '', insp: '' }, docs: [],
     // Опознавательные сведения лежат полями записи, характеристики и осмотр —
     // в params по ключам справочника (data/vehicleFields.js), свободные
     // добавления — строками extra.
@@ -103,6 +105,16 @@ export function setInstitution(id, { institution = '', podved = '', nodeId = '' 
 export function takeRecord(id) { const i = records.findIndex((rec) => rec.id === id); return i < 0 ? null : records.splice(i, 1)[0]; }
 export function restoreRecord(rec) { if (rec && !loadRecord(rec.id)) records.push(rec); return rec; }
 export function fieldLabel(key) { return key; }
+
+// Подсказки к наименованию собственника — уже заведённые у других ТС.
+export function ownerNames() {
+  const set = new Set();
+  records.forEach((r) => (r.owners || []).forEach((x) => {
+    const name = (x && typeof x === 'object' ? x.name : x) || '';
+    if (name) set.add(name);
+  }));
+  return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
+}
 
 // VIN: 17 знаков, без букв I, O и Q — их нет в стандарте, чтобы не путать с
 // единицей и нулём (ISO 3779 / 49 CFR 565).
