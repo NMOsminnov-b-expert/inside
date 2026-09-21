@@ -1,4 +1,4 @@
-import { flagBadgesHTML } from '../../../kernel/flagBadges.js';
+import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
 import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { eniAllOf } from '../../../kernel/eniFold.js';
@@ -11,7 +11,6 @@ import { tableOI } from './oiTable.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
-import { statusFlowHTML } from './statusFlow.view.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
 // объектов имущества, ровно как в столбце реестра (решение пользователя
@@ -22,63 +21,23 @@ import { statusFlowHTML } from './statusFlow.view.js';
 // за край первыми — а именно они и отличают коды друг от друга.
 const eniCodes = (rec) => eniAllOf(rec) || fmtEni(rec.eni);
 
-// Шапка — Г-образный блок (макет пользователя 21.09.2026, канва «Шапка ОЦ:
-// Г-образный блок»): сверху сводка записи с действиями, снизу слева вкладки,
-// а свободный угол справа от них занимает шкала статусов. Раньше это были три
-// блока друг под другом, и до содержимого карточки уходило полэкрана.
-//
-// Статус отдельной плашкой среди действий больше не показывается: его несёт
-// шкала — и в развёрнутом, и в свёрнутом виде.
-//
-// data-oc-head: шапка закреплена при прокрутке (см. bindStickyHead в
-// index.js); шкала при этом сжимается в одну строку.
+// Шапка — общая на все типы ОЦ (kernel/ocHead.js): Г-образный блок со сводкой,
+// вкладками и шкалой статусов в свободном углу.
 function headOC(ctx) {
   const rec = ctx.rec;
-  return `<div class="oc-head" data-oc-head>
-    <div class="oc-head-bg" aria-hidden="true">
-      <span class="oc-bg-top"></span><span class="oc-bg-tabs"></span><span class="oc-bg-corner"></span>
-    </div>
-    <div class="oc-head-top card-pad">
-    <div class="head-meta">
-      <span class="pill pill-cat">${esc(rec.category)}</span>
-
-      <div class="hm"><span class="lbl">Тип ОЦ</span><b>${esc(rec.type)}</b></div>
-      <div class="hm"><span class="lbl">Назначение по ТП</span><b>${esc(rec.purposeTP)}</b></div>
-      <div class="hm"><span class="lbl">Код ЕНИ</span>
-        <b title="${esc(eniCodes(rec))}">${esc(eniCodes(rec))}</b></div>
-      <div class="hm hm-wide"><span class="lbl">Адрес</span><b title="${esc(rec.address)}">${esc(rec.address)}</b></div>
-
-      ${flagBadgesHTML(recFlags(rec))}
-
-      <span class="head-actions">
-
-        <div class="dd" id="ddAddOi">
-          <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ ▾</button>
-          <div class="dd-menu">
-            ${addOiMenuHTML(rec)}
-          </div>
-        </div>
-
-        <button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
-        <button class="btn btn-danger" id="btnDelOc">Удалить</button>
-      </span>
-    </div>
-    </div>
-    ${tabsHTML(ctx)}
-    <div class="oc-head-status">${statusFlowHTML(rec, ctx.ui)}</div>
-  </div>`;
+  return ocHeadHTML(ctx, {
+    meta: [
+      { label: 'Тип ОЦ', value: rec.type },
+      { label: 'Назначение по ТП', value: rec.purposeTP },
+      { label: 'Код ЕНИ', value: eniCodes(rec) },
+      { label: 'Адрес', value: rec.address, wide: true },
+    ],
+    flags: recFlags(rec),
+    menu: addOiMenuHTML(rec),
+    tabs: ocTabs(canViewAuditLog(rec)),
+  });
 }
 
-function tabsHTML(ctx) {
-  const rec = ctx.rec;
-  const tab = (key, label) => `<button class="tab ${ctx.tab === key ? 'active' : ''}" role="tab"
-    aria-selected="${ctx.tab === key}" data-tab="${key}">${label}</button>`;
-  return `<div class="oc-head-tabs" role="tablist" aria-label="Разделы объекта оценки">
-      ${tab('general', 'Общие данные')}
-      ${tab('photo', 'Фото')}
-      ${canViewAuditLog(rec) ? tab('audit', 'Логи') : ''}
-    </div>`;
-}
 
 function partiesOC(rec) {
   // Отступ сверху — как у просмотрщика слева, чтобы верх двух колонок совпадал.

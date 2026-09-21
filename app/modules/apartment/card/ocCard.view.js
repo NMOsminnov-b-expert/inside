@@ -1,4 +1,4 @@
-import { flagBadgesHTML } from '../../../kernel/flagBadges.js';
+import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
 import { recFlags } from '../records.js';
 import { canViewAuditLog } from '../audit/access.js';
 import { auditTab } from '../audit/view.js';
@@ -21,36 +21,21 @@ import { addOiMenuHTML } from './addOiMenu.js';
 // за край первыми — а именно они и отличают коды друг от друга.
 const eniCodes = (rec) => eniAllOf(rec) || fmtEni(rec.eni);
 
-function headOC(rec) {
-  // data-oc-head: при прокрутке шапка уезжает вверх, а её место занимает
-  // закреплённая плашка «ОЦ → литера» (см. bindStickyHead в index.js).
-  return `<div class="card card-pad t-blue" data-oc-head>
-    <div class="head-meta">
-      <span class="pill pill-cat">${esc(rec.category)}</span>
-
-      <div class="hm"><span class="lbl">Тип ОЦ</span><b>${esc(rec.type)}</b></div>
-      <div class="hm"><span class="lbl">Назначение по ТП</span><b>${esc(rec.purposeTP)}</b></div>
-      <div class="hm"><span class="lbl">Код ЕНИ</span>
-        <b title="${esc(eniCodes(rec))}">${esc(eniCodes(rec))}</b></div>
-      <div class="hm hm-wide"><span class="lbl">Адрес</span><b>${esc(rec.address)}</b></div>
-
-      ${flagBadgesHTML(recFlags(rec))}
-
-      <span class="head-actions">
-        <span class="pill pill-status"><span class="dot"></span>${esc(rec.status)}</span>
-
-        <div class="dd" id="ddAddOi">
-          <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ ▾</button>
-          <div class="dd-menu">
-            ${addOiMenuHTML()}
-          </div>
-        </div>
-
-        <button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
-        <button class="btn btn-danger" id="btnDelOc">Удалить</button>
-      </span>
-    </div>
-  </div>`;
+// Шапка — общая на все типы ОЦ (kernel/ocHead.js): Г-образный блок со сводкой,
+// вкладками и шкалой статусов в свободном углу.
+function headOC(ctx) {
+  const rec = ctx.rec;
+  return ocHeadHTML(ctx, {
+    meta: [
+      { label: 'Тип ОЦ', value: rec.type },
+      { label: 'Назначение по ТП', value: rec.purposeTP },
+      { label: 'Код ЕНИ', value: eniCodes(rec) },
+      { label: 'Адрес', value: rec.address, wide: true },
+    ],
+    flags: recFlags(rec),
+    menu: addOiMenuHTML(rec),
+    tabs: ocTabs(canViewAuditLog(rec)),
+  });
 }
 
 function partiesOC(rec) {
@@ -80,12 +65,7 @@ export function viewOC(ctx) {
   const rec = ctx.rec;
   const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx));
 
-  return `${headOC(rec)}
-    <div class="tabs">
-      <button class="tab ${ctx.tab === 'general' ? 'active' : ''}" data-tab="general">Общие данные</button>
-      <button class="tab ${ctx.tab === 'photo' ? 'active' : ''}" data-tab="photo">Фото</button>
-      ${canViewAuditLog(rec) ? `<button class="tab ${ctx.tab === 'audit' ? 'active' : ''}" data-tab="audit">Логи</button>` : ''}
-    </div>
+  return `${headOC(ctx)}
 
     ${ctx.tab === 'general' ? generalTab
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)

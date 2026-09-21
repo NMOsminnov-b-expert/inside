@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Шапка ОЦ гражданского здания: Г-образный блок и шкала статусов.
+"""Шапка карточки ОЦ: Г-образный блок и шкала статусов — во всех типах ОЦ.
 
 Макет пользователя 21.09.2026 (канва «Шапка ОЦ: Г-образный блок»): сводка
 записи, вкладки и шкала статусов — один блок; статусы как в рабочей системе,
@@ -15,19 +15,28 @@
   * свёрнутая шкала — одна строка с текущим статусом и «N из 9», кнопка
     «Развернуть» стоит сразу за ней; выбор «свёрнута» переживает перезагрузку;
   * при прокрутке шапка закреплена, и шкала сжимается в одну строку сама;
-  * новый статус виден в реестре.
+  * новый статус виден в реестре;
+  * шапка и шкала одинаковы во всех типах ОЦ: они живут в ядре
+    (kernel/ocHead.js, kernel/status/*), а не в модуле. Раньше Г-образная
+    шапка была только у гражданского, и режиму раскрытия просмотрщика в
+    остальных типах нечего было сжимать.
 """
 
 NAME = 'шапка ОЦ: статусы'
 
 TOUCHES = (
-    'app/modules/civil/card/ocCard.*', 'app/modules/civil/card/statusFlow.*',
-    'app/modules/civil/data/statusFlow.js', 'app/modules/civil/data/dictionaries.js',
-    'app/modules/civil/module.css', 'app/modules/civil/index.js',
-    'app/pages/ocMenu/table.js', 'app/pages/ocMenu/query.js',
+    'app/kernel/ocHead.js', 'app/kernel/status/*', 'app/kernel/stickyHead.js',
+    'app/kernel/cards.css', 'app/modules/*/card/ocCard.*',
+    'app/modules/*/data/dictionaries.js', 'app/modules/civil/module.css',
+    'app/modules/*/index.js', 'app/pages/ocMenu/table.js', 'app/pages/ocMenu/query.js',
 )
 
 OC = '#/oc/civil/oc-cv-1'
+
+# Остальные типы ОЦ: шапка и шкала те же — проверяем состав, а не переходы
+# (переходы меняют демо-запись, и хватает одного типа).
+OTHERS = ('#/oc/apartment/oc-ap-1', '#/oc/residential-house/oc-rh-1',
+          '#/oc/production/oc-pr-1', '#/oc/land-plot/oc-lp-1')
 
 STATE = """() => {
   const full = document.querySelector('.st-full');
@@ -128,3 +137,24 @@ def run(t):
     t.wait_until("() => [...document.querySelectorAll('.reg-status')].length > 0")
     shown = pg.eval_on_selector_all('.reg-status', 'els => els.map((e) => e.textContent.trim())')
     t.ck('Не подлежит оценке' in shown, 'в реестре не виден новый статус записи')
+
+    # --- та же шапка в остальных типах ОЦ ---------------------------------------
+    for route in OTHERS:
+        t.open(route, wait='[data-status-flow]')
+        kind = route.split('/')[2]
+
+        head = pg.eval_on_selector_all('[data-oc-head] .oc-head-tabs [data-tab]',
+                                       'els => els.map((e) => e.dataset.tab)')
+        t.ck('general' in head and 'photo' in head,
+             '%s: вкладки не в шапке ОЦ: %s' % (kind, head))
+        t.ck(pg.locator('.tabs [data-tab]').count() == 0,
+             '%s: под шапкой осталась отдельная полоса вкладок' % kind)
+
+        st = state()
+        t.ck(st['steps'] == 9, '%s: шагов в шкале не 9: %d' % (kind, st['steps']))
+        t.ck(len(st['cur']) == 1, '%s: текущих шагов не один: %s' % (kind, st['cur']))
+        t.ck(st['buttons'] == len(st['next']),
+             '%s: кнопками должны быть только доступные переходы: %d при %s'
+             % (kind, st['buttons'], st['next']))
+        t.ck(pg.locator('.pill-status').count() == 0,
+             '%s: статус остался плашкой среди действий' % kind)

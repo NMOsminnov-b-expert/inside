@@ -1,4 +1,4 @@
-import { STATUS_ALL } from './statusFlow.js';
+import { STATUS_ALL } from '../../../kernel/status/flow.js';
 
 // Пулы значений для генератора синтетических записей ЭТОГО модуля.
 export const POOLS = {

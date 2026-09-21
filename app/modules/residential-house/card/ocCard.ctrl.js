@@ -1,3 +1,4 @@
+import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { bindDocsColumns } from '../parts/docs/table.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
@@ -158,6 +159,9 @@ export function bindOcCard(ctx) {
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------
+
+  // Шкала статусов: переход кликом по следующему шагу (kernel/status).
+  bindStatusFlow(ctx);
 
 
 

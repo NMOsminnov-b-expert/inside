@@ -1105,3 +1105,180 @@ body[data-module] .mu-comment{resize:vertical;min-height:38px;max-height:320px;
 /* Поле во всю строку сетки: перечень в половину ширины переносится каждые
    несколько слов и читается столбиком. */
 body[data-module] .field-wide{grid-column:1 / -1}
+
+
+/* ===== Шапка карточки ОЦ, шкала статусов, единый образ =======================
+   Перенесено из модуля «гражданское здание» в ядро 21.09.2026 по решению
+   пользователя («шапку тоже распространи, без неё режимы ломаются»): режим
+   раскрытия просмотрщика сжимает именно эту шапку, и типам ОЦ со старой
+   шапкой раскрытие было некуда применить. Разметку строит kernel/ocHead.js,
+   шкалу — kernel/status/flow.view.js. */
+/* Шапка объекта оценки — в одну строку. Общее правило ядра даёт адресу основу
+   320px, и адрес требовал себе строку целиком: значки и кнопки уходили на
+   вторую строку, и шапка вырастала вдвое (замечание пользователя 21.09.2026).
+   Здесь адрес забирает остаток ряда, а длинный — не больше двух строк, полный
+   текст во всплывающей подсказке. */
+body[data-module] [data-oc-head] .hm.hm-wide{flex:1 1 0;min-width:180px}
+body[data-module] [data-oc-head] .hm.hm-wide b{display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;overflow:hidden;white-space:normal}
+
+/* ===== Шапка ОЦ — Г-образный блок со шкалой статусов ========================
+   Макет пользователя 21.09.2026 (канва «Шапка ОЦ: Г-образный блок»): сводка
+   записи сверху во всю ширину, вкладки — под ней слева, одной белой фигурой;
+   свободный угол справа от вкладок занимает шкала статусов. Раньше сводка,
+   вкладки и статус стояли тремя полосами, и до содержимого уходило полэкрана.
+
+   Фигура собрана из двух частей: сводка — карточка со своей рамкой, вкладки
+   заходят на её нижнюю границу (margin-top: -1.5px) и закрывают её своим
+   фоном; внутренний угол скруглён псевдоэлементом. Фон у всей шапки — фон
+   страницы: шапка закреплена при прокрутке, и в свободном углу иначе
+   просвечивало бы содержимое. */
+body[data-module] .oc-head{display:grid;grid-template-columns:auto minmax(0,1fr);
+  align-items:start;background:var(--bg);padding-bottom:4px}
+body[data-module] .oc-head-top{grid-column:1 / -1;position:relative;z-index:2;
+  background:var(--panel);border:1.5px solid var(--line);border-left:4px solid var(--blue-600);
+  border-radius:var(--radius) var(--radius) var(--radius) 0;box-shadow:var(--shadow)}
+body[data-module] .oc-head-tabs{grid-column:1;position:relative;z-index:3;margin-top:-1.5px;
+  display:flex;gap:2px;padding:5px 8px 7px 10px;background:var(--panel);
+  border:1.5px solid var(--line);border-top:0;border-left:4px solid var(--blue-600);
+  border-radius:0 0 var(--radius) var(--radius);box-shadow:0 4px 8px -4px rgba(15,23,42,.10)}
+/* Разделитель между сводкой и вкладками — тонкая линия внутри фигуры: без неё
+   вкладки читались бы строкой той же сводки. */
+body[data-module] .oc-head-tabs::before{content:"";position:absolute;left:8px;right:8px;top:0;
+  height:1px;background:var(--line-soft)}
+/* Внутренний угол: белый участок с дугой рамки, центр дуги — в правом нижнем
+   углу квадрата. Он же закрывает прямой отрезок рамки сводки и вкладок в
+   месте стыка. */
+body[data-module] .oc-head-tabs::after{content:"";position:absolute;top:0;left:calc(100% - 1.5px);
+  width:calc(var(--radius) + 1.5px);height:calc(var(--radius) + 1.5px);
+  background:radial-gradient(circle at 100% 100%, transparent calc(var(--radius) - .5px),
+    var(--line) calc(var(--radius) - .5px), var(--line) calc(var(--radius) + 1px), var(--panel) calc(var(--radius) + 1px))}
+body[data-module] .oc-head-tabs .tab{border:0;margin:0;padding:7px 12px;border-radius:8px;
+  font-size:12.5px;font-weight:600;color:var(--slate-700);background:none;cursor:pointer;white-space:nowrap}
+body[data-module] .oc-head-tabs .tab:hover{background:var(--slate-50)}
+body[data-module] .oc-head-tabs .tab.active{background:var(--blue-50);color:var(--blue-700)}
+body[data-module] .oc-head-tabs .tab:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-module] .oc-head-status{grid-column:2;min-width:0;padding:10px 4px 0 22px}
+
+/* --- Шкала: развёрнутый вид -------------------------------------------------
+   Девять шагов в равных колонках, линия идёт от центра первого до центра
+   последнего (1/18 ширины с каждого края), пройденная часть закрашена. */
+body[data-module] .st-full{display:flex;align-items:flex-start;gap:8px}
+body[data-module] .st-line{flex:1;min-width:0;list-style:none;margin:0;padding:0;position:relative;
+  display:grid;grid-template-columns:repeat(9,minmax(0,1fr))}
+body[data-module] .st-line::before,body[data-module] .st-line::after{content:"";position:absolute;
+  top:7px;height:2px;left:calc(100% / 18);border-radius:1px}
+body[data-module] .st-line::before{right:calc(100% / 18);background:var(--line)}
+body[data-module] .st-line::after{width:calc((100% - 100% / 9) * var(--st-k, 0));background:var(--amber-600)}
+body[data-module] .st-item{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+body[data-module] .st-step,body[data-module] .st-branch{display:flex;flex-direction:column;
+  align-items:center;gap:4px;min-width:0;max-width:100%;padding:0 2px;border:0;background:none;
+  font:inherit;text-align:center;color:inherit}
+body[data-module] .st-dot{width:16px;height:16px;box-sizing:border-box;border-radius:50%;
+  border:2px solid var(--slate-400);background:var(--panel);flex-shrink:0}
+body[data-module] .st-lbl{font-size:11px;line-height:1.25;color:var(--muted);display:-webkit-box;
+  -webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-width:118px}
+body[data-module] .st-done .st-dot{background:var(--amber-600);border-color:var(--amber-600)}
+body[data-module] .st-done .st-lbl{color:var(--ink-label)}
+body[data-module] .st-cur .st-dot{background:var(--amber-600);border-color:var(--amber-600);
+  box-shadow:0 0 0 4px var(--amber-100)}
+body[data-module] .st-cur .st-lbl{color:var(--amber-700);font-weight:600}
+/* Доступный переход: обводка цветом шкалы — «сюда можно» (как в рабочей
+   системе); под курсором заливается, подпись подчёркивается. */
+body[data-module] button.st-next{cursor:pointer;border-radius:8px}
+body[data-module] .st-next .st-dot{border-color:var(--amber-600)}
+body[data-module] .st-next .st-lbl{color:var(--amber-700)}
+body[data-module] button.st-next:hover .st-dot{background:var(--amber-100)}
+body[data-module] button.st-next:hover .st-lbl{text-decoration:underline}
+body[data-module] button.st-next:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+/* Ветка — ниже своего шага, пунктиром: это не следующий шаг, а выход в
+   сторону. Подпись в одну строку — рядом с веткой колонки пустые. */
+body[data-module] .st-fork{width:1px;height:7px;margin-top:3px;background:var(--slate-400)}
+body[data-module] .st-branch{margin-top:2px;flex-direction:row;gap:5px;max-width:none;white-space:nowrap}
+body[data-module] .st-branch .st-dot{width:11px;height:11px;border-width:1.5px;border-style:dashed}
+body[data-module] .st-branch .st-lbl{font-size:10.5px;white-space:nowrap;display:block;max-width:none}
+body[data-module] .st-branch.st-cur .st-dot{border-style:solid;box-shadow:0 0 0 3px var(--amber-100)}
+body[data-module] .st-toggle{flex-shrink:0;width:26px;height:26px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;border:1px solid var(--line);border-radius:7px;
+  background:var(--panel);color:var(--muted);cursor:pointer}
+body[data-module] .st-toggle:hover{color:var(--blue-700);border-color:var(--blue-300)}
+body[data-module] .st-toggle:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+
+/* --- Шкала: свёрнутый вид ---------------------------------------------------
+   Одна строка: текущий статус, девять делений, «N из 9», переход дальше.
+   В этот вид шкала переходит и сама, когда карточку прокрутили (класс
+   scrolled ставит bindStickyHead): закреплённая шапка не должна занимать
+   полэкрана. */
+body[data-module] .st-mini{display:none;align-items:center;gap:12px;flex-wrap:wrap;
+  font-size:12px;min-height:30px}
+body[data-module] .st-flow.is-collapsed .st-full,
+body[data-module] .scrolled .st-flow .st-full{display:none}
+body[data-module] .st-flow.is-collapsed .st-mini,
+body[data-module] .scrolled .st-flow .st-mini{display:flex}
+body[data-module] .scrolled .st-mini .st-toggle{display:none}
+body[data-module] .scrolled .oc-head-status{padding-top:7px}
+/* Закреплённая шапка стоит не вплотную к верху области прокрутки, а с её
+   отступом, и в эту полосу просвечивало уезжающее содержимое. Закрываем её
+   тенью цвета фона — место под шапкой не меняется. */
+body[data-module] .scrolled .oc-head{box-shadow:0 -16px 0 var(--bg)}
+/* То же у плашки «ОЦ → литера» в карточке литеры: в отступе над ней
+   просвечивали поля. Тень карточки ядра сохраняется второй. */
+body[data-module] .scrolled #ctxPlateWrap{padding-bottom:6px;background:var(--bg);
+  box-shadow:0 -16px 0 var(--bg)}
+body[data-module] .st-mini-lbl{font-size:10px;letter-spacing:.4px;text-transform:uppercase;
+  color:#61799a;font-weight:700}
+body[data-module] .st-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;
+  border-radius:999px;background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100);font-weight:600}
+body[data-module] .st-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--amber-600)}
+body[data-module] .st-pill-branch{background:var(--slate-50);color:var(--slate-700);border-color:var(--line)}
+body[data-module] .st-pill-branch .st-pill-dot{background:var(--slate-400)}
+body[data-module] .st-bar{display:inline-flex;gap:3px}
+body[data-module] .st-seg{width:12px;height:5px;border-radius:3px;background:var(--line)}
+body[data-module] .st-seg.on{background:var(--amber-600)}
+body[data-module] .st-count{color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-module] .st-then{display:inline-flex;align-items:center;gap:6px;min-width:0}
+body[data-module] .st-next-lbl,body[data-module] .st-or{color:var(--muted)}
+body[data-module] .st-go{padding:2px 10px;border:1px solid var(--amber-600);border-radius:999px;
+  background:var(--panel);color:var(--amber-700);font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+body[data-module] .st-go:hover{background:var(--amber-50)}
+body[data-module] .st-go:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-module] .st-go-branch{border-style:dashed}
+body[data-module] .st-note{color:var(--muted)}
+/* Разворот — сразу за статусом, с подписью: в дальнем правом углу кнопка
+   висела одна через пустую полосу во всю ширину, и связь её со строкой не
+   читалась (замечание пользователя 21.09.2026). */
+body[data-module] .st-mini .st-toggle{width:auto;height:24px;padding:0 8px 0 6px;gap:4px;
+  font:inherit;font-size:11.5px;font-weight:600;color:var(--blue-700);border-color:transparent;background:none}
+body[data-module] .st-mini .st-toggle:hover{background:var(--blue-50);border-color:transparent}
+
+/* Узкое окно: шкала не помещается справа от вкладок — уходит под них во всю
+   ширину, фигура остаётся Г-образной. */
+@media (max-width:1100px){
+  body[data-module] .oc-head-status{grid-column:1 / -1;padding:10px 4px 0}
+}
+
+/* ===== Единый образ: края, промежутки, подложка закреплённой шапки ==========
+   Замечания пользователя 21.09.2026: «ширина не совпадает у блоков 01, 02, 03 и
+   шапки», «в ОИ под шапкой нет фона», «в ОИ вовсе нет отступов между
+   блоками», «оформи фон под шапкой красиво». */
+
+/* Блоки карточки ОИ стояли вплотную: у их столбика не было ни одного правила,
+   а в карточке ОЦ промежуток задаёт каждый блок сам. Промежуток — у столбика,
+   тот же, что в ОЦ. */
+body[data-module] .oi-stack{display:flex;flex-direction:column;gap:12px}
+
+/* Плашка «ОЦ → литера» выступала на 2px с каждой стороны (margin: 0 -2px в
+   ядре) и была шире блоков под ней. */
+body[data-module] #ctxPlateWrap{margin:0}
+
+/* Подложка закреплённой шапки. Пока шапка закреплена, под ней уезжает
+   карточка, и край был резким: поле обрезалось ровно по низу шапки, будто
+   сломалось. Теперь у закреплённой зоны своя подложка цвета страницы, а ниже —
+   короткое растворение: содержимое уходит под шапку мягко (практики «header
+   blocker» и «scroll fade»: Josh Comeau, Ryan Mulligan). */
+body[data-module] .oc-head,
+body[data-module] #ctxPlateWrap{isolation:isolate}
+body[data-module] .scrolled .oc-head::after,
+body[data-module] .scrolled #ctxPlateWrap::after{content:"";position:absolute;left:0;right:0;top:100%;
+  height:18px;pointer-events:none;background:linear-gradient(var(--bg), rgba(233,241,248,0))}
+

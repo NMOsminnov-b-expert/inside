@@ -16,7 +16,7 @@ import { createMechOi } from '../oi/mech/model.js';
 import { createVehicleOi } from '../oi/vehicle/model.js';
 import { bindStructBox } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
-import { bindStatusFlow } from './statusFlow.ctrl.js';
+import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;

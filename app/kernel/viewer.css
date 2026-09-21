@@ -478,3 +478,15 @@ kbd,.vmenu kbd{display:inline-block;padding:1px 5px;
    .idoc-attach-view и .df-preview-body, а он растягивается внутри них. */
 body[data-page] .viewer{height:100%;min-height:0;display:flex;flex-direction:column;
   background:#fff;overflow:hidden}
+
+/* --- Шкала статусов в шапке ОЦ при раскрытом просмотрщике ------------------ */
+/* Шкала статусов в колонке карточки — одной строкой: над полями важна сводка,
+   а девять шагов в полширины окна не читаются. */
+body[data-module].viewer-dock .st-flow .st-full{display:none}
+body[data-module].viewer-dock .st-flow .st-mini{display:flex}
+body[data-module].viewer-dock .st-mini .st-toggle{display:none}
+body[data-module].viewer-dock .oc-head-status{padding-top:7px}
+/* В колонке карточки строка статуса узкая: деления шкалы и подпись «Статус»
+   уходят, счётчик «N из 9» и «Далее» остаются — строка помещается в одну. */
+body[data-module].viewer-dock .st-mini .st-bar,
+body[data-module].viewer-dock .st-mini .st-mini-lbl{display:none}

@@ -1,6 +1,6 @@
-import { stepOf, isBranch, STATUS_MAIN } from '../data/statusFlow.js';
+import { stepOf, isBranch, STATUS_MAIN } from './flow.js';
 
-// Шкала статусов в шапке карточки ОЦ (разметка — statusFlow.view.js).
+// Шкала статусов в шапке карточки ОЦ (разметка — kernel/status/flow.view.js).
 //
 // Переход — только на доступный шаг, и через подтверждение: статус двигает
 // запись по конвейеру (от него зависят срезы реестра «Мне осмотреть», «Мне

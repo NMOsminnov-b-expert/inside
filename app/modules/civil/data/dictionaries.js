@@ -1,8 +1,8 @@
-import { STATUS_ALL } from './statusFlow.js';
+import { STATUS_ALL } from '../../../kernel/status/flow.js';
 
 // Справочники ЭТОГО модуля. Копия — намеренная: типы ОЦ расходятся
 // независимо друг от друга, общий словарь стал бы точкой конфликтов.
-// Статусы ОЦ — шкала рабочей системы, порядок и ветки в statusFlow.js.
+// Статусы ОЦ — шкала рабочей системы, порядок и ветки в kernel/status/flow.js.
 export const STATUS_OC = STATUS_ALL;
 
 export const STATUS_BUILD = ['Основное', 'Вспомогательное'];

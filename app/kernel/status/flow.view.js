@@ -1,5 +1,5 @@
-import { esc } from '../../../kernel/dom.js';
-import { STATUS_MAIN, STATUS_BRANCH, isBranch, stepOf, nextOf } from '../data/statusFlow.js';
+import { esc } from '../dom.js';
+import { STATUS_MAIN, STATUS_BRANCH, isBranch, stepOf, nextOf } from './flow.js';
 
 // Шкала статусов объекта оценки — в свободном углу Г-образной шапки, справа от
 // вкладок (макет пользователя 21.09.2026, канва «Шапка ОЦ: Г-образный блок»).
