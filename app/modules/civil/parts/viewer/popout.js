@@ -1,5 +1,6 @@
 import { createScope } from '../../../../kernel/scope.js';
 import { attachFiles } from './files.js';
+import { confirmIn, promptIn, selectIn, toastIn } from './dialogs.js';
 
 // Просмотрщик в отдельном окне — на второй монитор (решение пользователя
 // 21.09.2026: «реализуем и вынос на отдельную страницу, и компактный режим, на
@@ -76,11 +77,27 @@ export function openPopout(ctx, onKey) {
 
   // Файлы, брошенные в окно просмотра, прикрепляются так же, как в карточке.
   const hasFiles = (e) => Array.from((e.dataTransfer && e.dataTransfer.types) || []).includes('Files');
+  // Подсветка «отпустите здесь» — как в карточке (files.js, bindFileDrop).
+  let depth = 0;
+  const mark = (on) => { const v = doc.querySelector('.viewer'); if (v) v.classList.toggle('vdrop-on', on); };
+  doc.addEventListener('dragenter', (e) => { if (hasFiles(e)) { depth += 1; mark(true); } });
+  doc.addEventListener('dragleave', (e) => { if (hasFiles(e)) { depth = Math.max(0, depth - 1); if (!depth) mark(false); } });
   doc.addEventListener('dragover', (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
   doc.addEventListener('drop', (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
-    attachFiles(ctx, e.dataTransfer.files);
+    depth = 0;
+    mark(false);
+    attachFiles(popCtx(ctx), e.dataTransfer.files);
+  });
+  // Вставка файлов из буфера (Ctrl+V) — тоже в окне просмотра.
+  doc.addEventListener('paste', (e) => {
+    const t = e.target;
+    if (t && t.closest && t.closest('input, textarea, [contenteditable="true"]')) return;
+    const files = Array.from((e.clipboardData && e.clipboardData.files) || []);
+    if (!files.length) return;
+    e.preventDefault();
+    attachFiles(popCtx(ctx), files);
   });
 
   doc.addEventListener('keydown', (e) => onKey(popCtx(ctx), e));
@@ -105,11 +122,19 @@ export function closePopout() {
 // Главное окно закрывают или перезагружают — окно просмотра без него пустое.
 window.addEventListener('pagehide', () => closePopout());
 
-// Контекст для окна: тот же экран, но поверхность — документ окна.
+// Контекст для окна: тот же экран, но поверхность — документ окна. Диалоги и
+// уведомления — тоже в окне (dialogs.js): кто работает на втором мониторе,
+// должен видеть вопрос там же, где нажал кнопку.
 export function popCtx(ctx) {
   const c = Object.create(ctx);
   c.scope = pscope;
   c.isPopout = true;
+  const doc = pscope.root.ownerDocument;
+  c.host = Object.create(ctx.host);
+  c.host.confirm = (o) => confirmIn(doc, o);
+  c.host.prompt = (o) => promptIn(doc, o);
+  c.host.select = (o) => selectIn(doc, o);
+  c.toast = (msg, type) => toastIn(doc, msg, type);
   return c;
 }
 

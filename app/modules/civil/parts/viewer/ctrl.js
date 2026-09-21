@@ -166,7 +166,15 @@ export function bindViewerHotkeys(ctx) {
   ctx.scope.onDocument('keydown', (e) => {
     // Пока просмотрщик в отдельном окне, клавиши главного окна его не
     // листают: окно ловит их само (popout.js), а здесь человек заполняет поля.
-    if (ctx.ui.viewerPopout) return;
+    // Прикрепить (Ctrl+O) можно и отсюда: окно прикрепления откроется здесь
+    // же, а документ появится в окне просмотра.
+    if (ctx.ui.viewerPopout) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyO') {
+        e.preventDefault();
+        pickFiles(document).then((files) => attachFiles(ctx, files));
+      }
+      return;
+    }
     viewerKeydown(ctx, e);
   });
   // Отпускание пробела снимает временную «руку».
@@ -214,7 +222,7 @@ function keyActions(ctx) {
   const withTab = (fn) => () => { const x = cur(); if (x) fn(ctx, x.sc, x.id); };
   const popout = !!ctx.isPopout;
   return {
-    attach: async () => attachFiles(ctx, await pickFiles()),
+    attach: async () => attachFiles(ctx, await pickFiles(ctx.scope.root.ownerDocument)),
     closeTab: () => closeTab(ctx),
     closeAll: () => closeAll(ctx),
     stepDoc: (dir) => stepDoc(ctx, dir),
@@ -547,7 +555,7 @@ export function bindViewer(ctx) {
   s.$$('[data-vattach], [data-attach-default]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     b.closest('.dd') && b.closest('.dd').classList.remove('open');
-    attachFiles(ctx, await pickFiles());
+    attachFiles(ctx, await pickFiles(s.root.ownerDocument));
   });
 
   bindCompareColumns(ctx);

@@ -31,10 +31,14 @@ export function guessType(name, types) {
   return hit ? hit[1] : (types.includes('Прочее') ? 'Прочее' : types[0]);
 }
 
-// Системный выбор файлов — несколько сразу.
-export function pickFiles() {
+// Системный выбор файлов — несколько сразу. Поле создаётся в документе ТОГО
+// окна, где нажали кнопку: при вынесенном просмотрщике окно выбора иначе
+// открывалось бы на другом мониторе, а по клавише Ctrl+O из вынесенного окна
+// не открывалось вовсе — браузер разрешает выбор файла только в окне, где
+// человек только что действовал.
+export function pickFiles(doc = document) {
   return new Promise((resolve) => {
-    const input = document.createElement('input');
+    const input = doc.createElement('input');
     input.type = 'file';
     input.multiple = true;
     input.onchange = () => resolve(Array.from(input.files || []));
@@ -47,14 +51,14 @@ const kb = (n) => (n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1).replace('.', 
 
 // Окно подтверждения пачки. Своё, а не kernel/dialog.js: там нет окна со
 // списком строк, а здесь у каждого файла своё имя и вид.
-function batchDialog(files, types, whereLabel) {
+function batchDialog(doc, files, types, whereLabel) {
   return new Promise((resolve) => {
-    document.querySelectorAll('.modal-back').forEach((old) => old.remove());
+    doc.querySelectorAll('.modal-back').forEach((old) => old.remove());
     const rows = files.map((f) => ({
       file: f, name: f.name, type: guessType(f.name, types), big: isFileTooLarge(f), on: !isFileTooLarge(f),
     }));
 
-    const back = document.createElement('div');
+    const back = doc.createElement('div');
     back.className = 'modal-back';
     const typeOpts = (cur) => types.map((t) => `<option ${t === cur ? 'selected' : ''}>${esc(t)}</option>`).join('');
     const draw = () => {
@@ -107,7 +111,7 @@ function batchDialog(files, types, whereLabel) {
       }
     });
     draw();
-    document.body.appendChild(back);
+    doc.body.appendChild(back);
     const first = back.querySelector('[data-att-name]');
     if (first) first.focus();
   });
@@ -122,19 +126,22 @@ export async function attachFiles(ctx, files) {
   const scope = attachScope(ctx);
   const where = scope === 'oc' ? 'объект оценки' : `${scopeLabel(scope)} · ${ctx.oi ? (ctx.oi.letter ? 'литера ' + ctx.oi.letter : ctx.oi.name) : ''}`;
 
-  const picked = await batchDialog(list, opt('oc', 'docType', DOC_TYPES), where);
+  // Окно прикрепления — там же, откуда пришли файлы (главное окно или окно
+  // просмотра на втором мониторе, см. popout.js).
+  const doc = (ctx.scope && ctx.scope.root && ctx.scope.root.ownerDocument) || document;
+  const picked = await batchDialog(doc, list, opt('oc', 'docType', DOC_TYPES), where);
   if (!picked || !picked.length) return [];
 
   const docs = docListFor(ctx, scope);
   const added = [];
   for (const r of picked) {
-    const doc = {
+    const item = {
       id: nextDocId(ctx.rec), type: r.type, name: (r.name || r.file.name).trim(),
       date: ctx.today, file: await attachedFileFrom(r.file), pages: null,
     };
-    docs.push(doc);
-    openTabOnly(scope, doc.id);
-    added.push(doc);
+    docs.push(item);
+    openTabOnly(scope, item.id);
+    added.push(item);
   }
 
   // Открыт первый из прикреплённых: его и смотрят сразу, остальные ждут во

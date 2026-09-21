@@ -140,11 +140,12 @@ export async function retypeDoc(ctx, sc, id) {
 export function downloadDoc(ctx, sc, id) {
   const d = docOf(ctx, sc, id);
   if (!d || !d.file) { ctx.toast('У документа нет файла', 'warn'); return; }
-  const a = document.createElement('a');
+  const doc = ctx.scope.root.ownerDocument;
+  const a = doc.createElement('a');
   a.href = d.file.dataUrl;
   const ext = (d.file.name.match(/\.[^.]+$/) || [''])[0];
   a.download = d.name.toLowerCase().endsWith(ext.toLowerCase()) ? d.name : d.name + ext;
-  document.body.appendChild(a);
+  doc.body.appendChild(a);
   a.click();
   a.remove();
 }
@@ -155,15 +156,16 @@ export function downloadDoc(ctx, sc, id) {
 export function printDoc(ctx, sc, id) {
   const d = docOf(ctx, sc, id);
   if (!d || !d.file) { ctx.toast('У документа нет файла', 'warn'); return; }
-  const frame = document.createElement('iframe');
+  const doc = ctx.scope.root.ownerDocument;
+  const frame = doc.createElement('iframe');
   frame.className = 'vprint-frame';
   frame.setAttribute('aria-hidden', 'true');
   frame.src = d.file.dataUrl;
   frame.onload = () => {
-    try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { window.open(d.file.dataUrl, '_blank'); }
+    try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (e) { doc.defaultView.open(d.file.dataUrl, '_blank'); }
     setTimeout(() => frame.remove(), 60000);
   };
-  document.body.appendChild(frame);
+  doc.body.appendChild(frame);
   if (d.file.pageCount && d.pages && d.pages.length !== d.file.pageCount) {
     ctx.toast('Печатается исходный файл — убранные в просмотрщике страницы в него входят', 'warn');
   }

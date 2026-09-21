@@ -19,7 +19,12 @@
   * файл, брошенный на карточку, и файл из буфера (Ctrl+V) открывают то же
     окно прикрепления;
   * поиска по тексту нет (решение пользователя 21.09.2026) — Ctrl+F остаётся
-    браузерным.
+    браузерным;
+  * при вынесенном в отдельное окно просмотрщике прикрепление работает В НЁМ:
+    и окно выбора файлов, и окно прикрепления, и уведомление, и диалоги
+    (переименование) — в окне просмотра, а не в главном (замечание
+    пользователя 21.09.2026: «то не там окно выпрыгнет, то вообще не даёт
+    прикрепить»); Ctrl+O в главном окне при этом тоже работает.
 """
 
 import base64
@@ -205,3 +210,42 @@ def run(t):
     pg.evaluate(FILE_EVENT, [base64.b64encode(_pdf(1, 'Paste')).decode(), 'Скан из буфера.pdf', 'paste'])
     t.ck(t.wait_until("() => !!document.querySelector('.vattach-row')"), 'Ctrl+V с файлом не открывает окно прикрепления')
     pg.click('[data-att-cancel]')
+
+    # --- вынесенный просмотрщик: прикрепление в своём окне ----------------------------------
+    with pg.context.expect_page() as info:
+        pg.click('[data-vpopout]')
+    pop = info.value
+    pop.wait_for_selector('.viewer')
+
+    with pop.expect_file_chooser(timeout=8000) as fc:
+        pop.locator('.vtab-plus').click()
+        pop.locator('.vtab-add [data-vattach]').click()
+    fc.value.set_files({'name': 'Из окна просмотра.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf(1, 'Pop')})
+    pop.wait_for_selector('.vattach-row', timeout=8000)
+    t.ck(pop.locator('.vattach-row').count() == 1 and pg.locator('.vattach-row').count() == 0,
+         'окно прикрепления открылось не в том окне')
+    pop.click('[data-att-ok]')
+    t.ck(pop.wait_for_function("() => [...document.querySelectorAll('.vtab')]"
+                               ".some((x) => x.title.includes('Из окна просмотра'))", timeout=15000) is not None,
+         'документ, прикреплённый в окне просмотра, там не открылся')
+    t.ck(pop.locator('.toast').count() > 0, 'уведомление о прикреплении показано не в окне просмотра')
+
+    pop.locator('.vtabs-list .vtab.active').click(button='right')
+    pop.wait_for_selector('.vmenu')
+    pop.locator('.vmenu-item', has_text='Переименовать').click()
+    pop.wait_for_selector('[data-modal-input]', timeout=8000)
+    t.ck(pg.locator('[data-modal-input]').count() == 0, 'диалог из окна просмотра открылся в главном окне')
+    pop.keyboard.press('Escape')
+
+    # Ctrl+O в главном окне работает и при вынесенном просмотрщике.
+    pg.bring_to_front()
+    pg.locator('.grow').click(position={'x': 10, 'y': 10})
+    with pg.expect_file_chooser(timeout=8000) as fc:
+        pg.keyboard.press('Control+o')
+    fc.value.set_files({'name': 'Из главного окна.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf(1, 'Main')})
+    pg.wait_for_selector('.vattach-row', timeout=8000)
+    pg.click('[data-att-ok]')
+    t.ck(pop.wait_for_function("() => [...document.querySelectorAll('.vtab')]"
+                               ".some((x) => x.title.includes('Из главного окна'))", timeout=15000) is not None,
+         'документ, прикреплённый в главном окне, не появился в окне просмотра')
+    pop.click('[data-vpop-back]')
