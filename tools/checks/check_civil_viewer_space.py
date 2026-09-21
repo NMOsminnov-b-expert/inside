@@ -21,6 +21,8 @@
   * отдельное окно: документ открывается во втором окне, в карточке остаётся
     полоса-заглушка, клавиши листают в окне, «Вернуть» закрывает окно и
     возвращает просмотрщик в карточку;
+  * в раскрытии шапка ОЦ и блоки карточки стоят по одному краю, а в карточке
+    ОИ между блоками есть промежуток (замечания пользователя 21.09.2026);
   * увеличенный лист двигается мышью;
   * на экране 1600×900 страница занимает не меньше четверти площади.
 """
@@ -122,6 +124,15 @@ def run(t):
     t.ck(dock['stageH'] >= 0.85 * 900, 'в раскрытии лента ниже 85%% высоты: %s px' % round(dock['stageH']))
     t.ck(dock['crumbsL'] >= dock['vr'] and dock['headL'] >= dock['vr'],
          'шапка сайта или шапка ОЦ заходит под документ в раскрытии')
+    # Шапка и блоки карточки — по одному краю (замечание пользователя
+    # 21.09.2026: «ширина не совпадает у блоков 01, 02, 03 и шапки»).
+    edge = pg.evaluate("""() => {
+      const h = document.querySelector('[data-oc-head] .oc-head-top').getBoundingClientRect();
+      const c = document.querySelector('.grow .card').getBoundingClientRect();
+      return [Math.round(h.left), Math.round(c.left), Math.round(h.right), Math.round(c.right)];
+    }""")
+    t.ck(abs(edge[0] - edge[1]) <= 1 and abs(edge[2] - edge[3]) <= 1,
+         'в раскрытии шапка и блоки не по одному краю: %s' % edge)
     pg.keyboard.press('Escape')
     t.wait_until("() => !document.body.classList.contains('civil-dock')")
     t.ck(pg.locator('.viewer').count() == 1, 'Esc из раскрытия закрыл просмотрщик')
@@ -173,3 +184,11 @@ def run(t):
     pop.click('[data-vpop-back]')
     t.wait_until("() => !!document.querySelector('.viewer:not(.vpop-stub) .vstage')")
     t.ck(pop.is_closed(), '«Вернуть» не закрыл окно просмотра')
+
+    # --- карточка ОИ: промежутки между блоками ----------------------------------------------
+    t.open(OC, wait='tr[data-open-oi]')
+    pg.locator('tr[data-open-oi]').first.click()
+    t.wait_for('.oi-stack > .card + .card')
+    gaps = pg.evaluate("""() => { const c = [...document.querySelectorAll('.oi-stack > .card')];
+      return c.slice(1).map((n, i) => Math.round(n.getBoundingClientRect().top - c[i].getBoundingClientRect().bottom)); }""")
+    t.ck(gaps and min(gaps) >= 10, 'в карточке ОИ блоки стоят вплотную: %s' % gaps)

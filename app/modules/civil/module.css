@@ -794,7 +794,8 @@ body[data-module="civil"] .scrolled .oc-head-status{padding-top:7px}
 body[data-module="civil"] .scrolled .oc-head{box-shadow:0 -16px 0 var(--bg)}
 /* То же у плашки «ОЦ → литера» в карточке литеры: в отступе над ней
    просвечивали поля. Тень карточки ядра сохраняется второй. */
-body[data-module="civil"] .scrolled #ctxPlateWrap{box-shadow:0 -16px 0 var(--bg),0 6px 14px rgba(15,23,42,.10)}
+body[data-module="civil"] .scrolled #ctxPlateWrap{padding-bottom:6px;background:var(--bg);
+  box-shadow:0 -16px 0 var(--bg)}
 body[data-module="civil"] .st-mini-lbl{font-size:10px;letter-spacing:.4px;text-transform:uppercase;
   color:#61799a;font-weight:700}
 body[data-module="civil"] .st-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;
@@ -959,3 +960,33 @@ body[data-module="civil"] .viewer.vpop-stub{flex:0 0 36px;width:36px;min-width:0
   align-items:center;gap:10px;padding:8px 0;background:#f4f8fd}
 body[data-module="civil"] .vpop-stub-text{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;
   font-weight:700;color:var(--blue-700);white-space:nowrap}
+
+/* ===== Единый образ: края, промежутки, подложка закреплённой шапки ==========
+   Замечания пользователя 21.09.2026: «ширина не совпадает у блоков 01, 02, 03 и
+   шапки», «в ОИ под шапкой нет фона», «в ОИ вовсе нет отступов между
+   блоками», «оформи фон под шапкой красиво». */
+
+/* Блоки карточки ОИ стояли вплотную: у их столбика не было ни одного правила,
+   а в карточке ОЦ промежуток задаёт каждый блок сам. Промежуток — у столбика,
+   тот же, что в ОЦ. */
+body[data-module="civil"] .oi-stack{display:flex;flex-direction:column;gap:12px}
+
+/* Отступ слева у правой колонки нужен только рядом с перегородкой
+   просмотрщика. В раскрытии и при окне на втором мониторе её нет — и блоки
+   вставали на 12px правее шапки. */
+body[data-module="civil"].civil-dock .split .grow{padding-left:0}
+
+/* Плашка «ОЦ → литера» выступала на 2px с каждой стороны (margin: 0 -2px в
+   ядре) и была шире блоков под ней. */
+body[data-module="civil"] #ctxPlateWrap{margin:0}
+
+/* Подложка закреплённой шапки. Пока шапка закреплена, под ней уезжает
+   карточка, и край был резким: поле обрезалось ровно по низу шапки, будто
+   сломалось. Теперь у закреплённой зоны своя подложка цвета страницы, а ниже —
+   короткое растворение: содержимое уходит под шапку мягко (практики «header
+   blocker» и «scroll fade»: Josh Comeau, Ryan Mulligan). */
+body[data-module="civil"] .oc-head,
+body[data-module="civil"] #ctxPlateWrap{isolation:isolate}
+body[data-module="civil"] .scrolled .oc-head::after,
+body[data-module="civil"] .scrolled #ctxPlateWrap::after{content:"";position:absolute;left:0;right:0;top:100%;
+  height:18px;pointer-events:none;background:linear-gradient(var(--bg), rgba(233,241,248,0))}
