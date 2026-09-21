@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "branch": "refactor-ts",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260921T073708Z",
+    "baseCommit": "fb00181"
+  },
+  "entities": [],
+  "relations": []
+}
