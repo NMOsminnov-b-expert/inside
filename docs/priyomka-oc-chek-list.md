@@ -8,7 +8,7 @@
 `docs/screens/` в git не хранится (`.gitignore`): снимки живут у того, кто их
 снял, и пересобираются командой `report.py` из этого же документа.
 
-Список самих правок — [reestr-izmeneniy.md](reestr-izmeneniy.md), разбор по
+Список самих правок — журнал изменений `reestr-izmeneniy.xlsx`, разбор по
 гражданскому зданию — [korrektirovka-oc-grazhdanskoe.md](korrektirovka-oc-grazhdanskoe.md).
 
 ## Итог по пунктам чек-листа
