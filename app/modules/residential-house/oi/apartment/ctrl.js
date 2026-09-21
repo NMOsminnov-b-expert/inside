@@ -12,7 +12,7 @@ import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
 import { updateFloorsUI, rerenderFloors, floorColOrder } from './floors.view.js';
 import { bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
-import { openDocViewer, openPhotoInPlace } from '../../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace } from '../../../../kernel/viewer/state.js';
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 import { bindColumnReorder } from '../../../../kernel/columns.js';

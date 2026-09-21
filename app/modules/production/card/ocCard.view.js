@@ -9,7 +9,7 @@ import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
-import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её

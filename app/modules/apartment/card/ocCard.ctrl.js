@@ -7,7 +7,7 @@ import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId, nextEni } from '../data/store.js';
-import { openDocViewer, openPhotoInPlace } from '../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace } from '../../../kernel/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';

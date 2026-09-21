@@ -8,7 +8,7 @@ import { STATUS_OC, REGIONS, DISTRICTS, CITIES } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
-import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 
 // Выпадающий список части адреса. Значение записи, которого нет в справочнике,
 // всё равно показывается и остаётся выбранным: адрес приходит из Кадастра и из

@@ -1,4 +1,4 @@
-import { openDocViewer, openPhotoInPlace } from '../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace } from '../../../kernel/viewer/state.js';
 import { photoPages } from '../parts/photos/model.js';
 
 // Вкладка «Логи» карточки ОЦ (card/ocCard.ctrl.js подключает это рядом с

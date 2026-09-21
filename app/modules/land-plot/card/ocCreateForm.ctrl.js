@@ -5,7 +5,7 @@ import { bindPickSearch } from '../../../kernel/pickSearch.js';
 import { podvedNamesOf } from '../../../kernel/institutions.js';
 import { syncOcAddress, ocFullAddress, parseAddress } from '../../../kernel/address.js';
 import { ENI_LENGTHS } from '../../../kernel/fmt.js';
-import { openDocViewer } from '../parts/viewer/state.js';
+import { openDocViewer } from '../../../kernel/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindCadastre, ADDR_PARTS } from './cadastre.ctrl.js';
 

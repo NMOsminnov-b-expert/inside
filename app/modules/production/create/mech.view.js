@@ -1,5 +1,5 @@
 import { esc } from '../../../kernel/dom.js';
-import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 
 const COMPLEX_TYPES = ['Узел', 'Агрегат', 'Станция', 'Прочее'];
 

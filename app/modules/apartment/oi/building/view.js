@@ -13,7 +13,7 @@ import { opt, optGroups } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
-import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { tempModeMS } from './tempMode.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';

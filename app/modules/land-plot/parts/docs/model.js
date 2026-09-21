@@ -5,7 +5,7 @@
 // сервере понадобится настоящая загрузка в хранилище, постоянный адрес файла,
 // проверка типа и размера на стороне сервера и права доступа к нему.
 // scope: 'oc' | 'mech-new' | <oi.id>
-import { getPdfPageCount, getPdfPageAspects, releasePdf } from '../viewer/pdf.js';
+import { getPdfPageCount, getPdfPageAspects, releasePdf } from '../../../../kernel/viewer/pdf.js';
 
 // Страницы документа. У реального PDF — по странице на каждую страницу файла:
 // именно из этого списка живут лента миниатюр, счётчик «/ N» и навигация, поэтому

@@ -7,7 +7,7 @@ import { STATUS_OC, REGIONS, DISTRICTS, CITIES } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
-import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 
 // Экран создания ОЦ. Сознательно отдельный файл от ocForm.view.js, не общий
 // с редактированием — по составу совпадает с ним на 2026-08-21, но это два

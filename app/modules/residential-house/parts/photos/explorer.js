@@ -1,7 +1,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { photoPages, photoMatches, photoFileAt } from './model.js';
-import { splitWrap, viewerHTML } from '../viewer/shell.js';
-import { openPhotoInPlace } from '../viewer/state.js';
+import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
+import { openPhotoInPlace } from '../../../../kernel/viewer/state.js';
 
 // Фото удалённых литер: сама литера удалена, но её фото сохранены на уровне
 // ОЦ с пометкой, какой литере принадлежали (см. index.js deleteOi). Тайлы не

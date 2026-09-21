@@ -24,8 +24,10 @@ import { ctxPlate, updatePlate, bindPlateActions } from './card/ctxPlate.js';
 import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
-import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
-import { bindSplitPanes } from './parts/viewer/shell.js';
+import { bindViewer, bindViewerHotkeys } from '../../kernel/viewer/ctrl.js';
+import { setViewerDeps } from '../../kernel/viewer/deps.js';
+import { viewerDeps } from './parts/docs/viewerDeps.js';
+import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
 import { viewMech } from './create/mech.view.js';
 import { bindMech } from './create/mech.ctrl.js';
@@ -435,6 +437,9 @@ export function main(host) {
     sync();
   }
 
+
+  // Просмотрщик живёт в ядре и данные модуля получает отсюда (deps.js).
+  setViewerDeps(viewerDeps);
 
   bindCommonUI();
   bindStickyHead();

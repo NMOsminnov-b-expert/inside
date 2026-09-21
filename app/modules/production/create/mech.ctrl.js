@@ -1,6 +1,6 @@
 import { nextId, nextEni } from '../data/store.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
-import { openDocViewer } from '../parts/viewer/state.js';
+import { openDocViewer } from '../../../kernel/viewer/state.js';
 
 // Строки комплекса живут в состоянии модуля, а не только в DOM
 // (в макете они терялись при любом ререндере).

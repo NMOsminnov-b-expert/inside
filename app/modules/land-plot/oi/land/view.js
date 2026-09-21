@@ -14,7 +14,7 @@ import { utilitiesMS } from './utilities.js';
 import { auxBuildingsHTML } from './buildings.js';
 import { improvementsFields } from './improvements.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
-import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
 

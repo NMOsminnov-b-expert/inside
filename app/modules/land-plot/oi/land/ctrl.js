@@ -8,7 +8,7 @@ import { bindDocsColumns } from '../../parts/docs/table.js';
 import { bindUtilities } from './utilities.js';
 import { bindAuxBuildings } from './buildings.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
-import { openDocViewer, openPhotoInPlace, VS } from '../../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace, VS } from '../../../../kernel/viewer/state.js';
 import { nextDocId } from '../../data/store.js';
 import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';

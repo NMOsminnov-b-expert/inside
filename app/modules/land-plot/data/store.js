@@ -45,7 +45,7 @@ export const ui = {
   photoQuery: '',
   mechMode: 'mono',
   mechDocs: [],
-  // Ширина просмотрщика — своя для каждого режима (parts/viewer/shell.js).
+  // Ширина просмотрщика — своя для каждого режима (kernel/viewer/shell.js).
   splitVW: {},
   // Сравнение: соотношение колонок и свёрнутая половина (Л3.9).
   cmpSplit: 50,
