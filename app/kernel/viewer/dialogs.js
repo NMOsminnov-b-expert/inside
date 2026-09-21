@@ -1,4 +1,4 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 
 // Диалоги и уведомления в ЗАДАННОМ окне — для просмотрщика, вынесенного в
 // отдельное окно (popout.js). Диалоги ядра (kernel/dialog.js, kernel/toast.js)

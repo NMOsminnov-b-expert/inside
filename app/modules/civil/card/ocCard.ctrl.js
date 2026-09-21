@@ -7,7 +7,7 @@ import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionari
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId } from '../data/store.js';
 import { archiveRecord } from '../../../kernel/archive.js';
-import { openDocViewer, openPhotoInPlace } from '../parts/viewer/state.js';
+import { openDocViewer, openPhotoInPlace } from '../../../kernel/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';

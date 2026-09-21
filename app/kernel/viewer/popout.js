@@ -1,4 +1,4 @@
-import { createScope } from '../../../../kernel/scope.js';
+import { createScope } from '../scope.js';
 import { attachFiles } from './files.js';
 import { confirmIn, promptIn, selectIn, toastIn } from './dialogs.js';
 
@@ -64,7 +64,7 @@ export function openPopout(ctx, onKey) {
   doc.open();
   doc.write(`<!doctype html><html lang="ru"><head><meta charset="utf-8">
     <title>Документы · E•state</title></head>
-    <body data-module="civil" class="civil-popout"><div id="popRoot"></div></body></html>`);
+    <body data-module="civil" class="viewer-popout"><div id="popRoot"></div></body></html>`);
   doc.close();
   copyStyles(doc);
   bindDropdowns(doc);

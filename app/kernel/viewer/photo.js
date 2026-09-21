@@ -1,6 +1,6 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 import { pagerHTML, zoomHTML, rotateHTML } from './tools.js';
-import { photoFileAt, catLabel } from '../photos/model.js';
+import { photoFileAt, catLabel } from './deps.js';
 
 // Целевые литеры для переноса текущего фото (все литеры, кроме текущей).
 function moveTargets(ctx, oi) {

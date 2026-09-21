@@ -19,7 +19,7 @@ import { esc } from '../../../../kernel/dom.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { fieldHTML } from '../../../../kernel/fieldSpec.js';
 import { VEHICLE_TYPES } from '../../../vehicle/data/vehicleFields.js';
-import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { paramsOf, vehicleExtra, vehicleTitle, vehicleSubtitle, VIN_LENGTH } from './model.js';
 

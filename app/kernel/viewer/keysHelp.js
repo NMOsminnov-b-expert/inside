@@ -1,4 +1,4 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 import { KEYMAP } from './keys.js';
 
 // Справка «Горячие клавиши» (клавиша «?»): группы, действие, клавиша и, где

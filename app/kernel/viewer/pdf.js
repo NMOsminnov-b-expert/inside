@@ -11,8 +11,8 @@
 // (см. README там же, в т.ч. почему .js, а не .mjs). Грузится ленивым import() —
 // у того, кто не открывал ни одного PDF, ~1.7 МБ не скачиваются вовсе.
 
-const VENDOR = '../../../../vendor/pdfjs/pdf.min.js';
-const WORKER = new URL('../../../../vendor/pdfjs/pdf.worker.min.js', import.meta.url).href;
+const VENDOR = '../../vendor/pdfjs/pdf.min.js';
+const WORKER = new URL('../../vendor/pdfjs/pdf.worker.min.js', import.meta.url).href;
 
 // Верхняя граница разрешения рендера: без неё на 400% зума канвас A4 раздувался бы
 // в десятки мегапикселей на страницу.

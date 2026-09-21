@@ -1,5 +1,4 @@
-import { docListFor } from '../docs/model.js';
-import { photoPages } from '../photos/model.js';
+import { docListFor, photoPages } from './deps.js';
 
 // Состояние просмотрщика этого модуля: зум, страница, открытые вкладки.
 // cmpZoom — зум режима «Сравнение», СВОЙ на каждую колонку: сравнивают обычно

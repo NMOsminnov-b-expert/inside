@@ -10,7 +10,7 @@
 // Устройство: просмотрщик закрепляется у левого края области приложения
 // (position: fixed), а полоса сайта и содержимое модуля получают отступ слева на
 // его ширину (переменные --dock-left и --dock-w на корне документа, класс
-// civil-dock на body). Карточку при этом не перестраиваем — она просто уже.
+// viewer-dock на body). Карточку при этом не перестраиваем — она просто уже.
 
 // Ширина колонки документа — доля области приложения; своя у режима
 // раскрытия и запоминается (ctx.ui.splitVW.dock), как и доли обычного режима.
@@ -25,7 +25,7 @@ const isOn = (ctx) => document.body.dataset.module === 'civil'
 
 export function applyDock(ctx) {
   const on = isOn(ctx);
-  document.body.classList.toggle('civil-dock', on);
+  document.body.classList.toggle('viewer-dock', on);
   if (!on) return;
 
   const main = document.querySelector('.main');

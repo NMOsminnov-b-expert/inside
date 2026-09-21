@@ -1,9 +1,6 @@
-import { esc } from '../../../../kernel/dom.js';
-import { docListFor, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB, scopeLabel } from '../docs/model.js';
-import { DOC_TYPES } from '../../data/dictionaries.js';
-import { opt } from '../../data/opts.js';
-import { nextDocId } from '../../data/store.js';
+import { esc } from '../dom.js';
 import { openTabOnly } from './state.js';
+import { docListFor, attachedFileFrom, isFileTooLarge, scopeLabel, nextDocId, maxFileMb, docTypes } from './deps.js';
 
 // Прикрепление документов пачкой: выбором, перетаскиванием и вставкой.
 //
@@ -74,8 +71,8 @@ function batchDialog(doc, files, types, whereLabel) {
                 aria-label="Прикрепить «${esc(r.file.name)}»">
               <input class="input" data-att-name="${i}" value="${esc(r.name)}" aria-label="Название документа">
               <select class="select" data-att-type="${i}" aria-label="Вид документа">${typeOpts(r.type)}</select>
-              <span class="vattach-size ${r.big ? 'warn' : ''}" title="${r.big ? `Больше ${MAX_DOC_FILE_MB} МБ — не прикрепить` : ''}">
-                ${r.big ? `больше ${MAX_DOC_FILE_MB} МБ` : kb(r.file.size)}</span>
+              <span class="vattach-size ${r.big ? 'warn' : ''}" title="${r.big ? `Больше ${maxFileMb()} МБ — не прикрепить` : ''}">
+                ${r.big ? `больше ${maxFileMb()} МБ` : kb(r.file.size)}</span>
             </div>`).join('')}
           </div>
         </div>
@@ -129,7 +126,7 @@ export async function attachFiles(ctx, files) {
   // Окно прикрепления — там же, откуда пришли файлы (главное окно или окно
   // просмотра на втором мониторе, см. popout.js).
   const doc = (ctx.scope && ctx.scope.root && ctx.scope.root.ownerDocument) || document;
-  const picked = await batchDialog(doc, list, opt('oc', 'docType', DOC_TYPES), where);
+  const picked = await batchDialog(doc, list, docTypes(), where);
   if (!picked || !picked.length) return [];
 
   const docs = docListFor(ctx, scope);

@@ -15,7 +15,7 @@ import { fmtNum } from '../../../../kernel/fmt.js';
 import { numText } from '../../../../kernel/numField.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
-import { splitWrap, viewerHTML } from '../../parts/viewer/shell.js';
+import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { photoFileAt } from '../../parts/photos/model.js';
 import {
   mechUnits, classNames, classOf, subgroupOf, hasSubgroups, paramsOf, asksCountry,

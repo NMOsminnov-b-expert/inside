@@ -32,7 +32,7 @@ export function getOi(rec, oiId) {
 export const ui = {
   expanded: {},
   photoPop: null,        // id литеры, у которой открыто окно со списком фото
-  // Ширина просмотрщика — своя для каждого режима (parts/viewer/shell.js).
+  // Ширина просмотрщика — своя для каждого режима (kernel/viewer/shell.js).
   splitVW: {},
   // Сравнение: соотношение колонок и свёрнутая половина (Л3.9).
   cmpSplit: 50,

@@ -1,5 +1,3 @@
-import { docListFor, ensureDocPages } from '../docs/model.js';
-import { photoPages, photoGroups } from '../photos/model.js';
 import { VS, scopesOf, orderedTabs } from './state.js';
 import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
@@ -9,6 +7,7 @@ import {
   ICON_RAIL, ICON_FULL, ICON_FULL_EXIT, ICON_DOCK, ICON_DOCK_EXIT, ICON_POPOUT, ICON_POPIN,
 } from './icons.js';
 import { isPopoutOpen } from './popout.js';
+import { docListFor, ensureDocPages, photoPages, photoGroups } from './deps.js';
 
 function buildViewerContext(ctx) {
   const mode = ctx.ui.viewer.mode;

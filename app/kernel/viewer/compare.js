@@ -1,7 +1,7 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 import { VS } from './state.js';
 import { docPageHTML } from './doc.js';
-import { photoFileAt } from '../photos/model.js';
+import { photoFileAt } from './deps.js';
 
 // Режим «Сравнение»: фото слева, документ справа.
 //

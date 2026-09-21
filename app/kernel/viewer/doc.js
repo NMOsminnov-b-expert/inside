@@ -1,10 +1,10 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 
-import { docListFor, scopeLabel } from '../docs/model.js';
 import { tabKey } from './state.js';
 import { ICON_ARCHIVE, ICON_UPLOAD } from './icons.js';
 import { pagerHTML, zoomHTML, rotateHTML } from './tools.js';
 import { tabs, notOpened, tabLabel } from './docActions.js';
+import { docListFor, scopeLabel } from './deps.js';
 
 // Страница реального PDF — canvas внутри обычного листа, который асинхронно
 // заполняет viewer/pdf.js (paintPdfCanvases). Раньше здесь был <embed>, то есть

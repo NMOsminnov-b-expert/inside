@@ -1,4 +1,4 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 
 // Контекстное меню просмотрщика (правая кнопка мыши, Shift+F10, клавиша меню).
 //

@@ -9,7 +9,7 @@ import { bindAutoGrowAll } from '../../../../kernel/autoGrow.js';
 import { setFieldError } from '../../../../kernel/fieldError.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
-import { openPhotoInPlace } from '../../parts/viewer/state.js';
+import { openPhotoInPlace } from '../../../../kernel/viewer/state.js';
 import {
   normVin, vinError, normPlate, syncVehicleName, vehicleParams,
   vehicleExtra, addVehicleExtra, dropVehicleExtra,

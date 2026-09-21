@@ -1,5 +1,3 @@
-import { docListFor } from '../docs/model.js';
-import { photoPages } from '../photos/model.js';
 import {
   VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace, applyFit, fitKey,
 } from './state.js';
@@ -15,7 +13,7 @@ import { KEYMAP } from './keys.js';
 import { showMenu } from './menu.js';
 import { showKeysHelp } from './keysHelp.js';
 import { bindTabs } from './tabs.js';
-import { pushDocPageLog } from '../../audit/model.js';
+import { docListFor, photoPages, pushDocPageLog } from './deps.js';
 
 // Поворот и зум — функции уровня модуля, а не замыкания внутри bindViewer: их
 // зовут и кнопки панели, и горячие клавиши (которые навешиваются однократно, см.

@@ -10,7 +10,7 @@ import { bindNumField, isExpr } from '../../../../kernel/numField.js';
 import { bindAutoGrowAll } from '../../../../kernel/autoGrow.js';
 import { bindCheckedField, setFieldError } from '../../../../kernel/fieldError.js';
 import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
-import { openPhotoInPlace } from '../../parts/viewer/state.js';
+import { openPhotoInPlace } from '../../../../kernel/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { unitsTable, selectedUnit } from './view.js';
 import {

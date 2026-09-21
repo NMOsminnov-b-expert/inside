@@ -1,9 +1,6 @@
-import { archiveDoc } from '../../../../kernel/archive.js';
-import { docListFor, scopeLabel } from '../docs/model.js';
-import { DOC_TYPES } from '../../data/dictionaries.js';
-import { opt } from '../../data/opts.js';
-import { pushDocPageLog } from '../../audit/model.js';
+import { archiveDoc } from '../archive.js';
 import { VS, vSt, tabKey, scopesOf, orderedTabs, openTabOnly } from './state.js';
+import { docListFor, scopeLabel, pushDocPageLog, docTypes, archiveInfo } from './deps.js';
 
 // Действия с документами и вкладками просмотрщика. Одни и те же функции зовут
 // кнопки панели, контекстное меню и горячие клавиши — поведение не должно
@@ -130,7 +127,7 @@ export async function renameDoc(ctx, sc, id) {
 export async function retypeDoc(ctx, sc, id) {
   const d = docOf(ctx, sc, id);
   if (!d) return;
-  const type = await ctx.host.select({ title: 'Вид документа', options: opt('oc', 'docType', DOC_TYPES), value: d.type });
+  const type = await ctx.host.select({ title: 'Вид документа', options: docTypes(), value: d.type });
   if (!type) return;
   d.type = type;
   ctx.render();
@@ -206,7 +203,7 @@ export async function archiveTab(ctx, sc, id) {
   });
   if (!ok) return;
   const oi = sc === 'oc' ? null : (ctx.rec.oi || []).find((o) => o.id === sc);
-  const entry = archiveDoc({ rec: ctx.rec, oi, docId: id, typeId: 'civil', typeLabel: 'Гражданское здание', today: ctx.today });
+  const entry = archiveDoc({ rec: ctx.rec, oi, docId: id, ...archiveInfo(), today: ctx.today });
   if (!entry) return;
   closeKeys(ctx, [tabKey(sc, id)]);
   ctx.toast('Документ в архиве: ' + entry.name, 'ok');
