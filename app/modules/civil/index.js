@@ -26,8 +26,10 @@ import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from './parts/viewer/ctrl.js';
+import { watchDockArea } from './parts/viewer/dock.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
-import { bindSplitPanes } from './parts/viewer/shell.js';
+import { bindSplitPanes, viewerHTML } from './parts/viewer/shell.js';
+import { renderPopout } from './parts/viewer/popout.js';
 import { migrateMovable, migrateMechUnits } from './oi/mech/model.js';
 
 function todayStr() {
@@ -272,6 +274,8 @@ export function main(host) {
     bindPlateActions(ctx);
     bindViewer(ctx);
     bindSplitPanes(ctx);
+    // Окно просмотра на втором мониторе — та же отрисовка в его документе.
+    renderPopout(ctx, viewerHTML, bindViewer);
 
     scope.root.scrollTop = top;
     if (scope.watchStickyHead) scope.watchStickyHead();
@@ -429,6 +433,7 @@ export function main(host) {
   // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
+  watchDockArea(ctx);
   ensureViewerDefault();
   migrateMovable(rec);
   migrateMechUnits(rec);

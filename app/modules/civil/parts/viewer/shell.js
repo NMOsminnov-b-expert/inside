@@ -5,7 +5,10 @@ import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
 import { renderCompareMode } from './compare.js';
 import { viewerSidebarHTML } from './sidebar.js';
-import { ICON_RAIL, ICON_FULL, ICON_FULL_EXIT } from './icons.js';
+import {
+  ICON_RAIL, ICON_FULL, ICON_FULL_EXIT, ICON_DOCK, ICON_DOCK_EXIT, ICON_POPOUT, ICON_POPIN,
+} from './icons.js';
+import { isPopoutOpen } from './popout.js';
 
 function buildViewerContext(ctx) {
   const mode = ctx.ui.viewer.mode;
@@ -59,6 +62,17 @@ function buildViewerContext(ctx) {
 // часть страницы — одна из главных жалоб на просмотрщики.
 export function viewerHTML(ctx) {
   if (!ctx.ui.viewer) return '';
+
+  // Просмотрщик вынесен в отдельное окно — в карточке остаётся узкая полоса:
+  // показать окно или вернуть просмотрщик сюда (parts/viewer/popout.js).
+  if (ctx.ui.viewerPopout && isPopoutOpen() && !ctx.isPopout) {
+    return `<div class="viewer vpop-stub">
+      <button class="tool-btn" data-vpop-focus title="Показать окно с документом">${ICON_POPOUT}</button>
+      <span class="vpop-stub-text">Документ в отдельном окне</span>
+      <button class="tool-btn" data-vpop-back title="Вернуть просмотрщик в карточку">${ICON_POPIN}</button>
+    </div>`;
+  }
+
   const vctx = buildViewerContext(ctx);
 
   let parts;
@@ -66,7 +80,8 @@ export function viewerHTML(ctx) {
   else if (vctx.mode === 'doc') parts = renderDocMode(ctx, vctx);
   else parts = renderCompareMode(ctx, vctx);
 
-  const full = !!ctx.ui.viewerFull;
+  const full = !!ctx.ui.viewerFull && !ctx.isPopout;
+  const dock = !!ctx.ui.viewerDock && !ctx.isPopout;
 
   // Кнопка-гамбургер открывает сайдбар выбора (см. sidebar.js): оттуда
   // доступен любой документ записи ОЦ и любое фото, а не только уже открытое.
@@ -90,14 +105,19 @@ export function viewerHTML(ctx) {
     <div class="tool-group right">
       ${parts.right || ''}
       ${railBtn}
+      ${ctx.isPopout ? `<button class="tool-btn" data-vpop-back title="Вернуть просмотрщик в карточку">${ICON_POPIN}</button>` : `
+      <button class="tool-btn ${dock ? 'on' : ''}" data-vdock aria-pressed="${dock}"
+        title="${dock ? 'Вернуть под шапку (F)' : 'Раскрыть во всю высоту: документ слева, карточка справа (F)'}">${dock ? ICON_DOCK_EXIT : ICON_DOCK}</button>
       <button class="tool-btn" data-vfull aria-pressed="${full}"
-        title="${full ? 'Вернуть рядом с карточкой (Esc)' : 'Развернуть на весь экран (F)'}">${full ? ICON_FULL_EXIT : ICON_FULL}</button>
-      <button class="tool-btn" data-vclose title="Закрыть просмотрщик" aria-label="Закрыть просмотрщик">×</button>
+        title="${full ? 'Вернуть (Esc)' : 'На весь экран поверх карточки (Shift+F)'}">${full ? ICON_FULL_EXIT : ICON_FULL}</button>
+      <button class="tool-btn" data-vpopout title="Открыть в отдельном окне — например, на втором мониторе">${ICON_POPOUT}</button>
+      <button class="tool-btn" data-vclose title="Закрыть просмотрщик" aria-label="Закрыть просмотрщик">×</button>`}
     </div>
   </div>`;
 
   return `<div class="viewer ${full ? 'is-full' : ''}" ${full ? 'role="dialog" aria-modal="true" aria-label="Просмотр во весь экран"' : ''}>
-    ${bar}${parts.tabsBar || ''}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}</div>`;
+    ${bar}${parts.tabsBar || ''}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}
+    ${dock && !full ? '<div class="vdock-grip" data-vdock-grip title="Потяните, чтобы изменить ширину документа"></div>' : ''}</div>`;
 }
 
 // Закрытый просмотрщик оставляет после себя закладку — так же, как блок

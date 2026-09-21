@@ -910,3 +910,49 @@ body[data-module="civil"] .viewer.is-full{position:fixed;inset:10px;top:10px;wid
 /* «Сравнение»: лист во всю ширину своей колонки, а не 380px — колонки
    узкие, и каждый пиксель ширины здесь — крупность строки документа. */
 body[data-module="civil"] .viewer .cmp-body .vpage{width:100%;max-width:none;box-sizing:border-box}
+
+/* --- Режим раскрытия: документ слева во всю высоту ----------------------------
+   Решение пользователя 21.09.2026: документ — во всю высоту окна, а шапка
+   сайта и шапка ОЦ сжимаются и уезжают вправо, над карточкой, чтобы не
+   перекрывать поля ввода. Класс civil-dock и переменные --dock-left/--dock-w
+   ставит parts/viewer/dock.js. */
+body[data-module="civil"].civil-dock #content{padding-left:calc(var(--dock-w) + 22px);padding-top:8px}
+body[data-module="civil"].civil-dock .viewer{position:fixed;top:8px;bottom:8px;left:calc(var(--dock-left) + 8px);
+  width:var(--dock-w);height:auto;max-width:none;min-width:0;min-height:0;z-index:60;animation:none}
+body[data-module="civil"].civil-dock .viewer.is-full{top:10px;left:10px;right:10px;bottom:10px;width:auto;z-index:1000}
+body[data-module="civil"].civil-dock .vsplit{display:none}
+/* Шкала статусов в колонке карточки — одной строкой: над полями важна сводка,
+   а девять шагов в полширины окна не читаются. */
+body[data-module="civil"].civil-dock .st-flow .st-full{display:none}
+body[data-module="civil"].civil-dock .st-flow .st-mini{display:flex}
+body[data-module="civil"].civil-dock .st-mini .st-toggle{display:none}
+body[data-module="civil"].civil-dock .oc-head-status{padding-top:7px}
+/* Край колонки документа — ручка ширины. */
+body[data-module="civil"] .vdock-grip{position:absolute;top:0;bottom:0;right:-5px;width:10px;cursor:col-resize;z-index:5}
+body[data-module="civil"] .vdock-grip:hover{background:linear-gradient(90deg,transparent 4px,var(--blue-300) 4px,var(--blue-300) 6px,transparent 6px)}
+
+/* В колонке карточки строка статуса узкая: деления шкалы и подпись «Статус»
+   уходят, счётчик «N из 9» и «Далее» остаются — строка помещается в одну. */
+body[data-module="civil"].civil-dock .st-mini .st-bar,
+body[data-module="civil"].civil-dock .st-mini .st-mini-lbl{display:none}
+
+/* Хлебные крошки в режиме раскрытия — пилюлей над шапкой ОЦ, без белой
+   полосы во всю ширину и её отступов (замечание пользователя 21.09.2026:
+   «сэкономим на интервалах»). Имя пользователя уходит, остаётся значок. */
+body[data-module="civil"].civil-dock .topbar{margin-left:calc(var(--dock-w) + 8px);height:auto;
+  padding:8px 18px 0 14px;background:none;border:0;gap:8px}
+body[data-module="civil"].civil-dock .crumbs{padding:3px 12px;border:1px solid var(--line);border-radius:999px;
+  background:var(--panel);font-size:11px;min-width:0;overflow:hidden;white-space:nowrap}
+body[data-module="civil"].civil-dock .top-user > span:first-child{display:none}
+
+/* --- Просмотрщик в отдельном окне (parts/viewer/popout.js) ------------------ */
+body[data-module="civil"].civil-popout{margin:0;height:100vh;overflow:hidden;background:var(--bg)}
+body[data-module="civil"].civil-popout #popRoot{height:100vh}
+body[data-module="civil"].civil-popout .viewer{position:static;width:100%;height:100vh;min-width:0;max-width:none;
+  min-height:0;border:0;border-radius:0;box-shadow:none;animation:none}
+
+/* В карточке вместо просмотрщика — узкая полоса: показать окно или вернуть. */
+body[data-module="civil"] .viewer.vpop-stub{flex:0 0 36px;width:36px;min-width:0;height:auto;min-height:0;
+  align-items:center;gap:10px;padding:8px 0;background:#f4f8fd}
+body[data-module="civil"] .vpop-stub-text{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;
+  font-weight:700;color:var(--blue-700);white-space:nowrap}

@@ -28,7 +28,8 @@ export function applyFit(ctx) {
   const stage = ctx.scope.$('[data-vstage]');
   const ribbon = ctx.scope.$('[data-vribbon]');
   if (!stage || !ribbon) return;
-  const cs = getComputedStyle(stage);
+  // Окно стиля — окна самой ленты: она бывает и в отдельном окне (popout.js).
+  const cs = stage.ownerDocument.defaultView.getComputedStyle(stage);
   const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
   const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   ribbon.style.setProperty('--fit-w', Math.max(200, stage.clientWidth - padX) + 'px');

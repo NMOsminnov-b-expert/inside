@@ -8,6 +8,8 @@ import {
 } from './state.js';
 import { nextDocId } from '../../data/store.js';
 import { paintPdfCanvases } from './pdf.js';
+import { applyDock, bindDockGrip } from './dock.js';
+import { openPopout, closePopout, focusPopout } from './popout.js';
 import { pushDocPageLog } from '../../audit/model.js';
 
 // Поворот и зум — функции уровня модуля, а не замыкания внутри bindViewer: их
@@ -79,6 +81,14 @@ function toggleFull(ctx, on) {
   ctx.render();
 }
 
+// Режим раскрытия (parts/viewer/dock.js): документ слева во всю высоту,
+// шапки и карточка — справа. Выбор запоминается: кто работает с документами,
+// работает так постоянно.
+function toggleDock(ctx, on) {
+  ctx.ui.viewerDock = on === undefined ? !ctx.ui.viewerDock : on;
+  ctx.render();
+}
+
 // Горячие клавиши просмотрщика. Работают одинаково на реальных страницах PDF и на
 // макетных заглушках.
 //
@@ -91,54 +101,70 @@ function toggleFull(ctx, on) {
 // поэтому клавиши не протекают на другие экраны.
 export function bindViewerHotkeys(ctx) {
   ctx.scope.onDocument('keydown', (e) => {
-    if (!ctx.ui.viewer) return;
-
-    // Не мешаем набору текста и модальным диалогам: иначе «0» или «+» в поле
-    // ввода дёргали бы зум, а буква — поворот (ровно то, чего просили избежать).
-    const t = e.target;
-    if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .modal')) return;
-    if (document.querySelector('.modal')) return;
-
-    const st = vSt(ctx);
-    const pageCount = vPages(ctx).length;
-
-    // Поворот — на Ctrl+Alt+R, а не на Ctrl+R: Ctrl+R в браузере это
-    // перезагрузка страницы, перехватывать её нельзя.
-    if (e.ctrlKey && e.altKey && e.code === 'KeyR') { e.preventDefault(); rotateViewer(ctx); return; }
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
-
-    // Буквы — по физической клавише (e.code): в русской раскладке «F» — это
-    // «А», и сравнение по e.key не срабатывало бы.
-    if (e.code === 'KeyF') { e.preventDefault(); toggleFull(ctx); return; }
-    if (e.code === 'KeyW') { e.preventDefault(); fitViewer(ctx, 'width'); return; }
-    if (e.code === 'KeyP') { e.preventDefault(); fitViewer(ctx, 'page'); return; }
-
-    switch (e.key) {
-      case 'ArrowRight': case 'PageDown':
-        if (st) { e.preventDefault(); vGo(ctx, st.page + 1); } break;
-      case 'ArrowLeft': case 'PageUp':
-        if (st) { e.preventDefault(); vGo(ctx, st.page - 1); } break;
-      case 'Home':
-        if (st) { e.preventDefault(); vGo(ctx, 1); } break;
-      case 'End':
-        if (st && pageCount) { e.preventDefault(); vGo(ctx, pageCount); } break;
-      case '+': case '=':
-        e.preventDefault(); zoomViewer(ctx, VS.zoom + 10); break;
-      case '-':
-        e.preventDefault(); zoomViewer(ctx, VS.zoom - 10); break;
-      case '0':
-        e.preventDefault(); zoomViewer(ctx, 100); break;
-      // Esc сначала возвращает из полноэкранного режима и только следующим
-      // нажатием закрывает просмотрщик: иначе выход из «во весь экран» стоил бы
-      // закрытия документа.
-      case 'Escape':
-        e.preventDefault();
-        if (ctx.ui.viewerFull) toggleFull(ctx, false);
-        else { ctx.ui.viewer = null; ctx.render(); }
-        break;
-      default: break;
-    }
+    // Пока просмотрщик в отдельном окне, клавиши главного окна его не
+    // листают: окно ловит их само (popout.js), а здесь человек заполняет поля.
+    if (ctx.ui.viewerPopout) return;
+    viewerKeydown(ctx, e);
   });
+}
+
+// Обработка клавиши — отдельно от подписки: её зовут и главное окно, и окно
+// просмотра на втором мониторе.
+export function viewerKeydown(ctx, e) {
+  if (!ctx.ui.viewer) return;
+
+  // Не мешаем набору текста и модальным диалогам: иначе «0» или «+» в поле
+  // ввода дёргали бы зум, а буква — поворот (ровно то, чего просили избежать).
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .modal')) return;
+  if (document.querySelector('.modal')) return;
+
+  const st = vSt(ctx);
+  const pageCount = vPages(ctx).length;
+
+  // Поворот — на Ctrl+Alt+R, а не на Ctrl+R: Ctrl+R в браузере это
+  // перезагрузка страницы, перехватывать её нельзя.
+  if (e.ctrlKey && e.altKey && e.code === 'KeyR') { e.preventDefault(); rotateViewer(ctx); return; }
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+  // Буквы — по физической клавише (e.code): в русской раскладке «F» — это
+  // «А», и сравнение по e.key не срабатывало бы.
+  if (e.code === 'KeyF' && !ctx.isPopout) {
+    e.preventDefault();
+    if (e.shiftKey) toggleFull(ctx);
+    else toggleDock(ctx);
+    return;
+  }
+  if (e.code === 'KeyW') { e.preventDefault(); fitViewer(ctx, 'width'); return; }
+  if (e.code === 'KeyP') { e.preventDefault(); fitViewer(ctx, 'page'); return; }
+
+  switch (e.key) {
+    case 'ArrowRight': case 'PageDown':
+      if (st) { e.preventDefault(); vGo(ctx, st.page + 1); } break;
+    case 'ArrowLeft': case 'PageUp':
+      if (st) { e.preventDefault(); vGo(ctx, st.page - 1); } break;
+    case 'Home':
+      if (st) { e.preventDefault(); vGo(ctx, 1); } break;
+    case 'End':
+      if (st && pageCount) { e.preventDefault(); vGo(ctx, pageCount); } break;
+    case '+': case '=':
+      e.preventDefault(); zoomViewer(ctx, VS.zoom + 10); break;
+    case '-':
+      e.preventDefault(); zoomViewer(ctx, VS.zoom - 10); break;
+    case '0':
+      e.preventDefault(); zoomViewer(ctx, 100); break;
+    // Esc сначала возвращает из полноэкранного режима и только следующим
+    // нажатием закрывает просмотрщик: иначе выход из «во весь экран» стоил бы
+    // закрытия документа.
+    case 'Escape':
+      e.preventDefault();
+      if (ctx.isPopout) break;
+      if (ctx.ui.viewerFull) toggleFull(ctx, false);
+      else if (ctx.ui.viewerDock) toggleDock(ctx, false);
+      else { ctx.ui.viewer = null; ctx.render(); }
+      break;
+    default: break;
+  }
 }
 
 export function bindViewer(ctx) {
@@ -187,6 +213,23 @@ export function bindViewer(ctx) {
 
   const vf = s.$('[data-vfull]');
   if (vf) vf.onclick = () => toggleFull(ctx);
+
+  const vdk = s.$('[data-vdock]');
+  if (vdk) vdk.onclick = () => toggleDock(ctx);
+
+  // Отдельное окно (popout.js): открыть, показать, вернуть в карточку.
+  const vpo = s.$('[data-vpopout]');
+  if (vpo) vpo.onclick = () => openPopout(ctx, viewerKeydown);
+  s.$$('[data-vpop-back]').forEach((b) => b.onclick = () => closePopout());
+  const vpf = s.$('[data-vpop-focus]');
+  if (vpf) vpf.onclick = () => focusPopout();
+
+  // До подсчёта размеров листа: колонка раскрытия задаёт ширину ленты. В окне
+  // просмотра раскрытия нет — оно и так целиком под документом.
+  if (!ctx.isPopout) {
+    applyDock(ctx);
+    bindDockGrip(ctx);
+  }
 
   // Лента миниатюр сворачивается: миниатюры крупные (видно содержимое страницы),
   // но иногда нужна вся ширина под саму страницу.
@@ -446,10 +489,13 @@ export function bindViewer(ctx) {
 // размера, а страницы PDF перерисовываются в новом разрешении — с паузой, чтобы
 // не рисовать на каждом пикселе перетаскивания перегородки.
 function watchStage(ctx, stage) {
-  if (typeof ResizeObserver === 'undefined') return;
+  // Наблюдатель — окна самой ленты: в отдельном окне (popout.js) наблюдатель
+  // главного окна её размеров не видит.
+  const RO = stage.ownerDocument.defaultView.ResizeObserver;
+  if (!RO) return;
   let timer = 0;
   let last = '';
-  const ro = new ResizeObserver(() => {
+  const ro = new RO(() => {
     if (!stage.isConnected) { ro.disconnect(); return; }
     const size = stage.clientWidth + 'x' + stage.clientHeight;
     if (size === last) return;

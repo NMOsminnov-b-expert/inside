@@ -13,8 +13,14 @@
     высоте; 100% масштаба — выбранный режим;
   * смена режима «документы / фото» возвращает масштаб к 100%;
   * миниатюры прячутся кнопкой в панели, и лента забирает их место;
-  * F разворачивает просмотрщик во весь экран, Esc возвращает его на место и
-    НЕ закрывает (закрывает только следующий Esc);
+  * F — режим раскрытия: документ слева во всю высоту окна (лента не ниже
+    85% высоты), шапка сайта и карточка сдвинуты вправо и не перекрыты
+    (решение пользователя 21.09.2026); Esc снимает режим, не закрывая
+    просмотрщик;
+  * Shift+F — во весь экран поверх карточки, Esc возвращает;
+  * отдельное окно: документ открывается во втором окне, в карточке остаётся
+    полоса-заглушка, клавиши листают в окне, «Вернуть» закрывает окно и
+    возвращает просмотрщик в карточку;
   * увеличенный лист двигается мышью;
   * на экране 1600×900 страница занимает не меньше четверти площади.
 """
@@ -102,8 +108,26 @@ def run(t):
     pg.click('.vbar [data-vrail-toggle]')
     t.wait_for('.vrail')
 
-    # --- во весь экран ----------------------------------------------------------------
+    # --- раскрытие: документ во всю высоту, карточка справа ----------------------------
     pg.keyboard.press('KeyF')
+    t.wait_until("() => document.body.classList.contains('civil-dock')")
+    t.wait(300)
+    dock = pg.evaluate("""() => {
+      const v = document.querySelector('.viewer').getBoundingClientRect();
+      const s = document.querySelector('.vstage').getBoundingClientRect();
+      const top = document.querySelector('.topbar .crumbs').getBoundingClientRect();
+      const head = document.querySelector('[data-oc-head]').getBoundingClientRect();
+      return { stageH: s.height, vr: v.right, crumbsL: top.left, headL: head.left };
+    }""")
+    t.ck(dock['stageH'] >= 0.85 * 900, 'в раскрытии лента ниже 85%% высоты: %s px' % round(dock['stageH']))
+    t.ck(dock['crumbsL'] >= dock['vr'] and dock['headL'] >= dock['vr'],
+         'шапка сайта или шапка ОЦ заходит под документ в раскрытии')
+    pg.keyboard.press('Escape')
+    t.wait_until("() => !document.body.classList.contains('civil-dock')")
+    t.ck(pg.locator('.viewer').count() == 1, 'Esc из раскрытия закрыл просмотрщик')
+
+    # --- во весь экран ----------------------------------------------------------------
+    pg.keyboard.press('Shift+KeyF')
     t.wait_for('.viewer.is-full')
     g = pg.evaluate(GEOM)
     t.ck(g['viewer']['w'] >= 1500 and g['viewer']['h'] >= 850,
@@ -133,3 +157,19 @@ def run(t):
     t.wait_until("() => document.querySelector('[data-vmode=\"photo\"]').classList.contains('active')")
     zoom = pg.evaluate("(document.querySelector('[data-zoomlabel]') || {}).textContent || '100%'")
     t.ck(zoom == '100%', 'фото открылись с масштабом документа: %s' % zoom)
+
+    # --- отдельное окно -------------------------------------------------------------------
+    pg.click('[data-vmode="doc"]')
+    t.wait_for('.vstage canvas')
+    with pg.context.expect_page() as info:
+        pg.click('[data-vpopout]')
+    pop = info.value
+    pop.wait_for_selector('.vstage canvas.ready', timeout=15000)
+    t.ck(pg.locator('.viewer.vpop-stub').count() == 1, 'в карточке нет полосы «Документ в отдельном окне»')
+    t.ck(pop.locator('[data-vpageblk]').count() == 4, 'в окне не все страницы документа')
+    pop.keyboard.press('End')
+    pop.wait_for_function("() => document.querySelector('[data-vpage]').value !== '1'")
+    t.ck(pop.eval_on_selector('[data-vpage]', 'e => e.value') != '1', 'клавиши в окне не листают документ')
+    pop.click('[data-vpop-back]')
+    t.wait_until("() => !!document.querySelector('.viewer:not(.vpop-stub) .vstage')")
+    t.ck(pop.is_closed(), '«Вернуть» не закрыл окно просмотра')
