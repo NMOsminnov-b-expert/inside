@@ -3,7 +3,9 @@ import { docListFor, pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB
 import { photoPages } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace } from './state.js';
+import {
+  VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace, applyFit, fitKey,
+} from './state.js';
 import { nextDocId } from '../../data/store.js';
 import { paintPdfCanvases } from './pdf.js';
 import { pushDocPageLog } from '../../audit/model.js';
@@ -52,6 +54,31 @@ function zoomViewer(ctx, value) {
   paintPdfCanvases(ctx, VS.zoom, ctx.scope.$('[data-vribbon]') || undefined);
 }
 
+// Режим вписывания: «по ширине» или «целиком». 100% масштаба — это и есть
+// выбранный режим, поэтому масштаб сбрасывается на 100%: нажав «целиком»,
+// человек ждёт увидеть лист целиком, а не целиком-умножить-на-180%.
+function fitViewer(ctx, mode) {
+  VS.fit[fitKey(ctx)] = mode;
+  keepPageOnZoom(ctx.scope.$('[data-vstage]'), 'data-vpageblk', () => {
+    setVZoom(ctx, 100);
+    applyFit(ctx);
+  });
+  ctx.scope.$$('[data-vfit]').forEach((b) => {
+    const on = b.dataset.vfit === mode;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  paintPdfCanvases(ctx, VS.zoom, ctx.scope.$('[data-vribbon]') || undefined);
+}
+
+// Во весь экран и обратно. Перерисовкой, а не классом: панель меняет значок и
+// подсказку, а лента — размер, и после перерисовки bindViewer пересчитает лист
+// и перерисует страницы PDF в новом разрешении.
+function toggleFull(ctx, on) {
+  ctx.ui.viewerFull = on === undefined ? !ctx.ui.viewerFull : on;
+  ctx.render();
+}
+
 // Горячие клавиши просмотрщика. Работают одинаково на реальных страницах PDF и на
 // макетных заглушках.
 //
@@ -80,6 +107,12 @@ export function bindViewerHotkeys(ctx) {
     if (e.ctrlKey && e.altKey && e.code === 'KeyR') { e.preventDefault(); rotateViewer(ctx); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
+    // Буквы — по физической клавише (e.code): в русской раскладке «F» — это
+    // «А», и сравнение по e.key не срабатывало бы.
+    if (e.code === 'KeyF') { e.preventDefault(); toggleFull(ctx); return; }
+    if (e.code === 'KeyW') { e.preventDefault(); fitViewer(ctx, 'width'); return; }
+    if (e.code === 'KeyP') { e.preventDefault(); fitViewer(ctx, 'page'); return; }
+
     switch (e.key) {
       case 'ArrowRight': case 'PageDown':
         if (st) { e.preventDefault(); vGo(ctx, st.page + 1); } break;
@@ -95,8 +128,14 @@ export function bindViewerHotkeys(ctx) {
         e.preventDefault(); zoomViewer(ctx, VS.zoom - 10); break;
       case '0':
         e.preventDefault(); zoomViewer(ctx, 100); break;
+      // Esc сначала возвращает из полноэкранного режима и только следующим
+      // нажатием закрывает просмотрщик: иначе выход из «во весь экран» стоил бы
+      // закрытия документа.
       case 'Escape':
-        e.preventDefault(); ctx.ui.viewer = null; ctx.render(); break;
+        e.preventDefault();
+        if (ctx.ui.viewerFull) toggleFull(ctx, false);
+        else { ctx.ui.viewer = null; ctx.render(); }
+        break;
       default: break;
     }
   });
@@ -116,6 +155,9 @@ export function bindViewer(ctx) {
       if (list.length) ctx.ui.viewerDoc = { scope: sc, id: list[0].id };
     };
 
+    // Масштаб общий на ленту, а у документа и фото свои режимы вписывания:
+    // увеличенный документ не должен открывать снимок увеличенным.
+    VS.zoom = 100;
     if (mode === 'photo') ctx.ui.viewer = { mode: 'photo' };
     else if (mode === 'doc') { ctx.ui.viewer = { mode: 'doc' }; if (!ctx.ui.viewerDoc) pickFirstDoc(); }
     else { ctx.ui.viewer = { mode: 'compare' }; if (!ctx.ui.viewerDoc) pickFirstDoc(); }
@@ -140,6 +182,11 @@ export function bindViewer(ctx) {
 
   const zp = s.$('[data-vzoom\\+]');
   if (zp) zp.onclick = () => zoomViewer(ctx, VS.zoom + 10);
+
+  s.$$('[data-vfit]').forEach((b) => b.onclick = () => fitViewer(ctx, b.dataset.vfit));
+
+  const vf = s.$('[data-vfull]');
+  if (vf) vf.onclick = () => toggleFull(ctx);
 
   // Лента миниатюр сворачивается: миниатюры крупные (видно содержимое страницы),
   // но иногда нужна вся ширина под саму страницу.
@@ -178,6 +225,7 @@ export function bindViewer(ctx) {
   const vc = s.$('[data-vclose]');
   if (vc) vc.onclick = () => {
     ctx.ui.viewer = null;
+    ctx.ui.viewerFull = false;
     ctx.ui.viewerClosed = true;
     ctx.render();
   };
@@ -345,9 +393,14 @@ export function bindViewer(ctx) {
   if (vstageEl && ctx.ui.viewer && ctx.ui.viewer.mode !== 'compare') {
     const st = vSt(ctx);
     if (st) {
-      vstageEl.scrollTop = st.scroll || 0;
       const ribbonEl = s.$('[data-vribbon]');
       if (ribbonEl) ribbonEl.style.zoom = String(VS.zoom / 100);
+      // Размер листа — до восстановления прокрутки: от него зависит высота
+      // ленты, и прокрутка к прежнему месту на старых размерах промахивалась бы.
+      applyFit(ctx);
+      vstageEl.scrollTop = st.scroll || 0;
+      watchStage(ctx, vstageEl);
+      bindPan(vstageEl);
 
       vstageEl.addEventListener('scroll', () => {
         st.scroll = vstageEl.scrollTop;
@@ -386,6 +439,58 @@ export function bindViewer(ctx) {
 
   // Страницы реального PDF рисуются после того, как разметка уже в DOM.
   paintPdfCanvases(ctx, VS.zoom);
+}
+
+// Область ленты меняется и без перерисовки: окно, перегородка между
+// просмотрщиком и карточкой, закреплённая шапка. Лист пересчитывается по факту
+// размера, а страницы PDF перерисовываются в новом разрешении — с паузой, чтобы
+// не рисовать на каждом пикселе перетаскивания перегородки.
+function watchStage(ctx, stage) {
+  if (typeof ResizeObserver === 'undefined') return;
+  let timer = 0;
+  let last = '';
+  const ro = new ResizeObserver(() => {
+    if (!stage.isConnected) { ro.disconnect(); return; }
+    const size = stage.clientWidth + 'x' + stage.clientHeight;
+    if (size === last) return;
+    last = size;
+    applyFit(ctx);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (stage.isConnected) paintPdfCanvases(ctx, VS.zoom, ctx.scope.$('[data-vribbon]') || undefined);
+    }, 180);
+  });
+  ro.observe(stage);
+}
+
+// Увеличенный лист или снимок двигают, ухватив мышью (практика просмотрщиков
+// фото: pan при увеличении). Только когда есть куда двигать — иначе обычный
+// клик по листу ничего не делает. Кнопки, поля и миниатюры не трогаем.
+function bindPan(stage) {
+  const canPan = () => stage.scrollWidth > stage.clientWidth + 2 || VS.zoom > 100;
+  const mark = () => stage.classList.toggle('can-pan', canPan());
+  mark();
+  stage.addEventListener('scroll', mark, { passive: true });
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !canPan() || e.target.closest('button, input, select, a, [data-vthumb]')) return;
+    const start = { x: e.clientX, y: e.clientY, l: stage.scrollLeft, t: stage.scrollTop };
+    stage.setPointerCapture(e.pointerId);
+    stage.classList.add('panning');
+    const move = (ev) => {
+      stage.scrollLeft = start.l - (ev.clientX - start.x);
+      stage.scrollTop = start.t - (ev.clientY - start.y);
+    };
+    const up = () => {
+      stage.classList.remove('panning');
+      stage.removeEventListener('pointermove', move);
+      stage.removeEventListener('pointerup', up);
+      stage.removeEventListener('pointercancel', up);
+    };
+    stage.addEventListener('pointermove', move);
+    stage.addEventListener('pointerup', up);
+    stage.addEventListener('pointercancel', up);
+  });
 }
 
 // --- Режим «Сравнение»: две независимые прокручиваемые колонки ---------------

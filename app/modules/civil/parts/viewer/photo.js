@@ -1,5 +1,5 @@
 import { esc } from '../../../../kernel/dom.js';
-import { VS } from './state.js';
+import { pagerHTML, zoomHTML, rotateHTML } from './tools.js';
 import { photoFileAt, catLabel } from '../photos/model.js';
 
 // Целевые литеры для переноса текущего фото (все литеры, кроме текущей).
@@ -14,9 +14,7 @@ export function renderPhotoMode(ctx, vctx) {
   // выбрана, показывать нечего — говорим об этом прямо, а не пустой лентой.
   if (!oi) {
     return {
-      toolbar: `<div class="vtoolbar"><div class="tool-group right">
-        <span class="vtitle">Фото</span>
-        <button class="tool-btn" data-vclose title="Закрыть просмотрщик">×</button></div></div>`,
+      right: '<span class="vtitle">Фото</span>',
       body: `<div class="vstage"><div class="vempty">
         Выберите литеру в меню слева — её фотографии откроются здесь.
       </div></div>`,
@@ -32,19 +30,16 @@ export function renderPhotoMode(ctx, vctx) {
       </select></div>`
     : '';
 
-  const toolbar = `<div class="vtoolbar">
-    <div class="tool-group"><button class="tool-btn" data-vprev>‹</button>
-    <input class="page-input" data-vpage value="${Math.min(pSt.page, pages.length || 1)}"><span class="muted">/ ${pages.length}</span>
-    <button class="tool-btn" data-vnext>›</button></div>
-    <div class="tool-group"><select class="select vcat" data-vjump>
+  // Категория и перенос — узкими списками в той же панели: их выбирают
+  // реже, чем листают, и отдельной строки они не стоят.
+  const tools = `${pagerHTML(Math.min(pSt.page, pages.length || 1), pages.length)}
+    <div class="tool-group"><select class="select vcat" data-vjump title="Перейти к категории">
     <option value="">К категории…</option>
     ${groups.map((g) => `<option value="${esc(g.cat)}">${esc(catLabel(oi, g.cat))} · ${g.items.length}</option>`).join('')}
     </select></div>
     ${moveSelect}
-    <div class="tool-group"><button class="tool-btn" data-vrot>⟳</button></div>
-    <div class="tool-group"><button class="tool-btn" data-vzoom->−</button><span class="zoom-label" data-zoomlabel>${VS.zoom}%</span><button class="tool-btn" data-vzoom+>+</button></div>
-    <div class="tool-group right"><span class="vtitle">Фото · ${esc(curPhoto ? catLabel(oi, curPhoto.cat) : '—')}</span><button class="tool-btn" data-vclose>×</button></div>
-  </div>`;
+    ${zoomHTML('photo')}${rotateHTML()}`;
+  const right = `<span class="vtitle">${esc(curPhoto ? catLabel(oi, curPhoto.cat) : '—')}</span>`;
 
   let gi = 0;
   const ribbon = groups.map((g) => {
@@ -65,10 +60,8 @@ export function renderPhotoMode(ctx, vctx) {
   }).join('')).join('');
 
   const railOff = ctx.ui.railCollapsed === true;
-  const body = `<div class="vbody"><div class="vrail ${railOff ? 'collapsed' : ''}">
-    <div class="vrail-toggle" data-vrail-toggle title="${railOff ? 'Показать миниатюры' : 'Скрыть миниатюры'}">${railOff ? '»' : '« Миниатюры'}</div>
-    <div class="vrail-list">${rail}</div></div>
+  const body = `<div class="vbody">${railOff ? '' : `<div class="vrail"><div class="vrail-list">${rail}</div></div>`}
   <div class="vstage" data-vstage><div class="vribbon" data-vribbon>${ribbon}</div></div></div>`;
 
-  return { toolbar, body };
+  return { tools, right, body, rail: true };
 }

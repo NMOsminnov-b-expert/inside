@@ -14,9 +14,8 @@ export function renderCompareMode(ctx, vctx) {
   const { d, dSt, pages, groups } = vctx;
   const pSt = vctx.pSt || { page: 1, rot: 0 };
 
-  const toolbar = `<div class="vtoolbar">
-    <div class="tool-group right"><span class="vtitle">Фото + документ рядом</span><button class="tool-btn" data-vclose>×</button></div>
-  </div>`;
+  // Заголовок и закрытие — в общей панели просмотрщика (shell.js).
+  const right = '<span class="vtitle">Фото и документ рядом</span>';
 
   // Зум на колонку. cmpZoom живёт в VS рядом с остальным состоянием
   // просмотрщика, поэтому переживает перерисовку экрана.
@@ -66,5 +65,5 @@ export function renderCompareMode(ctx, vctx) {
     </div>
   </div>`;
 
-  return { toolbar, body };
+  return { right, body };
 }

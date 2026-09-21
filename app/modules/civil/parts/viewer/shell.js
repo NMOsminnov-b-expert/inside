@@ -5,6 +5,7 @@ import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
 import { renderCompareMode } from './compare.js';
 import { viewerSidebarHTML } from './sidebar.js';
+import { ICON_RAIL, ICON_FULL, ICON_FULL_EXIT } from './icons.js';
 
 function buildViewerContext(ctx) {
   const mode = ctx.ui.viewer.mode;
@@ -49,28 +50,54 @@ function buildViewerContext(ctx) {
   return { mode, inOi, oi, scopes, vd, d, dSt, pages, groups, pSt, curPhoto, photoCount };
 }
 
+// Одна панель вместо трёх (задача пользователя 21.09.2026: у просмотрщика мало
+// полезной площади). Раньше над листом стояли три полосы — режимы, вкладки
+// документов, инструменты — 119px из 660. Теперь режимы, инструменты режима и
+// общие кнопки идут одной строкой, которая переносится только на узком
+// просмотрщике; вкладки документов появляются, лишь когда открыто больше
+// одного. Панель — часть вёрстки, а не слой поверх листа: перекрытая панелью
+// часть страницы — одна из главных жалоб на просмотрщики.
 export function viewerHTML(ctx) {
   if (!ctx.ui.viewer) return '';
   const vctx = buildViewerContext(ctx);
-
-  // Кнопка-гамбургер в левом верхнем углу открывает сайдбар выбора (см.
-  // sidebar.js): оттуда доступен любой документ записи ОЦ и любое фото, а не
-  // только уже открытое вкладкой.
-  const burger = `<button class="vburger ${ctx.ui.viewerSidebar ? 'on' : ''}" data-vsb-toggle title="Выбрать документ или фото"><span></span><span></span><span></span></button>`;
-
-  const modeBar = `<div class="vmode">
-    ${burger}
-    ${`<button class="vmode-btn ${vctx.mode === 'photo' ? 'active' : ''}" data-vmode="photo">Фото · ${vctx.photoCount}</button>
-    <button class="vmode-btn ${vctx.mode === 'doc' ? 'active' : ''}" data-vmode="doc">Документы</button>
-    <button class="vmode-btn ${vctx.mode === 'compare' ? 'active' : ''}" data-vmode="compare">Сравнение</button>`}
-  </div>`;
 
   let parts;
   if (vctx.mode === 'photo') parts = renderPhotoMode(ctx, vctx);
   else if (vctx.mode === 'doc') parts = renderDocMode(ctx, vctx);
   else parts = renderCompareMode(ctx, vctx);
 
-  return `<div class="viewer">${modeBar}${parts.tabsBar || ''}${parts.toolbar}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}</div>`;
+  const full = !!ctx.ui.viewerFull;
+
+  // Кнопка-гамбургер открывает сайдбар выбора (см. sidebar.js): оттуда
+  // доступен любой документ записи ОЦ и любое фото, а не только уже открытое.
+  const burger = `<button class="vburger ${ctx.ui.viewerSidebar ? 'on' : ''}" data-vsb-toggle
+    title="Выбрать документ или фото" aria-label="Выбрать документ или фото"><span></span><span></span><span></span></button>`;
+
+  const mode = (key, label) => `<button class="vmode-btn ${vctx.mode === key ? 'active' : ''}"
+    data-vmode="${key}" aria-pressed="${vctx.mode === key}">${label}</button>`;
+
+  const railOff = ctx.ui.railCollapsed === true;
+  const railBtn = parts.rail
+    ? `<button class="tool-btn ${railOff ? '' : 'on'}" data-vrail-toggle aria-pressed="${!railOff}"
+      title="${railOff ? 'Показать миниатюры' : 'Скрыть миниатюры'}">${ICON_RAIL}</button>`
+    : '';
+
+  const bar = `<div class="vbar">
+    <div class="tool-group vbar-modes">${burger}
+      <div class="vmodes">${mode('photo', `Фото · ${vctx.photoCount}`)}${mode('doc', 'Документы')}${mode('compare', 'Сравнение')}</div>
+    </div>
+    ${parts.tools || ''}
+    <div class="tool-group right">
+      ${parts.right || ''}
+      ${railBtn}
+      <button class="tool-btn" data-vfull aria-pressed="${full}"
+        title="${full ? 'Вернуть рядом с карточкой (Esc)' : 'Развернуть на весь экран (F)'}">${full ? ICON_FULL_EXIT : ICON_FULL}</button>
+      <button class="tool-btn" data-vclose title="Закрыть просмотрщик" aria-label="Закрыть просмотрщик">×</button>
+    </div>
+  </div>`;
+
+  return `<div class="viewer ${full ? 'is-full' : ''}" ${full ? 'role="dialog" aria-modal="true" aria-label="Просмотр во весь экран"' : ''}>
+    ${bar}${parts.tabsBar || ''}${parts.body}${viewerSidebarHTML(ctx, vctx.mode)}</div>`;
 }
 
 // Закрытый просмотрщик оставляет после себя закладку — так же, как блок

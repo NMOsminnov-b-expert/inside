@@ -823,3 +823,90 @@ body[data-module="civil"] .st-mini .st-toggle:hover{background:var(--blue-50);bo
 @media (max-width:1100px){
   body[data-module="civil"] .oc-head-status{grid-column:1 / -1;padding:10px 4px 0}
 }
+
+/* ===== Просмотрщик документов и фото: площадь под лист =====================
+   Задача пользователя 21.09.2026: «у просмотрщика довольно мало полезной
+   площади … просмотр документов — основное, с чем работает ЦОД и оценка».
+   Замер до правки (окно 1600×900): лист занимал 18% экрана — ширина листа
+   зажата в 430px, над ним три полосы (119px), миниатюры 168px.
+
+   Практики (граф: practice:prosmotrshchik-dokumentov-i-foto): лист по ширине
+   области и режим «целиком», одна панель в потоке вёрстки, узкие сворачиваемые
+   миниатюры, увеличенный лист двигается мышью, режим «во весь экран».
+
+   Стили просмотрщика общие в ядре (kernel/cards.css); здесь — только
+   гражданское здание, поэтому селекторы начинаются с .viewer и перебивают
+   ядро точностью, а не порядком подключения. */
+
+/* --- Одна панель ------------------------------------------------------------ */
+body[data-module="civil"] .viewer .vbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;
+  padding:5px 6px;background:#f4f8fd;border-bottom:1px solid var(--line-soft);flex-shrink:0}
+body[data-module="civil"] .viewer .vbar .tool-group{gap:2px}
+body[data-module="civil"] .viewer .vbar-modes{gap:6px}
+/* Режимы — сегментами одной плашки: это переключатель, а не три кнопки. */
+body[data-module="civil"] .viewer .vmodes{display:flex;gap:2px;padding:2px;border-radius:8px;background:#e4ecf6}
+body[data-module="civil"] .viewer .vmode-btn{padding:3px 9px;border-radius:6px;font-size:11.5px;font-weight:700;
+  color:#46536b;border:0;box-shadow:none;background:none;white-space:nowrap}
+body[data-module="civil"] .viewer .vmode-btn:hover{background:rgba(255,255,255,.7)}
+body[data-module="civil"] .viewer .vmode-btn.active{background:#fff;color:var(--blue-700);box-shadow:0 1px 2px rgba(15,23,42,.12)}
+body[data-module="civil"] .viewer .vburger{width:26px;height:26px}
+body[data-module="civil"] .viewer .tool-btn.on{background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700)}
+body[data-module="civil"] .viewer .tool-btn:focus-visible,
+body[data-module="civil"] .viewer .vmode-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-module="civil"] .viewer .vbar .zoom-label{min-width:38px}
+
+/* Название документа — это и переключатель документов: строка вкладок
+   показывается только при двух и более открытых. */
+body[data-module="civil"] .viewer .vdoc-pick{min-width:0;flex:0 1 auto}
+body[data-module="civil"] .viewer .vdoc-pick .dd{min-width:0}
+body[data-module="civil"] .viewer .vdoc-name{display:flex;align-items:center;gap:6px;max-width:240px;min-width:0;
+  padding:3px 8px;border:1px solid transparent;border-radius:7px;background:none;font:inherit;font-size:11.5px;
+  color:var(--blue-700);cursor:pointer}
+body[data-module="civil"] .viewer .vdoc-name:hover{background:#fff;border-color:var(--line)}
+body[data-module="civil"] .viewer .vdoc-name b{font-weight:700;white-space:nowrap}
+body[data-module="civil"] .viewer .vdoc-name span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+body[data-module="civil"] .viewer .vdoc-name i{font-style:normal;color:var(--muted);font-size:10px}
+body[data-module="civil"] .viewer .vdoc-pick .dd-menu{left:0;right:auto;min-width:260px}
+body[data-module="civil"] .viewer .dd-menu button.on{font-weight:700;color:var(--blue-700)}
+body[data-module="civil"] .viewer .dd-sep{height:1px;margin:4px 6px;background:var(--line-soft)}
+
+/* --- Миниатюры: уже и без своей полосы-переключателя ------------------------- */
+body[data-module="civil"] .viewer .vrail{width:108px}
+body[data-module="civil"] .viewer .vrail-list{padding:8px 6px;gap:6px}
+body[data-module="civil"] .viewer .vthumb{width:88px;height:118px}
+body[data-module="civil"] .viewer .vrail .rail-cat{font-size:9.5px}
+
+/* --- Лента: лист по размеру области ------------------------------------------
+   --fit-w и --fit-h ставит applyFit (parts/viewer/state.js) по фактическому
+   размеру ленты; 100% масштаба — выбранный режим вписывания, «+» и «−»
+   увеличивают от него (CSS zoom ленты). */
+body[data-module="civil"] .viewer .vstage{padding:10px}
+body[data-module="civil"] .viewer .vribbon{gap:10px}
+body[data-module="civil"] .viewer .vribbon .vpage{width:var(--fit-w, 430px);min-height:0;
+  box-shadow:0 1px 6px rgba(15,23,42,.18)}
+body[data-module="civil"] .viewer .vribbon.fit-page .vpage{width:min(var(--fit-w), calc(var(--fit-h) / var(--ar, 1.414)))}
+/* Снимки и картинки-страницы: пропорция заранее не известна — вписываем саму
+   картинку по высоте, а лист облегает её. */
+body[data-module="civil"] .viewer .vribbon.fit-page .vpage:has(> .vimg){width:auto;max-width:var(--fit-w)}
+body[data-module="civil"] .viewer .vribbon.fit-page .vpage > .vimg{width:auto;max-width:100%;max-height:var(--fit-h)}
+body[data-module="civil"] .viewer .vribbon .vpage.photo-page{padding:0;min-height:0}
+body[data-module="civil"] .viewer .vribbon .photo-fill{height:auto;aspect-ratio:4 / 3;border-radius:0}
+body[data-module="civil"] .viewer .vribbon.fit-page .vpage.photo-page:not(:has(> .vimg)){width:min(var(--fit-w), calc(var(--fit-h) * 4 / 3))}
+body[data-module="civil"] .viewer .vribbon .vgroup-h{width:var(--fit-w, 430px);max-width:100%;box-sizing:border-box}
+body[data-module="civil"] .viewer .vribbon.fit-page .vgroup-h{width:min(var(--fit-w), calc(var(--fit-h) * 4 / 3))}
+
+/* Увеличенный лист двигают мышью. */
+body[data-module="civil"] .viewer .vstage.can-pan{cursor:grab}
+body[data-module="civil"] .viewer .vstage.panning{cursor:grabbing;user-select:none}
+
+/* --- Во весь экран ------------------------------------------------------------
+   Просмотрщик выходит поверх всего окна с полями по 10px; затемнение вокруг —
+   тенью, чтобы было видно, что карточка никуда не делась. Esc или та же кнопка
+   возвращают его на место. */
+body[data-module="civil"] .viewer.is-full{position:fixed;inset:10px;top:10px;width:auto;height:auto;
+  max-width:none;min-width:0;min-height:0;z-index:1000;animation:none;
+  box-shadow:0 0 0 100vmax rgba(15,23,42,.45),0 18px 50px rgba(15,23,42,.35)}
+
+/* «Сравнение»: лист во всю ширину своей колонки, а не 380px — колонки
+   узкие, и каждый пиксель ширины здесь — крупность строки документа. */
+body[data-module="civil"] .viewer .cmp-body .vpage{width:100%;max-width:none;box-sizing:border-box}

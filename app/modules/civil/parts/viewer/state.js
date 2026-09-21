@@ -5,7 +5,37 @@ import { photoPages } from '../photos/model.js';
 // cmpZoom — зум режима «Сравнение», СВОЙ на каждую колонку: сравнивают обычно
 // мелкую деталь на фото с крупным планом в документе, общий зум для этого не
 // годится (см. parts/viewer/compare.js).
-export const VS = { zoom: 100, cmpZoom: { photo: 100, doc: 100 }, docs: {}, photos: {}, openTabs: {} };
+//
+// fit — чем 100% масштаба считать (задача пользователя 21.09.2026: у
+// просмотрщика мало полезной площади). «width» — лист во всю ширину области,
+// «page» — лист целиком по высоте. У документа по умолчанию «по ширине»: его
+// читают, и строка должна быть крупной; у фото — «целиком»: снимок смотрят весь
+// (практики просмотрщиков: режимы Fit Width / Fit Page, лайтбоксы фото).
+export const VS = {
+  zoom: 100, cmpZoom: { photo: 100, doc: 100 }, docs: {}, photos: {}, openTabs: {},
+  fit: { doc: 'width', photo: 'page' },
+};
+
+// Ключ режима вписывания: у фото свой, у документа и «Сравнения» — общий.
+export const fitKey = (ctx) => (ctx.ui.viewer && ctx.ui.viewer.mode === 'photo' ? 'photo' : 'doc');
+
+// Размер листа при 100% считается от ФАКТИЧЕСКОЙ области ленты и отдаётся
+// переменными --fit-w/--fit-h: область меняется от окна, перегородки, скрытия
+// миниатюр и полноэкранного режима, и число, сохранённое однажды, устаревало
+// бы (практика: fit-режимы пересчитываются от измеренной области). Масштаб
+// поверх этого — CSS zoom ленты, поэтому переменные даются в неувеличенных px.
+export function applyFit(ctx) {
+  const stage = ctx.scope.$('[data-vstage]');
+  const ribbon = ctx.scope.$('[data-vribbon]');
+  if (!stage || !ribbon) return;
+  const cs = getComputedStyle(stage);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  ribbon.style.setProperty('--fit-w', Math.max(200, stage.clientWidth - padX) + 'px');
+  ribbon.style.setProperty('--fit-h', Math.max(200, stage.clientHeight - padY) + 'px');
+  ribbon.classList.toggle('fit-page', VS.fit[fitKey(ctx)] === 'page');
+  ribbon.classList.toggle('fit-width', VS.fit[fitKey(ctx)] !== 'page');
+}
 
 export function openTabOnly(scope, id) {
   VS.openTabs[scope] = VS.openTabs[scope] || [];
