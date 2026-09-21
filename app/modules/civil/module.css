@@ -792,6 +792,9 @@ body[data-module="civil"] .scrolled .oc-head-status{padding-top:7px}
    отступом, и в эту полосу просвечивало уезжающее содержимое. Закрываем её
    тенью цвета фона — место под шапкой не меняется. */
 body[data-module="civil"] .scrolled .oc-head{box-shadow:0 -16px 0 var(--bg)}
+/* То же у плашки «ОЦ → литера» в карточке литеры: в отступе над ней
+   просвечивали поля. Тень карточки ядра сохраняется второй. */
+body[data-module="civil"] .scrolled #ctxPlateWrap{box-shadow:0 -16px 0 var(--bg),0 6px 14px rgba(15,23,42,.10)}
 body[data-module="civil"] .st-mini-lbl{font-size:10px;letter-spacing:.4px;text-transform:uppercase;
   color:#61799a;font-weight:700}
 body[data-module="civil"] .st-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;
