@@ -29,10 +29,12 @@ const ID = 'vh-f-';
 // Тип ТС, марка, госномер и VIN — то, по чему машину узнают. Тип идёт первым:
 // от него зависят характеристики и состав осмотра (практика каскадных списков —
 // родитель стоит перед тем, что от него зависит).
+// g-top: у VIN под полем подсказка, и при выравнивании по низу (как у .grid
+// по умолчанию) его подпись вставала выше соседней «Государственный номер».
 function identityHTML(oi) {
   return `<div class="mu-sec">
     <div class="sec-h">Транспортное средство</div>
-    <div class="grid mu-grid-general">
+    <div class="grid mu-grid-general g-top">
       <div class="field">
         <label for="vh-type">Тип ТС</label>
         <select class="select" id="vh-type" data-vh-type>

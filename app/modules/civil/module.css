@@ -683,3 +683,12 @@ body[data-module="civil"] .mu-unit-group>.select{flex:0 0 auto;width:auto;min-wi
 
 /* Дата — то же поле, что и остальные, только с календарём браузера. */
 body[data-module="civil"] .mu-date{font:inherit}
+
+/* Шапка объекта оценки — в одну строку. Общее правило ядра даёт адресу основу
+   320px, и адрес требовал себе строку целиком: значки и кнопки уходили на
+   вторую строку, и шапка вырастала вдвое (замечание пользователя 21.09.2026).
+   Здесь адрес забирает остаток ряда, а длинный — не больше двух строк, полный
+   текст во всплывающей подсказке. */
+body[data-module="civil"] [data-oc-head] .hm.hm-wide{flex:1 1 0;min-width:180px}
+body[data-module="civil"] [data-oc-head] .hm.hm-wide b{display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;overflow:hidden;white-space:normal}

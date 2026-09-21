@@ -17,10 +17,12 @@ import { partiesHTML } from './parties.view.js';
 const ATTR = 'vehicle-f';
 const ID = 'vh-f-';
 
+// g-top: у VIN под полем подсказка, и при выравнивании по низу (как у .grid
+// по умолчанию) его подпись вставала выше соседней «Государственный номер».
 function identityHTML(rec, idx) {
   const v = rec.vehicle;
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${idx}</span>
-    <h3>Транспортное средство</h3></div><div class="card-pad"><div class="grid g-4 g-roomy">
+    <h3>Транспортное средство</h3></div><div class="card-pad"><div class="grid g-4 g-roomy g-top">
       <div class="field"><label for="vh-type">Тип ТС</label>
         <select class="select" id="vh-type" data-vehicle-type>
           <option value="">Выберите тип</option>

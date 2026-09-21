@@ -32,7 +32,7 @@ function headOC(rec) {
       <div class="hm"><span class="lbl">Назначение по ТП</span><b>${esc(rec.purposeTP)}</b></div>
       <div class="hm"><span class="lbl">Код ЕНИ</span>
         <b title="${esc(eniCodes(rec))}">${esc(eniCodes(rec))}</b></div>
-      <div class="hm hm-wide"><span class="lbl">Адрес</span><b>${esc(rec.address)}</b></div>
+      <div class="hm hm-wide"><span class="lbl">Адрес</span><b title="${esc(rec.address)}">${esc(rec.address)}</b></div>
 
       ${flagBadgesHTML(recFlags(rec))}
 
