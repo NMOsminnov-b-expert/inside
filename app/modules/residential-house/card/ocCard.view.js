@@ -39,7 +39,9 @@ function headOC(ctx) {
 }
 
 function partiesOC(rec) {
-  return `<div class="card t-slate" style="margin-top:12px">
+  // Отступ сверху — как у просмотрщика слева, чтобы верх двух колонок совпадал.
+  // Прежние 12px остались от полосы вкладок, которой над блоком больше нет.
+  return `<div class="card t-slate" style="margin-top:10px">
     <div class="card-head" data-card-toggle><span class="card-idx">01</span><h3>Учреждение, собственники и ответственные</h3><span class="hint">редактируется в форме ОЦ</span><span class="chev">▾</span></div>
 
     <div class="card-body-wrap"><div class="card-pad">

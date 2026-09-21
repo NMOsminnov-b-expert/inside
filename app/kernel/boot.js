@@ -265,7 +265,9 @@ async function onRoute(route) {
   const host = makeHost(route, scope, route.typeId);
 
   document.body.dataset.module = route.typeId;
-  await host.ensureStyle(type.styleHref);
+  // Свой файл стилей есть не у каждого типа ОЦ: общее оформление карточек
+  // лежит в ядре (kernel/ocParts.css), своё — только у тех, у кого оно есть.
+  if (type.styleHref) await host.ensureStyle(type.styleHref);
 
   const instance = mod.main(host);
   current = { kind: route.typeId, instance, scope };

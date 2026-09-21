@@ -31,14 +31,12 @@ export const OC_TYPES = [
     manifest: residentialHouseManifest,
     records: residentialHouseRecords,
     dictExport: residentialHouseDicts,
-    styleHref: './app/modules/residential-house/module.css',
     load: () => import('../modules/residential-house/index.js'),
   },
   {
     manifest: apartmentManifest,
     records: apartmentRecords,
     dictExport: apartmentDicts,
-    styleHref: './app/modules/apartment/module.css',
     load: () => import('../modules/apartment/index.js'),
   },
   {
@@ -52,14 +50,12 @@ export const OC_TYPES = [
     manifest: productionManifest,
     records: productionRecords,
     dictExport: productionDicts,
-    styleHref: './app/modules/production/module.css',
     load: () => import('../modules/production/index.js'),
   },
   {
     manifest: landPlotManifest,
     records: landPlotRecords,
     dictExport: landPlotDicts,
-    styleHref: './app/modules/land-plot/module.css',
     load: () => import('../modules/land-plot/index.js'),
   },
   {
