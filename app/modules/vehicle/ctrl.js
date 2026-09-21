@@ -4,7 +4,9 @@ import { setFieldError } from '../../kernel/fieldError.js';
 import {
   normVin, vinError, normPlate, vehicleExtra, addVehicleExtra, dropVehicleExtra,
 } from './records.js';
-import { bindVehicleViewer } from './viewer.js';
+import { bindViewer } from '../../kernel/viewer/ctrl.js';
+import { bindSplitPanes } from '../../kernel/viewer/shell.js';
+import { bindStatusFlow } from '../../kernel/status/flow.ctrl.js';
 import { bindParties } from './parties.ctrl.js';
 
 // Контроллер карточки ТС как объекта оценки.
@@ -113,7 +115,10 @@ export function bindVehicle(ctx) {
   // Учреждение, собственники и ответственные.
   bindParties(ctx);
 
-  bindVehicleViewer(ctx);
+  // Шкала статусов в шапке и просмотрщик — общие с остальными типами ОЦ.
+  bindStatusFlow(ctx);
+  bindViewer(ctx);
+  bindSplitPanes(ctx);
 
   const save = s.$('[data-vehicle-save]');
   if (save) {

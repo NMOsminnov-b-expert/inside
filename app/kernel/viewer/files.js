@@ -16,7 +16,7 @@ import { docListFor, attachedFileFrom, isFileTooLarge, scopeLabel, nextDocId, ma
 
 // Подсказки вида по имени файла. Сравнение без регистра и «ё».
 const TYPE_HINTS = [
-  [/тех.?паспорт|техпасп|tex.?pasport|tekhpasport/, 'Техпаспорт'],
+  [/тех.?паспорт|техпасп|te[xkh].?pasport|tekhpasport/, 'Техпаспорт'],
   [/гос.?акт|госакт|акт на землю|gos.?akt/, 'Гос. акт на землю'],
   [/акт осмотр|осмотр|osmotr/, 'Акт осмотра'],
   [/\bпуд\b|правоустан|договор|свидетельств|pud/, 'ПУД'],

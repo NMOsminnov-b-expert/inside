@@ -24,13 +24,15 @@ import { statusFlowHTML } from './status/flow.view.js';
 //             у участка своя («Целевое назначение»), значения считает модуль;
 //   flags   — признаки записи (kernel/flagBadges.js), у каждого типа свои;
 //   menu    — готовая разметка меню «+ Добавить ОИ»: состав видов ОИ у типов
-//             разный;
+//             разный; у типа без объектов имущества (ТС) меню нет;
+//   actions — своя разметка действий вместо «Редактировать» и «Удалить»:
+//             карточка ТС правится прямо на месте и сохраняется кнопкой;
 //   tabs    — вкладки [{ key, label }]; «Логи» есть не у всех ролей.
 
 const hm = (f) => `<div class="hm ${f.wide ? 'hm-wide' : ''}"><span class="lbl">${esc(f.label)}</span>
   <b title="${esc(f.value)}">${esc(f.value)}</b></div>`;
 
-export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', tabs = [] } = {}) {
+export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', actions = null, tabs = [] } = {}) {
   const rec = ctx.rec;
 
   const tab = (t) => `<button class="tab ${ctx.tab === t.key ? 'active' : ''}" role="tab"
@@ -53,8 +55,8 @@ export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', tabs = [] } 
             <div class="dd-menu">${menu}</div>
           </div>` : ''}
 
-          <button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
-          <button class="btn btn-danger" id="btnDelOc">Удалить</button>
+          ${actions !== null ? actions : `<button class="btn btn-ghost" id="btnEditOc">Редактировать</button>
+          <button class="btn btn-danger" id="btnDelOc">Удалить</button>`}
         </span>
       </div>
     </div>

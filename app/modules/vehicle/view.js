@@ -2,7 +2,8 @@ import { esc } from '../../kernel/dom.js';
 import { fieldHTML } from '../../kernel/fieldSpec.js';
 import { VEHICLE_TYPES, vehicleFieldsFor } from './data/vehicleFields.js';
 import { vehicleExtra, VIN_LENGTH, ownerNames } from './records.js';
-import { vehicleViewerHTML } from './viewer.js';
+import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
+import { ocHeadHTML } from '../../kernel/ocHead.js';
 import { partiesHTML } from './parties.view.js';
 
 // Карточка транспортного средства как объекта оценки.
@@ -101,11 +102,6 @@ function notesHTML(rec, idx) {
 
 function formHTML(rec) {
   return `<div class="vehicle-form">
-    <div class="vehicle-actions">
-      <button class="back-btn" data-vehicle-back>← К объектам оценки</button>
-      <span class="pill pill-gray">Создание ОЦ</span>
-      <button class="btn btn-primary" data-vehicle-save>Сохранить</button>
-    </div>
     ${partiesHTML(rec, '01', ownerNames())}
     ${identityHTML(rec, '02')}
     ${fieldsHTML(rec, 'passport', '03', 'Характеристики', 'из документов и с шильдиков')}
@@ -115,12 +111,25 @@ function formHTML(rec) {
   </div>`;
 }
 
-export function viewVehicle(ctx) {
+// Шапка — общая на все типы ОЦ (kernel/ocHead.js). Объектов имущества у ТС
+// нет, поэтому меню «+ Добавить ОИ» тоже нет, а карточка правится прямо на
+// месте: вместо «Редактировать» и «Удалить» — сохранение и возврат.
+function headVehicle(ctx) {
   const v = ctx.rec.vehicle;
-  return `<div class="view-head">
-      <span class="pill pill-gray">${esc(v.makeModel || 'Транспортное средство · новая карточка')}</span>
-      <span class="muted">${esc(v.plate || 'Госномер не указан')}</span>
-    </div>
-    <div class="split vehicle-split">${vehicleViewerHTML(ctx)}<div class="vsplit"></div>
-    <div class="grow">${formHTML(ctx.rec)}</div></div>`;
+  return ocHeadHTML(ctx, {
+    meta: [
+      { label: 'Тип ОЦ', value: ctx.manifest.label },
+      { label: 'Тип ТС', value: v.type || '—' },
+      { label: 'Госномер', value: v.plate || 'не указан' },
+      { label: 'Марка и модель', value: v.makeModel || 'не указана', wide: true },
+    ],
+    actions: `<button class="btn btn-ghost" data-vehicle-back>← К объектам оценки</button>
+      <button class="btn btn-primary" data-vehicle-save>Сохранить</button>`,
+    tabs: [{ key: 'general', label: 'Общие данные' }],
+  });
+}
+
+export function viewVehicle(ctx) {
+  return `${headVehicle(ctx)}
+    ${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, formHTML(ctx.rec))}`;
 }
