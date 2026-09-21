@@ -5,8 +5,8 @@
 
 Строки журнала пишутся руками в change_log_data.py (что изменилось и почему —
 это знает человек, а не история git). Остальное снимается с git при каждой
-сборке, поэтому не устаревает: дата, автор, в каких ветках правка, влита ли
-она в refactor и main, какие модули затронуты.
+сборке, поэтому не устаревает: дата, автор, влита ли правка в refactor и
+main, какие модули затронуты.
 
 Листы:
   «Изменения»            — весь журнал;
@@ -14,7 +14,8 @@
                            разнесённые по другим типам ОЦ (SPREAD): по ним
                            актуализируют остальные карточки;
   «Переименования»       — было → стало, для сверки подписей;
-  «Не разобрано»         — коммиты с начала журнала, которых в нём нет.
+  «Не разобрано»         — коммиты рабочей ветки (HEAD) с начала журнала,
+                           которых в нём нет. Другие ветки не смотрятся.
                            Лист не пустой — журнал отстал.
 """
 import io
@@ -84,7 +85,7 @@ class Commit:
 
 
 def commits_since(start):
-    raw = git('log', '--all', '--since=%sT00:00' % start, '--date=short',
+    raw = git('log', 'HEAD', '--since=%sT00:00' % start, '--date=short',
               '--format=%h|%H|%ad|%an|%s')
     return [Commit(line) for line in raw.splitlines() if line]
 
@@ -93,7 +94,7 @@ _cache = {}
 
 
 def info(h):
-    """Сведения о коммите: дата, автор, модули, ветки, влито ли."""
+    """Сведения о коммите: дата, автор, модули, влито ли."""
     if h in _cache:
         return _cache[h]
     line = git('log', '-1', '--date=short', '--format=%h|%H|%ad|%an|%s', h)
@@ -103,10 +104,6 @@ def info(h):
     c = Commit(line)
     files = git('diff-tree', '--no-commit-id', '--name-only', '-r', '-m', '--first-parent', c.full).splitlines()
     c.modules = ', '.join(label for prefix, label in MODULES if any(f.startswith(prefix) for f in files))
-    heads = [b.strip().lstrip('* ').replace('remotes/', '') for b in
-             git('branch', '-a', '--contains', c.full).splitlines()]
-    heads = sorted({b for b in heads if b and '->' not in b and not b.startswith('origin/HEAD')})
-    c.branches = ', '.join(heads)
     for name in ('refactor', 'main'):
         ref = target(name)
         ok = ref and subprocess.run(['git', 'merge-base', '--is-ancestor', c.full, ref], cwd=ROOT,
@@ -167,7 +164,7 @@ def build():
     # --- Изменения ------------------------------------------------------------
     ws = sheet(wb, 'Изменения', [
         ('Дата', 11), ('Раздел', 22), ('Вид', 14), ('Что изменилось', 70), ('Где сделано', 18),
-        ('Разнесено по типам ОЦ', 13), ('Повод', 36), ('Модули в коде', 22), ('Коммит', 10), ('Автор', 18), ('Ветки', 30),
+        ('Разнесено по типам ОЦ', 13), ('Повод', 36), ('Модули в коде', 22), ('Коммит', 10), ('Автор', 18),
         ('В refactor', 10), ('В main', 9),
     ])
     for _, _, r, c in rows:
@@ -175,7 +172,7 @@ def build():
             ru_date(c.date) if c else 'не закоммичено', r['where'], r['kind'], r['what'],
             D.SCOPES.get(r['scope'], r['scope']), D.spread_of(r), r['why'],
             c.modules if c else '', c.short if c else '', c.author if c else '',
-            c.branches if c else '', c.in_refactor if c else '', c.in_main if c else '',
+            c.in_refactor if c else '', c.in_main if c else '',
         ])
     finish(ws, mono_cols=(6, 9))
 
@@ -213,12 +210,12 @@ def build():
             continue
         missing.append(info(c.short))
     ws = sheet(wb, 'Не разобрано', [
-        ('Дата', 11), ('Коммит', 10), ('Автор', 18), ('Описание коммита', 70), ('Ветки', 36),
+        ('Дата', 11), ('Коммит', 10), ('Автор', 18), ('Описание коммита', 70),
     ])
     for c in sorted(missing, key=lambda x: x.date):
-        ws.append([ru_date(c.date), c.short, c.author, c.subject, c.branches])
+        ws.append([ru_date(c.date), c.short, c.author, c.subject])
     if not missing:
-        ws.append(['', '', '', 'Все коммиты с %s внесены в журнал' % ru_date(D.START), ''])
+        ws.append(['', '', '', 'Все коммиты с %s внесены в журнал' % ru_date(D.START)])
     finish(ws, mono_cols=(2,))
     if missing:
         wb['Не разобрано'].sheet_properties.tabColor = 'E07B00'
