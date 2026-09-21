@@ -29,3 +29,8 @@ node_modules/
 
 # Документы собираются скриптом, в репозитории лежат готовые файлы —
 # они и есть результат (docs/*.xlsx, docs/*.docx).
+
+# Журнал изменений собирается из tools/docs/change_log_data.py и истории git
+# (python tools/docs/build_change_log.py). В git таблица отставала бы на один
+# коммит: строка журнала узнаёт свой коммит только после того, как он сделан.
+docs/reestr-izmeneniy.xlsx
