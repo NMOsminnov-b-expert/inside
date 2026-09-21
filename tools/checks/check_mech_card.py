@@ -94,6 +94,19 @@ def run(t):
     t.ck(pg.locator('[data-mu-unit="pressure"]').input_value() == 'МПа',
          'единица измерения не вернулась вместе со значением')
 
+    # Подсказка «выберите подгруппу» не прилипает к полю над собой: без отступа
+    # плашка читалась как часть поля (замечание пользователя 21.09.2026).
+    pick('sub', '')
+    gap = pg.evaluate("""() => {
+      const empty = document.querySelector('.mu-empty');
+      const prev = empty && empty.previousElementSibling;
+      if (!empty || !prev || !prev.classList.contains('grid')) return null;
+      return Math.round(empty.getBoundingClientRect().top - prev.getBoundingClientRect().bottom);
+    }""")
+    t.ck(gap is not None and gap >= 8,
+         'подсказка под полями прилипла к ним вплотную: зазор %s' % gap)
+    pick('sub', 'Котельное оборудование')
+
     pick('cls', 'Инвентарь и хозяйственные принадлежности')
     t.ck(sel('sub').count() == 0 and sel('type').count() == 0,
          'у класса без подгрупп показаны подгруппа и тип')

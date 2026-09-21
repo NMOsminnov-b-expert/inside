@@ -613,6 +613,12 @@ body[data-module="civil"] .mu-params{align-items:end}
 
 body[data-module="civil"] .mu-empty{font-size:12.5px;color:var(--muted);padding:10px 12px;
   background:var(--fill-head);border:1px dashed var(--line);border-radius:8px}
+/* Подсказка, вставшая сразу под полями, отделяется от них: без отступа плашка
+   прилипала к нижнему краю поля и читалась как его часть — было видно в
+   карточке механизма, когда подгруппа ещё не выбрана (замечание пользователя
+   21.09.2026). После заголовка раздела отступ не нужен: там его даёт сам
+   заголовок. */
+body[data-module="civil"] .grid + .mu-empty{margin-top:10px}
 body[data-module="civil"] .mu-note{font-size:12px;color:var(--muted);margin-top:8px}
 
 /* Свои поля — тихая редактируемая таблица, как у пристроек. */
