@@ -336,7 +336,9 @@ def run(t):
     # Правило пользователя 05.09.2026 на весь макет. Смотрим и реестр, и перечень
     # ОИ в карточке: раньше там обрывались площадь, статус и код.
     CUT = r"""() => [...document.querySelectorAll('td, .reg-td, span')]
-      .filter((e) => !e.children.length && e.scrollWidth > e.clientWidth + 1)
+      // .sr-only — текст для программ чтения с экрана, ужатый до 1px нарочно
+      // (с 21.09.2026 так подписаны состояния шагов в шкале статусов ОЦ).
+      .filter((e) => !e.children.length && e.scrollWidth > e.clientWidth + 1 && !e.closest('.sr-only'))
       .map((e) => ({
         text: e.textContent.trim().slice(0, 40),
         ellipsis: getComputedStyle(e).textOverflow === 'ellipsis',

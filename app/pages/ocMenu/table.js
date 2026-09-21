@@ -7,12 +7,23 @@ import {
 } from '../../kernel/columns.js';
 import { COLUMNS } from './state.js';
 
+// Порядок статусов для реестра — общий на все типы ОЦ. В гражданском с
+// 21.09.2026 шкала как в рабочей системе (девять шагов и две ветки), у
+// остальных модулей пока прежние пять статусов с юридической экспертизой;
+// здесь перечислены и те и другие, в порядке конвейера.
 const STAGE_INDEX = new Map([
   'В заполнении',
   'Удостоверен по документам',
+  'Направлен на осмотр',
   'Осмотрен',
   'Удостоверен после осмотра',
   'На юридической экспертизе',
+  'Готов к оценке',
+  'В процессе оценки',
+  'На проверке',
+  'Оценён',
+  'Не подлежит оценке',
+  'В архиве',
 ].map((s, i) => [s, i]));
 
 // Виртуализированная таблица: в DOM живут только видимые строки,
@@ -50,7 +61,7 @@ function cell(col, s) {
       <span class="ell" title="${esc(s.title)}">${esc(s.title)}</span>
       ${flagBadgesHTML(s.flags)}
     </span>`;
-    case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 9}"><i></i><span class="ell" title="${esc(s.status)}">${esc(s.status)}</span></span>`;
+    case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 'x'}"><i></i><span class="ell" title="${esc(s.status)}">${esc(s.status)}</span></span>`;
     case 'area': return s.metrics.area ? fmtNum(s.metrics.area) : '—';
     case 'oiCount': return fmtInt(s.metrics.oiCount);
     case 'photos': return fmtInt(s.metrics.photos);

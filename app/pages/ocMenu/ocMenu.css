@@ -187,11 +187,20 @@ body[data-page="oc-menu"] .reg-foot .select{width:auto;padding:3px 7px;font-size
 /* Статус: точка этапа делает колонку сканируемой без чтения текста. */
 body[data-page="oc-menu"] .reg-status{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;color:#33445c}
 body[data-page="oc-menu"] .reg-status i{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#a9bcd4}
+/* Точка статуса по месту в конвейере (STAGE_INDEX в table.js). Прежние пять
+   статусов сохранили свои цвета; новые шаги шкалы гражданского (21.09.2026)
+   получили свои, ветки — приглушённые. */
 body[data-page="oc-menu"] .reg-status.st-0 i{background:#c07c1e}
 body[data-page="oc-menu"] .reg-status.st-1 i{background:#2f83c4}
-body[data-page="oc-menu"] .reg-status.st-2 i{background:#1668c9}
-body[data-page="oc-menu"] .reg-status.st-3 i{background:#0e8172}
-body[data-page="oc-menu"] .reg-status.st-4 i{background:#54718f}
+body[data-page="oc-menu"] .reg-status.st-2 i{background:#5b9bd5}
+body[data-page="oc-menu"] .reg-status.st-3 i{background:#1668c9}
+body[data-page="oc-menu"] .reg-status.st-4 i{background:#0e8172}
+body[data-page="oc-menu"] .reg-status.st-5 i{background:#54718f}
+body[data-page="oc-menu"] .reg-status.st-6 i{background:#0f766e}
+body[data-page="oc-menu"] .reg-status.st-7 i{background:#6d5bd0}
+body[data-page="oc-menu"] .reg-status.st-8 i{background:#9a6a14}
+body[data-page="oc-menu"] .reg-status.st-9 i{background:#15803d}
+body[data-page="oc-menu"] .reg-status.st-10 i,body[data-page="oc-menu"] .reg-status.st-11 i{background:#8a98ad}
 /* Значок особенностей — в столбце тегов и в строке адреса (Л1.10, Л4.5). */
 body[data-page="oc-menu"] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}
 

@@ -16,6 +16,7 @@ import { createMechOi } from '../oi/mech/model.js';
 import { createVehicleOi } from '../oi/vehicle/model.js';
 import { bindStructBox } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
+import { bindStatusFlow } from './statusFlow.ctrl.js';
 
 function createOi(ctx, type) {
   const rec = ctx.rec;
@@ -249,6 +250,9 @@ export function bindOcCard(ctx) {
 
   const s = ctx.scope;
   const rec = ctx.rec;
+
+  // --- Шкала статусов в шапке ---------------------------------------------
+  bindStatusFlow(ctx);
 
   // --- Вкладки ------------------------------------------------------------
   s.$$('[data-tab]').forEach((b) => b.onclick = () => {

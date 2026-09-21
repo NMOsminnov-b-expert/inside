@@ -11,6 +11,7 @@ import { tableOI } from './oiTable.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../parts/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
+import { statusFlowHTML } from './statusFlow.view.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
 // объектов имущества, ровно как в столбце реестра (решение пользователя
@@ -21,10 +22,23 @@ import { addOiMenuHTML } from './addOiMenu.js';
 // за край первыми — а именно они и отличают коды друг от друга.
 const eniCodes = (rec) => eniAllOf(rec) || fmtEni(rec.eni);
 
-function headOC(rec) {
-  // data-oc-head: при прокрутке шапка уезжает вверх, а её место занимает
-  // закреплённая плашка «ОЦ → литера» (см. bindStickyHead в index.js).
-  return `<div class="card card-pad t-blue" data-oc-head>
+// Шапка — Г-образный блок (макет пользователя 21.09.2026, канва «Шапка ОЦ:
+// Г-образный блок»): сверху сводка записи с действиями, снизу слева вкладки,
+// а свободный угол справа от них занимает шкала статусов. Раньше это были три
+// блока друг под другом, и до содержимого карточки уходило полэкрана.
+//
+// Статус отдельной плашкой среди действий больше не показывается: его несёт
+// шкала — и в развёрнутом, и в свёрнутом виде.
+//
+// data-oc-head: шапка закреплена при прокрутке (см. bindStickyHead в
+// index.js); шкала при этом сжимается в одну строку.
+function headOC(ctx) {
+  const rec = ctx.rec;
+  return `<div class="oc-head" data-oc-head>
+    <div class="oc-head-bg" aria-hidden="true">
+      <span class="oc-bg-top"></span><span class="oc-bg-tabs"></span><span class="oc-bg-corner"></span>
+    </div>
+    <div class="oc-head-top card-pad">
     <div class="head-meta">
       <span class="pill pill-cat">${esc(rec.category)}</span>
 
@@ -37,7 +51,6 @@ function headOC(rec) {
       ${flagBadgesHTML(recFlags(rec))}
 
       <span class="head-actions">
-        <span class="pill pill-status"><span class="dot"></span>${esc(rec.status)}</span>
 
         <div class="dd" id="ddAddOi">
           <button class="btn btn-primary" data-dd-toggle>+ Добавить ОИ ▾</button>
@@ -50,11 +63,27 @@ function headOC(rec) {
         <button class="btn btn-danger" id="btnDelOc">Удалить</button>
       </span>
     </div>
+    </div>
+    ${tabsHTML(ctx)}
+    <div class="oc-head-status">${statusFlowHTML(rec, ctx.ui)}</div>
   </div>`;
 }
 
+function tabsHTML(ctx) {
+  const rec = ctx.rec;
+  const tab = (key, label) => `<button class="tab ${ctx.tab === key ? 'active' : ''}" role="tab"
+    aria-selected="${ctx.tab === key}" data-tab="${key}">${label}</button>`;
+  return `<div class="oc-head-tabs" role="tablist" aria-label="Разделы объекта оценки">
+      ${tab('general', 'Общие данные')}
+      ${tab('photo', 'Фото')}
+      ${canViewAuditLog(rec) ? tab('audit', 'Логи') : ''}
+    </div>`;
+}
+
 function partiesOC(rec) {
-  return `<div class="card t-slate" style="margin-top:12px">
+  // Отступ сверху — как у просмотрщика слева, чтобы верх двух колонок совпадал.
+  // Прежние 12px остались от полосы вкладок, которой над блоком больше нет.
+  return `<div class="card t-slate" style="margin-top:10px">
     <div class="card-head" data-card-toggle><span class="card-idx">01</span><h3>Учреждение, собственники и ответственные</h3><span class="hint">редактируется в форме ОЦ</span><span class="chev">▾</span></div>
 
     <div class="card-body-wrap"><div class="card-pad">
@@ -81,12 +110,7 @@ export function viewOC(ctx) {
   const rec = ctx.rec;
   const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx));
 
-  return `${headOC(rec)}
-    <div class="tabs">
-      <button class="tab ${ctx.tab === 'general' ? 'active' : ''}" data-tab="general">Общие данные</button>
-      <button class="tab ${ctx.tab === 'photo' ? 'active' : ''}" data-tab="photo">Фото</button>
-      ${canViewAuditLog(rec) ? `<button class="tab ${ctx.tab === 'audit' ? 'active' : ''}" data-tab="audit">Логи</button>` : ''}
-    </div>
+  return `${headOC(ctx)}
 
     ${ctx.tab === 'general' ? generalTab
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
