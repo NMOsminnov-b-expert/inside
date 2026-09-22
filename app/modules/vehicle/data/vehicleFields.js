@@ -36,6 +36,18 @@ const LOAD = num('loadCapacity', 'Грузоподъёмность', ['т', 'к�
 const AXLES = int('axles', 'Число осей');
 const WHEELS = text('wheelFormula', 'Колёсная формула', { hint: 'Например: 4x2, 6x4' });
 
+// Спецтехника. Параметры в таблице сводные, по две величины в одном
+// («Марка (модель) и заводской/серийный номер (VIN)», «Объём двигателя /
+// мощность», «Наработка (моточасы/пробег)», «Эксплуатационная масса /
+// грузоподъёмность»): здесь каждая величина — своё поле. Марка и модель, VIN и
+// год выпуска уже есть в опознавательном блоке; заводской номер — отдельно:
+// у спецтехники VIN бывает не всегда. «Тип питания» погрузчиков — это тип
+// двигателя, отдельного поля нет.
+const SERIAL = text('serialNo', 'Заводской (серийный) номер');
+const POWER = num('power', 'Мощность двигателя', ['л.с.', 'кВт']);
+const OP_MASS = num('operatingMass', 'Эксплуатационная масса', ['т', 'кг']);
+const LIFT_H = num('liftHeight', 'Высота подъёма, м');
+
 const OTHER = text('otherParts', 'Прочие элементы');
 const KIT = area('kit', 'Комплектация');
 
@@ -55,6 +67,19 @@ const CAR_BODY = sel('bodyType', 'Тип кузова', D.CAR_BODY);
 const VAN_BODY = sel('bodyType', 'Тип кузова', D.VAN_BODY);
 
 const TRUCK_BODY = sel('superstructure', 'Тип надстройки', D.TRUCK_SUPER);
+
+// Осмотр спецтехники. В таблице его нет — ЧЕРНОВИК на согласование: узлы
+// грузовой техники плюс гидравлика и рабочее оборудование, которые у
+// спецтехники и определяют её состояние.
+const SPEC_INSPECT = [
+  state('stCab', 'Состояние кабины и окраски'),
+  state('stEngine', 'Состояние двигателя'),
+  state('stChassis', 'Состояние ходовой части'),
+  state('stHydraulics', 'Состояние гидравлики'),
+  state('stWorkGear', 'Состояние рабочего оборудования'),
+  state('stElectric', 'Состояние электрооборудования'),
+  OTHER, KIT,
+];
 
 export const VEHICLE_FIELDS = {
   'Легковая': {
@@ -171,6 +196,56 @@ export const VEHICLE_FIELDS = {
     ],
   },
 };
+
+// --- спецтехника: по подгруппе таблицы, вид — первым полем -----------------
+Object.assign(VEHICLE_FIELDS, {
+  'Строительная спецтехника': {
+    passport: [
+      sel('specKind', 'Вид техники', D.SPEC_CONSTRUCTION), SERIAL,
+      sel('undercarriage', 'Тип ходовой части', D.UNDERCARRIAGE),
+      OP_MASS, LOAD, ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE,
+    ],
+    inspect: SPEC_INSPECT,
+  },
+
+  'Коммунальная спецтехника': {
+    passport: [
+      sel('specKind', 'Вид техники', D.SPEC_MUNICIPAL), SERIAL,
+      num('bodyVolume', 'Объём кузова / цистерны / бункера, м³'),
+      sel('attachments', 'Сменное / навесное оборудование', D.YES_NO),
+      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE,
+    ],
+    inspect: SPEC_INSPECT,
+  },
+
+  'Сельскохозяйственная спецтехника': {
+    passport: [
+      sel('specKind', 'Вид техники', D.SPEC_AGRO), SERIAL,
+      sel('hitch', 'Тип агрегатирования', D.HITCH),
+      num('productivity', 'Производительность, га/ч'),
+      num('workWidth', 'Ширина захвата, м'),
+      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS,
+    ],
+    inspect: SPEC_INSPECT,
+  },
+
+  'Погрузочно-разгрузочная спецтехника': {
+    passport: [
+      sel('specKind', 'Вид техники', D.SPEC_LOADER), SERIAL,
+      LOAD, LIFT_H, ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS,
+    ],
+    inspect: SPEC_INSPECT,
+  },
+
+  'Грузоподъёмная самоходная спецтехника': {
+    passport: [
+      sel('specKind', 'Вид техники', D.SPEC_LIFT), SERIAL,
+      LOAD, num('boomReach', 'Максимальный вылет стрелы, м'), LIFT_H,
+      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE,
+    ],
+    inspect: SPEC_INSPECT,
+  },
+});
 
 // Состав полей по типу ТС. null — тип ещё не выбран, и полей не знаем.
 export function vehicleFieldsFor(type) {
