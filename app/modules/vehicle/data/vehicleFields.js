@@ -47,6 +47,13 @@ const SERIAL = text('serialNo', 'Заводской (серийный) номе�
 const POWER = num('power', 'Мощность двигателя', ['л.с.', 'кВт']);
 const OP_MASS = num('operatingMass', 'Эксплуатационная масса', ['т', 'кг']);
 const LIFT_H = num('liftHeight', 'Высота подъёма, м');
+// Навесное и сменное оборудование — плуги, сеялки, оросительное, отвалы,
+// щётки, ковши. Само оно не ездит и отдельным ТС не заводится: его вписывают и
+// оценивают в составе машины, на которой оно работает, как правило одним
+// объектом (решение пользователя 22.09.2026). Колёсная и гусеничная техника —
+// ТС одинаково.
+const ATTACH = area('attachmentsList', 'Навесное и сменное оборудование',
+  { hint: 'Что входит в состав машины: наименование, количество, состояние' });
 
 const OTHER = text('otherParts', 'Прочие элементы');
 const KIT = area('kit', 'Комплектация');
@@ -203,7 +210,7 @@ Object.assign(VEHICLE_FIELDS, {
     passport: [
       sel('specKind', 'Вид техники', D.SPEC_CONSTRUCTION), SERIAL,
       sel('undercarriage', 'Тип ходовой части', D.UNDERCARRIAGE),
-      OP_MASS, LOAD, ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE,
+      OP_MASS, LOAD, ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE, ATTACH,
     ],
     inspect: SPEC_INSPECT,
   },
@@ -212,8 +219,7 @@ Object.assign(VEHICLE_FIELDS, {
     passport: [
       sel('specKind', 'Вид техники', D.SPEC_MUNICIPAL), SERIAL,
       num('bodyVolume', 'Объём кузова / цистерны / бункера, м³'),
-      sel('attachments', 'Сменное / навесное оборудование', D.YES_NO),
-      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE,
+      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE, ATTACH,
     ],
     inspect: SPEC_INSPECT,
   },
@@ -224,7 +230,7 @@ Object.assign(VEHICLE_FIELDS, {
       sel('hitch', 'Тип агрегатирования', D.HITCH),
       num('productivity', 'Производительность, га/ч'),
       num('workWidth', 'Ширина захвата, м'),
-      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS,
+      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, ATTACH,
     ],
     inspect: SPEC_INSPECT,
   },
@@ -232,7 +238,7 @@ Object.assign(VEHICLE_FIELDS, {
   'Погрузочно-разгрузочная спецтехника': {
     passport: [
       sel('specKind', 'Вид техники', D.SPEC_LOADER), SERIAL,
-      LOAD, LIFT_H, ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS,
+      LOAD, LIFT_H, ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, ATTACH,
     ],
     inspect: SPEC_INSPECT,
   },
@@ -241,7 +247,7 @@ Object.assign(VEHICLE_FIELDS, {
     passport: [
       sel('specKind', 'Вид техники', D.SPEC_LIFT), SERIAL,
       LOAD, num('boomReach', 'Максимальный вылет стрелы, м'), LIFT_H,
-      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE,
+      ENGINE_KIND, ENGINE_VOLUME, POWER, HOURS, MILEAGE, ATTACH,
     ],
     inspect: SPEC_INSPECT,
   },
