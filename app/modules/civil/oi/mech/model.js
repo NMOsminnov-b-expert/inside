@@ -67,8 +67,9 @@ export function subgroupOf(clsName, subName) {
   return c ? c.subgroups.find((s) => s.name === subName) || null : null;
 }
 
-// Есть ли у класса подгруппы. У «Инвентаря» и «Нематериальных компонентов»
-// в классификаторе только название — подгруппу и тип у них не спрашиваем.
+// Есть ли у класса подгруппы. Класс с одним названием в таблице — без
+// подгрупп — подгруппу и тип не спрашивает (сейчас таких нет, см. mechFields.js,
+// MECH_CLASS_FIELDS).
 export const hasSubgroups = (clsName) => !!(classOf(clsName) || { subgroups: [] }).subgroups.length;
 
 // Поля единицы по её классу, подгруппе и типу (data/mechFields.js). Пока
