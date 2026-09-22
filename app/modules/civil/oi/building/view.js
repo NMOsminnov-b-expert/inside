@@ -162,9 +162,9 @@ ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
 <select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
-<div class="field"><label>Входная группа</label>
+${oi.buildType === 'Встроенное' ? `<div class="field"><label>Входная группа</label>
 <select class="select" data-entrance>${emptyOptionHTML()}${opt('building', 'entrance', ENTRANCE_GROUP).map((o) => `<option ${o === oi.entrance ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>
+</div>` : ''}
 ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
