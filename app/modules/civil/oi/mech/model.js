@@ -68,8 +68,8 @@ export function subgroupOf(clsName, subName) {
 }
 
 // Есть ли у класса подгруппы. Класс с одним названием в таблице — без
-// подгрупп — подгруппу и тип не спрашивает (сейчас таких нет, см. mechFields.js,
-// MECH_CLASS_FIELDS).
+// подгрупп — подгруппу и тип не спрашивает (сейчас это «Прочее», см.
+// mechFields.js, MECH_CLASS_FIELDS).
 export const hasSubgroups = (clsName) => !!(classOf(clsName) || { subgroups: [] }).subgroups.length;
 
 // Поля единицы по её классу, подгруппе и типу (data/mechFields.js). Пока
