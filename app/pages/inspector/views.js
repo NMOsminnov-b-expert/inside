@@ -325,7 +325,7 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
           с осмотра.</p>`}
         <div class="ins-cols" style="margin-top:10px">
           <div class="ins-field">
-            <label for="insFoundKind">Что нашли</label>
+            <label for="insFoundKind">Вид объекта</label>
             <select class="select ins-select" id="insFoundKind" data-found-kind>
               ${FOUND_KINDS.map((k) => `<option>${esc(k)}</option>`).join('')}
             </select>
@@ -390,9 +390,9 @@ function foundItemHTML(f) {
         placeholder="Например: навес за котельной">
     </div>
     <div class="ins-field">
-      <label>Что видно на месте</label>
+      <label>Описание с осмотра</label>
       <textarea class="textarea ins-ta" data-found-note="${esc(f.id)}" rows="2"
-        placeholder="Размеры на глаз, состояние, к чему примыкает">${esc(f.note)}</textarea>
+        placeholder="Размеры на глаз, состояние, примыкания">${esc(f.note)}</textarea>
     </div>
     <button class="ins-btn ins-btn-icon" data-found-drop="${esc(f.id)}"
       aria-label="Убрать объект" title="Убрать объект">${ico('trash', 18)}</button>
