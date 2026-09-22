@@ -116,8 +116,8 @@ def run(t):
     pick('cls', 'Прочее')
     t.ck(sel('sub').count() == 0 and sel('type').count() == 0,
          'у класса «Прочее» показаны подгруппа и тип')
-    t.ck(pg.locator('[data-mu-f="worksWith"]').count() == 1,
-         'у класса «Прочее» нет поля «С чем работает»')
+    t.ck(pg.locator('[data-mu-f="baseMachine"]').count() == 1,
+         'у класса «Прочее» нет поля «Базовая машина (агрегат)»')
     pick('cls', 'Нематериальные компоненты движимого имущества')
     t.ck(sel('sub').count() == 1 and not sel('sub').is_disabled(),
          'у нематериальных компонентов не появилась подгруппа')
