@@ -132,19 +132,30 @@ def renames_after():
 
 
 def decisions():
-    """Решения, принятые за период. Практики и правила работы — служебное."""
-    out, seen = [], set()
+    """Решения и открытые вопросы за период. Практики и правила — служебное.
+
+    Записи одного узла собираются по всем файлам лога: вопрос, закрытый позже
+    (наблюдение «Снято …»), в документ не попадает."""
+    nodes, order = {}, []
     for f in sorted(glob.glob(os.path.join(ROOT, '.claude', 'knowledge-graph', 'log', '*.json'))):
-        if os.path.basename(f) < PUD_DATE:
-            continue
         for e in json.load(io.open(f, encoding='utf-8')).get('entities', []):
             if e.get('entityType') not in ('Decision', 'OpenQuestion'):
                 continue
-            text = (e.get('observations') or [''])[0]
-            if SKIP_WORDS.search((e['name'] + ' ' + text).lower()) or e['name'] in seen:
-                continue
-            seen.add(e['name'])
-            out.append((e['entityType'], text))
+            if e['name'] not in nodes:
+                nodes[e['name']] = {'kind': e['entityType'], 'obs': [], 'from': os.path.basename(f)}
+                order.append(e['name'])
+            nodes[e['name']]['obs'] += e.get('observations') or []
+    out = []
+    for name in order:
+        n = nodes[name]
+        if n['from'] < PUD_DATE or not n['obs']:
+            continue
+        if any(o.startswith('Снято') for o in n['obs']):
+            continue
+        text = n['obs'][0]
+        if SKIP_WORDS.search((name + ' ' + text).lower()):
+            continue
+        out.append((n['kind'], text))
     return out
 
 
@@ -217,7 +228,11 @@ def build():
 
     if not os.path.isdir(DOCS):
         os.makedirs(DOCS)
-    doc.save(OUT)
+    try:
+        doc.save(OUT)
+    except PermissionError:
+        sys.exit('Не удалось записать %s: файл открыт в Word. Закройте его и запустите '
+                 'сборку ещё раз.' % os.path.relpath(OUT, ROOT))
     return {'пунктов': len(rows), 'в разделах': used, 'вне разделов': len(other),
             'переименований': len(ren), 'решений': len(dec), 'открытых': len(opened)}
 
