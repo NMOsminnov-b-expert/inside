@@ -342,6 +342,10 @@ export function bind(ctx, oi) {
     ctx.render();
   };
 
+  // Входная группа — простой выбор, на состав карточки не влияет.
+  const ent = s.$('[data-entrance]');
+  if (ent) ent.onchange = () => { oi.entrance = ent.value; };
+
   // Права на строение: справочник плюс ручной ввод варианта «Иное».
   const rightsSel = s.$('[data-bld-rights]');
   if (rightsSel) rightsSel.onchange = () => {

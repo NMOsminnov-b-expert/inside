@@ -84,6 +84,16 @@ export const DICT_SOURCES = [
     ],
   },
   {
+    key: 'ENTRANCE_GROUP',
+    title: 'Входная группа',
+    kind: 'list',
+    system: false,
+    values: D.ENTRANCE_GROUP,
+    slots: [
+      { card: 'building', field: 'entrance', label: 'Входная группа' },
+    ],
+  },
+  {
     key: 'CRANE_BEAM',
     title: 'Кран-балка',
     kind: 'list',
