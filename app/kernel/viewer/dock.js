@@ -48,9 +48,12 @@ export function bindDockGrip(ctx) {
     grip.setPointerCapture(e.pointerId);
     const main = document.querySelector('.main');
     const r = main.getBoundingClientRect();
+    // Доля запоминается дробной. С округлением до целого процента колонка
+    // двигалась ступеньками примерно по 15px (1% ширины области), а обычная
+    // перегородка рядом тянется плавно — разницу видно сразу.
     const move = (ev) => {
       ctx.ui.splitVW = ctx.ui.splitVW || {};
-      ctx.ui.splitVW.dock = Math.round(((ev.clientX - r.left) / r.width) * 100);
+      ctx.ui.splitVW.dock = ((ev.clientX - r.left) / r.width) * 100;
       applyDock(ctx);
     };
     const up = () => {

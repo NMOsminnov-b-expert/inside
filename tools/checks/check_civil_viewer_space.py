@@ -136,6 +136,25 @@ def run(t):
     }""")
     t.ck(abs(edge[0] - edge[1]) <= 1 and abs(edge[2] - edge[3]) <= 1,
          'в раскрытии шапка и блоки не по одному краю: %s' % edge)
+    # Край колонки тянется мышью и идёт за ней плавно. Ломалось дважды: ручка
+    # лежала внутри просмотрщика с overflow:hidden и мышь до неё не доходила, а
+    # доля ширины запоминалась целыми процентами — колонка прыгала примерно по
+    # 15px (замечание пользователя 22.09.2026: «меняет размер ступеньками»).
+    grip = pg.locator('[data-vdock-grip]').bounding_box()
+    x = grip['x'] + grip['width'] / 2
+    pg.mouse.move(x, 500)
+    pg.mouse.down()
+    widths = []
+    for dx in range(4, 44, 4):
+        pg.mouse.move(x + dx, 500)
+        widths.append(pg.eval_on_selector('.viewer', 'e => e.getBoundingClientRect().width'))
+    pg.mouse.up()
+    steps = [round(b - a) for a, b in zip(widths, widths[1:])]
+    t.ck(round(widths[-1] - widths[0]) >= 30,
+         'ручка раскрытия не тянет колонку: ширина изменилась на %s px' % round(widths[-1] - widths[0]))
+    t.ck(all(s <= 6 for s in steps) and steps.count(0) <= 1,
+         'колонка в раскрытии меняет ширину ступеньками: шаги %s' % steps)
+
     pg.keyboard.press('Escape')
     t.wait_until("() => !document.body.classList.contains('civil-dock')")
     t.ck(pg.locator('.viewer').count() == 1, 'Esc из раскрытия закрыл просмотрщик')

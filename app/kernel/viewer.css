@@ -101,8 +101,13 @@ body[data-module].viewer-dock .viewer{position:fixed;top:8px;bottom:8px;left:cal
   width:var(--dock-w);height:auto;max-width:none;min-width:0;min-height:0;z-index:60;animation:none}
 body[data-module].viewer-dock .viewer.is-full{top:10px;left:10px;right:10px;bottom:10px;width:auto;z-index:390}
 body[data-module].viewer-dock .vsplit{display:none}
-/* Край колонки документа — ручка ширины. */
+/* Край колонки документа — ручка ширины. Стоит ОТДЕЛЬНО от просмотрщика
+   (position:fixed), а не внутри него: у просмотрщика overflow:hidden, и
+   ручка внутри обрезалась, а оставшаяся полоска лежала под содержимым — мышь
+   до неё не доходила, и колонка тянулась рывками. */
 .vdock-grip{position:absolute;top:0;bottom:0;right:-5px;width:10px;cursor:col-resize;z-index:5}
+body[data-module].viewer-dock .vdock-grip{position:fixed;top:8px;bottom:8px;
+  left:calc(var(--dock-left) + var(--dock-w) + 3px);right:auto;z-index:61}
 .vdock-grip:hover{background:linear-gradient(90deg,transparent 4px,var(--blue-300) 4px,var(--blue-300) 6px,transparent 6px)}
 
 
