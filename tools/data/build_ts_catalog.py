@@ -23,7 +23,7 @@ import build_kategorii_ts as B  # noqa: E402
 # Ключ — имя, под которым значение лежит в записи. Меняется только вместе с
 # данными: по ключу значение и находится.
 KEYS = {
-    'Марка': 'make', 'Модель': 'model', 'Год выпуска': 'year', 'Цвет': 'color',
+    'Марка, модель': 'make', 'Год выпуска': 'year', 'Цвет': 'color',
     'Идентификационный номер (VIN)': 'vin', '№ кузова (коляски)': 'bodyNo', '№ шасси (рамы)': 'chassisNo',
     '№ двигателя': 'engineNo', 'Тип ТС, вид кузова': 'vtype', 'Руль': 'wheel', 'Количество мест': 'seats',
     'Тип топлива': 'fuel', 'Рабочий объём двигателя': 'engineVolume', 'Мощность двигателя': 'power',
@@ -129,7 +129,7 @@ def common(rows, skip):
     for src, label, value, hint in rows:
         if label in skip:
             continue
-        f = field(label, value, hint, source=src, place=B.blank_place(label))
+        f = field(label, value, hint, source=src, place=B.blank_place(label, '\n'))
         f['block'] = BLOCK.get(f['key'], 'machine')
         out.append(f)
     return out

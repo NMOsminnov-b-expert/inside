@@ -51,9 +51,18 @@ export function bindVehicle(ctx) {
     const bases = basesOf(val).filter((b) => b.name !== 'Прочее');
     v.base = bases.length === 1 ? bases[0].name : '';
   };
+  // Категория, выбранная руками, может не совпасть с записью «Тип ТС» —
+  // уведомление, а не запрет: решает пользователь.
+  const warnMismatch = (text = v.f.vtype) => {
+    const vtype = String(text || '').trim();
+    const guess = categoryFromVtype(vtype);
+    if (guess && v.category && guess !== v.category) {
+      ctx.toast(`Категория «${v.category}» не совпадает с записью «Тип ТС»: «${vtype}»`, 'warn');
+    }
+  };
   // Выбранная руками категория — выбор человека: подбор по «Типу ТС» его больше
   // не трогает.
-  cascade('[data-ts-cat]', (val) => { setCategory(val); v.categoryAuto = false; });
+  cascade('[data-ts-cat]', (val) => { setCategory(val); v.categoryAuto = false; warnMismatch(); });
 
   // Категория по записи «Тип ТС»: подбирается, когда её ещё не выбирали или
   // она была подобрана сама; по уходу из поля — пока человек печатает,
@@ -62,7 +71,8 @@ export function bindVehicle(ctx) {
   if (vt && s.$('[data-ts-cat]')) {
     vt.addEventListener('change', () => {
       const guess = categoryFromVtype(vt.value);
-      if (!guess || guess === v.category || (v.category && !v.categoryAuto)) return;
+      if (!guess || guess === v.category) return;
+      if (v.category && !v.categoryAuto) { warnMismatch(vt.value); return; }
       setCategory(guess);
       v.categoryAuto = true;
       ctx.render();

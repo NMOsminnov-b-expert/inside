@@ -24,7 +24,8 @@ export const WHY = {
   pto: 'Есть коробка отбора — от двигателя может работать гидравлика модулей',
   engineHours: 'Наработка, когда машина работает стоя: кран, насос, спецтехника',
   hours: 'Счётчик самого оборудования: крана, насоса, холодильной установки',
-  regDate: 'С какого числа машина за нынешним собственником',
+  regDate: 'С какого числа машина за нынешним собственником. На старых бланках две даты — берётся '
+    + 'последняя, дата перерегистрации',
   factAddr: 'Где машина стоит на самом деле; не адрес из свидетельства',
   kit: 'Ключи, запасное колесо, инструмент, документы — что передаётся вместе с машиной',
 };
@@ -59,7 +60,7 @@ export function unitOf(vals, f) {
 function tagHTML(f) {
   const t = TAG[f.source];
   if (!t) return '';
-  const tip = [t.title, f.place ? 'Где на бланке — ' + f.place : '', f.hint || ''].filter(Boolean).join('\n');
+  const tip = [t.title, f.place ? 'Где на бланке:\n' + f.place : '', f.hint || ''].filter(Boolean).join('\n');
   const kind = { 'Осмотр': 'is-insp', 'Техпаспорт или осмотр': 'is-mixed' }[f.source] || '';
   return `<span class="vh-src ${kind}" title="${esc(tip)}"
     aria-label="${esc(tip)}">${t.text}</span>`;
@@ -124,6 +125,13 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
         </select></span>`;
     }
   } else {
+    // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: госномер переписывают с бланка как есть, и буквы в
+    // нём бывают и кириллицей, и латиницей — «383СВВ» и «383CBB» выглядят
+    // одинаково. Макет хранит запись без изменений. Поиск по номеру должен
+    // сводить похожие буквы (А/A, В/B, С/C, Е/E, К/K, М/M, Н/H, О/O, Р/P, Т/T,
+    // Х/X, У/Y): либо нормализованная копия номера в отдельном поле индекса,
+    // либо приведение при поиске. Исходную запись не переписывать — она должна
+    // совпадать с документом.
     const list = f.suggest ? `list="${id}-list"` : '';
     control = `<input class="input" id="${id}" data-tsf="${esc(bind)}" value="${esc(value)}" ${list}
       ${f.key === 'vin' ? 'autocapitalize="characters" spellcheck="false" maxlength="30"' : ''}

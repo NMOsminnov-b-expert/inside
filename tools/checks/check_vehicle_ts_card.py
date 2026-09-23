@@ -101,6 +101,7 @@ def run(t):
     pg.locator('[data-ts-cat]').focus()
     t.wait(200)
     t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', 'подбор по «Типу ТС» перебил выбранную руками категорию')
+    t.wait_until("() => [...document.querySelectorAll('.toast')].some((e) => e.textContent.includes('не совпадает'))")
     bases = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')
     t.ck('Прочее' in bases, 'в категории нет базы «Прочее»: %s' % bases)
     t.ck(pg.locator('[data-tsf]:not([data-tsf="main|vtype"])').count() == 0, 'поля машины показаны до выбора базы')
@@ -119,7 +120,7 @@ def run(t):
 
     order = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(4) .vh-grid [data-ts-key]',
                                     'els => els.map((e) => e.dataset.tsKey)')
-    t.ck(order[:4] == ['make', 'model', 'year', 'color'],
+    t.ck(order[:3] == ['make', 'year', 'color'] and 'model' not in order,
          'общие сведения не в порядке граф свидетельства: %s' % order[:4])
     nums = pg.eval_on_selector_all('.vh-ntbl [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
     t.ck(nums == ['vin', 'bodyNo', 'chassisNo', 'engineNo'], 'номера не таблицей или не в том порядке: %s' % nums)
@@ -156,7 +157,7 @@ def run(t):
     t.wait_until("() => document.querySelector('[data-ts-idwarn]').hidden")
 
     # --- особые поля базы ----------------------------------------------------------
-    pg.select_option('[data-ts-cat]', 'Спецтехника')
+    pg.select_option('[data-ts-cat]', 'Тракторы и специальные шасси')
     t.wait_for('[data-ts-base]:not([disabled])')
     pg.select_option('[data-ts-base]', 'Трактор')
     t.wait_for('[data-tsf-check="main|run"]')
