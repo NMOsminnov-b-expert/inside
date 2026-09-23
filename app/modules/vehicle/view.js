@@ -94,10 +94,12 @@ function kindHTML(v, idx) {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
     const vtype = commonFields(v).find((f) => f.key === 'vtype');
-    cascade = `${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s4') : ''}
-      <div class="field vh-s2"><label for="ts-cat" ${v.categoryAuto ? 'class="vh-tip" title="Подобрано по записи «Тип ТС» — можно выбрать другую"' : ''}>Категория по техпаспорту</label>
+    // Последовательность — категория, под ней «Тип ТС, вид кузова», справа база
+    // (указание пользователя 23.09.2026: «тип ТС под категорию»).
+    cascade = `<div class="field vh-s2 vh-at-cat"><label for="ts-cat" ${v.categoryAuto ? 'class="vh-tip" title="Подобрано по записи «Тип ТС» — можно выбрать другую"' : ''}>Категория по техпаспорту</label>
         <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
-      <div class="field vh-s2"><label for="ts-base" ${aboutTip(about)}>База</label>
+      ${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s2 vh-at-vtype') : ''}
+      <div class="field vh-s2 vh-at-base"><label for="ts-base" ${aboutTip(about)}>База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
   options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`;
   } else if (v.kind === 'self') {
