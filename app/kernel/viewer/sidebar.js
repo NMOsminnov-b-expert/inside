@@ -56,7 +56,13 @@ function docsSection(ctx, active) {
 function photosSection(ctx) {
   const rows = [];
 
-  (ctx.rec.oi || []).forEach((oi) => {
+  // Держатели снимков — объекты имущества записи. У типа ОЦ без объектов
+  // имущества (транспортное средство) снимки держит сама запись и приходит
+  // как ctx.oi — его тоже показываем.
+  const holders = [...(ctx.rec.oi || [])];
+  if (ctx.oi && !holders.includes(ctx.oi)) holders.unshift(ctx.oi);
+
+  holders.forEach((oi) => {
     const pages = photoPages(oi);
     if (!pages.length) return;
 
@@ -86,7 +92,7 @@ export function viewerSidebarHTML(ctx, mode) {
     <div class="vsb-head">Выбрать<button class="tool-btn" data-vsb-close title="Закрыть">×</button></div>
     <div class="vsb-body">
       ${showDocs ? `<div class="vsb-sec">Документы объекта оценки</div>${docsSection(ctx, active)}` : ''}
-      ${showPhotos ? `<div class="vsb-sec">Фото по литерам</div>${photosSection(ctx)}` : ''}
+      ${showPhotos ? `<div class="vsb-sec">${(ctx.rec.oi || []).length ? 'Фото по литерам' : 'Фото'}</div>${photosSection(ctx)}` : ''}
     </div>
   </div>`;
 }

@@ -45,6 +45,9 @@ export const towedInfo = (name) => TS_TOWED.find((t) => t.name === name) || null
 export const MODULE_FIELDS = TS_MODULE_FIELDS;
 
 export const tsOf = (rec) => {
+  // Объектов имущества у ТС нет, но просмотрщик ядра перебирает rec.oi
+  // (перенос фото к другой литере, боковая панель) — пустой перечень.
+  rec.oi = rec.oi || [];
   const v = rec.vehicle;
   v.f = v.f || {};
   v.extra = v.extra || [];
@@ -107,9 +110,10 @@ export const moduleTitle = (m) => m.kind || 'Модуль не выбран';
 // --- подписи записи -----------------------------------------------------------
 // Название — марка и модель, как в техпаспорте; отдельного поля «наименование»
 // нет. Пока их нет — то, что уже выбрано в классификации.
+export const makeModel = (v) => [v.f.make, v.f.model].map((s) => String(s || '').trim()).filter(Boolean).join(' ');
+
 export function tsTitle(v) {
-  const name = [v.f.make, v.f.model].map((s) => String(s || '').trim()).filter(Boolean).join(' ');
-  return name || whatLabel(v) || 'Новое транспортное средство';
+  return makeModel(v) || whatLabel(v) || 'Новое транспортное средство';
 }
 
 export function whatLabel(v) {

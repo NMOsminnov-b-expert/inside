@@ -8,8 +8,9 @@ import { tsFieldHTML } from './tsFields.view.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields,
-  moduleTitle, tsTitle, whatLabel,
+  moduleTitle, whatLabel, makeModel,
 } from './tsModel.js';
+import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 
 // Карточка транспортного средства как объекта оценки — по категоризации
 // «база + модуль» (справочник docs/kategorii-ts-baza-modul.xlsx).
@@ -31,6 +32,7 @@ import {
 //   04  Регистрация            — рег. номер, собственник по свидетельству
 //   05  Наработка и состояние
 //   06  Модули                 — что стоит на машине: таблица и форма модуля
+//   07  Фото с осмотра         — две категории: «Машина» и «Модули»
 
 const card = (tone, idx, title, hint, body, extra = '') => `<div class="card t-${tone}">
   <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
@@ -239,6 +241,26 @@ function modulesHTML(ctx, v, idx) {
     `${table}${cur ? moduleFormHTML(cur) : ''}`, add);
 }
 
+// --- Фото с осмотра ----------------------------------------------------------------
+// Две категории — «Машина» и «Модули» (задача пользователя 23.09.2026); у
+// отдельного модуля машины нет, и категория одна. Снимок открывается здесь же,
+// в просмотрщике слева — как у карточек недвижимости.
+function photosHTML(ctx, v, idx) {
+  const set = photoSetOf(ctx.rec);
+  const cats = v.kind === 'module' ? ['Модули'] : PHOTO_CATS;
+  const body = cats.map((cat) => {
+    const n = (set.photos || {})[cat] || 0;
+    const tiles = Array.from({ length: n }, (_, i) => {
+      const f = photoFileAt(set, cat, i);
+      return `<button type="button" class="ph" data-ts-photo-open="${esc(cat)}|${i}" title="${esc(cat)} · фото ${i + 1}">${
+        f ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">` : `${esc(cat)} ${i + 1}`}</button>`;
+    }).join('');
+    const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}">+ Фото</button>`;
+    return sub(`${cat} · ${n}`, `<div class="ph-row">${tiles || '<span class="vehicle-note">Фото нет.</span>'}</div>`, add);
+  }).join('');
+  return card('blue', idx, 'Фото с осмотра', 'по категориям; снимок открывается в просмотрщике', body);
+}
+
 // --- «Отдельный модуль»: поля модуля вместо машины ------------------------------
 function loneModuleHTML(v, idx) {
   return card('teal', idx, 'Модуль', 'снятый с машины или хранящийся отдельно',
@@ -258,9 +280,10 @@ function formHTML(ctx) {
 
   if (classified(v)) {
     if (v.kind === 'module') {
-      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()));
+      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), photosHTML(ctx, v, n()));
     } else {
-      parts.push(machineHTML(v, n()), regHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()));
+      parts.push(machineHTML(v, n()), regHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()),
+        photosHTML(ctx, v, n()));
     }
   }
   return `<div class="vehicle-form">${parts.join('')}</div>`;
@@ -276,7 +299,7 @@ function headVehicle(ctx) {
       { label: 'Тип ОЦ', value: ctx.manifest.label },
       { label: 'Вид', value: whatLabel(v) || '—' },
       { label: 'Рег. номер', value: v.f.plate || 'не указан' },
-      { label: 'Марка и модель', value: tsTitle(v), wide: true },
+      { label: 'Марка и модель', value: makeModel(v) || 'не указаны', wide: true },
     ],
     actions: `<button class="btn btn-ghost" data-vehicle-back>← К объектам оценки</button>
       <button class="btn btn-primary" data-vehicle-save>Сохранить</button>`,

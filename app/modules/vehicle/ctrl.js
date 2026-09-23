@@ -4,6 +4,9 @@ import { bindViewer } from '../../kernel/viewer/ctrl.js';
 import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { bindStatusFlow } from '../../kernel/status/flow.ctrl.js';
 import { bindParties } from './parties.ctrl.js';
+import { attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
+import { openPhotoInPlace } from '../../kernel/viewer/state.js';
+import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule,
   normVin, vinWarning, normPlate, idMissing,
@@ -221,6 +224,29 @@ export function bindVehicle(ctx) {
     await ctx.render();
     const el = s.$(`[data-tsx-label="${who}|${r.id}"]`);
     if (el) el.focus();
+  });
+
+  // --- Фото с осмотра -------------------------------------------------------------
+  // Снимки с осмотра приносят пачкой — выбор нескольких файлов сразу; слишком
+  // большие пропускаются с сообщением, остальные добавляются.
+  const set = photoSetOf(ctx.rec);
+  s.$$('[data-ts-photo-add]').forEach((b) => b.onclick = async () => {
+    const cat = b.dataset.tsPhotoAdd;
+    const files = await pickImages();
+    if (!files.length) return;
+    const big = files.filter(isFileTooLarge);
+    for (const file of files.filter((f) => !isFileTooLarge(f))) addPhotoFile(set, cat, await attachedFileFrom(file));
+    ctx.render();
+    const added = files.length - big.length;
+    if (added) ctx.toast(`Фото добавлено: ${added} · ${cat}`, 'ok');
+    if (big.length) ctx.toast(`Пропущено ${big.length}: больше ${MAX_DOC_FILE_MB} МБ`, 'warn');
+  });
+
+  s.$$('[data-ts-photo-open]').forEach((b) => b.onclick = () => {
+    const [cat, i] = split(b.dataset.tsPhotoOpen);
+    const idx = photoPages(set).findIndex((p) => p.cat === cat && p.i === Number(i)) + 1;
+    ctx.ui.viewerClosed = false;
+    openPhotoInPlace(ctx, set.id, idx);
   });
 
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.

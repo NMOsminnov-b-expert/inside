@@ -7,6 +7,7 @@ import { bindViewerHotkeys } from '../../kernel/viewer/ctrl.js';
 import { bindFileDrop } from '../../kernel/viewer/files.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { viewerDeps } from './viewerDeps.js';
+import { photoSetOf } from './photos.js';
 
 function todayStr() {
   const d = new Date();
@@ -21,8 +22,11 @@ export function main(host) {
   // просмотрщика, свёрнутость шкалы статусов, доли колонок.
   const ui = {};
   const ctx = {
-    host, scope, manifest, today: todayStr(), ui, tab: 'general', view: 'oc', oi: null,
+    host, scope, manifest, today: todayStr(), ui, tab: 'general', view: 'oc',
     get rec() { return rec; },
+    // Снимки ТС держит сама запись — просмотрщик ядра берёт их у ctx.oi
+    // (photos.js). Вид экрана остаётся «oc»: документы — объекта оценки.
+    get oi() { return rec ? photoSetOf(rec) : null; },
     get route() { return route; },
     render: () => draw(),
     toast: host.toast,
@@ -40,6 +44,10 @@ export function main(host) {
     if (!ui.viewerClosed && !ui.viewer) ui.viewer = { mode: 'doc' };
     scope.setHTML(viewVehicle(ctx));
     bindVehicle(ctx);
+    // Шапка после отрисовки — новый узел: следить за её высотой заново, иначе
+    // просмотрщик остаётся со старым отступом и заезжает под шапку (так же
+    // делают остальные типы ОЦ; в модуле ТС этого не было).
+    if (scope.watchStickyHead) scope.watchStickyHead();
     if (scope.syncStickyHead) scope.syncStickyHead();
   }
 

@@ -23,17 +23,41 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
     за полями формы; у модуля своя таблица дополнительных параметров;
     подсказок «обычно вписывают» нет (указание пользователя 23.09.2026);
   * у самоходной машины и отдельного модуля — свои поля;
+  * блок «Фото с осмотра» — две категории, «Машина» и «Модули»; снимок
+    открывается в просмотрщике, у которого есть режимы «Фото» и «Сравнение»,
+    а в боковой панели — снимки записи (задача пользователя 23.09.2026);
   * введённое переживает перезагрузку страницы (kernel/persist.js): модуль
     пришёл из ветки TS-Daniil без сохранения, и каждая перезагрузка стирала
     заведённые ТС (замечание пользователя 23.09.2026).
 """
+
+import os
+import struct
+import tempfile
+import zlib
 
 NAME = 'карточка ОЦ ТС: база и модули'
 
 TOUCHES = (
     'app/modules/vehicle/*', 'app/modules/vehicle/data/*', 'tools/data/build_ts_catalog.py',
     'tools/docs/build_kategorii_ts.py', 'app/kernel/numField.js', 'app/kernel/persist.js',
+    'app/kernel/viewer/*',
 )
+
+
+def _png():
+    """Маленький настоящий PNG — снимок «с осмотра» для загрузки."""
+    w, h = 40, 30
+    raw = b''.join(b'\x00' + b'\x28\x78\xc8' * w for _ in range(h))
+
+    def chunk(t, d):
+        c = struct.pack('>I', len(d)) + t + d
+        return c + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+    data = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+    path = os.path.join(tempfile.gettempdir(), 'check_vehicle_photo.png')
+    open(path, 'wb').write(data)
+    return path
 
 REC = """async () => {
   const m = await import('/app/modules/vehicle/records.js');
@@ -67,7 +91,7 @@ def run(t):
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[2:] == ['Машина', 'Регистрация', 'Наработка и состояние', 'Модули'],
+    t.ck(heads[2:] == ['Машина', 'Регистрация', 'Наработка и состояние', 'Модули', 'Фото с осмотра'],
          'блоки карточки ТС не те: %s' % heads)
 
     subs = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(3) .vh-sub',
@@ -140,6 +164,26 @@ def run(t):
          'строка параметра модуля не записалась в модуль: %s' % mods)
     t.ck(not pg.evaluate(REC)['extra'], 'параметр модуля попал в параметры машины')
 
+    # --- фото с осмотра ---------------------------------------------------------------
+    cats = pg.eval_on_selector_all('[data-ts-photo-add]', 'els => els.map((e) => e.dataset.tsPhotoAdd)')
+    t.ck(cats == ['Машина', 'Модули'], 'категории фото с осмотра не те: %s' % cats)
+    with pg.expect_file_chooser() as fc:
+        pg.click('[data-ts-photo-add="Машина"]')
+    fc.value.set_files([_png(), _png()])
+    t.wait_for('[data-ts-photo-open="Машина|1"]')
+    modes = pg.eval_on_selector_all('[data-vmode]', 'els => els.map((e) => e.dataset.vmode)')
+    t.ck(modes == ['photo', 'doc', 'compare'], 'в просмотрщике ТС нет режимов фото и сравнения: %s' % modes)
+    pg.click('[data-ts-photo-open="Машина|1"]')
+    t.wait_until("() => !!document.querySelector('.viewer [data-vmode=\"photo\"].active')")
+    t.ck(pg.locator('.viewer .vimg').count() == 2, 'в просмотрщике не два снимка машины')
+    pg.click('[data-vsb-toggle]')
+    t.wait_for('[data-vsb-photo]')
+    t.ck(pg.locator('[data-vsb-photo]').count() == 2, 'в боковой панели нет снимков записи')
+    pg.click('[data-vsb-close]')
+    pg.click('[data-vmode="compare"]')
+    t.wait_for('[data-cmp-side="photo"] .vimg')
+    pg.click('[data-vmode="doc"]')
+
     # --- самоходная машина и отдельный модуль ---------------------------------------
     pg.click('[data-ts-kind="self"]')
     pg.select_option('[data-ts-sgroup]', 'Землеройные')
@@ -154,7 +198,7 @@ def run(t):
     pg.select_option('[data-ts-mkind]', 'Ковш скальный')
     t.wait_for('[data-tsf="main|serialNo"]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[2:] == ['Модуль', 'Наработка и состояние'], 'у отдельного модуля не те блоки: %s' % heads)
+    t.ck(heads[2:] == ['Модуль', 'Наработка и состояние', 'Фото с осмотра'], 'у отдельного модуля не те блоки: %s' % heads)
     t.ck(pg.locator('[data-tsx-add="main"]').count() == 1, 'у отдельного модуля нет дополнительных параметров')
 
     # --- сохранение: всё введённое переживает перезагрузку ---------------------------
@@ -169,3 +213,5 @@ def run(t):
          'после перезагрузки потерян вид объекта: %s / %s' % (after.get('kind'), after.get('modKind')))
     t.ck(after.get('modules') == before.get('modules') and after.get('f', {}).get('run') == ['Колёсная', 'Гусеничная'],
          'после перезагрузки потеряны модули или поля машины')
+    t.ck((after.get('photoSet') or {}).get('photos', {}).get('Машина') == 2,
+         'после перезагрузки пропал счёт фото с осмотра')
