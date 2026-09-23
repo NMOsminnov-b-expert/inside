@@ -86,8 +86,9 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
 
   // Полное название и пояснение — во всплывающей подсказке подписи; подпись с
   // пояснением подчёркнута пунктиром, чтобы было видно, что оно есть.
-  const tip = [full, note].filter(Boolean).join(' — ');
-  const head = `<label for="${id}" title="${tip}" class="${note ? 'vh-tip' : ''}">${label}${tagHTML(f)}</label>`;
+  // Подсказка, которая повторяет подпись, не нужна.
+  const tip = [full !== label ? full : '', note].filter(Boolean).join(' — ');
+  const head = `<label for="${id}" ${tip ? `title="${tip}"` : ''} class="${note ? 'vh-tip' : ''}">${label}${tagHTML(f)}</label>`;
 
   if (f.type === 'checks') {
     const picked = Array.isArray((vals || {})[f.key]) ? vals[f.key] : [];

@@ -188,7 +188,15 @@ function machineHTML(v, idx) {
       own.sort((a, b) => rank(a.key) - rank(b.key));
     }
     if (sec.key === 'general') own.sort((a, b) => GENERAL_ORDER.indexOf(a.key) - GENERAL_ORDER.indexOf(b.key));
+    // Общие сведения — строки без пустот (замечание пользователя 23.09.2026):
+    // у машины марка с моделью — во всю строку, под ней год, цвет, руль и места
+    // по четверти; у спецтехники марка и изготовитель — по полстроки, под ними
+    // страна сборки, год и цвет. Ширина поля — по длине ответа (GOV.UK Design
+    // System, NN/g): марку с моделью пишут длинно, год и места — коротко.
+    const genSpan = (f) => (f.key === 'make' && !own.some((x) => x.key === 'maker') ? 4 : spanOf(f, 'main'));
     const body = sec.key === 'numbers' ? numbersHTML(v, own)
+      : sec.key === 'general' ? `<div class="grid vh-grid">${
+        own.map((f) => tsFieldHTML(v.f, f, 'main', `vh-s${genSpan(f)}`)).join('')}</div>`
       : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
         : grid(v.f, own, 'main');
     return sub(sec.title, body);
