@@ -1,8 +1,26 @@
 import { manifest } from './manifest.js';
 import { tsTitle, whatLabel } from './tsModel.js';
+import { registerPersisted } from '../../kernel/persist.js';
 
 const records = [];
 let seq = 0;
+
+// Введённое переживает перезагрузку страницы — как у остальных типов ОЦ
+// (kernel/persist.js, требование пользователя 09.09.2026). Модуль пришёл из
+// ветки TS-Daniil без этого, и каждая перезагрузка стирала заведённые ТС
+// (замечание пользователя 23.09.2026: «тестировать неудобно»).
+//
+// Массив не подменяется, а перезаполняется: на него уже ссылается реестр.
+// Счётчик номеров продолжается с наибольшего сохранённого — иначе новая
+// карточка получила бы номер уже существующей.
+registerPersisted('records.vehicle', {
+  snapshot: () => records,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    records.splice(0, records.length, ...saved);
+    seq = saved.reduce((max, r) => Math.max(max, Number(String(r.id).split('-').pop()) || 0), seq);
+  },
+});
 
 function nextId() {
   seq += 1;

@@ -22,14 +22,17 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * модули: добавляются кнопкой, выбираются каскадом, строка таблицы следует
     за полями формы; у модуля своя таблица дополнительных параметров;
     подсказок «обычно вписывают» нет (указание пользователя 23.09.2026);
-  * у самоходной машины и отдельного модуля — свои поля.
+  * у самоходной машины и отдельного модуля — свои поля;
+  * введённое переживает перезагрузку страницы (kernel/persist.js): модуль
+    пришёл из ветки TS-Daniil без сохранения, и каждая перезагрузка стирала
+    заведённые ТС (замечание пользователя 23.09.2026).
 """
 
 NAME = 'карточка ОЦ ТС: база и модули'
 
 TOUCHES = (
     'app/modules/vehicle/*', 'app/modules/vehicle/data/*', 'tools/data/build_ts_catalog.py',
-    'tools/docs/build_kategorii_ts.py', 'app/kernel/numField.js',
+    'tools/docs/build_kategorii_ts.py', 'app/kernel/numField.js', 'app/kernel/persist.js',
 )
 
 REC = """async () => {
@@ -153,3 +156,16 @@ def run(t):
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
     t.ck(heads[2:] == ['Модуль', 'Наработка и состояние'], 'у отдельного модуля не те блоки: %s' % heads)
     t.ck(pg.locator('[data-tsx-add="main"]').count() == 1, 'у отдельного модуля нет дополнительных параметров')
+
+    # --- сохранение: всё введённое переживает перезагрузку ---------------------------
+    pg.fill('[data-tsf="main|serialNo"]', 'КС-001')
+    before = pg.evaluate(REC)
+    pg.evaluate("""async () => { (await import('/app/kernel/persist.js')).saveNow(); }""")
+    pg.reload()
+    t.wait_for('.vehicle-form [data-tsf="main|serialNo"]')
+    after = pg.evaluate(REC)
+    t.ck(pg.input_value('[data-tsf="main|serialNo"]') == 'КС-001', 'после перезагрузки поле пустое')
+    t.ck(after.get('kind') == 'module' and after.get('modKind') == 'Ковш скальный',
+         'после перезагрузки потерян вид объекта: %s / %s' % (after.get('kind'), after.get('modKind')))
+    t.ck(after.get('modules') == before.get('modules') and after.get('f', {}).get('run') == ['Колёсная', 'Гусеничная'],
+         'после перезагрузки потеряны модули или поля машины')
