@@ -139,6 +139,9 @@ function machineHTML(v, idx) {
   const parts = SECTIONS.map((sec) => {
     const own = list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key);
     if (!own.length) return '';
+    // Топливо — первым в «Двигателе»: от него зависит, какие поля рядом
+    // (родитель стоит перед тем, что от него зависит).
+    if (sec.key === 'engine') own.sort((a, b) => (b.key === 'fuel') - (a.key === 'fuel'));
     return sub(sec.title, sec.key === 'numbers' ? numbersHTML(v, own) : grid(v.f, own, 'main'));
   });
 
