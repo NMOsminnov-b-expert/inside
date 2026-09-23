@@ -1347,7 +1347,6 @@ DECISIONS = [
 ]
 
 OPEN = [
-    ('Регистрация техники в КР', 'Точный текст ПП КР №407 о регистрации тракторов и самоходных машин не проверен'),
     ('Надзор за подъёмными сооружениями в КР', 'Какой орган ведёт учёт кранов, подъёмников и КМУ — нужно для поля «учёт в надзоре»'),
 ]
 
@@ -1373,6 +1372,13 @@ SOURCES = [
     ('Классификация дорожно-строительной техники',
      'https://technoparts.pro/blog/special-machinery/dorozhno-stroitelnaya-tekhnika-polnaya-klassifikatsiya-mashin-po-vidam-rabot-nazvaniyam-i-naznacheni_19712/'),
     ('Виды сменного навесного оборудования', 'https://gruzmaster.ru/statii/vidy-smennogo-navesnogo-oborudovania-dla-ekskavatorov.html'),
+    ('Кыргызстан: Правила государственной регистрации ТС, установок и оборудования (ПП № 407 от 23.06.2017)',
+     'https://cbd.minjust.gov.kg/100149/edition/11377/ru'),
+    ('Кыргызстан: Правила регистрации и учёта автомототранспортных средств (МВД, 05.10.1999)',
+     'https://cbd.minjust.gov.kg/51-569/edition/433613/ru'),
+    ('Паспорт самоходной машины и других видов техники: графы бланка',
+     'https://www.kontur-extern.ru/info/normativ/document/44/10349-pasport-samokhodnoy-mashiny-i-drugikh-vidov-tekhniki'),
+    ('Кыргызстан: проверка ТС по госномеру (car check)', 'https://portal.tunduk.kg/public_services/opisanie/207'),
 ]
 
 # --- вывод ----------------------------------------------------------------------------
