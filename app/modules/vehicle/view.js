@@ -53,7 +53,7 @@ const options = (list, value, empty) => `<option value="">${esc(empty)}</option>
 const SPAN = {
   year: 1, color: 1, wheel: 1, seats: 1, fuel: 1, engineVolume: 1, massEmpty: 1, massMax: 1, massDesign: 1,
   wheelFormula: 1, axles: 1, steerAxles: 1, gearbox: 1, pto: 1, plate: 1, regDate: 1, docNo: 1,
-  mileage: 1, engineHours: 1, hours: 1, factAddr: 3, kit: 4, run: 4,
+  mileage: 1, engineHours: 1, hours: 1, factAddr: 3, kit: 4, run: 2,
 };
 // В форме модуля поля короткие и их мало: изготовитель, модель, заводской № и
 // год — в одну строку, моточасы, состояние и комплектность — в следующую
@@ -205,7 +205,7 @@ function machineHTML(v, idx) {
   const special = specialFields(v);
   if (special.length) {
     parts.push(sub(`Особое для базы «${v.base}»`,
-      `<div class="grid vh-grid vh-grid-fit">${cells(v.f, special, 'main')}</div>`));
+      `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
   parts.push(extraPart(v.extra, 'main'));
 

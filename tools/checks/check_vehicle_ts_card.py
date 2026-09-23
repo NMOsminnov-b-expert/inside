@@ -127,6 +127,11 @@ def run(t):
     t.ck(pg.locator('[data-tsf="main|ownerInn"], [data-tsf="main|owner"]').count() == 0,
          'в регистрации остался собственник или ИНН — они в блоке сторон')
     t.ck(pg.locator('[data-tsf="main|factAddr"]').count() == 1, 'в регистрации нет фактического адреса')
+    # Год в дате регистрации — четыре цифры: лишние цифры поле года не принимает.
+    pg.focus('[data-tsf="main|regDate"]')
+    pg.keyboard.type('01022019777')
+    t.ck(len(pg.input_value('[data-tsf="main|regDate"]').split('-')[0]) == 4,
+         'в году даты регистрации больше четырёх цифр: %s' % pg.input_value('[data-tsf="main|regDate"]'))
     t.ck(pg.locator('[data-tsx-suggest]').count() == 0, 'в карточке остались подсказки «обычно вписывают»')
 
     # --- топливо: у электромобиля нет рабочего объёма --------------------------------
@@ -160,10 +165,19 @@ def run(t):
     pg.select_option('[data-ts-cat]', 'Тракторы и специальные шасси')
     t.wait_for('[data-ts-base]:not([disabled])')
     pg.select_option('[data-ts-base]', 'Трактор')
-    t.wait_for('[data-tsf-check="main|run"]')
-    t.ck(pg.locator('[data-tsf-check="main|run"]').count() == 7, 'у трактора ходовая не флажками')
-    pg.locator('[data-tsf-check="main|run"][value="Колёсная"]').check()
-    pg.locator('[data-tsf-check="main|run"][value="Гусеничная"]').check()
+    # Ходовая — выпадающий мультивыбор, как у материалов конструктива, а не
+    # столбик флажков во всю ширину (замечание пользователя 23.09.2026).
+    t.wait_for('[data-tsf-ms="main|run"] [data-ms-toggle]')
+    t.ck(pg.locator('.vh-check, fieldset.vh-checks').count() == 0, 'ходовая снова столбиком флажков')
+    pg.click('[data-tsf-ms="main|run"] [data-ms-toggle]')
+    t.wait_for('[data-tsf-ms="main|run"] .ms-drop:not([hidden])')
+    t.ck(pg.locator('[data-tsf-opt^="main|run|"]').count() == 7, 'в списке ходовой не семь вариантов')
+    pg.locator('[data-tsf-opt="main|run|Гусеничная"]').check()
+    pg.locator('[data-tsf-opt="main|run|Колёсная"]').check()
+    t.ck(pg.locator('[data-tsf-ms="main|run"] .ms-drop:not([hidden])').count() == 1, 'список закрылся после выбора')
+    t.ck(pg.locator('[data-tsf-ms="main|run"] .ms-count').inner_text().strip() == '2', 'счётчик выбранного не 2')
+    pg.click('.vehicle-form .card-head h3 >> nth=0')
+    t.wait_until("() => document.querySelector('[data-tsf-ms=\"main|run\"] .ms-drop').hidden")
     t.ck(pg.evaluate(REC)['f'].get('run') == ['Колёсная', 'Гусеничная'], 'ходовая не записалась списком')
     t.ck(pg.evaluate(REC)['f'].get('bodyNo') == 'JNBAZ08W44W312414', 'при смене базы пропал № кузова')
 
@@ -227,7 +241,7 @@ def run(t):
     pg.select_option('[data-ts-sgroup]', 'Землеройные')
     pg.select_option('[data-ts-skind]', 'Экскаватор')
     t.wait_for('[data-tsf="main|serialNo"]')
-    t.ck(pg.locator('[data-tsf-check="main|run"]').count() == 7, 'у самоходной машины нет ходовой флажками')
+    t.ck(pg.locator('[data-tsf-ms="main|run"]').count() == 1, 'у самоходной машины нет ходовой')
     nums = pg.eval_on_selector_all('.vh-ntbl [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
     t.ck(nums == ['serialNo', 'engineNo'], 'номера самоходной машины не те: %s' % nums)
 

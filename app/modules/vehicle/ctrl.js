@@ -8,6 +8,8 @@ import { attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/
 import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
+import { bindMsSearch } from '../../kernel/multiSelect.js';
+import { MS_OPTS, msSummaryHTML, msBodyHTML } from './tsFields.view.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryFromVtype,
   normVin, vinWarning, normPlate, idMissing,
@@ -155,16 +157,54 @@ export function bindVehicle(ctx) {
   });
 
   // Ходовая — флажки, значение — список отмеченного.
-  s.$$('[data-tsf-check]').forEach((el) => {
-    const [who, key] = split(el.dataset.tsfCheck);
+  // Мультивыбор (ходовая) — как у материалов конструктива: список открывается
+  // по щелчку по полю, закрывается щелчком мимо; выбор перерисовывает только
+  // сводку и сам список.
+  const bindMs = (ms) => {
+    const bind = ms.dataset.tsfMs;
+    const [who, key] = split(bind);
     const vals = valsOf(who);
-    if (!vals) return;
-    el.onchange = () => {
-      const picked = new Set(Array.isArray(vals[key]) ? vals[key] : []);
-      if (el.checked) picked.add(el.value); else picked.delete(el.value);
-      if (picked.size) vals[key] = [...picked]; else delete vals[key];
+    const control = ms.querySelector('[data-ms-toggle]');
+    const drop = ms.querySelector('.ms-drop');
+    if (!vals || !control || !drop) return;
+    control.onclick = (e) => {
+      e.stopPropagation();
+      s.$$('.vehicle-form .ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
+      s.$$('.vehicle-form .ms-control').forEach((c) => { if (c !== control) c.classList.remove('open'); });
+      drop.hidden = !drop.hidden;
+      control.classList.toggle('open', !drop.hidden);
     };
-  });
+    const bindOpts = () => {
+      bindMsSearch(drop);
+      drop.querySelectorAll('[data-tsf-opt]').forEach((cb) => cb.onchange = () => {
+        const raw = cb.dataset.tsfOpt;
+        const value = raw.slice(raw.lastIndexOf('|') + 1);
+        const picked = Array.isArray(vals[key]) ? [...vals[key]] : [];
+        if (cb.checked && !picked.includes(value)) picked.push(value);
+        if (!cb.checked) picked.splice(picked.indexOf(value), 1);
+        // Порядок — как в справочнике, а не как щёлкали.
+        const order = MS_OPTS.get(bind) || [];
+        picked.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        if (picked.length) vals[key] = picked; else delete vals[key];
+        control.innerHTML = msSummaryHTML(picked);
+        drop.innerHTML = msBodyHTML(bind, picked);
+        bindOpts();
+      });
+    };
+    bindOpts();
+  };
+  s.$$('[data-tsf-ms]').forEach(bindMs);
+  // Закрытие по щелчку мимо — один раз на скоуп: контроллер перепривязывается
+  // на каждой отрисовке, а слушатели документа снимаются только при уходе с
+  // экрана.
+  if (!s.root.dataset.msOutsideBound) {
+    s.root.dataset.msOutsideBound = '1';
+    s.onDocument('click', (e) => {
+      if (e.target.closest && e.target.closest('.ms')) return;
+      s.$$('.vehicle-form .ms-control').forEach((c) => c.classList.remove('open'));
+      s.$$('.vehicle-form .ms-drop').forEach((d) => { d.hidden = true; });
+    });
+  }
 
   // Опознавательные номера: хотя бы один из трёх (предупреждение у группы).
   function checkIds() {
