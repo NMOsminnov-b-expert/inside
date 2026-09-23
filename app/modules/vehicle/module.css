@@ -95,3 +95,10 @@ body[data-module="vehicle"] .vh-ncell .vh-warn{grid-column:2}
 body[data-module="vehicle"] .vh-ntbl + .vh-warn-group{margin-top:6px}
 /* Кнопка в строке подзаголовка — справа. */
 body[data-module="vehicle"] .vh-sub-act{order:2;margin-left:auto;text-transform:none;letter-spacing:0}
+
+/* Удаление модуля видно всегда — спрятанная кнопка находится вслепую (так же
+   решено у перечня единиц механизмов в гражданском). Замечание пользователя
+   23.09.2026: «если можем добавить — значит, можем и удалить». */
+body[data-module="vehicle"] .vh-mtbl .mu-del{opacity:1;color:var(--ink-dim)}
+body[data-module="vehicle"] .vh-mtbl .mu-del:hover,
+body[data-module="vehicle"] .vh-mtbl .mu-del:focus-visible{background:var(--red-50);color:var(--danger)}

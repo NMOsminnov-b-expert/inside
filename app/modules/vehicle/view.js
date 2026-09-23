@@ -220,7 +220,8 @@ function moduleFormHTML(m) {
     </div>`;
   const note = info && info.note ? `<div class="vh-about"><div>${esc(info.note)}</div></div>` : '';
   return `<div class="vh-mform" data-ts-mform="${m.id}">
-    <div class="sec-h vh-sub">${esc(moduleTitle(m))}</div>
+    <div class="sec-h vh-sub">${esc(moduleTitle(m))}<button class="btn btn-danger btn-sm vh-sub-act"
+      data-ts-mdel="${m.id}">Удалить модуль</button></div>
     ${cascade}${note}
     ${m.kind ? `${grid(m.f, MODULE_FIELDS, m.id)}${extraPart(m.extra, m.id, 'Дополнительные параметры модуля')}` : ''}
   </div>`;

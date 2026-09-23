@@ -19,6 +19,8 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
     машины сохраняется как есть, а несоответствие стандарту — предупреждение;
   * нет ни VIN, ни № кузова, ни № шасси — предупреждение у группы номеров;
   * у базы свои особые поля (у трактора — ходовая флажками);
+  * модуль удаляется крестиком в строке (виден без наведения) и кнопкой в
+    форме; со сведениями — с подтверждением, пустой — сразу;
   * модули: добавляются кнопкой, выбираются каскадом, строка таблицы следует
     за полями формы; у модуля своя таблица дополнительных параметров;
     подсказок «обычно вписывают» нет (указание пользователя 23.09.2026);
@@ -163,6 +165,22 @@ def run(t):
     t.ck(mods and mods[0]['extra'] and mods[0]['extra'][0]['label'] == 'Глубина копания, м',
          'строка параметра модуля не записалась в модуль: %s' % mods)
     t.ck(not pg.evaluate(REC)['extra'], 'параметр модуля попал в параметры машины')
+
+    # Удаление: крестик в строке виден без наведения; модуль со сведениями —
+    # с подтверждением, пустой — сразу (замечание пользователя 23.09.2026).
+    cross = pg.locator('[data-ts-mpick="%s"] [data-ts-mdel]' % mid)
+    t.ck(float(cross.evaluate('(e) => getComputedStyle(e).opacity')) == 1, 'крестик удаления модуля невидим')
+    t.ck(pg.locator('[data-ts-mform="%s"] [data-ts-mdel]' % mid).count() == 1, 'в форме модуля нет кнопки удаления')
+    cross.click()
+    t.wait_for('[data-modal-ok]')
+    pg.click('[data-modal-ok]')
+    t.wait_until("() => !document.querySelector('[data-ts-mpick]')")
+    t.ck(pg.evaluate(REC)['modules'] == [], 'модуль не удалился из записи')
+    pg.click('[data-ts-madd]')
+    t.wait_for('[data-ts-mdel]')
+    pg.locator('[data-ts-mpick] [data-ts-mdel]').first.click()
+    t.wait_until("() => !document.querySelector('[data-ts-mpick]')")
+    t.ck(pg.locator('[data-modal-ok]').count() == 0, 'пустой модуль удаляется с вопросом')
 
     # --- фото с осмотра ---------------------------------------------------------------
     cats = pg.eval_on_selector_all('[data-ts-photo-add]', 'els => els.map((e) => e.dataset.tsPhotoAdd)')

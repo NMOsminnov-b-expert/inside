@@ -7,6 +7,7 @@ import { bindParties } from './parties.ctrl.js';
 import { attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
+import { confirmDialog } from '../../kernel/dialog.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule,
   normVin, vinWarning, normPlate, idMissing,
@@ -176,11 +177,28 @@ export function bindVehicle(ctx) {
     row.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
   });
 
-  s.$$('[data-ts-mdel]').forEach((b) => b.onclick = (e) => {
+  // Удаление модуля — крестиком в строке таблицы и кнопкой в его форме.
+  // Модуль со сведениями уносит их с собой — спрашиваем (как у единиц
+  // механизмов в гражданском); пустой убирается сразу.
+  s.$$('[data-ts-mdel]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
-    dropModule(v, b.dataset.tsMdel);
-    if (ctx.ui.tsModule === b.dataset.tsMdel) ctx.ui.tsModule = '';
+    const id = b.dataset.tsMdel;
+    const m = owner(id);
+    if (!m) return;
+    const filled = m.kind || Object.keys(m.f || {}).length || (m.extra || []).length;
+    if (filled) {
+      const ok = await confirmDialog({
+        title: 'Удалить модуль',
+        text: `Удалить «${m.kind || 'модуль'}» с машины? Его сведения и дополнительные параметры будут удалены.`,
+        okLabel: 'Удалить',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    dropModule(v, id);
+    if (ctx.ui.tsModule === id) ctx.ui.tsModule = '';
     ctx.render();
+    ctx.toast('Модуль удалён', 'ok');
   });
 
   s.$$('[data-ts-modgroup]').forEach((el) => el.onchange = () => {
