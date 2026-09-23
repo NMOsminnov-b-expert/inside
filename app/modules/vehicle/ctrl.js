@@ -1,114 +1,235 @@
 import { bindNumField } from '../../kernel/numField.js';
 import { bindAutoGrowAll } from '../../kernel/autoGrow.js';
-import { setFieldError } from '../../kernel/fieldError.js';
-import {
-  normVin, vinError, normPlate, vehicleExtra, addVehicleExtra, dropVehicleExtra,
-} from './records.js';
 import { bindViewer } from '../../kernel/viewer/ctrl.js';
 import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { bindStatusFlow } from '../../kernel/status/flow.ctrl.js';
 import { bindParties } from './parties.ctrl.js';
+import {
+  tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule,
+  normVin, vinWarning, normPlate, idMissing,
+} from './tsModel.js';
 
 // Контроллер карточки ТС как объекта оценки.
 //
 // Правило то же, что в карточках объектов имущества: пока человек печатает,
 // экран целиком не перерисовывается. Отрисовка заново — только там, где
-// меняется состав карточки: тип ТС и строки дополнительных параметров.
+// меняется состав карточки: вид объекта, категория и база, модули, строки
+// дополнительных параметров.
 export function bindVehicle(ctx) {
   const s = ctx.scope;
-  const v = ctx.rec.vehicle;
+  const v = tsOf(ctx.rec);
+  ctx.ui = ctx.ui || {};
 
-  const plain = (attr, set) => {
-    const el = s.$(`[data-vehicle-${attr}]`);
-    if (el) el.oninput = () => set(el);
+  // «main» — сама машина, иначе id модуля на ней.
+  const owner = (id) => (id === 'main' ? v : v.modules.find((m) => m.id === id));
+  const valsOf = (id) => { const o = owner(id); return o ? (o.f = o.f || {}) : null; };
+  const extraOf = (id) => { const o = owner(id); return o ? (o.extra = o.extra || []) : null; };
+  const split = (s2) => { const at = s2.indexOf('|'); return [s2.slice(0, at), s2.slice(at + 1)]; };
+
+  const write = (vals, key, value) => {
+    if (value !== '' && value != null) vals[key] = value;
+    else delete vals[key];
   };
 
-  plain('make', (el) => { v.makeModel = el.value; });
-  plain('color', (el) => { v.color = el.value; });
-  plain('country', (el) => { v.country = el.value; });
-  plain('year', (el) => { v.year = el.value; });
-  plain('notes', (el) => { v.notes = el.value; });
+  // --- 02 Вид объекта: смена выбора перестраивает карточку -----------------
+  s.$$('[data-ts-kind]').forEach((b) => b.onclick = () => {
+    if (v.kind === b.dataset.tsKind) return;
+    v.kind = b.dataset.tsKind;
+    ctx.render();
+  });
 
-  // Госномер приводится к верхнему регистру по ходу набора; курсор не прыгает —
-  // длина строки не меняется.
-  const plate = s.$('[data-vehicle-plate]');
-  if (plate) {
-    plate.oninput = () => {
-      const at = plate.selectionStart;
-      plate.value = plate.value.toUpperCase();
-      plate.setSelectionRange(at, at);
-      v.plate = normPlate(plate.value);
-    };
-  }
+  // Каскад: смена родителя сбрасывает дочерний выбор; единственный вариант
+  // подставляется сам (практика каскадных списков).
+  const cascade = (sel, set) => { const el = s.$(sel); if (el) el.onchange = () => { set(el.value); ctx.render(); }; };
+  cascade('[data-ts-cat]', (val) => {
+    v.category = val;
+    const bases = basesOf(val).filter((b) => b.name !== 'Прочее');
+    v.base = bases.length === 1 ? bases[0].name : '';
+  });
+  cascade('[data-ts-base]', (val) => { v.base = val; });
+  cascade('[data-ts-sgroup]', (val) => {
+    v.selfGroup = val;
+    const kinds = selfKinds(val);
+    v.selfKind = kinds.length === 1 ? kinds[0].name : '';
+  });
+  cascade('[data-ts-skind]', (val) => { v.selfKind = val; });
+  cascade('[data-ts-mgroup]', (val) => {
+    v.modGroup = val;
+    const kinds = moduleKinds(val);
+    v.modKind = kinds.length === 1 ? kinds[0].name : '';
+  });
+  cascade('[data-ts-mkind]', (val) => { v.modKind = val; });
 
-  // VIN: лишние знаки отбрасываются сразу, а недобранная длина — не ошибка
-  // набора, а подсказка, сколько осталось; поэтому по уходу фокуса.
-  const vin = s.$('[data-vehicle-vin]');
-  if (vin) {
-    vin.oninput = () => {
-      const at = vin.selectionStart;
-      const before = vin.value.length;
-      vin.value = normVin(vin.value);
-      const shift = before - vin.value.length;
-      vin.setSelectionRange(at - shift, at - shift);
-      v.vin = vin.value;
-      setFieldError(vin, '');
-    };
-    vin.onblur = () => setFieldError(vin, vinError(vin.value));
-  }
+  // --- поля машины и модулей ------------------------------------------------
+  // Поля, от которых зависит состав карточки (вид прицепной машины), при
+  // смене перерисовывают её; остальные пишутся молча.
+  const RERENDER = new Set(['vidMashiny']);
 
-  // --- Тип ТС: от него зависят характеристики и состав осмотра --------------
-  const type = s.$('[data-vehicle-type]');
-  if (type) type.onchange = () => { v.type = type.value; ctx.render(); };
+  s.$$('[data-tsf]').forEach((el) => {
+    const [who, key] = split(el.dataset.tsf);
+    const vals = valsOf(who);
+    if (!vals) return;
 
-  // --- Поля типа ------------------------------------------------------------
-  const params = (v.params = v.params || {});
-  const write = (key, value) => {
-    if (value) params[key] = value;
-    else delete params[key];
-  };
-
-  s.$$('[data-vehicle-f]').forEach((el) => {
-    const key = el.dataset.vehicleF;
     if (el.dataset.num) {
-      bindNumField(el, (val) => write(key, val), el.dataset.num);
+      bindNumField(el, (val) => write(vals, key, val), el.dataset.num);
       return;
     }
-    const set = () => write(key, el.value);
+
+    if (key === 'vin') {
+      // VIN: верхний регистр без пробелов по ходу набора; несоответствие
+      // стандарту — предупреждение по уходу фокуса, а не запрет.
+      const warn = s.$(`[data-ts-warn="${who}|vin"]`);
+      el.oninput = () => {
+        const at = el.selectionStart;
+        const before = el.value.length;
+        el.value = normVin(el.value);
+        const shift = before - el.value.length;
+        el.setSelectionRange(at - shift, at - shift);
+        write(vals, key, el.value);
+        if (warn) warn.hidden = true;
+      };
+      el.onblur = () => {
+        const text = vinWarning(el.value);
+        if (warn) { warn.textContent = text; warn.hidden = !text; }
+        checkIds();
+      };
+      return;
+    }
+
+    if (key === 'plate') {
+      el.oninput = () => {
+        const at = el.selectionStart;
+        el.value = el.value.toUpperCase();
+        el.setSelectionRange(at, at);
+        write(vals, key, normPlate(el.value));
+      };
+      return;
+    }
+
+    const set = () => {
+      write(vals, key, el.value);
+      if (who !== 'main' && ['model', 'serialNo', 'year', 'state'].includes(key)) syncModuleRow(who);
+      if (RERENDER.has(key)) ctx.render();
+    };
     if (el.tagName === 'SELECT' || el.type === 'date') el.onchange = set;
     else el.oninput = set;
+    if (key === 'bodyNo' || key === 'chassisNo') el.onblur = () => checkIds();
   });
 
-  s.$$('[data-vehicle-f-unit]').forEach((el) => {
-    el.onchange = () => write(el.dataset.vehicleFUnit + '@unit', el.value);
+  s.$$('[data-tsf-unit]').forEach((el) => {
+    const [who, key] = split(el.dataset.tsfUnit);
+    const vals = valsOf(who);
+    if (vals) el.onchange = () => write(vals, key + '@unit', el.value);
   });
 
-  // --- Дополнительные параметры ----------------------------------------------
-  s.$$('[data-vehicle-xlabel]').forEach((inp) => inp.oninput = () => {
-    const row = vehicleExtra(ctx.rec).find((f) => f.id === inp.dataset.vehicleXlabel);
-    if (row) row.label = inp.value;
+  // Ходовая — флажки, значение — список отмеченного.
+  s.$$('[data-tsf-check]').forEach((el) => {
+    const [who, key] = split(el.dataset.tsfCheck);
+    const vals = valsOf(who);
+    if (!vals) return;
+    el.onchange = () => {
+      const picked = new Set(Array.isArray(vals[key]) ? vals[key] : []);
+      if (el.checked) picked.add(el.value); else picked.delete(el.value);
+      if (picked.size) vals[key] = [...picked]; else delete vals[key];
+    };
   });
 
-  s.$$('[data-vehicle-xvalue]').forEach((inp) => inp.oninput = () => {
-    const row = vehicleExtra(ctx.rec).find((f) => f.id === inp.dataset.vehicleXvalue);
-    if (row) row.value = inp.value;
-  });
+  // Опознавательные номера: хотя бы один из трёх (предупреждение у группы).
+  function checkIds() {
+    const box = s.$('[data-ts-idwarn]');
+    if (!box) return;
+    const focusInGroup = ['vin', 'bodyNo', 'chassisNo']
+      .some((k) => document.activeElement && document.activeElement.dataset
+        && document.activeElement.dataset.tsf === `main|${k}`);
+    box.hidden = focusInGroup || !idMissing(v);
+  }
 
-  s.$$('[data-vehicle-xdel]').forEach((b) => b.onclick = () => {
-    dropVehicleExtra(ctx.rec, b.dataset.vehicleXdel);
-    ctx.render();
-  });
+  // Строка модуля в таблице следует за полями формы без перерисовки.
+  function syncModuleRow(id) {
+    const m = owner(id);
+    const row = s.$(`[data-ts-mpick="${id}"]`);
+    if (!m || !row) return;
+    const cells = row.querySelectorAll('td');
+    const val = (k) => String(m.f[k] || '').trim() || '—';
+    cells[1].textContent = val('model');
+    cells[2].textContent = val('serialNo');
+    cells[3].textContent = val('year');
+    cells[4].textContent = val('state');
+  }
 
-  const xadd = s.$('[data-vehicle-xadd]');
-  if (xadd) xadd.onclick = () => {
-    const row = addVehicleExtra(ctx.rec);
-    ctx.render();
-    const inp = s.$(`[data-vehicle-xlabel="${row.id}"]`);
-    if (inp) inp.focus();
+  // --- 06 Модули ---------------------------------------------------------------
+  const madd = s.$('[data-ts-madd]');
+  if (madd) madd.onclick = async () => {
+    const m = addModule(v);
+    ctx.ui.tsModule = m.id;
+    await ctx.render();
+    const g = s.$(`[data-ts-modgroup="${m.id}"]`);
+    if (g) g.focus();
   };
 
+  s.$$('[data-ts-mpick]').forEach((row) => {
+    const pick = () => { ctx.ui.tsModule = row.dataset.tsMpick; ctx.render(); };
+    row.onclick = (e) => { if (!e.target.closest('[data-ts-mdel]')) pick(); };
+    row.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+  });
+
+  s.$$('[data-ts-mdel]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    dropModule(v, b.dataset.tsMdel);
+    if (ctx.ui.tsModule === b.dataset.tsMdel) ctx.ui.tsModule = '';
+    ctx.render();
+  });
+
+  s.$$('[data-ts-modgroup]').forEach((el) => el.onchange = () => {
+    const m = owner(el.dataset.tsModgroup);
+    if (!m) return;
+    m.group = el.value;
+    const kinds = moduleKinds(el.value);
+    m.kind = kinds.length === 1 ? kinds[0].name : '';
+    ctx.render();
+  });
+
+  s.$$('[data-ts-modkind]').forEach((el) => el.onchange = () => {
+    const m = owner(el.dataset.tsModkind);
+    if (!m) return;
+    m.kind = el.value;
+    ctx.render();
+  });
+
+  // --- дополнительные параметры (у машины и у каждого модуля) -----------------
+  const row = (attr, el) => {
+    const [who, id] = split(el.dataset[attr]);
+    const list = extraOf(who);
+    return list ? list.find((r) => r.id === id) : null;
+  };
+
+  s.$$('[data-tsx-label]').forEach((el) => el.oninput = () => { const r = row('tsxLabel', el); if (r) r.label = el.value; });
+  s.$$('[data-tsx-value]').forEach((el) => el.oninput = () => { const r = row('tsxValue', el); if (r) r.value = el.value; });
+
+  s.$$('[data-tsx-del]').forEach((b) => b.onclick = () => {
+    const [who, id] = split(b.dataset.tsxDel);
+    const list = extraOf(who);
+    if (list) { dropExtra(list, id); ctx.render(); }
+  });
+
+  // Новая строка — фокус в название; строка из подсказки — фокус сразу в
+  // значение: название уже подставлено.
+  const addRow = async (who, label) => {
+    const list = extraOf(who);
+    if (!list) return;
+    const r = addExtra(list, label);
+    await ctx.render();
+    const el = s.$(`[data-tsx-${label ? 'value' : 'label'}="${who}|${r.id}"]`);
+    if (el) el.focus();
+  };
+
+  s.$$('[data-tsx-add]').forEach((b) => b.onclick = () => addRow(b.dataset.tsxAdd, ''));
+  s.$$('[data-tsx-suggest]').forEach((b) => b.onclick = () => {
+    const [who, label] = split(b.dataset.tsxSuggest);
+    addRow(who, label);
+  });
+
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.
-  ctx.ui = ctx.ui || {};
   ctx.ui.growSizes = ctx.ui.growSizes || {};
   bindAutoGrowAll(s, ctx.ui.growSizes);
 

@@ -1,4 +1,5 @@
 import { manifest } from './manifest.js';
+import { tsTitle, whatLabel } from './tsModel.js';
 
 const records = [];
 let seq = 0;
@@ -9,7 +10,9 @@ function nextId() {
 }
 
 function searchOf(rec) {
-  return [rec.vehicle.makeModel, rec.vehicle.plate, rec.vehicle.vin, rec.vehicle.type]
+  const v = rec.vehicle;
+  const f = v.f || {};
+  return [f.make, f.model, f.plate, f.vin, f.bodyNo, f.chassisNo, whatLabel(v)]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -19,8 +22,8 @@ export function summarize(rec) {
     typeId: manifest.id,
     typeLabel: manifest.label,
     typeIcon: manifest.icon,
-    title: rec.vehicle.makeModel || 'Новое транспортное средство',
-    subtitle: rec.vehicle.plate || 'Госномер не указан',
+    title: tsTitle(rec.vehicle),
+    subtitle: (rec.vehicle.f || {}).plate || 'Рег. номер не указан',
     eni: rec.eni,
     status: rec.status,
     city: rec.city,
@@ -32,9 +35,9 @@ export function summarize(rec) {
     resp: rec.resp,
     badges: [{ label: rec.status, tone: 'status' }],
     facts: [
-      { label: 'Тип ТС', value: rec.vehicle.type || '—' },
-      { label: 'Госномер', value: rec.vehicle.plate || '—' },
-      { label: 'Год выпуска', value: rec.vehicle.year || '—' },
+      { label: 'Вид', value: whatLabel(rec.vehicle) || '—' },
+      { label: 'Рег. номер', value: (rec.vehicle.f || {}).plate || '—' },
+      { label: 'Год выпуска', value: (rec.vehicle.f || {}).year || '—' },
       { label: 'Материалы', value: String((rec.docs || []).reduce((n, d) => n + (d.files || []).length, 0)) },
     ],
     metrics: { oiCount: 0, area: 0, photos: 0, docs: rec.docs.length },
@@ -87,12 +90,12 @@ export function createRecord() {
     // Пользователей у ТС не ведут — блок сторон в карточке только с
     // собственниками; пустой список оставлен ради общих столбцов реестра.
     owners: [], users: [], resp: { gov: '', cod: '', appr: '', insp: '' }, docs: [],
-    // Опознавательные сведения лежат полями записи, характеристики и осмотр —
-    // в params по ключам справочника (data/vehicleFields.js), свободные
-    // добавления — строками extra.
+    // Категоризация «база + модуль» (tsModel.js): что это за объект, значения
+    // полей по ключам справочника data/tsCatalog.js, модули на машине и
+    // свободные добавления строками.
     vehicle: {
-      type: '', makeModel: '', plate: '', vin: '', year: '', color: '', country: '',
-      notes: '', params: {}, extra: [],
+      kind: '', category: '', base: '', selfGroup: '', selfKind: '', modGroup: '', modKind: '',
+      f: {}, modules: [], extra: [],
     },
   };
   records.unshift(rec);
@@ -116,36 +119,5 @@ export function ownerNames() {
   return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
-// VIN: 17 знаков, без букв I, O и Q — их нет в стандарте, чтобы не путать с
-// единицей и нулём (ISO 3779 / 49 CFR 565).
-export const VIN_LENGTH = 17;
-const VIN_ALLOWED = /[^A-HJ-NPR-Z0-9]/g;
-
-export const normVin = (value) => String(value || '').toUpperCase()
-  .replace(VIN_ALLOWED, '').slice(0, VIN_LENGTH);
-
-export function vinError(value) {
-  const v = normVin(value);
-  if (!v) return '';
-  return v.length === VIN_LENGTH ? '' : `В VIN ${v.length} из ${VIN_LENGTH} знаков`;
-}
-
-export const normPlate = (value) => String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
-
-// Дополнительные параметры записи: наименование и значение.
-export const vehicleExtra = (rec) => (rec.vehicle.extra = rec.vehicle.extra || []);
-
-let extraSeq = 1;
-export function addVehicleExtra(rec) {
-  const row = { id: `vx-${Date.now().toString(36)}-${extraSeq += 1}`, label: '', value: '' };
-  vehicleExtra(rec).push(row);
-  return row;
-}
-
-export function dropVehicleExtra(rec, id) {
-  const list = vehicleExtra(rec);
-  const at = list.findIndex((f) => f.id === id);
-  if (at >= 0) list.splice(at, 1);
-}
 export const oiCards = {};
 export const oiTypes = [];

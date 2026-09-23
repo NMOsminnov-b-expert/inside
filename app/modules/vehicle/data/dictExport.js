@@ -1,11 +1,15 @@
 // Что модуль «Транспортные средства» отдаёт в раздел «Справочники».
 //
-// Устройство то же, что у остальных модулей: сами значения лежат в
-// dictionaries.js (оттуда их берут и поля карточки — data/vehicleFields.js),
-// здесь — описание, какой перечень становится справочником и к какому полю
-// привязан. Карточка у этого типа ОЦ одна — сам объект оценки: объектов
-// имущества внутри ТС нет.
-import * as D from './dictionaries.js';
+// С 23.09.2026 карточка устроена по категоризации «база + модуль», и перечни
+// берутся из того же справочника, что и её поля (data/tsCatalog.js, собран
+// скриптом tools/data/build_ts_catalog.py). Карточка у этого типа ОЦ одна —
+// сам объект оценки: объектов имущества внутри ТС нет.
+//
+// Перечни прежних восьми типов ТС (dictionaries.js) остались у карточки ТС в
+// гражданском здании — она пока на прежней схеме.
+import {
+  TS_CATEGORIES, TS_BASES, TS_SELF_GROUPS, TS_MODULE_GROUPS, TS_SELF_FIELDS, TS_BASE_FIELDS,
+} from './tsCatalog.js';
 
 const list = (key, title, values, field, label) => ({
   key,
@@ -16,35 +20,22 @@ const list = (key, title, values, field, label) => ({
   slots: [{ card: 'oc', field, label }],
 });
 
+const optionsOf = (fields, key) => (fields.find((f) => f.key === key) || { options: [] }).options;
+const flat = (groups) => groups.flatMap((g) => g.items.map((i) => i.name));
+
 export const DICT_SOURCES = [
-  list('VEHICLE_TYPE', 'Тип транспортного средства', D.VEHICLE_TYPES, 'type', 'Тип ТС'),
-  list('VEHICLE_WEAR', 'Состояние узлов при осмотре', D.WEAR, 'stEngine', 'Состояние узла'),
-  list('VEHICLE_ENGINE', 'Тип двигателя', D.ENGINE_KIND, 'engineKind', 'Тип двигателя'),
-  list('VEHICLE_GEARBOX', 'Тип КПП', D.GEARBOX, 'gearbox', 'Тип КПП'),
-  list('VEHICLE_DRIVE', 'Привод', D.DRIVE, 'drive', 'Привод'),
-  list('VEHICLE_CAR_BODY', 'Тип кузова легковой', D.CAR_BODY, 'bodyType', 'Тип кузова'),
-  list('VEHICLE_VAN_BODY', 'Тип кузова лёгкого коммерческого', D.VAN_BODY, 'bodyType', 'Тип кузова'),
-  list('VEHICLE_SUPER', 'Тип надстройки грузового', D.TRUCK_SUPER, 'superstructure', 'Тип надстройки'),
-  list('VEHICLE_CAB', 'Тип кабины тягача', D.CAB_TYPE, 'cabType', 'Тип кабины'),
-  list('VEHICLE_BUS_USE', 'Назначение автобуса', D.BUS_USE, 'busUse', 'Назначение'),
-  list('VEHICLE_BUS_CLASS', 'Класс автобуса', D.BUS_CLASS, 'busClass', 'Класс'),
-  list('VEHICLE_TRAILER_KIND', 'Вид прицепа', D.TRAILER_KIND, 'trailerKind', 'Тип'),
-  list('VEHICLE_TRAILER_LIGHT', 'Назначение легкового прицепа', D.TRAILER_LIGHT_USE,
-    'trailerUse', 'Назначение'),
-  list('VEHICLE_TRAILER_CARGO', 'Назначение грузового прицепа', D.TRAILER_CARGO_USE,
-    'trailerUse', 'Назначение'),
-  list('VEHICLE_MOTO', 'Вид мототранспорта', D.MOTO_KIND, 'motoKind', 'Тип'),
-  list('VEHICLE_SPEC_CONSTRUCTION', 'Вид строительной спецтехники', D.SPEC_CONSTRUCTION,
-    'specKind', 'Вид техники'),
-  list('VEHICLE_SPEC_MUNICIPAL', 'Вид коммунальной спецтехники', D.SPEC_MUNICIPAL,
-    'specKind', 'Вид техники'),
-  list('VEHICLE_SPEC_AGRO', 'Вид сельскохозяйственной спецтехники', D.SPEC_AGRO,
-    'specKind', 'Вид техники'),
-  list('VEHICLE_SPEC_LOADER', 'Вид погрузочно-разгрузочной спецтехники', D.SPEC_LOADER,
-    'specKind', 'Вид техники'),
-  list('VEHICLE_SPEC_LIFT', 'Вид грузоподъёмной самоходной спецтехники', D.SPEC_LIFT,
-    'specKind', 'Вид техники'),
-  list('VEHICLE_UNDERCARRIAGE', 'Тип ходовой части', D.UNDERCARRIAGE, 'undercarriage',
-    'Тип ходовой части'),
-  list('VEHICLE_HITCH', 'Тип агрегатирования', D.HITCH, 'hitch', 'Тип агрегатирования'),
+  list('TS_CATEGORY', 'Категория ТС по техпаспорту', TS_CATEGORIES.filter((c) => c !== 'По техпаспорту'),
+    'category', 'Категория по техпаспорту'),
+  list('TS_BASE', 'База транспортного средства', TS_BASES.map((b) => b.name), 'base', 'База'),
+  list('TS_SELF_GROUP', 'Группа самоходных машин', TS_SELF_GROUPS.map((g) => g.group), 'selfGroup', 'Группа'),
+  list('TS_SELF_KIND', 'Вид самоходной машины', flat(TS_SELF_GROUPS), 'selfKind', 'Вид машины'),
+  list('TS_MODULE_GROUP', 'Группа модулей', TS_MODULE_GROUPS.map((g) => g.group), 'modGroup', 'Группа'),
+  list('TS_MODULE', 'Модуль (надстройка, навесное, сменное)', flat(TS_MODULE_GROUPS), 'modKind', 'Модуль'),
+  list('TS_RUN', 'Ходовая', optionsOf(TS_SELF_FIELDS, 'run'), 'run', 'Ходовая'),
+  list('TS_TURN', 'Способ поворота', optionsOf(TS_SELF_FIELDS, 'turn'), 'turn', 'Способ поворота'),
+  list('TS_FUEL', 'Тип топлива', optionsOf(TS_BASE_FIELDS, 'fuel'), 'fuel', 'Тип топлива'),
+  list('TS_GEARBOX', 'Тип КПП', optionsOf(TS_BASE_FIELDS, 'gearbox'), 'gearbox', 'Тип КПП'),
+  list('TS_WHEEL_FORMULA', 'Колёсная формула', optionsOf(TS_BASE_FIELDS, 'wheelFormula'), 'wheelFormula',
+    'Колёсная формула'),
+  list('TS_STATE', 'Техническое состояние', optionsOf(TS_BASE_FIELDS, 'state'), 'state', 'Техническое состояние'),
 ];
