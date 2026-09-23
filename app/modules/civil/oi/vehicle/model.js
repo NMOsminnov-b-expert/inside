@@ -1,82 +1,106 @@
-// Данные карточки ОИ «Транспортное средство».
+// Данные карточки ОИ «Транспортное средство» гражданского здания.
 //
 // Одно ТС — один объект имущества (решение пользователя 17.09.2026): госномер
 // и VIN индивидуальны, и каждая машина видна в перечне ОЦ отдельной строкой.
 //
-// Состав полей зависит от типа ТС и живёт в модуле транспортных средств
-// (vehicle/data/vehicleFields.js) — тот же справочник у карточки ТС как объекта
-// оценки. Значения хранятся в oi.params по ключу поля, единица измерения —
-// отдельным ключом «<ключ>@unit»: «2,5» и «т» это разные сведения.
-import { vehicleFieldsFor } from '../../../vehicle/data/vehicleFields.js';
-import { paramOf, paramUnit } from '../../../../kernel/fieldSpec.js';
+// С 23.09.2026 карточка та же, что у ТС как объекта оценки, — «база + модуль»
+// (решение пользователя: «ТС тоже перенеси внутрь гражданского так же, как и
+// был в ОЦ»). Сведения лежат в oi.vehicle в том же виде, что rec.vehicle у ОЦ;
+// снимки — у самого объекта имущества (oi.photos, oi.photoFiles), как у литер,
+// поэтому просмотрщик гражданского видит их без переделок.
+import { tsOf, tsTitle, PHOTO_CATS, vehicleFieldsFor } from '../../../vehicle/card.js';
 
-// VIN: 17 знаков, латиница верхнего регистра и цифры. Букв I, O и Q в коде не
-// бывает — их исключили, чтобы не путать с единицей и нулём (стандарт
-// ISO 3779 / 49 CFR 565). Поэтому набранное нормализуем сразу: человек,
-// переписывающий VIN с кузова, не должен разбираться, почему поле ругается.
-export const VIN_LENGTH = 17;
-const VIN_ALLOWED = /[^A-HJ-NPR-Z0-9]/g;
-
-export function normVin(value) {
-  return String(value || '').toUpperCase().replace(VIN_ALLOWED, '').slice(0, VIN_LENGTH);
-}
-
-export function vinError(value) {
-  const v = normVin(value);
-  if (!v) return '';
-  return v.length === VIN_LENGTH ? '' : `В VIN ${v.length} из ${VIN_LENGTH} знаков`;
-}
-
-// Госномер записывается как есть, только без лишних пробелов и в верхнем
-// регистре: форматы в республике и у ввезённых машин разные, и подгонять их
-// под одну маску значит мешать вводу.
-export const normPlate = (value) => String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
-
-export const vehicleParams = (oi) => (oi.params = oi.params || {});
-
-// Поля по типу ТС: passport — с документов, inspect — с осмотра.
-// null — тип ещё не выбран.
-export const paramsOf = (oi) => vehicleFieldsFor(oi.vtype);
-
-export const vehicleParam = (oi, key) => paramOf(oi.params, key);
-export const vehicleParamUnit = (oi, f) => paramUnit(oi.params, f);
-
-// Дополнительные параметры — то, чего нет среди полей типа: наименование и
-// значение, как «свои поля» в карточке механизма.
-export const vehicleExtra = (oi) => (oi.extra = oi.extra || []);
-
-let extraSeq = 1;
-export function addVehicleExtra(oi) {
-  const row = { id: `vx-${Date.now().toString(36)}-${extraSeq += 1}`, label: '', value: '' };
-  vehicleExtra(oi).push(row);
-  return row;
-}
-
-export function dropVehicleExtra(oi, id) {
-  const list = vehicleExtra(oi);
-  const at = list.findIndex((f) => f.id === id);
-  if (at >= 0) list.splice(at, 1);
-}
-
-// Подпись ТС: марка с моделью одной строкой, а госномер — примета, по которой
-// машину и находят в перечне. Марка и модель — ОДНО поле (указание
-// пользователя 18.09.2026): в документах они и стоят вместе, а порознь их
-// заполняли по-разному — «Toyota» / «Hilux» и «Toyota Hilux» / пусто.
-export function vehicleTitle(oi) {
-  return String(oi.makeModel || '').trim() || 'Транспортное средство';
-}
-
-export function vehicleSubtitle(oi) {
-  return oi.plate || (oi.vtype || '');
-}
-
-// Название ОИ — производное от марки, модели и госномера: отдельного поля
-// «наименование» у ТС нет, его незачем заполнять руками (так же устроена
-// подпись ОИ у механизмов).
+// Подпись ОИ — марка с моделью и госномер: по ним машину находят в перечне.
+// Отдельного поля «наименование» у ТС нет.
 export function syncVehicleName(oi) {
-  const plate = oi.plate ? ` · ${oi.plate}` : '';
-  oi.name = vehicleTitle(oi) + plate;
+  const v = tsOf(oi);
+  const plate = v.f.plate ? ` · ${v.f.plate}` : '';
+  oi.name = tsTitle(v) + plate;
   return oi.name;
+}
+
+// Прежние восемь типов ТС и пять подгрупп спецтехники (карточка до
+// 23.09.2026) → категория и база справочника «база + модуль».
+const OLD_TYPE = {
+  'Легковая': ['Легковое', 'Легковой автомобиль и внедорожник'],
+  'Лёгкий коммерческий (до 3,5 т)': ['Грузовое', 'Лёгкий коммерческий (до 3,5 т)'],
+  'Грузовой (свыше 3,5 т)': ['Грузовое', ''],
+  'Седельный тягач': ['Грузовое', 'Седельный тягач'],
+  'Автобус': ['Автобусы', 'Автобус'],
+  'Прицеп легковой': ['Прицепы и полуприцепы', 'Прицеп'],
+  'Прицеп и полуприцеп грузовой': ['Прицепы и полуприцепы', ''],
+  'Мототранспорт': ['Мототехника', 'Мототехника'],
+};
+// Поля прежней карточки, у которых в новой есть поле с тем же смыслом.
+const SAME_KEY = ['engineVolume', 'gearbox', 'bodyNo', 'chassisNo', 'engineNo', 'mileage', 'engineHours', 'kit'];
+
+let seq = 1;
+const rowId = () => `vx-${Date.now().toString(36)}-${seq += 1}`;
+
+// Перевод ТС, заведённого прежней карточкой: марка, госномер, VIN, год, цвет
+// ложатся в свои поля; остальное, чему нет поля, — в дополнительные параметры
+// с прежней подписью. Ничего не теряется, а тип ТС подсказывает категорию.
+// Снимки прежних категорий («Кузов», «Салон» …) переходят в «Машину».
+export function migrateVehicleOi(oi) {
+  if (oi.vehicle) return;
+  const [category, base] = OLD_TYPE[oi.vtype] || ['', ''];
+  const spec = /спецтехника/i.test(oi.vtype || '');
+  const f = {};
+  const put = (k, val) => { if (val !== undefined && val !== null && String(val).trim()) f[k] = val; };
+  put('make', oi.makeModel);
+  put('plate', oi.plate);
+  put('vin', oi.vin);
+  put('year', oi.year);
+  put('color', oi.color);
+  put('country', oi.country);
+
+  const params = oi.params || {};
+  const old = vehicleFieldsFor(oi.vtype);
+  const labels = {};
+  if (old) [...old.passport, ...old.inspect].forEach((d) => { labels[d.key] = d.label; });
+  const extra = [];
+  if (oi.vtype && !base) extra.push({ id: rowId(), label: 'Тип ТС (прежняя карточка)', value: oi.vtype });
+  Object.keys(params).filter((k) => !k.endsWith('@unit')).forEach((k) => {
+    const unit = params[k + '@unit'];
+    if (SAME_KEY.includes(k)) {
+      put(k, params[k]);
+      if (unit) f[k + '@unit'] = unit;
+      return;
+    }
+    const value = [params[k], unit].filter(Boolean).join(' ');
+    if (String(value).trim()) extra.push({ id: rowId(), label: labels[k] || k, value: String(value) });
+  });
+  (oi.extra || []).forEach((r) => extra.push({ id: r.id || rowId(), label: r.label || '', value: r.value || '' }));
+  if (String(oi.marks || '').trim()) extra.push({ id: rowId(), label: 'Особые отметки', value: oi.marks });
+  if (String(oi.comment || '').trim()) extra.push({ id: rowId(), label: 'Комментарий', value: oi.comment });
+
+  oi.vehicle = {
+    kind: spec ? 'self' : (category ? 'base' : ''),
+    category, base, f, extra, modules: [],
+  };
+
+  const photos = oi.photos || {};
+  const files = oi.photoFiles || {};
+  const moved = Object.keys(photos).filter((c) => !PHOTO_CATS.includes(c));
+  if (moved.length) {
+    const cat = PHOTO_CATS[0];
+    let n = photos[cat] || 0;
+    const arr = files[cat] || [];
+    while (arr.length < n) arr.push(null);
+    moved.forEach((c) => {
+      const from = files[c] || [];
+      for (let i = 0; i < photos[c]; i++) arr.push(from[i] || null);
+      n += photos[c];
+      delete photos[c];
+      delete files[c];
+    });
+    photos[cat] = n;
+    files[cat] = arr;
+    oi.photos = photos;
+    oi.photoFiles = files;
+  }
+  ['vtype', 'makeModel', 'plate', 'vin', 'year', 'color', 'country', 'params', 'extra', 'marks', 'comment']
+    .forEach((k) => delete oi[k]);
 }
 
 export function createVehicleOi(base) {
@@ -87,17 +111,7 @@ export function createVehicleOi(base) {
     // Кода ЕНИ у транспортного средства нет: он присваивается Кадастром
     // недвижимости, а ТС стоит на учёте в органах регистрации транспорта.
     eni: '',
-    vtype: '',
-    makeModel: '',
-    plate: '',
-    vin: '',
-    color: '',
-    year: '',
-    country: '',
-    params: {},
-    extra: [],
-    marks: '',
-    comment: '',
+    vehicle: { kind: '', f: {}, extra: [], modules: [] },
     docs: [],
     photos: {},
     photoFiles: {},

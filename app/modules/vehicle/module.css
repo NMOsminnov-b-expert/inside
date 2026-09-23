@@ -1,192 +1,196 @@
+/* Стили карточки ТС. Карточка живёт и в модуле ТС, и внутри гражданского
+   здания (vehicle/card.js): там форма обёрнута в .ts-host, и правила
+   действуют только внутри неё — классы вроде .mu-table-wrap есть и у
+   механизмов гражданского. */
 /* Своё оформление типа ОЦ «vehicle»: форма карточки транспортного средства.
    Просмотрщик у ТС общий с остальными типами (kernel/viewer.css), шапка и
    шкала статусов — тоже (kernel/cards.css), поэтому своих правил на них нет.
    Блок сторон 01 оформляет общий kernel/ocParts.css — своя копия убрана. */
 
-body[data-module="vehicle"] .vehicle-form{padding-bottom:24px}
-body[data-module="vehicle"] .vehicle-form .card{margin-bottom:12px}
-body[data-module="vehicle"] .vehicle-form .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-body[data-module="vehicle"] .vehicle-form .grid.g-4{grid-template-columns:repeat(2,minmax(0,1fr))}
-body[data-module="vehicle"] .vehicle-form .sp-all{grid-column:1 / -1}
-body[data-module="vehicle"] .vehicle-form .field textarea{min-height:72px;resize:vertical}
-body[data-module="vehicle"] .vehicle-form .ms-control{min-height:30px}
-@media (max-width:1050px){body[data-module="vehicle"] .vehicle-form .grid,body[data-module="vehicle"] .vehicle-form .grid.g-4{grid-template-columns:1fr}}
-@media (max-width:760px){body[data-module="vehicle"] .vehicle-form .grid,body[data-module="vehicle"] .vehicle-form .grid.g-4{grid-template-columns:1fr}}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form{padding-bottom:24px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .card{margin-bottom:12px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.g-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .sp-all{grid-column:1 / -1}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field textarea{min-height:72px;resize:vertical}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .ms-control{min-height:30px}
+@media (max-width:1050px){:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid,:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.g-4{grid-template-columns:1fr}}
+@media (max-width:760px){:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid,:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.g-4{grid-template-columns:1fr}}
 
 /* --- Карточка по категоризации «база + модуль» (23.09.2026) ----------------- */
 /* Вид объекта — три взаимоисключающих варианта, все видны сразу: сегментный
    переключатель вместо списка. Выбранный отличается фоном, цветом и жирностью,
    а не одним цветом. */
-body[data-module="vehicle"] .vh-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;
   background:#fff;margin-bottom:12px;flex-wrap:wrap}
-body[data-module="vehicle"] .vh-seg-btn{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 14px;
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-seg-btn{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 14px;
   font:inherit;font-size:12.5px;color:#33445c;cursor:pointer;min-height:34px}
-body[data-module="vehicle"] .vh-seg-btn:last-child{border-right:0}
-body[data-module="vehicle"] .vh-seg-btn:hover{background:var(--blue-50)}
-body[data-module="vehicle"] .vh-seg-btn.on{background:var(--blue-600);color:#fff;font-weight:700}
-body[data-module="vehicle"] .vh-seg-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
-body[data-module="vehicle"] .vh-cascade{margin-bottom:6px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-seg-btn:last-child{border-right:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-seg-btn:hover{background:var(--blue-50)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-seg-btn.on{background:var(--blue-600);color:#fff;font-weight:700}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-seg-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-cascade{margin-bottom:6px}
 
 /* Справка о выбранной базе или виде — «как узнать» и примеры. */
-body[data-module="vehicle"] .vh-about{margin:8px 0 2px;padding:8px 12px;border-left:3px solid var(--blue-300);
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-about{margin:8px 0 2px;padding:8px 12px;border-left:3px solid var(--blue-300);
   background:var(--blue-50);border-radius:0 6px 6px 0;font-size:11.5px;line-height:1.45;color:#2c3e57;
   display:grid;gap:3px}
 
 /* Пометка источника в строке подписи: «ТП» — из техпаспорта, «осмотр» — с
    осмотра. Подробности (где графа на бланках) — во всплывающей подсказке. */
-body[data-module="vehicle"] .vehicle-form .field label,body[data-module="vehicle"] .vh-checks legend{
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field label,:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-checks legend{
   display:flex;align-items:center;gap:6px}
-body[data-module="vehicle"] .vh-src{margin-left:auto;flex:none;font-size:9.5px;font-weight:700;letter-spacing:.3px;
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-src{margin-left:auto;flex:none;font-size:9.5px;font-weight:700;letter-spacing:.3px;
   padding:1px 6px;border-radius:9px;background:var(--blue-50);color:var(--blue-700);border:1px solid var(--blue-200);
   cursor:help;line-height:14px;text-transform:none}
-body[data-module="vehicle"] .vh-src.is-insp{background:var(--amber-50);color:var(--amber-700);border-color:var(--amber-100)}
-body[data-module="vehicle"] .vh-note{font-weight:400;color:var(--muted);font-size:10.5px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-src.is-insp{background:var(--amber-50);color:var(--amber-700);border-color:var(--amber-100)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-note{font-weight:400;color:var(--muted);font-size:10.5px}
 
 /* Ходовая: флажки в несколько столбцов — столбик из семи строк растянул бы
    соседние поля (практика «флажки при малом числе вариантов»). */
-body[data-module="vehicle"] .vh-checks{border:0;padding:0;margin:0;min-width:0}
-body[data-module="vehicle"] .vh-checks legend{padding:0;margin-bottom:6px;width:100%;font-size:10px;font-weight:700;
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-checks{border:0;padding:0;margin:0;min-width:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-checks legend{padding:0;margin-bottom:6px;width:100%;font-size:10px;font-weight:700;
   letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
-body[data-module="vehicle"] .vh-checks legend .vh-note{text-transform:none;letter-spacing:0}
-body[data-module="vehicle"] .vh-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:4px 12px}
-body[data-module="vehicle"] .vh-check{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;min-height:26px}
-body[data-module="vehicle"] .vh-check input{width:15px;height:15px;margin:0;accent-color:var(--blue-600)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-checks legend .vh-note{text-transform:none;letter-spacing:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:4px 12px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-check{display:flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;min-height:26px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-check input{width:15px;height:15px;margin:0;accent-color:var(--blue-600)}
 
 /* Предупреждение (не ошибка): в потоке, под полем или под группой номеров. */
-body[data-module="vehicle"] .vh-warn{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--amber-700);
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-warn{display:block;margin-top:4px;font-size:11px;line-height:1.35;color:var(--amber-700);
   background:var(--amber-50);border:1px solid var(--amber-100);border-radius:6px;padding:5px 8px}
-body[data-module="vehicle"] .vh-warn[hidden]{display:none}
-body[data-module="vehicle"] .vh-warn-group{margin:2px 0 10px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-warn[hidden]{display:none}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-warn-group{margin:2px 0 10px}
 
-body[data-module="vehicle"] .vh-sub{margin-top:16px}
-body[data-module="vehicle"] .vh-grid + .vh-grid{margin-top:12px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-sub{margin-top:16px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid + .vh-grid{margin-top:12px}
 
 
 /* Модули: сводная таблица и форма выбранного модуля под ней (как перечень
    единиц механизмов в гражданском — оформление скопировано: модули друг из
    друга не импортируют). */
-body[data-module="vehicle"] .vh-mtbl{width:100%;table-layout:fixed;border-collapse:collapse;border:1px solid var(--line-soft)}
-body[data-module="vehicle"] .vh-mtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl{width:100%;table-layout:fixed;border-collapse:collapse;border:1px solid var(--line-soft)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
   font-weight:700;text-align:left;padding:7px 10px;background:var(--fill-head);border-bottom:1px solid var(--line)}
-body[data-module="vehicle"] .vh-mtbl td{padding:6px 10px;border-bottom:1px solid var(--line-soft);font-size:12.5px;
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl td{padding:6px 10px;border-bottom:1px solid var(--line-soft);font-size:12.5px;
   vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-body[data-module="vehicle"] .vh-mtbl .mu-c-num{text-align:right;font-variant-numeric:tabular-nums}
-body[data-module="vehicle"] .vh-mtbl .mu-c-act{text-align:center;padding-left:2px;padding-right:6px}
-body[data-module="vehicle"] .vh-mrow{cursor:pointer}
-body[data-module="vehicle"] .vh-mrow:hover td{background:var(--fill-hover)}
-body[data-module="vehicle"] .vh-mrow.on td{background:var(--teal-50)}
-body[data-module="vehicle"] .vh-mrow.on td:first-child{box-shadow:inset 3px 0 0 var(--teal-600)}
-body[data-module="vehicle"] .vh-mrow:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
-body[data-module="vehicle"] .vh-mname{font-weight:600;overflow:hidden;text-overflow:ellipsis}
-body[data-module="vehicle"] .vh-mpath{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
-body[data-module="vehicle"] .vh-mform{margin-top:14px;padding-top:4px;border-top:1px dashed var(--line)}
-body[data-module="vehicle"] .mu-table-wrap{overflow-x:auto}
-body[data-module="vehicle"] .vh-grid .vh-warn-group{grid-column:1 / -1;margin:-4px 0 0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl .mu-c-num{text-align:right;font-variant-numeric:tabular-nums}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl .mu-c-act{text-align:center;padding-left:2px;padding-right:6px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mrow{cursor:pointer}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mrow:hover td{background:var(--fill-hover)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mrow.on td{background:var(--teal-50)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mrow.on td:first-child{box-shadow:inset 3px 0 0 var(--teal-600)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mrow:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mname{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mpath{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mform{margin-top:14px;padding-top:4px;border-top:1px dashed var(--line)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .mu-table-wrap{overflow-x:auto}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid .vh-warn-group{grid-column:1 / -1;margin:-4px 0 0}
 
 /* Номера — таблицей: строка на номер, подпись с меткой источника слева,
    значение справа (указание пользователя 23.09.2026). */
-body[data-module="vehicle"] .vh-ntbl{width:100%;border-collapse:collapse;border:1px solid var(--line-soft);table-layout:fixed}
-body[data-module="vehicle"] .vh-ntbl td{padding:5px 10px;border-bottom:1px solid var(--line-soft)}
-body[data-module="vehicle"] .vh-ntbl tr:last-child td{border-bottom:0}
-body[data-module="vehicle"] .vh-ncell .field{display:grid;grid-template-columns:minmax(150px,38%) minmax(0,1fr);
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ntbl{width:100%;border-collapse:collapse;border:1px solid var(--line-soft);table-layout:fixed}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ntbl td{padding:5px 10px;border-bottom:1px solid var(--line-soft)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ntbl tr:last-child td{border-bottom:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ncell .field{display:grid;grid-template-columns:minmax(150px,38%) minmax(0,1fr);
   align-items:center;column-gap:12px;row-gap:4px}
-body[data-module="vehicle"] .vh-ncell .field>label{margin:0}
-body[data-module="vehicle"] .vh-ncell .vh-warn{grid-column:2}
-body[data-module="vehicle"] .vh-ntbl + .vh-warn-group{margin-top:6px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ncell .field>label{margin:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ncell .vh-warn{grid-column:2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-ntbl + .vh-warn-group{margin-top:6px}
 /* Кнопка в строке подзаголовка — справа. */
-body[data-module="vehicle"] .vh-sub-act{order:2;margin-left:auto;text-transform:none;letter-spacing:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-sub-act{order:2;margin-left:auto;text-transform:none;letter-spacing:0}
 
 /* Удаление модуля видно всегда — спрятанная кнопка находится вслепую (так же
    решено у перечня единиц механизмов в гражданском). Замечание пользователя
    23.09.2026: «если можем добавить — значит, можем и удалить». */
-body[data-module="vehicle"] .vh-mtbl .mu-del{opacity:1;color:var(--ink-dim)}
-body[data-module="vehicle"] .vh-mtbl .mu-del:hover,
-body[data-module="vehicle"] .vh-mtbl .mu-del:focus-visible{background:var(--red-50);color:var(--danger)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl .mu-del{opacity:1;color:var(--ink-dim)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl .mu-del:hover,
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mtbl .mu-del:focus-visible{background:var(--red-50);color:var(--danger)}
 
 /* --- Компактная раскладка (23.09.2026) ---------------------------------------
    Сетка в четыре колонки, ширина поля — по длине значения (практика Baymard):
    vh-s1 — год, места, руль, оси, массы, дата; vh-s2 — обычный текст; vh-s3/4 —
    адрес, комплектность, ходовая. Поля выравниваются по низу: подпись в две
    строки не сдвигает поле вниз относительно соседа. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid{grid-template-columns:repeat(4,minmax(0,1fr));
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid{grid-template-columns:repeat(4,minmax(0,1fr));
   align-items:end;gap:10px 12px}
-body[data-module="vehicle"] .vh-grid>.vh-s1{grid-column:span 1}
-body[data-module="vehicle"] .vh-grid>.vh-s2{grid-column:span 2}
-body[data-module="vehicle"] .vh-grid>.vh-s3{grid-column:span 3}
-body[data-module="vehicle"] .vh-grid>.vh-s4{grid-column:1 / -1}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid>.vh-s1{grid-column:span 1}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid>.vh-s2{grid-column:span 2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid>.vh-s3{grid-column:span 3}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid>.vh-s4{grid-column:1 / -1}
 @media (max-width:1050px){
-  body[data-module="vehicle"] .vehicle-form .grid.vh-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  body[data-module="vehicle"] .vh-grid>.vh-s3{grid-column:1 / -1}
+  :is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  :is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-grid>.vh-s3{grid-column:1 / -1}
 }
 
 /* «Как заполнять» — постоянная подсказка под заголовком блока и подраздела
    (практика подсказок для новичка): одна-две фразы, мельче основного текста,
    но не бледнее, чтобы читалась. */
-body[data-module="vehicle"] .vh-howto{margin:0 0 10px;font-size:11.5px;line-height:1.45;color:#46536b;max-width:78ch}
-body[data-module="vehicle"] .vh-howto b{color:#2c3e57}
-body[data-module="vehicle"] .vh-howto-sub{margin:-2px 0 8px;font-size:11px;color:var(--muted)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-howto{margin:0 0 10px;font-size:11.5px;line-height:1.45;color:#46536b;max-width:78ch}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-howto b{color:#2c3e57}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-howto-sub{margin:-2px 0 8px;font-size:11px;color:var(--muted)}
 
 /* Модули — свой цвет: не спутать с самой машиной. */
-body[data-module="vehicle"] .card.t-violet{border-left:4px solid var(--violet-600)}
-body[data-module="vehicle"] .card.t-violet .card-head{background:var(--violet-50)}
-body[data-module="vehicle"] .card.t-violet .card-head h3{color:var(--violet-700)}
-body[data-module="vehicle"] .card.t-violet .card-idx{background:var(--violet-600)}
-body[data-module="vehicle"] .card.t-violet .vh-mrow.on td{background:var(--violet-50)}
-body[data-module="vehicle"] .card.t-violet .vh-mrow.on td:first-child{box-shadow:inset 3px 0 0 var(--violet-600)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .card.t-violet{border-left:4px solid var(--violet-600)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .card.t-violet .card-head{background:var(--violet-50)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .card.t-violet .card-head h3{color:var(--violet-700)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .card.t-violet .card-idx{background:var(--violet-600)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .card.t-violet .vh-mrow.on td{background:var(--violet-50)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .card.t-violet .vh-mrow.on td:first-child{box-shadow:inset 3px 0 0 var(--violet-600)}
 
 /* Метка источника — в правом верхнем углу поля, а не в потоке подписи: в узком
    поле подпись переносится, и метка уезжала на отдельную строку. Подписи
    оставлено место под метку. */
-body[data-module="vehicle"] .vehicle-form .field:has(> label > .vh-src){position:relative}
-body[data-module="vehicle"] .vehicle-form .field > label > .vh-src{position:absolute;top:0;right:0}
-body[data-module="vehicle"] .vehicle-form .field > label:has(> .vh-src){padding-right:28px}
-body[data-module="vehicle"] .vehicle-form .field > label:has(> .vh-src.is-insp){padding-right:52px}
-body[data-module="vehicle"] .vehicle-form .field > label:has(> .vh-src.is-mixed){padding-right:76px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field:has(> label > .vh-src){position:relative}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field > label > .vh-src{position:absolute;top:0;right:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field > label:has(> .vh-src){padding-right:28px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field > label:has(> .vh-src.is-insp){padding-right:52px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .field > label:has(> .vh-src.is-mixed){padding-right:76px}
 
 /* «Зачем это поле» — строкой под полем, мелко и спокойно: читается, когда
    нужно, и не спорит с подписью. */
-body[data-module="vehicle"] .vh-why{display:block;margin-top:3px;font-size:10.5px;line-height:1.3;color:var(--muted)}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-why{display:block;margin-top:3px;font-size:10.5px;line-height:1.3;color:var(--muted)}
 
 
 /* Подсетки: у поля три строки — подпись, поле ввода, пояснение, — и в одной
    строке сетки они выстраиваются каждая на своей линии. Без этого пояснение
    под одним полем сдвигало его вверх относительно соседей. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid{row-gap:0;align-items:stretch}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field:not(.vh-checks){display:grid;
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid{row-gap:0;align-items:stretch}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .field:not(.vh-checks){display:grid;
   grid-template-rows:subgrid;grid-row:span 3;row-gap:4px;align-content:start;margin-bottom:10px}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field > label{align-self:end;margin:0}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-checks{grid-row:span 3;margin-bottom:10px}
-body[data-module="vehicle"] .vh-why{margin-top:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .field > label{align-self:end;margin:0}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .vh-checks{grid-row:span 3;margin-bottom:10px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-why{margin-top:0}
 /* Комплектность модуля — в полстроки: одна строка ввода вместо трёх. */
-body[data-module="vehicle"] .vh-mform .vh-s2 textarea{min-height:34px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vh-mform .vh-s2 textarea{min-height:34px}
 
 /* Ходовая и трансмиссия — короткие значения по осмотру: столько колонок,
    сколько влезает (пять полей встают в одну строку). */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field > :not(label){align-self:start}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .field > :not(label){align-self:start}
 
 /* Подпись с пояснением во всплывающей подсказке — пунктиром снизу: видно, что
    пояснение есть, и оно не занимает места в форме. */
-body[data-module="vehicle"] .vehicle-form label.vh-tip{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form label.vh-tip{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
 /* Поля выстроены подсеткой, а строки пояснений под ними ушли в подсказки —
    третья строка подсетки пустая, отступ между строками полей — снизу поля. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field:not(.vh-checks){grid-row:span 2;margin-bottom:8px}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-checks{grid-row:span 2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .field:not(.vh-checks){grid-row:span 2;margin-bottom:8px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .vh-checks{grid-row:span 2}
 /* Особые поля базы и ходовая — столько в строку, сколько влезает. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit > .field:not(.vh-checks){grid-column:auto}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit > .vh-checks{grid-column:1 / -1}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .field:not(.vh-checks){grid-column:auto}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .vh-checks{grid-column:1 / -1}
 /* Ходовая — пять коротких полей по осмотру встают в одну строку. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit.vh-fit-narrow{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit.vh-fit-narrow{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
 /* Каскад ТС: категория, под ней «Тип ТС», справа база. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-at-cat{grid-column:1 / 3;grid-row:1 / span 2}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-at-vtype{grid-column:1 / 3;grid-row:3 / span 2}
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-at-base{grid-column:3 / 5;grid-row:1 / span 2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .vh-at-cat{grid-column:1 / 3;grid-row:1 / span 2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .vh-at-vtype{grid-column:1 / 3;grid-row:3 / span 2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid > .vh-at-base{grid-column:3 / 5;grid-row:1 / span 2}
 
 
 /* Мультивыбор (ходовая) — поле как у остальных, в строке — на две доли. */
-body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit > .field.vh-ms{grid-column:span 2}
-body[data-module="vehicle"] .vehicle-form .vh-ms .ms-control{min-height:34px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .field.vh-ms{grid-column:span 2}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .vh-ms .ms-control{min-height:34px}
 
 /* Комплектность в «Наработке и состоянии» — одна строка ввода, растёт по тексту. */
-body[data-module="vehicle"] .vehicle-form .vh-use textarea.mu-area{min-height:34px}
+:is(body[data-module="vehicle"], body[data-module="civil"] .ts-host) .vehicle-form .vh-use textarea.mu-area{min-height:34px}

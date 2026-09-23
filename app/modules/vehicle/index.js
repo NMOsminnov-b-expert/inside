@@ -17,7 +17,10 @@ function todayStr() {
 export function main(host) {
   const scope = host.scope;
   let route = host.route;
-  let rec = loadRecord(route.ocId);
+  // Объектов имущества у ТС нет, но просмотрщик ядра перебирает rec.oi
+  // (перенос фото к другой литере, боковая панель) — пустой перечень.
+  const load = (id) => { const r = loadRecord(id); if (r) r.oi = r.oi || []; return r; };
+  let rec = load(route.ocId);
   // Состояние карточки между отрисовками: открытый документ, режим
   // просмотрщика, свёрнутость шкалы статусов, доли колонок.
   const ui = {};
@@ -61,7 +64,7 @@ export function main(host) {
   return {
     onRoute(nextRoute) {
       route = nextRoute;
-      rec = loadRecord(route.ocId);
+      rec = load(route.ocId);
       draw();
     },
   };

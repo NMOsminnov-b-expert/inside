@@ -322,15 +322,17 @@ function modulesHTML(ctx, v, idx) {
 
 // --- Фото с осмотра ------------------------------------------------------------------------
 // Две категории — «Машина» и «Модули»; у оборудования без машины — одна.
-function photosHTML(ctx, v, idx) {
-  const set = photoSetOf(ctx.rec);
+function photosHTML(ctx, v, idx, set) {
   const cats = v.kind === 'module' ? ['Модули'] : PHOTO_CATS;
   const body = cats.map((cat) => {
     const n = (set.photos || {})[cat] || 0;
     const tiles = Array.from({ length: n }, (_, i) => {
+      // После перезагрузки у снимка остаётся запись без ссылки на файл
+      // (kernel/persist.js убирает blob-ссылки) — плитка показывает подпись,
+      // а не картинку с адресом «undefined».
       const f = photoFileAt(set, cat, i);
       return `<button type="button" class="ph" data-ts-photo-open="${esc(cat)}|${i}" title="${esc(cat)} · фото ${i + 1}">${
-        f ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">` : `${esc(cat)} ${i + 1}`}</button>`;
+        f && f.dataUrl ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">` : `${esc(cat)} ${i + 1}`}</button>`;
     }).join('');
     const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}"
       title="Можно выбрать сразу несколько файлов">+ Фото</button>`;
@@ -350,21 +352,30 @@ function loneUseHTML(v, idx) {
     useGrid(v.f, MODULE_FIELDS.filter((f) => f.block === 'use')));
 }
 
-function formHTML(ctx) {
-  const v = tsOf(ctx.rec);
+// Форма ТС — от «Вида объекта» до фото. holder — запись, у которой лежит
+// vehicle: у ТС как объекта оценки это сама запись ОЦ, у ТС внутри
+// гражданского здания — объект имущества (civil/oi/vehicle). set — держатель
+// снимков. Блок сторон нужен только ОЦ: у объекта имущества стороны — у ОЦ
+// (указание пользователя 23.09.2026: «блок 01 не требуется»).
+export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
+  const v = tsOf(holder);
   const idx = blockNumbers();
   const n = () => String(idx()).padStart(2, '0');
-  const parts = [partiesHTML(ctx.rec, n(), ownerNames()), kindHTML(v, n())];
+  const parts = [parties ? parties(n()) : '', kindHTML(v, n())];
 
   if (classified(v)) {
     if (v.kind === 'module') {
-      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), photosHTML(ctx, v, n()));
+      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), photosHTML(ctx, v, n(), set));
     } else {
       parts.push(regHTML(v, n()), machineHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()),
-        photosHTML(ctx, v, n()));
+        photosHTML(ctx, v, n(), set));
     }
   }
   return `<div class="vehicle-form">${parts.join('')}</div>`;
+}
+
+function formHTML(ctx) {
+  return tsFormHTML(ctx, ctx.rec, photoSetOf(ctx.rec), { parties: (n) => partiesHTML(ctx.rec, n, ownerNames()) });
 }
 
 // Шапка — общая на все типы ОЦ (kernel/ocHead.js). Объектов имущества у ТС

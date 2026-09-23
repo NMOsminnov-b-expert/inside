@@ -101,8 +101,13 @@ export const OI_CARDS = {
     plateChips: (oi) => {
       const v = verbal(oi);
       const chips = [];
-      if (oi.vtype) chips.push(`<span class="ctx-chip">${esc(oi.vtype)}</span>`);
-      if (oi.plate) chips.push(`<span class="ctx-chip">${esc(oi.plate)}</span>`);
+      // Сведения ТС — в oi.vehicle (карточка «база + модуль», vehicle/card.js);
+      // карточку сюда не тянем: реестр грузится с модулем, а форма — по открытию.
+      const ts = oi.vehicle || { f: {} };
+      const what = ts.base || ts.selfKind || ts.modKind || '';
+      const plate = (ts.f || {}).plate || '';
+      if (what) chips.push(`<span class="ctx-chip">${esc(what)}</span>`);
+      if (plate) chips.push(`<span class="ctx-chip">${esc(plate)}</span>`);
       chips.push(`<span class="ctx-chip ${v.c}">${v.t}</span>`);
       return chips;
     },

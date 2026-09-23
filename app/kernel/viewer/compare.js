@@ -31,7 +31,7 @@ export function renderCompareMode(ctx, vctx) {
       gi++;
       const f = photoFileAt(vctx.oi, it.cat, it.i);
       return `<div class="vpage-wrap" data-cmp-phblk="${gi}"><div class="vpage photo-page">
-        ${f ? `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`
+        ${f && f.dataUrl ? `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`
             : `<div class="photo-fill">${esc(it.cat)} · фото ${it.i + 1}</div>`}</div></div>`;
     }).join('');
     return `<div class="vgroup-h">${esc(g.cat)} · ${g.items.length}</div>${inner}`;

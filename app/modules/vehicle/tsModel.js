@@ -47,11 +47,10 @@ export const moduleInfo = (group, name) => moduleKinds(group).find((k) => k.name
 export const towedInfo = (name) => TS_TOWED.find((t) => t.name === name) || null;
 export const MODULE_FIELDS = TS_MODULE_FIELDS;
 
-export const tsOf = (rec) => {
-  // Объектов имущества у ТС нет, но просмотрщик ядра перебирает rec.oi
-  // (перенос фото к другой литере, боковая панель) — пустой перечень.
-  rec.oi = rec.oi || [];
-  const v = rec.vehicle;
+// holder — запись с полем vehicle: ОЦ «Транспортные средства» или объект
+// имущества «Транспортное средство» гражданского здания.
+export const tsOf = (holder) => {
+  const v = (holder.vehicle = holder.vehicle || { kind: '', f: {}, extra: [], modules: [] });
   v.f = v.f || {};
   v.extra = v.extra || [];
   v.modules = v.modules || [];

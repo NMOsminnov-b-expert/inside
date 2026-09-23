@@ -21,9 +21,11 @@ import {
 // экран целиком не перерисовывается. Отрисовка заново — только там, где
 // меняется состав карточки: вид объекта, категория и база, модули, строки
 // дополнительных параметров.
-export function bindVehicle(ctx) {
+// Форма ТС (tsFormHTML): вид объекта, поля машины и модулей, фото. holder —
+// запись, у которой лежит vehicle; set — держатель снимков (view.js).
+export function bindTsForm(ctx, holder, set) {
   const s = ctx.scope;
-  const v = tsOf(ctx.rec);
+  const v = tsOf(holder);
   ctx.ui = ctx.ui || {};
 
   // «main» — сама машина, иначе id модуля на ней.
@@ -196,9 +198,11 @@ export function bindVehicle(ctx) {
   s.$$('[data-tsf-ms]').forEach(bindMs);
   // Закрытие по щелчку мимо — один раз на скоуп: контроллер перепривязывается
   // на каждой отрисовке, а слушатели документа снимаются только при уходе с
-  // экрана.
-  if (!s.root.dataset.msOutsideBound) {
-    s.root.dataset.msOutsideBound = '1';
+  // экрана. Свой флаг, а не общий msOutsideBound: в гражданском здании форма
+  // живёт рядом с мультивыборами литер, и общий флаг оставил бы одну из
+  // сторон без закрытия по щелчку мимо.
+  if (!s.root.dataset.tsMsOutsideBound) {
+    s.root.dataset.tsMsOutsideBound = '1';
     s.onDocument('click', (e) => {
       if (e.target.closest && e.target.closest('.ms')) return;
       s.$$('.vehicle-form .ms-control').forEach((c) => c.classList.remove('open'));
@@ -315,7 +319,6 @@ export function bindVehicle(ctx) {
   // --- Фото с осмотра -------------------------------------------------------------
   // Снимки с осмотра приносят пачкой — выбор нескольких файлов сразу; слишком
   // большие пропускаются с сообщением, остальные добавляются.
-  const set = photoSetOf(ctx.rec);
   s.$$('[data-ts-photo-add]').forEach((b) => b.onclick = async () => {
     const cat = b.dataset.tsPhotoAdd;
     const files = await pickImages();
@@ -338,6 +341,11 @@ export function bindVehicle(ctx) {
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.
   ctx.ui.growSizes = ctx.ui.growSizes || {};
   bindAutoGrowAll(s, ctx.ui.growSizes);
+}
+
+export function bindVehicle(ctx) {
+  const s = ctx.scope;
+  bindTsForm(ctx, ctx.rec, photoSetOf(ctx.rec));
 
   // Учреждение, собственники и ответственные.
   bindParties(ctx);

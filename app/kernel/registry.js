@@ -43,7 +43,9 @@ export const OC_TYPES = [
     manifest: civilManifest,
     records: civilRecords,
     dictExport: civilDicts,
-    styleHref: './app/modules/civil/module.css',
+    // Второй файл — стили карточки ТС: у гражданского здания она объект
+    // имущества (vehicle/card.js, решение пользователя 23.09.2026).
+    styleHref: ['./app/modules/civil/module.css', './app/modules/vehicle/module.css'],
     load: () => import('../modules/civil/index.js'),
   },
   {

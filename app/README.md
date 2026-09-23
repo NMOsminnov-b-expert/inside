@@ -21,7 +21,10 @@ app/
 Правило зависимостей, которое проверяется на ревью:
 
 * `modules/*` → `kernel` — можно;
-* `modules/*` → `modules/*` — **нельзя**;
+* `modules/*` → `modules/*` — **нельзя**; исключения — карточка земельного
+  участка (`land-plot/oi/land`), карточка квартиры (`apartment/oi/apartment`)
+  и карточка ТС (`vehicle/card.js`, внутри гражданского здания): они одни на
+  весь проект. Проверка — `npm run lint:arch` (`.dependency-cruiser.cjs`);
 * `kernel | shell | pages` → `modules/*` — **нельзя**, кроме `kernel/registry.js`.
 
 Ядро не знает ни одного типа ОЦ и ни одного вида ОИ. Всё предметное — в модулях.

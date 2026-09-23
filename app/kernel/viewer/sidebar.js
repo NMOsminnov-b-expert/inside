@@ -72,7 +72,7 @@ function photosSection(ctx) {
     pages.forEach((p, idx) => {
       const f = photoFileAt(oi, p.cat, p.i);
       rows.push(`<button class="vsb-item vsb-photo" data-vsb-photo="${esc(oi.id)}|${idx + 1}">
-        <span class="vsb-thumb"${f ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
+        <span class="vsb-thumb"${f && f.dataUrl ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
         <span class="vsb-main"><b>${esc(catLabel(oi, p.cat))}</b><span class="vsb-sub">фото ${p.i + 1}</span></span>
       </button>`);
     });

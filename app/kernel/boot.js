@@ -267,7 +267,9 @@ async function onRoute(route) {
   document.body.dataset.module = route.typeId;
   // Свой файл стилей есть не у каждого типа ОЦ: общее оформление карточек
   // лежит в ядре (kernel/ocParts.css), своё — только у тех, у кого оно есть.
-  if (type.styleHref) await host.ensureStyle(type.styleHref);
+  // Файлов может быть несколько: гражданское здание берёт ещё стили карточки
+  // ТС, которая живёт у него объектом имущества (vehicle/card.js).
+  for (const href of [].concat(type.styleHref || [])) await host.ensureStyle(href);
 
   const instance = mod.main(host);
   current = { kind: route.typeId, instance, scope };

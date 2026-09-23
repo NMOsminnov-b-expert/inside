@@ -47,7 +47,7 @@ export function renderPhotoMode(ctx, vctx) {
       gi++;
       const f = photoFileAt(oi, it.cat, it.i);
       return `<div class="vpage-wrap" data-vpageblk="${gi}"><div class="vpage photo-page" data-vpageinner style="transform:rotate(${pSt.rot}deg)">
-      ${f ? `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`
+      ${f && f.dataUrl ? `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`
           : `<div class="photo-fill">${esc(catLabel(oi, it.cat))} · фото ${it.i + 1}</div>`}</div></div>`;
     }).join('');
     return `<div class="vgroup-h">${esc(catLabel(oi, g.cat))} · ${g.items.length}</div>${inner}`;
@@ -56,7 +56,7 @@ export function renderPhotoMode(ctx, vctx) {
   const rail = groups.map((g) => `<div class="rail-cat">${esc(catLabel(oi, g.cat))}</div>` + g.items.map((it) => {
     const idx = pages.findIndex((p) => p.cat === it.cat && p.i === it.i) + 1;
     const f = photoFileAt(oi, it.cat, it.i);
-    return `<div class="vthumb pho ${f ? 'real' : ''} ${idx === pSt.page ? 'active' : ''}" data-vthumb="${idx}" title="${esc(it.cat)} ${it.i + 1}">${f ? `<img class="vthumb-img" src="${f.dataUrl}" alt="">` : ''}<span class="vthumb-num">${idx}</span></div>`;
+    return `<div class="vthumb pho ${f ? 'real' : ''} ${idx === pSt.page ? 'active' : ''}" data-vthumb="${idx}" title="${esc(it.cat)} ${it.i + 1}">${f && f.dataUrl ? `<img class="vthumb-img" src="${f.dataUrl}" alt="">` : ''}<span class="vthumb-num">${idx}</span></div>`;
   }).join('')).join('');
 
   const railOff = ctx.ui.railCollapsed === true;
