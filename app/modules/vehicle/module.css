@@ -187,3 +187,6 @@ body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-at-base{grid-colum
 /* Мультивыбор (ходовая) — поле как у остальных, в строке — на две доли. */
 body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit > .field.vh-ms{grid-column:span 2}
 body[data-module="vehicle"] .vehicle-form .vh-ms .ms-control{min-height:34px}
+
+/* Комплектность в «Наработке и состоянии» — одна строка ввода, растёт по тексту. */
+body[data-module="vehicle"] .vehicle-form .vh-use textarea.mu-area{min-height:34px}

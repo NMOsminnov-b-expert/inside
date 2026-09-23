@@ -145,7 +145,10 @@ def run(t):
     tip = pg.get_attribute('[data-ts-key="vin"] .vh-src', 'title') or ''
     t.ck(pg.inner_text('[data-ts-key="vin"] .vh-src').strip() == 'ТП', 'у VIN нет метки «ТП»')
     t.ck('2019' in tip and 'КР №' in tip, 'в подсказке к VIN нет места графы на бланках: %r' % tip)
-    t.ck(pg.inner_text('[data-ts-key="mileage"] .vh-src').strip().lower() == 'осмотр', 'у пробега нет метки «осмотр»')
+    t.ck(pg.inner_text('[data-ts-key="wheelFormula"] .vh-src').strip().lower() == 'осмотр',
+         'у колёсной формулы нет метки «осмотр»')
+    # В «Наработке и состоянии» источник назван в заголовке блока — у полей меток нет.
+    t.ck(pg.locator('.vh-use .vh-src').count() == 0, 'в «Наработке и состоянии» метки источника у каждого поля')
 
     # --- VIN и номера --------------------------------------------------------------
     pg.fill('[data-tsf="main|vin"]', '036932')

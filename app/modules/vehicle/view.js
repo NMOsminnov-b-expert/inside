@@ -213,9 +213,22 @@ function machineHTML(v, idx) {
   return card('teal', idx, title, 'в порядке граф свидетельства', parts.join(''));
 }
 
+// Наработка и состояние — всё по осмотру: источник назван в заголовке блока,
+// метка «осмотр» у каждого поля его только повторяла. Строки без пустот: у
+// машины с пробегом — пробег, моточасы, состояние на полстроки, под ними
+// комплектность; без пробега — моточасы, состояние и комплектность в одну
+// строку. Комплектность — в одну строку ввода, растёт по тексту (замечание
+// пользователя 23.09.2026: «блок наработка и состояние — поправь»).
+function useGrid(vals, list) {
+  const withMileage = list.some((f) => f.key === 'mileage');
+  const span = (f) => ({ state: withMileage ? 2 : 1, kit: withMileage ? 4 : 2 }[f.key] || 1);
+  return `<div class="grid vh-grid vh-use">${list.map((f) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
+    `vh-s${span(f)}`)).join('')}</div>`;
+}
+
 function useHTML(v, idx) {
   const list = commonFields(v).filter((f) => f.block === 'use');
-  return card('amber', idx, 'Наработка и состояние', 'по осмотру', grid(v.f, list, 'main'));
+  return card('amber', idx, 'Наработка и состояние', 'по осмотру', useGrid(v.f, list));
 }
 
 // --- дополнительные параметры -------------------------------------------------------
@@ -334,7 +347,7 @@ function loneModuleHTML(v, idx) {
 
 function loneUseHTML(v, idx) {
   return card('amber', idx, 'Наработка и состояние', 'по осмотру',
-    grid(v.f, MODULE_FIELDS.filter((f) => f.block === 'use'), 'main'));
+    useGrid(v.f, MODULE_FIELDS.filter((f) => f.block === 'use')));
 }
 
 function formHTML(ctx) {

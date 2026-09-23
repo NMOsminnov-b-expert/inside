@@ -131,7 +131,7 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
       ${opts.map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
     </select>`;
   } else if (f.type === 'area') {
-    control = `<textarea class="input mu-area" id="${id}" data-tsf="${esc(bind)}" rows="2">${esc(value)}</textarea>`;
+    control = `<textarea class="input mu-area" id="${id}" data-tsf="${esc(bind)}" rows="${f.rows || 2}">${esc(value)}</textarea>`;
   } else if (f.type === 'date') {
     // Без границ браузер пускает в год до шести цифр; граница с четырёхзначным
     // годом ограничивает поле года четырьмя цифрами.
