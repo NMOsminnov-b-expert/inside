@@ -65,11 +65,15 @@ const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner,
 const grid = (vals, list, owner) => `<div class="grid vh-grid">${cells(vals, list, owner)}</div>`;
 const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)}${extra}</div>${body}`;
 
-// Справка о выбранной базе, виде или оборудовании — «как узнать» и примеры —
-// во всплывающей подсказке подписи списка, а не блоком под ним.
+// Справка о выбранной базе, виде или оборудовании — во всплывающей подсказке
+// подписи списка, а не блоком под ним.
 const aboutTip = (a) => {
   if (!a) return '';
-  const text = [a.hint && `Как узнать: ${a.hint}`, a.run && `Ходовая: ${a.run}`, a.note, a.examples && `Примеры: ${a.examples}`]
+  // У базы в справочнике — описание, у вида спецтехники и оборудования —
+  // перечень характеристик для дополнительных параметров.
+  const isBase = 'category' in a;
+  const text = [a.run && `Ходовая: ${a.run}`, a.hint && (isBase ? a.hint : `Характеристики: ${a.hint}`),
+    a.note, a.examples && `Примеры: ${a.examples}`]
     .filter(Boolean).join('\n');
   return text ? `class="vh-tip" title="${esc(text)}"` : '';
 };
