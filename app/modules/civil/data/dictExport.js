@@ -94,16 +94,6 @@ export const DICT_SOURCES = [
     ],
   },
   {
-    key: 'CRANE_BEAM',
-    title: 'Кран-балка',
-    kind: 'list',
-    system: false,
-    values: D.CRANE_BEAM,
-    slots: [
-      { card: 'building', field: 'craneBeam', label: 'Наличие/возможность кран-балки' },
-    ],
-  },
-  {
     key: 'DOC_TYPES',
     title: 'Типы документов',
     kind: 'list',
@@ -136,19 +126,6 @@ export const DICT_SOURCES = [
     ],
   },
   {
-    key: 'OI_CATEGORY_GROUPS',
-    // Поле в карточке 09.09.2026 переименовано в «Класс ОИ» — заголовок
-    // справочника держим тем же словом, иначе в разделе «Справочники» перечень
-    // называется одним, а поле, к которому он привязан, другим.
-    title: 'Классы объектов имущества',
-    kind: 'list',
-    system: true,
-    values: D.OI_CATEGORY_GROUPS,
-    slots: [
-      { card: 'building', field: 'category', label: 'Класс ОИ' },
-    ],
-  },
-  {
     key: 'ANNEX_KINDS',
     title: 'Виды пристроек',
     kind: 'list',
@@ -166,26 +143,6 @@ export const DICT_SOURCES = [
     values: D.PHOTO_CAT,
     slots: [
       { card: 'building', field: 'photoCat', label: 'Категория фотографии' },
-    ],
-  },
-  {
-    key: 'PROD_FLOORS',
-    title: 'Полы производственных зданий',
-    kind: 'list',
-    system: false,
-    values: D.PROD_FLOORS,
-    slots: [
-      { card: 'building', field: 'floorsType', label: 'Полы' },
-    ],
-  },
-  {
-    key: 'PROD_FRAME',
-    title: 'Каркас производственного здания',
-    kind: 'list',
-    system: false,
-    values: D.PROD_FRAME,
-    slots: [
-      { card: 'building', field: 'frame', label: 'Каркас' },
     ],
   },
   {

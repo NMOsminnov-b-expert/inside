@@ -164,6 +164,13 @@ class Tester:
     # встаёт не обязательно в конец.
     def add_oi(self, kind, wait=None):
         pg = self.page
+        # В гражданском с 23.09.2026 здание одно — «Здание», а гражданское оно
+        # или производственное, выбирают внутри карточки (решение
+        # пользователя). Сценарии просят вид по-старому — переводим здесь.
+        lit = None
+        if '/civil/' in pg.url and kind in ('Гражданское здание', 'Производственное строение'):
+            lit = 'civil' if kind == 'Гражданское здание' else 'prod'
+            kind = 'Здание'
         toggle = pg.locator('[data-dd-toggle]')
         if not toggle.count():
             return False
@@ -192,6 +199,10 @@ class Tester:
         # перехода. `wait` — дополнительное условие поверх этого.
         if not self.wait_for('.oi-stack'):
             return False
+        if lit:
+            pg.click('[data-lit-kind="%s"]' % lit)
+            if not self.wait_for('[data-lit-kind="%s"].on' % lit):
+                return False
         return self.wait_for(wait) if wait else True
 
     def open(self, route='', wait='.card, .arc, .reg-thead', timeout=9000):

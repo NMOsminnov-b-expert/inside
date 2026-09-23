@@ -28,9 +28,12 @@ function fieldsOf(html) {
     const label = field.querySelector('label');
     if (!label) return;
 
-    // Значок заметки «i» и вложенные поля в тексте подписи не участвуют.
+    // Значок заметки «i», звёздочка обязательности и вложенные поля в тексте
+    // подписи не участвуют: поле, ставшее необязательным, никуда не исчезает
+    // (иначе смена вида литеры предупреждала о «Расположении строения»,
+    // которое остаётся на месте, — найдено 23.09.2026).
     const copy = label.cloneNode(true);
-    copy.querySelectorAll('.dev-note, input, select, textarea').forEach((n) => n.remove());
+    copy.querySelectorAll('.dev-note, .req, input, select, textarea').forEach((n) => n.remove());
     const text = (copy.textContent || '').replace(/\s+/g, ' ').trim();
     if (!text || out.has(text)) return;
 
@@ -43,6 +46,10 @@ function fieldsOf(html) {
 // Показанное значение поля. Флажок читается как «да/нет»: в диалоге «отдельный
 // вход (нет)» бессмысленно, поэтому невыбранный флажок считается пустым.
 function valueOf(field) {
+  // Выпадающий мультивыбор (kernel/multiSelect.js): выбранное — в строке
+  // сводки; первое поле внутри него — строка поиска, она всегда пустая.
+  const summary = field.querySelector('.ms-summary');
+  if (summary) return (summary.textContent || '').trim();
   const el = field.querySelector('input, select, textarea');
   if (!el) return '';
 

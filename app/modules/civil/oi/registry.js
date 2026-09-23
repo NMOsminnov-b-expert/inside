@@ -21,7 +21,7 @@ export const OI_CARDS = {
     crumbLabel: (oi) => `Литера ${esc(oi.letter)} · ${esc(oi.name)}`,
     plateKind: 'ОЦ → литера',
     hasLetter: true,
-    tableCategory: (oi) => oi.catClass || 'Гражданское здание',
+    tableCategory: (oi) => oi.catClass || '—',
     tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
     // Вторая площадь перечня — по внутреннему обмеру (в данных areas.build).
     // Обе колонки нужны рядом: по ним и сверяют строение с техпаспортом.

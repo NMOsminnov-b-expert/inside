@@ -7,9 +7,9 @@ import { fmtEni } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';
-import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, ENTRANCE_GROUP, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, OI_CATEGORY_GROUPS, OI_CATEGORY_OTHER, PROD_FRAME, PROD_FLOORS, CRANE_BEAM , STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';
+import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, ENTRANCE_GROUP, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';
 import { activeOcType } from '../../../../kernel/ocType.js';
-import { opt, optGroups } from '../../data/opts.js';
+import { opt } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
@@ -17,6 +17,8 @@ import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { tempModeMS } from './tempMode.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
+import { msDropBodyHTML } from '../../../../kernel/multiSelect.js';
+import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass } from './capClass.js';
 
 
 // Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
@@ -31,7 +33,9 @@ const HOUSING_OC = ['apartment', 'residential-house'];
 // нему показывает «Категорию жилого строения». Раньше это работало только в
 // модуле «жилое здание (дом)», хотя завести жилой дом можно в любом ОЦ.
 export function fieldRules(ctx, oi) {
-  const prod = (oi.catClass || '') === 'Производственно-складское';
+  // Вид литеры — по фото, внутри карточки (решение пользователя 23.09.2026);
+  // прежде признаком производственного строения была строка catClass.
+  const prod = kindOf(oi) === 'prod';
   const ml = (oi.origin || 'manual') === 'ml';
 
   // В жилом объекте оценки категория ОИ у жилого строения не нужна: она там
@@ -62,36 +66,6 @@ export function fieldRules(ctx, oi) {
 // Аргумент val больше не нужен: значения читаются из oi.struct.
 function structField(oi, key, label, opts, val, req, bare) {
   return structMS(oi, key, label, opts, req, bare);
-}
-
-// Категория ОИ: сгруппированный select (optgroup по типу помещений, классы
-// внутри). Значение — ключ раздела с номером класса (admin-1, prod-3): классы
-// в разделах называются одинаково, и без ключа они бы слились.
-//
-// Показывается раздел СВОЕЙ группы: производственно-складские классы — у
-// производственного строения, остальные — у гражданского и прочих (решение
-// пользователя 05.09.2026). Прочие постройки низкого качества нужны и там и
-// там, поэтому стоят отдельным пунктом всегда. Раньше поле показывало оба
-// раздела сразу — восемь пунктов, половина из которых к строению не относится,
-// и различаются они только заголовком раздела.
-function oiCategoryOptions(selected, prod) {
-  const want = prod ? 'prod' : 'admin';
-  const groups = optGroups('building', 'category', OI_CATEGORY_GROUPS)
-    // Раздел с уже выбранным значением остаётся видимым, даже если он «чужой»:
-    // назначение строения правится текстом, и смена назначения не должна молча
-    // стирать выбранную категорию.
-    .filter((g) => g.key === want || String(selected || '').startsWith(g.key + '-'))
-    .map((g) => `<optgroup label="${esc(g.label)}">
-${g.classes.map((c, i) => {
-    const val = `${g.key}-${i + 1}`;
-    return `<option value="${val}" ${val === selected ? 'selected' : ''}>${esc(c)}</option>`;
-  }).join('')}
-</optgroup>`).join('');
-
-  // Пустой пункт первым: без него новая литера получала «Первого класса»,
-  // которого никто не выбирал (решение пользователя 05.09.2026 — то же правило,
-  // что и в остальных полях с выбором).
-  return `${emptyOptionHTML()}${groups}<option value="${OI_CATEGORY_OTHER.key}" ${OI_CATEGORY_OTHER.key === selected ? 'selected' : ''}>${esc(OI_CATEGORY_OTHER.label)}</option>`;
 }
 
 function letterControlHTML(ctx, oi) {
@@ -157,6 +131,7 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 </div>
 </div>
 ${flagsRowHTML(oi)}
+${rq.showOiCategory ? kindRowHTML(oi) : ''}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
@@ -199,9 +174,7 @@ style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 >
 </div>
 </div>
-${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
-<select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
-</div>` : ''}
+${rq.showOiCategory ? capClassField(oi) : ''}
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
 <select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>` : ''}
@@ -380,18 +353,85 @@ ${tempModeMS(ctx, oi)}
 <select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>
 </div>
-<div class="grid g-3" style="margin-top:10px">
-<div class="field"><label>Конструктив</label>
-<select class="select" data-prod-frame>${opt('building', 'frame', PROD_FRAME).map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>
-<div class="field"><label>Полы (несущая способность)</label>
-<select class="select" data-prod-floors>${opt('building', 'floorsType', PROD_FLOORS).map((o) => `<option ${o === (oi.prodFloors || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>
-<div class="field"><label>Наличие/возможность кран-балки</label>
-<select class="select" data-prod-crane>${opt('building', 'craneBeam', CRANE_BEAM).map((o) => `<option ${o === (oi.craneBeam || opt('building', 'craneBeam', CRANE_BEAM)[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
-</div>
-</div>
 </div></div>
+</div>`;
+}
+
+// --- вид литеры и класс капитальности ----------------------------------------
+// Вид — три взаимоисключающих варианта, видны сразу: переключатель, как «Вид
+// объекта» у ТС. Назначение по факту — перечень своего вида; по техпаспорту
+// назначение остаётся текстом как в документе — это ориентир.
+function kindRowHTML(oi) {
+  const kind = kindOf(oi);
+  const seg = `<div class="lk-seg" role="radiogroup" aria-label="Вид литеры">${KINDS.map((k) => `
+    <button type="button" class="lk-seg-btn ${kind === k.key ? 'on' : ''}" role="radio" aria-checked="${kind === k.key}"
+      data-lit-kind="${k.key}">${esc(k.label)}</button>`).join('')}</div>`;
+  const list = PURPOSES[kind] || [];
+  const purpose = kind ? `<div class="field lk-purpose"><label for="lk-purpose">Назначение по факту</label>
+    <select class="select" id="lk-purpose" data-purpose-fact>${emptyOptionHTML()}${list.map((p) => `<option ${
+  p === oi.purposeFact ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
+  return `<div class="lk-row">
+    <div class="field"><label class="lk-tip" title="${esc('По фото с осмотра. Назначение по техпаспорту — ориентир: '
+    + 'там часто пусто, «здание» или неверно')}">Вид литеры</label>${seg}</div>
+    ${purpose}
+  </div>`;
+}
+
+// Класс ОИ — класс капитальности, его считает система (решение пользователя
+// 23.09.2026): поле без ввода, рядом — чего не хватает для расчёта.
+function capClassField(oi) {
+  const c = capClass(oi);
+  const text = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
+  return `<div class="field"><label class="lk-tip" title="Считается по признакам в блоке «Класс капитальности»">Класс ОИ</label>
+    <div class="lk-class ${c.label ? '' : 'muted'}" data-cap-class>${esc(text)}</div></div>`;
+}
+
+// Признаки класса своего вида. Высота не выбирается: число из «Высоты по
+// внутренним замерам» кладётся в диапазон само (решение пользователя).
+function signFieldHTML(oi, sign) {
+  if (sign.height) {
+    const h = heightOf(oi);
+    const band = heightBand(sign, h);
+    return `<div class="field"><label>Высота</label>
+      <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : 'Нет высоты по внутренним замерам'}</div></div>`;
+  }
+  const opts = sign.options.map((o) => o[0]);
+  const tips = sign.options.filter((o) => o[2]).map((o) => `${o[0]} — ${o[2]}`).join('\n');
+  const label = `<label ${tips ? `class="lk-tip" title="${esc(tips)}"` : ''}>${esc(sign.label)}</label>`;
+  if (!sign.multi) {
+    const cur = pickedOf(oi, sign.key)[0] || '';
+    return `<div class="field">${label}<select class="select" data-cap-sign="${sign.key}">${emptyOptionHTML()}${
+      opts.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+  }
+  const picked = pickedOf(oi, sign.key);
+  return `<div class="field" data-cap-ms="${sign.key}">${label}
+    <div class="ms">
+      <div class="ms-control" data-ms-control data-ms-toggle title="Можно несколько">${capMsSummary(picked)}</div>
+      <div class="ms-drop" hidden>${capMsBody(sign, picked)}</div>
+    </div></div>`;
+}
+
+export function capMsSummary(picked) {
+  const text = picked.join(' / ');
+  return picked.length
+    ? `<span class="ms-summary" title="${esc(text)}">${esc(text)}</span><span class="ms-count">${picked.length}</span><span class="chev">▾</span>`
+    : '<span class="muted">не выбрано</span><span class="chev">▾</span>';
+}
+
+export function capMsBody(sign, picked) {
+  return msDropBodyHTML({ options: sign.options.map((o) => o[0]), selected: picked, optAttr: 'cap-opt',
+    value: (v) => `${sign.key}|${v}` });
+}
+
+function capClassCard(ctx, oi, idx) {
+  const kind = kindOf(oi);
+  const body = kind === 'other'
+    ? '<div class="muted">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>'
+    : `<div class="grid g-3">${SIGNS[kind].map((s) => signFieldHTML(oi, s)).join('')}</div>`;
+  return `<div class="card t-amber" id="q-capclass">
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Класс капитальности</h3>
+<span class="hint">по фото с осмотра</span><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">${body}</div></div>
 </div>`;
 }
 
@@ -486,6 +526,7 @@ ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
+${rq.showOiCategory && kindOf(oi) ? capClassCard(ctx, oi, idx()) : ''}
 ${annexesCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}

@@ -3,7 +3,7 @@ import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedC
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
-import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
+import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId } from '../data/store.js';
 import { archiveRecord } from '../../../kernel/archive.js';
@@ -130,12 +130,15 @@ function createOi(ctx, type) {
     },
     comment: '',
     features: '',
-    catClass: type.catClass || 'Гражданское здание',
+    // Назначение по техпаспорту — как в документе, заполняет ЦОД; вид литеры
+    // (гражданская, производственно-складская, прочие) указывают внутри
+    // карточки по фото — при создании заводится просто «Здание» (решение
+    // пользователя 23.09.2026). Прочее строение заводится сразу прочим.
+    catClass: '',
+    litKind: type.litKind || '',
+    capSigns: {},
     // «Доп параметры» — заполняются только для производственно-складских строений.
     prodHeight: '',
-    prodFrame: '',
-    prodFloors: '',
-    craneBeam: CRANE_BEAM[0],
     dis: false,
     docs: [],
     photos: {},

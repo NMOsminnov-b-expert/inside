@@ -221,3 +221,21 @@ body[data-module="civil"] .mu-comment-field .mu-hint{margin:0 0 2px}
    длинное, и порядок «сначала имя, под ним номер» задан требованием. */
 body[data-module="civil"] .mu-grid-name{grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
 
+
+/* ---------------------------------------------------------------------------
+   Вид литеры и класс капитальности (oi/building/capClass.js). Вид — три
+   варианта переключателем, как «Вид объекта» у ТС; класс — поле без ввода:
+   его считает система. */
+body[data-module="civil"] .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+body[data-module="civil"] .lk-row>.field{margin:0}
+body[data-module="civil"] .lk-row>.lk-purpose{flex:1 1 240px;max-width:420px}
+body[data-module="civil"] .lk-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+body[data-module="civil"] .lk-seg-btn{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 14px;
+  font:inherit;font-size:13px;color:var(--slate-700);cursor:pointer;white-space:nowrap}
+body[data-module="civil"] .lk-seg-btn:last-child{border-right:0}
+body[data-module="civil"] .lk-seg-btn:hover{background:var(--blue-50)}
+body[data-module="civil"] .lk-seg-btn.on{background:var(--blue-600);color:#fff;font-weight:700}
+body[data-module="civil"] .lk-seg-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+body[data-module="civil"] .lk-class{min-height:34px;display:flex;align-items:center;padding:6px 10px;border:1px dashed var(--line);
+  border-radius:8px;background:var(--slate-50);font-size:13px;line-height:1.3}
+body[data-module="civil"] label.lk-tip{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}

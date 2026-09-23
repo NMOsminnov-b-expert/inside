@@ -21,6 +21,9 @@ import { nextId, nextDocId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 import { bindColumnReorder } from '../../../../kernel/columns.js';
+import { bindMsSearch } from '../../../../kernel/multiSelect.js';
+import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass } from './capClass.js';
+import { capMsSummary, capMsBody } from './view.js';
 
 export function bind(ctx, oi) {
   bindAnnexes(ctx, oi);
@@ -44,6 +47,9 @@ export function bind(ctx, oi) {
 
   s.$$('[data-height]').forEach((i) => bindNumField(i, (v) => {
     oi.heights[i.dataset.height] = v;
+    // Высота по внутренним замерам — признак класса: диапазон и класс
+    // следуют за числом без перерисовки карточки.
+    if (i.dataset.height === 'int') refreshCapClass();
   }));
 
   // Комментарий к площадям: авторазмер поля, запись на change и мягкое
@@ -377,8 +383,6 @@ export function bind(ctx, oi) {
     }).then((ok) => { if (ok) apply(); });
   };
 
-  const oic = s.$('[data-oi-category]');
-  if (oic) oic.onchange = () => { oi.oiCategory = oic.value; };
 
   // --- Площади и стоимость аренды (строки заводит пользователь) -----------
   oi.rentAreas = oi.rentAreas || [];
@@ -493,14 +497,81 @@ export function bind(ctx, oi) {
   const phe = s.$('[data-prod-height]');
   if (phe) bindNumField(phe, (v) => { oi.prodHeight = v; });
 
-  const pfr = s.$('[data-prod-frame]');
-  if (pfr) pfr.onchange = () => { oi.prodFrame = pfr.value; };
+  // --- Вид литеры и класс капитальности -----------------------------------
+  // Вид меняет состав карточки (признаки, доп. параметры) — перерисовка.
+  // Заполненное у прежнего вида остаётся в записи (решение пользователя
+  // 23.09.2026); что скроется — показываем перед сменой, как было со сменой
+  // назначения (ТЗ §9.6): иначе заполненный блок пропадал бы молча.
+  s.$$('[data-lit-kind]').forEach((b) => b.onclick = () => {
+    const next = b.dataset.litKind;
+    if (kindOf(oi) === next) return;
+    const apply = () => {
+      oi.litKind = next;
+      if (oi.purposeFact && !(PURPOSES[next] || []).includes(oi.purposeFact)) oi.purposeFact = '';
+      syncCapClass(oi);
+      ctx.render();
+    };
+    const lost = fieldsThatDisappear(render, ctx, oi, { litKind: next });
+    if (!lost.length) { apply(); return; }
+    confirmDialog({
+      title: 'Сменить вид литеры?',
+      text: 'При этом виде поля ниже не показываются. Значения сохранятся и вернутся, если вернуть вид.',
+      list: lost,
+      okLabel: 'Сменить вид',
+    }).then((ok) => { if (ok) apply(); });
+  });
 
-  const pfl = s.$('[data-prod-floors]');
-  if (pfl) pfl.onchange = () => { oi.prodFloors = pfl.value; };
+  const pf = s.$('[data-purpose-fact]');
+  if (pf) pf.onchange = () => { oi.purposeFact = pf.value; ctx.updatePlate && ctx.updatePlate(); };
 
-  const pcr = s.$('[data-prod-crane]');
-  if (pcr) pcr.onchange = () => { oi.craneBeam = pcr.value; };
+  // Класс — поле без ввода: пересчитывается сразу, как поменялся признак.
+  function refreshCapClass() {
+    const c = syncCapClass(oi);
+    const box = s.$('[data-cap-class]');
+    if (box) {
+      box.textContent = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
+      box.classList.toggle('muted', !c.label);
+    }
+    const hb = s.$('[data-cap-height]');
+    const sign = (SIGNS[kindOf(oi)] || []).find((x) => x.height);
+    if (hb && sign) {
+      const band = heightBand(sign, heightOf(oi));
+      hb.textContent = band ? band[2] : 'Нет высоты по внутренним замерам';
+      hb.classList.toggle('muted', !band);
+    }
+  }
+
+  s.$$('[data-cap-sign]').forEach((el) => el.onchange = () => {
+    const sg = signsOf(oi);
+    if (el.value) sg[el.dataset.capSign] = el.value; else delete sg[el.dataset.capSign];
+    refreshCapClass();
+  });
+
+  // Признаки с несколькими вариантами — выпадающий мультивыбор, как у
+  // материалов конструктива; выбор перерисовывает только сводку и список.
+  s.$$('[data-cap-ms]').forEach((box) => {
+    const key = box.dataset.capMs;
+    const sign = (SIGNS[kindOf(oi)] || []).find((x) => x.key === key);
+    const control = box.querySelector('[data-ms-control]');
+    const drop = box.querySelector('.ms-drop');
+    if (!sign || !control || !drop) return;
+    const bindOpts = () => {
+      bindMsSearch(drop);
+      drop.querySelectorAll('[data-cap-opt]').forEach((cb) => cb.onchange = () => {
+        const value = cb.dataset.capOpt.slice(key.length + 1);
+        const order = sign.options.map((o) => o[0]);
+        const list = pickedOf(oi, key).filter((v) => v !== value);
+        if (cb.checked) list.push(value);
+        list.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        signsOf(oi)[key] = list;
+        control.innerHTML = capMsSummary(list);
+        drop.innerHTML = capMsBody(sign, list);
+        bindOpts();
+        refreshCapClass();
+      });
+    };
+    bindOpts();
+  });
 
   // --- Отопление ----------------------------------------------------------
   s.$$('[data-ms-toggle]').forEach((c) => c.onclick = (e) => {

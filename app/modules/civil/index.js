@@ -9,6 +9,7 @@ import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
 import { migrateImprovements } from '../land-plot/oi/land/improvements.js';
 import { migrateLandDicts } from '../land-plot/oi/land/dictMigrate.js';
 import { migrateStruct } from './parts/struct/ms.js';
+import { migrateLiterKinds } from './oi/building/capClass.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
@@ -123,6 +124,7 @@ export function main(host) {
       } else {
         migrateSpecials(rec);
         migrateStruct(rec);
+        migrateLiterKinds(rec);
         migrateAnnexes(rec);
         draw();
       }
@@ -371,6 +373,7 @@ export function main(host) {
   migrateMechUnits(rec);
   migrateSpecials(rec);
   migrateStruct(rec);
+  migrateLiterKinds(rec);
   migrateAnnexes(rec);
   draw().then(resnapshot);
 
@@ -389,6 +392,7 @@ export function main(host) {
       migrateMechUnits(rec);
       migrateSpecials(rec);
       migrateStruct(rec);
+      migrateLiterKinds(rec);
       migrateAnnexes(rec);
       draw().then(resnapshot);
     },

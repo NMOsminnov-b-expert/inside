@@ -97,7 +97,12 @@ function buildingOi(id, i, p, letter, opts = {}) {
     heating: i % 3 === 0 ? ['Центральное водяное отопление'] : (i % 3 === 1 ? ['Современные радиаторы'] : ['Печное отопление']),
     heatingOther: '',
     comment: '',
-    catClass: opts.catClass || 'Гражданское здание',
+    // Назначение по техпаспорту — как в документе; вид литеры и назначение по
+    // факту — по фото (oi/building/capClass.js).
+    catClass: opts.catClass || '',
+    litKind: opts.litKind || 'civil',
+    purposeFact: opts.purposeFact || '',
+    capSigns: {},
     dis: !!p.defects,
     docs: [],
     photos: photosFor(p, opts.photoShare === undefined ? 1 : opts.photoShare),
@@ -185,7 +190,9 @@ export function buildBulkRecord(id, i, p) {
 
   rec.oi.push(buildingOi(id, i, p, 'А', {
     name: ['Административное здание', 'Учебный корпус', 'Поликлиника', 'Дом культуры'][i % 4],
-    catClass: 'Нежилое · офисное',
+    catClass: ['Административное', 'Учебное', 'Лечебное', 'Культурное'][i % 4],
+    litKind: 'civil',
+    purposeFact: ['Административно-офисное', 'Образования', 'Здравоохранения', 'Культуры, досуга и спорта'][i % 4],
     photoShare: 0.8,
   }));
 

@@ -101,7 +101,9 @@ def run(t):
     for oc, route in ROUTES.items():
         t.open(route, wait='[data-open-oi]')
         t.wait(300)
-        if not t.ck(_add(t, 'Гражданское здание'), 'в %s не заводится строение' % oc):
+        # В гражданском с 23.09.2026 здание одно — «Здание», вид выбирают внутри.
+        kind = 'Здание' if 'civil' in route else 'Гражданское здание'
+        if not t.ck(_add(t, kind), 'в %s не заводится строение' % oc):
             continue
 
         _check_selects(t, oc)

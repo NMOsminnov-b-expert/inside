@@ -77,12 +77,33 @@ MUST_PROD = [
     ('[data-struct-strength]', 'усиленность конструкции'),
 ]
 
+# Гражданское здание с 23.09.2026 опережает остальные типы ОЦ (решение
+# пользователя: «реализуем внутри гражданского», распространение — потом):
+# при создании заводится просто «Здание», вид литеры выбирают внутри карточки,
+# класс ОИ считается по признакам в блоке «Класс капитальности». Пока
+# остальные модули не догнали, у гражданского свои селекторы — ниже.
+CIVIL_MUST = {'[data-oi-category]': '[data-cap-class]'}
+CIVIL_PROD = {
+    '[data-prod-frame]': '[data-cap-ms="frame"]',
+    '[data-prod-floors]': '[data-cap-ms="floors"]',
+    '[data-prod-crane]': '[data-cap-sign="crane"]',
+}
+
+
+def _civil(t):
+    return '/civil/' in t.page.url
+
+
 LABELS = r"""() => [...document.querySelectorAll('.oi-stack .field > label')]
   .map((e) => e.textContent.replace(/\s+/g, ' ').replace('*', '').trim())"""
 
 
 def _add(t, kind='Гражданское здание'):
     pg = t.page
+    lit = None
+    if _civil(t) and kind in ('Гражданское здание', 'Производственное строение'):
+        lit = 'civil' if kind == 'Гражданское здание' else 'prod'
+        kind = 'Здание'
     pg.locator('[data-dd-toggle]').first.click()
     t.wait_for('[data-add-oi]')
     item = pg.locator('[data-add-oi="%s"]' % kind)
@@ -105,7 +126,11 @@ def _add(t, kind='Гражданское здание'):
 
     # Ждём признак карточки ОИ, а не .card-idx: номера блоков есть и у карточки
     # объекта оценки, поэтому по ним ожидание проходит, не дождавшись перехода.
-    return t.wait_for('.oi-stack') and t.wait_for('[data-status]')
+    ok = t.wait_for('.oi-stack') and t.wait_for('[data-status]')
+    if ok and lit:
+        pg.click('[data-lit-kind="%s"]' % lit)
+        ok = t.wait_for('[data-lit-kind="%s"].on' % lit)
+    return ok
 
 
 def run(t):
@@ -118,6 +143,8 @@ def run(t):
             continue
 
         for sel, what in MUST:
+            if _civil(t):
+                sel = CIVIL_MUST.get(sel, sel)
             t.ck(pg.locator(sel).count() > 0, 'в %s у строения нет: %s' % (oc, what))
 
         labels = pg.evaluate(LABELS)
@@ -153,6 +180,8 @@ def run(t):
                     'в %s не заводится производственное строение' % oc):
             continue
         for sel, what in MUST_PROD:
+            if _civil(t):
+                sel = CIVIL_PROD.get(sel, sel)
             t.ck(pg.locator(sel).count() > 0,
                  'в %s у производственного строения нет: %s' % (oc, what))
 
@@ -188,6 +217,13 @@ def run(t):
             if not t.ck(_add(t, kind), 'в %s не заводится «%s»' % (oc, kind)):
                 continue
 
+            if _civil(t):
+                # Класс считает система: у нового здания признаки не заполнены,
+                # у прочего строения класса нет — «прочие постройки».
+                text = pg.inner_text('[data-cap-class]') if pg.locator('[data-cap-class]').count() else ''
+                want_text = 'Прочие постройки' if kind == 'Прочее строение' else 'Не хватает'
+                t.ck(want_text in text, 'в %s у «%s» класс ОИ: %r' % (oc, kind, text))
+                continue
             got = pg.evaluate(CAT_GROUPS)
             if not t.ck(got, 'в %s у «%s» нет поля категории ОИ' % (oc, kind)):
                 continue
@@ -244,7 +280,7 @@ def run(t):
         if not t.ck(_add(t, 'Жилой дом'), 'в %s не заводится жилой дом' % oc):
             continue
 
-        t.ck(pg.locator('[data-oi-category]').count() == 0,
+        t.ck(pg.locator('[data-oi-category], [data-cap-class], #q-capclass').count() == 0,
              'в %s у жилого дома показан класс капитальности' % oc)
         t.ck('аренды по этажам' not in pg.locator('.oi-stack').inner_text(),
              'в %s у жилого дома показан блок аренды по этажам' % oc)
