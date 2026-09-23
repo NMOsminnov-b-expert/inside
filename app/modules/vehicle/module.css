@@ -102,3 +102,65 @@ body[data-module="vehicle"] .vh-sub-act{order:2;margin-left:auto;text-transform:
 body[data-module="vehicle"] .vh-mtbl .mu-del{opacity:1;color:var(--ink-dim)}
 body[data-module="vehicle"] .vh-mtbl .mu-del:hover,
 body[data-module="vehicle"] .vh-mtbl .mu-del:focus-visible{background:var(--red-50);color:var(--danger)}
+
+/* --- Компактная раскладка (23.09.2026) ---------------------------------------
+   Сетка в четыре колонки, ширина поля — по длине значения (практика Baymard):
+   vh-s1 — год, места, руль, оси, массы, дата; vh-s2 — обычный текст; vh-s3/4 —
+   адрес, комплектность, ходовая. Поля выравниваются по низу: подпись в две
+   строки не сдвигает поле вниз относительно соседа. */
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid{grid-template-columns:repeat(4,minmax(0,1fr));
+  align-items:end;gap:10px 12px}
+body[data-module="vehicle"] .vh-grid>.vh-s1{grid-column:span 1}
+body[data-module="vehicle"] .vh-grid>.vh-s2{grid-column:span 2}
+body[data-module="vehicle"] .vh-grid>.vh-s3{grid-column:span 3}
+body[data-module="vehicle"] .vh-grid>.vh-s4{grid-column:1 / -1}
+@media (max-width:1050px){
+  body[data-module="vehicle"] .vehicle-form .grid.vh-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body[data-module="vehicle"] .vh-grid>.vh-s3{grid-column:1 / -1}
+}
+
+/* «Как заполнять» — постоянная подсказка под заголовком блока и подраздела
+   (практика подсказок для новичка): одна-две фразы, мельче основного текста,
+   но не бледнее, чтобы читалась. */
+body[data-module="vehicle"] .vh-howto{margin:0 0 10px;font-size:11.5px;line-height:1.45;color:#46536b;max-width:78ch}
+body[data-module="vehicle"] .vh-howto b{color:#2c3e57}
+body[data-module="vehicle"] .vh-howto-sub{margin:-2px 0 8px;font-size:11px;color:var(--muted)}
+
+/* Модули — свой цвет: не спутать с самой машиной. */
+body[data-module="vehicle"] .card.t-violet{border-left:4px solid var(--violet-600)}
+body[data-module="vehicle"] .card.t-violet .card-head{background:var(--violet-50)}
+body[data-module="vehicle"] .card.t-violet .card-head h3{color:var(--violet-700)}
+body[data-module="vehicle"] .card.t-violet .card-idx{background:var(--violet-600)}
+body[data-module="vehicle"] .card.t-violet .vh-mrow.on td{background:var(--violet-50)}
+body[data-module="vehicle"] .card.t-violet .vh-mrow.on td:first-child{box-shadow:inset 3px 0 0 var(--violet-600)}
+
+/* Метка источника — в правом верхнем углу поля, а не в потоке подписи: в узком
+   поле подпись переносится, и метка уезжала на отдельную строку. Подписи
+   оставлено место под метку. */
+body[data-module="vehicle"] .vehicle-form .field:has(> label > .vh-src){position:relative}
+body[data-module="vehicle"] .vehicle-form .field > label > .vh-src{position:absolute;top:0;right:0}
+body[data-module="vehicle"] .vehicle-form .field > label:has(> .vh-src){padding-right:28px}
+body[data-module="vehicle"] .vehicle-form .field > label:has(> .vh-src.is-insp){padding-right:52px}
+body[data-module="vehicle"] .vehicle-form .field > label:has(> .vh-src.is-mixed){padding-right:76px}
+
+/* «Зачем это поле» — строкой под полем, мелко и спокойно: читается, когда
+   нужно, и не спорит с подписью. */
+body[data-module="vehicle"] .vh-why{display:block;margin-top:3px;font-size:10.5px;line-height:1.3;color:var(--muted)}
+
+
+/* Подсетки: у поля три строки — подпись, поле ввода, пояснение, — и в одной
+   строке сетки они выстраиваются каждая на своей линии. Без этого пояснение
+   под одним полем сдвигало его вверх относительно соседей. */
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid{row-gap:0;align-items:stretch}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field:not(.vh-checks){display:grid;
+  grid-template-rows:subgrid;grid-row:span 3;row-gap:4px;align-content:start;margin-bottom:10px}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field > label{align-self:end;margin:0}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-checks{grid-row:span 3;margin-bottom:10px}
+body[data-module="vehicle"] .vh-why{margin-top:0}
+/* Комплектность модуля — в полстроки: одна строка ввода вместо трёх. */
+body[data-module="vehicle"] .vh-mform .vh-s2 textarea{min-height:34px}
+
+/* Ходовая и трансмиссия — короткие значения по осмотру: столько колонок,
+   сколько влезает (пять полей встают в одну строку). */
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field > :not(label){align-self:start}

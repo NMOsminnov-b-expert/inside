@@ -15,36 +15,61 @@ import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 // Карточка транспортного средства как объекта оценки — по категоризации
 // «база + модуль» (справочник docs/kategorii-ts-baza-modul.xlsx).
 //
-// Блоки — по смыслу, а не по тому, кто их заполняет (указание пользователя
-// 23.09.2026): откуда берётся значение, говорит метка у поля — «ТП» или
-// «осмотр». Порядок внутри «Машины» и «Регистрации» — как на свидетельстве о
-// регистрации (практика «порядок полей как в документе», Smith & Mosier
-// 1.4/25): ЦОД переписывает с бланка сверху вниз, не прыгая по форме. Бланков
-// два, порядок у них разный, поэтому группы общие для обоих, а у каждой графы
-// в подсказке — где она на каждом бланке.
+// Порядок — как на свидетельстве о регистрации (практика «порядок полей как в
+// документе», Smith & Mosier 1.4/25): ЦОД переписывает с бланка сверху вниз.
+// Регистрационный учёт стоит первым — госномер ищут раньше всего (указание
+// пользователя 23.09.2026). Откуда берётся значение, говорит метка у поля —
+// «ТП» или «осмотр»; где графа на бланке — во всплывающей подсказке метки.
+//
+// Ширина поля — по длине значения (практика Baymard): год, места, руль, оси,
+// массы — узкие, обычный текст — в полстроки, адрес и комплектность — во всю.
+// Пояснения — «зачем это поле» у тех, чья надобность неочевидна (указание
+// пользователя 23.09.2026), строкой под полем; откуда переписывать — в
+// подсказке к метке «ТП», чтобы не загромождать форму.
 //
 //   01  Учреждение, собственники и ответственные
-//   02  Вид объекта            — ТС, самоходная машина или отдельный модуль;
-//                                 категория → база или группа → вид
-//   03  Машина (или Модуль)    — подразделы: общие сведения, номера (таблицей),
-//                                 двигатель, массы, ходовая и трансмиссия,
-//                                 особое для базы, дополнительные параметры
-//   04  Регистрация            — рег. номер, собственник по свидетельству
+//   02  Вид объекта                  — транспортное средство, спецтехника или
+//                                       оборудование без машины; каскад
+//   03  Регистрационный учёт          — госномер, VID, дата, документ, адрес
+//   04  Автотранспортное средство     — (у спецтехники — «Спецтехника»)
+//                                       подразделы в порядке граф свидетельства,
+//                                       особое для базы, дополнительные параметры
 //   05  Наработка и состояние
-//   06  Модули                 — что стоит на машине: таблица и форма модуля
-//   07  Фото с осмотра         — две категории: «Машина» и «Модули»
+//   06  Модули                        — что стоит на машине
+//   07  Фото с осмотра                — «Машина» и «Модули»
 
 const card = (tone, idx, title, hint, body, extra = '') => `<div class="card t-${tone}">
   <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
     ${hint ? `<span class="hint">${esc(hint)}</span>` : ''}${extra}</div>
   <div class="card-pad">${body}</div></div>`;
 
+// Строка «как заполнять» под заголовком блока.
+const howto = (text) => `<p class="vh-howto">${text}</p>`;
+
 const options = (list, value, empty) => `<option value="">${esc(empty)}</option>${
   list.map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}`;
 
-// --- 02 Вид объекта -----------------------------------------------------------
-// Сначала «что это», затем каскад. Вид объекта — три взаимоисключающих
-// варианта, все видны сразу: переключатель, а не список.
+// --- ширина полей ----------------------------------------------------------------
+// Сетка — четыре колонки. Число — сколько колонок занимает поле. Не названное
+// — две (полстроки).
+const SPAN = {
+  year: 1, color: 1, wheel: 1, seats: 1, fuel: 1, engineVolume: 1, massEmpty: 1, massMax: 1, massDesign: 1,
+  wheelFormula: 1, axles: 1, steerAxles: 1, gearbox: 1, pto: 1, plate: 1, regDate: 1, docNo: 1,
+  mileage: 1, engineHours: 1, hours: 1, factAddr: 3, kit: 4, run: 4,
+};
+// В форме модуля поля короткие и их мало: изготовитель, модель, заводской № и
+// год — в одну строку, моточасы, состояние и комплектность — в следующую
+// (замечание пользователя 23.09.2026: «в модулях громоздко»).
+const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, hours: 1, state: 1, kit: 2 };
+const spanOf = (f, owner) => (owner !== 'main' && MODULE_SPAN[f.key])
+  || SPAN[f.key] || (f.type === 'yes' || f.type === 'int' || f.type === 'year' ? 1 : 2);
+const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner, `vh-s${spanOf(f, owner)}`)).join('');
+const grid = (vals, list, owner) => `<div class="grid vh-grid">${cells(vals, list, owner)}</div>`;
+const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)}${extra}</div>${body}`;
+
+// --- 02 Вид объекта ---------------------------------------------------------------
+// Сначала «что это», затем каскад. Три взаимоисключающих варианта видны сразу:
+// переключатель, а не список.
 function kindHTML(v, idx) {
   const seg = `<div class="vh-seg" role="radiogroup" aria-label="Вид объекта">${KINDS.map((k) => `
     <button type="button" class="vh-seg-btn ${v.kind === k.key ? 'on' : ''}" role="radio"
@@ -55,30 +80,41 @@ function kindHTML(v, idx) {
   if (v.kind === 'base') {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
-    cascade = `<div class="field"><label for="ts-cat">Категория по техпаспорту</label>
-        <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select>
-        <span class="mu-hint mu-hint-under">Как записано в свидетельстве: «легковой», «грузовой», «прицеп»…</span></div>
-      <div class="field"><label for="ts-base">База</label>
+    cascade = `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
+        <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
+      <div class="field vh-s2"><label for="ts-base">База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
   options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`;
   } else if (v.kind === 'self') {
     about = selfInfo(v.selfGroup, v.selfKind);
-    cascade = `<div class="field"><label for="ts-sg">Группа</label>
+    cascade = `<div class="field vh-s2"><label for="ts-sg">Группа</label>
         <select class="select" id="ts-sg" data-ts-sgroup>${options(selfGroups(), v.selfGroup, 'Выберите группу')}</select></div>
-      <div class="field"><label for="ts-sk">Вид машины</label>
+      <div class="field vh-s2"><label for="ts-sk">Вид машины</label>
         <select class="select" id="ts-sk" data-ts-skind ${v.selfGroup ? '' : 'disabled'}>${
   options(selfKinds(v.selfGroup).map((k) => k.name), v.selfKind, v.selfGroup ? 'Выберите вид' : 'Сначала группа')}</select></div>`;
   } else if (v.kind === 'module') {
     about = moduleInfo(v.modGroup, v.modKind);
-    cascade = `<div class="field"><label for="ts-mg">Группа</label>
+    cascade = `<div class="field vh-s2"><label for="ts-mg">Группа</label>
         <select class="select" id="ts-mg" data-ts-mgroup>${options(moduleGroups(), v.modGroup, 'Выберите группу')}</select></div>
-      <div class="field"><label for="ts-mk">Модуль</label>
+      <div class="field vh-s2"><label for="ts-mk">Оборудование</label>
         <select class="select" id="ts-mk" data-ts-mkind ${v.modGroup ? '' : 'disabled'}>${
-  options(moduleKinds(v.modGroup).map((k) => k.name), v.modKind, v.modGroup ? 'Выберите модуль' : 'Сначала группа')}</select></div>`;
+  options(moduleKinds(v.modGroup).map((k) => k.name), v.modKind, v.modGroup ? 'Выберите оборудование' : 'Сначала группа')}</select></div>`;
   }
 
-  // Справка о выбранном: как узнать и примеры — чтобы сверить выбор с машиной,
-  // не открывая справочник.
+  // Подсказка — к тому, что выбрано сейчас: как понять, куда относится машина.
+  const steer = {
+    '': 'Выберите, что оценивается. <b>Транспортное средство</b> — всё, у чего есть свидетельство о регистрации: '
+      + 'легковое, грузовое, автобус, мотоцикл, прицеп, трактор. <b>Спецтехника</b> — машина со встроенным рабочим '
+      + 'органом: экскаватор, бульдозер, погрузчик, каток, комбайн. <b>Оборудование без машины</b> — ковш, отвал, '
+      + 'цистерна, кран-манипулятор, снятые с машины или хранящиеся отдельно.',
+    base: 'Категорию берите из свидетельства — строка «Тип ТС» (легковой, грузовой, прицеп…). Базу выберите по '
+      + 'описанию ниже. Если ни одна не подходит — «Прочее».',
+    self: 'Выберите группу, затем вид машины. Трактор и вездеход сюда не относятся — это «Транспортное средство», '
+      + 'категория «Спецтехника».',
+    module: 'Оборудование, которое сейчас не стоит ни на какой машине. Установленное на машину заводится внутри '
+      + 'карточки машины, в блоке «Модули».',
+  }[v.kind || ''];
+
   const info = about ? `<div class="vh-about">
       ${about.hint && v.kind === 'base' ? `<div><b>Как узнать.</b> ${esc(about.hint)}</div>` : ''}
       ${v.kind === 'self' && about.run ? `<div><b>Ходовая.</b> ${esc(about.run)}</div>` : ''}
@@ -86,47 +122,54 @@ function kindHTML(v, idx) {
       ${about.examples ? `<div><b>Примеры.</b> ${esc(about.examples)}</div>` : ''}
     </div>` : '';
 
-  const body = `${seg}${cascade ? `<div class="grid g-2 g-roomy g-top vh-cascade">${cascade}</div>` : ''}${info}
-    ${v.kind ? '' : '<div class="vehicle-note">Выберите, что оценивается, — появятся поля.</div>'}`;
+  const body = `${seg}${howto(steer)}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}${info}`;
   return card('blue', idx, 'Вид объекта', 'категоризация «база + модуль»', body);
 }
 
-// --- поля машины --------------------------------------------------------------
-const grid = (vals, list, owner) => `<div class="grid g-2 g-roomy g-top vh-grid">${
-  list.map((f) => tsFieldHTML(vals, f, owner)).join('')}</div>`;
+// --- 03 Регистрационный учёт ---------------------------------------------------------
+// Собственника здесь нет — он в блоке 01 (указание пользователя 23.09.2026:
+// «дубляж собственника убираем»). Адрес — фактический: где машина стоит.
+function regHTML(v, idx) {
+  const list = commonFields(v).filter((f) => f.block === 'reg');
+  return card('teal', idx, 'Регистрационный учёт', 'по нему машину находят и проверяют', grid(v.f, list, 'main'));
+}
 
-// Подразделы «Машины» — по смыслу, в порядке граф свидетельства внутри
-// каждого (указание пользователя 23.09.2026: «полей много, надо разбить на
-// категории, чтобы не теряться»). Поле, которого нет ни в одном подразделе,
-// попадает в «Общие сведения».
+// --- 04 Автотранспортное средство / Спецтехника ------------------------------------
+// Подразделы идут в порядке граф свидетельства (книжка 2019 года, левая
+// страница): марка и модель, год, цвет → номера → тип ТС и места → двигатель →
+// массы; затем то, что определяют на осмотре.
+// Подразделов четыре: мелкие группы по два поля оставляли полстроки пустыми
+// (замечание пользователя 23.09.2026: «куча пустых мест»). Порядок граф
+// свидетельства внутри сохранён: марка, модель, год, цвет → номера → тип ТС,
+// топливо, объём, мощность, массы; руль и места — в строке с годом и цветом.
 const SECTIONS = [
   { key: 'general', title: 'Общие сведения' },
   { key: 'numbers', title: 'Номера' },
-  { key: 'engine', title: 'Двигатель' },
-  { key: 'mass', title: 'Массы' },
+  { key: 'tech', title: 'Тип, двигатель, массы' },
   { key: 'chassis', title: 'Ходовая и трансмиссия' },
 ];
 const SECTION_OF = {
   vin: 'numbers', bodyNo: 'numbers', chassisNo: 'numbers', engineNo: 'numbers', serialNo: 'numbers',
-  fuel: 'engine', engineVolume: 'engine', power: 'engine',
-  massEmpty: 'mass', massMax: 'mass', massDesign: 'mass',
+  vtype: 'tech', fuel: 'tech', engineVolume: 'tech', power: 'tech',
+  massEmpty: 'tech', massMax: 'tech', massDesign: 'tech',
   wheelFormula: 'chassis', axles: 'chassis', steerAxles: 'chassis', gearbox: 'chassis', pto: 'chassis',
   run: 'chassis', turn: 'chassis',
 };
+// Руль и места — сразу за цветом: вместе с годом они заполняют строку.
+const GENERAL_ORDER = ['make', 'model', 'maker', 'country', 'year', 'color', 'wheel', 'seats'];
+// Зачем подраздел — там, где это неочевидно.
+const SECTION_HINT = {
+  numbers: 'По номерам машину опознают — нужен хотя бы один из VIN, № кузова и № шасси.',
+  tech: 'От топлива зависят поля двигателя: у электромобиля нет объёма, только мощность.',
+};
 
 // От топлива зависит, какие поля двигателя показывать: у электромобиля нет
-// рабочего объёма, есть только мощность (в свидетельстве у бензиновых
-// мощность пустая, а у электро заполнена — слова пользователя 23.09.2026).
+// рабочего объёма, есть только мощность.
 const ELECTRIC = 'Электро';
 const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC);
 
-const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)}${extra}</div>${body}`;
-
 // Номера — таблицей (указание пользователя): у машины их несколько, и искать
-// каждый по сетке полей неудобно. Строка — номер: подпись с меткой источника
-// слева, значение справа. Под таблицей — общее для номеров предупреждение
-// (практика «предупреждение вместо ошибки»): машину опознают хотя бы по
-// одному из них.
+// каждый по сетке полей неудобно.
 function numbersHTML(v, list) {
   const rows = list.map((f) => `<tr><td class="vh-ncell">${tsFieldHTML(v.f, f, 'main')}</td></tr>`).join('');
   const idWarn = v.kind === 'base'
@@ -141,21 +184,25 @@ function machineHTML(v, idx) {
   const parts = SECTIONS.map((sec) => {
     const own = list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key);
     if (!own.length) return '';
-    // Топливо — первым в «Двигателе»: от него зависит, какие поля рядом
-    // (родитель стоит перед тем, что от него зависит).
-    if (sec.key === 'engine') own.sort((a, b) => (b.key === 'fuel') - (a.key === 'fuel'));
-    return sub(sec.title, sec.key === 'numbers' ? numbersHTML(v, own) : grid(v.f, own, 'main'));
+    // Топливо — сразу за типом ТС: от него зависят поля рядом.
+    if (sec.key === 'tech') {
+      const rank = (k) => ['vtype', 'fuel', 'engineVolume', 'power', 'massEmpty', 'massMax', 'massDesign'].indexOf(k);
+      own.sort((a, b) => rank(a.key) - rank(b.key));
+    }
+    if (sec.key === 'general') own.sort((a, b) => GENERAL_ORDER.indexOf(a.key) - GENERAL_ORDER.indexOf(b.key));
+    const hint = SECTION_HINT[sec.key] ? `<p class="vh-howto vh-howto-sub">${SECTION_HINT[sec.key]}</p>` : '';
+    const body = sec.key === 'numbers' ? numbersHTML(v, own)
+      : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit">${cells(v.f, own, 'main')}</div>`
+        : grid(v.f, own, 'main');
+    return sub(sec.title, hint + body);
   });
 
   const special = specialFields(v);
   if (special.length) parts.push(sub(`Особое для базы «${v.base}»`, grid(v.f, special, 'main')));
   parts.push(extraPart(v.extra, 'main'));
-  return card('teal', idx, 'Машина', 'в порядке граф свидетельства', parts.join(''));
-}
 
-function regHTML(v, idx) {
-  const list = commonFields(v).filter((f) => f.block === 'reg');
-  return card('teal', idx, 'Регистрация', 'правая страница свидетельства с 2019 г.', grid(v.f, list, 'main'));
+  const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
+  return card('teal', idx, title, 'в порядке граф свидетельства', parts.join(''));
 }
 
 function useHTML(v, idx) {
@@ -163,37 +210,47 @@ function useHTML(v, idx) {
   return card('amber', idx, 'Наработка и состояние', 'по осмотру', grid(v.f, list, 'main'));
 }
 
-// --- дополнительные параметры -------------------------------------------------
-// Таблица «наименование — значение» (практика строкового ввода): кнопка
-// добавления есть всегда. У машины — последним подразделом её блока, у каждого
-// модуля — своя (указание пользователя 23.09.2026). Подсказок «что обычно
-// вписывают» нет: названия пишет пользователь.
+// --- дополнительные параметры -------------------------------------------------------
+// Таблица «наименование — значение»: у машины — последним подразделом её блока,
+// у каждого модуля — своя. Пустая таблица объясняет, что сюда писать, с
+// примером (практика подсказок для новичка), в ячейках — пример заполнения.
 export function extraTableHTML(rows, owner) {
   const body = rows.map((r) => `<tr>
       <td><input class="ax-cell" data-tsx-label="${esc(owner)}|${r.id}" value="${esc(r.label)}"
-        placeholder="Наименование параметра" aria-label="Наименование параметра"></td>
+        placeholder="Например: Особые отметки" aria-label="Наименование параметра"></td>
       <td><input class="ax-cell" data-tsx-value="${esc(owner)}|${r.id}" value="${esc(r.value)}"
-        placeholder="Значение" aria-label="Значение параметра"></td>
+        placeholder="Например: взамен т/п АВ759281" aria-label="Значение параметра"></td>
       <td class="mu-c-act"><button class="ax-x mu-del" data-tsx-del="${esc(owner)}|${r.id}"
-        title="Убрать параметр" aria-label="Убрать параметр">×</button></td>
+        title="Убрать строку" aria-label="Убрать строку">×</button></td>
     </tr>`).join('');
 
-  return body ? `<table class="tbl mu-xtbl">
+  return body ? `<table class="tbl mu-xtbl vh-xtbl">
       <colgroup><col style="width:42%"><col><col style="width:40px"></colgroup>
-      <thead><tr><th>Наименование параметра</th><th>Значение</th><th></th></tr></thead>
+      <thead><tr><th>Наименование</th><th>Значение</th><th></th></tr></thead>
       <tbody>${body}</tbody>
-    </table>` : '<div class="vehicle-note">Дополнительных параметров нет.</div>';
+    </table>` : '';
 }
 
-function extraPart(rows, owner, title = 'Дополнительные параметры') {
+// Зачем таблица и когда в неё писать: полей на всё не заведёшь, а сведение,
+// которому нет поля, иначе теряется. Как добавить строку — одной фразой.
+// Одна фраза (GOV.UK: подсказка — несколько слов, в идеале одно предложение).
+const EXTRA_HELP = {
+  main: 'Для сведений без своего поля, чтобы они не терялись: особые отметки из свидетельства, данные других '
+    + 'документов. Слева — что это, справа — значение.',
+  module: 'Характеристики оборудования, у каждого вида свои: слева название с единицей («Грузоподъёмность, т»), '
+    + 'справа значение.',
+};
+
+function extraPart(rows, owner, title = 'Дополнительные параметры', kind = owner === 'main' ? 'main' : 'module') {
   const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-tsx-add="${esc(owner)}">+ Параметр</button>`;
-  return sub(title, extraTableHTML(rows, owner), add);
+  const help = EXTRA_HELP[kind];
+  return sub(title, `<p class="vh-howto vh-howto-sub">${help}</p>${extraTableHTML(rows, owner)}`, add);
 }
 
-// --- 06 Модули ----------------------------------------------------------------
+// --- 06 Модули ---------------------------------------------------------------------------
 // Сводная таблица и под ней форма выбранного модуля (практики «добавить ещё
-// один» и «список с подробной формой»): у машины обычно один-три модуля, и
-// сравнить их удобнее строками, а заполнять — полной формой.
+// один» и «список с подробной формой»). Свой цвет блока — фиолетовый: модули
+// не спутать с самой машиной (указание пользователя 23.09.2026).
 function moduleRow(m, on) {
   const cell = (k) => esc(String(m.f[k] || '').trim() || '—');
   return `<tr class="vh-mrow ${on ? 'on' : ''}" data-ts-mpick="${m.id}" aria-selected="${on}" tabindex="0"
@@ -203,18 +260,18 @@ function moduleRow(m, on) {
     <td>${cell('serialNo')}</td>
     <td class="mu-c-num">${cell('year')}</td>
     <td>${cell('state')}</td>
-    <td class="mu-c-act"><button class="ax-x mu-del" data-ts-mdel="${m.id}" title="Убрать модуль"
-      aria-label="Убрать модуль ${esc(moduleTitle(m))}">×</button></td>
+    <td class="mu-c-act"><button class="ax-x mu-del" data-ts-mdel="${m.id}" title="Удалить модуль"
+      aria-label="Удалить модуль ${esc(moduleTitle(m))}">×</button></td>
   </tr>`;
 }
 
 function moduleFormHTML(m) {
   const info = moduleInfo(m.group, m.kind);
-  const cascade = `<div class="grid g-2 g-roomy g-top vh-grid">
-      <div class="field"><label for="ts-${m.id}-g">Группа</label>
+  const cascade = `<div class="grid vh-grid">
+      <div class="field vh-s2"><label for="ts-${m.id}-g">Группа</label>
         <select class="select" id="ts-${m.id}-g" data-ts-modgroup="${m.id}">${
   options(moduleGroups(), m.group, 'Выберите группу')}</select></div>
-      <div class="field"><label for="ts-${m.id}-k">Модуль</label>
+      <div class="field vh-s2"><label for="ts-${m.id}-k">Модуль</label>
         <select class="select" id="ts-${m.id}-k" data-ts-modkind="${m.id}" ${m.group ? '' : 'disabled'}>${
   options(moduleKinds(m.group).map((k) => k.name), m.kind, m.group ? 'Выберите модуль' : 'Сначала группа')}</select></div>
     </div>`;
@@ -230,22 +287,23 @@ function moduleFormHTML(m) {
 function modulesHTML(ctx, v, idx) {
   const cur = v.modules.find((m) => m.id === ctx.ui.tsModule) || v.modules[0] || null;
   const add = '<button class="btn btn-primary btn-sm" data-ts-madd style="margin-left:auto">+ Модуль</button>';
+  const help = v.modules.length
+    ? ''
+    : 'Модуль — то, что стоит на машине сверху: кузов, цистерна, кран-манипулятор, ковш, отвал. Описывается '
+      + 'отдельно от машины — на то же шасси могли поставить другое. Нет ничего сверху — оставьте пустым.';
   const table = v.modules.length ? `<div class="mu-table-wrap"><table class="tbl vh-mtbl">
       <colgroup><col><col style="width:22%"><col style="width:18%"><col style="width:56px">
         <col style="width:18%"><col style="width:36px"></colgroup>
       <thead><tr><th>Модуль</th><th>Модель</th><th>Заводской №</th><th class="mu-c-num">Год</th>
         <th>Состояние</th><th></th></tr></thead>
       <tbody>${v.modules.map((m) => moduleRow(m, cur && m.id === cur.id)).join('')}</tbody>
-    </table></div>` : `<div class="vehicle-note">Модулей нет. Надстройка, навесное или сменное оборудование на
-      машине — отдельный модуль: цистерна, кран-манипулятор, ковш, отвал.</div>`;
-  return card('blue', idx, 'Модули', 'надстройки, навесное и сменное оборудование на машине',
-    `${table}${cur ? moduleFormHTML(cur) : ''}`, add);
+    </table></div>` : '';
+  return card('violet', idx, 'Модули', 'надстройки, навесное и сменное оборудование на машине',
+    `${help ? howto(help) : ''}${table}${cur ? moduleFormHTML(cur) : ''}`, add);
 }
 
-// --- Фото с осмотра ----------------------------------------------------------------
-// Две категории — «Машина» и «Модули» (задача пользователя 23.09.2026); у
-// отдельного модуля машины нет, и категория одна. Снимок открывается здесь же,
-// в просмотрщике слева — как у карточек недвижимости.
+// --- Фото с осмотра ------------------------------------------------------------------------
+// Две категории — «Машина» и «Модули»; у оборудования без машины — одна.
 function photosHTML(ctx, v, idx) {
   const set = photoSetOf(ctx.rec);
   const cats = v.kind === 'module' ? ['Модули'] : PHOTO_CATS;
@@ -259,13 +317,13 @@ function photosHTML(ctx, v, idx) {
     const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}">+ Фото</button>`;
     return sub(`${cat} · ${n}`, `<div class="ph-row">${tiles || '<span class="vehicle-note">Фото нет.</span>'}</div>`, add);
   }).join('');
-  return card('blue', idx, 'Фото с осмотра', 'по категориям; снимок открывается в просмотрщике', body);
+  return card('blue', idx, 'Фото с осмотра', 'можно выбрать сразу несколько файлов', body);
 }
 
-// --- «Отдельный модуль»: поля модуля вместо машины ------------------------------
+// --- «Оборудование без машины» -----------------------------------------------------------
 function loneModuleHTML(v, idx) {
-  return card('teal', idx, 'Модуль', 'снятый с машины или хранящийся отдельно',
-    grid(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), 'main') + extraPart(v.extra, 'main'));
+  return card('violet', idx, 'Оборудование', 'снятое с машины или хранящееся отдельно',
+    grid(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), 'main') + extraPart(v.extra, 'main', 'Дополнительные параметры', 'module'));
 }
 
 function loneUseHTML(v, idx) {
@@ -283,7 +341,7 @@ function formHTML(ctx) {
     if (v.kind === 'module') {
       parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), photosHTML(ctx, v, n()));
     } else {
-      parts.push(machineHTML(v, n()), regHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()),
+      parts.push(regHTML(v, n()), machineHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()),
         photosHTML(ctx, v, n()));
     }
   }
