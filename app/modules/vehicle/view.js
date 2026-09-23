@@ -43,8 +43,6 @@ const card = (tone, idx, title, hint, body, extra = '') => `<div class="card t-$
     ${hint ? `<span class="hint">${esc(hint)}</span>` : ''}${extra}</div>
   <div class="card-pad">${body}</div></div>`;
 
-// Строка «как заполнять» под заголовком блока.
-const howto = (text) => `<p class="vh-howto">${text}</p>`;
 
 const options = (list, value, empty) => `<option value="">${esc(empty)}</option>${
   list.map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}`;
@@ -67,12 +65,27 @@ const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner,
 const grid = (vals, list, owner) => `<div class="grid vh-grid">${cells(vals, list, owner)}</div>`;
 const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)}${extra}</div>${body}`;
 
+// Справка о выбранной базе, виде или оборудовании — «как узнать» и примеры —
+// во всплывающей подсказке подписи списка, а не блоком под ним.
+const aboutTip = (a) => {
+  if (!a) return '';
+  const text = [a.hint && `Как узнать: ${a.hint}`, a.run && `Ходовая: ${a.run}`, a.note, a.examples && `Примеры: ${a.examples}`]
+    .filter(Boolean).join('\n');
+  return text ? `class="vh-tip" title="${esc(text)}"` : '';
+};
+
 // --- 02 Вид объекта ---------------------------------------------------------------
 // Сначала «что это», затем каскад. Три взаимоисключающих варианта видны сразу:
 // переключатель, а не список.
 function kindHTML(v, idx) {
+  const KIND_TIP = {
+    base: 'Всё, у чего есть свидетельство о регистрации: легковое, грузовое, автобус, мотоцикл, прицеп, трактор',
+    self: 'Машина со встроенным рабочим органом: экскаватор, бульдозер, погрузчик, каток, комбайн. '
+      + 'Трактор и вездеход — «Транспортное средство», категория «Спецтехника»',
+    module: 'Ковш, отвал, цистерна, кран-манипулятор — снятые с машины или хранящиеся отдельно',
+  };
   const seg = `<div class="vh-seg" role="radiogroup" aria-label="Вид объекта">${KINDS.map((k) => `
-    <button type="button" class="vh-seg-btn ${v.kind === k.key ? 'on' : ''}" role="radio"
+    <button type="button" class="vh-seg-btn ${v.kind === k.key ? 'on' : ''}" role="radio" title="${esc(KIND_TIP[k.key])}"
       aria-checked="${v.kind === k.key}" data-ts-kind="${k.key}">${esc(k.label)}</button>`).join('')}</div>`;
 
   let cascade = '';
@@ -82,47 +95,28 @@ function kindHTML(v, idx) {
     about = baseInfo(v.base);
     cascade = `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
         <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
-      <div class="field vh-s2"><label for="ts-base">База</label>
+      <div class="field vh-s2"><label for="ts-base" ${aboutTip(about)}>База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
   options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`;
   } else if (v.kind === 'self') {
     about = selfInfo(v.selfGroup, v.selfKind);
     cascade = `<div class="field vh-s2"><label for="ts-sg">Группа</label>
         <select class="select" id="ts-sg" data-ts-sgroup>${options(selfGroups(), v.selfGroup, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-sk">Вид машины</label>
+      <div class="field vh-s2"><label for="ts-sk" ${aboutTip(about)}>Вид машины</label>
         <select class="select" id="ts-sk" data-ts-skind ${v.selfGroup ? '' : 'disabled'}>${
   options(selfKinds(v.selfGroup).map((k) => k.name), v.selfKind, v.selfGroup ? 'Выберите вид' : 'Сначала группа')}</select></div>`;
   } else if (v.kind === 'module') {
     about = moduleInfo(v.modGroup, v.modKind);
     cascade = `<div class="field vh-s2"><label for="ts-mg">Группа</label>
         <select class="select" id="ts-mg" data-ts-mgroup>${options(moduleGroups(), v.modGroup, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-mk">Оборудование</label>
+      <div class="field vh-s2"><label for="ts-mk" ${aboutTip(about)}>Оборудование</label>
         <select class="select" id="ts-mk" data-ts-mkind ${v.modGroup ? '' : 'disabled'}>${
   options(moduleKinds(v.modGroup).map((k) => k.name), v.modKind, v.modGroup ? 'Выберите оборудование' : 'Сначала группа')}</select></div>`;
   }
 
-  // Подсказка — к тому, что выбрано сейчас: как понять, куда относится машина.
-  const steer = {
-    '': 'Выберите, что оценивается. <b>Транспортное средство</b> — всё, у чего есть свидетельство о регистрации: '
-      + 'легковое, грузовое, автобус, мотоцикл, прицеп, трактор. <b>Спецтехника</b> — машина со встроенным рабочим '
-      + 'органом: экскаватор, бульдозер, погрузчик, каток, комбайн. <b>Оборудование без машины</b> — ковш, отвал, '
-      + 'цистерна, кран-манипулятор, снятые с машины или хранящиеся отдельно.',
-    base: 'Категорию берите из свидетельства — строка «Тип ТС» (легковой, грузовой, прицеп…). Базу выберите по '
-      + 'описанию ниже. Если ни одна не подходит — «Прочее».',
-    self: 'Выберите группу, затем вид машины. Трактор и вездеход сюда не относятся — это «Транспортное средство», '
-      + 'категория «Спецтехника».',
-    module: 'Оборудование, которое сейчас не стоит ни на какой машине. Установленное на машину заводится внутри '
-      + 'карточки машины, в блоке «Модули».',
-  }[v.kind || ''];
 
-  const info = about ? `<div class="vh-about">
-      ${about.hint && v.kind === 'base' ? `<div><b>Как узнать.</b> ${esc(about.hint)}</div>` : ''}
-      ${v.kind === 'self' && about.run ? `<div><b>Ходовая.</b> ${esc(about.run)}</div>` : ''}
-      ${v.kind === 'module' && about.note ? `<div>${esc(about.note)}</div>` : ''}
-      ${about.examples ? `<div><b>Примеры.</b> ${esc(about.examples)}</div>` : ''}
-    </div>` : '';
 
-  const body = `${seg}${howto(steer)}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}${info}`;
+  const body = `${seg}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}`;
   return card('blue', idx, 'Вид объекта', 'категоризация «база + модуль»', body);
 }
 
@@ -157,11 +151,6 @@ const SECTION_OF = {
 };
 // Руль и места — сразу за цветом: вместе с годом они заполняют строку.
 const GENERAL_ORDER = ['make', 'model', 'maker', 'country', 'year', 'color', 'wheel', 'seats'];
-// Зачем подраздел — там, где это неочевидно.
-const SECTION_HINT = {
-  numbers: 'По номерам машину опознают — нужен хотя бы один из VIN, № кузова и № шасси.',
-  tech: 'От топлива зависят поля двигателя: у электромобиля нет объёма, только мощность.',
-};
 
 // От топлива зависит, какие поля двигателя показывать: у электромобиля нет
 // рабочего объёма, есть только мощность.
@@ -190,15 +179,17 @@ function machineHTML(v, idx) {
       own.sort((a, b) => rank(a.key) - rank(b.key));
     }
     if (sec.key === 'general') own.sort((a, b) => GENERAL_ORDER.indexOf(a.key) - GENERAL_ORDER.indexOf(b.key));
-    const hint = SECTION_HINT[sec.key] ? `<p class="vh-howto vh-howto-sub">${SECTION_HINT[sec.key]}</p>` : '';
     const body = sec.key === 'numbers' ? numbersHTML(v, own)
-      : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit">${cells(v.f, own, 'main')}</div>`
+      : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
         : grid(v.f, own, 'main');
-    return sub(sec.title, hint + body);
+    return sub(sec.title, body);
   });
 
   const special = specialFields(v);
-  if (special.length) parts.push(sub(`Особое для базы «${v.base}»`, grid(v.f, special, 'main')));
+  if (special.length) {
+    parts.push(sub(`Особое для базы «${v.base}»`,
+      `<div class="grid vh-grid vh-grid-fit">${cells(v.f, special, 'main')}</div>`));
+  }
   parts.push(extraPart(v.extra, 'main'));
 
   const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
@@ -271,26 +262,23 @@ function moduleFormHTML(m) {
       <div class="field vh-s2"><label for="ts-${m.id}-g">Группа</label>
         <select class="select" id="ts-${m.id}-g" data-ts-modgroup="${m.id}">${
   options(moduleGroups(), m.group, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-${m.id}-k">Модуль</label>
+      <div class="field vh-s2"><label for="ts-${m.id}-k" ${aboutTip(info)}>Модуль</label>
         <select class="select" id="ts-${m.id}-k" data-ts-modkind="${m.id}" ${m.group ? '' : 'disabled'}>${
   options(moduleKinds(m.group).map((k) => k.name), m.kind, m.group ? 'Выберите модуль' : 'Сначала группа')}</select></div>
     </div>`;
-  const note = info && info.note ? `<div class="vh-about"><div>${esc(info.note)}</div></div>` : '';
   return `<div class="vh-mform" data-ts-mform="${m.id}">
     <div class="sec-h vh-sub">${esc(moduleTitle(m))}<button class="btn btn-danger btn-sm vh-sub-act"
       data-ts-mdel="${m.id}">Удалить модуль</button></div>
-    ${cascade}${note}
+    ${cascade}
     ${m.kind ? `${grid(m.f, MODULE_FIELDS, m.id)}${extraPart(m.extra, m.id, 'Дополнительные параметры модуля')}` : ''}
   </div>`;
 }
 
 function modulesHTML(ctx, v, idx) {
   const cur = v.modules.find((m) => m.id === ctx.ui.tsModule) || v.modules[0] || null;
-  const add = '<button class="btn btn-primary btn-sm" data-ts-madd style="margin-left:auto">+ Модуль</button>';
-  const help = v.modules.length
-    ? ''
-    : 'Модуль — то, что стоит на машине сверху: кузов, цистерна, кран-манипулятор, ковш, отвал. Описывается '
-      + 'отдельно от машины — на то же шасси могли поставить другое. Нет ничего сверху — оставьте пустым.';
+  const add = `<button class="btn btn-primary btn-sm" data-ts-madd style="margin-left:auto" title="${esc(
+    'Модуль — то, что стоит на машине сверху: кузов, цистерна, кран-манипулятор, ковш, отвал. Описывается отдельно '
+    + 'от машины — на то же шасси могли поставить другое')}">+ Модуль</button>`;
   const table = v.modules.length ? `<div class="mu-table-wrap"><table class="tbl vh-mtbl">
       <colgroup><col><col style="width:22%"><col style="width:18%"><col style="width:56px">
         <col style="width:18%"><col style="width:36px"></colgroup>
@@ -299,7 +287,7 @@ function modulesHTML(ctx, v, idx) {
       <tbody>${v.modules.map((m) => moduleRow(m, cur && m.id === cur.id)).join('')}</tbody>
     </table></div>` : '';
   return card('violet', idx, 'Модули', 'надстройки, навесное и сменное оборудование на машине',
-    `${help ? howto(help) : ''}${table}${cur ? moduleFormHTML(cur) : ''}`, add);
+    `${table || '<div class="vehicle-note">Модулей нет.</div>'}${cur ? moduleFormHTML(cur) : ''}`, add);
 }
 
 // --- Фото с осмотра ------------------------------------------------------------------------
@@ -314,10 +302,11 @@ function photosHTML(ctx, v, idx) {
       return `<button type="button" class="ph" data-ts-photo-open="${esc(cat)}|${i}" title="${esc(cat)} · фото ${i + 1}">${
         f ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">` : `${esc(cat)} ${i + 1}`}</button>`;
     }).join('');
-    const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}">+ Фото</button>`;
+    const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}"
+      title="Можно выбрать сразу несколько файлов">+ Фото</button>`;
     return sub(`${cat} · ${n}`, `<div class="ph-row">${tiles || '<span class="vehicle-note">Фото нет.</span>'}</div>`, add);
   }).join('');
-  return card('blue', idx, 'Фото с осмотра', 'можно выбрать сразу несколько файлов', body);
+  return card('blue', idx, 'Фото с осмотра', '', body);
 }
 
 // --- «Оборудование без машины» -----------------------------------------------------------

@@ -164,3 +164,17 @@ body[data-module="vehicle"] .vh-mform .vh-s2 textarea{min-height:34px}
    сколько влезает (пять полей встают в одну строку). */
 body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
 body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field > :not(label){align-self:start}
+
+/* Подпись с пояснением во всплывающей подсказке — пунктиром снизу: видно, что
+   пояснение есть, и оно не занимает места в форме. */
+body[data-module="vehicle"] .vehicle-form label.vh-tip{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
+/* Поля выстроены подсеткой, а строки пояснений под ними ушли в подсказки —
+   третья строка подсетки пустая, отступ между строками полей — снизу поля. */
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .field:not(.vh-checks){grid-row:span 2;margin-bottom:8px}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid > .vh-checks{grid-row:span 2}
+/* Особые поля базы и ходовая — столько в строку, сколько влезает. */
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit > .field:not(.vh-checks){grid-column:auto}
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit > .vh-checks{grid-column:1 / -1}
+/* Ходовая — пять коротких полей по осмотру встают в одну строку. */
+body[data-module="vehicle"] .vehicle-form .grid.vh-grid.vh-grid-fit.vh-fit-narrow{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
