@@ -32,6 +32,7 @@ import os
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.hyperlink import Hyperlink
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'docs', 'kategorii-ts-baza-modul.xlsx')
@@ -1399,7 +1400,6 @@ TOWED = [
     ('Борона дисковая прицепная', 'Ширина захвата, м; рабочая глубина, см'),
     ('Культиватор прицепной', 'Ширина захвата, м; рабочая глубина, см'),
     ('Скрепер прицепной', 'Объём кузова-ковша, м³'),
-    ('Транспортная тележка жатки', 'Длина, м; грузоподъёмность, т'),
 ]
 
 EXAMPLES = [
@@ -1426,7 +1426,8 @@ EXAMPLES = [
     ('Навесной плуг ПЛН-3-35', 'Модуль без машины: плуг навесной', '—', 'Колёс нет'),
     ('Сеялка СЗ-3,6', 'Прицеп: прицепная машина', '—', 'Свои колёса'),
     ('МТ-ЛБ, переделанный во вездеход с кунгом', 'База: вездеход, гусеничный транспортёр', 'Модуль: передвижной офис (кунг)', 'Переоборудование — особое поле базы'),
-    ('Комбайн Акрос с жаткой', 'Самоходная машина: комбайн', 'Модуль: жатка зерновая', 'Тележка жатки — прицеп'),
+    ('Комбайн Акрос с жаткой', 'Самоходная машина: комбайн', 'Модуль: жатка зерновая', ''),
+    ('Жатка на транспортной тележке', 'База: прицеп', 'Модуль: жатка зерновая', 'Тележка — обычный прицеп, жатка на ней — модуль'),
 ]
 
 DECISIONS = [
@@ -1456,6 +1457,9 @@ DECISIONS = [
      'отдельной записи «экскаватор» нет'),
     ('Малая механизация', 'Виброплита с оператором, ручной виброкаток', 'Инструмент, в классификатор не входит'),
     ('Самодельные надстройки', 'Бочка на раме, гаражный кунг', 'Не учитываются: переоборудование незаконно'),
+    ('Исключения из «база + модуль»', 'Тележка жатки, прицеп-цистерна, полуприцеп-трал',
+     'Не делаются: прицеп и полуприцеп — база, всё, что на них стоит, — модуль. Цельной остаётся только '
+     'прицепная машина — орудие на своих колёсах'),
 ]
 
 SOURCES = [
@@ -1493,6 +1497,7 @@ SOURCES = [
 HEAD_FILL = PatternFill('solid', fgColor='1F4E5F')
 HEAD_FONT = Font(color='FFFFFF', bold=True, size=10)
 CELL_FONT = Font(size=10)
+LINK_FONT = Font(size=10, color='0563C1', underline='single')
 THIN = Side(style='thin', color='D9D9D9')
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
@@ -1513,12 +1518,63 @@ def sheet(wb, title, cols, rows):
                 c.fill = HEAD_FILL
     ws.freeze_panes = 'A2'
     ws.auto_filter.ref = ws.dimensions
+    back = ws.cell(row=1, column=len(cols) + 1, value='← Оглавление')
+    link(back, TOC)
+    ws.column_dimensions[get_column_letter(len(cols) + 1)].width = 16
     return ws
+
+
+def link(cell, target):
+    """Ссылка на лист той же книги."""
+    cell.hyperlink = Hyperlink(ref=cell.coordinate, location="'%s'!A1" % target, display=str(cell.value))
+    cell.font = LINK_FONT
+
+
+TOC = 'Оглавление'
+CONTENTS = {
+    'Правила': 'Правила отнесения: что считается базой, модулем, самоходной машиной; пограничные случаи',
+    'Базы': 'Категории техпаспорта и базы внутри них: признаки и примеры марок',
+    'Поля базы': 'Общие поля любой базы в порядке свидетельства о регистрации, затем поля осмотра; источник у каждого '
+                 'поля',
+    'Особые поля баз': 'Поля, которые есть только у отдельных баз: страна сборки, ходовая, навеска и другие',
+    'Модули': 'Надстройки, навесное и сменное оборудование по группам; что обычно вписывают в дополнительные '
+              'параметры',
+    'Поля модуля': 'Общие поля любого модуля',
+    'Самоходные машины': 'Виды машин со встроенным рабочим органом: ходовая, примеры, что вписывают в '
+                         'дополнительные параметры',
+    'Поля самоходной машины': 'Общие поля любой самоходной машины',
+    'Прицепные машины': 'Виды орудий на своих колёсах и их поля',
+    'Примеры отнесения': 'Конкретные машины и как их записывать',
+    'Решения': 'Спорные случаи и принятые по ним решения',
+    'Источники': 'Нормативные акты, образцы документов и справочные материалы',
+}
+
+
+def contents(ws, wb):
+    """Оглавление: лист со ссылкой, что на нём, сколько строк."""
+    ws.append(['Лист', 'Что на листе', 'Строк'])
+    for name, what in CONTENTS.items():
+        ws.append([name, what, wb[name].max_row - 1])
+        link(ws.cell(row=ws.max_row, column=1), name)
+    for i, w in enumerate((28, 100, 8), start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    for row in ws.iter_rows():
+        for c in row:
+            c.border = BORDER
+            c.alignment = Alignment(vertical='top', wrap_text=True)
+            if c.row == 1:
+                c.font, c.fill = HEAD_FONT, HEAD_FILL
+            elif c.column != 1:
+                c.font = CELL_FONT
+    ws.freeze_panes = 'A2'
+    missing = [n for n in wb.sheetnames if n != TOC and n not in CONTENTS]
+    assert not missing, 'нет в оглавлении: %s' % missing
 
 
 def build():
     wb = Workbook()
     wb.remove(wb.active)
+    toc = wb.create_sheet(TOC)
     sheet(wb, 'Правила', [('№', 5), ('Правило', 26), ('Как применять', 110)], RULES)
     sheet(wb, 'Базы', [('Категория (техпаспорт)', 22), ('База', 32), ('Как узнать', 60), ('Примеры', 60)], BASES)
     sheet(wb, 'Поля базы', [('Источник', 22), ('Поле', 36), ('Значение', 16), ('Варианты и пояснение', 70)], BASE_COMMON)
@@ -1536,6 +1592,7 @@ def build():
     sheet(wb, 'Примеры отнесения', [('Машина', 40), ('База или вид', 46), ('Модули и сменное', 50), ('Примечание', 36)], EXAMPLES)
     sheet(wb, 'Решения', [('Случай', 30), ('Пример', 50), ('Как записывать', 80)], DECISIONS)
     sheet(wb, 'Источники', [('Что', 70), ('Ссылка', 90)], SOURCES)
+    contents(toc, wb)
     wb.save(OUT)
     return {'баз': len(BASES), 'особых полей': len(BASE_SPECIAL), 'модулей': len(MODULES), 'самоходных': len(SELF),
             'прицепных машин': len(TOWED), 'примеров': len(EXAMPLES), 'решений': len(DECISIONS)}
