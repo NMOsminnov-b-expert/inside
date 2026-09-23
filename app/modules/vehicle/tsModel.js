@@ -75,19 +75,6 @@ export function specialFields(v) {
   return [...own, ...extra];
 }
 
-// Подсказка «что обычно вписывают в дополнительные параметры» — список
-// названий из справочника; у модуля и самоходной машины она своя.
-export function suggestList(hint) {
-  return String(hint || '').split(';').map((s) => s.trim()).filter(Boolean)
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1));
-}
-
-export function extraSuggest(v) {
-  if (v.kind === 'self') return suggestList((selfInfo(v.selfGroup, v.selfKind) || {}).hint);
-  if (v.kind === 'module') return suggestList((moduleInfo(v.modGroup, v.modKind) || {}).hint);
-  return [];
-}
-
 // --- дополнительные параметры: строки «наименование — значение» ------------
 let seq = 1;
 const nextId = (p) => `${p}-${Date.now().toString(36)}-${seq += 1}`;

@@ -8,8 +8,11 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * пока не выбран вид объекта и база (или вид машины, модуль), полей машины
     нет — дочернее не показывают до родителя; база недоступна до категории;
   * «Прочее» есть в каждой категории (правило 16 справочника);
-  * поля машины идут в порядке граф свидетельства: марка, модель, год, цвет,
-    VIN, № кузова, № шасси;
+  * блок «Машина» разбит на подразделы (общие сведения, номера, двигатель,
+    массы, ходовая и трансмиссия, особое для базы, дополнительные параметры),
+    внутри — порядок граф свидетельства; номера — таблицей;
+  * у электромобиля нет рабочего объёма (от топлива зависят поля двигателя);
+  * в регистрации нет ИНН собственника (указание пользователя 23.09.2026);
   * у поля с бланка — метка «ТП», в подсказке к ней — где графа на обоих
     бланках (книжка 2019 г. и «КР №»); у поля осмотра — метка «осмотр»;
   * VIN не обрезается и не запрещается: короткий заводской номер старой
@@ -17,8 +20,8 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * нет ни VIN, ни № кузова, ни № шасси — предупреждение у группы номеров;
   * у базы свои особые поля (у трактора — ходовая флажками);
   * модули: добавляются кнопкой, выбираются каскадом, строка таблицы следует
-    за полями формы; подсказка «обычно вписывают» заводит строку с готовым
-    названием и ставит курсор в значение;
+    за полями формы; у модуля своя таблица дополнительных параметров;
+    подсказок «обычно вписывают» нет (указание пользователя 23.09.2026);
   * у самоходной машины и отдельного модуля — свои поля.
 """
 
@@ -61,12 +64,29 @@ def run(t):
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[2:] == ['Машина', 'Регистрация', 'Наработка и состояние', 'Модули', 'Дополнительные параметры'],
+    t.ck(heads[2:] == ['Машина', 'Регистрация', 'Наработка и состояние', 'Модули'],
          'блоки карточки ТС не те: %s' % heads)
 
-    order = pg.eval_on_selector_all('[data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
-    t.ck(order[:7] == ['make', 'model', 'year', 'color', 'vin', 'bodyNo', 'chassisNo'],
-         'поля машины не в порядке граф свидетельства: %s' % order[:7])
+    subs = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(3) .vh-sub',
+                                   'els => els.map((e) => e.firstChild.textContent.trim())')
+    t.ck(subs[:5] == ['Общие сведения', 'Номера', 'Двигатель', 'Массы', 'Ходовая и трансмиссия']
+         and subs[-1] == 'Дополнительные параметры', 'подразделы «Машины» не те: %s' % subs)
+
+    order = pg.eval_on_selector_all('.vh-grid [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
+    t.ck(order[:4] == ['make', 'model', 'year', 'color'],
+         'общие сведения не в порядке граф свидетельства: %s' % order[:4])
+    nums = pg.eval_on_selector_all('.vh-ntbl [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
+    t.ck(nums == ['vin', 'bodyNo', 'chassisNo', 'engineNo'], 'номера не таблицей или не в том порядке: %s' % nums)
+    t.ck(pg.locator('[data-tsf="main|ownerInn"]').count() == 0, 'в регистрации остался ИНН собственника')
+    t.ck(pg.locator('[data-tsx-suggest]').count() == 0, 'в карточке остались подсказки «обычно вписывают»')
+
+    # --- топливо: у электромобиля нет рабочего объёма --------------------------------
+    t.ck(pg.locator('[data-tsf="main|engineVolume"]').count() == 1, 'нет рабочего объёма у двигателя')
+    pg.select_option('[data-tsf="main|fuel"]', 'Электро')
+    t.wait_until("() => !document.querySelector('[data-tsf=\"main|engineVolume\"]')")
+    t.ck(pg.locator('[data-tsf="main|power"]').count() == 1, 'у электромобиля нет мощности')
+    pg.select_option('[data-tsf="main|fuel"]', 'Бензин')
+    t.wait_for('[data-tsf="main|engineVolume"]')
 
     tip = pg.get_attribute('[data-ts-key="vin"] .vh-src', 'title') or ''
     t.ck(pg.inner_text('[data-ts-key="vin"] .vh-src').strip() == 'ТП', 'у VIN нет метки «ТП»')
@@ -109,15 +129,13 @@ def run(t):
     pg.fill('[data-tsf="%s|model"]' % mid, 'ЭО-2621')
     t.wait_until("() => document.querySelector('[data-ts-mpick=\"%s\"]').innerText.includes('ЭО-2621')" % mid)
 
-    chip = pg.locator('[data-tsx-suggest^="%s|"]' % mid).first
-    label = chip.get_attribute('data-tsx-suggest').split('|', 1)[1]
-    chip.click()
-    t.wait_until("() => document.activeElement && (document.activeElement.dataset.tsxValue || '').startsWith('%s|')" % mid)
+    pg.click('[data-tsx-add="%s"]' % mid)
+    t.wait_until("() => document.activeElement && (document.activeElement.dataset.tsxLabel || '').startsWith('%s|')" % mid)
+    pg.keyboard.type('Глубина копания, м')
     mods = pg.evaluate(REC)['modules']
-    t.ck(mods and mods[0]['extra'] and mods[0]['extra'][0]['label'] == label,
-         'подсказка не завела строку с названием: %s' % mods)
-    t.ck(pg.locator('[data-tsx-suggest="%s|%s"]' % (mid, label)).count() == 0,
-         'подсказка осталась после того, как строка заведена')
+    t.ck(mods and mods[0]['extra'] and mods[0]['extra'][0]['label'] == 'Глубина копания, м',
+         'строка параметра модуля не записалась в модуль: %s' % mods)
+    t.ck(not pg.evaluate(REC)['extra'], 'параметр модуля попал в параметры машины')
 
     # --- самоходная машина и отдельный модуль ---------------------------------------
     pg.click('[data-ts-kind="self"]')
@@ -125,12 +143,13 @@ def run(t):
     pg.select_option('[data-ts-skind]', 'Экскаватор')
     t.wait_for('[data-tsf="main|serialNo"]')
     t.ck(pg.locator('[data-tsf-check="main|run"]').count() == 7, 'у самоходной машины нет ходовой флажками')
-    t.ck(pg.locator('[data-tsx-suggest^="main|"]').count() > 0, 'у самоходной машины нет подсказок параметров')
+    nums = pg.eval_on_selector_all('.vh-ntbl [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
+    t.ck(nums == ['serialNo', 'engineNo'], 'номера самоходной машины не те: %s' % nums)
 
     pg.click('[data-ts-kind="module"]')
     pg.select_option('[data-ts-mgroup]', 'Ковши')
     pg.select_option('[data-ts-mkind]', 'Ковш скальный')
     t.wait_for('[data-tsf="main|serialNo"]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[2:] == ['Модуль', 'Наработка и состояние', 'Дополнительные параметры'],
-         'у отдельного модуля не те блоки: %s' % heads)
+    t.ck(heads[2:] == ['Модуль', 'Наработка и состояние'], 'у отдельного модуля не те блоки: %s' % heads)
+    t.ck(pg.locator('[data-tsx-add="main"]').count() == 1, 'у отдельного модуля нет дополнительных параметров')

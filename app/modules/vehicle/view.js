@@ -7,7 +7,7 @@ import { partiesHTML } from './parties.view.js';
 import { tsFieldHTML } from './tsFields.view.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
-  moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, extraSuggest, suggestList,
+  moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields,
   moduleTitle, tsTitle, whatLabel,
 } from './tsModel.js';
 
@@ -25,11 +25,12 @@ import {
 //   01  Учреждение, собственники и ответственные
 //   02  Вид объекта            — ТС, самоходная машина или отдельный модуль;
 //                                 категория → база или группа → вид
-//   03  Машина (или Модуль)    — поля машины и особые поля её базы
+//   03  Машина (или Модуль)    — подразделы: общие сведения, номера (таблицей),
+//                                 двигатель, массы, ходовая и трансмиссия,
+//                                 особое для базы, дополнительные параметры
 //   04  Регистрация            — рег. номер, собственник по свидетельству
 //   05  Наработка и состояние
 //   06  Модули                 — что стоит на машине: таблица и форма модуля
-//   07  Дополнительные параметры
 
 const card = (tone, idx, title, hint, body, extra = '') => `<div class="card t-${tone}">
   <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
@@ -92,21 +93,59 @@ function kindHTML(v, idx) {
 const grid = (vals, list, owner) => `<div class="grid g-2 g-roomy g-top vh-grid">${
   list.map((f) => tsFieldHTML(vals, f, owner)).join('')}</div>`;
 
-// VIN, № кузова и № шасси идут подряд; за ними — общее для троих
-// предупреждение строкой во всю ширину сетки (практика «предупреждение вместо
-// ошибки»): машину опознают хотя бы по одному из номеров.
+// Подразделы «Машины» — по смыслу, в порядке граф свидетельства внутри
+// каждого (указание пользователя 23.09.2026: «полей много, надо разбить на
+// категории, чтобы не теряться»). Поле, которого нет ни в одном подразделе,
+// попадает в «Общие сведения».
+const SECTIONS = [
+  { key: 'general', title: 'Общие сведения' },
+  { key: 'numbers', title: 'Номера' },
+  { key: 'engine', title: 'Двигатель' },
+  { key: 'mass', title: 'Массы' },
+  { key: 'chassis', title: 'Ходовая и трансмиссия' },
+];
+const SECTION_OF = {
+  vin: 'numbers', bodyNo: 'numbers', chassisNo: 'numbers', engineNo: 'numbers', serialNo: 'numbers',
+  fuel: 'engine', engineVolume: 'engine', power: 'engine',
+  massEmpty: 'mass', massMax: 'mass', massDesign: 'mass',
+  wheelFormula: 'chassis', axles: 'chassis', steerAxles: 'chassis', gearbox: 'chassis', pto: 'chassis',
+  run: 'chassis', turn: 'chassis',
+};
+
+// От топлива зависит, какие поля двигателя показывать: у электромобиля нет
+// рабочего объёма, есть только мощность (в свидетельстве у бензиновых
+// мощность пустая, а у электро заполнена — слова пользователя 23.09.2026).
+const ELECTRIC = 'Электро';
+const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC);
+
+const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)}${extra}</div>${body}`;
+
+// Номера — таблицей (указание пользователя): у машины их несколько, и искать
+// каждый по сетке полей неудобно. Строка — номер: подпись с меткой источника
+// слева, значение справа. Под таблицей — общее для номеров предупреждение
+// (практика «предупреждение вместо ошибки»): машину опознают хотя бы по
+// одному из них.
+function numbersHTML(v, list) {
+  const rows = list.map((f) => `<tr><td class="vh-ncell">${tsFieldHTML(v.f, f, 'main')}</td></tr>`).join('');
+  const idWarn = v.kind === 'base'
+    ? '<div class="vh-warn vh-warn-group" data-ts-idwarn hidden>Нет ни VIN, ни № кузова, ни № шасси — '
+      + 'машину не по чему опознать. Заполните хотя бы один номер.</div>'
+    : '';
+  return `<table class="tbl vh-ntbl"><tbody>${rows}</tbody></table>${idWarn}`;
+}
+
 function machineHTML(v, idx) {
-  const list = commonFields(v).filter((f) => f.block === 'machine');
-  const idWarn = '<div class="vh-warn vh-warn-group" data-ts-idwarn hidden>Нет ни VIN, ни № кузова, ни № шасси — '
-    + 'машину не по чему опознать. Заполните хотя бы один номер.</div>';
-  const cells = list.map((f) => tsFieldHTML(v.f, f, 'main') + (v.kind === 'base' && f.key === 'chassisNo' ? idWarn : ''));
+  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f));
+  const parts = SECTIONS.map((sec) => {
+    const own = list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key);
+    if (!own.length) return '';
+    return sub(sec.title, sec.key === 'numbers' ? numbersHTML(v, own) : grid(v.f, own, 'main'));
+  });
 
   const special = specialFields(v);
-  const specialPart = special.length ? `<div class="sec-h vh-sub">Особое для базы «${esc(v.base)}»</div>
-    ${grid(v.f, special, 'main')}` : '';
-
-  const body = `<div class="grid g-2 g-roomy g-top vh-grid">${cells.join('')}</div>${specialPart}`;
-  return card('teal', idx, 'Машина', 'в порядке граф свидетельства', body);
+  if (special.length) parts.push(sub(`Особое для базы «${v.base}»`, grid(v.f, special, 'main')));
+  parts.push(extraPart(v.extra, 'main'));
+  return card('teal', idx, 'Машина', 'в порядке граф свидетельства', parts.join(''));
 }
 
 function regHTML(v, idx) {
@@ -121,12 +160,10 @@ function useHTML(v, idx) {
 
 // --- дополнительные параметры -------------------------------------------------
 // Таблица «наименование — значение» (практика строкового ввода): кнопка
-// добавления есть всегда. Над таблицей — то, что по справочнику обычно
-// вписывают для этого вида: одно нажатие заводит строку с готовым названием,
-// и заполнить остаётся только значение.
-export function extraTableHTML(rows, owner, suggest) {
-  const have = new Set(rows.map((r) => String(r.label || '').trim().toLowerCase()));
-  const chips = suggest.filter((s) => !have.has(s.toLowerCase()));
+// добавления есть всегда. У машины — последним подразделом её блока, у каждого
+// модуля — своя (указание пользователя 23.09.2026). Подсказок «что обычно
+// вписывают» нет: названия пишет пользователь.
+export function extraTableHTML(rows, owner) {
   const body = rows.map((r) => `<tr>
       <td><input class="ax-cell" data-tsx-label="${esc(owner)}|${r.id}" value="${esc(r.label)}"
         placeholder="Наименование параметра" aria-label="Наименование параметра"></td>
@@ -136,22 +173,16 @@ export function extraTableHTML(rows, owner, suggest) {
         title="Убрать параметр" aria-label="Убрать параметр">×</button></td>
     </tr>`).join('');
 
-  return `${chips.length ? `<div class="vh-chips" aria-label="Что обычно вписывают">
-      <span class="vh-chips-h">Обычно вписывают:</span>
-      ${chips.map((c) => `<button type="button" class="vh-chip" data-tsx-suggest="${esc(owner)}|${esc(c)}"
-        title="Добавить строку «${esc(c)}»">+ ${esc(c)}</button>`).join('')}
-    </div>` : ''}
-    ${body ? `<table class="tbl mu-xtbl">
+  return body ? `<table class="tbl mu-xtbl">
       <colgroup><col style="width:42%"><col><col style="width:40px"></colgroup>
       <thead><tr><th>Наименование параметра</th><th>Значение</th><th></th></tr></thead>
       <tbody>${body}</tbody>
-    </table>` : '<div class="vehicle-note">Дополнительных параметров нет.</div>'}`;
+    </table>` : '<div class="vehicle-note">Дополнительных параметров нет.</div>';
 }
 
-function extraHTML(v, idx) {
-  const add = '<button class="btn btn-ghost btn-sm" data-tsx-add="main" style="margin-left:auto">+ Параметр</button>';
-  return card('slate', idx, 'Дополнительные параметры',
-    'особые отметки документа и всё, чему нет своего поля', extraTableHTML(v.extra, 'main', extraSuggest(v)), add);
+function extraPart(rows, owner, title = 'Дополнительные параметры') {
+  const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-tsx-add="${esc(owner)}">+ Параметр</button>`;
+  return sub(title, extraTableHTML(rows, owner), add);
 }
 
 // --- 06 Модули ----------------------------------------------------------------
@@ -186,10 +217,7 @@ function moduleFormHTML(m) {
   return `<div class="vh-mform" data-ts-mform="${m.id}">
     <div class="sec-h vh-sub">${esc(moduleTitle(m))}</div>
     ${cascade}${note}
-    ${m.kind ? `${grid(m.f, MODULE_FIELDS, m.id)}
-      <div class="sec-h vh-sub">Дополнительные параметры модуля</div>
-      ${extraTableHTML(m.extra, m.id, suggestList(info && info.hint))}
-      <button class="btn btn-ghost btn-sm vh-xadd" data-tsx-add="${m.id}">+ Параметр модуля</button>` : ''}
+    ${m.kind ? `${grid(m.f, MODULE_FIELDS, m.id)}${extraPart(m.extra, m.id, 'Дополнительные параметры модуля')}` : ''}
   </div>`;
 }
 
@@ -211,7 +239,7 @@ function modulesHTML(ctx, v, idx) {
 // --- «Отдельный модуль»: поля модуля вместо машины ------------------------------
 function loneModuleHTML(v, idx) {
   return card('teal', idx, 'Модуль', 'снятый с машины или хранящийся отдельно',
-    grid(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), 'main'));
+    grid(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), 'main') + extraPart(v.extra, 'main'));
 }
 
 function loneUseHTML(v, idx) {
@@ -227,10 +255,9 @@ function formHTML(ctx) {
 
   if (classified(v)) {
     if (v.kind === 'module') {
-      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), extraHTML(v, n()));
+      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()));
     } else {
-      parts.push(machineHTML(v, n()), regHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()),
-        extraHTML(v, n()));
+      parts.push(machineHTML(v, n()), regHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()));
     }
   }
   return `<div class="vehicle-form">${parts.join('')}</div>`;

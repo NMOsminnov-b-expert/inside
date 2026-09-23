@@ -61,9 +61,9 @@ export function bindVehicle(ctx) {
   cascade('[data-ts-mkind]', (val) => { v.modKind = val; });
 
   // --- поля машины и модулей ------------------------------------------------
-  // Поля, от которых зависит состав карточки (вид прицепной машины), при
-  // смене перерисовывают её; остальные пишутся молча.
-  const RERENDER = new Set(['vidMashiny']);
+  // Поля, от которых зависит состав карточки (топливо, вид прицепной
+  // машины), при смене перерисовывают её; остальные пишутся молча.
+  const RERENDER = new Set(['fuel', 'vidMashiny']);
 
   s.$$('[data-tsf]').forEach((el) => {
     const [who, key] = split(el.dataset.tsf);
@@ -212,21 +212,15 @@ export function bindVehicle(ctx) {
     if (list) { dropExtra(list, id); ctx.render(); }
   });
 
-  // Новая строка — фокус в название; строка из подсказки — фокус сразу в
-  // значение: название уже подставлено.
-  const addRow = async (who, label) => {
+  // Новая строка — фокус сразу в её название.
+  s.$$('[data-tsx-add]').forEach((b) => b.onclick = async () => {
+    const who = b.dataset.tsxAdd;
     const list = extraOf(who);
     if (!list) return;
-    const r = addExtra(list, label);
+    const r = addExtra(list);
     await ctx.render();
-    const el = s.$(`[data-tsx-${label ? 'value' : 'label'}="${who}|${r.id}"]`);
+    const el = s.$(`[data-tsx-label="${who}|${r.id}"]`);
     if (el) el.focus();
-  };
-
-  s.$$('[data-tsx-add]').forEach((b) => b.onclick = () => addRow(b.dataset.tsxAdd, ''));
-  s.$$('[data-tsx-suggest]').forEach((b) => b.onclick = () => {
-    const [who, label] = split(b.dataset.tsxSuggest);
-    addRow(who, label);
   });
 
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.
