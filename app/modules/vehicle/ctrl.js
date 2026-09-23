@@ -9,7 +9,7 @@ import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import {
-  tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule,
+  tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryFromVtype,
   normVin, vinWarning, normPlate, idMissing,
 } from './tsModel.js';
 
@@ -45,11 +45,29 @@ export function bindVehicle(ctx) {
   // Каскад: смена родителя сбрасывает дочерний выбор; единственный вариант
   // подставляется сам (практика каскадных списков).
   const cascade = (sel, set) => { const el = s.$(sel); if (el) el.onchange = () => { set(el.value); ctx.render(); }; };
-  cascade('[data-ts-cat]', (val) => {
+  const setCategory = (val) => {
+    if (v.category === val) return;
     v.category = val;
     const bases = basesOf(val).filter((b) => b.name !== 'Прочее');
     v.base = bases.length === 1 ? bases[0].name : '';
-  });
+  };
+  // Выбранная руками категория — выбор человека: подбор по «Типу ТС» его больше
+  // не трогает.
+  cascade('[data-ts-cat]', (val) => { setCategory(val); v.categoryAuto = false; });
+
+  // Категория по записи «Тип ТС»: подбирается, когда её ещё не выбирали или
+  // она была подобрана сама; по уходу из поля — пока человек печатает,
+  // карточка не перерисовывается.
+  const vt = s.$('[data-tsf="main|vtype"]');
+  if (vt && s.$('[data-ts-cat]')) {
+    vt.addEventListener('change', () => {
+      const guess = categoryFromVtype(vt.value);
+      if (!guess || guess === v.category || (v.category && !v.categoryAuto)) return;
+      setCategory(guess);
+      v.categoryAuto = true;
+      ctx.render();
+    });
+  }
   cascade('[data-ts-base]', (val) => { v.base = val; });
   cascade('[data-ts-sgroup]', (val) => {
     v.selfGroup = val;

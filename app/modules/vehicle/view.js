@@ -93,7 +93,9 @@ function kindHTML(v, idx) {
   if (v.kind === 'base') {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
-    cascade = `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
+    const vtype = commonFields(v).find((f) => f.key === 'vtype');
+    cascade = `${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s4') : ''}
+      <div class="field vh-s2"><label for="ts-cat" ${v.categoryAuto ? 'class="vh-tip" title="Подобрано по записи «Тип ТС» — можно выбрать другую"' : ''}>Категория по техпаспорту</label>
         <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
       <div class="field vh-s2"><label for="ts-base" ${aboutTip(about)}>База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
@@ -169,7 +171,8 @@ function numbersHTML(v, list) {
 }
 
 function machineHTML(v, idx) {
-  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f));
+  // «Тип ТС, вид кузова» — в блоке 02, рядом с категорией, которую по ней подбирают.
+  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'));
   const parts = SECTIONS.map((sec) => {
     const own = list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key);
     if (!own.length) return '';

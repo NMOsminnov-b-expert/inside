@@ -8,6 +8,8 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * пока не выбран вид объекта и база (или вид машины, модуль), полей машины
     нет — дочернее не показывают до родителя; база недоступна до категории;
   * «Прочее» есть в каждой категории (правило 16 справочника);
+  * «Тип ТС, вид кузова» стоит в блоке 02 и по первому слову подбирает
+    категорию («легковой минивэн» → «Легковое»); выбранную руками не трогает;
   * регистрационный учёт стоит перед блоком машины и без собственника (он в
     блоке сторон), адрес — фактический;
   * блок «Автотранспортное средство» разбит на подразделы (общие сведения,
@@ -87,11 +89,21 @@ def run(t):
     pg.click('[data-ts-kind="base"]')
     t.wait_for('[data-ts-cat]')
     t.ck(pg.locator('[data-ts-base][disabled]').count() == 1, 'база доступна до выбора категории')
+    # «Тип ТС, вид кузова» — в блоке 02, категория и единственная база
+    # подбираются по записи; выбранное руками подбор больше не трогает.
+    pg.fill('[data-tsf="main|vtype"]', 'легковой минивэн')
+    pg.locator('[data-ts-cat]').focus()
+    t.wait_until("() => document.querySelector('[data-ts-cat]').value === 'Легковое'")
+    t.ck(pg.input_value('[data-ts-base]') == 'Легковой автомобиль и внедорожник', 'база не подобралась по категории')
     pg.select_option('[data-ts-cat]', 'Грузовое')
     t.wait_for('[data-ts-base]:not([disabled])')
+    pg.fill('[data-tsf="main|vtype"]', 'легковой седан')
+    pg.locator('[data-ts-cat]').focus()
+    t.wait(200)
+    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', 'подбор по «Типу ТС» перебил выбранную руками категорию')
     bases = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')
     t.ck('Прочее' in bases, 'в категории нет базы «Прочее»: %s' % bases)
-    t.ck(pg.locator('[data-tsf]').count() == 0, 'поля машины показаны до выбора базы')
+    t.ck(pg.locator('[data-tsf]:not([data-tsf="main|vtype"])').count() == 0, 'поля машины показаны до выбора базы')
 
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
