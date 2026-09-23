@@ -44,7 +44,11 @@ export function tsFieldHTML(vals, f, owner) {
   const label = esc(f.label + (one ? ', ' + one : ''));
   // У поля без пометки источника (особые поля баз) пояснение — строкой под
   // полем: оно короткое, и спрятать его некуда.
-  const under = !f.source && f.hint ? `<span class="mu-hint mu-hint-under">${esc(f.hint)}</span>` : '';
+  // Пояснение, которое только перечисляет варианты списка, не показываем: из
+  // него варианты и собраны, и под полем оно их повторяет.
+  const hint = String(f.hint || '').toLowerCase();
+  const echoes = (f.options || []).length && f.options.every((o) => hint.includes(o.toLowerCase()));
+  const under = !f.source && f.hint && !echoes ? `<span class="mu-hint mu-hint-under">${esc(f.hint)}</span>` : '';
 
   const head = `<label for="${id}">${label}${tagHTML(f)}</label>`;
 
