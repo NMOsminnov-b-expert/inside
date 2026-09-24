@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Перенос техпаспорта в систему: графы страниц техпаспорта стрелками к блокам
-и полям рабочей системы.
+"""Перенос документов в систему: графы страниц техпаспорта и госакта стрелками
+к блокам и полям рабочей системы — одна страница HTML.
 
 Исходники — локальная папка «Примеры доков» (в .gitignore: реальный документ
 учреждения и снимки рабочей системы): сканы техпаспорта и госакта в PDF и снимки
@@ -15,16 +15,19 @@
 
     python tools/docs/build_tp_v_sistemu.py
 
-На выходе — «Примеры доков/Перенос техпаспорта в систему.docx» и картинки в
-«Примеры доков/Перенос техпаспорта в систему/».
+На выходе — «Примеры доков/Перенос документов в систему.html»: один файл,
+картинки внутри, открывается в браузере без интернета. Оглавление по главам,
+подсветка связи при наведении на строку таблицы или стрелку, просмотр
+разворота крупно (колесо — масштаб, перетаскивание — сдвиг).
 """
+import base64
+import html
+import io
 import itertools
+import math
 import os
 
 import fitz
-from docx import Document
-from docx.enum.section import WD_ORIENT, WD_SECTION
-from docx.shared import Cm, Pt
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,8 +36,7 @@ SHOTS = os.path.join(SRC, 'Фото системы')
 PDF = os.path.join(SRC, '0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf')
 GOSAKT = os.path.join(SRC, 'Госакт Б 028723.pdf')
 TP2015 = os.path.join(SRC, 'с. Чет Булак, ул. Чет Булак 1, д. 7 Баня 0183 нет пуд_техпаспорт.pdf')
-OUT_DOCX = os.path.join(SRC, 'Разметка техпаспорта (хар-ка строений и сооружений).docx')
-OUT_DIR = os.path.join(SRC, 'Перенос техпаспорта в систему')
+OUT_HTML = os.path.join(SRC, 'Перенос документов в систему.html')
 DPI = 110
 
 # Снимки системы: файл → подпись над снимком (чей это блок).
@@ -188,49 +190,27 @@ def page_image(doc, n):
     return Image.frombytes('RGB', (pix.width, pix.height), pix.samples)
 
 
-def badge(draw, x, y, num, color):
-    r = 17
-    draw.ellipse((x - r, y - r, x + r, y + r), fill=color, outline='white', width=3)
-    f = font(20, True)
-    w = draw.textlength(str(num), font=f)
-    draw.text((x - w / 2, y - 13), str(num), fill='white', font=f)
-
-
-def arrow(draw, a, b, color):
-    draw.line([a, b], fill=color, width=4)
-    import math
-    ang = math.atan2(b[1] - a[1], b[0] - a[0])
-    L, W = 22, 11
-    p1 = (b[0] - L * math.cos(ang) + W * math.sin(ang), b[1] - L * math.sin(ang) - W * math.cos(ang))
-    p2 = (b[0] - L * math.cos(ang) - W * math.sin(ang), b[1] - L * math.sin(ang) + W * math.cos(ang))
-    draw.polygon([b, p1, p2], fill=color)
-
-
 def shot_image(shot):
     img = Image.open(os.path.join(SHOTS, shot[0])).convert('RGB')
     crop = shot[2] if len(shot) > 2 else (0, 0, img.width, img.height)
     return img.crop(crop), crop
 
 
-# Место под картинку на листе, см: книжный и альбомный лист A4 с полями 1,5 см.
-PORTRAIT_BOX = (18.0, 22.0)
-LANDSCAPE_BOX = (26.7, 16.5)
+# Раскладка подбирается под широкий экран: оценка — сколько точек экрана
+# приходится на пиксель самого мелкого исходника, когда разворот вписан в
+# область VIEW_W x VIEW_H.
+VIEW_W, VIEW_H = 1600, 1000
+# Ширины куска страницы, из которых выбирается раскладка, пиксели разворота.
+SOURCE_WIDTHS = (600, 820, 1050, 1300)
+LANE = 20
 
 
-def fit_on_sheet(w, h):
-    """Лучший лист для картинки w x h: (книжный ли, см на пиксель картинки)."""
-    fp = min(PORTRAIT_BOX[0] / w, PORTRAIT_BOX[1] / h)
-    fl = min(LANDSCAPE_BOX[0] / w, LANDSCAPE_BOX[1] / h)
-    return (True, fp) if fp > fl else (False, fl)
-
-
-def figure(doc, links, page, crop, under=()):
-    """Картинка «кусок страницы → снимки системы» в одной раскладке.
+def layout(doc, links, page, crop, under=(), src_w=820):
+    """Один вариант раскладки разворота «кусок страницы → снимки системы».
 
     under — снимки, которые встают под кусок страницы; прочие идут колонкой
-    справа. Возвращает картинку, книжный ли лист и оценку: сколько
-    сантиметров листа приходится на пиксель самого мелкого из исходников
-    (страницы или снимка) — чем больше, тем крупнее и читаемее.
+    справа. Возвращает (оценка, картинка без стрелок, связи), где связь —
+    рамка на странице, рамка на снимке и ломаная стрелки.
     """
     tp = page_image(doc, page)
     crop = crop or (0, 0, tp.width, tp.height)
@@ -241,19 +221,15 @@ def figure(doc, links, page, crop, under=()):
             shots.append(shot)
     below = [sh for sh in shots if sh in under]
     right = [sh for sh in shots if sh not in below]
-    # Ширина левой колонки: всё под страницей — 1300, часть под страницей —
-    # 1150 (по снимку), иначе страница до 820, остальное снимкам справа.
-    col_w = 1300 if not right else (1150 if below else 820)
-    s_tp = min(col_w / tp.width, PAGE_H / tp.height, 2.2)
+    s_tp = min(src_w / tp.width, PAGE_H / tp.height, 2.2)
     tp = tp.resize((int(tp.width * s_tp), int(tp.height * s_tp)), Image.LANCZOS)
-    col_w = max(col_w, tp.width) if below else tp.width
+    col_w = max(src_w, tp.width) if below else tp.width
 
     # Стрелки идут как на схеме соединений, не поперёк страницы:
     #   к снимку под страницей — вниз до своей полосы под страницей, влево до
     #   своего коридора у левого края и горизонтально в поле;
     #   к снимку справа — вправо (если правее рамки пусто), вверх или вниз до
     #   своей полосы, по коридору между колонками и горизонтально в поле.
-    LANE = 20
     boxes = [[(v - crop[k % 2]) * s_tp for k, v in enumerate(l[0])] for l in links]
 
     def exit_of(i):
@@ -277,7 +253,6 @@ def figure(doc, links, page, crop, under=()):
     lstep = 22
     left_g = (40 + lstep * len(lefts)) if lefts else 0
 
-    cap_f = font(22, True)
     placed, blocks = {}, []
     src_x, src_y = PAD + left_g, PAD + top_m
     page_bot = src_y + tp.height
@@ -298,14 +273,15 @@ def figure(doc, links, page, crop, under=()):
     y = PAD
     for shot in right:
         y = put(shot, right_x, y, SHOT_W)
-    height = max(page_bot + bot_m + PAD, left_bot, y)
-    width = (right_x + SHOT_W if right else src_x + col_w) + PAD
-    portrait, fit = fit_on_sheet(width, height)
+    height = int(max(page_bot + bot_m + PAD, left_bot, y))
+    width = int((right_x + SHOT_W if right else src_x + col_w) + PAD)
+    fit = min(VIEW_W / width, VIEW_H / height)
     score = fit * min([s_tp] + [placed[sh][2] for sh in shots])
 
-    canvas = Image.new('RGB', (int(width), int(height)), 'white')
+    canvas = Image.new('RGB', (width, height), 'white')
     canvas.paste(tp, (src_x, src_y))
     d = ImageDraw.Draw(canvas)
+    cap_f = font(22, True)
     for shot, img, x, top in blocks:
         d.text((x, top), shot[1], fill='#1F3A4D', font=cap_f)
         canvas.paste(img, (int(x), int(top + 34)))
@@ -332,106 +308,308 @@ def figure(doc, links, page, crop, under=()):
     for g, i in enumerate(rights):
         gutter[i] = src_x + col_w + 30 + g * step
 
-    for i, (box, shot, sbox, what, where) in enumerate(links):
-        color = COLORS[i % len(COLORS)]
+    geo = []
+    for i in range(len(links)):
         x0, y0, x1, y1 = boxes[i]
-        x0, x1, y0, y1 = x0 + src_x, x1 + src_x, y0 + src_y, y1 + src_y
-        d.rectangle((x0, y0, x1, y1), outline=color, width=4)
-        a0, b0, a1, b1 = targets[i]
-        d.rectangle((a0, b0, a1, b1), outline=color, width=4)
-        gx, ty = gutter[i], (b0 + b1) / 2
+        box = (x0 + src_x, y0 + src_y, x1 + src_x, y1 + src_y)
+        tgt = targets[i]
+        gx, ty = gutter[i], (tgt[1] + tgt[3]) / 2
         if exits[i] == 'right':
-            pts = [(x1, (y0 + y1) / 2), (gx, (y0 + y1) / 2)]
+            pts = [(box[2], (box[1] + box[3]) / 2), (gx, (box[1] + box[3]) / 2)]
         else:
-            cx = (x0 + x1) / 2
-            pts = [(cx, y0 if exits[i] == 'up' else y1), (cx, lane_y[i]), (gx, lane_y[i])]
-        pts.append((gx, ty))
-        d.line(pts, fill=color, width=4, joint='curve')
-        arrow(d, (gx, ty), (a0 - 4, ty), color)
-    return canvas, portrait, score, (boxes, targets, src_x, src_y)
+            cx = (box[0] + box[2]) / 2
+            pts = [(cx, box[1] if exits[i] == 'up' else box[3]), (cx, lane_y[i]), (gx, lane_y[i])]
+        pts += [(gx, ty), (tgt[0] - 4, ty)]
+        geo.append((box, tgt, pts))
+    return score, canvas, geo
 
 
-def best_figure(doc, chapter, name, title, page, crop, links, start):
-    """Перебирает раскладки (какие снимки под страницей, какие справа) и
-    оставляет ту, где самый мелкий исходник выходит на листе крупнее всего."""
+def best_layout(doc, page, crop, links):
+    """Перебирает раскладки (ширина куска страницы; какие снимки под ним,
+    какие справа) и оставляет ту, где самый мелкий исходник выходит на
+    широком экране крупнее всего."""
     shots = []
     for _, shot, *_ in links:
         if shot not in shots:
             shots.append(shot)
     best = None
-    for r in range(len(shots) + 1):
-        for under in itertools.combinations(shots, r):
-            res = figure(doc, links, page, crop, under)
-            if best is None or res[2] > best[2] * 1.0001:
-                best = res
-    canvas, portrait, _, (boxes, targets, src_x, src_y) = best
-    d = ImageDraw.Draw(canvas)
-    rows = []
-    for i, (box, shot, sbox, what, where) in enumerate(links):
+    for src_w in SOURCE_WIDTHS:
+        for r in range(len(shots) + 1):
+            for under in itertools.combinations(shots, r):
+                res = layout(doc, links, page, crop, under, src_w)
+                if best is None or res[0] > best[0] * 1.0001:
+                    best = res
+    return best[1], best[2]
+
+
+def esc(text):
+    return html.escape(str(text), quote=True)
+
+
+def svg_links(geo, start):
+    """Слой стрелок поверх разворота: у каждой связи своя группа, чтобы её
+    можно было подсветить из таблицы."""
+    out = []
+    for i, (box, tgt, pts) in enumerate(geo):
         n, color = start + i, COLORS[i % len(COLORS)]
-        badge(d, boxes[i][0] + src_x, boxes[i][1] + src_y, n, color)
-        badge(d, targets[i][0], targets[i][1], n, color)
-        rows.append((n, what, where))
-    path = os.path.join(OUT_DIR, '%d. %s, стр. %02d — %s.png' % (chapter, name, page, title))
-    canvas.save(path)
-    return path, rows, portrait
-
-
-def set_page(sec, portrait):
-    sec.orientation = WD_ORIENT.PORTRAIT if portrait else WD_ORIENT.LANDSCAPE
-    sec.page_width, sec.page_height = (Cm(21.0), Cm(29.7)) if portrait else (Cm(29.7), Cm(21.0))
-    for side in ('left_margin', 'right_margin', 'top_margin', 'bottom_margin'):
-        setattr(sec, side, Cm(1.5))
+        line = ' '.join('%.0f,%.0f' % p for p in pts)
+        (ax, ay), (bx, by) = pts[-2], pts[-1]
+        ang = math.atan2(by - ay, bx - ax)
+        L, W = 22, 11
+        head = [(bx, by),
+                (bx - L * math.cos(ang) + W * math.sin(ang), by - L * math.sin(ang) - W * math.cos(ang)),
+                (bx - L * math.cos(ang) - W * math.sin(ang), by - L * math.sin(ang) + W * math.cos(ang))]
+        rect = lambda r: '<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="3"/>' % (
+            r[0], r[1], r[2] - r[0], r[3] - r[1])
+        badge_svg = lambda x, y: ('<g class="badge"><circle cx="%.0f" cy="%.0f" r="17"/>'
+                                  '<text x="%.0f" y="%.0f">%d</text></g>' % (x, y, x, y + 7, n))
+        out.append(
+            '<g class="lk" data-link="%d" style="--c:%s">%s%s<polyline points="%s"/>'
+            '<polygon points="%s"/>%s%s</g>' % (
+                n, color, rect(box), rect(tgt), line,
+                ' '.join('%.0f,%.0f' % p for p in head),
+                badge_svg(box[0], box[1]), badge_svg(tgt[0], tgt[1])))
+    return ''.join(out)
 
 
 def build():
-    os.makedirs(OUT_DIR, exist_ok=True)
-    # Папка картинок целиком собирается сборщиком — старые снимки убираются.
-    for f in os.listdir(OUT_DIR):
-        if f.endswith('.png'):
-            os.remove(os.path.join(OUT_DIR, f))
-    doc = Document()
-    doc.styles['Normal'].font.name = 'Calibri'
-    doc.styles['Normal'].font.size = Pt(10)
-    total, first = 0, True
+    parts, toc = [], []
+    total = 0
     for c, (chapter, pdf_path, name, figures) in enumerate(CHAPTERS):
         pdf = fitz.open(pdf_path)
+        cid = 'ch%d' % (c + 1)
+        toc.append('<li class="toc-ch"><a href="#%s">%s</a><ol>' % (cid, esc(chapter)))
+        parts.append('<section class="chapter" id="%s"><h2>%s</h2>' % (cid, esc(chapter)))
         n = 1
         for i, (title, page, crop, links) in enumerate(figures):
-            path, rows, portrait = best_figure(pdf, c + 1, name, title, page, crop, links, n)
+            canvas, geo = best_layout(pdf, page, crop, links)
+            buf = io.BytesIO()
+            canvas.save(buf, 'JPEG', quality=86, optimize=True)
+            data = base64.b64encode(buf.getvalue()).decode()
+            fid = '%s-%d' % (cid, i + 1)
+            toc.append('<li><a href="#%s">%s <span>стр. %d</span></a></li>' % (fid, esc(title), page))
+            rows = ''.join(
+                '<tr data-link="%d"><td class="num"><span style="--c:%s">%d</span></td><td>%s</td><td>%s</td></tr>' % (
+                    n + k, COLORS[k % len(COLORS)], n + k, esc(l[3]), esc(l[4]))
+                for k, l in enumerate(links))
+            parts.append(
+                '<article class="fig" id="%s"><header><h3>%s</h3><span class="page">%s, стр. %d</span></header>'
+                '<div class="stage" tabindex="0" title="Открыть крупно">'
+                '<svg viewBox="0 0 %d %d" role="img" aria-label="%s">'
+                '<image href="data:image/jpeg;base64,%s" width="%d" height="%d"/>%s</svg></div>'
+                '<table class="links"><thead><tr><th>№</th><th>%s</th><th>Система</th></tr></thead>'
+                '<tbody>%s</tbody></table></article>' % (
+                    fid, esc(title), esc(name), page, canvas.width, canvas.height, esc(title),
+                    data, canvas.width, canvas.height, svg_links(geo, n), esc(name), rows))
             n += len(links)
-            # Каждая картинка — на своём листе: высокая на книжном, широкая на альбомном.
-            sec = doc.sections[0] if first else doc.add_section(WD_SECTION.NEW_PAGE)
-            first = False
-            set_page(sec, portrait)
-            if i == 0:
-                doc.add_heading(chapter, level=1)
-            doc.add_heading('%s (стр. %d)' % (title, page), level=2)
-            # Картинка вписывается в лист; таблица связей идёт следом и при
-            # нехватке места уходит на следующий лист.
-            box_w, box_h = PORTRAIT_BOX if portrait else LANDSCAPE_BOX
-            with Image.open(path) as im:
-                ratio = im.width / im.height
-            if ratio >= box_w / box_h:
-                doc.add_picture(path, width=Cm(box_w))
-            else:
-                doc.add_picture(path, height=Cm(box_h))
-            t = doc.add_table(rows=1, cols=3)
-            t.style = 'Light Grid Accent 1'
-            for cell, text in zip(t.rows[0].cells, ('№', name, 'Система')):
-                cell.text = text
-            for num, what, where in rows:
-                cells = t.add_row().cells
-                cells[0].text, cells[1].text, cells[2].text = str(num), what, where
-            widths = (Cm(1.2), Cm(6), Cm(10.8)) if portrait else (Cm(1.2), Cm(9), Cm(16.5))
-            for row in t.rows:
-                for cell, w in zip(row.cells, widths):
-                    cell.width = w
         total += n - 1
-    doc.save(OUT_DOCX)
+        toc.append('</ol></li>')
+        parts.append('</section>')
+    page_html = TEMPLATE.replace('{{TOC}}', ''.join(toc)).replace('{{BODY}}', ''.join(parts))
+    with io.open(OUT_HTML, 'w', encoding='utf-8') as f:
+        f.write(page_html)
     return total
+
+
+TEMPLATE = '''<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Перенос документов в систему</title>
+<style>
+:root{
+  --bg:#EEF2F5; --card:#FFFFFF; --ink:#1C2A35; --muted:#5F7180; --line:#D5DDE3;
+  --accent:#1F5F8B; --accent-soft:#E3EEF6; --shadow:0 1px 2px rgba(20,40,60,.06),0 4px 16px rgba(20,40,60,.06);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:100vh}
+nav{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px 32px;
+  background:var(--card);border-right:1px solid var(--line)}
+nav h1{font-size:18px;line-height:1.3;margin:0 0 18px;text-wrap:balance}
+nav ol{list-style:none;margin:0;padding:0}
+.toc-ch{margin:0 0 16px}
+.toc-ch>a{display:block;font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--muted);
+  text-decoration:none;margin-bottom:6px;text-transform:uppercase}
+.toc-ch ol a{display:block;padding:6px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px}
+.toc-ch ol a span{display:block;color:var(--muted);font-size:12px}
+.toc-ch ol a:hover{background:var(--accent-soft)}
+.toc-ch ol a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+main{padding:28px 32px 80px;max-width:1800px}
+.chapter>h2{font-size:22px;margin:8px 0 18px;text-wrap:balance}
+.chapter+.chapter{margin-top:44px}
+.fig{background:var(--card);border-radius:10px;box-shadow:var(--shadow);padding:18px 20px 20px;margin:0 0 28px}
+.fig header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:12px}
+.fig h3{font-size:17px;margin:0;text-wrap:balance}
+.fig .page{color:var(--muted);font-size:13px}
+.stage{cursor:zoom-in;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff}
+.stage:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.stage svg{display:block;width:100%;height:auto}
+.lk rect{fill:none;stroke:var(--c);stroke-width:4}
+.lk polyline{fill:none;stroke:var(--c);stroke-width:4;stroke-linejoin:round}
+.lk polygon{fill:var(--c)}
+.lk .badge circle{fill:var(--c);stroke:#fff;stroke-width:3}
+.lk .badge text{fill:#fff;font:700 20px "Segoe UI",Arial,sans-serif;text-anchor:middle}
+.lk{transition:opacity .15s}
+svg.hl .lk{opacity:.12}
+svg.hl .lk.on{opacity:1}
+svg.hl .lk.on polyline,svg.hl .lk.on rect{stroke-width:7}
+table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+.links th{text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;padding:6px 10px;border-bottom:1px solid var(--line)}
+.links td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.links th:first-child,.links td.num{width:52px}
+.links th:nth-child(2){width:38%}
+.links td.num span{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;
+  border-radius:13px;background:var(--c);color:#fff;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.links tr{cursor:default}
+.links tr.on td{background:var(--accent-soft)}
+/* Просмотр крупно */
+.viewer{position:fixed;inset:0;background:rgba(18,28,36,.92);display:none;z-index:10}
+.viewer.open{display:block}
+.viewer .top{position:absolute;left:0;right:0;top:0;height:60px;display:flex;align-items:center;gap:16px;
+  padding:0 14px 0 20px;background:#15212B;z-index:2}
+.viewer .pane{position:absolute;left:0;right:0;top:60px;bottom:0;overflow:hidden;cursor:grab}
+.viewer .pane.drag{cursor:grabbing}
+.viewer svg{position:absolute;left:0;top:0;transform-origin:0 0;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+.viewer .bar{display:flex;gap:8px;margin-left:auto}
+.viewer .title{color:#fff;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer .hint{color:#9FB2C0;font-size:13px;white-space:nowrap}
+.viewer button{font:600 14px "Segoe UI",Arial,sans-serif;min-width:40px;height:40px;padding:0 12px;border:0;border-radius:8px;
+  background:#fff;color:var(--ink);cursor:pointer}
+.viewer button:hover{background:var(--accent-soft)}
+.viewer button:focus-visible{outline:3px solid #8FC3E8}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr}
+  nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:16px}
+  .fig{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.lk{transition:none}}
+@media print{nav,.viewer{display:none}.layout{display:block}.fig{break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav aria-label="Оглавление"><h1>Перенос документов в систему</h1><ol>{{TOC}}</ol></nav>
+<main>{{BODY}}</main>
+</div>
+<div class="viewer" role="dialog" aria-modal="true" aria-label="Разворот крупно">
+  <div class="top">
+  <div class="title"></div>
+  <div class="hint">Колесо — масштаб · перетаскивание — сдвиг · двойной щелчок — по окну</div>
+  <div class="bar">
+    <button type="button" data-z="out" title="Мельче (−)">−</button>
+    <button type="button" data-z="fit" title="По размеру окна (0)">По окну</button>
+    <button type="button" data-z="in" title="Крупнее (+)">+</button>
+    <button type="button" data-z="close" title="Закрыть (Esc)">✕</button>
+  </div>
+  </div>
+  <div class="pane"></div>
+</div>
+<script>
+(function(){
+  // Подсветка связи: строка таблицы <-> стрелка на развороте.
+  function mark(fig, n){
+    fig.querySelectorAll('svg').forEach(function(s){ s.classList.toggle('hl', !!n); });
+    fig.querySelectorAll('[data-link]').forEach(function(el){
+      el.classList.toggle('on', !!n && el.getAttribute('data-link') === n);
+    });
+  }
+  document.querySelectorAll('.fig').forEach(function(fig){
+    fig.addEventListener('mouseover', function(e){
+      var el = e.target.closest('[data-link]');
+      mark(fig, el ? el.getAttribute('data-link') : null);
+    });
+    fig.addEventListener('mouseleave', function(){ mark(fig, null); });
+  });
+
+  // Оглавление: отмечается разворот, который сейчас на экране.
+  var tocLinks = {};
+  document.querySelectorAll('nav ol ol a').forEach(function(a){ tocLinks[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting){
+          Object.keys(tocLinks).forEach(function(k){ tocLinks[k].classList.toggle('on', k === en.target.id); });
+        }
+      });
+    }, {rootMargin:'-40% 0px -55% 0px'});
+    document.querySelectorAll('.fig').forEach(function(f){ io.observe(f); });
+  }
+
+  // Просмотр крупно: масштаб колесом к точке под курсором, сдвиг перетаскиванием.
+  var viewer = document.querySelector('.viewer'), pane = viewer.querySelector('.pane');
+  var svg = null, W = 0, H = 0, z = 1, x = 0, y = 0, lastFocus = null;
+  function apply(){ svg.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + z + ')'; }
+  function fit(){
+    var r = pane.getBoundingClientRect();
+    z = Math.min((r.width - 40) / W, (r.height - 40) / H);
+    x = (r.width - W * z) / 2; y = (r.height - H * z) / 2; apply();
+  }
+  function zoomAt(k, cx, cy){
+    var nz = Math.min(6, Math.max(0.1, z * k));
+    x = cx - (cx - x) * nz / z; y = cy - (cy - y) * nz / z; z = nz; apply();
+  }
+  function open(fig){
+    var src = fig.querySelector('svg');
+    svg = src.cloneNode(true);
+    var vb = src.viewBox.baseVal; W = vb.width; H = vb.height;
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    pane.innerHTML = ''; pane.appendChild(svg);
+    viewer.querySelector('.title').textContent = fig.querySelector('h3').textContent;
+    lastFocus = document.activeElement;
+    viewer.classList.add('open'); document.body.style.overflow = 'hidden';
+    fit(); viewer.querySelector('[data-z="close"]').focus();
+  }
+  function close(){
+    viewer.classList.remove('open'); document.body.style.overflow = ''; pane.innerHTML = '';
+    if (lastFocus) lastFocus.focus();
+  }
+  document.querySelectorAll('.stage').forEach(function(st){
+    st.addEventListener('click', function(){ open(st.closest('.fig')); });
+    st.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(st.closest('.fig')); } });
+  });
+  viewer.querySelector('.bar').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    var r = pane.getBoundingClientRect(), a = b.getAttribute('data-z');
+    if (a === 'close') close();
+    else if (a === 'fit') fit();
+    else zoomAt(a === 'in' ? 1.25 : 0.8, r.width / 2, r.height / 2);
+  });
+  pane.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var r = pane.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top);
+  }, {passive:false});
+  var drag = null;
+  pane.addEventListener('pointerdown', function(e){
+    drag = {px:e.clientX, py:e.clientY, x:x, y:y}; pane.setPointerCapture(e.pointerId); pane.classList.add('drag');
+  });
+  pane.addEventListener('pointermove', function(e){
+    if (!drag) return; x = drag.x + e.clientX - drag.px; y = drag.y + e.clientY - drag.py; apply();
+  });
+  pane.addEventListener('pointerup', function(){ drag = null; pane.classList.remove('drag'); });
+  pane.addEventListener('dblclick', fit);
+  document.addEventListener('keydown', function(e){
+    if (!viewer.classList.contains('open')) return;
+    var r = pane.getBoundingClientRect();
+    if (e.key === 'Escape') close();
+    else if (e.key === '+' || e.key === '=') zoomAt(1.25, r.width / 2, r.height / 2);
+    else if (e.key === '-') zoomAt(0.8, r.width / 2, r.height / 2);
+    else if (e.key === '0') fit();
+  });
+  window.addEventListener('resize', function(){ if (viewer.classList.contains('open')) fit(); });
+})();
+</script>
+</body>
+</html>
+'''
 
 
 if __name__ == '__main__':
     print('связей:', build())
-    print(OUT_DOCX)
+    print(OUT_HTML)
