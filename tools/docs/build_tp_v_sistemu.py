@@ -21,6 +21,7 @@
 разворота крупно (колесо — масштаб, перетаскивание — сдвиг).
 """
 import base64
+import heapq
 import html
 import io
 import itertools
@@ -62,26 +63,26 @@ LAND_AREAS = ('Screenshot 2026-09-24 144652.png', 'Земельный участ
 # снимок, рамка на снимке, графа техпаспорта, блок и поле системы).
 TP_FIGURES = [
     ('Титульный лист', 1, None, [
-        ((58, 140, 720, 174), OC_PLACE, (18, 66, 934, 142), 'Идентификационный код',
+        ((285, 140, 722, 170), OC_PLACE, (18, 66, 934, 142), 'Идентификационный код',
          'Объект оценки · Местоположение · Код ЕНИ'),
-        ((58, 226, 792, 270), OC_PLACE, (15, 158, 932, 327), 'Адрес',
+        ((115, 221, 610, 248), OC_PLACE, (15, 158, 932, 327), 'Адрес',
          'Объект оценки · Местоположение · Область, Город или село, Район, Улица, Дом'),
-        ((58, 360, 792, 424), LIT_GEN, (288, 208, 562, 270), 'Назначение недвижимости',
+        ((366, 360, 524, 398), LIT_GEN, (288, 208, 562, 270), 'Назначение недвижимости',
          'Литера · Общие параметры · Назначение по тех паспорту'),
-        ((66, 450, 787, 762), OC_PARTIES, (6, 158, 702, 197), 'Собственник, часть (доля), документы на право '
+        ((60, 588, 860, 672), OC_PARTIES, (6, 158, 702, 197), 'Собственник, часть (доля), документы на право '
          'собственности', 'Объект оценки · Учреждение, собственники и ответственные · Собственник: наименование, '
          'доля, ПУД'),
-        ((66, 783, 787, 967), OC_PARTIES, (6, 199, 702, 239), 'Пользователь, часть (доля), документы на право '
+        ((66, 808, 787, 958), OC_PARTIES, (6, 199, 702, 239), 'Пользователь, часть (доля), документы на право '
          'пользования', 'Объект оценки · Учреждение, собственники и ответственные · Пользователь'),
     ]),
     ('Экспликация к плану основных строений, 1 этаж', 3, (30, 130, 415, 700), [
-        ((214, 650, 404, 678), LIT_AREAS, (63, 421, 414, 454), 'Итого по этажу (1 этаж), общая площадь',
+        ((352, 650, 404, 678), LIT_AREAS, (63, 421, 414, 454), 'Итого по этажу (1 этаж), общая площадь',
          'Литера · Площади и этажность · Надземные, строка «1 этаж», по внутреннему обмеру'),
     ]),
     ('Экспликация к плану основных строений, 2 этаж и всего', 4, (30, 130, 415, 900), [
-        ((208, 782, 400, 806), LIT_AREAS, (63, 457, 414, 491), 'Всего по этажу (2 этаж), общая площадь',
+        ((352, 782, 402, 806), LIT_AREAS, (63, 457, 414, 491), 'Всего по этажу (2 этаж), общая площадь',
          'Литера · Площади и этажность · Надземные, строка «2 этаж», по внутреннему обмеру'),
-        ((208, 854, 400, 880), LIT_AREAS, (493, 38, 979, 97), 'Всего, общая площадь',
+        ((352, 854, 402, 880), LIT_AREAS, (493, 38, 979, 97), 'Всего, общая площадь',
          'Литера · Площади и этажность · Площадь по внутреннему обмеру'),
     ]),
     ('Характеристика строений и сооружений по наружным замерам', 9, (50, 70, 800, 560), [
@@ -124,15 +125,15 @@ TP2015_FIGURES = [
         ((650, 470, 702, 760), LIT_ANNEX, AN_ROOF, 'Кровли', 'Литера · Пристройки · Кровля'),
     ]),
     ('Таблица № 8. Наружные параметры основного строения и примыкающих пристроек', 5, (30, 790, 890, 1200), [
-        ((190, 876, 560, 906), LIT_GEN, (4, 63, 332, 137), 'Наименование строения, литера',
+        ((188, 882, 540, 914), LIT_GEN, (4, 63, 332, 137), 'Наименование строения, литера',
          'Литера · Общие параметры · Литера, Наименование'),
-        ((560, 876, 670, 906), LIT_AREAS_H, (6, 116, 489, 166), 'Площадь',
+        ((536, 880, 648, 910), LIT_AREAS_H, (6, 116, 489, 166), 'Площадь',
          'Литера · Площади и этажность · Площадь по внешним замерам'),
-        ((670, 876, 770, 906), LIT_AREAS_H, (6, 590, 489, 640), 'Высота',
+        ((652, 877, 760, 907), LIT_AREAS_H, (6, 590, 489, 640), 'Высота',
          'Литера · Площади и этажность · Высота по внешним замерам'),
-        ((770, 876, 880, 906), LIT_GEN, (8, 138, 284, 194), 'Год постройки',
+        ((770, 870, 880, 900), LIT_GEN, (8, 138, 284, 194), 'Год постройки',
          'Литера · Общие параметры · Год постройки'),
-        ((190, 908, 670, 1196), LIT_ANNEX, (152, 48, 692, 110), 'Строки пристроек: наименование, литера, площадь',
+        ((188, 912, 648, 1196), LIT_ANNEX, (152, 48, 692, 110), 'Строки пристроек: наименование, литера, площадь',
          'Литера · Пристройки · Литера, Вид, По внешним замерам'),
     ]),
     ('Таблица № 9. Сооружения и мелкие постройки', 6, (30, 40, 880, 668), [
@@ -172,7 +173,7 @@ CHAPTERS = [
 COLORS = ['#D1495B', '#2E86AB', '#EDAE49', '#3B8B5A', '#8E5BB5', '#D9772B', '#1B998B']
 PAGE_H = 1400      # высота страницы техпаспорта на картинке
 SHOT_W = 1150      # ширина снимка системы на картинке
-GAP = 260          # поле между страницей и снимками — под стрелки
+GAP = 230          # поле между страницей и снимками — под стрелки
 PAD = 24
 
 
@@ -202,15 +203,17 @@ def shot_image(shot):
 VIEW_W, VIEW_H = 1600, 1000
 # Ширины куска страницы, из которых выбирается раскладка, пиксели разворота.
 SOURCE_WIDTHS = (600, 820, 1050, 1300)
-LANE = 20
+# Поля вокруг разворота и зазор между страницей и снимками под ней — под стрелки.
+MARGIN = 60
+BELOW_GAP = 110
 
 
 def layout(doc, links, page, crop, under=(), src_w=820):
     """Один вариант раскладки разворота «кусок страницы → снимки системы».
 
     under — снимки, которые встают под кусок страницы; прочие идут колонкой
-    справа. Возвращает (оценка, картинка без стрелок, связи), где связь —
-    рамка на странице, рамка на снимке и ломаная стрелки.
+    справа. Возвращает (оценка, картинка, рамки на странице, рамки на
+    снимках, прямоугольники картинок) — стрелки прокладывает route_links.
     """
     tp = page_image(doc, page)
     crop = crop or (0, 0, tp.width, tp.height)
@@ -225,36 +228,8 @@ def layout(doc, links, page, crop, under=(), src_w=820):
     tp = tp.resize((int(tp.width * s_tp), int(tp.height * s_tp)), Image.LANCZOS)
     col_w = max(src_w, tp.width) if below else tp.width
 
-    # Стрелки идут как на схеме соединений, не поперёк страницы:
-    #   к снимку под страницей — вниз до своей полосы под страницей, влево до
-    #   своего коридора у левого края и горизонтально в поле;
-    #   к снимку справа — вправо (если правее рамки пусто), вверх или вниз до
-    #   своей полосы, по коридору между колонками и горизонтально в поле.
-    boxes = [[(v - crop[k % 2]) * s_tp for k, v in enumerate(l[0])] for l in links]
-
-    def exit_of(i):
-        bx = boxes[i]
-        if links[i][1] in below:
-            return 'left'
-        tall = (bx[3] - bx[1]) > (bx[2] - bx[0])
-        blocked = any(o is not bx and o[0] >= bx[2] - 2 and o[1] < bx[3] and o[3] > bx[1] for o in boxes)
-        if not tall and not blocked and bx[2] >= 0.78 * tp.width:
-            return 'right'
-        if tall or (bx[1] + bx[3]) / 2 < tp.height / 2:
-            return 'up'
-        return 'down'
-    exits = [exit_of(i) for i in range(len(links))]
-    ups = sorted((i for i, e in enumerate(exits) if e == 'up'), key=lambda i: boxes[i][0])
-    downs = sorted((i for i, e in enumerate(exits) if e == 'down'), key=lambda i: boxes[i][0])
-    lefts = [i for i, e in enumerate(exits) if e == 'left']
-    top_m = (LANE * len(ups) + 14) if ups else 0
-    bot_n = len(downs) + len(lefts)
-    bot_m = (LANE * bot_n + 14) if bot_n else 0
-    lstep = 22
-    left_g = (40 + lstep * len(lefts)) if lefts else 0
-
     placed, blocks = {}, []
-    src_x, src_y = PAD + left_g, PAD + top_m
+    src_x, src_y = MARGIN, MARGIN
     page_bot = src_y + tp.height
 
     def put(shot, x, y, w):
@@ -265,16 +240,16 @@ def layout(doc, links, page, crop, under=(), src_w=820):
         placed[shot] = (x - scrop[0] * k, y + 34 - scrop[1] * k, k)
         return y + 34 + img.height + 40
 
-    y = page_bot + bot_m + 20
+    y = page_bot + BELOW_GAP
     for shot in below:
         y = put(shot, src_x, y, col_w)
     left_bot = y
     right_x = src_x + col_w + GAP
-    y = PAD
+    y = MARGIN
     for shot in right:
         y = put(shot, right_x, y, SHOT_W)
-    height = int(max(page_bot + bot_m + PAD, left_bot, y))
-    width = int((right_x + SHOT_W if right else src_x + col_w) + PAD)
+    height = int(max(page_bot, left_bot - 40, y - 40) + MARGIN)
+    width = int((right_x + SHOT_W if right else src_x + col_w) + MARGIN)
     fit = min(VIEW_W / width, VIEW_H / height)
     score = fit * min([s_tp] + [placed[sh][2] for sh in shots])
 
@@ -282,52 +257,207 @@ def layout(doc, links, page, crop, under=(), src_w=820):
     canvas.paste(tp, (src_x, src_y))
     d = ImageDraw.Draw(canvas)
     cap_f = font(22, True)
+    images = [(src_x, src_y, src_x + tp.width, page_bot)]
     for shot, img, x, top in blocks:
         d.text((x, top), shot[1], fill='#1F3A4D', font=cap_f)
         canvas.paste(img, (int(x), int(top + 34)))
         d.rectangle((x - 1, top + 33, x + img.width, top + 34 + img.height), outline='#B8C4CE', width=1)
+        images.append((x, top, x + img.width, top + 34 + img.height))
 
+    boxes = [tuple((v - crop[k % 2]) * s_tp + (src_x if k % 2 == 0 else src_y) for k, v in enumerate(l[0]))
+             for l in links]
     targets = []
     for box, shot, sbox, *_ in links:
         sx, sy, k = placed[shot]
         targets.append((sx + sbox[0] * k, sy + sbox[1] * k, sx + sbox[2] * k, sy + sbox[3] * k))
-    cy = lambda i: (targets[i][1] + targets[i][3]) / 2
-    lane_y, gutter = {}, {}
-    for k, i in enumerate(ups):
-        lane_y[i] = PAD + 6 + k * LANE
-    # Левые коридоры: полю ниже всех — внешний коридор и верхняя полоса, тогда
-    # полосы не режут коридоры, а входы в поля — чужие коридоры.
-    lefts.sort(key=lambda i: -cy(i))
-    for k, i in enumerate(lefts):
-        lane_y[i] = page_bot + 8 + k * LANE
-        gutter[i] = PAD + 12 + k * lstep
-    for k, i in enumerate(downs):
-        lane_y[i] = page_bot + 8 + (len(lefts) + len(downs) - 1 - k) * LANE
-    rights = sorted((i for i in range(len(links)) if exits[i] != 'left'), key=lambda i: -cy(i))
-    step = min(26, (GAP - 70) / max(len(rights) - 1, 1))
-    for g, i in enumerate(rights):
-        gutter[i] = src_x + col_w + 30 + g * step
+    return score, canvas, boxes, targets, images
+
+
+# Прокладка стрелок по сетке с шагом STEP: у каждой стрелки кратчайший путь
+# с учётом цены — поворот, проход по картинке (там текст), пересечение
+# чужой стрелки дороже простого шага; чужие рамки и наложение на чужую
+# стрелку запрещены. Стрелка выходит из любой стороны рамки на странице и
+# входит в поле с любой стороны. Сначала прокладываются короткие связи,
+# затем каждая перекладывается ещё раз при уже проложенных остальных.
+STEP = 10
+COST_BEND = 10
+COST_IMAGE = 6
+COST_CROSS = 14
+COST_NEAR = 3
+DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+
+def route_links(size, boxes, targets, images):
+    W, H = size
+    nx, ny = W // STEP + 1, H // STEP + 1
+    base = bytearray([1]) * (nx * ny)
+    for r in images:
+        for iy in range(max(0, int(r[1] // STEP)), min(ny, int(r[3] // STEP) + 1)):
+            for ix in range(max(0, int(r[0] // STEP)), min(nx, int(r[2] // STEP) + 1)):
+                base[iy * nx + ix] = COST_IMAGE
+
+    def cells(r, m):
+        x0, y0, x1, y1 = r[0] - m, r[1] - m, r[2] + m, r[3] + m
+        out = set()
+        for iy in range(max(0, int(y0 // STEP)), min(ny, int(y1 // STEP) + 2)):
+            cyp = iy * STEP
+            if not (y0 <= cyp <= y1):
+                continue
+            for ix in range(max(0, int(x0 // STEP)), min(nx, int(x1 // STEP) + 2)):
+                if x0 <= ix * STEP <= x1:
+                    out.add(iy * nx + ix)
+        return out
+
+    all_rects = list(boxes) + list(targets)
+    near = [cells(r, 12) for r in all_rects]
+    own = [cells(r, 5) for r in all_rects]
+    edge = set()
+    for ix in range(nx):
+        edge.add(ix); edge.add((ny - 1) * nx + ix)
+    for iy in range(ny):
+        edge.add(iy * nx); edge.add(iy * nx + nx - 1)
+    n_links = len(boxes)
+
+    def search(i, occ):
+        src, tgt = boxes[i], targets[i]
+        blocked = set(edge)
+        for j, r in enumerate(near):
+            if j != i and j != n_links + i:
+                blocked |= r
+        s_own, t_own = own[i], own[n_links + i]
+        blocked |= s_own | t_own
+        tx0, ty0, tx1, ty1 = [v / STEP for v in cells_bounds(tgt)]
+
+        def h(idx):
+            x, y = idx % nx, idx // nx
+            return (max(tx0 - x, 0, x - tx1) + max(ty0 - y, 0, y - ty1))
+
+        heap, best, parent = [], {}, {}
+        scx, scy = (src[0] + src[2]) / 2, (src[1] + src[3]) / 2
+        for c in s_own:
+            x, y = c % nx, c // nx
+            for d, (dx, dy) in enumerate(DIRS):
+                n = (y + dy) * nx + (x + dx)
+                if 0 <= x + dx < nx and 0 <= y + dy < ny and n not in blocked and n not in occ:
+                    # выход ближе к середине стороны — дешевле
+                    off = abs(n % nx * STEP - scx) if dy else abs(n // nx * STEP - scy)
+                    g = 0.15 * off
+                    key = n * 4 + d
+                    if g < best.get(key, 1e18):
+                        best[key] = g; parent[key] = None
+                        heapq.heappush(heap, (g + h(n), g, key))
+        goal = None
+        while heap:
+            f, g, key = heapq.heappop(heap)
+            if key == -1:
+                goal = g; break
+            if g > best.get(key, 1e18):
+                continue
+            idx, d = divmod(key, 4)
+            x, y = idx % nx, idx // nx
+            for d2, (dx, dy) in enumerate(DIRS):
+                if (d2 ^ 1) == d and d2 // 2 == d // 2:
+                    continue  # назад
+                x2, y2 = x + dx, y + dy
+                if not (0 <= x2 < nx and 0 <= y2 < ny):
+                    continue
+                n = y2 * nx + x2
+                turn = d2 != d
+                if turn and idx in occ:
+                    continue  # поворот на чужой стрелке — наложение
+                if n in t_own:
+                    if turn:
+                        continue
+                    g2 = g + 1
+                    if g2 < best.get(-1, 1e18):
+                        best[-1] = g2; parent[-1] = key
+                        heapq.heappush(heap, (g2, g2, -1))
+                    continue
+                if n in blocked:
+                    continue
+                o = 'h' if d2 < 2 else 'v'
+                c = base[n]
+                if n in occ:
+                    if o in occ[n] or 'c' in occ[n]:
+                        continue
+                    c += COST_CROSS
+                if o == 'h':
+                    if 'h' in occ.get(n - nx, ()) or 'h' in occ.get(n + nx, ()):
+                        c += COST_NEAR
+                elif 'v' in occ.get(n - 1, ()) or 'v' in occ.get(n + 1, ()):
+                    c += COST_NEAR
+                g2 = g + c + (COST_BEND if turn else 0)
+                k2 = n * 4 + d2
+                if g2 < best.get(k2, 1e18):
+                    best[k2] = g2; parent[k2] = key
+                    heapq.heappush(heap, (g2 + h(n), g2, k2))
+        if goal is None:
+            return None
+        path, key = [], parent[-1]
+        while key is not None:
+            path.append(divmod(key, 4)); key = parent[key]
+        path.reverse()
+        return path
+
+    def mark(path, occ):
+        for k, (idx, d) in enumerate(path):
+            s = occ.setdefault(idx, set())
+            s.add('h' if d < 2 else 'v')
+            if k + 1 < len(path) and path[k + 1][1] != d:
+                s.add('c')
+        if path:
+            occ.setdefault(path[0][0], set()).add('c')
+            occ.setdefault(path[-1][0], set()).add('c')
+
+    def build_occ(paths, skip):
+        occ = {}
+        for j, p in enumerate(paths):
+            if j != skip and p:
+                mark(p, occ)
+        return occ
+
+    order = sorted(range(n_links), key=lambda i: abs((boxes[i][0] + boxes[i][2]) / 2 - (targets[i][0] + targets[i][2]) / 2)
+                   + abs((boxes[i][1] + boxes[i][3]) / 2 - (targets[i][1] + targets[i][3]) / 2))
+    paths = [None] * n_links
+    for i in order:
+        paths[i] = search(i, build_occ(paths, i))
+    for _ in range(2):
+        for i in order:
+            p = search(i, build_occ(paths, i))
+            if p:
+                paths[i] = p
 
     geo = []
-    for i in range(len(links)):
-        x0, y0, x1, y1 = boxes[i]
-        box = (x0 + src_x, y0 + src_y, x1 + src_x, y1 + src_y)
-        tgt = targets[i]
-        gx, ty = gutter[i], (tgt[1] + tgt[3]) / 2
-        if exits[i] == 'right':
-            pts = [(box[2], (box[1] + box[3]) / 2), (gx, (box[1] + box[3]) / 2)]
-        else:
-            cx = (box[0] + box[2]) / 2
-            pts = [(cx, box[1] if exits[i] == 'up' else box[3]), (cx, lane_y[i]), (gx, lane_y[i])]
-        pts += [(gx, ty), (tgt[0] - 4, ty)]
-        geo.append((box, tgt, pts))
-    return score, canvas, geo
+    for i in range(n_links):
+        src, tgt, path = boxes[i], targets[i], paths[i]
+        if not path:
+            raise RuntimeError('стрелка %d не проложена' % (i + 1))
+        pts = [((idx % nx) * STEP, (idx // nx) * STEP) for idx, _ in path]
+        # начало — на стороне рамки, конец — на стороне поля
+        (x0, y0), d0 = pts[0], path[0][1]
+        start = {0: (src[2], y0), 1: (src[0], y0), 2: (x0, src[3]), 3: (x0, src[1])}[d0]
+        (x1, y1), d1 = pts[-1], path[-1][1]
+        end = {0: (tgt[0], y1), 1: (tgt[2], y1), 2: (x1, tgt[1]), 3: (x1, tgt[3])}[d1]
+        pts = [start] + pts + [end]
+        simple = [pts[0]]
+        for k in range(1, len(pts) - 1):
+            a, b, c = simple[-1], pts[k], pts[k + 1]
+            if (a[0] == b[0] == c[0]) or (a[1] == b[1] == c[1]):
+                continue
+            simple.append(b)
+        simple.append(pts[-1])
+        geo.append((src, tgt, simple))
+    return geo
+
+
+def cells_bounds(r):
+    return (r[0], r[1], r[2], r[3])
 
 
 def best_layout(doc, page, crop, links):
     """Перебирает раскладки (ширина куска страницы; какие снимки под ним,
     какие справа) и оставляет ту, где самый мелкий исходник выходит на
-    широком экране крупнее всего."""
+    широком экране крупнее всего; затем прокладывает стрелки."""
     shots = []
     for _, shot, *_ in links:
         if shot not in shots:
@@ -339,11 +469,23 @@ def best_layout(doc, page, crop, links):
                 res = layout(doc, links, page, crop, under, src_w)
                 if best is None or res[0] > best[0] * 1.0001:
                     best = res
-    return best[1], best[2]
+    _, canvas, boxes, targets, images = best
+    return canvas, route_links(canvas.size, boxes, targets, images)
 
 
 def esc(text):
     return html.escape(str(text), quote=True)
+
+
+def badge_points(box, tgt, pts):
+    """Где стоят номера связи: у рамки на странице — на стрелке сразу за
+    рамкой (значение под рамкой не закрыто); у поля — в правом верхнем углу,
+    где у поля нет подписи."""
+    (ax, ay), (bx, by) = pts[0], pts[1]
+    seg = math.hypot(bx - ax, by - ay) or 1
+    d = min(26, seg)
+    src = (ax + (bx - ax) * d / seg, ay + (by - ay) * d / seg)
+    return src, (tgt[2] - 18, tgt[1])
 
 
 def svg_links(geo, start):
@@ -368,7 +510,7 @@ def svg_links(geo, start):
             '<polygon points="%s"/>%s%s</g>' % (
                 n, color, rect(box), rect(tgt), line,
                 ' '.join('%.0f,%.0f' % p for p in head),
-                badge_svg(box[0], box[1]), badge_svg(tgt[0], tgt[1])))
+                badge_svg(*badge_points(box, tgt, pts)[0]), badge_svg(*badge_points(box, tgt, pts)[1])))
     return ''.join(out)
 
 
