@@ -3,8 +3,8 @@
 и полям рабочей системы.
 
 Исходники — локальная папка «Примеры доков» (в .gitignore: реальный документ
-учреждения и снимки рабочей системы): скан техпаспорта в PDF и снимки блоков
-системы в «Фото системы». Результат ложится туда же — в git не попадает.
+учреждения и снимки рабочей системы): сканы техпаспорта и госакта в PDF и снимки
+блоков системы в «Фото системы». Результат ложится туда же — в git не попадает.
 
 Правила переноса (граф знаний: ref:tehpasport-sostav, ответы пользователя
 24.09.2026) определяют, какие графы связаны со стрелками; сами правила в
@@ -30,7 +30,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SRC = os.path.join(ROOT, 'Примеры доков')
 SHOTS = os.path.join(SRC, 'Фото системы')
 PDF = os.path.join(SRC, '0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf')
-OUT_DOCX = os.path.join(SRC, 'Перенос техпаспорта в систему.docx')
+GOSAKT = os.path.join(SRC, 'Госакт Б 028723.pdf')
+OUT_DOCX = os.path.join(SRC, 'Разметка техпаспорта (хар-ка строений и сооружений).docx')
 OUT_DIR = os.path.join(SRC, 'Перенос техпаспорта в систему')
 DPI = 110
 
@@ -41,17 +42,18 @@ OC_LIST = ('Screenshot 2026-09-24 144351.png', 'Объект оценки · 03 
 LIT_GEN = ('Screenshot 2026-09-24 144400.png', 'Литера · 01 Общие параметры')
 LIT_AREAS = ('Литера — 02 Площади и этажность.png', 'Литера · 02 Площади и этажность')
 LIT_AREAS_TOP = ('Литера — 02 Площади и этажность.png', 'Литера · 02 Площади и этажность', (0, 0, 990, 262))
+LAND_MAIN = ('Screenshot 2026-09-24 144646.png', 'Земельный участок · 01 Основные параметры')
 LIT_STRUCT = ('Screenshot 2026-09-24 144429.png', 'Литера · 03 Конструктив и износ', (0, 0, 847, 330))
 LAND_AREAS = ('Screenshot 2026-09-24 144652.png', 'Земельный участок · 02 Площади')
 
 # Страницы: (заголовок, страница PDF, связи). Связь: (рамка на странице,
 # снимок, рамка на снимке, графа техпаспорта, блок и поле системы).
-FIGURES = [
+TP_FIGURES = [
     ('Титульный лист', 1, None, [
         ((58, 140, 720, 174), OC_PLACE, (18, 66, 934, 142), 'Идентификационный код',
          'Объект оценки · Местоположение · Код ЕНИ'),
-        ((58, 226, 792, 270), OC_PLACE, (325, 158, 932, 327), 'Адрес',
-         'Объект оценки · Местоположение · Город или село, Улица, Дом'),
+        ((58, 226, 792, 270), OC_PLACE, (15, 158, 932, 327), 'Адрес',
+         'Объект оценки · Местоположение · Область, Город или село, Район, Улица, Дом'),
         ((58, 360, 792, 424), LIT_GEN, (288, 208, 562, 270), 'Назначение недвижимости',
          'Литера · Общие параметры · Назначение по тех паспорту'),
         ((66, 450, 787, 762), OC_PARTIES, (6, 158, 702, 197), 'Собственник, часть (доля), документы на право '
@@ -69,20 +71,6 @@ FIGURES = [
          'Литера · Площади и этажность · Надземные, строка «2 этаж», по внутреннему обмеру'),
         ((208, 854, 400, 880), LIT_AREAS, (493, 38, 979, 97), 'Всего, общая площадь',
          'Литера · Площади и этажность · Площадь по внутреннему обмеру'),
-    ]),
-    ('Кадастровый план единицы недвижимого имущества, шапка', 5, (190, 80, 800, 232), [
-        ((596, 150, 656, 222), LIT_AREAS_TOP, (6, 190, 979, 244), 'Количество этажей',
-         'Литера · Площади и этажность · Этажность (надземных)'),
-        ((654, 150, 780, 175), LIT_GEN, (288, 208, 562, 270), 'Назначение',
-         'Литера · Общие параметры · Назначение по тех паспорту'),
-        ((654, 174, 780, 198), LIT_STRUCT, (13, 163, 834, 201), 'Материал стен',
-         'Литера · Конструктив и износ · Наружные стены'),
-        ((654, 197, 780, 224), LIT_GEN, (8, 138, 284, 194), 'Год постройки',
-         'Литера · Общие параметры · Год постройки'),
-    ]),
-    ('Кадастровый план единицы недвижимого имущества, экспликация', 5, (590, 862, 810, 966), [
-        ((648, 878, 772, 954), OC_LIST, (18, 193, 987, 547), 'Экспликация: литеры А, Б, В, Г',
-         'Объект оценки · Перечень ОИ · литеры'),
     ]),
     ('Характеристика строений и сооружений по наружным замерам', 9, (50, 70, 800, 560), [
         ((61, 260, 357, 286), LIT_GEN, (4, 63, 332, 137), 'Литера А, наименование строения',
@@ -104,6 +92,37 @@ FIGURES = [
         ((380, 258, 602, 290), LAND_AREAS, (491, 128, 972, 182), 'Застроенная (последняя запись)',
          'Земельный участок · Площади · Застроенная площадь'),
     ]),
+]
+
+GA_FIGURES = [
+    ('Титульный лист', 1, (180, 440, 850, 800), [
+        ((225, 700, 800, 772), LAND_MAIN, (14, 527, 328, 576), 'О праве бессрочного пользования земельным участком',
+         'Земельный участок · Основные параметры · Права на земельный участок'),
+    ]),
+    ('Площадь и целевое назначение', 2, (40, 650, 890, 1215), [
+        ((65, 686, 870, 742), LAND_AREAS, (491, 50, 972, 106), 'Площадь участка',
+         'Земельный участок · Площади · По правоудостоверяющим документам'),
+        ((65, 1150, 870, 1205), LAND_MAIN, (14, 140, 972, 190), 'Целевое назначение и категория',
+         'Земельный участок · Основные параметры · Назначение по правоудостоверяющему документу'),
+    ]),
+    ('Идентификационный номер и место расположения', 3, (40, 60, 890, 260), [
+        ((330, 176, 615, 207), LAND_MAIN, (14, 62, 248, 115), 'Идентификационный номер',
+         'Земельный участок · Основные параметры · ЕНИ'),
+        ((618, 170, 868, 234), LAND_MAIN, (14, 215, 972, 288), 'Место расположения: улица, дом',
+         'Земельный участок · Основные параметры · Адрес: Улица, Дом'),
+        ((618, 170, 868, 234), OC_PLACE, (15, 158, 932, 240), 'Место расположения: населённый пункт',
+         'Объект оценки · Местоположение · Область, Город или село, Район'),
+    ]),
+    ('Ограничение права собственности на земельный участок', 6, (40, 240, 890, 960), [
+        ((65, 330, 872, 940), LAND_MAIN, (336, 527, 650, 576), 'Ограничения права',
+         'Земельный участок · Основные параметры · Наличие сервитутов и обременений'),
+    ]),
+]
+
+# Главы документа: (заголовок, PDF, как назван документ в таблице, страницы).
+CHAPTERS = [
+    ('Перенос техпаспорта в систему', PDF, 'Техпаспорт', TP_FIGURES),
+    ('Перенос госакта в систему', GOSAKT, 'Госакт', GA_FIGURES),
 ]
 
 COLORS = ['#D1495B', '#2E86AB', '#EDAE49', '#3B8B5A', '#8E5BB5', '#D9772B', '#1B998B']
@@ -151,7 +170,7 @@ def shot_image(shot):
     return img.crop(crop), crop
 
 
-def figure(doc, title, page, crop, links, start):
+def figure(doc, name, title, page, crop, links, start):
     tp = page_image(doc, page)
     crop = crop or (0, 0, tp.width, tp.height)
     tp = tp.crop(crop)
@@ -200,14 +219,17 @@ def figure(doc, title, page, crop, links, start):
         badge(d, x0, y0, n, color)
         badge(d, a0, b0, n, color)
         rows.append((n, what, where))
-    path = os.path.join(OUT_DIR, 'стр. %02d — %s.png' % (page, title))
+    path = os.path.join(OUT_DIR, '%s, стр. %02d — %s.png' % (name, page, title))
     canvas.save(path)
     return path, rows
 
 
 def build():
     os.makedirs(OUT_DIR, exist_ok=True)
-    pdf = fitz.open(PDF)
+    # Папка картинок целиком собирается сборщиком — старые снимки убираются.
+    for f in os.listdir(OUT_DIR):
+        if f.endswith('.png'):
+            os.remove(os.path.join(OUT_DIR, f))
     doc = Document()
     sec = doc.sections[0]
     sec.orientation = WD_ORIENT.LANDSCAPE
@@ -216,33 +238,38 @@ def build():
         setattr(sec, side, Cm(1.5))
     doc.styles['Normal'].font.name = 'Calibri'
     doc.styles['Normal'].font.size = Pt(10)
-    doc.add_heading('Перенос техпаспорта в систему', level=1)
-
-    n = 1
-    for i, (title, page, crop, links) in enumerate(FIGURES):
-        if i:
+    total = 0
+    for c, (chapter, pdf_path, name, figures) in enumerate(CHAPTERS):
+        if c:
             doc.add_page_break()
-        doc.add_heading('%s (стр. %d)' % (title, page), level=2)
-        path, rows = figure(pdf, title, page, crop, links, n)
-        n += len(links)
-        # Картинка вписывается в страницу: по ширине 26,7 см, по высоте 12,5 см.
-        with Image.open(path) as im:
-            ratio = im.width / im.height
-        if ratio >= 26.7 / 12.5:
-            doc.add_picture(path, width=Cm(26.7))
-        else:
-            doc.add_picture(path, height=Cm(12.5))
-        t = doc.add_table(rows=1, cols=3)
-        t.style = 'Light Grid Accent 1'
-        for c, text in zip(t.rows[0].cells, ('№', 'Техпаспорт', 'Система')):
-            c.text = text
-        for num, what, where in rows:
-            cells = t.add_row().cells
-            cells[0].text, cells[1].text, cells[2].text = str(num), what, where
-        for row in t.rows:
-            row.cells[0].width, row.cells[1].width, row.cells[2].width = Cm(1.2), Cm(9), Cm(16.5)
+        doc.add_heading(chapter, level=1)
+        pdf = fitz.open(pdf_path)
+        n = 1
+        for i, (title, page, crop, links) in enumerate(figures):
+            if i:
+                doc.add_page_break()
+            doc.add_heading('%s (стр. %d)' % (title, page), level=2)
+            path, rows = figure(pdf, name, title, page, crop, links, n)
+            n += len(links)
+            # Картинка вписывается в страницу: по ширине 26,7 см, по высоте 12,5 см.
+            with Image.open(path) as im:
+                ratio = im.width / im.height
+            if ratio >= 26.7 / 12.5:
+                doc.add_picture(path, width=Cm(26.7))
+            else:
+                doc.add_picture(path, height=Cm(12.5))
+            t = doc.add_table(rows=1, cols=3)
+            t.style = 'Light Grid Accent 1'
+            for cell, text in zip(t.rows[0].cells, ('№', name, 'Система')):
+                cell.text = text
+            for num, what, where in rows:
+                cells = t.add_row().cells
+                cells[0].text, cells[1].text, cells[2].text = str(num), what, where
+            for row in t.rows:
+                row.cells[0].width, row.cells[1].width, row.cells[2].width = Cm(1.2), Cm(9), Cm(16.5)
+        total += n - 1
     doc.save(OUT_DOCX)
-    return n - 1
+    return total
 
 
 if __name__ == '__main__':
