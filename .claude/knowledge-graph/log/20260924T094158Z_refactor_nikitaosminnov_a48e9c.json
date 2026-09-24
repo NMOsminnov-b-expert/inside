@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "branch": "refactor",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260924T094158Z",
+    "baseCommit": "e027638"
+  },
+  "entities": [
+    {
+      "type": "entity",
+      "name": "ref:gosakt-zemlya-kr",
+      "entityType": "Reference",
+      "observations": [
+        "Слова пользователя 24.09.2026: город, село и в целом адрес заполняются в системе по ЕНИ автоматически — место расположения из госакта не переносится, со стр. 3 госакта переносится только идентификационный номер (ЕНИ участка)."
+      ]
+    }
+  ],
+  "relations": []
+}
