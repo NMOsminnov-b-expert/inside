@@ -15,6 +15,12 @@
 
     python tools/docs/build_tp_v_sistemu.py
 
+Рамки и стрелки правятся мышью прямо на странице («Править разметку»);
+«Сохранить в файл» перезаписывает сам HTML, правки лежат в нём блоком
+box-edits. При пересборке сборщик читает этот блок и ставит рамки (и
+стрелки, если раскладка разворота не поменялась) по правкам — они важнее
+координат в FIGURES.
+
 На выходе — «Примеры доков/Перенос документов в систему.html»: один файл,
 картинки внутри, открывается в браузере без интернета. Оглавление по главам,
 подсветка связи при наведении на строку таблицы или стрелку, просмотр
@@ -22,11 +28,13 @@
 """
 import base64
 import heapq
+import json
 import html
 import io
 import itertools
 import math
 import os
+import re
 
 import fitz
 from PIL import Image, ImageDraw, ImageFont
@@ -305,7 +313,11 @@ def layout(doc, links, page, crop, under=(), src_w=820):
     for box, shot, sbox, *_ in links:
         sx, sy, k = placed[shot]
         targets.append((sx + sbox[0] * k, sy + sbox[1] * k, sx + sbox[2] * k, sy + sbox[3] * k))
-    return score, canvas, boxes, targets, images
+    # Пересчёт координат разворота в исходные: страница — (v - o) / s,
+    # снимок — так же, по своему смещению и масштабу.
+    smap = (src_x - crop[0] * s_tp, src_y - crop[1] * s_tp, s_tp)
+    tmaps = [placed[l[1]] for l in links]
+    return score, canvas, boxes, targets, images, smap, tmaps
 
 
 # Прокладка стрелок по сетке с шагом STEP: у каждой стрелки кратчайший путь
@@ -466,7 +478,11 @@ def route_links(size, boxes, targets, images):
     for i in range(n_links):
         src, tgt, path = boxes[i], targets[i], paths[i]
         if not path:
-            raise RuntimeError('стрелка %d не проложена' % (i + 1))
+            # Пути нет (рамка правлена руками и легла на чужую) — простой излом.
+            sy_, ty_ = (src[1] + src[3]) / 2, (tgt[1] + tgt[3]) / 2
+            mx = (src[2] + tgt[0]) / 2
+            geo.append((src, tgt, [(src[2], sy_), (mx, sy_), (mx, ty_), (tgt[0], ty_)]))
+            continue
         pts = [((idx % nx) * STEP, (idx // nx) * STEP) for idx, _ in path]
         # начало — на стороне рамки, конец — на стороне поля
         (x0, y0), d0 = pts[0], path[0][1]
@@ -504,8 +520,8 @@ def best_layout(doc, page, crop, links):
                 res = layout(doc, links, page, crop, under, src_w)
                 if best is None or res[0] > best[0] * 1.0001:
                     best = res
-    _, canvas, boxes, targets, images = best
-    return canvas, route_links(canvas.size, boxes, targets, images)
+    _, canvas, boxes, targets, images, smap, tmaps = best
+    return canvas, route_links(canvas.size, boxes, targets, images), smap, tmaps
 
 
 def esc(text):
@@ -523,35 +539,58 @@ def badge_points(box, tgt, pts):
     return src, (tgt[2] - 18, tgt[1])
 
 
-def svg_links(geo, start):
+def svg_links(geo, start, keys, whats, smap, tmaps):
     """Слой стрелок поверх разворота: у каждой связи своя группа, чтобы её
-    можно было подсветить из таблицы."""
+    можно было подсветить из таблицы и поправить мышью. В группе — ключ
+    связи, пересчёт координат в исходные и исходное положение для отката."""
     out = []
+    fmt = lambda v: '%.1f' % v
     for i, (box, tgt, pts) in enumerate(geo):
         n, color = start + i, COLORS[i % len(COLORS)]
-        line = ' '.join('%.0f,%.0f' % p for p in pts)
+        line = ' '.join('%.1f,%.1f' % p for p in pts)
         (ax, ay), (bx, by) = pts[-2], pts[-1]
         ang = math.atan2(by - ay, bx - ax)
         L, W = 22, 11
         head = [(bx, by),
                 (bx - L * math.cos(ang) + W * math.sin(ang), by - L * math.sin(ang) - W * math.cos(ang)),
                 (bx - L * math.cos(ang) - W * math.sin(ang), by - L * math.sin(ang) + W * math.cos(ang))]
-        rect = lambda r: '<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="3"/>' % (
-            r[0], r[1], r[2] - r[0], r[3] - r[1])
-        badge_svg = lambda x, y: ('<g class="badge"><circle cx="%.0f" cy="%.0f" r="17"/>'
-                                  '<text x="%.0f" y="%.0f">%d</text></g>' % (x, y, x, y + 7, n))
+        rect = lambda r, cls: '<rect class="%s" x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="3"/>' % (
+            cls, r[0], r[1], r[2] - r[0], r[3] - r[1])
+        badge_svg = lambda x, y: ('<g class="badge"><circle cx="%.1f" cy="%.1f" r="17"/>'
+                                  '<text x="%.1f" y="%.1f">%d</text></g>' % (x, y, x, y + 7, n))
+        bs, bt = badge_points(box, tgt, pts)
         out.append(
-            '<g class="lk" data-link="%d" style="--c:%s">%s%s<polyline points="%s"/>'
+            '<g class="lk" data-link="%d" data-key="%s" data-what="%s" data-sm="%s" data-tm="%s" '
+            'data-src0="%s" data-tgt0="%s" data-pts0="%s" style="--c:%s">%s%s'
+            '<polyline class="ln" points="%s"/><polyline class="hit" points="%s"/>'
             '<polygon points="%s"/>%s%s</g>' % (
-                n, color, rect(box), rect(tgt), line,
-                ' '.join('%.0f,%.0f' % p for p in head),
-                badge_svg(*badge_points(box, tgt, pts)[0]), badge_svg(*badge_points(box, tgt, pts)[1])))
+                n, keys[i], esc(whats[i]), ','.join('%.6f' % v for v in smap), ','.join('%.6f' % v for v in tmaps[i]),
+                ','.join(map(fmt, box)), ','.join(map(fmt, tgt)), line, color,
+                rect(box, 'src'), rect(tgt, 'tgt'), line, line,
+                ' '.join('%.1f,%.1f' % p for p in head), badge_svg(*bs), badge_svg(*bt)))
     return ''.join(out)
+
+
+def load_edits():
+    """Правки рамок и стрелок, сохранённые со страницы (блок box-edits)."""
+    try:
+        with io.open(OUT_HTML, encoding='utf-8') as f:
+            text = f.read()
+    except OSError:
+        return {}
+    m = re.search(r'<script type="application/json" id="box-edits">(.*?)</script>', text, re.S)
+    try:
+        return json.loads(m.group(1)) if m and m.group(1).strip() else {}
+    except ValueError:
+        return {}
 
 
 def build():
     parts, toc = [], []
     total = 0
+    # Правки со страницы важнее координат в FIGURES: рамка берётся из правки,
+    # стрелка — тоже, если разворот не поменял размер (раскладка та же).
+    edits, kept = load_edits(), {}
     for c, (chapter, pdf_path, name, figures) in enumerate(CHAPTERS):
         pdf = fitz.open(pdf_path)
         cid = 'ch%d' % (c + 1)
@@ -559,7 +598,18 @@ def build():
         parts.append('<section class="chapter" id="%s"><h2>%s</h2>' % (cid, esc(chapter)))
         n = 1
         for i, (title, page, crop, links) in enumerate(figures):
-            canvas, geo = best_layout(pdf, page, crop, links)
+            keys = ['%d.%d.%d' % (c + 1, i + 1, j + 1) for j in range(len(links))]
+            links = list(links)
+            for j, key in enumerate(keys):
+                e = edits.get(key)
+                if e and e.get('what') == links[j][3]:
+                    links[j] = (tuple(e['src']), links[j][1], tuple(e['tgt']), links[j][3], links[j][4])
+                    kept[key] = e
+            canvas, geo, smap, tmaps = best_layout(pdf, page, crop, links)
+            for j, key in enumerate(keys):
+                e = kept.get(key)
+                if e and e.get('pts') and list(e.get('size', [])) == [canvas.width, canvas.height]:
+                    geo[j] = (geo[j][0], geo[j][1], [tuple(q) for q in e['pts']])
             buf = io.BytesIO()
             canvas.save(buf, 'JPEG', quality=86, optimize=True)
             data = base64.b64encode(buf.getvalue()).decode()
@@ -577,12 +627,17 @@ def build():
                 '<table class="links"><thead><tr><th>№</th><th>%s</th><th>Система</th></tr></thead>'
                 '<tbody>%s</tbody></table></article>' % (
                     fid, esc(title), esc(name), page, canvas.width, canvas.height, esc(title),
-                    data, canvas.width, canvas.height, svg_links(geo, n), esc(name), rows))
+                    data, canvas.width, canvas.height, svg_links(geo, n, keys, [l[3] for l in links], smap, tmaps),
+                    esc(name), rows))
             n += len(links)
         total += n - 1
         toc.append('</ol></li>')
         parts.append('</section>')
-    page_html = TEMPLATE.replace('{{TOC}}', ''.join(toc)).replace('{{BODY}}', ''.join(parts))
+    lost = sorted(set(edits) - set(kept))
+    if lost:
+        print('правки не применены (связь поменялась):', ', '.join(lost))
+    page_html = (TEMPLATE.replace('{{TOC}}', ''.join(toc)).replace('{{BODY}}', ''.join(parts))
+                 .replace('{{EDITS}}', json.dumps(kept, ensure_ascii=False)))
     with io.open(OUT_HTML, 'w', encoding='utf-8') as f:
         f.write(page_html)
     return total
@@ -630,6 +685,7 @@ main{padding:28px 32px 80px;max-width:1800px}
 .lk polygon{fill:var(--c)}
 .lk .badge circle{fill:var(--c);stroke:#fff;stroke-width:3}
 .lk .badge text{fill:#fff;font:700 20px "Segoe UI",Arial,sans-serif;text-anchor:middle}
+.lk .hit{fill:none;stroke:transparent;stroke-width:22;pointer-events:none}
 .lk{transition:opacity .15s}
 svg.hl .lk{opacity:.12}
 svg.hl .lk.on{opacity:1}
@@ -643,6 +699,26 @@ table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
 .links td.num span{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;
   border-radius:13px;background:var(--c);color:#fff;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
 .links tr{cursor:default}
+/* Правка разметки */
+.edit-bar{display:flex;flex-direction:column;gap:8px;margin:0 0 20px;padding:12px;border:1px solid var(--line);border-radius:8px}
+.edit-bar .row{display:flex;gap:8px;flex-wrap:wrap}
+.edit-bar button{font:600 13px "Segoe UI",Arial,sans-serif;height:34px;padding:0 12px;border:1px solid var(--line);
+  border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+.edit-bar button:hover:not(:disabled){background:var(--accent-soft)}
+.edit-bar button:disabled{opacity:.45;cursor:default}
+.edit-bar button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.edit-bar button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#ed-state{font-size:12px;color:var(--muted);min-height:16px}
+#ed-help{font-size:12px;color:var(--muted);line-height:1.45;margin:0;padding-left:16px}
+body.editing .stage{cursor:default;outline:2px dashed var(--accent);outline-offset:3px}
+body.editing .lk{opacity:1!important}
+body.editing .lk rect{fill:rgba(255,255,255,.01);cursor:move}
+body.editing .lk .hit{pointer-events:stroke;cursor:grab}
+body.editing .lk .badge{pointer-events:none}
+body.editing .lk.sel rect,body.editing .lk.sel .ln{stroke-width:6}
+.hdl{fill:#fff;stroke:#1F5F8B;stroke-width:3}
+.hdl.nw,.hdl.se{cursor:nwse-resize}
+.hdl.ne,.hdl.sw{cursor:nesw-resize}
 .links tr.on td{background:var(--accent-soft)}
 /* Просмотр крупно */
 .viewer{position:fixed;inset:0;background:rgba(18,28,36,.92);display:none;z-index:10}
@@ -671,7 +747,23 @@ table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
 </head>
 <body>
 <div class="layout">
-<nav aria-label="Оглавление"><h1>Перенос документов в систему</h1><ol>{{TOC}}</ol></nav>
+<nav aria-label="Оглавление"><h1>Перенос документов в систему</h1>
+<div class="edit-bar">
+  <div class="row">
+    <button type="button" id="ed-toggle" aria-pressed="false">Править разметку</button>
+    <button type="button" id="ed-save" disabled>Сохранить в файл</button>
+  </div>
+  <div class="row"><button type="button" id="ed-reset" disabled>Вернуть исходную связь</button></div>
+  <div id="ed-state" role="status"></div>
+  <ul id="ed-help" hidden>
+    <li>рамка — перетащить; размер — за углы</li>
+    <li>стрелка — тянуть за отрезок</li>
+    <li>двойной щелчок по стрелке — излом</li>
+    <li>щелчок по пустому месту разворота — открыть крупно, правка там тоже работает</li>
+    <li>«Сохранить в файл» — в первый раз выбрать этот же файл, дальше перезаписывается сразу</li>
+  </ul>
+</div>
+<ol>{{TOC}}</ol></nav>
 <main>{{BODY}}</main>
 </div>
 <div class="viewer" role="dialog" aria-modal="true" aria-label="Разворот крупно">
@@ -687,10 +779,12 @@ table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
   </div>
   <div class="pane"></div>
 </div>
+<script type="application/json" id="box-edits">{{EDITS}}</script>
 <script>
 (function(){
   // Подсветка связи: строка таблицы <-> стрелка на развороте.
   function mark(fig, n){
+    if (document.body.classList.contains('editing')) n = null;
     fig.querySelectorAll('svg').forEach(function(s){ s.classList.toggle('hl', !!n); });
     fig.querySelectorAll('[data-link]').forEach(function(el){
       el.classList.toggle('on', !!n && el.getAttribute('data-link') === n);
@@ -731,23 +825,33 @@ table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
     var nz = Math.min(6, Math.max(0.1, z * k));
     x = cx - (cx - x) * nz / z; y = cy - (cy - y) * nz / z; z = nz; apply();
   }
+  // Разворот переносится в просмотр целиком (не копией): правка идёт в одном месте.
+  var home = null;
   function open(fig){
-    var src = fig.querySelector('svg');
-    svg = src.cloneNode(true);
-    var vb = src.viewBox.baseVal; W = vb.width; H = vb.height;
+    svg = fig.querySelector('svg'); home = svg.parentNode;
+    var vb = svg.viewBox.baseVal; W = vb.width; H = vb.height;
     svg.setAttribute('width', W); svg.setAttribute('height', H);
-    pane.innerHTML = ''; pane.appendChild(svg);
+    pane.appendChild(svg);
     viewer.querySelector('.title').textContent = fig.querySelector('h3').textContent;
     lastFocus = document.activeElement;
     viewer.classList.add('open'); document.body.style.overflow = 'hidden';
     fit(); viewer.querySelector('[data-z="close"]').focus();
   }
   function close(){
-    viewer.classList.remove('open'); document.body.style.overflow = ''; pane.innerHTML = '';
+    viewer.classList.remove('open'); document.body.style.overflow = '';
+    if (svg && home){
+      svg.removeAttribute('width'); svg.removeAttribute('height'); svg.style.transform = '';
+      home.appendChild(svg); svg = null; home = null;
+    }
     if (lastFocus) lastFocus.focus();
   }
   document.querySelectorAll('.stage').forEach(function(st){
-    st.addEventListener('click', function(){ open(st.closest('.fig')); });
+    st.addEventListener('click', function(e){
+      // При захвате указателя щелчок приходит на сам svg, поэтому смотрим,
+      // не начался ли он на рамке или стрелке.
+      if (grabbed){ grabbed = false; return; }
+      open(st.closest('.fig'));
+    });
     st.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(st.closest('.fig')); } });
   });
   viewer.querySelector('.bar').addEventListener('click', function(e){
@@ -770,7 +874,7 @@ table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
     if (!drag) return; x = drag.x + e.clientX - drag.px; y = drag.y + e.clientY - drag.py; apply();
   });
   pane.addEventListener('pointerup', function(){ drag = null; pane.classList.remove('drag'); });
-  pane.addEventListener('dblclick', fit);
+  pane.addEventListener('dblclick', function(e){ if (!e.target.closest('.lk')) fit(); });
   document.addEventListener('keydown', function(e){
     if (!viewer.classList.contains('open')) return;
     var r = pane.getBoundingClientRect();
@@ -780,6 +884,271 @@ table.links{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
     else if (e.key === '0') fit();
   });
   window.addEventListener('resize', function(){ if (viewer.classList.contains('open')) fit(); });
+
+  // ---- Правка разметки: рамки и стрелки двигаются мышью, правки
+  // сохраняются в сам файл (блок box-edits) и переживают пересборку.
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var editsEl = document.getElementById('box-edits');
+  var edits = {};
+  try { edits = JSON.parse(editsEl.textContent || '{}'); } catch (err) { edits = {}; }
+  var editing = false, dirty = false, fileHandle = null, sel = null, op = null, dragged = false, grabbed = false;
+  var btnEdit = document.getElementById('ed-toggle'), btnSave = document.getElementById('ed-save');
+  var btnReset = document.getElementById('ed-reset'), stateEl = document.getElementById('ed-state');
+
+  function nums(s){ return s.split(',').map(Number); }
+  function clamp(v, a, b){ return a > b ? (a + b) / 2 : Math.max(a, Math.min(b, v)); }
+  function rectOf(r){
+    var x = +r.getAttribute('x'), y = +r.getAttribute('y');
+    return [x, y, x + (+r.getAttribute('width')), y + (+r.getAttribute('height'))];
+  }
+  function setRect(r, b){
+    var x0 = Math.min(b[0], b[2]), x1 = Math.max(b[0], b[2]), y0 = Math.min(b[1], b[3]), y1 = Math.max(b[1], b[3]);
+    r.setAttribute('x', x0.toFixed(1)); r.setAttribute('y', y0.toFixed(1));
+    r.setAttribute('width', Math.max(6, x1 - x0).toFixed(1)); r.setAttribute('height', Math.max(6, y1 - y0).toFixed(1));
+  }
+  function parsePts(s){ return s.split(' ').filter(Boolean).map(function(p){ return p.split(',').map(Number); }); }
+  function getPts(g){ return parsePts(g.querySelector('.ln').getAttribute('points')); }
+  function ptsStr(p){ return p.map(function(q){ return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' '); }
+  function setBadge(b, x, y){
+    var c = b.querySelector('circle'), t = b.querySelector('text');
+    c.setAttribute('cx', x); c.setAttribute('cy', y); t.setAttribute('x', x); t.setAttribute('y', y + 7);
+  }
+  function setPts(g, p){
+    var s = ptsStr(p);
+    g.querySelector('.ln').setAttribute('points', s);
+    g.querySelector('.hit').setAttribute('points', s);
+    var a = p[p.length - 2], b = p[p.length - 1];
+    var ang = Math.atan2(b[1] - a[1], b[0] - a[0]), L = 22, W = 11;
+    var h = [b, [b[0] - L * Math.cos(ang) + W * Math.sin(ang), b[1] - L * Math.sin(ang) - W * Math.cos(ang)],
+                [b[0] - L * Math.cos(ang) - W * Math.sin(ang), b[1] - L * Math.sin(ang) + W * Math.cos(ang)]];
+    g.querySelector('polygon').setAttribute('points', ptsStr(h));
+    var bs = g.querySelectorAll('.badge');
+    var p0 = p[0], p1 = p[1], len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1, d = Math.min(26, len);
+    setBadge(bs[0], p0[0] + (p1[0] - p0[0]) * d / len, p0[1] + (p1[1] - p0[1]) * d / len);
+    var t = rectOf(g.querySelector('rect.tgt'));
+    setBadge(bs[1], t[2] - 18, t[1]);
+  }
+  function isH(a, b){ return Math.abs(a[1] - b[1]) < 0.5; }
+  // Концы стрелки остаются на рамках: начало — на стороне рамки на странице,
+  // конец — на стороне поля; косые участки превращаются в изломы.
+  function fitEnds(g){
+    var s = rectOf(g.querySelector('rect.src')), t = rectOf(g.querySelector('rect.tgt'));
+    var p = getPts(g), n = p.length;
+    var h0 = isH(p[0], p[1]), hN = isH(p[n - 2], p[n - 1]);
+    if (h0){
+      p[0][0] = p[1][0] >= (s[0] + s[2]) / 2 ? s[2] : s[0];
+      p[0][1] = clamp(p[0][1], s[1] + 3, s[3] - 3);
+      if (n > 2) p[1][1] = p[0][1];
+    } else {
+      p[0][1] = p[1][1] >= (s[1] + s[3]) / 2 ? s[3] : s[1];
+      p[0][0] = clamp(p[0][0], s[0] + 3, s[2] - 3);
+      if (n > 2) p[1][0] = p[0][0];
+    }
+    if (hN){
+      p[n - 1][0] = p[n - 2][0] <= (t[0] + t[2]) / 2 ? t[0] : t[2];
+      p[n - 1][1] = clamp(p[n - 1][1], t[1] + 3, t[3] - 3);
+      if (n > 2) p[n - 2][1] = p[n - 1][1];
+    } else {
+      p[n - 1][1] = p[n - 2][1] <= (t[1] + t[3]) / 2 ? t[1] : t[3];
+      p[n - 1][0] = clamp(p[n - 1][0], t[0] + 3, t[2] - 3);
+      if (n > 2) p[n - 2][0] = p[n - 1][0];
+    }
+    var q = [p[0]];
+    for (var i = 1; i < p.length; i++){
+      var a = q[q.length - 1], b = p[i];
+      if (Math.abs(a[0] - b[0]) > 0.5 && Math.abs(a[1] - b[1]) > 0.5){
+        if (i === p.length - 1 && hN){ var mx = (a[0] + b[0]) / 2; q.push([mx, a[1]]); q.push([mx, b[1]]); }
+        else q.push([b[0], a[1]]);
+      }
+      q.push(b);
+    }
+    setPts(g, q);
+  }
+  function record(g){
+    var sm = nums(g.dataset.sm), tm = nums(g.dataset.tm), vb = g.ownerSVGElement.viewBox.baseVal;
+    var r1 = function(v){ return Math.round(v * 10) / 10; };
+    var s = rectOf(g.querySelector('rect.src')).map(function(v, i){ return r1((v - sm[i % 2]) / sm[2]); });
+    var t = rectOf(g.querySelector('rect.tgt')).map(function(v, i){ return r1((v - tm[i % 2]) / tm[2]); });
+    edits[g.dataset.key] = {what: g.dataset.what, src: s, tgt: t,
+      pts: getPts(g).map(function(q){ return [Math.round(q[0]), Math.round(q[1])]; }), size: [vb.width, vb.height]};
+    g.classList.add('edited');
+    dirty = true; showState();
+  }
+  function showState(msg){
+    var n = Object.keys(edits).length;
+    stateEl.textContent = msg || (dirty ? 'Есть несохранённые правки' : (n ? 'Правок в файле: ' + n : ''));
+    btnSave.disabled = !dirty;
+    btnReset.disabled = !sel;
+  }
+  function handles(svg){
+    var hg = svg.querySelector('g.hdls');
+    if (!hg){
+      hg = document.createElementNS(SVGNS, 'g'); hg.setAttribute('class', 'hdls');
+      ['nw', 'ne', 'sw', 'se'].forEach(function(c){
+        var r = document.createElementNS(SVGNS, 'rect');
+        r.setAttribute('class', 'hdl ' + c); r.setAttribute('data-c', c);
+        r.setAttribute('width', 14); r.setAttribute('height', 14); hg.appendChild(r);
+      });
+      svg.appendChild(hg);
+    }
+    return hg;
+  }
+  function placeHandles(){
+    document.querySelectorAll('g.hdls').forEach(function(h){ h.style.display = 'none'; });
+    if (!sel || sel.part === 'ln') return;
+    var hg = handles(sel.g.ownerSVGElement), b = rectOf(sel.g.querySelector('rect.' + sel.part));
+    hg.style.display = '';
+    hg.querySelectorAll('.hdl').forEach(function(r){
+      var c = r.getAttribute('data-c');
+      r.setAttribute('x', (c[1] === 'w' ? b[0] : b[2]) - 7); r.setAttribute('y', (c[0] === 'n' ? b[1] : b[3]) - 7);
+    });
+  }
+  function select(g, part){
+    document.querySelectorAll('.lk.sel').forEach(function(x){ x.classList.remove('sel'); });
+    sel = g ? {g: g, part: part} : null;
+    if (g) g.classList.add('sel');
+    placeHandles(); showState();
+  }
+  function svgPt(svg, e){
+    var p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function nearestSeg(p, pt){
+    var best = 0, bd = 1e18;
+    for (var k = 0; k < p.length - 1; k++){
+      var a = p[k], b = p[k + 1], d;
+      if (isH(a, b)) d = Math.abs(pt.y - a[1]) + Math.max(0, Math.min(a[0], b[0]) - pt.x, pt.x - Math.max(a[0], b[0]));
+      else d = Math.abs(pt.x - a[0]) + Math.max(0, Math.min(a[1], b[1]) - pt.y, pt.y - Math.max(a[1], b[1]));
+      if (d < bd){ bd = d; best = k; }
+    }
+    return best;
+  }
+  function onDown(e){
+    if (!editing || e.button !== 0) return;
+    var svg = e.currentTarget, t = e.target, hdl = t.closest('.hdl'), g = t.closest('.lk');
+    grabbed = false;
+    if (!hdl && !g){ select(null); return; }
+    e.preventDefault(); e.stopPropagation();
+    var start = svgPt(svg, e);
+    if (hdl){
+      op = {kind: 'resize', c: hdl.getAttribute('data-c'), g: sel.g, part: sel.part,
+            b0: rectOf(sel.g.querySelector('rect.' + sel.part))};
+    } else if (t.classList.contains('hit')){
+      select(g, 'ln');
+      var p = getPts(g), k = nearestSeg(p, start);
+      op = {kind: 'seg', g: g, k: k, p0: p, h: isH(p[k], p[k + 1])};
+    } else if (t.tagName.toLowerCase() === 'rect'){
+      var part = t.classList.contains('src') ? 'src' : 'tgt';
+      select(g, part);
+      op = {kind: 'move', g: g, part: part, b0: rectOf(t)};
+    } else return;
+    op.start = start; op.svg = svg; dragged = false; grabbed = true;
+    svg.setPointerCapture(e.pointerId);
+  }
+  function onMove(e){
+    if (!op) return;
+    var pt = svgPt(op.svg, e), dx = pt.x - op.start.x, dy = pt.y - op.start.y;
+    if (Math.abs(dx) + Math.abs(dy) > 1) dragged = true;
+    var g = op.g;
+    if (op.kind === 'move' || op.kind === 'resize'){
+      var b = op.b0.slice();
+      if (op.kind === 'move'){ b[0] += dx; b[2] += dx; b[1] += dy; b[3] += dy; }
+      else {
+        if (op.c[1] === 'w') b[0] += dx; else b[2] += dx;
+        if (op.c[0] === 'n') b[1] += dy; else b[3] += dy;
+      }
+      setRect(g.querySelector('rect.' + op.part), b);
+      fitEnds(g); placeHandles();
+    } else if (op.kind === 'seg'){
+      var p = op.p0.map(function(q){ return q.slice(); }), k = op.k, n = p.length;
+      var s = rectOf(g.querySelector('rect.src')), t = rectOf(g.querySelector('rect.tgt'));
+      var ax = op.h ? 1 : 0, v = p[k][ax] + (op.h ? dy : dx);
+      // Отрезок, упирающийся в рамку, скользит только вдоль её стороны.
+      if (k === 0) v = clamp(v, s[ax] + 3, s[ax + 2] - 3);
+      if (k === n - 2) v = clamp(v, t[ax] + 3, t[ax + 2] - 3);
+      p[k][ax] = v; p[k + 1][ax] = v;
+      setPts(g, p);
+    }
+  }
+  function onUp(e){
+    if (!op) return;
+    var g = op.g; op.svg.releasePointerCapture(e.pointerId); op = null;
+    if (dragged) record(g);
+  }
+  // Двойной щелчок по стрелке — излом: отрезок делится надвое, половину
+  // можно отвести в сторону.
+  function onDbl(e){
+    if (!editing) return;
+    // После захвата указателя событие приходит на svg — ищем стрелку под курсором.
+    var t = document.elementsFromPoint(e.clientX, e.clientY).filter(function(el){
+      return el.classList && el.classList.contains('hit');
+    })[0];
+    if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    var g = t.closest('.lk'), svg = g.ownerSVGElement, pt = svgPt(svg, e), p = getPts(g), k = nearestSeg(p, pt);
+    var m = isH(p[k], p[k + 1]) ? [pt.x, p[k][1]] : [p[k][0], pt.y];
+    p.splice(k + 1, 0, m.slice(), m.slice());
+    setPts(g, p); record(g);
+  }
+  document.querySelectorAll('.stage svg').forEach(function(svg){
+    svg.addEventListener('pointerdown', onDown);
+    svg.addEventListener('pointermove', onMove);
+    svg.addEventListener('pointerup', onUp);
+    svg.addEventListener('dblclick', onDbl);
+  });
+  btnEdit.addEventListener('click', function(){
+    editing = !editing;
+    document.body.classList.toggle('editing', editing);
+    btnEdit.textContent = editing ? 'Закончить правку' : 'Править разметку';
+    btnEdit.setAttribute('aria-pressed', editing);
+    if (!editing) select(null);
+    document.getElementById('ed-help').hidden = !editing;
+  });
+  btnReset.addEventListener('click', function(){
+    if (!sel) return;
+    var g = sel.g;
+    setRect(g.querySelector('rect.src'), nums(g.dataset.src0));
+    setRect(g.querySelector('rect.tgt'), nums(g.dataset.tgt0));
+    setPts(g, parsePts(g.dataset.pts0));
+    delete edits[g.dataset.key]; g.classList.remove('edited');
+    dirty = true; placeHandles(); showState();
+  });
+  function pageHtml(){
+    if (viewer.classList.contains('open')) close();
+    var keep = sel; select(null);
+    document.querySelectorAll('.on, .hl').forEach(function(x){ x.classList.remove('on', 'hl'); });
+    var was = editing; document.body.classList.remove('editing');
+    editsEl.textContent = JSON.stringify(edits);
+    var html = '<!DOCTYPE html>' + String.fromCharCode(10) + document.documentElement.outerHTML;
+    if (was) document.body.classList.add('editing');
+    if (keep) select(keep.g, keep.part);
+    return html;
+  }
+  btnSave.addEventListener('click', async function(){
+    var html = pageHtml();
+    try {
+      if (window.showSaveFilePicker){
+        if (!fileHandle){
+          fileHandle = await window.showSaveFilePicker({suggestedName: document.title + '.html',
+            types: [{description: 'Страница HTML', accept: {'text/html': ['.html']}}]});
+        }
+        var w = await fileHandle.createWritable(); await w.write(html); await w.close();
+      } else {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([html], {type: 'text/html'}));
+        a.download = document.title + '.html'; a.click();
+      }
+      dirty = false;
+      showState('Сохранено ' + new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}));
+    } catch (err) {
+      if (err && err.name !== 'AbortError') showState('Не сохранилось: ' + err.message);
+    }
+  });
+  window.addEventListener('beforeunload', function(e){ if (dirty){ e.preventDefault(); e.returnValue = ''; } });
+  Object.keys(edits).forEach(function(k){
+    var g = document.querySelector('.lk[data-key="' + k + '"]'); if (g) g.classList.add('edited');
+  });
+  showState();
 })();
 </script>
 </body>
