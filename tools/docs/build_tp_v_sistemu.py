@@ -37,11 +37,11 @@ OUT_DIR = os.path.join(SRC, 'Перенос техпаспорта в систе
 DPI = 110
 
 # Снимки системы: файл → подпись над снимком (чей это блок).
-OC_PARTIES = ('Screenshot 2026-09-24 144331.png', 'Объект оценки · 01 Учреждение, собственники и ответственные')
-OC_PLACE = ('Screenshot 2026-09-24 144339.png', 'Объект оценки · 02 Местоположение')
+OC_PARTIES = ('Screenshot 2026-09-24 144331.png', 'Объект оценки · 01 Учреждение, собственники и ответственные', (0, 0, 941, 248))
+OC_PLACE = ('Screenshot 2026-09-24 144339.png', 'Объект оценки · 02 Местоположение', (0, 0, 952, 336))
 OC_LIST = ('Screenshot 2026-09-24 144351.png', 'Объект оценки · 03 Перечень ОИ')
 LIT_GEN = ('Screenshot 2026-09-24 144400.png', 'Литера · 01 Общие параметры')
-LIT_AREAS = ('Литера — 02 Площади и этажность.png', 'Литера · 02 Площади и этажность')
+LIT_AREAS = ('Литера — 02 Площади и этажность.png', 'Литера · 02 Площади и этажность', (0, 0, 990, 526))
 LIT_AREAS_TOP = ('Литера — 02 Площади и этажность.png', 'Литера · 02 Площади и этажность', (0, 0, 990, 262))
 LIT_STRUCT_FULL = ('Screenshot 2026-09-24 144429.png', 'Литера · 03 Конструктив и износ', (0, 0, 847, 492))
 LIT_AREAS_H = ('Литера — 02 Площади и этажность.png', 'Литера · 02 Площади и этажность', (0, 0, 990, 646))
@@ -168,7 +168,7 @@ CHAPTERS = [
 
 COLORS = ['#D1495B', '#2E86AB', '#EDAE49', '#3B8B5A', '#8E5BB5', '#D9772B', '#1B998B']
 PAGE_H = 1400      # высота страницы техпаспорта на картинке
-SHOT_W = 900       # ширина снимка системы на картинке
+SHOT_W = 1150      # ширина снимка системы на картинке
 GAP = 260          # поле между страницей и снимками — под стрелки
 PAD = 24
 
@@ -215,19 +215,33 @@ def figure(doc, chapter, name, title, page, crop, links, start):
     tp = page_image(doc, page)
     crop = crop or (0, 0, tp.width, tp.height)
     tp = tp.crop(crop)
-    # Кусок страницы крупно: по ширине до 1150, по высоте до PAGE_H, не больше чем в 2,2 раза.
-    s_tp = min(1150 / tp.width, PAGE_H / tp.height, 2.2)
-    tp = tp.resize((int(tp.width * s_tp), int(tp.height * s_tp)))
+    # Кусок страницы: по ширине до 820, по высоте до PAGE_H, не больше чем в 2,2 раза —
+    # остальная ширина картинки отдана снимкам системы, у них мелкий шрифт.
+    s_tp = min(820 / tp.width, PAGE_H / tp.height, 2.2)
+    tp = tp.resize((int(tp.width * s_tp), int(tp.height * s_tp)), Image.LANCZOS)
 
-    # Рамка на колонке таблицы (высокая и узкая): стрелка поднимается над
-    # таблицей по своей полосе и уже оттуда идёт к полю — не режет таблицу.
-    # Левой колонке — верхняя полоса, тогда подъёмы не пересекают полосы.
-    def is_column(box):
-        return (box[3] - box[1]) > (box[2] - box[0])
-    columns = sorted((i for i, l in enumerate(links) if is_column(l[0])), key=lambda i: links[i][0][0])
-    lane_of = {i: k for k, i in enumerate(columns)}
-    LANE = 22
-    top_m = (LANE * len(columns) + 16) if columns else 0
+    # Стрелки идут как на схеме соединений, не поперёк страницы:
+    #   правее рамки на её строке пусто и она доходит почти до края — выход вправо;
+    #   иначе — вверх (верхняя половина, колонки таблиц) или вниз, до своей
+    #   полосы над или под страницей;
+    #   дальше по своему коридору между страницей и снимками и горизонтально в поле.
+    # Полосы раздаются по x рамки, коридоры — по высоте поля, так линии почти
+    # не пересекаются.
+    LANE = 20
+    boxes = [[(v - crop[k % 2]) * s_tp for k, v in enumerate(l[0])] for l in links]
+    def exit_of(bx):
+        tall = (bx[3] - bx[1]) > (bx[2] - bx[0])
+        blocked = any(o is not bx and o[0] >= bx[2] - 2 and o[1] < bx[3] and o[3] > bx[1] for o in boxes)
+        if not tall and not blocked and bx[2] >= 0.78 * tp.width:
+            return 'right'
+        if tall or (bx[1] + bx[3]) / 2 < tp.height / 2:
+            return 'up'
+        return 'down'
+    exits = [exit_of(bx) for bx in boxes]
+    ups = sorted((i for i, e in enumerate(exits) if e == 'up'), key=lambda i: boxes[i][0])
+    downs = sorted((i for i, e in enumerate(exits) if e == 'down'), key=lambda i: boxes[i][0])
+    top_m = (LANE * len(ups) + 14) if ups else 0
+    bot_m = (LANE * len(downs) + 14) if downs else 0
 
     # Снимки — по порядку первого упоминания, каждый один раз.
     shots = []
@@ -242,11 +256,11 @@ def figure(doc, chapter, name, title, page, crop, links, start):
     for shot in shots:
         img, scrop = shot_image(shot)
         s = SHOT_W / img.width
-        img = img.resize((SHOT_W, int(img.height * s)))
+        img = img.resize((SHOT_W, int(img.height * s)), Image.LANCZOS)
         blocks.append((shot, img, y))
         placed[shot] = (right_x - scrop[0] * s, y + 34 - scrop[1] * s, s)
         y += 34 + img.height + 40
-    height = max(PAD * 2 + top_m + tp.height, y)
+    height = max(PAD * 2 + top_m + tp.height + bot_m, y)
     width = right_x + SHOT_W + PAD
     canvas = Image.new('RGB', (width, height), 'white')
     canvas.paste(tp, (PAD, PAD + top_m))
@@ -256,25 +270,39 @@ def figure(doc, chapter, name, title, page, crop, links, start):
         canvas.paste(img, (right_x, top + 34))
         d.rectangle((right_x - 1, top + 33, right_x + img.width, top + 34 + img.height), outline='#B8C4CE', width=1)
 
+    page_top, page_bot = PAD + top_m, PAD + top_m + tp.height
+    lane_y = {}
+    for k, i in enumerate(ups):
+        lane_y[i] = PAD + 6 + k * LANE
+    for k, i in enumerate(downs):
+        lane_y[i] = page_bot + 8 + (len(downs) - 1 - k) * LANE
+    targets = []
+    for box, shot, sbox, *_ in links:
+        sx, sy, s = placed[shot]
+        targets.append((sx + sbox[0] * s, sy + sbox[1] * s, sx + sbox[2] * s, sy + sbox[3] * s))
+    # Левый коридор — полю ниже всех: горизонтальные входы не режут чужие коридоры.
+    order = sorted(range(len(links)), key=lambda i: -(targets[i][1] + targets[i][3]))
+    step = min(26, (GAP - 70) / max(len(links) - 1, 1))
+    gutter = {i: PAD + tp.width + 30 + g * step for g, i in enumerate(order)}
+
     rows = []
     for i, (box, shot, sbox, what, where) in enumerate(links):
         n = start + i
         color = COLORS[i % len(COLORS)]
-        x0, y0, x1, y1 = [(v - crop[i % 2]) * s_tp for i, v in enumerate(box)]
-        x0, x1, y0, y1 = x0 + PAD, x1 + PAD, y0 + PAD + top_m, y1 + PAD + top_m
+        x0, y0, x1, y1 = boxes[i]
+        x0, x1, y0, y1 = x0 + PAD, x1 + PAD, y0 + page_top, y1 + page_top
         d.rectangle((x0, y0, x1, y1), outline=color, width=4)
-        sx, sy, s = placed[shot]
-        a0, b0, a1, b1 = sx + sbox[0] * s, sy + sbox[1] * s, sx + sbox[2] * s, sy + sbox[3] * s
+        a0, b0, a1, b1 = targets[i]
         d.rectangle((a0, b0, a1, b1), outline=color, width=4)
-        target = (a0 - 4, (b0 + b1) / 2)
-        if i in lane_of:
-            k = lane_of[i]
-            cx, lane_y = (x0 + x1) / 2, PAD + 8 + k * LANE
-            turn_x = PAD + tp.width + 24 + k * 26
-            d.line([(cx, y0), (cx, lane_y), (turn_x, lane_y)], fill=color, width=4, joint='curve')
-            arrow(d, (turn_x, lane_y), target, color)
+        gx, ty = gutter[i], (b0 + b1) / 2
+        if exits[i] == 'right':
+            pts = [(x1, (y0 + y1) / 2), (gx, (y0 + y1) / 2)]
         else:
-            arrow(d, (x1, (y0 + y1) / 2), target, color)
+            cx = (x0 + x1) / 2
+            pts = [(cx, y0 if exits[i] == 'up' else y1), (cx, lane_y[i]), (gx, lane_y[i])]
+        pts.append((gx, ty))
+        d.line(pts, fill=color, width=4, joint='curve')
+        arrow(d, (gx, ty), (a0 - 4, ty), color)
         badge(d, x0, y0, n, color)
         badge(d, a0, b0, n, color)
         rows.append((n, what, where))
@@ -310,13 +338,14 @@ def build():
             doc.add_heading('%s (стр. %d)' % (title, page), level=2)
             path, rows = figure(pdf, c + 1, name, title, page, crop, links, n)
             n += len(links)
-            # Картинка вписывается в страницу: по ширине 26,7 см, по высоте 12,5 см.
+            # Картинка вписывается в страницу: по ширине 26,7 см, по высоте 16,5 см;
+            # таблица связей идёт следом и при нехватке места уходит на следующий лист.
             with Image.open(path) as im:
                 ratio = im.width / im.height
-            if ratio >= 26.7 / 12.5:
+            if ratio >= 26.7 / 16.5:
                 doc.add_picture(path, width=Cm(26.7))
             else:
-                doc.add_picture(path, height=Cm(12.5))
+                doc.add_picture(path, height=Cm(16.5))
             t = doc.add_table(rows=1, cols=3)
             t.style = 'Light Grid Accent 1'
             for cell, text in zip(t.rows[0].cells, ('№', name, 'Система')):
