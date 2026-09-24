@@ -160,8 +160,7 @@ export const normVin = (value) => String(value || '').toUpperCase().replace(/\s+
 export function vinWarning(value) {
   const v = normVin(value);
   if (!v || (v.length === 17 && !/[IOQ]/.test(v))) return '';
-  return 'Не похоже на VIN из 17 знаков. У старых машин здесь заводской номер — оставьте как есть; '
-    + 'у японских VIN часто нет, их номер пишут в «№ кузова».';
+  return 'Не похоже на VIN из 17 знаков';
 }
 
 export const normPlate = (value) => String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();

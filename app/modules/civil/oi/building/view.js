@@ -371,8 +371,7 @@ function kindRowHTML(oi) {
     <select class="select" id="lk-purpose" data-purpose-fact>${emptyOptionHTML()}${list.map((p) => `<option ${
   p === oi.purposeFact ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
   return `<div class="lk-row">
-    <div class="field"><label class="lk-tip" title="${esc('По фото с осмотра. Назначение по техпаспорту — ориентир: '
-    + 'там часто пусто, «здание» или неверно')}">Вид литеры</label>${seg}</div>
+    <div class="field"><label class="lk-tip" title="По фото с осмотра">Вид литеры</label>${seg}</div>
     ${purpose}
   </div>`;
 }
