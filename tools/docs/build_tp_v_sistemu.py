@@ -18,11 +18,12 @@
 На выходе — «Примеры доков/Перенос техпаспорта в систему.docx» и картинки в
 «Примеры доков/Перенос техпаспорта в систему/».
 """
+import itertools
 import os
 
 import fitz
 from docx import Document
-from docx.enum.section import WD_ORIENT
+from docx.enum.section import WD_ORIENT, WD_SECTION
 from docx.shared import Cm, Pt
 from PIL import Image, ImageDraw, ImageFont
 
@@ -71,11 +72,11 @@ TP_FIGURES = [
         ((66, 783, 787, 967), OC_PARTIES, (6, 199, 702, 239), 'Пользователь, часть (доля), документы на право '
          'пользования', 'Объект оценки · Учреждение, собственники и ответственные · Пользователь'),
     ]),
-    ('Экспликация к плану основных строений, 1 этаж', 3, (60, 90, 900, 700), [
+    ('Экспликация к плану основных строений, 1 этаж', 3, (30, 130, 415, 700), [
         ((214, 650, 404, 678), LIT_AREAS, (63, 421, 414, 454), 'Итого по этажу (1 этаж), общая площадь',
          'Литера · Площади и этажность · Надземные, строка «1 этаж», по внутреннему обмеру'),
     ]),
-    ('Экспликация к плану основных строений, 2 этаж и всего', 4, (60, 90, 900, 900), [
+    ('Экспликация к плану основных строений, 2 этаж и всего', 4, (30, 130, 415, 900), [
         ((208, 782, 400, 806), LIT_AREAS, (63, 457, 414, 491), 'Всего по этажу (2 этаж), общая площадь',
          'Литера · Площади и этажность · Надземные, строка «2 этаж», по внутреннему обмеру'),
         ((208, 854, 400, 880), LIT_AREAS, (493, 38, 979, 97), 'Всего, общая площадь',
@@ -211,25 +212,54 @@ def shot_image(shot):
     return img.crop(crop), crop
 
 
-def figure(doc, chapter, name, title, page, crop, links, start):
+# Место под картинку на листе, см: книжный и альбомный лист A4 с полями 1,5 см.
+PORTRAIT_BOX = (18.0, 22.0)
+LANDSCAPE_BOX = (26.7, 16.5)
+
+
+def fit_on_sheet(w, h):
+    """Лучший лист для картинки w x h: (книжный ли, см на пиксель картинки)."""
+    fp = min(PORTRAIT_BOX[0] / w, PORTRAIT_BOX[1] / h)
+    fl = min(LANDSCAPE_BOX[0] / w, LANDSCAPE_BOX[1] / h)
+    return (True, fp) if fp > fl else (False, fl)
+
+
+def figure(doc, links, page, crop, under=()):
+    """Картинка «кусок страницы → снимки системы» в одной раскладке.
+
+    under — снимки, которые встают под кусок страницы; прочие идут колонкой
+    справа. Возвращает картинку, книжный ли лист и оценку: сколько
+    сантиметров листа приходится на пиксель самого мелкого из исходников
+    (страницы или снимка) — чем больше, тем крупнее и читаемее.
+    """
     tp = page_image(doc, page)
     crop = crop or (0, 0, tp.width, tp.height)
     tp = tp.crop(crop)
-    # Кусок страницы: по ширине до 820, по высоте до PAGE_H, не больше чем в 2,2 раза —
-    # остальная ширина картинки отдана снимкам системы, у них мелкий шрифт.
-    s_tp = min(820 / tp.width, PAGE_H / tp.height, 2.2)
+    shots = []
+    for _, shot, *_ in links:
+        if shot not in shots:
+            shots.append(shot)
+    below = [sh for sh in shots if sh in under]
+    right = [sh for sh in shots if sh not in below]
+    # Ширина левой колонки: всё под страницей — 1300, часть под страницей —
+    # 1150 (по снимку), иначе страница до 820, остальное снимкам справа.
+    col_w = 1300 if not right else (1150 if below else 820)
+    s_tp = min(col_w / tp.width, PAGE_H / tp.height, 2.2)
     tp = tp.resize((int(tp.width * s_tp), int(tp.height * s_tp)), Image.LANCZOS)
+    col_w = max(col_w, tp.width) if below else tp.width
 
     # Стрелки идут как на схеме соединений, не поперёк страницы:
-    #   правее рамки на её строке пусто и она доходит почти до края — выход вправо;
-    #   иначе — вверх (верхняя половина, колонки таблиц) или вниз, до своей
-    #   полосы над или под страницей;
-    #   дальше по своему коридору между страницей и снимками и горизонтально в поле.
-    # Полосы раздаются по x рамки, коридоры — по высоте поля, так линии почти
-    # не пересекаются.
+    #   к снимку под страницей — вниз до своей полосы под страницей, влево до
+    #   своего коридора у левого края и горизонтально в поле;
+    #   к снимку справа — вправо (если правее рамки пусто), вверх или вниз до
+    #   своей полосы, по коридору между колонками и горизонтально в поле.
     LANE = 20
     boxes = [[(v - crop[k % 2]) * s_tp for k, v in enumerate(l[0])] for l in links]
-    def exit_of(bx):
+
+    def exit_of(i):
+        bx = boxes[i]
+        if links[i][1] in below:
+            return 'left'
         tall = (bx[3] - bx[1]) > (bx[2] - bx[0])
         blocked = any(o is not bx and o[0] >= bx[2] - 2 and o[1] < bx[3] and o[3] > bx[1] for o in boxes)
         if not tall and not blocked and bx[2] >= 0.78 * tp.width:
@@ -237,60 +267,75 @@ def figure(doc, chapter, name, title, page, crop, links, start):
         if tall or (bx[1] + bx[3]) / 2 < tp.height / 2:
             return 'up'
         return 'down'
-    exits = [exit_of(bx) for bx in boxes]
+    exits = [exit_of(i) for i in range(len(links))]
     ups = sorted((i for i, e in enumerate(exits) if e == 'up'), key=lambda i: boxes[i][0])
     downs = sorted((i for i, e in enumerate(exits) if e == 'down'), key=lambda i: boxes[i][0])
+    lefts = [i for i, e in enumerate(exits) if e == 'left']
     top_m = (LANE * len(ups) + 14) if ups else 0
-    bot_m = (LANE * len(downs) + 14) if downs else 0
+    bot_n = len(downs) + len(lefts)
+    bot_m = (LANE * bot_n + 14) if bot_n else 0
+    lstep = 22
+    left_g = (40 + lstep * len(lefts)) if lefts else 0
 
-    # Снимки — по порядку первого упоминания, каждый один раз.
-    shots = []
-    for _, shot, *_ in links:
-        if shot not in shots:
-            shots.append(shot)
     cap_f = font(22, True)
-    placed = {}
-    y = PAD
-    right_x = PAD + tp.width + GAP
-    blocks = []
-    for shot in shots:
-        img, scrop = shot_image(shot)
-        s = SHOT_W / img.width
-        img = img.resize((SHOT_W, int(img.height * s)), Image.LANCZOS)
-        blocks.append((shot, img, y))
-        placed[shot] = (right_x - scrop[0] * s, y + 34 - scrop[1] * s, s)
-        y += 34 + img.height + 40
-    height = max(PAD * 2 + top_m + tp.height + bot_m, y)
-    width = right_x + SHOT_W + PAD
-    canvas = Image.new('RGB', (width, height), 'white')
-    canvas.paste(tp, (PAD, PAD + top_m))
-    d = ImageDraw.Draw(canvas)
-    for shot, img, top in blocks:
-        d.text((right_x, top), shot[1], fill='#1F3A4D', font=cap_f)
-        canvas.paste(img, (right_x, top + 34))
-        d.rectangle((right_x - 1, top + 33, right_x + img.width, top + 34 + img.height), outline='#B8C4CE', width=1)
+    placed, blocks = {}, []
+    src_x, src_y = PAD + left_g, PAD + top_m
+    page_bot = src_y + tp.height
 
-    page_top, page_bot = PAD + top_m, PAD + top_m + tp.height
-    lane_y = {}
-    for k, i in enumerate(ups):
-        lane_y[i] = PAD + 6 + k * LANE
-    for k, i in enumerate(downs):
-        lane_y[i] = page_bot + 8 + (len(downs) - 1 - k) * LANE
+    def put(shot, x, y, w):
+        img, scrop = shot_image(shot)
+        k = w / img.width
+        img = img.resize((w, int(img.height * k)), Image.LANCZOS)
+        blocks.append((shot, img, x, y))
+        placed[shot] = (x - scrop[0] * k, y + 34 - scrop[1] * k, k)
+        return y + 34 + img.height + 40
+
+    y = page_bot + bot_m + 20
+    for shot in below:
+        y = put(shot, src_x, y, col_w)
+    left_bot = y
+    right_x = src_x + col_w + GAP
+    y = PAD
+    for shot in right:
+        y = put(shot, right_x, y, SHOT_W)
+    height = max(page_bot + bot_m + PAD, left_bot, y)
+    width = (right_x + SHOT_W if right else src_x + col_w) + PAD
+    portrait, fit = fit_on_sheet(width, height)
+    score = fit * min([s_tp] + [placed[sh][2] for sh in shots])
+
+    canvas = Image.new('RGB', (int(width), int(height)), 'white')
+    canvas.paste(tp, (src_x, src_y))
+    d = ImageDraw.Draw(canvas)
+    for shot, img, x, top in blocks:
+        d.text((x, top), shot[1], fill='#1F3A4D', font=cap_f)
+        canvas.paste(img, (int(x), int(top + 34)))
+        d.rectangle((x - 1, top + 33, x + img.width, top + 34 + img.height), outline='#B8C4CE', width=1)
+
     targets = []
     for box, shot, sbox, *_ in links:
-        sx, sy, s = placed[shot]
-        targets.append((sx + sbox[0] * s, sy + sbox[1] * s, sx + sbox[2] * s, sy + sbox[3] * s))
-    # Левый коридор — полю ниже всех: горизонтальные входы не режут чужие коридоры.
-    order = sorted(range(len(links)), key=lambda i: -(targets[i][1] + targets[i][3]))
-    step = min(26, (GAP - 70) / max(len(links) - 1, 1))
-    gutter = {i: PAD + tp.width + 30 + g * step for g, i in enumerate(order)}
+        sx, sy, k = placed[shot]
+        targets.append((sx + sbox[0] * k, sy + sbox[1] * k, sx + sbox[2] * k, sy + sbox[3] * k))
+    cy = lambda i: (targets[i][1] + targets[i][3]) / 2
+    lane_y, gutter = {}, {}
+    for k, i in enumerate(ups):
+        lane_y[i] = PAD + 6 + k * LANE
+    # Левые коридоры: полю ниже всех — внешний коридор и верхняя полоса, тогда
+    # полосы не режут коридоры, а входы в поля — чужие коридоры.
+    lefts.sort(key=lambda i: -cy(i))
+    for k, i in enumerate(lefts):
+        lane_y[i] = page_bot + 8 + k * LANE
+        gutter[i] = PAD + 12 + k * lstep
+    for k, i in enumerate(downs):
+        lane_y[i] = page_bot + 8 + (len(lefts) + len(downs) - 1 - k) * LANE
+    rights = sorted((i for i in range(len(links)) if exits[i] != 'left'), key=lambda i: -cy(i))
+    step = min(26, (GAP - 70) / max(len(rights) - 1, 1))
+    for g, i in enumerate(rights):
+        gutter[i] = src_x + col_w + 30 + g * step
 
-    rows = []
     for i, (box, shot, sbox, what, where) in enumerate(links):
-        n = start + i
         color = COLORS[i % len(COLORS)]
         x0, y0, x1, y1 = boxes[i]
-        x0, x1, y0, y1 = x0 + PAD, x1 + PAD, y0 + page_top, y1 + page_top
+        x0, x1, y0, y1 = x0 + src_x, x1 + src_x, y0 + src_y, y1 + src_y
         d.rectangle((x0, y0, x1, y1), outline=color, width=4)
         a0, b0, a1, b1 = targets[i]
         d.rectangle((a0, b0, a1, b1), outline=color, width=4)
@@ -303,12 +348,40 @@ def figure(doc, chapter, name, title, page, crop, links, start):
         pts.append((gx, ty))
         d.line(pts, fill=color, width=4, joint='curve')
         arrow(d, (gx, ty), (a0 - 4, ty), color)
-        badge(d, x0, y0, n, color)
-        badge(d, a0, b0, n, color)
+    return canvas, portrait, score, (boxes, targets, src_x, src_y)
+
+
+def best_figure(doc, chapter, name, title, page, crop, links, start):
+    """Перебирает раскладки (какие снимки под страницей, какие справа) и
+    оставляет ту, где самый мелкий исходник выходит на листе крупнее всего."""
+    shots = []
+    for _, shot, *_ in links:
+        if shot not in shots:
+            shots.append(shot)
+    best = None
+    for r in range(len(shots) + 1):
+        for under in itertools.combinations(shots, r):
+            res = figure(doc, links, page, crop, under)
+            if best is None or res[2] > best[2] * 1.0001:
+                best = res
+    canvas, portrait, _, (boxes, targets, src_x, src_y) = best
+    d = ImageDraw.Draw(canvas)
+    rows = []
+    for i, (box, shot, sbox, what, where) in enumerate(links):
+        n, color = start + i, COLORS[i % len(COLORS)]
+        badge(d, boxes[i][0] + src_x, boxes[i][1] + src_y, n, color)
+        badge(d, targets[i][0], targets[i][1], n, color)
         rows.append((n, what, where))
     path = os.path.join(OUT_DIR, '%d. %s, стр. %02d — %s.png' % (chapter, name, page, title))
     canvas.save(path)
-    return path, rows
+    return path, rows, portrait
+
+
+def set_page(sec, portrait):
+    sec.orientation = WD_ORIENT.PORTRAIT if portrait else WD_ORIENT.LANDSCAPE
+    sec.page_width, sec.page_height = (Cm(21.0), Cm(29.7)) if portrait else (Cm(29.7), Cm(21.0))
+    for side in ('left_margin', 'right_margin', 'top_margin', 'bottom_margin'):
+        setattr(sec, side, Cm(1.5))
 
 
 def build():
@@ -318,34 +391,31 @@ def build():
         if f.endswith('.png'):
             os.remove(os.path.join(OUT_DIR, f))
     doc = Document()
-    sec = doc.sections[0]
-    sec.orientation = WD_ORIENT.LANDSCAPE
-    sec.page_width, sec.page_height = Cm(29.7), Cm(21.0)
-    for side in ('left_margin', 'right_margin', 'top_margin', 'bottom_margin'):
-        setattr(sec, side, Cm(1.5))
     doc.styles['Normal'].font.name = 'Calibri'
     doc.styles['Normal'].font.size = Pt(10)
-    total = 0
+    total, first = 0, True
     for c, (chapter, pdf_path, name, figures) in enumerate(CHAPTERS):
-        if c:
-            doc.add_page_break()
-        doc.add_heading(chapter, level=1)
         pdf = fitz.open(pdf_path)
         n = 1
         for i, (title, page, crop, links) in enumerate(figures):
-            if i:
-                doc.add_page_break()
-            doc.add_heading('%s (стр. %d)' % (title, page), level=2)
-            path, rows = figure(pdf, c + 1, name, title, page, crop, links, n)
+            path, rows, portrait = best_figure(pdf, c + 1, name, title, page, crop, links, n)
             n += len(links)
-            # Картинка вписывается в страницу: по ширине 26,7 см, по высоте 16,5 см;
-            # таблица связей идёт следом и при нехватке места уходит на следующий лист.
+            # Каждая картинка — на своём листе: высокая на книжном, широкая на альбомном.
+            sec = doc.sections[0] if first else doc.add_section(WD_SECTION.NEW_PAGE)
+            first = False
+            set_page(sec, portrait)
+            if i == 0:
+                doc.add_heading(chapter, level=1)
+            doc.add_heading('%s (стр. %d)' % (title, page), level=2)
+            # Картинка вписывается в лист; таблица связей идёт следом и при
+            # нехватке места уходит на следующий лист.
+            box_w, box_h = PORTRAIT_BOX if portrait else LANDSCAPE_BOX
             with Image.open(path) as im:
                 ratio = im.width / im.height
-            if ratio >= 26.7 / 16.5:
-                doc.add_picture(path, width=Cm(26.7))
+            if ratio >= box_w / box_h:
+                doc.add_picture(path, width=Cm(box_w))
             else:
-                doc.add_picture(path, height=Cm(16.5))
+                doc.add_picture(path, height=Cm(box_h))
             t = doc.add_table(rows=1, cols=3)
             t.style = 'Light Grid Accent 1'
             for cell, text in zip(t.rows[0].cells, ('№', name, 'Система')):
@@ -353,8 +423,10 @@ def build():
             for num, what, where in rows:
                 cells = t.add_row().cells
                 cells[0].text, cells[1].text, cells[2].text = str(num), what, where
+            widths = (Cm(1.2), Cm(6), Cm(10.8)) if portrait else (Cm(1.2), Cm(9), Cm(16.5))
             for row in t.rows:
-                row.cells[0].width, row.cells[1].width, row.cells[2].width = Cm(1.2), Cm(9), Cm(16.5)
+                for cell, w in zip(row.cells, widths):
+                    cell.width = w
         total += n - 1
     doc.save(OUT_DOCX)
     return total
