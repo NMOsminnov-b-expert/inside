@@ -122,6 +122,7 @@ export function capSummaryHTML(ctx) {
   const doneArea = done.reduce((a, r) => a + r.area, 0);
   const avgK = doneArea ? sumAreaK / doneArea : null;
   const withCond = done.filter((r) => r.rank);
+  const sumAC = rows.filter((r) => r.rank && r.area).reduce((a, r) => a + r.area * r.rank, 0);
   const sumACK = withCond.reduce((a, r) => a + r.area * r.rank * r.k, 0);
   const notReady = rows.length - done.length;
 
@@ -140,6 +141,7 @@ export function capSummaryHTML(ctx) {
       <td>${r.cls || `<span class="muted" title="${esc(r.missing)}">не хватает признаков</span>`}</td>
       <td class="num">${r.k !== null && r.area ? fmtNum(r.area * r.k) : '—'}</td>
       <td title="${esc(r.cond)}">${r.rank ? `${esc(r.cond)} <span class="muted">· ${String(r.rank).replace('.', ',')}</span>` : '<span class="muted">не выбрано</span>'}</td>
+      <td class="num">${r.rank && r.area ? fmtNum(r.area * r.rank) : '—'}</td>
       <td class="num">${r.rank && r.k !== null && r.area ? fmtNum(r.area * r.rank * r.k) : '—'}</td>
     </tr>`;
   }).join('');
@@ -151,9 +153,13 @@ export function capSummaryHTML(ctx) {
 <div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Капитальность и классы</h3>
 <span class="hint">по методологии «Категории и классы зданий»</span><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
+<div class="cs-avg" data-cs-avgk><span class="cs-avg-l lk-tip" title="Средняя капитальность застройки, взвешенная по площади каждого строения: Σ (площадь × К) / Σ площадь — по строкам, у которых есть и площадь, и К (прочие — с К 0,05). По ней корректируют на капитальность в сравнительном подходе">Средневзвешенная капитальность</span>
+  <span class="cs-avg-v">${k2(avgK)}</span>
+  <span class="cs-avg-n">${avgK === null ? 'нет строк с площадью и классом' : `Σ площадь × К ${fmtNum(sumAreaK)} / Σ площадь ${fmtNum(doneArea)} м²`}${
+  rows.length - done.length ? ` · не учтено строк: ${rows.length - done.length} (нет класса или площади)` : ''}</span></div>
 <div class="cs-scroll"><table class="tbl cs-tbl">
-<colgroup><col style="width:13%"><col style="width:13%"><col style="width:8%"><col style="width:11%"><col style="width:7%">
-<col style="width:10%"><col style="width:11%"><col style="width:16%"><col style="width:11%"></colgroup>
+<colgroup><col style="width:11%"><col style="width:13%"><col style="width:7%"><col style="width:10%"><col style="width:6%">
+<col style="width:9%"><col style="width:10%"><col style="width:14%"><col style="width:10%"><col style="width:10%"></colgroup>
 <thead><tr>
   <th>Литера</th><th>Наименование / зона</th><th>Тип</th>
   <th class="num" title="Площадь по внутреннему обмеру, м² (у зоны — её площадь)">Площадь внутр., м²</th>
@@ -161,7 +167,8 @@ export function capSummaryHTML(ctx) {
   <th>Класс</th>
   <th class="num" title="Площадь, взвешенная по капитальности: площадь × К">Площадь × К</th>
   <th title="Состояние по шкале методологии, ранг от 5 (отличное) до 1 (неудовлетворительное)">Состояние</th>
-  <th class="num" title="Площадь × ранг состояния × К">Площ. × сост. × К</th>
+  <th class="num" title="Состояние взвешенное: площадь × ранг состояния">Площ. × сост.</th>
+  <th class="num" title="Состояние взвешенное, скорректированное на капитальность: площадь × ранг состояния × К">Площ. × сост. × К</th>
 </tr></thead>
 <tbody>${body}</tbody>
 <tfoot><tr>
@@ -171,6 +178,7 @@ export function capSummaryHTML(ctx) {
   <td></td>
   <td class="num">${fmtNum(sumAreaK)}</td>
   <td></td>
+  <td class="num">${sumAC ? fmtNum(sumAC) : '—'}</td>
   <td class="num">${withCond.length ? fmtNum(sumACK) : '—'}</td>
 </tr></tfoot>
 </table></div>

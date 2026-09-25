@@ -25,11 +25,11 @@ import { bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass, signFactor } from './capClass.js';
 import {
   hasZones, targetOf, splitIntoZones, addZone, removeZone, zoneById, syncFromZones, zonesSum, diffText,
-  distributionText, typesText, zoneClassInfo, missingText,
+  typesText, zoneClassInfo, missingText, classLine,
 } from './zones.js';
 import { fmtNum } from '../../../../kernel/fmt.js';
 import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
-import { capMsSummary, capMsBody, distributionHTML } from './view.js';
+import { capMsSummary, capMsBody, distributionHTML, kcHTML, kcCoefHTML, avgKText } from './view.js';
 
 export function bind(ctx, oi) {
   bindAnnexes(ctx, oi);
@@ -555,8 +555,13 @@ export function bind(ctx, oi) {
     if (!box) return;
     (SIGNS[kindOf(t)] || []).forEach((sign) => {
       const f = box.querySelector(`[data-sign="${sign.key}"]`);
-      if (f) f.classList.toggle('miss', signFactor(t, sign) === null);
+      if (!f) return;
+      f.classList.toggle('miss', signFactor(t, sign) === null);
+      const c = f.querySelector('[data-sign-k]');
+      if (c) c.outerHTML = kcCoefHTML(t, sign);
     });
+    const kc = box.querySelector('[data-kc]');
+    if (kc) kc.innerHTML = kcHTML(t);
     const line = box.querySelector('[data-cap-miss]');
     if (line) {
       line.textContent = missingText(t);
@@ -597,7 +602,9 @@ export function bind(ctx, oi) {
     const d = s.$('[data-zones-dist]');
     if (d) d.innerHTML = distributionHTML(oi);
     const box = s.$('[data-cap-class]');
-    if (box) box.textContent = distributionText(oi);
+    if (box) box.textContent = classLine(oi);
+    const ak = s.$('[data-zones-avgk]');
+    if (ak) ak.textContent = avgKText(oi);
     const kv = s.$('[data-lit-kind-view]');
     if (kv) kv.textContent = typesText(oi);
   }
@@ -607,7 +614,7 @@ export function bind(ctx, oi) {
     const c = syncCapClass(oi);
     const box = s.$('[data-cap-class]');
     if (box) {
-      box.textContent = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
+      box.textContent = classLine(oi);
       box.classList.toggle('muted', !c.label);
     }
     refreshMissing(s.$('#q-capclass'), oi);

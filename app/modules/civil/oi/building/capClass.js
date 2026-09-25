@@ -85,8 +85,16 @@ export const SIGNS = {
   ],
 };
 
-// Карманы: произведение коэффициентов → номер класса (лист «Выжимка»).
+// Карманы: произведение коэффициентов → номер класса (лист «Выжимка»;
+// методология, табл. 1 и 2, строка «Карманы классов»). Граница — в карман
+// выше: К = 0,33 — уже 3 класс (в примере методологии К 0,3305 — «класс 3»).
 const POCKETS = [[0.33, 4], [0.55, 3], [0.77, 2], [Infinity, 1]];
+export const POCKET_BANDS = [[null, 0.33, 4], [0.33, 0.55, 3], [0.55, 0.77, 2], [0.77, 1, 1]];
+
+// Минимум К по виду — произведение наименьших коэффициентов (методология:
+// гражданские 0,14, производственные 0,12).
+export const minScore = (kind) => (SIGNS[kind] || []).reduce((a, sign) => a
+  * Math.min(...(sign.height ? sign.height.map((b) => b[1]) : sign.options.map((o) => o[1]))), 1);
 const CLASS_NAME = { 1: 'Первого класса', 2: 'Второго класса', 3: 'Третьего класса', 4: 'Четвертого класса' };
 const GROUP_NAME = {
   admin: 'Административные/жилые/коммерческие/офисные/торговые помещения',
@@ -140,6 +148,32 @@ export function capClass(oi) {
   if (missing.length) return { key: '', label: '', missing };
   const n = POCKETS.find(([top]) => score < top)[1];
   return { key: `${group}-${n}`, label: `${CLASS_NAME[n]} · ${GROUP_NAME[group]}`, missing: [] };
+}
+
+// Разбор К для показа: по каждому признаку — выбранное и коэффициент, затем
+// произведение и класс. Показывается в карточке, чтобы было видно, откуда
+// класс (замечание пользователя 25.09.2026: «вбил несколько вариантов и
+// каждый раз 3 класс»).
+export function capBreakdown(t) {
+  const kind = kindOf(t);
+  if (!kind || kind === 'other') return null;
+  const factors = SIGNS[kind].map((sign) => {
+    const f = signFactor(t, sign);
+    let value;
+    if (sign.height) {
+      const band = heightBand(sign, heightOf(t));
+      value = band ? band[2] : '';
+    } else {
+      const picked = pickedOf(t, sign.key);
+      value = (picked.length ? picked : (sign.fallback ? [`${sign.fallback} (по умолчанию)`] : [])).join(' / ');
+      if (picked.length > 1 && f !== null) value += ` — среднее из ${picked.length}`;
+    }
+    return { key: sign.key, label: sign.label, value, k: f };
+  });
+  const ready = factors.every((x) => x.k !== null);
+  const k = ready ? factors.reduce((a, x) => a * x.k, 1) : null;
+  const n = k === null ? null : POCKETS.find(([top]) => k < top)[1];
+  return { kind, factors, k, n, min: minScore(kind) };
 }
 
 // Коэффициент капитальности К и класс — для сводной по объекту. У прочих

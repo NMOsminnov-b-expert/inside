@@ -19,10 +19,11 @@ import { tempModeMS } from './tempMode.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
 import { msDropBodyHTML } from '../../../../kernel/multiSelect.js';
-import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass, signFactor } from './capClass.js';
+import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass, signFactor,
+  capBreakdown, POCKET_BANDS } from './capClass.js';
 import {
-  zonesOf, hasZones, hasKind, zonesSum, diffText, distributionText, typesText, zoneTitle, zoneClassInfo,
-  classDistribution, unclassText, missingText,
+  zonesOf, hasZones, hasKind, zonesSum, diffText, typesText, zoneTitle, zoneClassInfo,
+  classDistribution, unclassText, missingText, zonesAvgK, classLine,
 } from './zones.js';
 
 
@@ -396,12 +397,12 @@ function typeClassPairHTML(oi) {
     <div class="field"><label class="lk-tip" title="Выбирается у каждой зоны в блоке «Тип и класс капитальности»">Тип объекта имущества</label>
       <div class="lk-class" data-lit-kind-view>${esc(typesText(oi))}</div></div>
     <div class="field"><label class="lk-tip" title="Площади зон по классам капитальности">Класс ОИ</label>
-      <div class="lk-class" data-cap-class>${esc(distributionText(oi))}</div></div>
+      <div class="lk-class" data-cap-class>${esc(classLine(oi))}</div></div>
   </div>`;
   }
   const c = capClass(oi);
   const kind = KINDS.find((k) => k.key === kindOf(oi));
-  const text = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
+  const text = classLine(oi);
   return `<div class="lk-pair">
     <div class="field"><label class="lk-tip" title="Выбирается в блоке «Тип и класс капитальности»">Тип объекта имущества</label>
       <div class="lk-class ${kind ? '' : 'muted'}" data-lit-kind-view>${kind ? esc(kind.label) : 'Не выбран'}</div></div>
@@ -422,7 +423,7 @@ function signFieldHTML(oi, sign, zone = false) {
     // какой высоты он взят, чтобы не путать с полем ввода высоты.
     const tip = zone ? 'Диапазон по высоте по внутренним замерам зоны (поле в шапке зоны)'
       : 'Диапазон по высоте по внутренним замерам (блок «Площади и этажность»)';
-    return `<div class="field${miss}" data-sign="${sign.key}"><label class="lk-tip" title="${tip}">Высота (диапазон)</label>
+    return `<div class="field${miss}" data-sign="${sign.key}">${kcCoefHTML(oi, sign)}<label class="lk-tip" title="${tip}">Высота (диапазон)</label>
       <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : none}</div></div>`;
   }
   const opts = sign.options.map((o) => o[0]);
@@ -430,11 +431,11 @@ function signFieldHTML(oi, sign, zone = false) {
   const label = `<label ${tips ? `class="lk-tip" title="${esc(tips)}"` : ''}>${esc(sign.label)}</label>`;
   if (!sign.multi) {
     const cur = pickedOf(oi, sign.key)[0] || '';
-    return `<div class="field${miss}" data-sign="${sign.key}">${label}<select class="select" data-cap-sign="${sign.key}">${emptyOptionHTML()}${
+    return `<div class="field${miss}" data-sign="${sign.key}">${kcCoefHTML(oi, sign)}${label}<select class="select" data-cap-sign="${sign.key}">${emptyOptionHTML()}${
       opts.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
   }
   const picked = pickedOf(oi, sign.key);
-  return `<div class="field${miss}" data-sign="${sign.key}" data-cap-ms="${sign.key}">${label}
+  return `<div class="field${miss}" data-sign="${sign.key}" data-cap-ms="${sign.key}">${kcCoefHTML(oi, sign)}${label}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Можно несколько">${capMsSummary(picked)}</div>
       <div class="ms-drop" hidden>${capMsBody(sign, picked)}</div>
@@ -461,7 +462,44 @@ function signsHTML(t, zone = false) {
   if (kind === 'other') return '<div class="muted lk-note">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>';
   const miss = missingText(t);
   return `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(t, s, zone)).join('')}</div>
-  <div class="lk-miss" data-cap-miss role="status" ${miss ? '' : 'hidden'}>${esc(miss)}</div>`;
+  <div class="lk-miss" data-cap-miss role="status" ${miss ? '' : 'hidden'}>${esc(miss)}</div>
+  <div class="kc" data-kc>${kcHTML(t)}</div>`;
+}
+
+const k2 = (v) => v.toFixed(2).replace('.', ',');
+
+// Расчёт капитальности под признаками: коэффициент каждого признака стоит у
+// самого поля (kcCoefHTML), здесь — формула одной строкой, класс и шкала
+// классов с отметкой К. Практика объяснимых оценок: исходные данные и расчёт
+// видны, у шкалы — все диапазоны с подписями, текущий выделен и цветом, и
+// начертанием.
+export function kcHTML(t) {
+  const b = capBreakdown(t);
+  if (!b) return '';
+  const parts = b.factors.map((f) => `<span class="kc-f ${f.k === null ? 'none' : ''}" title="${esc(`${f.label}: ${f.value || 'не выбрано'}`)}">${
+    f.k === null ? '?' : k2(f.k)}</span>`).join('<span class="kc-x">×</span>');
+  const res = b.k === null
+    ? '<span class="kc-res none">?</span><span class="kc-cls none">класс не определён</span>'
+    : `<span class="kc-res">${b.k.toFixed(3).replace('.', ',')}</span><span class="kc-x">→</span><span class="kc-cls">${b.n} класс</span>`;
+  const span = 1 - b.min;
+  const bands = POCKET_BANDS.map(([from, to, n]) => {
+    const lo = from === null ? b.min : from;
+    return `<div class="kc-band ${b.n === n ? 'on' : ''}" style="flex:${((to - lo) / span).toFixed(4)}" title="${n} класс: К ${k2(lo)}–${k2(to)}">
+      <b>${n} класс</b><span>${k2(lo)}–${k2(to)}</span></div>`;
+  }).join('');
+  const pos = b.k === null ? null : Math.min(100, Math.max(0, ((b.k - b.min) / span) * 100));
+  return `<div class="kc-formula"><span class="kc-l lk-tip" title="Капитальность К — произведение коэффициентов признаков (методология «Категории и классы зданий»); по К — класс">К</span>
+  <span class="kc-x">=</span>${parts}<span class="kc-x">=</span>${res}</div>
+  <div class="kc-scale" role="img" aria-label="${esc(b.k === null ? 'Класс не определён' : `К ${k2(b.k)} — ${b.n} класс`)}">
+    <div class="kc-bands">${bands}</div>
+    <div class="kc-track">${pos === null ? '' : `<span class="kc-mark" style="left:${pos.toFixed(2)}%" title="К ${k2(b.k)}"></span>`}</div>
+  </div>`;
+}
+
+// Коэффициент признака — в углу поля: «× 0,90»; пустой признак — «?».
+export function kcCoefHTML(t, sign) {
+  const f = signFactor(t, sign);
+  return `<span class="kc-coef ${f === null ? 'none' : ''}" data-sign-k title="Коэффициент признака">${f === null ? '?' : `×&#8239;${k2(f)}`}</span>`;
 }
 
 function zoneConditionHTML(z) {
@@ -515,7 +553,16 @@ function zonesSumsHTML(oi) {
 <span class="fs-v" data-zones-sum>${fmtNum(st.sum)} из ${fmtNum(st.total)} м²</span>
 <span class="fs-d ${st.ok ? 'ok' : 'warn'}" data-zones-diff>${st.total ? diffText(st.diff) : 'нет площади по внутреннему обмеру'}</span>
 </div>
+<div class="zn-avg"><span class="zn-avg-l lk-tip" title="Средняя капитальность литеры, взвешенная по площади зон: Σ (площадь зоны × К зоны) / Σ площадь зон — по зонам, у которых есть и площадь, и К">Средневзвешенная капитальность</span>
+<span class="zn-avg-v" data-zones-avgk>${avgKText(oi)}</span></div>
 <div class="zn-dist" data-zones-dist>${distributionHTML(oi)}</div>`;
+}
+
+export function avgKText(oi) {
+  const a = zonesAvgK(oi);
+  if (a.k === null) return 'нет зон с площадью и классом';
+  const skip = a.skipped ? ` · не учтено зон: ${a.skipped} (нет класса или площади)` : '';
+  return `${k2(a.k)} — Σ площадь × К ${fmtNum(a.areaK)} / Σ площадь ${fmtNum(a.area)} м²${skip}`;
 }
 
 // Площади по классам — плашками, как итог; зоны без класса — одной плашкой и

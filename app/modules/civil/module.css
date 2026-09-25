@@ -316,7 +316,7 @@ body[data-module="civil"] label.lk-tip{text-decoration:underline dotted #9fb2c8;
    объединены ячейкой литеры и отступлены. */
 body[data-module="civil"] .cs-card{margin-top:10px}
 body[data-module="civil"] .cs-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
-body[data-module="civil"] .cs-tbl{min-width:900px}
+body[data-module="civil"] .cs-tbl{min-width:1000px}
 body[data-module="civil"] .cs-tbl th, body[data-module="civil"] .cs-matrix th{white-space:normal;line-height:1.25;vertical-align:bottom}
 body[data-module="civil"] .cs-matrix{min-width:700px}
 body[data-module="civil"] .cs-tbl th.num, body[data-module="civil"] .cs-tbl td.num,
@@ -388,3 +388,49 @@ body[data-module="civil"] .cp-result dt{font-size:11px;font-weight:700;color:var
 body[data-module="civil"] .cp-result dd{margin:2px 0 0;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
 body[data-module="civil"] .cp-note{font-size:12px;margin:8px 0 0}
 body[data-module="civil"] .cp-tbl [data-cp-out].excl{text-decoration:line-through;color:var(--muted);font-weight:500}
+
+/* Расчёт капитальности под признаками (view.js kcHTML): формула с
+   коэффициентом каждого признака и шкала классов с отметкой К. Практика
+   объяснимых оценок: исходные данные и расчёт видны, у шкалы — все диапазоны
+   с подписями, текущий выделен и цветом, и начертанием. Ширина диапазона на
+   шкале — пропорционально его длине от минимума К до 1. */
+body[data-module="civil"] .kc{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+body[data-module="civil"] .kc:empty{display:none}
+body[data-module="civil"] .kc-formula{display:flex;flex-wrap:wrap;align-items:center;gap:4px 5px;font-size:13px;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .kc-l{font-weight:800;color:var(--ink)}
+body[data-module="civil"] .kc-x{color:var(--muted)}
+body[data-module="civil"] .kc-f{padding:1px 5px;border-radius:5px;background:var(--slate-50);font-weight:600;cursor:help}
+body[data-module="civil"] .kc-f.none, body[data-module="civil"] .kc-res.none{background:#fdf4e3;color:#8a5a00}
+body[data-module="civil"] .kc-res{padding:1px 7px;border-radius:5px;background:#e3eefb;color:var(--blue-700);font-weight:800}
+body[data-module="civil"] .kc-cls{font-weight:800;color:var(--blue-700)}
+body[data-module="civil"] .kc-cls.none{font-weight:600;color:#8a5a00}
+body[data-module="civil"] .kc-scale{margin-top:8px}
+body[data-module="civil"] .kc-bands{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+body[data-module="civil"] .kc-band{min-width:0;padding:4px 6px;font-size:11px;line-height:1.25;color:var(--muted);
+  border-right:1px solid var(--line);background:#fff;display:flex;flex-direction:column}
+body[data-module="civil"] .kc-band:last-child{border-right:0}
+body[data-module="civil"] .kc-band b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="civil"] .kc-band span{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-module="civil"] .kc-band.on{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+/* Дорожка с отметкой К — под диапазонами, чтобы метка не наезжала на подписи. */
+body[data-module="civil"] .kc-track{position:relative;height:9px;margin:0 1px}
+body[data-module="civil"] .kc-mark{position:absolute;top:1px;width:0;height:0;margin-left:-6px;border:6px solid transparent;border-top:0;
+  border-bottom:8px solid #d99a1e}
+/* Коэффициент признака — в правом верхнем углу поля, на строке подписи. */
+body[data-module="civil"] .field[data-sign]{position:relative}
+body[data-module="civil"] .field[data-sign]>label{padding-right:46px}
+body[data-module="civil"] .kc-coef{position:absolute;top:0;right:0;font-size:11px;font-weight:700;line-height:16px;padding:0 5px;
+  border-radius:5px;background:#e3eefb;color:var(--blue-700);font-variant-numeric:tabular-nums;white-space:nowrap}
+body[data-module="civil"] .kc-coef.none{background:#fdf4e3;color:#8a5a00}
+/* Средневзвешенная капитальность объекта — над таблицей сводной: итог,
+   ради которого сводная и нужна, а не мелкая цифра в итоговой строке. */
+body[data-module="civil"] .cs-avg{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 10px;padding:8px 12px;
+  border:1px solid #d5e3f3;border-radius:8px;background:#eef4fb}
+body[data-module="civil"] .cs-avg-l{font-size:12px;font-weight:700;color:var(--blue-700)}
+body[data-module="civil"] .cs-avg-v{font-size:18px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cs-avg-n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* Средневзвешенная капитальность литеры из зон — строкой под сверкой площадей. */
+body[data-module="civil"] .zn-avg{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:0 0 8px;font-size:12.5px;
+  font-variant-numeric:tabular-nums}
+body[data-module="civil"] .zn-avg-l{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em}
+body[data-module="civil"] .zn-avg-v{color:var(--ink)}

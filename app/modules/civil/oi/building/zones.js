@@ -22,7 +22,7 @@
 // подходе), на сервере это своя таблица «зона литеры» со ссылкой на литеру —
 // иначе выборку придётся собирать разбором JSON каждой записи.
 import { num, fmtNum } from '../../../../kernel/fmt.js';
-import { KINDS, capClass, kindOf } from './capClass.js';
+import { KINDS, capClass, capScore, kindOf } from './capClass.js';
 
 export const zonesOf = (oi) => (Array.isArray(oi.zones) ? oi.zones : []);
 export const hasZones = (oi) => zonesOf(oi).length > 1;
@@ -184,3 +184,35 @@ export function diffText(diff) {
 // Есть ли у литеры часть данного типа — производственные доп. параметры
 // нужны, если производственная хоть одна зона.
 export const hasKind = (oi, kind) => kindOf(oi) === kind || zonesOf(oi).some((z) => z.litKind === kind);
+
+// Средневзвешенная капитальность литеры из зон: Σ (площадь × К) / Σ площадь —
+// как «средняя капитальность застройки, взвешенная по площади каждого здания»
+// методологии, только внутри литеры. Зона без площади или без К не входит;
+// skipped — сколько таких.
+export function zonesAvgK(oi) {
+  let a = 0;
+  let ak = 0;
+  let skipped = 0;
+  zonesOf(oi).forEach((z) => {
+    const { k } = capScore(z);
+    const s = areaOf(z);
+    if (k === null || !s) { skipped += 1; return; }
+    a += s;
+    ak += s * k;
+  });
+  return { k: a ? ak / a : null, skipped, area: a, areaK: ak };
+}
+
+// Строка «Класс ОИ» в «Общих параметрах»: у цельной литеры — класс и К, у
+// литеры из зон — площади по классам и средневзвешенный К.
+export function classLine(oi) {
+  const k2 = (v) => v.toFixed(2).replace('.', ',');
+  if (hasZones(oi)) {
+    const a = zonesAvgK(oi);
+    return distributionText(oi) + (a.k === null ? '' : ` · К ср. ${k2(a.k)}`);
+  }
+  const c = capClass(oi);
+  if (!c.label) return c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—';
+  const { k } = capScore(oi);
+  return k === null || c.key === 'other' ? c.label : `${c.label} · К ${k2(k)}`;
+}

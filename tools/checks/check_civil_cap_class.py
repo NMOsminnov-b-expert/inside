@@ -103,6 +103,13 @@ def run(t):
     t.wait_until("() => document.querySelector('[data-cap-class]').textContent.includes('Четвертого')")
     saved = pg.evaluate(OI, oid)
     t.ck(saved and saved['oiCategory'] == 'prod-4', 'класс по методике не prod-4: %s' % (saved and saved['oiCategory']))
+    # Расчёт виден: коэффициент у каждого признака и формула — это первое
+    # здание объекта оценки 1 из примера методологии (К 0,29, произв класс 4).
+    kc = ' '.join(pg.inner_text('#q-capclass [data-kc] .kc-formula').split())
+    t.ck(kc == 'К = 0,60 × 0,95 × 0,70 × 0,90 × 0,80 = 0,287 → 4 класс', 'формула К не та: %r' % kc)
+    coef = ' '.join(pg.inner_text('#q-capclass [data-sign="frame"] [data-sign-k]').split())
+    t.ck(coef == '× 0,70', 'у конструкции не тот коэффициент: %r' % coef)
+    t.ck(pg.locator('#q-capclass .kc-band.on').inner_text().startswith('4 класс'), 'на шкале выделен не 4 класс')
     # Два варианта конструкции — среднее: (0,7 + 1) / 2 даёт 0,35 → третий класс.
     _pick_ms(t, 'frame', 'Блочные по железобетонному каркасу, утеплённые')
     t.wait_until("() => document.querySelector('[data-cap-class]').textContent.includes('Третьего')")
