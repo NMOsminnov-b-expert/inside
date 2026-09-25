@@ -38,14 +38,18 @@ export function splitIntoZones(oi) {
   if (hasZones(oi)) return;
   oi.zones = [
     { id: uid(), name: '', litKind: oi.litKind || '', purposeFact: oi.purposeFact || '',
-      capSigns: clone(oi.capSigns), heights: { int: litHeight(oi) }, area: (oi.areas || {}).build || '' },
+      capSigns: clone(oi.capSigns), heights: { int: litHeight(oi) }, area: (oi.areas || {}).build || '',
+      condition: oi.conditionTotal || '' },
     newZone(oi),
   ];
   syncFromZones(oi);
 }
 
 export function newZone(oi) {
-  return { id: uid(), name: '', litKind: '', purposeFact: '', capSigns: {}, heights: { int: litHeight(oi) }, area: '' };
+  // Состояние у зоны своё (решение пользователя 25.09.2026), по умолчанию —
+  // итоговое состояние литеры.
+  return { id: uid(), name: '', litKind: '', purposeFact: '', capSigns: {}, heights: { int: litHeight(oi) }, area: '',
+    condition: oi.conditionTotal || '' };
 }
 
 export function addZone(oi) {

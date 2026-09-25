@@ -658,6 +658,8 @@ export function bind(ctx, oi) {
       z.heights = { ...(z.heights || {}), int: v };
       refreshZones();
     });
+    const cond = box.querySelector('[data-zone-cond]');
+    if (cond) cond.onchange = () => { z.condition = cond.value; };
     const del = box.querySelector('[data-zone-del]');
     if (del) del.onclick = () => {
       const filled = z.litKind || z.area || Object.keys(z.capSigns || {}).length;

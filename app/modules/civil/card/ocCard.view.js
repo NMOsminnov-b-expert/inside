@@ -8,6 +8,7 @@ import { esc } from '../../../kernel/dom.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
+import { capSummaryHTML } from './capSummary.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
@@ -67,7 +68,7 @@ function partiesOC(rec) {
 
 export function viewOC(ctx) {
   const rec = ctx.rec;
-  const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx));
+  const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx) + capSummaryHTML(ctx));
 
   return `${headOC(ctx)}
 

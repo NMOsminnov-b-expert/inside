@@ -365,7 +365,7 @@ ${tempModeMS(ctx, oi)}
 // Тип — три взаимоисключающих варианта, видны сразу: переключатель, как «Вид
 // объекта» у ТС. Назначение по факту — перечень своего вида; по техпаспорту
 // назначение остаётся текстом как в документе — это ориентир.
-function kindRowHTML(oi, zoneId = '') {
+function kindRowHTML(oi, zoneId = '', extra = '') {
   const kind = kindOf(oi);
   const pid = zoneId ? `lk-purpose-${zoneId}` : 'lk-purpose';
   const seg = `<div class="lk-seg" role="radiogroup" aria-label="Тип объекта имущества">${KINDS.map((k) => `
@@ -377,7 +377,7 @@ function kindRowHTML(oi, zoneId = '') {
   p === oi.purposeFact ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
   return `<div class="lk-row">
     <div class="field"><label class="lk-tip" title="По фото с осмотра">${zoneId ? 'Тип зоны' : 'Тип объекта имущества'}</label>${seg}</div>
-    ${purpose}
+    ${purpose}${extra}
   </div>`;
 }
 
@@ -459,6 +459,14 @@ function signsHTML(t, zone = false) {
   return `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(t, s, zone)).join('')}</div>`;
 }
 
+function zoneConditionHTML(z) {
+  const list = opt('building', 'conditionTotal', BUILD_CONDITION);
+  const cur = z.condition || list[0];
+  return `<div class="field zn-cond"><label for="zn-cond-${esc(z.id)}" class="lk-tip"
+    title="Состояние этой части здания по шкале методологии: от «Отличное» (5) до «Неудовлетворительное» (1)">Состояние зоны</label>
+    <select class="select" id="zn-cond-${esc(z.id)}" data-zone-cond>${list.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+}
+
 // Зона — как элемент в паттерне «добавить ещё» (DWP Design System, «Add another
 // thing»): у каждой свой заголовок с номером и кнопкой «убрать», поля зоны
 // под ним, «+ Зона» — после последней.
@@ -477,7 +485,7 @@ function zoneHTML(z, i) {
       <div class="lk-class ${c.ok ? '' : 'muted'}" data-zone-class title="${esc(c.title)}">${esc(c.text)}</div></div>
     <button type="button" class="btn btn-danger btn-sm zn-del" data-zone-del title="Убрать зону" aria-label="Убрать ${esc(zoneTitle(z, i))}">×</button>
   </div>
-  ${kindRowHTML(z, z.id)}
+  ${kindRowHTML(z, z.id, zoneConditionHTML(z))}
   ${signsHTML(z, true)}
 </section>`;
 }

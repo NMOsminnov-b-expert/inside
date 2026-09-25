@@ -142,6 +142,24 @@ export function capClass(oi) {
   return { key: `${group}-${n}`, label: `${CLASS_NAME[n]} · ${GROUP_NAME[group]}`, missing: [] };
 }
 
+// Коэффициент капитальности К и класс — для сводной по объекту. У прочих
+// построек К фиксированный — 0,05 (методология: навесы, ТП, КПП, охрана без
+// разбора признаков). k = null — признаков не хватает.
+export const K_OTHER = 0.05;
+
+export function capScore(t) {
+  const kind = kindOf(t);
+  if (!kind) return { k: null, key: '', kind };
+  if (kind === 'other') return { k: K_OTHER, key: 'other', kind };
+  let score = 1;
+  for (const sign of SIGNS[kind]) {
+    const f = signFactor(t, sign);
+    if (f === null) return { k: null, key: '', kind };
+    score *= f;
+  }
+  return { k: score, key: capClass(t).key, kind };
+}
+
 // Класс пишется в запись сразу при расчёте: его читают перечень ОЦ, реестр и
 // выгрузки, а не только карточка.
 export function syncCapClass(oi) {
@@ -164,10 +182,18 @@ const FRAME_OLD = {
   'Блочные бескаркасные и металлокаркасные холодные': 'Блочные бескаркасные или металлокаркасные холодные',
 };
 
+// Прежние значения состояния — в шкалу методологии (решение пользователя
+// 25.09.2026): «Плохое» — требует ремонта, «Аварийное» — неудовлетворительное.
+const CONDITION_OLD = { 'Плохое': 'Требует ремонта', 'Аварийное': 'Неудовлетворительное' };
+
 export function migrateLiterKinds(rec) {
   if (!rec || !Array.isArray(rec.oi)) return;
   rec.oi.forEach((oi) => {
-    if (oi.card !== 'building' || oi.residential) return;
+    if (oi.card !== 'building') return;
+    ['conditionInner', 'conditionOuter', 'conditionTotal'].forEach((k) => {
+      if (CONDITION_OLD[oi[k]]) oi[k] = CONDITION_OLD[oi[k]];
+    });
+    if (oi.residential) return;
     // Класс пишется в запись у всех литер: засеянные и заведённые до расчёта
     // держали бы в oi.oiCategory класс, выбранный руками.
     if (oi.litKind !== undefined) { syncCapClass(oi); return; }

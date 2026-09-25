@@ -223,7 +223,9 @@ export const DICT_SOURCES = [
     key: 'BUILD_CONDITION',
     title: 'Состояние строения',
     kind: 'list',
-    system: false,
+    // Шкала методологии с рангами (CONDITION_RANK) — правка перечня разорвала
+    // бы связь с рангом, поэтому перечень системный.
+    system: true,
     values: D.BUILD_CONDITION,
     slots: [
       { card: 'building', field: 'conditionInner', label: 'Внутреннее состояние' },
