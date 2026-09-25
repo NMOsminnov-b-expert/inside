@@ -114,6 +114,8 @@ export async function getPdfPageAspects(blobUrl) {
 // каждый клик по интерфейсу (ctx.render() зовётся часто), но перерисовывать при
 // реальной смене масштаба — иначе canvas мылится при зуме.
 const painted = new WeakMap();  // canvas -> ключ (url|страница|ступень масштаба)
+const tasks = new WeakMap();    // canvas -> идущая отрисовка pdf.js (для отмены)
+const running = new WeakMap();  // canvas -> номер последнего запуска
 
 // Масштаб рендера. Берётся из ФАКТИЧЕСКОЙ ширины листа, а не из константы: в
 // режиме «Сравнение» лист узкий (.cmp-body .vpage{width:380px}) против 430px в
@@ -164,11 +166,38 @@ async function paintOne(canvas, zoom, thumbWidth) {
   // вкладку/режим) — тогда рисовать некуда и незачем.
   if (!canvas.isConnected) return;
 
-  canvas.width = Math.round(viewport.width);
-  canvas.height = Math.round(viewport.height);
-  canvas.style.aspectRatio = `${base.width} / ${base.height}`;
+  // Быстрое увеличение (несколько нажатий подряд) запускало новую отрисовку,
+  // пока шла прежняя: pdf.js отказывал («Cannot use the same canvas during
+  // multiple render() operations»), и лист на время оставался в прежнем,
+  // мелком разрешении — увеличение будто проседало (замечание пользователя
+  // 25.09.2026). Теперь прежняя отрисовка отменяется, новая идёт в отдельный
+  // холст и подменяет картинку, только когда готова: лист не мигает пустым и
+  // не мутнеет, а побеждает всегда последний масштаб.
+  const run = (running.get(canvas) || 0) + 1;
+  running.set(canvas, run);
+  const prev = tasks.get(canvas);
+  if (prev) prev.cancel();
 
-  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  const off = document.createElement('canvas');
+  off.width = Math.round(viewport.width);
+  off.height = Math.round(viewport.height);
+  const task = page.render({ canvasContext: off.getContext('2d'), viewport });
+  tasks.set(canvas, task);
+  try {
+    await task.promise;
+  } catch (e) {
+    if (e && e.name === 'RenderingCancelledException') return;   // сменил более свежий масштаб
+    throw e;
+  } finally {
+    if (tasks.get(canvas) === task) tasks.delete(canvas);
+  }
+  if (running.get(canvas) !== run || !canvas.isConnected) return;
+
+  canvas.width = off.width;
+  canvas.height = off.height;
+  canvas.style.aspectRatio = `${base.width} / ${base.height}`;
+  canvas.getContext('2d').drawImage(off, 0, 0);
+  canvas.classList.remove('failed');
   canvas.classList.add('ready');
   painted.set(canvas, key);
 }

@@ -96,6 +96,20 @@ def run(t):
 
     # --- одна вкладка: слева фото -----------------------------------------------------
     _attach(t, [{'name': 'Техпаспорт литера А.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf(2, 'Tekh')}])
+    # --- быстрое увеличение до 500%: лист в полном разрешении, без сбоев отрисовки
+    # (замечание пользователя 25.09.2026: «при быстром увеличении зума до 500%
+    # на время реальное приближение падает» — отрисовки налезали друг на друга)
+    warns = []
+    pg.on('console', lambda m: 'same canvas' in m.text and warns.append(m.text))
+    pg.locator('.vstage').click(position={'x': 40, 'y': 40})
+    for _ in range(9):
+        pg.keyboard.press('Control+Equal')
+    t.wait_until("""() => { const cv = document.querySelector('.vstage canvas');
+      return cv && cv.width >= cv.getBoundingClientRect().width * 0.95; }""", timeout=15000)
+    t.ck(not warns, 'отрисовки PDF налезли друг на друга: %s' % warns[:1])
+    t.ck(pg.locator('.vstage canvas.failed').count() == 0, 'после быстрого увеличения страница не отрисовалась')
+    pg.keyboard.press('Control+Digit2')
+
     pg.click('[data-vmode="compare"]')
     t.wait_for('[data-cmp]')
     t.ck(pg.evaluate("() => document.querySelector('[data-cmp-pick=left]').value") == 'photo', 'при одной вкладке слева не фото')
