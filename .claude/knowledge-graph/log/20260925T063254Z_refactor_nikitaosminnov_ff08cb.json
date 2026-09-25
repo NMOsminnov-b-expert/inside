@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "branch": "refactor",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260925T063254Z",
+    "baseCommit": "1fe2e95"
+  },
+  "entities": [
+    {
+      "type": "entity",
+      "name": "decision:sravnitelnyy-podhod",
+      "entityType": "Decision",
+      "observations": [
+        "⚠ ЭЛЕМЕНТ ПОД БОЛЬШИМ ВОПРОСОМ (решение пользователя 25.09.2026): «Вкладку сравнительного подхода прячем (не вырезаем, но прячем и явно и в коде и в графе пишем, что элемент под огромным вопросом. Не лезем внутрь без прямых указаний — буквально пока не скажу туда заглянуть я. Не косвенно, прямо)». Спрятана флагом COMPARATIVE_HIDDEN = true в app/modules/civil/card/ocCard.view.js: вкладки нет, адрес ?tab=comparative открывает «Общие данные». Код card/comparative.* не вырезан; проверка tools/checks/check_civil_comparative.py выключена (DISABLED, run.py её пропускает). Не открывать, не править и не развивать без прямого указания пользователя."
+      ]
+    }
+  ],
+  "relations": []
+}

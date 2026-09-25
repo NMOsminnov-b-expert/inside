@@ -37,10 +37,19 @@ function headOC(ctx) {
     flags: recFlags(rec),
     menu: addOiMenuHTML(rec),
     // «Сравнительный подход» — только у гражданского ОЦ (методология «Категории
-    // и классы зданий», 25.09.2026); вкладка перед «Логами».
-    tabs: withComparative(ocTabs(canViewAuditLog(rec))),
+    // и классы зданий», 25.09.2026); вкладка перед «Логами». СПРЯТАНА: см.
+    // COMPARATIVE_HIDDEN ниже.
+    tabs: COMPARATIVE_HIDDEN ? ocTabs(canViewAuditLog(rec)) : withComparative(ocTabs(canViewAuditLog(rec))),
   });
 }
+
+// ⚠ ЭЛЕМЕНТ ПОД БОЛЬШИМ ВОПРОСОМ. Вкладка «Сравнительный подход»
+// (card/comparative.*) спрятана решением пользователя 25.09.2026: «прячем — не
+// вырезаем, но прячем… элемент под огромным вопросом. Не лезем внутрь без прямых
+// указаний». Код оставлен как есть. НЕ ПРАВИТЬ, НЕ РАЗВИВАТЬ и не открывать
+// вкладку, пока пользователь прямо не скажет вернуться к ней (граф:
+// decision:sravnitelnyy-podhod). Флаг выключает и вкладку, и маршрут ?tab=comparative.
+export const COMPARATIVE_HIDDEN = true;
 
 function withComparative(tabs) {
   const at = tabs.findIndex((t) => t.key === 'audit');
@@ -79,10 +88,13 @@ export function viewOC(ctx) {
   const rec = ctx.rec;
   const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx) + capSummaryHTML(ctx));
 
+  // Спрятанная вкладка по прямому адресу открывает «Общие данные».
+  const tab = ctx.tab === 'comparative' && COMPARATIVE_HIDDEN ? 'general' : ctx.tab;
+
   return `${headOC(ctx)}
 
-    ${ctx.tab === 'general' ? generalTab
+    ${tab === 'general' ? generalTab
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
-      : ctx.tab === 'comparative' ? comparativeTab(ctx)
+      : ctx.tab === 'comparative' && !COMPARATIVE_HIDDEN ? comparativeTab(ctx)
       : photosTab(ctx)}`;
 }

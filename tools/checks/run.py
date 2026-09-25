@@ -107,6 +107,11 @@ class Unit:
 def units_of(mods):
     out = []
     for mod in mods:
+        # DISABLED = 'причина' — сценарий выключен вместе с тем, что он проверяет
+        # (например, спрятанная вкладка); файл не удаляется.
+        if getattr(mod, 'DISABLED', None):
+            print('пропуск: %s — %s' % (mod.NAME, mod.DISABLED))
+            continue
         parts = list(getattr(mod, 'PARTS', ()) or ())
         out += [Unit(mod, p) for p in parts] if parts else [Unit(mod)]
     return out

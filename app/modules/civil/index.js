@@ -16,7 +16,7 @@ import { manifest } from './manifest.js';
 import { setActiveOcType } from '../../kernel/ocType.js';
 import { getOi, ui, resetViewer, closePhotoPop } from './data/store.js';
 import { loadRecord } from './records.js';
-import { viewOC } from './card/ocCard.view.js';
+import { viewOC, COMPARATIVE_HIDDEN } from './card/ocCard.view.js';
 import { bindOcCard } from './card/ocCard.ctrl.js';
 import { viewOCForm } from './card/ocForm.view.js';
 import { bindOcForm } from './card/ocForm.ctrl.js';
@@ -294,8 +294,11 @@ export function main(host) {
   // их отсутствии viewerHTML сам покажет приглашение прикрепить документ.
   function ensureViewerDefault() {
     // Исключение — вкладка «Логи»: она на всю ширину, просмотрщику там не место.
-    // Так же и «Сравнительный подход»: широкая таблица аналогов.
-    if (route.rest.length === 0 && ['audit', 'comparative'].includes(route.query.tab)) return;
+    // Так же и «Сравнительный подход»: широкая таблица аналогов (пока вкладка
+    // спрятана — COMPARATIVE_HIDDEN, card/ocCard.view.js — её адрес ведёт на
+    // «Общие данные», и просмотрщик там нужен).
+    const wide = COMPARATIVE_HIDDEN ? ['audit'] : ['audit', 'comparative'];
+    if (route.rest.length === 0 && wide.includes(route.query.tab)) return;
     // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
     if (ui.viewerClosed) return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };

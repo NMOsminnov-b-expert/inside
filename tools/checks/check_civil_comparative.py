@@ -18,6 +18,11 @@
 
 NAME = 'сравнительный подход'
 
+# Вкладка спрятана (решение пользователя 25.09.2026: «элемент под огромным
+# вопросом… не лезем внутрь без прямых указаний»). Сценарий не удалён — он
+# понадобится, если вкладку вернут; до тех пор не запускается.
+DISABLED = 'вкладка «Сравнительный подход» спрятана до прямого указания пользователя'
+
 TOUCHES = (
     'app/modules/civil/card/comparative.*', 'app/modules/civil/card/capSummary.view.js',
     'app/modules/civil/data/conditionScale.js', 'app/modules/civil/card/ocCard.*', 'app/modules/civil/module.css',
