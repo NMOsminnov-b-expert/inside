@@ -28,12 +28,7 @@
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnZoomIn" ToolTip="Крупнее (Ctrl++)">+</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnFit" ToolTip="Весь разворот в окне (Ctrl+0)">По окну</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnLens" ToolTip="Лупа: участок под курсором втрое крупнее (M)">Лупа</Button>
-                <Border Style="{StaticResource Sep}"/>
-                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="4,0,6,0">Поиск</TextBlock>
-                <TextBox x:Name="SearchBox" Width="170" VerticalContentAlignment="Center" Padding="4,3"
-                         ToolTip="Графа документа или поле системы по всему проекту; Enter — следующая (Ctrl+F)"/>
-                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="10,0,6,0">Блок</TextBlock>
-                <ComboBox x:Name="FilterBox" Width="210" ToolTip="Блок системы: ярко — только его связи"/>
+
             </WrapPanel>
         </Border>
 
@@ -46,7 +41,7 @@
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250" MinWidth="180"/>
+                <ColumnDefinition Width="270" MinWidth="200"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -56,6 +51,13 @@
             <!-- Главы и развороты -->
             <Border Grid.Column="0" Background="{StaticResource Panel}">
                 <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Margin="12,10,12,0">
+                        <TextBox x:Name="SearchBox" VerticalContentAlignment="Center" Padding="4,3"
+                                 ToolTip="Графа документа или поле системы по всему проекту; Enter — следующая (Ctrl+F)"/>
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11" Margin="2,2,0,6" IsHitTestVisible="False">Поиск по связям: Enter — следующая (Ctrl+F)</TextBlock>
+                        <ComboBox x:Name="FilterBox" ToolTip="Блок системы: ярко — только его связи"/>
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11" Margin="2,2,0,0">Блок системы — ярко только его связи</TextBlock>
+                    </StackPanel>
                     <TextBlock DockPanel.Dock="Top" Style="{StaticResource PanelTitle}">ГЛАВЫ И РАЗВОРОТЫ</TextBlock>
                     <WrapPanel DockPanel.Dock="Bottom" Margin="8,0,8,0">
                         <TextBlock Foreground="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center" Margin="4,0,4,0">Таблица</TextBlock>
@@ -85,6 +87,16 @@
                      таблицы. Закреплённые стоят у номера связи и едут вместе с
                      полотном. -->
                 <Canvas x:Name="Pops" ClipToBounds="True"/>
+                <Border x:Name="SheetHint" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{StaticResource Panel}"
+                        CornerRadius="10" Padding="24,18" BorderBrush="{StaticResource Line}" BorderThickness="1" Visibility="Collapsed" IsHitTestVisible="False">
+                    <StackPanel MaxWidth="440">
+                        <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Ink}">Разворот пуст</TextBlock>
+                        <TextBlock Margin="0,6,0,0" Foreground="{StaticResource Muted}" TextWrapping="Wrap">
+                            Перетащите сюда скан или снимок экрана, вставьте картинку Ctrl+V или добавьте страницы кнопкой «Документ из PDF».
+                            Правая кнопка мыши — меню со всеми действиями.
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
                 <Border x:Name="EmptyHint" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{StaticResource Panel}"
                         CornerRadius="10" Padding="24,18" BorderBrush="{StaticResource Line}" BorderThickness="1">
                     <StackPanel MaxWidth="420">
@@ -165,7 +177,7 @@
                         <TextBlock x:Name="SeeAlsoTitle" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,8,0,2">То же поле в других разворотах</TextBlock>
                         <WrapPanel x:Name="SeeAlso"/>
                         <TextBlock Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0">
-                            Рамки: край — перенос, углы — размер. Стрелка: отрезок — тянуть; двойной щелчок по отрезку — излом, по углу — выпрямить.
+                            Рамки: край — перенос, углы — размер. Отрезок стрелки — тянуть. Двойной щелчок по стрелке — описать; излом, выпрямить, стороны — правая кнопка.
                         </TextBlock>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom" x:Name="Props" Margin="12,6,12,12">

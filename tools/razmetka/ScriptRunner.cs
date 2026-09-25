@@ -171,6 +171,40 @@ public static class ScriptRunner
                         File.WriteAllLines(st.GetProperty("path").GetString()!,
                             Editor.Checks.Run(w.Store!.Project).Select(i => (i.Error ? "ОШИБКА " : "проверить ") + i.Chapter.Title + " · " + i.Sheet.Title + ": " + i.Text));
                         break;
+                    case "rightClick":
+                    {
+                        var p = Point(w, st.GetProperty("at"));
+                        w.Canvas.PointerDown(p, MouseButton.Right, ModifierKeys.None);
+                        break;
+                    }
+                    case "menuShot":
+                    {
+                        await Idle();
+                        var m = w.LastMenu!;
+                        var rtb = new RenderTargetBitmap((int)m.ActualWidth, (int)m.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+                        rtb.Render(m);
+                        var enc = new PngBitmapEncoder();
+                        enc.Frames.Add(BitmapFrame.Create(rtb));
+                        using (var f = File.Create(st.GetProperty("path").GetString()!)) enc.Save(f);
+                        log.Add("  пункты: " + string.Join(" | ", m.Items.OfType<System.Windows.Controls.MenuItem>().Select(i => i.Header)));
+                        m.IsOpen = false;
+                        break;
+                    }
+                    case "dblLink":
+                    {
+                        var k = w.Canvas.Sheet!.Links.First(x => x.N == st.GetProperty("n").GetInt32());
+                        w.Canvas.DoubleClick(w.Canvas.LinkBadgeScreen(k)!.Value);
+                        break;
+                    }
+                    case "editorFill":
+                    {
+                        var boxes = FindAll<System.Windows.Controls.TextBox>(w.Editor!).ToList();
+                        boxes[0].Text = st.GetProperty("doc").GetString();
+                        boxes[1].Text = st.GetProperty("sys").GetString();
+                        var ok = FindAll<System.Windows.Controls.Button>(w.Editor!).First(b => (string)b.Content == "Готово");
+                        ok.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                        break;
+                    }
                     case "button":
                     {
                         // Нажать кнопку окна по её x:Name.
@@ -236,6 +270,15 @@ public static class ScriptRunner
         }
         File.WriteAllLines(path + ".log", log);
         Application.Current.Shutdown(code);
+    }
+
+    static IEnumerable<T> FindAll<T>(DependencyObject root) where T : DependencyObject
+    {
+        foreach (var c in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (c is T t) yield return t;
+            foreach (var x in FindAll<T>(c)) yield return x;
+        }
     }
 
     static Task Idle() => Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle).Task;

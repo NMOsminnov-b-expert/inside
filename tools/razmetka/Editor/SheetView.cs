@@ -46,6 +46,91 @@ public sealed class SheetView : FrameworkElement
     Point? _lensAt;
     public event Action<Link>? StraightenRequested;
 
+    // Что под курсором — для меню по правой кнопке, двойного щелчка и
+    // подсказки при наведении.
+    public sealed record Target(string Kind, Link? Link, Note? Note, Layer? Layer, Point World, Point Screen);
+    public event Action<Target>? ContextRequested;
+    public event Action<Link, Point>? EditLinkRequested;
+    public event Action<string>? HoverHint;
+    // Идёт перетаскивание — плавающая панель прячется, чтобы не мешать.
+    public event Action<bool>? Dragging;
+
+    public Target TargetAt(Point screen)
+    {
+        var w = ToWorld(screen);
+        if (Sheet == null) return new("empty", null, null, null, w, screen);
+        if (HitNote(screen) is { } n) return new("note", null, n, null, w, screen);
+        if (HitLink(screen) is { } k) return new("link", k, null, null, w, screen);
+        var l = HitLayerAny(w);
+        if (l is { Kind: LayerKind.Table } && HitTableRow(l, w) is { } row) return new("row", row, null, l, w, screen);
+        if (l != null) return new(l.Kind == LayerKind.Table ? "table" : "layer", null, null, l, w, screen);
+        return new("empty", null, null, null, w, screen);
+    }
+
+    // Как HitLayer, но и по закреплённым: меню нужно и у них (открепить).
+    Layer? HitLayerAny(Point world)
+    {
+        for (var i = Sheet!.Layers.Count - 1; i >= 0; i--)
+        {
+            var l = Sheet.Layers[i];
+            if (!l.Hidden && new Rect(l.X, l.Y, l.W, l.H).Contains(world)) return l;
+        }
+        return null;
+    }
+
+    // Область выбранного на экране — к ней прижимается плавающая панель.
+    public Rect? SelectionScreenRect()
+    {
+        if (Sheet == null || _op != Op.None) return null;
+        var r = Rect.Empty;
+        if (SelectedLink is { } k && LinkBounds(k) is { } lb) r = lb;
+        else foreach (var l in SelectedLayers()) r.Union(new Rect(l.X, l.Y, l.W, l.H));
+        if (r.IsEmpty) return null;
+        return new Rect(ToScreen(r.X, r.Y), ToScreen(r.Right, r.Bottom));
+    }
+
+    // Излом у точки щелчка (из меню): на ближайшем отрезке выбранной связи.
+    public bool AddBendAt(Point screen) => AddBend(screen);
+
+    void Hover(Point p)
+    {
+        if (Sheet == null || _op != Op.None) return;
+        if (LinkTool || NoteTool || _ghost != null || CropLayerId != null) return;
+        if (Selection.Count == 1 && Find(Selection[0]) is { Locked: false, Hidden: false } sel
+            && HitHandle(Corners(ScreenRect(sel)), p) is var h && h >= 0)
+        {
+            Cursor = h is 0 or 2 ? Cursors.SizeNWSE : Cursors.SizeNESW;
+            HoverHint?.Invoke("Тянуть — размер");
+            return;
+        }
+        var t = TargetAt(p);
+        switch (t.Kind)
+        {
+            case "link":
+                Cursor = Cursors.Hand;
+                HoverHint?.Invoke($"Связь {t.Link!.N}: щелчок — подсказка, двойной щелчок — описать, правая кнопка — меню");
+                break;
+            case "row":
+                Cursor = Cursors.Hand;
+                HoverHint?.Invoke($"Строка связи {t.Link!.N}: двойной щелчок — описать, правая кнопка — меню таблицы");
+                break;
+            case "note":
+                Cursor = Cursors.Hand;
+                HoverHint?.Invoke("Заметка: щелчок — открыть, перетаскивание — перенести");
+                break;
+            case "layer" or "table":
+                Cursor = t.Layer!.Locked ? null : Cursors.SizeAll;
+                HoverHint?.Invoke(t.Layer.Locked
+                    ? $"«{t.Layer.Name}» закреплён — правая кнопка: открепить, обрезать, заменить"
+                    : $"«{t.Layer.Name}»: перетаскивание — перенос{(t.Kind == "layer" ? ", двойной щелчок — обрезка" : "")}, правая кнопка — меню");
+                break;
+            default:
+                Cursor = null;
+                HoverHint?.Invoke("Правая кнопка — меню: добавить фото, новая связь, заметка, вставить");
+                break;
+        }
+    }
+
     // Заметки-булавки: инструмент N — щелчок ставит булавку; выбранная
     // заметка правится в панели справа.
     public bool NoteTool { get; private set; }
@@ -488,6 +573,7 @@ public sealed class SheetView : FrameworkElement
     {
         if (Lens) MoveLens(e.GetPosition(this));
         if (_op != Op.None) PointerMove(e.GetPosition(this), Keyboard.Modifiers);
+        else Hover(e.GetPosition(this));
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
@@ -505,12 +591,10 @@ public sealed class SheetView : FrameworkElement
 
     public void DoubleClick(Point screen)
     {
-        // Двойной щелчок по углу выбранной стрелки — выпрямить (проложить
-        // заново), по отрезку — излом.
-        if (LinkId != null && Sheet != null && SelectedLink is { } sk && SheetGeo.Path(Sheet, sk) is { } spts)
-            for (var i = 1; i < spts.Count - 1; i++)
-                if ((ToScreen(spts[i].X, spts[i].Y) - screen).Length <= 8) { StraightenRequested?.Invoke(sk); return; }
-        if (LinkId != null && AddBend(screen)) return;
+        // Двойной щелчок по стрелке, номеру или строке таблицы — описать связь
+        // прямо у стрелки. Излом и выпрямление — в меню правой кнопки.
+        var t0 = TargetAt(screen);
+        if (t0.Link != null) { SelectLink(t0.Link.Id); EditLinkRequested?.Invoke(t0.Link, screen); return; }
         var l = HitLayer(ToWorld(screen));
         if (l != null && l.Kind == LayerKind.Image && CropLayerId == null) StartCrop(l.Id);
         else if (CropLayerId != null && (l == null || l.Id != CropLayerId)) EndCrop();
@@ -526,7 +610,18 @@ public sealed class SheetView : FrameworkElement
         _guides.Clear();
         if (Sheet == null) return;
 
-        if (button == MouseButton.Middle || button == MouseButton.Right || _spaceDown) { _op = Op.Pan; return; }
+        if (button == MouseButton.Middle || _spaceDown) { _op = Op.Pan; return; }
+        if (button == MouseButton.Right)
+        {
+            _op = Op.None;
+            var t = TargetAt(p);
+            // Правая кнопка выбирает то, над чем меню, — как в проводнике.
+            if (t.Link != null && t.Kind == "link") SelectLink(t.Link.Id);
+            else if (t.Layer != null && !t.Layer.Locked && !Selection.Contains(t.Layer.Id)) { if (LinkId != null) SelectLink(null); Select(new[] { t.Layer.Id }); }
+            else if (t.Note != null) SelectNote(t.Note.Id);
+            ContextRequested?.Invoke(t);
+            return;
+        }
         if (_ghost != null) { _op = Op.None; AlignClick(p); return; }
         if (LinkTool) { _op = Op.Band; _band = new Rect(p, p); return; }
         if (NoteTool) { _op = Op.None; SetNoteTool(false); NotePlaced?.Invoke(ToWorld(p)); return; }
@@ -592,7 +687,7 @@ public sealed class SheetView : FrameworkElement
     {
         var d = p - _lastScreen;
         _lastScreen = p;
-        if ((p - _downScreen).Length > 2) _moved = true;
+        if ((p - _downScreen).Length > 2 && !_moved) { _moved = true; if (_op is not (Op.Band or Op.Pan)) Dragging?.Invoke(true); }
         var w = ToWorld(p);
         var dw = w - _downWorld;
         _guides.Clear();
@@ -636,6 +731,7 @@ public sealed class SheetView : FrameworkElement
     {
         var op = _op;
         _op = Op.None;
+        if (_moved) Dragging?.Invoke(false);
         _guides.Clear();
         if (op == Op.Move && !_moved && Selection.Count == 1 && Find(Selection[0]) is { Kind: LayerKind.Table } tl)
         {
