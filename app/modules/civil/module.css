@@ -298,3 +298,20 @@ body[data-module="civil"] .cs-zone::before{content:"↳ ";color:var(--muted)}
 body[data-module="civil"] .cs-tbl tfoot td, body[data-module="civil"] .cs-matrix tbody td{font-weight:700;background:#eef4fb;border-top:1.5px solid var(--line)}
 body[data-module="civil"] .cs-mh{margin:14px 0 6px}
 body[data-module="civil"] .cs-litname{font-size:11.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Шкала состояния (data/conditionScale.js): под выбранным состоянием — ранг и
+   диапазон износа; в сводной — матрица корректировок, раскрывается по запросу.
+   Недопустимые значения — красным, как в методологии; диагональ — серым. */
+body[data-module="civil"] .cond-hint{font-size:11.5px;color:var(--muted);margin-top:4px;min-height:15px;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cm-box{margin-top:14px}
+body[data-module="civil"] .cm-box>summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--blue-700);padding:4px 0}
+body[data-module="civil"] .cm-box>summary:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+body[data-module="civil"] .cm-note{font-size:12px;color:var(--muted);margin:4px 0 8px;line-height:1.45;max-width:90ch}
+body[data-module="civil"] .cm-tbl{min-width:760px}
+body[data-module="civil"] .cm-tbl th[scope="row"]{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;background:#f4f8fd;white-space:nowrap}
+body[data-module="civil"] .cm-tbl td.num, body[data-module="civil"] .cm-tbl th.num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cm-rank{display:inline-block;min-width:26px;color:var(--blue-700);font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cm-tbl td.cm-diag{background:#e9edf2 !important;color:var(--muted)}
+body[data-module="civil"] .cm-tbl td.cm-bad, body[data-module="civil"] .cm-bad-key{color:#b42318;font-weight:700}
+body[data-module="civil"] .cm-tbl td.cm-bad{background:#fdecea !important}
+body[data-module="civil"] .cm-tbl td.cm-none{color:#c3ccd6}

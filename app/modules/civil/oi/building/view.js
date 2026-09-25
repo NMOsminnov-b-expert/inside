@@ -11,6 +11,7 @@ import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, ENTRANCE_GROUP, STRUCT, RES_
 import { activeOcType } from '../../../../kernel/ocType.js';
 import { opt } from '../../data/opts.js';
 import { floorsBlock, floorsCountField } from './floors.view.js';
+import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
 import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
@@ -464,7 +465,8 @@ function zoneConditionHTML(z) {
   const cur = z.condition || list[0];
   return `<div class="field zn-cond"><label for="zn-cond-${esc(z.id)}" class="lk-tip"
     title="Состояние этой части здания по шкале методологии: от «Отличное» (5) до «Неудовлетворительное» (1)">Состояние зоны</label>
-    <select class="select" id="zn-cond-${esc(z.id)}" data-zone-cond>${list.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+    <select class="select" id="zn-cond-${esc(z.id)}" data-zone-cond>${list.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+    ${condHintHTML(z.condition, 'zone')}</div>`;
 }
 
 // Зона — как элемент в паттерне «добавить ещё» (DWP Design System, «Add another
@@ -570,6 +572,13 @@ ${annexesHTML(ctx, oi)}
 // гражданское, и производственное здание, а износ по элементам у них и так
 // был. Раньше блок висел на oi.residential — это была недоделка
 // распространения жилого дома по остальным типам ОЦ, а не решение.
+// Под выбранным состоянием — его ранг и диапазон физического износа по шкале
+// методологии: так видно, что стоит за словом (data/conditionScale.js).
+export function condHintHTML(value, key) {
+  const h = scaleHint(value);
+  return `<div class="cond-hint ${h ? '' : 'empty'}" data-cond-hint="${key}" title="${esc(scaleTitle(value))}">${esc(h)}</div>`;
+}
+
 function conditionCard(ctx, oi, idx) {
   const cond = (key) => {
     const val = oi[key] || opt('building', key, BUILD_CONDITION)[0];
@@ -583,12 +592,15 @@ function conditionCard(ctx, oi, idx) {
 <div class="grid g-3">
 <div class="field"><label>Внутреннее состояние</label>
 <select class="select" data-condition="conditionInner">${cond('conditionInner')}</select>
+${condHintHTML(oi.conditionInner, 'conditionInner')}
 </div>
 <div class="field"><label>Внешнее состояние</label>
 <select class="select" data-condition="conditionOuter">${cond('conditionOuter')}</select>
+${condHintHTML(oi.conditionOuter, 'conditionOuter')}
 </div>
-<div class="field"><label>Итоговое состояние</label>
+<div class="field"><label class="lk-tip" title="Входит в сводную «Капитальность и классы» карточки объекта оценки">Итоговое состояние</label>
 <select class="select" data-condition="conditionTotal">${cond('conditionTotal')}</select>
+${condHintHTML(oi.conditionTotal, 'conditionTotal')}
 </div>
 </div>
 </div></div>

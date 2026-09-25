@@ -29,6 +29,7 @@ import {
 } from './zones.js';
 import { fmtNum } from '../../../../kernel/fmt.js';
 import { esc } from '../../../../kernel/dom.js';
+import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
 import { capMsSummary, capMsBody } from './view.js';
 
 export function bind(ctx, oi) {
@@ -493,6 +494,8 @@ export function bind(ctx, oi) {
 // Состояние жилого дома: три отдельных поля (блок «Состояние»).
   s.$$('[data-condition]').forEach((sel) => sel.onchange = () => {
     oi[sel.dataset.condition] = sel.value;
+    const hint = s.$(`[data-cond-hint="${sel.dataset.condition}"]`);
+    if (hint) { hint.textContent = scaleHint(sel.value); hint.title = scaleTitle(sel.value); hint.classList.toggle('empty', !hint.textContent); }
   });
 
   s.$$('[data-wear]').forEach((sel) => sel.onchange = () => {
@@ -659,7 +662,11 @@ export function bind(ctx, oi) {
       refreshZones();
     });
     const cond = box.querySelector('[data-zone-cond]');
-    if (cond) cond.onchange = () => { z.condition = cond.value; };
+    if (cond) cond.onchange = () => {
+      z.condition = cond.value;
+      const hint = box.querySelector('[data-cond-hint="zone"]');
+      if (hint) { hint.textContent = scaleHint(cond.value); hint.title = scaleTitle(cond.value); hint.classList.toggle('empty', !hint.textContent); }
+    };
     const del = box.querySelector('[data-zone-del]');
     if (del) del.onclick = () => {
       const filled = z.litKind || z.area || Object.keys(z.capSigns || {}).length;

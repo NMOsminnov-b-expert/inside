@@ -24,6 +24,7 @@ import { num, fmtNum } from '../../../kernel/fmt.js';
 import { capScore, capClass } from '../oi/building/capClass.js';
 import { zonesOf, hasZones, zoneTitle } from '../oi/building/zones.js';
 import { CONDITION_RANK } from '../data/dictionaries.js';
+import { SCALE_LABELS, CONDITION_SCALE, conditionCorrection, fmtCorr } from '../data/conditionScale.js';
 
 const area = (v) => {
   const n = num(v);
@@ -66,6 +67,36 @@ const MATRIX = [
   ...[4, 3, 2, 1].map((n) => ({ key: `admin-${n}`, label: `Гражд. ${n}`, title: `Гражданские, ${n} класс` })),
   { key: 'other', label: 'Прочие', title: 'Прочие постройки: навесы, ТП, КПП, охрана — К = 0,05' },
 ];
+
+// Матрица корректировок по состоянию — справочно, раскрывается по запросу:
+// нужна при подборе аналогов, а не при каждом заходе в карточку. Строка — из
+// какого состояния, столбец — к какому; недопустимые значения выделены, пары,
+// которые методология не рассчитывает, пусты. Короткие подписи столбцов —
+// ранг, полное название — в подсказке.
+function correctionMatrixHTML() {
+  const head = CONDITION_SCALE.map((s) => `<th class="num" scope="col" title="${esc(s.label)} · износ ${s.wearFrom}–${s.wearTo} %">${String(s.rank).replace('.', ',')}</th>`).join('');
+  const body = SCALE_LABELS.map((from) => {
+    const s = CONDITION_SCALE.find((x) => x.label === from);
+    const cells = SCALE_LABELS.map((to) => {
+      const c = conditionCorrection(from, to);
+      if (!c) return '<td class="num cm-none" title="Не рассчитывается: разница состояний заведомо запредельная">—</td>';
+      const cls = from === to ? 'cm-diag' : c.invalid ? 'cm-bad' : '';
+      const tip = `${from} → ${to}: ${fmtCorr(c.value)}${c.invalid ? ' — недопустимо: аналог слишком далёк по состоянию' : ''}`;
+      return `<td class="num ${cls}" title="${esc(tip)}">${fmtCorr(c.value)}</td>`;
+    }).join('');
+    return `<tr><th scope="row" title="${esc(from)} · износ ${s.wearFrom}–${s.wearTo} %"><span class="cm-rank">${String(s.rank).replace('.', ',')}</span> ${esc(from)}</th>${cells}</tr>`;
+  }).join('');
+  return `<details class="cm-box" data-cond-matrix>
+<summary>Корректировки по состоянию</summary>
+<p class="cm-note">Во сколько раз скорректировать стоимость объекта в состоянии строки, чтобы привести его к состоянию столбца:
+(100 − средний % ремонта строки) / (100 − средний % ремонта столбца). <span class="cm-bad-key">Выделенные</span> значения
+недопустимы — аналог в таком состоянии исключают; «—» — пара не рассчитывается.</p>
+<div class="cs-scroll"><table class="tbl cm-tbl">
+<colgroup><col style="width:28%">${CONDITION_SCALE.map(() => '<col style="width:8%">').join('')}</colgroup>
+<thead><tr><th scope="col">Из состояния → в ранг</th>${head}</tr></thead>
+<tbody>${body}</tbody></table></div>
+</details>`;
+}
 
 export function capSummaryHTML(ctx) {
   const rows = rowsOf(ctx.rec);
@@ -134,6 +165,7 @@ export function capSummaryHTML(ctx) {
 <thead><tr>${MATRIX.map((c) => `<th class="num" title="${esc(c.title)}">${c.label}</th>`).join('')}</tr></thead>
 <tbody><tr>${MATRIX.map((c) => `<td class="num">${byClass[c.key] ? fmtNum(byClass[c.key]) : ''}</td>`).join('')}</tr></tbody>
 </table></div>
+${correctionMatrixHTML()}
 </div></div>
 </div>`;
 }

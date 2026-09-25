@@ -25,9 +25,9 @@ TOUCHES = (
 
 OC = '#/oc/civil/oc-cv-1'
 
-ROWS = """() => [...document.querySelectorAll('#q-capsum tbody tr')].map((tr) =>
+ROWS = """() => [...document.querySelectorAll('#q-capsum .cs-tbl tbody tr')].map((tr) =>
   [...tr.querySelectorAll('td')].map((td) => td.textContent.replace(/\\s+/g, ' ').trim()))"""
-FOOT = """() => [...document.querySelectorAll('#q-capsum tfoot td')].map((td) => td.textContent.replace(/\\s+/g, ' ').trim())"""
+FOOT = """() => [...document.querySelectorAll('#q-capsum .cs-tbl tfoot td')].map((td) => td.textContent.replace(/\\s+/g, ' ').trim())"""
 MATRIX = """() => Object.fromEntries([...document.querySelectorAll('#q-capsum .cs-matrix th')].map((th, i) =>
   [th.textContent.trim(), document.querySelectorAll('#q-capsum .cs-matrix tbody td')[i].textContent.trim()]))"""
 
@@ -86,3 +86,18 @@ def run(t):
     opts = pg.eval_on_selector_all('[data-condition="conditionTotal"] option', 'os => os.map((o) => o.textContent)')
     t.ck(len(opts) == 10 and 'Отличное / хорошее' in opts and 'Требует капитального ремонта' in opts,
          'перечень состояния не шкала методологии: %s' % opts)
+
+    # --- стадия 3: шкала состояния и корректировки (методология, 25.09.2026) ---------
+    pg.select_option('[data-condition="conditionTotal"]', 'Хорошее / удовлетворительное')
+    t.ck(pg.inner_text('[data-cond-hint="conditionTotal"]') == 'ранг 3,5 · износ 21–30 %',
+         'под состоянием нет ранга и износа: %r' % pg.inner_text('[data-cond-hint="conditionTotal"]'))
+    pg.goto(pg.url.split('#')[0] + '#/')
+    t.open(OC, wait='#q-capsum')
+    pg.click('[data-cond-matrix] > summary')
+    cells = pg.evaluate("""() => [...document.querySelectorAll('[data-cond-matrix] tbody tr')].map((tr) =>
+      [...tr.querySelectorAll('td')].map((td) => td.textContent.trim() + (td.classList.contains('cm-bad') ? '!' : '')))""")
+    # строки методологии «Полная матрица корректировок по состоянию»
+    t.ck(cells[0] == ['1,00', '1,06', '1,15', '1,31', '1,51', '1,79', '2,19', '3,31!', '—'], 'строка «отличное»: %s' % cells[0])
+    t.ck(cells[6] == ['0,46', '0,48', '0,53', '0,60', '0,69', '0,82', '1,00', '1,51!', '4,68!'], 'строка «тр. рем»: %s' % cells[6])
+    t.ck(cells[7][:3] == ['—', '—', '0,35!'] and cells[7][8] == '3,11!', 'строка «тр. кап. рем.»: %s' % cells[7])
+    t.ck(cells[8] == ['—'] * 6 + ['0,21!', '0,32!', '1,00'], 'строка «неудовл»: %s' % cells[8])
