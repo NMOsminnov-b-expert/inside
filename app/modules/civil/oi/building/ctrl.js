@@ -564,7 +564,7 @@ export function bind(ctx, oi) {
       const sign = (SIGNS[kindOf(z)] || []).find((x) => x.height);
       if (hb && sign) {
         const band = heightBand(sign, heightOf(z));
-        hb.textContent = band ? band[2] : 'Нет высоты зоны';
+        hb.textContent = band ? band[2] : 'Нет высоты по внутр. замерам зоны';
         hb.classList.toggle('muted', !band);
       }
     });

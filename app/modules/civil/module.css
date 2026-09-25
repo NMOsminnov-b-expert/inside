@@ -252,10 +252,15 @@ body[data-module="civil"] .zn-head{display:flex;flex-wrap:wrap;gap:10px;align-it
 body[data-module="civil"] .zn-head>.field{margin:0;min-width:0}
 body[data-module="civil"] .zn-num{flex:0 0 auto;align-self:center;min-width:22px;height:22px;border-radius:6px;
   background:var(--amber-600, #c27c0e);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
-body[data-module="civil"] .zn-name{flex:2 1 200px}
+body[data-module="civil"] .zn-name{flex:2 1 160px}
 body[data-module="civil"] .zn-num-f{flex:0 1 120px}
+/* Подписи как в таблице этажей этой же карточки («По внутр. обмеру, м²»,
+   «Высота внутр., м»), полные названия — в подсказках. */
+body[data-module="civil"] .zn-a-f{flex-basis:150px}
+body[data-module="civil"] .zn-h-f{flex-basis:130px}
+body[data-module="civil"] .zn-head label{white-space:nowrap}
 body[data-module="civil"] .zn-num-f .input{text-align:right;font-variant-numeric:tabular-nums}
-body[data-module="civil"] .zn-cls{flex:1 1 150px}
+body[data-module="civil"] .zn-cls{flex:1 1 120px}
 body[data-module="civil"] .zn-del{flex:0 0 auto;align-self:flex-end}
 body[data-module="civil"] .zn .lk-row{margin-bottom:10px}
 body[data-module="civil"] .zn-add{margin-top:2px}

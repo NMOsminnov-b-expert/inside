@@ -414,8 +414,12 @@ function signFieldHTML(oi, sign, zone = false) {
   if (sign.height) {
     const h = heightOf(oi);
     const band = heightBand(sign, h);
-    const none = zone ? 'Нет высоты зоны' : 'Нет высоты по внутренним замерам';
-    return `<div class="field"><label>Высота</label>
+    const none = zone ? 'Нет высоты по внутр. замерам зоны' : 'Нет высоты по внутренним замерам';
+    // Признак — диапазон, а не само число: подпись и подсказка говорят, из
+    // какой высоты он взят, чтобы не путать с полем ввода высоты.
+    const tip = zone ? 'Диапазон по высоте по внутренним замерам зоны (поле в шапке зоны)'
+      : 'Диапазон по высоте по внутренним замерам (блок «Площади и этажность»)';
+    return `<div class="field"><label class="lk-tip" title="${tip}">Высота (диапазон)</label>
       <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : none}</div></div>`;
   }
   const opts = sign.options.map((o) => o[0]);
@@ -465,9 +469,9 @@ function zoneHTML(z, i) {
     <span class="zn-num" aria-hidden="true">${i + 1}</span>
     <div class="field zn-name"><label for="zn-name-${esc(z.id)}">Название зоны</label>
       <input class="input" id="zn-name-${esc(z.id)}" data-zone-name value="${esc(z.name || '')}" placeholder="Зона ${i + 1}, например «Общежитие»"></div>
-    <div class="field zn-num-f"><label for="zn-area-${esc(z.id)}">Площадь, м²</label>
+    <div class="field zn-num-f zn-a-f"><label for="zn-area-${esc(z.id)}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма зон сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
       <input class="input num" id="zn-area-${esc(z.id)}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
-    <div class="field zn-num-f"><label for="zn-h-${esc(z.id)}" class="lk-tip" title="Высота этой части здания — по ней выбирается диапазон признака «Высота»">Высота, м</label>
+    <div class="field zn-num-f zn-h-f"><label for="zn-h-${esc(z.id)}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» зоны">Высота внутр., м</label>
       <input class="input num" id="zn-h-${esc(z.id)}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
     <div class="field zn-cls"><label>Класс зоны</label>
       <div class="lk-class ${c.ok ? '' : 'muted'}" data-zone-class title="${esc(c.title)}">${esc(c.text)}</div></div>
