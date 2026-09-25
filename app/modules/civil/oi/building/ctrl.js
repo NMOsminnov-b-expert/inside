@@ -23,6 +23,12 @@ import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js'
 import { bindColumnReorder } from '../../../../kernel/columns.js';
 import { bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass } from './capClass.js';
+import {
+  hasZones, targetOf, splitIntoZones, addZone, removeZone, zoneById, syncFromZones, zonesSum, diffText,
+  distributionText, typesText, zoneClassInfo,
+} from './zones.js';
+import { fmtNum } from '../../../../kernel/fmt.js';
+import { esc } from '../../../../kernel/dom.js';
 import { capMsSummary, capMsBody } from './view.js';
 
 export function bind(ctx, oi) {
@@ -43,6 +49,8 @@ export function bind(ctx, oi) {
     updateFloorsUI(ctx, oi);
     updateAreasNote(s, areasPair());
     ctx.updatePlate();
+    // Площадь по внутреннему обмеру делится между зонами — сверка следует за ней.
+    if (hasZones(oi)) refreshZones();
   }));
 
   s.$$('[data-height]').forEach((i) => bindNumField(i, (v) => {
@@ -504,7 +512,16 @@ export function bind(ctx, oi) {
   // назначения (ТЗ §9.6): иначе заполненный блок пропадал бы молча.
   s.$$('[data-lit-kind]').forEach((b) => b.onclick = () => {
     const next = b.dataset.litKind;
-    if (kindOf(oi) === next) return;
+    const t = targetOf(oi, b);
+    if (kindOf(t) === next) return;
+    // Тип зоны меняет только её признаки: заполненное остаётся в зоне.
+    if (t !== oi) {
+      t.litKind = next;
+      if (t.purposeFact && !(PURPOSES[next] || []).includes(t.purposeFact)) t.purposeFact = '';
+      syncFromZones(oi);
+      ctx.render();
+      return;
+    }
     const apply = () => {
       oi.litKind = next;
       if (oi.purposeFact && !(PURPOSES[next] || []).includes(oi.purposeFact)) oi.purposeFact = '';
@@ -521,11 +538,56 @@ export function bind(ctx, oi) {
     }).then((ok) => { if (ok) apply(); });
   });
 
-  const pf = s.$('[data-purpose-fact]');
-  if (pf) pf.onchange = () => { oi.purposeFact = pf.value; ctx.updatePlate && ctx.updatePlate(); };
+  s.$$('[data-purpose-fact]').forEach((pf) => pf.onchange = () => {
+    targetOf(oi, pf).purposeFact = pf.value;
+    syncFromZones(oi);
+    ctx.updatePlate && ctx.updatePlate();
+  });
 
   // Класс — поле без ввода: пересчитывается сразу, как поменялся признак.
+  // У литеры из зон — класс каждой зоны, сверка площадей и площади по классам
+  // в блоке 01; всё на месте, без перерисовки карточки (иначе закрывался бы
+  // открытый список признаков).
+  function refreshZones() {
+    syncFromZones(oi);
+    s.$$('[data-zone]').forEach((box) => {
+      const z = zoneById(oi, box.dataset.zone);
+      if (!z) return;
+      const c = zoneClassInfo(z);
+      const cls = box.querySelector('[data-zone-class]');
+      if (cls) {
+        cls.textContent = c.text;
+        cls.title = c.title;
+        cls.classList.toggle('muted', !c.ok);
+      }
+      const hb = box.querySelector('[data-cap-height]');
+      const sign = (SIGNS[kindOf(z)] || []).find((x) => x.height);
+      if (hb && sign) {
+        const band = heightBand(sign, heightOf(z));
+        hb.textContent = band ? band[2] : 'Нет высоты зоны';
+        hb.classList.toggle('muted', !band);
+      }
+    });
+    const st = zonesSum(oi);
+    const sum = s.$('[data-zones-sum]');
+    if (sum) sum.textContent = `${fmtNum(st.sum)} из ${fmtNum(st.total)} м²`;
+    const diff = s.$('[data-zones-diff]');
+    if (diff) {
+      diff.textContent = st.total ? diffText(st.diff) : 'нет площади по внутреннему обмеру';
+      diff.classList.toggle('ok', st.ok);
+      diff.classList.toggle('warn', !st.ok);
+    }
+    const dist = distributionText(oi);
+    const d = s.$('[data-zones-dist]');
+    if (d) d.innerHTML = `<span class="zn-dist-l">По классам:</span> ${esc(dist)}`;
+    const box = s.$('[data-cap-class]');
+    if (box) box.textContent = dist;
+    const kv = s.$('[data-lit-kind-view]');
+    if (kv) kv.textContent = typesText(oi);
+  }
+
   function refreshCapClass() {
+    if (hasZones(oi)) { refreshZones(); return; }
     const c = syncCapClass(oi);
     const box = s.$('[data-cap-class]');
     if (box) {
@@ -542,7 +604,7 @@ export function bind(ctx, oi) {
   }
 
   s.$$('[data-cap-sign]').forEach((el) => el.onchange = () => {
-    const sg = signsOf(oi);
+    const sg = signsOf(targetOf(oi, el));
     if (el.value) sg[el.dataset.capSign] = el.value; else delete sg[el.dataset.capSign];
     refreshCapClass();
   });
@@ -551,7 +613,8 @@ export function bind(ctx, oi) {
   // материалов конструктива; выбор перерисовывает только сводку и список.
   s.$$('[data-cap-ms]').forEach((box) => {
     const key = box.dataset.capMs;
-    const sign = (SIGNS[kindOf(oi)] || []).find((x) => x.key === key);
+    const t = targetOf(oi, box);
+    const sign = (SIGNS[kindOf(t)] || []).find((x) => x.key === key);
     const control = box.querySelector('[data-ms-control]');
     const drop = box.querySelector('.ms-drop');
     if (!sign || !control || !drop) return;
@@ -560,10 +623,10 @@ export function bind(ctx, oi) {
       drop.querySelectorAll('[data-cap-opt]').forEach((cb) => cb.onchange = () => {
         const value = cb.dataset.capOpt.slice(key.length + 1);
         const order = sign.options.map((o) => o[0]);
-        const list = pickedOf(oi, key).filter((v) => v !== value);
+        const list = pickedOf(t, key).filter((v) => v !== value);
         if (cb.checked) list.push(value);
         list.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-        signsOf(oi)[key] = list;
+        signsOf(t)[key] = list;
         control.innerHTML = capMsSummary(list);
         drop.innerHTML = capMsBody(sign, list);
         bindOpts();
@@ -571,6 +634,43 @@ export function bind(ctx, oi) {
       });
     };
     bindOpts();
+  });
+
+  // --- Зоны литеры (zones.js) ----------------------------------------------
+  const split = s.$('[data-zone-split]');
+  if (split) split.onclick = () => { splitIntoZones(oi); ctx.render(); };
+  const add = s.$('[data-zone-add]');
+  if (add) add.onclick = () => {
+    addZone(oi);
+    ctx.render();
+    const names = s.$$('[data-zone-name]');
+    if (names.length) names[names.length - 1].focus();
+  };
+  s.$$('[data-zone]').forEach((box) => {
+    const z = zoneById(oi, box.dataset.zone);
+    if (!z) return;
+    const name = box.querySelector('[data-zone-name]');
+    if (name) name.oninput = () => { z.name = name.value; };
+    // Числа — тем же полем, что площади и высоты литеры: разряды, запятая,
+    // выражения вроде «620-300» (kernel/numField.js).
+    bindNumField(box.querySelector('[data-zone-area]'), (v) => { z.area = v; refreshZones(); });
+    bindNumField(box.querySelector('[data-zone-height]'), (v) => {
+      z.heights = { ...(z.heights || {}), int: v };
+      refreshZones();
+    });
+    const del = box.querySelector('[data-zone-del]');
+    if (del) del.onclick = () => {
+      const filled = z.litKind || z.area || Object.keys(z.capSigns || {}).length;
+      const go = () => { removeZone(oi, z.id); ctx.render(); };
+      if (!filled) { go(); return; }
+      confirmDialog({
+        title: 'Убрать зону?',
+        text: `«${z.name || 'Зона'}» — тип, площадь и признаки зоны будут удалены.`
+          + (s.$$('[data-zone]').length === 2 ? ' Останется одна зона — литера снова станет цельной.' : ''),
+        okLabel: 'Убрать',
+        danger: true,
+      }).then((ok) => { if (ok) go(); });
+    };
   });
 
   // --- Отопление ----------------------------------------------------------

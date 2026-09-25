@@ -238,6 +238,27 @@ body[data-module="civil"] #q-gen .grid.g-3,
 body[data-module="civil"] #q-capclass .lk-signs{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 body[data-module="civil"] .lk-pair>.field{margin:0;min-width:0}
 body[data-module="civil"] .lk-note{font-size:12.5px;margin-top:2px}
+/* Зоны литеры (oi/building/zones.js) — паттерн «добавить ещё» (DWP Design
+   System): у каждой зоны своя рамка с номером, названием, площадью, высотой,
+   классом и кнопкой «убрать»; над зонами — сверка суммы площадей той же
+   панелью, что у этажей (.floors-sums), и площади по классам. */
+body[data-module="civil"] .zn-split{margin-top:12px}
+body[data-module="civil"] .zn-sums{margin:0 0 6px}
+body[data-module="civil"] .zn-dist{font-size:12.5px;color:var(--ink);margin:0 0 10px;line-height:1.45}
+body[data-module="civil"] .zn-dist-l{font-size:11px;font-weight:700;color:var(--blue-700);margin-right:4px}
+body[data-module="civil"] .zn{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:10px;background:#fff}
+body[data-module="civil"] .zn-head{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px;
+  padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+body[data-module="civil"] .zn-head>.field{margin:0;min-width:0}
+body[data-module="civil"] .zn-num{flex:0 0 auto;align-self:center;min-width:22px;height:22px;border-radius:6px;
+  background:var(--amber-600, #c27c0e);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+body[data-module="civil"] .zn-name{flex:2 1 200px}
+body[data-module="civil"] .zn-num-f{flex:0 1 120px}
+body[data-module="civil"] .zn-num-f .input{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .zn-cls{flex:1 1 150px}
+body[data-module="civil"] .zn-del{flex:0 0 auto;align-self:flex-end}
+body[data-module="civil"] .zn .lk-row{margin-bottom:10px}
+body[data-module="civil"] .zn-add{margin-top:2px}
 body[data-module="civil"] .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
 body[data-module="civil"] .lk-row>.field{margin:0}
 body[data-module="civil"] .lk-row>.lk-purpose{flex:1 1 240px;max-width:420px}

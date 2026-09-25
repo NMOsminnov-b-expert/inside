@@ -3,7 +3,7 @@ import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
-import { fmtEni } from '../../../../kernel/fmt.js';
+import { fmtEni, fmtNum } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';
@@ -19,6 +19,9 @@ import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
 import { msDropBodyHTML } from '../../../../kernel/multiSelect.js';
 import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass } from './capClass.js';
+import {
+  zonesOf, hasZones, hasKind, zonesSum, diffText, distributionText, typesText, zoneTitle, zoneClassInfo,
+} from './zones.js';
 
 
 // Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
@@ -35,7 +38,9 @@ const HOUSING_OC = ['apartment', 'residential-house'];
 export function fieldRules(ctx, oi) {
   // Вид литеры — по фото, внутри карточки (решение пользователя 23.09.2026);
   // прежде признаком производственного строения была строка catClass.
-  const prod = kindOf(oi) === 'prod';
+  // Литера из нескольких зон — производственная, если такая хоть одна зона
+  // (oi/building/zones.js): доп. параметры производственного здания нужны ей.
+  const prod = hasKind(oi, 'prod');
   const ml = (oi.origin || 'manual') === 'ml';
 
   // В жилом объекте оценки категория ОИ у жилого строения не нужна: она там
@@ -360,17 +365,18 @@ ${tempModeMS(ctx, oi)}
 // Тип — три взаимоисключающих варианта, видны сразу: переключатель, как «Вид
 // объекта» у ТС. Назначение по факту — перечень своего вида; по техпаспорту
 // назначение остаётся текстом как в документе — это ориентир.
-function kindRowHTML(oi) {
+function kindRowHTML(oi, zoneId = '') {
   const kind = kindOf(oi);
+  const pid = zoneId ? `lk-purpose-${zoneId}` : 'lk-purpose';
   const seg = `<div class="lk-seg" role="radiogroup" aria-label="Тип объекта имущества">${KINDS.map((k) => `
     <button type="button" class="lk-seg-btn ${kind === k.key ? 'on' : ''}" role="radio" aria-checked="${kind === k.key}"
       data-lit-kind="${k.key}">${esc(k.label)}</button>`).join('')}</div>`;
   const list = PURPOSES[kind] || [];
-  const purpose = kind ? `<div class="field lk-purpose"><label for="lk-purpose">Назначение по факту</label>
-    <select class="select" id="lk-purpose" data-purpose-fact>${emptyOptionHTML()}${list.map((p) => `<option ${
+  const purpose = kind ? `<div class="field lk-purpose"><label for="${pid}">Назначение по факту</label>
+    <select class="select" id="${pid}" data-purpose-fact>${emptyOptionHTML()}${list.map((p) => `<option ${
   p === oi.purposeFact ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
   return `<div class="lk-row">
-    <div class="field"><label class="lk-tip" title="По фото с осмотра">Тип объекта имущества</label>${seg}</div>
+    <div class="field"><label class="lk-tip" title="По фото с осмотра">${zoneId ? 'Тип зоны' : 'Тип объекта имущества'}</label>${seg}</div>
     ${purpose}
   </div>`;
 }
@@ -381,6 +387,16 @@ function kindRowHTML(oi) {
 // (решение пользователя 25.09.2026). Класс считает система (23.09.2026) —
 // рядом с ним сказано, чего не хватает для расчёта.
 function typeClassPairHTML(oi) {
+  if (hasZones(oi)) {
+    // Литера из зон: типы зон и площади по классам — как в сводной таблице
+    // методики (решение пользователя 25.09.2026).
+    return `<div class="lk-pair">
+    <div class="field"><label class="lk-tip" title="Выбирается у каждой зоны в блоке «Тип и класс капитальности»">Тип объекта имущества</label>
+      <div class="lk-class" data-lit-kind-view>${esc(typesText(oi))}</div></div>
+    <div class="field"><label class="lk-tip" title="Площади зон по классам капитальности">Класс ОИ</label>
+      <div class="lk-class" data-cap-class>${esc(distributionText(oi))}</div></div>
+  </div>`;
+  }
   const c = capClass(oi);
   const kind = KINDS.find((k) => k.key === kindOf(oi));
   const text = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
@@ -394,12 +410,13 @@ function typeClassPairHTML(oi) {
 
 // Признаки класса своего вида. Высота не выбирается: число из «Высоты по
 // внутренним замерам» кладётся в диапазон само (решение пользователя).
-function signFieldHTML(oi, sign) {
+function signFieldHTML(oi, sign, zone = false) {
   if (sign.height) {
     const h = heightOf(oi);
     const band = heightBand(sign, h);
+    const none = zone ? 'Нет высоты зоны' : 'Нет высоты по внутренним замерам';
     return `<div class="field"><label>Высота</label>
-      <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : 'Нет высоты по внутренним замерам'}</div></div>`;
+      <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : none}</div></div>`;
   }
   const opts = sign.options.map((o) => o[0]);
   const tips = sign.options.filter((o) => o[2]).map((o) => `${o[0]} — ${o[2]}`).join('\n');
@@ -431,16 +448,61 @@ export function capMsBody(sign, picked) {
 
 // Тип ОИ и класс капитальности — один блок: сначала тип (от него зависят
 // назначение по факту и признаки класса), под ним признаки своего типа.
+function signsHTML(t, zone = false) {
+  const kind = kindOf(t);
+  if (!kind) return '<div class="muted lk-note">Признаки класса появятся после выбора типа.</div>';
+  if (kind === 'other') return '<div class="muted lk-note">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>';
+  return `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(t, s, zone)).join('')}</div>`;
+}
+
+// Зона — как элемент в паттерне «добавить ещё» (DWP Design System, «Add another
+// thing»): у каждой свой заголовок с номером и кнопкой «убрать», поля зоны
+// под ним, «+ Зона» — после последней.
+function zoneHTML(z, i) {
+  const c = zoneClassInfo(z);
+  return `<section class="zn" data-zone="${esc(z.id)}" aria-label="${esc(zoneTitle(z, i))}">
+  <div class="zn-head">
+    <span class="zn-num" aria-hidden="true">${i + 1}</span>
+    <div class="field zn-name"><label for="zn-name-${esc(z.id)}">Название зоны</label>
+      <input class="input" id="zn-name-${esc(z.id)}" data-zone-name value="${esc(z.name || '')}" placeholder="Зона ${i + 1}, например «Общежитие»"></div>
+    <div class="field zn-num-f"><label for="zn-area-${esc(z.id)}">Площадь, м²</label>
+      <input class="input num" id="zn-area-${esc(z.id)}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
+    <div class="field zn-num-f"><label for="zn-h-${esc(z.id)}" class="lk-tip" title="Высота этой части здания — по ней выбирается диапазон признака «Высота»">Высота, м</label>
+      <input class="input num" id="zn-h-${esc(z.id)}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
+    <div class="field zn-cls"><label>Класс зоны</label>
+      <div class="lk-class ${c.ok ? '' : 'muted'}" data-zone-class title="${esc(c.title)}">${esc(c.text)}</div></div>
+    <button type="button" class="btn btn-danger btn-sm zn-del" data-zone-del title="Убрать зону" aria-label="Убрать ${esc(zoneTitle(z, i))}">×</button>
+  </div>
+  ${kindRowHTML(z, z.id)}
+  ${signsHTML(z, true)}
+</section>`;
+}
+
+// Сверка суммы зон с площадью литеры — той же панелью и теми же словами, что
+// сверка этажей в «Площадях и этажности»: недобор, «сходится» и перебор видны
+// сразу, значения молча не подгоняются (решение пользователя 25.09.2026).
+function zonesSumsHTML(oi) {
+  const st = zonesSum(oi);
+  return `<div class="floors-sums zn-sums" data-zones-sums>
+<span class="fs-l lk-tip" title="Сумма площадей зон сверяется с площадью литеры по внутреннему обмеру (блок «Площади и этажность»)">Σ площадь зон</span>
+<span class="fs-v" data-zones-sum>${fmtNum(st.sum)} из ${fmtNum(st.total)} м²</span>
+<span class="fs-d ${st.ok ? 'ok' : 'warn'}" data-zones-diff>${st.total ? diffText(st.diff) : 'нет площади по внутреннему обмеру'}</span>
+</div>
+<div class="zn-dist" data-zones-dist><span class="zn-dist-l">По классам:</span> ${esc(distributionText(oi))}</div>`;
+}
+
 function capClassCard(ctx, oi, idx) {
-  const kind = kindOf(oi);
-  let signs;
-  if (!kind) signs = '<div class="muted lk-note">Признаки класса появятся после выбора типа.</div>';
-  else if (kind === 'other') signs = '<div class="muted lk-note">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>';
-  else signs = `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(oi, s)).join('')}</div>`;
+  const zoned = hasZones(oi);
+  const body = zoned
+    ? `${zonesSumsHTML(oi)}${zonesOf(oi).map(zoneHTML).join('')}
+       <button type="button" class="btn btn-ghost btn-sm zn-add" data-zone-add>+ Зона</button>`
+    : `${kindRowHTML(oi)}${signsHTML(oi)}
+       <div class="zn-split"><button type="button" class="btn btn-ghost btn-sm" data-zone-split
+         title="Части литеры разного типа или класса — например, общежитие и цех из металлоконструкций">Разбить литеру на зоны</button></div>`;
   return `<div class="card t-amber" id="q-capclass">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Тип и класс капитальности</h3>
-<span class="hint">по фото с осмотра</span><span class="chev">▾</span></div>
-<div class="card-body-wrap"><div class="card-pad">${kindRowHTML(oi)}${signs}</div></div>
+<span class="hint">${zoned ? `зон: ${zonesOf(oi).length}` : 'по фото с осмотра'}</span><span class="chev">▾</span></div>
+<div class="card-body-wrap"><div class="card-pad">${body}</div></div>
 </div>`;
 }
 

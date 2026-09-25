@@ -72,6 +72,20 @@ const COMMON = {
   heating: 'Отопление',
   heatingOther: 'Отопление (иное)',
 
+  // Тип объекта имущества, класс капитальности и зоны литеры
+  // (oi/building/capClass.js, zones.js)
+  litKind: 'Тип объекта имущества',
+  purposeFact: 'Назначение по факту',
+  'capSigns.arch': 'Класс · архитектура',
+  'capSigns.constr': 'Класс · конструкция',
+  'capSigns.plan': 'Класс · планировка',
+  'capSigns.finish': 'Класс · уровень отделки',
+  'capSigns.eng': 'Класс · инженерное оснащение',
+  'capSigns.crane': 'Класс · кран-балка',
+  'capSigns.frame': 'Класс · конструкция',
+  'capSigns.floors': 'Класс · полы',
+  zones: 'Зоны литеры',
+
   // Производственно-складские параметры
   oiCategory: 'Класс ОИ',
   rentAreas: 'Арендные площади',
