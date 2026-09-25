@@ -1,6 +1,6 @@
 import {
   VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace, applyFit, fitKey,
-  pickCompareMate, cmpLeftDoc,
+  pickCompareMate, cmpLeftDoc, stepZoom, wheelZoom,
 } from './state.js';
 import { paintPdfCanvases, getPdfPageWidthPt } from './pdf.js';
 import { applyDock, bindDockGrip } from './dock.js';
@@ -101,11 +101,11 @@ async function actualSize(ctx) {
 // Инструменты, как в Acrobat: выделение (обычный), рука, лупа.
 function setTool(ctx, tool) {
   VS.tool = tool;
-  const stage = ctx.scope.$('[data-vstage]');
-  if (stage) {
+  // Лента обычного режима или обе колонки сравнения.
+  ctx.scope.$$('[data-vstage], [data-cmp-stage]').forEach((stage) => {
     stage.classList.toggle('tool-hand', tool === 'hand');
     stage.classList.toggle('tool-zoom', tool === 'zoom');
-  }
+  });
   const name = { select: 'выделение', hand: 'рука — двигать лист', zoom: 'лупа: щелчок — ближе, с Alt — дальше' }[tool];
   ctx.toast('Инструмент: ' + name);
 }
@@ -199,10 +199,9 @@ export function viewerKeydown(ctx, e) {
 
   // Пробел — временная «рука», пока его держат (как в Acrobat).
   if (e.code === 'Space' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-    const stage = ctx.scope.$('[data-vstage]');
     const down = e.type === 'keydown';
     VS.spaceHand = down;
-    if (stage) stage.classList.toggle('tool-hand', down || VS.tool === 'hand');
+    ctx.scope.$$('[data-vstage], [data-cmp-stage]').forEach((stage) => stage.classList.toggle('tool-hand', down || VS.tool === 'hand'));
     e.preventDefault();
     return;
   }
@@ -236,7 +235,14 @@ function keyActions(ctx) {
   const cmp = ctx.ui.viewer && ctx.ui.viewer.mode === 'compare';
   const side = ctx.ui.cmpFocus === 'right' ? 'doc' : 'photo';
   const cmpPage = () => (cmpState(ctx, side) || { page: 1 }).page;
-  const cur = () => currentTab(ctx);
+  // Документ, к которому относятся «Скачать», «Печать», «Свойства»: в
+  // сравнении — документ колонки в фокусе.
+  const cur = () => {
+    if (ctx.ui.viewer && ctx.ui.viewer.mode === 'compare') {
+      return cmpDocTab(ctx, ctx.ui.cmpFocus === 'right' ? 'doc' : 'photo') || currentTab(ctx);
+    }
+    return currentTab(ctx);
+  };
   const withTab = (fn) => () => { const x = cur(); if (x) fn(ctx, x.sc, x.id); };
   const popout = !!ctx.isPopout;
   return {
@@ -251,14 +257,19 @@ function keyActions(ctx) {
     deletePages: () => { if (can('editPages')) deletePages(ctx); },
     page: (dir) => { if (cmp) cmpGo(ctx, side, cmpPage() + dir); else if (st) vGo(ctx, st.page + dir); },
     jump: (n) => { if (cmp) cmpGo(ctx, side, n < 0 ? 1e9 : n); else jumpTo(ctx, n < 0 ? vPages(ctx).length : n); },
-    goto: () => { const i = ctx.scope.$('[data-vpage]'); if (i) { i.focus(); i.select(); } },
+    goto: async () => {
+      if (!cmp) { const i = ctx.scope.$('[data-vpage]'); if (i) { i.focus(); i.select(); } return; }
+      const v = await ctx.host.prompt({ title: `Перейти к странице · колонка ${side === 'doc' ? 2 : 1}`, label: 'Номер страницы', value: String(cmpPage()), okLabel: 'Перейти' });
+      const n = parseInt(v, 10);
+      if (n) cmpGo(ctx, side, n);
+    },
     history: (dir) => stepHistory(ctx, dir),
-    fit: (m) => fitViewer(ctx, m),
-    actualSize: () => actualSize(ctx),
-    zoom: (d) => { if (cmp) cmpZoom(ctx, side, VS.cmpZoom[side] + d); else zoomViewer(ctx, VS.zoom + d); },
+    fit: (m) => { if (cmp) cmpFit(ctx, side, m); else fitViewer(ctx, m); },
+    actualSize: () => { if (cmp) cmpActualSize(ctx, side); else actualSize(ctx); },
+    zoom: (d) => { if (cmp) cmpZoom(ctx, side, stepZoom(VS.cmpZoom[side], d)); else zoomViewer(ctx, stepZoom(VS.zoom, d)); },
     zoomReset: () => { if (cmp) cmpZoom(ctx, side, 100); else zoomViewer(ctx, 100); },
     focusColumn: (n) => { if (cmp) focusColumn(ctx, n === 2 ? 'right' : 'left'); },
-    rotate: (deg) => rotateViewer(ctx, deg),
+    rotate: (deg) => { if (cmp) cmpRotate(ctx, side, deg); else rotateViewer(ctx, deg); },
     rail: () => { ctx.ui.railCollapsed = !ctx.ui.railCollapsed; ctx.render(); },
     dock: () => { if (!popout && can('dock')) toggleDock(ctx); },
     full: () => { if (!popout) toggleFull(ctx); },
@@ -422,10 +433,10 @@ export function bindViewer(ctx) {
   if (vr) vr.onclick = () => rotateViewer(ctx);
 
   const zm = s.$('[data-vzoom-]');
-  if (zm) zm.onclick = () => zoomViewer(ctx, VS.zoom - 10);
+  if (zm) zm.onclick = () => zoomViewer(ctx, stepZoom(VS.zoom, -1));
 
   const zp = s.$('[data-vzoom\\+]');
-  if (zp) zp.onclick = () => zoomViewer(ctx, VS.zoom + 10);
+  if (zp) zp.onclick = () => zoomViewer(ctx, stepZoom(VS.zoom, 1));
 
   s.$$('[data-vfit]').forEach((b) => b.onclick = () => fitViewer(ctx, b.dataset.vfit));
 
@@ -652,7 +663,7 @@ export function bindViewer(ctx) {
       vstageEl.scrollTop = st.scroll || 0;
       watchStage(ctx, vstageEl);
       bindPan(vstageEl);
-      vstageEl.addEventListener('vzoomtool', (ev) => zoomViewer(ctx, VS.zoom + ev.detail));
+      vstageEl.addEventListener('vzoomtool', (ev) => zoomViewer(ctx, stepZoom(VS.zoom, ev.detail)));
 
       vstageEl.addEventListener('scroll', () => {
         st.scroll = vstageEl.scrollTop;
@@ -682,7 +693,7 @@ export function bindViewer(ctx) {
       vstageEl.addEventListener('wheel', (e) => {
         if (!e.ctrlKey) return;
         e.preventDefault();
-        zoomViewer(ctx, VS.zoom + (e.deltaY < 0 ? 10 : -10));
+        zoomViewer(ctx, wheelZoom(VS.zoom, e.deltaY < 0));
       }, { passive: false });
     }
   }
@@ -761,6 +772,88 @@ function bindPan(stage) {
 
 // --- Режим «Сравнение»: две независимые прокручиваемые колонки ---------------
 
+// Ширина листа колонки при 100% — в точках, от фактической ширины колонки,
+// как --fit-w у обычной ленты (state.js, applyFit). Раньше лист был «100%
+// колонки», и CSS-зум ленты упирался в эту ширину: после 120% страница
+// переставала расти (замечание пользователя 25.09.2026).
+let cmpObserver = null;
+function cmpApplyFit(ctx) {
+  ctx.scope.$$('[data-cmp-stage]').forEach((stage) => {
+    const ribbon = stage.querySelector('[data-cmp-ribbon]');
+    if (!ribbon) return;
+    const cs = stage.ownerDocument.defaultView.getComputedStyle(stage);
+    const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+    ribbon.style.setProperty('--cmp-fit-w', Math.max(160, stage.clientWidth - padX) + 'px');
+  });
+}
+
+// Поворот листов колонки — как applyRotation у обычной ленты: повёрнутый на
+// четверть лист отдаёт обёртке поменянные габариты.
+function cmpApplyRotation(ctx, which) {
+  const st = cmpState(ctx, which);
+  const rot = (st && st.rot) || 0;
+  const quarter = rot === 90 || rot === 270;
+  ctx.scope.$$(`[data-cmp-stage="${which}"] [data-cmp-inner]`).forEach((p) => {
+    const wrap = p.parentElement;
+    p.style.transform = `rotate(${rot}deg)`;
+    // В колонке лист прижат к верху обёртки (viewer.css, align-self:flex-start),
+    // а поворот идёт вокруг центра листа: повёрнутый на четверть лист съезжал
+    // вниз и низом уходил под следующую страницу. Повёрнутый — по центру.
+    p.style.alignSelf = quarter ? 'center' : '';
+    if (!wrap) return;
+    wrap.style.width = quarter ? p.offsetHeight + 'px' : '';
+    wrap.style.height = quarter ? p.offsetWidth + 'px' : '';
+  });
+}
+
+function cmpRotate(ctx, which, deg) {
+  // Фото в колонке 1 не поворачиваем — поворачивается документ.
+  if (which === 'photo' && !cmpLeftDoc(ctx)) return;
+  const st = cmpState(ctx, which);
+  if (!st) return;
+  st.rot = ((st.rot || 0) + deg + 360) % 360;
+  cmpApplyRotation(ctx, which);
+}
+
+// «По ширине» — 100% (лист во всю колонку); «целиком» — масштаб, при котором
+// лист целиком помещается по высоте колонки.
+function cmpFit(ctx, which, mode) {
+  if (mode !== 'page') { cmpZoom(ctx, which, 100); return; }
+  const stage = ctx.scope.$(`[data-cmp-stage="${which}"]`);
+  const page = stage && stage.querySelector('.vpage');
+  if (!page) return;
+  const h100 = page.getBoundingClientRect().height / (VS.cmpZoom[which] / 100);
+  if (!h100) return;
+  cmpZoom(ctx, which, Math.floor(((stage.clientHeight - 24) / h100) * 100));
+}
+
+// Документ колонки сравнения: колонка 1 — второй документ, колонка 2 — основной.
+function cmpDocTab(ctx, which) {
+  if (which === 'photo') {
+    const l = ctx.ui.cmpLeft;
+    return l ? { sc: l.scope, id: l.id } : null;
+  }
+  return currentTab(ctx);
+}
+
+// Реальный размер (Ctrl+1) в колонке — как actualSize у обычной ленты.
+async function cmpActualSize(ctx, which) {
+  const t = cmpDocTab(ctx, which);
+  const d = t && docOf(ctx, t.sc, t.id);
+  const st = cmpState(ctx, which);
+  const ribbon = ctx.scope.$(`[data-cmp-ribbon="${which}"]`);
+  if (!d || !d.file || !d.file.dataUrl || !st || !ribbon) return;
+  const fitW = parseFloat(ribbon.style.getPropertyValue('--cmp-fit-w')) || 0;
+  const page = d.pages[st.page - 1];
+  let natural = 0;
+  if (page && page.kind === 'pdf') natural = (await getPdfPageWidthPt(d.file.dataUrl, page.src)) * 96 / 72;
+  else {
+    const img = ribbon.querySelector('.vimg');
+    natural = img ? img.naturalWidth : 0;
+  }
+  if (natural && fitW) cmpZoom(ctx, which, Math.round((natural / fitW) * 100));
+}
+
 // Зум одной колонки сравнения (which: 'photo' — колонка 1, 'doc' — колонка 2).
 function cmpZoom(ctx, which, value) {
   const s = ctx.scope;
@@ -809,11 +902,33 @@ function cmpGo(ctx, which, n) {
 function bindCompareColumns(ctx) {
   const s = ctx.scope;
 
+  if (cmpObserver) { cmpObserver.disconnect(); cmpObserver = null; }
+  if (s.$('[data-cmp]')) {
+    cmpApplyFit(ctx);
+    cmpApplyRotation(ctx, 'photo');
+    cmpApplyRotation(ctx, 'doc');
+    // Колонка меняет ширину от перегородки, окна, свёртки соседней — лист
+    // пересчитывается по факту, а PDF перерисовывается в новом разрешении.
+    let timer = null;
+    cmpObserver = new ResizeObserver(() => {
+      cmpApplyFit(ctx);
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        ['photo', 'doc'].forEach((w) => {
+          cmpApplyRotation(ctx, w);
+          const r = s.$(`[data-cmp-ribbon="${w}"]`);
+          if (r && r.isConnected) paintPdfCanvases(ctx, VS.cmpZoom[w], r);
+        });
+      }, 180);
+    });
+    s.$$('[data-cmp-stage]').forEach((st) => cmpObserver.observe(st));
+  }
+
   const setZoom = (which, value) => cmpZoom(ctx, which, value);
 
   s.$$('[data-cmp-zoom]').forEach((b) => b.onclick = () => {
     const [which, sign] = b.dataset.cmpZoom.split('|');
-    setZoom(which, VS.cmpZoom[which] + (sign === '+' ? 10 : -10));
+    setZoom(which, stepZoom(VS.cmpZoom[which], sign === '+' ? 1 : -1));
   });
 
   s.$$('[data-cmp-stage]').forEach((stage) => {
@@ -830,8 +945,12 @@ function bindCompareColumns(ctx) {
     stage.addEventListener('wheel', (e) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      setZoom(which, VS.cmpZoom[which] + (e.deltaY < 0 ? 10 : -10));
+      setZoom(which, wheelZoom(VS.cmpZoom[which], e.deltaY < 0));
     }, { passive: false });
+
+    // Рука, лупа и перетаскивание увеличенного листа — как у обычной ленты.
+    bindPan(stage);
+    stage.addEventListener('vzoomtool', (ev) => setZoom(which, stepZoom(VS.cmpZoom[which], ev.detail)));
 
     // Номер текущей страницы/фото — из позиции прокрутки, как в обычной ленте.
     if (!st) return;

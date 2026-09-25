@@ -57,7 +57,7 @@ export function renderCompareMode(ctx, vctx) {
   const docRibbon = !d
     ? '<div class="muted" style="padding:12px">Откройте документ во вкладке «Документы»</div>'
     : (d.pages.length
-      ? d.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-dcblk="${i + 1}"><div class="vpage">${docPageHTML(d, i + 1)}</div></div>`).join('')
+      ? d.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-dcblk="${i + 1}"><div class="vpage" data-cmp-inner style="transform:rotate(${dSt.rot || 0}deg)">${docPageHTML(d, i + 1)}</div></div>`).join('')
       : '<div class="muted" style="padding:12px">Файл не прикреплён</div>');
 
   // Половины можно свернуть значком-папкой (Л3.9): фото убирается влево,
@@ -65,7 +65,7 @@ export function renderCompareMode(ctx, vctx) {
   // значком — развернуть её можно там же, где свернули.
   // Левая колонка — второй документ, если он выбран.
   const leftDocRibbon = d2 ? (d2.pages.length
-    ? d2.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-phblk="${i + 1}"><div class="vpage">${docPageHTML(d2, i + 1)}</div></div>`).join('')
+    ? d2.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-phblk="${i + 1}"><div class="vpage" data-cmp-inner style="transform:rotate(${d2St.rot || 0}deg)">${docPageHTML(d2, i + 1)}</div></div>`).join('')
     : '<div class="muted" style="padding:12px">Файл не прикреплён</div>') : '';
 
   // Выбор документа в шапке колонки: открытые вкладки, у левой ещё «Фото».

@@ -177,6 +177,19 @@ export function vGo(ctx, n) {
   }
 }
 
+// Ступени масштаба — как у Acrobat: на крупном масштабе шаг больше. Ровный шаг
+// в 10% на 300–500% казался топтанием на месте (замечание пользователя
+// 25.09.2026: «увеличение слишком медленное на высоких процентах»). Кнопки
+// «−/+» и клавиши идут по ступеням, колесо с Ctrl — на десятую долю текущего.
+export const ZOOM_STEPS = [40, 50, 67, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500];
+
+export function stepZoom(z, dir) {
+  if (dir > 0) return ZOOM_STEPS.find((s) => s > z + 0.5) || ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  return ZOOM_STEPS.slice().reverse().find((s) => s < z - 0.5) || ZOOM_STEPS[0];
+}
+
+export const wheelZoom = (z, up) => Math.round(z * (up ? 1.1 : 1 / 1.1));
+
 export function setVZoom(ctx, z) {
   VS.zoom = Math.min(500, Math.max(40, z));
   const r = ctx.scope.$('[data-vribbon]');

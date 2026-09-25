@@ -17,8 +17,10 @@
     колонка в фокусе — щелчок по вкладке открывает документ в ней; ⇄ меняет
     документы местами;
   * клавиши в сравнении (замечание пользователя 25.09.2026: «горячие клавиши
-    в режиме сравнения не работают»): →/← листают колонку в фокусе, Ctrl+=
-    увеличивает её, Alt+1/Alt+2 переводят фокус;
+    в режиме сравнения не работают», «не работает поворот страниц»): →/←
+    листают колонку в фокусе, Ctrl+= увеличивает её, и лист при этом растёт,
+    а не упирается в ширину колонки; Ctrl+Shift+= поворачивает, Ctrl+2 — по
+    ширине, Ctrl+0 — целиком; Alt+1/Alt+2 переводят фокус;
   * вкладка, брошенная на правую колонку, становится основной, а если она
     стояла слева — документы меняются местами;
   * в режиме «Документы» вкладка, брошенная на лист, включает сравнение и
@@ -134,6 +136,40 @@ def run(t):
     pg.keyboard.press('Control+Equal')
     t.ck(pg.inner_text('[data-cmp-zoomlabel="photo"]') != z, 'Ctrl+= не увеличил колонку в фокусе')
     t.ck(pg.inner_text('[data-cmp-zoomlabel="doc"]') == '100%', 'Ctrl+= увеличил не ту колонку')
+    # лист растёт при увеличении, а не упирается в ширину колонки (замечание
+    # пользователя 25.09.2026: «в какой-то момент изображение перестаёт увеличиваться»)
+    W = "() => document.querySelector('[data-cmp-stage=photo] .vpage').getBoundingClientRect().width"
+    w0 = pg.evaluate(W)
+    for _ in range(8):
+        pg.keyboard.press('Control+Equal')
+    t.ck(pg.evaluate(W) > w0 * 1.5, 'лист колонки не растёт при увеличении: %s → %s' % (w0, pg.evaluate(W)))
+    # поворот, «по ширине» и «целиком» — в колонке в фокусе
+    pg.keyboard.press('Control+Shift+Equal')
+    t.ck('rotate(90deg)' in pg.get_attribute('[data-cmp-stage="photo"] [data-cmp-inner]', 'style'),
+         'Ctrl+Shift+= не повернул лист колонки 1')
+    t.ck('rotate(0deg)' in (pg.get_attribute('[data-cmp-stage="doc"] [data-cmp-inner]', 'style') or 'rotate(0deg)'),
+         'поворот задел колонку 2')
+    pg.keyboard.press('Control+Shift+Minus')
+    pg.keyboard.press('Control+Digit2')
+    t.ck(pg.inner_text('[data-cmp-zoomlabel="photo"]') == '100%', 'Ctrl+2 не вернул «по ширине»')
+    pg.keyboard.press('Control+Digit0')
+    t.ck(pg.evaluate("() => { const st = document.querySelector('[data-cmp-stage=photo]'); const p = st.querySelector('.vpage'); return p.getBoundingClientRect().height <= st.clientHeight; }"),
+         'Ctrl+0 не вписал лист целиком по высоте')
+    pg.keyboard.press('Control+Digit2')
+    # масштаб ступенями, как у Acrobat: на крупном шаг больше (замечание
+    # пользователя 25.09.2026: «увеличение слишком медленное на высоких процентах»)
+    seen = []
+    for _ in range(12):
+        pg.keyboard.press('Control+Equal')
+        seen.append(pg.inner_text('[data-cmp-zoomlabel="photo"]'))
+    t.ck(seen[:3] == ['110%', '125%', '150%'] and seen[-1] == '500%', 'ступени масштаба не те: %s' % seen)
+    # повёрнутый лист стоит по центру обёртки, а не съезжает вниз под соседнюю
+    pg.keyboard.press('Control+Digit2')
+    pg.keyboard.press('Control+Shift+Equal')
+    gap = pg.evaluate("""() => { const st = document.querySelector('[data-cmp-stage=photo]'); st.scrollTop = 0;
+      const p = st.querySelector('[data-cmp-inner]').getBoundingClientRect(); return Math.round(p.top - st.getBoundingClientRect().top); }""")
+    t.ck(gap <= 14, 'повёрнутый лист съехал вниз: сверху %s px' % gap)
+    pg.keyboard.press('Control+Shift+Minus')
     pg.keyboard.press('Alt+2')
     t.ck(pg.locator('[data-cmp-drop="right"].cmp-focus').count() == 1, 'Alt+2 не перевёл фокус на колонку 2')
 

@@ -308,9 +308,17 @@ export function boot() {
   start((route) => { onRoute(route); });
   // Перерисовать смонтированный экран с теми же данными маршрута — например,
   // когда из хранилища браузера вернулись файлы документов (kernel/localFiles.js).
-  window.addEventListener('inside:redraw', () => {
+  // Открытое меню, окно или набор в поле перерисовка сбросила бы — ждём.
+  const redraw = () => {
+    const a = document.activeElement;
+    if (document.querySelector('.dd.open, .modal-back, .vmenu')
+      || (a && a.matches && a.matches('input, textarea, select, [contenteditable="true"]'))) {
+      setTimeout(redraw, 400);
+      return;
+    }
     if (current && current.instance && typeof current.instance.onRoute === 'function') current.instance.onRoute(parse());
-  });
+  };
+  window.addEventListener('inside:redraw', redraw);
 }
 
 export { OC_TYPES, parse };

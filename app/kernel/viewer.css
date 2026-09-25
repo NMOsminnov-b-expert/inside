@@ -89,7 +89,7 @@ body .viewer.is-full{position:fixed;inset:10px;top:10px;width:auto;height:auto;
 
 /* «Сравнение»: лист во всю ширину своей колонки, а не 380px — колонки
    узкие, и каждый пиксель ширины здесь — крупность строки документа. */
-.viewer .cmp-body .vpage{width:100%;max-width:none;box-sizing:border-box}
+.viewer .cmp-body .vpage{width:var(--cmp-fit-w, 100%);max-width:none;box-sizing:border-box}
 
 /* --- Режим раскрытия: документ слева во всю высоту ----------------------------
    Решение пользователя 21.09.2026: документ — во всю высоту окна, а шапка
@@ -472,7 +472,7 @@ kbd,.vmenu kbd{display:inline-block;padding:1px 5px;
 .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage-wrap,
 .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage-wrap{width:100%}
 .cmp-folded-photo .cmp-col[data-cmp-side="doc"] .cmp-body .vpage,
-.cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:100%;max-width:760px}
+.cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .vpage{width:min(var(--cmp-fit-w, 100%), 760px);max-width:none}
 /* Плитка фото в развёрнутой половине тоже растёт — её высота была прибита к
    460px под узкую колонку. */
 .cmp-folded-doc .cmp-col[data-cmp-side="photo"] .cmp-body .photo-fill{height:auto;aspect-ratio:4 / 3}
