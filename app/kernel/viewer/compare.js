@@ -1,7 +1,8 @@
 import { esc } from '../dom.js';
-import { VS } from './state.js';
+import { VS, tabKey } from './state.js';
 import { docPageHTML, tabsBarHTML } from './doc.js';
-import { photoFileAt } from './deps.js';
+import { tabs, tabLabel } from './docActions.js';
+import { photoFileAt, docListFor } from './deps.js';
 
 // Режим «Сравнение»: слева фото или второй документ, справа основной документ.
 //
@@ -11,6 +12,13 @@ import { photoFileAt } from './deps.js';
 // вкладку можно перетащить на колонку. Практика — «разделённый редактор»
 // VS Code и Visual Studio: вкладку тянут в область просмотра, и документ
 // открывается рядом (граф: practice:sravnenie-dvuh-dokumentov).
+//
+// Управление двумя документами (замечание пользователя 25.09.2026: «не совсем
+// понятно, что с чем соединяется»). Как у групп редактора VS Code и вкладок
+// Rider: у колонок номера 1 и 2 и свой цвет, те же номера — на вкладках; в
+// шапке каждой колонки — выбор документа; одна колонка «в фокусе» (обведена),
+// щелчок по вкладке открывает документ в ней; кнопка ⇄ между колонками меняет
+// документы местами.
 //
 // Раньше здесь показывалась РОВНО ОДНА страница документа и одно фото, листались
 // они только кнопками, а зум был общий на обе колонки. Теперь каждая колонка —
@@ -60,29 +68,46 @@ export function renderCompareMode(ctx, vctx) {
     ? d2.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-phblk="${i + 1}"><div class="vpage">${docPageHTML(d2, i + 1)}</div></div>`).join('')
     : '<div class="muted" style="padding:12px">Файл не прикреплён</div>') : '';
 
+  // Выбор документа в шапке колонки: открытые вкладки, у левой ещё «Фото».
+  const left = d2 ? ctx.ui.cmpLeft : null;
+  const vd = vctx.vd;
+  const pick = (side) => {
+    const cur = side === 'left' ? (left ? tabKey(left.scope, left.id) : 'photo') : (vd ? tabKey(vd.scope, vd.id) : '');
+    const opts = tabs(ctx).map((x) => {
+      const doc = docListFor(ctx, x.sc).find((t) => t.id === x.id);
+      if (!doc) return '';
+      const k = tabKey(x.sc, x.id);
+      return `<option value="${esc(k)}" ${k === cur ? 'selected' : ''}>${esc(tabLabel(x.sc, doc))} · ${esc(doc.name)}</option>`;
+    }).join('');
+    const photo = side === 'left' ? `<option value="photo" ${cur === 'photo' ? 'selected' : ''}>Фото</option>` : '';
+    return `<select class="cmp-pick" data-cmp-pick="${side}" aria-label="Документ в колонке ${side === 'left' ? 1 : 2}"
+      title="Что показать в колонке ${side === 'left' ? 1 : 2}">${photo}${opts}</select>`;
+  };
+  const chip = (n) => `<span class="cmp-chip c${n}" aria-hidden="true">${n}</span>`;
+  const focus = ctx.ui.cmpFocus === 'right' ? 'right' : 'left';
+
   const hidden = ctx.ui.cmpHidden || null;
   const fold = (side, title) =>
     `<button class="cmp-fold" data-cmp-fold="${side}" title="${title}">${side === 'photo' ? '⯇' : '⯈'}</button>`;
 
   const body = `<div class="cmp ${hidden ? 'cmp-folded-' + hidden : ''}" data-cmp
     style="--cmp-photo:${ctx.ui.cmpSplit || 50}%">
-    <div class="cmp-col" data-cmp-side="photo" data-cmp-drop="left">
-      ${d2
-    ? `<div class="cmp-h">${fold('photo', 'Свернуть документ влево')}${esc(d2.type)} <span class="cmp-nm" title="${esc(d2.name)}">${esc(d2.name)}</span>
-        <span data-cmp-phnum>${d2.pages.length ? d2St.page + '/' + d2.pages.length : ''}</span>
-        <button type="button" class="cmp-src" data-cmp-left-photo title="Показать фото вместо документа">Фото</button>${zoomCtl('photo')}</div>`
-    : `<div class="cmp-h" title="Перетащите сюда вкладку — откроется документ для сравнения">${fold('photo', 'Свернуть фото влево')}ФОТО <span data-cmp-phnum>${pages.length ? Math.min(pSt.page, pages.length) : 0}/${pages.length}</span>${zoomCtl('photo')}</div>`}
+    <div class="cmp-col c1 ${focus === 'left' ? 'cmp-focus' : ''}" data-cmp-side="photo" data-cmp-drop="left">
+      <div class="cmp-h">${fold('photo', 'Свернуть колонку 1 влево')}${chip(1)}${pick('left')}
+        <span data-cmp-phnum>${d2 ? (d2.pages.length ? d2St.page + '/' + d2.pages.length : '') : `${pages.length ? Math.min(pSt.page, pages.length) : 0}/${pages.length}`}</span>${zoomCtl('photo')}</div>
       <div class="cmp-body" data-cmp-stage="photo"><div class="cmp-ribbon" data-cmp-ribbon="photo" style="zoom:${VS.cmpZoom.photo / 100}">${d2 ? leftDocRibbon : photoRibbon}</div></div>
     </div>
-    <div class="cmp-split" data-cmp-split title="Потяните, чтобы изменить соотношение"></div>
-    <div class="cmp-col" data-cmp-side="doc" data-cmp-drop="right">
-      <div class="cmp-h">${fold('doc', 'Свернуть документ вправо')}${d ? `${esc(d.type)} <span class="cmp-nm" title="${esc(d.name)}">${esc(d.name)}</span>` : 'Нет документа'} <span data-cmp-dcnum>${d && d.pages.length ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
+    <div class="cmp-split" data-cmp-split title="Потяните, чтобы изменить соотношение">${d2
+    ? '<button type="button" class="cmp-swap" data-cmp-swap title="Поменять документы местами" aria-label="Поменять документы местами">⇄</button>' : ''}</div>
+    <div class="cmp-col c2 ${focus === 'right' ? 'cmp-focus' : ''}" data-cmp-side="doc" data-cmp-drop="right">
+      <div class="cmp-h">${fold('doc', 'Свернуть колонку 2 вправо')}${chip(2)}${d ? pick('right') : 'Нет документа'} <span data-cmp-dcnum>${d && d.pages.length ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
       <div class="cmp-body" data-cmp-stage="doc"><div class="cmp-ribbon" data-cmp-ribbon="doc" style="zoom:${VS.cmpZoom.doc / 100}">${docRibbon}</div></div>
     </div>
   </div>`;
 
-  // Вкладки остаются и в сравнении: щелчок меняет документ слева.
-  const tabsBar = tabsBarHTML(ctx, vctx.vd, d2 ? ctx.ui.cmpLeft : null);
+  // Вкладки остаются и в сравнении: номер на вкладке — колонка, где документ
+  // открыт; щелчок открывает документ в колонке в фокусе.
+  const tabsBar = tabsBarHTML(ctx, vctx.vd, d2 ? ctx.ui.cmpLeft : null, { compare: true, focus });
 
   return { right, body, tabsBar };
 }

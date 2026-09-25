@@ -25,6 +25,11 @@ function pdfPageHTML(d, page) {
     <div class="vpdf-load"><div class="sk-h"></div>${[100, 92, 96, 85].map((w) => `<div class="sk-line" style="width:${w}%"></div>`).join('')}</div>`;
 }
 
+function lostFileHTML(withButton) {
+  return `<div class="vempty-box">Файл этого документа не сохранился после перезагрузки страницы.</div>
+${withButton && can('attach') ? '<button class="btn btn-primary btn-sm" data-vrefile style="margin-top:8px">Прикрепить файл заново…</button>' : ''}`;
+}
+
 function imagePageHTML(f) {
   return `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`;
 }
@@ -40,6 +45,9 @@ function otherPageHTML(f) {
 export function docPageHTML(d, n) {
   const page = d.pages[n - 1];
   if (!page) return '';
+  // Файл не сохранился (прикреплён до того, как файлы стали храниться в
+  // браузере, kernel/localFiles.js): рисовать нечего — говорим прямо.
+  if (!d.file || !d.file.dataUrl) return lostFileHTML(n === 1);
 
   if (page.kind === 'pdf') return pdfPageHTML(d, page);
   if (page.kind === 'image') return imagePageHTML(d.file);
@@ -56,7 +64,7 @@ function docRowHTML(sc, d) {
 // «нет возможности открыть ещё один документ, прикрепить ещё один»). Вкладки
 // перетаскиваются, у каждой крестик и контекстное меню; «+» — открыть другой
 // документ записи, открыть все или прикрепить файлы.
-export function tabsBarHTML(ctx, vd, mate = null) {
+export function tabsBarHTML(ctx, vd, mate = null, cmp = null) {
   const list = tabs(ctx);
   const rest = notOpened(ctx);
   const tab = (x) => {
@@ -65,9 +73,13 @@ export function tabsBarHTML(ctx, vd, mate = null) {
     const on = vd && vd.scope === x.sc && vd.id === x.id;
     const paired = mate && mate.scope === x.sc && mate.id === x.id;
     const key = tabKey(x.sc, x.id);
-    return `<div class="vtab ${on ? 'active' : ''} ${paired ? 'paired' : ''}" role="tab" aria-selected="${on}" tabindex="${on ? 0 : -1}"
-      data-vtab="${key}" draggable="true" title="${paired ? 'Для сравнения · ' : ''}${esc(d.type)} · ${esc(d.name)}">
-      <span class="vtab-t">${esc(tabLabel(x.sc, d))}</span>
+    // В сравнении: номер колонки, где открыт документ, и подсказка, куда он
+    // откроется по щелчку.
+    const col = cmp ? (paired ? 1 : (on ? 2 : 0)) : 0;
+    const where = cmp ? ` · щелчок — открыть в колонке ${cmp.focus === 'right' ? 2 : 1}` : '';
+    return `<div class="vtab ${on && !cmp ? 'active' : ''} ${col ? 'in-col c' + col : ''}" role="tab" aria-selected="${on}" tabindex="${on ? 0 : -1}"
+      data-vtab="${key}" draggable="true" title="${col ? `Колонка ${col} · ` : ''}${esc(d.type)} · ${esc(d.name)}${where}">
+      ${col ? `<span class="cmp-chip c${col}" aria-hidden="true">${col}</span>` : ''}<span class="vtab-t">${esc(tabLabel(x.sc, d))}</span>
       ${can('closeTabs') ? `<button type="button" class="vtab-x" data-vtabclose="${key}" tabindex="-1"
         title="Закрыть вкладку (Alt+W)" aria-label="Закрыть «${esc(d.name)}»">×</button>` : ''}
     </div>`;
@@ -154,7 +166,7 @@ export function renderDocMode(ctx, vctx) {
     ${d.pages.map((p, i) => `<div class="vthumb doc ${p.kind === 'pdf' ? 'real' : ''} ${i + 1 === dSt.page ? 'active' : ''} ${sel.includes(i + 1) ? 'sel' : ''}"
       data-vthumb="${i + 1}" ${can('editPages') ? 'draggable="true"' : ''}
       title="${can('editPages') ? `Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько` : `Страница ${i + 1}`}">
-      ${p.kind === 'pdf' ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="96"></canvas>` : ''}
+      ${p.kind === 'pdf' && d.file && d.file.dataUrl ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="96"></canvas>` : ''}
       ${can('editPages') ? `<button class="vthumb-del" data-vdelpage="${i + 1}" title="Убрать страницу">×</button>` : ''}<span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div></div>`}
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>

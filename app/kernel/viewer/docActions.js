@@ -22,8 +22,7 @@ export function activate(ctx, sc, id) {
   // быстро перебирают, с чем сравнить. Основной меняют перетаскиванием вкладки
   // на правую колонку.
   if (ctx.ui.viewer && ctx.ui.viewer.mode === 'compare') {
-    const vd = ctx.ui.viewerDoc;
-    if (!(vd && vd.scope === sc && vd.id === id)) ctx.ui.cmpLeft = { scope: sc, id };
+    placeInColumn(ctx, ctx.ui.cmpFocus === 'right' ? 'right' : 'left', { scope: sc, id });
     ctx.ui.viewerClosed = false;
     ctx.render();
     return;
@@ -32,6 +31,31 @@ export function activate(ctx, sc, id) {
   if (!ctx.ui.viewer || ctx.ui.viewer.mode === 'photo') ctx.ui.viewer = { mode: 'doc' };
   ctx.ui.viewerClosed = false;
   ctx.render();
+}
+
+// Документ — в колонку сравнения (1 — left, 2 — right). Если он уже стоит в
+// другой колонке, документы меняются местами: один документ в двух колонках
+// сравнивать незачем.
+export function placeInColumn(ctx, side, doc) {
+  const same = (a, b) => a && b && a.scope === b.scope && a.id === b.id;
+  const vd = ctx.ui.viewerDoc;
+  const left = ctx.ui.cmpLeft || null;
+  if (side === 'left') {
+    if (same(doc, left)) return;
+    if (same(doc, vd)) { if (!left) return; ctx.ui.viewerDoc = left; }
+    ctx.ui.cmpLeft = doc;
+  } else {
+    if (same(doc, vd)) return;
+    if (same(doc, left)) ctx.ui.cmpLeft = vd;
+    ctx.ui.viewerDoc = doc;
+  }
+}
+
+export function swapColumns(ctx) {
+  if (!ctx.ui.cmpLeft || !ctx.ui.viewerDoc) return;
+  const t = ctx.ui.viewerDoc;
+  ctx.ui.viewerDoc = ctx.ui.cmpLeft;
+  ctx.ui.cmpLeft = t;
 }
 
 // Закрыть вкладки. Документ при этом не удаляется — он остаётся в записи и
@@ -80,9 +104,15 @@ export function closeAll(ctx) {
 export function stepDoc(ctx, dir) {
   const list = tabs(ctx);
   if (!list.length) return;
-  const cur = currentTab(ctx);
+  // В «Сравнении» — от документа колонки в фокусе: он и сменится.
+  const inLeft = ctx.ui.viewer && ctx.ui.viewer.mode === 'compare' && ctx.ui.cmpFocus !== 'right' && ctx.ui.cmpLeft;
+  const cur = inLeft ? { sc: ctx.ui.cmpLeft.scope, id: ctx.ui.cmpLeft.id } : currentTab(ctx);
   const at = cur ? list.findIndex((x) => x.sc === cur.sc && x.id === cur.id) : -1;
-  const n = list[(at + dir + list.length) % list.length];
+  let n = list[(at + dir + list.length) % list.length];
+  // Документ другой колонки пропускаем: иначе колонки просто поменялись бы местами.
+  const other = inLeft ? currentTab(ctx) : (ctx.ui.viewer && ctx.ui.viewer.mode === 'compare' && ctx.ui.cmpLeft
+    ? { sc: ctx.ui.cmpLeft.scope, id: ctx.ui.cmpLeft.id } : null);
+  if (other && n.sc === other.sc && n.id === other.id && list.length > 2) n = list[(at + 2 * dir + 2 * list.length) % list.length];
   activate(ctx, n.sc, n.id);
 }
 

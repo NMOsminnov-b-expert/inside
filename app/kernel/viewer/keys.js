@@ -62,6 +62,12 @@ export const KEYMAP = [
     match: (e) => mods(e, false, false, true) && e.code === 'ArrowRight', run: (a) => a.history(1) },
 
   // Масштаб и поворот
+  // Сравнение двух документов: колонка в фокусе — в ней листание и масштаб
+  // клавишами, в неё открывается документ по щелчку на вкладке (compare.js).
+  { group: 'Сравнение', label: 'Колонка 1 / колонка 2 в фокус', keys: 'Alt+1 / Alt+2',
+    match: (e) => mods(e, false, false, true) && code('Digit1', 'Digit2', 'Numpad1', 'Numpad2')(e),
+    run: (a, e) => a.focusColumn(e.code.endsWith('2') ? 2 : 1) },
+
   { group: 'Масштаб', label: 'Страница целиком', keys: 'Ctrl+0 · P', acrobat: 'Ctrl+0',
     match: (e) => (mods(e, true, false, false) && code('Digit0', 'Numpad0')(e)) || (plain(e) && e.code === 'KeyP'),
     run: (a) => a.fit('page') },

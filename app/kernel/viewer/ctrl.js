@@ -9,14 +9,14 @@ import { attachFiles, pickFiles } from './files.js';
 import { connectFolder } from '../localFiles.js';
 import {
   currentTab, archiveTab, docOf, closeTab, closeAll, stepDoc, shiftTab, downloadDoc, printDoc,
-  docProperties, deletePages,
+  docProperties, deletePages, placeInColumn, swapColumns,
 } from './docActions.js';
 import { KEYMAP } from './keys.js';
 import { can } from './deps.js';
 import { showMenu } from './menu.js';
 import { showKeysHelp } from './keysHelp.js';
 import { bindTabs } from './tabs.js';
-import { docListFor, photoPages, pushDocPageLog } from './deps.js';
+import { docListFor, photoPages, pushDocPageLog, ensureDocPages, attachedFileFrom } from './deps.js';
 
 // Поворот и зум — функции уровня модуля, а не замыкания внутри bindViewer: их
 // зовут и кнопки панели, и горячие клавиши (которые навешиваются однократно, см.
@@ -216,9 +216,26 @@ export function viewerKeydown(ctx, e) {
   k.run(keyActions(ctx), e);
 }
 
+// Колонка сравнения в фокусе: в неё открывается документ по щелчку на вкладке
+// и в ней работают клавиши листания и масштаба.
+function focusColumn(ctx, side) {
+  const s = ctx.scope;
+  ctx.ui.cmpFocus = side;
+  s.$$('[data-cmp-drop]').forEach((c) => c.classList.toggle('cmp-focus', c.dataset.cmpDrop === side));
+  const n = side === 'right' ? 2 : 1;
+  s.$$('.vtabs-list .vtab').forEach((t) => {
+    t.title = t.title.replace(/щелчок — открыть в колонке \d/, 'щелчок — открыть в колонке ' + n);
+  });
+}
+
 // Действия для таблицы клавиш (keys.js) и контекстных меню.
 function keyActions(ctx) {
   const st = vSt(ctx);
+  // В «Сравнении» листание и масштаб — у колонки в фокусе (compare.js): у
+  // колонок нет общей ленты [data-vstage], и раньше клавиши здесь молчали.
+  const cmp = ctx.ui.viewer && ctx.ui.viewer.mode === 'compare';
+  const side = ctx.ui.cmpFocus === 'right' ? 'doc' : 'photo';
+  const cmpPage = () => (cmpState(ctx, side) || { page: 1 }).page;
   const cur = () => currentTab(ctx);
   const withTab = (fn) => () => { const x = cur(); if (x) fn(ctx, x.sc, x.id); };
   const popout = !!ctx.isPopout;
@@ -232,14 +249,15 @@ function keyActions(ctx) {
     print: withTab(printDoc),
     properties: withTab(docProperties),
     deletePages: () => { if (can('editPages')) deletePages(ctx); },
-    page: (dir) => { if (st) vGo(ctx, st.page + dir); },
-    jump: (n) => jumpTo(ctx, n < 0 ? vPages(ctx).length : n),
+    page: (dir) => { if (cmp) cmpGo(ctx, side, cmpPage() + dir); else if (st) vGo(ctx, st.page + dir); },
+    jump: (n) => { if (cmp) cmpGo(ctx, side, n < 0 ? 1e9 : n); else jumpTo(ctx, n < 0 ? vPages(ctx).length : n); },
     goto: () => { const i = ctx.scope.$('[data-vpage]'); if (i) { i.focus(); i.select(); } },
     history: (dir) => stepHistory(ctx, dir),
     fit: (m) => fitViewer(ctx, m),
     actualSize: () => actualSize(ctx),
-    zoom: (d) => zoomViewer(ctx, VS.zoom + d),
-    zoomReset: () => zoomViewer(ctx, 100),
+    zoom: (d) => { if (cmp) cmpZoom(ctx, side, VS.cmpZoom[side] + d); else zoomViewer(ctx, VS.zoom + d); },
+    zoomReset: () => { if (cmp) cmpZoom(ctx, side, 100); else zoomViewer(ctx, 100); },
+    focusColumn: (n) => { if (cmp) focusColumn(ctx, n === 2 ? 'right' : 'left'); },
     rotate: (deg) => rotateViewer(ctx, deg),
     rail: () => { ctx.ui.railCollapsed = !ctx.ui.railCollapsed; ctx.render(); },
     dock: () => { if (!popout && can('dock')) toggleDock(ctx); },
@@ -385,6 +403,7 @@ export function bindViewer(ctx) {
       // Открыто несколько документов — сразу два рядом: основной и открытый
       // перед ним. Одна вкладка — слева фото, как раньше.
       ctx.ui.cmpLeft = pickCompareMate(ctx);
+      ctx.ui.cmpFocus = 'left';
     }
 
     ctx.render();
@@ -581,8 +600,44 @@ export function bindViewer(ctx) {
       .catch((err) => { if (!err || err.name !== 'AbortError') ctx.toast(err && err.message ? err.message : 'Папка не подключена', 'warn'); });
   };
 
-  const lp = s.$('[data-cmp-left-photo]');
-  if (lp) lp.onclick = () => { ctx.ui.cmpLeft = null; ctx.render(); };
+  // Документ, чей файл не сохранился, — прикрепить файл заново к тому же
+  // документу: имя, вид и место в записи остаются.
+  s.$$('[data-vrefile]').forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    const d = currentDoc(ctx);
+    if (!d) return;
+    const [file] = await pickFiles(s.root.ownerDocument);
+    if (!file) return;
+    d.file = await attachedFileFrom(file);
+    d.pages = null;
+    ensureDocPages(d);
+    ctx.render();
+    ctx.toast('Файл прикреплён: ' + file.name, 'ok');
+  });
+
+  // Выбор документа в шапке колонки сравнения.
+  s.$$('[data-cmp-pick]').forEach((sel) => sel.onchange = () => {
+    const side = sel.dataset.cmpPick;
+    ctx.ui.cmpFocus = side;
+    if (sel.value === 'photo') ctx.ui.cmpLeft = null;
+    else {
+      const [scope, id] = sel.value.split('|');
+      placeInColumn(ctx, side, { scope, id });
+    }
+    ctx.render();
+  });
+
+  const sw = s.$('[data-cmp-swap]');
+  if (sw) {
+    sw.onpointerdown = (e) => e.stopPropagation();     // не начинать перетаскивание перегородки
+    sw.onclick = (e) => { e.stopPropagation(); swapColumns(ctx); ctx.render(); };
+  }
+
+  // Колонка в фокусе — та, где последний раз щёлкнули: в неё открывается
+  // документ по щелчку на вкладке. Перерисовка не нужна — только отметки.
+  s.$$('[data-cmp-drop]').forEach((col) => col.addEventListener('pointerdown', () => {
+    if (ctx.ui.cmpFocus !== col.dataset.cmpDrop) focusColumn(ctx, col.dataset.cmpDrop);
+  }, true));
 
   // Синхронизация скролла ленты и зум колесом с Ctrl.
   const vstageEl = s.$('[data-vstage]');
@@ -705,26 +760,56 @@ function bindPan(stage) {
 }
 
 // --- Режим «Сравнение»: две независимые прокручиваемые колонки ---------------
+
+// Зум одной колонки сравнения (which: 'photo' — колонка 1, 'doc' — колонка 2).
+function cmpZoom(ctx, which, value) {
+  const s = ctx.scope;
+  const ribbon = s.$(`[data-cmp-ribbon="${which}"]`);
+  // Как и в обычной ленте, масштаб не должен перелистывать колонку.
+  const blkAttr = which === 'photo' ? 'data-cmp-phblk' : 'data-cmp-dcblk';
+  keepPageOnZoom(s.$(`[data-cmp-stage="${which}"]`), blkAttr, () => {
+    VS.cmpZoom[which] = Math.min(500, Math.max(40, value));
+    if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
+    const label = s.$(`[data-cmp-zoomlabel="${which}"]`);
+    if (label) label.textContent = VS.cmpZoom[which] + '%';
+  });
+  // Только своя колонка: без ограничения области перерисовывалась и чужая,
+  // причём чужим масштабом.
+  if (ribbon) paintPdfCanvases(ctx, VS.cmpZoom[which], ribbon);
+}
+
+// Состояние листания колонки: у колонки 1 — второй документ или фото литеры.
+function cmpState(ctx, which) {
+  if (which === 'doc') return vSt(ctx);
+  const left = cmpLeftDoc(ctx);
+  if (left) return VS.docs[left.id] || (VS.docs[left.id] = { page: 1, rot: 0, scroll: 0 });
+  return ctx.oi ? VS.photos[ctx.oi.id] || null : null;
+}
+
+// Перейти к странице n в колонке сравнения — как vGo у обычной ленты.
+function cmpGo(ctx, which, n) {
+  const stage = ctx.scope.$(`[data-cmp-stage="${which}"]`);
+  if (!stage) return;
+  const attr = which === 'photo' ? 'data-cmp-phblk' : 'data-cmp-dcblk';
+  const blocks = stage.querySelectorAll(`[${attr}]`);
+  if (!blocks.length) return;
+  const to = Math.min(blocks.length, Math.max(1, n));
+  const blk = stage.querySelector(`[${attr}="${to}"]`);
+  const st = cmpState(ctx, which);
+  if (st) st.page = to;
+  const num = ctx.scope.$(which === 'photo' ? '[data-cmp-phnum]' : '[data-cmp-dcnum]');
+  if (num) num.textContent = `${to}/${blocks.length}`;
+  if (blk) {
+    stage.scrollTo({ top: stage.scrollTop + blk.getBoundingClientRect().top - stage.getBoundingClientRect().top - 10, behavior: 'smooth' });
+  }
+}
 //
 // Обе колонки ведут себя как лента обычного просмотра: колесо листает (фото —
 // тоже, отдельным требованием), Ctrl+колесо меняет зум ИМЕННО ЭТОЙ колонки.
 function bindCompareColumns(ctx) {
   const s = ctx.scope;
 
-  const setZoom = (which, value) => {
-    const ribbon = s.$(`[data-cmp-ribbon="${which}"]`);
-    // Как и в обычной ленте, масштаб не должен перелистывать колонку.
-    const blkAttr = which === 'photo' ? 'data-cmp-phblk' : 'data-cmp-dcblk';
-    keepPageOnZoom(s.$(`[data-cmp-stage="${which}"]`), blkAttr, () => {
-      VS.cmpZoom[which] = Math.min(500, Math.max(40, value));
-      if (ribbon) ribbon.style.zoom = String(VS.cmpZoom[which] / 100);
-      const label = s.$(`[data-cmp-zoomlabel="${which}"]`);
-      if (label) label.textContent = VS.cmpZoom[which] + '%';
-    });
-    // Только своя колонка: без ограничения области перерисовывалась и чужая,
-    // причём чужим масштабом.
-    if (ribbon) paintPdfCanvases(ctx, VS.cmpZoom[which], ribbon);
-  };
+  const setZoom = (which, value) => cmpZoom(ctx, which, value);
 
   s.$$('[data-cmp-zoom]').forEach((b) => b.onclick = () => {
     const [which, sign] = b.dataset.cmpZoom.split('|');
@@ -806,22 +891,15 @@ function bindTabDrop(ctx) {
       if (!id) return;
       const doc = { scope, id };
       const vd = ctx.ui.viewerDoc;
-      const same = (a, b) => a && b && a.scope === b.scope && a.id === b.id;
       if (where === 'doc') {
-        if (same(doc, vd)) return;
+        if (vd && vd.scope === scope && vd.id === id) return;
         VS.zoom = 100;
         ctx.ui.viewer = { mode: 'compare' };
         ctx.ui.cmpLeft = doc;
-      } else if (where === 'left') {
-        if (same(doc, vd)) {
-          if (!ctx.ui.cmpLeft) return;
-          ctx.ui.viewerDoc = ctx.ui.cmpLeft;
-        }
-        ctx.ui.cmpLeft = doc;
+        ctx.ui.cmpFocus = 'left';
       } else {
-        if (same(doc, vd)) return;
-        if (same(doc, ctx.ui.cmpLeft)) ctx.ui.cmpLeft = vd;
-        ctx.ui.viewerDoc = doc;
+        placeInColumn(ctx, where, doc);
+        ctx.ui.cmpFocus = where;
       }
       ctx.render();
     });

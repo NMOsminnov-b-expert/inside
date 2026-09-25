@@ -80,3 +80,26 @@ def run(t):
     pg.locator('.vtab-plus').click()
     t.ck('Копии файлов' in pg.inner_text('.vtab-add .dd-menu [data-vlocal-dir]'),
          'пункт меню не показывает подключённую папку')
+
+    # --- файл, который не сохранился (прикреплён до 25.09.2026) ------------------------
+    # Хранилище очищаем — как у документа, прикреплённого до сохранения файлов.
+    # Раньше такой документ рисовал пустые листы и запрашивал адрес «undefined».
+    pg.evaluate("""async () => {
+      const d = await new Promise((ok, no) => { const r = indexedDB.open('inside-files'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+      await new Promise((ok) => { const t = d.transaction('files', 'readwrite'); t.objectStore('files').clear(); t.oncomplete = ok; });
+    }""")
+    pg.reload()
+    t.wait_for('.viewer')
+    tab = pg.locator('.vtabs-list .vtab', has_text='Техпаспорт')
+    if tab.count():
+        tab.click()
+    else:
+        pg.locator('.vtab-plus').click()
+        pg.locator('.vtab-add .dd-menu [data-vaddtab]', has_text='Техпаспорт').click()
+    t.wait_for('[data-vrefile]')
+    t.ck('не сохранился' in pg.inner_text('.vstage'), 'нет сообщения, что файл не сохранился')
+    with pg.expect_file_chooser() as fc:
+        pg.locator('[data-vrefile]').click()
+    fc.value.set_files([{'name': 'Техпаспорт литера А.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf(3, 'Tekh')}])
+    t.wait_until("() => document.querySelectorAll('.vstage canvas.ready').length === 3", timeout=15000)
+    t.ck(pg.locator('.vtabs-list .vtab', has_text='Техпаспорт').count() == 1, 'после повторного прикрепления вкладка сменилась')

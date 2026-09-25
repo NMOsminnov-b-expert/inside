@@ -11,7 +11,14 @@
   * одна вкладка — слева фото, как раньше;
   * три вкладки — слева открытый перед основным, вкладка слева помечена;
   * щелчок по вкладке в сравнении меняет левую колонку, основной не трогает;
-  * кнопка «Фото» возвращает фото в левую колонку;
+  * управление двумя документами (замечание пользователя 25.09.2026: «не
+    совсем понятно, что с чем соединяется»): номера колонок 1 и 2 на шапках и
+    на вкладках; выбор документа в шапке колонки (у колонки 1 — ещё «Фото»);
+    колонка в фокусе — щелчок по вкладке открывает документ в ней; ⇄ меняет
+    документы местами;
+  * клавиши в сравнении (замечание пользователя 25.09.2026: «горячие клавиши
+    в режиме сравнения не работают»): →/← листают колонку в фокусе, Ctrl+=
+    увеличивает её, Alt+1/Alt+2 переводят фокус;
   * вкладка, брошенная на правую колонку, становится основной, а если она
     стояла слева — документы меняются местами;
   * в режиме «Документы» вкладка, брошенная на лист, включает сравнение и
@@ -30,7 +37,9 @@ OC = '#/oc/civil/oc-cv-1'
 
 LEFT = "() => { const h = document.querySelector('[data-cmp-side=photo] .cmp-h'); return h ? h.textContent.replace(/\\s+/g, ' ').trim() : ''; }"
 RIGHT = "() => { const h = document.querySelector('[data-cmp-side=doc] .cmp-h'); return h ? h.textContent.replace(/\\s+/g, ' ').trim() : ''; }"
-PAIRED = "() => [...document.querySelectorAll('.vtab.paired .vtab-t')].map((t) => t.textContent)"
+PAIRED = "() => [...document.querySelectorAll('.vtab.in-col.c1 .vtab-t')].map((t) => t.textContent)"
+COL2 = "() => [...document.querySelectorAll('.vtab.in-col.c2 .vtab-t')].map((t) => t.textContent)"
+PICK = "(side) => { const s = document.querySelector('[data-cmp-pick=' + side + ']'); return s ? s.options[s.selectedIndex].textContent : ''; }"
 
 # Перетаскивание вкладки — событиями в странице (как в check_civil_viewer_docs):
 # настоящий drag в прогоне проверок иногда не завершается.
@@ -87,7 +96,7 @@ def run(t):
     _attach(t, [{'name': 'Техпаспорт литера А.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf(2, 'Tekh')}])
     pg.click('[data-vmode="compare"]')
     t.wait_for('[data-cmp]')
-    t.ck('ФОТО' in pg.evaluate(LEFT), 'при одной вкладке слева не фото: %r' % pg.evaluate(LEFT))
+    t.ck(pg.evaluate("() => document.querySelector('[data-cmp-pick=left]').value") == 'photo', 'при одной вкладке слева не фото')
     t.ck(pg.locator('.vtabs-list .vtab').count() == 1, 'в сравнении пропали вкладки')
 
     # --- три вкладки: слева открытый перед основным --------------------------------------
@@ -102,30 +111,55 @@ def run(t):
     pg.click('[data-vmode="compare"]')
     t.wait_for('[data-cmp]')
     t.wait_until("() => document.querySelectorAll('[data-cmp-side] canvas.ready').length >= 2", timeout=15000)
-    t.ck('ПУД' in pg.evaluate(RIGHT), 'справа не основной документ: %r' % pg.evaluate(RIGHT))
-    t.ck('Гос. акт' in pg.evaluate(LEFT), 'слева не открытый перед основным: %r' % pg.evaluate(LEFT))
-    t.ck(pg.evaluate(PAIRED) == ['ОЦ · Гос. акт на землю'], 'вкладка для сравнения не помечена: %s' % pg.evaluate(PAIRED))
+    t.ck('ПУД' in pg.evaluate(PICK, 'right'), 'в колонке 2 не основной документ: %r' % pg.evaluate(PICK, 'right'))
+    t.ck('Гос. акт' in pg.evaluate(PICK, 'left'), 'в колонке 1 не открытый перед основным: %r' % pg.evaluate(PICK, 'left'))
+    t.ck(pg.evaluate(PAIRED) == ['ОЦ · Гос. акт на землю'], 'вкладка колонки 1 не помечена: %s' % pg.evaluate(PAIRED))
+    t.ck(pg.evaluate(COL2) == ['ОЦ · ПУД'], 'вкладка колонки 2 не помечена: %s' % pg.evaluate(COL2))
+    t.ck('Гос. акт' in pg.evaluate(PICK, 'left') and 'ПУД' in pg.evaluate(PICK, 'right'),
+         'выбор в шапках не совпадает с колонками: %r / %r' % (pg.evaluate(PICK, 'left'), pg.evaluate(PICK, 'right')))
+    t.ck(pg.locator('[data-cmp-drop="left"].cmp-focus').count() == 1, 'при входе в сравнение фокус не на колонке 1')
     t.ck(pg.locator('.vtabs-list .vtab').count() == 3, 'в сравнении не все вкладки')
     t.ck('Два документа' in pg.inner_text('.vbar .vtitle'), 'заголовок сравнения не про два документа')
 
-    # --- щелчок по вкладке меняет левую колонку ------------------------------------------
+    # --- щелчок по вкладке открывает в колонке в фокусе (1) ------------------------------
     pg.locator('.vtabs-list .vtab', has_text='Техпаспорт').click()
-    t.wait_until("() => document.querySelector('[data-cmp-side=photo] .cmp-h').textContent.includes('Техпаспорт')")
-    t.ck('ПУД' in pg.evaluate(RIGHT), 'щелчок по вкладке сменил основной документ: %r' % pg.evaluate(RIGHT))
+    t.wait_until("() => document.querySelector('[data-cmp-pick=left]').selectedOptions[0].textContent.includes('Техпаспорт')")
+    t.ck('ПУД' in pg.evaluate(PICK, 'right'), 'щелчок по вкладке сменил колонку 2: %r' % pg.evaluate(PICK, 'right'))
 
-    # --- «Фото» возвращает фото ----------------------------------------------------------
-    pg.click('[data-cmp-left-photo]')
-    t.wait_until("() => document.querySelector('[data-cmp-side=photo] .cmp-h').textContent.includes('ФОТО')")
+    # --- клавиши листают и масштабируют колонку в фокусе -----------------------------
+    pg.locator('[data-cmp-stage="photo"]').click(position={'x': 30, 'y': 30})
+    pg.keyboard.press('ArrowRight')
+    t.wait_until("() => document.querySelector('[data-cmp-phnum]').textContent.startsWith('2/')")
+    z = pg.inner_text('[data-cmp-zoomlabel="photo"]')
+    pg.keyboard.press('Control+Equal')
+    t.ck(pg.inner_text('[data-cmp-zoomlabel="photo"]') != z, 'Ctrl+= не увеличил колонку в фокусе')
+    t.ck(pg.inner_text('[data-cmp-zoomlabel="doc"]') == '100%', 'Ctrl+= увеличил не ту колонку')
+    pg.keyboard.press('Alt+2')
+    t.ck(pg.locator('[data-cmp-drop="right"].cmp-focus').count() == 1, 'Alt+2 не перевёл фокус на колонку 2')
+
+    # --- щелчок по вкладке открывает в колонке в фокусе (сейчас 2) ------------------------
+    pg.locator('.vtabs-list .vtab', has_text='Гос').click()
+    t.wait_until("() => document.querySelector('[data-cmp-side=doc] .cmp-h').textContent.includes('Гос')")
+    t.ck('Техпаспорт' in pg.evaluate(PICK, 'left'), 'колонка 1 сменилась при фокусе на 2: %r' % pg.evaluate(PICK, 'left'))
+
+    # --- ⇄ меняет документы местами --------------------------------------------------------
+    pg.click('[data-cmp-swap]')
+    t.wait_until("() => document.querySelector('[data-cmp-pick=left]').selectedOptions[0].textContent.includes('Гос')")
+    t.ck('Техпаспорт' in pg.evaluate(PICK, 'right'), '⇄ не поменял документы: %r' % pg.evaluate(PICK, 'right'))
+
+    # --- выбор в шапке: «Фото» в колонке 1 ----------------------------------------------
+    pg.select_option('[data-cmp-pick="left"]', 'photo')
+    t.wait_until("() => document.querySelector('[data-cmp-pick=left]').value === 'photo'")
     t.ck(not pg.evaluate(PAIRED), 'при фото слева вкладка осталась помеченной')
 
     # --- перетаскивание на колонки -------------------------------------------------------
     r = pg.evaluate(DROP, ['Гос. акт', '[data-cmp-drop="left"]'])
-    t.ck(r == 'ok', 'вкладка на левую колонку: %s' % r)
-    t.wait_until("() => document.querySelector('[data-cmp-side=photo] .cmp-h').textContent.includes('Гос. акт')")
+    t.ck(r == 'ok', 'вкладка на колонку 1: %s' % r)
+    t.wait_until("() => document.querySelector('[data-cmp-pick=left]').selectedOptions[0].textContent.includes('Гос. акт')")
     r = pg.evaluate(DROP, ['Гос. акт', '[data-cmp-drop="right"]'])
-    t.ck(r == 'ok', 'вкладка на правую колонку: %s' % r)
-    t.wait_until("() => document.querySelector('[data-cmp-side=doc] .cmp-h').textContent.includes('Гос. акт')")
-    t.ck('ПУД' in pg.evaluate(LEFT), 'документы не поменялись местами: слева %r' % pg.evaluate(LEFT))
+    t.ck(r == 'ok', 'вкладка на колонку 2: %s' % r)
+    t.wait_until("() => document.querySelector('[data-cmp-pick=right]').selectedOptions[0].textContent.includes('Гос. акт')")
+    t.ck('Техпаспорт' in pg.evaluate(PICK, 'left'), 'документы не поменялись местами: в колонке 1 %r' % pg.evaluate(PICK, 'left'))
 
     # --- в «Документах» вкладка на лист включает сравнение --------------------------------
     pg.click('[data-vmode="doc"]')
@@ -133,5 +167,5 @@ def run(t):
     r = pg.evaluate(DROP, ['Техпаспорт', '.viewer .vbody'])
     t.ck(r == 'ok', 'вкладка на лист в режиме «Документы»: %s' % r)
     t.wait_for('[data-cmp]')
-    t.ck('Техпаспорт' in pg.evaluate(LEFT), 'брошенная вкладка не открылась слева: %r' % pg.evaluate(LEFT))
-    t.ck('Гос. акт' in pg.evaluate(RIGHT), 'основной документ сменился: %r' % pg.evaluate(RIGHT))
+    t.ck('Техпаспорт' in pg.evaluate(PICK, 'left'), 'брошенная вкладка не открылась в колонке 1: %r' % pg.evaluate(PICK, 'left'))
+    t.ck('Гос. акт' in pg.evaluate(PICK, 'right'), 'основной документ сменился: %r' % pg.evaluate(PICK, 'right'))
