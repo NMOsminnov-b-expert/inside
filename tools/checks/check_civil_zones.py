@@ -16,6 +16,8 @@
     самой большой зоны (их читают перечень и реестр);
   * у производственной зоны появляются производственные доп. параметры;
   * зоны переживают перезагрузку;
+  * чего не хватает для класса — строкой в зоне и отметкой у пустых признаков;
+    «По классам» — плашками, зоны без класса одной плашкой и ссылками;
   * убрать зону до одной — литера снова цельная, с признаками оставшейся.
 """
 
@@ -80,6 +82,17 @@ def run(t):
     z2l.locator('[data-zone-height]').fill('8,5')
     z2l.locator('[data-zone-height]').press('Tab')
     t.wait_until("() => document.querySelectorAll('[data-zone]')[1].querySelector('[data-cap-height]').textContent.includes('более 8')")
+    # Чего не хватает для класса — видно в самой зоне, у полей; в «По классам»
+    # — одна плашка «без класса» и ссылка на зону, не абзац «Зона N: …»
+    # (замечание пользователя 25.09.2026).
+    miss = _zone(pg, 1).locator('[data-cap-miss]')
+    t.ck(miss.is_visible() and 'конструкция' in miss.inner_text().lower(),
+         'в зоне не написано, чего не хватает для класса')
+    t.ck(_zone(pg, 1).locator('.field.miss').count() >= 3, 'пустые признаки зоны не отмечены')
+    t.ck(_zone(pg, 0).locator('[data-cap-miss]').is_hidden(), 'у зоны с классом висит строка «не хватает»')
+    dist = pg.inner_text('[data-zones-dist]')
+    t.ck('без класса — 1 зона' in dist and 'не хватает' not in dist, '«По классам» не свёрнуто: %r' % dist)
+    t.ck(pg.locator('[data-zone-jump]').count() == 1, 'нет ссылки на зону без класса')
     z2l.locator('[data-cap-sign="crane"]').select_option('Да')
     _pick_ms(t, z2l, 'frame', 'Металлокаркасные тёплые')
     _pick_ms(t, z2l, 'floors', 'Простые')
@@ -88,6 +101,9 @@ def run(t):
     cls = _zone(pg, 1).locator('[data-zone-class]').inner_text()
     # 1,0 (высота) × 1,0 (кран-балка) × 0,8 × 0,9 × 0,9 = 0,648 → 2 класс
     t.ck(cls == '2 класс', 'класс производственной зоны не тот: %r' % cls)
+    t.ck(_zone(pg, 1).locator('[data-cap-miss]').is_hidden() and _zone(pg, 1).locator('.field.miss').count() == 0,
+         'после заполнения признаков отметки «не хватает» не ушли')
+    t.ck(pg.locator('[data-zone-jump]').count() == 0, 'ссылка на зону осталась, хотя класс есть у всех')
     t.ck(pg.locator('#q-prod').count() == 1, 'у литеры с производственной зоной нет доп. параметров производственного')
 
     # --- площадь первой зоны уменьшить — сумма сходится ----------------------

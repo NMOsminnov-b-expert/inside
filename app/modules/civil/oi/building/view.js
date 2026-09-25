@@ -19,9 +19,10 @@ import { tempModeMS } from './tempMode.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
 import { msDropBodyHTML } from '../../../../kernel/multiSelect.js';
-import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass } from './capClass.js';
+import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass, signFactor } from './capClass.js';
 import {
   zonesOf, hasZones, hasKind, zonesSum, diffText, distributionText, typesText, zoneTitle, zoneClassInfo,
+  classDistribution, unclassText, missingText,
 } from './zones.js';
 
 
@@ -412,6 +413,7 @@ function typeClassPairHTML(oi) {
 // Признаки класса своего вида. Высота не выбирается: число из «Высоты по
 // внутренним замерам» кладётся в диапазон само (решение пользователя).
 function signFieldHTML(oi, sign, zone = false) {
+  const miss = signFactor(oi, sign) === null ? ' miss' : '';
   if (sign.height) {
     const h = heightOf(oi);
     const band = heightBand(sign, h);
@@ -420,7 +422,7 @@ function signFieldHTML(oi, sign, zone = false) {
     // какой высоты он взят, чтобы не путать с полем ввода высоты.
     const tip = zone ? 'Диапазон по высоте по внутренним замерам зоны (поле в шапке зоны)'
       : 'Диапазон по высоте по внутренним замерам (блок «Площади и этажность»)';
-    return `<div class="field"><label class="lk-tip" title="${tip}">Высота (диапазон)</label>
+    return `<div class="field${miss}" data-sign="${sign.key}"><label class="lk-tip" title="${tip}">Высота (диапазон)</label>
       <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : none}</div></div>`;
   }
   const opts = sign.options.map((o) => o[0]);
@@ -428,11 +430,11 @@ function signFieldHTML(oi, sign, zone = false) {
   const label = `<label ${tips ? `class="lk-tip" title="${esc(tips)}"` : ''}>${esc(sign.label)}</label>`;
   if (!sign.multi) {
     const cur = pickedOf(oi, sign.key)[0] || '';
-    return `<div class="field">${label}<select class="select" data-cap-sign="${sign.key}">${emptyOptionHTML()}${
+    return `<div class="field${miss}" data-sign="${sign.key}">${label}<select class="select" data-cap-sign="${sign.key}">${emptyOptionHTML()}${
       opts.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
   }
   const picked = pickedOf(oi, sign.key);
-  return `<div class="field" data-cap-ms="${sign.key}">${label}
+  return `<div class="field${miss}" data-sign="${sign.key}" data-cap-ms="${sign.key}">${label}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Можно несколько">${capMsSummary(picked)}</div>
       <div class="ms-drop" hidden>${capMsBody(sign, picked)}</div>
@@ -457,7 +459,9 @@ function signsHTML(t, zone = false) {
   const kind = kindOf(t);
   if (!kind) return '<div class="muted lk-note">Признаки класса появятся после выбора типа.</div>';
   if (kind === 'other') return '<div class="muted lk-note">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>';
-  return `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(t, s, zone)).join('')}</div>`;
+  const miss = missingText(t);
+  return `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(t, s, zone)).join('')}</div>
+  <div class="lk-miss" data-cap-miss role="status" ${miss ? '' : 'hidden'}>${esc(miss)}</div>`;
 }
 
 function zoneConditionHTML(z) {
@@ -470,25 +474,34 @@ function zoneConditionHTML(z) {
 }
 
 // Зона — как элемент в паттерне «добавить ещё» (DWP Design System, «Add another
-// thing»): у каждой свой заголовок с номером и кнопкой «убрать», поля зоны
-// под ним, «+ Зона» — после последней.
+// thing»): у каждой свой заголовок с номером, названием, классом и кнопкой
+// «убрать». Поля зоны разложены по группам с подписью (fieldset + legend —
+// W3C WAI «Grouping Controls»): размеры и состояние — в одну строку, под ними
+// тип с назначением и признаки класса. Чего не хватает для класса — строкой
+// под признаками, у самих полей (ошибка рядом с полем, а не только в сводке).
 function zoneHTML(z, i) {
   const c = zoneClassInfo(z);
-  return `<section class="zn" data-zone="${esc(z.id)}" aria-label="${esc(zoneTitle(z, i))}">
+  const grp = (title, body, cls = '') => `<fieldset class="zn-grp ${cls}"><legend>${title}</legend>${body}</fieldset>`;
+  return `<section class="zn" data-zone="${esc(z.id)}" id="zn-${esc(z.id)}" aria-label="${esc(zoneTitle(z, i))}">
   <div class="zn-head">
     <span class="zn-num" aria-hidden="true">${i + 1}</span>
     <div class="field zn-name"><label for="zn-name-${esc(z.id)}">Название зоны</label>
       <input class="input" id="zn-name-${esc(z.id)}" data-zone-name value="${esc(z.name || '')}" placeholder="Зона ${i + 1}, например «Общежитие»"></div>
-    <div class="field zn-num-f zn-a-f"><label for="zn-area-${esc(z.id)}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма зон сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
-      <input class="input num" id="zn-area-${esc(z.id)}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
-    <div class="field zn-num-f zn-h-f"><label for="zn-h-${esc(z.id)}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» зоны">Высота внутр., м</label>
-      <input class="input num" id="zn-h-${esc(z.id)}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
-    <div class="field zn-cls"><label>Класс зоны</label>
+    <div class="field zn-cls"><label class="lk-tip" title="Считается по типу и признакам зоны">Класс зоны</label>
       <div class="lk-class ${c.ok ? '' : 'muted'}" data-zone-class title="${esc(c.title)}">${esc(c.text)}</div></div>
     <button type="button" class="btn btn-danger btn-sm zn-del" data-zone-del title="Убрать зону" aria-label="Убрать ${esc(zoneTitle(z, i))}">×</button>
   </div>
-  ${kindRowHTML(z, z.id, zoneConditionHTML(z))}
-  ${signsHTML(z, true)}
+  <div class="zn-row">
+    ${grp('Размеры', `<div class="zn-fields">
+      <div class="field zn-num-f"><label for="zn-area-${esc(z.id)}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма зон сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
+        <input class="input num" id="zn-area-${esc(z.id)}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
+      <div class="field zn-num-f"><label for="zn-h-${esc(z.id)}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» зоны">Высота внутр., м</label>
+        <input class="input num" id="zn-h-${esc(z.id)}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
+    </div>`)}
+    ${grp('Состояние', `<div class="zn-fields">${zoneConditionHTML(z)}</div>`)}
+  </div>
+  ${grp('Тип и назначение', kindRowHTML(z, z.id))}
+  ${grp('Признаки класса', signsHTML(z, true))}
 </section>`;
 }
 
@@ -502,7 +515,20 @@ function zonesSumsHTML(oi) {
 <span class="fs-v" data-zones-sum>${fmtNum(st.sum)} из ${fmtNum(st.total)} м²</span>
 <span class="fs-d ${st.ok ? 'ok' : 'warn'}" data-zones-diff>${st.total ? diffText(st.diff) : 'нет площади по внутреннему обмеру'}</span>
 </div>
-<div class="zn-dist" data-zones-dist><span class="zn-dist-l">По классам:</span> ${esc(distributionText(oi))}</div>`;
+<div class="zn-dist" data-zones-dist>${distributionHTML(oi)}</div>`;
+}
+
+// Площади по классам — плашками, как итог; зоны без класса — одной плашкой и
+// ссылками на сами зоны: что им не хватает, написано в каждой зоне.
+export function distributionHTML(oi) {
+  const { groups, missing } = classDistribution(oi);
+  const chips = groups.map((g) => `<span class="zn-chip"><b>${esc(g.label)}</b><span class="zn-chip-v">${fmtNum(g.area)} м²</span></span>`);
+  if (missing.length) {
+    chips.push(`<span class="zn-chip warn">${esc(unclassText(missing))}</span>`);
+  }
+  const links = missing.length ? `<span class="zn-jumps">${missing.map((m) => `<button type="button" class="zn-jump" data-zone-jump="${esc(m.id)}"
+    title="${esc(`Не хватает: ${m.missing.join(', ')}`)}">${esc(m.name)}</button>`).join('')}</span>` : '';
+  return `<span class="zn-dist-l">По классам</span>${chips.join('') || '<span class="muted">—</span>'}${links}`;
 }
 
 function capClassCard(ctx, oi, idx) {

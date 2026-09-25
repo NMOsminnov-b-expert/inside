@@ -111,7 +111,7 @@ export function heightBand(sign, h) {
 
 // Коэффициент признака: у высоты — по диапазону, у выбора — по варианту, у
 // нескольких вариантов — среднее. null — признак не заполнен.
-function signFactor(oi, sign) {
+export function signFactor(oi, sign) {
   if (sign.height) {
     const band = heightBand(sign, heightOf(oi));
     return band ? band[1] : null;

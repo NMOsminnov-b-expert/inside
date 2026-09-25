@@ -244,25 +244,57 @@ body[data-module="civil"] .lk-note{font-size:12.5px;margin-top:2px}
    панелью, что у этажей (.floors-sums), и площади по классам. */
 body[data-module="civil"] .zn-split{margin-top:12px}
 body[data-module="civil"] .zn-sums{margin:0 0 6px}
-body[data-module="civil"] .zn-dist{font-size:12.5px;color:var(--ink);margin:0 0 10px;line-height:1.45}
-body[data-module="civil"] .zn-dist-l{font-size:11px;font-weight:700;color:var(--blue-700);margin-right:4px}
-body[data-module="civil"] .zn{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:10px;background:#fff}
-body[data-module="civil"] .zn-head{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px;
-  padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+/* «По классам» — плашками: площадь по каждому классу и одна плашка «без
+   класса» со ссылками на зоны; раньше — абзац «Зона N: не хватает …» на все
+   зоны (замечание пользователя 25.09.2026). */
+body[data-module="civil"] .zn-dist{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:12.5px}
+body[data-module="civil"] .zn-dist-l{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em;margin-right:2px}
+body[data-module="civil"] .zn-chip{display:inline-flex;align-items:baseline;gap:6px;padding:3px 9px;border-radius:999px;
+  background:#eef4fb;border:1px solid #d5e3f3;color:var(--ink);white-space:nowrap}
+body[data-module="civil"] .zn-chip-v{font-variant-numeric:tabular-nums}
+body[data-module="civil"] .zn-chip.warn{background:#fdf4e3;border-color:#f0d9a8;color:#8a5a00}
+body[data-module="civil"] .zn-jumps{display:inline-flex;flex-wrap:wrap;gap:4px}
+body[data-module="civil"] .zn-jump{border:0;background:none;padding:1px 4px;font:inherit;font-size:12px;color:var(--blue-700);
+  cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+body[data-module="civil"] .zn-jump:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+/* Зона: шапка (номер, название, класс, «убрать»), под ней группы полей с
+   подписью — «Размеры» и «Состояние» в одну строку, затем «Тип и назначение» и
+   «Признаки класса» (fieldset + legend, W3C WAI «Grouping Controls»). Поля
+   выравниваются по верху: подсказка под состоянием не сдвигает соседей. */
+body[data-module="civil"] .zn{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:10px;background:#fff;
+  transition:box-shadow .3s}
+body[data-module="civil"] .zn.flash{box-shadow:0 0 0 3px #f0d9a8}
+body[data-module="civil"] .zn-head{display:grid;grid-template-columns:auto minmax(0,2fr) minmax(110px,1fr) auto;gap:10px;
+  align-items:end;margin-bottom:4px}
 body[data-module="civil"] .zn-head>.field{margin:0;min-width:0}
-body[data-module="civil"] .zn-num{flex:0 0 auto;align-self:center;min-width:22px;height:22px;border-radius:6px;
+body[data-module="civil"] .zn-num{align-self:end;margin-bottom:6px;min-width:22px;height:22px;border-radius:6px;
   background:var(--amber-600, #c27c0e);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
-body[data-module="civil"] .zn-name{flex:2 1 160px}
-body[data-module="civil"] .zn-num-f{flex:0 1 120px}
-/* Подписи как в таблице этажей этой же карточки («По внутр. обмеру, м²»,
-   «Высота внутр., м»), полные названия — в подсказках. */
-body[data-module="civil"] .zn-a-f{flex-basis:150px}
-body[data-module="civil"] .zn-h-f{flex-basis:130px}
-body[data-module="civil"] .zn-head label{white-space:nowrap}
+body[data-module="civil"] .zn-del{align-self:end;margin-bottom:5px}
+body[data-module="civil"] .zn-grp{border:0;border-top:1px solid var(--line-soft);margin:10px 0 0;padding:8px 0 0;min-width:0}
+body[data-module="civil"] .zn-grp>legend{padding:0 8px 0 0;font-size:11px;font-weight:700;color:var(--slate-600, #52657a);
+  text-transform:uppercase;letter-spacing:.05em}
+body[data-module="civil"] .zn-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));column-gap:24px}
+body[data-module="civil"] .zn-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:start}
+body[data-module="civil"] .zn-fields>.field{margin:0;min-width:0}
+body[data-module="civil"] .zn-num-f label{white-space:nowrap}
 body[data-module="civil"] .zn-num-f .input{text-align:right;font-variant-numeric:tabular-nums}
-body[data-module="civil"] .zn-cls{flex:1 1 120px}
-body[data-module="civil"] .zn-del{flex:0 0 auto;align-self:flex-end}
-body[data-module="civil"] .zn .lk-row{margin-bottom:10px}
+body[data-module="civil"] .zn .lk-row{margin-bottom:0;align-items:flex-start}
+body[data-module="civil"] .zn .lk-signs{margin-bottom:0}
+/* Подсказка под состоянием появляется после выбора; пустая место не держит —
+   иначе под «Размерами» висела пустая полоса. */
+body[data-module="civil"] .zn .cond-hint.empty{display:none}
+/* Переключатель типа в узкой зоне не обрезается: кнопки делят ширину и
+   переносят подпись. */
+body[data-module="civil"] .zn .lk-row>.field:first-child{min-width:0;max-width:100%}
+body[data-module="civil"] .zn .lk-seg{display:flex;max-width:100%}
+body[data-module="civil"] .zn .lk-seg-btn{flex:1 1 auto;min-width:0;white-space:normal;padding:7px 12px;line-height:1.2}
+/* Признак, без которого класс не считается: подпись янтарная с меткой, под
+   признаками — строка «Не хватает для класса: …» (ошибка рядом с полями). */
+body[data-module="civil"] .field.miss>label{color:#8a5a00}
+body[data-module="civil"] .field.miss>label::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:#d99a1e;margin-left:5px;vertical-align:middle}
+body[data-module="civil"] .lk-miss{margin-top:8px;padding:6px 10px;border-radius:8px;background:#fdf4e3;color:#8a5a00;font-size:12.5px;line-height:1.4}
+body[data-module="civil"] .lk-miss[hidden]{display:none}
 body[data-module="civil"] .zn-add{margin-top:2px}
 body[data-module="civil"] .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
 body[data-module="civil"] .lk-row>.field{margin:0}

@@ -116,18 +116,27 @@ export function classDistribution(oi) {
   const missing = [];
   zonesOf(oi).forEach((z, i) => {
     const c = capClass(z);
-    const name = zoneTitle(z, i);
-    if (!c.key) { missing.push(`${name}: ${c.missing.join(', ')}`); return; }
+    if (!c.key) { missing.push({ id: z.id, name: zoneTitle(z, i), area: areaOf(z), missing: c.missing }); return; }
     const k = classShort(z);
     groups.set(k, (groups.get(k) || 0) + areaOf(z));
   });
   return { groups: Array.from(groups, ([label, area]) => ({ label, area })), missing };
 }
 
+// Коротко: площади по классам и сколько зон без класса. Перечень недостающих
+// признаков — у самой зоны, в её группе «Класс капитальности»: список «Зона N:
+// …» по всем зонам разрастался на абзац (замечание пользователя 25.09.2026).
+export function unclassText(missing) {
+  const n = missing.length;
+  const word = n % 10 === 1 && n % 100 !== 11 ? 'зона' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'зоны' : 'зон');
+  const area = missing.reduce((a, m) => a + m.area, 0);
+  return `без класса — ${n} ${word}${area ? `, ${fmtNum(area)} м²` : ''}`;
+}
+
 export function distributionText(oi) {
   const { groups, missing } = classDistribution(oi);
   const parts = groups.map((g) => `${g.label} — ${fmtNum(g.area)} м²`);
-  if (missing.length) parts.push(`не хватает: ${missing.join('; ')}`);
+  if (missing.length) parts.push(unclassText(missing));
   return parts.join(' · ') || '—';
 }
 
@@ -137,18 +146,23 @@ export function typesText(oi) {
   return `${labels.join(', ') || 'не выбран'} · зон: ${zonesOf(oi).length}`;
 }
 
-// Класс зоны для её шапки — коротко: «2 класс», «Прочие» или сколько признаков
-// не хватает; перечень недостающих — в подсказке, иначе длинный текст
-// раздувал шапку зоны на три строки.
+// Класс зоны для её шапки — коротко: «2 класс», «Прочие» или «не определён»;
+// чего не хватает — видимой строкой в группе «Класс капитальности» зоны
+// (missingText), а не только в подсказке.
 export function zoneClassInfo(z) {
   const c = capClass(z);
   if (c.key === 'other') return { text: 'Прочие', title: '', ok: true };
   if (c.key) return { text: `${c.key.split('-')[1]} класс`, title: c.label, ok: true };
-  const n = c.missing.length;
-  if (!n) return { text: '—', title: '', ok: false };
-  const word = n === 1 ? 'признака' : 'признаков';
-  return { text: n === 1 && c.missing[0] === 'тип объекта имущества' ? 'нет типа' : `не хватает ${n} ${word}`,
-    title: `Не хватает: ${c.missing.join(', ')}`, ok: false };
+  if (!c.missing.length) return { text: '—', title: '', ok: false };
+  return { text: 'не определён', title: `Не хватает: ${c.missing.join(', ')}`, ok: false };
+}
+
+// Строка «Не хватает: …» под признаками зоны или литеры; пусто, если тип не
+// выбран (об этом говорит заметка вместо признаков) или класс посчитан.
+export function missingText(t) {
+  const c = capClass(t);
+  if (c.key || !kindOf(t)) return '';
+  return c.missing.length ? `Не хватает для класса: ${c.missing.join(', ')}` : '';
 }
 
 export const zoneTitle = (z, i) => (z.name && z.name.trim()) || `Зона ${i + 1}`;

@@ -22,15 +22,14 @@ import { bindTempMode } from './tempMode.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 import { bindColumnReorder } from '../../../../kernel/columns.js';
 import { bindMsSearch } from '../../../../kernel/multiSelect.js';
-import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass } from './capClass.js';
+import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass, signFactor } from './capClass.js';
 import {
   hasZones, targetOf, splitIntoZones, addZone, removeZone, zoneById, syncFromZones, zonesSum, diffText,
-  distributionText, typesText, zoneClassInfo,
+  distributionText, typesText, zoneClassInfo, missingText,
 } from './zones.js';
 import { fmtNum } from '../../../../kernel/fmt.js';
-import { esc } from '../../../../kernel/dom.js';
 import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
-import { capMsSummary, capMsBody } from './view.js';
+import { capMsSummary, capMsBody, distributionHTML } from './view.js';
 
 export function bind(ctx, oi) {
   bindAnnexes(ctx, oi);
@@ -551,6 +550,20 @@ export function bind(ctx, oi) {
   // У литеры из зон — класс каждой зоны, сверка площадей и площади по классам
   // в блоке 01; всё на месте, без перерисовки карточки (иначе закрывался бы
   // открытый список признаков).
+  // Чего не хватает для класса: отметка у пустых признаков и строка под ними.
+  function refreshMissing(box, t) {
+    if (!box) return;
+    (SIGNS[kindOf(t)] || []).forEach((sign) => {
+      const f = box.querySelector(`[data-sign="${sign.key}"]`);
+      if (f) f.classList.toggle('miss', signFactor(t, sign) === null);
+    });
+    const line = box.querySelector('[data-cap-miss]');
+    if (line) {
+      line.textContent = missingText(t);
+      line.hidden = !line.textContent;
+    }
+  }
+
   function refreshZones() {
     syncFromZones(oi);
     s.$$('[data-zone]').forEach((box) => {
@@ -563,6 +576,7 @@ export function bind(ctx, oi) {
         cls.title = c.title;
         cls.classList.toggle('muted', !c.ok);
       }
+      refreshMissing(box, z);
       const hb = box.querySelector('[data-cap-height]');
       const sign = (SIGNS[kindOf(z)] || []).find((x) => x.height);
       if (hb && sign) {
@@ -580,11 +594,10 @@ export function bind(ctx, oi) {
       diff.classList.toggle('ok', st.ok);
       diff.classList.toggle('warn', !st.ok);
     }
-    const dist = distributionText(oi);
     const d = s.$('[data-zones-dist]');
-    if (d) d.innerHTML = `<span class="zn-dist-l">По классам:</span> ${esc(dist)}`;
+    if (d) d.innerHTML = distributionHTML(oi);
     const box = s.$('[data-cap-class]');
-    if (box) box.textContent = dist;
+    if (box) box.textContent = distributionText(oi);
     const kv = s.$('[data-lit-kind-view]');
     if (kv) kv.textContent = typesText(oi);
   }
@@ -597,6 +610,7 @@ export function bind(ctx, oi) {
       box.textContent = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
       box.classList.toggle('muted', !c.label);
     }
+    refreshMissing(s.$('#q-capclass'), oi);
     const hb = s.$('[data-cap-height]');
     const sign = (SIGNS[kindOf(oi)] || []).find((x) => x.height);
     if (hb && sign) {
@@ -649,6 +663,20 @@ export function bind(ctx, oi) {
     const names = s.$$('[data-zone-name]');
     if (names.length) names[names.length - 1].focus();
   };
+  // Зоны без класса в строке «По классам» — ссылки на саму зону. Делегирование:
+  // строка перерисовывается при каждом вводе.
+  const dist = s.$('[data-zones-dist]');
+  if (dist) dist.onclick = (e) => {
+    const b = e.target.closest('[data-zone-jump]');
+    const zone = b && s.$(`[data-zone="${b.dataset.zoneJump}"]`);
+    if (!zone) return;
+    zone.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    const miss = zone.querySelector('.field.miss select, .field.miss [data-ms-control], .lk-seg-btn');
+    zone.classList.add('flash');
+    setTimeout(() => zone.classList.remove('flash'), 1200);
+    if (miss && miss.focus) miss.focus({ preventScroll: true });
+  };
+
   s.$$('[data-zone]').forEach((box) => {
     const z = zoneById(oi, box.dataset.zone);
     if (!z) return;
