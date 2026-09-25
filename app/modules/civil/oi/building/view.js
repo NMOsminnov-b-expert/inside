@@ -131,7 +131,7 @@ ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status 
 </div>
 </div>
 ${flagsRowHTML(oi)}
-${rq.showOiCategory ? kindRowHTML(oi) : ''}
+${rq.showOiCategory ? typeClassPairHTML(oi) : ''}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
@@ -174,7 +174,6 @@ style="flex:1 1 200px; ${oi.rights === 'Иное' ? '' : 'display:none;'}"
 >
 </div>
 </div>
-${rq.showOiCategory ? capClassField(oi) : ''}
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
 <select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
 </div>` : ''}
@@ -357,8 +356,8 @@ ${tempModeMS(ctx, oi)}
 </div>`;
 }
 
-// --- вид литеры и класс капитальности ----------------------------------------
-// Вид — три взаимоисключающих варианта, видны сразу: переключатель, как «Вид
+// --- тип объекта имущества и класс капитальности ----------------------------
+// Тип — три взаимоисключающих варианта, видны сразу: переключатель, как «Вид
 // объекта» у ТС. Назначение по факту — перечень своего вида; по техпаспорту
 // назначение остаётся текстом как в документе — это ориентир.
 function kindRowHTML(oi) {
@@ -376,13 +375,21 @@ function kindRowHTML(oi) {
   </div>`;
 }
 
-// Класс ОИ — класс капитальности, его считает система (решение пользователя
-// 23.09.2026): поле без ввода, рядом — чего не хватает для расчёта.
-function capClassField(oi) {
+// В «Общих параметрах» — только показ: слева тип ОИ, справа класс. Выбирают
+// их в блоке «Тип и класс капитальности»: класс ставят после заполнения и
+// осмотра, и переключатель наверху карточки заставлял мотать туда-обратно
+// (решение пользователя 25.09.2026). Класс считает система (23.09.2026) —
+// рядом с ним сказано, чего не хватает для расчёта.
+function typeClassPairHTML(oi) {
   const c = capClass(oi);
+  const kind = KINDS.find((k) => k.key === kindOf(oi));
   const text = c.label || (c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '—');
-  return `<div class="field"><label class="lk-tip" title="Считается по признакам в блоке «Класс капитальности»">Класс ОИ</label>
-    <div class="lk-class ${c.label ? '' : 'muted'}" data-cap-class>${esc(text)}</div></div>`;
+  return `<div class="lk-pair">
+    <div class="field"><label class="lk-tip" title="Выбирается в блоке «Тип и класс капитальности»">Тип объекта имущества</label>
+      <div class="lk-class ${kind ? '' : 'muted'}" data-lit-kind-view>${kind ? esc(kind.label) : 'Не выбран'}</div></div>
+    <div class="field"><label class="lk-tip" title="Считается по признакам в блоке «Тип и класс капитальности»">Класс ОИ</label>
+      <div class="lk-class ${c.label ? '' : 'muted'}" data-cap-class>${esc(text)}</div></div>
+  </div>`;
 }
 
 // Признаки класса своего вида. Высота не выбирается: число из «Высоты по
@@ -422,15 +429,18 @@ export function capMsBody(sign, picked) {
     value: (v) => `${sign.key}|${v}` });
 }
 
+// Тип ОИ и класс капитальности — один блок: сначала тип (от него зависят
+// назначение по факту и признаки класса), под ним признаки своего типа.
 function capClassCard(ctx, oi, idx) {
   const kind = kindOf(oi);
-  const body = kind === 'other'
-    ? '<div class="muted">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>'
-    : `<div class="grid g-3">${SIGNS[kind].map((s) => signFieldHTML(oi, s)).join('')}</div>`;
+  let signs;
+  if (!kind) signs = '<div class="muted lk-note">Признаки класса появятся после выбора типа.</div>';
+  else if (kind === 'other') signs = '<div class="muted lk-note">У прочих построек класса нет: «Прочие постройки низкого качества строительства и некапитальные постройки».</div>';
+  else signs = `<div class="grid g-3 lk-signs">${SIGNS[kind].map((s) => signFieldHTML(oi, s)).join('')}</div>`;
   return `<div class="card t-amber" id="q-capclass">
-<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Класс капитальности</h3>
+<div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Тип и класс капитальности</h3>
 <span class="hint">по фото с осмотра</span><span class="chev">▾</span></div>
-<div class="card-body-wrap"><div class="card-pad">${body}</div></div>
+<div class="card-body-wrap"><div class="card-pad">${kindRowHTML(oi)}${signs}</div></div>
 </div>`;
 }
 
@@ -525,7 +535,7 @@ ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
-${rq.showOiCategory && kindOf(oi) ? capClassCard(ctx, oi, idx()) : ''}
+${rq.showOiCategory ? capClassCard(ctx, oi, idx()) : ''}
 ${annexesCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}
 ${photosCard(ctx, oi, idx())}

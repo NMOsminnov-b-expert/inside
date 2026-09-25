@@ -76,7 +76,12 @@ def run(t):
     t.ck(pg.locator('[data-lit-kind].on').count() == 0, 'у нового здания вид литеры выбран сам')
     t.ck('тип объекта имущества' in pg.inner_text('[data-cap-class]'),
          'класс нового здания не говорит, чего не хватает: %r' % pg.inner_text('[data-cap-class]'))
-    t.ck(pg.locator('#q-capclass').count() == 0, 'признаки класса показаны до выбора вида')
+    # Выбор типа — в блоке «Тип и класс капитальности» (решение пользователя
+    # 25.09.2026), в «Общих параметрах» — только показ пары «тип | класс».
+    t.ck(pg.locator('#q-gen [data-lit-kind]').count() == 0, 'выбор типа остался в «Общих параметрах»')
+    t.ck(pg.locator('#q-capclass [data-lit-kind]').count() == 3, 'в блоке класса нет выбора типа')
+    t.ck('Не выбран' in pg.inner_text('#q-gen [data-lit-kind-view]'), 'в «Общих параметрах» не показан невыбранный тип')
+    t.ck(pg.locator('#q-capclass [data-cap-sign], #q-capclass [data-cap-ms]').count() == 0, 'признаки класса показаны до выбора типа')
 
     # --- производственно-складская: пример из файла пользователя ------------
     pg.click('[data-lit-kind="prod"]')

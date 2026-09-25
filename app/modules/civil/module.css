@@ -223,10 +223,22 @@ body[data-module="civil"] .mu-grid-name{grid-template-columns:minmax(0,2fr) minm
 
 
 /* ---------------------------------------------------------------------------
-   Вид литеры и класс капитальности (oi/building/capClass.js). Вид — три
+   Тип объекта имущества и класс капитальности (oi/building/capClass.js). Тип — три
    варианта переключателем, как «Вид объекта» у ТС; класс — поле без ввода:
    его считает система. */
-body[data-module="civil"] .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+/* В «Общих параметрах» — показ пары «тип | класс» (выбирают в блоке «Тип и
+   класс капитальности»). Две колонки, на узкой карточке — друг под другом. */
+body[data-module="civil"] .lk-pair{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2fr);gap:12px;margin-bottom:10px}
+/* Поля «Общих параметров» и признаки класса раскладываются по ширине карточки,
+   а не по трети: у общей сетки g-3 минимум колонки 240px и треть ширины, и при
+   широком просмотрщике (карточка ~530px) всё вставало в одну колонку, а при
+   закрытом — последнее поле оставалось одно в строке (задача пользователя
+   25.09.2026: «оптимизируй пустые зоны при разном соотношении просмотрщика»). */
+body[data-module="civil"] #q-gen .grid.g-3,
+body[data-module="civil"] #q-capclass .lk-signs{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+body[data-module="civil"] .lk-pair>.field{margin:0;min-width:0}
+body[data-module="civil"] .lk-note{font-size:12.5px;margin-top:2px}
+body[data-module="civil"] .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
 body[data-module="civil"] .lk-row>.field{margin:0}
 body[data-module="civil"] .lk-row>.lk-purpose{flex:1 1 240px;max-width:420px}
 body[data-module="civil"] .lk-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
