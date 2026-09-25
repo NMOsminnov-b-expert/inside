@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Razmetka.Model;
 
 namespace Razmetka.Editor;
@@ -156,6 +157,50 @@ public sealed class SheetView : FrameworkElement
     }
 
     public void Refresh() => InvalidateVisual();
+
+    // --- отрисовка в картинку (экспорт) ------------------------------------
+
+    // Разворот целиком в картинку: те же слои, рамки, стрелки и таблицы, что на
+    // полотне, без выделения и фильтра. bounds — какая часть полотна попала в
+    // картинку (единицы разворота), по ней экспорт ставит слой подсказок.
+    public RenderTargetBitmap RenderBitmap(double scale, out Rect bounds)
+    {
+        var b = Bounds();
+        if (b.IsEmpty) b = new Rect(0, 0, 400, 300);
+        // Подписи над картинками стоят выше слоя — запас сверху.
+        b = new Rect(b.X - 40, b.Y - 70, b.Width + 80, b.Height + 110);
+        bounds = b;
+        var (zoom, off, link, filter, lens) = (Zoom, Offset, LinkId, Filter, Lens);
+        Zoom = scale;
+        Offset = new Vector(-b.X * scale, -b.Y * scale);
+        LinkId = null;
+        Filter = null;
+        Lens = false;
+        var dv = new DrawingVisual();
+        using (var dc = dv.RenderOpen())
+        {
+            dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, b.Width * scale, b.Height * scale));
+            dc.PushTransform(new MatrixTransform(scale, 0, 0, scale, Offset.X, Offset.Y));
+            foreach (var l in Sheet!.Layers) if (!l.Hidden) DrawLayer(dc, l);
+            DrawLinks(dc);
+            dc.Pop();
+        }
+        (Zoom, Offset, LinkId, Filter, Lens) = (zoom, off, link, filter, lens);
+        var rtb = new RenderTargetBitmap((int)Math.Ceiling(b.Width * scale), (int)Math.Ceiling(b.Height * scale), 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(dv);
+        rtb.Freeze();
+        return rtb;
+    }
+
+    // Строки таблиц связей на полотне — для слоя подсказок экспорта.
+    public List<(Link Link, Rect Row)> TableRowRects()
+    {
+        var o = new List<(Link, Rect)>();
+        if (Sheet == null) return o;
+        foreach (var l in Sheet.Layers.Where(x => x.Kind == LayerKind.Table && !x.Hidden))
+            foreach (var (k, y, h) in TableRows(l, out _)) o.Add((k, new Rect(l.X, y, l.W, h)));
+        return o;
+    }
 
     // --- координаты --------------------------------------------------------
 

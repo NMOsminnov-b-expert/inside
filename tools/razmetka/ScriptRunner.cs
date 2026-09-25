@@ -155,6 +155,22 @@ public static class ScriptRunner
                         w.Canvas.PointerUp(p);
                         break;
                     }
+                    case "pdf":
+                        await w.AddPdf(st.GetProperty("path").GetString()!, (st.GetProperty("pages").GetString()!,
+                            st.GetProperty("doc").GetString()!, st.GetProperty("chapter").GetString()!));
+                        break;
+                    case "export":
+                    {
+                        var kind = st.GetProperty("kind").GetString();
+                        var outp = st.GetProperty("path").GetString()!;
+                        if (kind == "html") Export.Exporter.Html(w.Store!, outp);
+                        else if (kind == "xlsx") Export.Exporter.Xlsx(w.Store!, outp);
+                        break;
+                    }
+                    case "checks":
+                        File.WriteAllLines(st.GetProperty("path").GetString()!,
+                            Editor.Checks.Run(w.Store!.Project).Select(i => (i.Error ? "ОШИБКА " : "проверить ") + i.Chapter.Title + " · " + i.Sheet.Title + ": " + i.Text));
+                        break;
                     case "button":
                     {
                         // Нажать кнопку окна по её x:Name.

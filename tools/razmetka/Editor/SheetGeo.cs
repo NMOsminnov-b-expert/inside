@@ -57,9 +57,12 @@ public static class SheetGeo
 
     static bool OnEdge(Rect r, Pt p)
     {
-        const double e = 1.5;
-        var inX = p.X >= r.Left - e && p.X <= r.Right + e;
-        var inY = p.Y >= r.Top - e && p.Y <= r.Bottom + e;
+        // До стороны — 1,5 единицы; вдоль стороны — до 6: прокладка ставит
+        // конец на шаг сетки (10), и у тонкой рамки он может выйти чуть за
+        // её край.
+        const double e = 1.5, along = 6;
+        var inX = p.X >= r.Left - along && p.X <= r.Right + along;
+        var inY = p.Y >= r.Top - along && p.Y <= r.Bottom + along;
         return (inX && (Math.Abs(p.Y - r.Top) <= e || Math.Abs(p.Y - r.Bottom) <= e))
             || (inY && (Math.Abs(p.X - r.Left) <= e || Math.Abs(p.X - r.Right) <= e));
     }

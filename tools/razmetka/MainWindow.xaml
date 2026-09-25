@@ -12,7 +12,10 @@
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnNew" ToolTip="Новый проект — выбрать пустую папку">Новый</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnOpen" ToolTip="Открыть папку проекта (Ctrl+O)">Открыть</Button>
                 <Button Style="{StaticResource PrimaryBtn}" x:Name="BtnSave" ToolTip="Сохранить (Ctrl+S)">Сохранить</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnCheck" ToolTip="Проверить разметку: рамки, пустые поля, наложение стрелок, таблицы">Проверить</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnExport" ToolTip="Экспорт: HTML-страница, таблица Excel, разворот картинкой">Экспорт ▾</Button>
                 <Border Style="{StaticResource Sep}"/>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddPdf" ToolTip="Документ из PDF: выбранные страницы — развороты новой главы">Документ из PDF</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddImage" ToolTip="Добавить фото или скан из файла; можно перетащить файлы на окно или вставить Ctrl+V">Добавить фото</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnNote" ToolTip="Заметка: щелчок по полотну ставит булавку с вопросом или пояснением (N)">Заметка</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnNewLink" ToolTip="Новая связь: обвести графу на документе, затем поле на снимке системы (L)">Новая связь</Button>

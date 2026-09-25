@@ -37,6 +37,23 @@ public partial class MainWindow : Window
         BtnOpen.Click += (_, _) => OpenProject();
         BtnSave.Click += (_, _) => Save();
         BtnAddImage.Click += (_, _) => AddImagesFromDialog();
+        BtnCheck.Click += (_, _) => { if (_store != null) new ChecksWindow(this, Checks.Run(_store.Project)).Show(); };
+        BtnExport.Click += (_, _) =>
+        {
+            var m = new ContextMenu { PlacementTarget = BtnExport, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            MenuItem Item(string h, Action a) { var i = new MenuItem { Header = h, IsEnabled = _store != null }; i.Click += (_, _) => a(); return i; }
+            m.Items.Add(Item("HTML-страница — весь проект…", () => ExportTo("HTML-страница|*.html", ".html", p => Export.Exporter.Html(_store!, p))));
+            m.Items.Add(Item("Таблица связей Excel (.xlsx)…", () => ExportTo("Книга Excel|*.xlsx", ".xlsx", p => Export.Exporter.Xlsx(_store!, p))));
+            var png = Item("Разворот картинкой (.png)…", () => ExportTo("Картинка PNG|*.png", ".png", p => Export.Exporter.Png(_store!, _chapter!, _sheet!, p)));
+            png.IsEnabled = _sheet != null;
+            m.Items.Add(png);
+            m.IsOpen = true;
+        };
+        BtnAddPdf.Click += async (_, _) =>
+        {
+            var dlg = new OpenFileDialog { Title = "Документ PDF", Filter = "PDF|*.pdf" };
+            if (dlg.ShowDialog(this) == true) await AddPdf(dlg.FileName, null);
+        };
         BtnUndo.Click += (_, _) => Undo();
         BtnRedo.Click += (_, _) => Redo();
         BtnZoomIn.Click += (_, _) => View.SetZoom(View.Zoom * 1.25);
@@ -190,6 +207,7 @@ public partial class MainWindow : Window
         _sheet = _chapter?.Sheets.FirstOrDefault();
         ClearPops();
         View.Doc = new DocInfo(_chapter?.Title ?? "", _chapter?.DocName ?? "");
+        FixStale(_sheet);
         View.SetSheet(_sheet);
         UpdateAll();
     }
@@ -316,6 +334,84 @@ public partial class MainWindow : Window
         });
         View.Select(added);
         if (added.Count > 0) View.FitAll();
+    }
+
+    // Документ из PDF: каждая выбранная страница — разворот со страницей-слоем
+    // (закреплён: страницу не сдвинуть случайно, пока рисуешь рамки).
+    // opts — для сценариев проверки: (страницы, документ, глава).
+    public async Task AddPdf(string path, (string Pages, string Doc, string Chapter)? opts)
+    {
+        if (_store == null) return;
+        int count;
+        try { count = await Model.PdfPages.Count(path); }
+        catch (Exception ex) { MessageBox.Show(this, $"Не удалось открыть PDF: {ex.Message}", "Разметка"); return; }
+        string pagesText, doc, chTitle;
+        var newChapter = true;
+        if (opts is { } o) (pagesText, doc, chTitle) = o;
+        else
+        {
+            var d = new PdfImportDialog(path, count, _chapter != null) { Owner = this };
+            if (d.ShowDialog() != true) return;
+            (pagesText, doc, chTitle, newChapter) = (d.Pages, d.DocName, d.ChapterTitle, d.NewChapter);
+        }
+        var pages = Model.PdfPages.ParseRange(pagesText, count);
+        if (pages.Count == 0) { Status("Страницы не выбраны"); return; }
+        Status($"Страницы PDF: {pages.Count}…");
+        var images = new List<(int Page, BitmapSource Bmp)>();
+        foreach (var n in pages) images.Add((n, await Model.PdfPages.Render(path, n)));
+        Chapter? target = null;
+        Sheet? first = null;
+        Edit("Документ из PDF", () =>
+        {
+            target = newChapter || _chapter == null
+                ? new Chapter { Title = string.IsNullOrWhiteSpace(chTitle) ? Path.GetFileNameWithoutExtension(path) : chTitle, DocName = doc }
+                : _chapter;
+            if (!_store.Project.Chapters.Contains(target)) _store.Project.Chapters.Add(target);
+            foreach (var (n, bmp) in images)
+            {
+                var sh = new Sheet { Title = $"Страница {n}", Page = $"стр. {n}" };
+                var asset = _store.Import(bmp, $"{Path.GetFileName(path)}, стр. {n}", false);
+                var l = LayerOps.AddImage(sh, _store, asset, $"{doc}, стр. {n}");
+                l.Locked = true;
+                target.Sheets.Add(sh);
+                first ??= sh;
+            }
+        });
+        if (first != null) PickSheet(target, first);
+        Status($"Добавлено разворотов: {images.Count}");
+    }
+
+    // Стрелки, оторванные от рамок (например, после переноса старой разметки,
+    // где рамки правили отдельно от стрелок), перекладываются при открытии
+    // разворота — не дожидаясь первой правки.
+    static void FixStale(Sheet? s)
+    {
+        if (s != null && s.Links.Any(k => !SheetGeo.PathFits(s, k))) SheetGeo.Reroute(s);
+    }
+
+    void ExportTo(string filter, string ext, Action<string> write)
+    {
+        if (_store == null) return;
+        var name = (_sheet != null && ext == ".png" ? _sheet.Title : _store.Project.Title) + ext;
+        var dlg = new SaveFileDialog { Filter = filter, FileName = string.Join("_", name.Split(Path.GetInvalidFileNameChars())),
+            InitialDirectory = Path.GetDirectoryName(_store.Dir) };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            Cursor = Cursors.Wait;
+            write(dlg.FileName);
+            Status($"Готово: {dlg.FileName}");
+        }
+        catch (Exception ex) { MessageBox.Show(this, $"Экспорт не удался: {ex.Message}", "Разметка"); }
+        finally { Cursor = null; }
+    }
+
+    public void GoToIssue(Issue i)
+    {
+        Activate();
+        if (i.Link != null) { JumpTo(i.Chapter, i.Sheet, i.Link); return; }
+        PickSheet(i.Chapter, i.Sheet);
+        if (i.Layer != null) { View.Select(new[] { i.Layer.Id }); View.ScrollToWorld(new Rect(i.Layer.X, i.Layer.Y, i.Layer.W, i.Layer.H)); }
     }
 
     void PasteImage()
@@ -489,6 +585,7 @@ public partial class MainWindow : Window
         _chapter = ch;
         _sheet = sh;
         View.Doc = new DocInfo(ch?.Title ?? "", ch?.DocName ?? "");
+        FixStale(sh);
         View.SetSheet(sh);
         UpdateAll();
     }

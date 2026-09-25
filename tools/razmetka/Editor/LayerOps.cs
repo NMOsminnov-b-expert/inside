@@ -15,7 +15,7 @@ public static class LayerOps
         var right = s.Layers.Where(l => !l.Hidden).Select(l => l.X + l.W).DefaultIfEmpty(0).Max();
         var l = new Layer
         {
-            Name = UniqueName(s, string.IsNullOrWhiteSpace(name) ? "Фото" : System.IO.Path.GetFileNameWithoutExtension(name)),
+            Name = UniqueName(s, string.IsNullOrWhiteSpace(name) ? "Фото" : StripImageExt(name)),
             Asset = asset,
             Crop = new Box(0, 0, info.W, info.H),
             X = s.Layers.Count == 0 ? 0 : right + 120,
@@ -158,6 +158,15 @@ public static class LayerOps
                 y += t.Crop.H + 30;
             }
         }
+    }
+
+    // Расширение убирается только у имени файла картинки: «Госакт, стр. 2»
+    // — не файл, «. 2» не расширение.
+    static string StripImageExt(string name)
+    {
+        var ext = System.IO.Path.GetExtension(name).ToLowerInvariant();
+        return ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".tif" or ".tiff" or ".gif" or ".webp"
+            ? System.IO.Path.GetFileNameWithoutExtension(name) : name;
     }
 
     static string UniqueName(Sheet s, string name)
