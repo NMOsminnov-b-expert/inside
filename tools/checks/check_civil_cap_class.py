@@ -74,7 +74,7 @@ def run(t):
     t.ck('Здание' in items and 'Гражданское здание' not in items and 'Производственное строение' not in items,
          'в меню не один пункт «Здание»: %s' % items)
     t.ck(pg.locator('[data-lit-kind].on').count() == 0, 'у нового здания вид литеры выбран сам')
-    t.ck('вид литеры' in pg.inner_text('[data-cap-class]'),
+    t.ck('тип объекта имущества' in pg.inner_text('[data-cap-class]'),
          'класс нового здания не говорит, чего не хватает: %r' % pg.inner_text('[data-cap-class]'))
     t.ck(pg.locator('#q-capclass').count() == 0, 'признаки класса показаны до выбора вида')
 

@@ -127,7 +127,7 @@ function signFactor(oi, sign) {
 // читали класс по-старому.
 export function capClass(oi) {
   const kind = kindOf(oi);
-  if (!kind) return { key: '', label: '', missing: ['вид литеры'] };
+  if (!kind) return { key: '', label: '', missing: ['тип объекта имущества'] };
   if (kind === 'other') return { key: 'other', label: OTHER_NAME, missing: [] };
   const group = KINDS.find((k) => k.key === kind).group;
   const missing = [];

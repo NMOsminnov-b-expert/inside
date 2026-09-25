@@ -514,10 +514,10 @@ export function bind(ctx, oi) {
     const lost = fieldsThatDisappear(render, ctx, oi, { litKind: next });
     if (!lost.length) { apply(); return; }
     confirmDialog({
-      title: 'Сменить вид литеры?',
-      text: 'При этом виде поля ниже не показываются. Значения сохранятся и вернутся, если вернуть вид.',
+      title: 'Сменить тип объекта имущества?',
+      text: 'При этом типе поля ниже не показываются. Значения сохранятся и вернутся, если вернуть тип.',
       list: lost,
-      okLabel: 'Сменить вид',
+      okLabel: 'Сменить тип',
     }).then((ok) => { if (ok) apply(); });
   });
 

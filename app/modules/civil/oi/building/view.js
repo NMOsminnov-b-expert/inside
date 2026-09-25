@@ -363,7 +363,7 @@ ${tempModeMS(ctx, oi)}
 // назначение остаётся текстом как в документе — это ориентир.
 function kindRowHTML(oi) {
   const kind = kindOf(oi);
-  const seg = `<div class="lk-seg" role="radiogroup" aria-label="Вид литеры">${KINDS.map((k) => `
+  const seg = `<div class="lk-seg" role="radiogroup" aria-label="Тип объекта имущества">${KINDS.map((k) => `
     <button type="button" class="lk-seg-btn ${kind === k.key ? 'on' : ''}" role="radio" aria-checked="${kind === k.key}"
       data-lit-kind="${k.key}">${esc(k.label)}</button>`).join('')}</div>`;
   const list = PURPOSES[kind] || [];
@@ -371,7 +371,7 @@ function kindRowHTML(oi) {
     <select class="select" id="lk-purpose" data-purpose-fact>${emptyOptionHTML()}${list.map((p) => `<option ${
   p === oi.purposeFact ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
   return `<div class="lk-row">
-    <div class="field"><label class="lk-tip" title="По фото с осмотра">Вид литеры</label>${seg}</div>
+    <div class="field"><label class="lk-tip" title="По фото с осмотра">Тип объекта имущества</label>${seg}</div>
     ${purpose}
   </div>`;
 }
