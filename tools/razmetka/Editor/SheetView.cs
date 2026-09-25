@@ -23,6 +23,9 @@ namespace Razmetka.Editor;
 //     часть — ярко; ручки меняют видимую часть, перетаскивание внутри —
 //     сдвигает картинку под рамкой. Enter или Esc — выход.
 // Одно движение мыши — одна запись отмены (EditStarting / EditCommitted).
+// Глава, к которой относится разворот: название документа в шапке таблицы.
+public sealed record DocInfo(string ChapterTitle, string DocName);
+
 public sealed class SheetView : FrameworkElement
 {
     public ProjectStore? Store { get; set; }
@@ -31,16 +34,21 @@ public sealed class SheetView : FrameworkElement
     public Vector Offset { get; private set; } = new(40, 40);
     public List<string> Selection { get; } = new();
     public string? CropLayerId { get; private set; }
+    // Выбранная связь: остальные бледнеют, её строка в таблице выделена.
+    public string? LinkId { get; private set; }
+    public DocInfo Doc { get; set; } = new("", "");
 
     public event Action? EditStarting;
     public event Action<string>? EditCommitted;
     public event Action? SelectionChanged;
     public event Action? ViewChanged;
+    // Щелчок по стрелке, номеру или строке таблицы: связь и точка экрана.
+    public event Action<Link, Point>? LinkClicked;
 
     const double HandleR = 5;
     const double SnapPx = 6;
 
-    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan }
+    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag }
     Op _op;
     Point _downScreen, _lastScreen;
     Point _downWorld;
@@ -75,6 +83,7 @@ public sealed class SheetView : FrameworkElement
     public void SetSheet(Sheet? s)
     {
         Sheet = s;
+        LinkId = null;
         Selection.Clear();
         CropLayerId = null;
         SelectionChanged?.Invoke();
@@ -161,6 +170,7 @@ public sealed class SheetView : FrameworkElement
             if (l.Hidden) continue;
             DrawLayer(dc, l);
         }
+        DrawLinks(dc);
         dc.Pop();
 
         // Обрезка: вся картинка бледно, видимая часть — ярко, ручки по ней.
@@ -183,11 +193,14 @@ public sealed class SheetView : FrameworkElement
             else { var y = ToScreen(0, at).Y; dc.DrawLine(GuidePen, new Point(0, y), new Point(ActualWidth, y)); }
         }
 
+        DrawLinkEdit(dc);
+        DrawPendingFrame(dc);
         if (_op == Op.Band) dc.DrawRectangle(BandFill, SelPen, _band);
     }
 
     void DrawLayer(DrawingContext dc, Layer l)
     {
+        if (l.Kind == LayerKind.Table) { DrawTable(dc, l); return; }
         if (l.Kind == LayerKind.Image)
         {
             var bmp = Store!.Bitmap(l.Asset);
@@ -354,6 +367,7 @@ public sealed class SheetView : FrameworkElement
 
     public void DoubleClick(Point screen)
     {
+        if (LinkId != null && AddBend(screen)) return;
         var l = HitLayer(ToWorld(screen));
         if (l != null && l.Kind == LayerKind.Image && CropLayerId == null) StartCrop(l.Id);
         else if (CropLayerId != null && (l == null || l.Id != CropLayerId)) EndCrop();
@@ -370,6 +384,7 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null) return;
 
         if (button == MouseButton.Middle || button == MouseButton.Right || _spaceDown) { _op = Op.Pan; return; }
+        if (LinkTool) { _op = Op.Band; _band = new Rect(p, p); return; }
 
         var crop = CropLayer();
         if (crop != null)
@@ -379,6 +394,8 @@ public sealed class SheetView : FrameworkElement
             if (ScreenRect(crop).Contains(p)) { _op = Op.CropPan; Remember(new[] { crop }); EditStarting?.Invoke(); return; }
             EndCrop();
         }
+
+        if (LinkEditDown(p)) return;
 
         if (Selection.Count == 1)
         {
@@ -390,9 +407,19 @@ public sealed class SheetView : FrameworkElement
             }
         }
 
+        var link = HitLink(p);
+        if (link != null)
+        {
+            SelectLink(link.Id);
+            LinkClicked?.Invoke(link, p);
+            _op = Op.None;
+            return;
+        }
+
         var hit = HitLayer(_downWorld);
         if (hit != null)
         {
+            if (LinkId != null) SelectLink(null);
             var shift = mods.HasFlag(ModifierKeys.Shift);
             if (shift && Selection.Contains(hit.Id)) { Selection.Remove(hit.Id); SelectionChanged?.Invoke(); InvalidateVisual(); _op = Op.None; return; }
             if (!Selection.Contains(hit.Id)) Select(new[] { hit.Id }, shift);
@@ -402,7 +429,7 @@ public sealed class SheetView : FrameworkElement
             return;
         }
 
-        if (!mods.HasFlag(ModifierKeys.Shift)) ClearSelection();
+        if (!mods.HasFlag(ModifierKeys.Shift)) { ClearSelection(); if (LinkId != null) SelectLink(null); }
         _op = Op.Band;
         _band = new Rect(p, p);
     }
@@ -437,6 +464,13 @@ public sealed class SheetView : FrameworkElement
             case Op.CropPan:
                 CropPan(dw);
                 break;
+            case Op.FrameMove:
+            case Op.FrameResize:
+                FrameDrag(w);
+                break;
+            case Op.SegDrag:
+                SegDrag(w);
+                break;
         }
         InvalidateVisual();
     }
@@ -446,7 +480,16 @@ public sealed class SheetView : FrameworkElement
         var op = _op;
         _op = Op.None;
         _guides.Clear();
-        if (op == Op.Band && _moved)
+        if (op == Op.Move && !_moved && Selection.Count == 1 && Find(Selection[0]) is { Kind: LayerKind.Table } tl)
+        {
+            var row = HitTableRow(tl, ToWorld(p));
+            if (row != null) { SelectLink(row.Id); LinkClicked?.Invoke(row, p); }
+        }
+        if (op == Op.Band && LinkTool)
+        {
+            LinkToolUp();
+        }
+        else if (op == Op.Band && _moved)
         {
             var a = ToWorld(_band.TopLeft);
             var b = ToWorld(_band.BottomRight);
@@ -461,6 +504,8 @@ public sealed class SheetView : FrameworkElement
                 Op.Move => "Перенос",
                 Op.Resize => "Размер",
                 Op.CropHandle or Op.CropPan => "Обрезка",
+                Op.FrameMove or Op.FrameResize => "Рамка связи",
+                Op.SegDrag => "Путь стрелки",
                 _ => "Правка",
             });
         }
@@ -469,6 +514,415 @@ public sealed class SheetView : FrameworkElement
 
     void Remember(IEnumerable<Layer> ls) =>
         _orig = ls.ToDictionary(l => l.Id, l => (l.X, l.Y, l.W, l.Crop));
+
+    // --- связи --------------------------------------------------------------
+
+    public void SelectLink(string? id)
+    {
+        LinkId = id;
+        InvalidateVisual();
+        SelectionChanged?.Invoke();
+    }
+
+    public Link? SelectedLink => LinkId == null ? null : Sheet?.Links.FirstOrDefault(k => k.Id == LinkId);
+
+    // Щелчок попадает в стрелку в пределах 7 экранных пикселей или в номер.
+    public Link? HitLink(Point screen)
+    {
+        if (Sheet == null) return null;
+        var w = ToWorld(screen);
+        Link? best = null;
+        var bestD = 7 / Zoom;
+        foreach (var k in Sheet.Links)
+        {
+            var pts = SheetGeo.Path(Sheet, k);
+            if (pts == null) continue;
+            var d = SheetGeo.DistToPath(pts, w);
+            var tgt = SheetGeo.FrameRect(Sheet, k.Tgt)!.Value;
+            var (bs, bt) = SheetGeo.Badges(pts, tgt);
+            d = Math.Min(d, Math.Max(0, Math.Min((w - bs).Length, (w - bt).Length) - 17));
+            if (d < bestD) { bestD = d; best = k; }
+        }
+        return best;
+    }
+
+    public Rect? LinkBounds(Link k)
+    {
+        if (Sheet == null) return null;
+        var r = Rect.Empty;
+        foreach (var id in new[] { k.Src, k.Tgt }) if (SheetGeo.FrameRect(Sheet, id) is { } f) r.Union(f);
+        if (SheetGeo.Path(Sheet, k) is { } pts) foreach (var p in pts) r.Union(p);
+        return r.IsEmpty ? null : r;
+    }
+
+    public Point? LinkBadgeScreen(Link k)
+    {
+        if (Sheet == null || SheetGeo.Path(Sheet, k) is not { } pts || SheetGeo.FrameRect(Sheet, k.Tgt) is not { } t) return null;
+        var (bs, _) = SheetGeo.Badges(pts, t);
+        return ToScreen(bs.X, bs.Y);
+    }
+
+    void DrawLinks(DrawingContext dc)
+    {
+        var s = Sheet!;
+        var ordered = SheetGeo.Ordered(s);
+        var dim = LinkId != null;
+        foreach (var k in ordered)
+        {
+            var pts = SheetGeo.Path(s, k);
+            if (pts == null) continue;
+            var src = SheetGeo.FrameRect(s, k.Src)!.Value;
+            var tgt = SheetGeo.FrameRect(s, k.Tgt)!.Value;
+            var on = k.Id == LinkId;
+            var col = SheetGeo.Palette[ordered.IndexOf(k) % SheetGeo.Palette.Length];
+            if (dim && !on) col = Color.FromArgb(0x33, col.R, col.G, col.B);
+            var br = new SolidColorBrush(col);
+            var width = on ? 7.0 : 4.0;
+            var pen = new Pen(br, width) { LineJoin = PenLineJoin.Round };
+            // Тип связи — видом линии: переносится — сплошная, по ЕНИ —
+            // короткий штрих, только в имя — точки, не переносится — штрих.
+            if (k.Kind == LinkKind.None) pen.DashStyle = DashStyles.Dash;
+            else if (k.Kind == LinkKind.Auto) pen.DashStyle = new DashStyle(new double[] { 3, 1.5 }, 0);
+            else if (k.Kind == LinkKind.NameOnly) pen.DashStyle = DashStyles.Dot;
+            dc.DrawRoundedRectangle(null, new Pen(br, width), src, 3, 3);
+            dc.DrawRoundedRectangle(null, new Pen(br, width), tgt, 3, 3);
+            var g = new StreamGeometry();
+            using (var c = g.Open())
+            {
+                c.BeginFigure(pts[0], false, false);
+                c.PolyLineTo(pts.Skip(1).ToList(), true, true);
+            }
+            dc.DrawGeometry(null, pen, g);
+            var a = pts[^2];
+            var b = pts[^1];
+            var ang = Math.Atan2(b.Y - a.Y, b.X - a.X);
+            const double L = 22, W = 11;
+            var head = new StreamGeometry();
+            using (var c = head.Open())
+            {
+                c.BeginFigure(b, true, true);
+                c.LineTo(new Point(b.X - L * Math.Cos(ang) + W * Math.Sin(ang), b.Y - L * Math.Sin(ang) - W * Math.Cos(ang)), true, false);
+                c.LineTo(new Point(b.X - L * Math.Cos(ang) - W * Math.Sin(ang), b.Y - L * Math.Sin(ang) + W * Math.Cos(ang)), true, false);
+            }
+            dc.DrawGeometry(br, null, head);
+            var (bs, bt) = SheetGeo.Badges(pts, tgt);
+            foreach (var bp in new[] { bs, bt })
+            {
+                dc.DrawEllipse(br, new Pen(Brushes.White, 3), bp, 17, 17);
+                var ft = Text(k.N.ToString(), 20, Colors.White);
+                dc.DrawText(ft, new Point(bp.X - ft.Width / 2, bp.Y - ft.Height / 2));
+            }
+        }
+    }
+
+    // --- правка связей: рамки, отрезки, новая связь ------------------------
+    //
+    // У выбранной связи обе рамки с ручками: внутри — перенос, углы — размер.
+    // Отрезок стрелки тянется поперёк себя (стрелка остаётся из прямых
+    // углов), крайние отрезки скользят концом вдоль стороны рамки. Двойной
+    // щелчок по отрезку — излом-ступенька, которую затем двигают.
+    //
+    // Новая связь (LinkTool): первая обводка на картинке — рамка на документе,
+    // вторая — рамка на снимке системы; связь создаётся с номером следом за
+    // последним и сразу прокладывается.
+
+    public bool LinkTool { get; private set; }
+    Frame? _pendingFrame;
+    public event Action<Frame, Frame>? LinkDrawn;
+    public event Action? ToolChanged;
+    string? _frameId;
+    int _seg;
+    List<Point>? _origPts;
+    Box _origBox;
+
+    public void SetLinkTool(bool on)
+    {
+        LinkTool = on;
+        _pendingFrame = null;
+        Cursor = on ? Cursors.Cross : null;
+        InvalidateVisual();
+        ToolChanged?.Invoke();
+    }
+
+    public bool HasPendingFrame => _pendingFrame != null;
+
+    IEnumerable<Frame> SelectedLinkFrames()
+    {
+        if (Sheet == null || SelectedLink is not { } k) yield break;
+        foreach (var f in Sheet.Frames.Where(f => f.Id == k.Src || f.Id == k.Tgt)) yield return f;
+    }
+
+    // Возвращает true, если жест взят правкой связи.
+    bool LinkEditDown(Point p)
+    {
+        if (Sheet == null || SelectedLink is not { } k) return false;
+        foreach (var f in SelectedLinkFrames())
+        {
+            if (SheetGeo.FrameRect(Sheet, f.Id) is not { } fr) continue;
+            var sr = new Rect(ToScreen(fr.X, fr.Y), ToScreen(fr.Right, fr.Bottom));
+            var h = HitHandle(Corners(sr), p);
+            if (h >= 0) { _op = Op.FrameResize; _handle = h; _frameId = f.Id; _origBox = f.Box; EditStarting?.Invoke(); return true; }
+        }
+        var pts = SheetGeo.Path(Sheet, k);
+        if (pts != null)
+        {
+            var w = ToWorld(p);
+            for (var i = 0; i + 1 < pts.Count; i++)
+            {
+                if (SheetGeo.DistToPath(new List<Point> { pts[i], pts[i + 1] }, w) * Zoom > 6) continue;
+                k.Points = pts.Select(q => new Pt(q.X, q.Y)).ToList();
+                _op = Op.SegDrag;
+                _seg = i;
+                _origPts = pts;
+                EditStarting?.Invoke();
+                return true;
+            }
+        }
+        foreach (var f in SelectedLinkFrames())
+        {
+            if (SheetGeo.FrameRect(Sheet, f.Id) is not { } fr) continue;
+            var sr = new Rect(ToScreen(fr.X, fr.Y), ToScreen(fr.Right, fr.Bottom));
+            // Внутрь рамки — только у края (рамка часто накрывает значение,
+            // по которому щёлкают, чтобы выбрать слой): полоса 8 px.
+            var inner = sr;
+            inner.Inflate(-8, -8);
+            if (sr.Contains(p) && (inner.IsEmpty || !inner.Contains(p)))
+            {
+                _op = Op.FrameMove; _frameId = f.Id; _origBox = f.Box; EditStarting?.Invoke(); return true;
+            }
+        }
+        return false;
+    }
+
+    void FrameDrag(Point w)
+    {
+        var f = Sheet!.Frames.First(x => x.Id == _frameId);
+        var l = SheetGeo.LayerOf(Sheet, f)!;
+        var k = l.Scale;
+        var d = (w - _downWorld) / k;
+        if (_op == Op.FrameMove)
+        {
+            f.Box = new Box(_origBox.X + d.X, _origBox.Y + d.Y, _origBox.W, _origBox.H);
+            return;
+        }
+        double x0 = _origBox.X, y0 = _origBox.Y, x1 = _origBox.Right, y1 = _origBox.Bottom;
+        if (_handle is 0 or 3) x0 = Math.Min(x0 + d.X, x1 - 4); else x1 = Math.Max(x1 + d.X, x0 + 4);
+        if (_handle is 0 or 1) y0 = Math.Min(y0 + d.Y, y1 - 4); else y1 = Math.Max(y1 + d.Y, y0 + 4);
+        f.Box = new Box(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    void SegDrag(Point w)
+    {
+        var k = SelectedLink!;
+        var pts = _origPts!.ToList();
+        var a = pts[_seg];
+        var b = pts[_seg + 1];
+        var horiz = Math.Abs(a.Y - b.Y) < 0.01;
+        var d = w - _downWorld;
+        var src = SheetGeo.FrameRect(Sheet!, k.Src)!.Value;
+        var tgt = SheetGeo.FrameRect(Sheet!, k.Tgt)!.Value;
+        if (horiz)
+        {
+            var y = a.Y + d.Y;
+            // Крайний отрезок скользит концом вдоль стороны рамки.
+            if (_seg == 0) y = Math.Clamp(y, src.Top + 2, src.Bottom - 2);
+            if (_seg + 1 == pts.Count - 1) y = Math.Clamp(y, tgt.Top + 2, tgt.Bottom - 2);
+            pts[_seg] = new Point(a.X, y);
+            pts[_seg + 1] = new Point(b.X, y);
+        }
+        else
+        {
+            var x = a.X + d.X;
+            if (_seg == 0) x = Math.Clamp(x, src.Left + 2, src.Right - 2);
+            if (_seg + 1 == pts.Count - 1) x = Math.Clamp(x, tgt.Left + 2, tgt.Right - 2);
+            pts[_seg] = new Point(x, a.Y);
+            pts[_seg + 1] = new Point(x, b.Y);
+        }
+        k.Points = pts.Select(q => new Pt(q.X, q.Y)).ToList();
+    }
+
+    // Излом: отрезок заменяется ступенькой, её средний отрезок затем тянут.
+    public bool AddBend(Point screen)
+    {
+        if (Sheet == null || SelectedLink is not { } k || SheetGeo.Path(Sheet, k) is not { } pts) return false;
+        var w = ToWorld(screen);
+        for (var i = 0; i + 1 < pts.Count; i++)
+        {
+            if (SheetGeo.DistToPath(new List<Point> { pts[i], pts[i + 1] }, w) * Zoom > 6) continue;
+            var a = pts[i];
+            var b = pts[i + 1];
+            var horiz = Math.Abs(a.Y - b.Y) < 0.01;
+            var off = 40.0;
+            var step = new List<Point>();
+            if (horiz)
+            {
+                double x1 = a.X + (b.X - a.X) / 3, x2 = a.X + (b.X - a.X) * 2 / 3;
+                step.AddRange(new[] { new Point(x1, a.Y), new Point(x1, a.Y + off), new Point(x2, a.Y + off), new Point(x2, a.Y) });
+            }
+            else
+            {
+                double y1 = a.Y + (b.Y - a.Y) / 3, y2 = a.Y + (b.Y - a.Y) * 2 / 3;
+                step.AddRange(new[] { new Point(a.X, y1), new Point(a.X + off, y1), new Point(a.X + off, y2), new Point(a.X, y2) });
+            }
+            EditStarting?.Invoke();
+            pts.InsertRange(i + 1, step);
+            k.Points = pts.Select(q => new Pt(q.X, q.Y)).ToList();
+            EditCommitted?.Invoke("Излом стрелки");
+            InvalidateVisual();
+            return true;
+        }
+        return false;
+    }
+
+    void DrawLinkEdit(DrawingContext dc)
+    {
+        if (Sheet == null || SelectedLink is not { } k) return;
+        foreach (var f in SelectedLinkFrames())
+        {
+            if (SheetGeo.FrameRect(Sheet, f.Id) is not { } fr) continue;
+            var sr = new Rect(ToScreen(fr.X, fr.Y), ToScreen(fr.Right, fr.Bottom));
+            foreach (var h in Corners(sr)) DrawHandle(dc, h);
+        }
+        if (SheetGeo.Path(Sheet, k) is { } pts)
+            for (var i = 0; i + 1 < pts.Count; i++)
+            {
+                var m = new Point((pts[i].X + pts[i + 1].X) / 2, (pts[i].Y + pts[i + 1].Y) / 2);
+                var sm = ToScreen(m.X, m.Y);
+                dc.DrawEllipse(Brushes.White, HandlePen, sm, 4.5, 4.5);
+            }
+    }
+
+    // Новая связь: обводка рисует рамку на верхнем слое-картинке под началом
+    // обводки.
+    void LinkToolUp()
+    {
+        if (Sheet == null || !_moved) return;
+        var a = ToWorld(_band.TopLeft);
+        var b = ToWorld(_band.BottomRight);
+        var r = new Rect(a, b);
+        var layer = HitImageLayer(new Point(r.X + 1, r.Y + 1));
+        if (layer == null || r.Width < 4 || r.Height < 4) return;
+        r.Intersect(new Rect(layer.X, layer.Y, layer.W, layer.H));
+        if (r.IsEmpty) return;
+        var f = new Frame { LayerId = layer.Id, Box = SheetGeo.ToSource(layer, r) };
+        if (_pendingFrame == null) { _pendingFrame = f; ToolChanged?.Invoke(); return; }
+        var first = _pendingFrame;
+        _pendingFrame = null;
+        LinkDrawn?.Invoke(first, f);
+    }
+
+    Layer? HitImageLayer(Point world)
+    {
+        for (var i = Sheet!.Layers.Count - 1; i >= 0; i--)
+        {
+            var l = Sheet.Layers[i];
+            if (l.Hidden || l.Kind != LayerKind.Image) continue;
+            if (new Rect(l.X, l.Y, l.W, l.H).Contains(world)) return l;
+        }
+        return null;
+    }
+
+    void DrawPendingFrame(DrawingContext dc)
+    {
+        if (_pendingFrame == null || Sheet == null) return;
+        var l = SheetGeo.LayerOf(Sheet, _pendingFrame);
+        if (l == null) return;
+        var k = l.Scale;
+        var b = _pendingFrame.Box;
+        var r = new Rect(ToScreen(l.X + (b.X - l.Crop.X) * k, l.Y + (b.Y - l.Crop.Y) * k),
+                         ToScreen(l.X + (b.Right - l.Crop.X) * k, l.Y + (b.Bottom - l.Crop.Y) * k));
+        var pen = new Pen(SelPen.Brush, 3) { DashStyle = DashStyles.Dash };
+        dc.DrawRectangle(null, pen, r);
+    }
+
+    // --- таблица связей --------------------------------------------------
+
+    const double TPad = 12, TNum = 74, THead = 52;
+
+    // Размер шрифта таблицы — в единицах полотна: разворот шириной ~2500
+    // единиц смотрят целиком при 35–50 %, и текст должен читаться.
+    const double TFont = 26;
+
+    List<(Link Link, double Y, double H)> TableRows(Layer l, out double total)
+    {
+        var rows = new List<(Link, double, double)>();
+        var links = SheetGeo.Ordered(Sheet!);
+        var from = Math.Clamp(l.TableFrom, 0, links.Count);
+        var to = Math.Clamp(l.TableTo <= 0 ? links.Count : l.TableTo, from, links.Count);
+        var col = (l.W - TNum) / 2;
+        var y = l.Y + THead;
+        for (var i = from; i < to; i++)
+        {
+            var k = links[i];
+            var h = Math.Max(Measure(k.DocField, col - TPad * 2), Measure(k.SystemField, col - TPad * 2)) + TPad * 2;
+            h = Math.Max(h, 58);
+            rows.Add((k, y, h));
+            y += h;
+        }
+        total = y - l.Y;
+        return rows;
+    }
+
+    static double Measure(string text, double width)
+    {
+        var ft = Text(string.IsNullOrEmpty(text) ? " " : text, TFont, Colors.Black);
+        ft.MaxTextWidth = Math.Max(40, width);
+        return ft.Height;
+    }
+
+    public Link? HitTableRow(Layer l, Point world)
+    {
+        foreach (var (k, y, h) in TableRows(l, out _))
+            if (world.Y >= y && world.Y < y + h && world.X >= l.X && world.X <= l.X + l.W) return k;
+        return null;
+    }
+
+    public Rect? TableRowRect(Link k)
+    {
+        if (Sheet == null) return null;
+        foreach (var l in Sheet.Layers.Where(x => x.Kind == LayerKind.Table && !x.Hidden))
+            foreach (var (kk, y, h) in TableRows(l, out _))
+                if (kk.Id == k.Id) return new Rect(l.X, y, l.W, h);
+        return null;
+    }
+
+    void DrawTable(DrawingContext dc, Layer l)
+    {
+        var rows = TableRows(l, out var total);
+        // Высота слоя — по строкам: пишется в обрезку, чтобы слой знал свой
+        // размер для выбора, прилипания и прокладки стрелок.
+        if (Math.Abs(l.Crop.H - total) > 0.5 || Math.Abs(l.Crop.W - l.W) > 0.5) l.Crop = new Box(0, 0, l.W, total);
+        var line = new Pen(new SolidColorBrush(Color.FromRgb(0xD5, 0xDD, 0xE3)), 1.2);
+        var col = (l.W - TNum) / 2;
+        dc.DrawRectangle(Brushes.White, line, new Rect(l.X, l.Y, l.W, total));
+        var muted = Color.FromRgb(0x5F, 0x71, 0x80);
+        var docName = Doc.DocName.Length > 0 ? Doc.DocName : "Документ";
+        var head = new[] { ("№", l.X + TPad), (docName, l.X + TNum + TPad), ("Система", l.X + TNum + col + TPad) };
+        foreach (var (t, x) in head)
+        {
+            var ft = Text(t.ToUpperInvariant(), 18, muted);
+            dc.DrawText(ft, new Point(x, l.Y + (THead - ft.Height) / 2));
+        }
+        dc.DrawLine(line, new Point(l.X, l.Y + THead), new Point(l.X + l.W, l.Y + THead));
+        var ordered = SheetGeo.Ordered(Sheet!);
+        var ink = Color.FromRgb(0x1C, 0x2A, 0x35);
+        foreach (var (k, y, h) in rows)
+        {
+            if (k.Id == LinkId) dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0xE3, 0xEE, 0xF6)), null, new Rect(l.X, y, l.W, h));
+            var c = SheetGeo.Palette[ordered.IndexOf(k) % SheetGeo.Palette.Length];
+            dc.DrawRoundedRectangle(new SolidColorBrush(c), null, new Rect(l.X + TPad, y + TPad, 44, 34), 17, 17);
+            var nft = Text(k.N.ToString(), 20, Colors.White);
+            dc.DrawText(nft, new Point(l.X + TPad + 22 - nft.Width / 2, y + TPad + 17 - nft.Height / 2));
+            var d1 = Text(k.DocField, TFont, ink);
+            d1.MaxTextWidth = Math.Max(40, col - TPad * 2);
+            dc.DrawText(d1, new Point(l.X + TNum + TPad, y + TPad));
+            var d2 = Text(k.SystemField, TFont, ink);
+            d2.MaxTextWidth = Math.Max(40, col - TPad * 2);
+            dc.DrawText(d2, new Point(l.X + TNum + col + TPad, y + TPad));
+            dc.DrawLine(line, new Point(l.X, y + h), new Point(l.X + l.W, y + h));
+        }
+    }
+
 
     // --- перенос и размер с прилипанием ----------------------------------
 
@@ -490,6 +944,17 @@ public sealed class SheetView : FrameworkElement
     {
         var (id, o) = _orig.First();
         var l = Find(id)!;
+        if (l.Kind == LayerKind.Table)
+        {
+            // Таблица тянется только по ширине, высота — по строкам.
+            var left = _handle is 0 or 3;
+            var ax0 = left ? o.X + o.W : o.X;
+            var tw = Math.Max(300, Math.Abs(w.X - ax0));
+            l.W = tw;
+            l.Crop = new Box(0, 0, tw, l.Crop.H);
+            l.X = left ? ax0 - tw : ax0;
+            return;
+        }
         var aspect = l.Crop.H > 0 ? l.Crop.H / l.Crop.W : 1;
         var oh = o.W * aspect;
         // Противоположный угол стоит на месте.

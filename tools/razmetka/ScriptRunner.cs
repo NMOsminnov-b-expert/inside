@@ -63,6 +63,61 @@ public static class ScriptRunner
                         w.Canvas.PointerUp(p);
                         break;
                     }
+                    case "clickLink":
+                    {
+                        var n = st.GetProperty("n").GetInt32();
+                        var k = w.Canvas.Sheet!.Links.First(x => x.N == n);
+                        var p = w.Canvas.LinkBadgeScreen(k)!.Value;
+                        w.Canvas.PointerDown(p, MouseButton.Left, ModifierKeys.None);
+                        w.Canvas.PointerUp(p);
+                        break;
+                    }
+                    case "dragLinkSeg":
+                    {
+                        // Потянуть отрезок seg выбранной связи n на dx, dy экранных пикселей.
+                        var k = w.Canvas.Sheet!.Links.First(x => x.N == st.GetProperty("n").GetInt32());
+                        w.Canvas.SelectLink(k.Id);
+                        var pts = Editor.SheetGeo.Path(w.Canvas.Sheet!, k)!;
+                        var i = st.GetProperty("seg").GetInt32();
+                        var m = w.Canvas.ToScreen((pts[i].X + pts[i + 1].X) / 2, (pts[i].Y + pts[i + 1].Y) / 2);
+                        var to = new Point(m.X + st.GetProperty("dx").GetDouble(), m.Y + st.GetProperty("dy").GetDouble());
+                        w.Canvas.PointerDown(m, MouseButton.Left, ModifierKeys.None);
+                        for (var q = 1; q <= 8; q++) w.Canvas.PointerMove(new Point(m.X + (to.X - m.X) * q / 8, m.Y + (to.Y - m.Y) * q / 8), ModifierKeys.None);
+                        w.Canvas.PointerUp(to);
+                        break;
+                    }
+                    case "dragFrame":
+                    {
+                        // Рамка связи n: which = src|tgt, part = edge (перенос за край) | br (угол).
+                        var k = w.Canvas.Sheet!.Links.First(x => x.N == st.GetProperty("n").GetInt32());
+                        w.Canvas.SelectLink(k.Id);
+                        var id = st.GetProperty("which").GetString() == "src" ? k.Src : k.Tgt;
+                        var r = Editor.SheetGeo.FrameRect(w.Canvas.Sheet!, id)!.Value;
+                        var part = st.GetProperty("part").GetString();
+                        var a = part == "br" ? w.Canvas.ToScreen(r.Right, r.Bottom) : w.Canvas.ToScreen(r.X + r.Width / 2, r.Y);
+                        if (part != "br") a = new Point(a.X, a.Y + 3);
+                        var b = new Point(a.X + st.GetProperty("dx").GetDouble(), a.Y + st.GetProperty("dy").GetDouble());
+                        w.Canvas.PointerDown(a, MouseButton.Left, ModifierKeys.None);
+                        for (var q = 1; q <= 8; q++) w.Canvas.PointerMove(new Point(a.X + (b.X - a.X) * q / 8, a.Y + (b.Y - a.Y) * q / 8), ModifierKeys.None);
+                        w.Canvas.PointerUp(b);
+                        break;
+                    }
+                    case "bendLink":
+                    {
+                        var k = w.Canvas.Sheet!.Links.First(x => x.N == st.GetProperty("n").GetInt32());
+                        w.Canvas.SelectLink(k.Id);
+                        var pts = Editor.SheetGeo.Path(w.Canvas.Sheet!, k)!;
+                        var i = st.GetProperty("seg").GetInt32();
+                        w.Canvas.DoubleClick(w.Canvas.ToScreen((pts[i].X + pts[i + 1].X) / 2, (pts[i].Y + pts[i + 1].Y) / 2));
+                        break;
+                    }
+                    case "button":
+                    {
+                        // Нажать кнопку окна по её x:Name.
+                        var b = (System.Windows.Controls.Button)w.FindName(st.GetProperty("name").GetString()!);
+                        b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                        break;
+                    }
                     case "dbl":
                         w.Canvas.DoubleClick(Point(w, st.GetProperty("at")));
                         break;

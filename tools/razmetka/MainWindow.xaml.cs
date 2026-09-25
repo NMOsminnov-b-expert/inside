@@ -30,7 +30,8 @@ public partial class MainWindow : Window
         View.EditStarting += () => { if (_store != null) _undo.Begin(_store.Project); };
         View.EditCommitted += Committed;
         View.SelectionChanged += SyncSelection;
-        View.ViewChanged += () => ZoomText.Text = $"{Math.Round(View.Zoom * 100)} %";
+        View.ViewChanged += () => { ZoomText.Text = $"{Math.Round(View.Zoom * 100)} %"; PlacePops(); };
+        View.LinkClicked += (k, p) => ShowPop(k, p);
 
         BtnNew.Click += (_, _) => NewProject();
         BtnOpen.Click += (_, _) => OpenProject();
@@ -48,6 +49,20 @@ public partial class MainWindow : Window
         BtnCropDone.Click += (_, _) => { View.EndCrop(); SyncSelection(); };
         BtnCropReset.Click += (_, _) => Edit("Сброс обрезки", () => { foreach (var l in View.SelectedLayers()) LayerOps.ResetCrop(l, _store!); });
         BtnReplace.Click += (_, _) => ReplaceImage();
+        BtnNewLink.Click += (_, _) => View.SetLinkTool(!View.LinkTool);
+        BtnLinkCancel.Click += (_, _) => View.SetLinkTool(false);
+        View.ToolChanged += SyncTool;
+        View.LinkDrawn += (a, b) => CreateLink(a, b);
+        foreach (var (key, label) in LinkKind.All) LinkKindBox.Items.Add(new ComboBoxItem { Content = label, Tag = key });
+        LinkKindBox.SelectionChanged += (_, _) => LinkPropsCommit();
+        foreach (var tb in new[] { LinkN, LinkDoc, LinkSys, LinkUrl })
+        {
+            tb.LostFocus += (_, _) => LinkPropsCommit();
+            tb.KeyDown += (_, e) => { if (e.Key == Key.Enter) LinkPropsCommit(); };
+        }
+        BtnReroute.Click += (_, _) => { if (View.SelectedLink is { } k) Edit("Переложить стрелку", () => SheetGeo.Reroute(_sheet!, new[] { k.Id })); };
+        BtnLinkDup.Click += (_, _) => DuplicateLink();
+        BtnLinkDel.Click += (_, _) => DeleteLink();
         BtnDup.Click += (_, _) => Duplicate();
         BtnDelete.Click += (_, _) => DeleteSelected();
         BtnTop.Click += (_, _) => Reorder(int.MaxValue);
@@ -124,6 +139,8 @@ public partial class MainWindow : Window
         _dirty = keepDirty;
         _chapter = store.Project.Chapters.FirstOrDefault();
         _sheet = _chapter?.Sheets.FirstOrDefault();
+        ClearPops();
+        View.Doc = new DocInfo(_chapter?.Title ?? "", _chapter?.DocName ?? "");
         View.SetSheet(_sheet);
         UpdateAll();
     }
@@ -172,6 +189,10 @@ public partial class MainWindow : Window
     void Committed(string what)
     {
         if (_store == null) return;
+        // Стрелки, у которых концы оторвались от рамок (слой перенесли,
+        // обрезали, растянули), перекладываются в том же шаге отмены.
+        if (_sheet != null) SheetGeo.Reroute(_sheet);
+        if (_chapter != null) LinkOps.RenumberChapter(_chapter);
         if (_undo.Commit(_store.Project, what)) _dirty = true;
         View.Refresh();
         UpdateAll();
@@ -296,9 +317,9 @@ public partial class MainWindow : Window
 
     void PropsCommit()
     {
-        if (_syncing) return;
-        var l = View.SelectedLayers().FirstOrDefault();
-        if (l == null || View.Selection.Count != 1) return;
+        if (_syncing || _propsLayerId == null) return;
+        var l = View.Find(_propsLayerId);
+        if (l == null) return;
         if (l.Name == PropName.Text && l.Caption == PropCaption.Text) return;
         Edit("Название слоя", () => { l.Name = PropName.Text; l.Caption = PropCaption.Text; });
     }
@@ -318,7 +339,7 @@ public partial class MainWindow : Window
         if (ctrl && key == Key.Z && !shift) { Undo(); return true; }
         if (ctrl && (key == Key.Y || (key == Key.Z && shift))) { Redo(); return true; }
         if (ctrl && key == Key.V) { PasteImage(); return true; }
-        if (ctrl && key == Key.D) { Duplicate(); return true; }
+        if (ctrl && key == Key.D && View.LinkId == null) { Duplicate(); return true; }
         if (ctrl && key == Key.D0) { View.FitAll(); return true; }
         if (ctrl && (key == Key.OemPlus || key == Key.Add)) { View.SetZoom(View.Zoom * 1.25); return true; }
         if (ctrl && (key == Key.OemMinus || key == Key.Subtract)) { View.SetZoom(View.Zoom / 1.25); return true; }
@@ -326,7 +347,12 @@ public partial class MainWindow : Window
         if (ctrl && key == Key.OemOpenBrackets) { Reorder(shift ? int.MinValue : -1); return true; }
         if (ctrl && key == Key.A && _sheet != null) { View.Select(_sheet.Layers.Where(l => !l.Hidden && !l.Locked).Select(l => l.Id)); return true; }
         if (key is Key.Enter or Key.Escape && View.CropLayerId != null) { View.EndCrop(); SyncSelection(); return true; }
+        if (key == Key.Escape && View.LinkTool) { View.SetLinkTool(false); return true; }
+        if (key == Key.L && mods == ModifierKeys.None) { View.SetLinkTool(!View.LinkTool); return true; }
+        if (key == Key.Escape && View.LinkId != null) { View.SelectLink(null); ClearPops(); return true; }
         if (key == Key.Escape) { View.ClearSelection(); return true; }
+        if (key is Key.Delete or Key.Back && View.LinkId != null) { DeleteLink(); return true; }
+        if (ctrl && key == Key.D && View.LinkId != null) { DuplicateLink(); return true; }
         if (key is Key.Delete or Key.Back) { DeleteSelected(); return true; }
         if (key is Key.Left or Key.Right or Key.Up or Key.Down && View.Selection.Count > 0 && _sheet != null)
         {
@@ -386,8 +412,10 @@ public partial class MainWindow : Window
     public void PickSheet(Chapter? ch, Sheet? sh)
     {
         View.EndCrop();
+        ClearPops();
         _chapter = ch;
         _sheet = sh;
+        View.Doc = new DocInfo(ch?.Title ?? "", ch?.DocName ?? "");
         View.SetSheet(sh);
         UpdateAll();
     }
@@ -562,6 +590,8 @@ public partial class MainWindow : Window
     {
         var sel = View.SelectedLayers().ToList();
         var one = sel.Count == 1 ? sel[0] : null;
+        if (_propsLayerId != null && _propsLayerId != one?.Id) PropsCommit();
+        _propsLayerId = one?.Id;
         var was = _syncing;
         _syncing = true;
         PropName.Text = one?.Name ?? "";
@@ -572,6 +602,7 @@ public partial class MainWindow : Window
         BtnCrop.IsEnabled = BtnReplace.IsEnabled = img && !one!.Locked;
         foreach (var b in new[] { BtnDup, BtnDelete, BtnTop, BtnUp, BtnDown, BtnBottom }) b.IsEnabled = sel.Count > 0;
         CropBar.Visibility = View.CropLayerId != null ? Visibility.Visible : Visibility.Collapsed;
+        SyncLinkProps();
         Status(sel.Count switch
         {
             0 => _sheet == null ? "" : "Щелчок — выбрать слой, перетаскивание по пустому — выбрать несколько, колесо — масштаб",
@@ -581,4 +612,208 @@ public partial class MainWindow : Window
     }
 
     void Status(string s) => StatusText.Text = s;
+
+    // --- связи ---------------------------------------------------------------
+
+    void SyncTool()
+    {
+        BtnNewLink.Background = View.LinkTool ? (Brush)FindResource("AccentSoft") : Brushes.Transparent;
+        LinkBar.Visibility = View.LinkTool ? Visibility.Visible : Visibility.Collapsed;
+        LinkBarText.Text = View.HasPendingFrame
+            ? "Теперь обведите поле на снимке системы"
+            : "Обведите графу на странице документа. Esc — отмена";
+    }
+
+    void CreateLink(Model.Frame a, Model.Frame b)
+    {
+        if (_sheet == null) return;
+        Link? k = null;
+        Edit("Новая связь", () =>
+        {
+            k = LinkOps.Create(_sheet, a, b);
+            SheetGeo.Reroute(_sheet, new[] { k.Id });
+        });
+        View.SetLinkTool(false);
+        if (k == null) return;
+        View.SelectLink(k.Id);
+        LinkDoc.Focus();
+        Status($"Связь {k.N} создана — впишите графу документа и поле системы");
+    }
+
+    void DuplicateLink()
+    {
+        if (_sheet == null || View.SelectedLink is not { } k) return;
+        Link? c = null;
+        Edit("Копия связи", () => { c = LinkOps.Duplicate(_sheet, k); SheetGeo.Reroute(_sheet, new[] { c.Id }); });
+        if (c != null) View.SelectLink(c.Id);
+    }
+
+    void DeleteLink()
+    {
+        if (_sheet == null || View.SelectedLink is not { } k) return;
+        Edit("Удаление связи", () => LinkOps.Delete(_sheet, k));
+        View.SelectLink(null);
+        ClearPops();
+    }
+
+    // Поля панели сохраняются при уходе фокуса — к этому моменту выбранной
+    // может быть уже другая связь. Поэтому панель помнит, чью связь она
+    // показывает, и пишет только в неё.
+    string? _propsLinkId;
+    string? _propsLayerId;
+
+    void LinkPropsCommit()
+    {
+        if (_syncing || _sheet == null) return;
+        var k = _sheet.Links.FirstOrDefault(x => x.Id == _propsLinkId);
+        if (k == null) return;
+        var kind = (LinkKindBox.SelectedItem as ComboBoxItem)?.Tag as string ?? k.Kind;
+        var n = int.TryParse(LinkN.Text, out var v) ? v : k.N;
+        if (k.DocField == LinkDoc.Text && k.SystemField == LinkSys.Text && k.Url == LinkUrl.Text && k.Kind == kind && k.N == n) return;
+        Edit("Поля связи", () =>
+        {
+            k.DocField = LinkDoc.Text;
+            k.SystemField = LinkSys.Text;
+            k.Url = LinkUrl.Text;
+            k.Kind = kind;
+            if (n != k.N) LinkOps.Renumber(_sheet, k, n);
+        });
+    }
+
+    void SyncLinkProps()
+    {
+        var k = View.SelectedLink;
+        if (_propsLinkId != null && _propsLinkId != k?.Id) LinkPropsCommit();
+        _propsLinkId = k?.Id;
+        LinkProps.Visibility = k != null ? Visibility.Visible : Visibility.Collapsed;
+        Props.Visibility = k != null ? Visibility.Collapsed : Visibility.Visible;
+        if (k == null) return;
+        var was = _syncing;
+        _syncing = true;
+        LinkN.Text = k.N.ToString();
+        LinkDoc.Text = k.DocField;
+        LinkSys.Text = k.SystemField;
+        LinkUrl.Text = k.Url;
+        LinkDocLabel.Text = _chapter?.DocName is { Length: > 0 } d ? $"Графа документа ({d})" : "Графа документа";
+        foreach (ComboBoxItem it in LinkKindBox.Items) if ((string)it.Tag == k.Kind) LinkKindBox.SelectedItem = it;
+        _syncing = was;
+    }
+
+    // --- подсказки связей ------------------------------------------------
+    // Щелчок по стрелке показывает строку таблицы прямо у стрелки — не надо
+    // листать к таблице (просьба пользователя 25.09.2026). «Закрепить» —
+    // подсказка остаётся у номера связи; закреплённых может быть несколько.
+
+    Border? _pop;
+    readonly Dictionary<string, Border> _pinned = new();
+
+    void ClearPops()
+    {
+        Pops.Children.Clear();
+        _pinned.Clear();
+        _pop = null;
+    }
+
+    public void ShowPop(Link k, Point at)
+    {
+        if (_sheet == null) return;
+        if (_pop != null) Pops.Children.Remove(_pop);
+        if (_pinned.ContainsKey(k.Id)) { _pop = null; return; }
+        _pop = PopCard(k, pinned: false);
+        Pops.Children.Add(_pop);
+        _pop.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Place(_pop, at);
+        Status($"Связь {k.N}: {k.DocField} → {k.SystemField}");
+    }
+
+    void Place(Border card, Point at)
+    {
+        var w = card.DesiredSize.Width;
+        var h = card.DesiredSize.Height;
+        var x = Math.Clamp(at.X + 16, 4, Math.Max(4, Pops.ActualWidth - w - 4));
+        var y = Math.Clamp(at.Y + 16, 4, Math.Max(4, Pops.ActualHeight - h - 4));
+        System.Windows.Controls.Canvas.SetLeft(card, x);
+        System.Windows.Controls.Canvas.SetTop(card, y);
+    }
+
+    void PlacePops()
+    {
+        if (_sheet == null) return;
+        foreach (var (id, card) in _pinned)
+        {
+            var k = _sheet.Links.FirstOrDefault(x => x.Id == id);
+            var p = k == null ? null : View.LinkBadgeScreen(k);
+            card.Visibility = p == null ? Visibility.Collapsed : Visibility.Visible;
+            if (p != null) Place(card, p.Value);
+        }
+        if (_pop != null) Pops.Children.Remove(_pop);
+        _pop = null;
+    }
+
+    Border PopCard(Link k, bool pinned)
+    {
+        var col = SheetGeo.ColorOf(_sheet!, k);
+        var panel = new StackPanel { MaxWidth = 380 };
+        var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        var chip = new Border
+        {
+            Background = new SolidColorBrush(col), CornerRadius = new CornerRadius(11), Padding = new Thickness(8, 1, 8, 1),
+            Child = new TextBlock { Text = k.N.ToString(), Foreground = Brushes.White, FontWeight = FontWeights.Bold },
+        };
+        var close = new Button { Content = "✕", Style = (Style)FindResource("ToolBtn"), Padding = new Thickness(6, 1, 6, 1), ToolTip = "Закрыть" };
+        var pin = new Button
+        {
+            Content = pinned ? "Открепить" : "Закрепить", Style = (Style)FindResource("ToolBtn"), Padding = new Thickness(6, 1, 6, 1),
+            ToolTip = pinned ? "Убрать подсказку" : "Оставить подсказку у номера связи",
+        };
+        var toRow = new Button { Content = "К строке таблицы", Style = (Style)FindResource("ToolBtn"), Padding = new Thickness(6, 1, 6, 1) };
+        DockPanel.SetDock(chip, Dock.Left);
+        DockPanel.SetDock(close, Dock.Right);
+        head.Children.Add(chip);
+        head.Children.Add(close);
+        head.Children.Add(new TextBlock
+        {
+            Text = LinkKind.All.FirstOrDefault(x => x.Key == k.Kind).Label ?? "",
+            Foreground = (Brush)FindResource("Muted"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0),
+        });
+        panel.Children.Add(head);
+        panel.Children.Add(new TextBlock { Text = _chapter?.DocName is { Length: > 0 } d ? d.ToUpperInvariant() : "ДОКУМЕНТ", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("Muted") });
+        panel.Children.Add(new TextBlock { Text = k.DocField, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 6) });
+        panel.Children.Add(new TextBlock { Text = "СИСТЕМА", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("Muted") });
+        panel.Children.Add(new TextBlock { Text = k.SystemField, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 6) });
+        var bar = new WrapPanel();
+        bar.Children.Add(pin);
+        bar.Children.Add(toRow);
+        panel.Children.Add(bar);
+        var card = new Border
+        {
+            Background = Brushes.White, BorderBrush = new SolidColorBrush(col), BorderThickness = new Thickness(2, 2, 2, 2),
+            CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 8, 10, 8), Child = panel,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 14, ShadowDepth = 2, Opacity = 0.25 },
+        };
+        close.Click += (_, _) =>
+        {
+            Pops.Children.Remove(card);
+            if (_pinned.GetValueOrDefault(k.Id) == card) _pinned.Remove(k.Id);
+            if (_pop == card) _pop = null;
+            View.SelectLink(null);
+        };
+        pin.Click += (_, _) =>
+        {
+            Pops.Children.Remove(card);
+            if (pinned) { _pinned.Remove(k.Id); return; }
+            if (_pop == card) _pop = null;
+            var pc = PopCard(k, pinned: true);
+            _pinned[k.Id] = pc;
+            Pops.Children.Add(pc);
+            pc.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            PlacePops();
+        };
+        toRow.Click += (_, _) =>
+        {
+            if (View.TableRowRect(k) is { } r) { View.ScrollToWorld(r); View.SelectLink(k.Id); }
+            else Status("Связи нет ни в одной таблице разворота");
+        };
+        return card;
+    }
 }
