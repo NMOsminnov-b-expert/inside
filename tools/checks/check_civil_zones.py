@@ -134,8 +134,25 @@ def run(t):
     t.ck(st['litKind'] == before['litKind'], 'литера не держит тип самой большой зоны: %r' % st['litKind'])
 
     # --- перезагрузка ---------------------------------------------------------
-    pg.wait_for_timeout(600)
+    # Класс литеры из подгрупп в записи — от самой большой подгруппы и сразу
+    # после загрузки, до открытия литеры: раньше перевод при загрузке считал
+    # класс по собственным (пустым) признакам литеры и стирал его, а
+    # восстанавливался он только при открытии карточки литеры — перечень и
+    # выгрузки до того видели пустой класс (найдено 25.09.2026).
+    oi_url = pg.url
+    # Собственные признаки литеры — пустые, как у литеры, которую разбили до
+    # заполнения признаков: иначе расчёт по ним случайно совпадает с классом
+    # большой подгруппы и ошибку не видно.
+    pg.evaluate("""async () => { const m = await import('/app/modules/civil/data/store.js');
+      const oi = m.getRecord('oc-cv-1').oi.find((o) => o.letter === 'А'); oi.capSigns = {};
+      (await import('/app/kernel/persist.js')).saveNow(); }""")
+    t.open(OC, wait='tr[data-open-oi]')
     pg.reload()
+    t.wait_for('tr[data-open-oi]')
+    st = pg.evaluate(OI)
+    t.ck(st['oiCategory'] and st['oiCategory'] == before['oiCategory'],
+         'после загрузки класс литеры из подгрупп в записи: %r (ожидался %r)' % (st['oiCategory'], before['oiCategory']))
+    pg.goto(oi_url)
     t.wait_for('[data-zone]')
     t.ck(pg.locator('[data-zone]').count() == 2, 'зоны не пережили перезагрузку')
     t.ck(_zone(pg, 1).locator('[data-zone-name]').input_value() == 'Цех', 'название зоны не сохранилось')

@@ -22,6 +22,9 @@
 // записей сразу. Развилка — пересчитывать ли сохранённые классы при смене
 // методики или хранить класс с версией методики.
 import { num } from '../../../../kernel/fmt.js';
+// Взаимный импорт с zones.js: функции вызываются только при работе, не при
+// загрузке модулей, поэтому порядок загрузки не важен.
+import { hasZones, syncFromZones } from './zones.js';
 
 export const KINDS = [
   { key: 'civil', label: 'Гражданская', group: 'admin' },
@@ -229,8 +232,14 @@ export function migrateLiterKinds(rec) {
     });
     if (oi.residential) return;
     // Класс пишется в запись у всех литер: засеянные и заведённые до расчёта
-    // держали бы в oi.oiCategory класс, выбранный руками.
-    if (oi.litKind !== undefined) { syncCapClass(oi); return; }
+    // держали бы в oi.oiCategory класс, выбранный руками. У литеры из
+    // подгрупп помещений класс — от самой большой подгруппы: собственных
+    // признаков у такой литеры нет, и расчёт по ним стирал класс при каждой
+    // загрузке (найдено 25.09.2026 при сверке карточки с методологией).
+    if (oi.litKind !== undefined) {
+      if (hasZones(oi)) syncFromZones(oi); else syncCapClass(oi);
+      return;
+    }
     const prod = oi.catClass === 'Производственно-складское';
     oi.litKind = prod ? 'prod' : 'civil';
     // «Производственно-складское» было признаком вида, а не записью из
