@@ -49,3 +49,6 @@ docs/reestr-izmeneniy.xlsx
 # 25.09.2026): их собирают скрипты tools/docs/ локально, одной командой
 *.xlsx
 *.docx
+
+# Временные файлы блокировки Office
+~$*
