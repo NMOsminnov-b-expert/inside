@@ -16,6 +16,7 @@
     самой большой зоны (их читают перечень и реестр);
   * у производственной зоны появляются производственные доп. параметры;
   * зоны переживают перезагрузку;
+  * зоны — аккордеон: раскрыта одна, в заголовке свёрнутой — сводка;
   * чего не хватает для класса — строкой в зоне и отметкой у пустых признаков;
     «По классам» — плашками, зоны без класса одной плашкой и ссылками;
   * убрать зону до одной — литера снова цельная, с признаками оставшейся.
@@ -45,7 +46,7 @@ def _pick_ms(t, zone, key, value):
     pg = t.page
     zone.locator('[data-cap-ms="%s"] [data-ms-toggle]' % key).click()
     zone.locator('[data-cap-opt="%s|%s"]' % (key, value)).check()
-    zone.locator('.zn-cls label').click()      # щелчок вне списка закрывает его
+    zone.locator('.zn-grp legend').first.click()      # щелчок вне списка закрывает его
 
 
 def run(t):
@@ -68,6 +69,12 @@ def run(t):
     t.ck(not z2['litKind'] and not z2['area'], 'вторая зона не пустая: %r' % z2)
     t.ck('сходится' in pg.inner_text('[data-zones-diff]'), 'до второй зоны сумма не сходится')
     t.ck(pg.locator('#q-gen [data-lit-kind]').count() == 0, 'выбор типа появился в «Общих параметрах»')
+    # Аккордеон: раскрыта одна зона — после разбивки вторая, её и заполнять;
+    # у свёрнутой в заголовке сводка — тип, площадь, К и класс.
+    t.ck(_zone(pg, 1).locator('.zn-body').is_visible() and _zone(pg, 0).locator('.zn-body').is_hidden(),
+         'после разбивки раскрыта не вторая зона')
+    bar1 = ' '.join(_zone(pg, 0).locator('[data-zone-bar]').inner_text().split())
+    t.ck('класс' in bar1 and 'К ' in bar1 and 'м²' in bar1, 'в заголовке первой зоны нет сводки: %r' % bar1)
 
     # --- вторая зона: производственная, 8,5 м --------------------------------
     z2l = _zone(pg, 1)
@@ -107,6 +114,9 @@ def run(t):
     t.ck(pg.locator('#q-prod').count() == 1, 'у литеры с производственной зоной нет доп. параметров производственного')
 
     # --- площадь первой зоны уменьшить — сумма сходится ----------------------
+    _zone(pg, 0).locator('[data-zone-toggle]').click()
+    t.wait_until("() => !document.querySelectorAll('[data-zone] .zn-body')[0].hidden")
+    t.ck(_zone(pg, 1).locator('.zn-body').is_hidden(), 'раскрылась первая зона, а вторая не свернулась')
     total = pg.evaluate("() => parseFloat(String(%r).replace(/\\s/g, '').replace(',', '.'))" % before['build'])
     z1l = _zone(pg, 0)
     z1l.locator('[data-zone-area]').fill(('%.2f' % (total - 300)).replace('.', ','))

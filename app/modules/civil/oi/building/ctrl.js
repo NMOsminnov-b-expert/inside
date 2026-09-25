@@ -25,11 +25,13 @@ import { bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass, signFactor } from './capClass.js';
 import {
   hasZones, targetOf, splitIntoZones, addZone, removeZone, zoneById, syncFromZones, zonesSum, diffText,
-  typesText, zoneClassInfo, missingText, classLine,
+  typesText, missingText, classLine, zonesOf,
 } from './zones.js';
 import { fmtNum } from '../../../../kernel/fmt.js';
 import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
-import { capMsSummary, capMsBody, distributionHTML, kcHTML, kcCoefHTML, avgKText } from './view.js';
+import {
+  capMsSummary, capMsBody, distributionHTML, kcHTML, kcCoefHTML, avgKText, zoneBarInfoHTML, openZoneId,
+} from './view.js';
 
 export function bind(ctx, oi) {
   bindAnnexes(ctx, oi);
@@ -574,13 +576,8 @@ export function bind(ctx, oi) {
     s.$$('[data-zone]').forEach((box) => {
       const z = zoneById(oi, box.dataset.zone);
       if (!z) return;
-      const c = zoneClassInfo(z);
-      const cls = box.querySelector('[data-zone-class]');
-      if (cls) {
-        cls.textContent = c.text;
-        cls.title = c.title;
-        cls.classList.toggle('muted', !c.ok);
-      }
+      const bar = box.querySelector('[data-zone-bar]');
+      if (bar) bar.innerHTML = zoneBarInfoHTML(z, zonesOf(oi).indexOf(z));
       refreshMissing(box, z);
       const hb = box.querySelector('[data-cap-height]');
       const sign = (SIGNS[kindOf(z)] || []).find((x) => x.height);
@@ -662,14 +659,40 @@ export function bind(ctx, oi) {
 
   // --- Зоны литеры (zones.js) ----------------------------------------------
   const split = s.$('[data-zone-split]');
-  if (split) split.onclick = () => { splitIntoZones(oi); ctx.render(); };
+  // После разбивки раскрыта вторая зона — первая уже заполнена признаками
+  // литеры, вводить нужно вторую; новая зона раскрывается сама.
+  if (split) split.onclick = () => {
+    splitIntoZones(oi);
+    ctx.ui.zoneOpen = (zonesOf(oi)[1] || {}).id;
+    ctx.render();
+  };
   const add = s.$('[data-zone-add]');
   if (add) add.onclick = () => {
     addZone(oi);
+    const list = zonesOf(oi);
+    ctx.ui.zoneOpen = list[list.length - 1].id;
     ctx.render();
-    const names = s.$$('[data-zone-name]');
-    if (names.length) names[names.length - 1].focus();
+    const name = s.$(`[data-zone="${ctx.ui.zoneOpen}"] [data-zone-name]`);
+    if (name) name.focus();
   };
+
+  // Аккордеон зон: раскрыта одна; щелчок по раскрытой — свернуть. Без
+  // перерисовки карточки: только классы и hidden.
+  const openZone = (id) => {
+    ctx.ui.zoneOpen = id;
+    s.$$('[data-zone]').forEach((box) => {
+      const on = box.dataset.zone === id;
+      box.classList.toggle('open', on);
+      const body = box.querySelector('.zn-body');
+      if (body) body.hidden = !on;
+      const t = box.querySelector('[data-zone-toggle]');
+      if (t) t.setAttribute('aria-expanded', String(on));
+    });
+  };
+  s.$$('[data-zone-toggle]').forEach((b) => b.onclick = () => {
+    const id = b.closest('[data-zone]').dataset.zone;
+    openZone(openZoneId(ctx.ui, oi) === id ? '' : id);
+  });
   // Зоны без класса в строке «По классам» — ссылки на саму зону. Делегирование:
   // строка перерисовывается при каждом вводе.
   const dist = s.$('[data-zones-dist]');
@@ -677,6 +700,7 @@ export function bind(ctx, oi) {
     const b = e.target.closest('[data-zone-jump]');
     const zone = b && s.$(`[data-zone="${b.dataset.zoneJump}"]`);
     if (!zone) return;
+    openZone(b.dataset.zoneJump);
     zone.scrollIntoView({ block: 'start', behavior: 'smooth' });
     const miss = zone.querySelector('.field.miss select, .field.miss [data-ms-control], .lk-seg-btn');
     zone.classList.add('flash');

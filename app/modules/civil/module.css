@@ -261,19 +261,41 @@ body[data-module="civil"] .zn-jump:focus-visible{outline:2px solid var(--blue-60
    подписью — «Размеры» и «Состояние» в одну строку, затем «Тип и назначение» и
    «Признаки класса» (fieldset + legend, W3C WAI «Grouping Controls»). Поля
    выравниваются по верху: подсказка под состоянием не сдвигает соседей. */
-body[data-module="civil"] .zn{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px;margin-bottom:10px;background:#fff;
-  transition:box-shadow .3s}
+/* Зоны — аккордеон: у каждой шапка-строка со сводкой (номер, название, тип,
+   площадь, К, класс), раскрыта одна. Раскрытая зона выделена рамкой и фоном
+   шапки, свёрнутые — компактные строки одна под другой. */
+body[data-module="civil"] .zn-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+body[data-module="civil"] .zn{border:1px solid var(--line);border-radius:10px;background:#fff;transition:box-shadow .3s}
+body[data-module="civil"] .zn.open{border-color:#9dbbe0;box-shadow:0 1px 4px rgba(30,70,120,.08)}
 body[data-module="civil"] .zn.flash{box-shadow:0 0 0 3px #f0d9a8}
-body[data-module="civil"] .zn-head{display:grid;grid-template-columns:auto minmax(0,2fr) minmax(110px,1fr) auto;gap:10px;
-  align-items:end;margin-bottom:4px}
-body[data-module="civil"] .zn-head>.field{margin:0;min-width:0}
-body[data-module="civil"] .zn-num{align-self:end;margin-bottom:6px;min-width:22px;height:22px;border-radius:6px;
+body[data-module="civil"] .zn-top{display:flex;align-items:stretch;gap:6px;padding:4px 6px 4px 4px}
+body[data-module="civil"] .zn.open .zn-top{background:#eef4fb;border-bottom:1px solid #d5e3f3;border-radius:10px 10px 0 0}
+body[data-module="civil"] .zn-bar{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:none;
+  padding:5px 6px;border-radius:7px;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+body[data-module="civil"] .zn-bar:hover{background:rgba(30,90,160,.06)}
+body[data-module="civil"] .zn-bar:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-module="civil"] .zn-bar .chev{flex:0 0 auto;color:var(--muted);transition:transform .15s}
+body[data-module="civil"] .zn:not(.open) .zn-bar .chev{transform:rotate(-90deg)}
+body[data-module="civil"] .zn-bar-info{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+body[data-module="civil"] .zn-num{flex:0 0 auto;min-width:22px;height:22px;border-radius:6px;
   background:var(--amber-600, #c27c0e);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
-body[data-module="civil"] .zn-del{align-self:end;margin-bottom:5px}
+body[data-module="civil"] .zn-bar-name{font-weight:800;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
+body[data-module="civil"] .zn-bar-meta{font-size:12.5px;color:var(--slate-600, #52657a);font-variant-numeric:tabular-nums;display:inline-flex;flex-wrap:wrap;gap:0 6px}
+body[data-module="civil"] .zn-bar-dot{color:var(--line)}
+body[data-module="civil"] .zn-bar-miss{color:#8a5a00}
+body[data-module="civil"] .zn-bar-cls{margin-left:auto;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;
+  background:#fdf4e3;color:#8a5a00;white-space:nowrap}
+body[data-module="civil"] .zn-bar-cls.ok{background:var(--blue-600);color:#fff}
+body[data-module="civil"] .zn-del{flex:0 0 auto;align-self:center}
+body[data-module="civil"] .zn-body{padding:2px 12px 12px;container:zn / inline-size}
+body[data-module="civil"] .zn-body[hidden]{display:none}
+body[data-module="civil"] .zn-fields-cond{grid-template-columns:minmax(0,420px)}
+body[data-module="civil"] .zn-fields-3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+@container zn (min-width:520px){body[data-module="civil"] .zn-fields-cond{grid-template-columns:minmax(0,420px)}
+body[data-module="civil"] .zn-fields-3{grid-template-columns:minmax(160px,2fr) repeat(2,minmax(120px,1fr))}}
 body[data-module="civil"] .zn-grp{border:0;border-top:1px solid var(--line-soft);margin:10px 0 0;padding:8px 0 0;min-width:0}
 body[data-module="civil"] .zn-grp>legend{padding:0 8px 0 0;font-size:11px;font-weight:700;color:var(--slate-600, #52657a);
   text-transform:uppercase;letter-spacing:.05em}
-body[data-module="civil"] .zn-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));column-gap:24px}
 body[data-module="civil"] .zn-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:start}
 body[data-module="civil"] .zn-fields>.field{margin:0;min-width:0}
 body[data-module="civil"] .zn-num-f label{white-space:nowrap}

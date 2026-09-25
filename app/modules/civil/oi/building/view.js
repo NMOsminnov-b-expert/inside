@@ -3,7 +3,7 @@ import { devNote } from '../../../../kernel/devNote.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
-import { fmtEni, fmtNum } from '../../../../kernel/fmt.js';
+import { fmtEni, fmtNum, num } from '../../../../kernel/fmt.js';
 import { specialsBlockHTML } from '../../parts/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';
@@ -20,7 +20,7 @@ import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
 import { msDropBodyHTML } from '../../../../kernel/multiSelect.js';
 import { KINDS, PURPOSES, SIGNS, kindOf, pickedOf, heightOf, heightBand, capClass, signFactor,
-  capBreakdown, POCKET_BANDS } from './capClass.js';
+  capBreakdown, POCKET_BANDS, capScore, kindLabel } from './capClass.js';
 import {
   zonesOf, hasZones, hasKind, zonesSum, diffText, typesText, zoneTitle, zoneClassInfo,
   classDistribution, unclassText, missingText, zonesAvgK, classLine,
@@ -511,36 +511,60 @@ function zoneConditionHTML(z) {
     ${condHintHTML(z.condition, 'zone')}</div>`;
 }
 
-// Зона — как элемент в паттерне «добавить ещё» (DWP Design System, «Add another
-// thing»): у каждой свой заголовок с номером, названием, классом и кнопкой
-// «убрать». Поля зоны разложены по группам с подписью (fieldset + legend —
-// W3C WAI «Grouping Controls»): размеры и состояние — в одну строку, под ними
-// тип с назначением и признаки класса. Чего не хватает для класса — строкой
-// под признаками, у самих полей (ошибка рядом с полем, а не только в сводке).
-function zoneHTML(z, i) {
+// Зона — строка аккордеона (NN/G «Accordions on Desktop», PatternFly
+// «Accordion»: раскрыт один раздел, остальные свёрнуты до заголовка). В
+// заголовке — сводка зоны: номер, название, тип, площадь, К и класс, поэтому
+// состав литеры читается по заголовкам, не раскрывая зон; «убрать» — рядом с
+// заголовком. Поля раскрытой зоны — группами с подписью (fieldset + legend,
+// W3C WAI «Grouping Controls»). Замечание пользователя 25.09.2026: «я
+// потерялся… структурируй так, чтобы было легко ориентироваться».
+export function zoneBarInfoHTML(z, i) {
   const c = zoneClassInfo(z);
+  const kind = kindLabel(kindOf(z));
+  const { k } = capScore(z);
+  const area = num(z.area);
+  const meta = [
+    kind ? esc(kind) : '<span class="zn-bar-miss">тип не выбран</span>',
+    Number.isFinite(area) && area > 0 ? `${fmtNum(area)} м²` : '<span class="zn-bar-miss">нет площади</span>',
+    k === null ? '' : `К ${k2(k)}`,
+  ].filter(Boolean).join('<span class="zn-bar-dot" aria-hidden="true">·</span>');
+  return `<span class="zn-num" aria-hidden="true">${i + 1}</span>
+    <span class="zn-bar-name">${esc(zoneTitle(z, i))}</span>
+    <span class="zn-bar-meta">${meta}</span>
+    <span class="zn-bar-cls ${c.ok ? 'ok' : ''}" data-zone-class title="${esc(c.title)}">${esc(c.text === 'не определён' ? 'класс не определён' : c.text)}</span>`;
+}
+
+function zoneHTML(z, i, open) {
   const grp = (title, body, cls = '') => `<fieldset class="zn-grp ${cls}"><legend>${title}</legend>${body}</fieldset>`;
-  return `<section class="zn" data-zone="${esc(z.id)}" id="zn-${esc(z.id)}" aria-label="${esc(zoneTitle(z, i))}">
-  <div class="zn-head">
-    <span class="zn-num" aria-hidden="true">${i + 1}</span>
-    <div class="field zn-name"><label for="zn-name-${esc(z.id)}">Название зоны</label>
-      <input class="input" id="zn-name-${esc(z.id)}" data-zone-name value="${esc(z.name || '')}" placeholder="Зона ${i + 1}, например «Общежитие»"></div>
-    <div class="field zn-cls"><label class="lk-tip" title="Считается по типу и признакам зоны">Класс зоны</label>
-      <div class="lk-class ${c.ok ? '' : 'muted'}" data-zone-class title="${esc(c.title)}">${esc(c.text)}</div></div>
+  const id = esc(z.id);
+  return `<section class="zn ${open ? 'open' : ''}" data-zone="${id}" id="zn-${id}" aria-label="${esc(zoneTitle(z, i))}">
+  <div class="zn-top">
+    <button type="button" class="zn-bar" data-zone-toggle aria-expanded="${open}" aria-controls="zn-body-${id}">
+      <span class="zn-bar-info" data-zone-bar>${zoneBarInfoHTML(z, i)}</span><span class="chev" aria-hidden="true">▾</span></button>
     <button type="button" class="btn btn-danger btn-sm zn-del" data-zone-del title="Убрать зону" aria-label="Убрать ${esc(zoneTitle(z, i))}">×</button>
   </div>
-  <div class="zn-row">
-    ${grp('Размеры', `<div class="zn-fields">
-      <div class="field zn-num-f"><label for="zn-area-${esc(z.id)}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма зон сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
-        <input class="input num" id="zn-area-${esc(z.id)}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
-      <div class="field zn-num-f"><label for="zn-h-${esc(z.id)}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» зоны">Высота внутр., м</label>
-        <input class="input num" id="zn-h-${esc(z.id)}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
+  <div class="zn-body" id="zn-body-${id}" ${open ? '' : 'hidden'}>
+    ${grp('Название и размеры', `<div class="zn-fields zn-fields-3">
+      <div class="field zn-name"><label for="zn-name-${id}">Название зоны</label>
+        <input class="input" id="zn-name-${id}" data-zone-name value="${esc(z.name || '')}" placeholder="Например, «Общежитие»"></div>
+      <div class="field zn-num-f"><label for="zn-area-${id}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма зон сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
+        <input class="input num" id="zn-area-${id}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
+      <div class="field zn-num-f"><label for="zn-h-${id}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» зоны">Высота внутр., м</label>
+        <input class="input num" id="zn-h-${id}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
     </div>`)}
-    ${grp('Состояние', `<div class="zn-fields">${zoneConditionHTML(z)}</div>`)}
-  </div>
   ${grp('Тип и назначение', kindRowHTML(z, z.id))}
   ${grp('Признаки класса', signsHTML(z, true))}
+  ${grp('Состояние', `<div class="zn-fields zn-fields-cond">${zoneConditionHTML(z)}</div>`)}
+  </div>
 </section>`;
+}
+
+// Какая зона раскрыта: выбранная пользователем, иначе первая. '' — все
+// свёрнуты (пользователь свернул раскрытую).
+export function openZoneId(ui, oi) {
+  const list = zonesOf(oi);
+  if (ui.zoneOpen === '') return '';
+  return list.some((z) => z.id === ui.zoneOpen) ? ui.zoneOpen : (list[0] || {}).id || '';
 }
 
 // Сверка суммы зон с площадью литеры — той же панелью и теми же словами, что
@@ -581,7 +605,7 @@ export function distributionHTML(oi) {
 function capClassCard(ctx, oi, idx) {
   const zoned = hasZones(oi);
   const body = zoned
-    ? `${zonesSumsHTML(oi)}${zonesOf(oi).map(zoneHTML).join('')}
+    ? `${zonesSumsHTML(oi)}<div class="zn-list">${zonesOf(oi).map((z, i) => zoneHTML(z, i, z.id === openZoneId(ctx.ui, oi))).join('')}</div>
        <button type="button" class="btn btn-ghost btn-sm zn-add" data-zone-add>+ Зона</button>`
     : `${kindRowHTML(oi)}${signsHTML(oi)}
        <div class="zn-split"><button type="button" class="btn btn-ghost btn-sm" data-zone-split
