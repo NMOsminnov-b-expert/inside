@@ -3,6 +3,7 @@ import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedC
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
+import { bindComparative } from './comparative.ctrl.js';
 import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { nextLetter, nextId } from '../data/store.js';
@@ -250,6 +251,7 @@ function bindAuxColumns(ctx, s) {
 
 export function bindOcCard(ctx) {
   if (ctx.tab === 'audit') bindAuditTab(ctx);
+  if (ctx.tab === 'comparative') bindComparative(ctx);
 
   const s = ctx.scope;
   const rec = ctx.rec;
@@ -275,7 +277,7 @@ export function bindOcCard(ctx) {
       if (!ctx.ui.viewerDoc && docs.length) ctx.ui.viewerDoc = { scope: 'oc', id: docs[0].id };
     } else if (tab === 'photo') {
       if (ctx.ui.viewer && ctx.ui.viewer.mode !== 'photo') ctx.ui.viewer = null;
-    } else if (tab === 'audit') {
+    } else if (tab === 'audit' || tab === 'comparative') {
       // Лог действий — на всю ширину, без просмотрщика документов рядом.
       ctx.ui.viewer = null;
     } else {

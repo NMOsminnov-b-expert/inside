@@ -9,6 +9,7 @@ import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
 import { capSummaryHTML } from './capSummary.view.js';
+import { comparativeTab } from './comparative.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
@@ -35,8 +36,16 @@ function headOC(ctx) {
     ],
     flags: recFlags(rec),
     menu: addOiMenuHTML(rec),
-    tabs: ocTabs(canViewAuditLog(rec)),
+    // «Сравнительный подход» — только у гражданского ОЦ (методология «Категории
+    // и классы зданий», 25.09.2026); вкладка перед «Логами».
+    tabs: withComparative(ocTabs(canViewAuditLog(rec))),
   });
+}
+
+function withComparative(tabs) {
+  const at = tabs.findIndex((t) => t.key === 'audit');
+  const tab = { key: 'comparative', label: 'Сравнительный подход' };
+  return at < 0 ? tabs.concat(tab) : [...tabs.slice(0, at), tab, ...tabs.slice(at)];
 }
 
 
@@ -74,5 +83,6 @@ export function viewOC(ctx) {
 
     ${ctx.tab === 'general' ? generalTab
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
+      : ctx.tab === 'comparative' ? comparativeTab(ctx)
       : photosTab(ctx)}`;
 }

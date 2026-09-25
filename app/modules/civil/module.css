@@ -315,3 +315,44 @@ body[data-module="civil"] .cm-tbl td.cm-diag{background:#e9edf2 !important;color
 body[data-module="civil"] .cm-tbl td.cm-bad, body[data-module="civil"] .cm-bad-key{color:#b42318;font-weight:700}
 body[data-module="civil"] .cm-tbl td.cm-bad{background:#fdecea !important}
 body[data-module="civil"] .cm-tbl td.cm-none{color:#c3ccd6}
+
+/* Сравнительный подход (card/comparative.view.js). Колонка подписей закреплена
+   при горизонтальной прокрутке; колонки объекта и аналогов одной ширины;
+   числа по правому краю, цифры одной ширины; расчётные ячейки выделены фоном и
+   не редактируются; корректировка и стоимость после неё — в одной ячейке. */
+body[data-module="civil"] .cp-card{margin-top:10px}
+body[data-module="civil"] .cp-top{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+body[data-module="civil"] .cp-rate{margin:0;width:200px}
+body[data-module="civil"] .cp-rate .input{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cp-empty{padding:0 2px 10px;font-size:12.5px}
+body[data-module="civil"] .cp-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+body[data-module="civil"] .cp-tbl{table-layout:fixed;width:calc(300px + (var(--cp-cols) + 1) * 220px);min-width:100%}
+body[data-module="civil"] .cp-tbl col, body[data-module="civil"] .cp-tbl th, body[data-module="civil"] .cp-tbl td{width:220px}
+body[data-module="civil"] .cp-tbl th[scope="row"], body[data-module="civil"] .cp-tbl th.cp-lbl{width:300px;position:sticky;left:0;z-index:1;
+  background:#f4f8fd;text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:var(--ink);white-space:normal;border-right:1px solid var(--line)}
+body[data-module="civil"] .cp-tbl thead th{vertical-align:top}
+body[data-module="civil"] .cp-tbl thead th.cp-lbl{background:#eef4fb;z-index:2}
+body[data-module="civil"] .cp-tbl td{padding:5px 8px;white-space:nowrap}
+body[data-module="civil"] .cp-tbl .cp-in{width:100%;height:30px;font-size:12.5px}
+body[data-module="civil"] .cp-tbl .cp-in.num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cp-tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cp-tbl th.cp-sub{padding-left:22px;font-weight:500;color:var(--muted)}
+body[data-module="civil"] .cp-tbl td.cp-calc{background:#eef4fb;font-weight:700}
+body[data-module="civil"] .cp-tbl tr.cp-calc-row th[scope="row"]{background:#e6eef8}
+body[data-module="civil"] .cp-tbl tr.cp-sec th{background:#dbe7f5;color:var(--blue-700);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+body[data-module="civil"] .cp-pair{display:flex;align-items:center;gap:6px}
+body[data-module="civil"] .cp-pair .cp-k{flex:0 0 64px}
+body[data-module="civil"] .cp-k.auto{display:inline-block;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;padding:0 4px}
+body[data-module="civil"] .cp-k.auto.bad{color:#b42318}
+body[data-module="civil"] .cp-arrow{color:var(--muted)}
+body[data-module="civil"] .cp-v{flex:1;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+body[data-module="civil"] .cp-auto{font-size:10px;font-weight:700;color:var(--teal-700);background:var(--teal-50);border-radius:10px;padding:1px 6px;margin-left:4px}
+body[data-module="civil"] .cp-ah{display:flex;align-items:center;justify-content:space-between;gap:6px}
+body[data-module="civil"] .cp-state{display:block;font-size:10.5px;color:#b42318;text-transform:none;letter-spacing:0;font-weight:600;min-height:13px}
+body[data-module="civil"] .cp-result{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#f8fbff}
+body[data-module="civil"] .cp-res-h{font-weight:700;color:var(--blue-700);margin-bottom:8px}
+body[data-module="civil"] .cp-result dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:0}
+body[data-module="civil"] .cp-result dt{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+body[data-module="civil"] .cp-result dd{margin:2px 0 0;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+body[data-module="civil"] .cp-note{font-size:12px;margin:8px 0 0}
+body[data-module="civil"] .cp-tbl [data-cp-out].excl{text-decoration:line-through;color:var(--muted);font-weight:500}

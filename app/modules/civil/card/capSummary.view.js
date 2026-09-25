@@ -34,7 +34,7 @@ const area = (v) => {
 const kindShort = { civil: 'Гражд.', prod: 'Произв.', other: 'Прочие' };
 
 // Строки сводной: литеры-строения (жилые — без класса, как в карточке) и зоны.
-function rowsOf(rec) {
+export function rowsOf(rec) {
   const out = [];
   (rec.oi || []).filter((o) => o.card === 'building' && !o.residential).forEach((oi) => {
     const parts = hasZones(oi)
@@ -59,10 +59,24 @@ function missingOf(t) {
   return c.missing.length ? `Не хватает: ${c.missing.join(', ')}` : '';
 }
 
+// Площади по классам и средневзвешенный К объекта — их берёт и сравнительный
+// подход (card/comparative.view.js): паспорт объекта оценки.
+export function classAreas(rec) {
+  const byClass = {};
+  let area = 0;
+  let areaK = 0;
+  rowsOf(rec).filter((r) => r.k !== null && r.area).forEach((r) => {
+    byClass[r.key] = (byClass[r.key] || 0) + r.area;
+    area += r.area;
+    areaK += r.area * r.k;
+  });
+  return { byClass, total: area, avgK: area ? areaK / area : null };
+}
+
 const k2 = (k) => (k === null ? '—' : k.toFixed(2).replace('.', ','));
 
 // Колонки итоговой матрицы — как в методологии: произв. 4…1, гражд. 4…1, прочие.
-const MATRIX = [
+export const MATRIX = [
   ...[4, 3, 2, 1].map((n) => ({ key: `prod-${n}`, label: `Произв. ${n}`, title: `Производственно-складские, ${n} класс` })),
   ...[4, 3, 2, 1].map((n) => ({ key: `admin-${n}`, label: `Гражд. ${n}`, title: `Гражданские, ${n} класс` })),
   { key: 'other', label: 'Прочие', title: 'Прочие постройки: навесы, ТП, КПП, охрана — К = 0,05' },
