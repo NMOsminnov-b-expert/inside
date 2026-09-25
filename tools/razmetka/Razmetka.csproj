@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Разметка документов: полотно «страницы документа → снимки системы»
+       со слоями, рамками и стрелками (tools/razmetka/README.md).
+       TargetFramework с версией Windows — ради Windows.Data.Pdf: PDF рисует
+       встроенный движок Windows 10/11, сторонняя библиотека не нужна. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Razmetka</RootNamespace>
+    <AssemblyName>Razmetka</AssemblyName>
+    <Product>Разметка документов</Product>
+    <Version>0.1.0</Version>
+    <!-- Один файл со всем нужным внутри: у коллег .NET не установлен, прав
+         администратора нет. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

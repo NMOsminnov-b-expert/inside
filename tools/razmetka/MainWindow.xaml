@@ -1,0 +1,119 @@
+<Window x:Class="Razmetka.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ed="clr-namespace:Razmetka.Editor"
+        Title="Разметка документов" Width="1500" Height="920" MinWidth="980" MinHeight="600"
+        Background="{StaticResource Ground}" AllowDrop="True">
+    <!-- Раскладка: панель инструментов; слева главы и развороты, в центре
+         полотно, справа слои и свойства выбранного; внизу строка состояния. -->
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+            <WrapPanel Margin="8,6">
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnNew" ToolTip="Новый проект — выбрать пустую папку">Новый</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnOpen" ToolTip="Открыть папку проекта (Ctrl+O)">Открыть</Button>
+                <Button Style="{StaticResource PrimaryBtn}" x:Name="BtnSave" ToolTip="Сохранить (Ctrl+S)">Сохранить</Button>
+                <Border Style="{StaticResource Sep}"/>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddImage" ToolTip="Добавить фото или скан из файла; можно перетащить файлы на окно или вставить Ctrl+V">Добавить фото</Button>
+                <Border Style="{StaticResource Sep}"/>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnUndo" ToolTip="Отменить (Ctrl+Z)">↶ Отменить</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnRedo" ToolTip="Повторить (Ctrl+Y)">↷ Повторить</Button>
+                <Border Style="{StaticResource Sep}"/>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnZoomOut" ToolTip="Мельче (Ctrl+−)">−</Button>
+                <TextBlock x:Name="ZoomText" VerticalAlignment="Center" MinWidth="48" TextAlignment="Center" Foreground="{StaticResource Muted}">100 %</TextBlock>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnZoomIn" ToolTip="Крупнее (Ctrl++)">+</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnFit" ToolTip="Весь разворот в окне (Ctrl+0)">По окну</Button>
+            </WrapPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+            <DockPanel Margin="12,4">
+                <TextBlock x:Name="SizeText" DockPanel.Dock="Right" Foreground="{StaticResource Muted}"/>
+                <TextBlock x:Name="StatusText" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250" MinWidth="180"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="290" MinWidth="220"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Главы и развороты -->
+            <Border Grid.Column="0" Background="{StaticResource Panel}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource PanelTitle}">ГЛАВЫ И РАЗВОРОТЫ</TextBlock>
+                    <WrapPanel DockPanel.Dock="Bottom" Margin="8">
+                        <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddChapter" ToolTip="Новая глава — новый документ">+ Глава</Button>
+                        <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddSheet" ToolTip="Новый разворот в выбранной главе">+ Разворот</Button>
+                        <Button Style="{StaticResource ToolBtn}" x:Name="BtnDelSheet" ToolTip="Удалить выбранный разворот или главу">Удалить</Button>
+                    </WrapPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="12,0,12,4">
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11">Название</TextBlock>
+                        <TextBox x:Name="TreeTitle" Margin="0,2,0,0" Padding="4,3"/>
+                        <TextBlock x:Name="TreeSubLabel" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,6,0,0">Страница</TextBlock>
+                        <TextBox x:Name="TreeSub" Margin="0,2,0,0" Padding="4,3"/>
+                    </StackPanel>
+                    <TreeView x:Name="Tree" BorderThickness="0" Margin="4,0"/>
+                </DockPanel>
+            </Border>
+            <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource Line}" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- Полотно -->
+            <Grid Grid.Column="2">
+                <ed:SheetView x:Name="View"/>
+                <Border x:Name="EmptyHint" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{StaticResource Panel}"
+                        CornerRadius="10" Padding="24,18" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                    <StackPanel MaxWidth="420">
+                        <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource Ink}" TextWrapping="Wrap">Проект не открыт</TextBlock>
+                        <TextBlock Margin="0,6,0,0" Foreground="{StaticResource Muted}" TextWrapping="Wrap">
+                            «Новый» — выбрать пустую папку для проекта, «Открыть» — папку, где лежит razmetka.json.
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="CropBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed"
+                        Background="{StaticResource Ink}" CornerRadius="8" Padding="12,6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Foreground="White" VerticalAlignment="Center" Margin="0,0,12,0">
+                            Обрезка: ручки — край, внутри — сдвиг картинки. Enter или Esc — готово
+                        </TextBlock>
+                        <Button Style="{StaticResource ToolBtn}" Foreground="White" x:Name="BtnCropReset">Сбросить обрезку</Button>
+                        <Button Style="{StaticResource PrimaryBtn}" x:Name="BtnCropDone">Готово</Button>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <GridSplitter Grid.Column="3" Width="4" Background="{StaticResource Line}" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- Слои и свойства -->
+            <Border Grid.Column="4" Background="{StaticResource Panel}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource PanelTitle}">СЛОИ · СВЕРХУ ВНИЗ</TextBlock>
+                    <StackPanel DockPanel.Dock="Bottom" x:Name="Props" Margin="12,6,12,12">
+                        <TextBlock Style="{StaticResource PanelTitle}" Margin="0,4,0,6">ВЫБРАННЫЙ СЛОЙ</TextBlock>
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11">Название слоя</TextBlock>
+                        <TextBox x:Name="PropName" Margin="0,2,0,6" Padding="4,3"/>
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11">Подпись над картинкой</TextBlock>
+                        <TextBox x:Name="PropCaption" Margin="0,2,0,8" Padding="4,3"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnCrop" ToolTip="Обрезать (двойной щелчок по фото)">Обрезать</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnReplace" ToolTip="Заменить картинку, обрезка и место сохраняются">Заменить</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnDup" ToolTip="Копия со сдвигом (Ctrl+D)">Копия</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnDelete" ToolTip="Удалить (Delete)">Удалить</Button>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,4,0,0">
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnTop" ToolTip="Наверх (Ctrl+Shift+])">Наверх</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnUp" ToolTip="Выше (Ctrl+])">Выше</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnDown" ToolTip="Ниже (Ctrl+[)">Ниже</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnBottom" ToolTip="Вниз (Ctrl+Shift+[)">Вниз</Button>
+                        </WrapPanel>
+                    </StackPanel>
+                    <ListBox x:Name="Layers" BorderThickness="0" Margin="4,0" SelectionMode="Extended" HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>
