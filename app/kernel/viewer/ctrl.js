@@ -1,5 +1,6 @@
 import {
   VS, vSt, vPages, vGo, setVZoom, keepPageOnZoom, openDocViewer, openPhotoInPlace, applyFit, fitKey,
+  pickCompareMate, cmpLeftDoc,
 } from './state.js';
 import { paintPdfCanvases, getPdfPageWidthPt } from './pdf.js';
 import { applyDock, bindDockGrip } from './dock.js';
@@ -377,7 +378,13 @@ export function bindViewer(ctx) {
     VS.zoom = 100;
     if (mode === 'photo') ctx.ui.viewer = { mode: 'photo' };
     else if (mode === 'doc') { ctx.ui.viewer = { mode: 'doc' }; if (!ctx.ui.viewerDoc) pickFirstDoc(); }
-    else { ctx.ui.viewer = { mode: 'compare' }; if (!ctx.ui.viewerDoc) pickFirstDoc(); }
+    else {
+      ctx.ui.viewer = { mode: 'compare' };
+      if (!ctx.ui.viewerDoc) pickFirstDoc();
+      // Открыто несколько документов — сразу два рядом: основной и открытый
+      // перед ним. Одна вкладка — слева фото, как раньше.
+      ctx.ui.cmpLeft = pickCompareMate(ctx);
+    }
 
     ctx.render();
   });
@@ -559,6 +566,10 @@ export function bindViewer(ctx) {
 
   bindCompareColumns(ctx);
   bindCompareSplit(ctx);
+  bindTabDrop(ctx);
+
+  const lp = s.$('[data-cmp-left-photo]');
+  if (lp) lp.onclick = () => { ctx.ui.cmpLeft = null; ctx.render(); };
 
   // Синхронизация скролла ленты и зум колесом с Ctrl.
   const vstageEl = s.$('[data-vstage]');
@@ -711,10 +722,12 @@ function bindCompareColumns(ctx) {
     const which = stage.dataset.cmpStage;
     const blkAttr = which === 'photo' ? 'data-cmp-phblk' : 'data-cmp-dcblk';
     const numEl = s.$(which === 'photo' ? '[data-cmp-phnum]' : '[data-cmp-dcnum]');
+    // Левая колонка — фото или второй документ (compare.js).
+    const left = which === 'photo' ? cmpLeftDoc(ctx) : null;
     const st = which === 'photo'
-      ? (ctx.oi ? VS.photos[ctx.oi.id] : null)
+      ? (left ? VS.docs[left.id] : (ctx.oi ? VS.photos[ctx.oi.id] : null))
       : vSt(ctx);
-    const total = which === 'photo' ? photoPages(ctx.oi).length : vPages(ctx).length;
+    const total = which === 'photo' ? (left ? left.pages.length : photoPages(ctx.oi).length) : vPages(ctx).length;
 
     stage.addEventListener('wheel', (e) => {
       if (!e.ctrlKey) return;
@@ -738,6 +751,66 @@ function bindCompareColumns(ctx) {
         st.page = cur;
         if (numEl) numEl.textContent = `${cur}/${total}`;
       }
+    });
+  });
+}
+
+// --- Вкладка документа, перетащенная в область просмотра ---------------------
+//
+// Практика разделённого редактора (VS Code, Visual Studio): вкладку тянут в
+// область просмотра, место подсвечивается, и документ открывается рядом. Здесь:
+//   * в режиме «Документы» — вкладка, брошенная на лист, открывается вторым
+//     документом: включается сравнение, она — слева, текущий — справа;
+//   * в «Сравнении» — брошенная на колонку открывается в этой колонке; если она
+//     уже стоит в другой, документы меняются местами.
+// Тип данных вкладки свой (tabs.js), поэтому файлы из проводника сюда не
+// попадают — их ловит files.js.
+function bindTabDrop(ctx) {
+  const s = ctx.scope;
+  const isTab = (e) => Array.from((e.dataTransfer && e.dataTransfer.types) || []).includes('application/x-vtab');
+  const zones = [];
+  const vbody = s.$('.viewer .vbody');
+  if (vbody && ctx.ui.viewer && ctx.ui.viewer.mode === 'doc') zones.push([vbody, 'doc']);
+  s.$$('[data-cmp-drop]').forEach((col) => zones.push([col, col.dataset.cmpDrop]));
+
+  const label = { doc: 'Открыть рядом для сравнения', left: 'Открыть здесь для сравнения', right: 'Открыть здесь как основной' };
+  zones.forEach(([el, where]) => {
+    el.addEventListener('dragover', (e) => {
+      if (!isTab(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      el.dataset.dropLabel = label[where];
+      el.classList.add('vtab-drop');
+    });
+    el.addEventListener('dragleave', (e) => {
+      if (!el.contains(e.relatedTarget)) el.classList.remove('vtab-drop');
+    });
+    el.addEventListener('drop', (e) => {
+      if (!isTab(e)) return;
+      e.preventDefault();
+      el.classList.remove('vtab-drop');
+      const [scope, id] = e.dataTransfer.getData('application/x-vtab').split('|');
+      if (!id) return;
+      const doc = { scope, id };
+      const vd = ctx.ui.viewerDoc;
+      const same = (a, b) => a && b && a.scope === b.scope && a.id === b.id;
+      if (where === 'doc') {
+        if (same(doc, vd)) return;
+        VS.zoom = 100;
+        ctx.ui.viewer = { mode: 'compare' };
+        ctx.ui.cmpLeft = doc;
+      } else if (where === 'left') {
+        if (same(doc, vd)) {
+          if (!ctx.ui.cmpLeft) return;
+          ctx.ui.viewerDoc = ctx.ui.cmpLeft;
+        }
+        ctx.ui.cmpLeft = doc;
+      } else {
+        if (same(doc, vd)) return;
+        if (same(doc, ctx.ui.cmpLeft)) ctx.ui.cmpLeft = vd;
+        ctx.ui.viewerDoc = doc;
+      }
+      ctx.render();
     });
   });
 }

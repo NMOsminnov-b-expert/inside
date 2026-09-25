@@ -17,6 +17,17 @@ export const tabs = (ctx) => orderedTabs(scopesOf(ctx));
 
 export function activate(ctx, sc, id) {
   openTabOnly(sc, id);
+  // В сравнении вкладки остаются и переключают документ, С КОТОРЫМ сравнивают
+  // (левая колонка), а основной документ справа не трогают: так вкладками
+  // быстро перебирают, с чем сравнить. Основной меняют перетаскиванием вкладки
+  // на правую колонку.
+  if (ctx.ui.viewer && ctx.ui.viewer.mode === 'compare') {
+    const vd = ctx.ui.viewerDoc;
+    if (!(vd && vd.scope === sc && vd.id === id)) ctx.ui.cmpLeft = { scope: sc, id };
+    ctx.ui.viewerClosed = false;
+    ctx.render();
+    return;
+  }
   ctx.ui.viewerDoc = { scope: sc, id };
   if (!ctx.ui.viewer || ctx.ui.viewer.mode === 'photo') ctx.ui.viewer = { mode: 'doc' };
   ctx.ui.viewerClosed = false;

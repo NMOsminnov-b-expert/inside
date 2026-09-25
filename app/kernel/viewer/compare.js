@@ -1,9 +1,16 @@
 import { esc } from '../dom.js';
 import { VS } from './state.js';
-import { docPageHTML } from './doc.js';
+import { docPageHTML, tabsBarHTML } from './doc.js';
 import { photoFileAt } from './deps.js';
 
-// Режим «Сравнение»: фото слева, документ справа.
+// Режим «Сравнение»: слева фото или второй документ, справа основной документ.
+//
+// Два документа рядом — пожелание пользователей (переписка, 25.09.2026): если
+// открыто несколько вкладок, сравнение сразу показывает два документа —
+// основной и открытый перед ним; вкладки остаются и меняют документ слева,
+// вкладку можно перетащить на колонку. Практика — «разделённый редактор»
+// VS Code и Visual Studio: вкладку тянут в область просмотра, и документ
+// открывается рядом (граф: practice:sravnenie-dvuh-dokumentov).
 //
 // Раньше здесь показывалась РОВНО ОДНА страница документа и одно фото, листались
 // они только кнопками, а зум был общий на обе колонки. Теперь каждая колонка —
@@ -11,11 +18,11 @@ import { photoFileAt } from './deps.js';
 // и фото, и документ), и у каждой колонки СВОЙ зум: сравнивают обычно мелкую
 // деталь на фото с крупным планом в документе, общий зум для этого бесполезен.
 export function renderCompareMode(ctx, vctx) {
-  const { d, dSt, pages, groups } = vctx;
+  const { d, dSt, d2, d2St, pages, groups } = vctx;
   const pSt = vctx.pSt || { page: 1, rot: 0 };
 
   // Заголовок и закрытие — в общей панели просмотрщика (shell.js).
-  const right = '<span class="vtitle">Фото и документ рядом</span>';
+  const right = `<span class="vtitle">${d2 ? 'Два документа рядом' : 'Фото и документ рядом'}</span>`;
 
   // Зум на колонку. cmpZoom живёт в VS рядом с остальным состоянием
   // просмотрщика, поэтому переживает перерисовку экрана.
@@ -48,22 +55,34 @@ export function renderCompareMode(ctx, vctx) {
   // Половины можно свернуть значком-папкой (Л3.9): фото убирается влево,
   // документ вправо. Свёрнутая половина остаётся узкой полосой с тем же
   // значком — развернуть её можно там же, где свернули.
+  // Левая колонка — второй документ, если он выбран.
+  const leftDocRibbon = d2 ? (d2.pages.length
+    ? d2.pages.map((p, i) => `<div class="vpage-wrap" data-cmp-phblk="${i + 1}"><div class="vpage">${docPageHTML(d2, i + 1)}</div></div>`).join('')
+    : '<div class="muted" style="padding:12px">Файл не прикреплён</div>') : '';
+
   const hidden = ctx.ui.cmpHidden || null;
   const fold = (side, title) =>
     `<button class="cmp-fold" data-cmp-fold="${side}" title="${title}">${side === 'photo' ? '⯇' : '⯈'}</button>`;
 
   const body = `<div class="cmp ${hidden ? 'cmp-folded-' + hidden : ''}" data-cmp
     style="--cmp-photo:${ctx.ui.cmpSplit || 50}%">
-    <div class="cmp-col" data-cmp-side="photo">
-      <div class="cmp-h">${fold('photo', 'Свернуть фото влево')}ФОТО <span data-cmp-phnum>${pages.length ? Math.min(pSt.page, pages.length) : 0}/${pages.length}</span>${zoomCtl('photo')}</div>
-      <div class="cmp-body" data-cmp-stage="photo"><div class="cmp-ribbon" data-cmp-ribbon="photo" style="zoom:${VS.cmpZoom.photo / 100}">${photoRibbon}</div></div>
+    <div class="cmp-col" data-cmp-side="photo" data-cmp-drop="left">
+      ${d2
+    ? `<div class="cmp-h">${fold('photo', 'Свернуть документ влево')}${esc(d2.type)} <span class="cmp-nm" title="${esc(d2.name)}">${esc(d2.name)}</span>
+        <span data-cmp-phnum>${d2.pages.length ? d2St.page + '/' + d2.pages.length : ''}</span>
+        <button type="button" class="cmp-src" data-cmp-left-photo title="Показать фото вместо документа">Фото</button>${zoomCtl('photo')}</div>`
+    : `<div class="cmp-h" title="Перетащите сюда вкладку — откроется документ для сравнения">${fold('photo', 'Свернуть фото влево')}ФОТО <span data-cmp-phnum>${pages.length ? Math.min(pSt.page, pages.length) : 0}/${pages.length}</span>${zoomCtl('photo')}</div>`}
+      <div class="cmp-body" data-cmp-stage="photo"><div class="cmp-ribbon" data-cmp-ribbon="photo" style="zoom:${VS.cmpZoom.photo / 100}">${d2 ? leftDocRibbon : photoRibbon}</div></div>
     </div>
     <div class="cmp-split" data-cmp-split title="Потяните, чтобы изменить соотношение"></div>
-    <div class="cmp-col" data-cmp-side="doc">
-      <div class="cmp-h">${fold('doc', 'Свернуть документ вправо')}${d ? esc(d.type) : 'Нет документа'} <span data-cmp-dcnum>${d && d.pages.length ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
+    <div class="cmp-col" data-cmp-side="doc" data-cmp-drop="right">
+      <div class="cmp-h">${fold('doc', 'Свернуть документ вправо')}${d ? `${esc(d.type)} <span class="cmp-nm" title="${esc(d.name)}">${esc(d.name)}</span>` : 'Нет документа'} <span data-cmp-dcnum>${d && d.pages.length ? dSt.page + '/' + d.pages.length : ''}</span>${d ? zoomCtl('doc') : ''}</div>
       <div class="cmp-body" data-cmp-stage="doc"><div class="cmp-ribbon" data-cmp-ribbon="doc" style="zoom:${VS.cmpZoom.doc / 100}">${docRibbon}</div></div>
     </div>
   </div>`;
 
-  return { right, body };
+  // Вкладки остаются и в сравнении: щелчок меняет документ слева.
+  const tabsBar = tabsBarHTML(ctx, vctx.vd, d2 ? ctx.ui.cmpLeft : null);
+
+  return { right, body, tabsBar };
 }

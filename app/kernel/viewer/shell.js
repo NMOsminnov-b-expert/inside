@@ -1,4 +1,4 @@
-import { VS, scopesOf, orderedTabs } from './state.js';
+import { VS, scopesOf, orderedTabs, touchRecent, pickCompareMate, cmpLeftDoc } from './state.js';
 import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
 import { renderCompareMode } from './compare.js';
@@ -35,6 +35,20 @@ function buildViewerContext(ctx) {
   const vd = ctx.ui.viewerDoc;
   const d = vd ? docListFor(ctx, vd.scope).find((x) => x.id === vd.id) : null;
   if (d) ensureDocPages(d);
+  if (d) touchRecent(vd.scope, vd.id);
+
+  // Второй документ сравнения. Закрыли его вкладку или он стал основным —
+  // берём следующий по свежести; нет другого — слева фото.
+  let d2 = null;
+  if (mode === 'compare' && ctx.ui.cmpLeft) {
+    const l = ctx.ui.cmpLeft;
+    const open = orderedTabs(scopes).some((x) => x.sc === l.scope && x.id === l.id);
+    const same = vd && l.scope === vd.scope && l.id === vd.id;
+    if (!open || same) ctx.ui.cmpLeft = pickCompareMate(ctx);
+    d2 = cmpLeftDoc(ctx);
+    if (d2) ensureDocPages(d2);
+  }
+  const d2St = d2 ? (VS.docs[d2.id] || (VS.docs[d2.id] = { page: 1, rot: 0, scroll: 0 })) : null;
 
   const dSt = d ? (VS.docs[d.id] || (VS.docs[d.id] = { page: 1, rot: 0, scroll: 0 })) : null;
   const pages = oi ? photoPages(oi) : [];
@@ -48,7 +62,7 @@ function buildViewerContext(ctx) {
     ? pages.length
     : (ctx.rec.oi || []).reduce((n, o) => n + photoPages(o).length, 0);
 
-  return { mode, inOi, oi, scopes, vd, d, dSt, pages, groups, pSt, curPhoto, photoCount };
+  return { mode, inOi, oi, scopes, vd, d, dSt, d2, d2St, pages, groups, pSt, curPhoto, photoCount };
 }
 
 // Одна панель вместо трёх (задача пользователя 21.09.2026: у просмотрщика мало

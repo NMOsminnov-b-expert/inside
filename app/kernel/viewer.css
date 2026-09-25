@@ -495,3 +495,16 @@ body[data-module].viewer-dock .oc-head-status{padding-top:7px}
    уходят, счётчик «N из 9» и «Далее» остаются — строка помещается в одну. */
 body[data-module].viewer-dock .st-mini .st-bar,
 body[data-module].viewer-dock .st-mini .st-mini-lbl{display:none}
+
+/* Сравнение двух документов: вкладка для сравнения и зона, куда бросают вкладку
+   (kernel/viewer/compare.js, ctrl.js bindTabDrop). */
+.viewer .vtab.paired{background:#fff7e6;border-color:#f0c36d;color:#8a5a00}
+.viewer .vtab.paired::before{content:"⇆";margin-right:2px;font-weight:700}
+.cmp-h .cmp-nm{font-weight:500;color:var(--ink-2,#475569);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:40%}
+.cmp-h .cmp-src{height:22px;padding:0 8px;border:1px solid var(--line);border-radius:5px;background:var(--panel);
+  font:600 11px inherit;color:var(--blue-700);cursor:pointer}
+.cmp-h .cmp-src:hover{background:#eef4fb}
+.vtab-drop{position:relative}
+.vtab-drop::after{content:attr(data-drop-label);position:absolute;inset:6px;z-index:6;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;border:2px dashed var(--blue-600);border-radius:8px;
+  background:rgba(37,99,235,.08);color:var(--blue-700);font-weight:700;font-size:13px}

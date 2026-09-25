@@ -55,16 +55,17 @@ function docRowHTML(sc, d) {
 // «нет возможности открыть ещё один документ, прикрепить ещё один»). Вкладки
 // перетаскиваются, у каждой крестик и контекстное меню; «+» — открыть другой
 // документ записи, открыть все или прикрепить файлы.
-function tabsBarHTML(ctx, vd) {
+export function tabsBarHTML(ctx, vd, mate = null) {
   const list = tabs(ctx);
   const rest = notOpened(ctx);
   const tab = (x) => {
     const d = docListFor(ctx, x.sc).find((t) => t.id === x.id);
     if (!d) return '';
     const on = vd && vd.scope === x.sc && vd.id === x.id;
+    const paired = mate && mate.scope === x.sc && mate.id === x.id;
     const key = tabKey(x.sc, x.id);
-    return `<div class="vtab ${on ? 'active' : ''}" role="tab" aria-selected="${on}" tabindex="${on ? 0 : -1}"
-      data-vtab="${key}" draggable="true" title="${esc(d.type)} · ${esc(d.name)}">
+    return `<div class="vtab ${on ? 'active' : ''} ${paired ? 'paired' : ''}" role="tab" aria-selected="${on}" tabindex="${on ? 0 : -1}"
+      data-vtab="${key}" draggable="true" title="${paired ? 'Для сравнения · ' : ''}${esc(d.type)} · ${esc(d.name)}">
       <span class="vtab-t">${esc(tabLabel(x.sc, d))}</span>
       ${can('closeTabs') ? `<button type="button" class="vtab-x" data-vtabclose="${key}" tabindex="-1"
         title="Закрыть вкладку (Alt+W)" aria-label="Закрыть «${esc(d.name)}»">×</button>` : ''}

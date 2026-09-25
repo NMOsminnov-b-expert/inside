@@ -72,6 +72,37 @@ export function orderedTabs(scopes) {
   return all.sort((a, b) => pos(a) - pos(b));
 }
 
+// Свежесть открытия документов: какой документ смотрели последним. Нужна
+// сравнению — при входе в него рядом с текущим документом встаёт тот, что
+// открывали перед ним (пожелание пользователей из переписки, 25.09.2026:
+// «открываются 2 документа, целевой и последний, который был открыт»).
+VS.recent = [];
+
+export function touchRecent(scope, id) {
+  const k = tabKey(scope, id);
+  VS.recent = VS.recent.filter((x) => x !== k);
+  VS.recent.push(k);
+}
+
+// Документ для сравнения с текущим: из открытых вкладок — открытый последним,
+// кроме самого текущего. Нет второй вкладки — сравнивать не с чем, слева фото.
+export function pickCompareMate(ctx) {
+  const vd = ctx.ui.viewerDoc;
+  const list = orderedTabs(scopesOf(ctx))
+    .filter((x) => !(vd && x.sc === vd.scope && x.id === vd.id))
+    .reverse();
+  if (!list.length) return null;
+  const pos = (x) => VS.recent.indexOf(tabKey(x.sc, x.id));
+  const best = list.reduce((a, b) => (pos(b) > pos(a) ? b : a));
+  return { scope: best.sc, id: best.id };
+}
+
+// Левая колонка сравнения: документ (ctx.ui.cmpLeft) или фото (null).
+export function cmpLeftDoc(ctx) {
+  const l = ctx.ui.cmpLeft;
+  return l ? docListFor(ctx, l.scope).find((x) => x.id === l.id) || null : null;
+}
+
 export function openDocViewer(ctx, scope, id) {
   if (!id) return;
   openTabOnly(scope, id);
