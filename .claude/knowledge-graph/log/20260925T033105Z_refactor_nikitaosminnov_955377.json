@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "branch": "refactor",
+    "author": "nikitaosminnov@gmail.com",
+    "createdAt": "20260925T033105Z",
+    "baseCommit": "3206ab6"
+  },
+  "entities": [
+    {
+      "type": "entity",
+      "name": "decision:lokalnoe-hranenie-faylov",
+      "entityType": "Decision",
+      "observations": [
+        "Прикреплённые в макете файлы переживают перезагрузку (задача пользователя 25.09.2026: «сохранение доков локально для удобства тестирования… требую добавить в гитигнор, не должно улетать в сеть; по этим докам, если надо, сможем пройтись и собрать примеры для разбора, но в открытый доступ не выкладываем»).",
+        "Устройство: app/kernel/localFiles.js. Файл кладётся в IndexedDB браузера (база inside-files) под ключом f.localKey при прикреплении (attachedFileFrom в kernel/fileUpload.js и в parts/docs/model.js всех пяти модулей). persist.js после восстановления каждой части снимка зовёт restoreLocalFiles — ссылки на файлы создаются заново, экран перерисовывается. Копии в папку на диске — пункт «Копировать файлы в папку…» в меню «+» вкладок (File System Access, Chrome/Edge); папка — local-docs/ в корне репозитория, в .gitignore всё, кроме README.md. Хранилище без чистки: файлы удалённых документов остаются (для разбора примеров это и нужно). Проверка — tools/checks/check_viewer_local_files.py."
+      ]
+    }
+  ],
+  "relations": []
+}

@@ -6,6 +6,7 @@ import { pagerHTML, zoomHTML, rotateHTML } from './tools.js';
 import { tabs, notOpened, tabLabel } from './docActions.js';
 import { can } from './deps.js';
 import { docListFor, scopeLabel } from './deps.js';
+import { folderSupported, folderName } from '../localFiles.js';
 
 // Страница реального PDF — canvas внутри обычного листа, который асинхронно
 // заполняет viewer/pdf.js (paintPdfCanvases). Раньше здесь был <embed>, то есть
@@ -80,6 +81,8 @@ export function tabsBarHTML(ctx, vd, mate = null) {
         aria-label="Открыть или прикрепить документ">+</button>
       <div class="dd-menu">
         ${can('attach') ? '<button data-vattach><span>Прикрепить файлы…</span><kbd>Ctrl+O</kbd></button>' : ''}
+        ${can('attach') && folderSupported() ? `<button data-vlocal-dir title="Прикреплённые файлы копируются в папку на этом компьютере">${
+    folderName() ? `Копии файлов: папка «${esc(folderName())}»` : 'Копировать файлы в папку…'}</button>` : ''}
         ${rest.length ? '<div class="dd-sep"></div><div class="dd-cap">Документы записи</div>' : ''}
         ${rest.map((x) => `<button data-vaddtab="${tabKey(x.sc, x.d.id)}" title="${esc(x.d.name)}">${docRowHTML(x.sc, x.d)}</button>`).join('')}
         ${rest.length > 1 ? `<div class="dd-sep"></div><button data-vopenall>Открыть все · ${rest.length}</button>` : ''}

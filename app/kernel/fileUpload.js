@@ -6,6 +6,7 @@
 // при перезагрузке — на сервере нужна настоящая загрузка в хранилище с
 // постоянным адресом и проверкой типа/размера на стороне сервера.
 import { getPdfPageCount, getPdfPageAspects } from './pdfRender.js';
+import { keepFileLocally } from './localFiles.js';
 
 // capture — подсказка телефону открыть камеру, а не файловый менеджер
 // ('environment' — задняя камера). На настольном браузере довод игнорируется,
@@ -44,6 +45,8 @@ export async function attachedFileFrom(file) {
   const dataUrl = URL.createObjectURL(file);
   const kind = fileKindOf(file.type);
   const f = { name: file.name, mime: file.type || '', kind, dataUrl, size: file.size };
+  // Сам файл — в хранилище браузера, чтобы пережил перезагрузку (localFiles.js).
+  keepFileLocally(file, f);
 
   if (kind === 'pdf') {
     f.pageCount = await getPdfPageCount(dataUrl);

@@ -6,6 +6,7 @@
 // проверка типа и размера на стороне сервера и права доступа к нему.
 // scope: 'oc' | <oi.id>
 import { getPdfPageCount, getPdfPageAspects, releasePdf } from '../../../../kernel/viewer/pdf.js';
+import { keepFileLocally } from '../../../../kernel/localFiles.js';
 
 // Страницы документа. У реального PDF — по странице на каждую страницу файла:
 // именно из этого списка живут лента миниатюр, счётчик «/ N» и навигация, поэтому
@@ -68,6 +69,8 @@ export async function attachedFileFrom(file) {
   const dataUrl = URL.createObjectURL(file);
   const kind = fileKindOf(file.type);
   const f = { name: file.name, mime: file.type || '', kind, dataUrl, size: file.size };
+  // Сам файл — в хранилище браузера, чтобы пережил перезагрузку (kernel/localFiles.js).
+  keepFileLocally(file, f);
 
   if (kind === 'pdf') {
     f.pageCount = await getPdfPageCount(dataUrl);

@@ -24,6 +24,8 @@
 // доступа, а сохранение идёт по каждой правке отдельным запросом, а не целым
 // снимком. Снимок здесь — компромисс макета, повторять его не нужно.
 
+import { restoreLocalFiles } from './localFiles.js';
+
 const KEY = 'inside:data:v1';
 
 // Ключ прежнего, помодульного сохранения. Больше не читается: вместе со
@@ -171,6 +173,9 @@ export function registerPersisted(name, { snapshot, restore }) {
   if (saved !== undefined) {
     try {
       restore(saved);
+      // Ссылки на файлы в снимок не попадают (stripBlobs) — сами файлы лежат в
+      // хранилище браузера и возвращаются отдельно (localFiles.js).
+      restoreLocalFiles(snapshot());
     } catch (e) {
       console.warn('[persist] не удалось восстановить «%s»:', name, e);
     }

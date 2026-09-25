@@ -6,6 +6,7 @@ import { paintPdfCanvases, getPdfPageWidthPt } from './pdf.js';
 import { applyDock, bindDockGrip } from './dock.js';
 import { openPopout, closePopout, focusPopout } from './popout.js';
 import { attachFiles, pickFiles } from './files.js';
+import { connectFolder } from '../localFiles.js';
 import {
   currentTab, archiveTab, docOf, closeTab, closeAll, stepDoc, shiftTab, downloadDoc, printDoc,
   docProperties, deletePages,
@@ -567,6 +568,18 @@ export function bindViewer(ctx) {
   bindCompareColumns(ctx);
   bindCompareSplit(ctx);
   bindTabDrop(ctx);
+
+  // Копии прикреплённых файлов в папку на диске (kernel/localFiles.js).
+  const ld = s.$('[data-vlocal-dir]');
+  if (ld) ld.onclick = (e) => {
+    e.stopPropagation();
+    connectFolder()
+      .then((r) => {
+        ctx.toast(`Копии файлов — в папке «${r.name}»${r.copied ? ` · скопировано: ${r.copied}` : ''}`, 'ok');
+        ctx.render();
+      })
+      .catch((err) => { if (!err || err.name !== 'AbortError') ctx.toast(err && err.message ? err.message : 'Папка не подключена', 'warn'); });
+  };
 
   const lp = s.$('[data-cmp-left-photo]');
   if (lp) lp.onclick = () => { ctx.ui.cmpLeft = null; ctx.render(); };
