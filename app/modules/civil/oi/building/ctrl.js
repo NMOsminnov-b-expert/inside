@@ -24,13 +24,12 @@ import { bindColumnReorder } from '../../../../kernel/columns.js';
 import { bindMsSearch } from '../../../../kernel/multiSelect.js';
 import { SIGNS, PURPOSES, kindOf, signsOf, pickedOf, heightOf, heightBand, syncCapClass, signFactor } from './capClass.js';
 import {
-  hasZones, targetOf, splitIntoZones, addZone, removeZone, zoneById, syncFromZones, zonesSum, diffText,
+  hasZones, targetOf, splitIntoZones, addZone, removeZone, zoneById, syncFromZones,
   typesText, missingText, classLine, zonesOf,
 } from './zones.js';
-import { fmtNum } from '../../../../kernel/fmt.js';
 import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
 import {
-  capMsSummary, capMsBody, distributionHTML, kcHTML, kcCoefHTML, avgKText, zoneBarInfoHTML, openZoneId,
+  capMsSummary, capMsBody, kcHTML, kcCoefHTML, zonesSumsBody, zoneBarInfoHTML, openZoneId,
 } from './view.js';
 
 export function bind(ctx, oi) {
@@ -583,25 +582,14 @@ export function bind(ctx, oi) {
       const sign = (SIGNS[kindOf(z)] || []).find((x) => x.height);
       if (hb && sign) {
         const band = heightBand(sign, heightOf(z));
-        hb.textContent = band ? band[2] : 'Нет высоты по внутр. замерам зоны';
+        hb.textContent = band ? band[2] : 'Нет высоты по внутр. замерам подгруппы';
         hb.classList.toggle('muted', !band);
       }
     });
-    const st = zonesSum(oi);
-    const sum = s.$('[data-zones-sum]');
-    if (sum) sum.textContent = `${fmtNum(st.sum)} из ${fmtNum(st.total)} м²`;
-    const diff = s.$('[data-zones-diff]');
-    if (diff) {
-      diff.textContent = st.total ? diffText(st.diff) : 'нет площади по внутреннему обмеру';
-      diff.classList.toggle('ok', st.ok);
-      diff.classList.toggle('warn', !st.ok);
-    }
-    const d = s.$('[data-zones-dist]');
-    if (d) d.innerHTML = distributionHTML(oi);
+    const panel = s.$('[data-zones-sums]');
+    if (panel) panel.innerHTML = zonesSumsBody(oi);
     const box = s.$('[data-cap-class]');
     if (box) box.textContent = classLine(oi);
-    const ak = s.$('[data-zones-avgk]');
-    if (ak) ak.textContent = avgKText(oi);
     const kv = s.$('[data-lit-kind-view]');
     if (kv) kv.textContent = typesText(oi);
   }
@@ -693,9 +681,9 @@ export function bind(ctx, oi) {
     const id = b.closest('[data-zone]').dataset.zone;
     openZone(openZoneId(ctx.ui, oi) === id ? '' : id);
   });
-  // Зоны без класса в строке «По классам» — ссылки на саму зону. Делегирование:
-  // строка перерисовывается при каждом вводе.
-  const dist = s.$('[data-zones-dist]');
+  // Подгруппы без класса в строке «По классам» — ссылки на саму подгруппу.
+  // Делегирование: панель итогов перерисовывается при каждом вводе.
+  const dist = s.$('[data-zones-sums]');
   if (dist) dist.onclick = (e) => {
     const b = e.target.closest('[data-zone-jump]');
     const zone = b && s.$(`[data-zone="${b.dataset.zoneJump}"]`);
@@ -732,9 +720,9 @@ export function bind(ctx, oi) {
       const go = () => { removeZone(oi, z.id); ctx.render(); };
       if (!filled) { go(); return; }
       confirmDialog({
-        title: 'Убрать зону?',
-        text: `«${z.name || 'Зона'}» — тип, площадь и признаки зоны будут удалены.`
-          + (s.$$('[data-zone]').length === 2 ? ' Останется одна зона — литера снова станет цельной.' : ''),
+        title: 'Убрать подгруппу помещений?',
+        text: `«${z.name || 'Подгруппа'}» — тип, площадь и признаки подгруппы будут удалены.`
+          + (s.$$('[data-zone]').length === 2 ? ' Останется одна подгруппа — литера снова станет цельной.' : ''),
         okLabel: 'Убрать',
         danger: true,
       }).then((ok) => { if (ok) go(); });

@@ -161,8 +161,8 @@ export function capSummaryHTML(ctx) {
 <colgroup><col style="width:11%"><col style="width:13%"><col style="width:7%"><col style="width:10%"><col style="width:6%">
 <col style="width:9%"><col style="width:10%"><col style="width:14%"><col style="width:10%"><col style="width:10%"></colgroup>
 <thead><tr>
-  <th>Литера</th><th>Наименование / зона</th><th>Тип</th>
-  <th class="num" title="Площадь по внутреннему обмеру, м² (у зоны — её площадь)">Площадь внутр., м²</th>
+  <th>Литера</th><th>Наименование / подгруппа</th><th>Тип</th>
+  <th class="num" title="Площадь по внутреннему обмеру, м² (у подгруппы помещений — её площадь)">Площадь внутр., м²</th>
   <th class="num" title="Коэффициент капитальности: произведение коэффициентов признаков; у прочих — 0,05">К</th>
   <th>Класс</th>
   <th class="num" title="Площадь, взвешенная по капитальности: площадь × К">Площадь × К</th>

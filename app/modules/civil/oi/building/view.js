@@ -379,7 +379,7 @@ function kindRowHTML(oi, zoneId = '', extra = '') {
     <select class="select" id="${pid}" data-purpose-fact>${emptyOptionHTML()}${list.map((p) => `<option ${
   p === oi.purposeFact ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>` : '';
   return `<div class="lk-row">
-    <div class="field"><label class="lk-tip" title="По фото с осмотра">${zoneId ? 'Тип зоны' : 'Тип объекта имущества'}</label>${seg}</div>
+    <div class="field"><label class="lk-tip" title="По фото с осмотра">${zoneId ? 'Тип подгруппы' : 'Тип объекта имущества'}</label>${seg}</div>
     ${purpose}${extra}
   </div>`;
 }
@@ -394,9 +394,9 @@ function typeClassPairHTML(oi) {
     // Литера из зон: типы зон и площади по классам — как в сводной таблице
     // методики (решение пользователя 25.09.2026).
     return `<div class="lk-pair">
-    <div class="field"><label class="lk-tip" title="Выбирается у каждой зоны в блоке «Тип и класс капитальности»">Тип объекта имущества</label>
+    <div class="field"><label class="lk-tip" title="Выбирается у каждой подгруппы помещений в блоке «Тип и класс капитальности»">Тип объекта имущества</label>
       <div class="lk-class" data-lit-kind-view>${esc(typesText(oi))}</div></div>
-    <div class="field"><label class="lk-tip" title="Площади зон по классам капитальности">Класс ОИ</label>
+    <div class="field"><label class="lk-tip" title="Площади подгрупп помещений по классам капитальности">Класс ОИ</label>
       <div class="lk-class" data-cap-class>${esc(classLine(oi))}</div></div>
   </div>`;
   }
@@ -418,10 +418,10 @@ function signFieldHTML(oi, sign, zone = false) {
   if (sign.height) {
     const h = heightOf(oi);
     const band = heightBand(sign, h);
-    const none = zone ? 'Нет высоты по внутр. замерам зоны' : 'Нет высоты по внутренним замерам';
+    const none = zone ? 'Нет высоты по внутр. замерам подгруппы' : 'Нет высоты по внутренним замерам';
     // Признак — диапазон, а не само число: подпись и подсказка говорят, из
     // какой высоты он взят, чтобы не путать с полем ввода высоты.
-    const tip = zone ? 'Диапазон по высоте по внутренним замерам зоны (поле в шапке зоны)'
+    const tip = zone ? 'Диапазон по высоте по внутренним замерам подгруппы (группа «Название и размеры»)'
       : 'Диапазон по высоте по внутренним замерам (блок «Площади и этажность»)';
     return `<div class="field${miss}" data-sign="${sign.key}">${kcCoefHTML(oi, sign)}<label class="lk-tip" title="${tip}">Высота (диапазон)</label>
       <div class="lk-class ${band ? '' : 'muted'}" data-cap-height>${band ? esc(band[2]) : none}</div></div>`;
@@ -506,7 +506,7 @@ function zoneConditionHTML(z) {
   const list = opt('building', 'conditionTotal', BUILD_CONDITION);
   const cur = z.condition || list[0];
   return `<div class="field zn-cond"><label for="zn-cond-${esc(z.id)}" class="lk-tip"
-    title="Состояние этой части здания по шкале методологии: от «Отличное» (5) до «Неудовлетворительное» (1)">Состояние зоны</label>
+    title="Состояние этой части здания по шкале методологии: от «Отличное» (5) до «Неудовлетворительное» (1)">Состояние подгруппы</label>
     <select class="select" id="zn-cond-${esc(z.id)}" data-zone-cond>${list.map((o) => `<option ${o === cur ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
     ${condHintHTML(z.condition, 'zone')}</div>`;
 }
@@ -541,15 +541,15 @@ function zoneHTML(z, i, open) {
   <div class="zn-top">
     <button type="button" class="zn-bar" data-zone-toggle aria-expanded="${open}" aria-controls="zn-body-${id}">
       <span class="zn-bar-info" data-zone-bar>${zoneBarInfoHTML(z, i)}</span><span class="chev" aria-hidden="true">▾</span></button>
-    <button type="button" class="btn btn-danger btn-sm zn-del" data-zone-del title="Убрать зону" aria-label="Убрать ${esc(zoneTitle(z, i))}">×</button>
+    <button type="button" class="btn btn-danger btn-sm zn-del" data-zone-del title="Убрать подгруппу" aria-label="Убрать ${esc(zoneTitle(z, i))}">×</button>
   </div>
   <div class="zn-body" id="zn-body-${id}" ${open ? '' : 'hidden'}>
     ${grp('Название и размеры', `<div class="zn-fields zn-fields-3">
-      <div class="field zn-name"><label for="zn-name-${id}">Название зоны</label>
+      <div class="field zn-name"><label for="zn-name-${id}">Название подгруппы</label>
         <input class="input" id="zn-name-${id}" data-zone-name value="${esc(z.name || '')}" placeholder="Например, «Общежитие»"></div>
-      <div class="field zn-num-f"><label for="zn-area-${id}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма зон сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
+      <div class="field zn-num-f"><label for="zn-area-${id}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма подгрупп сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
         <input class="input num" id="zn-area-${id}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
-      <div class="field zn-num-f"><label for="zn-h-${id}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» зоны">Высота внутр., м</label>
+      <div class="field zn-num-f"><label for="zn-h-${id}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» подгруппы">Высота внутр., м</label>
         <input class="input num" id="zn-h-${id}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
     </div>`)}
   ${grp('Тип и назначение', kindRowHTML(z, z.id))}
@@ -567,52 +567,63 @@ export function openZoneId(ui, oi) {
   return list.some((z) => z.id === ui.zoneOpen) ? ui.zoneOpen : (list[0] || {}).id || '';
 }
 
-// Сверка суммы зон с площадью литеры — той же панелью и теми же словами, что
-// сверка этажей в «Площадях и этажности»: недобор, «сходится» и перебор видны
-// сразу, значения молча не подгоняются (решение пользователя 25.09.2026).
+// Итоги литеры из подгрупп помещений — одной панелью, строки «подпись —
+// значение» с общей колонкой подписей (как список «ключ — значение»): сверка
+// площадей, средневзвешенная капитальность, площади по классам. Сверка —
+// теми же словами, что сверка этажей: недобор, «сходится», перебор; значения
+// молча не подгоняются (решение пользователя 25.09.2026). Замечание
+// пользователя 25.09.2026 к прежнему виду: «оформление хромает».
 function zonesSumsHTML(oi) {
+  return `<div class="zn-sum" data-zones-sums>${zonesSumsBody(oi)}</div>`;
+}
+
+export function zonesSumsBody(oi) {
   const st = zonesSum(oi);
-  return `<div class="floors-sums zn-sums" data-zones-sums>
-<span class="fs-l lk-tip" title="Сумма площадей зон сверяется с площадью литеры по внутреннему обмеру (блок «Площади и этажность»)">Σ площадь зон</span>
-<span class="fs-v" data-zones-sum>${fmtNum(st.sum)} из ${fmtNum(st.total)} м²</span>
-<span class="fs-d ${st.ok ? 'ok' : 'warn'}" data-zones-diff>${st.total ? diffText(st.diff) : 'нет площади по внутреннему обмеру'}</span>
-</div>
-<div class="zn-avg"><span class="zn-avg-l lk-tip" title="Средняя капитальность литеры, взвешенная по площади зон: Σ (площадь зоны × К зоны) / Σ площадь зон — по зонам, у которых есть и площадь, и К">Средневзвешенная капитальность</span>
-<span class="zn-avg-v" data-zones-avgk>${avgKText(oi)}</span></div>
-<div class="zn-dist" data-zones-dist>${distributionHTML(oi)}</div>`;
+  const area = st.total
+    ? `<b>${fmtNum(st.sum)}</b> из ${fmtNum(st.total)} м²`
+    : `<b>${fmtNum(st.sum)}</b> м²`;
+  const diff = st.total
+    ? `<span class="zn-st ${st.ok ? 'ok' : 'warn'}" data-zones-diff>${diffText(st.diff)}</span>`
+    : '<span class="zn-st warn" data-zones-diff>у литеры нет площади по внутреннему обмеру</span>';
+  const row = (label, tip, value, attr = '') => `<div class="zn-sum-row"><dt><span class="lk-tip" title="${esc(tip)}">${label}</span></dt><dd ${attr}>${value}</dd></div>`;
+  return `<dl class="zn-sum-dl">
+  ${row('Σ площадь подгрупп', 'Сумма площадей подгрупп помещений сверяется с площадью литеры по внутреннему обмеру (блок «Площади и этажность»)', `${area}${diff}`)}
+  ${row('Средневзвешенная капитальность', 'Средняя капитальность литеры, взвешенная по площади подгрупп: Σ (площадь × К) / Σ площадь — по подгруппам, у которых есть и площадь, и К', avgKHTML(oi), 'data-zones-avgk')}
+  ${row('По классам', 'Площади подгрупп помещений по классам капитальности', distributionHTML(oi), 'data-zones-dist')}
+</dl>`;
 }
 
-export function avgKText(oi) {
+function avgKHTML(oi) {
   const a = zonesAvgK(oi);
-  if (a.k === null) return 'нет зон с площадью и классом';
-  const skip = a.skipped ? ` · не учтено зон: ${a.skipped} (нет класса или площади)` : '';
-  return `${k2(a.k)} — Σ площадь × К ${fmtNum(a.areaK)} / Σ площадь ${fmtNum(a.area)} м²${skip}`;
+  if (a.k === null) return '<span class="muted">нет подгрупп с площадью и классом</span>';
+  const skip = a.skipped ? `<span class="zn-st warn" title="Подгруппы без класса или без площади в среднее не входят">не учтено подгрупп: ${a.skipped}</span>` : '';
+  return `<b class="zn-avg-v">${k2(a.k)}</b><span class="zn-sum-note">Σ площадь × К ${fmtNum(a.areaK)} / Σ площадь ${fmtNum(a.area)} м²</span>${skip}`;
 }
 
-// Площади по классам — плашками, как итог; зоны без класса — одной плашкой и
-// ссылками на сами зоны: что им не хватает, написано в каждой зоне.
+// Площади по классам — плашками; подгруппы без класса — одной плашкой, за ней
+// ссылки на сами подгруппы: чего им не хватает, написано в каждой.
 export function distributionHTML(oi) {
   const { groups, missing } = classDistribution(oi);
   const chips = groups.map((g) => `<span class="zn-chip"><b>${esc(g.label)}</b><span class="zn-chip-v">${fmtNum(g.area)} м²</span></span>`);
   if (missing.length) {
-    chips.push(`<span class="zn-chip warn">${esc(unclassText(missing))}</span>`);
+    const links = missing.map((m) => `<button type="button" class="zn-jump" data-zone-jump="${esc(m.id)}"
+      title="${esc(`Не хватает: ${m.missing.join(', ')}`)}">${esc(m.name)}</button>`).join(', ');
+    chips.push(`<span class="zn-chip warn">${esc(unclassText(missing))}: ${links}</span>`);
   }
-  const links = missing.length ? `<span class="zn-jumps">${missing.map((m) => `<button type="button" class="zn-jump" data-zone-jump="${esc(m.id)}"
-    title="${esc(`Не хватает: ${m.missing.join(', ')}`)}">${esc(m.name)}</button>`).join('')}</span>` : '';
-  return `<span class="zn-dist-l">По классам</span>${chips.join('') || '<span class="muted">—</span>'}${links}`;
+  return chips.join('') || '<span class="muted">—</span>';
 }
 
 function capClassCard(ctx, oi, idx) {
   const zoned = hasZones(oi);
   const body = zoned
     ? `${zonesSumsHTML(oi)}<div class="zn-list">${zonesOf(oi).map((z, i) => zoneHTML(z, i, z.id === openZoneId(ctx.ui, oi))).join('')}</div>
-       <button type="button" class="btn btn-ghost btn-sm zn-add" data-zone-add>+ Зона</button>`
+       <button type="button" class="btn btn-ghost btn-sm zn-add" data-zone-add>+ Подгруппа помещений</button>`
     : `${kindRowHTML(oi)}${signsHTML(oi)}
        <div class="zn-split"><button type="button" class="btn btn-ghost btn-sm" data-zone-split
-         title="Части литеры разного типа или класса — например, общежитие и цех из металлоконструкций">Разбить литеру на зоны</button></div>`;
+         title="Части литеры разного типа или класса — например, общежитие и цех из металлоконструкций">Разбить литеру на подгруппы помещений</button></div>`;
   return `<div class="card t-amber" id="q-capclass">
 <div class="card-head" data-card-toggle><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Тип и класс капитальности</h3>
-<span class="hint">${zoned ? `зон: ${zonesOf(oi).length}` : 'по фото с осмотра'}</span><span class="chev">▾</span></div>
+<span class="hint">${zoned ? `подгрупп: ${zonesOf(oi).length}` : 'по фото с осмотра'}</span><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">${body}</div></div>
 </div>`;
 }

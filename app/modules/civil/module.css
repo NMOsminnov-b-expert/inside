@@ -243,17 +243,13 @@ body[data-module="civil"] .lk-note{font-size:12.5px;margin-top:2px}
    классом и кнопкой «убрать»; над зонами — сверка суммы площадей той же
    панелью, что у этажей (.floors-sums), и площади по классам. */
 body[data-module="civil"] .zn-split{margin-top:12px}
-body[data-module="civil"] .zn-sums{margin:0 0 6px}
 /* «По классам» — плашками: площадь по каждому классу и одна плашка «без
    класса» со ссылками на зоны; раньше — абзац «Зона N: не хватает …» на все
    зоны (замечание пользователя 25.09.2026). */
-body[data-module="civil"] .zn-dist{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:12.5px}
-body[data-module="civil"] .zn-dist-l{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em;margin-right:2px}
 body[data-module="civil"] .zn-chip{display:inline-flex;align-items:baseline;gap:6px;padding:3px 9px;border-radius:999px;
   background:#eef4fb;border:1px solid #d5e3f3;color:var(--ink);white-space:nowrap}
 body[data-module="civil"] .zn-chip-v{font-variant-numeric:tabular-nums}
 body[data-module="civil"] .zn-chip.warn{background:#fdf4e3;border-color:#f0d9a8;color:#8a5a00}
-body[data-module="civil"] .zn-jumps{display:inline-flex;flex-wrap:wrap;gap:4px}
 body[data-module="civil"] .zn-jump{border:0;background:none;padding:1px 4px;font:inherit;font-size:12px;color:var(--blue-700);
   cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 body[data-module="civil"] .zn-jump:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
@@ -451,8 +447,26 @@ body[data-module="civil"] .cs-avg{display:flex;flex-wrap:wrap;align-items:baseli
 body[data-module="civil"] .cs-avg-l{font-size:12px;font-weight:700;color:var(--blue-700)}
 body[data-module="civil"] .cs-avg-v{font-size:18px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
 body[data-module="civil"] .cs-avg-n{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-/* Средневзвешенная капитальность литеры из зон — строкой под сверкой площадей. */
-body[data-module="civil"] .zn-avg{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:0 0 8px;font-size:12.5px;
-  font-variant-numeric:tabular-nums}
-body[data-module="civil"] .zn-avg-l{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em}
-body[data-module="civil"] .zn-avg-v{color:var(--ink)}
+/* Итоги литеры из подгрупп помещений — одна панель, строки «подпись —
+   значение»: подписи одной колонкой, значения по левому краю одной линией; на
+   узкой карточке подпись встаёт над значением. */
+body[data-module="civil"] .zn-sum{margin:0 0 10px;padding:8px 12px;border:1px solid #d5e3f3;border-radius:10px;background:#f4f8fd;
+  container:znsum / inline-size}
+body[data-module="civil"] .zn-sum-dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0}
+body[data-module="civil"] .zn-sum-row{display:contents}
+body[data-module="civil"] .zn-sum-row dt{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em;
+  padding-top:4px;white-space:nowrap}
+body[data-module="civil"] .zn-sum-row dd{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;
+  font-variant-numeric:tabular-nums;min-height:24px}
+body[data-module="civil"] .zn-sum-row dd b{font-weight:800}
+body[data-module="civil"] .zn-sum-note{font-size:12px;color:var(--muted)}
+body[data-module="civil"] .zn-avg-v{font-size:15px}
+body[data-module="civil"] .zn-st{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+body[data-module="civil"] .zn-st.ok{background:#e3f4e8;color:#1f7a3d}
+body[data-module="civil"] .zn-st.warn{background:#fdf4e3;color:#8a5a00}
+@container znsum (max-width:520px){
+  body[data-module="civil"] .zn-sum-dl{grid-template-columns:minmax(0,1fr);gap:2px}
+  body[data-module="civil"] .zn-sum-row dd{margin-bottom:6px}
+}
+body[data-module="civil"] .zn-chip.warn{white-space:normal;flex-wrap:wrap}
+body[data-module="civil"] .zn-chip.warn .zn-jump{padding:0;font-size:inherit;color:inherit;font-weight:700}

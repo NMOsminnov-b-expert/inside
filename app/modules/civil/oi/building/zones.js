@@ -1,4 +1,6 @@
-// Зоны литеры — части одного здания разного типа или класса (общежитие и цех
+// Подгруппы помещений литеры (в коде — zones, «зоны»; в интерфейсе с
+// 25.09.2026 — «подгруппа помещений», указание пользователя: «это не зона, а
+// подгруппа помещений») — части одного здания разного типа или класса (общежитие и цех
 // из металлоконструкций под одной крышей). Задача пользователя 25.09.2026:
 // «нужно уметь разбивать здание на подклассы… бить литеру на зоны, в том числе
 // по квадратуре (это важно)». Методика — «Категории и классы зданий»: у каждой
@@ -128,7 +130,7 @@ export function classDistribution(oi) {
 // …» по всем зонам разрастался на абзац (замечание пользователя 25.09.2026).
 export function unclassText(missing) {
   const n = missing.length;
-  const word = n % 10 === 1 && n % 100 !== 11 ? 'зона' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'зоны' : 'зон');
+  const word = n % 10 === 1 && n % 100 !== 11 ? 'подгруппа' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'подгруппы' : 'подгрупп');
   const area = missing.reduce((a, m) => a + m.area, 0);
   return `без класса — ${n} ${word}${area ? `, ${fmtNum(area)} м²` : ''}`;
 }
@@ -143,7 +145,7 @@ export function distributionText(oi) {
 export function typesText(oi) {
   const kinds = Array.from(new Set(zonesOf(oi).map((z) => z.litKind).filter(Boolean)));
   const labels = kinds.map((k) => (KINDS.find((x) => x.key === k) || {}).label).filter(Boolean);
-  return `${labels.join(', ') || 'не выбран'} · зон: ${zonesOf(oi).length}`;
+  return `${labels.join(', ') || 'не выбран'} · подгрупп: ${zonesOf(oi).length}`;
 }
 
 // Класс зоны для её шапки — коротко: «2 класс», «Прочие» или «не определён»;
@@ -165,7 +167,7 @@ export function missingText(t) {
   return c.missing.length ? `Не хватает для класса: ${c.missing.join(', ')}` : '';
 }
 
-export const zoneTitle = (z, i) => (z.name && z.name.trim()) || `Зона ${i + 1}`;
+export const zoneTitle = (z, i) => (z.name && z.name.trim()) || `Подгруппа ${i + 1}`;
 
 // Сверка суммы зон с площадью литеры по внутреннему обмеру — теми же словами,
 // что сверка этажей: «не хватает» / «лишние» / «сходится».
