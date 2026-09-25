@@ -98,6 +98,68 @@ public static class LayerOps
         l.W = info.W * s;
     }
 
+    // Таблица связей делится на две по строке at (номер строки в порядке
+    // связей разворота): вторая часть встаёт справа от первой — дальше её
+    // переносят к своим рамкам. Номера строк не меняются.
+    public static Layer? SplitTable(Sheet s, Layer t, int at)
+    {
+        var count = s.Links.Count;
+        var to = t.TableTo <= 0 ? count : t.TableTo;
+        if (at <= t.TableFrom || at >= to) return null;
+        var part = new Layer
+        {
+            Kind = LayerKind.Table, Name = UniqueName(s, "Таблица связей"), X = t.X + t.W + 60, Y = t.Y,
+            W = Math.Max(600, t.W / 2), Crop = new Box(0, 0, Math.Max(600, t.W / 2), 100), TableFrom = at, TableTo = to,
+        };
+        t.TableTo = at;
+        s.Layers.Insert(s.Layers.IndexOf(t) + 1, part);
+        return part;
+    }
+
+    // Слить таблицу со следующей по строкам частью: диапазоны стыкуются.
+    public static bool MergeTable(Sheet s, Layer t)
+    {
+        var to = t.TableTo <= 0 ? s.Links.Count : t.TableTo;
+        var next = s.Layers.FirstOrDefault(l => l.Kind == LayerKind.Table && l != t && l.TableFrom == to);
+        if (next == null) return false;
+        t.TableTo = next.TableTo;
+        s.Layers.Remove(next);
+        return true;
+    }
+
+    // Готовые раскладки разворота: таблица (все её части подряд) под
+    // картинками во всю их ширину или колонкой справа.
+    public static void Layout(Sheet s, string where)
+    {
+        var imgs = s.Layers.Where(l => !l.Hidden && l.Kind == LayerKind.Image).ToList();
+        var tables = s.Layers.Where(l => l.Kind == LayerKind.Table).OrderBy(l => l.TableFrom).ToList();
+        if (imgs.Count == 0 || tables.Count == 0) return;
+        var left = imgs.Min(l => l.X);
+        var top = imgs.Min(l => l.Y);
+        var right = imgs.Max(l => l.X + l.W);
+        var bottom = imgs.Max(l => l.Y + l.H);
+        if (where == "below")
+        {
+            var y = bottom + 80;
+            foreach (var t in tables)
+            {
+                t.X = left; t.Y = y; t.W = Math.Max(600, right - left);
+                t.Crop = new Box(0, 0, t.W, SheetView.TableHeight(s, t));
+                y += t.Crop.H + 30;
+            }
+        }
+        else
+        {
+            var y = top;
+            foreach (var t in tables)
+            {
+                t.X = right + 120; t.Y = y; t.W = 1000;
+                t.Crop = new Box(0, 0, t.W, SheetView.TableHeight(s, t));
+                y += t.Crop.H + 30;
+            }
+        }
+    }
+
     static string UniqueName(Sheet s, string name)
     {
         if (s.Layers.All(l => l.Name != name)) return name;

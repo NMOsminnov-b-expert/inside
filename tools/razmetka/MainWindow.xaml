@@ -14,6 +14,7 @@
                 <Button Style="{StaticResource PrimaryBtn}" x:Name="BtnSave" ToolTip="Сохранить (Ctrl+S)">Сохранить</Button>
                 <Border Style="{StaticResource Sep}"/>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddImage" ToolTip="Добавить фото или скан из файла; можно перетащить файлы на окно или вставить Ctrl+V">Добавить фото</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnNote" ToolTip="Заметка: щелчок по полотну ставит булавку с вопросом или пояснением (N)">Заметка</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnNewLink" ToolTip="Новая связь: обвести графу на документе, затем поле на снимке системы (L)">Новая связь</Button>
                 <Border Style="{StaticResource Sep}"/>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnUndo" ToolTip="Отменить (Ctrl+Z)">↶</Button>
@@ -53,6 +54,11 @@
             <Border Grid.Column="0" Background="{StaticResource Panel}">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Style="{StaticResource PanelTitle}">ГЛАВЫ И РАЗВОРОТЫ</TextBlock>
+                    <WrapPanel DockPanel.Dock="Bottom" Margin="8,0,8,0">
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center" Margin="4,0,4,0">Таблица</TextBlock>
+                        <Button Style="{StaticResource ToolBtn}" x:Name="BtnLayoutBelow" ToolTip="Таблица связей под картинками во всю ширину">снизу</Button>
+                        <Button Style="{StaticResource ToolBtn}" x:Name="BtnLayoutRight" ToolTip="Таблица связей колонкой справа">справа</Button>
+                    </WrapPanel>
                     <WrapPanel DockPanel.Dock="Bottom" Margin="8">
                         <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddChapter" ToolTip="Новая глава — новый документ">+ Глава</Button>
                         <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddSheet" ToolTip="Новый разворот в выбранной главе">+ Разворот</Button>
@@ -110,6 +116,14 @@
             <Border Grid.Column="4" Background="{StaticResource Panel}">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Style="{StaticResource PanelTitle}">СЛОИ · СВЕРХУ ВНИЗ</TextBlock>
+                    <StackPanel DockPanel.Dock="Bottom" x:Name="NoteProps" Margin="12,6,12,12" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PanelTitle}" Margin="0,4,0,6">ЗАМЕТКА</TextBlock>
+                        <TextBox x:Name="NoteText" Padding="4,3" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="90"/>
+                        <TextBlock x:Name="NoteMeta" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,4,0,6"/>
+                        <WrapPanel>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnNoteDel" ToolTip="Удалить заметку (Delete)">Удалить</Button>
+                        </WrapPanel>
+                    </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom" x:Name="LinkProps" Margin="12,6,12,12" Visibility="Collapsed">
                         <TextBlock Style="{StaticResource PanelTitle}" Margin="0,4,0,6">СВЯЗЬ</TextBlock>
                         <DockPanel Margin="0,0,0,6">
@@ -143,6 +157,8 @@
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnLinkDup" ToolTip="Копия связи: рамки ниже на свою высоту (Ctrl+D)">Копия</Button>
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnLinkDel" ToolTip="Удалить связь и её рамки (Delete)">Удалить</Button>
                         </WrapPanel>
+                        <TextBlock x:Name="LinkHistTitle" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,8,0,2">Изменения связи</TextBlock>
+                        <TextBlock x:Name="LinkHist" FontSize="11" TextWrapping="Wrap"/>
                         <TextBlock x:Name="SeeAlsoTitle" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,8,0,2">То же поле в других разворотах</TextBlock>
                         <WrapPanel x:Name="SeeAlso"/>
                         <TextBlock Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0">
@@ -160,6 +176,10 @@
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnReplace" ToolTip="Заменить картинку, обрезка и место сохраняются">Заменить</Button>
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnDup" ToolTip="Копия со сдвигом (Ctrl+D)">Копия</Button>
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnDelete" ToolTip="Удалить (Delete)">Удалить</Button>
+                        </WrapPanel>
+                        <WrapPanel x:Name="TableTools" Margin="0,4,0,0" Visibility="Collapsed">
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnTableSplit" ToolTip="Разделить таблицу по строке выбранной связи или пополам">Разделить</Button>
+                            <Button Style="{StaticResource ToolBtn}" x:Name="BtnTableMerge" ToolTip="Слить со следующей частью">Слить</Button>
                         </WrapPanel>
                         <WrapPanel Margin="0,4,0,0">
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnTop" ToolTip="Наверх (Ctrl+Shift+])">Наверх</Button>

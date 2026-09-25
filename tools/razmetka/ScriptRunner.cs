@@ -141,6 +141,20 @@ public static class ScriptRunner
                         }
                         break;
                     }
+                    case "replace":
+                    {
+                        var l = w.Canvas.Sheet!.Layers.First(x => x.Name == st.GetProperty("layer").GetString());
+                        w.ReplaceWith(l, st.GetProperty("file").GetString()!);
+                        break;
+                    }
+                    case "alignClick":
+                    {
+                        var src = st.GetProperty("src");
+                        var p = w.Canvas.AlignSourceToScreen(st.GetProperty("which").GetString() == "old", new Point(src[0].GetDouble(), src[1].GetDouble()));
+                        w.Canvas.PointerDown(p, MouseButton.Left, ModifierKeys.None);
+                        w.Canvas.PointerUp(p);
+                        break;
+                    }
                     case "button":
                     {
                         // Нажать кнопку окна по её x:Name.

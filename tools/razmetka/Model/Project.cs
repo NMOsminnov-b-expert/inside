@@ -140,11 +140,15 @@ public sealed class Note
     public DateTime At { get; set; } = DateTime.Now;
 }
 
+// История правок: кто, когда, что и где (разворот; связь или слой). Пишется
+// на каждый шаг отмены — по ней видно, кто и когда трогал связь.
 public sealed class HistoryEntry
 {
     public DateTime At { get; set; } = DateTime.Now;
     public string Author { get; set; } = "";
     public string What { get; set; } = "";
+    public string Sheet { get; set; } = "";
+    public string Target { get; set; } = "";
 }
 
 public struct Box

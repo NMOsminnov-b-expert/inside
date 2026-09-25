@@ -50,8 +50,30 @@ public partial class MainWindow : Window
         BtnCropReset.Click += (_, _) => Edit("Сброс обрезки", () => { foreach (var l in View.SelectedLayers()) LayerOps.ResetCrop(l, _store!); });
         BtnReplace.Click += (_, _) => ReplaceImage();
         BtnNewLink.Click += (_, _) => View.SetLinkTool(!View.LinkTool);
-        BtnLinkCancel.Click += (_, _) => View.SetLinkTool(false);
+        BtnLinkCancel.Click += (_, _) => { if (View.AlignStep >= 0) View.CancelAlign(); else View.SetLinkTool(false); };
         View.ToolChanged += SyncTool;
+        View.AlignDone += (g, olds, news) =>
+        {
+            var l = View.Find(g.LayerId);
+            if (l == null || _sheet == null) return;
+            var f = SheetView.Similarity(olds, news);
+            Edit("Подгонка по точкам", () =>
+            {
+                foreach (var fr in _sheet.Frames.Where(x => x.LayerId == l.Id)) fr.Box = SheetView.MapBox(fr.Box, f);
+                // Видимая часть — та же область документа, но в пределах новой
+                // картинки: за её краем пусто, место на полотне сдвигается.
+                var raw = SheetView.MapBox(g.Crop, f);
+                var info = _store!.Project.Assets[l.Asset!];
+                double x0 = Math.Max(0, raw.X), y0 = Math.Max(0, raw.Y);
+                double x1 = Math.Min(info.W, raw.Right), y1 = Math.Min(info.H, raw.Bottom);
+                var k = g.W / raw.W;
+                l.Crop = new Box(x0, y0, x1 - x0, y1 - y0);
+                l.X = g.X + (x0 - raw.X) * k;
+                l.Y = g.Y + (y0 - raw.Y) * k;
+                l.W = (x1 - x0) * k;
+            });
+            Status("Рамки и обрезка подогнаны к новой картинке");
+        };
         View.LinkDrawn += (a, b) => CreateLink(a, b);
         foreach (var (key, label) in LinkKind.All) LinkKindBox.Items.Add(new ComboBoxItem { Content = label, Tag = key });
         LinkKindBox.SelectionChanged += (_, _) => LinkPropsCommit();
@@ -63,6 +85,23 @@ public partial class MainWindow : Window
         BtnReroute.Click += (_, _) => { if (View.SelectedLink is { } k) Edit("Переложить стрелку", () => SheetGeo.Reroute(_sheet!, new[] { k.Id })); };
         BtnLinkDup.Click += (_, _) => DuplicateLink();
         BtnLens.Click += (_, _) => ToggleLens();
+        BtnNote.Click += (_, _) => View.SetNoteTool(!View.NoteTool);
+        View.NotePlaced += p =>
+        {
+            Note? n = null;
+            Edit("Новая заметка", () => { n = new Note { X = p.X, Y = p.Y, Author = Environment.UserName }; _sheet!.Notes.Add(n); });
+            if (n != null) { View.SelectNote(n.Id); NoteText.Focus(); }
+        };
+        NoteText.LostFocus += (_, _) => NoteCommit();
+        BtnNoteDel.Click += (_, _) => DeleteNote();
+        BtnTableSplit.Click += (_, _) => SplitTable();
+        BtnTableMerge.Click += (_, _) =>
+        {
+            if (View.SelectedLayers().FirstOrDefault(l => l.Kind == LayerKind.Table) is { } t)
+                Edit("Слить таблицу", () => { if (!LayerOps.MergeTable(_sheet!, t)) Status("Следующей части таблицы нет"); });
+        };
+        BtnLayoutBelow.Click += (_, _) => { if (_sheet != null) { Edit("Таблица снизу", () => LayerOps.Layout(_sheet, "below")); View.FitAll(); } };
+        BtnLayoutRight.Click += (_, _) => { if (_sheet != null) { Edit("Таблица справа", () => LayerOps.Layout(_sheet, "right")); View.FitAll(); } };
         View.StraightenRequested += k => Edit("Выпрямить стрелку", () => { k.Points.Clear(); SheetGeo.Reroute(_sheet!, new[] { k.Id }); });
         foreach (var box in new[] { LinkSrcSide, LinkTgtSide })
         {
@@ -203,7 +242,16 @@ public partial class MainWindow : Window
         // обрезали, растянули), перекладываются в том же шаге отмены.
         if (_sheet != null) SheetGeo.Reroute(_sheet);
         if (_chapter != null) LinkOps.RenumberChapter(_chapter);
-        if (_undo.Commit(_store.Project, what)) _dirty = true;
+        if (_undo.Commit(_store.Project, what))
+        {
+            _dirty = true;
+            _store.Project.History.Add(new HistoryEntry
+            {
+                Author = Environment.UserName, What = what, Sheet = _sheet?.Id ?? "",
+                Target = View.LinkId ?? View.NoteId ?? string.Join(",", View.Selection),
+            });
+            if (_store.Project.History.Count > 5000) _store.Project.History.RemoveRange(0, _store.Project.History.Count - 5000);
+        }
         View.Refresh();
         UpdateAll();
     }
@@ -292,7 +340,17 @@ public partial class MainWindow : Window
         if (l == null || _store == null) return;
         var dlg = new OpenFileDialog { Title = "Новая картинка для слоя", Filter = "Картинки|*.png;*.jpg;*.jpeg;*.bmp;*.tif;*.tiff;*.gif" };
         if (dlg.ShowDialog(this) != true) return;
-        Edit("Замена фото", () => LayerOps.Replace(l, _store, _store.ImportFile(dlg.FileName)));
+        ReplaceWith(l, dlg.FileName);
+    }
+
+    // Замена и сразу подгонка по двум точкам: у слоя есть рамки — без
+    // подгонки они встанут на новую картинку только примерно.
+    public void ReplaceWith(Layer l, string file)
+    {
+        if (_store == null || l.Asset == null) return;
+        var ghost = new SheetView.AlignGhost(l.Id, l.Asset, l.Crop, l.X, l.Y, l.W);
+        Edit("Замена фото", () => LayerOps.Replace(l, _store, _store.ImportFile(file)));
+        if (_sheet != null && _sheet.Frames.Any(f => f.LayerId == l.Id)) View.StartAlign(ghost);
     }
 
     void OnDrop(object sender, DragEventArgs e)
@@ -358,9 +416,12 @@ public partial class MainWindow : Window
         if (ctrl && key == Key.OemOpenBrackets) { Reorder(shift ? int.MinValue : -1); return true; }
         if (ctrl && key == Key.A && _sheet != null) { View.Select(_sheet.Layers.Where(l => !l.Hidden && !l.Locked).Select(l => l.Id)); return true; }
         if (key is Key.Enter or Key.Escape && View.CropLayerId != null) { View.EndCrop(); SyncSelection(); return true; }
+        if (key == Key.Escape && View.AlignStep >= 0) { View.CancelAlign(); return true; }
         if (key == Key.Escape && View.LinkTool) { View.SetLinkTool(false); return true; }
         if (key == Key.L && mods == ModifierKeys.None) { View.SetLinkTool(!View.LinkTool); return true; }
         if (key == Key.M && mods == ModifierKeys.None) { ToggleLens(); return true; }
+        if (key == Key.N && mods == ModifierKeys.None) { View.SetNoteTool(!View.NoteTool); return true; }
+        if (key is Key.Delete or Key.Back && View.NoteId != null) { DeleteNote(); return true; }
         if (key == Key.Escape && View.LinkId != null) { View.SelectLink(null); ClearPops(); return true; }
         if (key == Key.Escape) { View.ClearSelection(); return true; }
         if (key is Key.Delete or Key.Back && View.LinkId != null) { DeleteLink(); return true; }
@@ -613,9 +674,11 @@ public partial class MainWindow : Window
         PropName.IsEnabled = PropCaption.IsEnabled = one != null;
         var img = one != null && one.Kind == LayerKind.Image;
         BtnCrop.IsEnabled = BtnReplace.IsEnabled = img && !one!.Locked;
+        TableTools.Visibility = one?.Kind == LayerKind.Table ? Visibility.Visible : Visibility.Collapsed;
         foreach (var b in new[] { BtnDup, BtnDelete, BtnTop, BtnUp, BtnDown, BtnBottom }) b.IsEnabled = sel.Count > 0;
         CropBar.Visibility = View.CropLayerId != null ? Visibility.Visible : Visibility.Collapsed;
         SyncLinkProps();
+        SyncNoteProps();
         Status(sel.Count switch
         {
             0 => _sheet == null ? "" : "Щелчок — выбрать слой, перетаскивание по пустому — выбрать несколько, колесо — масштаб",
@@ -718,8 +781,70 @@ public partial class MainWindow : Window
 
     // --- связи ---------------------------------------------------------------
 
+    // Разделить таблицу: по строке выбранной связи, если она в этой части,
+    // иначе пополам.
+    void SplitTable()
+    {
+        if (_sheet == null || View.SelectedLayers().FirstOrDefault(l => l.Kind == LayerKind.Table) is not { } t) return;
+        var ordered = SheetGeo.Ordered(_sheet);
+        var to = t.TableTo <= 0 ? ordered.Count : t.TableTo;
+        var at = (t.TableFrom + to) / 2;
+        if (_lastLinkId != null && ordered.FindIndex(k => k.Id == _lastLinkId) is var i && i > t.TableFrom && i < to) at = i;
+        Layer? part = null;
+        Edit("Разделить таблицу", () => part = LayerOps.SplitTable(_sheet, t, at));
+        if (part == null) Status("В этой части таблицы одна строка — делить нечего");
+        else View.Select(new[] { part.Id });
+    }
+
+    string? _propsNoteId;
+
+    void SyncNoteProps()
+    {
+        var n = View.SelectedNote;
+        if (_propsNoteId != null && _propsNoteId != n?.Id) NoteCommit();
+        _propsNoteId = n?.Id;
+        NoteProps.Visibility = n != null ? Visibility.Visible : Visibility.Collapsed;
+        if (n != null) { Props.Visibility = Visibility.Collapsed; LinkProps.Visibility = Visibility.Collapsed; }
+        if (n == null) return;
+        var was = _syncing;
+        _syncing = true;
+        NoteText.Text = n.Text;
+        NoteMeta.Text = $"{n.Author}, {n.At:dd.MM.yyyy HH:mm}";
+        _syncing = was;
+    }
+
+    void NoteCommit()
+    {
+        if (_syncing || _sheet == null) return;
+        var n = _sheet.Notes.FirstOrDefault(x => x.Id == _propsNoteId);
+        if (n == null || n.Text == NoteText.Text) return;
+        Edit("Текст заметки", () => n.Text = NoteText.Text);
+    }
+
+    void DeleteNote()
+    {
+        if (_sheet == null || View.SelectedNote is not { } n) return;
+        Edit("Удаление заметки", () => _sheet.Notes.Remove(n));
+        View.SelectNote(null);
+    }
+
     void SyncTool()
     {
+        if (View.AlignStep >= 0)
+        {
+            LinkBar.Visibility = Visibility.Visible;
+            BtnLinkCancel.Content = "Пропустить";
+            LinkBarText.Text = View.AlignStep switch
+            {
+                0 => "Подгонка: точка 1 на прежней (бледной) картинке — например, угол таблицы",
+                1 => "Та же точка 1 на новой картинке",
+                2 => "Точка 2 на прежней картинке — подальше от первой",
+                _ => "Та же точка 2 на новой картинке",
+            };
+            return;
+        }
+        BtnLinkCancel.Content = "Отмена";
+        BtnNote.Background = View.NoteTool ? (Brush)FindResource("AccentSoft") : Brushes.Transparent;
         BtnNewLink.Background = View.LinkTool ? (Brush)FindResource("AccentSoft") : Brushes.Transparent;
         LinkBar.Visibility = View.LinkTool ? Visibility.Visible : Visibility.Collapsed;
         LinkBarText.Text = View.HasPendingFrame
@@ -764,6 +889,8 @@ public partial class MainWindow : Window
     // показывает, и пишет только в неё.
     string? _propsLinkId;
     string? _propsLayerId;
+    // Последняя выбранная связь — по её строке делится таблица.
+    string? _lastLinkId;
 
     void LinkPropsCommit()
     {
@@ -786,6 +913,7 @@ public partial class MainWindow : Window
     void SyncLinkProps()
     {
         var k = View.SelectedLink;
+        if (k != null) _lastLinkId = k.Id;
         if (_propsLinkId != null && _propsLinkId != k?.Id) LinkPropsCommit();
         _propsLinkId = k?.Id;
         LinkProps.Visibility = k != null ? Visibility.Visible : Visibility.Collapsed;
@@ -802,6 +930,9 @@ public partial class MainWindow : Window
         foreach (ComboBoxItem it in LinkSrcSide.Items) if ((string)it.Tag == k.SrcSide) LinkSrcSide.SelectedItem = it;
         foreach (ComboBoxItem it in LinkTgtSide.Items) if ((string)it.Tag == k.TgtSide) LinkTgtSide.SelectedItem = it;
         BuildSeeAlso(k);
+        var hist = _store!.Project.History.Where(h => h.Target == k.Id).TakeLast(6).Reverse().ToList();
+        LinkHistTitle.Visibility = hist.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        LinkHist.Text = string.Join("\n", hist.Select(h => $"{h.At:dd.MM HH:mm} · {h.Author} · {h.What}"));
         _syncing = was;
     }
 

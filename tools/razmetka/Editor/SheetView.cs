@@ -45,6 +45,59 @@ public sealed class SheetView : FrameworkElement
     Point? _lensAt;
     public event Action<Link>? StraightenRequested;
 
+    // Заметки-булавки: инструмент N — щелчок ставит булавку; выбранная
+    // заметка правится в панели справа.
+    public bool NoteTool { get; private set; }
+    public string? NoteId { get; private set; }
+    public event Action<Point>? NotePlaced;
+    public Note? SelectedNote => NoteId == null ? null : Sheet?.Notes.FirstOrDefault(n => n.Id == NoteId);
+
+    public void SetNoteTool(bool on)
+    {
+        NoteTool = on;
+        Cursor = on ? Cursors.Pen : null;
+        ToolChanged?.Invoke();
+    }
+
+    public void SelectNote(string? id)
+    {
+        NoteId = id;
+        InvalidateVisual();
+        SelectionChanged?.Invoke();
+    }
+
+    Note? HitNote(Point screen)
+    {
+        if (Sheet == null) return null;
+        foreach (var n in Sheet.Notes.AsEnumerable().Reverse())
+            if ((ToScreen(n.X, n.Y) - screen).Length <= 14) return n;
+        return null;
+    }
+
+    static readonly Brush NoteFill = new SolidColorBrush(Color.FromRgb(0xF4, 0xB9, 0x2F));
+
+    void DrawNotes(DrawingContext dc)
+    {
+        if (Sheet == null) return;
+        foreach (var n in Sheet.Notes)
+        {
+            var p = ToScreen(n.X, n.Y);
+            var on = n.Id == NoteId;
+            dc.DrawEllipse(NoteFill, new Pen(on ? SelPen.Brush : Brushes.White, on ? 3 : 2), p, 12, 12);
+            var ft = Text("!", 15, Colors.White);
+            dc.DrawText(ft, new Point(p.X - ft.Width / 2, p.Y - ft.Height / 2));
+            if (string.IsNullOrWhiteSpace(n.Text)) continue;
+            // Текст заметки — короткой карточкой справа от булавки.
+            var t = Text(n.Text, 12, Color.FromRgb(0x1C, 0x2A, 0x35));
+            t.MaxTextWidth = 220;
+            t.MaxLineCount = on ? 8 : 2;
+            t.Trimming = TextTrimming.CharacterEllipsis;
+            var r = new Rect(p.X + 16, p.Y - 10, Math.Min(236, t.Width + 16), t.Height + 8);
+            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(0xFF, 0xF6, 0xDC)), new Pen(NoteFill, 1), r, 5, 5);
+            dc.DrawText(t, new Point(r.X + 8, r.Y + 4));
+        }
+    }
+
     public void SetFilter(string? f) { Filter = string.IsNullOrWhiteSpace(f) ? null : f; InvalidateVisual(); }
     public void SetLens(bool on) { Lens = on; if (!on) _lensAt = null; InvalidateVisual(); }
     public void MoveLens(Point p) { _lensAt = p; InvalidateVisual(); }
@@ -59,7 +112,8 @@ public sealed class SheetView : FrameworkElement
     const double HandleR = 5;
     const double SnapPx = 6;
 
-    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag }
+    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag, NoteMove }
+    Point _noteOrig;
     Op _op;
     Point _downScreen, _lastScreen;
     Point _downWorld;
@@ -206,6 +260,8 @@ public sealed class SheetView : FrameworkElement
 
         DrawLinkEdit(dc);
         DrawPendingFrame(dc);
+        DrawNotes(dc);
+        DrawAlign(dc);
         if (_op == Op.Band) dc.DrawRectangle(BandFill, SelPen, _band);
         DrawLens(dc);
     }
@@ -426,7 +482,18 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null) return;
 
         if (button == MouseButton.Middle || button == MouseButton.Right || _spaceDown) { _op = Op.Pan; return; }
+        if (_ghost != null) { _op = Op.None; AlignClick(p); return; }
         if (LinkTool) { _op = Op.Band; _band = new Rect(p, p); return; }
+        if (NoteTool) { _op = Op.None; SetNoteTool(false); NotePlaced?.Invoke(ToWorld(p)); return; }
+        if (HitNote(p) is { } note)
+        {
+            SelectNote(note.Id);
+            _op = Op.NoteMove;
+            _noteOrig = new Point(note.X, note.Y);
+            EditStarting?.Invoke();
+            return;
+        }
+        if (NoteId != null) SelectNote(null);
 
         var crop = CropLayer();
         if (crop != null)
@@ -513,6 +580,9 @@ public sealed class SheetView : FrameworkElement
             case Op.SegDrag:
                 SegDrag(w);
                 break;
+            case Op.NoteMove:
+                if (SelectedNote is { } nm) { nm.X = _noteOrig.X + dw.X; nm.Y = _noteOrig.Y + dw.Y; }
+                break;
         }
         InvalidateVisual();
     }
@@ -548,6 +618,7 @@ public sealed class SheetView : FrameworkElement
                 Op.CropHandle or Op.CropPan => "Обрезка",
                 Op.FrameMove or Op.FrameResize => "Рамка связи",
                 Op.SegDrag => "Путь стрелки",
+                Op.NoteMove => "Перенос заметки",
                 _ => "Правка",
             });
         }
@@ -878,6 +949,135 @@ public sealed class SheetView : FrameworkElement
         dc.DrawRectangle(null, pen, r);
     }
 
+    // --- подгонка по двум точкам после замены картинки -------------------
+    //
+    // Новый скан того же документа почти всегда сдвинут, в другом масштабе и
+    // чуть повёрнут. Прежняя картинка показывается бледно поверх новой в
+    // прежнем положении; пользователь отмечает точку 1 на прежней, ту же
+    // точку на новой, затем точку 2 так же. По двум парам точек считается
+    // преобразование подобия (перенос, масштаб, поворот — NASA NTRS,
+    // «Geometric registration … using two reference points»), им
+    // пересчитываются рамки слоя и обрезка.
+
+    public sealed record AlignGhost(string LayerId, string Asset, Box Crop, double X, double Y, double W);
+    AlignGhost? _ghost;
+    readonly List<Point> _alignSrc = new();
+    public event Action<AlignGhost, Point[], Point[]>? AlignDone;
+    public int AlignStep => _ghost == null ? -1 : _alignSrc.Count;
+
+    public void StartAlign(AlignGhost g)
+    {
+        _ghost = g;
+        _alignSrc.Clear();
+        Cursor = Cursors.Cross;
+        InvalidateVisual();
+        ToolChanged?.Invoke();
+    }
+
+    public void CancelAlign()
+    {
+        _ghost = null;
+        _alignSrc.Clear();
+        Cursor = null;
+        InvalidateVisual();
+        ToolChanged?.Invoke();
+    }
+
+    // Точка в пикселях исходника: нечётные щелчки — прежней картинки (по её
+    // прежнему месту), чётные — новой (по слою как он есть сейчас).
+    void AlignClick(Point screen)
+    {
+        var g = _ghost!;
+        var w = ToWorld(screen);
+        if (_alignSrc.Count % 2 == 0)
+        {
+            var k = g.W / g.Crop.W;
+            _alignSrc.Add(new Point(g.Crop.X + (w.X - g.X) / k, g.Crop.Y + (w.Y - g.Y) / k));
+        }
+        else
+        {
+            var l = Find(g.LayerId)!;
+            var k = l.Scale;
+            _alignSrc.Add(new Point(l.Crop.X + (w.X - l.X) / k, l.Crop.Y + (w.Y - l.Y) / k));
+        }
+        ToolChanged?.Invoke();
+        InvalidateVisual();
+        if (_alignSrc.Count < 4) return;
+        var olds = new[] { _alignSrc[0], _alignSrc[2] };
+        var news = new[] { _alignSrc[1], _alignSrc[3] };
+        var done = g;
+        CancelAlign();
+        AlignDone?.Invoke(done, olds, news);
+    }
+
+    // Для сценариев проверки: точка исходника прежней (old) или новой
+    // картинки — в экранную.
+    public Point AlignSourceToScreen(bool old, Point src)
+    {
+        var g = _ghost!;
+        if (old) { var k = g.W / g.Crop.W; return ToScreen(g.X + (src.X - g.Crop.X) * k, g.Y + (src.Y - g.Crop.Y) * k); }
+        var l = Find(g.LayerId)!;
+        var kk = l.Scale;
+        return ToScreen(l.X + (src.X - l.Crop.X) * kk, l.Y + (src.Y - l.Crop.Y) * kk);
+    }
+
+    void DrawAlign(DrawingContext dc)
+    {
+        if (_ghost is not { } g || Store == null) return;
+        var bmp = Store.Bitmap(g.Asset);
+        if (bmp != null && Store.Project.Assets.TryGetValue(g.Asset, out var info))
+        {
+            var k = g.W / g.Crop.W;
+            var vis = new Rect(ToScreen(g.X, g.Y), ToScreen(g.X + g.W, g.Y + g.Crop.H * k));
+            var full = new Rect(ToScreen(g.X - g.Crop.X * k, g.Y - g.Crop.Y * k),
+                                ToScreen(g.X - g.Crop.X * k + info.W * k, g.Y - g.Crop.Y * k + info.H * k));
+            dc.PushClip(new RectangleGeometry(vis));
+            dc.PushOpacity(0.45);
+            dc.DrawImage(bmp, full);
+            dc.Pop();
+            dc.Pop();
+            dc.DrawRectangle(null, new Pen(Brushes.OrangeRed, 1.5) { DashStyle = DashStyles.Dash }, vis);
+        }
+        // Отмеченные точки: на прежней — оранжевые, на новой — зелёные.
+        var l = Find(g.LayerId);
+        for (var i = 0; i < _alignSrc.Count; i++)
+        {
+            var src = _alignSrc[i];
+            Point wpt;
+            if (i % 2 == 0) { var kk = g.W / g.Crop.W; wpt = new Point(g.X + (src.X - g.Crop.X) * kk, g.Y + (src.Y - g.Crop.Y) * kk); }
+            else if (l != null) { var kk = l.Scale; wpt = new Point(l.X + (src.X - l.Crop.X) * kk, l.Y + (src.Y - l.Crop.Y) * kk); }
+            else continue;
+            var p = ToScreen(wpt.X, wpt.Y);
+            var col = i % 2 == 0 ? Brushes.OrangeRed : Brushes.SeaGreen;
+            dc.DrawEllipse(null, new Pen(col, 2.5), p, 9, 9);
+            dc.DrawLine(new Pen(col, 1.5), new Point(p.X - 14, p.Y), new Point(p.X + 14, p.Y));
+            dc.DrawLine(new Pen(col, 1.5), new Point(p.X, p.Y - 14), new Point(p.X, p.Y + 14));
+            var ft = Text((i / 2 + 1).ToString(), 13, i % 2 == 0 ? Colors.OrangeRed : Colors.SeaGreen);
+            dc.DrawText(ft, new Point(p.X + 10, p.Y - 22));
+        }
+    }
+
+    // Преобразование подобия по двум парам точек: z' = a·z + b в комплексных
+    // числах (a — масштаб и поворот, b — перенос).
+    public static Func<Point, Point> Similarity(Point[] from, Point[] to)
+    {
+        var o1 = new System.Numerics.Complex(from[0].X, from[0].Y);
+        var o2 = new System.Numerics.Complex(from[1].X, from[1].Y);
+        var n1 = new System.Numerics.Complex(to[0].X, to[0].Y);
+        var n2 = new System.Numerics.Complex(to[1].X, to[1].Y);
+        if ((o2 - o1).Magnitude < 1e-6) return p => p;
+        var a = (n2 - n1) / (o2 - o1);
+        var b = n1 - a * o1;
+        return p => { var z = a * new System.Numerics.Complex(p.X, p.Y) + b; return new Point(z.Real, z.Imaginary); };
+    }
+
+    public static Box MapBox(Box b, Func<Point, Point> f)
+    {
+        var pts = new[] { f(new Point(b.X, b.Y)), f(new Point(b.Right, b.Y)), f(new Point(b.Right, b.Bottom)), f(new Point(b.X, b.Bottom)) };
+        double x0 = pts.Min(p => p.X), y0 = pts.Min(p => p.Y), x1 = pts.Max(p => p.X), y1 = pts.Max(p => p.Y);
+        return new Box(x0, y0, x1 - x0, y1 - y0);
+    }
+
     // --- таблица связей --------------------------------------------------
 
     const double TPad = 12, TNum = 74, THead = 52;
@@ -886,10 +1086,20 @@ public sealed class SheetView : FrameworkElement
     // единиц смотрят целиком при 35–50 %, и текст должен читаться.
     const double TFont = 26;
 
-    List<(Link Link, double Y, double H)> TableRows(Layer l, out double total)
+    List<(Link Link, double Y, double H)> TableRows(Layer l, out double total) => TableRows(Sheet!, l, out total);
+
+    // Высота таблицы по строкам при её ширине — её же берут раскладки
+    // разворота (LayerOps.Layout), чтобы части таблицы не наезжали.
+    public static double TableHeight(Sheet s, Layer l)
+    {
+        TableRows(s, l, out var total);
+        return total;
+    }
+
+    static List<(Link Link, double Y, double H)> TableRows(Sheet sheet, Layer l, out double total)
     {
         var rows = new List<(Link, double, double)>();
-        var links = SheetGeo.Ordered(Sheet!);
+        var links = SheetGeo.Ordered(sheet);
         var from = Math.Clamp(l.TableFrom, 0, links.Count);
         var to = Math.Clamp(l.TableTo <= 0 ? links.Count : l.TableTo, from, links.Count);
         var col = (l.W - TNum) / 2;
