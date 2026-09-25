@@ -62,6 +62,16 @@ public partial class MainWindow : Window
         }
         BtnReroute.Click += (_, _) => { if (View.SelectedLink is { } k) Edit("Переложить стрелку", () => SheetGeo.Reroute(_sheet!, new[] { k.Id })); };
         BtnLinkDup.Click += (_, _) => DuplicateLink();
+        BtnLens.Click += (_, _) => ToggleLens();
+        View.StraightenRequested += k => Edit("Выпрямить стрелку", () => { k.Points.Clear(); SheetGeo.Reroute(_sheet!, new[] { k.Id }); });
+        foreach (var box in new[] { LinkSrcSide, LinkTgtSide })
+        {
+            foreach (var (key, label) in Sides) box.Items.Add(new ComboBoxItem { Content = label, Tag = key });
+            box.SelectionChanged += (_, _) => SidesCommit();
+        }
+        SearchBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { SearchNext(); e.Handled = true; } };
+        SearchBox.TextChanged += (_, _) => _searchAt = -1;
+        FilterBox.SelectionChanged += (_, _) => { if (!_syncing) View.SetFilter((FilterBox.SelectedItem as ComboBoxItem)?.Tag as string); };
         BtnLinkDel.Click += (_, _) => DeleteLink();
         BtnDup.Click += (_, _) => Duplicate();
         BtnDelete.Click += (_, _) => DeleteSelected();
@@ -334,6 +344,7 @@ public partial class MainWindow : Window
         var ctrl = mods.HasFlag(ModifierKeys.Control);
         var shift = mods.HasFlag(ModifierKeys.Shift);
         if (ctrl && key == Key.S) { Save(); return true; }
+        if (ctrl && key == Key.F) { SearchBox.Focus(); SearchBox.SelectAll(); return true; }
         if (ctrl && key == Key.O) { OpenProject(); return true; }
         if (inText) return false;
         if (ctrl && key == Key.Z && !shift) { Undo(); return true; }
@@ -349,6 +360,7 @@ public partial class MainWindow : Window
         if (key is Key.Enter or Key.Escape && View.CropLayerId != null) { View.EndCrop(); SyncSelection(); return true; }
         if (key == Key.Escape && View.LinkTool) { View.SetLinkTool(false); return true; }
         if (key == Key.L && mods == ModifierKeys.None) { View.SetLinkTool(!View.LinkTool); return true; }
+        if (key == Key.M && mods == ModifierKeys.None) { ToggleLens(); return true; }
         if (key == Key.Escape && View.LinkId != null) { View.SelectLink(null); ClearPops(); return true; }
         if (key == Key.Escape) { View.ClearSelection(); return true; }
         if (key is Key.Delete or Key.Back && View.LinkId != null) { DeleteLink(); return true; }
@@ -467,6 +479,7 @@ public partial class MainWindow : Window
             BtnRedo.ToolTip = _undo.CanRedo ? $"Повторить: {_undo.RedoWhat} (Ctrl+Y)" : "Повторить (Ctrl+Y)";
             Title = open ? $"{(_dirty ? "● " : "")}{_store!.Project.Title} — Разметка документов" : "Разметка документов";
             BuildTree();
+            BuildFilter();
             SyncTreeFields();
             BuildLayers();
             SyncProps();
@@ -613,6 +626,96 @@ public partial class MainWindow : Window
 
     void Status(string s) => StatusText.Text = s;
 
+    // --- навигация: лупа, поиск, фильтр, «то же поле» ------------------------
+
+    static readonly (string Key, string Label)[] Sides =
+        { ("", "любая"), ("left", "слева"), ("right", "справа"), ("top", "сверху"), ("bottom", "снизу") };
+
+    public void ToggleLens()
+    {
+        View.SetLens(!View.Lens);
+        BtnLens.Background = View.Lens ? (Brush)FindResource("AccentSoft") : Brushes.Transparent;
+        Status(View.Lens ? "Лупа включена — водите курсором; M — выключить" : "");
+    }
+
+    void SidesCommit()
+    {
+        if (_syncing || _sheet == null) return;
+        var k = _sheet.Links.FirstOrDefault(x => x.Id == _propsLinkId);
+        if (k == null) return;
+        var src = (LinkSrcSide.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        var tgt = (LinkTgtSide.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        if (src == k.SrcSide && tgt == k.TgtSide) return;
+        Edit("Сторона стрелки", () =>
+        {
+            k.SrcSide = src;
+            k.TgtSide = tgt;
+            SheetGeo.Reroute(_sheet, new[] { k.Id });
+        });
+    }
+
+    // Все связи проекта с местом: глава, разворот.
+    IEnumerable<(Chapter Ch, Sheet Sh, Link K)> AllLinks() =>
+        _store == null ? Enumerable.Empty<(Chapter, Sheet, Link)>()
+            : _store.Project.Chapters.SelectMany(c => c.Sheets.SelectMany(s => s.Links.OrderBy(k => k.N).Select(k => (c, s, k))));
+
+    public void JumpTo(Chapter ch, Sheet sh, Link k)
+    {
+        if (sh != _sheet) PickSheet(ch, sh);
+        View.SelectLink(k.Id);
+        if (View.LinkBounds(k) is { } r) View.ScrollToWorld(r);
+        if (View.LinkBadgeScreen(k) is { } p) ShowPop(k, p);
+    }
+
+    int _searchAt = -1;
+
+    // Поиск по графе и полю системы через весь проект; Enter — следующая.
+    public void SearchNext()
+    {
+        var q = SearchBox.Text.Trim();
+        if (q.Length == 0) return;
+        var hits = AllLinks().Where(x => x.K.DocField.Contains(q, StringComparison.OrdinalIgnoreCase)
+                                         || x.K.SystemField.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (hits.Count == 0) { Status($"«{q}» — не найдено"); return; }
+        _searchAt = (_searchAt + 1) % hits.Count;
+        var (ch, sh, k) = hits[_searchAt];
+        JumpTo(ch, sh, k);
+        Status($"«{q}»: {_searchAt + 1} из {hits.Count} — {ch.Title} · {sh.Title}, связь {k.N}. Enter — следующая");
+    }
+
+    // Блоки системы — первые две части поля «Литера · Площади и этажность ·
+    // …»: по ним фильтр.
+    void BuildFilter()
+    {
+        var cur = (FilterBox.SelectedItem as ComboBoxItem)?.Tag as string;
+        FilterBox.Items.Clear();
+        FilterBox.Items.Add(new ComboBoxItem { Content = "все блоки", Tag = null });
+        var blocks = AllLinks().Select(x => string.Join(" · ", x.K.SystemField.Split(" · ").Take(2)))
+            .Where(b => b.Length > 0).Distinct().OrderBy(b => b).ToList();
+        foreach (var b in blocks) FilterBox.Items.Add(new ComboBoxItem { Content = b, Tag = b });
+        FilterBox.SelectedItem = FilterBox.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string?)i.Tag == cur) ?? FilterBox.Items[0];
+    }
+
+    // «То же поле в других разворотах»: связи с тем же полем системы —
+    // переход по щелчку. Так видно, из каких документов поле заполняется.
+    void BuildSeeAlso(Link k)
+    {
+        SeeAlso.Children.Clear();
+        var same = AllLinks().Where(x => x.K.Id != k.Id && x.K.SystemField.Length > 0
+                                         && string.Equals(x.K.SystemField, k.SystemField, StringComparison.OrdinalIgnoreCase)).ToList();
+        SeeAlsoTitle.Visibility = same.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var (ch, sh, other) in same)
+        {
+            var b = new Button
+            {
+                Style = (Style)FindResource("ToolBtn"), Padding = new Thickness(6, 2, 6, 2),
+                Content = $"{ch.DocName} · {sh.Title} · {other.N}", ToolTip = $"{ch.Title} — {sh.Title}: {other.DocField}",
+            };
+            b.Click += (_, _) => JumpTo(ch, sh, other);
+            SeeAlso.Children.Add(b);
+        }
+    }
+
     // --- связи ---------------------------------------------------------------
 
     void SyncTool()
@@ -696,6 +799,9 @@ public partial class MainWindow : Window
         LinkUrl.Text = k.Url;
         LinkDocLabel.Text = _chapter?.DocName is { Length: > 0 } d ? $"Графа документа ({d})" : "Графа документа";
         foreach (ComboBoxItem it in LinkKindBox.Items) if ((string)it.Tag == k.Kind) LinkKindBox.SelectedItem = it;
+        foreach (ComboBoxItem it in LinkSrcSide.Items) if ((string)it.Tag == k.SrcSide) LinkSrcSide.SelectedItem = it;
+        foreach (ComboBoxItem it in LinkTgtSide.Items) if ((string)it.Tag == k.TgtSide) LinkTgtSide.SelectedItem = it;
+        BuildSeeAlso(k);
         _syncing = was;
     }
 

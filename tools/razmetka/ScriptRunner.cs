@@ -111,6 +111,36 @@ public static class ScriptRunner
                         w.Canvas.DoubleClick(w.Canvas.ToScreen((pts[i].X + pts[i + 1].X) / 2, (pts[i].Y + pts[i + 1].Y) / 2));
                         break;
                     }
+                    case "search":
+                    {
+                        ((System.Windows.Controls.TextBox)w.FindName("SearchBox")).Text = st.GetProperty("text").GetString();
+                        var times = st.TryGetProperty("times", out var tm) ? tm.GetInt32() : 1;
+                        for (var q = 0; q < times; q++) w.SearchNext();
+                        break;
+                    }
+                    case "filter":
+                    {
+                        var fb = (System.Windows.Controls.ComboBox)w.FindName("FilterBox");
+                        fb.SelectedIndex = st.GetProperty("index").GetInt32();
+                        break;
+                    }
+                    case "lens":
+                        if (!w.Canvas.Lens) w.ToggleLens();
+                        w.Canvas.MoveLens(Point(w, st.GetProperty("at")));
+                        break;
+                    case "sides":
+                    {
+                        var k = w.Canvas.Sheet!.Links.First(x => x.N == st.GetProperty("n").GetInt32());
+                        w.Canvas.SelectLink(k.Id);
+                        await Idle();
+                        foreach (var (name, key) in new[] { ("LinkSrcSide", "src"), ("LinkTgtSide", "tgt") })
+                        {
+                            var cb = (System.Windows.Controls.ComboBox)w.FindName(name);
+                            var want = st.GetProperty(key).GetString();
+                            cb.SelectedItem = cb.Items.Cast<System.Windows.Controls.ComboBoxItem>().First(i => (string)i.Tag == want);
+                        }
+                        break;
+                    }
                     case "button":
                     {
                         // Нажать кнопку окна по её x:Name.

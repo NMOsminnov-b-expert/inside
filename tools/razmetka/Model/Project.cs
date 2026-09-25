@@ -121,6 +121,10 @@ public sealed class Link
     public string SystemField { get; set; } = "";
     // Путь стрелки на полотне; пусто — проложить автоматически.
     public List<Pt> Points { get; set; } = new();
+    // Сторона рамки, из которой стрелка выходит (SrcSide) и в которую входит
+    // (TgtSide): "" — любая, "left", "right", "top", "bottom".
+    public string SrcSide { get; set; } = "";
+    public string TgtSide { get; set; } = "";
     // «См. также»: связи других разворотов про то же поле.
     public List<string> SeeAlso { get; set; } = new();
     public string Url { get; set; } = "";

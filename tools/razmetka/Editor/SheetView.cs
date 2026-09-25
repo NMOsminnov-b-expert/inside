@@ -37,6 +37,17 @@ public sealed class SheetView : FrameworkElement
     // Выбранная связь: остальные бледнеют, её строка в таблице выделена.
     public string? LinkId { get; private set; }
     public DocInfo Doc { get; set; } = new("", "");
+    // Фильтр по блоку системы: связи, у которых поле системы начинается не с
+    // этого, бледнеют. null — все видны.
+    public string? Filter { get; private set; }
+    // Лупа: круг с увеличением ×3 под курсором (M).
+    public bool Lens { get; private set; }
+    Point? _lensAt;
+    public event Action<Link>? StraightenRequested;
+
+    public void SetFilter(string? f) { Filter = string.IsNullOrWhiteSpace(f) ? null : f; InvalidateVisual(); }
+    public void SetLens(bool on) { Lens = on; if (!on) _lensAt = null; InvalidateVisual(); }
+    public void MoveLens(Point p) { _lensAt = p; InvalidateVisual(); }
 
     public event Action? EditStarting;
     public event Action<string>? EditCommitted;
@@ -196,6 +207,25 @@ public sealed class SheetView : FrameworkElement
         DrawLinkEdit(dc);
         DrawPendingFrame(dc);
         if (_op == Op.Band) dc.DrawRectangle(BandFill, SelPen, _band);
+        DrawLens(dc);
+    }
+
+    // Лупа: тот же разворот в круге, в 3 раза крупнее, центр — под курсором.
+    void DrawLens(DrawingContext dc)
+    {
+        if (!Lens || _lensAt is not { } c || Sheet == null) return;
+        const double R = 140, K = 3;
+        dc.PushClip(new EllipseGeometry(c, R, R));
+        dc.DrawEllipse(Brushes.White, null, c, R, R);
+        var z = Zoom * K;
+        var wx = (c.X - Offset.X) / Zoom;
+        var wy = (c.Y - Offset.Y) / Zoom;
+        dc.PushTransform(new MatrixTransform(z, 0, 0, z, c.X - wx * z, c.Y - wy * z));
+        foreach (var l in Sheet.Layers) if (!l.Hidden) DrawLayer(dc, l);
+        DrawLinks(dc);
+        dc.Pop();
+        dc.Pop();
+        dc.DrawEllipse(null, new Pen(SelPen.Brush, 2.5), c, R, R);
     }
 
     void DrawLayer(DrawingContext dc, Layer l)
@@ -355,7 +385,14 @@ public sealed class SheetView : FrameworkElement
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
+        if (Lens) MoveLens(e.GetPosition(this));
         if (_op != Op.None) PointerMove(e.GetPosition(this), Keyboard.Modifiers);
+    }
+
+    protected override void OnMouseLeave(MouseEventArgs e)
+    {
+        if (Lens) { _lensAt = null; InvalidateVisual(); }
+        base.OnMouseLeave(e);
     }
 
     protected override void OnMouseUp(MouseButtonEventArgs e)
@@ -367,6 +404,11 @@ public sealed class SheetView : FrameworkElement
 
     public void DoubleClick(Point screen)
     {
+        // Двойной щелчок по углу выбранной стрелки — выпрямить (проложить
+        // заново), по отрезку — излом.
+        if (LinkId != null && Sheet != null && SelectedLink is { } sk && SheetGeo.Path(Sheet, sk) is { } spts)
+            for (var i = 1; i < spts.Count - 1; i++)
+                if ((ToScreen(spts[i].X, spts[i].Y) - screen).Length <= 8) { StraightenRequested?.Invoke(sk); return; }
         if (LinkId != null && AddBend(screen)) return;
         var l = HitLayer(ToWorld(screen));
         if (l != null && l.Kind == LayerKind.Image && CropLayerId == null) StartCrop(l.Id);
@@ -575,7 +617,8 @@ public sealed class SheetView : FrameworkElement
             var tgt = SheetGeo.FrameRect(s, k.Tgt)!.Value;
             var on = k.Id == LinkId;
             var col = SheetGeo.Palette[ordered.IndexOf(k) % SheetGeo.Palette.Length];
-            if (dim && !on) col = Color.FromArgb(0x33, col.R, col.G, col.B);
+            var filtered = Filter != null && !k.SystemField.StartsWith(Filter, StringComparison.OrdinalIgnoreCase);
+            if ((dim && !on) || filtered) col = Color.FromArgb(filtered ? (byte)0x1C : (byte)0x33, col.R, col.G, col.B);
             var br = new SolidColorBrush(col);
             var width = on ? 7.0 : 4.0;
             var pen = new Pen(br, width) { LineJoin = PenLineJoin.Round };

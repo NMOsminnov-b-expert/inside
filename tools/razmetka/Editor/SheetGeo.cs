@@ -96,7 +96,8 @@ public static class SheetGeo
         foreach (var r in images.Concat(srcs).Concat(tgts)) area.Union(r);
         area.Inflate(200, 200);
         var fixedPaths = links.Select(k => redo.Contains(k) ? null : k.Points.Select(p => new Point(p.X, p.Y)).ToList()).ToList();
-        var geo = Router.Route(area, srcs, tgts, images, fixedPaths!);
+        var sides = links.Select(k => (k.SrcSide, k.TgtSide)).ToList();
+        var geo = Router.Route(area, srcs, tgts, images, fixedPaths!, sides);
         for (var i = 0; i < links.Count; i++)
             if (redo.Contains(links[i])) links[i].Points = geo[i].Select(p => new Pt(p.X, p.Y)).ToList();
     }

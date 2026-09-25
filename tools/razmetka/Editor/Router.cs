@@ -19,8 +19,13 @@ public static class Router
 
     // fixedPaths[i] != null — путь задан руками: не перекладывается, но
     // занимает сетку, чтобы другие его обходили.
+    // Направление шага: 0 — вправо, 1 — влево, 2 — вниз, 3 — вверх. Выход из
+    // правой стороны — шаг вправо, вход в левую сторону цели — тоже шаг вправо.
+    static int OutDir(string side) => side switch { "right" => 0, "left" => 1, "bottom" => 2, "top" => 3, _ => -1 };
+    static int InDir(string side) => side switch { "left" => 0, "right" => 1, "top" => 2, "bottom" => 3, _ => -1 };
+
     public static List<Point>[] Route(Rect area, IList<Rect> sources, IList<Rect> targets, IList<Rect> images,
-        IList<List<Point>?>? fixedPaths = null)
+        IList<List<Point>?>? fixedPaths = null, IList<(string Src, string Tgt)>? sides = null)
     {
         var ox = Math.Floor(area.X / Step) * Step - Step * 4;
         var oy = Math.Floor(area.Y / Step) * Step - Step * 4;
@@ -81,11 +86,14 @@ public static class Router
             var best = new Dictionary<int, double>();
             var parent = new Dictionary<int, int?>();
             double scx = (s.Left + s.Right) / 2, scy = (s.Top + s.Bottom) / 2;
+            var outD = sides == null ? -1 : OutDir(sides[i].Src);
+            var inD = sides == null ? -1 : InDir(sides[i].Tgt);
             foreach (var c in sOwn)
             {
                 int x = c % nx, y = c / nx;
                 for (var d = 0; d < 4; d++)
                 {
+                    if (outD >= 0 && d != outD) continue;
                     int x2 = x + Dirs[d].dx, y2 = y + Dirs[d].dy;
                     if (x2 < 0 || x2 >= nx || y2 < 0 || y2 >= ny) continue;
                     var nn = y2 * nx + x2;
@@ -115,6 +123,7 @@ public static class Router
                     if (tOwn.Contains(nn))
                     {
                         if (turn) continue;
+                        if (inD >= 0 && d2 != inD) continue;
                         var gg = g + 1;
                         if (gg < best.GetValueOrDefault(-1, 1e18)) { best[-1] = gg; parent[-1] = key; heap.Enqueue((gg, -1), gg); }
                         continue;

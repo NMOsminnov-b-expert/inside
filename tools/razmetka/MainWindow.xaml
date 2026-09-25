@@ -16,13 +16,20 @@
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnAddImage" ToolTip="Добавить фото или скан из файла; можно перетащить файлы на окно или вставить Ctrl+V">Добавить фото</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnNewLink" ToolTip="Новая связь: обвести графу на документе, затем поле на снимке системы (L)">Новая связь</Button>
                 <Border Style="{StaticResource Sep}"/>
-                <Button Style="{StaticResource ToolBtn}" x:Name="BtnUndo" ToolTip="Отменить (Ctrl+Z)">↶ Отменить</Button>
-                <Button Style="{StaticResource ToolBtn}" x:Name="BtnRedo" ToolTip="Повторить (Ctrl+Y)">↷ Повторить</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnUndo" ToolTip="Отменить (Ctrl+Z)">↶</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnRedo" ToolTip="Повторить (Ctrl+Y)">↷</Button>
                 <Border Style="{StaticResource Sep}"/>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnZoomOut" ToolTip="Мельче (Ctrl+−)">−</Button>
                 <TextBlock x:Name="ZoomText" VerticalAlignment="Center" MinWidth="48" TextAlignment="Center" Foreground="{StaticResource Muted}">100 %</TextBlock>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnZoomIn" ToolTip="Крупнее (Ctrl++)">+</Button>
                 <Button Style="{StaticResource ToolBtn}" x:Name="BtnFit" ToolTip="Весь разворот в окне (Ctrl+0)">По окну</Button>
+                <Button Style="{StaticResource ToolBtn}" x:Name="BtnLens" ToolTip="Лупа: участок под курсором втрое крупнее (M)">Лупа</Button>
+                <Border Style="{StaticResource Sep}"/>
+                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="4,0,6,0">Поиск</TextBlock>
+                <TextBox x:Name="SearchBox" Width="170" VerticalContentAlignment="Center" Padding="4,3"
+                         ToolTip="Графа документа или поле системы по всему проекту; Enter — следующая (Ctrl+F)"/>
+                <TextBlock VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="10,0,6,0">Блок</TextBlock>
+                <ComboBox x:Name="FilterBox" Width="210" ToolTip="Блок системы: ярко — только его связи"/>
             </WrapPanel>
         </Border>
 
@@ -119,6 +126,16 @@
                         <TextBox x:Name="LinkDoc" Margin="0,2,0,6" Padding="4,3" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="40"/>
                         <TextBlock Foreground="{StaticResource Muted}" FontSize="11">Блок и поле системы</TextBlock>
                         <TextBox x:Name="LinkSys" Margin="0,2,0,6" Padding="4,3" TextWrapping="Wrap" AcceptsReturn="False" MinHeight="40"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <StackPanel DockPanel.Dock="Left" Width="128" Margin="0,0,8,0">
+                                <TextBlock Foreground="{StaticResource Muted}" FontSize="11" ToolTip="Из какой стороны рамки на документе выходит стрелка">Выход стрелки</TextBlock>
+                                <ComboBox x:Name="LinkSrcSide" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Foreground="{StaticResource Muted}" FontSize="11" ToolTip="В какую сторону рамки на снимке входит стрелка">Вход стрелки</TextBlock>
+                                <ComboBox x:Name="LinkTgtSide" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
                         <TextBlock Foreground="{StaticResource Muted}" FontSize="11" ToolTip="Адрес страницы макета или документа — откроется из экспорта">Ссылка</TextBlock>
                         <TextBox x:Name="LinkUrl" Margin="0,2,0,8" Padding="4,3"/>
                         <WrapPanel>
@@ -126,8 +143,10 @@
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnLinkDup" ToolTip="Копия связи: рамки ниже на свою высоту (Ctrl+D)">Копия</Button>
                             <Button Style="{StaticResource ToolBtn}" x:Name="BtnLinkDel" ToolTip="Удалить связь и её рамки (Delete)">Удалить</Button>
                         </WrapPanel>
+                        <TextBlock x:Name="SeeAlsoTitle" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,8,0,2">То же поле в других разворотах</TextBlock>
+                        <WrapPanel x:Name="SeeAlso"/>
                         <TextBlock Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0">
-                            Рамки: край — перенос, углы — размер. Стрелка: отрезок — тянуть, двойной щелчок — излом.
+                            Рамки: край — перенос, углы — размер. Стрелка: отрезок — тянуть; двойной щелчок по отрезку — излом, по углу — выпрямить.
                         </TextBlock>
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Bottom" x:Name="Props" Margin="12,6,12,12">
