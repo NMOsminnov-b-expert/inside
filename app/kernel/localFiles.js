@@ -106,8 +106,12 @@ export function restoreLocalFiles(data) {
 let redrawTimer = null;
 function scheduleRedraw() {
   clearTimeout(redrawTimer);
-  // Маршрут перечитывается целиком — модуль перерисует экран уже с файлами.
-  redrawTimer = setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), 30);
+  // Перерисовку делает каркас (kernel/boot.js, событие inside:redraw) — уже
+  // смонтированному экрану. Раньше здесь был поддельный hashchange: если он
+  // приходил, пока карточка ещё грузилась, она монтировалась дважды, у кнопок
+  // оказывалось по два обработчика, и меню «+» открывалось и тут же
+  // закрывалось (замечание пользователя 25.09.2026).
+  redrawTimer = setTimeout(() => window.dispatchEvent(new CustomEvent('inside:redraw')), 30);
 }
 
 // --- копии в папку на диске ---------------------------------------------------

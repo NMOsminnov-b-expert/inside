@@ -124,7 +124,15 @@ function makeHost(route, scope, typeId) {
   };
 }
 
+// Номер последнего перехода. Переходы асинхронные (модуль и стили грузятся),
+// и если новый пришёл, пока старый ждал загрузки, старый не должен монтировать
+// экран: иначе на одном месте оказывались два экземпляра со своими
+// обработчиками.
+let routeSeq = 0;
+
 async function onRoute(route) {
+  const seq = ++routeSeq;
+  const stale = () => seq !== routeSeq;
   if (route.name === 'dicts') {
     // Раздел открыт всем: состав перечней полезно видеть и оценщику, чтобы
     // понимать, откуда взялся список. Правит только администратор — это
@@ -134,6 +142,7 @@ async function onRoute(route) {
     const scope = createScope(contentRoot());
     const host = makeHost(route, scope, null);
     await host.ensureStyle('./app/pages/dicts/dicts.css');
+    if (stale()) { scope.destroy(); return; }
     const instance = mountDicts(host);
     current = { kind: 'dicts', instance, scope };
     return;
@@ -155,6 +164,7 @@ async function onRoute(route) {
     const scope = createScope(contentRoot());
     const host = makeHost(route, scope, route.typeId);
     await host.ensureStyle('./app/pages/inspector/inspector.css');
+    if (stale()) { scope.destroy(); return; }
     const instance = mountInspector(host);
     current = { kind: 'inspector', instance, scope };
     return;
@@ -168,6 +178,7 @@ async function onRoute(route) {
     const scope = createScope(contentRoot());
     const host = makeHost(route, scope, null);
     await host.ensureStyle('./app/pages/institutions/institutions.css');
+    if (stale()) { scope.destroy(); return; }
     const instance = mountInstitutions(host);
     current = { kind: 'institutions', instance, scope };
     return;
@@ -184,6 +195,7 @@ async function onRoute(route) {
     const scope = createScope(contentRoot());
     const host = makeHost(route, scope, null);
     await host.ensureStyle('./app/pages/archive/archive.css');
+    if (stale()) { scope.destroy(); return; }
 
     if (!canViewArchive()) {
       document.body.dataset.page = 'archive';
@@ -214,6 +226,7 @@ async function onRoute(route) {
     const scope = createScope(contentRoot());
     const host = makeHost(route, scope, null);
     await host.ensureStyle('./app/pages/docs/docs.css');
+    if (stale()) { scope.destroy(); return; }
 
     const instance = mountDocs(host);
     current = { kind: 'docs', instance, scope };
@@ -261,6 +274,8 @@ async function onRoute(route) {
   setActiveNav('oc');
 
   const mod = await type.load();
+  if (stale()) return;
+
   const scope = createScope(contentRoot());
   const host = makeHost(route, scope, route.typeId);
 
@@ -270,6 +285,7 @@ async function onRoute(route) {
   // Файлов может быть несколько: гражданское здание берёт ещё стили карточки
   // ТС, которая живёт у него объектом имущества (vehicle/card.js).
   for (const href of [].concat(type.styleHref || [])) await host.ensureStyle(href);
+  if (stale()) { scope.destroy(); return; }
 
   const instance = mod.main(host);
   current = { kind: route.typeId, instance, scope };
@@ -290,6 +306,11 @@ export function boot() {
   // архив сами. Проверку связываем здесь, в одной точке сборки.
   setInstitutionProbe((name) => allNodes().some((n) => n.name === name));
   start((route) => { onRoute(route); });
+  // Перерисовать смонтированный экран с теми же данными маршрута — например,
+  // когда из хранилища браузера вернулись файлы документов (kernel/localFiles.js).
+  window.addEventListener('inside:redraw', () => {
+    if (current && current.instance && typeof current.instance.onRoute === 'function') current.instance.onRoute(parse());
+  });
 }
 
 export { OC_TYPES, parse };
