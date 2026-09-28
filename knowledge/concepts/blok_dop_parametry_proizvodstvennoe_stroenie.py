@@ -13,4 +13,6 @@ DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
 TAKEN = '2026-09-15'
-OCCURS = [{'экран': 'карточка «Производственное строение»', 'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-prod'}]
+OCCURS = [
+    {'экран': 'карточка «Производственное строение»', 'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-prod'},
+]

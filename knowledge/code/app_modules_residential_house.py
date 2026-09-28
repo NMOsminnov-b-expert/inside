@@ -12,9 +12,12 @@ STATUS = 'актуально'
 DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/modules/residential-house'
-POINTS = ['ОЦ-тип «Жилое здание (дом)»: индивидуальные дома с литерами (building), квартирами (apartment), землёй '
- '(land).',
- 'Виды ОИ: building, apartment, land.']
-LINKS = [{'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
- {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
- {'тип': 'depends_on', 'куда': 'app-kernel-session-js', 'папка': 'code'}]
+POINTS = [
+    'ОЦ-тип «Жилое здание (дом)»: индивидуальные дома с литерами (building), квартирами (apartment), землёй (land).',
+    'Виды ОИ: building, apartment, land.',
+]
+LINKS = [
+    {'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
+    {'тип': 'depends_on', 'куда': 'app-kernel-session-js', 'папка': 'code'},
+]

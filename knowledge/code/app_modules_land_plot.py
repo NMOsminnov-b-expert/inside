@@ -13,5 +13,7 @@ DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/modules/land-plot'
 POINTS = ['ОЦ-тип «Земельный участок»: участок как самостоятельный ОЦ.', 'Виды ОИ: land, building.']
-LINKS = [{'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
- {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'}]
+LINKS = [
+    {'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
+]

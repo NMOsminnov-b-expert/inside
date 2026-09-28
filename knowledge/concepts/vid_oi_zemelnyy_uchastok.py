@@ -13,7 +13,13 @@ DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
 TAKEN = '2026-09-15'
-OCCURS = [{'экран': 'карточка объекта имущества в «Жилое здание (квартира)»',
-  'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-land'},
- {'экран': 'карточка объекта имущества в «Жилое здание (дом)»',
-  'маршрут': '#/oc/residential-house/oc-rh-all/oi/oi-rh-all-land'}]
+OCCURS = [
+    {
+        'экран': 'карточка объекта имущества в «Жилое здание (квартира)»',
+        'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-land',
+    },
+    {
+        'экран': 'карточка объекта имущества в «Жилое здание (дом)»',
+        'маршрут': '#/oc/residential-house/oc-rh-all/oi/oi-rh-all-land',
+    },
+]

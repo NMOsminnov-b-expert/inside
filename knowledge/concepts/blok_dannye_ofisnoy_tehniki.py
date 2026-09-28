@@ -13,4 +13,6 @@ DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
 TAKEN = '2026-09-15'
-OCCURS = [{'экран': 'карточка «Офисная техника и мебель»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-office'}]
+OCCURS = [
+    {'экран': 'карточка «Офисная техника и мебель»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-office'},
+]

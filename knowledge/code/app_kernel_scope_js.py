@@ -12,8 +12,11 @@ STATUS = 'актуально'
 DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/kernel/scope.js'
-POINTS = ['DOM-скоуп: делегирование событий и рендер строго внутри root, чтобы экраны не пересекались через '
- 'document.querySelector.']
-LINKS = [{'тип': 'depends_on', 'куда': 'app-kernel-dom-js', 'папка': 'code'},
- {'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'},
- {'тип': 'содержит открытый вопрос', 'куда': 'pererisovka-ekrana-pri-izmenenii', 'папка': 'questions'}]
+POINTS = [
+    'DOM-скоуп: делегирование событий и рендер строго внутри root, чтобы экраны не пересекались через document.querySelector.',
+]
+LINKS = [
+    {'тип': 'depends_on', 'куда': 'app-kernel-dom-js', 'папка': 'code'},
+    {'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'содержит открытый вопрос', 'куда': 'pererisovka-ekrana-pri-izmenenii', 'папка': 'questions'},
+]

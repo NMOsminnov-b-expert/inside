@@ -12,6 +12,7 @@ STATUS = 'актуально'
 DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'collect_context.py'
-POINTS = ['Рекурсивно собирает текстовые файлы проекта (.py/.js/.ts/.html/.css/.md/...) в один context.txt с '
- 'маркерами FILE: — подготовка контекста для LLM.']
+POINTS = [
+    'Рекурсивно собирает текстовые файлы проекта (.py/.js/.ts/.html/.css/.md/...) в один context.txt с маркерами FILE: — подготовка контекста для LLM.',
+]
 LINKS = [{'тип': 'supports', 'куда': 'inside', 'папка': 'project'}]

@@ -12,6 +12,7 @@ STATUS = 'действует'
 DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'convention: сводки и запросы реестра'
-POINTS = ['Модуль отдаёт не «все сводки», а страницы по запросу: queryRecords, countRecords, facets, locate, '
- 'getSummary, loadRecord, totalCount, setStatus, assignResponsible.',
- 'Рассчитано на десятки тысяч записей.']
+POINTS = [
+    'Модуль отдаёт не «все сводки», а страницы по запросу: queryRecords, countRecords, facets, locate, getSummary, loadRecord, totalCount, setStatus, assignResponsible.',
+    'Рассчитано на десятки тысяч записей.',
+]

@@ -27,7 +27,6 @@ import datetime
 import glob
 import io
 import os
-import pprint
 import re
 import subprocess
 import sys
@@ -85,17 +84,82 @@ def read(path):
     return rec
 
 
+# Запись значений — одна и та же в graph.py и в программе «Граф проекта»
+# (tools/graf, Literal.cs): файл, сохранённый из любого места, выходит байт
+# в байт одинаковым, и в git видна только суть правки. Правило: значение в
+# строку, если строка с отступом и именем влезает в WIDTH; иначе список или
+# словарь — по элементу на строку. Строки не переносятся.
+WIDTH = 110
+
+
+def quote(s):
+    q = '"' if ("'" in s and '"' not in s) else "'"
+    out = []
+    for ch in s:
+        if ch == '\\':
+            out.append('\\\\')
+        elif ch == q:
+            out.append('\\' + q)
+        elif ch == '\n':
+            out.append('\\n')
+        elif ch == '\r':
+            out.append('\\r')
+        elif ch == '\t':
+            out.append('\\t')
+        elif ord(ch) < 0x20 or ord(ch) == 0x7f:
+            out.append('\\x%02x' % ord(ch))
+        else:
+            out.append(ch)
+    return q + ''.join(out) + q
+
+
+def inline(v):
+    if isinstance(v, bool):
+        return 'True' if v else 'False'
+    if v is None:
+        return 'None'
+    if isinstance(v, (int, float)):
+        return repr(v)
+    if isinstance(v, str):
+        return quote(v)
+    if isinstance(v, (list, tuple)):
+        return '[' + ', '.join(inline(x) for x in v) + ']'
+    if isinstance(v, dict):
+        return '{' + ', '.join(quote(k) + ': ' + inline(x) for k, x in v.items()) + '}'
+    raise TypeError('значение не поддерживается: %r' % (v,))
+
+
+def literal(v, indent=0, lead=0):
+    """lead — сколько знаков строки уже занято перед значением."""
+    one = inline(v)
+    if lead + len(one) <= WIDTH or not isinstance(v, (list, tuple, dict)) or not v:
+        return one
+    pad = ' ' * (indent + 4)
+    if isinstance(v, dict):
+        rows = []
+        for k, x in v.items():
+            head = quote(k) + ': '
+            rows.append(pad + head + literal(x, indent + 4, indent + 4 + len(head)) + ',')
+        return '{\n' + '\n'.join(rows) + '\n' + ' ' * indent + '}'
+    rows = [pad + literal(x, indent + 4, indent + 4) + ',' for x in v]
+    return '[\n' + '\n'.join(rows) + '\n' + ' ' * indent + ']'
+
+
 def render(folder, rec):
     title = rec.get('заголовок') or rec.get('термин') or rec.get('id')
+    # Первая строка описания модуля — заголовок в одну строку; обратная
+    # косая и тройные кавычки в описании недопустимы — заменяются.
+    doc = ' '.join(str(title).split()).replace('"""', '«»').replace('\\', '/')
     out = ['# -*- coding: utf-8 -*-',
-           '"""%s' % title.replace('"""', '«»'),
+           '"""' + doc,
            '',
            'Запись графа знаний проекта (knowledge/%s). Файл — данные, не код:' % folder,
            'читается разбором (tools/knowledge/graph.py), не исполняется.',
            '"""']
     for k, v in rec.items():
         const = TO_CONST.get(k, re.sub(r'\W', '_', k).upper())
-        out.append('%s = %s' % (const, pprint.pformat(v, width=110, sort_dicts=False)))
+        head = const + ' = '
+        out.append(head + literal(v, 0, len(head)))
     return '\n'.join(out) + '\n'
 
 
