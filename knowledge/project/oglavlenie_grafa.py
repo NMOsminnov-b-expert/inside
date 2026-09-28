@@ -26,7 +26,7 @@ POINTS = [
     'Раздел «Оформление интерфейса» — метки: оформление, практика, интерфейс; якоря: sbor-praktik-pered-dizaynom, oformlenie-tablicy-dannyh, oformlenie-vkladok-i-menyu.',
     'Раздел «Проверки» — метки: проверки; якоря: proveryat-povedenie-scenariem-a-ne-chteniem-koda, ozhidaniya-v-proverkah-tolko-po-faktu, tools-checks.',
     'Раздел «Инструменты» — метки: утилита; якоря: tools-graf, tools-razmetka, codegraph, tools-visual-parity, view-graph-prosmotr-grafa.',
-    'Раздел «Пул задач программы «Граф проекта»» — метки: пул-граф-проекта; якоря: graf-sortirovka-po-date-dobavleniya-i-izmeneniya, graf-filtr-prozrachnost-vmesto-skrytiya, graf-oglavlenie-v-programme.',
+    'Раздел «Пул задач программы «Граф проекта»» — метки: пул-граф-проекта; якоря: graf-sortirovka-po-date-dobavleniya-i-izmeneniya, graf-filtr-prozrachnost-vmesto-skrytiya, graf-oglavlenie-v-programme, ikonki-prilozheniy-graf-i-razmetka.',
     'Раздел «Под вопросом — не трогать без указания» — метки: под-вопросом; якоря: claude-project-comparative-hidden, sravnitelnyy-podhod.',
 ]
 LINKS = [
@@ -160,6 +160,11 @@ LINKS = [
     {
         'тип': 'якорь раздела «Пул задач программы «Граф проекта»»',
         'куда': 'graf-oglavlenie-v-programme',
+        'папка': 'tasks',
+    },
+    {
+        'тип': 'якорь раздела «Пул задач программы «Граф проекта»»',
+        'куда': 'ikonki-prilozheniy-graf-i-razmetka',
         'папка': 'tasks',
     },
 ]
