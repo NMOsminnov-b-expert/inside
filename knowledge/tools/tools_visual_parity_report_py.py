@@ -33,4 +33,4 @@ POINTS = ['Снимает скриншот и сам раскладывает е
  'блоки системы.',
  '[восстановлено] Печатает число ошибок консоли — как и screenshot.py, снимок с ошибками сразу видно.']
 LINKS = [{'тип': 'реализует', 'куда': 'otchetnost-skrinshotami-obyazatelna', 'папка': 'decisions'},
- {'тип': 'дополняет', 'куда_имя': 'tools/visual-parity/screenshot.py'}]
+ {'тип': 'дополняет', 'куда': 'tools-visual-parity-screenshot-py', 'папка': 'tools'}]

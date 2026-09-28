@@ -26,5 +26,5 @@ POINTS = ['03.09.2026: в архив попадают документы со в
  'конфликта при возврате не бывает.']
 LINKS = [{'тип': 'меняет', 'куда': 'app-pages-archive-archive-js', 'папка': 'code'},
  {'тип': 'меняет', 'куда': 'app-kernel-institutions-js', 'папка': 'code'},
- {'тип': 'меняет', 'куда_имя': 'app/kernel/documentsRegistry.js'},
+ {'тип': 'меняет', 'куда': 'app-kernel-documentsregistry-js', 'папка': 'code'},
  {'тип': 'меняет', 'куда': 'app-kernel-dicts-js', 'папка': 'code'}]

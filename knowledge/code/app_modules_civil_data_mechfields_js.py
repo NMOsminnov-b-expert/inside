@@ -28,5 +28,6 @@ POINTS = ['Справочник полей карточки механизмов
  'скриптом-аудитом (подгруппа без полей, уточнение по несуществующему типу, повтор ключа, разные подписи '
  'одного ключа).']
 LINKS = [{'тип': 'реализует', 'куда': 'sostav-poley-mehanizmov', 'папка': 'decisions'},
- {'тип': 'дополняет полями', 'куда_имя': 'app/modules/civil/data/mechClassifier.js'},
- {'тип': 'описывает поля через', 'куда': 'app-modules-civil-parts-fields-js', 'папка': 'code'}]
+ {'тип': 'дополняет полями', 'куда': 'app-modules-civil-data-mechclassifier-js', 'папка': 'code'},
+ {'тип': 'описывает поля через', 'куда': 'app-modules-civil-parts-fields-js', 'папка': 'code'},
+ {'тип': 'дополняет полями', 'куда': 'app-modules-civil-data-mechclassifier-js', 'папка': 'code'}]

@@ -20,5 +20,5 @@ POINTS = ['Благоустройство участка двумя мульти
  'Хранение: oi.improvements = {structures: [...], greenery: [...]} — объект по ключу группы, чтобы третья '
  'группа добавлялась одной строкой словаря (пользователь допускал 2–3 группы).',
  'Состав групп — в data/dictionaries.js (IMPROVEMENT_GROUPS), чтобы правился без захода в разметку.']
-LINKS = [{'тип': 'использует', 'куда_имя': 'app/kernel/multiSelect.js'},
+LINKS = [{'тип': 'использует', 'куда': 'app-kernel-multiselect-js', 'папка': 'code'},
  {'тип': 'потребовал', 'куда': 'msopen-vmesto-utilopen', 'папка': 'decisions'}]

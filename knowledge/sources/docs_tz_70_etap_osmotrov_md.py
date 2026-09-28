@@ -31,4 +31,5 @@ POINTS = ['Проработка Этапа Б (осмотры) от 08.09.2026: 
  'атрибут ОЦ, отложенный блок сдаваемых площадей, класс здания вручную вместо автоприсвоения.']
 LINKS = [{'тип': 'derived_from', 'куда': 'tz-sistema-ocenki-imuschestva', 'папка': 'sources'},
  {'тип': 'раскрывает', 'куда': 'trehetapnyy-vvod-dannyh-tz-cod-osmotrschik-ii', 'папка': 'rules'},
- {'тип': 'продолжает', 'куда_имя': 'docs/tz/40-otchet-pokrytie-tz.md'}]
+ {'тип': 'продолжает', 'куда': 'docs-tz-40-otchet-pokrytie-tz-md', 'папка': 'sources'},
+ {'тип': 'продолжает', 'куда': 'docs-tz-40-otchet-pokrytie-tz-md', 'папка': 'sources'}]
