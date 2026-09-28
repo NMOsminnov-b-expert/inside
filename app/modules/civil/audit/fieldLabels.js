@@ -1,3 +1,5 @@
+import { kindLabel, classLabel } from '../oi/building/capClass.js';
+
 // Технические имена полей (пути JS-объекта) → человеческие подписи для лога
 // действий (audit/model.js кладёт в строку лога путь через точку, а audit/view.js
 // показывает то, что вернёт fieldLabel).
@@ -208,6 +210,22 @@ const BY_CARD = {
     mechanisms: 'Состав механизмов',
   },
 };
+
+// Подпись ЗНАЧЕНИЯ поля, которое хранится кодом (тип литеры «civil», класс
+// «admin-3»): предупреждение при смене типа ОЦ (kernel/typeChange.js) и прочие
+// сводки ядра показывают значение — код туда не выводится. Пусто — подписи
+// нет, значение и есть подпись.
+const VALUE_LABELS = {
+  building: {
+    litKind: kindLabel,
+    oiCategory: classLabel,
+  },
+};
+
+export function fieldValue(key, value, cardType) {
+  const fn = cardType && VALUE_LABELS[cardType] && VALUE_LABELS[cardType][key];
+  return (fn && fn(value)) || '';
+}
 
 export function fieldLabel(key, cardType) {
   if (cardType && BY_CARD[cardType] && BY_CARD[cardType][key]) return BY_CARD[cardType][key];

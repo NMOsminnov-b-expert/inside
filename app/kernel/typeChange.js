@@ -54,12 +54,16 @@ function labelOf(typeId, key, card) {
 }
 
 // Значение для показа: списки и объекты в диалоге не нужны — важно, что поле
-// заполнено и его не будет видно.
-function shownValue(v) {
+// заполнено и его не будет видно. Значение, которое модуль хранит кодом (тип
+// литеры «civil», класс «admin-3»), подписывает сам модуль (records.fieldValue,
+// необязательно) — код в интерфейс не выводится.
+function shownValue(v, typeId, key, card) {
   if (v === null || v === undefined || v === '') return '';
   if (Array.isArray(v)) return v.length ? `${v.length} знач.` : '';
   if (typeof v === 'object') return '';
-  return String(v);
+  const type = typeId && getType(typeId);
+  const fn = type && type.records.fieldValue;
+  return (fn && fn(key, v, card)) || String(v);
 }
 
 // Что не покажется в новом типе.
@@ -74,7 +78,7 @@ function diffKeys(obj, sample, typeId, card) {
   if (!sample) return [];
   return Object.keys(obj)
     .filter((key) => !ALWAYS.has(key) && !(key in sample))
-    .map((key) => ({ key, label: labelOf(typeId, key, card), value: shownValue(obj[key]) }))
+    .map((key) => ({ key, label: labelOf(typeId, key, card), value: shownValue(obj[key], typeId, key, card) }))
     // Ключ без человеческой подписи не показываем: код в интерфейсе хуже, чем
     // умолчание (docs/tz/20-arhiv.md §8.3).
     .filter((f) => f.value !== '' && f.label !== f.key);
@@ -158,7 +162,7 @@ export async function lostOiFieldsOfRecord(rec, toTypeId) {
 
     Object.keys(oi).forEach((key) => {
       if (ALWAYS.has(key) || fields.has(key)) return;
-      const value = shownValue(oi[key]);
+      const value = shownValue(oi[key], rec.typeId, key, oi.card);
       if (!value) return;
 
       const label = labelOf(rec.typeId, key, oi.card);
@@ -241,7 +245,7 @@ export function lostOiFields(rec, oi, toCard, typeId) {
 
   return Object.keys(oi)
     .filter((key) => !ALWAYS.has(key) && !(key in sample))
-    .map((key) => ({ key, label: labelOf(typeId, key), value: shownValue(oi[key]) }))
+    .map((key) => ({ key, label: labelOf(typeId, key), value: shownValue(oi[key], typeId, key, oi.card) }))
     .filter((f) => f.value !== '');
 }
 

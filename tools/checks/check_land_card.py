@@ -424,5 +424,10 @@ def run(t):
     t.ck('нет карточки' not in warn2,
          'предупреждение говорит, что у движимого нет карточки, хотя она есть везде: %s'
          % warn2.replace(chr(10), ' ')[:160])
+    # Значения, которые модуль хранит кодом (тип литеры «civil», класс
+    # «admin-3»), подписаны: код в предупреждении — дефект 28.09.2026.
+    codes = _re.findall(r'(?m)^(civil|prod|other|(?:admin|prod)-\d)$', warn2)
+    t.ck(not codes, 'в предупреждении значения кодами: %s' % codes)
+    t.ck('Гражданская' in warn2, 'тип литеры не подписан по-человечески: %s' % warn2.replace(chr(10), ' ')[:200])
     pg.locator('[data-modal-cancel]').first.click()
     t.wait(300)

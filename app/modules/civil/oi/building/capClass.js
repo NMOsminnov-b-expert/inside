@@ -109,6 +109,14 @@ const GROUP_NAME = {
 };
 export const OTHER_NAME = 'Прочие постройки низкого качества строительства и некапитальные постройки';
 
+// Подпись класса по его ключу (oi.oiCategory: «admin-3», «prod-1», «other») —
+// та же, что у расчёта ниже: ключ в интерфейс не выводится.
+export function classLabel(key) {
+  if (key === 'other') return OTHER_NAME;
+  const [group, n] = String(key || '').split('-');
+  return CLASS_NAME[n] && GROUP_NAME[group] ? `${CLASS_NAME[n]} · ${GROUP_NAME[group]}` : '';
+}
+
 export const kindOf = (oi) => oi.litKind || '';
 export const signsOf = (oi) => (oi.capSigns = oi.capSigns || {});
 export const pickedOf = (oi, key) => [].concat(signsOf(oi)[key] || []).filter(Boolean);
