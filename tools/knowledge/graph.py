@@ -17,11 +17,12 @@ git; ищем по нему CodeGraph (RAG); записи размечаются
 
     python tools/knowledge/graph.py toc            оглавление графа — разделы, метки, якоря
     python tools/knowledge/graph.py rules [--full] действующие правила — в начале работы
-    python tools/knowledge/graph.py check          проверить записи и связи
+    python tools/knowledge/graph.py check [--full] проверить записи и связи; замечания — сводкой (--full — все)
+    python tools/knowledge/graph.py suggest [<id>] кандидаты связей: по общим соседям и по сходству текста
     python tools/knowledge/graph.py find <текст>   найти запись (запасной поиск без CodeGraph)
     python tools/knowledge/graph.py tag <метка>    записи с меткой
     python tools/knowledge/graph.py new <папка> <заголовок>   новая запись-заготовка
-    python tools/knowledge/graph.py stats          сколько чего
+    python tools/knowledge/graph.py stats          сколько чего и числа качества (связность, одиночки, центры)
 """
 import ast
 import datetime
@@ -205,6 +206,11 @@ def check():
             problems.append('%s: неизвестный статус «%s»' % (rel, r['статус']))
         if folder not in ('concepts', 'fields') and not isinstance(r.get('метки'), list):
             problems.append('%s: нет меток (TAGS)' % rel)
+        # Пункт в одну-две буквы — строка, разобранная по символам (так при
+        # переносе из прежнего графа рассыпалась запись main-aktualizirovan).
+        crumbs = [x for x in r.get('пункты') or [] if len(re.sub(r'^\[восстановлено\]\s*', '', str(x)).strip()) <= 2]
+        if crumbs:
+            problems.append('%s: пунктов из одной-двух букв: %d — текст рассыпан по символам' % (rel, len(crumbs)))
     for folder, p, r in recs:
         for link in r.get('связи') or []:
             if 'куда' in link and link['куда'] not in ids:
@@ -303,16 +309,55 @@ def cmd_new(folder, title):
 
 
 def cmd_stats():
+    import quality
+    recs = load_all()
     counts = {}
-    for folder, p, r in load_all():
+    for folder, p, r in recs:
         counts[folder] = counts.get(folder, 0) + 1
     for k, v in counts.items():
         print('%-10s %d' % (k, v))
     print('всего', sum(counts.values()))
+    print()
+    for k, v in quality.numbers(recs).items():
+        print('%-26s %s' % (k, v))
+
+
+def vocab():
+    try:
+        from structure_review import VOCAB
+        return VOCAB
+    except ImportError:
+        return None
+
+
+def cmd_warnings(recs, full):
+    import quality
+    ws = quality.warnings(recs, vocab(), ROOT)
+    groups = {}
+    for kind, rid, text in ws:
+        groups.setdefault(kind, []).append((rid, text))
+    for kind, items in groups.items():
+        print('замечание «%s»: %d' % (kind, len(items)))
+        for rid, text in items if full else items[:3]:
+            print('    %s — %s' % (rid, text))
+        if not full and len(items) > 3:
+            print('    … ещё %d (--full)' % (len(items) - 3))
+    return len(ws)
+
+
+def cmd_suggest(only):
+    import quality
+    rows = quality.suggest(load_all(), only=only, top=15)
+    for a, b, aa, tx in rows[:40]:
+        print('%-46s %-46s соседи %.2f  текст %.2f' % (a[:46], b[:46], aa, tx))
+    print('кандидатов: %d' % len(rows))
 
 
 def main():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    # Консоль Windows (cp1251) не знает «→» и подобного — заменяем, а не падаем.
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')
     args = sys.argv[1:]
     if not args:
         print(__doc__)
@@ -322,7 +367,8 @@ def main():
         recs, problems = check()
         for pr in problems:
             print(pr)
-        print('записей: %d, замечаний: %d' % (len(recs), len(problems)))
+        notes = cmd_warnings(recs, '--full' in args)
+        print('записей: %d, ошибок: %d, замечаний к наполнению: %d' % (len(recs), len(problems), notes))
         sys.exit(1 if problems else 0)
     elif cmd == 'rules':
         cmd_rules('--full' in args)
@@ -336,6 +382,8 @@ def main():
         cmd_new(args[1], ' '.join(args[2:]))
     elif cmd == 'stats':
         cmd_stats()
+    elif cmd == 'suggest':
+        cmd_suggest(args[1] if len(args) > 1 else None)
     else:
         print(__doc__)
 

@@ -8,7 +8,7 @@ ID = 'app-modules-civil-data-mechfields-js'
 KIND = 'модуль кода'
 TITLE = 'app/modules/civil/data/mechFields.js'
 TAGS = ['модуль кода', 'civil', 'документы', 'лог-действий']
-STATUS = 'актуально'
+STATUS = 'отменено'
 DATE = '2026-09-17'
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/modules/civil/data/mechFields.js'
@@ -19,6 +19,7 @@ POINTS = [
     'Правило: одна величина — один ключ и одна подпись во всём справочнике. Разные величины под общим ключом разведены (placement/execution, automation/workMode, monitor/patientMonitor), одинаковые сведены к одной подписи (fuel, airFlow, devicePower). Иначе значение перетекает между категориями при смене классификации, а подписи расходятся.',
     'Покрытие на 17.09.2026: 10 классов, 27 подгрупп, 141 тип, 214 ключей полей. Сверка со справочником — скриптом-аудитом (подгруппа без полей, уточнение по несуществующему типу, повтор ключа, разные подписи одного ключа).',
     '28.09.2026 файл перенесён в app/modules/mechanisms/data/mechFields.js — модуль «Механизмы и оборудование», карточка одна на все типы ОЦ (decision mehanizmy-i-ts-v-lyubom-oc).',
+    '28.09.2026 снято проверкой графа «кода нет»: файла app/modules/civil/data/mechFields.js нет в репозитории, удалён коммитом e419fe2 «Механизмы и ТС: одна карточка на весь проект — двери mechanisms/card.js и vehicle/card.js» (2026-09-28).',
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'sostav-poley-mehanizmov', 'папка': 'decisions'},
