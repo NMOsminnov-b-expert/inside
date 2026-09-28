@@ -101,7 +101,26 @@
             <ScrollViewer x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed">
                 <StackPanel Padding="14,10,14,20" Spacing="4">
                     <TextBlock Text="ОТСЕЯННОЕ ФИЛЬТРОМ НА ГРАФЕ — ТЁМНЫМ, А НЕ СКРЫТО" FontSize="10" Opacity="0.55" TextWrapping="Wrap" CharacterSpacing="20"/>
-                    <TextBlock Text="ВИД ЗАПИСИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,4,0,2" CharacterSpacing="40"/>
+                    <!-- Дата: готовые периоды и свой период, гистограмма правок —
+                         столбик выбирается щелчком (Shift — продлить); «менялись»
+                         — любая правка записи в период, не только последняя. -->
+                    <TextBlock Text="ДАТА" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,8,0,2" CharacterSpacing="40"/>
+                    <StackPanel Orientation="Horizontal">
+                        <ToggleButton x:Name="DateModeMod" Content="Менялись" IsChecked="True" CornerRadius="4,0,0,4" Padding="10,3"/>
+                        <ToggleButton x:Name="DateModeAdd" Content="Добавлены" CornerRadius="0,4,4,0" Padding="10,3"/>
+                    </StackPanel>
+                    <v:WrapPanel x:Name="DatePresets" Gap="6" Margin="0,6,0,0"/>
+                    <Grid x:Name="DateHist" Height="58" Margin="0,8,0,0"/>
+                    <TextBlock x:Name="DateHistNote" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                    <Grid ColumnSpacing="6" Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <CalendarDatePicker x:Name="DateFrom" PlaceholderText="с" HorizontalAlignment="Stretch"/>
+                        <CalendarDatePicker x:Name="DateTo" Grid.Column="1" PlaceholderText="по" HorizontalAlignment="Stretch"/>
+                    </Grid>
+                    <CheckBox x:Name="ColorByDate" Content="Цвет узла — по дате изменения" Margin="0,6,0,0"
+                              ToolTipService.ToolTip="Самая свежая правка — оранжевый, самая давняя — серый"/>
+                    <TextBlock x:Name="ColorLegend" FontSize="11" Opacity="0.6" TextWrapping="Wrap" Visibility="Collapsed"/>
+                    <TextBlock Text="ВИД ЗАПИСИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
                     <StackPanel x:Name="Folders"/>
                     <TextBlock Text="СТАТУС" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
                     <StackPanel x:Name="Statuses"/>

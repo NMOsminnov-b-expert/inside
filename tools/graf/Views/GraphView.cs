@@ -91,6 +91,10 @@ public sealed class GraphView : UserControl
     // перекладывается и связи отсеянных видны.
     public HashSet<string>? Passing { get; set; }
     bool Out(Node n) => Passing != null && !Passing.Contains(n.R.Id);
+
+    // Своя раскраска узлов (null — по виду записи): например, по дате
+    // изменения — свежие ярче (MainWindow, «Цвет узла — по дате изменения»).
+    public Func<Record, Color?>? NodeColor { get; set; }
     public event Action<string?>? NodeClicked;
     public event Action<string?>? NodeHovered;
 
@@ -880,7 +884,7 @@ public sealed class GraphView : UserControl
         var labels = new List<(Node N, int Prio)>();
         foreach (var n in order)
         {
-            var col = Parse(Schema.ColorOf(n.R.Folder));
+            var col = (NodeColor?.Invoke(n.R)) ?? Parse(Schema.ColorOf(n.R.Folder));
             var dim = (focus != null && !focus.Contains(n.R.Id)) || (hl && !Highlight.Contains(n.R.Id)) || Out(n);
             var fog = Fog(n.Depth);
             col = A(col, (dim ? (_3d ? 0.3f : 0.22f) : 1f) * fog);

@@ -45,7 +45,13 @@ public sealed partial class MainWindow : Window
         {
             var r = id == null ? null : Store?.ById(id);
             Tip.Visibility = r == null ? Visibility.Collapsed : Visibility.Visible;
-            if (r != null) TipText.Text = $"{Schema.NameOf(r.Folder)} · {r.Status}\n{r.Title}";
+            if (r != null)
+            {
+                var d = Store!.DatesOf(r);
+                var n = Store.ChangesOf(r).Count;
+                TipText.Text = $"{Schema.NameOf(r.Folder)} · {r.Status}\n{r.Title}"
+                    + (d.Modified != null ? $"\nизменено {d.Modified:dd.MM.yyyy HH:mm}" + (n > 1 ? $" · правок {n}" : "") : "");
+            }
         };
         Panel.Navigate += id => Select(id, center: true);
         Panel.Saved += r => { Refresh(); Status("Сохранено: " + r.Title); };
@@ -86,6 +92,11 @@ public sealed partial class MainWindow : Window
         SortDir.Click += (_, _) => { _settings.SortDesc = !_settings.SortDesc; _settings.Save(); ShowSortDir(); Refresh(); };
         List.ItemClick += (_, e) => { if (e.ClickedItem is Row row) Select(row.R.Id, center: false); };
         HintBtn.Click += (_, _) => ToggleHint();
+        DateModeMod.Click += (_, _) => { _dateAdded = false; BuildDateFilter(); Refresh(); };
+        DateModeAdd.Click += (_, _) => { _dateAdded = true; BuildDateFilter(); Refresh(); };
+        DateFrom.DateChanged += (_, _) => OnPickers();
+        DateTo.DateChanged += (_, _) => OnPickers();
+        ColorByDate.Click += (_, _) => { UpdateRecency(); Graph.NodeColor = ColorByDate.IsChecked == true ? RecencyColor : null; Graph.Redraw(); };
         LeftTabs.SelectionChanged += (_, _) =>
         {
             if (LeftTabs.SelectedItem is SelectorBarItem it && it.Tag is string tab && tab != _settings.LeftTab) SetLeftTab(tab);
@@ -167,7 +178,7 @@ public sealed partial class MainWindow : Window
         Task.Run(() =>
         {
             s.LoadDates();
-            DispatcherQueue.TryEnqueue(() => { if (Store == s) Refresh(); });
+            DispatcherQueue.TryEnqueue(() => { if (Store == s) { BuildDateFilter(); Refresh(); } });
         });
         BuildToc();
         var name = new DirectoryInfo(root).Name;
@@ -410,6 +421,9 @@ public sealed partial class MainWindow : Window
     {
         _foldersOff.Clear(); _statusOff.Clear(); _tagsOn.Clear();
         Lonely.IsChecked = false;
+        _dateFrom = _dateTo = null; _datePreset = "all"; _histPick = null;
+        _pickerSync = true; DateFrom.Date = null; DateTo.Date = null; _pickerSync = false;
+        BuildDateFilter();
         Search.Text = "";
         _matches = new();
         _matchAt = -1;
@@ -500,6 +514,8 @@ public sealed partial class MainWindow : Window
         Refresh();
     }
     public void SetLeftTabPublic(string tab) => SetLeftTab(tab);
+    public void SetDatePresetPublic(string key) => SetDatePreset(key);
+    public void ColorByDatePublic(bool on) { ColorByDate.IsChecked = on; UpdateRecency(); Graph.NodeColor = on ? RecencyColor : null; Graph.Redraw(); }
     public void OpenTocSection(string name) { _tocOpen.Add(name); BuildToc(); }
     public List<string> ListedIds() => (List.ItemsSource as List<Row> ?? new()).Select(r => r.R.Id).ToList();
 
@@ -631,7 +647,179 @@ public sealed partial class MainWindow : Window
     }
 
     // Задан ли хоть один фильтр: без них на графе ничего не приглушается.
-    bool FiltersOn => _foldersOff.Count > 0 || _statusOff.Count > 0 || _tagsOn.Count > 0;
+    bool FiltersOn => _foldersOff.Count > 0 || _statusOff.Count > 0 || _tagsOn.Count > 0 || _dateFrom != null || _dateTo != null;
+
+    // --- фильтр по дате -----------------------------------------------------------
+    //
+    // Задача пользователя 28.09.2026: «где фильтрование по дате? Мне нужно
+    // видеть, какие узлы когда меняли». «Менялись» — хоть одна правка записи в
+    // период (все коммиты с её файлом и незакоммиченная правка), «добавлены» —
+    // появление файла. Готовые периоды и свой (практика «presets + custom
+    // range»); гистограмма правок: столбик — сколько записей правили в этот
+    // промежуток, щелчок выбирает его, Shift+щелчок продлевает выбор.
+
+    bool _dateAdded;
+    DateTime? _dateFrom, _dateTo;   // [с, по) — по включительно до конца дня
+    string _datePreset = "all";
+    (DateTime From, DateTime To)? _histPick;
+
+    static readonly (string Key, string Label)[] DatePresetList =
+    {
+        ("all", "Всё время"), ("hour", "Час"), ("today", "Сегодня"), ("d3", "3 дня"), ("d7", "7 дней"), ("d30", "30 дней"),
+    };
+
+    IEnumerable<DateTime> WhenOf(Record r)
+    {
+        if (_dateAdded) { var a = Store!.DatesOf(r).Added; return a == null ? Array.Empty<DateTime>() : new[] { a.Value }; }
+        return Store!.ChangesOf(r);
+    }
+
+    bool DateOk(Record r)
+    {
+        if (_dateFrom == null && _dateTo == null) return true;
+        return WhenOf(r).Any(d => (_dateFrom == null || d >= _dateFrom) && (_dateTo == null || d < _dateTo));
+    }
+
+    void SetDatePreset(string key)
+    {
+        _datePreset = key;
+        _histPick = null;
+        var now = DateTime.Now;
+        (_dateFrom, _dateTo) = key switch
+        {
+            "hour" => (now.AddHours(-1), (DateTime?)null),
+            "today" => (now.Date, null),
+            "d3" => (now.Date.AddDays(-2), null),
+            "d7" => (now.Date.AddDays(-6), null),
+            "d30" => (now.Date.AddDays(-29), null),
+            _ => ((DateTime?)null, (DateTime?)null),
+        };
+        _pickerSync = true;
+        DateFrom.Date = _dateFrom == null || key == "hour" ? null : new DateTimeOffset(_dateFrom.Value);
+        DateTo.Date = null;
+        _pickerSync = false;
+        BuildDateFilter();
+        Refresh();
+    }
+
+    bool _pickerSync;
+
+    void OnPickers()
+    {
+        if (_pickerSync) return;
+        _datePreset = "custom";
+        _histPick = null;
+        _dateFrom = DateFrom.Date?.Date;
+        _dateTo = DateTo.Date?.Date.AddDays(1);
+        BuildDateFilter();
+        Refresh();
+    }
+
+    void BuildDateFilter()
+    {
+        if (Store == null) return;
+        DateModeMod.IsChecked = !_dateAdded;
+        DateModeAdd.IsChecked = _dateAdded;
+        DatePresets.Children.Clear();
+        foreach (var (key, label) in DatePresetList)
+        {
+            var b = new ToggleButton { Content = label, IsChecked = _datePreset == key, Padding = new Thickness(8, 2, 8, 2), FontSize = 12 };
+            var k = key;
+            b.Click += (_, _) => SetDatePreset(k);
+            DatePresets.Children.Add(b);
+        }
+        BuildHistogram();
+    }
+
+    // Гистограмма: шаг — по размаху истории (час, если она укладывается в
+    // двое суток; день — до двух месяцев; дальше — неделя), не больше 40
+    // столбиков — последние.
+    void BuildHistogram()
+    {
+        DateHist.Children.Clear();
+        DateHist.ColumnDefinitions.Clear();
+        var perRecord = Store!.All.Select(r => (r, WhenOf(r).ToList())).Where(x => x.Item2.Count > 0).ToList();
+        var stamps = perRecord.SelectMany(x => x.Item2).ToList();
+        if (stamps.Count == 0) { DateHistNote.Text = "История правок ещё читается…"; return; }
+        var max = DateTime.Now;
+        var min = stamps.Min();
+        var span = max - min;
+        TimeSpan step = span.TotalDays <= 2 ? TimeSpan.FromHours(1) : span.TotalDays <= 60 ? TimeSpan.FromDays(1) : TimeSpan.FromDays(7);
+        DateTime Floor(DateTime d) => step.TotalHours == 1 ? new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0)
+            : step.TotalDays == 1 ? d.Date : d.Date.AddDays(-(((int)d.DayOfWeek + 6) % 7));
+        var end = Floor(max).Add(step);
+        var start = Floor(min);
+        var buckets = new List<(DateTime From, DateTime To, int N)>();
+        for (var t = start; t < end; t = t.Add(step))
+        {
+            var from = t; var to = t.Add(step);
+            buckets.Add((from, to, perRecord.Count(x => x.Item2.Any(d => d >= from && d < to))));
+        }
+        if (buckets.Count > 40) buckets = buckets.Skip(buckets.Count - 40).ToList();
+        var top = Math.Max(1, buckets.Max(b => b.N));
+        for (var i = 0; i < buckets.Count; i++)
+        {
+            var (from, to, n) = buckets[i];
+            DateHist.ColumnDefinitions.Add(new ColumnDefinition());
+            var on = _dateFrom != null && from >= _dateFrom && (_dateTo == null || to <= _dateTo);
+            var bar = new Border
+            {
+                Height = n == 0 ? 2 : Math.Max(4, 54.0 * n / top), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(1, 0, 1, 0),
+                CornerRadius = new CornerRadius(2, 2, 0, 0),
+                Background = new SolidColorBrush(on ? Windows.UI.Color.FromArgb(255, 0xFF, 0x8A, 0x3D) : Windows.UI.Color.FromArgb(n == 0 ? (byte)60 : (byte)170, 0x4C, 0x7F, 0xB8)),
+            };
+            var hit = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
+            hit.Children.Add(bar);
+            var fmt = step.TotalHours == 1 ? $"{from:dd.MM HH}:00–{to:HH}:00" : step.TotalDays == 1 ? $"{from:dd.MM.yyyy}" : $"неделя с {from:dd.MM.yyyy}";
+            ToolTipService.SetToolTip(hit, $"{fmt}: {(_dateAdded ? "добавлено" : "менялось")} записей — {n}");
+            hit.Tapped += (_, _) =>
+            {
+                var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                    .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+                if (shift && _histPick is { } p) _histPick = (from < p.From ? from : p.From, to > p.To ? to : p.To);
+                else _histPick = (from, to);
+                _datePreset = "custom";
+                (_dateFrom, _dateTo) = (_histPick.Value.From, _histPick.Value.To);
+                _pickerSync = true; DateFrom.Date = null; DateTo.Date = null; _pickerSync = false;
+                BuildDateFilter();
+                Refresh();
+            };
+            Grid.SetColumn(hit, i);
+            DateHist.Children.Add(hit);
+        }
+        var unit = step.TotalHours == 1 ? "по часам" : step.TotalDays == 1 ? "по дням" : "по неделям";
+        DateHistNote.Text = (_dateFrom != null || _dateTo != null
+            ? $"Выбрано: {(_dateFrom == null ? "…" : _dateFrom.Value.ToString("dd.MM.yyyy HH:mm"))} — {(_dateTo == null ? "сейчас" : _dateTo.Value.ToString("dd.MM.yyyy HH:mm"))} · "
+            : "") + $"{(_dateAdded ? "добавления" : "правки")} записей {unit}; щелчок — выбрать столбик, Shift — продлить";
+    }
+
+    // Цвет узла по дате последней правки: самая свежая — оранжевый, самая
+    // давняя — серый. Шкала — по фактическому размаху правок (история может
+    // уложиться в один день, и шкала «на месяц» красила бы всё одним цветом),
+    // по логарифму: разница между «только что» и «час назад» видна лучше, чем
+    // между двумя давними правками.
+    (DateTime Newest, DateTime Oldest)? _recency;
+
+    void UpdateRecency()
+    {
+        var mods = Store!.All.Select(r => Store.DatesOf(r).Modified).Where(d => d != null).Select(d => d!.Value).ToList();
+        _recency = mods.Count == 0 ? null : (mods.Max(), mods.Min());
+        ColorLegend.Text = _recency is { } rc && ColorByDate.IsChecked == true
+            ? $"оранжевый — {rc.Newest:dd.MM HH:mm}, серый — {rc.Oldest:dd.MM HH:mm}; между ними — по времени правки"
+            : "";
+        ColorLegend.Visibility = ColorLegend.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    Windows.UI.Color? RecencyColor(Record r)
+    {
+        var m = Store!.DatesOf(r).Modified;
+        if (m == null || _recency is not { } rc) return null;
+        var span = Math.Max(1.0 / 60, (rc.Newest - rc.Oldest).TotalHours);
+        var hours = Math.Clamp((rc.Newest - m.Value).TotalHours, 0, span);
+        var t = (float)(Math.Log(1 + hours * 60) / Math.Log(1 + span * 60));
+        byte L(byte a, byte b) => (byte)(a + (b - a) * t);
+        return Windows.UI.Color.FromArgb(255, L(0xFF, 0x5A), L(0x8A, 0x69), L(0x3D, 0x7D));
+    }
 
     // --- сортировка списка ------------------------------------------------------
 
@@ -665,7 +853,7 @@ public sealed partial class MainWindow : Window
     }
 
     bool Passes(Record r) =>
-        !_foldersOff.Contains(r.Folder) && !_statusOff.Contains(r.Status) && _tagsOn.All(t => r.Tags.Contains(t));
+        !_foldersOff.Contains(r.Folder) && !_statusOff.Contains(r.Status) && _tagsOn.All(t => r.Tags.Contains(t)) && DateOk(r);
 
     // --- показ ---------------------------------------------------------------
 
@@ -690,6 +878,7 @@ public sealed partial class MainWindow : Window
         var passing = filtered ? all.Where(Passes).Select(r => r.Id).ToHashSet() : null;
         Graph.SetData(vis, links);
         Graph.Passing = passing;
+        if (ColorByDate.IsChecked == true) UpdateRecency();
         Graph.Highlight = _matches.Select(m => m.Id).ToHashSet();
         Graph.Redraw();
         List.ItemsSource = SortRows((Search.Text.Trim().Length > 0 ? _matches.Where(Passes) : all.Where(Passes)).ToList());

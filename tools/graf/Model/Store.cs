@@ -332,7 +332,21 @@ public sealed class Store : IDisposable
     public sealed record Dates(DateTime? Added, DateTime? Modified);
 
     readonly Dictionary<string, Dates> _dates = new(StringComparer.OrdinalIgnoreCase);
+    // Все правки записи — коммиты с её файлом и незакоммиченная правка: по ним
+    // фильтр «менялись в период» и гистограмма правок (задача пользователя
+    // 28.09.2026: «мне нужно видеть, какие узлы когда меняли»).
+    readonly Dictionary<string, List<DateTime>> _changes = new(StringComparer.OrdinalIgnoreCase);
     public bool DatesLoaded { get; private set; }
+
+    public IReadOnlyList<DateTime> ChangesOf(Record r)
+    {
+        lock (_lock)
+        {
+            if (_changes.TryGetValue(r.Path, out var list)) return list.ToList();
+            var m = DatesOf(r).Modified;
+            return m == null ? Array.Empty<DateTime>() : new[] { m.Value };
+        }
+    }
 
     public Dates DatesOf(Record r)
     {
@@ -352,6 +366,7 @@ public sealed class Store : IDisposable
     {
         var added = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         var modified = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        var all = new Dictionary<string, List<DateTime>>(StringComparer.OrdinalIgnoreCase);
         var log = Git("log", "--format=%x1e%aI", "--name-status", "--no-renames", "--", "knowledge");
         // От новых коммитов к старым: первое упоминание — последнее изменение,
         // последнее «A» — появление файла.
@@ -365,6 +380,8 @@ public sealed class Store : IDisposable
                 if (parts.Length < 2) continue;
                 var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Root, parts[^1]));
                 modified.TryAdd(path, when);
+                if (!all.TryGetValue(path, out var l)) all[path] = l = new List<DateTime>();
+                l.Add(when);
                 if (parts[0].StartsWith('A')) added[path] = when;
             }
         }
@@ -378,20 +395,35 @@ public sealed class Store : IDisposable
         lock (_lock)
         {
             _dates.Clear();
+            _changes.Clear();
+            foreach (var (p, l) in all) _changes[p] = l;
             foreach (var p in _byPath.Keys)
             {
                 if (dirty.TryGetValue(p, out var fresh))
                 {
                     var f = FileDates(p, fresh);
                     _dates[p] = new Dates(fresh ? f.Added : (added.TryGetValue(p, out var a) ? a : f.Added), f.Modified);
+                    if (f.Modified != null) AddChange(p, f.Modified.Value);
                 }
                 else if (modified.ContainsKey(p))
                     _dates[p] = new Dates(added.TryGetValue(p, out var a) ? a : null, modified[p]);
                 else
+                {
                     _dates[p] = FileDates(p, untracked: true);
+                    if (_dates[p].Modified is DateTime fm) AddChange(p, fm);
+                }
             }
             DatesLoaded = true;
         }
+    }
+
+    // Незакоммиченная правка — тоже правка: встаёт первой в списке (от новых к
+    // старым), повтор той же минуты не множится.
+    void AddChange(string path, DateTime when)
+    {
+        if (!_changes.TryGetValue(path, out var l)) _changes[path] = l = new List<DateTime>();
+        if (l.Count > 0 && Math.Abs((l[0] - when).TotalMinutes) < 1) return;
+        l.Insert(0, when);
     }
 
     // Запись сохранена или поменялась снаружи: изменена сейчас; новая — и
@@ -403,6 +435,7 @@ public sealed class Store : IDisposable
             var had = _dates.TryGetValue(path, out var d);
             var now = File.Exists(path) ? File.GetLastWriteTime(path) : DateTime.Now;
             _dates[path] = new Dates(had && d!.Added != null ? d.Added : now, now);
+            AddChange(path, now);
         }
     }
 

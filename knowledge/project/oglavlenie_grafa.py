@@ -177,4 +177,9 @@ LINKS = [
         'куда': 'praktika-filtr-priglushaet-ne-pryachet',
         'папка': 'practices',
     },
+    {
+        'тип': 'якорь раздела «Пул задач программы «Граф проекта»»',
+        'куда': 'graf-filtr-po-date',
+        'папка': 'tasks',
+    },
 ]

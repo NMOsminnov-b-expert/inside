@@ -49,6 +49,8 @@ public static class ScriptRunner
                     case "tag": w.ToggleTag(S("value")); break;
                     case "sort": w.SetSort(S("key"), st.TryGetProperty("desc", out var dsc) && dsc.GetBoolean()); break;
                     case "lefttab": w.SetLeftTabPublic(S("value")); break;
+                    case "datepreset": w.SetDatePresetPublic(S("value")); break;
+                    case "colorbydate": w.ColorByDatePublic(true); break;
                     case "tocopen": w.OpenTocSection(S("value")); break;
                     case "listed":
                         log.Add("  список: " + string.Join(", ", w.ListedIds().Take(st.TryGetProperty("n", out var nn) ? nn.GetInt32() : 5)));
