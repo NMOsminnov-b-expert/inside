@@ -18,6 +18,9 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
     <Nullable>enable</Nullable>
+    <!-- Иконка файла и окна (tools/graf/make_icons.py) — чтобы программу было
+         видно в списке файлов и на панели задач. -->
+    <ApplicationIcon>Assets\graf.ico</ApplicationIcon>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
@@ -25,6 +28,10 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.*" />
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\graf.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- dotnet publish без упаковки не кладёт в выпуск ресурсы разметки

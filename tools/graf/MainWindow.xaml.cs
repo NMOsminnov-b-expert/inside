@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
+using Microsoft.UI.Xaml.Automation;
 
 namespace Graf;
 
@@ -31,6 +33,9 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         _remember = remember;
         Title = "Граф проекта";
+        // Иконка окна и панели задач — та же, что у файла программы.
+        var ico = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "graf.ico");
+        if (File.Exists(ico)) AppWindow.SetIcon(ico);
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1600, 980));
         LeftCol.Width = new GridLength(_settings.LeftWidth);
         RightCol.Width = new GridLength(_settings.RightWidth);
@@ -66,8 +71,26 @@ public sealed partial class MainWindow : Window
         Lonely.Click += (_, _) => Refresh();
         TagFilter.TextChanged += (_, _) => BuildTags();
         List.ItemTemplate = (DataTemplate)XamlReader.Load(RowTemplate);
+        SortBy.SelectedIndex = Math.Max(0, Array.IndexOf(SortKeys, _settings.SortBy));
+        ShowSortDir();
+        SortBy.SelectionChanged += (_, _) =>
+        {
+            _settings.SortBy = SortKeys[Math.Max(0, SortBy.SelectedIndex)];
+            // Даты — сначала новые, названия и виды — по алфавиту: чаще всего
+            // нужно именно так (практика «newest first» у дат).
+            _settings.SortDesc = _settings.SortBy is "added" or "modified";
+            _settings.Save();
+            ShowSortDir();
+            Refresh();
+        };
+        SortDir.Click += (_, _) => { _settings.SortDesc = !_settings.SortDesc; _settings.Save(); ShowSortDir(); Refresh(); };
         List.ItemClick += (_, e) => { if (e.ClickedItem is Row row) Select(row.R.Id, center: false); };
         HintBtn.Click += (_, _) => ToggleHint();
+        LeftTabs.SelectionChanged += (_, _) =>
+        {
+            if (LeftTabs.SelectedItem is SelectorBarItem it && it.Tag is string tab && tab != _settings.LeftTab) SetLeftTab(tab);
+        };
+        SetLeftTab(_settings.LeftTab);
         MiExport.Click += async (_, _) => await ExportDialog();
         MiImport.Click += async (_, _) => await ImportDialog();
 
@@ -138,6 +161,15 @@ public sealed partial class MainWindow : Window
         if (Root.IsLoaded) Graph.FitAll(animate: false);
         Store.Changed += OnStoreChanged;
         Store.Watch();
+        // Даты записей — из истории git, в фоне: окно открывается сразу, список
+        // досортируется, когда история прочитана.
+        var s = Store;
+        Task.Run(() =>
+        {
+            s.LoadDates();
+            DispatcherQueue.TryEnqueue(() => { if (Store == s) Refresh(); });
+        });
+        BuildToc();
         var name = new DirectoryInfo(root).Name;
         ProjectName.Text = name;
         Title = $"{name} — Граф проекта";
@@ -154,6 +186,7 @@ public sealed partial class MainWindow : Window
         foreach (var r in updated) Panel.External(r);
         foreach (var id in removed) Panel.ExternalRemoved(id);
         BuildFilters();
+        BuildToc();
         Refresh();
         Live($"обновлено {DateTime.Now:HH:mm:ss} · файлов снаружи: {updated.Count + removed.Count}");
     }
@@ -447,6 +480,190 @@ public sealed partial class MainWindow : Window
         return g;
     }
 
+    // --- оглавление графа --------------------------------------------------------
+    //
+    // Запись knowledge/project/oglavlenie_grafa.py (требование пользователя
+    // 28.09.2026: «это же оглавление надо отображать и в программе»). Раздел —
+    // связи с типом «якорь раздела «…»»; метки раздела — пункт «Раздел «…» —
+    // метки: …; якоря: …». Якорь открывает запись, метка ставит фильтр по ней
+    // (отсеянное на графе темнеет). Раскрытые разделы помнятся на время работы.
+
+    readonly HashSet<string> _tocOpen = new();
+
+    // Для сценариев проверки (ScriptRunner).
+    public void ToggleTag(string tag) { if (!_tagsOn.Remove(tag)) _tagsOn.Add(tag); BuildTags(); BuildToc(); Refresh(); }
+    public void SetSort(string key, bool desc)
+    {
+        SortBy.SelectedIndex = Math.Max(0, Array.IndexOf(SortKeys, key));
+        _settings.SortDesc = desc;
+        ShowSortDir();
+        Refresh();
+    }
+    public void SetLeftTabPublic(string tab) => SetLeftTab(tab);
+    public void OpenTocSection(string name) { _tocOpen.Add(name); BuildToc(); }
+    public List<string> ListedIds() => (List.ItemsSource as List<Row> ?? new()).Select(r => r.R.Id).ToList();
+
+    void SetLeftTab(string tab)
+    {
+        _settings.LeftTab = tab;
+        _settings.Save();
+        TocPane.Visibility = tab == "toc" ? Visibility.Visible : Visibility.Collapsed;
+        FilterPane.Visibility = tab == "toc" ? Visibility.Collapsed : Visibility.Visible;
+        LeftTabs.SelectedItem = tab == "toc" ? TabToc : TabFilters;
+    }
+
+    void BuildToc()
+    {
+        if (Store == null) return;
+        Toc.Children.Clear();
+        var toc = Store.ById("oglavlenie-grafa");
+        if (toc == null)
+        {
+            Toc.Children.Add(new TextBlock
+            {
+                Text = "В графе нет оглавления — записи knowledge/project/oglavlenie_grafa.py.",
+                TextWrapping = TextWrapping.Wrap, Opacity = 0.6, FontSize = 12,
+            });
+            return;
+        }
+        var sections = new List<(string Name, List<string> Anchors)>();
+        foreach (var l in toc.Links)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(l["тип"] as string ?? "", "^якорь раздела «(.*)»$");
+            if (!m.Success) continue;
+            var name = m.Groups[1].Value;
+            var sec = sections.FirstOrDefault(x => x.Name == name);
+            if (sec.Name == null) { sec = (name, new List<string>()); sections.Add(sec); }
+            sec.Anchors.Add(l["куда"] as string ?? "");
+        }
+        var tagsOf = new Dictionary<string, List<string>>();
+        foreach (var p in toc.Points)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(p, "^Раздел «(.*?)»(?: — метки: (.*?))?; якоря:");
+            if (m.Success) tagsOf[m.Groups[1].Value] = m.Groups[2].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        }
+        var tagCount = Store.All.SelectMany(r => r.Tags).GroupBy(t => t).ToDictionary(g => g.Key, g => g.Count());
+
+        foreach (var (name, anchors) in sections)
+        {
+            var open = _tocOpen.Contains(name);
+            var body = new StackPanel { Spacing = 2, Padding = new Thickness(22, 2, 0, 8), Visibility = open ? Visibility.Visible : Visibility.Collapsed };
+            var chev = new FontIcon { Glyph = open ? "" : "", FontSize = 10, Opacity = 0.7 };
+            var headRow = new Grid { ColumnSpacing = 8 };
+            headRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headRow.ColumnDefinitions.Add(new ColumnDefinition());
+            headRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headRow.Children.Add(chev);
+            var title = new TextBlock { Text = name, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+            Grid.SetColumn(title, 1);
+            headRow.Children.Add(title);
+            var n = new TextBlock { Text = anchors.Count.ToString(), Opacity = 0.5, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(n, 2);
+            headRow.Children.Add(n);
+            var head = new Button
+            {
+                Content = headRow, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(6, 6, 6, 6),
+            };
+            AutomationProperties.SetName(head, name);
+            head.Click += (_, _) =>
+            {
+                var now = body.Visibility != Visibility.Visible;
+                body.Visibility = now ? Visibility.Visible : Visibility.Collapsed;
+                chev.Glyph = now ? "" : "";
+                if (now) _tocOpen.Add(name); else _tocOpen.Remove(name);
+            };
+
+            foreach (var id in anchors)
+            {
+                var r = Store.ById(id);
+                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                row.Children.Add(new Ellipse
+                {
+                    Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center,
+                    Fill = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(r?.Folder ?? "project"))),
+                });
+                row.Children.Add(new TextBlock
+                {
+                    Text = r?.Title ?? id + " — нет такой записи", TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 520,
+                    Opacity = r == null ? 0.5 : 1, FontSize = 13,
+                });
+                var link = new Button
+                {
+                    Content = row, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(4, 3, 4, 3),
+                    IsEnabled = r != null,
+                };
+                ToolTipService.SetToolTip(link, r == null ? id : $"{Schema.NameOf(r.Folder)} · {r.Title}\n{id}");
+                var target = id;
+                link.Click += (_, _) => Select(target, center: true);
+                body.Children.Add(link);
+            }
+
+            if (tagsOf.TryGetValue(name, out var tags) && tags.Count > 0)
+            {
+                var chips = new WrapPanel { Gap = 6, Margin = new Thickness(4, 6, 0, 0) };
+                foreach (var tag in tags)
+                {
+                    var on = _tagsOn.Contains(tag);
+                    var chip = new ToggleButton
+                    {
+                        IsChecked = on, Padding = new Thickness(8, 2, 8, 2), FontSize = 12,
+                        Content = $"{tag} · {(tagCount.TryGetValue(tag, out var c) ? c : 0)}",
+                    };
+                    ToolTipService.SetToolTip(chip, on ? "Снять фильтр по метке" : "Фильтр по метке: остальное на графе потемнеет");
+                    var t = tag;
+                    chip.Click += (_, _) =>
+                    {
+                        if (chip.IsChecked == true) _tagsOn.Add(t); else _tagsOn.Remove(t);
+                        BuildTags();
+                        BuildToc();
+                        Refresh();
+                    };
+                    chips.Children.Add(chip);
+                }
+                body.Children.Add(chips);
+            }
+
+            Toc.Children.Add(head);
+            Toc.Children.Add(body);
+        }
+    }
+
+    // Задан ли хоть один фильтр: без них на графе ничего не приглушается.
+    bool FiltersOn => _foldersOff.Count > 0 || _statusOff.Count > 0 || _tagsOn.Count > 0;
+
+    // --- сортировка списка ------------------------------------------------------
+
+    static readonly string[] SortKeys = { "kind", "title", "added", "modified" };
+
+    void ShowSortDir()
+    {
+        var desc = _settings.SortDesc;
+        var dates = _settings.SortBy is "added" or "modified";
+        SortDirIcon.Glyph = desc ? "\uE74B" : "\uE74A";
+        SortDirText.Text = dates ? (desc ? "сначала новые" : "сначала старые") : (desc ? "Я → А" : "А → Я");
+        ToolTipService.SetToolTip(SortDir, "Сменить направление сортировки");
+    }
+
+    List<Row> SortRows(List<Record> list)
+    {
+        var incoming = Store!.All.SelectMany(r => r.Links.Select(l => l["куда"] as string ?? "")).GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+        var rows = list.Select(r => new Row(r, r.Links.Count + (incoming.TryGetValue(r.Id, out var d) ? d : 0), Store.DatesOf(r))).ToList();
+        var folderAt = Schema.Folders.Select((f, i) => (f.Folder, i)).ToDictionary(x => x.Folder, x => x.i);
+        IOrderedEnumerable<Row> sorted = _settings.SortBy switch
+        {
+            "title" => rows.OrderBy(r => r.Title, StringComparer.CurrentCultureIgnoreCase),
+            "added" => rows.OrderBy(r => r.Dates.Added ?? DateTime.MinValue),
+            "modified" => rows.OrderBy(r => r.Dates.Modified ?? DateTime.MinValue),
+            _ => rows.OrderBy(r => folderAt.TryGetValue(r.R.Folder, out var i) ? i : 99),
+        };
+        sorted = sorted.ThenBy(r => r.Title, StringComparer.CurrentCultureIgnoreCase);
+        var result = sorted.ToList();
+        if (_settings.SortDesc) result.Reverse();
+        return result;
+    }
+
     bool Passes(Record r) =>
         !_foldersOff.Contains(r.Folder) && !_statusOff.Contains(r.Status) && _tagsOn.All(t => r.Tags.Contains(t));
 
@@ -455,23 +672,30 @@ public sealed partial class MainWindow : Window
     public void Refresh()
     {
         if (Store == null) return;
-        var vis = Store.All.Where(Passes).ToList();
-        var ids = vis.Select(r => r.Id).ToHashSet();
-        var links = vis.SelectMany(r => r.Links.Select(l => (From: r.Id, To: l["куда"] as string ?? "", Type: l["тип"] as string ?? "")))
+        // На графе — все записи: фильтры не прячут узлы, а приглушают
+        // отсеянные (GraphView.Passing; задача пользователя 28.09.2026).
+        // Раскладка от фильтра не меняется, связи отсеянных видны. Список —
+        // как и был: в нём отсеянным не место.
+        var all = Store.All.ToList();
+        var ids = all.Select(r => r.Id).ToHashSet();
+        var links = all.SelectMany(r => r.Links.Select(l => (From: r.Id, To: l["куда"] as string ?? "", Type: l["тип"] as string ?? "")))
             .Where(l => ids.Contains(l.To)).ToList();
+        var vis = all;
         if (Lonely.IsChecked != true)
         {
             var linked = links.SelectMany(l => new[] { l.From, l.To }).ToHashSet();
-            vis = vis.Where(r => linked.Contains(r.Id) || r.Id == Panel.Current?.Id).ToList();
+            vis = all.Where(r => linked.Contains(r.Id) || r.Id == Panel.Current?.Id).ToList();
         }
+        var filtered = FiltersOn;
+        var passing = filtered ? all.Where(Passes).Select(r => r.Id).ToHashSet() : null;
         Graph.SetData(vis, links);
+        Graph.Passing = passing;
         Graph.Highlight = _matches.Select(m => m.Id).ToHashSet();
         Graph.Redraw();
-        var listed = (Search.Text.Trim().Length > 0 ? _matches.Where(Passes) : Store.All.Where(Passes))
-            .OrderBy(r => Schema.Folders.ToList().FindIndex(f => f.Folder == r.Folder)).ThenBy(r => r.Title).ToList();
-        var incoming = Store.All.SelectMany(r => r.Links.Select(l => l["куда"] as string ?? "")).GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
-        List.ItemsSource = listed.Select(r => new Row(r, r.Links.Count + (incoming.TryGetValue(r.Id, out var d) ? d : 0))).ToList();
-        CountText.Text = $"Записей {Store.All.Count()} · на графе {Graph.NodeCount}, связей {Graph.EdgeCount}" + (Search.Text.Trim().Length > 0 ? $" · найдено {_matches.Count}" : "");
+        List.ItemsSource = SortRows((Search.Text.Trim().Length > 0 ? _matches.Where(Passes) : all.Where(Passes)).ToList());
+        var shown = passing == null ? Graph.NodeCount : vis.Count(r => passing.Contains(r.Id));
+        CountText.Text = $"Записей {all.Count} · на графе {Graph.NodeCount}" + (passing != null ? $", отобрано {shown}" : "")
+            + $", связей {Graph.EdgeCount}" + (Search.Text.Trim().Length > 0 ? $" · найдено {_matches.Count}" : "");
         var problems = Store.Check().Count;
         CheckText.Text = problems == 0 ? "Проверка" : $"Проверка · {problems}";
         UpdateGit();
@@ -516,7 +740,7 @@ public sealed partial class MainWindow : Window
         Mode3D.IsChecked = mode == 1;
         ModeList.IsChecked = mode == 2;
         Graph.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
-        List.Visibility = mode == 2 ? Visibility.Visible : Visibility.Collapsed;
+        ListPane.Visibility = mode == 2 ? Visibility.Visible : Visibility.Collapsed;
         NavHint.Visibility = HintBtn.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
         NavHintText.Text = mode == 1 ? Hint3D : Hint2D;
         if (mode != 2) ShowHint();
@@ -704,9 +928,13 @@ public sealed partial class MainWindow : Window
 
     public sealed class Row
     {
-        public Row(Record r, int deg) { R = r; Deg = deg; }
+        public Row(Record r, int deg, Store.Dates dates) { R = r; Deg = deg; Dates = dates; }
         public Record R { get; }
         public int Deg { get; }
+        public Store.Dates Dates { get; }
+        // Обе даты в строке: сортировка по невидимому признаку сбивает с толку.
+        public string DatesText => $"добавлено {Day(Dates.Added)} · изменено {Day(Dates.Modified)}";
+        static string Day(DateTime? d) => d == null ? "—" : d.Value.Date == DateTime.Today ? $"сегодня {d:HH:mm}" : $"{d:dd.MM.yyyy}";
         public string Title => R.Title;
         public string Kind => Schema.NameOf(R.Folder);
         public string Status => R.Status;
@@ -726,6 +954,7 @@ public sealed partial class MainWindow : Window
     <StackPanel Grid.Column="1" Spacing="2">
       <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/>
       <TextBlock Text="{Binding TagsText}" FontSize="12" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+      <TextBlock Text="{Binding DatesText}" FontSize="11" Opacity="0.55"/>
     </StackPanel>
     <StackPanel Grid.Column="2" HorizontalAlignment="Right">
       <TextBlock Text="{Binding Kind}" FontSize="12" Opacity="0.7" HorizontalAlignment="Right"/>

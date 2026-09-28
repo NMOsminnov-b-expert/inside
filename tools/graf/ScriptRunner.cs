@@ -46,6 +46,13 @@ public static class ScriptRunner
                     case "new": await w.NewRecord(S("folder"), S("title")); break;
                     case "fit": w.GraphCtl.FitAll(); break;
                     case "start": w.ShowStart(); break;
+                    case "tag": w.ToggleTag(S("value")); break;
+                    case "sort": w.SetSort(S("key"), st.TryGetProperty("desc", out var dsc) && dsc.GetBoolean()); break;
+                    case "lefttab": w.SetLeftTabPublic(S("value")); break;
+                    case "tocopen": w.OpenTocSection(S("value")); break;
+                    case "listed":
+                        log.Add("  список: " + string.Join(", ", w.ListedIds().Take(st.TryGetProperty("n", out var nn) ? nn.GetInt32() : 5)));
+                        break;
                     case "external":
                     {
                         var file = Path.Combine(w.Store!.Root, S("file"));
@@ -77,6 +84,7 @@ public static class ScriptRunner
                         File.WriteAllText(S("path"), JsonSerializer.Serialize(new
                         {
                             selected = w.PanelCtl.Current?.Id,
+                            passing = w.GraphCtl.Passing?.Count,
                             title = w.PanelCtl.Current?.Title,
                             dirty = w.PanelCtl.IsDirty,
                             nodes = w.GraphCtl.NodeCount,

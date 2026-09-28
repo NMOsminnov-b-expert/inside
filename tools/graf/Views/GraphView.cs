@@ -84,6 +84,13 @@ public sealed class GraphView : UserControl
 
     public string? Selected { get; private set; }
     public HashSet<string> Highlight { get; set; } = new();
+
+    // Кто прошёл фильтры (null — фильтры не заданы). Отсеянные не прячутся, а
+    // становятся тёмными и прозрачными, как не-соседи после выбора (задача
+    // пользователя 28.09.2026; практика «приглушать, а не скрывать»): граф не
+    // перекладывается и связи отсеянных видны.
+    public HashSet<string>? Passing { get; set; }
+    bool Out(Node n) => Passing != null && !Passing.Contains(n.R.Id);
     public event Action<string?>? NodeClicked;
     public event Action<string?>? NodeHovered;
 
@@ -851,7 +858,8 @@ public sealed class GraphView : UserControl
             if (!na.On && !nb.On && !Crosses(p1, p2)) continue;
             var onSel = sel && (na.R.Id == Selected || nb.R.Id == Selected);
             var onHover = hoverFocus && (na == _hover || nb == _hover);
-            var col = onSel ? EdgeOn : onHover ? HoverEdge : focus != null || hl ? EdgeDim : EdgeCol;
+            var col = onSel ? EdgeOn : onHover ? HoverEdge
+                : focus != null || hl || Out(na) || Out(nb) ? EdgeDim : EdgeCol;
             col = A(col, Fog((na.Depth + nb.Depth) / 2));
             var strong = onSel || onHover;
             ds.DrawLine(p1, p2, col, strong ? 2f : 1f);
@@ -873,7 +881,7 @@ public sealed class GraphView : UserControl
         foreach (var n in order)
         {
             var col = Parse(Schema.ColorOf(n.R.Folder));
-            var dim = (focus != null && !focus.Contains(n.R.Id)) || (hl && !Highlight.Contains(n.R.Id));
+            var dim = (focus != null && !focus.Contains(n.R.Id)) || (hl && !Highlight.Contains(n.R.Id)) || Out(n);
             var fog = Fog(n.Depth);
             col = A(col, (dim ? (_3d ? 0.3f : 0.22f) : 1f) * fog);
             var p = n.S;

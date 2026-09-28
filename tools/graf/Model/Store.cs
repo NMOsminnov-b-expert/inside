@@ -147,6 +147,7 @@ public sealed class Store : IDisposable
         }
         r.Path = path;
         _byPath[path] = Read(path, r.Folder);
+        TouchDates(path);
     }
 
     public void Delete(Record r)
@@ -259,6 +260,7 @@ public sealed class Store : IDisposable
                 {
                     var r = Parse(text, p, folder);
                     _byPath[p] = r;
+                    TouchDates(p);
                     updated.Add(r);
                 }
                 catch (Exception ex) { LoadErrors.Add($"{System.IO.Path.GetRelativePath(Root, p)}: {ex.Message}"); }
@@ -317,6 +319,92 @@ public sealed class Store : IDisposable
 
     // Незакоммиченные правки графа — сколько файлов.
     public int Uncommitted() => Git("status", "--porcelain", "--", "knowledge").Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+
+    // --- даты записей ---------------------------------------------------------
+    //
+    // Дата добавления — коммит, в котором файл записи появился; дата
+    // изменения — последний коммит с ним (задача пользователя 28.09.2026:
+    // сортировка по дате добавления и изменения). Считаются одним проходом по
+    // истории knowledge/. Файл с незакоммиченной правкой изменён «сейчас» —
+    // берётся время файла; новый, ещё не добавленный в git, — и добавлен
+    // тогда же. Без git — время файла.
+
+    public sealed record Dates(DateTime? Added, DateTime? Modified);
+
+    readonly Dictionary<string, Dates> _dates = new(StringComparer.OrdinalIgnoreCase);
+    public bool DatesLoaded { get; private set; }
+
+    public Dates DatesOf(Record r)
+    {
+        lock (_lock) if (_dates.TryGetValue(r.Path, out var d)) return d;
+        return FileDates(r.Path, untracked: false);
+    }
+
+    static Dates FileDates(string path, bool untracked)
+    {
+        var fi = new FileInfo(path);
+        if (!fi.Exists) return new Dates(null, null);
+        return new Dates(untracked ? fi.CreationTime : null, fi.LastWriteTime);
+    }
+
+    // Долгая работа (git) — вызывать не из потока интерфейса.
+    public void LoadDates()
+    {
+        var added = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        var modified = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        var log = Git("log", "--format=%x1e%aI", "--name-status", "--no-renames", "--", "knowledge");
+        // От новых коммитов к старым: первое упоминание — последнее изменение,
+        // последнее «A» — появление файла.
+        foreach (var block in log.Split('\x1e', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var lines = block.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length == 0 || !DateTime.TryParse(lines[0].Trim(), out var when)) continue;
+            foreach (var line in lines.Skip(1))
+            {
+                var parts = line.TrimEnd('\r').Split('\t');
+                if (parts.Length < 2) continue;
+                var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Root, parts[^1]));
+                modified.TryAdd(path, when);
+                if (parts[0].StartsWith('A')) added[path] = when;
+            }
+        }
+        var dirty = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in Git("status", "--porcelain", "--untracked-files=all", "--", "knowledge").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (line.Length < 4) continue;
+            var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(Root, line[3..].Trim().Trim('"')));
+            dirty[path] = line.StartsWith("??") || line.StartsWith("A");
+        }
+        lock (_lock)
+        {
+            _dates.Clear();
+            foreach (var p in _byPath.Keys)
+            {
+                if (dirty.TryGetValue(p, out var fresh))
+                {
+                    var f = FileDates(p, fresh);
+                    _dates[p] = new Dates(fresh ? f.Added : (added.TryGetValue(p, out var a) ? a : f.Added), f.Modified);
+                }
+                else if (modified.ContainsKey(p))
+                    _dates[p] = new Dates(added.TryGetValue(p, out var a) ? a : null, modified[p]);
+                else
+                    _dates[p] = FileDates(p, untracked: true);
+            }
+            DatesLoaded = true;
+        }
+    }
+
+    // Запись сохранена или поменялась снаружи: изменена сейчас; новая — и
+    // добавлена сейчас.
+    void TouchDates(string path)
+    {
+        lock (_lock)
+        {
+            var had = _dates.TryGetValue(path, out var d);
+            var now = File.Exists(path) ? File.GetLastWriteTime(path) : DateTime.Now;
+            _dates[path] = new Dates(had && d!.Added != null ? d.Added : now, now);
+        }
+    }
 
     public string Git(params string[] args)
     {

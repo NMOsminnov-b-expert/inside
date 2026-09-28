@@ -54,3 +54,4 @@ docs/reestr-izmeneniy.xlsx
 /tools/graf/bin/
 /tools/graf/obj/
 /tools/graf/dist/
+/tools/graf/dist.next/

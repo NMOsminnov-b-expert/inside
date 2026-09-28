@@ -20,6 +20,11 @@ public sealed class Settings
     public double LeftWidth { get; set; } = 270;
     public double RightWidth { get; set; } = 460;
     public bool GroupByKind { get; set; }
+    // Сортировка списка записей: kind | title | added | modified.
+    public string SortBy { get; set; } = "kind";
+    public bool SortDesc { get; set; }
+    // Вкладка левой панели: «Оглавление» или «Фильтры».
+    public string LeftTab { get; set; } = "toc";
 
     static string Dir => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Graf");
     static string FilePath => System.IO.Path.Combine(Dir, "settings.json");

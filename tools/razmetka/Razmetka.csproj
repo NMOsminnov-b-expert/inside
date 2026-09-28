@@ -23,6 +23,13 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Иконка файла и окна (tools/graf/make_icons.py) — чтобы программу было
+         видно в списке файлов и на панели задач. -->
+    <ApplicationIcon>Assets\razmetka.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\razmetka.ico" />
+  </ItemGroup>
 
 </Project>

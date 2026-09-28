@@ -172,4 +172,9 @@ LINKS = [
         'куда': 'praktika-dolya-celogo-polosoy',
         'папка': 'practices',
     },
+    {
+        'тип': 'якорь раздела «Инструменты»',
+        'куда': 'praktika-filtr-priglushaet-ne-pryachet',
+        'папка': 'practices',
+    },
 ]

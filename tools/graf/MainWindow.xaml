@@ -85,8 +85,22 @@
                 <ColumnDefinition x:Name="RightCol" Width="460" MinWidth="320"/>
             </Grid.ColumnDefinitions>
 
-            <ScrollViewer>
+            <!-- Левая панель: оглавление графа и фильтры — вкладками. Оглавление —
+                 запись knowledge/project/oglavlenie_grafa.py: разделы с якорями
+                 (переход к записи) и метками (фильтр); раздел раскрывается
+                 шевроном (практика дерева в боковой панели). -->
+            <Grid RowSpacing="0">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <SelectorBar x:Name="LeftTabs" Margin="8,4,8,0">
+                    <SelectorBarItem x:Name="TabToc" Text="Оглавление" Tag="toc"/>
+                    <SelectorBarItem x:Name="TabFilters" Text="Фильтры" Tag="filters"/>
+                </SelectorBar>
+            <ScrollViewer x:Name="TocPane" Grid.Row="1">
+                <StackPanel x:Name="Toc" Padding="10,8,10,20" Spacing="2"/>
+            </ScrollViewer>
+            <ScrollViewer x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed">
                 <StackPanel Padding="14,10,14,20" Spacing="4">
+                    <TextBlock Text="ОТСЕЯННОЕ ФИЛЬТРОМ НА ГРАФЕ — ТЁМНЫМ, А НЕ СКРЫТО" FontSize="10" Opacity="0.55" TextWrapping="Wrap" CharacterSpacing="20"/>
                     <TextBlock Text="ВИД ЗАПИСИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,4,0,2" CharacterSpacing="40"/>
                     <StackPanel x:Name="Folders"/>
                     <TextBlock Text="СТАТУС" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
@@ -100,12 +114,34 @@
                     <Button x:Name="BtnReset" Content="Сбросить фильтры" Margin="0,8,0,0"/>
                 </StackPanel>
             </ScrollViewer>
+            </Grid>
             <!-- Границы панелей тянутся мышью. -->
             <v:Splitter x:Name="LeftSplit" HorizontalAlignment="Right" Margin="0,0,-3,0" Canvas.ZIndex="5"/>
 
             <Grid Grid.Column="1">
                 <v:GraphView x:Name="Graph"/>
-                <ListView x:Name="List" Visibility="Collapsed" SelectionMode="Single" IsItemClickEnabled="True"/>
+                <!-- Список: сверху сортировка — по чему и в какую сторону (практика
+                     GitLab: выпадающий список и кнопка направления); даты — в
+                     строке, чтобы порядок не шёл по невидимому признаку. -->
+                <Grid x:Name="ListPane" Visibility="Collapsed" RowSpacing="4">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="14,8,14,0">
+                        <TextBlock Text="Сортировка" VerticalAlignment="Center" Opacity="0.7" FontSize="12"/>
+                        <ComboBox x:Name="SortBy" MinWidth="200">
+                            <ComboBoxItem Content="Вид записи" Tag="kind"/>
+                            <ComboBoxItem Content="Заголовок" Tag="title"/>
+                            <ComboBoxItem Content="Дата добавления" Tag="added"/>
+                            <ComboBoxItem Content="Дата изменения" Tag="modified"/>
+                        </ComboBox>
+                        <Button x:Name="SortDir" Padding="8,5">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon x:Name="SortDirIcon" Glyph="&#xE74B;" FontSize="12"/>
+                                <TextBlock x:Name="SortDirText" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <ListView x:Name="List" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"/>
+                </Grid>
                 <Border x:Name="Tip" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12" Padding="10,6"
                         CornerRadius="6" Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" Visibility="Collapsed" IsHitTestVisible="False">
                     <TextBlock x:Name="TipText" TextWrapping="Wrap" MaxWidth="520"/>
