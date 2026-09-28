@@ -37,14 +37,19 @@ def text_of(r):
                     + [str(p) for p in r.get('пункты') or []])
 
 
-def graph_of(recs):
-    """recs: [(folder, path, rec)] → ({id: (folder, rec)}, {id: set(соседи)})."""
+# Связи оглавления — навигация, а не смысл: в подсказках не в счёт.
+NAV = {'раздел', 'якорь'}
+
+
+def graph_of(recs, skip=()):
+    """recs: [(folder, path, rec)] → ({id: (folder, rec)}, {id: set(соседи)});
+    skip — виды связей, которые не считаются."""
     by = {r['id']: (f, r) for f, _p, r in recs if r.get('id')}
     adj = collections.defaultdict(set)
     for rid, (_f, r) in by.items():
         for l in r.get('связи') or []:
             t = l.get('куда')
-            if t in by and t != rid:
+            if t in by and t != rid and l.get('тип') not in skip:
                 adj[rid].add(t)
                 adj[t].add(rid)
     return by, adj
@@ -180,9 +185,10 @@ def suggest(recs, only=None, top=5, min_text=0.3, min_aa=1.0):
     if only:
         # Для одной записи — лучшие кандидаты, пороги общего списка ниже.
         min_text, min_aa = 0.12, 0.3
-    by, adj = graph_of(recs)
-    # Снятые записи — история, в связи их не предлагаем.
-    live = {k for k, (_f, r) in by.items() if r.get('статус') not in CLOSED}
+    by, adj = graph_of(recs, NAV)
+    # Снятые записи — история, в связи их не предлагаем; оглавление и карты
+    # разделов (папка project) связываются через оглавление, не подсказками.
+    live = {k for k, (f, r) in by.items() if r.get('статус') not in CLOSED and f != 'project'}
     # Вид связи между парой (в любую сторону): у «братьев» — модулей, что оба
     # «зависят от» ядра, — общий сосед достигается одним видом связи с обеих
     # сторон. Это сходство устройства, а не повод связывать (модули ОЦ

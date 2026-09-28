@@ -234,6 +234,26 @@ def cmd_rules(full=False):
                 print('    · ' + ' '.join(str(pt).split()))
 
 
+def sections(recs):
+    """Разделы оглавления: [(название, метки, якоря)]. Оглавление → связь
+    «раздел» → карта раздела (knowledge/project/karta_razdela_*.py) →
+    связи «якорь»; метки — пункт карты «Метки раздела: …» (карты разделов —
+    28.09.2026, практика Maps of Content)."""
+    toc = recs.get('oglavlenie-grafa')
+    out = []
+    for ln in (toc[1].get('связи') or []) if toc else []:
+        m = recs.get(ln.get('куда'))
+        if ln.get('тип') != 'раздел' or not m:
+            continue
+        name = re.sub(r'^Раздел «(.*)»$', r'\1', str(m[1].get('заголовок') or ''))
+        tags = []
+        for pt in m[1].get('пункты') or []:
+            if str(pt).startswith('Метки раздела:'):
+                tags = [t.strip() for t in str(pt).split(':', 1)[1].split(',') if t.strip() not in ('', '—')]
+        out.append((name, tags, [l.get('куда') for l in m[1].get('связи') or [] if l.get('тип') == 'якорь']))
+    return out
+
+
 def cmd_toc():
     """Оглавление графа (knowledge/project/oglavlenie_grafa.py): разделы, их
     метки с числом записей и якоря с заголовками — первая точка входа в граф
@@ -246,19 +266,7 @@ def cmd_toc():
     for folder, r in recs.values():
         for t in r.get('метки') or []:
             by_tag[t] = by_tag.get(t, 0) + 1
-    sections = []
-    for ln in toc[1].get('связи') or []:
-        name = re.sub(r'^якорь раздела «(.*)»$', r'\1', ln.get('тип', ''))
-        if name not in [s[0] for s in sections]:
-            sections.append((name, []))
-        [s for s in sections if s[0] == name][0][1].append(ln.get('куда'))
-    tags_of = {}
-    for pt in toc[1].get('пункты') or []:
-        m = re.match(r'Раздел «(.*?)»(?: — метки: (.*?))?; якоря:', pt)
-        if m:
-            tags_of[m.group(1)] = [t.strip() for t in (m.group(2) or '').split(',') if t.strip()]
-    for name, anchors in sections:
-        tags = tags_of.get(name, [])
+    for name, tags, anchors in sections(recs):
         print('\n## %s' % name + (('   метки: ' + ', '.join('%s (%d)' % (t, by_tag.get(t, 0)) for t in tags)) if tags else ''))
         for a in anchors:
             folder, r = recs.get(a, ('?', {}))
