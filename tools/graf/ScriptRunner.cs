@@ -1,0 +1,96 @@
+using System.Text;
+using System.Text.Json;
+using Graf.Model;
+using Microsoft.UI.Xaml;
+
+namespace Graf;
+
+// Сценарии проверки (--script <файл.json>): JSON-массив шагов, журнал —
+// <файл>.log. Шаги: select, search, next, mode (graph/3d/list), set, save,
+// new, fit, external (правка файла снаружи — проверка живого обновления),
+// pull (потянуть узел), orbit, motion (замер движения узлов), export,
+// import, wait, shot, dump.
+public static class ScriptRunner
+{
+    public static async Task Run(MainWindow w, string path)
+    {
+        var log = new List<string>();
+        var code = 0;
+        try
+        {
+            await Task.Delay(1500);
+            foreach (var st in JsonDocument.Parse(File.ReadAllText(path)).RootElement.EnumerateArray())
+            {
+                var op = st.GetProperty("op").GetString();
+                log.Add("> " + st.GetRawText());
+                string S(string n) => st.GetProperty(n).GetString()!;
+                switch (op)
+                {
+                    case "select": w.Select(S("id"), true); break;
+                    case "search": w.SetSearch(S("text")); break;
+                    case "next": w.NextMatch(); break;
+                    case "mode": w.SetModePublic(S("value") switch { "3d" => 1, "list" => 2, _ => 0 }); break;
+                    case "pull":
+                        await w.GraphCtl.PullTest(S("id"), new System.Numerics.Vector2(st.GetProperty("dx").GetSingle(), st.GetProperty("dy").GetSingle()), 30);
+                        break;
+                    case "orbit": w.GraphCtl.Orbit(st.GetProperty("dx").GetSingle(), st.GetProperty("dy").GetSingle()); break;
+                    case "export": w.ExportTo(S("path")); break;
+                    case "import":
+                    {
+                        var plan = await w.ImportFrom(S("path"), ask: false, removeMissing: st.TryGetProperty("remove", out var rm) && rm.GetBoolean());
+                        log.Add(plan == null ? "  загрузка: ошибка" : $"  загрузка: новых {plan.Added.Count}, изменено {plan.Changed.Count}, совпало {plan.Same.Count}, только в графе {plan.OnlyInGraph.Count}, ошибок {plan.Errors.Count}");
+                        break;
+                    }
+                    case "set": w.PanelCtl.TestSet(S("key"), S("value")); break;
+                    case "save": w.PanelCtl.SaveNow(); break;
+                    case "new": await w.NewRecord(S("folder"), S("title")); break;
+                    case "fit": w.GraphCtl.FitAll(); break;
+                    case "start": w.ShowStart(); break;
+                    case "external":
+                    {
+                        var file = Path.Combine(w.Store!.Root, S("file"));
+                        var text = File.ReadAllText(file, Encoding.UTF8).Replace(S("find"), S("replace"));
+                        File.WriteAllText(file, text, new UTF8Encoding(false));
+                        break;
+                    }
+                    case "wait": await Task.Delay(st.GetProperty("ms").GetInt32()); break;
+                    case "motion":
+                    {
+                        // Движение узлов за ms: наибольший и средний сдвиг в
+                        // мировых единицах, число кадров, идёт ли раскладка.
+                        var g = w.GraphCtl;
+                        var p0 = g.Positions();
+                        var f0 = g.Frames;
+                        await Task.Delay(st.GetProperty("ms").GetInt32());
+                        var p1 = g.Positions();
+                        var d = p0.Keys.Where(p1.ContainsKey).Select(k => System.Numerics.Vector3.Distance(p0[k], p1[k])).ToList();
+                        log.Add($"  движение: узлов {d.Count}, наиб. сдвиг {(d.Count > 0 ? d.Max() : 0):0.00}, "
+                            + $"средний {(d.Count > 0 ? d.Average() : 0):0.000}, сдвинулось >0.5: {d.Count(x => x > 0.5f)}, "
+                            + $"кадров {g.Frames - f0}, раскладка идёт: {g.Animating}");
+                        break;
+                    }
+                    case "shot":
+                        await Task.Delay(300);
+                        Shot.Save(WinRT.Interop.WindowNative.GetWindowHandle(w), S("path"));
+                        break;
+                    case "dump":
+                        File.WriteAllText(S("path"), JsonSerializer.Serialize(new
+                        {
+                            selected = w.PanelCtl.Current?.Id,
+                            title = w.PanelCtl.Current?.Title,
+                            dirty = w.PanelCtl.IsDirty,
+                            nodes = w.GraphCtl.NodeCount,
+                            edges = w.GraphCtl.EdgeCount,
+                        }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+                        break;
+                    default: throw new InvalidOperationException("неизвестный шаг " + op);
+                }
+                await Task.Delay(150);
+            }
+            log.Add("ГОТОВО");
+        }
+        catch (Exception ex) { log.Add("ОШИБКА: " + ex); code = 1; }
+        File.WriteAllLines(path + ".log", log);
+        Environment.Exit(code);
+    }
+}
