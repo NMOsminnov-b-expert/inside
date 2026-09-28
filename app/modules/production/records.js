@@ -14,7 +14,7 @@ import { buildBulkRecord } from './data/bulkRecord.js';
 
 function areaOf(rec) {
     return rec.oi
-    .filter((o) => o.card !== 'land' && o.card !== 'movable')
+    .filter((o) => o.card !== 'land' && o.card !== 'mech' && o.card !== 'vehicle')
     .reduce((s, o) => s + num(o.areas && o.areas.tp), 0);
 }
 

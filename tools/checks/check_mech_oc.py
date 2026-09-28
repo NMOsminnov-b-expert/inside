@@ -88,9 +88,9 @@ def run(t):
     fc.value.set_files(path)
     t.wait_until("() => !!document.querySelector('[data-mu-photo]')")
     pg.click('[data-mu-photo]')
-    t.wait(500)
-    cap = pg.evaluate("() => (document.querySelector('.pv-cap, .ph-pop-cap, .vw-photo-cap, .viewer') || {}).textContent || ''")
-    t.ck('Трансформатор' in cap or 'mu-' not in cap, 'снимок в просмотрщике подписан id: %s' % cap[:120])
+    t.wait_until("() => [...document.querySelectorAll('.vtitle')].some((e) => e.textContent.includes('Фото'))")
+    titles = pg.locator('.vtitle').all_inner_texts()
+    t.ck(any('Трансформатор ТМ-400' in x for x in titles), 'снимок в просмотрщике подписан не названием: %s' % titles)
 
     # --- перезагрузка -----------------------------------------------------------
     rid = rec['id'] if rec else ''

@@ -194,6 +194,11 @@ const BY_CARD = {
     rights: 'Права на строение',
     rightsOther: 'Права на строение (иное)',
   },
+  mech: {
+    name: 'Механизмы и оборудование',
+    groupName: 'Название списка',
+    mechanisms: 'Состав механизмов',
+  },
 };
 
 export function fieldLabel(key, cardType) {

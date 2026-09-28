@@ -10,6 +10,8 @@ import { WEAR_LEVEL, CRANE_BEAM } from '../data/dictionaries.js';
 import { opt } from '../data/opts.js';
 import { oiTypeByLabel } from '../data/rules.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { createMechOi } from '../../mechanisms/card.js';
+import { createVehicleOi } from '../../vehicle/card.js';
 import { nextLetter, nextId, nextEni } from '../data/store.js';
 import { openDocViewer, openPhotoInPlace } from '../../../kernel/viewer/state.js';
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
@@ -26,6 +28,19 @@ function createOi(ctx, type) {
     // код объекта оценки (решение пользователя 09.09.2026).
     const landEni = () => rec.eni || nextEni(rec, rec.eni);
     return createLandOi(rec, { nextId, nextEni: landEni, multiple: true });
+  }
+
+  // Механизмы и оборудование: перечень единиц со своей карточкой — одна на
+  // весь проект (mechanisms/card.js; механизмы бывают в любом ОЦ — решение
+  // пользователя 28.09.2026).
+  if (type.card === 'mech') {
+    return createMechOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
+  }
+
+  // Транспортное средство: одно ТС — один объект имущества, литеры и кода ЕНИ
+  // у него нет (решения пользователя 17.09 и 28.09.2026, vehicle/card.js).
+  if (type.card === 'vehicle') {
+    return createVehicleOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
   }
 
   const letter = nextLetter(rec);
@@ -143,18 +158,6 @@ export function bindOcCard(ctx) {
     const type = oiTypeByLabel(b.dataset.addOi, rec);
     if (!type) { ctx.toast('Для текущего типа ОЦ этот вид ОИ недоступен', 'warn'); return; }
 
-    // Движимое создаётся через мастер (монолит или комплекс).
-    if (type.wizard) {
-      ctx.ui.mechMode = 'mono';
-      ctx.ui.mechDocs = [];
-      ctx.ui.mechRows = [];
-      ctx.ui.mechDraft = { name: '', year: '', serial: '' };
-      ctx.ui.viewer = { mode: 'doc' };
-      ctx.ui.viewerDoc = null;
-      ctx.navigate({ rest: ['new', type.wizard] });
-      return;
-    }
-
     if (type.single && rec.oi.some((o) => o.card === type.card)) {
       ctx.toast('Земельный участок уже добавлен (один ЕНИ на объект)', 'warn');
       return;
@@ -182,7 +185,10 @@ export function bindOcCard(ctx) {
     // объекты заводят пачкой, и переход внутрь после каждого заставлял
     // возвращаться назад. Строка появляется в перечне, открыть её можно кликом.
     ctx.render();
-    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
+    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен'
+      : oi.card === 'mech' ? 'Механизмы и оборудование добавлены'
+        : oi.card === 'vehicle' ? 'Транспортное средство добавлено'
+          : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------

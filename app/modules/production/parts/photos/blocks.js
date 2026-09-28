@@ -1,7 +1,7 @@
 import { esc } from '../../../../kernel/dom.js';
 import { PHOTO_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
-import { photoPages, photoFileAt, photoGroups } from './model.js';
+import { photoPages, photoFileAt, photoGroups, catLabel } from './model.js';
 
 // Плитка фото: настоящая картинка, если файл загружен, иначе прежняя макетная
 // заглушка с подписью (сидовые фото файлов не имеют).
@@ -96,15 +96,15 @@ export function photoPopHTML(oi, ui) {
 
   const chips = `<div class="ph-pop-cats">
     ${chip('', 'Все', pages.length)}
-    ${groups.map((g) => chip(g.cat, g.cat, g.items.length)).join('')}
+    ${groups.map((g) => chip(g.cat, catLabel(oi, g.cat), g.items.length)).join('')}
   </div>`;
 
   const grid = `<div class="ph-pop-grid">${shown.map((p) => {
     const f = photoFileAt(oi, p.cat, p.i);
     return `<button class="ph-pop-item" data-open-photo="${oi.id}|${esc(p.cat)}:${p.i}"
-        title="${esc(p.cat)} · фото ${p.i + 1}">
+        title="${esc(catLabel(oi, p.cat))} · фото ${p.i + 1}">
       <span class="ph-pop-img"${f ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
-      <span class="ph-pop-cap">${esc(active ? String(p.i + 1) : p.cat + ' · ' + (p.i + 1))}</span>
+      <span class="ph-pop-cap">${esc(active ? String(p.i + 1) : catLabel(oi, p.cat) + ' · ' + (p.i + 1))}</span>
     </button>`;
   }).join('')}</div>`;
 

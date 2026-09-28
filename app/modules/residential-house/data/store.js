@@ -43,8 +43,6 @@ export const ui = {
   // (общий механизм — kernel/columns.js).
   oiCols: null,
   oiColWidths: {},
-  mechMode: 'mono',
-  mechDocs: [],
   // Фильтры вкладки «Логи» — везде пустой массив значит «без ограничения,
   // показаны все» (единая семантика для всех мультивыборов панели).
   auditCatOpen: false,
@@ -66,6 +64,8 @@ export const ui = {
   railCollapsed: false,
   viewerSidebar: false,   // выехал сайдбар выбора документа/фото
   pageSel: [],   // лента миниатюр просмотрщика свёрнута
+  // Выбранная единица в карточке механизмов — по id ОИ.
+  mechSel: {},
 };
 
 

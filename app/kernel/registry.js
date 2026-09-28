@@ -34,12 +34,18 @@ export const OC_TYPES = [
     manifest: residentialHouseManifest,
     records: residentialHouseRecords,
     dictExport: residentialHouseDicts,
+    // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
+    // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
+    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/residential-house/index.js'),
   },
   {
     manifest: apartmentManifest,
     records: apartmentRecords,
     dictExport: apartmentDicts,
+    // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
+    // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
+    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/apartment/index.js'),
   },
   {
@@ -56,12 +62,18 @@ export const OC_TYPES = [
     manifest: productionManifest,
     records: productionRecords,
     dictExport: productionDicts,
+    // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
+    // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
+    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/production/index.js'),
   },
   {
     manifest: landPlotManifest,
     records: landPlotRecords,
     dictExport: landPlotDicts,
+    // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
+    // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
+    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/land-plot/index.js'),
   },
   {

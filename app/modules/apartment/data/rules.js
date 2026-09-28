@@ -17,6 +17,26 @@ export const OI_TYPES = [
   { label: 'Прочее строение', card: 'building' },
 ];
 
-export function oiTypeByLabel(label) {
-  return OI_TYPES.find((t) => t.label === label) || null;
+export const MOVABLE_OI_TYPES = [
+  // Один пункт на всё движимое (решение пользователя 07.09.2026, ветка mech):
+  // офисная техника ничем не отличается от любого другого оборудования и
+  // различается классом в классификаторе карточки, а не отдельным видом ОИ.
+  { label: 'Механизмы и оборудование', card: 'mech' },
+  // Транспорт вынесен отдельным видом, а не классом внутри механизмов: у ТС
+  // свои опознавательные сведения (госномер, VIN, регистрационные документы),
+  // и в перечне его ищут по ним.
+  { label: 'Транспортное средство', card: 'vehicle' },
+];
+
+export function realtyTypes() {
+  return OI_TYPES;
+}
+
+// Движимое — только у имущественного комплекса, как в гражданском (эталон).
+export function movableTypes(rec) {
+  return rec && rec.complex ? MOVABLE_OI_TYPES : [];
+}
+
+export function oiTypeByLabel(label, rec) {
+  return [...OI_TYPES, ...movableTypes(rec)].find((t) => t.label === label) || null;
 }

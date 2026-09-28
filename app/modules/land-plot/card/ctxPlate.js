@@ -31,9 +31,9 @@ export function ctxPlate(ctx) {
     return `<div class="ctx-plate ctx-oi">
         <span class="ctx-kind">${meta.plateKind}</span>
         <b>${meta.hasLetter ? 'Литера ' + esc(oi.letter) + ' · ' : ''}${esc(oi.name)}</b>
-        <span class="ctx-chip ctx-plate-eni" title="Код ЕНИ — правится в шапке блока «Общие параметры»">
+        ${meta.hasEni === false ? '' : `<span class="ctx-chip ctx-plate-eni" title="Код ЕНИ — правится в шапке блока «Общие параметры»">
           <label>ЕНИ</label>
-          <b class="mono">${esc(fmtEni(oi.eni))}</b></span>
+          <b class="mono">${esc(fmtEni(oi.eni))}</b></span>`}
         <span class="ctx-chip ctx-plate-addr ell" title="${esc(ctx.rec.address)}">${esc(ctx.rec.address)}</span>
         ${chips}
         ${flagBadgesHTML(recFlags(ctx.rec))}

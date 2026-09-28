@@ -1,4 +1,5 @@
 import { archiveOi } from '../../kernel/archive.js';
+import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
 import { migrateTempMode } from './oi/building/tempMode.js';
@@ -29,8 +30,6 @@ import { setViewerDeps } from '../../kernel/viewer/deps.js';
 import { viewerDeps } from './parts/docs/viewerDeps.js';
 import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
-import { viewMech } from './create/mech.view.js';
-import { bindMech } from './create/mech.ctrl.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { migrateAnnexList } from './oi/building/annexes.js';
 
@@ -64,7 +63,6 @@ export function main(host) {
     get view() { return viewName(); },
     get tab() { return route.query.tab || 'general'; },
     get oi() { return route.rest[0] === 'oi' ? getOi(rec, route.rest[1]) : null; },
-    get mechKind() { return route.rest[1] === 'office' ? 'ОФИС' : 'МЕХ'; },
 
     toast: host.toast,
     resetViewer,
@@ -118,6 +116,8 @@ export function main(host) {
         ui.letterEdit = false;
         ctx.navigate({ rest: [] });
       } else {
+        migrateMovable(rec);
+        migrateMechUnits(rec);
         migrateSpecials(rec);
         migrateStruct(rec);
         migrateAnnexes(rec);
@@ -130,7 +130,6 @@ export function main(host) {
   function viewName() {
     if (route.rest[0] === 'oi') return 'oi';
     if (route.rest[0] === 'form') return 'form';
-    if (route.rest[0] === 'new') return 'mech';
     if (route.rest[0] === 'create') return 'create';
     return 'oc';
   }
@@ -241,9 +240,6 @@ export function main(host) {
       const card = await ensureCard(oi);
       body = card.render(ctx, oi);
       bindBody = () => card.bind(ctx, oi);
-    } else if (ctx.view === 'mech') {
-      body = viewMech(ctx);
-      bindBody = () => bindMech(ctx);
     } else if (ctx.view === 'form') {
       body = viewOCForm(ctx);
       bindBody = () => bindOcForm(ctx);
@@ -372,6 +368,8 @@ export function main(host) {
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
   ensureViewerDefault();
+  migrateMovable(rec);
+  migrateMechUnits(rec);
   migrateSpecials(rec);
   migrateStruct(rec);
   migrateAnnexes(rec);
@@ -388,6 +386,8 @@ export function main(host) {
         resetViewer();
       }
       ensureViewerDefault();
+      migrateMovable(rec);
+      migrateMechUnits(rec);
       migrateSpecials(rec);
       migrateStruct(rec);
       migrateAnnexes(rec);

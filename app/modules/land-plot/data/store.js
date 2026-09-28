@@ -43,8 +43,6 @@ export const ui = {
   letterEdit: false,
   heatOpen: false,
   photoQuery: '',
-  mechMode: 'mono',
-  mechDocs: [],
   // Ширина просмотрщика — своя для каждого режима (kernel/viewer/shell.js).
   splitVW: {},
   // Сравнение: соотношение колонок и свёрнутая половина (Л3.9).
@@ -65,6 +63,8 @@ export const ui = {
   auditDateTo: '',
   auditSearchText: '',
   pageSel: [],   // лента миниатюр просмотрщика свёрнута
+  // Выбранная единица в карточке механизмов — по id ОИ.
+  mechSel: {},
 };
 
 

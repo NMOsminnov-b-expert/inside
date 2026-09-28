@@ -1,5 +1,7 @@
 import { esc } from '../../../kernel/dom.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
+import { mechCardMeta } from '../../mechanisms/card.js';
+import { vehicleCardMeta } from '../../vehicle/card.js';
 
 // Реестр карточек ОИ модуля «Жилое здание (квартира)».
 function verbal(oi) {
@@ -71,6 +73,12 @@ export const OI_CARDS = {
     plateChips: () => [],
     load: () => import('./land/index.js'),
   },
+
+  // Механизмы и оборудование и транспортное средство — объекты имущества в
+  // любом типе ОЦ (решение пользователя 28.09.2026). Описания общие на все
+  // модули (mechanisms/card.js, vehicle/card.js); карточки грузятся лениво.
+  mech: { ...mechCardMeta(verbal), load: () => import('./mech/index.js') },
+  vehicle: { ...vehicleCardMeta(verbal), load: () => import('./vehicle/index.js') },
 };
 export function cardMeta(oi) {
   return OI_CARDS[oi && oi.card] || OI_CARDS.apartment;

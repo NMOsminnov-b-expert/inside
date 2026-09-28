@@ -147,14 +147,18 @@ function sub(ctx, label, list, emptyText, kind, withHead, total) {
   </div>`;
 }
 
+// Движимое имущество — один раздел на механизмы и транспорт: в перечне их
+// смотрят вместе, а чем именно является строка, видно в столбце категории.
+const isMovable = (o) => o.card === 'mech' || o.card === 'vehicle';
+
 function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
   return `<div class="acc oi-node ${open ? 'open' : ''}" data-oi-drop="${esc(dropId)}">
     <div class="acc-head oi-node-head" data-acc-toggle="${esc(key)}">
       <span class="chev">▾</span>
       ${head}
       <span class="oi-node-count">
-        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => o.card !== 'movable').length}</span>
-        <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter((o) => o.card === 'movable').length}</span>
+        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => !isMovable(o)).length}</span>
+        <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter(isMovable).length}</span>
       </span>
       ${meta}
     </div>
@@ -162,10 +166,10 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
       ${summary || ''}
       ${colsRowHTML(ctx)}
       ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : 'Здания и сооружения',
-        letters.filter((o) => o.card !== 'movable'),
+        letters.filter((o) => !isMovable(o)),
         'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false, true)}
-      ${letters.some((o) => o.card === 'movable')
-    ? sub(ctx, 'Движимое имущество', letters.filter((o) => o.card === 'movable'),
+      ${letters.some(isMovable)
+    ? sub(ctx, 'Движимое имущество', letters.filter(isMovable),
       '', 'movable', false, false)
     : ''}
     </div>

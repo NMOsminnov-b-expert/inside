@@ -1,5 +1,7 @@
 import { esc } from '../../../kernel/dom.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
+import { mechCardMeta } from '../../mechanisms/card.js';
+import { vehicleCardMeta } from '../../vehicle/card.js';
 
 // Реестр карточек ОИ модуля «Гражданское здание».
 function verbal(oi) {
@@ -53,24 +55,11 @@ export const OI_CARDS = {
     load: () => import('./land/index.js'),
   },
 
-  movable: {
-    id: 'movable',
-    headLabel: 'Движимое имущество',
-    listLabel: (oi) => `${oi.kind === 'МЕХ' ? 'Механизм' : 'Офис. техника'} · ${esc(oi.name)}`,
-    crumbLabel: (oi) => esc(oi.name),
-    plateKind: 'ОЦ → ОИ',
-    hasLetter: false,
-    tableTag: (oi) => (oi.kind === 'МЕХ' ? 'Механизм' : 'Офис. техника'),
-    tableCategory: (oi) => (oi.kind === 'МЕХ' ? 'Движимое · Механизм' : 'Движимое · Офисная техника'),
-    tableArea: () => '—',
-    tableAreaBuild: () => '—',
-    areaValues: () => ({ area: 0, build: 0 }),
-    plateChips: (oi) => {
-      const v = verbal(oi);
-      return [`<span class="ctx-chip ${v.c}">${v.t}</span>`];
-    },
-    load: () => import('./movable/index.js'),
-  },
+  // Механизмы и оборудование и транспортное средство — объекты имущества в
+  // любом типе ОЦ (решение пользователя 28.09.2026). Описания общие на все
+  // модули (mechanisms/card.js, vehicle/card.js); карточки грузятся лениво.
+  mech: { ...mechCardMeta(verbal), load: () => import('./mech/index.js') },
+  vehicle: { ...vehicleCardMeta(verbal), load: () => import('./vehicle/index.js') },
 
   // Квартиру можно добавить в объект оценки любого типа (решение пользователя
   // 02.09.2026), поэтому карточка есть и здесь — импортом из модуля квартиры.

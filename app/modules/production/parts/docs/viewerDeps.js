@@ -1,5 +1,5 @@
 import { docListFor, ensureDocPages, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB, scopeLabel } from './model.js';
-import { photoPages, photoGroups, photoFileAt } from '../photos/model.js';
+import { photoPages, photoGroups, photoFileAt, catLabel } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { nextDocId } from '../../data/store.js';
@@ -24,9 +24,9 @@ export const viewerDeps = {
   photoPages,
   photoGroups,
   photoFileAt,
-  // Подписи категорий фото своим словарём есть только у гражданского (там
-  // категория механизма — его идентификатор). Здесь категория и есть подпись.
-  catLabel: (oi, cat) => cat,
+  // У механизмов категория фото — id единицы, подпись — её название
+  // (parts/photos/model.js, catLabel), как в гражданском.
+  catLabel,
 
   pushDocPageLog,
 };

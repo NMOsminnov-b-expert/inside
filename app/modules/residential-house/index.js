@@ -1,4 +1,5 @@
 import { archiveOi } from '../../kernel/archive.js';
+import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
 import { migrateTempMode } from './oi/building/tempMode.js';
@@ -115,6 +116,8 @@ export function main(host) {
         ui.letterEdit = false;
         ctx.navigate({ rest: [] });
       } else {
+        migrateMovable(rec);
+        migrateMechUnits(rec);
         migrateSpecials(rec);
         migrateStruct(rec);
         migrateAnnexes(rec);
@@ -366,6 +369,8 @@ export function main(host) {
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
   ensureViewerDefault();
+  migrateMovable(rec);
+  migrateMechUnits(rec);
   migrateSpecials(rec);
   migrateStruct(rec);
   migrateAnnexes(rec);
@@ -382,6 +387,8 @@ export function main(host) {
         resetViewer();
       }
       ensureViewerDefault();
+      migrateMovable(rec);
+      migrateMechUnits(rec);
       migrateSpecials(rec);
       migrateStruct(rec);
       migrateAnnexes(rec);

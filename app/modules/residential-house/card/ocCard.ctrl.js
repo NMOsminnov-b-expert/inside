@@ -11,6 +11,8 @@ import { openDocViewer, openPhotoInPlace } from '../../../kernel/viewer/state.js
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
+import { createMechOi } from '../../mechanisms/card.js';
+import { createVehicleOi } from '../../vehicle/card.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { bindParties } from './parties.ctrl.js';
 
@@ -22,6 +24,19 @@ function createOi(ctx, type) {
     // код объекта оценки (решение пользователя 09.09.2026).
     const landEni = () => rec.eni || nextEni(rec, rec.eni);
     return createLandOi(rec, { nextId, nextEni: landEni, multiple: true });
+  }
+
+  // Механизмы и оборудование: перечень единиц со своей карточкой — одна на
+  // весь проект (mechanisms/card.js; механизмы бывают в любом ОЦ — решение
+  // пользователя 28.09.2026).
+  if (type.card === 'mech') {
+    return createMechOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
+  }
+
+  // Транспортное средство: одно ТС — один объект имущества, литеры и кода ЕНИ
+  // у него нет (решения пользователя 17.09 и 28.09.2026, vehicle/card.js).
+  if (type.card === 'vehicle') {
+    return createVehicleOi({ id: nextId('oi'), origin: 'manual', flags: { entered: false, matched: false } });
   }
 
   const letter = nextLetter(rec);
@@ -130,7 +145,7 @@ export function bindOcCard(ctx) {
     e.stopPropagation();
     s.$$('.dd').forEach((d) => d.classList.remove('open'));
 
-    const type = oiTypeByLabel(b.dataset.addOi);
+    const type = oiTypeByLabel(b.dataset.addOi, rec);
     if (!type) { ctx.toast('Для текущего типа ОЦ этот вид ОИ недоступен', 'warn'); return; }
 
     // Участков в записи может быть несколько (Л2.2, Л4.6). Если он ОДИН, новая
@@ -155,7 +170,10 @@ export function bindOcCard(ctx) {
     // объекты заводят пачкой, и переход внутрь после каждого заставлял
     // возвращаться назад. Строка появляется в перечне, открыть её можно кликом.
     ctx.render();
-    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен' : 'Литера ' + oi.letter + ' создана', 'ok');
+    ctx.toast(oi.card === 'land' ? 'Земельный участок добавлен'
+      : oi.card === 'mech' ? 'Механизмы и оборудование добавлены'
+        : oi.card === 'vehicle' ? 'Транспортное средство добавлено'
+          : 'Литера ' + oi.letter + ' создана', 'ok');
   });
 
   // --- Шапка ОЦ -----------------------------------------------------------
