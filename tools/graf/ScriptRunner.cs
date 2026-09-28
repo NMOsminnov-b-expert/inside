@@ -49,6 +49,9 @@ public static class ScriptRunner
                     case "tag": w.ToggleTag(S("value")); break;
                     case "sort": w.SetSort(S("key"), st.TryGetProperty("desc", out var dsc) && dsc.GetBoolean()); break;
                     case "lefttab": w.SetLeftTabPublic(S("value")); break;
+                    case "islands": w.GraphCtl.SetIslands(S("value") == "on"); break;
+                    case "ego": w.GraphCtl.SetEgo(st.GetProperty("hops").GetInt32()); break;
+                    case "islandstat": log.Add("  острова: " + w.GraphCtl.IslandStats()); break;
                     case "datepreset": w.SetDatePresetPublic(S("value")); break;
                     case "colorbydate": w.ColorByDatePublic(true); break;
                     case "tocopen": w.OpenTocSection(S("value")); break;

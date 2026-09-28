@@ -25,6 +25,8 @@ public sealed class Settings
     public bool SortDesc { get; set; }
     // Вкладка левой панели: «Оглавление» или «Фильтры».
     public string LeftTab { get; set; } = "toc";
+    // Раскладка графа: острова по видам записей или свободная.
+    public bool Islands { get; set; }
 
     static string Dir => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Graf");
     static string FilePath => System.IO.Path.Combine(Dir, "settings.json");

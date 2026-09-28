@@ -92,6 +92,10 @@ public sealed partial class MainWindow : Window
         SortDir.Click += (_, _) => { _settings.SortDesc = !_settings.SortDesc; _settings.Save(); ShowSortDir(); Refresh(); };
         List.ItemClick += (_, e) => { if (e.ClickedItem is Row row) Select(row.R.Id, center: false); };
         HintBtn.Click += (_, _) => ToggleHint();
+        LayoutFree.Click += (_, _) => SetLayout(false);
+        LayoutIslands.Click += (_, _) => SetLayout(true);
+        BuildEgoButtons();
+        if (_settings.Islands) { LayoutFree.IsChecked = false; LayoutIslands.IsChecked = true; }
         DateModeMod.Click += (_, _) => { _dateAdded = false; BuildDateFilter(); Refresh(); };
         DateModeAdd.Click += (_, _) => { _dateAdded = true; BuildDateFilter(); Refresh(); };
         DateFrom.DateChanged += (_, _) => OnPickers();
@@ -169,6 +173,7 @@ public sealed partial class MainWindow : Window
         ResetFilters();
         BuildFilters();
         Refresh();
+        if (_settings.Islands) Graph.SetIslands(true);
         if (Root.IsLoaded) Graph.FitAll(animate: false);
         Store.Changed += OnStoreChanged;
         Store.Watch();
@@ -646,6 +651,76 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // --- раскладка и окрестность ------------------------------------------------------
+    //
+    // Задача пользователя 28.09.2026 «граф сильно запутан»: острова по видам
+    // записей и окрестность узла (эго-сеть на 1–3 шага), см. GraphView.
+
+    void SetLayout(bool islands)
+    {
+        LayoutFree.IsChecked = !islands;
+        LayoutIslands.IsChecked = islands;
+        Graph.SetIslands(islands);
+        _settings.Islands = islands;
+        _settings.Save();
+    }
+
+    void BuildEgoButtons()
+    {
+        EgoButtons.Children.Clear();
+        foreach (var (hops, label) in new[] { (0, "выкл"), (1, "1"), (2, "2"), (3, "3") })
+        {
+            var b = new ToggleButton
+            {
+                Content = label, IsChecked = Graph.EgoHops == hops, Padding = new Thickness(9, 3, 9, 3), FontSize = 12, MinWidth = 0,
+                CornerRadius = new CornerRadius(hops == 0 ? 4 : 0, hops == 3 ? 4 : 0, hops == 3 ? 4 : 0, hops == 0 ? 4 : 0),
+            };
+            ToolTipService.SetToolTip(b, hops == 0 ? "Весь граф" : $"Выбранная запись и соседи на {hops} {(hops == 1 ? "шаг" : "шага")}");
+            var h = hops;
+            b.Click += (_, _) =>
+            {
+                Graph.SetEgo(h);
+                BuildEgoButtons();
+                if (h > 0 && Graph.Selected == null) Status("Окрестность: выберите запись на графе");
+                else if (h > 0) Status($"Окрестность: записей {Graph.EgoCount}");
+            };
+            EgoButtons.Children.Add(b);
+        }
+    }
+
+    // Виды связей: цвет, число, показывать ли (задача пользователя 28.09.2026).
+    // Словарь видов — tools/knowledge/structure_review.py; пока граф не сведён
+    // к нему, здесь и прежние виды — самые частые сверху.
+    void BuildEdgeKinds()
+    {
+        EdgeKinds.Children.Clear();
+        var counts = Graph.EdgeTypesPresent.GroupBy(t => t.StartsWith("якорь раздела") ? "якорь раздела оглавления" : t)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var order = GraphView.EdgeTypes.Select(e => e.Type).Where(counts.ContainsKey)
+            .Concat(counts.Keys.Where(k => GraphView.EdgeTypes.All(e => e.Type != k)).OrderByDescending(k => counts[k]));
+        foreach (var t in order)
+        {
+            var on = !_hiddenEdges.Contains(t);
+            var col = t == "якорь раздела оглавления" ? GraphView.EdgeTypeColor("якорь раздела") : GraphView.EdgeTypeColor(t);
+            EdgeKinds.Children.Add(FilterRow(t, counts[t], $"#{col.R:X2}{col.G:X2}{col.B:X2}", on, v =>
+            {
+                if (v) _hiddenEdges.Remove(t); else _hiddenEdges.Add(t);
+                ApplyHiddenEdges();
+            }));
+        }
+    }
+
+    readonly HashSet<string> _hiddenEdges = new();
+
+    void ApplyHiddenEdges()
+    {
+        var hidden = new HashSet<string>(_hiddenEdges);
+        if (hidden.Remove("якорь раздела оглавления"))
+            foreach (var t in Graph.EdgeTypesPresent.Where(x => x.StartsWith("якорь раздела")).Distinct()) hidden.Add(t);
+        Graph.HiddenEdgeTypes = hidden;
+        Graph.Redraw();
+    }
+
     // Задан ли хоть один фильтр: без них на графе ничего не приглушается.
     bool FiltersOn => _foldersOff.Count > 0 || _statusOff.Count > 0 || _tagsOn.Count > 0 || _dateFrom != null || _dateTo != null;
 
@@ -878,6 +953,8 @@ public sealed partial class MainWindow : Window
         var passing = filtered ? all.Where(Passes).Select(r => r.Id).ToHashSet() : null;
         Graph.SetData(vis, links);
         Graph.Passing = passing;
+        BuildEdgeKinds();
+        ApplyHiddenEdges();
         if (ColorByDate.IsChecked == true) UpdateRecency();
         Graph.Highlight = _matches.Select(m => m.Id).ToHashSet();
         Graph.Redraw();
@@ -931,6 +1008,7 @@ public sealed partial class MainWindow : Window
         Graph.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
         ListPane.Visibility = mode == 2 ? Visibility.Visible : Visibility.Collapsed;
         NavHint.Visibility = HintBtn.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
+        GraphTools.Visibility = mode == 0 ? Visibility.Visible : Visibility.Collapsed;
         NavHintText.Text = mode == 1 ? Hint3D : Hint2D;
         if (mode != 2) ShowHint();
         BtnFit.IsEnabled = BtnRelayout.IsEnabled = mode != 2;

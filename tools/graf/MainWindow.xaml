@@ -120,6 +120,9 @@
                     <CheckBox x:Name="ColorByDate" Content="Цвет узла — по дате изменения" Margin="0,6,0,0"
                               ToolTipService.ToolTip="Самая свежая правка — оранжевый, самая давняя — серый"/>
                     <TextBlock x:Name="ColorLegend" FontSize="11" Opacity="0.6" TextWrapping="Wrap" Visibility="Collapsed"/>
+                    <!-- Виды связей: цвет на графе, число, показывать ли. -->
+                    <TextBlock Text="СВЯЗИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
+                    <StackPanel x:Name="EdgeKinds"/>
                     <TextBlock Text="ВИД ЗАПИСИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
                     <StackPanel x:Name="Folders"/>
                     <TextBlock Text="СТАТУС" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
@@ -139,6 +142,24 @@
 
             <Grid Grid.Column="1">
                 <v:GraphView x:Name="Graph"/>
+                <!-- Раскладка и окрестность — поверх полотна, слева сверху (как
+                     управление видом у карт): рядом с тем, на что влияют. -->
+                <Border x:Name="GraphTools" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" Padding="8,6"
+                        CornerRadius="8" Background="#CC131B24">
+                    <StackPanel Orientation="Horizontal" Spacing="14">
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton x:Name="LayoutFree" Content="Свободно" IsChecked="True" CornerRadius="4,0,0,4" Padding="10,3" FontSize="12"
+                                          ToolTipService.ToolTip="Силовая раскладка всего графа"/>
+                            <ToggleButton x:Name="LayoutIslands" Content="Острова" CornerRadius="0,4,4,0" Padding="10,3" FontSize="12"
+                                          ToolTipService.ToolTip="Узлы одного вида записи — в своей области с подписью"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Окрестность" Foreground="#CCE6ECF2" FontSize="12" VerticalAlignment="Center"
+                                       ToolTipService.ToolTip="Только выбранная запись и её соседи на 1–3 шага, кольцами"/>
+                            <StackPanel x:Name="EgoButtons" Orientation="Horizontal"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
                 <!-- Список: сверху сортировка — по чему и в какую сторону (практика
                      GitLab: выпадающий список и кнопка направления); даты — в
                      строке, чтобы порядок не шёл по невидимому признаку. -->
