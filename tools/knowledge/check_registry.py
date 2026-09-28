@@ -21,7 +21,8 @@ import subprocess
 import sys
 import time
 
-import yaml
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import graph  # noqa: E402 — формат записи графа (tools/knowledge/graph.py)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KNOW = os.path.join(ROOT, 'knowledge')
@@ -55,15 +56,7 @@ LABELS_ON_SCREEN = r"""() => {
 
 
 def load(folder):
-    records = []
-    path = os.path.join(KNOW, folder)
-    if not os.path.isdir(path):
-        return records
-    for name in sorted(os.listdir(path)):
-        if name.endswith('.yaml'):
-            records.append((name, yaml.safe_load(io.open(os.path.join(path, name),
-                                                         encoding='utf-8'))))
-    return records
+    return [(os.path.basename(p), r) for _, p, r in graph.load_all([folder])]
 
 
 def main():

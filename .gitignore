@@ -1,16 +1,9 @@
-# Локальный кэш графа знаний — производный от .claude/knowledge-graph/log/*,
-# пересобирается командой `python .claude/knowledge-graph/tools/rebuild_memory.py`.
-# Не коммитить: у каждого в рабочей копии свой файл, который MCP-сервер
-# постоянно перезаписывает целиком — при коммите он был бы гарантированным
-# конфликтом на merge между ветками.
-.claude/knowledge-graph/memory.jsonl
-
 # Скриншоты smoke-тестов/screenshot.py — временный вывод, не эталон
 # (в отличие от tools/visual-parity/baseline/, который коммитится).
 tools/visual-parity/out/
 tools/visual-parity/baseline/
 docs/screens/
-# Кэш байткода Python рядом со скриптами (tools/, .claude/knowledge-graph/tools/).
+# Кэш байткода Python рядом со скриптами (tools/).
 # Создаётся при каждом запуске, к содержимому проекта отношения не имеет.
 __pycache__/
 *.pyc

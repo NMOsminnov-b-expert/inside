@@ -55,7 +55,8 @@ MODULES = [
     ('app/shell/', 'Оболочка'),
     ('tools/checks/', 'Проверки'),
     ('docs/', 'Документы'),
-    ('.claude/knowledge-graph/', 'Граф знаний'),
+    ('knowledge/', 'Граф знаний'),
+    ('.claude/knowledge-graph/', 'Граф знаний (прежний, снят 28.09.2026)'),
 ]
 
 

@@ -19,9 +19,7 @@
 
 На выходе — docs/audit-posle-pud.docx (локальный файл, никуда не выгружается).
 """
-import glob
 import io
-import json
 import os
 import re
 import subprocess
@@ -132,30 +130,24 @@ def renames_after():
 
 
 def decisions():
-    """Решения и открытые вопросы за период. Практики и правила — служебное.
-
-    Записи одного узла собираются по всем файлам лога: вопрос, закрытый позже
-    (наблюдение «Снято …»), в документ не попадает."""
-    nodes, order = {}, []
-    for f in sorted(glob.glob(os.path.join(ROOT, '.claude', 'knowledge-graph', 'log', '*.json'))):
-        for e in json.load(io.open(f, encoding='utf-8')).get('entities', []):
-            if e.get('entityType') not in ('Decision', 'OpenQuestion'):
-                continue
-            if e['name'] not in nodes:
-                nodes[e['name']] = {'kind': e['entityType'], 'obs': [], 'from': os.path.basename(f)}
-                order.append(e['name'])
-            nodes[e['name']]['obs'] += e.get('observations') or []
+    """Решения и открытые вопросы за период из графа knowledge/. Практики и
+    правила — служебное. Закрытый вопрос (статус «закрыт» или пункт «Снято …»)
+    в документ не попадает."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'knowledge'))
+    import graph  # noqa: E402 — граф знаний проекта
+    kinds = {'decisions': 'Decision', 'questions': 'OpenQuestion'}
+    since = '%s-%s-%s' % (PUD_DATE[:4], PUD_DATE[4:6], PUD_DATE[6:])
     out = []
-    for name in order:
-        n = nodes[name]
-        if n['from'] < PUD_DATE or not n['obs']:
+    for folder, _, r in graph.load_all(list(kinds)):
+        points = [re.sub(r'^\[восстановлено\] ', '', str(x)) for x in (r.get('пункты') or [])]
+        if not points or (r.get('дата') or '') < since:
             continue
-        if any(o.startswith('Снято') for o in n['obs']):
+        if r.get('статус') == 'закрыт' or any(x.startswith('Снято') for x in points):
             continue
-        text = n['obs'][0]
-        if SKIP_WORDS.search((name + ' ' + text).lower()):
+        text = points[0]
+        if SKIP_WORDS.search(((r.get('заголовок') or '') + ' ' + text).lower()):
             continue
-        out.append((n['kind'], text))
+        out.append((kinds[folder], text))
     return out
 
 

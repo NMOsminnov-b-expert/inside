@@ -1,0 +1,19 @@
+# -*- coding: utf-8 -*-
+""".head-meta стояла с flex-wrap:nowrap и overflow:hidden:
+
+Запись графа знаний проекта (knowledge/decisions). Файл — данные, не код:
+читается разбором (tools/knowledge/graph.py), не исполняется.
+"""
+ID = 'adaptivnaya-shapka-oc'
+KIND = 'решение'
+TITLE = '.head-meta стояла с flex-wrap:nowrap и overflow:hidden:'
+TAGS = ['решение']
+STATUS = 'действует'
+DATE = ''
+SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
+OLD_NAME = 'decision:adaptivnaya-shapka-OC'
+POINTS = ['.head-meta стояла с flex-wrap:nowrap и overflow:hidden: при нехватке ширины сжимались данные (тип, '
+ 'назначение, код ЕНИ, адрес превращались в «Г…», «А…»), а кнопки сохраняли полную ширину.',
+ 'Теперь данные переносятся на следующую строку (.hm{min-width:120px}), а действия собраны в .head-actions и '
+ 'держатся вместе справа.',
+ 'Проверено на 1600/1366/1152/1024: обрезанных значений нет, страница не шире окна.']

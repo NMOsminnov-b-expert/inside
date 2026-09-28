@@ -26,7 +26,8 @@ import subprocess
 import sys
 import time
 
-import yaml
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import graph  # noqa: E402 — формат записи графа (tools/knowledge/graph.py)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KNOW = os.path.join(ROOT, 'knowledge')
@@ -275,11 +276,9 @@ def write(folder, name, record):
             'Нужно развести их по разным идентификаторам.' % (key, prev, record['термин']))
     TAKEN[key] = record['термин']
 
-    os.makedirs(os.path.join(KNOW, folder), exist_ok=True)
-    path = os.path.join(KNOW, folder, name + '.yaml')
-    io.open(path, 'w', encoding='utf-8', newline='\n').write(
-        yaml.safe_dump(record, allow_unicode=True, sort_keys=False, width=100))
-    return path
+    record = dict(record, id=name)
+    graph.save(folder, record)
+    return graph.path_of(folder, name)
 
 
 def migrate(data):

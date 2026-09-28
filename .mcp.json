@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "memory": {
-      "command": "node",
-      "args": [".claude/knowledge-graph/tools/memory-server.js"]
-    }
-  }
-}
