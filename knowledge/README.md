@@ -62,6 +62,7 @@ CodeGraph ищет текст только в значениях констан�
     python tools/knowledge/graph.py new <папка> <заголовок>   заготовка записи
     python tools/knowledge/graph.py check              проверить записи и связи
     python tools/knowledge/graph.py stats              сколько чего
+    python tools/knowledge/view_graph.py --open        граф картинкой, 2D и 3D (local-docs/graf-proekta.html)
     codegraph sync                                     обновить индекс после правок
 
 Реестр понятий и полей:
