@@ -13,8 +13,8 @@ import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../
 import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
-import { createMechOi } from '../oi/mech/model.js';
-import { createVehicleOi } from '../oi/vehicle/model.js';
+import { createMechOi } from '../../mechanisms/card.js';
+import { createVehicleOi } from '../../vehicle/card.js';
 import { bindStructBox } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';

@@ -1,13 +1,13 @@
-// Сверка справочника полей (app/modules/civil/data/mechFields.js) с
+// Сверка справочника полей (app/modules/mechanisms/data/mechFields.js) с
 // классификатором движимого имущества. Ловит то, что молча ломает карточку:
 // подгруппу без полей, уточнение по типу, которого в классификаторе нет,
 // повтор ключа внутри категории и один ключ под разными подписями (одна
 // величина должна называться одинаково во всей карточке).
 //
 //     node tools/data/audit_mech_fields.mjs
-import { MECH_CLASSIFIER } from '../../app/modules/civil/data/mechClassifier.js';
+import { MECH_CLASSIFIER } from '../../app/modules/mechanisms/data/mechClassifier.js';
 import { MECH_FIELDS, MECH_CLASS_FIELDS, MECH_EXTRA_CLASSES, fieldsFor }
-  from '../../app/modules/civil/data/mechFields.js';
+  from '../../app/modules/mechanisms/data/mechFields.js';
 
 const problems = [];
 const stat = { classes: 0, subs: 0, types: 0, fields: 0 };

@@ -1,19 +1,3 @@
-import { render } from './view.js';
-import { bind } from './ctrl.js';
-import { syncVehicleName, migrateVehicleOi } from './model.js';
-
-// Карточка ОИ «Транспортное средство» модуля «Гражданское здание».
-export const card = {
-  id: 'vehicle',
-
-  // Подпись ОИ — производная от марки, модели и госномера: у машины, заведённой
-  // до того, как их заполнили, в перечне стояла бы пустая строка. ТС,
-  // заведённое прежней карточкой, переводится на «базу + модуль».
-  init(oi) {
-    migrateVehicleOi(oi);
-    syncVehicleName(oi);
-  },
-
-  render,
-  bind,
-};
+// Карточка ОИ «Транспортное средство» — одна на весь проект, из модуля ТС
+// (vehicle/card.js, решения пользователя 23.09 и 28.09.2026).
+export { vehicleOiCard as card } from '../../../vehicle/card.js';

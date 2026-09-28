@@ -1,9 +1,9 @@
 // Снимает справочники макета (механизмы, ТС, литера) и печатает JSON в поток
 // вывода. Вызывается из tools/docs/build_sverka_s_tablicami.py — руками
 // запускать не нужно.
-import { MECH_CLASSIFIER } from '../../app/modules/civil/data/mechClassifier.js';
+import { MECH_CLASSIFIER } from '../../app/modules/mechanisms/data/mechClassifier.js';
 import { MECH_FIELDS, MECH_CLASS_FIELDS, MECH_EXTRA_CLASSES }
-  from '../../app/modules/civil/data/mechFields.js';
+  from '../../app/modules/mechanisms/data/mechFields.js';
 import { VEHICLE_FIELDS, VEHICLE_TYPES } from '../../app/modules/vehicle/data/vehicleFields.js';
 import * as CD from '../../app/modules/civil/data/dictionaries.js';
 

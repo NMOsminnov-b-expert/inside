@@ -1,17 +1,18 @@
-// Контроллер карточки «Механизмы и оборудование».
+// Контроллер формы «Механизмы и оборудование» (объект имущества любого типа
+// ОЦ и ОЦ «Механизмы и оборудование» — двери в ../card.js).
 //
 // Правило на всю карточку: пока человек печатает, карточка целиком не
 // перерисовывается — полная отрисовка заменила бы поле вместе с курсором.
 // Набранное пишется в данные сразу, а таблица состава над карточкой единицы
 // обновляется точечно (refreshList). Полная отрисовка — только там, где меняется
 // сам состав карточки: выбор в классификаторе, добавление и удаление.
-import { confirmDialog } from '../../../../kernel/dialog.js';
-import { bindNumField, isExpr } from '../../../../kernel/numField.js';
-import { bindAutoGrowAll } from '../../../../kernel/autoGrow.js';
-import { bindCheckedField, setFieldError } from '../../../../kernel/fieldError.js';
-import { addPhotoFile, photoPages } from '../../parts/photos/model.js';
-import { openPhotoInPlace } from '../../../../kernel/viewer/state.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
+import { confirmDialog } from '../../../kernel/dialog.js';
+import { bindNumField, isExpr } from '../../../kernel/numField.js';
+import { bindAutoGrowAll } from '../../../kernel/autoGrow.js';
+import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
+import { openPhotoInPlace } from '../../../kernel/viewer/state.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../../kernel/fileUpload.js';
+import { addPhotoFile, photoPages } from '../photos.js';
 import { unitsTable, selectedUnit } from './view.js';
 import {
   mechUnits, createUnit, setClass, setSub, unitTitle, dropUnitPhotos, syncMechName,
@@ -38,8 +39,10 @@ function qtyError(v) {
   return '';
 }
 
-export function bind(ctx, oi) {
+export function bindMechForm(ctx, oi) {
   const s = ctx.scope;
+  // Плашка с подписью объекта есть у карточки ОИ; у ОЦ «Механизмы» её нет.
+  const updatePlate = () => { if (ctx.updatePlate) ctx.updatePlate(); };
   const unit = selectedUnit(ctx, oi);
 
   const select = (id) => {
@@ -67,7 +70,7 @@ export function bind(ctx, oi) {
     }
     const title = s.$('.mu-title');
     if (title && unit) title.textContent = unitTitle(unit);
-    ctx.updatePlate();
+    updatePlate();
   };
 
   function bindList() {
@@ -146,7 +149,7 @@ export function bind(ctx, oi) {
   if (group) group.oninput = () => {
     oi.groupName = group.value.trim();
     syncMechName(oi);
-    ctx.updatePlate();
+    updatePlate();
   };
 
   s.$$('[data-mu-step]').forEach((b) => b.onclick = (e) => {

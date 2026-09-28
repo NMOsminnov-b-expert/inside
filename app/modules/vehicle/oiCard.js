@@ -1,4 +1,7 @@
-// Данные карточки ОИ «Транспортное средство» гражданского здания.
+// Транспортное средство как объект имущества — в любом типе ОЦ (решение
+// пользователя 28.09.2026: «аналогично и ТС»; до того — только в гражданском
+// здании). Карточка, описание для реестра карточек ОИ, создание и перевод
+// прежних записей одни на все модули — через дверь card.js.
 //
 // Одно ТС — один объект имущества (решение пользователя 17.09.2026): госномер
 // и VIN индивидуальны, и каждая машина видна в перечне ОЦ отдельной строкой.
@@ -7,8 +10,14 @@
 // (решение пользователя: «ТС тоже перенеси внутрь гражданского так же, как и
 // был в ОЦ»). Сведения лежат в oi.vehicle в том же виде, что rec.vehicle у ОЦ;
 // снимки — у самого объекта имущества (oi.photos, oi.photoFiles), как у литер,
-// поэтому просмотрщик гражданского видит их без переделок.
-import { tsOf, tsTitle, PHOTO_CATS, vehicleFieldsFor } from '../../../vehicle/card.js';
+// поэтому просмотрщик модуля видит их без переделок.
+import { esc } from '../../kernel/dom.js';
+import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
+import { tsOf, tsTitle } from './tsModel.js';
+import { PHOTO_CATS } from './photos.js';
+import { vehicleFieldsFor } from './data/vehicleFields.js';
+import { tsFormHTML } from './view.js';
+import { bindTsForm } from './ctrl.js';
 
 // Подпись ОИ — марка с моделью и госномер: по ним машину находят в перечне.
 // Отдельного поля «наименование» у ТС нет.
@@ -119,4 +128,67 @@ export function createVehicleOi(base) {
   };
   syncVehicleName(oi);
   return oi;
+}
+
+// Карточка ОИ — та же форма «база + модуль», что у ТС как объекта оценки, без
+// блока сторон: у объекта имущества стороны — у ОЦ (указание пользователя
+// 23.09.2026). Снимки держит сам объект имущества, он же — держатель фото.
+export const vehicleOiCard = {
+  id: 'vehicle',
+
+  // Подпись ОИ — производная от марки, модели и госномера: у машины, заведённой
+  // до того, как их заполнили, в перечне стояла бы пустая строка. ТС,
+  // заведённое прежней карточкой, переводится на «базу + модуль».
+  init(oi) {
+    migrateVehicleOi(oi);
+    syncVehicleName(oi);
+  },
+
+  // .ts-host — граница стилей карточки ТС внутри модуля недвижимости
+  // (vehicle/module.css).
+  render(ctx, oi) {
+    const body = `<div class="oi-stack ts-host">${tsFormHTML(ctx, oi, oi)}</div>`;
+    return splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body);
+  },
+
+  // Подпись объекта имущества в перечне ОЦ следует за маркой и госномером.
+  bind(ctx, oi) {
+    bindTsForm(ctx, oi, oi);
+    ['make', 'plate'].forEach((key) => {
+      const el = ctx.scope.$(`[data-tsf="main|${key}"]`);
+      if (el) el.addEventListener('input', () => syncVehicleName(oi));
+    });
+  },
+};
+
+// Запись реестра карточек ОИ (<модуль>/oi/registry.js, OI_CARDS.vehicle) без
+// load. Одно ТС — один объект имущества (решение пользователя 17.09.2026):
+// госномер и VIN индивидуальны, и каждая машина видна в перечне отдельной
+// строкой; своего кода ЕНИ у неё нет — ТС стоит на учёте в органах регистрации
+// транспорта, а не в Кадастре недвижимости.
+export function vehicleCardMeta(verbal) {
+  return {
+    id: 'vehicle',
+    headLabel: 'Транспортное средство',
+    listLabel: (oi) => `ТС · ${esc(oi.name || 'без марки')}`,
+    crumbLabel: (oi) => esc(oi.name || 'Транспортное средство'),
+    plateKind: 'ОЦ → ОИ',
+    hasLetter: false,
+    hasEni: false,
+    tableCategory: () => 'Движимое · Транспорт',
+    tableArea: () => '—',
+    tableAreaBuild: () => '—',
+    areaValues: () => ({ area: 0, build: 0 }),
+    plateChips: (oi) => {
+      const v = verbal(oi);
+      const chips = [];
+      const ts = oi.vehicle || { f: {} };
+      const what = ts.base || ts.selfKind || ts.modKind || '';
+      const plate = (ts.f || {}).plate || '';
+      if (what) chips.push(`<span class="ctx-chip">${esc(what)}</span>`);
+      if (plate) chips.push(`<span class="ctx-chip">${esc(plate)}</span>`);
+      chips.push(`<span class="ctx-chip ${v.c}">${v.t}</span>`);
+      return chips;
+    },
+  };
 }

@@ -9,7 +9,7 @@
 
     python tools/data/build_mech_classifier.py
 
-Пишет app/modules/civil/data/mechClassifier.js. Правка классификатора —
+Пишет app/modules/mechanisms/data/mechClassifier.js. Правка классификатора —
 в таблице, затем повторный запуск: файл данных руками не редактируется.
 
 Что делается с текстом при переносе:
@@ -32,7 +32,7 @@ import openpyxl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'Группы движкимого имущества (параметры).xlsx')
-OUT = os.path.join(ROOT, 'app', 'modules', 'civil', 'data', 'mechClassifier.js')
+OUT = os.path.join(ROOT, 'app', 'modules', 'mechanisms', 'data', 'mechClassifier.js')
 
 # Столбцы листа «Классификатор» (строки 1–2 — двухэтажная шапка).
 COL_CLASS, COL_SUB, COL_TYPE = 1, 2, 3

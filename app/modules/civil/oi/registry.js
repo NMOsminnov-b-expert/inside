@@ -1,6 +1,7 @@
 import { esc } from '../../../kernel/dom.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
-import { mechUnits, totalQty } from './mech/model.js';
+import { mechCardMeta } from '../../mechanisms/card.js';
+import { vehicleCardMeta } from '../../vehicle/card.js';
 
 // Реестр карточек ОИ модуля «Гражданское здание».
 function verbal(oi) {
@@ -54,65 +55,13 @@ export const OI_CARDS = {
     load: () => import('./land/index.js'),
   },
 
-  // Механизмы и оборудование: перечень единиц техники в одном ОИ. Подпись ОИ —
-  // производная от состава (oi/mech/model.js, syncMechName), своего кода ЕНИ и
-  // литеры нет (решение пользователя 07.09.2026, ветка mech).
-  mech: {
-    id: 'mech',
-    headLabel: 'Механизмы и оборудование',
-    listLabel: (oi) => `Механизмы · ${esc(oi.name)}`,
-    crumbLabel: (oi) => esc(oi.name),
-    plateKind: 'ОЦ → ОИ',
-    hasLetter: false,
-    // Кода ЕНИ у механизма нет — пустой чип «ЕНИ» в плашке только путал
-    // (замечание пользователя 07.09.2026, ветка mech).
-    hasEni: false,
-    tableCategory: () => 'Движимое · Механизмы',
-    tableArea: () => '—',
-    tableAreaBuild: () => '—',
-    areaValues: () => ({ area: 0, build: 0 }),
-    plateChips: (oi) => {
-      const units = mechUnits(oi);
-      const v = verbal(oi);
-      return [
-        `<span class="ctx-chip">${units.length} ${units.length === 1 ? 'позиция' : (units.length < 5 ? 'позиции' : 'позиций')} · ${totalQty(oi)} шт.</span>`,
-        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
-      ];
-    },
-    load: () => import('./mech/index.js'),
-  },
+  // Механизмы и оборудование: перечень единиц техники в одном ОИ. Описание
+  // общее на все типы ОЦ (mechanisms/card.js); карточка грузится лениво.
+  mech: { ...mechCardMeta(verbal), load: () => import('./mech/index.js') },
 
-  // Транспортное средство: одно ТС — один объект имущества (решение
-  // пользователя 17.09.2026). Госномер и VIN индивидуальны, и каждая машина
-  // видна в перечне отдельной строкой; своего кода ЕНИ у неё нет — ТС стоит на
-  // учёте в органах регистрации транспорта, а не в Кадастре недвижимости.
-  vehicle: {
-    id: 'vehicle',
-    headLabel: 'Транспортное средство',
-    listLabel: (oi) => `ТС · ${esc(oi.name || 'без марки')}`,
-    crumbLabel: (oi) => esc(oi.name || 'Транспортное средство'),
-    plateKind: 'ОЦ → ОИ',
-    hasLetter: false,
-    hasEni: false,
-    tableCategory: () => 'Движимое · Транспорт',
-    tableArea: () => '—',
-    tableAreaBuild: () => '—',
-    areaValues: () => ({ area: 0, build: 0 }),
-    plateChips: (oi) => {
-      const v = verbal(oi);
-      const chips = [];
-      // Сведения ТС — в oi.vehicle (карточка «база + модуль», vehicle/card.js);
-      // карточку сюда не тянем: реестр грузится с модулем, а форма — по открытию.
-      const ts = oi.vehicle || { f: {} };
-      const what = ts.base || ts.selfKind || ts.modKind || '';
-      const plate = (ts.f || {}).plate || '';
-      if (what) chips.push(`<span class="ctx-chip">${esc(what)}</span>`);
-      if (plate) chips.push(`<span class="ctx-chip">${esc(plate)}</span>`);
-      chips.push(`<span class="ctx-chip ${v.c}">${v.t}</span>`);
-      return chips;
-    },
-    load: () => import('./vehicle/index.js'),
-  },
+  // Транспортное средство: одно ТС — один объект имущества. Описание общее на
+  // все типы ОЦ (vehicle/card.js); карточка грузится лениво.
+  vehicle: { ...vehicleCardMeta(verbal), load: () => import('./vehicle/index.js') },
 
   // Вспомогательная постройка: гараж, навес, летняя кухня. Своего экрана нет —
   // всё, что у неё есть, правится раскрытием строки в перечне ОЦ, поэтому нет

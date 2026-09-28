@@ -1,4 +1,7 @@
-// Карточка ОИ «Механизмы и оборудование».
+// Форма «Механизмы и оборудование»: перечень единиц и карточка выбранной.
+// Одна на весь проект — в объекте имущества любого типа ОЦ и в ОЦ «Механизмы и
+// оборудование» (двери — ../card.js). Разметку вокруг (просмотрщик, шапка ОЦ)
+// добавляет тот, кто форму показывает.
 //
 // Устройство — «перечень и подробная карточка»: сверху таблица единиц техники,
 // под ней карточка выбранной единицы (практика stacked master-detail, Oracle
@@ -10,13 +13,12 @@
 // из таблицы «Группы движимого имущества»): класс → подгруппа → тип, и у
 // подгруппы свой набор основных и дополнительных параметров. Так устроен лист
 // «Модель» той же таблицы: три зависимых списка и параметры выбранного типа.
-import { esc } from '../../../../kernel/dom.js';
-import { fmtNum } from '../../../../kernel/fmt.js';
-import { numText } from '../../../../kernel/numField.js';
-import { devNote } from '../../../../kernel/devNote.js';
-import { blockNumbers } from '../../../../kernel/blockIndex.js';
-import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
-import { photoFileAt } from '../../parts/photos/model.js';
+import { esc } from '../../../kernel/dom.js';
+import { fmtNum } from '../../../kernel/fmt.js';
+import { numText } from '../../../kernel/numField.js';
+import { devNote } from '../../../kernel/devNote.js';
+import { blockNumbers } from '../../../kernel/blockIndex.js';
+import { photoFileAt } from '../photos.js';
 import {
   mechUnits, classNames, classOf, subgroupOf, hasSubgroups, paramsOf, asksCountry,
   unitParam, unitParamUnit, unitTitle, unitClassPath, totalQty, totalCost, hasCost,
@@ -386,14 +388,14 @@ function unitCard(ctx, oi, unit, idx) {
   </div>`;
 }
 
-export function render(ctx, oi) {
-  const idx = blockNumbers();
-  const unit = selectedUnit(ctx, oi);
-
-  const body = `<div class="oi-stack mu-stack">
-    ${listCard(ctx, oi, unit, idx())}
-    ${unitCard(ctx, oi, unit, idx())}
+// Форма целиком. holder — держатель перечня (объект имущества или rec.mech);
+// idx — счётчик номеров блоков: у ОЦ перед формой стоит блок сторон, и нумерация
+// продолжается с него; без счётчика форма нумерует свои блоки с 01.
+export function mechFormHTML(ctx, holder, { idx = blockNumbers(), before = '' } = {}) {
+  const unit = selectedUnit(ctx, holder);
+  return `<div class="oi-stack mu-stack">
+    ${before}
+    ${listCard(ctx, holder, unit, idx())}
+    ${unitCard(ctx, holder, unit, idx())}
   </div>`;
-
-  return splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, body);
 }

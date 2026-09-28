@@ -1,9 +1,9 @@
 // Снимает состав полей карточки механизмов прямо со справочника
-// app/modules/civil/data/mechFields.js и печатает его JSON-ом в поток вывода.
+// app/modules/mechanisms/data/mechFields.js и печатает его JSON-ом в поток вывода.
 // Вызывается из tools/docs/build_mech_fields.py — руками запускать не нужно.
-import { MECH_CLASSIFIER } from '../../app/modules/civil/data/mechClassifier.js';
+import { MECH_CLASSIFIER } from '../../app/modules/mechanisms/data/mechClassifier.js';
 import { MECH_FIELDS, MECH_CLASS_FIELDS, MECH_EXTRA_CLASSES }
-  from '../../app/modules/civil/data/mechFields.js';
+  from '../../app/modules/mechanisms/data/mechFields.js';
 
 const field = (f) => ({
   key: f.key,

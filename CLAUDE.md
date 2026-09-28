@@ -336,8 +336,15 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   модуль» внутри гражданского здания — объект имущества, та же форма, что у
   ТС как объекта оценки, без блока сторон. Дверь одна — `vehicle/card.js`;
   стили карточки подключает реестр ядра (`styleHref`), форма обёрнута в
-  `.ts-host`. Список разрешённых путей — `.dependency-cruiser.cjs`
-  (`npm run lint:arch`); меняется правило — править и его.
+  `.ts-host`. С 28.09.2026 ТС — объект имущества в любом типе ОЦ, через ту же
+  дверь (`vehicleOiCard`, `vehicleCardMeta`).
+- Третье исключение (решение пользователя 28.09.2026): механизмы и
+  оборудование — объект имущества в любом типе ОЦ и самостоятельный ОЦ.
+  Карточка одна — модуль `mechanisms`, дверь одна — `mechanisms/card.js`
+  (`mechOiCard`, `mechCardMeta`, `createMechOi`, миграции); стили —
+  `mechanisms/module.css`, граница — `body .mu-stack`. Список разрешённых
+  путей — `.dependency-cruiser.cjs` (`npm run lint:arch`); меняется правило —
+  править и его.
 - Ядро не знает ни одного типа ОЦ и ни одного вида ОИ.
 - Пять модулей ОЦ (`apartment`, `residential-house`, `civil`, `production`,
   `land-plot`) полностью изолированы друг от друга.

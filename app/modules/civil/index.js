@@ -35,7 +35,7 @@ import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js
 import { bindSplitPanes, viewerHTML } from '../../kernel/viewer/shell.js';
 import { renderPopout } from '../../kernel/viewer/popout.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
-import { migrateMovable, migrateMechUnits } from './oi/mech/model.js';
+import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 
 function todayStr() {
   const d = new Date();

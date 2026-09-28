@@ -20,7 +20,7 @@ NAME = 'числовое поле'
 
 TOUCHES = (
     'app/kernel/numField.js', 'app/kernel/fmt.js',
-    'app/modules/civil/oi/mech/*', 'app/modules/civil/oi/building/*',
+    'app/modules/mechanisms/*', 'app/modules/civil/oi/building/*',
 )
 
 MECH = '#/oc/civil/oc-cv-1/oi/oi-cv1-m1'

@@ -31,8 +31,8 @@ import tempfile
 NAME = 'карточка механизмов'
 
 TOUCHES = (
-    'app/modules/civil/oi/mech/*', 'app/modules/civil/data/mechClassifier.js',
-    'app/modules/civil/data/mechFields.js', 'app/modules/civil/data/seed.js',
+    'app/modules/civil/oi/mech/*', 'app/modules/mechanisms/*',
+    'app/modules/civil/data/seed.js',
     'app/modules/civil/oi/registry.js', 'app/modules/civil/card/*',
     'app/modules/civil/parts/photos/*', 'app/modules/civil/parts/viewer/*',
     'app/modules/civil/data/rules.js', 'app/modules/civil/index.js',
@@ -249,7 +249,7 @@ def run(t):
 
     # --- перенос прежнего «movable» -------------------------------------------
     migrated = pg.evaluate("""async () => {
-      const m = await import('./app/modules/civil/oi/mech/model.js');
+      const m = await import('./app/modules/mechanisms/form/model.js');
       const rec = { oi: [
         { id: 'x1', card: 'movable', kind: 'МЕХ', name: 'Станок', year: '1989', serial: 'С-1', eni: '14700' },
         { id: 'x2', card: 'movable', kind: 'ОФИС', name: 'Комплекс', complexItems: [
@@ -276,7 +276,7 @@ def run(t):
 
     # --- перенос единиц на справочник полей ------------------------------------
     moved = pg.evaluate("""async () => {
-      const m = await import('./app/modules/civil/oi/mech/model.js');
+      const m = await import('./app/modules/mechanisms/form/model.js');
       const rec = { oi: [{ id: 'y1', card: 'mech', mechanisms: [{
         id: 'u1', name: 'Котёл', maker: 'Бийский завод',
         cls: 'Энергетическое оборудование', sub: 'Котельное оборудование',

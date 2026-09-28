@@ -14,5 +14,6 @@ SOURCE = 'стенограмма сессии (перенос 28.09.2026)'
 OLD_NAME = 'app/modules/civil/data/mechClassifier.js'
 POINTS = [
     'В прежнем графе узел был только концом связи — без собственных пунктов; запись создана при сверке переноса 28.09.2026, чтобы связь не пропала.',
+    '28.09.2026 файл перенесён в app/modules/mechanisms/data/mechClassifier.js — модуль «Механизмы и оборудование», карточка одна на все типы ОЦ (decision mehanizmy-i-ts-v-lyubom-oc).',
 ]
 LINKS = []
