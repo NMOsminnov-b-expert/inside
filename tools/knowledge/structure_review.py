@@ -15,8 +15,22 @@ Excel, затем apply: скрипт меняет только то, что в 
 «Задача пользователя 17.09.2026:») — предложенный заголовок по содержанию.
 Прежний заголовок — начало первого пункта записи, поэтому при замене ничего
 не теряется.
+
+Дополнено 28.09.2026 («Берем все» — практики записи
+kak-uluchshat-graf-znaniy-…):
+  * словарь по образцу SKOS: у вида связи — обратное имя (программа
+    показывает связь с другой стороны, вторым экземпляром она не пишется)
+    и род: иерархия, история, смысловая;
+  * лист «Разбиение» — пункты записей с 10+ пунктами: «да» в «Выделить» —
+    пункт становится своей записью (одна запись — одна мысль), связанной с
+    прежней как «часть»;
+  * лист «Кандидаты связей» — пары от graph.py suggest: вид из словаря в
+    «Связь» — связь ставится; «заменяет» — вторая запись снимается (ADR);
+  * лист «Определения» — поля и понятия без определения: текст из
+    «Определение» записывается в запись.
 """
 import collections
+import datetime
 import os
 import re
 import sys
@@ -29,6 +43,8 @@ BOOK = os.path.join(ROOT, 'docs', 'graf-struktura.xlsx')
 
 # Словарь видов связи: «эта запись → та запись».
 VOCAB = {
+    'раздел': 'оглавление → карта раздела',
+    'якорь': 'карта раздела → ключевая запись раздела',
     'опирается на': 'эта запись основана на той: решение на источнике, правило на требовании',
     'реализует': 'эта запись выполняет ту: задача или код — решение',
     'реализовано в': 'эта запись воплощена там: решение — в коде, утилите, документе',
@@ -42,6 +58,24 @@ VOCAB = {
     'проверяется': 'эта запись проверяется той',
     'относится к': 'общая связь по теме, когда точнее не сказать',
 }
+
+# Обратное имя: как связь читается со стороны «той» записи (SKOS: обратная
+# связь выводится, а не пишется). Одно и то же имя — связь симметрична.
+# Та же таблица — в программе (tools/graf, GraphView.Inverse).
+INVERSE = {
+    'раздел': 'в оглавлении', 'якорь': 'якорь раздела',
+    'опирается на': 'основа для', 'реализует': 'реализовано в', 'реализовано в': 'реализует',
+    'влияет на': 'меняется из-за', 'использует': 'используется в', 'уточняет': 'уточняется в',
+    'заменяет': 'заменено', 'часть': 'содержит', 'содержит': 'часть',
+    'проверяет': 'проверяется', 'проверяется': 'проверяет', 'относится к': 'относится к',
+}
+
+# Род связи (SKOS: иерархические и ассоциативные; замена — отдельно, по ADR).
+GENUS = {
+    'раздел': 'иерархия', 'якорь': 'иерархия', 'часть': 'иерархия', 'содержит': 'иерархия',
+    'заменяет': 'история',
+}
+GENUS.update({k: 'смысловая' for k in VOCAB if k not in GENUS})
 
 MAP = {
     'affects': 'влияет на', 'меняет': 'влияет на', 'меняет содержимое': 'влияет на', 'изменил': 'влияет на',
@@ -219,9 +253,9 @@ def build():
         ws.append([kind, n, new, VOCAB.get(new, '— нет в словаре, укажите вид')])
 
     ws2 = wb.create_sheet('Словарь')
-    ws2.append(['Вид связи', 'Значение: эта запись → та'])
+    ws2.append(['Вид связи', 'Значение: эта запись → та', 'С другой стороны', 'Род'])
     for k, v in VOCAB.items():
-        ws2.append([k, v])
+        ws2.append([k, v, INVERSE.get(k, ''), GENUS.get(k, '')])
 
     ws3 = wb.create_sheet('Заголовки')
     ws3.append(['ID', 'Папка', 'Сейчас', 'Станет', 'Начало текста записи'])
@@ -232,9 +266,40 @@ def build():
         body = ' '.join(str(p) for p in r.get('пункты') or [])
         ws3.append([r['id'], folder, title, TITLES.get(r['id'], ''), body[:600]])
 
+    import quality
+    by = {r['id']: (f, r) for f, r in recs}
+
+    def name(i):
+        return ' '.join(str(by[i][1].get('заголовок') or by[i][1].get('термин') or '').split())[:120]
+
+    ws4 = wb.create_sheet('Разбиение')
+    ws4.append(['ID записи', 'Заголовок записи', '№', 'Пункт', 'Выделить', 'Заголовок новой записи'])
+    for folder, r in recs:
+        pts = r.get('пункты') or []
+        if len(pts) < 10 or folder == 'project' or r.get('статус') == 'отменено':
+            continue
+        for i, pt in enumerate(pts, 1):
+            ws4.append([r['id'], name(r['id']), i, str(pt), split_hint(str(pt)), title_hint(str(pt))])
+
+    ws5 = wb.create_sheet('Кандидаты связей')
+    ws5.append(['ID первой', 'Первая запись', 'ID второй', 'Вторая запись', 'По соседям', 'По тексту', 'Связь'])
+    for a, b, aa, tx in quality.suggest(graph.load_all()):
+        ws5.append([a, name(a), b, name(b), round(aa, 2), round(tx, 2), ''])
+
+    ws6 = wb.create_sheet('Определения')
+    ws6.append(['ID', 'Вид', 'Термин', 'Где встречается', 'Определение'])
+    for folder, r in recs:
+        if folder in ('fields', 'concepts') and not str(r.get('определение') or '').strip():
+            where = '; '.join(' · '.join(x for x in (o.get('объект'), o.get('часть'), o.get('блок')) if x)
+                              for o in r.get('встречается') or [])
+            ws6.append([r['id'], r.get('вид'), r.get('термин'), where, ''])
+
     head = Font(bold=True)
     fill = PatternFill('solid', fgColor='FFF4CC')
-    for sheet, widths, edit in ((ws, [34, 10, 18, 60], 3), (ws2, [18, 70], None), (ws3, [34, 12, 40, 50, 90], 4)):
+    sheets = ((ws, [34, 10, 18, 60], [3]), (ws2, [18, 60, 18, 12], []), (ws3, [34, 12, 40, 50, 90], [4]),
+              (ws4, [30, 40, 5, 90, 10, 50], [5, 6]), (ws5, [30, 40, 30, 40, 11, 11, 16], [7]),
+              (ws6, [30, 10, 30, 50, 70], [5]))
+    for sheet, widths, edit in sheets:
         for i, w in enumerate(widths, 1):
             sheet.column_dimensions[chr(64 + i)].width = w
         for c in sheet[1]:
@@ -244,8 +309,8 @@ def build():
         for row in sheet.iter_rows(min_row=2):
             for c in row:
                 c.alignment = Alignment(wrap_text=True, vertical='top')
-            if edit:
-                row[edit - 1].fill = fill
+            for e in edit:
+                row[e - 1].fill = fill
     os.makedirs(os.path.dirname(BOOK), exist_ok=True)
     wb.save(BOOK)
     missing = [k for k in kinds if not k.startswith('якорь раздела') and k not in MAP]
@@ -254,6 +319,27 @@ def build():
     print('видов связей: %d → %d; без сопоставления: %d' % (
         sum(1 for k in kinds if not k.startswith('якорь раздела')), len(VOCAB), len(missing)))
     print('заголовков-заглушек: %d, с предложением: %d' % (stubs, sum(1 for _f, r in recs if r['id'] in TITLES)))
+    print('разбиение: пунктов %d, предложено выделить %d; кандидатов связей: %d; без определения: %d' % (
+        ws4.max_row - 1, sum(1 for row in ws4.iter_rows(min_row=2) if row[4].value == 'да'),
+        ws5.max_row - 1, ws6.max_row - 1))
+
+
+# Пункт — кандидат в отдельную запись, если он самостоятелен: начинается с
+# даты или повода («2026-08-25 (второй проход): …», «Решение …») или длинный.
+# Справка из прежнего графа («[восстановлено] …») остаётся в записи.
+SELF = re.compile(r'^(\d{4}-\d\d-\d\d|\d\d\.\d\d\.\d{4}|Решение|Задача|Указание|Правило|Процессное)')
+
+
+def split_hint(pt):
+    if pt.startswith('[восстановлено]'):
+        return ''
+    return 'да' if SELF.match(pt) or len(pt) >= 400 else ''
+
+
+def title_hint(pt):
+    t = re.sub(r'^\[восстановлено\]\s*', '', pt)
+    t = re.split(r'(?<=[.;!?])\s|\s—\s', t, maxsplit=1)[0]
+    return t[:110].rstrip(' .,:;')
 
 
 def apply():
@@ -266,7 +352,78 @@ def apply():
     if bad:
         sys.exit('в «Станет» виды не из словаря: %s — добавьте их на лист «Словарь» в VOCAB или исправьте' % bad)
     links = titles = 0
-    for folder, r in records():
+    recs = records()
+    by = {r['id']: (f, r) for f, r in recs}
+    touched = set()
+
+    # Определения полей и понятий.
+    defs = 0
+    if 'Определения' in wb.sheetnames:
+        for row in wb['Определения'].iter_rows(min_row=2):
+            rid, text = row[0].value, str(row[4].value or '').strip()
+            if rid in by and text and text != by[rid][1].get('определение'):
+                by[rid][1]['определение'] = text
+                touched.add(rid)
+                defs += 1
+
+    # Кандидаты связей: вид из словаря — связь первой записи на вторую;
+    # «заменяет» — вторая снимается статусом (ADR).
+    added = retired = 0
+    if 'Кандидаты связей' in wb.sheetnames:
+        today = datetime.date.today().strftime('%d.%m.%Y')
+        for row in wb['Кандидаты связей'].iter_rows(min_row=2):
+            a, b, kind = row[0].value, row[2].value, str(row[6].value or '').strip()
+            if not kind or a not in by or b not in by:
+                continue
+            if kind not in VOCAB:
+                sys.exit('«Кандидаты связей»: вид «%s» не из словаря (%s → %s)' % (kind, a, b))
+            ra = by[a][1]
+            if not any(l.get('куда') == b for l in ra.get('связи') or []):
+                ra['связи'] = (ra.get('связи') or []) + [{'тип': kind, 'куда': b, 'папка': by[b][0]}]
+                touched.add(a)
+                added += 1
+            rb = by[b][1]
+            if kind == 'заменяет' and rb.get('статус') != 'отменено':
+                rb['статус'] = 'отменено'
+                rb['пункты'] = (rb.get('пункты') or []) + ['%s снято по образцу ADR: запись заменена %s.' % (today, a)]
+                touched.add(b)
+                retired += 1
+
+    # Разбиение: «да» — пункт становится своей записью, «часть» прежней.
+    split = 0
+    if 'Разбиение' in wb.sheetnames:
+        from migrate_from_graph import slug
+        take = collections.defaultdict(list)
+        for row in wb['Разбиение'].iter_rows(min_row=2):
+            if str(row[4].value or '').strip().lower() == 'да' and row[0].value in by:
+                take[row[0].value].append((int(row[2].value), str(row[5].value or '').strip(), str(row[3].value)))
+        for rid, items in take.items():
+            folder, r = by[rid]
+            pts = list(r.get('пункты') or [])
+            gone = set()
+            for n, title, text in items:
+                if n - 1 >= len(pts) or str(pts[n - 1]) != text:
+                    sys.exit('«Разбиение»: пункт %d записи %s уже не тот — пересоберите книгу (build)' % (n, rid))
+                title = title or title_hint(text)
+                nid = slug(title)
+                while nid in by:
+                    nid += '-2'
+                m = re.match(r'^(\d{4}-\d\d-\d\d)|^(\d\d)\.(\d\d)\.(\d{4})', text)
+                date = (m.group(1) or '%s-%s-%s' % (m.group(4), m.group(3), m.group(2))) if m else r.get('дата')
+                by[nid] = (folder, {
+                    'id': nid, 'вид': r.get('вид'), 'заголовок': title,
+                    'метки': list(r.get('метки') or [graph.FOLDERS[folder]]),
+                    'статус': r.get('статус'), 'дата': date,
+                    'источник': 'выделено из записи %s; %s' % (rid, r.get('источник') or ''),
+                    'пункты': [text], 'связи': [{'тип': 'часть', 'куда': rid, 'папка': folder}],
+                })
+                touched.add(nid)
+                gone.add(n - 1)
+                split += 1
+            r['пункты'] = [p for i, p in enumerate(pts) if i not in gone]
+            touched.add(rid)
+
+    for folder, r in recs:
         changed = False
         for l in r.get('связи') or []:
             new = kind_map.get(l.get('тип'))
@@ -280,8 +437,11 @@ def apply():
             titles += 1
             changed = True
         if changed:
-            graph.save(folder, r)
-    print('связей переименовано: %d, заголовков: %d' % (links, titles))
+            touched.add(r['id'])
+    for rid in sorted(touched):
+        graph.save(*by[rid])
+    print('связей переименовано: %d, заголовков: %d, определений: %d, связей добавлено: %d, снято: %d, '
+          'выделено записей: %d' % (links, titles, defs, added, retired, split))
 
 
 if __name__ == '__main__':
