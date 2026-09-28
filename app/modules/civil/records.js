@@ -12,6 +12,17 @@ import { totalPendingNotes } from './parts/notes/model.js';
 import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
 import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from './data/bulk.js';
 import { buildBulkRecord } from './data/bulkRecord.js';
+import { ocTypology } from './card/capSummary.view.js';
+import { UNDEFINED_LABEL } from './card/typology.js';
+
+// Тип ОЦ в реестре — рассчитанный тип нежилого здания (решение пользователя
+// 28.09.2026: столбец «Тип ОЦ» и фильтр по нему показывают его). Значение
+// фасета — «civil:<тип>»: ядро видит в нём модуль (до двоеточия) и подпись
+// (после), модуль отбирает строки по нему (data/query.js).
+function typeOf(label) {
+  const shown = label || UNDEFINED_LABEL;
+  return { typeLabel: shown, typeKey: `${manifest.id}:${shown}` };
+}
 
 function areaOf(rec) {
     return rec.oi
@@ -93,7 +104,7 @@ export function summarize(rec) {
   return {
     id: rec.id,
     typeId: manifest.id,
-    typeLabel: manifest.label,
+    ...typeOf(ocTypology(rec).label),
     typeIcon: manifest.icon,
     title: ocFullAddress(rec),
     subtitle: rec.institution,
@@ -140,7 +151,8 @@ function bulkSummary(raw) {
   return {
     id: raw.id,
     typeId: manifest.id,
-    typeLabel: manifest.label,
+    // Генератор объёма заводит гражданские литеры (data/bulkRecord.js).
+    ...typeOf('Гражданское'),
     typeIcon: manifest.icon,
     title: raw.address,
     subtitle: raw.institution,
@@ -289,7 +301,7 @@ export function createRecord() {
     typeId: manifest.id,
     residential: false,
     category: 'Недвижимое',
-    type: 'Гражданское здание',
+    type: manifest.label,
     purposeTP: 'Административное',
     eni: '',
     address: '',

@@ -37,6 +37,16 @@ import { renderPopout } from '../../kernel/viewer/popout.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 
+// Тип ОЦ записи — «Нежилое здание»: гражданское оно, производственное или
+// смешанное, считает система (card/typology.js, решение пользователя
+// 28.09.2026). Записи, заведённые «Гражданским зданием» или
+// «Производственным строением», переводятся при загрузке.
+function migrateOcType(rec) {
+  if (!rec) return;
+  rec.typeId = manifest.id;
+  rec.type = manifest.label;
+}
+
 function todayStr() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
@@ -114,7 +124,7 @@ export function main(host) {
       // Литера уезжает в архив, а не удаляется: снимок уносит её площади,
       // документы и фото, и её можно вернуть (ТЗ docs/tz/20-arhiv.md, §4.3).
       archiveOi({
-        typeId: 'civil', typeLabel: 'Гражданское здание',
+        typeId: 'civil', typeLabel: manifest.label,
         rec, oi, movedPhotos: hasPhotos ? photos : null, today: ctx.today,
       });
 
@@ -122,6 +132,7 @@ export function main(host) {
         ui.letterEdit = false;
         ctx.navigate({ rest: [] });
       } else {
+        migrateOcType(rec);
         migrateSpecials(rec);
         migrateStruct(rec);
         migrateLiterKinds(rec);
@@ -375,6 +386,7 @@ export function main(host) {
   ensureViewerDefault();
   migrateMovable(rec);
   migrateMechUnits(rec);
+  migrateOcType(rec);
   migrateSpecials(rec);
   migrateStruct(rec);
   migrateLiterKinds(rec);
@@ -394,6 +406,7 @@ export function main(host) {
       ensureViewerDefault();
       migrateMovable(rec);
       migrateMechUnits(rec);
+      migrateOcType(rec);
       migrateSpecials(rec);
       migrateStruct(rec);
       migrateLiterKinds(rec);

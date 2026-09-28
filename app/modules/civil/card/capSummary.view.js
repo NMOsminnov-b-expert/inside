@@ -25,6 +25,7 @@ import { capScore, capClass } from '../oi/building/capClass.js';
 import { zonesOf, hasZones, zoneTitle } from '../oi/building/zones.js';
 import { CONDITION_RANK } from '../data/dictionaries.js';
 import { SCALE_LABELS, CONDITION_SCALE, conditionCorrection, fmtCorr } from '../data/conditionScale.js';
+import { typologyOf, typologyTip } from './typology.js';
 
 const area = (v) => {
   const n = num(v);
@@ -51,6 +52,29 @@ export function rowsOf(rec) {
     });
   });
   return out;
+}
+
+// Тип нежилого здания по внутренней площади (card/typology.js) — по тем же
+// строкам, что и сводная: литера или её подгруппы помещений.
+export const ocTypology = (rec) => typologyOf(rowsOf(rec));
+
+// Тип и доли — одной полосой из трёх частей с подписями на ней и числами в
+// легенде: доли близки к трети, и на полосе разница видна, а на круге — нет
+// (практика «показ долей целого», граф: praktika-dolya-celogo-polosoy).
+// Доля, не дотянувшая до порога, бледнее: в тип она не вошла.
+function typologyHTML(t) {
+  const pct = (v) => `${v.toFixed(1).replace('.', ',')} %`;
+  const seg = t.parts.filter((p) => p.area > 0).map((p) => `<span class="ty-seg ty-${p.key} ${p.counted ? '' : 'ty-off'}"
+    style="flex-grow:${p.share.toFixed(3)}" title="${esc(`${p.part}: ${pct(p.share)} · ${fmtNum(p.area)} м²`)}">${p.share >= 12 ? pct(p.share) : ''}</span>`).join('');
+  const legend = t.parts.map((p) => `<span class="ty-key ${p.counted ? '' : 'ty-off'}"><i class="ty-sw ty-${p.key}"></i>${esc(p.part)}
+    <b>${pct(p.share)}</b><span class="muted">${p.area ? `${fmtNum(p.area)} м²` : '—'}</span></span>`).join('');
+  return `<div class="ty-box" data-typology>
+  <div class="ty-head"><span class="ty-l lk-tip" title="${esc(typologyTip(t))}">Тип нежилого здания</span>
+    <b class="ty-v">${esc(t.label || 'не определён')}</b>
+    <span class="ty-n">по внутренней площади, тип учитывается от 28⅓ %${t.untyped ? ` · без типа: ${t.untyped} — в расчёт не входят` : ''}</span></div>
+  ${t.total ? `<div class="ty-bar" role="img" aria-label="${esc(t.parts.map((p) => `${p.part} ${pct(p.share)}`).join(', '))}">${seg}</div>
+  <div class="ty-legend">${legend}</div>` : '<div class="ty-n">Выберите тип литер в блоке «Тип и класс капитальности» — здесь появятся доли.</div>'}
+</div>`;
 }
 
 // Чего не хватает для класса — для подсказки ячейки «не хватает признаков».
@@ -153,6 +177,7 @@ export function capSummaryHTML(ctx) {
 <div class="card-head" data-card-toggle><span class="card-idx">03</span><h3>Капитальность и классы</h3>
 <span class="hint">по методологии «Категории и классы зданий»</span><span class="chev">▾</span></div>
 <div class="card-body-wrap"><div class="card-pad">
+${typologyHTML(typologyOf(rows))}
 <div class="cs-avg" data-cs-avgk><span class="cs-avg-l lk-tip" title="Средняя капитальность застройки, взвешенная по площади каждого строения: Σ (площадь × К) / Σ площадь — по строкам, у которых есть и площадь, и К (прочие — с К 0,05). По ней корректируют на капитальность в сравнительном подходе">Средневзвешенная капитальность</span>
   <span class="cs-avg-v">${k2(avgK)}</span>
   <span class="cs-avg-n">${avgK === null ? 'нет строк с площадью и классом' : `Σ площадь × К ${fmtNum(sumAreaK)} / Σ площадь ${fmtNum(doneArea)} м²`}${

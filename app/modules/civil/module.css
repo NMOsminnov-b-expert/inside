@@ -327,6 +327,33 @@ body[data-module="civil"] .field[data-sign]>label{padding-right:46px}
 body[data-module="civil"] .kc-coef{position:absolute;top:0;right:0;font-size:11px;font-weight:700;line-height:16px;padding:0 5px;
   border-radius:5px;background:#e3eefb;color:var(--blue-700);font-variant-numeric:tabular-nums;white-space:nowrap}
 body[data-module="civil"] .kc-coef.none{background:#fdf4e3;color:#8a5a00}
+/* Тип нежилого здания по внутренней площади (card/typology.js) — первым в
+   сводной: по нему назван сам ОЦ. Доли — одной полосой из трёх частей
+   (практика «доли целого полосой», граф: praktika-dolya-celogo-polosoy):
+   числа на полосе и в легенде, цифры одной ширины; доля ниже порога бледнее —
+   в тип она не вошла. Оформление рамки — как у плашки средневзвешенной
+   капитальности ниже, чтобы две итоговые плашки читались одной парой. */
+body[data-module="civil"] .ty-box{margin:0 0 10px;padding:8px 12px 10px;border:1px solid #d5e3f3;border-radius:8px;
+  background:#eef4fb;display:flex;flex-direction:column;gap:8px}
+body[data-module="civil"] .ty-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+body[data-module="civil"] .ty-l{font-size:12px;font-weight:700;color:var(--blue-700)}
+body[data-module="civil"] .ty-v{font-size:18px;font-weight:800;color:var(--ink)}
+body[data-module="civil"] .ty-n{font-size:12px;color:var(--muted)}
+body[data-module="civil"] .ty-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#fff;
+  border:1px solid #d5e3f3}
+body[data-module="civil"] .ty-seg{flex-basis:0;min-width:2px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+body[data-module="civil"] .ty-seg + .ty-seg{border-left:2px solid #fff}
+body[data-module="civil"] .ty-civil{background:var(--blue-600)}
+body[data-module="civil"] .ty-prod{background:var(--amber-600)}
+body[data-module="civil"] .ty-other{background:var(--slate-400)}
+body[data-module="civil"] .ty-seg.ty-off{opacity:.45}
+body[data-module="civil"] .ty-legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12px;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+body[data-module="civil"] .ty-key{display:inline-flex;align-items:baseline;gap:6px}
+body[data-module="civil"] .ty-key.ty-off{color:var(--muted)}
+body[data-module="civil"] .ty-sw{width:10px;height:10px;border-radius:2px;display:inline-block;align-self:center}
+
 /* Средневзвешенная капитальность объекта — над таблицей сводной: итог,
    ради которого сводная и нужна, а не мелкая цифра в итоговой строке. */
 body[data-module="civil"] .cs-avg{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 10px;padding:8px 12px;

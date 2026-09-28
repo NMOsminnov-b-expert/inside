@@ -3,7 +3,7 @@ import { fmtNum, num } from '../../../kernel/fmt.js';
 import { mechCardMeta } from '../../mechanisms/card.js';
 import { vehicleCardMeta } from '../../vehicle/card.js';
 
-// Реестр карточек ОИ модуля «Гражданское здание».
+// Реестр карточек ОИ модуля «Нежилое здание».
 function verbal(oi) {
   const f = oi.flags || {};
   if ((oi.origin || 'manual') === 'ml') {

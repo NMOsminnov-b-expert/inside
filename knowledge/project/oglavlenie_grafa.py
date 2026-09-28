@@ -167,4 +167,9 @@ LINKS = [
         'куда': 'ikonki-prilozheniy-graf-i-razmetka',
         'папка': 'tasks',
     },
+    {
+        'тип': 'якорь раздела «Методология и расчёты»',
+        'куда': 'praktika-dolya-celogo-polosoy',
+        'папка': 'practices',
+    },
 ]

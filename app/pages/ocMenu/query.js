@@ -47,10 +47,15 @@ function comparator(sort) {
   return (sort && sort.dir === 'asc') ? (a, b) => -base(a, b) : base;
 }
 
+// Значение фасета «Тип ОЦ» — id модуля или «id:уточнение» (модуль может
+// делить свои записи по рассчитанному типу, например нежилое здание по
+// площади). Модуль отбирается по части до двоеточия, строки — сам модуль.
+const moduleOf = (v) => String(v).split(':')[0];
+
 function typesFor(filter) {
   const ids = filter && filter.typeId;
   const all = sortedTypes();
-  return (ids && ids.length) ? all.filter((t) => ids.includes(t.manifest.id)) : all;
+  return (ids && ids.length) ? all.filter((t) => ids.some((v) => moduleOf(v) === t.manifest.id)) : all;
 }
 
 export function queryAll({ filter, sort, offset = 0, limit = 60 }) {

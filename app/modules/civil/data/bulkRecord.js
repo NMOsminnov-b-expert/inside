@@ -27,7 +27,7 @@ function base(id, i, p) {
     typeId: 'civil',
     residential: false,
     category: 'Недвижимое',
-    type: 'Гражданское здание',
+    type: 'Нежилое здание',
     purposeTP: p.purpose,
     eni: p.eni,
     address: addressOf(p, i),

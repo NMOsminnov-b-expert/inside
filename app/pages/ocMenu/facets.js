@@ -32,7 +32,11 @@ export function toggleExpanded(key) { expanded[key] = !expanded[key]; }
 export function setSearch(key, value) { search[key] = value; }
 export function sectionSearch(key) { return search[key] || ''; }
 
+// «id:уточнение» — модуль делит свои записи сам (pages/ocMenu/query.js):
+// подпись — уточнение.
 function typeLabel(id) {
+  const at = String(id).indexOf(':');
+  if (at > 0) return String(id).slice(at + 1);
   const t = sortedTypes().find((x) => x.manifest.id === id);
   return t ? t.manifest.label : id;
 }

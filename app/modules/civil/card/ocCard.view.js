@@ -8,7 +8,8 @@ import { esc } from '../../../kernel/dom.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
-import { capSummaryHTML } from './capSummary.view.js';
+import { capSummaryHTML, ocTypology } from './capSummary.view.js';
+import { typologyTip } from './typology.js';
 import { comparativeTab } from './comparative.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
@@ -27,9 +28,12 @@ const eniCodes = (rec) => eniAllOf(rec) || fmtEni(rec.eni);
 // вкладками и шкалой статусов в свободном углу.
 function headOC(ctx) {
   const rec = ctx.rec;
+  const typology = ocTypology(rec);
   return ocHeadHTML(ctx, {
     meta: [
-      { label: 'Тип ОЦ', value: rec.type },
+      // Тип нежилого здания считает система по внутренней площади литер
+      // (card/typology.js, решение пользователя 28.09.2026).
+      { label: 'Тип ОЦ', value: typology.shown, title: typologyTip(typology) },
       { label: 'Назначение по ТП', value: rec.purposeTP },
       { label: 'Код ЕНИ', value: eniCodes(rec) },
       { label: 'Адрес', value: rec.address, wide: true },

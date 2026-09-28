@@ -10,7 +10,7 @@ import { pushDocPageLog } from '../../audit/model.js';
 // выдача идентификаторов и лог действий у каждого модуля свои.
 export const viewerDeps = {
   typeId: 'civil',
-  typeLabel: 'Гражданское здание',
+  typeLabel: 'Нежилое здание',
 
   docListFor,
   ensureDocPages,

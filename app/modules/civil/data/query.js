@@ -25,6 +25,12 @@ export function matches(s, f, skip) {
   if (skip !== 'institution' && !inList(f.institution, s.institution)) return false;
   if (skip !== 'insp' && !inList(f.insp, s.resp.insp)) return false;
 
+  // Тип ОЦ: модуль целиком («civil») или рассчитанный тип нежилого здания
+  // («civil:Гражданское» …, records.js). Ядро отбирает модуль по префиксу,
+  // здесь — строки по типу.
+  if (skip !== 'typeId' && f.typeId && f.typeId.length && !f.typeId.includes(s.typeId)
+    && !f.typeId.includes(s.typeKey)) return false;
+
   // Область считается из ЕНИ, поэтому проверяется не полем записи, а разбором кода.
   if (skip !== 'region' && !inList(f.region, eniRegion(s.eni))) return false;
 
@@ -96,7 +102,7 @@ const FACET_KEYS = {
   city: (s) => s.city,
   institution: (s) => s.institution,
   insp: (s) => s.resp.insp,
-  typeId: (s) => s.typeId,
+  typeId: (s) => s.typeKey || s.typeId,
 };
 
 // Счётчики по каждому фасету: критерий самого фасета исключается,

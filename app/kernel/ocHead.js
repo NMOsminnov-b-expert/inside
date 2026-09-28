@@ -20,7 +20,8 @@ import { statusFlowHTML } from './status/flow.view.js';
 // при этом сжимается в одну строку.
 //
 // Разное у типов ОЦ передаётся параметрами:
-//   meta    — поля сводки, [{ label, value, wide }]; подпись «Назначение по ТП»
+//   meta    — поля сводки, [{ label, value, wide, title }]; title — подсказка
+//             (по умолчанию само значение); подпись «Назначение по ТП»
 //             у участка своя («Целевое назначение»), значения считает модуль;
 //   flags   — признаки записи (kernel/flagBadges.js), у каждого типа свои;
 //   menu    — готовая разметка меню «+ Добавить ОИ»: состав видов ОИ у типов
@@ -30,7 +31,7 @@ import { statusFlowHTML } from './status/flow.view.js';
 //   tabs    — вкладки [{ key, label }]; «Логи» есть не у всех ролей.
 
 const hm = (f) => `<div class="hm ${f.wide ? 'hm-wide' : ''}"><span class="lbl">${esc(f.label)}</span>
-  <b title="${esc(f.value)}">${esc(f.value)}</b></div>`;
+  <b title="${esc(f.title || f.value)}">${esc(f.value)}</b></div>`;
 
 export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', actions = null, tabs = [] } = {}) {
   const rec = ctx.rec;

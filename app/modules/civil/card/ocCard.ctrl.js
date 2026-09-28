@@ -6,6 +6,7 @@ import { bindAuditTab } from '../audit/ctrl.js';
 import { bindComparative } from './comparative.ctrl.js';
 import { RIGHTS, MANSARD_TYPE, WEAR_LEVEL } from '../data/dictionaries.js';
 import { oiTypeByLabel } from '../data/rules.js';
+import { manifest } from '../manifest.js';
 import { nextLetter, nextId } from '../data/store.js';
 import { archiveRecord } from '../../../kernel/archive.js';
 import { openDocViewer, openPhotoInPlace } from '../../../kernel/viewer/state.js';
@@ -353,7 +354,7 @@ export function bindOcCard(ctx) {
     if (!ok) return;
 
     archiveRecord({
-      typeId: 'civil', typeLabel: 'Гражданское здание', rec, today: ctx.today,
+      typeId: 'civil', typeLabel: manifest.label, rec, today: ctx.today,
     });
     ctx.host.toMenu();
     ctx.toast('Убрано в архив: объект оценки');
