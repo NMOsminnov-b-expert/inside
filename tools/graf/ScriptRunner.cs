@@ -9,7 +9,9 @@ namespace Graf;
 // <файл>.log. Шаги: select, search, next, mode (graph/3d/list), set, save,
 // new, fit, external (правка файла снаружи — проверка живого обновления),
 // pull (потянуть узел), orbit, motion (замер движения узлов), export,
-// import, wait, shot, dump.
+// import, wait, shot, dump; zoom (масштаб плоского графа), quality (числа,
+// замечания и подсказки связей выбранной записи — в журнал), check (окно
+// проверки, не дожидаясь закрытия), closedlg.
 public static class ScriptRunner
 {
     public static async Task Run(MainWindow w, string path)
@@ -49,7 +51,7 @@ public static class ScriptRunner
                     case "tag": w.ToggleTag(S("value")); break;
                     case "sort": w.SetSort(S("key"), st.TryGetProperty("desc", out var dsc) && dsc.GetBoolean()); break;
                     case "lefttab": w.SetLeftTabPublic(S("value")); break;
-                    case "islands": w.GraphCtl.SetIslands(S("value") == "on"); break;
+                    case "islands": w.SetLayout(S("value") switch { "on" => 1, "topics" => 2, _ => 0 }); break;
                     case "ego": w.GraphCtl.SetEgo(st.GetProperty("hops").GetInt32()); break;
                     case "islandstat": log.Add("  острова: " + w.GraphCtl.IslandStats()); break;
                     case "datepreset": w.SetDatePresetPublic(S("value")); break;
@@ -66,6 +68,21 @@ public static class ScriptRunner
                         break;
                     }
                     case "wait": await Task.Delay(st.GetProperty("ms").GetInt32()); break;
+                    case "zoom": w.GraphCtl.SetZoom(st.GetProperty("value").GetSingle()); break;
+                    case "check": w.OpenCheck(); break;
+                    case "paneltab": w.PanelCtl.OpenTab(S("value")); break;
+                    case "closedlg": w.CloseDialogs(); break;
+                    case "quality":
+                    {
+                        var st2 = w.Store!;
+                        var q = Graf.Model.Quality.Count(st2);
+                        log.Add($"  записей {q.Records}, связей {q.Links}, частей {q.Components}, самая большая {q.Largest}, без связей {q.Lonely}, видов связей {q.Kinds}, 10+ пунктов {q.Big}");
+                        foreach (var g in Graf.Model.Quality.Warnings(st2).GroupBy(n => n.Kind)) log.Add($"  замечание «{g.Key}»: {g.Count()}");
+                        if (w.PanelCtl.Current is { } cur)
+                            foreach (var c in Graf.Model.Quality.Suggest(st2, cur.Id))
+                                log.Add($"  возможно связано: {c.Rec.Id} соседи {c.ByNeighbours:0.00} текст {c.ByText:0.00}");
+                        break;
+                    }
                     case "motion":
                     {
                         // Движение узлов за ms: наибольший и средний сдвиг в

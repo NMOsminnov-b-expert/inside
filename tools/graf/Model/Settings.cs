@@ -27,6 +27,10 @@ public sealed class Settings
     public string LeftTab { get; set; } = "toc";
     // Раскладка графа: острова по видам записей или свободная.
     public bool Islands { get; set; }
+    // Острова: 0 — нет, 1 — по виду записи, 2 — по темам. Старые настройки
+    // знают только Islands — из него и берётся, пока Grouping не записан.
+    int? _grouping;
+    public int Grouping { get => _grouping ?? (Islands ? 1 : 0); set { _grouping = value; Islands = value > 0; } }
 
     static string Dir => System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Graf");
     static string FilePath => System.IO.Path.Combine(Dir, "settings.json");

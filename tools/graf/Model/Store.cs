@@ -31,6 +31,10 @@ public sealed class Store : IDisposable
     public Store(string root) { Root = root; }
 
     public IEnumerable<Record> All => _byPath.Values;
+
+    // Растёт при каждой перемене записей: по ней пересчитываются кэши
+    // (векторы текста для подсказок связей, Quality).
+    public int Version { get; private set; }
     public Record? ById(string id) => _byPath.Values.FirstOrDefault(r => r.Id == id);
 
     public static string? FindRoot(params string[] starts)
@@ -65,6 +69,7 @@ public sealed class Store : IDisposable
     public void Load()
     {
         _byPath.Clear();
+        Version++;
         foreach (var (folder, _, _, _) in Schema.Folders)
         {
             var dir = System.IO.Path.Combine(Know, folder);
@@ -147,6 +152,7 @@ public sealed class Store : IDisposable
         }
         r.Path = path;
         _byPath[path] = Read(path, r.Folder);
+        Version++;
         TouchDates(path);
     }
 
@@ -155,6 +161,7 @@ public sealed class Store : IDisposable
         lock (_lock) _ownWrites[r.Path] = "deleted";
         if (File.Exists(r.Path)) File.Delete(r.Path);
         _byPath.Remove(r.Path);
+        Version++;
     }
 
     public Record Create(string folder, string title)
@@ -266,6 +273,7 @@ public sealed class Store : IDisposable
                 catch (Exception ex) { LoadErrors.Add($"{System.IO.Path.GetRelativePath(Root, p)}: {ex.Message}"); }
             }
             LastExternal = DateTime.Now;
+            Version++;
             Changed?.Invoke(updated, removed);
         }
         if (_ui != null) _ui.Post(Apply, null); else Apply(null);

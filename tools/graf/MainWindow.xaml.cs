@@ -92,10 +92,11 @@ public sealed partial class MainWindow : Window
         SortDir.Click += (_, _) => { _settings.SortDesc = !_settings.SortDesc; _settings.Save(); ShowSortDir(); Refresh(); };
         List.ItemClick += (_, e) => { if (e.ClickedItem is Row row) Select(row.R.Id, center: false); };
         HintBtn.Click += (_, _) => ToggleHint();
-        LayoutFree.Click += (_, _) => SetLayout(false);
-        LayoutIslands.Click += (_, _) => SetLayout(true);
+        LayoutFree.Click += (_, _) => SetLayout(0);
+        LayoutIslands.Click += (_, _) => SetLayout(1);
+        LayoutTopics.Click += (_, _) => SetLayout(2);
         BuildEgoButtons();
-        if (_settings.Islands) { LayoutFree.IsChecked = false; LayoutIslands.IsChecked = true; }
+        ShowLayout(_settings.Grouping);
         DateModeMod.Click += (_, _) => { _dateAdded = false; BuildDateFilter(); Refresh(); };
         DateModeAdd.Click += (_, _) => { _dateAdded = true; BuildDateFilter(); Refresh(); };
         DateFrom.DateChanged += (_, _) => OnPickers();
@@ -173,7 +174,7 @@ public sealed partial class MainWindow : Window
         ResetFilters();
         BuildFilters();
         Refresh();
-        if (_settings.Islands) Graph.SetIslands(true);
+        if (_settings.Grouping > 0) Graph.SetGrouping(_settings.Grouping);
         if (Root.IsLoaded) Graph.FitAll(animate: false);
         Store.Changed += OnStoreChanged;
         Store.Watch();
@@ -503,8 +504,9 @@ public sealed partial class MainWindow : Window
     //
     // Запись knowledge/project/oglavlenie_grafa.py (требование пользователя
     // 28.09.2026: «это же оглавление надо отображать и в программе»). Раздел —
-    // связи с типом «якорь раздела «…»»; метки раздела — пункт «Раздел «…» —
-    // метки: …; якоря: …». Якорь открывает запись, метка ставит фильтр по ней
+    // связь «раздел» на карту раздела (knowledge/project/karta_razdela_*.py,
+    // практика Maps of Content, 28.09.2026); у карты — связи «якорь» на
+    // ключевые записи и пункт «Метки раздела: …». Якорь открывает запись, метка ставит фильтр по ней
     // (отсеянное на графе темнеет). Раскрытые разделы помнятся на время работы.
 
     readonly HashSet<string> _tocOpen = new();
@@ -548,20 +550,15 @@ public sealed partial class MainWindow : Window
             return;
         }
         var sections = new List<(string Name, List<string> Anchors)>();
+        var tagsOf = new Dictionary<string, List<string>>();
         foreach (var l in toc.Links)
         {
-            var m = System.Text.RegularExpressions.Regex.Match(l["тип"] as string ?? "", "^якорь раздела «(.*)»$");
-            if (!m.Success) continue;
-            var name = m.Groups[1].Value;
-            var sec = sections.FirstOrDefault(x => x.Name == name);
-            if (sec.Name == null) { sec = (name, new List<string>()); sections.Add(sec); }
-            sec.Anchors.Add(l["куда"] as string ?? "");
-        }
-        var tagsOf = new Dictionary<string, List<string>>();
-        foreach (var p in toc.Points)
-        {
-            var m = System.Text.RegularExpressions.Regex.Match(p, "^Раздел «(.*?)»(?: — метки: (.*?))?; якоря:");
-            if (m.Success) tagsOf[m.Groups[1].Value] = m.Groups[2].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            if (l["тип"] as string != "раздел" || Store.ById(l["куда"] as string ?? "") is not { } map) continue;
+            var name = System.Text.RegularExpressions.Regex.Replace(map.Title, "^Раздел «(.*)»$", "$1");
+            sections.Add((name, map.Links.Where(x => x["тип"] as string == "якорь").Select(x => x["куда"] as string ?? "").ToList()));
+            var tp = map.Points.FirstOrDefault(p => p.StartsWith("Метки раздела:"));
+            tagsOf[name] = tp == null ? new() : tp["Метки раздела:".Length..]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(t => t != "—").ToList();
         }
         var tagCount = Store.All.SelectMany(r => r.Tags).GroupBy(t => t).ToDictionary(g => g.Key, g => g.Count());
 
@@ -656,13 +653,21 @@ public sealed partial class MainWindow : Window
     // Задача пользователя 28.09.2026 «граф сильно запутан»: острова по видам
     // записей и окрестность узла (эго-сеть на 1–3 шага), см. GraphView.
 
-    void SetLayout(bool islands)
+    // 0 — свободно, 1 — острова по виду записи, 2 — по темам (сообществам
+    // связей; ответ пользователя 28.09.2026 «Берем все»).
+    public void SetLayout(int grouping)
     {
-        LayoutFree.IsChecked = !islands;
-        LayoutIslands.IsChecked = islands;
-        Graph.SetIslands(islands);
-        _settings.Islands = islands;
+        ShowLayout(grouping);
+        Graph.SetGrouping(grouping);
+        _settings.Grouping = grouping;
         _settings.Save();
+    }
+
+    void ShowLayout(int grouping)
+    {
+        LayoutFree.IsChecked = grouping == 0;
+        LayoutIslands.IsChecked = grouping == 1;
+        LayoutTopics.IsChecked = grouping == 2;
     }
 
     void BuildEgoButtons()
@@ -694,14 +699,13 @@ public sealed partial class MainWindow : Window
     void BuildEdgeKinds()
     {
         EdgeKinds.Children.Clear();
-        var counts = Graph.EdgeTypesPresent.GroupBy(t => t.StartsWith("якорь раздела") ? "якорь раздела оглавления" : t)
-            .ToDictionary(g => g.Key, g => g.Count());
+        var counts = Graph.EdgeTypesPresent.GroupBy(t => t).ToDictionary(g => g.Key, g => g.Count());
         var order = GraphView.EdgeTypes.Select(e => e.Type).Where(counts.ContainsKey)
             .Concat(counts.Keys.Where(k => GraphView.EdgeTypes.All(e => e.Type != k)).OrderByDescending(k => counts[k]));
         foreach (var t in order)
         {
             var on = !_hiddenEdges.Contains(t);
-            var col = t == "якорь раздела оглавления" ? GraphView.EdgeTypeColor("якорь раздела") : GraphView.EdgeTypeColor(t);
+            var col = GraphView.EdgeTypeColor(t);
             EdgeKinds.Children.Add(FilterRow(t, counts[t], $"#{col.R:X2}{col.G:X2}{col.B:X2}", on, v =>
             {
                 if (v) _hiddenEdges.Remove(t); else _hiddenEdges.Add(t);
@@ -714,10 +718,7 @@ public sealed partial class MainWindow : Window
 
     void ApplyHiddenEdges()
     {
-        var hidden = new HashSet<string>(_hiddenEdges);
-        if (hidden.Remove("якорь раздела оглавления"))
-            foreach (var t in Graph.EdgeTypesPresent.Where(x => x.StartsWith("якорь раздела")).Distinct()) hidden.Add(t);
-        Graph.HiddenEdgeTypes = hidden;
+        Graph.HiddenEdgeTypes = new HashSet<string>(_hiddenEdges);
         Graph.Redraw();
     }
 
@@ -1171,23 +1172,74 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // Проверка: числа качества, ошибки (запись не читается, связь в
+    // пустоту) и замечания к наполнению группами — то же, что graph.py check
+    // и stats (Model/Quality, ответ пользователя 28.09.2026 «Берем все»).
+    // Для сценариев проверки: окно проверки без ожидания закрытия.
+    public void OpenCheck() => _ = ShowCheck();
+    public void CloseDialogs()
+    {
+        foreach (var p in Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(Root.XamlRoot))
+            if (p.Child is ContentDialog d) d.Hide();
+    }
+
     async Task ShowCheck()
     {
         if (Store == null) return;
         var problems = Store.Check();
-        var list = new ListView { SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = true, MaxHeight = 480 };
-        foreach (var (rec, text) in problems)
-            list.Items.Add(new ListViewItem { Content = new TextBlock { Text = (rec != null ? rec.Title + " — " : "") + text, TextWrapping = TextWrapping.Wrap }, Tag = rec?.Id });
-        foreach (var err in Store.LoadErrors)
-            list.Items.Add(new ListViewItem { Content = new TextBlock { Text = "Не читается: " + err, TextWrapping = TextWrapping.Wrap } });
-        var total = problems.Count + Store.LoadErrors.Count;
-        var d = new ContentDialog
+        var notes = Quality.Warnings(Store);
+        var num = Quality.Count(Store);
+        ContentDialog? d = null;
+        var body = new StackPanel { Spacing = 10 };
+
+        var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13 };
+        head.Text = $"Записей {num.Records}, связей {num.Links}, видов связей {num.Kinds}. "
+            + $"Частей связности {num.Components} — самая большая {num.Largest}; без связей {num.Lonely} "
+            + $"({string.Join(", ", num.LonelyByFolder.Select(x => $"{Schema.NameOf(x.Folder)} {x.N}"))}). "
+            + $"Записей с 10+ пунктами: {num.Big}.";
+        body.Children.Add(head);
+        body.Children.Add(new TextBlock
         {
-            XamlRoot = Root.XamlRoot, Title = total == 0 ? "Замечаний нет" : $"Замечаний: {total}",
-            Content = total == 0 ? new TextBlock { Text = "Все записи читаются, поля и связи в порядке." } : list,
+            Text = "Центры: " + string.Join(" · ", num.Hubs.Select(h => $"{h.Rec.Title} ({h.N})")),
+            TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.7,
+        });
+
+        ListView Items(IEnumerable<(Record? Rec, string Text)> items)
+        {
+            var list = new ListView { SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = true, MaxHeight = 260 };
+            foreach (var (rec, text) in items)
+                list.Items.Add(new ListViewItem { Content = new TextBlock { Text = (rec != null ? rec.Title + " — " : "") + text, TextWrapping = TextWrapping.Wrap, FontSize = 13 }, Tag = rec?.Id });
+            list.ItemClick += (_, e) => { if (e.ClickedItem is ListViewItem { Tag: string id }) { d?.Hide(); Select(id, center: true); } };
+            return list;
+        }
+
+        var errors = problems.Select(p => (p.Rec, p.Text)).Concat(Store.LoadErrors.Select(e => ((Record?)null, "не читается: " + e))).ToList();
+        body.Children.Add(new TextBlock
+        {
+            Text = errors.Count == 0 ? "Ошибок нет: все записи читаются, связи ведут в существующие записи." : $"Ошибки · {errors.Count}",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        });
+        if (errors.Count > 0) body.Children.Add(Items(errors));
+
+        foreach (var g in notes.GroupBy(n => n.Kind))
+        {
+            var ex = new Expander
+            {
+                Header = $"{g.Key} · {g.Count()}", HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Content = Items(g.Select(n => ((Record?)n.Rec, n.Text))),
+            };
+            body.Children.Add(ex);
+        }
+
+        d = new ContentDialog
+        {
+            XamlRoot = Root.XamlRoot,
+            Title = errors.Count == 0 ? $"Проверка: ошибок нет, замечаний {notes.Count}" : $"Проверка: ошибок {errors.Count}, замечаний {notes.Count}",
+            Content = new ScrollViewer { Content = body, MaxHeight = 620 },
             CloseButtonText = "Закрыть",
         };
-        list.ItemClick += (_, e) => { if (e.ClickedItem is ListViewItem { Tag: string id }) { d.Hide(); Select(id, center: true); } };
+        d.Resources["ContentDialogMaxWidth"] = 860.0;
         await d.ShowAsync();
     }
 

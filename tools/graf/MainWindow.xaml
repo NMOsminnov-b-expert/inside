@@ -150,8 +150,10 @@
                         <StackPanel Orientation="Horizontal">
                             <ToggleButton x:Name="LayoutFree" Content="Свободно" IsChecked="True" CornerRadius="4,0,0,4" Padding="10,3" FontSize="12"
                                           ToolTipService.ToolTip="Силовая раскладка всего графа"/>
-                            <ToggleButton x:Name="LayoutIslands" Content="Острова" CornerRadius="0,4,4,0" Padding="10,3" FontSize="12"
+                            <ToggleButton x:Name="LayoutIslands" Content="Острова" CornerRadius="0" Padding="10,3" FontSize="12"
                                           ToolTipService.ToolTip="Узлы одного вида записи — в своей области с подписью"/>
+                            <ToggleButton x:Name="LayoutTopics" Content="Темы" CornerRadius="0,4,4,0" Padding="10,3" FontSize="12"
+                                          ToolTipService.ToolTip="Острова по темам: записи, тесно связанные между собой, — в одной области (сообщества связей)"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Text="Окрестность" Foreground="#CCE6ECF2" FontSize="12" VerticalAlignment="Center"

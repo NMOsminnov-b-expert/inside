@@ -138,6 +138,13 @@ public sealed class RecordPanel : Grid
 
     // --- построение карточки ------------------------------------------------
 
+    // Для сценариев проверки: открыть вкладку карточки по названию.
+    public void OpenTab(string name)
+    {
+        var item = _tabs.Items.FirstOrDefault(i => i.Text == name);
+        if (item != null) _tabs.SelectedItem = item;
+    }
+
     void Build()
     {
         _body.Children.Clear();
@@ -431,19 +438,69 @@ public sealed class RecordPanel : Grid
         Fill();
         _body.Children.Add(list);
 
+        // Связи сюда — обратным именем вида («основа для», «реализовано в»):
+        // связь пишется один раз, с другой стороны она читается так (SKOS,
+        // GraphView.Inverse). Сгруппированы по виду.
         var inc = Store.Incoming(r.Id).ToList();
         _body.Children.Add(Label($"Связи сюда · {inc.Count}"));
-        foreach (var (from, l) in inc.OrderBy(x => x.From.Title))
+        foreach (var grp in inc.GroupBy(x => GraphView.InverseOf(x.Link["тип"] as string ?? "")).OrderBy(g => g.Key))
         {
-            var b = new HyperlinkButton { Padding = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Left };
-            var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            sp.Children.Add(new Border { Width = 9, Height = 9, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(from.Folder))), VerticalAlignment = VerticalAlignment.Center });
-            sp.Children.Add(new TextBlock { Text = from.Title, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 });
-            sp.Children.Add(new TextBlock { Text = $"({l["тип"]})", Opacity = 0.6 });
-            b.Content = sp;
-            b.Click += (_, _) => Navigate?.Invoke(from.Id);
-            _body.Children.Add(b);
+            var col = GraphView.EdgeTypeColor(grp.First().Link["тип"] as string ?? "");
+            _body.Children.Add(new TextBlock
+            {
+                Text = grp.Key, FontSize = 12, Margin = new Thickness(0, 6, 0, 0),
+                Foreground = new SolidColorBrush(col),
+            });
+            foreach (var (from, _) in grp.OrderBy(x => x.From.Title))
+                _body.Children.Add(RecordLink(from, null));
         }
+
+        // Возможно связано: кандидаты по общим соседям и по сходству текста
+        // (практика kak-uluchshat-graf-znaniy-…, Model/Quality). «+» ставит
+        // связь «относится к» — вид потом уточняется в списке выше.
+        var cands = Quality.Suggest(Store, r.Id);
+        if (cands.Count == 0) return;
+        _body.Children.Add(Label("Возможно связано"));
+        foreach (var c in cands)
+        {
+            var why = string.Join(" · ", new[]
+            {
+                c.ByNeighbours > 0 ? "общие соседи" : null,
+                c.ByText > 0 ? $"похожий текст {c.ByText:0.00}" : null,
+            }.Where(x => x != null));
+            var g = new Grid { ColumnSpacing = 6 };
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.Children.Add(RecordLink(c.Rec, why));
+            var add = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 }, VerticalAlignment = VerticalAlignment.Center };
+            ToolTipService.SetToolTip(add, "Связать: «относится к»");
+            var target = c.Rec;
+            add.Click += (_, _) =>
+            {
+                var ls = r.Fields["связи"] as List<object?> ?? new List<object?>();
+                ls.Add(new Map { new("тип", "относится к"), new("куда", target.Id), new("папка", target.Folder) });
+                r.Fields["связи"] = ls;
+                Changed();
+                Fill();
+                add.IsEnabled = false;
+            };
+            Grid.SetColumn(add, 1);
+            g.Children.Add(add);
+            _body.Children.Add(g);
+        }
+    }
+
+    HyperlinkButton RecordLink(Record rec, string? note)
+    {
+        var b = new HyperlinkButton { Padding = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Left };
+        var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        sp.Children.Add(new Border { Width = 9, Height = 9, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(rec.Folder))), VerticalAlignment = VerticalAlignment.Center });
+        sp.Children.Add(new TextBlock { Text = rec.Title, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 });
+        if (note != null) sp.Children.Add(new TextBlock { Text = note, Opacity = 0.55, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+        b.Content = sp;
+        ToolTipService.SetToolTip(b, $"{Schema.NameOf(rec.Folder)} · {rec.Title}");
+        b.Click += (_, _) => Navigate?.Invoke(rec.Id);
+        return b;
     }
 
     // Выбор записи для связи: поиск по заголовку, ID и прежнему имени.
