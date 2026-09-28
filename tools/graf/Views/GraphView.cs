@@ -40,10 +40,11 @@ public sealed class GraphView : UserControl
     sealed class Node
     {
         public Record R = null!;
-        // Места узла: 0 — плоская свободная, 1 — объёмная, 2 — острова по виду
-        // записи (у каждой раскладки свои места: переключение не портит другую).
-        public readonly Vector3[] P = new Vector3[3];
-        public readonly bool[] Placed = new bool[3];
+        // Места узла: 0 — плоская свободная, 1 — объёмная, 2 — острова на
+        // плоскости, 3 — острова в объёме (у каждой раскладки свои места:
+        // переключение не портит другую).
+        public readonly Vector3[] P = new Vector3[4];
+        public readonly bool[] Placed = new bool[4];
         public Vector3 V;
         public bool Pinned;
         public int Deg;
@@ -59,6 +60,7 @@ public sealed class GraphView : UserControl
         public float[]? F { get; set; }
         public float[]? D { get; set; }
         public float[]? I { get; set; }
+        public float[]? J { get; set; }
     }
 
     readonly CanvasControl _c = new();
@@ -67,7 +69,8 @@ public sealed class GraphView : UserControl
     List<(Node A, Node B, string Type)> _edges = new();
     Dictionary<Node, List<Node>> _adj = new();
     bool _3d, _islands;
-    int M => _3d ? 1 : _islands ? 2 : 0;
+    int M => Index(_3d, _islands);
+    static int Index(bool d3, bool islands) => d3 ? (islands ? 3 : 1) : (islands ? 2 : 0);
 
     // --- острова по разделам ---------------------------------------------------
     //
@@ -76,14 +79,26 @@ public sealed class GraphView : UserControl
     // области»); связи внутри области — обычные пружины, между областями —
     // слабые, чтобы острова не слипались в клубок. Центры островов — по кругу,
     // размер острова — по числу записей.
-    readonly Dictionary<string, Vector3> _island = new();
+    // В объёме центры островов — на сфере (точки Фибоначчи: ровно по
+    // поверхности), радиус сферы — по суммарной площади островов.
+    readonly Dictionary<string, Vector3> _island = new(), _island3 = new();
 
     void UpdateIslands()
     {
         _island.Clear();
+        _island3.Clear();
         var groups = _arr.GroupBy(n => n.R.Folder).OrderByDescending(g => g.Count()).ToList();
         if (groups.Count == 0) return;
         float Rad(int n) => IslK * MathF.Sqrt(n) + 50;
+        var sum2 = groups.Sum(g => MathF.Pow(Rad(g.Count()) * IslGap3, 2));
+        var sphere = groups.Count == 1 ? 0 : MathF.Sqrt(sum2 * 1.3f / 4);
+        for (var i = 0; i < groups.Count; i++)
+        {
+            var y = groups.Count == 1 ? 0 : 1 - 2f * (i + 0.5f) / groups.Count;
+            var rr = MathF.Sqrt(Math.Max(0, 1 - y * y));
+            var th = i * MathF.PI * (3 - MathF.Sqrt(5));
+            _island3[groups[i].Key] = new Vector3(MathF.Cos(th) * rr, y, MathF.Sin(th) * rr) * sphere;
+        }
         var circ = groups.Sum(g => 2 * Rad(g.Count())) * IslGap;
         var big = groups.Count == 1 ? 0 : circ / (2 * MathF.PI);
         var at = 0f;
@@ -105,31 +120,33 @@ public sealed class GraphView : UserControl
     const float IslPull = 0.35f;
     const float IslK = 40;
     const float IslGap = 1.3f;
+    const float IslGap3 = 1.6f;
 
     // Перекрытие островов: сумма наездов областей друг на друга (в долях
     // среднего радиуса) — для проверки раскладки.
     public string IslandStats()
     {
-        var m = 2;
+        var m = M;
+        if (m < 2) return "острова выключены";
         var gs = _arr.Where(n => n.Placed[m]).GroupBy(n => n.R.Folder).Select(g =>
         {
-            var pts = g.Select(n => new Vector2(n.P[m].X, n.P[m].Y)).ToList();
-            var c = pts.Aggregate(Vector2.Zero, (a, b) => a + b) / pts.Count;
-            var ds = pts.Select(p => Vector2.Distance(p, c)).OrderBy(x => x).ToList();
+            var pts = g.Select(n => n.P[m]).ToList();
+            var c = pts.Aggregate(Vector3.Zero, (a, b) => a + b) / pts.Count;
+            var ds = pts.Select(p => Vector3.Distance(p, c)).OrderBy(x => x).ToList();
             return (g.Key, c, r: ds[(int)(ds.Count * 0.95f)] + 26);
         }).ToList();
         int pairs = 0; float over = 0;
         for (var i = 0; i < gs.Count; i++)
             for (var j = i + 1; j < gs.Count; j++)
             {
-                var d = Vector2.Distance(gs[i].c, gs[j].c);
+                var d = Vector3.Distance(gs[i].c, gs[j].c);
                 var o = gs[i].r + gs[j].r - d;
                 if (o > 0) { pairs++; over += o / ((gs[i].r + gs[j].r) / 2); }
             }
         return $"островов {gs.Count}, наезжают пар {pairs}, сумма наездов {over:0.00}";
     }
 
-    Vector3 IslandOf(Node n) => _island.TryGetValue(n.R.Folder, out var c) ? c : Vector3.Zero;
+    Vector3 IslandOf(Node n, int m) => (m == 3 ? _island3 : _island).TryGetValue(n.R.Folder, out var c) ? c : Vector3.Zero;
 
     public bool Islands => _islands;
 
@@ -138,11 +155,11 @@ public sealed class GraphView : UserControl
         if (on == _islands) return;
         FinishMoves();
         _live = 0;
-        var firstTime = !_arr.Any(n => n.Placed[2]);
+        var firstTime = !_arr.Any(n => n.Placed[Index(_3d, on)]);
         _islands = on;
         if (on) UpdateIslands();
         Place();
-        if (!_3d) FitAll(animate: !firstTime);
+        FitAll(animate: !firstTime);
         _c.Invalidate();
     }
 
@@ -192,7 +209,7 @@ public sealed class GraphView : UserControl
         _c.Invalidate();
     }
 
-    bool EgoOn => _ego != null && !_3d;
+    bool EgoOn => _ego != null;
 
     void BuildEgo()
     {
@@ -210,6 +227,20 @@ public sealed class GraphView : UserControl
         foreach (var g in level.Where(kv => kv.Value > 0).GroupBy(kv => kv.Value))
         {
             var ring = g.Select(kv => kv.Key).OrderBy(n => n.R.Folder).ThenBy(n => n.R.Title).ToList();
+            if (_3d)
+            {
+                // В объёме шаг — сфера: узлы ровно по её поверхности (точки
+                // Фибоначчи), сфера тем больше, чем больше на ней узлов.
+                var rs = Math.Max(170f * g.Key, MathF.Sqrt(ring.Count) * 30f);
+                for (var i = 0; i < ring.Count; i++)
+                {
+                    var y = ring.Count == 1 ? 0 : 1 - 2f * (i + 0.5f) / ring.Count;
+                    var rr = MathF.Sqrt(Math.Max(0, 1 - y * y));
+                    var th = i * MathF.PI * (3 - MathF.Sqrt(5));
+                    ego[ring[i]] = (new Vector3(MathF.Cos(th) * rr, y, MathF.Sin(th) * rr) * rs, g.Key);
+                }
+                continue;
+            }
             // Кольцо тем шире, чем больше на нём узлов: подписи не должны слипаться.
             var r = Math.Max(170f * g.Key, ring.Count * 26f / (2 * MathF.PI));
             for (var i = 0; i < ring.Count; i++)
@@ -223,8 +254,13 @@ public sealed class GraphView : UserControl
 
     void FitEgo()
     {
-        if (_ego == null || _3d) return;
+        if (_ego == null) return;
         var r = _ego.Values.Max(v => v.Pos.Length()) + 120;
+        if (_3d)
+        {
+            AnimateCamera(Now with { T = Vector3.Zero, Dist = Math.Clamp(r / MathF.Sin(Fov / 2), 200, 100000) });
+            return;
+        }
         var z = Math.Clamp(Math.Min(W, H) / (2 * r), 0.1f, 2.5f);
         if (float.IsNaN(z) || W < 1) z = 0.6f;
         AnimateCamera(Now with { Zoom = z, Off = Vector2.Zero });
@@ -318,6 +354,7 @@ public sealed class GraphView : UserControl
         if (n.Placed[0]) { var p = Final(n, 0); s.F = new[] { p.X, p.Y }; }
         if (n.Placed[1]) { var p = Final(n, 1); s.D = new[] { p.X, p.Y, p.Z }; }
         if (n.Placed[2]) { var p = Final(n, 2); s.I = new[] { p.X, p.Y, IslandsVersion }; }
+        if (n.Placed[3]) { var p = Final(n, 3); s.J = new[] { p.X, p.Y, p.Z, IslandsVersion }; }
         _saved[n.R.Id] = s;
     }
 
@@ -339,6 +376,7 @@ public sealed class GraphView : UserControl
                 if (s.F is { Length: 2 }) { n.P[0] = new Vector3(s.F[0], s.F[1], 0); n.Placed[0] = true; }
                 if (s.D is { Length: 3 }) { n.P[1] = new Vector3(s.D[0], s.D[1], s.D[2]); n.Placed[1] = true; }
                 if (s.I is { Length: 3 } && s.I[2] == IslandsVersion) { n.P[2] = new Vector3(s.I[0], s.I[1], 0); n.Placed[2] = true; }
+                if (s.J is { Length: 4 } && s.J[3] == IslandsVersion) { n.P[3] = new Vector3(s.J[0], s.J[1], s.J[2]); n.Placed[3] = true; }
                 n.Pinned = false;
             }
             _nodes[r.Id] = n;
@@ -370,7 +408,7 @@ public sealed class GraphView : UserControl
             var nb = _adj[n].Where(x => x.Placed[m]).ToList();
             n.P[m] = nb.Count > 0
                 ? nb.Aggregate(Vector3.Zero, (s, x) => s + x.P[m]) / nb.Count + Jitter(rnd, 20)
-                : m == 2 ? IslandOf(n) + Jitter(rnd, 60) : Jitter(rnd, 400);
+                : m >= 2 ? IslandOf(n, m) + Jitter(rnd, 60) : Jitter(rnd, 400);
         }
         foreach (var n in fresh) n.Placed[m] = true;
         if (first)
@@ -446,7 +484,7 @@ public sealed class GraphView : UserControl
             var len = d.Length() + 0.01f;
             // На островах связь между разными видами тянет слабо — иначе
             // острова слипаются в тот же клубок.
-            var k = m == 2 && a.R.Folder != b.R.Folder ? 0.004f : 0.06f;
+            var k = m >= 2 && a.R.Folder != b.R.Folder ? 0.004f : 0.06f;
             var f = d / len * (len - 60) * k * alpha;
             a.V += f;
             b.V -= f;
@@ -456,11 +494,11 @@ public sealed class GraphView : UserControl
         {
             // Свободная раскладка тянет к общему центру, острова — к центру
             // своего острова.
-            if (m == 2) n.V += (IslandOf(n) - n.P[m]) * IslPull * alpha;
+            if (m >= 2) n.V += (IslandOf(n, m) - n.P[m]) * IslPull * alpha;
             else n.V -= n.P[m] * 0.004f * alpha;
             if (n.Pinned || n == _drag || (movable != null && !movable.Contains(n))) { n.V = Vector3.Zero; continue; }
             n.V *= 0.55f;
-            if (m == 0) n.V.Z = 0;
+            if (m == 0 || m == 2) n.V.Z = 0;
             var sp = n.V.Length();
             if (sp > 30) { n.V *= 30 / sp; sp = 30; }
             n.P[m] += n.V;
@@ -476,7 +514,7 @@ public sealed class GraphView : UserControl
         var m = M;
         var rnd = new Random();
         var from = _arr.ToDictionary(n => n, n => n.P[m]);
-        foreach (var n in _arr) { n.Pinned = false; n.P[m] = m == 2 ? IslandOf(n) + Jitter(rnd, 80) : Jitter(rnd, 400); }
+        foreach (var n in _arr) { n.Pinned = false; n.P[m] = m >= 2 ? IslandOf(n, m) + Jitter(rnd, 80) : Jitter(rnd, 400); }
         Solve(null);
         foreach (var n in _arr) { _moves[n] = (from[n], n.P[m]); n.P[m] = from[n]; }
         StartMoves(700, EaseInOut);
@@ -714,9 +752,10 @@ public sealed class GraphView : UserControl
         if (on == _3d) return;
         FinishMoves();
         _live = 0;
-        var firstTime = !_arr.Any(n => n.Placed[on ? 1 : 0]);
+        var firstTime = !_arr.Any(n => n.Placed[Index(on, _islands)]);
         _3d = on;
         Place();
+        if (EgoHops > 0) { BuildEgo(); if (_ego != null) FitEgo(); }
         if (firstTime && _arr.Length > 0 && _arr.All(n => n.Placed[M])) FitAll(animate: false);
         _c.Invalidate();
     }
@@ -1018,8 +1057,16 @@ public sealed class GraphView : UserControl
         {
             if (_3d)
             {
-                n.On = Project(n.P[m], out n.S, out n.Depth);
-                n.Rpx = Math.Clamp(n.Radius * 1.8f * PxPerUnit(n.Depth), 2.2f, 80f);
+                var pos = n.P[m];
+                var lvl = -1;
+                if (EgoOn)
+                {
+                    if (!_ego!.TryGetValue(n, out var eg3)) { n.On = false; continue; }
+                    pos = eg3.Pos;
+                    lvl = eg3.Level;
+                }
+                n.On = Project(pos, out n.S, out n.Depth);
+                n.Rpx = Math.Clamp((lvl == 0 ? 12 : n.Radius) * 1.8f * PxPerUnit(n.Depth), 2.2f, 80f);
             }
             else if (EgoOn)
             {
@@ -1043,11 +1090,13 @@ public sealed class GraphView : UserControl
         // так видно окружение, не теряя выбор.
         var sel = Selected != null;
         var hoverFocus = _hover != null && _drag == null;
-        HashSet<string>? focus = hoverFocus ? _hoverNear : sel ? _near : null;
+        // В окрестности вся картинка — уже контекст выбранного: второй и
+        // третий шаг не приглушаются, приглушает только наведение.
+        HashSet<string>? focus = hoverFocus ? _hoverNear : sel && !EgoOn ? _near : null;
         var hl = Highlight.Count > 0;
 
         // Острова: подложка области и подпись вида записи над ней.
-        if (m == 2 && !EgoOn)
+        if (m >= 2 && !EgoOn)
         {
             foreach (var g in _arr.Where(n => n.On).GroupBy(n => n.R.Folder))
             {
@@ -1066,8 +1115,9 @@ public sealed class GraphView : UserControl
             }
         }
 
-        // Окрестность: кольца шагов с подписью.
-        if (EgoOn)
+        // Окрестность: кольца шагов с подписью (в объёме шаги — сферы, их
+        // видно по самим узлам).
+        if (EgoOn && !_3d)
         {
             var levels = _ego!.Values.Where(v => v.Level > 0).GroupBy(v => v.Level);
             foreach (var g in levels)

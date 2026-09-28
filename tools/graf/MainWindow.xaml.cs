@@ -1008,7 +1008,7 @@ public sealed partial class MainWindow : Window
         Graph.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
         ListPane.Visibility = mode == 2 ? Visibility.Visible : Visibility.Collapsed;
         NavHint.Visibility = HintBtn.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
-        GraphTools.Visibility = mode == 0 ? Visibility.Visible : Visibility.Collapsed;
+        GraphTools.Visibility = mode != 2 ? Visibility.Visible : Visibility.Collapsed;
         NavHintText.Text = mode == 1 ? Hint3D : Hint2D;
         if (mode != 2) ShowHint();
         BtnFit.IsEnabled = BtnRelayout.IsEnabled = mode != 2;
