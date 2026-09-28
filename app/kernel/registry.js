@@ -25,6 +25,9 @@ import * as landPlotDicts from '../modules/land-plot/data/dictExport.js';
 import { manifest as vehicleManifest } from '../modules/vehicle/manifest.js';
 import * as vehicleRecords from '../modules/vehicle/records.js';
 import * as vehicleDicts from '../modules/vehicle/data/dictExport.js';
+import { manifest as mechanismsManifest } from '../modules/mechanisms/manifest.js';
+import * as mechanismsRecords from '../modules/mechanisms/records.js';
+import * as mechanismsDicts from '../modules/mechanisms/data/dictExport.js';
 
 export const OC_TYPES = [
   {
@@ -67,6 +70,15 @@ export const OC_TYPES = [
     dictExport: vehicleDicts,
     styleHref: './app/modules/vehicle/module.css',
     load: () => import('../modules/vehicle/index.js'),
+  },
+  // Механизмы и оборудование как самостоятельный ОЦ (решение пользователя
+  // 28.09.2026); та же форма — объект имущества в любом ОЦ.
+  {
+    manifest: mechanismsManifest,
+    records: mechanismsRecords,
+    dictExport: mechanismsDicts,
+    styleHref: './app/modules/mechanisms/module.css',
+    load: () => import('../modules/mechanisms/index.js'),
   },
 ];
 

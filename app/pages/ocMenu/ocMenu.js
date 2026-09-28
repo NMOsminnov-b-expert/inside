@@ -118,8 +118,7 @@ export function mountOcMenu(host) {
         <div class="dd-group">Недвижимое имущество</div>
         ${types.filter((t) => t.manifest.assetKind !== 'movable').map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
         <div class="dd-group">Движимое имущество</div>
-        <button data-create="vehicle">▣ Транспортные средства</button>
-        <button data-create="mechanisms">⚙ Механизмы и оборудование</button>
+        ${types.filter((t) => t.manifest.assetKind === 'movable').map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('')}
       </div>
     </div>`;
   }

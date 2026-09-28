@@ -40,6 +40,11 @@ export const CARD_LABEL = {
   movable: 'Движимое имущество',
 };
 
+// Объекты имущества, которые не литеры: поля литер к ним не относятся. ТС и
+// механизмы бывают в любом типе ОЦ (решение пользователя 28.09.2026); ТС
+// раньше сюда не попадало и считалось литерой при подсчёте использования.
+const NOT_BUILDING = new Set(['land', 'movable', 'mech', 'vehicle']);
+
 // Порядок карточек в каталоге: сначала сам объект оценки, потом его части.
 const CARD_ORDER = ['oc', 'building', 'apartment', 'land', 'movable'];
 
@@ -396,7 +401,7 @@ export function usageOf(dict, value) {
 
     type.records.allRecords().forEach((rec) => {
     const holders = b.card === 'oc' ? [rec] : (rec.oi || []).filter((o) => {
-      if (b.card === 'building') return o.card !== 'land' && o.card !== 'movable' && o.card !== 'mech';
+      if (b.card === 'building') return !NOT_BUILDING.has(o.card);
       return o.card === b.card;
     });
 
@@ -745,7 +750,7 @@ export function replaceValue(dict, from, to) {
 
     type.records.allRecords().forEach((rec) => {
     const holders = b.card === 'oc' ? [rec] : (rec.oi || []).filter((o) => {
-      if (b.card === 'building') return o.card !== 'land' && o.card !== 'movable' && o.card !== 'mech';
+      if (b.card === 'building') return !NOT_BUILDING.has(o.card);
       return o.card === b.card;
     });
 
