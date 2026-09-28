@@ -24,7 +24,6 @@ TOUCHES = (
 # Тип ОЦ → (маршрут объекта, как открыть литеру, поле, метка справочника)
 CASES = [
     ('civil', '#/oc/civil/oc-cv-1', 'Права на строение', '[data-bld-rights] option'),
-    ('production', '#/oc/production/oc-pr-1', 'Каркас', '[data-prod-frame] option'),
     ('residential-house', '#/oc/residential-house/oc-rh-1', 'Категория строения',
      '[data-rescat] option'),
 ]
@@ -174,7 +173,9 @@ def run(t):
     # С 23.09.2026 в гражданском класс ОИ считает система по признакам
     # (oi/building/capClass.js) и справочника у него нет — связку справочника с
     # полем держит производственный модуль, где класс пока выбирают из списка.
-    if t.ck(_open_dict(t, 'production', 'Литера', 'Категория ОИ'), 'не открыл справочник классов ОИ'):
+    # С 28.09.2026 производственного модуля нет (слит в «Нежилое здание»), класс
+    # выбирают списком модули недвижимости прежней схемы — берём жилой дом.
+    if t.ck(_open_dict(t, 'residential-house', 'Литера', 'Категория ОИ'), 'не открыл справочник классов ОИ'):
         groups = pg.evaluate("""() => [...document.querySelectorAll('.dc-tbl .dc-group-row')]
             .map((e) => e.textContent.trim())""")
         t.ck(len(groups) >= 2, 'перечень с разделами потерял разделы: %s' % groups)
@@ -183,12 +184,12 @@ def run(t):
         # классы — у производственного строения, остальные — у гражданского
         # (решение пользователя 05.09.2026). Поэтому проверяем, что раздел
         # доехал до поля и это раздел гражданских помещений, а не что их два.
-        _open_letter(t, '#/oc/production/oc-pr-1', '[data-oi-category]')
+        # Класс показывается только у нежилой литеры — она есть в oc-rh-all.
+        _open_letter(t, '#/oc/residential-house/oc-rh-all', '[data-oi-category]')
         og = pg.eval_on_selector_all('[data-oi-category] optgroup',
                                      'els => els.map((e) => e.getAttribute("label"))')
-        t.ck(len(og) == 1, 'в карточке производственного строения разделы «Класса ОИ»: %s' % og)
-        t.ck(og and 'роизводственно' in og[0],
-             'в карточке производственного строения не тот раздел классов: %s' % og)
+        # В поле — раздел своей группы литеры, а не оба сразу.
+        t.ck(len(og) == 1, 'в карточке литеры разделы «Класса ОИ»: %s' % og)
         opts = pg.eval_on_selector_all('[data-oi-category] option',
                                        'els => els.map((e) => e.textContent.trim())')
         t.ck(len(opts) >= 4, 'в карточке пропали значения «Класса ОИ»: %s' % opts)

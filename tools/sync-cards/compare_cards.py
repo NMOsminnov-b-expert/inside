@@ -14,7 +14,7 @@
     квартира — своя в apartment и residential-house, остальные берут из
                apartment;
     литера   — своя во ВСЕХ пяти модулях, главный источник расхождений;
-    движимое — своё в civil и production.
+    движимое — своё в civil (производственное с 28.09.2026 слито с ним).
 
 Как собирается состав карточки. Разбором кода отрисовки, а не рендером в
 браузере: состав полей зависит от условий (тип участка, категория ОИ, признак
@@ -40,14 +40,14 @@ import re
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-MODULES = ['apartment', 'residential-house', 'civil', 'production', 'land-plot']
+# «Производственное строение» с 28.09.2026 слито с гражданским в «Нежилое здание».
+MODULES = ['apartment', 'residential-house', 'civil', 'land-plot']
 
 # Короткие имена модулей для таблицы: полные не влезают в строку терминала.
 SHORT = {
     'apartment': 'кварт',
     'residential-house': 'жил.дом',
     'civil': 'гражд',
-    'production': 'произв',
     'land-plot': 'участок',
 }
 

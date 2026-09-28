@@ -1,9 +1,13 @@
 import { createSeed } from './seed.js';
+import { createProductionSeed } from './seedProduction.js';
 import { LETTER_SEQ } from './dictionaries.js';
 import { registerPersisted } from '../../../kernel/persist.js';
+import { migrateLiterKinds } from '../oi/building/capClass.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
-export const records = createSeed();
+// С 28.09.2026 модуль — единый тип «Нежилое здание»: в нём и записи бывшего
+// «Производственного строения» (решение пользователя; data/seedProduction.js).
+export const records = [...createSeed(), ...createProductionSeed()];
 
 // Введённое переживает перезагрузку страницы (требование пользователя
 // 09.09.2026). Сохраняются только сами записи: раскрытия, режимы и просмотрщик
@@ -16,6 +20,29 @@ registerPersisted('records.civil', {
   restore: (saved) => {
     if (!Array.isArray(saved) || !saved.length) return;
     records.splice(0, records.length, ...saved);
+    // Снимок, сохранённый до слияния с «Производственным строением», его
+    // записей не знает — демо-записи бывшего типа возвращаются к нему.
+    if (!saved.some((r) => String(r.id).startsWith('oc-pr-'))) records.push(...createProductionSeed());
+  },
+});
+
+// Записи, сохранённые модулем «Производственное строение» до слияния, один раз
+// переходят сюда: тип записи — «Нежилое здание», литерам — тип по прежнему
+// назначению (migrateLiterKinds), чтобы реестр сразу считал тип ОЦ. Запись с
+// тем же id заменяется сохранённой — в ней правки пользователя. Прежний ключ
+// после этого пустеет: дальше записи сохраняются вместе с остальными.
+// Восстановление идёт при регистрации, после «records.civil» (kernel/persist.js).
+registerPersisted('records.production', {
+  snapshot: () => [],
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    saved.forEach((rec) => {
+      rec.typeId = 'civil';
+      rec.type = 'Нежилое здание';
+      migrateLiterKinds(rec);
+      const at = records.findIndex((r) => r.id === rec.id);
+      if (at >= 0) records.splice(at, 1, rec); else records.push(rec);
+    });
   },
 });
 

@@ -5,6 +5,9 @@ export const manifest = {
   // пользователя 28.09.2026; прежде были отдельные «Гражданское здание» и
   // «Производственное строение»).
   label: 'Нежилое здание',
+  // Прежнее имя слитого типа: ссылки #/oc/production/... ведут сюда
+  // (kernel/registry.js, getType).
+  aliases: ['production'],
   plural: 'Нежилые здания',
   icon: '▦',
   accent: 'blue',

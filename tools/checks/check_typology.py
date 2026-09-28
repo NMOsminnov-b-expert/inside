@@ -14,7 +14,10 @@
   * шапка ОЦ показывает рассчитанный тип, сводная — полосу долей;
   * смена типа литеры меняет тип ОЦ;
   * фасет «Тип ОЦ» реестра делит нежилые здания по рассчитанному типу, и
-    фильтр по нему отбирает только их.
+    фильтр по нему отбирает только их;
+  * слияние с «Производственным строением»: его записи — в едином типе с
+    посчитанным типом, старый адрес #/oc/production/... переписывается на
+    civil, в меню создания — только «Нежилое здание».
 """
 
 NAME = 'тип нежилого здания'
@@ -23,6 +26,8 @@ TOUCHES = (
     'app/modules/civil/card/typology.js', 'app/modules/civil/card/capSummary.view.js',
     'app/modules/civil/card/ocCard.view.js', 'app/modules/civil/records.js',
     'app/modules/civil/data/query.js', 'app/pages/ocMenu/*', 'app/kernel/ocHead.js',
+    'app/modules/civil/data/store.js', 'app/modules/civil/data/seedProduction.js', 'app/kernel/registry.js',
+    'app/kernel/boot.js',
 )
 
 CASES = [
@@ -94,3 +99,25 @@ def run(t):
          'фасет «Тип ОЦ» не делит нежилые здания по типу: %s' % res['keys'])
     t.ck(res['types'] == ['Гражданское'], 'фильтр по типу отобрал чужие: %s' % res['types'])
     t.ck('oc-cv-all' in res['ids'], 'пересчитанный ОЦ не попал под фильтр своего типа')
+
+    # --- слияние с «Производственным строением» ------------------------------------
+    # Старый адрес ведёт в единый тип, запись та же; её литеры получили тип по
+    # прежнему назначению, и тип ОЦ посчитан без открытия карточки.
+    types = pg.evaluate("""async () => {
+      const m = await import('/app/modules/civil/records.js');
+      return ['oc-pr-1', 'oc-pr-2', 'oc-pr-all'].map((id) => { const s = m.getSummary(id); return s ? s.typeLabel : null; });
+    }""")
+    t.ck(types[0] == 'Производственное' and types[1] == 'Производственное',
+         'бывшие производственные записи не посчитаны: %s' % types)
+    t.ck(types[2] and types[2] != 'Нежилое здание · тип не определён', 'смешанная запись без типа: %s' % types)
+
+    pg.evaluate("location.hash = '#/oc/production/oc-pr-1'")
+    t.wait_until("() => location.hash.startsWith('#/oc/civil/oc-pr-1') && !!document.querySelector('[data-typology]')")
+    t.ck(pg.evaluate("() => location.hash").startswith('#/oc/civil/oc-pr-1'),
+         'старый адрес производственного не переписан: %s' % pg.evaluate("() => location.hash"))
+
+    pg.evaluate("location.hash = '#/'")
+    t.wait_for('.reg-thead')
+    create = pg.evaluate("() => [...document.querySelectorAll('.reg-create-menu [data-create]')].map((e) => e.textContent.trim())")
+    t.ck(any('Нежилое здание' in x for x in create) and not any('Производственное' in x or 'Гражданское' in x for x in create),
+         'в меню создания не единый тип: %s' % create)

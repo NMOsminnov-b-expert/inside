@@ -37,7 +37,7 @@ TOUCHES = (
 )
 
 MODS = [('civil', 'oc-cv-all'), ('apartment', 'oc-ap-all'), ('residential-house', 'oc-rh-all'),
-        ('production', 'oc-pr-all'), ('land-plot', 'oc-lp-all')]
+        ('land-plot', 'oc-lp-all')]
 
 PNG = base64.b64decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP4z8DwnwEIGP4zMAAAHOgD/U8WqF8AAAAASUVORK5CYII=')
@@ -151,9 +151,9 @@ def run(t):
             t.ck(full and a == b, '%s: форма «%s» не как в гражданском: %s' % (mod, k, str(diff)[:600]))
 
     # --- прежний «movable» производственного --------------------------------------
-    t.open('#/oc/production/oc-pr-1', wait='[data-oi-sub]')
+    t.open('#/oc/civil/oc-pr-1', wait='[data-oi-sub]')
     got = pg.evaluate("""async () => {
-      const r = await import('/app/modules/production/records.js');
+      const r = await import('/app/modules/civil/records.js');
       const rec = r.loadRecord('oc-pr-1');
       const pick = (id) => rec.oi.find((o) => o.id === id);
       const a = pick('oi-pr1-m1'), b = pick('oi-pr1-m2');

@@ -325,7 +325,7 @@ def run(t):
     t.ck(len(types) == 6, 'в поле «Тип ОЦ» не шесть типов: %s' % types)
     t.ck('Транспортные средства' in types, 'в поле «Тип ОЦ» нет транспортных средств: %s' % types)
 
-    pg.select_option('#fType', label='Производственное строение')
+    pg.select_option('#fType', label='Жилое здание (дом)')
     t.wait_for('.modal-head')
     t.ck(pg.locator('.modal-head').count() == 1, 'смена типа прошла без подтверждения')
     t.ck('Объектов имущества переедет' in (pg.locator('.modal-note').inner_text()
@@ -336,10 +336,10 @@ def run(t):
     pg.locator('[data-modal-cancel]').click()
     t.wait(500)
     t.ck(pg.eval_on_selector('#fType', 'e => e.options[e.selectedIndex].textContent.trim()')
-         == 'Гражданское здание',
+         == 'Нежилое здание',
          'после отказа в поле остался чужой тип')
 
-    pg.select_option('#fType', label='Производственное строение')
+    pg.select_option('#fType', label='Жилое здание (дом)')
     t.wait_for('.modal-head')
     pg.locator('[data-modal-ok]').click()
     # Переезд записи между модулями идёт через динамический import(),
@@ -353,16 +353,16 @@ def run(t):
     t.wait_until('() => document.querySelectorAll("tr[data-open-oi]").length === %d'
                  % oi_before)
 
-    t.ck('/oc/production/' in pg.evaluate('() => location.hash'),
+    t.ck('/oc/residential-house/' in pg.evaluate('() => location.hash'),
          'после смены типа маршрут не сменился: %s' % pg.evaluate('() => location.hash'))
     t.ck(pg.locator('tr[data-open-oi]').count() == oi_before,
          'после смены типа литер стало %d вместо %d'
          % (pg.locator('tr[data-open-oi]').count(), oi_before))
 
     # Обратная смена возвращает запись и её содержимое.
-    t.open('#/oc/production/oc-cv-1/form', wait='#fType')
+    t.open('#/oc/residential-house/oc-cv-1/form', wait='#fType')
     t.wait(600)
-    pg.select_option('#fType', label='Гражданское здание')
+    pg.select_option('#fType', label='Нежилое здание')
     t.wait_for('.modal-head')
     pg.locator('[data-modal-ok]').click()
     # Переезд записи между модулями идёт через динамический import(),
@@ -390,7 +390,7 @@ def run(t):
     # спрашивало подписи без вида карточки и показывало ключи латиницей.
     t.open('#/oc/residential-house/oc-rh-1/form', wait='#fType')
     t.wait(600)
-    pg.select_option('#fType', label='Гражданское здание')
+    pg.select_option('#fType', label='Нежилое здание')
     t.wait_for('.modal-head')
 
     warn = pg.locator('.modal-body').inner_text() if pg.locator('.modal-body').count() else ''
@@ -413,14 +413,16 @@ def run(t):
     pg.locator('[data-modal-cancel]').first.click()
     t.wait(300)
 
-    # Движимого нет у жилого дома — об этом говорится отдельно.
+    # Механизмы и ТС с 28.09.2026 есть во всех типах ОЦ недвижимости (решение
+    # пользователя) — переезд к жилому дому не должен объявлять, что для
+    # движимого объекта в новом типе нет карточки.
     t.open('#/oc/civil/oc-cv-1/form', wait='#fType')
     t.wait(600)
     pg.select_option('#fType', label='Жилое здание (дом)')
     t.wait_for('.modal-head')
     warn2 = pg.locator('.modal-body').inner_text() if pg.locator('.modal-body').count() else ''
-    t.ck('нет карточки' in warn2,
-         'не сказано, что для движимого объекта в новом типе нет карточки: %s'
+    t.ck('нет карточки' not in warn2,
+         'предупреждение говорит, что у движимого нет карточки, хотя она есть везде: %s'
          % warn2.replace(chr(10), ' ')[:160])
     pg.locator('[data-modal-cancel]').first.click()
     t.wait(300)

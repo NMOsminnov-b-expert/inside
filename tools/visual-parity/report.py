@@ -82,7 +82,7 @@ def main():
     ap.add_argument('--block', default='oc', choices=sorted(BLOCKS),
                     help='блок системы: oc — объекты оценки, dicts — справочники, archive — архив')
     ap.add_argument('--oc', default='',
-                    help='тип ОЦ: civil, apartment, residential-house, production, land-plot; '
+                    help='тип ОЦ: civil, apartment, residential-house, land-plot, vehicle, mechanisms; '
                          'обязателен только для блока oc')
     ap.add_argument('--oi', default='', help='тип ОИ: building, apartment, land, movable; пусто — снимок уровня ОЦ')
     ap.add_argument('--wait', default='.card')

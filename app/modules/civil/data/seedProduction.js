@@ -1,14 +1,20 @@
 import { mkNote } from '../parts/notes/store.js';
 
-// Демо-данные ОЦ «Производственное строение».
-export function createSeed() {
+// Демо-данные бывшего типа ОЦ «Производственное строение». С 28.09.2026 он
+// слит с гражданским в единый тип «Нежилое здание» (решение пользователя):
+// гражданское здание, производственное или смешанное — считает система по
+// внутренней площади литер (card/typology.js). Записи сохранили свои id
+// (oc-pr-*) — старые ссылки ведут на них же; литерам тип проставлен по
+// прежнему назначению по техпаспорту, как это делает перевод записей
+// (oi/building/capClass.js, migrateLiterKinds).
+export function createProductionSeed() {
   return [
     {
       id: 'oc-pr-1',
-      typeId: 'production',
+      typeId: 'civil',
       residential: false,
       category: 'Недвижимое',
-      type: 'Производственное строение',
+      type: 'Нежилое здание',
       purposeTP: 'Производственное',
       eni: '1475616752200',
       city: 'г. Кант',
@@ -67,7 +73,8 @@ export function createSeed() {
           heating: ['Прочее (указать в особенностях)'],
           heatingOther: '',
           comment: 'Кран-балка в составе цеха',
-          catClass: 'Производственно-складское',
+          catClass: '',
+          litKind: 'prod',
           dis: false,
           docs: [],
           photos: { 'Фасад': 3, 'Внутр. помещения': 3, 'Конструкции': 4, 'Кровля': 1 },
@@ -106,7 +113,8 @@ export function createSeed() {
           heating: [],
           heatingOther: '',
           comment: '',
-          catClass: 'Производственно-складское',
+          catClass: '',
+          litKind: 'prod',
           dis: false,
           docs: [],
           photos: { 'Фасад': 1, 'Конструкции': 1 },
@@ -176,10 +184,10 @@ export function createSeed() {
 
     {
       id: 'oc-pr-2',
-      typeId: 'production',
+      typeId: 'civil',
       residential: false,
       category: 'Недвижимое',
-      type: 'Производственное строение',
+      type: 'Нежилое здание',
       purposeTP: 'Складское',
       eni: '1475616767100',
       city: 'г. Бишкек',
@@ -235,7 +243,8 @@ export function createSeed() {
           heating: [],
           heatingOther: '',
           comment: '',
-          catClass: 'Производственно-складское',
+          catClass: '',
+          litKind: 'prod',
           dis: false,
           docs: [],
           photos: { 'Фасад': 1 },
@@ -249,10 +258,10 @@ export function createSeed() {
     // ссылке открывается любой переход ОЦ → ОИ (docs/demo-perehody.md).
     {
       id: 'oc-pr-all',
-      typeId: 'production',
+      typeId: 'civil',
       residential: false,
       category: 'Недвижимое',
-      type: 'Производственное строение',
+      type: 'Нежилое здание',
       purposeTP: 'Административное',
       eni: '1475617200',
       region: 'Чуйская область',
@@ -436,6 +445,7 @@ export function createSeed() {
           heatingOther: '',
           comment: '',
           catClass: 'Нежилое · офисное',
+          litKind: 'civil',
           dis: false,
           docs: [],
           photos: { 'Фасад': 2 },
@@ -474,7 +484,8 @@ export function createSeed() {
           heating: ['Центральное водяное отопление'],
           heatingOther: '',
           comment: '',
-          catClass: 'Производственно-складское',
+          catClass: '',
+          litKind: 'prod',
           dis: false,
           docs: [],
           photos: { 'Фасад': 2 },
@@ -514,6 +525,7 @@ export function createSeed() {
           heatingOther: '',
           comment: '',
           catClass: 'Прочее',
+          litKind: 'other',
           dis: false,
           docs: [],
           photos: { 'Фасад': 2 },

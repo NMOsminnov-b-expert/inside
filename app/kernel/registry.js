@@ -15,10 +15,6 @@ import { manifest as civilManifest } from '../modules/civil/manifest.js';
 import * as civilRecords from '../modules/civil/records.js';
 import * as civilDicts from '../modules/civil/data/dictExport.js';
 
-import { manifest as productionManifest } from '../modules/production/manifest.js';
-import * as productionRecords from '../modules/production/records.js';
-import * as productionDicts from '../modules/production/data/dictExport.js';
-
 import { manifest as landPlotManifest } from '../modules/land-plot/manifest.js';
 import * as landPlotRecords from '../modules/land-plot/records.js';
 import * as landPlotDicts from '../modules/land-plot/data/dictExport.js';
@@ -59,15 +55,6 @@ export const OC_TYPES = [
     load: () => import('../modules/civil/index.js'),
   },
   {
-    manifest: productionManifest,
-    records: productionRecords,
-    dictExport: productionDicts,
-    // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
-    // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
-    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
-    load: () => import('../modules/production/index.js'),
-  },
-  {
     manifest: landPlotManifest,
     records: landPlotRecords,
     dictExport: landPlotDicts,
@@ -94,8 +81,12 @@ export const OC_TYPES = [
   },
 ];
 
+// Тип находится и по прежнему имени (manifest.aliases): когда типы ОЦ
+// сливаются, старые ссылки должны вести на новый тип, а не в «не
+// зарегистрирован» (boot.js переписывает такой адрес на нынешнее имя).
 export function getType(id) {
-  return OC_TYPES.find((t) => t.manifest.id === id) || null;
+  return OC_TYPES.find((t) => t.manifest.id === id)
+    || OC_TYPES.find((t) => (t.manifest.aliases || []).includes(id)) || null;
 }
 
 export function sortedTypes() {

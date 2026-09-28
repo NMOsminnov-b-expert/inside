@@ -353,8 +353,12 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   путей — `.dependency-cruiser.cjs` (`npm run lint:arch`); меняется правило —
   править и его.
 - Ядро не знает ни одного типа ОЦ и ни одного вида ОИ.
-- Пять модулей ОЦ (`apartment`, `residential-house`, `civil`, `production`,
-  `land-plot`) полностью изолированы друг от друга.
+- Модули ОЦ (`apartment`, `residential-house`, `civil`, `land-plot`,
+  `vehicle`, `mechanisms`) изолированы друг от друга, кроме названных выше
+  дверей. `civil` — единый тип «Нежилое здание»: с 28.09.2026 в него слито
+  «Производственное строение» (тип считает система по внутренней площади
+  литер, `civil/card/typology.js`); прежний адрес `#/oc/production/...` ведёт
+  в `civil` через `manifest.aliases`.
 
 Если предлагаемое изменение нарушает эти правила — предупредить явно,
 прежде чем реализовывать.

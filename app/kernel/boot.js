@@ -253,6 +253,13 @@ async function onRoute(route) {
 
   const type = getType(route.typeId);
 
+  // Адрес по прежнему имени типа (manifest.aliases) — на нынешнее имя: дальше
+  // модуль строит ссылки своим id, и в адресной строке должно стоять оно же.
+  if (type && type.manifest.id !== route.typeId) {
+    go(build({ typeId: type.manifest.id, ocId: route.ocId, rest: route.rest, query: route.query }), { replace: true });
+    return;
+  }
+
   if (!type) {
     unmount();
     resetShellSlots();

@@ -18,7 +18,7 @@ CASES = [
     ('rh', '#/oc/residential-house/oc-rh-1'),
     ('ap', '#/oc/apartment/oc-ap-1'),
     ('cv', '#/oc/civil/oc-cv-1'),
-    ('pr', '#/oc/production/oc-pr-1'),
+    ('pr', '#/oc/civil/oc-pr-1'),  # бывшее производственное — в «Нежилом здании»
     ('lp', '#/oc/land-plot/oc-lp-1'),
 ]
 
