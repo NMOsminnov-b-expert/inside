@@ -15,6 +15,7 @@ git; ищем по нему CodeGraph (RAG); записи размечаются
 и `codegraph query "<фраза>"` находит её по заголовку, метке или пункту.
 Файл — данные, не код: он не исполняется, читается разбором (ast).
 
+    python tools/knowledge/graph.py toc            оглавление графа — разделы, метки, якоря
     python tools/knowledge/graph.py rules [--full] действующие правила — в начале работы
     python tools/knowledge/graph.py check          проверить записи и связи
     python tools/knowledge/graph.py find <текст>   найти запись (запасной поиск без CodeGraph)
@@ -227,6 +228,38 @@ def cmd_rules(full=False):
                 print('    · ' + ' '.join(str(pt).split()))
 
 
+def cmd_toc():
+    """Оглавление графа (knowledge/project/oglavlenie_grafa.py): разделы, их
+    метки с числом записей и якоря с заголовками — первая точка входа в граф
+    (требование пользователя 28.09.2026)."""
+    recs = {r['id']: (folder, r) for folder, p, r in load_all()}
+    toc = recs.get('oglavlenie-grafa')
+    if not toc:
+        sys.exit('нет записи knowledge/project/oglavlenie_grafa.py')
+    by_tag = {}
+    for folder, r in recs.values():
+        for t in r.get('метки') or []:
+            by_tag[t] = by_tag.get(t, 0) + 1
+    sections = []
+    for ln in toc[1].get('связи') or []:
+        name = re.sub(r'^якорь раздела «(.*)»$', r'\1', ln.get('тип', ''))
+        if name not in [s[0] for s in sections]:
+            sections.append((name, []))
+        [s for s in sections if s[0] == name][0][1].append(ln.get('куда'))
+    tags_of = {}
+    for pt in toc[1].get('пункты') or []:
+        m = re.match(r'Раздел «(.*?)»(?: — метки: (.*?))?; якоря:', pt)
+        if m:
+            tags_of[m.group(1)] = [t.strip() for t in (m.group(2) or '').split(',') if t.strip()]
+    for name, anchors in sections:
+        tags = tags_of.get(name, [])
+        print('\n## %s' % name + (('   метки: ' + ', '.join('%s (%d)' % (t, by_tag.get(t, 0)) for t in tags)) if tags else ''))
+        for a in anchors:
+            folder, r = recs.get(a, ('?', {}))
+            title = ' '.join(str(r.get('заголовок') or r.get('термин') or '').split())
+            print('  %-9s %-48s %s' % (folder, a[:48], title[:90]))
+
+
 def cmd_find(text):
     words = [w.lower() for w in text.split()]
     hits = []
@@ -293,6 +326,8 @@ def main():
         sys.exit(1 if problems else 0)
     elif cmd == 'rules':
         cmd_rules('--full' in args)
+    elif cmd == 'toc':
+        cmd_toc()
     elif cmd == 'find':
         cmd_find(' '.join(args[1:]))
     elif cmd == 'tag':
