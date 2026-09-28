@@ -216,7 +216,7 @@ function areasCard(ctx, oi, idx) {
      следующей строки. -->
 <div class="grid g-4 g-roomy">
 <div class="field"><label>Общая по правоустанавливающим документам, м²</label><input class="input" data-area="pud" value="${esc(areas.pud || '')}"></div>
-<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
+<div class="field"><label title="Обмер внутри контура, без учёта толщины стен">Общая площадь по внутреннему обмеру, м²</label><input class="input" data-area="build" value="${esc(areas.build || '')}" title="Обмер внутри контура, без учёта толщины стен"></div>
 <div class="field"><label title="Со страницы «Характеристика строений и сооружений» техпаспорта">Площадь по внешним замерам, м²</label><input class="input" data-area="tp" value="${esc(areas.tp || '')}" title="Со страницы «Характеристика строений и сооружений» техпаспорта">
 <span class="field-hint">со страницы «Характеристика строений и сооружений»</span></div>
 <div class="field"><label>Общая по факту, м²</label><input class="input" data-area="fact" value="${esc(areas.fact || '')}"></div>
@@ -547,7 +547,7 @@ function zoneHTML(z, i, open) {
     ${grp('Название и размеры', `<div class="zn-fields zn-fields-3">
       <div class="field zn-name"><label for="zn-name-${id}">Название подгруппы</label>
         <input class="input" id="zn-name-${id}" data-zone-name value="${esc(z.name || '')}" placeholder="Например, «Общежитие»"></div>
-      <div class="field zn-num-f"><label for="zn-area-${id}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма подгрупп сверяется с площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
+      <div class="field zn-num-f"><label for="zn-area-${id}" class="lk-tip" title="Площадь по внутреннему обмеру этой части здания, м². Сумма подгрупп сверяется с общей площадью литеры по внутреннему обмеру">По внутр. обмеру, м²</label>
         <input class="input num" id="zn-area-${id}" data-zone-area inputmode="decimal" value="${esc(numText(z.area))}"></div>
       <div class="field zn-num-f"><label for="zn-h-${id}" class="lk-tip" title="Высота по внутренним замерам этой части здания, м. По ней выбирается диапазон признака «Высота» подгруппы">Высота внутр., м</label>
         <input class="input num" id="zn-h-${id}" data-zone-height inputmode="decimal" value="${esc(numText((z.heights || {}).int))}"></div>
