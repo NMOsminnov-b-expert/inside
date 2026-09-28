@@ -2,10 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:v="using:Graf.Views">
-    <!-- Раскладка: сверху — проект, поиск и действия; слева — фильтры; в
-         центре — граф (2D или 3D) или список; справа — карточка записи;
-         внизу — состояние. Без проекта — экран выбора проекта. -->
-    <Grid x:Name="Root" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" AllowDrop="True">
+    <!-- Раскладка по Human Interface Guidelines Apple (практика графа
+         dizayn-programmy-graf-proekta-po-hig-apple): сверху — панель
+         инструментов в три группы (боковая панель и проект; вид; поиск,
+         значки и одно выделенное действие «+»); слева — боковая панель
+         (оглавление или фильтры), в центре — граф или список, справа —
+         карточка записи; разделители панелей — в 1 пиксель; внизу —
+         строка состояния. Без проекта — экран выбора проекта. -->
+    <Grid x:Name="Root" Background="{ThemeResource HigBackground}" AllowDrop="True">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Modifiers="Control" Key="F" Invoked="OnFind"/>
             <KeyboardAccelerator Modifiers="Control" Key="N" Invoked="OnNew"/>
@@ -23,49 +27,50 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid x:Name="TopBar" Padding="10,8" ColumnSpacing="10" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+        <!-- Панель инструментов: три группы (HIG Toolbars — не больше трёх);
+             значки без рамок; главное действие — одно, в конце, выделенное. -->
+        <Grid x:Name="TopBar" Padding="8,8,12,8" BorderBrush="{ThemeResource HigSeparator}" BorderThickness="0,0,0,1" Background="{ThemeResource HigSidebar}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*" MaxWidth="520"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <DropDownButton x:Name="ProjectBtn" ToolTipService.ToolTip="Проект: недавние, другая папка (Ctrl+R, Ctrl+O)">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE8B7;" FontSize="14"/>
-                    <TextBlock x:Name="ProjectName" Text="Проект" FontWeight="SemiBold" MaxWidth="220" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-                <DropDownButton.Flyout>
-                    <MenuFlyout x:Name="ProjectMenu" Placement="BottomEdgeAlignedLeft"/>
-                </DropDownButton.Flyout>
-            </DropDownButton>
-            <AutoSuggestBox x:Name="Search" Grid.Column="1" PlaceholderText="Поиск: заголовок, ID, метка, текст (Ctrl+F)"
-                            QueryIcon="Find" VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                <ToggleButton x:Name="ModeGraph" IsChecked="True" CornerRadius="4,0,0,4" ToolTipService.ToolTip="Граф на плоскости (Ctrl+1)">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE9D9;" FontSize="14"/><TextBlock Text="Граф"/></StackPanel>
-                </ToggleButton>
-                <ToggleButton x:Name="Mode3D" CornerRadius="0" ToolTipService.ToolTip="Граф в объёме — удобен, когда узлов много (Ctrl+2)">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xF158;" FontSize="14"/><TextBlock Text="3D"/></StackPanel>
-                </ToggleButton>
-                <ToggleButton x:Name="ModeList" CornerRadius="0,4,4,0" ToolTipService.ToolTip="Список записей (Ctrl+3)">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8FD;" FontSize="14"/><TextBlock Text="Список"/></StackPanel>
-                </ToggleButton>
-            </StackPanel>
-            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
-                <Button x:Name="BtnNew" ToolTipService.ToolTip="Новая запись (Ctrl+N)">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="14"/><TextBlock Text="Запись"/></StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                <Button x:Name="BtnSidebar" Padding="8,6" BorderThickness="0" Background="Transparent" ToolTipService.ToolTip="Показать или скрыть боковую панель">
+                    <FontIcon Glyph="&#xE700;" FontSize="16" Foreground="{ThemeResource HigAccent}"/>
                 </Button>
-                <Button x:Name="BtnCheck" ToolTipService.ToolTip="Проверить записи и связи">
-                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE9D5;" FontSize="14"/><TextBlock x:Name="CheckText" Text="Проверка"/></StackPanel>
-                </Button>
-                <Button x:Name="BtnFit" ToolTipService.ToolTip="Весь граф в окне (Home)"><FontIcon Glyph="&#xE9A6;" FontSize="14"/></Button>
-                <Button x:Name="BtnRelayout" ToolTipService.ToolTip="Разложить граф заново — закреплённые узлы открепятся"><FontIcon Glyph="&#xE72C;" FontSize="14"/></Button>
-                <DropDownButton ToolTipService.ToolTip="Выгрузка и загрузка графа">
-                    <FontIcon Glyph="&#xE8DE;" FontSize="14"/>
+                <DropDownButton x:Name="ProjectBtn" BorderThickness="0" Background="Transparent" Padding="8,4" ToolTipService.ToolTip="Проект: недавние, другая папка (Ctrl+R, Ctrl+O)">
+                    <TextBlock x:Name="ProjectName" Text="Проект" FontSize="15" FontWeight="SemiBold" MaxWidth="240" TextTrimming="CharacterEllipsis"/>
                     <DropDownButton.Flyout>
+                        <MenuFlyout x:Name="ProjectMenu" Placement="BottomEdgeAlignedLeft"/>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+            </StackPanel>
+            <Border x:Name="ModeHost" Grid.Column="1" Width="260" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <AutoSuggestBox x:Name="Search" Width="260" PlaceholderText="Поиск" QueryIcon="Find" VerticalAlignment="Center"
+                                CornerRadius="16" BorderThickness="0" Background="{ThemeResource HigFill}" Margin="0,0,8,0"
+                                ToolTipService.ToolTip="Поиск: заголовок, ID, метка, текст (Ctrl+F)"/>
+                <Button x:Name="BtnCheck" Padding="8,6" BorderThickness="0" Background="Transparent" ToolTipService.ToolTip="Проверка записей и связей">
+                    <Grid>
+                        <FontIcon Glyph="&#xE9D5;" FontSize="16" Foreground="{ThemeResource HigLabel}"/>
+                        <Border x:Name="CheckBadge" Background="{ThemeResource HigRed}" CornerRadius="8" MinWidth="16" Height="16" Padding="4,0"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0" Visibility="Collapsed">
+                            <TextBlock x:Name="CheckText" FontSize="10" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Button>
+                <Button x:Name="BtnFit" Padding="8,6" BorderThickness="0" Background="Transparent" ToolTipService.ToolTip="Весь граф в окне (Home)">
+                    <FontIcon Glyph="&#xE9A6;" FontSize="16" Foreground="{ThemeResource HigLabel}"/>
+                </Button>
+                <Button Padding="8,6" BorderThickness="0" Background="Transparent" ToolTipService.ToolTip="Ещё: разложить заново, выгрузка и загрузка">
+                    <FontIcon Glyph="&#xE712;" FontSize="16" Foreground="{ThemeResource HigLabel}"/>
+                    <Button.Flyout>
                         <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuFlyoutItem x:Name="BtnRelayout" Text="Разложить граф заново">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE72C;"/></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutSeparator/>
                             <MenuFlyoutItem x:Name="MiExport" Text="Выгрузить граф в файл…">
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xEDE1;"/></MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
@@ -73,171 +78,128 @@
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8B5;"/></MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                         </MenuFlyout>
-                    </DropDownButton.Flyout>
-                </DropDownButton>
+                    </Button.Flyout>
+                </Button>
+                <Border x:Name="NewHost" Margin="6,0,0,0"/>
             </StackPanel>
         </Grid>
 
         <Grid x:Name="Body" Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="LeftCol" Width="260" MinWidth="180"/>
+                <ColumnDefinition x:Name="LeftCol" Width="290" MinWidth="0"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition x:Name="RightCol" Width="460" MinWidth="320"/>
+                <ColumnDefinition x:Name="RightCol" Width="440" MinWidth="320"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Левая панель: оглавление графа и фильтры — вкладками. Оглавление —
-                 запись knowledge/project/oglavlenie_grafa.py: разделы с якорями
-                 (переход к записи) и метками (фильтр); раздел раскрывается
-                 шевроном (практика дерева в боковой панели). -->
-            <Grid RowSpacing="0">
+            <!-- Боковая панель (HIG Sidebars): сегменты «Оглавление · Фильтры»;
+                 разделы — заголовками с треугольником; не больше двух уровней. -->
+            <Grid x:Name="Sidebar" Background="{ThemeResource HigSidebar}" BorderBrush="{ThemeResource HigSeparator}" BorderThickness="0,0,1,0">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <SelectorBar x:Name="LeftTabs" Margin="8,4,8,0">
-                    <SelectorBarItem x:Name="TabToc" Text="Оглавление" Tag="toc"/>
-                    <SelectorBarItem x:Name="TabFilters" Text="Фильтры" Tag="filters"/>
-                </SelectorBar>
-            <ScrollViewer x:Name="TocPane" Grid.Row="1">
-                <StackPanel x:Name="Toc" Padding="10,8,10,20" Spacing="2"/>
-            </ScrollViewer>
-            <ScrollViewer x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed">
-                <StackPanel Padding="14,10,14,20" Spacing="4">
-                    <TextBlock Text="ОТСЕЯННОЕ ФИЛЬТРОМ НА ГРАФЕ — ТЁМНЫМ, А НЕ СКРЫТО" FontSize="10" Opacity="0.55" TextWrapping="Wrap" CharacterSpacing="20"/>
-                    <!-- Дата: готовые периоды и свой период, гистограмма правок —
-                         столбик выбирается щелчком (Shift — продлить); «менялись»
-                         — любая правка записи в период, не только последняя. -->
-                    <TextBlock Text="ДАТА" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,8,0,2" CharacterSpacing="40"/>
-                    <StackPanel Orientation="Horizontal">
-                        <ToggleButton x:Name="DateModeMod" Content="Менялись" IsChecked="True" CornerRadius="4,0,0,4" Padding="10,3"/>
-                        <ToggleButton x:Name="DateModeAdd" Content="Добавлены" CornerRadius="0,4,4,0" Padding="10,3"/>
-                    </StackPanel>
-                    <v:WrapPanel x:Name="DatePresets" Gap="6" Margin="0,6,0,0"/>
-                    <Grid x:Name="DateHist" Height="58" Margin="0,8,0,0"/>
-                    <TextBlock x:Name="DateHistNote" FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
-                    <Grid ColumnSpacing="6" Margin="0,4,0,0">
-                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                        <CalendarDatePicker x:Name="DateFrom" PlaceholderText="с" HorizontalAlignment="Stretch"/>
-                        <CalendarDatePicker x:Name="DateTo" Grid.Column="1" PlaceholderText="по" HorizontalAlignment="Stretch"/>
-                    </Grid>
-                    <CheckBox x:Name="ColorByDate" Content="Цвет узла — по дате изменения" Margin="0,6,0,0"
-                              ToolTipService.ToolTip="Самая свежая правка — оранжевый, самая давняя — серый"/>
-                    <TextBlock x:Name="ColorLegend" FontSize="11" Opacity="0.6" TextWrapping="Wrap" Visibility="Collapsed"/>
-                    <!-- Виды связей: цвет на графе, число, показывать ли. -->
-                    <TextBlock Text="СВЯЗИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
-                    <StackPanel x:Name="EdgeKinds"/>
-                    <TextBlock Text="ВИД ЗАПИСИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
-                    <StackPanel x:Name="Folders"/>
-                    <TextBlock Text="СТАТУС" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
-                    <StackPanel x:Name="Statuses"/>
-                    <TextBlock Text="МЕТКИ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" Margin="0,12,0,2" CharacterSpacing="40"/>
-                    <TextBlock Text="Отмеченные метки — все сразу у записи" FontSize="11" Opacity="0.55" TextWrapping="Wrap"/>
-                    <TextBox x:Name="TagFilter" PlaceholderText="Найти метку" Margin="0,4,0,4"/>
-                    <StackPanel x:Name="Tags"/>
-                    <CheckBox x:Name="Lonely" Content="Записи без связей" Margin="0,12,0,0"
-                              ToolTipService.ToolTip="На графе — узлы без связей (в основном поля реестра)"/>
-                    <Button x:Name="BtnReset" Content="Сбросить фильтры" Margin="0,8,0,0"/>
-                </StackPanel>
-            </ScrollViewer>
+                <Border x:Name="LeftSegHost" Padding="12,12,12,8"/>
+                <ScrollViewer x:Name="TocPane" Grid.Row="1">
+                    <StackPanel x:Name="Toc" Padding="10,4,10,24" Spacing="2"/>
+                </ScrollViewer>
+                <Grid x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <StackPanel x:Name="FilterTop" Padding="14,2,14,10" Spacing="8"/>
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel x:Name="FilterHost" Padding="12,0,12,24" Spacing="4"/>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
-            <!-- Границы панелей тянутся мышью. -->
             <v:Splitter x:Name="LeftSplit" HorizontalAlignment="Right" Margin="0,0,-3,0" Canvas.ZIndex="5"/>
 
             <Grid Grid.Column="1">
                 <v:GraphView x:Name="Graph"/>
-                <!-- Раскладка и окрестность — поверх полотна, слева сверху (как
-                     управление видом у карт): рядом с тем, на что влияют. -->
-                <Border x:Name="GraphTools" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" Padding="8,6"
-                        CornerRadius="8" Background="#CC131B24">
-                    <StackPanel Orientation="Horizontal" Spacing="14">
-                        <StackPanel Orientation="Horizontal">
-                            <ToggleButton x:Name="LayoutFree" Content="Свободно" IsChecked="True" CornerRadius="4,0,0,4" Padding="10,3" FontSize="12"
-                                          ToolTipService.ToolTip="Силовая раскладка всего графа"/>
-                            <ToggleButton x:Name="LayoutIslands" Content="Острова" CornerRadius="0" Padding="10,3" FontSize="12"
-                                          ToolTipService.ToolTip="Узлы одного вида записи — в своей области с подписью"/>
-                            <ToggleButton x:Name="LayoutTopics" Content="Темы" CornerRadius="0,4,4,0" Padding="10,3" FontSize="12"
-                                          ToolTipService.ToolTip="Острова по темам: записи, тесно связанные между собой, — в одной области (сообщества связей)"/>
+                <!-- Управление видом поверх тёмного холста — «стеклянные» капсулы
+                     (HIG: управление отделено от содержимого материалом). -->
+                <StackPanel x:Name="GraphTools" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14">
+                    <Border Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="12" Padding="4">
+                        <Border x:Name="LayoutHost" Width="250"/>
+                    </Border>
+                    <Border Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="12" Padding="10,4,4,4">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Окрестность" Foreground="#CCFFFFFF" FontSize="12" VerticalAlignment="Center"
+                                       ToolTipService.ToolTip="Только выбранная запись и её соседи на 1–3 шага"/>
+                            <Border x:Name="EgoHost" Width="210"/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Окрестность" Foreground="#CCE6ECF2" FontSize="12" VerticalAlignment="Center"
-                                       ToolTipService.ToolTip="Только выбранная запись и её соседи на 1–3 шага, кольцами"/>
-                            <StackPanel x:Name="EgoButtons" Orientation="Horizontal"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-                <!-- Список: сверху сортировка — по чему и в какую сторону (практика
-                     GitLab: выпадающий список и кнопка направления); даты — в
-                     строке, чтобы порядок не шёл по невидимому признаку. -->
-                <Grid x:Name="ListPane" Visibility="Collapsed" RowSpacing="4">
+                    </Border>
+                </StackPanel>
+                <Grid x:Name="ListPane" Visibility="Collapsed" Background="{ThemeResource HigBackground}">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="14,8,14,0">
-                        <TextBlock Text="Сортировка" VerticalAlignment="Center" Opacity="0.7" FontSize="12"/>
-                        <ComboBox x:Name="SortBy" MinWidth="200">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="20,14,20,8">
+                        <TextBlock Text="Сортировка" VerticalAlignment="Center" Foreground="{ThemeResource HigSecondary}" FontSize="13"/>
+                        <ComboBox x:Name="SortBy" MinWidth="200" CornerRadius="8">
                             <ComboBoxItem Content="Вид записи" Tag="kind"/>
                             <ComboBoxItem Content="Заголовок" Tag="title"/>
                             <ComboBoxItem Content="Дата добавления" Tag="added"/>
                             <ComboBoxItem Content="Дата изменения" Tag="modified"/>
                         </ComboBox>
-                        <Button x:Name="SortDir" Padding="8,5">
+                        <Button x:Name="SortDir" Padding="10,5" BorderThickness="0" Background="Transparent">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <FontIcon x:Name="SortDirIcon" Glyph="&#xE74B;" FontSize="12"/>
-                                <TextBlock x:Name="SortDirText" FontSize="12"/>
+                                <FontIcon x:Name="SortDirIcon" Glyph="&#xE74B;" FontSize="12" Foreground="{ThemeResource HigAccent}"/>
+                                <TextBlock x:Name="SortDirText" FontSize="13" Foreground="{ThemeResource HigAccent}"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
-                    <ListView x:Name="List" Grid.Row="1" SelectionMode="Single" IsItemClickEnabled="True"/>
+                    <Border Grid.Row="1" Margin="16,0,16,16" Background="{ThemeResource HigCard}" CornerRadius="10">
+                        <ListView x:Name="List" SelectionMode="Single" IsItemClickEnabled="True" Padding="0,4"/>
+                    </Border>
                 </Grid>
-                <Border x:Name="Tip" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12" Padding="10,6"
-                        CornerRadius="6" Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" Visibility="Collapsed" IsHitTestVisible="False">
-                    <TextBlock x:Name="TipText" TextWrapping="Wrap" MaxWidth="520"/>
+                <Border x:Name="Tip" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14" Padding="12,8"
+                        CornerRadius="12" Background="#E61C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" Visibility="Collapsed" IsHitTestVisible="False">
+                    <TextBlock x:Name="TipText" TextWrapping="Wrap" MaxWidth="520" Foreground="White" FontSize="13"/>
                 </Border>
                 <!-- Подсказка по управлению: при смене вида, потом гаснет;
                      кнопка в углу и F1 — показать снова. -->
-                <Border x:Name="NavHint" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12,12,56,12" Padding="10,6"
-                        CornerRadius="6" Background="#CC131B24" IsHitTestVisible="False">
+                <Border x:Name="NavHint" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="14,14,62,14" Padding="12,8"
+                        CornerRadius="12" Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" IsHitTestVisible="False">
                     <Border.OpacityTransition><ScalarTransition Duration="0:0:0.25"/></Border.OpacityTransition>
-                    <TextBlock x:Name="NavHintText" FontSize="11" Foreground="#E6E6ECF2" TextWrapping="Wrap" MaxWidth="560"/>
+                    <TextBlock x:Name="NavHintText" FontSize="12" Foreground="#E6FFFFFF" TextWrapping="Wrap" MaxWidth="560"/>
                 </Border>
-                <Button x:Name="HintBtn" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Width="36" Height="32" Padding="0"
+                <Button x:Name="HintBtn" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="14" Width="38" Height="38" Padding="0"
+                        CornerRadius="19" Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1"
                         ToolTipService.ToolTip="Управление мышью и клавишами (F1)">
-                    <FontIcon Glyph="&#xE765;" FontSize="14"/>
+                    <FontIcon Glyph="&#xE765;" FontSize="15" Foreground="White"/>
                 </Button>
             </Grid>
 
-            <v:RecordPanel x:Name="Panel" Grid.Column="2"/>
+            <v:RecordPanel x:Name="Panel" Grid.Column="2" BorderBrush="{ThemeResource HigSeparator}" BorderThickness="1,0,0,0"/>
             <v:Splitter x:Name="RightSplit" Grid.Column="2" HorizontalAlignment="Left" Margin="-3,0,0,0" Canvas.ZIndex="5"/>
         </Grid>
 
-        <Grid x:Name="StatusBar" Grid.Row="2" Padding="14,4" ColumnSpacing="16" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+        <Grid x:Name="StatusBar" Grid.Row="2" Padding="14,5" ColumnSpacing="16" BorderBrush="{ThemeResource HigSeparator}" BorderThickness="0,1,0,0" Background="{ThemeResource HigSidebar}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="CountText" FontSize="12" Opacity="0.75"/>
-            <TextBlock x:Name="GitText" Grid.Column="1" FontSize="12" Opacity="0.75" TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="CountText" FontSize="12" Foreground="{ThemeResource HigSecondary}"/>
+            <TextBlock x:Name="GitText" Grid.Column="1" FontSize="12" Foreground="{ThemeResource HigSecondary}" TextTrimming="CharacterEllipsis"/>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
-                <Ellipse x:Name="LiveDot" Width="8" Height="8" Fill="SeaGreen" VerticalAlignment="Center"/>
-                <TextBlock x:Name="LiveText" FontSize="12" Opacity="0.75" Text="слежу за изменениями"/>
+                <Ellipse x:Name="LiveDot" Width="7" Height="7" Fill="{ThemeResource HigGreen}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LiveText" FontSize="12" Foreground="{ThemeResource HigSecondary}" Text="слежу за изменениями"/>
             </StackPanel>
         </Grid>
 
-        <!-- Экран выбора проекта: недавние (закреплённые сверху), открыть
-             папку, перетащить папку в окно. -->
-        <Grid x:Name="Start" Grid.RowSpan="3" Visibility="Collapsed" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <!-- Экран выбора проекта: крупный заголовок, недавние — сгруппированным
+             списком (закреплённые сверху), открыть папку, перетащить папку. -->
+        <Grid x:Name="Start" Grid.RowSpan="3" Visibility="Collapsed" Background="{ThemeResource HigBackground}">
             <ScrollViewer>
-                <StackPanel MaxWidth="760" Margin="32,56,32,32" Spacing="18">
-                    <TextBlock Text="Граф проекта" FontSize="32" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="StartNote" Opacity="0.7" TextWrapping="Wrap"
+                <StackPanel MaxWidth="640" Margin="32,64,32,32" Spacing="10">
+                    <TextBlock Text="Граф проекта" FontSize="34" FontWeight="Bold" FontFamily="{StaticResource HigDisplayFont}"/>
+                    <TextBlock x:Name="StartNote" Foreground="{ThemeResource HigSecondary}" TextWrapping="Wrap" FontSize="15"
                                Text="Выберите проект — папку, в которой лежит граф knowledge/. Последний открытый проект откроется сам при следующем запуске."/>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button x:Name="StartOpen" Style="{StaticResource AccentButtonStyle}">
-                            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8DA;" FontSize="14"/><TextBlock Text="Открыть папку проекта…"/></StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,12,0,12">
+                        <Button x:Name="StartOpen" CornerRadius="18" Padding="18,8" BorderThickness="0" Background="{ThemeResource HigAccent}" Foreground="White">
+                            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE8DA;" FontSize="14"/><TextBlock Text="Открыть папку проекта…" FontWeight="SemiBold"/></StackPanel>
                         </Button>
-                        <Button x:Name="StartBack" Visibility="Collapsed">
+                        <Button x:Name="StartBack" Visibility="Collapsed" CornerRadius="18" Padding="18,8" BorderThickness="0" Background="{ThemeResource HigFill}">
                             <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE72B;" FontSize="14"/><TextBlock Text="Вернуться к проекту"/></StackPanel>
                         </Button>
                     </StackPanel>
-                    <TextBlock Text="Папку можно просто перетащить в это окно." FontSize="12" Opacity="0.55"/>
-                    <TextBlock Text="НЕДАВНИЕ" FontSize="11" FontWeight="SemiBold" Opacity="0.6" CharacterSpacing="40" Margin="0,10,0,0"/>
                     <StackPanel x:Name="RecentList" Spacing="6"/>
+                    <TextBlock Text="Папку можно просто перетащить в это окно." FontSize="12" Foreground="{ThemeResource HigSecondary}" Margin="14,4,0,0"/>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

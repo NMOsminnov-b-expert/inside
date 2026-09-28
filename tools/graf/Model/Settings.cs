@@ -25,6 +25,8 @@ public sealed class Settings
     public bool SortDesc { get; set; }
     // Вкладка левой панели: «Оглавление» или «Фильтры».
     public string LeftTab { get; set; } = "toc";
+    // Раскрытые группы фильтров (Expander): по умолчанию — вид записи и статус.
+    public List<string> OpenGroups { get; set; } = new() { "folders", "status" };
     // Раскладка графа: острова по видам записей или свободная.
     public bool Islands { get; set; }
     // Острова: 0 — нет, 1 — по виду записи, 2 — по темам. Старые настройки

@@ -37,6 +37,12 @@ public sealed partial class MainWindow : Window
         var ico = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "graf.ico");
         if (File.Exists(ico)) AppWindow.SetIcon(ico);
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1600, 980));
+        // Полоса заголовка — в цвет панели инструментов: окно читается одним
+        // целым, как объединённая панель у приложений Apple.
+        var tb = AppWindow.TitleBar;
+        var bar = Hig.C("HigSidebar");
+        tb.BackgroundColor = tb.InactiveBackgroundColor = tb.ButtonBackgroundColor = tb.ButtonInactiveBackgroundColor = bar;
+        tb.ForegroundColor = tb.ButtonForegroundColor = Hig.C("HigLabel");
         LeftCol.Width = new GridLength(_settings.LeftWidth);
         RightCol.Width = new GridLength(_settings.RightWidth);
 
@@ -66,16 +72,9 @@ public sealed partial class MainWindow : Window
         };
         Search.SuggestionChosen += (_, e) => { if (e.SelectedItem is SearchItem si) Search.Text = si.R.Title; };
 
-        ModeGraph.Click += (_, _) => SetMode(0);
-        Mode3D.Click += (_, _) => SetMode(1);
-        ModeList.Click += (_, _) => SetMode(2);
-        BtnNew.Click += async (_, _) => await NewRecord();
         BtnCheck.Click += async (_, _) => await ShowCheck();
         BtnFit.Click += (_, _) => Graph.FitAll();
         BtnRelayout.Click += (_, _) => Graph.Relayout();
-        BtnReset.Click += (_, _) => { ResetFilters(); BuildFilters(); Refresh(); };
-        Lonely.Click += (_, _) => Refresh();
-        TagFilter.TextChanged += (_, _) => BuildTags();
         List.ItemTemplate = (DataTemplate)XamlReader.Load(RowTemplate);
         SortBy.SelectedIndex = Math.Max(0, Array.IndexOf(SortKeys, _settings.SortBy));
         ShowSortDir();
@@ -92,20 +91,7 @@ public sealed partial class MainWindow : Window
         SortDir.Click += (_, _) => { _settings.SortDesc = !_settings.SortDesc; _settings.Save(); ShowSortDir(); Refresh(); };
         List.ItemClick += (_, e) => { if (e.ClickedItem is Row row) Select(row.R.Id, center: false); };
         HintBtn.Click += (_, _) => ToggleHint();
-        LayoutFree.Click += (_, _) => SetLayout(0);
-        LayoutIslands.Click += (_, _) => SetLayout(1);
-        LayoutTopics.Click += (_, _) => SetLayout(2);
-        BuildEgoButtons();
-        ShowLayout(_settings.Grouping);
-        DateModeMod.Click += (_, _) => { _dateAdded = false; BuildDateFilter(); Refresh(); };
-        DateModeAdd.Click += (_, _) => { _dateAdded = true; BuildDateFilter(); Refresh(); };
-        DateFrom.DateChanged += (_, _) => OnPickers();
-        DateTo.DateChanged += (_, _) => OnPickers();
-        ColorByDate.Click += (_, _) => { UpdateRecency(); Graph.NodeColor = ColorByDate.IsChecked == true ? RecencyColor : null; Graph.Redraw(); };
-        LeftTabs.SelectionChanged += (_, _) =>
-        {
-            if (LeftTabs.SelectedItem is SelectorBarItem it && it.Tag is string tab && tab != _settings.LeftTab) SetLeftTab(tab);
-        };
+        InitPanels();
         SetLeftTab(_settings.LeftTab);
         MiExport.Click += async (_, _) => await ExportDialog();
         MiImport.Click += async (_, _) => await ImportDialog();
@@ -269,56 +255,27 @@ public sealed partial class MainWindow : Window
         StartBack.Visibility = Store != null ? Visibility.Visible : Visibility.Collapsed;
         RecentList.Children.Clear();
         var list = _settings.Ordered.ToList();
-        if (list.Count == 0)
-            RecentList.Children.Add(new TextBlock { Text = "Пока пусто — откройте папку проекта.", Opacity = 0.6 });
-        foreach (var p in list) RecentList.Children.Add(RecentRow(p));
+        RecentList.Children.Add(Hig.Section("Недавние", list.Count == 0
+            ? new[] { Hig.Row("Пока пусто — откройте папку проекта.", titleColor: "HigSecondary") }
+            : list.Select(RecentRow).ToArray(), indent: 44));
         Start.Visibility = Visibility.Visible;
     }
 
+    // Строка недавнего проекта: значок папки, имя и путь, справа — закрепить
+    // и убрать из списка (значки без рамок), щелчок — открыть.
     UIElement RecentRow(Settings.Project p)
     {
         var exists = Directory.Exists(p.Path);
-        var g = new Grid { ColumnSpacing = 4 };
-        g.ColumnDefinitions.Add(new ColumnDefinition());
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var text = new StackPanel { Spacing = 2 };
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        head.Children.Add(new FontIcon { Glyph = "", FontSize = 16 });
-        head.Children.Add(new TextBlock { Text = p.Name, FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        if (Store != null && string.Equals(p.Path, Store.Root, StringComparison.OrdinalIgnoreCase))
-            head.Children.Add(new TextBlock { Text = "открыт", FontSize = 12, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center });
-        text.Children.Add(head);
-        text.Children.Add(new TextBlock { Text = p.Path, FontSize = 12, Opacity = 0.65, TextTrimming = TextTrimming.CharacterEllipsis });
-        text.Children.Add(new TextBlock
-        {
-            Text = exists ? "открывался " + p.Opened.ToString("dd.MM.yyyy HH:mm") : "папка не найдена",
-            FontSize = 12, Opacity = exists ? 0.5 : 0.8,
-            Foreground = exists ? null : new SolidColorBrush(Colors.IndianRed),
-        });
-        var open = new Button
-        {
-            Content = text, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
-            Padding = new Thickness(14, 10, 14, 10), IsEnabled = exists,
-        };
+        var cur = Store != null && string.Equals(p.Path, Store.Root, StringComparison.OrdinalIgnoreCase);
         var path = p.Path;
-        open.Click += async (_, _) => await TryOpen(path);
-        g.Children.Add(open);
-        var pin = new ToggleButton
-        {
-            IsChecked = p.Pinned, Content = new FontIcon { Glyph = p.Pinned ? "" : "", FontSize = 14 },
-            VerticalAlignment = VerticalAlignment.Stretch,
-        };
-        ToolTipService.SetToolTip(pin, p.Pinned ? "Открепить" : "Закрепить наверху");
-        pin.Click += (_, _) => { p.Pinned = pin.IsChecked == true; _settings.Save(); BuildProjectMenu(); ShowStart(); };
-        Grid.SetColumn(pin, 1);
-        g.Children.Add(pin);
-        var del = new Button { Content = new FontIcon { Glyph = "", FontSize = 14 }, VerticalAlignment = VerticalAlignment.Stretch };
-        ToolTipService.SetToolTip(del, "Убрать из списка — папка останется на диске");
-        del.Click += (_, _) => { _settings.Forget(path); BuildProjectMenu(); ShowStart(); };
-        Grid.SetColumn(del, 2);
-        g.Children.Add(del);
-        return g;
+        var acts = new StackPanel { Orientation = Orientation.Horizontal };
+        acts.Children.Add(Hig.Icon(p.Pinned ? "" : "", p.Pinned ? "Открепить" : "Закрепить наверху",
+            () => { p.Pinned = !p.Pinned; _settings.Save(); BuildProjectMenu(); ShowStart(); }, p.Pinned ? "HigAccent" : "HigSecondary", 14));
+        acts.Children.Add(Hig.Icon("", "Убрать из списка — папка останется на диске",
+            () => { _settings.Forget(path); BuildProjectMenu(); ShowStart(); }, "HigSecondary", 12));
+        return Hig.Row(p.Name + (cur ? " · открыт" : ""),
+            exists ? $"{p.Path} · открывался {p.Opened:dd.MM.yyyy HH:mm}" : $"{p.Path} · папка не найдена",
+            glyph: "", click: exists ? (Action)(async () => await TryOpen(path)) : null, trailing: acts);
     }
 
     void OnRecent(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs e) { e.Handled = true; ShowStart(); }
@@ -426,7 +383,7 @@ public sealed partial class MainWindow : Window
     void ResetFilters()
     {
         _foldersOff.Clear(); _statusOff.Clear(); _tagsOn.Clear();
-        Lonely.IsChecked = false;
+        Lonely.IsOn = false;
         _dateFrom = _dateTo = null; _datePreset = "all"; _histPick = null;
         _pickerSync = true; DateFrom.Date = null; DateTo.Date = null; _pickerSync = false;
         BuildDateFilter();
@@ -434,70 +391,6 @@ public sealed partial class MainWindow : Window
         _matches = new();
         _matchAt = -1;
         Graph.Highlight = new();
-    }
-
-    void BuildFilters()
-    {
-        if (Store == null) return;
-        Folders.Children.Clear();
-        foreach (var (folder, _, name, color) in Schema.Folders)
-        {
-            var n = Store.All.Count(r => r.Folder == folder);
-            if (n == 0) continue;
-            Folders.Children.Add(FilterRow(name, n, color, !_foldersOff.Contains(folder), on =>
-            {
-                if (on) _foldersOff.Remove(folder); else _foldersOff.Add(folder);
-                Refresh();
-            }));
-        }
-        Statuses.Children.Clear();
-        foreach (var g in Store.All.GroupBy(r => r.Status).OrderBy(g => g.Key))
-        {
-            var s = g.Key;
-            Statuses.Children.Add(FilterRow(s.Length > 0 ? s : "без статуса", g.Count(), null, !_statusOff.Contains(s), on =>
-            {
-                if (on) _statusOff.Remove(s); else _statusOff.Add(s);
-                Refresh();
-            }));
-        }
-        BuildTags();
-    }
-
-    void BuildTags()
-    {
-        if (Store == null) return;
-        Tags.Children.Clear();
-        var q = TagFilter.Text.Trim().ToLowerInvariant();
-        foreach (var g in Store.All.SelectMany(r => r.Tags).GroupBy(t => t).OrderByDescending(g => g.Count()).ThenBy(g => g.Key))
-        {
-            var t = g.Key;
-            if (q.Length > 0 && !t.ToLowerInvariant().Contains(q) && !_tagsOn.Contains(t)) continue;
-            Tags.Children.Add(FilterRow(t, g.Count(), null, _tagsOn.Contains(t), on =>
-            {
-                if (on) _tagsOn.Add(t); else _tagsOn.Remove(t);
-                Refresh();
-            }));
-        }
-    }
-
-    static UIElement FilterRow(string text, int count, string? color, bool on, Action<bool> changed)
-    {
-        var g = new Grid { ColumnSpacing = 6 };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        g.ColumnDefinitions.Add(new ColumnDefinition());
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var cb = new CheckBox { IsChecked = on, MinWidth = 0, Padding = new Thickness(6, 0, 0, 0) };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        if (color != null)
-            label.Children.Add(new Border { Width = 10, Height = 10, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(GraphView.Parse(color)), VerticalAlignment = VerticalAlignment.Center });
-        label.Children.Add(new TextBlock { Text = text, TextTrimming = TextTrimming.CharacterEllipsis });
-        cb.Content = label;
-        cb.Click += (_, _) => changed(cb.IsChecked == true);
-        g.Children.Add(cb);
-        var n = new TextBlock { Text = count.ToString(), Opacity = 0.55, VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
-        Grid.SetColumn(n, 2);
-        g.Children.Add(n);
-        return g;
     }
 
     // --- оглавление графа --------------------------------------------------------
@@ -522,197 +415,9 @@ public sealed partial class MainWindow : Window
     }
     public void SetLeftTabPublic(string tab) => SetLeftTab(tab);
     public void SetDatePresetPublic(string key) => SetDatePreset(key);
-    public void ColorByDatePublic(bool on) { ColorByDate.IsChecked = on; UpdateRecency(); Graph.NodeColor = on ? RecencyColor : null; Graph.Redraw(); }
+    public void ColorByDatePublic(bool on) { ColorByDate.IsOn = on; UpdateRecency(); Graph.NodeColor = on ? RecencyColor : null; Graph.Redraw(); }
     public void OpenTocSection(string name) { _tocOpen.Add(name); BuildToc(); }
     public List<string> ListedIds() => (List.ItemsSource as List<Row> ?? new()).Select(r => r.R.Id).ToList();
-
-    void SetLeftTab(string tab)
-    {
-        _settings.LeftTab = tab;
-        _settings.Save();
-        TocPane.Visibility = tab == "toc" ? Visibility.Visible : Visibility.Collapsed;
-        FilterPane.Visibility = tab == "toc" ? Visibility.Collapsed : Visibility.Visible;
-        LeftTabs.SelectedItem = tab == "toc" ? TabToc : TabFilters;
-    }
-
-    void BuildToc()
-    {
-        if (Store == null) return;
-        Toc.Children.Clear();
-        var toc = Store.ById("oglavlenie-grafa");
-        if (toc == null)
-        {
-            Toc.Children.Add(new TextBlock
-            {
-                Text = "В графе нет оглавления — записи knowledge/project/oglavlenie_grafa.py.",
-                TextWrapping = TextWrapping.Wrap, Opacity = 0.6, FontSize = 12,
-            });
-            return;
-        }
-        var sections = new List<(string Name, List<string> Anchors)>();
-        var tagsOf = new Dictionary<string, List<string>>();
-        foreach (var l in toc.Links)
-        {
-            if (l["тип"] as string != "раздел" || Store.ById(l["куда"] as string ?? "") is not { } map) continue;
-            var name = System.Text.RegularExpressions.Regex.Replace(map.Title, "^Раздел «(.*)»$", "$1");
-            sections.Add((name, map.Links.Where(x => x["тип"] as string == "якорь").Select(x => x["куда"] as string ?? "").ToList()));
-            var tp = map.Points.FirstOrDefault(p => p.StartsWith("Метки раздела:"));
-            tagsOf[name] = tp == null ? new() : tp["Метки раздела:".Length..]
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(t => t != "—").ToList();
-        }
-        var tagCount = Store.All.SelectMany(r => r.Tags).GroupBy(t => t).ToDictionary(g => g.Key, g => g.Count());
-
-        foreach (var (name, anchors) in sections)
-        {
-            var open = _tocOpen.Contains(name);
-            var body = new StackPanel { Spacing = 2, Padding = new Thickness(22, 2, 0, 8), Visibility = open ? Visibility.Visible : Visibility.Collapsed };
-            var chev = new FontIcon { Glyph = open ? "" : "", FontSize = 10, Opacity = 0.7 };
-            var headRow = new Grid { ColumnSpacing = 8 };
-            headRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headRow.ColumnDefinitions.Add(new ColumnDefinition());
-            headRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            headRow.Children.Add(chev);
-            var title = new TextBlock { Text = name, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
-            Grid.SetColumn(title, 1);
-            headRow.Children.Add(title);
-            var n = new TextBlock { Text = anchors.Count.ToString(), Opacity = 0.5, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(n, 2);
-            headRow.Children.Add(n);
-            var head = new Button
-            {
-                Content = headRow, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(6, 6, 6, 6),
-            };
-            AutomationProperties.SetName(head, name);
-            head.Click += (_, _) =>
-            {
-                var now = body.Visibility != Visibility.Visible;
-                body.Visibility = now ? Visibility.Visible : Visibility.Collapsed;
-                chev.Glyph = now ? "" : "";
-                if (now) _tocOpen.Add(name); else _tocOpen.Remove(name);
-            };
-
-            foreach (var id in anchors)
-            {
-                var r = Store.ById(id);
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-                row.Children.Add(new Ellipse
-                {
-                    Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center,
-                    Fill = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(r?.Folder ?? "project"))),
-                });
-                row.Children.Add(new TextBlock
-                {
-                    Text = r?.Title ?? id + " — нет такой записи", TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 520,
-                    Opacity = r == null ? 0.5 : 1, FontSize = 13,
-                });
-                var link = new Button
-                {
-                    Content = row, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Padding = new Thickness(4, 3, 4, 3),
-                    IsEnabled = r != null,
-                };
-                ToolTipService.SetToolTip(link, r == null ? id : $"{Schema.NameOf(r.Folder)} · {r.Title}\n{id}");
-                var target = id;
-                link.Click += (_, _) => Select(target, center: true);
-                body.Children.Add(link);
-            }
-
-            if (tagsOf.TryGetValue(name, out var tags) && tags.Count > 0)
-            {
-                var chips = new WrapPanel { Gap = 6, Margin = new Thickness(4, 6, 0, 0) };
-                foreach (var tag in tags)
-                {
-                    var on = _tagsOn.Contains(tag);
-                    var chip = new ToggleButton
-                    {
-                        IsChecked = on, Padding = new Thickness(8, 2, 8, 2), FontSize = 12,
-                        Content = $"{tag} · {(tagCount.TryGetValue(tag, out var c) ? c : 0)}",
-                    };
-                    ToolTipService.SetToolTip(chip, on ? "Снять фильтр по метке" : "Фильтр по метке: остальное на графе потемнеет");
-                    var t = tag;
-                    chip.Click += (_, _) =>
-                    {
-                        if (chip.IsChecked == true) _tagsOn.Add(t); else _tagsOn.Remove(t);
-                        BuildTags();
-                        BuildToc();
-                        Refresh();
-                    };
-                    chips.Children.Add(chip);
-                }
-                body.Children.Add(chips);
-            }
-
-            Toc.Children.Add(head);
-            Toc.Children.Add(body);
-        }
-    }
-
-    // --- раскладка и окрестность ------------------------------------------------------
-    //
-    // Задача пользователя 28.09.2026 «граф сильно запутан»: острова по видам
-    // записей и окрестность узла (эго-сеть на 1–3 шага), см. GraphView.
-
-    // 0 — свободно, 1 — острова по виду записи, 2 — по темам (сообществам
-    // связей; ответ пользователя 28.09.2026 «Берем все»).
-    public void SetLayout(int grouping)
-    {
-        ShowLayout(grouping);
-        Graph.SetGrouping(grouping);
-        _settings.Grouping = grouping;
-        _settings.Save();
-    }
-
-    void ShowLayout(int grouping)
-    {
-        LayoutFree.IsChecked = grouping == 0;
-        LayoutIslands.IsChecked = grouping == 1;
-        LayoutTopics.IsChecked = grouping == 2;
-    }
-
-    void BuildEgoButtons()
-    {
-        EgoButtons.Children.Clear();
-        foreach (var (hops, label) in new[] { (0, "выкл"), (1, "1"), (2, "2"), (3, "3") })
-        {
-            var b = new ToggleButton
-            {
-                Content = label, IsChecked = Graph.EgoHops == hops, Padding = new Thickness(9, 3, 9, 3), FontSize = 12, MinWidth = 0,
-                CornerRadius = new CornerRadius(hops == 0 ? 4 : 0, hops == 3 ? 4 : 0, hops == 3 ? 4 : 0, hops == 0 ? 4 : 0),
-            };
-            ToolTipService.SetToolTip(b, hops == 0 ? "Весь граф" : $"Выбранная запись и соседи на {hops} {(hops == 1 ? "шаг" : "шага")}");
-            var h = hops;
-            b.Click += (_, _) =>
-            {
-                Graph.SetEgo(h);
-                BuildEgoButtons();
-                if (h > 0 && Graph.Selected == null) Status("Окрестность: выберите запись на графе");
-                else if (h > 0) Status($"Окрестность: записей {Graph.EgoCount}");
-            };
-            EgoButtons.Children.Add(b);
-        }
-    }
-
-    // Виды связей: цвет, число, показывать ли (задача пользователя 28.09.2026).
-    // Словарь видов — tools/knowledge/structure_review.py; пока граф не сведён
-    // к нему, здесь и прежние виды — самые частые сверху.
-    void BuildEdgeKinds()
-    {
-        EdgeKinds.Children.Clear();
-        var counts = Graph.EdgeTypesPresent.GroupBy(t => t).ToDictionary(g => g.Key, g => g.Count());
-        var order = GraphView.EdgeTypes.Select(e => e.Type).Where(counts.ContainsKey)
-            .Concat(counts.Keys.Where(k => GraphView.EdgeTypes.All(e => e.Type != k)).OrderByDescending(k => counts[k]));
-        foreach (var t in order)
-        {
-            var on = !_hiddenEdges.Contains(t);
-            var col = GraphView.EdgeTypeColor(t);
-            EdgeKinds.Children.Add(FilterRow(t, counts[t], $"#{col.R:X2}{col.G:X2}{col.B:X2}", on, v =>
-            {
-                if (v) _hiddenEdges.Remove(t); else _hiddenEdges.Add(t);
-                ApplyHiddenEdges();
-            }));
-        }
-    }
 
     readonly HashSet<string> _hiddenEdges = new();
 
@@ -741,7 +446,7 @@ public sealed partial class MainWindow : Window
 
     static readonly (string Key, string Label)[] DatePresetList =
     {
-        ("all", "Всё время"), ("hour", "Час"), ("today", "Сегодня"), ("d3", "3 дня"), ("d7", "7 дней"), ("d30", "30 дней"),
+        ("all", "Всё время"), ("hour", "Последний час"), ("today", "Сегодня"), ("d3", "3 дня"), ("d7", "7 дней"), ("d30", "30 дней"),
     };
 
     IEnumerable<DateTime> WhenOf(Record r)
@@ -791,84 +496,6 @@ public sealed partial class MainWindow : Window
         Refresh();
     }
 
-    void BuildDateFilter()
-    {
-        if (Store == null) return;
-        DateModeMod.IsChecked = !_dateAdded;
-        DateModeAdd.IsChecked = _dateAdded;
-        DatePresets.Children.Clear();
-        foreach (var (key, label) in DatePresetList)
-        {
-            var b = new ToggleButton { Content = label, IsChecked = _datePreset == key, Padding = new Thickness(8, 2, 8, 2), FontSize = 12 };
-            var k = key;
-            b.Click += (_, _) => SetDatePreset(k);
-            DatePresets.Children.Add(b);
-        }
-        BuildHistogram();
-    }
-
-    // Гистограмма: шаг — по размаху истории (час, если она укладывается в
-    // двое суток; день — до двух месяцев; дальше — неделя), не больше 40
-    // столбиков — последние.
-    void BuildHistogram()
-    {
-        DateHist.Children.Clear();
-        DateHist.ColumnDefinitions.Clear();
-        var perRecord = Store!.All.Select(r => (r, WhenOf(r).ToList())).Where(x => x.Item2.Count > 0).ToList();
-        var stamps = perRecord.SelectMany(x => x.Item2).ToList();
-        if (stamps.Count == 0) { DateHistNote.Text = "История правок ещё читается…"; return; }
-        var max = DateTime.Now;
-        var min = stamps.Min();
-        var span = max - min;
-        TimeSpan step = span.TotalDays <= 2 ? TimeSpan.FromHours(1) : span.TotalDays <= 60 ? TimeSpan.FromDays(1) : TimeSpan.FromDays(7);
-        DateTime Floor(DateTime d) => step.TotalHours == 1 ? new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0)
-            : step.TotalDays == 1 ? d.Date : d.Date.AddDays(-(((int)d.DayOfWeek + 6) % 7));
-        var end = Floor(max).Add(step);
-        var start = Floor(min);
-        var buckets = new List<(DateTime From, DateTime To, int N)>();
-        for (var t = start; t < end; t = t.Add(step))
-        {
-            var from = t; var to = t.Add(step);
-            buckets.Add((from, to, perRecord.Count(x => x.Item2.Any(d => d >= from && d < to))));
-        }
-        if (buckets.Count > 40) buckets = buckets.Skip(buckets.Count - 40).ToList();
-        var top = Math.Max(1, buckets.Max(b => b.N));
-        for (var i = 0; i < buckets.Count; i++)
-        {
-            var (from, to, n) = buckets[i];
-            DateHist.ColumnDefinitions.Add(new ColumnDefinition());
-            var on = _dateFrom != null && from >= _dateFrom && (_dateTo == null || to <= _dateTo);
-            var bar = new Border
-            {
-                Height = n == 0 ? 2 : Math.Max(4, 54.0 * n / top), VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(1, 0, 1, 0),
-                CornerRadius = new CornerRadius(2, 2, 0, 0),
-                Background = new SolidColorBrush(on ? Windows.UI.Color.FromArgb(255, 0xFF, 0x8A, 0x3D) : Windows.UI.Color.FromArgb(n == 0 ? (byte)60 : (byte)170, 0x4C, 0x7F, 0xB8)),
-            };
-            var hit = new Grid { Background = new SolidColorBrush(Colors.Transparent) };
-            hit.Children.Add(bar);
-            var fmt = step.TotalHours == 1 ? $"{from:dd.MM HH}:00–{to:HH}:00" : step.TotalDays == 1 ? $"{from:dd.MM.yyyy}" : $"неделя с {from:dd.MM.yyyy}";
-            ToolTipService.SetToolTip(hit, $"{fmt}: {(_dateAdded ? "добавлено" : "менялось")} записей — {n}");
-            hit.Tapped += (_, _) =>
-            {
-                var shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
-                    .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-                if (shift && _histPick is { } p) _histPick = (from < p.From ? from : p.From, to > p.To ? to : p.To);
-                else _histPick = (from, to);
-                _datePreset = "custom";
-                (_dateFrom, _dateTo) = (_histPick.Value.From, _histPick.Value.To);
-                _pickerSync = true; DateFrom.Date = null; DateTo.Date = null; _pickerSync = false;
-                BuildDateFilter();
-                Refresh();
-            };
-            Grid.SetColumn(hit, i);
-            DateHist.Children.Add(hit);
-        }
-        var unit = step.TotalHours == 1 ? "по часам" : step.TotalDays == 1 ? "по дням" : "по неделям";
-        DateHistNote.Text = (_dateFrom != null || _dateTo != null
-            ? $"Выбрано: {(_dateFrom == null ? "…" : _dateFrom.Value.ToString("dd.MM.yyyy HH:mm"))} — {(_dateTo == null ? "сейчас" : _dateTo.Value.ToString("dd.MM.yyyy HH:mm"))} · "
-            : "") + $"{(_dateAdded ? "добавления" : "правки")} записей {unit}; щелчок — выбрать столбик, Shift — продлить";
-    }
-
     // Цвет узла по дате последней правки: самая свежая — оранжевый, самая
     // давняя — серый. Шкала — по фактическому размаху правок (история может
     // уложиться в один день, и шкала «на месяц» красила бы всё одним цветом),
@@ -880,7 +507,7 @@ public sealed partial class MainWindow : Window
     {
         var mods = Store!.All.Select(r => Store.DatesOf(r).Modified).Where(d => d != null).Select(d => d!.Value).ToList();
         _recency = mods.Count == 0 ? null : (mods.Max(), mods.Min());
-        ColorLegend.Text = _recency is { } rc && ColorByDate.IsChecked == true
+        ColorLegend.Text = _recency is { } rc && ColorByDate.IsOn
             ? $"оранжевый — {rc.Newest:dd.MM HH:mm}, серый — {rc.Oldest:dd.MM HH:mm}; между ними — по времени правки"
             : "";
         ColorLegend.Visibility = ColorLegend.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -945,7 +572,7 @@ public sealed partial class MainWindow : Window
         var links = all.SelectMany(r => r.Links.Select(l => (From: r.Id, To: l["куда"] as string ?? "", Type: l["тип"] as string ?? "")))
             .Where(l => ids.Contains(l.To)).ToList();
         var vis = all;
-        if (Lonely.IsChecked != true)
+        if (!Lonely.IsOn)
         {
             var linked = links.SelectMany(l => new[] { l.From, l.To }).ToHashSet();
             vis = all.Where(r => linked.Contains(r.Id) || r.Id == Panel.Current?.Id).ToList();
@@ -956,7 +583,8 @@ public sealed partial class MainWindow : Window
         Graph.Passing = passing;
         BuildEdgeKinds();
         ApplyHiddenEdges();
-        if (ColorByDate.IsChecked == true) UpdateRecency();
+        UpdateFilterSummary(all.Count, passing?.Count ?? all.Count);
+        if (ColorByDate.IsOn) UpdateRecency();
         Graph.Highlight = _matches.Select(m => m.Id).ToHashSet();
         Graph.Redraw();
         List.ItemsSource = SortRows((Search.Text.Trim().Length > 0 ? _matches.Where(Passes) : all.Where(Passes)).ToList());
@@ -964,7 +592,8 @@ public sealed partial class MainWindow : Window
         CountText.Text = $"Записей {all.Count} · на графе {Graph.NodeCount}" + (passing != null ? $", отобрано {shown}" : "")
             + $", связей {Graph.EdgeCount}" + (Search.Text.Trim().Length > 0 ? $" · найдено {_matches.Count}" : "");
         var problems = Store.Check().Count;
-        CheckText.Text = problems == 0 ? "Проверка" : $"Проверка · {problems}";
+        CheckText.Text = problems.ToString();
+        CheckBadge.Visibility = problems == 0 ? Visibility.Collapsed : Visibility.Visible;
         UpdateGit();
     }
 
@@ -1003,9 +632,7 @@ public sealed partial class MainWindow : Window
     void SetMode(int mode)
     {
         _mode = mode;
-        ModeGraph.IsChecked = mode == 0;
-        Mode3D.IsChecked = mode == 1;
-        ModeList.IsChecked = mode == 2;
+        _modeSeg.SelectedIndex = mode;
         Graph.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
         ListPane.Visibility = mode == 2 ? Visibility.Visible : Visibility.Collapsed;
         NavHint.Visibility = HintBtn.Visibility = mode == 2 ? Visibility.Collapsed : Visibility.Visible;
@@ -1052,6 +679,7 @@ public sealed partial class MainWindow : Window
         Panel.Show(r);
         if (r != null && !Graph.Has(r.Id)) Refresh();
         Graph.Select(r?.Id, center);
+        BuildToc();
         if (_mode == 2 && List.ItemsSource is List<Row> rows) List.SelectedItem = rows.FirstOrDefault(x => x.R.Id == id);
     }
 
@@ -1183,6 +811,11 @@ public sealed partial class MainWindow : Window
             if (p.Child is ContentDialog d) d.Hide();
     }
 
+    // Проверка — лист в духе iOS: числа графа строками «название — значение»,
+    // ошибки и замечания — разделами-карточками; в разделе первые пять строк
+    // и «Показать все»; щелчок по строке — к записи (Model/Quality, ответ
+    // пользователя 28.09.2026 «Берем все»; оформление — практика
+    // dizayn-programmy-graf-proekta-po-hig-apple).
     async Task ShowCheck()
     {
         if (Store == null) return;
@@ -1190,56 +823,55 @@ public sealed partial class MainWindow : Window
         var notes = Quality.Warnings(Store);
         var num = Quality.Count(Store);
         ContentDialog? d = null;
-        var body = new StackPanel { Spacing = 10 };
+        var body = new StackPanel { Spacing = 16, Padding = new Thickness(0, 0, 12, 0) };
+        var expanded = new HashSet<string>();
 
-        var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13 };
-        head.Text = $"Записей {num.Records}, связей {num.Links}, видов связей {num.Kinds}. "
-            + $"Частей связности {num.Components} — самая большая {num.Largest}; без связей {num.Lonely} "
-            + $"({string.Join(", ", num.LonelyByFolder.Select(x => $"{Schema.NameOf(x.Folder)} {x.N}"))}). "
-            + $"Записей с 10+ пунктами: {num.Big}.";
-        body.Children.Add(head);
-        body.Children.Add(new TextBlock
+        body.Children.Add(Hig.Section("Граф", new[]
         {
-            Text = "Центры: " + string.Join(" · ", num.Hubs.Select(h => $"{h.Rec.Title} ({h.N})")),
-            TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.7,
-        });
+            Hig.Row("Записей", value: num.Records.ToString()), Hig.Row("Связей", value: num.Links.ToString()),
+            Hig.Row("Видов связей", value: num.Kinds.ToString()),
+            Hig.Row("Частей связности", value: $"{num.Components}, самая большая {num.Largest}"),
+            Hig.Row("Записей без связей", subtitle: string.Join(", ", num.LonelyByFolder.Select(x => $"{Schema.NameOf(x.Folder)} {x.N}")), value: num.Lonely.ToString()),
+            Hig.Row("Записей с 10+ пунктами", value: num.Big.ToString()),
+        }));
+        body.Children.Add(Hig.Section("Центры — самые связанные записи",
+            num.Hubs.Select(h => Hig.Row(h.Rec.Title, value: h.N.ToString(), dot: GraphView.Parse(Schema.ColorOf(h.Rec.Folder)), acc: Hig.Acc.Chevron,
+                click: () => { d?.Hide(); Select(h.Rec.Id, center: true); })), indent: 38));
 
-        ListView Items(IEnumerable<(Record? Rec, string Text)> items)
+        UIElement Group(string title, List<(Record? Rec, string Text)> items)
         {
-            var list = new ListView { SelectionMode = ListViewSelectionMode.None, IsItemClickEnabled = true, MaxHeight = 260 };
-            foreach (var (rec, text) in items)
-                list.Items.Add(new ListViewItem { Content = new TextBlock { Text = (rec != null ? rec.Title + " — " : "") + text, TextWrapping = TextWrapping.Wrap, FontSize = 13 }, Tag = rec?.Id });
-            list.ItemClick += (_, e) => { if (e.ClickedItem is ListViewItem { Tag: string id }) { d?.Hide(); Select(id, center: true); } };
-            return list;
+            var host = new StackPanel();
+            void Fill()
+            {
+                host.Children.Clear();
+                var all = expanded.Contains(title) || items.Count <= 7;
+                var rows = (all ? items : items.Take(5)).Select(x => Hig.Row(x.Rec?.Title ?? "—", x.Text, dot: x.Rec == null ? null : GraphView.Parse(Schema.ColorOf(x.Rec.Folder)),
+                    acc: x.Rec == null ? Hig.Acc.None : Hig.Acc.Chevron, wrap: true,
+                    click: x.Rec == null ? null : () => { d?.Hide(); Select(x.Rec.Id, center: true); })).ToList();
+                if (!all) rows.Add(Hig.Row("Показать все", value: items.Count.ToString(), titleColor: "HigAccent", click: () => { expanded.Add(title); Fill(); }));
+                host.Children.Add(Hig.Section($"{title} · {items.Count}", rows, indent: 38));
+            }
+            Fill();
+            return host;
         }
 
         var errors = problems.Select(p => (p.Rec, p.Text)).Concat(Store.LoadErrors.Select(e => ((Record?)null, "не читается: " + e))).ToList();
-        body.Children.Add(new TextBlock
-        {
-            Text = errors.Count == 0 ? "Ошибок нет: все записи читаются, связи ведут в существующие записи." : $"Ошибки · {errors.Count}",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-        });
-        if (errors.Count > 0) body.Children.Add(Items(errors));
-
+        if (errors.Count == 0)
+            body.Children.Add(Hig.Section("Ошибки", new[] { Hig.Row("Ошибок нет", "Все записи читаются, связи ведут в существующие записи.", glyph: "") }));
+        else body.Children.Add(Group("Ошибки", errors));
         foreach (var g in notes.GroupBy(n => n.Kind))
-        {
-            var ex = new Expander
-            {
-                Header = $"{g.Key} · {g.Count()}", HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Content = Items(g.Select(n => ((Record?)n.Rec, n.Text))),
-            };
-            body.Children.Add(ex);
-        }
+            body.Children.Add(Group(char.ToUpper(g.Key[0]) + g.Key[1..], g.Select(n => ((Record?)n.Rec, n.Text)).ToList()));
 
         d = new ContentDialog
         {
             XamlRoot = Root.XamlRoot,
-            Title = errors.Count == 0 ? $"Проверка: ошибок нет, замечаний {notes.Count}" : $"Проверка: ошибок {errors.Count}, замечаний {notes.Count}",
-            Content = new ScrollViewer { Content = body, MaxHeight = 620 },
-            CloseButtonText = "Закрыть",
+            Title = errors.Count == 0 ? $"Проверка · замечаний {notes.Count}" : $"Проверка · ошибок {errors.Count}, замечаний {notes.Count}",
+            Content = new ScrollViewer { Content = body, MaxHeight = 640 },
+            CloseButtonText = "Готово", CloseButtonStyle = (Style)Application.Current.Resources["AccentButtonStyle"],
         };
-        d.Resources["ContentDialogMaxWidth"] = 860.0;
+        d.Resources["ContentDialogMaxWidth"] = 760.0;
+        d.Resources["ContentDialogBackground"] = Hig.B("HigBackground");
+        d.Resources["ContentDialogTopOverlay"] = Hig.B("HigBackground");
         await d.ShowAsync();
     }
 
@@ -1265,20 +897,20 @@ public sealed partial class MainWindow : Window
 
     const string RowTemplate = """
 <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-  <Grid Padding="0,6" ColumnSpacing="10">
+  <Grid Padding="2,8" ColumnSpacing="12" BorderBrush="{ThemeResource HigSeparator}" BorderThickness="0,0,0,1">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
     </Grid.ColumnDefinitions>
-    <Ellipse Width="10" Height="10" Fill="{Binding Color}" VerticalAlignment="Top" Margin="0,6,0,0"/>
+    <Ellipse Width="10" Height="10" Fill="{Binding Color}" VerticalAlignment="Top" Margin="0,5,0,0"/>
     <StackPanel Grid.Column="1" Spacing="2">
-      <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/>
-      <TextBlock Text="{Binding TagsText}" FontSize="12" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
-      <TextBlock Text="{Binding DatesText}" FontSize="11" Opacity="0.55"/>
+      <TextBlock Text="{Binding Title}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="14" Foreground="{ThemeResource HigLabel}"/>
+      <TextBlock Text="{Binding TagsText}" FontSize="12" Foreground="{ThemeResource HigSecondary}" TextTrimming="CharacterEllipsis"/>
+      <TextBlock Text="{Binding DatesText}" FontSize="12" Foreground="{ThemeResource HigSecondary}"/>
     </StackPanel>
-    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-      <TextBlock Text="{Binding Kind}" FontSize="12" Opacity="0.7" HorizontalAlignment="Right"/>
-      <TextBlock Text="{Binding Status}" FontSize="12" Opacity="0.7" HorizontalAlignment="Right"/>
-      <TextBlock Text="{Binding DegText}" FontSize="12" Opacity="0.55" HorizontalAlignment="Right"/>
+    <StackPanel Grid.Column="2" HorizontalAlignment="Right" Spacing="1">
+      <TextBlock Text="{Binding Kind}" FontSize="13" Foreground="{ThemeResource HigSecondary}" HorizontalAlignment="Right"/>
+      <TextBlock Text="{Binding Status}" FontSize="12" Foreground="{ThemeResource HigSecondary}" HorizontalAlignment="Right"/>
+      <TextBlock Text="{Binding DegText}" FontSize="12" Foreground="{ThemeResource HigSecondary}" HorizontalAlignment="Right"/>
     </StackPanel>
   </Grid>
 </DataTemplate>

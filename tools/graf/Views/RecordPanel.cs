@@ -7,11 +7,19 @@ using Microsoft.UI.Xaml.Media;
 
 namespace Graf.Views;
 
-// Карточка записи: всё правится на месте. Правка идёт в копию записи;
-// «Сохранить» (Ctrl+S) пишет файл, «Отменить правки» возвращает сохранённое.
-// Если запись поменяли снаружи (graph.py, редактор, git), а здесь правок
-// нет — карточка обновляется сама; если правки есть — вверху предупреждение
-// с выбором: загрузить новую или оставить свою.
+// Карточка записи — инспектор по Human Interface Guidelines Apple (практика
+// графа dizayn-programmy-graf-proekta-po-hig-apple; задача пользователя
+// 28.09.2026 «в стиле iOS… пересмотри дизайн целиком»).
+//
+// Всё правится на месте: правка идёт в копию записи. Сверху — как правка на
+// iPhone: при правках слева «Отменить», справа «Готово» (Ctrl+S) — главное
+// действие полужирным; меню «⋯» — редкие действия. Шапка: вид и статус,
+// крупный заголовок, дата. Вкладки — сегменты «Запись · Связи · История».
+// Содержимое — карточками (inset grouped) с подписью раздела заглавными и
+// пояснением под карточкой; поля в карточке — без рамок, как в формах iOS.
+// Связи — строками с шевроном (переход к записи), правка связи — меню «⋯»
+// строки. Запись поменяли снаружи (graph.py, редактор, git): без правок —
+// карточка обновляется сама, с правками — сверху плашка с выбором.
 public sealed class RecordPanel : Grid
 {
     public Store? Store { get; set; }
@@ -26,51 +34,51 @@ public sealed class RecordPanel : Grid
 
     Record? _orig, _edit;
     Record? _pendingExternal;
-    readonly StackPanel _body = new() { Spacing = 10, Padding = new Thickness(16, 12, 16, 24) };
+    readonly Grid _nav = new() { Padding = new Thickness(8, 8, 8, 0), MinHeight = 44 };
+    readonly StackPanel _head = new() { Spacing = 4, Padding = new Thickness(18, 2, 18, 10) };
+    readonly StackPanel _body = new() { Spacing = 6, Padding = new Thickness(14, 4, 14, 28) };
     readonly ScrollViewer _scroll = new();
-    readonly InfoBar _external = new() { Severity = InfoBarSeverity.Warning, IsClosable = false, Title = "Запись изменена снаружи" };
-    readonly Button _save = new() { Content = "Сохранить", Style = (Style)Application.Current.Resources["AccentButtonStyle"] };
-    readonly Button _revert = new() { Content = "Отменить правки" };
-    readonly TextBlock _dirtyMark = new() { Text = "есть несохранённые правки", Foreground = new SolidColorBrush(Colors.DarkOrange), VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
+    readonly Border _external = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(14, 10, 14, 0), CornerRadius = new CornerRadius(12), Padding = new Thickness(14, 10, 10, 10) };
+    readonly TextBlock _extTitle = Hig.Text("Запись изменена снаружи", Hig.T.Headline);
+    readonly TextBlock _extText = Hig.Text("", Hig.T.Footnote, "HigSecondary", wrap: true);
+    Segmented _tabs = null!;
+    readonly Border _tabsHost = new() { Padding = new Thickness(14, 0, 14, 10) };
+    static readonly string[] Tabs = { "Запись", "Связи", "История" };
     string _tab = "Запись";
-    readonly SelectorBar _tabs = new();
 
     public RecordPanel()
     {
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        Background = Hig.B("HigBackground");
+        for (var i = 0; i < 5; i++) RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        RowDefinitions[4].Height = new GridLength(1, GridUnitType.Star);
 
-        var bar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Padding = new Thickness(16, 10, 16, 6) };
-        ToolTipService.SetToolTip(_save, "Сохранить в файл (Ctrl+S)");
-        ToolTipService.SetToolTip(_revert, "Вернуть сохранённое");
-        _save.Click += (_, _) => SaveNow();
-        _revert.Click += (_, _) => { if (_orig != null) Show(_orig, keepTab: true); };
-        bar.Children.Add(_save);
-        bar.Children.Add(_revert);
-        bar.Children.Add(_dirtyMark);
-        Children.Add(bar);
-
-        var load = new Button { Content = "Загрузить новую" };
-        var mine = new Button { Content = "Оставить мою" };
-        load.Click += (_, _) => { if (_pendingExternal != null) Show(_pendingExternal, keepTab: true); _external.IsOpen = false; };
-        mine.Click += (_, _) => { if (_pendingExternal != null) _orig = _pendingExternal; _external.IsOpen = false; UpdateDirty(); };
-        _external.ActionButton = load;
-        _external.Content = mine;
-        _external.Message = "Здесь есть несохранённые правки. Загрузить новую версию из файла или оставить свои (при сохранении они заменят файл)?";
-        SetRow(_external, 1);
+        // Плашка «изменено снаружи»: оранжевая полоса слева, текст, два действия.
+        _external.Background = Hig.B("HigCard");
+        _external.BorderBrush = Hig.B("HigOrange");
+        _external.BorderThickness = new Thickness(3, 0, 0, 0);
+        var ext = new StackPanel { Spacing = 4 };
+        ext.Children.Add(_extTitle);
+        ext.Children.Add(_extText);
+        var extBtns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(-8, 2, 0, 0) };
+        extBtns.Children.Add(Hig.TextButton("Загрузить новую", () => { if (_pendingExternal != null) Show(_pendingExternal, keepTab: true); _external.Visibility = Visibility.Collapsed; }, strong: true));
+        extBtns.Children.Add(Hig.TextButton("Оставить мою", () => { if (_pendingExternal != null) _orig = _pendingExternal; _external.Visibility = Visibility.Collapsed; UpdateDirty(); }));
+        ext.Children.Add(extBtns);
+        _external.Child = ext;
         Children.Add(_external);
 
-        foreach (var t in new[] { "Запись", "Связи", "История" }) _tabs.Items.Add(new SelectorBarItem { Text = t });
-        _tabs.SelectedItem = _tabs.Items[0];
-        _tabs.SelectionChanged += (_, _) => { _tab = (_tabs.SelectedItem as SelectorBarItem)?.Text ?? "Запись"; Build(); };
-        _tabs.Margin = new Thickness(8, 0, 8, 0);
-        SetRow(_tabs, 2);
-        Children.Add(_tabs);
+        SetRow(_nav, 1);
+        Children.Add(_nav);
+        SetRow(_head, 2);
+        Children.Add(_head);
+
+        _tabs = new Segmented(Tabs);
+        _tabs.Changed += i => { _tab = Tabs[i]; Build(); };
+        _tabsHost.Child = _tabs;
+        SetRow(_tabsHost, 3);
+        Children.Add(_tabsHost);
 
         _scroll.Content = _body;
-        SetRow(_scroll, 3);
+        SetRow(_scroll, 4);
         Children.Add(_scroll);
         Show(null);
     }
@@ -80,8 +88,8 @@ public sealed class RecordPanel : Grid
         _orig = r;
         _edit = r?.Clone();
         _pendingExternal = null;
-        _external.IsOpen = false;
-        if (!keepTab) { _tab = "Запись"; _tabs.SelectedItem = _tabs.Items[0]; }
+        _external.Visibility = Visibility.Collapsed;
+        if (!keepTab) { _tab = Tabs[0]; _tabs.SelectedIndex = 0; }
         Build();
         UpdateDirty();
     }
@@ -92,7 +100,9 @@ public sealed class RecordPanel : Grid
         if (_orig == null || newer.Id != _orig.Id) return;
         if (!IsDirty) { Show(newer, keepTab: true); return; }
         _pendingExternal = newer;
-        _external.IsOpen = true;
+        _extTitle.Text = "Запись изменена снаружи";
+        _extText.Text = "Здесь есть несохранённые правки. Загрузить новую версию из файла или оставить свои — при сохранении они заменят файл.";
+        _external.Visibility = Visibility.Visible;
     }
 
     public void ExternalRemoved(string id)
@@ -100,9 +110,9 @@ public sealed class RecordPanel : Grid
         if (_orig?.Id != id) return;
         if (IsDirty)
         {
-            _external.Title = "Файл записи удалён снаружи";
-            _external.Message = "Сохранить — записать заново с вашими правками; иначе закройте запись.";
-            _external.IsOpen = true;
+            _extTitle.Text = "Файл записи удалён снаружи";
+            _extText.Text = "«Готово» — записать заново с вашими правками; иначе закройте запись.";
+            _external.Visibility = Visibility.Visible;
         }
         else Show(null);
     }
@@ -116,6 +126,16 @@ public sealed class RecordPanel : Grid
         UpdateDirty();
     }
 
+    // Для сценариев проверки: открыть вкладку по названию.
+    public void OpenTab(string name)
+    {
+        var i = Array.IndexOf(Tabs, name);
+        if (i < 0) return;
+        _tab = name;
+        _tabs.SelectedIndex = i;
+        Build();
+    }
+
     public void SaveNow()
     {
         if (Store == null || _edit == null || !IsDirty) return;
@@ -127,38 +147,132 @@ public sealed class RecordPanel : Grid
 
     void UpdateDirty()
     {
-        var d = IsDirty;
-        _save.IsEnabled = d;
-        _revert.IsEnabled = d;
-        _dirtyMark.Visibility = d ? Visibility.Visible : Visibility.Collapsed;
+        Nav();
         DirtyChanged?.Invoke();
     }
 
     void Changed() => UpdateDirty();
 
-    // --- построение карточки ------------------------------------------------
+    // --- навигационная строка и шапка ----------------------------------------------
 
-    // Для сценариев проверки: открыть вкладку карточки по названию.
-    public void OpenTab(string name)
+    // Слева — «Отменить» (при правках), справа — «⋯» и «Готово» (при правках).
+    void Nav()
     {
-        var item = _tabs.Items.FirstOrDefault(i => i.Text == name);
-        if (item != null) _tabs.SelectedItem = item;
+        _nav.Children.Clear();
+        _nav.ColumnDefinitions.Clear();
+        if (_edit == null) return;
+        _nav.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        _nav.ColumnDefinitions.Add(new ColumnDefinition());
+        _nav.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var dirty = IsDirty;
+        if (dirty)
+        {
+            var cancel = Hig.TextButton("Отменить", () => { if (_orig != null) Show(_orig, keepTab: true); });
+            ToolTipService.SetToolTip(cancel, "Вернуть сохранённое");
+            _nav.Children.Add(cancel);
+            var mark = Hig.Text("Не сохранено", Hig.T.Footnote, "HigSecondary");
+            mark.HorizontalAlignment = HorizontalAlignment.Center;
+            Grid.SetColumn(mark, 1);
+            _nav.Children.Add(mark);
+        }
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        var more = Hig.Icon("", "Ещё: перенести, копировать ID, показать файл, удалить", () => { }, "HigAccent");
+        more.Flyout = MoreMenu();
+        right.Children.Add(more);
+        if (dirty)
+        {
+            var done = Hig.TextButton("Готово", SaveNow, strong: true);
+            ToolTipService.SetToolTip(done, "Сохранить в файл (Ctrl+S)");
+            right.Children.Add(done);
+        }
+        Grid.SetColumn(right, 2);
+        _nav.Children.Add(right);
     }
+
+    MenuFlyout MoreMenu()
+    {
+        var r = _edit!;
+        var menu = new MenuFlyout();
+        var move = new MenuFlyoutSubItem { Text = "Перенести в папку", Icon = new FontIcon { Glyph = "" } };
+        foreach (var f in Schema.Folders.Where(f => f.Folder != r.Folder))
+        {
+            var it = new MenuFlyoutItem { Text = f.Name };
+            it.Click += (_, _) => { if (_orig != null) MoveRequested?.Invoke(_orig, f.Folder); };
+            move.Items.Add(it);
+        }
+        menu.Items.Add(move);
+        var copy = new MenuFlyoutItem { Text = "Копировать ID", Icon = new FontIcon { Glyph = "" } };
+        copy.Click += (_, _) =>
+        {
+            var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dp.SetText(r.Id);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
+        };
+        menu.Items.Add(copy);
+        var folder = new MenuFlyoutItem { Text = "Показать файл в проводнике", Icon = new FontIcon { Glyph = "" } };
+        folder.Click += (_, _) => { if (File.Exists(r.Path)) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{r.Path}\""); };
+        menu.Items.Add(folder);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var del = new MenuFlyoutItem { Text = "Удалить запись…", Icon = new FontIcon { Glyph = "" }, Foreground = Hig.B("HigRed") };
+        del.Click += (_, _) => { if (_orig != null) DeleteRequested?.Invoke(_orig); };
+        menu.Items.Add(del);
+        return menu;
+    }
+
+    // Шапка: вид записи (цвет) и статус строкой, крупный заголовок, дата.
+    void Header()
+    {
+        var r = _edit!;
+        _head.Children.Clear();
+        var kind = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        kind.Children.Add(new Border { Width = 9, Height = 9, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(r.Folder))), VerticalAlignment = VerticalAlignment.Center });
+        kind.Children.Add(Hig.Text(Schema.NameOf(r.Folder) + (r.Status.Length > 0 ? " · " + r.Status : ""), Hig.T.Subhead, "HigSecondary"));
+        _head.Children.Add(kind);
+        var title = Hig.Text(r.Title, Hig.T.LargeTitle, wrap: true);
+        title.FontSize = 22;
+        title.MaxLines = 4;
+        title.IsTextSelectionEnabled = true;
+        ToolTipService.SetToolTip(title, r.Title);
+        _head.Children.Add(title);
+        var dates = Store!.DatesOf(r);
+        var meta = (r.Date.Length > 0 ? r.Date : "без даты") + (dates.Modified is { } m ? $" · изменено {m:dd.MM.yyyy HH:mm}" : "");
+        _head.Children.Add(Hig.Text(meta, Hig.T.Footnote, "HigSecondary"));
+    }
+
+    // Пустое состояние (как ContentUnavailableView): значок, заголовок, что
+    // сделать; клавиши — карточкой.
+    void EmptyState()
+    {
+        var box = new StackPanel { Spacing = 10, Margin = new Thickness(8, 56, 8, 0) };
+        var icon = new FontIcon { Glyph = "", FontSize = 44, Foreground = Hig.B("HigTertiary"), HorizontalAlignment = HorizontalAlignment.Center };
+        box.Children.Add(icon);
+        var t = Hig.Text("Запись не выбрана", Hig.T.Title3);
+        t.HorizontalAlignment = HorizontalAlignment.Center;
+        box.Children.Add(t);
+        var s = Hig.Text("Щёлкните узел на графе, строку в списке или найдите запись поиском.", Hig.T.Subhead, "HigSecondary", wrap: true);
+        s.TextAlignment = TextAlignment.Center;
+        s.HorizontalAlignment = HorizontalAlignment.Center;
+        s.MaxWidth = 300;
+        box.Children.Add(s);
+        var keys = Hig.Section("Клавиши", new[]
+        {
+            Hig.Row("Поиск", value: "Ctrl+F"), Hig.Row("Новая запись", value: "Ctrl+N"), Hig.Row("Сохранить", value: "Ctrl+S"),
+            Hig.Row("Весь граф", value: "Home"), Hig.Row("Управление мышью и клавишами", value: "F1"),
+        });
+        keys.Margin = new Thickness(0, 24, 0, 0);
+        box.Children.Add(keys);
+        _body.Children.Add(box);
+    }
+
+    // --- построение ------------------------------------------------------------------
 
     void Build()
     {
         _body.Children.Clear();
-        _tabs.Visibility = _edit == null ? Visibility.Collapsed : Visibility.Visible;
-        _save.Visibility = _revert.Visibility = _edit == null ? Visibility.Collapsed : Visibility.Visible;
-        if (_edit == null)
-        {
-            _body.Children.Add(new TextBlock
-            {
-                Text = "Выберите запись на графе, в списке или поиском.\n\nЩелчок по узлу — открыть запись; колесо — масштаб; перетаскивание — сдвиг; узел можно тянуть.\n\nCtrl+F — поиск, Ctrl+N — новая запись, Ctrl+S — сохранить.",
-                TextWrapping = TextWrapping.Wrap, Opacity = 0.75,
-            });
-            return;
-        }
+        var has = _edit != null;
+        _tabsHost.Visibility = _head.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
+        Nav();
+        if (!has) { EmptyState(); return; }
         Header();
         switch (_tab)
         {
@@ -168,73 +282,34 @@ public sealed class RecordPanel : Grid
         }
     }
 
-    void Header()
+    // Раздел: подпись заглавными, карточка, пояснение; отступ между разделами.
+    void Section(string? header, IEnumerable<UIElement> rows, string? footer = null, double indent = 14)
     {
-        var r = _edit!;
-        var head = new StackPanel { Spacing = 4 };
-        var kind = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        kind.Children.Add(new Border { Width = 12, Height = 12, CornerRadius = new CornerRadius(6), Background = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(r.Folder))), VerticalAlignment = VerticalAlignment.Center });
-        kind.Children.Add(new TextBlock { Text = Schema.NameOf(r.Folder), Opacity = 0.8 });
-        var more = new DropDownButton { Content = "Ещё", Margin = new Thickness(8, 0, 0, 0) };
-        var menu = new MenuFlyout();
-        var move = new MenuFlyoutSubItem { Text = "Перенести в папку" };
-        foreach (var f in Schema.Folders.Where(f => f.Folder != r.Folder))
-        {
-            var it = new MenuFlyoutItem { Text = f.Name };
-            it.Click += (_, _) => { if (_orig != null) MoveRequested?.Invoke(_orig, f.Folder); };
-            move.Items.Add(it);
-        }
-        menu.Items.Add(move);
-        var copy = new MenuFlyoutItem { Text = "Копировать ID" };
-        copy.Click += (_, _) =>
-        {
-            var dp = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            dp.SetText(r.Id);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dp);
-        };
-        menu.Items.Add(copy);
-        var folder = new MenuFlyoutItem { Text = "Показать файл в проводнике" };
-        folder.Click += (_, _) => { if (File.Exists(r.Path)) System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{r.Path}\""); };
-        menu.Items.Add(folder);
-        menu.Items.Add(new MenuFlyoutSeparator());
-        var del = new MenuFlyoutItem { Text = "Удалить запись…" };
-        del.Click += (_, _) => { if (_orig != null) DeleteRequested?.Invoke(_orig); };
-        menu.Items.Add(del);
-        more.Flyout = menu;
-        kind.Children.Add(more);
-        head.Children.Add(kind);
-        head.Children.Add(new TextBlock { Text = r.Title, FontSize = 18, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
-        var meta = new TextBlock { FontSize = 12, Opacity = 0.65, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-        meta.Text = $"ID {r.Id} · {System.IO.Path.GetRelativePath(Store!.Root, r.Path.Length > 0 ? r.Path : Store.Know)}"
-                    + (r.OldName.Length > 0 ? $" · прежнее имя «{r.OldName}»" : "");
-        head.Children.Add(meta);
-        _body.Children.Add(head);
+        var s = Hig.Section(header, rows, footer, indent);
+        s.Margin = new Thickness(0, 14, 0, 0);
+        _body.Children.Add(s);
     }
 
-    static TextBlock Label(string t) => new() { Text = t, FontSize = 12, Opacity = 0.7, Margin = new Thickness(0, 6, 0, 0) };
-
-    TextBox Text(string key, bool multi = false)
+    // Поле без рамки внутри карточки (формы iOS): прозрачный фон и в покое,
+    // и под мышью, и в фокусе — видно только каретку.
+    static TextBox Field(string text, Action<string> set, bool multi = true, string? hint = null, TextAlignment align = TextAlignment.Left)
     {
-        var tb = new TextBox { Text = _edit!.Fields[key]?.ToString() ?? "", TextWrapping = TextWrapping.Wrap, AcceptsReturn = multi };
-        tb.TextChanged += (_, _) => { _edit!.Fields[key] = tb.Text; Changed(); };
+        var tb = new TextBox
+        {
+            Text = text, TextWrapping = multi ? TextWrapping.Wrap : TextWrapping.NoWrap, AcceptsReturn = multi, PlaceholderText = hint,
+            BorderThickness = new Thickness(0), Background = new SolidColorBrush(Colors.Transparent), Padding = new Thickness(0, 2, 0, 2),
+            MinHeight = 0, FontSize = 14, TextAlignment = align, Foreground = Hig.B("HigLabel"),
+        };
+        foreach (var k in new[] { "TextControlBackgroundPointerOver", "TextControlBackgroundFocused", "TextControlBackground" })
+            tb.Resources[k] = new SolidColorBrush(Colors.Transparent);
+        foreach (var k in new[] { "TextControlBorderBrushFocused", "TextControlBorderBrushPointerOver", "TextControlBorderBrush" })
+            tb.Resources[k] = new SolidColorBrush(Colors.Transparent);
+        tb.Resources["TextControlForegroundFocused"] = Hig.B("HigLabel");
+        tb.TextChanged += (_, _) => set(tb.Text);
         return tb;
     }
 
-    // Выпадающий список со своим вводом. Текущее значение выбирается как
-    // пункт списка (если его нет среди пунктов — добавляется): Text у
-    // редактируемого списка до показа не отображается, поле выглядело пустым.
-    static ComboBox Combo(IEnumerable<string> items, string value, Action<string> set)
-    {
-        var cb = new ComboBox { IsEditable = true, HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (var i in items) cb.Items.Add(i);
-        if (value.Length > 0 && !cb.Items.Contains(value)) cb.Items.Insert(0, value);
-        if (value.Length > 0) cb.SelectedItem = value;
-        var cur = value;
-        void Put(string v) { if (v == cur) return; cur = v; set(v); }
-        cb.SelectionChanged += (_, _) => { if (cb.SelectedItem is string s) Put(s); };
-        cb.TextSubmitted += (_, e) => Put(e.Text.Trim());
-        return cb;
-    }
+    static Border Cell(UIElement content) => new() { Child = content, Padding = new Thickness(14, 9, 12, 9) };
 
     static readonly HashSet<string> Known = new() { "id", "вид", "заголовок", "термин", "метки", "статус", "дата", "источник", "пункты", "связи", "прежнее_имя" };
 
@@ -242,79 +317,84 @@ public sealed class RecordPanel : Grid
     {
         var r = _edit!;
         var titleKey = r.Fields.Has("заголовок") || !r.Fields.Has("термин") ? "заголовок" : "термин";
-        _body.Children.Add(Label(titleKey == "термин" ? "Термин" : "Заголовок"));
-        _body.Children.Add(Text(titleKey, true));
+        Section(titleKey == "термин" ? "Термин" : "Заголовок", new[]
+        {
+            Cell(Field(r.Fields[titleKey]?.ToString() ?? "", v => { r.Fields[titleKey] = v; Changed(); })),
+        });
 
-        var row = new Grid { ColumnSpacing = 10 };
-        row.ColumnDefinitions.Add(new ColumnDefinition());
-        row.ColumnDefinitions.Add(new ColumnDefinition());
-        var st = Combo(Schema.Statuses, r.Status, v => { r.Fields["статус"] = v; Changed(); });
-        st.Header = "Статус";
-        var date = new TextBox { Header = "Дата (ГГГГ-ММ-ДД)", Text = r.Date, PlaceholderText = DateTime.Today.ToString("yyyy-MM-dd") };
-        date.TextChanged += (_, _) => { r.Fields["дата"] = date.Text; Changed(); };
-        row.Children.Add(st);
-        Grid.SetColumn(date, 1);
-        row.Children.Add(date);
-        _body.Children.Add(row);
+        // Статус — выбором справа; дата — полем справа (как строки настроек).
+        var st = new ComboBox { IsEditable = true, BorderThickness = new Thickness(0), Background = new SolidColorBrush(Colors.Transparent), MinWidth = 150, HorizontalAlignment = HorizontalAlignment.Right };
+        foreach (var s in Schema.Statuses) st.Items.Add(s);
+        if (r.Status.Length > 0 && !st.Items.Contains(r.Status)) st.Items.Insert(0, r.Status);
+        if (r.Status.Length > 0) st.SelectedItem = r.Status;
+        st.SelectionChanged += (_, _) => { if (st.SelectedItem is string s && s != r.Status) { r.Fields["статус"] = s; Changed(); } };
+        st.TextSubmitted += (_, e) => { var s = e.Text.Trim(); if (s.Length > 0 && s != r.Status) { r.Fields["статус"] = s; Changed(); } };
+        var date = Field(r.Date, v => { r.Fields["дата"] = v; Changed(); }, multi: false, hint: DateTime.Today.ToString("yyyy-MM-dd"), align: TextAlignment.Right);
+        date.Width = 120;
+        date.Foreground = Hig.B("HigSecondary");
+        Section("Сведения", new[]
+        {
+            Hig.Row("Статус", trailing: st),
+            Hig.Row("Дата", trailing: date),
+        }, "Дата — в виде ГГГГ-ММ-ДД.");
 
-        _body.Children.Add(Label("Источник — кто решил, где: сообщение, документ, совещание"));
-        _body.Children.Add(Text("источник", true));
+        Section("Источник", new[]
+        {
+            Cell(Field(r.Source, v => { r.Fields["источник"] = v; Changed(); }, hint: "Кто решил, где: сообщение, документ, совещание")),
+        });
 
-        _body.Children.Add(Label("Метки"));
-        _body.Children.Add(TagsEditor());
+        Section(r.Tags.Count > 0 ? $"Метки · {r.Tags.Count}" : "Метки", new[] { TagsEditor() });
 
-        _body.Children.Add(Label("Пункты"));
-        _body.Children.Add(PointsEditor());
+        Section(r.Points.Count > 0 ? $"Пункты · {r.Points.Count}" : "Пункты", PointsEditor(), indent: 40);
 
         // Прочие поля (у реестра — определение, синонимы, где встречается…).
-        foreach (var (k, v) in r.Fields.ToList())
+        var other = r.Fields.ToList().Where(p => !Known.Contains(p.Key)).ToList();
+        if (other.Count > 0)
         {
-            if (Known.Contains(k)) continue;
-            _body.Children.Add(Label(k.Replace('_', ' ')));
-            if (v is string or null)
+            var cells = new List<UIElement>();
+            foreach (var (k, v) in other)
             {
-                _body.Children.Add(Text(k, true));
-            }
-            else if (v is List<object?> l && l.All(x => x is string))
-            {
-                var tb = new TextBox { Text = string.Join("\r", l), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, PlaceholderText = "по значению на строку" };
-                tb.TextChanged += (_, _) => { r.Fields[k] = tb.Text.Split('\r', '\n').Where(x => x.Length > 0).Cast<object?>().ToList(); Changed(); };
-                _body.Children.Add(tb);
-            }
-            else
-            {
-                _body.Children.Add(new TextBox
+                var name = char.ToUpper(k[0]) + k[1..].Replace('_', ' ');
+                var sp = new StackPanel { Spacing = 2 };
+                sp.Children.Add(Hig.Text(name, Hig.T.Footnote, "HigSecondary"));
+                if (v is string or null)
+                    sp.Children.Add(Field(v?.ToString() ?? "", t => { r.Fields[k] = t; Changed(); }));
+                else if (v is List<object?> l && l.All(x => x is string))
+                    sp.Children.Add(Field(string.Join("\r", l), t => { r.Fields[k] = t.Split('\r', '\n').Where(x => x.Length > 0).Cast<object?>().ToList(); Changed(); }, hint: "по значению на строку"));
+                else
                 {
-                    Text = Literal.Format(v), IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-                    FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 12,
-                });
-                _body.Children.Add(new TextBlock { Text = "Составное поле — правится в файле записи.", FontSize = 11, Opacity = 0.6 });
+                    var code = Hig.Text(Literal.Format(v), Hig.T.Footnote, "HigLabel", wrap: true);
+                    code.FontFamily = new FontFamily("Cascadia Mono, Consolas");
+                    code.IsTextSelectionEnabled = true;
+                    code.MaxLines = 0;
+                    sp.Children.Add(code);
+                    sp.Children.Add(Hig.Text("Составное поле — правится в файле записи.", Hig.T.Caption, "HigSecondary"));
+                }
+                cells.Add(Cell(sp));
             }
+            Section("Прочие поля", cells);
         }
+
+        var file = System.IO.Path.GetRelativePath(Store!.Root, r.Path.Length > 0 ? r.Path : Store.Know);
+        var foot = Hig.Footer($"ID {r.Id}\nФайл {file}" + (r.OldName.Length > 0 ? $"\nПрежнее имя «{r.OldName}»" : ""));
+        foot.IsTextSelectionEnabled = true;
+        foot.Margin = new Thickness(14, 18, 14, 0);
+        _body.Children.Add(foot);
     }
 
     UIElement TagsEditor()
     {
         var r = _edit!;
-        var box = new StackPanel { Spacing = 6 };
+        var box = new StackPanel { Spacing = 4, Padding = new Thickness(12, 10, 12, 6) };
         var wrap = new WrapPanel();
         void Fill()
         {
             wrap.Children.Clear();
             foreach (var t in r.Tags)
-            {
-                var chip = new Button { Padding = new Thickness(10, 2, 6, 2), CornerRadius = new CornerRadius(12) };
-                var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-                sp.Children.Add(new TextBlock { Text = t });
-                sp.Children.Add(new TextBlock { Text = "✕", FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.6 });
-                chip.Content = sp;
-                ToolTipService.SetToolTip(chip, "Убрать метку");
-                chip.Click += (_, _) => { var l = r.Tags; l.Remove(t); r.Fields["метки"] = l.Cast<object?>().ToList(); Fill(); Changed(); };
-                wrap.Children.Add(chip);
-            }
+                wrap.Children.Add(Hig.Token(t, () => { var l = r.Tags; l.Remove(t); r.Fields["метки"] = l.Cast<object?>().ToList(); Fill(); Changed(); }));
         }
         Fill();
-        var add = new AutoSuggestBox { PlaceholderText = "Добавить метку — Enter", QueryIcon = new SymbolIcon(Symbol.Add) };
+        var add = new AutoSuggestBox { PlaceholderText = "Добавить метку", QueryIcon = new SymbolIcon(Symbol.Add), BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(10), Background = Hig.B("HigFill") };
         var all = Store!.All.SelectMany(x => x.Tags).GroupBy(x => x).OrderByDescending(g => g.Count()).Select(g => g.Key).ToList();
         add.TextChanged += (s, e) =>
         {
@@ -338,175 +418,192 @@ public sealed class RecordPanel : Grid
         return box;
     }
 
-    UIElement PointsEditor()
+    // Пункты: ячейка — номер, поле без рамки, «⋯» (выше, ниже, удалить);
+    // последняя строка — «Добавить пункт» акцентом.
+    List<UIElement> PointsEditor()
     {
         var r = _edit!;
-        var list = new StackPanel { Spacing = 8 };
-        void Fill()
+        var cells = new List<UIElement>();
+        var pts = r.Points;
+        void Put(List<string> l) { r.Fields["пункты"] = l.Cast<object?>().ToList(); Changed(); Build(); }
+        for (var i = 0; i < pts.Count; i++)
         {
-            list.Children.Clear();
-            var pts = r.Points;
-            for (var i = 0; i < pts.Count; i++)
-            {
-                var idx = i;
-                var g = new Grid { ColumnSpacing = 4 };
-                g.ColumnDefinitions.Add(new ColumnDefinition());
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var tb = new TextBox { Text = pts[i], AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
-                tb.TextChanged += (_, _) => { var l = r.Points; l[idx] = tb.Text.Replace("\r", "\n"); r.Fields["пункты"] = l.Cast<object?>().ToList(); Changed(); };
-                var btns = new StackPanel { Spacing = 2 };
-                Button B(string glyph, string tip, Action act)
-                {
-                    var b = new Button { Content = new FontIcon { Glyph = glyph, FontSize = 12 }, Padding = new Thickness(6, 4, 6, 4) };
-                    ToolTipService.SetToolTip(b, tip);
-                    b.Click += (_, _) => { act(); r.Fields["пункты"] = r.Points.Cast<object?>().ToList(); Fill(); Changed(); };
-                    btns.Children.Add(b);
-                    return b;
-                }
-                B("", "Выше", () => { var l = r.Points; if (idx > 0) { (l[idx - 1], l[idx]) = (l[idx], l[idx - 1]); r.Fields["пункты"] = l.Cast<object?>().ToList(); } }).IsEnabled = idx > 0;
-                B("", "Ниже", () => { var l = r.Points; if (idx < l.Count - 1) { (l[idx + 1], l[idx]) = (l[idx], l[idx + 1]); r.Fields["пункты"] = l.Cast<object?>().ToList(); } }).IsEnabled = idx < pts.Count - 1;
-                B("", "Удалить пункт", () => { var l = r.Points; l.RemoveAt(idx); r.Fields["пункты"] = l.Cast<object?>().ToList(); });
-                g.Children.Add(tb);
-                Grid.SetColumn(btns, 1);
-                g.Children.Add(btns);
-                list.Children.Add(g);
-            }
-            var add = new Button { Content = "+ Пункт" };
-            add.Click += (_, _) =>
-            {
-                var l = r.Points;
-                l.Add($"{DateTime.Today:dd.MM.yyyy}: ");
-                r.Fields["пункты"] = l.Cast<object?>().ToList();
-                Fill();
-                Changed();
-                if (list.Children[^2] is Grid gg && gg.Children[0] is TextBox t) { t.Focus(FocusState.Programmatic); t.SelectionStart = t.Text.Length; }
-            };
-            list.Children.Add(add);
+            var idx = i;
+            var g = new Grid { ColumnSpacing = 8, Padding = new Thickness(12, 8, 4, 8) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var n = Hig.Text((i + 1).ToString(), Hig.T.Footnote, "HigSecondary");
+            n.VerticalAlignment = VerticalAlignment.Top;
+            n.HorizontalAlignment = HorizontalAlignment.Right;
+            n.Margin = new Thickness(0, 3, 0, 0);
+            g.Children.Add(n);
+            var tb = Field(pts[i], v => { var l = r.Points; l[idx] = v.Replace("\r", "\n"); r.Fields["пункты"] = l.Cast<object?>().ToList(); Changed(); });
+            Grid.SetColumn(tb, 1);
+            g.Children.Add(tb);
+            var more = Hig.Icon("", "Пункт: выше, ниже, удалить", () => { }, "HigSecondary", 14);
+            more.VerticalAlignment = VerticalAlignment.Top;
+            var menu = new MenuFlyout();
+            var up = new MenuFlyoutItem { Text = "Выше", Icon = new FontIcon { Glyph = "" }, IsEnabled = idx > 0 };
+            up.Click += (_, _) => { var l = r.Points; (l[idx - 1], l[idx]) = (l[idx], l[idx - 1]); Put(l); };
+            var down = new MenuFlyoutItem { Text = "Ниже", Icon = new FontIcon { Glyph = "" }, IsEnabled = idx < pts.Count - 1 };
+            down.Click += (_, _) => { var l = r.Points; (l[idx + 1], l[idx]) = (l[idx], l[idx + 1]); Put(l); };
+            var del = new MenuFlyoutItem { Text = "Удалить пункт", Icon = new FontIcon { Glyph = "" }, Foreground = Hig.B("HigRed") };
+            del.Click += (_, _) => { var l = r.Points; l.RemoveAt(idx); Put(l); };
+            menu.Items.Add(up);
+            menu.Items.Add(down);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(del);
+            more.Flyout = menu;
+            Grid.SetColumn(more, 2);
+            g.Children.Add(more);
+            cells.Add(g);
         }
-        Fill();
-        return list;
+        cells.Add(Hig.Row("Добавить пункт", glyph: "", titleColor: "HigAccent", click: () =>
+        {
+            var l = r.Points;
+            l.Add($"{DateTime.Today:dd.MM.yyyy}: ");
+            Put(l);
+        }));
+        return cells;
     }
 
-    // --- связи ---------------------------------------------------------------
+    // --- связи -----------------------------------------------------------------------
 
     void LinksPage()
     {
         var r = _edit!;
-        var types = Store!.All.SelectMany(x => x.Links).Select(l => l["тип"] as string ?? "").Where(t => t.Length > 0)
-            .GroupBy(t => t).OrderByDescending(g => g.Count()).Select(g => g.Key).ToList();
-        _body.Children.Add(Label("Связи отсюда"));
-        var list = new StackPanel { Spacing = 8 };
-        void Fill()
-        {
-            list.Children.Clear();
-            var links = r.Fields["связи"] as List<object?> ?? new List<object?>();
-            for (var i = 0; i < links.Count; i++)
-            {
-                if (links[i] is not Map l) continue;
-                var idx = i;
-                var g = new Grid { ColumnSpacing = 6 };
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
-                g.ColumnDefinitions.Add(new ColumnDefinition());
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var type = Combo(types.Take(40), l["тип"] as string ?? "", v => { l["тип"] = v; Changed(); });
-                var target = Store.ById(l["куда"] as string ?? "");
-                var pick = TargetBox(target?.Title ?? (l["куда"] as string ?? ""), rec => { l["куда"] = rec.Id; l["папка"] = rec.Folder; Changed(); });
-                var go = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 } };
-                ToolTipService.SetToolTip(go, "Открыть запись");
-                go.Click += (_, _) => { if (l["куда"] is string id) Navigate?.Invoke(id); };
-                var del = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 } };
-                ToolTipService.SetToolTip(del, "Удалить связь");
-                del.Click += (_, _) => { links.RemoveAt(idx); r.Fields["связи"] = links; Fill(); Changed(); };
-                g.Children.Add(type);
-                Grid.SetColumn(pick, 1); g.Children.Add(pick);
-                Grid.SetColumn(go, 2); g.Children.Add(go);
-                Grid.SetColumn(del, 3); g.Children.Add(del);
-                list.Children.Add(g);
-            }
-            var add = new Button { Content = "+ Связь" };
-            add.Click += (_, _) =>
-            {
-                var ls = r.Fields["связи"] as List<object?> ?? new List<object?>();
-                ls.Add(new Map { new("тип", types.FirstOrDefault() ?? "связано с"), new("куда", ""), new("папка", "") });
-                r.Fields["связи"] = ls;
-                Fill();
-                Changed();
-            };
-            list.Children.Add(add);
-        }
-        Fill();
-        _body.Children.Add(list);
+        var links = r.Fields["связи"] as List<object?> ?? new List<object?>();
+        var legacy = Store!.All.SelectMany(x => x.Links).Select(l => l["тип"] as string ?? "").Where(t => t.Length > 0 && GraphView.EdgeTypes.All(e => e.Type != t))
+            .GroupBy(t => t).OrderByDescending(g => g.Count()).Select(g => g.Key).Take(25).ToList();
 
-        // Связи сюда — обратным именем вида («основа для», «реализовано в»):
-        // связь пишется один раз, с другой стороны она читается так (SKOS,
-        // GraphView.Inverse). Сгруппированы по виду.
-        var inc = Store.Incoming(r.Id).ToList();
-        _body.Children.Add(Label($"Связи сюда · {inc.Count}"));
-        foreach (var grp in inc.GroupBy(x => GraphView.InverseOf(x.Link["тип"] as string ?? "")).OrderBy(g => g.Key))
+        // Отсюда: строка — запись, куда ведёт связь (вид связи — подписью),
+        // шеврон — перейти; «⋯» — вид связи, другая запись, удалить.
+        var rows = new List<UIElement>();
+        for (var i = 0; i < links.Count; i++)
         {
-            var col = GraphView.EdgeTypeColor(grp.First().Link["тип"] as string ?? "");
-            _body.Children.Add(new TextBlock
-            {
-                Text = grp.Key, FontSize = 12, Margin = new Thickness(0, 6, 0, 0),
-                Foreground = new SolidColorBrush(col),
-            });
-            foreach (var (from, _) in grp.OrderBy(x => x.From.Title))
-                _body.Children.Add(RecordLink(from, null));
+            if (links[i] is not Map l) continue;
+            var idx = i;
+            var type = l["тип"] as string ?? "";
+            var to = l["куда"] as string ?? "";
+            var target = Store.ById(to);
+            var more = Hig.Icon("", "Связь: вид, запись, удалить", () => { }, "HigSecondary", 14);
+            more.Flyout = LinkMenu(l, legacy, () => { links.RemoveAt(idx); r.Fields["связи"] = links; Changed(); Build(); });
+            rows.Add(Hig.Row(target?.Title ?? (to.Length > 0 ? to + " — нет такой записи" : "Выберите запись"), type.Length > 0 ? type : "вид не задан",
+                dot: target == null ? null : GraphView.Parse(Schema.ColorOf(target.Folder)), trailing: more, acc: target == null ? Hig.Acc.None : Hig.Acc.Chevron,
+                click: target == null ? null : () => Navigate?.Invoke(to), titleColor: target == null ? "HigSecondary" : "HigLabel"));
         }
+        var addBtn = Hig.Row("Добавить связь", glyph: "", titleColor: "HigAccent", click: () => { });
+        if (addBtn is Button ab) ab.Flyout = NewLinkFlyout(links);
+        rows.Add(addBtn);
+        Section(links.Count > 0 ? $"Отсюда · {links.Count}" : "Отсюда", rows, indent: 38);
+
+        // Сюда — обратным именем вида («основа для», «реализовано в»): связь
+        // пишется один раз, с другой стороны она читается так (SKOS).
+        var inc = Store.Incoming(r.Id).ToList();
+        if (inc.Count > 0)
+            Section($"Сюда · {inc.Count}", inc.OrderBy(x => GraphView.InverseOf(x.Link["тип"] as string ?? "")).ThenBy(x => x.From.Title)
+                .Select(x => Hig.Row(x.From.Title, GraphView.InverseOf(x.Link["тип"] as string ?? ""), dot: GraphView.Parse(Schema.ColorOf(x.From.Folder)),
+                    acc: Hig.Acc.Chevron, click: () => Navigate?.Invoke(x.From.Id))), indent: 38);
+        else
+            Section("Сюда", new[] { Hig.Row("Ни одна запись сюда не ссылается", titleColor: "HigSecondary") });
 
         // Возможно связано: кандидаты по общим соседям и по сходству текста
-        // (практика kak-uluchshat-graf-znaniy-…, Model/Quality). «+» ставит
-        // связь «относится к» — вид потом уточняется в списке выше.
+        // (Model/Quality); «+» ставит связь «относится к».
         var cands = Quality.Suggest(Store, r.Id);
         if (cands.Count == 0) return;
-        _body.Children.Add(Label("Возможно связано"));
-        foreach (var c in cands)
+        Section("Возможно связано", cands.Select(c =>
         {
-            var why = string.Join(" · ", new[]
-            {
-                c.ByNeighbours > 0 ? "общие соседи" : null,
-                c.ByText > 0 ? $"похожий текст {c.ByText:0.00}" : null,
-            }.Where(x => x != null));
-            var g = new Grid { ColumnSpacing = 6 };
-            g.ColumnDefinitions.Add(new ColumnDefinition());
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            g.Children.Add(RecordLink(c.Rec, why));
-            var add = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 }, VerticalAlignment = VerticalAlignment.Center };
-            ToolTipService.SetToolTip(add, "Связать: «относится к»");
+            var why = string.Join(" · ", new[] { c.ByNeighbours > 0 ? "общие соседи" : null, c.ByText > 0 ? $"похожий текст {c.ByText:0.00}" : null }.Where(x => x != null));
             var target = c.Rec;
-            add.Click += (_, _) =>
+            var add = Hig.Icon("", "Связать: «относится к»", () =>
             {
                 var ls = r.Fields["связи"] as List<object?> ?? new List<object?>();
                 ls.Add(new Map { new("тип", "относится к"), new("куда", target.Id), new("папка", target.Folder) });
                 r.Fields["связи"] = ls;
                 Changed();
-                Fill();
-                add.IsEnabled = false;
-            };
-            Grid.SetColumn(add, 1);
-            g.Children.Add(add);
-            _body.Children.Add(g);
-        }
+                Build();
+            }, "HigAccent", 14);
+            return Hig.Row(target.Title, why, dot: GraphView.Parse(Schema.ColorOf(target.Folder)), trailing: add, click: () => Navigate?.Invoke(target.Id));
+        }), "«+» ставит связь «относится к»; вид уточняется в «Отсюда».", indent: 38);
     }
 
-    HyperlinkButton RecordLink(Record rec, string? note)
+    // Меню связи: вид — из словаря (с отметкой текущего), прежние виды —
+    // подменю; «Другая запись…» — поиск; «Удалить» — красным.
+    MenuFlyout LinkMenu(Map l, List<string> legacy, Action remove)
     {
-        var b = new HyperlinkButton { Padding = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Left };
-        var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        sp.Children.Add(new Border { Width = 9, Height = 9, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(rec.Folder))), VerticalAlignment = VerticalAlignment.Center });
-        sp.Children.Add(new TextBlock { Text = rec.Title, TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 300 });
-        if (note != null) sp.Children.Add(new TextBlock { Text = note, Opacity = 0.55, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
-        b.Content = sp;
-        ToolTipService.SetToolTip(b, $"{Schema.NameOf(rec.Folder)} · {rec.Title}");
-        b.Click += (_, _) => Navigate?.Invoke(rec.Id);
-        return b;
+        var menu = new MenuFlyout();
+        var cur = l["тип"] as string ?? "";
+        var kinds = new MenuFlyoutSubItem { Text = "Вид связи", Icon = new FontIcon { Glyph = "" } };
+        foreach (var (t, _) in GraphView.EdgeTypes)
+        {
+            var it = new ToggleMenuFlyoutItem { Text = t, IsChecked = t == cur };
+            var tt = t;
+            it.Click += (_, _) => { l["тип"] = tt; Changed(); Build(); };
+            kinds.Items.Add(it);
+        }
+        if (legacy.Count > 0)
+        {
+            var old = new MenuFlyoutSubItem { Text = "Прежние виды" };
+            foreach (var t in legacy)
+            {
+                var it = new ToggleMenuFlyoutItem { Text = t, IsChecked = t == cur };
+                var tt = t;
+                it.Click += (_, _) => { l["тип"] = tt; Changed(); Build(); };
+                old.Items.Add(it);
+            }
+            kinds.Items.Add(new MenuFlyoutSeparator());
+            kinds.Items.Add(old);
+        }
+        menu.Items.Add(kinds);
+        var other = new MenuFlyoutItem { Text = "Другая запись…", Icon = new FontIcon { Glyph = "" } };
+        other.Click += (_, _) =>
+        {
+            var f = new Flyout();
+            f.Content = TargetBox("", rec => { l["куда"] = rec.Id; l["папка"] = rec.Folder; f.Hide(); Changed(); Build(); });
+            f.ShowAt(_tabsHost);
+        };
+        menu.Items.Add(other);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var del = new MenuFlyoutItem { Text = "Удалить связь", Icon = new FontIcon { Glyph = "" }, Foreground = Hig.B("HigRed") };
+        del.Click += (_, _) => remove();
+        menu.Items.Add(del);
+        return menu;
+    }
+
+    // Новая связь: вид (словарь) и запись — поиском; «Добавить» — акцентом.
+    Flyout NewLinkFlyout(List<object?> links)
+    {
+        var f = new Flyout();
+        var sp = new StackPanel { Spacing = 10, Width = 360 };
+        sp.Children.Add(Hig.Text("Новая связь", Hig.T.Headline));
+        var kind = new ComboBox { Header = "Вид", HorizontalAlignment = HorizontalAlignment.Stretch };
+        foreach (var (t, _) in GraphView.EdgeTypes.Where(e => e.Type is not ("раздел" or "якорь"))) kind.Items.Add(t);
+        kind.SelectedItem = "относится к";
+        sp.Children.Add(kind);
+        Record? chosen = null;
+        var box = TargetBox("", rec => chosen = rec);
+        sp.Children.Add(box);
+        var add = Hig.Prominent(Hig.Text("Добавить", Hig.T.Headline, "HigCard"), "Добавить связь", () =>
+        {
+            if (chosen == null || _edit == null) return;
+            links.Add(new Map { new("тип", kind.SelectedItem as string ?? "относится к"), new("куда", chosen.Id), new("папка", chosen.Folder) });
+            _edit.Fields["связи"] = links;
+            f.Hide();
+            Changed();
+            Build();
+        });
+        ((TextBlock)add.Content).Foreground = new SolidColorBrush(Colors.White);
+        add.HorizontalAlignment = HorizontalAlignment.Right;
+        sp.Children.Add(add);
+        f.Content = sp;
+        return f;
     }
 
     // Выбор записи для связи: поиск по заголовку, ID и прежнему имени.
     AutoSuggestBox TargetBox(string text, Action<Record> chosen)
     {
-        var box = new AutoSuggestBox { Text = text, PlaceholderText = "Куда — поиск записи", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var box = new AutoSuggestBox { Text = text, PlaceholderText = "Запись — поиск по заголовку или ID", HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 320, QueryIcon = new SymbolIcon(Symbol.Find) };
         box.DisplayMemberPath = "Label";
         box.TextChanged += (s, e) =>
         {
@@ -528,21 +625,35 @@ public sealed class RecordPanel : Grid
         public override string ToString() => Label;
     }
 
-    // --- история -------------------------------------------------------------
+    // --- история ---------------------------------------------------------------------
 
     void HistoryPage()
     {
         var r = _edit!;
         var hist = Store!.History(r);
-        _body.Children.Add(Label(hist.Count == 0 ? "В истории git записи нет (ещё не закоммичена)" : $"Коммиты с этой записью · {hist.Count}"));
-        foreach (var c in hist)
+        if (hist.Count == 0)
         {
-            var sp = new StackPanel { Spacing = 2, Padding = new Thickness(0, 4, 0, 6) };
-            sp.Children.Add(new TextBlock { Text = c.Subject, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
-            sp.Children.Add(new TextBlock { Text = $"{c.Date} · {c.Author} · {c.Hash}", FontSize = 12, Opacity = 0.65, IsTextSelectionEnabled = true });
-            if (c.Body.Length > 0)
-                sp.Children.Add(new TextBlock { Text = c.Body, FontSize = 12, TextWrapping = TextWrapping.Wrap, Opacity = 0.85, IsTextSelectionEnabled = true });
-            _body.Children.Add(sp);
+            Section("История", new[] { Hig.Row("В истории git записи нет — ещё не закоммичена", titleColor: "HigSecondary") });
+            return;
         }
+        Section($"Коммиты · {hist.Count}", hist.Select(c =>
+        {
+            var sp = new StackPanel { Spacing = 2 };
+            var subj = Hig.Text(c.Subject, T.Headline, wrap: true);
+            subj.IsTextSelectionEnabled = true;
+            sp.Children.Add(subj);
+            sp.Children.Add(Hig.Text($"{c.Date} · {c.Author} · {c.Hash}", Hig.T.Footnote, "HigSecondary"));
+            if (c.Body.Length > 0)
+            {
+                var b = Hig.Text(c.Body, Hig.T.Footnote, "HigLabel", wrap: true);
+                b.IsTextSelectionEnabled = true;
+                b.MaxLines = 0;
+                b.Margin = new Thickness(0, 4, 0, 0);
+                sp.Children.Add(b);
+            }
+            return (UIElement)Cell(sp);
+        }), "Журнал изменений графа — история коммитов.");
     }
+
+    static class T { public const Hig.T Headline = Hig.T.Headline; }
 }
