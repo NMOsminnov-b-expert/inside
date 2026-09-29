@@ -22,4 +22,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'tools-visual-parity', 'папка': 'tools'},
     {'тип': 'якорь', 'куда': 'view-graph-prosmotr-grafa', 'папка': 'tools'},
     {'тип': 'якорь', 'куда': 'praktika-filtr-priglushaet-ne-pryachet', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'poisk-po-smyslu-codebase-mcp-s-lokalnoy-modelyu', 'папка': 'tools'},
 ]
