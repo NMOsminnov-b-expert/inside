@@ -37,6 +37,10 @@ public static class ScriptRunner
                         w.Width = st.GetProperty("w").GetDouble();
                         w.Height = st.GetProperty("h").GetDouble();
                         break;
+                    case "dumpKeys":
+                        // Реестр команд с текущими клавишами — для сверки.
+                        File.WriteAllLines(st.GetProperty("path").GetString()!, w.Commands.All.Select(c => $"{c.Group}	{(c.InPalette ? c.Title : c.Hint)}	{c.KeyLabel}	{c.Scope}"));
+                        break;
                     case "create":
                         // Новый проект в пустой папке (как «Новый проект…»).
                         w.OpenDir(Model.ProjectStore.Create(st.GetProperty("dir").GetString()!, st.GetProperty("title").GetString()!).Dir, askDraft: false, confirm: false);
