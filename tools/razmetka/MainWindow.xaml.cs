@@ -352,8 +352,11 @@ public partial class MainWindow : Window
             foreach (var (n, bmp) in images)
             {
                 var sh = new Sheet { Title = $"Страница {n}", Page = $"стр. {n}" };
-                var asset = _store.Import(bmp, $"{Path.GetFileName(path)}, стр. {n}", false);
-                var l = LayerOps.AddImage(sh, _store, asset, $"{doc}, стр. {n}");
+                var asset = _store.Import(bmp, $"{Path.GetFileName(path)}, стр. {n}");
+                // Страница рисуется в 300 dpi, а на полотне стоит в прежнем
+                // размере (как при 110 dpi) — рамки и снимки системы рядом не
+                // становятся мелкими; подробность — при увеличении и в экспорте.
+                var l = LayerOps.AddImage(sh, _store, asset, $"{doc}, стр. {n}", _store.Project.Assets[asset].W * Model.PdfPages.CanvasDpi / Model.PdfPages.Dpi);
                 l.Locked = true;
                 target.Sheets.Add(sh);
                 first ??= sh;
@@ -404,7 +407,7 @@ public partial class MainWindow : Window
         var img = Clipboard.GetImage();
         if (img == null) return;
         string? id = null;
-        Edit("Вставка фото", () => id = LayerOps.AddImage(_sheet, _store, _store.Import(img, "Вставка", true), "Вставка").Id);
+        Edit("Вставка фото", () => id = LayerOps.AddImage(_sheet, _store, _store.Import(img, "Вставка"), "Вставка").Id);
         if (id != null) { View.Select(new[] { id }); Status("Картинка вставлена"); }
     }
 
@@ -562,6 +565,7 @@ public partial class MainWindow : Window
         _sheet = sh;
         View.Doc = new DocInfo(ch?.Title ?? "", ch?.DocName ?? "");
         FixStale(sh);
+        _store?.KeepOnly(sh?.Layers.Select(l => l.Asset) ?? Enumerable.Empty<string?>());
         View.SetSheet(sh);
         UpdateAll();
     }

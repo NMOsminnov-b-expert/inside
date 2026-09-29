@@ -138,7 +138,7 @@ public static class Kit
                 ToolTip = tip ?? label, Background = on ? B("Card") : Brushes.Transparent,
                 FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal, Margin = new Thickness(1),
             };
-            if (on) b.Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 3, ShadowDepth = 0.5, Opacity = 0.18 };
+            if (on) { b.BorderBrush = B("Line"); b.BorderThickness = new Thickness(1); }
             b.Click += (_, _) => { if (key != current) changed(key); };
             g.Children.Add(b);
         }
@@ -164,12 +164,26 @@ public static class Kit
         },
     };
 
-    // Всплывающая карточка: белая, скругление 8, мягкая тень.
-    public static Border Card(UIElement child, Thickness? padding = null, Brush? border = null, double borderW = 1) => new()
+    // Всплывающая карточка: белая, скругление 8, мягкая тень. Тень — у
+    // подложки под карточкой, а не у неё самой: эффект на элементе растрирует
+    // всё его содержимое, и текст внутри мылится.
+    public static Border Card(UIElement child, Thickness? padding = null, Brush? border = null, double borderW = 1)
     {
-        Background = B("Card"), BorderBrush = border ?? B("Line"), BorderThickness = new Thickness(borderW),
-        CornerRadius = new CornerRadius(8), Padding = padding ?? new Thickness(12), Child = child,
-        Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 18, ShadowDepth = 3, Opacity = 0.16, Direction = 270 },
+        var g = new Grid();
+        g.Children.Add(Shadow(8));
+        g.Children.Add(new Border
+        {
+            Background = B("Card"), BorderBrush = border ?? B("Line"), BorderThickness = new Thickness(borderW),
+            CornerRadius = new CornerRadius(8), Padding = padding ?? new Thickness(12), Child = child,
+        });
+        return new Border { Child = g };
+    }
+
+    // Подложка с тенью: та же форма, что у карточки, без содержимого.
+    public static Border Shadow(double radius, double blur = 18, double opacity = 0.16) => new()
+    {
+        Background = B("Card"), CornerRadius = new CornerRadius(radius), IsHitTestVisible = false,
+        Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = blur, ShadowDepth = 3, Opacity = opacity, Direction = 270 },
     };
 
     public static Border Divider(double top = 8, double bottom = 0) => new()

@@ -17,10 +17,6 @@ public sealed class ProjectStore
 {
     public const string FileName = "razmetka.json";
     public const string ImagesDir = "images";
-    // Длинная сторона картинки после вставки: скан страницы при 110 dpi —
-    // около 1300 px, снимок экрана — до 2000; больше на полотне не нужно, а
-    // проект пухнет.
-    const int MaxSide = 3000;
 
     public static readonly JsonSerializerOptions Json = new()
     {
@@ -82,6 +78,7 @@ public sealed class ProjectStore
         var img = new BitmapImage();
         img.BeginInit();
         img.CacheOption = BitmapCacheOption.OnLoad;
+        img.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
         img.UriSource = new Uri(path);
         img.EndInit();
         img.Freeze();
@@ -89,68 +86,55 @@ public sealed class ProjectStore
         return img;
     }
 
+    // Импорт без потерь (требование пользователя 29.09.2026: «потери качества
+    // недопустимы»): файл кладётся в проект как есть — байт в байт, без
+    // пересжатия и без уменьшения. Прежде картинки уменьшались до 3000 точек
+    // и шли в JPEG 88 — такие в старых проектах заменяются исходником
+    // («Заменить»).
+    static readonly string[] Kept = { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff" };
+
     public string ImportFile(string path)
     {
-        var dec = BitmapDecoder.Create(new Uri(path), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
-        var png = path.EndsWith(".png", StringComparison.OrdinalIgnoreCase);
-        return Import(dec.Frames[0], Path.GetFileName(path), png);
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        var dec = BitmapDecoder.Create(new Uri(path), BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.OnLoad);
+        var frame = dec.Frames[0];
+        // Многостраничный TIFF или незнакомый формат — первая страница в PNG
+        // (без потерь); остальное — исходный файл.
+        if (!Kept.Contains(ext) || dec.Frames.Count > 1) return Import(frame, Path.GetFileName(path));
+        var data = File.ReadAllBytes(path);
+        return Store(data, ext == ".jpeg" ? ".jpg" : ext, frame.PixelWidth, frame.PixelHeight, Path.GetFileName(path));
     }
 
-    // Картинка сжимается при вставке: снимок экрана (PNG, мало цветов) —
-    // PNG, фото и скан — JPEG 88. Имя файла — хэш содержимого: одинаковая
-    // картинка второй раз не записывается.
-    public string Import(BitmapSource src, string name, bool preferPng)
+    // Картинка из памяти (буфер обмена, страница PDF) — PNG, без потерь.
+    // Имя файла — хэш содержимого: одинаковая картинка второй раз не
+    // записывается.
+    public string Import(BitmapSource src, string name)
     {
-        BitmapSource bmp = src;
-        var side = Math.Max(bmp.PixelWidth, bmp.PixelHeight);
-        if (side > MaxSide)
-        {
-            var k = (double)MaxSide / side;
-            bmp = new TransformedBitmap(bmp, new ScaleTransform(k, k));
-        }
-        if (bmp.Format != PixelFormats.Bgra32 && bmp.Format != PixelFormats.Bgr32)
+        var bmp = src;
+        if (bmp.Format != PixelFormats.Bgra32 && bmp.Format != PixelFormats.Bgr32 && bmp.Format != PixelFormats.Pbgra32)
             bmp = new FormatConvertedBitmap(bmp, PixelFormats.Bgra32, null, 0);
+        return Store(Encode(new PngBitmapEncoder(), bmp), ".png", bmp.PixelWidth, bmp.PixelHeight, name);
+    }
 
-        byte[] data;
-        string ext;
-        if (preferPng)
-        {
-            data = Encode(new PngBitmapEncoder(), bmp);
-            ext = ".png";
-            // Большой PNG — скорее фото, чем снимок экрана: JPEG меньше в разы.
-            if (data.Length > 2_500_000)
-            {
-                data = Encode(new JpegBitmapEncoder { QualityLevel = 88 }, Opaque(bmp));
-                ext = ".jpg";
-            }
-        }
-        else
-        {
-            data = Encode(new JpegBitmapEncoder { QualityLevel = 88 }, Opaque(bmp));
-            ext = ".jpg";
-        }
+    string Store(byte[] data, string ext, int w, int h, string name)
+    {
         var hash = Convert.ToHexString(SHA1.HashData(data))[..16].ToLowerInvariant();
         var file = hash + ext;
         if (!Project.Assets.ContainsKey(hash))
         {
             File.WriteAllBytes(Path.Combine(Dir, ImagesDir, file), data);
-            Project.Assets[hash] = new AssetInfo { File = file, W = bmp.PixelWidth, H = bmp.PixelHeight, Name = name };
+            Project.Assets[hash] = new AssetInfo { File = file, W = w, H = h, Name = name };
         }
         return hash;
     }
 
-    static BitmapSource Opaque(BitmapSource bmp)
+    // Картинки в памяти — только нужные сейчас: страница PDF в 300 dpi — это
+    // десятки мегабайт, весь проект разом не помещается. Держатся картинки
+    // текущего разворота, остальные читаются с диска заново при переходе.
+    public void KeepOnly(IEnumerable<string?> assets)
     {
-        // JPEG без прозрачности: прозрачные места — белые, а не чёрные.
-        var dv = new DrawingVisual();
-        using (var dc = dv.RenderOpen())
-        {
-            dc.DrawRectangle(Brushes.White, null, new System.Windows.Rect(0, 0, bmp.PixelWidth, bmp.PixelHeight));
-            dc.DrawImage(bmp, new System.Windows.Rect(0, 0, bmp.PixelWidth, bmp.PixelHeight));
-        }
-        var rtb = new RenderTargetBitmap(bmp.PixelWidth, bmp.PixelHeight, 96, 96, PixelFormats.Pbgra32);
-        rtb.Render(dv);
-        return rtb;
+        var keep = assets.Where(a => a != null).ToHashSet();
+        foreach (var k in _cache.Keys.Where(k => !keep.Contains(k)).ToList()) _cache.Remove(k);
     }
 
     static byte[] Encode(BitmapEncoder enc, BitmapSource bmp)

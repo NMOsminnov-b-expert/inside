@@ -34,9 +34,15 @@
         <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
         <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
+        <!-- Резкость: текст — по пикселям экрана (Display), а не «идеальной»
+             формы — она мылит мелкий шрифт; размеры и границы — по целым
+             точкам. Разрешение экрана — по каждому монитору (app.manifest). -->
         <Style TargetType="Window" BasedOn="{StaticResource {x:Type Window}}">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
             <Setter Property="FontSize" Value="13"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
         </Style>
         <Style TargetType="ToolTip" BasedOn="{StaticResource {x:Type ToolTip}}">
             <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>

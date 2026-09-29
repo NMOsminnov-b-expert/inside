@@ -108,7 +108,7 @@ public sealed class SheetView : FrameworkElement
         {
             case "link":
                 Cursor = Cursors.Hand;
-                HoverHint?.Invoke($"Связь {t.Link!.N}: щелчок — выбрать и подсказка, двойной щелчок или Enter — описать, 1–4 — вид, правая кнопка — меню");
+                HoverHint?.Invoke($"Связь {t.Link!.N}: щелчок — выбрать и подсказка, двойной щелчок или Enter — описать, правая кнопка — меню");
                 break;
             case "row":
                 Cursor = Cursors.Hand;
@@ -228,6 +228,7 @@ public sealed class SheetView : FrameworkElement
     {
         Focusable = true;
         ClipToBounds = true;
+        SnapsToDevicePixels = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
     }
 
@@ -262,6 +263,8 @@ public sealed class SheetView : FrameworkElement
         Filter = null;
         Lens = false;
         var dv = new DrawingVisual();
+        // Картинки в выгрузке — сглаживание высокого качества, как на полотне.
+        RenderOptions.SetBitmapScalingMode(dv, BitmapScalingMode.HighQuality);
         using (var dc = dv.RenderOpen())
         {
             dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, b.Width * scale, b.Height * scale));
@@ -398,6 +401,7 @@ public sealed class SheetView : FrameworkElement
 
     protected override void OnRender(DrawingContext dc)
     {
+        PixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         dc.DrawRectangle(Paper, null, new Rect(0, 0, ActualWidth, ActualHeight));
         if (Sheet == null || Store == null) return;
 
@@ -512,8 +516,12 @@ public sealed class SheetView : FrameworkElement
     static void DrawHandle(DrawingContext dc, Point p) =>
         dc.DrawRectangle(Brushes.White, HandlePen, new Rect(p.X - HandleR, p.Y - HandleR, HandleR * 2, HandleR * 2));
 
+    // Плотность экрана: при 125–150 % текст, построенный под 96 dpi,
+    // растягивается и мылится. Обновляется при отрисовке полотна.
+    public static double PixelsPerDip { get; private set; } = 1.0;
+
     public static FormattedText Text(string s, double size, Color c) =>
-        new(s, CultureInfo.GetCultureInfo("ru-RU"), FlowDirection.LeftToRight, Face, size, new SolidColorBrush(c), 1.0);
+        new(s, CultureInfo.GetCultureInfo("ru-RU"), FlowDirection.LeftToRight, Face, size, new SolidColorBrush(c), PixelsPerDip);
 
     // Ручки: 0..3 — углы (лв, пв, пн, лн), 4..7 — середины сторон (в, п, н, л).
     static Point[] Corners(Rect r) => new[] { r.TopLeft, r.TopRight, r.BottomRight, r.BottomLeft };
@@ -1298,7 +1306,9 @@ public sealed class SheetView : FrameworkElement
         for (var i = from; i < to; i++)
         {
             var k = links[i];
-            var h = Math.Max(Measure(k.DocField, col - TPad * 2), Measure(k.SystemField, col - TPad * 2)) + TPad * 2;
+            var sys = Measure(k.SystemField, col - TPad * 2);
+            if (k.Comment.Length > 0) sys += CommentGap + Measure(k.Comment, col - TPad * 2, TNote);
+            var h = Math.Max(Measure(k.DocField, col - TPad * 2), sys) + TPad * 2;
             h = Math.Max(h, 58);
             rows.Add((k, y, h));
             y += h;
@@ -1307,9 +1317,11 @@ public sealed class SheetView : FrameworkElement
         return rows;
     }
 
-    static double Measure(string text, double width)
+    const double TNote = 21, CommentGap = 6;
+
+    static double Measure(string text, double width, double size = TFont)
     {
-        var ft = Text(string.IsNullOrEmpty(text) ? " " : text, TFont, Colors.Black);
+        var ft = Text(string.IsNullOrEmpty(text) ? " " : text, size, Colors.Black);
         ft.MaxTextWidth = Math.Max(40, width);
         return ft.Height;
     }
@@ -1363,6 +1375,12 @@ public sealed class SheetView : FrameworkElement
             var d2 = Text(k.SystemField, TFont, ink);
             d2.MaxTextWidth = Math.Max(40, col - TPad * 2);
             dc.DrawText(d2, new Point(l.X + TNum + col + TPad, y + TPad));
+            if (k.Comment.Length > 0)
+            {
+                var d3 = Text(k.Comment, TNote, muted);
+                d3.MaxTextWidth = Math.Max(40, col - TPad * 2);
+                dc.DrawText(d3, new Point(l.X + TNum + col + TPad, y + TPad + Measure(k.SystemField, col - TPad * 2) + CommentGap));
+            }
             dc.DrawLine(line, new Point(l.X, y + h), new Point(l.X + l.W, y + h));
         }
     }

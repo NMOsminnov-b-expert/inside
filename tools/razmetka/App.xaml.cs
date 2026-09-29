@@ -9,10 +9,28 @@ public partial class App : Application
 {
     public static bool Scripted { get; private set; }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         var args = e.Args;
+        // Дочерний процесс для PDF (Model/PdfPages.cs): без окна; выход —
+        // сразу после записи, не дожидаясь закрытия движка PDF.
+        if (args.Length >= 2 && args[0] is "--pdf-count" or "--pdf-render")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var code = 0;
+            try
+            {
+                if (args[0] == "--pdf-count") Console.Out.Write(await Model.PdfPages.CountHere(args[1]));
+                else await Model.PdfPages.RenderHere(args[1], int.Parse(args[2]),
+                    double.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture), args[4]);
+            }
+            catch (Exception) { code = 1; }
+            Console.Out.Flush();
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
+            Environment.Exit(code);
+            return;
+        }
         string? open = null, script = null;
         for (var i = 0; i < args.Length - 1; i++)
         {

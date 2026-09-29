@@ -53,6 +53,7 @@ public static class LinkOps
         c.DocField = k.DocField;
         c.SystemField = k.SystemField;
         c.Kind = k.Kind;
+        c.Comment = k.Comment;
         return c;
     }
 

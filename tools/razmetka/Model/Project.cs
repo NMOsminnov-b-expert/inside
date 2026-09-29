@@ -116,6 +116,9 @@ public sealed class Link
     public int N { get; set; }
     public string Src { get; set; } = "";
     public string Tgt { get; set; } = "";
+    // Вид связи: с 29.09.2026 один — «переносится» (пользователь: «вид связи
+    // оставить единым… виды связей немного сбивают»); поле осталось ради
+    // прежних проектов и экспорта. Пояснение к связи — Comment.
     public string Kind { get; set; } = LinkKind.Transfer;
     public string DocField { get; set; } = "";
     public string SystemField { get; set; } = "";
@@ -128,6 +131,8 @@ public sealed class Link
     // «См. также»: связи других разворотов про то же поле.
     public List<string> SeeAlso { get; set; } = new();
     public string Url { get; set; } = "";
+    // Комментарий к связи: как переносится, оговорки, вопросы.
+    public string Comment { get; set; } = "";
 }
 
 public sealed class Note

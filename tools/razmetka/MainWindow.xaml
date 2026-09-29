@@ -11,7 +11,7 @@
          текущего; в центре — полотно, инструменты — плавающей панелью внизу по
          центру; справа — инспектор выбранного; внизу — строка состояния.
          Боковые панели закреплены и тянутся; Ctrl+\ — только полотно. -->
-    <Grid>
+    <Grid Background="{StaticResource Ground}">
         <Grid.RowDefinitions>
             <RowDefinition Height="52"/>
             <RowDefinition/>
@@ -189,11 +189,17 @@
 
                 <!-- Инструменты — внизу по центру (Figma UI3); буква клавиши на
                      кнопке (Excalidraw). -->
-                <Border x:Name="Toolbar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,16" Visibility="Collapsed"
-                        Background="{StaticResource Card}" CornerRadius="8" Padding="4" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                <!-- Тень — у подложки (ToolbarShadow): эффект на самой панели
+                     мылит значки и текст внутри. -->
+                <Border x:Name="ToolbarShadow" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,16" Visibility="{Binding Visibility, ElementName=Toolbar}"
+                        Background="{StaticResource Card}" CornerRadius="8" IsHitTestVisible="False"
+                        Width="{Binding ActualWidth, ElementName=Toolbar}" Height="{Binding ActualHeight, ElementName=Toolbar}">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.16" Direction="270"/>
                     </Border.Effect>
+                </Border>
+                <Border x:Name="Toolbar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,16" Visibility="Collapsed"
+                        Background="{StaticResource Card}" CornerRadius="8" Padding="4" BorderBrush="{StaticResource Line}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
                         <ToggleButton x:Name="TSelect" Style="{StaticResource ToolToggle}" Content="&#xE8B0;" Tag="V"/>
                         <ToggleButton x:Name="THand" Style="{StaticResource ToolToggle}" Content="&#xE7C2;" Tag="H"/>

@@ -101,7 +101,7 @@ public partial class MainWindow
         Add("link.next", "Следующая связь", "Связь", Scope.Canvas, () => StepLink(1), () => HasSheet, keys: K(Key.Tab));
         Add("link.prev", "Предыдущая связь", "Связь", Scope.Canvas, () => StepLink(-1), () => HasSheet, keys: K(Key.Tab, S));
         Add("link.edit", "Описать связь", "Связь", Scope.Canvas, () => EditLinkCard(View.SelectedLink!), () => LinkSel,
-            "Графа документа, поле системы, вид — у стрелки", keys: K(Key.Enter));
+            "Графа документа, поле системы, комментарий — у стрелки", keys: K(Key.Enter));
         // Enter — «войти в правку выбранного» (Figma): обрезка — готово,
         // картинка — обрезать, заметка — к тексту. Связь — строкой выше.
         Add("edit.enter", "Править выбранное", "Правка", Scope.Canvas, EnterSelected,
@@ -113,13 +113,6 @@ public partial class MainWindow
         Add("link.toRow", "К строке таблицы", "Связь", Scope.Canvas, () => ToTableRow(View.SelectedLink!), () => LinkSel);
         Add("link.straighten", "Выпрямить стрелку", "Связь", Scope.Canvas,
             () => Edit("Выпрямить стрелку", () => { var k = View.SelectedLink!; k.Points.Clear(); SheetGeo.Reroute(_sheet!, new[] { k.Id }); }), () => LinkSel);
-        for (var i = 0; i < LinkKind.All.Length; i++)
-        {
-            var (key, label) = LinkKind.All[i];
-            Add($"link.kind.{key}", $"Вид связи: {label}", "Связь", Scope.Canvas, () => SetKind(View.SelectedLink!, key), () => LinkSel,
-                "Вид у выбранной связи — цифрой", true, null,
-                K(Key.D1 + i), K(Key.NumPad1 + i));
-        }
 
         // Слой
         Add("layer.crop", "Обрезать", "Слой", Scope.Canvas, StartCropSelected, () => ImageSel, "Без потери пикселей: вернуть можно всегда", keys: K(Key.C));
@@ -236,12 +229,6 @@ public partial class MainWindow
         Status($"Связь {k.N} · {j + 1} из {ordered.Count}: {(k.DocField.Length > 0 ? k.DocField : "графа не описана")} → {(k.SystemField.Length > 0 ? k.SystemField : "поле не описано")}. Enter — описать");
     }
 
-    void SetKind(Link k, string kind)
-    {
-        if (k.Kind == kind) return;
-        Edit("Вид связи", () => k.Kind = kind);
-        Status($"Связь {k.N}: {LinkKind.All.First(x => x.Key == kind).Label}");
-    }
 
     void StartCropSelected()
     {
@@ -420,7 +407,6 @@ public partial class MainWindow
                 AddAll(m,
                     new MenuItem { Header = $"Связь {k.N}", IsEnabled = false, FontWeight = FontWeights.SemiBold },
                     Mc("link.edit", "Описать…", sel),
-                    Sub("Вид связи", LinkKind.All.Select((x, i) => (object)Check(x.Label, k.Kind == x.Key, () => SetKind(k, x.Key), (i + 1).ToString()))),
                     t.Kind == "link" ? new Separator() : null,
                     t.Kind == "link" ? Mi("Излом здесь", () => View.AddBendAt(t.Screen)) : null,
                     t.Kind == "link" ? Mc("link.straighten") : null,

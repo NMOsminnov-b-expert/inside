@@ -311,16 +311,19 @@ public partial class MainWindow
         if (!pinned) tools.Children.Add(Kit.IconBtn("", "Закрыть — Esc", () => { if (_pop != null) Pops.Children.Remove(_pop); _pop = null; }, 11, "Muted"));
         DockPanel.SetDock(tools, Dock.Right);
         head.Children.Add(tools);
-        var kind = Kit.Text(LinkKind.All.FirstOrDefault(x => x.Key == k.Kind).Label ?? "", 12, "Muted");
-        kind.Margin = new Thickness(8, 0, 8, 0);
-        kind.VerticalAlignment = VerticalAlignment.Center;
-        head.Children.Add(kind);
+        head.Children.Add(new Border());
         panel.Children.Add(head);
         panel.Children.Add(Kit.Text(_chapter?.DocName is { Length: > 0 } d ? d : "Документ", 11, "Faint", FontWeights.SemiBold));
         panel.Children.Add(k.DocField.Length > 0 ? Kit.Text(k.DocField, 13, wrap: true) : Kit.Text("графа не описана — Enter", 13, "Warn"));
         panel.Children.Add(new Border { Height = 6 });
         panel.Children.Add(Kit.Text("Система", 11, "Faint", FontWeights.SemiBold));
         panel.Children.Add(k.SystemField.Length > 0 ? Kit.Text(k.SystemField, 13, wrap: true) : Kit.Text("поле не описано — Enter", 13, "Warn"));
+        if (k.Comment.Length > 0)
+        {
+            panel.Children.Add(new Border { Height = 6 });
+            panel.Children.Add(Kit.Text("Комментарий", 11, "Faint", FontWeights.SemiBold));
+            panel.Children.Add(Kit.Text(k.Comment, 12, "Muted", wrap: true));
+        }
         return Kit.Card(panel, new Thickness(12, 10, 10, 10), new SolidColorBrush(col), pinned ? 1.5 : 2);
     }
 
@@ -354,15 +357,10 @@ public partial class MainWindow
         panel.Children.Add(doc);
         panel.Children.Add(L("Поле системы · Блок · Подблок · Поле").Also(x => x.Margin = new Thickness(0, 10, 0, 4)));
         panel.Children.Add(sys);
-        var kind = k.Kind;
-        var kindHost = new Border { Margin = new Thickness(0, 4, 0, 0) };
-        void Kinds()
-        {
-            kindHost.Child = Kit.Segmented(LinkKind.All.Select((x, i) => (x.Key, ShortKind(x.Key), (string?)$"{x.Label} — Alt+{i + 1}")).ToList(), kind, v => { kind = v; Kinds(); });
-        }
-        Kinds();
-        panel.Children.Add(L("Вид связи").Also(x => x.Margin = new Thickness(0, 10, 0, 0)));
-        panel.Children.Add(kindHost);
+        var note = Kit.Box(k.Comment, multi: true);
+        note.MinHeight = 44;
+        panel.Children.Add(L("Комментарий").Also(x => x.Margin = new Thickness(0, 10, 0, 4)));
+        panel.Children.Add(note);
 
         var foot = new DockPanel { Margin = new Thickness(0, 14, 0, 0) };
         var ok = new Button { Content = "Готово", Style = Kit.S("PrimaryBtn"), ToolTip = "Enter" };
@@ -372,7 +370,7 @@ public partial class MainWindow
         btns.Children.Add(ok);
         DockPanel.SetDock(btns, Dock.Right);
         foot.Children.Add(btns);
-        var keys = Kit.Text("Shift+Enter — готово и следующая связь\nAlt+1…4 — вид связи", 11, "Faint", wrap: true);
+        var keys = Kit.Text("Shift+Enter — готово\nи следующая связь", 11, "Faint", wrap: true);
         keys.VerticalAlignment = VerticalAlignment.Center;
         foot.Children.Add(keys);
         panel.Children.Add(foot);
@@ -380,8 +378,8 @@ public partial class MainWindow
         var card = Kit.Card(panel, new Thickness(16, 14, 16, 14), new SolidColorBrush(col), 2);
         void Save(bool next)
         {
-            if (k.DocField != doc.Text.Trim() || k.SystemField != sys.Text.Trim() || k.Kind != kind)
-                Edit("Описание связи", () => { k.DocField = doc.Text.Trim(); k.SystemField = sys.Text.Trim(); k.Kind = kind; });
+            if (k.DocField != doc.Text.Trim() || k.SystemField != sys.Text.Trim() || k.Comment != note.Text.Trim())
+                Edit("Описание связи", () => { k.DocField = doc.Text.Trim(); k.SystemField = sys.Text.Trim(); k.Comment = note.Text.Trim(); });
             CloseEditor();
             if (next) { _chainLinks = true; SetTool("link"); Status($"Связь {k.N} описана. Следующая: обведите графу на документе"); }
             else Status($"Связь {k.N} описана");
@@ -397,12 +395,6 @@ public partial class MainWindow
             if (key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Shift) { Save(true); e.Handled = true; }
             else if (key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None) { Save(false); e.Handled = true; }
             else if (key == Key.Escape) { CloseEditor(); e.Handled = true; }
-            else if (Keyboard.Modifiers == ModifierKeys.Alt && key is >= Key.D1 and <= Key.D4)
-            {
-                kind = LinkKind.All[key - Key.D1].Key;
-                Kinds();
-                e.Handled = true;
-            }
             else if (Keyboard.Modifiers == ModifierKeys.Control && key == Key.S) { Save(false); Save0(); e.Handled = true; }
         };
         _editor = card;
@@ -417,10 +409,6 @@ public partial class MainWindow
 
     void Save0() => Save();
 
-    static string ShortKind(string k) => k switch
-    {
-        LinkKind.Auto => "По ЕНИ", LinkKind.NameOnly => "В имя", LinkKind.None => "Нет", _ => "Переносится",
-    };
 
     void CloseEditor()
     {

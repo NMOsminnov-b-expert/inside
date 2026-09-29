@@ -34,7 +34,6 @@ public sealed class AutoBox : Grid
         {
             Background = Kit.B("Card"), BorderBrush = Kit.B("Line"), BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8), Padding = new Thickness(2), Margin = new Thickness(0, 4, 8, 8), Child = _list,
-            Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 14, ShadowDepth = 2, Opacity = 0.16, Direction = 270 },
         };
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         Children.Add(_pop);

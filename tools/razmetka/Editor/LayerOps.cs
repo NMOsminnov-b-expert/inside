@@ -8,10 +8,11 @@ public static class LayerOps
 {
     // Новый слой-картинка: во всю картинку, шириной не больше 1100 единиц
     // полотна, справа от занятого места.
-    public static Layer AddImage(Sheet s, ProjectStore store, string asset, string name)
+    // width — ширина на полотне; не задана — по пикселям, но не шире 1100.
+    public static Layer AddImage(Sheet s, ProjectStore store, string asset, string name, double? width = null)
     {
         var info = store.Project.Assets[asset];
-        var w = Math.Min(info.W, 1100);
+        var w = width ?? Math.Min(info.W, 1100);
         var right = s.Layers.Where(l => !l.Hidden).Select(l => l.X + l.W).DefaultIfEmpty(0).Max();
         var l = new Layer
         {

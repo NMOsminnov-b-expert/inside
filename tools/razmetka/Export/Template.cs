@@ -143,7 +143,7 @@ table.links{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
     var big = el('button', null, 'Крупно'); big.onclick = function(){ openViewer(s); }; hd.appendChild(big);
     art.appendChild(hd);
     var st = el('div', 'stage'); art.appendChild(st);
-    var img = el('img'); img.src = 'data:image/jpeg;base64,' + s.img; img.alt = s.title; img.width = s.w; img.height = s.h; st.appendChild(img);
+    var img = el('img'); img.src = 'data:image/png;base64,' + s.img; img.alt = s.title; img.width = s.w; img.height = s.h; st.appendChild(img);
     var svg = sv('svg', {viewBox:'0 0 ' + s.w + ' ' + s.h, preserveAspectRatio:'none'}); st.appendChild(svg);
     s.links.forEach(function(k, i){
       var g = sv('g', {'class':'lk'}); g.dataset.i = i;
@@ -161,12 +161,12 @@ table.links{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
     });
     // Таблица связей текстом.
     var tb = el('table', 'links'); var th = el('thead'); var tr = el('tr');
-    ['№', s.doc || 'Документ', 'Система', 'Тип'].forEach(function(t){ tr.appendChild(el('th', null, t)); });
+    ['№', s.doc || 'Документ', 'Система', 'Комментарий'].forEach(function(t){ tr.appendChild(el('th', null, t)); });
     th.appendChild(tr); tb.appendChild(th); var body = el('tbody'); tb.appendChild(body);
     rowsOf[s.id] = [];
     s.links.forEach(function(k, i){
       var r = el('tr'); var n = el('td', 'num'); var chip = el('span', null, String(k.n)); chip.style.setProperty('--c', k.color); n.appendChild(chip);
-      r.appendChild(n); r.appendChild(el('td', null, k.doc)); r.appendChild(el('td', null, k.sys)); r.appendChild(el('td', 'kind', k.kindLabel));
+      r.appendChild(n); r.appendChild(el('td', null, k.doc)); r.appendChild(el('td', null, k.sys)); r.appendChild(el('td', 'kind', k.comment));
       r.onclick = function(){ pop(s, i, false); st.scrollIntoView({block:'center'}); };
       body.appendChild(r); rowsOf[s.id].push(r);
     });
@@ -185,11 +185,12 @@ table.links{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
     var k = s.links[i];
     if (!pinned && loose) loose.remove();
     var p = el('div', 'pop'); p.style.setProperty('--c', k.color);
-    var hd = el('div', 'hd'); hd.appendChild(el('span', 'chip', String(k.n))); hd.appendChild(el('span', 'kind', k.kindLabel));
+    var hd = el('div', 'hd'); hd.appendChild(el('span', 'chip', String(k.n))); hd.appendChild(el('span', 'kind', ''));
     var x = el('button', 'x', '✕'); x.title = 'Закрыть'; x.onclick = function(){ p.remove(); if (loose === p) loose = null; mark(s, -1); }; hd.appendChild(x);
     p.appendChild(hd);
     p.appendChild(el('div', 'lbl', s.doc || 'Документ')); p.appendChild(el('p', null, k.doc));
     p.appendChild(el('div', 'lbl', 'Система')); p.appendChild(el('p', null, k.sys));
+    if (k.comment){ p.appendChild(el('div', 'lbl', 'Комментарий')); p.appendChild(el('p', null, k.comment)); }
     if (k.also.length){
       p.appendChild(el('div', 'lbl', 'То же поле в других разворотах'));
       var al = el('div', 'bar'); k.also.forEach(function(a){ var b = el('button', null, a.label); b.onclick = function(){ jump(a.sheet, a.n); }; al.appendChild(b); });
@@ -236,7 +237,7 @@ table.links{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
   var V = document.getElementById('viewer'), vp = document.getElementById('vp'), vi = document.getElementById('vi'), sc = 1, ox = 0, oy = 0, drag = null;
   function apply(){ vi.style.transform = 'translate(' + ox + 'px,' + oy + 'px) scale(' + sc + ')'; }
   function openViewer(s){
-    vi.src = 'data:image/jpeg;base64,' + s.img; document.getElementById('vt').textContent = s.title + (s.page ? ' · ' + s.page : '');
+    vi.src = 'data:image/png;base64,' + s.img; vi.width = s.w; vi.height = s.h; document.getElementById('vt').textContent = s.title + (s.page ? ' · ' + s.page : '');
     V.classList.add('open'); var r = vp.getBoundingClientRect();
     sc = Math.min(r.width / s.w, r.height / s.h); ox = (r.width - s.w * sc) / 2; oy = (r.height - s.h * sc) / 2; apply();
   }

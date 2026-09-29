@@ -26,6 +26,10 @@
     <!-- Иконка файла и окна (tools/graf/make_icons.py) — чтобы программу было
          видно в списке файлов и на панели задач. -->
     <ApplicationIcon>Assets\razmetka.ico</ApplicationIcon>
+    <!-- Разрешение экрана — по каждому монитору (PerMonitorV2): иначе на
+         мониторе с другим масштабом Windows растягивает окно картинкой, и всё
+         мылится. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>

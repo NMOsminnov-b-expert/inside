@@ -34,7 +34,7 @@ public sealed class Palette : Border
         BorderBrush = Kit.B("Line");
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(8);
-        Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 32, ShadowDepth = 6, Opacity = 0.22, Direction = 270 };
+
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
 
         var head = new Grid { Margin = new Thickness(14, 8, 14, 8) };

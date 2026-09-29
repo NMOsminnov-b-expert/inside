@@ -25,18 +25,35 @@ public static class Exporter
         return v;
     }
 
+    // Масштаб экспорта — по самой подробной картинке разворота: пиксель
+    // исходника ложится в пиксель выгрузки, ничего не уменьшается (требование
+    // пользователя 29.09.2026: «потери качества недопустимы»). Потолок — чтобы
+    // огромный разворот не съел память: 16000 точек по стороне, 120 Мп.
+    public static double NativeScale(ProjectStore store, Sheet s, Rect bounds)
+    {
+        var k = 1.0;
+        foreach (var l in s.Layers.Where(l => !l.Hidden && l.Kind == LayerKind.Image && l.W > 0))
+            k = Math.Max(k, l.Crop.W / l.W);
+        var w = Math.Max(1, bounds.Width + 80);
+        var h = Math.Max(1, bounds.Height + 110);
+        k = Math.Min(k, Math.Min(16000 / w, 16000 / h));
+        k = Math.Min(k, Math.Sqrt(120e6 / (w * h)));
+        return Math.Max(1, k);
+    }
+
     public static void Png(ProjectStore store, Chapter ch, Sheet s, string path)
     {
-        var bmp = ViewFor(store, ch, s).RenderBitmap(1, out _);
+        var v = ViewFor(store, ch, s);
+        var bmp = v.RenderBitmap(NativeScale(store, s, v.Bounds()), out _);
         var enc = new PngBitmapEncoder();
         enc.Frames.Add(BitmapFrame.Create(bmp));
         using var f = File.Create(path);
         enc.Save(f);
     }
 
-    static string Jpeg(BitmapSource bmp)
+    static string PngBase64(BitmapSource bmp)
     {
-        var enc = new JpegBitmapEncoder { QualityLevel = 88 };
+        var enc = new PngBitmapEncoder();
         enc.Frames.Add(BitmapFrame.Create(bmp));
         using var ms = new MemoryStream();
         enc.Save(ms);
@@ -58,7 +75,7 @@ public static class Exporter
             foreach (var s in ch.Sheets)
             {
                 var v = ViewFor(store, ch, s);
-                var bmp = v.RenderBitmap(1, out var b);
+                var bmp = v.RenderBitmap(NativeScale(store, s, v.Bounds()), out var b);
                 var rows = v.TableRowRects();
                 var ordered = SheetGeo.Ordered(s);
                 double[] P(Point q) => new[] { Math.Round(q.X - b.X, 1), Math.Round(q.Y - b.Y, 1) };
@@ -75,7 +92,7 @@ public static class Exporter
                         .Select(x => new { sheet = x.s.Id, n = x.k.N, label = $"{x.c.DocName} · {x.s.Title} · {x.k.N}" }).ToList();
                     links.Add(new
                     {
-                        n = k.N, doc = k.DocField, sys = k.SystemField, kind = k.Kind, kindLabel = KindLabel(k.Kind),
+                        n = k.N, doc = k.DocField, sys = k.SystemField, comment = k.Comment, kind = k.Kind, kindLabel = KindLabel(k.Kind),
                         color = Hex(SheetGeo.ColorOf(s, k)), url = k.Url,
                         pts = pts.Select(P).ToList(), badges = new[] { P(bs), P(bt) },
                         row = row.Link == null ? null : new[] { Math.Round(row.Row.X - b.X, 1), Math.Round(row.Row.Y - b.Y, 1), Math.Round(row.Row.Width, 1), Math.Round(row.Row.Height, 1) },
@@ -85,7 +102,7 @@ public static class Exporter
                 sheets.Add(new
                 {
                     id = s.Id, chapter = ch.Title, doc = ch.DocName, title = s.Title, page = s.Page,
-                    w = bmp.PixelWidth, h = bmp.PixelHeight, img = Jpeg(bmp), links,
+                    w = Math.Round(b.Width, 1), h = Math.Round(b.Height, 1), img = PngBase64(bmp), links,
                     notes = s.Notes.Select(n => new { x = Math.Round(n.X - b.X), y = Math.Round(n.Y - b.Y), text = n.Text, author = n.Author }).ToList(),
                 });
             }
@@ -94,7 +111,9 @@ public static class Exporter
             title = p.Title,
             chapters = p.Chapters.Select(c => new { title = c.Title, sheets = c.Sheets.Select(s => s.Id).ToList() }).ToList(),
             sheets,
-            kinds = LinkKind.All.Select(x => new { key = x.Key, label = x.Label }).ToList(),
+            // Легенда видов линий — только если в проекте есть связи не
+            // «переносится» (прежние проекты): вид теперь один.
+            kinds = all.Any(x => x.k.Kind != LinkKind.Transfer) ? LinkKind.All.Select(x => new { key = x.Key, label = x.Label }).ToList() : new(),
         }, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
         // Данные — в теге JSON; «</» внутри текста не закроет тег.
         data = data.Replace("</", "<\\/");
@@ -109,8 +128,8 @@ public static class Exporter
     // для таблиц в .xlsx).
     public static void Xlsx(ProjectStore store, string path)
     {
-        var head = new[] { "Глава", "Разворот", "Страница", "№", "Документ", "Графа документа", "Блок и поле системы", "Тип связи", "То же поле также в", "Ссылка" };
-        var widths = new[] { 30, 34, 10, 6, 14, 44, 56, 26, 40, 30 };
+        var head = new[] { "Глава", "Разворот", "Страница", "№", "Документ", "Графа документа", "Блок и поле системы", "Комментарий", "То же поле также в", "Ссылка" };
+        var widths = new[] { 30, 34, 10, 6, 14, 44, 56, 40, 40, 30 };
         var all = store.Project.Chapters.SelectMany(c => c.Sheets.SelectMany(s => SheetGeo.Ordered(s).Select(k => (c, s, k)))).ToList();
         var rows = new List<string[]>();
         foreach (var (c, s, k) in all)
@@ -118,7 +137,7 @@ public static class Exporter
             var also = all.Where(x => x.k.Id != k.Id && x.k.SystemField.Length > 0
                                       && string.Equals(x.k.SystemField, k.SystemField, StringComparison.OrdinalIgnoreCase))
                 .Select(x => $"{x.c.DocName} · {x.s.Title} · {x.k.N}");
-            rows.Add(new[] { c.Title, s.Title, s.Page, k.N.ToString(), c.DocName, k.DocField, k.SystemField, KindLabel(k.Kind), string.Join("; ", also), k.Url });
+            rows.Add(new[] { c.Title, s.Title, s.Page, k.N.ToString(), c.DocName, k.DocField, k.SystemField, k.Comment, string.Join("; ", also), k.Url });
         }
         static string Col(int i) => ((char)('A' + i)).ToString();
         static string X(string t) => WebUtility.HtmlEncode(t ?? "");

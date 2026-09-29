@@ -145,7 +145,7 @@ public partial class MainWindow
         Insp.Children.Add(list);
         if (ordered.Count > 0)
         {
-            var hint = Kit.Text("Tab — перебирать связи, Enter — описать выбранную, 1–4 — вид.", 11, "Faint", wrap: true);
+            var hint = Kit.Text("Tab — перебирать связи, Enter — описать выбранную.", 11, "Faint", wrap: true);
             hint.Margin = new Thickness(16, 2, 16, 4);
             Insp.Children.Add(hint);
         }
@@ -221,9 +221,8 @@ public partial class MainWindow
         var nav = new StackPanel { Orientation = Orientation.Horizontal };
         nav.Children.Add(Kit.IconBtn("", "Предыдущая связь — Shift+Tab", () => StepLink(-1), 11, "Muted"));
         nav.Children.Add(Kit.IconBtn("", "Следующая связь — Tab", () => StepLink(1), 11, "Muted"));
-        var kindLabel = LinkKind.All.FirstOrDefault(x => x.Key == k.Kind).Label ?? "";
         var pos = SheetGeo.Ordered(sh).FindIndex(x => x.Id == k.Id) + 1;
-        Insp.Children.Add(Head($"Связь {k.N} · {pos} из {sh.Links.Count} на развороте", kindLabel, Kit.Badge(k.N, col), nav));
+        Insp.Children.Add(Head($"Связь {k.N} · {pos} из {sh.Links.Count} на развороте", k.DocField.Length > 0 ? k.DocField : "Не описана", Kit.Badge(k.N, col), nav));
 
         var doc = new AutoBox(q => AutoBox.Rank(_chapter!.Sheets.SelectMany(s => s.Links).Select(x => x.DocField), q));
         doc.Text = k.DocField;
@@ -235,32 +234,9 @@ public partial class MainWindow
         Wire(sys.Box, "sys", () => k.SystemField, v => Edit("Поле системы", () => k.SystemField = v.Trim()));
         Insp.Children.Add(Kit.Field("Поле системы", sys, "Блок · Подблок · Поле — как в интерфейсе системы; подсказки — из уже описанных связей"));
 
-        // Вид связи — строками с цифрой клавиши (Label Studio: клавиша рядом
-        // с меткой): видно и значение, и как его поставить без мыши.
-        var kinds = new StackPanel { Margin = new Thickness(-4, 0, -4, 0) };
-        for (var i = 0; i < LinkKind.All.Length; i++)
-        {
-            var (key, label) = LinkKind.All[i];
-            var on = k.Kind == key;
-            var row = new DockPanel();
-            var kb = Kit.Kbd((i + 1).ToString());
-            DockPanel.SetDock(kb, Dock.Right);
-            row.Children.Add(kb);
-            var mark = Kit.Icon(on ? "" : "", 12, "Accent");
-            mark.Width = 20;
-            DockPanel.SetDock(mark, Dock.Left);
-            row.Children.Add(mark);
-            row.Children.Add(Kit.Text(label, 13, on ? "AccentText" : "Ink", on ? FontWeights.SemiBold : FontWeights.Normal));
-            var b = new Button
-            {
-                Style = Kit.S("ToolBtn"), Content = row, HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(4, 4, 6, 4),
-                Background = on ? Kit.B("AccentSoft") : Brushes.Transparent, ToolTip = $"{label} — клавиша {i + 1}; на полотне: {KindLine(key)}",
-            };
-            var kk = key;
-            b.Click += (_, _) => SetKind(k, kk);
-            kinds.Children.Add(b);
-        }
-        Insp.Children.Add(Kit.Field("Вид связи", kinds));
+        var note = Bound("comment", k.Comment, v => Edit("Комментарий связи", () => k.Comment = v.Trim()), multi: true, acceptsReturn: true);
+        note.MinHeight = 64;
+        Insp.Children.Add(Kit.Field("Комментарий", note, "Как переносится, оговорки, вопросы; Ctrl+Enter — готово. Виден в таблице и в экспорте"));
 
         Insp.Children.Add(Kit.Section("Стрелка"));
         var sides = Sides.Select(x => (x.Key, x.Key == "" ? "авто" : x.Key switch { "left" => "←", "right" => "→", "top" => "↑", _ => "↓" }, (string?)x.Label)).ToList();
@@ -307,10 +283,6 @@ public partial class MainWindow
         }
     }
 
-    static string KindLine(string kind) => kind switch
-    {
-        LinkKind.Auto => "короткий штрих", LinkKind.NameOnly => "точки", LinkKind.None => "штрих", _ => "сплошная линия",
-    };
 
     // Строка связи другого разворота — с подписью, откуда она.
     static Button Relabel(Button b, Chapter ch, Sheet sh)
