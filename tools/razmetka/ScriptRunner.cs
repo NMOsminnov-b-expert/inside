@@ -132,13 +132,70 @@ public static class ScriptRunner
                     {
                         var k = w.Canvas.Sheet!.Links.First(x => x.N == st.GetProperty("n").GetInt32());
                         w.Canvas.SelectLink(k.Id);
+                        w.SetSides(k, st.GetProperty("src").GetString()!, st.GetProperty("tgt").GetString()!);
+                        break;
+                    }
+                    case "cmd":
+                    {
+                        // Выполнить команду реестра по id (как из палитры).
+                        var id = st.GetProperty("id").GetString()!;
+                        if (!w.Commands.Execute(id)) log.Add("  команда недоступна: " + id);
+                        break;
+                    }
+                    case "palette":
+                    {
+                        // Открыть палитру, набрать запрос; run — выполнить первую строку.
+                        w.Commands.Execute(st.TryGetProperty("sheets", out var sh0) && sh0.GetBoolean() ? "go.sheet" : "go.palette");
                         await Idle();
-                        foreach (var (name, key) in new[] { ("LinkSrcSide", "src"), ("LinkTgtSide", "tgt") })
+                        var pal = (Ui.Palette)w.FindName("Pal");
+                        if (st.TryGetProperty("run", out var run) && run.GetBoolean()) log.Add("  выполнено: " + pal.RunFirst(st.GetProperty("q").GetString()!));
+                        else ((System.Windows.Controls.TextBox)((System.Windows.Controls.Grid)((System.Windows.Controls.Grid)((System.Windows.Controls.DockPanel)pal.Child).Children[0]).Children[1]).Children[1]).Text = st.GetProperty("q").GetString();
+                        break;
+                    }
+                    case "overflow":
+                    {
+                        // Какие элементы выходят за окно — самые глубокие.
+                        var root = (FrameworkElement)w.Content;
+                        void Walk(DependencyObject d)
                         {
-                            var cb = (System.Windows.Controls.ComboBox)w.FindName(name);
-                            var want = st.GetProperty(key).GetString();
-                            cb.SelectedItem = cb.Items.Cast<System.Windows.Controls.ComboBoxItem>().First(i => (string)i.Tag == want);
+                            var n = VisualTreeHelper.GetChildrenCount(d);
+                            var any = false;
+                            for (var i = 0; i < n; i++)
+                            {
+                                var c = VisualTreeHelper.GetChild(d, i);
+                                if (c is UIElement u && u.IsVisible && c is Visual v)
+                                {
+                                    var r = v.TransformToAncestor(root).TransformBounds(new Rect(u.RenderSize));
+                                    if (r.Right > root.ActualWidth + 1) { any = true; Walk(c); }
+                                }
+                            }
+                            if (!any && d is FrameworkElement fe && d != root)
+                                log.Add($"  за краем: {fe.GetType().Name} {fe.Name} {fe.TransformToAncestor(root).TransformBounds(new Rect(fe.RenderSize))}");
                         }
+                        Walk(root);
+                        break;
+                    }
+                    case "closeOverlays":
+                        ((Ui.Palette)w.FindName("Pal")).Close();
+                        ((Ui.Cheatsheet)w.FindName("Cheat")).Close();
+                        break;
+                    case "focus":
+                    {
+                        // Фокус на элемент окна по имени (Nav, SearchBox) или на полотно.
+                        var name = st.GetProperty("name").GetString()!;
+                        if (name == "canvas") w.Canvas.Focus();
+                        else ((UIElement)w.FindName(name)).Focus();
+                        break;
+                    }
+                    case "keyWin":
+                    {
+                        // Клавиша так, как её получает окно: с учётом фокуса.
+                        var key = Enum.Parse<Key>(st.GetProperty("key").GetString()!);
+                        var target = Keyboard.FocusedElement as UIElement ?? w;
+                        var src = PresentationSource.FromVisual(w)!;
+                        var ev = new KeyEventArgs(Keyboard.PrimaryDevice, src, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                        target.RaiseEvent(ev);
+                        if (!ev.Handled) log.Add("  клавиша не обработана: " + key);
                         break;
                     }
                     case "replace":
@@ -201,7 +258,7 @@ public static class ScriptRunner
                         var boxes = FindAll<System.Windows.Controls.TextBox>(w.Editor!).ToList();
                         boxes[0].Text = st.GetProperty("doc").GetString();
                         boxes[1].Text = st.GetProperty("sys").GetString();
-                        var ok = FindAll<System.Windows.Controls.Button>(w.Editor!).First(b => (string)b.Content == "Готово");
+                        var ok = FindAll<System.Windows.Controls.Button>(w.Editor!).First(b => b.Content as string == "Готово");
                         ok.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                         break;
                     }
@@ -332,7 +389,13 @@ public static class ScriptRunner
         var dv = new DrawingVisual();
         using (var dc = dv.RenderOpen())
         {
-            dc.DrawRectangle(new VisualBrush(root), null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+            // Окно один к одному: без Viewbox кисть вписывает всё содержимое,
+            // и элемент, вылезший за край, сжимал бы снимок.
+            dc.DrawRectangle(new VisualBrush(root)
+            {
+                Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top,
+                ViewboxUnits = BrushMappingMode.Absolute, Viewbox = new Rect(0, 0, root.ActualWidth, root.ActualHeight),
+            }, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
         }
         rtb.Render(dv);
         var enc = new PngBitmapEncoder();

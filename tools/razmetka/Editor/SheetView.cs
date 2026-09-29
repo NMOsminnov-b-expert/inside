@@ -95,7 +95,7 @@ public sealed class SheetView : FrameworkElement
     void Hover(Point p)
     {
         if (Sheet == null || _op != Op.None) return;
-        if (LinkTool || NoteTool || _ghost != null || CropLayerId != null) return;
+        if (LinkTool || NoteTool || HandTool || _ghost != null || CropLayerId != null) return;
         if (Selection.Count == 1 && Find(Selection[0]) is { Locked: false, Hidden: false } sel
             && HitHandle(Corners(ScreenRect(sel)), p) is var h && h >= 0)
         {
@@ -108,11 +108,11 @@ public sealed class SheetView : FrameworkElement
         {
             case "link":
                 Cursor = Cursors.Hand;
-                HoverHint?.Invoke($"Связь {t.Link!.N}: щелчок — подсказка, двойной щелчок — описать, правая кнопка — меню");
+                HoverHint?.Invoke($"Связь {t.Link!.N}: щелчок — выбрать и подсказка, двойной щелчок или Enter — описать, 1–4 — вид, правая кнопка — меню");
                 break;
             case "row":
                 Cursor = Cursors.Hand;
-                HoverHint?.Invoke($"Строка связи {t.Link!.N}: двойной щелчок — описать, правая кнопка — меню таблицы");
+                HoverHint?.Invoke($"Строка связи {t.Link!.N}: щелчок — выбрать, двойной щелчок — описать, правая кнопка — меню таблицы");
                 break;
             case "note":
                 Cursor = Cursors.Hand;
@@ -121,12 +121,12 @@ public sealed class SheetView : FrameworkElement
             case "layer" or "table":
                 Cursor = t.Layer!.Locked ? null : Cursors.SizeAll;
                 HoverHint?.Invoke(t.Layer.Locked
-                    ? $"«{t.Layer.Name}» закреплён — правая кнопка: открепить, обрезать, заменить"
-                    : $"«{t.Layer.Name}»: перетаскивание — перенос{(t.Kind == "layer" ? ", двойной щелчок — обрезка" : "")}, правая кнопка — меню");
+                    ? $"«{t.Layer.Name}» закреплён — не выбирается и не двигается; правая кнопка — открепить"
+                    : $"«{t.Layer.Name}»: перетаскивание — перенос{(t.Kind == "layer" ? ", двойной щелчок или C — обрезка, L — новая связь" : "")}, правая кнопка — меню");
                 break;
             default:
                 Cursor = null;
-                HoverHint?.Invoke("Правая кнопка — меню: добавить фото, новая связь, заметка, вставить");
+                HoverHint?.Invoke("Обвести — выбрать несколько; пробел или H — двигать полотно; Ctrl+K — все команды, F1 — клавиши");
                 break;
         }
     }
@@ -210,12 +210,12 @@ public sealed class SheetView : FrameworkElement
     readonly List<(bool Vertical, double At)> _guides = new();
     bool _spaceDown;
 
-    static readonly Brush Paper = new SolidColorBrush(Color.FromRgb(0xE9, 0xED, 0xF1));
+    static readonly Brush Paper = new SolidColorBrush(Color.FromRgb(0xE8, 0xEA, 0xEE));
     static readonly Brush SheetBg = Brushes.White;
-    static readonly Pen SelPen = new(new SolidColorBrush(Color.FromRgb(0x1F, 0x6F, 0xD1)), 1.5);
+    static readonly Pen SelPen = new(new SolidColorBrush(Color.FromRgb(0x00, 0x67, 0xC0)), 1.5);
     static readonly Pen GuidePen = new(new SolidColorBrush(Color.FromRgb(0xE0, 0x3A, 0x8C)), 1);
-    static readonly Pen HandlePen = new(new SolidColorBrush(Color.FromRgb(0x1F, 0x6F, 0xD1)), 1.5);
-    static readonly Brush BandFill = new SolidColorBrush(Color.FromArgb(0x22, 0x1F, 0x6F, 0xD1));
+    static readonly Pen HandlePen = new(new SolidColorBrush(Color.FromRgb(0x00, 0x67, 0xC0)), 1.5);
+    static readonly Brush BandFill = new SolidColorBrush(Color.FromArgb(0x1F, 0x00, 0x67, 0xC0));
     static readonly Brush CropShade = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
     static readonly Typeface Face = new("Segoe UI Semibold");
 
@@ -316,11 +316,56 @@ public sealed class SheetView : FrameworkElement
     {
         var b = Bounds();
         if (b.IsEmpty || ActualWidth < 10) { Zoom = 0.5; Offset = new Vector(40, 40); InvalidateVisual(); ViewChanged?.Invoke(); return; }
-        var z = Math.Min((ActualWidth - 60) / b.Width, (ActualHeight - 60) / b.Height);
+        // Поля: сверху — под плашку режима, снизу — под панель инструментов,
+        // чтобы они не закрывали край разворота.
+        const double side = 32, top = 56, bottom = 88;
+        var z = Math.Min((ActualWidth - 2 * side) / b.Width, (ActualHeight - top - bottom) / b.Height);
         Zoom = Math.Clamp(z, 0.05, 4);
-        Offset = new Vector((ActualWidth - b.Width * Zoom) / 2 - b.X * Zoom, (ActualHeight - b.Height * Zoom) / 2 - b.Y * Zoom);
+        Offset = new Vector((ActualWidth - b.Width * Zoom) / 2 - b.X * Zoom, top + (ActualHeight - top - bottom - b.Height * Zoom) / 2 - b.Y * Zoom);
         InvalidateVisual();
         ViewChanged?.Invoke();
+    }
+
+    // Рука (H): левая кнопка двигает полотно, как пробел или средняя кнопка.
+    public bool HandTool { get; private set; }
+
+    public void SetHandTool(bool on)
+    {
+        if (HandTool == on) return;
+        HandTool = on;
+        Cursor = on ? Cursors.Hand : null;
+        ToolChanged?.Invoke();
+    }
+
+    public void PanBy(Vector v)
+    {
+        Offset += v;
+        InvalidateVisual();
+        ViewChanged?.Invoke();
+    }
+
+    // Показать область целиком (Shift+2): с полями, не крупнее 200 %.
+    public void ZoomToRect(Rect r)
+    {
+        if (ActualWidth < 10 || r.IsEmpty) return;
+        r.Inflate(Math.Max(20, r.Width * 0.08), Math.Max(20, r.Height * 0.08));
+        Zoom = Math.Clamp(Math.Min(ActualWidth / r.Width, ActualHeight / r.Height), 0.05, 2);
+        Offset = new Vector(ActualWidth / 2 - (r.X + r.Width / 2) * Zoom, ActualHeight / 2 - (r.Y + r.Height / 2) * Zoom);
+        InvalidateVisual();
+        ViewChanged?.Invoke();
+    }
+
+    // Сдвинуть полотно, только если область за краем окна (Tab по связям не
+    // должен дёргать картинку, когда связь и так видна); не влезает — мельче.
+    public void EnsureVisible(Rect r)
+    {
+        if (ActualWidth < 10 || r.IsEmpty) return;
+        const double pad = 48;
+        var s = new Rect(ToScreen(r.X, r.Y), ToScreen(r.Right, r.Bottom));
+        var view = new Rect(pad, pad, Math.Max(1, ActualWidth - 2 * pad), Math.Max(1, ActualHeight - 2 * pad));
+        if (view.Contains(s)) return;
+        if (s.Width > view.Width || s.Height > view.Height) { ZoomToRect(r); return; }
+        ScrollToWorld(r);
     }
 
     public void ScrollToWorld(Rect r)
@@ -334,14 +379,19 @@ public sealed class SheetView : FrameworkElement
     {
         if (Sheet == null) return Rect.Empty;
         var r = Rect.Empty;
-        foreach (var l in Sheet.Layers.Where(l => !l.Hidden)) r.Union(new Rect(l.X, l.Y, l.W, Math.Max(l.H, 1)));
+        // Таблица рисуется по числу строк, а не по Crop — её высота считается.
+        foreach (var l in Sheet.Layers.Where(l => !l.Hidden))
+            r.Union(new Rect(l.X, l.Y, l.W, Math.Max(l.Kind == LayerKind.Table ? TableHeight(Sheet, l) : l.H, 1)));
         return r;
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo info)
     {
         base.OnRenderSizeChanged(info);
-        if (info.PreviousSize.Width < 10) FitAll();
+        if (info.PreviousSize.Width < 10) { FitAll(); return; }
+        Offset += new Vector((info.NewSize.Width - info.PreviousSize.Width) / 2, (info.NewSize.Height - info.PreviousSize.Height) / 2);
+        InvalidateVisual();
+        ViewChanged?.Invoke();
     }
 
     // --- отрисовка ---------------------------------------------------------
@@ -555,7 +605,7 @@ public sealed class SheetView : FrameworkElement
 
     protected override void OnKeyUp(KeyEventArgs e)
     {
-        if (e.Key == Key.Space) { _spaceDown = false; Cursor = null; }
+        if (e.Key == Key.Space) { _spaceDown = false; Cursor = HandTool ? Cursors.Hand : null; }
         base.OnKeyUp(e);
     }
 
@@ -610,7 +660,7 @@ public sealed class SheetView : FrameworkElement
         _guides.Clear();
         if (Sheet == null) return;
 
-        if (button == MouseButton.Middle || _spaceDown) { _op = Op.Pan; return; }
+        if (button == MouseButton.Middle || _spaceDown || (HandTool && button == MouseButton.Left)) { _op = Op.Pan; return; }
         if (button == MouseButton.Right)
         {
             _op = Op.None;
