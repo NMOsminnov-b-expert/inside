@@ -378,6 +378,9 @@ public partial class MainWindow : Window
                 ? new Chapter { Title = string.IsNullOrWhiteSpace(chTitle) ? Path.GetFileNameWithoutExtension(path) : chTitle, DocName = doc }
                 : _chapter;
             if (!_store.Project.Chapters.Contains(target)) _store.Project.Chapters.Add(target);
+            // Заготовка нового проекта («Глава 1» с пустым разворотом) не
+            // остаётся рядом с документом: пустая — уходит.
+            _store.Project.Chapters.RemoveAll(c => c != target && c.Sheets.All(x => x.Layers.Count == 0 && x.Links.Count == 0 && x.Notes.Count == 0));
             foreach (var (n, bmp) in images)
             {
                 var sh = new Sheet { Title = $"Страница {n}", Page = $"стр. {n}" };

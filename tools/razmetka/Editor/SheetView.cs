@@ -1013,8 +1013,13 @@ public sealed class SheetView : FrameworkElement
 
     // --- связи --------------------------------------------------------------
 
+    // Связь и слои выбираются порознь: иначе слой, выбранный раньше (скажем,
+    // только что вставленная картинка), оставался выбранным невидимо для
+    // свойств, и Delete удалял его вместе со всеми связями (найдено
+    // сценарием «с нуля» 29.09.2026).
     public void SelectLink(string? id)
     {
+        if (id != null && Selection.Count > 0) Selection.Clear();
         LinkId = id;
         InvalidateVisual();
         SelectionChanged?.Invoke();

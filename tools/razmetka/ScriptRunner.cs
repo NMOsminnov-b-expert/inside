@@ -37,6 +37,27 @@ public static class ScriptRunner
                         w.Width = st.GetProperty("w").GetDouble();
                         w.Height = st.GetProperty("h").GetDouble();
                         break;
+                    case "create":
+                        // Новый проект в пустой папке (как «Новый проект…»).
+                        w.OpenDir(Model.ProjectStore.Create(st.GetProperty("dir").GetString()!, st.GetProperty("title").GetString()!).Dir, askDraft: false, confirm: false);
+                        break;
+                    case "assert":
+                    {
+                        // Проверка состояния: число разворотов, связей, слоёв, выбор.
+                        var p0 = w.Store!.Project;
+                        var got = st.GetProperty("what").GetString() switch
+                        {
+                            "sheets" => p0.Chapters.Sum(c => c.Sheets.Count),
+                            "links" => p0.Chapters.SelectMany(c => c.Sheets).Sum(x => x.Links.Count),
+                            "layers" => w.Canvas.Sheet?.Layers.Count ?? -1,
+                            "selLink" => w.Canvas.SelectedLink?.N ?? 0,
+                            "notes" => w.Canvas.Sheet?.Notes.Count ?? -1,
+                            _ => -99,
+                        };
+                        var want = st.GetProperty("eq").GetInt32();
+                        log.Add(got == want ? $"  ок: {st.GetProperty("what").GetString()} = {got}" : $"  НЕ ТАК: {st.GetProperty("what").GetString()} = {got}, ждали {want}");
+                        break;
+                    }
                     case "open":
                         w.OpenDir(st.GetProperty("dir").GetString()!, askDraft: false);
                         break;
