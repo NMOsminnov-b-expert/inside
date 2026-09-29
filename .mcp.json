@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "semsearch": {
+      "command": "${LOCALAPPDATA}\\semsearch\\src\\codebase-mcp\\.venv\\Scripts\\python.exe",
+      "args": ["${LOCALAPPDATA}\\semsearch\\mcp_server.py"]
+    }
+  }
+}
