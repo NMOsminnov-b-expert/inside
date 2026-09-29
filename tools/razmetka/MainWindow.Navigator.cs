@@ -189,7 +189,7 @@ public partial class MainWindow
         {
             if (_syncing || Nav.SelectedItem is not ListBoxItem { Tag: Sheet sh }) return;
             var ch = _store!.Project.Chapters.First(c => c.Sheets.Contains(sh));
-            if (sh != _sheet) PickSheet(ch, sh);
+            if (sh != _sheet) OpenSheet(ch, sh);
         };
         Nav.PreviewKeyDown += (_, e) =>
         {

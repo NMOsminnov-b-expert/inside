@@ -175,6 +175,15 @@ public static class ScriptRunner
                         Walk(root);
                         break;
                     }
+                    case "flow":
+                        w.Commands.Execute("view.flow");
+                        break;
+                    case "scrollFlow":
+                    {
+                        var f = (System.Windows.Controls.ScrollViewer)w.FindName("Flow");
+                        f.ScrollToVerticalOffset(f.VerticalOffset + st.GetProperty("dy").GetDouble());
+                        break;
+                    }
                     case "closeOverlays":
                         ((Ui.Palette)w.FindName("Pal")).Close();
                         ((Ui.Cheatsheet)w.FindName("Cheat")).Close();

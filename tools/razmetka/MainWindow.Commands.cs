@@ -18,6 +18,8 @@ public partial class MainWindow
     public CommandSet Commands => _cmds;
 
     bool HasSheet => _sheet != null;
+    // Править на полотне — только в режиме «Один»: в «Подряд» полотно скрыто.
+    bool CanDraw => _sheet != null && !_flow;
     bool HasProject => _store != null;
     bool LinkSel => View.SelectedLink != null;
     bool LayersSel => View.Selection.Count > 0;
@@ -52,21 +54,27 @@ public partial class MainWindow
         Add("go.palette", "Все команды", "Переход", Scope.Global, () => OpenPalette(""), keys: K(Key.K, C));
         Add("go.sheet", "Перейти к развороту…", "Переход", Scope.Global, () => OpenPalette("", sheetsOnly: true), () => HasProject, keys: K(Key.P, C));
         Add("go.search", "Поиск по связям", "Переход", Scope.Global, FocusSearch, () => HasProject, keys: K(Key.F, C));
-        Add("go.next", "Следующий разворот", "Переход", Scope.App, () => StepSheet(1), () => HasProject, keys: K(Key.Next));
-        Add("go.prev", "Предыдущий разворот", "Переход", Scope.App, () => StepSheet(-1), () => HasProject, keys: K(Key.Prior));
-        Add("go.nextChapter", "Следующая глава", "Переход", Scope.App, () => StepChapter(1), () => HasProject, keys: K(Key.Next, C));
-        Add("go.prevChapter", "Предыдущая глава", "Переход", Scope.App, () => StepChapter(-1), () => HasProject, keys: K(Key.Prior, C));
+        // Развороты — PageDown / PageUp и, как листы в Excel, Ctrl+PageDown /
+        // Ctrl+PageUp; главы — с Shift.
+        Add("go.next", "Следующий разворот", "Переход", Scope.App, () => StepSheet(1), () => HasProject, keysText: "PageDown", keys: new[] { K(Key.Next), K(Key.Next, C) });
+        Add("go.prev", "Предыдущий разворот", "Переход", Scope.App, () => StepSheet(-1), () => HasProject, keysText: "PageUp", keys: new[] { K(Key.Prior), K(Key.Prior, C) });
+        Add("go.nextChapter", "Следующая глава", "Переход", Scope.App, () => StepChapter(1), () => HasProject, keys: K(Key.Next, CS));
+        Add("go.prevChapter", "Предыдущая глава", "Переход", Scope.App, () => StepChapter(-1), () => HasProject, keys: K(Key.Prior, CS));
+        Add("view.flow", "Развороты подряд — все столбцом", "Вид", Scope.App, () => SetFlow(!_flow), () => HasProject,
+            "Переключить: один разворот или все по порядку", keys: K(Key.V, CS));
         Add("go.focus", "Фокус: развороты → полотно → свойства", "Переход", Scope.Global, CycleFocus, keys: K(Key.F6));
         Add("help.keys", "Клавиши", "Переход", Scope.Global, OpenCheatsheet, keys: K(Key.F1));
 
+        Add("flow.open", "Править разворот", "Переход", Scope.Canvas, () => SetFlow(false), () => _flow, "В режиме «Подряд» — открыть текущий разворот", false, "Enter", K(Key.Enter));
+        Add("flow.leave", "Один разворот", "Переход", Scope.Canvas, () => SetFlow(false), () => _flow, "Из режима «Подряд»", false, "Esc", K(Key.Escape));
         // Инструменты
-        Add("tool.select", "Выбор", "Инструменты", Scope.Canvas, () => SetTool("select"), () => HasSheet, "Щелчок — выбрать, перетаскивание — перенести", keys: K(Key.V));
-        Add("tool.hand", "Рука — двигать полотно", "Инструменты", Scope.Canvas, () => SetTool("hand"), () => HasSheet, "Пробел — рука на время, пока нажат", keys: K(Key.H));
-        Add("tool.link", "Новая связь", "Инструменты", Scope.Canvas, () => SetTool(View.LinkTool ? "select" : "link"), () => HasSheet,
+        Add("tool.select", "Выбор", "Инструменты", Scope.Canvas, () => SetTool("select"), () => CanDraw, "Щелчок — выбрать, перетаскивание — перенести", keys: K(Key.V));
+        Add("tool.hand", "Рука — двигать полотно", "Инструменты", Scope.Canvas, () => SetTool("hand"), () => CanDraw, "Пробел — рука на время, пока нажат", keys: K(Key.H));
+        Add("tool.link", "Новая связь", "Инструменты", Scope.Canvas, () => SetTool(View.LinkTool ? "select" : "link"), () => CanDraw,
             "Обвести графу на документе, затем поле на снимке системы", keys: K(Key.L));
-        Add("tool.note", "Заметка", "Инструменты", Scope.Canvas, () => SetTool(View.NoteTool ? "select" : "note"), () => HasSheet,
+        Add("tool.note", "Заметка", "Инструменты", Scope.Canvas, () => SetTool(View.NoteTool ? "select" : "note"), () => CanDraw,
             "Щелчок по полотну ставит булавку с вопросом или пояснением", keys: K(Key.N));
-        Add("tool.lens", "Лупа", "Инструменты", Scope.Canvas, ToggleLens, () => HasSheet, "Участок под курсором втрое крупнее", keys: K(Key.M));
+        Add("tool.lens", "Лупа", "Инструменты", Scope.Canvas, ToggleLens, () => CanDraw, "Участок под курсором втрое крупнее", keys: K(Key.M));
 
         // Вид
         Add("view.fit", "Весь разворот в окне", "Вид", Scope.App, View.FitAll, () => HasSheet, keysText: "Shift+1", keys: new[] { K(Key.D1, S), K(Key.D0, C) });
@@ -91,15 +99,15 @@ public partial class MainWindow
         Add("edit.rename", "Переименовать", "Правка", Scope.App, Rename, () => HasSheet, "Слой, связь или разворот — поле в панели свойств", keys: K(Key.F2));
         foreach (var (key, dx, dy) in new[] { (Key.Left, -1, 0), (Key.Right, 1, 0), (Key.Up, 0, -1), (Key.Down, 0, 1) })
         {
-            Add($"edit.nudge.{key}", "Сдвиг", "Правка", Scope.Canvas, () => Nudge(dx, dy, false), () => HasSheet,
+            Add($"edit.nudge.{key}", "Сдвиг", "Правка", Scope.Canvas, () => Nudge(dx, dy, false), () => CanDraw,
                 "Сдвиг выбранного; без выбора — полотна", false, "←↑→↓", K(key));
-            Add($"edit.nudge10.{key}", "Сдвиг на 10", "Правка", Scope.Canvas, () => Nudge(dx, dy, true), () => HasSheet,
+            Add($"edit.nudge10.{key}", "Сдвиг на 10", "Правка", Scope.Canvas, () => Nudge(dx, dy, true), () => CanDraw,
                 "Сдвиг на 10", false, "Shift+←↑→↓", K(key, S));
         }
 
         // Связь
-        Add("link.next", "Следующая связь", "Связь", Scope.Canvas, () => StepLink(1), () => HasSheet, keys: K(Key.Tab));
-        Add("link.prev", "Предыдущая связь", "Связь", Scope.Canvas, () => StepLink(-1), () => HasSheet, keys: K(Key.Tab, S));
+        Add("link.next", "Следующая связь", "Связь", Scope.Canvas, () => StepLink(1), () => CanDraw, keys: K(Key.Tab));
+        Add("link.prev", "Предыдущая связь", "Связь", Scope.Canvas, () => StepLink(-1), () => CanDraw, keys: K(Key.Tab, S));
         Add("link.edit", "Описать связь", "Связь", Scope.Canvas, () => EditLinkCard(View.SelectedLink!), () => LinkSel,
             "Графа документа, поле системы, комментарий — у стрелки", keys: K(Key.Enter));
         // Enter — «войти в правку выбранного» (Figma): обрезка — готово,
@@ -130,6 +138,8 @@ public partial class MainWindow
 
         // Разворот
         Add("sheet.new", "Новый разворот", "Разворот", Scope.App, AddSheet, () => HasProject, "Сразу после текущего", keys: K(Key.N, CS));
+        Add("sheet.left", "Сдвинуть разворот влево", "Разворот", Scope.App, () => MoveSheet(_chapter!, _sheet!, -1), () => HasSheet && _chapter!.Sheets.IndexOf(_sheet!) > 0, keys: K(Key.Left, ModifierKeys.Alt));
+        Add("sheet.right", "Сдвинуть разворот вправо", "Разворот", Scope.App, () => MoveSheet(_chapter!, _sheet!, 1), () => HasSheet && _chapter!.Sheets.IndexOf(_sheet!) < _chapter.Sheets.Count - 1, keys: K(Key.Right, ModifierKeys.Alt));
         Add("sheet.chapter", "Новая глава", "Разворот", Scope.App, AddChapter, () => HasProject);
         Add("sheet.pdf", "Документ из PDF…", "Разворот", Scope.App, () => _ = AddPdfFromDialog(), () => HasProject, "Страницы — развороты новой или текущей главы");
         Add("sheet.image", "Добавить фото из файла…", "Разворот", Scope.App, AddImagesFromDialog, () => HasSheet, "Можно и перетащить файлы на окно");
@@ -146,7 +156,7 @@ public partial class MainWindow
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         var inText = Keyboard.FocusedElement is TextBox or ComboBox { IsEditable: true } or PasswordBox;
         var f = Keyboard.FocusedElement;
-        var onCanvas = f == null || f == this || f is SheetView;
+        var onCanvas = f == null || f == this || f is SheetView || (_flow && f is DependencyObject d && (d == Flow || IsDescendant(Flow, d)));
         e.Handled = Dispatch(key, Keyboard.Modifiers, inText, onCanvas);
     }
 
@@ -306,7 +316,7 @@ public partial class MainWindow
                 .OrderBy(y => q.Length == 0 ? y.x.i : y.s).Take(q.Length == 0 && !sheetsOnly ? 0 : 40);
             foreach (var ((ch, sh, i), _) in hits)
                 o.Add(new PaletteItem("Развороты", sh.Title, $"{ch.Title}{(sh.Page.Length > 0 ? " · " + sh.Page : "")} · связей {sh.Links.Count}",
-                    sh == _sheet ? "сейчас" : "", () => { PickSheet(ch, sh); FocusCanvas(); }, ""));
+                    sh == _sheet ? "сейчас" : "", () => { OpenSheet(ch, sh); if (!_flow) FocusCanvas(); }, ""));
             if (!sheetsOnly && q.Length > 1)
             {
                 var blocks = AllLinks().Select(x => string.Join(" · ", x.K.SystemField.Split(" · ").Take(2))).Where(b => b.Length > 0)

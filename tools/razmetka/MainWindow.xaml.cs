@@ -78,6 +78,7 @@ public partial class MainWindow : Window
         InitTopBar();
         InitNavigator();
         InitCanvasUi();
+        InitPages();
 
         Drop += OnDrop;
         PreviewKeyDown += OnKey;
@@ -150,6 +151,7 @@ public partial class MainWindow : Window
     void CloseProject()
     {
         if (!ConfirmDiscard()) return;
+        LeaveFlow();
         _store = null;
         _chapter = null;
         _sheet = null;
@@ -163,6 +165,7 @@ public partial class MainWindow : Window
 
     void LoadStore(ProjectStore store, bool keepDirty = false)
     {
+        LeaveFlow();
         _store = store;
         View.Store = store;
         _undo.Clear();
@@ -239,6 +242,7 @@ public partial class MainWindow : Window
             });
             if (_store.Project.History.Count > 5000) _store.Project.History.RemoveRange(0, _store.Project.History.Count - 5000);
         }
+        _version++;
         View.Refresh();
         UpdateAll();
     }
@@ -275,6 +279,7 @@ public partial class MainWindow : Window
         View.Select(sel.Where(id => View.Find(id) != null));
         if (link != null && _sheet?.Links.Any(k => k.Id == link) == true) View.SelectLink(link);
         _dirty = true;
+        _version++;
         UpdateAll();
     }
 
@@ -581,7 +586,7 @@ public partial class MainWindow : Window
         var i = all.FindIndex(x => x.Sh == _sheet);
         var j = Math.Clamp(i + step, 0, all.Count - 1);
         if (i == j) { Status(step > 0 ? "Это последний разворот проекта" : "Это первый разворот проекта"); return; }
-        PickSheet(all[j].Ch, all[j].Sh);
+        OpenSheet(all[j].Ch, all[j].Sh);
         Status($"{all[j].Ch.Title} · {all[j].Sh.Title} — {j + 1} из {all.Count}");
     }
 
@@ -592,7 +597,7 @@ public partial class MainWindow : Window
         var i = _chapter == null ? 0 : cs.IndexOf(_chapter);
         var j = Math.Clamp(i + step, 0, cs.Count - 1);
         if (i == j) { Status(step > 0 ? "Это последняя глава" : "Это первая глава"); return; }
-        PickSheet(cs[j], cs[j].Sheets.FirstOrDefault());
+        OpenSheet(cs[j], cs[j].Sheets.FirstOrDefault());
         Status($"Глава {j + 1} из {cs.Count}: {cs[j].Title}");
     }
 
@@ -607,7 +612,7 @@ public partial class MainWindow : Window
         {
             var open = _store != null;
             StartScreen.Visibility = open ? Visibility.Collapsed : Visibility.Visible;
-            Toolbar.Visibility = _sheet != null ? Visibility.Visible : Visibility.Collapsed;
+            Toolbar.Visibility = _sheet != null && !_flow ? Visibility.Visible : Visibility.Collapsed;
             LeftPane.IsEnabled = RightPane.IsEnabled = open;
             _issues = open ? Checks.Run(_store!.Project) : new();
             SyncTopBar();
@@ -618,6 +623,8 @@ public partial class MainWindow : Window
             SyncTool();
             SyncEmptySheet();
             PlaceSelBar();
+            BuildTabs();
+            SyncFlow();
             if (!open) BuildStart();
             TUndo.ToolTip = _undo.CanUndo ? $"Отменить: {_undo.UndoWhat} — Ctrl+Z" : "Отменить — Ctrl+Z";
             TRedo.ToolTip = _undo.CanRedo ? $"Повторить: {_undo.RedoWhat} — Ctrl+Y" : "Повторить — Ctrl+Y";

@@ -155,7 +155,7 @@ public partial class MainWindow
     }
 
     void SyncEmptySheet() =>
-        SheetHint.Visibility = _sheet != null && _sheet.Layers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SheetHint.Visibility = _sheet != null && _sheet.Layers.Count == 0 && !_flow ? Visibility.Visible : Visibility.Collapsed;
 
     // --- панель у выбранного ----------------------------------------------------
     //
@@ -166,7 +166,7 @@ public partial class MainWindow
     void PlaceSelBar()
     {
         if (_selBar != null) { Pops.Children.Remove(_selBar); _selBar = null; }
-        if (_dragging || _sheet == null || View.CropLayerId != null || View.LinkTool || View.NoteTool || View.AlignStep >= 0 || _editor != null) return;
+        if (_flow || _dragging || _sheet == null || View.CropLayerId != null || View.LinkTool || View.NoteTool || View.AlignStep >= 0 || _editor != null) return;
         var r = View.SelectionScreenRect();
         if (r == null) return;
         var bar = new StackPanel { Orientation = Orientation.Horizontal };

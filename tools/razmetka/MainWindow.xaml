@@ -136,10 +136,45 @@
             </Border>
             <GridSplitter x:Name="LeftSplit" Grid.Column="1" Width="4" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
 
-            <!-- Полотно -->
-            <Grid x:Name="CanvasArea" Grid.Column="2">
+            <!-- Полотно; внизу — вкладки разворотов текущей главы (Excel,
+                 CorelDRAW), справа на них — «Один / Подряд». -->
+            <DockPanel Grid.Column="2">
+            <Border x:Name="TabBar" DockPanel.Dock="Bottom" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Visibility="Collapsed">
+                <DockPanel Height="36">
+                    <Button x:Name="TabChapter" DockPanel.Dock="Left" Style="{StaticResource ToolBtn}" Padding="10,0" Margin="4,0,0,0" MaxWidth="240" HorizontalContentAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="TabChapterText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
+                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="6,1,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Border DockPanel.Dock="Left" Style="{StaticResource Sep}"/>
+                    <Button x:Name="TabPrev" DockPanel.Dock="Left" Style="{StaticResource ToolBtn}" Padding="8,0">
+                        <TextBlock Text="&#xE76B;" FontFamily="{StaticResource IconFont}" FontSize="11"/>
+                    </Button>
+                    <Button x:Name="TabNext" DockPanel.Dock="Left" Style="{StaticResource ToolBtn}" Padding="8,0" Margin="0,0,4,0">
+                        <TextBlock Text="&#xE76C;" FontFamily="{StaticResource IconFont}" FontSize="11"/>
+                    </Button>
+                    <Border x:Name="FlowSeg" DockPanel.Dock="Right" Width="150" Margin="8,4,8,4"/>
+                    <Button x:Name="TabList" DockPanel.Dock="Right" Style="{StaticResource ToolBtn}" Padding="8,0">
+                        <TextBlock Text="&#xE8FD;" FontFamily="{StaticResource IconFont}" FontSize="13"/>
+                    </Button>
+                    <Button x:Name="TabAdd" DockPanel.Dock="Right" Style="{StaticResource ToolBtn}" Padding="8,0">
+                        <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="12"/>
+                    </Button>
+                    <ScrollViewer x:Name="TabScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Focusable="False">
+                        <StackPanel x:Name="TabStrip" Orientation="Horizontal" VerticalAlignment="Top"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+            <Grid x:Name="CanvasArea">
                 <ed:SheetView x:Name="View"/>
                 <Canvas x:Name="Pops" ClipToBounds="True"/>
+
+                <!-- Развороты подряд: все развороты проекта столбцом по главам. -->
+                <ScrollViewer x:Name="Flow" Visibility="Collapsed" Background="{StaticResource Ground}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="FlowHost" HorizontalAlignment="Center" Margin="0,16,0,40"/>
+                </ScrollViewer>
 
                 <!-- Пустой разворот: с чего начать. -->
                 <Border x:Name="SheetHint" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"
@@ -230,6 +265,7 @@
                     </StackPanel>
                 </Border>
             </Grid>
+            </DockPanel>
 
             <GridSplitter x:Name="RightSplit" Grid.Column="3" Width="4" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
             <!-- Инспектор: свойства выбранного; без выбора — разворот и глава. -->
