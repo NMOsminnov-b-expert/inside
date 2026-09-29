@@ -64,6 +64,9 @@ public partial class MainWindow
             "Переключить: один разворот или все по порядку", keys: K(Key.V, CS));
         Add("go.focus", "Фокус: развороты → полотно → свойства", "Переход", Scope.Global, CycleFocus, keys: K(Key.F6));
         Add("help.keys", "Клавиши", "Переход", Scope.Global, OpenCheatsheet, keys: K(Key.F1));
+        Add("help.keymap", "Настроить клавиши…", "Переход", Scope.App, OpenKeymap, hint: "Переназначить клавишу любой команды");
+        foreach (var mode in new[] { "system", "light", "dark" })
+            Add($"view.theme.{mode}", $"Тема: {Theme.Label(mode).ToLowerInvariant()}", "Вид", Scope.App, () => SetTheme(mode), () => Theme.Mode != mode);
 
         Add("flow.open", "Править разворот", "Переход", Scope.Canvas, () => SetFlow(false), () => _flow, "В режиме «Подряд» — открыть текущий разворот", false, "Enter", K(Key.Enter));
         Add("flow.leave", "Один разворот", "Переход", Scope.Keys, () => SetFlow(false), () => _flow, "Из режима «Подряд»", false, "Esc", K(Key.Escape));
@@ -283,7 +286,42 @@ public partial class MainWindow
     {
         if (Pal.IsOpen) Pal.Close();
         _focusBefore = Keyboard.FocusedElement;
-        Cheat.Open(_cmds, RestoreFocus);
+        Cheat.Open(_cmds, RestoreFocus, () => { Cheat.Close(); OpenKeymap(); });
+    }
+
+    void OpenKeymap()
+    {
+        if (Cheat.IsOpen) Cheat.Close();
+        if (Pal.IsOpen) Pal.Close();
+        new KeysEditor(this, _cmds, App.Settings, SyncKeyTips).ShowDialog();
+        FocusCanvas();
+    }
+
+    void SetTheme(string mode)
+    {
+        App.Settings.Theme = mode;
+        App.Settings.Save();
+        Theme.Set(mode);
+        Status($"Тема: {Theme.Label(mode).ToLowerInvariant()}");
+    }
+
+    // Подсказки и буквы на кнопках — по текущим клавишам (после
+    // переназначения они другие).
+    void SyncKeyTips()
+    {
+        foreach (var (b, id) in new (System.Windows.Controls.Primitives.ToggleButton, string)[]
+                 { (TSelect, "tool.select"), (THand, "tool.hand"), (TLink, "tool.link"), (TNote, "tool.note"), (TLens, "tool.lens") })
+        {
+            var c = _cmds[id];
+            b.ToolTip = c.Tip + (c.Hint.Length > 0 ? "\n" + c.Hint : "");
+            b.Tag = c.Keys.Length > 0 && c.Keys[0].Mods == ModifierKeys.None ? Chord.KeyName(c.Keys[0].Key) : "";
+        }
+        TZoomIn.ToolTip = _cmds["view.in"].Tip;
+        TZoomOut.ToolTip = _cmds["view.out"].Tip;
+        TUndo.ToolTip = _cmds["edit.undo"].Tip;
+        TRedo.ToolTip = _cmds["edit.redo"].Tip;
+        PaletteKbd.Child = Kit.Kbd(_cmds["go.palette"].KeyLabel);
+        SearchKbd.Child = Kit.Kbd(_cmds["go.search"].KeyLabel);
     }
 
     void RestoreFocus()

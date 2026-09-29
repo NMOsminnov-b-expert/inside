@@ -23,7 +23,7 @@ public sealed class Cheatsheet : Grid
         Focusable = true;
     }
 
-    public void Open(CommandSet cmds, Action closed)
+    public void Open(CommandSet cmds, Action closed, Action? edit = null)
     {
         _closed = closed;
         Children.Clear();
@@ -64,6 +64,14 @@ public sealed class Cheatsheet : Grid
         var close = Kit.IconBtn("", "Закрыть — Esc", Close, 12, "Muted");
         DockPanel.SetDock(close, Dock.Right);
         head.Children.Add(close);
+        if (edit != null)
+        {
+            var eb = Kit.TextBtn("Изменить клавиши…", "Переназначить клавишу любой команды", edit, "OutlineBtn", "");
+            eb.Margin = new Thickness(0, 0, 8, 0);
+            eb.VerticalAlignment = VerticalAlignment.Top;
+            DockPanel.SetDock(eb, Dock.Right);
+            head.Children.Add(eb);
+        }
         var title = new StackPanel();
         title.Children.Add(Kit.Text("Клавиши", 20, "Ink", FontWeights.SemiBold));
         var sub = Kit.Text("Буквы инструментов работают везде, кроме полей ввода, — там они печатают текст; стрелки, Tab, Enter и Delete — когда фокус на полотне. Раскладка не важна: V и «М» — одна клавиша.", 12, "Muted", wrap: true);

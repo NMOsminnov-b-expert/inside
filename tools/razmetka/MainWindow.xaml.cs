@@ -75,10 +75,23 @@ public partial class MainWindow : Window
         };
 
         BuildCommands();
+        _cmds.Apply(App.Settings.Keys);
         InitTopBar();
         InitNavigator();
         InitCanvasUi();
         InitPages();
+        SyncKeyTips();
+        // Смена темы: разметка перекрашивается сама (DynamicResource),
+        // построенное кодом — перестраивается.
+        Theme.Changed += () =>
+        {
+            ClearPops();
+            SyncKeyTips();
+            BuildInspector(force: true);
+            UpdateAll();
+            if (_flow) { _flowCache.Clear(); BuildFlow(keepCurrent: true); }
+            View.Refresh();
+        };
 
         Drop += OnDrop;
         PreviewKeyDown += OnKey;

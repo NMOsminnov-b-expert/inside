@@ -34,19 +34,19 @@ public sealed class ChecksWindow : Window
             var row = new DockPanel { Margin = new Thickness(2, 4, 2, 4) };
             var tag = new Border
             {
-                Background = new SolidColorBrush(i.Error ? Color.FromRgb(0xFD, 0xE7, 0xE9) : Color.FromRgb(0xFD, 0xF4, 0xE3)),
+                Background = Ui.Kit.B(i.Error ? "DangerSoft" : "WarnSoft"),
                 CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 0, 6, 0), Margin = new Thickness(0, 0, 10, 0),
                 Child = new TextBlock
                 {
                     Text = i.Error ? "ошибка" : "проверить", FontSize = 11, FontWeight = FontWeights.SemiBold,
-                    Foreground = new SolidColorBrush(i.Error ? Color.FromRgb(0xB0, 0x2A, 0x37) : Color.FromRgb(0x8A, 0x5A, 0x00)),
+                    Foreground = Ui.Kit.B(i.Error ? "Danger" : "Warn"),
                 },
             };
             DockPanel.SetDock(tag, Dock.Left);
             row.Children.Add(tag);
             var txt = new StackPanel();
             txt.Children.Add(new TextBlock { Text = i.Text, TextWrapping = TextWrapping.Wrap });
-            txt.Children.Add(new TextBlock { Text = $"{i.Chapter.Title} · {i.Sheet.Title}", FontSize = 11, Foreground = Brushes.DimGray });
+            txt.Children.Add(new TextBlock { Text = $"{i.Chapter.Title} · {i.Sheet.Title}", FontSize = 11, Foreground = Ui.Kit.B("Muted") });
             row.Children.Add(txt);
             list.Items.Add(new ListBoxItem { Content = row, Tag = i });
         }

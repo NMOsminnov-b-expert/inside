@@ -184,6 +184,23 @@ public static class ScriptRunner
                         f.ScrollToVerticalOffset(f.VerticalOffset + st.GetProperty("dy").GetDouble());
                         break;
                     }
+                    case "keysSet":
+                    {
+                        // Переназначить клавиши команды (как окно «Клавиши»).
+                        App.Settings.Keys[st.GetProperty("id").GetString()!] = st.GetProperty("keys").EnumerateArray().Select(x => x.GetString()!).ToList();
+                        w.Commands.Apply(App.Settings.Keys);
+                        break;
+                    }
+                    case "keymapShot":
+                    {
+                        var ed = new Ui.KeysEditor(w, w.Commands, App.Settings, () => { });
+                        ed.Show();
+                        await Idle();
+                        if (st.TryGetProperty("q", out var q)) { ((System.Windows.Controls.TextBox)FindAll<System.Windows.Controls.TextBox>(ed).First()).Text = q.GetString(); await Idle(); }
+                        Shot(ed, st.GetProperty("path").GetString()!);
+                        ed.Close();
+                        break;
+                    }
                     case "closeOverlays":
                         ((Ui.Palette)w.FindName("Pal")).Close();
                         ((Ui.Cheatsheet)w.FindName("Cheat")).Close();

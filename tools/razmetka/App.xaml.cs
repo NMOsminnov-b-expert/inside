@@ -8,6 +8,8 @@ namespace Razmetka;
 public partial class App : Application
 {
     public static bool Scripted { get; private set; }
+    // Настройки рабочего места: тема, переназначенные клавиши (Ui/Settings).
+    public static Ui.Settings Settings { get; private set; } = new();
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -38,6 +40,10 @@ public partial class App : Application
             if (args[i] == "--script") script = args[i + 1];
         }
         Scripted = script != null;
+        // Сценарии проверки — на исходных настройках и ничего в них не пишут.
+        Ui.Settings.ReadOnly = Scripted;
+        Settings = Ui.Settings.Load();
+        Ui.Theme.Init(Settings.Theme);
         var w = new MainWindow();
         w.Show();
         if (open != null) w.OpenDir(open, askDraft: !Scripted);

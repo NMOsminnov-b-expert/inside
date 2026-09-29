@@ -210,7 +210,12 @@ public sealed class SheetView : FrameworkElement
     readonly List<(bool Vertical, double At)> _guides = new();
     bool _spaceDown;
 
-    static readonly Brush Paper = new SolidColorBrush(Color.FromRgb(0xE8, 0xEA, 0xEE));
+    // Фон вокруг разворота — по теме (Ui/Theme); сам разворот всегда белый.
+    static Brush Paper = Frozen(Color.FromRgb(0xE8, 0xEA, 0xEE));
+
+    static Brush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
+    public static void SetDark(bool dark) => Paper = Frozen(dark ? Color.FromRgb(0x16, 0x17, 0x1A) : Color.FromRgb(0xE8, 0xEA, 0xEE));
     static readonly Brush SheetBg = Brushes.White;
     static readonly Pen SelPen = new(new SolidColorBrush(Color.FromRgb(0x00, 0x67, 0xC0)), 1.5);
     static readonly Pen GuidePen = new(new SolidColorBrush(Color.FromRgb(0xE0, 0x3A, 0x8C)), 1);
@@ -221,7 +226,7 @@ public sealed class SheetView : FrameworkElement
 
     static SheetView()
     {
-        foreach (var f in new Freezable[] { Paper, SelPen, GuidePen, HandlePen, BandFill, CropShade }) f.Freeze();
+        foreach (var f in new Freezable[] { SelPen, GuidePen, HandlePen, BandFill, CropShade }) f.Freeze();
     }
 
     public SheetView()

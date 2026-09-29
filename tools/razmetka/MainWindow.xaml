@@ -4,14 +4,14 @@
         xmlns:ed="clr-namespace:Razmetka.Editor"
         xmlns:ui="clr-namespace:Razmetka.Ui"
         Title="Разметка документов" Icon="Assets/razmetka.ico" Width="1500" Height="920" MinWidth="980" MinHeight="600"
-        Background="{StaticResource Ground}" AllowDrop="True">
+        Background="{DynamicResource Ground}" AllowDrop="True">
     <!-- Раскладка (практика interfeys-razmetki-dokumentov-klavishi-palitra-komand-
          inspektor-po-vyb; Figma UI3): шапка — проект, где я, поиск по связям,
          сохранение, проверка, экспорт, палитра команд; слева — развороты и слои
          текущего; в центре — полотно, инструменты — плавающей панелью внизу по
          центру; справа — инспектор выбранного; внизу — строка состояния.
          Боковые панели закреплены и тянутся; Ctrl+\ — только полотно. -->
-    <Grid Background="{StaticResource Ground}">
+    <Grid Background="{DynamicResource Ground}">
         <Grid.RowDefinitions>
             <RowDefinition Height="52"/>
             <RowDefinition/>
@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <!-- Шапка -->
-        <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1">
+        <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1">
             <Grid Margin="8,0,12,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -31,31 +31,31 @@
                     <StackPanel Orientation="Horizontal">
                         <Image Source="Assets/razmetka.ico" Width="20" Height="20" Margin="0,0,8,0"/>
                         <TextBlock x:Name="ProjectTitle" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" MaxWidth="240" TextTrimming="CharacterEllipsis">Разметка документов</TextBlock>
-                        <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="10" Margin="8,2,0,0" VerticalAlignment="Center" Foreground="{StaticResource Muted}"/>
+                        <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="10" Margin="8,2,0,0" VerticalAlignment="Center" Foreground="{DynamicResource Muted}"/>
                     </StackPanel>
                 </Button>
                 <!-- Где я: глава › разворот; щелчок — перейти к другому (Ctrl+P). -->
                 <Button x:Name="CrumbBtn" Grid.Column="1" Style="{StaticResource ToolBtn}" Padding="8,4" Margin="2,0,12,0" HorizontalAlignment="Left"
                         HorizontalContentAlignment="Left" VerticalAlignment="Center" ToolTip="Перейти к другому развороту — Ctrl+P">
-                    <TextBlock x:Name="Crumbs" Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="Crumbs" Foreground="{DynamicResource Muted}" TextTrimming="CharacterEllipsis"/>
                 </Button>
 
                 <!-- Поиск по связям: графа документа или поле системы по всему
                      проекту; Enter — следующая, Shift+Enter — предыдущая. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border x:Name="SearchHost" Width="300" Height="32" CornerRadius="4" Background="{StaticResource Card}" BorderBrush="{StaticResource LineStrong}" BorderThickness="1">
+                    <Border x:Name="SearchHost" Width="300" Height="32" CornerRadius="4" Background="{DynamicResource Card}" BorderBrush="{DynamicResource LineStrong}" BorderThickness="1">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="30"/>
                                 <ColumnDefinition/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="SearchPlaceholder" Grid.Column="1" Foreground="{StaticResource Faint}" VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis">Графа или поле системы</TextBlock>
+                            <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="SearchPlaceholder" Grid.Column="1" Foreground="{DynamicResource Faint}" VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis">Графа или поле системы</TextBlock>
                             <TextBox x:Name="SearchBox" Grid.Column="1" BorderThickness="0" Background="Transparent" Padding="0" VerticalContentAlignment="Center"
                                      ToolTip="Поиск по связям всего проекта: Enter — следующая, Shift+Enter — предыдущая, Esc — к полотну (Ctrl+F)"/>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,4,0">
-                                <TextBlock x:Name="SearchCount" Foreground="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" Margin="4,0,4,0"/>
+                                <TextBlock x:Name="SearchCount" Foreground="{DynamicResource Muted}" FontSize="12" VerticalAlignment="Center" Margin="4,0,4,0"/>
                                 <Border x:Name="SearchKbd" VerticalAlignment="Center" Margin="0,0,4,0"/>
                             </StackPanel>
                         </Grid>
@@ -89,7 +89,7 @@
                     <!-- Сохранение: всё сохранено — тихая надпись; есть правки —
                          кнопка (GitLab saving and feedback: состояние рядом с
                          содержимым, не всплывающим сообщением). -->
-                    <TextBlock x:Name="SaveState" VerticalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="SaveState" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,8,0"/>
                     <Button x:Name="SaveBtn" Style="{StaticResource PrimaryBtn}" ToolTip="Сохранить проект — Ctrl+S">Сохранить</Button>
                     <Button x:Name="HelpBtn" Style="{StaticResource ToolBtn}" Padding="8,4" Margin="6,0,0,0" ToolTip="Клавиши — F1">
                         <TextBlock Text="&#xE765;" FontFamily="{StaticResource IconFont}" FontSize="15"/>
@@ -108,7 +108,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Развороты и слои текущего разворота -->
-            <Border x:Name="LeftPane" Background="{StaticResource Panel}">
+            <Border x:Name="LeftPane" Background="{DynamicResource Panel}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -121,17 +121,17 @@
                         <Button x:Name="NavAddBtn" DockPanel.Dock="Right" Style="{StaticResource ToolBtn}" Padding="7,4" ToolTip="Добавить: разворот, главу, документ из PDF">
                             <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="13"/>
                         </Button>
-                        <TextBlock Text="Развороты" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="Развороты" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource Ink}"/>
                     </DockPanel>
                     <ListBox x:Name="Nav" Grid.Row="1" Style="{StaticResource PlainList}" Margin="6,0,6,6"
                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"/>
                     <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows"/>
                     <DockPanel Grid.Row="3" Margin="16,4,8,4">
-                        <TextBlock x:Name="LayersCount" DockPanel.Dock="Right" Foreground="{StaticResource Faint}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBlock Text="Слои" FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="Сверху вниз, как на полотне"/>
+                        <TextBlock x:Name="LayersCount" DockPanel.Dock="Right" Foreground="{DynamicResource Faint}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Слои" FontWeight="SemiBold" VerticalAlignment="Center" ToolTip="Сверху вниз, как на полотне" Foreground="{DynamicResource Ink}"/>
                     </DockPanel>
                     <ListBox x:Name="Layers" Grid.Row="4" Style="{StaticResource PlainList}" Margin="6,0,6,8" SelectionMode="Extended" HorizontalContentAlignment="Stretch"/>
-                    <Border Grid.Row="0" Grid.RowSpan="5" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0" IsHitTestVisible="False"/>
+                    <Border Grid.Row="0" Grid.RowSpan="5" BorderBrush="{DynamicResource Line}" BorderThickness="0,0,1,0" IsHitTestVisible="False"/>
                 </Grid>
             </Border>
             <GridSplitter x:Name="LeftSplit" Grid.Column="1" Width="4" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
@@ -139,13 +139,13 @@
             <!-- Полотно; внизу — вкладки разворотов текущей главы (Excel,
                  CorelDRAW), справа на них — «Один / Подряд». -->
             <DockPanel Grid.Column="2">
-            <Border x:Name="TabBar" DockPanel.Dock="Bottom" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Visibility="Collapsed">
+            <Border x:Name="TabBar" DockPanel.Dock="Bottom" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Visibility="Collapsed">
                 <DockPanel Height="36">
                     <Button x:Name="TabChapter" DockPanel.Dock="Left" Style="{StaticResource ToolBtn}" Padding="10,0" Margin="4,0,0,0" MaxWidth="240" HorizontalContentAlignment="Left">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource IconFont}" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBlock x:Name="TabChapterText" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150"/>
-                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="6,1,0,0"/>
+                            <TextBlock Text="&#xE70D;" FontFamily="{StaticResource IconFont}" FontSize="9" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="6,1,0,0"/>
                         </StackPanel>
                     </Button>
                     <Border DockPanel.Dock="Left" Style="{StaticResource Sep}"/>
@@ -172,17 +172,17 @@
                 <Canvas x:Name="Pops" ClipToBounds="True"/>
 
                 <!-- Развороты подряд: все развороты проекта столбцом по главам. -->
-                <ScrollViewer x:Name="Flow" Visibility="Collapsed" Background="{StaticResource Ground}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="Flow" Visibility="Collapsed" Background="{DynamicResource Ground}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="FlowHost" HorizontalAlignment="Center" Margin="0,16,0,40"/>
                 </ScrollViewer>
 
                 <!-- Пустой разворот: с чего начать. -->
                 <Border x:Name="SheetHint" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"
-                        Background="{StaticResource Card}" CornerRadius="8" Padding="28,24" BorderBrush="{StaticResource LineStrong}" BorderThickness="1.5">
+                        Background="{DynamicResource Card}" CornerRadius="8" Padding="28,24" BorderBrush="{DynamicResource LineStrong}" BorderThickness="1.5">
                     <StackPanel MaxWidth="460">
-                        <TextBlock Text="&#xEB9F;" FontFamily="{StaticResource IconFont}" FontSize="28" Foreground="{StaticResource Accent}" HorizontalAlignment="Left"/>
-                        <TextBlock FontSize="16" FontWeight="SemiBold" Margin="0,10,0,0" Foreground="{StaticResource Ink}">Разворот пуст</TextBlock>
-                        <TextBlock Margin="0,6,0,14" Foreground="{StaticResource Muted}" TextWrapping="Wrap">
+                        <TextBlock Text="&#xEB9F;" FontFamily="{StaticResource IconFont}" FontSize="28" Foreground="{DynamicResource Accent}" HorizontalAlignment="Left"/>
+                        <TextBlock FontSize="16" FontWeight="SemiBold" Margin="0,10,0,0" Foreground="{DynamicResource Ink}">Разворот пуст</TextBlock>
+                        <TextBlock Margin="0,6,0,14" Foreground="{DynamicResource Muted}" TextWrapping="Wrap">
                             Перетащите сюда скан или снимок экрана, вставьте картинку из буфера обмена или возьмите страницы из PDF.
                         </TextBlock>
                         <WrapPanel x:Name="SheetHintActions"/>
@@ -190,19 +190,19 @@
                 </Border>
 
                 <!-- Проект не открыт: недавние, новый, открыть. -->
-                <Border x:Name="StartScreen" Background="{StaticResource Ground}">
+                <Border x:Name="StartScreen" Background="{DynamicResource Ground}">
                     <Border HorizontalAlignment="Center" VerticalAlignment="Center" Width="560">
                         <StackPanel>
-                            <TextBlock FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Ink}">Разметка документов</TextBlock>
-                            <TextBlock Margin="0,4,0,20" Foreground="{StaticResource Muted}" TextWrapping="Wrap">
+                            <TextBlock FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource Ink}">Разметка документов</TextBlock>
+                            <TextBlock Margin="0,4,0,20" Foreground="{DynamicResource Muted}" TextWrapping="Wrap">
                                 Страницы документа и снимки системы на одном развороте: рамки на графах, стрелки к полям, таблица связей.
                             </TextBlock>
                             <WrapPanel x:Name="StartActions" Margin="0,0,0,20"/>
-                            <TextBlock x:Name="RecentTitle" FontWeight="SemiBold" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,0,0,6">Недавние</TextBlock>
-                            <Border CornerRadius="8" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                            <TextBlock x:Name="RecentTitle" FontWeight="SemiBold" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,0,0,6">Недавние</TextBlock>
+                            <Border CornerRadius="8" Background="{DynamicResource Card}" BorderBrush="{DynamicResource Line}" BorderThickness="1">
                                 <StackPanel x:Name="RecentList" Margin="4"/>
                             </Border>
-                            <TextBlock Margin="0,14,0,0" Foreground="{StaticResource Faint}" FontSize="12" TextWrapping="Wrap">
+                            <TextBlock Margin="0,14,0,0" Foreground="{DynamicResource Faint}" FontSize="12" TextWrapping="Wrap">
                                 Можно перетащить на окно папку проекта — она откроется.
                             </TextBlock>
                         </StackPanel>
@@ -212,9 +212,9 @@
                 <!-- Режим (новая связь, обрезка, подгонка по точкам, заметка):
                      шаг, что сделать сейчас, как выйти. -->
                 <Border x:Name="ModeBar" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,12,0,0" Visibility="Collapsed"
-                        Background="{StaticResource Dark}" CornerRadius="8" Padding="6,6,6,6">
+                        Background="{DynamicResource Dark}" CornerRadius="8" Padding="6,6,6,6">
                     <StackPanel Orientation="Horizontal">
-                        <Border x:Name="ModeStep" CornerRadius="4" Background="{StaticResource Accent}" Padding="8,2,8,3" Margin="2,0,10,0" VerticalAlignment="Center">
+                        <Border x:Name="ModeStep" CornerRadius="4" Background="{DynamicResource Accent}" Padding="8,2,8,3" Margin="2,0,10,0" VerticalAlignment="Center">
                             <TextBlock x:Name="ModeStepText" Foreground="White" FontWeight="SemiBold" FontSize="12"/>
                         </Border>
                         <TextBlock x:Name="ModeText" Foreground="White" VerticalAlignment="Center" Margin="0,0,12,0"/>
@@ -227,14 +227,14 @@
                 <!-- Тень — у подложки (ToolbarShadow): эффект на самой панели
                      мылит значки и текст внутри. -->
                 <Border x:Name="ToolbarShadow" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,16" Visibility="{Binding Visibility, ElementName=Toolbar}"
-                        Background="{StaticResource Card}" CornerRadius="8" IsHitTestVisible="False"
+                        Background="{DynamicResource Card}" CornerRadius="8" IsHitTestVisible="False"
                         Width="{Binding ActualWidth, ElementName=Toolbar}" Height="{Binding ActualHeight, ElementName=Toolbar}">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.16" Direction="270"/>
                     </Border.Effect>
                 </Border>
                 <Border x:Name="Toolbar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,16" Visibility="Collapsed"
-                        Background="{StaticResource Card}" CornerRadius="8" Padding="4" BorderBrush="{StaticResource Line}" BorderThickness="1">
+                        Background="{DynamicResource Card}" CornerRadius="8" Padding="4" BorderBrush="{DynamicResource Line}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
                         <ToggleButton x:Name="TSelect" Style="{StaticResource ToolToggle}" Content="&#xE8B0;" Tag="V"/>
                         <ToggleButton x:Name="THand" Style="{StaticResource ToolToggle}" Content="&#xE7C2;" Tag="H"/>
@@ -257,7 +257,7 @@
                             <TextBlock Text="&#xE738;" FontFamily="{StaticResource IconFont}" FontSize="12"/>
                         </Button>
                         <Button x:Name="TZoom" Style="{StaticResource ToolBtn}" Height="40" MinHeight="0" MinWidth="56" Padding="6,0">
-                            <TextBlock x:Name="ZoomText" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Ink}">100 %</TextBlock>
+                            <TextBlock x:Name="ZoomText" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Ink}">100 %</TextBlock>
                         </Button>
                         <Button x:Name="TZoomIn" Style="{StaticResource ToolBtn}" Width="32" Height="40" MinHeight="0" Padding="0">
                             <TextBlock Text="&#xE710;" FontFamily="{StaticResource IconFont}" FontSize="12"/>
@@ -269,7 +269,7 @@
 
             <GridSplitter x:Name="RightSplit" Grid.Column="3" Width="4" Background="Transparent" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
             <!-- Инспектор: свойства выбранного; без выбора — разворот и глава. -->
-            <Border x:Name="RightPane" Grid.Column="4" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1,0,0,0">
+            <Border x:Name="RightPane" Grid.Column="4" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="1,0,0,0">
                 <ScrollViewer x:Name="InspScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                     <StackPanel x:Name="Insp" Margin="0,0,0,24"/>
                 </ScrollViewer>
@@ -278,11 +278,11 @@
 
         <!-- Строка состояния: слева — что сделает щелчок или что сделано,
              справа — выбранное и размер картинок. -->
-        <Border Grid.Row="2" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0">
             <DockPanel Margin="16,0,16,0">
-                <TextBlock x:Name="SizeText" DockPanel.Dock="Right" Foreground="{StaticResource Faint}" FontSize="12" VerticalAlignment="Center"/>
-                <TextBlock x:Name="SelText" DockPanel.Dock="Right" Foreground="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" Margin="0,0,24,0"/>
-                <TextBlock x:Name="StatusText" Foreground="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="SizeText" DockPanel.Dock="Right" Foreground="{DynamicResource Faint}" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock x:Name="SelText" DockPanel.Dock="Right" Foreground="{DynamicResource Muted}" FontSize="12" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                <TextBlock x:Name="StatusText" Foreground="{DynamicResource Muted}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
             </DockPanel>
         </Border>
 

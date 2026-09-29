@@ -24,8 +24,7 @@ public partial class MainWindow
         ProjectBtn.Click += (_, _) => OpenMenu(ProjectMenu(), ProjectBtn);
         CrumbBtn.Click += (_, _) => _cmds.Execute("go.sheet");
         PaletteBtn.Click += (_, _) => _cmds.Execute("go.palette");
-        PaletteKbd.Child = Kit.Kbd("Ctrl+K");
-        SearchKbd.Child = Kit.Kbd("Ctrl+F");
+
         CheckBtn.Click += (_, _) => OpenMenu(CheckMenu(), CheckBtn);
         ExportBtn.Click += (_, _) => OpenMenu(ExportMenu(), ExportBtn);
         SaveBtn.Click += (_, _) => Save();
@@ -61,7 +60,10 @@ public partial class MainWindow
         AddAll(m, Mc("project.new"), Mc("project.open"),
             recent.Count > 0 ? Sub("Недавние", recent.Select(r => (object)Mi(r.Title.Length > 0 ? r.Title : Path.GetFileName(r.Dir), () => OpenRecent(r.Dir)))) : null,
             new Separator(), Mc("project.save"), Sub("Экспорт", new object?[] { Mc("project.export.html"), Mc("project.export.xlsx"), Mc("project.export.png") }),
-            new Separator(), Mc("project.close"), Mc("help.keys"));
+            new Separator(),
+            Sub("Тема", new[] { "system", "light", "dark" }.Select(m => (object)Check(Theme.Label(m), Theme.Mode == m, () => SetTheme(m)))),
+            Mc("help.keymap"), Mc("help.keys"),
+            new Separator(), Mc("project.close"));
         return m;
     }
 
@@ -277,7 +279,7 @@ public partial class MainWindow
         g.Children.Add(t);
         if (ch.DocName.Length > 0)
         {
-            var chip = Kit.Chip(ch.DocName, Color.FromRgb(0xEE, 0xF0, 0xF3), Color.FromRgb(0x5E, 0x66, 0x72), 10);
+            var chip = Kit.Chip(ch.DocName, "Hover", "Muted", 10);
             chip.Margin = new Thickness(6, 0, 0, 0);
             chip.VerticalAlignment = VerticalAlignment.Top;
             Grid.SetColumn(chip, 2);

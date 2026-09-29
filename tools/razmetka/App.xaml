@@ -55,7 +55,7 @@
              щелчка по кнопке продолжают работать. -->
         <Style x:Key="ToolBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="10,5"/>
             <Setter Property="Margin" Value="0"/>
@@ -72,10 +72,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource Hover}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Hover}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource Pressed}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Pressed}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -88,7 +88,7 @@
 
         <!-- Главное действие: одно на панель или карточку. -->
         <Style x:Key="PrimaryBtn" TargetType="Button" BasedOn="{StaticResource ToolBtn}">
-            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="14,5"/>
@@ -100,7 +100,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource AccentHover}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource AccentHover}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -113,18 +113,18 @@
 
         <!-- Кнопка с рамкой: второстепенное действие рядом с главным. -->
         <Style x:Key="OutlineBtn" TargetType="Button" BasedOn="{StaticResource ToolBtn}">
-            <Setter Property="Background" Value="{StaticResource Card}"/>
+            <Setter Property="Background" Value="{DynamicResource Card}"/>
             <Setter Property="Padding" Value="12,5"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}"
-                                BorderBrush="{StaticResource LineStrong}" BorderThickness="1">
+                                BorderBrush="{DynamicResource LineStrong}" BorderThickness="1">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource Hover}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Hover}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -142,7 +142,7 @@
             <Setter Property="Height" Value="40"/>
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource Ink}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Ink}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -150,16 +150,16 @@
                             <Grid>
                                 <TextBlock x:Name="ic" Text="{TemplateBinding Content}" FontFamily="{StaticResource IconFont}" FontSize="18"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}"/>
-                                <TextBlock x:Name="k" Text="{TemplateBinding Tag}" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource Faint}"
+                                <TextBlock x:Name="k" Text="{TemplateBinding Tag}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource Faint}"
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,2"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource Hover}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Hover}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Accent}"/>
                                 <Setter TargetName="ic" Property="Foreground" Value="White"/>
                                 <Setter TargetName="k" Property="Foreground" Value="#CCFFFFFF"/>
                             </Trigger>
@@ -177,7 +177,7 @@
             <Setter Property="Height" Value="24"/>
             <Setter Property="Focusable" Value="False"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -190,7 +190,7 @@
                                 <Setter TargetName="t" Property="Opacity" Value="1"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="b" Property="Background" Value="{StaticResource Hover}"/>
+                                <Setter TargetName="b" Property="Background" Value="{DynamicResource Hover}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -201,14 +201,14 @@
         <Style x:Key="PanelTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
             <Setter Property="Margin" Value="16,14,12,6"/>
         </Style>
 
         <Style x:Key="Sep" TargetType="Border">
             <Setter Property="Width" Value="1"/>
             <Setter Property="Margin" Value="6,8"/>
-            <Setter Property="Background" Value="{StaticResource Line}"/>
+            <Setter Property="Background" Value="{DynamicResource Line}"/>
         </Style>
 
         <!-- Список без собственной рамки и подсветки: строки рисуют выбор сами. -->

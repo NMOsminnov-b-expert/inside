@@ -28,7 +28,6 @@ public partial class MainWindow
     {
         void Tool(System.Windows.Controls.Primitives.ToggleButton b, string id)
         {
-            b.ToolTip = _cmds[id].Tip + (_cmds[id].Hint.Length > 0 ? "\n" + _cmds[id].Hint : "");
             b.Click += (_, _) => { _cmds.Execute(id); SyncTool(); };
         }
         Tool(TSelect, "tool.select");

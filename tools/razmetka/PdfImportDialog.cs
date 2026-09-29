@@ -35,7 +35,7 @@ public sealed class PdfImportDialog : Window
         _cur.IsEnabled = hasChapter;
 
         var p = new StackPanel { Margin = new Thickness(16) };
-        TextBlock Label(string t) => new() { Text = t, Foreground = System.Windows.Media.Brushes.DimGray, FontSize = 11, Margin = new Thickness(0, 8, 0, 2) };
+        TextBlock Label(string t) => new() { Text = t, Foreground = Ui.Kit.B("Muted"), FontSize = 11, Margin = new Thickness(0, 8, 0, 2) };
         p.Children.Add(new TextBlock { Text = $"{Path.GetFileName(path)} — страниц: {count}", TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold });
         p.Children.Add(Label("Страницы: «1-3, 5»; пусто — все"));
         p.Children.Add(_pages);

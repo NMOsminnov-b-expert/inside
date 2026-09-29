@@ -34,6 +34,20 @@ public readonly record struct Chord(Key Key, ModifierKeys Mods = ModifierKeys.No
         return string.Join("+", parts);
     }
 
+    // Запись в настройки: имена клавиш и модификаторов как в WPF —
+    // «Control+Shift+OemCloseBrackets».
+    public string Serialize() => (Mods == ModifierKeys.None ? "" : Mods.ToString().Replace(", ", "+") + "+") + Key;
+
+    public static Chord? Parse(string s)
+    {
+        var parts = s.Split('+', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0 || !Enum.TryParse<Key>(parts[^1], out var key)) return null;
+        var mods = ModifierKeys.None;
+        foreach (var p in parts[..^1])
+            if (Enum.TryParse<ModifierKeys>(p, out var m)) mods |= m; else return null;
+        return new Chord(key, mods);
+    }
+
     public static string KeyName(Key k) => k switch
     {
         >= Key.D0 and <= Key.D9 => ((int)(k - Key.D0)).ToString(),
@@ -63,7 +77,12 @@ public sealed class Cmd
     public required string Title { get; init; }
     public required string Group { get; init; }
     public Scope Scope { get; init; } = Scope.Canvas;
-    public Chord[] Keys { get; init; } = Array.Empty<Chord>();
+    // Клавиши — текущие (с переназначениями); исходные — Defaults.
+    public Chord[] Keys { get; set; } = Array.Empty<Chord>();
+    public Chord[] Defaults { get; private set; } = Array.Empty<Chord>();
+    public string? DefaultKeysText { get; private set; }
+    public bool Changed => !Keys.SequenceEqual(Defaults);
+    internal void Freeze() { Defaults = Keys; DefaultKeysText = KeysText; }
     public Func<bool> When { get; init; } = () => true;
     public required Action Run { get; init; }
     // Пояснение в палитре и шпаргалке: что именно сделает команда.
@@ -72,7 +91,7 @@ public sealed class Cmd
     // строкой, в палитре не показываются.
     public bool InPalette { get; init; } = true;
     // Подпись клавиш для шпаргалки, если их несколько или они — диапазон.
-    public string? KeysText { get; init; }
+    public string? KeysText { get; set; }
 
     public string KeyLabel => KeysText ?? (Keys.Length == 0 ? "" : Keys[0].ToString());
     public string Tip => KeyLabel.Length == 0 ? Title : $"{Title} — {KeyLabel}";
@@ -90,12 +109,31 @@ public sealed class CommandSet
 
     public Cmd Add(Cmd c)
     {
+        c.Freeze();
         _all.Add(c);
         _byId[c.Id] = c;
         return c;
     }
 
     public Cmd this[string id] => _byId[id];
+
+    // Переназначения поверх исходных: для изменённой команды — её клавиши,
+    // подпись диапазона (KeysText) уже неверна и снимается.
+    public void Apply(Dictionary<string, List<string>> keys)
+    {
+        foreach (var c in _all)
+        {
+            if (keys.TryGetValue(c.Id, out var list))
+            {
+                c.Keys = list.Select(Chord.Parse).Where(x => x != null).Select(x => x!.Value).ToArray();
+                c.KeysText = null;
+            }
+            else { c.Keys = c.Defaults; c.KeysText = c.DefaultKeysText; }
+        }
+    }
+
+    // Кто ещё на этом сочетании.
+    public IEnumerable<Cmd> Holders(Chord k, Cmd except) => _all.Where(c => c != except && c.Keys.Contains(k));
     public bool Has(string id) => _byId.ContainsKey(id);
 
     public bool Execute(string id)

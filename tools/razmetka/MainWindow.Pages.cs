@@ -235,7 +235,7 @@ public partial class MainWindow
         {
             var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, FlowHost.Children.Count == 0 ? 8 : 28, 0, 10), Width = w };
             head.Children.Add(Kit.Text(ch.Title.Length > 0 ? ch.Title : "Без названия", 16, "Ink", FontWeights.SemiBold));
-            if (ch.DocName.Length > 0) head.Children.Add(Kit.Chip(ch.DocName, Color.FromRgb(0xEE, 0xF0, 0xF3), Color.FromRgb(0x5E, 0x66, 0x72)).Also(c => c.Margin = new Thickness(10, 2, 0, 0)));
+            if (ch.DocName.Length > 0) head.Children.Add(Kit.Chip(ch.DocName, "Hover", "Muted").Also(c => c.Margin = new Thickness(10, 2, 0, 0)));
             FlowHost.Children.Add(head);
             for (var i = 0; i < ch.Sheets.Count; i++)
             {

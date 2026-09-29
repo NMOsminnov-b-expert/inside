@@ -145,11 +145,11 @@ public static class Kit
         return new Border { Background = B("Hover"), CornerRadius = new CornerRadius(6), Padding = new Thickness(2), Child = g };
     }
 
-    public static Border Chip(string text, Color fill, Color fg, double size = 11) => new()
+    public static Border Chip(string text, string fill, string fg, double size = 11) => new()
     {
-        Background = new SolidColorBrush(fill), CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 1, 7, 2),
+        Background = B(fill), CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 1, 7, 2),
         VerticalAlignment = VerticalAlignment.Center,
-        Child = new TextBlock { Text = text, Foreground = new SolidColorBrush(fg), FontSize = size, FontWeight = FontWeights.SemiBold },
+        Child = new TextBlock { Text = text, Foreground = B(fg), FontSize = size, FontWeight = FontWeights.SemiBold },
     };
 
     // Номер связи — кружок её цвета, как на полотне.
