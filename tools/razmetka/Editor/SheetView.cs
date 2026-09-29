@@ -126,7 +126,7 @@ public sealed class SheetView : FrameworkElement
                 break;
             default:
                 Cursor = null;
-                HoverHint?.Invoke("Обвести — выбрать несколько; пробел или H — двигать полотно; Ctrl+K — все команды, F1 — клавиши");
+                HoverHint?.Invoke("Обвести — выбрать несколько; тянуть правой кнопкой, колесом, с пробелом или H — двигать полотно; правый щелчок — меню; Ctrl+K — команды");
                 break;
         }
     }
@@ -198,7 +198,7 @@ public sealed class SheetView : FrameworkElement
     const double HandleR = 5;
     const double SnapPx = 6;
 
-    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag, NoteMove, Rotate, FrameRotate, Straighten }
+    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag, NoteMove, Rotate, FrameRotate, Straighten, RightPan }
     double _rotOrig, _rotStart;
     Point _rotCenter;
     Point _noteOrig;
@@ -803,17 +803,27 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null) return;
 
         if (button == MouseButton.Middle || _spaceDown || (HandTool && button == MouseButton.Left)) { _op = Op.Pan; return; }
-        if (button == MouseButton.Right)
+        // Правая кнопка: потянуть — сдвиг полотна, щелчок на месте — меню
+        // (на отпускании; просьба пользователя 29.09.2026 — «перетягивание
+        // через зажатое колесико и правую кнопку»).
+        if (button == MouseButton.Right) { _op = Op.RightPan; return; }
+        PointerDownLeft(p, mods);
+    }
+
+    void RightClick(Point p)
+    {
         {
-            _op = Op.None;
             var t = TargetAt(p);
             // Правая кнопка выбирает то, над чем меню, — как в проводнике.
             if (t.Link != null && t.Kind == "link") SelectLink(t.Link.Id);
             else if (t.Layer != null && !t.Layer.Locked && !Selection.Contains(t.Layer.Id)) { if (LinkId != null) SelectLink(null); Select(new[] { t.Layer.Id }); }
             else if (t.Note != null) SelectNote(t.Note.Id);
             ContextRequested?.Invoke(t);
-            return;
         }
+    }
+
+    void PointerDownLeft(Point p, ModifierKeys mods)
+    {
         if (_ghost != null) { _op = Op.None; AlignClick(p); return; }
         if (StraightenTool) { _op = Op.Straighten; _lineTo = _downWorld; return; }
         if (LinkTool) { _op = Op.Band; _band = new Rect(p, p); return; }
@@ -888,7 +898,7 @@ public sealed class SheetView : FrameworkElement
     {
         var d = p - _lastScreen;
         _lastScreen = p;
-        if ((p - _downScreen).Length > 2 && !_moved) { _moved = true; if (_op is not (Op.Band or Op.Pan)) Dragging?.Invoke(true); }
+        if ((p - _downScreen).Length > 3 && !_moved) { _moved = true; if (_op is not (Op.Band or Op.Pan or Op.RightPan)) Dragging?.Invoke(true); }
         var w = ToWorld(p);
         var dw = w - _downWorld;
         _guides.Clear();
@@ -898,6 +908,9 @@ public sealed class SheetView : FrameworkElement
             case Op.Pan:
                 Offset += d;
                 ViewChanged?.Invoke();
+                break;
+            case Op.RightPan:
+                if (_moved) { Offset += d; Cursor = Cursors.SizeAll; ViewChanged?.Invoke(); }
                 break;
             case Op.Band:
                 _band = new Rect(_downScreen, p);
@@ -941,13 +954,19 @@ public sealed class SheetView : FrameworkElement
                 _lineTo = w;
                 break;
         }
-        if (_op is Op.Pan or Op.Band or Op.NoteMove or Op.Straighten) ViewOnly(); else InvalidateVisual();
+        if (_op is Op.Pan or Op.Band or Op.NoteMove or Op.Straighten or Op.RightPan) ViewOnly(); else InvalidateVisual();
     }
 
     public void PointerUp(Point p)
     {
         var op = _op;
         _op = Op.None;
+        if (op == Op.RightPan)
+        {
+            Cursor = HandTool ? Cursors.Hand : null;
+            if (!_moved) RightClick(p);
+            return;
+        }
         if (_moved) Dragging?.Invoke(false);
         _guides.Clear();
         if (op == Op.Move && !_moved && Selection.Count == 1 && Find(Selection[0]) is { Kind: LayerKind.Table } tl)

@@ -305,6 +305,7 @@ public static class ScriptRunner
                     {
                         var p = Point(w, st.GetProperty("at"));
                         w.Canvas.PointerDown(p, MouseButton.Right, ModifierKeys.None);
+                        w.Canvas.PointerUp(p);
                         break;
                     }
                     case "menuShot":
