@@ -32,6 +32,18 @@ public sealed class RecordPanel : Grid
     public event Action<Record>? DeleteRequested;
     public event Action? DirtyChanged;
 
+    // Граф кода и связи по смыслу (MainWindow.Code, 29.09.2026): соседи
+    // записи по смыслу, файл графа кода для записи о модуле кода, переходы.
+    public Func<string, List<(Record Rec, float Sim)>>? Similar { get; set; }
+    public string SimilarNote { get; set; } = "";
+    public Func<Record, string?>? CodeFileFor { get; set; }
+    public event Action<string>? OpenCode;
+    public event Action<string>? OpenKnowledge;
+    public event Action<string, int>? OpenInEditor;
+    CodeFile? _cf;
+    CodeData? _cd;
+    List<Record> _ck = new();
+
     Record? _orig, _edit;
     Record? _pendingExternal;
     readonly Grid _nav = new() { Padding = new Thickness(8, 8, 8, 0), MinHeight = 44 };
@@ -85,6 +97,7 @@ public sealed class RecordPanel : Grid
 
     public void Show(Record? r, bool keepTab = false)
     {
+        _cf = null;
         _orig = r;
         _edit = r?.Clone();
         _pendingExternal = null;
@@ -269,6 +282,7 @@ public sealed class RecordPanel : Grid
     void Build()
     {
         _body.Children.Clear();
+        if (_cf != null) { CodePage(); return; }
         var has = _edit != null;
         _tabsHost.Visibility = _head.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
         Nav();
@@ -374,6 +388,10 @@ public sealed class RecordPanel : Grid
             }
             Section("Прочие поля", cells);
         }
+
+        // Запись о файле кода — переход к нему в графе кода.
+        if (CodeFileFor?.Invoke(r) is { } fileId)
+            Section("Граф кода", new[] { Hig.Row("Открыть в графе кода", fileId[5..], glyph: "\uE943", acc: Hig.Acc.Chevron, click: () => OpenCode?.Invoke(fileId)) });
 
         var file = System.IO.Path.GetRelativePath(Store!.Root, r.Path.Length > 0 ? r.Path : Store.Know);
         var foot = Hig.Footer($"ID {r.Id}\nФайл {file}" + (r.OldName.Length > 0 ? $"\nПрежнее имя «{r.OldName}»" : ""));
@@ -508,8 +526,28 @@ public sealed class RecordPanel : Grid
         else
             Section("Сюда", new[] { Hig.Row("Ни одна запись сюда не ссылается", titleColor: "HigSecondary") });
 
-        // Возможно связано: кандидаты по общим соседям и по сходству текста
-        // (Model/Quality); «+» ставит связь «относится к».
+        // Похоже по смыслу — соседи из индекса semsearch (выгрузка
+        // .graf/semantic.json); кроме уже связанных. Нет выгрузки — подсказки
+        // по общим соседям и по сходству слов (Model/Quality).
+        var linkedIds = links.OfType<Map>().Select(l => l["куда"] as string).Concat(inc.Select(x => x.From.Id)).ToHashSet();
+        var sim = Similar?.Invoke(r.Id).Where(x => !linkedIds.Contains(x.Rec.Id)).Take(8).ToList();
+        if (sim is { Count: > 0 })
+        {
+            Section("Похоже по смыслу", sim.Select(x =>
+            {
+                var target = x.Rec;
+                var add = Hig.Icon("\uE710", "Связать: «относится к»", () =>
+                {
+                    var ls = r.Fields["связи"] as List<object?> ?? new List<object?>();
+                    ls.Add(new Map { new("тип", "относится к"), new("куда", target.Id), new("папка", target.Folder) });
+                    r.Fields["связи"] = ls;
+                    Changed();
+                    Build();
+                }, "HigAccent", 14);
+                return Hig.Row(target.Title, $"похожесть {x.Sim:0.00}", dot: GraphView.Parse(Schema.ColorOf(target.Folder)), trailing: add, click: () => Navigate?.Invoke(target.Id));
+            }), $"По смыслу текста (semsearch, {SimilarNote}). «+» ставит связь «относится к».", indent: 38);
+            return;
+        }
         var cands = Quality.Suggest(Store, r.Id);
         if (cands.Count == 0) return;
         Section("Возможно связано", cands.Select(c =>
@@ -656,4 +694,79 @@ public sealed class RecordPanel : Grid
     }
 
     static class T { public const Hig.T Headline = Hig.T.Headline; }
+
+    // --- файл графа кода ----------------------------------------------------------------
+
+    public void ShowCode(CodeFile f, CodeData c, List<Record> knowledge)
+    {
+        _orig = _edit = null;
+        _cf = f;
+        _cd = c;
+        _ck = knowledge;
+        _external.Visibility = Visibility.Collapsed;
+        Build();
+        DirtyChanged?.Invoke();
+    }
+
+    // Карточка файла: модуль и язык, путь; функции и классы (щелчок —
+    // открыть в VS Code на строке); от кого файл зависит и кто от него (с
+    // видами и числом случаев); записи графа знаний о нём.
+    void CodePage()
+    {
+        var f = _cf!;
+        var c = _cd!;
+        _tabsHost.Visibility = Visibility.Collapsed;
+        _head.Visibility = Visibility.Visible;
+        _nav.Children.Clear();
+        _nav.ColumnDefinitions.Clear();
+        _nav.ColumnDefinitions.Add(new ColumnDefinition());
+        _nav.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var open = Hig.TextButton("Открыть в VS Code", () => OpenInEditor?.Invoke(f.Path, 1), strong: true);
+        Grid.SetColumn(open, 1);
+        _nav.Children.Add(open);
+
+        _head.Children.Clear();
+        var kind = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        kind.Children.Add(new Border { Width = 9, Height = 9, CornerRadius = new CornerRadius(5), Background = new SolidColorBrush(GraphView.Parse(Schema.ColorOf(f.Module))), VerticalAlignment = VerticalAlignment.Center });
+        kind.Children.Add(Hig.Text($"{f.Module} · {f.Lang}", Hig.T.Subhead, "HigSecondary"));
+        _head.Children.Add(kind);
+        var title = Hig.Text(System.IO.Path.GetFileName(f.Path), Hig.T.LargeTitle, wrap: true);
+        title.FontSize = 22;
+        _head.Children.Add(title);
+        var p = Hig.Text(f.Path, Hig.T.Footnote, "HigSecondary", wrap: true);
+        p.IsTextSelectionEnabled = true;
+        _head.Children.Add(p);
+
+        var syms = f.Symbols;
+        if (syms.Count > 0)
+            Section($"Функции и классы · {syms.Count}", syms.Select(s =>
+            {
+                var (glyph, name) = s.Kind switch { "class" => ("\uE8F1", "класс"), "method" => ("\uE943", "метод"), _ => ("\uE943", "функция") };
+                var line = s.Line;
+                return Hig.Row(s.Name, name, value: $"стр. {line}", glyph: glyph, click: () => OpenInEditor?.Invoke(f.Path, line), tooltip: "Открыть в VS Code на строке " + line);
+            }), "Щелчок — открыть файл в VS Code на этой строке.", indent: 44);
+        else Section("Функции и классы", new[] { Hig.Row("В файле нет функций и классов", titleColor: "HigSecondary") });
+
+        UIElement Dep((string Path, List<(string Kind, int N)> Kinds) d)
+        {
+            var target = "file:" + d.Path;
+            var sub = string.Join(" · ", d.Kinds.OrderByDescending(k => k.N).Select(k => $"{k.Kind} {k.N}"));
+            var mod = c.ById.TryGetValue(target, out var tf) ? tf.Module : "";
+            return Hig.Row(d.Path, sub, dot: GraphView.Parse(Schema.ColorOf(mod)), acc: Hig.Acc.Chevron, click: () => OpenCode?.Invoke(target));
+        }
+        var outs = c.Edges.Where(e => e.From == f.Path).GroupBy(e => e.To)
+            .Select(g => (g.Key, g.Select(x => (x.Kind, x.N)).ToList())).OrderByDescending(x => x.Item2.Sum(k => k.N)).ToList();
+        var ins = c.Edges.Where(e => e.To == f.Path).GroupBy(e => e.From)
+            .Select(g => (g.Key, g.Select(x => (x.Kind, x.N)).ToList())).OrderByDescending(x => x.Item2.Sum(k => k.N)).ToList();
+        Section(outs.Count > 0 ? $"Зависит от · {outs.Count}" : "Зависит от", outs.Count > 0 ? outs.Select(Dep) : new[] { Hig.Row("Ни от какого файла проекта", titleColor: "HigSecondary") }, indent: 38);
+        Section(ins.Count > 0 ? $"От него зависят · {ins.Count}" : "От него зависят", ins.Count > 0 ? ins.Select(Dep) : new[] { Hig.Row("Никакой файл проекта", titleColor: "HigSecondary") }, indent: 38);
+
+        if (_ck.Count > 0)
+            Section($"Записи графа знаний · {_ck.Count}", _ck.Select(r => Hig.Row(r.Title, Schema.NameOf(r.Folder),
+                dot: GraphView.Parse(Schema.ColorOf(r.Folder)), acc: Hig.Acc.Chevron, click: () => OpenKnowledge?.Invoke(r.Id))), indent: 38);
+
+        var foot = Hig.Footer($"Данные — CodeGraph ({c.Note}); зависимости — вызовы, импорты, ссылки и создание объектов между файлами.");
+        foot.Margin = new Thickness(14, 18, 14, 0);
+        _body.Children.Add(foot);
+    }
 }

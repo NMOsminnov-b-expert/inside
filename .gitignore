@@ -55,3 +55,6 @@ docs/reestr-izmeneniy.xlsx
 /tools/graf/obj/
 /tools/graf/dist/
 /tools/graf/dist.next/
+
+# Выгрузки для программы «Граф проекта» (граф кода, связи по смыслу) — пересобираются
+/.graf/

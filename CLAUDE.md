@@ -150,7 +150,12 @@ MCP (`.claude/knowledge-graph/`) снят, всё его содержимое п
 
        "%LOCALAPPDATA%\semsearch\src\codebase-mcp\.venv\Scripts\python.exe" "%LOCALAPPDATA%\semsearch\client.py" index "C:/vs code/inside" inside
 
-   Иначе поиски не видят новое.
+   Иначе поиски не видят новое. Программа «Граф проекта» читает из
+   обоих индексов выгрузки в `.graf/` (вне git): граф кода —
+   `python tools/knowledge/code_export.py` (после `codegraph sync`), связи
+   по смыслу — `tools/knowledge/semantic_export.py` под Python из
+   окружения semsearch (после дообновления индекса); то же делает пункт
+   программы «Ещё» → «Обновить граф кода и связи по смыслу».
 
 Устройство графа — `knowledge/README.md`: одна запись — один файл
 `knowledge/<папка>/<id>.py` (папки: `decisions`, `rules`, `questions`,

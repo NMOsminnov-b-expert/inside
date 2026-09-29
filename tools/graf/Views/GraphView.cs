@@ -44,8 +44,9 @@ public sealed class GraphView : UserControl
         // видам на плоскости, 3 — они же в объёме, 4 и 5 — острова по темам
         // (у каждой раскладки свои места: переключение не портит другую).
         // Чётный номер — плоскость, нечётный — объём.
-        public readonly Vector3[] P = new Vector3[6];
-        public readonly bool[] Placed = new bool[6];
+        // 6 и 7 — раскладка «Смысл» (узлы стянуты по похожести).
+        public readonly Vector3[] P = new Vector3[8];
+        public readonly bool[] Placed = new bool[8];
         public Vector3 V;
         public bool Pinned;
         public int Deg;
@@ -64,6 +65,8 @@ public sealed class GraphView : UserControl
         public float[]? J { get; set; }
         public float[]? K { get; set; }
         public float[]? L { get; set; }
+        public float[]? S { get; set; }
+        public float[]? T { get; set; }
     }
 
     // Вывод — цепочка буферов (swap chain), кадр рисуется прямо в такте
@@ -84,7 +87,9 @@ public sealed class GraphView : UserControl
     bool _3d;
     // Острова: 0 — нет, 1 — по виду записи (папке), 2 — по темам (сообществам связей).
     int _grouping;
-    bool _islands => _grouping > 0;
+    // 3 — «Смысл»: не острова, свободная раскладка по связям «похоже по смыслу».
+    bool _islands => _grouping is 1 or 2;
+    static bool IsIsl(int m) => m is >= 2 and <= 5;
     int M => Index(_3d, _grouping);
     static int Index(bool d3, int grouping) => grouping * 2 + (d3 ? 1 : 0);
 
@@ -254,7 +259,7 @@ public sealed class GraphView : UserControl
         _live = 0;
         var firstTime = !_arr.Any(n => n.Placed[Index(_3d, g)]);
         _grouping = g;
-        if (g > 0) UpdateIslands();
+        if (_islands) UpdateIslands();
         Place();
         FitAll(animate: !firstTime);
         Paint();
@@ -283,6 +288,12 @@ public sealed class GraphView : UserControl
         ("проверяет", Color.FromArgb(255, 0xD9, 0x7B, 0xC4)),
         ("проверяется", Color.FromArgb(255, 0xB0, 0x6F, 0xA3)),
         ("относится к", Color.FromArgb(255, 0x9A, 0xA8, 0xB8)),
+        (SimType, Color.FromArgb(255, 0xC0, 0x84, 0xFC)),
+        // Граф кода: связи файл → файл.
+        ("вызывает", Color.FromArgb(255, 0x6E, 0xA8, 0xE6)),
+        ("импортирует", Color.FromArgb(255, 0x5D, 0xC2, 0x7A)),
+        ("ссылается", Color.FromArgb(255, 0x9A, 0xA8, 0xB8)),
+        ("создаёт", Color.FromArgb(255, 0xF2, 0x8E, 0x4A)),
     };
 
     // Обратное имя вида связи: как связь читается со стороны «той» записи
@@ -295,6 +306,8 @@ public sealed class GraphView : UserControl
         ["влияет на"] = "меняется из-за", ["использует"] = "используется в", ["уточняет"] = "уточняется в",
         ["заменяет"] = "заменено", ["часть"] = "содержит", ["содержит"] = "часть",
         ["проверяет"] = "проверяется", ["проверяется"] = "проверяет", ["относится к"] = "относится к",
+        [SimType] = SimType,
+        ["вызывает"] = "вызывается из", ["импортирует"] = "импортируется в", ["ссылается"] = "на него ссылается", ["создаёт"] = "создаётся в",
     };
 
     public static string InverseOf(string type) => Inverse.TryGetValue(type, out var s) ? s : "← " + type;
@@ -475,10 +488,21 @@ public sealed class GraphView : UserControl
         if (n.Placed[3]) { var p = Final(n, 3); s.J = new[] { p.X, p.Y, p.Z, IslandsVersion }; }
         if (n.Placed[4]) { var p = Final(n, 4); s.K = new[] { p.X, p.Y, IslandsVersion }; }
         if (n.Placed[5]) { var p = Final(n, 5); s.L = new[] { p.X, p.Y, p.Z, IslandsVersion }; }
+        if (n.Placed[6]) { var p = Final(n, 6); s.S = new[] { p.X, p.Y }; }
+        if (n.Placed[7]) { var p = Final(n, 7); s.T = new[] { p.X, p.Y, p.Z }; }
         _saved[n.R.Id] = s;
     }
 
-    public void SetData(IEnumerable<Record> records, IEnumerable<(string From, string To, string Type)> links)
+    // Связи «похоже по смыслу» (выгрузка semsearch, .graf/semantic.json):
+    // отдельный слой — пунктиром, в силовую раскладку не входят (граф не
+    // перекладывается), кроме раскладки «Смысл», где они и стягивают узлы;
+    // пара, уже связанная записанной связью, не дублируется.
+    public const string SimType = "похоже по смыслу";
+    List<(Node A, Node B, float Sim)> _sim = new();
+    public int SimCount => _sim.Count;
+
+    public void SetData(IEnumerable<Record> records, IEnumerable<(string From, string To, string Type)> links,
+        IEnumerable<(string A, string B, float Sim)>? similar = null)
     {
         var keep = records.ToDictionary(r => r.Id);
         foreach (var id in _nodes.Keys.Where(k => !keep.ContainsKey(k)).ToList())
@@ -499,6 +523,8 @@ public sealed class GraphView : UserControl
                 if (s.J is { Length: 4 } && s.J[3] == IslandsVersion) { n.P[3] = new Vector3(s.J[0], s.J[1], s.J[2]); n.Placed[3] = true; }
                 if (s.K is { Length: 3 } && s.K[2] == IslandsVersion) { n.P[4] = new Vector3(s.K[0], s.K[1], 0); n.Placed[4] = true; }
                 if (s.L is { Length: 4 } && s.L[3] == IslandsVersion) { n.P[5] = new Vector3(s.L[0], s.L[1], s.L[2]); n.Placed[5] = true; }
+                if (s.S is { Length: 2 }) { n.P[6] = new Vector3(s.S[0], s.S[1], 0); n.Placed[6] = true; }
+                if (s.T is { Length: 3 }) { n.P[7] = new Vector3(s.T[0], s.T[1], s.T[2]); n.Placed[7] = true; }
                 n.Pinned = false;
             }
             _nodes[r.Id] = n;
@@ -509,6 +535,11 @@ public sealed class GraphView : UserControl
         _adj = _arr.ToDictionary(n => n, _ => new List<Node>());
         foreach (var n in _arr) n.Deg = 0;
         foreach (var (a, b, _) in _edges) { a.Deg++; b.Deg++; _adj[a].Add(b); _adj[b].Add(a); }
+        var linked = _edges.Select(e => (e.A, e.B)).Concat(_edges.Select(e => (e.B, e.A))).ToHashSet();
+        _sim = (similar ?? Enumerable.Empty<(string, string, float)>())
+            .Where(s => _nodes.ContainsKey(s.A) && _nodes.ContainsKey(s.B) && s.A != s.B)
+            .Select(s => (_nodes[s.A], _nodes[s.B], s.Sim))
+            .Where(s => !linked.Contains((s.Item1, s.Item2))).ToList();
         // Центры — 12 самых связанных записей: при отдалении подписаны только они.
         _hubDeg = Math.Max(3, _arr.Select(n => n.Deg).OrderByDescending(d => d).Skip(11).FirstOrDefault());
         if (_hover != null && !_nodes.ContainsKey(_hover.R.Id)) _hover = null;
@@ -532,7 +563,7 @@ public sealed class GraphView : UserControl
             var nb = _adj[n].Where(x => x.Placed[m]).ToList();
             n.P[m] = nb.Count > 0
                 ? nb.Aggregate(Vector3.Zero, (s, x) => s + x.P[m]) / nb.Count + Jitter(rnd, 20)
-                : m >= 2 ? IslandOf(n, m) + Jitter(rnd, 60) : Jitter(rnd, 400);
+                : IsIsl(m) ? IslandOf(n, m) + Jitter(rnd, 60) : Jitter(rnd, 400);
         }
         foreach (var n in fresh) n.Placed[m] = true;
         // Раскладка считается в фоне (SolveAsync): экран не замирает, узлы
@@ -566,9 +597,15 @@ public sealed class GraphView : UserControl
         var arr = _arr;
         var idx = new Dictionary<Node, int>(arr.Length);
         for (var i = 0; i < arr.Length; i++) idx[arr[i]] = i;
+        // В раскладке «Смысл» узлы стягивают связи по похожести (чем ближе,
+        // тем сильнее), записанные связи — слабо; иначе — записанные связи.
+        var sense = m is 6 or 7;
         var edges = _edges.Where(e => idx.ContainsKey(e.A) && idx.ContainsKey(e.B))
-            .Select(e => (idx[e.A], idx[e.B], m >= 2 && Key(e.A) != Key(e.B) ? 0.004f : 0.06f)).ToArray();
-        var isl = m >= 2 ? arr.Select(n => IslandOf(n, m)).ToArray() : null;
+            .Select(e => (idx[e.A], idx[e.B], sense ? 0.01f : IsIsl(m) && Key(e.A) != Key(e.B) ? 0.004f : 0.06f))
+            .Concat(sense ? _sim.Where(s => idx.ContainsKey(s.A) && idx.ContainsKey(s.B))
+                .Select(s => (idx[s.A], idx[s.B], 0.03f + Math.Max(0, s.Sim - 0.8f) * 0.8f)) : Enumerable.Empty<(int, int, float)>())
+            .ToArray();
+        var isl = IsIsl(m) ? arr.Select(n => IslandOf(n, m)).ToArray() : null;
         var flat = m % 2 == 0;
         var q = DispatcherQueue;
         Task.Run(() => SolveCore(start, fix, edges, isl, flat, IslPull)).ContinueWith(t =>
@@ -682,7 +719,7 @@ public sealed class GraphView : UserControl
             var len = d.Length() + 0.01f;
             // На островах связь между разными видами тянет слабо — иначе
             // острова слипаются в тот же клубок.
-            var k = m >= 2 && Key(a) != Key(b) ? 0.004f : 0.06f;
+            var k = IsIsl(m) && Key(a) != Key(b) ? 0.004f : 0.06f;
             var f = d / len * (len - 60) * k * alpha;
             a.V += f;
             b.V -= f;
@@ -692,7 +729,7 @@ public sealed class GraphView : UserControl
         {
             // Свободная раскладка тянет к общему центру, острова — к центру
             // своего острова.
-            if (m >= 2) n.V += (IslandOf(n, m) - n.P[m]) * IslPull * alpha;
+            if (IsIsl(m)) n.V += (IslandOf(n, m) - n.P[m]) * IslPull * alpha;
             else n.V -= n.P[m] * 0.004f * alpha;
             if (n.Pinned || n == _drag || (movable != null && !movable.Contains(n))) { n.V = Vector3.Zero; continue; }
             n.V *= 0.55f;
@@ -712,7 +749,7 @@ public sealed class GraphView : UserControl
         var m = M;
         var rnd = new Random();
         foreach (var n in _arr) n.Pinned = false;
-        var start = _arr.Select(n => m >= 2 ? IslandOf(n, m) + Jitter(rnd, 80) : Jitter(rnd, 400)).ToArray();
+        var start = _arr.Select(n => IsIsl(m) ? IslandOf(n, m) + Jitter(rnd, 80) : Jitter(rnd, 400)).ToArray();
         SolveAsync(start, FixedMask(null), 700, EaseInOut, fit: true);
     }
 
@@ -1030,6 +1067,8 @@ public sealed class GraphView : UserControl
         Paint();
     }
 
+    public float TopInset { get; set; } = 64;
+
     public void FitAll(bool animate = true)
     {
         if (EgoOn) { FitEgo(); return; }
@@ -1049,11 +1088,13 @@ public sealed class GraphView : UserControl
         }
         else
         {
-            var size = new Vector2(max.X - min.X, max.Y - min.Y) + new Vector2(80);
-            var z = Math.Clamp(Math.Min(W / size.X, H / size.Y), 0.05f, 3f);
+            // Сверху над графом — панель переключателей (TopInset): граф
+            // вписывается ниже неё. Острова — с запасом на круг и подпись.
+            var size = new Vector2(max.X - min.X, max.Y - min.Y) + new Vector2(IsIsl(m) ? 160 : 80);
+            var z = Math.Clamp(Math.Min(W / size.X, (H - TopInset) / size.Y), 0.05f, 3f);
             if (float.IsNaN(z) || W < 1) z = 0.5f;
             _fitZoom = z;
-            to = to with { Zoom = z, Off = -new Vector2(min.X + max.X, min.Y + max.Y) / 2 * z };
+            to = to with { Zoom = z, Off = -new Vector2(min.X + max.X, min.Y + max.Y) / 2 * z + new Vector2(0, TopInset / 2) };
         }
         if (animate) AnimateCamera(to); else { Apply(to); Paint(); }
     }
@@ -1171,7 +1212,7 @@ public sealed class GraphView : UserControl
 
     public bool Has(string id) => _nodes.ContainsKey(id);
     public int NodeCount => _nodes.Count;
-    public IEnumerable<string> EdgeTypesPresent => _edges.Select(e => e.Type);
+    public IEnumerable<string> EdgeTypesPresent => _edges.Select(e => e.Type).Concat(_sim.Select(_ => SimType));
     public int EgoCount => _ego?.Count ?? 0;
     public int EdgeCount => _edges.Count;
     public void Redraw() => Paint();
@@ -1377,6 +1418,7 @@ public sealed class GraphView : UserControl
     readonly Dictionary<string, CanvasTextLayout> _layN = new(), _layB = new();
     CanvasTextFormat? _fmt, _bold;
     CanvasGeometry? _arrow;
+    Microsoft.Graphics.Canvas.Geometry.CanvasStrokeStyle? _dash;
 
     CanvasTextLayout Lay(Microsoft.Graphics.Canvas.CanvasDrawingSession ds, string t, bool bold)
     {
@@ -1589,7 +1631,7 @@ public sealed class GraphView : UserControl
         // Подробность по масштабу (semantic zoom, практика kak-uluchshat-graf-znaniy-…):
         // острова на плоскости при сильном отдалении — один круг на остров с
         // числом записей, связи между островами — одной линией с числом.
-        if (m >= 2 && !_3d && !EgoOn && _zoom < CollapseZoom)
+        if (IsIsl(m) && !_3d && !EgoOn && _zoom < CollapseZoom)
         {
             DrawCollapsed(ds);
             return;
@@ -1599,7 +1641,7 @@ public sealed class GraphView : UserControl
         // подписи — крупные острова первыми, наезжающая на поставленную
         // пропускается (у мелких тем их десятки).
         _islandLabels.Clear();
-        if (m >= 2 && !EgoOn)
+        if (IsIsl(m) && !EgoOn)
         {
             if (_groupsFor != (_grouping, _arr)) Timed("группы островов", BuildGroups);
             foreach (var (key, nodes, title, col) in _groups)
@@ -1637,6 +1679,26 @@ public sealed class GraphView : UserControl
                 var r = g.First().Pos.Length() * _zoom;
                 ds.DrawCircle(ToScreen2(Vector3.Zero), r, Color.FromArgb(40, 170, 185, 200), 1f);
                 ds.DrawText($"шаг {g.Key}", ToScreen2(Vector3.Zero) + new Vector2(6, -r - 16), Color.FromArgb(150, 170, 185, 200), _fmt);
+            }
+        }
+
+        // Связи по смыслу — пунктиром своим цветом (выведенные, не записанные):
+        // у выбранного и наведённого — ярче, в покое — тихо.
+        if (!HiddenEdgeTypes.Contains(SimType) && _sim.Count > 0)
+        {
+            _dash ??= new Microsoft.Graphics.Canvas.Geometry.CanvasStrokeStyle { DashStyle = Microsoft.Graphics.Canvas.Geometry.CanvasDashStyle.Dash };
+            var sc = EdgeTypeColor(SimType);
+            foreach (var (na, nb, simv) in _sim)
+            {
+                if (EgoOn && (!na.On || !nb.On)) continue;
+                if (_3d && (na.Depth < 5 || nb.Depth < 5)) continue;
+                if (!na.On && !nb.On && !Crosses(na.S, nb.S)) continue;
+                var onSel = sel && (na.R.Id == Selected || nb.R.Id == Selected);
+                var onHover = hoverFocus && (na == _hover || nb == _hover);
+                var col = onSel ? A(sc, 0.95f) : onHover ? A(sc, 0.85f)
+                    : focus != null || hl || Out(na) || Out(nb) ? A(sc, 0.05f) : A(sc, 0.22f);
+                col = A(col, Fog((na.Depth + nb.Depth) / 2));
+                ds.DrawLine(na.S, nb.S, col, onSel || onHover ? 1.8f : 1f, _dash);
             }
         }
 

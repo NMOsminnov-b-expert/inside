@@ -96,8 +96,18 @@ public static class Schema
     public static string ColorOf(string folder)
     {
         foreach (var f in Folders) if (f.Folder == folder) return f.Color;
-        return "#999999";
+        // Не вид записи (модуль в графе кода) — цвет из палитры по устойчивому
+        // хешу имени: у модуля один и тот же цвет при каждом запуске.
+        uint h = 2166136261;
+        foreach (var ch in folder) { h ^= ch; h *= 16777619; }
+        return Palette[h % (uint)Palette.Length];
     }
+
+    static readonly string[] Palette =
+    {
+        "#5B9BD5", "#ED7D31", "#70AD47", "#FFC000", "#9E7BD8", "#4BC0C0", "#E06C9F", "#A5A5A5",
+        "#C9A66B", "#6FCF97", "#F2994A", "#56CCF2", "#BB6BD9", "#EB5757", "#8FB339", "#D4A5A5",
+    };
 
     public static string FileName(string id) => id.Replace('-', '_') + ".py";
 

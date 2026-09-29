@@ -49,6 +49,12 @@ public sealed partial class MainWindow : Window
         Graph.NodeClicked += id => Select(id, center: false);
         Graph.NodeHovered += id =>
         {
+            if (id != null && id.StartsWith("file:") && _derived.Code != null)
+            {
+                Tip.Visibility = Visibility.Visible;
+                TipText.Text = CodeTip(id);
+                return;
+            }
             var r = id == null ? null : Store?.ById(id);
             Tip.Visibility = r == null ? Visibility.Collapsed : Visibility.Visible;
             if (r != null)
@@ -92,6 +98,7 @@ public sealed partial class MainWindow : Window
         List.ItemClick += (_, e) => { if (e.ClickedItem is Row row) Select(row.R.Id, center: false); };
         HintBtn.Click += (_, _) => ToggleHint();
         InitPanels();
+        InitCode();
         SetLeftTab(_settings.LeftTab);
         MiExport.Click += async (_, _) => await ExportDialog();
         MiImport.Click += async (_, _) => await ImportDialog();
@@ -154,6 +161,8 @@ public sealed partial class MainWindow : Window
         Store = new Store(root);
         Store.Load();
         Panel.Store = Store;
+        if (_code) { _code = false; _dataSeg.SelectedIndex = 0; CodePane.Visibility = Visibility.Collapsed; LeftSegHost.Visibility = Visibility.Visible; }
+        LoadDerived();
         Panel.Show(null);
         Graph.Select(null);
         Graph.UseLayout(Settings.LayoutPath(root));
@@ -563,6 +572,7 @@ public sealed partial class MainWindow : Window
     public void Refresh()
     {
         if (Store == null) return;
+        if (_code) { RefreshCode(); return; }
         // На графе — все записи: фильтры не прячут узлы, а приглушают
         // отсеянные (GraphView.Passing; задача пользователя 28.09.2026).
         // Раскладка от фильтра не меняется, связи отсеянных видны. Список —
@@ -579,7 +589,9 @@ public sealed partial class MainWindow : Window
         }
         var filtered = FiltersOn;
         var passing = filtered ? all.Where(Passes).Select(r => r.Id).ToHashSet() : null;
-        Graph.SetData(vis, links);
+        // Связи по смыслу — между показанными записями (выгрузка semsearch).
+        var visIds = vis.Select(r => r.Id).ToHashSet();
+        Graph.SetData(vis, links, _derived.Pairs.Where(p => visIds.Contains(p.A) && visIds.Contains(p.B)));
         Graph.Passing = passing;
         BuildEdgeKinds();
         ApplyHiddenEdges();
@@ -673,6 +685,14 @@ public sealed partial class MainWindow : Window
     public async void Select(string? id, bool center)
     {
         if (Store == null) return;
+        if (id != null && id.StartsWith("file:"))
+        {
+            if (Panel.IsDirty && !await ConfirmLeave()) return;
+            if (!_code) SetDataSource(true);
+            SelectCode(id, center);
+            return;
+        }
+        if (id != null && _code) SetDataSource(false);
         if (id == Panel.Current?.Id) { if (center && id != null) Graph.Select(id, true); return; }
         if (Panel.IsDirty && !await ConfirmLeave()) return;
         var r = id == null ? null : Store.ById(id);
@@ -709,7 +729,8 @@ public sealed partial class MainWindow : Window
     {
         if (Store == null) return;
         var words = Search.Text.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        _matches = words.Length == 0 ? new() : Store.All.Where(r => words.All(w => r.Haystack.Contains(w)))
+        var source = _code && _derived.Code != null ? _derived.Code.Records : Store.All;
+        _matches = words.Length == 0 ? new() : source.Where(r => words.All(w => r.Haystack.Contains(w)))
             .OrderByDescending(r => words.Count(w => r.Title.ToLowerInvariant().Contains(w)))
             .ThenBy(r => r.Title).ToList();
         _matchAt = -1;

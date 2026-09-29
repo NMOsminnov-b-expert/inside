@@ -59,9 +59,13 @@ public sealed partial class MainWindow
         _leftSeg.Changed += i => SetLeftTab(i == 0 ? "toc" : "filters");
         LeftSegHost.Child = _leftSeg;
 
-        _layoutSeg = new Segmented(new[] { "Свободно", "Острова", "Темы" }, _settings.Grouping, dark: true, fontSize: 12);
-        _layoutSeg.Changed += i => SetLayout(i);
-        ToolTipService.SetToolTip(_layoutSeg, "Свободно — силовая раскладка; Острова — записи одного вида в своей области; Темы — острова по сообществам связей");
+        _layoutSeg = new Segmented(new[] { "Свободно", "Острова", "Темы", "Смысл" }, _settings.Grouping, dark: true, fontSize: 12);
+        _layoutSeg.Changed += i =>
+        {
+            if (i == 3 && _code) { Status("«Смысл» — раскладка графа знаний: у файлов кода связей по смыслу нет"); _layoutSeg.SelectedIndex = _settings.Grouping; return; }
+            SetLayout(i);
+        };
+        ToolTipService.SetToolTip(_layoutSeg, "Свободно — силовая раскладка; Острова — записи одного вида (в коде — модуль) в своей области; Темы — острова по сообществам связей; Смысл — рядом то, что похоже по смыслу");
         LayoutHost.Child = _layoutSeg;
 
         _egoSeg = new Segmented(new[] { "Выкл", "1", "2", "3" }, Graph.EgoHops, dark: true, fontSize: 12);

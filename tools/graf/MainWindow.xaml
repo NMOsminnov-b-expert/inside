@@ -70,6 +70,9 @@
                             <MenuFlyoutItem x:Name="BtnRelayout" Text="Разложить граф заново">
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE72C;"/></MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="MiDerived" Text="Обновить граф кода и связи по смыслу">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE895;"/></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
                             <MenuFlyoutSeparator/>
                             <MenuFlyoutItem x:Name="MiExport" Text="Выгрузить граф в файл…">
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xEDE1;"/></MenuFlyoutItem.Icon>
@@ -99,6 +102,10 @@
                 <ScrollViewer x:Name="TocPane" Grid.Row="1">
                     <StackPanel x:Name="Toc" Padding="10,4,10,24" Spacing="2"/>
                 </ScrollViewer>
+                <!-- Режим «Код»: модули графа кода вместо оглавления и фильтров. -->
+                <ScrollViewer x:Name="CodePane" Grid.RowSpan="2" Visibility="Collapsed">
+                    <StackPanel x:Name="CodeHost" Padding="12,12,12,24" Spacing="4"/>
+                </ScrollViewer>
                 <Grid x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <StackPanel x:Name="FilterTop" Padding="14,2,14,10" Spacing="8"/>
@@ -115,7 +122,10 @@
                      (HIG: управление отделено от содержимого материалом). -->
                 <StackPanel x:Name="GraphTools" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14">
                     <Border Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="12" Padding="4">
-                        <Border x:Name="LayoutHost" Width="250"/>
+                        <Border x:Name="DataHost" Width="150"/>
+                    </Border>
+                    <Border Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="12" Padding="4">
+                        <Border x:Name="LayoutHost" Width="320"/>
                     </Border>
                     <Border Background="#B81C1C1E" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="12" Padding="10,4,4,4">
                         <StackPanel Orientation="Horizontal" Spacing="8">

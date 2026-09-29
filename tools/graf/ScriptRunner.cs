@@ -51,7 +51,7 @@ public static class ScriptRunner
                     case "tag": w.ToggleTag(S("value")); break;
                     case "sort": w.SetSort(S("key"), st.TryGetProperty("desc", out var dsc) && dsc.GetBoolean()); break;
                     case "lefttab": w.SetLeftTabPublic(S("value")); break;
-                    case "islands": w.SetLayout(S("value") switch { "on" => 1, "topics" => 2, _ => 0 }); break;
+                    case "islands": w.SetLayout(S("value") switch { "on" => 1, "topics" => 2, "sense" => 3, _ => 0 }); break;
                     case "ego": w.GraphCtl.SetEgo(st.GetProperty("hops").GetInt32()); break;
                     case "islandstat": log.Add("  острова: " + w.GraphCtl.IslandStats()); break;
                     case "datepreset": w.SetDatePresetPublic(S("value")); break;
@@ -72,6 +72,7 @@ public static class ScriptRunner
                     case "check": w.OpenCheck(); break;
                     case "perf": log.Add("  " + await w.GraphCtl.PerfRun(S("kind"), st.TryGetProperty("s", out var sec) ? sec.GetDouble() : 5)); break;
                     case "paneltab": w.PanelCtl.OpenTab(S("value")); break;
+                    case "datasource": w.SetDataSource(S("value") == "code"); break;
                     case "closedlg": w.CloseDialogs(); break;
                     case "quality":
                     {
