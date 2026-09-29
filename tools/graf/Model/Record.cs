@@ -92,7 +92,12 @@ public static class Schema
 
     public static string KindOf(string folder) => Folders.FirstOrDefault(f => f.Folder == folder).Kind ?? "";
     public static string NameOf(string folder) => Folders.FirstOrDefault(f => f.Folder == folder).Name ?? folder;
-    public static string ColorOf(string folder) => Folders.FirstOrDefault(f => f.Folder == folder).Color ?? "#999999";
+    // Циклом, без лямбды: вызывается на каждый узел в каждом кадре графа.
+    public static string ColorOf(string folder)
+    {
+        foreach (var f in Folders) if (f.Folder == folder) return f.Color;
+        return "#999999";
+    }
 
     public static string FileName(string id) => id.Replace('-', '_') + ".py";
 

@@ -70,6 +70,7 @@ public static class ScriptRunner
                     case "wait": await Task.Delay(st.GetProperty("ms").GetInt32()); break;
                     case "zoom": w.GraphCtl.SetZoom(st.GetProperty("value").GetSingle()); break;
                     case "check": w.OpenCheck(); break;
+                    case "perf": log.Add("  " + await w.GraphCtl.PerfRun(S("kind"), st.TryGetProperty("s", out var sec) ? sec.GetDouble() : 5)); break;
                     case "paneltab": w.PanelCtl.OpenTab(S("value")); break;
                     case "closedlg": w.CloseDialogs(); break;
                     case "quality":

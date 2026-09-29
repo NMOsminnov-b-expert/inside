@@ -11,7 +11,13 @@ public partial class App : Application
     public static string[] Args { get; private set; } = Array.Empty<string>();
     MainWindow? _w;
 
-    public App() { InitializeComponent(); }
+    public App()
+    {
+        InitializeComponent();
+        // Необработанное исключение — в журнал %TEMP%\graf-crash.log: без него
+        // WinUI падает с кодом 0xc000027b без подробностей.
+        UnhandledException += (_, e) => System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "graf-crash.log"), DateTime.Now + " " + e.Exception + Environment.NewLine);
+    }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {

@@ -15,18 +15,26 @@ namespace Graf.Model;
 // Словарь с порядком ключей — как dict в Python.
 public sealed class Map : List<KeyValuePair<string, object?>>
 {
+    // Поиск ключа — циклом, без лямбды: поле записи читается в каждом кадре
+    // графа (Id, заголовок), и замыкание на каждый вызов давало мусор.
+    int IndexOf(string key)
+    {
+        for (var i = 0; i < Count; i++) if (this[i].Key == key) return i;
+        return -1;
+    }
+
     public object? this[string key]
     {
-        get => this.FirstOrDefault(p => p.Key == key).Value;
+        get { var i = IndexOf(key); return i >= 0 ? this[i].Value : null; }
         set
         {
-            var i = FindIndex(p => p.Key == key);
+            var i = IndexOf(key);
             if (i >= 0) this[i] = new(key, value);
             else Add(new(key, value));
         }
     }
 
-    public bool Has(string key) => this.Any(p => p.Key == key);
+    public bool Has(string key) => IndexOf(key) >= 0;
     public void Remove(string key) => RemoveAll(p => p.Key == key);
 }
 

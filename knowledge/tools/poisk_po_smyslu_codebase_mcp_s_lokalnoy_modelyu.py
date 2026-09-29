@@ -22,5 +22,9 @@ POINTS = [
 LINKS = [
     {'тип': 'относится к', 'куда': 'codegraph', 'папка': 'tools'},
     {'тип': 'опирается на', 'куда': 'dannye-proekta-naruzhu-ne-uhodyat', 'папка': 'rules'},
-    {'тип': 'относится к', 'куда': 'kak-uluchshat-graf-znaniy-atomarnost-slovar-svyazey-proverki-podskazki', 'папка': 'practices'},
+    {
+        'тип': 'относится к',
+        'куда': 'kak-uluchshat-graf-znaniy-atomarnost-slovar-svyazey-proverki-podskazki',
+        'папка': 'practices',
+    },
 ]

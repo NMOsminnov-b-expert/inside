@@ -106,7 +106,12 @@ JSON со всеми записями; «Загрузить граф из фай
 выгрузка→загрузка не должна ничего поменять. `--script` — шаги из
 `ScriptRunner.cs` (select, search, mode, pull, orbit, motion, export,
 import, external, shot, dump, islands on/off/topics, islandstat, zoom,
-quality, check, paneltab), журнал — рядом с файлом сценария. Сценарии
+quality, check, paneltab, perf), журнал — рядом с файлом сценария. Шаг
+`perf` (kind: pan2d, zoom2d, camera, pull, layout, relayout, hover, orbit3d,
+fly3d, idle; s — секунды) пишет покадровый замер: частота, интервалы p50–p99,
+рывки, время рисования, сборки мусора, выделения по участкам кадра, долгие
+кадры с операциями рядом. Вывод — CanvasSwapChainPanel, кадр рисуется в такте
+экрана; тяжёлый счёт раскладки — в фоновом потоке. Сценарии
 гонять на копии графа: они правят файлы.
 
 Движение на снимке не видно — поведение во времени проверяется шагом

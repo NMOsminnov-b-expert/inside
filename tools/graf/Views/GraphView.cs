@@ -66,7 +66,17 @@ public sealed class GraphView : UserControl
         public float[]? L { get; set; }
     }
 
-    readonly CanvasControl _c = new();
+    // Вывод — цепочка буферов (swap chain), кадр рисуется прямо в такте
+    // экрана (CompositionTarget.Rendering) и сразу отдаётся на показ. Замер
+    // 29.09.2026: с CanvasControl (перерисовка «на следующем такте» по
+    // Invalidate) картинка шла ровно 30 кадров в секунду на экране 60 Гц —
+    // каждый кадр держался два обновления, движение рвалось.
+    // Фон у SwapChainPanel не задаётся — мышь ловит контейнер (_host) с
+    // прозрачным фоном, иначе пустое место холста «сквозное».
+    readonly CanvasSwapChainPanel _c = new();
+    readonly Grid _host = new() { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Colors.Transparent) };
+    Microsoft.Graphics.Canvas.CanvasSwapChain? _swap;
+    bool _dirty;
     readonly Dictionary<string, Node> _nodes = new();
     Node[] _arr = Array.Empty<Node>();
     List<(Node A, Node B, string Type)> _edges = new();
@@ -94,8 +104,7 @@ public sealed class GraphView : UserControl
         _topicName.Clear();
         _topicFolder.Clear();
         var ids = _arr.Select(n => n.R.Id).ToList();
-        var ix = ids.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i);
-        var c = Communities.Detect(ids, _edges.Select(e => (ix[e.A.R.Id], ix[e.B.R.Id])));
+        var c = _commFor == EdgeSig() && _comm != null && _comm.Length == ids.Count ? _comm : DetectTopics(out _);
         for (var i = 0; i < ids.Count; i++) _topic[ids[i]] = c[i] < 0 ? "без связей" : "тема " + c[i];
         foreach (var g in _arr.GroupBy(n => _topic[n.R.Id]))
         {
@@ -104,6 +113,32 @@ public sealed class GraphView : UserControl
             _topicName[g.Key] = g.Key == "без связей" ? "без связей" : $"вокруг «{t}»";
             _topicFolder[g.Key] = g.GroupBy(n => n.R.Folder).OrderByDescending(x => x.Count()).First().Key;
         }
+    }
+
+    // Сообщества считаются раз на набор связей (кэш), первый раз — в фоне
+    // (SetGrouping): поиск шёл до 55 мс в потоке интерфейса.
+    int[]? _comm;
+    long _commFor = -1;
+
+    // Подпись состава узлов и связей: список связей пересоздаётся при каждом
+    // обновлении экрана, поэтому кэш держится на подписи, а не на ссылке.
+    long EdgeSig()
+    {
+        long h = _arr.Length * 1_000_003L + _edges.Count;
+        foreach (var n in _arr) h = h * 31 + n.R.Id.GetHashCode();
+        foreach (var (a, b, _) in _edges) h = h * 31 + (a.R.Id.GetHashCode() ^ (b.R.Id.GetHashCode() * 7));
+        return h;
+    }
+
+    int[] DetectTopics(out long edgesRef)
+    {
+        edgesRef = EdgeSig();
+        var ids = _arr.Select(n => n.R.Id).ToList();
+        var ix = ids.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i);
+        var pairs = _edges.Select(e => (ix[e.A.R.Id], ix[e.B.R.Id])).ToArray();
+        _comm = Communities.Detect(ids, pairs);
+        _commFor = edgesRef;
+        return _comm;
     }
 
     string Key(Node n) => _grouping == 2 ? _topic.GetValueOrDefault(n.R.Id, "без связей") : n.R.Folder;
@@ -194,6 +229,27 @@ public sealed class GraphView : UserControl
     public void SetGrouping(int g)
     {
         if (g == _grouping) return;
+        if (g == 2 && _commFor != EdgeSig())
+        {
+            // Темы впервые для этого графа: сообщества — в фоне, потом переключение.
+            var ids = _arr.Select(n => n.R.Id).ToList();
+            var ix = ids.Select((id, i) => (id, i)).ToDictionary(x => x.id, x => x.i);
+            var pairs = _edges.Select(e => (ix[e.A.R.Id], ix[e.B.R.Id])).ToArray();
+            var edgesRef = EdgeSig();
+            var q = DispatcherQueue;
+            Task.Run(() => Communities.Detect(ids, pairs)).ContinueWith(t =>
+            {
+                if (t.IsFaulted) return;
+                q.TryEnqueue(() =>
+                {
+                    if (edgesRef != EdgeSig()) return;
+                    _comm = t.Result;
+                    _commFor = edgesRef;
+                    SetGrouping(g);
+                });
+            });
+            return;
+        }
         FinishMoves();
         _live = 0;
         var firstTime = !_arr.Any(n => n.Placed[Index(_3d, g)]);
@@ -201,7 +257,7 @@ public sealed class GraphView : UserControl
         if (g > 0) UpdateIslands();
         Place();
         FitAll(animate: !firstTime);
-        _c.Invalidate();
+        Paint();
     }
 
     // --- связи по видам ------------------------------------------------------------
@@ -262,7 +318,7 @@ public sealed class GraphView : UserControl
         EgoHops = hops;
         BuildEgo();
         if (_ego != null) FitEgo();
-        _c.Invalidate();
+        Paint();
     }
 
     bool EgoOn => _ego != null;
@@ -359,18 +415,17 @@ public sealed class GraphView : UserControl
 
     public GraphView()
     {
-        var host = new Grid();
-        host.Children.Add(_c);
-        Content = host;
+        _host.Children.Add(_c);
+        Content = _host;
         IsTabStop = true;
         UseSystemFocusVisuals = false;
-        _c.Draw += Draw;
-        _c.PointerPressed += Pressed;
-        _c.PointerMoved += Moved;
-        _c.PointerReleased += Released;
-        _c.PointerCanceled += (_, _) => EndPress();
-        _c.PointerWheelChanged += Wheel;
-        _c.DoubleTapped += (_, e) =>
+        _c.SizeChanged += (_, _) => Paint();
+        _host.PointerPressed += Pressed;
+        _host.PointerMoved += Moved;
+        _host.PointerReleased += Released;
+        _host.PointerCanceled += (_, _) => EndPress();
+        _host.PointerWheelChanged += Wheel;
+        _host.DoubleTapped += (_, e) =>
         {
             if (Hit(e.GetPosition(_c).ToVector2()) is { } n) FocusNode(n, closer: true);
         };
@@ -393,6 +448,13 @@ public sealed class GraphView : UserControl
     }
 
     public void SaveLayout()
+    {
+        var s0 = _perf?.Clock.Elapsed.TotalMilliseconds ?? 0;
+        try { SaveLayoutNow(); }
+        finally { _perf?.SaveMs.Add(_perf.Clock.Elapsed.TotalMilliseconds - s0); }
+    }
+
+    void SaveLayoutNow()
     {
         if (_layoutPath == null) return;
         foreach (var n in _nodes.Values) Remember(n);
@@ -454,7 +516,7 @@ public sealed class GraphView : UserControl
         if (_islands) UpdateIslands();
         Place();
         if (EgoHops > 0) BuildEgo();
-        _c.Invalidate();
+        Paint();
     }
 
     // Ставит узлы, у которых в текущем виде ещё нет места.
@@ -473,19 +535,105 @@ public sealed class GraphView : UserControl
                 : m >= 2 ? IslandOf(n, m) + Jitter(rnd, 60) : Jitter(rnd, 400);
         }
         foreach (var n in fresh) n.Placed[m] = true;
+        // Раскладка считается в фоне (SolveAsync): экран не замирает, узлы
+        // переезжают на места, когда счёт готов. Впервые открытый вид —
+        // из начальной россыпи с камерой на весь граф; новые узлы — от соседей.
+        var start = _arr.Select(n => n.P[m]).ToArray();
         if (first)
         {
-            Solve(null);
             FitAll(animate: false);
+            SolveAsync(start, FixedMask(null), 650, EaseInOut, fit: true);
         }
-        else
+        else SolveAsync(start, FixedMask(fresh.ToHashSet()), 420, EaseOut, fit: false);
+    }
+
+    bool[] FixedMask(HashSet<Node>? movable) =>
+        _arr.Select(n => n.Pinned || n == _drag || (movable != null && !movable.Contains(n))).ToArray();
+
+    // --- счёт раскладки в фоне ------------------------------------------------
+    //
+    // Замер 29.09.2026: «Разложить заново» — до 208 мс, острова в 3D впервые —
+    // до 190 мс замирания экрана: силовой счёт (все пары узлов × сотни
+    // итераций) шёл в потоке интерфейса. Теперь — на копиях координат в
+    // фоновом потоке; по готовности — плавный переезд. Устаревший результат
+    // (сменились данные, вид или пришёл новый запрос) отбрасывается.
+    int _solveGen;
+
+    void SolveAsync(Vector3[] start, bool[] fix, double ms, Func<float, float> ease, bool fit)
+    {
+        var gen = ++_solveGen;
+        var m = M;
+        var arr = _arr;
+        var idx = new Dictionary<Node, int>(arr.Length);
+        for (var i = 0; i < arr.Length; i++) idx[arr[i]] = i;
+        var edges = _edges.Where(e => idx.ContainsKey(e.A) && idx.ContainsKey(e.B))
+            .Select(e => (idx[e.A], idx[e.B], m >= 2 && Key(e.A) != Key(e.B) ? 0.004f : 0.06f)).ToArray();
+        var isl = m >= 2 ? arr.Select(n => IslandOf(n, m)).ToArray() : null;
+        var flat = m % 2 == 0;
+        var q = DispatcherQueue;
+        Task.Run(() => SolveCore(start, fix, edges, isl, flat, IslPull)).ContinueWith(t =>
         {
-            var from = fresh.ToDictionary(n => n, n => n.P[m]);
-            Solve(fresh.ToHashSet());
-            foreach (var n in fresh) { _moves[n] = (from[n], n.P[m]); n.P[m] = from[n]; }
-            StartMoves(420, EaseOut);
+            if (t.IsFaulted) return;
+            var res = t.Result;
+            q.TryEnqueue(() =>
+            {
+                if (gen != _solveGen || !ReferenceEquals(arr, _arr) || m != M) return;
+                Timed("применить счёт", () =>
+                {
+                    for (var i = 0; i < arr.Length; i++)
+                        if (!fix[i]) _moves[arr[i]] = (arr[i].P[m], res[i]);
+                    StartMoves(ms, ease);
+                    if (fit) FitAll();
+                });
+            });
+        });
+    }
+
+    // Силовой счёт на массивах (тот же, что Iterate): отталкивание пар,
+    // пружины связей, притяжение к центру или к центру своего острова.
+    static Vector3[] SolveCore(Vector3[] start, bool[] fix, (int A, int B, float K)[] edges, Vector3[]? isl, bool flat, float islPull)
+    {
+        var n = start.Length;
+        var p = (Vector3[])start.Clone();
+        var v = new Vector3[n];
+        var alpha = 1f;
+        for (var it = 0; it < 700 && alpha > 0.003f; it++)
+        {
+            for (var i = 0; i < n; i++)
+                for (var j = i + 1; j < n; j++)
+                {
+                    var d = p[i] - p[j];
+                    var l2 = d.LengthSquared() + 0.01f;
+                    if (l2 > 250000) continue;
+                    var f = d * (900f / l2) * alpha;
+                    v[i] += f;
+                    v[j] -= f;
+                }
+            foreach (var (a, b, k) in edges)
+            {
+                var d = p[b] - p[a];
+                var len = d.Length() + 0.01f;
+                var f = d / len * (len - 60) * k * alpha;
+                v[a] += f;
+                v[b] -= f;
+            }
+            var max = 0f;
+            for (var i = 0; i < n; i++)
+            {
+                if (isl != null) v[i] += (isl[i] - p[i]) * islPull * alpha;
+                else v[i] -= p[i] * 0.004f * alpha;
+                if (fix[i]) { v[i] = Vector3.Zero; continue; }
+                v[i] *= 0.55f;
+                if (flat) v[i].Z = 0;
+                var sp = v[i].Length();
+                if (sp > 30) { v[i] *= 30 / sp; sp = 30; }
+                p[i] += v[i];
+                max = Math.Max(max, sp);
+            }
+            if (max < 0.02f && it > 30) break;
+            alpha *= 0.985f;
         }
-        SaveLayout();
+        return p;
     }
 
     Vector3 Jitter(Random r, float s) =>
@@ -509,18 +657,6 @@ public sealed class GraphView : UserControl
     // пружины по связям, слабое притяжение к центру. Solve считает до
     // показа; movable — кого двигать (null — всех), прочие неподвижны, но
     // соседей держат.
-
-    void Solve(HashSet<Node>? movable)
-    {
-        foreach (var n in _arr) n.V = Vector3.Zero;
-        var alpha = 1f;
-        for (var it = 0; it < 700 && alpha > 0.003f; it++)
-        {
-            if (Iterate(alpha, movable) < 0.02f && it > 30) break;
-            alpha *= 0.985f;
-        }
-        foreach (var n in _arr) n.V = Vector3.Zero;
-    }
 
     float Iterate(float alpha, HashSet<Node>? movable)
     {
@@ -575,12 +711,9 @@ public sealed class GraphView : UserControl
         FinishMoves();
         var m = M;
         var rnd = new Random();
-        var from = _arr.ToDictionary(n => n, n => n.P[m]);
-        foreach (var n in _arr) { n.Pinned = false; n.P[m] = m >= 2 ? IslandOf(n, m) + Jitter(rnd, 80) : Jitter(rnd, 400); }
-        Solve(null);
-        foreach (var n in _arr) { _moves[n] = (from[n], n.P[m]); n.P[m] = from[n]; }
-        StartMoves(700, EaseInOut);
-        FitAll();
+        foreach (var n in _arr) n.Pinned = false;
+        var start = _arr.Select(n => m >= 2 ? IslandOf(n, m) + Jitter(rnd, 80) : Jitter(rnd, 400)).ToArray();
+        SolveAsync(start, FixedMask(null), 700, EaseInOut, fit: true);
     }
 
     // Распутать вокруг узла: соседей в двух шагах разложить заново при
@@ -592,12 +725,9 @@ public sealed class GraphView : UserControl
         var set = Hops(c, 2);
         set.Remove(c);
         foreach (var n in set) n.Pinned = false;
-        var from = set.ToDictionary(n => n, n => n.P[m]);
         var rnd = new Random();
-        foreach (var n in set) n.P[m] = c.P[m] + Jitter(rnd, 60);
-        Solve(set);
-        foreach (var n in set) { _moves[n] = (from[n], n.P[m]); n.P[m] = from[n]; }
-        StartMoves(520, EaseInOut);
+        var start = _arr.Select(n => set.Contains(n) ? c.P[m] + Jitter(rnd, 60) : n.P[m]).ToArray();
+        SolveAsync(start, FixedMask(set), 520, EaseInOut, fit: false);
     }
 
     // --- переходы -----------------------------------------------------------
@@ -641,7 +771,7 @@ public sealed class GraphView : UserControl
         foreach (var (n, mv) in _moves) n.P[M] = mv.To;
         _moves.Clear();
         SaveLayout();
-        _c.Invalidate();
+        Paint();
     }
 
     Cam Now => new(_offset, _zoom, _target, _dist, _yaw, _pitch);
@@ -654,7 +784,7 @@ public sealed class GraphView : UserControl
         float size;
         if (_3d) size = Vector3.Distance(from.T, to.T) * PxPerUnit(_dist) + MathF.Abs(MathF.Log(to.Dist / from.Dist)) * 400 + MathF.Abs(to.Yaw - from.Yaw) * 200;
         else size = Vector2.Distance(from.Off, to.Off) + MathF.Abs(MathF.Log(to.Zoom / from.Zoom)) * 400;
-        if (!Motion || size < 2) { Apply(to); _cam = null; _c.Invalidate(); return; }
+        if (!Motion || size < 2) { Apply(to); _cam = null; Paint(); return; }
         _cam = (from, to, Math.Clamp(250 + size * 0.25, 250, 650));
         _camClock.Restart();
         StartLoop();
@@ -675,10 +805,147 @@ public sealed class GraphView : UserControl
         Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnFrame;
     }
 
+    // --- замер кадров (сценарии проверки плавности) ------------------------
+    //
+    // Жалоба пользователя 29.09.2026: «анимации рваные… куча статтеров».
+    // Замер: интервалы между кадрами (рывок — дольше 1,5 периода экрана),
+    // время рисования и пересчёта, сборки мусора, выделения, запись
+    // раскладки. Сценарий ведётся из самого цикла кадров, как ввод мышью.
+    sealed class Perf
+    {
+        public readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
+        public readonly List<double> Ticks = new(), Draws = new(), DrawMs = new(), UpdateMs = new(), SaveMs = new();
+        public int Gc0, Gc1, Gc2;
+        public long Alloc;
+        // Выделения по участкам кадра: проекция, острова, рёбра, узлы, подписи.
+        public readonly long[] By = new long[5];
+        public long Mark;
+        public readonly List<(string Op, double Ms)> Ops = new();
+        public readonly List<(string Op, double At, double Ms)> OpsAt = new();
+    }
+    Perf? _perf;
+    Action<float>? _perfDrive;
+
+    // Длительность тяжёлой операции в потоке интерфейса (для замера).
+    void Timed(string op, Action a)
+    {
+        var t0 = _perf?.Clock.Elapsed.TotalMilliseconds ?? 0;
+        a();
+        if (_perf != null)
+        {
+            var ms = _perf.Clock.Elapsed.TotalMilliseconds - t0;
+            _perf.Ops.Add((op, ms));
+            _perf.OpsAt.Add((op, t0, ms));
+        }
+    }
+
+    public async Task<string> PerfRun(string kind, double seconds)
+    {
+        var rnd = new Random(7);
+        var ids = _arr.OrderByDescending(n => n.Deg).Take(12).Select(n => n.R.Id).ToList();
+        _perf = new Perf { Gc0 = GC.CollectionCount(0), Gc1 = GC.CollectionCount(1), Gc2 = GC.CollectionCount(2), Alloc = GC.GetTotalAllocatedBytes() };
+        var end = seconds * 1000;
+        switch (kind)
+        {
+            case "orbit3d": _perfDrive = dt => { _yaw -= dt * 0.9f; _pitch = 0.35f * MathF.Sin((float)_perf!.Clock.Elapsed.TotalSeconds); }; break;
+            case "pan2d": _perfDrive = dt => _offset += new Vector2(MathF.Cos((float)_perf!.Clock.Elapsed.TotalSeconds) * 400 * dt, MathF.Sin((float)_perf.Clock.Elapsed.TotalSeconds * 0.7f) * 300 * dt); break;
+            case "zoom2d": _perfDrive = dt => _zoom = Math.Clamp(_zoom * (1 + MathF.Sin((float)_perf!.Clock.Elapsed.TotalSeconds * 2) * dt), 0.08f, 3f); break;
+            case "fly3d": _keys.Add(VirtualKey.W); break;
+            case "hover":
+            {
+                // Мышь водят по узлам: новая запись под курсором каждые 4 кадра.
+                var f = 0;
+                _perfDrive = dt =>
+                {
+                    _yaw -= dt * 0.3f;
+                    if (++f % 4 == 0) { var on = _arr.Where(n => n.On).ToArray(); if (on.Length > 0) Timed("наведение", () => SetHover(on[rnd.Next(on.Length)])); }
+                };
+                break;
+            }
+        }
+        StartLoop();
+        if (kind is "camera")
+        {
+            // Переходы камеры: к записи и обратно ко всему графу.
+            foreach (var id in ids)
+            {
+                if (_perf.Clock.Elapsed.TotalMilliseconds > end) break;
+                Select(id, true);
+                await Task.Delay(700);
+                FitAll();
+                await Task.Delay(700);
+            }
+        }
+        else if (kind is "pull")
+        {
+            foreach (var id in ids.Take(4)) await PullTest(id, new Vector2(rnd.Next(-200, 200), rnd.Next(-200, 200)), 45);
+            await Task.Delay(1500);
+        }
+        else if (kind is "layout")
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                Timed("острова по видам", () => SetGrouping(1)); await Task.Delay(1500);
+                Timed("острова по темам", () => SetGrouping(2)); await Task.Delay(1500);
+                Timed("свободно", () => SetGrouping(0)); await Task.Delay(1500);
+            }
+        }
+        else if (kind is "relayout")
+        {
+            for (var i = 0; i < 2; i++) { Timed("разложить заново", Relayout); await Task.Delay(1800); }
+        }
+        else await Task.Delay((int)end);
+        _perfDrive = null;
+        _keys.Remove(VirtualKey.W);
+        SetHover(null);
+        await Task.Delay(300);
+        var p = _perf;
+        _perf = null;
+        return PerfReport(kind, p);
+    }
+
+    // Долгие кадры (>50 мс) и операции, начавшиеся за 100 мс до них.
+    static string LongFrames(Perf p, List<double> iv)
+    {
+        var parts = new List<string>();
+        for (var i = 0; i < iv.Count; i++)
+        {
+            if (iv[i] <= 50) continue;
+            var at = p.Draws[i];
+            var near = p.OpsAt.Where(o => o.At >= at - 100 && o.At <= p.Draws[i + 1]).Select(o => $"{o.Op} {o.Ms:0}").ToList();
+            parts.Add($"{iv[i]:0} мс на {at / 1000:0.0} с [{(near.Count > 0 ? string.Join(", ", near) : "без наших операций")}]");
+        }
+        return parts.Count > 0 ? "долгие кадры: " + string.Join("; ", parts) + "; " : "";
+    }
+
+    static string PerfReport(string kind, Perf p)
+    {
+        double Q(List<double> v, double q) => v.Count == 0 ? 0 : v.OrderBy(x => x).ElementAt(Math.Min(v.Count - 1, (int)(v.Count * q)));
+        var iv = p.Draws.Zip(p.Draws.Skip(1), (a, b) => b - a).ToList();
+        var tick = p.Ticks.Zip(p.Ticks.Skip(1), (a, b) => b - a).ToList();
+        var vs = Q(tick, 0.5);
+        var span = p.Draws.Count > 1 ? (p.Draws[^1] - p.Draws[0]) / 1000 : 1;
+        var hitch = iv.Count(x => x > vs * 1.5);
+        return $"{kind}: кадров {p.Draws.Count} за {span:0.0} с = {p.Draws.Count / span:0.0} к/с (экран {1000 / Math.Max(vs, 1):0} Гц); " +
+               $"интервал p50 {Q(iv, .5):0.0} p95 {Q(iv, .95):0.0} p99 {Q(iv, .99):0.0} макс {(iv.Count > 0 ? iv.Max() : 0):0.0} мс; " +
+               $"рывков (>{vs * 1.5:0} мс) {hitch} ({(iv.Count > 0 ? 100.0 * hitch / iv.Count : 0):0.0}%), >50 мс {iv.Count(x => x > 50)}; " +
+               $"рисование ср {(p.DrawMs.Count > 0 ? p.DrawMs.Average() : 0):0.0} p95 {Q(p.DrawMs, .95):0.0} макс {(p.DrawMs.Count > 0 ? p.DrawMs.Max() : 0):0.0} мс; " +
+               $"пересчёт ср {(p.UpdateMs.Count > 0 ? p.UpdateMs.Average() : 0):0.00} макс {(p.UpdateMs.Count > 0 ? p.UpdateMs.Max() : 0):0.0} мс; " +
+               $"запись раскладки {p.SaveMs.Count} раз, макс {(p.SaveMs.Count > 0 ? p.SaveMs.Max() : 0):0.0} мс; " +
+               $"сборки мусора 0/1/2: {GC.CollectionCount(0) - p.Gc0}/{GC.CollectionCount(1) - p.Gc1}/{GC.CollectionCount(2) - p.Gc2}; " +
+ LongFrames(p, iv) + (p.Ops.Count > 0 ? "операции, мс: " + string.Join(", ", p.Ops.GroupBy(o => o.Op).Select(g => $"{g.Key} {g.Count()}× макс {g.Max(x => x.Ms):0}")) + "; " : "") +
+               $"выделено {(GC.GetTotalAllocatedBytes() - p.Alloc) / 1048576.0:0.0} МБ; " +
+               $"в рисовании на кадр, КБ: проекция {p.By[0] / 1024.0 / Math.Max(1, p.Draws.Count):0}, острова {p.By[1] / 1024.0 / Math.Max(1, p.Draws.Count):0}, " +
+               $"рёбра {p.By[2] / 1024.0 / Math.Max(1, p.Draws.Count):0}, узлы {p.By[3] / 1024.0 / Math.Max(1, p.Draws.Count):0}, подписи {p.By[4] / 1024.0 / Math.Max(1, p.Draws.Count):0}";
+    }
+
     void OnFrame(object? s, object e)
     {
+        var up0 = _perf?.Clock.Elapsed.TotalMilliseconds ?? 0;
+        _perf?.Ticks.Add(up0);
         var dt = (float)Math.Min(0.05, _frameClock.Elapsed.TotalSeconds);
         _frameClock.Restart();
+        _perfDrive?.Invoke(dt);
         if (_moves.Count > 0)
         {
             var t = (float)Math.Min(1, _moveClock.Elapsed.TotalMilliseconds / _moveMs);
@@ -710,8 +977,10 @@ public sealed class GraphView : UserControl
             }
         }
         if (_keys.Count > 0) Fly(dt);
-        _c.Invalidate();
-        if (_moves.Count == 0 && _cam == null && _live == 0 && _keys.Count == 0 && _drag == null) StopLoop();
+        var animating = _moves.Count > 0 || _cam != null || _live > 0 || _keys.Count > 0 || _drag != null || _perfDrive != null || _perf != null;
+        if (_perf != null) _perf.UpdateMs.Add(_perf.Clock.Elapsed.TotalMilliseconds - up0);
+        if (animating || _dirty) Render();
+        if (!animating && !_dirty) StopLoop();
     }
 
     // --- камера -------------------------------------------------------------
@@ -758,7 +1027,7 @@ public sealed class GraphView : UserControl
         var world = -_offset / _zoom;
         _zoom = Math.Clamp(z, 0.05f, 6f);
         _offset = -world * _zoom;
-        _c.Invalidate();
+        Paint();
     }
 
     public void FitAll(bool animate = true)
@@ -786,7 +1055,7 @@ public sealed class GraphView : UserControl
             _fitZoom = z;
             to = to with { Zoom = z, Off = -new Vector2(min.X + max.X, min.Y + max.Y) / 2 * z };
         }
-        if (animate) AnimateCamera(to); else { Apply(to); _c.Invalidate(); }
+        if (animate) AnimateCamera(to); else { Apply(to); Paint(); }
     }
 
     void FocusNode(Node n, bool closer)
@@ -812,10 +1081,10 @@ public sealed class GraphView : UserControl
         if (EgoHops > 0)
         {
             BuildEgo();
-            if (_ego != null) { FitEgo(); _c.Invalidate(); return; }
+            if (_ego != null) { FitEgo(); Paint(); return; }
         }
         if (center && id != null && _nodes.TryGetValue(id, out var n)) FocusNode(n, closer: false);
-        _c.Invalidate();
+        Paint();
     }
 
     // Переключение 2D/3D. Узлы, у которых в новом виде нет места,
@@ -830,7 +1099,7 @@ public sealed class GraphView : UserControl
         Place();
         if (EgoHops > 0) { BuildEgo(); if (_ego != null) FitEgo(); }
         if (firstTime && _arr.Length > 0 && _arr.All(n => n.Placed[M])) FitAll(animate: false);
-        _c.Invalidate();
+        Paint();
     }
 
     public bool Is3D => _3d;
@@ -905,7 +1174,7 @@ public sealed class GraphView : UserControl
     public IEnumerable<string> EdgeTypesPresent => _edges.Select(e => e.Type);
     public int EgoCount => _ego?.Count ?? 0;
     public int EdgeCount => _edges.Count;
-    public void Redraw() => _c.Invalidate();
+    public void Redraw() => Paint();
 
     // Для проверки движения: места узлов, идёт ли анимация, число кадров.
     // Снимок экрана движения не покажет — нужны цифры.
@@ -930,7 +1199,7 @@ public sealed class GraphView : UserControl
         _last = _pressAt = pt.Position.ToVector2();
         _moved = false;
         _cam = null;
-        _c.CapturePointer(e.Pointer);
+        _host.CapturePointer(e.Pointer);
         var shift = e.KeyModifiers.HasFlag(VirtualKeyModifiers.Shift);
         var left = pt.Properties.IsLeftButtonPressed;
         _rightBtn = pt.Properties.IsRightButtonPressed;
@@ -969,18 +1238,20 @@ public sealed class GraphView : UserControl
                 if (_3d) _target -= ScreenDelta3(d, _dist);
                 else _offset += d;
             }
-            _c.Invalidate();
+            Paint();
             return;
         }
-        var h = Hit(p);
-        if (h != _hover)
-        {
-            _hover = h;
-            _hoverNear = h == null ? new() : _adj[h].Select(x => x.R.Id).Append(h.R.Id).ToHashSet();
-            ProtectedCursor = InputSystemCursor.Create(h != null ? InputSystemCursorShape.Hand : InputSystemCursorShape.Arrow);
-            NodeHovered?.Invoke(h?.R.Id);
-            _c.Invalidate();
-        }
+        SetHover(Hit(p));
+    }
+
+    void SetHover(Node? h)
+    {
+        if (h == _hover) return;
+        _hover = h;
+        _hoverNear = h == null ? new() : _adj[h].Select(x => x.R.Id).Append(h.R.Id).ToHashSet();
+        ProtectedCursor = InputSystemCursor.Create(h != null ? InputSystemCursorShape.Hand : InputSystemCursorShape.Arrow);
+        NodeHovered?.Invoke(h?.R.Id);
+        Paint();
     }
 
     void BeginPull(Node n)
@@ -1003,7 +1274,7 @@ public sealed class GraphView : UserControl
             if (_rightBtn) { if (n != null) ShowMenu(n, p); }
             else NodeClicked?.Invoke(n?.R.Id);
         }
-        _c.ReleasePointerCapture(e.Pointer);
+        _host.ReleasePointerCapture(e.Pointer);
         EndPress();
     }
 
@@ -1034,7 +1305,7 @@ public sealed class GraphView : UserControl
             _zoom = Math.Clamp(_zoom * (inward ? 1.15f : 1 / 1.15f), 0.05f, 6f);
             _offset = at - Center - w * _zoom;
         }
-        _c.Invalidate();
+        Paint();
         e.Handled = true;
     }
 
@@ -1052,10 +1323,10 @@ public sealed class GraphView : UserControl
         Item("Показать ближе (F)", "", () => FocusNode(n, closer: true));
         menu.Items.Add(new MenuFlyoutSeparator());
         Item("Распутать вокруг", "", () => Untangle(n));
-        if (n.Pinned) Item("Открепить", "", () => { n.Pinned = false; _c.Invalidate(); SaveLayout(); });
-        else Item("Закрепить на месте", "", () => { n.Pinned = true; _c.Invalidate(); });
+        if (n.Pinned) Item("Открепить", "", () => { n.Pinned = false; Paint(); SaveLayout(); });
+        else Item("Закрепить на месте", "", () => { n.Pinned = true; Paint(); });
         if (_arr.Any(x => x.Pinned))
-            Item("Открепить все", "", () => { foreach (var x in _arr) x.Pinned = false; _c.Invalidate(); });
+            Item("Открепить все", "", () => { foreach (var x in _arr) x.Pinned = false; Paint(); });
         menu.ShowAt(_c, new FlyoutShowOptions { Position = new Windows.Foundation.Point(at.X, at.Y) });
     }
 
@@ -1076,13 +1347,21 @@ public sealed class GraphView : UserControl
     {
         _yaw -= dx * 0.006f;
         _pitch = Math.Clamp(_pitch + dy * 0.006f, -1.45f, 1.45f);
-        _c.Invalidate();
+        Paint();
     }
 
     // --- отрисовка ---------------------------------------------------------
 
-    public static Color Parse(string hex) => Color.FromArgb(255,
-        Convert.ToByte(hex.Substring(1, 2), 16), Convert.ToByte(hex.Substring(3, 2), 16), Convert.ToByte(hex.Substring(5, 2), 16));
+    // Цвет из "#RRGGBB" — через кэш: разбор строки каждый кадр на каждый
+    // узел давал ~40 КБ мусора на кадр (замер 29.09.2026).
+    static readonly Dictionary<string, Color> _colors = new();
+    public static Color Parse(string hex)
+    {
+        if (_colors.TryGetValue(hex, out var c)) return c;
+        c = Color.FromArgb(255, Convert.ToByte(hex.Substring(1, 2), 16), Convert.ToByte(hex.Substring(3, 2), 16), Convert.ToByte(hex.Substring(5, 2), 16));
+        _colors[hex] = c;
+        return c;
+    }
 
     static readonly Color Bg = Color.FromArgb(255, 0x13, 0x1B, 0x24);
     static readonly Color EdgeCol = Color.FromArgb(70, 170, 185, 200);
@@ -1093,18 +1372,40 @@ public sealed class GraphView : UserControl
     static readonly Color LabelBg = Color.FromArgb(175, 0x13, 0x1B, 0x24);
     static readonly Color Found = Color.FromArgb(255, 0x7F, 0xD1, 0xFF);
 
-    readonly Dictionary<string, float> _textW = new();
+    // Раскладка текста — одна на строку и начертание, дальше только вывод
+    // готовой раскладки: DirectWrite не раскладывает подписи заново каждый кадр.
+    readonly Dictionary<string, CanvasTextLayout> _layN = new(), _layB = new();
     CanvasTextFormat? _fmt, _bold;
+    CanvasGeometry? _arrow;
 
-    float TextWidth(Microsoft.Graphics.Canvas.CanvasDrawingSession ds, string t, bool bold)
+    CanvasTextLayout Lay(Microsoft.Graphics.Canvas.CanvasDrawingSession ds, string t, bool bold)
     {
-        var key = (bold ? "b" : "n") + t;
-        if (_textW.TryGetValue(key, out var w)) return w;
-        using var layout = new CanvasTextLayout(ds, t, bold ? _bold : _fmt, 2000, 40);
-        w = (float)layout.LayoutBounds.Width;
-        if (_textW.Count > 5000) _textW.Clear();
-        _textW[key] = w;
-        return w;
+        var d = bold ? _layB : _layN;
+        if (d.TryGetValue(t, out var l)) return l;
+        if (d.Count > 3000) { foreach (var x in d.Values) x.Dispose(); d.Clear(); }
+        l = new CanvasTextLayout(ds, t, bold ? _bold : _fmt, 2000, 40);
+        d[t] = l;
+        return l;
+    }
+
+    float TextWidth(Microsoft.Graphics.Canvas.CanvasDrawingSession ds, string t, bool bold) => (float)Lay(ds, t, bold).LayoutBounds.Width;
+
+    void Text(Microsoft.Graphics.Canvas.CanvasDrawingSession ds, string t, Vector2 at, Color c, bool bold) => ds.DrawTextLayout(Lay(ds, t, bold), at, c);
+
+    void ResetDeviceCaches()
+    {
+        foreach (var x in _layN.Values) x.Dispose();
+        foreach (var x in _layB.Values) x.Dispose();
+        _layN.Clear();
+        _layB.Clear();
+        _arrow?.Dispose();
+        _arrow = null;
+    }
+
+    static bool AnyHit(List<Windows.Foundation.Rect> placed, Windows.Foundation.Rect r)
+    {
+        foreach (var x in placed) if (Intersects(x, r)) return true;
+        return false;
     }
 
     // Глубина в 3D: чем дальше узел, тем прозрачнее (дымка) и меньше.
@@ -1184,11 +1485,60 @@ public sealed class GraphView : UserControl
             new Vector2(16, 56), Color.FromArgb(170, 170, 185, 200), _fmt);
     }
 
-    void Draw(CanvasControl s, CanvasDrawEventArgs a)
+    // Перерисовать на ближайшем такте экрана.
+    void Paint()
+    {
+        _dirty = true;
+        StartLoop();
+    }
+
+    // Кадр: буферы — по размеру и масштабу экрана, рисование, показ.
+    void Render()
+    {
+        _dirty = false;
+        var w = (float)_c.ActualWidth;
+        var h = (float)_c.ActualHeight;
+        if (w < 1 || h < 1) return;
+        var dpi = (float)(96 * (XamlRoot?.RasterizationScale ?? 1));
+        try
+        {
+            if (_swap == null)
+            {
+                _swap = new Microsoft.Graphics.Canvas.CanvasSwapChain(Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice(), w, h, dpi);
+                _c.SwapChain = _swap;
+                ResetDeviceCaches();
+            }
+            else if (Math.Abs(_swap.Size.Width - w) > 0.5 || Math.Abs(_swap.Size.Height - h) > 0.5 || Math.Abs(_swap.Dpi - dpi) > 0.1)
+                _swap.ResizeBuffers(w, h, dpi);
+            var d0 = _perf?.Clock.Elapsed.TotalMilliseconds ?? 0;
+            _perf?.Draws.Add(d0);
+            if (_perf != null) _perf.Mark = GC.GetAllocatedBytesForCurrentThread();
+            using (var ds = _swap.CreateDrawingSession(Bg)) DrawFrame(ds);
+            if (_perf != null) { Mark(4); _perf.DrawMs.Add(_perf.Clock.Elapsed.TotalMilliseconds - d0); }
+            // Без ожидания обновления экрана: такт и так по нему выровнен,
+            // а ожидание заняло бы поток интерфейса.
+            _swap.Present(0);
+        }
+        catch (Exception ex) when (Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice().IsDeviceLost(ex.HResult))
+        {
+            // Видеоустройство потеряно (смена драйвера, сон): буферы — заново.
+            Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice().RaiseDeviceLost();
+            _swap = null;
+            _dirty = true;
+        }
+    }
+
+    void Mark(int i)
+    {
+        if (_perf == null) return;
+        var now = GC.GetAllocatedBytesForCurrentThread();
+        _perf.By[i] += now - _perf.Mark;
+        _perf.Mark = now;
+    }
+
+    void DrawFrame(Microsoft.Graphics.Canvas.CanvasDrawingSession ds)
     {
         Frames++;
-        var ds = a.DrawingSession;
-        ds.Clear(Bg);
         _fmt ??= new CanvasTextFormat { FontFamily = "Segoe UI", FontSize = 12, WordWrapping = CanvasWordWrapping.NoWrap };
         _bold ??= new CanvasTextFormat { FontFamily = "Segoe UI", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, WordWrapping = CanvasWordWrapping.NoWrap };
         var m = M;
@@ -1226,6 +1576,7 @@ public sealed class GraphView : UserControl
             if (n.S.X < -80 || n.S.Y < -80 || n.S.X > W + 80 || n.S.Y > H + 80) n.On = false;
         }
 
+        Mark(0);
         // Что выделено: наведённый узел с соседями сильнее выбранного —
         // так видно окружение, не теряя выбор.
         var sel = Selected != null;
@@ -1247,29 +1598,35 @@ public sealed class GraphView : UserControl
         // Острова: подложка области и подпись (вид записи или тема) над ней;
         // подписи — крупные острова первыми, наезжающая на поставленную
         // пропускается (у мелких тем их десятки).
-        var islandLabels = new List<Windows.Foundation.Rect>();
+        _islandLabels.Clear();
         if (m >= 2 && !EgoOn)
         {
-            foreach (var g in _arr.Where(n => n.On).GroupBy(Key).OrderByDescending(x => x.Count()))
+            if (_groupsFor != (_grouping, _arr)) Timed("группы островов", BuildGroups);
+            foreach (var (key, nodes, title, col) in _groups)
             {
-                var pts = g.Select(n => n.S).ToList();
-                var c = pts.Aggregate(Vector2.Zero, (s2, p) => s2 + p) / pts.Count;
-                var ds2 = pts.Select(p => Vector2.Distance(p, c)).OrderBy(x => x).ToList();
-                var r = ds2[(int)(ds2.Count * 0.95f)] + 26 * Math.Clamp(_zoom, 0.4f, 1.5f);
-                var col = Parse(KeyColor(g.Key));
+                var cnt = 0;
+                var c = Vector2.Zero;
+                foreach (var n in nodes) if (n.On) { c += n.S; cnt++; }
+                if (cnt == 0) continue;
+                c /= cnt;
+                if (_distBuf.Length < cnt) _distBuf = new float[cnt * 2];
+                var k = 0;
+                foreach (var n in nodes) if (n.On) _distBuf[k++] = Vector2.Distance(n.S, c);
+                Array.Sort(_distBuf, 0, k);
+                var r = _distBuf[(int)(k * 0.95f)] + 26 * Math.Clamp(_zoom, 0.4f, 1.5f);
                 ds.FillCircle(c, r, A(col, 0.07f));
                 ds.DrawCircle(c, r, A(col, 0.28f), 1.2f);
-                var title = $"{KeyName(g.Key)} · {g.Count()}";
                 var tw = TextWidth(ds, title, true);
                 var tp = c + new Vector2(-tw / 2, -r - 22);
                 var lr = new Windows.Foundation.Rect(tp.X - 6, tp.Y - 1, tw + 12, 21);
-                if (islandLabels.Any(x => Intersects(x, lr))) continue;
-                islandLabels.Add(lr);
+                if (AnyHit(_islandLabels, lr)) continue;
+                _islandLabels.Add(lr);
                 ds.FillRoundedRectangle(lr, 4, 4, LabelBg);
-                ds.DrawText(title, tp, A(col, 1f), _bold);
+                Text(ds, title, tp, A(col, 1f), true);
             }
         }
 
+        Mark(1);
         // Окрестность: кольца шагов с подписью (в объёме шаги — сферы, их
         // видно по самим узлам).
         if (EgoOn && !_3d)
@@ -1283,7 +1640,7 @@ public sealed class GraphView : UserControl
             }
         }
 
-        var edgeLabels = new List<Windows.Foundation.Rect>();
+        _edgeLabels.Clear();
         foreach (var (na, nb, type) in _edges)
         {
             if (HiddenEdgeTypes.Contains(type)) continue;
@@ -1309,10 +1666,10 @@ public sealed class GraphView : UserControl
                 var mid = (p1 + p2) / 2;
                 var tw = TextWidth(ds, type, false);
                 var rr = new Windows.Foundation.Rect(mid.X - tw / 2 - 4, mid.Y - 9, tw + 8, 17);
-                if (edgeLabels.Any(x => Intersects(x, rr))) goto arrow;
-                edgeLabels.Add(rr);
+                if (AnyHit(_edgeLabels, rr)) goto arrow;
+                _edgeLabels.Add(rr);
                 ds.FillRoundedRectangle(rr, 3, 3, LabelBg);
-                ds.DrawText(type, new Vector2(mid.X - tw / 2, mid.Y - 9), A(tc, 1f), _fmt);
+                Text(ds, type, new Vector2(mid.X - tw / 2, mid.Y - 9), A(tc, 1f), false);
             }
             arrow:
             var dir = p2 - p1;
@@ -1321,16 +1678,22 @@ public sealed class GraphView : UserControl
             {
                 dir /= len;
                 var tip = p2 - dir * nb.Rpx;
-                var side = new Vector2(-dir.Y, dir.X);
                 var sz = strong ? 7f : 5f;
-                using var g = CanvasGeometry.CreatePolygon(ds, new[] { tip, tip - dir * sz + side * sz * 0.5f, tip - dir * sz - side * sz * 0.5f });
-                ds.FillGeometry(g, col);
+                // Одна заранее созданная стрелка на все рёбра: геометрия на
+                // каждое ребро каждый кадр давала ~175 КБ мусора (замер 29.09.2026).
+                _arrow ??= CanvasGeometry.CreatePolygon(ds, new[] { Vector2.Zero, new Vector2(-1, 0.5f), new Vector2(-1, -0.5f) });
+                ds.Transform = Matrix3x2.CreateScale(sz) * Matrix3x2.CreateRotation(MathF.Atan2(dir.Y, dir.X)) * Matrix3x2.CreateTranslation(tip);
+                ds.FillGeometry(_arrow, col);
+                ds.Transform = Matrix3x2.Identity;
             }
         }
 
-        var order = _3d ? _arr.Where(n => n.On).OrderByDescending(n => n.Depth) : _arr.Where(n => n.On);
-        var labels = new List<(Node N, int Prio)>();
-        foreach (var n in order)
+        Mark(2);
+        _order.Clear();
+        foreach (var n in _arr) if (n.On) _order.Add(n);
+        if (_3d) _order.Sort(ByDepth);
+        _labels.Clear();
+        foreach (var n in _order)
         {
             var col = (NodeColor?.Invoke(n.R)) ?? Parse(Schema.ColorOf(n.R.Folder));
             var dim = (focus != null && !focus.Contains(n.R.Id)) || (hl && !Highlight.Contains(n.R.Id)) || Out(n);
@@ -1356,28 +1719,61 @@ public sealed class GraphView : UserControl
             // При отдалении — подписи только у центров (самых связанных).
             else if (!dim && focus == null && n.Deg >= _hubDeg) prio = 200 + n.Deg;
             else continue;
-            labels.Add((n, prio));
+            _labels.Add((n, prio));
         }
 
+        Mark(3);
         // Подписи без наложения: по важности; та, что легла бы на уже
         // поставленную, пропускается (выбранная и наведённая — всегда).
-        var placed = new List<Windows.Foundation.Rect>();
-        foreach (var (n, prio) in labels.OrderByDescending(x => x.Prio).Take(220))
+        _placed.Clear();
+        _labels.Sort(ByPrio);
+        var shown = 0;
+        foreach (var (n, prio) in _labels)
         {
+            if (shown++ >= 220) break;
             var must = prio >= 900;
-            var t = n.R.Title;
-            if (t.Length > 60 && !must) t = t[..60] + "…";
+            var t = must ? n.R.Title : ShortTitle(n);
             var bold = n.R.Id == Selected;
             var w = TextWidth(ds, t, bold);
             var pos = n.S + new Vector2(n.Rpx + 5, -10);
             // У правого края подпись — слева от узла, чтобы не обрезалась.
             if (pos.X + w > W - 6) pos.X = n.S.X - n.Rpx - 5 - w;
             var rect = new Windows.Foundation.Rect(pos.X - 3, pos.Y, w + 6, bold ? 20 : 18);
-            if (!must && placed.Any(x => Intersects(x, rect))) continue;
-            placed.Add(rect);
+            if (!must && AnyHit(_placed, rect)) continue;
+            _placed.Add(rect);
             ds.FillRoundedRectangle(rect, 3, 3, LabelBg);
-            ds.DrawText(t, pos, A(Label, Fog(n.Depth)), bold ? _bold : _fmt);
+            Text(ds, t, pos, A(Label, Fog(n.Depth)), bold);
         }
+    }
+
+    // Рабочие списки кадра — одни на всё время: кадр не мусорит.
+    readonly List<Node> _order = new();
+    readonly List<(Node N, int Prio)> _labels = new();
+    readonly List<Windows.Foundation.Rect> _placed = new(), _edgeLabels = new(), _islandLabels = new();
+    static readonly Comparison<Node> ByDepth = (a, b) => b.Depth.CompareTo(a.Depth);
+    static readonly Comparison<(Node N, int Prio)> ByPrio = (a, b) => b.Prio.CompareTo(a.Prio);
+    float[] _distBuf = new float[256];
+
+    // Короткая подпись узла (60 знаков) — считается раз на заголовок.
+    readonly Dictionary<Node, (string Title, string Short)> _short = new();
+    string ShortTitle(Node n)
+    {
+        if (_short.TryGetValue(n, out var s) && ReferenceEquals(s.Title, n.R.Title)) return s.Short;
+        var t = n.R.Title;
+        var sh = t.Length > 60 ? t[..60] + "…" : t;
+        _short[n] = (t, sh);
+        return sh;
+    }
+
+    // Острова: состав, подпись и цвет — пересчитываются при смене данных или
+    // вида островов, а не каждый кадр.
+    List<(string Key, Node[] Nodes, string Title, Color Col)> _groups = new();
+    (int, Node[]) _groupsFor;
+    void BuildGroups()
+    {
+        _groups = _arr.GroupBy(Key).OrderByDescending(g => g.Count())
+            .Select(g => (g.Key, g.ToArray(), $"{KeyName(g.Key)} · {g.Count()}", Parse(KeyColor(g.Key)))).ToList();
+        _groupsFor = (_grouping, _arr);
     }
 
     static bool Intersects(Windows.Foundation.Rect a, Windows.Foundation.Rect b) =>
