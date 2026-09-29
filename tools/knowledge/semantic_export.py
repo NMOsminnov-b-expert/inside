@@ -23,6 +23,9 @@ import json
 import os
 import sys
 
+# Вывод — UTF-8 и в консоли с cp1251 (стрелки в итоговой строке).
+sys.stdout.reconfigure(encoding='utf-8')
+
 import asyncpg
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
