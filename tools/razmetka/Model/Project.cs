@@ -78,6 +78,11 @@ public sealed class Layer
     public double W { get; set; }
     public bool Locked { get; set; }
     public bool Hidden { get; set; }
+    // Поворот слоя в градусах вокруг его середины (по часовой): сканы бывают
+    // чуть наклонены (пользователь 29.09.2026: «фото могут быть ротированы на
+    // небольшой градус… не все ровно сканируют»). X, Y, W и обрезка — в осях
+    // самого слоя, до поворота.
+    public double Rotation { get; set; }
     // Кусок таблицы связей: номера строк [From, To) в порядке номеров связей.
     public int TableFrom { get; set; }
     public int TableTo { get; set; }
@@ -92,6 +97,9 @@ public sealed class Frame
     public string LayerId { get; set; } = "";
     // Пиксели исходника слоя.
     public Box Box { get; set; } = new();
+    // Наклон рамки в градусах вокруг её середины, в осях картинки: поле на
+    // наклонном скане — не прямоугольник вдоль краёв картинки.
+    public double Angle { get; set; }
 }
 
 public static class LinkKind

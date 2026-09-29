@@ -82,7 +82,7 @@ public static class Exporter
                 var links = new List<object>();
                 foreach (var k in ordered)
                 {
-                    var pts = SheetGeo.Path(s, k);
+                    var pts = SheetGeo.DrawPath(s, k);
                     var tgt = SheetGeo.FrameRect(s, k.Tgt);
                     if (pts == null || tgt == null) continue;
                     var (bs, bt) = SheetGeo.Badges(pts, tgt.Value);

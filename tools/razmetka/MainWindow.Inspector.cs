@@ -244,6 +244,23 @@ public partial class MainWindow
         Insp.Children.Add(Kit.Field("Вход в рамку на снимке", Kit.Segmented(sides, k.TgtSide, v => SetSides(k, k.SrcSide, v))));
         Insp.Children.Add(Kit.Actions(CmdBtn("link.reroute", "Переложить"), CmdBtn("link.straighten", "Выпрямить")));
 
+        // Наклон рамок — на экране (с поворотом картинки); хранится в осях
+        // картинки. Ручка над рамкой выбранной связи — то же мышью.
+        Insp.Children.Add(Kit.Section("Наклон рамок, °"));
+        foreach (var (id, label) in new[] { (k.Src, "На документе"), (k.Tgt, "На снимке") })
+        {
+            var f = sh.Frames.FirstOrDefault(x => x.Id == id);
+            if (f == null) continue;
+            var lr = SheetGeo.LayerOf(sh, f)?.Rotation ?? 0;
+            var ff = f;
+            Insp.Children.Add(Kit.Field(label, AngleRow("tilt" + id, Math.Round(lr + f.Angle, 2),
+                v => Edit("Наклон рамки", () => ff.Angle = Math.Round(NormDeg(v - lr), 2)),
+                d => Edit("Наклон рамки", () => ff.Angle = Math.Round(NormDeg(ff.Angle + d), 2)))));
+        }
+        var tipTilt = Kit.Text("Ручка над рамкой — повернуть мышью, с Shift — шаг 15°.", 11, "Faint", wrap: true);
+        tipTilt.Margin = new Thickness(16, 0, 16, 8);
+        Insp.Children.Add(tipTilt);
+
         Insp.Children.Add(Kit.Section("Ещё"));
         var n = Bound("n", k.N.ToString(), v =>
         {
@@ -329,6 +346,14 @@ public partial class MainWindow
                 cropped ? CmdBtn("layer.cropReset", "Сбросить обрезку") : new Border(), CmdBtn("layer.replace", "Заменить…")));
         }
 
+        if (!table)
+        {
+            Insp.Children.Add(Kit.Section("Поворот"));
+            Insp.Children.Add(Kit.Field("Поворот, °", AngleRow("rotation", l.Rotation, v => Edit("Поворот слоя", () => l.Rotation = v), RotateBy),
+                "По часовой — плюс. [ и ] — на 0,5°, с Shift — на 0,1°; S — провести по линии, которая должна быть ровной"));
+            Insp.Children.Add(Kit.Actions(CmdBtn("tool.straighten", "Выровнять по линии"), l.Rotation != 0 ? CmdBtn("layer.rotReset", "Сбросить") : new Border()));
+        }
+
         Insp.Children.Add(Kit.Section("Слой"));
         var flags = new StackPanel { Margin = new Thickness(12, 0, 12, 8) };
         flags.Children.Add(Toggle("Закреплён — мышью не выбирается и не двигается", l.Locked, v => Edit(v ? "Закрепить слой" : "Открепить слой", () => l.Locked = v), "Ctrl+Shift+L"));
@@ -365,6 +390,23 @@ public partial class MainWindow
     static CheckBox Toggle(string text, bool on, Action<bool> set, string keys) =>
         new CheckBox { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, IsChecked = on, Margin = new Thickness(4, 2, 0, 4), Focusable = false, ToolTip = keys }
             .Also(c => c.Click += (_, _) => set(c.IsChecked == true));
+
+    // Угол: поле (запятая или точка) и шаги −0,5 / +0,5.
+    UIElement AngleRow(string name, double value, Action<double> set, Action<double> step)
+    {
+        var box = Bound(name, value.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("ru-RU")), v =>
+        {
+            if (double.TryParse(v.Replace('.', ','), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.GetCultureInfo("ru-RU"), out var d))
+                set(Math.Round(NormDeg(d), 2));
+        });
+        box.Width = 90;
+        box.TextAlignment = TextAlignment.Right;
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(box);
+        row.Children.Add(Kit.TextBtn("−0,5°", "Против часовой на 0,5°", () => step(-0.5), "OutlineBtn").Also(b => { b.Margin = new Thickness(8, 0, 4, 0); b.Padding = new Thickness(8, 3, 8, 3); b.FontSize = 12; }));
+        row.Children.Add(Kit.TextBtn("+0,5°", "По часовой на 0,5°", () => step(0.5), "OutlineBtn").Also(b => { b.Padding = new Thickness(8, 3, 8, 3); b.FontSize = 12; }));
+        return row;
+    }
 
     // --- заметка ----------------------------------------------------------------
 

@@ -1,3 +1,4 @@
+using System.Windows;
 using Razmetka.Model;
 
 namespace Razmetka.Editor;
@@ -47,7 +48,9 @@ public static class LinkOps
         Frame Copy(string id)
         {
             var f = s.Frames.First(x => x.Id == id);
-            return new Frame { LayerId = f.LayerId, Box = new Box(f.Box.X, f.Box.Y + f.Box.H, f.Box.W, f.Box.H) };
+            // Ниже на свою высоту — в осях рамки (с её наклоном).
+            var d = SheetGeo.Rotate(new Vector(0, f.Box.H), f.Angle);
+            return new Frame { LayerId = f.LayerId, Box = new Box(f.Box.X + d.X, f.Box.Y + d.Y, f.Box.W, f.Box.H), Angle = f.Angle };
         }
         var c = Create(s, Copy(k.Src), Copy(k.Tgt));
         c.DocField = k.DocField;

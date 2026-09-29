@@ -34,9 +34,9 @@ public static class Checks
             {
                 var f = s.Frames.First(x => x.Id == id);
                 var l = SheetGeo.LayerOf(s, f)!;
-                var lr = new Rect(l.X, l.Y, l.W, l.H);
-                lr.Inflate(1, 1);
-                if (!lr.Contains(r))
+                // В пикселях исходника — с наклонами рамки и слоя.
+                var crop = new Rect(l.Crop.X - 1, l.Crop.Y - 1, l.Crop.W + 2, l.Crop.H + 2);
+                if (!SheetGeo.BoxQuad(f.Box, f.Angle).All(crop.Contains))
                     o.Add(new(true, $"Связь {k.N}: рамка {what} выходит за видимую часть «{l.Name}» — часть рамки обрезана", ch, s, k, l));
             }
             if (string.IsNullOrWhiteSpace(k.DocField) || string.IsNullOrWhiteSpace(k.SystemField))

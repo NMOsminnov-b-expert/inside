@@ -290,7 +290,7 @@ public partial class MainWindow
     {
         var r = Rect.Empty;
         foreach (var l in sh.Layers.Where(l => !l.Hidden))
-            r.Union(new Rect(l.X, l.Y, l.W, Math.Max(l.Kind == LayerKind.Table ? SheetView.TableHeight(sh, l) : l.H, 1)));
+            r.Union(SheetGeo.LayerBounds(l, Math.Max(l.Kind == LayerKind.Table ? SheetView.TableHeight(sh, l) : l.H, 1)));
         if (r.IsEmpty) return (400, 300);
         return (r.Width + 80, r.Height + 110);
     }

@@ -127,6 +127,16 @@ public partial class MainWindow
 
         // Слой
         Add("layer.crop", "Обрезать", "Слой", Scope.Keys, StartCropSelected, () => ImageSel, "Без потери пикселей: вернуть можно всегда", keys: K(Key.C));
+        // Наклон скана (пользователь 29.09.2026: «фото могут быть ротированы на
+        // небольшой градус… не все ровно сканируют»).
+        Add("tool.straighten", "Выровнять по линии", "Слой", Scope.Keys, () => SetTool(View.StraightenTool ? "select" : "straighten"), () => CanDraw,
+            "Провести по линии скана, которая должна быть ровной, — картинка повернётся", keys: K(Key.S));
+        Add("layer.rotLeft", "Повернуть против часовой на 0,5°", "Слой", Scope.Keys, () => RotateBy(-0.5), () => OneLayer is { Kind: LayerKind.Image }, keys: K(Key.OemOpenBrackets));
+        Add("layer.rotRight", "Повернуть по часовой на 0,5°", "Слой", Scope.Keys, () => RotateBy(0.5), () => OneLayer is { Kind: LayerKind.Image }, keys: K(Key.OemCloseBrackets));
+        Add("layer.rotLeftFine", "Повернуть против часовой на 0,1°", "Слой", Scope.Keys, () => RotateBy(-0.1), () => OneLayer is { Kind: LayerKind.Image }, keys: K(Key.OemOpenBrackets, S));
+        Add("layer.rotRightFine", "Повернуть по часовой на 0,1°", "Слой", Scope.Keys, () => RotateBy(0.1), () => OneLayer is { Kind: LayerKind.Image }, keys: K(Key.OemCloseBrackets, S));
+        Add("layer.rotReset", "Сбросить поворот", "Слой", Scope.Keys, () => { var ls = View.SelectedLayers().Where(l => l.Rotation != 0).ToList(); Edit("Сбросить поворот", () => { foreach (var l in ls) l.Rotation = 0; }); },
+            () => View.SelectedLayers().Any(l => l.Rotation != 0));
         Add("layer.cropReset", "Сбросить обрезку", "Слой", Scope.Canvas, () => Edit("Сброс обрезки", () => { foreach (var l in View.SelectedLayers()) LayerOps.ResetCrop(l, _store!); }), () => ImageSel);
         Add("layer.replace", "Заменить картинку…", "Слой", Scope.Canvas, ReplaceImage, () => ImageSel, "Рамки подгоняются по двум точкам");
         Add("layer.lock", "Закрепить или открепить", "Слой", Scope.Canvas, ToggleLock, () => LayersSel, keys: K(Key.L, CS));
@@ -185,7 +195,7 @@ public partial class MainWindow
     {
         if (View.CropLayerId != null) { View.EndCrop(); return; }
         if (View.AlignStep >= 0) { View.CancelAlign(); return; }
-        if (View.LinkTool || View.NoteTool || View.HandTool) { SetTool("select"); return; }
+        if (View.LinkTool || View.NoteTool || View.HandTool || View.StraightenTool) { SetTool("select"); return; }
         if (View.Lens) { ToggleLens(); return; }
         if (_pop != null) { Pops.Children.Remove(_pop); _pop = null; }
         if (View.LinkId != null) { View.SelectLink(null); return; }

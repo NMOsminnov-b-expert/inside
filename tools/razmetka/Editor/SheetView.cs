@@ -73,7 +73,7 @@ public sealed class SheetView : FrameworkElement
         for (var i = Sheet!.Layers.Count - 1; i >= 0; i--)
         {
             var l = Sheet.Layers[i];
-            if (!l.Hidden && new Rect(l.X, l.Y, l.W, l.H).Contains(world)) return l;
+            if (!l.Hidden && InLayer(l, world)) return l;
         }
         return null;
     }
@@ -84,7 +84,7 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null || _op != Op.None) return null;
         var r = Rect.Empty;
         if (SelectedLink is { } k && LinkBounds(k) is { } lb) r = lb;
-        else foreach (var l in SelectedLayers()) r.Union(new Rect(l.X, l.Y, l.W, l.H));
+        else foreach (var l in SelectedLayers()) r.Union(SheetGeo.LayerBounds(l, l.H));
         if (r.IsEmpty) return null;
         return new Rect(ToScreen(r.X, r.Y), ToScreen(r.Right, r.Bottom));
     }
@@ -97,7 +97,7 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null || _op != Op.None) return;
         if (LinkTool || NoteTool || HandTool || _ghost != null || CropLayerId != null) return;
         if (Selection.Count == 1 && Find(Selection[0]) is { Locked: false, Hidden: false } sel
-            && HitHandle(Corners(ScreenRect(sel)), p) is var h && h >= 0)
+            && HitHandle(ScreenQuad(sel), p) is var h && h >= 0)
         {
             Cursor = h is 0 or 2 ? Cursors.SizeNWSE : Cursors.SizeNESW;
             HoverHint?.Invoke("Тянуть — размер");
@@ -198,7 +198,9 @@ public sealed class SheetView : FrameworkElement
     const double HandleR = 5;
     const double SnapPx = 6;
 
-    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag, NoteMove }
+    enum Op { None, Move, Resize, Band, Pan, CropHandle, CropPan, FrameMove, FrameResize, SegDrag, NoteMove, Rotate, FrameRotate, Straighten }
+    double _rotOrig, _rotStart;
+    Point _rotCenter;
     Point _noteOrig;
     Op _op;
     Point _downScreen, _lastScreen;
@@ -396,7 +398,7 @@ public sealed class SheetView : FrameworkElement
         var r = Rect.Empty;
         // Таблица рисуется по числу строк, а не по Crop — её высота считается.
         foreach (var l in Sheet.Layers.Where(l => !l.Hidden))
-            r.Union(new Rect(l.X, l.Y, l.W, Math.Max(l.Kind == LayerKind.Table ? TableHeight(Sheet, l) : l.H, 1)));
+            r.Union(SheetGeo.LayerBounds(l, Math.Max(l.Kind == LayerKind.Table ? TableHeight(Sheet, l) : l.H, 1)));
         return r;
     }
 
@@ -487,10 +489,13 @@ public sealed class SheetView : FrameworkElement
         {
             var l = Find(id);
             if (l == null || l.Hidden || l.Id == CropLayerId) continue;
-            var r = ScreenRect(l);
-            dc.DrawRectangle(null, SelPen, r);
+            var q = ScreenQuad(l);
+            DrawQuad(dc, SelPen, q);
             if (Selection.Count == 1 && !l.Locked)
-                foreach (var h in Corners(r)) DrawHandle(dc, h);
+            {
+                foreach (var h in q) DrawHandle(dc, h);
+                if (l.Kind == LayerKind.Image) DrawRotHandle(dc, q);
+            }
         }
 
         foreach (var (v, at) in _guides)
@@ -504,6 +509,7 @@ public sealed class SheetView : FrameworkElement
         DrawNotes(dc);
         DrawAlign(dc);
         if (_op == Op.Band) dc.DrawRectangle(BandFill, SelPen, _band);
+        DrawStraighten(dc);
         DrawLens(dc);
     }
 
@@ -531,9 +537,12 @@ public sealed class SheetView : FrameworkElement
         {
             var bmp = _native ? Store!.Bitmap(l.Asset) : Store!.BitmapFor(l.Asset, Zoom * PixelsPerDip * l.Scale);
             var r = new Rect(l.X, l.Y, l.W, Math.Max(l.H, 1));
+            var turned = l.Rotation != 0;
+            if (turned) dc.PushTransform(new RotateTransform(l.Rotation, l.X + l.W / 2, l.Y + l.H / 2));
             if (bmp == null)
             {
                 dc.DrawRectangle(Brushes.MistyRose, new Pen(Brushes.IndianRed, 1 / Zoom), r);
+                if (turned) dc.Pop();
                 return;
             }
             var info = Store.Project.Assets[l.Asset!];
@@ -550,6 +559,7 @@ public sealed class SheetView : FrameworkElement
                 ft.Trimming = TextTrimming.CharacterEllipsis;
                 dc.DrawText(ft, new Point(l.X, l.Y - 32));
             }
+            if (turned) dc.Pop();
         }
     }
 
@@ -562,11 +572,79 @@ public sealed class SheetView : FrameworkElement
         var full = new Rect(ToScreen(l.X - l.Crop.X * s, l.Y - l.Crop.Y * s),
                             ToScreen(l.X - l.Crop.X * s + info.W * s, l.Y - l.Crop.Y * s + info.H * s));
         var vis = ScreenRect(l);
+        var turned = l.Rotation != 0;
+        if (turned) { var c = ToScreen(l.X + l.W / 2, l.Y + l.H / 2); dc.PushTransform(new RotateTransform(l.Rotation, c.X, c.Y)); }
         dc.DrawImage(bmp, full);
         var shade = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(full), new RectangleGeometry(vis));
         dc.DrawGeometry(CropShade, new Pen(Brushes.Gray, 1), shade);
         dc.DrawRectangle(null, new Pen(SelPen.Brush, 2), vis);
         foreach (var h in AllHandles(vis)) DrawHandle(dc, h);
+        if (turned) dc.Pop();
+    }
+
+    // --- поворот: вид и попадание ----------------------------------------------
+
+    Point[] ScreenQuad(Layer l) => SheetGeo.LayerQuad(l, l.H).Select(p => ToScreen(p.X, p.Y)).ToArray();
+    Point[] ToScreen(Point[] world) => world.Select(p => ToScreen(p.X, p.Y)).ToArray();
+
+    bool InLayer(Layer l, Point world) =>
+        l.Rotation == 0 ? new Rect(l.X, l.Y, l.W, l.H).Contains(world) : SheetGeo.InQuad(SheetGeo.LayerQuad(l, l.H), world);
+
+    static void DrawQuad(DrawingContext dc, Pen pen, Point[] q, Brush? fill = null)
+    {
+        var g = new StreamGeometry();
+        using (var c = g.Open())
+        {
+            c.BeginFigure(q[0], fill != null, true);
+            c.PolyLineTo(q.Skip(1).ToList(), true, true);
+        }
+        dc.DrawGeometry(fill, pen, g);
+    }
+
+    // Ручка поворота — над серединой верхней стороны, по её нормали.
+    static Point RotHandle(Point[] q)
+    {
+        var top = new Point((q[0].X + q[1].X) / 2, (q[0].Y + q[1].Y) / 2);
+        var side = q[1] - q[0];
+        var n = side.Length < 1e-6 ? new Vector(0, -1) : new Vector(side.Y, -side.X) / side.Length;
+        return top + n * 26;
+    }
+
+    void DrawRotHandle(DrawingContext dc, Point[] q)
+    {
+        var h = RotHandle(q);
+        var top = new Point((q[0].X + q[1].X) / 2, (q[0].Y + q[1].Y) / 2);
+        dc.DrawLine(HandlePen, top, h);
+        dc.DrawEllipse(Brushes.White, HandlePen, h, HandleR + 1, HandleR + 1);
+    }
+
+    static bool NearPoint(Point a, Point p) => (a - p).Length <= HandleR + 4;
+
+    // Точка экрана — в оси слоя (до поворота): для ручек обрезки.
+    Point Unturn(Layer l, Point screen) =>
+        l.Rotation == 0 ? screen : SheetGeo.Rotate(screen, ToScreen(l.X + l.W / 2, l.Y + l.H / 2), -l.Rotation);
+
+    // После размера или обрезки повёрнутого слоя середина сдвигается, и
+    // поворот вокруг новой середины увёл бы картинку. Сдвиг компенсирует: те
+    // же точки исходника остаются на тех же местах полотна.
+    static void KeepPlaced(Layer l, Point c0)
+    {
+        if (l.Rotation == 0) return;
+        var d = SheetGeo.Center(l) - c0;
+        var t = SheetGeo.Rotate(d, l.Rotation) - d;
+        l.X += t.X;
+        l.Y += t.Y;
+    }
+
+    static Point OrigCenter((double X, double Y, double W, Box Crop) o) =>
+        new(o.X + o.W / 2, o.Y + (o.Crop.W > 0 ? o.Crop.H * o.W / o.Crop.W : 0) / 2);
+
+    static double Norm(double deg)
+    {
+        deg %= 360;
+        if (deg > 180) deg -= 360;
+        if (deg <= -180) deg += 360;
+        return Math.Round(deg, 2);
     }
 
     static void DrawHandle(DrawingContext dc, Point p) =>
@@ -599,7 +677,7 @@ public sealed class SheetView : FrameworkElement
         {
             var l = Sheet.Layers[i];
             if (l.Hidden || l.Locked) continue;
-            if (new Rect(l.X, l.Y, l.W, l.H).Contains(world)) return l;
+            if (InLayer(l, world)) return l;
         }
         return null;
     }
@@ -737,6 +815,7 @@ public sealed class SheetView : FrameworkElement
             return;
         }
         if (_ghost != null) { _op = Op.None; AlignClick(p); return; }
+        if (StraightenTool) { _op = Op.Straighten; _lineTo = _downWorld; return; }
         if (LinkTool) { _op = Op.Band; _band = new Rect(p, p); return; }
         if (NoteTool) { _op = Op.None; SetNoteTool(false); NotePlaced?.Invoke(ToWorld(p)); return; }
         if (HitNote(p) is { } note)
@@ -752,9 +831,10 @@ public sealed class SheetView : FrameworkElement
         var crop = CropLayer();
         if (crop != null)
         {
-            var h = HitHandle(AllHandles(ScreenRect(crop)), p);
+            var pu = Unturn(crop, p);
+            var h = HitHandle(AllHandles(ScreenRect(crop)), pu);
             if (h >= 0) { _op = Op.CropHandle; _handle = h; Remember(new[] { crop }); EditStarting?.Invoke(); return; }
-            if (ScreenRect(crop).Contains(p)) { _op = Op.CropPan; Remember(new[] { crop }); EditStarting?.Invoke(); return; }
+            if (ScreenRect(crop).Contains(pu)) { _op = Op.CropPan; Remember(new[] { crop }); EditStarting?.Invoke(); return; }
             EndCrop();
         }
 
@@ -765,7 +845,14 @@ public sealed class SheetView : FrameworkElement
             var sel = Find(Selection[0]);
             if (sel != null && !sel.Locked && !sel.Hidden)
             {
-                var h = HitHandle(Corners(ScreenRect(sel)), p);
+                var q = ScreenQuad(sel);
+                if (sel.Kind == LayerKind.Image && NearPoint(RotHandle(q), p))
+                {
+                    _op = Op.Rotate; _rotOrig = sel.Rotation; _rotCenter = SheetGeo.Center(sel);
+                    _rotStart = Math.Atan2(_downWorld.Y - _rotCenter.Y, _downWorld.X - _rotCenter.X);
+                    Remember(new[] { sel }); EditStarting?.Invoke(); return;
+                }
+                var h = HitHandle(q, p);
                 if (h >= 0) { _op = Op.Resize; _handle = h; Remember(new[] { sel }); EditStarting?.Invoke(); return; }
             }
         }
@@ -837,8 +924,24 @@ public sealed class SheetView : FrameworkElement
             case Op.NoteMove:
                 if (SelectedNote is { } nm) { nm.X = _noteOrig.X + dw.X; nm.Y = _noteOrig.Y + dw.Y; }
                 break;
+            case Op.Rotate:
+                if (Find(_orig.Keys.First()) is { } rl)
+                {
+                    var a = Math.Atan2(w.Y - _rotCenter.Y, w.X - _rotCenter.X);
+                    var deg = _rotOrig + (a - _rotStart) * 180 / Math.PI;
+                    // Shift — шаг 15°, иначе — 0,1°.
+                    deg = mods.HasFlag(ModifierKeys.Shift) ? Math.Round(deg / 15) * 15 : Math.Round(deg, 1);
+                    rl.Rotation = Norm(deg);
+                }
+                break;
+            case Op.FrameRotate:
+                FrameRotate(w, mods.HasFlag(ModifierKeys.Shift));
+                break;
+            case Op.Straighten:
+                _lineTo = w;
+                break;
         }
-        if (_op is Op.Pan or Op.Band or Op.NoteMove) ViewOnly(); else InvalidateVisual();
+        if (_op is Op.Pan or Op.Band or Op.NoteMove or Op.Straighten) ViewOnly(); else InvalidateVisual();
     }
 
     public void PointerUp(Point p)
@@ -852,7 +955,11 @@ public sealed class SheetView : FrameworkElement
             var row = HitTableRow(tl, ToWorld(p));
             if (row != null) { SelectLink(row.Id); LinkClicked?.Invoke(row, p); }
         }
-        if (op == Op.Band && LinkTool)
+        if (op == Op.Straighten)
+        {
+            StraightenUp();
+        }
+        else if (op == Op.Band && LinkTool)
         {
             LinkToolUp();
         }
@@ -861,7 +968,7 @@ public sealed class SheetView : FrameworkElement
             var a = ToWorld(_band.TopLeft);
             var b = ToWorld(_band.BottomRight);
             var r = new Rect(a, b);
-            var ids = Sheet!.Layers.Where(l => !l.Hidden && !l.Locked && r.IntersectsWith(new Rect(l.X, l.Y, l.W, l.H))).Select(l => l.Id);
+            var ids = Sheet!.Layers.Where(l => !l.Hidden && !l.Locked && r.IntersectsWith(SheetGeo.LayerBounds(l, l.H))).Select(l => l.Id);
             Select(ids, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
         }
         else if (_moved)
@@ -872,6 +979,8 @@ public sealed class SheetView : FrameworkElement
                 Op.Resize => "Размер",
                 Op.CropHandle or Op.CropPan => "Обрезка",
                 Op.FrameMove or Op.FrameResize => "Рамка связи",
+                Op.Rotate => "Поворот слоя",
+                Op.FrameRotate => "Наклон рамки",
                 Op.SegDrag => "Путь стрелки",
                 Op.NoteMove => "Перенос заметки",
                 _ => "Правка",
@@ -903,7 +1012,7 @@ public sealed class SheetView : FrameworkElement
         var bestD = 7 / Zoom;
         foreach (var k in Sheet.Links)
         {
-            var pts = SheetGeo.Path(Sheet, k);
+            var pts = SheetGeo.DrawPath(Sheet, k);
             if (pts == null) continue;
             var d = SheetGeo.DistToPath(pts, w);
             var tgt = SheetGeo.FrameRect(Sheet, k.Tgt)!.Value;
@@ -919,13 +1028,13 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null) return null;
         var r = Rect.Empty;
         foreach (var id in new[] { k.Src, k.Tgt }) if (SheetGeo.FrameRect(Sheet, id) is { } f) r.Union(f);
-        if (SheetGeo.Path(Sheet, k) is { } pts) foreach (var p in pts) r.Union(p);
+        if (SheetGeo.DrawPath(Sheet, k) is { } pts) foreach (var p in pts) r.Union(p);
         return r.IsEmpty ? null : r;
     }
 
     public Point? LinkBadgeScreen(Link k)
     {
-        if (Sheet == null || SheetGeo.Path(Sheet, k) is not { } pts || SheetGeo.FrameRect(Sheet, k.Tgt) is not { } t) return null;
+        if (Sheet == null || SheetGeo.DrawPath(Sheet, k) is not { } pts || SheetGeo.FrameRect(Sheet, k.Tgt) is not { } t) return null;
         var (bs, _) = SheetGeo.Badges(pts, t);
         return ToScreen(bs.X, bs.Y);
     }
@@ -937,7 +1046,7 @@ public sealed class SheetView : FrameworkElement
         var dim = LinkId != null;
         foreach (var k in ordered)
         {
-            var pts = SheetGeo.Path(s, k);
+            var pts = SheetGeo.DrawPath(s, k);
             if (pts == null) continue;
             var src = SheetGeo.FrameRect(s, k.Src)!.Value;
             var tgt = SheetGeo.FrameRect(s, k.Tgt)!.Value;
@@ -953,8 +1062,13 @@ public sealed class SheetView : FrameworkElement
             if (k.Kind == LinkKind.None) pen.DashStyle = DashStyles.Dash;
             else if (k.Kind == LinkKind.Auto) pen.DashStyle = new DashStyle(new double[] { 3, 1.5 }, 0);
             else if (k.Kind == LinkKind.NameOnly) pen.DashStyle = DashStyles.Dot;
-            dc.DrawRoundedRectangle(null, new Pen(br, width), src, 3, 3);
-            dc.DrawRoundedRectangle(null, new Pen(br, width), tgt, 3, 3);
+            // Рамка без наклона — скруглённый прямоугольник, с наклоном — по углам.
+            foreach (var (id, box) in new[] { (k.Src, src), (k.Tgt, tgt) })
+            {
+                var fr = s.Frames.First(x => x.Id == id);
+                if (SheetGeo.FrameTilt(s, fr) == 0) dc.DrawRoundedRectangle(null, new Pen(br, width), box, 3, 3);
+                else DrawQuad(dc, new Pen(br, width) { LineJoin = PenLineJoin.Round }, SheetGeo.FrameQuad(s, id)!);
+            }
             var g = new StreamGeometry();
             using (var c = g.Open())
             {
@@ -995,6 +1109,49 @@ public sealed class SheetView : FrameworkElement
     // вторая — рамка на снимке системы; связь создаётся с номером следом за
     // последним и сразу прокладывается.
 
+    // «Выпрямить» (Photoshop: линейка → «Выпрямить слой»): провести по линии
+    // скана, которая должна быть горизонтальной или вертикальной; поворот
+    // слоя — до ближайшего ровного положения.
+    public bool StraightenTool { get; private set; }
+    public event Action<Layer, double>? StraightenDone;
+    Point _lineTo;
+
+    public void SetStraightenTool(bool on)
+    {
+        StraightenTool = on;
+        Cursor = on ? Cursors.Cross : null;
+        ViewOnly();
+        ToolChanged?.Invoke();
+    }
+
+    void StraightenUp()
+    {
+        var a = _downWorld;
+        var b = _lineTo;
+        if ((b - a).Length * Zoom < 12 || Sheet == null) return;
+        var layer = Selection.Count == 1 && Find(Selection[0]) is { Kind: LayerKind.Image } sel && InLayer(sel, a) ? sel : HitImageLayer(a);
+        if (layer == null) return;
+        var deg = Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI;
+        var target = Math.Round(deg / 90) * 90;
+        SetStraightenTool(false);
+        StraightenDone?.Invoke(layer, target - deg);
+    }
+
+    void DrawStraighten(DrawingContext dc)
+    {
+        if (_op != Op.Straighten) return;
+        var a = ToScreen(_downWorld.X, _downWorld.Y);
+        var b = ToScreen(_lineTo.X, _lineTo.Y);
+        dc.DrawLine(new Pen(Brushes.White, 4), a, b);
+        dc.DrawLine(new Pen(SelPen.Brush, 2) { DashStyle = DashStyles.Dash }, a, b);
+        var deg = Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / Math.PI;
+        var off = deg - Math.Round(deg / 90) * 90;
+        var ft = Text($"{off:+0.0;−0.0;0}°", 13, Colors.White);
+        var r = new Rect(b.X + 12, b.Y - 12, ft.Width + 12, ft.Height + 4);
+        dc.DrawRoundedRectangle(SelPen.Brush, null, r, 4, 4);
+        dc.DrawText(ft, new Point(r.X + 6, r.Y + 2));
+    }
+
     public bool LinkTool { get; private set; }
     Frame? _pendingFrame;
     public event Action<Frame, Frame>? LinkDrawn;
@@ -1027,10 +1184,17 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null || SelectedLink is not { } k) return false;
         foreach (var f in SelectedLinkFrames())
         {
-            if (SheetGeo.FrameRect(Sheet, f.Id) is not { } fr) continue;
-            var sr = new Rect(ToScreen(fr.X, fr.Y), ToScreen(fr.Right, fr.Bottom));
-            var h = HitHandle(Corners(sr), p);
-            if (h >= 0) { _op = Op.FrameResize; _handle = h; _frameId = f.Id; _origBox = f.Box; EditStarting?.Invoke(); return true; }
+            if (SheetGeo.FrameQuad(Sheet, f.Id) is not { } fq) continue;
+            var sq = ToScreen(fq);
+            if (NearPoint(RotHandle(sq), p))
+            {
+                _op = Op.FrameRotate; _frameId = f.Id; _origBox = f.Box; _rotOrig = f.Angle;
+                _rotCenter = SheetGeo.Bounds(fq) is var bb ? new Point(bb.X + bb.Width / 2, bb.Y + bb.Height / 2) : default;
+                _rotStart = Math.Atan2(_downWorld.Y - _rotCenter.Y, _downWorld.X - _rotCenter.X);
+                EditStarting?.Invoke(); return true;
+            }
+            var h = HitHandle(sq, p);
+            if (h >= 0) { _op = Op.FrameResize; _handle = h; _frameId = f.Id; _origBox = f.Box; _rotOrig = f.Angle; EditStarting?.Invoke(); return true; }
         }
         var pts = SheetGeo.Path(Sheet, k);
         if (pts != null)
@@ -1049,13 +1213,19 @@ public sealed class SheetView : FrameworkElement
         }
         foreach (var f in SelectedLinkFrames())
         {
-            if (SheetGeo.FrameRect(Sheet, f.Id) is not { } fr) continue;
-            var sr = new Rect(ToScreen(fr.X, fr.Y), ToScreen(fr.Right, fr.Bottom));
+            if (SheetGeo.FrameQuad(Sheet, f.Id) is not { } fq) continue;
+            // Точка — в осях рамки (с её наклоном), рамка — прямоугольник.
+            var sq = ToScreen(fq);
+            var c = new Point(sq.Average(q => q.X), sq.Average(q => q.Y));
+            var tilt = SheetGeo.FrameTilt(Sheet, f);
+            var pl = SheetGeo.Rotate(p, c, -tilt);
+            double fw = (sq[1] - sq[0]).Length, fh = (sq[3] - sq[0]).Length;
+            var sr = new Rect(c.X - fw / 2, c.Y - fh / 2, fw, fh);
             // Внутрь рамки — только у края (рамка часто накрывает значение,
             // по которому щёлкают, чтобы выбрать слой): полоса 8 px.
             var inner = sr;
             inner.Inflate(-8, -8);
-            if (sr.Contains(p) && (inner.IsEmpty || !inner.Contains(p)))
+            if (sr.Contains(pl) && (inner.IsEmpty || !inner.Contains(pl)))
             {
                 _op = Op.FrameMove; _frameId = f.Id; _origBox = f.Box; EditStarting?.Invoke(); return true;
             }
@@ -1063,21 +1233,47 @@ public sealed class SheetView : FrameworkElement
         return false;
     }
 
+    // Рамка: перенос — сдвиг в осях картинки; размер — в осях самой рамки
+    // (с наклоном), противоположный угол стоит на месте.
     void FrameDrag(Point w)
     {
         var f = Sheet!.Frames.First(x => x.Id == _frameId);
         var l = SheetGeo.LayerOf(Sheet, f)!;
         var k = l.Scale;
-        var d = (w - _downWorld) / k;
         if (_op == Op.FrameMove)
         {
+            var d = SheetGeo.Rotate(w - _downWorld, -l.Rotation) / k;
             f.Box = new Box(_origBox.X + d.X, _origBox.Y + d.Y, _origBox.W, _origBox.H);
             return;
         }
+        var c0 = new Point(_origBox.X + _origBox.W / 2, _origBox.Y + _origBox.H / 2);
+        var pl = SheetGeo.Rotate(SheetGeo.WorldToImg(l, w), c0, -f.Angle);
         double x0 = _origBox.X, y0 = _origBox.Y, x1 = _origBox.Right, y1 = _origBox.Bottom;
-        if (_handle is 0 or 3) x0 = Math.Min(x0 + d.X, x1 - 4); else x1 = Math.Max(x1 + d.X, x0 + 4);
-        if (_handle is 0 or 1) y0 = Math.Min(y0 + d.Y, y1 - 4); else y1 = Math.Max(y1 + d.Y, y0 + 4);
-        f.Box = new Box(x0, y0, x1 - x0, y1 - y0);
+        if (_handle is 0 or 3) x0 = Math.Min(pl.X, x1 - 4); else x1 = Math.Max(pl.X, x0 + 4);
+        if (_handle is 0 or 1) y0 = Math.Min(pl.Y, y1 - 4); else y1 = Math.Max(pl.Y, y0 + 4);
+        var b = new Box(x0, y0, x1 - x0, y1 - y0);
+        if (f.Angle != 0)
+        {
+            // Середина сдвинулась — наклон вокруг новой увёл бы рамку.
+            var dc = new Point(b.X + b.W / 2, b.Y + b.H / 2) - c0;
+            var t = SheetGeo.Rotate(dc, f.Angle) - dc;
+            b = new Box(b.X + t.X, b.Y + t.Y, b.W, b.H);
+        }
+        f.Box = b;
+    }
+
+    void FrameRotate(Point w, bool snap)
+    {
+        var f = Sheet!.Frames.First(x => x.Id == _frameId);
+        var a = Math.Atan2(w.Y - _rotCenter.Y, w.X - _rotCenter.X);
+        var deg = _rotOrig + (a - _rotStart) * 180 / Math.PI;
+        if (snap)
+        {
+            // Shift — наклон на экране кратен 15°.
+            var lr = SheetGeo.LayerOf(Sheet, f)?.Rotation ?? 0;
+            deg = Math.Round((deg + lr) / 15) * 15 - lr;
+        }
+        f.Angle = Norm(Math.Round(deg, 1));
     }
 
     void SegDrag(Point w)
@@ -1148,9 +1344,10 @@ public sealed class SheetView : FrameworkElement
         if (Sheet == null || SelectedLink is not { } k) return;
         foreach (var f in SelectedLinkFrames())
         {
-            if (SheetGeo.FrameRect(Sheet, f.Id) is not { } fr) continue;
-            var sr = new Rect(ToScreen(fr.X, fr.Y), ToScreen(fr.Right, fr.Bottom));
-            foreach (var h in Corners(sr)) DrawHandle(dc, h);
+            if (SheetGeo.FrameQuad(Sheet, f.Id) is not { } fq) continue;
+            var sq = ToScreen(fq);
+            foreach (var h in sq) DrawHandle(dc, h);
+            DrawRotHandle(dc, sq);
         }
         if (SheetGeo.Path(Sheet, k) is { } pts)
             for (var i = 0; i + 1 < pts.Count; i++)
@@ -1171,9 +1368,10 @@ public sealed class SheetView : FrameworkElement
         var r = new Rect(a, b);
         var layer = HitImageLayer(new Point(r.X + 1, r.Y + 1));
         if (layer == null || r.Width < 4 || r.Height < 4) return;
-        r.Intersect(new Rect(layer.X, layer.Y, layer.W, layer.H));
+        r.Intersect(SheetGeo.LayerBounds(layer, layer.H));
         if (r.IsEmpty) return;
-        var f = new Frame { LayerId = layer.Id, Box = SheetGeo.ToSource(layer, r) };
+        var (box, angle) = SheetGeo.FromWorld(layer, r);
+        var f = new Frame { LayerId = layer.Id, Box = box, Angle = angle };
         if (_pendingFrame == null) { _pendingFrame = f; ToolChanged?.Invoke(); return; }
         var first = _pendingFrame;
         _pendingFrame = null;
@@ -1186,7 +1384,7 @@ public sealed class SheetView : FrameworkElement
         {
             var l = Sheet.Layers[i];
             if (l.Hidden || l.Kind != LayerKind.Image) continue;
-            if (new Rect(l.X, l.Y, l.W, l.H).Contains(world)) return l;
+            if (InLayer(l, world)) return l;
         }
         return null;
     }
@@ -1196,12 +1394,9 @@ public sealed class SheetView : FrameworkElement
         if (_pendingFrame == null || Sheet == null) return;
         var l = SheetGeo.LayerOf(Sheet, _pendingFrame);
         if (l == null) return;
-        var k = l.Scale;
-        var b = _pendingFrame.Box;
-        var r = new Rect(ToScreen(l.X + (b.X - l.Crop.X) * k, l.Y + (b.Y - l.Crop.Y) * k),
-                         ToScreen(l.X + (b.Right - l.Crop.X) * k, l.Y + (b.Bottom - l.Crop.Y) * k));
+        var q = SheetGeo.BoxQuad(_pendingFrame.Box, _pendingFrame.Angle).Select(p => SheetGeo.ImgToWorld(l, p)).ToArray();
         var pen = new Pen(SelPen.Brush, 3) { DashStyle = DashStyles.Dash };
-        dc.DrawRectangle(null, pen, r);
+        DrawQuad(dc, pen, ToScreen(q));
     }
 
     // --- подгонка по двум точкам после замены картинки -------------------
@@ -1324,6 +1519,21 @@ public sealed class SheetView : FrameworkElement
         var a = (n2 - n1) / (o2 - o1);
         var b = n1 - a * o1;
         return p => { var z = a * new System.Numerics.Complex(p.X, p.Y) + b; return new Point(z.Real, z.Imaginary); };
+    }
+
+    // Рамка при подгонке: середина — по преобразованию, размер — по его
+    // масштабу, наклон — плюс его поворот (а не описанный прямоугольник:
+    // при повороте он раздувал бы рамку).
+    public static (Box Box, double Angle) MapFrame(Box b, double angle, Func<Point, Point> f)
+    {
+        var p0 = f(new Point(0, 0));
+        var p1 = f(new Point(1, 0));
+        var v = p1 - p0;
+        var k = v.Length;
+        var rot = Math.Atan2(v.Y, v.X) * 180 / Math.PI;
+        var c = f(new Point(b.X + b.W / 2, b.Y + b.H / 2));
+        double w = b.W * k, h = b.H * k;
+        return (new Box(c.X - w / 2, c.Y - h / 2, w, h), Norm(angle + rot));
     }
 
     public static Box MapBox(Box b, Func<Point, Point> f)
@@ -1473,6 +1683,9 @@ public sealed class SheetView : FrameworkElement
             l.X = left ? ax0 - tw : ax0;
             return;
         }
+        var c0 = OrigCenter(o);
+        // Указатель — в оси слоя (до поворота).
+        if (l.Rotation != 0) w = SheetGeo.Rotate(w, c0, -l.Rotation);
         var aspect = l.Crop.H > 0 ? l.Crop.H / l.Crop.W : 1;
         var oh = o.W * aspect;
         // Противоположный угол стоит на месте.
@@ -1490,6 +1703,7 @@ public sealed class SheetView : FrameworkElement
         l.W = nw;
         l.X = _handle is 0 or 3 ? ax - nw : ax;
         l.Y = _handle is 0 or 1 ? ay - nh : ay;
+        KeepPlaced(l, c0);
     }
 
     // Обрезка: ручка двигает сторону видимой части; картинка на полотне стоит
@@ -1499,6 +1713,8 @@ public sealed class SheetView : FrameworkElement
         var (id, o) = _orig.First();
         var l = Find(id)!;
         var info = Store!.Project.Assets[l.Asset!];
+        var c0 = OrigCenter(o);
+        if (l.Rotation != 0) w = SheetGeo.Rotate(w, c0, -l.Rotation);
         var s = o.W / o.Crop.W;
         var imgX = o.X - o.Crop.X * s;
         var imgY = o.Y - o.Crop.Y * s;
@@ -1515,6 +1731,7 @@ public sealed class SheetView : FrameworkElement
         l.X = imgX + x0 * s;
         l.Y = imgY + y0 * s;
         l.W = (x1 - x0) * s;
+        KeepPlaced(l, c0);
     }
 
     // Перетаскивание внутри рамки обрезки сдвигает картинку под ней.
@@ -1524,6 +1741,7 @@ public sealed class SheetView : FrameworkElement
         var l = Find(id)!;
         var info = Store!.Project.Assets[l.Asset!];
         var s = o.W / o.Crop.W;
+        dw = SheetGeo.Rotate(dw, -l.Rotation);
         var cx = Math.Clamp(o.Crop.X - dw.X / s, 0, info.W - o.Crop.W);
         var cy = Math.Clamp(o.Crop.Y - dw.Y / s, 0, info.H - o.Crop.H);
         l.Crop = new Box(cx, cy, o.Crop.W, o.Crop.H);

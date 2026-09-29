@@ -68,6 +68,7 @@ public partial class MainWindow
         // Рука — последней: выключение связи и заметки сбрасывает курсор.
         View.SetLinkTool(tool == "link");
         View.SetNoteTool(tool == "note");
+        View.SetStraightenTool(tool == "straighten");
         View.SetHandTool(tool == "hand");
         if (tool != "link") _chainLinks = false;
         if (tool == "link") { CloseEditor(); View.SelectLink(null); }
@@ -81,7 +82,27 @@ public partial class MainWindow
         if (View.LinkTool) View.SetLinkTool(false);
         if (View.NoteTool) View.SetNoteTool(false);
         if (View.HandTool) View.SetHandTool(false);
+        if (View.StraightenTool) View.SetStraightenTool(false);
         if (View.AlignStep >= 0) View.CancelAlign();
+    }
+
+    static double NormDeg(double d)
+    {
+        d %= 360;
+        if (d > 180) d -= 360;
+        if (d <= -180) d += 360;
+        return d;
+    }
+
+    // Поворот выбранных картинок на шаг (клавиши [ и ]).
+    void RotateBy(double deg)
+    {
+        // И закреплённые: страница PDF закреплена по умолчанию, а поворот —
+        // намеренное действие, а не случайный сдвиг.
+        var ls = View.SelectedLayers().Where(l => l.Kind == LayerKind.Image).ToList();
+        if (ls.Count == 0) return;
+        Edit("Поворот слоя", () => { foreach (var l in ls) l.Rotation = Math.Round(NormDeg(l.Rotation + deg), 2); });
+        Status(ls.Count == 1 ? $"Поворот «{ls[0].Name}»: {ls[0].Rotation:0.0}°" : $"Повёрнуто слоёв: {ls.Count}");
     }
 
     public void ToggleLens()
@@ -139,6 +160,12 @@ public partial class MainWindow
         {
             step = View.HasPendingFrame ? "Связь · 2 из 2" : "Связь · 1 из 2";
             text = View.HasPendingFrame ? "Обведите поле на снимке системы" : "Обведите графу на странице документа";
+            Act("Отмена", "Esc", () => SetTool("select"));
+        }
+        else if (View.StraightenTool)
+        {
+            step = "Выровнять";
+            text = "Проведите по линии скана, которая должна быть горизонтальной или вертикальной";
             Act("Отмена", "Esc", () => SetTool("select"));
         }
         else if (View.NoteTool)

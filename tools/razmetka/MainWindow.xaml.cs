@@ -49,6 +49,16 @@ public partial class MainWindow : Window
         View.Dragging += d => { _dragging = d; PlaceSelBar(); };
         View.ToolChanged += SyncTool;
         View.LinkDrawn += (a, b) => CreateLink(a, b);
+        // «Выровнять по линии»: слой поворачивается так, чтобы проведённая
+        // линия стала ровной.
+        View.StraightenDone += (l, delta) =>
+        {
+            var was = l.Rotation;
+            Edit("Выровнять по линии", () => l.Rotation = Math.Round(NormDeg(l.Rotation + delta), 2));
+            View.Select(new[] { l.Id });
+            SyncTool();
+            Status($"«{l.Name}» повёрнут на {delta:+0.0;−0.0}° — теперь {l.Rotation:0.0}°. Ctrl+Z — как было ({was:0.0}°)");
+        };
         View.NotePlaced += p => AddNoteAt(p);
         View.StraightenRequested += k => Edit("Выпрямить стрелку", () => { k.Points.Clear(); SheetGeo.Reroute(_sheet!, new[] { k.Id }); });
         View.AlignDone += (g, olds, news) =>
@@ -58,7 +68,7 @@ public partial class MainWindow : Window
             var f = SheetView.Similarity(olds, news);
             Edit("Подгонка по точкам", () =>
             {
-                foreach (var fr in _sheet.Frames.Where(x => x.LayerId == l.Id)) fr.Box = SheetView.MapBox(fr.Box, f);
+                foreach (var fr in _sheet.Frames.Where(x => x.LayerId == l.Id)) (fr.Box, fr.Angle) = SheetView.MapFrame(fr.Box, fr.Angle, f);
                 // Видимая часть — та же область документа, но в пределах новой
                 // картинки: за её краем пусто, место на полотне сдвигается.
                 var raw = SheetView.MapBox(g.Crop, f);

@@ -49,7 +49,7 @@ public static class LayerOps
         var c = new Layer
         {
             Kind = l.Kind, Name = UniqueName(s, l.Name), Caption = l.Caption, Asset = l.Asset, Crop = l.Crop,
-            X = l.X + 30, Y = l.Y + 30, W = l.W, TableFrom = l.TableFrom, TableTo = l.TableTo,
+            X = l.X + 30, Y = l.Y + 30, W = l.W, TableFrom = l.TableFrom, TableTo = l.TableTo, Rotation = l.Rotation,
         };
         s.Layers.Insert(s.Layers.IndexOf(l) + 1, c);
         return c;
