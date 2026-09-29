@@ -12,10 +12,13 @@ namespace Razmetka.Ui;
 // Где действует клавиша (Scope):
 //   Global — всегда, и в поле ввода тоже (Ctrl+S, Ctrl+K, F1);
 //   App    — всегда, кроме поля ввода (Ctrl+Z в поле — отмена набора);
-//   Canvas — только когда фокус на полотне или ни на чём: одиночные буквы,
-//            стрелки, Tab, Enter, Delete не должны срабатывать в списке
-//            разворотов или в поле описания.
-public enum Scope { Global, App, Canvas }
+//   Keys   — везде, кроме поля ввода: одиночные буквы инструментов и Esc —
+//            и после щелчка по списку разворотов, вкладке или слою (жалоба
+//            пользователя 29.09.2026 «горячие клавиши не работают»: фокус
+//            уходил со полотна, и буквы молчали);
+//   Canvas — только когда фокус на полотне или ни на чём: стрелки, Tab,
+//            Enter, Delete в списке разворотов принадлежат списку.
+public enum Scope { Global, App, Keys, Canvas }
 
 public readonly record struct Chord(Key Key, ModifierKeys Mods = ModifierKeys.None)
 {
@@ -118,7 +121,7 @@ public sealed class CommandSet
     {
         foreach (var c in _all)
         {
-            if (c.Scope == Scope.App && inText) continue;
+            if (c.Scope is Scope.App or Scope.Keys && inText) continue;
             if (c.Scope == Scope.Canvas && (inText || !onCanvas)) continue;
             if (!c.Keys.Any(k => k.Matches(key, mods))) continue;
             if (!c.When()) continue;

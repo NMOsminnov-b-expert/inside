@@ -66,15 +66,15 @@ public partial class MainWindow
         Add("help.keys", "Клавиши", "Переход", Scope.Global, OpenCheatsheet, keys: K(Key.F1));
 
         Add("flow.open", "Править разворот", "Переход", Scope.Canvas, () => SetFlow(false), () => _flow, "В режиме «Подряд» — открыть текущий разворот", false, "Enter", K(Key.Enter));
-        Add("flow.leave", "Один разворот", "Переход", Scope.Canvas, () => SetFlow(false), () => _flow, "Из режима «Подряд»", false, "Esc", K(Key.Escape));
+        Add("flow.leave", "Один разворот", "Переход", Scope.Keys, () => SetFlow(false), () => _flow, "Из режима «Подряд»", false, "Esc", K(Key.Escape));
         // Инструменты
-        Add("tool.select", "Выбор", "Инструменты", Scope.Canvas, () => SetTool("select"), () => CanDraw, "Щелчок — выбрать, перетаскивание — перенести", keys: K(Key.V));
-        Add("tool.hand", "Рука — двигать полотно", "Инструменты", Scope.Canvas, () => SetTool("hand"), () => CanDraw, "Пробел — рука на время, пока нажат", keys: K(Key.H));
-        Add("tool.link", "Новая связь", "Инструменты", Scope.Canvas, () => SetTool(View.LinkTool ? "select" : "link"), () => CanDraw,
+        Add("tool.select", "Выбор", "Инструменты", Scope.Keys, () => SetTool("select"), () => CanDraw, "Щелчок — выбрать, перетаскивание — перенести", keys: K(Key.V));
+        Add("tool.hand", "Рука — двигать полотно", "Инструменты", Scope.Keys, () => SetTool("hand"), () => CanDraw, "Пробел — рука на время, пока нажат", keys: K(Key.H));
+        Add("tool.link", "Новая связь", "Инструменты", Scope.Keys, () => SetTool(View.LinkTool ? "select" : "link"), () => CanDraw,
             "Обвести графу на документе, затем поле на снимке системы", keys: K(Key.L));
-        Add("tool.note", "Заметка", "Инструменты", Scope.Canvas, () => SetTool(View.NoteTool ? "select" : "note"), () => CanDraw,
+        Add("tool.note", "Заметка", "Инструменты", Scope.Keys, () => SetTool(View.NoteTool ? "select" : "note"), () => CanDraw,
             "Щелчок по полотну ставит булавку с вопросом или пояснением", keys: K(Key.N));
-        Add("tool.lens", "Лупа", "Инструменты", Scope.Canvas, ToggleLens, () => CanDraw, "Участок под курсором втрое крупнее", keys: K(Key.M));
+        Add("tool.lens", "Лупа", "Инструменты", Scope.Keys, ToggleLens, () => CanDraw, "Участок под курсором втрое крупнее", keys: K(Key.M));
 
         // Вид
         Add("view.fit", "Весь разворот в окне", "Вид", Scope.App, View.FitAll, () => HasSheet, keysText: "Shift+1", keys: new[] { K(Key.D1, S), K(Key.D0, C) });
@@ -95,7 +95,7 @@ public partial class MainWindow
             "Связь — копия ниже на высоту рамки; слой — копия со сдвигом", keys: K(Key.D, C));
         Add("edit.delete", "Удалить выбранное", "Правка", Scope.Canvas, DeleteAny, () => LinkSel || LayersSel || View.SelectedNote != null,
             keysText: "Delete", keys: new[] { K(Key.Delete), K(Key.Back) });
-        Add("edit.escape", "Выйти из режима, снять выбор", "Правка", Scope.Canvas, Escape, keys: K(Key.Escape));
+        Add("edit.escape", "Выйти из режима, снять выбор", "Правка", Scope.Keys, Escape, keys: K(Key.Escape));
         Add("edit.rename", "Переименовать", "Правка", Scope.App, Rename, () => HasSheet, "Слой, связь или разворот — поле в панели свойств", keys: K(Key.F2));
         foreach (var (key, dx, dy) in new[] { (Key.Left, -1, 0), (Key.Right, 1, 0), (Key.Up, 0, -1), (Key.Down, 0, 1) })
         {
@@ -115,15 +115,15 @@ public partial class MainWindow
         Add("edit.enter", "Править выбранное", "Правка", Scope.Canvas, EnterSelected,
             () => View.CropLayerId != null || ImageSel || View.SelectedNote != null,
             "Обрезка — готово; картинка — обрезать; заметка — к тексту", false, "Enter", K(Key.Enter));
-        Add("link.reroute", "Переложить стрелку", "Связь", Scope.Canvas, () => Edit("Переложить стрелку", () => SheetGeo.Reroute(_sheet!, new[] { View.SelectedLink!.Id })),
+        Add("link.reroute", "Переложить стрелку", "Связь", Scope.Keys, () => Edit("Переложить стрелку", () => SheetGeo.Reroute(_sheet!, new[] { View.SelectedLink!.Id })),
             () => LinkSel, "Проложить заново в обход остальных", keys: K(Key.R));
-        Add("link.pin", "Закрепить подсказку у номера", "Связь", Scope.Canvas, () => TogglePin(View.SelectedLink!), () => LinkSel, keys: K(Key.P));
+        Add("link.pin", "Закрепить подсказку у номера", "Связь", Scope.Keys, () => TogglePin(View.SelectedLink!), () => LinkSel, keys: K(Key.P));
         Add("link.toRow", "К строке таблицы", "Связь", Scope.Canvas, () => ToTableRow(View.SelectedLink!), () => LinkSel);
         Add("link.straighten", "Выпрямить стрелку", "Связь", Scope.Canvas,
             () => Edit("Выпрямить стрелку", () => { var k = View.SelectedLink!; k.Points.Clear(); SheetGeo.Reroute(_sheet!, new[] { k.Id }); }), () => LinkSel);
 
         // Слой
-        Add("layer.crop", "Обрезать", "Слой", Scope.Canvas, StartCropSelected, () => ImageSel, "Без потери пикселей: вернуть можно всегда", keys: K(Key.C));
+        Add("layer.crop", "Обрезать", "Слой", Scope.Keys, StartCropSelected, () => ImageSel, "Без потери пикселей: вернуть можно всегда", keys: K(Key.C));
         Add("layer.cropReset", "Сбросить обрезку", "Слой", Scope.Canvas, () => Edit("Сброс обрезки", () => { foreach (var l in View.SelectedLayers()) LayerOps.ResetCrop(l, _store!); }), () => ImageSel);
         Add("layer.replace", "Заменить картинку…", "Слой", Scope.Canvas, ReplaceImage, () => ImageSel, "Рамки подгоняются по двум точкам");
         Add("layer.lock", "Закрепить или открепить", "Слой", Scope.Canvas, ToggleLock, () => LayersSel, keys: K(Key.L, CS));
@@ -158,7 +158,13 @@ public partial class MainWindow
         var f = Keyboard.FocusedElement;
         var onCanvas = f == null || f == this || f is SheetView || (_flow && f is DependencyObject d && (d == Flow || IsDescendant(Flow, d)));
         e.Handled = Dispatch(key, Keyboard.Modifiers, inText, onCanvas);
+        // Журнал клавиш для разбора (переменная RAZMETKA_KEYLOG — путь файла).
+        if (Environment.GetEnvironmentVariable("RAZMETKA_KEYLOG") is { Length: > 0 } log)
+            System.IO.File.AppendAllText(log, $"{e.Key} sys={e.SystemKey} ime={e.ImeProcessedKey} vk={KeyInterop.VirtualKeyFromKey(e.Key)} scan={GetScan(e)} focus={f?.GetType().Name} handled={e.Handled}" + Environment.NewLine);
     }
+
+    static int GetScan(KeyEventArgs e) =>
+        (int)(typeof(KeyEventArgs).GetProperty("ScanCode", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(e) ?? -1);
 
     // Клавиши вынесены сюда: их вызывают и сценарии проверки (фокус — на полотне).
     public bool HandleKey(Key key, ModifierKeys mods, bool inText = false) => Dispatch(key, mods, inText, !inText);

@@ -66,7 +66,7 @@ public sealed class Cheatsheet : Grid
         head.Children.Add(close);
         var title = new StackPanel();
         title.Children.Add(Kit.Text("Клавиши", 20, "Ink", FontWeights.SemiBold));
-        var sub = Kit.Text("Одиночные клавиши работают, когда фокус на полотне; в поле ввода они печатают текст. Раскладка не важна: V и «М» — одна клавиша.", 12, "Muted", wrap: true);
+        var sub = Kit.Text("Буквы инструментов работают везде, кроме полей ввода, — там они печатают текст; стрелки, Tab, Enter и Delete — когда фокус на полотне. Раскладка не важна: V и «М» — одна клавиша.", 12, "Muted", wrap: true);
         sub.Margin = new Thickness(0, 2, 0, 0);
         title.Children.Add(sub);
         head.Children.Add(title);
