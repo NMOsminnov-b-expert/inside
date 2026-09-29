@@ -41,7 +41,7 @@ public partial class MainWindow : Window
         View.EditStarting += () => { if (_store != null) _undo.Begin(_store.Project); };
         View.EditCommitted += Committed;
         View.SelectionChanged += SelectionChangedUi;
-        View.ViewChanged += () => { ZoomText.Text = $"{Math.Round(View.Zoom * 100)} %"; PlacePops(); PlaceSelBar(); CloseEditor(); };
+        View.ViewChanged += () => { ZoomText.Text = $"{Math.Round(View.Zoom * 100)} %"; PlacePops(); MoveSelBar(); CloseEditor(); };
         View.LinkClicked += (k, p) => ShowPop(k, p);
         View.ContextRequested += ShowContext;
         View.EditLinkRequested += (k, _) => EditLinkCard(k);
@@ -181,6 +181,7 @@ public partial class MainWindow : Window
         LeaveFlow();
         _store = store;
         View.Store = store;
+        store.LevelReady += View.LevelReady;
         _undo.Clear();
         _dirty = keepDirty;
         _savedAt = null;

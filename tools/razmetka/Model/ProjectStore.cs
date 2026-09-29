@@ -93,6 +93,58 @@ public sealed class ProjectStore
     // («Заменить»).
     static readonly string[] Kept = { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff" };
 
+    // Уровни картинки для экрана (как в просмотрщиках — «пирамида»): копии в
+    // 2, 4, 8 раз меньше. Страница PDF в 300 dpi, уменьшаемая на каждом кадре
+    // до размера окна, давала рывки при масштабе; с уровнем уменьшать почти
+    // нечего. Копии готовятся в фоне, пока их нет — рисуется исходник. Экспорт
+    // берёт только исходник.
+    readonly Dictionary<(string, int), BitmapSource> _levels = new();
+    readonly HashSet<(string, int)> _making = new();
+    public event Action? LevelReady;
+
+    // pxPerSrc — сколько точек экрана приходится на точку исходника.
+    public BitmapSource? BitmapFor(string? asset, double pxPerSrc)
+    {
+        var full = Bitmap(asset);
+        if (full == null || asset == null) return full;
+        var n = 0;
+        while (n < 3 && pxPerSrc * (1 << (n + 1)) <= 1.0 && Math.Max(full.PixelWidth, full.PixelHeight) >> (n + 1) >= 256) n++;
+        if (n == 0) return full;
+        for (var m = n; m >= 1; m--)
+            if (_levels.TryGetValue((asset, m), out var lv))
+            {
+                if (m < n) MakeLevel(asset, full, n);
+                return lv;
+            }
+        MakeLevel(asset, full, n);
+        return full;
+    }
+
+    void MakeLevel(string asset, BitmapSource full, int n)
+    {
+        if (!_making.Add((asset, n))) return;
+        var dispatcher = System.Windows.Application.Current.Dispatcher;
+        Task.Run(() =>
+        {
+            var k = 1.0 / (1 << n);
+            BitmapSource tb = new TransformedBitmap(full, new ScaleTransform(k, k));
+            if (tb.Format != PixelFormats.Bgra32 && tb.Format != PixelFormats.Pbgra32)
+                tb = new FormatConvertedBitmap(tb, PixelFormats.Bgra32, null, 0);
+            var stride = tb.PixelWidth * 4;
+            var px = new byte[stride * tb.PixelHeight];
+            tb.CopyPixels(px, stride, 0);
+            var bmp = BitmapSource.Create(tb.PixelWidth, tb.PixelHeight, 96, 96, tb.Format, null, px, stride);
+            bmp.Freeze();
+            dispatcher.BeginInvoke(() =>
+            {
+                _making.Remove((asset, n));
+                if (!_cache.ContainsKey(asset)) return;
+                _levels[(asset, n)] = bmp;
+                LevelReady?.Invoke();
+            });
+        });
+    }
+
     public string ImportFile(string path)
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
@@ -135,6 +187,7 @@ public sealed class ProjectStore
     {
         var keep = assets.Where(a => a != null).ToHashSet();
         foreach (var k in _cache.Keys.Where(k => !keep.Contains(k)).ToList()) _cache.Remove(k);
+        foreach (var k in _levels.Keys.Where(k => !keep.Contains(k.Item1)).ToList()) _levels.Remove(k);
     }
 
     static byte[] Encode(BitmapEncoder enc, BitmapSource bmp)

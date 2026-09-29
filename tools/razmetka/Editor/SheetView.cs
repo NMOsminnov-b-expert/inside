@@ -148,7 +148,7 @@ public sealed class SheetView : FrameworkElement
     public void SelectNote(string? id)
     {
         NoteId = id;
-        InvalidateVisual();
+        ViewOnly();
         SelectionChanged?.Invoke();
     }
 
@@ -185,8 +185,8 @@ public sealed class SheetView : FrameworkElement
     }
 
     public void SetFilter(string? f) { Filter = string.IsNullOrWhiteSpace(f) ? null : f; InvalidateVisual(); }
-    public void SetLens(bool on) { Lens = on; if (!on) _lensAt = null; InvalidateVisual(); }
-    public void MoveLens(Point p) { _lensAt = p; InvalidateVisual(); }
+    public void SetLens(bool on) { Lens = on; if (!on) _lensAt = null; ViewOnly(); }
+    public void MoveLens(Point p) { _lensAt = p; ViewOnly(); }
 
     public event Action? EditStarting;
     public event Action<string>? EditCommitted;
@@ -240,6 +240,7 @@ public sealed class SheetView : FrameworkElement
     public void SetSheet(Sheet? s)
     {
         Sheet = s;
+        _worldDirty = true;
         LinkId = null;
         Selection.Clear();
         CropLayerId = null;
@@ -254,8 +255,13 @@ public sealed class SheetView : FrameworkElement
     // Разворот целиком в картинку: те же слои, рамки, стрелки и таблицы, что на
     // полотне, без выделения и фильтра. bounds — какая часть полотна попала в
     // картинку (единицы разворота), по ней экспорт ставит слой подсказок.
-    public RenderTargetBitmap RenderBitmap(double scale, out Rect bounds)
+    // native — картинки в исходном разрешении (экспорт); иначе — уровень по
+    // масштабу (карточки «Подряд»: там нужна малая копия).
+    bool _native;
+
+    public RenderTargetBitmap RenderBitmap(double scale, out Rect bounds, bool native = true)
     {
+        _native = native;
         var b = Bounds();
         if (b.IsEmpty) b = new Rect(0, 0, 400, 300);
         // Подписи над картинками стоят выше слоя — запас сверху.
@@ -279,6 +285,7 @@ public sealed class SheetView : FrameworkElement
             dc.Pop();
         }
         (Zoom, Offset, LinkId, Filter, Lens) = (zoom, off, link, filter, lens);
+        _native = false;
         var rtb = new RenderTargetBitmap((int)Math.Ceiling(b.Width * scale), (int)Math.Ceiling(b.Height * scale), 96, 96, PixelFormats.Pbgra32);
         rtb.Render(dv);
         rtb.Freeze();
@@ -308,7 +315,7 @@ public sealed class SheetView : FrameworkElement
         var w = ToWorld(c);
         Zoom = z;
         Offset = new Vector(c.X - w.X * z, c.Y - w.Y * z);
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
@@ -316,21 +323,21 @@ public sealed class SheetView : FrameworkElement
     {
         Zoom = zoom;
         Offset = offset;
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
     public void FitAll()
     {
         var b = Bounds();
-        if (b.IsEmpty || ActualWidth < 10) { Zoom = 0.5; Offset = new Vector(40, 40); InvalidateVisual(); ViewChanged?.Invoke(); return; }
+        if (b.IsEmpty || ActualWidth < 10) { Zoom = 0.5; Offset = new Vector(40, 40); ViewOnly(); ViewChanged?.Invoke(); return; }
         // Поля: сверху — под плашку режима, снизу — под панель инструментов,
         // чтобы они не закрывали край разворота.
         const double side = 32, top = 56, bottom = 88;
         var z = Math.Min((ActualWidth - 2 * side) / b.Width, (ActualHeight - top - bottom) / b.Height);
         Zoom = Math.Clamp(z, 0.05, 4);
         Offset = new Vector((ActualWidth - b.Width * Zoom) / 2 - b.X * Zoom, top + (ActualHeight - top - bottom - b.Height * Zoom) / 2 - b.Y * Zoom);
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
@@ -348,7 +355,7 @@ public sealed class SheetView : FrameworkElement
     public void PanBy(Vector v)
     {
         Offset += v;
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
@@ -359,7 +366,7 @@ public sealed class SheetView : FrameworkElement
         r.Inflate(Math.Max(20, r.Width * 0.08), Math.Max(20, r.Height * 0.08));
         Zoom = Math.Clamp(Math.Min(ActualWidth / r.Width, ActualHeight / r.Height), 0.05, 2);
         Offset = new Vector(ActualWidth / 2 - (r.X + r.Width / 2) * Zoom, ActualHeight / 2 - (r.Y + r.Height / 2) * Zoom);
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
@@ -379,7 +386,7 @@ public sealed class SheetView : FrameworkElement
     public void ScrollToWorld(Rect r)
     {
         Offset = new Vector(ActualWidth / 2 - (r.X + r.Width / 2) * Zoom, ActualHeight / 2 - (r.Y + r.Height / 2) * Zoom);
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
@@ -398,13 +405,62 @@ public sealed class SheetView : FrameworkElement
         base.OnRenderSizeChanged(info);
         if (info.PreviousSize.Width < 10) { FitAll(); return; }
         Offset += new Vector((info.NewSize.Width - info.PreviousSize.Width) / 2, (info.NewSize.Height - info.PreviousSize.Height) / 2);
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
     }
 
     // --- отрисовка ---------------------------------------------------------
 
+    // Кэш содержимого разворота (слои, стрелки, таблицы — в единицах
+    // разворота): собирается заново, только когда содержимое изменилось
+    // (InvalidateVisual внутри полотна), масштаб ушёл больше чем на четверть
+    // (толщина рамок в точках экрана, уровень картинки) или готов уровень
+    // картинки. Сдвиг и масштаб — ViewOnly: рисуется тот же рисунок с другим
+    // преобразованием, без пересчёта надписей и путей (замер 29.09.2026:
+    // отрисовка 5 мс в среднем, до 29 мс на кадр — почти всё надписи таблицы).
+    DrawingGroup? _world;
+    bool _worldDirty = true;
+    double _worldZoom = -1, _worldPpd;
+
+    new void InvalidateVisual() { _worldDirty = true; base.InvalidateVisual(); }
+    void ViewOnly() => base.InvalidateVisual();
+
+    void EnsureWorld()
+    {
+        var zr = _worldZoom > 0 ? Zoom / _worldZoom : 0;
+        if (!_worldDirty && _world != null && zr is > 0.8 and < 1.25 && _worldPpd == PixelsPerDip) return;
+        var g = new DrawingGroup();
+        using (var c = g.Open())
+        {
+            foreach (var l in Sheet!.Layers) if (!l.Hidden) DrawLayer(c, l);
+            DrawLinks(c);
+        }
+        g.Freeze();
+        _world = g;
+        _worldDirty = false;
+        _worldZoom = Zoom;
+        _worldPpd = PixelsPerDip;
+    }
+
+    // Готов уровень картинки — пересобрать рисунок.
+    public void LevelReady() => InvalidateVisual();
+
+    // Замер отрисовки (сценарии проверки, шаг perf): время каждого OnRender.
+    public static readonly List<double> RenderTimes = new();
+    static readonly System.Diagnostics.Stopwatch _rsw = new();
+
     protected override void OnRender(DrawingContext dc)
+    {
+        _rsw.Restart();
+        RenderCore(dc);
+        RenderTimes.Add(_rsw.Elapsed.TotalMilliseconds);
+        if (RenderTimes.Count > 5000) RenderTimes.RemoveRange(0, 1000);
+    }
+
+    // Наведение без мыши — для замера (шаг perf hover).
+    public void HoverAt(Point p) => Hover(p);
+
+    void RenderCore(DrawingContext dc)
     {
         PixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         dc.DrawRectangle(Paper, null, new Rect(0, 0, ActualWidth, ActualHeight));
@@ -418,13 +474,9 @@ public sealed class SheetView : FrameworkElement
             dc.DrawRectangle(SheetBg, null, sb);
         }
 
+        EnsureWorld();
         dc.PushTransform(new MatrixTransform(Zoom, 0, 0, Zoom, Offset.X, Offset.Y));
-        foreach (var l in Sheet.Layers)
-        {
-            if (l.Hidden) continue;
-            DrawLayer(dc, l);
-        }
-        DrawLinks(dc);
+        dc.DrawDrawing(_world);
         dc.Pop();
 
         // Обрезка: вся картинка бледно, видимая часть — ярко, ручки по ней.
@@ -466,8 +518,7 @@ public sealed class SheetView : FrameworkElement
         var wx = (c.X - Offset.X) / Zoom;
         var wy = (c.Y - Offset.Y) / Zoom;
         dc.PushTransform(new MatrixTransform(z, 0, 0, z, c.X - wx * z, c.Y - wy * z));
-        foreach (var l in Sheet.Layers) if (!l.Hidden) DrawLayer(dc, l);
-        DrawLinks(dc);
+        if (_world != null) dc.DrawDrawing(_world);
         dc.Pop();
         dc.Pop();
         dc.DrawEllipse(null, new Pen(SelPen.Brush, 2.5), c, R, R);
@@ -478,7 +529,7 @@ public sealed class SheetView : FrameworkElement
         if (l.Kind == LayerKind.Table) { DrawTable(dc, l); return; }
         if (l.Kind == LayerKind.Image)
         {
-            var bmp = Store!.Bitmap(l.Asset);
+            var bmp = _native ? Store!.Bitmap(l.Asset) : Store!.BitmapFor(l.Asset, Zoom * PixelsPerDip * l.Scale);
             var r = new Rect(l.X, l.Y, l.W, Math.Max(l.H, 1));
             if (bmp == null)
             {
@@ -566,7 +617,7 @@ public sealed class SheetView : FrameworkElement
     {
         if (!add) Selection.Clear();
         foreach (var id in ids) if (!Selection.Contains(id)) Selection.Add(id);
-        InvalidateVisual();
+        ViewOnly();
         SelectionChanged?.Invoke();
     }
 
@@ -574,7 +625,7 @@ public sealed class SheetView : FrameworkElement
     {
         if (Selection.Count == 0) return;
         Selection.Clear();
-        InvalidateVisual();
+        ViewOnly();
         SelectionChanged?.Invoke();
     }
 
@@ -594,7 +645,7 @@ public sealed class SheetView : FrameworkElement
     {
         if (CropLayerId == null) return;
         CropLayerId = null;
-        InvalidateVisual();
+        ViewOnly();
         SelectionChanged?.Invoke();
     }
 
@@ -605,7 +656,7 @@ public sealed class SheetView : FrameworkElement
         var p = e.GetPosition(this);
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) Offset += new Vector(e.Delta, 0);
         else { SetZoom(Zoom * (e.Delta > 0 ? 1.15 : 1 / 1.15), p); return; }
-        InvalidateVisual();
+        ViewOnly();
         ViewChanged?.Invoke();
         e.Handled = true;
     }
@@ -641,7 +692,7 @@ public sealed class SheetView : FrameworkElement
 
     protected override void OnMouseLeave(MouseEventArgs e)
     {
-        if (Lens) { _lensAt = null; InvalidateVisual(); }
+        if (Lens) { _lensAt = null; ViewOnly(); }
         base.OnMouseLeave(e);
     }
 
@@ -787,7 +838,7 @@ public sealed class SheetView : FrameworkElement
                 if (SelectedNote is { } nm) { nm.X = _noteOrig.X + dw.X; nm.Y = _noteOrig.Y + dw.Y; }
                 break;
         }
-        InvalidateVisual();
+        if (_op is Op.Pan or Op.Band or Op.NoteMove) ViewOnly(); else InvalidateVisual();
     }
 
     public void PointerUp(Point p)
@@ -958,7 +1009,7 @@ public sealed class SheetView : FrameworkElement
         LinkTool = on;
         _pendingFrame = null;
         Cursor = on ? Cursors.Cross : null;
-        InvalidateVisual();
+        ViewOnly();
         ToolChanged?.Invoke();
     }
 
@@ -1174,7 +1225,7 @@ public sealed class SheetView : FrameworkElement
         _ghost = g;
         _alignSrc.Clear();
         Cursor = Cursors.Cross;
-        InvalidateVisual();
+        ViewOnly();
         ToolChanged?.Invoke();
     }
 
@@ -1183,7 +1234,7 @@ public sealed class SheetView : FrameworkElement
         _ghost = null;
         _alignSrc.Clear();
         Cursor = null;
-        InvalidateVisual();
+        ViewOnly();
         ToolChanged?.Invoke();
     }
 
@@ -1205,7 +1256,7 @@ public sealed class SheetView : FrameworkElement
             _alignSrc.Add(new Point(l.Crop.X + (w.X - l.X) / k, l.Crop.Y + (w.Y - l.Y) / k));
         }
         ToolChanged?.Invoke();
-        InvalidateVisual();
+        ViewOnly();
         if (_alignSrc.Count < 4) return;
         var olds = new[] { _alignSrc[0], _alignSrc[2] };
         var news = new[] { _alignSrc[1], _alignSrc[3] };

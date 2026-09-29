@@ -297,8 +297,20 @@ public partial class MainWindow
 
     // Рисуются только карточки на экране и рядом; перерисовка — если разворот
     // правили (номер версии) или карточка стала шире.
+    // По одной карточке за раз, в паузах (Background): прокрутка не ждёт
+    // картинки (замер 29.09.2026: карточка посреди прокрутки — рывок 119 мс).
+    bool _flowQueued;
+
     void RenderVisibleFlow()
     {
+        if (!_flow || _store == null || _flowQueued) return;
+        _flowQueued = true;
+        Dispatcher.BeginInvoke(RenderNextFlowCard, DispatcherPriority.Background);
+    }
+
+    void RenderNextFlowCard()
+    {
+        _flowQueued = false;
         if (!_flow || _store == null) return;
         var ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         var top = -Flow.ActualHeight;
@@ -314,9 +326,12 @@ public partial class MainWindow
             v.SetSheet(sh);
             var b = v.Bounds();
             if (b.IsEmpty) { img.Source = null; continue; }
-            var bmp = v.RenderBitmap(want / (b.Width + 80), out _);
+            var bmp = v.RenderBitmap(want / (b.Width + 80), out _, native: false);
             _flowCache[id] = (_version, want, bmp);
             img.Source = bmp;
+            // Следующая — в следующую паузу.
+            RenderVisibleFlow();
+            return;
         }
         // Полные картинки для рисования больше не нужны — память под текущий.
         _store.KeepOnly(_sheet?.Layers.Select(l => l.Asset) ?? Enumerable.Empty<string?>());

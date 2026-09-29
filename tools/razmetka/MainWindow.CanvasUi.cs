@@ -162,6 +162,27 @@ public partial class MainWindow
     // razmetka-dotnet): значки с подсказкой «название — клавиша»; на время
     // перетаскивания и в режимах прячется.
 
+    // Сдвиг и масштаб: панель у выбранного переставляется, а не строится
+    // заново (замер 29.09.2026: пересборка — 2,2 мс на каждый кадр сдвига).
+    void MoveSelBar()
+    {
+        if (_selBar == null) { PlaceSelBar(); return; }
+        var r = View.SelectionScreenRect();
+        if (r == null || _dragging) { PlaceSelBar(); return; }
+        PositionSelBar(r.Value);
+    }
+
+    void PositionSelBar(Rect sr)
+    {
+        var w = _selBar!.DesiredSize.Width;
+        var h = _selBar.DesiredSize.Height;
+        // Над выбранным; у верхнего края — под ним; в пределах полотна.
+        var y = sr.Top - h - 10 < 4 ? sr.Bottom + 10 : sr.Top - h - 10;
+        var x = Math.Clamp(sr.X + sr.Width / 2 - w / 2, 4, Math.Max(4, Pops.ActualWidth - w - 4));
+        System.Windows.Controls.Canvas.SetLeft(_selBar, x);
+        System.Windows.Controls.Canvas.SetTop(_selBar, Math.Clamp(y, 4, Math.Max(4, Pops.ActualHeight - h - 4)));
+    }
+
     void PlaceSelBar()
     {
         if (_selBar != null) { Pops.Children.Remove(_selBar); _selBar = null; }
@@ -214,14 +235,7 @@ public partial class MainWindow
         _selBar = Kit.Card(bar, new Thickness(3));
         Pops.Children.Add(_selBar);
         _selBar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var w = _selBar.DesiredSize.Width;
-        var h = _selBar.DesiredSize.Height;
-        var sr = r.Value;
-        // Над выбранным; у верхнего края — под ним; в пределах полотна.
-        var y = sr.Top - h - 10 < 4 ? sr.Bottom + 10 : sr.Top - h - 10;
-        var x = Math.Clamp(sr.X + sr.Width / 2 - w / 2, 4, Math.Max(4, Pops.ActualWidth - w - 4));
-        System.Windows.Controls.Canvas.SetLeft(_selBar, x);
-        System.Windows.Controls.Canvas.SetTop(_selBar, Math.Clamp(y, 4, Math.Max(4, Pops.ActualHeight - h - 4)));
+        PositionSelBar(r.Value);
     }
 
     // --- подсказки связей --------------------------------------------------------

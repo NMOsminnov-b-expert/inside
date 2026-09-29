@@ -201,6 +201,53 @@ public static class ScriptRunner
                         ed.Close();
                         break;
                     }
+                    case "perf":
+                    {
+                        // Покадровый замер: сдвиг, масштаб, наведение, перенос слоя.
+                        var kind = st.GetProperty("kind").GetString()!;
+                        var secs = st.TryGetProperty("s", out var ss) ? ss.GetDouble() : 3;
+                        var v = w.Canvas;
+                        var frames = new List<double>();
+                        var stepMs = new List<double>();
+                        var ssw = new System.Diagnostics.Stopwatch();
+                        Editor.SheetView.RenderTimes.Clear();
+                        TimeSpan? last = null;
+                        var clock = System.Diagnostics.Stopwatch.StartNew();
+                        var center = new Point(v.ActualWidth / 2, v.ActualHeight / 2);
+                        Point? dragAt = null;
+                        if (kind == "drag")
+                        {
+                            var l = v.Sheet!.Layers.Last(x => !x.Locked && !x.Hidden && x.Kind == Model.LayerKind.Image);
+                            dragAt = v.ToScreen(l.X + l.W / 2, l.Y + l.H / 2);
+                            v.PointerDown(dragAt.Value, MouseButton.Left, ModifierKeys.None);
+                        }
+                        void Step(object? s0, EventArgs e0)
+                        {
+                            var t = ((RenderingEventArgs)e0).RenderingTime;
+                            if (last is { } lt && t != lt) frames.Add((t - lt).TotalMilliseconds);
+                            if (last == t) return;
+                            last = t;
+                            var k = clock.Elapsed.TotalSeconds;
+                            ssw.Restart();
+                            switch (kind)
+                            {
+                                case "pan": v.PanBy(new Vector(Math.Cos(k * 2) * 9, Math.Sin(k * 1.4) * 7)); break;
+                                case "zoom": v.SetZoom(v.Zoom * (1 + Math.Sin(k * 3) * 0.03), center); break;
+                                case "hover": v.HoverAt(new Point(center.X + Math.Cos(k * 2) * 300, center.Y + Math.Sin(k * 3) * 200)); break;
+                                case "flow": { var f = (System.Windows.Controls.ScrollViewer)w.FindName("Flow"); f.ScrollToVerticalOffset(f.VerticalOffset + 18); break; }
+                                case "drag": v.PointerMove(new Point(dragAt!.Value.X + Math.Sin(k * 2) * 120, dragAt.Value.Y + Math.Cos(k * 2) * 60), ModifierKeys.None); break;
+                            }
+                            stepMs.Add(ssw.Elapsed.TotalMilliseconds);
+                        }
+                        CompositionTarget.Rendering += Step;
+                        await Task.Delay(TimeSpan.FromSeconds(secs));
+                        CompositionTarget.Rendering -= Step;
+                        if (kind == "drag") { v.PointerUp(dragAt!.Value); w.Commands.Execute("edit.undo"); }
+                        var r = Editor.SheetView.RenderTimes.ToList();
+                        double P(List<double> x, double q) => x.Count == 0 ? 0 : x.OrderBy(y => y).ElementAt(Math.Min(x.Count - 1, (int)(x.Count * q)));
+                        log.Add($"  perf {kind}: кадров {frames.Count} за {secs:0.#} с = {frames.Count / secs:0.0} к/с; кадр p50 {P(frames, .5):0.0} p95 {P(frames, .95):0.0} max {(frames.Count == 0 ? 0 : frames.Max()):0.0} мс; рывков >25 мс {frames.Count(f => f > 25)}; отрисовка n={r.Count} ср {(r.Count == 0 ? 0 : r.Average()):0.0} p95 {P(r, .95):0.0} max {(r.Count == 0 ? 0 : r.Max()):0.0} мс; шаг ср {(stepMs.Count == 0 ? 0 : stepMs.Average()):0.00} p95 {P(stepMs, .95):0.00} max {(stepMs.Count == 0 ? 0 : stepMs.Max()):0.0} мс");
+                        break;
+                    }
                     case "closeOverlays":
                         ((Ui.Palette)w.FindName("Pal")).Close();
                         ((Ui.Cheatsheet)w.FindName("Cheat")).Close();
