@@ -1,0 +1,104 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "cmd",
+  "id": "view.theme.dark"
+ },
+ {
+  "op": "assert",
+  "what": "dark",
+  "eq": 1
+ },
+ {
+  "op": "wait",
+  "ms": 400
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/h0.png"
+ },
+ {
+  "op": "clickLink",
+  "n": 2
+ },
+ {
+  "op": "dblLink",
+  "n": 2
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/h1.png"
+ },
+ {
+  "op": "keyWin",
+  "key": "Escape"
+ },
+ {
+  "op": "cmd",
+  "id": "go.palette"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/h2.png"
+ },
+ {
+  "op": "closeOverlays"
+ },
+ {
+  "op": "keysSet",
+  "id": "tool.link",
+  "keys": [
+   "K"
+  ]
+ },
+ {
+  "op": "key",
+  "key": "K"
+ },
+ {
+  "op": "assert",
+  "what": "linkTool",
+  "eq": 1
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/h3.png"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "keymapShot",
+  "path": "{TMP}/h4.png",
+  "q": "связь"
+ },
+ {
+  "op": "cmd",
+  "id": "view.theme.light"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/h5.png"
+ }
+]

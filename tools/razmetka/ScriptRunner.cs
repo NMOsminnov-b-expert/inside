@@ -56,6 +56,14 @@ public static class ScriptRunner
                             "layers" => w.Canvas.Sheet?.Layers.Count ?? -1,
                             "selLink" => w.Canvas.SelectedLink?.N ?? 0,
                             "notes" => w.Canvas.Sheet?.Notes.Count ?? -1,
+                            "sheetLinks" => w.Canvas.Sheet?.Links.Count ?? -1,
+                            "linkTool" => w.Canvas.LinkTool ? 1 : 0,
+                            "flow" => ((System.Windows.Controls.ScrollViewer)w.FindName("Flow")).IsVisible ? 1 : 0,
+                            // поворот слоя st.layer — в десятых долях градуса
+                            "rot10" => (int)Math.Round((w.Canvas.Sheet!.Layers.First(x => x.Name == st.GetProperty("layer").GetString()).Rotation) * 10),
+                            "dark" => Ui.Theme.IsDark ? 1 : 0,
+                            // есть ли в проекте картинка, байт в байт равная файлу st.file
+                            "sameAsFile" => w.Store!.Project.Assets.Values.Any(x => File.ReadAllBytes(Path.Combine(w.Store.Dir, "images", x.File)).AsSpan().SequenceEqual(File.ReadAllBytes(st.GetProperty("file").GetString()!))) ? 1 : 0,
                             _ => -99,
                         };
                         var want = st.GetProperty("eq").GetInt32();

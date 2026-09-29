@@ -1,0 +1,192 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "sheet",
+  "chapter": 0,
+  "index": 1
+ },
+ {
+  "op": "key",
+  "key": "L"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c0.png"
+ },
+ {
+  "op": "drag",
+  "from": {
+   "world": [
+    120,
+    400
+   ]
+  },
+  "to": {
+   "world": [
+    320,
+    450
+   ]
+  }
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c1.png"
+ },
+ {
+  "op": "drag",
+  "from": {
+   "world": [
+    950,
+    300
+   ]
+  },
+  "to": {
+   "world": [
+    1250,
+    360
+   ]
+  }
+ },
+ {
+  "op": "wait",
+  "ms": 400
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c2.png"
+ },
+ {
+  "op": "editorFill",
+  "doc": "Тестовая графа",
+  "sys": "Литера · Площади и этажность · Тестовое поле"
+ },
+ {
+  "op": "assert",
+  "what": "sheetLinks",
+  "eq": 2
+ },
+ {
+  "op": "key",
+  "key": "D3"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c3.png"
+ },
+ {
+  "op": "key",
+  "key": "N"
+ },
+ {
+  "op": "click",
+  "at": {
+   "world": [
+    700,
+    900
+   ]
+  }
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c4.png"
+ },
+ {
+  "op": "focus",
+  "name": "canvas"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "focus",
+  "name": "Nav"
+ },
+ {
+  "op": "keyWin",
+  "key": "Down"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c5.png"
+ },
+ {
+  "op": "focus",
+  "name": "canvas"
+ },
+ {
+  "op": "palette",
+  "q": "госакт иденти",
+  "sheets": true,
+  "run": true
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c6.png"
+ },
+ {
+  "op": "key",
+  "key": "F8"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c7.png"
+ },
+ {
+  "op": "size",
+  "w": 1000,
+  "h": 700
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "fit"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c8.png"
+ },
+ {
+  "op": "key",
+  "key": "Oem5",
+  "mods": "ctrl"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/c9.png"
+ },
+ {
+  "op": "dump",
+  "path": "{TMP}/c.json"
+ }
+]

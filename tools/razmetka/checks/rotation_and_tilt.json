@@ -1,0 +1,147 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "sheet",
+  "chapter": 0,
+  "index": 1
+ },
+ {
+  "op": "select",
+  "layers": [
+   "Литера · 02 Площади и этажность"
+  ]
+ },
+ {
+  "op": "key",
+  "key": "OemCloseBrackets"
+ },
+ {
+  "op": "key",
+  "key": "OemCloseBrackets"
+ },
+ {
+  "op": "key",
+  "key": "OemCloseBrackets"
+ },
+ {
+  "op": "key",
+  "key": "OemCloseBrackets"
+ },
+ {
+  "op": "key",
+  "key": "OemCloseBrackets"
+ },
+ {
+  "op": "key",
+  "key": "OemCloseBrackets"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/r0.png"
+ },
+ {
+  "op": "assert",
+  "what": "rot10",
+  "layer": "Литера · 02 Площади и этажность",
+  "eq": 30
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "key",
+  "key": "S"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/r1a.png"
+ },
+ {
+  "op": "drag",
+  "from": {
+   "world": [
+    100,
+    400
+   ]
+  },
+  "to": {
+   "world": [
+    560,
+    380
+   ]
+  }
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/r1.png"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "key",
+  "key": "L"
+ },
+ {
+  "op": "drag",
+  "from": {
+   "world": [
+    150,
+    500
+   ]
+  },
+  "to": {
+   "world": [
+    360,
+    545
+   ]
+  }
+ },
+ {
+  "op": "drag",
+  "from": {
+   "world": [
+    950,
+    200
+   ]
+  },
+  "to": {
+   "world": [
+    1250,
+    245
+   ]
+  }
+ },
+ {
+  "op": "wait",
+  "ms": 400
+ },
+ {
+  "op": "editorFill",
+  "doc": "Наклонная графа",
+  "sys": "Литера · Площади и этажность · Проба"
+ },
+ {
+  "op": "assert",
+  "what": "sheetLinks",
+  "eq": 2
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/r2.png"
+ },
+ {
+  "op": "dump",
+  "path": "{TMP}/r.json"
+ }
+]

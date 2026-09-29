@@ -1,0 +1,128 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b0.png"
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "fit"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b1.png"
+ },
+ {
+  "op": "key",
+  "key": "Tab"
+ },
+ {
+  "op": "key",
+  "key": "Tab"
+ },
+ {
+  "op": "assert",
+  "what": "selLink",
+  "eq": 2
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b2.png"
+ },
+ {
+  "op": "key",
+  "key": "Enter"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b3.png"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "sheet",
+  "chapter": 0,
+  "index": 3
+ },
+ {
+  "op": "click",
+  "at": {
+   "layer": "Литера · 01 Общие параметры"
+  }
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b4.png"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "key",
+  "key": "L"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b5.png"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "palette",
+  "q": "обр"
+ },
+ {
+  "op": "wait",
+  "ms": 200
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b6.png"
+ },
+ {
+  "op": "closeOverlays"
+ },
+ {
+  "op": "cmd",
+  "id": "help.keys"
+ },
+ {
+  "op": "wait",
+  "ms": 200
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b7.png"
+ },
+ {
+  "op": "closeOverlays"
+ },
+ {
+  "op": "key",
+  "key": "Next"
+ },
+ {
+  "op": "key",
+  "key": "Next"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/b8.png"
+ }
+]

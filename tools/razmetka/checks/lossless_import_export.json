@@ -1,0 +1,98 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "pdf",
+  "path": "{DOCS}/Госакт Б 028723.pdf",
+  "pages": "1",
+  "doc": "Госакт",
+  "chapter": "Проба PDF"
+ },
+ {
+  "op": "addImages",
+  "paths": [
+   "{DOCS}/Фото системы/Screenshot 2026-09-24 144400.png"
+  ]
+ },
+ {
+  "op": "assert",
+  "what": "sameAsFile",
+  "file": "{DOCS}/Фото системы/Screenshot 2026-09-24 144400.png",
+  "eq": 1
+ },
+ {
+  "op": "fit"
+ },
+ {
+  "op": "key",
+  "key": "L"
+ },
+ {
+  "op": "drag",
+  "from": {
+   "layer": "Госакт, стр. 1",
+   "anchor": "tl",
+   "dx": 40,
+   "dy": 60
+  },
+  "to": {
+   "layer": "Госакт, стр. 1",
+   "anchor": "tl",
+   "dx": 160,
+   "dy": 90
+  }
+ },
+ {
+  "op": "drag",
+  "from": {
+   "layer": "Screenshot 2026-09-24 144400",
+   "anchor": "tl",
+   "dx": 20,
+   "dy": 40
+  },
+  "to": {
+   "layer": "Screenshot 2026-09-24 144400",
+   "anchor": "tl",
+   "dx": 160,
+   "dy": 70
+  }
+ },
+ {
+  "op": "wait",
+  "ms": 400
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/e0.png"
+ },
+ {
+  "op": "editorFill",
+  "doc": "Номер госакта",
+  "sys": "Земельный участок · Основные параметры · Номер"
+ },
+ {
+  "op": "export",
+  "kind": "html",
+  "path": "{TMP}/ex.html"
+ },
+ {
+  "op": "export",
+  "kind": "xlsx",
+  "path": "{TMP}/ex.xlsx"
+ },
+ {
+  "op": "dump",
+  "path": "{TMP}/e.json"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/e1.png"
+ }
+]

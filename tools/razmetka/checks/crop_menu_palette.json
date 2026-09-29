@@ -1,0 +1,95 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "sheet",
+  "chapter": 0,
+  "index": 1
+ },
+ {
+  "op": "click",
+  "at": {
+   "layer": "Литера · 02 Площади и этажность"
+  }
+ },
+ {
+  "op": "key",
+  "key": "C"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/d0.png"
+ },
+ {
+  "op": "key",
+  "key": "Enter"
+ },
+ {
+  "op": "rightClick",
+  "at": {
+   "layer": "Литера · 02 Площади и этажность",
+   "dx": -40
+  }
+ },
+ {
+  "op": "menuShot",
+  "path": "{TMP}/d1.png"
+ },
+ {
+  "op": "key",
+  "key": "Escape"
+ },
+ {
+  "op": "cmd",
+  "id": "go.palette"
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/d2.png"
+ },
+ {
+  "op": "closeOverlays"
+ },
+ {
+  "op": "cmd",
+  "id": "sheet.new"
+ },
+ {
+  "op": "assert",
+  "what": "sheets",
+  "eq": 17
+ },
+ {
+  "op": "wait",
+  "ms": 300
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/d3.png"
+ },
+ {
+  "op": "key",
+  "key": "Z",
+  "mods": "ctrl"
+ },
+ {
+  "op": "assert",
+  "what": "sheets",
+  "eq": 16
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/d4.png"
+ }
+]

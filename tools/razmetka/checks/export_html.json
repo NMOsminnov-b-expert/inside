@@ -1,0 +1,16 @@
+[
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "export",
+  "kind": "html",
+  "path": "{TMP}/ex3.html"
+ },
+ {
+  "op": "assert",
+  "what": "links",
+  "eq": 50
+ }
+]

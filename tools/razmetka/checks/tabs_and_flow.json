@@ -1,0 +1,83 @@
+[
+ {
+  "op": "size",
+  "w": 1500,
+  "h": 920
+ },
+ {
+  "op": "open",
+  "dir": "{TMP}/proj"
+ },
+ {
+  "op": "key",
+  "key": "Next",
+  "mods": "ctrl"
+ },
+ {
+  "op": "key",
+  "key": "Next",
+  "mods": "ctrl"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/f0.png"
+ },
+ {
+  "op": "flow"
+ },
+ {
+  "op": "assert",
+  "what": "flow",
+  "eq": 1
+ },
+ {
+  "op": "wait",
+  "ms": 800
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/f1.png"
+ },
+ {
+  "op": "scrollFlow",
+  "dy": 2600
+ },
+ {
+  "op": "wait",
+  "ms": 900
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/f2.png"
+ },
+ {
+  "op": "key",
+  "key": "Enter"
+ },
+ {
+  "op": "assert",
+  "what": "flow",
+  "eq": 0
+ },
+ {
+  "op": "wait",
+  "ms": 400
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/f3.png"
+ },
+ {
+  "op": "size",
+  "w": 1000,
+  "h": 700
+ },
+ {
+  "op": "wait",
+  "ms": 400
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/f4.png"
+ }
+]
