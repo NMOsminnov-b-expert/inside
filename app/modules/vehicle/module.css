@@ -42,6 +42,8 @@
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-done{display:flex;justify-content:flex-end;margin-top:12px}
 /* Свёрнутый вид объекта — одна строка со ссылкой «Изменить». */
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-sum .card-head{border-bottom:0}
+/* После «Готово» строка прокручивается на виду — под закреплённой шапкой. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-sum{scroll-margin-top:calc(var(--plate-h, 0px) + 12px)}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-sum .vh-kind-what{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-cascade{margin-bottom:6px}
 
