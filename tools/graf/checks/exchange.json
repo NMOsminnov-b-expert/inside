@@ -1,0 +1,12 @@
+{
+  "steps": [
+    {"op": "export", "path": "{TMP}/out.json"},
+    {"op": "prepare"},
+    {"op": "import", "path": "{TMP}/out.json"}
+  ],
+  "prepare": {
+    "delete": ["project/oglavlenie_grafa.py", "rules/claude_feedback_answer_in_russian.py", "decisions/zhurnal_izmeneniy.py"],
+    "spoil": ["rules/graf_proekta_poryadok_raboty.py"]
+  },
+  "same_as_repo": true
+}
