@@ -414,7 +414,7 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
 * **Перед отчётом проверять оформление по чек-листу**: поля, таблицы,
   панели, узкие ширины (`claude-feedback-ui-polish-before-report`).
 * **Подсказки не выходят за края экрана и не перекрываются**; повторяющиеся
-  косяки — в `docs/reestr-kosyakov.md` (`claude-feedback-hint-bounds-and-kosyak-registry`).
+  косяки — в `docs/reestr-kosyakov.md` (`podskazki-ne-vyhodyat-za-granicy-stranicy`).
 * **Правка карточек — точечно, коммит на каждую**, чужие карточки не трогать,
   проверки по отмашке (`claude-feedback-civil-card-workflow`).
 * **К диску Y: и папкам с исходными фото не обращаться** — только к

@@ -71,8 +71,10 @@ def warnings(recs, vocab=None, root=None):
                     out.append(('вид связи не из словаря', rid, '«%s» → %s' % (t, l.get('куда'))))
         if r.get('статус') in ACTIVE and f in ('rules', 'code', 'tools'):
             for l in r.get('связи') or []:
+                # «заменяет» ведёт на снятую запись по смыслу (ADR): так
+                # отменённый дубль или прежнее решение находится по связи.
                 t = by.get(l.get('куда'))
-                if t and t[1].get('статус') in CLOSED:
+                if t and t[1].get('статус') in CLOSED and l.get('тип') != 'заменяет':
                     out.append(('ссылка на снятое', rid, '«%s» → %s (статус «отменено»)' % (l.get('тип'), l['куда'])))
     # Запись о коде, которого больше нет: заголовок — путь в репозитории.
     if root:

@@ -17,6 +17,6 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'якорь', 'куда': 'dannye-proekta-naruzhu-ne-uhodyat', 'папка': 'rules'},
-    {'тип': 'якорь', 'куда': 'claude-md-zhurnal-izmeneniy-vmeste-s-kazhdoy-pravkoy', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'zhurnal-izmeneniy', 'папка': 'decisions'},
     {'тип': 'якорь', 'куда': 'sbor-praktik-pered-dizaynom', 'папка': 'rules'},
 ]

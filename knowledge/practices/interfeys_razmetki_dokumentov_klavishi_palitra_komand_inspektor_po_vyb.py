@@ -28,5 +28,9 @@ POINTS = [
 LINKS = [
     {'тип': 'реализовано в', 'куда': 'tools-razmetka', 'папка': 'tools'},
     {'тип': 'уточняет', 'куда': 'razmetka-dotnet', 'папка': 'decisions'},
-    {'тип': 'опирается на', 'куда': 'claude-feedback-design-best-practices', 'папка': 'rules'},
+    {
+        'тип': 'опирается на',
+        'куда': 'claude-md-dizayn-po-obscheprinyatym-praktikam-a-ne-po-naitiyu',
+        'папка': 'rules',
+    },
 ]
