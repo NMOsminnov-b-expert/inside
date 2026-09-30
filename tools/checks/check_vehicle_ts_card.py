@@ -41,6 +41,8 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * наработка и состояние машины — подразделом её блока, пробег у базы;
     у модуля — двигатель установки, объём только у топливного (заметки
     пользователя 30.09.2026);
+  * строка разделов: заполненность следует за вводом, список пустых полей
+    ведёт к полю; «Для осмотра» прячет регистрацию и поля техпаспорта;
   * введённое переживает перезагрузку страницы (kernel/persist.js): модуль
     пришёл из ветки TS-Daniil без сохранения, и каждая перезагрузка стирала
     заведённые ТС (замечание пользователя 23.09.2026).
@@ -174,6 +176,27 @@ def run(t):
     pg.fill('[data-tsf="main|regDate"]', '01.02.2019')
     pg.locator('[data-tsf="main|regDate"]').press('Tab')
     t.ck(pg.locator('[data-tsx-suggest]').count() == 0, 'в карточке остались подсказки «обычно вписывают»')
+
+    # --- строка разделов, пустые поля, режим осмотра (развёртка 30.09.2026) ---------
+    def nav_text(key):
+        return ' '.join(pg.inner_text('[data-ts-nav="%s"]' % key).split())
+    before = nav_text('machine')
+    pg.fill('[data-tsf="main|color"]', 'Белый')
+    t.wait_until("() => document.querySelector('[data-ts-nav=\"machine\"]').innerText.replace(/\s+/g, ' ') !== %r" % before)
+    pg.click('[data-ts-nav="machine"]')
+    t.wait_for('[data-ts-miss="machine"]:not([hidden])')
+    t.ck(pg.locator('[data-ts-miss="machine"] [data-ts-jump="main|color"]').count() == 0, 'заполненное поле в списке пустых')
+    pg.click('[data-ts-miss="machine"] [data-ts-jump="main|vin"]')
+    t.wait_until("() => document.activeElement && document.activeElement.dataset.tsf === 'main|vin'")
+    t.ck(pg.locator('[data-ts-miss]:not([hidden])').count() == 0, 'список пустых полей не закрылся после перехода')
+    pg.click('[data-ts-mode="inspect"]')
+    t.wait_for('.vehicle-form.vh-inspect')
+    t.ck(pg.locator('[data-ts-block="reg"]').count() == 0 and pg.locator('[data-tsf="main|vin"]').count() == 0,
+         'в режиме осмотра видны регистрация или номера')
+    t.ck(pg.locator('[data-tsf="main|mileage"]').count() == 1 and pg.locator('[data-tsf="main|wheelFormula"]').count() == 1,
+         'в режиме осмотра нет полей осмотра')
+    pg.click('[data-ts-mode="all"]')
+    t.wait_for('[data-ts-block="reg"]')
 
     # --- топливо: у электромобиля нет рабочего объёма --------------------------------
     t.ck(pg.locator('[data-tsf="main|engineVolume"]').count() == 1, 'нет рабочего объёма у двигателя')

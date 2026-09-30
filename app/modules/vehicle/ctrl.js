@@ -10,7 +10,7 @@ import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
-import { openModuleId } from './view.js';
+import { openModuleId, navHTML } from './view.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
@@ -41,7 +41,21 @@ export function bindTsForm(ctx, holder, set) {
   const write = (vals, key, value) => {
     if (value !== '' && value != null) vals[key] = value;
     else delete vals[key];
+    refreshNav();
   };
+
+  // Строка разделов следует за вводом без перерисовки карточки: заменяется
+  // только она сама, чуть погодя после последней правки.
+  let navTimer = 0;
+  function refreshNav() {
+    clearTimeout(navTimer);
+    navTimer = setTimeout(() => {
+      const nav = s.$('.vh-nav');
+      if (!nav || nav.querySelector('[data-ts-miss]:not([hidden])')) return;
+      nav.outerHTML = navHTML(ctx, v, set);
+      bindNav();
+    }, 250);
+  }
 
   // --- 02 Вид объекта: смена выбора перестраивает карточку -----------------
   // Пока с выбором работают, блок развёрнут (ctx.ui.tsKindOpen); «Готово»
@@ -382,6 +396,63 @@ export function bindTsForm(ctx, holder, set) {
     ctx.ui.viewerClosed = false;
     openPhotoInPlace(ctx, set.id, idx);
   });
+
+  // --- строка разделов и режим осмотра -------------------------------------------
+  // Щелчок по «Учёту» или «Машине» открывает список пустых полей (второй
+  // щелчок, щелчок мимо или Escape закрывают); по «Модулям» и «Фото» — к блоку.
+  function bindNav() {
+    const closeMiss = () => {
+      s.$$('[data-ts-miss]').forEach((d) => { d.hidden = true; });
+      s.$$('[data-ts-nav]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+    };
+    s.$$('[data-ts-nav]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const key = b.dataset.tsNav;
+      const pop = s.$(`[data-ts-miss="${key}"]`);
+      if (!pop) {
+        closeMiss();
+        const block = s.$(`[data-ts-block="${key}"]`);
+        if (block) block.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return;
+      }
+      const open = pop.hidden;
+      closeMiss();
+      pop.hidden = !open;
+      b.setAttribute('aria-expanded', String(open));
+    });
+    s.$$('[data-ts-jump]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      closeMiss();
+      const bind = b.dataset.tsJump;
+      const el = s.$(`[data-tsf="${bind}"]`) || s.$(`[data-tsf-ms="${bind}"] [data-ms-toggle]`);
+      if (!el) return;
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.focus({ preventScroll: true });
+      el.classList.add('vh-flash');
+      setTimeout(() => el.classList.remove('vh-flash'), 1600);
+    });
+    // Смена режима начинает форму с начала: режим осмотра короче, и с прежней
+    // прокруткой закреплённый просмотрщик выталкивало вверх из-под шапки.
+    s.$$('[data-ts-mode]').forEach((b) => b.onclick = async () => {
+      const on = b.dataset.tsMode === 'inspect';
+      if (!!ctx.ui.tsInspect === on) return;
+      ctx.ui.tsInspect = on;
+      await ctx.render();
+      let el = s.$('.vehicle-form');
+      while (el && !(el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement;
+      if (el) el.scrollTop = 0;
+    });
+  }
+  bindNav();
+  const closeAllMiss = () => {
+    s.$$('[data-ts-miss]').forEach((d) => { d.hidden = true; });
+    s.$$('[data-ts-nav]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  };
+  if (!s.root.dataset.tsNavBound) {
+    s.root.dataset.tsNavBound = '1';
+    s.onDocument('click', (e) => { if (!(e.target.closest && e.target.closest('.vh-navi'))) closeAllMiss(); });
+    s.onDocument('keydown', (e) => { if (e.key === 'Escape') closeAllMiss(); });
+  }
 
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.
   ctx.ui.growSizes = ctx.ui.growSizes || {};

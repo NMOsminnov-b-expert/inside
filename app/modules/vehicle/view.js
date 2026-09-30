@@ -44,7 +44,7 @@ import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 // модулями наработка своя у базы и своя у каждой установки, и отдельный блок
 // между машиной и модулями читался как общий для всех.
 
-const card = (tone, idx, title, hint, body, extra = '') => `<div class="card t-${tone}">
+const card = (tone, idx, title, hint, body, extra = '', attrs = '') => `<div class="card t-${tone}" ${attrs}>
   <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
     ${hint ? `<span class="hint">${esc(hint)}</span>` : ''}${extra}</div>
   <div class="card-pad">${body}</div></div>`;
@@ -185,7 +185,7 @@ function kindHTML(ctx, v, idx) {
 // «дубляж собственника убираем»). Адрес — фактический: где машина стоит.
 function regHTML(v, idx) {
   const list = commonFields(v).filter((f) => f.block === 'reg');
-  return card('teal', idx, 'Регистрационный учёт', 'по техпаспорту', grid(v.f, list, 'main'));
+  return card('teal', idx, 'Регистрационный учёт', 'по техпаспорту', grid(v.f, list, 'main'), '', 'data-ts-block="reg"');
 }
 
 // --- 04 Автотранспортное средство / Спецтехника ------------------------------------
@@ -229,14 +229,17 @@ function numbersHTML(v, list) {
   return `<table class="tbl vh-ntbl"><tbody>${rows}</tbody></table>${idWarn}`;
 }
 
-function machineHTML(v, idx) {
+function machineHTML(v, idx, inspect = false) {
   // «Тип ТС, вид кузова» — в блоке 02, рядом с категорией, которую по ней подбирают.
   // Страна сборки — в общих сведениях у любого вида: у машины она лежала в
   // «Особом для базы», у спецтехники — в общих (развёртка 30.09.2026).
   const special = specialFields(v).filter((f) => f.key !== 'country');
   const country = specialFields(v).find((f) => f.key === 'country');
   const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
-    .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : []);
+    .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : [])
+    .filter((f) => !inspect || inspectField(f))
+    // В режиме осмотра всё — с осмотра: метка у поля ничего не добавляет.
+    .map((f) => (inspect ? { ...f, source: '' } : f));
   const parts = SECTIONS.map((sec) => {
     const own = list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key);
     if (!own.length) return '';
@@ -264,16 +267,17 @@ function machineHTML(v, idx) {
     return sub(sec.title, body, allInsp ? '<span class="hint">осмотр</span>' : '');
   });
 
-  if (special.length) {
+  if (special.length && !inspect) {
     parts.push(sub('Особое для базы',
       `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
   const use = commonFields(v).filter((f) => f.block === 'use');
   if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>'));
-  parts.push(extraPart(v.extra, 'main'));
+  if (!inspect) parts.push(extraPart(v.extra, 'main'));
 
   const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
-  return card('teal', idx, title, 'по техпаспорту; то, что смотрят на месте, помечено «осмотр»', parts.join(''));
+  return card('teal', idx, title, inspect ? 'для осмотра' : 'по техпаспорту; то, что смотрят на месте, помечено «осмотр»',
+    parts.join(''), '', 'data-ts-block="machine"');
 }
 
 // Наработка и состояние — всё по осмотру: источник назван в заголовке подраздела,
@@ -293,6 +297,81 @@ function useGrid(vals, raw) {
     `vh-s${span(f)}`)).join('')}</div>`;
 }
 
+
+// --- Строка разделов и режим осмотра -------------------------------------------------
+// Развёртка, согласована 30.09.2026. Над формой — строка разделов с
+// заполненностью: форма стоит в полэкрана рядом с просмотрщиком, до модулей —
+// несколько экранов прокрутки, и не было видно, что осталось. Щелчок по
+// «Учёту» или «Машине» открывает список пустых полей по подразделам, щелчок по
+// полю ведёт к нему (практика: навигация по разделам длинной формы с отметкой
+// заполненности). Переключатель «Все поля / Для осмотра» оставляет только то,
+// что смотрят на месте: поля с пометкой «осмотр», наработку, модули и фото.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «пусто» здесь — просто незаполненное поле. Какие
+// поля обязательны на каком этапе, пользователь ещё не определил (вопрос
+// 30.09.2026); на сервере это правило этапа, и список пустых станет списком
+// обязательных.
+export const inspectField = (f) => f.block === 'use' || f.source === 'Осмотр' || f.source === 'Техпаспорт или осмотр';
+
+const isEmpty = (vals, f) => {
+  const x = (vals || {})[f.key];
+  return Array.isArray(x) ? !x.length : !String(x ?? '').trim();
+};
+
+// Поля раздела, как они стоят на экране: [{ group, fields }].
+export function sectionFields(v, key, inspect = false) {
+  const keep = (list) => list.filter((f) => !inspect || inspectField(f));
+  if (key === 'reg') return [{ group: 'Регистрационный учёт', fields: keep(commonFields(v).filter((f) => f.block === 'reg')) }];
+  if (key !== 'machine') return [];
+  const special = specialFields(v).filter((f) => f.key !== 'country');
+  const country = specialFields(v).find((f) => f.key === 'country');
+  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
+    .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : []);
+  const out = SECTIONS.map((sec) => ({ group: sec.title, fields: keep(list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key)) }));
+  out.push({ group: 'Особое для базы', fields: keep(special) });
+  out.push({ group: 'Наработка и состояние', fields: keep(commonFields(v).filter((f) => f.block === 'use')) });
+  return out.filter((g) => g.fields.length);
+}
+
+function fillOf(v, key, inspect) {
+  const all = sectionFields(v, key, inspect).flatMap((g) => g.fields);
+  return { filled: all.filter((f) => !isEmpty(v.f, f)).length, total: all.length };
+}
+
+function missingHTML(v, key, inspect) {
+  const groups = sectionFields(v, key, inspect)
+    .map((g) => ({ group: g.group, fields: g.fields.filter((f) => isEmpty(v.f, f)) }))
+    .filter((g) => g.fields.length);
+  const n = groups.reduce((a, g) => a + g.fields.length, 0);
+  return `<div class="vh-miss" data-ts-miss="${key}" hidden role="dialog" aria-label="Незаполненные поля">
+    <div class="vh-miss-h">${n ? `Пусто ${n}` : 'Всё заполнено'}</div>
+    ${groups.map((g) => `<div class="vh-miss-g">${esc(g.group)}</div>${g.fields.map((f) => `
+      <button type="button" class="vh-miss-f" data-ts-jump="main|${esc(f.key)}">${esc(f.label)}</button>`).join('')}`).join('')}
+  </div>`;
+}
+
+export function navHTML(ctx, v, set) {
+  const inspect = !!ctx.ui.tsInspect;
+  const chip = (key, label, text, extra = '') => `<span class="vh-navi">
+      <button type="button" class="vh-chip ${extra}" data-ts-nav="${key}" aria-expanded="false">${esc(label)} <b>${esc(text)}</b></button>
+      ${key === 'reg' || key === 'machine' ? missingHTML(v, key, inspect) : ''}</span>`;
+  const chips = [];
+  if (v.kind !== 'module' && !inspect) {
+    const f = fillOf(v, 'reg', inspect);
+    chips.push(chip('reg', 'Учёт', `${f.filled} из ${f.total}`, f.filled === f.total ? 'done' : ''));
+  }
+  if (v.kind !== 'module') {
+    const f = fillOf(v, 'machine', inspect);
+    chips.push(chip('machine', v.kind === 'self' ? 'Спецтехника' : 'Машина', `${f.filled} из ${f.total}`, f.filled === f.total ? 'done' : ''));
+    chips.push(chip('modules', 'Модули', String(v.modules.length)));
+  }
+  const photos = Object.values((set && set.photos) || {}).reduce((a, n) => a + (n || 0), 0);
+  chips.push(chip('photos', 'Фото', String(photos)));
+  const seg = v.kind === 'module' ? '' : `<div class="vh-mode" role="group" aria-label="Какие поля показать">
+      <button type="button" class="${inspect ? '' : 'on'}" data-ts-mode="all" aria-pressed="${!inspect}">Все поля</button>
+      <button type="button" class="${inspect ? 'on' : ''}" data-ts-mode="inspect" aria-pressed="${inspect}">Для осмотра</button></div>`;
+  return `<nav class="vh-nav" aria-label="Разделы карточки">${chips.join('')}<span class="vh-nav-gap"></span>${seg}</nav>`;
+}
 
 // --- дополнительные параметры -------------------------------------------------------
 // Таблица «наименование — значение»: у машины — последним подразделом её блока,
@@ -388,7 +467,7 @@ function modulesHTML(ctx, v, idx) {
   const list = v.modules.map((m) => moduleRow(m, m.id === open)).join('');
   return card('violet', idx, 'Модули', 'что стоит на машине: кузов, цистерна, кран, навесное; осмотр',
     `<div class="vh-mlist">${list || '<div class="vehicle-note">Модулей нет.</div>'}
-      <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`);
+      <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`, '', 'data-ts-block="modules"');
 }
 
 // --- Фото с осмотра ------------------------------------------------------------------------
@@ -412,7 +491,7 @@ function photosHTML(ctx, v, idx, set) {
     const label = v.kind === 'module' && v.modKind ? v.modKind : cat;
     return sub(`${label} · ${n}`, `<div class="ph-row">${tiles || '<span class="vehicle-note">Фото нет.</span>'}</div>`, add);
   }).join('');
-  return card('blue', idx, 'Фото с осмотра', '', body);
+  return card('blue', idx, 'Фото с осмотра', '', body, '', 'data-ts-block="photos"');
 }
 
 // --- «Оборудование без машины» -----------------------------------------------------------
@@ -434,19 +513,23 @@ function loneModuleHTML(v, idx) {
 // (указание пользователя 23.09.2026: «блок 01 не требуется»).
 export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
   const v = tsOf(holder);
+  ctx.ui = ctx.ui || {};
+  const inspect = !!ctx.ui.tsInspect && v.kind !== 'module';
   const idx = blockNumbers();
   const n = () => String(idx()).padStart(2, '0');
-  const parts = [parties ? parties(n()) : '', kindHTML(ctx, v, n())];
+  // В режиме осмотра стороны и регистрация не нужны: их на месте не смотрят.
+  const parts = [parties && !inspect ? parties(n()) : '', kindHTML(ctx, v, n())];
 
   if (classified(v)) {
+    parts.unshift(navHTML(ctx, v, set));
     if (v.kind === 'module') {
       parts.push(loneModuleHTML(v, n()), photosHTML(ctx, v, n(), set));
     } else {
-      parts.push(regHTML(v, n()), machineHTML(v, n()), modulesHTML(ctx, v, n()),
+      parts.push(inspect ? '' : regHTML(v, n()), machineHTML(v, n(), inspect), modulesHTML(ctx, v, n()),
         photosHTML(ctx, v, n(), set));
     }
   }
-  return `<div class="vehicle-form">${parts.join('')}</div>`;
+  return `<div class="vehicle-form ${inspect ? 'vh-inspect' : ''}">${parts.join('')}</div>`;
 }
 
 function formHTML(ctx) {
