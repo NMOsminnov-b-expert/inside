@@ -19,8 +19,10 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
     таблицей;
   * у электромобиля нет рабочего объёма (от топлива зависят поля двигателя);
   * в регистрации нет ИНН собственника (указание пользователя 23.09.2026);
-  * у поля с бланка — метка «ТП», в подсказке к ней — где графа на обоих
-    бланках (книжка 2019 г. и «КР №»); у поля осмотра — метка «осмотр»;
+  * «по техпаспорту» — в заголовке блока; у поля с бланка метки нет, где его
+    графа (книжка 2019 г. и «КР №») — в подсказке подписи; метка у поля —
+    только «осмотр», а у подраздела целиком с осмотра — в его заголовке;
+  * дата — «ДД.ММ.ГГГГ» своим полем, в данных ГГГГ-ММ-ДД;
   * VIN не обрезается и не запрещается: короткий заводской номер старой
     машины сохраняется как есть, а несоответствие стандарту — предупреждение;
   * нет ни VIN, ни № кузова, ни № шасси — предупреждение у группы номеров;
@@ -139,7 +141,7 @@ def run(t):
 
     subs = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(4) .vh-sub',
                                    'els => els.map((e) => e.firstChild.textContent.trim())')
-    t.ck(subs[:4] == ['Общие сведения', 'Номера', 'Тип, двигатель, массы', 'Ходовая и трансмиссия']
+    t.ck(subs[:4] == ['Общие сведения', 'Номера', 'Двигатель и массы', 'Ходовая и трансмиссия']
          and subs[-2:] == ['Наработка и состояние', 'Дополнительные параметры'], 'подразделы «Машины» не те: %s' % subs)
     # Пробег — в блоке машины (заметка пользователя 30.09.2026 «Пробег к базе»).
     t.ck(pg.locator('.vehicle-form .card:nth-of-type(4) [data-tsf="main|mileage"]').count() == 1,
@@ -153,12 +155,22 @@ def run(t):
     t.ck(nums == ['vin', 'bodyNo', 'chassisNo', 'engineNo'], 'номера не таблицей или не в том порядке: %s' % nums)
     t.ck(pg.locator('[data-tsf="main|ownerInn"], [data-tsf="main|owner"]').count() == 0,
          'в регистрации остался собственник или ИНН — они в блоке сторон')
-    t.ck(pg.locator('[data-tsf="main|factAddr"]').count() == 1, 'в регистрации нет фактического адреса')
-    # Год в дате регистрации — четыре цифры: лишние цифры поле года не принимает.
+    # «Где стоит (фактический адрес)» — сведение осмотра: в «Наработке и
+    # состоянии», а не в регистрации (развёртка 30.09.2026).
+    t.ck(pg.locator('.vh-use [data-tsf="main|factAddr"]').count() == 1, 'фактический адрес не в «Наработке и состоянии»')
+    # Дата — «ДД.ММ.ГГГГ» своим полем: точки по ходу набора, лишние цифры не
+    # принимаются, в данные — ГГГГ-ММ-ДД; неверная дата — сообщение у поля.
+    t.ck(pg.get_attribute('[data-tsf="main|regDate"]', 'placeholder') == 'ДД.ММ.ГГГГ', 'подсказка ввода даты не «ДД.ММ.ГГГГ»')
     pg.focus('[data-tsf="main|regDate"]')
     pg.keyboard.type('01022019777')
-    t.ck(len(pg.input_value('[data-tsf="main|regDate"]').split('-')[0]) == 4,
-         'в году даты регистрации больше четырёх цифр: %s' % pg.input_value('[data-tsf="main|regDate"]'))
+    t.ck(pg.input_value('[data-tsf="main|regDate"]') == '01.02.2019', 'дата набралась не так: %s' % pg.input_value('[data-tsf="main|regDate"]'))
+    pg.locator('[data-tsf="main|regDate"]').press('Tab')
+    t.ck(pg.evaluate(REC)['f'].get('regDate') == '2019-02-01', 'дата не записалась как ГГГГ-ММ-ДД')
+    pg.fill('[data-tsf="main|regDate"]', '31.02.2019')
+    pg.locator('[data-tsf="main|regDate"]').press('Tab')
+    t.ck(pg.locator('[data-tsf="main|regDate"].field-bad').count() == 1, 'несуществующая дата не подсвечена')
+    pg.fill('[data-tsf="main|regDate"]', '01.02.2019')
+    pg.locator('[data-tsf="main|regDate"]').press('Tab')
     t.ck(pg.locator('[data-tsx-suggest]').count() == 0, 'в карточке остались подсказки «обычно вписывают»')
 
     # --- топливо: у электромобиля нет рабочего объёма --------------------------------
@@ -169,11 +181,16 @@ def run(t):
     pg.select_option('[data-tsf="main|fuel"]', 'Бензин')
     t.wait_for('[data-tsf="main|engineVolume"]')
 
-    tip = pg.get_attribute('[data-ts-key="vin"] .vh-src', 'title') or ''
-    t.ck(pg.inner_text('[data-ts-key="vin"] .vh-src').strip() == 'ТП', 'у VIN нет метки «ТП»')
+    # Источник: «по техпаспорту» — в заголовке блока; у полей с бланка метки нет,
+    # место графы — в подсказке подписи; метка у поля — только «осмотр».
+    tip = pg.get_attribute('[data-ts-key="vin"] label', 'title') or ''
+    t.ck(pg.locator('[data-ts-key="vin"] .vh-src').count() == 0, 'у VIN осталась метка источника')
     t.ck('2019' in tip and 'КР №' in tip, 'в подсказке к VIN нет места графы на бланках: %r' % tip)
-    t.ck(pg.inner_text('[data-ts-key="wheelFormula"] .vh-src').strip().lower() == 'осмотр',
-         'у колёсной формулы нет метки «осмотр»')
+    t.ck(pg.locator('.vehicle-form .vh-src', has_text='ТП').count() == 0, 'в карточке остались метки «ТП»')
+    t.ck(pg.locator('[data-ts-key="wheel"] .vh-src', has_text='осмотр').count() == 1, 'у руля нет метки «осмотр»')
+    subs_h = pg.eval_on_selector_all('.vehicle-form .vh-sub', 'els => els.map((e) => e.textContent.trim())')
+    t.ck(any(x.startswith('Ходовая и трансмиссия') and x.endswith('осмотр') for x in subs_h),
+         'у ходовой нет пометки «осмотр» в заголовке подраздела: %s' % subs_h)
     # В «Наработке и состоянии» источник назван в заголовке подраздела — у полей меток нет.
     t.ck(pg.locator('.vh-use .vh-src').count() == 0, 'в «Наработке и состоянии» метки источника у каждого поля')
 

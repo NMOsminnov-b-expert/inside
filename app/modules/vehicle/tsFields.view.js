@@ -51,11 +51,29 @@ export const WHY = {
   kit: 'Ключи, запасное колесо, инструмент, документы — что передаётся вместе с машиной',
 };
 
+// Источник значения. С 30.09.2026 (согласованная развёртка карточки ТС)
+// «по техпаспорту» сказано в заголовке блока, а у поля метка — только там, где
+// источник другой: «осмотр». Где графа на бланке — в подсказке подписи поля.
 const TAG = {
-  'Техпаспорт': { text: 'ТП', title: 'Из техпаспорта (свидетельства о регистрации)' },
   'Осмотр': { text: 'осмотр', title: 'Определяется на осмотре' },
-  'Техпаспорт или осмотр': { text: 'ТП · осмотр', title: 'Из техпаспорта, а если графы нет — на осмотре' },
+  'Техпаспорт или осмотр': { text: 'осмотр', title: 'Из техпаспорта, а если графы нет — на осмотре' },
 };
+
+// Дата: на экране «ДД.ММ.ГГГГ», в данных — ГГГГ-ММ-ДД, как прежде давало
+// поле type="date". Своё поле, а не type="date": браузер рисовал подсказку
+// ввода по языку системы — «dd.mm.yyyy» рядом с «ГГГГ» у года.
+export const isoToRu = (v) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || ''));
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : String(v || '');
+};
+export function ruToIso(v) {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(v || '').trim());
+  if (!m) return null;
+  const [d, mo, y] = [+m[1], +m[2], +m[3]];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d || y < 1900) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
 
 const valueOf = (vals, key) => String((vals || {})[key] ?? '');
 
@@ -63,7 +81,7 @@ const valueOf = (vals, key) => String((vals || {})[key] ?? '');
 // полное название — в подсказке). Длинная подпись в поле на четверть строки
 // переносилась в две-три строки и раздувала высоту формы.
 const SHORT = {
-  massMax: 'Макс. разреш. масса', massEmpty: 'Масса без нагр.', steerAxles: 'Управл. осей',
+  plate: 'Рег. номер', massMax: 'Макс. разреш. масса', massEmpty: 'Масса без нагр.', steerAxles: 'Управл. осей',
   axles: 'Число осей', pto: 'КОМ', engineVolume: 'Рабочий объём', seats: 'Мест',
   regDate: 'Дата регистрации', docNo: 'Серия и № документа', wheelFormula: 'Кол. формула',
   engineHours: 'Моточасы', turn: 'Поворот', mileage: 'Пробег', massDesign: 'Констр. масса',
@@ -109,7 +127,10 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
   // Полное название и пояснение — во всплывающей подсказке подписи; подпись с
   // пояснением подчёркнута пунктиром, чтобы было видно, что оно есть.
   // Подсказка, которая повторяет подпись, не нужна.
-  const tip = [full !== label ? full : '', note].filter(Boolean).join(' — ');
+  // У поля с бланка — где его графа: метки «ТП» больше нет, место на бланке
+  // уходит в подсказку подписи.
+  const place = f.source === 'Техпаспорт' && f.place ? 'Где на бланке: ' + f.place.replace(/\n/g, '; ') : '';
+  const tip = [full !== label ? full : '', note, place].filter(Boolean).join(' — ');
   // Пунктир — у любой подписи с подсказкой: и с пояснением, и сокращённой
   // (указание пользователя 30.09.2026: «если сокращаешь, в подсказках нужны
   // развёртки» — а без пунктира о подсказке не догадаться).
@@ -137,10 +158,8 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
   } else if (f.type === 'area') {
     control = `<textarea class="input mu-area" id="${id}" data-tsf="${esc(bind)}" rows="${f.rows || 2}">${esc(value)}</textarea>`;
   } else if (f.type === 'date') {
-    // Без границ браузер пускает в год до шести цифр; граница с четырёхзначным
-    // годом ограничивает поле года четырьмя цифрами.
-    control = `<input class="input mu-date" type="date" id="${id}" data-tsf="${esc(bind)}" value="${esc(value)}"
-      min="1900-01-01" max="9999-12-31">`;
+    control = `<input class="input mu-date vh-date" id="${id}" data-tsf="${esc(bind)}" data-ts-date value="${esc(isoToRu(value))}"
+      inputmode="numeric" maxlength="10" placeholder="ДД.ММ.ГГГГ" autocomplete="off">`;
   } else if (f.type === 'year') {
     control = `<input class="input mu-num vh-year" id="${id}" data-tsf="${esc(bind)}" value="${esc(value)}"
       inputmode="numeric" maxlength="4" placeholder="ГГГГ">`;

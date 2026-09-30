@@ -191,7 +191,7 @@ function kindHTML(ctx, v, idx) {
 // «дубляж собственника убираем»). Адрес — фактический: где машина стоит.
 function regHTML(v, idx) {
   const list = commonFields(v).filter((f) => f.block === 'reg');
-  return card('teal', idx, 'Регистрационный учёт', 'по нему машину находят и проверяют', grid(v.f, list, 'main'));
+  return card('teal', idx, 'Регистрационный учёт', 'по техпаспорту', grid(v.f, list, 'main'));
 }
 
 // --- 04 Автотранспортное средство / Спецтехника ------------------------------------
@@ -205,7 +205,7 @@ function regHTML(v, idx) {
 const SECTIONS = [
   { key: 'general', title: 'Общие сведения' },
   { key: 'numbers', title: 'Номера' },
-  { key: 'tech', title: 'Тип, двигатель, массы' },
+  { key: 'tech', title: 'Двигатель и массы' },
   { key: 'chassis', title: 'Ходовая и трансмиссия' },
 ];
 const SECTION_OF = {
@@ -216,7 +216,8 @@ const SECTION_OF = {
   run: 'chassis', turn: 'chassis',
 };
 // Руль и места — сразу за цветом: вместе с годом они заполняют строку.
-const GENERAL_ORDER = ['make', 'maker', 'country', 'year', 'color', 'wheel', 'seats'];
+// Страна сборки — в конце: у машины она встаёт за местами на полстроки.
+const GENERAL_ORDER = ['make', 'maker', 'year', 'color', 'wheel', 'seats', 'country'];
 
 // От топлива зависит, какие поля двигателя показывать: у электромобиля нет
 // рабочего объёма, есть только мощность.
@@ -236,7 +237,12 @@ function numbersHTML(v, list) {
 
 function machineHTML(v, idx) {
   // «Тип ТС, вид кузова» — в блоке 02, рядом с категорией, которую по ней подбирают.
-  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'));
+  // Страна сборки — в общих сведениях у любого вида: у машины она лежала в
+  // «Особом для базы», у спецтехники — в общих (развёртка 30.09.2026).
+  const special = specialFields(v).filter((f) => f.key !== 'country');
+  const country = specialFields(v).find((f) => f.key === 'country');
+  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
+    .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : []);
   const parts = SECTIONS.map((sec) => {
     const own = list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key);
     if (!own.length) return '';
@@ -252,25 +258,28 @@ function machineHTML(v, idx) {
     // страна сборки, год и цвет. Ширина поля — по длине ответа (GOV.UK Design
     // System, NN/g): марку с моделью пишут длинно, год и места — коротко.
     const genSpan = (f) => (f.key === 'make' && !own.some((x) => x.key === 'maker') ? 4 : spanOf(f, 'main'));
+    // Подраздел, где все поля — с осмотра, помечен один раз в заголовке, а не
+    // меткой у каждого поля.
+    const allInsp = own.length > 1 && own.every((f) => f.source === 'Осмотр');
+    if (allInsp) own.forEach((f, i) => { own[i] = { ...f, source: '' }; });
     const body = sec.key === 'numbers' ? numbersHTML(v, own)
       : sec.key === 'general' ? `<div class="grid vh-grid">${
         own.map((f) => tsFieldHTML(v.f, f, 'main', `vh-s${genSpan(f)}`)).join('')}</div>`
       : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
         : grid(v.f, own, 'main');
-    return sub(sec.title, body);
+    return sub(sec.title, body, allInsp ? '<span class="hint">осмотр</span>' : '');
   });
 
-  const special = specialFields(v);
   if (special.length) {
-    parts.push(sub(`Особое для базы «${v.base}»`,
+    parts.push(sub('Особое для базы',
       `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
   const use = commonFields(v).filter((f) => f.block === 'use');
-  if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">по осмотру</span>'));
+  if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>'));
   parts.push(extraPart(v.extra, 'main'));
 
   const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
-  return card('teal', idx, title, 'в порядке граф свидетельства', parts.join(''));
+  return card('teal', idx, title, 'по техпаспорту; то, что смотрят на месте, помечено «осмотр»', parts.join(''));
 }
 
 // Наработка и состояние — всё по осмотру: источник назван в заголовке подраздела,
@@ -279,9 +288,13 @@ function machineHTML(v, idx) {
 // комплектность; без пробега — моточасы, состояние и комплектность в одну
 // строку. Комплектность — в одну строку ввода, растёт по тексту (замечание
 // пользователя 23.09.2026: «блок наработка и состояние — поправь»).
-function useGrid(vals, list) {
+// С 30.09.2026 здесь же «Где стоит (фактический адрес)» — на всю строку перед
+// комплектностью.
+const USE_ORDER = ['mileage', 'engineHours', 'hours', 'state', 'factAddr', 'kit'];
+function useGrid(vals, raw) {
+  const list = [...raw].sort((a, b) => USE_ORDER.indexOf(a.key) - USE_ORDER.indexOf(b.key));
   const withMileage = list.some((f) => f.key === 'mileage');
-  const span = (f) => ({ state: withMileage ? 2 : 1, kit: withMileage ? 4 : 2 }[f.key] || 1);
+  const span = (f) => ({ state: withMileage ? 2 : 1, kit: withMileage ? 4 : 2, factAddr: 4 }[f.key] || 1);
   return `<div class="grid vh-grid vh-use">${list.map((f) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
     `vh-s${span(f)}`)).join('')}</div>`;
 }

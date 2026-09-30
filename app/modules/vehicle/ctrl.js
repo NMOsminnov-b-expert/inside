@@ -10,7 +10,8 @@ import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
-import { MS_OPTS, msSummaryHTML, msBodyHTML } from './tsFields.view.js';
+import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
+import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
   kindLeaves, applyKindLeaf,
@@ -54,7 +55,14 @@ export function bindTsForm(ctx, holder, set) {
   const kEdit = s.$('[data-ts-kind-edit]');
   if (kEdit) kEdit.onclick = () => { openKind(); ctx.render(); };
   const kDone = s.$('[data-ts-kind-done]');
-  if (kDone) kDone.onclick = () => { ctx.ui.tsKindOpen = false; ctx.render(); };
+  // После «Готово» свёрнутая строка остаётся на виду: иначе панель оставалась
+  // прокрученной вниз, и на виду была середина блока машины.
+  if (kDone) kDone.onclick = async () => {
+    ctx.ui.tsKindOpen = false;
+    await ctx.render();
+    const sum = s.$('[data-ts-kind-sum]');
+    if (sum) sum.scrollIntoView({ block: 'start' });
+  };
 
   // Поиск по справочнику — помощник над каскадом: выбор заполняет списки.
   bindTreeSearch(s, {
@@ -137,6 +145,24 @@ export function bindTsForm(ctx, holder, set) {
         const text = vinWarning(el.value);
         if (warn) { warn.textContent = text; warn.hidden = !text; }
         checkIds();
+      };
+      return;
+    }
+
+    // Дата «ДД.ММ.ГГГГ»: точки ставятся по ходу набора, в данные — ГГГГ-ММ-ДД;
+    // неверная дата — сообщение у поля, набранное не стирается.
+    if (el.hasAttribute('data-ts-date')) {
+      el.oninput = () => {
+        const d = el.value.replace(/\D/g, '').slice(0, 8);
+        el.value = [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('.');
+        if (el.classList.contains('field-bad') && ruToIso(el.value)) setFieldError(el, '');
+      };
+      el.onchange = () => {
+        const t = el.value.trim();
+        if (!t) { setFieldError(el, ''); write(vals, key, ''); return; }
+        const iso = ruToIso(t);
+        if (setFieldError(el, iso ? '' : 'Дата — ДД.ММ.ГГГГ')) return;
+        write(vals, key, iso);
       };
       return;
     }

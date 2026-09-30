@@ -333,11 +333,11 @@ export const TS_BASE_FIELDS = [
   },
   {
     "key": "factAddr",
-    "label": "Фактический адрес",
+    "label": "Где стоит (фактический адрес)",
     "hint": "где машина стоит на самом деле; не адрес из свидетельства",
     "source": "Осмотр",
     "type": "text",
-    "block": "reg"
+    "block": "use"
   },
   {
     "key": "mileage",
@@ -1372,11 +1372,11 @@ export const TS_SELF_FIELDS = [
   },
   {
     "key": "factAddr",
-    "label": "Фактический адрес",
+    "label": "Где стоит (фактический адрес)",
     "hint": "где машина стоит на самом деле; не адрес из свидетельства",
     "source": "Осмотр",
     "type": "text",
-    "block": "reg"
+    "block": "use"
   },
   {
     "key": "engineHours",
