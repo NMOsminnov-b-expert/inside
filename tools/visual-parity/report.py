@@ -96,6 +96,10 @@ def main():
     # приведения записи к виду: «5.5-10» → «5,5 – 10».
     ap.add_argument('--fill', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
                     help='вписать значение в поле и уйти из него перед снимком (после --select)')
+    # То же, но фокус остаётся в поле — для подсказок и выдачи поиска, которые
+    # закрываются при уходе с поля.
+    ap.add_argument('--type', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
+                    help='вписать значение и остаться в поле (после --fill)')
     ap.add_argument('--clip', default='',
                     help='снять только этот элемент (например .card:nth-of-type(3)) — блок целиком, без остального экрана')
     ap.add_argument('--width', type=int, default=1600)
@@ -163,6 +167,14 @@ def main():
                     el.press('Tab')
                 except Exception as e:
                     errs.append(f'FILL {sel}: {e}')
+                pg.wait_for_timeout(args.settle_ms)
+
+            for pair in args.type:
+                sel, _, value = pair.partition('|')
+                try:
+                    pg.locator(sel).first.fill(value)
+                except Exception as e:
+                    errs.append(f'TYPE {sel}: {e}')
                 pg.wait_for_timeout(args.settle_ms)
 
             if args.clip:

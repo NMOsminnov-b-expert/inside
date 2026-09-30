@@ -108,7 +108,7 @@ export function catSearchHTML() {
       <input class="input" id="mu-cs-q" data-mu-csq autocomplete="off" spellcheck="false"
         role="combobox" aria-expanded="false" aria-controls="mu-cs-list" aria-autocomplete="list"
         placeholder="Например: навесное, ИБП, мостовой кран">
-      <div class="mu-cs-drop" id="mu-cs-list" role="listbox" aria-label="Найденные категории" hidden></div>
+      <div class="mu-cs-drop" id="mu-cs-list" role="listbox" aria-label="Найденные категории" tabindex="-1" hidden></div>
     </div>
   </div>`;
 }
@@ -164,6 +164,10 @@ export function bindCatSearch(scope, unit, onPicked) {
   };
 
   q.oninput = draw;
+  // Ушли из поля (Tab, щелчок мимо) — выдачу закрыть. Прокручиваемый список
+  // Chrome иначе берёт в фокус следующим по Tab, и он оставался открытым.
+  // Выбор мышью этому не мешает: mousedown в списке фокус не отнимает.
+  q.onblur = () => open(false);
   q.onfocus = () => { if (q.value.trim()) draw(); };
   q.onkeydown = (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
