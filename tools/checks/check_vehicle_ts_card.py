@@ -8,8 +8,9 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * пока не выбран вид объекта и база (или вид машины, модуль), полей машины
     нет — дочернее не показывают до родителя; база недоступна до категории;
   * «Прочее» есть в каждой категории (правило 16 справочника);
-  * «Тип ТС, вид кузова» стоит в блоке 02 и по первому слову подбирает
-    категорию («легковой минивэн» → «Легковое»); выбранную руками не трогает;
+  * «Тип ТС, вид кузова» стоит в блоке 02 первым и только предлагает
+    категории кнопками — сама категория не ставится (30.09.2026); поиск по
+    справочнику находит по всем веткам с путём; «Готово» сворачивает блок;
   * регистрационный учёт стоит перед блоком машины и без собственника (он в
     блоке сторон), адрес — фактический;
   * блок «Автотранспортное средство» разбит на подразделы (общие сведения,
@@ -50,7 +51,7 @@ NAME = 'карточка ОЦ ТС: база и модули'
 
 TOUCHES = (
     'app/modules/vehicle/*', 'app/modules/vehicle/data/*', 'tools/data/build_ts_catalog.py',
-    'tools/docs/build_kategorii_ts.py', 'app/kernel/numField.js', 'app/kernel/persist.js',
+    'tools/docs/build_kategorii_ts.py', 'app/kernel/numField.js', 'app/kernel/persist.js', 'app/kernel/treeSearch.js',
     'app/kernel/viewer/*',
 )
 
@@ -92,25 +93,46 @@ def run(t):
     pg.click('[data-ts-kind="base"]')
     t.wait_for('[data-ts-cat]')
     t.ck(pg.locator('[data-ts-base][disabled]').count() == 1, 'база доступна до выбора категории')
-    # «Тип ТС, вид кузова» — в блоке 02, категория и единственная база
-    # подбираются по записи; выбранное руками подбор больше не трогает.
-    pg.fill('[data-tsf="main|vtype"]', 'легковой минивэн')
-    pg.locator('[data-ts-cat]').focus()
-    t.wait_until("() => document.querySelector('[data-ts-cat]').value === 'Легковое'")
-    t.ck(pg.input_value('[data-ts-base]') == 'Легковой автомобиль и внедорожник', 'база не подобралась по категории')
-    pg.select_option('[data-ts-cat]', 'Грузовое')
+    # «Тип ТС, вид кузова» — в блоке 02 первым; категорию выбирает человек, запись
+    # только предлагает варианты кнопками (указание пользователя 30.09.2026:
+    # «откуда ты знаешь, что это грузовик, а не пожарка?»).
+    pg.fill('[data-tsf="main|vtype"]', 'специальный, пожарный')
+    pg.locator('[data-tsf="main|vtype"]').press('Tab')
+    t.wait_for('[data-ts-sug-cat]')
+    sug = pg.eval_on_selector_all('[data-ts-sug-cat]', 'els => els.map((e) => e.textContent.trim())')
+    t.ck(sug == ['Грузовое', 'Тракторы и специальные шасси'], 'предложения категории не те: %s' % sug)
+    t.ck(pg.input_value('[data-ts-cat]') == '', 'категория поставилась сама по записи «Тип ТС»')
+    pg.click('[data-ts-sug-cat="Грузовое"]')
     t.wait_for('[data-ts-base]:not([disabled])')
+    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', 'предложение не поставило категорию')
     pg.fill('[data-tsf="main|vtype"]', 'легковой седан')
-    pg.locator('[data-ts-cat]').focus()
-    t.wait(200)
-    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', 'подбор по «Типу ТС» перебил выбранную руками категорию')
-    t.wait_until("() => [...document.querySelectorAll('.toast')].some((e) => e.textContent.includes('не совпадает'))")
+    pg.locator('[data-tsf="main|vtype"]').press('Tab')
+    t.wait_for('[data-ts-sug-cat="Легковое"]')
+    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', 'запись «Тип ТС» перебила выбранную категорию')
+
+    # Поиск — помощник над каскадом: находит по всем веткам, у каждого — путь.
+    pg.fill('#ts-find-q', 'кран')
+    t.wait_for('#ts-find-list [role="option"]')
+    paths = pg.eval_on_selector_all('#ts-find-list .tsr-opt', 'els => els.map((e) => e.innerText)')
+    joined = ' '.join(paths)
+    t.ck('Спецтехника › Подъёмные' in joined and 'Грузозахватные' in joined and 'Специальное многоосное шасси' in joined,
+         'поиск нашёл не по всем веткам: %s' % paths)
+    pg.locator('#ts-find-q').press('Escape')
+    t.ck(pg.locator('#ts-find-list').is_hidden(), 'Escape не закрыл выдачу поиска')
+    t.ck(pg.locator('.vehicle-form [data-ts-kind][title]').count() == 0, 'у вариантов вида объекта остались всплывающие подсказки')
     bases = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')
     t.ck('Прочее' in bases, 'в категории нет базы «Прочее»: %s' % bases)
     t.ck(pg.locator('[data-tsf]:not([data-tsf="main|vtype"])').count() == 0, 'поля машины показаны до выбора базы')
 
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
+    # Выбор сделан — «Готово» сворачивает блок в строку, «Изменить» разворачивает.
+    t.ck(pg.locator('[data-ts-about]').count() == 1, 'нет описания выбранной базы под каскадом')
+    pg.click('[data-ts-kind-done]')
+    t.wait_for('[data-ts-kind-sum]')
+    t.ck('Тяжёлый грузовик' in pg.inner_text('[data-ts-kind-sum]'), 'в свёрнутой строке нет выбранной базы')
+    pg.click('[data-ts-kind-edit]')
+    t.wait_for('[data-ts-cat]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
     t.ck(heads[2:] == ['Регистрационный учёт', 'Автотранспортное средство', 'Модули', 'Фото с осмотра'],
          'блоки карточки ТС не те: %s' % heads)

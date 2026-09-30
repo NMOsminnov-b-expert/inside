@@ -83,6 +83,53 @@ export function categoryFromVtype(text) {
   return hit ? hit[1] : '';
 }
 
+// Какие категории может означать запись «Тип ТС» — ПРЕДЛОЖЕНИЕ, а не выбор.
+// Указание пользователя 30.09.2026: «Бывает, когда надо выбирать самим… откуда
+// ты знаешь, что это грузовик, а не пожарка?» — категория сама больше не
+// ставится; строка только подсказывает, и там, где запись двусмысленна
+// («специальный» — это и спецшасси, и пожарная на грузовом шасси), вариантов
+// несколько.
+export function categoryCandidates(text) {
+  const guess = categoryFromVtype(text);
+  if (!guess) return [];
+  return guess === 'Тракторы и специальные шасси' ? ['Грузовое', guess] : [guess];
+}
+
+// --- поиск по справочнику: помощник над каскадом (kernel/treeSearch.js) -----
+// Варианты вида объекта — все ветки сразу: базы ТС, виды спецтехники и
+// оборудование без машины; путь начинается с вида объекта.
+export function kindLeaves() {
+  const out = [];
+  TS_BASES.filter((b) => b.name !== OTHER).forEach((b) => out.push({
+    kind: 'base', category: b.category, base: b.name, name: b.name,
+    path: [KINDS[0].label, b.category], extra: [b.hint, b.examples].filter(Boolean).join(' '),
+  }));
+  TS_SELF_GROUPS.forEach((g) => g.items.forEach((it) => out.push({
+    kind: 'self', group: g.group, item: it.name, name: it.name, path: [KINDS[1].label, g.group], extra: it.examples,
+  })));
+  TS_MODULE_GROUPS.forEach((g) => g.items.forEach((it) => out.push({
+    kind: 'module', group: g.group, item: it.name, name: it.name, path: [KINDS[2].label, g.group],
+  })));
+  return out;
+}
+
+// Модули на машине — путь от группы.
+export function moduleLeaves() {
+  const out = [];
+  TS_MODULE_GROUPS.forEach((g) => g.items.forEach((it) => out.push({
+    group: g.group, item: it.name, name: it.name, path: [g.group],
+  })));
+  return out;
+}
+
+// Подставить выбранное в поиске: вид объекта и оба уровня каскада.
+export function applyKindLeaf(v, l) {
+  v.kind = l.kind;
+  if (l.kind === 'base') { v.category = l.category; v.base = l.base; }
+  if (l.kind === 'self') { v.selfGroup = l.group; v.selfKind = l.item; }
+  if (l.kind === 'module') { v.modGroup = l.group; v.modKind = l.item; }
+}
+
 // Выбор дописан до конца: без этого поля машины не показываются — дочернее
 // не показывают, пока не выбран родитель (практика каскадных списков).
 export function classified(v) {

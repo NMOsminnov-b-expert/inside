@@ -41,7 +41,7 @@ TOUCHES = (
     'app/modules/civil/oi/registry.js', 'app/modules/civil/card/*',
     'app/modules/civil/parts/photos/*', 'app/modules/civil/parts/viewer/*',
     'app/modules/civil/data/rules.js', 'app/modules/civil/index.js',
-    'app/kernel/rangeField.js',
+    'app/kernel/rangeField.js', 'app/kernel/treeSearch.js',
 )
 
 ROUTE = '#/oc/civil/oc-cv-1/oi/oi-cv1-m1'
@@ -204,28 +204,28 @@ def run(t):
     # Поиск по всему дереву: в выдаче конечная категория с путём, выбор
     # подставляет класс, подгруппу, тип — или «Вид» у класса без подгрупп
     # (задача пользователя 30.09.2026, пример — «Навес»).
-    csq = pg.locator('[data-mu-csq]')
+    csq = pg.locator('#mu-cs-q')
     csq.fill('навес')
     t.wait_for('#mu-cs-list [role="option"]')
     first = pg.locator('#mu-cs-list [role="option"]').first
     t.ck('Навесное оборудование' in first.inner_text(), 'по «навес» первым не предложено навесное: %r' % first.inner_text())
     t.ck(first.locator('mark').count() >= 1, 'совпадение в выдаче не подсвечено')
-    t.ck('Прочее' in first.locator('.mu-cs-path').inner_text(), 'у найденной категории нет пути')
+    t.ck('Прочее' in first.locator('.tsr-path').inner_text(), 'у найденной категории нет пути')
     csq.press('Enter')
     t.wait_until("() => document.querySelector('[data-mu-cls]') && document.querySelector('[data-mu-cls]').value === 'Прочее'")
     t.ck(pg.locator('[data-mu-f="otherKind"]').input_value() == 'Навесное оборудование',
          'вид «Навесное оборудование» не подставлен')
-    csq = pg.locator('[data-mu-csq]')
+    csq = pg.locator('#mu-cs-q')
     csq.fill('ибп')
     t.wait_for('#mu-cs-list [role="option"]')
     pg.locator('#mu-cs-list [role="option"]').first.dispatch_event('mousedown')
     t.wait_until("() => (document.querySelector('[data-mu-type]') || {}).value === 'Источники бесперебойного питания и стабилизаторы напряжения'")
     t.ck(sel('sub').input_value() == 'Компьютерная и оргтехника', 'подгруппа ИБП не подставлена')
     t.ck(pg.locator('[data-mu-f="upsPower"]').count() == 1, 'у ИБП нет своих полей')
-    csq = pg.locator('[data-mu-csq]')
+    csq = pg.locator('#mu-cs-q')
     csq.fill('кран мост')
     t.wait_for('#mu-cs-list [role="option"]')
-    names = pg.eval_on_selector_all('#mu-cs-list .mu-cs-name', 'els => els.map((e) => e.textContent)')
+    names = pg.eval_on_selector_all('#mu-cs-list .tsr-name', 'els => els.map((e) => e.textContent)')
     t.ck(any('остов' in n for n in names), 'слова запроса не ищутся по всему пути: %s' % names)
     csq.press('Escape')
     t.ck(pg.locator('#mu-cs-list').is_hidden(), 'Escape не закрыл выдачу')

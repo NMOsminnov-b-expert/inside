@@ -9,9 +9,11 @@ import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
+import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML } from './tsFields.view.js';
 import {
-  tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryFromVtype,
+  tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
+  kindLeaves, applyKindLeaf,
   normVin, vinWarning, normPlate, idMissing,
 } from './tsModel.js';
 
@@ -40,47 +42,54 @@ export function bindTsForm(ctx, holder, set) {
   };
 
   // --- 02 Вид объекта: смена выбора перестраивает карточку -----------------
+  // Пока с выбором работают, блок развёрнут (ctx.ui.tsKindOpen); «Готово»
+  // сворачивает его в строку, «Изменить» разворачивает.
+  const openKind = () => { ctx.ui.tsKindOpen = true; };
   s.$$('[data-ts-kind]').forEach((b) => b.onclick = () => {
     if (v.kind === b.dataset.tsKind) return;
     v.kind = b.dataset.tsKind;
+    openKind();
     ctx.render();
+  });
+  const kEdit = s.$('[data-ts-kind-edit]');
+  if (kEdit) kEdit.onclick = () => { openKind(); ctx.render(); };
+  const kDone = s.$('[data-ts-kind-done]');
+  if (kDone) kDone.onclick = () => { ctx.ui.tsKindOpen = false; ctx.render(); };
+
+  // Поиск по справочнику — помощник над каскадом: выбор заполняет списки.
+  bindTreeSearch(s, {
+    id: 'ts-find',
+    leaves: kindLeaves,
+    onPick: (l) => { applyKindLeaf(v, l); openKind(); ctx.render(); },
   });
 
   // Каскад: смена родителя сбрасывает дочерний выбор; единственный вариант
   // подставляется сам (практика каскадных списков).
-  const cascade = (sel, set) => { const el = s.$(sel); if (el) el.onchange = () => { set(el.value); ctx.render(); }; };
+  const cascade = (sel, set) => { const el = s.$(sel); if (el) el.onchange = () => { set(el.value); openKind(); ctx.render(); }; };
   const setCategory = (val) => {
     if (v.category === val) return;
     v.category = val;
     const bases = basesOf(val).filter((b) => b.name !== 'Прочее');
     v.base = bases.length === 1 ? bases[0].name : '';
   };
-  // Категория, выбранная руками, может не совпасть с записью «Тип ТС» —
-  // уведомление, а не запрет: решает пользователь.
+  // Категорию выбирает человек (указание пользователя 30.09.2026): запись «Тип
+  // ТС» лишь предлагает варианты кнопками под списком; сама категория по ней
+  // больше не ставится. Выбранная категория, которой нет среди предложенных, —
+  // уведомление, а не запрет.
   const warnMismatch = (text = v.f.vtype) => {
-    const vtype = String(text || '').trim();
-    const guess = categoryFromVtype(vtype);
-    if (guess && v.category && guess !== v.category) {
-      ctx.toast(`Категория «${v.category}» не совпадает с записью «Тип ТС»: «${vtype}»`, 'warn');
+    const cands = categoryCandidates(text);
+    if (cands.length && v.category && !cands.includes(v.category)) {
+      ctx.toast(`Категория «${v.category}» не похожа на запись «Тип ТС»: «${String(text).trim()}»`, 'warn');
     }
   };
-  // Выбранная руками категория — выбор человека: подбор по «Типу ТС» его больше
-  // не трогает.
-  cascade('[data-ts-cat]', (val) => { setCategory(val); v.categoryAuto = false; warnMismatch(); });
+  cascade('[data-ts-cat]', (val) => { setCategory(val); warnMismatch(); });
+  s.$$('[data-ts-sug-cat]').forEach((b) => b.onclick = () => { setCategory(b.dataset.tsSugCat); openKind(); ctx.render(); });
 
-  // Категория по записи «Тип ТС»: подбирается, когда её ещё не выбирали или
-  // она была подобрана сама; по уходу из поля — пока человек печатает,
-  // карточка не перерисовывается.
+  // Предложения под списком категорий следуют за записью «Тип ТС» — по уходу
+  // из поля: пока человек печатает, карточка не перерисовывается.
   const vt = s.$('[data-tsf="main|vtype"]');
   if (vt && s.$('[data-ts-cat]')) {
-    vt.addEventListener('change', () => {
-      const guess = categoryFromVtype(vt.value);
-      if (!guess || guess === v.category) return;
-      if (v.category && !v.categoryAuto) { warnMismatch(vt.value); return; }
-      setCategory(guess);
-      v.categoryAuto = true;
-      ctx.render();
-    });
+    vt.addEventListener('change', () => { openKind(); ctx.render(); });
   }
   cascade('[data-ts-base]', (val) => { v.base = val; });
   cascade('[data-ts-sgroup]', (val) => {

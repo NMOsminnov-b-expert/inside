@@ -8,8 +8,9 @@ import { tsFieldHTML } from './tsFields.view.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields,
-  moduleTitle, whatLabel, makeModel,
+  moduleTitle, whatLabel, makeModel, categoryCandidates,
 } from './tsModel.js';
+import { treeSearchHTML } from '../../kernel/treeSearch.js';
 import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 
 // Карточка транспортного средства как объекта оценки — по категоризации
@@ -96,53 +97,93 @@ const aboutTip = (a) => {
 };
 
 // --- 02 Вид объекта ---------------------------------------------------------------
-// Сначала «что это», затем каскад. Три взаимоисключающих варианта видны сразу:
-// переключатель, а не список.
-function kindHTML(v, idx) {
-  const KIND_TIP = {
-    base: 'Всё, у чего есть свидетельство о регистрации: легковое, грузовое, автобус, мотоцикл, прицеп, трактор',
-    self: 'Машина со встроенным рабочим органом: экскаватор, бульдозер, погрузчик, каток, комбайн. '
-      + 'Трактор и вездеход — «Транспортное средство», категория «Тракторы и специальные шасси»',
-    module: 'Ковш, отвал, цистерна, кран-манипулятор — снятые с машины или хранящиеся отдельно',
-  };
-  const seg = `<div class="vh-seg" role="radiogroup" aria-label="Вид объекта">${KINDS.map((k) => `
-    <button type="button" class="vh-seg-btn ${v.kind === k.key ? 'on' : ''}" role="radio" title="${esc(KIND_TIP[k.key])}"
-      aria-checked="${v.kind === k.key}" data-ts-kind="${k.key}">${esc(k.label)}</button>`).join('')}</div>`;
+// Развёртка согласована пользователем 30.09.2026 («Ок… Переноси в макет»):
+//   * три варианта — кнопками с описанием видимой строкой: всплывающая
+//     подсказка при наведении закрывала соседние списки;
+//   * у ТС сначала «Тип ТС, вид кузова» — его переписывают с техпаспорта, —
+//     затем категория и база. Категорию выбирает человек: строка «Тип ТС» лишь
+//     предлагает варианты кнопками («откуда ты знаешь, что это грузовик, а не
+//     пожарка?»);
+//   * над каскадом — поиск по всему справочнику: помощник, а не замена
+//     («поиск — помощник, а не альтернатива»); выбор заполняет списки;
+//   * описание выбранной базы или вида — видимым блоком под каскадом;
+//   * выбор сделан — блок сворачивается в строку «Изменить»: к нему
+//     возвращаются редко, а место он занимал всю работу.
+const KIND_ABOUT = {
+  base: 'Машина с техпаспортом: легковая, грузовая, автобус, мото, прицеп, трактор, спецшасси',
+  self: 'Самоходная машина со своим рабочим органом: экскаватор, погрузчик, каток, комбайн',
+  module: 'Снятое с машины или хранящееся отдельно: ковш, отвал, цистерна, кран-манипулятор',
+};
+
+const kindLabel = (v) => (KINDS.find((k) => k.key === v.kind) || {}).label || '';
+
+function aboutHTML(a) {
+  if (!a) return '';
+  const isBase = 'category' in a;
+  const text = [a.run && `Ходовая: ${a.run}.`, a.hint && (isBase ? a.hint : `Характеристики: ${a.hint}`), a.note]
+    .filter(Boolean).map((t) => (/[.!?]$/.test(t.trim()) ? t.trim() : t.trim() + '.')).join(' ');
+  if (!text && !a.examples) return '';
+  return `<div class="vh-about" data-ts-about><b>${esc(a.name)}.</b> ${esc(text)}${
+    a.examples ? ` <span class="vh-about-ex">Например: ${esc(a.examples)}.</span>` : ''}</div>`;
+}
+
+function kindSummaryHTML(v, idx) {
+  const vt = v.kind === 'base' && v.f.vtype ? ` · по ТП «${v.f.vtype}»` : '';
+  return `<div class="card t-blue vh-kind-sum" data-ts-kind-sum>
+    <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(kindLabel(v))}</h3>
+      <span class="hint vh-kind-what">${esc(whatLabel(v))}${esc(vt)}</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-ts-kind-edit style="margin-left:auto">Изменить</button></div></div>`;
+}
+
+function kindHTML(ctx, v, idx) {
+  if (classified(v) && !(ctx.ui && ctx.ui.tsKindOpen)) return kindSummaryHTML(v, idx);
+
+  const seg = `<div class="vh-kinds" role="radiogroup" aria-label="Вид объекта">${KINDS.map((k) => `
+    <button type="button" class="vh-kind ${v.kind === k.key ? 'on' : ''}" role="radio"
+      aria-checked="${v.kind === k.key}" data-ts-kind="${k.key}"><b>${esc(k.label)}</b><span>${esc(KIND_ABOUT[k.key])}</span></button>`).join('')}</div>`;
 
   let cascade = '';
   let about = null;
+  let sug = '';
   if (v.kind === 'base') {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
     const vtype = commonFields(v).find((f) => f.key === 'vtype');
-    // Последовательность — категория, под ней «Тип ТС, вид кузова», справа база
-    // (указание пользователя 23.09.2026: «тип ТС под категорию»).
-    cascade = `<div class="field vh-s2 vh-at-cat"><label for="ts-cat" ${v.categoryAuto ? 'class="vh-tip" title="Подобрано по записи «Тип ТС» — можно выбрать другую"' : ''}>Категория по техпаспорту</label>
+    const cands = categoryCandidates(v.f.vtype).filter((c) => c !== v.category);
+    sug = cands.length && !(v.category && categoryCandidates(v.f.vtype).includes(v.category))
+      ? `<div class="vh-sug" data-ts-sug>По записи «${esc(v.f.vtype)}» может быть:${cands.map((c) => `
+          <button type="button" class="vh-sug-btn" data-ts-sug-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`
+      : '';
+    cascade = `${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s4') : ''}
+      <div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
         <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
-      ${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s2 vh-at-vtype') : ''}
-      <div class="field vh-s2 vh-at-base"><label for="ts-base" ${aboutTip(about)}>База</label>
+      <div class="field vh-s2"><label for="ts-base">База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
   options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`;
   } else if (v.kind === 'self') {
     about = selfInfo(v.selfGroup, v.selfKind);
     cascade = `<div class="field vh-s2"><label for="ts-sg">Группа</label>
         <select class="select" id="ts-sg" data-ts-sgroup>${options(selfGroups(), v.selfGroup, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-sk" ${aboutTip(about)}>Вид машины</label>
+      <div class="field vh-s2"><label for="ts-sk">Вид машины</label>
         <select class="select" id="ts-sk" data-ts-skind ${v.selfGroup ? '' : 'disabled'}>${
   options(selfKinds(v.selfGroup).map((k) => k.name), v.selfKind, v.selfGroup ? 'Выберите вид' : 'Сначала группа')}</select></div>`;
   } else if (v.kind === 'module') {
     about = moduleInfo(v.modGroup, v.modKind);
     cascade = `<div class="field vh-s2"><label for="ts-mg">Группа</label>
         <select class="select" id="ts-mg" data-ts-mgroup>${options(moduleGroups(), v.modGroup, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-mk" ${aboutTip(about)}>Оборудование</label>
+      <div class="field vh-s2"><label for="ts-mk">Оборудование</label>
         <select class="select" id="ts-mk" data-ts-mkind ${v.modGroup ? '' : 'disabled'}>${
   options(moduleKinds(v.modGroup).map((k) => k.name), v.modKind, v.modGroup ? 'Выберите оборудование' : 'Сначала группа')}</select></div>`;
   }
 
-
-
-  const body = `${seg}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}`;
-  return card('blue', idx, 'Вид объекта', 'категоризация «база + модуль»', body);
+  const search = treeSearchHTML({ id: 'ts-find', label: 'Найти в справочнике',
+    placeholder: 'Например: автокран, самосвал, погрузчик' });
+  const done = classified(v)
+    ? '<div class="vh-kind-done"><button type="button" class="btn btn-primary btn-sm" data-ts-kind-done>Готово</button></div>' : '';
+  // Предложения категории — своей строкой под сеткой: в сетке у поля строки
+  // фиксированной высоты, и добавка под списком наезжала на него.
+  const body = `${seg}${search}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}${sug}${about ? aboutHTML(about) : ''}${done}`;
+  return card('blue', idx, 'Вид объекта', '', body);
 }
 
 // --- 03 Регистрационный учёт ---------------------------------------------------------
@@ -376,7 +417,7 @@ export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
   const v = tsOf(holder);
   const idx = blockNumbers();
   const n = () => String(idx()).padStart(2, '0');
-  const parts = [parties ? parties(n()) : '', kindHTML(v, n())];
+  const parts = [parties ? parties(n()) : '', kindHTML(ctx, v, n())];
 
   if (classified(v)) {
     if (v.kind === 'module') {

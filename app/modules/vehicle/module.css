@@ -20,23 +20,36 @@
 @media (max-width:760px){:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid,:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.g-4{grid-template-columns:1fr}}
 
 /* --- Карточка по категоризации «база + модуль» (23.09.2026) ----------------- */
-/* Вид объекта — три взаимоисключающих варианта, все видны сразу: сегментный
-   переключатель вместо списка. Выбранный отличается фоном, цветом и жирностью,
-   а не одним цветом. */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;
-  background:#fff;margin-bottom:12px;flex-wrap:wrap}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-seg-btn{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 14px;
-  font:inherit;font-size:12.5px;color:#33445c;cursor:pointer;min-height:34px}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-seg-btn:last-child{border-right:0}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-seg-btn:hover{background:var(--blue-50)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-seg-btn.on{background:var(--blue-600);color:#fff;font-weight:700}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-seg-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+/* Вид объекта — три взаимоисключающих варианта, все видны сразу: кнопки с
+   описанием видимой строкой (развёртка 30.09.2026) — всплывающая подсказка при
+   наведении закрывала соседние списки. Выбранный — рамкой, фоном и жирностью. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kinds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind{display:flex;flex-direction:column;gap:4px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  background:#fff;font:inherit;color:var(--ink);cursor:pointer;min-height:44px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind b{font-size:13.5px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind span{font-size:11.5px;line-height:1.4;color:var(--muted)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind:hover{border-color:var(--blue-300);background:var(--blue-50)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind.on{border-color:var(--blue-600);box-shadow:inset 0 0 0 1px var(--blue-600);background:var(--blue-50)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+@media (max-width:760px){:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kinds{grid-template-columns:1fr}}
+/* Поиск по справочнику над каскадом (kernel/treeSearch.js). */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .tsr{margin-bottom:12px}
+/* Предложения категории по записи «Тип ТС» — кнопками, выбор за человеком. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-sug{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;color:var(--muted)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-sug-btn{font:inherit;font-size:11.5px;font-weight:600;color:var(--blue-700);background:#fff;border:1px solid var(--blue-200);
+  border-radius:999px;padding:2px 10px;cursor:pointer}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-sug-btn:hover{background:var(--blue-50);border-color:var(--blue-500)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-done{display:flex;justify-content:flex-end;margin-top:12px}
+/* Свёрнутый вид объекта — одна строка со ссылкой «Изменить». */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-sum .card-head{border-bottom:0}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-kind-sum .vh-kind-what{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-cascade{margin-bottom:6px}
 
 /* Справка о выбранной базе или виде — «как узнать» и примеры. */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-about{margin:8px 0 2px;padding:8px 12px;border-left:3px solid var(--blue-300);
-  background:var(--blue-50);border-radius:0 6px 6px 0;font-size:11.5px;line-height:1.45;color:#2c3e57;
-  display:grid;gap:3px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-about{margin:10px 0 2px;padding:9px 12px;border:1px solid var(--line-soft);
+  background:var(--fill-head);border-radius:8px;font-size:11.5px;line-height:1.45;color:#2c3e57}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-about b{color:var(--ink-ctl)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-about-ex{color:var(--muted)}
 
 /* Пометка источника в строке подписи: «ТП» — из техпаспорта, «осмотр» — с
    осмотра. Подробности (где графа на бланках) — во всплывающей подсказке. */
@@ -188,10 +201,6 @@
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .vh-checks{grid-column:1 / -1}
 /* Ходовая — пять коротких полей по осмотру встают в одну строку. */
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit.vh-fit-narrow{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
-/* Каскад ТС: категория, под ней «Тип ТС», справа база. */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid > .vh-at-cat{grid-column:1 / 3;grid-row:1 / span 2}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid > .vh-at-vtype{grid-column:1 / 3;grid-row:3 / span 2}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid > .vh-at-base{grid-column:3 / 5;grid-row:1 / span 2}
 
 
 /* Мультивыбор (ходовая) — поле как у остальных, в строке — на две доли. */

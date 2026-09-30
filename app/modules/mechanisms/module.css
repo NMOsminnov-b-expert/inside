@@ -94,19 +94,9 @@ body .mu-stack .mu-clip{white-space:nowrap;overflow:hidden;text-overflow:ellipsi
 body .mu-stack .mu-grid-class{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 body .mu-stack .mu-grid-class > .field:nth-child(3){grid-column:1 / -1}
 
-/* Поиск категории (form/catSearch.js): над каскадом, на всю ширину. Выдача —
-   конечная категория и путь до неё серой строкой ниже; найденное подсвечено.
-   Список поверх карточки, прокрутка — внутри него. */
-body .mu-stack .mu-cs{margin-bottom:12px}
-body .mu-stack .mu-cs-box{position:relative}
-body .mu-stack .mu-cs-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;max-height:320px;overflow:auto;
-  background:var(--surface,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);padding:4px}
-body .mu-stack .mu-cs-opt{display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:7px;cursor:pointer}
-body .mu-stack .mu-cs-opt[aria-selected="true"],body .mu-stack .mu-cs-opt:hover{background:var(--blue-50,#eff6ff)}
-body .mu-stack .mu-cs-name{font-size:13px;color:var(--ink,#0f172a)}
-body .mu-stack .mu-cs-path{font-size:11px;color:var(--muted)}
-body .mu-stack .mu-cs-opt mark{background:var(--amber-100,#fef3c7);color:inherit;border-radius:2px;padding:0 1px}
-body .mu-stack .mu-cs-more{padding:6px 9px;font-size:12px;color:var(--muted)}
+/* Поиск категории (form/catSearch.js, kernel/treeSearch.js) — над каскадом,
+   на всю ширину; оформление выдачи — в ядре (kernel/cards.css, .tsr). */
+body .mu-stack .tsr{margin-bottom:12px}
 
 /* Кнопка действия раздела — за разделительной линией, у правого края: линия
    заголовка тянется на всю ширину (flex:1), и кнопка перед ней вставала

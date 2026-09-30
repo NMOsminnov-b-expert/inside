@@ -100,7 +100,7 @@ def run(t):
     t.ck('ЕНИ' not in plate_chips, 'в плашке ТС показан чип ЕНИ: %s' % plate_chips)
 
     # Стили карточки ТС подключены и ограничены формой.
-    t.ck(pg.evaluate("() => getComputedStyle(document.querySelector('.ts-host .vh-seg')).display") == 'inline-flex',
+    t.ck(pg.evaluate("() => getComputedStyle(document.querySelector('.ts-host .vh-kinds')).display") == 'grid',
          'стили карточки ТС не подключены в гражданском')
 
     pg.click('[data-ts-kind="base"]')
