@@ -23,7 +23,9 @@ mech. Сценарий ловит то, что уже ломалось при с
     измерения — и единица хранится отдельно от числа, не склеиваясь с ним;
   * прежний «movable» и единицы прежней разметки переносятся без потери данных;
   * меню «+ Добавить ОИ» предлагает один пункт на всё движимое;
-  * комментарий единицы с пояснением: растёт по тексту и сохраняется.
+  * комментарий единицы с пояснением: растёт по тексту и сохраняется;
+  * пролёт и грузоподъёмность крана — число или интервал «5-10»: минус не
+    вычитается, запись приводится к виду «5,5 – 10», «10-5» — ошибка.
 """
 import base64
 import os
@@ -37,6 +39,7 @@ TOUCHES = (
     'app/modules/civil/oi/registry.js', 'app/modules/civil/card/*',
     'app/modules/civil/parts/photos/*', 'app/modules/civil/parts/viewer/*',
     'app/modules/civil/data/rules.js', 'app/modules/civil/index.js',
+    'app/kernel/rangeField.js',
 )
 
 ROUTE = '#/oc/civil/oc-cv-1/oi/oi-cv1-m1'
@@ -167,6 +170,33 @@ def run(t):
          'выбранная единица измерения не сохранилась')
     t.ck(pg.locator('[data-mu-f="pressure"]').input_value() == '0,60',
          'смена единицы измерения затёрла число')
+
+    # --- число или интервал -----------------------------------------------------
+    # Пролёт крана «5-10» — интервал, а не выражение (решение 30.09.2026): общее
+    # числовое поле посчитало бы его как −5.
+    pick('cls', 'Подъёмно-транспортное оборудование')
+    pick('sub', 'Краны')
+    span = pg.locator('[data-mu-f="span"]')
+    span.fill('5.5-10')
+    span.press('Tab')
+    t.ck(span.input_value() == '5,5 – 10', 'интервал пролёта не приведён к виду: %r' % span.input_value())
+    t.ck(not span.evaluate('(e) => e.classList.contains("field-bad")'), 'верный интервал подсвечен ошибкой')
+    cap = pg.locator('[data-mu-f="capacity"]')
+    cap.fill('10-5')
+    cap.press('Tab')
+    t.ck(cap.evaluate('(e) => e.classList.contains("field-bad")'), 'интервал «10-5» не подсвечен ошибкой')
+    t.ck(cap.input_value() == '10-5', 'неверная запись стёрта или изменена: %r' % cap.input_value())
+    cap.fill('3,2')
+    cap.press('Tab')
+    t.ck(not cap.evaluate('(e) => e.classList.contains("field-bad")'), 'исправленная запись осталась с ошибкой')
+    pg.locator('.mu-row').nth(1).click()
+    t.wait_for('#q-mech-unit')
+    t.wait(300)
+    pg.locator('.mu-row').first.click()
+    t.wait_for('[data-mu-f="span"]')
+    t.ck(pg.locator('[data-mu-f="span"]').input_value() == '5,5 – 10', 'интервал не сохранился')
+    t.ck(pg.locator('[data-mu-f="capacity"]').input_value() == '3,20' or
+         pg.locator('[data-mu-f="capacity"]').input_value() == '3,2', 'грузоподъёмность не сохранилась')
 
     # --- правка по ходу набора ------------------------------------------------
     name = pg.locator('[data-mu-name]')

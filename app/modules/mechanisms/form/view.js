@@ -16,6 +16,7 @@
 import { esc } from '../../../kernel/dom.js';
 import { fmtNum } from '../../../kernel/fmt.js';
 import { numText } from '../../../kernel/numField.js';
+import { rangeText } from '../../../kernel/rangeField.js';
 import { devNote } from '../../../kernel/devNote.js';
 import { blockNumbers } from '../../../kernel/blockIndex.js';
 import { photoFileAt } from '../photos.js';
@@ -178,11 +179,14 @@ function fieldHTML(unit, f) {
     // Числовое поле — общее для всего макета (kernel/numField.js): разряды,
     // запятая и вычисление выражения. `data-num` говорит контроллеру, какая это
     // величина: «int» — штуки, дробной части у них не бывает.
+    // Интервал (kernel/rangeField.js) — свободная запись «5-10»: выражений в
+    // нём нет, минус означает интервал.
     const numeric = f.type === 'num' || f.type === 'int';
+    const ranged = f.type === 'range';
     const kind = f.type === 'int' ? 'int' : 'dec';
-    const shown = numeric ? numText(value, kind) : value;
-    const input = `<input class="input ${numeric ? 'mu-num' : ''}" id="${id}" data-mu-f="${esc(f.key)}"
-      ${numeric ? `data-num="${kind}"` : ''} value="${esc(shown)}">`;
+    const shown = numeric ? numText(value, kind) : ranged ? rangeText(value) : value;
+    const input = `<input class="input ${numeric || ranged ? 'mu-num' : ''}" id="${id}" data-mu-f="${esc(f.key)}"
+      ${numeric ? `data-num="${kind}"` : ''}${ranged ? ' data-range placeholder="7,5 или 5-10"' : ''} value="${esc(shown)}">`;
 
     if (!many) return input;
     const chosen = unitParamUnit(unit, f);

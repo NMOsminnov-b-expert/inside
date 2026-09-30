@@ -8,6 +8,7 @@
 // сам состав карточки: выбор в классификаторе, добавление и удаление.
 import { confirmDialog } from '../../../kernel/dialog.js';
 import { bindNumField, isExpr } from '../../../kernel/numField.js';
+import { bindRangeField } from '../../../kernel/rangeField.js';
 import { bindAutoGrowAll } from '../../../kernel/autoGrow.js';
 import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
 import { openPhotoInPlace } from '../../../kernel/viewer/state.js';
@@ -232,6 +233,10 @@ export function bindMechForm(ctx, oi) {
     const key = el.dataset.muF;
     if (el.dataset.num) {
       bindNumField(el, (v) => write(key, v), el.dataset.num);
+      return;
+    }
+    if (el.hasAttribute('data-range')) {
+      bindRangeField(el, (v) => write(key, v));
       return;
     }
     const set = () => write(key, el.value);

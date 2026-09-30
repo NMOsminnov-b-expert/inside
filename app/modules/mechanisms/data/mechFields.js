@@ -24,7 +24,8 @@
 //              убрать ненужные (по ключу).
 //
 // Поле: { key, label, type, units, options, hint }
-//   type   — text | num | int | select | date;
+//   type   — text | num | int | range | select | date; range — число или
+//            интервал («5-10»): минус в нём — интервал, а не вычитание;
 //   units  — единицы числа: одна — пишется в подписи («Длина, мм»), несколько —
 //            выбираются списком рядом с числом;
 //   key    — устойчивое имя: значение хранится по нему, и одинаковые ключи в
@@ -36,6 +37,9 @@
 
 const text = (key, label, o = {}) => ({ key, label, type: 'text', ...o });
 const num = (key, label, units = [], o = {}) => ({ key, label, type: 'num', units: [].concat(units), ...o });
+// Число или интервал свободной записью: «7,5», «5-10» (решение пользователя
+// 30.09.2026 — пролёт и грузоподъёмность кранов «5–10 м»; kernel/rangeField.js).
+const range = (key, label, units = [], o = {}) => ({ key, label, type: 'range', units: [].concat(units), ...o });
 const int = (key, label, o = {}) => ({ key, label, type: 'int', ...o });
 const sel = (key, label, options, o = {}) => ({ key, label, type: 'select', options, ...o });
 const date = (key, label, o = {}) => ({ key, label, type: 'date', ...o });
@@ -173,8 +177,8 @@ export const MECH_FIELDS = {
       country: true,
       main: [
         MODEL, SERIAL, MAKER,
-        num('capacity', 'Грузоподъёмность', ['т', 'кг']),
-        num('span', 'Пролёт', 'м'),
+        range('capacity', 'Грузоподъёмность', ['т', 'кг']),
+        range('span', 'Пролёт', 'м'),
         num('liftHeight', 'Высота подъёма', 'м'),
       ],
       extra: [
@@ -208,7 +212,7 @@ export const MECH_FIELDS = {
       country: false,
       main: [
         MODEL, SERIAL,
-        num('capacity', 'Грузоподъёмность', ['т', 'кг']),
+        range('capacity', 'Грузоподъёмность', ['т', 'кг']),
         num('liftHeight', 'Высота подъёма', 'м'),
         DRIVE_EM,
       ],
@@ -594,7 +598,7 @@ export const MECH_FIELDS = {
       ],
       byType: {
         'Паллетное оборудование (роклы, штабелёры — если не относятся к спецтехнике/ТС)': {
-          main: [SERIAL, num('capacity', 'Грузоподъёмность', ['кг', 'т']), num('liftHeight', 'Высота подъёма', 'м'),
+          main: [SERIAL, range('capacity', 'Грузоподъёмность', ['кг', 'т']), num('liftHeight', 'Высота подъёма', 'м'),
             DRIVE_EM],
           omit: ['loadShelf', 'loadTotal', 'shelves', 'height', 'width', 'depth'],
         },
