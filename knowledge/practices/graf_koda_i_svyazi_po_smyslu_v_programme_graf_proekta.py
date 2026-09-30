@@ -10,7 +10,7 @@ TITLE = 'Граф кода и связи по смыслу в программе
 TAGS = ['практика', 'граф', 'интерфейс', 'утилита', 'поиск по смыслу']
 STATUS = 'действует'
 DATE = '2026-09-29'
-SOURCE = 'задача Осминова Н. 29.09.2026: «В приложении увижу графы? Оба.» — «Делаем оба.»'
+SOURCE = 'задача Осминнова Н. 29.09.2026: «В приложении увижу графы? Оба.» — «Делаем оба.»'
 POINTS = [
     'Выведенные (inferred) связи рисуют иначе, чем записанные человеком: пунктиром и своим цветом, с пометкой происхождения в подсказке; одинаковый вид для одного рода связей. При сильном отдалении пунктир сливается — поэтому у выведенных связей ещё и свой цвет. Источники: https://robert-mcdermott.medium.com/from-unstructured-text-to-interactive-knowledge-graphs-using-llms-dd02a1f71cd6 , https://www.yfiles.com/resources/how-to/guide-to-visualizing-knowledge-graphs , https://linkurious.com/blog/knowledge-graph-visualization/ .',
     'Граф зависимостей кода: узлы — файлы (функции — при раскрытии), рёбра — вызовы, импорты, ссылки; файлы группируются по модулям и слоям (кластеры), чтобы были видны архитектурные границы; общие узлы с большим числом зависимых и циклы — отдельно заметны; лишнее скрывается фильтром. Источники: https://blog.tomsawyer.com/dependency-graph-visualization , https://guides.visual-paradigm.com/visualizing-complex-dependency-graphs-graphviz/ , https://www.puppygraph.com/blog/software-dependency-graph .',

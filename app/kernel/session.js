@@ -19,7 +19,7 @@ export const ROLES = [
 // institutions — учреждения, за которыми закреплён текущий сотрудник (кроме
 // admin — тот видит всё). Пока нет реальных учётных записей — это
 // тестовый переключатель (см. ocMenu whoHTML), не настоящее назначение.
-export const session = createStore({ person: 'Осминов Н.', role: 'any', institutions: [] });
+export const session = createStore({ person: 'Осминнов Н.', role: 'any', institutions: [] });
 
 // «Видит всё, независимо от учреждений» — администратор и роль «любая».
 // Отдельным понятием, потому что этим правилом пользуются и лог действий, и
