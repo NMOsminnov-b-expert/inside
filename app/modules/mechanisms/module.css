@@ -126,9 +126,12 @@ body .mu-stack .mu-grid-name{grid-template-columns:minmax(0,2fr) minmax(0,1fr);g
 
 /* Флажки группы (например, «Группа режима работы» крана) — столбцом, подпись
    группы — как подпись поля. */
-body .mu-stack .mu-checks-field{border:0;margin:0;padding:0;min-width:0}
-body .mu-stack .mu-checks-field legend{padding:0;font-size:11px;font-weight:600;color:var(--ink-label);margin-bottom:4px}
-body .mu-stack .mu-checks{display:flex;flex-direction:column;gap:2px}
+/* Флажки занимают строку сетки целиком: в ячейке высокий столбец флажков
+   сталкивал соседнее поле вниз. Варианты читаются сверху вниз по столбцам. */
+body .mu-stack .mu-checks-field{border:0;margin:0;padding:0;min-width:0;grid-column:1/-1}
+body .mu-stack .mu-checks-field legend{padding:0;margin-bottom:4px}
+body .mu-stack .mu-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:2px 12px}
+@media (max-width:640px){body .mu-stack .mu-checks{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}}
 body .mu-stack .mu-check{display:flex;align-items:center;gap:8px;min-height:28px;font-size:13px;color:var(--ink);cursor:pointer}
 body .mu-stack .mu-check input{margin:0;width:16px;height:16px;flex:0 0 auto}
 
@@ -136,7 +139,8 @@ body .mu-stack .mu-check input{margin:0;width:16px;height:16px;flex:0 0 auto}
    прокручивается в своей обёртке и не распирает карточку на узком экране. */
 body .mu-stack .mu-contacts{padding:8px 12px 12px;border-bottom:1px solid var(--line-soft)}
 body .mu-stack .mu-contacts-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-body .mu-stack .mu-contacts-t{font-size:11px;font-weight:600;color:var(--ink-label)}
+/* Заголовок «Контакты» — как подпись поля «Название списка» над ним. */
+body .mu-stack .mu-contacts-t{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
 body .mu-stack .mu-contacts-h .btn{margin-left:auto}
 body .mu-stack .mu-contacts-wrap{overflow-x:auto}
 body .mu-stack .mu-ctbl{min-width:520px}

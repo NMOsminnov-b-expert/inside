@@ -233,7 +233,7 @@ function fieldHTML(unit, f) {
   // всем флажкам сразу, а не к первому.
   if (f.type === 'checks') {
     return `<fieldset class="field mu-param mu-checks-field">
-      <legend>${label}</legend>
+      <legend class="lbl">${label}</legend>
       ${f.hint ? `<span class="mu-hint">${esc(f.hint)}</span>` : ''}
       ${control()}
     </fieldset>`;
