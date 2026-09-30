@@ -42,6 +42,10 @@ LOCAL = pathlib.Path(os.environ.get('LOCALAPPDATA', ''))
 CG = LOCAL / 'codegraph' / 'current' / 'bin' / 'codegraph.cmd'
 SPY = LOCAL / 'semsearch' / 'src' / 'codebase-mcp' / '.venv' / 'Scripts' / 'python.exe'
 SCLIENT = LOCAL / 'semsearch' / 'client.py'
+# PostgreSQL и Ollama живут, только пока нужны: svc.py поднимает их перед
+# индексом и гасит после, если нет сервера MCP Claude Code (просьба
+# пользователя 30.09.2026 «накладные расходы оптимизировать по-максимуму»).
+SVC = LOCAL / 'semsearch' / 'svc.py'
 
 # Python на localhost ходит через корпоративный прокси, если не сказать иначе.
 ENV = dict(os.environ, NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost', PYTHONIOENCODING='utf-8')
@@ -140,8 +144,21 @@ PROGRESS = re.compile(r'\b(pending|running|completed|failed|cancelled)\s+фай�
 def semsearch(commit):
     if not SPY.exists() or not SCLIENT.exists():
         return put('semsearch', state='skipped', stage='', commit='', finished=now(), note='поиск по смыслу не установлен')
-    put('semsearch', state='running', stage='дообновление индекса', commit=commit, started=now(), finished=None,
+    put('semsearch', state='running', stage='запуск базы и модели', commit=commit, started=now(), finished=None,
         pid=os.getpid(), files=0, chunks=0, note='')
+    if SVC.exists():
+        code, last = run([SPY, SVC, 'up'])
+        if code:
+            return put('semsearch', state='failed', finished=now(), note='база или модель не поднялись')
+    try:
+        semsearch_run()
+    finally:
+        if SVC.exists():
+            run([SPY, SVC, 'down'])
+
+
+def semsearch_run():
+    put('semsearch', stage='дообновление индекса')
 
     last_state = ['']
 
