@@ -24,4 +24,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'vetki-tolko-po-ukazaniyu', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'gody-i-periody-ne-zashivat', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'familiya-polzovatelya-osminnov', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'stend-ne-istochnik-resheniy', 'папка': 'rules'},
 ]
