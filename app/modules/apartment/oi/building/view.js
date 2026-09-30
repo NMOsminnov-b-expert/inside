@@ -150,7 +150,7 @@ ${letterControlHTML(ctx, oi)}
 <input class="input" style="width:100%;" data-oi-name value="${esc(oi.name)}">
 </div>
 <div class="field" style="flex:0 0 150px;">
-<label>Статус</label>
+<label title="Основное или вспомогательное строение. Статус объекта в работе — в плашке карточки">Основное / вспомогательное</label>
 <select class="select" style="width:100%;" data-status>
 ${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
 </select>

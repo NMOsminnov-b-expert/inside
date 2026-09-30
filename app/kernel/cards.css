@@ -34,6 +34,18 @@ body[data-module] .ctx-plate.ctx-form{border-left-color:var(--teal-600)}
 body[data-module] .ctx-kind{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
 body[data-module] .ctx-plate b{font-size:13px;color:var(--blue-700)}
 body[data-module] .ctx-chip{font-size:10.5px;background:var(--blue-50);border:1px solid var(--blue-200);color:var(--blue-700);border-radius:999px;padding:2px 9px;font-weight:600}
+/* Метка проверки импорта объекта имущества (kernel/oiStage.js).
+   Метка импорта — кнопка-чип: не проверен — янтарный пунктир, как значок
+   несверенного ML в реестре; проверен — спокойный бирюзовый. */
+body[data-module] .oi-import{cursor:pointer;font-family:inherit}
+body[data-module] .oi-import.is-raw,body[data-module] .oi-import-mark.is-raw{background:var(--amber-50);color:var(--amber-700);border:1px dashed var(--amber-600)}
+body[data-module] .oi-import.is-checked,body[data-module] .oi-import-mark.is-checked{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100)}
+body[data-module] .oi-import:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+/* Шкала статуса объекта имущества — второй строкой плашки, во всю её
+   ширину (плашка — flex с переносом). Сама шкала — общая, kernel/status. */
+body[data-module] .ctx-oi-flow{flex:1 0 100%;min-width:0;padding-top:6px;border-top:1px solid var(--line-soft)}
+body[data-module] .oi-stage-cell{display:flex;align-items:center;gap:6px;min-width:0}
+body[data-module] .oi-import-mark{flex:none;font-size:10px;font-weight:600;border-radius:999px;padding:0 6px;line-height:16px}
 body[data-module] .ctx-chip.ctx-warn{background:var(--blue-50);border-color:var(--blue-300);color:var(--blue-700)}
 body[data-module] .ctx-chip.ctx-ok{background:var(--teal-50);border-color:var(--teal-100);color:var(--teal-700)}
 body[data-module] .ctx-back-hint{font-size:10.5px;color:#7d93a6}
@@ -1161,15 +1173,16 @@ body[data-module] .oc-head-tabs .tab:focus-visible{outline:2px solid var(--blue-
 body[data-module] .oc-head-status{grid-column:2;min-width:0;padding:10px 4px 0 22px}
 
 /* --- Шкала: развёрнутый вид -------------------------------------------------
-   Девять шагов в равных колонках, линия идёт от центра первого до центра
-   последнего (1/18 ширины с каждого края), пройденная часть закрашена. */
+   Шаги в равных колонках (--st-n — их число: у ОЦ девять, у ОИ четыре), линия
+   идёт от центра первого до центра последнего (половина колонки с каждого
+   края), пройденная часть закрашена. */
 body[data-module] .st-full{display:flex;align-items:flex-start;gap:8px}
 body[data-module] .st-line{flex:1;min-width:0;list-style:none;margin:0;padding:0;position:relative;
-  display:grid;grid-template-columns:repeat(9,minmax(0,1fr))}
+  display:grid;grid-template-columns:repeat(var(--st-n,9),minmax(0,1fr))}
 body[data-module] .st-line::before,body[data-module] .st-line::after{content:"";position:absolute;
-  top:7px;height:2px;left:calc(100% / 18);border-radius:1px}
-body[data-module] .st-line::before{right:calc(100% / 18);background:var(--line)}
-body[data-module] .st-line::after{width:calc((100% - 100% / 9) * var(--st-k, 0));background:var(--amber-600)}
+  top:7px;height:2px;left:calc(100% / (2 * var(--st-n,9)));border-radius:1px}
+body[data-module] .st-line::before{right:calc(100% / (2 * var(--st-n,9)));background:var(--line)}
+body[data-module] .st-line::after{width:calc((100% - 100% / var(--st-n,9)) * var(--st-k, 0));background:var(--amber-600)}
 body[data-module] .st-item{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;min-width:0}
 body[data-module] .st-step,body[data-module] .st-branch{display:flex;flex-direction:column;
   align-items:center;gap:4px;min-width:0;max-width:100%;padding:0 2px;border:0;background:none;

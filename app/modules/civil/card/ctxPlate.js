@@ -2,6 +2,7 @@ import { flagBadgesHTML } from '../../../kernel/flagBadges.js';
 import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
+import { bindOiStage, oiFlowHTML } from '../../../kernel/oiStage.js';
 import { cardMeta } from '../oi/registry.js';
 
 // Контекстная плашка над карточкой. Данные для чипов даёт метаданные
@@ -43,6 +44,7 @@ export function ctxPlate(ctx) {
           <button class="ctx-act primary" data-save-oi title="Сохранить">${ICON_SAVE}</button>
           <button class="ctx-act" data-back title="Отмена — вернуться к объекту оценки">${ICON_BACK}</button>
         </span>
+        ${oiFlowHTML(oi, ctx.ui)}
       </div>`;
   }
 
@@ -80,6 +82,10 @@ export function bindPlateActions(ctx, box) {
     e.stopPropagation();
     await ctx.deleteOi(del.dataset.delOi);
   };
+
+  // Статус и метка проверки импорта: правка — сразу в данные, плашка
+  // перерисовывается, чтобы чип сменил цвет.
+  if (ctx.view === 'oi') bindOiStage(ctx, w, ctx.oi, () => updatePlate(ctx));
 
   const save = w.querySelector('[data-save-oi]');
   if (save) save.onclick = () => {

@@ -36,26 +36,30 @@ export const STATUS_BRANCH = {
 
 export const STATUS_ALL = [...STATUS_MAIN, ...Object.values(STATUS_BRANCH)];
 
-const PARENT_OF = Object.fromEntries(Object.entries(STATUS_BRANCH).map(([p, b]) => [b, p]));
+// Шкала — перечень шагов и боковые ветки. У объекта оценки — девять шагов, у
+// объекта имущества — свои (kernel/oiStage.js); разметка и поведение одни.
+export const OC_FLOW = { main: STATUS_MAIN, branch: STATUS_BRANCH };
 
-export const isBranch = (status) => status in PARENT_OF;
+const parentOf = (flow) => Object.fromEntries(Object.entries(flow.branch).map(([p, b]) => [b, p]));
+
+export const isBranch = (status, flow = OC_FLOW) => status in parentOf(flow);
 
 // Место статуса на основной линии. Ветка стоит на месте своего шага: объект,
-// снятый с оценки, прошёл шкалу до «Готов к оценке».
-export function stepOf(status) {
-  const main = isBranch(status) ? PARENT_OF[status] : status;
-  return STATUS_MAIN.indexOf(main);
+// снятый с оценки, прошёл шкалу до шага, от которого она отходит.
+export function stepOf(status, flow = OC_FLOW) {
+  const main = isBranch(status, flow) ? parentOf(flow)[status] : status;
+  return flow.main.indexOf(main);
 }
 
 // Куда можно перейти из статуса: следующий шаг и ветка этого шага.
-export function nextOf(status) {
-  if (isBranch(status)) return [];
-  const i = STATUS_MAIN.indexOf(status);
+export function nextOf(status, flow = OC_FLOW) {
+  if (isBranch(status, flow)) return [];
+  const i = flow.main.indexOf(status);
   // Статус не из шкалы (запись, заведённая до смены перечня): куда из него
-  // идти, шкала не знает — статус правят в форме ОЦ.
+  // идти, шкала не знает — статус правят в форме.
   if (i < 0) return [];
   const out = [];
-  if (i + 1 < STATUS_MAIN.length) out.push(STATUS_MAIN[i + 1]);
-  if (STATUS_BRANCH[status]) out.push(STATUS_BRANCH[status]);
+  if (i + 1 < flow.main.length) out.push(flow.main[i + 1]);
+  if (flow.branch[status]) out.push(flow.branch[status]);
   return out;
 }

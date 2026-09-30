@@ -1,19 +1,11 @@
 import { esc } from '../../../kernel/dom.js';
+// Статус ОИ и метка проверки импорта — одни на все виды ОИ (kernel/oiStage.js).
+import { oiStageChips } from '../../../kernel/oiStage.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
 import { mechCardMeta } from '../../mechanisms/card.js';
 import { vehicleCardMeta } from '../../vehicle/card.js';
 
 // Реестр карточек ОИ модуля «Земельный участок».
-function verbal(oi) {
-  const f = oi.flags || {};
-  if ((oi.origin || 'manual') === 'ml') {
-    if (f.entered && f.matched) return { t: 'проверено (сверено с документами — удостоверено)', c: 'pill-done' };
-    return { t: f.entered ? 'импортировано по ML — ожидает проверки' : 'импортировано по ML', c: 'pill-pend' };
-  }
-  if (f.entered) return { t: 'введено вручную', c: 'pill-done' };
-  return { t: 'не заполнено', c: 'pill-gray' };
-}
-
 export const OI_CARDS = {
   land: {
     id: 'land',
@@ -28,10 +20,9 @@ export const OI_CARDS = {
     tableAreaBuild: () => '—',
     areaValues: (oi) => ({ area: num((oi.areas && oi.areas.pravo) || oi.area), build: 0 }),
     plateChips: (oi) => {
-      const v = verbal(oi);
       return [
         `<span class="ctx-chip">${oi.areas && oi.areas.pravo ? fmtNum(num(oi.areas.pravo)) + ' м²' : 'площадь не указана'}</span>`,
-        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
+        ...oiStageChips(oi),
       ];
     },
     load: () => import('./land/index.js'),
@@ -51,10 +42,9 @@ export const OI_CARDS = {
     tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
     areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
     plateChips: (oi) => {
-      const v = verbal(oi);
       return [
         `<span class="ctx-chip">${fmtNum(num(oi.areas.tp || 0))} м² общая</span>`,
-        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
+        ...oiStageChips(oi),
       ];
     },
     load: () => import('./building/index.js'),
@@ -76,10 +66,9 @@ export const OI_CARDS = {
     tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
     areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
     plateChips: (oi) => {
-      const v = verbal(oi);
       return [
         `<span class="ctx-chip">${fmtNum(num(oi.areas.tp || 0))} м² общая</span>`,
-        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
+        ...oiStageChips(oi),
       ];
     },
     load: () => import('./apartment/index.js'),
@@ -88,8 +77,8 @@ export const OI_CARDS = {
   // Механизмы и оборудование и транспортное средство — объекты имущества в
   // любом типе ОЦ (решение пользователя 28.09.2026). Описания общие на все
   // модули (mechanisms/card.js, vehicle/card.js); карточки грузятся лениво.
-  mech: { ...mechCardMeta(verbal), load: () => import('./mech/index.js') },
-  vehicle: { ...vehicleCardMeta(verbal), load: () => import('./vehicle/index.js') },
+  mech: { ...mechCardMeta(oiStageChips), load: () => import('./mech/index.js') },
+  vehicle: { ...vehicleCardMeta(oiStageChips), load: () => import('./vehicle/index.js') },
 };
 
 export function cardMeta(oi) {

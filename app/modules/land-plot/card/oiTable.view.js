@@ -1,4 +1,5 @@
 import { esc } from '../../../kernel/dom.js';
+import { oiStageCellHTML } from '../../../kernel/oiStage.js';
 import {
   orderedColumns, columnVarsStyle, colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML,
 } from '../../../kernel/columns.js';
@@ -72,7 +73,8 @@ function cellHTML(ctx, oi, key) {
     case 'letter': return `<span class="drag-grip" title="Перетащить">⠿</span>${esc(oi.letter || '—')}`;
     case 'name': return `<span class="ell" title="${esc(oi.name)}">${esc(oi.name)}</span>`;
     case 'category': return `<span class="ell" title="${esc(meta.tableCategory(oi))}">${esc(meta.tableCategory(oi))}</span>`;
-    case 'status': return `<span class="ell" title="${esc(oi.status || '')}">${esc(oi.status || '—')}</span>`;
+    // Статус объекта в работе и метка проверки импорта (kernel/oiStage.js).
+    case 'status': return oiStageCellHTML(oi);
     case 'area': return `<span class="ell" title="${esc(meta.tableArea(oi))}">${esc(meta.tableArea(oi))}</span>`;
     case 'areaBuild': {
       const v = meta.tableAreaBuild ? meta.tableAreaBuild(oi) : '—';

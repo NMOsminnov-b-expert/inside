@@ -166,7 +166,7 @@ export const vehicleOiCard = {
 // госномер и VIN индивидуальны, и каждая машина видна в перечне отдельной
 // строкой; своего кода ЕНИ у неё нет — ТС стоит на учёте в органах регистрации
 // транспорта, а не в Кадастре недвижимости.
-export function vehicleCardMeta(verbal) {
+export function vehicleCardMeta(stateChips) {
   return {
     id: 'vehicle',
     headLabel: 'Транспортное средство',
@@ -180,14 +180,13 @@ export function vehicleCardMeta(verbal) {
     tableAreaBuild: () => '—',
     areaValues: () => ({ area: 0, build: 0 }),
     plateChips: (oi) => {
-      const v = verbal(oi);
       const chips = [];
       const ts = oi.vehicle || { f: {} };
       const what = ts.base || ts.selfKind || ts.modKind || '';
       const plate = (ts.f || {}).plate || '';
       if (what) chips.push(`<span class="ctx-chip">${esc(what)}</span>`);
       if (plate) chips.push(`<span class="ctx-chip">${esc(plate)}</span>`);
-      chips.push(`<span class="ctx-chip ${v.c}">${v.t}</span>`);
+      chips.push(...stateChips(oi));
       return chips;
     },
   };

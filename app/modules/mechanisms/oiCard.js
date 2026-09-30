@@ -27,13 +27,13 @@ export const mechOiCard = {
 };
 
 // Запись реестра карточек ОИ (<модуль>/oi/registry.js, OI_CARDS.mech) без
-// load: ленивую загрузку карточки модуль задаёт сам. verbal — подпись
-// состояния ввода, она у каждого модуля своя.
+// load: ленивую загрузку карточки модуль задаёт сам. stateChips — чипы
+// статуса и проверки импорта (kernel/oiStage.js) — передаёт реестр модуля.
 //
 // Подпись ОИ — производная от состава (form/model.js, syncMechName); своего
 // кода ЕНИ и литеры нет (решение пользователя 07.09.2026, ветка mech): пустой
 // чип «ЕНИ» в плашке только путал.
-export function mechCardMeta(verbal) {
+export function mechCardMeta(stateChips) {
   return {
     id: 'mech',
     headLabel: 'Механизмы и оборудование',
@@ -48,10 +48,9 @@ export function mechCardMeta(verbal) {
     areaValues: () => ({ area: 0, build: 0 }),
     plateChips: (oi) => {
       const units = mechUnits(oi);
-      const v = verbal(oi);
       return [
         `<span class="ctx-chip">${units.length} ${units.length === 1 ? 'позиция' : (units.length < 5 ? 'позиции' : 'позиций')} · ${totalQty(oi)} шт.</span>`,
-        `<span class="ctx-chip ${v.c}">${v.t}</span>`,
+        ...stateChips(oi),
       ];
     },
   };
