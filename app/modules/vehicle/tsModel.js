@@ -61,8 +61,23 @@ export const tsOf = (holder) => {
     delete v.f.model;
   }
   if (v.category === 'Спецтехника') v.category = 'Тракторы и специальные шасси';
+  // Записи до 30.09.2026: у модуля было одно поле «Двигатель установки» с
+  // вариантом «Нет своего (от КОМ базы)»; теперь сначала привод, а тип
+  // двигателя — только у своего.
+  v.modules.forEach((m) => migrateDrive(m.f = m.f || {}));
+  if (v.kind === 'module') migrateDrive(v.f);
   return v;
 };
+
+function migrateDrive(f) {
+  if (f.drive || !f.engineKind) return;
+  if (f.engineKind === 'Нет своего (от КОМ базы)') {
+    f.drive = 'От двигателя базы (КОМ)';
+    delete f.engineKind;
+  } else {
+    f.drive = 'Свой двигатель';
+  }
+}
 
 // Категория по записи «Тип ТС» из свидетельства: там вид ТС и тип кузова
 // пишут одной строкой — «легковой минивэн», «легковой, седан», «мото,

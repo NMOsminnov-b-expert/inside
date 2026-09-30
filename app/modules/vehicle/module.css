@@ -83,24 +83,32 @@
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid + .vh-grid{margin-top:12px}
 
 
-/* Модули: сводная таблица и форма выбранного модуля под ней (как перечень
-   единиц механизмов в гражданском — оформление скопировано: модули друг из
-   друга не импортируют). */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl{width:100%;table-layout:fixed;border-collapse:collapse;border:1px solid var(--line-soft)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
-  font-weight:700;text-align:left;padding:7px 10px;background:var(--fill-head);border-bottom:1px solid var(--line)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl td{padding:6px 10px;border-bottom:1px solid var(--line-soft);font-size:12.5px;
-  vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl .mu-c-num{text-align:right;font-variant-numeric:tabular-nums}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl .mu-c-act{text-align:center;padding-left:2px;padding-right:6px}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow{cursor:pointer}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow:hover td{background:var(--fill-hover)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow.on td{background:var(--teal-50)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow.on td:first-child{box-shadow:inset 3px 0 0 var(--teal-600)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mname{font-weight:600;overflow:hidden;text-overflow:ellipsis}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mpath{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mform{margin-top:14px;padding-top:4px;border-top:1px dashed var(--line)}
+/* Модули — список с раскрытием (развёртка 30.09.2026): строка — сводка модуля
+   кнопкой на всю ширину, справа крестик удаления; раскрытый модуль — рамкой и
+   фоном строки, его поля — под ней. Колонки строки — доли, не пиксели. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mlist{display:flex;flex-direction:column;gap:8px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem{border:1px solid var(--line-soft);border-radius:8px;overflow:hidden;background:#fff}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem.open{border-color:var(--violet-100)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow{display:flex;align-items:stretch}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem.open .vh-mrow{background:var(--violet-50);border-bottom:1px solid var(--violet-100)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtoggle{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.2fr) minmax(0,.6fr) minmax(0,1fr) 20px;
+  gap:10px;align-items:center;padding:9px 12px;border:0;background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer;min-height:44px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtoggle:hover{background:var(--fill-hover)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtoggle:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mcell-name{display:flex;flex-direction:column;min-width:0}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mcell{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mchev{color:var(--slate-500);display:flex;transition:transform .15s}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem.open .vh-mchev{transform:rotate(180deg);color:var(--violet-700)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mdel{flex:none;width:40px;display:flex;align-items:center;justify-content:center}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mpath{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mform{padding:12px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mform .tsr{margin-bottom:12px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-madd{height:44px;border:1px dashed var(--violet-100);border-radius:8px;background:var(--violet-50);font:inherit;font-size:13px;
+  font-weight:600;color:var(--violet-700);cursor:pointer}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-madd:hover{border-color:var(--violet-600)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-madd:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mchev{transition:none}}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .mu-table-wrap{overflow-x:auto}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid .vh-warn-group{grid-column:1 / -1;margin:-4px 0 0}
 
@@ -124,9 +132,9 @@
 /* Удаление модуля видно всегда — спрятанная кнопка находится вслепую (так же
    решено у перечня единиц механизмов в гражданском). Замечание пользователя
    23.09.2026: «если можем добавить — значит, можем и удалить». */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl .mu-del{opacity:1;color:var(--ink-dim)}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl .mu-del:hover,
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mtbl .mu-del:focus-visible{background:var(--red-50);color:var(--danger)}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mdel.mu-del{opacity:1;color:var(--ink-dim);width:40px;height:auto;border-radius:0}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mdel.mu-del:hover,
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mdel.mu-del:focus-visible{background:var(--red-50);color:var(--danger)}
 
 /* --- Компактная раскладка (23.09.2026) ---------------------------------------
    Сетка в четыре колонки, ширина поля — по длине значения (практика Baymard):

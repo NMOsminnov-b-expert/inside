@@ -66,35 +66,29 @@ const SPAN = {
 // (замечание пользователя 23.09.2026: «в модулях громоздко»).
 // Двигатель установки, объём, моточасы и состояние — второй строкой,
 // комплектность — во всю ширину (двигатель добавлен 30.09.2026).
-const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, engineKind: 1, engineVolume: 1, hours: 1, state: 1, kit: 4 };
+const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, drive: 2, engineKind: 1, engineVolume: 1, hours: 1, state: 1, kit: 4 };
 
-// Двигатель установки (заметка пользователя 30.09.2026: «сверху — тип
-// двигателя базы, снизу — установки; объём двигателя только у топливных»).
-// В форме модуля подписи короче: блок и так про установку, полное название —
-// в справочнике и в подсказке подписи.
+// Привод и двигатель установки (развёртка, согласована 30.09.2026): сначала
+// привод — без двигателя, от двигателя базы через КОМ или свой; тип двигателя —
+// только у своего, рабочий объём — только у топливного. У оборудования без
+// машины привода от базы не бывает. В форме модуля подписи короче: блок и так
+// про установку, полное название — в подсказке.
 const FUEL_ENGINES = ['Дизель', 'Бензин', 'Газ'];
-const MODULE_LABEL = { engineKind: 'Двигатель', engineVolume: 'Раб. объём' };
-const moduleFields = (vals, list) => list
-  .filter((f) => f.key !== 'engineVolume' || FUEL_ENGINES.includes(vals.engineKind))
+const FROM_BASE = 'От двигателя базы (КОМ)';
+const MODULE_LABEL = { drive: 'Привод', engineKind: 'Двигатель', engineVolume: 'Раб. объём' };
+// Модуль целиком заполняют на осмотре — это сказано в заголовке блока, метка
+// «осмотр» у каждого его поля ничего не добавляла.
+const moduleFields = (vals, list, lone = false) => list
+  .map((f) => (f.source === 'Осмотр' ? { ...f, source: '' } : f))
+  .filter((f) => f.key !== 'engineKind' || vals.drive === 'Свой двигатель')
+  .filter((f) => f.key !== 'engineVolume' || (vals.drive === 'Свой двигатель' && FUEL_ENGINES.includes(vals.engineKind)))
+  .map((f) => (f.key === 'drive' && lone ? { ...f, options: f.options.filter((o) => o !== FROM_BASE) } : f))
   .map((f) => (MODULE_LABEL[f.key] ? { ...f, short: MODULE_LABEL[f.key] } : f));
 const spanOf = (f, owner) => (owner !== 'main' && MODULE_SPAN[f.key])
   || SPAN[f.key] || (f.type === 'yes' || f.type === 'int' || f.type === 'year' ? 1 : 2);
 const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner, `vh-s${spanOf(f, owner)}`)).join('');
 const grid = (vals, list, owner) => `<div class="grid vh-grid">${cells(vals, list, owner)}</div>`;
 const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)}${extra}</div>${body}`;
-
-// Справка о выбранной базе, виде или оборудовании — во всплывающей подсказке
-// подписи списка, а не блоком под ним.
-const aboutTip = (a) => {
-  if (!a) return '';
-  // У базы в справочнике — описание, у вида спецтехники и оборудования —
-  // перечень характеристик для дополнительных параметров.
-  const isBase = 'category' in a;
-  const text = [a.run && `Ходовая: ${a.run}`, a.hint && (isBase ? a.hint : `Характеристики: ${a.hint}`),
-    a.note, a.examples && `Примеры: ${a.examples}`]
-    .filter(Boolean).join('\n');
-  return text ? `class="vh-tip" title="${esc(text)}"` : '';
-};
 
 // --- 02 Вид объекта ---------------------------------------------------------------
 // Развёртка согласована пользователем 30.09.2026 («Ок… Переноси в макет»):
@@ -337,56 +331,64 @@ function extraPart(rows, owner, title = 'Дополнительные парам
   return sub(title, `<p class="vh-howto vh-howto-sub">${help}</p>${extraTableHTML(rows, owner)}`, add);
 }
 
-// --- 06 Модули ---------------------------------------------------------------------------
-// Сводная таблица и под ней форма выбранного модуля (практики «добавить ещё
-// один» и «список с подробной формой»). Свой цвет блока — фиолетовый: модули
-// не спутать с самой машиной (указание пользователя 23.09.2026).
-function moduleRow(m, on) {
-  const cell = (k) => esc(String(m.f[k] || '').trim() || '—');
-  return `<tr class="vh-mrow ${on ? 'on' : ''}" data-ts-mpick="${m.id}" aria-selected="${on}" tabindex="0"
-      title="Открыть модуль">
-    <td><div class="vh-mname">${esc(moduleTitle(m))}</div><div class="vh-mpath">${esc(m.group || 'Группа не выбрана')}</div></td>
-    <td>${cell('model')}</td>
-    <td>${cell('serialNo')}</td>
-    <td class="mu-c-num">${cell('year')}</td>
-    <td>${cell('state')}</td>
-    <td class="mu-c-act"><button class="ax-x mu-del" data-ts-mdel="${m.id}" title="Удалить модуль"
-      aria-label="Удалить модуль ${esc(moduleTitle(m))}">×</button></td>
-  </tr>`;
+// --- 05 Модули ---------------------------------------------------------------------------
+// Список с раскрытием (развёртка, согласована 30.09.2026; практика «добавить
+// ещё», DWP/GOV.UK): строка — сводка модуля, щелчок раскрывает его поля;
+// раскрыт один модуль за раз. Удалить — только крестиком в строке: прежние
+// таблица и форма под ней повторяли одно и то же, а удаление было в двух
+// местах. «+ Добавить модуль» — внизу списка. Свой цвет блока — фиолетовый:
+// модули не спутать с самой машиной (указание пользователя 23.09.2026).
+const CHEV = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
+function moduleRow(m, open) {
+  const cell = (k) => `<span class="vh-mcell" data-ts-mcell="${k}">${esc(String(m.f[k] || '').trim() || '—')}</span>`;
+  return `<div class="vh-mitem ${open ? 'open' : ''}" data-ts-mitem="${m.id}">
+    <div class="vh-mrow">
+      <button type="button" class="vh-mtoggle" data-ts-mpick="${m.id}" aria-expanded="${open}"
+        aria-controls="ts-mform-${m.id}">
+        <span class="vh-mcell-name"><span class="vh-mname">${esc(moduleTitle(m))}</span>
+          <span class="vh-mpath">${esc(m.group || 'Группа не выбрана')}</span></span>
+        ${cell('model')}${cell('year')}${cell('state')}
+        <span class="vh-mchev">${CHEV}</span>
+      </button>
+      <button type="button" class="ax-x mu-del vh-mdel" data-ts-mdel="${m.id}" title="Удалить модуль"
+        aria-label="Удалить модуль ${esc(moduleTitle(m))}">×</button>
+    </div>
+    ${open ? moduleFormHTML(m) : ''}
+  </div>`;
 }
 
+// Раскрытый модуль: над списками «Группа / Модуль» — поиск по справочнику
+// модулей (помощник, а не замена: выбор заполняет оба списка).
 function moduleFormHTML(m) {
-  const info = moduleInfo(m.group, m.kind);
   const cascade = `<div class="grid vh-grid">
       <div class="field vh-s2"><label for="ts-${m.id}-g">Группа</label>
         <select class="select" id="ts-${m.id}-g" data-ts-modgroup="${m.id}">${
   options(moduleGroups(), m.group, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-${m.id}-k" ${aboutTip(info)}>Модуль</label>
+      <div class="field vh-s2"><label for="ts-${m.id}-k">Модуль</label>
         <select class="select" id="ts-${m.id}-k" data-ts-modkind="${m.id}" ${m.group ? '' : 'disabled'}>${
   options(moduleKinds(m.group).map((k) => k.name), m.kind, m.group ? 'Выберите модуль' : 'Сначала группа')}</select></div>
     </div>`;
-  return `<div class="vh-mform" data-ts-mform="${m.id}">
-    <div class="sec-h vh-sub">${esc(moduleTitle(m))}<button class="btn btn-danger btn-sm vh-sub-act"
-      data-ts-mdel="${m.id}">Удалить модуль</button></div>
-    ${cascade}
-    ${m.kind ? `${grid(m.f, moduleFields(m.f, MODULE_FIELDS), m.id)}${extraPart(m.extra, m.id, 'Дополнительные параметры модуля')}` : ''}
+  const search = treeSearchHTML({ id: 'ts-mfind', label: 'Найти модуль', placeholder: 'Например: автокран, цистерна, ковш' });
+  return `<div class="vh-mform" id="ts-mform-${m.id}" data-ts-mform="${m.id}">
+    ${search}${cascade}
+    ${m.kind ? `${grid(m.f, moduleFields(m.f, MODULE_FIELDS), m.id)}${extraPart(m.extra, m.id, 'Параметры модуля')}` : ''}
   </div>`;
 }
 
+// Какой модуль раскрыт: выбранный; не выбирали — первый; «none» — ни один.
+export const openModuleId = (ctx, v) => {
+  const want = ctx.ui && ctx.ui.tsModule;
+  if (want === 'none') return '';
+  return (v.modules.find((m) => m.id === want) || v.modules[0] || {}).id || '';
+};
+
 function modulesHTML(ctx, v, idx) {
-  const cur = v.modules.find((m) => m.id === ctx.ui.tsModule) || v.modules[0] || null;
-  const add = `<button class="btn btn-primary btn-sm" data-ts-madd style="margin-left:auto" title="${esc(
-    'Модуль — то, что стоит на машине сверху: кузов, цистерна, кран-манипулятор, ковш, отвал. Описывается отдельно '
-    + 'от машины — на то же шасси могли поставить другое')}">+ Модуль</button>`;
-  const table = v.modules.length ? `<div class="mu-table-wrap"><table class="tbl vh-mtbl">
-      <colgroup><col><col style="width:22%"><col style="width:18%"><col style="width:56px">
-        <col style="width:18%"><col style="width:36px"></colgroup>
-      <thead><tr><th>Модуль</th><th>Модель</th><th>Заводской №</th><th class="mu-c-num">Год</th>
-        <th>Состояние</th><th></th></tr></thead>
-      <tbody>${v.modules.map((m) => moduleRow(m, cur && m.id === cur.id)).join('')}</tbody>
-    </table></div>` : '';
-  return card('violet', idx, 'Модули', 'надстройки, навесное и сменное оборудование на машине',
-    `${table || '<div class="vehicle-note">Модулей нет.</div>'}${cur ? moduleFormHTML(cur) : ''}`, add);
+  const open = openModuleId(ctx, v);
+  const list = v.modules.map((m) => moduleRow(m, m.id === open)).join('');
+  return card('violet', idx, 'Модули', 'что стоит на машине: кузов, цистерна, кран, навесное; осмотр',
+    `<div class="vh-mlist">${list || '<div class="vehicle-note">Модулей нет.</div>'}
+      <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`);
 }
 
 // --- Фото с осмотра ------------------------------------------------------------------------
@@ -405,20 +407,24 @@ function photosHTML(ctx, v, idx, set) {
     }).join('');
     const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}"
       title="Можно выбрать сразу несколько файлов">+ Фото</button>`;
-    return sub(`${cat} · ${n}`, `<div class="ph-row">${tiles || '<span class="vehicle-note">Фото нет.</span>'}</div>`, add);
+    // У оборудования без машины снимки подписаны его названием, а не «Модули»:
+    // единица одна (развёртка 30.09.2026); категория в данных — прежняя.
+    const label = v.kind === 'module' && v.modKind ? v.modKind : cat;
+    return sub(`${label} · ${n}`, `<div class="ph-row">${tiles || '<span class="vehicle-note">Фото нет.</span>'}</div>`, add);
   }).join('');
   return card('blue', idx, 'Фото с осмотра', '', body);
 }
 
 // --- «Оборудование без машины» -----------------------------------------------------------
+// Наработка и состояние — подразделом того же блока, как у машины (развёртка
+// 30.09.2026): отдельным блоком она была только здесь. Заголовок — название
+// оборудования.
 function loneModuleHTML(v, idx) {
-  return card('violet', idx, 'Оборудование', 'снятое с машины или хранящееся отдельно',
-    grid(v.f, moduleFields(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine')), 'main') + extraPart(v.extra, 'main', 'Дополнительные параметры', 'module'));
-}
-
-function loneUseHTML(v, idx) {
-  return card('amber', idx, 'Наработка и состояние', 'по осмотру',
-    useGrid(v.f, MODULE_FIELDS.filter((f) => f.block === 'use')));
+  const use = MODULE_FIELDS.filter((f) => f.block === 'use');
+  return card('violet', idx, v.modKind || 'Оборудование', 'снято с машины или хранится отдельно; осмотр',
+    grid(v.f, moduleFields(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), true), 'main')
+    + sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>')
+    + extraPart(v.extra, 'main', 'Параметры оборудования', 'module'));
 }
 
 // Форма ТС — от «Вида объекта» до фото. holder — запись, у которой лежит
@@ -434,7 +440,7 @@ export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
 
   if (classified(v)) {
     if (v.kind === 'module') {
-      parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), photosHTML(ctx, v, n(), set));
+      parts.push(loneModuleHTML(v, n()), photosHTML(ctx, v, n(), set));
     } else {
       parts.push(regHTML(v, n()), machineHTML(v, n()), modulesHTML(ctx, v, n()),
         photosHTML(ctx, v, n(), set));

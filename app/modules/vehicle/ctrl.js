@@ -10,11 +10,12 @@ import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
+import { openModuleId } from './view.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
-  kindLeaves, applyKindLeaf,
+  kindLeaves, applyKindLeaf, moduleLeaves,
   normVin, vinWarning, normPlate, idMissing,
 } from './tsModel.js';
 
@@ -116,7 +117,7 @@ export function bindTsForm(ctx, holder, set) {
   // --- поля машины и модулей ------------------------------------------------
   // Поля, от которых зависит состав карточки (топливо, вид прицепной
   // машины), при смене перерисовывают её; остальные пишутся молча.
-  const RERENDER = new Set(['fuel', 'vidMashiny', 'engineKind']);
+  const RERENDER = new Set(['fuel', 'vidMashiny', 'drive', 'engineKind']);
 
   s.$$('[data-tsf]').forEach((el) => {
     const [who, key] = split(el.dataset.tsf);
@@ -255,38 +256,36 @@ export function bindTsForm(ctx, holder, set) {
     box.hidden = focusInGroup || !idMissing(v);
   }
 
-  // Строка модуля в таблице следует за полями формы без перерисовки.
+  // Строка модуля следует за полями его формы без перерисовки.
   function syncModuleRow(id) {
     const m = owner(id);
-    const row = s.$(`[data-ts-mpick="${id}"]`);
-    if (!m || !row) return;
-    const cells = row.querySelectorAll('td');
-    const val = (k) => String(m.f[k] || '').trim() || '—';
-    cells[1].textContent = val('model');
-    cells[2].textContent = val('serialNo');
-    cells[3].textContent = val('year');
-    cells[4].textContent = val('state');
+    const item = s.$(`[data-ts-mitem="${id}"]`);
+    if (!m || !item) return;
+    item.querySelectorAll('[data-ts-mcell]').forEach((c) => {
+      c.textContent = String(m.f[c.dataset.tsMcell] || '').trim() || '—';
+    });
   }
 
-  // --- 06 Модули ---------------------------------------------------------------
+  // --- 05 Модули ---------------------------------------------------------------
+  // Список с раскрытием: щелчок по строке раскрывает модуль или сворачивает
+  // раскрытый; раскрыт один за раз. Новый модуль раскрывается сразу.
   const madd = s.$('[data-ts-madd]');
   if (madd) madd.onclick = async () => {
     const m = addModule(v);
     ctx.ui.tsModule = m.id;
     await ctx.render();
-    const g = s.$(`[data-ts-modgroup="${m.id}"]`);
-    if (g) g.focus();
+    const q = s.$('#ts-mfind-q');
+    if (q) q.focus();
   };
 
-  s.$$('[data-ts-mpick]').forEach((row) => {
-    const pick = () => { ctx.ui.tsModule = row.dataset.tsMpick; ctx.render(); };
-    row.onclick = (e) => { if (!e.target.closest('[data-ts-mdel]')) pick(); };
-    row.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+  s.$$('[data-ts-mpick]').forEach((b) => b.onclick = () => {
+    const id = b.dataset.tsMpick;
+    ctx.ui.tsModule = b.getAttribute('aria-expanded') === 'true' ? 'none' : id;
+    ctx.render();
   });
 
-  // Удаление модуля — крестиком в строке таблицы и кнопкой в его форме.
-  // Модуль со сведениями уносит их с собой — спрашиваем (как у единиц
-  // механизмов в гражданском); пустой убирается сразу.
+  // Удаление модуля — крестиком в строке. Модуль со сведениями уносит их с
+  // собой — спрашиваем (как у единиц механизмов); пустой убирается сразу.
   s.$$('[data-ts-mdel]').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     const id = b.dataset.tsMdel;
@@ -296,7 +295,7 @@ export function bindTsForm(ctx, holder, set) {
     if (filled) {
       const ok = await confirmDialog({
         title: 'Удалить модуль',
-        text: `Удалить «${m.kind || 'модуль'}» с машины? Его сведения и дополнительные параметры будут удалены.`,
+        text: `Удалить «${m.kind || 'модуль'}» с машины? Его сведения и параметры будут удалены.`,
         okLabel: 'Удалить',
         danger: true,
       });
@@ -323,6 +322,17 @@ export function bindTsForm(ctx, holder, set) {
     m.kind = el.value;
     ctx.render();
   });
+
+  // Поиск модуля — помощник над списками раскрытого модуля: выбор ставит
+  // группу и модуль разом.
+  const openMod = owner(openModuleId(ctx, v));
+  if (openMod && openMod !== v) {
+    bindTreeSearch(s, {
+      id: 'ts-mfind',
+      leaves: moduleLeaves,
+      onPick: (l) => { openMod.group = l.group; openMod.kind = l.item; ctx.render(); },
+    });
+  }
 
   // --- дополнительные параметры (у машины и у каждого модуля) -----------------
   const row = (attr, el) => {

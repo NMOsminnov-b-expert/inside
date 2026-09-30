@@ -29,8 +29,10 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * у базы свои особые поля (у трактора — ходовая флажками);
   * модуль удаляется крестиком в строке (виден без наведения) и кнопкой в
     форме; со сведениями — с подтверждением, пустой — сразу;
-  * модули: добавляются кнопкой, выбираются каскадом, строка таблицы следует
-    за полями формы; у модуля своя таблица дополнительных параметров;
+  * модули — список с раскрытием: строка — сводка и крестик удаления (одно
+    удаление на модуль), щелчок раскрывает и сворачивает; каскад группа →
+    модуль, строка следует за полями; привод установки: тип двигателя только
+    у своего, объём только у топливного; у модуля своя таблица параметров;
     подсказок «обычно вписывают» нет (указание пользователя 23.09.2026);
   * у самоходной машины и отдельного модуля — свои поля;
   * блок «Фото с осмотра» — две категории, «Машина» и «Модули»; снимок
@@ -237,12 +239,19 @@ def run(t):
     pg.select_option('[data-ts-modkind="%s"]' % mid, 'Экскаваторное оборудование')
     t.wait_for('[data-tsf="%s|model"]' % mid)
     pg.fill('[data-tsf="%s|model"]' % mid, 'ЭО-2621')
-    # Двигатель установки: объём — только у топливного (заметка 30.09.2026).
-    t.ck(pg.locator('[data-tsf="%s|engineVolume"]' % mid).count() == 0, 'объём двигателя установки до выбора двигателя')
+    # Привод установки: тип двигателя — только у своего, объём — только у
+    # топливного (развёртка 30.09.2026).
+    t.ck(pg.locator('[data-tsf="%s|engineKind"]' % mid).count() == 0, 'тип двигателя установки до выбора привода')
+    pg.select_option('[data-tsf="%s|drive"]' % mid, 'Свой двигатель')
+    t.wait_for('[data-tsf="%s|engineKind"]' % mid)
+    t.ck(pg.locator('[data-tsf="%s|engineVolume"]' % mid).count() == 0, 'объём двигателя до выбора типа')
     pg.select_option('[data-tsf="%s|engineKind"]' % mid, 'Дизель')
     t.wait_for('[data-tsf="%s|engineVolume"]' % mid)
-    pg.select_option('[data-tsf="%s|engineKind"]' % mid, 'Нет своего (от КОМ базы)')
+    pg.select_option('[data-tsf="%s|engineKind"]' % mid, 'Электро')
     t.wait_until("() => !document.querySelector('[data-tsf=\"%s|engineVolume\"]')" % mid)
+    pg.select_option('[data-tsf="%s|drive"]' % mid, 'От двигателя базы (КОМ)')
+    t.wait_until("() => !document.querySelector('[data-tsf=\"%s|engineKind\"]')" % mid)
+    t.ck(pg.locator('[data-ts-mform="%s"] .vh-src' % mid).count() == 0, 'у полей модуля остались метки «осмотр»')
     t.wait_until("() => document.querySelector('[data-ts-mpick=\"%s\"]').innerText.includes('ЭО-2621')" % mid)
 
     pg.click('[data-tsx-add="%s"]' % mid)
@@ -255,18 +264,33 @@ def run(t):
 
     # Удаление: крестик в строке виден без наведения; модуль со сведениями —
     # с подтверждением, пустой — сразу (замечание пользователя 23.09.2026).
-    cross = pg.locator('[data-ts-mpick="%s"] [data-ts-mdel]' % mid)
+    cross = pg.locator('[data-ts-mitem="%s"] [data-ts-mdel]' % mid)
     t.ck(float(cross.evaluate('(e) => getComputedStyle(e).opacity')) == 1, 'крестик удаления модуля невидим')
-    t.ck(pg.locator('[data-ts-mform="%s"] [data-ts-mdel]' % mid).count() == 1, 'в форме модуля нет кнопки удаления')
+    t.ck(pg.locator('[data-ts-mform="%s"] [data-ts-mdel]' % mid).count() == 0, 'удаление модуля — не только в строке')
+    # Щелчок по строке сворачивает раскрытый модуль и раскрывает снова.
+    pg.click('[data-ts-mpick="%s"]' % mid)
+    t.wait_until("() => !document.querySelector('[data-ts-mform]')")
+    pg.click('[data-ts-mpick="%s"]' % mid)
+    t.wait_for('[data-ts-mform="%s"]' % mid)
+    cross = pg.locator('[data-ts-mitem="%s"] [data-ts-mdel]' % mid)
     cross.click()
     t.wait_for('[data-modal-ok]')
     pg.click('[data-modal-ok]')
-    t.wait_until("() => !document.querySelector('[data-ts-mpick]')")
+    t.wait_until("() => !document.querySelector('[data-ts-mitem]')")
     t.ck(pg.evaluate(REC)['modules'] == [], 'модуль не удалился из записи')
     pg.click('[data-ts-madd]')
     t.wait_for('[data-ts-mdel]')
-    pg.locator('[data-ts-mpick] [data-ts-mdel]').first.click()
-    t.wait_until("() => !document.querySelector('[data-ts-mpick]')")
+    # Поиск модуля — помощник над списками: выбор ставит группу и модуль разом.
+    t.wait_until("() => document.activeElement && document.activeElement.id === 'ts-mfind-q'")
+    pg.keyboard.type('автокран')
+    t.wait_for('#ts-mfind-list [role="option"]')
+    pg.keyboard.press('Enter')
+    t.wait_until("() => { const g = document.querySelector('[data-ts-modgroup]'); return g && g.value === 'Подъёмные'; }")
+    t.ck(pg.locator('[data-ts-modkind]').input_value() == 'Автокран', 'поиск модуля не поставил модуль')
+    pg.locator('[data-ts-mitem] [data-ts-mdel]').first.click()
+    t.wait_for('[data-modal-ok]')
+    pg.click('[data-modal-ok]')
+    t.wait_until("() => !document.querySelector('[data-ts-mitem]')")
     t.ck(pg.locator('[data-modal-ok]').count() == 0, 'пустой модуль удаляется с вопросом')
 
     # --- фото с осмотра ---------------------------------------------------------------
@@ -303,7 +327,7 @@ def run(t):
     pg.select_option('[data-ts-mkind]', 'Ковш скальный')
     t.wait_for('[data-tsf="main|serialNo"]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[2:] == ['Оборудование', 'Наработка и состояние', 'Фото с осмотра'],
+    t.ck(heads[2:] == ['Ковш скальный', 'Фото с осмотра'],
          'у оборудования без машины не те блоки: %s' % heads)
     t.ck(pg.locator('[data-tsx-add="main"]').count() == 1, 'у отдельного модуля нет дополнительных параметров')
 
