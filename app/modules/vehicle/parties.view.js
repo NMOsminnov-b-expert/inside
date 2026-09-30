@@ -142,9 +142,25 @@ function responsiblesHTML(rec) {
 }
 
 // names — известные наименования собственников (ownerNames в records.js).
-export function partiesHTML(rec, idx, names) {
+// Учреждение выбрано — блок сворачивается в строку со сводкой и
+// «Развернуть» (развёртка карточки ТС, согласована 30.09.2026): заполняют его
+// при создании и возвращаются редко, а место он занимал всю работу.
+export function partiesSummary(rec) {
+  const owners = (rec.owners || []).filter((o) => String(o.name || '').trim()).length;
+  const resp = Object.values(rec.resp || {}).filter(Boolean).length;
+  return [rec.institution, rec.podved, `собственников ${owners}`, `ответственных ${resp} из 4`].filter(Boolean).join(' · ');
+}
+
+export function partiesHTML(rec, idx, names, open = true) {
+  if (!open && rec.institution) {
+    return `<div class="card t-slate vh-parties-sum" data-parties-sum><div class="card-head"><span class="card-idx">${idx}</span>
+      <h3>Учреждение, собственники и ответственные</h3><span class="hint vh-kind-what">${esc(partiesSummary(rec))}</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-parties-toggle style="margin-left:auto">Развернуть</button></div></div>`;
+  }
+  const fold = rec.institution
+    ? '<button type="button" class="btn btn-ghost btn-sm" data-parties-toggle style="margin-left:auto">Свернуть</button>' : '';
   return `<div class="card t-slate"><div class="card-head"><span class="card-idx">${idx}</span>
-    <h3>Учреждение, собственники и ответственные</h3></div>
+    <h3>Учреждение, собственники и ответственные</h3>${fold}</div>
     <div class="card-pad">
       <div class="grid g-4 g-top">
         <div class="field"><label>Головное учреждение</label>

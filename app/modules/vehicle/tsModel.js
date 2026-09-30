@@ -197,6 +197,31 @@ export function dropModule(v, id) {
 
 export const moduleTitle = (m) => m.kind || 'Модуль не выбран';
 
+// «Создать похожее» — для парка одинаковых машин (развёртка, согласована
+// 30.09.2026): переносится то, что у машин одной модели общее, — вид объекта,
+// база, характеристики и модули. Не переносится то, что у каждой машины своё:
+// номера, регистрация, где стоит, наработка и состояние, особые отметки
+// (дополнительные параметры), фото. У модулей — без заводского номера и
+// наработки.
+const OWN_KEYS = ['vin', 'bodyNo', 'chassisNo', 'engineNo', 'serialNo', 'plate', 'vid', 'regDate', 'docNo',
+  'factAddr', 'mileage', 'engineHours', 'hours', 'state', 'kit'];
+const pick = (f) => Object.fromEntries(Object.entries(f || {}).filter(([k]) => !OWN_KEYS.some((o) => k === o || k === o + '@unit')));
+
+export function copyVehicle(v) {
+  return {
+    kind: v.kind, category: v.category, base: v.base, selfGroup: v.selfGroup, selfKind: v.selfKind,
+    modGroup: v.modGroup, modKind: v.modKind,
+    f: pick(v.f), extra: [],
+    modules: v.modules.map((m) => ({ id: nextId('vm'), group: m.group, kind: m.kind, f: pick(m.f), extra: [] })),
+  };
+}
+
+// Подпись шапки: марка с моделью и то, что стоит на машине.
+export function makeWithModules(v) {
+  const mods = v.modules.map((m) => m.kind).filter(Boolean);
+  return [makeModel(v), ...mods].filter(Boolean).join(' + ');
+}
+
 // --- подписи записи -----------------------------------------------------------
 // Название — марка и модель, как в техпаспорте; отдельного поля «наименование»
 // нет. Пока их нет — то, что уже выбрано в классификации.

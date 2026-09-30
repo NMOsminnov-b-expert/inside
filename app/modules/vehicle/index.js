@@ -63,6 +63,8 @@ export function main(host) {
   draw();
   return {
     onRoute(nextRoute) {
+      // Другая запись — свёртки и раскрытый модуль решаются для неё заново.
+      if (nextRoute.ocId !== route.ocId) ['partiesOpen', 'tsKindOpen', 'tsModule'].forEach((k) => { delete ui[k]; });
       route = nextRoute;
       rec = load(route.ocId);
       draw();

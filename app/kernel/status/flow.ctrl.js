@@ -25,13 +25,17 @@ export function bindFlow(ctx, o) {
 
   s.$$(`[data-${o.key}-go]`).forEach((b) => b.onclick = async () => {
     const to = b.dataset[`${o.key}Go`];
-    const note = isBranch(to, o.flow)
+    const base = isBranch(to, o.flow)
       ? 'Это боковая ветка: из неё дальше по шкале объект не пойдёт.'
       : `Шаг ${stepOf(to, o.flow) + 1} из ${o.flow.main.length}. Вернуть прежний статус шкалой нельзя${o.back ? ' — только ' + o.back : ''}.`;
+    // Что пусто в карточке — добавкой к пояснению и списком, без запрета:
+    // o.more(to) → { note, list } или null.
+    const more = o.more ? o.more(to) : null;
     const ok = await ctx.host.confirm({
       title: 'Сменить статус',
       text: `«${o.get()}» → «${to}»`,
-      note,
+      note: more && more.note ? `${more.note} ${base}` : base,
+      list: (more && more.list) || [],
       okLabel: 'Перевести',
     });
     if (!ok) return;
@@ -42,10 +46,12 @@ export function bindFlow(ctx, o) {
   });
 }
 
-// Шкала объекта оценки — в шапке карточки ОЦ.
-export function bindStatusFlow(ctx) {
+// Шкала объекта оценки — в шапке карточки ОЦ. more(to) → { note, list } —
+// добавка к окну подтверждения (например, что в карточке пусто).
+export function bindStatusFlow(ctx, { more = null } = {}) {
   const rec = ctx.rec;
   bindFlow(ctx, {
+    more,
     key: 'status',
     flow: OC_FLOW,
     collapsed: 'statusCollapsed',

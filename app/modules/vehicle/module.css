@@ -252,3 +252,8 @@
 /* Режим осмотра — поля крупнее: заполняют на месте, часто с планшета. */
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-inspect .input,:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-inspect .select{min-height:40px;font-size:14px}
 @media (prefers-reduced-motion:reduce){:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-flash{transition:none}}
+/* Шапка ТС: «Сохранено · время» — тихой строкой перед кнопками. Свёрнутые
+   стороны — одна строка со сводкой, как свёрнутый вид объекта. */
+body[data-module="vehicle"] .vh-saved{font-size:11.5px;color:var(--muted);white-space:nowrap;align-self:center}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-parties-sum .card-head{border-bottom:0}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-parties-sum .vh-kind-what{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

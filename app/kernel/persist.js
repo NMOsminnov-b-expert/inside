@@ -103,6 +103,12 @@ function stripBlobs(value, seen = new WeakSet()) {
   return out;
 }
 
+// Когда снимок последний раз лёг в хранилище — для строки «Сохранено · 13:42»
+// в шапке карточки. Событие «inside:saved» на документе — чтобы шапка
+// обновлялась без перерисовки.
+let lastSaved = null;
+export const lastSavedAt = () => lastSaved;
+
 export function saveNow() {
   timer = null;
 
@@ -125,6 +131,8 @@ export function saveNow() {
       return false;
     }
     localStorage.setItem(KEY, text);
+    lastSaved = new Date();
+    document.dispatchEvent(new CustomEvent('inside:saved', { detail: lastSaved }));
     return true;
   } catch (e) {
     if (!warned) {

@@ -43,6 +43,8 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
     пользователя 30.09.2026);
   * строка разделов: заполненность следует за вводом, список пустых полей
     ведёт к полю; «Для осмотра» прячет регистрацию и поля техпаспорта;
+  * шапка: «Сохранено · время»; окно смены статуса называет пустые поля;
+    «Создать похожее» открывает новую запись без заводских номеров;
   * введённое переживает перезагрузку страницы (kernel/persist.js): модуль
     пришёл из ветки TS-Daniil без сохранения, и каждая перезагрузка стирала
     заведённые ТС (замечание пользователя 23.09.2026).
@@ -368,3 +370,21 @@ def run(t):
          'после перезагрузки потеряны модули или поля машины')
     t.ck((after.get('photoSet') or {}).get('photos', {}).get('Машина') == 2,
          'после перезагрузки пропал счёт фото с осмотра')
+
+    # --- шапка, смена статуса, «Создать похожее» (развёртка 30.09.2026) ------------
+    t.wait_until("() => (document.querySelector('[data-vehicle-saved]') || {}).textContent.startsWith('Сохранено')")
+    pg.locator('[data-status-go]:visible').first.click()
+    t.wait_for('.modal-body')
+    t.ck('пусто полей' in pg.inner_text('.modal-body'), 'в окне смены статуса нет пустых полей')
+    pg.keyboard.press('Escape')
+    t.wait_until("() => !document.querySelector('.modal-body')")
+    count = pg.evaluate("async () => (await import('/app/modules/vehicle/records.js')).allRecords().length")
+    pg.click('[data-vehicle-copy]')
+    t.wait_for('[data-modal-ok]')
+    pg.click('[data-modal-ok]')
+    t.wait_until("async () => (await import('/app/modules/vehicle/records.js')).allRecords().length === %d" % (count + 1))
+    copy = pg.evaluate(REC)
+    t.ck(copy.get('kind') == 'module' and copy.get('modKind') == 'Ковш скальный', 'похожее ТС — не того вида: %s' % copy.get('modKind'))
+    t.ck(not copy.get('f', {}).get('serialNo'), 'в похожее ТС перенёсся заводской номер')
+    t.wait_for('.vehicle-form [data-tsf="main|serialNo"]')
+    t.ck(pg.input_value('[data-tsf="main|serialNo"]') == '', 'после «Создать похожее» открыта не новая запись')

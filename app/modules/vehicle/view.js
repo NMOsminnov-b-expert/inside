@@ -8,9 +8,10 @@ import { tsFieldHTML } from './tsFields.view.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields,
-  moduleTitle, whatLabel, makeModel, categoryCandidates,
+  moduleTitle, whatLabel, categoryCandidates, makeWithModules,
 } from './tsModel.js';
 import { treeSearchHTML } from '../../kernel/treeSearch.js';
+import { lastSavedAt } from '../../kernel/persist.js';
 import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 
 // Карточка транспортного средства как объекта оценки — по категоризации
@@ -533,7 +534,21 @@ export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
 }
 
 function formHTML(ctx) {
-  return tsFormHTML(ctx, ctx.rec, photoSetOf(ctx.rec), { parties: (n) => partiesHTML(ctx.rec, n, ownerNames()) });
+  // Свёрнуты ли стороны, решается один раз при открытии карточки: учреждение
+  // уже выбрано — свёрнуты; нет — развёрнуты и остаются такими, пока с ними
+  // работают (иначе блок схлопывался сразу после выбора учреждения).
+  if (ctx.ui.partiesOpen === undefined) ctx.ui.partiesOpen = !ctx.rec.institution;
+  const open = ctx.ui.partiesOpen;
+  return tsFormHTML(ctx, ctx.rec, photoSetOf(ctx.rec), { parties: (n) => partiesHTML(ctx.rec, n, ownerNames(), open) });
+}
+
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «сохранено» здесь — снимок в хранилище браузера
+// (kernel/persist.js), он пишется сам после каждой правки. На сервере это
+// время последнего принятого сервером изменения; развилка — сохранять каждую
+// правку сразу или черновиком с явным «Сохранить».
+export function savedText() {
+  const at = lastSavedAt();
+  return at ? `Сохранено · ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}` : '';
 }
 
 // Шапка — общая на все типы ОЦ (kernel/ocHead.js). Объектов имущества у ТС
@@ -546,9 +561,14 @@ function headVehicle(ctx) {
       { label: 'Тип ОЦ', value: ctx.manifest.label },
       { label: 'Вид', value: whatLabel(v) || '—' },
       { label: 'Рег. номер', value: v.f.plate || 'не указан' },
-      { label: 'Марка и модель', value: makeModel(v) || 'не указаны', wide: true },
+      { label: 'Марка и модель', value: makeWithModules(v) || 'не указаны', wide: true },
     ],
-    actions: `<button class="btn btn-ghost" data-vehicle-back>← К объектам оценки</button>
+    // «Сохранено · 13:42» — когда запись последний раз легла в хранилище
+    // (kernel/persist.js); «Создать похожее» — для парка одинаковых машин.
+    actions: `<span class="hint vh-saved" data-vehicle-saved>${esc(savedText())}</span>
+      <button class="btn btn-ghost" data-vehicle-copy ${classified(v) ? '' : 'disabled'}
+        title="Новый объект оценки с тем же видом, базой, характеристиками и модулями">Создать похожее</button>
+      <button class="btn btn-ghost" data-vehicle-back>← К объектам оценки</button>
       <button class="btn btn-primary" data-vehicle-save>Сохранить</button>`,
     tabs: [{ key: 'general', label: 'Общие данные' }],
   });

@@ -10,12 +10,13 @@ import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
-import { openModuleId, navHTML } from './view.js';
+import { openModuleId, navHTML, sectionFields, savedText } from './view.js';
+import { createRecord } from './records.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
-  kindLeaves, applyKindLeaf, moduleLeaves,
+  kindLeaves, applyKindLeaf, moduleLeaves, classified, copyVehicle, makeWithModules, whatLabel,
   normVin, vinWarning, normPlate, idMissing,
 } from './tsModel.js';
 
@@ -466,8 +467,22 @@ export function bindVehicle(ctx) {
   // Учреждение, собственники и ответственные.
   bindParties(ctx);
 
-  // Шкала статусов в шапке и просмотрщик — общие с остальными типами ОЦ.
-  bindStatusFlow(ctx);
+  // Шкала статусов в шапке и просмотрщик — общие с остальными типами ОЦ. В
+  // окне смены статуса — что в карточке пусто, без запрета (развёртка
+  // 30.09.2026; какие поля обязательны на каком этапе, пользователь ещё не
+  // определил).
+  bindStatusFlow(ctx, {
+    more: () => {
+      const v = tsOf(ctx.rec);
+      if (!classified(v)) return null;
+      const empty = ['reg', 'machine'].flatMap((k) => sectionFields(v, k).flatMap((g) => g.fields))
+        .filter((f) => { const x = v.f[f.key]; return Array.isArray(x) ? !x.length : !String(x ?? '').trim(); });
+      if (!empty.length) return null;
+      const list = empty.slice(0, 6).map((f) => f.label);
+      if (empty.length > 6) list.push(`и ещё ${empty.length - 6}`);
+      return { note: `В карточке пусто полей: ${empty.length}. Перевести можно и так.`, list };
+    },
+  });
   bindViewer(ctx);
   bindSplitPanes(ctx);
 
@@ -480,4 +495,38 @@ export function bindVehicle(ctx) {
   }
 
   s.$$('[data-vehicle-back]').forEach((button) => button.onclick = () => ctx.host.toMenu());
+
+  // Стороны: «Развернуть» / «Свернуть».
+  s.$$('[data-parties-toggle]').forEach((b) => b.onclick = () => { ctx.ui.partiesOpen = !ctx.ui.partiesOpen; ctx.render(); });
+
+  // «Сохранено · 13:42» следует за хранилищем без перерисовки.
+  if (!s.root.dataset.tsSavedBound) {
+    s.root.dataset.tsSavedBound = '1';
+    s.onDocument('inside:saved', () => { const el = s.$('[data-vehicle-saved]'); if (el) el.textContent = savedText(); });
+  }
+
+  // «Создать похожее»: новая запись ОЦ с тем же учреждением, собственниками и
+  // ответственными; из машины — вид, база, характеристики и модули.
+  const copy = s.$('[data-vehicle-copy]');
+  if (copy) copy.onclick = async () => {
+    const v = tsOf(ctx.rec);
+    const ok = await ctx.host.confirm({
+      title: 'Создать похожее ТС',
+      text: `Новый объект оценки по образцу «${makeWithModules(v) || whatLabel(v)}».`,
+      list: [
+        { label: 'Переносится', value: 'учреждение, собственники, ответственные; вид объекта и база; марка, год, двигатель, массы, ходовая; модули' },
+        { label: 'Не переносится', value: 'номера, регистрация, где стоит, наработка и состояние, заводские номера модулей, особые отметки, фото' },
+      ],
+      okLabel: 'Создать',
+    });
+    if (!ok) return;
+    const rec = createRecord();
+    Object.assign(rec, {
+      institution: ctx.rec.institution, podved: ctx.rec.podved, institutionId: ctx.rec.institutionId,
+      owners: JSON.parse(JSON.stringify(ctx.rec.owners || [])), resp: { ...(ctx.rec.resp || {}) },
+      vehicle: copyVehicle(v),
+    });
+    ctx.toast('Создано похожее ТС — впишите номера и регистрацию', 'ok');
+    ctx.host.navigate({ ocId: rec.id, rest: [] });
+  };
 }
