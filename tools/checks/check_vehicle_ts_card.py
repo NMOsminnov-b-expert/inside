@@ -33,6 +33,9 @@ tools/data/build_ts_catalog.py). Сценарий держит то, что ле
   * блок «Фото с осмотра» — две категории, «Машина» и «Модули»; снимок
     открывается в просмотрщике, у которого есть режимы «Фото» и «Сравнение»,
     а в боковой панели — снимки записи (задача пользователя 23.09.2026);
+  * наработка и состояние машины — подразделом её блока, пробег у базы;
+    у модуля — двигатель установки, объём только у топливного (заметки
+    пользователя 30.09.2026);
   * введённое переживает перезагрузку страницы (kernel/persist.js): модуль
     пришёл из ветки TS-Daniil без сохранения, и каждая перезагрузка стирала
     заведённые ТС (замечание пользователя 23.09.2026).
@@ -109,14 +112,16 @@ def run(t):
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[2:] == ['Регистрационный учёт', 'Автотранспортное средство', 'Наработка и состояние', 'Модули',
-                       'Фото с осмотра'],
+    t.ck(heads[2:] == ['Регистрационный учёт', 'Автотранспортное средство', 'Модули', 'Фото с осмотра'],
          'блоки карточки ТС не те: %s' % heads)
 
     subs = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(4) .vh-sub',
                                    'els => els.map((e) => e.firstChild.textContent.trim())')
     t.ck(subs[:4] == ['Общие сведения', 'Номера', 'Тип, двигатель, массы', 'Ходовая и трансмиссия']
-         and subs[-1] == 'Дополнительные параметры', 'подразделы «Машины» не те: %s' % subs)
+         and subs[-2:] == ['Наработка и состояние', 'Дополнительные параметры'], 'подразделы «Машины» не те: %s' % subs)
+    # Пробег — в блоке машины (заметка пользователя 30.09.2026 «Пробег к базе»).
+    t.ck(pg.locator('.vehicle-form .card:nth-of-type(4) [data-tsf="main|mileage"]').count() == 1,
+         'пробег не в блоке машины')
 
     order = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(4) .vh-grid [data-ts-key]',
                                     'els => els.map((e) => e.dataset.tsKey)')
@@ -147,7 +152,7 @@ def run(t):
     t.ck('2019' in tip and 'КР №' in tip, 'в подсказке к VIN нет места графы на бланках: %r' % tip)
     t.ck(pg.inner_text('[data-ts-key="wheelFormula"] .vh-src').strip().lower() == 'осмотр',
          'у колёсной формулы нет метки «осмотр»')
-    # В «Наработке и состоянии» источник назван в заголовке блока — у полей меток нет.
+    # В «Наработке и состоянии» источник назван в заголовке подраздела — у полей меток нет.
     t.ck(pg.locator('.vh-use .vh-src').count() == 0, 'в «Наработке и состоянии» метки источника у каждого поля')
 
     # --- VIN и номера --------------------------------------------------------------
@@ -193,6 +198,12 @@ def run(t):
     pg.select_option('[data-ts-modkind="%s"]' % mid, 'Экскаваторное оборудование')
     t.wait_for('[data-tsf="%s|model"]' % mid)
     pg.fill('[data-tsf="%s|model"]' % mid, 'ЭО-2621')
+    # Двигатель установки: объём — только у топливного (заметка 30.09.2026).
+    t.ck(pg.locator('[data-tsf="%s|engineVolume"]' % mid).count() == 0, 'объём двигателя установки до выбора двигателя')
+    pg.select_option('[data-tsf="%s|engineKind"]' % mid, 'Дизель')
+    t.wait_for('[data-tsf="%s|engineVolume"]' % mid)
+    pg.select_option('[data-tsf="%s|engineKind"]' % mid, 'Нет своего (от КОМ базы)')
+    t.wait_until("() => !document.querySelector('[data-tsf=\"%s|engineVolume\"]')" % mid)
     t.wait_until("() => document.querySelector('[data-ts-mpick=\"%s\"]').innerText.includes('ЭО-2621')" % mid)
 
     pg.click('[data-tsx-add="%s"]' % mid)

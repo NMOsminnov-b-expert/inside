@@ -33,10 +33,15 @@ import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 //   03  Регистрационный учёт          — госномер, VID, дата, документ, адрес
 //   04  Автотранспортное средство     — (у спецтехники — «Спецтехника»)
 //                                       подразделы в порядке граф свидетельства,
-//                                       особое для базы, дополнительные параметры
-//   05  Наработка и состояние
-//   06  Модули                        — что стоит на машине
-//   07  Фото с осмотра                — «Машина» и «Модули»
+//                                       особое для базы, наработка и состояние,
+//                                       дополнительные параметры
+//   05  Модули                        — что стоит на машине
+//   06  Фото с осмотра                — «Машина» и «Модули»
+//
+// Пробег, моточасы и состояние машины — подразделом её блока, а не отдельным
+// блоком (заметка пользователя 30.09.2026 «Пробег к базе»): у машины с
+// модулями наработка своя у базы и своя у каждой установки, и отдельный блок
+// между машиной и модулями читался как общий для всех.
 
 const card = (tone, idx, title, hint, body, extra = '') => `<div class="card t-${tone}">
   <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
@@ -58,7 +63,19 @@ const SPAN = {
 // В форме модуля поля короткие и их мало: изготовитель, модель, заводской № и
 // год — в одну строку, моточасы, состояние и комплектность — в следующую
 // (замечание пользователя 23.09.2026: «в модулях громоздко»).
-const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, hours: 1, state: 1, kit: 2 };
+// Двигатель установки, объём, моточасы и состояние — второй строкой,
+// комплектность — во всю ширину (двигатель добавлен 30.09.2026).
+const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, engineKind: 1, engineVolume: 1, hours: 1, state: 1, kit: 4 };
+
+// Двигатель установки (заметка пользователя 30.09.2026: «сверху — тип
+// двигателя базы, снизу — установки; объём двигателя только у топливных»).
+// В форме модуля подписи короче: блок и так про установку, полное название —
+// в справочнике и в подсказке подписи.
+const FUEL_ENGINES = ['Дизель', 'Бензин', 'Газ'];
+const MODULE_LABEL = { engineKind: 'Двигатель', engineVolume: 'Рабочий объём' };
+const moduleFields = (vals, list) => list
+  .filter((f) => f.key !== 'engineVolume' || FUEL_ENGINES.includes(vals.engineKind))
+  .map((f) => (MODULE_LABEL[f.key] ? { ...f, label: MODULE_LABEL[f.key], hint: f.label + (f.hint ? '. ' + f.hint : '') } : f));
 const spanOf = (f, owner) => (owner !== 'main' && MODULE_SPAN[f.key])
   || SPAN[f.key] || (f.type === 'yes' || f.type === 'int' || f.type === 'year' ? 1 : 2);
 const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner, `vh-s${spanOf(f, owner)}`)).join('');
@@ -207,13 +224,15 @@ function machineHTML(v, idx) {
     parts.push(sub(`Особое для базы «${v.base}»`,
       `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
+  const use = commonFields(v).filter((f) => f.block === 'use');
+  if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">по осмотру</span>'));
   parts.push(extraPart(v.extra, 'main'));
 
   const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
   return card('teal', idx, title, 'в порядке граф свидетельства', parts.join(''));
 }
 
-// Наработка и состояние — всё по осмотру: источник назван в заголовке блока,
+// Наработка и состояние — всё по осмотру: источник назван в заголовке подраздела,
 // метка «осмотр» у каждого поля его только повторяла. Строки без пустот: у
 // машины с пробегом — пробег, моточасы, состояние на полстроки, под ними
 // комплектность; без пробега — моточасы, состояние и комплектность в одну
@@ -226,10 +245,6 @@ function useGrid(vals, list) {
     `vh-s${span(f)}`)).join('')}</div>`;
 }
 
-function useHTML(v, idx) {
-  const list = commonFields(v).filter((f) => f.block === 'use');
-  return card('amber', idx, 'Наработка и состояние', 'по осмотру', useGrid(v.f, list));
-}
 
 // --- дополнительные параметры -------------------------------------------------------
 // Таблица «наименование — значение»: у машины — последним подразделом её блока,
@@ -300,7 +315,7 @@ function moduleFormHTML(m) {
     <div class="sec-h vh-sub">${esc(moduleTitle(m))}<button class="btn btn-danger btn-sm vh-sub-act"
       data-ts-mdel="${m.id}">Удалить модуль</button></div>
     ${cascade}
-    ${m.kind ? `${grid(m.f, MODULE_FIELDS, m.id)}${extraPart(m.extra, m.id, 'Дополнительные параметры модуля')}` : ''}
+    ${m.kind ? `${grid(m.f, moduleFields(m.f, MODULE_FIELDS), m.id)}${extraPart(m.extra, m.id, 'Дополнительные параметры модуля')}` : ''}
   </div>`;
 }
 
@@ -344,7 +359,7 @@ function photosHTML(ctx, v, idx, set) {
 // --- «Оборудование без машины» -----------------------------------------------------------
 function loneModuleHTML(v, idx) {
   return card('violet', idx, 'Оборудование', 'снятое с машины или хранящееся отдельно',
-    grid(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), 'main') + extraPart(v.extra, 'main', 'Дополнительные параметры', 'module'));
+    grid(v.f, moduleFields(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine')), 'main') + extraPart(v.extra, 'main', 'Дополнительные параметры', 'module'));
 }
 
 function loneUseHTML(v, idx) {
@@ -367,7 +382,7 @@ export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
     if (v.kind === 'module') {
       parts.push(loneModuleHTML(v, n()), loneUseHTML(v, n()), photosHTML(ctx, v, n(), set));
     } else {
-      parts.push(regHTML(v, n()), machineHTML(v, n()), useHTML(v, n()), modulesHTML(ctx, v, n()),
+      parts.push(regHTML(v, n()), machineHTML(v, n()), modulesHTML(ctx, v, n()),
         photosHTML(ctx, v, n(), set));
     }
   }

@@ -99,7 +99,7 @@ export function bindTsForm(ctx, holder, set) {
   // --- поля машины и модулей ------------------------------------------------
   // Поля, от которых зависит состав карточки (топливо, вид прицепной
   // машины), при смене перерисовывают её; остальные пишутся молча.
-  const RERENDER = new Set(['fuel', 'vidMashiny']);
+  const RERENDER = new Set(['fuel', 'vidMashiny', 'engineKind']);
 
   s.$$('[data-tsf]').forEach((el) => {
     const [who, key] = split(el.dataset.tsf);
