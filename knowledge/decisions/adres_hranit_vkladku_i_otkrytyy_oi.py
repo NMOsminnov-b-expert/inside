@@ -13,4 +13,4 @@ DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'decision: адрес хранит вкладку и открытый ОИ'
 POINTS = ['#/oc/<тип>/<ocId>/oi/<oiId>?tab=docs — ссылку можно переслать, F5 не сбрасывает экран.']
-LINKS = [{'тип': 'affects', 'куда': 'app-kernel-router-js', 'папка': 'code'}]
+LINKS = [{'тип': 'влияет на', 'куда': 'app-kernel-router-js', 'папка': 'code'}]

@@ -37,10 +37,10 @@ POINTS = [
     '[восстановлено] Проверено: verify_auditv2.py (Playwright, разовый скрипт в scratchpad) — доступ по роли/учреждению (сотрудник без совпадающего учреждения не видит вкладку «Логи», с совпадающим — видит; admin видит любую запись независимо от institutions); после фикса снимка ревизия с правкой year 1990→1999 содержит ровно 1 изменение (до фикса — 2, второе было floorList-шумом). Полный смоук-тест tools/visual-parity/walk-new-build.py — реестр ~20 011 записей, все 5 модулей, 0 ошибок консоли — после и отката V1 из 4 модулей, и сборки V2 в residential-house.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'uses', 'куда': 'app-kernel-session-js', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-session-js', 'папка': 'code'},
     {
-        'тип': 'supersedes',
+        'тип': 'заменяет',
         'куда': 'log-izmeneniy-oc-snimok-i-sravnenie-rol-admin-2026-08-25',
         'папка': 'decisions',
     },

@@ -29,6 +29,6 @@ POINTS = [
     '28.09.2026 модуль удалён: «Производственное строение» слито с гражданским в единый тип «Нежилое здание» (модуль civil, decision tipizaciya-oc-po-vnutrenney-ploschadi). Демо-записи — civil/data/seedProduction.js, сохранённые в браузере переносятся ключом records.production (civil/data/store.js); адрес #/oc/production/... ведёт в civil (manifest.aliases).',
 ]
 LINKS = [
-    {'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
+    {'тип': 'опирается на', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'inside', 'папка': 'project'},
 ]

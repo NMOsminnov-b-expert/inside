@@ -16,6 +16,6 @@ POINTS = [
     'Подкаталог лога действий модуля «Жилое здание (дом)» — единственная реализация фичи на 2026-08-26 (в kernel не переносилась, остальные 4 модуля ОЦ её не имеют). Файлы: model.js (снимок-и-сравнение, плоское хранение rec.auditLog, категоризация по ключу, pushOiDeletionLog, pushDocPageLog, resolveDocRef), view.js (группировка по объекту, два раздела на аккордеон, панель фильтров), ctrl.js (биндинги фильтров и кнопок перехода), categories.js (4 категории + тона), fieldLabels.js (технический ключ → человеческая подпись, единственный такой словарь в проекте), access.js (admin видит всё, сотрудник — только свои учреждения через session.institutions).',
 ]
 LINKS = [
-    {'тип': 'part_of', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'depends_on', 'куда': 'app-kernel-session-js', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'опирается на', 'куда': 'app-kernel-session-js', 'папка': 'code'},
 ]

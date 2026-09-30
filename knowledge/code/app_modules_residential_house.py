@@ -17,7 +17,7 @@ POINTS = [
     'Виды ОИ: building, apartment, land.',
 ]
 LINKS = [
-    {'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
-    {'тип': 'depends_on', 'куда': 'app-kernel-session-js', 'папка': 'code'},
+    {'тип': 'опирается на', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'inside', 'папка': 'project'},
+    {'тип': 'опирается на', 'куда': 'app-kernel-session-js', 'папка': 'code'},
 ]

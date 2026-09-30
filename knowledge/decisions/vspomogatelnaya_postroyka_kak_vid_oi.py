@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Решение пользователя 17.09.2026:
+"""Вспомогательная постройка — вид ОИ, привязанный к участку
 
 Запись графа знаний проекта (knowledge/decisions). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
 ID = 'vspomogatelnaya-postroyka-kak-vid-oi'
 KIND = 'решение'
-TITLE = 'Решение пользователя 17.09.2026:'
+TITLE = 'Вспомогательная постройка — вид ОИ, привязанный к участку'
 TAGS = ['решение', 'civil', 'land-plot', 'проверки', 'оформление']
 STATUS = 'действует'
 DATE = '2026-09-17'
@@ -28,5 +28,5 @@ POINTS = [
 LINKS = [
     {'тип': 'опирается на', 'куда': 'pravka-v-stroke-protiv-otdelnoy-kartochki', 'папка': 'sources'},
     {'тип': 'опирается на', 'куда': 'gruppirovka-strok-tablicy-razdelami', 'папка': 'sources'},
-    {'тип': 'продолжает', 'куда': 'app-modules-land-plot-oi-land-buildings-js', 'папка': 'code'},
+    {'тип': 'уточняет', 'куда': 'app-modules-land-plot-oi-land-buildings-js', 'папка': 'code'},
 ]

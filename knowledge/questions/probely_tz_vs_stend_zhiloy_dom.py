@@ -20,6 +20,6 @@ POINTS = [
     'РЕШЕНО (2026-08-25): все перечисленные поля (включая весь подраздел «Земельный участок») реализованы в residential-house/oi/building и residential-house/oi/land — см. decision: реализация полей ТЗ — Квартира и Жилой дом (2026-08-25).',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'derived_from', 'куда': 'stend-pilotnaya-realizaciya', 'папка': 'sources'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'опирается на', 'куда': 'stend-pilotnaya-realizaciya', 'папка': 'sources'},
 ]

@@ -21,5 +21,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'использует', 'куда': 'app-kernel-multiselect-js', 'папка': 'code'},
-    {'тип': 'потребовал', 'куда': 'msopen-vmesto-utilopen', 'папка': 'decisions'},
+    {'тип': 'влияет на', 'куда': 'msopen-vmesto-utilopen', 'папка': 'decisions'},
 ]

@@ -18,6 +18,6 @@ POINTS = [
     'Стандартная внутренняя структура: manifest.js, records.js, data/*, card/ (ocCard, ocForm, oiTable.view.js, ctxPlate.js, addOiMenu.js, parties.view.js), oi/<вид>/, parts/{docs,notes,photos,viewer}.',
 ]
 LINKS = [
-    {'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
+    {'тип': 'опирается на', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'inside', 'папка': 'project'},
 ]

@@ -20,7 +20,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'fixes',
+        'тип': 'реализует',
         'куда': 'svorachivaemaya-panel-filtrov-po-analogii-s-yaschikom-zametok',
         'папка': 'decisions',
     },

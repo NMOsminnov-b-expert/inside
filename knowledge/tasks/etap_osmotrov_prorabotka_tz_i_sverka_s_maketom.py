@@ -20,8 +20,8 @@ POINTS = [
     '[восстановлено] Предшествующая сверка (25.08.2026) шла по Этапу А — первичным данным ЦОД по квартире и жилому дому, и была закрыта. Здесь речь о Этапе Б — том, что вносит осмотрщик на месте, и про то, что он видит готовым («забито») против того, что заполняет сам.',
 ]
 LINKS = [
-    {'тип': 'привела к', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
-    {'тип': 'поставила', 'куда': 'akt-osmotra-otdelnyy-ekran-ili-rezhim-kartochki', 'папка': 'questions'},
-    {'тип': 'поставила', 'куда': 'foto-nastoyaschaya-zagruzka-ili-schetchiki', 'папка': 'questions'},
-    {'тип': 'поставила', 'куда': 'edinaya-shkala-nalichiya-inzhenernyh-setey', 'папка': 'questions'},
+    {'тип': 'влияет на', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
+    {'тип': 'влияет на', 'куда': 'akt-osmotra-otdelnyy-ekran-ili-rezhim-kartochki', 'папка': 'questions'},
+    {'тип': 'влияет на', 'куда': 'foto-nastoyaschaya-zagruzka-ili-schetchiki', 'папка': 'questions'},
+    {'тип': 'влияет на', 'куда': 'edinaya-shkala-nalichiya-inzhenernyh-setey', 'папка': 'questions'},
 ]

@@ -20,12 +20,12 @@ POINTS = [
     'Виртуализация: 20 000 записей ведут себя как 20 (фасеты ~23мс, подсчёт итога ~1мс, окно таблицы ~12мс).',
 ]
 LINKS = [
-    {'тип': 'aggregates_records_from', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'aggregates_records_from', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'aggregates_records_from', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'aggregates_records_from', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'aggregates_records_from', 'куда': 'app-modules-land-plot', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
-    {'тип': 'depends_on', 'куда': 'app-kernel-session-js', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'inside', 'папка': 'project'},
+    {'тип': 'опирается на', 'куда': 'app-kernel-session-js', 'папка': 'code'},
     {'тип': 'использует', 'куда': 'app-kernel-columns-js', 'папка': 'code'},
 ]

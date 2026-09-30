@@ -31,7 +31,7 @@ POINTS = [
     'Смоук tools/visual-parity/walk-new-build.py (20 011 записей, 5 модулей) — 0 ошибок консоли.',
 ]
 LINKS = [
-    {'тип': 'потребовало', 'куда': 'id-dokumenta-skvoznoy-po-zapisi-nextdocid', 'папка': 'decisions'},
-    {'тип': 'потребовало', 'куда': 'slovar-podpisey-poley-loga-svoy-na-modul', 'папка': 'decisions'},
-    {'тип': 'источник переноса', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'id-dokumenta-skvoznoy-po-zapisi-nextdocid', 'папка': 'decisions'},
+    {'тип': 'влияет на', 'куда': 'slovar-podpisey-poley-loga-svoy-na-modul', 'папка': 'decisions'},
+    {'тип': 'опирается на', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
 ]

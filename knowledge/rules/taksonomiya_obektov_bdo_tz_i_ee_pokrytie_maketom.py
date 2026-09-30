@@ -19,10 +19,10 @@ POINTS = [
     'Расширение макета под непокрытые типы — сознательно отложено (решение пользователя 2026-08-21): пока фиксируем только как контекст, не начинаем реализацию.',
 ]
 LINKS = [
-    {'тип': 'derived_from', 'куда': 'tz-sistema-ocenki-imuschestva', 'папка': 'sources'},
-    {'тип': 'covers', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'covers', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'covers', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'covers', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'covers', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {'тип': 'опирается на', 'куда': 'tz-sistema-ocenki-imuschestva', 'папка': 'sources'},
+    {'тип': 'содержит', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'app-modules-land-plot', 'папка': 'code'},
 ]

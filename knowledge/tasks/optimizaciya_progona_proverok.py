@@ -19,7 +19,7 @@ POINTS = [
     'Сделано: отбор по изменённым файлам (TOUCHES + select_changed.py), один браузер на несколько единиц вместо подъёма на каждый файл, разбивка тяжёлых сценариев на части (PARTS), раскладка по замерам (.times.json), потоковый отчёт, предел действий Playwright 10 с вместо 30 с.',
 ]
 LINKS = [
-    {'тип': 'привела к', 'куда': 'proverki-v-dva-etapa-po-pravkam-i-polnyy', 'папка': 'decisions'},
-    {'тип': 'привела к', 'куда': 'edinica-progona-i-chasti-tyazhelyh-scenariev', 'папка': 'decisions'},
-    {'тип': 'вскрыла', 'куда': 'ozhidaniya-v-proverkah-tolko-po-faktu', 'папка': 'rules'},
+    {'тип': 'влияет на', 'куда': 'proverki-v-dva-etapa-po-pravkam-i-polnyy', 'папка': 'decisions'},
+    {'тип': 'влияет на', 'куда': 'edinica-progona-i-chasti-tyazhelyh-scenariev', 'папка': 'decisions'},
+    {'тип': 'влияет на', 'куда': 'ozhidaniya-v-proverkah-tolko-po-faktu', 'папка': 'rules'},
 ]

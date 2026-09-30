@@ -19,6 +19,4 @@ POINTS = [
     'Состояние — ctx.ui.photoPop (id литеры) в data/store.js; закрывается крестиком и кликом вне.',
     'photoFileAt(oi, cat, i) добавлен в parts/photos/model.js ВСЕХ модулей, хотя реальные файлы фото пока умеет только civil: разметка перечня одна на все модули и ей нужен единый API. Без файлов возвращает null.',
 ]
-LINKS = [
-    {'тип': 'сделано вместе с', 'куда': 'derevo-uchastok-litery-bez-avtoprivyazki', 'папка': 'decisions'},
-]
+LINKS = [{'тип': 'относится к', 'куда': 'derevo-uchastok-litery-bez-avtoprivyazki', 'папка': 'decisions'}]

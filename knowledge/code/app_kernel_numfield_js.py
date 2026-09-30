@@ -17,5 +17,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'vyrazhenie-v-chislovom-pole', 'папка': 'decisions'},
-    {'тип': 'содержит открытый вопрос', 'куда': 'razdelitel-razryadov-dvuh-vidov', 'папка': 'questions'},
+    {'тип': 'содержит', 'куда': 'razdelitel-razryadov-dvuh-vidov', 'папка': 'questions'},
 ]

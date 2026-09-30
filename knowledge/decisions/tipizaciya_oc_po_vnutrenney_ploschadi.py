@@ -25,6 +25,6 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'опирается на', 'куда': 'civil-kategorii-liter-i-ts', 'папка': 'decisions'},
-    {'тип': 'depends_on', 'куда': 'mehanizmy-i-ts-v-lyubom-oc', 'папка': 'decisions'},
+    {'тип': 'опирается на', 'куда': 'mehanizmy-i-ts-v-lyubom-oc', 'папка': 'decisions'},
     {'тип': 'заменяет', 'куда': 'app-modules-production', 'папка': 'code'},
 ]

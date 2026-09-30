@@ -20,6 +20,6 @@ POINTS = [
     'Чипы срезов (.reg-slice) увеличены по паддингу/шрифту для большей заметности.',
 ]
 LINKS = [
-    {'тип': 'resolves', 'куда': 'interfeys-srezov-i-nedavnih-nuzhdaetsya-v-dorabotke', 'папка': 'questions'},
-    {'тип': 'relates_to', 'куда': 'svesti-rendershell-k-minimumu-tolko-mount-onroute', 'папка': 'decisions'},
+    {'тип': 'реализует', 'куда': 'interfeys-srezov-i-nedavnih-nuzhdaetsya-v-dorabotke', 'папка': 'questions'},
+    {'тип': 'относится к', 'куда': 'svesti-rendershell-k-minimumu-tolko-mount-onroute', 'папка': 'decisions'},
 ]

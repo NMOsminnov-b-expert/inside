@@ -22,9 +22,9 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'extends',
+        'тип': 'уточняет',
         'куда': 'prosmotrschik-civil-zagruzka-foto-krupnye-miniatyury-vysota-bloka-2026',
         'папка': 'decisions',
     },
-    {'тип': 'affects', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
 ]

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""08.09.2026.
+"""Цоколь — элемент конструктивного состава
 
 Запись графа знаний проекта (knowledge/decisions). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
 ID = 'tsokol-element-konstruktiva'
 KIND = 'решение'
-TITLE = '08.09.2026.'
+TITLE = 'Цоколь — элемент конструктивного состава'
 TAGS = ['решение', 'документы']
 STATUS = 'действует'
 DATE = '2026-09-08'
@@ -17,4 +17,4 @@ POINTS = [
     "Ключ строки — plinth, а не basement: под plinth износ цоколя уже лежал в данных (card/ocCard.ctrl.js). Материал берётся через optsKey='basement' — тем же приёмом, что внутренние стены берут перечень наружных.",
     'Раньше цоколь был только в износе — материал записать было некуда.',
 ]
-LINKS = [{'тип': 'следует из', 'куда': 'slovari-polnye-perechni-rabochey-sistemy', 'папка': 'decisions'}]
+LINKS = [{'тип': 'опирается на', 'куда': 'slovari-polnye-perechni-rabochey-sistemy', 'папка': 'decisions'}]

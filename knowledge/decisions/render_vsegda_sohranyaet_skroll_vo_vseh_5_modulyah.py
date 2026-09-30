@@ -20,10 +20,14 @@ POINTS = [
     'Проверено playwright на apartment/civil/production: узкий viewport форсирует реальный скролл контента, scrollTop выставлен вручную, вызвано настоящее действие (добавление собственника через модалку) — scrollTop не изменился после рендера. Плюс штатный smoke-тест проекта (walk-new-build.py) на реестре 20000 записей и всех 5 карточках — 0 ошибок консоли.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-land-plot', 'папка': 'code'},
-    {'тип': 'relates_to', 'куда': 'chastichnyy-re-render-ocmenu-rendershell-renderdata', 'папка': 'decisions'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {
+        'тип': 'относится к',
+        'куда': 'chastichnyy-re-render-ocmenu-rendershell-renderdata',
+        'папка': 'decisions',
+    },
 ]

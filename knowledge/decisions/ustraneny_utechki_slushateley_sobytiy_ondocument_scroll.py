@@ -18,5 +18,5 @@ POINTS = [
     'Исправлено: оба регистрируются один раз — клик по документу при монтировании страницы, скролл вьюпорта — внутри bindShell() (которая теперь сама вызывается только из renderShell на mount/onRoute).',
 ]
 LINKS = [
-    {'тип': 'relates_to', 'куда': 'svesti-rendershell-k-minimumu-tolko-mount-onroute', 'папка': 'decisions'},
+    {'тип': 'относится к', 'куда': 'svesti-rendershell-k-minimumu-tolko-mount-onroute', 'папка': 'decisions'},
 ]

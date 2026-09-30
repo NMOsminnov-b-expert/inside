@@ -18,5 +18,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'проверяет', 'куда': 'app-kernel-docviewer-js', 'папка': 'code'},
-    {'тип': 'ловит нарушение', 'куда': 'css-comment-star-slash', 'папка': 'rules'},
+    {'тип': 'проверяет', 'куда': 'css-comment-star-slash', 'папка': 'rules'},
 ]

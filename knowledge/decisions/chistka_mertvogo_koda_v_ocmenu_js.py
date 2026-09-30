@@ -18,4 +18,4 @@ POINTS = [
     'Убраны неиспользуемые: переменная ctx в mountOcMenu, state.columnsOpen, экспорт tableShellHTML из table.js, импорт activeColumns в ocMenu.js, CSS-класс .is-table (терял смысл единственного варианта), правки .reg-drop-*/.reg-locator-drop, .d-normal/.d-compact.',
     'Исправлен комментарий-реликт «Срезы и воронка» (воронки статусов в коде уже не было — только осиротевшая строка комментария).',
 ]
-LINKS = [{'тип': 'affects', 'куда': 'app-pages-ocmenu', 'папка': 'code'}]
+LINKS = [{'тип': 'влияет на', 'куда': 'app-pages-ocmenu', 'папка': 'code'}]

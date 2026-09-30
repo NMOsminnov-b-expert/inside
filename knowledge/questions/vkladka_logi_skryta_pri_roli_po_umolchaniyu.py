@@ -19,7 +19,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'выяснено при',
+        'тип': 'опирается на',
         'куда': 'log-deystviy-i-prosmotrschik-razneseny-po-vsem-5-modulyam',
         'папка': 'decisions',
     },

@@ -30,6 +30,6 @@ LINKS = [
     },
     {'тип': 'реализует', 'куда': 'mobilnyy-osmotr-otdelnye-ekrany-v-tom-zhe-makete', 'папка': 'decisions'},
     {'тип': 'опирается на', 'куда': 'app-kernel-registry-js', 'папка': 'code'},
-    {'тип': 'описано в', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
+    {'тип': 'реализовано в', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
     {'тип': 'опирается на', 'куда': 'app-kernel-fieldschema-js', 'папка': 'code'},
 ]

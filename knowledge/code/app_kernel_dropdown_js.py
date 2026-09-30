@@ -25,8 +25,8 @@ POINTS = [
     '[восстановлено] Подключение — одной точкой в scope.setHTML + в kernel/dialog.js (модалки) + installSelectWatcher() в boot.js (MutationObserver для частичных перерисовок).',
 ]
 LINKS = [
-    {'тип': 'подключается из', 'куда': 'app-kernel-scope-js', 'папка': 'code'},
-    {'тип': 'подключается из', 'куда': 'app-kernel-boot-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-scope-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-boot-js', 'папка': 'code'},
     {'тип': 'реализует', 'куда': 'svoi-vypadayushchie-spiski', 'папка': 'decisions'},
-    {'тип': 'записано в', 'куда': 'docs-reestr-kosyakov-md', 'папка': 'rules'},
+    {'тип': 'реализовано в', 'куда': 'docs-reestr-kosyakov-md', 'папка': 'rules'},
 ]

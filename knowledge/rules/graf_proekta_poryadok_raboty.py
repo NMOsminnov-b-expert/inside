@@ -21,6 +21,6 @@ POINTS = [
     '29.09.2026 — решение пользователя «Тогда и то и то используем. адаптируй правила по проекту.»: поиск по графу и коду — двумя поисками вместе, результаты сводятся. CodeGraph (codegraph query) — по словам: точное имя, термин, ID, символ кода, метка. semsearch (инструмент search_code, project_id inside) — по смыслу: вопрос обычными словами. По отдельности находят 8 и 11 ответов из 15, вместе — 13. После записи в граф — graph.py check, codegraph sync и дообновление индекса по смыслу (client.py index, только изменённые файлы). Правило — в CLAUDE.md, раздел «Граф проекта», шаги 2 и 5.',
 ]
 LINKS = [
-    {'тип': 'следует из', 'куда': 'graf-proekta-knowledge-vmesto-servera-pamyati', 'папка': 'decisions'},
+    {'тип': 'опирается на', 'куда': 'graf-proekta-knowledge-vmesto-servera-pamyati', 'папка': 'decisions'},
     {'тип': 'использует', 'куда': 'poisk-po-smyslu-codebase-mcp-s-lokalnoy-modelyu', 'папка': 'tools'},
 ]

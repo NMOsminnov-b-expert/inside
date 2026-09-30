@@ -33,9 +33,9 @@ POINTS = [
     '28.09.2026 снято по образцу ADR: запись заменена решением log-deystviy-audit-module-local-v2-v-residential-house-vkladka-logi-20 (связь «заменяет» из него); заменённое не переписывается, а снимается статусом.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-land-plot', 'папка': 'code'},
 ]

@@ -31,7 +31,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'продолжает',
+        'тип': 'уточняет',
         'куда': 'log-deystviy-i-prosmotrschik-razneseny-po-vsem-5-modulyam',
         'папка': 'decisions',
     },

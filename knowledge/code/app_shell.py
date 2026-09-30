@@ -16,4 +16,4 @@ POINTS = [
     'Чистый каркас окна: сайдбар (collapse), крошки #crumbs, ящик заметок #notesDrawer, активный пункт навигации.',
     'Не знает про ОЦ/ОИ — только рисует то, что передают через setCrumbs/setDrawer/updateDrawer/setActiveNav.',
 ]
-LINKS = [{'тип': 'part_of', 'куда': 'inside', 'папка': 'project'}]
+LINKS = [{'тип': 'часть', 'куда': 'inside', 'папка': 'project'}]

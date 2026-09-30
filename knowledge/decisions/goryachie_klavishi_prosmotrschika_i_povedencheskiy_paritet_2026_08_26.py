@@ -24,9 +24,9 @@ POINTS = [
     'Проверено тремя Playwright-скриптами (scratchpad, ~50 проверок): verify_viewer.py — страницы/миниатюры/пропорции/непустые canvas; verify_behavior.py — колесо, overscroll, Ctrl+колесо, каждая горячая клавиша, инертность при наборе, габариты повёрнутого листа; verify_modes.py — пустое состояние, три режима, «Сравнение» с реальным PDF рядом с фото, пейджер сравнения, удаление страницы с сохранением исходных номеров. Тестовый многостраничный PDF генерируется скриптом (make_pdf.py, ~1.4 КБ сырого PDF-синтаксиса) через page.expect_file_chooser() — бинарь в репозиторий не кладётся. Полный смоук walk-new-build.py — 0 ошибок консоли.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
     {
-        'тип': 'relates_to',
+        'тип': 'относится к',
         'куда': 'prosmotrschik-civil-realnyy-pdf-risuetsya-v-maketnyy-list-a-ne-vstroen',
         'папка': 'decisions',
     },

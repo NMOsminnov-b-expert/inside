@@ -20,9 +20,9 @@ POINTS = [
     'Проверено Playwright: создание нового ОЦ квартиры → сразу открыть карточку → в таблице ОИ уже есть одна строка (литера А). Полный smoke-тест (walk-new-build.py, 20000 записей + все 5 модулей) — 0 ошибок консоли.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
     {
-        'тип': 'relates_to',
+        'тип': 'относится к',
         'куда': 'realizaciya-poley-tz-kvartira-i-zhiloy-dom-2026-08-25',
         'папка': 'decisions',
     },

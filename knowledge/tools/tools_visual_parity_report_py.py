@@ -28,5 +28,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'otchetnost-skrinshotami-obyazatelna', 'папка': 'decisions'},
-    {'тип': 'дополняет', 'куда': 'tools-visual-parity-screenshot-py', 'папка': 'tools'},
+    {'тип': 'уточняет', 'куда': 'tools-visual-parity-screenshot-py', 'папка': 'tools'},
 ]

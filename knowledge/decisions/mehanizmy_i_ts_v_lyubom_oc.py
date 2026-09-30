@@ -32,7 +32,7 @@ POINTS = [
     'Движимое в меню «+ Добавить ОИ» — только у ОЦ с отметкой «Имущественный комплекс», как в эталоне (гражданское). Снять это ограничение — вопрос к пользователю («механизмы могут быть в любом ОЦ»).',
 ]
 LINKS = [
-    {'тип': 'продолжает', 'куда': 'kartochka-mekhanizmov-po-klassifikatoru', 'папка': 'decisions'},
-    {'тип': 'продолжает', 'куда': 'civil-kategorii-liter-i-ts', 'папка': 'decisions'},
-    {'тип': 'продолжает', 'куда': 'ts-kak-vid-oi-v-grazhdanskom', 'папка': 'decisions'},
+    {'тип': 'уточняет', 'куда': 'kartochka-mekhanizmov-po-klassifikatoru', 'папка': 'decisions'},
+    {'тип': 'уточняет', 'куда': 'civil-kategorii-liter-i-ts', 'папка': 'decisions'},
+    {'тип': 'уточняет', 'куда': 'ts-kak-vid-oi-v-grazhdanskom', 'папка': 'decisions'},
 ]

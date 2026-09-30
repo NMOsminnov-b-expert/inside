@@ -18,6 +18,4 @@ POINTS = [
     'Добавлено: OI_TYPES в data/rules.js, запись land в oi/registry.js (площадь из oi.areas.pravo), oi/land/index.js реэкспортом из land-plot (то же задокументированное исключение из изоляции, что и в остальных модулях), createLandOi вместо самодельного объекта в createOi.',
     'Локальные oi/land/view.js и ctrl.js в apartment НЕ создавались: в словарях модуля нет STATUS_BUILD/APARTMENT_RIGHTS/LAND_FORM/LAND_ENCUMBRANCE, которые нужны локальной версии, а грузится всё равно версия из land-plot.',
 ]
-LINKS = [
-    {'тип': 'потребовалось для', 'куда': 'derevo-uchastok-litery-bez-avtoprivyazki', 'папка': 'decisions'},
-]
+LINKS = [{'тип': 'влияет на', 'куда': 'derevo-uchastok-litery-bez-avtoprivyazki', 'папка': 'decisions'}]

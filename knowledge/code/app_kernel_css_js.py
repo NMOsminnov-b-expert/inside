@@ -13,4 +13,4 @@ DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/kernel/css.js'
 POINTS = ['ensureStyle — ленивая однократная подгрузка CSS модуля по href.']
-LINKS = [{'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'}]
+LINKS = [{'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'}]

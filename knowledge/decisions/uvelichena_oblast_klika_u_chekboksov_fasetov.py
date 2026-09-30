@@ -17,4 +17,4 @@ POINTS = [
     'app/pages/ocMenu/ocMenu.css: .reg-facet-opt — padding увеличен до 6px 7px, чекбокс до 16×16, добавлен небольшой вертикальный отступ между строками.',
     'Проверено playwright: клик у правого края строки (не по самому чекбоксу) переключает его.',
 ]
-LINKS = [{'тип': 'affects', 'куда': 'app-pages-ocmenu', 'папка': 'code'}]
+LINKS = [{'тип': 'влияет на', 'куда': 'app-pages-ocmenu', 'папка': 'code'}]

@@ -30,9 +30,9 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'supersedes',
+        'тип': 'заменяет',
         'куда': 'log-deystviy-kategorii-chelovecheskie-podpisi-poley-novaya-shema-id-20',
         'папка': 'decisions',
     },
-    {'тип': 'affects', 'куда': 'app-modules-residential-house-audit', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house-audit', 'папка': 'code'},
 ]

@@ -15,4 +15,4 @@ OLD_NAME = 'app/kernel/store.js'
 POINTS = [
     'Универсальный мини-стор (createStore) с подпиской, используется внутри модулей для их данных/UI-состояния.',
 ]
-LINKS = [{'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'}]
+LINKS = [{'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'}]

@@ -17,12 +17,12 @@ POINTS = [
     'Формирует объект host (navigate, crumbs, drawer, toast/dialog, ensureStyle) — единственный API, который получают модули и страницы.',
 ]
 LINKS = [
-    {'тип': 'uses', 'куда': 'app-kernel-router-js', 'папка': 'code'},
-    {'тип': 'uses', 'куда': 'app-kernel-registry-js', 'папка': 'code'},
-    {'тип': 'uses', 'куда': 'app-kernel-dialog-js', 'папка': 'code'},
-    {'тип': 'uses', 'куда': 'app-kernel-toast-js', 'папка': 'code'},
-    {'тип': 'uses', 'куда': 'app-kernel-css-js', 'папка': 'code'},
-    {'тип': 'mounts', 'куда': 'app-shell', 'папка': 'code'},
-    {'тип': 'mounts', 'куда': 'app-pages-ocmenu', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-router-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-registry-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-dialog-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-toast-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-css-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-shell', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-pages-ocmenu', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'},
 ]

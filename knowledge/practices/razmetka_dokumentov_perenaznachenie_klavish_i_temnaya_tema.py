@@ -18,9 +18,9 @@ POINTS = [
     'Выбор темы: «как в Windows» (по умолчанию; следит за переключением в системе), светлая, тёмная — меню проекта и палитра; основа элементов — ThemeMode Fluent (Light / Dark).',
 ]
 LINKS = [
-    {'тип': 'применено в', 'куда': 'tools-razmetka', 'папка': 'tools'},
+    {'тип': 'реализовано в', 'куда': 'tools-razmetka', 'папка': 'tools'},
     {
-        'тип': 'продолжает',
+        'тип': 'уточняет',
         'куда': 'interfeys-razmetki-dokumentov-klavishi-palitra-komand-inspektor-po-vyb',
         'папка': 'practices',
     },

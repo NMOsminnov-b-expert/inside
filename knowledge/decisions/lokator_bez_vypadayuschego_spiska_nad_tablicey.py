@@ -19,7 +19,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'resolves',
+        'тип': 'реализует',
         'куда': 'raspolozhenie-lokatora-i-vypadayuschiy-spisok-sovpadeniy',
         'папка': 'questions',
     },

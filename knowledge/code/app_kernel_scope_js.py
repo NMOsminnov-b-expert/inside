@@ -16,7 +16,7 @@ POINTS = [
     'DOM-скоуп: делегирование событий и рендер строго внутри root, чтобы экраны не пересекались через document.querySelector.',
 ]
 LINKS = [
-    {'тип': 'depends_on', 'куда': 'app-kernel-dom-js', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'},
-    {'тип': 'содержит открытый вопрос', 'куда': 'pererisovka-ekrana-pri-izmenenii', 'папка': 'questions'},
+    {'тип': 'опирается на', 'куда': 'app-kernel-dom-js', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'содержит', 'куда': 'pererisovka-ekrana-pri-izmenenii', 'папка': 'questions'},
 ]

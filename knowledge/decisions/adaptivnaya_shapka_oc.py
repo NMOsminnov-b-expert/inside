@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-""".head-meta стояла с flex-wrap:nowrap и overflow:hidden:
+"""Шапка ОЦ переносит данные на новую строку вместо обрезки
 
 Запись графа знаний проекта (knowledge/decisions). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
 ID = 'adaptivnaya-shapka-oc'
 KIND = 'решение'
-TITLE = '.head-meta стояла с flex-wrap:nowrap и overflow:hidden:'
+TITLE = 'Шапка ОЦ переносит данные на новую строку вместо обрезки'
 TAGS = ['решение']
 STATUS = 'действует'
 DATE = ''

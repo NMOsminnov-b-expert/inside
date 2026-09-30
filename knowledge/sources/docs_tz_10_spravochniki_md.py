@@ -18,6 +18,6 @@ POINTS = [
     'Раздел 1.1 отделяет справочники от системных перечней: STATUS_OC, LAND_TYPES, BUILD_TYPE, CATCLASS, LETTER_SEQ и другие управляют логикой карточек и правке не подлежат.',
 ]
 LINKS = [
-    {'тип': 'фиксирует', 'куда': 'spravochniki-model', 'папка': 'decisions'},
-    {'тип': 'фиксирует', 'куда': 'spravochnik-na-odno-pole', 'папка': 'decisions'},
+    {'тип': 'реализует', 'куда': 'spravochniki-model', 'папка': 'decisions'},
+    {'тип': 'реализует', 'куда': 'spravochnik-na-odno-pole', 'папка': 'decisions'},
 ]

@@ -31,5 +31,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'проверяется', 'куда': 'tools-checks-check-oi-kinds-py', 'папка': 'tools'},
-    {'тип': 'потребовало', 'куда': 'app-modules-land-plot-data-landdicts-js', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-land-plot-data-landdicts-js', 'папка': 'code'},
 ]

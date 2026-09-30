@@ -20,8 +20,8 @@ POINTS = [
     "Проверено Playwright (без headless-скрытия ошибок): открыты карточки квартиры/жилого дома/участка в обоих модулях, для каждого нового select с веткой 'Прочее'/'Иное' проверено появление доп. поля ручного ввода, для мансарды и лоджий — сохранение значений переживает 'Сохранить' + повторное открытие карточки. Полный smoke-тест проекта (tools/visual-parity/walk-new-build.py, реестр на ~20000 синтетических записей + все 5 модулей) — 0 ошибок консоли после правок в bulkRecord.js/registry.js.",
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'resolves', 'куда': 'probely-tz-vs-stend-kvartira', 'папка': 'questions'},
-    {'тип': 'resolves', 'куда': 'probely-tz-vs-stend-zhiloy-dom', 'папка': 'questions'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'реализует', 'куда': 'probely-tz-vs-stend-kvartira', 'папка': 'questions'},
+    {'тип': 'реализует', 'куда': 'probely-tz-vs-stend-zhiloy-dom', 'папка': 'questions'},
 ]

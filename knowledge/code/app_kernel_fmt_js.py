@@ -16,4 +16,4 @@ POINTS = [
     'Числа/строки: num, fmt, round2, norm.',
     'parseEni используется не только при показе: формы ОЦ (ocForm.ctrl.js, ocCreateForm.ctrl.js) читают из поля #fEni строку с маской и кладут в rec.eni цифры. Если менять маску — проверять этот путь.',
 ]
-LINKS = [{'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'}]
+LINKS = [{'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'}]

@@ -17,9 +17,9 @@ POINTS = [
     'CorelDRAW Multipage view (coreldraw.com/en/learn/tutorials/multipage-view; «Page views»): все страницы сразу, без щелчков по вкладкам; раскладка столбцом — для документов с порядком страниц. Применено: режим «Подряд» — все развороты проекта столбцом по главам, в порядке следования; прокрутка — текущий разворот следует за ней; щелчок — выбрать, двойной щелчок или Enter — открыть для правки; переключатель у вкладок и Ctrl+Shift+V.',
 ]
 LINKS = [
-    {'тип': 'применено в', 'куда': 'tools-razmetka', 'папка': 'tools'},
+    {'тип': 'реализовано в', 'куда': 'tools-razmetka', 'папка': 'tools'},
     {
-        'тип': 'продолжает',
+        'тип': 'уточняет',
         'куда': 'interfeys-razmetki-dokumentov-klavishi-palitra-komand-inspektor-po-vyb',
         'папка': 'practices',
     },

@@ -18,7 +18,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'refines',
+        'тип': 'уточняет',
         'куда': 'vkladka-paneli-filtrov-razdelnye-elementy-vmesto-smeshannogo-writing-m',
         'папка': 'decisions',
     },

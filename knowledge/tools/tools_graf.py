@@ -26,7 +26,7 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'programma-graf-proekta-trebovaniya', 'папка': 'decisions'},
-    {'тип': 'продолжает', 'куда': 'view-graph-prosmotr-grafa', 'папка': 'tools'},
+    {'тип': 'уточняет', 'куда': 'view-graph-prosmotr-grafa', 'папка': 'tools'},
     {'тип': 'использует', 'куда': 'praktika-raskladka-grafa-pokoy-i-potyanut', 'папка': 'practices'},
     {'тип': 'использует', 'куда': 'praktika-navigaciya-v-3d-grafe', 'папка': 'practices'},
     {'тип': 'использует', 'куда': 'praktika-perehody-kamery-i-uzlov', 'папка': 'practices'},

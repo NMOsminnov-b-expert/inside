@@ -18,6 +18,6 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'ts-kak-vid-oi-v-grazhdanskom', 'папка': 'decisions'},
-    {'тип': 'рисует поля через', 'куда': 'app-modules-civil-parts-fields-js', 'папка': 'code'},
-    {'тип': 'берёт состав полей из', 'куда': 'app-modules-vehicle', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-modules-civil-parts-fields-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-modules-vehicle', 'папка': 'code'},
 ]

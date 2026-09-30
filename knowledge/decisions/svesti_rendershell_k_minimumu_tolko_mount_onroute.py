@@ -21,5 +21,5 @@ POINTS = [
     'Проверено playwright: DOM-узлы вьюпорта/локатора/фасетов — те же самые объекты до и после сворачивания панели (сравнение через маркер-атрибут), открытая секция «Учреждение» и скролл внутри неё переживают цикл закрыть/открыть панель.',
 ]
 LINKS = [
-    {'тип': 'refines', 'куда': 'chastichnyy-re-render-ocmenu-rendershell-renderdata', 'папка': 'decisions'},
+    {'тип': 'уточняет', 'куда': 'chastichnyy-re-render-ocmenu-rendershell-renderdata', 'папка': 'decisions'},
 ]

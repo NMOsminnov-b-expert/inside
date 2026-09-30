@@ -18,7 +18,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'derived_from',
+        'тип': 'опирается на',
         'куда': 'kartochka-zemelnogo-uchastka-isklyuchenie-iz-izolyacii-moduley',
         'папка': 'rules',
     },

@@ -20,7 +20,7 @@ POINTS = [
     'Следствие для очерёдности: поля Этапа Б остаются нужны, но живут они в мобильном интерфейсе осмотрщика, а не в карточке ЦОД: сперва каркас двух интерфейсов, потом состав полей.',
 ]
 LINKS = [
-    {'тип': 'resolves', 'куда': 'akt-osmotra-otdelnyy-ekran-ili-rezhim-kartochki', 'папка': 'questions'},
-    {'тип': 'требует изменения', 'куда': 'model-roley-ocmenu-role-perms', 'папка': 'rules'},
-    {'тип': 'зафиксировано в', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
+    {'тип': 'реализует', 'куда': 'akt-osmotra-otdelnyy-ekran-ili-rezhim-kartochki', 'папка': 'questions'},
+    {'тип': 'влияет на', 'куда': 'model-roley-ocmenu-role-perms', 'папка': 'rules'},
+    {'тип': 'реализовано в', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
 ]

@@ -22,5 +22,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'относится к', 'куда': 'tools-razmetka', 'папка': 'tools'},
-    {'тип': 'продолжает', 'куда': 'razmetka-dotnet', 'папка': 'decisions'},
+    {'тип': 'уточняет', 'куда': 'razmetka-dotnet', 'папка': 'decisions'},
 ]

@@ -12,7 +12,7 @@ CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-15'
+TAKEN = '2026-09-29'
 OCCURS = [
     {'экран': 'карточка «Объект оценки»', 'маршрут': '#/oc/land-plot/oc-lp-all'},
     {'экран': 'карточка «Земельный участок»', 'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-land'},

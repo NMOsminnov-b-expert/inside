@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Данные офисной техники
+"""Котёл газовый КВГ-1,25
 
 Запись графа знаний проекта (knowledge/concepts). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
-ID = 'blok-dannye-ofisnoy-tehniki'
+ID = 'blok-kotel-gazovyy-kvg-1-25'
 KIND = 'понятие'
-TERM = 'Данные офисной техники'
+TERM = 'Котёл газовый КВГ-1,25'
 SYNONYMS = []
 CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-15'
+TAKEN = '2026-09-29'
 OCCURS = [
-    {'экран': 'карточка «Офисная техника и мебель»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-office'},
+    {'экран': 'карточка «Механизмы и оборудование»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-mech'},
 ]

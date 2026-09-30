@@ -19,12 +19,12 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'relates_to',
+        'тип': 'относится к',
         'куда': 'kompaktnyy-multivybor-otopleniya-2-gruppy-floating-dropdown-2026-08-25',
         'папка': 'decisions',
     },
     {
-        'тип': 'relates_to',
+        'тип': 'относится к',
         'куда': 'poetazhnaya-razvertka-stroeniya-kategorii-nadzemnye-podzemnye-mansardn',
         'папка': 'decisions',
     },

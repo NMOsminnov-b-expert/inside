@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""04.09.2026:
+"""Ветка «карточка-земельного-участка-v3»
 
 Запись графа знаний проекта (knowledge/decisions). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
 ID = 'vetka-kartochka-zemelnogo-uchastka-v3'
 KIND = 'решение'
-TITLE = '04.09.2026:'
+TITLE = 'Ветка «карточка-земельного-участка-v3»'
 TAGS = ['решение', 'land-plot']
 STATUS = 'действует'
 DATE = '2026-09-04'

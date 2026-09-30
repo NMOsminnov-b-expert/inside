@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Данные механизма
+"""Капитальность и классы
 
 Запись графа знаний проекта (knowledge/concepts). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
-ID = 'blok-dannye-mehanizma'
+ID = 'blok-kapitalnost-i-klassy'
 KIND = 'понятие'
-TERM = 'Данные механизма'
+TERM = 'Капитальность и классы'
 SYNONYMS = []
 CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-15'
-OCCURS = [
-    {'экран': 'карточка «Механизмы и оборудование»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-mech'},
-]
+TAKEN = '2026-09-29'
+OCCURS = [{'экран': 'карточка «Объект оценки»', 'маршрут': '#/oc/civil/oc-cv-all'}]

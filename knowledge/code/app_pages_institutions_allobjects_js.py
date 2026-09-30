@@ -19,7 +19,7 @@ POINTS = [
     'Учреждение берётся по узлу дерева (nodeName из subtreeRowsOf), а не по полю institution записи: на глубине больше двух уровней запись числится за верхним учреждением, а закреплена за подведом.',
 ]
 LINKS = [
-    {'тип': 'часть раздела', 'куда': 'app-pages-institutions-institutions-js', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'app-pages-institutions-institutions-js', 'папка': 'code'},
     {'тип': 'использует', 'куда': 'app-kernel-institutions-js', 'папка': 'code'},
     {'тип': 'реализует', 'куда': 'svodnaya-vkladka-uchrezhdeniy', 'папка': 'decisions'},
 ]

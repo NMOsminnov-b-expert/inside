@@ -17,10 +17,10 @@ POINTS = [
     'Единственное исключение из правила изоляции ядра: статически импортирует manifest.js и records.js каждого модуля, код карточки (index.js) — лениво через load().',
 ]
 LINKS = [
-    {'тип': 'references', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'references', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'references', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'references', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'references', 'куда': 'app-modules-land-plot', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'},
 ]

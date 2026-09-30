@@ -13,4 +13,4 @@ DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/kernel/router.js'
 POINTS = ['Hash-роутинг #/oc/<typeId>/<ocId>/...rest.', 'parse/build адреса, эмитит hashchange (start, go).']
-LINKS = [{'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'}]
+LINKS = [{'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'}]

@@ -19,7 +19,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'следствие',
+        'тип': 'влияет на',
         'куда': 'odinakovye-polya-zapolnyayutsya-odinakovo-spravochnik-vs-tekst',
         'папка': 'decisions',
     },

@@ -24,9 +24,9 @@ POINTS = [
     'Портирован из residential-house возврат утраченного: пустое состояние «Документы есть — выберите, что открыть» с дропдауном (в civil всегда было «Нет прикреплённых документов», даже когда документы есть), ensureViewerDefault (просмотрщик виден по умолчанию, прячется только крестиком), и убрано обнуление ctx.ui.viewer при закрытии последней вкладки.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil-parts-viewer', 'папка': 'code'},
     {
-        'тип': 'depends_on',
+        'тип': 'опирается на',
         'куда': 'pdf-js-pervaya-vneshnyaya-zavisimost-proekta-vendornoy-kopiey-2026-08',
         'папка': 'decisions',
     },

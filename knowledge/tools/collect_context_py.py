@@ -15,4 +15,4 @@ OLD_NAME = 'collect_context.py'
 POINTS = [
     'Рекурсивно собирает текстовые файлы проекта (.py/.js/.ts/.html/.css/.md/...) в один context.txt с маркерами FILE: — подготовка контекста для LLM.',
 ]
-LINKS = [{'тип': 'supports', 'куда': 'inside', 'папка': 'project'}]
+LINKS = [{'тип': 'опирается на', 'куда': 'inside', 'папка': 'project'}]

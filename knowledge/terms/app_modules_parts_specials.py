@@ -21,6 +21,6 @@ POINTS = [
     'Флажок наличия особенностей нужен в ДВУХ местах, иначе столбец/фильтр в реестре будут работать только на сиде: records.js → flagsOf() (флаг specials через recHasSpecials) и data/bulk.js для синтетики (rnd() < 0.34). На 20 000 строк сводка строится через bulkSummary, минуя flagsOf.',
 ]
 LINKS = [
-    {'тип': 'сделана по образцу', 'куда': 'app-modules-parts-notes', 'папка': 'terms'},
-    {'тип': 'даст признак для столбца', 'куда': 'app-kernel-columns-js', 'папка': 'code'},
+    {'тип': 'опирается на', 'куда': 'app-modules-parts-notes', 'папка': 'terms'},
+    {'тип': 'влияет на', 'куда': 'app-kernel-columns-js', 'папка': 'code'},
 ]

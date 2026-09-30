@@ -20,5 +20,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'использует', 'куда': 'app-kernel-fmt-js', 'папка': 'code'},
-    {'тип': 'родственник', 'куда': 'app-kernel-fielderror-js', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'app-kernel-fielderror-js', 'папка': 'code'},
 ]

@@ -19,4 +19,4 @@ POINTS = [
     'Подключение — ленивый import() внутри app/modules/civil/parts/viewer/pdf.js, а не тег в app.html: у того, кто не открывал ни одного PDF, 1.7 МБ не скачиваются вовсе. Проверено полным смоуком (20 011 записей, все 5 модулей): ленивый import не ломает модули, где документов нет — 0 ошибок консоли.',
     "Воркер создаётся самой библиотекой как `new Worker(url, {type:'module'})` — расширение .js этому не мешает, GlobalWorkerOptions.workerSrc указывает на вендорный файл через new URL(..., import.meta.url).",
 ]
-LINKS = [{'тип': 'affects', 'куда': 'app-vendor-pdfjs', 'папка': 'tools'}]
+LINKS = [{'тип': 'влияет на', 'куда': 'app-vendor-pdfjs', 'папка': 'tools'}]

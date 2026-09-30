@@ -13,4 +13,4 @@ DATE = ''
 SOURCE = 'прежний граф знаний (перенос 28.09.2026)'
 OLD_NAME = 'app/kernel/dom.js'
 POINTS = ['Примитивы esc, $, $$.']
-LINKS = [{'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'}]
+LINKS = [{'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'}]

@@ -19,6 +19,6 @@ POINTS = [
     'РЕШЕНО (2026-08-25): все перечисленные поля реализованы в app/modules/apartment и residential-house/oi/apartment — см. decision: реализация полей ТЗ — Квартира и Жилой дом (2026-08-25).',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'derived_from', 'куда': 'stend-pilotnaya-realizaciya', 'папка': 'sources'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'опирается на', 'куда': 'stend-pilotnaya-realizaciya', 'папка': 'sources'},
 ]

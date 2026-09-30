@@ -17,6 +17,6 @@ POINTS = [
     'Раздел 1.1 — перечень всех точек, где сейчас данные удаляются безвозвратно (removeRecord, удаление ОИ, removeDocument, removeFile/removeLink, removeNode, removeDict, удаление страницы скана). Это и есть объём работ.',
 ]
 LINKS = [
-    {'тип': 'фиксирует', 'куда': 'arhiv-vechen-i-hranit-vse', 'папка': 'decisions'},
-    {'тип': 'фиксирует', 'куда': 'arhiv-svoe-hranilishche', 'папка': 'decisions'},
+    {'тип': 'реализует', 'куда': 'arhiv-vechen-i-hranit-vse', 'папка': 'decisions'},
+    {'тип': 'реализует', 'куда': 'arhiv-svoe-hranilishche', 'папка': 'decisions'},
 ]

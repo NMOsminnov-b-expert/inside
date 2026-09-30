@@ -32,13 +32,17 @@ import graph  # noqa: E402 — формат записи графа (tools/knowl
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KNOW = os.path.join(ROOT, 'knowledge')
 PORT = 5598
-TODAY = '2026-09-15'
+import datetime
+TODAY = datetime.date.today().isoformat()
 
+# Типы объекта оценки с демонстрационной записью «-all» (все блоки
+# заполнены). С 28.09.2026 «Производственное строение» слито в «Нежилое
+# здание» (civil). ТС и механизмы — своей формы карточки, в снимок пока не
+# входят.
 MODULES = [
     ('apartment', 'ap', 'Жилое здание (квартира)'),
     ('residential-house', 'rh', 'Жилое здание (дом)'),
-    ('civil', 'cv', 'Гражданское здание'),
-    ('production', 'pr', 'Производственное строение'),
+    ('civil', 'cv', 'Нежилое здание'),
     ('land-plot', 'lp', 'Земельный участок'),
 ]
 
@@ -298,7 +302,7 @@ def migrate(data):
         'синонимы': ['ОИ', 'литера'],
         'вид_понятия': 'основное понятие',
         'встречается': [{'экран': 'карточка объекта оценки, перечень ОИ',
-                         'маршрут': data['ОЦ']['Гражданское здание']['маршрут']}],
+                         'маршрут': data['ОЦ']['Нежилое здание']['маршрут']}],
     })
 
     for _, _, title in MODULES:
@@ -446,9 +450,27 @@ def migrate(data):
     return made
 
 
+# Пересборка (решение пользователя 29.09.2026 «Пересобрать с макета»):
+# прежние машинные черновики уходят — те, что сняты с макета и не тронуты
+# человеком (нет определения, пунктов, связей). Тронутые остаются.
+def clear_drafts():
+    gone = kept = 0
+    for folder in ('fields', 'concepts'):
+        for _, path, r in graph.load_all([folder]):
+            if r.get('источник') != 'макет' or r.get('статус') != 'черновик':
+                continue
+            if r.get('определение') or r.get('пункты') or r.get('связи'):
+                kept += 1
+                continue
+            os.remove(path)
+            gone += 1
+    print('  прежних черновиков убрано: %d, оставлено (с правками): %d' % (gone, kept))
+
+
 def main():
     print('Снимаю состав с экранов макета…')
     data = collect()
+    clear_drafts()
     print('\nПишу записи реестра…')
     made = migrate(data)
     for kind, n in made.items():

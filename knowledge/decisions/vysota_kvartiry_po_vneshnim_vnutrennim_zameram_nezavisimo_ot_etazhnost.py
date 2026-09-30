@@ -19,6 +19,6 @@ POINTS = [
     'Проверено Playwright: поля видны у ОИ с этажностью 1, значения сохраняются после «Сохранить» + повторное открытие карточки. Полный smoke-тест (walk-new-build.py) — 0 ошибок консоли.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
 ]

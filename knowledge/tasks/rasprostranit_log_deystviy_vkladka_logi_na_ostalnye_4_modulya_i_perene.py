@@ -17,7 +17,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'relates_to',
+        'тип': 'относится к',
         'куда': 'log-deystviy-audit-module-local-v2-v-residential-house-vkladka-logi-20',
         'папка': 'decisions',
     },

@@ -23,7 +23,7 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'sostav-poley-mehanizmov', 'папка': 'decisions'},
-    {'тип': 'дополняет полями', 'куда': 'app-modules-civil-data-mechclassifier-js', 'папка': 'code'},
-    {'тип': 'описывает поля через', 'куда': 'app-modules-civil-parts-fields-js', 'папка': 'code'},
-    {'тип': 'дополняет полями', 'куда': 'app-modules-civil-data-mechclassifier-js', 'папка': 'code'},
+    {'тип': 'уточняет', 'куда': 'app-modules-civil-data-mechclassifier-js', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-modules-civil-parts-fields-js', 'папка': 'code'},
+    {'тип': 'уточняет', 'куда': 'app-modules-civil-data-mechclassifier-js', 'папка': 'code'},
 ]

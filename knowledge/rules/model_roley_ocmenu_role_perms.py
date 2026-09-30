@@ -20,7 +20,7 @@ POINTS = [
     '«any» («любая роль», роль не выбрана) — видно как администратору: все срезы и действия доступны.',
 ]
 LINKS = [
-    {'тип': 'affects', 'куда': 'app-pages-ocmenu', 'папка': 'code'},
-    {'тип': 'resolves', 'куда': 'mehanizm-roley-nuzhdaetsya-v-pererabotke', 'папка': 'questions'},
-    {'тип': 'extends', 'куда': 'svodki-i-zaprosy-reestra', 'папка': 'rules'},
+    {'тип': 'влияет на', 'куда': 'app-pages-ocmenu', 'папка': 'code'},
+    {'тип': 'реализует', 'куда': 'mehanizm-roley-nuzhdaetsya-v-pererabotke', 'папка': 'questions'},
+    {'тип': 'уточняет', 'куда': 'svodki-i-zaprosy-reestra', 'папка': 'rules'},
 ]

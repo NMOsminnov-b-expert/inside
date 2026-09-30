@@ -20,5 +20,5 @@ POINTS = [
     'Проверено scratchpad/verify_vtab.py: 30 проверок на 5 модулях, 0 ошибок консоли.',
 ]
 LINKS = [
-    {'тип': 'дополняет', 'куда': 'prosmotrschik-viden-na-vseh-ekranah-s-dokumentami', 'папка': 'decisions'},
+    {'тип': 'уточняет', 'куда': 'prosmotrschik-viden-na-vseh-ekranah-s-dokumentami', 'папка': 'decisions'},
 ]

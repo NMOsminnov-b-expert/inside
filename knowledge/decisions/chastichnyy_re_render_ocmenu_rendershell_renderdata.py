@@ -19,7 +19,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'resolves',
+        'тип': 'реализует',
         'куда': 'stranica-ne-dolzhna-pererisovyvatsya-celikom-pri-poiske-v-filtre',
         'папка': 'questions',
     },

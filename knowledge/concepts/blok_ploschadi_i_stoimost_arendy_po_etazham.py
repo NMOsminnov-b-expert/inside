@@ -12,7 +12,7 @@ CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-15'
+TAKEN = '2026-09-29'
 OCCURS = [
     {'экран': 'карточка «Гражданское здание»', 'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-civil'},
     {'экран': 'карточка «Производственное строение»', 'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-prod'},

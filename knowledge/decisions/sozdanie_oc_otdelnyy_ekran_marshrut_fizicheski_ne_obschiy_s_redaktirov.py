@@ -22,14 +22,14 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'supersedes',
+        'тип': 'заменяет',
         'куда': 'sozdanie-oc-srazu-forma-redaktirovaniya-modulya-bez-otdelnogo-dialoga',
         'папка': 'decisions',
     },
-    {'тип': 'relates_to', 'куда': 'izolyaciya-moduley', 'папка': 'rules'},
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {'тип': 'относится к', 'куда': 'izolyaciya-moduley', 'папка': 'rules'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-land-plot', 'папка': 'code'},
 ]

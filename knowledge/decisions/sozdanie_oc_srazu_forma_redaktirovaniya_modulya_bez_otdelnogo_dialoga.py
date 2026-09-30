@@ -24,11 +24,11 @@ POINTS = [
     '28.09.2026 снято по образцу ADR: запись заменена решением sozdanie-oc-otdelnyy-ekran-marshrut-fizicheski-ne-obschiy-s-redaktirov (связь «заменяет» из него); заменённое не переписывается, а снимается статусом.',
 ]
 LINKS = [
-    {'тип': 'supersedes', 'куда': 'kontrakt-sozdaniya-oc', 'папка': 'rules'},
-    {'тип': 'affects', 'куда': 'app-modules-apartment', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-residential-house', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-civil', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-production', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-modules-land-plot', 'папка': 'code'},
-    {'тип': 'affects', 'куда': 'app-pages-ocmenu', 'папка': 'code'},
+    {'тип': 'заменяет', 'куда': 'kontrakt-sozdaniya-oc', 'папка': 'rules'},
+    {'тип': 'влияет на', 'куда': 'app-modules-apartment', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-residential-house', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-civil', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-production', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-modules-land-plot', 'папка': 'code'},
+    {'тип': 'влияет на', 'куда': 'app-pages-ocmenu', 'папка': 'code'},
 ]

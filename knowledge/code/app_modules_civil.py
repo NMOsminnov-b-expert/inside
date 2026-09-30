@@ -36,6 +36,6 @@ POINTS = [
     'Баг-фикс 2026-08-25 (тот же день): первая версия attachedFileFrom() читала файл в data:-URI через FileReader.readAsDataURL и клала его в <embed src=... type=application/pdf>/<img src=...> — пользователь сообщил «загрузил файл, просмотрщик показывает пустую белую страницу». Причина — известная особенность Chrome: встроенный PDF-плагин ненадёжно рендерит PDF, переданный как data:-URI (особенно длинный base64), у части сборок отрисовывается пустая страница. Исправлено: attachedFileFrom() больше не асинхронная, не использует FileReader — вместо data:-URI использует object URL (URL.createObjectURL(file)), который тот же <embed>/<img>/<a download> показывают надёжно и для PDF, и для картинок. Вызовы вида `file: await attachedFileFrom(file)` в 6 местах не трогал — await на не-Promise безопасен, значение приходит сразу же.',
 ]
 LINKS = [
-    {'тип': 'depends_on', 'куда': 'app-kernel', 'папка': 'code'},
-    {'тип': 'part_of', 'куда': 'inside', 'папка': 'project'},
+    {'тип': 'опирается на', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'inside', 'папка': 'project'},
 ]

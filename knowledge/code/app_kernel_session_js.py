@@ -19,6 +19,6 @@ POINTS = [
     "[восстановлено] Общая «сессия» макета — {person, role, institutions} — видна и меню ОЦ (app/pages/ocMenu), и всем 5 модулям одновременно; хранится через kernel/store.js createStore (те же {get state, set(patch), subscribe(fn)}). ROLES (список ролей) переехал сюда из ocMenu/state.js вместе с добавлением роли 'admin' — переезд случился в рамках V1 audit-log решения (2026-08-25, см. decision: лог изменений ОЦ — снимок-и-сравнение, роль admin), но сам файл как узел графа заведён только сейчас (2026-08-26).",
 ]
 LINKS = [
-    {'тип': 'part_of', 'куда': 'app-kernel', 'папка': 'code'},
-    {'тип': 'uses', 'куда': 'app-kernel-store-js', 'папка': 'code'},
+    {'тип': 'часть', 'куда': 'app-kernel', 'папка': 'code'},
+    {'тип': 'использует', 'куда': 'app-kernel-store-js', 'папка': 'code'},
 ]

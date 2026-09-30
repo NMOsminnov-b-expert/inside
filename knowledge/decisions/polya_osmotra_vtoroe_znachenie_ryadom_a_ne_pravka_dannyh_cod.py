@@ -24,5 +24,5 @@ LINKS = [
         'куда': 'osmotry-dva-otdelnyh-interfeysa-u-osmotrschika-mobilnyy',
         'папка': 'decisions',
     },
-    {'тип': 'зафиксировано в', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
+    {'тип': 'реализовано в', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
 ]

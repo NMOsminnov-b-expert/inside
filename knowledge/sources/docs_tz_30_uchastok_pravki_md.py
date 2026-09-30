@@ -17,8 +17,8 @@ POINTS = [
     '12 разделов: что имеем сейчас, правки по блокам 01/02 сельхоз/02 несельхоз/03, благоустройство по рангам, механизм заметок «i», вспомогательные постройки, миграция типов ОЦ и ОИ, открытые вопросы, автопроверки, этапы.',
 ]
 LINKS = [
-    {'тип': 'фиксирует', 'куда': 'pravki-kartochki-uchastka-04-09-2026', 'папка': 'decisions'},
-    {'тип': 'фиксирует', 'куда': 'zametki-dlya-razrabotchikov-i-v-kruzhke', 'папка': 'rules'},
+    {'тип': 'реализует', 'куда': 'pravki-kartochki-uchastka-04-09-2026', 'папка': 'decisions'},
+    {'тип': 'реализует', 'куда': 'zametki-dlya-razrabotchikov-i-v-kruzhke', 'папка': 'rules'},
     {'тип': 'содержит', 'куда': 'kak-ocenivat-sady', 'папка': 'questions'},
     {'тип': 'содержит', 'куда': 'priznaki-rangov-blagoustroystva', 'папка': 'questions'},
 ]

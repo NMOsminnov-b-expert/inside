@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""03.09.2026:
+"""Свои выпадающие списки вместо нативных (kernel/dropdown.js)
 
 Запись графа знаний проекта (knowledge/decisions). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
 """
 ID = 'svoi-vypadayushchie-spiski'
 KIND = 'решение'
-TITLE = '03.09.2026:'
+TITLE = 'Свои выпадающие списки вместо нативных (kernel/dropdown.js)'
 TAGS = ['решение', 'проверки', 'восстановлено']
 STATUS = 'действует'
 DATE = '2026-09-03'

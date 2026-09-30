@@ -18,4 +18,4 @@ POINTS = [
     'УСТАРЕЛО (2026-08-21): описанный здесь диалог создания (createForm + formDialog) убран. См. decision: создание ОЦ — сразу форма редактирования модуля, без отдельного диалога — это её замена.',
     '28.09.2026 снято по образцу ADR: запись заменена решением sozdanie-oc-srazu-forma-redaktirovaniya-modulya-bez-otdelnogo-dialoga (связь «заменяет» из него); заменённое не переписывается, а снимается статусом.',
 ]
-LINKS = [{'тип': 'extends', 'куда': 'svodki-i-zaprosy-reestra', 'папка': 'rules'}]
+LINKS = [{'тип': 'уточняет', 'куда': 'svodki-i-zaprosy-reestra', 'папка': 'rules'}]

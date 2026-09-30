@@ -19,9 +19,9 @@ POINTS = [
     "Seed-данные и bulkRecord-генератор residential-house обновлены под новую форму участка (landType, areas.{pravo,fact,build}, encumbrance='Есть'/'Нет' вместо старых 'Да'/'Нет'/'Прочее', location/roadLocation/corner, buildings и коммуникации) — старые значения ('Да', 'Прочее') не совпадали со словарями land-plot и ломали бы условный рендер.",
 ]
 LINKS = [
-    {'тип': 'relates_to', 'куда': 'izolyaciya-moduley', 'папка': 'rules'},
+    {'тип': 'относится к', 'куда': 'izolyaciya-moduley', 'папка': 'rules'},
     {
-        'тип': 'relates_to',
+        'тип': 'относится к',
         'куда': 'kartochka-zemelnogo-uchastka-land-plot-vzyata-versiya-v2-a-ne-original',
         'папка': 'decisions',
     },

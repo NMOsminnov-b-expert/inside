@@ -17,4 +17,4 @@ POINTS = [
     'Изменения сделаны только в app/modules/civil — per convention: изоляция модулей, копии полей в других ОЦ-типах (apartment, residential-house, production, land-plot) не трогались.',
     'Существующие данные (seed.js) не переписывались — новые поля используют fallback на пустые значения/значения по умолчанию справочников в view.js, старые ОИ отрисовываются корректно без миграции данных.',
 ]
-LINKS = [{'тип': 'affects', 'куда': 'app-modules-civil', 'папка': 'code'}]
+LINKS = [{'тип': 'влияет на', 'куда': 'app-modules-civil', 'папка': 'code'}]

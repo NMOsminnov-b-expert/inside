@@ -18,5 +18,5 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'относится к', 'куда': 'tools-graf', 'папка': 'tools'},
-    {'тип': 'показывает', 'куда': 'oglavlenie-grafa', 'папка': 'project'},
+    {'тип': 'относится к', 'куда': 'oglavlenie-grafa', 'папка': 'project'},
 ]

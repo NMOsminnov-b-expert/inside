@@ -21,7 +21,7 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'служит основой вместо неопределённых правил',
+        'тип': 'опирается на',
         'куда': 'etapy-zapolneniya-kartochki-versiya-polzovatelya-15-09-2026',
         'папка': 'decisions',
     },

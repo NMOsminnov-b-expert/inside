@@ -24,10 +24,10 @@ POINTS = [
 ]
 LINKS = [
     {
-        'тип': 'привязывает каждое поле к этапу',
+        'тип': 'использует',
         'куда': 'etapy-zapolneniya-kartochki-versiya-polzovatelya-15-09-2026',
         'папка': 'decisions',
     },
-    {'тип': 'подчиняется правилам формы', 'куда': 'dokumenty-proekta-forma-i-soderzhanie', 'папка': 'rules'},
-    {'тип': 'хранится только локально по', 'куда': 'dannye-proekta-naruzhu-ne-uhodyat', 'папка': 'rules'},
+    {'тип': 'опирается на', 'куда': 'dokumenty-proekta-forma-i-soderzhanie', 'папка': 'rules'},
+    {'тип': 'использует', 'куда': 'dannye-proekta-naruzhu-ne-uhodyat', 'папка': 'rules'},
 ]
