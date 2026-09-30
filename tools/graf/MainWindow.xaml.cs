@@ -424,6 +424,9 @@ public sealed partial class MainWindow : Window
     }
     public void SetLeftTabPublic(string tab) => SetLeftTab(tab);
     public void SetDatePresetPublic(string key) => SetDatePreset(key);
+    // Для сценариев: раскрыть раздел панели фильтров только в памяти — без
+    // записи в настройки, чтобы проверка не меняла вид программы у человека.
+    public void OpenGroupPublic(string key) { if (!Open(key)) _settings.OpenGroups.Add(key); BuildFilters(); }
     public void ColorByDatePublic(bool on) { ColorByDate.IsOn = on; UpdateRecency(); Graph.NodeColor = on ? RecencyColor : null; Graph.Redraw(); }
     public void OpenTocSection(string name) { _tocOpen.Add(name); BuildToc(); }
     public List<string> ListedIds() => (List.ItemsSource as List<Row> ?? new()).Select(r => r.R.Id).ToList();

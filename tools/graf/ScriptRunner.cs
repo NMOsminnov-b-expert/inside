@@ -11,7 +11,10 @@ namespace Graf;
 // pull (потянуть узел), orbit, motion (замер движения узлов), export,
 // import, wait, shot, dump; zoom (масштаб плоского графа), quality (числа,
 // замечания и подсказки связей выбранной записи — в журнал), check (окно
-// проверки, не дожидаясь закрытия), closedlg.
+// проверки, не дожидаясь закрытия), closedlg; opengroup (раскрыть раздел
+// панели фильтров, не записывая в настройки), datepreset.
+//
+// Готовые сценарии с проверкой результата — tools/graf/checks (run.py).
 public static class ScriptRunner
 {
     public static async Task Run(MainWindow w, string path)
@@ -55,6 +58,7 @@ public static class ScriptRunner
                     case "ego": w.GraphCtl.SetEgo(st.GetProperty("hops").GetInt32()); break;
                     case "islandstat": log.Add("  острова: " + w.GraphCtl.IslandStats()); break;
                     case "datepreset": w.SetDatePresetPublic(S("value")); break;
+                    case "opengroup": w.OpenGroupPublic(S("value")); break;
                     case "colorbydate": w.ColorByDatePublic(true); break;
                     case "tocopen": w.OpenTocSection(S("value")); break;
                     case "listed":

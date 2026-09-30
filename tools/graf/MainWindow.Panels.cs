@@ -207,8 +207,8 @@ public sealed partial class MainWindow
         var open = Open("tags");
         _secTags.Children.Add(Hig.SidebarHeader("Метки", open, _tagsOn.Count > 0 ? $"выбрано {_tagsOn.Count}" : "", () => { Toggle("tags"); BuildTags(); }));
         if (!open) return;
-        if (TagFilter.Parent is Microsoft.UI.Xaml.Controls.Panel old) old.Children.Remove(TagFilter);
-        _secTags.Children.Add(TagFilter);
+        Detach(TagFilter);
+        _secTags.Children.Add(Hosted(TagFilter, _secTags));
         var rows = new List<UIElement>();
         // Отмеченные — сверху: их видно и без «Показать все».
         foreach (var g in Store.All.SelectMany(r => r.Tags).GroupBy(t => t)
@@ -256,6 +256,38 @@ public sealed partial class MainWindow
         }).ToList(), BuildEdgeKinds);
     }
 
+    // --- переиспользуемые элементы ------------------------------------------------
+    //
+    // Поля дат, гистограмма, её подпись, легенда цвета и строка поиска меток
+    // живут одним экземпляром и при каждой пересборке панели переезжают в новый
+    // контейнер. Прежний контейнер к этому времени снят с экрана, и Parent у
+    // элемента WinUI отдаёт пустым — проверка «Parent is Panel» его не
+    // отцепляла, и вставка падала COMException 0x800F1000 (30.09.2026: фильтр
+    // «за последний час» ронял программу, а раздел «Дата» оставался раскрытым в
+    // настройках — и программа падала при каждом запуске). Поэтому контейнер
+    // запоминается при вставке и отцепляется по памяти.
+    readonly Dictionary<UIElement, Microsoft.UI.Xaml.Controls.Panel> _hosts = new();
+
+    void Detach(UIElement el)
+    {
+        if (_hosts.Remove(el, out var host)) host.Children.Remove(el);
+        if (el is FrameworkElement fe && fe.Parent is Microsoft.UI.Xaml.Controls.Panel p) p.Children.Remove(el);
+    }
+
+    T Hosted<T>(T el, Microsoft.UI.Xaml.Controls.Panel host) where T : UIElement
+    {
+        _hosts[el] = host;
+        return el;
+    }
+
+    // Строка Hig.Row кладёт trailing в свою сетку: сетка — содержимое кнопки
+    // или сама строка.
+    FrameworkElement HostRow(FrameworkElement row, UIElement trailing)
+    {
+        if ((row is Button b ? b.Content : row) is Microsoft.UI.Xaml.Controls.Panel g) _hosts[trailing] = g;
+        return row;
+    }
+
     // --- дата ----------------------------------------------------------------------
     //
     // Что считать — сегментами («Менялись» — любая правка в период,
@@ -283,32 +315,32 @@ public sealed partial class MainWindow
             click: () => { _datePreset = "custom"; BuildDateFilter(); }));
         if (_datePreset == "custom")
         {
-            if (DateFrom.Parent is Microsoft.UI.Xaml.Controls.Panel p1) p1.Children.Remove(DateFrom);
-            if (DateTo.Parent is Microsoft.UI.Xaml.Controls.Panel p2) p2.Children.Remove(DateTo);
-            rows.Add(Hig.Row("С", trailing: DateFrom));
-            rows.Add(Hig.Row("По", trailing: DateTo));
+            Detach(DateFrom);
+            Detach(DateTo);
+            rows.Add(HostRow(Hig.Row("С", trailing: DateFrom), DateFrom));
+            rows.Add(HostRow(Hig.Row("По", trailing: DateTo), DateTo));
         }
         var card = Hig.Card(rows);
         card.Margin = new Thickness(0, 2, 0, 10);
         _secDate.Children.Add(card);
 
-        if (DateHist.Parent is Microsoft.UI.Xaml.Controls.Panel ph) ph.Children.Remove(DateHist);
+        Detach(DateHist);
         var hist = new StackPanel { Padding = new Thickness(14, 12, 14, 10), Spacing = 6 };
         hist.Children.Add(Hig.Text(_dateAdded ? "Добавления записей" : "Правки записей", Hig.T.Subhead, "HigSecondary"));
-        hist.Children.Add(DateHist);
+        hist.Children.Add(Hosted(DateHist, hist));
         var histCard = Hig.Card(new UIElement[] { hist });
         histCard.Margin = new Thickness(0, 0, 0, 4);
         _secDate.Children.Add(histCard);
-        if (DateHistNote.Parent is Microsoft.UI.Xaml.Controls.Panel pn) pn.Children.Remove(DateHistNote);
+        Detach(DateHistNote);
         DateHistNote.Margin = new Thickness(14, 0, 14, 10);
-        _secDate.Children.Add(DateHistNote);
+        _secDate.Children.Add(Hosted(DateHistNote, _secDate));
 
         var colorCard = Hig.Card(new[] { Hig.SwitchRow("Цвет узла по дате изменения", ColorByDate.IsOn, on => { ColorByDate.IsOn = on; }) });
         colorCard.Margin = new Thickness(0, 0, 0, 4);
         _secDate.Children.Add(colorCard);
-        if (ColorLegend.Parent is Microsoft.UI.Xaml.Controls.Panel pl) pl.Children.Remove(ColorLegend);
+        Detach(ColorLegend);
         ColorLegend.Margin = new Thickness(14, 0, 14, 12);
-        _secDate.Children.Add(ColorLegend);
+        _secDate.Children.Add(Hosted(ColorLegend, _secDate));
         BuildHistogram();
     }
 

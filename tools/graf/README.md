@@ -127,6 +127,11 @@ JSON со всеми записями; «Загрузить граф из фай
     Graf.exe --root <папка> --selftest <отчёт.txt>
     Graf.exe --root <копия графа> --script <сценарий.json>
 
+Готовые сценарии с проверкой результата — `tools/graf/checks/*.json`, запуск
+`python tools/graf/checks/run.py [имя …]` на собранной программе (dist) и копии
+графа во временной папке; провал — ошибка в журнале сценария, код выхода или
+новая запись в `%TEMP%\graf-crash.log`.
+
 `--selftest` — каждая запись пишется заново и сравнивается с файлом, плюс
 выгрузка→загрузка не должна ничего поменять. `--script` — шаги из
 `ScriptRunner.cs` (select, search, mode, pull, orbit, motion, export,

@@ -1,0 +1,19 @@
+[
+  {"op": "opengroup", "value": "date"},
+  {"op": "datepreset", "value": "hour"},
+  {"op": "datepreset", "value": "hour"},
+  {"op": "datepreset", "value": "today"},
+  {"op": "datepreset", "value": "d7"},
+  {"op": "datepreset", "value": "custom"},
+  {"op": "datepreset", "value": "custom"},
+  {"op": "datepreset", "value": "d30"},
+  {"op": "colorbydate"},
+  {"op": "datepreset", "value": "all"},
+  {"op": "opengroup", "value": "tags"},
+  {"op": "search", "text": "статус"},
+  {"op": "search", "text": ""},
+  {"op": "mode", "value": "list"},
+  {"op": "datepreset", "value": "hour"},
+  {"op": "mode", "value": "graph"},
+  {"op": "datepreset", "value": "all"}
+]
