@@ -11,7 +11,7 @@ SYNONYMS = []
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 VALUE_TYPE = ['текст']
 UNIT = ''
 LIST_SIZE = 0
@@ -106,15 +106,22 @@ OCCURS = [
     {
         'объект': 'Механизмы и оборудование',
         'часть': 'карточка объекта имущества',
-        'блок': '02 Котёл газовый КВГ-1,25',
+        'блок': '02 Карточка выбранной единицы',
         'пример_экрана': '#/oc/civil/oc-cv-all/oi/oi-cv-all-mech',
         'в_типах_записи': ['Нежилое здание'],
     },
     {
         'объект': 'Офисная техника и мебель',
         'часть': 'карточка объекта имущества',
-        'блок': '02 Комплекс офисной техники',
+        'блок': '02 Карточка выбранной единицы',
         'пример_экрана': '#/oc/civil/oc-cv-all/oi/oi-cv-all-office',
         'в_типах_записи': ['Нежилое здание'],
     },
+]
+LINKS = [
+    {'тип': 'часть', 'куда': 'blok-kartochka-vybrannoy-edinicy', 'папка': 'concepts'},
+    {'тип': 'часть', 'куда': 'blok-obschie-parametry', 'папка': 'concepts'},
+    {'тип': 'часть', 'куда': 'blok-obschie-parametry-kvartiry', 'папка': 'concepts'},
+    {'тип': 'часть', 'куда': 'blok-sobstvenniki-polzovateli-i-otvetstvennye', 'папка': 'concepts'},
+    {'тип': 'часть', 'куда': 'blok-uchrezhdenie-sobstvenniki-i-otvetstvennye', 'папка': 'concepts'},
 ]

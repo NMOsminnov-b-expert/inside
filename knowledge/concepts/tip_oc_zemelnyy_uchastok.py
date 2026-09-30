@@ -12,5 +12,6 @@ CONCEPT_KIND = 'тип объекта оценки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 OCCURS = [{'экран': 'карточка объекта оценки', 'маршрут': '#/oc/land-plot/oc-lp-all'}]
+LINKS = [{'тип': 'относится к', 'куда': 'obekt-ocenki', 'папка': 'concepts'}]

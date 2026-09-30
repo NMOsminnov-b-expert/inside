@@ -17,3 +17,10 @@ POINTS = [
     'В остальных модулях ключи (splitVW, cmpSplit, cmpHidden, railCollapsed, viewerSidebar, фильтры лога, pageSel) появлялись лишь после первого обращения, то есть до него читались как undefined.',
     'Состав ключей выровнен по civil; различие осталось только там, где оно осмысленно: mechRows/mechDraft — у модулей с механизмами (civil, production).',
 ]
+LINKS = [
+    {
+        'тип': 'относится к',
+        'куда': 'log-deystviy-i-prosmotrschik-razneseny-po-vsem-5-modulyam',
+        'папка': 'decisions',
+    },
+]

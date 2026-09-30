@@ -12,10 +12,11 @@ CONCEPT_KIND = 'вид объекта имущества'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 OCCURS = [
     {
         'экран': 'карточка объекта имущества в «Нежилое здание»',
         'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-mech',
     },
 ]
+LINKS = [{'тип': 'относится к', 'куда': 'obekt-imuschestva', 'папка': 'concepts'}]

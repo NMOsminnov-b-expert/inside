@@ -11,7 +11,7 @@ SYNONYMS = []
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 VALUE_TYPE = ['отметка']
 UNIT = ''
 LIST_SIZE = 0
@@ -34,3 +34,4 @@ OCCURS = [
         'в_типах_записи': ['Нежилое здание'],
     },
 ]
+LINKS = [{'тип': 'часть', 'куда': 'blok-tip-i-klass-kapitalnosti', 'папка': 'concepts'}]

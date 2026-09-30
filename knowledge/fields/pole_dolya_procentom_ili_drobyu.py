@@ -11,7 +11,7 @@ SYNONYMS = []
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 VALUE_TYPE = ['текст']
 UNIT = ''
 LIST_SIZE = 0
@@ -43,4 +43,8 @@ OCCURS = [
             'Земельный участок',
         ],
     },
+]
+LINKS = [
+    {'тип': 'часть', 'куда': 'blok-sobstvenniki-polzovateli-i-otvetstvennye', 'папка': 'concepts'},
+    {'тип': 'часть', 'куда': 'blok-uchrezhdenie-sobstvenniki-i-otvetstvennye', 'папка': 'concepts'},
 ]

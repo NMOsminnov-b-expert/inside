@@ -17,3 +17,6 @@ POINTS = [
     '[восстановлено] Поле ввода #fEni теперь показывает маску, а при сохранении ocForm.ctrl.js/ocCreateForm.ctrl.js кладёт в данные цифры через parseEni — живого маскирования при наборе нет, но round-trip не ломается.',
     '[восстановлено] Площадь участка в перечне civil и production читалась из устаревшего плоского oi.area, тогда как карточка из land-plot держит площади в oi.areas (pravo/fact/build) — у заведённого участка была вечный прочерк. tableArea в oi/registry.js читает oi.areas.pravo с откатом на oi.area.',
 ]
+LINKS = [
+    {'тип': 'относится к', 'куда': 'probely-formata-eni-i-ploschadi-uchastka-faza-0', 'папка': 'decisions'},
+]

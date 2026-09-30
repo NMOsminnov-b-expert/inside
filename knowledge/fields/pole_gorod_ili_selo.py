@@ -11,7 +11,7 @@ SYNONYMS = []
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 VALUE_TYPE = ['выбор из списка']
 UNIT = ''
 LIST_SIZE = 14
@@ -32,3 +32,4 @@ OCCURS = [
         ],
     },
 ]
+LINKS = [{'тип': 'часть', 'куда': 'blok-mestopolozhenie', 'папка': 'concepts'}]

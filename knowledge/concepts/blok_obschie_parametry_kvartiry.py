@@ -12,5 +12,6 @@ CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 OCCURS = [{'экран': 'карточка «Квартира»', 'маршрут': '#/oc/apartment/oc-ap-all/oi/oi-ap-all-flat'}]
+LINKS = [{'тип': 'часть', 'куда': 'vid-oi-kvartira', 'папка': 'concepts'}]

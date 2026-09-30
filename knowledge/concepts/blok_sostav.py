@@ -12,8 +12,12 @@ CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 OCCURS = [
     {'экран': 'карточка «Механизмы и оборудование»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-mech'},
     {'экран': 'карточка «Офисная техника и мебель»', 'маршрут': '#/oc/civil/oc-cv-all/oi/oi-cv-all-office'},
+]
+LINKS = [
+    {'тип': 'часть', 'куда': 'vid-oi-mehanizmy-i-oborudovanie', 'папка': 'concepts'},
+    {'тип': 'часть', 'куда': 'vid-oi-ofisnaya-tehnika-i-mebel', 'папка': 'concepts'},
 ]

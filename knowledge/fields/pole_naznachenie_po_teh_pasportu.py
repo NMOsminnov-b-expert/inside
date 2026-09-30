@@ -11,7 +11,7 @@ SYNONYMS = []
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 VALUE_TYPE = ['текст']
 UNIT = ''
 LIST_SIZE = 0
@@ -63,3 +63,4 @@ OCCURS = [
         ],
     },
 ]
+LINKS = [{'тип': 'часть', 'куда': 'blok-obschie-parametry', 'папка': 'concepts'}]

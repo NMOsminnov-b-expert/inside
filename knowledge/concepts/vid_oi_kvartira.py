@@ -12,7 +12,7 @@ CONCEPT_KIND = 'вид объекта имущества'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 OCCURS = [
     {
         'экран': 'карточка объекта имущества в «Жилое здание (квартира)»',
@@ -23,3 +23,4 @@ OCCURS = [
         'маршрут': '#/oc/residential-house/oc-rh-all/oi/oi-rh-all-flat',
     },
 ]
+LINKS = [{'тип': 'относится к', 'куда': 'obekt-imuschestva', 'папка': 'concepts'}]

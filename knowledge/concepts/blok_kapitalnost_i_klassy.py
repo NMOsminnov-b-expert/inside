@@ -12,5 +12,6 @@ CONCEPT_KIND = 'блок карточки'
 DEFINITION = ''
 STATUS = 'черновик'
 SOURCE = 'макет'
-TAKEN = '2026-09-29'
+TAKEN = '2026-09-30'
 OCCURS = [{'экран': 'карточка «Объект оценки»', 'маршрут': '#/oc/civil/oc-cv-all'}]
+LINKS = [{'тип': 'часть', 'куда': 'obekt-ocenki', 'папка': 'concepts'}]
