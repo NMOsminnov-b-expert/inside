@@ -92,6 +92,10 @@ def main():
     # экраны приходилось бы снимать мимо отчётности, разовым скриптом.
     ap.add_argument('--select', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
                     help='выбрать значение в select перед снимком')
+    # Вписать значение и уйти из поля (Tab) — снимок после проверки и
+    # приведения записи к виду: «5.5-10» → «5,5 – 10».
+    ap.add_argument('--fill', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
+                    help='вписать значение в поле и уйти из него перед снимком (после --select)')
     ap.add_argument('--clip', default='',
                     help='снять только этот элемент (например .card:nth-of-type(3)) — блок целиком, без остального экрана')
     ap.add_argument('--width', type=int, default=1600)
@@ -149,6 +153,16 @@ def main():
                     pg.locator(sel).first.select_option(value)
                 except Exception as e:
                     errs.append(f'SELECT {sel}: {e}')
+                pg.wait_for_timeout(args.settle_ms)
+
+            for pair in args.fill:
+                sel, _, value = pair.partition('|')
+                try:
+                    el = pg.locator(sel).first
+                    el.fill(value)
+                    el.press('Tab')
+                except Exception as e:
+                    errs.append(f'FILL {sel}: {e}')
                 pg.wait_for_timeout(args.settle_ms)
 
             if args.clip:

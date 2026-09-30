@@ -9,6 +9,7 @@
 import { confirmDialog } from '../../../kernel/dialog.js';
 import { bindNumField, isExpr } from '../../../kernel/numField.js';
 import { bindRangeField } from '../../../kernel/rangeField.js';
+import { bindCatSearch } from './catSearch.js';
 import { bindAutoGrowAll } from '../../../kernel/autoGrow.js';
 import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
 import { openPhotoInPlace } from '../../../kernel/viewer/state.js';
@@ -166,6 +167,8 @@ export function bindMechForm(ctx, oi) {
   select(unit.id);
 
   // --- Классификация --------------------------------------------------------
+
+  bindCatSearch(s, unit, () => rerender());
 
   const cls = s.$('[data-mu-cls]');
   if (cls) cls.onchange = () => { setClass(unit, cls.value); rerender(); };

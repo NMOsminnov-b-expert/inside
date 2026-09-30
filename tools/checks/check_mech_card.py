@@ -25,7 +25,9 @@ mech. Сценарий ловит то, что уже ломалось при с
   * меню «+ Добавить ОИ» предлагает один пункт на всё движимое;
   * комментарий единицы с пояснением: растёт по тексту и сохраняется;
   * пролёт и грузоподъёмность крана — число или интервал «5-10»: минус не
-    вычитается, запись приводится к виду «5,5 – 10», «10-5» — ошибка.
+    вычитается, запись приводится к виду «5,5 – 10», «10-5» — ошибка;
+  * поиск категории по дереву: конечная категория с путём и подсветкой,
+    выбор подставляет класс, подгруппу и тип или «Вид» класса «Прочее».
 """
 import base64
 import os
@@ -197,6 +199,36 @@ def run(t):
     t.ck(pg.locator('[data-mu-f="span"]').input_value() == '5,5 – 10', 'интервал не сохранился')
     t.ck(pg.locator('[data-mu-f="capacity"]').input_value() == '3,20' or
          pg.locator('[data-mu-f="capacity"]').input_value() == '3,2', 'грузоподъёмность не сохранилась')
+
+    # --- поиск категории ---------------------------------------------------------
+    # Поиск по всему дереву: в выдаче конечная категория с путём, выбор
+    # подставляет класс, подгруппу, тип — или «Вид» у класса без подгрупп
+    # (задача пользователя 30.09.2026, пример — «Навес»).
+    csq = pg.locator('[data-mu-csq]')
+    csq.fill('навес')
+    t.wait_for('#mu-cs-list [role="option"]')
+    first = pg.locator('#mu-cs-list [role="option"]').first
+    t.ck('Навесное оборудование' in first.inner_text(), 'по «навес» первым не предложено навесное: %r' % first.inner_text())
+    t.ck(first.locator('mark').count() >= 1, 'совпадение в выдаче не подсвечено')
+    t.ck('Прочее' in first.locator('.mu-cs-path').inner_text(), 'у найденной категории нет пути')
+    csq.press('Enter')
+    t.wait_until("() => document.querySelector('[data-mu-cls]') && document.querySelector('[data-mu-cls]').value === 'Прочее'")
+    t.ck(pg.locator('[data-mu-f="otherKind"]').input_value() == 'Навесное оборудование',
+         'вид «Навесное оборудование» не подставлен')
+    csq = pg.locator('[data-mu-csq]')
+    csq.fill('ибп')
+    t.wait_for('#mu-cs-list [role="option"]')
+    pg.locator('#mu-cs-list [role="option"]').first.dispatch_event('mousedown')
+    t.wait_until("() => (document.querySelector('[data-mu-type]') || {}).value === 'Источники бесперебойного питания и стабилизаторы напряжения'")
+    t.ck(sel('sub').input_value() == 'Компьютерная и оргтехника', 'подгруппа ИБП не подставлена')
+    t.ck(pg.locator('[data-mu-f="upsPower"]').count() == 1, 'у ИБП нет своих полей')
+    csq = pg.locator('[data-mu-csq]')
+    csq.fill('кран мост')
+    t.wait_for('#mu-cs-list [role="option"]')
+    names = pg.eval_on_selector_all('#mu-cs-list .mu-cs-name', 'els => els.map((e) => e.textContent)')
+    t.ck(any('остов' in n for n in names), 'слова запроса не ищутся по всему пути: %s' % names)
+    csq.press('Escape')
+    t.ck(pg.locator('#mu-cs-list').is_hidden(), 'Escape не закрыл выдачу')
 
     # --- правка по ходу набора ------------------------------------------------
     name = pg.locator('[data-mu-name]')

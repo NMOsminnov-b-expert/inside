@@ -56,6 +56,18 @@ TYPOS = {
 }
 
 
+# Типы, которых нет в таблице, — по решениям пользователя. Каждый выводится
+# при сборке напоминанием: добавить его надо и в саму таблицу, после чего
+# строку отсюда можно убрать.
+ADD_TYPES = {
+    # Заметки пользователя 30.09.2026: «ИБП и подобное относим в отдельный тип
+    # внутри ПК и оргтехники».
+    ('Офисное оборудование и мебель', 'Компьютерная и оргтехника'): [
+        'Источники бесперебойного питания и стабилизаторы напряжения',
+    ],
+}
+
+
 def clean(v):
     s = re.sub(r'\s+', ' ', str(v or '')).strip()
     # Косая черта с пробелом только с одной стороны («Назначение/ тип»,
@@ -120,6 +132,16 @@ def main():
                             % (n, typ, sub))
         if typ:
             s['types'].append(typ)
+
+    for (cls, sub), types in ADD_TYPES.items():
+        s = next((x for x in by_class.get(cls, {}).get('subgroups', []) if x['name'] == sub), None)
+        if not s:
+            problems.append('нет подгруппы «%s / %s» для добавленных типов' % (cls, sub))
+            continue
+        for typ in types:
+            if typ not in s['types']:
+                s['types'].append(typ)
+                problems.append('тип «%s» добавлен в «%s» не из таблицы — внести в таблицу' % (typ, sub))
 
     body = json.dumps({'base': base, 'classes': classes}, ensure_ascii=False, indent=2)
     header = (

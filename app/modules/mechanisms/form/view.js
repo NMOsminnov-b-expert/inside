@@ -17,6 +17,7 @@ import { esc } from '../../../kernel/dom.js';
 import { fmtNum } from '../../../kernel/fmt.js';
 import { numText } from '../../../kernel/numField.js';
 import { rangeText } from '../../../kernel/rangeField.js';
+import { catSearchHTML } from './catSearch.js';
 import { devNote } from '../../../kernel/devNote.js';
 import { blockNumbers } from '../../../kernel/blockIndex.js';
 import { photoFileAt } from '../photos.js';
@@ -210,6 +211,7 @@ function classificationHTML(unit) {
 
   return `<div class="mu-sec">
     <div class="sec-h">Классификация${devNote(CLASS_NOTE)}</div>
+    ${catSearchHTML()}
     <div class="grid mu-grid-class">
       ${selectField({ label: 'Класс', attr: 'cls', options: classNames(), value: unit.cls, placeholder: 'Выберите класс' })}
       ${withSubs ? selectField({
