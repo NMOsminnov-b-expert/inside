@@ -75,6 +75,17 @@ def commit_slug():
     return slug(msg) if msg else 'bez-kommita'
 
 
+class Step(argparse.Action):
+    """--click/--select/--fill/--type: запомнить и сам шаг, и его место в
+    общей очереди — выполняются они в порядке командной строки."""
+
+    def __call__(self, parser, ns, value, option_string=None):
+        getattr(ns, self.dest).append(value)
+        if not hasattr(ns, 'steps'):
+            ns.steps = []
+        ns.steps.append((self.dest, value))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--route', default='', help='хэш-маршрут после app.html')
@@ -86,19 +97,19 @@ def main():
                          'обязателен только для блока oc')
     ap.add_argument('--oi', default='', help='тип ОИ: building, apartment, land, movable; пусто — снимок уровня ОЦ')
     ap.add_argument('--wait', default='.card')
-    ap.add_argument('--click', action='append', default=[])
+    ap.add_argument('--click', action=Step, default=[])
     # Состояние блока часто зависит от значения в поле («Есть» открывает
     # зависимые поля), а снимок нужен именно в этом состоянии — иначе такие
     # экраны приходилось бы снимать мимо отчётности, разовым скриптом.
-    ap.add_argument('--select', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
+    ap.add_argument('--select', action=Step, default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
                     help='выбрать значение в select перед снимком')
     # Вписать значение и уйти из поля (Tab) — снимок после проверки и
     # приведения записи к виду: «5.5-10» → «5,5 – 10».
-    ap.add_argument('--fill', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
+    ap.add_argument('--fill', action=Step, default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
                     help='вписать значение в поле и уйти из него перед снимком (после --select)')
     # То же, но фокус остаётся в поле — для подсказок и выдачи поиска, которые
     # закрываются при уходе с поля.
-    ap.add_argument('--type', action='append', default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
+    ap.add_argument('--type', action=Step, default=[], metavar='СЕЛЕКТОР|ЗНАЧЕНИЕ',
                     help='вписать значение и остаться в поле (после --fill)')
     ap.add_argument('--clip', default='',
                     help='снять только этот элемент (например .card:nth-of-type(3)) — блок целиком, без остального экрана')
@@ -107,6 +118,8 @@ def main():
     ap.add_argument('--full-page', action='store_true')
     ap.add_argument('--settle-ms', type=int, default=400)
     args = ap.parse_args()
+    if not hasattr(args, 'steps'):
+        args.steps = []
 
     if args.block in BLOCKS_WITH_OC and not args.oc:
         ap.error('для блока %s нужен --oc (тип ОЦ)' % args.block)
@@ -144,37 +157,23 @@ def main():
                     errs.append('WAIT: ' + str(e))
             pg.wait_for_timeout(args.settle_ms)
 
-            for sel in args.click:
-                try:
-                    pg.locator(sel).first.click()
-                except Exception as e:
-                    errs.append(f'CLICK {sel}: {e}')
-                pg.wait_for_timeout(args.settle_ms)
-
-            for pair in args.select:
-                sel, _, value = pair.partition('|')
-                try:
-                    pg.locator(sel).first.select_option(value)
-                except Exception as e:
-                    errs.append(f'SELECT {sel}: {e}')
-                pg.wait_for_timeout(args.settle_ms)
-
-            for pair in args.fill:
-                sel, _, value = pair.partition('|')
+            # Действия — в том порядке, в каком они заданы в командной строке:
+            # экран часто собирается цепочкой «щёлкнуть — выбрать — снова
+            # щёлкнуть» (выбрать базу ТС, потом добавить модуль).
+            for kind, arg in args.steps:
+                sel, _, value = arg.partition('|')
                 try:
                     el = pg.locator(sel).first
-                    el.fill(value)
-                    el.press('Tab')
+                    if kind == 'click':
+                        el.click()
+                    elif kind == 'select':
+                        el.select_option(value)
+                    else:
+                        el.fill(value)
+                        if kind == 'fill':
+                            el.press('Tab')
                 except Exception as e:
-                    errs.append(f'FILL {sel}: {e}')
-                pg.wait_for_timeout(args.settle_ms)
-
-            for pair in args.type:
-                sel, _, value = pair.partition('|')
-                try:
-                    pg.locator(sel).first.fill(value)
-                except Exception as e:
-                    errs.append(f'TYPE {sel}: {e}')
+                    errs.append(f'{kind.upper()} {sel}: {e}')
                 pg.wait_for_timeout(args.settle_ms)
 
             if args.clip:

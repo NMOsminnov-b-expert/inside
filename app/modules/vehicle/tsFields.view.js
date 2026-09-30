@@ -93,7 +93,8 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
   const value = valueOf(vals, f.key);
   const one = f.units && f.units.length === 1 ? f.units[0] : '';
   const many = f.units && f.units.length > 1;
-  const label = esc((SHORT[f.key] || f.label) + (one ? ', ' + one : ''));
+  // f.short — подпись, заданная на месте (у модуля «Раб. объём»); SHORT — общая.
+  const label = esc((f.short || SHORT[f.key] || f.label) + (one ? ', ' + one : ''));
   const full = esc(f.label + (one ? ', ' + one : ''));
   // У поля без пометки источника (особые поля баз) пояснение — строкой под
   // полем: оно короткое, и спрятать его некуда.
@@ -109,13 +110,16 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
   // пояснением подчёркнута пунктиром, чтобы было видно, что оно есть.
   // Подсказка, которая повторяет подпись, не нужна.
   const tip = [full !== label ? full : '', note].filter(Boolean).join(' — ');
-  const head = `<label for="${id}" ${tip ? `title="${tip}"` : ''} class="${note ? 'vh-tip' : ''}">${label}${tagHTML(f)}</label>`;
+  // Пунктир — у любой подписи с подсказкой: и с пояснением, и сокращённой
+  // (указание пользователя 30.09.2026: «если сокращаешь, в подсказках нужны
+  // развёртки» — а без пунктира о подсказке не догадаться).
+  const head = `<label for="${id}" ${tip ? `title="${tip}"` : ''} class="${tip ? 'vh-tip' : ''}">${label}${tagHTML(f)}</label>`;
 
   if (f.type === 'checks') {
     const picked = Array.isArray((vals || {})[f.key]) ? vals[f.key] : [];
     MS_OPTS.set(bind, f.options);
     return `<div class="field vh-ms ${cls}" data-ts-key="${esc(f.key)}">
-      <label ${tip ? `title="${tip}"` : ''} class="${note ? 'vh-tip' : ''}">${label}${tagHTML(f)}</label>
+      <label ${tip ? `title="${tip}"` : ''} class="${tip ? 'vh-tip' : ''}">${label}${tagHTML(f)}</label>
       <div class="ms" data-tsf-ms="${esc(bind)}">
         <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список — можно несколько">${msSummaryHTML(picked)}</div>
         <div class="ms-drop" hidden>${msBodyHTML(bind, picked)}</div>

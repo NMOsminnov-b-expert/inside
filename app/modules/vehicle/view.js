@@ -72,10 +72,10 @@ const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, engineKind: 1, e
 // В форме модуля подписи короче: блок и так про установку, полное название —
 // в справочнике и в подсказке подписи.
 const FUEL_ENGINES = ['Дизель', 'Бензин', 'Газ'];
-const MODULE_LABEL = { engineKind: 'Двигатель', engineVolume: 'Рабочий объём' };
+const MODULE_LABEL = { engineKind: 'Двигатель', engineVolume: 'Раб. объём' };
 const moduleFields = (vals, list) => list
   .filter((f) => f.key !== 'engineVolume' || FUEL_ENGINES.includes(vals.engineKind))
-  .map((f) => (MODULE_LABEL[f.key] ? { ...f, label: MODULE_LABEL[f.key], hint: f.label + (f.hint ? '. ' + f.hint : '') } : f));
+  .map((f) => (MODULE_LABEL[f.key] ? { ...f, short: MODULE_LABEL[f.key] } : f));
 const spanOf = (f, owner) => (owner !== 'main' && MODULE_SPAN[f.key])
   || SPAN[f.key] || (f.type === 'yes' || f.type === 'int' || f.type === 'year' ? 1 : 2);
 const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner, `vh-s${spanOf(f, owner)}`)).join('');
