@@ -19,4 +19,9 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'sbor-praktik-pered-dizaynom', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'oformlenie-tablicy-dannyh', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'oformlenie-vkladok-i-menyu', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'tri-sostoyaniya-ozhidanie-pustota-otkaz', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'primitivy-interfeysa-po-roli', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'kontrast-meryat-cvet-preduprezhdeniya-v-tekste', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'dvizhenie-otvechaet-na-vopros-i-stoit-malo', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'polzunki-prokrutki-i-kraya-lent', 'папка': 'practices'},
 ]

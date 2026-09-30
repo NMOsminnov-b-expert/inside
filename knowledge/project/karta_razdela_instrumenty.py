@@ -23,4 +23,6 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'view-graph-prosmotr-grafa', 'папка': 'tools'},
     {'тип': 'якорь', 'куда': 'praktika-filtr-priglushaet-ne-pryachet', 'папка': 'practices'},
     {'тип': 'якорь', 'куда': 'poisk-po-smyslu-codebase-mcp-s-lokalnoy-modelyu', 'папка': 'tools'},
+    {'тип': 'якорь', 'куда': 'zamer-plavnosti-na-slabom-zheleze', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'poisk-po-grafu-zamery-apcs', 'папка': 'practices'},
 ]

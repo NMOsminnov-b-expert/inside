@@ -27,4 +27,6 @@ LINKS = [
         'куда': 'sozdanie-oc-otdelnyy-ekran-marshrut-fizicheski-ne-obschiy-s-redaktirov',
         'папка': 'decisions',
     },
+    {'тип': 'якорь', 'куда': 'razmnozhennoe-znanie-iskat-kopii', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'lenivyy-modul-i-poryadok-css', 'папка': 'practices'},
 ]

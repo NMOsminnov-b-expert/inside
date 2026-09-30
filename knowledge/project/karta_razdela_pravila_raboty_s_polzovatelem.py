@@ -19,4 +19,9 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'dannye-proekta-naruzhu-ne-uhodyat', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'zhurnal-izmeneniy', 'папка': 'decisions'},
     {'тип': 'якорь', 'куда': 'sbor-praktik-pered-dizaynom', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'plavnost-na-slabom-zheleze', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'odin-znak-prepinaniya-znachit-prodolzhat', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'vetki-tolko-po-ukazaniyu', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'gody-i-periody-ne-zashivat', 'папка': 'rules'},
+    {'тип': 'якорь', 'куда': 'familiya-polzovatelya-osminnov', 'папка': 'rules'},
 ]

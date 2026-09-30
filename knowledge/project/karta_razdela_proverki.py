@@ -19,4 +19,6 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'proveryat-povedenie-scenariem-a-ne-chteniem-koda', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'ozhidaniya-v-proverkah-tolko-po-faktu', 'папка': 'rules'},
     {'тип': 'якорь', 'куда': 'tools-checks', 'папка': 'tools'},
+    {'тип': 'якорь', 'куда': 'shlyuz-interfeysa-zamer-raskladki', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'gate-proverok-tolko-defekty', 'папка': 'practices'},
 ]
