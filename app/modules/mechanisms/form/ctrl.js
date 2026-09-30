@@ -186,6 +186,9 @@ export function bindMechForm(ctx, oi) {
   const country = s.$('[data-mu-country]');
   if (country) country.oninput = () => { unit.country = country.value; };
 
+  const made = s.$('[data-mu-made]');
+  bindCheckedField(made, yearError, (v) => { unit.madeYear = v; });
+
   const year = s.$('[data-mu-year]');
   bindCheckedField(year, yearError, (v) => { unit.year = v; refreshList(); });
 

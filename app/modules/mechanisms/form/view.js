@@ -93,11 +93,11 @@ export function unitsTable(ctx, oi, current) {
 
   return `<div class="mu-table-wrap">
     <table class="tbl mu-tbl">
-      <colgroup><col><col style="width:56px"><col style="width:70px"><col style="width:124px">
+      <colgroup><col><col style="width:72px"><col style="width:70px"><col style="width:124px">
         <col style="width:58px"><col style="width:36px"></colgroup>
       <thead><tr>
         <th title="Наименование и классификация">Наименование</th>
-        <th class="mu-c-num">Год</th>
+        <th class="mu-c-num" title="Год ввода в эксплуатацию">Ввод, г.</th>
         <th class="mu-c-num" title="Количество, шт.">Кол-во</th>
         <th class="mu-c-num" title="Балансовая стоимость, сом">Бал. стоимость</th>
         <th class="mu-c-num">Фото</th>
@@ -252,13 +252,19 @@ function nameHTML(unit) {
   </div>`;
 }
 
-// Учётные сведения: год ввода в эксплуатацию, количество, балансовая стоимость
-// и страна происхождения. Страну спрашиваем не у всех категорий — только у
-// значимого оборудования (решение пользователя 17.09.2026).
+// Учётные сведения: год выпуска и год ввода в эксплуатацию (разные даты —
+// станок 2015 года могли ввести в 2020-м; решение пользователя 30.09.2026),
+// количество, балансовая стоимость и страна происхождения — у любой
+// категории (решение 30.09.2026).
 function accountingHTML(unit) {
   return `<div class="mu-sec">
     <div class="sec-h">Учётные сведения</div>
     <div class="grid mu-grid-general">
+      <div class="field">
+        <label for="mu-made">Год выпуска</label>
+        <input class="input mu-num" id="mu-made" data-mu-made value="${esc(unit.madeYear || '')}"
+          inputmode="numeric" maxlength="4" placeholder="ГГГГ">
+      </div>
       <div class="field">
         <label for="mu-year">Год ввода в эксплуатацию</label>
         <input class="input mu-num" id="mu-year" data-mu-year value="${esc(unit.year || '')}"
