@@ -1,0 +1,16 @@
+#!/bin/sh
+# После каждого коммита — фоновое обновление обоих поисков проекта (просьба
+# пользователя 30.09.2026: «После коммита запускалась чтобы индексация»):
+# tools/hooks/reindex.py — CodeGraph, поиск по смыслу (semsearch) и выгрузки
+# для программы «Граф проекта». Коммит не ждёт: прогон уходит в скрытый
+# процесс; ход — .graf/index-status.json (его показывает программа), журнал —
+# .graf/reindex.log.
+#
+# Подключение (один раз на машине): git config core.hooksPath tools/hooks
+# Пропустить разово: INSIDE_NO_REINDEX=1 git commit ...
+[ -n "$INSIDE_NO_REINDEX" ] && exit 0
+root=$(git rev-parse --show-toplevel)
+powershell.exe -NoProfile -NonInteractive -Command \
+  "Start-Process -WindowStyle Hidden -FilePath python -ArgumentList 'tools/hooks/reindex.py' -WorkingDirectory '$root'" \
+  >/dev/null 2>&1 &
+exit 0

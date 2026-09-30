@@ -1,0 +1,72 @@
+[
+ {
+  "op": "write",
+  "file": ".git/HEAD",
+  "text": "aaa\n"
+ },
+ {
+  "op": "write",
+  "file": ".graf/index-status.json",
+  "text": "{\"codegraph\": {\"state\": \"done\", \"commit\": \"aaa\", \"finished\": \"2026-01-02T09:05:00\", \"pid\": 1}, \"semsearch\": {\"state\": \"done\", \"commit\": \"aaa\", \"finished\": \"2026-01-02T09:05:00\", \"pid\": 1, \"files\": 3, \"chunks\": 40}}"
+ },
+ {
+  "op": "indexstatus",
+  "expect": "CodeGraph: актуален · 02.01 09:05; По смыслу: актуален · 02.01 09:05"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/index1.png"
+ },
+ {
+  "op": "write",
+  "file": ".git/HEAD",
+  "text": "bbb\n"
+ },
+ {
+  "op": "indexstatus",
+  "expect": "CodeGraph: отстаёт · 02.01 09:05; По смыслу: отстаёт · 02.01 09:05"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/index2.png"
+ },
+ {
+  "op": "write",
+  "file": ".graf/index-status.json",
+  "text": "{\"codegraph\": {\"state\": \"failed\", \"commit\": \"bbb\", \"finished\": \"2026-01-02T09:06:00\", \"note\": \"x\"}, \"semsearch\": {\"state\": \"running\", \"stage\": \"дообновление индекса\", \"commit\": \"bbb\", \"pid\": 999999, \"files\": 2}}"
+ },
+ {
+  "op": "indexstatus",
+  "expect": "CodeGraph: ошибка · 02.01 09:06; По смыслу: прогон оборвался"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/index3.png"
+ },
+ {
+  "op": "write",
+  "file": ".graf/index-status.json",
+  "text": "{\"codegraph\": {}, \"semsearch\": {\"state\": \"skipped\"}}"
+ },
+ {
+  "op": "indexstatus",
+  "expect": "CodeGraph: нет сведений; По смыслу: не установлен"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/index4.png"
+ },
+ {
+  "op": "write",
+  "file": ".graf/index-status.json",
+  "text": "{\"codegraph\": {\"state\": \"done\", \"commit\": \"bbb\", \"finished\": \"2026-01-02T09:05:00\", \"pid\": 1}, \"semsearch\": {\"state\": \"running\", \"stage\": \"дообновление индекса\", \"commit\": \"bbb\", \"pid\": {PID}, \"files\": 5}}"
+ },
+ {
+  "op": "wait",
+  "ms": 2500
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/index.png"
+ }
+]

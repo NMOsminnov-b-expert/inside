@@ -17,6 +17,11 @@ ScriptRunner.cs). Программа идёт по копии графа во в
                 графа, затем у копии удаляются записи и портится заголовок,
                 загрузка должна вернуть всё байт в байт (вопрос пользователя
                 30.09.2026 «А импорт будет корректным?»).
+  index_status  подписи полосок обоих индексов в строке состояния по
+                .graf/index-status.json и HEAD: актуален, отстаёт (коммит
+                прогона не HEAD), ошибка, оборвался (running без процесса),
+                не установлен (просьба пользователя 30.09.2026 «иначе не
+                видно, актуальная версия у нас или нет»).
 
 Сценарий — список шагов или объект {"steps": [...], "prepare": {...},
 "same_as_repo": true}: prepare.delete — файлы knowledge/ удалить перед
@@ -27,12 +32,14 @@ ScriptRunner.cs). Программа идёт по копии графа во в
 
     python tools/graf/checks/run.py [имя …]
 """
-import json, pathlib, re, shutil, subprocess, sys, tempfile
+import json, os, pathlib, re, shutil, subprocess, sys, tempfile
 
 sys.stdout.reconfigure(encoding='utf-8')
 here = pathlib.Path(__file__).resolve().parent
 root = here.parents[2]
-exe = here.parent / 'dist' / 'Graf.exe'
+# GRAF_EXE — другая сборка (например, dist.next, пока dist занят открытой
+# программой).
+exe = pathlib.Path(os.environ['GRAF_EXE']) if os.environ.get('GRAF_EXE') else here.parent / 'dist' / 'Graf.exe'
 crash = pathlib.Path(tempfile.gettempdir()) / 'graf-crash.log'
 names = sys.argv[1:] or sorted(p.stem for p in here.glob('*.json'))
 

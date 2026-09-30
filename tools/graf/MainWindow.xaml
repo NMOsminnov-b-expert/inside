@@ -183,10 +183,13 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="CountText" FontSize="12" Foreground="{ThemeResource HigSecondary}"/>
             <TextBlock x:Name="GitText" Grid.Column="1" FontSize="12" Foreground="{ThemeResource HigSecondary}" TextTrimming="CharacterEllipsis"/>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+            <!-- Ход обоих индексов (MainWindow.Index.cs). -->
+            <StackPanel x:Name="IndexHost" Grid.Column="2" Orientation="Horizontal" Spacing="18"/>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
                 <Ellipse x:Name="LiveDot" Width="7" Height="7" Fill="{ThemeResource HigGreen}" VerticalAlignment="Center"/>
                 <TextBlock x:Name="LiveText" FontSize="12" Foreground="{ThemeResource HigSecondary}" Text="слежу за изменениями"/>
             </StackPanel>

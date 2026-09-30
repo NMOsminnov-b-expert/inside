@@ -145,7 +145,11 @@ MCP (`.claude/knowledge-graph/`) снят, всё его содержимое п
    цитатой; метки — в `TAGS`. Коммит вместе с правкой; в описании коммита —
    что и почему поменялось в знаниях.
 5. После записи — `python tools/knowledge/graph.py check` (поля, статусы,
-   связи), `codegraph sync` и дообновление индекса по смыслу — только
+   связи). Индексы обновляет сам коммит: хук `tools/hooks/post-commit`
+   (подключение — `git config core.hooksPath tools/hooks`; ход обоих
+   индексов — `.graf/index-status.json`, его показывает программа «Граф
+   проекта»; журнал — `.graf/reindex.log`) в фоне запускает
+   `tools/hooks/reindex.py`: `codegraph sync` и дообновление индекса по смыслу — только
    изменённые файлы, по хешу содержимого:
 
        "%LOCALAPPDATA%\semsearch\src\codebase-mcp\.venv\Scripts\python.exe" "%LOCALAPPDATA%\semsearch\client.py" index "C:/vs code/inside" inside

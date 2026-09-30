@@ -1,0 +1,4 @@
+# Батники — с CRLF: на одних LF cmd сбивается на метках goto.
+*.cmd text eol=crlf
+# Хуки git исполняет sh — с LF.
+tools/hooks/post-commit text eol=lf

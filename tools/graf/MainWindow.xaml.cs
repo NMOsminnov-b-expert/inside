@@ -99,6 +99,7 @@ public sealed partial class MainWindow : Window
         HintBtn.Click += (_, _) => ToggleHint();
         InitPanels();
         InitCode();
+        InitIndex();
         SetLeftTab(_settings.LeftTab);
         MiExport.Click += async (_, _) => await ExportDialog();
         MiImport.Click += async (_, _) => await ImportDialog();

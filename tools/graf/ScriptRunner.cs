@@ -72,6 +72,24 @@ public static class ScriptRunner
                         break;
                     }
                     case "wait": await Task.Delay(st.GetProperty("ms").GetInt32()); break;
+                    case "write":
+                    {
+                        // Файл проекта целиком (например, .graf/index-status.json).
+                        var file = Path.Combine(w.Store!.Root, S("file"));
+                        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                        // {PID} — процесс самой программы: «живой» прогон для проверки хода.
+                        File.WriteAllText(file, S("text").Replace("{PID}", Environment.ProcessId.ToString()), new UTF8Encoding(false));
+                        break;
+                    }
+                    case "indexstatus":
+                    {
+                        // Подписи обоих индексов; expect — ожидаемая строка целиком.
+                        var got = w.IndexText();
+                        log.Add("  индексы: " + got);
+                        if (st.TryGetProperty("expect", out var ex) && ex.GetString() != got)
+                            log.Add("  ОШИБКА индексы: ждали «" + ex.GetString() + "»");
+                        break;
+                    }
                     case "zoom": w.GraphCtl.SetZoom(st.GetProperty("value").GetSingle()); break;
                     case "check": w.OpenCheck(); break;
                     case "perf": log.Add("  " + await w.GraphCtl.PerfRun(S("kind"), st.TryGetProperty("s", out var sec) ? sec.GetDouble() : 5)); break;

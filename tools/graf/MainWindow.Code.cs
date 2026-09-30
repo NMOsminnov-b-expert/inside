@@ -27,7 +27,7 @@ public sealed partial class MainWindow
         _dataSeg.Changed += i => SetDataSource(i == 1);
         ToolTipService.SetToolTip(_dataSeg, "Знания — граф записей knowledge/; Код — файлы кода и зависимости между ними (CodeGraph)");
         DataHost.Child = _dataSeg;
-        MiDerived.Click += async (_, _) => await RebuildDerived();
+        MiDerived.Click += (_, _) => StartReindex();
         Panel.OpenCode += id => { SetDataSource(true); Select(id, center: true); };
         Panel.OpenKnowledge += id => { SetDataSource(false); Select(id, center: true); };
         Panel.OpenInEditor += OpenInEditor;
@@ -148,46 +148,5 @@ public sealed partial class MainWindow
         {
             System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{full}\"");
         }
-    }
-
-    // Пересобрать выгрузки: граф кода (обычный Python) и связи по смыслу
-    // (Python из окружения semsearch; NO_PROXY — запросы к базе не через прокси).
-    async Task RebuildDerived()
-    {
-        if (Store == null) return;
-        var root = Store.Root;
-        Status("Обновляю граф кода и связи по смыслу…");
-        var sem = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "semsearch", "src", "codebase-mcp", ".venv", "Scripts", "python.exe");
-        var results = await Task.Run(() =>
-        {
-            var o = new List<string>();
-            o.Add(Run("python", "tools/knowledge/code_export.py", root));
-            o.Add(File.Exists(sem) ? Run(sem, "tools/knowledge/semantic_export.py", root) : "поиск по смыслу не установлен");
-            return o;
-        });
-        LoadDerived();
-        if (_code) BuildCodePane();
-        Refresh();
-        Status(string.Join(" · ", results));
-    }
-
-    static string Run(string exe, string args, string cwd)
-    {
-        try
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo(exe, args)
-            {
-                WorkingDirectory = cwd, UseShellExecute = false, CreateNoWindow = true,
-                RedirectStandardOutput = true, RedirectStandardError = true,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-            };
-            psi.Environment["NO_PROXY"] = psi.Environment["no_proxy"] = "127.0.0.1,localhost";
-            psi.Environment["PYTHONIOENCODING"] = "utf-8";
-            using var p = System.Diagnostics.Process.Start(psi)!;
-            var output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit(600000);
-            return p.ExitCode == 0 ? output.Trim().Split('\n').LastOrDefault()?.Trim() ?? "готово" : "ошибка: " + args;
-        }
-        catch (Exception ex) { return "не запустилось: " + ex.Message; }
     }
 }
