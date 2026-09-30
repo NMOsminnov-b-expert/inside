@@ -126,7 +126,7 @@ function listCard(ctx, oi, current, idx) {
       <button class="btn btn-primary btn-sm" data-mu-add style="margin-left:auto" title="Добавить единицу техники в состав">+ Добавить ОИ</button>
       <span class="chev" style="margin-left:8px">▾</span>
     </div>
-    <div class="card-body-wrap">${groupRow(oi)}${unitsTable(ctx, oi, current)}</div>
+    <div class="card-body-wrap">${groupRow(oi)}${contactsHTML(oi)}${unitsTable(ctx, oi, current)}</div>
   </div>`;
 }
 
@@ -148,6 +148,37 @@ function groupRow(oi) {
     <input class="input" id="mu-group" data-mu-group value="${esc(oi.groupName || '')}"
       aria-describedby="mu-group-hint"
       placeholder="${esc(fallback ? `Если не указано — «${fallback}»` : '')}">
+  </div>`;
+}
+
+// Контакты — люди на месте, через которых попадают к технике: один набор на
+// весь перечень, а не на единицу (заметки пользователя 30.09.2026, ответ «ко
+// всему перечню»). Сколько их — заранее неизвестно, поэтому строки
+// добавляются по одной («+ Контакт»), как свои поля единицы; в строке только
+// три поля, обязательных нет (практика повторяющихся групп: FormAssembly,
+// GC Forms «Allowing for multiple entries»). Телефон — type="tel": на планшете
+// открывается цифровая клавиатура, формат не навязывается.
+function contactsHTML(oi) {
+  const list = oi.contacts || [];
+  const rows = list.map((c) => `<tr>
+      <td><input class="ax-cell" data-mu-cname="${c.id}" value="${esc(c.name)}"
+        placeholder="Имя" aria-label="Имя"></td>
+      <td><input class="ax-cell" type="tel" inputmode="tel" data-mu-cphone="${c.id}" value="${esc(c.phone)}"
+        placeholder="Телефон" aria-label="Телефон"></td>
+      <td><input class="ax-cell" data-mu-cnote="${c.id}" value="${esc(c.comment)}"
+        placeholder="Должность, иная информация" aria-label="Комментарий: должность, иная информация"></td>
+      <td class="mu-c-act"><button class="ax-x mu-del" data-mu-cdel="${c.id}"
+        title="Убрать контакт" aria-label="Убрать контакт ${esc(c.name)}">×</button></td>
+    </tr>`).join('');
+
+  return `<div class="mu-contacts">
+    <div class="mu-contacts-h"><span class="mu-contacts-t">Контакты</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-mu-cadd>+ Контакт</button></div>
+    ${rows ? `<div class="mu-contacts-wrap"><table class="tbl mu-xtbl mu-ctbl">
+      <colgroup><col style="width:30%"><col style="width:24%"><col><col style="width:40px"></colgroup>
+      <thead><tr><th>Имя</th><th>Телефон</th><th title="Должность, иная информация">Комментарий</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>` : '<div class="mu-empty">Контактов нет.</div>'}
   </div>`;
 }
 
@@ -176,6 +207,7 @@ function fieldHTML(unit, f) {
     if (f.type === 'date') {
       return `<input class="input mu-date" type="date" id="${id}" data-mu-f="${esc(f.key)}" value="${esc(value)}">`;
     }
+    if (f.type === 'checks') return checksHTML(f, value);
 
     // Числовое поле — общее для всего макета (kernel/numField.js): разряды,
     // запятая и вычисление выражения. `data-num` говорит контроллеру, какая это
@@ -197,11 +229,33 @@ function fieldHTML(unit, f) {
       </select></span>`;
   };
 
+  // Флажки — группа с общей подписью (fieldset/legend): подпись относится ко
+  // всем флажкам сразу, а не к первому.
+  if (f.type === 'checks') {
+    return `<fieldset class="field mu-param mu-checks-field">
+      <legend>${label}</legend>
+      ${f.hint ? `<span class="mu-hint">${esc(f.hint)}</span>` : ''}
+      ${control()}
+    </fieldset>`;
+  }
+
   return `<div class="field mu-param">
     <label for="${id}">${label}</label>
     ${f.hint ? `<span class="mu-hint">${esc(f.hint)}</span>` : ''}
-    ${control()}
+    ${f.type === 'text' && f.cap ? control().replace('<input ', '<input data-cap ') : control()}
   </div>`;
+}
+
+// Несколько значений из короткого списка — флажки столбцом, а не выпадающий
+// мультивыбор: при пяти вариантах и меньше все они видны сразу, выбор — одним
+// нажатием, и сразу понятно, что отметить можно несколько (UX Planet
+// «Checkboxes vs multi-select dropdown», правило SSW о списках с флажками).
+// Прежнее одиночное значение (строка) читается как отмеченный один вариант.
+function checksHTML(f, value) {
+  const on = [].concat(value || []);
+  return `<div class="mu-checks">${f.options.map((o) => `<label class="mu-check">
+      <input type="checkbox" data-mu-check="${esc(f.key)}" value="${esc(o)}" ${on.includes(o) ? 'checked' : ''}>
+      <span>${esc(o)}</span></label>`).join('')}</div>`;
 }
 
 function classificationHTML(unit) {

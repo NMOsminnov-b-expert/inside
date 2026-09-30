@@ -15,6 +15,11 @@ mech. Сценарий ловит то, что уже ломалось при с
   * фокус после «+ Добавить ОИ» в составе и «+ Поле» — отрисовка асинхронная, и фокус,
     поставленный до неё, пропадал;
   * у ОИ этого вида нет чипа «ЕНИ» в плашке;
+  * заметки пользователя 30.09.2026: высота подъёма — интервал, группа режима
+    работы крана — флажки (массив), тип и страна рубильника вместо типа
+    коммутационных аппаратов, у промышленных печей нет давления, страна с
+    заглавной, контакты на весь перечень; прежние значения убранных полей
+    уходят в «свои поля» под понятной подписью;
   * снимки единицы подписаны в просмотрщике её названием, а не id;
   * состав полей категории: инвентарный номер рядом с наименованием, основные
     параметры в том же разделе, год выпуска и год ввода в эксплуатацию,
@@ -104,7 +109,7 @@ def run(t):
     # плашка читалась как часть поля (замечание пользователя 21.09.2026).
     pick('sub', '')
     gap = pg.evaluate("""() => {
-      const empty = document.querySelector('.mu-empty');
+      const empty = document.querySelector('#q-mech-unit .mu-empty');
       const prev = empty && empty.previousElementSibling;
       if (!empty || !prev || !prev.classList.contains('grid')) return null;
       return Math.round(empty.getBoundingClientRect().top - prev.getBoundingClientRect().bottom);
@@ -365,3 +370,71 @@ def run(t):
     t.ck('Марка (модель) и заводской номер' in moved['labels'],
          'параметр прежней разметки потерян, а не сохранён своим полем: %s' % moved)
     t.ck(moved['params'] == [], 'в параметрах остались ключи прежней разметки: %s' % moved['params'])
+
+    # --- заметки 30.09.2026 -----------------------------------------------------
+    pg.locator('.mu-row').first.click()
+    t.wait_for('#q-mech-unit')
+    t.wait(300)
+    pick('cls', 'Подъёмно-транспортное оборудование')
+    pick('sub', 'Краны')
+    t.ck(pg.locator('[data-mu-f="liftHeight"][data-range]').count() == 1, 'высота подъёма крана — не интервал')
+    duty = pg.locator('[data-mu-check="dutyGroup"]')
+    t.ck(duty.count() == 4, 'группа режима работы — не четыре флажка: %d' % duty.count())
+    duty.nth(0).check()
+    duty.nth(2).check()
+    country = pg.locator('[data-mu-country]')
+    country.fill('')
+    country.type('россия')
+    t.ck(country.input_value() == 'Россия', 'страна не с заглавной: %r' % country.input_value())
+
+    pg.locator('[data-mu-cadd]').click()
+    t.wait_until("() => !!document.querySelector('[data-mu-cname]')")
+    t.wait(300)
+    t.ck(_active_has(pg, 'data-mu-cname'), 'после «+ Контакт» фокус не в имени')
+    pg.locator('[data-mu-cname]').first.fill('Иванов И.')
+    t.ck(pg.locator('[data-mu-cphone]').first.get_attribute('type') == 'tel', 'телефон контакта не type=tel')
+    pg.locator('[data-mu-cphone]').first.fill('+996 555 000 000')
+    pg.locator('[data-mu-cnote]').first.fill('Главный механик')
+
+    pg.locator('.mu-row').nth(1).click()
+    t.wait_for('#q-mech-unit')
+    t.wait(300)
+    pg.locator('.mu-row').first.click()
+    t.wait_for('[data-mu-check="dutyGroup"]')
+    on = pg.eval_on_selector_all('[data-mu-check="dutyGroup"]', 'els => els.filter((e) => e.checked).map((e) => e.value)')
+    t.ck(on == ['А1–А3 (лёгкий)', 'А6 (тяжёлый)'], 'отмеченные группы не сохранились: %s' % on)
+    t.ck(pg.locator('[data-mu-country]').input_value() == 'Россия', 'страна не сохранилась')
+    t.ck(pg.locator('[data-mu-cphone]').first.input_value() == '+996 555 000 000' and
+         pg.locator('[data-mu-cnote]').first.input_value() == 'Главный механик', 'контакт не сохранился')
+
+    pick('cls', 'Энергетическое оборудование')
+    pick('sub', 'Распределительные устройства')
+    t.ck(pg.locator('[data-mu-f="switchgear"]').count() == 0, 'осталось поле «Тип коммутационных аппаратов»')
+    t.ck(pg.locator('select[data-mu-f="breakerType"]').count() == 1, 'нет выбора «Тип рубильника»')
+    bc = pg.locator('[data-mu-f="breakerCountry"]')
+    bc.type('китай')
+    t.ck(bc.input_value() == 'Китай', 'страна рубильника не с заглавной: %r' % bc.input_value())
+
+    pick('cls', 'Технологическое (производственное) оборудование')
+    pick('sub', 'Печи, сушильные камеры, реакторы, ёмкости технологического назначения')
+    pick('type', 'Промышленные печи')
+    t.ck(pg.locator('[data-mu-f="pressure"]').count() == 0, 'у промышленных печей осталось давление')
+    pick('type', 'Реакторы')
+    t.ck(pg.locator('[data-mu-f="pressure"]').count() == 1, 'у реакторов пропало давление')
+
+    old = pg.evaluate("""async () => {
+      const m = await import('./app/modules/mechanisms/form/model.js');
+      const rec = { oi: [{ id: 'y2', card: 'mech', mechanisms: [
+        { id: 'a', name: 'РУ', country: 'германия', cls: 'Энергетическое оборудование', sub: 'Распределительные устройства',
+          params: { switchgear: 'ВВ/TEL' }, extra: [] },
+        { id: 'b', name: 'Печь', cls: 'Технологическое (производственное) оборудование',
+          sub: 'Печи, сушильные камеры, реакторы, ёмкости технологического назначения', type: 'Промышленные печи',
+          params: { pressure: '0,2', 'pressure@unit': 'МПа' }, extra: [] },
+      ] }] };
+      m.migrateMechUnits(rec);
+      const [a, b] = rec.oi[0].mechanisms;
+      return { country: a.country, a: a.extra.map((f) => f.label + '=' + f.value), b: b.extra.map((f) => f.label + '=' + f.value) };
+    }""")
+    t.ck(old['country'] == 'Германия', 'страна в прежних данных не с заглавной: %s' % old)
+    t.ck(old['a'] == ['Тип коммутационных аппаратов=ВВ/TEL'], 'прежний тип коммутационных аппаратов потерян: %s' % old)
+    t.ck(old['b'] == ['Рабочее давление=0,2 МПа'], 'прежнее давление печи потеряно: %s' % old)

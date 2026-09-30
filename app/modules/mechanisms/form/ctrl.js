@@ -22,6 +22,18 @@ import {
 
 let fieldSeq = 1;
 
+// Первая буква — заглавная, прямо в поле; курсор остаётся там, где был.
+function capInput(el) {
+  const v = el.value;
+  const up = v.charAt(0).toLocaleUpperCase('ru') + v.slice(1);
+  if (up !== v) {
+    const at = el.selectionStart;
+    el.value = up;
+    try { el.setSelectionRange(at, at); } catch (e) { /* поле без выделения */ }
+  }
+  return up;
+}
+
 const MIN_YEAR = 1900;
 
 function yearError(v) {
@@ -154,6 +166,29 @@ export function bindMechForm(ctx, oi) {
     updatePlate();
   };
 
+  // Контакты перечня: имя, телефон, комментарий; строки добавляются по одной.
+  const contactOf = (id) => (oi.contacts || []).find((c) => c.id === id);
+  [['muCname', 'name'], ['muCphone', 'phone'], ['muCnote', 'comment']].forEach(([attr, field]) => {
+    const sel = '[data-' + attr.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()) + ']';
+    s.$$(sel).forEach((inp) => inp.oninput = () => {
+      const c = contactOf(inp.dataset[attr]);
+      if (c) c[field] = inp.value;
+    });
+  });
+  s.$$('[data-mu-cdel]').forEach((b) => b.onclick = () => {
+    oi.contacts = (oi.contacts || []).filter((c) => c.id !== b.dataset.muCdel);
+    ctx.render();
+  });
+  const cadd = s.$('[data-mu-cadd]');
+  if (cadd) cadd.onclick = async (e) => {
+    e.stopPropagation();
+    const c = { id: `mc-${Date.now().toString(36)}-${fieldSeq++}`, name: '', phone: '', comment: '' };
+    oi.contacts = [...(oi.contacts || []), c];
+    await ctx.render();
+    const inp = s.$(`[data-mu-cname="${c.id}"]`);
+    if (inp) inp.focus();
+  };
+
   s.$$('[data-mu-step]').forEach((b) => b.onclick = (e) => {
     e.stopPropagation();
     const list = mechUnits(oi);
@@ -187,8 +222,10 @@ export function bindMechForm(ctx, oi) {
   const inv = s.$('[data-mu-inv]');
   if (inv) inv.oninput = () => { unit.inv = inv.value; };
 
+  // Страна всегда с заглавной (заметки пользователя 30.09.2026) — правится
+  // прямо при наборе, курсор остаётся на месте.
   const country = s.$('[data-mu-country]');
-  if (country) country.oninput = () => { unit.country = country.value; };
+  if (country) country.oninput = () => { unit.country = capInput(country); };
 
   const made = s.$('[data-mu-made]');
   bindCheckedField(made, yearError, (v) => { unit.madeYear = v; });
@@ -242,9 +279,18 @@ export function bindMechForm(ctx, oi) {
       bindRangeField(el, (v) => write(key, v));
       return;
     }
-    const set = () => write(key, el.value);
+    const set = () => write(key, el.hasAttribute('data-cap') ? capInput(el) : el.value);
     if (el.tagName === 'SELECT' || el.type === 'date') el.onchange = set;
     else el.oninput = set;
+  });
+
+  // Флажки: значение — массив отмеченных в порядке списка.
+  s.$$('[data-mu-check]').forEach((el) => {
+    el.onchange = () => {
+      const key = el.dataset.muCheck;
+      const on = s.$$(`[data-mu-check="${key}"]`).filter((x) => x.checked).map((x) => x.value);
+      write(key, on.length ? on : '');
+    };
   });
 
   s.$$('[data-mu-unit]').forEach((el) => {

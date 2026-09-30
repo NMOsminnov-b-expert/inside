@@ -193,6 +193,7 @@ export function createMechOi(base) {
     status: '',
     mechanisms: [unit],
     groupName: '',
+    contacts: [],
     docs: [],
     photos: {},
     notes: [],
@@ -255,6 +256,15 @@ export function migrateMovable(rec) {
 // инвентарный номер — из своих полей в собственное, а параметры со старыми
 // подписями уходят в «свои поля»: сопоставлять их с новыми автоматически
 // нельзя, но и терять нельзя — пусть человек перенесёт их глазами.
+// Подписи полей, убранных из справочника: значение уходит в «свои поля» под
+// понятной подписью, а не под ключом (заметки пользователя 30.09.2026 —
+// рубильник вместо коммутационных аппаратов, у промышленных печей нет
+// давления).
+const FORMER = {
+  switchgear: 'Тип коммутационных аппаратов',
+  pressure: 'Рабочее давление',
+};
+
 export function migrateMechUnits(rec) {
   if (!rec || !Array.isArray(rec.oi)) return;
 
@@ -267,6 +277,8 @@ export function migrateMechUnits(rec) {
         delete u.maker;
       }
       if (u.inv === undefined) u.inv = '';
+      // Страна — всегда с заглавной (заметки пользователя 30.09.2026).
+      if (u.country) u.country = u.country.charAt(0).toLocaleUpperCase('ru') + u.country.slice(1);
 
       u.extra = (u.extra || []).filter((f) => {
         if (String(f.label || '').toLowerCase().indexOf('инвентарный номер') < 0) return true;
@@ -281,9 +293,13 @@ export function migrateMechUnits(rec) {
       Object.keys(u.params || {}).forEach((key) => {
         if (key.endsWith('@unit') || known.has(key)) return;
         const value = u.params[key];
+        const unitName = u.params[key + '@unit'];
         delete u.params[key];
         delete u.params[key + '@unit'];
-        if (value) u.extra.push({ id: uid('mf'), label: key, value: String(value) });
+        if (value) {
+          u.extra.push({ id: uid('mf'), label: FORMER[key] || key,
+            value: String(value) + (unitName ? ' ' + unitName : '') });
+        }
       });
     });
 

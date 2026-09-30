@@ -123,3 +123,20 @@ body .mu-stack .mu-comment-field .mu-hint{margin:0 0 2px}
 /* Наименование и инвентарный номер — в ряд: номер короткий, наименование
    длинное, и порядок «сначала имя, под ним номер» задан требованием. */
 body .mu-stack .mu-grid-name{grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:12px}
+
+/* Флажки группы (например, «Группа режима работы» крана) — столбцом, подпись
+   группы — как подпись поля. */
+body .mu-stack .mu-checks-field{border:0;margin:0;padding:0;min-width:0}
+body .mu-stack .mu-checks-field legend{padding:0;font-size:11px;font-weight:600;color:var(--ink-label);margin-bottom:4px}
+body .mu-stack .mu-checks{display:flex;flex-direction:column;gap:2px}
+body .mu-stack .mu-check{display:flex;align-items:center;gap:8px;min-height:28px;font-size:13px;color:var(--ink);cursor:pointer}
+body .mu-stack .mu-check input{margin:0;width:16px;height:16px;flex:0 0 auto}
+
+/* Контакты перечня — под названием списка, до таблицы состава. Таблица
+   прокручивается в своей обёртке и не распирает карточку на узком экране. */
+body .mu-stack .mu-contacts{padding:8px 12px 12px;border-bottom:1px solid var(--line-soft)}
+body .mu-stack .mu-contacts-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+body .mu-stack .mu-contacts-t{font-size:11px;font-weight:600;color:var(--ink-label)}
+body .mu-stack .mu-contacts-h .btn{margin-left:auto}
+body .mu-stack .mu-contacts-wrap{overflow-x:auto}
+body .mu-stack .mu-ctbl{min-width:520px}
