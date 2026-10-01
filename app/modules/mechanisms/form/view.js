@@ -72,6 +72,10 @@ function plural(n, one, few, many) {
 
 // Экспортируется ради точечного обновления: пока правят поля единицы, таблица
 // над ней пересчитывает строку и итог без отрисовки всей карточки.
+// Состояние в таблице — коротко, полное — в подсказке: колонка узкая, а
+// «Условно пригодное» распирало таблицу состава.
+const stateShort = (st) => st.replace('Условно', 'Усл.');
+
 export function unitsTable(ctx, oi, current) {
   const list = mechUnits(oi);
 
@@ -85,7 +89,7 @@ export function unitsTable(ctx, oi, current) {
         <div class="mu-name mu-clip" title="${esc(unitTitle(u))}">${esc(unitTitle(u))}</div>
         <div class="mu-path mu-clip ${path ? '' : 'mu-path-empty'}" title="${esc(path)}">${esc(path || 'Класс не выбран')}</div>
       </td>
-      <td class="mu-c-state">${u.state ? `<span class="mu-state mu-state-${MECH_STATES.indexOf(u.state)}">${esc(u.state)}</span>` : '—'}</td>
+      <td class="mu-c-state">${u.state ? `<span class="mu-state mu-state-${MECH_STATES.indexOf(u.state)}" title="${esc(u.state)}">${esc(stateShort(u.state))}</span>` : '—'}</td>
       <td class="mu-c-num">${esc(u.year || '—')}</td>
       <td class="mu-c-num">${esc(u.qty || '—')}</td>
       <td class="mu-c-num">${String(u.cost || '').trim() ? fmtNum(u.cost) : '—'}</td>
@@ -97,7 +101,7 @@ export function unitsTable(ctx, oi, current) {
 
   return `<div class="mu-table-wrap">
     <table class="tbl mu-tbl">
-      <colgroup><col><col style="width:136px"><col style="width:72px"><col style="width:70px"><col style="width:124px">
+      <colgroup><col><col style="width:120px"><col style="width:72px"><col style="width:70px"><col style="width:124px">
         <col style="width:58px"><col style="width:36px"></colgroup>
       <thead><tr>
         <th title="Наименование и классификация">Наименование</th>

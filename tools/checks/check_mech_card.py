@@ -453,5 +453,5 @@ def run(t):
     opts = pg.eval_on_selector_all('[data-mu-state] option', 'els => els.map((e) => e.textContent.trim())')
     t.ck(opts == ['Не выбрано', 'Рабочее', 'Условно пригодное', 'Нерабочее'], 'варианты состояния не те: %s' % opts)
     pg.select_option('[data-mu-state]', 'Условно пригодное')
-    t.wait_until("() => [...document.querySelectorAll('.mu-row.on .mu-state')].some((e) => e.textContent.includes('Условно пригодное'))")
-    t.ck(pg.locator('.mu-row.on .mu-state').inner_text().strip() == 'Условно пригодное', 'состояние не попало в таблицу состава')
+    t.wait_until("() => [...document.querySelectorAll('.mu-row.on .mu-state')].some((e) => e.title === 'Условно пригодное')")
+    t.ck(pg.locator('.mu-row.on .mu-state').get_attribute('title') == 'Условно пригодное' and pg.locator('.mu-row.on .mu-state').inner_text().strip() == 'Усл. пригодное', 'состояние не попало в таблицу состава')
