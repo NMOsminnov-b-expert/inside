@@ -179,3 +179,4 @@ body .mu-stack .mu-madd{display:block;width:100%;margin-top:12px;padding:10px;bo
   border-radius:10px;background:var(--fill-head);color:var(--teal-700);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 body .mu-stack .mu-madd:hover{background:var(--teal-50);border-color:var(--teal-600)}
 body .mu-stack .mu-madd:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+body .mu-stack .mu-mod-b .mu-hint{margin:0 0 2px}

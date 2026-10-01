@@ -416,17 +416,15 @@ function modulesHTML(unit) {
       <div class="mu-mod-b">
         <div class="grid g-2 mu-params">
           <div class="field">
-            <label for="mu-mmake-${m.id}">Марка</label>
-            <input class="input" id="mu-mmake-${m.id}" data-mu-mmake="${m.id}" value="${esc(m.make || '')}">
-          </div>
-          <div class="field">
             <label for="mu-mmodel-${m.id}">Модель</label>
             <input class="input" id="mu-mmodel-${m.id}" data-mu-mmodel="${m.id}" value="${esc(m.model || '')}">
           </div>
         </div>
         <div class="field">
           <label for="mu-mnote-${m.id}">Комментарий</label>
-          <textarea class="input mu-comment" id="mu-mnote-${m.id}" data-mu-mnote="${m.id}" rows="2">${esc(m.comment || '')}</textarea>
+          <span class="mu-hint" id="mu-mnote-hint-${m.id}">Назначение модуля: что он делает в линии, на каком участке стоит, особенности</span>
+          <textarea class="input mu-comment" id="mu-mnote-${m.id}" data-mu-mnote="${m.id}" rows="2"
+            aria-describedby="mu-mnote-hint-${m.id}">${esc(m.comment || '')}</textarea>
         </div>
         <div class="mu-mod-fh"><span class="mu-mod-ft">Свои поля</span>
           <button class="btn btn-ghost btn-sm" data-mu-mxadd="${m.id}">+ Поле</button></div>

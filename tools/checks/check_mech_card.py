@@ -474,7 +474,6 @@ def run(t):
       return r.slice(1).map((x, i) => Math.round(x.top - r[i].bottom)); }""")
     t.ck(all(g >= 8 for g in gaps), 'карточки модулей сливаются: зазоры %s' % gaps)
     first = pg.locator('.mu-mod').first
-    first.locator('[data-mu-mmake]').fill('Battenfeld')
     first.locator('[data-mu-mmodel]').fill('uniEX 1-90')
     first.locator('[data-mu-mnote]').fill('Одношнековый, 90 мм')
     first.locator('[data-mu-mxadd]').click()
@@ -487,8 +486,9 @@ def run(t):
     names = pg.eval_on_selector_all('[data-mu-mname]', 'els => els.map((e) => e.value)')
     t.ck(names == ['Экструдер', 'Охлаждающая ванна', 'Намотчик'], 'названия модулей не сохранились: %s' % names)
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mnote]').input_value() == 'Одношнековый, 90 мм', 'комментарий модуля не сохранился')
-    t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mmake]').input_value() == 'Battenfeld'
-         and pg.locator('.mu-mod').first.locator('[data-mu-mmodel]').input_value() == 'uniEX 1-90', 'марка и модель модуля не сохранились')
+    t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mmodel]').input_value() == 'uniEX 1-90', 'модель модуля не сохранилась')
+    t.ck(pg.locator('[data-mu-mmake]').count() == 0, 'у модуля осталось поле «Марка»')
+    t.ck('Назначение модуля' in pg.locator('.mu-mod').first.locator('.mu-hint').inner_text(), 'у комментария модуля нет пояснения о назначении')
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mxvalue]').input_value() == '90 мм', 'своё поле модуля не сохранилось')
     # Заполненный модуль убирается с вопросом.
     pg.locator('.mu-mod').first.locator('[data-mu-mdel]').click()
