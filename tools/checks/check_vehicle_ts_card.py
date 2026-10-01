@@ -235,6 +235,21 @@ def run(t):
     pg.locator('[data-tsf="main|color"]').click()
     t.wait_until("() => document.querySelector('[data-ts-idwarn]').hidden")
 
+    # Единица мощности — по типу двигателя (решение пользователя 01.10.2026:
+    # «Электро и гибрид — кВт»), ручной выбор после этого остаётся. Тип
+    # двигателя в карточке — «Тип топлива».
+    pg.select_option('[data-ts-cat]', 'Грузовое')
+    t.wait_for('[data-ts-base]:not([disabled])')
+    pg.select_option('[data-ts-base]', 'Седельный тягач')
+    t.wait_for('[data-tsf="main|fuel"]')
+    t.ck(pg.locator('[data-tsf-unit="main|power"]').count() == 1, 'у тягача нет мощности с выбором единицы')
+    for kind, unit in (('Электро', 'кВт'), ('Дизель', 'л.с.'), ('Гибрид', 'кВт')):
+        pg.select_option('[data-tsf="main|fuel"]', kind)
+        t.wait_until("() => { const e = document.querySelector('[data-tsf-unit=\"main|power\"]'); return e && e.value === '%s'; }" % unit)
+        t.ck(pg.evaluate(REC)['f'].get('power@unit') == unit, 'у «%s» единица мощности не %s' % (kind, unit))
+    pg.select_option('[data-tsf-unit="main|power"]', 'л.с.')
+    t.ck(pg.evaluate(REC)['f'].get('power@unit') == 'л.с.', 'ручной выбор единицы не записался')
+
     # --- особые поля базы ----------------------------------------------------------
     pg.select_option('[data-ts-cat]', 'Тракторы и специальные шасси')
     t.wait_for('[data-ts-base]:not([disabled])')
@@ -254,6 +269,7 @@ def run(t):
     t.wait_until("() => document.querySelector('[data-tsf-ms=\"main|run\"] .ms-drop').hidden")
     t.ck(pg.evaluate(REC)['f'].get('run') == ['Колёсная', 'Гусеничная'], 'ходовая не записалась списком')
     t.ck(pg.evaluate(REC)['f'].get('bodyNo') == 'JNBAZ08W44W312414', 'при смене базы пропал № кузова')
+
 
     # --- модули --------------------------------------------------------------------
     pg.click('[data-ts-madd]')

@@ -16,7 +16,7 @@ import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js'
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
-  kindLeaves, applyKindLeaf, moduleLeaves, classified, copyVehicle, makeWithModules, whatLabel,
+  kindLeaves, applyKindLeaf, moduleLeaves, powerUnitFor, POWER_UNIT_BY, classified, copyVehicle, makeWithModules, whatLabel,
   normVin, vinWarning, normPlate, idMissing,
 } from './tsModel.js';
 
@@ -195,6 +195,7 @@ export function bindTsForm(ctx, holder, set) {
 
     const set = () => {
       write(vals, key, el.value);
+      if (POWER_UNIT_BY.includes(key) && powerUnitFor(el.value)) write(vals, 'power@unit', powerUnitFor(el.value));
       if (who !== 'main' && ['model', 'serialNo', 'year', 'state'].includes(key)) syncModuleRow(who);
       if (RERENDER.has(key)) ctx.render();
     };
