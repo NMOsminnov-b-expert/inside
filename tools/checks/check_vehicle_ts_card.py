@@ -307,6 +307,23 @@ def run(t):
     t.wait_for('[data-ts-mdel]')
     # Поиск модуля — помощник над списками: выбор ставит группу и модуль разом.
     t.wait_until("() => document.activeElement && document.activeElement.id === 'ts-mfind-q'")
+    # Выдача не обрезана краем строки модуля: у строки было overflow:hidden, и
+    # список «тран» обрывался на втором варианте (замечание пользователя
+    # 01.10.2026). Насколько список вылезет за строку, зависит от того, что под
+    # полем поиска, — поэтому проверяется устройство: между выдачей и карточкой
+    # нет предка, который обрезает содержимое.
+    pg.keyboard.type('тран')
+    t.wait_for('#ts-mfind-list [role="option"]')
+    clip = pg.evaluate("""() => {
+      const drop = document.querySelector('#ts-mfind-list');
+      for (let el = drop.parentElement; el && !el.classList.contains('card'); el = el.parentElement) {
+        const cs = getComputedStyle(el);
+        if (cs.overflow !== 'visible' || cs.overflowY !== 'visible') return el.className || el.tagName;
+      }
+      return '';
+    }""")
+    t.ck(clip == '', 'выдачу поиска модуля обрезает предок: %s' % clip)
+    pg.fill('#ts-mfind-q', '')
     pg.keyboard.type('автокран')
     t.wait_for('#ts-mfind-list [role="option"]')
     pg.keyboard.press('Enter')

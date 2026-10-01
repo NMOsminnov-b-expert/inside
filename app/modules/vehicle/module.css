@@ -87,7 +87,12 @@
    кнопкой на всю ширину, справа крестик удаления; раскрытый модуль — рамкой и
    фоном строки, его поля — под ней. Колонки строки — доли, не пиксели. */
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mlist{display:flex;flex-direction:column;gap:8px}
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem{border:1px solid var(--line-soft);border-radius:8px;overflow:hidden;background:#fff}
+/* Без overflow:hidden у строки модуля: оно обрезало выпадающий список
+   «Найти модуль» по краю строки (замечание пользователя 01.10.2026). Углы
+   скругляет сама шапка строки. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem{border:1px solid var(--line-soft);border-radius:8px;background:#fff}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow{border-radius:7px;overflow:hidden}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem.open .vh-mrow{border-radius:7px 7px 0 0}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem.open{border-color:var(--violet-100)}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mrow{display:flex;align-items:stretch}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-mitem.open .vh-mrow{background:var(--violet-50);border-bottom:1px solid var(--violet-100)}
