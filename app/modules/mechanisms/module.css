@@ -189,7 +189,7 @@ body .mu-stack .mu-mods-n{font-size:11px;font-weight:700;color:var(--teal-700);b
 body .mu-stack .mu-mod{border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:none}
 body .mu-stack .mu-mod.open{border-color:var(--teal-100);box-shadow:0 1px 2px rgba(19,41,62,.06)}
 body .mu-stack .mu-mod-row{display:flex;align-items:center;border-radius:9px;overflow:hidden}
-body .mu-stack .mu-mod.open .mu-mod-row{background:var(--teal-50);border-bottom:1px solid var(--line-soft);border-radius:9px 9px 0 0}
+body .mu-stack .mu-mod.open .mu-mod-row{border-bottom:1px solid var(--mod-line);border-radius:9px 9px 0 0}
 body .mu-stack .mu-mod-toggle{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1.2fr) minmax(0,1.6fr) 16px;gap:10px;
   align-items:center;padding:8px 10px;min-height:44px;border:0;background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
 body .mu-stack .mu-mod-toggle:hover{background:var(--fill-hover)}
@@ -200,3 +200,11 @@ body .mu-stack .mu-mod-chev{color:var(--slate-500);font-size:11px}
 body .mu-stack .mu-mod-row .mu-del{margin-right:6px}
 body .mu-stack .mu-mod-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1.6fr) minmax(0,1fr);gap:12px;align-items:end}
 @media (max-width:720px){body .mu-stack .mu-mod-grid{grid-template-columns:1fr}}
+/* Цветные шапки модулей: тон каждому модулю задаёт разметка (view.js,
+   modTones — по хешу id, без повторов в списке); светлая заливка строки,
+   номер — тёмным тем же тоном (белая цифра читается). */
+body .mu-stack .mu-mod{--mod-bg:#e6f5f1;--mod-ink:#0b6b5d;--mod-line:#bfe3da}
+body .mu-stack .mu-mod .mu-mod-row{background:var(--mod-bg)}
+body .mu-stack .mu-mod.open{border-color:var(--mod-line)}
+body .mu-stack .mu-mod .mu-mod-n{background:var(--mod-ink)}
+body .mu-stack .mu-mod .mu-mod-toggle:hover{background:rgba(255,255,255,.45)}

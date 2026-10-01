@@ -414,9 +414,10 @@ function modulesHTML(unit, open) {
       .filter(Boolean).join(' · ');
   };
 
+  const tones = modTones(mods);
   const item = (m, i) => {
     const on = open.has(m.id);
-    return `<section class="mu-mod ${on ? 'open' : ''}" data-mu-mod="${m.id}">
+    return `<section class="mu-mod ${on ? 'open' : ''}" data-mu-mod="${m.id}" style="${tones.get(m.id)}">
       <div class="mu-mod-row">
         <button type="button" class="mu-mod-toggle" data-mu-mtoggle="${m.id}" aria-expanded="${on}"
           aria-controls="mu-mod-b-${m.id}" title="${on ? 'Свернуть' : 'Развернуть'}">
@@ -470,6 +471,36 @@ function modulesHTML(unit, open) {
     ${mods.length ? `<div class="mu-mods">${mods.map(item).join('')}</div>` : ''}
     ${stray ? '' : '<button type="button" class="mu-madd" data-mu-madd>+ Модуль</button>'}
   </div>`;
+}
+
+// Цвет шапки модуля — по хешу его id (пользователь 01.10.2026: «шапку им
+// сделай немного цветной. И что бы цвета у них отличались», затем «Давай без
+// повторов. Пускай лучше выбирается на основе хешей из приятных цветов в
+// стилистике»). Тон держится за модулем: не меняется, когда добавляют или
+// убирают соседей. Светлота и насыщенность одни на все — цвета мягкие, как
+// остальные тона макета; жёлто-зелёные (грязные на светлом) пропускаются.
+// Тон, слишком близкий к занятому в этом списке, сдвигается золотым углом —
+// одинаковых шапок в списке нет.
+const hashOf = (str) => {
+  let h = 2166136261;
+  for (const ch of String(str)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+};
+const MOD_HUE_GAP = 26;
+const badHue = (h) => h >= 48 && h <= 96;
+function modTones(mods) {
+  const used = [];
+  const out = new Map();
+  mods.forEach((m) => {
+    let hue = hashOf(m.id) % 360;
+    for (let k = 0; k < 24 && (badHue(hue) || used.some((u) => Math.min(Math.abs(u - hue), 360 - Math.abs(u - hue)) < MOD_HUE_GAP)); k++) {
+      hue = (hue + 137.5) % 360;
+    }
+    used.push(hue);
+    const h = Math.round(hue);
+    out.set(m.id, `--mod-bg:hsl(${h} 62% 95%);--mod-line:hsl(${h} 45% 82%);--mod-ink:hsl(${h} 48% 32%)`);
+  });
+  return out;
 }
 
 // Раскрытые модули единицы — в ctx.ui: на время работы с карточкой.

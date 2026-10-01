@@ -473,6 +473,16 @@ def run(t):
     gaps = pg.evaluate("""() => { const r = [...document.querySelectorAll('.mu-mod')].map((e) => e.getBoundingClientRect());
       return r.slice(1).map((x, i) => Math.round(x.top - r[i].bottom)); }""")
     t.ck(all(g >= 8 for g in gaps), 'карточки модулей сливаются: зазоры %s' % gaps)
+    # Цвет шапки — по хешу id, без повторов в списке и не меняется, когда
+    # добавляют соседа (пользователь 01.10.2026).
+    TONES = "() => [...document.querySelectorAll('.mu-mod')].map((e) => e.style.getPropertyValue('--mod-bg'))"
+    tones = pg.evaluate(TONES)
+    t.ck(len(set(tones)) == len(tones) and all(tones), 'цвета шапок модулей повторяются: %s' % tones)
+    pg.click('[data-mu-madd]')
+    t.wait_until("() => document.querySelectorAll('.mu-mod').length === 4")
+    t.ck(pg.evaluate(TONES)[:3] == tones, 'цвета модулей поменялись после добавления нового')
+    pg.locator('.mu-mod').nth(3).locator('[data-mu-mdel]').click()
+    t.wait_until("() => document.querySelectorAll('.mu-mod').length === 3")
     first = pg.locator('.mu-mod').first
     first.locator('[data-mu-mmodel]').fill('uniEX 1-90')
     first.locator('[data-mu-mqty]').fill('2')
