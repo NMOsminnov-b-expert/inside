@@ -144,3 +144,16 @@ body .mu-stack .mu-contacts-t{font-size:10px;font-weight:700;letter-spacing:.5px
 body .mu-stack .mu-contacts-h .btn{margin-left:auto}
 body .mu-stack .mu-contacts-wrap{overflow-x:auto}
 body .mu-stack .mu-ctbl{min-width:520px}
+
+/* Общие поля единицы (страна, масса, годы, состояние) — после полей категории,
+   с тем же шагом сетки. */
+body .mu-stack .mu-common{margin-top:12px}
+
+/* Состояние в таблице состава — словом и цветной точкой: цвет не единственный
+   носитель смысла. */
+body .mu-stack .mu-c-state{white-space:nowrap}
+body .mu-stack .mu-state{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink)}
+body .mu-stack .mu-state::before{content:'';width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+body .mu-stack .mu-state-0::before{background:var(--teal-600)}
+body .mu-stack .mu-state-1::before{background:var(--amber-500, #f59e0b)}
+body .mu-stack .mu-state-2::before{background:var(--danger)}

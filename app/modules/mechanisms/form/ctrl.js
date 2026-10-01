@@ -227,6 +227,10 @@ export function bindMechForm(ctx, oi) {
   const country = s.$('[data-mu-country]');
   if (country) country.oninput = () => { unit.country = capInput(country); };
 
+  // Состояние — в строку состава сразу (колонка «Состояние»).
+  const stateSel = s.$('[data-mu-state]');
+  if (stateSel) stateSel.onchange = () => { unit.state = stateSel.value; refreshList(); };
+
   const made = s.$('[data-mu-made]');
   bindCheckedField(made, yearError, (v) => { unit.madeYear = v; });
 

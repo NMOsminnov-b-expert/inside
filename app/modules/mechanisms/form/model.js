@@ -286,7 +286,8 @@ export function migrateMechUnits(rec) {
         return false;
       });
 
-      const known = new Set();
+      // Масса — общее поле любой единицы (01.10.2026), не «свое поле».
+      const known = new Set(['mass']);
       const f = fieldsFor(u.cls, u.sub, u.type);
       if (f) [...f.main, ...f.extra].forEach((x) => known.add(x.key));
 

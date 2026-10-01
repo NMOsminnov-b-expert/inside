@@ -2,7 +2,7 @@
 // app/modules/mechanisms/data/mechFields.js и печатает его JSON-ом в поток вывода.
 // Вызывается из tools/docs/build_mech_fields.py — руками запускать не нужно.
 import { MECH_CLASSIFIER } from '../../app/modules/mechanisms/data/mechClassifier.js';
-import { MECH_FIELDS, MECH_CLASS_FIELDS, MECH_EXTRA_CLASSES }
+import { MECH_FIELDS, MECH_CLASS_FIELDS, MECH_EXTRA_CLASSES, MASS, MECH_STATES }
   from '../../app/modules/mechanisms/data/mechFields.js';
 
 const field = (f) => ({
@@ -51,4 +51,18 @@ const classes = [...MECH_CLASSIFIER.classes, ...MECH_EXTRA_CLASSES].map((c) => {
   };
 });
 
-process.stdout.write(JSON.stringify({ classes }, null, 1));
+// Общие поля любой единицы (форма — form/view.js: nameHTML, commonHTML,
+// accountingHTML). Масса и варианты состояния — из справочника.
+const common = [
+  { section: 'наименование', label: 'Наименование', type: 'text', units: [], options: [], key: 'name' },
+  { section: 'наименование', label: 'Инвентарный номер', type: 'text', units: [], options: [], key: 'inv' },
+  { section: 'основные', label: 'Страна происхождения', type: 'text', units: [], options: [], key: 'country' },
+  { section: 'основные', ...field(MASS) },
+  { section: 'основные', label: 'Год выпуска', type: 'int', units: [], options: [], key: 'madeYear' },
+  { section: 'основные', label: 'Год ввода в эксплуатацию', type: 'int', units: [], options: [], key: 'year' },
+  { section: 'основные', label: 'Состояние', type: 'select', units: [], options: MECH_STATES, key: 'state' },
+  { section: 'учётные', label: 'Количество', type: 'int', units: ['шт.'], options: [], key: 'qty' },
+  { section: 'учётные', label: 'Балансовая стоимость', type: 'num', units: ['сом'], options: [], key: 'cost' },
+];
+
+process.stdout.write(JSON.stringify({ classes, common }, null, 1));

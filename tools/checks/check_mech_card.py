@@ -438,3 +438,20 @@ def run(t):
     t.ck(old['country'] == 'Германия', 'страна в прежних данных не с заглавной: %s' % old)
     t.ck(old['a'] == ['Тип коммутационных аппаратов=ВВ/TEL'], 'прежний тип коммутационных аппаратов потерян: %s' % old)
     t.ck(old['b'] == ['Рабочее давление=0,2 МПа'], 'прежнее давление печи потеряно: %s' % old)
+
+    # --- заметки 01.10.2026: общие поля в основных параметрах, состояние --------
+    # Страна, масса, годы, состояние — в разделе «Наименование и основные
+    # параметры» у любой единицы; масса не задваивается полем категории
+    # (у трансформаторов она была своей).
+    pick('cls', 'Энергетическое оборудование')
+    pick('sub', 'Трансформаторы')
+    first = pg.locator('#q-mech-unit .mu-sec').nth(1)
+    t.ck('основные параметры' in first.locator('.sec-h').inner_text().lower(), 'второй раздел — не основные параметры')
+    for sel_ in ('[data-mu-country]', '[data-mu-made]', '[data-mu-year]', '[data-mu-state]', '[data-mu-f="mass"]'):
+        t.ck(first.locator(sel_).count() == 1, 'в основных параметрах нет %s' % sel_)
+    t.ck(pg.locator('[data-mu-f="mass"]').count() == 1, 'масса задвоилась')
+    opts = pg.eval_on_selector_all('[data-mu-state] option', 'els => els.map((e) => e.textContent.trim())')
+    t.ck(opts == ['Не выбрано', 'Рабочее', 'Условно пригодное', 'Нерабочее'], 'варианты состояния не те: %s' % opts)
+    pg.select_option('[data-mu-state]', 'Условно пригодное')
+    t.wait_until("() => [...document.querySelectorAll('.mu-row.on .mu-state')].some((e) => e.textContent.includes('Условно пригодное'))")
+    t.ck(pg.locator('.mu-row.on .mu-state').inner_text().strip() == 'Условно пригодное', 'состояние не попало в таблицу состава')

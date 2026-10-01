@@ -26,6 +26,7 @@ import {
   unitParam, unitParamUnit, unitTitle, unitClassPath, totalQty, totalCost, hasCost,
   unitPhotoCount,
 } from './model.js';
+import { MASS, MECH_STATES } from '../data/mechFields.js';
 
 // Стоимость — балансовая (уточнение пользователя 17.09.2026). За единицу она
 // или за всё количество в строке, по-прежнему не решено.
@@ -84,6 +85,7 @@ export function unitsTable(ctx, oi, current) {
         <div class="mu-name mu-clip" title="${esc(unitTitle(u))}">${esc(unitTitle(u))}</div>
         <div class="mu-path mu-clip ${path ? '' : 'mu-path-empty'}" title="${esc(path)}">${esc(path || 'Класс не выбран')}</div>
       </td>
+      <td class="mu-c-state">${u.state ? `<span class="mu-state mu-state-${MECH_STATES.indexOf(u.state)}">${esc(u.state)}</span>` : '—'}</td>
       <td class="mu-c-num">${esc(u.year || '—')}</td>
       <td class="mu-c-num">${esc(u.qty || '—')}</td>
       <td class="mu-c-num">${String(u.cost || '').trim() ? fmtNum(u.cost) : '—'}</td>
@@ -95,10 +97,11 @@ export function unitsTable(ctx, oi, current) {
 
   return `<div class="mu-table-wrap">
     <table class="tbl mu-tbl">
-      <colgroup><col><col style="width:72px"><col style="width:70px"><col style="width:124px">
+      <colgroup><col><col style="width:136px"><col style="width:72px"><col style="width:70px"><col style="width:124px">
         <col style="width:58px"><col style="width:36px"></colgroup>
       <thead><tr>
         <th title="Наименование и классификация">Наименование</th>
+        <th>Состояние</th>
         <th class="mu-c-num" title="Год ввода в эксплуатацию">Ввод, г.</th>
         <th class="mu-c-num" title="Количество, шт.">Кол-во</th>
         <th class="mu-c-num" title="Балансовая стоимость, сом">Бал. стоимость</th>
@@ -108,6 +111,7 @@ export function unitsTable(ctx, oi, current) {
       <tbody>${rows}</tbody>
       <tfoot><tr class="oi-total">
         <td>Итого: ${list.length} ${plural(list.length, 'позиция', 'позиции', 'позиций')}</td>
+        <td></td>
         <td></td>
         <td class="mu-c-num">${totalQty(oi)} шт.</td>
         <td class="mu-c-num" title="Сумма балансовой стоимости, сом">${hasCost(oi) ? fmtNum(totalCost(oi)) : '—'}</td>
@@ -309,27 +313,49 @@ function nameHTML(unit) {
     </div>
     ${main.length ? `<div class="grid g-2 mu-params">${main.map((f) => fieldHTML(unit, f)).join('')}</div>`
     : `<div class="mu-empty">${esc(whyNoFields(unit))}</div>`}
+    ${commonHTML(unit)}
   </div>`;
 }
 
-// Учётные сведения: год выпуска и год ввода в эксплуатацию (разные даты —
-// станок 2015 года могли ввести в 2020-м; решение пользователя 30.09.2026),
-// количество, балансовая стоимость и страна происхождения — у любой
-// категории (решение 30.09.2026).
+// Общее для любой единицы — в основных параметрах, после полей категории
+// (заметки пользователя 01.10.2026): страна происхождения, масса, год выпуска,
+// год ввода в эксплуатацию, состояние. Раньше страна и годы стояли в учётных
+// сведениях.
+function commonHTML(unit) {
+  return `<div class="grid g-2 mu-params mu-common">
+    ${asksCountry(unit) ? `<div class="field">
+      <label for="mu-country">Страна происхождения</label>
+      <input class="input" id="mu-country" data-mu-country value="${esc(unit.country || '')}">
+    </div>` : ''}
+    ${fieldHTML(unit, MASS)}
+    <div class="field">
+      <label for="mu-made">Год выпуска</label>
+      <input class="input mu-num" id="mu-made" data-mu-made value="${esc(unit.madeYear || '')}"
+        inputmode="numeric" maxlength="4" placeholder="ГГГГ">
+    </div>
+    <div class="field">
+      <label for="mu-year">Год ввода в эксплуатацию</label>
+      <input class="input mu-num" id="mu-year" data-mu-year value="${esc(unit.year || '')}"
+        inputmode="numeric" maxlength="4" placeholder="ГГГГ">
+    </div>
+    <div class="field">
+      <label for="mu-state">Состояние</label>
+      <select class="select" id="mu-state" data-mu-state>
+        <option value="">Не выбрано</option>
+        ${MECH_STATES.map((o) => `<option ${o === unit.state ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+}
+
+// Учётные сведения: количество и балансовая стоимость. Год выпуска и год
+// ввода в эксплуатацию (разные даты — станок 2015 года могли ввести в 2020-м;
+// решение пользователя 30.09.2026) и страна происхождения — с 01.10.2026 в
+// основных параметрах (commonHTML).
 function accountingHTML(unit) {
   return `<div class="mu-sec">
     <div class="sec-h">Учётные сведения</div>
     <div class="grid mu-grid-general">
-      <div class="field">
-        <label for="mu-made">Год выпуска</label>
-        <input class="input mu-num" id="mu-made" data-mu-made value="${esc(unit.madeYear || '')}"
-          inputmode="numeric" maxlength="4" placeholder="ГГГГ">
-      </div>
-      <div class="field">
-        <label for="mu-year">Год ввода в эксплуатацию</label>
-        <input class="input mu-num" id="mu-year" data-mu-year value="${esc(unit.year || '')}"
-          inputmode="numeric" maxlength="4" placeholder="ГГГГ">
-      </div>
       <div class="field">
         <label for="mu-qty">Количество, шт.</label>
         <input class="input mu-num" id="mu-qty" data-mu-qty value="${esc(numText(unit.qty, 'int'))}"
@@ -340,10 +366,6 @@ function accountingHTML(unit) {
         <input class="input mu-num" id="mu-cost" data-mu-cost value="${esc(unit.cost || '')}"
           inputmode="decimal" placeholder="не указана">
       </div>
-      ${asksCountry(unit) ? `<div class="field">
-        <label for="mu-country">Страна происхождения</label>
-        <input class="input" id="mu-country" data-mu-country value="${esc(unit.country || '')}">
-      </div>` : ''}
     </div>
   </div>`;
 }
