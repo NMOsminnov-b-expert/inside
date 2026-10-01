@@ -414,6 +414,16 @@ function modulesHTML(unit) {
           aria-label="Убрать модуль ${esc(m.name || String(i + 1))}">×</button>
       </div>
       <div class="mu-mod-b">
+        <div class="grid g-2 mu-params">
+          <div class="field">
+            <label for="mu-mmake-${m.id}">Марка</label>
+            <input class="input" id="mu-mmake-${m.id}" data-mu-mmake="${m.id}" value="${esc(m.make || '')}">
+          </div>
+          <div class="field">
+            <label for="mu-mmodel-${m.id}">Модель</label>
+            <input class="input" id="mu-mmodel-${m.id}" data-mu-mmodel="${m.id}" value="${esc(m.model || '')}">
+          </div>
+        </div>
         <div class="field">
           <label for="mu-mnote-${m.id}">Комментарий</label>
           <textarea class="input mu-comment" id="mu-mnote-${m.id}" data-mu-mnote="${m.id}" rows="2">${esc(m.comment || '')}</textarea>
