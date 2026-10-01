@@ -24,7 +24,7 @@ import { photoFileAt } from '../photos.js';
 import {
   mechUnits, classNames, classOf, subgroupOf, hasSubgroups, paramsOf, asksCountry,
   unitParam, unitParamUnit, unitTitle, unitClassPath, totalQty, totalCost, hasCost,
-  unitPhotoCount,
+  unitPhotoCount, hasLineModules, showsModules,
 } from './model.js';
 import { MASS, MECH_STATES } from '../data/mechFields.js';
 
@@ -384,6 +384,59 @@ function paramsHTML(unit) {
   </div>`;
 }
 
+// Модули линии — отдельными карточками: у каждой своя шапка с номером и
+// названием, под ней комментарий и свои поля. Карточки разделены рамкой,
+// фоном шапки и отступом — две-три подряд не сливаются в одну (заметка
+// пользователя 01.10.2026; практика повторяющихся групп карточками —
+// Resolver «Form cards», Altinn «Grouping of fields»; «+ Модуль» — под
+// последней). Тот же приём, что у модулей ТС.
+function modulesHTML(unit) {
+  if (!showsModules(unit)) return '';
+  const mods = unit.modules || [];
+  const stray = !hasLineModules(unit);
+
+  const fieldRows = (m) => (m.extra || []).map((f) => `<tr>
+      <td><input class="ax-cell" data-mu-mxlabel="${m.id}|${f.id}" value="${esc(f.label)}"
+        placeholder="Название поля" aria-label="Название поля"></td>
+      <td><input class="ax-cell" data-mu-mxvalue="${m.id}|${f.id}" value="${esc(f.value)}"
+        placeholder="Значение" aria-label="Значение поля"></td>
+      <td class="mu-c-act"><button class="ax-x mu-del" data-mu-mxdel="${m.id}|${f.id}"
+        title="Убрать поле" aria-label="Убрать поле">×</button></td>
+    </tr>`).join('');
+
+  const card = (m, i) => `<section class="mu-mod" data-mu-mod="${m.id}" aria-label="Модуль ${i + 1}">
+      <div class="mu-mod-h">
+        <span class="mu-mod-n" aria-hidden="true">${i + 1}</span>
+        <label class="sr-only" for="mu-mname-${m.id}">Название модуля ${i + 1}</label>
+        <input class="input mu-mod-name" id="mu-mname-${m.id}" data-mu-mname="${m.id}" value="${esc(m.name || '')}"
+          placeholder="Название модуля, например: экструдер">
+        <button class="ax-x mu-del" data-mu-mdel="${m.id}" title="Убрать модуль"
+          aria-label="Убрать модуль ${esc(m.name || String(i + 1))}">×</button>
+      </div>
+      <div class="mu-mod-b">
+        <div class="field">
+          <label for="mu-mnote-${m.id}">Комментарий</label>
+          <textarea class="input mu-comment" id="mu-mnote-${m.id}" data-mu-mnote="${m.id}" rows="2">${esc(m.comment || '')}</textarea>
+        </div>
+        <div class="mu-mod-fh"><span class="mu-mod-ft">Свои поля</span>
+          <button class="btn btn-ghost btn-sm" data-mu-mxadd="${m.id}">+ Поле</button></div>
+        ${(m.extra || []).length ? `<table class="tbl mu-xtbl">
+          <colgroup><col style="width:38%"><col><col style="width:40px"></colgroup>
+          <thead><tr><th>Поле</th><th>Значение</th><th></th></tr></thead>
+          <tbody>${fieldRows(m)}</tbody>
+        </table>` : '<div class="mu-empty">Своих полей нет.</div>'}
+      </div>
+    </section>`;
+
+  return `<div class="mu-sec">
+    <div class="sec-h">Модули линии
+      <span class="mu-sec-hint">${stray ? 'у этого типа модулей не бывает — перенесите или уберите' : 'агрегаты в составе линии'}</span>
+    </div>
+    ${mods.length ? `<div class="mu-mods">${mods.map(card).join('')}</div>` : ''}
+    ${stray ? '' : '<button type="button" class="mu-madd" data-mu-madd>+ Модуль</button>'}
+  </div>`;
+}
+
 // Свои поля — то, чего нет в справочнике полей, но есть у конкретной единицы:
 // код ЕНИ, узел комплекса, особые отметки (конструктор полей из ветки mech).
 function extraHTML(unit) {
@@ -473,6 +526,7 @@ function unitCard(ctx, oi, unit, idx) {
       ${nameHTML(unit)}
       ${accountingHTML(unit)}
       ${paramsHTML(unit)}
+      ${modulesHTML(unit)}
       ${extraHTML(unit)}
       ${commentHTML(unit)}
       ${photosHTML(oi, unit)}

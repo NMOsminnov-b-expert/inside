@@ -157,3 +157,25 @@ body .mu-stack .mu-state::before{content:'';width:8px;height:8px;border-radius:5
 body .mu-stack .mu-state-0::before{background:var(--teal-600)}
 body .mu-stack .mu-state-1::before{background:var(--amber-500, #f59e0b)}
 body .mu-stack .mu-state-2::before{background:var(--danger)}
+
+/* Модули линии — отдельные карточки: рамка, шапка своим фоном с номером, отступ
+   между карточками. Две-три подряд читаются как разные агрегаты, а не как одна
+   длинная форма. */
+body .mu-stack .mu-mods{display:flex;flex-direction:column;gap:12px}
+body .mu-stack .mu-mod{border:1px solid var(--line);border-radius:10px;background:#fff;
+  box-shadow:0 1px 2px rgba(19,41,62,.06)}
+body .mu-stack .mu-mod-h{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--teal-50);
+  border-bottom:1px solid var(--line-soft);border-radius:9px 9px 0 0}
+body .mu-stack .mu-mod-n{flex:0 0 auto;min-width:24px;height:24px;padding:0 6px;border-radius:12px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;background:var(--teal-600);
+  font-variant-numeric:tabular-nums}
+body .mu-stack .mu-mod-name{flex:1;min-width:0;font-weight:600}
+body .mu-stack .mu-mod-b{padding:10px 12px 12px;display:flex;flex-direction:column;gap:10px}
+body .mu-stack .mu-mod-fh{display:flex;align-items:center;gap:8px}
+body .mu-stack .mu-mod-ft{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#7d93a6}
+body .mu-stack .mu-mod-fh .btn{margin-left:auto}
+/* «+ Модуль» — под последней карточкой, на всю ширину, как у модулей ТС. */
+body .mu-stack .mu-madd{display:block;width:100%;margin-top:12px;padding:10px;border:1px dashed var(--line);
+  border-radius:10px;background:var(--fill-head);color:var(--teal-700);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+body .mu-stack .mu-madd:hover{background:var(--teal-50);border-color:var(--teal-600)}
+body .mu-stack .mu-madd:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}

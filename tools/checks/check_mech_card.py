@@ -455,3 +455,42 @@ def run(t):
     pg.select_option('[data-mu-state]', 'Условно пригодное')
     t.wait_until("() => [...document.querySelectorAll('.mu-row.on .mu-state')].some((e) => e.title === 'Условно пригодное')")
     t.ck(pg.locator('.mu-row.on .mu-state').get_attribute('title') == 'Условно пригодное' and pg.locator('.mu-row.on .mu-state').inner_text().strip() == 'Усл. пригодное', 'состояние не попало в таблицу состава')
+
+    # --- модули линии (заметка 01.10.2026) -----------------------------------------
+    # Только у производственных и упаковочных линий; модуль — название,
+    # комментарий, свои поля; карточки модулей разделены зазором.
+    pick('cls', 'Технологическое (производственное) оборудование')
+    pick('sub', 'Технологические линии и их составные агрегаты')
+    pick('type', 'Составные агрегаты линий')
+    t.ck(pg.locator('[data-mu-madd]').count() == 0, 'у составных агрегатов есть модули')
+    pick('type', 'Производственные линии')
+    t.ck(pg.locator('[data-mu-madd]').count() == 1, 'у производственной линии нет «+ Модуль»')
+    for name in ('Экструдер', 'Охлаждающая ванна', 'Намотчик'):
+        pg.click('[data-mu-madd]')
+        t.wait_until("() => document.activeElement && document.activeElement.hasAttribute('data-mu-mname') && !document.activeElement.value")
+        pg.keyboard.type(name)
+    t.ck(pg.locator('.mu-mod').count() == 3, 'модулей не три')
+    gaps = pg.evaluate("""() => { const r = [...document.querySelectorAll('.mu-mod')].map((e) => e.getBoundingClientRect());
+      return r.slice(1).map((x, i) => Math.round(x.top - r[i].bottom)); }""")
+    t.ck(all(g >= 8 for g in gaps), 'карточки модулей сливаются: зазоры %s' % gaps)
+    first = pg.locator('.mu-mod').first
+    first.locator('[data-mu-mnote]').fill('Одношнековый, 90 мм')
+    first.locator('[data-mu-mxadd]').click()
+    t.wait_until("() => document.activeElement && document.activeElement.hasAttribute('data-mu-mxlabel')")
+    pg.keyboard.type('Диаметр шнека')
+    pg.locator('.mu-mod').first.locator('[data-mu-mxvalue]').fill('90 мм')
+    # Переход на другую единицу и обратно — модули сохранились.
+    pg.locator('.mu-row').nth(1).click(); t.wait_for('#q-mech-unit'); t.wait(300)
+    pg.locator('.mu-row').first.click(); t.wait_for('.mu-mod')
+    names = pg.eval_on_selector_all('[data-mu-mname]', 'els => els.map((e) => e.value)')
+    t.ck(names == ['Экструдер', 'Охлаждающая ванна', 'Намотчик'], 'названия модулей не сохранились: %s' % names)
+    t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mnote]').input_value() == 'Одношнековый, 90 мм', 'комментарий модуля не сохранился')
+    t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mxvalue]').input_value() == '90 мм', 'своё поле модуля не сохранилось')
+    # Заполненный модуль убирается с вопросом.
+    pg.locator('.mu-mod').first.locator('[data-mu-mdel]').click()
+    t.wait_for('[data-modal-ok]'); pg.click('[data-modal-ok]')
+    t.wait_until("() => document.querySelectorAll('.mu-mod').length === 2")
+    # Сменили тип, а модули есть — они видны с пояснением, не пропадают молча.
+    pick('type', 'Составные агрегаты линий')
+    t.ck(pg.locator('.mu-mod').count() == 2 and pg.locator('[data-mu-madd]').count() == 0,
+         'при смене типа модули пропали или осталась кнопка добавления')

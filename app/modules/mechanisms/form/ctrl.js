@@ -339,6 +339,52 @@ export function bindMechForm(ctx, oi) {
     if (inp) inp.focus();
   };
 
+  // --- Модули линии ---------------------------------------------------------
+  // Название, комментарий и свои поля пишутся по ходу набора; добавление и
+  // удаление перерисовывают карточку, фокус — в новое поле.
+  const modOf = (id) => (unit.modules || []).find((m) => m.id === id);
+  const modField = (key) => { const [mid, fid] = key.split('|'); const m = modOf(mid); return m && (m.extra || []).find((f) => f.id === fid); };
+  s.$$('[data-mu-mname]').forEach((inp) => inp.oninput = () => { const m = modOf(inp.dataset.muMname); if (m) m.name = inp.value; });
+  s.$$('[data-mu-mnote]').forEach((inp) => inp.oninput = () => { const m = modOf(inp.dataset.muMnote); if (m) m.comment = inp.value; });
+  s.$$('[data-mu-mxlabel]').forEach((inp) => inp.oninput = () => { const f = modField(inp.dataset.muMxlabel); if (f) f.label = inp.value; });
+  s.$$('[data-mu-mxvalue]').forEach((inp) => inp.oninput = () => { const f = modField(inp.dataset.muMxvalue); if (f) f.value = inp.value; });
+  s.$$('[data-mu-mxdel]').forEach((b) => b.onclick = () => {
+    const [mid, fid] = b.dataset.muMxdel.split('|');
+    const m = modOf(mid);
+    if (m) m.extra = (m.extra || []).filter((f) => f.id !== fid);
+    ctx.render();
+  });
+  s.$$('[data-mu-mxadd]').forEach((b) => b.onclick = async () => {
+    const m = modOf(b.dataset.muMxadd);
+    if (!m) return;
+    const f = { id: `mf-${Date.now().toString(36)}-${fieldSeq++}`, label: '', value: '' };
+    m.extra = [...(m.extra || []), f];
+    await ctx.render();
+    const inp = s.$(`[data-mu-mxlabel="${m.id}|${f.id}"]`);
+    if (inp) inp.focus();
+  });
+  s.$$('[data-mu-mdel]').forEach((b) => b.onclick = async () => {
+    const m = modOf(b.dataset.muMdel);
+    if (!m) return;
+    // Пустой модуль убирается молча, заполненный — с вопросом: в нём могли
+    // быть записаны сведения, которые жалко потерять случайным щелчком.
+    const filled = String(m.name || '').trim() || String(m.comment || '').trim() || (m.extra || []).length;
+    if (filled) {
+      const ok = await ctx.host.confirm({ title: 'Убрать модуль', text: `Модуль «${m.name || 'без названия'}» уберётся вместе с комментарием и своими полями.`, okLabel: 'Убрать', danger: true });
+      if (!ok) return;
+    }
+    unit.modules = (unit.modules || []).filter((x) => x.id !== m.id);
+    ctx.render();
+  });
+  const madd = s.$('[data-mu-madd]');
+  if (madd) madd.onclick = async () => {
+    const m = { id: `mm-${Date.now().toString(36)}-${fieldSeq++}`, name: '', comment: '', extra: [] };
+    unit.modules = [...(unit.modules || []), m];
+    await ctx.render();
+    const inp = s.$(`[data-mu-mname="${m.id}"]`);
+    if (inp) inp.focus();
+  };
+
   // --- Фото -----------------------------------------------------------------
 
   const padd = s.$('[data-mu-photo-add]');
