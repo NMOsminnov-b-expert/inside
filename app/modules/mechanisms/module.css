@@ -180,3 +180,23 @@ body .mu-stack .mu-madd{display:block;width:100%;margin-top:12px;padding:10px;bo
 body .mu-stack .mu-madd:hover{background:var(--teal-50);border-color:var(--teal-600)}
 body .mu-stack .mu-madd:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
 body .mu-stack .mu-mod-b .mu-hint{margin:0 0 2px}
+
+/* Модули линии — список со сводкой и раскрытием (как модули ТС): свёрнутый —
+   одна строка «номер · название · модель · количество · своих полей», шапка
+   раскрытого — своим фоном. */
+body .mu-stack .mu-mods{gap:8px}
+body .mu-stack .mu-mods-n{font-size:11px;font-weight:700;color:var(--teal-700);background:var(--teal-50);border-radius:9px;padding:0 6px}
+body .mu-stack .mu-mod{border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:none}
+body .mu-stack .mu-mod.open{border-color:var(--teal-100);box-shadow:0 1px 2px rgba(19,41,62,.06)}
+body .mu-stack .mu-mod-row{display:flex;align-items:center;border-radius:9px;overflow:hidden}
+body .mu-stack .mu-mod.open .mu-mod-row{background:var(--teal-50);border-bottom:1px solid var(--line-soft);border-radius:9px 9px 0 0}
+body .mu-stack .mu-mod-toggle{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1.2fr) minmax(0,1.6fr) 16px;gap:10px;
+  align-items:center;padding:8px 10px;min-height:44px;border:0;background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+body .mu-stack .mu-mod-toggle:hover{background:var(--fill-hover)}
+body .mu-stack .mu-mod-toggle:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+body .mu-stack .mu-mod-name{font-weight:600}
+body .mu-stack .mu-mod-sum{font-size:12px;color:var(--muted)}
+body .mu-stack .mu-mod-chev{color:var(--slate-500);font-size:11px}
+body .mu-stack .mu-mod-row .mu-del{margin-right:6px}
+body .mu-stack .mu-mod-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1.6fr) minmax(0,1fr);gap:12px;align-items:end}
+@media (max-width:720px){body .mu-stack .mu-mod-grid{grid-template-columns:1fr}}

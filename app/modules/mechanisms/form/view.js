@@ -384,13 +384,17 @@ function paramsHTML(unit) {
   </div>`;
 }
 
-// Модули линии — отдельными карточками: у каждой своя шапка с номером и
-// названием, под ней комментарий и свои поля. Карточки разделены рамкой,
-// фоном шапки и отступом — две-три подряд не сливаются в одну (заметка
-// пользователя 01.10.2026; практика повторяющихся групп карточками —
-// Resolver «Form cards», Altinn «Grouping of fields»; «+ Модуль» — под
-// последней). Тот же приём, что у модулей ТС.
-function modulesHTML(unit) {
+// Модули линии — список со сводкой и раскрытием (пользователь 01.10.2026:
+// «стоит проработать по ним навигацию... Сейчас это несворачиваемые блоки»).
+// Свёрнутый модуль — одна строка: номер, название, модель, количество и
+// сколько своих полей; по ней и находят нужный. Раскрывать можно несколько
+// сразу, «Развернуть все / Свернуть все» — в заголовке раздела (практика
+// аккордеона: LogRocket «Accordion UI design», Eleken «Accordion UI»).
+// Вид — как у списка модулей ТС: правило макета сильнее чужой статьи.
+// Новый модуль раскрыт сразу, курсор — в его названии.
+//
+// open — множество раскрытых модулей (ctx.ui, на время работы с карточкой).
+function modulesHTML(unit, open) {
   if (!showsModules(unit)) return '';
   const mods = unit.modules || [];
   const stray = !hasLineModules(unit);
@@ -404,17 +408,33 @@ function modulesHTML(unit) {
         title="Убрать поле" aria-label="Убрать поле">×</button></td>
     </tr>`).join('');
 
-  const card = (m, i) => `<section class="mu-mod" data-mu-mod="${m.id}" aria-label="Модуль ${i + 1}">
-      <div class="mu-mod-h">
-        <span class="mu-mod-n" aria-hidden="true">${i + 1}</span>
-        <label class="sr-only" for="mu-mname-${m.id}">Название модуля ${i + 1}</label>
-        <input class="input mu-mod-name" id="mu-mname-${m.id}" data-mu-mname="${m.id}" value="${esc(m.name || '')}"
-          placeholder="Название модуля, например: экструдер">
+  const summary = (m) => {
+    const n = (m.extra || []).length;
+    return [m.model, String(m.qty || '').trim() ? `${numText(m.qty, 'int')} шт.` : '', n ? `своих полей ${n}` : '']
+      .filter(Boolean).join(' · ');
+  };
+
+  const item = (m, i) => {
+    const on = open.has(m.id);
+    return `<section class="mu-mod ${on ? 'open' : ''}" data-mu-mod="${m.id}">
+      <div class="mu-mod-row">
+        <button type="button" class="mu-mod-toggle" data-mu-mtoggle="${m.id}" aria-expanded="${on}"
+          aria-controls="mu-mod-b-${m.id}" title="${on ? 'Свернуть' : 'Развернуть'}">
+          <span class="mu-mod-n" aria-hidden="true">${i + 1}</span>
+          <span class="mu-mod-name ell">${esc(m.name || 'Модуль без названия')}</span>
+          <span class="mu-mod-sum ell">${esc(summary(m))}</span>
+          <span class="mu-mod-chev" aria-hidden="true">${on ? '▴' : '▾'}</span>
+        </button>
         <button class="ax-x mu-del" data-mu-mdel="${m.id}" title="Убрать модуль"
           aria-label="Убрать модуль ${esc(m.name || String(i + 1))}">×</button>
       </div>
-      <div class="mu-mod-b">
-        <div class="grid g-2 mu-params">
+      ${on ? `<div class="mu-mod-b" id="mu-mod-b-${m.id}">
+        <div class="grid mu-mod-grid">
+          <div class="field">
+            <label for="mu-mname-${m.id}">Название</label>
+            <input class="input" id="mu-mname-${m.id}" data-mu-mname="${m.id}" value="${esc(m.name || '')}"
+              placeholder="Например: экструдер">
+          </div>
           <div class="field">
             <label for="mu-mmodel-${m.id}">Модель</label>
             <input class="input" id="mu-mmodel-${m.id}" data-mu-mmodel="${m.id}" value="${esc(m.model || '')}">
@@ -430,23 +450,33 @@ function modulesHTML(unit) {
           <textarea class="input mu-comment" id="mu-mnote-${m.id}" data-mu-mnote="${m.id}" rows="2"
             aria-describedby="mu-mnote-hint-${m.id}">${esc(m.comment || '')}</textarea>
         </div>
-        <div class="mu-mod-fh"><span class="mu-mod-ft">Свои поля</span>
+        <div class="mu-mod-fh"><span class="mu-mod-ft">Свои поля модуля</span>
           <button class="btn btn-ghost btn-sm" data-mu-mxadd="${m.id}">+ Поле</button></div>
         ${(m.extra || []).length ? `<table class="tbl mu-xtbl">
           <colgroup><col style="width:38%"><col><col style="width:40px"></colgroup>
           <thead><tr><th>Поле</th><th>Значение</th><th></th></tr></thead>
           <tbody>${fieldRows(m)}</tbody>
         </table>` : '<div class="mu-empty">Своих полей нет.</div>'}
-      </div>
+      </div>` : ''}
     </section>`;
+  };
 
+  const allOpen = mods.length && mods.every((m) => open.has(m.id));
   return `<div class="mu-sec">
-    <div class="sec-h">Модули линии
+    <div class="sec-h">Модули линии${mods.length ? ` <span class="mu-mods-n">${mods.length}</span>` : ''}
       <span class="mu-sec-hint">${stray ? 'у этого типа модулей не бывает — перенесите или уберите' : 'агрегаты в составе линии'}</span>
+      ${mods.length > 1 ? `<button class="btn btn-ghost btn-sm" data-mu-mall="${allOpen ? '0' : '1'}">${allOpen ? 'Свернуть все' : 'Развернуть все'}</button>` : ''}
     </div>
-    ${mods.length ? `<div class="mu-mods">${mods.map(card).join('')}</div>` : ''}
+    ${mods.length ? `<div class="mu-mods">${mods.map(item).join('')}</div>` : ''}
     ${stray ? '' : '<button type="button" class="mu-madd" data-mu-madd>+ Модуль</button>'}
   </div>`;
+}
+
+// Раскрытые модули единицы — в ctx.ui: на время работы с карточкой.
+export function modOpen(ctx, unit) {
+  ctx.ui.muModOpen = ctx.ui.muModOpen || {};
+  if (!ctx.ui.muModOpen[unit.id]) ctx.ui.muModOpen[unit.id] = new Set();
+  return ctx.ui.muModOpen[unit.id];
 }
 
 // Свои поля — то, чего нет в справочнике полей, но есть у конкретной единицы:
@@ -538,8 +568,8 @@ function unitCard(ctx, oi, unit, idx) {
       ${nameHTML(unit)}
       ${accountingHTML(unit)}
       ${paramsHTML(unit)}
-      ${modulesHTML(unit)}
       ${extraHTML(unit)}
+      ${modulesHTML(unit, modOpen(ctx, unit))}
       ${commentHTML(unit)}
       ${photosHTML(oi, unit)}
     </div></div>

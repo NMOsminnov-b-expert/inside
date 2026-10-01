@@ -493,6 +493,24 @@ def run(t):
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mqty]').input_value() == '2', 'количество агрегатов модуля не сохранилось')
     t.ck('Назначение модуля' in pg.locator('.mu-mod').first.locator('.mu-hint').inner_text(), 'у комментария модуля нет пояснения о назначении')
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mxvalue]').input_value() == '90 мм', 'своё поле модуля не сохранилось')
+    # Порядок: свои поля единицы — выше модулей (пользователь 01.10.2026).
+    order = pg.evaluate("""() => [...document.querySelectorAll('#q-mech-unit .mu-sec .sec-h')].map((h) => h.textContent.trim())""")
+    i_extra = next(i for i, x in enumerate(order) if x.startswith('Свои поля'))
+    i_mods = next(i for i, x in enumerate(order) if x.startswith('Модули линии'))
+    t.ck(i_extra < i_mods, 'свои поля не выше модулей: %s' % order)
+    # Модуль сворачивается в строку-сводку и раскрывается обратно.
+    first_t = pg.locator('[data-mu-mtoggle]').first
+    first_t.click()
+    t.wait_until("() => document.querySelector('[data-mu-mtoggle]').getAttribute('aria-expanded') === 'false'")
+    t.ck(pg.locator('.mu-mod').first.locator('.mu-mod-b').count() == 0, 'свёрнутый модуль показывает поля')
+    sumt = pg.locator('.mu-mod').first.locator('.mu-mod-sum').inner_text()
+    t.ck('uniEX 1-90' in sumt and '2 шт.' in sumt, 'в строке свёрнутого модуля нет модели и количества: %r' % sumt)
+    pg.click('[data-mu-mall="1"]')
+    t.wait_until("() => [...document.querySelectorAll('[data-mu-mtoggle]')].every((b) => b.getAttribute('aria-expanded') === 'true')")
+    pg.click('[data-mu-mall="0"]')
+    t.wait_until("() => [...document.querySelectorAll('[data-mu-mtoggle]')].every((b) => b.getAttribute('aria-expanded') === 'false')")
+    pg.locator('[data-mu-mtoggle]').first.click()
+    t.wait_for('.mu-mod.open [data-mu-mnote]')
     # Заполненный модуль убирается с вопросом.
     pg.locator('.mu-mod').first.locator('[data-mu-mdel]').click()
     t.wait_for('[data-modal-ok]'); pg.click('[data-modal-ok]')

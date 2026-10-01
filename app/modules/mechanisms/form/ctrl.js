@@ -15,7 +15,7 @@ import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
 import { openPhotoInPlace } from '../../../kernel/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../../kernel/fileUpload.js';
 import { addPhotoFile, photoPages } from '../photos.js';
-import { unitsTable, selectedUnit } from './view.js';
+import { unitsTable, selectedUnit, modOpen } from './view.js';
 import {
   mechUnits, createUnit, setClass, setSub, unitTitle, dropUnitPhotos, syncMechName,
 } from './model.js';
@@ -343,8 +343,29 @@ export function bindMechForm(ctx, oi) {
   // Название, комментарий и свои поля пишутся по ходу набора; добавление и
   // удаление перерисовывают карточку, фокус — в новое поле.
   const modOf = (id) => (unit.modules || []).find((m) => m.id === id);
+  const opened = modOpen(ctx, unit);
+  // Раскрыть или свернуть модуль; «Развернуть все / Свернуть все».
+  s.$$('[data-mu-mtoggle]').forEach((b) => b.onclick = async () => {
+    const id = b.dataset.muMtoggle;
+    if (opened.has(id)) opened.delete(id); else opened.add(id);
+    await ctx.render();
+    const again = s.$(`[data-mu-mtoggle="${id}"]`);
+    if (again) again.focus();
+  });
+  const mall = s.$('[data-mu-mall]');
+  if (mall) mall.onclick = () => {
+    (unit.modules || []).forEach((m) => (mall.dataset.muMall === '1' ? opened.add(m.id) : opened.delete(m.id)));
+    ctx.render();
+  };
   const modField = (key) => { const [mid, fid] = key.split('|'); const m = modOf(mid); return m && (m.extra || []).find((f) => f.id === fid); };
-  s.$$('[data-mu-mname]').forEach((inp) => inp.oninput = () => { const m = modOf(inp.dataset.muMname); if (m) m.name = inp.value; });
+  // Название и сводка в строке модуля обновляются по ходу набора, без перерисовки.
+  const syncRow = (m) => {
+    const row = s.$(`[data-mu-mod="${m.id}"]`);
+    if (!row) return;
+    const nm = row.querySelector('.mu-mod-name');
+    if (nm) nm.textContent = m.name || 'Модуль без названия';
+  };
+  s.$$('[data-mu-mname]').forEach((inp) => inp.oninput = () => { const m = modOf(inp.dataset.muMname); if (m) { m.name = inp.value; syncRow(m); } });
   s.$$('[data-mu-mnote]').forEach((inp) => inp.oninput = () => { const m = modOf(inp.dataset.muMnote); if (m) m.comment = inp.value; });
   // Модель модуля (пользователь 01.10.2026: «В модули добавляем марку и
   // модель», затем «Заместо марки оставляем модель»).
@@ -386,6 +407,7 @@ export function bindMechForm(ctx, oi) {
   if (madd) madd.onclick = async () => {
     const m = { id: `mm-${Date.now().toString(36)}-${fieldSeq++}`, name: '', model: '', qty: '', comment: '', extra: [] };
     unit.modules = [...(unit.modules || []), m];
+    opened.add(m.id);
     await ctx.render();
     const inp = s.$(`[data-mu-mname="${m.id}"]`);
     if (inp) inp.focus();
