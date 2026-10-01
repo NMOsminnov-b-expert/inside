@@ -58,7 +58,7 @@ export const COLUMNS = [
   // участок · с/х» (уточнение пользователя 05.09.2026).
   { key: 'typeLabel', label: 'Тип ОЦ', width: 176, minWidth: 140 },
   // Статус — меткой с точкой; «Удостоверен по документам» помещается целиком.
-  { key: 'status', label: 'Статус', width: 196, minWidth: 120, sort: 'status' },
+  { key: 'status', label: 'Статус', width: 212, minWidth: 120, sort: 'status' },
   { key: 'institution', label: 'Учреждение', width: 150 },
   { key: 'city', label: 'Город / район', width: 130 },
   // Новые столбцы (Л1.5, Л1.8, Л1.9, Л1.10). По умолчанию скрыты — иначе
@@ -89,7 +89,7 @@ export const COLUMNS_MOV = [
   { key: 'title', label: 'Наименование', width: 0, sort: 'title' },
   { key: 'regNo', label: 'Рег. / инв. №', hint: 'Регистрационный номер ТС или название списка механизмов (счёт ББ, МОЛ)', width: 136, mono: true },
   { key: 'typeLabel', label: 'Тип ОЦ', width: 176, minWidth: 140 },
-  { key: 'status', label: 'Статус', width: 196, minWidth: 120, sort: 'status' },
+  { key: 'status', label: 'Статус', width: 212, minWidth: 120, sort: 'status' },
   { key: 'institution', label: 'Учреждение', width: 150 },
   { key: 'positions', label: 'Позиций', width: 90, minWidth: 80, align: 'right', sort: 'positions' },
   { key: 'qty', label: 'Кол-во, шт.', hint: 'Количество, шт.', width: 104, minWidth: 92, align: 'right', sort: 'qty' },
