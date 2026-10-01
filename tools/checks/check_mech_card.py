@@ -475,6 +475,8 @@ def run(t):
     t.ck(all(g >= 8 for g in gaps), 'карточки модулей сливаются: зазоры %s' % gaps)
     first = pg.locator('.mu-mod').first
     first.locator('[data-mu-mmodel]').fill('uniEX 1-90')
+    first.locator('[data-mu-mqty]').fill('2')
+    first.locator('[data-mu-mqty]').press('Tab')
     first.locator('[data-mu-mnote]').fill('Одношнековый, 90 мм')
     first.locator('[data-mu-mxadd]').click()
     t.wait_until("() => document.activeElement && document.activeElement.hasAttribute('data-mu-mxlabel')")
@@ -488,6 +490,7 @@ def run(t):
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mnote]').input_value() == 'Одношнековый, 90 мм', 'комментарий модуля не сохранился')
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mmodel]').input_value() == 'uniEX 1-90', 'модель модуля не сохранилась')
     t.ck(pg.locator('[data-mu-mmake]').count() == 0, 'у модуля осталось поле «Марка»')
+    t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mqty]').input_value() == '2', 'количество агрегатов модуля не сохранилось')
     t.ck('Назначение модуля' in pg.locator('.mu-mod').first.locator('.mu-hint').inner_text(), 'у комментария модуля нет пояснения о назначении')
     t.ck(pg.locator('.mu-mod').first.locator('[data-mu-mxvalue]').input_value() == '90 мм', 'своё поле модуля не сохранилось')
     # Заполненный модуль убирается с вопросом.

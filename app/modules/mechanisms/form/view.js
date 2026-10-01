@@ -419,6 +419,10 @@ function modulesHTML(unit) {
             <label for="mu-mmodel-${m.id}">Модель</label>
             <input class="input" id="mu-mmodel-${m.id}" data-mu-mmodel="${m.id}" value="${esc(m.model || '')}">
           </div>
+          <div class="field">
+            <label for="mu-mqty-${m.id}" title="Количество таких агрегатов в линии">Количество, шт.</label>
+            <input class="input mu-num" id="mu-mqty-${m.id}" data-mu-mqty="${m.id}" value="${esc(numText(m.qty, 'int'))}" inputmode="numeric">
+          </div>
         </div>
         <div class="field">
           <label for="mu-mnote-${m.id}">Комментарий</label>

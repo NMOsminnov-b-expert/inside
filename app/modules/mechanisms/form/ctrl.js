@@ -349,6 +349,9 @@ export function bindMechForm(ctx, oi) {
   // Модель модуля (пользователь 01.10.2026: «В модули добавляем марку и
   // модель», затем «Заместо марки оставляем модель»).
   s.$$('[data-mu-mmodel]').forEach((inp) => inp.oninput = () => { const m = modOf(inp.dataset.muMmodel); if (m) m.model = inp.value; });
+  // Количество таких агрегатов в линии (пользователь 01.10.2026: «Надо
+  // добавить количество таких агрегатов в модулях. рядом с моделью»).
+  s.$$('[data-mu-mqty]').forEach((inp) => bindNumField(inp, (v) => { const m = modOf(inp.dataset.muMqty); if (m) m.qty = v; }, 'int'));
   s.$$('[data-mu-mxlabel]').forEach((inp) => inp.oninput = () => { const f = modField(inp.dataset.muMxlabel); if (f) f.label = inp.value; });
   s.$$('[data-mu-mxvalue]').forEach((inp) => inp.oninput = () => { const f = modField(inp.dataset.muMxvalue); if (f) f.value = inp.value; });
   s.$$('[data-mu-mxdel]').forEach((b) => b.onclick = () => {
@@ -371,7 +374,7 @@ export function bindMechForm(ctx, oi) {
     if (!m) return;
     // Пустой модуль убирается молча, заполненный — с вопросом: в нём могли
     // быть записаны сведения, которые жалко потерять случайным щелчком.
-    const filled = [m.name, m.model, m.comment].some((x) => String(x || '').trim()) || (m.extra || []).length;
+    const filled = [m.name, m.model, m.qty, m.comment].some((x) => String(x || '').trim()) || (m.extra || []).length;
     if (filled) {
       const ok = await ctx.host.confirm({ title: 'Убрать модуль', text: `Модуль «${m.name || 'без названия'}» уберётся вместе с комментарием и своими полями.`, okLabel: 'Убрать', danger: true });
       if (!ok) return;
@@ -381,7 +384,7 @@ export function bindMechForm(ctx, oi) {
   });
   const madd = s.$('[data-mu-madd]');
   if (madd) madd.onclick = async () => {
-    const m = { id: `mm-${Date.now().toString(36)}-${fieldSeq++}`, name: '', model: '', comment: '', extra: [] };
+    const m = { id: `mm-${Date.now().toString(36)}-${fieldSeq++}`, name: '', model: '', qty: '', comment: '', extra: [] };
     unit.modules = [...(unit.modules || []), m];
     await ctx.render();
     const inp = s.$(`[data-mu-mname="${m.id}"]`);
