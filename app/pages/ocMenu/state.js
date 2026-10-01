@@ -49,12 +49,16 @@ export const COLUMNS = [
   // имущества, свёрнутые по общему началу — «1-47-56-1684-(4120, 4123)»
   // (решение пользователя 05.09.2026). Ширина рассчитана на такую запись; что
   // не поместилось, сокращается многоточием, полное значение — в подсказке.
-  { key: 'eni', label: 'Код ЕНИ', width: 186, minWidth: 134, mono: true, sort: 'eni' },
-  { key: 'title', label: 'Адрес', width: 0, sort: 'title' },
+  { key: 'eni', label: 'Код ЕНИ', width: 172, minWidth: 134, mono: true, sort: 'eni' },
+  // «Объект» — две строки: адрес и под ним тип · учреждение (канва главной
+  // 01.10.2026): отдельные столбцы типа и учреждения при ширине 1280–1440
+  // сжимали адрес до нечитаемого. Они остаются в меню столбцов.
+  { key: 'title', label: 'Объект', width: 0, sort: 'title' },
   // Шире прежнего: к типу приписывается тип земель записи — «Земельный
   // участок · с/х» (уточнение пользователя 05.09.2026).
   { key: 'typeLabel', label: 'Тип ОЦ', width: 176, minWidth: 140 },
-  { key: 'status', label: 'Статус', width: 142, sort: 'status' },
+  // Статус — меткой с точкой; «Удостоверен по документам» помещается целиком.
+  { key: 'status', label: 'Статус', width: 196, minWidth: 120, sort: 'status' },
   { key: 'institution', label: 'Учреждение', width: 150 },
   { key: 'city', label: 'Город / район', width: 130 },
   // Новые столбцы (Л1.5, Л1.8, Л1.9, Л1.10). По умолчанию скрыты — иначе
@@ -76,7 +80,50 @@ export const COLUMNS = [
   { key: 'updatedAt', label: 'Обновлён', width: 98, sort: 'updatedAt' },
 ];
 
-export const DEFAULT_COLUMNS = ['eni', 'title', 'typeLabel', 'status', 'institution', 'area', 'oiCount', 'notes', 'insp', 'updatedAt'];
+export const DEFAULT_COLUMNS = ['eni', 'title', 'status', 'area', 'oiCount', 'notes', 'insp', 'updatedAt'];
+
+// Столбцы вкладки «Движимое» (ТС, механизмы и оборудование): у них нет ЕНИ,
+// площади и объектов имущества, зато есть номер, позиции, количество и
+// балансовая стоимость (задача пользователя 01.10.2026: «По категориям свои»).
+export const COLUMNS_MOV = [
+  { key: 'title', label: 'Наименование', width: 0, sort: 'title' },
+  { key: 'regNo', label: 'Рег. / инв. №', hint: 'Регистрационный номер ТС или название списка механизмов (счёт ББ, МОЛ)', width: 136, mono: true },
+  { key: 'typeLabel', label: 'Тип ОЦ', width: 176, minWidth: 140 },
+  { key: 'status', label: 'Статус', width: 196, minWidth: 120, sort: 'status' },
+  { key: 'institution', label: 'Учреждение', width: 150 },
+  { key: 'positions', label: 'Позиций', width: 90, minWidth: 80, align: 'right', sort: 'positions' },
+  { key: 'qty', label: 'Кол-во, шт.', hint: 'Количество, шт.', width: 104, minWidth: 92, align: 'right', sort: 'qty' },
+  { key: 'cost', label: 'Бал. стоим., сом', hint: 'Балансовая стоимость, сом', width: 146, minWidth: 128, align: 'right', sort: 'cost' },
+  { key: 'notes', label: 'Заметки', width: 74, align: 'right', sort: 'pendingNotes' },
+  { key: 'insp', label: 'Осмотрщик', width: 140 },
+  { key: 'appr', label: 'Оценщик', width: 140 },
+  { key: 'owners', label: 'Собственники', width: 160 },
+  { key: 'updatedAt', label: 'Обновлён', width: 98, sort: 'updatedAt' },
+];
+
+export const DEFAULT_COLUMNS_MOV = ['title', 'regNo', 'status', 'positions', 'qty', 'cost', 'insp', 'updatedAt'];
+
+// Вкладка: «estate» — недвижимое, «movable» — движимое (manifest.assetKind).
+export const TABS = [
+  { key: 'estate', label: 'Недвижимое' },
+  { key: 'movable', label: 'Движимое' },
+];
+
+const movable = (state) => state.tab === 'movable';
+export const colDefs = (state) => (movable(state) ? COLUMNS_MOV : COLUMNS);
+export const colDefaults = (state) => (movable(state) ? DEFAULT_COLUMNS_MOV : DEFAULT_COLUMNS);
+export const colOrder = (state) => (movable(state) ? state.columnsMov : state.columns);
+export const colWidths = (state) => (movable(state) ? state.colWidthsMov : state.colWidths);
+export function setColOrder(state, order) {
+  if (movable(state)) state.columnsMov = order; else state.columns = order;
+}
+export function resetCols(state) {
+  if (movable(state)) { state.columnsMov = DEFAULT_COLUMNS_MOV.slice(); state.colWidthsMov = {}; }
+  else { state.columns = DEFAULT_COLUMNS.slice(); state.colWidths = {}; }
+}
+
+// Фильтр запроса к модулям — с категорией вкладки.
+export const queryFilter = (state, f = state.filter) => ({ ...f, kind: state.tab });
 
 export function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -107,7 +154,14 @@ export function createState() {
     columns: DEFAULT_COLUMNS.slice(),
     // Только изменённые вручную ширины; остальные берутся из COLUMNS.
     colWidths: {},
-    facetsOpen: true,
+    columnsMov: DEFAULT_COLUMNS_MOV.slice(),
+    colWidthsMov: {},
+    // Плотные строки — в одну строку (без типа и учреждения под адресом).
+    dense: false,
+    tab: 'estate',
+    // Панель фильтров по умолчанию закрыта: открывается кнопкой «Фильтры»,
+    // применённое видно чипами над таблицей (канва главной 01.10.2026).
+    facetsOpen: false,
     barOpen: { slices: true, recent: true },
     selected: new Map(),
     previewId: null,
@@ -137,7 +191,9 @@ export function createState() {
   return s;
 }
 
-const LIST_KEYS = ['status', 'typeId', 'city', 'institution', 'insp', 'flags'];
+// «Область» раньше не попадала в адрес и не считалась фильтром — ссылка
+// теряла её, а «сбросить» не появлялось (обход главной 01.10.2026).
+const LIST_KEYS = ['status', 'typeId', 'region', 'city', 'institution', 'insp', 'flags'];
 
 // --- Адрес ↔ состояние ---------------------------------------------------
 
@@ -145,6 +201,7 @@ export function stateToQuery(state) {
   const f = state.filter;
   const q = {};
 
+  if (state.tab === 'movable') q.tab = 'movable';
   if (f.q) q.q = f.q;
   LIST_KEYS.forEach((k) => { if (f[k].length) q[k] = f[k].join('~'); });
   if (f.staleDays) q.stale = String(f.staleDays);
@@ -165,6 +222,7 @@ export function applyQueryToState(state, query) {
 
   state.filter = f;
   state.sliceKey = query.slice || null;
+  state.tab = query.tab === 'movable' ? 'movable' : 'estate';
 
   if (query.sort) {
     const [key, dir] = query.sort.split(':');
@@ -185,7 +243,7 @@ export function hashFor(state) {
 }
 
 export function isFilterEmpty(f) {
-  return !f.q && !f.status.length && !f.typeId.length && !f.city.length
+  return !f.q && !f.status.length && !f.typeId.length && !f.city.length && !(f.region || []).length
     && !f.institution.length && !f.insp.length && !f.flags.length
     && !f.staleDays && !f.mine;
 }

@@ -28,8 +28,8 @@ TOUCHES = (
 def _role(t, key):
     """Переключить роль в реестре — права раздела считаются от неё."""
     t.open('', wait='.reg-thead')
-    t.page.locator('[data-role]').first.select_option(key)
-    t.wait(400)
+    t.set_role(key)
+    t.wait(300)
 
 
 def _view(t, key):

@@ -30,6 +30,9 @@ const CMP = {
   oiCount: (a, b) => (b.metrics.oiCount || 0) - (a.metrics.oiCount || 0),
   pendingNotes: (a, b) => (b.metrics.pendingNotes || 0) - (a.metrics.pendingNotes || 0),
   status: (a, b) => (STATUS_ORDER.get(a.status) ?? 99) - (STATUS_ORDER.get(b.status) ?? 99),
+  positions: (a, b) => (b.metrics.positions || 0) - (a.metrics.positions || 0),
+  qty: (a, b) => (b.metrics.qty || 0) - (a.metrics.qty || 0),
+  cost: (a, b) => (b.metrics.cost || 0) - (a.metrics.cost || 0),
 };
 
 // Сортировка по флажку: сначала записи, где он поднят. Компаратор строится на
@@ -52,9 +55,18 @@ function comparator(sort) {
 // площади). Модуль отбирается по части до двоеточия, строки — сам модуль.
 const moduleOf = (v) => String(v).split(':')[0];
 
+// Категория вкладки: «movable» — модули с manifest.assetKind 'movable' (ТС,
+// механизмы), «estate» — остальные (недвижимое). Без категории — все.
+function typesOfKind(kind) {
+  const all = sortedTypes();
+  if (kind === 'movable') return all.filter((t) => t.manifest.assetKind === 'movable');
+  if (kind === 'estate') return all.filter((t) => t.manifest.assetKind !== 'movable');
+  return all;
+}
+
 function typesFor(filter) {
   const ids = filter && filter.typeId;
-  const all = sortedTypes();
+  const all = typesOfKind(filter && filter.kind);
   return (ids && ids.length) ? all.filter((t) => ids.some((v) => moduleOf(v) === t.manifest.id)) : all;
 }
 
@@ -83,14 +95,14 @@ export function countAll(filter) {
 export function facetsAll(filter) {
   const merged = { status: {}, region: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
 
-  // Фасет «тип ОЦ» считаем по всем модулям, остальные — по отобранным.
-  sortedTypes().forEach((t) => {
+  // Фасет «тип ОЦ» считаем по всем модулям категории, остальные — по
+  // отобранным. Фасеты модуля считаются один раз: на 20 000 записей второй
+  // проход заметен.
+  const picked = new Set(typesFor(filter).map((t) => t.manifest.id));
+  typesOfKind(filter && filter.kind).forEach((t) => {
     const f = t.records.facets(filter);
     Object.keys(f.typeId).forEach((k) => { merged.typeId[k] = (merged.typeId[k] || 0) + f.typeId[k]; });
-  });
-
-  typesFor(filter).forEach((t) => {
-    const f = t.records.facets(filter);
+    if (!picked.has(t.manifest.id)) return;
     ['status', 'region', 'city', 'institution', 'insp'].forEach((key) => {
       Object.keys(f[key]).forEach((k) => { merged[key][k] = (merged[key][k] || 0) + f[key][k]; });
     });
@@ -100,10 +112,10 @@ export function facetsAll(filter) {
   return merged;
 }
 
-export function locateAll(query) {
+export function locateAll(query, kind) {
   const out = { eni: [], address: [], institution: [], letter: [] };
 
-  sortedTypes().forEach((t) => {
+  typesOfKind(kind).forEach((t) => {
     const r = t.records.locate(query);
     ['eni', 'address', 'institution', 'letter'].forEach((k) => {
       for (const s of r[k]) if (out[k].length < 8) out[k].push(s);
@@ -123,13 +135,15 @@ export function recordOf(typeId, id) {
   return t && t.records.loadRecord ? t.records.loadRecord(id) : null;
 }
 
-export function totalObjects() {
-  return sortedTypes().reduce((n, t) => n + t.records.totalCount(), 0);
+export function totalObjects(kind) {
+  return typesOfKind(kind).reduce((n, t) => n + t.records.totalCount(), 0);
 }
 
-// Демонстрационный объём: раздаём поровну между модулями.
+// Демонстрационный объём: раздаём поровну между модулями недвижимого — у ТС и
+// механизмов синтетических записей нет, и доля, отданная им, пропадала
+// (20 000 давали около 13 300, обход главной 01.10.2026).
 export function setBulkTotal(n) {
-  const types = sortedTypes();
+  const types = typesOfKind('estate');
   const per = Math.floor(n / types.length);
   types.forEach((t, i) => {
     const extra = i === 0 ? n - per * types.length : 0;

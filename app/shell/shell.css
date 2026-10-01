@@ -46,7 +46,21 @@
 .crumbs b{color:var(--ink)}
 .crumbs [data-crumb]{cursor:pointer}
 .crumbs [data-crumb]:hover{color:var(--blue-700);text-decoration:underline}
-.top-user{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px}
+.top-user{margin-left:auto;position:relative;font-size:12px}
+/* Меню пользователя: кнопка-капсула с именем и ролью; меню — справа под ней. */
+.top-user-btn{display:flex;align-items:center;gap:6px;font:inherit;font-size:12px;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:18px;padding:3px 4px 3px 10px;cursor:pointer}
+.top-user-btn:hover{border-color:var(--blue-300)}
+.top-user-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+.top-user-role{color:var(--muted)}
+.top-user .user-menu{right:0;left:auto;top:calc(100% + 6px);width:280px;padding:6px;z-index:900;max-height:none;overflow:visible}
+.um-h{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-label);padding:8px 10px 4px}
+.um-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;font-size:13px;color:var(--ink);cursor:pointer}
+.um-item:hover{background:var(--fill-hover)}
+.um-item input{margin:0}
+.um-pad{padding:2px 10px 8px}
+.um-pad .input{width:100%}
+.um-sep{height:1px;background:var(--line-soft);margin:6px 4px}
 .avatar{width:26px;height:26px;border-radius:50%;background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-100);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .content{flex:1;overflow:auto;padding:14px 18px;min-width:0}
 .notes-drawer{position:relative;width:0;transition:width .25s ease;flex-shrink:0}
@@ -148,3 +162,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Раздел реестра в меню пользователя: демо-объём сегментом, клавиши. */
+.um-seg{display:flex;gap:2px}
+.um-seg-b{flex:1;height:28px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:12px;font-weight:600;color:#33445c;cursor:pointer}
+.um-seg-b.on{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+.um-keys{font-size:12px;color:var(--muted);line-height:1.9}
+.um-keys kbd{font-family:Consolas,monospace;font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:#33445c}

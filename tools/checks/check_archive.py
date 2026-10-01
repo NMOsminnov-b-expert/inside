@@ -125,10 +125,9 @@ def run(t):
 
         # --- права ---
         t.open('', wait='.reg-thead')
-        role = pg.locator('[data-role]')
-        if role.count():
-            role.first.select_option('insp')
-            t.wait(700)
+        if True:
+            t.set_role('insp')
+            t.wait(300)
             hidden = pg.evaluate("""() => { const b = document.querySelector('[data-nav="archive"]');
                 return b ? b.hidden : null; }""")
             t.ck(hidden is True, 'пункт «Архив» виден роли без закреплённых учреждений')
@@ -138,11 +137,14 @@ def run(t):
 
             # сотруднику с учреждением архив виден
             t.open('', wait='.reg-thead')
-            inst = pg.locator('[data-institutions]')
-            if inst.count():
-                inst.first.fill('Министерство для ТЕСТА')
-                inst.first.dispatch_event('change')
-                t.wait(700)
+            if True:
+                # Переход по адресу без «#» перезагружает страницу, и роль
+                # сбрасывается на «любую» — задаём её снова: поле «Мои
+                # учреждения» в меню пользователя есть только у роли с
+                # ограничениями. Раньше эта часть тихо пропускалась.
+                t.set_role('insp')
+                t.set_institutions('Министерство для ТЕСТА')
+                t.wait(300)
                 hidden2 = pg.evaluate("""() => { const b = document.querySelector('[data-nav="archive"]');
                     return b ? b.hidden : null; }""")
                 t.ck(hidden2 is False, 'пункт «Архив» скрыт от сотрудника с учреждением')
@@ -151,10 +153,8 @@ def run(t):
         # Раньше запись документа удалялась безвозвратно (removeDocument), и
         # файлы уходили вместе с ней. Теперь удаление — это архив.
         t.open('', wait='.reg-thead')
-        role = pg.locator('[data-role]')
-        if role.count():
-            role.first.select_option('admin')
-            t.wait(600)
+        t.set_role('admin')
+        t.wait(300)
 
         t.open('#/docs', wait='[data-doc-row]')
         t.wait(400)

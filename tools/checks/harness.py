@@ -205,6 +205,42 @@ class Tester:
                 return False
         return self.wait_for(wait) if wait else True
 
+    # --- меню пользователя (shell.js) -------------------------------------
+    # Роль, «мои учреждения» и демо-объём реестра с 01.10.2026 живут в меню
+    # пользователя в шапке, а не строкой на главной. Меню доступно на любом
+    # экране; демо-объём — только на главной (раздел реестра в меню).
+    def _user_menu(self):
+        if not self.page.locator('#userMenu.open').count():
+            self.page.click('[data-user-toggle]')
+            self.page.wait_for_selector('#userMenu.open [data-user-menu]')
+
+    def _user_menu_close(self):
+        if self.page.locator('#userMenu.open').count():
+            self.page.click('[data-user-toggle]')
+
+    def set_role(self, key):
+        self._user_menu()
+        self.page.locator('input[name="um-role"][value="%s"]' % key).check()
+        self.page.wait_for_function("(k) => !!document.querySelector('input[name=um-role][value=' + k + ']:checked')", arg=key)
+        self._user_menu_close()
+
+    def set_institutions(self, text):
+        self._user_menu()
+        inp = self.page.locator('[data-um-inst]')
+        inp.fill(text)
+        inp.dispatch_event('change')
+        self._user_menu_close()
+
+    def set_bulk(self, n):
+        # Демо-объём — раздел реестра в меню: открыть главную, если не на ней.
+        if not self.page.locator('.reg-thead').count():
+            self.open('', wait='.reg-thead')
+        self._user_menu()
+        self.page.click('[data-um-bulk="%s"]' % n)
+        self.page.wait_for_function("(n) => { const b = document.querySelector('[data-um-bulk=\"' + n + '\"]'); return b && b.classList.contains('on'); }", arg=str(n))
+        self._user_menu_close()
+        self.page.wait_for_selector('.reg-tr')
+
     def open(self, route='', wait='.card, .arc, .reg-thead', timeout=9000):
         started = time.time()
         self.opens += 1

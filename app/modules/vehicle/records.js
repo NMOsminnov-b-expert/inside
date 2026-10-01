@@ -1,3 +1,4 @@
+import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
 import { manifest } from './manifest.js';
 import { tsTitle, whatLabel } from './tsModel.js';
 import { registerPersisted } from '../../kernel/persist.js';
@@ -30,7 +31,7 @@ function nextId() {
 function searchOf(rec) {
   const v = rec.vehicle;
   const f = v.f || {};
-  return [f.make, f.model, f.plate, f.vin, f.bodyNo, f.chassisNo, whatLabel(v)]
+  return [f.make, f.model, f.plate, f.vin, f.bodyNo, f.chassisNo, whatLabel(v), rec.institution]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -58,7 +59,13 @@ export function summarize(rec) {
       { label: 'Год выпуска', value: (rec.vehicle.f || {}).year || '—' },
       { label: 'Материалы', value: String((rec.docs || []).reduce((n, d) => n + (d.files || []).length, 0)) },
     ],
-    metrics: { oiCount: 0, area: 0, photos: 0, docs: rec.docs.length },
+    // Для вкладки «Движимое» реестра: номер, позиции, количество, стоимость
+    // (у ТС одна позиция; балансовой стоимости в карточке ТС нет).
+    regNo: (rec.vehicle.f || {}).plate || (rec.vehicle.f || {}).vin || '',
+    kindLabel: ['ТС', whatLabel(rec.vehicle)].filter(Boolean).join(' · '),
+    // Состав для превью реестра: модули на машине.
+    composition: { label: 'Модули', items: (rec.vehicle.modules || []).map((m) => ({ name: m.kind || 'Модуль не выбран', sub: (m.f || {}).year || '' })) },
+    metrics: { oiCount: 0, area: 0, photos: 0, docs: (rec.docs || []).length, positions: 1, qty: 1, cost: 0, pendingNotes: 0 },
     flags: {},
     letters: [],
     updatedAt: rec.updatedAt,
@@ -66,34 +73,17 @@ export function summarize(rec) {
   };
 }
 
-function matches(summary, filter = {}) {
-  if (filter.typeId && filter.typeId.length && !filter.typeId.includes(manifest.id)) return false;
-  if (filter.status && filter.status.length && !filter.status.includes(summary.status)) return false;
-  if (filter.institution && filter.institution.length && !filter.institution.includes(summary.institution)) return false;
-  if (filter.search && !summary.search.includes(String(filter.search).toLowerCase())) return false;
-  return true;
-}
-
-export function queryRecords({ filter, offset = 0, limit = 50 } = {}) {
-  const rows = records.map(summarize).filter((row) => matches(row, filter));
+export function queryRecords({ filter, sort, offset = 0, limit = 50 } = {}) {
+  const rows = sortRows(records.map(summarize).filter((row) => matchSummary(row, filter)), sort);
   return { rows: rows.slice(offset, offset + limit), total: rows.length };
 }
 
-export function countRecords(filter) { return queryRecords({ filter }).total; }
-export function facets(filter) {
-  const rows = records.map(summarize).filter((row) => matches(row, { ...filter, status: [], institution: [] }));
-  return {
-    status: Object.fromEntries([...new Set(rows.map((r) => r.status))].map((v) => [v, rows.filter((r) => r.status === v).length])),
-    institution: Object.fromEntries([...new Set(rows.map((r) => r.institution).filter(Boolean))].map((v) => [v, rows.filter((r) => r.institution === v).length])),
-    // institution собран выше — второй раз его писать нельзя: пустой объект
-    // затирал посчитанные учреждения, и срез по ним не работал.
-    region: {}, city: {}, insp: {}, typeId: { [manifest.id]: rows.length }, flags: {},
-  };
-}
-export function locate(query) {
-  const row = records.map(summarize).find((item) => item.search.includes(String(query || '').toLowerCase()));
-  return row ? { eni: [row], address: [row], institution: [row], letter: [] } : { eni: [], address: [], institution: [], letter: [] };
-}
+export function countRecords(filter) { return records.map(summarize).filter((row) => matchSummary(row, filter)).length; }
+// Отбор, фасеты и локатор — общие для модулей с записями-массивом
+// (kernel/registryRows.js): раньше здесь проверялись только тип, статус и
+// учреждение, и поиск, срезы и признаки на ТС и механизмы не действовали.
+export function facets(filter) { return facetsFrom(records.map(summarize), filter); }
+export function locate(query) { return locateIn(records.map(summarize), query); }
 export function getSummary(id) { const rec = loadRecord(id); return rec ? summarize(rec) : null; }
 export function loadRecord(id) { return records.find((rec) => rec.id === id) || null; }
 export function allRecords() { return records; }

@@ -1,3 +1,4 @@
+import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
 import { manifest } from './manifest.js';
 import { registerPersisted } from '../../kernel/persist.js';
 import { fmtNum } from '../../kernel/fmt.js';
@@ -49,10 +50,11 @@ function plural(n, one, few, many) {
 
 function searchOf(rec) {
   const m = mechOf(rec);
-  return [m.groupName, ...mechUnits(m).flatMap((u) => [u.name, u.inv, unitClassPath(u)])]
+  return [m.groupName, rec.institution, ...mechUnits(m).flatMap((u) => [u.name, u.inv, unitClassPath(u)])]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
+const pendingOf = (m) => (m.notes || []).filter((x) => !x.done).length;
 const photoCount = (m) => Object.values(m.photos || {}).reduce((s, n) => s + n, 0);
 
 export function summarize(rec) {
@@ -81,40 +83,35 @@ export function summarize(rec) {
       { label: 'Бал. стоимость', value: hasCost(m) ? `${fmtNum(totalCost(m))} сом` : '—' },
       { label: 'Материалы', value: String((rec.docs || []).reduce((k, d) => k + (d.files || []).length, 0)) },
     ],
-    metrics: { oiCount: 0, area: 0, photos: photoCount(m), docs: (rec.docs || []).length },
-    flags: {},
+    // Для вкладки «Движимое» реестра: название списка (счёт ББ или МОЛ) —
+    // в столбце номера; позиции, количество, стоимость; невыполненные
+    // заметки перечня.
+    regNo: m.groupName || '',
+    kindLabel: ['Механизмы и оборудование', mechUnits(m)[0] && mechUnits(m)[0].cls].filter(Boolean).join(' · '),
+    // Состав для превью реестра: позиции перечня с состоянием.
+    composition: { label: 'Состав', items: mechUnits(m).map((u) => ({ name: u.name || u.type || u.sub || 'Позиция', sub: u.state || '' })) },
+    metrics: {
+      oiCount: 0, area: 0, photos: photoCount(m), docs: (rec.docs || []).length,
+      positions: n, qty: totalQty(m), cost: hasCost(m) ? totalCost(m) : 0, pendingNotes: pendingOf(m),
+    },
+    flags: { pendingNotes: pendingOf(m) > 0 },
     letters: [],
     updatedAt: rec.updatedAt,
     search: searchOf(rec),
   };
 }
 
-function matches(summary, filter = {}) {
-  if (filter.typeId && filter.typeId.length && !filter.typeId.includes(manifest.id)) return false;
-  if (filter.status && filter.status.length && !filter.status.includes(summary.status)) return false;
-  if (filter.institution && filter.institution.length && !filter.institution.includes(summary.institution)) return false;
-  if (filter.search && !summary.search.includes(String(filter.search).toLowerCase())) return false;
-  return true;
-}
-
-export function queryRecords({ filter, offset = 0, limit = 50 } = {}) {
-  const rows = records.map(summarize).filter((row) => matches(row, filter));
+export function queryRecords({ filter, sort, offset = 0, limit = 50 } = {}) {
+  const rows = sortRows(records.map(summarize).filter((row) => matchSummary(row, filter)), sort);
   return { rows: rows.slice(offset, offset + limit), total: rows.length };
 }
 
-export function countRecords(filter) { return queryRecords({ filter }).total; }
-export function facets(filter) {
-  const rows = records.map(summarize).filter((row) => matches(row, { ...filter, status: [], institution: [] }));
-  return {
-    status: Object.fromEntries([...new Set(rows.map((r) => r.status))].map((v) => [v, rows.filter((r) => r.status === v).length])),
-    institution: Object.fromEntries([...new Set(rows.map((r) => r.institution).filter(Boolean))].map((v) => [v, rows.filter((r) => r.institution === v).length])),
-    region: {}, city: {}, insp: {}, typeId: { [manifest.id]: rows.length }, flags: {},
-  };
-}
-export function locate(query) {
-  const row = records.map(summarize).find((item) => item.search.includes(String(query || '').toLowerCase()));
-  return row ? { eni: [row], address: [row], institution: [row], letter: [] } : { eni: [], address: [], institution: [], letter: [] };
-}
+export function countRecords(filter) { return records.map(summarize).filter((row) => matchSummary(row, filter)).length; }
+// Отбор, фасеты и локатор — общие для модулей с записями-массивом
+// (kernel/registryRows.js): раньше здесь проверялись только тип, статус и
+// учреждение, и поиск, срезы и признаки на ТС и механизмы не действовали.
+export function facets(filter) { return facetsFrom(records.map(summarize), filter); }
+export function locate(query) { return locateIn(records.map(summarize), query); }
 export function getSummary(id) { const rec = loadRecord(id); return rec ? summarize(rec) : null; }
 export function loadRecord(id) { return records.find((rec) => rec.id === id) || null; }
 export function allRecords() { return records; }

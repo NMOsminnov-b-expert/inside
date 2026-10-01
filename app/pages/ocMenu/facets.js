@@ -80,10 +80,16 @@ function optionRows(key, counts, selected) {
     ${expanded[key] && entries.length > section.limit ? `<button class="reg-facet-more" data-facet-more="${esc(key)}">Свернуть</button>` : ''}`;
 }
 
+// У движимого нет области (она из ЕНИ) и города, из признаков — только
+// заметки (канва главной 01.10.2026: у каждой вкладки свои фильтры).
+const MOVABLE_SKIP = ['region', 'city'];
+const MOVABLE_FLAGS = ['pendingNotes'];
+
 export function facetsHTML(state, facets) {
   const f = state.filter;
+  const mov = state.tab === 'movable';
 
-  const sections = SECTIONS.map((s) => `<div class="reg-facet ${open[s.key] ? 'open' : ''}">
+  const sections = SECTIONS.filter((s) => !(mov && MOVABLE_SKIP.includes(s.key))).map((s) => `<div class="reg-facet ${open[s.key] ? 'open' : ''}">
     <button class="reg-facet-h" data-facet-toggle="${esc(s.key)}">
       <span class="chev">▾</span>${esc(s.label)}
       ${f[s.key].length ? `<span class="pill-mini pill-pend">${f[s.key].length}</span>` : ''}
@@ -95,15 +101,17 @@ export function facetsHTML(state, facets) {
     </div>
   </div>`).join('');
 
-  const flagRows = Object.keys(FLAG_LABELS).map((flag) => `<label class="reg-facet-opt ${f.flags.includes(flag) ? 'on' : ''}">
+  const flagRows = Object.keys(FLAG_LABELS).filter((flag) => !mov || MOVABLE_FLAGS.includes(flag)).map((flag) => `<label class="reg-facet-opt ${f.flags.includes(flag) ? 'on' : ''}">
       <input type="checkbox" data-facet="flags" value="${esc(flag)}" ${f.flags.includes(flag) ? 'checked' : ''}>
       <span class="reg-facet-l">${esc(FLAG_LABELS[flag])}</span>
       <span class="reg-facet-n">${facets.flags[flag] || 0}</span>
     </label>`).join('');
 
+  // Сброс — один, в строке применённых фильтров над таблицей; здесь —
+  // закрыть панель.
   return `<div class="reg-facets-head">
       <b>Фильтры</b>
-      <button class="btn btn-ghost btn-sm" data-reset-filters>Сбросить</button>
+      <button class="reg-facets-x" data-facets-close title="Скрыть фильтры" aria-label="Скрыть фильтры">×</button>
     </div>
     ${sections}
     <div class="reg-facet ${open.flags ? 'open' : ''}">

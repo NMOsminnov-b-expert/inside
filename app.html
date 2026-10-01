@@ -105,7 +105,14 @@
     <div class="main">
       <header class="topbar">
         <nav class="crumbs" id="crumbs"></nav>
-        <div class="top-user"><span>Осминнов Н.</span><span class="avatar">ОН</span></div>
+        <!-- Меню пользователя: роль макета, «мои учреждения» и то, что добавит
+             страница (у реестра — демо-объём). Наполняет shell.js. -->
+        <div class="top-user dd" id="userMenu">
+          <button class="top-user-btn" data-user-toggle aria-haspopup="true" aria-expanded="false" title="Роль и настройки макета">
+            <span data-user-name>Осминнов Н.</span><span class="top-user-role" data-user-role></span><span class="avatar">ОН</span>
+          </button>
+          <div class="dd-menu user-menu" role="menu" aria-label="Меню пользователя" data-user-menu></div>
+        </div>
       </header>
 
       <div class="main-row">

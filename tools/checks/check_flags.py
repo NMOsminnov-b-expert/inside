@@ -19,8 +19,7 @@ TOUCHES = (
 def _bulk(t, n='20000'):
     pg = t.page
     t.open('', wait='.reg-thead')
-    pg.select_option('[data-bulk-count]', n)
-    t.wait(2600)
+    t.set_bulk(n)
 
 
 def run(t):
@@ -43,13 +42,14 @@ def run(t):
          'значок особенностей совпадает по цвету с ML (%s / %s)' % (info['spec'], info['ml']))
 
     # --- сортировка по флажку не рвётся вглубь списка ---
-    pg.locator('[data-cols-dd]').first.click()
+    # Столбцы — в меню «⋯» строки видов (с 01.10.2026).
+    pg.locator('.reg-more [data-dd-toggle]').first.click()
     t.wait(350)
     tags = pg.locator('[data-column="tags"]')
     if t.ck(tags.count() > 0, 'в меню столбцов нет столбца «Теги»'):
         tags.first.click()
         t.wait(400)
-    pg.keyboard.press('Escape')
+    pg.locator('.reg-h1').click()
     t.wait(300)
 
     th = pg.locator('[data-sort="specials"]')
@@ -79,8 +79,10 @@ def run(t):
 
     # --- выгрузка со столбцом «Теги» не падает ---
     before = len(t.console)
+    pg.locator('.reg-more [data-dd-toggle]').first.click()
+    t.wait(200)
     with pg.expect_download(timeout=20000) as dl:
-        pg.locator('[data-export]').first.click()
+        pg.locator('.reg-more [data-export]').first.click()
     path = dl.value.path()
     t.ck(bool(path), 'выгрузка не сформировалась')
     t.ck(len(t.console) == before, 'выгрузка со столбцом «Теги» дала ошибку в консоли')

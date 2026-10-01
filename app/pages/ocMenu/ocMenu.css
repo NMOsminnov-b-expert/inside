@@ -27,57 +27,13 @@ body[data-page="oc-menu"] .btn[disabled]{opacity:.45;cursor:not-allowed}
    общий компонент. */
 body[data-page="oc-menu"] .reg-create-menu{left:auto;right:0}
 
-/* --- локатор и панель роли в одной строке прямо над срезами и таблицей ---
-   Роль — рядом с локатором, а не отдельной строкой сверху: локатор и так не
-   растягивается на весь экран, справа всегда остаётся место. */
-body[data-page="oc-menu"] .reg-search-row{display:flex;gap:12px;align-items:center}
-body[data-page="oc-menu"] .reg-locator{position:relative;flex:1;max-width:760px;display:flex;align-items:center}
-body[data-page="oc-menu"] .reg-who{flex-shrink:0;display:flex;gap:6px;align-items:center;font-size:12px;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:4px 8px}
-body[data-page="oc-menu"] .reg-who .select{width:auto;padding:3px 20px 3px 6px;font-size:11.5px;
-  border-color:transparent;background-color:var(--blue-50)}
 body[data-page="oc-menu"] .reg-locator-ico{position:absolute;left:11px;font-size:13px;opacity:.6;pointer-events:none}
 body[data-page="oc-menu"] .reg-locator-input{height:38px;padding-left:34px;padding-right:30px;font-size:13px;border-width:1.5px;box-shadow:var(--shadow)}
 body[data-page="oc-menu"] .reg-locator-clear{position:absolute;right:8px;width:20px;height:20px;border-radius:50%;color:#7d93a6;font-size:14px;display:flex;align-items:center;justify-content:center}
 body[data-page="oc-menu"] .reg-locator-clear:hover{background:var(--blue-50);color:var(--blue-700)}
 body[data-page="oc-menu"] .reg-locator-clear.hidden{display:none}
 
-/* --- срезы и недавние: видимые секции, а не голый ряд кнопок --- */
-/* Срезы и «недавние» — разные по смыслу секции, поэтому стоят друг под
-   другом (каждая — своя рамка+заголовок), а не вперемешку в одной строке. */
-body[data-page="oc-menu"] .reg-bar{display:flex;flex-direction:column;align-items:stretch;gap:6px}
-body[data-page="oc-menu"] .reg-section{background:#fff;border:1.5px solid var(--line);border-radius:9px}
-body[data-page="oc-menu"] .reg-section-h{display:flex;align-items:center;gap:7px;width:100%;text-align:left;font-size:12px;font-weight:700;color:#33445c;padding:8px 10px}
-body[data-page="oc-menu"] .reg-section-h:hover{color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-section-h .chev{transform:rotate(-90deg)}
-body[data-page="oc-menu"] .reg-section.open .reg-section-h .chev{transform:none}
-body[data-page="oc-menu"] .reg-section-body{display:none;padding:0 10px 10px}
-body[data-page="oc-menu"] .reg-section.open .reg-section-body{display:block;animation:accIn .14s ease}
-
-body[data-page="oc-menu"] .reg-recent{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px}
-body[data-page="oc-menu"] .reg-chip{display:inline-flex;gap:5px;align-items:center;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:11px;color:#33445c}
-body[data-page="oc-menu"] .reg-chip:hover{border-color:var(--blue-500);color:var(--blue-700);background:var(--blue-50)}
-
-body[data-page="oc-menu"] .reg-slice-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap;font-size:11px}
-body[data-page="oc-menu"] .reg-slice{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12px;color:#46536b;transition:border-color .12s,background .12s,color .12s}
-body[data-page="oc-menu"] .reg-slice:hover{border-color:var(--blue-500);color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-slice.active{background:var(--blue-100);border-color:var(--blue-600);color:var(--blue-700);font-weight:600}
-body[data-page="oc-menu"] .reg-slice b{font-size:11px;color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-slice b.zero{color:#a9bcd4;font-weight:500}
-body[data-page="oc-menu"] .reg-slice.active b{color:var(--blue-700)}
-
 /* --- фасеты: сворачиваемая панель, по аналогии с ящиком заметок в карточке --- */
-/* Вкладка — обычный (горизонтальный) flex-контейнер, а не блок с
-   writing-mode: vertical-rl. Стрелка и подпись — раздельные элементы:
-   у подписи свой vertical-rl только на ней самой, у стрелки его вообще нет.
-   Смешивание разных writing-mode у соседних элементов ОДНОГО вертикального
-   потока (как было раньше) — известная причина того, что контент вылезает
-   за пределы кнопки в браузере; раздельные элементы в обычном flex-column
-   этой проблемы не имеют. */
-body[data-page="oc-menu"] .reg-facets-tab{flex-shrink:0;width:26px;display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:9px;color:#46536b;padding:10px 0;cursor:pointer}
-body[data-page="oc-menu"] .reg-facets-tab:hover{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-facets-tab-arrow{font-size:11px;line-height:1;display:inline-block;transition:transform .15s}
-body[data-page="oc-menu"] .reg-facets-tab-arrow.closed{transform:rotate(180deg)}
-body[data-page="oc-menu"] .reg-facets-tab-label{writing-mode:vertical-rl;text-orientation:mixed;font-size:11.5px;font-weight:700;white-space:nowrap}
 body[data-page="oc-menu"] .reg-facets-wrap{flex-shrink:0;width:238px;overflow:hidden;transition:width .18s ease}
 body[data-page="oc-menu"] .reg-facets-wrap.closed{width:0}
 body[data-page="oc-menu"] .reg-facets{width:238px;height:100%;overflow:auto;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);padding:8px 10px}
@@ -109,16 +65,9 @@ body[data-page="oc-menu"] .reg-facet-more:hover{text-decoration:underline}
    поэтому список всегда ограничен, а дальше — только поиск. */
 body[data-page="oc-menu"] .reg-facet-hint{font-size:10.5px;color:var(--muted);padding:4px 4px 2px}
 
-/* --- панель инструментов --- */
-body[data-page="oc-menu"] .reg-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:0 2px 8px}
-body[data-page="oc-menu"] .reg-count{display:flex;align-items:baseline;gap:6px}
-body[data-page="oc-menu"] .reg-count b{font-size:17px;color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-count span{font-size:11.5px;color:var(--muted)}
-body[data-page="oc-menu"] .reg-bulk{display:flex;align-items:center;gap:6px;background:var(--blue-50);border:1px solid var(--blue-200);border-radius:8px;padding:4px 9px;font-size:11.5px;color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-tools{display:flex;align-items:center;gap:7px;margin-left:auto}
 body[data-page="oc-menu"] .reg-icon-btn{width:29px;height:29px;border:1px solid var(--line);border-radius:7px;background:#fff;color:#46536b;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 body[data-page="oc-menu"] .reg-icon-btn:hover{background:var(--blue-50);border-color:var(--blue-500);color:var(--blue-700)}
-body[data-page="oc-menu"] .reg-cols{right:0;left:auto;min-width:210px;max-height:340px;overflow:auto}
+
 
 /* --- виртуальная таблица --- */
 body[data-page="oc-menu"] .reg-view-box{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow)}
@@ -132,7 +81,7 @@ body[data-page="oc-menu"] .reg-sort{font-size:8px;color:var(--blue-600)}
 body[data-page="oc-menu"] .reg-viewport{flex:1;overflow:auto;position:relative}
 body[data-page="oc-menu"] .reg-spacer{width:1px}
 body[data-page="oc-menu"] .reg-rows{position:absolute;top:0;left:0;right:0;will-change:transform}
-body[data-page="oc-menu"] .reg-tr{display:flex;align-items:center;height:38px;border-bottom:1px solid var(--line-soft);cursor:pointer;font-size:13px;outline:none}
+body[data-page="oc-menu"] .reg-tr{display:flex;align-items:center;height:var(--reg-row-h,48px);border-bottom:1px solid var(--line-soft);cursor:pointer;font-size:13px;outline:none}
 body[data-page="oc-menu"] .reg-tr:nth-child(even){background:#f8fbff}
 body[data-page="oc-menu"] .reg-tr:hover{background:var(--blue-50)}
 body[data-page="oc-menu"] .reg-tr.sel{background:var(--blue-100)}
@@ -180,10 +129,6 @@ body[data-page="oc-menu"] .reg-peek-oi{display:flex;align-items:center;gap:7px;p
 body[data-page="oc-menu"] .reg-peek-note{padding:4px 7px;background:var(--amber-50);border:1px solid var(--amber-100);border-radius:6px;font-size:11.5px}
 body[data-page="oc-menu"] .reg-peek-foot{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:9px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
 
-/* --- подвал --- */
-body[data-page="oc-menu"] .reg-foot{display:flex;align-items:center;gap:9px;font-size:11px;flex-wrap:wrap}
-body[data-page="oc-menu"] .reg-foot .select{width:auto;padding:3px 7px;font-size:11px}
-
 /* Статус: точка этапа делает колонку сканируемой без чтения текста. */
 body[data-page="oc-menu"] .reg-status{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;color:#33445c}
 body[data-page="oc-menu"] .reg-status i{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:#a9bcd4}
@@ -210,8 +155,6 @@ body[data-page="oc-menu"] .reg-badge.spec{background:var(--violet-50);color:var(
 body[data-page="oc-menu"] .select{appearance:none;-webkit-appearance:none;-moz-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1.4 5 5.4l4-4' fill='none' stroke='%237d93a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;
   background-position:right 9px center;padding-right:26px;cursor:pointer}
-body[data-page="oc-menu"] .reg-who .select,body[data-page="oc-menu"] .reg-foot .select{background-position:right 6px center;
-  padding-right:20px}
 
 /* Тип ОЦ с припиской: тип земель записи («Земельный участок · с/х»). Название
    сжимается многоточием, приписка — нет: она короткая, и ради неё столбец и
@@ -221,3 +164,121 @@ body[data-page="oc-menu"] .reg-type .ell{min-width:0;flex:0 1 auto}
 body[data-page="oc-menu"] .reg-sub{flex:0 0 auto;font-style:normal;color:var(--muted);
   font-size:11px;white-space:nowrap}
 body[data-page="oc-menu"] .reg-sub::before{content:'· '}
+
+/* ================================================================================
+   Главная по канве 01.10.2026 (задача графа glavnaya-vkladki-nedvizhimoe-dvizhimoe,
+   практика reestr-vkladki-vidy-filtry): заголовок с вкладками и поиском,
+   строка видов, применённые фильтры чипами, таблица с «Объектом» в две строки.
+   Скругления по роли (практика APCS primitivy-interfeysa-po-roli): блок — 12,
+   элемент управления — 8, чип и метка — полностью.
+   ================================================================================ */
+body[data-page="oc-menu"] .reg{gap:10px}
+body[data-page="oc-menu"] .reg-grow{flex:1 1 auto}
+
+/* --- заголовок: «Объекты оценки» · вкладки · поиск · создать --- */
+body[data-page="oc-menu"] .reg-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+body[data-page="oc-menu"] .reg-h1{margin:0;font-size:19px;font-weight:700;color:var(--ink);white-space:nowrap}
+body[data-page="oc-menu"] .reg-tabs{display:flex;gap:2px;background:#dde7f1;border-radius:10px;padding:3px}
+body[data-page="oc-menu"] .reg-tab{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:8px;
+  font-size:13px;font-weight:600;color:#33445c;background:none;border:0;cursor:pointer}
+body[data-page="oc-menu"] .reg-tab span{font-size:11px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="oc-menu"] .reg-tab:hover{color:var(--blue-700)}
+body[data-page="oc-menu"] .reg-tab.on{background:#fff;color:var(--blue-700);box-shadow:0 1px 2px rgba(19,41,62,.14)}
+body[data-page="oc-menu"] .reg-tab.on span{color:var(--blue-600)}
+body[data-page="oc-menu"] .reg-tab:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-page="oc-menu"] .reg-locator{position:relative;display:flex;align-items:center;flex:0 1 320px;max-width:none;min-width:200px}
+body[data-page="oc-menu"] .reg-locator-input{height:34px;border-width:1px;box-shadow:none;border-radius:8px;padding-left:32px;padding-right:32px}
+body[data-page="oc-menu"] .reg-locator-ico{opacity:1;color:#8394aa;display:flex}
+body[data-page="oc-menu"] .reg-kbd{position:absolute;right:9px;font-family:Consolas,monospace;font-size:11px;border:1px solid var(--line);
+  border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--muted);pointer-events:none}
+body[data-page="oc-menu"] .reg-kbd.hidden{display:none}
+
+/* --- строка видов: «Все», мои задачи · «Внимание» · фильтры · ⋯ --- */
+body[data-page="oc-menu"] .reg-bar{display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-height:34px}
+body[data-page="oc-menu"] .reg-views{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+body[data-page="oc-menu"] .reg-view{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:14px;border:0;
+  background:none;font-size:12.5px;font-weight:600;color:#33445c;cursor:pointer;white-space:nowrap}
+body[data-page="oc-menu"] .reg-view em{font-style:normal;color:#7b8ba1;font-variant-numeric:tabular-nums}
+body[data-page="oc-menu"] .reg-view.zero{color:#7b8ba1}
+body[data-page="oc-menu"] .reg-view:hover{background:#dde7f1}
+body[data-page="oc-menu"] .reg-view.on{background:var(--blue-700);color:#fff}
+body[data-page="oc-menu"] .reg-view.on em{color:#cfe3f7}
+body[data-page="oc-menu"] .reg-views-sep{width:1px;height:18px;background:#c9d6e4;margin:0 6px;flex:none}
+body[data-page="oc-menu"] .reg-views-label{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5a6b82;margin-right:6px}
+body[data-page="oc-menu"] .reg-att{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;margin-right:4px;
+  font-size:12px;font-weight:600;background:#fff;border:1px solid #d6e0eb;color:#33445c;cursor:pointer;white-space:nowrap}
+body[data-page="oc-menu"] .reg-att b{font-variant-numeric:tabular-nums}
+body[data-page="oc-menu"] .reg-att.zero{color:#7b8ba1}
+body[data-page="oc-menu"] .reg-att:hover{border-color:var(--blue-300)}
+body[data-page="oc-menu"] .reg-att.on{border-color:var(--blue-600);box-shadow:inset 0 0 0 1px var(--blue-600);color:var(--blue-700)}
+body[data-page="oc-menu"] .reg-att i{width:8px;height:8px;border-radius:50%;display:block}
+body[data-page="oc-menu"] .dot-amber{background:#c07c1e}
+body[data-page="oc-menu"] .dot-red{background:#c2410c}
+body[data-page="oc-menu"] .dot-grey{background:#7b8ba1}
+body[data-page="oc-menu"] .reg-view:focus-visible,body[data-page="oc-menu"] .reg-att:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-page="oc-menu"] .reg-filter-btn{display:inline-flex;align-items:center;gap:6px}
+body[data-page="oc-menu"] .reg-filter-btn b{font-weight:700;color:#fff;background:var(--blue-600);border-radius:9px;padding:0 6px;font-size:11px;line-height:17px}
+body[data-page="oc-menu"] .reg-filter-btn.on{background:var(--blue-50);border-color:var(--blue-300);color:var(--blue-700)}
+body[data-page="oc-menu"] .reg-icon-btn{width:34px;height:34px;border-radius:8px}
+body[data-page="oc-menu"] .reg-more-menu,body[data-page="oc-menu"] .reg-recent-menu{left:auto;right:0;min-width:240px;max-height:min(70vh,520px);overflow:auto}
+body[data-page="oc-menu"] .reg-more-menu .reg-cols{border-top:1px solid var(--line-soft);margin-top:6px;padding-top:4px}
+body[data-page="oc-menu"] .reg-seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:4px 6px 6px}
+body[data-page="oc-menu"] .reg-seg button{flex:1;height:28px;border:0;background:#fff;font-size:12px;font-weight:600;color:#33445c;cursor:pointer}
+body[data-page="oc-menu"] .reg-seg button + button{border-left:1px solid var(--line)}
+body[data-page="oc-menu"] .reg-seg button.on{background:var(--blue-600);color:#fff}
+body[data-page="oc-menu"] .reg-more-item{display:block;width:100%;text-align:left;padding:7px 10px;border-radius:8px;font-size:13px;color:var(--ink);background:none;border:0;cursor:pointer}
+body[data-page="oc-menu"] .reg-more-item:hover{background:var(--fill-hover)}
+body[data-page="oc-menu"] .reg-recent-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;border-radius:8px;font-size:12.5px;background:none;border:0;cursor:pointer;max-width:340px}
+body[data-page="oc-menu"] .reg-recent-item:hover{background:var(--fill-hover)}
+
+/* --- применённые фильтры и полоса действий с выбранными --- */
+body[data-page="oc-menu"] .reg-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+body[data-page="oc-menu"] .reg-chip-f{display:inline-flex;align-items:center;gap:2px;height:26px;padding:0 3px 0 10px;border-radius:13px;
+  font-size:12px;background:var(--blue-50);border:1px solid var(--blue-200);color:var(--blue-700);white-space:nowrap;max-width:360px}
+body[data-page="oc-menu"] .reg-chip-f button{width:20px;height:20px;border-radius:10px;border:0;background:none;color:var(--blue-700);font-size:13px;line-height:1;cursor:pointer;flex:none}
+body[data-page="oc-menu"] .reg-chip-f button:hover{background:var(--blue-100)}
+body[data-page="oc-menu"] .reg-chips-reset{border:0;background:none;color:var(--blue-600);font-size:12.5px;font-weight:600;cursor:pointer;padding:0 4px}
+body[data-page="oc-menu"] .reg-chips-reset:hover{text-decoration:underline}
+body[data-page="oc-menu"] .reg-chips-n{font-size:12.5px;color:var(--muted);margin-left:4px}
+body[data-page="oc-menu"] .reg-chips-n b{color:var(--ink);font-variant-numeric:tabular-nums}
+body[data-page="oc-menu"] .reg-bulkbar{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border-radius:10px;background:var(--blue-700);color:#fff;font-size:12.5px;flex-wrap:wrap}
+body[data-page="oc-menu"] .reg-bulkbar .btn{background:#ffffff1a;border-color:#ffffff40;color:#fff}
+body[data-page="oc-menu"] .reg-bulkbar .btn:hover{background:#ffffff2e}
+body[data-page="oc-menu"] .reg-bulk-of{opacity:.8}
+body[data-page="oc-menu"] .reg-bulk-link{border:0;background:none;color:#fff;text-decoration:underline;font-size:12.5px;cursor:pointer;padding:0}
+body[data-page="oc-menu"] .reg-bulk-sep{width:1px;height:18px;background:#ffffff40}
+
+/* --- панель фильтров: закрывается кнопкой «Фильтры» и крестиком --- */
+body[data-page="oc-menu"] .reg-facets{border-radius:12px;border-width:1px}
+body[data-page="oc-menu"] .reg-facets-x{margin-left:auto;width:26px;height:26px;border-radius:8px;border:0;background:none;color:#7d93a6;font-size:16px;cursor:pointer}
+body[data-page="oc-menu"] .reg-facets-x:hover{background:var(--blue-50);color:var(--blue-700)}
+
+/* --- таблица --- */
+body[data-page="oc-menu"] .reg-view-box{border-radius:12px;border-width:1px}
+body[data-page="oc-menu"] .reg-thead{background:#f4f8fc;border-bottom-width:1px}
+body[data-page="oc-menu"] .reg-th{font-size:10.5px;letter-spacing:.05em;color:#5a6b82;padding:10px 9px}
+body[data-page="oc-menu"] .reg-tr:nth-child(even){background:transparent}
+body[data-page="oc-menu"] .reg-tr:hover{background:#f6f9fd}
+body[data-page="oc-menu"] .reg-tr{font-size:12.5px}
+/* Объект — две строки: адрес и под ним тип · учреждение с признаками. В
+   плотном виде вторая строка скрыта (полный текст — в подсказке). */
+body[data-page="oc-menu"] .reg-obj{display:flex;flex-direction:column;gap:2px;min-width:0;width:100%}
+body[data-page="oc-menu"] .reg-obj-t{font-weight:600;color:var(--ink)}
+body[data-page="oc-menu"] .reg-obj-s{display:flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;color:#526073}
+body[data-page="oc-menu"] .reg.dense .reg-obj-s{display:none}
+/* Статус — метка с точкой: читается по цвету, полное название — в подсказке. */
+body[data-page="oc-menu"] .reg-status{height:22px;padding:0 9px;border-radius:11px;background:#eef2f7;font-weight:600;max-width:100%;box-sizing:border-box}
+body[data-page="oc-menu"] .reg-status.st-0{background:#fdf4e3;color:#7a4e0c}
+body[data-page="oc-menu"] .reg-status.st-1,body[data-page="oc-menu"] .reg-status.st-2,body[data-page="oc-menu"] .reg-status.st-3{background:#eef6ff;color:#14508c}
+body[data-page="oc-menu"] .reg-status.st-4,body[data-page="oc-menu"] .reg-status.st-6{background:#e6f5f1;color:#0b5d51}
+body[data-page="oc-menu"] .reg-status.st-5,body[data-page="oc-menu"] .reg-status.st-7{background:#f1ecfb;color:#4f2a86}
+body[data-page="oc-menu"] .reg-status.st-9{background:#e8f5ec;color:#166534}
+body[data-page="oc-menu"] .reg-empty-acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+body[data-page="oc-menu"] .reg-preview{border-radius:12px;border-width:1px}
+/* Закрытая панель фильтров не оставляет промежутка слева от таблицы. */
+body[data-page="oc-menu"] .reg-facets-wrap.closed{margin-right:-12px}
+/* Факты в превью: подпись над значением (правило карточек сюда не действует —
+   оно ограничено body[data-module], и подпись слипалась со значением). */
+body[data-page="oc-menu"] .reg-peek-facts .oc-fact{display:flex;flex-direction:column;gap:1px;min-width:0}
+body[data-page="oc-menu"] .reg-peek-facts .oc-fact label{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5a6b82}
+body[data-page="oc-menu"] .reg-peek-facts .oc-fact b{font-size:12.5px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}

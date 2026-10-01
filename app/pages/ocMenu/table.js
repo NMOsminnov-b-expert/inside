@@ -5,7 +5,7 @@ import {
   orderedColumns, cellStyle, columnVarsStyle, headAttrs, resizeGripHTML,
   colLabelHTML, columnsMenuHTML as kernelColumnsMenuHTML,
 } from '../../kernel/columns.js';
-import { COLUMNS } from './state.js';
+import { colDefs, colOrder, colWidths } from './state.js';
 
 // Порядок статусов для реестра — общий на все типы ОЦ. В гражданском с
 // 21.09.2026 шкала как в рабочей системе (девять шагов и две ветки), у
@@ -27,8 +27,9 @@ const STAGE_INDEX = new Map([
 
 // Виртуализированная таблица: в DOM живут только видимые строки,
 // запрос идёт ровно за тот срез, который сейчас на экране.
-// Высота строки одна — без сжатого режима: реже устаёшь от чтения.
-export const ROW_H = 38;
+// Две высоты строки: обычная — «Объект» в две строки (адрес и под ним тип ·
+// учреждение), плотная — в одну (выбор в меню «⋯», канва главной 01.10.2026).
+export const rowH = (state) => (state.dense ? 36 : 48);
 
 // Список значений в одну строку: полностью — в подсказке (Л1.4).
 function listCell(list) {
@@ -53,16 +54,24 @@ function cell(col, s) {
     // подсказке (решение пользователя 05.09.2026).
     case 'eni': {
       const codes = s.eniAll || fmtEni(s.eni);
-      return `<span class="mono ell" title="${esc(codes)}">${esc(codes)}</span>`;
+      return codes ? `<span class="mono ell" title="${esc(codes)}">${esc(codes)}</span>` : '<span class="muted">—</span>';
     }
-    case 'title': return `<span class="reg-cell-title">
-      <span class="reg-ico">${esc(s.typeIcon)}</span>
-      <span class="ell" title="${esc(s.title)}">${esc(s.title)}</span>
-      ${flagBadgesHTML(s.flags)}
-    </span>`;
-    case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 'x'}"><i></i><span class="ell" title="${esc(s.status)}">${esc(s.status)}</span></span>`;
+    // Объект: первая строка — адрес (у движимого — наименование), вторая —
+    // тип и учреждение; признаки — значками во второй строке.
+    case 'title': {
+      const sub = [s.kindLabel || (s.landKind ? `${s.typeLabel} · ${s.landKind}` : s.typeLabel), s.institution].filter(Boolean).join(' · ');
+      return `<span class="reg-obj">
+        <span class="reg-obj-t ell" title="${esc(s.title)}">${esc(s.title || '—')}</span>
+        <span class="reg-obj-s"><span class="ell" title="${esc(sub)}">${esc(sub)}</span>${flagBadgesHTML(s.flags)}</span>
+      </span>`;
+    }
+    case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 'x'}" title="${esc(s.status)}"><i></i><span class="ell">${esc(s.status)}</span></span>`;
+    case 'regNo': return s.regNo ? `<span class="ell" title="${esc(s.regNo)}">${esc(s.regNo)}</span>` : '<span class="muted">—</span>';
+    case 'positions': return fmtInt((s.metrics || {}).positions || 0);
+    case 'qty': return fmtInt((s.metrics || {}).qty || 0);
+    case 'cost': return (s.metrics || {}).cost ? fmtNum(s.metrics.cost) : '<span class="muted">—</span>';
     case 'area': return s.metrics.area ? fmtNum(s.metrics.area) : '—';
-    case 'oiCount': return fmtInt(s.metrics.oiCount);
+    case 'oiCount': return s.metrics.oiCount ? fmtInt(s.metrics.oiCount) : '<span class="muted">—</span>';
     case 'photos': return fmtInt(s.metrics.photos);
     case 'docs': return fmtInt(s.metrics.docs);
     case 'notes': return s.metrics.pendingNotes
@@ -98,25 +107,26 @@ function cell(col, s) {
 // Порядок показа задаёт state.columns, а не порядок описаний в COLUMNS —
 // иначе перетаскивание столбцов не имело бы смысла (kernel/columns.js).
 export function activeColumns(state) {
-  return orderedColumns(COLUMNS, state.columns);
+  return orderedColumns(colDefs(state), colOrder(state));
 }
 
 // Ширины объявляются переменными на контейнере таблицы: при растягивании
 // мышью меняется одно свойство, и строки его подхватывают без перерисовки —
 // на 20 000 записей это принципиально (см. kernel/columns.js).
 export function tableVarsStyle(state) {
-  return columnVarsStyle(activeColumns(state), state.colWidths);
+  return columnVarsStyle(activeColumns(state), colWidths(state));
 }
 
-export function tableHeadHTML(state) {
+// allSelected — выбрана вся выборка (флажок в шапке отмечен).
+export function tableHeadHTML(state, allSelected = false) {
   const cols = activeColumns(state);
 
   return `<div class="reg-thead">
-    <div class="reg-th check"><input type="checkbox" data-select-page title="Выбрать страницу"></div>
+    <div class="reg-th check"><input type="checkbox" data-select-page title="Выбрать все в выборке" aria-label="Выбрать все в выборке" ${allSelected ? 'checked' : ''}></div>
     ${cols.map((c, i) => `<div class="reg-th ${c.align === 'right' ? 'right' : ''} ${c.sort ? 'sortable' : ''}"
-      style="${cellStyle(c, state.colWidths)}" ${headAttrs(c)}
+      style="${cellStyle(c, colWidths(state))}" ${headAttrs(c)}
       ${c.sort ? `data-sort="${esc(c.sort)}"` : ''}
-      title="${esc(c.label)}${c.sort ? ' — клик сортирует' : ''}; перетащите, чтобы переставить">
+      title="${esc(c.hint || c.label)}${c.sort ? ' — клик сортирует' : ''}; перетащите, чтобы переставить">
       ${colLabelHTML(c)}
       ${state.sort.key === c.sort ? `<span class="reg-sort">${state.sort.dir === 'asc' ? '▲' : '▼'}</span>` : ''}
       ${resizeGripHTML(c, i === cols.length - 1)}
@@ -131,7 +141,7 @@ export function rowsHTML(state, rows, startIndex) {
     data-row="${esc(s.typeId)}|${esc(s.id)}" data-index="${startIndex + i}" tabindex="-1">
     <div class="reg-td check"><input type="checkbox" data-select="${esc(s.id)}" ${state.selected.has(s.id) ? 'checked' : ''}></div>
     ${cols.map((c) => `<div class="reg-td ${c.align === 'right' ? 'right' : ''} ${c.mono ? 'mono' : ''}"
-      style="${cellStyle(c, state.colWidths)}">${cell(c, s)}</div>`).join('')}
+      style="${cellStyle(c, colWidths(state))}">${cell(c, s)}</div>`).join('')}
   </div>`).join('');
 }
 
@@ -141,6 +151,10 @@ function plain(col, s) {
   switch (col.key) {
     case 'eni': return s.eni;
     case 'title': return s.title;
+    case 'regNo': return s.regNo || '';
+    case 'positions': return String((s.metrics || {}).positions || 0);
+    case 'qty': return String((s.metrics || {}).qty || 0);
+    case 'cost': return (s.metrics || {}).cost ? String(s.metrics.cost).replace('.', ',') : '';
     case 'typeLabel': return s.landKind ? `${s.typeLabel} · ${s.landKind}` : s.typeLabel;
     case 'status': return s.status;
     case 'institution': return s.institution;
@@ -175,5 +189,5 @@ export function csvOf(state, rows) {
 }
 
 export function columnsMenuHTML(state) {
-  return kernelColumnsMenuHTML(COLUMNS, state.columns);
+  return kernelColumnsMenuHTML(colDefs(state), colOrder(state));
 }

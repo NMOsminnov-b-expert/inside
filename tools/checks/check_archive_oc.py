@@ -34,10 +34,8 @@ def run(t):
 
     # Администратор: он видит весь архив и может возвращать.
     t.open('', wait='.reg-thead')
-    role = pg.locator('[data-role]')
-    if role.count():
-        role.first.select_option('admin')
-        t.wait(500)
+    t.set_role('admin')
+    t.wait(300)
 
     # --- 1. объект оценки уезжает в архив ---
     t.open('#/oc/civil/oc-cv-1', wait='.card')

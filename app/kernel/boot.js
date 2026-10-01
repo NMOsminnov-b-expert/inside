@@ -1,4 +1,4 @@
-import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav } from '../shell/shell.js';
+import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav, setUserMenuExtra } from '../shell/shell.js';
 import { createScope } from './scope.js';
 import { start, parse, build, go, MENU_HREF, INST_HREF, DOCS_HREF } from './router.js';
 import { ensureStyle } from './css.js';
@@ -21,6 +21,7 @@ let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
 function resetShellSlots() {
   setDrawer(null);
+  setUserMenuExtra(null);
   document.querySelectorAll('.dd.open').forEach((d) => d.classList.remove('open'));
 }
 
@@ -113,6 +114,7 @@ function makeHost(route, scope, typeId) {
     // Каркас
     setCrumbs,
     setDrawer,
+    setUserMenuExtra,
     updateDrawer,
 
     // Общий визуал служебных вещей

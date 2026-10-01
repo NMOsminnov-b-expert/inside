@@ -240,7 +240,7 @@ def run(t):
 
     # Роль без прав администратора видит сотрудника, но не назначает.
     t.open('', wait='.reg-thead')
-    pg.locator('[data-role]').first.select_option('insp')
+    t.set_role('insp')
     t.wait(400)
     _open(t)
     rows = pg.locator('.itree-row[data-inode]')
@@ -252,7 +252,7 @@ def run(t):
          'роль без прав администратора может назначать сотрудника')
 
     t.open('', wait='.reg-thead')
-    pg.locator('[data-role]').first.select_option('admin')
+    t.set_role('admin')
     t.wait(400)
 
     # --- 10. регион деревом «область / район / населённый пункт» ---

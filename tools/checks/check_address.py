@@ -256,16 +256,13 @@ def run(t):
     t.ck('ТИП ЗЕМЕЛЬ' not in head,
          'вернулся отдельный столбец типа земель — приписка идёт в типе ОЦ')
 
-    rows = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr')].map((tr) => {
-      const cell = tr.querySelector('.reg-type');
-      if (!cell) return null;
-      const sub = cell.querySelector('.reg-sub');
-      return {
-        type: (cell.querySelector('.ell') || cell).textContent.trim(),
-        sub: sub ? sub.textContent.trim() : '',
-        full: cell.getAttribute('title') || '',
-      };
-    }).filter(Boolean)""")
+    # С 01.10.2026 тип ОЦ — второй строкой «Объекта»: «Земельный участок · с/х
+    # · учреждение» (отдельный столбец типа скрыт по умолчанию).
+    rows = pg.evaluate("""() => [...document.querySelectorAll('.reg-tr .reg-obj-s .ell')].map((el) => {
+      const parts = (el.getAttribute('title') || el.textContent).split(' · ').map((x) => x.trim());
+      const kinds = ['с/х', 'не с/х', 'смеш.'];
+      return { type: parts[0], sub: kinds.includes(parts[1]) ? parts[1] : '', full: parts.slice(0, 2).join(' · ') };
+    })""")
 
     withSub = [r for r in rows if r['sub']]
     t.ck(withSub, 'ни у одной записи нет приписки типа земель')
