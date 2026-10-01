@@ -26,6 +26,7 @@ import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from '../../kernel/viewer/ctrl.js';
+import { bindFileDrop } from '../../kernel/viewer/files.js';
 import { setViewerDeps } from '../../kernel/viewer/deps.js';
 import { viewerDeps } from './parts/docs/viewerDeps.js';
 import { bindSplitPanes } from '../../kernel/viewer/shell.js';
@@ -368,6 +369,10 @@ export function main(host) {
   // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
+  // Файлы: перетаскивание на карточку и вставка Ctrl+V (kernel/viewer/files.js),
+  // как в остальных модулях — брошенный мимо просмотрщика файл браузер открыл
+  // бы вместо макета (проверка модуля просмотрщика 01.10.2026).
+  bindFileDrop(ctx);
   ensureViewerDefault();
   migrateMovable(rec);
   migrateMechUnits(rec);

@@ -27,13 +27,11 @@ import { OI_CARDS, cardMeta } from './oi/registry.js';
 import { drawerNotesHTML, drawerCount } from './parts/notes/view.js';
 import { bindDrawerNotes } from './parts/notes/ctrl.js';
 import { bindViewer, bindViewerHotkeys } from '../../kernel/viewer/ctrl.js';
-import { watchDockArea } from '../../kernel/viewer/dock.js';
 import { setViewerDeps } from '../../kernel/viewer/deps.js';
 import { viewerDeps } from './parts/docs/viewerDeps.js';
 import { bindFileDrop } from '../../kernel/viewer/files.js';
 import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js';
-import { bindSplitPanes, viewerHTML } from '../../kernel/viewer/shell.js';
-import { renderPopout } from '../../kernel/viewer/popout.js';
+import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 
@@ -289,10 +287,9 @@ export function main(host) {
 
     bindBody();
     bindPlateActions(ctx);
+    // Окно просмотра на втором мониторе bindViewer перерисовывает сам.
     bindViewer(ctx);
     bindSplitPanes(ctx);
-    // Окно просмотра на втором мониторе — та же отрисовка в его документе.
-    renderPopout(ctx, viewerHTML, bindViewer);
 
     scope.root.scrollTop = top;
     if (scope.watchStickyHead) scope.watchStickyHead();
@@ -380,7 +377,6 @@ export function main(host) {
   // bindCommonUI: из draw()/bindViewer их вешать нельзя, слушатели накапливались
   // бы на каждую перерисовку (см. комментарий у bindViewerHotkeys).
   bindViewerHotkeys(ctx);
-  watchDockArea(ctx);
   // Файлы: перетаскивание на карточку и вставка Ctrl+V (kernel/viewer/files.js).
   bindFileDrop(ctx);
   ensureViewerDefault();

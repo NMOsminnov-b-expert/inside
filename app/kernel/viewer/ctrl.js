@@ -3,8 +3,9 @@ import {
   pickCompareMate, cmpLeftDoc, stepZoom, wheelZoom,
 } from './state.js';
 import { paintPdfCanvases, getPdfPageWidthPt } from './pdf.js';
-import { applyDock, bindDockGrip } from './dock.js';
-import { openPopout, closePopout, focusPopout } from './popout.js';
+import { applyDock, bindDockGrip, watchDockArea } from './dock.js';
+import { openPopout, closePopout, focusPopout, renderPopout } from './popout.js';
+import { viewerHTML } from './shell.js';
 import { attachFiles, pickFiles } from './files.js';
 import { connectFolder } from '../localFiles.js';
 import {
@@ -389,7 +390,18 @@ function bindContextMenus(ctx) {
   });
 }
 
+// Привязка просмотрщика к экрану — и в карточке, и в отдельном окне: окно
+// просмотра (popout.js) — вторая поверхность того же экрана, и после каждой
+// перерисовки карточки перерисовывается и оно. Раньше это делал только модуль
+// civil, и в остальных (ТС, механизмы, квартира, жилой дом, участок) окно
+// открывалось пустым (замечание пользователя 01.10.2026: «режим в отдельном
+// окне не отображает документы»). Теперь — здесь, для всех модулей сразу.
 export function bindViewer(ctx) {
+  bindViewerSurface(ctx);
+  if (!ctx.isPopout) renderPopout(ctx, viewerHTML, bindViewerSurface);
+}
+
+function bindViewerSurface(ctx) {
   const s = ctx.scope;
 
   s.$$('[data-vmode]').forEach((b) => b.onclick = (e) => {
@@ -458,9 +470,15 @@ export function bindViewer(ctx) {
 
   // До подсчёта размеров листа: колонка раскрытия задаёт ширину ленты. В окне
   // просмотра раскрытия нет — оно и так целиком под документом.
+  // Наблюдатель за областью приложения — тоже здесь, для всех модулей: боковое
+  // меню сворачивается без события resize, и колонка раскрытия должна ехать
+  // следом. Раньше его подключал только civil, и в ТС, механизмах, квартире
+  // просмотрщик оставался на месте (замечание пользователя 01.10.2026: «не
+  // переносится при сворачивании сайдбара»). Подключается один раз на страницу.
   if (!ctx.isPopout) {
     applyDock(ctx);
     bindDockGrip(ctx);
+    watchDockArea(ctx);
   }
 
   // Лента миниатюр сворачивается: миниатюры крупные (видно содержимое страницы),
