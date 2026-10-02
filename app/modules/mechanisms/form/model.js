@@ -279,6 +279,12 @@ const FORMER = {
   pressure: 'Рабочее давление',
 };
 
+// Прежние названия типов классификатора → нынешние (указание пользователя
+// 02.10.2026: «приписка у башенных кранов в категоризации должна быть убрана»).
+const TYPE_RENAMED = {
+  'Башенные краны (если рассматриваются как оборудование, а не спецтехника)': 'Башенные краны',
+};
+
 export function migrateMechUnits(rec) {
   if (!rec || !Array.isArray(rec.oi)) return;
 
@@ -291,6 +297,7 @@ export function migrateMechUnits(rec) {
         delete u.maker;
       }
       if (u.inv === undefined) u.inv = '';
+      if (TYPE_RENAMED[u.type]) u.type = TYPE_RENAMED[u.type];
       // Страна — всегда с заглавной (заметки пользователя 30.09.2026).
       if (u.country) u.country = u.country.charAt(0).toLocaleUpperCase('ru') + u.country.slice(1);
 
