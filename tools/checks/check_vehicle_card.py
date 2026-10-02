@@ -107,7 +107,7 @@ def run(t):
     t.wait_for('[data-ts-cat]')
     pg.select_option('[data-ts-cat]', 'Легковое')
     t.wait_for('[data-ts-base]:not([disabled])')
-    pg.select_option('[data-ts-base]', 'Легковой автомобиль и внедорожник')
+    pg.select_option('[data-ts-base]', 'Внедорожник 3 дв.')
     t.wait_for('[data-tsf="main|make"]')
     pg.fill('[data-tsf="main|make"]', 'Lada Niva')
     pg.fill('[data-tsf="main|plate"]', '01kg123abc')
@@ -159,5 +159,5 @@ def run(t):
     pg.reload()
     t.wait_for('tr[data-open-oi]')
     after = pg.evaluate(REC_OI, 'Lada Niva')
-    t.ck(after and after['vehicle']['base'] == 'Легковой автомобиль и внедорожник',
+    t.ck(after and after['vehicle']['base'] == 'Внедорожник 3 дв.',
          'ТС в гражданском не пережило перезагрузку')

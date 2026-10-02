@@ -34,6 +34,14 @@ KEYS = {
     'Колёсная формула': 'wheelFormula', 'Число осей': 'axles', 'Число управляемых осей': 'steerAxles',
     'Тип КПП': 'gearbox', 'Коробка отбора мощности': 'pto', 'Техническое состояние': 'state',
     'Привод': 'driveType', 'Раздаточная коробка': 'transferCase', 'Подруливающие оси': 'rearSteer',
+    'Вид документа': 'docKind', 'Комплектация': 'trim', 'Страна производства': 'country', 'Ёмкость батареи': 'battery',
+    'Пробег по одометру': 'mileage',
+    'Состояние кузова и окраски': 'condBody', 'Состояние салона': 'condInterior', 'Состояние двигателя': 'condEngine',
+    'Состояние ходовой части': 'condChassis', 'Состояние электрооборудования': 'condElectric',
+    'Состояние прочих элементов': 'condOther',
+    'Состояние кузова и окраски: описание': 'condBodyNote', 'Состояние салона: описание': 'condInteriorNote',
+    'Состояние двигателя: описание': 'condEngineNote', 'Состояние ходовой части: описание': 'condChassisNote',
+    'Состояние электрооборудования: описание': 'condElectricNote', 'Состояние прочих элементов: описание': 'condOtherNote',
     'Комплектность': 'kit', 'Изготовитель': 'maker', 'Страна сборки': 'country',
     'Заводской № машины (рамы)': 'serialNo', 'Конструкционная масса': 'massDesign', 'Ходовая': 'run',
     'Способ поворота': 'turn', 'Изготовитель модуля': 'maker', 'Модель (индекс) установки': 'model',
@@ -47,8 +55,13 @@ KEYS = {
 BLOCK = {
     # Где стоит машина — сведение осмотра, а не свидетельства: с 30.09.2026 — в
     # «Наработке и состоянии» (согласованная развёртка карточки ТС).
-    'plate': 'reg', 'vid': 'reg', 'factAddr': 'use', 'regDate': 'reg',
+    # VID — среди номеров машины, у всех категорий (указание пользователя
+    # 02.10.2026: «Vid переносим к другим номерам»).
+    'plate': 'reg', 'docKind': 'reg', 'factAddr': 'use', 'regDate': 'reg',
     'docNo': 'reg', 'mileage': 'use', 'engineHours': 'use', 'hours': 'use', 'state': 'use', 'kit': 'use',
+    'condBody': 'use', 'condInterior': 'use', 'condEngine': 'use', 'condChassis': 'use', 'condElectric': 'use',
+    'condOther': 'use', 'condBodyNote': 'use', 'condInteriorNote': 'use', 'condEngineNote': 'use',
+    'condChassisNote': 'use', 'condElectricNote': 'use', 'condOtherNote': 'use',
 }
 
 TRANSLIT = dict(zip('абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
@@ -74,7 +87,7 @@ def options(hint):
     return [cap(p.replace('…', '')) for p in parts if p.strip() and 'можно несколько' not in p]
 
 
-UNITS = {'см³', 'кг', 'км', 'ч', 'м', 'мм', 'т', 'л'}
+UNITS = {'см³', 'кг', 'км', 'ч', 'м', 'мм', 'т', 'л', 'кВт·ч'}
 
 # Подсказки к «Тип ТС, вид кузова» — как это пишут на бланке (сверено по пяти
 # свидетельствам 23.09.2026: «легковой, седан», «легковой универсал», «мото,
@@ -125,7 +138,24 @@ def field(label, value, hint, source='', place=''):
         f['type'] = 'text'
     if label in ('Комплектность',):
         f['type'] = 'area'
+    # Комплектации моделей есть в рабочей системе; в макете — базовые
+    # подсказки, запись свободная (указание пользователя 02.10.2026: «Накидай
+    # какие-нибудь базовые»).
+    if label == 'Комплектация':
+        f['suggest'] = ['Базовая', 'Стандарт', 'Комфорт', 'Люкс', 'Премиум', 'Спорт']
     return f
+
+
+def by_category(rep):
+    """Общие поля с заменами категории: None — поля нет, строка — замена,
+    список строк — поле и добавленные после него."""
+    out = []
+    for row in B.BASE_COMMON:
+        r = rep.get(row[1], row)
+        if r is None:
+            continue
+        out.extend(r if isinstance(r, list) else [r])
+    return out
 
 
 def common(rows, skip):
@@ -180,13 +210,11 @@ def build():
         'TS_CATEGORIES': cats,
         'TS_BASES': [{'category': b[0], 'name': b[1], 'hint': b[2], 'examples': b[3]} for b in B.BASES],
         'TS_BASE_FIELDS': common(B.BASE_COMMON, {'Категория базы', 'Дополнительные параметры'}),
-        # Общие поля с заменами отдельной базы (B.BASE_COMMON_BY_BASE): у такой
-        # базы карточка берёт этот список вместо TS_BASE_FIELDS.
-        'TS_BASE_FIELDS_BY_BASE': {
-            base: common([(rep[label] if label in rep else row) for row in B.BASE_COMMON
-                          for label in [row[1]] if not (label in rep and rep[label] is None)],
-                         {'Категория базы', 'Дополнительные параметры'})
-            for base, rep in B.BASE_COMMON_BY_BASE.items()},
+        # Общие поля с заменами категории (B.BASE_COMMON_BY_CATEGORY): у такой
+        # категории карточка берёт этот список вместо TS_BASE_FIELDS.
+        'TS_BASE_FIELDS_BY_CATEGORY': {
+            cat: common(by_category(rep), {'Категория базы', 'Дополнительные параметры'})
+            for cat, rep in B.BASE_COMMON_BY_CATEGORY.items()},
         'TS_SPECIAL': special,
         'TS_TOWED': [{'name': t[0], 'fields': towed_fields(t[1])} for t in B.TOWED],
         'TS_SELF_GROUPS': group(B.SELF, 0, lambda r: {'name': r[1], 'run': r[2], 'hint': r[3], 'examples': r[4]}),

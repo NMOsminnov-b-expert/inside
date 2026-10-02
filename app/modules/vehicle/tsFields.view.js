@@ -84,7 +84,7 @@ const SHORT = {
   plate: 'Рег. номер', massMax: 'Макс. разреш. масса', massEmpty: 'Масса без нагр.', steerAxles: 'Управл. осей',
   axles: 'Число осей', pto: 'КОМ', engineVolume: 'Рабочий объём', seats: 'Мест',
   regDate: 'Дата регистрации', docNo: 'Серия и № документа', wheelFormula: 'Кол. формула',
-  engineHours: 'Моточасы', turn: 'Поворот', mileage: 'Пробег', massDesign: 'Констр. масса',
+  engineHours: 'Моточасы', turn: 'Поворот', massDesign: 'Констр. масса',
   driveType: 'Привод', transferCase: 'Раздатка', rearSteer: 'Подрул. оси',
   maker: 'Изготовитель', model: 'Модель', year: 'Год выпуска', hours: 'Моточасы', state: 'Тех. состояние',
   serialNo: 'Заводской №',

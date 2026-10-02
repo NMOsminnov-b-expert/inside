@@ -1,3 +1,4 @@
+import { colGroupHTML, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize } from '../../kernel/columns.js';
 import { esc } from '../../kernel/dom.js';
 import { blockNumbers } from '../../kernel/blockIndex.js';
 import { ownerNames } from './records.js';
@@ -7,7 +8,7 @@ import { partiesHTML } from './parties.view.js';
 import { tsFieldHTML } from './tsFields.view.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
-  moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields,
+  moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
   moduleTitle, whatLabel, categoryCandidates, makeWithModules,
 } from './tsModel.js';
 import { treeSearchHTML } from '../../kernel/treeSearch.js';
@@ -149,12 +150,16 @@ function kindHTML(ctx, v, idx) {
       ? `<div class="vh-sug" data-ts-sug>По записи «${esc(v.f.vtype)}» может быть:${cands.map((c) => `
           <button type="button" class="vh-sug-btn" data-ts-sug-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`
       : '';
-    cascade = `${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s4') : ''}
-      <div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
+    // Сначала выбор, под ним запись из техпаспорта (указание пользователя
+    // 02.10.2026: «Тип ТС, вид кузова ниже… Сначала выбор, потом тип»). У
+    // легковых база — тип кузова.
+    const pass = v.category === 'Легковое';
+    cascade = `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
         <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
-      <div class="field vh-s2"><label for="ts-base">База</label>
+      <div class="field vh-s2"><label for="ts-base">${pass ? 'Тип кузова' : 'База'}</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
-  options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`;
+  options(bases, v.base, v.category ? (pass ? 'Выберите тип кузова' : 'Выберите базу') : 'Сначала категория')}</select></div>
+      ${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s4') : ''}`;
   } else if (v.kind === 'self') {
     about = selfInfo(v.selfGroup, v.selfKind);
     cascade = `<div class="field vh-s2"><label for="ts-sg">Группа</label>
@@ -204,8 +209,8 @@ const SECTIONS = [
   { key: 'chassis', title: 'Ходовая и трансмиссия' },
 ];
 const SECTION_OF = {
-  vin: 'numbers', bodyNo: 'numbers', chassisNo: 'numbers', engineNo: 'numbers', serialNo: 'numbers',
-  vtype: 'tech', fuel: 'tech', engineVolume: 'tech', power: 'tech',
+  vin: 'numbers', bodyNo: 'numbers', chassisNo: 'numbers', engineNo: 'numbers', serialNo: 'numbers', vid: 'numbers',
+  vtype: 'tech', fuel: 'tech', engineVolume: 'tech', power: 'tech', battery: 'tech',
   massEmpty: 'tech', massMax: 'tech', massDesign: 'tech',
   wheelFormula: 'chassis', axles: 'chassis', steerAxles: 'chassis', gearbox: 'chassis', pto: 'chassis',
   driveType: 'chassis', transferCase: 'chassis', rearSteer: 'chassis',
@@ -213,12 +218,18 @@ const SECTION_OF = {
 };
 // Руль и места — сразу за цветом: вместе с годом они заполняют строку.
 // Страна сборки — в конце: у машины она встаёт за местами на полстроки.
-const GENERAL_ORDER = ['make', 'maker', 'year', 'color', 'wheel', 'seats', 'country'];
+const GENERAL_ORDER = ['make', 'maker', 'year', 'color', 'wheel', 'seats', 'trim', 'country'];
 
 // От топлива зависит, какие поля двигателя показывать: у электромобиля нет
 // рабочего объёма, есть только мощность.
 const ELECTRIC = 'Электро';
-const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC);
+// Ёмкость батареи — у электромобиля и гибрида (решение пользователя 02.10.2026).
+const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC)
+  && !(f.key === 'battery' && ![ELECTRIC, 'Гибрид'].includes(v.f.fuel));
+// Заголовок подраздела двигателя: у легковых — «Двигатель», у остальных —
+// «Двигатель и грузовые характеристики» (указание пользователя 02.10.2026).
+const secTitle = (v, sec) => (sec.key !== 'tech' ? sec.title
+  : isPassenger(v) ? 'Двигатель' : 'Двигатель и грузовые характеристики');
 
 // Номера — таблицей (указание пользователя): у машины их несколько, и искать
 // каждый по сетке полей неудобно.
@@ -266,15 +277,18 @@ function machineHTML(v, idx, inspect = false) {
         own.map((f) => tsFieldHTML(v.f, f, 'main', `vh-s${genSpan(f)}`)).join('')}</div>`
       : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
         : grid(v.f, own, 'main');
-    return sub(sec.title, body, allInsp ? '<span class="hint">осмотр</span>' : '');
+    return sub(secTitle(v, sec), body, allInsp ? '<span class="hint">осмотр</span>' : '');
   });
 
   if (special.length && !inspect) {
     parts.push(sub('Особое для базы',
       `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
-  const use = commonFields(v).filter((f) => f.block === 'use');
+  const useAll = commonFields(v).filter((f) => f.block === 'use');
+  const cond = useAll.filter((f) => COND.test(f.key));
+  const use = useAll.filter((f) => !COND.test(f.key));
   if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>'));
+  if (cond.length) parts.push(sub('Состояние', condTableHTML(v.f, cond), '<span class="hint">осмотр</span>'));
   if (!inspect) parts.push(extraPart(v.extra, 'main'));
 
   const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
@@ -291,6 +305,58 @@ function machineHTML(v, idx, inspect = false) {
 // С 30.09.2026 здесь же «Где стоит (фактический адрес)» — на всю строку перед
 // комплектностью.
 const USE_ORDER = ['mileage', 'engineHours', 'hours', 'state', 'factAddr', 'kit'];
+
+// Состояние легкового — таблицей по элементам: оценка по шкале осмотра и
+// краткое описание (указание пользователя 02.10.2026: «поля по состоянию +
+// текстовое описание. Оформляем в виде таблицы»). Оформлена как таблица
+// «Дополнительные параметры» ниже — ячейки-поля без рамок (mu-xtbl), а ширины
+// столбцов меняются перегородками (указание пользователя: «столбцы должны быть
+// оформлены как ниже доп параметры. И со столбцами, меняющими ширину»; механизм
+// общий — kernel/columns.js, как у таблиц документов). Ширины — настройка
+// показа на модуль, без перерисовки: в CSS-переменных обёртки.
+const COND = /^cond[A-Z]/;
+const COND_COLUMNS = [
+  { key: 'el', label: 'Элемент', width: 210, minWidth: 120 },
+  { key: 'grade', label: 'Состояние', width: 190, minWidth: 130 },
+  { key: 'note', label: 'Краткое описание', width: 0 },
+];
+const condWidths = {};
+function condTableHTML(vals, list) {
+  const rows = list.filter((f) => !f.key.endsWith('Note')).map((g) => {
+    const note = list.find((f) => f.key === g.key + 'Note');
+    const value = (vals || {})[g.key] || '';
+    const name = g.label.replace(/^Состояние /, '').replace(/^./, (c) => c.toUpperCase());
+    return `<tr data-ts-key="${esc(g.key)}">
+      <td class="vh-cond-el">${esc(name)}</td>
+      <td><select class="ax-cell" data-tsf="main|${esc(g.key)}" aria-label="${esc(g.label)}">
+        <option value="">Не выбрано</option>${(g.options || []).map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      </select></td>
+      <td>${note ? `<input class="ax-cell" data-tsf="main|${esc(note.key)}" value="${esc((vals || {})[note.key] || '')}"
+        aria-label="${esc(note.label)}" placeholder="Кратко: что видно на осмотре">` : ''}</td>
+    </tr>`;
+  }).join('');
+  const head = COND_COLUMNS.map((c, i) => `<th data-col="${c.key}">${colLabelHTML(c)}${resizeGripHTML(c, i === COND_COLUMNS.length - 1)}</th>`).join('');
+  return `<div class="vh-cond-wrap" data-ts-cond-box style="${columnVarsStyle(COND_COLUMNS, condWidths)}">
+    <table class="tbl mu-xtbl vh-xtbl vh-cond">${colGroupHTML(COND_COLUMNS, condWidths)}
+    <thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// Перегородки таблицы состояния; ширины общие на модуль — после перетаскивания
+// проставляются всем таблицам состояния на экране.
+export function bindCondColumns(scope) {
+  bindColumnResize(scope, {
+    rootSel: '[data-ts-cond-box]',
+    cols: COND_COLUMNS,
+    widths: condWidths,
+    onCommit(patch) {
+      Object.assign(condWidths, patch);
+      scope.$$('[data-ts-cond-box]').forEach((box) => {
+        Object.entries(condWidths).forEach(([k, w]) => box.style.setProperty('--cw-' + k, w + 'px'));
+      });
+    },
+  });
+}
+
 function useGrid(vals, raw) {
   const list = [...raw].sort((a, b) => USE_ORDER.indexOf(a.key) - USE_ORDER.indexOf(b.key));
   const withMileage = list.some((f) => f.key === 'mileage');
@@ -329,7 +395,7 @@ export function sectionFields(v, key, inspect = false) {
   const country = specialFields(v).find((f) => f.key === 'country');
   const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
     .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : []);
-  const out = SECTIONS.map((sec) => ({ group: sec.title, fields: keep(list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key)) }));
+  const out = SECTIONS.map((sec) => ({ group: secTitle(v, sec), fields: keep(list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key)) }));
   out.push({ group: 'Особое для базы', fields: keep(special) });
   out.push({ group: 'Наработка и состояние', fields: keep(commonFields(v).filter((f) => f.block === 'use')) });
   return out.filter((g) => g.fields.length);

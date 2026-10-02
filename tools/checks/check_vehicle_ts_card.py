@@ -147,7 +147,8 @@ def run(t):
 
     subs = pg.eval_on_selector_all('.vehicle-form .card:nth-of-type(4) .vh-sub',
                                    'els => els.map((e) => e.firstChild.textContent.trim())')
-    t.ck(subs[:4] == ['Общие сведения', 'Номера', 'Двигатель и массы', 'Ходовая и трансмиссия']
+    # У нелегковых — «Двигатель и грузовые характеристики» (указание пользователя 02.10.2026).
+    t.ck(subs[:4] == ['Общие сведения', 'Номера', 'Двигатель и грузовые характеристики', 'Ходовая и трансмиссия']
          and subs[-2:] == ['Наработка и состояние', 'Дополнительные параметры'], 'подразделы «Машины» не те: %s' % subs)
     # Пробег — в блоке машины (заметка пользователя 30.09.2026 «Пробег к базе»).
     t.ck(pg.locator('.vehicle-form .card:nth-of-type(4) [data-tsf="main|mileage"]').count() == 1,
@@ -158,7 +159,8 @@ def run(t):
     t.ck(order[:3] == ['make', 'year', 'color'] and 'model' not in order,
          'общие сведения не в порядке граф свидетельства: %s' % order[:4])
     nums = pg.eval_on_selector_all('.vh-ntbl [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
-    t.ck(nums == ['vin', 'bodyNo', 'chassisNo', 'engineNo'], 'номера не таблицей или не в том порядке: %s' % nums)
+    # VID — среди номеров машины (указание пользователя 02.10.2026).
+    t.ck(nums == ['vin', 'bodyNo', 'chassisNo', 'engineNo', 'vid'], 'номера не таблицей или не в том порядке: %s' % nums)
     t.ck(pg.locator('[data-tsf="main|ownerInn"], [data-tsf="main|owner"]').count() == 0,
          'в регистрации остался собственник или ИНН — они в блоке сторон')
     # «Где стоит (фактический адрес)» — сведение осмотра: в «Наработке и
@@ -378,7 +380,8 @@ def run(t):
     t.wait_for('[data-tsf="main|serialNo"]')
     t.ck(pg.locator('[data-tsf-ms="main|run"]').count() == 1, 'у самоходной машины нет ходовой')
     nums = pg.eval_on_selector_all('.vh-ntbl [data-ts-key]', 'els => els.map((e) => e.dataset.tsKey)')
-    t.ck(nums == ['serialNo', 'engineNo'], 'номера самоходной машины не те: %s' % nums)
+    # VID — среди номеров у всех (указание пользователя 02.10.2026).
+    t.ck(nums == ['serialNo', 'engineNo', 'vid'], 'номера самоходной машины не те: %s' % nums)
 
     pg.click('[data-ts-kind="module"]')
     pg.select_option('[data-ts-mgroup]', 'Ковши')

@@ -10,7 +10,7 @@ import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog } from '../../kernel/dialog.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
-import { openModuleId, navHTML, sectionFields, savedText } from './view.js';
+import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns } from './view.js';
 import { createRecord } from './records.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
@@ -32,6 +32,7 @@ export function bindTsForm(ctx, holder, set) {
   const s = ctx.scope;
   const v = tsOf(holder);
   ctx.ui = ctx.ui || {};
+  bindCondColumns(s);
 
   // «main» — сама машина, иначе id модуля на ней.
   const owner = (id) => (id === 'main' ? v : v.modules.find((m) => m.id === id));
