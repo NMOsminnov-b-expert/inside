@@ -131,12 +131,13 @@ public static class QueryEmbedder
             await StartServices(ct);
             if (!await Alive(ct)) { note("по смыслу: модель не запустилась — ищу только по словам"); return null; }
         }
-        var body = JsonSerializer.Serialize(new
-        {
-            model = ix.Model,
-            input = new[] { ix.Prefix + text },
-            options = ix.NumCtx > 0 ? new { num_ctx = ix.NumCtx } : null,
-        });
+        // Те же настройки загрузки, что у сервера поиска (.env: 1 поток, контекст
+        // модели): иначе Ollama перезагружала бы модель между запросами
+        // программы и сервера. Поиск — 1 поток, индексация — своя Ollama на 3
+        // (решение пользователя 02.10.2026).
+        var options = new Dictionary<string, int> { ["num_thread"] = 1 };
+        if (ix.NumCtx > 0) options["num_ctx"] = ix.NumCtx;
+        var body = JsonSerializer.Serialize(new { model = ix.Model, input = new[] { ix.Prefix + text }, options });
         using var resp = await Http.PostAsync(Ollama + "/api/embed", new StringContent(body, Encoding.UTF8, "application/json"), ct);
         if (!resp.IsSuccessStatusCode) return null;
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));

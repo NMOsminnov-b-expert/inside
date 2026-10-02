@@ -192,21 +192,32 @@ def services_down():
         run([SPY, SVC, 'down'])
 
 
+# Индексация — своей Ollama на 3 потоках с самым низким приоритетом; поиск
+# (сервер MCP, программа «Граф проекта») — основной на 1 потоке (решение
+# пользователя 02.10.2026: «3 потока на сервер индексации и 1 на поиск. Надо
+# разделить ресурсы. Индексация не должна тормозить работу»; svc.py, up-index).
+INDEX_OLLAMA = {'OLLAMA_BASE_URL': 'http://127.0.0.1:11435', 'OLLAMA_NUM_THREAD': '3'}
+
+
 def semsearch(commit):
     if not SPY.exists() or not SCLIENT.exists():
         return put('semsearch', state='skipped', stage='', commit='', finished=now(), note='поиск по смыслу не установлен')
     put('semsearch', state='running', stage='запуск базы и модели', commit=commit, started=now(), finished=None,
         pid=os.getpid(), files=0, chunks=0, note='')
-    if not services_up('semsearch'):
-        return
+    if SVC.exists():
+        code, _ = run([SPY, SVC, 'up-index'])
+        if code:
+            return put('semsearch', state='failed', finished=now(), note='база или модель индексации не поднялись')
     try:
         put('semsearch', stage='дообновление индекса')
-        if not index_project('semsearch', 'inside'):
+        if not index_project('semsearch', 'inside', INDEX_OLLAMA):
             return
         put('semsearch', stage='выгрузка для программы')
         code, last = run([SPY, 'tools/knowledge/semantic_export.py'])
         put('semsearch', state='done' if code == 0 else 'failed', stage='', finished=now(), note='' if code == 0 else last)
     finally:
+        if SVC.exists():
+            run([SPY, SVC, 'down-index'])
         services_down()
 
 
