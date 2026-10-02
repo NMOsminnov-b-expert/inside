@@ -258,7 +258,9 @@ function machineHTML(v, idx, inspect = false) {
     if (!own.length) return '';
     // Топливо — сразу за типом ТС: от него зависят поля рядом.
     if (sec.key === 'tech') {
-      const rank = (k) => ['vtype', 'fuel', 'engineVolume', 'power', 'battery', 'massEmpty', 'massMax', 'massDesign'].indexOf(k);
+      // У электро и гибрида ёмкость батареи — перед мощностью: мощность встаёт
+      // под типом топлива (замечание пользователя 02.10.2026).
+      const rank = (k) => ['vtype', 'fuel', 'engineVolume', 'battery', 'power', 'massEmpty', 'massMax', 'massDesign'].indexOf(k);
       own.sort((a, b) => rank(a.key) - rank(b.key));
     }
     if (sec.key === 'general') own.sort((a, b) => GENERAL_ORDER.indexOf(a.key) - GENERAL_ORDER.indexOf(b.key));
