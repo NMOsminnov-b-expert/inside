@@ -258,9 +258,15 @@ function machineHTML(v, idx, inspect = false) {
     if (!own.length) return '';
     // Топливо — сразу за типом ТС: от него зависят поля рядом.
     if (sec.key === 'tech') {
-      // У электро и гибрида ёмкость батареи — перед мощностью: мощность встаёт
-      // под типом топлива (замечание пользователя 02.10.2026).
-      const rank = (k) => ['vtype', 'fuel', 'engineVolume', 'battery', 'power', 'massEmpty', 'massMax', 'massDesign'].indexOf(k);
+      // У легковых — две колонки (замечание пользователя 02.10.2026: «оформить
+      // максимально логично 2-мя столбцами для каждой комбинации»): первая
+      // строка — что за двигатель и какой силы (тип топлива | мощность),
+      // вторая — чем питается (рабочий объём | ёмкость батареи). У гибрида
+      // заняты все четыре места, у ДВС и электро вторая строка — одно поле.
+      const order = isPassenger(v)
+        ? ['vtype', 'fuel', 'power', 'engineVolume', 'battery']
+        : ['vtype', 'fuel', 'engineVolume', 'power', 'massEmpty', 'massMax', 'massDesign'];
+      const rank = (k) => order.indexOf(k);
       own.sort((a, b) => rank(a.key) - rank(b.key));
     }
     if (sec.key === 'general') own.sort((a, b) => GENERAL_ORDER.indexOf(a.key) - GENERAL_ORDER.indexOf(b.key));
@@ -278,6 +284,8 @@ function machineHTML(v, idx, inspect = false) {
       : sec.key === 'general' ? `<div class="grid vh-grid">${
         own.map((f) => tsFieldHTML(v.f, f, 'main', `vh-s${genSpan(f)}`)).join('')}</div>`
       : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
+      : sec.key === 'tech' && isPassenger(v) ? `<div class="grid vh-grid">${
+        own.map((f) => tsFieldHTML(v.f, f, 'main', 'vh-s2')).join('')}</div>`
         : grid(v.f, own, 'main');
     return sub(secTitle(v, sec), body, allInsp ? '<span class="hint">осмотр</span>' : '');
   });

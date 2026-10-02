@@ -97,6 +97,10 @@ def run(t):
     t.ck(not has('battery'), 'батарея видна у бензинового')
     pg.select_option('[data-tsf="main|fuel"]', 'Гибрид')
     t.wait_until("() => !!document.querySelector('[data-tsf$=\"|battery\"]')")
+    # Два столбца: топливо | мощность, объём | батарея (указание пользователя 02.10.2026).
+    top = lambda key: round(pg.locator('[data-ts-key="%s"]' % key).bounding_box()['y'])
+    t.ck(top('fuel') == top('power') and top('engineVolume') == top('battery') and top('power') < top('battery'),
+         'двигатель гибрида не в два столбца: %s' % [top(k) for k in ('fuel', 'power', 'engineVolume', 'battery')])
     pg.select_option('[data-tsf="main|fuel"]', 'Электро')
     t.wait_until("() => !!document.querySelector('[data-tsf$=\"|battery\"]') && !document.querySelector('[data-tsf$=\"|engineVolume\"]')")
 
