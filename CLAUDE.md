@@ -136,6 +136,11 @@ MCP (`.claude/knowledge-graph/`) снят, всё его содержимое п
    `python tools/knowledge/graph.py find <слова>` и `graph.py tag <метка>` —
    запасной поиск, если оба недоступны.
 
+   Модель поиска по смыслу — **Qwen3-Embedding-0.6B** (решение пользователя
+   02.10.2026 по замеру на 500 вопросах: в десятке 64% против 49% у прежней
+   nomic; прежний индекс сохранён как проект `inside-nomic`). Запросу
+   сервер сам добавляет инструкцию модели (`EMBED_QUERY_PREFIX` в `.env`).
+
    semsearch работает только на этом компьютере: PostgreSQL и Ollama —
    в `%LOCALAPPDATA%\semsearch`, на localhost, и живут, только пока нужны:
    поднимает их `svc.py` там же — при старте сервера semsearch в Claude

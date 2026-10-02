@@ -33,9 +33,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import graph  # noqa: E402
 
 SEM = os.path.join(os.environ['LOCALAPPDATA'], 'semsearch')
-DB = 'cb_proj_inside_4cf85bda'
+PROJECT = 'inside'   # база — по имени проекта в реестре semsearch (с 02.10.2026 — индекс Qwen3)
+MODEL = 'Qwen3-Embedding-0.6B'
 TOP = 3          # связей на запись
-MIN_SIM = 0.84   # порог: около медианы похожести с ближайшим соседом (замер 29.09.2026)
+# Порог похожести — медиана похожести записи с ближайшим соседом (так он был
+# подобран 29.09.2026 для nomic: 0,84). Считается по выгрузке: у каждой
+# модели своя шкала, и прибитое число после смены модели (02.10.2026, Qwen3)
+# отрезало бы почти все связи или пропускало все.
 NEIGHBORS = 8    # соседей для карточки
 
 SQL = f"""
@@ -52,7 +56,12 @@ from v a cross join lateral (select p, e from v b where b.p <> a.p order by a.e 
 async def main():
     os.environ['NO_PROXY'] = os.environ['no_proxy'] = '127.0.0.1,localhost'
     pw = open(os.path.join(SEM, 'pgpass.txt'), encoding='ascii').read().strip()
-    conn = await asyncpg.connect(host='localhost', port=5432, user='postgres', password=pw, database=DB)
+    reg = await asyncpg.connect(host='localhost', port=5432, user='postgres', password=pw, database='codebase_mcp_registry')
+    try:
+        db = await reg.fetchval('select database_name from projects where name = $1', PROJECT)
+    finally:
+        await reg.close()
+    conn = await asyncpg.connect(host='localhost', port=5432, user='postgres', password=pw, database=db)
     try:
         rows = await conn.fetch(SQL)
     finally:
@@ -63,17 +72,20 @@ async def main():
         ia, ib = ids.get(a), ids.get(b)
         if ia and ib:
             near.setdefault(ia, []).append((ib, round(float(s), 4)))
+    for lst in near.values():
+        lst.sort(key=lambda x: -x[1])
+    firsts = sorted(lst[0][1] for lst in near.values() if lst)
+    min_sim = round(firsts[len(firsts) // 2], 4) if firsts else 1.0
     pairs = {}
     for ia, lst in near.items():
-        lst.sort(key=lambda x: -x[1])
         for ib, s in lst[:TOP]:
-            if s >= MIN_SIM:
+            if s >= min_sim:
                 k = tuple(sorted((ia, ib)))
                 pairs[k] = max(pairs.get(k, 0), s)
     out = {
         'generated': datetime.datetime.now().isoformat(timespec='seconds'),
-        'source': 'semsearch (codebase-mcp), модель nomic-embed-text-v2-moe, средний вектор фрагментов записи',
-        'top': TOP, 'min_sim': MIN_SIM,
+        'source': 'semsearch (codebase-mcp), проект %s, модель %s, средний вектор фрагментов записи' % (PROJECT, MODEL),
+        'top': TOP, 'min_sim': min_sim,
         'pairs': [[a, b, s] for (a, b), s in sorted(pairs.items(), key=lambda x: -x[1])],
         'neighbors': {k: v for k, v in near.items()},
     }
@@ -81,7 +93,7 @@ async def main():
     path = os.path.join(ROOT, '.graf', 'semantic.json')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False)
-    print('записей %d, связей по смыслу %d → %s' % (len(near), len(pairs), os.path.relpath(path, ROOT)))
+    print('записей %d, связей по смыслу %d (порог %.3f) → %s' % (len(near), len(pairs), min_sim, os.path.relpath(path, ROOT)))
 
 
 if __name__ == '__main__':
