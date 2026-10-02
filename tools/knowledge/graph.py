@@ -23,6 +23,10 @@ git; ищем по нему CodeGraph (RAG); записи размечаются
     python tools/knowledge/graph.py tag <метка>    записи с меткой
     python tools/knowledge/graph.py new <папка> <заголовок>   новая запись-заготовка
     python tools/knowledge/graph.py stats          сколько чего и числа качества (связность, одиночки, центры)
+
+    --root <папка>  — другой проект (папка, где лежит его knowledge/): отдельные
+    базы со своим набором папок в knowledge/schema.py, например база
+    категорий по описям (02.10.2026). Без ключа — граф макета.
 """
 import ast
 import datetime
@@ -52,6 +56,29 @@ FOLDERS = {
     'project': 'проект',
 }
 STATUSES = {'действует', 'отменено', 'открыт', 'закрыт', 'отложено', 'актуально', 'черновик', 'подтверждён'}
+
+
+def use_root(root):
+    """Работать с другим проектом. Набор папок и статусов — из его
+    knowledge/schema.py, если он есть:
+
+        FOLDERS = [('папка', 'вид', 'Подпись', '#цвет'), …]
+        STATUSES = ['…', …]          (необязательно)
+
+    Тот же файл читает программа «Граф проекта» (Schema.Load)."""
+    global ROOT, KNOW, FOLDERS, STATUSES
+    ROOT = os.path.abspath(root)
+    KNOW = os.path.join(ROOT, 'knowledge')
+    sp = os.path.join(KNOW, 'schema.py')
+    if os.path.exists(sp):
+        tree = ast.parse(io.open(sp, encoding='utf-8').read())
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
+                name, value = node.targets[0].id, ast.literal_eval(node.value)
+                if name == 'FOLDERS':
+                    FOLDERS = {t[0]: t[1] for t in value}
+                elif name == 'STATUSES':
+                    STATUSES = set(value)
 
 # Поле записи → имя константы в файле.
 KEYS = [
@@ -367,6 +394,10 @@ def main():
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(errors='replace')
     args = sys.argv[1:]
+    if '--root' in args:
+        i = args.index('--root')
+        use_root(args[i + 1])
+        del args[i:i + 2]
     if not args:
         print(__doc__)
         return

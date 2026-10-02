@@ -47,8 +47,10 @@ public sealed class Record
 
 public static class Schema
 {
-    // Папка → вид записи (как FOLDERS в graph.py).
-    public static readonly (string Folder, string Kind, string Name, string Color)[] Folders =
+    // Папка → вид записи (как FOLDERS в graph.py). Набор графа макета; у
+    // проекта со своим набором (knowledge/schema.py — отдельные базы, первая —
+    // база категорий по описям, 02.10.2026) его заменяет Load.
+    static readonly (string Folder, string Kind, string Name, string Color)[] DefaultFolders =
     {
         ("decisions", "решение", "Решения", "#4E79A7"),
         ("rules", "правило", "Правила", "#E15759"),
@@ -64,8 +66,47 @@ public static class Schema
         ("project", "проект", "Проект", "#8C8C8C"),
     };
 
-    public static readonly string[] Statuses =
+    static readonly string[] DefaultStatuses =
         { "действует", "отменено", "открыт", "закрыт", "отложено", "актуально", "черновик", "подтверждён" };
+
+    public static (string Folder, string Kind, string Name, string Color)[] Folders { get; private set; } = DefaultFolders;
+    public static string[] Statuses { get; private set; } = DefaultStatuses;
+
+    public static string SchemaPath(string root) => System.IO.Path.Combine(root, "knowledge", "schema.py");
+
+    // Набор папок и статусов проекта: knowledge/schema.py —
+    //   FOLDERS = [('папка', 'вид', 'Подпись', '#цвет'), …]
+    //   STATUSES = ['…', …]            (необязательно)
+    // Нет файла или он не читается — набор графа макета.
+    public static void Load(string root)
+    {
+        Folders = DefaultFolders;
+        Statuses = DefaultStatuses;
+        var path = SchemaPath(root);
+        if (!File.Exists(path)) return;
+        try
+        {
+            var p = new Literal.Parser(File.ReadAllText(path, System.Text.Encoding.UTF8));
+            while (!p.End)
+            {
+                var name = p.Name();
+                if (name == null) { p.SkipStatement(); continue; }
+                var v = p.Value();
+                if (name == "FOLDERS" && v is List<object?> fl)
+                {
+                    var set = fl.OfType<List<object?>>().Where(t => t.Count >= 4)
+                        .Select(t => ((string)t[0]!, (string)t[1]!, (string)t[2]!, (string)t[3]!)).ToArray();
+                    if (set.Length > 0) Folders = set;
+                }
+                else if (name == "STATUSES" && v is List<object?> sl)
+                {
+                    var set = sl.OfType<string>().ToArray();
+                    if (set.Length > 0) Statuses = set;
+                }
+            }
+        }
+        catch (Exception) { Folders = DefaultFolders; Statuses = DefaultStatuses; }
+    }
 
     // Поле записи → константа в файле (KEYS в graph.py).
     public static readonly (string Key, string Const)[] Keys =

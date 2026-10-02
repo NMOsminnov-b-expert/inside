@@ -28,7 +28,7 @@ public sealed class Store : IDisposable
     public event Action<IReadOnlyList<Record>, IReadOnlyList<string>>? Changed;
     public DateTime LastExternal { get; private set; }
 
-    public Store(string root) { Root = root; }
+    public Store(string root) { Root = root; Schema.Load(root); }
 
     public IEnumerable<Record> All => _byPath.Values;
 
@@ -57,6 +57,7 @@ public sealed class Store : IDisposable
     {
         var k = System.IO.Path.Combine(dir, "knowledge");
         return Directory.Exists(k) && (File.Exists(System.IO.Path.Combine(k, "README.md"))
+            || File.Exists(Schema.SchemaPath(dir))
             || Schema.Folders.Any(f => Directory.Exists(System.IO.Path.Combine(k, f.Folder))));
     }
 
