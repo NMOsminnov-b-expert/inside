@@ -409,6 +409,9 @@ public sealed class GraphView : UserControl
 
     public string? Selected { get; private set; }
     public HashSet<string> Highlight { get; set; } = new();
+    // Найденное по смыслу (решение пользователя 02.10.2026): оранжевые кольца;
+    // по словам — синие, выбранный узел — белое.
+    public HashSet<string> SemHighlight { get; set; } = new();
 
     // Кто прошёл фильтры (null — фильтры не заданы). Отсеянные не прячутся, а
     // становятся тёмными и прозрачными, как не-соседи после выбора (задача
@@ -1411,7 +1414,11 @@ public sealed class GraphView : UserControl
     static readonly Color HoverEdge = Color.FromArgb(200, 0xB8, 0xD8, 0xF0);
     static readonly Color Label = Color.FromArgb(240, 0xE6, 0xEC, 0xF2);
     static readonly Color LabelBg = Color.FromArgb(175, 0x13, 0x1B, 0x24);
-    static readonly Color Found = Color.FromArgb(255, 0x7F, 0xD1, 0xFF);
+    // Найдено по словам — синий, по смыслу — оранжевый (системные цвета iOS,
+    // как вся палитра программы), выбор — белый.
+    static readonly Color Found = Color.FromArgb(255, 0x0A, 0x84, 0xFF);
+    static readonly Color FoundSem = Color.FromArgb(255, 0xFF, 0x9F, 0x0A);
+    static readonly Color HoverRing = Color.FromArgb(200, 0xB8, 0xD8, 0xF0);
 
     // Раскладка текста — одна на строку и начертание, дальше только вывод
     // готовой раскладки: DirectWrite не раскладывает подписи заново каждый кадр.
@@ -1626,7 +1633,8 @@ public sealed class GraphView : UserControl
         // В окрестности вся картинка — уже контекст выбранного: второй и
         // третий шаг не приглушаются, приглушает только наведение.
         HashSet<string>? focus = hoverFocus ? _hoverNear : sel && !EgoOn ? _near : null;
-        var hl = Highlight.Count > 0;
+        var hl = Highlight.Count > 0 || SemHighlight.Count > 0;
+        bool Found_(string id) => Highlight.Contains(id) || SemHighlight.Contains(id);
 
         // Подробность по масштабу (semantic zoom, практика kak-uluchshat-graf-znaniy-…):
         // острова на плоскости при сильном отдалении — один круг на остров с
@@ -1758,7 +1766,7 @@ public sealed class GraphView : UserControl
         foreach (var n in _order)
         {
             var col = (NodeColor?.Invoke(n.R)) ?? Parse(Schema.ColorOf(n.R.Folder));
-            var dim = (focus != null && !focus.Contains(n.R.Id)) || (hl && !Highlight.Contains(n.R.Id)) || Out(n);
+            var dim = (focus != null && !focus.Contains(n.R.Id)) || (hl && !Found_(n.R.Id)) || Out(n);
             var fog = Fog(n.Depth);
             col = A(col, (dim ? (_3d ? 0.3f : 0.22f) : 1f) * fog);
             var p = n.S;
@@ -1766,16 +1774,20 @@ public sealed class GraphView : UserControl
             ds.FillCircle(p, r, col);
             // Блик — узел читается шаром, а не кружком.
             if (_3d && r > 3 && !dim) ds.FillCircle(p + new Vector2(-0.32f, -0.36f) * r, r * 0.42f, Color.FromArgb((byte)(70 * fog), 255, 255, 255));
-            if (hl && Highlight.Contains(n.R.Id)) ds.DrawCircle(p, r + 3, A(Found, fog), 2);
-            if (n.R.Id == Selected) ds.DrawCircle(p, r + 4, EdgeOn, 2.5f);
-            if (n == _hover) ds.DrawCircle(p, r + 2, Colors.White, 1.5f);
+            // Кольца: по словам — синее, по смыслу — оранжевое (оба — одно за
+            // другим), выбранный — белое снаружи.
+            var ring = r + 3;
+            if (hl && Highlight.Contains(n.R.Id)) { ds.DrawCircle(p, ring, A(Found, fog), 2); ring += 3.5f; }
+            if (hl && SemHighlight.Contains(n.R.Id)) { ds.DrawCircle(p, ring, A(FoundSem, fog), 2); ring += 3.5f; }
+            if (n.R.Id == Selected) ds.DrawCircle(p, ring + 1, Colors.White, 2.5f);
+            if (n == _hover) ds.DrawCircle(p, r + 2, HoverRing, 1.5f);
             if (n.Pinned && r > 3) ds.FillCircle(p + new Vector2(r * 0.72f, -r * 0.72f), 2.4f, Color.FromArgb((byte)(220 * fog), 255, 255, 255));
 
             int prio;
             if (n.R.Id == Selected) prio = 1000;
             else if (n == _hover) prio = 900;
             else if (focus != null && focus.Contains(n.R.Id)) prio = 500 + n.Deg;
-            else if (hl && Highlight.Contains(n.R.Id)) prio = 400 + n.Deg;
+            else if (hl && Found_(n.R.Id)) prio = 400 + n.Deg;
             else if (EgoOn) prio = 300 - (_ego![n].Level * 50) + n.Deg;
             else if (!dim && focus == null && (_3d ? r > 6.5f : _zoom > 1.1f)) prio = (int)(n.Deg + r);
             // При отдалении — подписи только у центров (самых связанных).

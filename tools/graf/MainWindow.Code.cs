@@ -37,6 +37,8 @@ public sealed partial class MainWindow
     {
         if (Store == null) return;
         _derived = Derived.Load(Store.Root);
+        _sem = SemanticIndex.Load(Store.Root);
+        _semPathToId = Store.All.ToDictionary(r => System.IO.Path.GetRelativePath(Store.Root, r.Path).Replace('\\', '/'), r => r.Id);
         // Соседи по смыслу — в карточку записи вместо подсказок по словам.
         Panel.Similar = id => _derived.Neighbors.TryGetValue(id, out var l)
             ? l.Select(x => (Store.ById(x.Id), x.Sim)).Where(x => x.Item1 != null).Select(x => (x.Item1!, x.Sim)).ToList()

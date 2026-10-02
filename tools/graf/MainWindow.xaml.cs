@@ -25,6 +25,16 @@ public sealed partial class MainWindow : Window
     readonly HashSet<string> _tagsOn = new();
     List<Record> _matches = new();
     int _matchAt = -1;
+    // Поиск по смыслу (решение пользователя 02.10.2026): индекс — выгрузка
+    // semantic_export.py, вектор запроса — Ollama; после паузы в наборе, чтобы
+    // не считать модель на каждую букву (практика «подсказки по мере набора»).
+    SemanticIndex? _sem;
+    Dictionary<string, string> _semPathToId = new();
+    List<Record> _semMatches = new();
+    CancellationTokenSource? _semCts;
+    public bool SemBusy { get; private set; }
+    public IReadOnlyList<Record> SemMatches => _semMatches;
+    public IReadOnlyList<Record> TextMatches => _matches;
     int _mode; // 0 — граф, 1 — 3D, 2 — список
     bool _closingConfirmed;
 
@@ -401,6 +411,15 @@ public sealed partial class MainWindow : Window
         _matches = new();
         _matchAt = -1;
         Graph.Highlight = new();
+        ClearSemantic();
+    }
+
+    void ClearSemantic()
+    {
+        _semCts?.Cancel();
+        _semMatches = new();
+        Graph.SemHighlight = new();
+        SemBusy = false;
     }
 
     // --- оглавление графа --------------------------------------------------------
@@ -603,10 +622,13 @@ public sealed partial class MainWindow : Window
         if (ColorByDate.IsOn) UpdateRecency();
         Graph.Highlight = _matches.Select(m => m.Id).ToHashSet();
         Graph.Redraw();
-        List.ItemsSource = SortRows((Search.Text.Trim().Length > 0 ? _matches.Where(Passes) : all.Where(Passes)).ToList());
+        var found = _matches.Concat(_semMatches.Where(r => !_matches.Contains(r)));
+        List.ItemsSource = SortRows((Search.Text.Trim().Length > 0 ? found.Where(Passes) : all.Where(Passes)).ToList());
         var shown = passing == null ? Graph.NodeCount : vis.Count(r => passing.Contains(r.Id));
         CountText.Text = $"Записей {all.Count} · на графе {Graph.NodeCount}" + (passing != null ? $", отобрано {shown}" : "")
-            + $", связей {Graph.EdgeCount}" + (Search.Text.Trim().Length > 0 ? $" · найдено {_matches.Count}" : "");
+            + $", связей {Graph.EdgeCount}" + (Search.Text.Trim().Length > 0
+                ? $" · найдено по словам {_matches.Count}" + (_semMatches.Count > 0 ? $", по смыслу ещё {_semMatches.Count(r => !_matches.Contains(r))}" : "")
+                : "");
         var problems = Store.Check().Count;
         CheckText.Text = problems.ToString();
         CheckBadge.Visibility = problems == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -724,9 +746,12 @@ public sealed partial class MainWindow : Window
 
     sealed class SearchItem
     {
-        public SearchItem(Record r) { R = r; }
+        public SearchItem(Record r, bool sem = false) { R = r; Sem = sem; }
         public Record R { get; }
-        public override string ToString() => $"{R.Title}  · {Schema.NameOf(R.Folder)}";
+        public bool Sem { get; }
+        // Цвет кольца на графе продублирован словом: смысл не передаётся одним
+        // цветом (практика доступности).
+        public override string ToString() => $"{R.Title}  · {Schema.NameOf(R.Folder)}" + (Sem ? "  · по смыслу" : "");
     }
 
     public void SearchChanged()
@@ -738,16 +763,54 @@ public sealed partial class MainWindow : Window
             .OrderByDescending(r => words.Count(w => r.Title.ToLowerInvariant().Contains(w)))
             .ThenBy(r => r.Title).ToList();
         _matchAt = -1;
-        Search.ItemsSource = _matches.Take(12).Select(r => new SearchItem(r)).ToList();
+        ClearSemantic();
+        FillSuggestions();
         Refresh();
+        if (!_code && _sem != null && Search.Text.Trim().Length >= 3) _ = SearchSemantic(Search.Text.Trim());
+    }
+
+    // Выдача: сначала найденное по словам (точное совпадение надёжнее), под
+    // ним — по смыслу, без повторов: запись, найденная и так и так, стоит
+    // среди найденных по словам.
+    void FillSuggestions()
+    {
+        var text = _matches.Take(8).Select(r => new SearchItem(r));
+        var sem = _semMatches.Where(r => !_matches.Contains(r)).Take(6).Select(r => new SearchItem(r, true));
+        Search.ItemsSource = text.Concat(sem).ToList();
+    }
+
+    async Task SearchSemantic(string q)
+    {
+        var cts = _semCts = new CancellationTokenSource();
+        SemBusy = true;
+        try
+        {
+            await Task.Delay(450, cts.Token);
+            var v = await QueryEmbedder.Embed(_sem!, q, Status, cts.Token);
+            if (cts.IsCancellationRequested || v == null) return;
+            var ids = _sem!.Top(v, 8, 0.05f)
+                .Select(x => _semPathToId.TryGetValue(x.Path, out var id) ? Store!.ById(id) : null)
+                .Where(r => r != null).Select(r => r!).ToList();
+            _semMatches = ids;
+            Graph.SemHighlight = ids.Select(r => r.Id).ToHashSet();
+            FillSuggestions();
+            Refresh();
+            var extra = ids.Count(r => !_matches.Contains(r));
+            Status($"по словам {_matches.Count} · по смыслу ещё {extra} — синие кольца: по словам, оранжевые: по смыслу, белое: выбранная запись");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Status("по смыслу: " + ex.Message); }
+        finally { if (_semCts == cts) SemBusy = false; }
     }
 
     public void NextMatch()
     {
-        if (_matches.Count == 0) return;
-        _matchAt = (_matchAt + 1) % _matches.Count;
-        Select(_matches[_matchAt].Id, center: true);
-        Status($"найдено {_matches.Count}, это {_matchAt + 1}-я; Enter — следующая");
+        // По словам, затем по смыслу — тот же порядок, что в выдаче.
+        var all = _matches.Concat(_semMatches.Where(r => !_matches.Contains(r))).ToList();
+        if (all.Count == 0) return;
+        _matchAt = (_matchAt + 1) % all.Count;
+        Select(all[_matchAt].Id, center: true);
+        Status($"найдено {all.Count}, это {_matchAt + 1}-я" + (_matchAt >= _matches.Count ? " (по смыслу)" : "") + "; Enter — следующая");
     }
 
     void OnFind(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs e) { Search.Focus(FocusState.Keyboard); e.Handled = true; }

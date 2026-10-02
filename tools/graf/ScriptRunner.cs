@@ -33,6 +33,16 @@ public static class ScriptRunner
                 {
                     case "select": w.Select(S("id"), true); break;
                     case "search": w.SetSearch(S("text")); break;
+                    case "semwait":
+                    {
+                        // Дождаться поиска по смыслу и записать найденное в журнал.
+                        var until = DateTime.Now.AddSeconds(st.TryGetProperty("s", out var ss) ? ss.GetDouble() : 120);
+                        await Task.Delay(600);
+                        while (w.SemBusy && DateTime.Now < until) await Task.Delay(200);
+                        log.Add("  по словам: " + string.Join("; ", w.TextMatches.Select(r => r.Id)));
+                        log.Add("  по смыслу: " + string.Join("; ", w.SemMatches.Select(r => r.Id)));
+                        break;
+                    }
                     case "next": w.NextMatch(); break;
                     case "mode": w.SetModePublic(S("value") switch { "3d" => 1, "list" => 2, _ => 0 }); break;
                     case "pull":

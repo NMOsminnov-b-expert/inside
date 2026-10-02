@@ -16,7 +16,15 @@ PostgreSQL + pgvector, %LOCALAPPDATA%\\semsearch); ближайшие сосед
 
 Обновлять после дообновления индекса semsearch (CLAUDE.md, «Граф проекта»,
 шаг 5).
+
+Для поиска по смыслу в самой программе (решение пользователя 02.10.2026:
+«Ищем по знаниям через смысл») рядом пишутся векторы фрагментов записей —
+.graf/semvec.bin (float32 подряд) и .graf/semvec.json (путь записи на каждый
+фрагмент, размерность, модель и инструкция к запросу из .env сервера).
+Программа считает вектор запроса через Ollama и сравнивает его с ними сама,
+без базы.
 """
+import array
 import asyncio
 import datetime
 import json
@@ -53,6 +61,45 @@ from v a cross join lateral (select p, e from v b where b.p <> a.p order by a.e 
 """
 
 
+SQL_CHUNKS = """
+select replace(f.relative_path, chr(92), '/') p, c.embedding::real[] e
+from code_chunks c join code_files f on c.code_file_id = f.id
+where not f.is_deleted and c.embedding is not null and f.relative_path like 'knowledge%'
+order by 1
+"""
+
+
+def server_env():
+    """Модель и инструкция к запросу — как у сервера semsearch (.env)."""
+    env = {}
+    for line in open(os.path.join(SEM, 'src', 'codebase-mcp', '.env'), encoding='ascii'):
+        if '=' in line and not line.startswith('#'):
+            k, v = line.strip().split('=', 1)
+            env[k] = v
+    # В .env перевод строки записан двумя знаками: обратная черта и «n».
+    prefix = env.get('EMBED_QUERY_PREFIX', '').replace('\\n', '\n')
+    if prefix and not prefix[-1].isspace():
+        prefix += ' '
+    return env.get('OLLAMA_EMBEDDING_MODEL', ''), prefix, int(env.get('OLLAMA_NUM_CTX') or 0)
+
+
+def write_vectors(chunks):
+    model, prefix, ctx = server_env()
+    paths, buf, dim = [], array.array('f'), 0
+    for p, e in chunks:
+        dim = len(e)
+        paths.append(p)
+        buf.extend(e)
+    d = os.path.join(ROOT, '.graf')
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, 'semvec.bin'), 'wb') as f:
+        buf.tofile(f)
+    with open(os.path.join(d, 'semvec.json'), 'w', encoding='utf-8') as f:
+        json.dump({'generated': datetime.datetime.now().isoformat(timespec='seconds'), 'model': model,
+                   'prefix': prefix, 'num_ctx': ctx, 'dim': dim, 'paths': paths}, f, ensure_ascii=False)
+    print('векторов фрагментов %d (размерность %d) → .graf/semvec.bin' % (len(paths), dim))
+
+
 async def main():
     os.environ['NO_PROXY'] = os.environ['no_proxy'] = '127.0.0.1,localhost'
     pw = open(os.path.join(SEM, 'pgpass.txt'), encoding='ascii').read().strip()
@@ -64,8 +111,10 @@ async def main():
     conn = await asyncpg.connect(host='localhost', port=5432, user='postgres', password=pw, database=db)
     try:
         rows = await conn.fetch(SQL)
+        chunks = await conn.fetch(SQL_CHUNKS)
     finally:
         await conn.close()
+    write_vectors(chunks)
     ids = {os.path.relpath(p, ROOT).replace('\\', '/'): r['id'] for _f, p, r in graph.load_all()}
     near = {}
     for a, b, s in rows:
