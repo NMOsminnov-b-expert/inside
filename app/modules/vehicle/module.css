@@ -268,4 +268,4 @@ body[data-module="vehicle"] .vh-saved{font-size:11.5px;color:var(--muted);white-
 .vehicle-form .vh-cond-wrap{overflow-x:auto}
 .vehicle-form .vh-cond{min-width:520px}
 .vehicle-form .vh-cond td.vh-cond-el{font-weight:600;color:var(--ink-ctl);white-space:normal}
-.vehicle-form .vh-cond select.ax-cell{cursor:pointer}
+.vehicle-form .vh-cond select.ax-cell{cursor:pointer;font-weight:400}

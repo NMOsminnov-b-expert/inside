@@ -258,7 +258,7 @@ function machineHTML(v, idx, inspect = false) {
     if (!own.length) return '';
     // Топливо — сразу за типом ТС: от него зависят поля рядом.
     if (sec.key === 'tech') {
-      const rank = (k) => ['vtype', 'fuel', 'engineVolume', 'power', 'massEmpty', 'massMax', 'massDesign'].indexOf(k);
+      const rank = (k) => ['vtype', 'fuel', 'engineVolume', 'power', 'battery', 'massEmpty', 'massMax', 'massDesign'].indexOf(k);
       own.sort((a, b) => rank(a.key) - rank(b.key));
     }
     if (sec.key === 'general') own.sort((a, b) => GENERAL_ORDER.indexOf(a.key) - GENERAL_ORDER.indexOf(b.key));
@@ -321,11 +321,14 @@ const COND_COLUMNS = [
   { key: 'note', label: 'Краткое описание', width: 0 },
 ];
 const condWidths = {};
+// Элемент — именем, а не «состоянием чего»: в столбце «Элемент».
+const COND_NAMES = { condBody: 'Кузов и окраска', condInterior: 'Салон', condEngine: 'Двигатель',
+  condChassis: 'Ходовая часть', condElectric: 'Электрооборудование', condOther: 'Прочие элементы' };
 function condTableHTML(vals, list) {
   const rows = list.filter((f) => !f.key.endsWith('Note')).map((g) => {
     const note = list.find((f) => f.key === g.key + 'Note');
     const value = (vals || {})[g.key] || '';
-    const name = g.label.replace(/^Состояние /, '').replace(/^./, (c) => c.toUpperCase());
+    const name = COND_NAMES[g.key] || g.label;
     return `<tr data-ts-key="${esc(g.key)}">
       <td class="vh-cond-el">${esc(name)}</td>
       <td><select class="ax-cell" data-tsf="main|${esc(g.key)}" aria-label="${esc(g.label)}">

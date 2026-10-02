@@ -74,7 +74,8 @@ def run(t):
 
     # Таблица состояния: шесть элементов, оценка и описание.
     rows = pg.eval_on_selector_all('.vh-cond tbody .vh-cond-el', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(len(rows) == 6 and rows[0].startswith('Кузова'), 'таблица состояния не та: %s' % rows)
+    t.ck(rows == ['Кузов и окраска', 'Салон', 'Двигатель', 'Ходовая часть', 'Электрооборудование', 'Прочие элементы'],
+         'таблица состояния не та: %s' % rows)
     # Оформление как у «Дополнительных параметров» и перегородки ширины.
     t.ck(pg.locator('.vh-cond.mu-xtbl').count() == 1, 'таблица состояния не в оформлении доп. параметров')
     grip = pg.locator('.vh-cond [data-col-grip="el"]')
