@@ -33,6 +33,7 @@ KEYS = {
     'Серия и номер документа': 'docNo', 'Пробег': 'mileage', 'Моточасы': 'engineHours',
     'Колёсная формула': 'wheelFormula', 'Число осей': 'axles', 'Число управляемых осей': 'steerAxles',
     'Тип КПП': 'gearbox', 'Коробка отбора мощности': 'pto', 'Техническое состояние': 'state',
+    'Привод': 'driveType', 'Раздаточная коробка': 'transferCase', 'Подруливающие оси': 'rearSteer',
     'Комплектность': 'kit', 'Изготовитель': 'maker', 'Страна сборки': 'country',
     'Заводской № машины (рамы)': 'serialNo', 'Конструкционная масса': 'massDesign', 'Ходовая': 'run',
     'Способ поворота': 'turn', 'Изготовитель модуля': 'maker', 'Модель (индекс) установки': 'model',
@@ -179,6 +180,13 @@ def build():
         'TS_CATEGORIES': cats,
         'TS_BASES': [{'category': b[0], 'name': b[1], 'hint': b[2], 'examples': b[3]} for b in B.BASES],
         'TS_BASE_FIELDS': common(B.BASE_COMMON, {'Категория базы', 'Дополнительные параметры'}),
+        # Общие поля с заменами отдельной базы (B.BASE_COMMON_BY_BASE): у такой
+        # базы карточка берёт этот список вместо TS_BASE_FIELDS.
+        'TS_BASE_FIELDS_BY_BASE': {
+            base: common([(rep[label] if label in rep else row) for row in B.BASE_COMMON
+                          for label in [row[1]] if not (label in rep and rep[label] is None)],
+                         {'Категория базы', 'Дополнительные параметры'})
+            for base, rep in B.BASE_COMMON_BY_BASE.items()},
         'TS_SPECIAL': special,
         'TS_TOWED': [{'name': t[0], 'fields': towed_fields(t[1])} for t in B.TOWED],
         'TS_SELF_GROUPS': group(B.SELF, 0, lambda r: {'name': r[1], 'run': r[2], 'hint': r[3], 'examples': r[4]}),

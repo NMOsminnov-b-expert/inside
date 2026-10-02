@@ -208,6 +208,7 @@ const SECTION_OF = {
   vtype: 'tech', fuel: 'tech', engineVolume: 'tech', power: 'tech',
   massEmpty: 'tech', massMax: 'tech', massDesign: 'tech',
   wheelFormula: 'chassis', axles: 'chassis', steerAxles: 'chassis', gearbox: 'chassis', pto: 'chassis',
+  driveType: 'chassis', transferCase: 'chassis', rearSteer: 'chassis',
   run: 'chassis', turn: 'chassis',
 };
 // Руль и места — сразу за цветом: вместе с годом они заполняют строку.

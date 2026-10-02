@@ -15,7 +15,7 @@
 // базы или вида на экране больше нет, из данных не удаляется — вернули прежний
 // выбор, вернулось и значение (практика динамических полей по категории).
 import {
-  TS_CATEGORIES, TS_BASES, TS_BASE_FIELDS, TS_SPECIAL, TS_TOWED, TS_SELF_GROUPS, TS_SELF_FIELDS,
+  TS_CATEGORIES, TS_BASES, TS_BASE_FIELDS, TS_BASE_FIELDS_BY_BASE, TS_SPECIAL, TS_TOWED, TS_SELF_GROUPS, TS_SELF_FIELDS,
   TS_MODULE_GROUPS, TS_MODULE_FIELDS,
 } from './data/tsCatalog.js';
 
@@ -66,8 +66,31 @@ export const tsOf = (holder) => {
   // двигателя — только у своего.
   v.modules.forEach((m) => migrateDrive(m.f = m.f || {}));
   if (v.kind === 'module') migrateDrive(v.f);
+  if (v.base === PASSENGER) migratePassenger(v);
   return v;
 };
+
+// Легковые до 02.10.2026: колёсная формула, моточасы, КОМ и число управляемых
+// осей. Что переводится однозначно — переводится (4×4 — полный привод, больше
+// одной управляемой оси — подруливание); прежние записи, у которых пары нет,
+// уходят в «Дополнительные параметры» под прежней подписью — не теряются.
+const PASSENGER = 'Легковой автомобиль и внедорожник';
+const PASSENGER_OLD = { wheelFormula: 'Колёсная формула', engineHours: 'Моточасы',
+  pto: 'Коробка отбора мощности', steerAxles: 'Число управляемых осей' };
+function migratePassenger(v) {
+  const f = v.f;
+  if (f.wheelFormula && !f.driveType && /4\s*[×xх*]\s*4/i.test(f.wheelFormula)) f.driveType = 'Полный';
+  if (f.steerAxles && !f.rearSteer && Number(f.steerAxles) > 1) f.rearSteer = 'Да';
+  Object.entries(PASSENGER_OLD).forEach(([key, label]) => {
+    if (f[key] === undefined) return;
+    if (String(f[key]).trim()) {
+      const unit = f[key + '@unit'];
+      v.extra.push({ id: nextId('vx'), label, value: String(f[key]) + (unit ? ' ' + unit : '') });
+    }
+    delete f[key];
+    delete f[key + '@unit'];
+  });
+}
 
 function migrateDrive(f) {
   if (f.drive || !f.engineKind) return;
@@ -154,8 +177,11 @@ export function classified(v) {
   return false;
 }
 
-// Общие поля машины: у ТС — поля базы, у самоходной машины — свои.
-export const commonFields = (v) => (v.kind === 'self' ? TS_SELF_FIELDS : TS_BASE_FIELDS);
+// Общие поля машины: у ТС — поля базы (у отдельных баз — со своими заменами:
+// у легковых привод, раздатка и подруливающие оси вместо колёсной формулы, КОМ
+// и управляемых осей, без моточасов), у самоходной машины — свои.
+export const commonFields = (v) => (v.kind === 'self' ? TS_SELF_FIELDS
+  : (v.kind === 'base' && TS_BASE_FIELDS_BY_BASE[v.base]) || TS_BASE_FIELDS);
 
 // Особые поля: у базы — свои (страна сборки, навеска…); у прицепной машины к
 // ним добавляются поля её вида — она остаётся цельной, со своими полями
