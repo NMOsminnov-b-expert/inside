@@ -75,6 +75,7 @@ export const tsOf = (holder) => {
   v.modules.forEach((m) => migrateDrive(m.f = m.f || {}));
   if (v.kind === 'module') migrateDrive(v.f);
   if (isPassenger(v)) migratePassenger(v);
+  if (isTrailer(v)) migrateTrailer(v);
   return v;
 };
 
@@ -95,6 +96,24 @@ function migrateDrive(f) {
 // однозначно — переводится (4×4 — полный привод, больше одной управляемой оси
 // — подруливание, списки — на значения справочника mashina.kg); прежние
 // записи без пары уходят в «Дополнительные параметры» под прежней подписью.
+// Прицепы — без двигателя (указание пользователя 06.10.2026): прежние
+// значения его полей не теряются, а уходят в «Дополнительные параметры».
+const TRAILER_CAT = 'Прицепы и полуприцепы';
+export const isTrailer = (v) => !!v && v.kind === 'base' && v.category === TRAILER_CAT;
+const TRAILER_OLD = { engineNo: '№ двигателя', fuel: 'Тип топлива', engineVolume: 'Рабочий объём двигателя',
+  power: 'Мощность двигателя', engineHours: 'Моточасы', gearbox: 'Тип КПП', pto: 'Коробка отбора мощности' };
+function migrateTrailer(v) {
+  const f = v.f;
+  Object.entries(TRAILER_OLD).forEach(([key, label]) => {
+    if (f[key] === undefined) return;
+    if (String(f[key]).trim()) {
+      const unit = f[key + '@unit'];
+      v.extra.push({ id: nextId('vx'), label, value: String(f[key]) + (unit ? ' ' + unit : '') });
+    }
+    delete f[key];
+    delete f[key + '@unit'];
+  });
+}
 const PASSENGER_CAT = 'Легковое';
 const PASSENGER_OLD_BASE = 'Легковой автомобиль и внедорожник';
 const PASSENGER_OLD = { wheelFormula: 'Колёсная формула', engineHours: 'Моточасы',

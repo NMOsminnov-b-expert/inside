@@ -21,6 +21,9 @@
   * комплектация легкового — список со «Своя», комментарий только у своей;
     общее состояние у всех ТС (рабочее, условно пригодное, нерабочее, иное),
     описание — только у «Иное» (указания пользователя 06.10.2026);
+  * у прицепов нет двигателя: ни полей двигателя, КПП, КОМ и моточасов, ни
+    привода модуля «от двигателя базы»; подразделы — «Грузовые характеристики»
+    и «Ходовая» (указание пользователя 06.10.2026);
   * прежние записи легкового: база — тип кузова по записи «Тип ТС», 4×4 —
     полный привод, значения списков — на справочник, прежние значения без
     пары — в «Дополнительные параметры».
@@ -158,6 +161,34 @@ def run(t):
     t.ck('Двигатель и грузовые характеристики' in titles, 'заголовок двигателя грузовика не тот: %s' % titles)
     t.ck(pg.locator('[data-ts-key="vid"]').locator('xpath=ancestor::table[contains(@class,"vh-ntbl")]').count() == 1,
          'VID у грузовика не среди номеров')
+
+    # Прицеп: двигателя нет — ни его полей, ни привода модуля от КОМ базы.
+    pg.select_option('[data-ts-cat]', 'Прицепы и полуприцепы')
+    t.wait_for('[data-ts-base]:not([disabled])')
+    pg.select_option('[data-ts-base]', 'Полуприцеп')
+    t.wait_for('[data-tsf="main|make"]')
+    for key in ('engineNo', 'fuel', 'engineVolume', 'power', 'engineHours', 'gearbox', 'pto'):
+        t.ck(not has(key), 'у прицепа осталось поле двигателя %s' % key)
+    titles = pg.evaluate(SECTION_TITLES)
+    t.ck('Грузовые характеристики' in titles and 'Ходовая' in titles and not any('Двигатель' in x for x in titles),
+         'подразделы прицепа не те: %s' % titles)
+    pg.click('[data-ts-madd]')
+    t.wait_for('[data-ts-modgroup]')
+    pg.select_option('[data-ts-modgroup]', 'Цистерны')
+    t.wait_until("() => !document.querySelector('[data-ts-modkind][disabled]')")
+    pg.select_option('[data-ts-modkind]', index=1)
+    t.wait_for('.vh-mform [data-tsf$="|drive"]')
+    drives = pg.eval_on_selector_all('.vh-mform [data-tsf$="|drive"] option', 'els => els.map((e) => e.textContent.trim())')
+    t.ck(not any('КОМ' in x for x in drives), 'у модуля прицепа привод от двигателя базы: %s' % drives)
+
+    trailer = pg.evaluate("""async () => {
+      const m = await import('./app/modules/vehicle/tsModel.js');
+      const v = m.tsOf({ vehicle: { kind: 'base', category: 'Прицепы и полуприцепы', base: 'Прицеп',
+        f: { fuel: 'Дизель', engineNo: '123' }, extra: [], modules: [] } });
+      return { f: v.f, extra: v.extra.map((x) => x.label + '=' + x.value) };
+    }""")
+    t.ck('fuel' not in trailer['f'] and 'Тип топлива=Дизель' in trailer['extra'] and '№ двигателя=123' in trailer['extra'],
+         'прежние поля двигателя прицепа не ушли в доп. параметры: %s' % trailer)
 
     got = pg.evaluate("""async () => {
       const m = await import('./app/modules/vehicle/tsModel.js');

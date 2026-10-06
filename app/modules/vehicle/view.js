@@ -10,7 +10,7 @@ import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, singleBase, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
-  moduleTitle, whatLabel, categoryCandidates, makeWithModules, vtypeField,
+  moduleTitle, whatLabel, categoryCandidates, makeWithModules, vtypeField, isTrailer,
 } from './tsModel.js';
 import { treeSearchHTML } from '../../kernel/treeSearch.js';
 import { lastSavedAt } from '../../kernel/persist.js';
@@ -263,8 +263,11 @@ const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC)
   && !(f.key === 'generalStateNote' && v.f.generalState !== OTHER_STATE);
 // Заголовок подраздела двигателя: у легковых — «Двигатель», у остальных —
 // «Двигатель и грузовые характеристики» (указание пользователя 02.10.2026).
-const secTitle = (v, sec) => (sec.key !== 'tech' ? sec.title
-  : isPassenger(v) ? 'Двигатель' : 'Двигатель и грузовые характеристики');
+// У прицепов двигателя нет — только грузовые характеристики (06.10.2026).
+// и ходовая без трансмиссии.
+const secTitle = (v, sec) => (sec.key === 'chassis' && isTrailer(v) ? 'Ходовая'
+  : sec.key !== 'tech' ? sec.title
+    : isPassenger(v) ? 'Двигатель' : isTrailer(v) ? 'Грузовые характеристики' : 'Двигатель и грузовые характеристики');
 
 // Номера — таблицей (указание пользователя): у машины их несколько, и искать
 // каждый по сетке полей неудобно.
@@ -320,7 +323,9 @@ function machineHTML(v, idx, inspect = false) {
       : sec.key === 'general' ? `<div class="grid vh-grid">${
         own.map((f) => tsFieldHTML(v.f, f, 'main', `vh-s${genSpan(f)}`)).join('')}</div>`
       : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
-      : sec.key === 'tech' && isPassenger(v) ? `<div class="grid vh-grid">${
+      // У легкового и прицепа поля подраздела — пополам: строки заполнены (у
+      // прицепа остались только массы — поля двигателя убраны).
+      : sec.key === 'tech' && (isPassenger(v) || isTrailer(v)) ? `<div class="grid vh-grid">${
         own.map((f) => tsFieldHTML(v.f, f, 'main', 'vh-s2')).join('')}</div>`
         : grid(v.f, own, 'main');
     return sub(secTitle(v, sec), body, allInsp ? '<span class="hint">осмотр</span>' : '');
@@ -570,7 +575,7 @@ function extraPart(rows, owner, title = 'Дополнительные парам
 // модули не спутать с самой машиной (указание пользователя 23.09.2026).
 const CHEV = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
-function moduleRow(m, open) {
+function moduleRow(m, open, noEngine) {
   const cell = (k) => `<span class="vh-mcell" data-ts-mcell="${k}">${esc(String(m.f[k] || '').trim() || '—')}</span>`;
   return `<div class="vh-mitem ${open ? 'open' : ''}" data-ts-mitem="${m.id}">
     <div class="vh-mrow">
@@ -584,13 +589,15 @@ function moduleRow(m, open) {
       <button type="button" class="ax-x mu-del vh-mdel" data-ts-mdel="${m.id}" title="Удалить модуль"
         aria-label="Удалить модуль ${esc(moduleTitle(m))}">×</button>
     </div>
-    ${open ? moduleFormHTML(m) : ''}
+    ${open ? moduleFormHTML(m, noEngine) : ''}
   </div>`;
 }
 
 // Раскрытый модуль: над списками «Группа / Модуль» — поиск по справочнику
 // модулей (помощник, а не замена: выбор заполняет оба списка).
-function moduleFormHTML(m) {
+// noEngine — модуль на прицепе: у базы нет двигателя, привода «от двигателя
+// базы (КОМ)» быть не может.
+function moduleFormHTML(m, noEngine = false) {
   const cascade = `<div class="grid vh-grid">
       <div class="field vh-s2"><label for="ts-${m.id}-g">Группа</label>
         <select class="select" id="ts-${m.id}-g" data-ts-modgroup="${m.id}">${
@@ -602,7 +609,7 @@ function moduleFormHTML(m) {
   const search = treeSearchHTML({ id: 'ts-mfind', label: 'Найти модуль', placeholder: 'Например: автокран, цистерна, ковш' });
   return `<div class="vh-mform" id="ts-mform-${m.id}" data-ts-mform="${m.id}">
     ${search}${cascade}
-    ${m.kind ? `${grid(m.f, moduleFields(m.f, MODULE_FIELDS), m.id)}${extraPart(m.extra, m.id, 'Параметры модуля')}` : ''}
+    ${m.kind ? `${grid(m.f, moduleFields(m.f, MODULE_FIELDS, noEngine), m.id)}${extraPart(m.extra, m.id, 'Параметры модуля')}` : ''}
   </div>`;
 }
 
@@ -615,7 +622,7 @@ export const openModuleId = (ctx, v) => {
 
 function modulesHTML(ctx, v, idx) {
   const open = openModuleId(ctx, v);
-  const list = v.modules.map((m) => moduleRow(m, m.id === open)).join('');
+  const list = v.modules.map((m) => moduleRow(m, m.id === open, isTrailer(v))).join('');
   return card('violet', idx, 'Модули', 'надстройки и навесное оборудование, смонтированные на базе',
     `<div class="vh-mlist">${list || '<div class="vehicle-note">Модулей нет.</div>'}
       <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`, '', 'data-ts-block="modules"');
