@@ -14,6 +14,7 @@ import { comparativeTab } from './comparative.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
+import { institutionChain, ownHTML, chainHTML, summaryHTML } from '../../../kernel/contacts.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
 // объектов имущества, ровно как в столбце реестра (решение пользователя
@@ -62,7 +63,36 @@ function withComparative(tabs) {
 }
 
 
-function partiesOC(rec) {
+// Контакты для связи (решение пользователя 06.10.2026: «чистым интерфейсом,
+// но что бы каждый раз контакты не мозолили глаза»). В строке учреждения —
+// сводка одной строкой (первый контакт и «и ещё N»), все контакты — по
+// нажатию, под строкой: свои контакты объекта и подтянутые от узлов дерева
+// учреждений, от подведа вверх (правятся в учреждении). Свободные колонки этой
+// строки и так пустовали — сводка места не прибавляет.
+const instHref = (node) => `#/institutions?node=${encodeURIComponent(node.id)}&name=${encodeURIComponent(node.name)}&tab=contacts`;
+
+export function contactsUi(ctx) {
+  ctx.ui.contacts = ctx.ui.contacts || { open: false, editing: null };
+  return ctx.ui.contacts;
+}
+
+function contactsRowHTML(ctx) {
+  const rec = ctx.rec;
+  const ui = contactsUi(ctx);
+  const chain = institutionChain(rec.institution, rec.podved);
+  const all = [...(rec.contacts || []), ...chain.flatMap((x) => x.contacts)];
+  return {
+    cell: `<div class="field ct-cell"><span class="lbl">Контакты для связи</span>${summaryHTML(all, { key: 'oc', open: ui.open })}</div>`,
+    panel: ui.open ? `<div class="ct-panel">
+      ${ownHTML(rec.contacts || [], { key: 'oc', editing: ui.editing })}
+      ${chainHTML(chain, instHref)}
+    </div>` : '',
+  };
+}
+
+function partiesOC(ctx) {
+  const rec = ctx.rec;
+  const ct = contactsRowHTML(ctx);
   // Отступ сверху — как у просмотрщика слева, чтобы верх двух колонок совпадал.
   // Прежние 12px остались от полосы вкладок, которой над блоком больше нет.
   return `<div class="card t-slate" style="margin-top:10px">
@@ -75,8 +105,9 @@ function partiesOC(rec) {
       <div class="grid g-4 g-top">
         <div class="field"><span class="lbl">Головное учреждение</span><b>${esc(rec.institution)}</b></div>
         <div class="field"><span class="lbl">Подвед</span><b>${esc(rec.podved)}</b></div>
-
+        ${ct.cell}
       </div>
+      ${ct.panel}
 
       <!-- Стороны — тем же блоком, что в форме ОЦ: раньше шапка держала свою
            копию разметки, и правки доходили только до одной из них. -->
@@ -90,7 +121,7 @@ function partiesOC(rec) {
 
 export function viewOC(ctx) {
   const rec = ctx.rec;
-  const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx) + capSummaryHTML(ctx));
+  const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(ctx) + tableOI(ctx) + capSummaryHTML(ctx));
 
   // Спрятанная вкладка по прямому адресу открывает «Общие данные».
   const tab = ctx.tab === 'comparative' && COMPARATIVE_HIDDEN ? 'general' : ctx.tab;

@@ -8,6 +8,7 @@
 // Раскладка повторяет карточку ОЦ: панель слева, содержимое справа, вкладки над
 // таблицей, ширины столбцов тянутся перегородками (kernel/columns.js).
 import { esc } from '../../kernel/dom.js';
+import { nodeContacts, parentChain, ownHTML, chainHTML, bindContacts, isEmptyContact } from '../../kernel/contacts.js';
 import { fmtEni, eniRegion } from '../../kernel/fmt.js';
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import { MENU_HREF, DOCS_HREF, build } from '../../kernel/router.js';
@@ -40,7 +41,8 @@ const state = {
   q: '',               // поиск по дереву
   open: {},            // раскрытые узлы: { id: true }
   selected: null,      // выбранный узел
-  tab: 'oc',           // вкладка справа: 'oc' | 'all' | 'docs'
+  tab: 'oc',           // вкладка справа: 'oc' | 'all' | 'docs' | 'contacts'
+  ct: { open: true, editing: null }, // правка контактов узла (kernel/contacts.js)
   rowQ: '',            // поиск внутри таблицы
   attach: null,        // открыт диалог привязки: { q }
   edit: null,          // правка узла: { id | 'new', parentId, name, note, region }
@@ -843,11 +845,14 @@ function contentHTML() {
       <button class="itab ${state.tab === 'all' ? 'on' : ''}" data-itab="all"
         title="Объекты этого учреждения и всех подведомственных, с фильтрами">С подведомственными<b>${totalCount(node)}</b></button>
       <button class="itab ${state.tab === 'docs' ? 'on' : ''}" data-itab="docs">Документы<b>${docs}</b></button>
+      <button class="itab ${state.tab === 'contacts' ? 'on' : ''}" data-itab="contacts"
+        title="Контакты узла и подтянутые от вышестоящих — их видно в карточках ОЦ">Контакты<b>${contactCount(node)}</b></button>
       <span class="itabs-acts">${tabActionsHTML(node, isRoot)}</span>
     </div>
 
     ${state.tab === 'oc' ? ocPaneHTML(node, isRoot)
       : state.tab === 'all' ? allPaneHTML(subtreeRowsOf(node), state.all, allWidths)
+      : state.tab === 'contacts' ? contactsPaneHTML(node)
       : docTableHTML(node)}
   </div>`;
 }
@@ -856,7 +861,7 @@ function contentHTML() {
 // 03.09.2026, рисунком поверх скриншота): полоса вкладок и так тянется во всю
 // ширину пустой, а действия ниже отнимали у просмотрщика отдельную строку.
 function tabActionsHTML(node, isRoot) {
-  if (state.tab === 'all') return '';
+  if (state.tab === 'all' || state.tab === 'contacts') return '';
   if (state.tab === 'oc') {
     return isRoot ? '' : '<button class="btn btn-primary btn-sm" data-attach-open>+ Прикрепить ОЦ</button>';
   }
@@ -866,6 +871,24 @@ function tabActionsHTML(node, isRoot) {
       <button class="btn btn-ghost btn-sm" data-idoc-attach-open>Прикрепить существующий</button>` : ''}
     <button class="btn btn-ghost btn-sm" data-idocs="${esc(node.name)}"
       title="Открыть эти документы в общем реестре">Открыть в «Документах»</button>`;
+}
+
+// Контакты узла (решение пользователя 06.10.2026): свои — с правкой, от
+// вышестоящих — только показ с переходом к ним. Те же контакты подтягиваются
+// в карточки ОЦ этого узла и всех подведомственных.
+const instHref = (n) => `#/institutions?node=${encodeURIComponent(n.id)}&name=${encodeURIComponent(n.name)}&tab=contacts`;
+
+function contactCount(node) {
+  return [...nodeContacts(node), ...parentChain(node).flatMap((x) => x.contacts)]
+    .filter((c) => !isEmptyContact(c)).length;
+}
+
+function contactsPaneHTML(node) {
+  return `<div class="ipane"><div class="ct-panel ict-panel">
+    ${ownHTML(nodeContacts(node), { key: 'inst', editing: state.ct.editing, title: 'Контакты учреждения',
+      empty: 'Своих контактов нет — у объектов будут видны контакты вышестоящих' })}
+    ${chainHTML(parentChain(node), instHref)}
+  </div></div>`;
 }
 
 // Вкладка объектов: поиск и таблица.
@@ -909,6 +932,8 @@ export function mountInstitutions(host) {
     if (byName) state.selected = byName.id;
   }
   if (state.selected) pathOf(state.selected).forEach((n) => { state.open[n.id] = true; });
+  // Из карточки ОЦ «Править в учреждении» ведёт сразу на контакты узла.
+  if (state.selected && q.tab === 'contacts') state.tab = 'contacts';
   document.body.dataset.page = 'institutions';
   // Просмотрщик документов общий с реестром «Документы» и карточками ОЦ
   // (kernel/viewer/pageViewer.js). Клавиши — один раз за монтирование раздела.
@@ -1095,6 +1120,11 @@ export function mountInstitutions(host) {
       state.rowQ = '';
       render();
     });
+
+    if (state.tab === 'contacts' && state.selected) {
+      const node = getNode(state.selected);
+      bindContacts(scope, 'inst', { list: (create) => nodeContacts(node, create), ui: state.ct, rerender: render });
+    }
 
     const rowQ = scope.$('[data-irowq]');
     if (rowQ) rowQ.oninput = () => {

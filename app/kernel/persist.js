@@ -56,9 +56,10 @@ const LEGACY_VERSION = 2;
 // говорим об этом в консоль — в макете это единственный канал.
 const MAX_BYTES = 4 * 1024 * 1024;
 
-// Общие части снимка — записи ОЦ. «records.production» — только перенос
-// записей прежнего типа, своих данных у него нет.
-const isShared = (name) => /^records\./.test(name) && name !== 'records.production';
+// Общие части снимка — записи ОЦ и контакты узлов учреждений
+// (kernel/contacts.js). «records.production» — только перенос записей
+// прежнего типа, своих данных у него нет.
+const isShared = (name) => /^(records|contacts)\./.test(name) && name !== 'records.production';
 
 const sources = new Map();
 
