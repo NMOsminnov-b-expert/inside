@@ -465,6 +465,9 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   косяки — в `docs/reestr-kosyakov.md` (`podskazki-ne-vyhodyat-za-granicy-stranicy`).
 * **Правка карточек — точечно, коммит на каждую**, чужие карточки не трогать,
   проверки по отмашке (`claude-feedback-civil-card-workflow`).
+* **Назван столбец (лист, диапазон) — читать только его**, без разбора остальной
+  структуры файла; «не трогать» — значит и не читать
+  (`ukazan-stolbec-chitat-tolko-ego-bez-razbora-ostalnoy-struktury-fayla`).
 * **К диску Y: и папкам с исходными фото не обращаться** — только к
   выгруженному перечню (`claude-feedback-no-disk-browsing`).
 * **Ветка — `refactor`**, коммиты прямо в неё; `refactor-TS` влита и не
