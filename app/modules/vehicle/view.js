@@ -6,6 +6,7 @@ import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
 import { partiesHTML } from './parties.view.js';
 import { tsFieldHTML } from './tsFields.view.js';
+import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
@@ -331,6 +332,12 @@ const COND_COLUMNS = [
   { key: 'note', label: 'Краткое описание', width: 0 },
 ];
 const condWidths = {};
+// Характеристика ступени шкалы — подсказкой: у пункта списка, у выбранного
+// значения и всей шкалой — у заголовка столбца (шкала — лист «Шкалы» методики
+// расчёта ТС, передана пользователем 06.10.2026). Текст длинный, в ячейку
+// таблицы не помещается — поэтому подсказка, а не строка под полем.
+const GRADE_HINT = Object.fromEntries(TS_CONDITION_SCALE.map((g) => [g.name, g.hint]));
+const SCALE_TIP = TS_CONDITION_SCALE.map((g) => `${g.name} — ${g.hint}`).join('\n\n');
 // Элемент — именем, а не «состоянием чего»: в столбце «Элемент».
 const COND_NAMES = { condBody: 'Кузов и окраска', condInterior: 'Салон', condEngine: 'Двигатель',
   condChassis: 'Ходовая часть', condElectric: 'Электрооборудование', condOther: 'Прочие элементы' };
@@ -341,14 +348,16 @@ function condTableHTML(vals, list) {
     const name = COND_NAMES[g.key] || g.label;
     return `<tr data-ts-key="${esc(g.key)}">
       <td class="vh-cond-el">${esc(name)}</td>
-      <td><select class="ax-cell" data-tsf="main|${esc(g.key)}" aria-label="${esc(g.label)}">
-        <option value="">Не выбрано</option>${(g.options || []).map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+      <td><select class="ax-cell" data-tsf="main|${esc(g.key)}" data-ts-grade aria-label="${esc(g.label)}"
+        title="${esc(GRADE_HINT[value] || '')}">
+        <option value="">Не выбрано</option>${(g.options || []).map((o) => `<option ${o === value ? 'selected' : ''}
+          title="${esc(GRADE_HINT[o] || '')}">${esc(o)}</option>`).join('')}
       </select></td>
       <td>${note ? `<input class="ax-cell" data-tsf="main|${esc(note.key)}" value="${esc((vals || {})[note.key] || '')}"
         aria-label="${esc(note.label)}" placeholder="Кратко: что видно на осмотре">` : ''}</td>
     </tr>`;
   }).join('');
-  const head = COND_COLUMNS.map((c, i) => `<th data-col="${c.key}">${colLabelHTML(c)}${resizeGripHTML(c, i === COND_COLUMNS.length - 1)}</th>`).join('');
+  const head = COND_COLUMNS.map((c, i) => `<th data-col="${c.key}"${c.key === 'grade' ? ` title="${esc(SCALE_TIP)}" class="vh-tip"` : ''}>${colLabelHTML(c)}${resizeGripHTML(c, i === COND_COLUMNS.length - 1)}</th>`).join('');
   return `<div class="vh-cond-wrap" data-ts-cond-box style="${columnVarsStyle(COND_COLUMNS, condWidths)}">
     <table class="tbl mu-xtbl vh-xtbl vh-cond">${colGroupHTML(COND_COLUMNS, condWidths)}
     <thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -357,6 +366,9 @@ function condTableHTML(vals, list) {
 // Перегородки таблицы состояния; ширины общие на модуль — после перетаскивания
 // проставляются всем таблицам состояния на экране.
 export function bindCondColumns(scope) {
+  scope.$$('[data-ts-grade]').forEach((sel) => sel.addEventListener('change', () => {
+    sel.title = GRADE_HINT[sel.value] || '';
+  }));
   bindColumnResize(scope, {
     rootSel: '[data-ts-cond-box]',
     cols: COND_COLUMNS,

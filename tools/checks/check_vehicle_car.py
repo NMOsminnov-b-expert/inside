@@ -76,6 +76,16 @@ def run(t):
     rows = pg.eval_on_selector_all('.vh-cond tbody .vh-cond-el', 'els => els.map((e) => e.textContent.trim())')
     t.ck(rows == ['Кузов и окраска', 'Салон', 'Двигатель', 'Ходовая часть', 'Электрооборудование', 'Прочие элементы'],
          'таблица состояния не та: %s' % rows)
+    # Шкала состояния — семь ступеней методики, у ступени — характеристика в подсказке.
+    grades = opt('condBody')[1:]
+    t.ck(grades == ['Новое', 'Очень хорошее', 'Хорошее', 'Удовлетворительное', 'Условно пригодное',
+                    'Неудовлетворительное', 'Не подлежит ремонту'], 'шкала состояния не та: %s' % grades)
+    t.ck(pg.eval_on_selector_all('[data-tsf$="|condBody"] option[title]', 'els => els.filter((e) => e.title).length') == 7,
+         'у ступеней шкалы нет подсказок')
+    pg.select_option('[data-tsf$="|condBody"]', 'Удовлетворительное')
+    t.wait_until("() => document.querySelector('[data-tsf$=\"|condBody\"]').title.includes('текущего ремонта')")
+    t.ck('Условно пригодное' in (pg.locator('.vh-cond th[data-col="grade"]').get_attribute('title') or ''),
+         'у заголовка «Состояние» нет шкалы')
     # Оформление как у «Дополнительных параметров» и перегородки ширины.
     t.ck(pg.locator('.vh-cond.mu-xtbl').count() == 1, 'таблица состояния не в оформлении доп. параметров')
     grip = pg.locator('.vh-cond [data-col-grip="el"]')

@@ -221,6 +221,8 @@ def build():
         'TS_SELF_FIELDS': common(B.SELF_COMMON, {'Дополнительные параметры'}),
         'TS_MODULE_GROUPS': group(B.MODULES, 0, lambda r: {'name': r[1], 'hint': r[2], 'note': r[3]}),
         'TS_MODULE_FIELDS': common(B.MODULE_COMMON, {'Вид модуля', 'Дополнительные параметры'}),
+        # Ступени шкалы состояния и их характеристики — подсказки таблицы состояния.
+        'TS_CONDITION_SCALE': [{'name': g, 'hint': h} for g, h in B.CONDITION_GRADES],
     }
 
     head = ('// Справочник категоризации ТС для карточки: категории и базы, особые поля баз,\n'
