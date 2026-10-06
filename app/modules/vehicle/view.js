@@ -10,7 +10,7 @@ import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
-  moduleTitle, whatLabel, categoryCandidates, makeWithModules,
+  moduleTitle, whatLabel, categoryCandidates, makeWithModules, vtypeField,
 } from './tsModel.js';
 import { treeSearchHTML } from '../../kernel/treeSearch.js';
 import { lastSavedAt } from '../../kernel/persist.js';
@@ -145,7 +145,7 @@ function kindHTML(ctx, v, idx) {
   if (v.kind === 'base') {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
-    const vtype = commonFields(v).find((f) => f.key === 'vtype');
+    const vtype = vtypeField(v, commonFields(v).find((f) => f.key === 'vtype'));
     const cands = categoryCandidates(v.f.vtype).filter((c) => c !== v.category);
     sug = cands.length && !(v.category && categoryCandidates(v.f.vtype).includes(v.category))
       ? `<div class="vh-sug" data-ts-sug>По записи «${esc(v.f.vtype)}» может быть:${cands.map((c) => `
@@ -256,6 +256,7 @@ function machineHTML(v, idx, inspect = false) {
   const special = specialFields(v).filter((f) => f.key !== 'country');
   const country = specialFields(v).find((f) => f.key === 'country');
   const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
+    .map((f) => vtypeField(v, f))
     .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : [])
     .filter((f) => !inspect || inspectField(f))
     // В режиме осмотра всё — с осмотра: метка у поля ничего не добавляет.
@@ -429,6 +430,7 @@ export function sectionFields(v, key, inspect = false) {
   const special = specialFields(v).filter((f) => f.key !== 'country');
   const country = specialFields(v).find((f) => f.key === 'country');
   const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
+    .map((f) => vtypeField(v, f))
     .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : []);
   const out = SECTIONS.map((sec) => ({ group: secTitle(v, sec), fields: keep(list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key)) }));
   out.push({ group: 'Особое для базы', fields: keep(special) });

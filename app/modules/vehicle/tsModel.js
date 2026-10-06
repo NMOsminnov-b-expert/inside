@@ -16,7 +16,7 @@
 // выбор, вернулось и значение (практика динамических полей по категории).
 import {
   TS_CATEGORIES, TS_BASES, TS_BASE_FIELDS, TS_BASE_FIELDS_BY_CATEGORY, TS_SPECIAL, TS_TOWED, TS_SELF_GROUPS, TS_SELF_FIELDS,
-  TS_MODULE_GROUPS, TS_MODULE_FIELDS,
+  TS_MODULE_GROUPS, TS_MODULE_FIELDS, TS_VTYPE_BY_CATEGORY, TS_VTYPE_SELF,
 } from './data/tsCatalog.js';
 
 // Подписи — по указанию пользователя 23.09.2026: «самоходную технику меняем на
@@ -213,6 +213,15 @@ export function classified(v) {
 // машины — свои.
 export const commonFields = (v) => (v.kind === 'self' ? TS_SELF_FIELDS
   : (v.kind === 'base' && TS_BASE_FIELDS_BY_CATEGORY[v.category]) || TS_BASE_FIELDS);
+// Подсказки «Тип ТС, вид кузова» — своей категории (замечание пользователя
+// 06.10.2026: «В грузовом видно легковые и наоборот»); у спецтехники — свои;
+// пока категория не выбрана — всех категорий.
+export function vtypeField(v, f) {
+  if (!f || f.key !== 'vtype') return f;
+  const list = v.kind === 'self' ? TS_VTYPE_SELF
+    : TS_VTYPE_BY_CATEGORY[v.category] || TS_VTYPE_BY_CATEGORY['По техпаспорту'] || f.suggest;
+  return { ...f, suggest: list };
+}
 export const isPassenger = (v) => !!v && v.kind === 'base' && v.category === PASSENGER_CAT;
 
 // Особые поля: у базы — свои (страна сборки, навеска…); у прицепной машины к

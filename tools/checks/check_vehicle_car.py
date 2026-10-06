@@ -11,6 +11,8 @@
     страной производства, привод, коробка с вариатором, топливо по
     mashina.kg, пробег по одометру, ёмкость батареи — только у электро и
     гибрида; состояние — таблицей по шести элементам с описанием;
+  * подсказки «Тип ТС, вид кузова» — своей категории: в грузовом не видно
+    легковых и наоборот (замечание пользователя 06.10.2026);
   * подраздел двигателя у легкового — «Двигатель», у грузовика — «Двигатель и
     грузовые характеристики»; VID — среди номеров у любой категории; у
     грузовика колёсная формула и КОМ на месте;
@@ -55,6 +57,9 @@ def run(t):
     order = pg.evaluate("""() => [...document.querySelectorAll('[data-ts-cat], [data-ts-base], [data-tsf="main|vtype"]')]
       .map((e) => e.dataset.tsCat !== undefined ? 'cat' : e.dataset.tsBase !== undefined ? 'base' : 'vtype')""")
     t.ck(order == ['cat', 'base', 'vtype'], '«Тип ТС, вид кузова» не под выбором: %s' % order)
+    vt = lambda: pg.evaluate("""() => { const i = document.querySelector('[data-tsf="main|vtype"]');
+      return i && i.list ? [...i.list.options].map((o) => o.value) : []; }""")
+    t.ck(vt() and all(x.startswith('легковой') for x in vt()), 'в подсказках типа легкового чужие варианты: %s' % vt()[:8])
 
     for key in ('docKind', 'trim', 'country', 'driveType', 'gearbox', 'fuel', 'mileage', 'vid', 'condBody', 'condOtherNote'):
         t.ck(has(key), 'у легкового нет поля %s' % key)
@@ -136,6 +141,8 @@ def run(t):
     t.wait_for('[data-ts-base]:not([disabled])')
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
+    t.ck(any(x.startswith('грузовой') for x in vt()) and not any(x.startswith('легковой') for x in vt()),
+         'в подсказках типа грузовика легковые или нет грузовых: %s' % vt()[:8])
     for key in ('wheelFormula', 'pto', 'steerAxles', 'massMax', 'generalState'):
         t.ck(has(key), 'у грузовика пропало поле %s' % key)
     titles = pg.evaluate(SECTION_TITLES)
