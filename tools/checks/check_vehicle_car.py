@@ -82,7 +82,9 @@ def run(t):
 
     # Таблица состояния: шесть элементов, оценка и описание.
     rows = pg.eval_on_selector_all('.vh-cond tbody .vh-cond-el', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(rows == ['Кузов и окраска', 'Салон', 'Двигатель', 'Ходовая часть', 'Электрооборудование', 'Прочие элементы'],
+    # Общее состояние — итоговой строкой таблицы (указание пользователя 06.10.2026).
+    t.ck(rows == ['Кузов и окраска', 'Салон', 'Двигатель', 'Ходовая часть', 'Электрооборудование', 'Прочие элементы',
+                  'Общее состояние'],
          'таблица состояния не та: %s' % rows)
     # Шкала состояния — семь ступеней методики, у ступени — характеристика в подсказке.
     grades = opt('condBody')[1:]
@@ -123,7 +125,7 @@ def run(t):
          'шкала общего состояния не та: %s' % opt('generalState'))
     t.ck(not has('generalStateNote'), 'описание общего состояния видно без «Иное»')
     pg.select_option('[data-tsf="main|generalState"]', 'Иное')
-    t.wait_until("() => !!document.querySelector('[data-tsf$=\"|generalStateNote\"]')")
+    t.wait_until("() => !!document.querySelector('.vh-cond [data-tsf$=\"|generalStateNote\"]')")
 
     # Батарея — у электро и гибрида.
     t.ck(not has('battery'), 'батарея видна у бензинового')

@@ -303,8 +303,13 @@ function machineHTML(v, idx, inspect = false) {
       `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
   const useAll = commonFields(v).filter((f) => f.block === 'use' && shown(v, f));
-  const cond = useAll.filter((f) => COND.test(f.key));
-  const use = useAll.filter((f) => !COND.test(f.key));
+  // Общее состояние — итоговой строкой таблицы состояния, где она есть
+  // (указание пользователя 06.10.2026: «Общее состояние должно быть в таблице
+  // состояний»); у остальных ТС — в «Наработке и состоянии».
+  const hasCond = useAll.some((f) => COND.test(f.key));
+  const inCond = (f) => COND.test(f.key) || (hasCond && GENERAL.test(f.key));
+  const cond = useAll.filter(inCond);
+  const use = useAll.filter((f) => !inCond(f));
   if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>'));
   if (cond.length) parts.push(sub('Состояние', condTableHTML(v.f, cond), '<span class="hint">осмотр</span>'));
   if (!inspect) parts.push(extraPart(v.extra, 'main'));
@@ -346,14 +351,18 @@ const condWidths = {};
 const GRADE_HINT = Object.fromEntries(TS_CONDITION_SCALE.map((g) => [g.name, g.hint]));
 const SCALE_TIP = TS_CONDITION_SCALE.map((g) => `${g.name} — ${g.hint}`).join('\n\n');
 // Элемент — именем, а не «состоянием чего»: в столбце «Элемент».
+const GENERAL = /^generalState/;
 const COND_NAMES = { condBody: 'Кузов и окраска', condInterior: 'Салон', condEngine: 'Двигатель',
-  condChassis: 'Ходовая часть', condElectric: 'Электрооборудование', condOther: 'Прочие элементы' };
+  condChassis: 'Ходовая часть', condElectric: 'Электрооборудование', condOther: 'Прочие элементы',
+  generalState: 'Общее состояние' };
 function condTableHTML(vals, list) {
   const rows = list.filter((f) => !f.key.endsWith('Note')).map((g) => {
     const note = list.find((f) => f.key === g.key + 'Note');
     const value = (vals || {})[g.key] || '';
     const name = COND_NAMES[g.key] || g.label;
-    return `<tr data-ts-key="${esc(g.key)}">
+    // Общее состояние — итоговая строка: своя шкала, описание — только при «Иное».
+    const total = GENERAL.test(g.key);
+    return `<tr data-ts-key="${esc(g.key)}" ${total ? 'class="vh-cond-total"' : ''}>
       <td class="vh-cond-el">${esc(name)}</td>
       <td><select class="ax-cell" data-tsf="main|${esc(g.key)}" data-ts-grade aria-label="${esc(g.label)}"
         title="${esc(GRADE_HINT[value] || '')}">
@@ -361,7 +370,7 @@ function condTableHTML(vals, list) {
           title="${esc(GRADE_HINT[o] || '')}">${esc(o)}</option>`).join('')}
       </select></td>
       <td>${note ? `<input class="ax-cell" data-tsf="main|${esc(note.key)}" value="${esc((vals || {})[note.key] || '')}"
-        aria-label="${esc(note.label)}" placeholder="Кратко: что видно на осмотре">` : ''}</td>
+        aria-label="${esc(note.label)}" placeholder="${total ? 'Опишите состояние' : 'Кратко: что видно на осмотре'}">` : ''}</td>
     </tr>`;
   }).join('');
   const head = COND_COLUMNS.map((c, i) => `<th data-col="${c.key}"${c.key === 'grade' ? ` title="${esc(SCALE_TIP)}" class="vh-tip"` : ''}>${colLabelHTML(c)}${resizeGripHTML(c, i === COND_COLUMNS.length - 1)}</th>`).join('');
