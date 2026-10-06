@@ -39,7 +39,7 @@ import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 //                                       подразделы в порядке граф свидетельства,
 //                                       особое для базы, наработка и состояние,
 //                                       дополнительные параметры
-//   05  Модули                        — что стоит на машине
+//   05  Модули                        — надстройки и навесное оборудование на базе
 //   06  Фото с осмотра                — «Машина» и «Модули»
 //
 // Пробег, моточасы и состояние машины — подразделом её блока, а не отдельным
@@ -505,8 +505,11 @@ export function extraTableHTML(rows, owner) {
 const EXTRA_HELP = {
   main: 'Для сведений без своего поля, чтобы они не терялись: особые отметки из свидетельства, данные других '
     + 'документов. Слева — что это, справа — значение.',
-  module: 'Характеристики оборудования, у каждого вида свои: слева название с единицей («Грузоподъёмность, т»), '
-    + 'справа значение.',
+  // Подписи модулей — терминами, без пометок об источнике (замечание
+  // пользователя 06.10.2026: «комментарий к модулям плохо подходит. Особенно
+  // непонятно, что там делает слово „осмотр“… более квалифицированными и без
+  // лишнего»).
+  module: 'Технические характеристики модуля без отдельного поля: наименование с единицей измерения и значение.',
 };
 
 function extraPart(rows, owner, title = 'Дополнительные параметры', kind = owner === 'main' ? 'main' : 'module') {
@@ -570,7 +573,7 @@ export const openModuleId = (ctx, v) => {
 function modulesHTML(ctx, v, idx) {
   const open = openModuleId(ctx, v);
   const list = v.modules.map((m) => moduleRow(m, m.id === open)).join('');
-  return card('violet', idx, 'Модули', 'что стоит на машине: кузов, цистерна, кран, навесное; осмотр',
+  return card('violet', idx, 'Модули', 'надстройки и навесное оборудование, смонтированные на базе',
     `<div class="vh-mlist">${list || '<div class="vehicle-note">Модулей нет.</div>'}
       <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`, '', 'data-ts-block="modules"');
 }
@@ -605,7 +608,7 @@ function photosHTML(ctx, v, idx, set) {
 // оборудования.
 function loneModuleHTML(v, idx) {
   const use = MODULE_FIELDS.filter((f) => f.block === 'use');
-  return card('violet', idx, v.modKind || 'Оборудование', 'снято с машины или хранится отдельно; осмотр',
+  return card('violet', idx, v.modKind || 'Оборудование', 'оборудование, не смонтированное на транспортном средстве',
     grid(v.f, moduleFields(v.f, MODULE_FIELDS.filter((f) => f.block === 'machine'), true), 'main')
     + sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>')
     + extraPart(v.extra, 'main', 'Параметры оборудования', 'module'));
