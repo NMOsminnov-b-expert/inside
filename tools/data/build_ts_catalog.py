@@ -264,6 +264,21 @@ def build():
         'TS_CONDITION_SCALE': [{'name': g, 'hint': h} for g, h in B.CONDITION_GRADES],
     }
 
+    # Подсказки «Тип ТС» и шаблоны — один словарь: запись шаблона есть и в
+    # подсказках своей категории (иначе шаблон пишет то, чего нет в списке).
+    vt = data['TS_VTYPE_BY_CATEGORY']
+    for t in data['TS_TEMPLATES']:
+        if t['kind'] == 'base' and t['vtype'] and t['vtype'] not in vt.setdefault(t['category'], []):
+            vt[t['category']].append(t['vtype'])
+    vt['По техпаспорту'] = [x for c, v in vt.items() if c != 'По техпаспорту' for x in v]
+
+    # Носители шаблонов — только существующие базы и виды спецтехники.
+    bases = {(b['category'], b['name']) for b in data['TS_BASES']}
+    selfs = {(g['group'], i['name']) for g in data['TS_SELF_GROUPS'] for i in g['items']}
+    for t in data['TS_TEMPLATES']:
+        key = (t.get('selfGroup'), t.get('selfKind')) if t['kind'] == 'self' else (t['category'], t['base'])
+        assert key in (selfs if t['kind'] == 'self' else bases), 'шаблон «%s»: нет носителя %s' % (t['name'], key)
+
     head = ('// Справочник категоризации ТС для карточки: категории и базы, особые поля баз,\n'
             '// самоходные машины, модули и общие поля с пометкой, откуда их заполняют.\n'
             '//\n'

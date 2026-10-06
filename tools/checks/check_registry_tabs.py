@@ -40,7 +40,7 @@ def run(t):
         if kind == 'vehicle':
             pg.select_option('[data-ts-cat]', 'Грузовое')
             t.wait_for('[data-ts-base]:not([disabled])')
-            pg.select_option('[data-ts-base]', 'Седельный тягач')
+            pg.select_option('[data-ts-base]', 'Седельное ТС')
 
     # --- вкладки ---------------------------------------------------------------------
     t.open('', wait='.reg-tr')

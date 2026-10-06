@@ -43,9 +43,14 @@ export function templateLeaves() {
 // Собрать карточку по шаблону. «Тип ТС» — только в пустое поле: запись из
 // техпаспорта важнее. Модули добавляются недостающие, уже заведённые остаются.
 export function applyTemplate(v, t) {
-  v.kind = 'base';
-  v.category = t.category;
-  v.base = t.base;
+  v.kind = t.kind || 'base';
+  if (v.kind === 'self') {
+    v.selfGroup = t.selfGroup;
+    v.selfKind = t.selfKind;
+  } else {
+    v.category = t.category;
+    v.base = t.base;
+  }
   if (t.vtype && !String(v.f.vtype || '').trim()) v.f.vtype = t.vtype;
   t.modules.forEach(({ group, kind }) => {
     if (v.modules.some((m) => m.group === group && m.kind === kind)) return;
@@ -56,7 +61,8 @@ export function applyTemplate(v, t) {
 }
 
 // Сохранить нынешний набор карточки своим шаблоном.
-export const canSaveTemplate = (v) => v.kind === 'base' && !!v.base && v.modules.some((m) => m.kind);
+export const canSaveTemplate = (v) => ((v.kind === 'base' && !!v.base) || (v.kind === 'self' && !!v.selfKind))
+  && v.modules.some((m) => m.kind);
 
 export function saveTemplate(v, name, aliases) {
   const tag = copyTag();
@@ -64,7 +70,8 @@ export function saveTemplate(v, name, aliases) {
     id: `tplu-${tag ? tag + '-' : ''}${Date.now().toString(36)}`,
     name: String(name).trim(),
     aliases: String(aliases || '').split(',').map((a) => a.trim().toLowerCase()).filter(Boolean),
-    category: v.category, base: v.base, vtype: String(v.f.vtype || '').trim(),
+    kind: v.kind, category: v.category, base: v.kind === 'self' ? v.selfKind : v.base,
+    selfGroup: v.selfGroup, selfKind: v.selfKind, vtype: String(v.f.vtype || '').trim(),
     modules: v.modules.filter((m) => m.kind).map((m) => ({ group: m.group, kind: m.kind })),
   };
   own.push(t);

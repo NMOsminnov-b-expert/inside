@@ -121,14 +121,20 @@ function migrateTrailer(v) {
     delete f[key + '@unit'];
   });
 }
-// Грузовое — две базы с 06.10.2026: «Грузовой автомобиль» и «Седельный тягач».
+// Грузовое — две базы с 06.10.2026: «Грузовое ТС» и «Седельное ТС».
 // Три весовые базы переходят в грузовой автомобиль; значения их полей, которых
 // больше нет (исполнение, число ведущих осей), — в «Дополнительные параметры».
-const TRUCK_OLD_BASES = ['Лёгкий коммерческий (до 3,5 т)', 'Среднетоннажный грузовик (3,5–12 т)', 'Тяжёлый грузовик (свыше 12 т)'];
+const TRUCK_OLD_BASES = ['Лёгкий коммерческий (до 3,5 т)', 'Среднетоннажный грузовик (3,5–12 т)', 'Тяжёлый грузовик (свыше 12 т)',
+  'Грузовой автомобиль'];
+// Седельный тягач — «Седельное ТС» с 06.10.2026 (указание пользователя:
+// «Переименуй грузовой автомобиль в грузовое ТС, седельный тягач переименуй
+// аналогичным образом»).
+const TRUCK_RENAMED = { 'Седельный тягач': 'Седельное ТС' };
 const TRUCK_OLD_FIELDS = { ispolnenieBazy: 'Исполнение базы', chisloVeduschihOsey: 'Число ведущих осей' };
 function migrateTruckBase(v) {
+  if (v.kind === 'base' && TRUCK_RENAMED[v.base]) v.base = TRUCK_RENAMED[v.base];
   if (v.kind !== 'base' || !TRUCK_OLD_BASES.includes(v.base)) return;
-  v.base = 'Грузовой автомобиль';
+  v.base = 'Грузовое ТС';
   Object.entries(TRUCK_OLD_FIELDS).forEach(([key, label]) => {
     if (v.f[key] === undefined) return;
     if (String(v.f[key]).trim()) v.extra.push({ id: nextId('vx'), label, value: String(v.f[key]) });

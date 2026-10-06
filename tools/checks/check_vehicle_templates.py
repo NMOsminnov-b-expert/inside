@@ -10,8 +10,9 @@ tools/data/ts_templates.py, поиск — kernel/treeSearch.js.
 Что ловит сценарий:
   * обиходное название («фура», «воровайка») не находит шаблон;
   * общее слово («грузовик») выбирает один шаблон вместо всех подходящих;
-  * трал собирается на грузовом автомобиле, а не на полуприцепе;
-  * выбор шаблона не ставит категорию, базу, модули или «Тип ТС»;
+  * у трала нет полного набора носителей (полуприцеп, прицеп, грузовое ТС);
+  * выбор шаблона не ставит категорию, базу, модули или «Тип ТС»; шаблон на
+    спецтехнике не ставит вид машины;
   * «Тип ТС» из техпаспорта перезаписывается шаблоном;
   * свой шаблон не сохраняется, не находится или не удаляется;
   * выдача поиска уходит за край окна.
@@ -36,25 +37,29 @@ def run(t):
         t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
         return names()
 
-    t.ck(find('фура')[:1] == ['Седельный тягач'], '«фура» не нашла седельный тягач: %s' % names())
+    t.ck(find('фура')[:1] == ['Седельное ТС'], '«фура» не нашла седельный тягач: %s' % names())
     many = find('грузовик')
-    t.ck(len(many) >= 10 and 'Самосвал' in many and 'Фургон' in many, '«грузовик» не вывел все шаблоны: %s' % many)
+    t.ck(len(many) >= 10 and 'Самосвал — грузовое ТС' in many and 'Фургон — грузовое ТС' in many,
+         '«грузовик» не вывел все шаблоны: %s' % many)
     inside = pg.evaluate("() => document.querySelector('#ts-find-list').getBoundingClientRect().bottom <= innerHeight")
     t.ck(inside, 'выдача поиска ушла за нижний край окна')
 
     # Трал — полуприцеп к седельному тягачу, не надстройка грузовика (замечание
     # пользователя 06.10.2026).
-    t.ck(find('трал')[:1] == ['Трал'], '«трал» не нашёл шаблон трала: %s' % names())
-    path = pg.locator('#ts-find-list .tsr-opt').first.inner_text()
-    t.ck('Полуприцеп' in path and 'Грузовой автомобиль' not in path, 'трал не на полуприцепе: %s' % path)
+    # Полные наборы: трал — и полуприцеп, и прицеп, и надстройка грузового ТС
+    # (указание пользователя 06.10.2026: «Трал может быть как полуприцепом, так
+    # и прицепом, так и модулем грузового»).
+    trals = find('трал')
+    for need in ('Трал — полуприцеп', 'Трал — прицеп', 'Трал — грузовое ТС'):
+        t.ck(need in trals, 'у трала нет шаблона «%s»: %s' % (need, trals))
 
     # «Тип ТС» из техпаспорта шаблон не перезаписывает.
     pg.keyboard.press('Escape')
-    t.ck('Бортовой с КМУ' in find('воровайка'), '«воровайка» не нашла бортовой с КМУ: %s' % names())
-    pg.keyboard.press('Enter')
+    t.ck('Бортовой с КМУ — грузовое ТС' in find('воровайка'), '«воровайка» не нашла бортовой с КМУ: %s' % names())
+    pg.locator('#ts-find-list .tsr-opt', has_text='Бортовой с КМУ — грузовое ТС').dispatch_event('mousedown')
     t.wait_for('[data-ts-mitem]')
     mods = pg.eval_on_selector_all('[data-ts-mitem] .vh-mrow', 'els => els.map((e) => e.textContent)')
-    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое' and pg.input_value('[data-ts-base]') == 'Грузовой автомобиль',
+    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое' and pg.input_value('[data-ts-base]') == 'Грузовое ТС',
          'шаблон не поставил категорию и базу')
     t.ck(len(mods) == 2 and 'Бортовая платформа' in mods[0] and 'КМУ' in mods[1], 'шаблон не добавил модули: %s' % mods)
     t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой, бортовой с КМУ', 'шаблон не записал «Тип ТС»')
@@ -62,9 +67,21 @@ def run(t):
     pg.fill('[data-tsf="main|vtype"]', 'грузовой бортовой (по ТП)')
     pg.locator('[data-tsf="main|vtype"]').press('Tab')
     find('эвакуатор с манипулятором')
-    pg.keyboard.press('Enter')
+    pg.locator('#ts-find-list .tsr-opt', has_text='Эвакуатор с манипулятором').first.dispatch_event('mousedown')
     t.wait_until("() => document.querySelectorAll('[data-ts-mitem]').length === 3")
     t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой бортовой (по ТП)', 'шаблон перезаписал «Тип ТС» из техпаспорта')
+
+    # Шаблон на спецтехнике: вид машины и модуль.
+    pg.reload()
+    t.wait_for('#ts-find-q')
+    t.ck('Гидромолот — экскаватор' in find('гидромолот'), 'нет шаблона гидромолота на экскаваторе: %s' % names())
+    pg.locator('#ts-find-list .tsr-opt', has_text='Гидромолот — экскаватор').first.dispatch_event('mousedown')
+    t.wait_for('[data-ts-skind]')
+    t.ck(pg.input_value('[data-ts-cat]') == 'Специализированная техника' and pg.input_value('[data-ts-skind]') == 'Экскаватор',
+         'шаблон не поставил вид спецтехники')
+    t.wait_for('[data-ts-mitem]')
+    mods = pg.eval_on_selector_all('[data-ts-mitem] .vh-mrow', 'els => els.map((e) => e.textContent)')
+    t.ck(any('Гидромолот' in m for m in mods), 'шаблон не добавил гидромолот: %s' % mods)
 
     # Свой шаблон: сохранить, найти по своему названию, удалить.
     pg.click('[data-ts-tpl-save]')

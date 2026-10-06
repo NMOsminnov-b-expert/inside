@@ -137,7 +137,7 @@ def run(t):
     t.ck('Прочее' in bases, 'в категории нет базы «Прочее»: %s' % bases)
     t.ck(pg.locator('[data-tsf]:not([data-tsf="main|vtype"])').count() == 0, 'поля машины показаны до выбора базы')
 
-    pg.select_option('[data-ts-base]', 'Грузовой автомобиль')
+    pg.select_option('[data-ts-base]', 'Грузовое ТС')
     t.wait_for('[data-tsf="main|make"]')
     # Выбор сделан — щелчок по заголовку сворачивает блок в строку и разворачивает
     # (аккордеон вместо «Готово» и «Изменить», указание пользователя 06.10.2026).
@@ -145,7 +145,7 @@ def run(t):
     t.ck(pg.locator('[data-ts-kind-edit], [data-ts-kind-done]').count() == 0, 'остались кнопки «Изменить» / «Готово»')
     pg.click('[data-ts-kind-toggle]')
     t.wait_until("() => !document.querySelector('[data-ts-cat]')")
-    t.ck('Грузовой автомобиль' in pg.inner_text('[data-ts-kind-sum]'), 'в свёрнутой строке нет выбранной базы')
+    t.ck('Грузовое ТС' in pg.inner_text('[data-ts-kind-sum]'), 'в свёрнутой строке нет выбранной базы')
     t.ck(pg.get_attribute('[data-ts-kind-toggle]', 'aria-expanded') == 'false', 'свёрнутый заголовок не помечен aria-expanded')
     t.ck(pg.get_attribute('[data-ts-kind-toggle]', 'title') is None, 'у заголовка-аккордеона всплывающая подсказка')
     pg.focus('[data-ts-kind-toggle]')
@@ -252,7 +252,7 @@ def run(t):
     # двигателя в карточке — «Тип топлива».
     pg.select_option('[data-ts-cat]', 'Грузовое')
     t.wait_for('[data-ts-base]:not([disabled])')
-    pg.select_option('[data-ts-base]', 'Седельный тягач')
+    pg.select_option('[data-ts-base]', 'Седельное ТС')
     t.wait_for('[data-tsf="main|fuel"]')
     t.ck(pg.locator('[data-tsf-unit="main|power"]').count() == 1, 'у тягача нет мощности с выбором единицы')
     for kind, unit in (('Электро', 'кВт'), ('Дизель', 'л.с.'), ('Гибрид', 'кВт')):

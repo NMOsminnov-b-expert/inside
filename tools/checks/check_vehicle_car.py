@@ -150,14 +150,14 @@ def run(t):
     # Грузовик: прежний состав и свой заголовок.
     pg.select_option('[data-ts-cat]', 'Грузовое')
     t.wait_for('[data-ts-base]:not([disabled])')
-    pg.select_option('[data-ts-base]', 'Грузовой автомобиль')
+    pg.select_option('[data-ts-base]', 'Грузовое ТС')
     t.wait_for('[data-tsf="main|make"]')
     t.ck(any(x.startswith('грузовой') for x in vt()) and not any(x.startswith('легковой') for x in vt()),
          'в подсказках типа грузовика легковые или нет грузовых: %s' % vt()[:8])
     # Грузовое — две базы: грузовой автомобиль и седельный тягач; у грузового
     # автомобиля — дубль-кабина (решения пользователя 06.10.2026).
     trucks = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')[1:]
-    t.ck(trucks == ['Грузовой автомобиль', 'Седельный тягач', 'Прочее'], 'базы грузового не те: %s' % trucks)
+    t.ck(trucks == ['Грузовое ТС', 'Седельное ТС', 'Прочее'], 'базы грузового не те: %s' % trucks)
     t.ck(has('dublKabina') and has('podemnayaOs'), 'у грузового автомобиля нет дубль-кабины или подъёмной оси')
     for key in ('wheelFormula', 'pto', 'steerAxles', 'massMax', 'generalState'):
         t.ck(has(key), 'у грузовика пропало поле %s' % key)
@@ -191,7 +191,7 @@ def run(t):
         f: { chisloVeduschihOsey: '2', podemnayaOs: 'Да' }, extra: [], modules: [] } });
       return { base: v.base, f: v.f, extra: v.extra.map((x) => x.label + '=' + x.value) };
     }""")
-    t.ck(truck['base'] == 'Грузовой автомобиль' and truck['f'].get('podemnayaOs') == 'Да'
+    t.ck(truck['base'] == 'Грузовое ТС' and truck['f'].get('podemnayaOs') == 'Да'
          and 'Число ведущих осей=2' in truck['extra'], 'прежняя весовая база не перешла в грузовой автомобиль: %s' % truck)
 
     trailer = pg.evaluate("""async () => {

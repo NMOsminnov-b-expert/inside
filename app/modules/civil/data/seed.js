@@ -322,7 +322,7 @@ export function createSeed() {
           vehicle: {
             kind: 'base',
             category: 'Грузовое',
-            base: 'Грузовой автомобиль',
+            base: 'Грузовое ТС',
             f: {
               make: 'Toyota Hilux',
               year: '2018',
