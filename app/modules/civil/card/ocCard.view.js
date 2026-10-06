@@ -14,7 +14,7 @@ import { comparativeTab } from './comparative.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
-import { institutionChain, ownHTML, chainHTML, summaryHTML } from '../../../kernel/contacts.js';
+import { institutionChain, ownHTML, chainHTML, dropdownHTML } from '../../../kernel/contacts.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
 // объектов имущества, ровно как в столбце реестра (решение пользователя
@@ -64,11 +64,10 @@ function withComparative(tabs) {
 
 
 // Контакты для связи (решение пользователя 06.10.2026: «чистым интерфейсом,
-// но что бы каждый раз контакты не мозолили глаза»). В строке учреждения —
-// сводка одной строкой (первый контакт и «и ещё N»), все контакты — по
-// нажатию, под строкой: свои контакты объекта и подтянутые от узлов дерева
-// учреждений, от подведа вверх (правятся в учреждении). Свободные колонки этой
-// строки и так пустовали — сводка места не прибавляет.
+// но что бы каждый раз контакты не мозолили глаза»). Под строкой учреждения —
+// сводка одной строкой (первый контакт и «+N»), все контакты — в выпадающей
+// панели поверх карточки: свои контакты объекта и подтянутые от узлов дерева
+// учреждений, от подведа вверх (правятся в учреждении).
 const instHref = (node) => `#/institutions?node=${encodeURIComponent(node.id)}&name=${encodeURIComponent(node.name)}&tab=contacts`;
 
 export function contactsUi(ctx) {
@@ -81,13 +80,9 @@ function contactsRowHTML(ctx) {
   const ui = contactsUi(ctx);
   const chain = institutionChain(rec.institution, rec.podved);
   const all = [...(rec.contacts || []), ...chain.flatMap((x) => x.contacts)];
-  return {
-    cell: `<div class="field ct-cell"><span class="lbl">Контакты для связи</span>${summaryHTML(all, { key: 'oc', open: ui.open })}</div>`,
-    panel: ui.open ? `<div class="ct-panel">
-      ${ownHTML(rec.contacts || [], { key: 'oc', editing: ui.editing })}
-      ${chainHTML(chain, instHref)}
-    </div>` : '',
-  };
+  const body = ui.open ? ownHTML(rec.contacts || [], { key: 'oc', editing: ui.editing }) + chainHTML(chain, instHref) : '';
+  return `<div class="field ct-cell"><span class="lbl">Контакты для связи</span>
+    ${dropdownHTML(all, { key: 'oc', open: ui.open, body })}</div>`;
 }
 
 function partiesOC(ctx) {
@@ -105,9 +100,8 @@ function partiesOC(ctx) {
       <div class="grid g-4 g-top">
         <div class="field"><span class="lbl">Головное учреждение</span><b>${esc(rec.institution)}</b></div>
         <div class="field"><span class="lbl">Подвед</span><b>${esc(rec.podved)}</b></div>
-        ${ct.cell}
+        ${ct}
       </div>
-      ${ct.panel}
 
       <!-- Стороны — тем же блоком, что в форме ОЦ: раньше шапка держала свою
            копию разметки, и правки доходили только до одной из них. -->

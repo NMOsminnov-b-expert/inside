@@ -8,7 +8,13 @@
 Пока — нежилое здание. Механика — kernel/contacts.js.
 
 Что ловит сценарий:
-  * список контактов раскрыт без запроса — «мозолит глаза»;
+  * список контактов раскрыт без запроса — «мозолит глаза»; раскрытый —
+    не в выпадающей панели, а раздвигает карточку («не спрятал их в
+    скрывающемся меню», 06.10.2026);
+  * панель не закрывается щелчком снаружи или Esc; Esc закрывает заодно и
+    просмотрщик документов;
+  * контакт не удаляется (было: confirm браузера, который может быть
+    заблокирован, — теперь окно макета);
   * контакт ОЦ не сохраняется после перезагрузки;
   * контакт учреждения не подтягивается в ОЦ его подведа;
   * подтянутый контакт можно править в ОЦ;
@@ -33,7 +39,7 @@ def run(t):
     fill = lambda k, v: pg.fill('[data-ct-f$="|%s"]' % k, v)
 
     t.open(CARD, wait='[data-ct-toggle="oc"]')
-    t.ck(pg.locator('.ct-panel').count() == 0, 'контакты раскрыты без запроса')
+    t.ck(pg.locator('.ct-pop').count() == 0, 'контакты раскрыты без запроса')
 
     # --- свой контакт ОЦ ---------------------------------------------------------
     pg.click('[data-ct-toggle="oc"]')
@@ -63,13 +69,38 @@ def run(t):
 
     pg.reload()
     t.wait_for('[data-itab="contacts"]')
-    t.ck('Контакт Подведа' in pg.locator('.ct-panel').inner_text(), 'контакт учреждения не пережил перезагрузку')
+    t.ck('Контакт Подведа' in pg.locator('.ict-panel').inner_text(), 'контакт учреждения не пережил перезагрузку')
 
     t.open(CARD, wait='[data-ct-toggle="oc"]')
-    if not pg.locator('.ct-panel').count():
+    if not pg.locator('.ct-pop').count():
         pg.click('[data-ct-toggle="oc"]')
-    t.wait_for('.ct-group.from')
+    t.wait_for('.ct-pop .ct-group.from')
+    pos = pg.evaluate("() => getComputedStyle(document.querySelector('.ct-pop')).position")
+    t.ck(pos == 'fixed', 'контакты не в выпадающей панели: %s' % pos)
     t.ck('Контакт Подведа' in pg.locator('.ct-group.from').inner_text(), 'контакт подведа не подтянулся в ОЦ')
     t.ck(pg.locator('.ct-group.from [data-ct-edit], .ct-group.from [data-ct-del]').count() == 0,
          'подтянутый контакт можно править в ОЦ')
-    t.ck('и ещё 1' in pg.locator('[data-ct-toggle="oc"]').inner_text(), 'в сводке не учтён подтянутый контакт')
+    t.ck('+1' in pg.locator('.ct-sum').inner_text(), 'в сводке не учтён подтянутый контакт')
+
+    # --- закрытие: Esc (просмотрщик остаётся), щелчок снаружи ------------------------
+    viewer = pg.locator('[data-vclose]').count()
+    pg.keyboard.press('Escape')
+    t.wait_until("() => !document.querySelector('.ct-pop')")
+    t.ck(pg.locator('[data-vclose]').count() == viewer, 'Esc закрыл заодно просмотрщик')
+    pg.click('[data-ct-toggle="oc"]')
+    t.wait_for('.ct-pop')
+    pg.mouse.click(5, 5)
+    t.wait_until("() => !document.querySelector('.ct-pop')")
+
+    # --- удаление — окном макета ------------------------------------------------------
+    pg.click('[data-ct-toggle="oc"]')
+    t.wait_for('.ct-item.own [data-ct-del]')
+    pg.click('.ct-item.own [data-ct-del]')
+    t.wait_for('.modal-back [data-modal-ok]')
+    pg.click('.modal-back [data-modal-ok]')
+    t.wait_until("() => !document.querySelector('.ct-item.own')")
+    t.ck(pg.locator('.ct-pop').count() == 1, 'после удаления панель закрылась')
+    _save(pg)
+    pg.reload()
+    t.wait_for('[data-ct-toggle="oc"]')
+    t.ck('Контакт Объекта' not in pg.locator('.ct-sum').inner_text(), 'удалённый контакт вернулся после перезагрузки')

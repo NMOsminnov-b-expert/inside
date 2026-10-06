@@ -884,7 +884,7 @@ function contactCount(node) {
 }
 
 function contactsPaneHTML(node) {
-  return `<div class="ipane"><div class="ct-panel ict-panel">
+  return `<div class="ipane"><div class="ict-panel">
     ${ownHTML(nodeContacts(node), { key: 'inst', editing: state.ct.editing, title: 'Контакты учреждения',
       empty: 'Своих контактов нет — у объектов будут видны контакты вышестоящих' })}
     ${chainHTML(parentChain(node), instHref)}
