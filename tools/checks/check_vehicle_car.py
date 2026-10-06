@@ -3,8 +3,10 @@
 
 Что ловит сценарий:
 
-  * база легкового — тип кузова (справочник mashina.kg), поля от него не
-    зависят; «Тип ТС, вид кузова» — под выбором категории и кузова;
+  * у категорий с одной базой (легковое, автобусы, мототехника) списка баз
+    нет, база ставится сама (решение пользователя 06.10.2026: «Где поля не
+    различаются, уходим от базы»); «Тип ТС, вид кузова» — рядом с категорией;
+    у грузового список баз остаётся;
   * у легкового нет масс, числа осей, моточасов, КОМ, раздатки, колёсной
     формулы, комплектности и единого «Тех. состояния»; есть вид документа
     (техпаспорт, техталон), руль «Левый (стандартный)», комплектация перед
@@ -46,17 +48,20 @@ def run(t):
 
     has = lambda key: pg.locator('[data-tsf$="|%s"]' % key).count() > 0
 
+    REC_BASE = """async () => { const m = await import('./app/modules/vehicle/records.js');
+      const id = location.hash.split('/')[3]; const r = (m.allRecords ? m.allRecords() : []).find((x) => x.id === id);
+      return r && r.vehicle ? r.vehicle.base : null; }"""
+    for cat in ('Автобусы', 'Мототехника'):
+        pg.select_option('[data-ts-cat]', cat)
+        t.wait_for('[data-tsf="main|make"]')
+        t.ck(pg.locator('[data-ts-base]').count() == 0, 'у категории «%s» остался список баз' % cat)
     pg.select_option('[data-ts-cat]', 'Легковое')
-    t.wait_for('[data-ts-base]:not([disabled])')
-    bodies = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')
-    t.ck('Седан' in bodies and 'Внедорожник 5 дв.' in bodies and 'Хэтчбек 5 дв.' in bodies,
-         'база легкового — не типы кузова: %s' % bodies)
-    pg.select_option('[data-ts-base]', 'Седан')
     t.wait_for('[data-tsf="main|make"]')
-    # «Тип ТС, вид кузова» — после выбора категории и кузова.
-    order = pg.evaluate("""() => [...document.querySelectorAll('[data-ts-cat], [data-ts-base], [data-tsf="main|vtype"]')]
-      .map((e) => e.dataset.tsCat !== undefined ? 'cat' : e.dataset.tsBase !== undefined ? 'base' : 'vtype')""")
-    t.ck(order == ['cat', 'base', 'vtype'], '«Тип ТС, вид кузова» не под выбором: %s' % order)
+    t.ck(pg.locator('[data-ts-base]').count() == 0, 'у легкового остался список баз (кузовов)')
+    # «Тип ТС, вид кузова» — рядом с категорией, в одной строке.
+    tops = pg.evaluate("""() => ['[data-ts-cat]', '[data-tsf="main|vtype"]']
+      .map((s) => Math.round(document.querySelector(s).closest('.field').getBoundingClientRect().top))""")
+    t.ck(tops[0] == tops[1], '«Тип ТС, вид кузова» не рядом с категорией: %s' % tops)
     vt = lambda: pg.evaluate("""() => { const i = document.querySelector('[data-tsf="main|vtype"]');
       return i && i.list ? [...i.list.options].map((o) => o.value) : []; }""")
     t.ck(vt() and all(x.startswith('легковой') for x in vt()), 'в подсказках типа легкового чужие варианты: %s' % vt()[:8])
@@ -156,14 +161,15 @@ def run(t):
 
     got = pg.evaluate("""async () => {
       const m = await import('./app/modules/vehicle/tsModel.js');
-      const h = { vehicle: { kind: 'base', category: 'Легковое', base: 'Легковой автомобиль и внедорожник',
-        f: { vtype: 'легковой, седан', wheel: 'Левый', gearbox: 'Автоматическая', wheelFormula: '4×4', trim: 'Prestige 2.4',
+      const h = { vehicle: { kind: 'base', category: 'Легковое', base: 'Седан',
+        f: { vtype: '', wheel: 'Левый', gearbox: 'Автоматическая', wheelFormula: '4×4', trim: 'Prestige 2.4',
              engineHours: '1200', 'engineHours@unit': 'ч', massMax: '1900', state: 'Хорошее', transferCase: 'Есть' },
         extra: [], modules: [] } };
       const v = m.tsOf(h);
       return { base: v.base, f: v.f, extra: v.extra.map((x) => x.label + '=' + x.value) };
     }""")
-    t.ck(got['base'] == 'Седан', 'база не стала типом кузова по записи «Тип ТС»: %s' % got)
+    t.ck(got['base'] == 'Легковой автомобиль и внедорожник' and got['f'].get('vtype') == 'легковой, седан',
+         'база-кузов не ушла в «Тип ТС»: %s' % {'base': got['base'], 'vtype': got['f'].get('vtype')})
     t.ck(got['f'].get('driveType') == 'Полный' and got['f'].get('wheel') == 'Левый (стандартный)'
          and got['f'].get('gearbox') == 'Автомат', 'прежние значения не переведены: %s' % got['f'])
     t.ck(got['f'].get('trim') == 'Своя' and got['f'].get('trimNote') == 'Prestige 2.4',

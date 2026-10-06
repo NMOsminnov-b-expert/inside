@@ -8,7 +8,7 @@ import { partiesHTML } from './parties.view.js';
 import { tsFieldHTML } from './tsFields.view.js';
 import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
-  KINDS, CATEGORIES, basesOf, baseInfo, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
+  KINDS, CATEGORIES, basesOf, baseInfo, singleBase, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
   moduleTitle, whatLabel, categoryCandidates, makeWithModules, vtypeField,
 } from './tsModel.js';
@@ -124,12 +124,24 @@ function aboutHTML(a) {
     a.examples ? ` <span class="vh-about-ex">Например: ${esc(a.examples)}.</span>` : ''}</div>`;
 }
 
-function kindSummaryHTML(v, idx) {
+// Заголовок блока — аккордеон: щелчок (Enter, пробел) по всему заголовку
+// сворачивает и разворачивает блок, стрелка справа показывает состояние
+// (указание пользователя 06.10.2026: «избавиться от кнопки изменить в блоке
+// ТС. Лучше так же кликать скрывать и открывать аккордеон»; образец — W3C ARIA
+// APG, Accordion). Пока выбор не закончен, сворачивать нечего — заголовок
+// обычный.
+function kindHeadHTML(v, idx, open) {
   const vt = v.kind === 'base' && v.f.vtype ? ` · по ТП «${v.f.vtype}»` : '';
-  return `<div class="card t-blue vh-kind-sum" data-ts-kind-sum>
-    <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(kindLabel(v))}</h3>
-      <span class="hint vh-kind-what">${esc(whatLabel(v))}${esc(vt)}</span>
-      <button type="button" class="btn btn-ghost btn-sm" data-ts-kind-edit style="margin-left:auto">Изменить</button></div></div>`;
+  // Без всплывающей подсказки: состояние показывает стрелка, для чтения с
+  // экрана — aria-expanded (вопрос пользователя 06.10.2026: «Зачем подсказка
+  // Свернуть?»).
+  return `<div class="card-head vh-acc-head" data-ts-kind-toggle role="button" tabindex="0" aria-expanded="${open}">
+    <span class="card-idx">${idx}</span><h3>${esc(kindLabel(v))}</h3>
+    <span class="hint vh-kind-what">${esc(whatLabel(v))}${esc(vt)}</span><i class="vh-acc-chev" aria-hidden="true">▾</i></div>`;
+}
+
+function kindSummaryHTML(v, idx) {
+  return `<div class="card t-blue vh-kind-sum" data-ts-kind-sum>${kindHeadHTML(v, idx, false)}</div>`;
 }
 
 function kindHTML(ctx, v, idx) {
@@ -152,15 +164,16 @@ function kindHTML(ctx, v, idx) {
           <button type="button" class="vh-sug-btn" data-ts-sug-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`
       : '';
     // Сначала выбор, под ним запись из техпаспорта (указание пользователя
-    // 02.10.2026: «Тип ТС, вид кузова ниже… Сначала выбор, потом тип»). У
-    // легковых база — тип кузова.
-    const pass = v.category === 'Легковое';
+    // 02.10.2026: «Тип ТС, вид кузова ниже… Сначала выбор, потом тип»). Где у
+    // категории одна база, списка баз нет (решение 06.10.2026), и «Тип ТС»
+    // встаёт рядом с категорией — строка заполнена.
+    const single = v.category && singleBase(v.category);
     cascade = `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
         <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
-      <div class="field vh-s2"><label for="ts-base">${pass ? 'Тип кузова' : 'База'}</label>
+      ${single ? '' : `<div class="field vh-s2"><label for="ts-base">База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
-  options(bases, v.base, v.category ? (pass ? 'Выберите тип кузова' : 'Выберите базу') : 'Сначала категория')}</select></div>
-      ${vtype ? tsFieldHTML(v.f, vtype, 'main', 'vh-s4') : ''}`;
+  options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`}
+      ${vtype ? tsFieldHTML(v.f, vtype, 'main', single ? 'vh-s2' : 'vh-s4') : ''}`;
   } else if (v.kind === 'self') {
     about = selfInfo(v.selfGroup, v.selfKind);
     cascade = `<div class="field vh-s2"><label for="ts-sg">Группа</label>
@@ -179,12 +192,11 @@ function kindHTML(ctx, v, idx) {
 
   const search = treeSearchHTML({ id: 'ts-find', label: 'Найти в справочнике',
     placeholder: 'Например: автокран, самосвал, погрузчик' });
-  const done = classified(v)
-    ? '<div class="vh-kind-done"><button type="button" class="btn btn-primary btn-sm" data-ts-kind-done>Готово</button></div>' : '';
   // Предложения категории — своей строкой под сеткой: в сетке у поля строки
   // фиксированной высоты, и добавка под списком наезжала на него.
-  const body = `${seg}${search}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}${sug}${about ? aboutHTML(about) : ''}${done}`;
-  return card('blue', idx, 'Вид объекта', '', body);
+  const body = `${seg}${search}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}${sug}${about ? aboutHTML(about) : ''}`;
+  if (!classified(v)) return card('blue', idx, 'Вид объекта', '', body);
+  return `<div class="card t-blue vh-kind-open" data-ts-kind-sum>${kindHeadHTML(v, idx, true)}<div class="card-pad">${body}</div></div>`;
 }
 
 // --- 03 Регистрационный учёт ---------------------------------------------------------

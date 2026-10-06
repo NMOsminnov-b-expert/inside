@@ -37,6 +37,14 @@ export const basesOf = (category) => (category
   ? TS_BASES.filter((b) => b.category === category || b.name === OTHER)
   : []);
 
+// База категории, если она одна (без «Прочего»): тогда выбирать нечего — база
+// ставится сама, списка баз нет (решение пользователя 06.10.2026: «Где поля не
+// различаются, уходим от базы. Где отличаются — оставляем»). Сейчас это
+// легковое, автобусы и мототехника.
+export function singleBase(category) {
+  const own = TS_BASES.filter((b) => b.category === category && b.name !== OTHER);
+  return own.length === 1 ? own[0].name : '';
+}
 export const baseInfo = (name) => TS_BASES.find((b) => b.name === name) || null;
 export const selfGroups = () => TS_SELF_GROUPS.map((g) => g.group);
 export const selfKinds = (group) => (TS_SELF_GROUPS.find((g) => g.group === group) || { items: [] }).items;
@@ -98,18 +106,16 @@ const PASSENGER_VALUES = {
   fuel: { 'Газ-бензин': 'Бензин / газ' },
   gearbox: { 'Механическая': 'Механика', 'Автоматическая': 'Автомат', 'Роботизированная': 'Робот' },
 };
-export function bodyFromVtype(text) {
-  const t = String(text || '').toLowerCase();
-  if (!t) return '';
-  const bodies = TS_BASES.filter((b) => b.category === PASSENGER_CAT).map((b) => b.name);
-  const exact = bodies.find((b) => t.includes(b.toLowerCase()));
-  if (exact) return exact;
-  // «легковой хэтчбек» — без числа дверей: подставить нельзя, двери не известны.
-  return '';
-}
+// Базы-кузова легкового (02.10–06.10.2026) — снова одна база; кузов уходит в
+// «Тип ТС, вид кузова», если тот пуст (иначе там уже запись техпаспорта).
+const PASSENGER_BODY = new Set((TS_VTYPE_BY_CATEGORY[PASSENGER_CAT] || []).map((x) => x.replace(/^легковой, /, '')));
 function migratePassenger(v) {
   const f = v.f;
-  if (v.base === PASSENGER_OLD_BASE) v.base = bodyFromVtype(f.vtype);
+  if (v.base && v.base !== PASSENGER_OLD_BASE && PASSENGER_BODY.has(String(v.base).toLowerCase())) {
+    if (!String(f.vtype || '').trim()) f.vtype = 'легковой, ' + String(v.base).toLowerCase();
+    v.base = PASSENGER_OLD_BASE;
+  }
+  if (!v.base) v.base = PASSENGER_OLD_BASE;
   if (f.wheelFormula && !f.driveType && /4\s*[×xх*]\s*4/i.test(f.wheelFormula)) f.driveType = 'Полный';
   if (f.steerAxles && !f.rearSteer && Number(f.steerAxles) > 1) f.rearSteer = 'Да';
   Object.entries(PASSENGER_VALUES).forEach(([key, map]) => { if (map[f[key]]) f[key] = map[f[key]]; });
@@ -308,7 +314,9 @@ export function tsTitle(v) {
 }
 
 export function whatLabel(v) {
-  if (v.kind === 'base') return v.base ? `${v.category} · ${v.base}` : v.category || '';
+  // У категории с одной базой название базы ничего не добавляет
+  // («Мототехника · Мототехника») — только категория.
+  if (v.kind === 'base') return v.base && v.base !== singleBase(v.category) ? `${v.category} · ${v.base}` : v.category || '';
   if (v.kind === 'self') return v.selfKind || v.selfGroup || '';
   if (v.kind === 'module') return v.modKind || v.modGroup || '';
   return '';

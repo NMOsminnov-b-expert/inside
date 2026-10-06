@@ -60,8 +60,8 @@ export function bindTsForm(ctx, holder, set) {
   }
 
   // --- 02 Вид объекта: смена выбора перестраивает карточку -----------------
-  // Пока с выбором работают, блок развёрнут (ctx.ui.tsKindOpen); «Готово»
-  // сворачивает его в строку, «Изменить» разворачивает.
+  // Пока с выбором работают, блок развёрнут (ctx.ui.tsKindOpen); щелчок по
+  // заголовку (аккордеон) сворачивает его в строку и разворачивает обратно.
   const openKind = () => { ctx.ui.tsKindOpen = true; };
   s.$$('[data-ts-kind]').forEach((b) => b.onclick = () => {
     if (v.kind === b.dataset.tsKind) return;
@@ -69,17 +69,20 @@ export function bindTsForm(ctx, holder, set) {
     openKind();
     ctx.render();
   });
-  const kEdit = s.$('[data-ts-kind-edit]');
-  if (kEdit) kEdit.onclick = () => { openKind(); ctx.render(); };
-  const kDone = s.$('[data-ts-kind-done]');
-  // После «Готово» свёрнутая строка остаётся на виду: иначе панель оставалась
+  // После сворачивания строка остаётся на виду: иначе панель оставалась
   // прокрученной вниз, и на виду была середина блока машины.
-  if (kDone) kDone.onclick = async () => {
-    ctx.ui.tsKindOpen = false;
+  const kHead = s.$('[data-ts-kind-toggle]');
+  const toggleKind = async () => {
+    const open = kHead.getAttribute('aria-expanded') === 'true';
+    ctx.ui.tsKindOpen = !open;
     await ctx.render();
     const sum = s.$('[data-ts-kind-sum]');
-    if (sum) sum.scrollIntoView({ block: 'start' });
+    if (open && sum) sum.scrollIntoView({ block: 'start' });
   };
+  if (kHead) {
+    kHead.onclick = toggleKind;
+    kHead.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleKind(); } };
+  }
 
   // Поиск по справочнику — помощник над каскадом: выбор заполняет списки.
   bindTreeSearch(s, {

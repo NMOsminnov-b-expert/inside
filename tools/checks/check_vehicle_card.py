@@ -105,9 +105,8 @@ def run(t):
 
     pg.click('[data-ts-kind="base"]')
     t.wait_for('[data-ts-cat]')
+    # У легкового база одна и ставится сама (решение пользователя 06.10.2026).
     pg.select_option('[data-ts-cat]', 'Легковое')
-    t.wait_for('[data-ts-base]:not([disabled])')
-    pg.select_option('[data-ts-base]', 'Внедорожник 3 дв.')
     t.wait_for('[data-tsf="main|make"]')
     pg.fill('[data-tsf="main|make"]', 'Lada Niva')
     pg.fill('[data-tsf="main|plate"]', '01kg123abc')
@@ -159,5 +158,5 @@ def run(t):
     pg.reload()
     t.wait_for('tr[data-open-oi]')
     after = pg.evaluate(REC_OI, 'Lada Niva')
-    t.ck(after and after['vehicle']['base'] == 'Внедорожник 3 дв.',
+    t.ck(after and after['vehicle']['base'] == 'Легковой автомобиль и внедорожник',
          'ТС в гражданском не пережило перезагрузку')
