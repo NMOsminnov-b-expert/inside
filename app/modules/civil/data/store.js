@@ -1,7 +1,7 @@
 import { createSeed } from './seed.js';
 import { createProductionSeed } from './seedProduction.js';
 import { LETTER_SEQ } from './dictionaries.js';
-import { registerPersisted } from '../../../kernel/persist.js';
+import { registerPersisted, copyTag } from '../../../kernel/persist.js';
 import { migrateLiterKinds } from '../oi/building/capClass.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
@@ -158,9 +158,12 @@ export function nextLetter(rec) {
 
 // Идентификаторы: последовательные внутри записи, без опоры на длину массива.
 let seq = Date.now() % 100000;
+// С меткой копии макета: записи сотрудников сводятся вместе (kernel/persist.js),
+// и одинаковые номера из разных копий слили бы чужие записи в одну.
 export function nextId(prefix) {
   seq += 1;
-  return `${prefix}-${seq.toString(36)}`;
+  const tag = copyTag();
+  return `${prefix}-${tag ? tag + '-' : ''}${seq.toString(36)}`;
 }
 
 // Счётчика ЕНИ для объектов имущества здесь больше нет: новый объект получает

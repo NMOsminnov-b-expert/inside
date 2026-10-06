@@ -1,6 +1,6 @@
 import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
 import { manifest } from './manifest.js';
-import { registerPersisted } from '../../kernel/persist.js';
+import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { fmtNum } from '../../kernel/fmt.js';
 import {
   mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath,
@@ -28,7 +28,9 @@ registerPersisted('records.mechanisms', {
 
 function nextId() {
   seq += 1;
-  return `oc-mech-${seq}`;
+  // С меткой копии макета — как у остальных типов ОЦ (kernel/persist.js).
+  const tag = copyTag();
+  return `oc-mech-${tag ? tag + '-' : ''}${seq}`;
 }
 
 // Перечень единиц записи. Заводится при первом обращении — у записи, пришедшей

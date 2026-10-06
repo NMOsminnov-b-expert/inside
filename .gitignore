@@ -65,3 +65,8 @@ docs/reestr-izmeneniy.xlsx
 # Выгрузка графа знаний чужого проекта (APCS) — источник практик, в git не идёт
 /граф-знаний-APCS.md
 /база-знаний-APCS.zip
+
+# Имя файла карточек этой копии макета (tools/serve.py): своё в каждой копии,
+# поэтому в git не идёт. Сами карточки — data/local/<имя>.json — в git.
+.inside-local.json
+data/local/*.tmp

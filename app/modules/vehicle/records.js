@@ -1,7 +1,7 @@
 import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
 import { manifest } from './manifest.js';
 import { tsTitle, whatLabel } from './tsModel.js';
-import { registerPersisted } from '../../kernel/persist.js';
+import { registerPersisted, copyTag } from '../../kernel/persist.js';
 
 const records = [];
 let seq = 0;
@@ -25,7 +25,9 @@ registerPersisted('records.vehicle', {
 
 function nextId() {
   seq += 1;
-  return `oc-vehicle-${seq}`;
+  // С меткой копии макета — как у остальных типов ОЦ (kernel/persist.js).
+  const tag = copyTag();
+  return `oc-vehicle-${tag ? tag + '-' : ''}${seq}`;
 }
 
 function searchOf(rec) {

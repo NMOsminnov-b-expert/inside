@@ -1,5 +1,5 @@
 import { createSeed } from './seed.js';
-import { registerPersisted } from '../../../kernel/persist.js';
+import { registerPersisted, copyTag } from '../../../kernel/persist.js';
 import { LETTER_SEQ } from './dictionaries.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
@@ -120,9 +120,12 @@ export function nextLetter(rec) {
 
 // Идентификаторы: последовательные внутри записи, без опоры на длину массива.
 let seq = Date.now() % 100000;
+// С меткой копии макета: записи сотрудников сводятся вместе (kernel/persist.js),
+// и одинаковые номера из разных копий слили бы чужие записи в одну.
 export function nextId(prefix) {
   seq += 1;
-  return `${prefix}-${seq.toString(36)}`;
+  const tag = copyTag();
+  return `${prefix}-${tag ? tag + '-' : ''}${seq.toString(36)}`;
 }
 
 // ЕНИ выдаётся от максимума уже использованных, а не от длины массива —
