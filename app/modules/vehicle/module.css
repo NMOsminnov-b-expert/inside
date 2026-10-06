@@ -294,3 +294,13 @@ body[data-module="vehicle"] .vh-saved{font-size:11.5px;color:var(--muted);white-
 .vehicle-form .vh-cond tr.vh-cond-total select.ax-cell{font-weight:700;color:var(--ink)}
 /* «Состояние» — с подсказкой-шкалой: подчёркнут пунктиром, как подписи полей с пояснением. */
 .vehicle-form .vh-cond th.vh-tip .col-label{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
+
+/* Строки без пустых колонок (правило проекта, ужесточено 06.10.2026). В сетках
+   «сколько влезает» (ходовая, особое для базы) последнее поле дотягивается до
+   правого края своей строки: неполная последняя строка не оставляет дыру. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .field:not(.vh-checks):last-child{grid-column-end:-1}
+/* Узко (две колонки): поле в четверть строки перед полем «на остаток строки»
+   («Пробег» перед «Где стоит» у легкового) — на всю строку, а не на половину. */
+@media (max-width:1050px){
+  :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid > .vh-s1:has(+ .vh-s3){grid-column:1 / -1}
+}

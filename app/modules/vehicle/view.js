@@ -87,7 +87,7 @@ const moduleFields = (vals, list, lone = false) => list
   .filter((f) => f.key !== 'engineVolume' || (vals.drive === 'Свой двигатель' && FUEL_ENGINES.includes(vals.engineKind)))
   .map((f) => (f.key === 'drive' && lone ? { ...f, options: f.options.filter((o) => o !== FROM_BASE) } : f))
   .map((f) => (MODULE_LABEL[f.key] ? { ...f, short: MODULE_LABEL[f.key] } : f));
-const spanOf = (f, owner) => (owner !== 'main' && MODULE_SPAN[f.key])
+const spanOf = (f, owner) => f.span || (owner !== 'main' && MODULE_SPAN[f.key])
   || SPAN[f.key] || (f.type === 'yes' || f.type === 'int' || f.type === 'year' ? 1 : 2);
 const cells = (vals, list, owner) => list.map((f) => tsFieldHTML(vals, f, owner, `vh-s${spanOf(f, owner)}`)).join('');
 const grid = (vals, list, owner) => `<div class="grid vh-grid">${cells(vals, list, owner)}</div>`;
@@ -302,9 +302,17 @@ function machineHTML(v, idx, inspect = false) {
       // строка — что за двигатель и какой силы (тип топлива | мощность),
       // вторая — чем питается (рабочий объём | ёмкость батареи). У гибрида
       // заняты все четыре места, у ДВС и электро вторая строка — одно поле.
+      // У спецтехники мощность (на полстроки) — первой: на узком экране она
+      // встаёт одна, а тип топлива и масса — парой под ней, без пустот.
       const order = isPassenger(v)
         ? ['vtype', 'fuel', 'power', 'engineVolume', 'battery']
-        : ['vtype', 'fuel', 'engineVolume', 'power', 'massEmpty', 'massMax', 'massDesign'];
+        : v.kind === 'self' ? ['power', 'fuel', 'massDesign']
+          : ['vtype', 'fuel', 'engineVolume', 'power', 'massEmpty', 'massMax', 'massDesign'];
+      // Две массы — по полстроки, строка заполнена.
+      const masses = own.filter((f) => /^mass/.test(f.key));
+      if (!isPassenger(v) && masses.length === 2) {
+        masses.forEach((f) => { own[own.indexOf(f)] = { ...f, span: 2 }; });
+      }
       const rank = (k) => order.indexOf(k);
       own.sort((a, b) => rank(a.key) - rank(b.key));
     }
@@ -314,7 +322,13 @@ function machineHTML(v, idx, inspect = false) {
     // по четверти; у спецтехники марка и изготовитель — по полстроки, под ними
     // страна сборки, год и цвет. Ширина поля — по длине ответа (GOV.UK Design
     // System, NN/g): марку с моделью пишут длинно, год и места — коротко.
-    const genSpan = (f) => (f.key === 'make' && !own.some((x) => x.key === 'maker') ? 4 : spanOf(f, 'main'));
+    // Без комплектации (не легковой) страна сборки одна во второй строке
+    // оставляла полстроки пустой. Порядок граф свидетельства не меняется:
+    // марка — на полстроки, рядом год и цвет; во второй строке руль, места и
+    // страна сборки.
+    const pairCountry = !own.some((x) => x.key === 'maker' || x.key === 'trim') && own.some((x) => x.key === 'country');
+    const genSpan = (f) => (f.key === 'make' && !own.some((x) => x.key === 'maker') ? (pairCountry ? 2 : 4)
+      : spanOf(f, 'main'));
     // Подраздел, где все поля — с осмотра, помечен один раз в заголовке, а не
     // меткой у каждого поля.
     const allInsp = own.length > 1 && own.every((f) => f.source === 'Осмотр');
@@ -439,14 +453,31 @@ export function bindCondColumns(scope) {
 
 function useGrid(vals, raw) {
   const list = [...raw].sort((a, b) => USE_ORDER.indexOf(a.key) - USE_ORDER.indexOf(b.key));
-  const withMileage = list.some((f) => f.key === 'mileage');
-  // Общее состояние и его описание при «Иное» — на остаток строки: у легкового
-  // (только пробег) — за пробегом, у остальных — своей строкой под наработкой.
-  const alone = !list.some((f) => ['engineHours', 'hours', 'state'].includes(f.key));
-  const span = (f) => ({ state: withMileage ? 2 : 1, kit: withMileage ? 4 : 2, factAddr: 4,
-    generalState: 1, generalStateNote: alone && withMileage ? 2 : 3 }[f.key] || 1);
+  // Строки заполнены при любом составе (правило проекта, 06.10.2026: без
+  // пустых колонок): списки состояния — не уже полстроки, иначе «Условно
+  // пригодное» не помещается. Первая строка — наработка и тех. состояние
+  // (два числа по четверти или одно на полстроки, состояние — полстроки);
+  // вторая — общее состояние и описание при «Иное» либо «Где стоит»; у
+  // легкового (состояние — в таблице) пробег и «Где стоит» — одной строкой.
+  const has = (k) => list.some((f) => f.key === k);
+  const nums = ['mileage', 'engineHours', 'hours'].filter(has);
+  const sp = { kit: 4, factAddr: 4 };
+  if (has('state')) {
+    nums.forEach((k) => { sp[k] = nums.length > 1 ? 1 : 2; });
+    sp.state = nums.length ? 2 : 4;
+  } else if (nums.length === 1 && !has('generalState')) {
+    sp[nums[0]] = 1;
+    sp.factAddr = 3;
+  } else {
+    nums.forEach((k) => { sp[k] = 2; });
+  }
+  if (has('generalState')) {
+    sp.generalState = 2;
+    if (has('generalStateNote')) sp.generalStateNote = 2;
+    else sp.factAddr = 2;
+  }
   return `<div class="grid vh-grid vh-use">${list.map((f) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
-    `vh-s${span(f)}`)).join('')}</div>`;
+    `vh-s${sp[f.key] || 1}`)).join('')}</div>`;
 }
 
 
