@@ -100,10 +100,9 @@ def run(t):
     t.ck('ЕНИ' not in plate_chips, 'в плашке ТС показан чип ЕНИ: %s' % plate_chips)
 
     # Стили карточки ТС подключены и ограничены формой.
-    t.ck(pg.evaluate("() => getComputedStyle(document.querySelector('.ts-host .vh-kinds')).display") == 'grid',
+    t.ck(pg.evaluate("() => getComputedStyle(document.querySelector('.ts-host .vehicle-form .vh-grid')).display") == 'grid',
          'стили карточки ТС не подключены в гражданском')
 
-    pg.click('[data-ts-kind="base"]')
     t.wait_for('[data-ts-cat]')
     # У легкового база одна и ставится сама (решение пользователя 06.10.2026).
     pg.select_option('[data-ts-cat]', 'Легковое')

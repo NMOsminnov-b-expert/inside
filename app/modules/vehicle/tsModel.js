@@ -22,9 +22,15 @@ import {
 // Подписи — по указанию пользователя 23.09.2026: «самоходную технику меняем на
 // спецтехнику», «отдельный модуль надо переименовать». В справочнике это
 // по-прежнему «самоходная машина» и «модуль без машины».
+// С 06.10.2026 спецтехника — категория ТС «Специализированная техника» со своим
+// подменю (группа → вид), а оборудование без машины из выбора убрано (уходит в
+// механизмы; записи этого вида открываются как прежде). Указание пользователя:
+// «Спецтехнику… воткнуть в ТС… как специализированную. Своим подменю»,
+// «Оборудование без машины уводим в механизмы… Данные не терять!».
+export const SELF_CAT = 'Специализированная техника';
 export const KINDS = [
   { key: 'base', label: 'Транспортное средство' },
-  { key: 'self', label: 'Спецтехника' },
+  { key: 'self', label: SELF_CAT },
   { key: 'module', label: 'Оборудование без машины' },
 ];
 
@@ -210,14 +216,12 @@ export function kindLeaves() {
   const out = [];
   TS_BASES.filter((b) => b.name !== OTHER).forEach((b) => out.push({
     kind: 'base', category: b.category, base: b.name, name: b.name,
-    path: [KINDS[0].label, b.category], extra: [b.hint, b.examples].filter(Boolean).join(' '),
+    path: [b.category], extra: [b.hint, b.examples].filter(Boolean).join(' '),
   }));
   TS_SELF_GROUPS.forEach((g) => g.items.forEach((it) => out.push({
-    kind: 'self', group: g.group, item: it.name, name: it.name, path: [KINDS[1].label, g.group], extra: it.examples,
+    kind: 'self', group: g.group, item: it.name, name: it.name, path: [SELF_CAT, g.group], extra: it.examples,
   })));
-  TS_MODULE_GROUPS.forEach((g) => g.items.forEach((it) => out.push({
-    kind: 'module', group: g.group, item: it.name, name: it.name, path: [KINDS[2].label, g.group],
-  })));
+  // Оборудование без машины в поиске не предлагается (уходит в механизмы).
   return out;
 }
 

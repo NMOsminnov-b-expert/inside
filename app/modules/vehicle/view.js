@@ -9,7 +9,7 @@ import { tsFieldHTML } from './tsFields.view.js';
 import { canSaveTemplate } from './templates.js';
 import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
-  KINDS, CATEGORIES, basesOf, baseInfo, singleBase, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
+  KINDS, SELF_CAT, CATEGORIES, basesOf, baseInfo, singleBase, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
   moduleTitle, whatLabel, categoryCandidates, makeWithModules, vtypeField, isTrailer,
 } from './tsModel.js';
@@ -107,11 +107,6 @@ const sub = (title, body, extra = '') => `<div class="sec-h vh-sub">${esc(title)
 //   * описание выбранной базы или вида — видимым блоком под каскадом;
 //   * выбор сделан — блок сворачивается в строку «Изменить»: к нему
 //     возвращаются редко, а место он занимал всю работу.
-const KIND_ABOUT = {
-  base: 'Машина с техпаспортом: легковая, грузовая, автобус, мото, прицеп, трактор, спецшасси',
-  self: 'Самоходная машина со своим рабочим органом: экскаватор, погрузчик, каток, комбайн',
-  module: 'Снятое с машины или хранящееся отдельно: ковш, отвал, цистерна, кран-манипулятор',
-};
 
 const kindLabel = (v) => (KINDS.find((k) => k.key === v.kind) || {}).label || '';
 
@@ -146,16 +141,39 @@ function kindSummaryHTML(v, idx) {
 }
 
 function kindHTML(ctx, v, idx) {
-  if (classified(v) && !(ctx.ui && ctx.ui.tsKindOpen)) return kindSummaryHTML(v, idx);
+  // По умолчанию блок открыт и сам не сворачивается (указание пользователя
+  // 06.10.2026: «сделай уже по умолчанию открытым блок 02. Не скрываем его
+  // автоматически. Сбивает!») — свёрнут, только если его свернули щелчком.
+  if (classified(v) && ctx.ui && ctx.ui.tsKindOpen === false) return kindSummaryHTML(v, idx);
 
-  const seg = `<div class="vh-kinds" role="radiogroup" aria-label="Вид объекта">${KINDS.map((k) => `
-    <button type="button" class="vh-kind ${v.kind === k.key ? 'on' : ''}" role="radio"
-      aria-checked="${v.kind === k.key}" data-ts-kind="${k.key}"><b>${esc(k.label)}</b><span>${esc(KIND_ABOUT[k.key])}</span></button>`).join('')}</div>`;
+  // Вид объекта задаёт категория (указание пользователя 06.10.2026):
+  // спецтехника — категория «Специализированная техника» со своим подменю
+  // (группа → вид машины); переключателя видов нет. Оборудование без машины
+  // новым не заводится (уходит в механизмы), у записей этого вида — прежний
+  // каскад: данные не теряются.
+  const seg = '';
+  const catSel = (value) => `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
+      <select class="select" id="ts-cat" data-ts-cat>${options([...CATEGORIES, SELF_CAT], value, 'Выберите категорию')}</select></div>`;
 
   let cascade = '';
   let about = null;
   let sug = '';
-  if (v.kind === 'base') {
+  if (v.kind === 'module') {
+    about = moduleInfo(v.modGroup, v.modKind);
+    cascade = `<div class="field vh-s2"><label for="ts-mg">Группа</label>
+        <select class="select" id="ts-mg" data-ts-mgroup>${options(moduleGroups(), v.modGroup, 'Выберите группу')}</select></div>
+      <div class="field vh-s2"><label for="ts-mk">Оборудование</label>
+        <select class="select" id="ts-mk" data-ts-mkind ${v.modGroup ? '' : 'disabled'}>${
+  options(moduleKinds(v.modGroup).map((k) => k.name), v.modKind, v.modGroup ? 'Выберите оборудование' : 'Сначала группа')}</select></div>`;
+  } else if (v.kind === 'self') {
+    about = selfInfo(v.selfGroup, v.selfKind);
+    cascade = `${catSel(SELF_CAT)}
+      <div class="field vh-s2"><label for="ts-sg">Группа</label>
+        <select class="select" id="ts-sg" data-ts-sgroup>${options(selfGroups(), v.selfGroup, 'Выберите группу')}</select></div>
+      <div class="field vh-s4"><label for="ts-sk">Вид машины</label>
+        <select class="select" id="ts-sk" data-ts-skind ${v.selfGroup ? '' : 'disabled'}>${
+  options(selfKinds(v.selfGroup).map((k) => k.name), v.selfKind, v.selfGroup ? 'Выберите вид' : 'Сначала группа')}</select></div>`;
+  } else {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
     const vtype = vtypeField(v, commonFields(v).find((f) => f.key === 'vtype'));
@@ -169,26 +187,11 @@ function kindHTML(ctx, v, idx) {
     // категории одна база, списка баз нет (решение 06.10.2026), и «Тип ТС»
     // встаёт рядом с категорией — строка заполнена.
     const single = v.category && singleBase(v.category);
-    cascade = `<div class="field vh-s2"><label for="ts-cat">Категория по техпаспорту</label>
-        <select class="select" id="ts-cat" data-ts-cat>${options(CATEGORIES, v.category, 'Выберите категорию')}</select></div>
+    cascade = `${catSel(v.category)}
       ${single ? '' : `<div class="field vh-s2"><label for="ts-base">База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
   options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`}
       ${vtype ? tsFieldHTML(v.f, vtype, 'main', single ? 'vh-s2' : 'vh-s4') : ''}`;
-  } else if (v.kind === 'self') {
-    about = selfInfo(v.selfGroup, v.selfKind);
-    cascade = `<div class="field vh-s2"><label for="ts-sg">Группа</label>
-        <select class="select" id="ts-sg" data-ts-sgroup>${options(selfGroups(), v.selfGroup, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-sk">Вид машины</label>
-        <select class="select" id="ts-sk" data-ts-skind ${v.selfGroup ? '' : 'disabled'}>${
-  options(selfKinds(v.selfGroup).map((k) => k.name), v.selfKind, v.selfGroup ? 'Выберите вид' : 'Сначала группа')}</select></div>`;
-  } else if (v.kind === 'module') {
-    about = moduleInfo(v.modGroup, v.modKind);
-    cascade = `<div class="field vh-s2"><label for="ts-mg">Группа</label>
-        <select class="select" id="ts-mg" data-ts-mgroup>${options(moduleGroups(), v.modGroup, 'Выберите группу')}</select></div>
-      <div class="field vh-s2"><label for="ts-mk">Оборудование</label>
-        <select class="select" id="ts-mk" data-ts-mkind ${v.modGroup ? '' : 'disabled'}>${
-  options(moduleKinds(v.modGroup).map((k) => k.name), v.modKind, v.modGroup ? 'Выберите оборудование' : 'Сначала группа')}</select></div>`;
   }
 
   const search = treeSearchHTML({ id: 'ts-find', label: 'Найти в справочнике',
@@ -362,7 +365,7 @@ function machineHTML(v, idx, inspect = false) {
   if (cond.length) parts.push(sub('Состояние', condTableHTML(v.f, cond), '<span class="hint">осмотр</span>'));
   if (!inspect) parts.push(extraPart(v.extra, 'main'));
 
-  const title = v.kind === 'self' ? 'Спецтехника' : 'Автотранспортное средство';
+  const title = v.kind === 'self' ? SELF_CAT : 'Автотранспортное средство';
   return card('teal', idx, title, inspect ? 'для осмотра' : 'по техпаспорту; то, что смотрят на месте, помечено «осмотр»',
     parts.join(''), '', 'data-ts-block="machine"');
 }
@@ -547,7 +550,7 @@ export function navHTML(ctx, v, set) {
   }
   if (v.kind !== 'module') {
     const f = fillOf(v, 'machine', inspect);
-    chips.push(chip('machine', v.kind === 'self' ? 'Спецтехника' : 'Машина', `${f.filled} из ${f.total}`, f.filled === f.total ? 'done' : ''));
+    chips.push(chip('machine', 'Машина', `${f.filled} из ${f.total}`, f.filled === f.total ? 'done' : ''));
     chips.push(chip('modules', 'Модули', String(v.modules.length)));
   }
   const photos = Object.values((set && set.photos) || {}).reduce((a, n) => a + (n || 0), 0);

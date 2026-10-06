@@ -38,7 +38,6 @@ def run(t):
         pg.click('.reg-create [data-create="%s"]' % kind)
         t.wait_until("() => location.hash.includes('/create')")
         if kind == 'vehicle':
-            pg.click('[data-ts-kind="base"]')
             pg.select_option('[data-ts-cat]', 'Грузовое')
             t.wait_for('[data-ts-base]:not([disabled])')
             pg.select_option('[data-ts-base]', 'Седельный тягач')

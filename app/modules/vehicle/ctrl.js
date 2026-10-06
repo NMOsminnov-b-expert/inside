@@ -12,6 +12,7 @@ import { scheduleSave } from '../../kernel/persist.js';
 import { templateLeaves, applyTemplate, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
+import { installSuggest } from '../../kernel/suggestInput.js';
 import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns } from './view.js';
 import { createRecord } from './records.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
@@ -20,6 +21,7 @@ import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
   kindLeaves, applyKindLeaf, moduleLeaves, powerUnitFor, POWER_UNIT_BY, classified, copyVehicle, makeWithModules, whatLabel,
   normVin, vinWarning, normPlate, idMissing,
+  SELF_CAT,
 } from './tsModel.js';
 
 // Контроллер карточки ТС как объекта оценки.
@@ -62,8 +64,8 @@ export function bindTsForm(ctx, holder, set) {
   }
 
   // --- 02 Вид объекта: смена выбора перестраивает карточку -----------------
-  // Пока с выбором работают, блок развёрнут (ctx.ui.tsKindOpen); щелчок по
-  // заголовку (аккордеон) сворачивает его в строку и разворачивает обратно.
+  // Блок открыт по умолчанию (06.10.2026); щелчок по заголовку (аккордеон)
+  // сворачивает его в строку и разворачивает обратно (ctx.ui.tsKindOpen).
   const openKind = () => { ctx.ui.tsKindOpen = true; };
   s.$$('[data-ts-kind]').forEach((b) => b.onclick = () => {
     if (v.kind === b.dataset.tsKind) return;
@@ -151,8 +153,20 @@ export function bindTsForm(ctx, holder, set) {
       ctx.toast(`Категория «${v.category}» не похожа на запись «Тип ТС»: «${String(text).trim()}»`, 'warn');
     }
   };
-  cascade('[data-ts-cat]', (val) => { setCategory(val); warnMismatch(); });
-  s.$$('[data-ts-sug-cat]').forEach((b) => b.onclick = () => { setCategory(b.dataset.tsSugCat); openKind(); ctx.render(); });
+  // «Специализированная техника» в списке категорий — вид объекта «спецтехника»
+  // со своим подменю (группа → вид); остальные категории — ТС (06.10.2026).
+  cascade('[data-ts-cat]', (val) => {
+    if (val === SELF_CAT) { v.kind = 'self'; return; }
+    v.kind = 'base';
+    setCategory(val);
+    warnMismatch();
+  });
+  s.$$('[data-ts-sug-cat]').forEach((b) => b.onclick = () => {
+    v.kind = 'base';
+    setCategory(b.dataset.tsSugCat);
+    openKind();
+    ctx.render();
+  });
 
   // Предложения под списком категорий следуют за записью «Тип ТС» — по уходу
   // из поля: пока человек печатает, карточка не перерисовывается.
@@ -506,6 +520,7 @@ export function bindTsForm(ctx, holder, set) {
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.
   ctx.ui.growSizes = ctx.ui.growSizes || {};
   bindAutoGrowAll(s, ctx.ui.growSizes);
+  installSuggest(document);
 }
 
 export function bindVehicle(ctx) {

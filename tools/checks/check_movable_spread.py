@@ -123,7 +123,6 @@ def run(t):
             t.ck(False, '%s: ТС не завелось' % mod)
             continue
         fp['ts0'] = snap()
-        pg.click('[data-ts-kind="base"]')
         t.wait_for('[data-ts-cat]')
         pg.select_option('[data-ts-cat]', index=1)
         t.wait_until("() => document.querySelectorAll('.ts-host .card-head').length > 2")

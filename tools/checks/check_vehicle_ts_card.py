@@ -95,10 +95,14 @@ def run(t):
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
     t.ck(heads == ['Учреждение, собственники и ответственные', 'Вид объекта'],
          'до выбора вида объекта в карточке лишние блоки: %s' % heads)
-    t.ck(pg.locator('[data-tsf]').count() == 0, 'поля машины показаны до выбора вида объекта')
+    # До выбора категории — только запись «Тип ТС» из техпаспорта: она подсказывает категорию.
+    t.ck(pg.locator('[data-tsf]:not([data-tsf="main|vtype"])').count() == 0, 'поля машины показаны до выбора вида объекта')
 
     # --- ТС: категория → база ------------------------------------------------------
-    pg.click('[data-ts-kind="base"]')
+    # Переключателя видов нет: вид задаёт категория (06.10.2026).
+    t.ck(pg.locator('[data-ts-kind]').count() == 0, 'остался переключатель вида объекта')
+    cats = pg.eval_on_selector_all('[data-ts-cat] option', 'els => els.map((e) => e.textContent.trim())')
+    t.ck('Специализированная техника' in cats, 'нет категории «Специализированная техника»: %s' % cats)
     t.wait_for('[data-ts-cat]')
     t.ck(pg.locator('[data-ts-base][disabled]').count() == 1, 'база доступна до выбора категории')
     # «Тип ТС, вид кузова» — в блоке 02 первым; категорию выбирает человек, запись
@@ -123,7 +127,8 @@ def run(t):
     t.wait_for('#ts-find-list [role="option"]')
     paths = pg.eval_on_selector_all('#ts-find-list .tsr-opt', 'els => els.map((e) => e.innerText)')
     joined = ' '.join(paths)
-    t.ck('Спецтехника › Подъёмные' in joined and 'Грузозахватные' in joined and 'Специальное многоосное шасси' in joined,
+    t.ck('Оборудование без машины' not in joined, 'поиск предлагает оборудование без машины: %s' % paths)
+    t.ck('Специализированная техника › Подъёмные' in joined and 'Специальное многоосное шасси' in joined,
          'поиск нашёл не по всем веткам: %s' % paths)
     pg.locator('#ts-find-q').press('Escape')
     t.ck(pg.locator('#ts-find-list').is_hidden(), 'Escape не закрыл выдачу поиска')
@@ -378,8 +383,9 @@ def run(t):
     t.wait_for('[data-cmp-side="photo"] .vimg')
     pg.click('[data-vmode="doc"]')
 
-    # --- самоходная машина и отдельный модуль ---------------------------------------
-    pg.click('[data-ts-kind="self"]')
+    # --- специализированная техника — категория со своим подменю -------------------
+    pg.select_option('[data-ts-cat]', 'Специализированная техника')
+    t.wait_for('[data-ts-sgroup]')
     pg.select_option('[data-ts-sgroup]', 'Землеройные')
     pg.select_option('[data-ts-skind]', 'Экскаватор')
     t.wait_for('[data-tsf="main|serialNo"]')
@@ -388,10 +394,18 @@ def run(t):
     # VID — среди номеров у всех (указание пользователя 02.10.2026).
     t.ck(nums == ['serialNo', 'engineNo', 'vid'], 'номера самоходной машины не те: %s' % nums)
 
-    pg.click('[data-ts-kind="module"]')
-    pg.select_option('[data-ts-mgroup]', 'Ковши')
-    pg.select_option('[data-ts-mkind]', 'Ковш скальный')
+    # Оборудование без машины новым не заводится (уходит в механизмы), но запись
+    # этого вида, заведённая раньше, открывается со своими полями — данные не
+    # теряются (указание пользователя 06.10.2026). Такую запись делаем как прежнюю.
+    pg.evaluate("""async () => {
+      const m = await import('/app/modules/vehicle/records.js');
+      const v = m.allRecords()[0].vehicle;
+      Object.assign(v, { kind: 'module', modGroup: 'Ковши', modKind: 'Ковш скальный' });
+      (await import('/app/kernel/persist.js')).saveNow();
+    }""")
+    pg.reload()
     t.wait_for('[data-tsf="main|serialNo"]')
+    t.ck(pg.input_value('[data-ts-mkind]') == 'Ковш скальный', 'запись оборудования без машины не показывает свой вид')
     heads = pg.eval_on_selector_all('.vehicle-form .card-head h3', 'els => els.map((e) => e.textContent.trim())')
     t.ck(heads[2:] == ['Ковш скальный', 'Фото с осмотра'],
          'у оборудования без машины не те блоки: %s' % heads)

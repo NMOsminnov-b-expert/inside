@@ -46,7 +46,6 @@ def run(t):
     pg.click('.reg-create [data-dd-toggle]')
     pg.click('.reg-create [data-create="vehicle"]')
     t.wait_until("() => location.hash.includes('/create')")
-    pg.click('[data-ts-kind="base"]')
     t.wait_for('[data-ts-cat]')
 
     has = lambda key: pg.locator('[data-tsf$="|%s"]' % key).count() > 0
@@ -66,7 +65,7 @@ def run(t):
       .map((s) => Math.round(document.querySelector(s).closest('.field').getBoundingClientRect().top))""")
     t.ck(tops[0] == tops[1], '«Тип ТС, вид кузова» не рядом с категорией: %s' % tops)
     vt = lambda: pg.evaluate("""() => { const i = document.querySelector('[data-tsf="main|vtype"]');
-      return i && i.list ? [...i.list.options].map((o) => o.value) : []; }""")
+      return i && i.dataset.suggest ? JSON.parse(i.dataset.suggest) : []; }""")
     t.ck(vt() and all(x.startswith('легковой') for x in vt()), 'в подсказках типа легкового чужие варианты: %s' % vt()[:8])
 
     for key in ('docKind', 'trim', 'country', 'driveType', 'gearbox', 'fuel', 'mileage', 'vid', 'condBody', 'condOtherNote'):

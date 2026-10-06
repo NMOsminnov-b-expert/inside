@@ -183,11 +183,13 @@ export function tsFieldHTML(vals, f, owner, cls = '') {
     // Х/X, У/Y): либо нормализованная копия номера в отдельном поле индекса,
     // либо приведение при поиске. Исходную запись не переписывать — она должна
     // совпадать с документом.
-    const list = f.suggest ? `list="${id}-list"` : '';
+    // Подсказки — свой список (kernel/suggestInput.js), а не <datalist>:
+    // список браузера отрывался от поля при прокрутке и не закрывался
+    // (указание пользователя 06.10.2026).
+    const list = f.suggest ? `data-suggest="${esc(JSON.stringify(f.suggest))}"` : '';
     control = `<input class="input" id="${id}" data-tsf="${esc(bind)}" value="${esc(value)}" ${list}
       ${f.key === 'vin' ? 'autocapitalize="characters" spellcheck="false" maxlength="30"' : ''}
-      ${f.key === 'plate' ? 'autocapitalize="characters" spellcheck="false"' : ''}>
-      ${f.suggest ? `<datalist id="${id}-list">${f.suggest.map((s) => `<option value="${esc(s)}">`).join('')}</datalist>` : ''}`;
+      ${f.key === 'plate' ? 'autocapitalize="characters" spellcheck="false"' : ''}>`;
   }
 
   // Сообщение-предупреждение (VIN) — в потоке под полем: оно длиннее строки и
