@@ -150,13 +150,19 @@
   align-items:end;gap:10px 12px}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s1{grid-column:span 1}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s2{grid-column:span 2}
-/* Поле с новой строки (документ в «Регистрационном учёте»). */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-row-start{grid-column-start:1}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s3{grid-column:span 3}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s4{grid-column:1 / -1}
 @media (max-width:1050px){
   :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s3{grid-column:1 / -1}
+}
+/* Регистрационный учёт — своя сетка долями (view.js, regHTML): строки заполнены
+   на любой ширине; серия и номер документа шире номера и даты. Класс сетки
+   добавлен к селектору, чтобы перебить общую сетку и её узкий вариант выше. */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg-3{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr)}
+@media (max-width:560px){
+  :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg{grid-template-columns:minmax(0,1fr)}
 }
 
 /* «Как заполнять» — постоянная подсказка под заголовком блока и подраздела
