@@ -70,3 +70,7 @@ docs/reestr-izmeneniy.xlsx
 # поэтому в git не идёт. Сами карточки — data/local/<имя>.json — в git.
 .inside-local.json
 data/local/*.tmp
+
+# Страница стенда, сохранённая пользователем для сверки (06.10.2026): в
+# репозитории не хранится.
+/Chevrolet Cobalt — E-state.html
