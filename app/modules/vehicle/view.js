@@ -190,9 +190,16 @@ function kindHTML(ctx, v, idx) {
 // --- 03 Регистрационный учёт ---------------------------------------------------------
 // Собственника здесь нет — он в блоке 01 (указание пользователя 23.09.2026:
 // «дубляж собственника убираем»). Адрес — фактический: где машина стоит.
+// Строки: номер (и вид документа) — затем документ: серия и номер, за ним дата
+// регистрации (указание пользователя 06.10.2026: «дату регистрации документа…
+// во вторую строку после серии и номера… логичнее выглядит»).
+const REG_ORDER = ['plate', 'docKind', 'docNo', 'regDate'];
 function regHTML(v, idx) {
-  const list = commonFields(v).filter((f) => f.block === 'reg');
-  return card('teal', idx, 'Регистрационный учёт', 'по техпаспорту', grid(v.f, list, 'main'), '', 'data-ts-block="reg"');
+  const rank = (f) => (REG_ORDER.includes(f.key) ? REG_ORDER.indexOf(f.key) : REG_ORDER.length);
+  const list = commonFields(v).filter((f) => f.block === 'reg').sort((a, b) => rank(a) - rank(b));
+  const body = `<div class="grid vh-grid">${list.map((f) => tsFieldHTML(v.f, f, 'main',
+    `vh-s${spanOf(f, 'main')}${f.key === 'docNo' ? ' vh-row-start' : ''}`)).join('')}</div>`;
+  return card('teal', idx, 'Регистрационный учёт', 'по техпаспорту', body, '', 'data-ts-block="reg"');
 }
 
 // --- 04 Автотранспортное средство / Спецтехника ------------------------------------

@@ -150,6 +150,8 @@
   align-items:end;gap:10px 12px}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s1{grid-column:span 1}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s2{grid-column:span 2}
+/* Поле с новой строки (документ в «Регистрационном учёте»). */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-row-start{grid-column-start:1}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s3{grid-column:span 3}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vh-grid>.vh-s4{grid-column:1 / -1}
 @media (max-width:1050px){
