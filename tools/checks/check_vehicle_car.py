@@ -151,10 +151,15 @@ def run(t):
     # Грузовик: прежний состав и свой заголовок.
     pg.select_option('[data-ts-cat]', 'Грузовое')
     t.wait_for('[data-ts-base]:not([disabled])')
-    pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
+    pg.select_option('[data-ts-base]', 'Грузовой автомобиль')
     t.wait_for('[data-tsf="main|make"]')
     t.ck(any(x.startswith('грузовой') for x in vt()) and not any(x.startswith('легковой') for x in vt()),
          'в подсказках типа грузовика легковые или нет грузовых: %s' % vt()[:8])
+    # Грузовое — две базы: грузовой автомобиль и седельный тягач; у грузового
+    # автомобиля — дубль-кабина (решения пользователя 06.10.2026).
+    trucks = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')[1:]
+    t.ck(trucks == ['Грузовой автомобиль', 'Седельный тягач', 'Прочее'], 'базы грузового не те: %s' % trucks)
+    t.ck(has('dublKabina') and has('podemnayaOs'), 'у грузового автомобиля нет дубль-кабины или подъёмной оси')
     for key in ('wheelFormula', 'pto', 'steerAxles', 'massMax', 'generalState'):
         t.ck(has(key), 'у грузовика пропало поле %s' % key)
     titles = pg.evaluate(SECTION_TITLES)
@@ -180,6 +185,15 @@ def run(t):
     t.wait_for('.vh-mform [data-tsf$="|drive"]')
     drives = pg.eval_on_selector_all('.vh-mform [data-tsf$="|drive"] option', 'els => els.map((e) => e.textContent.trim())')
     t.ck(not any('КОМ' in x for x in drives), 'у модуля прицепа привод от двигателя базы: %s' % drives)
+
+    truck = pg.evaluate("""async () => {
+      const m = await import('./app/modules/vehicle/tsModel.js');
+      const v = m.tsOf({ vehicle: { kind: 'base', category: 'Грузовое', base: 'Тяжёлый грузовик (свыше 12 т)',
+        f: { chisloVeduschihOsey: '2', podemnayaOs: 'Да' }, extra: [], modules: [] } });
+      return { base: v.base, f: v.f, extra: v.extra.map((x) => x.label + '=' + x.value) };
+    }""")
+    t.ck(truck['base'] == 'Грузовой автомобиль' and truck['f'].get('podemnayaOs') == 'Да'
+         and 'Число ведущих осей=2' in truck['extra'], 'прежняя весовая база не перешла в грузовой автомобиль: %s' % truck)
 
     trailer = pg.evaluate("""async () => {
       const m = await import('./app/modules/vehicle/tsModel.js');

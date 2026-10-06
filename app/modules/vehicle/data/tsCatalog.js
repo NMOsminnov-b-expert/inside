@@ -28,21 +28,9 @@ export const TS_BASES = [
   },
   {
     "category": "Грузовое",
-    "name": "Лёгкий коммерческий (до 3,5 т)",
-    "hint": "Максимальная разрешённая масса до 3,5 т. Исполнения: шасси с кабиной, цельнометаллический фургон, микроавтобус, пикап.",
-    "examples": "ГАЗель, Соболь, УАЗ-3303 и «Профи», Mercedes Sprinter, Ford Transit, Fiat Ducato, Iveco Daily, Hyundai Porter, Kia Bongo, Foton, JAC"
-  },
-  {
-    "category": "Грузовое",
-    "name": "Среднетоннажный грузовик (3,5–12 т)",
-    "hint": "Две оси, обычно 4×2, кабина капотная или бескапотная.",
-    "examples": "ГАЗ-3307/3309, ГАЗон Next, ЗИЛ-130/5301/4331, МАЗ-4371, Isuzu NQR/NPR, Hyundai HD-65/78/120, Mitsubishi Canter, Hino 300, FAW, Foton"
-  },
-  {
-    "category": "Грузовое",
-    "name": "Тяжёлый грузовик (свыше 12 т)",
-    "hint": "2–4 оси, 4×2, 6×4, 8×4; бескапотная кабина.",
-    "examples": "КамАЗ-5320/65115/6520, МАЗ-5516/6501, Howo, Shacman, FAW, Dongfeng, MAN TGS, Volvo FM, Scania, Mercedes Actros/Arocs"
+    "name": "Грузовой автомобиль",
+    "hint": "Грузовой автомобиль с грузовой платформой, кузовом или надстройкой — от лёгкого коммерческого до тяжёлого; весовой класс — по максимальной разрешённой массе.",
+    "examples": "ГАЗель, Mercedes Sprinter, Hyundai Porter, ГАЗ-3307, ГАЗон Next, Isuzu NQR, Mitsubishi Canter, КамАЗ-65115, МАЗ-5516, Howo, Shacman, MAN TGS, Volvo FM, Scania"
   },
   {
     "category": "Грузовое",
@@ -1406,40 +1394,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
 };
 
 export const TS_SPECIAL = {
-  "Лёгкий коммерческий (до 3,5 т)": [
+  "Грузовой автомобиль": [
     {
-      "key": "ispolnenieBazy",
-      "label": "Исполнение базы",
-      "hint": "шасси с кабиной, цельнометаллический фургон, микроавтобус, пикап",
-      "type": "select",
-      "options": [
-        "Шасси с кабиной",
-        "Цельнометаллический фургон",
-        "Микроавтобус",
-        "Пикап"
-      ]
-    },
-    {
-      "key": "country",
-      "label": "Страна сборки",
-      "hint": "страна завода-сборщика",
-      "type": "text"
-    }
-  ],
-  "Среднетоннажный грузовик (3,5–12 т)": [
-    {
-      "key": "country",
-      "label": "Страна сборки",
-      "hint": "страна завода-сборщика",
-      "type": "text"
-    }
-  ],
-  "Тяжёлый грузовик (свыше 12 т)": [
-    {
-      "key": "chisloVeduschihOsey",
-      "label": "Число ведущих осей",
-      "hint": "",
-      "type": "int"
+      "key": "dublKabina",
+      "label": "Дубль-кабина",
+      "hint": "двухрядная кабина с задним рядом сидений",
+      "type": "yes"
     },
     {
       "key": "podemnayaOs",
@@ -1459,6 +1419,12 @@ export const TS_SPECIAL = {
       "key": "gidravlikaDlyaPolupricepa",
       "label": "Гидравлика для полуприцепа",
       "hint": "для самосвальных полуприцепов",
+      "type": "yes"
+    },
+    {
+      "key": "podemnayaOs",
+      "label": "Подъёмная ось",
+      "hint": "",
       "type": "yes"
     },
     {

@@ -132,7 +132,7 @@ def run(t):
     t.ck('Прочее' in bases, 'в категории нет базы «Прочее»: %s' % bases)
     t.ck(pg.locator('[data-tsf]:not([data-tsf="main|vtype"])').count() == 0, 'поля машины показаны до выбора базы')
 
-    pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
+    pg.select_option('[data-ts-base]', 'Грузовой автомобиль')
     t.wait_for('[data-tsf="main|make"]')
     # Выбор сделан — щелчок по заголовку сворачивает блок в строку и разворачивает
     # (аккордеон вместо «Готово» и «Изменить», указание пользователя 06.10.2026).
@@ -140,7 +140,7 @@ def run(t):
     t.ck(pg.locator('[data-ts-kind-edit], [data-ts-kind-done]').count() == 0, 'остались кнопки «Изменить» / «Готово»')
     pg.click('[data-ts-kind-toggle]')
     t.wait_until("() => !document.querySelector('[data-ts-cat]')")
-    t.ck('Тяжёлый грузовик' in pg.inner_text('[data-ts-kind-sum]'), 'в свёрнутой строке нет выбранной базы')
+    t.ck('Грузовой автомобиль' in pg.inner_text('[data-ts-kind-sum]'), 'в свёрнутой строке нет выбранной базы')
     t.ck(pg.get_attribute('[data-ts-kind-toggle]', 'aria-expanded') == 'false', 'свёрнутый заголовок не помечен aria-expanded')
     t.ck(pg.get_attribute('[data-ts-kind-toggle]', 'title') is None, 'у заголовка-аккордеона всплывающая подсказка')
     pg.focus('[data-ts-kind-toggle]')
