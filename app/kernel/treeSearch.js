@@ -30,31 +30,58 @@ import { esc } from './dom.js';
 
 const LIMIT = 40;
 const norm = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е');
-const words = (q) => norm(q).split(/\s+/).filter(Boolean);
+// Запись для сравнения: без знаков и с «э» как «е» — в техпаспортах пишут
+// «бетономешалка/миксер», «цистерна (водовоз)», «изотерм. фургон», «хэтчбэк».
+const clean = (s) => norm(s).replace(/э/g, 'е').replace(/ъ/g, 'ь').replace(/[^a-z0-9а-я]+/g, ' ').trim();
+const words = (q) => clean(q).split(' ').filter((w) => w.length > 1);
 const escRe = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Основа слова — без окончания: «колёсный» и «колёсная», «крановый» и «краны».
+const stem = (w) => (w.length >= 6 ? w.slice(0, Math.max(4, w.length - 3)) : w);
+// Слова записей техпаспорта, которые вид не различают (сверка с реестром ТС
+// учреждений 06.10.2026: «пожарная машина», «автомобиль скорой помощи»,
+// «специальный фургон»): ищутся, но вариант без них не отбрасывается.
+const SOFT = new Set(['специальныи', 'специальный', 'специальная', 'специальное', 'спец', 'машина', 'автомобиль',
+  'техника', 'другое', 'другая', 'для', 'перевозки', 'самоходнои', 'самоходной', 'колесный', 'колесная',
+  'гусеничный', 'гусеничная', 'комплекс', 'установка']);
+const startRe = (w) => new RegExp('(^| )' + escRe(w));
 
+// Отбор: варианты, где совпало больше всего значимых слов запроса. Слово,
+// которого нет ни в одном варианте (опечатка, лишнее слово записи), отбор не
+// обнуляет: «вилочный погрузчик/штабелер» находит вилочный погрузчик, даже
+// если «штабелер» стоит у другого вида.
 export function findLeaves(all, q) {
   const ws = words(q);
   if (!ws.length) return { list: [], more: 0 };
+  const whole = clean(q);
+  const hays = all.map((l) => clean([...(l.path || []), l.name, ...(l.aliases || []), l.extra || ''].join(' ')));
+  const hard = ws.filter((w) => !SOFT.has(w));
+  const need = hard.length ? hard : ws;
+  const hits = hays.map((h) => need.filter((w) => h.includes(stem(w))).length);
+  const best = Math.max(0, ...hits);
+  if (!best) return { list: [], more: 0 };
   const found = [];
-  all.forEach((l) => {
-    const name = norm(l.name);
-    const aliases = (l.aliases || []).map(norm);
-    const hay = norm([...(l.path || []), l.name, ...aliases, l.extra || ''].join(' '));
-    if (!ws.every((w) => hay.includes(w))) return;
-    let score = 0;
+  all.forEach((l, i) => {
+    if (hits[i] !== best) return;
+    const name = clean(l.name);
+    const aliases = (l.aliases || []).map(clean);
+    const path = clean((l.path || []).join(' '));
+    let score = name === whole ? 40 : aliases.includes(whole) ? 30 : 0;
     let inExtra = false;
     ws.forEach((w) => {
+      const sw = stem(w);
       if (name.startsWith(w)) score += 20;
-      else if (new RegExp('(^|[\\s(«-])' + escRe(w)).test(name)) score += 12;
-      else if (name.includes(w)) score += 6;
-      else if (aliases.some((a) => a.startsWith(w))) score += 15;
-      else if (norm((l.path || []).join(' ')).includes(w)) score += 3;
-      else inExtra = true;
+      else if (startRe(sw).test(name)) score += 12;
+      else if (aliases.includes(w)) score += 15;
+      else if (aliases.some((a) => startRe(sw).test(a))) score += 10;
+      else if (name.includes(sw)) score += 6;
+      else if (startRe(sw).test(path)) score += 3;
+      else if (hays[i].includes(sw)) inExtra = true;
     });
     found.push({ ...l, score, inExtra });
   });
-  found.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ru'));
+  // При равных баллах — порядок варианта (у шаблонов — носитель: грузовое ТС
+  // раньше вездехода), затем по алфавиту.
+  found.sort((a, b) => b.score - a.score || (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name, 'ru'));
   return { list: found.slice(0, LIMIT), more: Math.max(0, found.length - LIMIT) };
 }
 

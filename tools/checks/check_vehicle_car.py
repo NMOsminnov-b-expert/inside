@@ -66,7 +66,10 @@ def run(t):
     t.ck(tops[0] == tops[1], '«Тип ТС, вид кузова» не рядом с категорией: %s' % tops)
     vt = lambda: pg.evaluate("""() => { const i = document.querySelector('[data-tsf="main|vtype"]');
       return i && i.dataset.suggest ? JSON.parse(i.dataset.suggest) : []; }""")
-    t.ck(vt() and all(x.startswith('легковой') for x in vt()), 'в подсказках типа легкового чужие варианты: %s' % vt()[:8])
+    # Грузопассажирские бывают и легковыми (указание пользователя 06.10.2026).
+    own = ('легковой', 'грузопассажирский')
+    t.ck(vt() and all(x.startswith(own) for x in vt()),
+         'в подсказках типа легкового чужие варианты: %s' % [x for x in vt() if not x.startswith(own)][:8])
 
     for key in ('docKind', 'trim', 'country', 'driveType', 'gearbox', 'fuel', 'mileage', 'vid', 'condBody', 'condOtherNote'):
         t.ck(has(key), 'у легкового нет поля %s' % key)

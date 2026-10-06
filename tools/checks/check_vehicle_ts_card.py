@@ -112,7 +112,8 @@ def run(t):
     pg.locator('[data-tsf="main|vtype"]').press('Tab')
     t.wait_for('[data-ts-sug-cat]')
     sug = pg.eval_on_selector_all('[data-ts-sug-cat]', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(sug == ['Грузовое', 'Тракторы и специальные шасси'], 'предложения категории не те: %s' % sug)
+    t.ck(sug == ['Грузовое', 'Тракторы и специальные шасси', 'Специализированная техника'],
+         'предложения категории не те: %s' % sug)
     t.ck(pg.input_value('[data-ts-cat]') == '', 'категория поставилась сама по записи «Тип ТС»')
     pg.click('[data-ts-sug-cat="Грузовое"]')
     t.wait_for('[data-ts-base]:not([disabled])')
@@ -121,6 +122,17 @@ def run(t):
     pg.locator('[data-tsf="main|vtype"]').press('Tab')
     t.wait_for('[data-ts-sug-cat="Легковое"]')
     t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', 'запись «Тип ТС» перебила выбранную категорию')
+    # «СТМ» в техпаспорте — спецтехника (указание пользователя 06.10.2026):
+    # предложение открывает подменю спецтехники, а не базу ТС.
+    pg.fill('[data-tsf="main|vtype"]', 'СТМ')
+    pg.locator('[data-tsf="main|vtype"]').press('Tab')
+    t.wait_for('[data-ts-sug-cat]')
+    sug = pg.eval_on_selector_all('[data-ts-sug-cat]', 'els => els.map((e) => e.textContent.trim())')
+    t.ck(sug == ['Специализированная техника'], 'по «СТМ» предложено не то: %s' % sug)
+    pg.click('[data-ts-sug-cat="Специализированная техника"]')
+    t.wait_for('[data-ts-sgroup]')
+    pg.select_option('[data-ts-cat]', 'Грузовое')
+    t.wait_for('[data-ts-base]:not([disabled])')
 
     # Поиск — помощник над каскадом: находит по всем веткам, у каждого — путь.
     pg.fill('#ts-find-q', 'кран')

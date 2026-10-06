@@ -162,8 +162,9 @@ export function bindTsForm(ctx, holder, set) {
     warnMismatch();
   });
   s.$$('[data-ts-sug-cat]').forEach((b) => b.onclick = () => {
-    v.kind = 'base';
-    setCategory(b.dataset.tsSugCat);
+    const val = b.dataset.tsSugCat;
+    v.kind = val === SELF_CAT ? 'self' : 'base';
+    if (v.kind === 'base') setCategory(val);
     openKind();
     ctx.render();
   });

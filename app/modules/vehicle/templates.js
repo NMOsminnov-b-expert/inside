@@ -36,7 +36,8 @@ export function templateLeaves() {
   return [
     ...own.map((t) => ({ tpl: t, own: true, removable: true, name: t.name, aliases: t.aliases || [],
       path: [`Свой шаблон: ${composition(t)}`] })),
-    ...TS_TEMPLATES.map((t) => ({ tpl: t, name: t.name, aliases: t.aliases, path: [`Шаблон: ${composition(t)}`] })),
+    ...TS_TEMPLATES.map((t) => ({ tpl: t, name: t.name, aliases: t.aliases, order: t.order,
+      path: [`Шаблон: ${composition(t)}`] })),
   ];
 }
 
