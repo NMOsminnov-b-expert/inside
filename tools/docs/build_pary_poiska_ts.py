@@ -1,26 +1,35 @@
 # -*- coding: utf-8 -*-
-"""Пары «запись техпаспорта → вариант справочника ТС» для привязки в поиске.
+"""Пары записей техпаспортов ТС по исходным строкам — для привязки в поиске.
 
 Задача пользователя 06.10.2026: «в поиске привяжем, что чем является, по
-файлику УНА. Напишешь скрипт для составления пар? Потом внедришь». Вход —
-обезличенная книга уникальных значений (tools/data/unique_values.py), только
-листы «Столбец I» (вид кузова) и «Столбец F» (тип ТС); исходная книга УНА под
-запретом и не читается.
+файлику УНА… скрипт по исходнику, а не по выжимкам, чтобы он нашёл все пары и
+укомпоновал их. Закинул обезличенный файл. Его используй». Вход — обезличенная
+книга, лист «Основной», столбцы «Тип ТС», «Марка», «Модель», «Тип кузова»
+(A–D); другие листы не читаются.
 
-Книга пар — для разметки человеком: у каждой записи вида кузова колонка
-«Привязка» — выбор из списка всех вариантов поиска (шаблоны, базы, виды
-спецтехники; лист «Варианты»), заранее подставлен первый вариант нынешнего
-поиска (kernel/treeSearch.js findLeaves по каталогу карточки). «Проверено»
-ставит человек. Пустая привязка — записи нет соответствия в справочнике.
-По типу ТС — какие категории предлагает карточка (categoryCandidates).
+Значения сравниваются без учёта регистра и лишних пробелов, в книге — самая
+частая запись. Пары собираются по строкам, каждая — со счётом строк:
 
-Повторная сборка не теряет разметку: привязки и отметки из прежней книги
-docs/pary-poiska-ts.xlsx переносятся по записи.
+  * «Тип и кузов» — пара «Тип ТС + Тип кузова»: что это за машина. Колонка
+    «Привязка» — выбор из листа «Варианты» (все варианты поиска «Вида объекта»:
+    базы, виды спецтехники, шаблоны), заранее подставлен первый вариант
+    нынешнего поиска (kernel/treeSearch.js findLeaves) по типу и кузову вместе,
+    а если так не нашлось — по одному кузову; «Проверено» ставит человек. Категории — что предлагает
+    карточка по типу (categoryCandidates).
+  * «Марка и модель» — пара «Марка + Модель» и чем эта модель бывает: самые
+    частые тип и кузов, их доля, сколько разных сочетаний.
+  * «Марка и кузов» — какие кузова у марки (ГАЗ — бортовой, фургон…).
+  * «Все сочетания» — четвёрки «тип + марка + модель + кузов».
 
-    python tools/docs/build_pary_poiska_ts.py "<книга уникальных>.xlsx"   # docs/pary-poiska-ts.xlsx
+Повторная сборка не теряет разметку: привязки, отметки и примечания листа
+«Тип и кузов» переносятся из прежней книги по паре.
+
+    python tools/docs/build_pary_poiska_ts.py "<обезличенная книга>.xlsx"   # docs/pary-poiska-ts.xlsx
 """
+import collections
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -31,10 +40,13 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
-EMPTY = '(пусто)'
+SHEET = 'Основной'
+COLS = ('Тип ТС', 'Марка', 'Модель', 'Тип кузова')
+EMPTY = '—'
+CARRIER_TYPES = {'легковой', 'прицеп', 'полуприцеп', 'автобус', 'мото'}
 
 # Варианты — те же, что видит поиск «Вида объекта» в карточке (ctrl.js:
-# templateLeaves + kindLeaves); подпись варианта — «вид: название».
+# kindLeaves + templateLeaves); подпись варианта — «вид: название».
 JS = r"""
 const [{ findLeaves }, m, t] = await Promise.all([import('./app/kernel/treeSearch.js'),
   import('./app/modules/vehicle/data/tsCatalog.js'), import('./app/modules/vehicle/tsModel.js')]);
@@ -51,8 +63,8 @@ const label = (l) => `${l.what}: ${l.name}`;
 const input = JSON.parse(process.argv[1]);
 console.log(JSON.stringify({
   variants: L.map((l) => [label(l), l.where]),
-  I: input.I.map((v) => { const r = findLeaves(L, v); return [v, r.list.slice(0, 3).map(label), r.list.length + r.more]; }),
-  F: input.F.map((v) => [v, t.categoryCandidates(v)]),
+  find: Object.fromEntries(input.q.map((q) => [q, findLeaves(L, q).list.slice(0, 3).map(label)])),
+  cats: Object.fromEntries(input.types.map((v) => [v, t.categoryCandidates(v)])),
 }));
 """
 
@@ -60,31 +72,55 @@ HEAD = PatternFill('solid', fgColor='DCEBF8')
 NONE = PatternFill('solid', fgColor='F8D7D3')
 
 
+def key(v):
+    return re.sub(r'\s+', ' ', str(v)).strip().lower() if v is not None and str(v).strip() else ''
+
+
+class Spell:
+    """Самая частая запись значения по ключу."""
+
+    def __init__(self):
+        self.seen = collections.defaultdict(collections.Counter)
+
+    def add(self, v):
+        k = key(v)
+        if k:
+            self.seen[k][re.sub(r'\s+', ' ', str(v)).strip()] += 1
+        return k
+
+    def __call__(self, k):
+        return self.seen[k].most_common(1)[0][0] if k else EMPTY
+
+
 def read(book):
     wb = load_workbook(book, read_only=True)
-    data = {}
-    for col in ('F', 'I'):
-        ws = wb['Столбец %s' % col]
-        data[col] = [(str(r[0]), r[1]) for r in ws.iter_rows(min_row=2, max_col=2, values_only=True)
-                     if r[0] is not None and str(r[0]) != EMPTY]
+    ws = wb[SHEET]
+    head = next(ws.iter_rows(min_row=1, max_row=1, max_col=len(COLS), values_only=True))
+    assert tuple(head) == COLS, 'в листе «%s» другие столбцы: %s' % (SHEET, head)
+    spell, rows = Spell(), []
+    for r in ws.iter_rows(min_row=2, max_col=len(COLS), values_only=True):
+        ks = tuple(spell.add(v) for v in r)
+        if any(ks):
+            rows.append(ks)
     wb.close()
-    return data
+    return rows, spell
 
 
 def previous():
-    """Разметка прежней книги: запись → (привязка, проверено, примечание)."""
+    """Разметка прежней книги: (тип, кузов) → (привязка, проверено, примечание)."""
     if not os.path.exists(OUT):
         return {}
     wb = load_workbook(OUT, read_only=True)
     out = {}
-    for r in wb['Вид кузова (I)'].iter_rows(min_row=2, values_only=True):
-        if r[0] is not None:
-            out[str(r[0]).lower()] = (r[2], r[3], r[6] if len(r) > 6 else None)
+    if 'Тип и кузов' in wb.sheetnames:
+        for r in wb['Тип и кузов'].iter_rows(min_row=2, values_only=True):
+            if r[0] is not None:
+                out[(key(r[0]) if r[0] != EMPTY else '', key(r[1]) if r[1] != EMPTY else '')] = (r[4], r[5], r[7])
     wb.close()
     return out
 
 
-def sheet(wb, title, head, rows, widths):
+def sheet(wb, title, head, rows, widths, freeze='C2'):
     ws = wb.create_sheet(title)
     ws.append(head)
     for c in ws[1]:
@@ -98,61 +134,100 @@ def sheet(wb, title, head, rows, widths):
     for row in ws.iter_rows(min_row=2):
         for c in row:
             c.alignment = Alignment(wrap_text=True, vertical='top')
-    ws.freeze_panes = 'B2'
+    ws.freeze_panes = freeze
     ws.auto_filter.ref = ws.dimensions
     return ws
 
 
+def share(n, total):
+    return '%d%%' % round(100 * n / total) if total else ''
+
+
 def build(book):
-    data = read(book)
-    vals = {'I': [v for v, _ in data['I']], 'F': [v for v, _ in data['F']]}
-    res = subprocess.run(['node', '--input-type=module', '-e', JS, json.dumps(vals, ensure_ascii=False)], cwd=ROOT,
-                         capture_output=True, encoding='utf-8')
+    rows, sp = read(book)
+    T, M, MO, K = range(4)
+    type_body = collections.Counter((r[T], r[K]) for r in rows)
+    make_model = collections.Counter((r[M], r[MO]) for r in rows)
+    make_body = collections.Counter((r[M], r[K]) for r in rows)
+    full = collections.Counter(rows)
+    by_model = collections.defaultdict(collections.Counter)
+    for r in rows:
+        by_model[(r[M], r[MO])][(r[T], r[K])] += 1
+
+    # Запрос в поиск — тип и кузов вместе там, где тип называет носитель
+    # («легковой фургон» — легковой, «прицеп цистерна» — цистерна на прицепе);
+    # «грузовой», «специальный», «грузопассажирский», «СТМ» носителя не уточняют
+    # и только сбивают выдачу (на многоосное шасси, на голую базу) — с ними
+    # ищется один кузов. Ничего не нашлось — один кузов, без кузова — тип.
+    ask = lambda t, k: ' '.join(sp(x) for x in ((t if t in CARRIER_TYPES or not k else ''), k) if x)
+    q = sorted({ask(t, k) for t, k in type_body} | {sp(k) for _, k in type_body if k})
+    types = sorted({sp(t) for t, _ in type_body if t})
+    res = subprocess.run(['node', '--input-type=module', '-e', JS, json.dumps({'q': q, 'types': types}, ensure_ascii=False)],
+                         cwd=ROOT, capture_output=True, encoding='utf-8')
     if res.returncode:
         raise SystemExit(res.stderr)
     found = json.loads(res.stdout)
-    top = {v: (t, n) for v, t, n in found['I']}
     old = previous()
-
-    rows = []
-    for v, n in data['I']:
-        t, total = top[v]
-        bind, checked, note = old.get(v.lower(), (None, None, None))
-        rows.append((v, n, bind if bind is not None else (t[0] if t else ''), checked or '',
-                     '; '.join(t[1:]) if t else '', total, note or ''))
-    rows.sort(key=lambda r: -r[1])
 
     wb = Workbook()
     wb.remove(wb.active)
-    ws = sheet(wb, 'Вид кузова (I)', ['Запись', 'Строк', 'Привязка', 'Проверено', 'Другие варианты поиска',
-                                      'Вариантов в выдаче', 'Примечание'], rows, [36, 9, 50, 12, 60, 12, 40])
+
+    tb = []
+    for (t, k), n in type_body.most_common():
+        hits = found['find'].get(ask(t, k)) or (found['find'].get(sp(k), []) if k else [])
+        bind, checked, note = old.get((t, k), (None, None, None))
+        tb.append((sp(t), sp(k), n, ', '.join(found['cats'].get(sp(t), [])) or EMPTY,
+                   bind if bind is not None else (hits[0] if hits else ''), checked or '',
+                   '; '.join(hits[1:]), note or ''))
+    ws = sheet(wb, 'Тип и кузов', ['Тип ТС', 'Тип кузова', 'Строк', 'Категории по типу', 'Привязка', 'Проверено',
+                                   'Другие варианты поиска', 'Примечание'], tb, [18, 34, 9, 30, 50, 12, 60, 36])
+    n = len(tb) + 1
     variants = found['variants']
-    wv = sheet(wb, 'Варианты', ['Вариант', 'Состав или группа'], variants, [60, 60])
-    n = len(rows) + 1
     dv = DataValidation(type='list', formula1="='Варианты'!$A$2:$A$%d" % (len(variants) + 1), allow_blank=True,
                         showErrorMessage=False)
     ws.add_data_validation(dv)
-    dv.add('C2:C%d' % n)
+    dv.add('E2:E%d' % n)
     yes = DataValidation(type='list', formula1='"да,нет"', allow_blank=True)
     ws.add_data_validation(yes)
-    yes.add('D2:D%d' % n)
+    yes.add('F2:F%d' % n)
     for row in ws.iter_rows(min_row=2, max_row=n):
-        if not row[2].value:
+        if not row[4].value:
             for c in row:
                 c.fill = NONE
 
-    cand = dict((v, c) for v, c in found['F'])
-    frows = [(v, n_, ', '.join(cand.get(v, [])) or '—') for v, n_ in data['F']]
-    sheet(wb, 'Тип ТС (F)', ['Запись', 'Строк', 'Категории, которые предлагает карточка'], frows, [24, 9, 60])
-    wb.move_sheet('Варианты', offset=1)
+    mm = []
+    for (m, mo), n_ in make_model.most_common():
+        combos = by_model[(m, mo)]
+        (t, k), top = combos.most_common(1)[0]
+        mm.append((sp(m), sp(mo), n_, sp(t), sp(k), share(top, n_), len(combos)))
+    sheet(wb, 'Марка и модель', ['Марка', 'Модель', 'Строк', 'Чаще всего: тип ТС', 'Чаще всего: тип кузова',
+                                 'Доля', 'Разных сочетаний типа и кузова'], mm, [22, 30, 9, 18, 34, 9, 14])
+
+    mb = [(sp(m), sp(k), n_) for (m, k), n_ in sorted(make_body.items(), key=lambda x: (x[0][0], -x[1]))]
+    sheet(wb, 'Марка и кузов', ['Марка', 'Тип кузова', 'Строк'], mb, [22, 34, 9])
+
+    fr = [(sp(t), sp(m), sp(mo), sp(k), n_) for (t, m, mo, k), n_ in full.most_common()]
+    sheet(wb, 'Все сочетания', ['Тип ТС', 'Марка', 'Модель', 'Тип кузова', 'Строк'], fr, [18, 22, 30, 34, 9])
+
+    sheet(wb, 'Варианты', ['Вариант', 'Состав или группа'], variants, [60, 60], freeze='A2')
+
+    summary = [('Строк', len(rows)), ('Пар «тип + кузов»', len(type_body)),
+               ('из них без привязки', sum(1 for r in tb if not r[4])),
+               ('из них проверено', sum(1 for r in tb if r[5] == 'да')),
+               ('Пар «марка + модель»', len(make_model)),
+               ('моделей с одним сочетанием типа и кузова', sum(1 for r in mm if r[6] == 1)),
+               ('Пар «марка + кузов»', len(make_body)), ('Сочетаний всех четырёх', len(full)),
+               ('Вариантов поиска', len(variants))]
+    sheet(wb, 'Итог', ['Показатель', 'Значение'], summary, [44, 12], freeze='A2')
+    wb.move_sheet('Итог', offset=-(len(wb.sheetnames) - 1))
     wb.save(OUT)
-    return len(rows), sum(1 for r in rows if not r[2]), len(variants), sum(1 for r in rows if r[3] == 'да')
+    return summary
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
     sys.stdout.reconfigure(encoding='utf-8')
-    pairs, empty, variants, checked = build(sys.argv[1])
-    print('docs/pary-poiska-ts.xlsx собран: записей %d, без привязки %d, проверено %d, вариантов %d'
-          % (pairs, empty, checked, variants))
+    for k, v in build(sys.argv[1]):
+        print('%-44s %s' % (k, v))
+    print('docs/pary-poiska-ts.xlsx собран')
