@@ -19,6 +19,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 OUT = os.path.join(ROOT, 'app', 'modules', 'vehicle', 'data', 'tsCatalog.js')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'docs'))
 import build_kategorii_ts as B  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ts_templates  # noqa: E402
 
 # Ключ — имя, под которым значение лежит в записи. Меняется только вместе с
 # данными: по ключу значение и находится.
@@ -251,6 +253,9 @@ def build():
         'TS_SELF_GROUPS': group(B.SELF, 0, lambda r: {'name': r[1], 'run': r[2], 'hint': r[3], 'examples': r[4]}),
         'TS_SELF_FIELDS': common(B.SELF_COMMON, {'Дополнительные параметры'}),
         'TS_MODULE_GROUPS': group(B.MODULES, 0, lambda r: {'name': r[1], 'hint': r[2], 'note': r[3]}),
+        # Готовые шаблоны машин для поиска (tools/data/ts_templates.py).
+        'TS_TEMPLATES': ts_templates.build([(g['group'], [i['name'] for i in g['items']])
+                                            for g in group(B.MODULES, 0, lambda r: {'name': r[1]})]),
         'TS_MODULE_FIELDS': common(B.MODULE_COMMON, {'Вид модуля', 'Дополнительные параметры'}),
         # Ступени шкалы состояния и их характеристики — подсказки таблицы состояния.
         # Подсказки «Тип ТС, вид кузова» — по категории базы и у спецтехники.

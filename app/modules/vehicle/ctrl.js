@@ -7,7 +7,9 @@ import { bindParties } from './parties.ctrl.js';
 import { attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
-import { confirmDialog } from '../../kernel/dialog.js';
+import { confirmDialog, formDialog } from '../../kernel/dialog.js';
+import { scheduleSave } from '../../kernel/persist.js';
+import { templateLeaves, applyTemplate, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns } from './view.js';
@@ -85,11 +87,50 @@ export function bindTsForm(ctx, holder, set) {
   }
 
   // Поиск по справочнику — помощник над каскадом: выбор заполняет списки.
+  // Шаблон (готовый или свой) собирает машину целиком: базу, модули и «Тип
+  // ТС» (решение пользователя 06.10.2026); всё потом правится как обычно.
   bindTreeSearch(s, {
     id: 'ts-find',
-    leaves: kindLeaves,
-    onPick: (l) => { applyKindLeaf(v, l); openKind(); ctx.render(); },
+    leaves: () => [...templateLeaves(), ...kindLeaves()],
+    onPick: (l) => {
+      if (l.tpl) {
+        applyTemplate(v, l.tpl);
+        ctx.toast(`Собрано по шаблону «${l.tpl.name}»: ${[l.tpl.base, ...l.tpl.modules.map((m) => m.kind)].join(' + ')}`);
+      } else {
+        applyKindLeaf(v, l);
+      }
+      openKind();
+      scheduleSave();
+      ctx.render();
+    },
+    onRemove: async (l) => {
+      if (!l.tpl) return;
+      const ok = await confirmDialog({ title: 'Удалить шаблон', text: `Шаблон «${l.tpl.name}» будет удалён. Карточки, собранные по нему, не меняются.`,
+        okLabel: 'Удалить', danger: true });
+      if (!ok) return;
+      removeTemplate(l.tpl.id);
+      scheduleSave();
+      ctx.toast(`Шаблон «${l.tpl.name}» удалён`);
+    },
   });
+
+  // Свой шаблон из нынешнего набора: база + модули (+ «Тип ТС»).
+  const tplSave = s.$('[data-ts-tpl-save]');
+  if (tplSave) tplSave.onclick = async () => {
+    if (!canSaveTemplate(v)) return;
+    const kinds = v.modules.filter((m) => m.kind).map((m) => m.kind);
+    const res = await formDialog({
+      title: 'Сохранить как шаблон', okLabel: 'Сохранить',
+      fields: [
+        { key: 'name', label: 'Название', required: true, value: kinds.join(' и ') },
+        { key: 'aliases', label: 'Другие названия, через запятую', placeholder: 'Например: воровайка, манипулятор' },
+      ],
+    });
+    if (!res) return;
+    const t = saveTemplate(v, res.name, res.aliases);
+    scheduleSave();
+    ctx.toast(`Шаблон «${t.name}» сохранён — находится в поиске «Вида объекта»`);
+  };
 
   // Каскад: смена родителя сбрасывает дочерний выбор; единственный вариант
   // подставляется сам (практика каскадных списков).

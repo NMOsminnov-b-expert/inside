@@ -6,6 +6,7 @@ import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
 import { partiesHTML } from './parties.view.js';
 import { tsFieldHTML } from './tsFields.view.js';
+import { canSaveTemplate } from './templates.js';
 import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
   KINDS, CATEGORIES, basesOf, baseInfo, singleBase, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
@@ -654,9 +655,13 @@ export const openModuleId = (ctx, v) => {
 function modulesHTML(ctx, v, idx) {
   const open = openModuleId(ctx, v);
   const list = v.modules.map((m) => moduleRow(m, m.id === open, isTrailer(v))).join('');
+  // Набор «база + модули» можно сохранить своим шаблоном — он появится в поиске
+  // «Вида объекта» у всех (решение пользователя 06.10.2026).
+  const save = canSaveTemplate(v)
+    ? '<button type="button" class="btn btn-ghost btn-sm" data-ts-tpl-save style="margin-left:auto">Сохранить как шаблон</button>' : '';
   return card('violet', idx, 'Модули', 'надстройки и навесное оборудование, смонтированные на базе',
     `<div class="vh-mlist">${list || '<div class="vehicle-note">Модулей нет.</div>'}
-      <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`, '', 'data-ts-block="modules"');
+      <button type="button" class="vh-madd" data-ts-madd>+ Добавить модуль</button></div>`, save, 'data-ts-block="modules"');
 }
 
 // --- Фото с осмотра ------------------------------------------------------------------------

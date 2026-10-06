@@ -22,8 +22,9 @@
 //     выдача закрывается, когда фокус уходит с поля, сам список фокус по Tab
 //     не берёт.
 //
-// Вариант: { name, path: [..], aliases?: [..], extra?: 'текст' } и любые поля
-// модуля — их вернёт onPick. aliases — обиходные названия («ИБП»): ищутся, но
+// Вариант: { name, path: [..], aliases?: [..], extra?: 'текст', removable? } и
+// любые поля модуля — их вернёт onPick; removable — в строке крестик, по нему
+// зовётся onRemove (свои шаблоны карточки ТС). aliases — обиходные названия («ИБП»): ищутся, но
 // не показываются; extra — пояснение вроде примеров марок: ищется слабее.
 import { esc } from './dom.js';
 
@@ -108,16 +109,27 @@ export function treeSearchHTML({ id, label, placeholder = '' }) {
 
 // leaves() — варианты (зовётся при каждом наборе: состав может зависеть от
 // уже выбранного); onPick(вариант) — подставить в каскад и перерисовать.
-export function bindTreeSearch(scope, { id, leaves, onPick }) {
+export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
   const q = scope.$(`#${id}-q`);
   const drop = scope.$(`#${id}-list`);
   if (!q || !drop) return;
   let list = [];
   let active = -1;
 
+  // Выдача не выходит за край окна (правило проекта о всплывающем): высота —
+  // по месту до края, а если снизу тесно — над полем. Прокрутка одна, у выдачи.
+  const place = () => {
+    const r = q.getBoundingClientRect();
+    const below = innerHeight - r.bottom - 12;
+    const above = r.top - 12;
+    const up = below < 200 && above > below;
+    drop.classList.toggle('up', up);
+    drop.style.maxHeight = Math.max(120, Math.min(320, up ? above : below)) + 'px';
+  };
   const open = (on) => {
     drop.hidden = !on;
     q.setAttribute('aria-expanded', on ? 'true' : 'false');
+    if (on) place();
     if (!on) q.removeAttribute('aria-activedescendant');
   };
 
@@ -138,6 +150,8 @@ export function bindTreeSearch(scope, { id, leaves, onPick }) {
           <span class="tsr-name">${mark(l.name, ws)}</span>
           ${l.path && l.path.length ? `<span class="tsr-path">${l.path.map((p) => mark(p, ws)).join(' <span aria-hidden="true">›</span> ')}</span>` : ''}
           ${l.inExtra && l.extra ? `<span class="tsr-path">в примерах: ${mark(snippet(l.extra, ws), ws)}</span>` : ''}
+          ${l.removable && onRemove ? `<button type="button" class="tsr-del" data-tsr-del="${i}" tabindex="-1"
+            aria-label="Удалить «${esc(l.name)}»" title="Удалить">×</button>` : ''}
         </div>`).join('')
         + (r.more ? `<div class="tsr-more">Ещё ${r.more} — уточните запрос</div>` : '')
       : '<div class="tsr-more">Ничего не найдено</div>';
@@ -171,6 +185,14 @@ export function bindTreeSearch(scope, { id, leaves, onPick }) {
     }
   };
   drop.onmousedown = (e) => {
+    const del = e.target.closest('[data-tsr-del]');
+    if (del && onRemove) {
+      e.preventDefault();
+      const l = list[+del.dataset.tsrDel];
+      open(false);
+      if (l) onRemove(l);
+      return;
+    }
     const el = e.target.closest('[data-tsr-i]');
     if (!el) return;
     e.preventDefault();

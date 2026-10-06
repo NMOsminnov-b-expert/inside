@@ -38,9 +38,15 @@ body[data-module] .ctx-chip{font-size:10.5px;background:var(--blue-50);border:1p
    вариант и путь до него серой строкой ниже; найденное подсвечено. Список
    поверх карточки, прокрутка — внутри него. */
 body[data-module] .tsr-box{position:relative}
+body[data-module] .tsr-drop.up{top:auto;bottom:calc(100% + 4px)}
 body[data-module] .tsr-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;max-height:320px;overflow:auto;
   background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);padding:4px}
-body[data-module] .tsr-opt{display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:7px;cursor:pointer}
+body[data-module] .tsr-opt{display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-radius:7px;cursor:pointer;position:relative}
+/* Крестик удаления своего варианта (свой шаблон ТС) — справа в строке выдачи. */
+body[data-module] .tsr-opt:has(.tsr-del){padding-right:34px}
+body[data-module] .tsr-del{position:absolute;top:6px;right:6px;width:24px;height:24px;border:1px solid transparent;border-radius:6px;
+  background:none;color:var(--ink-faint);font-size:14px;line-height:1;cursor:pointer}
+body[data-module] .tsr-del:hover{background:#fdeeee;border-color:#f1b8b8;color:var(--danger)}
 body[data-module] .tsr-opt[aria-selected="true"],body[data-module] .tsr-opt:hover{background:var(--blue-50)}
 body[data-module] .tsr-name{font-size:13px;color:var(--ink)}
 body[data-module] .tsr-path{font-size:11px;color:var(--muted)}
