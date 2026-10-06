@@ -277,12 +277,14 @@ body[data-module="vehicle"] .vh-saved{font-size:11.5px;color:var(--muted);white-
 .vehicle-form .vh-cond{min-width:520px}
 .vehicle-form .vh-cond td.vh-cond-el{font-weight:600;color:var(--ink-ctl);white-space:normal}
 .vehicle-form .vh-cond select.ax-cell{cursor:pointer;font-weight:400}
-/* Общее состояние — итоговая строка в подвале таблицы: белый промежуток,
-   тёмная черта, свой фон, жирная подпись и значение. */
+/* Общее состояние — итоговая строка в подвале таблицы: тёмная черта, свой
+   фон, жирная подпись и значение. Без промежутка над ней — он разрывал
+   таблицу и ничего не добавлял к черте и фону (вопрос пользователя
+   06.10.2026: «А отступ тогда зачем?»). */
 /* По классу строки, а не по tfoot: стили не зависят от того, где стоит строка
    (при старом коде в кэше браузера она стояла в tbody — и отделение пропадало). */
-.vehicle-form .vh-cond tr.vh-cond-total td{border-top:10px solid #fff;box-shadow:inset 0 2px 0 var(--slate-500);
-  background:var(--blue-50);padding-top:12px;padding-bottom:10px}
+.vehicle-form .vh-cond tr.vh-cond-total td{border-top:2px solid var(--slate-500);background:var(--blue-50);
+  padding-top:10px;padding-bottom:10px}
 .vehicle-form .vh-cond tr.vh-cond-total td.vh-cond-el{font-size:13.5px;font-weight:700;color:var(--ink)}
 .vehicle-form .vh-cond tr.vh-cond-total select.ax-cell{font-weight:700;color:var(--ink)}
 /* «Состояние» — с подсказкой-шкалой: подчёркнут пунктиром, как подписи полей с пояснением. */
