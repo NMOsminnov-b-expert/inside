@@ -16,8 +16,9 @@
 // датой; удаление шаблона не трогает карточки, собранные по нему.
 
 import { TS_TEMPLATES } from './data/tsCatalog.js';
+import { TS_MODELS } from './data/tsModels.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
-import { addModule } from './tsModel.js';
+import { addModule, kindLeaves } from './tsModel.js';
 
 const own = [];
 
@@ -39,6 +40,33 @@ export function templateLeaves() {
     ...TS_TEMPLATES.map((t) => ({ tpl: t, name: t.name, aliases: t.aliases, order: t.order,
       path: [`Шаблон: ${composition(t)}`] })),
   ];
+}
+
+// Модели машин (задача пользователя 06.10.2026: «чтобы можно было модель
+// вбить, и нам уже выбралась база… и модули, если что, подтянуть»): каждая
+// модель из записей техпаспортов ведёт на базу, вид спецтехники или шаблон —
+// чем она чаще всего записана (tools/data/build_ts_models.py, по книге пар
+// docs/pary-poiska-ts.xlsx). Модель, записанная по-разному (ГАЗ 53 — самосвал,
+// бортовой, фургон), даёт несколько вариантов по убыванию частоты. Что модель
+// соберёт — подпись под названием (note), она не ищется. При равенстве модели
+// идут после видов и шаблонов (order от 100).
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: справочник моделей пополняется из заведённых карточек;
+// тогда «чем модель бывает» считается по базе, а не по разовой выгрузке.
+let models = null;
+export function modelLeaves() {
+  if (models) return models;
+  const to = new Map();
+  TS_TEMPLATES.forEach((t) => to.set('шаблон: ' + t.name, { tpl: t, note: `Шаблон «${t.name}»: ${composition(t)}` }));
+  kindLeaves().forEach((l) => to.set((l.kind === 'self' ? 'спецтехника: ' : 'база: ') + l.name,
+    { kindLeaf: l, note: [...l.path, l.name].join(' › ') }));
+  models = [];
+  TS_MODELS.forEach(([make, model, targets]) => targets.forEach((label, i) => {
+    const t = to.get(label);
+    const name = [make, model].filter(Boolean).join(' ');
+    if (t) models.push({ ...t, model: name, name, path: [], order: 100 + i });
+  }));
+  return models;
 }
 
 // Собрать карточку по шаблону. «Тип ТС» — только в пустое поле: запись из

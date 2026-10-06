@@ -14,7 +14,10 @@
     «Привязка» — выбор из листа «Варианты» (все варианты поиска «Вида объекта»:
     базы, виды спецтехники, шаблоны), заранее подставлен первый вариант
     нынешнего поиска (kernel/treeSearch.js findLeaves) по типу и кузову вместе,
-    а если так не нашлось — по одному кузову; «Проверено» ставит человек. Категории — что предлагает
+    а если так не нашлось — по одному кузову; из равных вариантов берётся тот,
+    что служит началом остальных («Бортовой», а не «Бортовой с КМУ»); где
+    равные просто разные («цистерна»), привязка пустая с примечанием
+    «неоднозначно — выбрать». «Проверено» ставит человек. Категории — что предлагает
     карточка по типу (categoryCandidates).
   * «Марка и модель» — пара «Марка + Модель» и чем эта модель бывает: самые
     частые тип и кузов, их доля, сколько разных сочетаний.
@@ -63,7 +66,18 @@ const label = (l) => `${l.what}: ${l.name}`;
 const input = JSON.parse(process.argv[1]);
 console.log(JSON.stringify({
   variants: L.map((l) => [label(l), l.where]),
-  find: Object.fromEntries(input.q.map((q) => [q, findLeaves(L, q).list.slice(0, 3).map(label)])),
+  // Равные по баллу и порядку варианты: если один из них — начало остальных
+  // («Бортовой» и «Бортовой с КМУ»), берётся он; если они просто разные
+  // («цистерна»: бензовоз, водовоз, ассенизаторская…) — неоднозначно: первым
+  // стоит первый по алфавиту, привязывать по нему нельзя.
+  find: Object.fromEntries(input.q.map((q) => {
+    let l = findLeaves(L, q).list;
+    const mod = (x) => x.name.split(' — ')[0];
+    const tied = l.filter((x) => x.score === l[0].score && (x.order || 0) === (l[0].order || 0));
+    const root = tied.find((x) => tied.every((y) => mod(y).startsWith(mod(x))));
+    if (root) l = [root, ...l.filter((x) => x !== root)];
+    return [q, { top: l.slice(0, 3).map(label), tie: tied.length > 1 && !root }];
+  })),
   cats: Object.fromEntries(input.types.map((v) => [v, t.categoryCandidates(v)])),
 }));
 """
@@ -174,11 +188,15 @@ def build(book):
 
     tb = []
     for (t, k), n in type_body.most_common():
-        hits = found['find'].get(ask(t, k)) or (found['find'].get(sp(k), []) if k else [])
+        f = found['find'].get(ask(t, k))
+        if not (f and f['top']) and k:
+            f = found['find'].get(sp(k))
+        hits, tie = (f['top'], f['tie']) if f else ([], False)
         bind, checked, note = old.get((t, k), (None, None, None))
+        auto = '' if tie else (hits[0] if hits else '')
         tb.append((sp(t), sp(k), n, ', '.join(found['cats'].get(sp(t), [])) or EMPTY,
-                   bind if bind is not None else (hits[0] if hits else ''), checked or '',
-                   '; '.join(hits[1:]), note or ''))
+                   bind if bind is not None else auto, checked or '',
+                   '; '.join(hits if tie else hits[1:]), note or ('неоднозначно — выбрать' if tie and bind is None else '')))
     ws = sheet(wb, 'Тип и кузов', ['Тип ТС', 'Тип кузова', 'Строк', 'Категории по типу', 'Привязка', 'Проверено',
                                    'Другие варианты поиска', 'Примечание'], tb, [18, 34, 9, 30, 50, 12, 60, 36])
     n = len(tb) + 1

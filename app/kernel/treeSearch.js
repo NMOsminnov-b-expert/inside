@@ -25,7 +25,9 @@
 // Вариант: { name, path: [..], aliases?: [..], extra?: 'текст', removable? } и
 // любые поля модуля — их вернёт onPick; removable — в строке крестик, по нему
 // зовётся onRemove (свои шаблоны карточки ТС). aliases — обиходные названия («ИБП»): ищутся, но
-// не показываются; extra — пояснение вроде примеров марок: ищется слабее.
+// не показываются; extra — пояснение вроде примеров марок: ищется слабее;
+// note — подпись под названием, которая показывается, но не ищется (у модели
+// машины — что она соберёт: иначе «самосвал» находил бы все модели-самосвалы).
 import { esc } from './dom.js';
 
 const LIMIT = 40;
@@ -44,6 +46,23 @@ const SOFT = new Set(['специальныи', 'специальный', 'сп�
   'техника', 'другое', 'другая', 'для', 'перевозки', 'самоходнои', 'самоходной', 'колесный', 'колесная',
   'гусеничный', 'гусеничная', 'комплекс', 'установка']);
 const startRe = (w) => new RegExp('(^| )' + escRe(w));
+const byName = new Intl.Collator('ru').compare;
+
+// Текст варианта для отбора — один раз на вариант: вариантов тысячи (модели
+// машин карточки ТС), а поиск идёт на каждое нажатие, в том числе на слабом
+// железе. Варианты не меняются, пока живут (модуль собирает новые объекты).
+const PREP = new WeakMap();
+const prep = (l) => {
+  let p = PREP.get(l);
+  if (!p) {
+    p = {
+      hay: clean([...(l.path || []), l.name, ...(l.aliases || []), l.extra || ''].join(' ')),
+      name: clean(l.name), aliases: (l.aliases || []).map(clean), path: clean((l.path || []).join(' ')),
+    };
+    PREP.set(l, p);
+  }
+  return p;
+};
 
 // Отбор: варианты, где совпало больше всего значимых слов запроса. Слово,
 // которого нет ни в одном варианте (опечатка, лишнее слово записи), отбор не
@@ -53,36 +72,40 @@ export function findLeaves(all, q) {
   const ws = words(q);
   if (!ws.length) return { list: [], more: 0 };
   const whole = clean(q);
-  const hays = all.map((l) => clean([...(l.path || []), l.name, ...(l.aliases || []), l.extra || ''].join(' ')));
+  const ps = all.map(prep);
+  const hays = ps.map((p) => p.hay);
   const hard = ws.filter((w) => !SOFT.has(w));
   const need = hard.length ? hard : ws;
-  const hits = hays.map((h) => need.filter((w) => h.includes(stem(w))).length);
+  const stems = need.map(stem);
+  const hits = hays.map((h) => stems.filter((sw) => h.includes(sw)).length);
   const best = Math.max(0, ...hits);
   if (!best) return { list: [], more: 0 };
+  // Слова запроса готовятся один раз, а не на каждый вариант.
+  const W = ws.map((w) => { const sw = stem(w); return { w, sw, re: startRe(sw) }; });
   const found = [];
   all.forEach((l, i) => {
     if (hits[i] !== best) return;
-    const name = clean(l.name);
-    const aliases = (l.aliases || []).map(clean);
-    const path = clean((l.path || []).join(' '));
+    const { name, aliases, path } = ps[i];
     let score = name === whole ? 40 : aliases.includes(whole) ? 30 : 0;
     let inExtra = false;
-    ws.forEach((w) => {
-      const sw = stem(w);
+    W.forEach(({ w, sw, re }) => {
       if (name.startsWith(w)) score += 20;
-      else if (startRe(sw).test(name)) score += 12;
+      else if (re.test(name)) score += 12;
       else if (aliases.includes(w)) score += 15;
-      else if (aliases.some((a) => startRe(sw).test(a))) score += 10;
+      else if (aliases.some((a) => re.test(a))) score += 10;
       else if (name.includes(sw)) score += 6;
-      else if (startRe(sw).test(path)) score += 3;
+      else if (re.test(path)) score += 3;
       else if (hays[i].includes(sw)) inExtra = true;
     });
-    found.push({ ...l, score, inExtra });
+    found.push({ l, score, inExtra });
   });
   // При равных баллах — порядок варианта (у шаблонов — носитель: грузовое ТС
   // раньше вездехода), затем по алфавиту.
-  found.sort((a, b) => b.score - a.score || (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name, 'ru'));
-  return { list: found.slice(0, LIMIT), more: Math.max(0, found.length - LIMIT) };
+  found.sort((a, b) => b.score - a.score || (a.l.order || 0) - (b.l.order || 0) || byName(a.l.name, b.l.name));
+  return {
+    list: found.slice(0, LIMIT).map(({ l, score, inExtra }) => ({ ...l, score, inExtra })),
+    more: Math.max(0, found.length - LIMIT),
+  };
 }
 
 // Подсветка слов запроса. Экранирование — до разметки: подсветка ставится по
@@ -176,6 +199,7 @@ export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
       ? list.map((l, i) => `<div class="tsr-opt" role="option" id="${id}-o-${i}" data-tsr-i="${i}" aria-selected="false">
           <span class="tsr-name">${mark(l.name, ws)}</span>
           ${l.path && l.path.length ? `<span class="tsr-path">${l.path.map((p) => mark(p, ws)).join(' <span aria-hidden="true">›</span> ')}</span>` : ''}
+          ${l.note ? `<span class="tsr-path">${esc(l.note)}</span>` : ''}
           ${l.inExtra && l.extra ? `<span class="tsr-path">в примерах: ${mark(snippet(l.extra, ws), ws)}</span>` : ''}
           ${l.removable && onRemove ? `<button type="button" class="tsr-del" data-tsr-del="${i}" tabindex="-1"
             aria-label="Удалить «${esc(l.name)}»" title="Удалить">×</button>` : ''}

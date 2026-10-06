@@ -17,12 +17,15 @@ tools/data/ts_templates.py, поиск — kernel/treeSearch.js.
     спецтехнике не ставит вид машины;
   * «Тип ТС» из техпаспорта перезаписывается шаблоном;
   * свой шаблон не сохраняется, не находится или не удаляется;
-  * выдача поиска уходит за край окна.
+  * выдача поиска уходит за край окна;
+  * модель («65115») не находится, не подписано, что она соберёт, выбор не
+    ставит базу и модули или не пишет «Марка, модель»; модель, записанная
+    по-разному (ГАЗ 53), даёт один вариант.
 """
 NAME = 'шаблоны машин ТС'
 
 TOUCHES = ('app/modules/vehicle/templates.js', 'app/modules/vehicle/ctrl.js', 'app/kernel/treeSearch.js',
-           'app/modules/vehicle/data/tsCatalog.js', 'tools/data/ts_templates.py')
+           'app/modules/vehicle/data/tsCatalog.js', 'tools/data/ts_templates.py', 'app/modules/vehicle/data/tsModels.js')
 
 
 def run(t):
@@ -91,6 +94,26 @@ def run(t):
     t.wait_for('[data-ts-mitem]')
     mods = pg.eval_on_selector_all('[data-ts-mitem] .vh-mrow', 'els => els.map((e) => e.textContent)')
     t.ck(any('Гидромолот' in m for m in mods), 'шаблон не добавил гидромолот: %s' % mods)
+
+    # Модель из записей техпаспортов: выбор ставит базу и модули по тому, чем
+    # модель чаще записана, и пишет «Марка, модель» (задача пользователя
+    # 06.10.2026: «модель вбить, и нам уже выбралась база… и модули подтянуть»).
+    pg.reload()
+    t.wait_for('#ts-find-q')
+    got = find('65115')
+    t.ck(got[:1] == ['КАМАЗ 65115'], '«65115» первым не КАМАЗ 65115: %s' % got[:4])
+    note = pg.eval_on_selector_all('#ts-find-list .tsr-opt', 'els => els[0].innerText')
+    t.ck('Самосвал' in note, 'у модели не подписано, что она соберёт: %r' % note)
+    pg.locator('#ts-find-list .tsr-opt').first.dispatch_event('mousedown')
+    t.wait_for('[data-ts-mitem]')
+    mods = pg.eval_on_selector_all('[data-ts-mitem] .vh-mrow', 'els => els.map((e) => e.textContent)')
+    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое' and pg.input_value('[data-ts-base]') == 'Грузовое ТС',
+         'модель не поставила категорию и базу')
+    t.ck(any('Самосвальный кузов' in m for m in mods), 'модель не добавила модуль: %s' % mods)
+    t.wait_for('[data-tsf="main|make"]')
+    t.ck(pg.input_value('[data-tsf="main|make"]') == 'КАМАЗ 65115', 'модель не записалась в «Марка, модель»')
+    t.ck(len([n for n in find('газ 53') if n == 'ГАЗ 53']) >= 2, 'у ГАЗ 53 нет нескольких вариантов: %s' % names()[:6])
+    pg.keyboard.press('Escape')
 
     # Свой шаблон: сохранить, найти по своему названию, удалить.
     pg.click('[data-ts-tpl-save]')

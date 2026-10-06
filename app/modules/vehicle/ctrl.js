@@ -9,7 +9,7 @@ import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog, formDialog } from '../../kernel/dialog.js';
 import { scheduleSave } from '../../kernel/persist.js';
-import { templateLeaves, applyTemplate, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
+import { templateLeaves, modelLeaves, applyTemplate, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
@@ -93,9 +93,16 @@ export function bindTsForm(ctx, holder, set) {
   // ТС» (решение пользователя 06.10.2026); всё потом правится как обычно.
   bindTreeSearch(s, {
     id: 'ts-find',
-    leaves: () => [...templateLeaves(), ...kindLeaves()],
+    leaves: () => [...templateLeaves(), ...kindLeaves(), ...modelLeaves()],
     onPick: (l) => {
-      if (l.tpl) {
+      if (l.model) {
+        // Модель: вид или шаблон — как при их выборе; «Марка, модель» — только
+        // в пустое поле, запись из техпаспорта важнее.
+        if (l.tpl) applyTemplate(v, l.tpl);
+        else applyKindLeaf(v, l.kindLeaf);
+        if (!String(v.f.make || '').trim()) v.f.make = l.model;
+        ctx.toast(`${l.model}: ${l.note}`);
+      } else if (l.tpl) {
         applyTemplate(v, l.tpl);
         ctx.toast(`Собрано по шаблону «${l.tpl.name}»: ${[l.tpl.base, ...l.tpl.modules.map((m) => m.kind)].join(' + ')}`);
       } else {
