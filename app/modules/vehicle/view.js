@@ -219,14 +219,20 @@ const SECTION_OF = {
 };
 // Руль и места — сразу за цветом: вместе с годом они заполняют строку.
 // Страна сборки — в конце: у машины она встаёт за местами на полстроки.
-const GENERAL_ORDER = ['make', 'maker', 'year', 'color', 'wheel', 'seats', 'trim', 'country'];
+const GENERAL_ORDER = ['make', 'maker', 'year', 'color', 'wheel', 'seats', 'trim', 'trimNote', 'country'];
 
 // От топлива зависит, какие поля двигателя показывать: у электромобиля нет
 // рабочего объёма, есть только мощность.
 const ELECTRIC = 'Электро';
 // Ёмкость батареи — у электромобиля и гибрида (решение пользователя 02.10.2026).
+// Комментарий к комплектации — только у своей, описание общего состояния —
+// только у «Иное» (указания пользователя 06.10.2026).
+export const OWN_TRIM = 'Своя';
+export const OTHER_STATE = 'Иное';
 const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC)
-  && !(f.key === 'battery' && ![ELECTRIC, 'Гибрид'].includes(v.f.fuel));
+  && !(f.key === 'battery' && ![ELECTRIC, 'Гибрид'].includes(v.f.fuel))
+  && !(f.key === 'trimNote' && v.f.trim !== OWN_TRIM)
+  && !(f.key === 'generalStateNote' && v.f.generalState !== OTHER_STATE);
 // Заголовок подраздела двигателя: у легковых — «Двигатель», у остальных —
 // «Двигатель и грузовые характеристики» (указание пользователя 02.10.2026).
 const secTitle = (v, sec) => (sec.key !== 'tech' ? sec.title
@@ -295,7 +301,7 @@ function machineHTML(v, idx, inspect = false) {
     parts.push(sub('Особое для базы',
       `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, special, 'main')}</div>`));
   }
-  const useAll = commonFields(v).filter((f) => f.block === 'use');
+  const useAll = commonFields(v).filter((f) => f.block === 'use' && shown(v, f));
   const cond = useAll.filter((f) => COND.test(f.key));
   const use = useAll.filter((f) => !COND.test(f.key));
   if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>'));
@@ -315,7 +321,7 @@ function machineHTML(v, idx, inspect = false) {
 // пользователя 23.09.2026: «блок наработка и состояние — поправь»).
 // С 30.09.2026 здесь же «Где стоит (фактический адрес)» — на всю строку перед
 // комплектностью.
-const USE_ORDER = ['mileage', 'engineHours', 'hours', 'state', 'factAddr', 'kit'];
+const USE_ORDER = ['mileage', 'engineHours', 'hours', 'state', 'generalState', 'generalStateNote', 'factAddr', 'kit'];
 
 // Состояние легкового — таблицей по элементам: оценка по шкале осмотра и
 // краткое описание (указание пользователя 02.10.2026: «поля по состоянию +
@@ -385,7 +391,11 @@ export function bindCondColumns(scope) {
 function useGrid(vals, raw) {
   const list = [...raw].sort((a, b) => USE_ORDER.indexOf(a.key) - USE_ORDER.indexOf(b.key));
   const withMileage = list.some((f) => f.key === 'mileage');
-  const span = (f) => ({ state: withMileage ? 2 : 1, kit: withMileage ? 4 : 2, factAddr: 4 }[f.key] || 1);
+  // Общее состояние и его описание при «Иное» — на остаток строки: у легкового
+  // (только пробег) — за пробегом, у остальных — своей строкой под наработкой.
+  const alone = !list.some((f) => ['engineHours', 'hours', 'state'].includes(f.key));
+  const span = (f) => ({ state: withMileage ? 2 : 1, kit: withMileage ? 4 : 2, factAddr: 4,
+    generalState: 1, generalStateNote: alone && withMileage ? 2 : 3 }[f.key] || 1);
   return `<div class="grid vh-grid vh-use">${list.map((f) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
     `vh-s${span(f)}`)).join('')}</div>`;
 }

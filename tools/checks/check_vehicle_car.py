@@ -14,6 +14,9 @@
   * подраздел двигателя у легкового — «Двигатель», у грузовика — «Двигатель и
     грузовые характеристики»; VID — среди номеров у любой категории; у
     грузовика колёсная формула и КОМ на месте;
+  * комплектация легкового — список со «Своя», комментарий только у своей;
+    общее состояние у всех ТС (рабочее, условно пригодное, нерабочее, иное),
+    описание — только у «Иное» (указания пользователя 06.10.2026);
   * прежние записи легкового: база — тип кузова по записи «Тип ТС», 4×4 —
     полный привод, значения списков — на справочник, прежние значения без
     пары — в «Дополнительные параметры».
@@ -103,6 +106,20 @@ def run(t):
     over = pg.evaluate("() => document.documentElement.scrollWidth > innerWidth")
     t.ck(not over, 'таблица состояния растянула страницу')
 
+    # Комплектация: «Своя» открывает комментарий, у остальных его нет.
+    t.ck('Своя' in opt('trim') and 'Базовая' in opt('trim'), 'комплектация не списком со «Своя»: %s' % opt('trim'))
+    t.ck(not has('trimNote'), 'комментарий к комплектации виден без «Своя»')
+    pg.select_option('[data-tsf="main|trim"]', 'Своя')
+    t.wait_until("() => !!document.querySelector('[data-tsf$=\"|trimNote\"]')")
+    pg.select_option('[data-tsf="main|trim"]', 'Люкс')
+    t.wait_until("() => !document.querySelector('[data-tsf$=\"|trimNote\"]')")
+    # Общее состояние: «Иное» открывает описание.
+    t.ck(opt('generalState')[1:] == ['Рабочее', 'Условно пригодное', 'Нерабочее', 'Иное'],
+         'шкала общего состояния не та: %s' % opt('generalState'))
+    t.ck(not has('generalStateNote'), 'описание общего состояния видно без «Иное»')
+    pg.select_option('[data-tsf="main|generalState"]', 'Иное')
+    t.wait_until("() => !!document.querySelector('[data-tsf$=\"|generalStateNote\"]')")
+
     # Батарея — у электро и гибрида.
     t.ck(not has('battery'), 'батарея видна у бензинового')
     pg.select_option('[data-tsf="main|fuel"]', 'Гибрид')
@@ -119,7 +136,7 @@ def run(t):
     t.wait_for('[data-ts-base]:not([disabled])')
     pg.select_option('[data-ts-base]', 'Тяжёлый грузовик (свыше 12 т)')
     t.wait_for('[data-tsf="main|make"]')
-    for key in ('wheelFormula', 'pto', 'steerAxles', 'massMax'):
+    for key in ('wheelFormula', 'pto', 'steerAxles', 'massMax', 'generalState'):
         t.ck(has(key), 'у грузовика пропало поле %s' % key)
     titles = pg.evaluate(SECTION_TITLES)
     t.ck('Двигатель и грузовые характеристики' in titles, 'заголовок двигателя грузовика не тот: %s' % titles)
@@ -129,7 +146,7 @@ def run(t):
     got = pg.evaluate("""async () => {
       const m = await import('./app/modules/vehicle/tsModel.js');
       const h = { vehicle: { kind: 'base', category: 'Легковое', base: 'Легковой автомобиль и внедорожник',
-        f: { vtype: 'легковой, седан', wheel: 'Левый', gearbox: 'Автоматическая', wheelFormula: '4×4',
+        f: { vtype: 'легковой, седан', wheel: 'Левый', gearbox: 'Автоматическая', wheelFormula: '4×4', trim: 'Prestige 2.4',
              engineHours: '1200', 'engineHours@unit': 'ч', massMax: '1900', state: 'Хорошее', transferCase: 'Есть' },
         extra: [], modules: [] } };
       const v = m.tsOf(h);
@@ -138,6 +155,8 @@ def run(t):
     t.ck(got['base'] == 'Седан', 'база не стала типом кузова по записи «Тип ТС»: %s' % got)
     t.ck(got['f'].get('driveType') == 'Полный' and got['f'].get('wheel') == 'Левый (стандартный)'
          and got['f'].get('gearbox') == 'Автомат', 'прежние значения не переведены: %s' % got['f'])
+    t.ck(got['f'].get('trim') == 'Своя' and got['f'].get('trimNote') == 'Prestige 2.4',
+         'прежняя запись комплектации не стала «Своя» с комментарием: %s' % got['f'])
     for x in ('Колёсная формула=4×4', 'Моточасы=1200 ч', 'Максимальная разрешённая масса=1900',
               'Техническое состояние=Хорошее', 'Раздаточная коробка=Есть'):
         t.ck(x in got['extra'], 'прежнее значение потерялось: %s (%s)' % (x, got['extra']))

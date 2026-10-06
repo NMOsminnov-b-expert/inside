@@ -113,6 +113,14 @@ function migratePassenger(v) {
   if (f.wheelFormula && !f.driveType && /4\s*[×xх*]\s*4/i.test(f.wheelFormula)) f.driveType = 'Полный';
   if (f.steerAxles && !f.rearSteer && Number(f.steerAxles) > 1) f.rearSteer = 'Да';
   Object.entries(PASSENGER_VALUES).forEach(([key, map]) => { if (map[f[key]]) f[key] = map[f[key]]; });
+  // Комплектация была свободной записью (до 06.10.2026): значение не из списка
+  // — «Своя» с прежней записью в комментарии, а не потеря.
+  const trims = (commonFields(v).find((x) => x.key === 'trim') || {}).options || [];
+  if (f.trim && trims.length && !trims.includes(f.trim)) {
+    const caseFree = trims.find((o) => o.toLowerCase() === String(f.trim).trim().toLowerCase());
+    if (caseFree) f.trim = caseFree;
+    else { f.trimNote = f.trimNote || f.trim; f.trim = 'Своя'; }
+  }
   Object.entries(PASSENGER_OLD).forEach(([key, label]) => {
     if (f[key] === undefined) return;
     if (String(f[key]).trim()) {

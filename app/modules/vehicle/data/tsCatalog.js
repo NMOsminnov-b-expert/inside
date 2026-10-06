@@ -556,6 +556,28 @@ export const TS_BASE_FIELDS = [
     "block": "use"
   },
   {
+    "key": "generalState",
+    "label": "Общее состояние",
+    "hint": "рабочее, условно пригодное, нерабочее, иное",
+    "source": "Осмотр",
+    "type": "select",
+    "options": [
+      "Рабочее",
+      "Условно пригодное",
+      "Нерабочее",
+      "Иное"
+    ],
+    "block": "use"
+  },
+  {
+    "key": "generalStateNote",
+    "label": "Описание общего состояния",
+    "hint": "при «Иное» — своими словами",
+    "source": "Осмотр",
+    "type": "text",
+    "block": "use"
+  },
+  {
     "key": "kit",
     "label": "Комплектность",
     "hint": "",
@@ -680,17 +702,26 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     {
       "key": "trim",
       "label": "Комплектация",
-      "hint": "уровень оснащения модели: базовая, комфорт, люкс…",
+      "hint": "базовая, стандарт, комфорт, люкс, премиум, спорт, своя",
       "source": "Осмотр",
-      "type": "text",
-      "suggest": [
+      "type": "select",
+      "options": [
         "Базовая",
         "Стандарт",
         "Комфорт",
         "Люкс",
         "Премиум",
-        "Спорт"
+        "Спорт",
+        "Своя"
       ],
+      "block": "machine"
+    },
+    {
+      "key": "trimNote",
+      "label": "Комментарий к комплектации",
+      "hint": "из чего состоит своя комплектация",
+      "source": "Осмотр",
+      "type": "text",
       "block": "machine"
     },
     {
@@ -1002,6 +1033,28 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "key": "condOtherNote",
       "label": "Состояние прочих элементов: описание",
       "hint": "кратко: что видно на осмотре",
+      "source": "Осмотр",
+      "type": "text",
+      "block": "use"
+    },
+    {
+      "key": "generalState",
+      "label": "Общее состояние",
+      "hint": "рабочее, условно пригодное, нерабочее, иное",
+      "source": "Осмотр",
+      "type": "select",
+      "options": [
+        "Рабочее",
+        "Условно пригодное",
+        "Нерабочее",
+        "Иное"
+      ],
+      "block": "use"
+    },
+    {
+      "key": "generalStateNote",
+      "label": "Описание общего состояния",
+      "hint": "при «Иное» — своими словами",
       "source": "Осмотр",
       "type": "text",
       "block": "use"
@@ -1964,6 +2017,28 @@ export const TS_SELF_FIELDS = [
       "Требует ремонта",
       "Неудовлетворительное"
     ],
+    "block": "use"
+  },
+  {
+    "key": "generalState",
+    "label": "Общее состояние",
+    "hint": "рабочее, условно пригодное, нерабочее, иное",
+    "source": "Осмотр",
+    "type": "select",
+    "options": [
+      "Рабочее",
+      "Условно пригодное",
+      "Нерабочее",
+      "Иное"
+    ],
+    "block": "use"
+  },
+  {
+    "key": "generalStateNote",
+    "label": "Описание общего состояния",
+    "hint": "при «Иное» — своими словами",
+    "source": "Осмотр",
+    "type": "text",
     "block": "use"
   },
   {

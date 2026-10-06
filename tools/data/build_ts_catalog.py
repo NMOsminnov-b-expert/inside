@@ -34,7 +34,8 @@ KEYS = {
     'Колёсная формула': 'wheelFormula', 'Число осей': 'axles', 'Число управляемых осей': 'steerAxles',
     'Тип КПП': 'gearbox', 'Коробка отбора мощности': 'pto', 'Техническое состояние': 'state',
     'Привод': 'driveType', 'Раздаточная коробка': 'transferCase', 'Подруливающие оси': 'rearSteer',
-    'Вид документа': 'docKind', 'Комплектация': 'trim', 'Страна производства': 'country', 'Ёмкость батареи': 'battery',
+    'Вид документа': 'docKind', 'Комплектация': 'trim', 'Комментарий к комплектации': 'trimNote',
+    'Общее состояние': 'generalState', 'Описание общего состояния': 'generalStateNote', 'Страна производства': 'country', 'Ёмкость батареи': 'battery',
     'Пробег по одометру': 'mileage',
     'Состояние кузова и окраски': 'condBody', 'Состояние салона': 'condInterior', 'Состояние двигателя': 'condEngine',
     'Состояние ходовой части': 'condChassis', 'Состояние электрооборудования': 'condElectric',
@@ -62,6 +63,7 @@ BLOCK = {
     'condBody': 'use', 'condInterior': 'use', 'condEngine': 'use', 'condChassis': 'use', 'condElectric': 'use',
     'condOther': 'use', 'condBodyNote': 'use', 'condInteriorNote': 'use', 'condEngineNote': 'use',
     'condChassisNote': 'use', 'condElectricNote': 'use', 'condOtherNote': 'use',
+    'generalState': 'use', 'generalStateNote': 'use',
 }
 
 TRANSLIT = dict(zip('абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
@@ -138,11 +140,6 @@ def field(label, value, hint, source='', place=''):
         f['type'] = 'text'
     if label in ('Комплектность',):
         f['type'] = 'area'
-    # Комплектации моделей есть в рабочей системе; в макете — базовые
-    # подсказки, запись свободная (указание пользователя 02.10.2026: «Накидай
-    # какие-нибудь базовые»).
-    if label == 'Комплектация':
-        f['suggest'] = ['Базовая', 'Стандарт', 'Комфорт', 'Люкс', 'Премиум', 'Спорт']
     return f
 
 
