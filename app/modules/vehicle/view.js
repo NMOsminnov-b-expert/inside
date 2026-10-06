@@ -372,7 +372,7 @@ const COND_NAMES = { condBody: 'Кузов и окраска', condInterior: 'С
   condChassis: 'Ходовая часть', condElectric: 'Электрооборудование', condOther: 'Прочие элементы',
   generalState: 'Общее состояние' };
 function condTableHTML(vals, list) {
-  const rows = list.filter((f) => !f.key.endsWith('Note')).map((g) => {
+  const row = (g) => {
     const note = list.find((f) => f.key === g.key + 'Note');
     const value = (vals || {})[g.key] || '';
     const name = COND_NAMES[g.key] || g.label;
@@ -388,11 +388,17 @@ function condTableHTML(vals, list) {
       <td>${note ? `<input class="ax-cell" data-tsf="main|${esc(note.key)}" value="${esc((vals || {})[note.key] || '')}"
         aria-label="${esc(note.label)}" placeholder="${total ? 'Опишите состояние' : 'Кратко: что видно на осмотре'}">` : ''}</td>
     </tr>`;
-  }).join('');
+  };
+  // Общее состояние — в подвале таблицы, отдельно от элементов (указание
+  // пользователя 06.10.2026: «отдели общее состояние более явно»; практика
+  // итоговой строки: tfoot, черта над ней, свой фон, жирный шрифт).
+  const items = list.filter((f) => !f.key.endsWith('Note'));
+  const rows = items.filter((g) => !GENERAL.test(g.key)).map(row).join('');
+  const foot = items.filter((g) => GENERAL.test(g.key)).map(row).join('');
   const head = COND_COLUMNS.map((c, i) => `<th data-col="${c.key}"${c.key === 'grade' ? ` title="${esc(SCALE_TIP)}" class="vh-tip"` : ''}>${colLabelHTML(c)}${resizeGripHTML(c, i === COND_COLUMNS.length - 1)}</th>`).join('');
   return `<div class="vh-cond-wrap" data-ts-cond-box style="${columnVarsStyle(COND_COLUMNS, condWidths)}">
     <table class="tbl mu-xtbl vh-xtbl vh-cond">${colGroupHTML(COND_COLUMNS, condWidths)}
-    <thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    <thead><tr>${head}</tr></thead><tbody>${rows}</tbody>${foot ? `<tfoot>${foot}</tfoot>` : ''}</table></div>`;
 }
 
 // Перегородки таблицы состояния; ширины общие на модуль — после перетаскивания
