@@ -182,6 +182,12 @@ def run(t):
     for key in ('wheel', 'mileage', 'tormoza', 'condEngine', 'condInterior', 'condBody'):
         t.ck(not has(key), 'у прицепа осталось поле %s' % key)
     t.ck(has('brakeType') and has('condFrame') and has('condChassis'), 'у прицепа нет типа тормозов или таблицы состояния')
+    # Лишнее по комбинациям (решение пользователя 07.10.2026: «Раздел „похоже на
+    # лишнее“ убираем. Кузов у прицепов не трогаем, моточасы у мототехники
+    # убираем»).
+    for key in ('seats', 'wheelFormula'):
+        t.ck(not has(key), 'у прицепа осталось поле %s' % key)
+    t.ck(has('bodyNo'), 'у прицепа пропал № кузова — его не трогали')
     brakes = opt('brakeType')
     t.ck('Без тормозов' in brakes and 'Инерционные (тормоз наката)' in brakes and len(brakes) >= 10,
          'виды тормозов прицепа не те: %s' % brakes)
@@ -233,3 +239,17 @@ def run(t):
     for x in ('Колёсная формула=4×4', 'Моточасы=1200 ч', 'Максимальная разрешённая масса=1900',
               'Техническое состояние=Хорошее', 'Раздаточная коробка=Есть'):
         t.ck(x in got['extra'], 'прежнее значение потерялось: %s (%s)' % (x, got['extra']))
+
+    # Мототехника и тракторы — лишнее по комбинациям (решение пользователя 07.10.2026).
+    pg.select_option('[data-ts-cat]', 'Мототехника')
+    t.wait_for('[data-tsf="main|make"]')
+    for key in ('wheel', 'wheelFormula', 'axles', 'steerAxles', 'engineHours'):
+        t.ck(not has(key), 'у мототехники осталось поле %s' % key)
+    t.ck(has('mileage'), 'у мототехники пропал пробег')
+    pg.select_option('[data-ts-cat]', 'Тракторы и специальные шасси')
+    t.wait_for('[data-ts-base]:not([disabled])')
+    for base, mileage in (('Трактор', False), ('Вездеход, гусеничный транспортёр', True)):
+        pg.select_option('[data-ts-base]', base)
+        t.wait_for('[data-tsf="main|make"]')
+        t.ck(not has('wheel'), '%s: осталась сторона руля' % base)
+        t.ck(has('mileage') == mileage, '%s: пробег %s' % (base, 'пропал' if mileage else 'остался'))

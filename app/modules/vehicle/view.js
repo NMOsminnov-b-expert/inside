@@ -233,7 +233,8 @@ function kindHTML(ctx, v, idx) {
 // «рег. номер | серия и № | дата», серия и номер шире (длиннее значение:
 // практика Baymard — ширина поля по длине ожидаемого значения). На узком
 // экране — один столбец.
-const REG_ORDER = ['plate', 'docKind', 'docNo', 'regDate'];
+// Юридический адрес — последней строкой на всю ширину (07.10.2026).
+const REG_ORDER = ['plate', 'docKind', 'docNo', 'regDate', 'legalAddr'];
 function regHTML(v, idx) {
   const rank = (f) => (REG_ORDER.includes(f.key) ? REG_ORDER.indexOf(f.key) : REG_ORDER.length);
   const list = commonFields(v).filter((f) => f.block === 'reg').sort((a, b) => rank(a) - rank(b));
@@ -267,6 +268,33 @@ const SECTION_OF = {
   driveType: 'chassis', transferCase: 'chassis', rearSteer: 'chassis',
   run: 'chassis', turn: 'chassis',
 };
+// Строки сетки в четыре колонки — без пустот: последнее поле неполной строки
+// дотягивается до её конца. Нужно там, где у категории нет части коротких полей
+// (у мотоцикла — руля, у прицепа — руля и мест; решение пользователя
+// 07.10.2026), и строка «год, цвет, …» оставалась бы с дырой. На узкой сетке в
+// две колонки такие доли (¼+¼+½, ½+½) тоже ложатся без пустот.
+function fillRows(spans) {
+  const out = [...spans];
+  let row = [];
+  let used = 0;
+  // Остаток неполной строки — поровну её полям, начиная с последнего.
+  const close = () => {
+    for (let rest = 4 - used, k = row.length - 1; rest > 0 && row.length; rest -= 1, k = (k - 1 + row.length) % row.length) {
+      out[row[k]] += 1;
+    }
+    row = [];
+    used = 0;
+  };
+  out.forEach((sp, i) => {
+    if (used + sp > 4) close();
+    row.push(i);
+    used += sp;
+    if (used >= 4) { row = []; used = 0; }
+  });
+  if (row.length) close();
+  return out;
+}
+
 // Руль и места — сразу за цветом: вместе с годом они заполняют строку.
 // Страна сборки — в конце: у машины она встаёт за местами на полстроки.
 const GENERAL_ORDER = ['make', 'maker', 'year', 'color', 'wheel', 'seats', 'trim', 'trimNote', 'country'];
@@ -355,8 +383,10 @@ function machineHTML(v, idx, inspect = false) {
     const allInsp = own.length > 1 && own.every((f) => f.source === 'Осмотр');
     if (allInsp) own.forEach((f, i) => { own[i] = { ...f, source: '' }; });
     const body = sec.key === 'numbers' ? numbersHTML(v, own)
-      : sec.key === 'general' ? `<div class="grid vh-grid">${
-        own.map((f) => tsFieldHTML(v.f, f, 'main', `vh-s${genSpan(f)}`)).join('')}</div>`
+      : sec.key === 'general' ? `<div class="grid vh-grid">${(() => {
+        const spans = fillRows(own.map(genSpan));
+        return own.map((f, i) => tsFieldHTML(v.f, f, 'main', `vh-s${spans[i]}`)).join('');
+      })()}</div>`
       : sec.key === 'chassis' ? `<div class="grid vh-grid vh-grid-fit vh-fit-narrow">${cells(v.f, own, 'main')}</div>`
       // У легкового и прицепа поля подраздела — пополам: строки заполнены (у
       // прицепа остались только массы — поля двигателя убраны).
@@ -395,7 +425,7 @@ function machineHTML(v, idx, inspect = false) {
 // пользователя 23.09.2026: «блок наработка и состояние — поправь»).
 // С 30.09.2026 здесь же «Где стоит (фактический адрес)» — на всю строку перед
 // комплектностью.
-const USE_ORDER = ['mileage', 'engineHours', 'hours', 'state', 'generalState', 'generalStateNote', 'factAddr', 'kit'];
+const USE_ORDER = ['mileage', 'engineHours', 'hours', 'state', 'generalState', 'generalStateNote', 'kit'];
 
 // Состояние легкового — таблицей по элементам: оценка по шкале осмотра и
 // краткое описание (указание пользователя 02.10.2026: «поля по состоянию +
@@ -498,8 +528,11 @@ function useGrid(vals, raw) {
     if (has('generalStateNote')) sp.generalStateNote = 2;
     else sp.factAddr = 2;
   }
-  return `<div class="grid vh-grid vh-use">${list.map((f) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
-    `vh-s${sp[f.key] || 1}`)).join('')}</div>`;
+  // Неполная строка дотягивается до конца (без «Где стоит» пробег легкового
+  // остался бы в строке один — 07.10.2026).
+  const spans = fillRows(list.map((f) => sp[f.key] || 1));
+  return `<div class="grid vh-grid vh-use">${list.map((f, i) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
+    `vh-s${spans[i]}`)).join('')}</div>`;
 }
 
 

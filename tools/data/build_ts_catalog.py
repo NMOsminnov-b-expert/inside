@@ -31,7 +31,7 @@ KEYS = {
     'Тип топлива': 'fuel', 'Рабочий объём двигателя': 'engineVolume', 'Мощность двигателя': 'power',
     'Масса без нагрузки': 'massEmpty', 'Максимальная разрешённая масса': 'massMax',
     'Регистрационный номер': 'plate', 'Уникальный идентификатор (VID)': 'vid',
-    'Где стоит (фактический адрес)': 'factAddr', 'Дата регистрации': 'regDate',
+    'Где стоит (фактический адрес)': 'factAddr', 'Юридический адрес': 'legalAddr', 'Дата регистрации': 'regDate',
     'Серия и номер документа': 'docNo', 'Пробег': 'mileage', 'Моточасы': 'engineHours',
     'Колёсная формула': 'wheelFormula', 'Число осей': 'axles', 'Число управляемых осей': 'steerAxles',
     'Тип КПП': 'gearbox', 'Коробка передач (КПП)': 'gearbox', 'Коробка отбора мощности': 'pto',
@@ -66,7 +66,8 @@ BLOCK = {
     # «Наработке и состоянии» (согласованная развёртка карточки ТС).
     # VID — среди номеров машины, у всех категорий (указание пользователя
     # 02.10.2026: «Vid переносим к другим номерам»).
-    'plate': 'reg', 'docKind': 'reg', 'factAddr': 'use', 'regDate': 'reg',
+    # Юридический адрес — графа свидетельства, в регистрационном учёте (07.10.2026).
+    'plate': 'reg', 'docKind': 'reg', 'factAddr': 'use', 'legalAddr': 'reg', 'regDate': 'reg',
     'docNo': 'reg', 'mileage': 'use', 'engineHours': 'use', 'hours': 'use', 'state': 'use', 'kit': 'use',
     'condBody': 'use', 'condInterior': 'use', 'condEngine': 'use', 'condChassis': 'use', 'condElectric': 'use',
     'condOther': 'use', 'condBodyNote': 'use', 'condInteriorNote': 'use', 'condEngineNote': 'use',
@@ -311,6 +312,8 @@ def build():
             cat: common(by_category(rep), {'Категория базы', 'Дополнительные параметры'})
             for cat, rep in B.BASE_COMMON_BY_CATEGORY.items()},
         'TS_SPECIAL': special,
+        # Поля категории, которых нет у базы (B.BASE_HIDE): база → ключи полей.
+        'TS_BASE_HIDE': {b: [KEYS.get(l) or slug(l) for l in labels] for b, labels in B.BASE_HIDE.items()},
         'TS_TOWED': [{'name': t[0], 'fields': towed_fields(t[1])} for t in B.TOWED],
         'TS_SELF_GROUPS': group(B.SELF, 0, lambda r: {'name': r[1], 'run': r[2], 'hint': r[3], 'examples': r[4],
                                                       'aliases': SELF_ALIASES.get(r[1], [])}),

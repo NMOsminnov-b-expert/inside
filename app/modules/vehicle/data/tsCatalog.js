@@ -515,12 +515,12 @@ export const TS_BASE_FIELDS = [
     "block": "reg"
   },
   {
-    "key": "factAddr",
-    "label": "Где стоит (фактический адрес)",
-    "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-    "source": "Осмотр",
+    "key": "legalAddr",
+    "label": "Юридический адрес",
+    "hint": "как записан в свидетельстве о регистрации",
+    "source": "Техпаспорт",
     "type": "text",
-    "block": "use"
+    "block": "reg"
   },
   {
     "key": "mileage",
@@ -811,15 +811,6 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "machine"
     },
     {
-      "key": "seats",
-      "label": "Количество мест",
-      "hint": "",
-      "source": "Техпаспорт",
-      "place": "книжка с 2019 г.: слева, строка 7 — в строке категории\nбланк «КР №»: справа, строка 5 — в строке категории\nбланк УГАИ 2000-х: нет графы",
-      "type": "int",
-      "block": "machine"
-    },
-    {
       "key": "massEmpty",
       "label": "Масса без нагрузки",
       "hint": "",
@@ -880,28 +871,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "reg"
     },
     {
-      "key": "factAddr",
-      "label": "Где стоит (фактический адрес)",
-      "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-      "source": "Осмотр",
+      "key": "legalAddr",
+      "label": "Юридический адрес",
+      "hint": "как записан в свидетельстве о регистрации",
+      "source": "Техпаспорт",
       "type": "text",
-      "block": "use"
-    },
-    {
-      "key": "wheelFormula",
-      "label": "Колёсная формула",
-      "hint": "4×2, 4×4, 6×4, 6×6, 8×4, 8×8; полный привод определяется по ней",
-      "source": "Осмотр",
-      "type": "select",
-      "options": [
-        "4×2",
-        "4×4",
-        "6×4",
-        "6×6",
-        "8×4",
-        "8×8"
-      ],
-      "block": "machine"
+      "block": "reg"
     },
     {
       "key": "axles",
@@ -1377,12 +1352,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "reg"
     },
     {
-      "key": "factAddr",
-      "label": "Где стоит (фактический адрес)",
-      "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-      "source": "Осмотр",
+      "key": "legalAddr",
+      "label": "Юридический адрес",
+      "hint": "как записан в свидетельстве о регистрации",
+      "source": "Техпаспорт",
       "type": "text",
-      "block": "use"
+      "block": "reg"
     },
     {
       "key": "mileage",
@@ -1914,12 +1889,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "reg"
     },
     {
-      "key": "factAddr",
-      "label": "Где стоит (фактический адрес)",
-      "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-      "source": "Осмотр",
+      "key": "legalAddr",
+      "label": "Юридический адрес",
+      "hint": "как записан в свидетельстве о регистрации",
+      "source": "Техпаспорт",
       "type": "text",
-      "block": "use"
+      "block": "reg"
     },
     {
       "key": "mileage",
@@ -2352,19 +2327,6 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "machine"
     },
     {
-      "key": "wheel",
-      "label": "Руль",
-      "hint": "левый, правый; на бланках до 2019 года графы нет — по осмотру",
-      "source": "Техпаспорт или осмотр",
-      "place": "книжка с 2019 г.: слева, строка 7 — в строке категории\nбланк «КР №»: нет графы\nбланк УГАИ 2000-х: нет графы",
-      "type": "select",
-      "options": [
-        "Левый",
-        "Правый"
-      ],
-      "block": "machine"
-    },
-    {
       "key": "seats",
       "label": "Количество мест",
       "hint": "",
@@ -2476,12 +2438,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "reg"
     },
     {
-      "key": "factAddr",
-      "label": "Где стоит (фактический адрес)",
-      "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-      "source": "Осмотр",
+      "key": "legalAddr",
+      "label": "Юридический адрес",
+      "hint": "как записан в свидетельстве о регистрации",
+      "source": "Техпаспорт",
       "type": "text",
-      "block": "use"
+      "block": "reg"
     },
     {
       "key": "mileage",
@@ -2493,49 +2455,6 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
         "км"
       ],
       "block": "use"
-    },
-    {
-      "key": "engineHours",
-      "label": "Моточасы",
-      "hint": "двигатель набирает моточасы без пробега, когда модуль работает от коробки отбора мощности (КОМ)",
-      "source": "Осмотр",
-      "type": "int",
-      "units": [
-        "ч"
-      ],
-      "block": "use"
-    },
-    {
-      "key": "wheelFormula",
-      "label": "Колёсная формула",
-      "hint": "4×2, 4×4, 6×4, 6×6, 8×4, 8×8; полный привод определяется по ней",
-      "source": "Осмотр",
-      "type": "select",
-      "options": [
-        "4×2",
-        "4×4",
-        "6×4",
-        "6×6",
-        "8×4",
-        "8×8"
-      ],
-      "block": "machine"
-    },
-    {
-      "key": "axles",
-      "label": "Число осей",
-      "hint": "",
-      "source": "Осмотр",
-      "type": "int",
-      "block": "machine"
-    },
-    {
-      "key": "steerAxles",
-      "label": "Число управляемых осей",
-      "hint": "",
-      "source": "Осмотр",
-      "type": "int",
-      "block": "machine"
     },
     {
       "key": "gearbox",
@@ -2889,19 +2808,6 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "machine"
     },
     {
-      "key": "wheel",
-      "label": "Руль",
-      "hint": "левый, правый; на бланках до 2019 года графы нет — по осмотру",
-      "source": "Техпаспорт или осмотр",
-      "place": "книжка с 2019 г.: слева, строка 7 — в строке категории\nбланк «КР №»: нет графы\nбланк УГАИ 2000-х: нет графы",
-      "type": "select",
-      "options": [
-        "Левый",
-        "Правый"
-      ],
-      "block": "machine"
-    },
-    {
       "key": "seats",
       "label": "Количество мест",
       "hint": "",
@@ -3013,12 +2919,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "reg"
     },
     {
-      "key": "factAddr",
-      "label": "Где стоит (фактический адрес)",
-      "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-      "source": "Осмотр",
+      "key": "legalAddr",
+      "label": "Юридический адрес",
+      "hint": "как записан в свидетельстве о регистрации",
+      "source": "Техпаспорт",
       "type": "text",
-      "block": "use"
+      "block": "reg"
     },
     {
       "key": "mileage",
@@ -3582,12 +3488,12 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "reg"
     },
     {
-      "key": "factAddr",
-      "label": "Где стоит (фактический адрес)",
-      "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-      "source": "Осмотр",
+      "key": "legalAddr",
+      "label": "Юридический адрес",
+      "hint": "как записан в свидетельстве о регистрации",
+      "source": "Техпаспорт",
       "type": "text",
-      "block": "use"
+      "block": "reg"
     },
     {
       "key": "mileage",
@@ -4087,6 +3993,12 @@ export const TS_SPECIAL = {
         "На полозьях"
       ]
     }
+  ]
+};
+
+export const TS_BASE_HIDE = {
+  "Трактор": [
+    "mileage"
   ]
 };
 
@@ -4841,12 +4753,12 @@ export const TS_SELF_FIELDS = [
     "block": "reg"
   },
   {
-    "key": "factAddr",
-    "label": "Где стоит (фактический адрес)",
-    "hint": "где машина стоит на самом деле; не адрес из свидетельства",
-    "source": "Осмотр",
+    "key": "legalAddr",
+    "label": "Юридический адрес",
+    "hint": "как записан в свидетельстве о регистрации",
+    "source": "Техпаспорт",
     "type": "text",
-    "block": "use"
+    "block": "reg"
   },
   {
     "key": "engineHours",

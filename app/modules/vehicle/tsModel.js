@@ -16,7 +16,7 @@
 // выбор, вернулось и значение (практика динамических полей по категории).
 import {
   TS_CATEGORIES, TS_BASES, TS_BASE_FIELDS, TS_BASE_FIELDS_BY_CATEGORY, TS_SPECIAL, TS_TOWED, TS_SELF_GROUPS, TS_SELF_FIELDS,
-  TS_MODULE_GROUPS, TS_MODULE_FIELDS, TS_MODULE_SPECIAL, TS_VTYPE_BY_CATEGORY, TS_VTYPE_SELF,
+  TS_MODULE_GROUPS, TS_MODULE_FIELDS, TS_MODULE_SPECIAL, TS_BASE_HIDE, TS_VTYPE_BY_CATEGORY, TS_VTYPE_SELF,
 } from './data/tsCatalog.js';
 
 // Подписи — по указанию пользователя 23.09.2026: «самоходную технику меняем на
@@ -129,6 +129,19 @@ function migrate0710(v) {
       else toExtra(v, f, 'tormoza', 'Тормоза');
     }
   }
+  // Поля, которых у такой машины нет (решение пользователя 07.10.2026 по
+  // перечню лишнего): прежние значения — в «Дополнительные параметры».
+  const gone = {
+    'Мототехника': { wheel: 'Руль', wheelFormula: 'Колёсная формула', axles: 'Число осей',
+      steerAxles: 'Число управляемых осей', engineHours: 'Моточасы' },
+    'Прицепы и полуприцепы': { seats: 'Количество мест', wheelFormula: 'Колёсная формула' },
+    'Тракторы и специальные шасси': { wheel: 'Руль' },
+  }[v.kind === 'base' ? v.category : ''] || {};
+  Object.entries(gone).forEach(([key, label]) => toExtra(v, f, key, label));
+  // «Где стоит (фактический адрес)» заменён юридическим адресом из свидетельства
+  // (указание пользователя 07.10.2026): прежнее значение — не юридический адрес.
+  toExtra(v, f, 'factAddr', 'Фактический адрес');
+  if (v.kind === 'base' && v.base === 'Трактор') toExtra(v, f, 'mileage', 'Пробег');
   const fixDrive = (x) => { if (DRIVE_RENAMED[x.drive]) x.drive = DRIVE_RENAMED[x.drive]; };
   fixDrive(f);
   v.modules.forEach((m) => {
@@ -317,8 +330,13 @@ export function classified(v) {
 // список: у легковых без масс, осей, моточасов, КОМ и комплектности, с
 // приводом, комплектацией, батареей и таблицей состояния), у самоходной
 // машины — свои.
-export const commonFields = (v) => (v.kind === 'self' ? TS_SELF_FIELDS
-  : (v.kind === 'base' && TS_BASE_FIELDS_BY_CATEGORY[v.category]) || TS_BASE_FIELDS);
+export const commonFields = (v) => {
+  const list = v.kind === 'self' ? TS_SELF_FIELDS
+    : (v.kind === 'base' && TS_BASE_FIELDS_BY_CATEGORY[v.category]) || TS_BASE_FIELDS;
+  // Поля категории, которых нет у этой базы (пробег у трактора — 07.10.2026).
+  const hide = (v.kind === 'base' && TS_BASE_HIDE[v.base]) || [];
+  return hide.length ? list.filter((f) => !hide.includes(f.key)) : list;
+};
 // Подсказки «Тип ТС, вид кузова» — своей категории (замечание пользователя
 // 06.10.2026: «В грузовом видно легковые и наоборот»); у спецтехники — свои;
 // пока категория не выбрана — всех категорий.

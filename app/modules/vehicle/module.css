@@ -166,6 +166,8 @@
    добавлен к селектору, чтобы перебить общую сетку и её узкий вариант выше. */
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg-3{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr)}
+/* Юридический адрес — длинный: своей строкой на всю ширину (07.10.2026). */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg > [data-ts-key="legalAddr"]{grid-column:1 / -1}
 @media (max-width:560px){
   :is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-reg{grid-template-columns:minmax(0,1fr)}
 }
