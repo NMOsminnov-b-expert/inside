@@ -469,6 +469,9 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   косяки — в `docs/reestr-kosyakov.md` (`podskazki-ne-vyhodyat-za-granicy-stranicy`).
 * **Правка карточек — точечно, коммит на каждую**, чужие карточки не трогать,
   проверки по отмашке (`claude-feedback-civil-card-workflow`).
+* **Ничего не удалять без прямого указания**: «посмотри», «пройдись», «что
+  лишнее» — вывести перечень в чат и ждать решения, а не править
+  (`nichego-ne-udalyat-bez-pryamogo-ukazaniya-prosili-vyvesti-vyvodit-a-ne`).
 * **Назван столбец (лист, диапазон) — читать только его**, без разбора остальной
   структуры файла; «не трогать» — значит и не читать
   (`ukazan-stolbec-chitat-tolko-ego-bez-razbora-ostalnoy-struktury-fayla`).
