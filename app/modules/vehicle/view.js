@@ -64,6 +64,8 @@ const SPAN = {
   year: 1, color: 1, wheel: 1, seats: 1, fuel: 1, engineVolume: 1, massEmpty: 1, massMax: 1, massDesign: 1,
   wheelFormula: 1, axles: 1, steerAxles: 1, gearbox: 1, pto: 1, plate: 1, regDate: 1, docNo: 1,
   mileage: 1, engineHours: 1, hours: 1, factAddr: 3, kit: 4, run: 2,
+  // Тормоза прицепа — последним в ходовой: в неполной строке дотягиваются до края.
+  brakeType: 1,
 };
 // В форме модуля поля короткие и их мало: изготовитель, модель, заводской № и
 // год — в одну строку, моточасы, состояние и комплектность — в следующую
@@ -261,7 +263,7 @@ const SECTION_OF = {
   vin: 'numbers', bodyNo: 'numbers', chassisNo: 'numbers', engineNo: 'numbers', serialNo: 'numbers', vid: 'numbers',
   vtype: 'tech', fuel: 'tech', engineVolume: 'tech', power: 'tech', battery: 'tech',
   massEmpty: 'tech', massMax: 'tech', massDesign: 'tech',
-  wheelFormula: 'chassis', axles: 'chassis', steerAxles: 'chassis', gearbox: 'chassis', pto: 'chassis',
+  wheelFormula: 'chassis', axles: 'chassis', steerAxles: 'chassis', gearbox: 'chassis', brakeType: 'chassis',
   driveType: 'chassis', transferCase: 'chassis', rearSteer: 'chassis',
   run: 'chassis', turn: 'chassis',
 };

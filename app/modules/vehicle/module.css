@@ -295,10 +295,19 @@ body[data-module="vehicle"] .vh-saved{font-size:11.5px;color:var(--muted);white-
 /* «Состояние» — с подсказкой-шкалой: подчёркнут пунктиром, как подписи полей с пояснением. */
 .vehicle-form .vh-cond th.vh-tip .col-label{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
 
-/* Строки без пустых колонок (правило проекта, ужесточено 06.10.2026). В сетках
-   «сколько влезает» (ходовая, особое для базы) последнее поле дотягивается до
-   правого края своей строки: неполная последняя строка не оставляет дыру. */
-:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .field:not(.vh-checks):last-child{grid-column-end:-1}
+/* Строки без пустых колонок (правило проекта, ужесточено 06.10.2026). Сетки
+   «сколько влезает» (ходовая, особое для базы) — гибкая раскладка с переносом:
+   поля растут, и неполная последняя строка заполняется по ширине. Сетка с
+   колонками так не умеет: «последнее поле до края» (grid-column-end:-1) ставило
+   поле в последнюю колонку, а слева оставались пустые ячейки — так стояли тормоза
+   прицепа на ширине 1100 и уже (замер 07.10.2026). Практика — flex-wrap с
+   flex-grow для рядов полей разной длины (CSS Flexbox, MDN «Typical use cases
+   of flexbox: wrapped items»). */
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit{display:flex;flex-wrap:wrap;align-items:flex-start}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .field{flex:1 1 150px;min-width:0;margin-bottom:0}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit.vh-fit-narrow > .field{flex-basis:96px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .field.vh-ms{flex:2 1 300px}
+:is(body[data-module="vehicle"], body[data-module] .ts-host) .vehicle-form .grid.vh-grid.vh-grid-fit > .vh-checks{flex-basis:100%}
 /* Узко (две колонки): поле в четверть строки перед полем «на остаток строки»
    («Пробег» перед «Где стоит» у легкового) — на всю строку, а не на половину. */
 @media (max-width:1050px){
