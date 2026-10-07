@@ -6,7 +6,7 @@ import { mkNote } from '../parts/notes/store.js';
 // внутренней площади литер (card/typology.js). Записи сохранили свои id
 // (oc-pr-*) — старые ссылки ведут на них же; литерам тип проставлен по
 // прежнему назначению по техпаспорту, как это делает перевод записей
-// (oi/building/capClass.js, migrateLiterKinds).
+// (oi/building/migrate.js, migrateLiterKinds).
 export function createProductionSeed() {
   return [
     {

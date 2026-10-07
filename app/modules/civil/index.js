@@ -9,7 +9,7 @@ import { migrateUtilities } from '../land-plot/oi/land/utilities.js';
 import { migrateImprovements } from '../land-plot/oi/land/improvements.js';
 import { migrateLandDicts } from '../land-plot/oi/land/dictMigrate.js';
 import { migrateStruct } from './parts/struct/ms.js';
-import { migrateLiterKinds } from './oi/building/capClass.js';
+import { migrateLiterKinds } from './oi/building/migrate.js';
 import { migrateSpecials } from './parts/specials/model.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';

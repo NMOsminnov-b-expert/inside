@@ -2,7 +2,7 @@ import { createSeed } from './seed.js';
 import { createProductionSeed } from './seedProduction.js';
 import { LETTER_SEQ } from './dictionaries.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
-import { migrateLiterKinds } from '../oi/building/capClass.js';
+import { migrateLiterKinds } from '../oi/building/migrate.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 // С 28.09.2026 модуль — единый тип «Нежилое здание»: в нём и записи бывшего
