@@ -16,7 +16,7 @@
 // выбор, вернулось и значение (практика динамических полей по категории).
 import {
   TS_CATEGORIES, TS_BASES, TS_BASE_FIELDS, TS_BASE_FIELDS_BY_CATEGORY, TS_SPECIAL, TS_TOWED, TS_SELF_GROUPS, TS_SELF_FIELDS,
-  TS_MODULE_GROUPS, TS_MODULE_FIELDS, TS_VTYPE_BY_CATEGORY, TS_VTYPE_SELF,
+  TS_MODULE_GROUPS, TS_MODULE_FIELDS, TS_MODULE_SPECIAL, TS_VTYPE_BY_CATEGORY, TS_VTYPE_SELF,
 } from './data/tsCatalog.js';
 
 // Подписи — по указанию пользователя 23.09.2026: «самоходную технику меняем на
@@ -83,18 +83,63 @@ export const tsOf = (holder) => {
   if (isPassenger(v)) migratePassenger(v);
   if (isTrailer(v)) migrateTrailer(v);
   migrateTruckBase(v);
+  migrate0710(v);
   return v;
 };
 
 function migrateDrive(f) {
   if (f.drive || !f.engineKind) return;
   if (f.engineKind === 'Нет своего (от КОМ базы)') {
-    f.drive = 'От двигателя базы (КОМ)';
+    f.drive = FROM_BASE_DRIVE;
     delete f.engineKind;
   } else {
     f.drive = 'Свой двигатель';
   }
 }
+
+// Заметки пользователя 07.10.2026: КОМ убрана у всех баз («КОМ не добавляем.
+// Убираем где не нужен. В том числе у тракторов»); техническое состояние одним
+// списком заменено таблицей по элементам у всех ТС; прицепу не нужны руль и
+// пробег, тормоза — видом тормозной системы; аббревиатуры в названиях модулей и
+// в приводе модуля — с расшифровкой. Прежние значения не теряются: что не
+// переводится однозначно — в «Дополнительные параметры» под прежней подписью.
+export const FROM_BASE_DRIVE = 'От двигателя базы через коробку отбора мощности (КОМ)';
+const DRIVE_RENAMED = { 'От двигателя базы (КОМ)': FROM_BASE_DRIVE };
+export const MODULE_RENAMED = {
+  'Кузов-фургон КУНГ': 'Кузов-фургон (КУНГ — кузов унифицированный нулевого габарита)',
+  'Передвижная АЗС': 'Передвижная автозаправочная станция (АЗС)',
+  'Пожарный подъёмник (АКП, АТП)': 'Пожарный автоподъёмник коленчатый или телескопический (АКП, АТП)',
+};
+const toExtra = (v, f, key, label) => {
+  if (f[key] === undefined) return;
+  if (String(f[key]).trim()) v.extra.push({ id: nextId('vx'), label, value: String(f[key]) });
+  delete f[key];
+};
+function migrate0710(v) {
+  const f = v.f;
+  toExtra(v, f, 'pto', 'Коробка отбора мощности (КОМ)');
+  if (v.kind === 'self' || (v.kind === 'base' && v.category && v.category !== 'По техпаспорту')) {
+    toExtra(v, f, 'state', 'Техническое состояние');
+  }
+  if (isTrailer(v)) {
+    toExtra(v, f, 'wheel', 'Руль');
+    toExtra(v, f, 'mileage', 'Пробег');
+    if (f.tormoza !== undefined) {
+      if (/^нет$/i.test(String(f.tormoza).trim())) { if (!f.brakeType) f.brakeType = 'Без тормозов'; delete f.tormoza; }
+      else toExtra(v, f, 'tormoza', 'Тормоза');
+    }
+  }
+  const fixDrive = (x) => { if (DRIVE_RENAMED[x.drive]) x.drive = DRIVE_RENAMED[x.drive]; };
+  fixDrive(f);
+  v.modules.forEach((m) => {
+    if (MODULE_RENAMED[m.kind]) m.kind = MODULE_RENAMED[m.kind];
+    fixDrive(m.f || {});
+  });
+  if (MODULE_RENAMED[v.modKind]) v.modKind = MODULE_RENAMED[v.modKind];
+}
+
+// Особые поля модуля (трал — 07.10.2026), по образцу особых полей базы.
+export const moduleSpecial = (kind) => TS_MODULE_SPECIAL[kind] || [];
 
 // Легковые до 02.10.2026: одна база «Легковой автомобиль и внедорожник»,
 // колёсная формула, массы, оси, моточасы, КОМ, раздатка, техсостояние одним

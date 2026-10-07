@@ -60,16 +60,15 @@ def run(t):
     pg.select_option('[data-ts-cat]', 'Легковое')
     t.wait_for('[data-tsf="main|make"]')
     t.ck(pg.locator('[data-ts-base]').count() == 0, 'у легкового остался список баз (кузовов)')
-    # «Тип ТС, вид кузова» — рядом с категорией, в одной строке.
-    tops = pg.evaluate("""() => ['[data-ts-cat]', '[data-tsf="main|vtype"]']
-      .map((s) => Math.round(document.querySelector(s).closest('.field').getBoundingClientRect().top))""")
-    t.ck(tops[0] == tops[1], '«Тип ТС, вид кузова» не рядом с категорией: %s' % tops)
-    vt = lambda: pg.evaluate("""() => { const i = document.querySelector('[data-tsf="main|vtype"]');
-      return i && i.dataset.suggest ? JSON.parse(i.dataset.suggest) : []; }""")
-    # Грузопассажирские бывают и легковыми (указание пользователя 06.10.2026).
-    own = ('легковой', 'грузопассажирский')
-    t.ck(vt() and all(x.startswith(own) for x in vt()),
-         'в подсказках типа легкового чужие варианты: %s' % [x for x in vt() if not x.startswith(own)][:8])
+    # «Тип ТС, вид кузова» — одно поле с поиском по справочнику, над категорией
+    # (заметки пользователя 07.10.2026: «единое окно для поиска»); категория при
+    # одной базе — на всю строку.
+    t.ck(pg.locator('#ts-find-q[data-tsf="main|vtype"]').count() == 1, '«Тип ТС» не объединён с поиском')
+    tops = pg.evaluate("""() => ['#ts-find-q', '[data-ts-cat]']
+      .map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top))""")
+    t.ck(tops[0] < tops[1], '«Тип ТС» не над категорией: %s' % tops)
+    t.ck(pg.locator('[data-ts-cat]').locator('xpath=ancestor::div[contains(@class,"vh-s4")]').count() == 1,
+         'категория с одной базой не на всю строку')
 
     for key in ('docKind', 'trim', 'country', 'driveType', 'gearbox', 'fuel', 'mileage', 'vid', 'condBody', 'condOtherNote'):
         t.ck(has(key), 'у легкового нет поля %s' % key)
@@ -155,15 +154,17 @@ def run(t):
     t.wait_for('[data-ts-base]:not([disabled])')
     pg.select_option('[data-ts-base]', 'Грузовое ТС')
     t.wait_for('[data-tsf="main|make"]')
-    t.ck(any(x.startswith('грузовой') for x in vt()) and not any(x.startswith('легковой') for x in vt()),
-         'в подсказках типа грузовика легковые или нет грузовых: %s' % vt()[:8])
     # Грузовое — две базы: грузовой автомобиль и седельный тягач; у грузового
     # автомобиля — дубль-кабина (решения пользователя 06.10.2026).
     trucks = pg.eval_on_selector_all('[data-ts-base] option', 'els => els.map((e) => e.textContent.trim())')[1:]
     t.ck(trucks == ['Грузовое ТС', 'Седельное ТС', 'Прочее'], 'базы грузового не те: %s' % trucks)
     t.ck(has('dublKabina') and has('podemnayaOs'), 'у грузового автомобиля нет дубль-кабины или подъёмной оси')
-    for key in ('wheelFormula', 'pto', 'steerAxles', 'massMax', 'generalState'):
+    for key in ('wheelFormula', 'steerAxles', 'massMax', 'generalState', 'condCab', 'condEngine'):
         t.ck(has(key), 'у грузовика пропало поле %s' % key)
+    # КОМ убрана у всех баз, и единого «Тех. состояния» нет — таблица по элементам
+    # (заметки пользователя 07.10.2026).
+    for key in ('pto', 'state', 'condInterior'):
+        t.ck(not has(key), 'у грузовика осталось поле %s' % key)
     titles = pg.evaluate(SECTION_TITLES)
     t.ck('Двигатель и грузовые характеристики' in titles, 'заголовок двигателя грузовика не тот: %s' % titles)
     t.ck(pg.locator('[data-ts-key="vid"]').locator('xpath=ancestor::table[contains(@class,"vh-ntbl")]').count() == 1,
@@ -176,6 +177,14 @@ def run(t):
     t.wait_for('[data-tsf="main|make"]')
     for key in ('engineNo', 'fuel', 'engineVolume', 'power', 'engineHours', 'gearbox', 'pto'):
         t.ck(not has(key), 'у прицепа осталось поле двигателя %s' % key)
+    # Прицепу не нужны руль и пробег; тормоза — видом системы; состояние — без
+    # двигателя и салона (заметки пользователя 07.10.2026).
+    for key in ('wheel', 'mileage', 'tormoza', 'condEngine', 'condInterior', 'condBody'):
+        t.ck(not has(key), 'у прицепа осталось поле %s' % key)
+    t.ck(has('brakeType') and has('condFrame') and has('condChassis'), 'у прицепа нет типа тормозов или таблицы состояния')
+    brakes = opt('brakeType')
+    t.ck('Без тормозов' in brakes and 'Инерционные (тормоз наката)' in brakes and len(brakes) >= 10,
+         'виды тормозов прицепа не те: %s' % brakes)
     titles = pg.evaluate(SECTION_TITLES)
     t.ck('Грузовые характеристики' in titles and 'Ходовая' in titles and not any('Двигатель' in x for x in titles),
          'подразделы прицепа не те: %s' % titles)

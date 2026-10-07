@@ -208,6 +208,11 @@ export function bindNumField(el, write, kind) {
       const pos = caretAfterDigits(next, typedBefore);
       el.setSelectionRange(pos, pos);
     }
+    // Значение пишется по ходу набора, а не только по уходу из поля: смена
+    // своего выпадающего меню перерисовывает карточку, не забирая фокус, и
+    // набранное терялось (баг из заметок пользователя 07.10.2026: «Пробег не
+    // сохраняется — сбрасывается при обновлении выпадающих меню»).
+    if (write) write(numEdit(el.value, kind));
   });
 
   el.addEventListener('change', () => {

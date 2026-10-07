@@ -11,7 +11,7 @@ import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
 import {
   KINDS, SELF_CAT, CATEGORIES, basesOf, baseInfo, singleBase, selfGroups, selfKinds, selfInfo, moduleGroups, moduleKinds,
   moduleInfo, MODULE_FIELDS, tsOf, classified, commonFields, specialFields, isPassenger,
-  moduleTitle, whatLabel, categoryCandidates, makeWithModules, vtypeField, isTrailer,
+  moduleTitle, whatLabel, categoryCandidates, makeWithModules, isTrailer, moduleSpecial, FROM_BASE_DRIVE,
 } from './tsModel.js';
 import { treeSearchHTML } from '../../kernel/treeSearch.js';
 import { lastSavedAt } from '../../kernel/persist.js';
@@ -78,7 +78,7 @@ const MODULE_SPAN = { maker: 1, model: 1, serialNo: 1, year: 1, drive: 2, engine
 // машины привода от базы не бывает. В форме модуля подписи короче: блок и так
 // про установку, полное название — в подсказке.
 const FUEL_ENGINES = ['Дизель', 'Бензин', 'Газ'];
-const FROM_BASE = 'От двигателя базы (КОМ)';
+const FROM_BASE = FROM_BASE_DRIVE;
 const MODULE_LABEL = { drive: 'Привод', engineKind: 'Двигатель', engineVolume: 'Раб. объём' };
 // Модуль целиком заполняют на осмотре — это сказано в заголовке блока, метка
 // «осмотр» у каждого его поля ничего не добавляла.
@@ -140,6 +140,19 @@ function kindSummaryHTML(v, idx) {
   return `<div class="card t-blue vh-kind-sum" data-ts-kind-sum>${kindHeadHTML(v, idx, false)}</div>`;
 }
 
+// Категории, которые может означать запись «Тип ТС», — кнопками под списками.
+// Обёртка data-ts-sug-box есть всегда: по уходу из поля «Тип ТС» строка
+// обновляется одна, без перерисовки карточки (иначе щелчок по соседней кнопке
+// пропадал — кнопку заменяла перерисовка раньше, чем щелчок завершался).
+export function sugHTML(v) {
+  if (v.kind === 'self' || v.kind === 'module') return '';
+  const cands = categoryCandidates(v.f.vtype).filter((c) => c !== v.category);
+  return cands.length && !(v.category && categoryCandidates(v.f.vtype).includes(v.category))
+    ? `<div class="vh-sug" data-ts-sug>По записи «${esc(v.f.vtype)}» может быть:${cands.map((c) => `
+        <button type="button" class="vh-sug-btn" data-ts-sug-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`
+    : '';
+}
+
 function kindHTML(ctx, v, idx) {
   // По умолчанию блок открыт и сам не сворачивается (указание пользователя
   // 06.10.2026: «сделай уже по умолчанию открытым блок 02. Не скрываем его
@@ -176,29 +189,32 @@ function kindHTML(ctx, v, idx) {
   } else {
     const bases = basesOf(v.category).map((b) => b.name);
     about = baseInfo(v.base);
-    const vtype = vtypeField(v, commonFields(v).find((f) => f.key === 'vtype'));
-    const cands = categoryCandidates(v.f.vtype).filter((c) => c !== v.category);
-    sug = cands.length && !(v.category && categoryCandidates(v.f.vtype).includes(v.category))
-      ? `<div class="vh-sug" data-ts-sug>По записи «${esc(v.f.vtype)}» может быть:${cands.map((c) => `
-          <button type="button" class="vh-sug-btn" data-ts-sug-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`
-      : '';
-    // Сначала выбор, под ним запись из техпаспорта (указание пользователя
-    // 02.10.2026: «Тип ТС, вид кузова ниже… Сначала выбор, потом тип»). Где у
-    // категории одна база, списка баз нет (решение 06.10.2026), и «Тип ТС»
-    // встаёт рядом с категорией — строка заполнена.
-    const single = v.category && singleBase(v.category);
-    cascade = `${catSel(v.category)}
-      ${single ? '' : `<div class="field vh-s2"><label for="ts-base">База</label>
+    sug = sugHTML(v);
+    // Где у категории одна база, списка баз нет (решение 06.10.2026) —
+    // категория на всю строку: пустой половины не остаётся.
+    const single = !v.category || singleBase(v.category);
+    cascade = `${v.category && single ? catSel(v.category).replace('vh-s2', 'vh-s4') : catSel(v.category)}
+      ${single && v.category ? '' : `<div class="field vh-s2"><label for="ts-base">База</label>
         <select class="select" id="ts-base" data-ts-base ${v.category ? '' : 'disabled'}>${
-  options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`}
-      ${vtype ? tsFieldHTML(v.f, vtype, 'main', single ? 'vh-s2' : 'vh-s4') : ''}`;
+  options(bases, v.base, v.category ? 'Выберите базу' : 'Сначала категория')}</select></div>`}`;
   }
 
-  const search = treeSearchHTML({ id: 'ts-find', label: 'Найти в справочнике',
-    placeholder: 'Например: автокран, самосвал, погрузчик' });
+  // «Тип ТС, вид кузова» и поиск по справочнику — одно поле (заметки
+  // пользователя 07.10.2026: «Найти в справочнике стоит с типом кузова
+  // объединить. Единое окно для поиска. Упрощение интерфейса»): вписанное —
+  // запись техпаспорта, по ней же выдача шаблонов, видов и моделей; выбор
+  // заполняет категорию и базу ниже. У оборудования без машины (прежние
+  // записи) «Типа ТС» нет — поле только ищет.
+  const asVtype = v.kind !== 'module';
+  const search = treeSearchHTML({ id: 'ts-find', label: asVtype ? 'Тип ТС, вид кузова' : 'Найти в справочнике',
+    hint: asVtype ? 'по техпаспорту' : '',
+    placeholder: asVtype ? 'Запись из техпаспорта, вид или модель: самосвал, автокран, КАМАЗ 65115'
+      : 'Например: автокран, самосвал, погрузчик',
+    value: asVtype ? (v.f.vtype || '') : '', attrs: asVtype ? 'data-tsf="main|vtype"' : '' });
   // Предложения категории — своей строкой под сеткой: в сетке у поля строки
   // фиксированной высоты, и добавка под списком наезжала на него.
-  const body = `${seg}${search}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}${sug}${about ? aboutHTML(about) : ''}`;
+  const body = `${seg}${search}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}<div data-ts-sug-box>${sug}</div>${
+    about ? aboutHTML(about) : ''}`;
   if (!classified(v)) return card('blue', idx, 'Вид объекта', '', body);
   return `<div class="card t-blue vh-kind-open" data-ts-kind-sum>${kindHeadHTML(v, idx, true)}<div class="card-pad">${body}</div></div>`;
 }
@@ -290,8 +306,7 @@ function machineHTML(v, idx, inspect = false) {
   // «Особом для базы», у спецтехники — в общих (развёртка 30.09.2026).
   const special = specialFields(v).filter((f) => f.key !== 'country');
   const country = specialFields(v).find((f) => f.key === 'country');
-  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
-    .map((f) => vtypeField(v, f))
+  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && f.key !== 'vtype')
     .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : [])
     .filter((f) => !inspect || inspectField(f))
     // В режиме осмотра всё — с осмотра: метка у поля ничего не добавляет.
@@ -405,6 +420,7 @@ const SCALE_TIP = TS_CONDITION_SCALE.map((g) => `${g.name} — ${g.hint}`).join(
 const GENERAL = /^generalState/;
 const COND_NAMES = { condBody: 'Кузов и окраска', condInterior: 'Салон', condEngine: 'Двигатель',
   condChassis: 'Ходовая часть', condElectric: 'Электрооборудование', condOther: 'Прочие элементы',
+  condCab: 'Кабина и окраска', condFrame: 'Рама и окраска', condMotoFrame: 'Рама и облицовка',
   generalState: 'Общее состояние' };
 function condTableHTML(vals, list) {
   const row = (g) => {
@@ -512,8 +528,7 @@ export function sectionFields(v, key, inspect = false) {
   if (key !== 'machine') return [];
   const special = specialFields(v).filter((f) => f.key !== 'country');
   const country = specialFields(v).find((f) => f.key === 'country');
-  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && !(v.kind === 'base' && f.key === 'vtype'))
-    .map((f) => vtypeField(v, f))
+  const list = commonFields(v).filter((f) => f.block === 'machine' && shown(v, f) && f.key !== 'vtype')
     .concat(country && !commonFields(v).some((f) => f.key === 'country') ? [country] : []);
   const out = SECTIONS.map((sec) => ({ group: secTitle(v, sec), fields: keep(list.filter((f) => (SECTION_OF[f.key] || 'general') === sec.key)) }));
   out.push({ group: 'Особое для базы', fields: keep(special) });
@@ -644,7 +659,8 @@ function moduleFormHTML(m, noEngine = false) {
   const search = treeSearchHTML({ id: 'ts-mfind', label: 'Найти модуль', placeholder: 'Например: автокран, цистерна, ковш' });
   return `<div class="vh-mform" id="ts-mform-${m.id}" data-ts-mform="${m.id}">
     ${search}${cascade}
-    ${m.kind ? `${grid(m.f, moduleFields(m.f, MODULE_FIELDS, noEngine), m.id)}${extraPart(m.extra, m.id, 'Параметры модуля')}` : ''}
+    ${m.kind ? `${grid(m.f, [...moduleFields(m.f, MODULE_FIELDS, noEngine), ...moduleSpecial(m.kind)], m.id)}${
+  extraPart(m.extra, m.id, 'Параметры модуля')}` : ''}
   </div>`;
 }
 

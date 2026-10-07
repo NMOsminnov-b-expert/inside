@@ -18,7 +18,7 @@
 import { TS_TEMPLATES } from './data/tsCatalog.js';
 import { TS_MODELS } from './data/tsModels.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
-import { addModule, kindLeaves } from './tsModel.js';
+import { addModule, kindLeaves, MODULE_RENAMED } from './tsModel.js';
 
 const own = [];
 
@@ -27,6 +27,8 @@ registerPersisted('templates.vehicle', {
   restore: (saved) => {
     if (!Array.isArray(saved)) return;
     own.splice(0, own.length, ...saved.filter((t) => t && t.id && t.name));
+    // Модули, переименованные 07.10.2026 (расшифровка аббревиатур), — по-новому.
+    own.forEach((t) => (t.modules || []).forEach((m) => { if (MODULE_RENAMED[m.kind]) m.kind = MODULE_RENAMED[m.kind]; }));
   },
 });
 
@@ -69,8 +71,8 @@ export function modelLeaves() {
   return models;
 }
 
-// Собрать карточку по шаблону. «Тип ТС» — только в пустое поле: запись из
-// техпаспорта важнее. Модули добавляются недостающие, уже заведённые остаются.
+// Собрать карточку по шаблону. «Тип ТС» — запись шаблона (решение 07.10.2026).
+// Модули добавляются недостающие, уже заведённые остаются.
 export function applyTemplate(v, t) {
   v.kind = t.kind || 'base';
   if (v.kind === 'self') {
@@ -80,7 +82,10 @@ export function applyTemplate(v, t) {
     v.category = t.category;
     v.base = t.base;
   }
-  if (t.vtype && !String(v.f.vtype || '').trim()) v.f.vtype = t.vtype;
+  // Шаблон выбран — в «Тип ТС» его запись (решение пользователя 07.10.2026:
+  // «Шаблон выбран — запись шаблона, не выбран — текст»); у шаблона без записи
+  // остаётся вписанное.
+  if (t.vtype) v.f.vtype = t.vtype;
   t.modules.forEach(({ group, kind }) => {
     if (v.modules.some((m) => m.group === group && m.kind === kind)) return;
     const m = addModule(v);

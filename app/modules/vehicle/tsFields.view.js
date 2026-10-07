@@ -66,6 +66,17 @@ export const isoToRu = (v) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || ''));
   return m ? `${m[3]}.${m[2]}.${m[1]}` : String(v || '');
 };
+// Год двумя цифрами (заметки пользователя 07.10.2026: «Если человек заведомо
+// год вбил больше текущего, ставим 19XX. Если меньше текущего — 20XX»):
+// больше двух последних цифр текущего года — прошлый век, иначе нынешний.
+// Граница — от текущего года, не зашита (правило проекта о годах).
+export function fullYear(yy) {
+  const n = Number(yy);
+  return (n > new Date().getFullYear() % 100 ? 1900 : 2000) + n;
+}
+// «ДД.ММ.ГГ» → «ДД.ММ.ГГГГ»; остальное — как есть.
+export const expandRuDate = (v) => String(v || '').trim().replace(/^(\d{2}\.\d{2}\.)(\d{2})$/, (_, dm, yy) => dm + fullYear(yy));
+
 export function ruToIso(v) {
   const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(v || '').trim());
   if (!m) return null;

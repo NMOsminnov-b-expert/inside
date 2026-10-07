@@ -22,6 +22,8 @@ tools/data/ts_templates.py, поиск — kernel/treeSearch.js.
     ставит базу и модули или не пишет «Марка, модель»; модель, записанная
     по-разному (ГАЗ 53), даёт один вариант.
 """
+import re
+
 NAME = 'шаблоны машин ТС'
 
 TOUCHES = ('app/modules/vehicle/templates.js', 'app/modules/vehicle/ctrl.js', 'app/kernel/treeSearch.js',
@@ -46,7 +48,7 @@ def run(t):
     # Записи техпаспортов как есть (сверка с реестром ТС учреждений 06.10.2026,
     # docs/sverka-tipov-ts.xlsx): знаки, лишние слова, кузов легкового.
     for q, first in (('седан', 'Легковой автомобиль и внедорожник'), ('платформа', 'Бортовой — грузовое ТС'),
-                     ('вилочный погрузчик/штабелер', 'Вилочный погрузчик'), ('кунг', 'КУНГ — грузовое ТС'),
+                     ('вилочный погрузчик/штабелер', 'Вилочный погрузчик'), ('кунг', 'Кузов-фургон (КУНГ) — грузовое ТС'),
                      ('автомобиль скорой помощи', 'Скорая помощь класса A (санитарная) — легковой'),
                      ('погрузчик', 'Вилочный погрузчик')):
         t.ck(find(q)[:1] == [first], '«%s» первым не «%s»: %s' % (q, first, names()[:3]))
@@ -65,23 +67,28 @@ def run(t):
     for need in ('Трал — полуприцеп', 'Трал — прицеп', 'Трал — грузовое ТС'):
         t.ck(need in trals, 'у трала нет шаблона «%s»: %s' % (need, trals))
 
-    # «Тип ТС» из техпаспорта шаблон не перезаписывает.
+    # Шаблон выбран — в «Тип ТС» его запись (решение пользователя 07.10.2026);
+    # в поиске — слова, а не аббревиатуры («заместо КМУ — манипулятор»).
     pg.keyboard.press('Escape')
-    t.ck('Бортовой с КМУ — грузовое ТС' in find('воровайка'), '«воровайка» не нашла бортовой с КМУ: %s' % names())
-    pg.locator('#ts-find-list .tsr-opt', has_text='Бортовой с КМУ — грузовое ТС').dispatch_event('mousedown')
+    t.ck('Бортовой с манипулятором (КМУ) — грузовое ТС' in find('воровайка'), '«воровайка» не нашла бортовой с манипулятором: %s' % names())
+    pg.locator('#ts-find-list .tsr-opt', has_text='Бортовой с манипулятором (КМУ) — грузовое ТС').dispatch_event('mousedown')
     t.wait_for('[data-ts-mitem]')
     mods = pg.eval_on_selector_all('[data-ts-mitem] .vh-mrow', 'els => els.map((e) => e.textContent)')
     t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое' and pg.input_value('[data-ts-base]') == 'Грузовое ТС',
          'шаблон не поставил категорию и базу')
     t.ck(len(mods) == 2 and 'Бортовая платформа' in mods[0] and 'КМУ' in mods[1], 'шаблон не добавил модули: %s' % mods)
-    t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой, бортовой с КМУ', 'шаблон не записал «Тип ТС»')
+    t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой, бортовой с манипулятором (КМУ)', 'шаблон не записал «Тип ТС»')
 
-    pg.fill('[data-tsf="main|vtype"]', 'грузовой бортовой (по ТП)')
-    pg.locator('[data-tsf="main|vtype"]').press('Tab')
-    find('эвакуатор с манипулятором')
-    pg.locator('#ts-find-list .tsr-opt', has_text='Эвакуатор с манипулятором').first.dispatch_event('mousedown')
-    t.wait_until("() => document.querySelectorAll('[data-ts-mitem]').length === 3")
-    t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой бортовой (по ТП)', 'шаблон перезаписал «Тип ТС» из техпаспорта')
+    # Не шаблон (база или вид) — в «Тип ТС» остаётся вписанный текст.
+    find('грузовое тс')
+    pg.locator('#ts-find-list .tsr-opt', has_text='Грузовое ТС').first.dispatch_event('mousedown')
+    t.wait_for('[data-ts-base]')
+    pg.fill('#ts-find-q', 'грузовой шасси по ТП')
+    t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
+    pg.locator('#ts-find-list .tsr-opt').filter(has=pg.locator('.tsr-name', has_text=re.compile('^Грузовое ТС$'))).first.dispatch_event('mousedown')
+    t.wait_for('[data-ts-base]')
+    t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой шасси по ТП', 'выбор базы стёр вписанную запись: %r'
+         % pg.input_value('[data-tsf="main|vtype"]'))
 
     # Шаблон на спецтехнике: вид машины и модуль.
     pg.reload()
@@ -130,3 +137,21 @@ def run(t):
     pg.fill('#ts-find-q', 'проверочник')
     t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
     t.ck(not names(), 'свой шаблон не удалился')
+
+    # Трал: свои поля модуля — длина, аппарели (трапы) по приводу и конструкции,
+    # передняя загрузка, подвеска; число осей и тормоза — у полуприцепа в полях
+    # базы (заметки пользователя 07.10.2026: «Отдельно по тралам»).
+    pg.reload()
+    t.wait_for('#ts-find-q')
+    find('трал')
+    pg.locator('#ts-find-list .tsr-opt', has_text='Трал — полуприцеп').first.dispatch_event('mousedown')
+    t.wait_for('[data-ts-mitem]')
+    has = lambda sel: pg.locator(sel).count() > 0
+    # Модуль трала — по кнопке-заголовку: в раскрытом соседнем модуле его
+    # название есть в списке модулей.
+    pg.locator('[data-ts-mpick]', has_text='Низкорамная платформа (трал)').first.click()
+    t.wait_until("() => document.querySelectorAll('.vh-mform [data-tsf$=\"|dlinaPlatformy\"]').length === 1")
+    for key in ('dlinaPlatformy', 'appareliTrapyPrivod', 'appareliTrapyKonstrukciya', 'perednyayaZagruzkaSemnyyGusak',
+                'tipPodveski'):
+        t.ck(has('.vh-mform [data-tsf$="|%s"]' % key), 'у трала нет поля %s' % key)
+    t.ck(has('[data-tsf="main|axles"]') and has('[data-tsf="main|brakeType"]'), 'у полуприцепа под тралом нет осей или тормозов')

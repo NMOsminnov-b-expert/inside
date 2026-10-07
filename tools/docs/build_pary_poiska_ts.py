@@ -41,6 +41,9 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'tools', 'data'))
+from ts_templates import renamed  # noqa: E402 — прежние названия шаблонов
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
 SHEET = 'Основной'
@@ -129,7 +132,8 @@ def previous():
     if 'Тип и кузов' in wb.sheetnames:
         for r in wb['Тип и кузов'].iter_rows(min_row=2, values_only=True):
             if r[0] is not None:
-                out[(key(r[0]) if r[0] != EMPTY else '', key(r[1]) if r[1] != EMPTY else '')] = (r[4], r[5], r[7])
+                out[(key(r[0]) if r[0] != EMPTY else '', key(r[1]) if r[1] != EMPTY else '')] = (
+                    renamed(r[4]) if r[4] else r[4], r[5], r[7])
     wb.close()
     return out
 

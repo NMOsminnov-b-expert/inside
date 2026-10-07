@@ -171,7 +171,7 @@ def run(t):
                                    'els => els.map((e) => e.firstChild.textContent.trim())')
     # У нелегковых — «Двигатель и грузовые характеристики» (указание пользователя 02.10.2026).
     t.ck(subs[:4] == ['Общие сведения', 'Номера', 'Двигатель и грузовые характеристики', 'Ходовая и трансмиссия']
-         and subs[-2:] == ['Наработка и состояние', 'Дополнительные параметры'], 'подразделы «Машины» не те: %s' % subs)
+         and subs[-3:] == ['Наработка и состояние', 'Состояние', 'Дополнительные параметры'], 'подразделы «Машины» не те: %s' % subs)
     # Пробег — в блоке машины (заметка пользователя 30.09.2026 «Пробег к базе»).
     t.ck(pg.locator('.vehicle-form .card:nth-of-type(4) [data-tsf="main|mileage"]').count() == 1,
          'пробег не в блоке машины')
@@ -314,7 +314,7 @@ def run(t):
     t.wait_for('[data-tsf="%s|engineVolume"]' % mid)
     pg.select_option('[data-tsf="%s|engineKind"]' % mid, 'Электро')
     t.wait_until("() => !document.querySelector('[data-tsf=\"%s|engineVolume\"]')" % mid)
-    pg.select_option('[data-tsf="%s|drive"]' % mid, 'От двигателя базы (КОМ)')
+    pg.select_option('[data-tsf="%s|drive"]' % mid, 'От двигателя базы через коробку отбора мощности (КОМ)')
     t.wait_until("() => !document.querySelector('[data-tsf=\"%s|engineKind\"]')" % mid)
     t.ck(pg.locator('[data-ts-mform="%s"] .vh-src' % mid).count() == 0, 'у полей модуля остались метки «осмотр»')
     t.wait_until("() => document.querySelector('[data-ts-mpick=\"%s\"]').innerText.includes('ЭО-2621')" % mid)

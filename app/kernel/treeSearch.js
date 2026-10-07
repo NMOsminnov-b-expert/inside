@@ -144,14 +144,17 @@ function snippet(text, ws) {
   return (from ? '…' : '') + t.slice(from, from + 70) + (from + 70 < t.length ? '…' : '');
 }
 
-// id — имя поиска на экране: поле #<id>-q, выдача #<id>-list.
-export function treeSearchHTML({ id, label, placeholder = '' }) {
+// id — имя поиска на экране: поле #<id>-q, выдача #<id>-list. Поле может быть и
+// полем данных (value, attrs — например data-tsf): набранное хранится как
+// значение, а выдача помогает выбрать вариант справочника (карточка ТС, «Тип ТС,
+// вид кузова» — заметки пользователя 07.10.2026: «единое окно для поиска»).
+export function treeSearchHTML({ id, label, placeholder = '', value = '', attrs = '', hint = '' }) {
   return `<div class="field tsr" data-tsr="${esc(id)}">
-    <label for="${esc(id)}-q">${esc(label)}</label>
+    <label for="${esc(id)}-q">${esc(label)}${hint ? ` <span class="hint">${esc(hint)}</span>` : ''}</label>
     <div class="tsr-box">
       <input class="input tsr-q" id="${esc(id)}-q" autocomplete="off" spellcheck="false"
         role="combobox" aria-expanded="false" aria-controls="${esc(id)}-list" aria-autocomplete="list"
-        placeholder="${esc(placeholder)}">
+        placeholder="${esc(placeholder)}" value="${esc(value)}" ${attrs}>
       <div class="tsr-drop" id="${esc(id)}-list" role="listbox" aria-label="Найдено в справочнике" tabindex="-1" hidden></div>
     </div>
   </div>`;
@@ -159,6 +162,9 @@ export function treeSearchHTML({ id, label, placeholder = '' }) {
 
 // leaves() — варианты (зовётся при каждом наборе: состав может зависеть от
 // уже выбранного); onPick(вариант) — подставить в каскад и перерисовать.
+// Поиски, где только что выбрали вариант (по id поля): переживает перерисовку.
+const settled = new Set();
+
 export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
   const q = scope.$(`#${id}-q`);
   const drop = scope.$(`#${id}-list`);
@@ -214,14 +220,19 @@ export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
     const l = list[i];
     if (!l) return;
     open(false);
+    settled.add(id);
     onPick(l);
   };
 
-  q.oninput = draw;
+  // Слушатель, а не q.oninput: у поля-данных свой обработчик ввода (запись значения).
+  q.addEventListener('input', () => { settled.delete(id); draw(); });
   // Ушли из поля — выдачу закрыть. Выбор мышью этому не мешает: mousedown в
   // списке фокус не отнимает.
   q.onblur = () => open(false);
-  q.onfocus = () => { if (q.value.trim()) draw(); };
+  // После выбора выдача по фокусу не открывается: карточка перерисовывается и
+  // возвращает фокус в поле, а у поля-данных текст остаётся — выдача закрыла бы
+  // соседние кнопки. Снова откроется, когда начнут печатать (или стрелкой вниз).
+  q.onfocus = () => { if (q.value.trim() && !settled.has(id)) draw(); };
   q.onkeydown = (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();

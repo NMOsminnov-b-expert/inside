@@ -34,7 +34,13 @@ KEYS = {
     'Где стоит (фактический адрес)': 'factAddr', 'Дата регистрации': 'regDate',
     'Серия и номер документа': 'docNo', 'Пробег': 'mileage', 'Моточасы': 'engineHours',
     'Колёсная формула': 'wheelFormula', 'Число осей': 'axles', 'Число управляемых осей': 'steerAxles',
-    'Тип КПП': 'gearbox', 'Коробка отбора мощности': 'pto', 'Техническое состояние': 'state',
+    'Тип КПП': 'gearbox', 'Коробка передач (КПП)': 'gearbox', 'Коробка отбора мощности': 'pto',
+    # Подписи с расшифровкой аббревиатур (07.10.2026) — прежние ключи: значения не теряются.
+    'Вал отбора мощности (ВОМ)': 'vom', 'Тип тормозов': 'brakeType',
+    # Состояние по элементам у всех ТС (07.10.2026): кабина, рама — свои элементы.
+    'Состояние кабины и окраски': 'condCab', 'Состояние кабины и окраски: описание': 'condCabNote',
+    'Состояние рамы и окраски': 'condFrame', 'Состояние рамы и окраски: описание': 'condFrameNote',
+    'Состояние рамы и облицовки': 'condMotoFrame', 'Состояние рамы и облицовки: описание': 'condMotoFrameNote', 'Техническое состояние': 'state',
     'Привод': 'driveType', 'Раздаточная коробка': 'transferCase', 'Подруливающие оси': 'rearSteer',
     'Вид документа': 'docKind', 'Комплектация': 'trim', 'Комментарий к комплектации': 'trimNote',
     'Общее состояние': 'generalState', 'Описание общего состояния': 'generalStateNote', 'Страна производства': 'country', 'Ёмкость батареи': 'battery',
@@ -66,6 +72,8 @@ BLOCK = {
     'condOther': 'use', 'condBodyNote': 'use', 'condInteriorNote': 'use', 'condEngineNote': 'use',
     'condChassisNote': 'use', 'condElectricNote': 'use', 'condOtherNote': 'use',
     'generalState': 'use', 'generalStateNote': 'use',
+    'condCab': 'use', 'condCabNote': 'use', 'condFrame': 'use', 'condFrameNote': 'use',
+    'condMotoFrame': 'use', 'condMotoFrameNote': 'use',
 }
 
 TRANSLIT = dict(zip('абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
@@ -109,7 +117,7 @@ VTYPE_BY_CATEGORY = {
     'Легковое': ['легковой, ' + b.lower() for b in B.PASSENGER_BODIES] + [
         'грузопассажирский, универсал', 'грузопассажирский, пикап', 'грузопассажирский, фургон'],
     'Грузовое': [
-        'грузовой, бортовой', 'грузовой, бортовой с тентом', 'грузовой, бортовой с КМУ', 'грузовой, фургон',
+        'грузовой, бортовой', 'грузовой, бортовой с тентом', 'грузовой, бортовой с манипулятором (КМУ)', 'грузовой, фургон',
         'грузовой, фургон изотермический', 'грузовой, рефрижератор', 'грузовой, самосвал', 'грузовой, тягач седельный',
         'грузовой, цистерна', 'грузовой, шасси', 'грузовой, эвакуатор', 'грузовой, контейнеровоз', 'грузовой, лесовоз',
         'грузовой, мусоровоз', 'грузопассажирский, фургон', 'специальный, автокран', 'специальный, пожарный',
@@ -306,12 +314,18 @@ def build():
         'TS_TOWED': [{'name': t[0], 'fields': towed_fields(t[1])} for t in B.TOWED],
         'TS_SELF_GROUPS': group(B.SELF, 0, lambda r: {'name': r[1], 'run': r[2], 'hint': r[3], 'examples': r[4],
                                                       'aliases': SELF_ALIASES.get(r[1], [])}),
-        'TS_SELF_FIELDS': common(B.SELF_COMMON, {'Дополнительные параметры'}),
+        # У спецтехники состояние — той же таблицей по элементам, что у тракторов.
+        'TS_SELF_FIELDS': common([r for row in B.SELF_COMMON for r in (
+            B.cond_rows('machine') if row[1] == 'Техническое состояние' else [row])], {'Дополнительные параметры'}),
         'TS_MODULE_GROUPS': group(B.MODULES, 0, lambda r: {'name': r[1], 'hint': r[2], 'note': r[3]}),
         # Готовые шаблоны машин для поиска (tools/data/ts_templates.py).
         'TS_TEMPLATES': ts_templates.build([(g['group'], [i['name'] for i in g['items']])
                                             for g in group(B.MODULES, 0, lambda r: {'name': r[1]})]),
         'TS_MODULE_FIELDS': common(B.MODULE_COMMON, {'Вид модуля', 'Дополнительные параметры'}),
+        # Особые поля модуля (трал — 07.10.2026): по образцу особых полей базы.
+        'TS_MODULE_SPECIAL': {m: [dict(field(label, value, hint, source=src), block='machine')
+                                  for mm, src, label, value, hint in B.MODULE_SPECIAL if mm == m]
+                              for m in dict.fromkeys(r[0] for r in B.MODULE_SPECIAL)},
         # Ступени шкалы состояния и их характеристики — подсказки таблицы состояния.
         # Подсказки «Тип ТС, вид кузова» — по категории базы и у спецтехники.
         'TS_VTYPE_BY_CATEGORY': VTYPE_BY_CATEGORY,

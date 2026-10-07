@@ -26,6 +26,9 @@ import sys
 
 from openpyxl import load_workbook
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'tools', 'data'))
+from ts_templates import renamed  # noqa: E402 — прежние названия шаблонов
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BOOK = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
 OUT = os.path.join(ROOT, 'app', 'modules', 'vehicle', 'data', 'tsModels.js')
@@ -49,7 +52,7 @@ def key(v):
 
 def build():
     wb = load_workbook(BOOK, read_only=True)
-    bind = {(key(r[0]), key(r[1])): r[4] for r in wb['Тип и кузов'].iter_rows(min_row=2, values_only=True)
+    bind = {(key(r[0]), key(r[1])): renamed(r[4]) for r in wb['Тип и кузов'].iter_rows(min_row=2, values_only=True)
             if r[0] is not None and r[4]}
     models = collections.defaultdict(collections.Counter)
     spell = {}

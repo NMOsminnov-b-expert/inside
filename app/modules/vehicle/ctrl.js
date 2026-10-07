@@ -13,9 +13,9 @@ import { templateLeaves, modelLeaves, applyTemplate, canSaveTemplate, saveTempla
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
-import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns } from './view.js';
+import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns, sugHTML } from './view.js';
 import { createRecord } from './records.js';
-import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso } from './tsFields.view.js';
+import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso, fullYear, expandRuDate } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
@@ -168,19 +168,21 @@ export function bindTsForm(ctx, holder, set) {
     setCategory(val);
     warnMismatch();
   });
-  s.$$('[data-ts-sug-cat]').forEach((b) => b.onclick = () => {
+  const bindSug = () => s.$$('[data-ts-sug-cat]').forEach((b) => b.onclick = () => {
     const val = b.dataset.tsSugCat;
     v.kind = val === SELF_CAT ? 'self' : 'base';
     if (v.kind === 'base') setCategory(val);
     openKind();
     ctx.render();
   });
+  bindSug();
 
   // Предложения под списком категорий следуют за записью «Тип ТС» — по уходу
-  // из поля: пока человек печатает, карточка не перерисовывается.
+  // из поля; обновляется только их строка (sugHTML), не вся карточка.
   const vt = s.$('[data-tsf="main|vtype"]');
-  if (vt && s.$('[data-ts-cat]')) {
-    vt.addEventListener('change', () => { openKind(); ctx.render(); });
+  const sugBox = s.$('[data-ts-sug-box]');
+  if (vt && sugBox && s.$('[data-ts-cat]')) {
+    vt.addEventListener('change', () => { sugBox.innerHTML = sugHTML(v); bindSug(); scheduleSave(); });
   }
   cascade('[data-ts-base]', (val) => { v.base = val; });
   cascade('[data-ts-sgroup]', (val) => {
@@ -202,6 +204,7 @@ export function bindTsForm(ctx, holder, set) {
   // trim и generalState открывают свои поля: комментарий к своей комплектации,
   // описание иного общего состояния.
   const RERENDER = new Set(['fuel', 'vidMashiny', 'drive', 'engineKind', 'trim', 'generalState']);
+  const CAPS = new Set(['bodyNo', 'chassisNo', 'engineNo', 'serialNo', 'docNo', 'vid']);
 
   s.$$('[data-tsf]').forEach((el) => {
     const [who, key] = split(el.dataset.tsf);
@@ -243,12 +246,44 @@ export function bindTsForm(ctx, holder, set) {
         if (el.classList.contains('field-bad') && ruToIso(el.value)) setFieldError(el, '');
       };
       el.onchange = () => {
+        el.value = expandRuDate(el.value);
         const t = el.value.trim();
         if (!t) { setFieldError(el, ''); write(vals, key, ''); return; }
         const iso = ruToIso(t);
         if (setFieldError(el, iso ? '' : 'Дата — ДД.ММ.ГГГГ')) return;
         write(vals, key, iso);
       };
+      return;
+    }
+
+    // Год двумя цифрами — до четырёх по уходу из поля (fullYear).
+    if (el.classList.contains('vh-year')) {
+      el.oninput = () => write(vals, key, el.value);
+      el.onchange = () => {
+        if (/^\d{2}$/.test(el.value.trim())) el.value = String(fullYear(el.value.trim()));
+        write(vals, key, el.value);
+        if (who !== 'main') syncModuleRow(who);
+      };
+      return;
+    }
+
+    // Номера — заглавными по ходу набора (заметки пользователя 07.10.2026:
+    // «Для всех номеров (регистрационный, VIN, кузов и т. д.) буквы капсом»).
+    // В серии документа «КР» и пробел дописывают «№» — где бы в строке «КР» ни
+    // стояло («Для поля серии, если написано КР и нажали пробел, то автоматом
+    // ставится №»).
+    if (CAPS.has(key)) {
+      el.oninput = () => {
+        const at = el.selectionStart;
+        let next = el.value.toUpperCase();
+        if (key === 'docNo') next = next.replace(/(^|[^0-9A-ZА-ЯЁ])(КР|KR) (?!№)/g, '$1$2 № ');
+        const shift = next.length - el.value.length;
+        el.value = next;
+        el.setSelectionRange(at + shift, at + shift);
+        write(vals, key, el.value);
+        if (who !== 'main' && key === 'serialNo') syncModuleRow(who);
+      };
+      if (key === 'bodyNo' || key === 'chassisNo') el.onblur = () => checkIds();
       return;
     }
 
