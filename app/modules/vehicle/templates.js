@@ -66,7 +66,7 @@ export function modelLeaves() {
   TS_MODELS.forEach(([make, model, targets]) => targets.forEach((label, i) => {
     const t = to.get(label);
     const name = [make, model].filter(Boolean).join(' ');
-    if (t) models.push({ ...t, model: name, name, path: [], order: 100 + i });
+    if (t) models.push({ ...t, model: name, make, name, path: [], order: 100 + i });
   }));
   return models;
 }
@@ -171,4 +171,45 @@ export function saveTemplate(v, name, aliases) {
 export function removeTemplate(id) {
   const at = own.findIndex((t) => t.id === id);
   if (at >= 0) own.splice(at, 1);
+}
+
+// «Показать все» у «Тип ТС» (указание пользователя 07.10.2026: «Нужен способ
+// просмотра всех списков модулей и видов ТС. В том числе марок… По
+// категориям»): виды ТС — по категориям (спецтехника — по группам), записи
+// техпаспорта — по категориям, шаблоны, марки — категория › марка › модели.
+// Пункты — те же, что в выдаче поиска: выбор идёт через pickLeaf.
+export function browseGroups(v) {
+  const leaves = searchLeaves(v, '');
+  const item = (l) => ({ name: l.name, note: l.note || '', leaf: l });
+  const by = (list, keyOf) => {
+    const m = new Map();
+    list.forEach((x) => { const k = keyOf(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); });
+    return m;
+  };
+  const kinds = leaves.filter((l) => l.kind);
+  const kindGroups = [...by(kinds, (l) => l.path[0])].map(([cat, list]) => {
+    const sub = by(list, (l) => l.path[1] || '');
+    return sub.size > 1 || !sub.has('')
+      ? { title: cat, groups: [...sub].map(([g, xs]) => ({ title: g, items: xs.map(item) })) }
+      : { title: cat, items: list.map(item) };
+  });
+  const recs = leaves.filter((l) => l.vt);
+  const recGroups = [...by(recs, (l) => l.cat || l.path[0].replace(/^Запись техпаспорта · /, ''))]
+    .map(([cat, list]) => ({ title: cat, items: list.map((l) => ({ name: l.name, note: '', leaf: l })) }));
+  const tpls = leaves.filter((l) => l.tpl && !l.model);
+  // Категория модели — по тому, куда она ведёт: база или вид — их категория,
+  // шаблон — категория его базы.
+  const catOf = new Map(kindLeaves().map((l) => [l.name, l.path[0]]));
+  const models = leaves.filter((l) => l.model);
+  const modelCat = (l) => (l.kindLeaf ? l.kindLeaf.path[0] : catOf.get(l.tpl.base) || 'Прочее');
+  const makeOf = (l) => l.make || 'Без марки';
+  const modelGroups = [...by(models, modelCat)].map(([cat, list]) => ({ title: cat,
+    groups: [...by(list, makeOf)].sort((a, b) => a[0].localeCompare(b[0], 'ru'))
+      .map(([mk, xs]) => ({ title: mk, items: xs.sort((a, b) => a.name.localeCompare(b.name, 'ru')).map(item) })) }));
+  return [
+    { title: 'Виды ТС', open: true, groups: kindGroups },
+    ...(recGroups.length ? [{ title: 'Записи техпаспорта', groups: recGroups }] : []),
+    { title: 'Шаблоны', items: tpls.map(item) },
+    { title: 'Марки и модели', groups: modelGroups },
+  ];
 }

@@ -10,7 +10,7 @@
   * у легкового нет масс, числа осей, моточасов, КОМ, раздатки, колёсной
     формулы, комплектности и единого «Тех. состояния»; есть вид документа
     (техпаспорт, техталон), руль «Левый (стандартный)», комплектация перед
-    страной производства, привод, коробка с вариатором, топливо по
+    страной производства, коробка с вариатором, топливо по
     mashina.kg, пробег по одометру, ёмкость батареи — только у электро и
     гибрида; состояние — таблицей по шести элементам с описанием;
   * подсказки «Тип ТС, вид кузова» — своей категории: в грузовом не видно
@@ -70,9 +70,9 @@ def run(t):
     t.ck(pg.locator('[data-ts-cat]').locator('xpath=ancestor::div[contains(@class,"vh-s4")]').count() == 1,
          'категория с одной базой не на всю строку')
 
-    for key in ('docKind', 'trim', 'country', 'driveType', 'gearbox', 'fuel', 'mileage', 'vid', 'condBody', 'condOtherNote'):
+    for key in ('docKind', 'trim', 'country', 'gearbox', 'fuel', 'mileage', 'vid', 'condBody', 'condOtherNote'):
         t.ck(has(key), 'у легкового нет поля %s' % key)
-    for key in ('massEmpty', 'massMax', 'axles', 'engineHours', 'pto', 'transferCase', 'wheelFormula', 'kit', 'state'):
+    for key in ('massEmpty', 'massMax', 'axles', 'engineHours', 'pto', 'transferCase', 'wheelFormula', 'kit', 'state', 'driveType'):
         t.ck(not has(key), 'у легкового осталось поле %s' % key)
     opt = lambda key: pg.eval_on_selector_all('[data-tsf$="|%s"] option' % key, 'els => els.map((e) => e.textContent.trim())')
     t.ck('Вариатор' in opt('gearbox'), 'в коробке нет вариатора: %s' % opt('gearbox'))
@@ -232,11 +232,13 @@ def run(t):
     }""")
     t.ck(got['base'] == 'Легковой автомобиль и внедорожник' and got['f'].get('vtype') == 'легковой, седан',
          'база-кузов не ушла в «Тип ТС»: %s' % {'base': got['base'], 'vtype': got['f'].get('vtype')})
-    t.ck(got['f'].get('driveType') == 'Полный' and got['f'].get('wheel') == 'Левый (стандартный)'
+    # Привод у легкового снят (указание пользователя 07.10.2026) — прежнее
+    # значение уходит в доп. параметры.
+    t.ck('driveType' not in got['f'] and got['f'].get('wheel') == 'Левый (стандартный)'
          and got['f'].get('gearbox') == 'Автомат', 'прежние значения не переведены: %s' % got['f'])
     t.ck(got['f'].get('trim') == 'Своя' and got['f'].get('trimNote') == 'Prestige 2.4',
          'прежняя запись комплектации не стала «Своя» с комментарием: %s' % got['f'])
-    for x in ('Колёсная формула=4×4', 'Моточасы=1200 ч', 'Максимальная разрешённая масса=1900',
+    for x in ('Привод=Полный', 'Колёсная формула=4×4', 'Моточасы=1200 ч', 'Максимальная разрешённая масса=1900',
               'Техническое состояние=Хорошее', 'Раздаточная коробка=Есть'):
         t.ck(x in got['extra'], 'прежнее значение потерялось: %s (%s)' % (x, got['extra']))
 

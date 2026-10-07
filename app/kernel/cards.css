@@ -52,6 +52,37 @@ body[data-module] .tsr-name{font-size:13px;color:var(--ink)}
 body[data-module] .tsr-path{font-size:11px;color:var(--muted)}
 body[data-module] .tsr-opt mark{background:var(--amber-100);color:inherit;border-radius:2px;padding:0 1px}
 body[data-module] .tsr-more{padding:6px 9px;font-size:12px;color:var(--muted)}
+/* «Показать все» у поиска по справочнику (kernel/treeSearch.js, browseDialog):
+   кнопка-ссылка справа в строке подписи — высоту поля не меняет. */
+body[data-module] .tsr:has(> .tsr-all){position:relative}
+body[data-module] .tsr:has(> .tsr-all) > label{padding-right:96px}
+body[data-module] .tsr-all{position:absolute;top:0;right:0;line-height:17px;padding:0 2px;border:0;background:none;font-size:12px;font-weight:600;
+  color:var(--blue-700);cursor:pointer;white-space:nowrap}
+body[data-module] .tsr-all:hover{text-decoration:underline}
+body[data-module] .tsr-all:focus-visible{outline:2px solid var(--blue-300);outline-offset:2px;border-radius:4px}
+.modal.tsb{width:min(720px,calc(100vw - 32px));max-width:none}
+.tsb .tsb-body{display:flex;flex-direction:column;gap:10px;padding:12px 14px}
+.tsb .tsb-list{height:min(62vh,640px);overflow:auto;overscroll-behavior:contain;border:1px solid var(--line-soft);border-radius:8px}
+.tsb .tsb-g > summary{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;list-style:none;font-weight:600;
+  color:var(--ink);background:var(--panel);border-bottom:1px solid var(--line-soft);position:sticky;top:0;z-index:1}
+.tsb .tsb-g > summary::-webkit-details-marker{display:none}
+.tsb .tsb-g > summary::before{content:'';flex:none;width:8px;height:8px;border-right:2px solid var(--slate-500);
+  border-bottom:2px solid var(--slate-500);transform:rotate(-45deg);transition:transform .12s;margin-right:4px}
+.tsb .tsb-g[open] > summary::before{transform:rotate(45deg)}
+.tsb .tsb-g > summary:hover{background:var(--blue-50)}
+.tsb .tsb-d0 > summary{font-size:13.5px;background:#eef4fb}
+.tsb .tsb-d1 > summary{font-size:13px;padding-left:28px;top:37px}
+.tsb .tsb-d2 > summary{font-size:12.5px;font-weight:500;padding-left:44px;top:74px}
+.tsb .tsb-d1 .tsb-item{padding-left:44px}
+.tsb .tsb-d2 .tsb-item{padding-left:60px}
+.tsb .tsb-t{min-width:0}
+.tsb .tsb-n{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+.tsb .tsb-item{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;padding:7px 12px 7px 28px;border:0;
+  border-bottom:1px solid var(--line-soft);background:none;cursor:pointer}
+.tsb .tsb-item:hover,.tsb .tsb-item:focus-visible{background:var(--blue-50);outline:none}
+.tsb .tsb-item:focus-visible{box-shadow:inset 3px 0 0 var(--blue-600)}
+.tsb .tsb-list > .tsb-item{padding-left:12px}
+@media (prefers-reduced-motion: reduce){ .tsb .tsb-g > summary::before{transition:none} }
 /* Метка проверки импорта объекта имущества (kernel/oiStage.js).
    Метка импорта — кнопка-чип: не проверен — янтарный пунктир, как значок
    несверенного ML в реестре; проверен — спокойный бирюзовый. */

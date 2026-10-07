@@ -152,15 +152,15 @@ export function partiesSummary(rec) {
 }
 
 export function partiesHTML(rec, idx, names, open = true) {
-  if (!open && rec.institution) {
-    return `<div class="card t-slate vh-parties-sum" data-parties-sum><div class="card-head"><span class="card-idx">${idx}</span>
-      <h3>Учреждение, собственники и ответственные</h3><span class="hint vh-kind-what">${esc(partiesSummary(rec))}</span>
-      <button type="button" class="btn btn-ghost btn-sm" data-parties-toggle style="margin-left:auto">Развернуть</button></div></div>`;
-  }
-  const fold = rec.institution
-    ? '<button type="button" class="btn btn-ghost btn-sm" data-parties-toggle style="margin-left:auto">Свернуть</button>' : '';
-  return `<div class="card t-slate"><div class="card-head"><span class="card-idx">${idx}</span>
-    <h3>Учреждение, собственники и ответственные</h3>${fold}</div>
+  // Заголовок — аккордеон, как у остальных блоков формы (07.10.2026): щелчок по
+  // всей строке сворачивает и разворачивает; свёрнутый — со сводкой.
+  const chev = '<i class="vh-acc-chev" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24">'
+    + '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></i>';
+  const head = (expanded) => `<div class="card-head vh-acc-head" data-parties-toggle role="button" tabindex="0"
+    aria-expanded="${expanded}"><span class="card-idx">${idx}</span><h3>Учреждение, собственники и ответственные</h3>
+    ${expanded ? '' : `<span class="hint vh-kind-what">${esc(partiesSummary(rec))}</span>`}${chev}</div>`;
+  if (!open) return `<div class="card t-slate vh-parties-sum vh-acc-closed" data-parties-sum>${head(false)}</div>`;
+  return `<div class="card t-slate">${head(true)}
     <div class="card-pad">
       <div class="grid g-4 g-top">
         <div class="field"><label>Головное учреждение</label>

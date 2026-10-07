@@ -146,6 +146,8 @@ function migrate0710(v) {
     toExtra(v, f, 'wheelFormula', 'Колёсная формула');
   }
   if (v.kind === 'base' && v.category === 'Автобусы') toExtra(v, f, 'engineHours', 'Моточасы');
+  // Привод легкового убран (указание пользователя 07.10.2026).
+  if (v.kind === 'base' && v.category === 'Легковое') toExtra(v, f, 'driveType', 'Привод');
   const fixDrive = (x) => { if (DRIVE_RENAMED[x.drive]) x.drive = DRIVE_RENAMED[x.drive]; };
   fixDrive(f);
   v.modules.forEach((m) => {

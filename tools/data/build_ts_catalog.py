@@ -227,6 +227,8 @@ def field(label, value, hint, source='', place=''):
         f['type'] = 'yes'
     elif v == 'число':
         f['type'] = 'int'
+    elif v == 'км или мили':
+        f.update(type='int', units=['км', 'миль'])
     elif v == 'кВт или л.с.':
         f.update(type='num', units=['кВт', 'л.с.'])
     elif v in UNITS:

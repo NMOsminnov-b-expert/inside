@@ -554,7 +554,8 @@ export const TS_BASE_FIELDS = [
     "source": "Осмотр",
     "type": "int",
     "units": [
-      "км"
+      "км",
+      "миль"
     ],
     "block": "use"
   },
@@ -1402,7 +1403,8 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "source": "Осмотр",
       "type": "int",
       "units": [
-        "км"
+        "км",
+        "миль"
       ],
       "block": "use"
     },
@@ -1950,7 +1952,8 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "source": "Осмотр",
       "type": "int",
       "units": [
-        "км"
+        "км",
+        "миль"
       ],
       "block": "use"
     },
@@ -2499,7 +2502,8 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "source": "Осмотр",
       "type": "int",
       "units": [
-        "км"
+        "км",
+        "миль"
       ],
       "block": "use"
     },
@@ -2991,7 +2995,8 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "source": "Осмотр",
       "type": "int",
       "units": [
-        "км"
+        "км",
+        "миль"
       ],
       "block": "use"
     },
@@ -3560,22 +3565,10 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "source": "Осмотр",
       "type": "int",
       "units": [
-        "км"
+        "км",
+        "миль"
       ],
       "block": "use"
-    },
-    {
-      "key": "driveType",
-      "label": "Привод",
-      "hint": "передний, задний, полный; справочник mashina.kg",
-      "source": "Осмотр",
-      "type": "select",
-      "options": [
-        "Передний",
-        "Задний",
-        "Полный"
-      ],
-      "block": "machine"
     },
     {
       "key": "rearSteer",

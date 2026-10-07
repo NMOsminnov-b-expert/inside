@@ -29,6 +29,7 @@
 // note — подпись под названием, которая показывается, но не ищется (у модели
 // машины — что она соберёт: иначе «самосвал» находил бы все модели-самосвалы).
 import { esc } from './dom.js';
+import { openModal } from './dialog.js';
 
 const LIMIT = 40;
 const norm = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е');
@@ -150,9 +151,12 @@ function snippet(text, ws) {
 // полем данных (value, attrs — например data-tsf): набранное хранится как
 // значение, а выдача помогает выбрать вариант справочника (карточка ТС, «Тип ТС,
 // вид кузова» — заметки пользователя 07.10.2026: «единое окно для поиска»).
-export function treeSearchHTML({ id, label, placeholder = '', value = '', attrs = '', hint = '' }) {
+// browse — подпись кнопки полного списка («Показать все»): весь справочник
+// вертикальным списком по группам (bindTreeSearch, allGroups).
+export function treeSearchHTML({ id, label, placeholder = '', value = '', attrs = '', hint = '', browse = '' }) {
   return `<div class="field tsr" data-tsr="${esc(id)}">
     <label for="${esc(id)}-q">${esc(label)}${hint ? ` <span class="hint">${esc(hint)}</span>` : ''}</label>
+    ${browse ? `<button type="button" class="tsr-all" id="${esc(id)}-all" aria-haspopup="dialog">${esc(browse)}</button>` : ''}
     <div class="tsr-box">
       <input class="input tsr-q" id="${esc(id)}-q" autocomplete="off" spellcheck="false"
         role="combobox" aria-expanded="false" aria-controls="${esc(id)}-list" aria-autocomplete="list"
@@ -171,10 +175,13 @@ const settled = new Set();
 // ТС — записи техпаспорта своей категории, как прежний список подсказок поля:
 // замечание пользователя 07.10.2026 «у нас были подсказки для вида ТС и типа
 // кузова… чтобы они выдавались»).
-export function bindTreeSearch(scope, { id, leaves, onPick, onRemove, emptyLeaves }) {
+export function bindTreeSearch(scope, { id, leaves, onPick, onRemove, emptyLeaves, allGroups, allTitle }) {
   const q = scope.$(`#${id}-q`);
   const drop = scope.$(`#${id}-list`);
   if (!q || !drop) return;
+  const allBtn = scope.$(`#${id}-all`);
+  if (allBtn && allGroups) allBtn.onclick = () => browseDialog({ title: allTitle || allBtn.textContent.trim(),
+    groups: allGroups(), onPick: (l) => { settled.add(id); onPick(l); }, back: allBtn });
   let list = [];
   let active = -1;
 
@@ -272,4 +279,82 @@ export function bindTreeSearch(scope, { id, leaves, onPick, onRemove, emptyLeave
     e.preventDefault();
     pick(+el.dataset.tsrI);
   };
+}
+
+// Весь справочник вертикальным списком по группам (указание пользователя
+// 07.10.2026: «Нужен способ просмотра всех списков модулей и видов ТС. В том
+// числе марок. (кнопка показать все и список вертикальный. По категориям.)»).
+//
+// Практики: длинный перечень — группами с заголовками, группы сворачиваются и
+// вкладываются (категория › марка › модель), заголовок группы липнет к верху
+// при прокрутке, сверху — фильтр (сгруппированный combobox: shadcn Combobox
+// Grouped — collapsible и nested groups; Telerik ComboBox Grouping — sticky
+// group header). Группа рисует свои пункты, только когда её открыли: в марках
+// тысячи моделей, а плавность нужна на слабом железе.
+//
+// groups — [{ title, open, items: [{ name, note, leaf }], groups: [...] }]; выбор
+// пункта закрывает окно и отдаёт leaf в onPick.
+const BROWSE_MAX = 400;
+export function browseDialog({ title, groups, onPick, back: returnTo }) {
+  const leafs = [];
+  const count = (g) => (g.n = (g.items || []).length + (g.groups || []).reduce((a, x) => a + count(x), 0));
+  groups.forEach(count);
+  const itemHTML = (it) => `<button type="button" class="tsb-item" data-tsb-i="${leafs.push(it.leaf) - 1}">
+      <span class="tsr-name">${esc(it.name)}</span>${it.note ? `<span class="tsr-path">${esc(it.note)}</span>` : ''}</button>`;
+  const flat = [];
+  const walk = (g, path) => { (g.items || []).forEach((it) => flat.push({ it, path })); (g.groups || []).forEach((x) => walk(x, [...path, x.title])); };
+  groups.forEach((g) => walk(g, [g.title]));
+  // Свёрнутая группа — пустая; содержимое дорисовывается при открытии.
+  const lazy = new Map();
+  const groupHTML = (g, depth) => {
+    const key = lazy.size;
+    lazy.set(String(key), g);
+    return `<details class="tsb-g tsb-d${depth}" data-tsb-g="${key}" ${g.open || (depth === 0 && groups.length === 1) ? 'open' : ''}>
+      <summary><span class="tsb-t">${esc(g.title)}</span><span class="tsb-n">${g.n}</span></summary><div class="tsb-in"></div></details>`;
+  };
+  const fill = (det) => {
+    const g = lazy.get(det.dataset.tsbG);
+    const box = det.querySelector(':scope > .tsb-in');
+    if (!g || box.dataset.done) return;
+    box.dataset.done = '1';
+    const depth = +det.className.match(/tsb-d(\d)/)[1] + 1;
+    box.innerHTML = (g.groups || []).map((x) => groupHTML(x, depth)).join('') + (g.items || []).map(itemHTML).join('');
+    box.querySelectorAll('details[open]').forEach(fill);
+  };
+  const close = openModal(`<div class="modal-head">${esc(title)}</div>
+    <div class="modal-body tsb-body">
+      <input class="input tsb-q" type="search" placeholder="Отобрать по названию" aria-label="Отобрать по названию" autocomplete="off">
+      <div class="tsb-list" tabindex="-1">${groups.map((g) => groupHTML(g, 0)).join('')}</div>
+    </div>
+    <div class="modal-foot"><button type="button" class="btn btn-ghost" data-modal-cancel>Закрыть</button></div>`, {
+    onMount(backEl, done) {
+      backEl.querySelector('.modal').classList.add('tsb');
+      const list = backEl.querySelector('.tsb-list');
+      const fq = backEl.querySelector('.tsb-q');
+      const finish = () => { done(); if (returnTo && returnTo.isConnected) returnTo.focus(); };
+      list.querySelectorAll('details[open]').forEach(fill);
+      list.addEventListener('toggle', (e) => { if (e.target.open) fill(e.target); }, true);
+      list.onclick = (e) => {
+        const b = e.target.closest('[data-tsb-i]');
+        if (!b) return;
+        done();
+        onPick(leafs[+b.dataset.tsbI]);
+      };
+      // Фильтр: совпавшие пункты плоским списком с путём (как в выдаче поиска).
+      fq.oninput = () => {
+        const ws = words(fq.value);
+        leafs.length = 0;
+        if (!ws.length) { lazy.clear(); list.innerHTML = groups.map((g) => groupHTML(g, 0)).join(''); list.querySelectorAll('details[open]').forEach(fill); return; }
+        const hit = flat.filter(({ it, path }) => { const t = clean([it.name, ...path].join(' ')); return ws.every((w) => t.includes(w)); });
+        list.innerHTML = hit.length
+          ? hit.slice(0, BROWSE_MAX).map(({ it, path }) => itemHTML({ ...it, note: [path.join(' › '), it.note].filter(Boolean).join(' · ') })).join('')
+            + (hit.length > BROWSE_MAX ? `<div class="tsr-more">Ещё ${hit.length - BROWSE_MAX} — уточните</div>` : '')
+          : '<div class="tsr-more">Ничего не найдено</div>';
+      };
+      backEl.querySelector('[data-modal-cancel]').onclick = finish;
+      backEl.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); finish(); } });
+      fq.focus();
+    },
+  });
+  return close;
 }

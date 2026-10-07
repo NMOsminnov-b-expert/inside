@@ -48,10 +48,24 @@ import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 // модулями наработка своя у базы и своя у каждой установки, и отдельный блок
 // между машиной и модулями читался как общий для всех.
 
-const card = (tone, idx, title, hint, body, extra = '', attrs = '') => `<div class="card t-${tone}" ${attrs}>
-  <div class="card-head"><span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
-    ${hint ? `<span class="hint">${esc(hint)}</span>` : ''}${extra}</div>
-  <div class="card-pad">${body}</div></div>`;
+// Любой блок формы сворачивается (указание пользователя 07.10.2026: «Необходимо
+// поправить сворачивание блоков, сделать его интуитивнее (стрелочки побольше).
+// Сворачивается пока что только блок 02, хотя должны все»). Заголовок целиком —
+// кнопка (W3C ARIA APG, Accordion; Mesa и American Express Design System: вся
+// строка заголовка — цель щелчка, стрелка справа, одинаково у всех блоков);
+// стрелка крупная, в квадрате 32×32. Свёрнутые блоки — ctx.ui.tsClosed (на
+// запись; другая запись — заново).
+export const ACC_CHEV = '<i class="vh-acc-chev" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24">'
+  + '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></i>';
+let closedBlocks = {};
+const card = (tone, idx, title, hint, body, extra = '', attrs = '', key = title) => {
+  const open = !closedBlocks[key];
+  return `<div class="card t-${tone} ${open ? '' : 'vh-acc-closed'}" ${attrs}>
+  <div class="card-head vh-acc-head" data-ts-acc="${esc(key)}" role="button" tabindex="0" aria-expanded="${open}">
+    <span class="card-idx">${idx}</span><h3>${esc(title)}</h3>
+    ${hint ? `<span class="hint">${esc(hint)}</span>` : ''}${extra}${ACC_CHEV}</div>
+  ${open ? `<div class="card-pad">${body}</div>` : ''}</div>`;
+};
 
 
 const options = (list, value, empty) => `<option value="">${esc(empty)}</option>${
@@ -135,7 +149,7 @@ function kindHeadHTML(v, idx, open) {
   // Свернуть?»).
   return `<div class="card-head vh-acc-head" data-ts-kind-toggle role="button" tabindex="0" aria-expanded="${open}">
     <span class="card-idx">${idx}</span><h3>${esc(kindLabel(v))}</h3>
-    <span class="hint vh-kind-what">${esc(whatLabel(v))}${esc(vt)}</span><i class="vh-acc-chev" aria-hidden="true">▾</i></div>`;
+    <span class="hint vh-kind-what">${esc(whatLabel(v))}${esc(vt)}</span>${ACC_CHEV}</div>`;
 }
 
 function kindSummaryHTML(v, idx) {
@@ -212,7 +226,7 @@ function kindHTML(ctx, v, idx) {
     hint: asVtype ? 'по техпаспорту' : '',
     placeholder: asVtype ? 'Запись из техпаспорта, вид или модель: самосвал, автокран, КАМАЗ 65115'
       : 'Например: автокран, самосвал, погрузчик',
-    value: asVtype ? (v.f.vtype || '') : '', attrs: asVtype ? 'data-tsf="main|vtype"' : '' });
+    value: asVtype ? (v.f.vtype || '') : '', attrs: asVtype ? 'data-tsf="main|vtype"' : '', browse: 'Показать все' });
   // Предложения категории — своей строкой под сеткой: в сетке у поля строки
   // фиксированной высоты, и добавка под списком наезжала на него.
   const body = `${seg}${search}${cascade ? `<div class="grid vh-grid">${cascade}</div>` : ''}<div data-ts-sug-box>${sug}</div>${
@@ -432,11 +446,15 @@ function machineHTML(v, idx, inspect = false) {
   const use = useAll.filter((f) => !inCond(f));
   if (use.length) parts.push(sub('Наработка и состояние', useGrid(v.f, use), '<span class="hint">осмотр</span>'));
   if (cond.length) parts.push(sub('Состояние', condTableHTML(v.f, cond), '<span class="hint">осмотр</span>'));
-  if (!inspect) parts.push(extraPart(v.extra, 'main'));
+  // Дополнительные параметры — у спецтехники; у ТС таблица видна, только если
+  // в ней уже есть строки (прежние значения убранных полей), и без добавления
+  // (указание пользователя 07.10.2026: «доп параметры у ТС убираем, за
+  // исключением спецтехники»; «показывать, если не пусто»).
+  if (!inspect && (v.kind === 'self' || v.extra.length)) parts.push(extraPart(v.extra, 'main', undefined, undefined, v.kind === 'self'));
 
   const title = v.kind === 'self' ? SELF_CAT : 'Автотранспортное средство';
   return card('teal', idx, title, inspect ? 'для осмотра' : 'по техпаспорту; то, что смотрят на месте, помечено «осмотр»',
-    parts.join(''), '', 'data-ts-block="machine"');
+    parts.join(''), '', 'data-ts-block="machine"', 'machine');
 }
 
 // Наработка и состояние — всё по осмотру: источник назван в заголовке подраздела,
@@ -535,6 +553,16 @@ function useGrid(vals, raw) {
   // легкового (состояние — в таблице) пробег и «Где стоит» — одной строкой.
   const has = (k) => list.some((f) => f.key === k);
   const nums = ['mileage', 'engineHours', 'hours'].filter(has);
+  // Числа (пробег с единицей, моточасы) — по четверти строки, комплектность —
+  // остаток (указание пользователя 07.10.2026: одометр «сжимаем, нелогично
+  // выглядит» во всю строку). Пробег в подразделе один (легковой) — тоже
+  // четверть: место справа остаётся пустым по указанию.
+  if (!has('state') && !has('generalState')) {
+    const sp1 = Object.fromEntries(nums.map((k) => [k, 1]));
+    const rest = Math.max(1, 4 - nums.length);
+    return `<div class="grid vh-grid vh-use">${list.map((f) => tsFieldHTML(vals, { ...f, source: '', rows: 1 }, 'main',
+      `vh-s${sp1[f.key] || (f.key === 'kit' ? rest : 1)}`)).join('')}</div>`;
+  }
   const sp = { kit: 4, factAddr: 4 };
   if (has('state')) {
     nums.forEach((k) => { sp[k] = nums.length > 1 ? 1 : 2; });
@@ -667,8 +695,8 @@ const EXTRA_HELP = {
   module: 'Технические характеристики модуля без отдельного поля: наименование с единицей измерения и значение.',
 };
 
-function extraPart(rows, owner, title = 'Дополнительные параметры', kind = owner === 'main' ? 'main' : 'module') {
-  const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-tsx-add="${esc(owner)}">+ Параметр</button>`;
+function extraPart(rows, owner, title = 'Дополнительные параметры', kind = owner === 'main' ? 'main' : 'module', canAdd = true) {
+  const add = canAdd ? `<button class="btn btn-ghost btn-sm vh-sub-act" data-tsx-add="${esc(owner)}">+ Параметр</button>` : '';
   const help = EXTRA_HELP[kind];
   return sub(title, `<p class="vh-howto vh-howto-sub">${help}</p>${extraTableHTML(rows, owner)}`, add);
 }
@@ -713,7 +741,8 @@ function moduleFormHTML(m, noEngine = false) {
         <select class="select" id="ts-${m.id}-k" data-ts-modkind="${m.id}" ${m.group ? '' : 'disabled'}>${
   options(moduleKinds(m.group).map((k) => k.name), m.kind, m.group ? 'Выберите модуль' : 'Сначала группа')}</select></div>
     </div>`;
-  const search = treeSearchHTML({ id: 'ts-mfind', label: 'Найти модуль', placeholder: 'Например: автокран, цистерна, ковш' });
+  const search = treeSearchHTML({ id: 'ts-mfind', label: 'Найти модуль', placeholder: 'Например: автокран, цистерна, ковш',
+    browse: 'Показать все' });
   return `<div class="vh-mform" id="ts-mform-${m.id}" data-ts-mform="${m.id}">
     ${search}${cascade}
     ${m.kind ? `${grid(m.f, [...moduleFields(m.f, MODULE_FIELDS, noEngine), ...moduleSpecial(m.kind)], m.id)}${
@@ -784,6 +813,7 @@ function loneModuleHTML(v, idx) {
 export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
   const v = tsOf(holder);
   ctx.ui = ctx.ui || {};
+  closedBlocks = (ctx.ui.tsClosed = ctx.ui.tsClosed || {});
   const inspect = !!ctx.ui.tsInspect && v.kind !== 'module';
   const idx = blockNumbers();
   const n = () => String(idx()).padStart(2, '0');

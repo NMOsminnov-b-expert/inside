@@ -9,7 +9,7 @@ import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog, formDialog } from '../../kernel/dialog.js';
 import { scheduleSave } from '../../kernel/persist.js';
-import { searchLeaves, pickLeaf, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
+import { searchLeaves, pickLeaf, browseGroups, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
@@ -96,6 +96,9 @@ export function bindTsForm(ctx, holder, set) {
     leaves: (typed) => searchLeaves(v, typed),
     // Пустое поле по щелчку — записи техпаспорта своей категории.
     emptyLeaves: v.kind === 'module' ? undefined : () => vtypeLeaves(v),
+    // «Показать все» — весь справочник по категориям (07.10.2026).
+    allGroups: () => browseGroups(v),
+    allTitle: 'Виды ТС, записи техпаспорта, шаблоны, марки',
     onPick: (l) => {
       // Набранное до выбора — по нему у базы ищется подходящая запись категории.
       const said = pickLeaf(v, l, String(v.f.vtype || ''));
@@ -443,6 +446,12 @@ export function bindTsForm(ctx, holder, set) {
     bindTreeSearch(s, {
       id: 'ts-mfind',
       leaves: moduleLeaves,
+      allGroups: () => {
+        const g = new Map();
+        moduleLeaves().forEach((l) => { if (!g.has(l.group)) g.set(l.group, []); g.get(l.group).push({ name: l.name, leaf: l }); });
+        return [...g].map(([title, items]) => ({ title, items }));
+      },
+      allTitle: 'Модули по группам',
       onPick: (l) => { openMod.group = l.group; openMod.kind = l.item; ctx.render(); },
     });
   }
@@ -595,8 +604,24 @@ export function bindVehicle(ctx) {
 
   s.$$('[data-vehicle-back]').forEach((button) => button.onclick = () => ctx.host.toMenu());
 
-  // Стороны: «Развернуть» / «Свернуть».
-  s.$$('[data-parties-toggle]').forEach((b) => b.onclick = () => { ctx.ui.partiesOpen = !ctx.ui.partiesOpen; ctx.render(); });
+  // Аккордеон блоков: щелчок по заголовку (не по кнопке в нём), Enter, пробел.
+  // Свёрнутый блок остаётся на виду — иначе панель оставалась прокрученной вниз.
+  const accBind = (head, toggle) => {
+    const run = async () => {
+      const closing = head.getAttribute('aria-expanded') === 'true';
+      toggle(closing);
+      await ctx.render();
+      if (closing) {
+        const sel = head.dataset.tsAcc ? `[data-ts-acc="${CSS.escape(head.dataset.tsAcc)}"]` : '[data-parties-toggle]';
+        const again = s.$(sel);
+        if (again) again.scrollIntoView({ block: 'nearest' });
+      }
+    };
+    head.onclick = (e) => { if (!e.target.closest('button:not(.vh-acc-head), a, input, select, textarea')) run(); };
+    head.onkeydown = (e) => { if (e.target === head && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); run(); } };
+  };
+  s.$$('[data-ts-acc]').forEach((h) => accBind(h, (closing) => { ctx.ui.tsClosed[h.dataset.tsAcc] = closing; }));
+  s.$$('[data-parties-toggle]').forEach((h) => accBind(h, (closing) => { ctx.ui.partiesOpen = !closing; }));
 
   // «Сохранено · 13:42» следует за хранилищем без перерисовки.
   if (!s.root.dataset.tsSavedBound) {
