@@ -280,6 +280,10 @@ body[data-module="vehicle"] .vh-saved{font-size:11.5px;color:var(--muted);white-
    (mu-xtbl) с перегородками ширины; прокрутка — внутри обёртки. */
 .vehicle-form .vh-cond-wrap{overflow-x:auto}
 .vehicle-form .vh-cond{min-width:520px}
+/* Состояние — таблица с границами между всеми столбцами данных (замечание
+   пользователя 07.10.2026: «должна быть таблица с границами, как между элементом
+   и состоянием в области данных»); в шапке разделитель — перегородка ширины. */
+.vehicle-form .vh-cond td:not(:last-child){border-right:1px solid var(--line-soft)}
 .vehicle-form .vh-cond td.vh-cond-el{font-weight:600;color:var(--ink-ctl);white-space:normal}
 .vehicle-form .vh-cond select.ax-cell{cursor:pointer;font-weight:400}
 /* Общее состояние — итоговая строка в подвале таблицы: тёмная черта, свой

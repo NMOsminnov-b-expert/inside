@@ -1090,6 +1090,14 @@ body[data-module] .mu-xtbl tbody tr:hover td{background:var(--fill-hover)}
 /* Разделитель столбцов — только между наименованием и значением. */
 body[data-module] .mu-xtbl th:first-child,
 body[data-module] .mu-xtbl td:first-child{border-right:1px solid var(--line-soft)}
+/* Где у столбца перегородка ширины (kernel/columns.js), разделитель в шапке —
+   она сама: короткая черта ровно над границей строк, без второй линии рядом и
+   без сдвига (замечание пользователя 07.10.2026: «в шапке обозначение — как
+   между состоянием и кратким описанием, при этом прямо над линией-разделителем,
+   без смещений влево-вправо»; так же — в таблицах справочников). */
+body[data-module] .mu-xtbl th:has(> .col-grip),
+body[data-module] .mu-xtbl th:has(.col-grip){border-right:none}
+body[data-module] .mu-xtbl th .col-grip::after{right:0}
 
 /* Наименование — опора строки, поэтому чуть плотнее по цвету и весу, чем
    значение: глаз ведёт по левому столбцу (практика пар «ключ — значение»,
