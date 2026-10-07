@@ -96,6 +96,22 @@ def run(t):
     t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
     pg.locator('#ts-find-list .tsr-opt', has_text='Буровая установка — грузовое ТС').first.click()
     t.wait_until("() => document.querySelector('#ts-find-q').value === 'специальный, буровая установка'")
+    # Записи техпаспорта своей категории — в выдаче единого поля, по слову кузова
+    # — первыми (замечание пользователя 07.10.2026: «вбил седан, а мне заместо
+    # „легковой, седан“ выдало „легковой“ — не дело»); пустое поле по щелчку —
+    # список записей; шаблон по своему слову остаётся выше записи.
+    pg.fill('#ts-find-q', '')
+    t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
+    t.ck(len(names()) >= 20 and all(',' in n or ' ' in n for n in names()[:5]),
+         'пустое поле не показало записи техпаспорта: %s' % names()[:3])
+    pg.keyboard.type('седан')
+    t.wait_until("() => [...document.querySelectorAll('#ts-find-list .tsr-name')].some((e) => e.textContent === 'легковой, седан')")
+    pg.keyboard.press('Enter')
+    t.wait_until("() => document.querySelector('#ts-find-q').value === 'легковой, седан'")
+    t.wait_until("() => document.querySelector('[data-ts-cat]') && document.querySelector('[data-ts-cat]').value === 'Легковое'")
+    t.ck(find('самосвал')[:1] == ['Самосвал — грузовое ТС'], '«самосвал» первым не шаблон: %s' % names()[:3])
+    pg.keyboard.press('Escape')
+
     # Ничего не выбрано — вписанный текст остаётся.
     pg.fill('#ts-find-q', 'грузовой бортовой по ТП')
     pg.locator('#ts-find-q').press('Tab')

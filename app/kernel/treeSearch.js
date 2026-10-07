@@ -22,7 +22,7 @@
 //     выдача закрывается, когда фокус уходит с поля, сам список фокус по Tab
 //     не берёт.
 //
-// Вариант: { name, path: [..], aliases?: [..], extra?: 'текст', removable? } и
+// Вариант: { name, path: [..], aliases?: [..], extra?: 'текст', removable?, boost? } и
 // любые поля модуля — их вернёт onPick; removable — в строке крестик, по нему
 // зовётся onRemove (свои шаблоны карточки ТС). aliases — обиходные названия («ИБП»): ищутся, но
 // не показываются; extra — пояснение вроде примеров марок: ищется слабее;
@@ -86,7 +86,9 @@ export function findLeaves(all, q) {
   all.forEach((l, i) => {
     if (hits[i] !== best) return;
     const { name, aliases, path } = ps[i];
-    let score = name === whole ? 40 : aliases.includes(whole) ? 30 : 0;
+    // boost — надбавка варианта (записи техпаспорта у «Тип ТС» карточки ТС: по
+    // «седан» первой — «легковой, седан», а не база, где «седан» — другое имя).
+    let score = (name === whole ? 40 : aliases.includes(whole) ? 30 : 0) + (l.boost || 0);
     let inExtra = false;
     W.forEach(({ w, sw, re }) => {
       if (name.startsWith(w)) score += 20;
@@ -165,7 +167,11 @@ export function treeSearchHTML({ id, label, placeholder = '', value = '', attrs 
 // Поиски, где только что выбрали вариант (по id поля): переживает перерисовку.
 const settled = new Set();
 
-export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
+// emptyLeaves() — что показать в пустом поле по щелчку (у «Тип ТС» карточки
+// ТС — записи техпаспорта своей категории, как прежний список подсказок поля:
+// замечание пользователя 07.10.2026 «у нас были подсказки для вида ТС и типа
+// кузова… чтобы они выдавались»).
+export function bindTreeSearch(scope, { id, leaves, onPick, onRemove, emptyLeaves }) {
   const q = scope.$(`#${id}-q`);
   const drop = scope.$(`#${id}-list`);
   if (!q || !drop) return;
@@ -198,8 +204,9 @@ export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
 
   const draw = () => {
     const ws = words(q.value);
-    if (!ws.length) { open(false); return; }
-    const r = findLeaves(leaves(), q.value);
+    const empty = !ws.length && emptyLeaves ? emptyLeaves() : [];
+    if (!ws.length && !empty.length) { open(false); return; }
+    const r = ws.length ? findLeaves(leaves(), q.value) : { list: empty, more: 0 };
     list = r.list;
     drop.innerHTML = list.length
       ? list.map((l, i) => `<div class="tsr-opt" role="option" id="${id}-o-${i}" data-tsr-i="${i}" aria-selected="false">
@@ -232,7 +239,10 @@ export function bindTreeSearch(scope, { id, leaves, onPick, onRemove }) {
   // После выбора выдача по фокусу не открывается: карточка перерисовывается и
   // возвращает фокус в поле, а у поля-данных текст остаётся — выдача закрыла бы
   // соседние кнопки. Снова откроется, когда начнут печатать (или стрелкой вниз).
-  q.onfocus = () => { if (q.value.trim() && !settled.has(id)) draw(); };
+  q.onfocus = () => { if ((q.value.trim() || emptyLeaves) && !settled.has(id)) draw(); };
+  // Щелчок по полю, где фокус уже стоит, — тоже открыть выдачу (у пустого
+  // поля с emptyLeaves — список записей).
+  q.addEventListener('mousedown', () => { if (document.activeElement === q && drop.hidden) { settled.delete(id); draw(); } });
   q.onkeydown = (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();

@@ -313,9 +313,44 @@ export function moduleLeaves() {
   return out;
 }
 
+// Записи техпаспорта «Тип ТС, вид кузова» своей категории — пунктами выдачи
+// единого поля (прежний список подсказок поля вернулся в выдачу: замечание
+// пользователя 07.10.2026). Выбор ставит текст записи; при равных баллах
+// записи идут первыми.
+// Записи — без надбавки: шаблон по своему слову («платформа», «кунг») должен
+// остаться выше записи — он собирает и модули.
+const VT_BOOST = 0;
+export function vtypeLeaves(v) {
+  if (v.kind === 'self') {
+    return [...new Set(TS_VTYPE_SELF)].map((name) => ({ vt: true, name, order: -2, boost: VT_BOOST,
+      path: [`Запись техпаспорта · ${SELF_CAT}`] }));
+  }
+  // Категория выбрана — её записи; нет — записи всех категорий, у каждой своя.
+  const cats = v.category && TS_VTYPE_BY_CATEGORY[v.category] ? [v.category]
+    : Object.keys(TS_VTYPE_BY_CATEGORY).filter((c) => c !== 'По техпаспорту');
+  const seen = new Set();
+  return cats.flatMap((cat) => (TS_VTYPE_BY_CATEGORY[cat] || []).filter((name) => !seen.has(name) && seen.add(name))
+    .map((name) => ({ vt: true, name, cat, order: -2, boost: VT_BOOST, path: [`Запись техпаспорта · ${cat}`] })));
+}
+
 // Запись «Тип ТС» выбранной базы или вида спецтехники: у базы — из
 // справочника (TS_BASES[].vtype), у вида — сам вид без пояснения в скобках
 // («Мини-экскаватор (до 6 т)» → «мини-экскаватор»).
+// Запись категории, которая подходит к набранному: «седан» → «легковой, седан»
+// (замечание пользователя 07.10.2026: «вбил седан, а мне заместо „легковой,
+// седан“ выдало „легковой“ — не дело»). Все слова набранного — началами слов
+// записи; из подходящих — самая короткая. Нет такой — пусто.
+const words = (t) => String(t || '').toLowerCase().replace(/ё/g, 'е').split(/[^a-zа-я0-9]+/).filter(Boolean);
+export function recordFor(category, typed) {
+  const ws = words(typed);
+  if (!ws.length) return '';
+  const fit = (TS_VTYPE_BY_CATEGORY[category] || []).filter((r) => {
+    const rw = words(r);
+    return ws.every((w) => rw.some((x) => x.startsWith(w)));
+  });
+  return fit.sort((a, b) => a.length - b.length)[0] || '';
+}
+
 export function kindVtype(l) {
   if (l.kind === 'base') return (TS_BASES.find((b) => b.name === l.base) || {}).vtype || '';
   if (l.kind === 'self') return String(l.item || '').replace(/\s*\(.*?\)/g, '').trim().toLowerCase();

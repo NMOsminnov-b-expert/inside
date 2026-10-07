@@ -19,7 +19,7 @@ import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso, fullYear, expandRuDate } f
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
-  kindLeaves, applyKindLeaf, moduleLeaves, powerUnitFor, POWER_UNIT_BY, classified, copyVehicle, makeWithModules, whatLabel,
+  kindLeaves, vtypeLeaves, recordFor, applyKindLeaf, moduleLeaves, powerUnitFor, POWER_UNIT_BY, classified, copyVehicle, makeWithModules, whatLabel,
   normVin, vinWarning, normPlate, idMissing,
   SELF_CAT,
 } from './tsModel.js';
@@ -93,9 +93,21 @@ export function bindTsForm(ctx, holder, set) {
   // ТС» (решение пользователя 06.10.2026); всё потом правится как обычно.
   bindTreeSearch(s, {
     id: 'ts-find',
-    leaves: () => [...templateLeaves(), ...kindLeaves(), ...modelLeaves()],
+    leaves: () => [...(v.kind === 'module' ? [] : vtypeLeaves(v)), ...templateLeaves(), ...kindLeaves(), ...modelLeaves()],
+    // Пустое поле по щелчку — записи техпаспорта своей категории.
+    emptyLeaves: v.kind === 'module' ? undefined : () => vtypeLeaves(v),
     onPick: (l) => {
-      if (l.model) {
+      // Набранное до выбора — по нему у базы ищется подходящая запись категории.
+      const typed = String(v.f.vtype || '');
+      if (l.vt) {
+        // Запись техпаспорта — текст поля; категория ещё не выбрана — ставится
+        // категория записи (база — сама, если она одна).
+        v.f.vtype = l.name;
+        if (l.cat && (v.kind !== 'base' || !v.category)) {
+          v.kind = 'base';
+          setCategory(l.cat);
+        }
+      } else if (l.model) {
         // Модель: вид или шаблон — как при их выборе; «Марка, модель» — только
         // в пустое поле, запись из техпаспорта важнее.
         if (l.tpl) applyTemplate(v, l.tpl);
@@ -107,6 +119,10 @@ export function bindTsForm(ctx, holder, set) {
         ctx.toast(`Собрано по шаблону «${l.tpl.name}»: ${[l.tpl.base, ...l.tpl.modules.map((m) => m.kind)].join(' + ')}`);
       } else {
         applyKindLeaf(v, l);
+        // База выбрана по слову кузова («седан») — запись категории с ним
+        // («легковой, седан»), а не голая запись базы.
+        const rec = l.kind === 'base' ? recordFor(l.category, typed) : '';
+        if (rec) v.f.vtype = rec;
       }
       openKind();
       scheduleSave();
