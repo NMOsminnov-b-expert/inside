@@ -18,7 +18,7 @@
 import { TS_TEMPLATES } from './data/tsCatalog.js';
 import { TS_MODELS } from './data/tsModels.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
-import { addModule, kindLeaves, MODULE_RENAMED } from './tsModel.js';
+import { addModule, kindLeaves, kindVtype, vtypeLeaves, applyKindLeaf, recordFor, setCategoryOf, MODULE_RENAMED } from './tsModel.js';
 
 const own = [];
 
@@ -69,6 +69,61 @@ export function modelLeaves() {
     if (t) models.push({ ...t, model: name, name, path: [], order: 100 + i });
   }));
   return models;
+}
+
+// Выдача единого поля «Тип ТС, вид кузова»: записи техпаспорта, шаблоны, базы
+// и виды, модели. Одна функция для карточки и для проверки поиска
+// (tools/checks/check_vehicle_search_all.py): проверка видит ровно то же.
+// У каждого пункта, кроме самой записи техпаспорта, — подпись, что встанет в
+// «Тип ТС» (замечание пользователя 07.10.2026: «если кабриолет выдаёт такое
+// поле, то пусть хотя бы говорит, какой тип вставит. А не просто „легковой и
+// внедорожник“»). У базы запись зависит от набранного: «кабриолет» → «легковой,
+// кабриолет».
+const willSet = (vt) => (vt ? `В «Тип ТС»: ${vt}` : '');
+let modelsNoted = null;
+export function searchLeaves(v, typed = '') {
+  const kinds = kindLeaves().map((l) => ({ ...l,
+    note: willSet((l.kind === 'base' && recordFor(l.category, typed)) || kindVtype(l)) }));
+  const tpls = templateLeaves().map((l) => ({ ...l, note: willSet(l.tpl.vtype) }));
+  // Модели — тысячи пунктов, подпись от набранного не зависит: собраны один
+  // раз (поиск кэширует подготовленный текст по объекту пункта).
+  modelsNoted = modelsNoted || modelLeaves().map((l) => ({ ...l,
+    note: [l.note, willSet(l.tpl ? l.tpl.vtype : kindVtype(l.kindLeaf))].filter(Boolean).join(' · ') }));
+  return [...(v.kind === 'module' ? [] : vtypeLeaves(v)), ...tpls, ...kinds, ...modelsNoted];
+}
+
+// Выбор пункта выдачи: что встаёт в карточку (решения пользователя 07.10.2026:
+// «Если мы выбираем пункт, из него обязательно подтягиваем данные»; «вбил седан,
+// а мне заместо „легковой, седан“ выдало „легковой“ — не дело»). typed —
+// набранное до выбора. Возвращает текст уведомления или ''.
+export function pickLeaf(v, l, typed) {
+  if (l.vt) {
+    // Запись техпаспорта — текст поля; категория не выбрана — категория записи.
+    v.f.vtype = l.name;
+    if (l.cat && (v.kind !== 'base' || !v.category)) {
+      v.kind = 'base';
+      setCategoryOf(v, l.cat);
+    }
+    return '';
+  }
+  if (l.model) {
+    // Модель: вид или шаблон — как при их выборе; «Марка, модель» — только в
+    // пустое поле, запись из техпаспорта важнее.
+    if (l.tpl) applyTemplate(v, l.tpl);
+    else applyKindLeaf(v, l.kindLeaf);
+    if (!String(v.f.make || '').trim()) v.f.make = l.model;
+    return `${l.model}: ${l.note}`;
+  }
+  if (l.tpl) {
+    applyTemplate(v, l.tpl);
+    return `Собрано по шаблону «${l.tpl.name}»: ${[l.tpl.base, ...l.tpl.modules.map((m) => m.kind)].join(' + ')}`;
+  }
+  applyKindLeaf(v, l);
+  // База выбрана по слову кузова («седан») — запись категории с ним, а не голая
+  // запись базы.
+  const rec = l.kind === 'base' ? recordFor(l.category, typed) : '';
+  if (rec) v.f.vtype = rec;
+  return '';
 }
 
 // Собрать карточку по шаблону. «Тип ТС» — запись шаблона (решение 07.10.2026).

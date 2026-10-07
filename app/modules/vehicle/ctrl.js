@@ -9,7 +9,7 @@ import { openPhotoInPlace } from '../../kernel/viewer/state.js';
 import { photoSetOf, photoPages, addPhotoFile, pickImages } from './photos.js';
 import { confirmDialog, formDialog } from '../../kernel/dialog.js';
 import { scheduleSave } from '../../kernel/persist.js';
-import { templateLeaves, modelLeaves, applyTemplate, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
+import { searchLeaves, pickLeaf, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
@@ -19,7 +19,7 @@ import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso, fullYear, expandRuDate } f
 import { setFieldError } from '../../kernel/fieldError.js';
 import {
   tsOf, basesOf, selfKinds, moduleKinds, addExtra, dropExtra, addModule, dropModule, categoryCandidates,
-  kindLeaves, vtypeLeaves, recordFor, applyKindLeaf, moduleLeaves, powerUnitFor, POWER_UNIT_BY, classified, copyVehicle, makeWithModules, whatLabel,
+  vtypeLeaves, setCategoryOf, moduleLeaves, powerUnitFor, POWER_UNIT_BY, classified, copyVehicle, makeWithModules, whatLabel,
   normVin, vinWarning, normPlate, idMissing,
   SELF_CAT,
 } from './tsModel.js';
@@ -93,37 +93,13 @@ export function bindTsForm(ctx, holder, set) {
   // ТС» (решение пользователя 06.10.2026); всё потом правится как обычно.
   bindTreeSearch(s, {
     id: 'ts-find',
-    leaves: () => [...(v.kind === 'module' ? [] : vtypeLeaves(v)), ...templateLeaves(), ...kindLeaves(), ...modelLeaves()],
+    leaves: (typed) => searchLeaves(v, typed),
     // Пустое поле по щелчку — записи техпаспорта своей категории.
     emptyLeaves: v.kind === 'module' ? undefined : () => vtypeLeaves(v),
     onPick: (l) => {
       // Набранное до выбора — по нему у базы ищется подходящая запись категории.
-      const typed = String(v.f.vtype || '');
-      if (l.vt) {
-        // Запись техпаспорта — текст поля; категория ещё не выбрана — ставится
-        // категория записи (база — сама, если она одна).
-        v.f.vtype = l.name;
-        if (l.cat && (v.kind !== 'base' || !v.category)) {
-          v.kind = 'base';
-          setCategory(l.cat);
-        }
-      } else if (l.model) {
-        // Модель: вид или шаблон — как при их выборе; «Марка, модель» — только
-        // в пустое поле, запись из техпаспорта важнее.
-        if (l.tpl) applyTemplate(v, l.tpl);
-        else applyKindLeaf(v, l.kindLeaf);
-        if (!String(v.f.make || '').trim()) v.f.make = l.model;
-        ctx.toast(`${l.model}: ${l.note}`);
-      } else if (l.tpl) {
-        applyTemplate(v, l.tpl);
-        ctx.toast(`Собрано по шаблону «${l.tpl.name}»: ${[l.tpl.base, ...l.tpl.modules.map((m) => m.kind)].join(' + ')}`);
-      } else {
-        applyKindLeaf(v, l);
-        // База выбрана по слову кузова («седан») — запись категории с ним
-        // («легковой, седан»), а не голая запись базы.
-        const rec = l.kind === 'base' ? recordFor(l.category, typed) : '';
-        if (rec) v.f.vtype = rec;
-      }
+      const said = pickLeaf(v, l, String(v.f.vtype || ''));
+      if (said) ctx.toast(said);
       openKind();
       scheduleSave();
       ctx.render();
@@ -160,12 +136,7 @@ export function bindTsForm(ctx, holder, set) {
   // Каскад: смена родителя сбрасывает дочерний выбор; единственный вариант
   // подставляется сам (практика каскадных списков).
   const cascade = (sel, set) => { const el = s.$(sel); if (el) el.onchange = () => { set(el.value); openKind(); ctx.render(); }; };
-  const setCategory = (val) => {
-    if (v.category === val) return;
-    v.category = val;
-    const bases = basesOf(val).filter((b) => b.name !== 'Прочее');
-    v.base = bases.length === 1 ? bases[0].name : '';
-  };
+  const setCategory = (val) => setCategoryOf(v, val);
   // Категорию выбирает человек (указание пользователя 30.09.2026): запись «Тип
   // ТС» лишь предлагает варианты кнопками под списком; сама категория по ней
   // больше не ставится. Выбранная категория, которой нет среди предложенных, —

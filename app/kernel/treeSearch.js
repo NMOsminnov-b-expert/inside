@@ -162,8 +162,8 @@ export function treeSearchHTML({ id, label, placeholder = '', value = '', attrs 
   </div>`;
 }
 
-// leaves() — варианты (зовётся при каждом наборе: состав может зависеть от
-// уже выбранного); onPick(вариант) — подставить в каскад и перерисовать.
+// leaves(набранное) — варианты (зовётся при каждом наборе: состав и подписи
+// могут зависеть от уже выбранного и набранного); onPick(вариант) — подставить в каскад и перерисовать.
 // Поиски, где только что выбрали вариант (по id поля): переживает перерисовку.
 const settled = new Set();
 
@@ -206,7 +206,9 @@ export function bindTreeSearch(scope, { id, leaves, onPick, onRemove, emptyLeave
     const ws = words(q.value);
     const empty = !ws.length && emptyLeaves ? emptyLeaves() : [];
     if (!ws.length && !empty.length) { open(false); return; }
-    const r = ws.length ? findLeaves(leaves(), q.value) : { list: empty, more: 0 };
+    // Набранное — и в leaves(): подпись варианта может от него зависеть (у базы
+    // ТС — какая запись встанет в «Тип ТС» по набранному слову кузова).
+    const r = ws.length ? findLeaves(leaves(q.value), q.value) : { list: empty, more: 0 };
     list = r.list;
     drop.innerHTML = list.length
       ? list.map((l, i) => `<div class="tsr-opt" role="option" id="${id}-o-${i}" data-tsr-i="${i}" aria-selected="false">

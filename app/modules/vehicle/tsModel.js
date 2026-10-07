@@ -338,17 +338,38 @@ export function vtypeLeaves(v) {
 // («Мини-экскаватор (до 6 т)» → «мини-экскаватор»).
 // Запись категории, которая подходит к набранному: «седан» → «легковой, седан»
 // (замечание пользователя 07.10.2026: «вбил седан, а мне заместо „легковой,
-// седан“ выдало „легковой“ — не дело»). Все слова набранного — началами слов
-// записи; из подходящих — самая короткая. Нет такой — пусто.
+// седан“ выдало „легковой“ — не дело»). Подбирается по словам кузова — части
+// записи после запятой; слова начала записи («прицеп», «легковой») не в счёт:
+// иначе «прицеп» давал «прицеп, фургон» (поймала проверка поиска). Все слова
+// кузова из набранного — началами слов записи; из подходящих — самая короткая.
 const words = (t) => String(t || '').toLowerCase().replace(/ё/g, 'е').split(/[^a-zа-я0-9]+/).filter(Boolean);
 export function recordFor(category, typed) {
   const ws = words(typed);
   if (!ws.length) return '';
   const fit = (TS_VTYPE_BY_CATEGORY[category] || []).filter((r) => {
-    const rw = words(r);
-    return ws.every((w) => rw.some((x) => x.startsWith(w)));
+    const cut = r.indexOf(', ');
+    if (cut < 0) return false;
+    const head = words(r.slice(0, cut));
+    const body = words(r.slice(cut + 2));
+    const own = ws.filter((w) => !head.some((x) => x.startsWith(w)));
+    return own.length && own.every((w) => body.some((x) => x.startsWith(w)));
   });
-  return fit.sort((a, b) => a.length - b.length)[0] || '';
+  if (fit.length) return fit.sort((a, b) => a.length - b.length)[0];
+  // Набрано только начало записи («грузопассажирский») — оно и встаёт: иначе
+  // встала бы голая запись базы («грузовой»), и набранное потерялось бы.
+  const head = (TS_VTYPE_BY_CATEGORY[category] || []).map((r) => r.split(', ')[0])
+    .filter((h) => ws.every((w) => words(h).some((x) => x.startsWith(w))))
+    .sort((a, b) => a.length - b.length)[0];
+  return head || '';
+}
+
+// Смена категории: дочерняя база сбрасывается, единственная — ставится сама
+// (практика каскадных списков).
+export function setCategoryOf(v, val) {
+  if (v.category === val) return;
+  v.category = val;
+  const bases = basesOf(val).filter((b) => b.name !== OTHER);
+  v.base = bases.length === 1 ? bases[0].name : '';
 }
 
 export function kindVtype(l) {
