@@ -70,8 +70,17 @@
                             <MenuFlyoutItem x:Name="BtnRelayout" Text="Разложить граф заново">
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE72C;"/></MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
-                            <MenuFlyoutItem x:Name="MiDerived" Text="Обновить граф кода и связи по смыслу">
+                            <MenuFlyoutItem x:Name="MiDerived" Text="Обновить оба индекса">
                                 <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE895;"/></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="MiReindexCode" Text="Обновить поиск по словам (CodeGraph)">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8EF;"/></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="MiReindexSem" Text="Обновить поиск по смыслу">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE721;"/></MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem x:Name="MiReindexStop" Text="Остановить обновление индексов">
+                                <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE71A;"/></MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
                             <MenuFlyoutSeparator/>
                             <MenuFlyoutItem x:Name="MiExport" Text="Выгрузить граф в файл…">

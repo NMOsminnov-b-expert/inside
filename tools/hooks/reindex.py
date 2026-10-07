@@ -31,11 +31,21 @@
 Два процесса пишут файл вперемешку, поэтому каждый перечитывает его и меняет
 только свои ключи.
 
-Один прогон каждого рода за раз: коммит во время прогона оставляет отметку
-(.graf/reindex.again, .graf/trials.again), и прогон повторяется по окончании.
-Журналы — .graf/reindex.log и .graf/trials.log.
+Индексы — независимо (07.10.2026, «У нас индексы отстали. Надо бы добавить
+возможность обновления этого дела через приложение графа»): у каждого свой
+процесс и свой замок. Раньше оба шли одним прогоном, и пересчёт по смыслу,
+который идёт часами, держал CodeGraph, которому нужны секунды. После коммита
+CodeGraph обновляется в этом процессе, поиск по смыслу — отдельным фоновым.
 
-    python tools/hooks/reindex.py            # основной прогон
+Один прогон каждого рода за раз: коммит во время прогона оставляет отметку
+(.graf/reindex-code.again, reindex-sem.again, trials.again), и прогон
+повторяется по окончании. Журналы — .graf/reindex-code.log, reindex-sem.log,
+trials.log.
+
+    python tools/hooks/reindex.py            # оба: CodeGraph здесь, по смыслу — фоном
+    python tools/hooks/reindex.py --code     # только CodeGraph
+    python tools/hooks/reindex.py --sem      # только по смыслу (и затем пробные)
+    python tools/hooks/reindex.py --stop     # остановить идущие прогоны (--stop code | sem)
     python tools/hooks/reindex.py --trials   # пробные индексы
 """
 import ctypes, datetime, io, json, os, pathlib, re, subprocess, sys
@@ -278,18 +288,62 @@ def loop(name, work):
         lock.unlink(missing_ok=True)
 
 
+def spawn(flag):
+    """Прогон отдельным скрытым процессом: вызвавший его не ждёт."""
+    subprocess.Popen([sys.executable, str(pathlib.Path(__file__).resolve()), flag], cwd=ROOT,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     creationflags=HIDDEN | GROUP)
+
+
+def stop(which):
+    """Остановить идущие прогоны вместе с дочерними процессами (клиент и сервер
+    semsearch, codegraph). Прогон, остановленный посреди, помечается ошибкой с
+    пометкой «остановлено» — следующий запуск начнёт его заново; индекс по смыслу
+    дообновляется по хешу содержимого, сделанное не теряется."""
+    global log
+    names = {'code': ['reindex-code'], 'sem': ['reindex-sem', 'reindex']}
+    keys = {'code': ['codegraph'], 'sem': ['semsearch']}
+    for w in (['code', 'sem'] if which == 'all' else [which]):
+        for name in names[w]:
+            lock = G / (name + '.lock')
+            try:
+                pid = int(lock.read_text().strip() or 0)
+            except (OSError, ValueError):
+                pid = 0
+            if pid and alive(pid):
+                if os.name == 'nt':
+                    subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'], capture_output=True, creationflags=HIDDEN)
+                else:
+                    os.kill(pid, 9)
+            lock.unlink(missing_ok=True)
+            (G / (name + '.again')).unlink(missing_ok=True)
+        for key in keys[w]:
+            state = json.loads(STATUS.read_text(encoding='utf-8')).get(key, {}) if STATUS.exists() else {}
+            if state.get('state') == 'running':
+                put(key, state='failed', stage='', finished=now(), note='остановлено')
+        if w == 'sem' and SVC.exists():
+            with io.open(G / 'reindex-sem.log', 'a', encoding='utf-8') as log:
+                log.write('==== %s, остановлено\n' % now())
+                run([SPY, SVC, 'down-index'])
+                services_down()
+
+
 def main():
     G.mkdir(exist_ok=True)
+    if '--stop' in sys.argv:
+        rest = sys.argv[sys.argv.index('--stop') + 1:]
+        stop(rest[0] if rest and rest[0] in ('code', 'sem') else 'all')
+        return 0
     if '--trials' in sys.argv:
         loop('trials', trials)
         return 0
-
-    def work(commit):
-        codegraph(commit)
-        semsearch(commit)
-
-    loop('reindex', work)
-    start_trials()
+    if '--sem' in sys.argv:
+        loop('reindex-sem', semsearch)
+        start_trials()
+        return 0
+    if '--code' not in sys.argv:
+        spawn('--sem')
+    loop('reindex-code', codegraph)
     return 0
 
 

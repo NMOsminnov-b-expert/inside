@@ -27,7 +27,10 @@ public sealed partial class MainWindow
         _dataSeg.Changed += i => SetDataSource(i == 1);
         ToolTipService.SetToolTip(_dataSeg, "Знания — граф записей knowledge/; Код — файлы кода и зависимости между ними (CodeGraph)");
         DataHost.Child = _dataSeg;
-        MiDerived.Click += (_, _) => StartReindex();
+        MiDerived.Click += (_, _) => StartReindex("");
+        MiReindexCode.Click += (_, _) => StartReindex("--code");
+        MiReindexSem.Click += (_, _) => StartReindex("--sem");
+        MiReindexStop.Click += (_, _) => StartReindex("--stop");
         Panel.OpenCode += id => { SetDataSource(true); Select(id, center: true); };
         Panel.OpenKnowledge += id => { SetDataSource(false); Select(id, center: true); };
         Panel.OpenInEditor += OpenInEditor;

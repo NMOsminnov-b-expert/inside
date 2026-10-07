@@ -4,7 +4,8 @@
 # tools/hooks/reindex.py — CodeGraph, поиск по смыслу (semsearch) и выгрузки
 # для программы «Граф проекта». Коммит не ждёт: прогон уходит в скрытый
 # процесс; ход — .graf/index-status.json (его показывает программа), журнал —
-# .graf/reindex.log.
+# .graf/reindex-code.log и .graf/reindex-sem.log (CodeGraph и поиск по смыслу
+# идут отдельными процессами).
 #
 # Подключение (один раз на машине): git config core.hooksPath tools/hooks
 # Пропустить разово: INSIDE_NO_REINDEX=1 git commit ...

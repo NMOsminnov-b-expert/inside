@@ -12,9 +12,14 @@ namespace Graf;
 // актуальная версия у нас или нет»).
 //
 // Прогон — tools/hooks/reindex.py (сам после коммита, хук
-// tools/hooks/post-commit, или «Ещё» → «Обновить граф кода и связи по
-// смыслу»); ход он пишет в .graf/index-status.json, программа опрашивает
-// файл раз в две секунды. Полоска идёт, пока прогон идёт: сколько файлов
+// tools/hooks/post-commit, или из программы); ход он пишет в
+// .graf/index-status.json, программа опрашивает файл раз в две секунды.
+//
+// Обновление из программы (07.10.2026, «У нас индексы отстали. Надо бы
+// добавить возможность обновления этого дела через приложение графа»): «Ещё»
+// → оба индекса, поиск по словам, поиск по смыслу или остановить обновление;
+// щелчок по полоске индекса — обновить его. Индексы идут независимо: долгий
+// пересчёт по смыслу не держит CodeGraph. Полоска идёт, пока прогон идёт: сколько файлов
 // обработает индекс по смыслу, заранее неизвестно, поэтому ход бегущий
 // (HIG Progress indicators: неопределённый ход, когда объём неизвестен),
 // а число обработанных файлов — в подписи. Прогон кончился — полоска полная
@@ -29,8 +34,11 @@ public sealed partial class MainWindow
         public readonly TextBlock Text = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         public string Shown = "";
 
-        public IndexItem(string name)
+        public IndexItem(string name, Action click)
         {
+            // Щелчок по полоске — обновить этот индекс (идёт — сказать, как остановить).
+            Root.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            Root.Tapped += (_, _) => click();
             Root.Children.Add(new TextBlock { Text = name, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 Foreground = Hig.B("HigSecondary"), VerticalAlignment = VerticalAlignment.Center });
             Root.Children.Add(Bar);
@@ -47,8 +55,8 @@ public sealed partial class MainWindow
 
     void InitIndex()
     {
-        _ixCode = new IndexItem("CodeGraph");
-        _ixSem = new IndexItem("По смыслу");
+        _ixCode = new IndexItem("CodeGraph", () => ClickIndex("codegraph", "--code"));
+        _ixSem = new IndexItem("По смыслу", () => ClickIndex("semsearch", "--sem"));
         IndexHost.Children.Add(_ixCode.Root);
         IndexHost.Children.Add(_ixSem.Root);
         _ixTimer = DispatcherQueue.CreateTimer();
@@ -120,34 +128,64 @@ public sealed partial class MainWindow
             "current" => "Актуален: построен на текущем коммите",
             "behind" => "Построен на прежнем коммите — после коммита обновления ещё не было",
             "failed" => "Последний прогон завершился ошибкой" + (s.Note != "" ? ": " + s.Note : ""),
-            "broken" => "Прогон оборвался, не закончив; запустить заново — «Ещё» → «Обновить граф кода и связи по смыслу»",
+            "broken" => "Прогон оборвался, не закончив",
             "skipped" => "Поиск по смыслу на этой машине не установлен",
-            _ => "Прогона ещё не было: «Ещё» → «Обновить граф кода и связи по смыслу»",
+            _ => "Прогона ещё не было",
         });
+        tip.Add(v == "running" ? "Остановить — «Ещё» → «Остановить обновление индексов»" : "Щелчок — обновить этот индекс");
         if (s.Commit != "") tip.Add("Коммит прогона: " + s.Commit[..Math.Min(10, s.Commit.Length)]);
         if (s.Finished is { } fin) tip.Add("Закончен: " + fin.ToString("dd.MM.yyyy HH:mm:ss"));
         if (s.Key == "semsearch" && (s.Files > 0 || s.Chunks > 0)) tip.Add($"Обработано файлов {s.Files}, фрагментов {s.Chunks}");
-        tip.Add("Журнал — .graf/reindex.log");
+        tip.Add(s.Key == "codegraph" ? "Журнал — .graf/reindex-code.log" : "Журнал — .graf/reindex-sem.log");
         ToolTipService.SetToolTip(it.Root, string.Join("\n", tip));
     }
 
     // Подписи для сценариев проверки (ScriptRunner, шаг indexstatus).
     public string IndexText() { PollIndex(); return $"CodeGraph: {_ixCode.Text.Text}; По смыслу: {_ixSem.Text.Text}"; }
 
-    // «Ещё» → «Обновить граф кода и связи по смыслу» — тот же прогон, что
-    // после коммита; ход показывают полоски, выгрузки перечитываются по его
-    // окончании.
-    void StartReindex()
+    // Для сценариев проверки: щелчок по полоске и подпись в строке состояния.
+    public string ClickIndexPublic(string key)
+    {
+        ClickIndex(key, key == "codegraph" ? "--code" : "--sem");
+        return LiveText.Text;
+    }
+
+    // Щелчок по полоске: идёт — подсказать, как остановить; иначе — обновить.
+    void ClickIndex(string key, string flag)
+    {
+        if (Store == null) return;
+        var (code, sem) = IndexStatus.Load(Store.Root);
+        var s = key == "codegraph" ? code : sem;
+        if (s.Verdict(IndexStatus.Head(Store.Root)) == "running")
+        {
+            Status("Индекс уже обновляется; остановить — «Ещё» → «Остановить обновление индексов»");
+            return;
+        }
+        StartReindex(flag);
+    }
+
+    // Тот же прогон, что после коммита (tools/hooks/reindex.py): "" — оба
+    // индекса, --code, --sem — один, --stop — остановить идущие. Ход показывают
+    // полоски, выгрузки перечитываются по окончании.
+    void StartReindex(string flag)
     {
         if (Store == null) return;
         try
         {
-            var psi = new System.Diagnostics.ProcessStartInfo("python", "tools/hooks/reindex.py")
+            var psi = new System.Diagnostics.ProcessStartInfo("python", ("tools/hooks/reindex.py " + flag).Trim())
             {
                 WorkingDirectory = Store.Root, UseShellExecute = false, CreateNoWindow = true,
             };
+            psi.Environment["PYTHONIOENCODING"] = "utf-8";
             System.Diagnostics.Process.Start(psi);
-            Status("Обновляю оба индекса — ход в строке состояния");
+            Status(flag switch
+            {
+                "--code" => "Обновляю поиск по словам (CodeGraph) — ход в строке состояния",
+                "--sem" => "Обновляю поиск по смыслу — ход в строке состояния",
+                "--stop" => "Останавливаю обновление индексов",
+                _ => "Обновляю оба индекса — ход в строке состояния",
+            });
+            PollIndex();
         }
         catch (Exception ex) { Status("Не запустилось: " + ex.Message); }
     }

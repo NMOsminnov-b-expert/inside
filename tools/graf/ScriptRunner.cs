@@ -100,6 +100,16 @@ public static class ScriptRunner
                             log.Add("  ОШИБКА индексы: ждали «" + ex.GetString() + "»");
                         break;
                     }
+                    case "indexclick":
+                    {
+                        // Щелчок по полоске индекса (codegraph | semsearch); expect — подпись
+                        // в строке состояния после щелчка.
+                        var said = w.ClickIndexPublic(S("value"));
+                        log.Add("  щелчок по индексу: " + said);
+                        if (st.TryGetProperty("expect", out var ex) && ex.GetString() != said)
+                            log.Add("  ОШИБКА щелчок по индексу: ждали «" + ex.GetString() + "»");
+                        break;
+                    }
                     case "zoom": w.GraphCtl.SetZoom(st.GetProperty("value").GetSingle()); break;
                     case "check": w.OpenCheck(); break;
                     case "perf": log.Add("  " + await w.GraphCtl.PerfRun(S("kind"), st.TryGetProperty("s", out var sec) ? sec.GetDouble() : 5)); break;

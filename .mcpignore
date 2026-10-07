@@ -1,0 +1,19 @@
+# Что не берёт поиск по смыслу (semsearch, codebase-mcp; читает этот файл
+# вместе с .gitignore). Сырые и сгенерированные данные на мегабайты индекс
+# разбивает на фрагменты и считает на процессоре часами, а смысла в поиске по
+# ним нет: прогон 07.10.2026 на коммите со скачанными каталогами моделей
+# (wikidata.json — 4,5 МБ) шёл больше двух часов и держал оба индекса.
+
+# Скачанные каталоги моделей ТС — сырьё; сведённое лежит в графе и справочниках.
+tools/data/ext/cache/
+
+# Сторонние библиотеки.
+app/vendor/
+tools/knowledge/vendor/
+*.min.js
+package-lock.json
+
+# Собранные справочники карточки ТС: их источники (tools/docs/build_kategorii_ts.py,
+# tools/data/ts_templates.py, граф моделей knowledge/terms/marka_ts_*.py) в индексе есть.
+app/modules/vehicle/data/tsCatalog.js
+app/modules/vehicle/data/tsModels.js

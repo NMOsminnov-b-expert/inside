@@ -161,9 +161,11 @@ MCP (`.claude/knowledge-graph/`) снят, всё его содержимое п
    связи). Индексы обновляет сам коммит: хук `tools/hooks/post-commit`
    (подключение — `git config core.hooksPath tools/hooks`; ход обоих
    индексов — `.graf/index-status.json`, его показывает программа «Граф
-   проекта»; журнал — `.graf/reindex.log`) в фоне запускает
-   `tools/hooks/reindex.py`: `codegraph sync` и дообновление индекса по смыслу — только
-   изменённые файлы, по хешу содержимого:
+   проекта»; журналы — `.graf/reindex-code.log`, `.graf/reindex-sem.log`) в фоне
+   запускает `tools/hooks/reindex.py`: `codegraph sync` и — отдельным процессом,
+   чтобы долгий пересчёт не держал CodeGraph, — дообновление индекса по смыслу:
+   только изменённые файлы, по хешу содержимого. Сырые и сгенерированные данные
+   на мегабайты в поиск по смыслу не идут — `.mcpignore` в корне:
 
        "%LOCALAPPDATA%\semsearch\src\codebase-mcp\.venv\Scripts\python.exe" "%LOCALAPPDATA%\semsearch\client.py" index "C:/vs code/inside" inside
 
@@ -171,8 +173,10 @@ MCP (`.claude/knowledge-graph/`) снят, всё его содержимое п
    обоих индексов выгрузки в `.graf/` (вне git): граф кода —
    `python tools/knowledge/code_export.py` (после `codegraph sync`), связи
    по смыслу — `tools/knowledge/semantic_export.py` под Python из
-   окружения semsearch (после дообновления индекса); то же делает пункт
-   программы «Ещё» → «Обновить граф кода и связи по смыслу».
+   окружения semsearch (после дообновления индекса). Вручную — из программы
+   «Ещё» → «Обновить оба индекса», «…поиск по словам», «…поиск по смыслу»,
+   «Остановить обновление индексов» (или щелчок по полоске индекса), из
+   консоли — `reindex.py --code | --sem | --stop`.
 
 Устройство графа — `knowledge/README.md`: одна запись — один файл
 `knowledge/<папка>/<id>.py` (папки: `decisions`, `rules`, `questions`,
