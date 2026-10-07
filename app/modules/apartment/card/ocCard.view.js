@@ -5,6 +5,7 @@ import { auditTab } from '../audit/view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { eniAllOf } from '../../../kernel/eniFold.js';
 import { esc } from '../../../kernel/dom.js';
+import { ocContactsHTML } from '../../../kernel/contacts.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
@@ -38,7 +39,8 @@ function headOC(ctx) {
   });
 }
 
-function partiesOC(rec) {
+function partiesOC(ctx) {
+  const rec = ctx.rec;
   // Отступ сверху — как у просмотрщика слева, чтобы верх двух колонок совпадал.
   // Прежние 12px остались от полосы вкладок, которой над блоком больше нет.
   return `<div class="card t-slate" style="margin-top:10px">
@@ -51,6 +53,7 @@ function partiesOC(rec) {
       <div class="grid g-4 g-top">
         <div class="field"><span class="lbl">Головное учреждение</span><b>${esc(rec.institution)}</b></div>
         <div class="field"><span class="lbl">Подвед</span><b>${esc(rec.podved)}</b></div>
+        ${ocContactsHTML(ctx)}
       </div>
 
       <!-- Стороны — тем же блоком, что в форме ОЦ: раньше шапка держала свою
@@ -65,7 +68,7 @@ function partiesOC(rec) {
 
 export function viewOC(ctx) {
   const rec = ctx.rec;
-  const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(rec) + tableOI(ctx));
+  const generalTab = splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, partiesOC(ctx) + tableOI(ctx));
 
   return `${headOC(ctx)}
 

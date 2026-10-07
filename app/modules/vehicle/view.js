@@ -5,6 +5,7 @@ import { ownerNames } from './records.js';
 import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
 import { partiesHTML } from './parties.view.js';
+import { ocContactsHTML } from '../../kernel/contacts.js';
 import { tsFieldHTML } from './tsFields.view.js';
 import { canSaveTemplate } from './templates.js';
 import { TS_CONDITION_SCALE } from './data/tsCatalog.js';
@@ -838,7 +839,7 @@ function formHTML(ctx) {
   // работают (иначе блок схлопывался сразу после выбора учреждения).
   if (ctx.ui.partiesOpen === undefined) ctx.ui.partiesOpen = !ctx.rec.institution;
   const open = ctx.ui.partiesOpen;
-  return tsFormHTML(ctx, ctx.rec, photoSetOf(ctx.rec), { parties: (n) => partiesHTML(ctx.rec, n, ownerNames(), open) });
+  return tsFormHTML(ctx, ctx.rec, photoSetOf(ctx.rec), { parties: (n) => partiesHTML(ctx.rec, n, ownerNames(), open, ocContactsHTML(ctx)) });
 }
 
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «сохранено» здесь — снимок в хранилище браузера

@@ -14,7 +14,7 @@ import { comparativeTab } from './comparative.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
-import { institutionChain, ownHTML, chainHTML, dropdownHTML } from '../../../kernel/contacts.js';
+import { ocContactsHTML } from '../../../kernel/contacts.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
 // объектов имущества, ровно как в столбце реестра (решение пользователя
@@ -63,31 +63,9 @@ function withComparative(tabs) {
 }
 
 
-// Контакты для связи (решение пользователя 06.10.2026: «чистым интерфейсом,
-// но что бы каждый раз контакты не мозолили глаза»). Под строкой учреждения —
-// сводка одной строкой (первый контакт и «+N»), все контакты — в выпадающей
-// панели поверх карточки: свои контакты объекта и подтянутые от узлов дерева
-// учреждений, от подведа вверх (правятся в учреждении).
-const instHref = (node) => `#/institutions?node=${encodeURIComponent(node.id)}&name=${encodeURIComponent(node.name)}&tab=contacts`;
-
-export function contactsUi(ctx) {
-  ctx.ui.contacts = ctx.ui.contacts || { open: false, editing: null };
-  return ctx.ui.contacts;
-}
-
-function contactsRowHTML(ctx) {
-  const rec = ctx.rec;
-  const ui = contactsUi(ctx);
-  const chain = institutionChain(rec.institution, rec.podved);
-  const all = [...(rec.contacts || []), ...chain.flatMap((x) => x.contacts)];
-  const body = ui.open ? ownHTML(rec.contacts || [], { key: 'oc', editing: ui.editing }) + chainHTML(chain, instHref) : '';
-  return `<div class="field ct-cell"><span class="lbl">Контакты для связи</span>
-    ${dropdownHTML(all, { key: 'oc', open: ui.open, body })}</div>`;
-}
-
 function partiesOC(ctx) {
   const rec = ctx.rec;
-  const ct = contactsRowHTML(ctx);
+  const ct = ocContactsHTML(ctx);
   // Отступ сверху — как у просмотрщика слева, чтобы верх двух колонок совпадал.
   // Прежние 12px остались от полосы вкладок, которой над блоком больше нет.
   return `<div class="card t-slate" style="margin-top:10px">

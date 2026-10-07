@@ -151,7 +151,7 @@ export function partiesSummary(rec) {
   return [rec.institution, rec.podved, `собственников ${owners}`, `ответственных ${resp} из 4`].filter(Boolean).join(' · ');
 }
 
-export function partiesHTML(rec, idx, names, open = true) {
+export function partiesHTML(rec, idx, names, open = true, contacts = '') {
   // Заголовок — аккордеон, как у остальных блоков формы (07.10.2026): щелчок по
   // всей строке сворачивает и разворачивает; свёрнутый — со сводкой.
   const chev = '<i class="vh-acc-chev" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24">'
@@ -179,6 +179,7 @@ export function partiesHTML(rec, idx, names, open = true) {
     placeholder: rec.institution ? 'Выберите подвед' : 'Сначала выберите учреждение',
     search: 'Поиск подведа…',
   })}</div>
+        ${contacts}
       </div>
 
       ${ownersHTML(rec, names)}

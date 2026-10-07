@@ -5,7 +5,8 @@
 несколько контактов (имя, должность, телефон, почта, комментарий), в свёрнутом
 виде — одна строка сводки; у любого узла дерева учреждений — свои контакты,
 они подтягиваются в ОЦ по цепочке от подведа вверх и в ОЦ только показываются.
-Пока — нежилое здание. Механика — kernel/contacts.js.
+С 07.10.2026 — во всех типах ОЦ, кроме механизмов (решение пользователя: «во
+все ОЦ»; «Механизмы не трогать»). Механика — kernel/contacts.js.
 
 Что ловит сценарий:
   * список контактов раскрыт без запроса — «мозолит глаза»; раскрытый —
@@ -18,14 +19,22 @@
   * контакт ОЦ не сохраняется после перезагрузки;
   * контакт учреждения не подтягивается в ОЦ его подведа;
   * подтянутый контакт можно править в ОЦ;
-  * контакт учреждения пропадает после перезагрузки.
+  * контакт учреждения пропадает после перезагрузки;
+  * у квартиры, жилого дома, участка или ТС нет поля контактов, или
+    добавленный там контакт не переживает перезагрузку.
 """
 NAME = 'контакты для связи'
 
 TOUCHES = (
     'app/kernel/contacts.js', 'app/kernel/contacts.css', 'app/modules/civil/card/ocCard.view.js',
     'app/modules/civil/card/ocCard.ctrl.js', 'app/pages/institutions/institutions.js',
+    'app/modules/apartment/card/ocCard.view.js', 'app/modules/apartment/card/ocCard.ctrl.js',
+    'app/modules/residential-house/card/ocCard.view.js', 'app/modules/residential-house/card/ocCard.ctrl.js',
+    'app/modules/land-plot/card/ocCard.view.js', 'app/modules/land-plot/card/ocCard.ctrl.js',
+    'app/modules/vehicle/parties.view.js', 'app/modules/vehicle/view.js', 'app/modules/vehicle/ctrl.js',
 )
+
+OTHER = ('#/oc/apartment/oc-ap-1', '#/oc/residential-house/oc-rh-1', '#/oc/land-plot/oc-lp-1')
 
 CARD = '#/oc/civil/oc-cv-1'
 
@@ -104,3 +113,31 @@ def run(t):
     pg.reload()
     t.wait_for('[data-ct-toggle="oc"]')
     t.ck('Контакт Объекта' not in pg.locator('.ct-sum').inner_text(), 'удалённый контакт вернулся после перезагрузки')
+
+    # --- остальные типы ОЦ: поле есть, свой контакт сохраняется ----------------------
+    def own_contact(where):
+        t.wait_for('[data-ct-toggle="oc"]')
+        pg.click('[data-ct-toggle="oc"]')
+        pg.click('[data-ct-add="oc"]')
+        t.wait_for('[data-ct-f$="|name"]')
+        fill('name', 'Контакт ' + where)
+        pg.keyboard.press('Enter')
+        t.wait_until("() => !document.querySelector('.ct-form')")
+        _save(pg)
+        pg.reload()
+        t.wait_for('[data-ct-toggle="oc"]')
+        t.ck(('Контакт ' + where) in pg.locator('[data-ct-toggle="oc"]').inner_text(),
+             '%s: контакт не пережил перезагрузку' % where)
+
+    for route in OTHER:
+        t.open(route, wait='.card')
+        t.ck(pg.locator('[data-ct-toggle="oc"]').count() == 1, '%s: нет поля «Контакты для связи»' % route)
+        if pg.locator('[data-ct-toggle="oc"]').count():
+            own_contact(route.split('/')[2])
+    t.open('', wait='.reg-tr')
+    pg.click('.reg-create [data-dd-toggle]')
+    pg.click('.reg-create [data-create="vehicle"]')
+    t.wait_for('[data-ts-cat]')
+    t.ck(pg.locator('[data-ct-toggle="oc"]').count() == 1, 'у ТС нет поля «Контакты для связи»')
+    if pg.locator('[data-ct-toggle="oc"]').count():
+        own_contact('ТС')

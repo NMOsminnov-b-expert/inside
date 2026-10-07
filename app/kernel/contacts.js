@@ -328,3 +328,37 @@ export function bindContacts(scope, key, { list, ui, rerender, onChange = () => 
     document.removeEventListener('keydown', onKey, true);
   };
 }
+
+// --- поле «Контакты для связи» карточки ОЦ ----------------------------------
+//
+// Одно на все типы ОЦ, кроме механизмов (решение пользователя 07.10.2026: «во
+// все ОЦ»; «Механизмы не трогать» — у перечня механизмов своя таблица
+// контактов). Сначала было только у нежилого здания (06.10.2026). Свои
+// контакты — rec.contacts, их может быть несколько; ниже — контакты узлов
+// дерева учреждений от подведа вверх (правятся в учреждении).
+const instHref = (node) => `#/institutions?node=${encodeURIComponent(node.id)}&name=${encodeURIComponent(node.name)}&tab=contacts`;
+
+export function ocContactsUi(ctx) {
+  ctx.ui.contacts = ctx.ui.contacts || { open: false, editing: null };
+  return ctx.ui.contacts;
+}
+
+export function ocContactsHTML(ctx) {
+  const rec = ctx.rec;
+  const ui = ocContactsUi(ctx);
+  const chain = institutionChain(rec.institution, rec.podved);
+  const all = [...(rec.contacts || []), ...chain.flatMap((x) => x.contacts)];
+  const body = ui.open ? ownHTML(rec.contacts || [], { key: 'oc', editing: ui.editing }) + chainHTML(chain, instHref) : '';
+  return `<div class="field ct-cell"><span class="lbl">Контакты для связи</span>
+    ${dropdownHTML(all, { key: 'oc', open: ui.open, body })}</div>`;
+}
+
+export function bindOcContacts(ctx, { onChange } = {}) {
+  const rec = ctx.rec;
+  bindContacts(ctx.scope, 'oc', {
+    list: (create) => (create ? (rec.contacts = rec.contacts || []) : (rec.contacts || [])),
+    ui: ocContactsUi(ctx),
+    rerender: () => ctx.render(),
+    onChange,
+  });
+}

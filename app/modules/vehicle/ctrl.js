@@ -12,6 +12,7 @@ import { scheduleSave } from '../../kernel/persist.js';
 import { searchLeaves, pickLeaf, browseGroups, canSaveTemplate, saveTemplate, removeTemplate } from './templates.js';
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
+import { bindOcContacts } from '../../kernel/contacts.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
 import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns, sugHTML, trackedOnly } from './view.js';
 import { createRecord } from './records.js';
@@ -572,8 +573,10 @@ export function bindVehicle(ctx) {
   const s = ctx.scope;
   bindTsForm(ctx, ctx.rec, photoSetOf(ctx.rec));
 
-  // Учреждение, собственники и ответственные.
+  // Учреждение, собственники и ответственные; контакты для связи — общие с
+  // остальными типами ОЦ (решение пользователя 07.10.2026: «во все ОЦ»).
   bindParties(ctx);
+  bindOcContacts(ctx);
 
   // Шкала статусов в шапке и просмотрщик — общие с остальными типами ОЦ. В
   // окне смены статуса — что в карточке пусто, без запрета (развёртка

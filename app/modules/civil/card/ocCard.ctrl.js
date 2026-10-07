@@ -1,6 +1,5 @@
 import { bindDocsColumns } from '../parts/docs/table.js';
-import { bindContacts } from '../../../kernel/contacts.js';
-import { contactsUi } from './ocCard.view.js';
+import { bindOcContacts } from '../../../kernel/contacts.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns, colVar } from '../../../kernel/columns.js';
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
@@ -263,11 +262,7 @@ export function bindOcCard(ctx) {
   bindStatusFlow(ctx);
 
   // --- Контакты для связи (блок 01) ---------------------------------------
-  bindContacts(s, 'oc', {
-    list: (create) => (create ? (rec.contacts = rec.contacts || []) : (rec.contacts || [])),
-    ui: contactsUi(ctx),
-    rerender: () => ctx.render(),
-  });
+  bindOcContacts(ctx);
 
   // --- Вкладки ------------------------------------------------------------
   s.$$('[data-tab]').forEach((b) => b.onclick = () => {

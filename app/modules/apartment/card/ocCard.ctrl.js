@@ -1,4 +1,5 @@
 import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
+import { bindOcContacts } from '../../../kernel/contacts.js';
 import { archiveRecord } from '../../../kernel/archive.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
 import { bindDocsColumns } from '../parts/docs/table.js';
@@ -181,6 +182,9 @@ export function bindOcCard(ctx) {
 
   // Шкала статусов: переход кликом по следующему шагу (kernel/status).
   bindStatusFlow(ctx);
+
+  // --- Контакты для связи (блок 01) ---------------------------------------
+  bindOcContacts(ctx);
 
 
 
