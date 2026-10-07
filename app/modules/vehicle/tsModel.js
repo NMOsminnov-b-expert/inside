@@ -313,12 +313,25 @@ export function moduleLeaves() {
   return out;
 }
 
-// Подставить выбранное в поиске: вид объекта и оба уровня каскада.
+// Запись «Тип ТС» выбранной базы или вида спецтехники: у базы — из
+// справочника (TS_BASES[].vtype), у вида — сам вид без пояснения в скобках
+// («Мини-экскаватор (до 6 т)» → «мини-экскаватор»).
+export function kindVtype(l) {
+  if (l.kind === 'base') return (TS_BASES.find((b) => b.name === l.base) || {}).vtype || '';
+  if (l.kind === 'self') return String(l.item || '').replace(/\s*\(.*?\)/g, '').trim().toLowerCase();
+  return '';
+}
+
+// Подставить выбранное в поиске: вид объекта, оба уровня каскада и запись
+// «Тип ТС» (решение пользователя 07.10.2026: «Если мы выбираем пункт, из него
+// обязательно подтягиваем данные»).
 export function applyKindLeaf(v, l) {
   v.kind = l.kind;
   if (l.kind === 'base') { v.category = l.category; v.base = l.base; }
   if (l.kind === 'self') { v.selfGroup = l.group; v.selfKind = l.item; }
   if (l.kind === 'module') { v.modGroup = l.group; v.modKind = l.item; }
+  const vt = kindVtype(l);
+  if (vt) v.f.vtype = vt;
 }
 
 // Выбор дописан до конца: без этого поля машины не показываются — дочернее

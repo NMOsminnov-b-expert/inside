@@ -332,20 +332,42 @@ TRAILER_VTYPE = {'Самосвальный кузов': 'самосвальны�
                  'Платформа для перевозки лодок': 'лодочный', 'Кузов-фургон (КУНГ — кузов унифицированный нулевого габарита)': 'фургон'}
 
 
+# Запись «Тип ТС» — у КАЖДОГО шаблона (решение пользователя 07.10.2026: «Если мы
+# выбираем пункт, из него обязательно подтягиваем данные»). Известные
+# формулировки техпаспорта — VTYPE, SPECIAL, TRAILER_VTYPE; остальные — по
+# правилу «носитель, вид»: на грузовом — «грузовой, <кузов>» или «специальный,
+# <установка>», на прицепе — «прицеп, <вид>», на автобусе и легковом —
+# «…, специальный», на тракторе — «трактор», на шасси — «специальный, шасси»,
+# на вездеходе — «вездеход», на спецтехнике — вид машины. Вид — название
+# модуля без пояснения в скобках.
+CARRIER_VTYPE = {'АВ': 'автобус, специальный', 'ЛГ': 'легковой, специальный', 'ТР': 'трактор',
+                 'МКШ': 'специальный, шасси', 'СМШ': 'специальный, шасси', 'ВЗ': 'вездеход'}
+
+
+def short(kind):
+    """Вид для записи: «Мультилифт (крюковой погрузчик)» → «мультилифт»."""
+    import re
+    return re.sub(r'\s*\(.*?\)', '', kind).strip().lower()
+
+
 def vtype_for(carrier, group, kind):
     word = CARRIER[carrier][4]
+    if CARRIER[carrier][0] == 'self':
+        return CARRIER[carrier][3]
+    if carrier in CARRIER_VTYPE:
+        return CARRIER_VTYPE[carrier]
     if carrier in ('ПП', 'ПР', 'ТПР'):
-        kw = 'цистерна' if group == 'Цистерны' else TRAILER_VTYPE.get(kind, VTYPE.get(kind, ''))
-        return f'{word}, {kw}' if kw else ''
-    if carrier not in ('ГА', 'СТ'):
-        return ''
+        kw = 'цистерна' if group == 'Цистерны' else TRAILER_VTYPE.get(kind, VTYPE.get(kind, short(kind)))
+        return f'{word}, {kw}'
     if kind in SPECIAL:
         return 'специальный, ' + SPECIAL[kind]
     if group in SPECIAL_BY_GROUP:
         return 'специальный, ' + SPECIAL_BY_GROUP[group]
     if group == 'Цистерны':
         return 'грузовой, цистерна'
-    return 'грузовой, ' + VTYPE[kind] if kind in VTYPE else ''
+    if kind in VTYPE:
+        return 'грузовой, ' + VTYPE[kind]
+    return ('грузовой, ' if group == 'Грузовые кузова' else 'специальный, ') + short(kind)
 
 
 # Составные: несколько модулей на одном носителе — по каждому носителю.
@@ -437,7 +459,9 @@ def build(module_groups):
     for name, carriers, modules, aliases in COMPOSITE:
         for c in carriers:
             kw = COMPOSITE_VTYPE.get(name, '')
-            vt = '' if not kw or c not in ('ГА', 'ПП', 'ПР', 'ТПР') else f'{CARRIER[c][4]}, {kw}'
+            # Своя запись составного — на грузовом и прицепах; иначе — по
+            # первому модулю (vtype_for): у каждого шаблона запись есть.
+            vt = f'{CARRIER[c][4]}, {kw}' if kw and c in ('ГА', 'ПП', 'ПР', 'ТПР')                 else vtype_for(c, modules[0][0], modules[0][1])
             add(label(name, c, len(carriers) > 1), c, modules, vt, aliases + (GENERAL if c == 'ГА' else []))
     for group, items in module_groups:
         for kind in items:

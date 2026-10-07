@@ -79,16 +79,27 @@ def run(t):
     t.ck(len(mods) == 2 and 'Бортовая платформа' in mods[0] and 'КМУ' in mods[1], 'шаблон не добавил модули: %s' % mods)
     t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой, бортовой с манипулятором (КМУ)', 'шаблон не записал «Тип ТС»')
 
-    # Не шаблон (база или вид) — в «Тип ТС» остаётся вписанный текст.
-    find('грузовое тс')
-    pg.locator('#ts-find-list .tsr-opt', has_text='Грузовое ТС').first.dispatch_event('mousedown')
-    t.wait_for('[data-ts-base]')
-    pg.fill('#ts-find-q', 'грузовой шасси по ТП')
+    # Выбран пункт — из него запись «Тип ТС», и у базы тоже (решение
+    # пользователя 07.10.2026: «Если мы выбираем пункт, из него обязательно
+    # подтягиваем данные»; снимок: «вездех» → база вездехода оставляла «вездех»).
+    pg.fill('#ts-find-q', '')
+    pg.click('#ts-find-q')
+    pg.keyboard.type('вездех')
     t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
-    pg.locator('#ts-find-list .tsr-opt').filter(has=pg.locator('.tsr-name', has_text=re.compile('^Грузовое ТС$'))).first.dispatch_event('mousedown')
-    t.wait_for('[data-ts-base]')
-    t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой шасси по ТП', 'выбор базы стёр вписанную запись: %r'
-         % pg.input_value('[data-tsf="main|vtype"]'))
+    t.ck(names()[:1] == ['Вездеход, гусеничный транспортёр'], '«вездех» первым не база вездехода: %s' % names()[:3])
+    pg.keyboard.press('Enter')
+    t.wait_until("() => document.querySelector('#ts-find-q').value === 'вездеход'")
+    # Шаблон без своей формулировки в техпаспорте — по правилу «носитель, вид».
+    pg.fill('#ts-find-q', '')
+    pg.click('#ts-find-q')
+    pg.keyboard.type('буровая установка')
+    t.wait_until("() => !document.querySelector('#ts-find-list').hidden")
+    pg.locator('#ts-find-list .tsr-opt', has_text='Буровая установка — грузовое ТС').first.click()
+    t.wait_until("() => document.querySelector('#ts-find-q').value === 'специальный, буровая установка'")
+    # Ничего не выбрано — вписанный текст остаётся.
+    pg.fill('#ts-find-q', 'грузовой бортовой по ТП')
+    pg.locator('#ts-find-q').press('Tab')
+    t.ck(pg.input_value('[data-tsf="main|vtype"]') == 'грузовой бортовой по ТП', 'вписанный без выбора текст пропал')
 
     # Шаблон на спецтехнике: вид машины и модуль.
     pg.reload()

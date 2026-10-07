@@ -59,7 +59,8 @@ export const TS_BASES = [
       "легковой",
       "легковая",
       "грузопассажирский"
-    ]
+    ],
+    "vtype": "легковой"
   },
   {
     "category": "Грузовое",
@@ -76,7 +77,8 @@ export const TS_BASES = [
       "дублькабина",
       "пикап",
       "грузопассажирский"
-    ]
+    ],
+    "vtype": "грузовой"
   },
   {
     "category": "Грузовое",
@@ -88,7 +90,8 @@ export const TS_BASES = [
       "седел тягач",
       "тягач",
       "фура"
-    ]
+    ],
+    "vtype": "грузовой, тягач седельный"
   },
   {
     "category": "Автобусы",
@@ -98,7 +101,8 @@ export const TS_BASES = [
     "aliases": [
       "автобус",
       "микроавтобус"
-    ]
+    ],
+    "vtype": "автобус"
   },
   {
     "category": "Мототехника",
@@ -117,7 +121,8 @@ export const TS_BASES = [
       "мотоколяска",
       "легковая мотоколяска",
       "мотоцикл с коляской"
-    ]
+    ],
+    "vtype": "мото"
   },
   {
     "category": "Прицепы и полуприцепы",
@@ -127,14 +132,16 @@ export const TS_BASES = [
     "aliases": [
       "легковой прицеп",
       "прицеп"
-    ]
+    ],
+    "vtype": "прицеп"
   },
   {
     "category": "Прицепы и полуприцепы",
     "name": "Полуприцеп",
     "hint": "Опирается на седло тягача шкворнем, передней оси нет. Бывает безрамным — несущая цистерна.",
     "examples": "МАЗ-9397/9758, Нефаз-9334, Тонар, ЧМЗАП, Schmitz, Krone, Kögel, Wielton, CIMC",
-    "aliases": []
+    "aliases": [],
+    "vtype": "полуприцеп"
   },
   {
     "category": "Прицепы и полуприцепы",
@@ -143,7 +150,8 @@ export const TS_BASES = [
     "examples": "2ПТС-4/6, 1ПТС-9, ПСТ-6/9/12, ПСЕ-12,5, МЖТ",
     "aliases": [
       "тракторный"
-    ]
+    ],
+    "vtype": "прицеп, тракторный"
   },
   {
     "category": "Прицепы и полуприцепы",
@@ -164,21 +172,24 @@ export const TS_BASES = [
       "борона",
       "опрыскиватель",
       "косилка плющилка"
-    ]
+    ],
+    "vtype": "прицепная машина"
   },
   {
     "category": "Тракторы и специальные шасси",
     "name": "Малое коммунальное шасси",
     "hint": "Компактный носитель сменного коммунального оборудования: отвал, щётка, бункер, поливалка. Не лёгкий коммерческий и не трактор.",
     "examples": "Multicar и китайские аналоги, коммунальные минишасси",
-    "aliases": []
+    "aliases": [],
+    "vtype": "специальный, шасси"
   },
   {
     "category": "Тракторы и специальные шасси",
     "name": "Специальное многоосное шасси",
     "hint": "Шасси спроектировано под конкретную машину и отдельно не продаётся: 3–9 осей, многоосное рулевое, выносные опоры в раме, часто вторая кабина. Марка шасси и крана обычно совпадают.",
     "examples": "Liebherr LTM, Grove GMK, Tadano, XCMG QAY, Zoomlion, SANY; МЗКТ «Волат»; «Ивановец», «Галичанин» на собственных спецшасси",
-    "aliases": []
+    "aliases": [],
+    "vtype": "специальный, шасси"
   },
   {
     "category": "Тракторы и специальные шасси",
@@ -190,21 +201,24 @@ export const TS_BASES = [
       "мини трактор",
       "трактор колёсный",
       "трактор гусеничный"
-    ]
+    ],
+    "vtype": "трактор"
   },
   {
     "category": "Тракторы и специальные шасси",
     "name": "Вездеход, гусеничный транспортёр",
     "hint": "Гусеничный или колёсный ход сверхвысокой проходимости; регистрируется по техническому паспорту, как самоходная машина.",
     "examples": "ГАЗ-71/34039, МТ-ЛБ, ГТ-Т, ТМ-140, «Витязь», ТРЭКОЛ, Шерп, Бурлак",
-    "aliases": []
+    "aliases": [],
+    "vtype": "вездеход"
   },
   {
     "category": "По техпаспорту",
     "name": "Прочее",
     "hint": "Машина не подходит ни под одну базу своей категории.",
     "examples": "Редкие и штучные машины, переоборудованные из военной техники",
-    "aliases": []
+    "aliases": [],
+    "vtype": ""
   }
 ];
 
@@ -6041,7 +6055,7 @@ export const TS_TEMPLATES = [
     "name": "Мультилифт с контейнером — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, мультилифт",
     "order": 0,
     "modules": [
       {
@@ -6069,7 +6083,7 @@ export const TS_TEMPLATES = [
     "name": "Мультилифт с контейнером — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, мультилифт",
     "order": 3,
     "modules": [
       {
@@ -6094,7 +6108,7 @@ export const TS_TEMPLATES = [
     "name": "Мультилифт с контейнером — тракторный прицеп",
     "kind": "base",
     "carrier": "ТПР",
-    "vtype": "",
+    "vtype": "прицеп, мультилифт",
     "order": 4,
     "modules": [
       {
@@ -6119,7 +6133,7 @@ export const TS_TEMPLATES = [
     "name": "Бункеровоз с бункером — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, бункеровоз",
     "order": 0,
     "modules": [
       {
@@ -6146,7 +6160,7 @@ export const TS_TEMPLATES = [
     "name": "Бункеровоз с бункером — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, бункеровоз",
     "order": 3,
     "modules": [
       {
@@ -6199,7 +6213,7 @@ export const TS_TEMPLATES = [
     "name": "Комбинированная дорожная машина с отвалом и пескоразбрасывателем — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, поливомоечный",
     "order": 0,
     "modules": [
       {
@@ -6232,7 +6246,7 @@ export const TS_TEMPLATES = [
     "name": "Комбинированная дорожная машина с отвалом и пескоразбрасывателем — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -6262,7 +6276,7 @@ export const TS_TEMPLATES = [
     "name": "Комбинированная дорожная машина с отвалом и пескоразбрасывателем — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -6292,7 +6306,7 @@ export const TS_TEMPLATES = [
     "name": "Трактор с погрузчиком и ковшом",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -6318,7 +6332,7 @@ export const TS_TEMPLATES = [
     "name": "Автобус с салоном",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -6913,7 +6927,7 @@ export const TS_TEMPLATES = [
     "name": "Мультилифт (крюковой погрузчик) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, мультилифт",
     "order": 0,
     "modules": [
       {
@@ -6936,7 +6950,7 @@ export const TS_TEMPLATES = [
     "name": "Мультилифт (крюковой погрузчик) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, мультилифт",
     "order": 3,
     "modules": [
       {
@@ -6956,7 +6970,7 @@ export const TS_TEMPLATES = [
     "name": "Мультилифт (крюковой погрузчик) — тракторный прицеп",
     "kind": "base",
     "carrier": "ТПР",
-    "vtype": "",
+    "vtype": "прицеп, мультилифт",
     "order": 4,
     "modules": [
       {
@@ -6976,7 +6990,7 @@ export const TS_TEMPLATES = [
     "name": "Бункеровоз (портальный погрузчик) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, бункеровоз",
     "order": 0,
     "modules": [
       {
@@ -6999,7 +7013,7 @@ export const TS_TEMPLATES = [
     "name": "Бункеровоз (портальный погрузчик) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, бункеровоз",
     "order": 3,
     "modules": [
       {
@@ -7161,7 +7175,7 @@ export const TS_TEMPLATES = [
     "name": "Панелевоз — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, панелевоз",
     "order": 0,
     "modules": [
       {
@@ -7182,7 +7196,7 @@ export const TS_TEMPLATES = [
     "name": "Панелевоз — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, панелевоз",
     "order": 2,
     "modules": [
       {
@@ -7344,7 +7358,7 @@ export const TS_TEMPLATES = [
     "name": "Скотовоз — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, скотовоз",
     "order": 0,
     "modules": [
       {
@@ -7365,7 +7379,7 @@ export const TS_TEMPLATES = [
     "name": "Скотовоз — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, скотовоз",
     "order": 2,
     "modules": [
       {
@@ -7382,7 +7396,7 @@ export const TS_TEMPLATES = [
     "name": "Скотовоз — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, скотовоз",
     "order": 3,
     "modules": [
       {
@@ -7399,7 +7413,7 @@ export const TS_TEMPLATES = [
     "name": "Скотовоз — тракторный прицеп",
     "kind": "base",
     "carrier": "ТПР",
-    "vtype": "",
+    "vtype": "прицеп, скотовоз",
     "order": 4,
     "modules": [
       {
@@ -7616,7 +7630,7 @@ export const TS_TEMPLATES = [
     "name": "Кузов-фургон (КУНГ) — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -7658,7 +7672,7 @@ export const TS_TEMPLATES = [
     "name": "Пчеловоз — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "грузовой, пчелопавильон",
     "order": 0,
     "modules": [
       {
@@ -7682,7 +7696,7 @@ export const TS_TEMPLATES = [
     "name": "Пчеловоз — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, пчелопавильон",
     "order": 2,
     "modules": [
       {
@@ -7703,7 +7717,7 @@ export const TS_TEMPLATES = [
     "name": "Пчеловоз — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, пчелопавильон",
     "order": 3,
     "modules": [
       {
@@ -8645,7 +8659,7 @@ export const TS_TEMPLATES = [
     "name": "Автокран — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -8670,7 +8684,7 @@ export const TS_TEMPLATES = [
     "name": "Автокран — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -8787,7 +8801,7 @@ export const TS_TEMPLATES = [
     "name": "Кран-манипулятор (КМУ) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -8810,7 +8824,7 @@ export const TS_TEMPLATES = [
     "name": "Лесной гидроманипулятор — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, лесной гидроманипулятор",
     "order": 0,
     "modules": [
       {
@@ -8831,7 +8845,7 @@ export const TS_TEMPLATES = [
     "name": "Лесной гидроманипулятор — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -8852,7 +8866,7 @@ export const TS_TEMPLATES = [
     "name": "Лесной гидроманипулятор — тракторный прицеп",
     "kind": "base",
     "carrier": "ТПР",
-    "vtype": "",
+    "vtype": "прицеп, лесной гидроманипулятор",
     "order": 4,
     "modules": [
       {
@@ -8873,7 +8887,7 @@ export const TS_TEMPLATES = [
     "name": "Лесной гидроманипулятор — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, лесной гидроманипулятор",
     "order": 3,
     "modules": [
       {
@@ -8917,7 +8931,7 @@ export const TS_TEMPLATES = [
     "name": "Автовышка — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, автовышка",
     "order": 3,
     "modules": [
       {
@@ -8940,7 +8954,7 @@ export const TS_TEMPLATES = [
     "name": "Автовышка — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -8963,7 +8977,7 @@ export const TS_TEMPLATES = [
     "name": "Автовышка — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -9046,7 +9060,7 @@ export const TS_TEMPLATES = [
     "name": "Эвакуатор с частичной погрузкой — легковой",
     "kind": "base",
     "carrier": "ЛГ",
-    "vtype": "",
+    "vtype": "легковой, специальный",
     "order": 6,
     "modules": [
       {
@@ -9086,7 +9100,7 @@ export const TS_TEMPLATES = [
     "name": "Эвакуатор-ротатор — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -9130,7 +9144,7 @@ export const TS_TEMPLATES = [
     "name": "Автобетоносмеситель (миксер) — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, автобетоносмеситель",
     "order": 2,
     "modules": [
       {
@@ -9154,7 +9168,7 @@ export const TS_TEMPLATES = [
     "name": "Автобетоносмеситель (миксер) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, автобетоносмеситель",
     "order": 3,
     "modules": [
       {
@@ -9178,7 +9192,7 @@ export const TS_TEMPLATES = [
     "name": "Автобетононасос — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, автобетононасос",
     "order": 0,
     "modules": [
       {
@@ -9198,7 +9212,7 @@ export const TS_TEMPLATES = [
     "name": "Автобетононасос — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, автобетононасос",
     "order": 3,
     "modules": [
       {
@@ -9218,7 +9232,7 @@ export const TS_TEMPLATES = [
     "name": "Буровая установка — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, буровая установка",
     "order": 0,
     "modules": [
       {
@@ -9238,7 +9252,7 @@ export const TS_TEMPLATES = [
     "name": "Буровая установка — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -9258,7 +9272,7 @@ export const TS_TEMPLATES = [
     "name": "Буровая установка — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9278,7 +9292,7 @@ export const TS_TEMPLATES = [
     "name": "Буровая установка — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -9298,7 +9312,7 @@ export const TS_TEMPLATES = [
     "name": "Буровая установка — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, буровая установка",
     "order": 3,
     "modules": [
       {
@@ -9318,7 +9332,7 @@ export const TS_TEMPLATES = [
     "name": "Буровая установка — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -9339,7 +9353,7 @@ export const TS_TEMPLATES = [
     "name": "Ямобур (бурильно-крановая машина) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, ямобур",
     "order": 0,
     "modules": [
       {
@@ -9360,7 +9374,7 @@ export const TS_TEMPLATES = [
     "name": "Ямобур (бурильно-крановая машина) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9381,7 +9395,7 @@ export const TS_TEMPLATES = [
     "name": "Ямобур (бурильно-крановая машина) — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -9402,7 +9416,7 @@ export const TS_TEMPLATES = [
     "name": "Ямобур (бурильно-крановая машина) — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -9424,7 +9438,7 @@ export const TS_TEMPLATES = [
     "name": "Автогудронатор — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, автогудронатор",
     "order": 0,
     "modules": [
       {
@@ -9443,7 +9457,7 @@ export const TS_TEMPLATES = [
     "name": "Автогудронатор — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, автогудронатор",
     "order": 3,
     "modules": [
       {
@@ -9462,7 +9476,7 @@ export const TS_TEMPLATES = [
     "name": "Асфальтовоз-термос — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, асфальтовоз-термос",
     "order": 0,
     "modules": [
       {
@@ -9479,7 +9493,7 @@ export const TS_TEMPLATES = [
     "name": "Асфальтовоз-термос — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, асфальтовоз-термос",
     "order": 2,
     "modules": [
       {
@@ -9496,7 +9510,7 @@ export const TS_TEMPLATES = [
     "name": "Распределитель щебня — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, распределитель щебня",
     "order": 0,
     "modules": [
       {
@@ -9513,7 +9527,7 @@ export const TS_TEMPLATES = [
     "name": "Распределитель щебня — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, распределитель щебня",
     "order": 3,
     "modules": [
       {
@@ -9530,7 +9544,7 @@ export const TS_TEMPLATES = [
     "name": "Дорожный ремонтёр (ямочный ремонт) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, дорожный ремонтёр",
     "order": 0,
     "modules": [
       {
@@ -9547,7 +9561,7 @@ export const TS_TEMPLATES = [
     "name": "Дорожный ремонтёр (ямочный ремонт) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, дорожный ремонтёр",
     "order": 3,
     "modules": [
       {
@@ -9564,7 +9578,7 @@ export const TS_TEMPLATES = [
     "name": "Разметочное оборудование (машина для разметки дорог) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, разметочное оборудование",
     "order": 0,
     "modules": [
       {
@@ -9581,7 +9595,7 @@ export const TS_TEMPLATES = [
     "name": "Разметочное оборудование (машина для разметки дорог) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, разметочное оборудование",
     "order": 3,
     "modules": [
       {
@@ -9598,7 +9612,7 @@ export const TS_TEMPLATES = [
     "name": "Экскаваторное оборудование — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9615,7 +9629,7 @@ export const TS_TEMPLATES = [
     "name": "Экскаваторное оборудование — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -9632,7 +9646,7 @@ export const TS_TEMPLATES = [
     "name": "Экскаваторное оборудование — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, экскаваторное оборудование",
     "order": 0,
     "modules": [
       {
@@ -9649,7 +9663,7 @@ export const TS_TEMPLATES = [
     "name": "Трубоукладочное оборудование — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9666,7 +9680,7 @@ export const TS_TEMPLATES = [
     "name": "Трубоукладочное оборудование — бульдозер",
     "kind": "self",
     "carrier": "БУЛ",
-    "vtype": "",
+    "vtype": "бульдозер",
     "order": 14,
     "modules": [
       {
@@ -9684,7 +9698,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал бульдозерный — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9701,7 +9715,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал бульдозерный — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -9718,7 +9732,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал бульдозерный — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -9736,7 +9750,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал бульдозерный — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -9754,7 +9768,7 @@ export const TS_TEMPLATES = [
     "name": "Фреза дорожная — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9771,7 +9785,7 @@ export const TS_TEMPLATES = [
     "name": "Фреза дорожная — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -9789,7 +9803,7 @@ export const TS_TEMPLATES = [
     "name": "Фреза дорожная — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -9807,7 +9821,7 @@ export const TS_TEMPLATES = [
     "name": "Мульчер (лесная фреза) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9824,7 +9838,7 @@ export const TS_TEMPLATES = [
     "name": "Мульчер (лесная фреза) — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -9842,7 +9856,7 @@ export const TS_TEMPLATES = [
     "name": "Мульчер (лесная фреза) — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -9860,7 +9874,7 @@ export const TS_TEMPLATES = [
     "name": "Мульчер (лесная фреза) — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -9878,7 +9892,7 @@ export const TS_TEMPLATES = [
     "name": "Виброплита навесная — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -9896,7 +9910,7 @@ export const TS_TEMPLATES = [
     "name": "Виброплита навесная — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -9914,7 +9928,7 @@ export const TS_TEMPLATES = [
     "name": "Виброплита навесная — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -9932,7 +9946,7 @@ export const TS_TEMPLATES = [
     "name": "Траншеекопатель навесной — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -9949,7 +9963,7 @@ export const TS_TEMPLATES = [
     "name": "Траншеекопатель навесной — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -9967,7 +9981,7 @@ export const TS_TEMPLATES = [
     "name": "Траншеекопатель навесной — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -10005,7 +10019,7 @@ export const TS_TEMPLATES = [
     "name": "Мусоровоз с задней загрузкой — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10045,7 +10059,7 @@ export const TS_TEMPLATES = [
     "name": "Мусоровоз с боковой загрузкой — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10107,7 +10121,7 @@ export const TS_TEMPLATES = [
     "name": "Комбинированная дорожная машина (КДМ) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10129,7 +10143,7 @@ export const TS_TEMPLATES = [
     "name": "Комбинированная дорожная машина (КДМ) — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10175,7 +10189,7 @@ export const TS_TEMPLATES = [
     "name": "Поливомоечное оборудование — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10199,7 +10213,7 @@ export const TS_TEMPLATES = [
     "name": "Поливомоечное оборудование — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10223,7 +10237,7 @@ export const TS_TEMPLATES = [
     "name": "Поливомоечное оборудование — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, поливомоечное оборудование",
     "order": 3,
     "modules": [
       {
@@ -10247,7 +10261,7 @@ export const TS_TEMPLATES = [
     "name": "Подметально-уборочная машина — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, подметально-уборочная машина",
     "order": 0,
     "modules": [
       {
@@ -10268,7 +10282,7 @@ export const TS_TEMPLATES = [
     "name": "Подметально-уборочная машина — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10289,7 +10303,7 @@ export const TS_TEMPLATES = [
     "name": "Подметально-уборочная машина — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10310,7 +10324,7 @@ export const TS_TEMPLATES = [
     "name": "Пескоразбрасыватель — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, пескоразбрасыватель",
     "order": 0,
     "modules": [
       {
@@ -10331,7 +10345,7 @@ export const TS_TEMPLATES = [
     "name": "Пескоразбрасыватель — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10352,7 +10366,7 @@ export const TS_TEMPLATES = [
     "name": "Пескоразбрасыватель — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10373,7 +10387,7 @@ export const TS_TEMPLATES = [
     "name": "Пескоразбрасыватель — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, пескоразбрасыватель",
     "order": 3,
     "modules": [
       {
@@ -10394,7 +10408,7 @@ export const TS_TEMPLATES = [
     "name": "Пескоразбрасыватель — тракторный прицеп",
     "kind": "base",
     "carrier": "ТПР",
-    "vtype": "",
+    "vtype": "прицеп, пескоразбрасыватель",
     "order": 4,
     "modules": [
       {
@@ -10415,7 +10429,7 @@ export const TS_TEMPLATES = [
     "name": "Шнекороторный снегоочиститель — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, шнекороторный снегоочиститель",
     "order": 0,
     "modules": [
       {
@@ -10432,7 +10446,7 @@ export const TS_TEMPLATES = [
     "name": "Шнекороторный снегоочиститель — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10449,7 +10463,7 @@ export const TS_TEMPLATES = [
     "name": "Шнекороторный снегоочиститель — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10466,7 +10480,7 @@ export const TS_TEMPLATES = [
     "name": "Шнекороторный снегоочиститель — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -10484,7 +10498,7 @@ export const TS_TEMPLATES = [
     "name": "Каналопромывочная машина — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, каналопромывочная машина",
     "order": 0,
     "modules": [
       {
@@ -10501,7 +10515,7 @@ export const TS_TEMPLATES = [
     "name": "Каналопромывочная машина — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, каналопромывочная машина",
     "order": 3,
     "modules": [
       {
@@ -10518,7 +10532,7 @@ export const TS_TEMPLATES = [
     "name": "Каналопромывочно-илососная машина",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, каналопромывочно-илососная машина",
     "order": 0,
     "modules": [
       {
@@ -10535,7 +10549,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал снежный — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, отвал снежный",
     "order": 0,
     "modules": [
       {
@@ -10556,7 +10570,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал снежный — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10577,7 +10591,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал снежный — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10598,7 +10612,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал снежный — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -10620,7 +10634,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал снежный — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -10642,7 +10656,7 @@ export const TS_TEMPLATES = [
     "name": "Отвал снежный — автогрейдер",
     "kind": "self",
     "carrier": "ГР",
-    "vtype": "",
+    "vtype": "автогрейдер",
     "order": 19,
     "modules": [
       {
@@ -10664,7 +10678,7 @@ export const TS_TEMPLATES = [
     "name": "Щётка коммунальная — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, щётка коммунальная",
     "order": 0,
     "modules": [
       {
@@ -10685,7 +10699,7 @@ export const TS_TEMPLATES = [
     "name": "Щётка коммунальная — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10706,7 +10720,7 @@ export const TS_TEMPLATES = [
     "name": "Щётка коммунальная — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10727,7 +10741,7 @@ export const TS_TEMPLATES = [
     "name": "Щётка коммунальная — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -10749,7 +10763,7 @@ export const TS_TEMPLATES = [
     "name": "Щётка коммунальная — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -10771,7 +10785,7 @@ export const TS_TEMPLATES = [
     "name": "Снегоочиститель фрезерно-роторный — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, снегоочиститель фрезерно-роторный",
     "order": 0,
     "modules": [
       {
@@ -10788,7 +10802,7 @@ export const TS_TEMPLATES = [
     "name": "Снегоочиститель фрезерно-роторный — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10805,7 +10819,7 @@ export const TS_TEMPLATES = [
     "name": "Снегоочиститель фрезерно-роторный — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -10822,7 +10836,7 @@ export const TS_TEMPLATES = [
     "name": "Снегоочиститель фрезерно-роторный — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -10861,7 +10875,7 @@ export const TS_TEMPLATES = [
     "name": "Пожарная автоцистерна (АЦ) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -10882,7 +10896,7 @@ export const TS_TEMPLATES = [
     "name": "Пожарная автоцистерна (АЦ) — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -10958,7 +10972,7 @@ export const TS_TEMPLATES = [
     "name": "Пожарная насосная станция (ПНС) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, пожарная насосная станция",
     "order": 3,
     "modules": [
       {
@@ -11009,7 +11023,7 @@ export const TS_TEMPLATES = [
     "name": "Пожарный первой помощи (АПП) — легковой",
     "kind": "base",
     "carrier": "ЛГ",
-    "vtype": "",
+    "vtype": "легковой, специальный",
     "order": 6,
     "modules": [
       {
@@ -11043,7 +11057,7 @@ export const TS_TEMPLATES = [
     "name": "Пожарный пенного, порошкового или газового тушения — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, пожарный пенного, порошкового или газового тушения",
     "order": 3,
     "modules": [
       {
@@ -11077,7 +11091,7 @@ export const TS_TEMPLATES = [
     "name": "Аэродромный пожарный — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -11111,7 +11125,7 @@ export const TS_TEMPLATES = [
     "name": "Пожарный вспомогательный (аварийно-спасательный, штабной, рукавный) — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11152,7 +11166,7 @@ export const TS_TEMPLATES = [
     "name": "Скорая помощь класса A (санитарная) — легковой",
     "kind": "base",
     "carrier": "ЛГ",
-    "vtype": "",
+    "vtype": "легковой, специальный",
     "order": 6,
     "modules": [
       {
@@ -11240,7 +11254,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижной медицинский кабинет — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11263,7 +11277,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижной медицинский кабинет — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, передвижной медицинский кабинет",
     "order": 2,
     "modules": [
       {
@@ -11286,7 +11300,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижной медицинский кабинет — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, передвижной медицинский кабинет",
     "order": 3,
     "modules": [
       {
@@ -11309,7 +11323,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная лаборатория — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, передвижная лаборатория",
     "order": 0,
     "modules": [
       {
@@ -11326,7 +11340,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная лаборатория — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11343,7 +11357,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная лаборатория — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, передвижная лаборатория",
     "order": 3,
     "modules": [
       {
@@ -11360,7 +11374,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная лаборатория — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, передвижная лаборатория",
     "order": 2,
     "modules": [
       {
@@ -11400,7 +11414,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная автомастерская — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, передвижная автомастерская",
     "order": 3,
     "modules": [
       {
@@ -11423,7 +11437,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная автомастерская — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11446,7 +11460,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижная автомастерская — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -11469,7 +11483,7 @@ export const TS_TEMPLATES = [
     "name": "Аварийная газовой службы — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, аварийная газовой службы",
     "order": 0,
     "modules": [
       {
@@ -11486,7 +11500,7 @@ export const TS_TEMPLATES = [
     "name": "Аварийная газовой службы — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11503,7 +11517,7 @@ export const TS_TEMPLATES = [
     "name": "Аварийно-ремонтная (электросети, водоканал) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, аварийно-ремонтная",
     "order": 0,
     "modules": [
       {
@@ -11520,7 +11534,7 @@ export const TS_TEMPLATES = [
     "name": "Аварийно-ремонтная (электросети, водоканал) — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11537,7 +11551,7 @@ export const TS_TEMPLATES = [
     "name": "Аварийно-ремонтная (электросети, водоканал) — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -11554,7 +11568,7 @@ export const TS_TEMPLATES = [
     "name": "Инкассаторский автомобиль — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, инкассаторский автомобиль",
     "order": 0,
     "modules": [
       {
@@ -11577,7 +11591,7 @@ export const TS_TEMPLATES = [
     "name": "Инкассаторский автомобиль — легковой",
     "kind": "base",
     "carrier": "ЛГ",
-    "vtype": "",
+    "vtype": "легковой, специальный",
     "order": 6,
     "modules": [
       {
@@ -11600,7 +11614,7 @@ export const TS_TEMPLATES = [
     "name": "Оперативный (патрульный) — легковой",
     "kind": "base",
     "carrier": "ЛГ",
-    "vtype": "",
+    "vtype": "легковой, специальный",
     "order": 6,
     "modules": [
       {
@@ -11617,7 +11631,7 @@ export const TS_TEMPLATES = [
     "name": "Оперативный (патрульный) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, оперативный",
     "order": 0,
     "modules": [
       {
@@ -11634,7 +11648,7 @@ export const TS_TEMPLATES = [
     "name": "Штабной автомобиль — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11651,7 +11665,7 @@ export const TS_TEMPLATES = [
     "name": "Штабной автомобиль — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, штабной автомобиль",
     "order": 0,
     "modules": [
       {
@@ -11668,7 +11682,7 @@ export const TS_TEMPLATES = [
     "name": "Штабной автомобиль — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, штабной автомобиль",
     "order": 2,
     "modules": [
       {
@@ -11685,7 +11699,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижной офис (бытовка) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, передвижной офис",
     "order": 3,
     "modules": [
       {
@@ -11707,7 +11721,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижной офис (бытовка) — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, передвижной офис",
     "order": 2,
     "modules": [
       {
@@ -11729,7 +11743,7 @@ export const TS_TEMPLATES = [
     "name": "Передвижной офис (бытовка) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, передвижной офис",
     "order": 0,
     "modules": [
       {
@@ -11751,7 +11765,7 @@ export const TS_TEMPLATES = [
     "name": "Вахтовый автобус — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, вахтовый автобус",
     "order": 0,
     "modules": [
       {
@@ -11771,7 +11785,7 @@ export const TS_TEMPLATES = [
     "name": "Вахтовый автобус — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -11791,7 +11805,7 @@ export const TS_TEMPLATES = [
     "name": "Автодом — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, автодом",
     "order": 0,
     "modules": [
       {
@@ -11813,7 +11827,7 @@ export const TS_TEMPLATES = [
     "name": "Автодом — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11835,7 +11849,7 @@ export const TS_TEMPLATES = [
     "name": "Автодом — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, автодом",
     "order": 3,
     "modules": [
       {
@@ -11857,7 +11871,7 @@ export const TS_TEMPLATES = [
     "name": "Автолавка (торговый фургон) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, автолавка",
     "order": 0,
     "modules": [
       {
@@ -11878,7 +11892,7 @@ export const TS_TEMPLATES = [
     "name": "Автолавка (торговый фургон) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, автолавка",
     "order": 3,
     "modules": [
       {
@@ -11899,7 +11913,7 @@ export const TS_TEMPLATES = [
     "name": "Автолавка (торговый фургон) — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11920,7 +11934,7 @@ export const TS_TEMPLATES = [
     "name": "Хлебный фургон",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, хлебный фургон",
     "order": 0,
     "modules": [
       {
@@ -11940,7 +11954,7 @@ export const TS_TEMPLATES = [
     "name": "Катафалк — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, катафалк",
     "order": 0,
     "modules": [
       {
@@ -11957,7 +11971,7 @@ export const TS_TEMPLATES = [
     "name": "Катафалк — легковой",
     "kind": "base",
     "carrier": "ЛГ",
-    "vtype": "",
+    "vtype": "легковой, специальный",
     "order": 6,
     "modules": [
       {
@@ -11974,7 +11988,7 @@ export const TS_TEMPLATES = [
     "name": "Катафалк — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -11991,7 +12005,7 @@ export const TS_TEMPLATES = [
     "name": "Спецоборудование салона автобуса",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -12008,7 +12022,7 @@ export const TS_TEMPLATES = [
     "name": "Электростанция (дизель-генератор) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, электростанция",
     "order": 0,
     "modules": [
       {
@@ -12029,7 +12043,7 @@ export const TS_TEMPLATES = [
     "name": "Электростанция (дизель-генератор) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, электростанция",
     "order": 3,
     "modules": [
       {
@@ -12050,7 +12064,7 @@ export const TS_TEMPLATES = [
     "name": "Электростанция (дизель-генератор) — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, электростанция",
     "order": 2,
     "modules": [
       {
@@ -12071,7 +12085,7 @@ export const TS_TEMPLATES = [
     "name": "Компрессорная установка — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, компрессорная установка",
     "order": 0,
     "modules": [
       {
@@ -12088,7 +12102,7 @@ export const TS_TEMPLATES = [
     "name": "Компрессорная установка — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, компрессорная установка",
     "order": 3,
     "modules": [
       {
@@ -12105,7 +12119,7 @@ export const TS_TEMPLATES = [
     "name": "Насосная установка (мотопомпа) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, насосная установка",
     "order": 0,
     "modules": [
       {
@@ -12122,7 +12136,7 @@ export const TS_TEMPLATES = [
     "name": "Насосная установка (мотопомпа) — прицеп",
     "kind": "base",
     "carrier": "ПР",
-    "vtype": "",
+    "vtype": "прицеп, насосная установка",
     "order": 3,
     "modules": [
       {
@@ -12139,7 +12153,7 @@ export const TS_TEMPLATES = [
     "name": "Насосная установка (мотопомпа) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12156,7 +12170,7 @@ export const TS_TEMPLATES = [
     "name": "Подъёмник для инвалидной коляски — автобус",
     "kind": "base",
     "carrier": "АВ",
-    "vtype": "",
+    "vtype": "автобус, специальный",
     "order": 5,
     "modules": [
       {
@@ -12177,7 +12191,7 @@ export const TS_TEMPLATES = [
     "name": "Подъёмник для инвалидной коляски — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, подъёмник для инвалидной коляски",
     "order": 0,
     "modules": [
       {
@@ -12198,7 +12212,7 @@ export const TS_TEMPLATES = [
     "name": "Цементировочный агрегат (ЦА) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, цементировочный агрегат",
     "order": 0,
     "modules": [
       {
@@ -12215,7 +12229,7 @@ export const TS_TEMPLATES = [
     "name": "Цементировочный агрегат (ЦА) — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12232,7 +12246,7 @@ export const TS_TEMPLATES = [
     "name": "Насосный агрегат — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, насосный агрегат",
     "order": 0,
     "modules": [
       {
@@ -12249,7 +12263,7 @@ export const TS_TEMPLATES = [
     "name": "Насосный агрегат — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12266,7 +12280,7 @@ export const TS_TEMPLATES = [
     "name": "Насосный агрегат — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, насосный агрегат",
     "order": 2,
     "modules": [
       {
@@ -12283,7 +12297,7 @@ export const TS_TEMPLATES = [
     "name": "Паропередвижная установка (ППУ) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, паропередвижная установка",
     "order": 0,
     "modules": [
       {
@@ -12300,7 +12314,7 @@ export const TS_TEMPLATES = [
     "name": "Паропередвижная установка (ППУ) — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12317,7 +12331,7 @@ export const TS_TEMPLATES = [
     "name": "Агрегат депарафинизации (АДПМ) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, агрегат депарафинизации",
     "order": 0,
     "modules": [
       {
@@ -12334,7 +12348,7 @@ export const TS_TEMPLATES = [
     "name": "Агрегат депарафинизации (АДПМ) — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12351,7 +12365,7 @@ export const TS_TEMPLATES = [
     "name": "Подъёмник ремонта скважин — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, подъёмник ремонта скважин",
     "order": 0,
     "modules": [
       {
@@ -12368,7 +12382,7 @@ export const TS_TEMPLATES = [
     "name": "Подъёмник ремонта скважин — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12385,7 +12399,7 @@ export const TS_TEMPLATES = [
     "name": "Подъёмник ремонта скважин — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12402,7 +12416,7 @@ export const TS_TEMPLATES = [
     "name": "Подъёмник ремонта скважин — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -12419,7 +12433,7 @@ export const TS_TEMPLATES = [
     "name": "Смесительная установка — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, смесительная установка",
     "order": 0,
     "modules": [
       {
@@ -12436,7 +12450,7 @@ export const TS_TEMPLATES = [
     "name": "Смесительная установка — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12453,7 +12467,7 @@ export const TS_TEMPLATES = [
     "name": "Смесительная установка — полуприцеп",
     "kind": "base",
     "carrier": "ПП",
-    "vtype": "",
+    "vtype": "полуприцеп, смесительная установка",
     "order": 2,
     "modules": [
       {
@@ -12470,7 +12484,7 @@ export const TS_TEMPLATES = [
     "name": "Каротажный подъёмник (лаборатория) — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, каротажный подъёмник",
     "order": 0,
     "modules": [
       {
@@ -12487,7 +12501,7 @@ export const TS_TEMPLATES = [
     "name": "Каротажный подъёмник (лаборатория) — многоосное шасси",
     "kind": "base",
     "carrier": "СМШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 9,
     "modules": [
       {
@@ -12504,7 +12518,7 @@ export const TS_TEMPLATES = [
     "name": "Каротажный подъёмник (лаборатория) — вездеход",
     "kind": "base",
     "carrier": "ВЗ",
-    "vtype": "",
+    "vtype": "вездеход",
     "order": 10,
     "modules": [
       {
@@ -12521,7 +12535,7 @@ export const TS_TEMPLATES = [
     "name": "Кормовоз — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, кормовоз",
     "order": 0,
     "modules": [
       {
@@ -12538,7 +12552,7 @@ export const TS_TEMPLATES = [
     "name": "Кормовоз — тракторный прицеп",
     "kind": "base",
     "carrier": "ТПР",
-    "vtype": "",
+    "vtype": "прицеп, кормовоз",
     "order": 4,
     "modules": [
       {
@@ -12555,7 +12569,7 @@ export const TS_TEMPLATES = [
     "name": "Кормораздатчик на шасси — грузовое ТС",
     "kind": "base",
     "carrier": "ГА",
-    "vtype": "",
+    "vtype": "специальный, кормораздатчик на шасси",
     "order": 0,
     "modules": [
       {
@@ -12572,7 +12586,7 @@ export const TS_TEMPLATES = [
     "name": "Кормораздатчик на шасси — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12589,7 +12603,7 @@ export const TS_TEMPLATES = [
     "name": "Плуг навесной",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12606,7 +12620,7 @@ export const TS_TEMPLATES = [
     "name": "Культиватор навесной",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12623,7 +12637,7 @@ export const TS_TEMPLATES = [
     "name": "Борона навесная",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12640,7 +12654,7 @@ export const TS_TEMPLATES = [
     "name": "Косилка навесная — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12660,7 +12674,7 @@ export const TS_TEMPLATES = [
     "name": "Косилка навесная — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -12680,7 +12694,7 @@ export const TS_TEMPLATES = [
     "name": "Фреза почвенная",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12697,7 +12711,7 @@ export const TS_TEMPLATES = [
     "name": "Картофелесажалка, копалка",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12714,7 +12728,7 @@ export const TS_TEMPLATES = [
     "name": "Грабли (сеноворошилка)",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12735,7 +12749,7 @@ export const TS_TEMPLATES = [
     "name": "Погрузочное оборудование — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12752,7 +12766,7 @@ export const TS_TEMPLATES = [
     "name": "Погрузочное оборудование — коммунальное шасси",
     "kind": "base",
     "carrier": "МКШ",
-    "vtype": "",
+    "vtype": "специальный, шасси",
     "order": 8,
     "modules": [
       {
@@ -12769,7 +12783,7 @@ export const TS_TEMPLATES = [
     "name": "Вилы паллетные — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -12789,7 +12803,7 @@ export const TS_TEMPLATES = [
     "name": "Вилы паллетные — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -12809,7 +12823,7 @@ export const TS_TEMPLATES = [
     "name": "Вилы паллетные — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -12829,7 +12843,7 @@ export const TS_TEMPLATES = [
     "name": "Вилы паллетные — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12848,7 +12862,7 @@ export const TS_TEMPLATES = [
     "name": "Вилы паллетные — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -12868,7 +12882,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для брёвен — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -12886,7 +12900,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для брёвен — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -12904,7 +12918,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для брёвен — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12921,7 +12935,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для брёвен — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -12939,7 +12953,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для рулонов (тюков) — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -12957,7 +12971,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для рулонов (тюков) — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -12975,7 +12989,7 @@ export const TS_TEMPLATES = [
     "name": "Захват для рулонов (тюков) — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -12992,7 +13006,7 @@ export const TS_TEMPLATES = [
     "name": "Грейфер — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13010,7 +13024,7 @@ export const TS_TEMPLATES = [
     "name": "Грейфер — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13028,7 +13042,7 @@ export const TS_TEMPLATES = [
     "name": "Крановая стрела (крюк) — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13046,7 +13060,7 @@ export const TS_TEMPLATES = [
     "name": "Крановая стрела (крюк) — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -13064,7 +13078,7 @@ export const TS_TEMPLATES = [
     "name": "Крановая стрела (крюк) — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -13082,7 +13096,7 @@ export const TS_TEMPLATES = [
     "name": "Люлька — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -13100,7 +13114,7 @@ export const TS_TEMPLATES = [
     "name": "Люлька — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13118,7 +13132,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш основной — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13138,7 +13152,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш основной — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -13158,7 +13172,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш основной — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13178,7 +13192,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш основной — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13198,7 +13212,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш основной — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -13218,7 +13232,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш основной — трактор",
     "kind": "base",
     "carrier": "ТР",
-    "vtype": "",
+    "vtype": "трактор",
     "order": 7,
     "modules": [
       {
@@ -13237,7 +13251,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш скальный — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13257,7 +13271,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш скальный — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13277,7 +13291,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш планировочный (откосный, поворотный) — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13295,7 +13309,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш планировочный (откосный, поворотный) — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -13313,7 +13327,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш планировочный (откосный, поворотный) — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13331,7 +13345,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш траншейный — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13349,7 +13363,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш траншейный — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -13367,7 +13381,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш траншейный — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13385,7 +13399,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш челюстной (4 в 1) — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13406,7 +13420,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш челюстной (4 в 1) — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -13427,7 +13441,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш челюстной (4 в 1) — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13448,7 +13462,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш для лёгких материалов — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13466,7 +13480,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш для лёгких материалов — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -13484,7 +13498,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш-грохот (дробильный) — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13502,7 +13516,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш-грохот (дробильный) — фронтальный погрузчик",
     "kind": "self",
     "carrier": "ФП",
-    "vtype": "",
+    "vtype": "фронтальный погрузчик",
     "order": 15,
     "modules": [
       {
@@ -13520,7 +13534,7 @@ export const TS_TEMPLATES = [
     "name": "Ковш-грохот (дробильный) — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13538,7 +13552,7 @@ export const TS_TEMPLATES = [
     "name": "Гидромолот — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13560,7 +13574,7 @@ export const TS_TEMPLATES = [
     "name": "Гидромолот — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -13582,7 +13596,7 @@ export const TS_TEMPLATES = [
     "name": "Гидромолот — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13604,7 +13618,7 @@ export const TS_TEMPLATES = [
     "name": "Гидромолот — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -13626,7 +13640,7 @@ export const TS_TEMPLATES = [
     "name": "Гидробур (ямобур) — мини-погрузчик",
     "kind": "self",
     "carrier": "МП",
-    "vtype": "",
+    "vtype": "мини-погрузчик",
     "order": 16,
     "modules": [
       {
@@ -13644,7 +13658,7 @@ export const TS_TEMPLATES = [
     "name": "Гидробур (ямобур) — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13662,7 +13676,7 @@ export const TS_TEMPLATES = [
     "name": "Гидробур (ямобур) — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -13680,7 +13694,7 @@ export const TS_TEMPLATES = [
     "name": "Гидробур (ямобур) — экскаватор-погрузчик",
     "kind": "self",
     "carrier": "ЭП",
-    "vtype": "",
+    "vtype": "экскаватор-погрузчик",
     "order": 13,
     "modules": [
       {
@@ -13698,7 +13712,7 @@ export const TS_TEMPLATES = [
     "name": "Гидробур (ямобур) — телескопический погрузчик",
     "kind": "self",
     "carrier": "ТП",
-    "vtype": "",
+    "vtype": "телескопический погрузчик",
     "order": 17,
     "modules": [
       {
@@ -13716,7 +13730,7 @@ export const TS_TEMPLATES = [
     "name": "Рыхлитель — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13734,7 +13748,7 @@ export const TS_TEMPLATES = [
     "name": "Рыхлитель — бульдозер",
     "kind": "self",
     "carrier": "БУЛ",
-    "vtype": "",
+    "vtype": "бульдозер",
     "order": 14,
     "modules": [
       {
@@ -13752,7 +13766,7 @@ export const TS_TEMPLATES = [
     "name": "Гидроножницы (демонтажные) — экскаватор",
     "kind": "self",
     "carrier": "ЭКС",
-    "vtype": "",
+    "vtype": "экскаватор",
     "order": 11,
     "modules": [
       {
@@ -13770,7 +13784,7 @@ export const TS_TEMPLATES = [
     "name": "Гидроножницы (демонтажные) — мини-экскаватор",
     "kind": "self",
     "carrier": "МЭКС",
-    "vtype": "",
+    "vtype": "мини-экскаватор",
     "order": 12,
     "modules": [
       {
@@ -13788,7 +13802,7 @@ export const TS_TEMPLATES = [
     "name": "Жатка зерновая",
     "kind": "self",
     "carrier": "КОМБ",
-    "vtype": "",
+    "vtype": "зерноуборочный комбайн",
     "order": 20,
     "modules": [
       {
@@ -13808,7 +13822,7 @@ export const TS_TEMPLATES = [
     "name": "Жатка кукурузная, подсолнечная — зерноуборочный комбайн",
     "kind": "self",
     "carrier": "КОМБ",
-    "vtype": "",
+    "vtype": "зерноуборочный комбайн",
     "order": 20,
     "modules": [
       {
@@ -13826,7 +13840,7 @@ export const TS_TEMPLATES = [
     "name": "Жатка кукурузная, подсолнечная — кормоуборочный комбайн",
     "kind": "self",
     "carrier": "ККОМБ",
-    "vtype": "",
+    "vtype": "кормоуборочный комбайн",
     "order": 21,
     "modules": [
       {
@@ -13844,7 +13858,7 @@ export const TS_TEMPLATES = [
     "name": "Подборщик — зерноуборочный комбайн",
     "kind": "self",
     "carrier": "КОМБ",
-    "vtype": "",
+    "vtype": "зерноуборочный комбайн",
     "order": 20,
     "modules": [
       {
@@ -13862,7 +13876,7 @@ export const TS_TEMPLATES = [
     "name": "Подборщик — кормоуборочный комбайн",
     "kind": "self",
     "carrier": "ККОМБ",
-    "vtype": "",
+    "vtype": "кормоуборочный комбайн",
     "order": 21,
     "modules": [
       {
@@ -14116,7 +14130,8 @@ export const TS_VTYPE_BY_CATEGORY = {
     "легковой, торпеда",
     "грузопассажирский, универсал",
     "грузопассажирский, пикап",
-    "грузопассажирский, фургон"
+    "грузопассажирский, фургон",
+    "легковой, специальный"
   ],
   "Грузовое": [
     "грузовой, бортовой",
@@ -14152,11 +14167,59 @@ export const TS_VTYPE_BY_CATEGORY = {
     "грузопассажирский, пикап",
     "грузопассажирский, цельнометаллический",
     "грузопассажирский, бортовой",
+    "грузовой, мультилифт",
+    "грузовой, бункеровоз",
+    "грузовой, панелевоз",
     "грузовой, автовоз",
     "грузовой, зерновоз",
+    "грузовой, скотовоз",
     "грузовой, низкорамный (трал)",
     "грузовой, роспуск",
-    "специальный, фургон"
+    "специальный, фургон",
+    "грузовой, пчелопавильон",
+    "специальный, лесной гидроманипулятор",
+    "специальный, автобетононасос",
+    "специальный, буровая установка",
+    "специальный, ямобур",
+    "специальный, автогудронатор",
+    "специальный, асфальтовоз-термос",
+    "специальный, распределитель щебня",
+    "специальный, дорожный ремонтёр",
+    "специальный, разметочное оборудование",
+    "специальный, экскаваторное оборудование",
+    "специальный, подметально-уборочная машина",
+    "специальный, пескоразбрасыватель",
+    "специальный, шнекороторный снегоочиститель",
+    "специальный, каналопромывочная машина",
+    "специальный, каналопромывочно-илососная машина",
+    "специальный, отвал снежный",
+    "специальный, щётка коммунальная",
+    "специальный, снегоочиститель фрезерно-роторный",
+    "специальный, передвижная лаборатория",
+    "специальный, аварийная газовой службы",
+    "специальный, аварийно-ремонтная",
+    "специальный, инкассаторский автомобиль",
+    "специальный, оперативный",
+    "специальный, штабной автомобиль",
+    "специальный, передвижной офис",
+    "специальный, вахтовый автобус",
+    "специальный, автодом",
+    "специальный, автолавка",
+    "специальный, хлебный фургон",
+    "специальный, катафалк",
+    "специальный, электростанция",
+    "специальный, компрессорная установка",
+    "специальный, насосная установка",
+    "специальный, подъёмник для инвалидной коляски",
+    "специальный, цементировочный агрегат",
+    "специальный, насосный агрегат",
+    "специальный, паропередвижная установка",
+    "специальный, агрегат депарафинизации",
+    "специальный, подъёмник ремонта скважин",
+    "специальный, смесительная установка",
+    "специальный, каротажный подъёмник",
+    "специальный, кормовоз",
+    "специальный, кормораздатчик на шасси"
   ],
   "Автобусы": [
     "автобус",
@@ -14168,7 +14231,8 @@ export const TS_VTYPE_BY_CATEGORY = {
     "автобус, вахтовый",
     "микроавтобус",
     "микроавтобус, пассажирский",
-    "микроавтобус, грузопассажирский"
+    "микроавтобус, грузопассажирский",
+    "автобус, специальный"
   ],
   "Мототехника": [
     "мото, мотоцикл",
@@ -14204,19 +14268,59 @@ export const TS_VTYPE_BY_CATEGORY = {
     "полуприцеп, бортовой с манипулятором (КМУ)",
     "прицеп, бортовой с манипулятором (КМУ)",
     "прицеп, лесовоз",
+    "прицеп, мультилифт",
+    "прицеп, бункеровоз",
     "прицеп, тентованный",
     "полуприцеп, фургон изотермический",
     "прицеп, фургон изотермический",
     "прицеп, рефрижератор",
     "прицеп, контейнеровоз",
     "полуприцеп, лесовоз",
+    "полуприцеп, панелевоз",
     "полуприцеп, автовоз",
     "прицеп, автовоз",
     "полуприцеп, зерновоз",
     "прицеп, зерновоз",
+    "полуприцеп, скотовоз",
+    "прицеп, скотовоз",
     "прицеп, низкорамный (трал)",
     "полуприцеп, роспуск",
-    "прицеп, эвакуатор"
+    "полуприцеп, пчелопавильон",
+    "прицеп, пчелопавильон",
+    "прицеп, лесной гидроманипулятор",
+    "прицеп, автовышка",
+    "прицеп, эвакуатор",
+    "полуприцеп, автобетоносмеситель",
+    "прицеп, автобетоносмеситель",
+    "прицеп, автобетононасос",
+    "прицеп, буровая установка",
+    "прицеп, автогудронатор",
+    "полуприцеп, асфальтовоз-термос",
+    "прицеп, распределитель щебня",
+    "прицеп, дорожный ремонтёр",
+    "прицеп, разметочное оборудование",
+    "прицеп, поливомоечное оборудование",
+    "прицеп, пескоразбрасыватель",
+    "прицеп, каналопромывочная машина",
+    "прицеп, пожарная насосная станция",
+    "прицеп, пожарный пенного, порошкового или газового тушения",
+    "полуприцеп, передвижной медицинский кабинет",
+    "прицеп, передвижной медицинский кабинет",
+    "прицеп, передвижная лаборатория",
+    "полуприцеп, передвижная лаборатория",
+    "прицеп, передвижная автомастерская",
+    "полуприцеп, штабной автомобиль",
+    "прицеп, передвижной офис",
+    "полуприцеп, передвижной офис",
+    "прицеп, автодом",
+    "прицеп, автолавка",
+    "прицеп, электростанция",
+    "полуприцеп, электростанция",
+    "прицеп, компрессорная установка",
+    "прицеп, насосная установка",
+    "полуприцеп, насосный агрегат",
+    "полуприцеп, смесительная установка",
+    "прицеп, кормовоз"
   ],
   "Тракторы и специальные шасси": [
     "трактор, колёсный",
@@ -14225,7 +14329,9 @@ export const TS_VTYPE_BY_CATEGORY = {
     "специальный, шасси",
     "вездеход, гусеничный",
     "вездеход, колёсный",
-    "самоходное шасси"
+    "самоходное шасси",
+    "трактор",
+    "вездеход"
   ],
   "По техпаспорту": [
     "легковой, седан",
@@ -14257,6 +14363,7 @@ export const TS_VTYPE_BY_CATEGORY = {
     "грузопассажирский, универсал",
     "грузопассажирский, пикап",
     "грузопассажирский, фургон",
+    "легковой, специальный",
     "грузовой, бортовой",
     "грузовой, бортовой с тентом",
     "грузовой, бортовой с манипулятором (КМУ)",
@@ -14290,11 +14397,59 @@ export const TS_VTYPE_BY_CATEGORY = {
     "грузопассажирский, пикап",
     "грузопассажирский, цельнометаллический",
     "грузопассажирский, бортовой",
+    "грузовой, мультилифт",
+    "грузовой, бункеровоз",
+    "грузовой, панелевоз",
     "грузовой, автовоз",
     "грузовой, зерновоз",
+    "грузовой, скотовоз",
     "грузовой, низкорамный (трал)",
     "грузовой, роспуск",
     "специальный, фургон",
+    "грузовой, пчелопавильон",
+    "специальный, лесной гидроманипулятор",
+    "специальный, автобетононасос",
+    "специальный, буровая установка",
+    "специальный, ямобур",
+    "специальный, автогудронатор",
+    "специальный, асфальтовоз-термос",
+    "специальный, распределитель щебня",
+    "специальный, дорожный ремонтёр",
+    "специальный, разметочное оборудование",
+    "специальный, экскаваторное оборудование",
+    "специальный, подметально-уборочная машина",
+    "специальный, пескоразбрасыватель",
+    "специальный, шнекороторный снегоочиститель",
+    "специальный, каналопромывочная машина",
+    "специальный, каналопромывочно-илососная машина",
+    "специальный, отвал снежный",
+    "специальный, щётка коммунальная",
+    "специальный, снегоочиститель фрезерно-роторный",
+    "специальный, передвижная лаборатория",
+    "специальный, аварийная газовой службы",
+    "специальный, аварийно-ремонтная",
+    "специальный, инкассаторский автомобиль",
+    "специальный, оперативный",
+    "специальный, штабной автомобиль",
+    "специальный, передвижной офис",
+    "специальный, вахтовый автобус",
+    "специальный, автодом",
+    "специальный, автолавка",
+    "специальный, хлебный фургон",
+    "специальный, катафалк",
+    "специальный, электростанция",
+    "специальный, компрессорная установка",
+    "специальный, насосная установка",
+    "специальный, подъёмник для инвалидной коляски",
+    "специальный, цементировочный агрегат",
+    "специальный, насосный агрегат",
+    "специальный, паропередвижная установка",
+    "специальный, агрегат депарафинизации",
+    "специальный, подъёмник ремонта скважин",
+    "специальный, смесительная установка",
+    "специальный, каротажный подъёмник",
+    "специальный, кормовоз",
+    "специальный, кормораздатчик на шасси",
     "автобус",
     "автобус, городской",
     "автобус, пригородный",
@@ -14305,6 +14460,7 @@ export const TS_VTYPE_BY_CATEGORY = {
     "микроавтобус",
     "микроавтобус, пассажирский",
     "микроавтобус, грузопассажирский",
+    "автобус, специальный",
     "мото, мотоцикл",
     "мото, мотоцикл с коляской",
     "мото, мотороллер",
@@ -14336,26 +14492,68 @@ export const TS_VTYPE_BY_CATEGORY = {
     "полуприцеп, бортовой с манипулятором (КМУ)",
     "прицеп, бортовой с манипулятором (КМУ)",
     "прицеп, лесовоз",
+    "прицеп, мультилифт",
+    "прицеп, бункеровоз",
     "прицеп, тентованный",
     "полуприцеп, фургон изотермический",
     "прицеп, фургон изотермический",
     "прицеп, рефрижератор",
     "прицеп, контейнеровоз",
     "полуприцеп, лесовоз",
+    "полуприцеп, панелевоз",
     "полуприцеп, автовоз",
     "прицеп, автовоз",
     "полуприцеп, зерновоз",
     "прицеп, зерновоз",
+    "полуприцеп, скотовоз",
+    "прицеп, скотовоз",
     "прицеп, низкорамный (трал)",
     "полуприцеп, роспуск",
+    "полуприцеп, пчелопавильон",
+    "прицеп, пчелопавильон",
+    "прицеп, лесной гидроманипулятор",
+    "прицеп, автовышка",
     "прицеп, эвакуатор",
+    "полуприцеп, автобетоносмеситель",
+    "прицеп, автобетоносмеситель",
+    "прицеп, автобетононасос",
+    "прицеп, буровая установка",
+    "прицеп, автогудронатор",
+    "полуприцеп, асфальтовоз-термос",
+    "прицеп, распределитель щебня",
+    "прицеп, дорожный ремонтёр",
+    "прицеп, разметочное оборудование",
+    "прицеп, поливомоечное оборудование",
+    "прицеп, пескоразбрасыватель",
+    "прицеп, каналопромывочная машина",
+    "прицеп, пожарная насосная станция",
+    "прицеп, пожарный пенного, порошкового или газового тушения",
+    "полуприцеп, передвижной медицинский кабинет",
+    "прицеп, передвижной медицинский кабинет",
+    "прицеп, передвижная лаборатория",
+    "полуприцеп, передвижная лаборатория",
+    "прицеп, передвижная автомастерская",
+    "полуприцеп, штабной автомобиль",
+    "прицеп, передвижной офис",
+    "полуприцеп, передвижной офис",
+    "прицеп, автодом",
+    "прицеп, автолавка",
+    "прицеп, электростанция",
+    "полуприцеп, электростанция",
+    "прицеп, компрессорная установка",
+    "прицеп, насосная установка",
+    "полуприцеп, насосный агрегат",
+    "полуприцеп, смесительная установка",
+    "прицеп, кормовоз",
     "трактор, колёсный",
     "трактор, гусеничный",
     "трактор, мини-трактор",
     "специальный, шасси",
     "вездеход, гусеничный",
     "вездеход, колёсный",
-    "самоходное шасси"
+    "самоходное шасси",
+    "трактор",
+    "вездеход"
   ]
 };
 
