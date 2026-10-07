@@ -13,7 +13,7 @@ import { templateLeaves, modelLeaves, applyTemplate, canSaveTemplate, saveTempla
 import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
-import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns, sugHTML } from './view.js';
+import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns, sugHTML, trackedOnly } from './view.js';
 import { createRecord } from './records.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso, fullYear, expandRuDate } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
@@ -347,6 +347,12 @@ export function bindTsForm(ctx, holder, set) {
         control.innerHTML = msSummaryHTML(picked);
         drop.innerHTML = msBodyHTML(bind, picked);
         bindOpts();
+        // Ходовая решает, нужны ли управляемые оси (у одних гусениц — нет):
+        // поле прячется на месте — перерисовка закрыла бы открытый список.
+        if (key === 'run') {
+          const axles = s.$('.vehicle-form [data-ts-key="steerAxles"]');
+          if (axles) axles.hidden = trackedOnly(picked);
+        }
       });
     };
     bindOpts();

@@ -307,7 +307,12 @@ const ELECTRIC = 'Электро';
 // только у «Иное» (указания пользователя 06.10.2026).
 export const OWN_TRIM = 'Своя';
 export const OTHER_STATE = 'Иное';
-const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC)
+// Управляемые оси у гусеничной машины не нужны — если колёсной или
+// полугусеничной ходовой у неё нет (решение пользователя 07.10.2026).
+export const trackedOnly = (run) => Array.isArray(run) && run.includes('Гусеничная')
+  && !run.includes('Колёсная') && !run.includes('Полугусеничная');
+const shown = (v, f) => !(f.key === 'steerAxles' && trackedOnly(v.f.run))
+  && !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC)
   && !(f.key === 'battery' && ![ELECTRIC, 'Гибрид'].includes(v.f.fuel))
   && !(f.key === 'trimNote' && v.f.trim !== OWN_TRIM)
   && !(f.key === 'generalStateNote' && v.f.generalState !== OTHER_STATE);
@@ -315,9 +320,21 @@ const shown = (v, f) => !(f.key === 'engineVolume' && v.f.fuel === ELECTRIC)
 // «Двигатель и грузовые характеристики» (указание пользователя 02.10.2026).
 // У прицепов двигателя нет — только грузовые характеристики (06.10.2026).
 // и ходовая без трансмиссии.
-const secTitle = (v, sec) => (sec.key === 'chassis' && isTrailer(v) ? 'Ходовая'
-  : sec.key !== 'tech' ? sec.title
-    : isPassenger(v) ? 'Двигатель' : isTrailer(v) ? 'Грузовые характеристики' : 'Двигатель и грузовые характеристики');
+// Подписи — по составу (решение пользователя 07.10.2026: «Подписи правим»):
+// «грузовые характеристики» — только у грузовых; у остальных двигатель и массы
+// (у спецтехники масса одна, конструкционная); «трансмиссия» — только где есть
+// её поля (коробка, привод, раздатка).
+const TRANSMISSION = ['gearbox', 'driveType', 'transferCase'];
+const secTitle = (v, sec) => {
+  if (sec.key === 'chassis') {
+    return commonFields(v).some((f) => TRANSMISSION.includes(f.key)) ? sec.title : 'Ходовая';
+  }
+  if (sec.key !== 'tech') return sec.title;
+  if (isPassenger(v)) return 'Двигатель';
+  if (isTrailer(v)) return 'Грузовые характеристики';
+  if (v.kind === 'base' && v.category === 'Грузовое') return 'Двигатель и грузовые характеристики';
+  return v.kind === 'self' ? 'Двигатель и масса' : 'Двигатель и массы';
+};
 
 // Номера — таблицей (указание пользователя): у машины их несколько, и искать
 // каждый по сетке полей неудобно.
@@ -355,8 +372,8 @@ function machineHTML(v, idx, inspect = false) {
       // встаёт одна, а тип топлива и масса — парой под ней, без пустот.
       const order = isPassenger(v)
         ? ['vtype', 'fuel', 'power', 'engineVolume', 'battery']
-        : v.kind === 'self' ? ['power', 'fuel', 'massDesign']
-          : ['vtype', 'fuel', 'engineVolume', 'power', 'massEmpty', 'massMax', 'massDesign'];
+        : v.kind === 'self' ? ['power', 'fuel', 'battery', 'massDesign']
+          : ['vtype', 'fuel', 'engineVolume', 'power', 'battery', 'massEmpty', 'massMax', 'massDesign'];
       // Две массы — по полстроки, строка заполнена.
       const masses = own.filter((f) => /^mass/.test(f.key));
       if (!isPassenger(v) && masses.length === 2) {
@@ -392,7 +409,12 @@ function machineHTML(v, idx, inspect = false) {
       // прицепа остались только массы — поля двигателя убраны).
       : sec.key === 'tech' && (isPassenger(v) || isTrailer(v)) ? `<div class="grid vh-grid">${
         own.map((f) => tsFieldHTML(v.f, f, 'main', 'vh-s2')).join('')}</div>`
-        : grid(v.f, own, 'main');
+        // Неполная строка дотягивается до конца: при «Электро» встаёт ёмкость
+        // батареи, а рабочий объём уходит — строки не должны оставлять дыр.
+        : `<div class="grid vh-grid">${(() => {
+          const spans = fillRows(own.map((f) => spanOf(f, 'main')));
+          return own.map((f, i) => tsFieldHTML(v.f, f, 'main', `vh-s${spans[i]}`)).join('');
+        })()}</div>`;
     return sub(secTitle(v, sec), body, allInsp ? '<span class="hint">осмотр</span>' : '');
   });
 

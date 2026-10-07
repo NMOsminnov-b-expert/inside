@@ -253,3 +253,31 @@ def run(t):
         t.wait_for('[data-tsf="main|make"]')
         t.ck(not has('wheel'), '%s: осталась сторона руля' % base)
         t.ck(has('mileage') == mileage, '%s: пробег %s' % (base, 'пропал' if mileage else 'остался'))
+
+    # Второй перечень лишнего (решение пользователя 07.10.2026): подписи, батарея
+    # у электродвигателей везде, без моточасов у автобуса, без колёсной формулы у
+    # трактора, без управляемых осей у машины только на гусеницах.
+    pg.select_option('[data-ts-base]', 'Трактор')
+    t.wait_for('[data-tsf="main|make"]')
+    t.ck(not has('wheelFormula'), 'у трактора осталась колёсная формула')
+    t.ck(has('steerAxles'), 'у трактора без отметки ходовой нет управляемых осей')
+    pg.click('[data-tsf-ms="main|run"] [data-ms-toggle]')
+    pg.check('[data-tsf-opt="main|run|Гусеничная"]')
+    t.wait_until("() => document.querySelector('[data-ts-key=\"steerAxles\"]').hidden")
+    pg.check('[data-tsf-opt="main|run|Колёсная"]')
+    t.wait_until("() => !document.querySelector('[data-ts-key=\"steerAxles\"]').hidden")
+    pg.keyboard.press('Escape')
+    titles = pg.evaluate(SECTION_TITLES)
+    t.ck('Двигатель и массы' in titles and not any('грузовые' in x for x in titles), 'заголовок двигателя трактора: %s' % titles)
+    pg.select_option('[data-ts-cat]', 'Автобусы')
+    t.wait_for('[data-tsf="main|make"]')
+    t.ck(not has('engineHours'), 'у автобуса остались моточасы')
+    t.ck(pg.locator('[data-ts-key="bodyNo"] label, [data-ts-key="bodyNo"]').first.inner_text().find('коляск') < 0,
+         'у автобуса в подписи кузова осталась «коляска»')
+    pg.select_option('[data-ts-cat]', 'Грузовое')
+    t.wait_for('[data-ts-base]:not([disabled])')
+    pg.select_option('[data-ts-base]', 'Грузовое ТС')
+    t.wait_for('[data-tsf="main|fuel"]')
+    t.ck(not has('battery'), 'батарея видна до выбора электро')
+    pg.select_option('[data-tsf="main|fuel"]', 'Электро')
+    t.wait_for('[data-tsf="main|battery"]')

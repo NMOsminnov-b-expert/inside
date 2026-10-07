@@ -141,7 +141,11 @@ function migrate0710(v) {
   // «Где стоит (фактический адрес)» заменён юридическим адресом из свидетельства
   // (указание пользователя 07.10.2026): прежнее значение — не юридический адрес.
   toExtra(v, f, 'factAddr', 'Фактический адрес');
-  if (v.kind === 'base' && v.base === 'Трактор') toExtra(v, f, 'mileage', 'Пробег');
+  if (v.kind === 'base' && v.base === 'Трактор') {
+    toExtra(v, f, 'mileage', 'Пробег');
+    toExtra(v, f, 'wheelFormula', 'Колёсная формула');
+  }
+  if (v.kind === 'base' && v.category === 'Автобусы') toExtra(v, f, 'engineHours', 'Моточасы');
   const fixDrive = (x) => { if (DRIVE_RENAMED[x.drive]) x.drive = DRIVE_RENAMED[x.drive]; };
   fixDrive(f);
   v.modules.forEach((m) => {

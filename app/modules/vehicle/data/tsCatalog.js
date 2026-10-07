@@ -247,7 +247,7 @@ export const TS_BASE_FIELDS = [
   },
   {
     "key": "bodyNo",
-    "label": "№ кузова (коляски)",
+    "label": "№ кузова",
     "hint": "из VIN, № кузова и № шасси заполняется хотя бы одно",
     "source": "Техпаспорт",
     "place": "книжка с 2019 г.: слева, строка 5 — вместе с № шасси\nбланк «КР №»: справа, строка 9\nбланк УГАИ 2000-х: слева, строка 7",
@@ -451,6 +451,17 @@ export const TS_BASE_FIELDS = [
     "units": [
       "кВт",
       "л.с."
+    ],
+    "block": "machine"
+  },
+  {
+    "key": "battery",
+    "label": "Ёмкость батареи",
+    "hint": "у электрического и гибридного двигателя",
+    "source": "Техпаспорт или осмотр",
+    "type": "num",
+    "units": [
+      "кВт·ч"
     ],
     "block": "machine"
   },
@@ -676,7 +687,7 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     },
     {
       "key": "bodyNo",
-      "label": "№ кузова (коляски)",
+      "label": "№ кузова",
       "hint": "из VIN, № кузова и № шасси заполняется хотя бы одно",
       "source": "Техпаспорт",
       "place": "книжка с 2019 г.: слева, строка 5 — вместе с № шасси\nбланк «КР №»: справа, строка 9\nбланк УГАИ 2000-х: слева, строка 7",
@@ -1084,7 +1095,7 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     },
     {
       "key": "bodyNo",
-      "label": "№ кузова (коляски)",
+      "label": "№ кузова",
       "hint": "из VIN, № кузова и № шасси заполняется хотя бы одно",
       "source": "Техпаспорт",
       "place": "книжка с 2019 г.: слева, строка 5 — вместе с № шасси\nбланк «КР №»: справа, строка 9\nбланк УГАИ 2000-х: слева, строка 7",
@@ -1288,6 +1299,17 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "units": [
         "кВт",
         "л.с."
+      ],
+      "block": "machine"
+    },
+    {
+      "key": "battery",
+      "label": "Ёмкость батареи",
+      "hint": "у электрического и гибридного двигателя",
+      "source": "Техпаспорт или осмотр",
+      "type": "num",
+      "units": [
+        "кВт·ч"
       ],
       "block": "machine"
     },
@@ -1621,7 +1643,7 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     },
     {
       "key": "bodyNo",
-      "label": "№ кузова (коляски)",
+      "label": "№ кузова",
       "hint": "из VIN, № кузова и № шасси заполняется хотя бы одно",
       "source": "Техпаспорт",
       "place": "книжка с 2019 г.: слева, строка 5 — вместе с № шасси\nбланк «КР №»: справа, строка 9\nбланк УГАИ 2000-х: слева, строка 7",
@@ -1829,6 +1851,17 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "machine"
     },
     {
+      "key": "battery",
+      "label": "Ёмкость батареи",
+      "hint": "у электрического и гибридного двигателя",
+      "source": "Техпаспорт или осмотр",
+      "type": "num",
+      "units": [
+        "кВт·ч"
+      ],
+      "block": "machine"
+    },
+    {
       "key": "massEmpty",
       "label": "Масса без нагрузки",
       "hint": "",
@@ -1904,17 +1937,6 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "type": "int",
       "units": [
         "км"
-      ],
-      "block": "use"
-    },
-    {
-      "key": "engineHours",
-      "label": "Моточасы",
-      "hint": "двигатель набирает моточасы без пробега, когда модуль работает от коробки отбора мощности (КОМ)",
-      "source": "Осмотр",
-      "type": "int",
-      "units": [
-        "ч"
       ],
       "block": "use"
     },
@@ -2378,6 +2400,17 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "block": "machine"
     },
     {
+      "key": "battery",
+      "label": "Ёмкость батареи",
+      "hint": "у электрического и гибридного двигателя",
+      "source": "Техпаспорт или осмотр",
+      "type": "num",
+      "units": [
+        "кВт·ч"
+      ],
+      "block": "machine"
+    },
+    {
       "key": "massEmpty",
       "label": "Масса без нагрузки",
       "hint": "",
@@ -2664,7 +2697,7 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     },
     {
       "key": "bodyNo",
-      "label": "№ кузова (коляски)",
+      "label": "№ кузова",
       "hint": "из VIN, № кузова и № шасси заполняется хотя бы одно",
       "source": "Техпаспорт",
       "place": "книжка с 2019 г.: слева, строка 5 — вместе с № шасси\nбланк «КР №»: справа, строка 9\nбланк УГАИ 2000-х: слева, строка 7",
@@ -2855,6 +2888,17 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
       "units": [
         "кВт",
         "л.с."
+      ],
+      "block": "machine"
+    },
+    {
+      "key": "battery",
+      "label": "Ёмкость батареи",
+      "hint": "у электрического и гибридного двигателя",
+      "source": "Техпаспорт или осмотр",
+      "type": "num",
+      "units": [
+        "кВт·ч"
       ],
       "block": "machine"
     },
@@ -3188,7 +3232,7 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     },
     {
       "key": "bodyNo",
-      "label": "№ кузова (коляски)",
+      "label": "№ кузова",
       "hint": "из VIN, № кузова и № шасси заполняется хотя бы одно",
       "source": "Техпаспорт",
       "place": "книжка с 2019 г.: слева, строка 5 — вместе с № шасси\nбланк «КР №»: справа, строка 9\nбланк УГАИ 2000-х: слева, строка 7",
@@ -3431,7 +3475,7 @@ export const TS_BASE_FIELDS_BY_CATEGORY = {
     {
       "key": "battery",
       "label": "Ёмкость батареи",
-      "hint": "у электромобиля и гибрида",
+      "hint": "у электрического и гибридного двигателя",
       "source": "Техпаспорт или осмотр",
       "type": "num",
       "units": [
@@ -3998,7 +4042,8 @@ export const TS_SPECIAL = {
 
 export const TS_BASE_HIDE = {
   "Трактор": [
-    "mileage"
+    "mileage",
+    "wheelFormula"
   ]
 };
 
@@ -4657,6 +4702,17 @@ export const TS_SELF_FIELDS = [
     "units": [
       "кВт",
       "л.с."
+    ],
+    "block": "machine"
+  },
+  {
+    "key": "battery",
+    "label": "Ёмкость батареи",
+    "hint": "у электрического и гибридного двигателя",
+    "source": "Техпаспорт или осмотр",
+    "type": "num",
+    "units": [
+      "кВт·ч"
     ],
     "block": "machine"
   },
