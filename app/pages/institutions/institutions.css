@@ -275,6 +275,9 @@ body[data-page="institutions"] .iempty{padding:34px 18px;text-align:center;
 body[data-page="institutions"] .iempty b{display:block;font-size:14px;color:var(--ink);
   margin-bottom:5px}
 body[data-page="institutions"] .iempty span{font-size:12.5px;color:var(--muted);line-height:1.6}
+/* Список объектов ограничен — строка над таблицей «показаны первые N из M». */
+body[data-page="institutions"] .iempty-note{padding:6px 10px;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
 body[data-page="institutions"] .iempty.small{padding:16px;border:none}
 body[data-page="institutions"] .iempty.big{margin-top:60px;max-width:560px;
   margin-left:auto;margin-right:auto}

@@ -235,28 +235,59 @@ export function totalCount(node) {
 
 // --- объекты оценки узла ---------------------------------------------------
 
+// Отбор по подведу и по запросу — до лимита, а не после: прежде из реестра
+// брались 200 последних записей учреждения и уже среди них искался подвед —
+// у учреждения больше 200 объектов список и счётчики выходили неверными
+// (код-ревью 09.10.2026). У списка есть total — сколько всего, чтобы страница
+// сказала «показаны первые N из M».
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь выборка по учреждению целиком идёт в памяти
+// вкладки; на сервере это запрос с условием на подвед и лимитом.
 export function ocRowsOf(node, { q = '', limit = 200 } = {}) {
   const spec = ocFilterFor(node);
-  if (!spec) return [];
+  if (!spec) return Object.assign([], { total: 0 });
 
   const filter = spec.podved ? spec.filter : { ...emptyFilter(), institution: [node.name] };
   const { rows } = queryAll({
-    filter, sort: { key: 'updatedAt', dir: 'desc' }, offset: 0, limit,
+    filter, sort: { key: 'updatedAt', dir: 'desc' }, offset: 0, limit: Number.MAX_SAFE_INTEGER,
   });
 
-  const own = spec.podved
+  let own = spec.podved
     ? rows.filter((r) => (r.podved || '') === spec.podved)
     : rows.filter((r) => !r.podved || r.podved === node.name);
 
-  if (!q) return own;
-  const needle = q.toLowerCase();
-  // Адрес в сводке записи лежит в title (records.js, summarize).
-  return own.filter((r) => [r.eni, r.title, r.city, r.status, r.typeLabel]
-    .filter(Boolean).join(' ').toLowerCase().includes(needle));
+  if (q) {
+    const needle = q.toLowerCase();
+    // Адрес в сводке записи лежит в title (records.js, summarize).
+    own = own.filter((r) => [r.eni, r.title, r.city, r.status, r.typeLabel]
+      .filter(Boolean).join(' ').toLowerCase().includes(needle));
+  }
+  return Object.assign(own.slice(0, limit), { total: own.length });
+}
+
+// Счётчики дерева — одним проходом по реестру на перерисовку: «учреждение и
+// подвед → число объектов». Прежде у каждой видимой строки дерева считалось
+// поддерево, а у каждого узла — полная выборка из реестра; на 20 000 записей
+// это сотни проходов на каждую букву в поиске (код-ревью 09.10.2026). Таблица
+// живёт до конца текущей задачи — следующая перерисовка видит свежие данные.
+let countIndex = null;
+const key2 = (inst, podved) => inst + '\u0001' + (podved || '');
+function counts() {
+  if (countIndex) return countIndex;
+  const { rows } = queryAll({ filter: emptyFilter(), offset: 0, limit: Number.MAX_SAFE_INTEGER });
+  const m = new Map();
+  rows.forEach((r) => { const k = key2(r.institution || '', r.podved); m.set(k, (m.get(k) || 0) + 1); });
+  countIndex = m;
+  setTimeout(() => { countIndex = null; }, 0);
+  return m;
 }
 
 export function ocCount(node) {
-  return ocRowsOf(node).length;
+  const spec = ocFilterFor(node);
+  if (!spec) return 0;
+  const m = counts();
+  if (spec.podved) return m.get(key2(spec.filter.institution[0] || '', spec.podved)) || 0;
+  return (m.get(key2(node.name, '')) || 0) + (m.get(key2(node.name, node.name)) || 0);
 }
 
 // Объекты узла ВМЕСТЕ с подведомственными, на любую глубину. Нужны для

@@ -374,7 +374,10 @@ function ocTableHTML(node) {
     </div>`;
   }
 
-  return `<div class="icols" data-oc-cols-box style="${columnVarsStyle(OC_COLUMNS, ocWidths)}">
+  // Список ограничен (kernel/institutions.js ocRowsOf) — говорим, сколько всего.
+  const more = rows.total > rows.length
+    ? `<div class="iempty-note">Показаны первые ${rows.length} из ${rows.total} — уточните поиск.</div>` : '';
+  return `${more}<div class="icols" data-oc-cols-box style="${columnVarsStyle(OC_COLUMNS, ocWidths)}">
     <table class="itbl">
       ${colGroupHTML(OC_COLUMNS, ocWidths)}
       <thead><tr>${OC_COLUMNS.map((c, i) => `<th ${headAttrs(c)}>
