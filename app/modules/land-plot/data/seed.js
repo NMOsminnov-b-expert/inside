@@ -1,4 +1,4 @@
-import { mkNote } from '../parts/notes/store.js';
+import { mkNote } from '../../../kernel/notes/store.js';
 
 // Демо-данные ОЦ «Земельный участок».
 export function createSeed() {

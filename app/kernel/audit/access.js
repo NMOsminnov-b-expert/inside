@@ -1,6 +1,6 @@
 // Доступ к логу действий: администратор видит любой ОЦ; сотрудник — только
 // по своим учреждениям (session.institutions, см. kernel/session.js).
-import { canSeeInstitution } from '../../../kernel/session.js';
+import { canSeeInstitution } from '../session.js';
 
 export function canViewAuditLog(rec) {
   if (!rec) return false;

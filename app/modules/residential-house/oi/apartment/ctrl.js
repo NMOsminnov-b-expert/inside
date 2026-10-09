@@ -4,8 +4,8 @@ import { bindYearField } from '../../../../kernel/yearField.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindNumField } from '../../../../kernel/numField.js';
 import { bindAnnexes } from './annexes.js';
-import { bindDocsColumns } from '../../parts/docs/table.js';
-import { bindSpecials } from '../../parts/specials/ctrl.js';
+import { bindDocsColumns } from '../../../../kernel/docsTable.js';
+import { bindSpecials } from '../../../../kernel/specials/ctrl.js';
 import { bindStruct } from '../../parts/struct/ms.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
   moveFloorRow, FLOOR_CATS } from './floors.model.js';

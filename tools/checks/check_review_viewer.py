@@ -20,7 +20,7 @@ TOUCHES = (
     'app/kernel/viewer/state.js', 'app/kernel/viewer/shell.js', 'app/kernel/viewer/docActions.js',
     'app/kernel/viewer/ctrl.js', 'app/kernel/viewer/files.js', 'app/kernel/viewer/popout.js',
     'app/shell/shell.js', 'app/kernel/boot.js', 'app/kernel/css.js',
-    'app/modules/civil/parts/notes/ctrl.js', 'app/modules/apartment/parts/notes/ctrl.js',
+    'app/kernel/notes/ctrl.js',
 )
 
 OC = '#/oc/civil/oc-cv-1'

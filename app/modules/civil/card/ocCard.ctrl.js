@@ -1,4 +1,4 @@
-import { bindDocsColumns } from '../parts/docs/table.js';
+import { bindDocsColumns } from '../../../kernel/docsTable.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns, colVar } from '../../../kernel/columns.js';
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';

@@ -1,6 +1,6 @@
 // Контракт модуля для меню ОЦ: сводки, запросы, фасеты, локатор, создание.
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
-import { recHasSpecials } from './parts/specials/model.js';
+import { recHasSpecials } from '../../kernel/specials/model.js';
 import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
 import { partyName } from './card/parties.view.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
@@ -9,7 +9,7 @@ import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { session } from '../../kernel/session.js';
 import { records, addRecord, nextId } from './data/store.js';
-import { totalPendingNotes } from './parts/notes/model.js';
+import { totalPendingNotes } from '../../kernel/notes/model.js';
 import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
 import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from './data/bulk.js';
 import { buildBulkRecord } from './data/bulkRecord.js';

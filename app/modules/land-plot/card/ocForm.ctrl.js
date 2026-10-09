@@ -8,7 +8,7 @@ import { bindCheckedField, setFieldError } from '../../../kernel/fieldError.js';
 import { gpsError } from '../../../kernel/gps.js';
 import { openDocViewer } from '../../../kernel/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
-import { bindCadastre, ADDR_PARTS, setAddrField } from './cadastre.ctrl.js';
+import { bindCadastre, ADDR_PARTS, setAddrField } from '../../../kernel/cadastreForm.ctrl.js';
 
 export function bindOcForm(ctx) {
   const s = ctx.scope;

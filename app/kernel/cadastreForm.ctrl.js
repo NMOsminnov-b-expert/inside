@@ -8,9 +8,9 @@
 // уже расходились, и правка доходила только до одной из них.
 //
 // Сам запрос — kernel/cadastre.js, там же обходы CORS и тексты ошибок.
-import { addressByEni } from '../../../kernel/cadastre.js';
-import { syncOcAddress, parseAddress } from '../../../kernel/address.js';
-import { eniCodesOf, formatEniText } from '../../../kernel/eniField.js';
+import { addressByEni } from './cadastre.js';
+import { syncOcAddress, parseAddress } from './address.js';
+import { eniCodesOf, formatEniText } from './eniField.js';
 
 // Поставить значение в поле части адреса.
 //

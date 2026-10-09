@@ -4,7 +4,7 @@ import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { yearFieldHTML } from '../../../../kernel/yearField.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { fmtEni, fmtNum, num } from '../../../../kernel/fmt.js';
-import { specialsBlockHTML } from '../../parts/specials/view.js';
+import { specialsBlockHTML } from '../../../../kernel/specials/view.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';
 import { STATUS_BUILD, BUILD_CONDITION, BUILD_TYPE, ENTRANCE_GROUP, STRUCT, RES_BUILD_CAT, RIGHTS, WEAR_LEVEL, STRUCTURE_KIND, STRUCT_STRENGTH } from '../../data/dictionaries.js';

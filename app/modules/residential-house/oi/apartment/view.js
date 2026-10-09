@@ -3,7 +3,7 @@ import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { devNote } from '../../../../kernel/devNote.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
-import { specialsBlockHTML } from '../../parts/specials/view.js';
+import { specialsBlockHTML } from '../../../../kernel/specials/view.js';
 import { structMS } from '../../parts/struct/ms.js';
 import { esc } from '../../../../kernel/dom.js';
 import { annexesHTML } from './annexes.js';

@@ -1,5 +1,5 @@
-import { esc } from '../../../../kernel/dom.js';
-import { colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize } from '../../../../kernel/columns.js';
+import { esc } from './dom.js';
+import { colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML, columnVarsStyle, bindColumnResize } from './columns.js';
 
 // Столбцы таблиц документов. Ширину можно менять перегородками — механизм общий
 // (kernel/columns.js), тот же, что в реестре и в перечне ОИ.

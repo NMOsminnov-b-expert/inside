@@ -7,7 +7,7 @@ import { syncOcAddress, ocFullAddress, parseAddress } from '../../../kernel/addr
 import { ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { openDocViewer } from '../../../kernel/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
-import { bindCadastre, ADDR_PARTS, setAddrField } from './cadastre.ctrl.js';
+import { bindCadastre, ADDR_PARTS, setAddrField } from '../../../kernel/cadastreForm.ctrl.js';
 
 // Контроллер экрана создания ОЦ. Сознательно отдельный файл от
 // ocForm.ctrl.js — см. ocCreateForm.view.js.

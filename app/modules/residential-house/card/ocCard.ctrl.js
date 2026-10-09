@@ -1,7 +1,7 @@
 import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../parts/docs/model.js';
-import { bindDocsColumns } from '../parts/docs/table.js';
+import { bindDocsColumns } from '../../../kernel/docsTable.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
 import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W } from './oiTable.view.js';
 import { fmtEni } from '../../../kernel/fmt.js';

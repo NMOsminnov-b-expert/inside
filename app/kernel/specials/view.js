@@ -1,4 +1,4 @@
-import { esc } from '../../../../kernel/dom.js';
+import { esc } from '../dom.js';
 import { SPECIAL_PLACEHOLDER } from './store.js';
 import { specialsOf } from './model.js';
 

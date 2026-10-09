@@ -1,6 +1,6 @@
 import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
 import { recFlags } from '../records.js';
-import { canViewAuditLog } from '../audit/access.js';
+import { canViewAuditLog } from '../../../kernel/audit/access.js';
 import { auditTab } from '../audit/view.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { eniAllOf } from '../../../kernel/eniFold.js';

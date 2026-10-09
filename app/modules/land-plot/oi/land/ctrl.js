@@ -4,7 +4,7 @@ import { syncOcAddress } from '../../../../kernel/address.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
 import { gpsError } from '../../../../kernel/gps.js';
-import { bindDocsColumns } from '../../parts/docs/table.js';
+import { bindDocsColumns } from '../../../../kernel/docsTable.js';
 import { bindUtilities } from './utilities.js';
 import { bindAuxBuildings } from './buildings.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';

@@ -7,9 +7,9 @@ import { bindAnnexes } from './annexes.js';
 import { RES_BUILD_CAT } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
-import { bindDocsColumns } from '../../parts/docs/table.js';
+import { bindDocsColumns } from '../../../../kernel/docsTable.js';
 import { bindStruct } from '../../parts/struct/ms.js';
-import { bindSpecials } from '../../parts/specials/ctrl.js';
+import { bindSpecials } from '../../../../kernel/specials/ctrl.js';
 import { buildFloors, recalcFloors, addFloorRow, removeFloorRow, renameFloorRow,
   moveFloorRow, FLOOR_CATS } from './floors.model.js';
 import { updateFloorsUI, rerenderFloors, floorColOrder, floorsNote } from './floors.view.js';

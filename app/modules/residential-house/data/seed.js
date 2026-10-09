@@ -1,4 +1,4 @@
-import { mkNote } from '../parts/notes/store.js';
+import { mkNote } from '../../../kernel/notes/store.js';
 
 // Демо-данные ЭТОГО типа ОЦ. Никакой другой модуль их не видит.
 export function createSeed() {

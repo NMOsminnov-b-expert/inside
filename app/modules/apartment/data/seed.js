@@ -1,4 +1,4 @@
-import { mkNote } from '../parts/notes/store.js';
+import { mkNote } from '../../../kernel/notes/store.js';
 
 // Демо-данные ОЦ «Жилое здание (квартира)».
 function apartmentOi(over) {

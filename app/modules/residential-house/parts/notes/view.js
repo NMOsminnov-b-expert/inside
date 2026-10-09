@@ -1,6 +1,6 @@
 import { esc } from '../../../../kernel/dom.js';
-import { NOTE_DEFAULT, NOTE_TEMPLATES } from './store.js';
-import { noteCounts, totalPendingNotes } from './model.js';
+import { NOTE_DEFAULT, NOTE_TEMPLATES } from '../../../../kernel/notes/store.js';
+import { noteCounts, totalPendingNotes } from '../../../../kernel/notes/model.js';
 import { cardMeta } from '../../oi/registry.js';
 
 export function noteRowHTML(scope, n) {

@@ -10,7 +10,7 @@ import { tableOI } from './oiTable.view.js';
 import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
-import { canViewAuditLog } from '../audit/access.js';
+import { canViewAuditLog } from '../../../kernel/audit/access.js';
 import { auditTab } from '../audit/view.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её

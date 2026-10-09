@@ -1,6 +1,6 @@
 import { NOTE_DEFAULT } from './store.js';
 import { addNote, removeNote, findNote } from './model.js';
-import { session } from '../../../../kernel/session.js';
+import { session } from '../session.js';
 
 // Кто и когда — берём в момент добавления. Пользователь общий на весь макет
 // (kernel/session.js), поэтому смена роли/лица здесь сразу видна.
