@@ -12,6 +12,8 @@
 Проверяется в обе стороны: добавленное в справочник появляется в карточке,
 удалённое — исчезает.
 """
+import json
+
 NAME = 'справочники в карточках'
 
 # Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
@@ -100,8 +102,13 @@ def _open_letter(t, route, need=None):
         # случайный, в зависимости от того, что раскрыто после прошлых сценариев).
         t.wait_until('() => [...document.querySelectorAll("tr[data-open-oi]")].filter((r) => r.offsetParent).length > %d' % i)
         pg.locator('tr[data-open-oi]:visible').nth(i).click()
-        t.wait(700)
-        if not need or pg.locator(need).count():
+        # Ждём карточку ОИ по факту, а не 0,7 с: под нагрузкой полного прогона
+        # она не успевала, и сценарий решал, что нужного поля в ней нет
+        # (флак 09.10.2026).
+        t.wait_until("() => location.hash.includes('/oi/') && !!document.querySelector('.card .field, .card select, .card input')")
+        # Поле — в разметке, а не обязательно на виду: варианты мультивыбора
+        # лежат в свёрнутом списке.
+        if not need or t.wait_until('() => !!document.querySelector(%s)' % json.dumps(need), timeout=2500):
             return True
     return False
 
