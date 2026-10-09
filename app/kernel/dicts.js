@@ -740,6 +740,28 @@ export function removeItem(dict, item, replaceWith) {
 }
 
 // Переписать значение во всех объектах, где оно встречается.
+// Замена значения в поле-списке и в поле-объекте (значения по ключам — строки
+// или списки), по тем же правилам, по которым usageOf считает использование.
+// Прежде заменялось только первое вхождение в списке (а если «to» в нём уже
+// было — получался дубль), поля-объекты не обрабатывались вовсе: значение
+// уходило из справочника, а в записях оставалось (код-ревью 09.10.2026).
+function swapList(list, from, to) {
+  if (!list.includes(from)) return false;
+  const next = [];
+  list.forEach((v) => { const x = v === from ? to : v; if (!next.includes(x)) next.push(x); });
+  list.splice(0, list.length, ...next);
+  return true;
+}
+function swapIn(raw, from, to) {
+  if (Array.isArray(raw)) return swapList(raw, from, to);
+  let hit = false;
+  Object.keys(raw).forEach((k) => {
+    if (Array.isArray(raw[k])) hit = swapList(raw[k], from, to) || hit;
+    else if (raw[k] === from) { raw[k] = to; hit = true; }
+  });
+  return hit;
+}
+
 export function replaceValue(dict, from, to) {
   let touched = 0;
 
@@ -756,9 +778,8 @@ export function replaceValue(dict, from, to) {
 
       holders.forEach((holder) => {
         const raw = readField(holder, b.field);
-        if (Array.isArray(raw)) {
-          const i = raw.indexOf(from);
-          if (i >= 0) { raw[i] = to; touched++; }
+        if (Array.isArray(raw) || (raw && typeof raw === 'object')) {
+          if (swapIn(raw, from, to)) touched++;
         } else if (raw === from) {
           writeField(holder, b.field, to);
           touched++;
