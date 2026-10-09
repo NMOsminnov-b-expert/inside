@@ -3,7 +3,7 @@ import { manifest } from './manifest.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { fmtNum } from '../../kernel/fmt.js';
 import {
-  mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath, migrateMechHolder,
+  mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath, migrateMechHolder, mechListLabel,
 } from './form/model.js';
 
 // Записи ОЦ «Механизмы и оборудование». Устроены как у ОЦ «Транспортные
@@ -39,6 +39,12 @@ function nextId() {
 
 // Перечень единиц записи. Заводится при первом обращении — у записи, пришедшей
 // без него, форма иначе открылась бы пустой.
+// Для реестра и поиска — только чтение: сводка не заводит перечень и не
+// переписывает название. Прежде реестр звал mechOf и при каждом запросе менял
+// записи — и запускал этим сохранение (код-ревью 09.10.2026).
+const EMPTY = { mechanisms: [] };
+const peekMech = (rec) => rec.mech || EMPTY;
+
 export function mechOf(rec) {
   if (!rec.mech) rec.mech = createMechOi({ id: `${rec.id}-mech` });
   if (!mechUnits(rec.mech).length) rec.mech.mechanisms.push(...createMechOi({}).mechanisms);
@@ -55,7 +61,7 @@ function plural(n, one, few, many) {
 }
 
 function searchOf(rec) {
-  const m = mechOf(rec);
+  const m = peekMech(rec);
   return [m.groupName, rec.institution, ...mechUnits(m).flatMap((u) => [u.name, u.inv, unitClassPath(u)])]
     .filter(Boolean).join(' ').toLowerCase();
 }
@@ -64,14 +70,14 @@ const pendingOf = (m) => (m.notes || []).filter((x) => !x.done).length;
 const photoCount = (m) => Object.values(m.photos || {}).reduce((s, n) => s + n, 0);
 
 export function summarize(rec) {
-  const m = mechOf(rec);
+  const m = peekMech(rec);
   const n = mechUnits(m).length;
   return {
     id: rec.id,
     typeId: manifest.id,
     typeLabel: manifest.label,
     typeIcon: manifest.icon,
-    title: m.name,
+    title: m.name || mechListLabel(m),
     subtitle: `${n} ${plural(n, 'позиция', 'позиции', 'позиций')} · ${totalQty(m)} шт.`,
     eni: rec.eni,
     status: rec.status,
