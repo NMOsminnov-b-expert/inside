@@ -138,6 +138,17 @@ function makeHost(route, scope, typeId) {
 // обработчиками.
 let routeSeq = 0;
 
+function showRouteError(route, e) {
+  console.error('[boot] экран не открылся:', e);
+  try { unmount(); } catch (x) { /* экран уже разобран */ }
+  const scope = createScope(contentRoot());
+  scope.setHTML(`<div class="card card-pad">Не удалось открыть экран${route && route.typeId ? ` «${esc(route.typeId)}»` : ''}.
+    Обновите страницу; если повторится — сообщите, что делали перед этим.
+    <button class="btn btn-ghost btn-sm" data-back-menu style="margin-left:10px">В меню</button></div>`);
+  const back = scope.$('[data-back-menu]');
+  if (back) back.onclick = () => go(MENU_HREF);
+}
+
 async function onRoute(route) {
   const seq = ++routeSeq;
   const stale = () => seq !== routeSeq;
@@ -325,7 +336,10 @@ export function boot() {
   // не импортирует дерево: иначе получился бы цикл, ведь учреждения зовут
   // архив сами. Проверку связываем здесь, в одной точке сборки.
   setInstitutionProbe((name) => allNodes().some((n) => n.name === name));
-  start((route) => { onRoute(route); });
+  // Сбой при открытии экрана (модуль не загрузился, ошибка в его main) —
+  // карточка с сообщением и выходом в меню, а не пустой экран без единого
+  // слова (код-ревью 09.10.2026).
+  start((route) => { onRoute(route).catch((e) => showRouteError(route, e)); });
   // Перерисовать смонтированный экран с теми же данными маршрута — например,
   // когда из хранилища браузера вернулись файлы документов (kernel/localFiles.js).
   // Открытое меню, окно или набор в поле перерисовка сбросила бы — ждём.
