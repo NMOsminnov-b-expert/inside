@@ -11,11 +11,15 @@
   * ТС: свёрнутый блок после перезагрузки развёрнут (состояние жило внутри
     монтирования модуля);
   * учреждения: выбранный узел после перезагрузки не выбран;
-  * документы: набранный поиск после перезагрузки пуст.
+  * документы: набранный поиск после перезагрузки пуст;
+  * блок карточки ОЦ, свёрнутый по заголовку, разворачивается обратно при
+    любой перерисовке и после перезагрузки (класс в разметке, нигде не
+    запомненный); в ОЦ «Механизмы» стрелки блоков не работали вовсе
+    (kernel/cardToggle.js).
 """
 NAME = 'вид экрана после перезагрузки'
 
-TOUCHES = ('app/kernel/viewState.js', 'app/modules/apartment/data/store.js', 'app/modules/vehicle/index.js',
+TOUCHES = ('app/kernel/viewState.js', 'app/kernel/cardToggle.js', 'app/modules/civil/index.js', 'app/modules/apartment/data/store.js', 'app/modules/vehicle/index.js',
            'app/modules/mechanisms/index.js', 'app/pages/institutions/institutions.js', 'app/pages/docs/docs.js',
            'app/pages/dicts/dicts.js', 'app/pages/archive/archive.js')
 
@@ -67,3 +71,22 @@ def run(t):
     pg.wait_for_timeout(400)
     reload(t, '[data-docs-q]')
     t.ck(pg.input_value('[data-docs-q]') == 'техпаспорт', 'документы: поиск после перезагрузки пуст')
+
+    # --- свёрнутый блок карточки ОЦ: перерисовка и перезагрузка -------------------
+    closed = "() => document.querySelector('[data-card-toggle]').closest('.card').classList.contains('collapsed')"
+    t.open('#/oc/civil/oc-cv-1', wait='[data-card-toggle]')
+    pg.locator('[data-card-toggle] h3').first.click()
+    t.ck(t.wait_until(closed), 'нежилое здание: блок не свернулся по заголовку')
+    pg.evaluate("() => window.dispatchEvent(new Event('inside:redraw'))")
+    pg.wait_for_timeout(600)
+    t.ck(pg.evaluate(closed), 'нежилое здание: свёрнутый блок развернулся при перерисовке')
+    reload(t, '[data-card-toggle]')
+    t.ck(pg.evaluate(closed), 'нежилое здание: свёрнутый блок развернулся после перезагрузки')
+
+    # --- ОЦ «Механизмы»: стрелки блоков работают -----------------------------------
+    t.open('', wait='.reg-tr')
+    pg.click('.reg-create [data-dd-toggle]')
+    pg.click('.reg-create [data-create="mechanisms"]')
+    t.wait_for('[data-card-toggle]')
+    pg.locator('[data-card-toggle] h3').first.click()
+    t.ck(t.wait_until(closed), 'ОЦ «Механизмы»: блок не сворачивается по заголовку')

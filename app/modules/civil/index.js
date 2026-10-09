@@ -35,6 +35,7 @@ import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 
+import { bindCardToggles, applyCardToggles } from '../../kernel/cardToggle.js';
 // Тип ОЦ записи — «Нежилое здание»: гражданское оно, производственное или
 // смешанное, считает система (card/typology.js, решение пользователя
 // 28.09.2026). Записи, заведённые «Гражданским зданием» или
@@ -187,13 +188,9 @@ export function main(host) {
       ui.accOpen[head.dataset.accToggle] = acc.classList.contains('open');
     });
 
-    scope.on('click', '[data-card-toggle]', (e, head) => {
-      if (e.target.closest('button') || e.target.closest('input')
-        || e.target.closest('select') || e.target.closest('.dd')) return;
-      e.stopPropagation();
-      const card = head.closest('.card');
-      if (card) card.classList.toggle('collapsed');
-    });
+    // Свёрнутые блоки помнятся в ui и переживают перерисовку и перезагрузку
+    // (kernel/cardToggle.js).
+    bindCardToggles(scope, ui);
 
     scope.on('click', '[data-dd-toggle]', (e, btn) => {
       const dd = btn.closest('.dd');
@@ -272,6 +269,7 @@ export function main(host) {
 
     const plate = ctxPlate(ctx);
     scope.setHTML(`<div id="ctxPlateWrap" style="${plate ? '' : 'display:none'}">${plate || ''}</div>` + body);
+    applyCardToggles(scope.root, ui);
 
     host.setCrumbs(crumbs());
 

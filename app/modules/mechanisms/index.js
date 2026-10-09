@@ -8,6 +8,7 @@ import { bindFileDrop } from '../../kernel/viewer/files.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { viewerDeps } from './viewerDeps.js';
 import { persistView, VIEWER_KEEP } from '../../kernel/viewState.js';
+import { bindCardToggles, applyCardToggles } from '../../kernel/cardToggle.js';
 
 // ОЦ «Механизмы и оборудование» — устроен как ОЦ «Транспортные средства»
 // (vehicle/index.js), решение пользователя 28.09.2026.
@@ -21,7 +22,7 @@ function todayStr() {
 // решение пользователя 09.10.2026, kernel/viewState.js). Выбранная единица —
 // по id перечня, поэтому своя у каждой записи.
 const ui = {};
-persistView('mechanisms', ui, [...VIEWER_KEEP, 'partiesOpen', 'mechSel', 'recId']);
+persistView('mechanisms', ui, [...VIEWER_KEEP, 'partiesOpen', 'mechSel', 'cardsClosed', 'recId']);
 function forRecord(id) {
   if (ui.recId !== id) { delete ui.partiesOpen; delete ui.viewerDoc; }
   ui.recId = id;
@@ -57,6 +58,7 @@ export function main(host) {
     // Просмотрщик виден по умолчанию; прячется только крестиком.
     if (!ui.viewerClosed && !ui.viewer) ui.viewer = { mode: 'doc' };
     scope.setHTML(viewMech(ctx));
+    applyCardToggles(scope.root, ui);
     bindMech(ctx);
     if (scope.watchStickyHead) scope.watchStickyHead();
     if (scope.syncStickyHead) scope.syncStickyHead();
@@ -64,6 +66,9 @@ export function main(host) {
 
   setViewerDeps(viewerDeps);
   bindStickyHead(scope);
+  // Сворачивание блоков «Состав» и единиц — его здесь не было, стрелки не
+  // работали (код-ревью 09.10.2026).
+  bindCardToggles(scope, ui);
   bindViewerHotkeys(ctx);
   bindFileDrop(ctx);
 

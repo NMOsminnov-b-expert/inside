@@ -34,6 +34,7 @@ import { takeSnapshot, recordChanges, pushOiDeletionLog } from './audit/model.js
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { migrateAnnexList } from './oi/building/annexes.js';
 
+import { bindCardToggles, applyCardToggles } from '../../kernel/cardToggle.js';
 function todayStr() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
@@ -176,13 +177,9 @@ export function main(host) {
       ui.accOpen[head.dataset.accToggle] = acc.classList.contains('open');
     });
 
-    scope.on('click', '[data-card-toggle]', (e, head) => {
-      if (e.target.closest('button') || e.target.closest('input')
-        || e.target.closest('select') || e.target.closest('.dd')) return;
-      e.stopPropagation();
-      const card = head.closest('.card');
-      if (card) card.classList.toggle('collapsed');
-    });
+    // Свёрнутые блоки помнятся в ui и переживают перерисовку и перезагрузку
+    // (kernel/cardToggle.js).
+    bindCardToggles(scope, ui);
 
     scope.on('click', '[data-dd-toggle]', (e, btn) => {
       const dd = btn.closest('.dd');
@@ -259,6 +256,7 @@ export function main(host) {
 
     const plate = ctxPlate(ctx);
     scope.setHTML(`<div id="ctxPlateWrap" style="${plate ? '' : 'display:none'}">${plate || ''}</div>` + body);
+    applyCardToggles(scope.root, ui);
 
     host.setCrumbs(crumbs());
 

@@ -83,7 +83,7 @@ export const ui = {
 // страниц, правка литеры, раскрытые списки фильтров.
 const UI_KEEP = [
   ...VIEWER_KEEP,
-  'expanded', 'accOpen', 'doneOpen', 'heatOpen',
+  'expanded', 'accOpen', 'doneOpen', 'heatOpen', 'cardsClosed',
   'oiCols', 'oiColWidths', 'floorCols',
   'photoQuery',
   'auditCatFilter', 'auditPersonFilter', 'auditActionFilter', 'auditObjectFilter',
