@@ -77,7 +77,7 @@ function structField(oi, key, label, opts, val, req, bare) {
 }
 
 function letterControlHTML(ctx, oi) {
-  if (ctx.ui.letterEdit) {
+  if (ctx.ui.letterEdit === oi.id) {
     return `<div style="display:flex; gap:4px; align-items:center;">
 <input class="input" style="width:80px; text-align:center; font-weight:700;"
 data-letter-input value="${esc(oi.letter)}"

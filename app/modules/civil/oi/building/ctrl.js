@@ -810,7 +810,9 @@ export function bind(ctx, oi) {
   // --- Литера -------------------------------------------------------------
   const elBtn = s.$('[data-edit-letter]');
   if (elBtn) elBtn.onclick = () => {
-    ctx.ui.letterEdit = true;
+    // Правка литеры — у этого ОИ: в другой литере режим не открыт (флаг на
+    // модуль переходил на соседнюю литеру, код-ревью 09.10.2026).
+    ctx.ui.letterEdit = oi.id;
     ctx.render();
     const i = ctx.scope.$('[data-letter-input]');
     if (i) { i.focus(); i.select(); }

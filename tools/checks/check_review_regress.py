@@ -15,7 +15,9 @@
     kernel/boot.js makeHost);
   * то же внутри модуля: литера одной записи грузится, а человек уже перешёл к
     другой записи — запоздавшая карточка литеры ложилась поверх (номер
-    отрисовки в modules/*/index.js).
+    отрисовки в modules/*/index.js);
+  * правка литеры, начатая в одном ОИ, открыта и в другом (флаг на модуль, а
+    не на ОИ — код-ревью 09.10.2026).
 """
 import time
 NAME = 'находки сравнения с прежней версией'
@@ -73,3 +75,13 @@ def run(t):
     t.ck(pg.evaluate('location.hash') == '#/oc/civil/oc-cv-2', 'после перехода адрес не oc-cv-2: %s' % pg.evaluate('location.hash'))
     t.ck(pg.locator('#content [data-bld-rights]').count() == 0 and pg.locator('tr[data-open-oi]').count() > 0,
          'запоздавшая карточка литеры прежней записи легла поверх другой записи')
+
+    # --- правка литеры — только у своего ОИ --------------------------------------------
+    ids = pg.evaluate("""async () => (await import('./app/modules/civil/data/store.js')).getRecord('oc-cv-1')
+      .oi.filter((o) => o.card === 'building').map((o) => o.id)""")
+    if t.ck(len(ids) >= 2, 'в oc-cv-1 меньше двух литер — проверить правку литеры не на чем'):
+        t.open('#/oc/civil/oc-cv-1/oi/' + ids[0], wait='[data-edit-letter]')
+        pg.click('[data-edit-letter]')
+        t.ck(t.wait_for('[data-letter-input]'), 'правка литеры не открылась')
+        t.open('#/oc/civil/oc-cv-1/oi/' + ids[1], wait='.card')
+        t.ck(pg.locator('[data-letter-input]').count() == 0, 'правка литеры перешла на другую литеру')
