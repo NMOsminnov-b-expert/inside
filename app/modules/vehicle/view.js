@@ -54,11 +54,17 @@ import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 // Сворачивается пока что только блок 02, хотя должны все»). Заголовок целиком —
 // кнопка (W3C ARIA APG, Accordion; Mesa и American Express Design System: вся
 // строка заголовка — цель щелчка, стрелка справа, одинаково у всех блоков);
-// стрелка крупная, в квадрате 32×32. Свёрнутые блоки — ctx.ui.tsClosed (на
-// запись; другая запись — заново).
+// стрелка крупная, в квадрате 32×32. Свёрнутые блоки — ctx.ui.tsClosed по id
+// держателя: у каждой машины свои, и у встроенной карточки ТС в здании тоже
+// (раньше один набор на все ТС модуля-хозяина — код-ревью 09.10.2026).
 export const ACC_CHEV = '<i class="vh-acc-chev" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24">'
   + '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></i>';
 let closedBlocks = {};
+export function closedOf(ctx, holder) {
+  const all = (ctx.ui.tsClosed = ctx.ui.tsClosed || {});
+  const id = (holder && holder.id) || 'main';
+  return (all[id] = all[id] || {});
+}
 const card = (tone, idx, title, hint, body, extra = '', attrs = '', key = title) => {
   const open = !closedBlocks[key];
   return `<div class="card t-${tone} ${open ? '' : 'vh-acc-closed'}" ${attrs}>
@@ -814,7 +820,7 @@ function loneModuleHTML(v, idx) {
 export function tsFormHTML(ctx, holder, set, { parties = null } = {}) {
   const v = tsOf(holder);
   ctx.ui = ctx.ui || {};
-  closedBlocks = (ctx.ui.tsClosed = ctx.ui.tsClosed || {});
+  closedBlocks = closedOf(ctx, holder);
   const inspect = !!ctx.ui.tsInspect && v.kind !== 'module';
   const idx = blockNumbers();
   const n = () => String(idx()).padStart(2, '0');

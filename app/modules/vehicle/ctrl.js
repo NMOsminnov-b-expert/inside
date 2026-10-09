@@ -14,7 +14,7 @@ import { bindMsSearch } from '../../kernel/multiSelect.js';
 import { bindTreeSearch } from '../../kernel/treeSearch.js';
 import { bindOcContacts } from '../../kernel/contacts.js';
 import { installSuggest } from '../../kernel/suggestInput.js';
-import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns, sugHTML, trackedOnly } from './view.js';
+import { openModuleId, navHTML, sectionFields, savedText, bindCondColumns, sugHTML, trackedOnly, closedOf } from './view.js';
 import { createRecord } from './records.js';
 import { MS_OPTS, msSummaryHTML, msBodyHTML, ruToIso, fullYear, expandRuDate } from './tsFields.view.js';
 import { setFieldError } from '../../kernel/fieldError.js';
@@ -33,6 +33,21 @@ import {
 // дополнительных параметров.
 // Форма ТС (tsFormHTML): вид объекта, поля машины и модулей, фото. holder —
 // запись, у которой лежит vehicle; set — держатель снимков (view.js).
+// Слушатели документа — один раз на область экрана. Флаг в dataset общего
+// корня (#content) переживал уход с экрана, а сами слушатели снимались: при
+// повторном заходе на ТС списки переставали закрываться щелчком мимо, а
+// «Сохранено · ЧЧ:ММ» — обновляться (код-ревью 09.10.2026). Область экрана
+// создаётся заново при каждом монтировании, поэтому метка на ней живёт ровно
+// столько, сколько слушатели.
+const bound = new WeakMap();
+function once(s, key, fn) {
+  let keys = bound.get(s);
+  if (!keys) bound.set(s, (keys = new Set()));
+  if (keys.has(key)) return;
+  keys.add(key);
+  fn();
+}
+
 export function bindTsForm(ctx, holder, set) {
   const s = ctx.scope;
   const v = tsOf(holder);
@@ -354,14 +369,11 @@ export function bindTsForm(ctx, holder, set) {
   // экрана. Свой флаг, а не общий msOutsideBound: в гражданском здании форма
   // живёт рядом с мультивыборами литер, и общий флаг оставил бы одну из
   // сторон без закрытия по щелчку мимо.
-  if (!s.root.dataset.tsMsOutsideBound) {
-    s.root.dataset.tsMsOutsideBound = '1';
-    s.onDocument('click', (e) => {
-      if (e.target.closest && e.target.closest('.ms')) return;
-      s.$$('.vehicle-form .ms-control').forEach((c) => c.classList.remove('open'));
-      s.$$('.vehicle-form .ms-drop').forEach((d) => { d.hidden = true; });
-    });
-  }
+  once(s, 'msOutside', () => s.onDocument('click', (e) => {
+    if (e.target.closest && e.target.closest('.ms')) return;
+    s.$$('.vehicle-form .ms-control').forEach((c) => c.classList.remove('open'));
+    s.$$('.vehicle-form .ms-drop').forEach((d) => { d.hidden = true; });
+  }));
 
   // Опознавательные номера: хотя бы один из трёх (предупреждение у группы).
   function checkIds() {
@@ -557,16 +569,38 @@ export function bindTsForm(ctx, holder, set) {
     s.$$('[data-ts-miss]').forEach((d) => { d.hidden = true; });
     s.$$('[data-ts-nav]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
   };
-  if (!s.root.dataset.tsNavBound) {
-    s.root.dataset.tsNavBound = '1';
+  once(s, 'nav', () => {
     s.onDocument('click', (e) => { if (!(e.target.closest && e.target.closest('.vh-navi'))) closeAllMiss(); });
     s.onDocument('keydown', (e) => { if (e.key === 'Escape') closeAllMiss(); });
-  }
+  });
 
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.
   ctx.ui.growSizes = ctx.ui.growSizes || {};
   bindAutoGrowAll(s, ctx.ui.growSizes);
   installSuggest(document);
+
+  // Аккордеон блоков: щелчок по заголовку (не по кнопке в нём), Enter, пробел.
+  // Свёрнутый блок остаётся на виду — иначе панель оставалась прокрученной вниз.
+  // Здесь, а не в bindVehicle: заголовки рисует общая форма, и встроенная
+  // карточка ТС (объект имущества в здании) без этого оставалась со стрелками,
+  // которые ничего не делали (код-ревью 09.10.2026).
+  const accBind = (head, toggle) => {
+    const run = async () => {
+      const closing = head.getAttribute('aria-expanded') === 'true';
+      toggle(closing);
+      await ctx.render();
+      if (closing) {
+        const sel = head.dataset.tsAcc ? `[data-ts-acc="${CSS.escape(head.dataset.tsAcc)}"]` : '[data-parties-toggle]';
+        const again = s.$(sel);
+        if (again) again.scrollIntoView({ block: 'nearest' });
+      }
+    };
+    head.onclick = (e) => { if (!e.target.closest('button:not(.vh-acc-head), a, input, select, textarea')) run(); };
+    head.onkeydown = (e) => { if (e.target === head && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); run(); } };
+  };
+  const closed = closedOf(ctx, holder);
+  s.$$('[data-ts-acc]').forEach((h) => accBind(h, (closing) => { closed[h.dataset.tsAcc] = closing; }));
+  s.$$('[data-parties-toggle]').forEach((h) => accBind(h, (closing) => { ctx.ui.partiesOpen = !closing; }));
 }
 
 export function bindVehicle(ctx) {
@@ -607,30 +641,11 @@ export function bindVehicle(ctx) {
 
   s.$$('[data-vehicle-back]').forEach((button) => button.onclick = () => ctx.host.toMenu());
 
-  // Аккордеон блоков: щелчок по заголовку (не по кнопке в нём), Enter, пробел.
-  // Свёрнутый блок остаётся на виду — иначе панель оставалась прокрученной вниз.
-  const accBind = (head, toggle) => {
-    const run = async () => {
-      const closing = head.getAttribute('aria-expanded') === 'true';
-      toggle(closing);
-      await ctx.render();
-      if (closing) {
-        const sel = head.dataset.tsAcc ? `[data-ts-acc="${CSS.escape(head.dataset.tsAcc)}"]` : '[data-parties-toggle]';
-        const again = s.$(sel);
-        if (again) again.scrollIntoView({ block: 'nearest' });
-      }
-    };
-    head.onclick = (e) => { if (!e.target.closest('button:not(.vh-acc-head), a, input, select, textarea')) run(); };
-    head.onkeydown = (e) => { if (e.target === head && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); run(); } };
-  };
-  s.$$('[data-ts-acc]').forEach((h) => accBind(h, (closing) => { ctx.ui.tsClosed[h.dataset.tsAcc] = closing; }));
-  s.$$('[data-parties-toggle]').forEach((h) => accBind(h, (closing) => { ctx.ui.partiesOpen = !closing; }));
-
   // «Сохранено · 13:42» следует за хранилищем без перерисовки.
-  if (!s.root.dataset.tsSavedBound) {
-    s.root.dataset.tsSavedBound = '1';
-    s.onDocument('inside:saved', () => { const el = s.$('[data-vehicle-saved]'); if (el) el.textContent = savedText(); });
-  }
+  once(s, 'saved', () => s.onDocument('inside:saved', () => {
+    const el = s.$('[data-vehicle-saved]');
+    if (el) el.textContent = savedText();
+  }));
 
   // «Создать похожее»: новая запись ОЦ с тем же учреждением, собственниками и
   // ответственными; из машины — вид, база, характеристики и модули.
@@ -643,7 +658,7 @@ export function bindVehicle(ctx) {
       // длинный перечень обрезался многоточием.
       text: `Новый объект оценки по образцу «${makeWithModules(v) || whatLabel(v)}». Переносятся учреждение, `
         + 'собственники и ответственные, вид объекта и база, марка, год, двигатель, массы, ходовая и модули.',
-      note: 'Не переносятся номера, регистрация, где стоит, наработка и состояние, заводские номера модулей, '
+      note: 'Не переносятся номера, регистрация, юридический адрес, наработка и состояние, заводские номера модулей, '
         + 'особые отметки и фото — у каждой машины они свои.',
       okLabel: 'Создать',
     });

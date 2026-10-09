@@ -14,12 +14,17 @@
     «Виды ТС», «Шаблоны», «Марки и модели»; фильтр окна не находит модель;
   * выбор пункта в окне не ставит то же, что выбор в выдаче поиска
     (модель — категорию, «Тип ТС» и марку; модуль — свой вид);
-  * Escape не закрывает окно.
+  * Escape не закрывает окно;
+  * встроенная карточка ТС (объект имущества в здании) не сворачивается —
+    обработчик висел только в карточке ОЦ (07.10.2026, код-ревью 09.10.2026);
+  * после ухода с экрана и возврата список пустых полей в строке разделов не
+    закрывается щелчком мимо (флаг «уже привязано» в dataset общего корня);
+  * «Создать похожее» переносит юридический адрес и оценки состояния.
 """
 
 NAME = 'карточка ТС: сворачивание и «Показать все»'
 
-TOUCHES = ('app/kernel/treeSearch.js', 'app/kernel/dialog.js', 'app/kernel/cards.css', 'app/modules/vehicle/view.js',
+TOUCHES = ('app/modules/vehicle/tsModel.js', 'app/modules/vehicle/oiCard.js', 'app/kernel/treeSearch.js', 'app/kernel/dialog.js', 'app/kernel/cards.css', 'app/modules/vehicle/view.js',
            'app/modules/vehicle/ctrl.js', 'app/modules/vehicle/parties.view.js', 'app/modules/vehicle/templates.js',
            'app/modules/vehicle/module.css')
 
@@ -79,3 +84,42 @@ def run(t):
     t.wait_until("() => !document.querySelector('.tsb')")
     kinds = pg.evaluate("() => [...document.querySelectorAll('[data-ts-modkind]')].map((e) => e.value)")
     t.ck(name in kinds, 'модуль из окна не встал: %s → %s' % (name, kinds))
+
+    # --- «Создать похожее»: своё у машины не переносится ------------------------
+    pg.fill('[data-tsf="main|legalAddr"]', 'г. Бишкек, ул. Проверочная, 1')
+    pg.keyboard.press('Tab')
+    src = pg.evaluate("() => location.hash")
+    pg.click('[data-vehicle-copy]')
+    pg.click('.modal-back [data-modal-ok]')
+    t.wait_until("(h) => location.hash !== h", src)
+    t.wait_for('[data-ts-cat]')
+    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', '«Создать похожее» не перенёс категорию')
+    t.ck(pg.locator('[data-tsf="main|legalAddr"]').count() == 0 or pg.input_value('[data-tsf="main|legalAddr"]') == '',
+         '«Создать похожее» перенёс юридический адрес')
+
+    # --- возврат на экран: «Ходовая» закрывается щелчком мимо --------------------
+    pg.evaluate("() => { location.hash = '#/'; }")
+    t.wait_for('.reg-tr')
+    pg.go_back()
+    t.wait_for('[data-ts-cat]')
+    # Список пустых полей раздела (строка разделов) закрывается щелчком мимо —
+    # этот слушатель документа привязывается тем же «один раз на экран».
+    t.wait_for('[data-ts-nav]')
+    pg.evaluate("() => document.querySelector('[data-ts-nav]').click()")
+    t.wait_until("() => [...document.querySelectorAll('[data-ts-miss]')].some((d) => !d.hidden)")
+    pg.evaluate("() => document.body.click()")
+    t.ck(t.wait_until("() => [...document.querySelectorAll('[data-ts-miss]')].every((d) => d.hidden)"),
+         'после возврата на экран список пустых полей не закрывается щелчком мимо')
+
+    # --- встроенная карточка ТС в здании сворачивается ---------------------------
+    t.open('#/oc/civil/oc-cv-1', wait='[data-add-oi]')
+    pg.locator('[data-dd-toggle]').first.click()
+    pg.locator('[data-add-oi]', has_text='Транспортное средство').first.click()
+    t.wait_until("() => [...document.querySelectorAll('tr[data-open-oi]')].some((tr) => tr.innerText.includes('Новое транспортное средство'))")
+    pg.locator('tr[data-open-oi]', has_text='Новое транспортное средство').first.click()
+    t.wait_for('.ts-host .vehicle-form')
+    pg.select_option('.ts-host [data-ts-cat]', 'Легковое')
+    t.wait_for('.ts-host [data-ts-acc="Регистрационный учёт"]')
+    pg.locator('.ts-host [data-ts-acc="Регистрационный учёт"] h3').click()
+    t.ck(t.wait_until("() => document.querySelector('.ts-host [data-ts-acc=\"Регистрационный учёт\"]').getAttribute('aria-expanded') === 'false'"),
+         'встроенная карточка ТС в здании не сворачивается')

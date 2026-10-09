@@ -478,9 +478,24 @@ export const powerUnitFor = (kind) =>
 // номера, регистрация, где стоит, наработка и состояние, особые отметки
 // (дополнительные параметры), фото. У модулей — без заводского номера и
 // наработки.
-const OWN_KEYS = ['vin', 'bodyNo', 'chassisNo', 'engineNo', 'serialNo', 'plate', 'vid', 'regDate', 'docNo',
-  'factAddr', 'mileage', 'engineHours', 'hours', 'state', 'kit'];
-const pick = (f) => Object.fromEntries(Object.entries(f || {}).filter(([k]) => !OWN_KEYS.some((o) => k === o || k === o + '@unit')));
+//
+// Что своё у машины — по справочнику, а не перечнем ключей: всё из блоков
+// «Регистрационный учёт» (reg) и «Наработка и состояние» (use) плюс
+// опознавательные номера. Перечень ключей отставал от справочника — юридический
+// адрес, вид документа и оценки состояния переносились, хотя окно обещало
+// обратное (код-ревью 09.10.2026). factAddr — прежнее поле, на случай записи
+// до переноса.
+const OWN_IDS = ['vin', 'bodyNo', 'chassisNo', 'engineNo', 'serialNo', 'vid', 'factAddr'];
+let ownKeys = null;
+const isOwn = (k) => {
+  if (!ownKeys) {
+    ownKeys = new Set(OWN_IDS);
+    [TS_BASE_FIELDS, ...Object.values(TS_BASE_FIELDS_BY_CATEGORY), TS_SELF_FIELDS, TS_MODULE_FIELDS]
+      .forEach((list) => (list || []).forEach((f) => { if (f.block === 'reg' || f.block === 'use') ownKeys.add(f.key); }));
+  }
+  return ownKeys.has(k.replace(/@unit$/, ''));
+};
+const pick = (f) => Object.fromEntries(Object.entries(f || {}).filter(([k]) => !isOwn(k)));
 
 export function copyVehicle(v) {
   return {
