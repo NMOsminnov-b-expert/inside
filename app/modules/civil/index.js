@@ -228,7 +228,12 @@ export function main(host) {
     return card;
   }
 
+  // Номер отрисовки: пока одна ждёт загрузку кода карточки ОИ, могла начаться
+  // следующая (переход к другой записи или ОИ того же модуля) — запоздавшая
+  // тогда выходит, а не рисует прежнюю поверх (сверка поведения 09.10.2026).
+  let drawTurn = 0;
   async function draw() {
+    const turn = ++drawTurn;
     if (!rec) {
       scope.setHTML(`<div class="card card-pad">Объект оценки не найден.
         <button class="btn btn-ghost btn-sm" data-to-menu style="margin-left:10px">В меню</button></div>`);
@@ -250,6 +255,7 @@ export function main(host) {
       const oi = ctx.oi;
       if (!oi) { ctx.navigate({ rest: [], replace: true }); return; }
       const card = await ensureCard(oi);
+      if (turn !== drawTurn) return;
       // Своего экрана нет (вспомогательная постройка правится в перечне ОЦ):
       // по прямому адресу такого ОИ — в карточку ОЦ, а не пустой экран с
       // ошибкой (найдено сравнением поведения 09.10.2026).

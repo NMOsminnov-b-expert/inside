@@ -12,13 +12,16 @@
   * быстрый уход из карточки ОИ, пока её код ещё грузится, — запоздавшая
     отрисовка рисовала старую карточку поверх нового экрана (корень у всех
     экранов один); найдено на проверках 09.10.2026 (kernel/scope.js destroy,
-    kernel/boot.js makeHost).
+    kernel/boot.js makeHost);
+  * то же внутри модуля: литера одной записи грузится, а человек уже перешёл к
+    другой записи — запоздавшая карточка литеры ложилась поверх (номер
+    отрисовки в modules/*/index.js).
 """
 import time
 NAME = 'находки сравнения с прежней версией'
 
 TOUCHES = ('app/kernel/scope.js', 'app/kernel/boot.js', 'app/modules/land-plot/card/oiTable.view.js', 'app/modules/civil/index.js',
-           'app/modules/apartment/index.js', 'app/modules/land-plot/index.js', 'app/modules/residential-house/index.js')
+           'app/modules/apartment/index.js', 'app/modules/civil/oi/building/index.js', 'app/modules/land-plot/index.js', 'app/modules/residential-house/index.js')
 
 
 def run(t):
@@ -57,3 +60,16 @@ def run(t):
     t.ck(pg.evaluate('location.hash') == '#/institutions', 'после ухода адрес не «Учреждения»: %s' % pg.evaluate('location.hash'))
     t.ck(pg.locator('.itree-row').count() > 0 and pg.locator('#content .ctx-plate, #content [data-bld-rights]').count() == 0,
          'запоздавшая карточка ОИ нарисовалась поверх «Учреждений»')
+
+    # --- то же внутри модуля: к другой записи, пока грузится литера ----------------------
+    pg.goto(t.base)
+    t.wait_for('.reg-tr')
+    pg.route('**/app/modules/civil/oi/building/index.js', slow)
+    pg.evaluate("(h) => { location.hash = h; }", '#/oc/civil/oc-cv-1/oi/' + oi)
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => { location.hash = '#/oc/civil/oc-cv-2'; }")
+    pg.wait_for_timeout(2500)
+    pg.unroute('**/app/modules/civil/oi/building/index.js')
+    t.ck(pg.evaluate('location.hash') == '#/oc/civil/oc-cv-2', 'после перехода адрес не oc-cv-2: %s' % pg.evaluate('location.hash'))
+    t.ck(pg.locator('#content [data-bld-rights]').count() == 0 and pg.locator('tr[data-open-oi]').count() > 0,
+         'запоздавшая карточка литеры прежней записи легла поверх другой записи')
