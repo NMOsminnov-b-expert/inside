@@ -13,7 +13,7 @@
 // поэтому просмотрщик модуля видит их без переделок.
 import { esc } from '../../kernel/dom.js';
 import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
-import { tsOf, tsTitle } from './tsModel.js';
+import { tsOf, tsTitle, nextId } from './tsModel.js';
 import { PHOTO_CATS } from './photos.js';
 import { vehicleFieldsFor } from './data/vehicleFields.js';
 import { tsFormHTML } from './view.js';
@@ -43,8 +43,8 @@ const OLD_TYPE = {
 // Поля прежней карточки, у которых в новой есть поле с тем же смыслом.
 const SAME_KEY = ['engineVolume', 'gearbox', 'bodyNo', 'chassisNo', 'engineNo', 'mileage', 'engineHours', 'kit'];
 
-let seq = 1;
-const rowId = () => `vx-${Date.now().toString(36)}-${seq += 1}`;
+// Id строк — общим счётчиком модуля (tsModel.js nextId).
+const rowId = () => nextId('vx');
 
 // Перевод ТС, заведённого прежней карточкой: марка, госномер, VIN, год, цвет
 // ложатся в свои поля; остальное, чему нет поля, — в дополнительные параметры

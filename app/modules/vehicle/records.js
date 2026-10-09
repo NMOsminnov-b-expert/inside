@@ -1,6 +1,6 @@
 import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
 import { manifest } from './manifest.js';
-import { tsTitle, whatLabel } from './tsModel.js';
+import { tsTitle, whatLabel, tsOf } from './tsModel.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
 
 const records = [];
@@ -22,6 +22,10 @@ registerPersisted('records.vehicle', {
     // перезагрузки (код-ревью 09.10.2026).
     if (!Array.isArray(saved)) return;
     records.splice(0, records.length, ...saved);
+    // Старые записи переводятся сразу при загрузке, а не при первом открытии
+    // карточки: реестр читает данные машины напрямую, и у старых записей в
+    // фасетах и поиске стояли прежние категории и базы (код-ревью 09.10.2026).
+    records.forEach((r) => tsOf(r));
     seq = saved.reduce((max, r) => Math.max(max, Number(String(r.id).split('-').pop()) || 0), seq);
   },
 });

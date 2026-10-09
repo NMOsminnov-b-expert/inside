@@ -435,8 +435,12 @@ export function specialFields(v) {
 }
 
 // --- дополнительные параметры: строки «наименование — значение» ------------
+// Один счётчик на модуль: id строк заводят и карточка, и перевод прежней
+// карточки (oiCard.js). Прежде у каждого был свой счётчик одного вида, и у
+// старой записи в одну миллисекунду id совпадали — правка и удаление строки
+// попадали не в ту (код-ревью 09.10.2026).
 let seq = 1;
-const nextId = (p) => `${p}-${Date.now().toString(36)}-${seq += 1}`;
+export const nextId = (p) => `${p}-${Date.now().toString(36)}-${seq += 1}`;
 
 export function addExtra(list, label = '') {
   const row = { id: nextId('vx'), label, value: '' };
