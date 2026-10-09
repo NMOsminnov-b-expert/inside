@@ -68,7 +68,7 @@ ${letterControlHTML(ctx, oi)}
 <div class="field" style="flex:0 0 150px;">
 <label title="Основное или вспомогательное строение. Статус объекта в работе — в плашке карточки">Основное / вспомогательное</label>
 <select class="select" style="width:100%;" data-status>
-${opt('apartment', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('apartment', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${esc(o)}</option>`).join('')}
 </select>
 </div>
 </div>
@@ -110,7 +110,7 @@ ${opt('apartment', 'series', APARTMENT_SERIES).map((series) => `<option ${series
 <div class="inline-row">
 <select class="select" data-apt-location style="flex:1 1 160px;">
 ${emptyOptionHTML(opt('apartment', 'location', APARTMENT_LOCATIONS))}
-${opt('apartment', 'location', APARTMENT_LOCATIONS).map((location) => `<option ${location === apt.location ? 'selected' : ''}>${location}</option>`).join('')}
+${opt('apartment', 'location', APARTMENT_LOCATIONS).map((location) => `<option ${location === apt.location ? 'selected' : ''}>${esc(location)}</option>`).join('')}
 </select>
 <input
 class="input"
@@ -129,7 +129,7 @@ style="flex:1 1 160px; ${showLocationOther ? '' : 'display:none;'}"
 <div class="inline-row">
 <select class="select" data-apt-rights style="flex:1 1 200px;">
 ${emptyOptionHTML(opt('apartment', 'rights', APARTMENT_RIGHTS))}
-${opt('apartment', 'rights', APARTMENT_RIGHTS).map((right) => `<option ${right === apt.rights ? 'selected' : ''}>${right}</option>`).join('')}
+${opt('apartment', 'rights', APARTMENT_RIGHTS).map((right) => `<option ${right === apt.rights ? 'selected' : ''}>${esc(right)}</option>`).join('')}
 </select>
 <input
 class="input"

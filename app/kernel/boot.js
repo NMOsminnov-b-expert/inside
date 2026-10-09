@@ -1,5 +1,6 @@
 import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav, setUserMenuExtra } from '../shell/shell.js';
 import { createScope } from './scope.js';
+import { esc } from './dom.js';
 import { start, parse, build, go, MENU_HREF, INST_HREF, DOCS_HREF } from './router.js';
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
@@ -266,7 +267,7 @@ async function onRoute(route) {
     unmount();
     resetShellSlots();
     const scope = createScope(contentRoot());
-    scope.setHTML(`<div class="card card-pad">Тип ОЦ «${route.typeId}» не зарегистрирован.
+    scope.setHTML(`<div class="card card-pad">Тип ОЦ «${esc(route.typeId)}» не зарегистрирован.
       <button class="btn btn-ghost btn-sm" data-back-menu style="margin-left:10px">В меню</button></div>`);
     scope.on('click', '[data-back-menu]', () => go(MENU_HREF));
     current = { kind: 'missing', instance: null, scope };

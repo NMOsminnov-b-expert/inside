@@ -62,7 +62,7 @@ function mainSection(rec) {
         <div class="field">
           <label>Статус ОЦ</label>
           <select class="select" id="fStatus">
-            ${opt('oc', 'status', STATUS_OC).map((s) => `<option ${s === rec.status ? 'selected' : ''}>${s}</option>`).join('')}
+            ${opt('oc', 'status', STATUS_OC).map((s) => `<option ${s === rec.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}
           </select>
         </div>
 

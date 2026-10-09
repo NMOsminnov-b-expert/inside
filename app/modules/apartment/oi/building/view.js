@@ -152,7 +152,7 @@ ${letterControlHTML(ctx, oi)}
 <div class="field" style="flex:0 0 150px;">
 <label title="Основное или вспомогательное строение. Статус объекта в работе — в плашке карточки">Основное / вспомогательное</label>
 <select class="select" style="width:100%;" data-status>
-${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('building', 'status', STATUS_BUILD).map((o) => `<option ${o === oi.status ? 'selected' : ''}>${esc(o)}</option>`).join('')}
 </select>
 </div>
 </div>
@@ -160,14 +160,14 @@ ${flagsRowHTML(oi)}
 <div class="grid g-3">
 ${yearFieldHTML(oi, 'Год постройки')}
 <div class="field"><label>Расположение строения${rq.buildTypeRequired ? '<span class="req">*</span>' : ''}</label>
-<select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-buildtype>${opt('building', 'buildType', BUILD_TYPE).map((o) => `<option ${o === oi.buildType ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>
 ${showStructureKind ? `<div class="field">
 <label>Тип строения</label>
 <div class="inline-row">
 <select class="select" data-structure-kind style="flex:1 1 160px;">
 ${emptyOptionHTML(opt('building', 'structureKind', STRUCTURE_KIND))}
-${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('building', 'structureKind', STRUCTURE_KIND).map((o) => `<option ${o === oi.structureKind ? 'selected' : ''}>${esc(o)}</option>`).join('')}
 </select>
 <input
 class="input"
@@ -200,7 +200,7 @@ ${rq.showOiCategory ? `<div class="field"><label>Класс ОИ</label>
 <select class="select" data-oi-category>${oiCategoryOptions(oi.oiCategory || '', rq.prod)}</select>
 </div>` : ''}
 ${showResCat ? `<div class="field"><label>Категория жилого строения</label>
-<select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-rescat>${resCatOptions().map((o) => `<option ${o === oi.resCat ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>` : ''}
 ${rq.showCatClass ? `<div class="field"><label>Назначение по тех паспорту</label>
 <input class="input" data-catclass value="${esc(oi.catClass || '')}" placeholder="Укажите назначение вручную">
@@ -330,7 +330,7 @@ function wearField(oi, key, label, bare) {
   const val = wear[key] || opt('building', 'wear', WEAR_LEVEL)[0];
 
   return `<div class="field${bare ? ' f-bare' : ''}">${bare ? '' : `<label>${label}</label>`}
-<select class="select" data-wear="${key}">${opt('building', 'wear', WEAR_LEVEL).map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-wear="${key}">${opt('building', 'wear', WEAR_LEVEL).map((o) => `<option ${o === val ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>`;
 }
 
@@ -374,18 +374,18 @@ function prodExtraCard(ctx, oi, idx) {
 <div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(numText(oi.prodHeight))}" inputmode="decimal"></div>
 ${tempModeMS(ctx, oi)}
 <div class="field"><label>Усиленность конструкции</label>
-<select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>
 </div>
 <div class="grid g-3" style="margin-top:10px">
 <div class="field"><label>Конструктив</label>
-<select class="select" data-prod-frame>${opt('building', 'frame', PROD_FRAME).map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-prod-frame>${opt('building', 'frame', PROD_FRAME).map((o) => `<option ${o === (oi.prodFrame || '') ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>
 <div class="field"><label>Полы (несущая способность)</label>
-<select class="select" data-prod-floors>${opt('building', 'floorsType', PROD_FLOORS).map((o) => `<option ${o === (oi.prodFloors || '') ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-prod-floors>${opt('building', 'floorsType', PROD_FLOORS).map((o) => `<option ${o === (oi.prodFloors || '') ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>
 <div class="field"><label>Наличие/возможность кран-балки</label>
-<select class="select" data-prod-crane>${opt('building', 'craneBeam', CRANE_BEAM).map((o) => `<option ${o === (oi.craneBeam || opt('building', 'craneBeam', CRANE_BEAM)[0]) ? 'selected' : ''}>${o}</option>`).join('')}</select>
+<select class="select" data-prod-crane>${opt('building', 'craneBeam', CRANE_BEAM).map((o) => `<option ${o === (oi.craneBeam || opt('building', 'craneBeam', CRANE_BEAM)[0]) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>
 </div>
 </div></div>

@@ -102,7 +102,7 @@ const isSummable = (c) => c.kind === 'area';
 
 function mansardTypeCell(f, i) {
   return `<td><select class="select" data-floor-mansard="${i}" aria-label="Тип мансарды">
-${opt('building', 'mansardType', MANSARD_TYPE).map((o) => `<option ${o === (f.mansardType || opt('building', 'mansardType', MANSARD_TYPE)[0]) ? 'selected' : ''}>${o}</option>`).join('')}
+${opt('building', 'mansardType', MANSARD_TYPE).map((o) => `<option ${o === (f.mansardType || opt('building', 'mansardType', MANSARD_TYPE)[0]) ? 'selected' : ''}>${esc(o)}</option>`).join('')}
 </select></td>`;
 }
 

@@ -228,7 +228,7 @@ function landSummary(ctx, land) {
         ${LAND_SUM_COLS.map((c) => `<th style="width:${c.width}">${c.label}</th>`).join('')}
       </tr></thead>
       <tbody><tr>
-        ${LAND_SUM_COLS.map((c) => `<td class="ell ${c.cls || ''}" title="${c.plain ? c.plain(land) : ''}">${c.get(land)}</td>`).join('')}
+        ${LAND_SUM_COLS.map((c) => `<td class="ell ${c.cls || ''}" title="${esc(c.plain ? c.plain(land) : '')}">${c.get(land)}</td>`).join('')}
       </tr></tbody>
     </table>
   </div>`;
