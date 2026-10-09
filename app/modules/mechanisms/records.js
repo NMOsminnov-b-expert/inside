@@ -3,7 +3,7 @@ import { manifest } from './manifest.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { fmtNum } from '../../kernel/fmt.js';
 import {
-  mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath,
+  mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath, migrateMechHolder,
 } from './form/model.js';
 
 // Записи ОЦ «Механизмы и оборудование». Устроены как у ОЦ «Транспортные
@@ -25,6 +25,7 @@ registerPersisted('records.mechanisms', {
     // перезагрузки (код-ревью 09.10.2026).
     if (!Array.isArray(saved)) return;
     records.splice(0, records.length, ...saved);
+    records.forEach((rec) => migrateMechHolder(rec.mech));
     seq = saved.reduce((max, r) => Math.max(max, Number(String(r.id).split('-').pop()) || 0), seq);
   },
 });

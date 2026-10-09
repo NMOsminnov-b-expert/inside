@@ -307,51 +307,56 @@ const SUB_RENAMED = {
   'Насосное, компрессорное, вентиляционное оборудование производственного назначения': 'Насосное, компрессорное, вентиляционное оборудование',
 };
 
+// Перевод старых записей — по объекту имущества в чужом ОЦ (rec.oi) и по
+// перечню самостоятельного ОЦ «Механизмы» (rec.mech, records.js restore).
+// Прежде обходился только rec.oi, и у записей ОЦ «Механизмы» переименования
+// классификатора от 02.10.2026 не применялись — старый тип не находился в
+// списке (код-ревью 09.10.2026).
 export function migrateMechUnits(rec) {
   if (!rec || !Array.isArray(rec.oi)) return;
+  rec.oi.forEach((oi) => { if (oi.card === 'mech') migrateMechHolder(oi); });
+}
 
-  rec.oi.forEach((oi) => {
-    if (oi.card !== 'mech') return;
+export function migrateMechHolder(oi) {
+  if (!oi) return;
+  mechUnits(oi).forEach((u) => {
+    if (u.maker) {
+      u.country = u.country || u.maker;
+      delete u.maker;
+    }
+    if (u.inv === undefined) u.inv = '';
+    if (SUB_RENAMED[u.sub]) u.sub = SUB_RENAMED[u.sub];
+    if (u.type in TYPE_RENAMED) {
+      const was = u.type;
+      u.type = TYPE_RENAMED[was] || '';
+      if (!u.type) (u.extra = u.extra || []).push({ id: uid('mf'), label: 'Прежний тип', value: was });
+    }
+    // Страна — всегда с заглавной (заметки пользователя 30.09.2026).
+    if (u.country) u.country = u.country.charAt(0).toLocaleUpperCase('ru') + u.country.slice(1);
 
-    mechUnits(oi).forEach((u) => {
-      if (u.maker) {
-        u.country = u.country || u.maker;
-        delete u.maker;
-      }
-      if (u.inv === undefined) u.inv = '';
-      if (SUB_RENAMED[u.sub]) u.sub = SUB_RENAMED[u.sub];
-      if (u.type in TYPE_RENAMED) {
-        const was = u.type;
-        u.type = TYPE_RENAMED[was] || '';
-        if (!u.type) (u.extra = u.extra || []).push({ id: uid('mf'), label: 'Прежний тип', value: was });
-      }
-      // Страна — всегда с заглавной (заметки пользователя 30.09.2026).
-      if (u.country) u.country = u.country.charAt(0).toLocaleUpperCase('ru') + u.country.slice(1);
-
-      u.extra = (u.extra || []).filter((f) => {
-        if (String(f.label || '').toLowerCase().indexOf('инвентарный номер') < 0) return true;
-        if (!u.inv) u.inv = f.value;
-        return false;
-      });
-
-      // Масса — общее поле любой единицы (01.10.2026), не «свое поле».
-      const known = new Set(['mass']);
-      const f = fieldsFor(u.cls, u.sub, u.type);
-      if (f) [...f.main, ...f.extra].forEach((x) => known.add(x.key));
-
-      Object.keys(u.params || {}).forEach((key) => {
-        if (key.endsWith('@unit') || known.has(key)) return;
-        const value = u.params[key];
-        const unitName = u.params[key + '@unit'];
-        delete u.params[key];
-        delete u.params[key + '@unit'];
-        if (value) {
-          u.extra.push({ id: uid('mf'), label: FORMER[key] || key,
-            value: String(value) + (unitName ? ' ' + unitName : '') });
-        }
-      });
+    u.extra = (u.extra || []).filter((f) => {
+      if (String(f.label || '').toLowerCase().indexOf('инвентарный номер') < 0) return true;
+      if (!u.inv) u.inv = f.value;
+      return false;
     });
 
-    syncMechName(oi);
+    // Масса — общее поле любой единицы (01.10.2026), не «свое поле».
+    const known = new Set(['mass']);
+    const f = fieldsFor(u.cls, u.sub, u.type);
+    if (f) [...f.main, ...f.extra].forEach((x) => known.add(x.key));
+
+    Object.keys(u.params || {}).forEach((key) => {
+      if (key.endsWith('@unit') || known.has(key)) return;
+      const value = u.params[key];
+      const unitName = u.params[key + '@unit'];
+      delete u.params[key];
+      delete u.params[key + '@unit'];
+      if (value) {
+        u.extra.push({ id: uid('mf'), label: FORMER[key] || key,
+          value: String(value) + (unitName ? ' ' + unitName : '') });
+      }
+    });
   });
+
+  syncMechName(oi);
 }

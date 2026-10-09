@@ -237,9 +237,6 @@ export function bindMechForm(ctx, oi) {
   const year = s.$('[data-mu-year]');
   bindCheckedField(year, yearError, (v) => { unit.year = v; refreshList(); });
 
-  const maker = s.$('[data-mu-maker]');
-  if (maker) maker.oninput = () => { unit.maker = maker.value; };
-
   // Количество — такое же числовое поле, как остальные величины: принимает и
   // «3*4». Своя проверка навешана отдельно, потому что bindCheckedField писал
   // бы значение вторым обработчиком, поверх нормализованного.
