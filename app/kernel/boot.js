@@ -89,6 +89,10 @@ function originCrumbs(route, kind) {
 }
 
 function makeHost(route, scope, typeId) {
+  // Вызовы от уже разобранного экрана — пустые: его запоздавшая асинхронная
+  // отрисовка иначе перебивала крошки, ящик заметок и даже адрес нового
+  // экрана (корень разобранной области — отсоединённый узел, kernel/scope.js).
+  const live = (fn) => (...args) => (scope.root.isConnected ? fn(...args) : undefined);
   return {
     root: scope.root,
     scope,
@@ -104,12 +108,12 @@ function makeHost(route, scope, typeId) {
     originCrumbs: (kind) => originCrumbs(route, kind),
     backHref: (kind) => backHref(route, kind),
     backLabel: (kind) => backLabel(route, kind),
-    navigate: (patch) => go(build({
+    navigate: live((patch) => go(build({
       typeId: patch.typeId !== undefined ? patch.typeId : typeId,
       ocId: patch.ocId !== undefined ? patch.ocId : route.ocId,
       rest: patch.rest !== undefined ? patch.rest : route.rest,
       query: patch.query !== undefined ? patch.query : {},
-    }), { replace: !!patch.replace }),
+    }), { replace: !!patch.replace })),
     hrefFor: (patch) => build({
       typeId: patch.typeId !== undefined ? patch.typeId : typeId,
       ocId: patch.ocId !== undefined ? patch.ocId : route.ocId,
@@ -118,10 +122,10 @@ function makeHost(route, scope, typeId) {
     }),
 
     // Каркас
-    setCrumbs,
-    setDrawer,
-    setUserMenuExtra,
-    updateDrawer,
+    setCrumbs: live(setCrumbs),
+    setDrawer: live(setDrawer),
+    setUserMenuExtra: live(setUserMenuExtra),
+    updateDrawer: live(updateDrawer),
 
     // Общий визуал служебных вещей
     toast,

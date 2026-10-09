@@ -61,13 +61,16 @@ def run(t):
     # Экран в покое сам себя не перерисовывает: щелчок по дереву под нагрузкой
     # полного прогона падал с «element was detached from the DOM» (флак
     # 09.10.2026). Если это повторится — увидим, перерисовка ли тому виной.
-    probe = pg.evaluate("""() => new Promise((res) => { let n = 0, r = 0, saved = 0;
+    probe = pg.evaluate("""() => new Promise((res) => { let n = 0, r = 0, saved = 0; const who = [];
       const c = document.querySelector('#content');
+      const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+      Object.defineProperty(c, 'innerHTML', { configurable: true, get() { return desc.get.call(this); },
+        set(v) { who.push((new Error().stack || '').split(String.fromCharCode(10)).slice(2, 7).map((x) => x.trim()).join(' < ')); desc.set.call(this, v); } });
       const mo = new MutationObserver(() => { n++; }); mo.observe(c, { childList: true });
       const f = () => { r++; }; window.addEventListener('inside:redraw', f);
       const g = () => { saved++; }; document.addEventListener('inside:saved', g);
       setTimeout(() => { mo.disconnect(); window.removeEventListener('inside:redraw', f); document.removeEventListener('inside:saved', g);
-        res({ rerender: n, redraw: r, saved }); }, 2000); })""")
+        delete c.innerHTML; res({ rerender: n, redraw: r, saved, who }); }, 2000); })""")
     t.ck(probe['rerender'] == 0, 'учреждения: экран перерисовывается сам: %s' % probe)
     # По названию узла, а не в середину строки: там бывают кнопка «избранное» и
     # счётчик, и щелчок мимо названия узел не выбирал.

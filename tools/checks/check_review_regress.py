@@ -8,11 +8,16 @@
     столбцов взято из нежилого здания целиком;
   * прямой адрес вспомогательной постройки (#/oc/civil/<ОЦ>/oi/<постройка>) —
     ошибка на странице и полуотрисованный экран: своей карточки у постройки
-    нет, модуль рисовал несуществующую (старая ошибка, была и до ревью).
+    нет, модуль рисовал несуществующую (старая ошибка, была и до ревью);
+  * быстрый уход из карточки ОИ, пока её код ещё грузится, — запоздавшая
+    отрисовка рисовала старую карточку поверх нового экрана (корень у всех
+    экранов один); найдено на проверках 09.10.2026 (kernel/scope.js destroy,
+    kernel/boot.js makeHost).
 """
+import time
 NAME = 'находки сравнения с прежней версией'
 
-TOUCHES = ('app/modules/land-plot/card/oiTable.view.js', 'app/modules/civil/index.js',
+TOUCHES = ('app/kernel/scope.js', 'app/kernel/boot.js', 'app/modules/land-plot/card/oiTable.view.js', 'app/modules/civil/index.js',
            'app/modules/apartment/index.js', 'app/modules/land-plot/index.js', 'app/modules/residential-house/index.js')
 
 
@@ -33,3 +38,22 @@ def run(t):
         t.open('#/oc/civil/oc-cv-1/oi/' + aux, wait='.card')
         t.wait_until("() => !location.hash.includes('/oi/')")
         t.ck('/oi/' not in pg.evaluate('location.hash'), 'прямой адрес постройки не вернул в карточку ОЦ')
+
+    # --- уход из карточки ОИ, пока её код грузится --------------------------------------
+    def slow(route):
+        time.sleep(1.5)
+        route.continue_()
+    t.open('#/oc/civil/oc-cv-1', wait='tr[data-open-oi]')
+    oi = pg.evaluate("""async () => (await import('./app/modules/civil/data/store.js')).getRecord('oc-cv-1')
+      .oi.find((o) => o.card === 'building').id""")
+    pg.goto(t.base)   # чистая загрузка: модуль карточки ещё не в кэше страницы
+    t.wait_for('.reg-tr')
+    pg.route('**/app/modules/civil/oi/building/index.js', slow)
+    pg.evaluate("(h) => { location.hash = h; }", '#/oc/civil/oc-cv-1/oi/' + oi)
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => { location.hash = '#/institutions'; }")
+    pg.wait_for_timeout(2500)
+    pg.unroute('**/app/modules/civil/oi/building/index.js')
+    t.ck(pg.evaluate('location.hash') == '#/institutions', 'после ухода адрес не «Учреждения»: %s' % pg.evaluate('location.hash'))
+    t.ck(pg.locator('.itree-row').count() > 0 and pg.locator('#content .ctx-plate, #content [data-bld-rights]').count() == 0,
+         'запоздавшая карточка ОИ нарисовалась поверх «Учреждений»')
