@@ -1,7 +1,7 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { bindNumField } from '../../../../kernel/numField.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../../../kernel/fileUpload.js';
 import { bindCheckedField } from '../../../../kernel/fieldError.js';
 import { gpsError } from '../../../../kernel/gps.js';
 import { bindDocsColumns } from '../../../../kernel/docsTable.js';

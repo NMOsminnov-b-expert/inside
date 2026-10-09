@@ -1,4 +1,4 @@
-import { docListFor, ensureDocPages, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB, scopeLabel } from './model.js';
+import { docListFor, ensureDocPages, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB, scopeLabel } from '../../../../kernel/fileUpload.js';
 import { photoPages, photoGroups, photoFileAt, catLabel } from '../photos/model.js';
 import { DOC_TYPES } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';

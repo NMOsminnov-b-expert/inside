@@ -69,6 +69,8 @@ export function pickImages() {
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
+    // «Отмена» в диалоге — пустой выбор, а не вечно ждущее обещание.
+    input.addEventListener('cancel', () => resolve([]));
     input.onchange = () => resolve([...(input.files || [])]);
     input.click();
   });

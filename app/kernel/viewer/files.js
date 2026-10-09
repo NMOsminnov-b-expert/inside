@@ -38,6 +38,8 @@ export function pickFiles(doc = document) {
     const input = doc.createElement('input');
     input.type = 'file';
     input.multiple = true;
+    // «Отмена» в диалоге — пустой выбор, а не вечно ждущее обещание.
+    input.addEventListener('cancel', () => resolve([]));
     input.onchange = () => resolve(Array.from(input.files || []));
     input.click();
   });

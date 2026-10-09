@@ -1,7 +1,7 @@
 import { bindEniField } from '../../../../kernel/eniField.js';
 import { syncOcAddress } from '../../../../kernel/address.js';
 import { bindYearField } from '../../../../kernel/yearField.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../../../kernel/fileUpload.js';
 import { bindNumField } from '../../../../kernel/numField.js';
 import { bindAnnexes } from './annexes.js';
 import { bindDocsColumns } from '../../../../kernel/docsTable.js';

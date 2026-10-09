@@ -16,7 +16,7 @@ import { updateFloorsUI, rerenderFloors, floorColOrder, floorsNote } from './flo
 import { bindHeating } from './heating.js';
 import { photoPages, addPhotoFile } from '../../parts/photos/model.js';
 import { openDocViewer, openPhotoInPlace } from '../../../../kernel/viewer/state.js';
-import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../parts/docs/model.js';
+import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../../../kernel/fileUpload.js';
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindTempMode } from './tempMode.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
