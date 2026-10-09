@@ -399,11 +399,81 @@ function listen() {
   });
   document.addEventListener('inside:rendered', () => scheduleSave());
 
+  // Соседняя вкладка записала снимок — забираем её правки.
+  window.addEventListener('storage', (e) => { if (e.key === KEY && e.newValue) syncFrom(e.newValue); });
+
   // Уход со страницы — сохраняем всегда: правка могла прийти без события.
   window.addEventListener('beforeunload', () => {
     if (timer) clearTimeout(timer);
     saveNow({ leaving: true });
   });
+}
+
+// --- несколько вкладок ----------------------------------------------------------
+//
+// Решение пользователя 09.10.2026 по код-ревью: «Изменения синхронизируем».
+// Прежде каждая вкладка держала свой снимок и при любом щелчке целиком
+// переписывала хранилище и свой файл: правка в одной вкладке стирала правку в
+// другой. Теперь соседняя вкладка, записав снимок, будит эту (событие
+// storage): своё несохранённое фиксируется правкой с текущим временем, правки
+// соседки сливаются по времени (побеждает поздняя), изменённые записи
+// подменяются в памяти, экран перерисовывается. Следующая запись этой вкладки
+// уже содержит правки обеих.
+//
+// Состояние экрана (части не records.*) не синхронизируется: у каждой вкладки
+// свой вид.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь сливаются правки целых записей по времени
+// правки — одновременная правка разных полей одной записи в двух вкладках
+// оставит позднюю запись целиком. На сервере — версия записи и отказ при
+// конфликте, либо слияние по полям.
+function syncFrom(raw) {
+  let other;
+  try { other = JSON.parse(raw); } catch (e) { return; }
+  if (!other || other.v !== VERSION || !other.mine) return;
+
+  sources.forEach(({ snapshot }, name) => {
+    if (!isShared(name)) return;
+    try { collectEdits(name, snapshot()); } catch (e) { /* источник не готов — его правки придут позже */ }
+  });
+
+  const changed = new Map();   // имя → Map(id → правка)
+  Object.entries(other.mine).forEach(([name, edits]) => {
+    if (!isShared(name)) return;
+    const m = mine()[name] || (mine()[name] = {});
+    Object.entries(edits || {}).forEach(([id, e]) => {
+      if (!e || newer(m[id], e) !== e || (m[id] && m[id].at === e.at)) return;
+      m[id] = e;
+      if (!changed.has(name)) changed.set(name, new Map());
+      changed.get(name).set(id, e);
+    });
+  });
+  if (!changed.size) return;
+
+  changed.forEach((edits, name) => {
+    const src = sources.get(name);
+    if (!src) return;
+    const list = (src.snapshot() || []).slice();
+    const at = new Map(list.map((it, i) => [String(it && it.id), i]));
+    edits.forEach((e, id) => {
+      if (e.removed) {
+        if (at.has(id)) list[at.get(id)] = null;
+      } else {
+        const copy = JSON.parse(JSON.stringify(e.item));
+        if (at.has(id)) list[at.get(id)] = copy; else list.push(copy);
+      }
+    });
+    try {
+      src.restore(list.filter(Boolean));
+      restoreLocalFiles(src.snapshot());
+    } catch (e) {
+      fail('sync:' + name, 'Правки из соседней вкладки не применились — обновите страницу.', e);
+      return;
+    }
+    const base = baseline.get(name);
+    if (base) edits.forEach((e, id) => { if (e.removed) base.delete(id); else base.set(id, textOf(e.item)); });
+  });
+  window.dispatchEvent(new CustomEvent('inside:redraw'));
 }
 
 // --- источники -------------------------------------------------------------
