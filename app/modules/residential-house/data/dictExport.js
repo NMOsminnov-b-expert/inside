@@ -187,6 +187,7 @@ export const DICT_SOURCES = [
     values: D.ANNEX_KINDS,
     slots: [
       { card: 'building', field: 'annexKind', label: 'Вид пристройки' },
+      { card: 'apartment', field: 'annexKind', label: 'Вид пристройки' },
     ],
   },
   {

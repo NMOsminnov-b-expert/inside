@@ -63,7 +63,10 @@ export const OI_CARDS = {
     plateKind: 'ОЦ → ОИ',
     hasLetter: false,
     tableCategory: () => 'Земельный участок',
-    tableArea: (oi) => (oi.areas && oi.areas.pravo ? fmtNum(num(oi.areas.pravo)) + ' м²' : '—'),
+    // Старое поле площади участка (oi.area) — запасным, как в подытоге
+    // (areaValues): иначе строка показывала «—», а подытог площадь считал.
+    tableArea: (oi) => ((oi.areas && oi.areas.pravo) ? fmtNum(num(oi.areas.pravo)) + ' м²'
+      : (oi.area ? fmtNum(num(oi.area)) + ' м²' : '—')),
     // У участка внутреннего обмера нет — там площадь по правоустанавливающим.
     tableAreaBuild: () => '—',
     areaValues: (oi) => ({ area: num((oi.areas && oi.areas.pravo) || oi.area), build: 0 }),

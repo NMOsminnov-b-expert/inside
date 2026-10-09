@@ -102,7 +102,10 @@ export function main(host) {
       const hasPhotos = Object.values(photos).some((n) => n > 0);
       if (hasPhotos) {
         rec.ocOrphanPhotos = rec.ocOrphanPhotos || [];
-        rec.ocOrphanPhotos.push({ fromOiId: oi.id, letter: oi.letter, name: oi.name, photos: { ...photos } });
+        rec.ocOrphanPhotos.push({
+          fromOiId: oi.id, letter: oi.letter, name: oi.name,
+          photos: { ...photos }, photoFiles: { ...(oi.photoFiles || {}) },
+        });
       }
       pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 

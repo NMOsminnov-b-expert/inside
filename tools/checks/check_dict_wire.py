@@ -88,15 +88,18 @@ def _open_letter(t, route, need=None):
     pg = t.page
     t.open(route, wait='[data-open-oi]')
     t.wait(300)
-    total = pg.locator('tr[data-open-oi]').count()
+    total = pg.locator('tr[data-open-oi]:visible').count()
 
     for i in range(min(total, 5)):
         t.open(route, wait='[data-open-oi]')
         # Ждём именно ту строку, по которой сейчас кликнем: ожидание «любого
         # [data-open-oi]» проходит раньше, чем перечень достроен, и клик по
         # второй строке висел до предела Playwright (флак 08.09.2026).
-        t.wait_until('() => document.querySelectorAll("tr[data-open-oi]").length > %d' % i)
-        pg.locator('tr[data-open-oi]').nth(i).click()
+        # И только видимые строки: строка свёрнутой группы есть в разметке, но
+        # щелчок по ней висел до предела Playwright (флак 09.10.2026 —
+        # случайный, в зависимости от того, что раскрыто после прошлых сценариев).
+        t.wait_until('() => [...document.querySelectorAll("tr[data-open-oi]")].filter((r) => r.offsetParent).length > %d' % i)
+        pg.locator('tr[data-open-oi]:visible').nth(i).click()
         t.wait(700)
         if not need or pg.locator(need).count():
             return True

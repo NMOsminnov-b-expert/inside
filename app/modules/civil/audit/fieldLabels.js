@@ -163,7 +163,7 @@ const BY_CARD = {
     zone: 'Крупная зона',
     microdistrict: 'Микрорайон',
     distanceToCenter: 'Удалённость от райцентра',
-    improvementRank: 'Ранг благоустройства',
+    improvementRank: 'Наличие благоустройства',
     improvementNote: 'Особенности благоустройства',
     auxBuildings: 'Вспомогательные постройки',
     auxBuildingKind: 'Вспомогательная постройка',
