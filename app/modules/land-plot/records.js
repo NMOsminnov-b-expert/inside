@@ -3,6 +3,7 @@
 import { recHasSpecials } from './parts/specials/model.js';
 import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
+import { adoptBaseline, removedIds } from '../../kernel/persist.js';
 import { fmtNum, num } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { session } from '../../kernel/session.js';
@@ -181,11 +182,14 @@ function allSummaries() {
 
   if (!bulk.length) return own;
 
-  const materialized = new Set();
-  for (const r of records) if (isBulkId(r.id)) materialized.add(r.id);
+  // Синтетический двойник не показывается, если запись уже собрана (её
+  // сводка — в own) или удалена (убрана в архив): иначе убранное в архив
+  // оставалось в реестре (код-ревью 09.10.2026).
+  const hidden = removedIds('records.land-plot');
+  for (const r of records) if (isBulkId(r.id)) hidden.add(r.id);
 
-  return materialized.size
-    ? own.concat(bulk.filter((s) => !materialized.has(s.id)))
+  return hidden.size
+    ? own.concat(bulk.filter((s) => !hidden.has(s.id)))
     : own.concat(bulk);
 }
 
@@ -265,7 +269,13 @@ export function loadRecord(id) {
   if (found) { syncOcAddress(found); return found; }
 
   const built = materialize(id, buildBulkRecord);
-  if (built) return addRecord(built);
+  if (built) {
+    addRecord(built);
+    syncOcAddress(built);
+    // Собранная запись — исходный вид, а не правка (kernel/persist.js).
+    adoptBaseline('records.land-plot', built);
+    return built;
+  }
 
   return null;
 }

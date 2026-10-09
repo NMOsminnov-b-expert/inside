@@ -200,6 +200,31 @@ function editsFor(name) {
   return out;
 }
 
+// Исходный вид записи, собранной модулем по требованию (синтетические записи
+// реестра на 20 000 собираются при открытии). Без этого запись, которую только
+// открыли, считалась своей правкой и уходила в общий файл, а её удаление —
+// не считалось удалением, и она возвращалась в реестр (код-ревью 09.10.2026).
+export function adoptBaseline(name, item) {
+  const base = baseline.get(name);
+  if (!base || !item || item.id == null) return;
+  const id = String(item.id);
+  if (!(mine()[name] || {})[id]) base.set(id, textOf(item));
+}
+
+// Удалённые записи части — по правкам (своим и сотрудников) и в этой сессии,
+// ещё до сохранения: реестр не показывает их синтетические двойники.
+export function removedIds(name) {
+  const out = new Set();
+  editsFor(name).forEach((e, id) => { if (e.removed) out.add(id); });
+  const src = sources.get(name);
+  const base = baseline.get(name);
+  if (src && base) {
+    const cur = new Set((src.snapshot() || []).filter((it) => it && it.id != null).map((it) => String(it.id)));
+    base.forEach((_, id) => { if (!cur.has(id)) out.add(id); });
+  }
+  return out;
+}
+
 // --- запись ----------------------------------------------------------------
 
 // Что не переживает перезагрузку. Файлы прикрепляются через

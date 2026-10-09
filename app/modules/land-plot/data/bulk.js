@@ -48,8 +48,13 @@ export function setBulkCount(n) {
   cache = null;
 }
 
+// Только полный id своего типа: проверка «есть -b» и «оканчивается на -b<N>»
+// собирала запись из любого адреса вроде #/oc/<тип>/foo-b5 и писала её в общий
+// файл как свою (код-ревью 09.10.2026).
+const BULK_ID = new RegExp('^' + POOLS.idPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '-b(\\d+)$');
+
 export function isBulkId(id) {
-  return typeof id === 'string' && id.includes('-b');
+  return typeof id === 'string' && BULK_ID.test(id);
 }
 
 // Адрес формируется по правилам этого типа ОЦ.
@@ -139,7 +144,7 @@ export function bulkSummaries(makeSummary) {
 // так же, как у записей из сида.
 export function materialize(id, buildRecord) {
   const P = POOLS;
-  const m = /-b(\d+)$/.exec(id);
+  const m = BULK_ID.exec(String(id));
   if (!m) return null;
 
   const i = +m[1];
