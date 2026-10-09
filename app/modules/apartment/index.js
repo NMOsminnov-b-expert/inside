@@ -241,6 +241,9 @@ export function main(host) {
       const oi = ctx.oi;
       if (!oi) { ctx.navigate({ rest: [], replace: true }); return; }
       const card = await ensureCard(oi);
+      // Вид ОИ без своего экрана в этом модуле — в карточку ОЦ, а не пустой
+      // экран с ошибкой (найдено сравнением поведения 09.10.2026).
+      if (!card) { ctx.navigate({ rest: [], replace: true }); return; }
       body = card.render(ctx, oi);
       bindBody = () => card.bind(ctx, oi);
     } else if (ctx.view === 'form') {
