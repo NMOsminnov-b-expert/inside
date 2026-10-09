@@ -16,6 +16,7 @@ import {
 import { canSeeInstitution, seesEverything, myInstitutions, session } from '../../kernel/session.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
+import { persistView } from '../../kernel/viewState.js';
 
 // Вид записи: значок и подпись по-русски. Ключи (`oc`, `oi`, …) — внутренние,
 // человеку они не показываются (ТЗ docs/tz/20-arhiv.md, §8.3).
@@ -38,6 +39,11 @@ const state = {
   from: '',
   to: '',
 };
+
+// Вид страницы переживает перезагрузку и уход с неё (решение пользователя
+// 09.10.2026: «в каком виде мы страницу закрываем, в таком же она потом
+// должна открываться», kernel/viewState.js). Сохраняются поиск и фильтры.
+persistView('archive', state, ['q', 'kind', 'docType', 'institution', 'typeId', 'from', 'to']);
 
 // Доступ к самому экрану: сотруднику без учреждений показывать нечего.
 export function canViewArchive() {

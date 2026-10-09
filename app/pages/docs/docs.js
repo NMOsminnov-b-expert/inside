@@ -21,11 +21,18 @@ import {
 } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
 import { detailHTML, bindDetail } from './detail.js';
+import { persistView } from '../../kernel/viewState.js';
 
 const state = {
   q: '', type: '', status: '', institution: '', dateFrom: '', dateTo: '',
   sort: '', dir: 'asc', page: 1, pageSize: 25,
 };
+
+// Вид страницы переживает перезагрузку и уход с неё (решение пользователя
+// 09.10.2026: «в каком виде мы страницу закрываем, в таком же она потом
+// должна открываться», kernel/viewState.js). Сохраняются поиск, фильтры,
+// порядок и страница списка.
+persistView('docs', state, ['q', 'type', 'status', 'institution', 'dateFrom', 'dateTo', 'sort', 'dir', 'page', 'pageSize']);
 
 // Есть ли что сбрасывать: кнопка сброса появляется только когда фильтр реально
 // сужает список, иначе она просто занимает место.

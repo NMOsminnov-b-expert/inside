@@ -564,6 +564,21 @@ def run(t):
     # Столбцы не должны менять ширину при выборе, поэтому третий столбец
     # переключается между списком значений и открытым справочником, а не
     # раскрывает карточку под собой.
+    #
+    # Вид страницы сохраняется (решение пользователя 09.10.2026, «в каком виде
+    # закрываем, в таком и открывается»): выше сценарий переключал на дерево.
+    # Вид по умолчанию — у того, кто ещё ничего не выбирал: сохранённый вид
+    # стирается до запуска страницы (при уходе со страницы снимок пишется
+    # заново, поэтому стирать заранее бесполезно).
+    pg.add_init_script("""(() => {
+      if (sessionStorage.getItem('dicts-view-reset')) return;
+      sessionStorage.setItem('dicts-view-reset', '1');
+      try {
+        const s = JSON.parse(localStorage.getItem('inside:data:v1') || '{}');
+        if (s.data) delete s.data['ui.dicts'];
+        localStorage.setItem('inside:data:v1', JSON.stringify(s));
+      } catch (e) { /* хранилище недоступно */ }
+    })()""")
     t.open('#/dicts', wait='.dc')
     pg.reload()
     pg.wait_for_selector('.dc')

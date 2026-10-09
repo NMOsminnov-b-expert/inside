@@ -1,5 +1,6 @@
 import { createSeed } from './seed.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
+import { persistView, VIEWER_KEEP } from '../../../kernel/viewState.js';
 import { LETTER_SEQ } from './dictionaries.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
@@ -71,33 +72,25 @@ export const ui = {
 };
 
 
-// Положение и состояние элементов карточки — просмотрщик с его размерами,
-// ширины и порядок столбцов, раскрытые блоки (требование пользователя
-// 09.09.2026: «внутри ОЦ ОИ так же запоминай положение и статус элементов»).
-//
-// Сохраняем не всё подряд: сиюминутное состояние (открытое окно фото, набранный
-// в поиске текст, раскрытые списки фильтров) при возврате только мешало бы —
-// человек ждёт свою раскладку, а не чужое открытое окно.
+// Вид карточки переживает перезагрузку (решение пользователя 09.10.2026: «в
+// каком виде мы страницу закрываем, в таком же она потом должна открываться»;
+// раньше — 09.09.2026, «внутри ОЦ ОИ так же запоминай положение и статус
+// элементов»). Общее правило и состав — kernel/viewState.js; здесь — своё
+// модуля: раскрытые блоки, столбцы перечня и развёртки, поиск по фото,
+// фильтры «Логов», выбранная единица механизмов, свёрнутые блоки ТС внутри
+// здания. Не сохраняется сиюминутное: окно со списком фото, выделение
+// страниц, правка литеры, раскрытые списки фильтров.
 const UI_KEEP = [
-  'expanded', 'accOpen', 'doneOpen',
-  'splitVW', 'cmpSplit', 'cmpHidden',
-  'viewer', 'viewerDoc', 'viewerSidebar',
-  'oiCols', 'oiColWidths',
-  // Порядок столбцов поэтажной развёртки — человек переставил его под себя
-  // (решение пользователя 11.09.2026), и сбрасывать его на перезагрузке нельзя.
-  'floorCols',
-  'railCollapsed',
+  ...VIEWER_KEEP,
+  'expanded', 'accOpen', 'doneOpen', 'heatOpen',
+  'oiCols', 'oiColWidths', 'floorCols',
+  'photoQuery',
+  'auditCatFilter', 'auditPersonFilter', 'auditActionFilter', 'auditObjectFilter',
+  'auditDateFrom', 'auditDateTo', 'auditSearchText',
+  'mechSel', 'tsClosed', 'tsInspect', 'growSizes',
 ];
 
-registerPersisted('ui.land-plot', {
-  snapshot: () => Object.fromEntries(UI_KEEP.map((k) => [k, ui[k]])),
-  restore: (saved) => {
-    if (!saved || typeof saved !== 'object') return;
-    UI_KEEP.forEach((k) => {
-      if (saved[k] !== undefined) ui[k] = saved[k];
-    });
-  },
-});
+persistView('land-plot', ui, UI_KEEP);
 
 // Окно со списком фото привязано к ячейке перечня: как только перечень уходит
 // с экрана, окну там делать нечего. Своей функцией, а не внутри resetViewer:
@@ -111,9 +104,12 @@ export function closePhotoPop() {
 export function resetViewer() {
   ui.viewer = null;
   ui.viewerDoc = null;
-  // Закладка «Документы» — состояние ЭКРАНА, а не записи: перешли к другому
-  // объекту оценки, значит просмотрщик снова открыт по умолчанию.
-  ui.viewerClosed = false;
+  // То, что просмотрщик закрыт крестиком, не сбрасываем: человек закрыл его
+  // для себя, а не для одной записи (решения 09.09 и 09.10.2026 — как в
+  // нежилом здании). Открыть обратно — закладкой «Документы».
+  // Фильтр «Логов» по объектам — id ОИ прежней записи: на новой лог выглядел
+  // бы пустым (код-ревью 09.10.2026).
+  ui.auditObjectFilter = [];
 }
 
 export function nextLetter(rec) {

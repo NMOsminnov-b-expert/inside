@@ -35,6 +35,7 @@ import {
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
+import { persistView } from '../../kernel/viewState.js';
 
 const state = {
   mode: 'tree',        // 'tree' — по иерархии, 'region' — по регионам
@@ -64,6 +65,12 @@ const state = {
   // Сводная вкладка: фильтры по объектам всего поддерева (allObjects.js).
   all: emptyAllFilter(),
 };
+
+// Вид страницы переживает перезагрузку и уход с неё (решение пользователя
+// 09.10.2026: «в каком виде мы страницу закрываем, в таком же она потом
+// должна открываться», kernel/viewState.js). Окна привязки и правки, черновик
+// документа и выбор в окнах — сиюминутные, не сохраняются.
+persistView('institutions', state, ['mode', 'q', 'open', 'selected', 'tab', 'rowQ', 'onlyMine', 'panel', 'openRegion', 'docOpen', 'docList', 'all']);
 
 // Ширина панели дерева. Тянется перегородкой — как столбцы справочников и
 // таблиц (kernel/columns.js): человеку нужно то шире дерево, то шире карточка.

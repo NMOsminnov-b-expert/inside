@@ -7,6 +7,7 @@ import { bindViewerHotkeys } from '../../kernel/viewer/ctrl.js';
 import { bindFileDrop } from '../../kernel/viewer/files.js';
 import { bindStickyHead } from '../../kernel/stickyHead.js';
 import { viewerDeps } from './viewerDeps.js';
+import { persistView, VIEWER_KEEP } from '../../kernel/viewState.js';
 
 // ОЦ «Механизмы и оборудование» — устроен как ОЦ «Транспортные средства»
 // (vehicle/index.js), решение пользователя 28.09.2026.
@@ -16,6 +17,16 @@ function todayStr() {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 }
 
+// Вид карточки — на уровне модуля и сохраняется, как у ТС (vehicle/index.js;
+// решение пользователя 09.10.2026, kernel/viewState.js). Выбранная единица —
+// по id перечня, поэтому своя у каждой записи.
+const ui = {};
+persistView('mechanisms', ui, [...VIEWER_KEEP, 'partiesOpen', 'mechSel', 'recId']);
+function forRecord(id) {
+  if (ui.recId !== id) { delete ui.partiesOpen; delete ui.viewerDoc; }
+  ui.recId = id;
+}
+
 export function main(host) {
   const scope = host.scope;
   let route = host.route;
@@ -23,7 +34,7 @@ export function main(host) {
   // rec.oi (перенос фото к другой литере, боковая панель) — пустой перечень.
   const load = (id) => { const r = loadRecord(id); if (r) r.oi = r.oi || []; return r; };
   let rec = load(route.ocId);
-  const ui = {};
+  forRecord(route.ocId);
   const ctx = {
     host, scope, manifest, today: todayStr(), ui, tab: 'general', view: 'oc',
     get rec() { return rec; },
@@ -59,6 +70,7 @@ export function main(host) {
   draw();
   return {
     onRoute(nextRoute) {
+      forRecord(nextRoute.ocId);
       route = nextRoute;
       rec = load(route.ocId);
       draw();

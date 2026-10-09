@@ -28,6 +28,7 @@ import {
   bindSlot, unbindSlot, freeSlots, moveToCatalog, setFolder, foldersOf, mainSlot,
   slotsWithOwners, linkedDicts, diffWith, addItemTo, removeItemFrom, renameItemIn,
 } from '../../kernel/dicts.js';
+import { persistView } from '../../kernel/viewState.js';
 
 // Вид навигации. По умолчанию «столбцы»: они не требуют опыта с деревом —
 // три списка рядом, выбрал слева — справа появилось следующее, и ничего не
@@ -68,6 +69,12 @@ const state = {
   linkedOff: {},       // id справочников, с которых галочку сняли
   movePick: null,      // автопривязка не сработала — спрашиваем поле
 };
+
+// Вид страницы переживает перезагрузку и уход с неё (решение пользователя
+// 09.10.2026: «в каком виде мы страницу закрываем, в таком же она потом
+// должна открываться», kernel/viewState.js). Меню, отмеченные значения,
+// диалоги и перетаскивание — сиюминутные, не сохраняются.
+persistView('dicts', state, ['view', 'stepType', 'stepCard', 'selected', 'q', 'itemQ', 'showSystem', 'open']);
 
 // Ширины столбцов раздела. Тянутся перегородками; резиновым остаётся столбец
 // справочника — он и должен забирать свободное место.
