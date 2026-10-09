@@ -53,7 +53,7 @@ def run(t):
     t.open('#/institutions', wait='.itree-row[data-inode]')
     row = pg.locator('.itree-row[data-inode]').nth(2)
     nid = row.get_attribute('data-inode')
-    row.click()
+    row.locator('.itree-name').click()
     t.wait_until("(id) => !!document.querySelector('.itree-row.on[data-inode=\"' + id + '\"]')", nid)
     pg.evaluate("() => { location.hash = '#/'; }")
     t.wait_for('.reg-tr')

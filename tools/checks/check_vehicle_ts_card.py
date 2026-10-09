@@ -213,7 +213,7 @@ def run(t):
         return ' '.join(pg.inner_text('[data-ts-nav="%s"]' % key).split())
     before = nav_text('machine')
     pg.fill('[data-tsf="main|color"]', 'Белый')
-    t.wait_until("() => document.querySelector('[data-ts-nav=\"machine\"]').innerText.replace(/\s+/g, ' ') !== %r" % before)
+    t.wait_until("() => document.querySelector('[data-ts-nav=\"machine\"]').innerText.replace(/\\s+/g, ' ') !== %r" % before)
     pg.click('[data-ts-nav="machine"]')
     t.wait_for('[data-ts-miss="machine"]:not([hidden])')
     t.ck(pg.locator('[data-ts-miss="machine"] [data-ts-jump="main|color"]').count() == 0, 'заполненное поле в списке пустых')

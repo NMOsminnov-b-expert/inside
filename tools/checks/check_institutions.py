@@ -260,7 +260,7 @@ def run(t):
     # Структура задана пользователем 03.09.2026, значения — из справочника
     # kernel/regions.js (реальное деление КР).
     _open(t)
-    pg.locator('.itree-row[data-inode]').nth(2).click()
+    pg.locator('.itree-row[data-inode] .itree-name').nth(2).click()
     t.wait(500)
     pg.locator('[data-iedit]').first.click()
     t.wait(400)

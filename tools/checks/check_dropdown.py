@@ -52,10 +52,32 @@ def run(t):
          'кнопок и нативных селектов разное количество')
 
     # --- 3. учреждения: выбор мышью меняет выборку ---
-    t.open('#/institutions', wait='.itree')
-    t.wait(600)
-    pg.locator('.itree-row[data-inode]').first.click()
-    t.wait(300)
+    # Ждём по факту — строку дерева, выбор узла, вкладку: фиксированные 0,6 и
+    # 0,3 с под нагрузкой полного прогона не хватало (флак 09.10.2026).
+    t.open('#/institutions', wait='.itree-row[data-inode]')
+    if not t.ck(pg.locator('.itree-row[data-inode] .itree-name').count() > 0, 'учреждения: дерево не нарисовалось: %s | %s'
+                % (pg.evaluate('location.hash'), pg.evaluate("() => document.querySelector('#content').innerText.slice(0, 300)"))):
+        return
+    # Экран в покое сам себя не перерисовывает: щелчок по дереву под нагрузкой
+    # полного прогона падал с «element was detached from the DOM» (флак
+    # 09.10.2026). Если это повторится — увидим, перерисовка ли тому виной.
+    probe = pg.evaluate("""() => new Promise((res) => { let n = 0, r = 0, saved = 0;
+      const c = document.querySelector('#content');
+      const mo = new MutationObserver(() => { n++; }); mo.observe(c, { childList: true });
+      const f = () => { r++; }; window.addEventListener('inside:redraw', f);
+      const g = () => { saved++; }; document.addEventListener('inside:saved', g);
+      setTimeout(() => { mo.disconnect(); window.removeEventListener('inside:redraw', f); document.removeEventListener('inside:saved', g);
+        res({ rerender: n, redraw: r, saved }); }, 2000); })""")
+    t.ck(probe['rerender'] == 0, 'учреждения: экран перерисовывается сам: %s' % probe)
+    # По названию узла, а не в середину строки: там бывают кнопка «избранное» и
+    # счётчик, и щелчок мимо названия узел не выбирал.
+    pg.locator('.itree-row[data-inode] .itree-name').first.click()
+    if not t.ck(t.wait_until("() => !!document.querySelector('.itree-row.on[data-inode]')"),
+                'учреждения: узел не выбрался по щелчку'):
+        return
+    if not t.ck(t.wait_for('[data-itab="all"]'), 'учреждения: нет вкладки «С подведомственными»: %s'
+                % pg.evaluate("() => document.querySelector('#content').innerText.slice(0, 200)")):
+        return
     pg.locator('[data-itab="all"]').click()
     # Вкладка «все объекты» собирает выборку и подменяет её поля своими
     # списками уже после отрисовки, поэтому ждём поле ПО ФАКТУ. Отсчёт времени
@@ -160,7 +182,7 @@ def run(t):
     t.ck(pg.locator('.pick-menu').count() == 0, 'Escape не закрывает список')
 
     # --- 5. значение, выставленное мимо списка ---
-    pg.locator('.itree-row[data-inode]').nth(1).click()
+    pg.locator('.itree-row[data-inode] .itree-name').nth(1).click()
     t.wait(400)
     if t.ck(pg.locator('[data-iedit]').count() > 0, 'у узла нет правки'):
         pg.locator('[data-iedit]').first.click()

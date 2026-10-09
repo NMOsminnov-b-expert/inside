@@ -117,14 +117,14 @@ def run(t):
          'вместе с лентой прокрутилась вся карточка')
 
     # --- 3. горячие клавиши ---
+    # Ждём по факту, а не 0,5–0,6 с: под нагрузкой полного прогона лента не
+    # успевала долистать, и сценарий падал с первой попытки (флак 09.10.2026).
     pg.keyboard.press('Home')
-    t.wait(500)
-    t.ck(pg.eval_on_selector('.vstage', 'e => e.scrollTop') < scrolled,
+    t.ck(t.wait_until("() => document.querySelector('.vstage').scrollTop < %d" % scrolled),
          'Home не возвращает к первой странице')
 
     pg.keyboard.press('End')
-    t.wait(600)
-    t.ck(pg.eval_on_selector('.vstage', 'e => e.scrollTop') > 100, 'End не листает в конец')
+    t.ck(t.wait_until("() => document.querySelector('.vstage').scrollTop > 100"), 'End не листает в конец')
 
     # Вписывание: «по ширине» даёт лист шире, чем «страница целиком».
     pg.locator('[data-vfit="width"]').first.click()

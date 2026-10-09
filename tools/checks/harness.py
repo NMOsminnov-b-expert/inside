@@ -260,8 +260,10 @@ class Tester:
 
 def serve():
     """Поднять раздающий сервер и дождаться, пока он ответит."""
+    # Свой сервер с большой очередью соединений (serve.py): у http.server она
+    # из пяти, и под пятью браузерами соединения отбрасывались.
     srv = subprocess.Popen(
-        [sys.executable, '-m', 'http.server', str(PORT), '-d', ROOT],
+        [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'serve.py'), str(PORT), ROOT],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
@@ -330,7 +332,7 @@ def run_one(mod, part=None, headless=True, browser_=None):
         try:
             mod.run(t, part) if part else mod.run(t)
         except Exception as e:
-            t.fails.append('сценарий прерван ошибкой: %s' % str(e)[:160])
+            t.fails.append('сценарий прерван ошибкой: %s' % str(e)[:900])
 
         # Ошибки консоли — это тоже провал: они означают, что где-то
         # сломалось, даже если проверка этого не заметила.

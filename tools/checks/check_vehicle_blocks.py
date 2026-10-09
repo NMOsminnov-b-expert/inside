@@ -92,10 +92,13 @@ def run(t):
     pg.click('[data-vehicle-copy]')
     pg.click('.modal-back [data-modal-ok]')
     t.wait_until("(h) => location.hash !== h", src)
+    # По данным новой записи, а не по экрану: сразу после перехода на экране
+    # ещё может стоять прежняя запись (флак 09.10.2026 под нагрузкой).
+    copy = pg.evaluate("""async () => { const r = await import('./app/modules/vehicle/records.js');
+      const rec = r.loadRecord(location.hash.split('/')[3]); return rec && rec.vehicle; }""") or {}
+    t.ck(copy.get('category') == 'Грузовое', '«Создать похожее» не перенёс категорию: %s' % copy.get('category'))
+    t.ck(not (copy.get('f') or {}).get('legalAddr'), '«Создать похожее» перенёс юридический адрес')
     t.wait_for('[data-ts-cat]')
-    t.ck(pg.input_value('[data-ts-cat]') == 'Грузовое', '«Создать похожее» не перенёс категорию')
-    t.ck(pg.locator('[data-tsf="main|legalAddr"]').count() == 0 or pg.input_value('[data-tsf="main|legalAddr"]') == '',
-         '«Создать похожее» перенёс юридический адрес')
 
     # --- возврат на экран: «Ходовая» закрывается щелчком мимо --------------------
     pg.evaluate("() => { location.hash = '#/'; }")
