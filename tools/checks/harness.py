@@ -148,9 +148,29 @@ class Tester:
     # Дождаться условия в браузере. Нужно там, где ждём не появления узла, а
     # состояния: страниц в предпросмотре стало столько, сколько в файле; список
     # перестроился. Условие — выражение JS, возвращающее истину.
-    def wait_until(self, js, timeout=9000):
+    #
+    # arg — значение для условия вида «(x) => …». Число вторым аргументом —
+    # по-прежнему предел времени (старые вызовы). Асинхронное условие
+    # («async () => …») Playwright не дожидается: обещание для него — уже
+    # истина, и ожидание проходило сразу. Такое условие опрашивается здесь,
+    # раз в 100 мс (найдено 09.10.2026: проверки «ждали» и сразу читали
+    # промежуточное состояние; заодно вскрылись вызовы, где значение для
+    # условия уходило в предел времени, и ожидание тихо возвращало «нет»).
+    def wait_until(self, js, arg=None, timeout=9000):
+        if isinstance(arg, (int, float)) and not isinstance(arg, bool):
+            arg, timeout = None, arg
+        if js.lstrip().startswith('async'):
+            end = time.time() + timeout / 1000.0
+            while time.time() < end:
+                try:
+                    if self.page.evaluate(js, arg):
+                        return True
+                except Exception:
+                    pass
+                time.sleep(0.1)
+            return False
         try:
-            self.page.wait_for_function(js, timeout=timeout)
+            self.page.wait_for_function(js, arg=arg, timeout=timeout)
             return True
         except Exception:
             return False

@@ -18,13 +18,16 @@
     (kernel/cardToggle.js);
   * раздел карточки документа («Метаданные») после перезагрузки снова развёрнут;
   * растянутая панель дерева учреждений после перезагрузки снова 320 px
-    (ширины на страницах жили в переменных модуля и не сохранялись).
+    (ширины на страницах жили в переменных модуля и не сохранялись);
+  * просмотрщик: после перезагрузки документ открыт не на той странице и не в
+    том масштабе (состояние просмотрщика VS не сохранялось).
 """
+from check_civil_viewer_docs import _pdf
 NAME = 'вид экрана после перезагрузки'
 
 TOUCHES = ('app/kernel/viewState.js', 'app/kernel/cardToggle.js', 'app/modules/civil/index.js', 'app/modules/apartment/data/store.js', 'app/modules/vehicle/index.js',
            'app/modules/mechanisms/index.js', 'app/pages/institutions/institutions.js', 'app/pages/docs/docs.js',
-           'app/pages/dicts/dicts.js', 'app/pages/archive/archive.js', 'app/pages/docs/detail.js')
+           'app/pages/dicts/dicts.js', 'app/pages/archive/archive.js', 'app/pages/docs/detail.js', 'app/kernel/viewer/state.js')
 
 
 def reload(t, wait):
@@ -117,3 +120,37 @@ def run(t):
     reload(t, '[data-ipanel-grip]')
     w2 = pg.evaluate("() => document.querySelector('.ipanel').getBoundingClientRect().width")
     t.ck(abs(w2 - w1) < 3, 'учреждения: ширина панели дерева не сохранилась: %s → %s' % (w1, w2))
+
+    # --- просмотрщик: страница и масштаб документа -------------------------------------
+    t.open('#/oc/civil/oc-cv-2', wait='.viewer')
+    with pg.expect_file_chooser() as fc:
+        pg.locator('[data-vattach]:visible').first.click()
+    fc.value.set_files([{'name': 'Вид.pdf', 'mimeType': 'application/pdf', 'buffer': _pdf(12, 'V')}])
+    t.wait_for('[data-att-ok]')
+    pg.click('[data-att-ok]')
+    t.wait_for('.vstage canvas.ready', timeout=15000)
+    pg.locator('.vstage').click(position={'x': 40, 'y': 40})
+    pg.keyboard.press('Control+Equal')
+    # Шаги по очереди, как у человека: масштаб применился и лента
+    # перерисовалась — только потом переход на страницу.
+    t.wait_until("""async () => (await import('./app/kernel/viewer/state.js')).VS.zoom !== 100""")
+    t.wait_for('.vstage canvas.ready')
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => document.querySelector('[data-vthumb=\"10\"]').click()")
+    VS = """async () => { const v = (await import('./app/kernel/viewer/state.js')).VS;
+      const vd = (await import('./app/modules/civil/data/store.js')).ui.viewerDoc;
+      return { zoom: v.zoom, page: vd && v.docs[vd.id] ? v.docs[vd.id].page : 0 }; }"""
+    # Переход — плавной прокруткой (около секунды): просмотрщик сразу ставит
+    # страницу 10, по ходу прокрутки показывает промежуточные и снова 10 в
+    # конце. Ждём, пока лента остановится на десятой. Условие ожидания —
+    # обычная функция: асинхронную Playwright не дожидается.
+    pg.evaluate("""async () => { window.__vs = (await import('./app/kernel/viewer/state.js')).VS;
+      window.__ui = (await import('./app/modules/civil/data/store.js')).ui; window.__y = -1; }""")
+    t.ck(t.wait_until("""() => { const vd = window.__ui.viewerDoc; const st = vd && window.__vs.docs[vd.id];
+      const y = document.querySelector('[data-vstage]').scrollTop; const still = y === window.__y; window.__y = y;
+      return !!st && st.page === 10 && still; }"""), 'просмотрщик: лента не остановилась на 10-й странице')
+    before = pg.evaluate(VS)
+    t.ck(before['page'] == 10 and before['zoom'] != 100, 'просмотрщик: не перешёл на 10-ю страницу или масштаб не изменился: %s' % before)
+    reload(t, '.viewer')
+    after = pg.evaluate(VS)
+    t.ck(after == before, 'просмотрщик: после перезагрузки другая страница или масштаб: %s → %s' % (before, after))

@@ -673,11 +673,49 @@ function bindViewerSurface(ctx) {
       // ленты, и прокрутка к прежнему месту на старых размерах промахивалась бы.
       applyFit(ctx);
       vstageEl.scrollTop = st.scroll || 0;
+      // Прокрутка в пикселях верна, только пока листы той же высоты. После
+      // перезагрузки файл PDF приходит из хранилища браузера позже, высоты
+      // меняются, прокрутка обрезалась — и открывалась первая страница вместо
+      // запомненной (сверка вида после перезагрузки, 09.10.2026). Если наверху
+      // не та страница — к её листу.
+      // Пока лента складывается (листы PDF дорисовываются и меняют высоту) —
+      // держим её на этой странице; удержание снимает любое движение человека
+      // и переход на другую страницу.
+      let anchor = ribbonEl && st.page > 1 ? st.page : 0;
+      const toAnchor = () => {
+        const want = anchor && ribbonEl.querySelector(`[data-vpageblk="${anchor}"]`);
+        if (!want) return false;
+        const shift = want.getBoundingClientRect().top - vstageEl.getBoundingClientRect().top;
+        if (Math.abs(shift) > 2) vstageEl.scrollTop += shift;
+        st.scroll = vstageEl.scrollTop;
+        return true;
+      };
+      if (anchor) {
+        toAnchor();
+        // Колесо, щелчок, любая клавиша (стрелки листают ленту без смены
+        // страницы через переход) — удержание снято, слушатели убраны.
+        const doc = vstageEl.ownerDocument;
+        const release = () => {
+          anchor = 0;
+          vstageEl.removeEventListener('wheel', release);
+          vstageEl.removeEventListener('pointerdown', release);
+          doc.removeEventListener('keydown', release, true);
+        };
+        vstageEl.addEventListener('wheel', release, { passive: true });
+        vstageEl.addEventListener('pointerdown', release);
+        doc.addEventListener('keydown', release, true);
+        setTimeout(release, 2000);
+      }
       watchStage(ctx, vstageEl);
       bindPan(vstageEl);
       vstageEl.addEventListener('vzoomtool', (ev) => zoomViewer(ctx, stepZoom(VS.zoom, ev.detail)));
 
       vstageEl.addEventListener('scroll', () => {
+        // Удержание: страница сменилась не прокруткой человека, а переходом
+        // (vGo ставит st.page сразу) — отпускаем; иначе ленту сдвинула
+        // дорисовка листов — возвращаем к запомненной странице.
+        if (anchor && st.page !== anchor) anchor = 0;
+        if (anchor && toAnchor()) return;
         st.scroll = vstageEl.scrollTop;
         const top = vstageEl.getBoundingClientRect().top;
         let cur = 1;

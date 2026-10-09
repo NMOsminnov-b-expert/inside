@@ -70,6 +70,14 @@ def _open(t, sel):
     t.wait_until(
         "() => { const d = document.querySelector('%s .ms-drop');"
         " return d && !d.hidden && getComputedStyle(d).position === 'fixed'; }" % sel)
+    # И пока список не встанет на место: положение и высоту ему задают уже после
+    # всплытия, и под нагрузкой полного прогона замер приходился на
+    # промежуточное состояние (флак 09.10.2026: «видно всего 2 значения»).
+    t.page.evaluate('() => { window.__msr = ""; }')
+    t.wait_until(
+        "() => { const d = document.querySelector('%s .ms-drop'); const r = d.getBoundingClientRect();"
+        " const k = [r.top, r.height, d.scrollHeight].map(Math.round).join(','); const same = k === window.__msr;"
+        " window.__msr = k; return same; }" % sel)
 
 
 def _close(t):
