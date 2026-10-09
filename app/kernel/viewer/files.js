@@ -168,25 +168,29 @@ export function bindFileDrop(ctx) {
     ctx.scope.$$('.vdrop-on').forEach((n) => n.classList.remove('vdrop-on'));
     if (on) target().classList.add('vdrop-on');
   };
-  const inCivil = () => document.body.dataset.module === 'civil';
+  // Только пока смонтирован модуль ОЦ (на страницах ядра dataset.module пуст).
+  // Прежде — только у 'civil': проверка осталась с переноса просмотрщика в ядро
+  // (21.09.2026), и в остальных модулях брошенный файл браузер открывал вместо
+  // макета (код-ревью 09.10.2026).
+  const inModule = () => !!document.body.dataset.module;
 
   ctx.scope.onDocument('dragenter', (e) => {
-    if (!inCivil() || !hasFiles(e)) return;
+    if (!inModule() || !hasFiles(e)) return;
     depth += 1;
     mark(true);
   });
   ctx.scope.onDocument('dragover', (e) => {
-    if (!inCivil() || !hasFiles(e)) return;
+    if (!inModule() || !hasFiles(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
   });
   ctx.scope.onDocument('dragleave', (e) => {
-    if (!inCivil() || !hasFiles(e)) return;
+    if (!inModule() || !hasFiles(e)) return;
     depth = Math.max(0, depth - 1);
     if (!depth) mark(false);
   });
   ctx.scope.onDocument('drop', (e) => {
-    if (!inCivil() || !hasFiles(e)) return;
+    if (!inModule() || !hasFiles(e)) return;
     e.preventDefault();
     depth = 0;
     mark(false);
@@ -196,7 +200,7 @@ export function bindFileDrop(ctx) {
   // Вставка файлов из буфера (Ctrl+V): скопированный в проводнике файл или
   // снимок экрана. Текст в полях вставляется как обычно.
   ctx.scope.onDocument('paste', (e) => {
-    if (!inCivil()) return;
+    if (!inModule()) return;
     const t = e.target;
     if (t && t.closest && t.closest('input, textarea, [contenteditable="true"]')) return;
     const files = Array.from((e.clipboardData && e.clipboardData.files) || []);

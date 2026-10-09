@@ -103,20 +103,26 @@ export function openPopout(ctx, onKey) {
   doc.addEventListener('keydown', (e) => onKey(popCtx(ctx), e));
   doc.addEventListener('keyup', (e) => { if (e.code === 'Space') onKey(popCtx(ctx), e); });
 
-  // Окно закрыли — просмотрщик возвращается в карточку.
+  // Окно закрыли — просмотрщик возвращается в карточку. Если окно закрыло
+  // ядро при уходе из модуля (closePopout({ quiet: true })), карточки уже нет:
+  // её render() перерисовал бы старую карточку поверх нового экрана
+  // (код-ревью 09.10.2026).
   win.addEventListener('pagehide', () => {
+    const wasQuiet = quiet;
+    quiet = false;
     win = null;
     pscope = null;
     ctx.ui.viewerPopout = false;
-    ctx.render();
+    if (!wasQuiet) ctx.render();
   });
 
   ctx.ui.viewerPopout = true;
   ctx.render();
 }
 
-export function closePopout() {
-  if (win && !win.closed) win.close();
+let quiet = false;
+export function closePopout({ quiet: q = false } = {}) {
+  if (win && !win.closed) { quiet = q; win.close(); }
 }
 
 // Главное окно закрывают или перезагружают — окно просмотра без него пустое.

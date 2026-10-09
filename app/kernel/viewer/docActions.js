@@ -1,5 +1,5 @@
 import { archiveDoc } from '../archive.js';
-import { VS, vSt, tabKey, scopesOf, orderedTabs, openTabOnly } from './state.js';
+import { VS, vSt, tabKey, scopesOf, orderedTabs, openTabOnly, syncPageSel } from './state.js';
 import { docListFor, scopeLabel, pushDocPageLog, docTypes, archiveInfo } from './deps.js';
 
 // Действия с документами и вкладками просмотрщика. Одни и те же функции зовут
@@ -255,6 +255,7 @@ export async function deletePages(ctx) {
   const t = currentTab(ctx);
   const d = t && docOf(ctx, t.sc, t.id);
   if (!d || !d.pages) return;
+  syncPageSel(ctx);
   const st = vSt(ctx);
   const sel = (ctx.ui.pageSel || []).length ? ctx.ui.pageSel.slice() : [st ? st.page : 1];
   if (sel.length >= d.pages.length) { ctx.toast('Нельзя убрать все страницы документа', 'warn'); return; }

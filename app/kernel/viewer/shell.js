@@ -1,4 +1,4 @@
-import { VS, scopesOf, orderedTabs, touchRecent, pickCompareMate, cmpLeftDoc } from './state.js';
+import { VS, scopesOf, orderedTabs, touchRecent, pickCompareMate, cmpLeftDoc, syncPageSel } from './state.js';
 import { renderDocMode } from './doc.js';
 import { renderPhotoMode } from './photo.js';
 import { renderCompareMode } from './compare.js';
@@ -84,6 +84,7 @@ export function viewerHTML(ctx) {
       <button class="tool-btn" data-vpop-back title="Вернуть просмотрщик в карточку">${ICON_POPIN}</button>
     </div>`;
   }
+  syncPageSel(ctx);
 
   const vctx = buildViewerContext(ctx);
 

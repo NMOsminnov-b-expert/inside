@@ -164,15 +164,26 @@ export function setCrumbs(items = []) {
 }
 
 // conf = { count: () => number, html: () => string, bind: (scope) => void } | null
+//
+// Новая настройка — новая область ящика: обработчики модуля замыкают запись,
+// и при переходе к другой записи того же модуля прежние слушатели писали бы
+// заметки в прежнюю запись. Привязка — один раз на область (drawerBound), а
+// не на каждое обновление: слушатели делегированные и переживают замену
+// разметки. Раньше модули держали флаг в dataset корня ящика, а он переживал
+// снятие слушателей — после ухода на вкладку без ящика кнопки заметок
+// умирали (код-ревью 09.10.2026).
+let drawerBound = false;
 export function setDrawer(conf) {
   state.drawer = conf;
 
   const dr = $('#notesDrawer');
   if (!dr) return;
 
+  if (drawerScope) { drawerScope.destroy(); drawerScope = null; }
+  drawerBound = false;
+
   if (!conf) {
     dr.classList.add('hidden');
-    if (drawerScope) { drawerScope.destroy(); drawerScope = null; }
     return;
   }
 
@@ -188,7 +199,7 @@ export function updateDrawer() {
 
   if (!drawerScope) drawerScope = createScope(box);
   drawerScope.setHTML(conf.html());
-  if (conf.bind) conf.bind(drawerScope);
+  if (conf.bind && !drawerBound) { drawerBound = true; conf.bind(drawerScope); }
 
   const badge = $('#drawerCount');
   if (badge && conf.count) {

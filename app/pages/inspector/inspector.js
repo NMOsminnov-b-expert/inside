@@ -300,7 +300,7 @@ export function mountInspector(host) {
     const ok = await host.confirm({
       title: 'Убрать объект?',
       text: 'Выявленный объект и всё, что к нему записано, пропадёт.',
-      okText: 'Убрать',
+      okLabel: 'Убрать', danger: true,
     });
     if (!ok) return;
     removeFoundOi(route.typeId, route.ocId, el.dataset.foundDrop);
@@ -364,7 +364,7 @@ export function mountInspector(host) {
     const ok = await host.confirm({
       title: 'Удалить снимок?',
       text: 'Снимок пропадёт из осмотра. Отменить будет нельзя.',
-      okText: 'Удалить',
+      okLabel: 'Удалить', danger: true,
     });
     if (!ok) return;
     removePhoto(route.typeId, route.ocId, el.dataset.drop);

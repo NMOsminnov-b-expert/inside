@@ -241,3 +241,16 @@ export function keepPageOnZoom(stage, blkAttr, apply) {
   const r2 = anchor.getBoundingClientRect();
   stage.scrollTop += (r2.top - stage.getBoundingClientRect().top) + frac * r2.height;
 }
+
+// Выделенные страницы — одного документа одной записи. Выделение держалось в
+// ctx.ui на весь модуль: выделили страницы 2–3 в документе A, перешли к B —
+// Ctrl+Shift+D убирал страницы 2–3 документа B (код-ревью 09.10.2026). Зовётся
+// при отрисовке просмотрщика и перед действием над выделением.
+export function syncPageSel(ctx) {
+  const vd = ctx.ui.viewerDoc;
+  const key = [ctx.rec && ctx.rec.id, vd && vd.scope, vd && vd.id].join('|');
+  if (ctx.ui.pageSelKey !== key) {
+    ctx.ui.pageSel = [];
+    ctx.ui.pageSelKey = key;
+  }
+}

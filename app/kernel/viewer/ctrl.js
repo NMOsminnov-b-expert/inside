@@ -547,18 +547,12 @@ function bindViewerSurface(ctx) {
     jumpTo(ctx, +t.dataset.vthumb);
   });
 
-  s.$$('[data-vdelpage]').forEach((b) => b.onclick = async (e) => {
+  // Крестик на миниатюре — с подтверждением, как пункт меню (решение
+  // пользователя 09.10.2026 по код-ревью: «Да»); один путь — deletePages.
+  s.$$('[data-vdelpage]').forEach((b) => b.onclick = (e) => {
     e.stopPropagation();
-    const vd = ctx.ui.viewerDoc;
-    if (!vd) return;
-    const d = docListFor(ctx, vd.scope).find((x) => x.id === vd.id);
-    if (!d || d.pages.length <= 1) { ctx.toast('Нельзя удалить единственную страницу', 'warn'); return; }
-    const pageNumber = +b.dataset.vdelpage;
-    d.pages.splice(pageNumber - 1, 1);
-    pushDocPageLog(ctx.rec, d, 'delete', pageNumber);
-    const st = vSt(ctx);
-    if (st) st.page = Math.min(st.page, d.pages.length);
-    ctx.render();
+    ctx.ui.pageSel = [+b.dataset.vdelpage];
+    deletePages(ctx);
   });
 
   // Вкладки, «+» и прикрепление файлов — parts/viewer/tabs.js.
@@ -1143,8 +1137,10 @@ function bindThumbReorder(ctx) {
       reorderPages(d, fromIdxs, toIdx);
       // Перестановка страниц — такая же правка документа, как удаление и
       // добавление, и в логе должна быть видна наравне с ними: иначе порядок
-      // страниц меняется бесследно. Записываем позицию, КУДА перенесли.
-      pushDocPageLog(ctx.rec, d, 'move', toIdx + 1);
+      // страниц меняется бесследно. Записываем позицию, КУДА перенесли, — уже
+      // после изъятия страниц (как считает reorderPages): писалось toIdx + 1,
+      // и «страница 1 перед 3» уходила в лог как «на 4» (код-ревью 09.10.2026).
+      pushDocPageLog(ctx.rec, d, 'move', toIdx - fromIdxs.filter((i) => i < toIdx).length);
       ctx.ui.pageSel = [];
       ctx.render();
       ctx.toast(fromIdxs.length > 1 ? `Порядок изменён: ${fromIdxs.length} страниц` : 'Порядок страниц изменён', 'ok');

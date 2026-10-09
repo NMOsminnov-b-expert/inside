@@ -1,6 +1,7 @@
 import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav, setUserMenuExtra } from '../shell/shell.js';
 import { createScope } from './scope.js';
 import { esc } from './dom.js';
+import { closePopout } from './viewer/popout.js';
 import { start, parse, build, go, MENU_HREF, INST_HREF, DOCS_HREF } from './router.js';
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
@@ -28,6 +29,9 @@ function resetShellSlots() {
 
 function unmount() {
   if (!current) return;
+  // Окно просмотра держит контекст уходящего модуля — закрываем без
+  // перерисовки карточки, которой уже нет.
+  closePopout({ quiet: true });
   if (current.instance && current.instance.destroy) current.instance.destroy();
   if (current.scope) current.scope.destroy();
   delete document.body.dataset.module;
