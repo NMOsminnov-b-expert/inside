@@ -6,6 +6,12 @@
 //   #/dicts                     — справочники значений
 //   #/institutions              — учреждения (сводка по объектам и документам)
 // Query после «?» отдаётся экрану как объект.
+// Разбор сегмента без падения: адрес с битой %-последовательностью
+// (#/oc/civil/100%) бросал URIError — приложение не стартовало или переставало
+// реагировать на переходы (код-ревью 09.10.2026). Нераскодируемое остаётся как
+// есть: такой id просто не найдётся, и экран скажет «не найден».
+const dec = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
+
 export function parse(hash = location.hash) {
   const raw = String(hash || '').replace(/^#/, '');
   const [pathPart, queryPart] = raw.split('?');
@@ -14,8 +20,11 @@ export function parse(hash = location.hash) {
   const query = {};
   if (queryPart) {
     queryPart.split('&').filter(Boolean).forEach((pair) => {
-      const [k, v] = pair.split('=');
-      query[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      // Значение может само содержать «=» — режем только по первому.
+      const at = pair.indexOf('=');
+      const k = at < 0 ? pair : pair.slice(0, at);
+      const v = at < 0 ? '' : pair.slice(at + 1);
+      query[dec(k)] = dec(v);
     });
   }
 
@@ -27,7 +36,7 @@ export function parse(hash = location.hash) {
   // Документы — отдельный экран, не относится ни к одному типу ОЦ.
   // #/docs/<id> — карточка документа; хвост здесь не нужен, у документа его нет.
   if (segs[0] === 'docs') {
-    return { name: 'docs', id: segs[1] ? decodeURIComponent(segs[1]) : null, query };
+    return { name: 'docs', id: segs[1] ? dec(segs[1]) : null, query };
   }
 
   // Справочники — тоже общий экран: перечни значений для полей всех типов ОЦ.
@@ -53,12 +62,12 @@ export function parse(hash = location.hash) {
   if (segs[0] === 'insp') {
     return {
       name: 'inspector',
-      typeId: segs[1] ? decodeURIComponent(segs[1]) : null,
-      ocId: segs[2] ? decodeURIComponent(segs[2]) : null,
-      section: segs[3] ? decodeURIComponent(segs[3]) : 'task',
+      typeId: segs[1] ? dec(segs[1]) : null,
+      ocId: segs[2] ? dec(segs[2]) : null,
+      section: segs[3] ? dec(segs[3]) : 'task',
       // Осмотр ведётся по объекту имущества, поэтому у раздела «object» есть
       // свой хвост: какую именно литеру (котельную, участок) осматриваем.
-      oiId: segs[4] ? decodeURIComponent(segs[4]) : null,
+      oiId: segs[4] ? dec(segs[4]) : null,
       query,
     };
   }
@@ -66,9 +75,9 @@ export function parse(hash = location.hash) {
   if (segs[0] === 'oc' && segs[1]) {
     return {
       name: 'module',
-      typeId: decodeURIComponent(segs[1]),
-      ocId: segs[2] ? decodeURIComponent(segs[2]) : null,
-      rest: segs.slice(3).map(decodeURIComponent),
+      typeId: dec(segs[1]),
+      ocId: segs[2] ? dec(segs[2]) : null,
+      rest: segs.slice(3).map(dec),
       query,
     };
   }
