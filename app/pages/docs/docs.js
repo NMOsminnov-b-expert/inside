@@ -21,7 +21,7 @@ import {
 } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
 import { detailHTML, bindDetail } from './detail.js';
-import { persistView } from '../../kernel/viewState.js';
+import { persistView, persistSizes } from '../../kernel/viewState.js';
 
 const state = {
   q: '', type: '', status: '', institution: '', dateFrom: '', dateTo: '',
@@ -61,6 +61,8 @@ const DOCS_COLUMNS = [
 ];
 const DOCS_COLUMNS_DEFAULT = movableKeys(DOCS_COLUMNS);
 const docsColWidths = {};
+// Ширины столбцов реестра документов — сохраняются (решение 09.10.2026).
+persistSizes('docs-sizes', () => ({ docsColWidths }), (s) => { Object.assign(docsColWidths, s.docsColWidths || {}); });
 // Порядок столбцов (кроме закреплённого «№») — можно перетаскивать шапку,
 // как в реестре ОЦ и в перечне ОИ (kernel/columns.js).
 let docsColOrder = DOCS_COLUMNS_DEFAULT.slice();

@@ -35,7 +35,7 @@ import {
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
-import { persistView } from '../../kernel/viewState.js';
+import { persistView, persistSizes } from '../../kernel/viewState.js';
 
 const state = {
   mode: 'tree',        // 'tree' — по иерархии, 'region' — по регионам
@@ -121,6 +121,18 @@ const DOC_COLUMNS = [
 
 const ocWidths = {};
 const docWidths = {};
+
+// Растянутые человеком ширины — панели дерева, списка документов и столбцов
+// таблиц — переживают перезагрузку (решение пользователя 09.10.2026).
+persistSizes('institutions-sizes',
+  () => ({ panelWidth, docListWidth, allWidths, ocWidths, docWidths }),
+  (s) => {
+    if (typeof s.panelWidth === 'number') panelWidth = s.panelWidth;
+    if (typeof s.docListWidth === 'number') docListWidth = s.docListWidth;
+    Object.assign(allWidths, s.allWidths || {});
+    Object.assign(ocWidths, s.ocWidths || {});
+    Object.assign(docWidths, s.docWidths || {});
+  });
 
 
 // Свои учреждения — те, за которыми закреплён сотрудник (kernel/session.js).

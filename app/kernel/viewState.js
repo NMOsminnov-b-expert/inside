@@ -35,3 +35,14 @@ export function persistView(name, obj, keep) {
     },
   });
 }
+
+// То же для вида, который живёт не в одном объекте, а в переменных модуля —
+// ширины перегородок и столбцов на страницах: take() отдаёт снимок, put(saved)
+// раскладывает его обратно. Ширины, растянутые человеком, — тоже «вид, в
+// котором закрыли».
+export function persistSizes(name, take, put) {
+  registerPersisted('ui.' + name, {
+    snapshot: take,
+    restore: (saved) => { if (saved && typeof saved === 'object') put(saved); },
+  });
+}

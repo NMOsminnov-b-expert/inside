@@ -28,7 +28,7 @@ import {
   bindSlot, unbindSlot, freeSlots, moveToCatalog, setFolder, foldersOf, mainSlot,
   slotsWithOwners, linkedDicts, diffWith, addItemTo, removeItemFrom, renameItemIn,
 } from '../../kernel/dicts.js';
-import { persistView } from '../../kernel/viewState.js';
+import { persistView, persistSizes } from '../../kernel/viewState.js';
 
 // Вид навигации. По умолчанию «столбцы»: они не требуют опыта с деревом —
 // три списка рядом, выбрал слева — справа появилось следующее, и ничего не
@@ -117,6 +117,13 @@ function itemColGroup() {
 }
 
 const itemWidths = {};
+
+// Ширины столбцов-шагов, боковой панели и столбцов таблицы значений —
+// сохраняются (решение пользователя 09.10.2026: «в каком виде закрываем…»).
+persistSizes('dicts-sizes', () => ({ paneW, itemWidths }), (s) => {
+  Object.assign(paneW, s.paneW || {});
+  Object.assign(itemWidths, s.itemWidths || {});
+});
 
 const ICON_CHECK = `<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
   <path d="M2.4 6.2 4.7 8.5 9.6 3.6" fill="none" stroke="currentColor" stroke-width="1.9"

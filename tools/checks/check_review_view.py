@@ -16,7 +16,9 @@
     любой перерисовке и после перезагрузки (класс в разметке, нигде не
     запомненный); в ОЦ «Механизмы» стрелки блоков не работали вовсе
     (kernel/cardToggle.js);
-  * раздел карточки документа («Метаданные») после перезагрузки снова развёрнут.
+  * раздел карточки документа («Метаданные») после перезагрузки снова развёрнут;
+  * растянутая панель дерева учреждений после перезагрузки снова 320 px
+    (ширины на страницах жили в переменных модуля и не сохранялись).
 """
 NAME = 'вид экрана после перезагрузки'
 
@@ -101,3 +103,17 @@ def run(t):
     t.ck(t.wait_until(sec), 'документ: раздел «Метаданные» не свернулся')
     reload(t, '[data-dd-sec="Метаданные"]')
     t.ck(pg.evaluate(sec), 'документ: свёрнутый раздел после перезагрузки развёрнут')
+
+    # --- учреждения: растянутая панель дерева ----------------------------------------
+    t.open('#/institutions', wait='[data-ipanel-grip]')
+    w0 = pg.evaluate("() => document.querySelector('.ipanel').getBoundingClientRect().width")
+    box = pg.locator('[data-ipanel-grip]').bounding_box()
+    pg.mouse.move(box['x'] + box['width'] / 2, box['y'] + 40)
+    pg.mouse.down()
+    pg.mouse.move(box['x'] + box['width'] / 2 + 120, box['y'] + 40, steps=6)
+    pg.mouse.up()
+    w1 = pg.evaluate("() => document.querySelector('.ipanel').getBoundingClientRect().width")
+    t.ck(w1 > w0 + 60, 'учреждения: панель дерева не растянулась: %s → %s' % (w0, w1))
+    reload(t, '[data-ipanel-grip]')
+    w2 = pg.evaluate("() => document.querySelector('.ipanel').getBoundingClientRect().width")
+    t.ck(abs(w2 - w1) < 3, 'учреждения: ширина панели дерева не сохранилась: %s → %s' % (w1, w2))

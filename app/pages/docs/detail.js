@@ -8,7 +8,7 @@ import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kern
 import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { openDocumentModal, openLinkModal } from './create.js';
 import { pageViewerHTML, bindPageViewer } from '../../kernel/viewer/pageViewer.js';
-import { persistView } from '../../kernel/viewState.js';
+import { persistView, persistSizes } from '../../kernel/viewState.js';
 
 // Свёрнутые разделы карточки документа («Файлы», «Метаданные», …) помнятся и
 // после перезагрузки (решение пользователя 09.10.2026: «в каком виде
@@ -29,6 +29,11 @@ let lastDocId = null;
 // просмотрщику нужно место, а список нужен не всё время.
 let listOpen = true;
 let listWidth = 300;
+// Открыт ли список документов рядом с просмотрщиком и его ширина — сохраняются.
+persistSizes('docs-detail-sizes', () => ({ listOpen, listWidth }), (s) => {
+  if (typeof s.listOpen === 'boolean') listOpen = s.listOpen;
+  if (typeof s.listWidth === 'number') listWidth = s.listWidth;
+});
 const LIST_MIN = 150;
 const VIEW_MIN = 320;
 
