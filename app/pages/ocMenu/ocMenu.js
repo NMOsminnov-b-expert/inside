@@ -626,7 +626,9 @@ export function mountOcMenu(host) {
     a.href = URL.createObjectURL(blob);
     a.download = `oc-reestr-${state.tab === 'movable' ? 'dvizhimoe' : 'nedvizhimoe'}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    // Ссылку отзываем, когда скачивание уже началось: сразу после click() в
+    // части браузеров оно обрывалось (код-ревью 09.10.2026).
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 
     host.toast(`Выгружено строк: ${rows.length}${lastTotal > EXPORT_LIMIT ? ' (ограничение ' + EXPORT_LIMIT + ')' : ''}`, 'ok');
   }

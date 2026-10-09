@@ -180,7 +180,14 @@ function plain(col, s) {
 // Столбцы и их порядок — те, что на экране: выгружается то, что видно.
 export function csvOf(state, rows) {
   const cols = activeColumns(state);
-  const cell = (v) => (/[";\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : v);
+  // Значение, начинающееся с = + - @, Excel выполняет как формулу — спереди
+  // апостроф, и ячейка остаётся текстом (практика OWASP «CSV Injection»).
+  // Отрицательные числа не трогаем (код-ревью 09.10.2026).
+  const safe = (v) => {
+    const t = String(v ?? '');
+    return /^[=+\-@\t\r]/.test(t) && !/^-?\d+([.,]\d+)?$/.test(t) ? "'" + t : t;
+  };
+  const cell = (v) => { const t = safe(v); return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
 
   const head = cols.map((c) => cell(c.label)).join(';');
   const body = rows.map((s) => cols.map((c) => cell(plain(c, s))).join(';'));
