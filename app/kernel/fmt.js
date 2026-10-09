@@ -155,3 +155,16 @@ export function plural(n, one, few, many) {
   if (b >= 2 && b <= 4) return few;
   return many;
 }
+
+// Дата для хранения и сравнения — ГГГГ-ММ-ДД: строки этого вида сортируются и
+// сравниваются как даты. Модули пишут «ДД.ММ.ГГГГ», и в архиве оба вида
+// сравнивались строками — фильтр по датам отбрасывал записи, а «свежие сверху»
+// стояли не по порядку (код-ревью 09.10.2026). dateRu — обратно, для показа.
+export function dateIso(value) {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(value || '').trim());
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : (value || null);
+}
+export function dateRu(value) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : (value || '');
+}

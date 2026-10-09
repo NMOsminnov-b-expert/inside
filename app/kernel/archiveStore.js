@@ -19,6 +19,8 @@
 // перенос в холодное хранилище, но удаления нет. Выбор за теми, кто будет
 // делать серверную часть.
 
+import { dateIso } from './fmt.js';
+
 const entries = [];
 
 let seq = 0;
@@ -45,6 +47,7 @@ export function addEntries(list) {
 
   arr.forEach((entry, i) => {
     entry.id = entry.id || nextArchiveId();
+    entry.archivedAt = dateIso(entry.archivedAt);
     entry.batchId = batchId;
     entry.batchRole = batchId ? (i === 0 ? 'root' : 'child') : null;
     entry.restoredAt = entry.restoredAt || null;
@@ -58,7 +61,7 @@ export function addEntries(list) {
 export function markRestored(id, who, when) {
   const entry = entryById(id);
   if (!entry) return null;
-  entry.restoredAt = when;
+  entry.restoredAt = dateIso(when);
   entry.restoredBy = who;
   return entry;
 }

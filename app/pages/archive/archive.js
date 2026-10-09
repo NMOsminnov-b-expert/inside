@@ -9,7 +9,7 @@
 // своим учреждениям (kernel/session.js). Это то же правило, по которому
 // открывается лог действий: доступ к истории объекта — одно понятие, а не два.
 import { esc } from '../../kernel/dom.js';
-import { fmtEni } from '../../kernel/fmt.js';
+import { fmtEni, dateRu } from '../../kernel/fmt.js';
 import {
   queryArchive, archiveFacets, findRecordOf, restoreEntry, canRestore, entryById,
 } from '../../kernel/archive.js';
@@ -87,7 +87,7 @@ function rowHTML(entry) {
     </td>
     <td><span class="ell" title="${esc(from.institution)}">${esc(from.institution || '—')}</span></td>
     <td>${esc(entry.archivedBy || '—')}</td>
-    <td class="mono">${esc(entry.archivedAt || '—')}</td>
+    <td class="mono">${esc(dateRu(entry.archivedAt) || '—')}</td>
     <td class="arc-act">
       ${doc.file ? `<a class="btn btn-ghost btn-sm" href="${esc(doc.file.dataUrl)}" target="_blank"
         rel="noopener" title="Открыть файл в новой вкладке">Открыть</a>` : ''}
