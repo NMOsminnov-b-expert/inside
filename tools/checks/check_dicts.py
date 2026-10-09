@@ -345,6 +345,15 @@ def run(t):
         t.ck('Заменить и удалить' in pg.locator('.dc-modal-foot').inner_text(),
              'кнопка подтверждения не называет действие')
 
+        # Подсказка называет выбранную замену, а не всегда первую (код-ревью
+        # 09.10.2026: «Объекты перейдут на …» не следила за выбором).
+        second = pg.evaluate("""() => { const s = document.querySelector('[data-rm-existing]');
+            if (!s || s.options.length < 2) return '';
+            s.value = s.options[1].value; s.dispatchEvent(new Event('change', { bubbles: true })); return s.value; }""")
+        if second:
+            t.ck(('«%s»' % second) in pg.locator('.dc-modal-hint').inner_text(),
+                 'подсказка замены не следит за выбором: %s' % pg.locator('.dc-modal-hint').inner_text())
+
         pg.locator('[data-rm-mode="new"]').first.check()
         t.wait(300)
         t.ck('Переименовать' in pg.locator('[data-rm-ok]').inner_text(),

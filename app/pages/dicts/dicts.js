@@ -59,6 +59,7 @@ const state = {
   open: {},
   creating: false,     // строка ввода названия нового справочника
   removing: null,      // значение, для которого открыт диалог замены
+  rmPick: '',         // выбранная в диалоге замена
   replaceMode: 'existing',
   dragItem: null,
   moveOpen: false,     // открыт выбор каталога для переноса
@@ -838,7 +839,11 @@ function removeDialogHTML(d) {
   if (!it) return '';
   const { count, places } = usageOf(d, it.value);
   const others = d.items.filter((x) => x.id !== it.id);
-  const replaceTo = others[0] ? others[0].value : '';
+  // Замена — выбранное в списке (state.rmPick), а не всегда первое: подсказка
+  // «Объекты перейдут на …» называла первое значение, что бы ни выбрали
+  // (код-ревью 09.10.2026).
+  const replaceTo = others.some((x) => x.value === state.rmPick) ? state.rmPick
+    : (others[0] ? others[0].value : '');
 
   return `<div class="dc-modal-back" data-rm-back>
     <div class="dc-modal wide" role="dialog" aria-label="Удаление значения">
@@ -866,7 +871,7 @@ function removeDialogHTML(d) {
               <b>Заменить существующим значением</b>
               <i>Объекты перейдут на выбранное, «${esc(it.value)}» исчезнет из перечня.</i>
               <select class="select" data-rm-existing ${state.replaceMode === 'existing' ? '' : 'disabled'}>
-                ${others.length ? others.map((x) => `<option>${esc(x.value)}</option>`).join('')
+                ${others.length ? others.map((x) => `<option ${x.value === replaceTo ? 'selected' : ''}>${esc(x.value)}</option>`).join('')
                   : '<option value="">других значений нет</option>'}
               </select>
             </span>
@@ -1463,6 +1468,7 @@ export function mountDicts(host) {
       }
 
       state.removing = it;
+      state.rmPick = '';
       state.replaceMode = 'existing';
       render();
     });
@@ -1695,8 +1701,15 @@ export function mountDicts(host) {
       if (field) field.focus();
     });
 
+    const pick = scope.$('[data-rm-existing]');
+    if (pick) pick.onchange = () => {
+      state.rmPick = pick.value;
+      const hint = scope.$('.dc-modal-hint');
+      if (hint && state.replaceMode !== 'new') hint.textContent = pick.value ? `Объекты перейдут на «${pick.value}»` : 'Выберите замену';
+    };
+
     const cancel = scope.$('[data-rm-cancel]');
-    if (cancel) cancel.onclick = () => { state.removing = null; render(); };
+    if (cancel) cancel.onclick = () => { state.removing = null; state.rmPick = ''; render(); };
 
     const back = scope.$('[data-rm-back]');
     if (back) back.onclick = (e) => {
