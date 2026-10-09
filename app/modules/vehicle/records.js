@@ -17,7 +17,10 @@ let seq = 0;
 registerPersisted('records.vehicle', {
   snapshot: () => records,
   restore: (saved) => {
-    if (!Array.isArray(saved) || !saved.length) return;
+    // Пустой список — законный итог (все записи типа удалены): прежнее
+    // «!saved.length → оставить засев» возвращало удалённые демо-записи после
+    // перезагрузки (код-ревью 09.10.2026).
+    if (!Array.isArray(saved)) return;
     records.splice(0, records.length, ...saved);
     seq = saved.reduce((max, r) => Math.max(max, Number(String(r.id).split('-').pop()) || 0), seq);
   },

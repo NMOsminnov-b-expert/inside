@@ -5,6 +5,7 @@ import { closePopout } from './viewer/popout.js';
 import { start, parse, build, go, MENU_HREF, INST_HREF, DOCS_HREF } from './router.js';
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
+import { takeLoadProblem } from './persist.js';
 import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
 import { installSelectWatcher } from './dropdown.js';
@@ -307,6 +308,11 @@ async function onRoute(route) {
 
 export function boot() {
   initShell();
+  // Сбои сохранения — человеку (kernel/persist.js шлёт событие; сам persist
+  // интерфейса не знает). И то, что сохранённое при открытии не прочиталось.
+  document.addEventListener('inside:save-failed', (e) => toast(e.detail.text, 'warn'));
+  const problem = takeLoadProblem();
+  if (problem) setTimeout(() => toast(problem, 'warn'), 0);
   // Полный текст обрезанного значения при наведении — один механизм на весь
   // проект (Л1.4), см. kernel/overflowTip.js.
   installOverflowTip();

@@ -66,7 +66,20 @@ const sources = new Map();
 let loaded = null;      // прочитанное из браузера: { local: {имя: данные}, mine, legacy }
 let timer = null;
 let listening = false;
-let warned = false;
+
+// Сбой сохранения — человеку, а не только в консоль: раньше один флаг warned
+// на все виды сбоев, и после первого же (сервер не ответил) переполнение
+// хранилища не попадало даже в консоль; человек работал дальше и терял правки
+// (код-ревью 09.10.2026). Каждый вид сбоя — своё сообщение, не чаще раза в
+// минуту; показывает его boot.js по событию «inside:save-failed».
+const lastWarn = new Map();
+function fail(kind, text, err) {
+  console.warn('[persist] ' + text, err || '');
+  const now = Date.now();
+  if (now - (lastWarn.get(kind) || 0) < 60000) return;
+  lastWarn.set(kind, now);
+  document.dispatchEvent(new CustomEvent('inside:save-failed', { detail: { kind, text } }));
+}
 
 // --- файлы сотрудников ---------------------------------------------------------
 
@@ -77,7 +90,9 @@ async function loadShared() {
   if (typeof navigator !== 'undefined' && navigator.webdriver) return none;
   try {
     // Сервер макета: своё имя файла и все файлы разом.
-    const res = await fetch('./__persist', { cache: 'no-store' });
+    // Не дольше трёх секунд: загрузка идёт на импорте ядра, и повисший сервер
+    // макета не давал приложению стартовать.
+    const res = await fetch('./__persist', { cache: 'no-store', signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const got = await res.json();
       if (got && typeof got.files === 'object') return { me: String(got.me || ''), files: got.files };
@@ -132,13 +147,14 @@ function readSnapshot() {
           else loaded.local[name] = data;
         });
       } else {
-        localStorage.removeItem(KEY);
+        putAside(raw, 'снимок другой версии');
       }
     }
   } catch (e) {
-    // Сохранённое не читается (испортилось, сменился формат) — начинаем с
-    // засева, но не молча: иначе непонятно, почему пропали данные.
-    console.warn('[persist] не удалось прочитать снимок:', e);
+    // Сохранённое не читается (испортилось) — начинаем с засева, но снимок не
+    // стираем: первый же щелчок перезаписал бы его, и без сервера макета свои
+    // правки пропали бы безвозвратно.
+    try { putAside(localStorage.getItem(KEY), 'снимок не читается'); } catch (x) { /* хранилище недоступно */ }
   }
 
   try { localStorage.removeItem(LEGACY_CIVIL); } catch (e) { /* хранилище недоступно */ }
@@ -153,6 +169,18 @@ function readSnapshot() {
   }
 
   return loaded;
+}
+
+// Нечитаемый или чужой версии снимок — в отдельный ключ, с предупреждением.
+let loadProblem = '';
+export const takeLoadProblem = () => { const p = loadProblem; loadProblem = ''; return p; };
+function putAside(raw, why) {
+  if (!raw) return;
+  const key = KEY + ':broken:' + new Date().toISOString();
+  try { localStorage.setItem(key, raw); } catch (e) { /* места нет — останется только предупреждение */ }
+  localStorage.removeItem(KEY);
+  loadProblem = `Сохранённые в браузере данные не прочитаны (${why}). Они отложены в «${key}».`;
+  console.warn('[persist] ' + loadProblem);
 }
 
 // Свои правки и строки записей, с которыми они сравниваются при записи.
@@ -179,13 +207,23 @@ function editsFor(name) {
 // бессмысленно: после перезагрузки она указывает в никуда. Поэтому ссылки на
 // файлы из снимка убираются, а сам факт вложения остаётся: человек видит имя
 // документа и то, что файл нужно приложить заново.
-function stripBlobs(value, seen = new WeakSet()) {
-  if (Array.isArray(value)) return value.map((v) => stripBlobs(v, seen));
+//
+// Отсекаются только циклы — объект на текущем пути обхода. Прежде отсекался
+// любой встреченный повторно: объект, на который запись ссылается из двух
+// мест, во втором месте молча не сохранялся (код-ревью 09.10.2026).
+function stripBlobs(value, path = new WeakSet()) {
+  if (Array.isArray(value)) {
+    if (path.has(value)) return undefined;
+    path.add(value);
+    const out = value.filter((v) => !(typeof v === 'string' && v.startsWith('blob:'))).map((v) => stripBlobs(v, path));
+    path.delete(value);
+    return out;
+  }
   if (!value || typeof value !== 'object') return value;
 
   // Циклы в данных нам не нужны и в JSON всё равно не поместятся.
-  if (seen.has(value)) return undefined;
-  seen.add(value);
+  if (path.has(value)) return undefined;
+  path.add(value);
 
   const out = {};
   Object.entries(value).forEach(([key, v]) => {
@@ -193,9 +231,10 @@ function stripBlobs(value, seen = new WeakSet()) {
       out.fileLost = true;
       return;
     }
-    const clean = stripBlobs(v, seen);
+    const clean = stripBlobs(v, path);
     if (clean !== undefined) out[key] = clean;
   });
+  path.delete(value);
   return out;
 }
 
@@ -249,17 +288,25 @@ function ownFile() {
   return { v: 1, author: shared.me, sources: out };
 }
 
+// Отправленным файл считается после ответа сервера «принято»: fetch не
+// отклоняется на 4xx/5xx, а lastSent ставился до ответа — после первого
+// отказа правки больше не уходили, и об этом нигде не говорилось
+// (код-ревью 09.10.2026). keepalive — чтобы отправка при уходе со страницы
+// не обрывалась.
 let lastSent = '';
-function sendOwnFile() {
+let sending = '';
+function sendOwnFile({ leaving = false } = {}) {
   if (!shared.me) return;
   const body = JSON.stringify(ownFile());
-  if (body === lastSent) return;
-  lastSent = body;
-  fetch('./__persist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
-    .catch((e) => {
-      lastSent = '';
-      if (!warned) { warned = true; console.warn('[persist] сервер макета не принял правки:', e); }
-    });
+  if (body === lastSent || body === sending) return;
+  sending = body;
+  fetch('./__persist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: leaving })
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      lastSent = body;
+    })
+    .catch((e) => fail('server', 'Сервер макета не принял правки — они сохранены только в этом браузере.', e))
+    .finally(() => { if (sending === body) sending = ''; });
 }
 
 // Когда снимок последний раз лёг в хранилище — для строки «Сохранено · 13:42»
@@ -268,7 +315,7 @@ function sendOwnFile() {
 let lastSaved = null;
 export const lastSavedAt = () => lastSaved;
 
-export function saveNow() {
+export function saveNow({ leaving = false } = {}) {
   timer = null;
 
   // Части модулей, которые ещё не загружались, переписываются как были: иначе
@@ -280,20 +327,18 @@ export function saveNow() {
       if (isShared(name)) collectEdits(name, snapshot());
       else data[name] = stripBlobs(snapshot());
     } catch (e) {
-      console.warn('[persist] источник «%s» не отдал снимок:', name, e);
+      fail('source:' + name, `Часть данных («${name}») не сохранилась.`, e);
     }
   });
 
-  sendOwnFile();
+  sendOwnFile({ leaving });
 
   try {
     const legacy = readSnapshot().legacy;
     const text = JSON.stringify({ v: VERSION, data, mine: mine(), ...(Object.keys(legacy).length ? { legacy } : {}) });
-    if (text.length > MAX_BYTES) {
-      if (!warned) {
-        warned = true;
-        console.warn('[persist] снимок больше %d МБ — не сохраняем', MAX_BYTES / 1024 / 1024);
-      }
+    // Граница — в байтах (UTF-8), а не в символах: кириллица занимает по два.
+    if (new Blob([text]).size > MAX_BYTES) {
+      fail('size', `Данных больше ${MAX_BYTES / 1024 / 1024} МБ — в браузере они больше не сохраняются.`);
       return false;
     }
     localStorage.setItem(KEY, text);
@@ -301,10 +346,7 @@ export function saveNow() {
     document.dispatchEvent(new CustomEvent('inside:saved', { detail: lastSaved }));
     return true;
   } catch (e) {
-    if (!warned) {
-      warned = true;
-      console.warn('[persist] не удалось сохранить:', e);
-    }
+    fail('storage', 'Не удалось сохранить данные в браузере.', e);
     return false;
   }
 }
@@ -321,13 +363,21 @@ function listen() {
   // Правки приходят разными путями — ввод в поле, выбор в списке, нажатие
   // кнопки, перетаскивание, — поэтому слушаем события, а не расставляем вызовы
   // по коду: одно забытое место тихо теряло бы данные.
-  ['change', 'input', 'click', 'drop'].forEach((type) => {
+  //
+  // Плюс любая отрисовка экрана (scope.setHTML → «inside:rendered») и клавиши:
+  // правка после выбора файла (поле выбора файла живёт вне документа, его
+  // change сюда не доходит) или по Enter в окне подтверждения не давала ни
+  // одного из событий выше — и пропадала после перезагрузки (код-ревью
+  // 09.10.2026).
+  ['change', 'input', 'click', 'drop', 'keydown'].forEach((type) => {
     document.addEventListener(type, () => scheduleSave(), true);
   });
+  document.addEventListener('inside:rendered', () => scheduleSave());
 
-  // Уход со страницы: отложенная запись могла не успеть.
+  // Уход со страницы — сохраняем всегда: правка могла прийти без события.
   window.addEventListener('beforeunload', () => {
-    if (timer) { clearTimeout(timer); saveNow(); }
+    if (timer) clearTimeout(timer);
+    saveNow({ leaving: true });
   });
 }
 

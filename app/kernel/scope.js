@@ -22,6 +22,9 @@ export function createScope(root) {
       // материалов обрезается ячейкой таблицы «Конструктив и износ» (см.
       // msDrop.js).
       enhanceMsDrops(root);
+      // Отрисовка — повод сохранить: правка после выбора файла или по Enter не
+      // даёт событий, которые слушает kernel/persist.js (код-ревью 09.10.2026).
+      document.dispatchEvent(new Event('inside:rendered'));
     },
 
     // Делегирование внутри корня.

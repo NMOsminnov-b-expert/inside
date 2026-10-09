@@ -18,11 +18,14 @@ export const records = [...createSeed(), ...createProductionSeed()];
 registerPersisted('records.civil', {
   snapshot: () => records,
   restore: (saved) => {
-    if (!Array.isArray(saved) || !saved.length) return;
+    // Пустой список — законный итог (все записи типа удалены): прежнее
+    // «!saved.length → оставить засев» возвращало удалённые демо-записи после
+    // перезагрузки (код-ревью 09.10.2026).
+    // Демо-записи бывшего «Производственного строения» входят в засев
+    // (records выше), снимок собирается из засева и правок — отдельно
+    // возвращать их не нужно: прежняя добавка воскрешала удалённые.
+    if (!Array.isArray(saved)) return;
     records.splice(0, records.length, ...saved);
-    // Снимок, сохранённый до слияния с «Производственным строением», его
-    // записей не знает — демо-записи бывшего типа возвращаются к нему.
-    if (!saved.some((r) => String(r.id).startsWith('oc-pr-'))) records.push(...createProductionSeed());
   },
 });
 
