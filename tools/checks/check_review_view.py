@@ -15,13 +15,14 @@
   * блок карточки ОЦ, свёрнутый по заголовку, разворачивается обратно при
     любой перерисовке и после перезагрузки (класс в разметке, нигде не
     запомненный); в ОЦ «Механизмы» стрелки блоков не работали вовсе
-    (kernel/cardToggle.js).
+    (kernel/cardToggle.js);
+  * раздел карточки документа («Метаданные») после перезагрузки снова развёрнут.
 """
 NAME = 'вид экрана после перезагрузки'
 
 TOUCHES = ('app/kernel/viewState.js', 'app/kernel/cardToggle.js', 'app/modules/civil/index.js', 'app/modules/apartment/data/store.js', 'app/modules/vehicle/index.js',
            'app/modules/mechanisms/index.js', 'app/pages/institutions/institutions.js', 'app/pages/docs/docs.js',
-           'app/pages/dicts/dicts.js', 'app/pages/archive/archive.js')
+           'app/pages/dicts/dicts.js', 'app/pages/archive/archive.js', 'app/pages/docs/detail.js')
 
 
 def reload(t, wait):
@@ -90,3 +91,13 @@ def run(t):
     t.wait_for('[data-card-toggle]')
     pg.locator('[data-card-toggle] h3').first.click()
     t.ck(t.wait_until(closed), 'ОЦ «Механизмы»: блок не сворачивается по заголовку')
+
+    # --- карточка документа: свёрнутый раздел ---------------------------------------
+    t.open('#/docs', wait='[data-doc-row]')
+    pg.locator('[data-doc-row]').first.click()
+    t.wait_for('[data-dd-sec="Метаданные"]')
+    pg.click('[data-dd-sec="Метаданные"] [data-dd-toggle]')
+    sec = "() => document.querySelector('[data-dd-sec=\"Метаданные\"]').classList.contains('collapsed')"
+    t.ck(t.wait_until(sec), 'документ: раздел «Метаданные» не свернулся')
+    reload(t, '[data-dd-sec="Метаданные"]')
+    t.ck(pg.evaluate(sec), 'документ: свёрнутый раздел после перезагрузки развёрнут')

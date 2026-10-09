@@ -8,6 +8,15 @@ import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kern
 import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { openDocumentModal, openLinkModal } from './create.js';
 import { pageViewerHTML, bindPageViewer } from '../../kernel/viewer/pageViewer.js';
+import { persistView } from '../../kernel/viewState.js';
+
+// Свёрнутые разделы карточки документа («Файлы», «Метаданные», …) помнятся и
+// после перезагрузки (решение пользователя 09.10.2026: «в каком виде
+// закрываем, в таком и открывается»); прежде свёртка жила только в разметке и
+// пропадала при любой перерисовке.
+const view = { secClosed: {} };
+persistView('docs-detail', view, ['secClosed']);
+const secClosed = (name) => (view.secClosed[name] ? 'collapsed' : '');
 
 // Какой файл документа сейчас открыт в просмотрщике — сбрасывается на первый
 // файл при переходе к другому документу.
@@ -126,7 +135,7 @@ export function detailHTML(doc, siblings) {
       </div>
 
       <div class="dd-side">
-        <div class="dd-sec">
+        <div class="dd-sec ${secClosed('Файлы')}" data-dd-sec="Файлы">
           <div class="dd-sec-head" data-dd-toggle><span class="chev">⌄</span>Файлы<span class="dd-sec-count">${files.length}</span></div>
           <div class="dd-sec-body">
             ${files.length ? files.map((f) => `<div class="dd-file-row ${f.id === activeFileId ? 'active' : ''}">
@@ -137,7 +146,7 @@ export function detailHTML(doc, siblings) {
           </div>
         </div>
 
-        <div class="dd-sec">
+        <div class="dd-sec ${secClosed('Метаданные')}" data-dd-sec="Метаданные">
           <div class="dd-sec-head" data-dd-toggle><span class="chev">⌄</span>Метаданные</div>
           <div class="dd-sec-body">
             <div class="dd-field"><span class="dd-lbl">Тип</span><span class="dd-val">${esc(doc.type || '—')}</span></div>
@@ -147,7 +156,7 @@ export function detailHTML(doc, siblings) {
           </div>
         </div>
 
-        <div class="dd-sec">
+        <div class="dd-sec ${secClosed('От кого')}" data-dd-sec="От кого">
           <div class="dd-sec-head" data-dd-toggle><span class="chev">⌄</span>От кого</div>
           <div class="dd-sec-body">
             <div class="dd-field"><span class="dd-lbl">Учреждение</span><span class="dd-val">${esc(doc.institution || '—')}</span></div>
@@ -158,7 +167,7 @@ export function detailHTML(doc, siblings) {
           </div>
         </div>
 
-        <div class="dd-sec">
+        <div class="dd-sec ${secClosed('Прикреплён к')}" data-dd-sec="Прикреплён к">
           <div class="dd-sec-head" data-dd-toggle><span class="chev">⌄</span>Прикреплён к<span class="dd-sec-count">${links.length}</span></div>
           <div class="dd-sec-body">
             ${links.length ? `<table class="dd-links-tbl">
@@ -302,7 +311,10 @@ export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChang
 
   scope.$$('[data-dd-toggle]').forEach((h) => h.onclick = () => {
     const sec = h.closest('.dd-sec');
-    if (sec) sec.classList.toggle('collapsed');
+    if (!sec) return;
+    const key = sec.dataset.ddSec;
+    if (view.secClosed[key]) delete view.secClosed[key]; else view.secClosed[key] = true;
+    sec.classList.toggle('collapsed', !!view.secClosed[key]);
   });
 
   // Просмотрщик — тот же, что в карточке ОЦ (kernel/viewer/pageViewer.js):
