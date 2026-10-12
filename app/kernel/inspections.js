@@ -373,3 +373,74 @@ export function regionsOf(name, summaryEni) {
   });
   return { regions: [...count.entries()].sort((x, y) => y[1] - x[1]).map(([r]) => r), derived: true };
 }
+
+// --- сроки осмотра объектов ---------------------------------------------------
+//
+// Крайний срок осмотра объекта ставит региональный менеджер (ответ
+// пользователя 12.10.2026 «Ставит менеджер»): у объекта в очереди, можно
+// сразу для нескольких. По сроку — «горящие сверху».
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: срок — поле объекта оценки (или задания на осмотр)
+// с автором и временем сервера; развилка — один срок на объект или по ОИ.
+const deadlines = [];
+registerPersisted('inspections.deadlines', {
+  snapshot: () => deadlines,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    deadlines.splice(0, deadlines.length, ...saved.filter((x) => x && x.id));
+  },
+});
+
+export function deadlineOf(typeId, ocId) {
+  const d = deadlines.find((x) => x.id === typeId + '|' + ocId);
+  return d ? d.date : '';
+}
+
+// keys — «typeId|ocId»; date пуста — срок снимается.
+export function setDeadline(keys, date) {
+  keys.forEach((k) => {
+    const i = deadlines.findIndex((x) => x.id === k);
+    if (!date) { if (i >= 0) deadlines.splice(i, 1); return; }
+    const item = { id: k, date, by: session.state.person, at: now() };
+    if (i >= 0) deadlines[i] = item; else deadlines.push(item);
+  });
+  changed();
+}
+
+// --- массовые действия над назначениями ---------------------------------------
+
+// Переназначить другому: у каждого прежнее снимается, новое заводится с тем
+// же составом (история у обоих остаётся). Нужно при болезни, отпуске,
+// увольнении (решение 12.10.2026, раздел «Планирование»).
+export function reassignMany(ids, person) {
+  return ids.map((id) => reassign(id, person)).filter(Boolean);
+}
+
+export function moveDateMany(ids, plannedAt) {
+  ids.forEach((id) => {
+    const a = assignmentById(id);
+    if (!a || !isLive(a) || a.plannedAt === plannedAt) return;
+    const was = a.plannedAt;
+    a.plannedAt = plannedAt;
+    a.updatedAt = now();
+    logEvent('moved', a, { text: `${was || 'без даты'} → ${plannedAt || 'без даты'}` });
+  });
+  changed();
+}
+
+export function unassignMany(ids) {
+  ids.forEach((id) => setAssignState(id, 'removed'));
+}
+
+// «Зависло»: назначено давно, а осмотр не начат (нет событий осмотрщика), или
+// начат и не закончен долго. Пороги — рабочая неделя и две; на сервере —
+// настройка (ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: пороги — в настройках региона).
+export const STALL_DAYS = { notStarted: 5, notFinished: 10 };
+export function stallOf(a) {
+  if (!isLive(a)) return '';
+  const age = (Date.now() - new Date(a.at).getTime()) / 864e5;
+  const own = events.some((e) => e.assignId === a.id && ['photos', 'note', 'progress', 'mismatch', 'found'].includes(e.kind));
+  if (!own && age >= STALL_DAYS.notStarted) return `не начат ${Math.floor(age)} дн.`;
+  if (own && age >= STALL_DAYS.notFinished) return `не закончен ${Math.floor(age)} дн.`;
+  return '';
+}

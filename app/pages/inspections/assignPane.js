@@ -95,7 +95,9 @@ function contentsHTML(c, pick, prev) {
 
 // target — { typeId, ocId, title, sub, eni }; targets — для нескольких;
 // prev — действующее назначение.
-export function paneHTML({ mode, people, person, target, targets = [], prev = null, confirmRemove = false }) {
+// plan — вставки планирования (inspections.js planHTML): «Кого назначить»,
+// полоса доступности, срок, контакты на месте; date — выбранная плановая дата.
+export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null }) {
   if (mode === 'none') {
     return `<aside class="ip-pane" aria-label="Назначение"><div class="ip-pane-body"><p class="ip-hint">Выберите объект в таблице.</p></div></aside>`;
   }
@@ -105,7 +107,9 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
       <header class="ip-pane-head"><h2>Выбрано объектов: ${targets.length}</h2>
         <p class="ip-pane-sub">Документы у каждого — по умолчанию: технический паспорт, кадастровый и ситуационный планы.</p></header>
       <div class="ip-pane-body">
-        ${whoWhen(people, person, '')}
+        ${plan ? plan.top : ''}
+        ${whoWhen(people, person, date)}
+        ${plan ? plan.mid : ''}
         <section class="ip-sec"><h3>Объекты</h3>
           <ul class="ip-picked">${targets.map((t) => `<li><span class="ell">${esc(t.title)}</span>
             <button class="ip-x" data-ip-unpick="${esc(t.typeId + '|' + t.ocId)}" aria-label="Убрать из выбора" title="Убрать из выбора">×</button></li>`).join('')}</ul>
@@ -160,8 +164,11 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
     </header>
     <div class="ip-pane-body">
-      ${whoWhen(people, (prev && prev.person) || person, prev && prev.plannedAt)}
+      ${plan ? plan.top : ''}
+      ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt))}
+      ${plan ? plan.mid : ''}
       ${contentsHTML(c, pick, prev)}
+      ${plan ? plan.bottom : ''}
       ${note(prev && prev.note)}
     </div>
     <footer class="ip-pane-foot"><span class="ip-err" data-ip-err role="alert"></span>

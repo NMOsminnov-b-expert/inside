@@ -7,9 +7,10 @@ import { sortedTypes, getType } from '../../kernel/registry.js';
 import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
-  workdayOf, absenceOn, profileOf, profileNames, absenceLabel,
+  workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
+import { institutionChain } from '../../kernel/contacts.js';
 
 export { READY_STATUS };
 
@@ -229,7 +230,7 @@ export function periodTotals(person, sinceDay) {
 
 export const EVENT_LABELS = {
   assigned: 'назначен на осмотр', updated: 'назначение изменено', progress: 'начал осмотр',
-  done: 'закончил осмотр', removed: 'назначение снято',
+  done: 'закончил осмотр', removed: 'назначение снято', moved: 'перенесена дата',
   photos: 'загрузил снимки', note: 'внёс заметку', mismatch: 'отметил расхождение', found: 'отметил выявленное',
 };
 
@@ -357,4 +358,157 @@ export function tripsOfDay(all, person, day) {
     });
   });
   return out.sort((x, y) => x.a.person.localeCompare(y.a.person, 'ru'));
+}
+
+// =====================================================================================
+// Планирование (этап 2 решения upravlenie-osmotrschikami-instrumenty): место
+// выезда, сроки, «кого назначить», доступность, контакты на месте, отборы.
+// =====================================================================================
+
+// Место выезда — город и район из адреса: объекты одного района — один выезд
+// (ответ пользователя 12.10.2026 «Выезды по месту»). Район берётся из адреса
+// («Октябрьский р-н»), город — из записи.
+export function placeOf(s) {
+  const t = String(s.title || '');
+  const m = t.match(/([А-ЯЁA-Z][\wА-Яа-яЁё-]*\s+р-н)/);
+  const city = s.city || (t.match(/(?:г\.|с\.|пгт\.?)\s*[А-ЯЁ][\wА-Яа-яЁё-]*/) || [''])[0];
+  return [city, m ? m[1] : ''].filter(Boolean).join(', ') || 'Место не указано';
+}
+
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoDay(d); };
+
+// Срочность по сроку: hot — срок прошёл или через 3 дня и раньше; week — в
+// ближайшие 7 дней; later — позже; none — срока нет.
+export const DUE = [
+  { key: 'hot', label: 'Горящие' },
+  { key: 'week', label: 'На неделе' },
+  { key: 'later', label: 'Позже' },
+  { key: 'none', label: 'Без срока' },
+];
+export function dueOf(date) {
+  if (!date) return 'none';
+  const today = todayIso();
+  if (date <= addDays(today, 3)) return 'hot';
+  if (date <= addDays(today, 7)) return 'week';
+  return 'later';
+}
+
+// Строки очереди с местом, сроком и покрытием — до фильтров (для счётчиков).
+export function queueBase(all) {
+  const out = [];
+  all.forEach((s) => {
+    if (s.status !== READY_STATUS) return;
+    const cov = coverageOf(s.typeId, s.id);
+    if (cov.state === 'full') return;
+    const deadline = deadlineOf(s.typeId, s.id);
+    out.push({ ...s, cov, deadline, due: dueOf(deadline), place: placeOf(s) });
+  });
+  return out;
+}
+
+// Фильтры очереди: f.q, f.due, f.cov, f.region, f.type, f.inst. skip — какой
+// фильтр не применять (счётчик фасета считается без самого фасета).
+export function queueFilter(rows, f, skip = '') {
+  const q = (f.q || '').trim().toLowerCase();
+  return rows.filter((s) => (skip === 'due' || !f.due || s.due === f.due)
+    && (skip === 'cov' || !f.cov || s.cov.state === f.cov)
+    && (skip === 'region' || !f.region || regionOf(s) === f.region)
+    && (skip === 'type' || !f.type || s.typeId === f.type)
+    && (skip === 'inst' || !f.inst || s.institution === f.inst)
+    && (!q || `${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city}`.toLowerCase().includes(q)));
+}
+
+// Счётчики фасетов — значения из данных.
+export function queueCounts(rows, f) {
+  const count = (key, valOf) => {
+    const m = new Map();
+    queueFilter(rows, f, key).forEach((s) => { const v = valOf(s); if (v) m.set(v, (m.get(v) || 0) + 1); });
+    return m;
+  };
+  return {
+    due: count('due', (s) => s.due),
+    cov: count('cov', (s) => s.cov.state),
+    region: count('region', (s) => regionOf(s)),
+    type: count('type', (s) => s.typeId),
+    typeLabel: new Map(rows.map((s) => [s.typeId, s.typeLabel])),
+    inst: count('inst', (s) => s.institution),
+  };
+}
+
+// Группы «выезд по месту»: горящие сверху (ближайший срок), затем по числу
+// свободных ОИ. Внутри — по сроку.
+export function tripGroups(rows) {
+  const by = new Map();
+  rows.forEach((s) => { if (!by.has(s.place)) by.set(s.place, []); by.get(s.place).push(s); });
+  const minDue = (list) => list.map((s) => s.deadline).filter(Boolean).sort()[0] || '9999';
+  return [...by.entries()].map(([place, list]) => ({
+    place,
+    rows: list.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999') || String(b.updatedAt).localeCompare(String(a.updatedAt))),
+    free: list.reduce((n, s) => n + s.cov.free, 0),
+    nearest: minDue(list),
+  })).sort((a, b) => a.nearest.localeCompare(b.nearest) || b.free - a.free || a.place.localeCompare(b.place, 'ru'));
+}
+
+// Доступность человека на ближайшие n рабочих дней: занятость планом и
+// нерабочие дни (отпуск, график).
+export function availability(person, n = 10) {
+  const span = workdays(0, n, 1);
+  const load = new Map();
+  allAssignments().forEach((a) => { if (isLive(a) && a.person === person && a.plannedAt) load.set(a.plannedAt, (load.get(a.plannedAt) || 0) + 1); });
+  return span.map((day) => { const w = workdayOf(person, day); return { day, load: load.get(day) || 0, off: w.ok ? '' : w.reason }; });
+}
+
+// «Кого назначить»: кто подходит к объекту (объектам) на дату. Причины —
+// словами, сортировка — по числу совпадений, затем по загрузке.
+export function rankInspectors(all, people, targets, date) {
+  const regions = new Set(targets.map((t) => regionOf(all.get(t.typeId + '|' + t.ocId) || {})).filter(Boolean));
+  const insts = new Set(targets.map((t) => (all.get(t.typeId + '|' + t.ocId) || {}).institution).filter(Boolean));
+  const keys = new Set(targets.map((t) => t.typeId + '|' + t.ocId));
+  return people.filter((p) => !p.fired).map((p) => {
+    const day = date || todayIso();
+    const w = workdayOf(p.name, day);
+    const regionOk = p.regions.some((r) => regions.has(r));
+    const mine = allAssignments().filter((a) => a.person === p.name);
+    const beenHere = mine.some((a) => keys.has(a.typeId + '|' + a.ocId));
+    const beenInst = !beenHere && mine.some((a) => insts.has((all.get(a.typeId + '|' + a.ocId) || {}).institution));
+    const sameDay = date ? mine.filter((a) => isLive(a) && a.plannedAt === date).length : 0;
+    const reasons = [];
+    if (date) reasons.push(w.ok ? { ok: true, text: `свободен ${date.slice(8, 10)}.${date.slice(5, 7)}${sameDay ? ` (уже ${sameDay})` : ''}` } : { ok: false, text: w.reason });
+    if (regions.size) reasons.push({ ok: regionOk, text: regionOk ? [...regions].join(', ') : 'другая область' });
+    if (beenHere) reasons.push({ ok: true, text: 'был на объекте' });
+    else if (beenInst) reasons.push({ ok: true, text: 'был в учреждении' });
+    const score = (date && w.ok ? 4 : date ? -6 : 0) + (regionOk ? 3 : 0) + (beenHere ? 2 : beenInst ? 1 : 0) - sameDay * 0.5 - p.live * 0.05;
+    return { ...p, reasons, score };
+  }).sort((a, b) => b.score - a.score || a.live - b.live || a.name.localeCompare(b.name, 'ru'));
+}
+
+// Контакты на месте: свои контакты объекта и контакты учреждения по цепочке
+// (решение пользователя 12.10.2026 «Контакты на месте тоже добавляем»).
+export function onSiteContacts(typeId, ocId) {
+  const t = getType(typeId);
+  const rec = t && t.records.loadRecord(ocId);
+  if (!rec) return [];
+  const own = (rec.contacts || []).map((c) => ({ ...c, from: 'объект' }));
+  const chain = institutionChain(rec.institution, rec.podved).flatMap((x) => (x.contacts || []).map((c) => ({ ...c, from: x.node ? x.node.name : (x.name || 'учреждение') })));
+  return [...own, ...chain].filter((c) => c && (c.name || c.phone));
+}
+
+// Быстрые отборы «Назначено».
+export const ASSIGNED_PICKS = [
+  { key: '', label: 'Все' },
+  { key: 'late', label: 'Просрочено' },
+  { key: 'stall', label: 'Зависли' },
+  { key: 'today', label: 'Сегодня' },
+  { key: 'week', label: 'На неделе' },
+  { key: 'away', label: 'План на отсутствие' },
+];
+export function assignedPickOf(a) {
+  const out = new Set();
+  const today = todayIso();
+  if (isOverdue(a)) out.add('late');
+  if (stallOf(a)) out.add('stall');
+  if (a.plannedAt === today) out.add('today');
+  if (a.plannedAt && a.plannedAt >= today && a.plannedAt <= addDays(today, 7)) out.add('week');
+  if (a.plannedAt && !workdayOf(a.person, a.plannedAt).ok) out.add('away');
+  return out;
 }

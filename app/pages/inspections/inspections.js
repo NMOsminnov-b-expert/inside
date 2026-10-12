@@ -18,10 +18,12 @@ import { esc } from '../../kernel/dom.js';
 import { persistView } from '../../kernel/viewState.js';
 import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
+  deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
 } from '../../kernel/inspections.js';
-import { ENI_REGIONS } from '../../kernel/fmt.js';
+import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
-  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
+  summaries, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
+  queueBase, queueFilter, queueCounts, tripGroups, DUE, dueOf, availability, rankInspectors, onSiteContacts, ASSIGNED_PICKS, assignedPickOf,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
@@ -46,6 +48,9 @@ const view = {
   type: '',
   objRegion: '',
   cov: '',               // «К назначению»: покрытие ОИ (COVERAGE)
+  due: '',               // «К назначению»: срочность (DUE)
+  inst: '',              // «К назначению»: учреждение
+  pick: '',              // «Назначено»: быстрый отбор (ASSIGNED_PICKS)
   histKind: '',
   histDay: '',
   shown: STEP,
@@ -54,7 +59,7 @@ const view = {
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
 persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
-  'region', 'peopleSort', 'type', 'objRegion', 'cov', 'histKind']);
+  'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
@@ -70,6 +75,13 @@ export function mountInspections(host) {
   // (detail.js). Открывается по щелчку в «Осмотрщиках»; «‹ Назад» — шаг
   // по стопке, «Закрыть» и Escape — убрать панель.
   let detail = [];
+  // Свёрнутые группы (место выезда или «a:ФИО») и группа, в которой открыт
+  // выбор «Переназначить все…».
+  const collapsed = new Set();
+  let reassignGroup = '';
+  // Черновик панели назначения: выбранный осмотрщик и дата — переживают
+  // перерисовку (подсказка «Кого назначить» и полоса дней перестраиваются).
+  let draft = { key: '', person: '', date: '' };
   const now0 = new Date();
   let ym = { y: now0.getFullYear(), m: now0.getMonth() };
   let peopleQ = '';
@@ -103,30 +115,11 @@ export function mountInspections(host) {
   }
 
   // ===================== раздел «Назначения» ======================================
-  function queueHTML(rows) {
-    const shown = rows.slice(0, Math.max(view.shown, STEP));
-    if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion || view.cov ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
-    }
-    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
-      <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-cov"><col class="c-n"></colgroup>
-      <thead><tr>
-        <th class="c-check"><input type="checkbox" data-ip-all aria-label="Отметить показанные" title="Отметить показанные"
-          ${shown.length && shown.every((s) => checked.has(s.typeId + '|' + s.id)) ? 'checked' : ''}></th>
-        <th>ЕНИ</th><th title="Адрес; ниже — тип ОЦ, учреждение, город">Объект</th>
-        <th title="Объекты имущества: осмотрено · назначено · свободно">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
-      </tr></thead>
-      <tbody>${shown.map((s) => {
-        const k = s.typeId + '|' + s.id;
-        return `<tr data-ip-row="${esc(k)}" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
-          <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
-          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
-          <td title="${esc([regionOf(s), s.city].filter(Boolean).join(', '))}">${objCell(s, [s.typeLabel, s.institution, s.city].filter(Boolean).join(' · '))}</td>
-          <td>${covCell(s.cov)}</td>
-          <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
-        </tr>`;
-      }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
-  }
+  // Решения пользователя 12.10.2026 (запись графа upravlenie-osmotrschikami-
+  // instrumenty): «К назначению» — выезды по месту (объекты по городу и
+  // району, горящие сверху, группа отмечается целиком), слева — фильтры со
+  // счётчиками; «Назначено» — по осмотрщикам, с быстрыми отборами и массовыми
+  // действиями; в панели — «Кого назначить» и доступность на 10 дней.
 
   // Покрытие ОИ: полоса «осмотрено · назначено · свободно» и подпись.
   function covCell(c) {
@@ -136,54 +129,191 @@ export function mountInspections(host) {
         ${c.done ? `<i class="k-done" style="width:${pc(c.done)}"></i>` : ''}${c.live ? `<i class="k-plan" style="width:${pc(c.live)}"></i>` : ''}</span>
       <span class="ip-cov-t">${c.state === 'none' ? `${c.total}` : `своб. ${c.free} из ${c.total}`}</span></span>`;
   }
+  const dueCell = (s) => (s.deadline
+    ? `<span class="ip-due due-${s.due}" title="Крайний срок осмотра">${esc(fmtDate(s.deadline))}</span>`
+    : '<span class="ip-muted">—</span>');
 
-  function assignedHTML(rows) {
-    const shown = rows.slice(0, Math.max(view.shown, STEP));
+  // Фасет: строки «значение · число», щелчок выбирает, повторный — снимает.
+  function facetHTML(title, attr, cur, items) {
+    if (!items.length) return '';
+    return `<section class="ip-facet"><h3>${title}</h3>
+      ${items.map(([k, label, n]) => `<button class="ip-fopt ${cur === k ? 'on' : ''}" ${attr}="${esc(k)}" aria-pressed="${cur === k}">
+        <span>${esc(label)}</span><b>${n}</b></button>`).join('')}
+    </section>`;
+  }
+
+  function queueFacetsHTML(counts) {
+    const ord = (m, list) => list.filter(([k]) => m.get(k)).map(([k, l]) => [k, l, m.get(k)]);
+    const top = (m, labelOf = (k) => k) => [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'ru')).slice(0, 12).map(([k, n]) => [k, labelOf(k), n]);
+    return `<aside class="ip-facets" aria-label="Фильтры">
+      ${facetHTML('Срок', 'data-ip-fdue', view.due, ord(counts.due, DUE.map((d) => [d.key, d.label])))}
+      ${facetHTML('Покрытие ОИ', 'data-ip-fcov', view.cov, ord(counts.cov, COVERAGE.filter((c) => c.key).map((c) => [c.key, c.label])))}
+      ${facetHTML('Область', 'data-ip-fregion', view.objRegion, top(counts.region))}
+      ${facetHTML('Тип ОЦ', 'data-ip-ftype', view.type, top(counts.type, (k) => counts.typeLabel.get(k) || k))}
+      ${facetHTML('Учреждение', 'data-ip-finst', view.inst, top(counts.inst))}
+    </aside>`;
+  }
+
+  function queueHTML(rows) {
     if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q ? 'Ничего не нашлось — измените поиск.' : view.assignPerson ? `У осмотрщика ${esc(view.assignPerson)} нет действующих назначений.` : 'Действующих назначений нет.'}</p>`;
+      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion || view.cov || view.due || view.inst ? 'Под условия ничего не подошло — снимите часть фильтров слева.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
     }
-    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
-      <colgroup><col class="c-eni"><col><col class="c-oi"><col class="c-person"><col class="c-date"><col class="c-state"></colgroup>
-      <thead><tr><th>ЕНИ</th><th>Объект</th><th title="Объекты имущества в назначении">ОИ</th><th>Осмотрщик</th>
-        <th class="num" title="Плановая дата осмотра">План</th><th>Состояние</th></tr></thead>
-      <tbody>${shown.map(({ a, s }) => {
-        const late = isOverdue(a);
-        return `<tr data-ip-row="${esc(a.id)}" class="${current === a.id ? 'cur' : ''}" aria-selected="${current === a.id}">
-          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
-          <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
-          <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
-          <td>${esc(a.person)}</td>
-          <td class="num ${late ? 'ip-late' : ''}" title="${late ? 'Плановая дата прошла' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
-          <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td>
-        </tr>`;
-      }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
+    const groups = tripGroups(rows.slice(0, Math.max(view.shown, STEP)));
+    const allKeys = (g) => g.rows.map((s) => s.typeId + '|' + s.id);
+    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-grouped">
+      <colgroup><col class="c-check"><col class="c-date"><col class="c-eni"><col><col class="c-cov"><col class="c-n"></colgroup>
+      <thead><tr><th class="c-check"></th><th title="Крайний срок осмотра">Срок</th><th>ЕНИ</th>
+        <th title="Адрес; ниже — тип ОЦ, учреждение">Объект</th><th title="Объекты имущества: осмотрено · назначено · свободно">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th></tr></thead>
+      ${groups.map((g) => {
+        const keys = allKeys(g);
+        const allOn = keys.every((k) => checked.has(k));
+        const open = !collapsed.has(g.place);
+        return `<tbody class="ip-grp-body"><tr class="ip-grp">
+            <td class="c-check"><input type="checkbox" data-ip-gcheck="${esc(g.place)}" ${allOn ? 'checked' : ''} aria-label="Отметить выезд целиком" title="Отметить выезд целиком"></td>
+            <td colspan="5"><button class="ip-grp-t" data-ip-gtoggle="${esc(g.place)}" aria-expanded="${open}">
+              <span class="ip-grp-chev">${open ? '▾' : '▸'}</span><b>${esc(g.place)}</b>
+              <span>${g.rows.length} ${plural(g.rows.length, 'объект', 'объекта', 'объектов')} · свободных ОИ ${g.free}</span>
+              ${g.nearest !== '9999' ? `<span class="ip-due due-${dueOf(g.nearest)}">срок с ${esc(fmtDate(g.nearest))}</span>` : ''}</button></td></tr>
+          ${open ? g.rows.map((s) => {
+            const k = s.typeId + '|' + s.id;
+            return `<tr data-ip-row="${esc(k)}" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
+              <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
+              <td class="num">${dueCell(s)}</td>
+              <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
+              <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
+              <td>${covCell(s.cov)}</td>
+              <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
+            </tr>`;
+          }).join('') : ''}</tbody>`;
+      }).join('')}
+    </table></div></div>${more(Math.min(rows.length, Math.max(view.shown, STEP)), rows.length)}`;
+  }
+
+  // «Назначено» по осмотрщикам: группа — человек с загрузкой и отсутствием,
+  // «Переназначить все…» — в строке группы, на месте.
+  function assignedHTML(rows) {
+    if (!rows.length) {
+      return `<p class="ip-hint ip-empty">${view.q || view.pick ? 'Под отбор ничего не подошло.' : 'Действующих назначений нет.'}</p>`;
+    }
+    const by = new Map();
+    rows.forEach((r) => { if (!by.has(r.a.person)) by.set(r.a.person, []); by.get(r.a.person).push(r); });
+    const others = (name) => people.filter((p) => !p.fired && p.name !== name);
+    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-grouped">
+      <colgroup><col class="c-check"><col class="c-date"><col class="c-eni"><col><col class="c-oi"><col class="c-state"></colgroup>
+      <thead><tr><th class="c-check"></th><th class="num" title="Плановая дата осмотра">План</th><th>ЕНИ</th><th>Объект</th><th title="Объекты имущества в назначении">ОИ</th><th>Состояние</th></tr></thead>
+      ${[...by.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ru')).map(([name, list]) => {
+        const p = people.find((x) => x.name === name) || { live: list.length, late: 0, free: 0 };
+        const open = !collapsed.has('a:' + name);
+        const ids = list.map((r) => r.a.id);
+        return `<tbody class="ip-grp-body"><tr class="ip-grp">
+            <td class="c-check"><input type="checkbox" data-ip-gacheck="${esc(name)}" ${ids.every((id) => checked.has(id)) ? 'checked' : ''} aria-label="Отметить все назначения осмотрщика"></td>
+            <td colspan="5"><div class="ip-grp-row">
+              <button class="ip-grp-t" data-ip-gtoggle="${esc('a:' + name)}" aria-expanded="${open}"><span class="ip-grp-chev">${open ? '▾' : '▸'}</span><b>${esc(name)}</b>
+                <span>${list.length} · в работе ${p.live}${p.late ? ` · <span class="ip-late">просрочено ${p.late}</span>` : ''} · свободно ${p.free} дн.</span>
+                ${p.away ? `<span class="ip-badge away">${esc(p.away.label.toLowerCase())} до ${esc(fmtDate(p.away.to))}</span>` : ''}</button>
+              ${reassignGroup === name ? `<span class="ip-grp-act"><select class="select" data-ip-rg-person aria-label="Кому переназначить"><option value="">— кому —</option>
+                  ${others(name).map((x) => `<option value="${esc(x.name)}">${esc(x.name)} · в работе ${x.live}</option>`).join('')}</select>
+                <button class="btn btn-primary btn-sm" data-ip-rg-ok="${esc(name)}">Переназначить ${list.length}</button>
+                <button class="btn btn-ghost btn-sm" data-ip-rg-cancel>Отмена</button></span>`
+                : `<button class="btn btn-ghost btn-sm" data-ip-rg="${esc(name)}">Переназначить все…</button>`}
+            </div></td></tr>
+          ${open ? list.map(({ a, s }) => {
+            const picks = assignedPickOf(a);
+            const stall = stallOf(a);
+            return `<tr data-ip-row="${esc(a.id)}" class="${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
+              <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
+              <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
+              <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
+              <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
+              <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
+              <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
+                ${stall ? `<span class="ip-flag" title="Зависло">${esc(stall)}</span>` : ''}
+                ${picks.has('away') ? `<span class="ip-flag away" title="Плановая дата — нерабочий день осмотрщика">${esc(workdayOf(a.person, a.plannedAt).reason)}</span>` : ''}</td>
+            </tr>`;
+          }).join('') : ''}</tbody>`;
+      }).join('')}
+    </table></div></div>`;
+  }
+
+  function assignedFacetsHTML(live) {
+    const cnt = new Map(ASSIGNED_PICKS.map((x) => [x.key, 0]));
+    live.forEach(({ a }) => { cnt.set('', cnt.get('') + 1); assignedPickOf(a).forEach((k) => cnt.set(k, (cnt.get(k) || 0) + 1)); });
+    const byPerson = new Map();
+    live.forEach(({ a }) => byPerson.set(a.person, (byPerson.get(a.person) || 0) + 1));
+    return `<aside class="ip-facets" aria-label="Отборы">
+      ${facetHTML('Отбор', 'data-ip-fpick', view.pick, ASSIGNED_PICKS.map((x) => [x.key, x.label, cnt.get(x.key) || 0]))}
+      ${facetHTML('Осмотрщик', 'data-ip-fperson', view.assignPerson, [...byPerson.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ru')).map(([k, n]) => [k, k, n]))}
+    </aside>`;
+  }
+
+  // Строка массовых действий над отмеченными — в полосе инструментов.
+  const CLEAR = '<button class="isearch-clear ip-checked-x" data-ip-bulk-clear title="Снять отметки" aria-label="Снять отметки">×</button>';
+  function bulkHTML() {
+    if (!checked.size) return '';
+    if (view.tab === 'queue') {
+      return `<span class="ip-bulk2">Отмечено <b>${checked.size}</b>${CLEAR}
+        <input class="input" type="date" data-ip-dl-date aria-label="Крайний срок для отмеченных" title="Крайний срок для отмеченных">
+        <button class="btn btn-ghost btn-sm" data-ip-dl-set>Поставить срок</button></span>`;
+    }
+    return `<span class="ip-bulk2">Отмечено <b>${checked.size}</b>${CLEAR}
+      <select class="select" data-ip-ba-person aria-label="Кому переназначить"><option value="">— кому —</option>
+        ${people.filter((p) => !p.fired).map((p) => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('')}</select>
+      <button class="btn btn-ghost btn-sm" data-ip-ba-reassign>Переназначить</button>
+      <input class="input" type="date" data-ip-ba-date aria-label="Новая плановая дата">
+      <button class="btn btn-ghost btn-sm" data-ip-ba-move>Перенести</button>
+      <button class="btn btn-ghost btn-sm" data-ip-ba-remove>Снять</button></span>`;
   }
 
   function assignSection() {
-    const queue = queueRows(all, { ...view, region: view.objRegion });
-    const queueN = view.q || view.type || view.objRegion || view.cov ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
-    const assigned = assignedRows(all, { q: view.q, person: view.assignPerson });
-    const assignedN = view.q ? assignedRows(all, { person: view.assignPerson }).length : assigned.length;
-    const facets = queueFacets(all);
-    const keys = view.tab === 'queue' ? queue.map((s) => s.typeId + '|' + s.id) : assigned.map((r) => r.a.id);
+    const base = queueBase(all);
+    const qf = { q: view.q, due: view.due, cov: view.cov, region: view.objRegion, type: view.type, inst: view.inst };
+    const queue = queueFilter(base, qf);
+    const live = assignedRows(all, { q: view.q });
+    const assigned = live.filter(({ a }) => (!view.assignPerson || a.person === view.assignPerson) && (!view.pick || assignedPickOf(a).has(view.pick)))
+      .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
+    const keys = view.tab === 'queue' ? tripGroups(queue.slice(0, Math.max(view.shown, STEP))).flatMap((g) => (collapsed.has(g.place) ? [] : g.rows.map((s) => s.typeId + '|' + s.id)))
+      : assigned.filter(({ a }) => !collapsed.has('a:' + a.person)).map((r) => r.a.id);
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
     const sub = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
-    return { cls: 'ip-assign', html: `<section class="ip-work" aria-label="Назначения">
-        <div class="itabs" role="tablist">${sub('queue', 'К назначению', queueN)}${sub('assigned', 'Назначено', assignedN)}</div>
+    return { cls: 'ip-assign', html: `${view.tab === 'queue' ? queueFacetsHTML(queueCounts(base, qf)) : assignedFacetsHTML(live)}
+      <section class="ip-work" aria-label="Назначения">
+        <div class="itabs" role="tablist">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', live.length)}</div>
         <div class="itoolbar ip-toolbar">
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : 'ЕНИ, адрес, осмотрщик')}
-          ${view.tab === 'queue' ? `<select class="select ip-filter" data-ip-type aria-label="Тип ОЦ"><option value="">Все типы ОЦ</option>
-              ${facets.types.map((t) => `<option value="${esc(t.id)}" ${view.type === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
-            <select class="select ip-filter" data-ip-cov aria-label="Покрытие ОИ">
-              ${COVERAGE.map((c) => `<option value="${c.key}" ${view.cov === c.key ? 'selected' : ''}>${c.label}</option>`).join('')}</select>
-            <select class="select ip-filter" data-ip-objregion aria-label="Область объектов"><option value="">Все области</option>
-              ${facets.regions.map((r) => `<option ${view.objRegion === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
-          ${personSelect('data-ip-aperson', view.assignPerson, 'Осмотрщик')}
-          ${view.tab === 'queue' && checked.size ? `<span class="ip-checked">Отмечено <b>${checked.size}</b>
-            <button class="isearch-clear ip-checked-x" data-ip-bulk-clear title="Снять отметки" aria-label="Снять отметки">×</button></span>` : ''}
+          ${bulkHTML()}
         </div>
         ${view.tab === 'queue' ? queueHTML(queue) : assignedHTML(assigned)}
       </section>${pane()}` };
+  }
+
+  // Вставки планирования в панель назначения: «Кого назначить», доступность
+  // выбранного на 10 рабочих дней, срок осмотра объекта, контакты на месте.
+  function planHTML(targets, single) {
+    const date = draft.date;
+    const ranked = rankInspectors(all, people, targets, date).slice(0, 5);
+    const chosen = draft.person;
+    const av = chosen ? availability(chosen, 10) : [];
+    const deadline = single ? deadlineOf(targets[0].typeId, targets[0].ocId) : '';
+    const contacts = single ? onSiteContacts(targets[0].typeId, targets[0].ocId) : [];
+    const top = `<section class="ip-sec"><h3>Кого назначить${date ? ` на ${esc(fmtDate(date))}` : ''}</h3>
+      <ul class="ip-rank">${ranked.map((p) => `<li><button class="ip-rank-b ${chosen === p.name ? 'on' : ''}" data-ip-pick-person="${esc(p.name)}" aria-pressed="${chosen === p.name}">
+          <b>${esc(p.name)}</b><span class="ip-rank-r">${p.reasons.map((r) => `<i class="${r.ok ? 'ok' : 'no'}">${esc(r.text)}</i>`).join('')}<i>в работе ${p.live}</i></span></button></li>`).join('')}</ul>
+    </section>`;
+    const mid = (chosen ? `<section class="ip-sec"><h3>${esc(chosen.split(' ').slice(0, 2).join(' '))} — ближайшие дни</h3>
+      <div class="ip-avail">${av.map((d) => `<button class="ip-av ${d.off ? 'off' : d.load ? 'busy' : 'free'} ${date === d.day ? 'on' : ''}" ${d.off ? 'disabled' : ''} data-ip-avail-day="${d.day}"
+          title="${esc(`${fmtDate(d.day)}: ${d.off || (d.load ? `назначено ${d.load}` : 'свободен')}`)}"><span>${d.day.slice(8, 10)}</span><b>${d.off ? '—' : d.load || ''}</b></button>`).join('')}</div>
+    </section>` : '')
+      + `<div class="ip-f-row"><div class="field"><label for="ip-f-deadline">${single ? 'Крайний срок осмотра' : 'Крайний срок для всех'}</label>
+        <input class="input" type="date" id="ip-f-deadline" data-ip-f-deadline value="${esc(deadline)}"></div><div></div></div>`;
+    const bottom = single ? `<section class="ip-sec"><h3>Контакты на месте</h3>
+      ${contacts.length ? `<ul class="ip-contacts-list">${contacts.map((c) => {
+        const tel = String(c.phone || '').replace(/[^\d+]/g, '');
+        const wa = String(c.phone || '').replace(/\D/g, '');
+        return `<li><b>${esc(c.name || '—')}</b>${c.position ? ` · ${esc(c.position)}` : ''}<span class="ip-muted"> · ${esc(c.from)}</span><br>
+          ${c.phone ? `<a href="tel:${esc(tel)}">${esc(c.phone)}</a>${wa.length >= 9 ? ` · <a class="ip-wa" href="https://wa.me/${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}` : ''}${c.email ? ` · <a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : ''}</li>`;
+      }).join('')}</ul>` : '<p class="ip-hint">Контактов нет — они вносятся в карточке объекта и в «Учреждениях».</p>'}
+    </section>` : '';
+    return { top, mid, bottom };
   }
 
   // ===================== раздел «Осмотрщики» ======================================
@@ -392,17 +522,26 @@ export function mountInspections(host) {
 
   // --- панель назначения (разделы «Назначения» и «История») -------------------------
   function pane() {
+    const ensureDraft = (key, person, date) => { if (draft.key !== key) draft = { key, person: person || '', date: date || '' }; };
     if (view.section === 'assign' && view.tab === 'queue' && checked.size > 1) {
-      return paneHTML({ mode: 'many', people, person: view.assignPerson, targets: [...checked.values()] });
+      const targets = [...checked.values()].filter(Boolean);
+      ensureDraft('many:' + [...checked.keys()].join(','), view.assignPerson);
+      return paneHTML({ mode: 'many', people, person: draft.person, date: draft.date, targets, plan: planHTML(targets, false) });
     }
     if (view.section === 'history' || view.tab === 'assigned') {
       const a = allAssignments().find((x) => x.id === current);
       const t = a && target(a.typeId + '|' + a.ocId);
-      return t ? paneHTML({ mode: 'one', people, person: view.assignPerson, target: t, prev: a, confirmRemove }) : paneHTML({ mode: 'none' });
+      if (!t) return paneHTML({ mode: 'none' });
+      ensureDraft('a:' + a.id, a.person, a.plannedAt);
+      return paneHTML({ mode: 'one', people, person: draft.person, date: draft.date, target: t, prev: a, confirmRemove,
+        plan: view.section === 'assign' ? planHTML([t], true) : null });
     }
     const t = current && target(current);
-    return t ? paneHTML({ mode: 'one', people, person: view.assignPerson, target: t }) : paneHTML({ mode: 'none' });
+    if (!t) return paneHTML({ mode: 'none' });
+    ensureDraft('q:' + current, view.assignPerson);
+    return paneHTML({ mode: 'one', people, person: draft.person, date: draft.date, target: t, plan: planHTML([t], true) });
   }
+
 
   // --- отрисовка ------------------------------------------------------------------
   function render() {
@@ -435,16 +574,35 @@ export function mountInspections(host) {
     if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   };
   // Отрисовка с сохранением прокрутки таблиц и списка осмотрщиков.
+  // Состояние формы панели назначения (отмеченные ОИ, документы, описи,
+  // комментарий) переживает перерисовку, если панель показывает то же самое:
+  // выбор осмотрщика или дня в полосе перестраивает панель и не должен
+  // сбрасывать уже отмеченное (найдено проверкой 12.10.2026).
+  const FORM = '.ip-pane [data-ip-f-oi], .ip-pane [data-ip-f-doc], .ip-pane [data-ip-f-inv], .ip-pane [data-ip-f-whole]';
   const redraw = () => {
-    const keep = ['.ip-scroll', '.ip-people-list', '.ip-card-body', '.ip-detail-pane .ip-pane-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
+    const keep = ['.ip-scroll', '.ip-people-list', '.ip-card-body', '.ip-pane .ip-pane-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
+    const key = draft.key;
+    const form = scope.$$(FORM).map((el) => [el.getAttribute('data-ip-f-oi') || el.getAttribute('data-ip-f-doc') || el.getAttribute('data-ip-f-inv') || 'whole', el.checked]);
+    const note = scope.$('[data-ip-f-note]') ? scope.$('[data-ip-f-note]').value : null;
     render();
+    if (draft.key === key && form.length) {
+      const was = new Map(form);
+      scope.$$(FORM).forEach((el) => {
+        const k = el.getAttribute('data-ip-f-oi') || el.getAttribute('data-ip-f-doc') || el.getAttribute('data-ip-f-inv') || 'whole';
+        if (was.has(k) && !el.disabled) el.checked = was.get(k);
+      });
+      const box = scope.$('.ip-oi');
+      const whole = scope.$('[data-ip-f-whole]');
+      if (box && whole) box.hidden = whole.checked;
+      if (note !== null && scope.$('[data-ip-f-note]')) scope.$('[data-ip-f-note]').value = note;
+    }
     keep.forEach(([s, y]) => { if (scope.$(s)) scope.$(s).scrollTop = y; });
   };
   const resetList = () => { view.q = ''; view.shown = STEP; checked.clear(); current = ''; confirmRemove = false; };
 
   // --- разделы и вкладки ---
   scope.on('click', '[data-ip-section]', (e, b) => { view.section = b.dataset.ipSection; detail = []; resetList(); render(); });
-  scope.on('click', '[data-ip-tab]', (e, b) => { view.tab = b.dataset.ipTab; resetList(); render(); });
+  scope.on('click', '[data-ip-tab]', (e, b) => { view.tab = b.dataset.ipTab; reassignGroup = ''; resetList(); render(); });
 
   // --- осмотрщики ---
   scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; detail = []; redraw(); });
@@ -518,10 +676,79 @@ export function mountInspections(host) {
   // --- поиск и фильтры ---
   scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
   scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
-  scope.on('change', '[data-ip-type]', (e, el) => { view.type = el.value; view.shown = STEP; render(); });
-  scope.on('change', '[data-ip-cov]', (e, el) => { view.cov = el.value; view.shown = STEP; render(); });
-  scope.on('change', '[data-ip-objregion]', (e, el) => { view.objRegion = el.value; view.shown = STEP; render(); });
-  scope.on('change', '[data-ip-aperson]', (e, el) => { view.assignPerson = el.value; view.shown = STEP; render(); });
+  // Фасеты: щелчок выбирает значение, повторный — снимает.
+  const facet = (attr, key) => scope.on('click', `[${attr}]`, (e, b) => {
+    const v = b.getAttribute(attr);
+    view[key] = view[key] === v ? '' : v; view.shown = STEP; checked.clear(); render();
+  });
+  facet('data-ip-fdue', 'due'); facet('data-ip-fcov', 'cov'); facet('data-ip-fregion', 'objRegion');
+  facet('data-ip-ftype', 'type'); facet('data-ip-finst', 'inst'); facet('data-ip-fpick', 'pick'); facet('data-ip-fperson', 'assignPerson');
+  // Группы: свернуть, отметить целиком.
+  scope.on('click', '[data-ip-gtoggle]', (e, b) => { const k = b.dataset.ipGtoggle; if (collapsed.has(k)) collapsed.delete(k); else collapsed.add(k); redraw(); });
+  scope.on('change', '[data-ip-gcheck]', (e, el) => {
+    const place = el.dataset.ipGcheck;
+    scope.$$('tbody.ip-grp-body').forEach((tb) => {
+      const head = tb.querySelector('[data-ip-gcheck]');
+      if (!head || head.dataset.ipGcheck !== place) return;
+      tb.querySelectorAll('[data-ip-check]').forEach((x) => { const k = x.dataset.ipCheck; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
+    });
+    // Свёрнутая группа: отмечаем по данным, а не по строкам на экране.
+    if (collapsed.has(place)) queueFilter(queueBase(all), {}).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
+    redraw();
+  });
+  scope.on('change', '[data-ip-acheck]', (e, el) => { const id = el.dataset.ipAcheck; if (el.checked) checked.set(id, null); else checked.delete(id); redraw(); });
+  scope.on('change', '[data-ip-gacheck]', (e, el) => {
+    allAssignments().filter((a) => a.person === el.dataset.ipGacheck && ['assigned', 'progress'].includes(a.state)).forEach((a) => { if (el.checked) checked.set(a.id, null); else checked.delete(a.id); });
+    redraw();
+  });
+  // «Переназначить все…» в строке группы.
+  scope.on('click', '[data-ip-rg]', (e, b) => { reassignGroup = b.dataset.ipRg; redraw(); });
+  scope.on('click', '[data-ip-rg-cancel]', () => { reassignGroup = ''; redraw(); });
+  scope.on('click', '[data-ip-rg-ok]', (e, b) => {
+    const to = scope.$('[data-ip-rg-person]').value;
+    if (!to) { scope.$('[data-ip-rg-person]').focus(); return; }
+    const ids = allAssignments().filter((a) => a.person === b.dataset.ipRgOk && ['assigned', 'progress'].includes(a.state)).map((a) => a.id);
+    reassignMany(ids, to);
+    reassignGroup = ''; current = ''; checked.clear();
+    redraw();
+    host.toast(`Переназначено ${ids.length}: ${b.dataset.ipRgOk} → ${to}`, 'ok');
+  });
+  // Массовые действия над отмеченными.
+  scope.on('click', '[data-ip-dl-set]', () => {
+    const d = scope.$('[data-ip-dl-date]').value;
+    setDeadline([...checked.keys()], d);
+    redraw();
+    host.toast(d ? `Срок ${d.split('-').reverse().join('.')} поставлен: ${checked.size}` : `Срок снят: ${checked.size}`, 'ok');
+  });
+  scope.on('click', '[data-ip-ba-reassign]', () => {
+    const to = scope.$('[data-ip-ba-person]').value;
+    if (!to) { scope.$('[data-ip-ba-person]').focus(); return; }
+    const n = reassignMany([...checked.keys()], to).length;
+    checked.clear(); current = ''; redraw();
+    host.toast(`Переназначено ${n} → ${to}`, 'ok');
+  });
+  scope.on('click', '[data-ip-ba-move]', () => {
+    const d = scope.$('[data-ip-ba-date]').value;
+    if (!d) { scope.$('[data-ip-ba-date]').focus(); return; }
+    moveDateMany([...checked.keys()], d);
+    const n = checked.size; checked.clear(); redraw();
+    host.toast(`Перенесено на ${d.split('-').reverse().join('.')}: ${n}`, 'ok');
+  });
+  scope.on('click', '[data-ip-ba-remove]', () => {
+    const n = checked.size; unassignMany([...checked.keys()]); checked.clear(); current = ''; redraw();
+    host.toast(`Снято назначений: ${n}`, 'ok');
+  });
+  // Панель: «Кого назначить», день из полосы, осмотрщик и дата в полях, срок.
+  scope.on('click', '[data-ip-pick-person]', (e, b) => { draft.person = b.dataset.ipPickPerson; redraw(); });
+  scope.on('click', '[data-ip-avail-day]', (e, b) => { draft.date = b.dataset.ipAvailDay; redraw(); });
+  scope.on('change', '[data-ip-f-person]', (e, el) => { draft.person = el.value; redraw(); });
+  scope.on('change', '[data-ip-f-date]', (e, el) => { draft.date = el.value; redraw(); });
+  scope.on('change', '[data-ip-f-deadline]', (e, el) => {
+    const keys = view.tab === 'queue' && checked.size > 1 ? [...checked.keys()]
+      : (() => { const a = view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null; return [a ? a.typeId + '|' + a.ocId : current]; })();
+    setDeadline(keys, el.value);
+    redraw();
+  });
   scope.on('change', '[data-ip-hperson]', (e, el) => { view.histPerson = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-kind]', (e, el) => { view.histKind = el.value; view.shown = STEP; render(); });
   scope.on('click', '[data-ip-day-clear]', () => { view.histDay = ''; render(); });

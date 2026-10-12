@@ -451,3 +451,94 @@ body[data-page="inspections"] .ip-wa{color:var(--brand-700)!important}
 @media (max-width:860px){
   body[data-page="inspections"] .ip-profile3{grid-template-columns:minmax(0,1fr)}
 }
+
+/* ============ «Назначения»: фильтры слева, выезды по месту, по осмотрщикам ============
+   Решение пользователя 12.10.2026: три колонки — фильтры со счётчиками,
+   таблица с группами (выезд по месту / осмотрщик), панель назначения. */
+body[data-page="inspections"] .ip.ip-assign{grid-template-columns:210px minmax(0,1fr) clamp(340px,28%,440px)}
+body[data-page="inspections"] .ip-facets{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto;padding:12px 10px;
+  background:var(--panel);border-right:1px solid var(--line)}
+body[data-page="inspections"] .ip-facet h3{margin:0 0 4px;padding:0 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#5a6b82}
+body[data-page="inspections"] .ip-fopt{display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px;border-radius:7px;text-align:left;
+  font-size:12.5px;color:var(--ink);cursor:pointer}
+body[data-page="inspections"] .ip-fopt span{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-fopt b{font-size:11.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-fopt:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-fopt.on{background:var(--blue-50);color:var(--blue-700);font-weight:600;box-shadow:inset 3px 0 0 var(--blue-600)}
+body[data-page="inspections"] .ip-fopt.on b{color:var(--blue-700)}
+
+/* Группы в таблице: строка группы — заголовок выезда или осмотрщика. */
+body[data-page="inspections"] .ip-grouped tr.ip-grp td{background:var(--fill-head);border-bottom:1px solid var(--line);padding:6px 10px}
+body[data-page="inspections"] .ip-grouped tr.ip-grp:hover td{background:var(--fill-head)}
+body[data-page="inspections"] .ip-grp-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px}
+body[data-page="inspections"] .ip-grp-t{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:0;text-align:left;cursor:pointer;
+  font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-grp-t > span{color:var(--muted);white-space:nowrap}
+body[data-page="inspections"] .ip-grp-chev{width:12px;color:var(--ink-faint)}
+body[data-page="inspections"] .ip-grp-act{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+body[data-page="inspections"] .ip-grp-act .select,
+body[data-page="inspections"] .ip-grp-act .pick-btn{height:28px;min-width:200px;font-size:12px}
+body[data-page="inspections"] .ip-grp-row > .btn{margin-left:auto}
+body[data-page="inspections"] .ip-due{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;
+  background:var(--slate-50);color:var(--slate-700);white-space:nowrap}
+body[data-page="inspections"] .ip-due.due-hot{background:#fdeceb;color:#a3361c}
+body[data-page="inspections"] .ip-due.due-week{background:var(--amber-50);color:var(--amber-700)}
+body[data-page="inspections"] .ip-flag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;
+  background:var(--amber-50);color:var(--amber-700);white-space:nowrap}
+body[data-page="inspections"] .ip-flag.away{background:var(--violet-50);color:var(--violet-700)}
+
+/* Массовые действия — в полосе инструментов, на месте. */
+body[data-page="inspections"] .ip-bulk2{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;padding:3px 4px 3px 12px;border-radius:9px;
+  background:var(--blue-50);border:1px solid var(--blue-200);font-size:12.5px;color:var(--blue-700)}
+body[data-page="inspections"] .ip-bulk2 .input{height:28px;width:140px;padding:0 8px}
+body[data-page="inspections"] .ip-bulk2 .select,
+body[data-page="inspections"] .ip-bulk2 .pick-btn{height:28px;min-width:170px;font-size:12px}
+
+/* Панель: «Кого назначить» и полоса ближайших дней. */
+body[data-page="inspections"] .ip-rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+body[data-page="inspections"] .ip-rank-b{display:flex;flex-direction:column;gap:3px;width:100%;padding:6px 9px;border-radius:8px;text-align:left;cursor:pointer;
+  border:1px solid var(--line-soft);background:#fff}
+body[data-page="inspections"] .ip-rank-b:hover{border-color:var(--blue-500)}
+body[data-page="inspections"] .ip-rank-b.on{border-color:var(--blue-600);background:var(--blue-50)}
+body[data-page="inspections"] .ip-rank-b b{font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-rank-r{display:flex;flex-wrap:wrap;gap:4px}
+body[data-page="inspections"] .ip-rank-r i{font-style:normal;font-size:11px;padding:0 6px;border-radius:999px;background:var(--slate-50);color:var(--slate-700)}
+body[data-page="inspections"] .ip-rank-r i.ok{background:var(--teal-50);color:var(--teal-700)}
+body[data-page="inspections"] .ip-rank-r i.no{background:#fdeceb;color:#a3361c}
+body[data-page="inspections"] .ip-avail{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px}
+body[data-page="inspections"] .ip-av{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 0;border-radius:6px;border:1px solid var(--line-soft);
+  background:#fff;cursor:pointer;font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-av span{font-size:11px;color:var(--muted)}
+body[data-page="inspections"] .ip-av b{font-size:12px;line-height:14px;min-height:14px;color:var(--ink)}
+body[data-page="inspections"] .ip-av.free{background:var(--teal-50);border-color:var(--teal-100)}
+body[data-page="inspections"] .ip-av.busy{background:var(--blue-50);border-color:var(--blue-200)}
+body[data-page="inspections"] .ip-av.off{background:repeating-linear-gradient(135deg,#f6f0fd 0 5px,#fbf8fe 5px 10px);cursor:not-allowed;opacity:.8}
+body[data-page="inspections"] .ip-av.on{border-color:var(--blue-600);box-shadow:0 0 0 2px rgba(22,104,201,.25)}
+body[data-page="inspections"] .ip-contacts-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+body[data-page="inspections"] .ip-contacts-list a{color:var(--blue-700);font-weight:600}
+
+@media (max-width:1440px){
+  body[data-page="inspections"] .ip.ip-assign{grid-template-columns:190px minmax(0,1fr) 330px}
+}
+@media (max-width:1280px){
+  body[data-page="inspections"] .ip.ip-assign{grid-template-columns:170px minmax(0,1fr) 310px}
+}
+/* Узкий: фильтры — строкой над таблицей, группами в ряд. */
+@media (max-width:1100px){
+  body[data-page="inspections"] .ip.ip-assign{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ip-facets{flex-direction:row;flex-wrap:wrap;overflow:visible;border-right:0;border-bottom:1px solid var(--line)}
+  body[data-page="inspections"] .ip-facet{flex:1 1 200px}
+}
+
+/* Отметки «зависло» и «отсутствие» — строкой под состоянием (в узком
+   столбце они уходили под многоточие). */
+body[data-page="inspections"] .ip-grouped td .ip-flag{display:table;margin:3px 0 0}
+body[data-page="inspections"] .ip-grouped td:has(.ip-flag){white-space:normal}
+body[data-page="inspections"] .ip-tbl col.c-state{width:150px}
+body[data-page="inspections"] .ip-bulk2 .input{width:130px}
+body[data-page="inspections"] .ip-bulk2 .select,
+body[data-page="inspections"] .ip-bulk2 .pick-btn{min-width:150px}
+
+/* Таблицы с группами: адрес — главный столбец; на узком экране таблица
+   прокручивается внутри рамки, а не сжимает адрес до нуля. */
+body[data-page="inspections"] .ip-tbl.ip-grouped{min-width:660px}
