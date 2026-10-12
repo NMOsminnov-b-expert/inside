@@ -74,6 +74,16 @@ export function mountOcMenu(host) {
 
   let locatorTimer = null;
   let lastTotal = 0;
+  // Отсортированная выборка — одна на отрисовку данных: прокрутка берёт из неё
+  // срез. Прежде каждое событие прокрутки заново собирало и сортировало
+  // offset+limit строк со всех модулей — у конца реестра на 20 000 записей
+  // 50–64 мс на событие даже на быстрой машине (замер 12.10.2026, код-ревью).
+  // Сбрасывается там, где пересчитывается число строк (данные, фильтр, порядок).
+  let rowsCache = null;
+  const rowsAt = (offset, limit) => {
+    if (!rowsCache) rowsCache = queryAll({ filter: F(), sort: state.sort, offset: 0, limit: Math.max(lastTotal, 1) }).rows;
+    return rowsCache.slice(offset, offset + limit);
+  };
   let alive = true;   // после ухода со страницы отложенные рендеры не выполняются
   let lastFacets = { status: {}, region: {}, city: {}, institution: {}, insp: {}, typeId: {}, flags: {} };
 
@@ -312,6 +322,7 @@ export function mountOcMenu(host) {
     lastFacets = facetsAll(F());
     const total = countAll(F());
     lastTotal = total;
+    rowsCache = null;
 
     disposeColsObserver();
 
@@ -369,6 +380,7 @@ export function mountOcMenu(host) {
     lastFacets = facetsAll(F());
     const total = countAll(F());
     lastTotal = total;
+    rowsCache = null;
 
     const tabs = scope.$('[data-region-tabs]');
     if (tabs) tabs.innerHTML = tabsHTML();
@@ -437,10 +449,10 @@ export function mountOcMenu(host) {
 
     const visible = Math.ceil(vp.clientHeight / h) + 8;
     const offset = Math.max(0, Math.floor(vp.scrollTop / h) - 4);
-    const res = queryAll({ filter: F(), sort: state.sort, offset, limit: visible });
+    const rows = rowsAt(offset, visible);
 
     rowsEl.style.transform = `translateY(${offset * h}px)`;
-    rowsEl.innerHTML = rowsHTML(state, res.rows, offset);
+    rowsEl.innerHTML = rowsHTML(state, rows, offset);
 
     if (cursor >= 0) {
       const el = rowsEl.querySelector(`[data-index="${cursor}"]`);
@@ -675,7 +687,12 @@ export function mountOcMenu(host) {
     };
 
     const vp = s.$('[data-viewport]');
-    if (vp) vp.addEventListener('scroll', () => updateRows());
+    // Не чаще раза в кадр: событий прокрутки за кадр бывает несколько.
+    let scrollFrame = 0;
+    if (vp) vp.addEventListener('scroll', () => {
+      if (scrollFrame) return;
+      scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; updateRows(); });
+    });
 
     // Ширина таблицы меняется и от окна, и от панели фильтров и превью —
     // следим за самим блоком, а не за окном.
