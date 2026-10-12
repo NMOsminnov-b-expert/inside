@@ -25,7 +25,7 @@ const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 const ddmm = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7);
 const wd = (iso) => WD[new Date(iso + 'T00:00:00').getDay()];
-const TRIP_LABEL = { done: 'осмотрено', plan: 'план', late: 'просрочено' };
+const TRIP_LABEL = { done: 'осмотрено', plan: 'назначено', late: 'просрочено' };
 
 
 // --- календарь выездов ------------------------------------------------------------
@@ -51,7 +51,7 @@ export function calendarHTML(all, person, ym) {
       ${d.absence ? `<span class="ipc-chip k-away" title="${esc(d.off)}${d.absence.note ? ' · ' + esc(d.absence.note) : ''}">${esc(d.off)}</span>` : ''}
       ${acts.map((a) => `<span class="ipc-chip k-act" title="${esc(actText(a))}">${esc(activityKind(a.kind).short)}${a.region ? ` ${esc(a.region)}` : ''}</span>`).join('')}
       ${by.done.length ? `<span class="ipc-chip k-done">${by.done.length} · ОИ ${by.done.reduce((s, t) => s + t.oi, 0)}</span>` : ''}
-      ${by.plan.length ? `<span class="ipc-chip k-plan">план ${by.plan.length}</span>` : ''}
+      ${by.plan.length ? `<span class="ipc-chip k-plan" title="Назначено на этот день">назн. ${by.plan.length}</span>` : ''}
       ${by.late.length ? `<span class="ipc-chip k-late">проср. ${by.late.length}</span>` : ''}
       ${n || acts.length ? `<template class="ipc-pop-src"><b>${esc(wd(d.day))}, ${esc(ddmm(d.day))}</b>
         <span class="ipc-pop-sum">${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')} · ОИ ${oi}${photos ? ` · снимков ${photos}` : ''}` : 'выездов нет'}</span>
@@ -67,7 +67,7 @@ export function calendarHTML(all, person, ym) {
         <button class="btn btn-ghost btn-sm" data-ipc-month="1" aria-label="Следующий месяц">›</button>
         <button class="btn btn-ghost btn-sm" data-ipc-month="0">Сегодня</button>
       </span>
-      <span class="ipc-legend"><i class="k-done"></i>осмотрено <i class="k-plan"></i>план <i class="k-late"></i>просрочено${person ? ' <i class="k-act"></i>вне выездов' : ''}</span>
+      <span class="ipc-legend"><i class="k-done"></i>осмотрено <i class="k-plan"></i>назначено <i class="k-late"></i>просрочено${person ? ' <i class="k-act"></i>вне выездов' : ''}</span>
     </header>
     <table class="ipc-cal-tbl">
       <thead><tr>${['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map((x, i) => `<th class="${i >= 5 ? 'we' : ''}">${x}</th>`).join('')}</tr></thead>

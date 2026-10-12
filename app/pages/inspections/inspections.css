@@ -351,18 +351,6 @@ body[data-page="inspections"] .ip-tile span{font-size:10.5px;font-weight:700;tex
 body[data-page="inspections"] .ip-tile b{font-size:18px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.2}
 body[data-page="inspections"] .ip-tile.warn b{color:#a3361c}
 body[data-page="inspections"] .ip-card-head .ip-head-act{margin-left:0}
-body[data-page="inspections"] .ip-subtabs{flex:none;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
-/* Подразделов шесть: на узком лента листается вбок, а не переносится вторым
-   рядом; полоса у ленты вкладок скрыта намеренно (исключение практики о
-   ползунках). */
-body[data-page="inspections"] .ip-subtabs::-webkit-scrollbar{display:none}
-body[data-page="inspections"] .ip-subtabs .itab{flex:none;white-space:nowrap}
-/* Края листаемой ленты тают — слева узко, справа шире: обрезанная вкладка
-   не читается поломкой (практика polzunki-prokrutki-i-kraya-lent). Маска —
-   только когда лента не влезает. */
-body[data-page="inspections"] .ip-subtabs.is-overflow{
-  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 10px,#000 calc(100% - 28px),transparent 100%);
-  mask-image:linear-gradient(to right,transparent 0,#000 10px,#000 calc(100% - 28px),transparent 100%)}
 body[data-page="inspections"] .ip-card-body{flex:1 1 auto;min-height:0;overflow:auto;padding-top:12px;display:flex;flex-direction:column;gap:12px}
 body[data-page="inspections"] .ip-card-body > *{flex:none}
 body[data-page="inspections"] .ip-card-body .ip-tiles .ip-tile{flex:1 1 110px}
@@ -837,14 +825,6 @@ body[data-page="inspections"] .ip-imptbl col.c-f{width:170px}
 body[data-page="inspections"] .ip-imp-cur{color:var(--muted);text-decoration:line-through}
 body[data-page="inspections"] .ip-imp-next{font-weight:600}
 body[data-page="inspections"] .ip-imp-grp th{background:var(--slate-50);text-align:left;font-size:11.5px;color:var(--ink-label)}
-
-/* Верхние разделы (их пять) — на узком тоже лента вбок, как подразделы. */
-body[data-page="inspections"] .ip-sections{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
-body[data-page="inspections"] .ip-sections::-webkit-scrollbar{display:none}
-body[data-page="inspections"] .ip-sections .itab{flex:none;white-space:nowrap}
-body[data-page="inspections"] .ip-sections.is-overflow{
-  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 10px,#000 calc(100% - 28px),transparent 100%);
-  mask-image:linear-gradient(to right,transparent 0,#000 10px,#000 calc(100% - 28px),transparent 100%)}
 body[data-page="inspections"] .ip-req{color:var(--danger)}
 body[data-page="inspections"] [data-ip-cf-optsbox][hidden]{display:none}
 body[data-page="inspections"] .ip-bysum{display:flex;flex-direction:column;gap:4px}
@@ -855,3 +835,31 @@ body[data-page="inspections"] .ip-emptystate{display:flex;flex-direction:column;
   padding:24px;text-align:center;background:var(--panel);border:1px dashed var(--line);border-radius:12px}
 body[data-page="inspections"] .ip-emptystate b{font-size:15px}
 body[data-page="inspections"] .ip-emptystate p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+
+/* Ряды разделов и подразделов — переносом строк, без ленты вбок (практика
+   APCS: «Обрубать интерфейс в никуда — плохая затея»; ряды выбора —
+   переносом). */
+body[data-page="inspections"] .ip-subtabs{flex:none;flex-wrap:wrap}
+body[data-page="inspections"] .ip-sections{flex-wrap:wrap;align-items:flex-end}
+/* «Перейти» — в строке разделов справа; список — под полем. */
+body[data-page="inspections"] .ip-jump{position:relative;margin-left:auto;align-self:center;display:flex;align-items:center;gap:6px;
+  min-width:220px;width:min(340px,40%);padding-bottom:4px}
+body[data-page="inspections"] .ip-jump .isearch{flex:1 1 auto;height:32px}
+body[data-page="inspections"] .ip-kbd{flex:none;font:600 10.5px/1 ui-monospace,Consolas,monospace;color:var(--muted);padding:3px 5px;
+  border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel)}
+body[data-page="inspections"] .ip-jump-list{position:absolute;top:100%;right:0;left:0;z-index:50;margin:2px 0 0;padding:4px;list-style:none;
+  max-height:420px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,.18)}
+body[data-page="inspections"] .ip-jump-list li{display:flex;flex-direction:column;gap:1px;padding:6px 10px;border-radius:7px;cursor:pointer}
+body[data-page="inspections"] .ip-jump-list li b{font-size:13px;font-weight:600;color:var(--ink)}
+body[data-page="inspections"] .ip-jump-list li span{font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-jump-list li.hi{background:var(--blue-50)}
+body[data-page="inspections"] .ip-jump-list li.hi b{color:var(--blue-700)}
+body[data-page="inspections"] .ip-jump-list .ip-jump-none{color:var(--muted);cursor:default}
+@media (max-width:900px){
+  body[data-page="inspections"] .ip-jump{width:100%;margin-left:0;order:9}
+  body[data-page="inspections"] .ip-kbd{display:none}
+}
+/* Табличный вид — во всю ширину раздела. */
+body[data-page="inspections"] .ip.ip-peoplesec.ip-wide{grid-template-columns:minmax(0,1fr)}
+body[data-page="inspections"] .ip-ab-list li{background:var(--violet-50)}
+body[data-page="inspections"] .ip-ab-list i{color:var(--violet-700)}

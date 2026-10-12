@@ -15,7 +15,7 @@
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
 import { plural } from '../../kernel/fmt.js';
-import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, ACTIVITY_KINDS } from '../../kernel/inspections.js';
+import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, ACTIVITY_KINDS, ABSENCE_KINDS, absenceOn, absenceLabel } from '../../kernel/inspections.js';
 import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 
@@ -63,18 +63,25 @@ function dayHTML(all, sel, canBack) {
 // осмотр для партнёров — проект, объект и время.
 function activitiesHTML(person, day) {
   const list = activitiesOn(person, day);
+  // Отсутствие в этот день — тоже здесь: отпуск ставят с календаря, не
+  // прокручивая профиль (разбор UI/UX 12.10.2026).
+  const ab = absenceOn(person, day);
   const line = (a) => [a.region, a.address, a.project, a.object, a.time, a.note].filter(Boolean).map(esc).join(' · ');
   const f = (key, label, type = 'text', kinds = '') => `<div class="field" ${kinds ? `data-ip-act-for="${kinds}"` : ''}><label for="ip-act-${key}">${label}</label>
     <input class="input" id="ip-act-${key}" data-ip-act="${key}" type="${type}" ${type === 'date' ? `value="${day}"` : ''}></div>`;
   return {
-    list: list.length ? `<section class="ip-sec ip-acts"><h3>Работа вне выездов</h3><ul class="ip-act-list">${list.map((a) => `<li><i class="k-act">${esc(activityKind(a.kind).label)}</i>
+    list: (ab ? `<section class="ip-sec ip-acts"><h3>Отсутствие</h3><ul class="ip-act-list ip-ab-list"><li><i class="k-away">${esc(absenceLabel(ab.kind))}</i>
+        <span class="ip-ab-dates">${esc(fmtDate(ab.from))}${ab.to && ab.to !== ab.from ? ` — ${esc(fmtDate(ab.to))}` : ''}</span>
+        <button class="ip-x" data-ip-ab-del="${esc(ab.id)}" aria-label="Удалить" title="Удалить">×</button>${ab.note ? `<span class="ip-ab-note">${esc(ab.note)}</span>` : ''}</li></ul></section>` : '')
+      + (list.length ? `<section class="ip-sec ip-acts"><h3>Работа вне выездов</h3><ul class="ip-act-list">${list.map((a) => `<li><i class="k-act">${esc(activityKind(a.kind).label)}</i>
         <span class="ip-ab-dates">${esc(fmtDate(a.from))}${a.to && a.to !== a.from ? ` — ${esc(fmtDate(a.to))}` : ''}</span>
         <button class="ip-x" data-ip-act-del="${esc(a.id)}" aria-label="Удалить" title="Удалить">×</button>
-        ${line(a) ? `<span class="ip-ab-note">${line(a)}</span>` : ''}</li>`).join('')}</ul></section>` : '',
-    form: `<section class="ip-sec ip-acts"><h3>Отметить работу вне выездов</h3>
+        ${line(a) ? `<span class="ip-ab-note">${line(a)}</span>` : ''}</li>`).join('')}</ul></section>` : ''),
+    form: `<section class="ip-sec ip-acts"><h3>Отметить работу вне выездов или отсутствие</h3>
     <div class="ip-act-add" data-ip-act-form>
       <div class="field"><label for="ip-act-kind">Вид</label><select class="select" id="ip-act-kind" data-ip-act="kind">
-        ${ACTIVITY_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div>
+        <optgroup label="Работа вне выездов">${ACTIVITY_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</optgroup>
+        <optgroup label="Отсутствие">${ABSENCE_KINDS.map((k) => `<option value="ab:${k.key}">${k.label}</option>`).join('')}</optgroup></select></div>
       <div class="ip-prow">${f('from', 'С', 'date')}${f('to', 'По', 'date')}</div>
       <div class="field" data-ip-act-for="trip move" hidden><label for="ip-act-region">Область</label><select class="select" id="ip-act-region" data-ip-act="region">
         <option value="">—</option>${Object.values(ENI_REGIONS).map((r) => `<option>${esc(r)}</option>`).join('')}</select></div>

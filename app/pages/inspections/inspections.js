@@ -80,6 +80,13 @@ persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allT
   'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+// Подразделы карточки осмотрщика и «Все осмотрщики» — один список на
+// вкладки и на «Перейти». «План месяца» и «Объекты» — чтобы не путать с
+// разделом «Назначения» и с меткой «назн. N» календаря (разбор UI/UX 12.10.2026).
+const PERSON_TABS = [['trips', 'Выезды'], ['plan', 'План месяца'], ['route', 'Маршрут'], ['reports', 'Отчёты'], ['stats', 'Статистика'],
+  ['assigns', 'Объекты'], ['profile', 'Профиль'], ['car', 'Авто']];
+const ALL_TABS = [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
+  ['stats', 'Статистика'], ['fields', 'Свои поля']];
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
   <circle cx="6" cy="6" r="4.1" fill="none" stroke="currentColor" stroke-width="1.4"/>
   <path d="M9.2 9.2 12.4 12.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
@@ -191,7 +198,6 @@ export function mountInspections(host) {
   // Пустота очереди — честно и с выходом (практика APCS «три состояния
   // блока»): отборы сузили — «Сбросить отборы»; очередь пуста — почему и
   // куда дальше.
-  const queueFiltered = () => !!(view.q || view.type || view.objRegion || view.cov || view.due || view.inst);
   function queueHTML(rows, total) {
     if (!rows.length) {
       if (!total) {
@@ -613,7 +619,7 @@ export function mountInspections(host) {
           <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
         </div>
       </header>
-      ${subTabs('data-ip-ptab', view.personTab, [['trips', 'Выезды'], ['plan', 'План'], ['route', 'Маршрут'], ['reports', 'Отчёты'], ['stats', 'Статистика'], ['assigns', 'Назначения', me.live], ['profile', 'Профиль'], ['car', 'Авто']])}
+      ${subTabs('data-ip-ptab', view.personTab, PERSON_TABS.map(([k, l]) => (k === 'assigns' ? [k, l, me.live] : [k, l])))}
       <div class="ip-card-body">${body}</div>
     </section>`;
   }
@@ -1085,7 +1091,7 @@ export function mountInspections(host) {
         <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
-      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
+      ${subTabs('data-ip-atab', view.allTab, ALL_TABS.map(([k, l]) => (k === 'fields' ? [k, l, allCustomFields().length] : [k, l])))}
       <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
@@ -1093,7 +1099,9 @@ export function mountInspections(host) {
   function peopleSection() {
     const me = people.find((p) => p.name === view.person);
     const panel = detail.length ? detailHTML(all, people, allAssignments(), detail.map((d) => (d.kind === 'day' ? { ...d, person: view.person } : d))) : '';
-    return { cls: 'ip-peoplesec' + (panel ? ' has-detail' : ''), html: peopleListHTML() + (me ? personCardHTML(me) : allCardHTML()) + panel };
+    // Табличный вид — во всю ширину: таблица сама список осмотрщиков.
+    const wide = !me && view.allTab === 'table';
+    return { cls: 'ip-peoplesec' + (panel ? ' has-detail' : '') + (wide ? ' ip-wide' : ''), html: (wide ? '' : peopleListHTML()) + (me ? personCardHTML(me) : allCardHTML()) + panel };
   }
 
   // ===================== раздел «История» =========================================
@@ -1195,7 +1203,7 @@ export function mountInspections(host) {
     const d = cadDraft;
     const eligible = people.filter((p) => !p.fired);
     const q = (d.q || '').trim().toLowerCase();
-    const found = q.length >= 2 ? [...all.values()].filter((s) => (s.eni || '').toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q)).slice(0, 8) : [];
+    const found = q.length >= 2 ? [...all.values()].filter((s) => `${s.eniAll || ''} ${s.eni || ''}`.toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q)).slice(0, 8) : [];
     return `<section class="ip-work ip-card" aria-label="Новый запрос документов">
       <header class="ip-card-head"><div class="ip-card-title"><h1>Новый запрос</h1></div></header>
       <div class="ip-card-body"><div class="ip-cadform">
@@ -1283,6 +1291,122 @@ export function mountInspections(host) {
   }
   const markRead = (ids) => { view.notesRead = [...new Set([...ids, ...view.notesRead])].slice(0, 2000); };
 
+  // --- адрес вида (разбор UI/UX, 12.10.2026) ---------------------------------
+  //
+  // Раздел, вкладка, осмотрщик и запрос кадастра — в адресе страницы:
+  // «Назад» и «Вперёд» браузера шагают по видам, ссылкой можно поделиться.
+  // Переход пользователя — новая запись истории (pushState: hashchange не
+  // возникает и экран не перерисовывается второй раз). Практика: Microsoft
+  // patterns & practices «Navigation», Sencha «Routing, Deep Linking, and the
+  // Back Button» — состояние вида в адресе, адрес — источник правды.
+  function urlOf() {
+    const q = [['s', view.section]];
+    if (view.section === 'people') {
+      if (view.person) q.push(['p', view.person], ['t', view.personTab]);
+      else q.push(['t', view.allTab]);
+    }
+    if (view.section === 'assign') q.push(['t', view.tab]);
+    if (view.section === 'cadastre' && view.cadSel) q.push(['c', view.cadSel]);
+    return '#/inspections?' + q.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  }
+  function syncUrl() {
+    const h = urlOf();
+    if (location.hash !== h) history.pushState(null, '', h);
+  }
+  function applyRoute(route) {
+    const q = (route && route.query) || {};
+    if (!q.s) return false;
+    view.section = q.s;
+    if (q.s === 'people') {
+      view.person = q.p || '';
+      if (q.t) { if (view.person) view.personTab = q.t; else view.allTab = q.t; }
+    }
+    if (q.s === 'assign' && q.t) view.tab = q.t;
+    if (q.s === 'cadastre' && q.c) view.cadSel = q.c;
+    return true;
+  }
+
+  // --- «Перейти» (Ctrl+K) -------------------------------------------------------
+  //
+  // Одно поле на весь раздел: экраны и действия, осмотрщики и их подразделы,
+  // запросы кадастра, объекты по ЕНИ и адресу. Пустой запрос — частое
+  // первым. Стрелки, Enter, Esc. Практика палитры команд (Chameleon «CMD+K
+  // search», Hubtel «Command palette»): видимое поле, Ctrl+K, частое —
+  // первым, переходы и действия вместе; здесь — выпадающим списком под полем,
+  // без окна поверх страницы (правило «без модальных окон»).
+  let jumpHi = 0;
+  let jumpList = [];
+  function nav(patch) {
+    if (patch.section && patch.section !== view.section) cadDraft = null;
+    Object.assign(view, patch);
+    detail = [];
+    resetList();
+    render();
+  }
+  function jumpItems(q) {
+    const out = [];
+    const add = (label, sub, go, kw = '') => out.push({ label, sub, go, kw: `${label} ${sub} ${kw}`.toLowerCase() });
+    add('Таблица осмотрщиков', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'table' }), 'excel эксель список ответственное');
+    add('Отчёты за день', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'reports' }), 'вчера утренний вечерний пробег бензин бухгалтерия выгрузка');
+    add('Уведомления', 'пропуски отчётов и выездов', () => nav({ section: 'notes' }), 'пропуск');
+    add('К назначению', 'Назначения · очередь', () => nav({ section: 'assign', tab: 'queue' }), 'очередь назначить');
+    add('Назначено', 'Назначения · действующие', () => nav({ section: 'assign', tab: 'assigned' }), 'переназначить снять');
+    add('Кадастр', 'запросы документов', () => nav({ section: 'cadastre' }), 'документы на месте');
+    add('Новый запрос в кадастр', 'Кадастр', () => { nav({ section: 'cadastre' }); scope.$('[data-ip-cad-new]').click(); }, 'создать');
+    add('Итоги за период', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'totals' }), 'отчёт по сотрудникам xlsx');
+    add('Сводка осмотрщиков', 'по ответственным и областям', () => nav({ section: 'people', person: '', allTab: 'summary' }));
+    add('Нормы осмотра', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'norms' }), 'коэффициенты время');
+    add('Свои поля осмотрщиков', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'fields' }));
+    add('Статистика', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'stats' }), 'графики');
+    add('История', 'события осмотров', () => nav({ section: 'history' }), 'журнал');
+    people.forEach((p) => {
+      add(p.name, 'осмотрщик · выезды', () => nav({ section: 'people', person: p.name, personTab: 'trips' }), (p.regions || []).join(' '));
+      PERSON_TABS.forEach(([k, l]) => { if (k !== 'trips') add(`${p.name} · ${l}`, 'карточка осмотрщика', () => nav({ section: 'people', person: p.name, personTab: k })); });
+    });
+    allCadRequests().forEach((r) => add(`${cadKindLabel(r.kind)} № ${r.no}`, r.person, () => nav({ section: 'cadastre', cadSel: r.id })));
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let list = words.length ? out.filter((x) => words.every((w) => x.kw.includes(w))) : out.slice(0, 8);
+    // Объекты — по ЕНИ и адресу, от двух знаков: к назначению, к действующему
+    // назначению или к карточке.
+    if (q.trim().length >= 2) {
+      const live = allAssignments().filter((a) => a.state === 'assigned' || a.state === 'progress');
+      const inQueue = new Set(queueBase(all).map((s) => s.typeId + '|' + s.id));
+      [...all.values()].filter((s) => words.every((w) => `${s.eniAll || s.eni} ${s.title} ${s.institution}`.toLowerCase().includes(w))).slice(0, 6).forEach((s) => {
+        const k = s.typeId + '|' + s.id;
+        const a = live.find((x) => x.typeId + '|' + x.ocId === k);
+        list.push({ label: s.title, sub: `${s.eniAll || s.eni || ''} · ${a ? `назначено: ${a.person}` : inQueue.has(k) ? 'к назначению' : s.status}`,
+          go: () => (a ? gotoAssign(a.id) : inQueue.has(k) ? (() => { view.q = ''; current = k; nav({ section: 'assign', tab: 'queue' }); })() : (location.hash = build({ typeId: s.typeId, ocId: s.id }))) });
+      });
+    }
+    // Начало названия — выше вхождения в середину.
+    if (words.length) list = list.map((x, i) => ({ x, i, w: x.label.toLowerCase().startsWith(words[0]) ? 0 : 1 })).sort((a, b) => a.w - b.w || a.i - b.i).map((y) => y.x);
+    return list.slice(0, 12);
+  }
+  function drawJump() {
+    const inp = scope.$('[data-ip-jump]');
+    const ul = scope.$('.ip-jump-list');
+    if (!inp || !ul) return;
+    jumpList = jumpItems(inp.value);
+    jumpHi = Math.max(0, Math.min(jumpHi, jumpList.length - 1));
+    ul.innerHTML = jumpList.map((x, i) => `<li role="option" id="ip-j-${i}" data-ip-jump-i="${i}" class="${i === jumpHi ? 'hi' : ''}" aria-selected="${i === jumpHi}"><b>${esc(x.label)}</b><span>${esc(x.sub)}</span></li>`).join('')
+      || '<li class="ip-jump-none">Ничего не нашлось</li>';
+    ul.hidden = false;
+    inp.setAttribute('aria-activedescendant', jumpList.length ? `ip-j-${jumpHi}` : '');
+    scope.$('.ip-jump').setAttribute('aria-expanded', 'true');
+  }
+  function closeJump() {
+    const ul = scope.$('.ip-jump-list');
+    if (ul) ul.hidden = true;
+    const j = scope.$('.ip-jump');
+    if (j) j.setAttribute('aria-expanded', 'false');
+  }
+  function doJump(i) {
+    const x = jumpList[i];
+    if (!x) return;
+    closeJump();
+    x.go();
+  }
+
   function render() {
     if (grid) { gridState = grid.state(); grid.destroy(); grid = null; }
     hidePop();
@@ -1298,17 +1422,15 @@ export function mountInspections(host) {
     scope.setHTML(`<div class="ip-page">
       <nav class="itabs ip-sections" role="tablist" aria-label="Разделы осмотров">
         ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('notes', `Уведомления${unread ? ` <b class="ip-unread">${unread}</b>` : ''}`)}${top('history', 'История')}
+        <div class="ip-jump" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="ip-jump-list">
+          <span class="isearch">${SEARCH_ICON}<input data-ip-jump placeholder="Перейти: таблица, осмотрщик, ЕНИ…" aria-label="Перейти" autocomplete="off" aria-controls="ip-jump-list"></span>
+          <kbd class="ip-kbd" aria-hidden="true">Ctrl K</kbd>
+          <ul class="ip-jump-list" id="ip-jump-list" role="listbox" hidden></ul>
+        </div>
       </nav>
       <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
-    // Лента подразделов на узком листается вбок — выбранный подраздел виден.
-    scope.$$('.ip-subtabs, .ip-sections').forEach((bar) => {
-      bar.classList.toggle('is-overflow', bar.scrollWidth > bar.clientWidth + 1);
-      const on = bar.querySelector('.itab.on');
-      if (on && (on.offsetLeft < bar.scrollLeft || on.offsetLeft + on.offsetWidth > bar.scrollLeft + bar.clientWidth)) {
-        bar.scrollLeft = on.offsetLeft + on.offsetWidth - bar.clientWidth + 8;
-      }
-    });
+    syncUrl();
     if (routeMap) { routeMap.remove(); routeMap = null; }
     if (view.section === 'people' && !view.person && view.allTab === 'table' && !imp) mountTable();
     if (view.section === 'people' && view.person && view.personTab === 'route') {
@@ -1380,6 +1502,12 @@ export function mountInspections(host) {
     if (v('to') && v('to') < v('from')) { err.textContent = 'Окончание раньше начала'; scope.$('[data-ip-act="to"]').focus(); return; }
     if (v('kind') === 'trip' && !v('region')) { err.textContent = 'Укажите область командировки'; scope.$('[data-ip-act="region"]').focus(); return; }
     if (v('kind') === 'partner' && !v('project')) { err.textContent = 'Укажите проект'; scope.$('[data-ip-act="project"]').focus(); return; }
+    if (v('kind').startsWith('ab:')) {
+      addAbsence(person, { kind: v('kind').slice(3), from: v('from'), to: v('to'), note: v('note') });
+      redraw();
+      host.toast('Отсутствие записано', 'ok');
+      return;
+    }
     const rec = { person, kind: v('kind'), from: v('from'), to: v('to') };
     ['region', 'address', 'project', 'object', 'time', 'note'].forEach((k) => { if (v(k)) rec[k] = v(k); });
     addActivity(rec);
@@ -1566,6 +1694,20 @@ export function mountInspections(host) {
     host.toast(errs.length ? `Применено с ошибками: ${errs[0]}` : `Применено изменений: ${ch.length}`, errs.length ? 'warn' : 'ok');
   });
   scope.on('click', '[data-ip-qreset]', () => { Object.assign(view, { q: '', type: '', objRegion: '', cov: '', due: '', inst: '' }); resetList(); render(); });
+  // «Перейти»: ввод — список, стрелки, Enter, Esc; Ctrl+K — к полю.
+  scope.on('focusin', '[data-ip-jump]', () => { jumpHi = 0; drawJump(); });
+  scope.on('input', '[data-ip-jump]', () => { jumpHi = 0; drawJump(); });
+  scope.on('keydown', '[data-ip-jump]', (e, el) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); jumpHi += e.key === 'ArrowDown' ? 1 : -1; drawJump(); scope.$('.ip-jump-list .hi')?.scrollIntoView({ block: 'nearest' }); } else if (e.key === 'Enter') { e.preventDefault(); doJump(jumpHi); } else if (e.key === 'Escape') { e.preventDefault(); el.value = ''; closeJump(); el.blur(); }
+  });
+  scope.on('focusout', '[data-ip-jump]', () => setTimeout(() => { if (!scope.root.contains(document.activeElement) || !document.activeElement.matches('[data-ip-jump]')) closeJump(); }, 150));
+  scope.on('mousedown', '[data-ip-jump-i]', (e, li) => { e.preventDefault(); doJump(+li.dataset.ipJumpI); });
+  scope.onDocument('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'л' || e.code === 'KeyK')) {
+      const inp = scope.$('[data-ip-jump]');
+      if (inp) { e.preventDefault(); inp.focus(); inp.select(); }
+    }
+  });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {
@@ -1822,9 +1964,10 @@ export function mountInspections(host) {
   window.addEventListener('inside:inspections', onChange);
   window.addEventListener('inside:redraw', onChange);
 
+  applyRoute(host.route);
   render();
   return {
-    onRoute() { render(); },
+    onRoute(next) { if (applyRoute(next)) { detail = []; cadDraft = null; resetList(); } render(); },
     destroy() {
       destroyStats();
       hidePop();
