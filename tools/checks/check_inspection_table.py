@@ -107,20 +107,43 @@ def run(t):
     pg.locator('.kg tr.kg-g1 [data-kg-group]').first.click()
     t.ck(pg.locator('.kg tbody td[data-c="0"]').count() < rows0 and pg.locator('.kg tr.kg-g1').count() == sections, 'раздел не свернулся')
     pg.locator('.kg tr.kg-g1 [data-kg-group]').first.click()
-    # смена ответственного — строка уходит в другой раздел
+    # смена ответственного — выбором из списка; строка уходит в другой раздел
     cm = col_index(pg, 'Ответственное лицо')
     who = pg.locator('.kg td[data-r="0"][data-c="0"]').inner_text()
+    other = pg.locator('.kg tr.kg-g1 b').nth(1).inner_text()
     pg.click('.kg td[data-r="0"][data-c="%d"]' % cm)
-    # Кириллицу Playwright вводит вставкой текста, без нажатий клавиш, —
-    # правка начинается по F2 (с русской раскладкой у человека правку
-    # начинает первая же буква).
     pg.keyboard.press('F2')
-    pg.keyboard.press('Control+a')
-    pg.keyboard.type('Новый Регионал')
+    t.ck(t.wait_for('.kg-pick li'), 'у поля-выбора не открылся список')
+    # Значение не из списка не принимается (замечание пользователя: «где поля —
+    # выбор, то в таблице тоже должен быть выбор, а не текст»).
+    pg.keyboard.type('zzz')
+    t.ck(pg.locator('.kg-pick .kg-pick-none').count() == 1, 'список не сузился по вводу')
     pg.keyboard.press('Enter')
-    t.ck(t.wait_until("(w) => [...document.querySelectorAll('.kg tbody tr')].some((tr, i, all) => tr.classList.contains('kg-g1') && /Новый Регионал/.test(tr.textContent))", who),
-         'смена ответственного не дала нового раздела')
-    t.ck(prof(pg, who, 'p.manager') == 'Новый Регионал', 'ответственное лицо не сохранилось в профиль')
+    t.ck(prof(pg, who, 'p.manager') != 'zzz', 'в поле-выбор попало значение не из списка')
+    pg.click('.kg td[data-r="0"][data-c="%d"]' % cm)
+    pg.keyboard.press('F2')
+    pg.keyboard.type(other[:4])
+    pg.keyboard.press('Enter')
+    t.ck(t.wait_until("async ([w, m]) => (await %s).profileOf(w).manager === m" % K, [who, other]), 'ответственное лицо не выбралось из списка')
+    t.ck(t.wait_until("(w) => { let sec = ''; for (const tr of document.querySelectorAll('.kg tbody tr')) { if (tr.classList.contains('kg-g1')) sec = tr.textContent; else if (tr.querySelector('td[data-c=\"0\"]')?.textContent === w) return sec; } return ''; }", who),
+         'строка не перешла в раздел нового ответственного')
+    # области — выбор нескольких: пробел отмечает, Enter сохраняет
+    cr = col_index(pg, 'Области')
+    pg.click('.kg td[data-r="0"][data-c="%d"]' % cr)
+    who2 = pg.locator('.kg td[data-r="0"][data-c="0"]').inner_text()
+    before = prof(pg, who2, 'p.regions.length')
+    pg.keyboard.press('F2')
+    pg.keyboard.type('Нарын')
+    pg.keyboard.press(' ')
+    pg.keyboard.press('Enter')
+    t.ck(t.wait_until("async ([w, n]) => { const r = (await %s).profileOf(w).regions; return r.includes('Нарын') && r.length === n + 1; }" % K, [who2, before]),
+         'выбор нескольких областей не сохранился')
+    # подытогов-дублей нет; подпись раздела держится слева при прокрутке
+    t.ck(pg.locator('.kg tr.kg-sub').count() == 0, 'остались строки «Итого» — дубль числа в заголовке')
+    pg.evaluate("document.querySelector('.kg-scroll').scrollLeft = 900")
+    stays = pg.evaluate("() => { const g = document.querySelector('.kg tr.kg-g1 .kg-gh').getBoundingClientRect(); const s = document.querySelector('.kg-scroll').getBoundingClientRect(); return g.left - s.left < 20; }")
+    t.ck(stays, 'подпись раздела уехала при прокрутке вбок')
+    pg.evaluate("document.querySelector('.kg-scroll').scrollLeft = 0")
 
     # на весь экран и обратно
     pg.click('[data-ip-grid-full]')

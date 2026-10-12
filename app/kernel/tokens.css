@@ -491,8 +491,12 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
    кругу, из токенов. */
 .kg-c0{--g:var(--blue-600)} .kg-c1{--g:var(--teal-600)} .kg-c2{--g:var(--amber-600)}
 .kg-c3{--g:var(--violet-600)} .kg-c4{--g:var(--danger)} .kg-c5{--g:var(--slate-500)}
-.kg-tbl tr.kg-g th{position:static;padding:0;height:auto;border-right:0;text-align:left}
-.kg-gh{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;cursor:pointer;position:sticky;left:0}
+.kg-tbl tr.kg-g th{position:static;padding:0;height:auto;border-right:0;text-align:left;overflow:visible}
+.kg-gh{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;position:sticky;left:0}
+/* Подписи заголовков разделов — компактные и закреплены слева, как столбец
+   ФИО: при прокрутке вбок остаются на виду. У ячейки заголовка обрезание
+   снято — иначе закрепление считается внутри ячейки и подпись уезжает. */
+
 .kg-gh:focus-visible{outline:2px solid var(--g);outline-offset:-2px}
 .kg-tbl tr.kg-g1 th{background:color-mix(in srgb,var(--g) 20%,var(--panel));border-top:2px solid var(--g);color:var(--ink);font-size:12.5px}
 .kg-tbl tr.kg-g2 th{background:color-mix(in srgb,var(--g) 8%,var(--panel));color:var(--ink);font-size:12px}
@@ -502,3 +506,14 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .kg-gn{margin-left:4px;padding:0 7px;border-radius:999px;background:var(--g);color:#fff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
 .kg-tbl tr.kg-in td.kg-fz{box-shadow:inset 4px 0 0 var(--g)}
 .kg-tbl tr.kg-in td.kg-fz.act{box-shadow:inset 4px 0 0 var(--g),inset 0 0 0 2px var(--blue-600)}
+
+/* Выбор в ячейке: список под ячейкой, подсвеченный — заливкой, у выбора
+   нескольких — отметки. */
+.kg-pick{position:absolute;z-index:6;margin:0;padding:4px;list-style:none;max-height:240px;overflow-y:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 20px rgba(15,23,42,.18);font-size:12.5px}
+.kg-pick li{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.kg-pick li.hi{background:var(--blue-50);color:var(--blue-700)}
+.kg-pick .kg-pick-none{color:var(--muted);cursor:default}
+.kg-ck{flex:none;width:14px;height:14px;border:1.5px solid var(--line-input);border-radius:4px;background:var(--panel)}
+.kg-ck.on{background:var(--blue-600);border-color:var(--blue-600);box-shadow:inset 0 0 0 2px var(--panel)}
+

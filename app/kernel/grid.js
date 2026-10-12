@@ -25,6 +25,12 @@
 // Фильтр столбца с filter: 'select' — выбор из значений столбца, а не поиск
 // по вхождению.
 //
+// Поля-выборы правятся выбором, а не текстом (замечание пользователя
+// 12.10.2026: «где поля — выбор, то в таблице тоже должен быть выбор, а не
+// текст»): у list и bool под ячейкой — список (ввод сужает, стрелки, Enter);
+// у multi — список с отметками (пробел отмечает, Enter сохраняет). Вставка
+// из Excel проверяется тем же списком (parseCell).
+//
 // Страница передаёт столбцы и строки и получает правки списком
 // { id, key, value, old } — сама решает, как их сохранить, и вызывает
 // refresh(rows). Таблица ничего не знает о том, что редактирует.
@@ -69,6 +75,12 @@ export function parseCell(col, text) {
   if (col.type === 'list') {
     const o = (col.options || []).find((x) => x.toLowerCase() === s.toLowerCase());
     return o !== undefined ? { value: o } : { error: `«${s}» — нет в списке: ${(col.options || []).join(', ')}` };
+  }
+  if (col.type === 'multi') {
+    const parts = s.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+    const bad = parts.filter((x) => !(col.options || []).some((o) => o.toLowerCase() === x.toLowerCase()));
+    if (bad.length) return { error: `«${bad.join(', ')}» — нет в списке: ${(col.options || []).join(', ')}` };
+    return { value: (col.options || []).filter((o) => parts.some((x) => x.toLowerCase() === o.toLowerCase())).join(', ') };
   }
   return { value: s };
 }
@@ -160,15 +172,29 @@ export function mountGrid(host, opts) {
         return `<tr class="kg-g kg-g${lvl} kg-c${colorOf(g0)}"><th colspan="${cols.length}"><button type="button" class="kg-gh" data-kg-group="${esc(id)}" aria-expanded="${!shut}">
           <span class="kg-gt">${shut ? '▸' : '▾'}</span>${lvl === 1 && groups.title ? `<span class="kg-gk">${esc(groups.title[0])}</span>` : ''}<b>${esc(lvl === 1 ? g0 : g1)}</b><span class="kg-gn">${n}</span></button></th></tr>`;
       };
+      // Число строк раздела и подраздела — в его заголовке; отдельных строк
+      // «Итого» нет (пользователь 12.10.2026: «Зачем дубляж?… Обычного
+      // числа сверху хватит»).
+      const order = [];
       allGrouped.forEach((row) => {
         const [g0, g1] = row._g;
-        if (!seen.has(g0)) { seen.add(g0); html += head(1, g0); }
-        if (collapsed.has(g0)) return;
-        const k2 = `${g0}\u0001${g1}`;
-        if (!seen.has(k2)) { seen.add(k2); html += head(2, g0, g1); }
-        if (collapsed.has(k2)) return;
-        html += rowHTML(row, view.indexOf(row));
+        let a = order.find((x) => x.g0 === g0);
+        if (!a) { a = { g0, subs: [] }; order.push(a); }
+        let b = a.subs.find((x) => x.g1 === g1);
+        if (!b) { b = { g1, rows: [] }; a.subs.push(b); }
+        b.rows.push(row);
       });
+      order.forEach(({ g0, subs }) => {
+        html += head(1, g0);
+        if (!collapsed.has(g0)) {
+          subs.forEach(({ g1, rows: list }) => {
+            html += head(2, g0, g1);
+            if (collapsed.has(`${g0}\u0001${g1}`)) return;
+            list.forEach((row) => { html += rowHTML(row, view.indexOf(row)); });
+          });
+        }
+      });
+      void seen;
     } else {
       html = view.map(rowHTML).join('');
     }
@@ -212,6 +238,8 @@ export function mountGrid(host, opts) {
     if (record) { undo.push(ok); if (undo.length > 100) undo.shift(); }
     opts.onChange(ok);
   }
+  const isPick = (col) => col.type === 'list' || col.type === 'bool' || col.type === 'multi';
+  const pickOptions = (col) => (col.type === 'bool' ? ['да', 'нет'] : col.options || []);
   function startEdit(initial) {
     if (!view.length) return;
     const col = cols[act.c];
@@ -220,37 +248,84 @@ export function mountGrid(host, opts) {
     const row = view[act.r];
     const input = document.createElement('input');
     input.className = 'kg-edit';
-    input.value = initial !== undefined ? initial : cellText(col, row.cells[col.key]);
-    input.setAttribute('aria-label', col.label);
-    if (col.options) {
-      const dl = document.createElement('datalist');
-      dl.id = 'kg-dl';
-      dl.innerHTML = col.options.map((o) => `<option value="${esc(o)}">`).join('');
-      root.appendChild(dl);
-      input.setAttribute('list', 'kg-dl');
-    }
-    Object.assign(input.style, { left: `${td.offsetLeft}px`, top: `${td.offsetTop}px`, width: `${Math.max(td.offsetWidth, 160)}px`, height: `${td.offsetHeight}px` });
+    const pick = isPick(col);
+    // У выбора поле — строка поиска по списку: пустое (или с введённым знаком).
+    input.value = pick ? (initial || '') : initial !== undefined ? initial : cellText(col, row.cells[col.key]);
+    input.setAttribute('aria-label', pick ? `${col.label}: поиск в списке` : col.label);
+    Object.assign(input.style, { left: `${td.offsetLeft}px`, top: `${td.offsetTop}px`, width: `${Math.max(td.offsetWidth, pick ? 200 : 160)}px`, height: `${td.offsetHeight}px` });
     scroll.appendChild(input);
     edit = { r: act.r, c: act.c, input };
+    if (pick) {
+      const cur = cellText(col, row.cells[col.key]);
+      const box = document.createElement('ul');
+      box.className = 'kg-pick';
+      box.setAttribute('role', 'listbox');
+      if (col.type === 'multi') box.setAttribute('aria-multiselectable', 'true');
+      Object.assign(box.style, { left: `${td.offsetLeft}px`, top: `${td.offsetTop + td.offsetHeight}px`, minWidth: `${Math.max(td.offsetWidth, 200)}px` });
+      scroll.appendChild(box);
+      const sel = new Set(col.type === 'multi' ? cur.split(/,\s*/).filter(Boolean) : []);
+      edit.pick = { box, sel, hi: 0, list: [] };
+      const curIdx = pickOptions(col).indexOf(col.type === 'bool' ? (row.cells[col.key] ? 'да' : 'нет') : cur);
+      edit.pick.hi = curIdx >= 0 && !initial ? curIdx : 0;
+      drawPick();
+      input.addEventListener('input', () => { edit.pick.hi = 0; drawPick(); });
+      box.addEventListener('mousedown', (e) => {
+        const li = e.target.closest('[data-kg-opt]');
+        if (!li) return;
+        e.preventDefault();
+        edit.pick.hi = +li.dataset.kgOpt;
+        choose(col.type !== 'multi');
+      });
+    }
     input.focus();
-    if (initial === undefined) input.select(); else input.setSelectionRange(input.value.length, input.value.length);
+    if (!pick) { if (initial === undefined) input.select(); else input.setSelectionRange(input.value.length, input.value.length); }
     input.addEventListener('keydown', onEditKey);
     input.addEventListener('blur', () => { if (edit && edit.input === input) commit(); });
+  }
+  // Список выбора: отбор по введённому, отмеченное, подсвеченное.
+  function drawPick() {
+    const col = cols[edit.c];
+    const q = edit.input.value.trim().toLowerCase();
+    const all = pickOptions(col);
+    edit.pick.list = all.filter((o) => !q || o.toLowerCase().includes(q));
+    edit.pick.hi = Math.max(0, Math.min(edit.pick.hi, edit.pick.list.length - 1));
+    edit.pick.box.innerHTML = edit.pick.list.map((o, i) => `<li role="option" data-kg-opt="${i}" class="${i === edit.pick.hi ? 'hi' : ''}" aria-selected="${col.type === 'multi' ? edit.pick.sel.has(o) : i === edit.pick.hi}">${col.type === 'multi' ? `<span class="kg-ck ${edit.pick.sel.has(o) ? 'on' : ''}" aria-hidden="true"></span>` : ''}${esc(o)}</li>`).join('')
+      || '<li class="kg-pick-none">Нет в списке</li>';
+    const h = edit.pick.box.querySelector('.hi');
+    if (h) h.scrollIntoView({ block: 'nearest' });
+  }
+  // Выбрать подсвеченное: у одиночного — сохранить; у multi — отметить.
+  function choose(close) {
+    const col = cols[edit.c];
+    const o = edit.pick.list[edit.pick.hi];
+    if (o === undefined) return;
+    if (col.type === 'multi') {
+      if (edit.pick.sel.has(o)) edit.pick.sel.delete(o); else edit.pick.sel.add(o);
+      drawPick();
+      return;
+    }
+    edit.chosen = o;
+    if (close) commit();
   }
   function closeEdit() {
     if (!edit) return;
     const { input } = edit;
+    if (edit.pick) edit.pick.box.remove();
     edit = null;
     input.remove();
-    const dl = root.querySelector('#kg-dl');
-    if (dl) dl.remove();
     root.focus({ preventScroll: true });
   }
   function commit() {
     if (!edit) return true;
     const col = cols[edit.c];
     const row = view[edit.r];
-    const p = parseCell(col, edit.input.value);
+    let text = edit.input.value;
+    if (edit.pick) {
+      if (col.type === 'multi') text = pickOptions(col).filter((o) => edit.pick.sel.has(o)).join(', ');
+      else if (edit.chosen !== undefined) text = edit.chosen;
+      else if (!pickOptions(col).some((o) => o.toLowerCase() === text.trim().toLowerCase())) { closeEdit(); return true; }
+    }
+    const p = parseCell(col, text);
     if (p.error) { say(p.error); edit.input.classList.add('bad'); return false; }
     const old = row.cells[col.key];
     closeEdit();
@@ -259,6 +334,19 @@ export function mountGrid(host, opts) {
   }
   function onEditKey(e) {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeEdit(); return; }
+    if (edit && edit.pick) {
+      const col = cols[edit.c];
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        edit.pick.hi = Math.max(0, Math.min(edit.pick.list.length - 1, edit.pick.hi + (e.key === 'ArrowDown' ? 1 : -1)));
+        drawPick();
+        return;
+      }
+      if (e.key === ' ' && col.type === 'multi') { e.preventDefault(); choose(false); return; }
+      if ((e.key === 'Enter' || e.key === 'Tab') && col.type !== 'multi' && edit.chosen === undefined && edit.pick.list.length) {
+        edit.chosen = edit.pick.list[edit.pick.hi];
+      }
+    }
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       e.stopPropagation();

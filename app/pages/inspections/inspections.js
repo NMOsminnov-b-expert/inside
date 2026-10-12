@@ -188,9 +188,20 @@ export function mountInspections(host) {
     </aside>`;
   }
 
-  function queueHTML(rows) {
+  // Пустота очереди — честно и с выходом (практика APCS «три состояния
+  // блока»): отборы сузили — «Сбросить отборы»; очередь пуста — почему и
+  // куда дальше.
+  const queueFiltered = () => !!(view.q || view.type || view.objRegion || view.cov || view.due || view.inst);
+  function queueHTML(rows, total) {
     if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion || view.cov || view.due || view.inst ? 'Под условия ничего не подошло — снимите часть фильтров слева.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
+      if (!total) {
+        return `<div class="ip-emptystate"><b>Очередь пуста</b>
+          <p>Все объекты в статусе «Удостоверен по документам» назначены целиком. Новые появятся здесь, когда ЦОД удостоверит объекты.</p>
+          <button class="btn btn-primary btn-sm" data-ip-tab="assigned">Открыть «Назначено»</button></div>`;
+      }
+      return `<div class="ip-emptystate"><b>Под отборы ничего не подошло</b>
+        <p>В очереди ${total} — отборы и поиск их скрыли.</p>
+        <button class="btn btn-primary btn-sm" data-ip-qreset>Сбросить отборы</button></div>`;
     }
     const groups = tripGroups(rows.slice(0, Math.max(view.shown, STEP)));
     const allKeys = (g) => g.rows.map((s) => s.typeId + '|' + s.id);
@@ -309,15 +320,17 @@ export function mountInspections(host) {
       : assigned.filter(({ a }) => !collapsed.has('a:' + a.person)).map((r) => r.a.id);
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
     const sub = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
-    return { cls: 'ip-assign', html: `${view.tab === 'queue' ? queueFacetsHTML(queueCounts(base, qf)) : assignedFacetsHTML(live)}
+    // Пустая очередь — без колонки отборов и пустой панели: место — объяснению.
+    const bare = view.tab === 'queue' && !queue.length;
+    return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : view.tab === 'queue' ? queueFacetsHTML(queueCounts(base, qf)) : assignedFacetsHTML(live)}
       <section class="ip-work" aria-label="Назначения">
-        <div class="itabs" role="tablist">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', live.length)}</div>
+        <div class="itabs" role="tablist">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', view.q ? assignedRows(all, { q: '' }).length : live.length)}</div>
         <div class="itoolbar ip-toolbar">
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : 'ЕНИ, адрес, осмотрщик')}
           ${bulkHTML()}
         </div>
-        ${view.tab === 'queue' ? queueHTML(queue) : assignedHTML(assigned)}
-      </section>${pane()}` };
+        ${view.tab === 'queue' ? queueHTML(queue, base.length) : assignedHTML(assigned)}
+      </section>${bare ? '' : pane()}` };
   }
 
   // Вставки планирования в панель назначения: «Кого назначить», доступность
@@ -692,7 +705,7 @@ export function mountInspections(host) {
       get: (p) => p.car[key] || '', set: (v, p) => ({ car: { ...p.car, [key]: v } }) });
     const cols = [
       { key: 'name', label: 'ФИО', width: 250, readOnly: true, get: (p, n) => n },
-      { key: 'manager', label: 'Ответственное лицо', width: 190, filter: 'select', options: managerNames(), title: 'Региональный менеджер, за которым закреплён осмотрщик' },
+      { key: 'manager', label: 'Ответственное лицо', type: 'list', width: 190, filter: 'select', options: managerNames(), title: 'Региональный менеджер, за которым закреплён осмотрщик' },
       { key: 'phone', label: 'Телефон', width: 150 },
       { key: 'whatsapp', label: 'WhatsApp', width: 150 },
       { key: 'email', label: 'Почта', width: 180 },
@@ -700,13 +713,9 @@ export function mountInspections(host) {
         get: (p) => (p.phoneType === 'ios' ? 'iOS' : p.phoneType === 'android' ? 'Android' : ''), set: (v) => ({ phoneType: v === 'iOS' ? 'ios' : v === 'Android' ? 'android' : '' }) },
       { key: 'device', label: 'Устройство', width: 140 },
       { key: 'waGroup', label: 'Группа WhatsApp', width: 150 },
-      { key: 'regions', label: 'Области', width: 170, title: 'Через запятую: ' + regionNames().join(', '),
-        get: (p) => p.regions.join(', '),
-        set: (v) => {
-          const list = String(v || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean);
-          const bad = list.filter((x) => !regionNames().includes(x));
-          return bad.length ? { error: `нет такой области: ${bad.join(', ')}` } : { regions: list };
-        } },
+      { key: 'regions', label: 'Области', type: 'multi', options: regionNames(), width: 170, title: 'Выбор нескольких: пробел отмечает, Enter сохраняет',
+        get: (p) => regionNames().filter((r) => p.regions.includes(r)).join(', '),
+        set: (v) => ({ regions: String(v || '').split(/,\s*/).filter(Boolean) }) },
       { key: 'fired', label: 'Статус', type: 'list', options: ['Работает', 'Уволен'], width: 100, get: (p) => (p.fired ? 'Уволен' : 'Работает'), set: (v) => ({ fired: v === 'Уволен' }) },
       { key: 'startDate', label: 'Работает с', type: 'date', width: 105 },
       { key: 'firedDate', label: 'Уволен с', type: 'date', width: 105 },
@@ -1556,6 +1565,7 @@ export function mountInspections(host) {
     redraw();
     host.toast(errs.length ? `Применено с ошибками: ${errs[0]}` : `Применено изменений: ${ch.length}`, errs.length ? 'warn' : 'ok');
   });
+  scope.on('click', '[data-ip-qreset]', () => { Object.assign(view, { q: '', type: '', objRegion: '', cov: '', due: '', inst: '' }); resetList(); render(); });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {

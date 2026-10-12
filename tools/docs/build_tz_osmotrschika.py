@@ -6,7 +6,8 @@
 нет. Пункты записи вида «N. Заголовок — текст» становятся разделами,
 «N.M. текст» — пунктами раздела.
 
-    python tools/docs/build_tz_osmotrschika.py   # → docs/tz-rabota-osmotrschika.docx
+    python tools/docs/build_tz_osmotrschika.py      # → docs/tz-rabota-osmotrschika.docx
+    python tools/docs/build_tz_osmotrschika.py ux   # → docs/razbor-ui-ux-osmotry.docx (разбор UI/UX)
 """
 import ast
 import io
@@ -17,8 +18,16 @@ from docx import Document
 from docx.shared import Pt, Cm
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-SRC = os.path.join(ROOT, 'knowledge', 'tasks', 'tz_rabota_osmotrschika.py')
-OUT = os.path.join(ROOT, 'docs', 'tz-rabota-osmotrschika.docx')
+# Записи и их документы: python build_tz_osmotrschika.py [ux] — второй — разбор
+# UI/UX раздела «Осмотры».
+DOCS = {
+    'tz': ('tz_rabota_osmotrschika.py', 'tz-rabota-osmotrschika.docx'),
+    'ux': ('razbor_ui_ux_razdela_osmotry_scenarii_putanica_navigacii_plan.py', 'razbor-ui-ux-osmotry.docx'),
+}
+import sys
+_key = sys.argv[1] if len(sys.argv) > 1 else 'tz'
+SRC = os.path.join(ROOT, 'knowledge', 'tasks', DOCS[_key][0])
+OUT = os.path.join(ROOT, 'docs', DOCS[_key][1])
 
 
 def record():

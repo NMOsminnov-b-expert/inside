@@ -848,3 +848,10 @@ body[data-page="inspections"] .ip-sections.is-overflow{
 body[data-page="inspections"] .ip-req{color:var(--danger)}
 body[data-page="inspections"] [data-ip-cf-optsbox][hidden]{display:none}
 body[data-page="inspections"] .ip-bysum{display:flex;flex-direction:column;gap:4px}
+
+/* Пустая очередь — одна колонка, объяснение и выход по центру. */
+body[data-page="inspections"] .ip.ip-assign.ip-bare{grid-template-columns:minmax(0,1fr)}
+body[data-page="inspections"] .ip-emptystate{display:flex;flex-direction:column;align-items:center;gap:8px;max-width:520px;margin:48px auto;
+  padding:24px;text-align:center;background:var(--panel);border:1px dashed var(--line);border-radius:12px}
+body[data-page="inspections"] .ip-emptystate b{font-size:15px}
+body[data-page="inspections"] .ip-emptystate p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
