@@ -24,7 +24,7 @@ def run(t):
     pg = t.page
     t.open('', wait='.reg-tr')
     pg.click('[data-nav="insp"]')
-    if not t.ck(t.wait_for('.ip-people'), '«Осмотры» не открыли панель осмотров: %s' % pg.evaluate('location.hash')):
+    if not t.ck(t.wait_for('.ip-pane'), '«Осмотры» не открыли панель осмотров: %s' % pg.evaluate('location.hash')):
         return
     t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'страница панели прокручивается вбок')
 
@@ -86,7 +86,9 @@ def run(t):
     pg.click('[data-ip-tab="queue"]')
     t.ck(t.wait_for('[data-ip-row="%s"]' % key), 'снятое назначение не вернуло объект в «К назначению»')
 
-    # --- «Мои осмотрщики» ------------------------------------------------------------------
+    # --- «Мои осмотрщики» (раздел «Осмотрщики») ---------------------------------------------
+    pg.click('[data-ip-section="people"]')
+    t.wait_for('.ip-people')
     name = pg.locator('[data-ip-star]').first.get_attribute('data-ip-star')
     pg.locator('[data-ip-star]').first.click()
     pg.click('[data-ip-mode="mine"]')
@@ -110,7 +112,9 @@ def run(t):
     # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у
     # календаря та же проблема»: на страницах ядра поля рисовал браузер — рамка и
     # скругление поля даты и комментария не совпадали со списком рядом.
-    t.open('#/inspections', wait='.ip-pane [data-ip-f-date]')
+    t.open('#/inspections', wait='.ip-page')
+    pg.click('[data-ip-section="assign"]')
+    t.wait_for('.ip-pane [data-ip-f-date]')
     look = pg.evaluate("""() => ['.ip-pane .pick-btn', '.ip-pane [data-ip-f-date]', '.ip-pane [data-ip-f-note]'].map((s) => {
       const st = getComputedStyle(document.querySelector(s)); return [st.borderTopColor, st.borderTopLeftRadius, st.borderTopWidth]; })""")
     t.ck(look[0] == look[1] == look[2], 'поля панели оформлены по-разному (список, дата, комментарий): %s' % look)
@@ -120,7 +124,13 @@ def run(t):
     # выездов, аля календарь, при наведении на дату информация за этот день»;
     # «общая статистика в виде графиков uplot»; «для каждого осмотрщика нужны
     # контактные данные»; «фильтрация по областям осмотрщиков».
-    t.open('#/inspections', wait='.ip-pane')
+    t.open('#/inspections', wait='.ip-page')
+    # «Статистика по человеку отдельно» (12.10.2026): в «Назначениях» графиков нет.
+    pg.click('[data-ip-section="assign"]')
+    t.wait_for('.ip-assign')
+    t.ck(pg.locator('.ip-assign .uplot, .ip-assign .ipc-cal').count() == 0, 'в «Назначениях» снова графики и календарь — назначения уезжают вниз')
+    pg.click('[data-ip-section="people"]')
+    t.wait_for('.ip-people')
     pg.click('.ip-person-main[data-ip-person=""]')
     t.ck(t.wait_until("() => document.querySelectorAll('.ipc-stats .uplot').length === 2", timeout=15000),
          'при «Все осмотрщики» нет двух графиков статистики (uPlot)')
@@ -143,12 +153,15 @@ def run(t):
     day = pg.evaluate("() => { const d = document.querySelector('[data-ipc-day]'); return d ? d.dataset.ipcDay : ''; }")
     if t.ck(day, 'в календаре нет прошедшего дня с выездами'):
         pg.click('[data-ipc-day="%s"]' % day)
-        t.ck(t.wait_until("() => document.querySelector('[data-ip-tab=history]').classList.contains('on') && !!document.querySelector('.ipc-ev')"),
+        t.ck(t.wait_until("() => document.querySelector('[data-ip-section=history]').classList.contains('on') && !!document.querySelector('.ipc-ev')"),
              'щелчок по дню календаря не открыл историю дня')
         t.ck(pg.evaluate("(d) => [...document.querySelectorAll('.ipc-ev time')].every((x) => new Date(x.getAttribute('datetime')).toDateString() === new Date(d + 'T12:00:00').toDateString())", day),
              'в истории дня события других дней')
 
     # контакты — правка на месте и сохранение
+    pg.click('[data-ip-section="people"]')
+    pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
+    t.wait_for('[data-ip-c-edit]')
     pg.click('[data-ip-c-edit]')
     t.ck(pg.locator('.modal-back').count() == 0, 'контакты правятся в модальном окне')
     pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
@@ -164,7 +177,7 @@ def run(t):
          'фильтр по области не оставил только осмотрщиков этой области')
     pg.select_option('[data-ip-region]', '')
 
-    pg.click('a.ip-as')
+    pg.click('a[href^="#/insp?as="]')
     t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), '«Экран осмотрщика» не открыл экран осмотрщика')
     t.wait_until("async (w) => (await import('./app/pages/inspector/tasks.js')).currentInspector() === w", who)
     shown = pg.evaluate("async () => (await import('./app/pages/inspector/tasks.js')).currentInspector()")

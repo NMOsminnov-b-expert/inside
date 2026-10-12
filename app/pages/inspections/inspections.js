@@ -1,46 +1,53 @@
 // Панель осмотров — экран регионального менеджера (ТЗ panel-osmotrov-tz,
-// разделы 3–3.5; постановка и ответы пользователя 12.10.2026).
+// разделы 3–4; постановка и ответы пользователя 12.10.2026).
 //
-// Три колонки: осмотрщики с загрузкой — объекты (очередь или назначенные) —
-// панель назначения выбранного. Работа идёт на месте, без модальных окон, и
-// экран не бывает пустым: при открытии выбрана первая строка (замечание
-// пользователя 12.10.2026 «Куча свободного места… Зачем опять модалки?… стили
-// в разнобой»; правило графа bez-modalok-prostranstvo-celikom-stili-iz-yadra).
-// Поиск, вкладки и таблица — общие примитивы kernel/tokens.css, те же, что в
-// «Учреждениях»; своё у страницы — только раскладка.
-//
-// Видны все осмотрщики; менеджер собирает своих в «Мои осмотрщики» (ответ В5).
+// Три раздела — вкладками вверху, у каждого своя раскладка (замечание
+// пользователя 12.10.2026: «Не видно сейчас экрана назначений. Учитывай, что
+// статистика по человеку отдельно идёт. Переструктурируй эргономично весь
+// экран. Сейчас получается лепнина»):
+//   * «Назначения» — рабочее место: таблица объектов («К назначению» /
+//     «Назначено») и панель назначения выбранного справа; ничего лишнего;
+//   * «Осмотрщики» — люди: список с областями и загрузкой слева; справа —
+//     сводка по всем (таблица и графики uPlot) или карточка выбранного
+//     (контакты, календарь выездов, статистика, его назначения);
+//   * «История» — лента событий с фильтрами и сводкой назначения справа.
+// Работа на месте, без модальных окон; экран не бывает пустым (правило
+// графа bez-modalok-prostranstvo-celikom-stili-iz-yadra). Поиск, вкладки и
+// таблицы — общие примитивы kernel/tokens.css.
 import { esc } from '../../kernel/dom.js';
 import { persistView } from '../../kernel/viewState.js';
 import { allAssignments, profileOf, saveProfile, PROFILE_FIELDS } from '../../kernel/inspections.js';
 import {
-  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf,
+  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
-import { EVENT_LABELS } from './model.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
 const STEP = 200;
 
 const view = {
-  tab: 'queue',          // queue | assigned | history
-  person: '',            // выбранный осмотрщик; пусто — все
+  section: 'assign',     // assign | people | history
+  tab: 'queue',          // в «Назначениях»: queue | assigned
+  person: '',            // в «Осмотрщиках»: выбранный; пусто — все
+  assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
+  histPerson: '',        // в «Истории»: осмотрщик
   peopleMode: 'all',     // mine | all
   mine: [],              // «Мои осмотрщики»
+  region: '',            // область осмотрщиков
+  peopleSort: 'name',    // name | free
   q: '',
   type: '',
   objRegion: '',
-  histKind: '',          // вид события в «Истории»
-  histDay: '',           // день из календаря выездов
-  region: '',            // область осмотрщиков (фильтр списка)
-  peopleSort: 'name',    // name | free — по имени или по свободным дням
+  histKind: '',
+  histDay: '',
   shown: STEP,
 };
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['tab', 'person', 'peopleMode', 'mine', 'type', 'objRegion', 'histKind', 'region', 'peopleSort']);
+persistView('inspections', view, ['section', 'tab', 'person', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
+  'region', 'peopleSort', 'type', 'objRegion', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
@@ -66,12 +73,17 @@ export function mountInspections(host) {
       sub: [s.typeLabel, s.institution].filter(Boolean).join(' · '), eni: s.eniAll || s.eni,
     } : null;
   };
+  const objCell = (s, sub) => `<span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}</span>
+    <span class="ip-obj-s">${esc(sub)}</span></span>`;
+  const more = (n, total) => (total > n ? `<div class="ip-more"><span>Показаны первые ${n} из ${total}</span>
+    <button class="btn btn-ghost btn-sm" data-ip-more>Показать ещё ${Math.min(total - n, STEP)}</button></div>` : '');
+  const search = (ph) => `<span class="isearch">${SEARCH_ICON}<input data-ip-q value="${esc(view.q)}" autocomplete="off" placeholder="${esc(ph)}" aria-label="Поиск">
+    ${view.q ? '<button class="isearch-clear" data-ip-q-clear title="Очистить" aria-label="Очистить поиск">×</button>' : ''}</span>`;
+  const personSelect = (attr, value, label) => `<select class="select ip-filter" ${attr} aria-label="${label}"><option value="">Все осмотрщики</option>
+    ${people.map((p) => `<option value="${esc(p.name)}" ${value === p.name ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>`;
 
-  // --- осмотрщики ---------------------------------------------------------------
-  // Области — из данных: указанные в профилях и выведенные по объектам.
+  // --- осмотрщики: набор, области ------------------------------------------------
   const regionList = () => [...new Set(people.flatMap((p) => p.regions))].sort((a, b) => a.localeCompare(b, 'ru'));
-  // Видимые осмотрщики: «Мои / Все», область, порядок. Тот же набор — в
-  // общих графиках, чтобы список и графики говорили об одних людях.
   function visiblePeople() {
     const mine = new Set(view.mine);
     const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!view.region || p.regions.includes(view.region)));
@@ -80,7 +92,80 @@ export function mountInspections(host) {
       : list;
   }
 
-  // Контакты выбранного осмотрщика — в шапке, правка на месте (без окна).
+  // ===================== раздел «Назначения» ======================================
+  function queueHTML(rows) {
+    const shown = rows.slice(0, Math.max(view.shown, STEP));
+    if (!rows.length) {
+      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
+    }
+    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
+      <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-n"><col class="c-n"></colgroup>
+      <thead><tr>
+        <th class="c-check"><input type="checkbox" data-ip-all aria-label="Отметить показанные" title="Отметить показанные"
+          ${shown.length && shown.every((s) => checked.has(s.typeId + '|' + s.id)) ? 'checked' : ''}></th>
+        <th>ЕНИ</th><th title="Адрес; ниже — тип ОЦ, учреждение, город">Объект</th>
+        <th class="num" title="Объектов имущества">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
+      </tr></thead>
+      <tbody>${shown.map((s) => {
+        const k = s.typeId + '|' + s.id;
+        return `<tr data-ip-row="${esc(k)}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
+          <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
+          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
+          <td title="${esc([regionOf(s), s.city].filter(Boolean).join(', '))}">${objCell(s, [s.typeLabel, s.institution, s.city].filter(Boolean).join(' · '))}</td>
+          <td class="num">${(s.metrics && s.metrics.oiCount) || 0}</td>
+          <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
+  }
+
+  function assignedHTML(rows) {
+    const shown = rows.slice(0, Math.max(view.shown, STEP));
+    if (!rows.length) {
+      return `<p class="ip-hint ip-empty">${view.q ? 'Ничего не нашлось — измените поиск.' : view.assignPerson ? `У осмотрщика ${esc(view.assignPerson)} нет действующих назначений.` : 'Действующих назначений нет.'}</p>`;
+    }
+    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
+      <colgroup><col class="c-eni"><col><col class="c-oi"><col class="c-person"><col class="c-date"><col class="c-state"></colgroup>
+      <thead><tr><th>ЕНИ</th><th>Объект</th><th title="Объекты имущества в назначении">ОИ</th><th>Осмотрщик</th>
+        <th class="num" title="Плановая дата осмотра">План</th><th>Состояние</th></tr></thead>
+      <tbody>${shown.map(({ a, s }) => {
+        const late = isOverdue(a);
+        return `<tr data-ip-row="${esc(a.id)}" class="${current === a.id ? 'cur' : ''}" aria-selected="${current === a.id}">
+          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
+          <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
+          <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
+          <td>${esc(a.person)}</td>
+          <td class="num ${late ? 'ip-late' : ''}" title="${late ? 'Плановая дата прошла' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
+          <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td>
+        </tr>`;
+      }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
+  }
+
+  function assignSection() {
+    const queue = queueRows(all, { ...view, region: view.objRegion });
+    const queueN = view.q || view.type || view.objRegion ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
+    const assigned = assignedRows(all, { q: view.q, person: view.assignPerson });
+    const assignedN = view.q ? assignedRows(all, { person: view.assignPerson }).length : assigned.length;
+    const facets = queueFacets(all);
+    const keys = view.tab === 'queue' ? queue.map((s) => s.typeId + '|' + s.id) : assigned.map((r) => r.a.id);
+    if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
+    const sub = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
+    return { cls: 'ip-assign', html: `<section class="ip-work" aria-label="Назначения">
+        <div class="itabs" role="tablist">${sub('queue', 'К назначению', queueN)}${sub('assigned', 'Назначено', assignedN)}</div>
+        <div class="itoolbar ip-toolbar">
+          ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : 'ЕНИ, адрес, осмотрщик')}
+          ${view.tab === 'queue' ? `<select class="select ip-filter" data-ip-type aria-label="Тип ОЦ"><option value="">Все типы ОЦ</option>
+              ${facets.types.map((t) => `<option value="${esc(t.id)}" ${view.type === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
+            <select class="select ip-filter" data-ip-objregion aria-label="Область объектов"><option value="">Все области</option>
+              ${facets.regions.map((r) => `<option ${view.objRegion === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
+          ${personSelect('data-ip-aperson', view.assignPerson, 'Осмотрщик')}
+          ${view.tab === 'queue' && checked.size ? `<span class="ip-checked">Отмечено <b>${checked.size}</b>
+            <button class="isearch-clear ip-checked-x" data-ip-bulk-clear title="Снять отметки" aria-label="Снять отметки">×</button></span>` : ''}
+        </div>
+        ${view.tab === 'queue' ? queueHTML(queue) : assignedHTML(assigned)}
+      </section>${pane()}` };
+  }
+
+  // ===================== раздел «Осмотрщики» ======================================
   function contactsHTML(p) {
     const prof = profileOf(p.name);
     if (editContacts) {
@@ -103,7 +188,7 @@ export function mountInspections(host) {
     </div>`;
   }
 
-  function peopleHTML() {
+  function peopleListHTML() {
     const mine = new Set(view.mine);
     const q = peopleQ.trim().toLowerCase();
     const list = visiblePeople().filter((p) => !q || p.name.toLowerCase().includes(q));
@@ -112,7 +197,6 @@ export function mountInspections(host) {
           <span class="ip-person-name">${esc(p.name)}</span>
           <span class="ip-person-load"><span>в работе <b>${p.live}</b></span>
             ${p.late ? `<span class="ip-late">просрочено <b>${p.late}</b></span>` : ''}
-            <span>за 30 дн. <b>${p.done}</b></span>
             <span title="Рабочих дней без плановых осмотров на две недели">свободно <b>${p.free}</b> дн.</span></span>
         </button>
         <button class="ip-star ${mine.has(p.name) ? 'on' : ''}" data-ip-star="${esc(p.name)}"
@@ -136,145 +220,125 @@ export function mountInspections(host) {
       </div>
       <ul class="ip-people-list">
         <li class="ip-person ${view.person ? '' : 'on'}"><button class="ip-person-main" data-ip-person="">
-          <span class="ip-person-name">Все осмотрщики</span></button></li>
+          <span class="ip-person-name">Все осмотрщики</span><span class="ip-person-load"><span>сводка и сравнение</span></span></button></li>
         ${list.map(row).join('')}
       </ul>
       ${view.peopleMode === 'mine' && !list.length ? `<p class="ip-hint ip-people-empty">${view.mine.length ? 'Никого не нашлось — измените поиск.' : 'Своих осмотрщиков нет: отметьте их звёздочкой в списке «Все».'}</p>` : ''}
     </aside>`;
   }
 
-  // --- таблицы --------------------------------------------------------------------
-  const more = (n, total) => (total > n ? `<div class="ip-more"><span>Показаны первые ${n} из ${total}</span>
-    <button class="btn btn-ghost btn-sm" data-ip-more>Показать ещё ${Math.min(total - n, STEP)}</button></div>` : '');
-
-  function queueHTML(rows) {
-    const shown = rows.slice(0, Math.max(view.shown, STEP));
-    if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
-    }
-    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
-      <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-n"><col class="c-n"></colgroup>
-      <thead><tr>
-        <th class="c-check"><input type="checkbox" data-ip-all aria-label="Отметить показанные" title="Отметить показанные"
-          ${shown.length && shown.every((s) => checked.has(s.typeId + '|' + s.id)) ? 'checked' : ''}></th>
-        <th>ЕНИ</th><th title="Адрес; ниже — тип ОЦ, учреждение, город">Объект</th>
-        <th class="num" title="Объектов имущества">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
-      </tr></thead>
-      <tbody>${shown.map((s) => {
-        const k = s.typeId + '|' + s.id;
-        return `<tr data-ip-row="${esc(k)}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
-          <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
-          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
-          <td><span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}</span>
-            <span class="ip-obj-s" title="${esc([s.typeLabel, s.institution, regionOf(s), s.city].filter(Boolean).join(' · '))}">${esc([s.typeLabel, s.institution, s.city].filter(Boolean).join(' · '))}</span></span></td>
-          <td class="num">${(s.metrics && s.metrics.oiCount) || 0}</td>
-          <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
-        </tr>`;
-      }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
+  // Сводная таблица всех — для решения «кому дать задачи»: щелчок — карточка.
+  function peopleTableHTML(list) {
+    if (!list.length) return '<p class="ip-hint ip-empty">Под фильтр никто не подошёл.</p>';
+    return `<div class="icols ip-cols ip-ptable"><div class="ip-scroll"><table class="itbl ip-tbl">
+      <colgroup><col><col class="c-region"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"></colgroup>
+      <thead><tr><th>Осмотрщик</th><th>Области</th><th class="num" title="Действующих назначений">В работе</th>
+        <th class="num" title="Плановая дата прошла">Просрочено</th><th class="num" title="Рабочих дней без плановых осмотров на две недели">Свободно</th>
+        <th class="num" title="Законченных назначений за 30 дней">За 30 дн.</th></tr></thead>
+      <tbody>${list.map((p) => `<tr data-ip-person="${esc(p.name)}">
+        <td>${esc(p.name)}</td><td>${esc(p.regions.join(', ') || '—')}</td>
+        <td class="num">${p.live}</td><td class="num ${p.late ? 'ip-late' : ''}">${p.late || '—'}</td>
+        <td class="num"><b>${p.free}</b></td><td class="num">${p.done}</td></tr>`).join('')}</tbody>
+    </table></div></div>`;
   }
 
-  function assignedHTML(rows) {
-    const shown = rows.slice(0, Math.max(view.shown, STEP));
-    if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q ? 'Ничего не нашлось — измените поиск.' : view.person ? `У осмотрщика ${esc(view.person)} нет действующих назначений.` : 'Действующих назначений нет.'}</p>`;
-    }
-    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
-      <colgroup><col class="c-eni"><col><col class="c-oi"><col class="c-person"><col class="c-date"><col class="c-state"></colgroup>
-      <thead><tr><th>ЕНИ</th><th>Объект</th><th title="Объекты имущества в назначении">ОИ</th><th>Осмотрщик</th>
-        <th class="num" title="Плановая дата осмотра">План</th><th>Состояние</th></tr></thead>
-      <tbody>${shown.map(({ a, s }) => {
-        const late = isOverdue(a);
-        return `<tr data-ip-row="${esc(a.id)}" class="${current === a.id ? 'cur' : ''}" aria-selected="${current === a.id}">
-          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
-          <td><span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}</span>
-            <span class="ip-obj-s">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></span></td>
-          <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
-          <td>${esc(a.person)}</td>
-          <td class="num ${late ? 'ip-late' : ''}" title="${late ? 'Плановая дата прошла' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
-          <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td>
-        </tr>`;
-      }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
+  // Текущие назначения выбранного — коротким списком; щелчок — в «Назначения».
+  function personAssignsHTML(name) {
+    const rows = assignedRows(all, { person: name }).slice(0, 12);
+    return `<section class="ipc-card ip-mine" aria-label="Назначения осмотрщика">
+      <header><h3>Назначения</h3><span>действующие · ${assignedRows(all, { person: name }).length}</span></header>
+      ${rows.length ? `<ul class="ip-mine-list">${rows.map(({ a, s }) => `<li data-ip-goto="${esc(a.id)}" tabindex="0">
+          <span class="ip-mine-date ${isOverdue(a) ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</span>
+          <span class="ip-mine-obj">${esc(s.title || '—')}</span>
+          <span class="ip-mine-oi">${a.oiIds && a.oiIds.length ? `ОИ ${a.oiIds.length}` : 'целиком'}</span></li>`).join('')}</ul>`
+        : '<p class="ip-hint">Действующих назначений нет.</p>'}
+    </section>`;
   }
 
-  // --- панель назначения ---------------------------------------------------------
+  function peopleSection() {
+    const me = people.find((p) => p.name === view.person);
+    let right;
+    if (me) {
+      right = `<section class="ip-work ip-detail" aria-label="${esc(me.name)}">
+        <header class="ip-head">
+          <h1>${esc(me.name)}</h1>
+          <span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · свободно <b>${me.free}</b> дн. из 10 · закончено за 30 дн. <b>${me.done}</b></span>
+          <span class="ip-head-act">
+            <button class="btn btn-primary btn-sm" data-ip-assign-to="${esc(me.name)}">Назначить объекты</button>
+            <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
+          </span>
+        </header>
+        ${contactsHTML(me)}
+        ${calendarHTML(all, me.name, ym)}
+        <div class="ip-detail-row">${statsHTML(me.name)}${personAssignsHTML(me.name)}</div>
+      </section>`;
+    } else {
+      const list = visiblePeople();
+      right = `<section class="ip-work ip-detail" aria-label="Все осмотрщики">
+        <header class="ip-head"><h1>Все осмотрщики</h1><span class="ip-sum">${list.length} · ${view.region || 'все области'}</span></header>
+        ${peopleTableHTML(list)}
+        ${statsHTML('')}
+      </section>`;
+    }
+    return { cls: 'ip-peoplesec', html: peopleListHTML() + right };
+  }
+
+  // ===================== раздел «История» =========================================
+  function historySection() {
+    const f = { person: view.histPerson, q: view.q, kind: view.histKind, day: view.histDay };
+    const hist = historyHTML(all, f, current, Math.max(view.shown, STEP));
+    if (!hist.keys.includes(current)) { current = hist.keys[0] || ''; confirmRemove = false; }
+    const again = current ? historyHTML(all, f, current, Math.max(view.shown, STEP)) : hist;
+    return { cls: 'ip-histsec', html: `<section class="ip-work" aria-label="История">
+        <div class="itoolbar ip-toolbar">
+          ${search('ЕНИ, адрес, осмотрщик, текст')}
+          ${personSelect('data-ip-hperson', view.histPerson, 'Осмотрщик')}
+          <select class="select ip-filter" data-ip-kind aria-label="Вид события"><option value="">Все события</option>
+            ${Object.entries(EVENT_LABELS).map(([k, l]) => `<option value="${k}" ${view.histKind === k ? 'selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select>
+          ${view.histDay ? `<span class="ip-checked">День ${esc(view.histDay.slice(8, 10) + '.' + view.histDay.slice(5, 7))}
+            <button class="isearch-clear ip-checked-x" data-ip-day-clear title="Все дни" aria-label="Показать все дни">×</button></span>` : ''}
+        </div>
+        ${again.html}${more(again.shownN || 0, again.total)}
+      </section>${pane()}` };
+  }
+
+  // --- панель назначения (разделы «Назначения» и «История») -------------------------
   function pane() {
-    if (view.tab === 'queue' && checked.size > 1) {
-      return paneHTML({ mode: 'many', people, person: view.person, targets: [...checked.values()] });
+    if (view.section === 'assign' && view.tab === 'queue' && checked.size > 1) {
+      return paneHTML({ mode: 'many', people, person: view.assignPerson, targets: [...checked.values()] });
     }
-    if (view.tab === 'assigned' || view.tab === 'history') {
+    if (view.section === 'history' || view.tab === 'assigned') {
       const a = allAssignments().find((x) => x.id === current);
       const t = a && target(a.typeId + '|' + a.ocId);
-      return t ? paneHTML({ mode: 'one', people, person: view.person, target: t, prev: a, confirmRemove }) : paneHTML({ mode: 'none' });
+      return t ? paneHTML({ mode: 'one', people, person: view.assignPerson, target: t, prev: a, confirmRemove }) : paneHTML({ mode: 'none' });
     }
     const t = current && target(current);
-    return t ? paneHTML({ mode: 'one', people, person: view.person, target: t }) : paneHTML({ mode: 'none' });
+    return t ? paneHTML({ mode: 'one', people, person: view.assignPerson, target: t }) : paneHTML({ mode: 'none' });
   }
 
   // --- отрисовка ------------------------------------------------------------------
   function render() {
-    hidePop && hidePop();
+    hidePop();
     destroyStats();
     all = summaries();
     people = inspectorRows(all);
     if (view.person && !people.some((p) => p.name === view.person)) view.person = '';
-    const me = people.find((p) => p.name === view.person);
-    const queue = queueRows(all, { ...view, region: view.objRegion });
-    const queueN = view.q || view.type || view.objRegion ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
-    const assigned = assignedRows(all, view);
-    const assignedN = view.q ? assignedRows(all, { person: view.person }).length : assigned.length;
-    const facets = queueFacets(all);
-    const hist = historyHTML(all, { person: view.person, q: view.tab === 'history' ? view.q : '', kind: view.histKind, day: view.histDay }, current, Math.max(view.shown, STEP));
-    const histN = historyHTML(all, { person: view.person }, '', 1).total;
-
-    // Экран не бывает пустым: строка, ушедшая из выборки, сменяется первой.
-    const keys = view.tab === 'queue' ? queue.map((s) => s.typeId + '|' + s.id)
-      : view.tab === 'assigned' ? assigned.map((r) => r.a.id) : hist.keys;
-    if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
-
     host.setCrumbs([{ label: 'Осмотры' }]);
-    const tab = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
-
-    scope.setHTML(`<div class="ip">
-      ${peopleHTML()}
-      <section class="ip-work" aria-label="Объекты">
-        <header class="ip-head">
-          <h1>${esc(view.person || 'Все осмотрщики')}</h1>
-          ${me ? `<span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · закончено за 30 дн. <b>${me.done}</b> · свободно <b>${me.free}</b> дн. из 10</span>
-            <a class="btn btn-ghost btn-sm ip-as" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>` : ''}
-        </header>
-        ${me ? contactsHTML(me) : ''}
-        ${me ? `<div class="ipc">${calendarHTML(all, me.name, ym)}${statsHTML(me.name)}</div>` : statsHTML('')}
-        <div class="itabs" role="tablist">${tab('queue', 'К назначению', queueN)}${tab('assigned', 'Назначено', assignedN)}${tab('history', 'История', histN)}</div>
-        <div class="itoolbar ip-toolbar">
-          <span class="isearch">${SEARCH_ICON}<input data-ip-q value="${esc(view.q)}" autocomplete="off"
-            placeholder="${view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : view.tab === 'history' ? 'ЕНИ, адрес, осмотрщик, текст' : 'ЕНИ, адрес, осмотрщик'}" aria-label="Поиск">
-            ${view.q ? '<button class="isearch-clear" data-ip-q-clear title="Очистить" aria-label="Очистить поиск">×</button>' : ''}</span>
-          ${view.tab === 'queue' ? `<select class="select ip-filter" data-ip-type aria-label="Тип ОЦ"><option value="">Все типы ОЦ</option>
-              ${facets.types.map((t) => `<option value="${esc(t.id)}" ${view.type === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
-            <select class="select ip-filter" data-ip-objregion aria-label="Область объектов"><option value="">Все области</option>
-              ${facets.regions.map((r) => `<option ${view.objRegion === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
-          ${view.tab === 'history' ? `<select class="select ip-filter" data-ip-kind aria-label="Вид события"><option value="">Все события</option>
-              ${Object.entries(EVENT_LABELS).map(([k, l]) => `<option value="${k}" ${view.histKind === k ? 'selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select>
-            ${view.histDay ? `<span class="ip-checked">День ${esc(view.histDay.slice(8, 10) + '.' + view.histDay.slice(5, 7))}
-              <button class="isearch-clear ip-checked-x" data-ip-day-clear title="Все дни" aria-label="Показать все дни">×</button></span>` : ''}` : ''}
-          ${view.tab === 'queue' && checked.size ? `<span class="ip-checked">Отмечено <b>${checked.size}</b>
-            <button class="isearch-clear ip-checked-x" data-ip-bulk-clear title="Снять отметки" aria-label="Снять отметки">×</button></span>` : ''}
-        </div>
-        ${view.tab === 'queue' ? queueHTML(queue) : view.tab === 'assigned' ? assignedHTML(assigned)
-          : hist.html + more(hist.shownN || 0, hist.total)}
-      </section>
-      ${pane()}
+    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : assignSection();
+    const top = (k, label) => `<button class="itab ${view.section === k ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${view.section === k}">${label}</button>`;
+    scope.setHTML(`<div class="ip-page">
+      <nav class="itabs ip-sections" role="tablist" aria-label="Разделы осмотров">
+        ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('history', 'История')}
+      </nav>
+      <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
-    plotAfter();
+    if (view.section === 'people') {
+      mountStats(scope, host.ensureStyle, { names: visiblePeople().map((p) => p.name), person: view.person })
+        .catch((e) => console.warn('Графики не нарисованы', e));
+    }
   }
 
-  // Графики рисуются после вставки разметки; прежние уничтожаются (uPlot
-  // держит холст и подписки — без destroy они копились бы с каждой отрисовкой).
-  function plotAfter() {
-    mountStats(scope, host.ensureStyle, { names: visiblePeople().map((p) => p.name), person: view.person })
-      .catch((e) => console.warn('Графики не нарисованы', e));
-  }
-
+  const hidePop = bindCalendarPopover(scope);
   const keepFocus = (sel) => {
     const el = scope.$(sel);
     const pos = el ? el.selectionStart : 0;
@@ -282,21 +346,20 @@ export function mountInspections(host) {
     const again = scope.$(sel);
     if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   };
-  const hidePop = bindCalendarPopover(scope);
-
-  // Отрисовка с сохранением прокрутки таблицы и списка осмотрщиков.
+  // Отрисовка с сохранением прокрутки таблиц и списка осмотрщиков.
   const redraw = () => {
-    const box = scope.$('.ip-scroll');
-    const list = scope.$('.ip-people-list');
-    const top = box ? box.scrollTop : 0;
-    const ltop = list ? list.scrollTop : 0;
+    const keep = ['.ip-scroll', '.ip-people-list', '.ip-detail'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
     render();
-    if (scope.$('.ip-scroll')) scope.$('.ip-scroll').scrollTop = top;
-    if (scope.$('.ip-people-list')) scope.$('.ip-people-list').scrollTop = ltop;
+    keep.forEach(([s, y]) => { if (scope.$(s)) scope.$(s).scrollTop = y; });
   };
+  const resetList = () => { view.q = ''; view.shown = STEP; checked.clear(); current = ''; confirmRemove = false; };
+
+  // --- разделы и вкладки ---
+  scope.on('click', '[data-ip-section]', (e, b) => { view.section = b.dataset.ipSection; resetList(); render(); });
+  scope.on('click', '[data-ip-tab]', (e, b) => { view.tab = b.dataset.ipTab; resetList(); render(); });
 
   // --- осмотрщики ---
-  scope.on('click', '[data-ip-person]', (e, b) => { view.person = b.dataset.ipPerson; editContacts = false; view.shown = STEP; redraw(); });
+  scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; editContacts = false; redraw(); });
   scope.on('click', '[data-ip-star]', (e, b) => {
     const n = b.dataset.ipStar;
     view.mine = view.mine.includes(n) ? view.mine.filter((x) => x !== n) : [...view.mine, n];
@@ -304,23 +367,25 @@ export function mountInspections(host) {
   });
   scope.on('click', '[data-ip-mode]', (e, b) => { view.peopleMode = b.dataset.ipMode; redraw(); });
   scope.on('input', '[data-ip-people-q]', (e, el) => { peopleQ = el.value; keepFocus('[data-ip-people-q]'); });
-
-  // --- вкладки, поиск, фильтры ---
-  scope.on('click', '[data-ip-tab]', (e, b) => {
-    view.tab = b.dataset.ipTab; view.q = ''; view.histDay = ''; view.shown = STEP; checked.clear(); current = ''; render();
-  });
-  scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
-  scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
-  scope.on('change', '[data-ip-type]', (e, el) => { view.type = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; redraw(); });
   scope.on('change', '[data-ip-psort]', (e, el) => { view.peopleSort = el.value; redraw(); });
-  scope.on('change', '[data-ip-objregion]', (e, el) => { view.objRegion = el.value; view.shown = STEP; render(); });
   scope.on('click', '[data-ipc-month]', (e, b) => {
     const k = +b.dataset.ipcMonth;
-    if (!k) { const d = new Date(); ym = { y: d.getFullYear(), m: d.getMonth() }; } else {
-      const d = new Date(ym.y, ym.m + k, 1); ym = { y: d.getFullYear(), m: d.getMonth() };
-    }
+    const d = k ? new Date(ym.y, ym.m + k, 1) : new Date();
+    ym = { y: d.getFullYear(), m: d.getMonth() };
     redraw();
+  });
+  // «Назначить объекты» — в «Назначения» с этим осмотрщиком в панели.
+  scope.on('click', '[data-ip-assign-to]', (e, b) => {
+    view.section = 'assign'; view.tab = 'queue'; view.assignPerson = b.dataset.ipAssignTo; resetList(); render();
+  });
+  // Назначение из карточки осмотрщика — открыть его в «Назначениях».
+  const gotoAssign = (id) => { view.section = 'assign'; view.tab = 'assigned'; resetList(); current = id; render(); };
+  scope.on('click', '[data-ip-goto]', (e, li) => gotoAssign(li.dataset.ipGoto));
+  scope.on('keydown', '[data-ip-goto]', (e, li) => { if (e.key === 'Enter') gotoAssign(li.dataset.ipGoto); });
+  // Щелчок по прошедшему дню календаря — история этого человека за день.
+  scope.on('click', '[data-ipc-day]', (e, b) => {
+    view.section = 'history'; view.histPerson = view.person; view.histDay = b.dataset.ipcDay; resetList(); render();
   });
   scope.on('click', '[data-ip-c-edit]', () => { editContacts = true; redraw(); const f = scope.$('[data-ip-c="phone"]'); if (f) f.focus(); });
   scope.on('click', '[data-ip-c-cancel]', () => { editContacts = false; redraw(); });
@@ -334,10 +399,16 @@ export function mountInspections(host) {
     redraw();
     host.toast('Контакты сохранены', 'ok');
   });
+
+  // --- поиск и фильтры ---
+  scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
+  scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
+  scope.on('change', '[data-ip-type]', (e, el) => { view.type = el.value; view.shown = STEP; render(); });
+  scope.on('change', '[data-ip-objregion]', (e, el) => { view.objRegion = el.value; view.shown = STEP; render(); });
+  scope.on('change', '[data-ip-aperson]', (e, el) => { view.assignPerson = el.value; view.shown = STEP; render(); });
+  scope.on('change', '[data-ip-hperson]', (e, el) => { view.histPerson = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-kind]', (e, el) => { view.histKind = el.value; view.shown = STEP; render(); });
   scope.on('click', '[data-ip-day-clear]', () => { view.histDay = ''; render(); });
-  // Щелчок по дню графика «Сделано» — история этого дня.
-  scope.on('click', '[data-ipc-day]', (e, b) => { view.tab = 'history'; view.histDay = b.dataset.ipcDay; view.q = ''; view.shown = STEP; current = ''; render(); });
   scope.on('click', '[data-ip-more]', () => { view.shown = Math.max(view.shown, STEP) + STEP; redraw(); });
 
   // --- строки: щелчок — в панель, флажок — в отметки ---
@@ -363,7 +434,7 @@ export function mountInspections(host) {
   scope.on('change', '[data-ip-f-whole]', (e, el) => { const box = scope.$('.ip-oi'); if (box) box.hidden = el.checked; });
   scope.on('click', '[data-ip-f-ok]', () => {
     const paneEl = scope.$('.ip-pane');
-    const prev = view.tab !== 'queue' ? allAssignments().find((x) => x.id === current) : null;
+    const prev = view.section === 'history' || view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null;
     const targets = prev ? [target(prev.typeId + '|' + prev.ocId)]
       : checked.size > 1 ? [...checked.values()] : [target(current)];
     const res = submitPane(paneEl, { targets: targets.filter(Boolean), prev });

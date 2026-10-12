@@ -8,8 +8,16 @@
    в пределах 340–460 px. До 1280 px окна — 220 / остаток / 330. До 1100 —
    колонки стопкой: осмотрщики полосой сверху, таблица, под ней панель. */
 
-body[data-page="inspections"] .ip{display:grid;height:100%;min-height:0;background:var(--bg);
-  grid-template-columns:248px minmax(0,1fr) clamp(340px,30%,460px)}
+/* Разделы — вкладками над страницей; у каждого раздела своя сетка:
+   «Назначения» и «История» — список и панель справа, «Осмотрщики» — список
+   людей и карточка (или сводка) справа. */
+body[data-page="inspections"] .ip-page{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--bg)}
+body[data-page="inspections"] .ip-sections{padding:8px 14px 0;flex:none}
+body[data-page="inspections"] .ip-sections .itab{font-size:13.5px;padding:9px 18px}
+body[data-page="inspections"] .ip{display:grid;flex:1 1 auto;min-height:0;background:var(--bg)}
+body[data-page="inspections"] .ip.ip-assign,
+body[data-page="inspections"] .ip.ip-histsec{grid-template-columns:minmax(0,1fr) clamp(340px,30%,460px)}
+body[data-page="inspections"] .ip.ip-peoplesec{grid-template-columns:260px minmax(0,1fr)}
 
 /* ============ осмотрщики ============ */
 body[data-page="inspections"] .ip-people{display:flex;flex-direction:column;min-height:0;
@@ -48,6 +56,31 @@ body[data-page="inspections"] .ip-late b{color:#a3361c}
 
 /* ============ объекты ============ */
 body[data-page="inspections"] .ip-work{display:flex;flex-direction:column;min-width:0;min-height:0;padding:12px 14px}
+/* Карточка осмотрщика и сводка — своей прокруткой: календарь, графики и
+   назначения не помещаются в экран разом. */
+body[data-page="inspections"] .ip-detail{overflow:auto;gap:12px}
+body[data-page="inspections"] .ip-detail > *{flex:none}
+body[data-page="inspections"] .ip-detail .ip-head{margin-bottom:0}
+body[data-page="inspections"] .ip-detail .ip-contacts{margin:0}
+body[data-page="inspections"] .ip-head-act{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+body[data-page="inspections"] .ip-detail-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:10px;align-items:start}
+body[data-page="inspections"] .ip-ptable .ip-scroll{max-height:none}
+/* Сводная таблица: ФИО — главная колонка, при нехватке ширины таблица
+   прокручивается внутри, а не сжимает ФИО до нуля. */
+body[data-page="inspections"] .ip-ptable .ip-tbl{min-width:620px}
+body[data-page="inspections"] .ip-ptable col.c-k{width:92px}
+body[data-page="inspections"] .ip-ptable col.c-region{width:20%}
+body[data-page="inspections"] .ip-tbl col.c-k{width:96px}
+body[data-page="inspections"] .ip-tbl col.c-region{width:22%}
+body[data-page="inspections"] .ip-ptable tbody tr{cursor:pointer}
+body[data-page="inspections"] .ip-mine-list{list-style:none;margin:0;padding:0}
+body[data-page="inspections"] .ip-mine-list li{display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:8px;align-items:baseline;
+  padding:6px 4px;border-top:1px solid var(--line-soft);font-size:12.5px;cursor:pointer;border-radius:6px}
+body[data-page="inspections"] .ip-mine-list li:hover,
+body[data-page="inspections"] .ip-mine-list li:focus-visible{background:var(--fill-hover);outline:none}
+body[data-page="inspections"] .ip-mine-date{font-variant-numeric:tabular-nums;color:var(--muted)}
+body[data-page="inspections"] .ip-mine-obj{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-mine-oi{color:var(--muted);font-size:11.5px;white-space:nowrap}
 body[data-page="inspections"] .ip-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin-bottom:10px}
 body[data-page="inspections"] .ip-head h1{margin:0;font-size:17px;font-weight:700;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -154,15 +187,20 @@ body[data-page="inspections"] .ip-err:empty{display:none}
 body[data-page="inspections"] .ip-confirm{margin-right:auto;font-size:12.5px;font-weight:600;color:var(--ink)}
 
 /* ============ ширины ============ */
-@media (max-width:1440px){
-  body[data-page="inspections"] .ip{grid-template-columns:210px minmax(0,1fr) 320px}
-}
 @media (max-width:1280px){
+  body[data-page="inspections"] .ip.ip-assign,
+  body[data-page="inspections"] .ip.ip-histsec{grid-template-columns:minmax(0,1fr) 320px}
+  body[data-page="inspections"] .ip.ip-peoplesec{grid-template-columns:230px minmax(0,1fr)}
+  body[data-page="inspections"] .ip-detail-row{grid-template-columns:minmax(0,1fr)}
   body[data-page="inspections"] .ip-f-row{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:1100px){
-  body[data-page="inspections"] .ip{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;
-    height:auto;min-height:100%}
+  body[data-page="inspections"] .ip-page{height:auto;min-height:100%}
+  body[data-page="inspections"] .ip.ip-assign,
+  body[data-page="inspections"] .ip.ip-histsec,
+  body[data-page="inspections"] .ip.ip-peoplesec{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto}
+  body[data-page="inspections"] .ip-detail{overflow:visible}
+  body[data-page="inspections"] .ip-detail .ipc-stats{grid-template-columns:minmax(0,1fr)}
   body[data-page="inspections"] .ip-people{border-right:0;border-bottom:1px solid var(--line)}
   body[data-page="inspections"] .ip-people-head{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center}
   body[data-page="inspections"] .ip-people-head .ip-people-filters{grid-column:1 / -1;order:3;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
@@ -289,8 +327,6 @@ body[data-page="inspections"] .ip-evs time{color:var(--muted);font-variant-numer
   body[data-page="inspections"] .ip-people-filters{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:1280px){
-  body[data-page="inspections"] .ipc,
-  body[data-page="inspections"] .ipc-stats{grid-template-columns:minmax(0,1fr)}
   body[data-page="inspections"] .ip-contacts-edit{grid-template-columns:repeat(2,minmax(0,1fr))}
   body[data-page="inspections"] .ipc-ev{grid-template-columns:44px minmax(0,1fr) minmax(0,1.3fr)}
   body[data-page="inspections"] .ipc-ev-obj{grid-column:2 / -1;margin-top:-4px}

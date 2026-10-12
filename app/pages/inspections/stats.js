@@ -144,7 +144,10 @@ function opts(uPlot, el, series, scales, yLabel) {
     legend: { live: true },
     scales: { x: { time: true }, ...scales },
     axes: [
-      axis({ values: (u, ticks) => ticks.map((t) => { const d = new Date(t * 1000); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`; }), space: 44, splits: (u) => u.data[0] }),
+      axis({ values: (u, ticks) => ticks.map((t) => { const d = new Date(t * 1000); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`; }), space: 44,
+      // Деления — по неделям данных; на узком графике — через одну-две, чтобы
+      // даты не слипались (одна подпись ~48 px).
+      splits: (u) => { const xs = u.data[0]; const w = u.bbox.width / (devicePixelRatio || 1); const step = Math.max(1, Math.ceil((xs.length * 48) / Math.max(w, 1))); return xs.filter((_, i) => (xs.length - 1 - i) % step === 0); } }),
       axis({ scale: 'y', size: 36, label: yLabel, labelSize: 14, labelFont: '11px system-ui, sans-serif' }),
       ...(scales.y2 ? [axis({ scale: 'y2', side: 1, size: 40, grid: { show: false }, label: 'снимков', labelSize: 14, labelFont: '11px system-ui, sans-serif' })] : []),
     ],
