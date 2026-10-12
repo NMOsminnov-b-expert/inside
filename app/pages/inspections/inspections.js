@@ -403,90 +403,116 @@ export function mountInspections(host) {
   }
 
   // Профиль — четыре блока по смыслу (ТЗ рабочего дня осмотрщика, раздел 1):
-  // связь и документы · личное и жильё · области и график · отпуска и
-  // выходные. Сохраняется кнопкой; отсутствия — сразу.
+  // связь · работа и документы · личное и жильё · график и отсутствия.
+  // Раскладка — по ширине самой карточки (контейнерный запрос): 4, 2 или 1
+  // блок в ряд. Строка сохранения появляется только при несохранённых
+  // правках (contextual save bar, Shopify Polaris); отсутствия — сразу.
   function profileHTML(p) {
     const prof = profileOf(p.name);
-    const field = (key, label, type = 'text', ph = '') => `<div class="field"><label for="ip-c-${key}">${label}</label>
+    const field = (key, label, type = 'text', ph = '', hidden = false) => `<div class="field" ${hidden ? 'hidden' : ''} data-ip-cwrap="${key}"><label for="ip-c-${key}">${label}</label>
       <input class="input" id="ip-c-${key}" data-ip-c="${key}" type="${type}" value="${esc(prof[key] || '')}" ${ph ? `placeholder="${esc(ph)}"` : ''}></div>`;
+    // Выбор из двух — переключатель того же вида, что «Мои / Все».
+    const seg = (key, label, opts, cur) => `<div class="field"><span class="ip-flabel" id="ip-c-${key}-l">${label}</span>
+      <div class="ip-segf" role="radiogroup" aria-labelledby="ip-c-${key}-l">${opts.map(([v, t]) => `<label><input type="radio" name="ip-c-${key}" data-ip-c-radio="${key}" value="${v}" ${cur === v ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></div>`;
     const fmtD = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
     const today = new Date().toISOString().slice(0, 10);
     const poa = poaDaysLeft(p.name);
+    const wa = whatsappLink(p.name);
     const cf = allCustomFields();
     const cfInput = (f) => {
       const v = prof.custom[f.id];
-      if (f.kind === 'bool') return `<label class="ip-check"><input type="checkbox" data-ip-cf="${esc(f.id)}" ${v ? 'checked' : ''}> ${esc(f.label)}</label>`;
-      if (f.kind === 'list') return `<div class="field"><label>${esc(f.label)}</label><select class="select" data-ip-cf="${esc(f.id)}"><option value="">—</option>
+      if (f.kind === 'bool') return seg(`cf-${f.id}`, esc(f.label), [['1', 'Да'], ['', 'Нет']], v ? '1' : '').replace(/data-ip-c-radio="[^"]+"/g, `data-ip-cf-radio="${esc(f.id)}"`);
+      if (f.kind === 'list') return `<div class="field"><label for="ip-cf-${esc(f.id)}">${esc(f.label)}</label><select class="select" id="ip-cf-${esc(f.id)}" data-ip-cf="${esc(f.id)}"><option value="">—</option>
         ${f.options.map((o) => `<option ${v === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
-      return `<div class="field"><label>${esc(f.label)}</label><input class="input" data-ip-cf="${esc(f.id)}" type="${f.kind === 'number' ? 'number' : f.kind === 'date' ? 'date' : 'text'}" value="${esc(v || '')}"></div>`;
+      return `<div class="field"><label for="ip-cf-${esc(f.id)}">${esc(f.label)}</label><input class="input" id="ip-cf-${esc(f.id)}" data-ip-cf="${esc(f.id)}" type="${f.kind === 'number' ? 'number' : f.kind === 'date' ? 'date' : 'text'}" value="${esc(v || '')}"></div>`;
     };
-    return `<div class="ip-profile4">
-      <section class="ip-pcol" aria-label="Связь и документы"><h3>Связь и документы</h3>
-        <div class="ip-prow">${field('phone', 'Телефон', 'tel', '+996 …')}${field('whatsapp', 'WhatsApp', 'tel', prof.phone || 'если другой номер')}</div>
-        <div class="ip-prow">${field('email', 'Почта', 'email')}
-          <div class="field"><label for="ip-c-phoneType">Тип телефона</label><select class="select" id="ip-c-phoneType" data-ip-c="phoneType">
-            <option value="">—</option><option value="android" ${prof.phoneType === 'android' ? 'selected' : ''}>Android</option><option value="ios" ${prof.phoneType === 'ios' ? 'selected' : ''}>iOS</option></select></div></div>
-        <div class="ip-prow">${field('waGroup', 'Группа WhatsApp', 'text', 'область')}${field('waGroupLink', 'Ссылка на группу', 'url', 'https://chat.whatsapp.com/…')}</div>
-        <div class="ip-prow">${field('poaNumber', 'Доверенность №')}${field('poaUntil', 'Действует до', 'date')}</div>
-        ${poa !== null && poa <= 14 ? `<p class="ip-hint ${poa < 0 ? 'ip-late' : ''}">${poa < 0 ? `Доверенность истекла ${-poa} дн. назад.` : `До окончания доверенности ${poa} дн.`}</p>` : ''}
-        <label class="ip-check"><input type="checkbox" data-ip-c-bool="cadastre" ${prof.cadastre ? 'checked' : ''}> Доступ в кадастр</label>
-        ${field('device', 'Устройство', 'text', 'модель телефона')}
+    return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4" data-ip-profile><div class="ip-pstack">
+      <section class="ip-pcol" aria-labelledby="ip-h-link"><h3 id="ip-h-link">Связь</h3>
+        <div class="ip-prow">${field('phone', 'Телефон', 'tel', '+996 555 000 000')}
+          ${seg('phoneType', 'Тип телефона', [['android', 'Android'], ['ios', 'iOS']], prof.phoneType)}</div>
+        <div class="field"><label for="ip-c-whatsapp">WhatsApp</label>
+          <div class="ip-inbtn"><input class="input" id="ip-c-whatsapp" data-ip-c="whatsapp" type="tel" value="${esc(prof.whatsapp || '')}" placeholder="${esc(prof.phone || '+996 555 000 000')}">
+            ${wa ? `<a class="btn btn-ghost btn-sm" href="${esc(wa)}" target="_blank" rel="noopener" data-ip-wa-chat title="Открыть чат в WhatsApp">Чат</a>`
+              : '<button type="button" class="btn btn-ghost btn-sm" data-ip-wa-none>Чат</button>'}</div></div>
+        <div class="ip-prow">${field('email', 'Почта', 'email')}${field('device', 'Устройство')}</div>
+        ${field('waGroup', 'Группа WhatsApp области')}
       </section>
-      <section class="ip-pcol" aria-label="Личное и жильё"><h3>Личное и жильё</h3>
+      <section class="ip-pcol" aria-labelledby="ip-h-work"><h3 id="ip-h-work">Работа и документы</h3>
+        <div class="ip-prow">${seg('fired', 'Статус', [['', 'Работает'], ['1', 'Уволен']], prof.fired ? '1' : '')}
+          ${field('firedDate', 'Дата увольнения', 'date', '', !prof.fired)}</div>
+        <div class="ip-prow">${field('poaNumber', 'Доверенность №')}${field('poaUntil', 'Доверенность до', 'date')}</div>
+        ${poa !== null && poa <= 14 ? `<p class="ip-warn ${poa < 0 ? 'off' : ''}" role="status">${poa < 0 ? `Доверенность истекла ${-poa} дн. назад` : poa === 0 ? 'Доверенность истекает сегодня' : `До окончания доверенности ${poa} дн.`}</p>` : ''}
+        ${seg('cadastre', 'Доступ в кадастр', [['1', 'Есть'], ['', 'Нет']], prof.cadastre ? '1' : '')}
+      </section>
+      <section class="ip-pcol" aria-labelledby="ip-h-pers"><h3 id="ip-h-pers">Личное и жильё</h3>
         <div class="ip-prow">${field('birthDate', 'Дата рождения', 'date')}${field('startDate', 'Работает с', 'date')}</div>
-        <div class="ip-prow"><div class="field"><label for="ip-c-fired">Статус</label>
-            <select class="select" id="ip-c-fired" data-ip-c="fired"><option value="">Работает</option><option value="1" ${prof.fired ? 'selected' : ''}>Уволен</option></select></div>
-          ${prof.fired ? field('firedDate', 'Дата увольнения', 'date') : '<div></div>'}</div>
         ${field('homeAddress', 'Адрес жилья')}
-        ${field('tempAddress', 'Временный адрес жилья', 'text', 'командировка, переезд')}
-        <div class="ip-prow">${field('tempFrom', 'С', 'date')}${field('tempTo', 'По', 'date')}</div>
+        ${field('tempAddress', 'Временный адрес жилья')}
+        <div class="ip-prow">${field('tempFrom', 'Временный адрес с', 'date')}${field('tempTo', 'по', 'date')}</div>
         ${field('note', 'Примечание')}
-        ${cf.length ? `<h3>Дополнительно</h3>${cf.map(cfInput).join('')}` : ''}
+        ${cf.map(cfInput).join('')}
       </section>
-      <section class="ip-pcol" aria-label="Области и график"><h3>Области</h3>
-        <div class="ip-regions">${Object.values(ENI_REGIONS).map((r) => `<label class="ip-chipbox"><input type="checkbox" data-ip-c-region value="${esc(r)}" ${prof.regions.includes(r) ? 'checked' : ''}><span>${esc(r)}</span></label>`).join('')}</div>
-        ${!prof.regions.length && p.regions.length ? `<p class="ip-hint">Не указаны — по объектам: ${esc(p.regions.join(', '))}.</p>` : ''}
-        <h3>Рабочий график</h3>
-        <div class="ip-days" role="group" aria-label="Рабочие дни">${WEEKDAYS.map((d, i) => `<label class="ip-chipbox ip-day"><input type="checkbox" data-ip-c-day value="${i + 1}" ${prof.schedule.days.includes(i + 1) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>
+      </div><div class="ip-pstack">
+      <section class="ip-pcol" aria-labelledby="ip-c-reg-l"><h3 id="ip-c-reg-l">Области</h3>
+        <div class="field">
+          <ul class="ip-reglist" role="group" aria-labelledby="ip-c-reg-l">${Object.values(ENI_REGIONS)
+            .map((r) => [r, (p.byRegion || {})[r] || 0])
+            .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0], 'ru'))
+            .map(([r, n]) => `<li><label><input type="checkbox" data-ip-c-region value="${esc(r)}" ${prof.regions.includes(r) ? 'checked' : ''}>
+              <span>${esc(r)}</span><b title="Объектов назначено за всё время">${n || ''}</b></label></li>`).join('')}</ul>
+          ${!prof.regions.length && p.regions.length ? `<p class="ip-hint">Не отмечены. По объектам — ${esc(p.regions.join(', '))}</p>` : ''}</div>
+      </section>
+      <section class="ip-pcol" aria-labelledby="ip-h-sched"><h3 id="ip-h-sched">График и отсутствия</h3>
+        <div class="field"><span class="ip-flabel" id="ip-c-days-l">Рабочие дни</span>
+          <div class="ip-days" role="group" aria-labelledby="ip-c-days-l">${WEEKDAYS.map((d, i) => `<label class="ip-chipbox ip-day"><input type="checkbox" data-ip-c-day value="${i + 1}" ${prof.schedule.days.includes(i + 1) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
         <div class="ip-prow"><div class="field"><label for="ip-c-from">Начало дня</label><input class="input" id="ip-c-from" type="time" data-ip-c-time="from" value="${esc(prof.schedule.from)}"></div>
           <div class="field"><label for="ip-c-to">Конец дня</label><input class="input" id="ip-c-to" type="time" data-ip-c-time="to" value="${esc(prof.schedule.to)}"></div></div>
-        <p class="ip-hint">Утренний отчёт позже начала дня — поздний выезд; вечерний — к концу дня.</p>
-      </section>
-      <section class="ip-pcol" aria-label="Отпуска и выходные"><h3>Отпуска и выходные</h3>
-        <ul class="ip-absences">${prof.absences.length ? prof.absences.map((ab) => `<li class="${(ab.to || ab.from) < today ? 'past' : ''}">
+        <h4>Отпуска и выходные</h4>
+        ${prof.absences.length ? `<ul class="ip-absences">${prof.absences.map((ab) => `<li class="${(ab.to || ab.from) < today ? 'past' : ''}">
             <i class="k-away">${esc(absenceLabel(ab.kind))}</i>
             <span class="ip-ab-dates">${esc(fmtD(ab.from))}${ab.to && ab.to !== ab.from ? ` — ${esc(fmtD(ab.to))}` : ''}</span>
             <button class="ip-x" data-ip-ab-del="${esc(ab.id)}" aria-label="Удалить" title="Удалить">×</button>
-            ${ab.note ? `<span class="ip-ab-note">${esc(ab.note)}</span>` : ''}</li>`).join('')
-          : '<li class="ip-hint">Отсутствий не запланировано.</li>'}</ul>
-        <div class="ip-ab-add">
-          <select class="select" data-ip-ab="kind" aria-label="Вид">${ABSENCE_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select>
+            ${ab.note ? `<span class="ip-ab-note">${esc(ab.note)}</span>` : ''}</li>`).join('')}</ul>`
+          : '<p class="ip-hint">Не запланированы</p>'}
+        <div class="ip-ab-add" data-ip-ab-form>
+          <div class="field"><label for="ip-ab-kind">Вид</label><select class="select" id="ip-ab-kind" data-ip-ab="kind">${ABSENCE_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div>
           <div class="ip-prow"><div class="field"><label for="ip-ab-from">С</label><input class="input" id="ip-ab-from" type="date" data-ip-ab="from"></div>
             <div class="field"><label for="ip-ab-to">По</label><input class="input" id="ip-ab-to" type="date" data-ip-ab="to"></div></div>
-          <input class="input" data-ip-ab="note" placeholder="Примечание" aria-label="Примечание">
+          <div class="field"><label for="ip-ab-note">Примечание</label><input class="input" id="ip-ab-note" data-ip-ab="note"></div>
           <div class="ip-profile-act"><span class="ip-err" data-ip-ab-err role="alert"></span><button class="btn btn-ghost btn-sm" data-ip-ab-add>Добавить</button></div>
         </div>
       </section>
-      <div class="ip-profile-bar"><span class="ip-hint">Отпуска сохраняются сразу; остальное — кнопкой.</span>
-        <button class="btn btn-primary btn-sm" data-ip-c-save>Сохранить профиль</button></div>
-    </div>`;
+    </div></div></div>
+    <div class="ip-profile-bar" data-ip-c-bar hidden role="region" aria-label="Несохранённые изменения">
+      <span>Несохранённые изменения</span>
+      <button class="btn btn-ghost btn-sm" data-ip-c-cancel>Отменить</button>
+      <button class="btn btn-primary btn-sm" data-ip-c-save>Сохранить</button></div></div>`;
   }
 
   // Авто осмотрщика (ТЗ раздел 2): одно; расход нужен для литров по пробегу.
+  // Оформление — как у профиля: два блока, подвал сохранения при правке.
   function carHTML(p) {
     const car = profileOf(p.name).car;
     const f = (key, label, type = 'text', ph = '') => `<div class="field"><label for="ip-car-${key}">${label}</label>
       <input class="input" id="ip-car-${key}" data-ip-car="${key}" type="${type}" value="${esc(car[key] || '')}" ${ph ? `placeholder="${esc(ph)}"` : ''}></div>`;
     const FUELS = ['АИ-92', 'АИ-95', 'Дизель', 'Газ'];
-    return `<section class="ip-pcol ip-car" aria-label="Авто"><h3>Авто</h3>
-      <div class="ip-prow3">${f('make', 'Марка и модель', 'text', 'Toyota Corolla')}${f('year', 'Год выпуска', 'number')}${f('plate', 'Госномер')}</div>
-      <div class="ip-prow3">${f('engine', 'Объём, л', 'number')}${f('consumption', 'Расход на 100 км, л', 'number')}
-        <div class="field"><label for="ip-car-fuel">Топливо</label><select class="select" id="ip-car-fuel" data-ip-car="fuel"><option value="">—</option>
-          ${FUELS.map((x) => `<option ${car.fuel === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div></div>
-      ${f('note', 'Комментарий')}
-      <div class="ip-profile-act"><span class="ip-hint">Литры за день = пробег × расход / 100; деньги считает бухгалтерия.</span>
-        <button class="btn btn-primary btn-sm" data-ip-car-save>Сохранить</button></div>
-    </section>`;
+    return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4" data-ip-profile><div class="ip-pstack">
+      <section class="ip-pcol" aria-labelledby="ip-h-car"><h3 id="ip-h-car">Авто</h3>
+        ${f('make', 'Марка и модель')}
+        <div class="ip-prow">${f('year', 'Год выпуска', 'number')}${f('plate', 'Госномер')}</div>
+        ${f('note', 'Комментарий')}
+      </section></div><div class="ip-pstack">
+      <section class="ip-pcol" aria-labelledby="ip-h-fuel"><h3 id="ip-h-fuel">Топливо и расход</h3>
+        <div class="field"><span class="ip-flabel" id="ip-car-fuel-l">Топливо</span>
+          <div class="ip-segf" role="radiogroup" aria-labelledby="ip-car-fuel-l">${FUELS.map((x) => `<label><input type="radio" name="ip-car-fuel" data-ip-car-radio="fuel" value="${x}" ${car.fuel === x ? 'checked' : ''}><span>${x}</span></label>`).join('')}</div></div>
+        <div class="ip-prow">${f('engine', 'Объём двигателя, л', 'number')}${f('consumption', 'Расход на 100 км, л', 'number')}</div>
+        <p class="ip-hint">Литры за день = пробег × расход / 100</p>
+      </section></div>
+    </div></div>
+    <div class="ip-profile-bar" data-ip-c-bar hidden role="region" aria-label="Несохранённые изменения">
+      <span>Несохранённые изменения</span>
+      <button class="btn btn-ghost btn-sm" data-ip-c-cancel>Отменить</button>
+      <button class="btn btn-primary btn-sm" data-ip-car-save>Сохранить</button></div></div>`;
   }
 
   // Свои поля осмотрщиков — заводятся здесь, видны в профиле каждого.
@@ -703,14 +729,16 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-c-save]', () => {
     const patch = {};
     scope.$$('[data-ip-c]').forEach((el) => { patch[el.dataset.ipC] = el.value.trim(); });
+    scope.$$('[data-ip-c-radio]:checked').forEach((el) => { patch[el.dataset.ipCRadio] = el.value; });
     patch.fired = patch.fired === '1';
+    patch.cadastre = patch.cadastre === '1';
     if (!patch.fired) patch.firedDate = '';
-    scope.$$('[data-ip-c-bool]').forEach((el) => { patch[el.dataset.ipCBool] = el.checked; });
     patch.regions = scope.$$('[data-ip-c-region]:checked').map((x) => x.value);
     const time = (k) => { const el = scope.$(`[data-ip-c-time="${k}"]`); return el ? el.value : ''; };
     patch.schedule = { days: scope.$$('[data-ip-c-day]:checked').map((x) => +x.value), from: time('from') || '09:00', to: time('to') || '18:00' };
     const custom = { ...profileOf(view.person).custom };
-    scope.$$('[data-ip-cf]').forEach((el) => { custom[el.dataset.ipCf] = el.type === 'checkbox' ? el.checked : el.value.trim(); });
+    scope.$$('[data-ip-cf]').forEach((el) => { custom[el.dataset.ipCf] = el.value.trim(); });
+    scope.$$('[data-ip-cf-radio]:checked').forEach((el) => { custom[el.dataset.ipCfRadio] = el.value === '1'; });
     patch.custom = custom;
     saveProfile(view.person, patch);
     redraw();
@@ -719,6 +747,7 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-car-save]', () => {
     const car = {};
     scope.$$('[data-ip-car]').forEach((el) => { car[el.dataset.ipCar] = el.value.trim(); });
+    scope.$$('[data-ip-car-radio]:checked').forEach((el) => { car[el.dataset.ipCarRadio] = el.value; });
     saveProfile(view.person, { car });
     redraw();
     host.toast('Авто сохранено', 'ok');
@@ -732,8 +761,23 @@ export function mountInspections(host) {
     host.toast('Поле добавлено', 'ok');
   });
   scope.on('click', '[data-ip-cf-del]', (e, b) => { removeCustomField(b.dataset.ipCfDel); redraw(); });
-  // Статус «уволен» сразу показывает поле даты увольнения.
-  scope.on('change', '[data-ip-c="fired"]', () => scope.$('[data-ip-c-save]').click());
+  // Правка профиля показывает строку сохранения; «Уволен» открывает дату
+  // увольнения. Поля добавления отпуска сюда не относятся — они сохраняются
+  // своей кнопкой.
+  const profileDirty = (e, el) => {
+    if (el.closest('[data-ip-ab-form]')) return;
+    const bar = scope.$('[data-ip-c-bar]');
+    if (bar) bar.hidden = false;
+    if (el.dataset.ipCRadio === 'fired') scope.$('[data-ip-cwrap="firedDate"]').hidden = el.value !== '1';
+  };
+  scope.on('input', '[data-ip-profile] input, [data-ip-profile] select', profileDirty);
+  scope.on('change', '[data-ip-profile] input, [data-ip-profile] select', profileDirty);
+  scope.on('click', '[data-ip-c-cancel]', () => redraw());
+  // «Чат» без номера не молчит: говорит, чего не хватает, и ставит курсор.
+  scope.on('click', '[data-ip-wa-none]', () => {
+    host.toast('Укажите телефон или номер WhatsApp и сохраните профиль', 'warn');
+    scope.$('[data-ip-c="phone"]').focus();
+  });
   scope.on('click', '[data-ip-ab-add]', () => {
     const v = (k) => { const el = scope.$(`[data-ip-ab="${k}"]`); return el ? el.value.trim() : ''; };
     if (!v('from')) { scope.$('[data-ip-ab-err]').textContent = 'Укажите дату начала'; scope.$('[data-ip-ab="from"]').focus(); return; }

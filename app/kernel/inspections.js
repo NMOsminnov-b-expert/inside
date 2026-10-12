@@ -302,7 +302,7 @@ export function blankProfile(name) {
     id: name, phone: '', whatsapp: '', email: '', device: '', phoneType: '', note: '',
     regions: [], startDate: '', fired: false, firedDate: '',
     birthDate: '', homeAddress: '', tempAddress: '', tempFrom: '', tempTo: '',
-    poaNumber: '', poaUntil: '', waGroup: '', waGroupLink: '', cadastre: false,
+    poaNumber: '', poaUntil: '', waGroup: '', cadastre: false,
     schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' },
     absences: [],
     car: { make: '', year: '', engine: '', consumption: '', plate: '', fuel: '', note: '' },
@@ -374,14 +374,19 @@ export function profileNames() {
 // встречающиеся первыми). derived — признак, что выведены, а не указаны.
 export function regionsOf(name, summaryEni) {
   const p = profileOf(name);
-  if (p.regions && p.regions.length) return { regions: p.regions, derived: false };
-  const count = new Map();
+  // Объекты осмотрщика по областям — за всё время назначений; в профиле
+  // область показывается с этим числом (выбор строкой с числом).
+  const objs = new Map();
   assignments.forEach((a) => {
     if (a.person !== name) return;
     const r = eniRegion(summaryEni(a.typeId, a.ocId));
-    if (r) count.set(r, (count.get(r) || 0) + 1);
+    if (!r) return;
+    if (!objs.has(r)) objs.set(r, new Set());
+    objs.get(r).add(a.typeId + '|' + a.ocId);
   });
-  return { regions: [...count.entries()].sort((x, y) => y[1] - x[1]).map(([r]) => r), derived: true };
+  const byRegion = Object.fromEntries([...objs.entries()].map(([r, set]) => [r, set.size]));
+  if (p.regions && p.regions.length) return { regions: p.regions, derived: false, byRegion };
+  return { regions: Object.keys(byRegion).sort((x, y) => byRegion[y] - byRegion[x]), derived: true, byRegion };
 }
 
 // --- сроки осмотра объектов ---------------------------------------------------

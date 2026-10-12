@@ -255,13 +255,16 @@ def run(t):
     pg.click('[data-ip-ptab="profile"]')
     t.wait_for('[data-ip-c="phone"]')
     t.ck(pg.locator('.modal-back').count() == 0, 'контакты правятся в модальном окне')
+    t.ck(not pg.locator('[data-ip-c-bar]').is_visible(), 'подвал сохранения виден без правок')
     # Полный профиль (решение пользователя 12.10.2026): связь, области, график,
     # отпуска; WhatsApp — ссылкой на чат.
     pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
-    pg.locator('label.ip-chipbox:has([data-ip-c-region][value="Ош"])').click()
+    pg.locator('.ip-reglist label:has([data-ip-c-region][value="Ош"])').click()
+    t.ck(pg.locator('[data-ip-c-bar]').is_visible(), 'правка профиля не показала подвал сохранения')
     pg.click('[data-ip-c-save]')
     t.ck(t.wait_for('.ip-card-contacts a[href^="tel:"]'), 'сохранённый телефон не показан в шапке ссылкой для звонка')
     t.ck(pg.locator('.ip-card-contacts a[href^="https://wa.me/996555000111"]').count() == 1, 'нет ссылки на WhatsApp по номеру телефона')
+    t.ck(pg.locator('[data-ip-wa-chat][href^="https://wa.me/996555000111"]').count() == 1, 'у поля WhatsApp нет кнопки «Чат» с человеком')
 
     # отпуск на две недели: свободных дней 0, в шапке отметка, в календаре дни отпуска
     FREE = r"(w) => { const b = [...document.querySelectorAll('.ip-person-main')].find((x) => x.dataset.ipPerson === w); const m = b ? b.innerText.match(/свободно\s+(\d+)/) : null; return m ? +m[1] : -1; }"
@@ -293,7 +296,7 @@ def run(t):
     soon = pg.evaluate("() => { const d = new Date(); d.setDate(d.getDate() + 5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
     pg.fill('[data-ip-c="poaUntil"]', soon)
     pg.fill('[data-ip-c="birthDate"]', '1990-04-01')
-    pg.locator('[data-ip-c-bool="cadastre"]').check()
+    pg.locator('.ip-segf label:has([data-ip-c-radio="cadastre"][value="1"])').click()
     pg.click('[data-ip-c-save]')
     t.ck(t.wait_until("() => /доверенность: \d+ дн\./.test(document.querySelector('.ip-card-contacts')?.innerText || '')"),
          'срок доверенности через 5 дней не предупреждает в шапке')
@@ -302,7 +305,7 @@ def run(t):
     pg.click('[data-ip-ptab="car"]')
     pg.fill('[data-ip-car="make"]', 'Toyota Corolla')
     pg.fill('[data-ip-car="consumption"]', '8')
-    pg.select_option('[data-ip-car="fuel"]', 'АИ-92')
+    pg.locator('.ip-segf label:has([data-ip-car-radio][value="АИ-92"])').click()
     pg.click('[data-ip-car-save]')
     t.wait_for('[data-ip-car="make"]')
     car = pg.evaluate("async (w) => (await import('./app/kernel/inspections.js')).profileOf(w).car", who)
