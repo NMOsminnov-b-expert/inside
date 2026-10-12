@@ -21,4 +21,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'graf-oglavlenie-v-programme', 'папка': 'tasks'},
     {'тип': 'якорь', 'куда': 'ikonki-prilozheniy-graf-i-razmetka', 'папка': 'tasks'},
     {'тип': 'якорь', 'куда': 'graf-filtr-po-date', 'папка': 'tasks'},
+    {'тип': 'якорь', 'куда': 'graf-vremya-okonchaniya-obnovleniya-indeksa', 'папка': 'tasks'},
 ]

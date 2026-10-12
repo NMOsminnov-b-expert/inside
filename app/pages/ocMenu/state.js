@@ -20,6 +20,9 @@ const ROLE_PERMS = {
   insp: { slices: ['my-insp', 'my-all'], create: false, assignInsp: false, setStatus: false },
   appr: { slices: ['my-appr', 'my-all'], create: false, assignInsp: false, setStatus: false },
   cod: { slices: ['my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
+  // Региональный менеджер назначает осмотры (ТЗ панели осмотров, 12.10.2026);
+  // объекты не заводит и статус не ставит — «Осмотрен» ставит ЦОД.
+  rm: { slices: ['my-all'], create: false, assignInsp: true, setStatus: false },
   gov: { slices: ['my-all'], create: true, assignInsp: false, setStatus: false },
   admin: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-all'], create: true, assignInsp: true, setStatus: true },
 };

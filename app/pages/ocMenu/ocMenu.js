@@ -19,6 +19,7 @@ import { rowH, tableHeadHTML, rowsHTML, columnsMenuHTML, csvOf, tableVarsStyle, 
 import { bindColumnResize, bindColumnReorder, bindColumnsMenu, normalizeOrder, applyFit } from '../../kernel/columns.js';
 import { previewHTML } from './preview.js';
 import { registerPersisted } from '../../kernel/persist.js';
+import { assignFromRegistry } from '../../kernel/inspections.js';
 
 // Главная — реестр объектов оценки (канва и решения 01.10.2026, задача графа
 // glavnaya-vkladki-nedvizhimoe-dvizhimoe, практика reestr-vkladki-vidy-filtry):
@@ -610,7 +611,10 @@ export function mountOcMenu(host) {
       const people = Object.keys(lastFacets.insp || {}).filter(Boolean).sort();
       const person = await selectDialog({ title: `Назначить осмотрщика (${ids.length})`, options: people });
       if (!person) return;
-      ids.forEach(([id, typeId]) => mutate(typeId, id, (api) => api.assignResponsible(id, 'insp', person)));
+      // Через назначения на осмотр, а не прямо в resp.insp: иначе у осмотрщика
+      // не будет ни назначенных документов, ни строки в истории
+      // (kernel/inspections.js).
+      ids.forEach(([id, typeId]) => assignFromRegistry(typeId, id, person));
       host.toast(`Осмотрщик назначен: ${person} (${ids.length})`, 'ok');
     }
 

@@ -1,17 +1,17 @@
 // Мои осмотры: откуда берутся задачи и что осмотрщик к ним добавляет.
 //
-// Задача — это НЕ новая сущность. Осмотрщик уже назначается на объект оценки
-// (`resp.insp` записи, право `assignInsp` у ЦОД), а срез реестра «Мне
-// осмотреть» показывает ровно это: мои объекты в статусе «Удостоверен по
-// документам». Экран осмотрщика читает то же самое, только своим списком и под
-// телефон — выдумывать вторую сущность «задание» до появления интерфейса
-// регионального менеджера значило бы плодить данные, которые потом придётся
-// сводить.
+// Задача — назначение на осмотр (kernel/inspections.js, ТЗ панели осмотров
+// 12.10.2026): региональный менеджер назначает осмотрщика на объект или его
+// ОИ, с документами, описями и плановой датой. Объекты, где человек стоит в
+// resp.insp без назначения (назначенные до появления назначений), тоже его
+// задачи — по прежнему правилу: ждут осмотра в статусе «Удостоверен по
+// документам».
 //
 // Записи берём через kernel/registry.js: страница не имеет права импортировать
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
+import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -72,6 +72,11 @@ export function inspectorsInData() {
       if (who) names.set(who, (names.get(who) || 0) + 1);
     });
   });
+  // Назначенные на отдельные ОИ в resp.insp могут не попасть — поле одно на
+  // запись; их берём из назначений.
+  allAssignments().forEach((a) => {
+    if (isLive(a) && !names.has(a.person)) names.set(a.person, 0);
+  });
   return [...names.entries()]
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ru'));
@@ -103,33 +108,43 @@ function order(a, b) {
 
 export function myTasks({ onlyPending = false } = {}) {
   const person = currentInspector();
-  const out = [];
+  const tasks = tasksOf(person);
+  if (!tasks.length) return [];
 
+  // Сводки строк — одним запросом на тип: задач немного, а запрос по id
+  // у реестра нет.
+  const rowsOf = new Map();
+  const needTypes = new Set(tasks.map((t) => t.typeId));
   sortedTypes().forEach((t) => {
-    const res = t.records.queryRecords({
-      filter: { mine: { role: 'insp', person } },
-      offset: 0,
-      limit: 100000,
-    });
+    if (!needTypes.has(t.manifest.id)) return;
+    const res = t.records.queryRecords({ filter: {}, offset: 0, limit: 100000 });
+    res.rows.forEach((s) => rowsOf.set(key(t.manifest.id, s.id), s));
+  });
 
-    res.rows.forEach((s) => {
-      const st = taskState(s.typeId, s.id);
-      out.push({
-        key: key(s.typeId, s.id),
-        typeId: s.typeId,
-        ocId: s.id,
-        typeLabel: s.typeLabel,
-        title: s.title,
-        eni: s.eniAll || s.eni,
-        status: s.status,
-        institution: s.institution,
-        updatedAt: s.updatedAt,
-        oiCount: (s.metrics && s.metrics.oiCount) || 0,
-        pendingNotes: (s.metrics && s.metrics.pendingNotes) || 0,
-        pending: s.status === READY_STATUS && !st.done,
-        photos: st.photos.length,
-        done: st.done,
-      });
+  const out = [];
+  tasks.forEach(({ typeId, ocId, assign }) => {
+    const s = rowsOf.get(key(typeId, ocId));
+    if (!s) return;
+    const st = taskState(typeId, ocId);
+    out.push({
+      key: key(typeId, ocId),
+      typeId,
+      ocId,
+      typeLabel: s.typeLabel,
+      title: s.title,
+      eni: s.eniAll || s.eni,
+      status: s.status,
+      institution: s.institution,
+      updatedAt: s.updatedAt,
+      oiCount: (s.metrics && s.metrics.oiCount) || 0,
+      pendingNotes: (s.metrics && s.metrics.pendingNotes) || 0,
+      // По назначению ждёт, пока назначение действует и осмотр не закончен;
+      // без назначения — прежнее правило по статусу.
+      pending: assign ? isLive(assign) && !st.done : s.status === READY_STATUS && !st.done,
+      plannedAt: assign ? assign.plannedAt || '' : '',
+      assignId: assign ? assign.id : '',
+      photos: st.photos.length,
+      done: st.done,
     });
   });
 

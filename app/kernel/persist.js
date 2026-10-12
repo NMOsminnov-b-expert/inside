@@ -57,9 +57,10 @@ const LEGACY_VERSION = 2;
 const MAX_BYTES = 4 * 1024 * 1024;
 
 // Общие части снимка — записи ОЦ, контакты узлов учреждений
-// (kernel/contacts.js) и свои шаблоны машин (modules/vehicle/templates.js). «records.production» — только перенос записей
+// (kernel/contacts.js), свои шаблоны машин (modules/vehicle/templates.js) и
+// назначения на осмотр с их журналом (kernel/inspections.js). «records.production» — только перенос записей
 // прежнего типа, своих данных у него нет.
-const isShared = (name) => /^(records|contacts|templates)\./.test(name) && name !== 'records.production';
+const isShared = (name) => /^(records|contacts|templates|inspections)\./.test(name) && name !== 'records.production';
 
 const sources = new Map();
 

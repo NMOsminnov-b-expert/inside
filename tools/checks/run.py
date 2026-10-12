@@ -303,6 +303,15 @@ def main():
     # необязательное, поэтому пропускаем следующий довод только если он есть и
     # сам не ключ: иначе «--changed --jobs 5» съедало бы --jobs, а «5»
     # оставалось бы искать среди имён проверок.
+    # Незнакомый ключ — отказ, а не тихий пропуск: «--dry-run» дважды
+    # (09.10 и 12.10.2026) превращался в полный прогон, который запускается
+    # только по просьбе пользователя.
+    known = {'--jobs', '--cap', '--changed', '--show', '--slow', '--no-retry', '--profile', '--list'}
+    unknown = [a for a in argv if a.startswith('--') and a not in known]
+    if unknown:
+        print('Незнакомый ключ: %s. Ключи: %s' % (', '.join(unknown), ', '.join(sorted(known))))
+        return 2
+
     args = []
     skip = False
     for i, a in enumerate(argv):
