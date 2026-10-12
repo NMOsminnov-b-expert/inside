@@ -28,4 +28,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'panel-podrobnostey-sprava', 'папка': 'practices'},
     {'тип': 'якорь', 'куда': 'upravlenie-osmotrschikami-instrumenty', 'папка': 'decisions'},
     {'тип': 'якорь', 'куда': 'zametki-po-osmotrschikam-12-10-2026', 'папка': 'sources'},
+    {'тип': 'якорь', 'куда': 'tz-rabota-osmotrschika', 'папка': 'tasks'},
 ]
