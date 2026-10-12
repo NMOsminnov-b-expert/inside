@@ -244,7 +244,7 @@ body[data-page="inspections"] .ipc-cal-d.we{background:#f1f4f8}
 body[data-page="inspections"] .ipc-cal-d.out{opacity:.45}
 body[data-page="inspections"] .ipc-cal-d.today{border-color:var(--blue-600)}
 body[data-page="inspections"] .ipc-cal-d.has{background:#fff;border-color:var(--line-soft);cursor:default}
-body[data-page="inspections"] .ipc-cal-d[data-ipc-day]{cursor:pointer}
+body[data-page="inspections"] .ipc-cal-d[data-ip-dp-open]{cursor:pointer}
 body[data-page="inspections"] .ipc-cal-d.has:hover,
 body[data-page="inspections"] .ipc-cal-d.has:focus-visible{border-color:var(--blue-500);outline:none;box-shadow:0 0 0 2px rgba(22,104,201,.14)}
 body[data-page="inspections"] .ipc-cal-d.today.has{border-color:var(--blue-600)}
@@ -330,4 +330,70 @@ body[data-page="inspections"] .ip-evs time{color:var(--muted);font-variant-numer
   body[data-page="inspections"] .ip-contacts-edit{grid-template-columns:repeat(2,minmax(0,1fr))}
   body[data-page="inspections"] .ipc-ev{grid-template-columns:44px minmax(0,1fr) minmax(0,1.3fr)}
   body[data-page="inspections"] .ipc-ev-obj{grid-column:2 / -1;margin-top:-4px}
+}
+
+/* ============ «Осмотрщики»: карточка подразделами и панель подробностей ============
+   Шапка — одной полосой по горизонтали: имя и контакты, плитки с цифрами,
+   действия. Ниже — переключатель подразделов и один подраздел во всю
+   ширину со своей прокруткой. Панель подробностей — третьей колонкой,
+   рабочая область сжимается, а не перекрывается (ServiceNow contextual side
+   bar); на узком — выезжает поверх справа. */
+body[data-page="inspections"] .ip.ip-peoplesec.has-detail{grid-template-columns:260px minmax(0,1fr) clamp(340px,28%,420px)}
+body[data-page="inspections"] .ip-card{gap:0;overflow:hidden}
+body[data-page="inspections"] .ip-card-head{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;padding-bottom:12px}
+body[data-page="inspections"] .ip-card-title{min-width:220px;flex:1 1 260px}
+body[data-page="inspections"] .ip-card-title h1{margin:0;font-size:17px;font-weight:700;color:var(--ink)}
+body[data-page="inspections"] .ip-card-contacts{margin:3px 0 0;font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-card-contacts a{color:var(--blue-700);font-weight:600}
+body[data-page="inspections"] .ip-tiles{display:flex;flex-wrap:wrap;gap:8px}
+body[data-page="inspections"] .ip-tile{display:flex;flex-direction:column;justify-content:center;min-width:86px;padding:6px 12px;border-radius:9px;
+  background:var(--panel);border:1px solid var(--line)}
+body[data-page="inspections"] .ip-tile span{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82;white-space:nowrap}
+body[data-page="inspections"] .ip-tile b{font-size:18px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.2}
+body[data-page="inspections"] .ip-tile.warn b{color:#a3361c}
+body[data-page="inspections"] .ip-card-head .ip-head-act{margin-left:0}
+body[data-page="inspections"] .ip-subtabs{flex:none}
+body[data-page="inspections"] .ip-card-body{flex:1 1 auto;min-height:0;overflow:auto;padding-top:12px;display:flex;flex-direction:column;gap:12px}
+body[data-page="inspections"] .ip-card-body > *{flex:none}
+body[data-page="inspections"] .ip-card-body .ip-tiles .ip-tile{flex:1 1 110px}
+body[data-page="inspections"] .ip-card-body .ipc-cal-d{height:76px}
+body[data-page="inspections"] .ip-profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;max-width:760px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+body[data-page="inspections"] .ip-profile .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-page="inspections"] .ip-profile .field > label{font-size:12px;font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ip-profile .input{height:34px}
+body[data-page="inspections"] .ip-profile-act{grid-column:1 / -1;display:flex;align-items:center;gap:12px;justify-content:flex-end}
+body[data-page="inspections"] .ip-profile-act .ip-hint{margin-right:auto}
+
+/* Панель подробностей */
+body[data-page="inspections"] .ip-detail-pane .ip-pane-head h2{-webkit-line-clamp:3}
+body[data-page="inspections"] .ip-dp-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+body[data-page="inspections"] .ip-dp-close{margin-left:auto}
+body[data-page="inspections"] .ip-dp-trips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+body[data-page="inspections"] .ip-dp-trip{padding:9px 11px;border:1px solid var(--line-soft);border-left:3px solid var(--k);border-radius:8px;
+  background:#fff;cursor:pointer}
+body[data-page="inspections"] .ip-dp-trip:hover,
+body[data-page="inspections"] .ip-dp-trip:focus-visible{border-color:var(--blue-500);border-left-color:var(--k);outline:none;background:var(--fill-hover)}
+body[data-page="inspections"] .ip-dp-trip-h{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+body[data-page="inspections"] .ip-dp-trip-h i{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:var(--k)}
+body[data-page="inspections"] .ip-dp-trip-h b{font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-dp-trip-obj{font-size:13px;font-weight:600;color:var(--ink)}
+body[data-page="inspections"] .ip-dp-trip-meta{font-size:11.5px;color:var(--muted);margin-bottom:4px}
+body[data-page="inspections"] .ip-dp-line{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;font-size:12.5px;padding:2px 0;color:var(--ink)}
+body[data-page="inspections"] .ip-dp-line > span:first-child{color:var(--muted)}
+body[data-page="inspections"] .ip-dp-note{margin:4px 0 0 104px;padding:4px 8px;border-radius:6px;background:var(--amber-50);font-size:12px;color:var(--ink)}
+
+@media (max-width:1280px){
+  body[data-page="inspections"] .ip.ip-peoplesec.has-detail{grid-template-columns:230px minmax(0,1fr) 340px}
+  body[data-page="inspections"] .ip-tile{min-width:76px;padding:5px 10px}
+}
+/* Узкий: панель подробностей — поверх справа на всю высоту. */
+@media (max-width:1100px){
+  body[data-page="inspections"] .ip.ip-peoplesec.has-detail{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ip-peoplesec .ip-detail-pane{position:fixed;top:0;right:0;bottom:0;width:min(420px,92vw);z-index:300;
+    box-shadow:-12px 0 32px rgba(15,23,42,.18);border-left:1px solid var(--line)}
+  body[data-page="inspections"] .ip-peoplesec .ip-detail-pane .ip-pane-body{overflow:auto}
+  body[data-page="inspections"] .ip-card{overflow:visible}
+  body[data-page="inspections"] .ip-card-body{overflow:visible}
+  body[data-page="inspections"] .ip-profile{grid-template-columns:minmax(0,1fr)}
 }

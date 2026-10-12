@@ -132,14 +132,24 @@ def run(t):
     pg.click('[data-ip-section="people"]')
     t.wait_for('.ip-people')
     pg.click('.ip-person-main[data-ip-person=""]')
+    # «Все осмотрщики» — подразделами «Сводка · Статистика» (ответ «Карточка —
+    # подразделами» 12.10.2026); строка сводки открывает краткую карточку справа.
+    t.wait_for('.ip-ptable tr[data-ip-dp-open]')
+    pg.locator('.ip-ptable tr[data-ip-dp-open]').first.click()
+    t.ck(t.wait_for('.ip-detail-pane [data-ip-assign-to]'), 'строка сводки не открыла краткую карточку осмотрщика в панели справа')
+    t.ck(pg.locator('.modal-back').count() == 0, 'подробности открыты модальным окном, а не панелью')
+    pg.keyboard.press('Escape')
+    t.ck(t.wait_until("() => !document.querySelector('.ip-detail-pane')"), 'Escape не закрыл панель подробностей')
+    pg.click('[data-ip-atab="stats"]')
     t.ck(t.wait_until("() => document.querySelectorAll('.ipc-stats .uplot').length === 2", timeout=15000),
-         'при «Все осмотрщики» нет двух графиков статистики (uPlot)')
+         'в «Статистике» всех осмотрщиков нет двух графиков (uPlot)')
     t.ck(pg.evaluate("async () => { const m = await import('./app/pages/inspections/model.js'); const s = m.weeklySeries(['Абдылдаев Айсултан Марсович', 'Бабашова Даяна Алтынбековна'], 8); return s.oi.flat().some((v) => v > 0); }"),
          'статистика пуста — демо-истории нет')
     who = pg.locator('.ip-person-main[data-ip-person]:not([data-ip-person=""])').first.get_attribute('data-ip-person')
     pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
+    pg.click('[data-ip-ptab="trips"]')
     t.ck(t.wait_for('.ipc-cal .ipc-chip'), 'у осмотрщика нет календаря выездов с выездами')
-    t.ck(t.wait_until("() => document.querySelectorAll('.ipc-stat .uplot').length === 1", timeout=15000), 'у осмотрщика нет графика статистики')
+    t.ck(pg.locator('.ip-card-body .uplot').count() == 0, 'в подразделе «Выезды» лишнее — графики (подразделы смешались)')
 
     # окно дня — при наведении, в пределах экрана
     pg.locator('[data-ipc-cal]').first.hover()
@@ -150,24 +160,36 @@ def run(t):
     pg.mouse.move(2, 2)
     t.ck(t.wait_until("() => !document.querySelector('.ipc-pop')"), 'окно дня не прячется, когда мышь ушла')
 
-    day = pg.evaluate("() => { const d = document.querySelector('[data-ipc-day]'); return d ? d.dataset.ipcDay : ''; }")
+    # щелчок по дню (и будущему) — кто, куда, зачем — в панели справа; вглубь и назад
+    future = pg.evaluate("() => { const t = new Date(); const iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = [...document.querySelectorAll('[data-ip-dp-open^=\"day:\"]')].find((x) => x.dataset.ipDpOpen.slice(4) >= iso); return d ? d.dataset.ipDpOpen : ''; }")
+    if t.ck(future, 'в календаре нет сегодняшнего или будущего дня с выездами'):
+        pg.click('[data-ip-dp-open="%s"]' % future)
+        t.ck(t.wait_for('.ip-detail-pane .ip-dp-trip'), 'щелчок по будущему дню не открыл выезды в панели справа')
+    day = pg.evaluate("() => { const t = new Date(); const iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = [...document.querySelectorAll('.ipc-cal [data-ip-dp-open^=\"day:\"]')].find((x) => x.dataset.ipDpOpen.slice(4) < iso); return d ? d.dataset.ipDpOpen.slice(4) : ''; }")
     if t.ck(day, 'в календаре нет прошедшего дня с выездами'):
-        pg.click('[data-ipc-day="%s"]' % day)
+        pg.click('.ipc-cal [data-ip-dp-open="day:%s"]' % day)
+        t.ck(t.wait_until("() => /Итог/.test(document.querySelector('.ip-detail-pane').innerText) && /Зачем/.test(document.querySelector('.ip-detail-pane').innerText)"),
+             'в выездах прошедшего дня нет «зачем» и «итога»')
+        pg.locator('.ip-detail-pane .ip-dp-trip').first.click()
+        t.ck(t.wait_for('.ip-detail-pane [data-ip-dp-back]'), 'из дня нельзя перейти к назначению с возвратом «Назад»')
+        pg.click('[data-ip-dp-back]')
+        t.ck(t.wait_for('.ip-detail-pane .ip-dp-trip'), '«Назад» не вернул к выездам дня')
+        pg.click('[data-ip-dp-history]')
         t.ck(t.wait_until("() => document.querySelector('[data-ip-section=history]').classList.contains('on') && !!document.querySelector('.ipc-ev')"),
-             'щелчок по дню календаря не открыл историю дня')
+             '«Вся история дня» не открыла историю дня')
         t.ck(pg.evaluate("(d) => [...document.querySelectorAll('.ipc-ev time')].every((x) => new Date(x.getAttribute('datetime')).toDateString() === new Date(d + 'T12:00:00').toDateString())", day),
              'в истории дня события других дней')
 
-    # контакты — правка на месте и сохранение
+    # профиль — контакты на месте и сохранение
     pg.click('[data-ip-section="people"]')
     pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
-    t.wait_for('[data-ip-c-edit]')
-    pg.click('[data-ip-c-edit]')
+    pg.click('[data-ip-ptab="profile"]')
+    t.wait_for('[data-ip-c="phone"]')
     t.ck(pg.locator('.modal-back').count() == 0, 'контакты правятся в модальном окне')
     pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
     pg.fill('[data-ip-c="regions"]', 'Ошская область')
     pg.click('[data-ip-c-save]')
-    t.ck(t.wait_for('.ip-contacts a[href^="tel:"]'), 'сохранённый телефон не показан ссылкой для звонка')
+    t.ck(t.wait_for('.ip-card-contacts a[href^="tel:"]'), 'сохранённый телефон не показан в шапке ссылкой для звонка')
 
     # фильтр по областям — по указанной в профиле
     t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Ошская область')"),

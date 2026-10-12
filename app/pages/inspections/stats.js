@@ -6,6 +6,8 @@
 // день. Ну и общая статистика в виде графиков uplot… чтобы можно было без
 // проблем понять, кто и как работает, кому стоит поставить задачи».
 //
+// Щелчок (Enter) по дню с выездами открывает выезды дня в панели
+// подробностей справа (detail.js) — и прошедшего, и будущего.
 // Календарь — разметкой: месяц сеткой пн–вс, в ячейке — выезды (объекты) и
 // ОИ, окно дня — при наведении и при фокусе с клавиатуры, в <body>, в
 // пределах экрана (практики: PatternFly calendar month — состояния «сегодня»,
@@ -15,7 +17,7 @@
 import { esc } from '../../kernel/dom.js';
 import { plural } from '../../kernel/fmt.js';
 import {
-  tripsMonth, weeklySeries, periodTotals, historyRows, EVENT_LABELS, dayOf, todayIso,
+  tripsMonth, weeklySeries, historyRows, EVENT_LABELS, dayOf, todayIso,
 } from './model.js';
 
 const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
@@ -38,7 +40,7 @@ export function calendarHTML(all, person, ym) {
     const n = d.trips.length;
     const label = `${wd(d.day)} ${ddmm(d.day)}: ${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')}, ОИ ${oi}` : 'выездов нет'}`;
     return `<td class="ipc-cal-d ${d.inMonth ? '' : 'out'} ${d.weekend ? 'we' : ''} ${d.today ? 'today' : ''} ${n ? 'has' : ''}"
-        ${n ? `tabindex="0" data-ipc-cal="${esc(d.day)}" ${d.past ? `data-ipc-day="${esc(d.day)}"` : ''}` : ''} aria-label="${esc(label)}">
+        ${n ? `tabindex="0" role="button" data-ipc-cal="${esc(d.day)}" data-ip-dp-open="day:${esc(d.day)}"` : ''} aria-label="${esc(label)}">
       <span class="ipc-cal-n">${d.n}</span>
       ${by.done.length ? `<span class="ipc-chip k-done">${by.done.length} · ОИ ${by.done.reduce((s, t) => s + t.oi, 0)}</span>` : ''}
       ${by.plan.length ? `<span class="ipc-chip k-plan">план ${by.plan.length}</span>` : ''}
@@ -103,13 +105,9 @@ export function bindCalendarPopover(scope) {
 // Место под графики; сами графики рисует mountStats после вставки разметки.
 export function statsHTML(person) {
   if (person) {
-    const since = new Date(); since.setDate(since.getDate() - 29);
-    const t = periodTotals(person, dayOf(since.toISOString()));
     return `<section class="ipc-card ipc-stat" aria-label="Статистика осмотрщика">
-      <header><h3>Осмотрено за 30 дней</h3><span>ОИ <b>${t.oi}</b> · объектов <b>${t.objects}</b> · снимков <b>${t.photos}</b>
-        · заметок <b>${t.notes}</b> · расхождений <b>${t.mismatch}</b> · выявлено <b>${t.found}</b></span></header>
+      <header><h3>ОИ и снимки по неделям</h3><span>8 законченных недель</span></header>
       <div class="ipc-plot" data-ipc-plot="person"></div>
-      <p class="ipc-note">ОИ и снимки по неделям · 8 законченных недель</p>
     </section>`;
   }
   return `<div class="ipc-stats">

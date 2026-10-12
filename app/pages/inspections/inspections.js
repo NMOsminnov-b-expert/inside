@@ -18,10 +18,11 @@ import { esc } from '../../kernel/dom.js';
 import { persistView } from '../../kernel/viewState.js';
 import { allAssignments, profileOf, saveProfile, PROFILE_FIELDS } from '../../kernel/inspections.js';
 import {
-  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS,
+  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS, periodTotals, dayOf,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
+import { detailHTML } from './detail.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
 const STEP = 200;
@@ -30,6 +31,8 @@ const view = {
   section: 'assign',     // assign | people | history
   tab: 'queue',          // в «Назначениях»: queue | assigned
   person: '',            // в «Осмотрщиках»: выбранный; пусто — все
+  personTab: 'trips',    // подраздел карточки: trips | stats | assigns | profile
+  allTab: 'summary',     // подраздел «Все осмотрщики»: summary | stats
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
   histPerson: '',        // в «Истории»: осмотрщик
   peopleMode: 'all',     // mine | all
@@ -46,7 +49,7 @@ const view = {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['section', 'tab', 'person', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
+persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
   'region', 'peopleSort', 'type', 'objRegion', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -59,7 +62,10 @@ export function mountInspections(host) {
   const checked = new Map();    // отмеченные флажками: key → target
   let current = '';             // строка в панели: key объекта или id назначения
   let confirmRemove = false;
-  let editContacts = false;
+  // Панель подробностей: стопка выборов { kind, … }, последний показывается
+  // (detail.js). Открывается по щелчку в «Осмотрщиках»; «‹ Назад» — шаг
+  // по стопке, «Закрыть» и Escape — убрать панель.
+  let detail = [];
   const now0 = new Date();
   let ym = { y: now0.getFullYear(), m: now0.getMonth() };
   let peopleQ = '';
@@ -166,28 +172,11 @@ export function mountInspections(host) {
   }
 
   // ===================== раздел «Осмотрщики» ======================================
-  function contactsHTML(p) {
-    const prof = profileOf(p.name);
-    if (editContacts) {
-      return `<div class="ip-contacts ip-contacts-edit">
-        ${PROFILE_FIELDS.map((f) => `<div class="field"><label for="ip-c-${f.key}">${f.label}</label>
-          <input class="input" id="ip-c-${f.key}" data-ip-c="${f.key}" type="${f.type || 'text'}" value="${esc(prof[f.key] || '')}"></div>`).join('')}
-        <div class="field"><label for="ip-c-regions">Области</label>
-          <input class="input" id="ip-c-regions" data-ip-c="regions" value="${esc((prof.regions || []).join(', '))}" placeholder="${esc(p.regions.join(', '))}"></div>
-        <div class="ip-contacts-act"><button class="btn btn-ghost btn-sm" data-ip-c-cancel>Отмена</button>
-          <button class="btn btn-primary btn-sm" data-ip-c-save>Сохранить</button></div>
-      </div>`;
-    }
-    const tel = (prof.phone || '').replace(/[^\d+]/g, '');
-    return `<div class="ip-contacts">
-      ${prof.phone ? `<a href="tel:${esc(tel)}">${esc(prof.phone)}</a>` : '<span class="ip-muted">телефон не указан</span>'}
-      ${prof.email ? `<a href="mailto:${esc(prof.email)}">${esc(prof.email)}</a>` : '<span class="ip-muted">почта не указана</span>'}
-      <span>${p.regions.length ? esc(p.regions.join(', ')) : '<span class="ip-muted">область не указана</span>'}${p.regions.length && p.derived ? ' <span class="ip-muted">(по объектам)</span>' : ''}</span>
-      ${prof.note ? `<span class="ip-muted">${esc(prof.note)}</span>` : ''}
-      <button class="btn btn-ghost btn-sm" data-ip-c-edit>${prof.phone || prof.email ? 'Изменить контакты' : 'Добавить контакты'}</button>
-    </div>`;
-  }
-
+  // Карточка осмотрщика — шапка (цифры, контакты, действия) и подразделы
+  // «Выезды · Статистика · Назначения · Профиль»: на экране один подраздел во
+  // всю ширину (ответ пользователя 12.10.2026 «Карточка — подразделами» на
+  // замечание «Ты сейчас всё списком по вертикали выкатил… делим на логичные
+  // разделы»). «Все осмотрщики» — так же: «Сводка · Статистика».
   function peopleListHTML() {
     const mine = new Set(view.mine);
     const q = peopleQ.trim().toLowerCase();
@@ -227,60 +216,106 @@ export function mountInspections(host) {
     </aside>`;
   }
 
-  // Сводная таблица всех — для решения «кому дать задачи»: щелчок — карточка.
+  const subTabs = (attr, cur, items) => `<div class="itabs ip-subtabs" role="tablist">${items.map(([k, label, n]) =>
+    `<button class="itab ${cur === k ? 'on' : ''}" role="tab" ${attr}="${k}" aria-selected="${cur === k}">${label}${n !== undefined ? ` <b>${n}</b>` : ''}</button>`).join('')}</div>`;
+  const tile = (label, value, cls = '', hint = '') => `<div class="ip-tile ${cls}" ${hint ? `title="${esc(hint)}"` : ''}><span>${label}</span><b>${value}</b></div>`;
+
+  // Сводная таблица всех — щелчок по строке открывает краткую карточку справа.
   function peopleTableHTML(list) {
     if (!list.length) return '<p class="ip-hint ip-empty">Под фильтр никто не подошёл.</p>';
+    const sel = detail.length && detail[detail.length - 1].kind === 'person' ? detail[detail.length - 1].name : '';
     return `<div class="icols ip-cols ip-ptable"><div class="ip-scroll"><table class="itbl ip-tbl">
       <colgroup><col><col class="c-region"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"></colgroup>
       <thead><tr><th>Осмотрщик</th><th>Области</th><th class="num" title="Действующих назначений">В работе</th>
         <th class="num" title="Плановая дата прошла">Просрочено</th><th class="num" title="Рабочих дней без плановых осмотров на две недели">Свободно</th>
         <th class="num" title="Законченных назначений за 30 дней">За 30 дн.</th></tr></thead>
-      <tbody>${list.map((p) => `<tr data-ip-person="${esc(p.name)}">
+      <tbody>${list.map((p) => `<tr data-ip-dp-open="person:${esc(p.name)}" class="${sel === p.name ? 'cur' : ''}">
         <td>${esc(p.name)}</td><td>${esc(p.regions.join(', ') || '—')}</td>
         <td class="num">${p.live}</td><td class="num ${p.late ? 'ip-late' : ''}">${p.late || '—'}</td>
         <td class="num"><b>${p.free}</b></td><td class="num">${p.done}</td></tr>`).join('')}</tbody>
     </table></div></div>`;
   }
 
-  // Текущие назначения выбранного — коротким списком; щелчок — в «Назначения».
+  // Назначения осмотрщика — действующие и законченные за 30 дней; щелчок —
+  // подробности справа.
   function personAssignsHTML(name) {
-    const rows = assignedRows(all, { person: name }).slice(0, 12);
-    return `<section class="ipc-card ip-mine" aria-label="Назначения осмотрщика">
-      <header><h3>Назначения</h3><span>действующие · ${assignedRows(all, { person: name }).length}</span></header>
-      ${rows.length ? `<ul class="ip-mine-list">${rows.map(({ a, s }) => `<li data-ip-goto="${esc(a.id)}" tabindex="0">
-          <span class="ip-mine-date ${isOverdue(a) ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</span>
-          <span class="ip-mine-obj">${esc(s.title || '—')}</span>
-          <span class="ip-mine-oi">${a.oiIds && a.oiIds.length ? `ОИ ${a.oiIds.length}` : 'целиком'}</span></li>`).join('')}</ul>`
-        : '<p class="ip-hint">Действующих назначений нет.</p>'}
+    const since = new Date(); since.setDate(since.getDate() - 30);
+    const sinceIso = since.toISOString();
+    const rows = allAssignments().filter((a) => a.person === name && (a.state === 'assigned' || a.state === 'progress' || (a.state === 'done' && a.doneAt >= sinceIso)))
+      .sort((x, y) => String(y.plannedAt || '').localeCompare(String(x.plannedAt || '')));
+    const sel = detail.length && detail[detail.length - 1].kind === 'assign' ? detail[detail.length - 1].id : '';
+    if (!rows.length) return '<p class="ip-hint ip-empty">Назначений нет.</p>';
+    return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
+      <colgroup><col class="c-date"><col><col class="c-oi"><col class="c-state"></colgroup>
+      <thead><tr><th class="num">План</th><th>Объект</th><th>ОИ</th><th>Состояние</th></tr></thead>
+      <tbody>${rows.map((a) => { const s = all.get(a.typeId + '|' + a.ocId) || {}; return `<tr data-ip-dp-open="assign:${esc(a.id)}" class="${sel === a.id ? 'cur' : ''}">
+        <td class="num ${isOverdue(a) ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
+        <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
+        <td>${a.oiIds && a.oiIds.length ? a.oiIds.length : 'все'}</td>
+        <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td></tr>`; }).join('')}</tbody>
+    </table></div></div>`;
+  }
+
+  function profileHTML(p) {
+    const prof = profileOf(p.name);
+    return `<div class="ip-profile">
+      ${PROFILE_FIELDS.map((f) => `<div class="field"><label for="ip-c-${f.key}">${f.label}</label>
+        <input class="input" id="ip-c-${f.key}" data-ip-c="${f.key}" type="${f.type || 'text'}" value="${esc(prof[f.key] || '')}"></div>`).join('')}
+      <div class="field"><label for="ip-c-regions">Области</label>
+        <input class="input" id="ip-c-regions" data-ip-c="regions" value="${esc((prof.regions || []).join(', '))}" placeholder="${esc(p.regions.join(', '))}"></div>
+      <div class="ip-profile-act"><span class="ip-hint">${p.derived && p.regions.length ? `Пока области не указаны, они берутся по объектам осмотрщика: ${esc(p.regions.join(', '))}.` : ''}</span>
+        <button class="btn btn-primary btn-sm" data-ip-c-save>Сохранить</button></div>
+    </div>`;
+  }
+
+  function personCardHTML(me) {
+    const prof = profileOf(me.name);
+    const tel = (prof.phone || '').replace(/[^\d+]/g, '');
+    const since = new Date(); since.setDate(since.getDate() - 29);
+    const t = periodTotals(me.name, dayOf(since.toISOString()));
+    let body;
+    if (view.personTab === 'stats') {
+      body = `<div class="ip-tiles">${tile('ОИ за 30 дн.', t.oi)}${tile('Объектов', t.objects)}${tile('Снимков', t.photos)}
+        ${tile('Заметок', t.notes)}${tile('Расхождений', t.mismatch, t.mismatch ? 'warn' : '')}${tile('Выявлено', t.found)}</div>${statsHTML(me.name)}`;
+    } else if (view.personTab === 'assigns') body = personAssignsHTML(me.name);
+    else if (view.personTab === 'profile') body = profileHTML(me);
+    else body = calendarHTML(all, me.name, ym);
+    return `<section class="ip-work ip-card" aria-label="${esc(me.name)}">
+      <header class="ip-card-head">
+        <div class="ip-card-title"><h1>${esc(me.name)}</h1>
+          <p class="ip-card-contacts">${prof.phone ? `<a href="tel:${esc(tel)}">${esc(prof.phone)}</a>` : '<span class="ip-muted">телефон не указан</span>'}
+            · ${prof.email ? `<a href="mailto:${esc(prof.email)}">${esc(prof.email)}</a>` : '<span class="ip-muted">почта не указана</span>'}
+            · ${esc(me.regions.join(', ') || 'область не указана')}${me.derived && me.regions.length ? ' <span class="ip-muted">(по объектам)</span>' : ''}</p></div>
+        <div class="ip-tiles ip-tiles-head">${tile('В работе', me.live)}${tile('Просрочено', me.late, me.late ? 'warn' : '')}
+          ${tile('Свободно', `${me.free} дн.`, '', 'Рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', me.done, '', 'Законченных назначений')}</div>
+        <div class="ip-head-act">
+          <button class="btn btn-primary btn-sm" data-ip-assign-to="${esc(me.name)}">Назначить объекты</button>
+          <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
+        </div>
+      </header>
+      ${subTabs('data-ip-ptab', view.personTab, [['trips', 'Выезды'], ['stats', 'Статистика'], ['assigns', 'Назначения', me.live], ['profile', 'Профиль']])}
+      <div class="ip-card-body">${body}</div>
+    </section>`;
+  }
+
+  function allCardHTML() {
+    const list = visiblePeople();
+    const sum = (k) => list.reduce((n, p) => n + p[k], 0);
+    return `<section class="ip-work ip-card" aria-label="Все осмотрщики">
+      <header class="ip-card-head">
+        <div class="ip-card-title"><h1>Все осмотрщики</h1><p class="ip-card-contacts">${list.length} · ${esc(view.region || 'все области')}</p></div>
+        <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
+          ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
+      </header>
+      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['stats', 'Статистика']])}
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : peopleTableHTML(list)}</div>
     </section>`;
   }
 
   function peopleSection() {
     const me = people.find((p) => p.name === view.person);
-    let right;
-    if (me) {
-      right = `<section class="ip-work ip-detail" aria-label="${esc(me.name)}">
-        <header class="ip-head">
-          <h1>${esc(me.name)}</h1>
-          <span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · свободно <b>${me.free}</b> дн. из 10 · закончено за 30 дн. <b>${me.done}</b></span>
-          <span class="ip-head-act">
-            <button class="btn btn-primary btn-sm" data-ip-assign-to="${esc(me.name)}">Назначить объекты</button>
-            <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
-          </span>
-        </header>
-        ${contactsHTML(me)}
-        ${calendarHTML(all, me.name, ym)}
-        <div class="ip-detail-row">${statsHTML(me.name)}${personAssignsHTML(me.name)}</div>
-      </section>`;
-    } else {
-      const list = visiblePeople();
-      right = `<section class="ip-work ip-detail" aria-label="Все осмотрщики">
-        <header class="ip-head"><h1>Все осмотрщики</h1><span class="ip-sum">${list.length} · ${view.region || 'все области'}</span></header>
-        ${peopleTableHTML(list)}
-        ${statsHTML('')}
-      </section>`;
-    }
-    return { cls: 'ip-peoplesec', html: peopleListHTML() + right };
+    const panel = detail.length ? detailHTML(all, people, allAssignments(), detail.map((d) => (d.kind === 'day' ? { ...d, person: view.person } : d))) : '';
+    return { cls: 'ip-peoplesec' + (panel ? ' has-detail' : ''), html: peopleListHTML() + (me ? personCardHTML(me) : allCardHTML()) + panel };
   }
 
   // ===================== раздел «История» =========================================
@@ -348,18 +383,18 @@ export function mountInspections(host) {
   };
   // Отрисовка с сохранением прокрутки таблиц и списка осмотрщиков.
   const redraw = () => {
-    const keep = ['.ip-scroll', '.ip-people-list', '.ip-detail'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
+    const keep = ['.ip-scroll', '.ip-people-list', '.ip-card-body', '.ip-detail-pane .ip-pane-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
     render();
     keep.forEach(([s, y]) => { if (scope.$(s)) scope.$(s).scrollTop = y; });
   };
   const resetList = () => { view.q = ''; view.shown = STEP; checked.clear(); current = ''; confirmRemove = false; };
 
   // --- разделы и вкладки ---
-  scope.on('click', '[data-ip-section]', (e, b) => { view.section = b.dataset.ipSection; resetList(); render(); });
+  scope.on('click', '[data-ip-section]', (e, b) => { view.section = b.dataset.ipSection; detail = []; resetList(); render(); });
   scope.on('click', '[data-ip-tab]', (e, b) => { view.tab = b.dataset.ipTab; resetList(); render(); });
 
   // --- осмотрщики ---
-  scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; editContacts = false; redraw(); });
+  scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; detail = []; redraw(); });
   scope.on('click', '[data-ip-star]', (e, b) => {
     const n = b.dataset.ipStar;
     view.mine = view.mine.includes(n) ? view.mine.filter((x) => x !== n) : [...view.mine, n];
@@ -377,28 +412,40 @@ export function mountInspections(host) {
   });
   // «Назначить объекты» — в «Назначения» с этим осмотрщиком в панели.
   scope.on('click', '[data-ip-assign-to]', (e, b) => {
-    view.section = 'assign'; view.tab = 'queue'; view.assignPerson = b.dataset.ipAssignTo; resetList(); render();
+    view.section = 'assign'; view.tab = 'queue'; view.assignPerson = b.dataset.ipAssignTo; detail = []; resetList(); render();
   });
-  // Назначение из карточки осмотрщика — открыть его в «Назначениях».
-  const gotoAssign = (id) => { view.section = 'assign'; view.tab = 'assigned'; resetList(); current = id; render(); };
-  scope.on('click', '[data-ip-goto]', (e, li) => gotoAssign(li.dataset.ipGoto));
-  scope.on('keydown', '[data-ip-goto]', (e, li) => { if (e.key === 'Enter') gotoAssign(li.dataset.ipGoto); });
-  // Щелчок по прошедшему дню календаря — история этого человека за день.
-  scope.on('click', '[data-ipc-day]', (e, b) => {
-    view.section = 'history'; view.histPerson = view.person; view.histDay = b.dataset.ipcDay; resetList(); render();
-  });
-  scope.on('click', '[data-ip-c-edit]', () => { editContacts = true; redraw(); const f = scope.$('[data-ip-c="phone"]'); if (f) f.focus(); });
-  scope.on('click', '[data-ip-c-cancel]', () => { editContacts = false; redraw(); });
+  // Назначение из панели подробностей — открыть его в «Назначениях».
+  const gotoAssign = (id) => { view.section = 'assign'; view.tab = 'assigned'; view.assignPerson = ''; resetList(); current = id; render(); };
+  scope.on('click', '[data-ip-ptab]', (e, b) => { view.personTab = b.dataset.ipPtab; detail = []; render(); });
+  scope.on('click', '[data-ip-atab]', (e, b) => { view.allTab = b.dataset.ipAtab; detail = []; render(); });
   scope.on('click', '[data-ip-c-save]', () => {
     const val = (k) => { const el = scope.$(`[data-ip-c="${k}"]`); return el ? el.value.trim() : ''; };
     saveProfile(view.person, {
       phone: val('phone'), email: val('email'), note: val('note'),
       regions: val('regions').split(',').map((x) => x.trim()).filter(Boolean),
     });
-    editContacts = false;
     redraw();
-    host.toast('Контакты сохранены', 'ok');
+    host.toast('Профиль сохранён', 'ok');
   });
+
+  // --- панель подробностей ---
+  const openDetail = (spec, push) => {
+    const i = spec.indexOf(':');
+    const kind = spec.slice(0, i); const id = spec.slice(i + 1);
+    const sel = kind === 'day' ? { kind, day: id } : kind === 'person' ? { kind, name: id } : { kind, id };
+    detail = push ? [...detail, sel] : [sel];
+    redraw();
+  };
+  // Щелчок в рабочей области — новый выбор; внутри панели — шаг вглубь.
+  scope.on('click', '[data-ip-dp-open]', (e, el) => openDetail(el.dataset.ipDpOpen, !!el.closest('.ip-detail-pane')));
+  scope.on('keydown', '[data-ip-dp-open]', (e, el) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(el.dataset.ipDpOpen, !!el.closest('.ip-detail-pane')); } });
+  scope.on('click', '[data-ip-dp-back]', () => { detail = detail.slice(0, -1); redraw(); });
+  scope.on('click', '[data-ip-dp-close]', () => { detail = []; redraw(); });
+  scope.onDocument('keydown', (e) => { if (e.key === 'Escape' && detail.length && view.section === 'people') { detail = []; redraw(); } });
+  scope.on('click', '[data-ip-dp-history]', (e, b) => {
+    view.section = 'history'; view.histPerson = view.person; view.histDay = b.dataset.ipDpHistory; detail = []; resetList(); render();
+  });
+  scope.on('click', '[data-ip-dp-edit]', (e, b) => { detail = []; gotoAssign(b.dataset.ipDpEdit); });
 
   // --- поиск и фильтры ---
   scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });

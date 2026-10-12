@@ -278,3 +278,30 @@ export function weeklySeries(names, weeks = 8) {
   });
   return { xs, oi, photos };
 }
+
+// Выезды дня по назначениям — для панели подробностей: кто, куда (объект,
+// ОИ), зачем (комментарий менеджера, назначенные документы) и что вышло
+// (снимки, заметки, расхождения, выявленное). person пуст — все осмотрщики.
+export function tripsOfDay(all, person, day) {
+  const evs = eventsOf({ person });
+  const out = [];
+  allAssignments().forEach((a) => {
+    if (person && a.person !== person) return;
+    let kind = '';
+    if (a.state === 'done' && a.doneAt && dayOf(a.doneAt) === day) kind = 'done';
+    else if (isLive(a) && a.plannedAt === day) kind = isOverdue(a) ? 'late' : 'plan';
+    if (!kind) return;
+    const s = all.get(a.typeId + '|' + a.ocId);
+    const c = objectContents(a.typeId, a.ocId);
+    const mine = evs.filter((e) => e.assignId === a.id);
+    out.push({
+      a, s, kind,
+      oi: a.oiIds && a.oiIds.length && c ? c.oi.filter((o) => a.oiIds.includes(o.id)).map((o) => o.label) : [],
+      photos: mine.filter((e) => e.kind === 'photos').reduce((n, e) => n + (e.count || 0), 0),
+      notes: mine.filter((e) => e.kind === 'note').map((e) => e.text),
+      mismatch: mine.filter((e) => e.kind === 'mismatch').map((e) => e.field),
+      found: mine.filter((e) => e.kind === 'found').map((e) => e.text),
+    });
+  });
+  return out.sort((x, y) => x.a.person.localeCompare(y.a.person, 'ru'));
+}
