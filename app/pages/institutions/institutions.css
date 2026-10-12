@@ -786,3 +786,9 @@ body[data-page="institutions"] .iall td.stale{color:var(--amber-700)}
   body[data-page="institutions"] .iall-facets{flex:0 0 auto;width:auto;max-height:260px;
     border-right:none;border-bottom:1px solid var(--line)}
 }
+
+/* Таблица сводной вкладки рисуется порциями (allObjects.js ALL_STEP): под ней
+   — сколько показано и кнопка следующей порции. */
+body[data-page="institutions"] .iall-rows-more{display:flex;align-items:center;gap:10px;
+  justify-content:flex-end;padding-top:8px;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap}

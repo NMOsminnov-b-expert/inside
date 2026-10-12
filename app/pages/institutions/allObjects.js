@@ -63,6 +63,7 @@ export function emptyAllFilter() {
     open: { type: true, status: true, region: false, city: false, unit: false, insp: false },
     search: {},          // поиск внутри фасета: { city: 'биш' }
     panel: true,         // раскрыта ли колонка фильтров
+    shown: ALL_STEP,     // сколько строк таблицы нарисовано
   };
 }
 
@@ -208,9 +209,18 @@ function cellHTML(col, row) {
   return '<td></td>';
 }
 
+// Таблица рисуется порциями: у корня дерева на 20 000 записей в выборке
+// 13 тысяч строк — 7,8 МБ разметки и полторы секунды на вставку (код-ревью
+// 09.10.2026). Фасеты и счётчик считаются по всей выборке, рисуется первая
+// порция, дальше — кнопкой «Показать ещё» (приём «load more» для длинных
+// таблиц; так же ограничена вкладка «Объекты оценки», ocRowsOf).
+export const ALL_STEP = 300;
+
 // rows — вся выборка поддерева, f — фильтр, widths — ширины столбцов.
 export function allPaneHTML(rows, f, widths) {
   const found = applyAllFilter(rows, f);
+  const shown = found.slice(0, Math.max(f.shown || ALL_STEP, ALL_STEP));
+  const rest = found.length - shown.length;
 
   const facets = `<div class="iall-facets">
     <div class="iall-facets-head">
@@ -239,11 +249,15 @@ export function allPaneHTML(rows, f, widths) {
           <thead><tr>${ALL_COLUMNS.map((c, i) => `<th ${headAttrs(c)}>
             ${colLabelHTML(c)}${resizeGripHTML(c, i === ALL_COLUMNS.length - 1)}
           </th>`).join('')}</tr></thead>
-          <tbody>${found.map((r) => `<tr data-all-row="${esc(r.typeId)}|${esc(r.id)}|${esc(r.nodeId || '')}">
+          <tbody>${shown.map((r) => `<tr data-all-row="${esc(r.typeId)}|${esc(r.id)}|${esc(r.nodeId || '')}">
             ${ALL_COLUMNS.map((c) => cellHTML(c, r)).join('')}
           </tr>`).join('')}</tbody>
         </table>
-      </div>`
+      </div>
+      ${rest > 0 ? `<div class="iall-rows-more">
+        <span>Показаны первые ${shown.length} из ${found.length}</span>
+        <button class="btn btn-ghost btn-sm" data-all-more>Показать ещё ${Math.min(rest, ALL_STEP)}</button>
+      </div>` : ''}`
     : `<div class="iempty">
         <b>${rows.length ? 'Под фильтр ничего не подошло' : 'Объектов нет'}</b>
         <span>${rows.length
@@ -292,6 +306,18 @@ export function bindAllPane(scope, { filter, render, openRow }) {
   if (q) {
     q.oninput = () => { f.q = q.value; keepFocus(scope, '[data-all-q]', render); };
   }
+  const more = scope.$('[data-all-more]');
+  // Страница перерисовывается целиком — прокрутку таблицы возвращаем, чтобы
+  // новая порция легла под уже просмотренными строками, а не с начала.
+  if (more) more.onclick = () => {
+    const box = scope.$('[data-all-cols-box]');
+    const top = box ? box.scrollTop : 0;
+    f.shown = Math.max(f.shown || ALL_STEP, ALL_STEP) + ALL_STEP;
+    render();
+    const again = scope.$('[data-all-cols-box]');
+    if (again) again.scrollTop = top;
+  };
+
   const qClear = scope.$('[data-all-q-clear]');
   if (qClear) qClear.onclick = () => { f.q = ''; render(); };
 

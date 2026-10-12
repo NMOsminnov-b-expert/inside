@@ -90,7 +90,10 @@ def run(t):
     # прогона.
     t.wait_for('.iall-stale .pick-btn')
 
-    before = pg.locator('[data-all-row]').count()
+    # Выборку считаем по счётчику «N из M»: таблица рисуется порциями
+    # (allObjects.js ALL_STEP), и число строк в ней — не вся выборка.
+    found = lambda: int(pg.inner_text('.iall-count').split()[0])
+    before = found()
     stale = pg.locator('.iall-stale .pick-btn').first
     t.ck(stale.count() == 1, 'поле «без движения» не заменено своим списком')
 
@@ -163,8 +166,14 @@ def run(t):
     t.ck(pg.locator('.pick-menu').count() == 0, 'после выбора список не закрылся')
     t.ck(pg.input_value('[data-all-stale-sel]') not in ('', '0'),
          'выбор мышью не дошёл до селекта')
-    after = pg.locator('[data-all-row]').count()
-    t.ck(after < before, 'выбор в списке не изменил выборку: %d и %d' % (before, after))
+    after = found()
+    # Сузит ли порог выборку, зависит от сегодняшней даты: к 12.10.2026 все
+    # записи первого узла стали старше месяца, и сравнение «стало меньше»
+    # провалилось без всякой поломки. Признак, что выбор дошёл до фильтра, —
+    # чип условия над таблицей; выборка при этом не растёт.
+    t.ck(pg.locator('.iall-chip[data-all-stale]').count() == 1,
+         'выбор в списке не дошёл до фильтра: нет чипа «без движения»')
+    t.ck(after <= before, 'выбор в списке расширил выборку: %d и %d' % (before, after))
     t.ck('дн' in stale.inner_text() or 'год' in stale.inner_text(),
          'подпись кнопки не обновилась: %s' % stale.inner_text())
 

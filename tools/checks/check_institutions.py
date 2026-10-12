@@ -448,9 +448,14 @@ def run(t):
         pg.locator('[data-itab="all"]').click()
         t.wait(700)
 
-        total = pg.locator('[data-all-row]').count()
+        # Выборка — по счётчику «N из M»: таблица рисуется порциями
+        # (allObjects.js ALL_STEP), в ней не больше порции строк.
+        found = lambda: int(pg.inner_text('.iall-count').split()[0])
+        total = found()
         t.ck(total == bestn,
-             'счётчик вкладки (%d) не сходится с таблицей (%d)' % (bestn, total))
+             'счётчик вкладки (%d) не сходится с выборкой (%d)' % (bestn, total))
+        t.ck(pg.locator('[data-all-row]').count() == min(total, 300),
+             'в таблице не первая порция выборки: %d из %d' % (pg.locator('[data-all-row]').count(), total))
         t.ck(pg.locator('.iall-facet').count() >= 5, 'фасетов меньше пяти')
 
         # Объекты поддерева, а не только свои: узел сам по себе их не держит.
@@ -470,7 +475,7 @@ def run(t):
             picks.first.check()
             t.wait(500)
 
-            after = pg.locator('[data-all-row]').count()
+            after = found()
             t.ck(0 < after < total, 'фильтр по городу не сузил выборку: %d из %d' % (after, total))
             got = pg.eval_on_selector_all('[data-all-row] td:nth-child(4)',
                                           'els => [...new Set(els.map(e => e.textContent.trim()))]')
@@ -483,13 +488,11 @@ def run(t):
 
         pg.select_option('[data-all-stale-sel]', '30')
         t.wait(500)
-        stale = pg.locator('[data-all-row]').count()
-        t.ck(stale <= pg.locator('[data-all-row]').count(),
-             'фильтр «без движения» не применился')
+        t.ck(found() <= total, 'фильтр «без движения» не применился')
 
         pg.locator('[data-all-reset]').first.click()
         t.wait(500)
-        t.ck(pg.locator('[data-all-row]').count() == total, 'сброс не вернул выборку')
+        t.ck(found() == total, 'сброс не вернул выборку')
 
         pg.locator('[data-all-panel-close]').first.click()
         t.wait(400)
