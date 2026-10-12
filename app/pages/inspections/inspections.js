@@ -59,7 +59,6 @@ const view = {
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
   histPerson: '',        // в «Истории»: осмотрщик
   peopleMode: 'all',     // mine | all
-  mine: [],              // «Мои осмотрщики»
   region: '',            // область осмотрщиков
   peopleSort: 'name',    // name | free
   q: '',
@@ -73,10 +72,11 @@ const view = {
   histDay: '',
   shown: STEP,
 };
-// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
-// макете живёт с видом экрана в браузере. На сервере — список у учётной
-// записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
+// «Мои осмотрщики» — те, за кем закреплён вошедший региональный менеджер
+// (поле профиля «Ответственное лицо»; указание пользователя 12.10.2026
+// «Только по моим. Не по звездам»). ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: закрепление —
+// связь учётных записей осмотрщика и менеджера, «Мои» — по входу.
+persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode',
   'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -139,8 +139,9 @@ export function mountInspections(host) {
 
   // --- осмотрщики: набор, области ------------------------------------------------
   const regionList = () => [...new Set(people.flatMap((p) => p.regions))].sort((a, b) => a.localeCompare(b, 'ru'));
+  const myPeople = () => new Set(people.filter((p) => profileOf(p.name).manager === session.state.person).map((p) => p.name));
   function visiblePeople() {
-    const mine = new Set(view.mine);
+    const mine = myPeople();
     const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!view.region || p.regions.includes(view.region)));
     return view.peopleSort === 'free'
       ? list.slice().sort((a, b) => b.free - a.free || a.live - b.live || a.name.localeCompare(b.name, 'ru'))
@@ -356,7 +357,7 @@ export function mountInspections(host) {
   // замечание «Ты сейчас всё списком по вертикали выкатил… делим на логичные
   // разделы»). «Все осмотрщики» — так же: «Сводка · Статистика».
   function peopleListHTML() {
-    const mine = new Set(view.mine);
+    const mine = myPeople();
     const q = peopleQ.trim().toLowerCase();
     const list = visiblePeople().filter((p) => !q || p.name.toLowerCase().includes(q));
     const row = (p) => `<li class="ip-person ${view.person === p.name ? 'on' : ''}">
@@ -366,14 +367,11 @@ export function mountInspections(host) {
             ${p.late ? `<span class="ip-late">просрочено <b>${p.late}</b></span>` : ''}
             <span title="Рабочих дней без плановых осмотров на две недели">свободно <b>${p.free}</b> дн.</span></span>
         </button>
-        <button class="ip-star ${mine.has(p.name) ? 'on' : ''}" data-ip-star="${esc(p.name)}"
-          title="${mine.has(p.name) ? 'Убрать из моих осмотрщиков' : 'Добавить в мои осмотрщики'}"
-          aria-label="${mine.has(p.name) ? 'Убрать из моих осмотрщиков' : 'Добавить в мои осмотрщики'}">${mine.has(p.name) ? '★' : '☆'}</button>
       </li>`;
     return `<aside class="ip-people" aria-label="Осмотрщики">
       <div class="ip-people-head">
         <div class="ip-seg" role="group" aria-label="Какие осмотрщики">
-          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}">Мои <b>${view.mine.length}</b></button>
+          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
           <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все <b>${people.length}</b></button>
         </div>
         <div class="ip-people-filters">
@@ -390,7 +388,7 @@ export function mountInspections(host) {
           <span class="ip-person-name">Все осмотрщики</span><span class="ip-person-load"><span>сводка и сравнение</span></span></button></li>
         ${list.map(row).join('')}
       </ul>
-      ${view.peopleMode === 'mine' && !list.length ? `<p class="ip-hint ip-people-empty">${view.mine.length ? 'Никого не нашлось — измените поиск.' : 'Своих осмотрщиков нет: отметьте их звёздочкой в списке «Все».'}</p>` : ''}
+      ${view.peopleMode === 'mine' && !list.length ? `<p class="ip-hint ip-people-empty">${mine.size ? 'Никого не нашлось — измените поиск.' : 'За вами не закреплён ни один осмотрщик — «Ответственное лицо» указывается в профиле осмотрщика.'}</p>` : ''}
     </aside>`;
   }
 
@@ -1237,7 +1235,7 @@ export function mountInspections(host) {
   const readSet = () => new Set(view.notesRead);
   function notesSection() {
     const read = readSet();
-    const mine = new Set(view.mine);
+    const mine = myPeople();
     const base = notes.filter((n) => view.peopleMode !== 'mine' || !n.person || mine.has(n.person));
     const list = base.filter((n) => (!view.notesKind || n.kind === view.notesKind) && (!view.notesUnread || !read.has(n.id)));
     const count = (k) => base.filter((n) => n.kind === k).length;
@@ -1247,7 +1245,7 @@ export function mountInspections(host) {
     const aside = `<aside class="ip-people" aria-label="Отбор уведомлений">
       <div class="ip-people-head">
         <div class="ip-seg" role="group" aria-label="Чьи уведомления">
-          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}">Мои <b>${view.mine.length}</b></button>
+          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
           <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все</button>
         </div>
         <label class="ip-check"><input type="checkbox" data-ip-notes-unread ${view.notesUnread ? 'checked' : ''}> Только непрочитанные · ${unreadN}</label>
@@ -1354,11 +1352,6 @@ export function mountInspections(host) {
 
   // --- осмотрщики ---
   scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; detail = []; redraw(); });
-  scope.on('click', '[data-ip-star]', (e, b) => {
-    const n = b.dataset.ipStar;
-    view.mine = view.mine.includes(n) ? view.mine.filter((x) => x !== n) : [...view.mine, n];
-    redraw();
-  });
   scope.on('click', '[data-ip-mode]', (e, b) => { view.peopleMode = b.dataset.ipMode; redraw(); });
   scope.on('input', '[data-ip-people-q]', (e, el) => { peopleQ = el.value; keepFocus('[data-ip-people-q]'); });
   scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; redraw(); });

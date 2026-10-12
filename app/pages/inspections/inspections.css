@@ -46,9 +46,6 @@ body[data-page="inspections"] .ip-person-main{flex:1 1 auto;min-width:0;display:
 body[data-page="inspections"] .ip-person-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body[data-page="inspections"] .ip-person-load{display:flex;flex-wrap:wrap;gap:0 10px;font-size:11.5px;color:var(--muted)}
 body[data-page="inspections"] .ip-person-load b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
-body[data-page="inspections"] .ip-star{flex:0 0 32px;font-size:15px;color:var(--ink-faint);border-radius:8px;cursor:pointer}
-body[data-page="inspections"] .ip-star:hover{color:var(--amber-600);background:var(--amber-50)}
-body[data-page="inspections"] .ip-star.on{color:var(--amber-600)}
 
 /* Просрочка — словом и тёмным красным с контрастом выше 4,5:1. */
 body[data-page="inspections"] .ip-late,

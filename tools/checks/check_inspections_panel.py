@@ -11,7 +11,8 @@
     флажками не дают панель на несколько объектов;
   * назначенный объект не уходит из «К назначению» и не появляется в
     «Назначено»; снятие не возвращает его в очередь;
-  * «Мои осмотрщики» не переживают перезагрузку;
+  * «Мои осмотрщики» — не те, за кем закреплён вошедший регионал, или не
+    переживают перезагрузку;
   * страница вбок прокручивается или в консоли ошибки.
 """
 NAME = 'панель осмотров'
@@ -158,15 +159,24 @@ def run(t):
     # --- «Мои осмотрщики» (раздел «Осмотрщики») ---------------------------------------------
     pg.click('[data-ip-section="people"]')
     t.wait_for('.ip-people')
-    name = pg.locator('[data-ip-star]').first.get_attribute('data-ip-star')
-    pg.locator('[data-ip-star]').first.click()
+    # «Мои» — по ответственному лицу, а не по отметкам (указание пользователя
+    # 12.10.2026 «Только по моим. Не по звездам»).
+    t.ck(pg.locator('[data-ip-star]').count() == 0, 'в списке осмотрщиков остались звёздочки')
+    me = pg.evaluate("async () => (await import('./app/kernel/session.js')).session.state.person")
+    mine = pg.evaluate("async (m) => { const k = await import('./app/kernel/inspections.js'); return k.profileNames().filter((n) => k.profileOf(n).manager === m); }", me)
     pg.click('[data-ip-mode="mine"]')
-    t.ck(pg.locator('.ip-person-main[data-ip-person="%s"]' % name).count() == 1, 'осмотрщик не попал в «Мои»')
+    shown = pg.locator('.ip-person-main[data-ip-person]:not([data-ip-person=""])').evaluate_all('(els) => els.map((e) => e.dataset.ipPerson)')
+    t.ck(len(mine) > 0 and sorted(shown) == sorted(mine), '«Мои» не совпадают с закреплёнными за %s: %s / %s' % (me, shown, mine))
     pg.evaluate("async () => (await import('./app/kernel/persist.js')).saveNow()")
     pg.reload()
     t.wait_for('.ip-people')
-    t.ck(pg.locator('[data-ip-mode="mine"][aria-pressed="true"]').count() == 1 and pg.locator('.ip-person-main[data-ip-person="%s"]' % name).count() == 1,
-         '«Мои осмотрщики» не пережили перезагрузку')
+    # После перезагрузки — режим «Мои» и тот же принцип: показаны ровно
+    # закреплённые за вошедшим (состав мог измениться — демо-история строится
+    # по осмотрщикам из записей, а назначения одного из них выше переданы).
+    mine2 = pg.evaluate("async (m) => { const k = await import('./app/kernel/inspections.js'); return k.profileNames().filter((n) => k.profileOf(n).manager === m); }", me)
+    shown2 = pg.locator('.ip-person-main[data-ip-person]:not([data-ip-person=""])').evaluate_all('(els) => els.map((e) => e.dataset.ipPerson)')
+    t.ck(pg.locator('[data-ip-mode="mine"][aria-pressed="true"]').count() == 1 and sorted(shown2) == sorted(mine2),
+         '«Мои осмотрщики» не пережили перезагрузку: %s / %s' % (shown2, mine2))
 
     # --- осмотрщику «Осмотры» — его экран ------------------------------------------------
     t.open('', wait='.reg-tr')
