@@ -32,9 +32,28 @@ def run(t):
     if not t.ck(before > 0, 'в «К назначению» нет объектов'):
         return
     # Экран не пустой: первая строка выбрана и разобрана в панели сразу.
-    key = pg.locator('[data-ip-row]').first.get_attribute('data-ip-row')
-    t.ck(pg.locator('tr.cur[data-ip-row="%s"]' % key).count() == 1 and pg.locator('.ip-pane [data-ip-f-ok]').count() == 1,
+    first = pg.locator('[data-ip-row]').first.get_attribute('data-ip-row')
+    t.ck(pg.locator('tr.cur[data-ip-row="%s"]' % first).count() == 1 and pg.locator('.ip-pane [data-ip-f-ok]').count() == 1,
          'при открытии не выбрана первая строка или панель назначения пуста')
+
+    # --- частично осмотренные остаются в очереди ---------------------------------------
+    # Слова пользователя 12.10.2026: «А где частично осмотренные? Фильтрация при
+    # поиске в К назначению должна быть». Объект с осмотренными и назначенными ОИ,
+    # но со свободными — в очереди, фильтр «Частично осмотрены» его находит, а в
+    # панели занятые ОИ не выбираются повторно.
+    pg.select_option('[data-ip-cov]', 'inspected')
+    if t.ck(t.wait_until("() => document.querySelectorAll('tr[data-ip-row]').length > 0 && [...document.querySelectorAll('tr[data-ip-row]')].every((r) => r.dataset.cov === 'inspected')"),
+            'фильтр «Частично осмотрены» не нашёл частично осмотренных объектов'):
+        pg.locator('tr[data-cov="inspected"] td:nth-child(3)').first.click()
+        t.wait_for('.ip-pane [data-ip-f-oi]')
+        st = pg.evaluate("() => ({ taken: document.querySelectorAll('.ip-pane .ip-check.taken input:disabled').length, free: document.querySelectorAll('.ip-pane [data-ip-f-oi]:not(:disabled):checked').length, whole: document.querySelector('[data-ip-f-whole]').checked })")
+        t.ck(st['taken'] >= 1 and st['free'] >= 1 and not st['whole'],
+             'у частично осмотренного объекта занятые ОИ не отмечены или свободные не выбраны: %s' % st)
+    pg.select_option('[data-ip-cov]', 'none')
+    t.wait_until("() => [...document.querySelectorAll('tr[data-ip-row]')].every((r) => r.dataset.cov === 'none')")
+    key = pg.locator('tr[data-cov="none"]').first.get_attribute('data-ip-row')
+    pg.locator('tr[data-ip-row="%s"] td:nth-child(3)' % key).click()
+    t.wait_for('tr.cur[data-ip-row="%s"]' % key)
     t.ck(pg.locator('.modal-back').count() == 0, 'панель назначения открыта модальным окном')
 
     # --- панель назначения ---------------------------------------------------------------

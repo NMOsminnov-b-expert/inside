@@ -30,19 +30,60 @@ export const regionOf = (s) => eniRegion(s.eni) || '';
 
 // --- очередь «К назначению» -----------------------------------------------------
 
-// Объекты в статусе «Удостоверен по документам» без действующего назначения
-// (ТЗ 3.2). Назначенный хотя бы на один ОИ объект в очереди не стоит — его
-// остальные ОИ назначаются из вкладки «Назначено».
+// Покрытие ОИ объекта осмотрами — по каждому ОИ: осмотрен (законченное
+// назначение), назначен (действующее) или свободен. Назначение «объект
+// целиком» (oiIds пуст) покрывает все ОИ. Слова пользователя 12.10.2026:
+// «А где частично осмотренные?» — объект не пропадает из очереди, пока у
+// него есть свободные ОИ.
+//   cov.state: none — ни один ОИ не назначен и не осмотрен;
+//              assigned — часть назначена, осмотренных нет;
+//              inspected — часть осмотрена (остальные свободны или назначены);
+//              full — свободных ОИ нет (в очередь не попадает).
+export function coverageOf(typeId, ocId) {
+  const t = getType(typeId);
+  const rec = t && t.records.loadRecord(ocId);
+  const ids = rec ? (rec.oi || []).map((o) => o.id) : [];
+  const total = Math.max(ids.length, 1);
+  const by = new Map();       // ОИ → { kind: 'done' | 'live', a }
+  allAssignments().forEach((a) => {
+    if (a.typeId !== typeId || a.ocId !== ocId) return;
+    const kind = a.state === 'done' ? 'done' : isLive(a) ? 'live' : '';
+    if (!kind) return;
+    const cover = a.oiIds && a.oiIds.length ? a.oiIds : (ids.length ? ids : ['']);
+    cover.forEach((id) => {
+      const was = by.get(id);
+      if (!was || (was.kind === 'live' && kind === 'done')) by.set(id, { kind, a });
+    });
+  });
+  const list = ids.length ? ids : [''];
+  const done = list.filter((id) => by.has(id) && by.get(id).kind === 'done').length;
+  const live = list.filter((id) => by.has(id) && by.get(id).kind === 'live').length;
+  const free = total - done - live;
+  const state = free === 0 ? 'full' : done ? 'inspected' : live ? 'assigned' : 'none';
+  return { total, done, live, free, state, by };
+}
+
+export const COVERAGE = [
+  { key: '', label: 'Любое покрытие' },
+  { key: 'none', label: 'Не назначены' },
+  { key: 'assigned', label: 'Частично назначены' },
+  { key: 'inspected', label: 'Частично осмотрены' },
+];
+
+// Очередь «К назначению» (ТЗ 3.2): объекты в статусе «Удостоверен по
+// документам», у которых есть свободные ОИ. Фильтр f.cov — по покрытию.
 export function queueRows(all, f) {
-  const busy = new Set(allAssignments().filter(isLive).map((a) => key(a.typeId, a.ocId)));
   const q = (f.q || '').trim().toLowerCase();
   const out = [];
-  all.forEach((s, k) => {
-    if (s.status !== READY_STATUS || busy.has(k)) return;
+  all.forEach((s) => {
+    if (s.status !== READY_STATUS) return;
     if (f.type && s.typeId !== f.type) return;
     if (f.region && regionOf(s) !== f.region) return;
     if (q && !`${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city}`.toLowerCase().includes(q)) return;
-    out.push(s);
+    const cov = coverageOf(s.typeId, s.id);
+    if (cov.state === 'full') return;
+    if (f.cov && cov.state !== f.cov) return;
+    out.push({ ...s, cov });
   });
   return out.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 }
@@ -137,6 +178,7 @@ export function objectContents(typeId, ocId) {
     groups: groups.map((g) => ({ ...g, docs: g.docs.filter((d) => !isInventory(d)) })),
     inventories: all.filter(isInventory),
     taken: assignmentsOf(typeId, ocId),
+    cov: coverageOf(typeId, ocId),
   };
 }
 

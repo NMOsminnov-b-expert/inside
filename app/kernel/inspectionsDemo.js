@@ -2,11 +2,15 @@
 // показывать (просьба пользователя 12.10.2026 «не вижу… графиков с демо
 // данными»). В демо-наборе 16 записей и три осмотрщика; на них строится:
 //   * прошлое — 45 рабочих дней законченных осмотров по ОИ (снимки, заметки);
-//   * будущее — плановые осмотры на три недели вперёд.
+//   * будущее — плановые осмотры на три недели вперёд;
+//   * частично осмотренный объект — у первой записи «Удостоверен по
+//     документам» с несколькими ОИ первый ОИ осмотрен, второй назначен, прочие
+//     свободны (просьба пользователя 12.10.2026 «А где частично осмотренные?»).
 // Генератор детерминированный (mulberry32 от постоянного зерна), даты — от
 // сегодняшнего дня (правило «годы и периоды не зашивать»). Демо-назначения
-// помечены demo: true и не трогают записи: resp.insp не пишут и объекты из
-// очереди «К назначению» не убирают (очередь — по статусу записи).
+// помечены demo: true и не трогают записи: resp.insp не пишут. Очередь «К
+// назначению» считает свободные ОИ, поэтому частичный демо-объект в ней
+// остаётся со своей полосой покрытия.
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-данных нет — история и загрузка строятся из
 // настоящих назначений и журнала.
@@ -126,6 +130,30 @@ export function demoInspections() {
       ev(a, 'assigned', new Date(a.at));
     }
   });
+
+  // Частично осмотренный объект очереди.
+  const partial = recs.find((r) => r.status === READY && r.oi.length >= 3);
+  if (partial) {
+    const person = names[1 % names.length];
+    const doneDay = dayAt(today, -4, 12);
+    const a1 = {
+      id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person, oiIds: [partial.oi[0]], docs: [], inventories: [],
+      plannedAt: isoLocalDate(dayAt(today, -4, 9)), note: 'Первым — основное здание', by: 'Региональный менеджер (демо)',
+      at: dayAt(today, -7, 15).toISOString(), state: 'done', doneAt: doneDay.toISOString(), demo: true,
+    };
+    assignments.push(a1);
+    ev(a1, 'assigned', new Date(a1.at));
+    ev(a1, 'photos', dayAt(today, -4, 10), { count: 41 });
+    ev(a1, 'note', dayAt(today, -4, 11), { text: 'Доступ на кровлю закрыт' });
+    ev(a1, 'done', doneDay);
+    const a2 = {
+      id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person: names[2 % names.length], oiIds: [partial.oi[1]], docs: [], inventories: [],
+      plannedAt: isoLocalDate(dayAt(today, 3, 9)), note: '', by: 'Региональный менеджер (демо)',
+      at: dayAt(today, -1, 15).toISOString(), state: 'assigned', doneAt: '', demo: true,
+    };
+    assignments.push(a2);
+    ev(a2, 'assigned', new Date(a2.at));
+  }
 
   return { assignments, events };
 }

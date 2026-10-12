@@ -18,7 +18,7 @@ import { esc } from '../../kernel/dom.js';
 import { persistView } from '../../kernel/viewState.js';
 import { allAssignments, profileOf, saveProfile, PROFILE_FIELDS } from '../../kernel/inspections.js';
 import {
-  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS, periodTotals, dayOf,
+  summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
@@ -42,6 +42,7 @@ const view = {
   q: '',
   type: '',
   objRegion: '',
+  cov: '',               // «К назначению»: покрытие ОИ (COVERAGE)
   histKind: '',
   histDay: '',
   shown: STEP,
@@ -50,7 +51,7 @@ const view = {
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
 persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
-  'region', 'peopleSort', 'type', 'objRegion', 'histKind']);
+  'region', 'peopleSort', 'type', 'objRegion', 'cov', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
@@ -102,26 +103,35 @@ export function mountInspections(host) {
   function queueHTML(rows) {
     const shown = rows.slice(0, Math.max(view.shown, STEP));
     if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
+      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion || view.cov ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
     }
     return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
-      <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-n"><col class="c-n"></colgroup>
+      <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-cov"><col class="c-n"></colgroup>
       <thead><tr>
         <th class="c-check"><input type="checkbox" data-ip-all aria-label="Отметить показанные" title="Отметить показанные"
           ${shown.length && shown.every((s) => checked.has(s.typeId + '|' + s.id)) ? 'checked' : ''}></th>
         <th>ЕНИ</th><th title="Адрес; ниже — тип ОЦ, учреждение, город">Объект</th>
-        <th class="num" title="Объектов имущества">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
+        <th title="Объекты имущества: осмотрено · назначено · свободно">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
       </tr></thead>
       <tbody>${shown.map((s) => {
         const k = s.typeId + '|' + s.id;
-        return `<tr data-ip-row="${esc(k)}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
+        return `<tr data-ip-row="${esc(k)}" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
           <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
           <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
           <td title="${esc([regionOf(s), s.city].filter(Boolean).join(', '))}">${objCell(s, [s.typeLabel, s.institution, s.city].filter(Boolean).join(' · '))}</td>
-          <td class="num">${(s.metrics && s.metrics.oiCount) || 0}</td>
+          <td>${covCell(s.cov)}</td>
           <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
         </tr>`;
       }).join('')}</tbody></table></div></div>${more(shown.length, rows.length)}`;
+  }
+
+  // Покрытие ОИ: полоса «осмотрено · назначено · свободно» и подпись.
+  function covCell(c) {
+    const pc = (n) => `${Math.round((n / c.total) * 100)}%`;
+    const tip = `ОИ: осмотрено ${c.done}, назначено ${c.live}, свободно ${c.free} из ${c.total}`;
+    return `<span class="ip-cov" title="${esc(tip)}"><span class="ip-cov-bar">
+        ${c.done ? `<i class="k-done" style="width:${pc(c.done)}"></i>` : ''}${c.live ? `<i class="k-plan" style="width:${pc(c.live)}"></i>` : ''}</span>
+      <span class="ip-cov-t">${c.state === 'none' ? `${c.total}` : `своб. ${c.free} из ${c.total}`}</span></span>`;
   }
 
   function assignedHTML(rows) {
@@ -148,7 +158,7 @@ export function mountInspections(host) {
 
   function assignSection() {
     const queue = queueRows(all, { ...view, region: view.objRegion });
-    const queueN = view.q || view.type || view.objRegion ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
+    const queueN = view.q || view.type || view.objRegion || view.cov ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
     const assigned = assignedRows(all, { q: view.q, person: view.assignPerson });
     const assignedN = view.q ? assignedRows(all, { person: view.assignPerson }).length : assigned.length;
     const facets = queueFacets(all);
@@ -161,6 +171,8 @@ export function mountInspections(host) {
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : 'ЕНИ, адрес, осмотрщик')}
           ${view.tab === 'queue' ? `<select class="select ip-filter" data-ip-type aria-label="Тип ОЦ"><option value="">Все типы ОЦ</option>
               ${facets.types.map((t) => `<option value="${esc(t.id)}" ${view.type === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
+            <select class="select ip-filter" data-ip-cov aria-label="Покрытие ОИ">
+              ${COVERAGE.map((c) => `<option value="${c.key}" ${view.cov === c.key ? 'selected' : ''}>${c.label}</option>`).join('')}</select>
             <select class="select ip-filter" data-ip-objregion aria-label="Область объектов"><option value="">Все области</option>
               ${facets.regions.map((r) => `<option ${view.objRegion === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
           ${personSelect('data-ip-aperson', view.assignPerson, 'Осмотрщик')}
@@ -451,6 +463,7 @@ export function mountInspections(host) {
   scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
   scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
   scope.on('change', '[data-ip-type]', (e, el) => { view.type = el.value; view.shown = STEP; render(); });
+  scope.on('change', '[data-ip-cov]', (e, el) => { view.cov = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-objregion]', (e, el) => { view.objRegion = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-aperson]', (e, el) => { view.assignPerson = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-hperson]', (e, el) => { view.histPerson = el.value; view.shown = STEP; render(); });
