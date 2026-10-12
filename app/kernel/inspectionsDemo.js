@@ -75,7 +75,8 @@ export function demoInspections() {
         const r = pick(pool);
         const oiId = pick(r.oi);
         const at = dayAt(today, -back - 2 - Math.floor(rnd() * 5), 10);
-        const done = dayAt(today, -back, 10 + j * 2 + Math.floor(rnd() * 2));
+        // Окончание — после снимков и заметок того же осмотра.
+        const done = dayAt(today, -back, 12 + j * 2);
         const a = {
           id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [oiId], docs: [], inventories: [],
           plannedAt: isoLocalDate(day), note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
