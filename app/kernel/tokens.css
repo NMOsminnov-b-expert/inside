@@ -376,3 +376,68 @@ input,select,textarea{font:inherit;color:inherit}
    Стрелка выдавала его за выпадающий список (замечание пользователя 06.10.2026:
    «Вот тут есть стрелочка. Убери её»). */
 input[list]::-webkit-calendar-picker-indicator{display:none !important}
+
+/* ============ Страницы: вкладки, поиск, таблица ============
+   Общие для страниц ядра (учреждения, панель осмотров). Перенесены из
+   pages/institutions/institutions.css 12.10.2026 без изменения значений:
+   одинаковые элементы на соседних страницах выглядели по-разному
+   (замечание пользователя «стили в разнобой»). Уточнения страницы — в её
+   стилях с префиксом body[data-page=…]. */
+.itabs{display:flex;align-items:flex-end;gap:4px;
+  flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:0;
+  position:relative;z-index:1}
+/* Действия вкладки — в её же строке справа (пользователь 03.09.2026): полоса
+   вкладок тянулась пустой, а кнопки ниже съедали строку у просмотрщика.
+   Обводка и заливка у них те же, что у блока под ними: кнопки сидят в его
+   верхнем крае, а не висят отдельной группой над чертой. */
+.itabs-acts{display:flex;align-items:center;gap:6px;
+  margin-left:auto;margin-bottom:-1px;padding:5px 9px;background:var(--panel);
+  border:1px solid var(--line);border-bottom:none;border-radius:9px 9px 0 0}
+.itabs-acts:empty{display:none}
+.itabs-acts .btn{height:28px;display:inline-flex;
+  align-items:center;padding:0 12px}
+/* Подпись вкладки не переносится по словам: «С подведомственными» ломалось на
+   две строки, как только рядом встали кнопки действий. Переносится, если что,
+   вся строка вкладок целиком. */
+.itab{display:flex;align-items:center;gap:7px;
+  white-space:nowrap;padding:8px 14px;
+  border-radius:9px 9px 0 0;font-size:13px;color:var(--muted);font-weight:600;
+  border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+.itab:hover{color:var(--ink);background:var(--blue-50)}
+.itab.on{color:var(--blue-700);background:var(--panel);
+  border-color:var(--line);border-bottom-color:var(--panel)}
+.itab b{font-size:10.5px;font-weight:700;
+  background:var(--slate-50);color:var(--slate-700);border-radius:999px;padding:1px 7px}
+.itab.on b{background:var(--blue-50);color:var(--blue-700)}
+
+.itoolbar{display:flex;align-items:center;gap:10px;
+  flex-wrap:wrap;margin-bottom:12px}
+.isearch{position:relative;display:flex;align-items:center;
+  flex:1 1 320px;min-width:220px;height:34px;background:#fff;
+  border:1px solid var(--line-input);border-radius:9px;
+  transition:border-color .12s,box-shadow .12s}
+.isearch:hover{border-color:var(--blue-500)}
+.isearch:focus-within{border-color:var(--blue-600);
+  box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+.isearch svg{position:absolute;left:11px;color:#8ea3ba;
+  pointer-events:none}
+.isearch input{flex:1 1 auto;min-width:0;height:100%;border:none;
+  background:none;outline:none;padding:0 26px 0 31px;font-size:13px;color:var(--ink)}
+.isearch-clear{position:absolute;right:8px;width:18px;height:18px;
+  border-radius:5px;color:#9fb0c4;font-size:14px;line-height:1}
+.isearch-clear:hover{background:#eef3f9;color:var(--ink)}
+
+/* Таблицы */
+.icols{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.itbl{width:100%;table-layout:fixed;border-collapse:collapse}
+.itbl th{position:relative;padding:8px 12px;text-align:left;
+  font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#5a6b82;font-weight:700;
+  background:#f6f9fd;border-bottom:1px solid var(--line)}
+.itbl td{padding:8px 12px;font-size:12.5px;color:var(--ink);
+  border-bottom:1px solid var(--line-soft);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.itbl tbody tr{cursor:pointer;transition:background .12s}
+.itbl tbody tr:hover td{background:var(--blue-50)}
+.itbl tbody tr:last-child td{border-bottom:none}
+.itbl .num{text-align:right;font-variant-numeric:tabular-nums}
