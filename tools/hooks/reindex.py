@@ -26,6 +26,9 @@
     started, finished — время ISO; pid — процесс прогона (running без
              живого процесса — прогон оборвался)
     files, chunks — у поиска по смыслу: сколько файлов и фрагментов обработано
+    progress — у поиска по смыслу: доля готового 0..1 (null — сервер её не
+             сообщает); eta — ориентировочное время окончания ISO (null —
+             оценки ещё нет: первые минуты скорость не установилась)
     note     последняя строка вывода при ошибке
 
 Два процесса пишут файл вперемешку, поэтому каждый перечитывает его и меняет
@@ -168,18 +171,50 @@ def codegraph(commit):
 
 
 PROGRESS = re.compile(r'\b(pending|running|completed|failed|cancelled)\s+файлов\s+(\S+)\s+фрагментов\s+(\S+)')
+SHARE = re.compile(r'\bprogress\s+([01](?:\.\d+)?)')
+
+# Время окончания (просьба пользователя 12.10.2026 «добавь ожидаемое время
+# завершения индексации для qwen»; запись графа graf-vremya-okonchaniya-
+# obnovleniya-indeksa): доля готового сообщает индексатор semsearch, скорость
+# — по скользящему окну ETA_WINDOW секунд, чтобы цифра не скакала от пачки
+# к пачке; раньше ETA_SETTLE секунд хода оценки нет — скорость не установилась.
+ETA_WINDOW = 600
+ETA_SETTLE = 45
+
+
+def eta_of(samples):
+    """samples — [(время, доля)]; вернуть (секунд осталось, время окончания ISO) или (None, None)."""
+    if len(samples) < 2:
+        return None, None
+    (t0, f0), (t1, f1) = samples[0], samples[-1]
+    if t1 - t0 < ETA_SETTLE or f1 <= f0:
+        return None, None
+    left = (1 - f1) * (t1 - t0) / (f1 - f0)
+    end = datetime.datetime.now() + datetime.timedelta(seconds=left)
+    return int(left), end.isoformat(timespec='seconds')
 
 
 def index_project(key, project, env=None):
     """Дообновить индекс проекта semsearch; ход — в состоянии под key. True — удалось."""
+    import time
     last_state = ['']
+    samples = []
+    put(key, progress=None, eta=None)
 
     def seen(line):
         m = PROGRESS.search(line)
         if m:
             last_state[0] = m.group(1)
             f, c = (int(x) if x.isdigit() else 0 for x in m.group(2, 3))
-            put(key, files=f, chunks=c)
+            share = SHARE.search(line)
+            if not share:
+                return put(key, files=f, chunks=c)
+            t, frac = time.time(), float(share.group(1))
+            samples.append((t, frac))
+            while len(samples) > 2 and samples[1][0] < t - ETA_WINDOW:
+                samples.pop(0)
+            _, end = eta_of(samples)
+            put(key, files=f, chunks=c, progress=frac, eta=end)
 
     code, last = run([SPY, SCLIENT, 'index', ROOT.as_posix(), project], seen, env)
     if code or last_state[0] != 'completed':

@@ -98,6 +98,9 @@ public static class ScriptRunner
                         log.Add("  индексы: " + got);
                         if (st.TryGetProperty("expect", out var ex) && ex.GetString() != got)
                             log.Add("  ОШИБКА индексы: ждали «" + ex.GetString() + "»");
+                        // expect_re — когда в подписи текущее время (время окончания).
+                        if (st.TryGetProperty("expect_re", out var rx) && !System.Text.RegularExpressions.Regex.IsMatch(got, rx.GetString() ?? ""))
+                            log.Add("  ОШИБКА индексы: ждали по образцу «" + rx.GetString() + "»");
                         break;
                     }
                     case "indexclick":

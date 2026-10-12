@@ -22,7 +22,10 @@ namespace Graf;
 // пересчёт по смыслу не держит CodeGraph. Полоска идёт, пока прогон идёт: сколько файлов
 // обработает индекс по смыслу, заранее неизвестно, поэтому ход бегущий
 // (HIG Progress indicators: неопределённый ход, когда объём неизвестен),
-// а число обработанных файлов — в подписи. Прогон кончился — полоска полная
+// а число обработанных файлов — в подписи. Если индексатор сообщает долю
+// готового (12.10.2026, «добавь ожидаемое время завершения индексации для
+// qwen»), ход определённый, в подписи — доля и время окончания «42% · до
+// 18:05, ≈12 мин», до установления скорости — «оценка…». Прогон кончился — полоска полная
 // и цветом говорит итог: зелёная — индекс на текущем коммите, оранжевая —
 // на старом (после коммита прогона ещё не было), красная — ошибка.
 public sealed partial class MainWindow
@@ -92,6 +95,7 @@ public sealed partial class MainWindow
         var at = s.Finished is { } f ? f.ToString(f.Date == DateTime.Today ? "HH:mm" : "dd.MM HH:mm") : "";
         string text = v switch
         {
+            "running" when s.Progress >= 0 => $"{s.Progress * 100:0}% · " + (s.Eta is { } e ? EtaText(e) : "оценка…"),
             "running" => s.Key == "semsearch" && s.Files > 0 ? $"{s.Stage} · файлов {s.Files}" : s.Stage,
             "current" => $"актуален · {at}",
             "behind" => $"отстаёт · {at}",
@@ -112,8 +116,10 @@ public sealed partial class MainWindow
         if (key == it.Shown) return;
         it.Shown = key;
 
-        it.Bar.IsIndeterminate = v == "running";
-        it.Bar.Value = v is "current" or "behind" or "failed" or "broken" ? 100 : 0;
+        // Доля известна — полоска определённая (HIG Progress indicators:
+        // определённый ход, когда объём известен), иначе — бегущая.
+        it.Bar.IsIndeterminate = v == "running" && s.Progress < 0;
+        it.Bar.Value = v is "current" or "behind" or "failed" or "broken" ? 100 : v == "running" && s.Progress >= 0 ? s.Progress * 100 : 0;
         it.Bar.Foreground = Hig.B(color);
         it.Text.Text = text;
         it.Text.Foreground = v is "current" or "running" ? Hig.B("HigSecondary") : Hig.B(color);
@@ -136,8 +142,23 @@ public sealed partial class MainWindow
         if (s.Commit != "") tip.Add("Коммит прогона: " + s.Commit[..Math.Min(10, s.Commit.Length)]);
         if (s.Finished is { } fin) tip.Add("Закончен: " + fin.ToString("dd.MM.yyyy HH:mm:ss"));
         if (s.Key == "semsearch" && (s.Files > 0 || s.Chunks > 0)) tip.Add($"Обработано файлов {s.Files}, фрагментов {s.Chunks}");
+        if (v == "running" && s.Progress >= 0)
+            tip.Add(s.Eta is { } eta
+                ? $"Готово {s.Progress * 100:0}%, окончание ориентировочно {eta:HH:mm} — по скорости за последние 10 минут"
+                : $"Готово {s.Progress * 100:0}%; время окончания — после первой минуты хода, когда установится скорость");
         tip.Add(s.Key == "codegraph" ? "Журнал — .graf/reindex-code.log" : "Журнал — .graf/reindex-sem.log");
         ToolTipService.SetToolTip(it.Root, string.Join("\n", tip));
+    }
+
+    // «до 18:05, ≈12 мин»: время окончания и сколько осталось от сейчас
+    // (опрос раз в 2 с — минуты идут сами, пока оценка не обновилась).
+    static string EtaText(DateTime eta)
+    {
+        var left = eta - DateTime.Now;
+        var at = eta.ToString(eta.Date == DateTime.Today ? "HH:mm" : "dd.MM HH:mm");
+        if (left.TotalSeconds < 60) return $"до {at}, меньше минуты";
+        var m = (int)Math.Round(left.TotalMinutes);
+        return m < 60 ? $"до {at}, ≈{m} мин" : $"до {at}, ≈{m / 60} ч {m % 60} мин";
     }
 
     // Подписи для сценариев проверки (ScriptRunner, шаг indexstatus).

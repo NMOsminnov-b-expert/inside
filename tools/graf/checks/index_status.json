@@ -73,5 +73,27 @@
  {
   "op": "shot",
   "path": "{TMP}/index.png"
+ },
+ {
+  "op": "write",
+  "file": ".graf/index-status.json",
+  "text": "{\"codegraph\": {\"state\": \"done\", \"commit\": \"bbb\", \"finished\": \"2026-01-02T09:05:00\", \"pid\": 1}, \"semsearch\": {\"state\": \"running\", \"stage\": \"дообновление индекса\", \"commit\": \"bbb\", \"pid\": {PID}, \"files\": 0, \"progress\": 0.42, \"eta\": null}}"
+ },
+ {
+  "op": "indexstatus",
+  "expect": "CodeGraph: актуален · 02.01 09:05; По смыслу: 42% · оценка…"
+ },
+ {
+  "op": "write",
+  "file": ".graf/index-status.json",
+  "text": "{\"codegraph\": {\"state\": \"done\", \"commit\": \"bbb\", \"finished\": \"2026-01-02T09:05:00\", \"pid\": 1}, \"semsearch\": {\"state\": \"running\", \"stage\": \"дообновление индекса\", \"commit\": \"bbb\", \"pid\": {PID}, \"files\": 0, \"progress\": 0.6, \"eta\": \"2099-01-01T10:05:00\"}}"
+ },
+ {
+  "op": "indexstatus",
+  "expect_re": "^CodeGraph: актуален · 02\\.01 09:05; По смыслу: 60% · до 01\\.01 10:05, ≈\\d+ ч \\d+ мин$"
+ },
+ {
+  "op": "shot",
+  "path": "{TMP}/index-eta.png"
  }
 ]

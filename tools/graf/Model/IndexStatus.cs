@@ -13,6 +13,10 @@ public sealed class IndexState
     public string Key = "", State = "", Stage = "", Commit = "", Note = "";
     public DateTime? Finished;
     public int Pid, Files, Chunks;
+    // Доля готового 0..1 (-1 — сервер не сообщает) и ориентировочное время
+    // окончания (null — оценки ещё нет). Считает reindex.py.
+    public double Progress = -1;
+    public DateTime? Eta;
 
     // Что показать: running — идёт; current — готов на текущем коммите;
     // behind — готов, но на старом коммите; failed; skipped — не установлен;
@@ -67,6 +71,8 @@ public static class IndexStatus
         s.Files = Int("files");
         s.Chunks = Int("chunks");
         if (DateTime.TryParse(Str("finished"), out var f)) s.Finished = f;
+        if (e.TryGetProperty("progress", out var pr) && pr.ValueKind == JsonValueKind.Number) s.Progress = Math.Clamp(pr.GetDouble(), 0, 1);
+        if (DateTime.TryParse(Str("eta"), out var eta)) s.Eta = eta;
     }
 
     // Текущий коммит без запуска git: .git/HEAD → ссылка ветки → её файл или
