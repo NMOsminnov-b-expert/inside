@@ -21,4 +21,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'polya-osmotra-vtoroe-znachenie-ryadom-a-ne-pravka-dannyh-cod', 'папка': 'decisions'},
     {'тип': 'якорь', 'куда': 'status-osmotren-stavit-cod', 'папка': 'decisions'},
     {'тип': 'якорь', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
+    {'тип': 'якорь', 'куда': 'opyt-prilozheniya-osmotr-dlya-paneli-osmotrov', 'папка': 'practices'},
 ]
