@@ -19,6 +19,7 @@ import { mountDocs } from '../pages/docs/docs.js';
 import { mountDicts } from '../pages/dicts/dicts.js';
 import { mountInstitutions } from '../pages/institutions/institutions.js';
 import { mountInspector } from '../pages/inspector/inspector.js';
+import { mountInspections } from '../pages/inspections/inspections.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -190,6 +191,26 @@ async function onRoute(route) {
     if (stale()) { scope.destroy(); return; }
     const instance = mountInspector(host);
     current = { kind: 'inspector', instance, scope };
+    return;
+  }
+
+  if (route.name === 'inspections') {
+    // Панель осмотров — экран регионального менеджера: кого, куда и с какими
+    // документами отправить на осмотр.
+    if (current && current.kind === 'inspections') {
+      current.instance.onRoute(route);
+      return;
+    }
+    unmount();
+    resetShellSlots();
+    setActiveNav('insp');
+    document.body.dataset.page = 'inspections';
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/inspections/inspections.css');
+    if (stale()) { scope.destroy(); return; }
+    const instance = mountInspections(host);
+    current = { kind: 'inspections', instance, scope };
     return;
   }
 

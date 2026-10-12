@@ -137,12 +137,19 @@ function changed() {
 // Назначить. oiIds пуст — объект целиком. Повторное назначение того же
 // человека на тот же объект с тем же перечнем ОИ не плодит дубль, а
 // обновляет действующее.
-export function assign({ typeId, ocId, person, oiIds = [], docs = [], inventories = [], plannedAt = '', note = '' }) {
+// docs не передан — документы по умолчанию (defaultDocIds). prevId — правка
+// действующего назначения: тот же человек — меняется на месте, другой —
+// прежнее снимается, новое заводится (история у обоих остаётся).
+export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [], plannedAt = '', note = '', prevId = '' }) {
   if (!typeId || !ocId || !person) return null;
+  if (!Array.isArray(docs)) docs = defaultDocIds(typeId, ocId);
+  const prev = prevId ? assignmentById(prevId) : null;
+  if (prev && isLive(prev) && prev.person !== person) setAssignState(prev.id, 'removed');
   const sameOi = (a) => String([...(a.oiIds || [])].sort()) === String([...oiIds].sort());
-  let a = assignments.find((x) => isLive(x) && x.typeId === typeId && x.ocId === ocId && x.person === person && sameOi(x));
+  let a = prev && isLive(prev) && prev.person === person ? prev
+    : assignments.find((x) => isLive(x) && x.typeId === typeId && x.ocId === ocId && x.person === person && sameOi(x));
   if (a) {
-    Object.assign(a, { docs: [...docs], inventories: [...inventories], plannedAt, note, updatedAt: now() });
+    Object.assign(a, { oiIds: [...oiIds], docs: [...docs], inventories: [...inventories], plannedAt, note, updatedAt: now() });
     logEvent('updated', a);
   } else {
     a = {
@@ -192,7 +199,7 @@ export function reassign(id, person) {
 // Назначение из реестра («Назначить осмотрщика» у ЦОД): объект целиком,
 // документы — по умолчанию.
 export function assignFromRegistry(typeId, ocId, person) {
-  return assign({ typeId, ocId, person, docs: defaultDocIds(typeId, ocId) });
+  return assign({ typeId, ocId, person });
 }
 
 // id документов записи и её ОИ, отмеченных по умолчанию. Документы берутся

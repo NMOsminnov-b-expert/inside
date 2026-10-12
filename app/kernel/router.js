@@ -44,6 +44,11 @@ export function parse(hash = location.hash) {
     return { name: 'dicts', query };
   }
 
+  // Панель осмотров — назначение осмотрщиков (ТЗ panel-osmotrov-tz).
+  if (segs[0] === 'inspections') {
+    return { name: 'inspections', query };
+  }
+
   // Учреждения — сводка по объектам оценки и документам одного учреждения.
   if (segs[0] === 'institutions') {
     return { name: 'institutions', query };
@@ -130,3 +135,4 @@ export const ARCHIVE_HREF = '#/archive';
 export const DOCS_HREF = '#/docs';
 export const DICTS_HREF = '#/dicts';
 export const INST_HREF = '#/institutions';
+export const INSPECTIONS_HREF = '#/inspections';

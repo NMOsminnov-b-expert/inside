@@ -1,0 +1,165 @@
+/* Панель осмотров: осмотрщики слева, назначения справа (pages/inspections).
+   Раскладка «список и подробности»: у каждой колонки своя прокрутка; таблица
+   прокручивается внутри обёртки, страница вбок не едет. От 900 px и уже
+   колонки встают одна над другой. Цвета и примитивы — из kernel/tokens.css. */
+
+body[data-page="inspections"] .ip{display:grid;height:100%;min-height:0;
+  grid-template-columns:minmax(240px,22%) minmax(0,1fr);background:var(--bg)}
+
+/* ============ осмотрщики ============ */
+body[data-page="inspections"] .ip-people{display:flex;flex-direction:column;min-height:0;
+  background:var(--panel);border-right:1px solid var(--line)}
+body[data-page="inspections"] .ip-people-head{display:flex;flex-direction:column;gap:8px;
+  padding:12px 12px 10px;border-bottom:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-people-head h2{margin:0;font-size:14px;font-weight:700;color:var(--ink)}
+body[data-page="inspections"] .ip-people-q,
+body[data-page="inspections"] .ip-q{height:34px;padding:0 10px;font-size:13px}
+body[data-page="inspections"] .ip-people-list{list-style:none;margin:0;padding:6px;overflow:auto;
+  flex:1 1 auto;min-height:0}
+
+/* Переключатель «Мои / Все» — одна полоса из двух половин. */
+body[data-page="inspections"] .ip-seg{display:grid;grid-template-columns:1fr 1fr;
+  border:1px solid var(--line);border-radius:8px;overflow:hidden}
+body[data-page="inspections"] .ip-seg button{padding:6px 8px;font-size:12px;font-weight:600;
+  color:var(--ink-ctl);background:#fff;border:0;cursor:pointer}
+body[data-page="inspections"] .ip-seg button + button{border-left:1px solid var(--line)}
+body[data-page="inspections"] .ip-seg button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
+body[data-page="inspections"] .ip-seg b{font-variant-numeric:tabular-nums;margin-left:3px}
+
+body[data-page="inspections"] .ip-person{display:flex;align-items:stretch;border-radius:8px}
+body[data-page="inspections"] .ip-person:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-person.on{background:var(--blue-50);box-shadow:inset 3px 0 0 var(--blue-600)}
+body[data-page="inspections"] .ip-person-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;
+  gap:2px;padding:7px 8px 7px 11px;text-align:left;background:none;border:0;cursor:pointer;color:var(--ink)}
+body[data-page="inspections"] .ip-person-name{font-size:13px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-person-load{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-num b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+body[data-page="inspections"] .ip-star{flex:0 0 36px;background:none;border:0;cursor:pointer;
+  font-size:16px;color:var(--ink-faint);border-radius:8px}
+body[data-page="inspections"] .ip-star:hover{color:var(--amber-600);background:var(--amber-50)}
+body[data-page="inspections"] .ip-star.on{color:var(--amber-600)}
+
+/* Просрочка — словом и цветом текста с контрастом не ниже 4,5:1, а не одним цветом. */
+body[data-page="inspections"] .ip-late,
+body[data-page="inspections"] .ip-late b{color:#a3361c}
+
+/* ============ рабочая область ============ */
+body[data-page="inspections"] .ip-main{display:flex;flex-direction:column;min-width:0;min-height:0;
+  padding:14px 18px 12px}
+body[data-page="inspections"] .ip-head h1{margin:0;font-size:18px;font-weight:700;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-sum{margin:3px 0 0;font-size:12.5px;color:var(--muted)}
+
+body[data-page="inspections"] .ip-tabs{display:flex;gap:4px;margin:12px 0 0;border-bottom:1px solid var(--line)}
+body[data-page="inspections"] .ip-tabs button{padding:8px 14px;font-size:13px;font-weight:600;color:var(--ink-ctl);
+  background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+body[data-page="inspections"] .ip-tabs button[aria-selected="true"]{color:var(--blue-700);border-bottom-color:var(--blue-600)}
+body[data-page="inspections"] .ip-tabs b{margin-left:6px;font-size:11px;padding:1px 7px;border-radius:999px;
+  background:var(--blue-50);border:1px solid var(--blue-200);font-variant-numeric:tabular-nums}
+
+body[data-page="inspections"] .ip-pane{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;padding-top:10px}
+
+/* Поиск и фильтры переносятся строками, а не обрезаются краем. */
+body[data-page="inspections"] .ip-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}
+body[data-page="inspections"] .ip-q{flex:1 1 260px;max-width:440px}
+body[data-page="inspections"] .ip-tools .select,
+body[data-page="inspections"] .ip-tools .pick-btn{flex:0 1 200px;min-width:150px}
+body[data-page="inspections"] .ip-count{margin-left:auto;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Строка массовых действий — над таблицей, пока есть выбор. */
+body[data-page="inspections"] .ip-bulk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  padding:6px 10px;margin-bottom:8px;border-radius:8px;background:var(--blue-50);
+  border:1px solid var(--blue-200);font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-bulk b{font-variant-numeric:tabular-nums}
+
+/* ============ таблицы ============ */
+body[data-page="inspections"] .ip-wrap{flex:1 1 auto;min-height:0;overflow:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px}
+body[data-page="inspections"] .ip-tbl{width:100%;min-width:720px;table-layout:fixed;border-collapse:collapse}
+body[data-page="inspections"] .ip-tbl th{position:sticky;top:0;z-index:1;padding:8px 10px;text-align:left;
+  font-size:11.5px;font-weight:600;color:var(--ink-label);background:var(--fill-head);
+  border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-tbl td{padding:7px 10px;font-size:12.5px;color:var(--ink);
+  border-bottom:1px solid var(--line-soft);vertical-align:middle;overflow:hidden}
+body[data-page="inspections"] .ip-tbl tbody tr{cursor:pointer}
+body[data-page="inspections"] .ip-tbl tbody tr:hover td{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-tbl tbody tr.sel td{background:var(--fill-pick)}
+body[data-page="inspections"] .ip-tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-tbl .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+body[data-page="inspections"] .ip-tbl .ell{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-tbl .c-check{width:40px;text-align:center}
+body[data-page="inspections"] .ip-tbl col.c-eni{width:19%}
+body[data-page="inspections"] .ip-tbl col.c-region{width:20%}
+body[data-page="inspections"] .ip-tbl col.c-n{width:60px}
+body[data-page="inspections"] .ip-tbl col.c-oi{width:70px}
+body[data-page="inspections"] .ip-tbl col.c-person{width:15%}
+body[data-page="inspections"] .ip-tbl col.c-date{width:96px}
+body[data-page="inspections"] .ip-tbl col.c-state{width:128px}
+body[data-page="inspections"] .ip-tbl col.c-act{width:78px}
+body[data-page="inspections"] .ip-tbl-assigned col.c-eni{width:17%}
+body[data-page="inspections"] .ip-obj{display:flex;flex-direction:column;min-width:0}
+body[data-page="inspections"] .ip-obj-s{font-size:11.5px;color:var(--muted)}
+
+body[data-page="inspections"] .ip-state{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;
+  font-weight:600;white-space:nowrap;background:var(--slate-50);color:var(--slate-700)}
+body[data-page="inspections"] .ip-state.st-progress{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="inspections"] .ip-state.st-done{background:var(--teal-50);color:var(--teal-700)}
+
+body[data-page="inspections"] .ip-more{display:flex;align-items:center;justify-content:flex-end;gap:10px;
+  padding-top:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-empty{padding:18px 14px;font-size:12.5px;color:var(--muted)}
+
+/* ============ узкий экран ============ */
+@media (max-width:900px){
+  body[data-page="inspections"] .ip{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);
+    height:auto;min-height:100%}
+  body[data-page="inspections"] .ip-people{border-right:0;border-bottom:1px solid var(--line)}
+  body[data-page="inspections"] .ip-people-list{max-height:220px}
+  body[data-page="inspections"] .ip-main{padding:12px}
+  body[data-page="inspections"] .ip-wrap{max-height:70vh}
+}
+
+/* ============ окно назначения (живёт в <body>, вне страницы) ============ */
+.modal.ia-modal{width:min(760px,calc(100vw - 32px));max-width:none;min-width:0;display:flex;
+  flex-direction:column;max-height:calc(100vh - 48px)}
+.ia-modal .ia-sub{padding:0 16px 8px;font-size:12.5px;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ia-modal .ia-body{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;
+  -webkit-mask-image:linear-gradient(to top,transparent 0,#000 14px);mask-image:linear-gradient(to top,transparent 0,#000 14px)}
+.ia-modal .ia-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,190px);gap:12px}
+.ia-modal .ia-sec{margin:0;padding:8px 10px 10px;border:1px solid var(--line-soft);border-radius:8px;min-width:0}
+.ia-modal .ia-sec legend{padding:0 4px;font-size:12px;font-weight:600;color:var(--ink-label)}
+.ia-modal .ia-check{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;cursor:pointer}
+.ia-modal .ia-oi[hidden]{display:none}
+.ia-modal .ia-oi{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 12px;padding-left:22px}
+.ia-modal .ia-group + .ia-group{margin-top:6px}
+.ia-modal .ia-group-h{font-size:11.5px;font-weight:600;color:var(--muted);padding:4px 0 2px}
+.ia-modal .ia-doc{display:grid;grid-template-columns:18px minmax(110px,max-content) minmax(0,1fr) auto;
+  align-items:center;gap:8px;padding:4px 0;font-size:12.5px;cursor:pointer}
+.ia-modal .ia-doc-type{font-weight:600;color:var(--ink-ctl)}
+.ia-modal .ia-doc-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.ia-modal .ia-doc-date{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ia-modal .ia-empty,.ia-modal .ia-note{font-size:12px;color:var(--muted)}
+.ia-modal .ia-note{padding:6px 10px;border-radius:8px;background:var(--fill-head)}
+.ia-modal .ia-text{width:100%;resize:vertical;min-height:52px}
+.ia-modal .ia-foot{flex:none;align-items:center}
+.ia-modal .ia-err{margin-right:auto;font-size:12px;color:#a3361c}
+@media (max-width:560px){
+  .ia-modal .ia-row{grid-template-columns:minmax(0,1fr)}
+  .ia-modal .ia-doc{grid-template-columns:18px minmax(0,1fr);}
+  .ia-modal .ia-doc-type{grid-column:2}
+  .ia-modal .ia-doc-name{grid-column:2}
+  .ia-modal .ia-doc-date{grid-column:2}
+}
+
+/* Поля окна — подпись над полем, одна высота у списка и даты: общее .field
+   в модальном окне раскладывается строкой. */
+.ia-modal .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ia-modal .field > label{font-size:12px;font-weight:600;color:var(--ink-label)}
+.ia-modal .field .select,
+.ia-modal .field .pick-btn,
+.ia-modal .field input[type="date"]{width:100%;height:34px;box-sizing:border-box}
+.ia-modal .field input[type="date"]{padding:0 10px}
+.ia-modal .ia-sub{padding-top:8px}

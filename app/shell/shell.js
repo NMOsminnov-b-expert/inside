@@ -1,6 +1,6 @@
 import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
-import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, INSP_HREF } from '../kernel/router.js';
+import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, INSP_HREF, INSPECTIONS_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
 import { registerPersisted } from '../kernel/persist.js';
 
@@ -86,7 +86,9 @@ function bindNav() {
       if (b.dataset.nav === 'docs') location.hash = DOCS_HREF;
       if (b.dataset.nav === 'dict') location.hash = DICTS_HREF;
       if (b.dataset.nav === 'inst') location.hash = INST_HREF;
-      if (b.dataset.nav === 'insp') location.hash = INSP_HREF;
+      // «Осмотры»: осмотрщику — его задачи, остальным — панель назначения
+      // (ТЗ панели осмотров, 12.10.2026).
+      if (b.dataset.nav === 'insp') location.hash = session.state.role === 'insp' ? INSP_HREF : INSPECTIONS_HREF;
     };
   });
 

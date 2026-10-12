@@ -23,4 +23,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'docs-tz-70-etap-osmotrov-md', 'папка': 'sources'},
     {'тип': 'якорь', 'куда': 'opyt-prilozheniya-osmotr-dlya-paneli-osmotrov', 'папка': 'practices'},
     {'тип': 'якорь', 'куда': 'opis-oborudovaniya-i-mehanizmov', 'папка': 'terms'},
+    {'тип': 'якорь', 'куда': 'panel-naznacheniya-ispolniteley', 'папка': 'practices'},
 ]
