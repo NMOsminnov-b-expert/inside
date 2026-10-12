@@ -73,12 +73,17 @@ const statusTone = (status) => {
 // документам»), и на 390 пикселях они отжимали адрес до «г. Бишкек,
 // Первомайский …». Адресу нужна вся ширина — по нему осмотрщик и опознаёт
 // объект.
-export function headerHTML({ title, sub, backHref, backLabel, status }) {
+// ЕНИ — в шапке каждого экрана задачи (указание пользователя 12.10.2026:
+// «Осмотрщик должен видеть и ЕНИ. Как при выезде, так и при осмотрах»):
+// шапка закреплена, и код виден при съёмке, в документах и на любой
+// прокрутке осмотра.
+export function headerHTML({ title, sub, backHref, backLabel, status, eni = '' }) {
   return `<header class="ins-head">
     <a class="ins-back" href="${esc(backHref)}" aria-label="${esc(backLabel)}" title="${esc(backLabel)}">${ico('back', 22)}</a>
     <div class="ins-head-txt">
       <b class="ins-head-title">${esc(title)}</b>
       ${sub ? `<span class="ins-head-sub">${esc(sub)}</span>` : ''}
+      ${eni ? `<span class="ins-head-eni" data-ins-eni>ЕНИ <b class="mono">${esc(eni)}</b></span>` : ''}
     </div>
   </header>
   ${status ? `<div class="ins-strip ins-strip-${statusTone(status)}">
@@ -196,6 +201,7 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
     ${headerHTML({
     title: rec.address || 'Объект оценки',
     sub: rec.type,
+    eni: fmtEni(rec.eni),
     backHref,
     backLabel: 'К моим осмотрам',
     status: rec.status,
@@ -295,6 +301,7 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
     ${headerHTML({
     title: 'Объект оценки',
     sub: rec.address,
+    eni: fmtEni(rec.eni),
     backHref,
     backLabel: 'К задаче',
     status: rec.status,
@@ -432,6 +439,7 @@ export function assetHTML({
     ${headerHTML({
     title: oiLabel(oi),
     sub: rec.address,
+    eni: fmtEni(oi.eni || rec.eni),
     backHref,
     backLabel: 'К объектам имущества',
   })}
@@ -536,6 +544,7 @@ export function docsHTML({ rec, docs, hrefFor, counts, backHref }) {
     ${headerHTML({
     title: 'Документы',
     sub: rec.address,
+    eni: fmtEni(rec.eni),
     backHref,
     backLabel: 'К задаче',
   })}
@@ -578,11 +587,12 @@ function docItemHTML({ doc: d, owner }) {
 // (требование пользователя 08.09.2026): фото кровли без литеры не отличить от
 // фото кровли соседней литеры, а «какой механизм» — единственное, что делает
 // снимок механизма осмысленным.
-export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, backHref, sub }) {
+export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, backHref, sub, eni = '' }) {
   return `<div class="ins">
     ${headerHTML({
     title: 'Фото с осмотра',
     sub: sub || `${total} из ${PHOTO_LIMIT}`,
+    eni,
     backHref,
     backLabel: 'К задаче',
   })}

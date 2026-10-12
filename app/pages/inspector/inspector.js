@@ -26,6 +26,7 @@ import {
 } from './tasks.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
+import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, mismatchHint } from './form.js';
 import {
@@ -314,6 +315,7 @@ export function mountInspector(host) {
         hrefFor,
         counts,
         backHref: taskHref,
+        eni: fmtEni(r.eni),
       }));
       return;
     }

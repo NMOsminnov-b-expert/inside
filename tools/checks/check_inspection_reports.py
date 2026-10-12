@@ -4,6 +4,7 @@
 ТЗ рабочего дня осмотрщика, раздел 3 (запись графа tz-rabota-osmotrschika).
 
 Что ловит сценарий:
+  * в шапке задачи осмотрщика нет ЕНИ (указание пользователя 12.10.2026);
   * «Сдать отчёт» без показания одометра или без снимка проходит молча
     (кнопка должна назвать, чего не хватает, — практика APCS);
   * два выезда дня с одинаковой подписью отмечаются вместе (отметки шли
@@ -35,6 +36,12 @@ def run(t):
     pg = t.page
     today = pg.evaluate("() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
     kernel = "import('./app/kernel/inspections.js')"
+
+    # --- ЕНИ в шапке задачи (указание пользователя 12.10.2026) -----------------
+    t.open('#/insp?as=' + WHO, wait='.ins-card-a')
+    pg.locator('.ins-card-a').first.click()
+    t.ck(t.wait_until("() => /\d-\d+-\d+-\d+/.test(document.querySelector('.ins-head [data-ins-eni]')?.textContent || '')"),
+         'в шапке задачи осмотрщика нет ЕНИ')
 
     # --- утренний ---------------------------------------------------------------
     t.open('#/insp?as=' + WHO, wait='.ins-rep')
