@@ -310,6 +310,9 @@ export function blankProfile(name) {
   return {
     id: name, phone: '', whatsapp: '', email: '', device: '', phoneType: '', note: '',
     regions: [], startDate: '', fired: false, firedDate: '',
+    // manager — ответственное лицо: региональный менеджер, за которым
+    // закреплён осмотрщик (указание пользователя 12.10.2026).
+    manager: '',
     birthDate: '', homeAddress: '', homeGps: '', tempAddress: '', tempGps: '', tempFrom: '', tempTo: '',
     poaNumber: '', poaUntil: '', waGroup: '', cadastre: false,
     schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' },

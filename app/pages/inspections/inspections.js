@@ -15,6 +15,7 @@
 // графа bez-modalok-prostranstvo-celikom-stili-iz-yadra). Поиск, вкладки и
 // таблицы — общие примитивы kernel/tokens.css.
 import { esc } from '../../kernel/dom.js';
+import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
 import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
@@ -469,6 +470,9 @@ export function mountInspections(host) {
         ${field('waGroup', 'Группа WhatsApp области')}
       </section>
       <section class="ip-pcol" aria-labelledby="ip-h-work"><h3 id="ip-h-work">Работа и документы</h3>
+        <div class="field" data-ip-cwrap="manager"><label for="ip-c-manager">Ответственное лицо</label>
+          <input class="input" id="ip-c-manager" data-ip-c="manager" list="ip-managers" value="${esc(prof.manager || '')}" placeholder="региональный менеджер">
+          <datalist id="ip-managers">${managerNames().map((m) => `<option value="${esc(m)}">`).join('')}</datalist></div>
         <div class="ip-prow">${seg('fired', 'Статус', [['', 'Работает'], ['1', 'Уволен']], prof.fired ? '1' : '')}
           ${field('firedDate', 'Дата увольнения', 'date', '', !prof.fired)}</div>
         <div class="ip-prow">${field('poaNumber', 'Доверенность №')}${field('poaUntil', 'Доверенность до', 'date')}</div>
@@ -609,7 +613,10 @@ export function mountInspections(host) {
   function byRegionHTML(list) {
     const m = new Map();
     list.forEach((p) => (p.regions.length ? p.regions : ['без области']).forEach((r) => m.set(r, (m.get(r) || 0) + 1)));
-    return `<div class="ip-tiles ip-byregion">${[...m.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => tile(r, n)).join('')}</div>`;
+    const by = new Map();
+    list.forEach((p) => { const k = profileOf(p.name).manager || 'не закреплён'; by.set(k, (by.get(k) || 0) + 1); });
+    return `<div class="ip-bysum"><span class="ip-flabel">По ответственным</span><div class="ip-tiles ip-byregion">${[...by.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => tile(esc(r), n)).join('')}</div></div>
+      <div class="ip-bysum"><span class="ip-flabel">По областям</span><div class="ip-tiles ip-byregion">${[...m.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => tile(r, n)).join('')}</div></div>`;
   }
 
   // --- отчёты за день (ТЗ рабочего дня осмотрщика, раздел 3) ---------------
@@ -687,6 +694,7 @@ export function mountInspections(host) {
       get: (p) => p.car[key] || '', set: (v, p) => ({ car: { ...p.car, [key]: v } }) });
     const cols = [
       { key: 'name', label: 'ФИО', width: 250, readOnly: true, get: (p, n) => n },
+      { key: 'manager', label: 'Ответственное лицо', width: 190, filter: 'select', options: managerNames(), title: 'Региональный менеджер, за которым закреплён осмотрщик' },
       { key: 'phone', label: 'Телефон', width: 150 },
       { key: 'whatsapp', label: 'WhatsApp', width: 150 },
       { key: 'email', label: 'Почта', width: 180 },
@@ -725,6 +733,12 @@ export function mountInspections(host) {
       set: (v, p) => (f.required && !String(v ?? '').trim() ? { error: `«${f.label}» — обязательное поле` } : { custom: { ...p.custom, [f.id]: v } }) }));
     return cols;
   }
+  // Регионалы — из уже указанных ответственных и из сотрудников системы.
+  //
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: справочник пользователей с ролью «региональный
+  // менеджер»; ответственное лицо выбирается из него, а не вписывается.
+  const managerNames = () => [...new Set([session.state.person, ...profileNames().map((n) => profileOf(n).manager)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+  const regionOfPerson = (name) => { const p = people.find((x) => x.name === name); return (profileOf(name).regions[0]) || (p && p.regions[0]) || ''; };
   const gridNames = () => [...new Set([...profileNames(), ...people.map((p) => p.name)])].sort((a, b) => a.localeCompare(b, 'ru'));
   const gridRows = (cols) => gridNames().map((name) => {
     const p = profileOf(name);
@@ -773,6 +787,13 @@ export function mountInspections(host) {
     const cols = gridCols();
     grid = mountGrid(box, {
       label: 'Осмотрщики', columns: cols, rows: gridRows(cols), frozen: 1, widths: view.gridWidths, state: gridState,
+      // Разделы — по ответственному лицу, подразделы — по области (первой из
+      // областей осмотрщика; без областей — по объектам назначений).
+      groups: {
+        title: ['Ответственное лицо'],
+        levels: [(r) => r.cells.manager, (r) => regionOfPerson(r.id)],
+        empty: ['Не закреплён', 'Область не указана'],
+      },
       onWidths: (w) => { view.gridWidths = w; },
       onChange: (changes) => {
         gridSaving = true;

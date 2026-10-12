@@ -15,6 +15,16 @@
 // Практика — WAI-ARIA APG, шаблон «grid» (роли grid / gridcell, одна точка
 // фокуса, стрелки внутри).
 //
+// Разделы (opts.groups): строки делятся на разделы и подразделы — например,
+// по ответственному лицу, а внутри по области (просьба пользователя
+// 12.10.2026). У раздела свой цвет — полосой у строк и заливкой заголовка,
+// подраздел — тем же цветом светлее; заголовок сворачивает и разворачивает
+// группу, как группировка строк в Excel. Свёрнутые строки выпадают из
+// переходов и выделения.
+//
+// Фильтр столбца с filter: 'select' — выбор из значений столбца, а не поиск
+// по вхождению.
+//
 // Страница передаёт столбцы и строки и получает правки списком
 // { id, key, value, old } — сама решает, как их сохранить, и вызывает
 // refresh(rows). Таблица ничего не знает о том, что редактирует.
@@ -78,6 +88,8 @@ export function mountGrid(host, opts) {
   let edit = null;                     // { r, c, input }
   const undo = [];
   let dragging = false;
+  const groups = opts.groups || null;          // { levels: [fn(row) → подпись, …], empty: [подпись пустого, …] }
+  const collapsed = new Set(st.collapsed || []);
 
   host.innerHTML = `<div class="kg" tabindex="0" role="grid" aria-label="${esc(opts.label || 'Таблица')}" aria-multiselectable="true">
     <div class="kg-scroll"><table class="kg-tbl"><colgroup></colgroup><thead></thead><tbody></tbody></table></div>
@@ -91,16 +103,30 @@ export function mountGrid(host, opts) {
   // --- отрисовка --------------------------------------------------------------
   const W = (c) => widths[c.key] || c.width || 140;
   function leftOf(ci) { let x = 0; for (let i = 0; i < ci; i++) x += W(cols[i]); return x; }
+  let allGrouped = [];
+  const PALETTE = 6;
   function computeView() {
     const f = Object.entries(filters).filter(([, v]) => v);
     view = rows.filter((row) => f.every(([k, v]) => {
       const col = cols.find((c) => c.key === k);
-      return cellText(col, row.cells[k]).toLowerCase().includes(v.toLowerCase());
+      const text = cellText(col, row.cells[k]);
+      return col.filter === 'select' ? (v === '∅' ? !text : text === v) : text.toLowerCase().includes(v.toLowerCase());
     }));
     if (sort.key && sort.dir) {
       const col = cols.find((c) => c.key === sort.key);
       const val = (row) => (col.type === 'number' ? Number(row.cells[col.key]) || 0 : cellText(col, row.cells[col.key]).toLowerCase());
       view.sort((a, b) => { const x = val(a); const y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir; });
+    }
+    if (groups) {
+      // Разделы — по алфавиту, «пустой» раздел — последним; порядок строк
+      // внутри — тот, что дала сортировка (сортировка устойчивая).
+      const keyOf = (row) => groups.levels.map((fn, i) => fn(row) || groups.empty[i]);
+      const cmp = (x, y, i) => (x === groups.empty[i]) - (y === groups.empty[i]) || x.localeCompare(y, 'ru');
+      view = view.map((row) => ({ row, k: keyOf(row) }))
+        .sort((a, b) => cmp(a.k[0], b.k[0], 0) || cmp(a.k[1], b.k[1], 1))
+        .map((x) => Object.assign(x.row, { _g: x.k }));
+      allGrouped = view;
+      view = view.filter((row) => !collapsed.has(row._g[0]) && !collapsed.has(row._g.join('\u0001')));
     }
   }
   function renderHead() {
@@ -110,16 +136,49 @@ export function mountGrid(host, opts) {
     tbl.querySelector('thead').innerHTML = `<tr>${cols.map((c, ci) => `<th class="kg-h${fz(ci)}" role="columnheader" aria-sort="${sort.key === c.key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'}" title="${esc(c.title || c.label)}">
         <button type="button" class="kg-sort" data-kg-sort="${esc(c.key)}">${esc(c.label)}${sort.key === c.key ? (sort.dir > 0 ? ' ↑' : ' ↓') : ''}</button>
         <span class="kg-rs" data-kg-rs="${ci}" aria-hidden="true"></span></th>`).join('')}</tr>
-      <tr class="kg-frow">${cols.map((c, ci) => `<th class="kg-f${fz(ci)}"><input class="kg-fin" data-kg-filter="${esc(c.key)}" value="${esc(filters[c.key] || '')}" placeholder="фильтр" aria-label="Фильтр: ${esc(c.label)}"></th>`).join('')}</tr>`;
+      <tr class="kg-frow">${cols.map((c, ci) => `<th class="kg-f${fz(ci)}">${c.filter === 'select'
+        ? `<select class="kg-fin" data-kg-filter="${esc(c.key)}" aria-label="Фильтр: ${esc(c.label)}"><option value="">все</option>${[...new Set(rows.map((r) => cellText(c, r.cells[c.key])))].sort((a, b) => a.localeCompare(b, 'ru'))
+          .map((v) => `<option value="${esc(v || '∅')}" ${filters[c.key] === (v || '∅') ? 'selected' : ''}>${esc(v || '— не указано —')}</option>`).join('')}</select>`
+        : `<input class="kg-fin" data-kg-filter="${esc(c.key)}" value="${esc(filters[c.key] || '')}" placeholder="фильтр" aria-label="Фильтр: ${esc(c.label)}">`}</th>`).join('')}</tr>`;
   }
   function renderBody() {
     computeView();
     act.r = Math.min(act.r, Math.max(0, view.length - 1));
     anchor.r = Math.min(anchor.r, Math.max(0, view.length - 1));
     const fz = (ci) => (ci < frozen ? ` kg-fz" style="left:${leftOf(ci)}px` : '');
-    tbl.querySelector('tbody').innerHTML = view.map((row, ri) => `<tr>${cols.map((c, ci) => `<td class="kg-c${c.readOnly ? ' ro' : ''}${c.type === 'number' ? ' num' : ''}${fz(ci)}" role="gridcell" data-r="${ri}" data-c="${ci}">${esc(cellText(c, row.cells[c.key]))}</td>`).join('')}</tr>`).join('')
-      || `<tr><td class="kg-empty" colspan="${cols.length}">Под фильтр ничего не подошло.</td></tr>`;
+    const rowHTML = (row, ri) => `<tr${groups ? ` class="kg-in kg-c${colorOf(row._g[0])}"` : ''}>${cols.map((c, ci) => `<td class="kg-c${c.readOnly ? ' ro' : ''}${c.type === 'number' ? ' num' : ''}${fz(ci)}" role="gridcell" data-r="${ri}" data-c="${ci}">${esc(cellText(c, row.cells[c.key]))}</td>`).join('')}</tr>`;
+    let html = '';
+    if (groups) {
+      // Заголовки разделов и подразделов — между строками данных; число строк —
+      // по всем строкам группы, включая свёрнутые.
+      const count = (g0, g1) => allGrouped.filter((r) => r._g[0] === g0 && (g1 === undefined || r._g[1] === g1)).length;
+      const seen = new Set();
+      const head = (lvl, g0, g1) => {
+        const id = lvl === 1 ? g0 : `${g0}\u0001${g1}`;
+        const n = lvl === 1 ? count(g0) : count(g0, g1);
+        const shut = collapsed.has(id);
+        return `<tr class="kg-g kg-g${lvl} kg-c${colorOf(g0)}"><th colspan="${cols.length}"><button type="button" class="kg-gh" data-kg-group="${esc(id)}" aria-expanded="${!shut}">
+          <span class="kg-gt">${shut ? '▸' : '▾'}</span>${lvl === 1 && groups.title ? `<span class="kg-gk">${esc(groups.title[0])}</span>` : ''}<b>${esc(lvl === 1 ? g0 : g1)}</b><span class="kg-gn">${n}</span></button></th></tr>`;
+      };
+      allGrouped.forEach((row) => {
+        const [g0, g1] = row._g;
+        if (!seen.has(g0)) { seen.add(g0); html += head(1, g0); }
+        if (collapsed.has(g0)) return;
+        const k2 = `${g0}\u0001${g1}`;
+        if (!seen.has(k2)) { seen.add(k2); html += head(2, g0, g1); }
+        if (collapsed.has(k2)) return;
+        html += rowHTML(row, view.indexOf(row));
+      });
+    } else {
+      html = view.map(rowHTML).join('');
+    }
+    tbl.querySelector('tbody').innerHTML = html || `<tr><td class="kg-empty" colspan="${cols.length}">Под фильтр ничего не подошло.</td></tr>`;
     paint();
+  }
+  // Цвет раздела — по порядку раздела, по кругу из шести.
+  function colorOf(g0) {
+    const order = [...new Set(allGrouped.map((r) => r._g[0]))];
+    return Math.max(0, order.indexOf(g0)) % PALETTE;
   }
   const cell = (r, c) => tbl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
   const range = () => ({ r1: Math.min(act.r, anchor.r), r2: Math.max(act.r, anchor.r), c1: Math.min(act.c, anchor.c), c2: Math.max(act.c, anchor.c) });
@@ -314,6 +373,20 @@ export function mountGrid(host, opts) {
   const stopDrag = () => { dragging = false; };
   document.addEventListener('mouseup', stopDrag);
   tbl.addEventListener('dblclick', (e) => { if (e.target.closest('td[data-r]')) startEdit(); });
+  tbl.querySelector('tbody').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-kg-group]');
+    if (!b) return;
+    const id = b.dataset.kgGroup;
+    if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+    renderBody();
+    root.focus({ preventScroll: true });
+  });
+  tbl.querySelector('thead').addEventListener('change', (e) => {
+    const f = e.target.closest('select[data-kg-filter]');
+    if (!f) return;
+    filters[f.dataset.kgFilter] = f.value;
+    renderBody();
+  });
   tbl.querySelector('thead').addEventListener('click', (e) => {
     const b = e.target.closest('[data-kg-sort]');
     if (!b) return;
@@ -357,7 +430,7 @@ export function mountGrid(host, opts) {
   if (st.scroll) { scroll.scrollTop = st.scroll[0]; scroll.scrollLeft = st.scroll[1]; }
   return {
     root,
-    state: () => ({ filters: { ...filters }, sort: { ...sort }, act: { ...act }, anchor: { ...anchor }, scroll: [scroll.scrollTop, scroll.scrollLeft] }),
+    state: () => ({ filters: { ...filters }, sort: { ...sort }, act: { ...act }, anchor: { ...anchor }, scroll: [scroll.scrollTop, scroll.scrollLeft], collapsed: [...collapsed] }),
     refresh(next) {
       const id = view[act.r] && view[act.r].id;
       rows = next;

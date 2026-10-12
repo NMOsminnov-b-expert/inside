@@ -202,8 +202,11 @@ function demoReports(names, assignments, recs, today, rnd) {
   let n = 0;
   names.forEach((person, pi) => {
     const car = CARS[pi % CARS.length];
-    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car }, cadastre: pi === 0,
+    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car }, cadastre: pi === 0, regions: [pi === 2 ? 'Чуй' : 'Бишкек'],
       homeAddress: HOMES[pi % HOMES.length][0], homeGps: HOMES[pi % HOMES.length][1],
+      // Ответственное лицо: двое — за текущим пользователем макета, третий —
+      // за вторым регионалом (демо).
+      manager: pi < 2 ? 'Осминнов Н.' : 'Сатыбалдиев Улан (демо)',
       schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' }, absences: [], demo: true });
     let odo = 84000 + pi * 37000 + Math.floor(rnd() * 900);
     for (let back = 45; back >= 1; back--) {

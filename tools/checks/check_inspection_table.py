@@ -86,11 +86,41 @@ def run(t):
     # сортировка и фильтр
     pg.click('.kg [data-kg-sort="name"]')
     pg.click('.kg [data-kg-sort="name"]')
-    names = pg.locator('.kg tbody td[data-c="0"]').all_inner_texts()
-    t.ck(names == sorted(names, reverse=True), 'сортировка по убыванию не сработала: %s' % names)
+    # Сортировка — внутри раздела (разделы — по ответственному лицу).
+    first = pg.evaluate("() => { const out = []; let n = 0; for (const tr of document.querySelectorAll('.kg tbody tr')) { if (tr.classList.contains('kg-g1')) { n++; if (n > 1) break; } else if (!tr.classList.contains('kg-g')) out.push(tr.querySelector('td[data-c=\"0\"]').textContent); } return out; }")
+    t.ck(len(first) >= 2 and first == sorted(first, reverse=True), 'сортировка по убыванию внутри раздела не сработала: %s' % first)
     pg.fill('.kg [data-kg-filter="name"]', name1[:4])
     t.ck(t.wait_until("() => document.querySelectorAll('.kg tbody td[data-c=\"0\"]').length === 1"), 'фильтр по столбцу не сработал')
     pg.fill('.kg [data-kg-filter="name"]', '')
+
+    # разделы по ответственным лицам, подразделы по областям, разные цвета
+    sections = pg.locator('.kg tr.kg-g1').count()
+    t.ck(sections >= 2 and pg.locator('.kg tr.kg-g2').count() >= sections, 'таблица не разделена на разделы и подразделы: %s' % sections)
+    colors = pg.evaluate("() => [...document.querySelectorAll('.kg tr.kg-g1')].map((tr) => getComputedStyle(tr.querySelector('th')).backgroundColor)")
+    t.ck(len(set(colors)) == len(colors), 'разделы не различаются цветом: %s' % colors)
+    mgr = pg.locator('.kg tr.kg-g1 b').first.inner_text()
+    pg.select_option('.kg [data-kg-filter="manager"]', mgr)
+    t.ck(t.wait_until("() => document.querySelectorAll('.kg tr.kg-g1').length === 1"), 'фильтр «Ответственное лицо» не оставил один раздел')
+    pg.select_option('.kg [data-kg-filter="manager"]', '')
+    # свернуть раздел — строки уходят, заголовок остаётся
+    rows0 = pg.locator('.kg tbody td[data-c="0"]').count()
+    pg.locator('.kg tr.kg-g1 [data-kg-group]').first.click()
+    t.ck(pg.locator('.kg tbody td[data-c="0"]').count() < rows0 and pg.locator('.kg tr.kg-g1').count() == sections, 'раздел не свернулся')
+    pg.locator('.kg tr.kg-g1 [data-kg-group]').first.click()
+    # смена ответственного — строка уходит в другой раздел
+    cm = col_index(pg, 'Ответственное лицо')
+    who = pg.locator('.kg td[data-r="0"][data-c="0"]').inner_text()
+    pg.click('.kg td[data-r="0"][data-c="%d"]' % cm)
+    # Кириллицу Playwright вводит вставкой текста, без нажатий клавиш, —
+    # правка начинается по F2 (с русской раскладкой у человека правку
+    # начинает первая же буква).
+    pg.keyboard.press('F2')
+    pg.keyboard.press('Control+a')
+    pg.keyboard.type('Новый Регионал')
+    pg.keyboard.press('Enter')
+    t.ck(t.wait_until("(w) => [...document.querySelectorAll('.kg tbody tr')].some((tr, i, all) => tr.classList.contains('kg-g1') && /Новый Регионал/.test(tr.textContent))", who),
+         'смена ответственного не дала нового раздела')
+    t.ck(prof(pg, who, 'p.manager') == 'Новый Регионал', 'ответственное лицо не сохранилось в профиль')
 
     # на весь экран и обратно
     pg.click('[data-ip-grid-full]')
