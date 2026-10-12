@@ -8,7 +8,7 @@ import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
-  dayReport, reportTime, activitiesOn, activityKind,
+  dayReport, reportTime, activitiesOn, activityKind, planOf,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
@@ -286,7 +286,7 @@ export function tripsMonth(all, person, year, month) {
       // Нерабочий день человека: отпуск, больничный, выходной по графику.
       const wd = person ? workdayOf(person, iso) : { ok: true };
       week.push({ day: iso, n: d.getDate(), inMonth: d.getMonth() === month, weekend: i >= 5, today: iso === today, past: iso < today, trips,
-        off: wd.ok ? '' : wd.reason, absence: wd.absence || null, acts: person ? activitiesOn(person, iso) : [] });
+        off: wd.ok ? '' : wd.reason, absence: wd.absence || null, acts: person ? activitiesOn(person, iso) : [], plan: person ? planOf(person, iso) : null });
       d.setDate(d.getDate() + 1);
     }
     weeks.push(week);

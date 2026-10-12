@@ -20,7 +20,8 @@ import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
-  addActivity, removeActivity,
+  addActivity, removeActivity, activitiesOn, activityKind,
+  planOf, setPlan, assign,
   allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, CAD_DOCS,
 } from '../../kernel/inspections.js';
 import { downloadXlsx } from '../../kernel/xlsx.js';
@@ -30,11 +31,12 @@ import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
   queueBase, queueFilter, queueCounts, tripGroups, DUE, dueOf, availability, rankInspectors, onSiteContacts, ASSIGNED_PICKS, assignedPickOf,
-  reportDayRows, reportTotals, reportDays, accountingSheets,
+  reportDayRows, reportTotals, reportDays, accountingSheets, objectContents,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { detailHTML } from './detail.js';
+import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms } from './route.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
 const STEP = 200;
@@ -570,6 +572,8 @@ export function mountInspections(host) {
     else if (view.personTab === 'profile') body = profileHTML(me);
     else if (view.personTab === 'car') body = carHTML(me);
     else if (view.personTab === 'reports') body = personReportsHTML(me.name);
+    else if (view.personTab === 'plan') body = monthPlanHTML(me.name);
+    else if (view.personTab === 'route') body = routeHTML(me);
     else body = calendarHTML(all, me.name, ym);
     return `<section class="ip-work ip-card" aria-label="${esc(me.name)}">
       <header class="ip-card-head">
@@ -586,7 +590,7 @@ export function mountInspections(host) {
           <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
         </div>
       </header>
-      ${subTabs('data-ip-ptab', view.personTab, [['trips', 'Выезды'], ['reports', 'Отчёты'], ['stats', 'Статистика'], ['assigns', 'Назначения', me.live], ['profile', 'Профиль'], ['car', 'Авто']])}
+      ${subTabs('data-ip-ptab', view.personTab, [['trips', 'Выезды'], ['plan', 'План'], ['route', 'Маршрут'], ['reports', 'Отчёты'], ['stats', 'Статистика'], ['assigns', 'Назначения', me.live], ['profile', 'Профиль'], ['car', 'Авто']])}
       <div class="ip-card-body">${body}</div>
     </section>`;
   }
@@ -664,6 +668,150 @@ export function mountInspections(host) {
       </table></div></div>` : '<p class="ip-hint ip-empty">Под фильтр никто не подошёл.</p>'}`;
   }
 
+  // --- маршрут дня и нормы осмотра (пункты 7.2–7.4) ------------------------
+  //
+  // Слева — остановки по порядку: дорога и осмотр у каждой, прибытие и
+  // уход; справа — карта OSM с домом, номерами остановок и кругом маршрута.
+  // Предложенные системой объекты — совет: лишний убирается, остальные
+  // назначаются одной кнопкой на этот день.
+  const objectContentsIds = (typeId, ocId) => { const c = objectContents(typeId, ocId); return c ? c.oi.map((o) => o.id) : []; };
+  const firstWorkday = (name) => { for (let k = 0; k < 14; k++) { const d = shiftD(todayD, k); if (workdayOf(name, d).ok) return d; } return todayD; };
+  const route = { day: '', person: '', skip: new Set(), homeMode: false };
+  let routeMap = null;
+  const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${m} мин`);
+  function routeHTML(me) {
+    if (route.person !== me.name) { route.person = me.name; route.day = firstWorkday(me.name); route.skip = new Set(); route.homeMode = false; }
+    const r = dayRoute(all, me.name, route.day, route.skip);
+    const wd = WDL[new Date(route.day + 'T00:00:00').getDay()];
+    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'}">
+        <span class="ip-stop-n">${i + 1}</span>
+        <div class="ip-stop-b">
+          <div class="ip-stop-h"><b>${esc(x.s.title)}</b><i class="${x.fixed ? 'k-plan' : 'k-act'}">${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i></div>
+          <span class="ip-sub">${esc([x.s.typeLabel, x.s.metrics && x.s.metrics.area ? `${Math.round(x.s.metrics.area).toLocaleString('ru-RU')} м²` : '', x.s.institution].filter(Boolean).join(' · '))}</span>
+          <span class="ip-stop-t">дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км → <b>${x.arrive}</b> · осмотр ${x.inspect} мин → ${x.leave}</span>
+        </div>
+        ${x.fixed ? '' : `<button class="ip-x" data-ip-route-skip="${esc(x.key)}" aria-label="Убрать из маршрута" title="Убрать из маршрута">×</button>`}
+      </li>`;
+    return `<div class="ip-repbar">
+        <div class="ip-daynav" role="group" aria-label="День маршрута">
+          <button class="btn btn-ghost btn-sm" data-ip-route-day="-1" aria-label="Предыдущий день">‹</button>
+          <input class="input" type="date" data-ip-route-set value="${route.day}" aria-label="День">
+          <button class="btn btn-ghost btn-sm" data-ip-route-day="1" aria-label="Следующий день">›</button>
+          <span class="ip-repday">${esc(wd)}${r.regions.length ? ` · ${esc(r.regions.join(', '))}` : ''}</span>
+        </div>
+        <div class="ip-route-act">
+          <button class="btn btn-ghost btn-sm ${route.homeMode ? 'on' : ''}" data-ip-route-home aria-pressed="${route.homeMode}">${route.homeMode ? 'Щёлкните по карте…' : 'Указать дом на карте'}</button>
+          ${r.proposed.length ? `<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные (${r.proposed.length})</button>` : ''}
+        </div>
+      </div>
+      <div class="ip-tiles ip-reptiles">${tile('Выезд', r.start)}${tile('Возвращение', r.back.arrive, r.over ? 'warn' : '', r.over ? `Позже конца дня (${r.end}) на ${r.over} мин` : `Конец дня — ${r.end}`)}
+        ${tile('Пробег, км', r.km)}${tile('Дорога', dur(r.driveMin))}${tile('Осмотры', dur(r.inspectMin))}${tile('Объектов', r.stops.length)}</div>
+      ${!r.work.ok ? `<p class="ip-warn">Не рабочий день: ${esc(r.work.reason)}.</p>` : ''}
+      ${!r.home.gps ? '<p class="ip-warn">Точка дома не указана — маршрут считается от первого объекта. Укажите дом на карте.</p>' : ''}
+      ${r.over ? `<p class="ip-warn off">Возвращение позже конца рабочего дня (${esc(r.end)}) на ${r.over} мин.</p>` : ''}
+      <div class="ip-route">
+        <ol class="ip-stops">
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Выезд — ${esc(r.home.label)}</b><span class="ip-stop-t"><b>${r.start}</b>${profileOf(me.name).homeAddress ? ` · ${esc(profileOf(me.name).homeAddress)}` : ''}</span></div></li>
+          ${r.stops.map(stop).join('')}
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Возвращение — ${esc(r.home.label)}</b><span class="ip-stop-t">дорога ${r.back.min} мин · ${r.back.km.toFixed(1).replace('.', ',')} км → <b class="${r.over ? 'ip-late' : ''}">${r.back.arrive}</b></span></div></li>
+        </ol>
+        <div class="ip-map" data-ip-map role="img" aria-label="Карта маршрута"></div>
+      </div>
+      ${route.skip.size ? `<p class="ip-hint">Убрано из предложений: ${route.skip.size}. <button class="btn btn-ghost btn-sm" data-ip-route-unskip>Вернуть</button></p>` : ''}
+      ${r.noGps.length ? `<p class="ip-hint">Без координат, не на карте: ${r.noGps.map((x) => esc(x.s.title)).join('; ')}.</p>` : ''}`;
+  }
+  async function mountRouteMap() {
+    const box = scope.$('[data-ip-map]');
+    if (!box || !view.person) return;
+    const r = dayRoute(all, view.person, route.day, route.skip);
+    await host.ensureStyle('./app/vendor/leaflet/leaflet.css');
+    const L = await import('../../vendor/leaflet/leaflet-src.esm.js');
+    if (!box.isConnected) return;
+    if (routeMap) { routeMap.remove(); routeMap = null; }
+    const map = L.map(box, { scrollWheelZoom: true, attributionControl: true });
+    routeMap = map;
+    // Подложка OSM — общедоступные тайлы (исключение к правилу «данные наружу
+    // не уходят», решение пользователя 12.10.2026); подпись — условие OSM.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    const pin = (cls, text) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span>${text}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] });
+    const pts = [];
+    if (r.home.gps) { L.marker(r.home.gps, { icon: pin('home', '⌂'), title: r.home.label }).addTo(map); pts.push(r.home.gps); }
+    r.stops.forEach((x, i) => { L.marker(x.gps, { icon: pin(x.fixed ? 'fixed' : 'prop', i + 1), title: x.s.title }).addTo(map); pts.push(x.gps); });
+    if (r.home.gps && r.stops.length) pts.push(r.home.gps);
+    if (pts.length > 1) L.polyline(pts, { color: '#1668c9', weight: 3, opacity: 0.8, dashArray: '6 6' }).addTo(map);
+    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14 }); else map.setView([42.87, 74.59], 11);
+    map.on('click', (e) => {
+      if (!route.homeMode) return;
+      saveProfile(view.person, { homeGps: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}` });
+      route.homeMode = false;
+      redraw();
+      host.toast('Точка дома сохранена', 'ok');
+    });
+  }
+
+  // Нормы осмотра (7.3–7.4): основа и минуты на 1 м² по виду здания; по
+  // факту — медиана из истории (от первых снимков до окончания осмотра).
+  function normsHTML() {
+    const fact = measuredNorms(all);
+    const f3 = (v) => (v === undefined || v === null ? '' : String(Math.round(v * 1000) / 1000).replace('.', ','));
+    return `<p class="ip-hint">Осмотр объекта = основа + площадь × минут на 1 м². По этим нормам считается маршрут дня; «по факту» — из законченных осмотров: от первых снимков до окончания.</p>
+      <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-normtbl">
+        <colgroup><col><col class="c-n"><col class="c-n"><col class="c-f"><col class="c-n"></colgroup>
+        <thead><tr><th>Вид здания</th><th class="num">Основа, мин</th><th class="num">На 1 м², мин</th><th class="num">По факту на 1 м²</th><th class="num" title="Осмотр 1000 м² по норме">1000 м², мин</th></tr></thead>
+        <tbody>${NORM_KINDS.map((k) => {
+          const n = normOf(k.key);
+          const m = fact[k.key];
+          return `<tr><td>${esc(k.label)}</td>
+            <td class="num"><input class="input" inputmode="numeric" data-ip-norm="${k.key}" data-k="base" value="${n.base}" aria-label="Основа, ${esc(k.label)}"></td>
+            <td class="num"><input class="input" inputmode="decimal" data-ip-norm="${k.key}" data-k="perM2" value="${f3(n.perM2)}" aria-label="На 1 м², ${esc(k.label)}"></td>
+            <td class="num">${m ? `${f3(m.perM2)} <span class="ip-muted">· ${m.n} осм.</span> <button class="btn btn-ghost btn-sm" data-ip-norm-take="${k.key}" data-v="${m.perM2}">взять</button>` : '<span class="ip-muted">нет данных</span>'}</td>
+            <td class="num"><b>${Math.round(n.base + 1000 * n.perM2)}</b></td></tr>`;
+        }).join('')}</tbody>
+      </table></div></div>`;
+  }
+
+  // План месяца (пункт 7.1 ТЗ рабочего дня): будни месяца строками, правка
+  // прямо в ячейках — сохраняется при уходе из ячейки, Enter — ниже по
+  // столбцу, как в таблице; справа — что на деле: назначения и работа вне
+  // выездов, чтобы план сверялся с фактом.
+  function monthPlanHTML(name) {
+    const [y, m] = rep.ym.split('-').map(Number);
+    const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    const days = [];
+    for (let d = new Date(y, m - 1, 1); d.getMonth() === m - 1; d.setDate(d.getDate() + 1)) {
+      const iso = isoD(d);
+      const w = workdayOf(name, iso);
+      if (w.ok || planOf(name, iso)) days.push({ iso, w });
+    }
+    const regions = Object.values(ENI_REGIONS);
+    const live = allAssignments().filter((a) => a.person === name && a.state !== 'removed');
+    return `<div class="ip-repbar">
+        <div class="ip-daynav" role="group" aria-label="Месяц плана">
+          <button class="btn btn-ghost btn-sm" data-ip-rmonth="-1" aria-label="Предыдущий месяц">‹</button>
+          <span class="ip-repmonth">${MONTHS[m - 1]} ${y}</span>
+          <button class="btn btn-ghost btn-sm" data-ip-rmonth="1" aria-label="Следующий месяц">›</button>
+        </div>
+        <span class="ip-hint" data-ip-plan-saved aria-live="polite"></span>
+      </div>
+      <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-plantbl">
+        <colgroup><col class="c-date"><col class="c-reg"><col class="c-dist"><col><col class="c-note"><col class="c-fact"></colgroup>
+        <thead><tr><th>Дата</th><th>Область</th><th>Район</th><th>Учреждения</th><th>Примечание</th><th>На деле</th></tr></thead>
+        <tbody>${days.map(({ iso, w }, i) => {
+          const p = planOf(name, iso) || {};
+          const n = live.filter((a) => a.plannedAt === iso).length;
+          const acts = activitiesOn(name, iso).map((a) => activityKind(a.kind).short);
+          const cell = (k, attrs = '') => `<input class="input" data-ip-plan="${iso}" data-k="${k}" data-r="${i}" value="${esc(p[k] || '')}" ${attrs}>`;
+          return `<tr class="${iso < todayD ? 'ip-off' : ''} ${iso === todayD ? 'cur' : ''}">
+            <td class="num"><span class="ip-wd">${WD[new Date(iso + 'T00:00:00').getDay()]}</span> ${esc(fmtDate(iso))}</td>
+            <td><select class="select" data-ip-plan="${iso}" data-k="region" data-r="${i}" aria-label="Область ${esc(fmtDate(iso))}"><option value=""></option>${regions.map((r) => `<option ${p.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></td>
+            <td>${cell('district', `aria-label="Район ${esc(fmtDate(iso))}"`)}</td>
+            <td>${cell('institutions', `aria-label="Учреждения ${esc(fmtDate(iso))}"`)}</td>
+            <td>${cell('note', `aria-label="Примечание ${esc(fmtDate(iso))}"`)}</td>
+            <td>${!w.ok ? `<span class="ip-muted">${esc(w.reason)}</span>` : [n ? `назначено ${n}` : '', ...acts].filter(Boolean).join(', ') || '<span class="ip-muted">—</span>'}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div></div>`;
+  }
+
   // Отчёты осмотрщика за месяц — по дням, итог в своих столбцах.
   function personReportsHTML(name) {
     const [y, m] = rep.ym.split('-').map(Number);
@@ -705,8 +853,8 @@ export function mountInspections(host) {
         <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
-      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['reports', 'Отчёты'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['reports', 'Отчёты'], ['norms', 'Нормы осмотра'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -878,6 +1026,10 @@ export function mountInspections(host) {
         bar.scrollLeft = on.offsetLeft + on.offsetWidth - bar.clientWidth + 8;
       }
     });
+    if (routeMap) { routeMap.remove(); routeMap = null; }
+    if (view.section === 'people' && view.person && view.personTab === 'route') {
+      mountRouteMap().catch((e) => console.warn('Карта не нарисована', e));
+    }
     if (view.section === 'people') {
       mountStats(scope, host.ensureStyle, { names: visiblePeople().map((p) => p.name), person: view.person })
         .catch((e) => console.warn('Графики не нарисованы', e));
@@ -1000,6 +1152,50 @@ export function mountInspections(host) {
       widths: [9, 34, 22, 40, 26, 24, 14, 40, 12, 30, 28, 11] }]);
     host.toast('Отчёт по запросу выгружен', 'ok');
   });
+  // План месяца: сохранение при уходе из ячейки; Enter — ячейка ниже.
+  scope.on('change', '[data-ip-plan]', (e, el) => {
+    if (!view.person) return;
+    setPlan(view.person, el.dataset.ipPlan, { [el.dataset.k]: el.value.trim() });
+    const s = scope.$('[data-ip-plan-saved]');
+    if (s) s.textContent = `Сохранено: ${fmtDate(el.dataset.ipPlan)}`;
+  });
+  scope.on('keydown', '[data-ip-plan]', (e, el) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    const next = scope.$(`[data-ip-plan][data-k="${el.dataset.k}"][data-r="${+el.dataset.r + (e.shiftKey ? -1 : 1)}"]`);
+    if (next) next.focus();
+  });
+  // Маршрут дня: день, дом на карте, убрать/вернуть предложенное, назначить.
+  scope.on('click', '[data-ip-route-day]', (e, b) => { route.day = shiftD(route.day, +b.dataset.ipRouteDay); route.skip = new Set(); redraw(); });
+  scope.on('change', '[data-ip-route-set]', (e, el) => { if (el.value) { route.day = el.value; route.skip = new Set(); redraw(); } });
+  scope.on('click', '[data-ip-route-home]', () => { route.homeMode = !route.homeMode; redraw(); });
+  scope.on('click', '[data-ip-route-skip]', (e, b) => { route.skip.add(b.dataset.ipRouteSkip); redraw(); });
+  scope.on('click', '[data-ip-route-unskip]', () => { route.skip = new Set(); redraw(); });
+  scope.on('click', '[data-ip-route-assign]', () => {
+    const r = dayRoute(all, view.person, route.day, route.skip);
+    let n = 0;
+    r.proposed.forEach((k) => {
+      const x = r.stops.find((s) => s.key === k);
+      if (!x) return;
+      const free = x.cov && x.cov.by ? (() => {
+        const t = all.get(k);
+        const ids = (objectContentsIds(t.typeId, t.id)).filter((id) => !x.cov.by.has(id));
+        return ids.length === x.cov.total ? [] : ids;
+      })() : [];
+      if (assign({ typeId: x.s.typeId, ocId: x.s.id, person: view.person, oiIds: free, plannedAt: route.day })) n++;
+    });
+    redraw();
+    host.toast(`Назначено объектов: ${n} на ${fmtDate(route.day)}`, 'ok');
+  });
+  // Нормы: правка — при уходе из ячейки; «взять» — значение по факту.
+  scope.on('change', '[data-ip-norm]', (e, el) => {
+    const v = parseFloat(el.value.replace(',', '.'));
+    if (!Number.isFinite(v) || v < 0) { host.toast('Нужно число не меньше нуля', 'warn'); redraw(); return; }
+    setNorm(el.dataset.ipNorm, { [el.dataset.k]: v });
+    redraw();
+  });
+  scope.on('click', '[data-ip-norm-take]', (e, b) => { setNorm(b.dataset.ipNormTake, { perM2: Math.round(+b.dataset.v * 1000) / 1000 }); redraw(); });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {

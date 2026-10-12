@@ -735,3 +735,55 @@ body[data-page="inspections"] .ip-cadtbl td:last-child{text-overflow:clip}
 @media (max-width:1000px){
   body[data-page="inspections"] .ip-cadform .ip-prow{grid-template-columns:minmax(0,1fr)}
 }
+
+/* План месяца (пункт 7.1): правка в ячейках, ячейка — поле во всю ширину
+   столбца; в календаре выездов — область плана в углу дня. */
+body[data-page="inspections"] .ip-plantbl{min-width:900px}
+body[data-page="inspections"] .ip-plantbl col.c-date{width:116px}
+body[data-page="inspections"] .ip-plantbl col.c-reg{width:150px}
+body[data-page="inspections"] .ip-plantbl col.c-dist{width:150px}
+body[data-page="inspections"] .ip-plantbl col.c-note{width:18%}
+body[data-page="inspections"] .ip-plantbl col.c-fact{width:150px}
+body[data-page="inspections"] .ip-plantbl td{padding-top:3px;padding-bottom:3px}
+body[data-page="inspections"] .ip-plantbl .input,
+body[data-page="inspections"] .ip-plantbl .select{height:30px;width:100%;border-color:transparent;background:transparent}
+body[data-page="inspections"] .ip-plantbl .input:hover,
+body[data-page="inspections"] .ip-plantbl .select:hover{border-color:var(--line-input)}
+body[data-page="inspections"] .ip-plantbl .input:focus,
+body[data-page="inspections"] .ip-plantbl .select:focus{border-color:var(--blue-600);background:var(--panel)}
+body[data-page="inspections"] .ip-plantbl tr.cur td{background:var(--blue-50)}
+body[data-page="inspections"] .ipc-cal-n{display:flex;align-items:baseline;justify-content:space-between;gap:4px}
+body[data-page="inspections"] .ipc-plan{font-size:10px;font-weight:600;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Маршрут дня (7.2–7.4): слева остановки по порядку (номер, объект, дорога и
+   осмотр), справа карта OSM; на узком — карта под списком. */
+body[data-page="inspections"] .ip-route-act{display:flex;gap:8px;flex-wrap:wrap}
+body[data-page="inspections"] .ip-route-act .btn.on{background:var(--amber-50);border-color:var(--amber-600);color:var(--amber-700)}
+body[data-page="inspections"] .ip-route{display:grid;grid-template-columns:minmax(320px,2fr) minmax(0,3fr);gap:12px;min-height:420px}
+@media (max-width:1100px){
+  body[data-page="inspections"] .ip-route{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ip-map{min-height:360px}
+}
+body[data-page="inspections"] .ip-map{min-height:420px;border-radius:12px;border:1px solid var(--line-soft);overflow:hidden;background:var(--slate-50)}
+body[data-page="inspections"] .ip-stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:620px;overflow-y:auto}
+body[data-page="inspections"] .ip-stop{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:start;padding:8px 10px;
+  background:var(--panel);border:1px solid var(--line-soft);border-radius:10px}
+body[data-page="inspections"] .ip-stop.home{background:var(--slate-50)}
+body[data-page="inspections"] .ip-stop-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;
+  background:var(--blue-600);color:#fff;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-stop.prop .ip-stop-n{background:var(--amber-600)}
+body[data-page="inspections"] .ip-stop.home .ip-stop-n{background:var(--slate-500)}
+body[data-page="inspections"] .ip-stop-b{display:flex;flex-direction:column;gap:2px;min-width:0}
+body[data-page="inspections"] .ip-stop-h{display:flex;gap:8px;align-items:baseline;justify-content:space-between}
+body[data-page="inspections"] .ip-stop-h i{font-style:normal;font-size:11px;font-weight:700;color:var(--k);white-space:nowrap}
+body[data-page="inspections"] .ip-stop .ip-sub{font-size:12px;color:var(--muted)}
+body[data-page="inspections"] .ip-stop-t{font-size:12.5px;font-variant-numeric:tabular-nums}
+.ip-pin{display:flex;align-items:center;justify-content:center}
+.ip-pin span{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:#1668c9;color:#fff;
+  font:700 12px/1 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff}
+.ip-pin.prop span{background:#c07c1e}
+.ip-pin.home span{background:#54718f}
+body[data-page="inspections"] .ip-normtbl{min-width:720px}
+body[data-page="inspections"] .ip-normtbl col.c-n{width:130px}
+body[data-page="inspections"] .ip-normtbl col.c-f{width:230px}
+body[data-page="inspections"] .ip-normtbl .input{height:30px;width:90px;text-align:right;font-variant-numeric:tabular-nums}

@@ -305,7 +305,7 @@ export function blankProfile(name) {
   return {
     id: name, phone: '', whatsapp: '', email: '', device: '', phoneType: '', note: '',
     regions: [], startDate: '', fired: false, firedDate: '',
-    birthDate: '', homeAddress: '', tempAddress: '', tempFrom: '', tempTo: '',
+    birthDate: '', homeAddress: '', homeGps: '', tempAddress: '', tempGps: '', tempFrom: '', tempTo: '',
     poaNumber: '', poaUntil: '', waGroup: '', cadastre: false,
     schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' },
     absences: [],
@@ -730,3 +730,30 @@ export async function answerCadRow(reqId, rowId, { result, scanDate = '', answer
 // пользователя 12.10.2026); номер учреждения передаёт страница.
 export const cadFileName = (row, instCode = '') => `${[instCode, row.eni, row.doc].filter(Boolean).join(' ')}.pdf`.replace(/[\\/:*?"<>|]+/g, ' ');
 export const cadKindLabel = (k) => (CAD_KINDS.find((x) => x.key === k) || { label: k }).label;
+
+// --- план месяца (ТЗ рабочего дня осмотрщика, пункт 7.1) ---------------------
+//
+// В начале месяца регионал задаёт примерный план поездок осмотрщика по
+// дням: область, район, учреждения. План — намерение, а не назначение: по
+// нему подбирается маршрут дня (7.2), назначения делаются отдельно.
+
+const plans = demo.plans || [];
+registerPersisted('inspections.plan', {
+  snapshot: () => plans,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    plans.splice(0, plans.length, ...saved.filter((x) => x && x.id));
+  },
+});
+
+export const planOf = (person, date) => plans.find((p) => p.person === person && p.date === date) || null;
+
+// Пустой план дня удаляется, чтобы не копить пустые строки.
+export function setPlan(person, date, patch) {
+  let p = planOf(person, date);
+  if (!p) { p = { id: `pl-${person}-${date}`, person, date, region: '', district: '', institutions: '', note: '' }; plans.push(p); }
+  Object.assign(p, patch, { at: now(), by: session.state.person });
+  if (!p.region && !p.district && !p.institutions && !p.note) plans.splice(plans.indexOf(p), 1);
+  changed();
+  return p;
+}

@@ -47,7 +47,7 @@ export function calendarHTML(all, person, ym) {
     const open = n || (person && d.inMonth);
     return `<td class="ipc-cal-d ${d.inMonth ? '' : 'out'} ${d.weekend || d.off ? 'we' : ''} ${d.absence ? 'away' : ''} ${d.today ? 'today' : ''} ${n ? 'has' : ''} ${open ? 'open' : ''}"
         ${open ? `tabindex="0" role="button" ${n || acts.length ? `data-ipc-cal="${esc(d.day)}"` : ''} data-ip-dp-open="day:${esc(d.day)}"` : ''} aria-label="${esc(label)}">
-      <span class="ipc-cal-n">${d.n}</span>
+      <span class="ipc-cal-n">${d.n}${d.plan && d.plan.region ? `<span class="ipc-plan" title="${esc(['План месяца', d.plan.region, d.plan.district, d.plan.institutions].filter(Boolean).join(' · '))}">${esc(d.plan.region)}</span>` : ''}</span>
       ${d.absence ? `<span class="ipc-chip k-away" title="${esc(d.off)}${d.absence.note ? ' · ' + esc(d.absence.note) : ''}">${esc(d.off)}</span>` : ''}
       ${acts.map((a) => `<span class="ipc-chip k-act" title="${esc(actText(a))}">${esc(activityKind(a.kind).short)}${a.region ? ` ${esc(a.region)}` : ''}</span>`).join('')}
       ${by.done.length ? `<span class="ipc-chip k-done">${by.done.length} · ОИ ${by.done.reduce((s, t) => s + t.oi, 0)}</span>` : ''}

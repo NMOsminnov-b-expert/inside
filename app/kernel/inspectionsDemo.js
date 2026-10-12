@@ -50,7 +50,7 @@ export function demoInspections() {
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       if (s.resp && s.resp.insp) people.add(s.resp.insp);
-      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '' });
+      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -68,6 +68,14 @@ export function demoInspections() {
     kind, assignId: a.id, typeId: a.typeId, ocId: a.ocId, person: a.person, demo: true, ...extra,
   });
 
+  // Норма осмотра в демо — те же значения по умолчанию, что в
+  // pages/inspections/route.js (NORM_KINDS); ядро страницу не импортирует.
+  const demoMinutes = (r) => {
+    const k = /производ|склад/i.test(r.kind) ? [20, 0.012] : /граждан|нежил/i.test(r.kind) ? [25, 0.03] : /дом/i.test(r.kind) ? [20, 0.06]
+      : /квартир/i.test(r.kind) ? [15, 0.1] : /участ|земел/i.test(r.kind) ? [10, 0.002] : [20, 0.02];
+    return k[0] + (r.area || 0) * k[1];
+  };
+
   // Прошлое: у каждого осмотрщика в рабочий день 0–3 ОИ.
   const pool = recs.filter((r) => r.status !== READY && r.oi.length);
   names.forEach((person, pi) => {
@@ -80,7 +88,11 @@ export function demoInspections() {
         const oiId = pick(r.oi);
         const at = dayAt(today, -back - 2 - Math.floor(rnd() * 5), 10);
         // Окончание — после снимков и заметок того же осмотра.
-        const done = dayAt(today, -back, 12 + j * 2);
+        // Длительность — около нормы осмотра по виду и площади (маршруты,
+        // пункт 7.4: нормы «по факту» считаются из этих осмотров); разброс
+        // ±25 % без генератора, чтобы не сдвигать остальное демо.
+        const start = dayAt(today, -back, 10 + j * 2);
+        const done = new Date(start.getTime() + demoMinutes(r) * (0.8 + ((n * 37) % 50) / 100) * 60000);
         const a = {
           id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [oiId], docs: [], inventories: [],
           plannedAt: isoLocalDate(day), note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
@@ -89,7 +101,7 @@ export function demoInspections() {
         assignments.push(a);
         ev(a, 'assigned', at);
         const photos = 6 + Math.floor(rnd() * 34);
-        ev(a, 'photos', dayAt(today, -back, 10 + j * 2), { count: photos });
+        ev(a, 'photos', start, { count: photos });
         if (rnd() < 0.35) ev(a, 'note', dayAt(today, -back, 11 + j * 2), { text: pick(NOTES) });
         if (rnd() < 0.15) ev(a, 'mismatch', dayAt(today, -back, 11 + j * 2), { field: 'Материал кровли' });
         if (rnd() < 0.08) ev(a, 'found', dayAt(today, -back, 11 + j * 2), { text: 'Навес у склада' });
@@ -156,7 +168,7 @@ export function demoInspections() {
   }
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
-  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today) };
+  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today) };
 }
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний
@@ -174,6 +186,8 @@ const odoPhoto = (v) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
   + '<rect x="22" y="48" width="196" height="46" rx="6" fill="#0b0f15"/>'
   + '<text x="120" y="82" fill="#f2c94c" font-family="Consolas,monospace" font-size="30" text-anchor="middle" letter-spacing="3">'
   + String(v).padStart(6, '0') + '</text></svg>');
+// Дома осмотрщиков (маршрут дня, пункт 7.2): Бишкек, Бишкек, Кант.
+const HOMES = [['г. Бишкек, ул. Ахунбаева, 120', '42.8420, 74.5880'], ['г. Бишкек, мкр. Джал, 15', '42.8250, 74.5650'], ['г. Кант, ул. Ленина, 40', '42.8920, 74.8480']];
 const STREETS = ['ул. Советская', 'пр. Чуй', 'ул. Ленина', 'ул. Токтогула', 'ул. Ахунбаева'];
 
 function demoReports(names, assignments, recs, today, rnd) {
@@ -185,6 +199,7 @@ function demoReports(names, assignments, recs, today, rnd) {
   names.forEach((person, pi) => {
     const car = CARS[pi % CARS.length];
     profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car }, cadastre: pi === 0,
+      homeAddress: HOMES[pi % HOMES.length][0], homeGps: HOMES[pi % HOMES.length][1],
       schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' }, absences: [], demo: true });
     let odo = 84000 + pi * 37000 + Math.floor(rnd() * 900);
     for (let back = 45; back >= 1; back--) {
@@ -237,7 +252,7 @@ function demoActivities(names, assignments, today) {
     }
     if (pi === 1) {
       let k = 7; while (dow(k) !== 1) k++;
-      out.push({ id: `demo-ac-${++n}`, person, kind: 'trip', from: iso(k), to: iso(k + 2), region: 'Ош', address: 'г. Ош, гостиница «Алай»', note: '', by: 'Региональный менеджер (демо)', demo: true });
+      out.push({ id: `demo-ac-${++n}`, person, kind: 'trip', from: iso(k), to: iso(k + 2), region: 'Ош', address: 'г. Ош, гостиница «Алай»', homeGps: '40.5300, 72.7950', note: '', by: 'Региональный менеджер (демо)', demo: true });
     }
     if (pi === 0) {
       out.push({ id: `demo-ac-${++n}`, person, kind: 'partner', from: iso(4), to: iso(4), project: 'Оценка для банка', object: 'Склад, г. Кант', time: '14:00', note: '', by: 'Региональный менеджер (демо)', demo: true });
@@ -267,5 +282,25 @@ function demoCadastre(names, recs, today) {
     out.push({ id: 'demo-cr-2', no: 2, person: names[1], kind: 'site', due: iso(5), note: 'запросить у завхоза на месте', at: at(-1, 15), by,
       rows: pool.slice(5, 8).map((r, i) => row(r, i + 1)), demo: true });
   }
+  return out;
+}
+
+// План месяца (пункт 7.1): на будни до конца месяца — область и учреждения
+// по назначениям дня; у второго осмотрщика неделя командировки — Ош.
+function demoPlans(names, assignments, recs, today) {
+  const out = [];
+  const inst = new Map(recs.map((r) => [r.typeId + '|' + r.ocId, r.inst]));
+  const REG = ['Бишкек', 'Бишкек', 'Чуй'];
+  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  names.forEach((person, pi) => {
+    for (const d = new Date(today); d <= end; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+      const iso = isoLocalDate(d);
+      const insts = [...new Set(assignments.filter((a) => a.person === person && a.plannedAt === iso).map((a) => inst.get(a.typeId + '|' + a.ocId)).filter(Boolean))];
+      const k = Math.round((d - today) / 864e5);
+      const osh = pi === 1 && k >= 7 && k <= 11 && d.getDay() >= 1 && d.getDay() <= 3;
+      out.push({ id: `demo-pl-${pi}-${iso}`, person, date: iso, region: osh ? 'Ош' : REG[pi % REG.length], district: '', institutions: insts.join('; '), note: '', demo: true });
+    }
+  });
   return out;
 }
