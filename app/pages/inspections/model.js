@@ -7,6 +7,7 @@ import { sortedTypes, getType } from '../../kernel/registry.js';
 import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
+  workdayOf, absenceOn, profileOf, profileNames, absenceLabel,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 
@@ -143,7 +144,9 @@ export function inspectorRows(all) {
       done.set(a.person, (done.get(a.person) || 0) + 1);
     }
   });
-  const names = new Set([...inspectorsInData().map((x) => x.name), ...live.keys()]);
+  // Справочник: профили, люди из записей и из назначений.
+  const names = new Set([...profileNames(), ...inspectorsInData().map((x) => x.name), ...live.keys()]);
+  const today = todayIso();
   return [...names].map((name) => ({
     name,
     live: live.get(name) || 0,
@@ -151,6 +154,10 @@ export function inspectorRows(all) {
     done: done.get(name) || 0,
     // Свободных рабочих дней на две недели — кому можно дать задачи.
     free: freeDays(name, 10),
+    // Отсутствие сегодня (отпуск, больничный…) и увольнение — в списке и
+    // в выборе осмотрщика при назначении.
+    away: (() => { const ab = absenceOn(name, today); return ab ? { label: absenceLabel(ab.kind), to: ab.to } : null; })(),
+    fired: profileOf(name).fired,
     ...regionsOf(name, (typeId, ocId) => { const s = all && all.get(typeId + '|' + ocId); return s ? s.eni : ''; }),
   })).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 }
@@ -272,7 +279,10 @@ export function tripsMonth(all, person, year, month) {
     for (let i = 0; i < 7; i++) {
       const iso = isoDay(d);
       const trips = byDay.has(iso) ? [...byDay.get(iso).values()] : [];
-      week.push({ day: iso, n: d.getDate(), inMonth: d.getMonth() === month, weekend: i >= 5, today: iso === today, past: iso < today, trips });
+      // Нерабочий день человека: отпуск, больничный, выходной по графику.
+      const wd = person ? workdayOf(person, iso) : { ok: true };
+      week.push({ day: iso, n: d.getDate(), inMonth: d.getMonth() === month, weekend: i >= 5, today: iso === today, past: iso < today, trips,
+        off: wd.ok ? '' : wd.reason, absence: wd.absence || null });
       d.setDate(d.getDate() + 1);
     }
     weeks.push(week);
@@ -281,11 +291,12 @@ export function tripsMonth(all, person, year, month) {
   return weeks;
 }
 
-// Свободные рабочие дни на ближайшие n рабочих дней — без плановых осмотров.
+// Свободные дни на ближайшие n рабочих дней (пн–пт): день свободен, если
+// человек по графику работает, не в отпуске и плановых осмотров нет.
 export function freeDays(person, n = 10) {
   const span = workdays(0, n, 1);
   const busy = new Set(allAssignments().filter((a) => isLive(a) && a.person === person && a.plannedAt).map((a) => a.plannedAt));
-  return span.filter((d) => !busy.has(d)).length;
+  return span.filter((d) => !busy.has(d) && workdayOf(person, d).ok).length;
 }
 
 // Ряды для uPlot — по неделям: дневные линии рваные (выходные — ноль, дни

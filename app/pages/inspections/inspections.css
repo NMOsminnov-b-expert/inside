@@ -407,3 +407,47 @@ body[data-page="inspections"] .ip-cov-t{font-size:12px;color:var(--ink);font-var
 body[data-page="inspections"] .ip-tbl col.c-cov{width:150px}
 body[data-page="inspections"] .ip-check.taken{color:var(--muted);cursor:default}
 body[data-page="inspections"] .ip-check em{display:block;font-style:normal;font-size:11.5px;color:var(--muted)}
+
+/* Отсутствие в календаре выездов: день заштрихован, метка вида отсутствия. */
+body[data-page="inspections"] .k-away{--k:var(--violet-600)}
+body[data-page="inspections"] .ipc-cal-d.away{background:repeating-linear-gradient(135deg,#f6f0fd 0 6px,#fbf8fe 6px 12px)}
+
+/* Профиль осмотрщика — три колонки по смыслу; на среднем — две, на узком — одна. */
+body[data-page="inspections"] .ip-profile3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}
+body[data-page="inspections"] .ip-pcol{display:flex;flex-direction:column;gap:10px;min-width:0;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+body[data-page="inspections"] .ip-pcol h3{margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#5a6b82}
+body[data-page="inspections"] .ip-pcol h3 + *{margin-top:-2px}
+body[data-page="inspections"] .ip-pcol .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-page="inspections"] .ip-pcol .field > label{font-size:12px;font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ip-pcol .input,
+body[data-page="inspections"] .ip-pcol .select,
+body[data-page="inspections"] .ip-pcol .pick-btn{height:34px;width:100%}
+body[data-page="inspections"] .ip-prow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+body[data-page="inspections"] .ip-regions,
+body[data-page="inspections"] .ip-days{display:flex;flex-wrap:wrap;gap:6px}
+body[data-page="inspections"] .ip-chipbox{position:relative;cursor:pointer}
+body[data-page="inspections"] .ip-chipbox input{position:absolute;opacity:0;pointer-events:none}
+body[data-page="inspections"] .ip-chipbox span{display:inline-block;padding:4px 10px;border-radius:999px;border:1px solid var(--line-input);
+  background:#fff;font-size:12.5px;color:var(--ink-ctl)}
+body[data-page="inspections"] .ip-chipbox input:checked + span{background:var(--blue-50);border-color:var(--blue-600);color:var(--blue-700);font-weight:600}
+body[data-page="inspections"] .ip-chipbox input:focus-visible + span{box-shadow:0 0 0 3px rgba(22,104,201,.2)}
+body[data-page="inspections"] .ip-day span{min-width:38px;text-align:center}
+body[data-page="inspections"] .ip-absences{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+body[data-page="inspections"] .ip-absences li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 8px;align-items:center;
+  padding:5px 8px;border-radius:7px;background:var(--fill-head);font-size:12.5px}
+body[data-page="inspections"] .ip-absences li.past{opacity:.55}
+body[data-page="inspections"] .ip-absences i{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--k)}
+body[data-page="inspections"] .ip-ab-dates{font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-ab-note{grid-column:1 / -1;color:var(--muted);font-size:12px}
+body[data-page="inspections"] .ip-ab-add{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600}
+body[data-page="inspections"] .ip-badge.away{background:var(--violet-50);color:var(--violet-700)}
+body[data-page="inspections"] .ip-badge.off{background:var(--slate-50);color:var(--slate-700)}
+body[data-page="inspections"] .ip-wa{color:var(--brand-700)!important}
+@media (max-width:1440px){
+  body[data-page="inspections"] .ip-profile3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  body[data-page="inspections"] .ip-profile3{grid-template-columns:minmax(0,1fr)}
+}

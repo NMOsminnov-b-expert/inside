@@ -38,10 +38,11 @@ export function calendarHTML(all, person, ym) {
     const oi = d.trips.reduce((s, t) => s + t.oi, 0);
     const photos = d.trips.reduce((s, t) => s + t.photos, 0);
     const n = d.trips.length;
-    const label = `${wd(d.day)} ${ddmm(d.day)}: ${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')}, ОИ ${oi}` : 'выездов нет'}`;
-    return `<td class="ipc-cal-d ${d.inMonth ? '' : 'out'} ${d.weekend ? 'we' : ''} ${d.today ? 'today' : ''} ${n ? 'has' : ''}"
+    const label = `${wd(d.day)} ${ddmm(d.day)}${d.off ? ` (${d.off})` : ''}: ${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')}, ОИ ${oi}` : 'выездов нет'}`;
+    return `<td class="ipc-cal-d ${d.inMonth ? '' : 'out'} ${d.weekend || d.off ? 'we' : ''} ${d.absence ? 'away' : ''} ${d.today ? 'today' : ''} ${n ? 'has' : ''}"
         ${n ? `tabindex="0" role="button" data-ipc-cal="${esc(d.day)}" data-ip-dp-open="day:${esc(d.day)}"` : ''} aria-label="${esc(label)}">
       <span class="ipc-cal-n">${d.n}</span>
+      ${d.absence ? `<span class="ipc-chip k-away" title="${esc(d.off)}${d.absence.note ? ' · ' + esc(d.absence.note) : ''}">${esc(d.off)}</span>` : ''}
       ${by.done.length ? `<span class="ipc-chip k-done">${by.done.length} · ОИ ${by.done.reduce((s, t) => s + t.oi, 0)}</span>` : ''}
       ${by.plan.length ? `<span class="ipc-chip k-plan">план ${by.plan.length}</span>` : ''}
       ${by.late.length ? `<span class="ipc-chip k-late">проср. ${by.late.length}</span>` : ''}

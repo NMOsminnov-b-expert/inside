@@ -252,20 +252,24 @@ export function tasksOf(person) {
   return out;
 }
 
-// --- профили осмотрщиков: контакты и области -----------------------------------
+// --- профили осмотрщиков: справочник, контакты, области, график, отсутствия ---
 //
-// Просьба пользователя 12.10.2026: «для каждого осмотрщика нужны контактные
-// данные. Необходима фильтрация по областям осмотрщиков». Справочника
-// сотрудников в макете нет, поэтому профиль живёт здесь, по ФИО: телефон,
-// почта, области, примечание. Контакты в демо не выдумываются — у
-// осмотрщиков реальные фамилии; поля пустые, пока их не внесут.
+// Решение пользователя 12.10.2026 (запись графа
+// upravlenie-osmotrschikami-instrumenty): «полноценный профиль осмотрщика.
+// Где не только его контакты, но и регионы, рабочий график, план выходных и
+// отпусков. С какого числа работает»; «Переписка ведётся в WhatsApp. Стоит
+// добавить ссылку на номер». Справочника сотрудников в макете нет, поэтому
+// профиль живёт здесь, по ФИО; это и есть справочник осмотрщиков: люди из
+// профилей плюс люди из назначений и записей. Контакты в демо не выдумываются
+// — у осмотрщиков реальные фамилии; поля пустые, пока их не внесут.
 //
 // Область, если её не указали, выводится из объектов, которые человек
-// осматривал или должен осмотреть (по коду ЕНИ, eniRegion): решение 12.10
-// «каждый знает свою область» — фактическая область видна по его объектам.
+// осматривал или должен осмотреть (по коду ЕНИ, eniRegion).
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: профиль — учётная запись сотрудника в справочнике
-// «Пользователи» (контакты, роль, области); здесь он заменится ссылкой на неё.
+// «Пользователи» (контакты, роль, области, график); отсутствия — из кадрового
+// учёта или вносятся менеджером; здесь он заменится ссылкой на учётную
+// запись. Развилка — кто ведёт отпуска: кадры (выгрузка) или менеджер (ввод).
 
 const profiles = [];
 registerPersisted('inspections.people', {
@@ -276,22 +280,84 @@ registerPersisted('inspections.people', {
   },
 });
 
-export const PROFILE_FIELDS = [
-  { key: 'phone', label: 'Телефон', type: 'tel' },
-  { key: 'email', label: 'Почта', type: 'email' },
-  { key: 'note', label: 'Примечание' },
+// Виды отсутствий — в порядке частоты.
+export const ABSENCE_KINDS = [
+  { key: 'vacation', label: 'Отпуск' },
+  { key: 'dayoff', label: 'Выходной' },
+  { key: 'sick', label: 'Больничный' },
+  { key: 'other', label: 'Другое' },
 ];
+export const absenceLabel = (k) => (ABSENCE_KINDS.find((x) => x.key === k) || {}).label || k;
+
+// Рабочие дни недели: 1 — пн … 7 — вс (как в ISO, чтобы не путать с getDay()).
+export const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+const isoWeekday = (iso) => { const d = new Date(iso + 'T00:00:00').getDay(); return d === 0 ? 7 : d; };
+
+export function blankProfile(name) {
+  return {
+    id: name, phone: '', whatsapp: '', email: '', device: '', note: '',
+    regions: [], startDate: '', fired: false, firedDate: '',
+    schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' },
+    absences: [],
+  };
+}
 
 export function profileOf(name) {
-  return profiles.find((p) => p.id === name) || { id: name, phone: '', email: '', regions: [], note: '' };
+  const p = profiles.find((x) => x.id === name);
+  // Поля, добавленные позже, — со значениями по умолчанию: старый профиль
+  // (только телефон и почта) не ломает график и отсутствия.
+  return p ? { ...blankProfile(name), ...p, schedule: { ...blankProfile(name).schedule, ...(p.schedule || {}) }, absences: p.absences || [] } : blankProfile(name);
 }
 
 export function saveProfile(name, patch) {
   let p = profiles.find((x) => x.id === name);
-  if (!p) { p = { id: name, phone: '', email: '', regions: [], note: '' }; profiles.push(p); }
+  if (!p) { p = blankProfile(name); profiles.push(p); }
   Object.assign(p, patch, { updatedAt: now(), updatedBy: session.state.person });
   changed();
   return p;
+}
+
+export function addAbsence(name, { kind, from, to, note = '' }) {
+  if (!from) return null;
+  const p = profileOf(name);
+  const item = { id: nextId('ab'), kind: kind || 'vacation', from, to: to && to >= from ? to : from, note };
+  saveProfile(name, { absences: [...p.absences, item].sort((a, b) => a.from.localeCompare(b.from)) });
+  return item;
+}
+
+export function removeAbsence(name, id) {
+  const p = profileOf(name);
+  saveProfile(name, { absences: p.absences.filter((a) => a.id !== id) });
+}
+
+// Отсутствие на день или null.
+export function absenceOn(name, iso) {
+  return profileOf(name).absences.find((a) => a.from <= iso && iso <= (a.to || a.from)) || null;
+}
+
+// Работает ли человек в этот день: в штате с даты начала, не уволен к этому
+// дню, день — рабочий по графику, отсутствия нет. reason — почему нет.
+export function workdayOf(name, iso) {
+  const p = profileOf(name);
+  if (p.startDate && iso < p.startDate) return { ok: false, reason: `работает с ${p.startDate.split('-').reverse().join('.')}` };
+  if (p.fired && (!p.firedDate || iso >= p.firedDate)) return { ok: false, reason: 'уволен' };
+  const ab = absenceOn(name, iso);
+  if (ab) return { ok: false, reason: absenceLabel(ab.kind).toLowerCase(), absence: ab };
+  if (!p.schedule.days.includes(isoWeekday(iso))) return { ok: false, reason: 'выходной по графику' };
+  return { ok: true, reason: '' };
+}
+
+// Ссылка на чат WhatsApp: номер — WhatsApp, иначе телефон; цифры с кодом
+// страны (wa.me не принимает «+», пробелы и скобки).
+export function whatsappLink(name) {
+  const p = profileOf(name);
+  const digits = String(p.whatsapp || p.phone || '').replace(/\D/g, '');
+  return digits.length >= 9 ? `https://wa.me/${digits}` : '';
+}
+
+// Справочник: все известные осмотрщики — из профилей и из данных.
+export function profileNames() {
+  return profiles.map((p) => p.id);
 }
 
 // Области человека: указанные в профиле, иначе — по его объектам (чаще

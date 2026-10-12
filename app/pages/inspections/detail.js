@@ -15,7 +15,7 @@
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
 import { plural } from '../../kernel/fmt.js';
-import { eventsOf, isLive, profileOf } from '../../kernel/inspections.js';
+import { eventsOf, isLive, profileOf, whatsappLink } from '../../kernel/inspections.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
@@ -87,6 +87,7 @@ function personHTML(p, canBack) {
   const prof = profileOf(p.name);
   const tel = (prof.phone || '').replace(/[^\d+]/g, '');
   const body = `
+    ${p.fired ? '<p class="ip-hint">Уволен.</p>' : p.away ? `<p class="ip-hint">Сейчас: ${esc(p.away.label.toLowerCase())} до ${esc(fmtDate(p.away.to))}.</p>` : ''}
     <section class="ip-sec"><h3>Загрузка</h3>
       <div class="ip-dp-line"><span>В работе</span><span class="ip-dp-v"><b>${p.live}</b></span></div>
       <div class="ip-dp-line"><span>Просрочено</span><span class="ip-dp-v"><b class="${p.late ? 'ip-late' : ''}">${p.late}</b></span></div>
@@ -95,6 +96,7 @@ function personHTML(p, canBack) {
     </section>
     <section class="ip-sec"><h3>Контакты</h3>
       <div class="ip-dp-line"><span>Телефон</span><span class="ip-dp-v">${prof.phone ? `<a href="tel:${esc(tel)}">${esc(prof.phone)}</a>` : '<span class="ip-muted">не указан</span>'}</span></div>
+      <div class="ip-dp-line"><span>WhatsApp</span><span class="ip-dp-v">${whatsappLink(p.name) ? `<a href="${esc(whatsappLink(p.name))}" target="_blank" rel="noopener">написать</a>` : '<span class="ip-muted">нет номера</span>'}</span></div>
       <div class="ip-dp-line"><span>Почта</span><span class="ip-dp-v">${prof.email ? `<a href="mailto:${esc(prof.email)}">${esc(prof.email)}</a>` : '<span class="ip-muted">не указана</span>'}</span></div>
       <div class="ip-dp-line"><span>Области</span><span class="ip-dp-v">${esc(p.regions.join(', ') || '—')}${p.derived && p.regions.length ? ' <span class="ip-muted">(по объектам)</span>' : ''}</span></div>
     </section>`;

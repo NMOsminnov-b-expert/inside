@@ -26,4 +26,5 @@ LINKS = [
     {'тип': 'якорь', 'куда': 'panel-naznacheniya-ispolniteley', 'папка': 'practices'},
     {'тип': 'якорь', 'куда': 'ekran-osmotrschika-pererabotat-ergonomika', 'папка': 'tasks'},
     {'тип': 'якорь', 'куда': 'panel-podrobnostey-sprava', 'папка': 'practices'},
+    {'тип': 'якорь', 'куда': 'upravlenie-osmotrschikami-instrumenty', 'папка': 'decisions'},
 ]

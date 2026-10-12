@@ -205,15 +205,30 @@ def run(t):
     pg.click('[data-ip-ptab="profile"]')
     t.wait_for('[data-ip-c="phone"]')
     t.ck(pg.locator('.modal-back').count() == 0, 'контакты правятся в модальном окне')
+    # Полный профиль (решение пользователя 12.10.2026): связь, области, график,
+    # отпуска; WhatsApp — ссылкой на чат.
     pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
-    pg.fill('[data-ip-c="regions"]', 'Ошская область')
+    pg.locator('label.ip-chipbox:has([data-ip-c-region][value="Ош"])').click()
     pg.click('[data-ip-c-save]')
     t.ck(t.wait_for('.ip-card-contacts a[href^="tel:"]'), 'сохранённый телефон не показан в шапке ссылкой для звонка')
+    t.ck(pg.locator('.ip-card-contacts a[href^="https://wa.me/996555000111"]').count() == 1, 'нет ссылки на WhatsApp по номеру телефона')
+
+    # отпуск на две недели: свободных дней 0, в шапке отметка, в календаре дни отпуска
+    FREE = r"(w) => { const b = [...document.querySelectorAll('.ip-person-main')].find((x) => x.dataset.ipPerson === w); const m = b ? b.innerText.match(/свободно\s+(\d+)/) : null; return m ? +m[1] : -1; }"
+    ab = pg.evaluate("() => { const iso = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); const d = new Date(); const to = new Date(d); to.setDate(to.getDate() + 15); return [iso(d), iso(to)]; }")
+    pg.fill('[data-ip-ab="from"]', ab[0])
+    pg.fill('[data-ip-ab="to"]', ab[1])
+    pg.click('[data-ip-ab-add]')
+    t.ck(t.wait_for('.ip-absences li i'), 'отпуск не добавился в профиль')
+    t.ck(t.wait_until("(w) => (" + FREE + ")(w) === 0", who), 'отпуск на две недели не обнулил свободные дни: %s' % pg.evaluate(FREE, who))
+    t.ck(pg.locator('.ip-card-contacts .ip-badge.away').count() == 1, 'в шапке нет отметки «отпуск до …»')
+    pg.click('[data-ip-ptab="trips"]')
+    t.ck(t.wait_for('.ipc-cal-d.away'), 'в календаре выездов не отмечены дни отпуска')
 
     # фильтр по областям — по указанной в профиле
-    t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Ошская область')"),
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Ош')"),
          'область из профиля не попала в фильтр областей')
-    pg.select_option('[data-ip-region]', 'Ошская область')
+    pg.select_option('[data-ip-region]', 'Ош')
     t.ck(t.wait_until("(w) => { const ns = [...document.querySelectorAll('.ip-person-main[data-ip-person]')].map((b) => b.dataset.ipPerson).filter(Boolean); return ns.length === 1 && ns[0] === w; }", who),
          'фильтр по области не оставил только осмотрщиков этой области')
     pg.select_option('[data-ip-region]', '')
