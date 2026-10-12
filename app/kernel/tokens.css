@@ -456,3 +456,32 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .itbl tbody tr:hover td{background:var(--blue-50)}
 .itbl tbody tr:last-child td{border-bottom:none}
 .itbl .num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* Табличный редактор «как в Excel» (kernel/grid.js): шапка и первые столбцы
+   закреплены, активная ячейка — рамкой, выделение — заливкой, правка —
+   полем поверх ячейки. Цвета — из токенов. */
+.kg{position:relative;display:flex;flex-direction:column;min-height:0;height:100%;outline:none;background:var(--panel);
+  border:1px solid var(--line-soft);border-radius:12px;overflow:hidden}
+.kg:focus-visible{box-shadow:0 0 0 2px var(--blue-300)}
+.kg-scroll{position:relative;flex:1 1 auto;min-height:0;overflow:auto}
+.kg-tbl{border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:12.5px}
+.kg-tbl th,.kg-tbl td{border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:0 8px;height:30px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--panel)}
+.kg-tbl thead th{position:sticky;top:0;z-index:2;background:var(--slate-50);font-weight:700;font-size:11.5px;color:var(--ink-label);text-align:left}
+.kg-tbl thead tr.kg-frow th{top:30px;padding:2px 4px;font-weight:400}
+.kg-tbl th.kg-fz,.kg-tbl td.kg-fz{position:sticky;z-index:1}
+.kg-tbl thead th.kg-fz{z-index:3}
+.kg-tbl td.kg-fz{background:var(--slate-50);font-weight:600}
+.kg-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.kg-tbl td.ro{color:var(--muted)}
+.kg-tbl td.sel{background:var(--blue-50)}
+.kg-tbl td.act{box-shadow:inset 0 0 0 2px var(--blue-600)}
+.kg-h{position:relative}
+.kg-sort{all:unset;cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kg-rs{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:4}
+.kg-rs:hover{background:var(--blue-300)}
+.kg-fin{width:100%;height:24px;border:1px solid var(--line-soft);border-radius:4px;padding:0 6px;font:inherit;font-size:11.5px;background:var(--panel)}
+.kg-edit{position:absolute;z-index:5;border:2px solid var(--blue-600);padding:0 6px;font:inherit;font-size:12.5px;background:var(--panel);outline:none}
+.kg-edit.bad{border-color:var(--danger)}
+.kg-empty{color:var(--muted);text-align:center}
+.kg-status{flex:none;padding:4px 10px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line-soft);min-height:24px}

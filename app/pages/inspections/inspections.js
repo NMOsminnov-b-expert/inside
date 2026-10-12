@@ -24,7 +24,9 @@ import {
   planOf, setPlan, assign,
   allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, CAD_DOCS,
 } from '../../kernel/inspections.js';
-import { downloadXlsx } from '../../kernel/xlsx.js';
+import { downloadXlsx, readXlsx } from '../../kernel/xlsx.js';
+import { mountGrid, cellText, parseCell } from '../../kernel/grid.js';
+import { pickFile } from '../../kernel/fileUpload.js';
 import { codeByName } from '../../kernel/institutions.js';
 import { build } from '../../kernel/router.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
@@ -50,6 +52,7 @@ const view = {
   allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields
   cadSel: '',            // «Кадастр»: выбранный запрос
   notesRead: [],         // «Уведомления»: id прочитанных
+  gridWidths: {},        // «Таблица»: ширины столбцов
   notesKind: '',         // «Уведомления»: отбор по виду
   notesUnread: false,    // «Уведомления»: только непрочитанные
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
@@ -72,7 +75,7 @@ const view = {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
+persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
   'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -548,13 +551,14 @@ export function mountInspections(host) {
     return `<div class="ip-profile4 ip-fields">
       <section class="ip-pcol" aria-label="Свои поля"><h3>Свои поля осмотрщиков</h3>
         ${list.length ? `<ul class="ip-absences">${list.map((f) => `<li><i>${esc((FIELD_KINDS.find((k) => k.key === f.kind) || {}).label || f.kind)}</i>
-            <span>${esc(f.label)}${f.options.length ? ` <span class="ip-muted">(${esc(f.options.join(', '))})</span>` : ''}</span>
+            <span>${esc(f.label)}${f.required ? ' <b class="ip-req" title="Обязательное">*</b>' : ''}${f.options.length ? ` <span class="ip-muted">(${esc(f.options.join(', '))})</span>` : ''}</span>
             <button class="ip-x" data-ip-cf-del="${esc(f.id)}" aria-label="Удалить поле" title="Удалить поле">×</button></li>`).join('')}</ul>`
           : '<p class="ip-hint">Своих полей нет.</p>'}
         <div class="ip-ab-add">
           <div class="ip-prow"><div class="field"><label for="ip-cf-label">Название</label><input class="input" id="ip-cf-label" data-ip-cfn="label"></div>
             <div class="field"><label for="ip-cf-kind">Вид</label><select class="select" id="ip-cf-kind" data-ip-cfn="kind">${FIELD_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div></div>
-          <div class="field"><label for="ip-cf-opts">Варианты (для выбора из списка — через запятую)</label><input class="input" id="ip-cf-opts" data-ip-cfn="options"></div>
+          <div class="field" data-ip-cf-optsbox hidden><label for="ip-cf-opts">Варианты через запятую</label><input class="input" id="ip-cf-opts" data-ip-cfn="options"></div>
+          <label class="ip-check"><input type="checkbox" data-ip-cfn-req> Обязательное — без значения профиль не сохраняется</label>
           <div class="ip-profile-act"><span class="ip-err" data-ip-cf-err role="alert"></span><button class="btn btn-ghost btn-sm" data-ip-cf-add>Добавить поле</button></div>
         </div>
       </section>
@@ -666,6 +670,170 @@ export function mountInspections(host) {
           ${cell(tot('km'))}${cell(Math.round(tot('litres') * 100) / 100)}${cell(tot('onTime'))}${cell(tot('late'))}${cell(tot('missedReports'))}${cell(tot('missedTrips'))}
           <td class="num">${tot((r) => r.cad.got)} / ${tot((r) => r.cad.none)} / ${tot((r) => r.cad.refused)}</td></tr></tfoot>
       </table></div></div>`;
+  }
+
+  // --- табличный вид осмотрщиков (раздел 10 ТЗ рабочего дня) ----------------
+  //
+  // «Буквально Excel, который потом может парситься в систему»: все поля
+  // карточки, авто и свои поля — столбцами, правка в ячейках сразу
+  // сохраняется в профиль (kernel/grid.js); на весь экран; выгрузка xlsx и
+  // загрузка обратно — со сверкой по ФИО и показом изменений до применения:
+  // пустое дописывается, различающееся — по отметке (правило слияния из
+  // импорта APCS; практики предпросмотра импорта — csvbox, Grist, Coefficient).
+  const FUELS = ['АИ-92', 'АИ-95', 'Дизель', 'Газ'];
+  const regionNames = () => Object.values(ENI_REGIONS);
+  function gridCols() {
+    const car = (key, label, type = 'text', extra = {}) => ({ key: `car.${key}`, label, type, width: 120, ...extra,
+      get: (p) => p.car[key] || '', set: (v, p) => ({ car: { ...p.car, [key]: v } }) });
+    const cols = [
+      { key: 'name', label: 'ФИО', width: 250, readOnly: true, get: (p, n) => n },
+      { key: 'phone', label: 'Телефон', width: 150 },
+      { key: 'whatsapp', label: 'WhatsApp', width: 150 },
+      { key: 'email', label: 'Почта', width: 180 },
+      { key: 'phoneType', label: 'Тип телефона', type: 'list', options: ['Android', 'iOS'], width: 110,
+        get: (p) => (p.phoneType === 'ios' ? 'iOS' : p.phoneType === 'android' ? 'Android' : ''), set: (v) => ({ phoneType: v === 'iOS' ? 'ios' : v === 'Android' ? 'android' : '' }) },
+      { key: 'device', label: 'Устройство', width: 140 },
+      { key: 'waGroup', label: 'Группа WhatsApp', width: 150 },
+      { key: 'regions', label: 'Области', width: 170, title: 'Через запятую: ' + regionNames().join(', '),
+        get: (p) => p.regions.join(', '),
+        set: (v) => {
+          const list = String(v || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+          const bad = list.filter((x) => !regionNames().includes(x));
+          return bad.length ? { error: `нет такой области: ${bad.join(', ')}` } : { regions: list };
+        } },
+      { key: 'fired', label: 'Статус', type: 'list', options: ['Работает', 'Уволен'], width: 100, get: (p) => (p.fired ? 'Уволен' : 'Работает'), set: (v) => ({ fired: v === 'Уволен' }) },
+      { key: 'startDate', label: 'Работает с', type: 'date', width: 105 },
+      { key: 'firedDate', label: 'Уволен с', type: 'date', width: 105 },
+      { key: 'birthDate', label: 'Дата рождения', type: 'date', width: 110 },
+      { key: 'homeAddress', label: 'Адрес жилья', width: 220 },
+      { key: 'tempAddress', label: 'Временный адрес', width: 200 },
+      { key: 'tempFrom', label: 'Временный с', type: 'date', width: 105 },
+      { key: 'tempTo', label: 'Временный по', type: 'date', width: 105 },
+      { key: 'poaNumber', label: 'Доверенность №', width: 120 },
+      { key: 'poaUntil', label: 'Доверенность до', type: 'date', width: 120 },
+      { key: 'cadastre', label: 'Доступ в кадастр', type: 'bool', width: 110 },
+      { key: 'sched.from', label: 'Начало дня', type: 'time', width: 90, get: (p) => p.schedule.from, set: (v, p) => ({ schedule: { ...p.schedule, from: v || '09:00' } }) },
+      { key: 'sched.to', label: 'Конец дня', type: 'time', width: 90, get: (p) => p.schedule.to, set: (v, p) => ({ schedule: { ...p.schedule, to: v || '18:00' } }) },
+      car('make', 'Авто', 'text', { width: 170 }), car('year', 'Год авто', 'number', { width: 80 }), car('plate', 'Госномер'),
+      car('engine', 'Объём, л', 'number', { width: 80 }), car('consumption', 'Расход на 100 км', 'number'),
+      car('fuel', 'Топливо', 'list', { options: FUELS, width: 90 }), car('note', 'Авто: комментарий', 'text', { width: 160 }),
+      { key: 'note', label: 'Примечание', width: 200 },
+    ];
+    const KIND = { text: 'text', number: 'number', date: 'date', bool: 'bool', list: 'list' };
+    allCustomFields().forEach((f) => cols.push({ key: `cf.${f.id}`, label: f.label, type: KIND[f.kind] || 'text', options: f.kind === 'list' ? f.options : undefined, width: 130,
+      get: (p) => (f.kind === 'bool' ? !!p.custom[f.id] : p.custom[f.id] || ''),
+      set: (v, p) => (f.required && !String(v ?? '').trim() ? { error: `«${f.label}» — обязательное поле` } : { custom: { ...p.custom, [f.id]: v } }) }));
+    return cols;
+  }
+  const gridNames = () => [...new Set([...profileNames(), ...people.map((p) => p.name)])].sort((a, b) => a.localeCompare(b, 'ru'));
+  const gridRows = (cols) => gridNames().map((name) => {
+    const p = profileOf(name);
+    return { id: name, cells: Object.fromEntries(cols.map((c) => [c.key, c.get ? c.get(p, name) : p[c.key] ?? (c.type === 'bool' ? false : '')])) };
+  });
+  // Правки ячеек → профили. Ошибка значения (область) — сообщением, без сохранения.
+  function saveCells(cols, changes) {
+    const errs = [];
+    const byName = new Map();
+    changes.forEach((ch) => { if (!byName.has(ch.id)) byName.set(ch.id, []); byName.get(ch.id).push(ch); });
+    byName.forEach((list, name) => {
+      let patch = {};
+      list.forEach((ch) => {
+        const col = cols.find((c) => c.key === ch.key);
+        const cur = { ...profileOf(name), ...patch };
+        const out = col.set ? col.set(ch.value, cur) : { [col.key]: ch.value };
+        if (out.error) errs.push(`${name}: ${out.error}`);
+        else patch = { ...patch, ...out };
+      });
+      if (Object.keys(patch).length) saveProfile(name, patch);
+    });
+    return errs;
+  }
+  let grid = null;
+  let gridState = null;     // вид таблицы — переживает перерисовку страницы
+  let gridSaving = false;   // своя правка: страница не перерисовывается
+  let gridFull = false;
+  let imp = null;     // разбор загруженного файла
+  function tableHTML() {
+    if (imp) return importHTML();
+    return `<div class="ip-gridwrap ${gridFull ? 'full' : ''}" data-ip-gridwrap>
+      <div class="ip-repbar">
+        <span class="ip-hint">Правка — ввод или F2, Esc — отмена; блоки — Ctrl+C / Ctrl+V из Excel и в Excel; Ctrl+Z — отменить.</span>
+        <div class="ip-route-act">
+          <button class="btn btn-ghost btn-sm" data-ip-grid-full aria-pressed="${gridFull}">${gridFull ? 'Свернуть (Esc)' : 'На весь экран'}</button>
+          <button class="btn btn-ghost btn-sm" data-ip-grid-xlsx>Выгрузить xlsx</button>
+          <button class="btn btn-ghost btn-sm" data-ip-grid-import>Загрузить xlsx</button>
+        </div>
+      </div>
+      <div class="ip-grid" data-ip-grid></div>
+    </div>`;
+  }
+  function mountTable() {
+    const box = scope.$('[data-ip-grid]');
+    if (!box) return;
+    const cols = gridCols();
+    grid = mountGrid(box, {
+      label: 'Осмотрщики', columns: cols, rows: gridRows(cols), frozen: 1, widths: view.gridWidths, state: gridState,
+      onWidths: (w) => { view.gridWidths = w; },
+      onChange: (changes) => {
+        gridSaving = true;
+        let errs;
+        try { errs = saveCells(cols, changes); } finally { gridSaving = false; }
+        if (errs.length) host.toast(errs[0], 'warn');
+        grid.refresh(gridRows(cols));
+      },
+      onEscape: () => { if (gridFull) { gridFull = false; scope.$('[data-ip-gridwrap]').classList.remove('full'); const b = scope.$('[data-ip-grid-full]'); b.textContent = 'На весь экран'; b.setAttribute('aria-pressed', 'false'); } },
+    });
+  }
+  // Сверка загруженного файла: строки — по ФИО, столбцы — по подписи шапки.
+  function diffImport(sheetRows) {
+    const cols = gridCols();
+    const head = (sheetRows[0] || []).map((x) => String(x).trim());
+    const at = new Map(head.map((h, i) => [h, i]));
+    const fio = at.get('ФИО');
+    if (fio === undefined) return { error: 'В первой строке листа нет столбца «ФИО»' };
+    const known = new Set(gridNames());
+    const items = [];
+    const unknown = [];
+    const errors = [];
+    let same = 0;
+    sheetRows.slice(1).forEach((r) => {
+      const name = String(r[fio] || '').trim();
+      if (!name) return;
+      if (!known.has(name)) { unknown.push(name); return; }
+      const p = profileOf(name);
+      cols.forEach((col) => {
+        if (col.readOnly || !at.has(col.label)) return;
+        const parsed = parseCell(col, r[at.get(col.label)]);
+        if (parsed.error) { errors.push(`${name}, «${col.label}»: ${parsed.error}`); return; }
+        const cur = col.get ? col.get(p, name) : p[col.key];
+        const curT = cellText(col, cur);
+        const nextT = cellText(col, parsed.value);
+        if (curT === nextT || (!nextT && col.type !== 'bool')) { if (curT === nextT) same++; return; }
+        const kind = !curT ? 'fill' : 'change';
+        items.push({ name, key: col.key, label: col.label, cur: curT, next: nextT, value: parsed.value, kind, on: kind === 'fill' });
+      });
+    });
+    return { items, unknown, errors, same };
+  }
+  function importHTML() {
+    const fill = imp.items.filter((x) => x.kind === 'fill');
+    const change = imp.items.filter((x) => x.kind === 'change');
+    const on = imp.items.filter((x) => x.on).length;
+    const row = (x, i) => `<tr><td><input type="checkbox" data-ip-imp="${i}" ${x.on ? 'checked' : ''} aria-label="Применить"></td>
+      <td>${esc(x.name)}</td><td>${esc(x.label)}</td><td class="ip-imp-cur">${esc(x.cur) || '<span class="ip-muted">пусто</span>'}</td><td class="ip-imp-next">${esc(x.next) || '<span class="ip-muted">пусто</span>'}</td></tr>`;
+    return `<div class="ip-repbar"><b>Загрузка «${esc(imp.file)}» — проверьте изменения</b>
+        <div class="ip-route-act"><button class="btn btn-ghost btn-sm" data-ip-imp-cancel>Отменить</button>
+          <button class="btn btn-primary btn-sm" data-ip-imp-apply ${on ? '' : 'disabled'}>Применить отмеченные (${on})</button></div></div>
+      <div class="ip-tiles ip-reptiles">${tile('Дописать', fill.length, '', 'Поле пустое — значение из файла дописывается')}${tile('Изменить', change.length, change.length ? 'warn' : '', 'Значения различаются — применяется по отметке')}
+        ${tile('Без изменений', imp.same)}${tile('Нет в справочнике', imp.unknown.length, imp.unknown.length ? 'warn' : '', imp.unknown.join(', '))}${tile('Ошибки', imp.errors.length, imp.errors.length ? 'warn' : '')}</div>
+      ${imp.errors.length ? `<p class="ip-warn off">${esc(imp.errors.slice(0, 3).join('; '))}${imp.errors.length > 3 ? ` и ещё ${imp.errors.length - 3}` : ''}</p>` : ''}
+      ${imp.unknown.length ? `<p class="ip-warn">Нет в справочнике, не загружены: ${esc(imp.unknown.join(', '))}.</p>` : ''}
+      ${imp.items.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-imptbl">
+        <colgroup><col class="c-x"><col class="c-name"><col class="c-f"><col><col></colgroup>
+        <thead><tr><th><input type="checkbox" data-ip-imp-all ${on === imp.items.length ? 'checked' : ''} aria-label="Отметить все"></th><th>ФИО</th><th>Поле</th><th>Сейчас</th><th>В файле</th></tr></thead>
+        <tbody>${change.length ? `<tr class="ip-imp-grp"><th colspan="5">Изменить — ${change.length}</th></tr>` : ''}${imp.items.map((x, i) => (x.kind === 'change' ? row(x, i) : '')).join('')}
+          ${fill.length ? `<tr class="ip-imp-grp"><th colspan="5">Дописать — ${fill.length}</th></tr>` : ''}${imp.items.map((x, i) => (x.kind === 'fill' ? row(x, i) : '')).join('')}</tbody>
+      </table></div></div>` : '<p class="ip-hint ip-empty">Изменений нет — файл совпадает с данными.</p>'}`;
   }
 
   function allReportsHTML(list) {
@@ -889,8 +1057,8 @@ export function mountInspections(host) {
         <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
-      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -1088,6 +1256,7 @@ export function mountInspections(host) {
   const markRead = (ids) => { view.notesRead = [...new Set([...ids, ...view.notesRead])].slice(0, 2000); };
 
   function render() {
+    if (grid) { gridState = grid.state(); grid.destroy(); grid = null; }
     hidePop();
     destroyStats();
     all = summaries();
@@ -1105,7 +1274,7 @@ export function mountInspections(host) {
       <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
     // Лента подразделов на узком листается вбок — выбранный подраздел виден.
-    scope.$$('.ip-subtabs').forEach((bar) => {
+    scope.$$('.ip-subtabs, .ip-sections').forEach((bar) => {
       bar.classList.toggle('is-overflow', bar.scrollWidth > bar.clientWidth + 1);
       const on = bar.querySelector('.itab.on');
       if (on && (on.offsetLeft < bar.scrollLeft || on.offsetLeft + on.offsetWidth > bar.scrollLeft + bar.clientWidth)) {
@@ -1113,6 +1282,7 @@ export function mountInspections(host) {
       }
     });
     if (routeMap) { routeMap.remove(); routeMap = null; }
+    if (view.section === 'people' && !view.person && view.allTab === 'table' && !imp) mountTable();
     if (view.section === 'people' && view.person && view.personTab === 'route') {
       mountRouteMap().catch((e) => console.warn('Карта не нарисована', e));
     }
@@ -1332,6 +1502,46 @@ export function mountInspections(host) {
     ]);
     host.toast('Итоги выгружены', 'ok');
   });
+  // Табличный вид: на весь экран, выгрузка, загрузка со сверкой.
+  scope.on('click', '[data-ip-grid-full]', () => {
+    gridFull = !gridFull;
+    const w = scope.$('[data-ip-gridwrap]');
+    if (w) w.classList.toggle('full', gridFull);
+    const b = scope.$('[data-ip-grid-full]');
+    b.textContent = gridFull ? 'Свернуть (Esc)' : 'На весь экран';
+    b.setAttribute('aria-pressed', String(gridFull));
+    if (grid) grid.focus();
+  });
+  scope.on('click', '[data-ip-grid-xlsx]', async () => {
+    const cols = gridCols();
+    const rows = gridRows(cols).map((r) => cols.map((c) => (c.type === 'bool' ? (r.cells[c.key] ? 'да' : 'нет') : cellText(c, r.cells[c.key]))));
+    await downloadXlsx(`osmotrschiki_${todayD}.xlsx`, [{ name: 'Осмотрщики', head: cols.map((c) => c.label), rows, widths: cols.map((c) => Math.round((c.width || 140) / 7)) }]);
+    host.toast('Таблица выгружена', 'ok');
+  });
+  scope.on('click', '[data-ip-grid-import]', async () => {
+    const file = await pickFile('.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    if (!file) return;
+    try {
+      const sheets = await readXlsx(file);
+      const d = diffImport(sheets[0] ? sheets[0].rows : []);
+      if (d.error) { host.toast(d.error, 'warn'); return; }
+      imp = { file: file.name, ...d };
+      redraw();
+    } catch (e) {
+      host.toast('Файл не читается как xlsx', 'warn');
+    }
+  });
+  scope.on('change', '[data-ip-imp]', (e, el) => { imp.items[+el.dataset.ipImp].on = el.checked; redraw(); });
+  scope.on('change', '[data-ip-imp-all]', (e, el) => { imp.items.forEach((x) => { x.on = el.checked; }); redraw(); });
+  scope.on('click', '[data-ip-imp-cancel]', () => { imp = null; redraw(); });
+  scope.on('click', '[data-ip-imp-apply]', () => {
+    const cols = gridCols();
+    const ch = imp.items.filter((x) => x.on).map((x) => ({ id: x.name, key: x.key, value: x.value }));
+    const errs = saveCells(cols, ch);
+    imp = null;
+    redraw();
+    host.toast(errs.length ? `Применено с ошибками: ${errs[0]}` : `Применено изменений: ${ch.length}`, errs.length ? 'warn' : 'ok');
+  });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {
@@ -1380,6 +1590,14 @@ export function mountInspections(host) {
     scope.$$('[data-ip-cf]').forEach((el) => { custom[el.dataset.ipCf] = el.value.trim(); });
     scope.$$('[data-ip-cf-radio]:checked').forEach((el) => { custom[el.dataset.ipCfRadio] = el.value === '1'; });
     patch.custom = custom;
+    // Обязательные свои поля (ТЗ 1.2) — без значения профиль не сохраняется.
+    const miss = allCustomFields().find((f) => f.required && !String(custom[f.id] ?? '').trim());
+    if (miss) {
+      host.toast(`Заполните поле «${miss.label}»`, 'warn');
+      const el = scope.$(`[data-ip-cf="${miss.id}"]`);
+      if (el) el.focus();
+      return;
+    }
     saveProfile(view.person, patch);
     redraw();
     host.toast('Профиль сохранён', 'ok');
@@ -1396,11 +1614,13 @@ export function mountInspections(host) {
     const v = (k) => { const el = scope.$(`[data-ip-cfn="${k}"]`); return el ? el.value.trim() : ''; };
     if (!v('label')) { scope.$('[data-ip-cf-err]').textContent = 'Укажите название'; scope.$('[data-ip-cfn="label"]').focus(); return; }
     if (v('kind') === 'list' && !v('options')) { scope.$('[data-ip-cf-err]').textContent = 'Укажите варианты через запятую'; return; }
-    addCustomField({ label: v('label'), kind: v('kind'), options: v('options').split(',').map((x) => x.trim()) });
+    addCustomField({ label: v('label'), kind: v('kind'), options: v('options').split(',').map((x) => x.trim()), required: !!(scope.$('[data-ip-cfn-req]') || {}).checked });
     redraw();
     host.toast('Поле добавлено', 'ok');
   });
   scope.on('click', '[data-ip-cf-del]', (e, b) => { removeCustomField(b.dataset.ipCfDel); redraw(); });
+  // «Варианты» — только у поля «выбор из списка».
+  scope.on('change', '[data-ip-cfn="kind"]', (e, el) => { const box = scope.$('[data-ip-cf-optsbox]'); if (box) box.hidden = el.value !== 'list'; });
   // Правка профиля показывает строку сохранения; «Уволен» открывает дату
   // увольнения. Поля добавления отпуска сюда не относятся — они сохраняются
   // своей кнопкой.
@@ -1574,7 +1794,7 @@ export function mountInspections(host) {
     host.toast('Назначение снято', 'ok');
   });
 
-  const onChange = () => redraw();
+  const onChange = () => { if (!gridSaving) redraw(); };
   window.addEventListener('inside:inspections', onChange);
   window.addEventListener('inside:redraw', onChange);
 

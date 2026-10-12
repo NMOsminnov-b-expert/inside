@@ -57,3 +57,17 @@ export async function downloadXlsx(fileName, sheets) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+
+// Чтение .xlsx: листы → строки (массивы значений). Даты Excel — в ISO
+// (ГГГГ-ММ-ДД), числа — строкой: разбор значений по столбцам делает
+// страница (kernel/grid.js — parseCell).
+export async function readXlsx(file) {
+  const X = await load();
+  const wb = X.read(new Uint8Array(await file.arrayBuffer()), { type: 'array', cellDates: true });
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return wb.SheetNames.map((name) => ({
+    name,
+    rows: X.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' })
+      .map((r) => r.map((v) => (v instanceof Date ? iso(v) : v === null || v === undefined ? '' : String(v)))),
+  }));
+}

@@ -492,9 +492,10 @@ registerPersisted('inspections.fields', {
   },
 });
 export const allCustomFields = () => customFields;
-export function addCustomField({ label, kind = 'text', options = [] }) {
+// required — обязательное: без значения профиль не сохраняется (ТЗ 1.2).
+export function addCustomField({ label, kind = 'text', options = [], required = false }) {
   if (!label || !label.trim()) return null;
-  const f = { id: nextId('cf'), label: label.trim(), kind, options: kind === 'list' ? options.filter(Boolean) : [], at: now(), by: session.state.person };
+  const f = { id: nextId('cf'), label: label.trim(), kind, options: kind === 'list' ? options.filter(Boolean) : [], required: !!required && kind !== 'bool', at: now(), by: session.state.person };
   customFields.push(f);
   changed();
   return f;
