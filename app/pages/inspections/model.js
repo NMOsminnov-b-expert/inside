@@ -6,7 +6,7 @@
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { eniRegion } from '../../kernel/fmt.js';
 import {
-  allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES,
+  allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 
@@ -134,4 +134,93 @@ export function objectContents(typeId, ocId) {
     inventories: all.filter(isInventory),
     taken: assignmentsOf(typeId, ocId),
   };
+}
+
+// --- графики и история (ТЗ раздел 4, 3.6) ------------------------------------------
+// Сутки — местные (isoDay); выходные в графиках не показываются: осмотров по
+// выходным нет, а пустые столбцы через каждые пять отнимали бы место.
+
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const dayOf = (iso) => (iso ? isoDay(new Date(iso)) : '');
+
+function workdays(from, count, dir) {
+  const out = [];
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + from);
+  while (out.length < count) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) out.push(isoDay(d));
+    d.setDate(d.getDate() + dir);
+  }
+  return dir < 0 ? out.reverse() : out;
+}
+
+const oiCount = (a) => (a.oiIds && a.oiIds.length) || 1;
+
+// Загрузка: ОИ по плановым датам на рабочие дни вперёд; просроченные — отдельно.
+export function loadByDay(person, days = 15) {
+  const span = workdays(0, days, 1);
+  const by = new Map(span.map((d) => [d, 0]));
+  let late = 0;
+  allAssignments().forEach((a) => {
+    if (!isLive(a) || (person && a.person !== person) || !a.plannedAt) return;
+    if (isOverdue(a)) late += oiCount(a);
+    else if (by.has(a.plannedAt)) by.set(a.plannedAt, by.get(a.plannedAt) + oiCount(a));
+  });
+  return { days: span.map((d) => ({ day: d, n: by.get(d) })), late };
+}
+
+// Сделано: осмотренные ОИ и снимки по рабочим дням назад.
+export function doneByDay(person, days = 22) {
+  const span = workdays(-1, days - 1, -1).concat(workdays(0, 1, 1));
+  const by = new Map(span.map((d) => [d, { n: 0, photos: 0 }]));
+  eventsOf({ person }).forEach((e) => {
+    const d = by.get(dayOf(e.at));
+    if (!d) return;
+    if (e.kind === 'done') { const a = allAssignments().find((x) => x.id === e.assignId); d.n += a ? oiCount(a) : 1; }
+    if (e.kind === 'photos') d.photos += e.count || 0;
+  });
+  return span.map((day) => ({ day, ...by.get(day) }));
+}
+
+// Итог за период: ОИ, объекты, снимки, заметки, расхождения, выявленное.
+export function periodTotals(person, sinceDay) {
+  const t = { oi: 0, objects: new Set(), photos: 0, notes: 0, mismatch: 0, found: 0 };
+  eventsOf({ person }).forEach((e) => {
+    if (dayOf(e.at) < sinceDay) return;
+    if (e.kind === 'done') { const a = allAssignments().find((x) => x.id === e.assignId); t.oi += a ? oiCount(a) : 1; t.objects.add(e.typeId + '|' + e.ocId); }
+    if (e.kind === 'photos') t.photos += e.count || 0;
+    if (e.kind === 'note') t.notes += 1;
+    if (e.kind === 'mismatch') t.mismatch += 1;
+    if (e.kind === 'found') t.found += 1;
+  });
+  return { ...t, objects: t.objects.size };
+}
+
+// Карта загрузки «осмотрщик × день» — для «Все осмотрщики».
+export function heatRows(names, days = 15) {
+  const span = workdays(0, days, 1);
+  return {
+    days: span,
+    rows: names.map((name) => {
+      const l = loadByDay(name, days);
+      return { name, late: l.late, cells: l.days.map((d) => d.n) };
+    }),
+  };
+}
+
+export const EVENT_LABELS = {
+  assigned: 'назначен на осмотр', updated: 'назначение изменено', progress: 'начал осмотр',
+  done: 'закончил осмотр', removed: 'назначение снято',
+  photos: 'загрузил снимки', note: 'внёс заметку', mismatch: 'отметил расхождение', found: 'отметил выявленное',
+};
+
+// История: события новыми сверху; фильтр — осмотрщик, вид, день, поиск.
+export function historyRows(all, f) {
+  const q = (f.q || '').trim().toLowerCase();
+  return eventsOf({ person: f.person || '' })
+    .filter((e) => (!f.kind || e.kind === f.kind) && (!f.day || dayOf(e.at) === f.day))
+    .map((e) => ({ e, s: all.get(e.typeId + '|' + e.ocId) }))
+    .filter(({ e, s }) => s && (!q || `${s.eniAll || s.eni} ${s.title} ${e.person} ${e.text || ''}`.toLowerCase().includes(q)))
+    .sort((x, y) => String(y.e.at).localeCompare(String(x.e.at)));
 }

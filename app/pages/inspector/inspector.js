@@ -34,6 +34,10 @@ const SECTIONS = ['task', 'object', 'docs', 'photo'];
 export function mountInspector(host) {
   const { scope } = host;
   let route = host.route;
+  // Вход из панели осмотров: «Экран осмотрщика» открывает #/insp?as=<ФИО> —
+  // экран так, как его видит этот осмотрщик.
+  const takeAs = (r) => { if (r && r.query && r.query.as) setInspector(r.query.as); };
+  takeAs(route);
 
   const ui = {
     // Открывают экран, чтобы поехать на осмотр, — поэтому по умолчанию
@@ -396,6 +400,7 @@ export function mountInspector(host) {
     onRoute(next) {
       const sameTask = next.typeId === route.typeId && next.ocId === route.ocId;
       route = next;
+      takeAs(next);
       // Открыли другую задачу — раскрытый ОИ от прошлой не нужен.
       if (!sameTask) {
         ui.openOi = null;

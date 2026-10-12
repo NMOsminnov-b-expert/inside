@@ -11,8 +11,8 @@
 // ситуационный планы (ответ пользователя В6 12.10.2026).
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
-import { assign, unassign } from '../../kernel/inspections.js';
-import { objectContents, todayIso, stateLabel } from './model.js';
+import { assign, unassign, isLive, eventsOf } from '../../kernel/inspections.js';
+import { objectContents, todayIso, stateLabel, EVENT_LABELS } from './model.js';
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 
@@ -33,6 +33,18 @@ function whoWhen(people, person, date) {
 
 const note = (v) => `<div class="field"><label for="ip-f-note">Комментарий осмотрщику</label>
   <textarea class="textarea ip-f-note" id="ip-f-note" data-ip-f-note rows="2">${esc(v || '')}</textarea></div>`;
+
+// Прочие назначения по объекту — по людям: «Бабашова Д. — 3 ОИ», «… — объект
+// целиком»; по строке на каждый ОИ одно ФИО повторялось бы подряд.
+function othersText(list) {
+  const by = new Map();
+  list.forEach((a) => {
+    const v = by.get(a.person) || { whole: false, oi: 0 };
+    if (a.oiIds && a.oiIds.length) v.oi += a.oiIds.length; else v.whole = true;
+    by.set(a.person, v);
+  });
+  return [...by.entries()].map(([p, v]) => `${esc(p)} — ${v.whole ? 'объект целиком' : `${v.oi} ОИ`}`).join('; ');
+}
 
 function docLine(d, checked, attr) {
   return `<label class="ip-doc">
@@ -99,6 +111,28 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
     : { oi: new Set(), docs: new Set(c.groups.flatMap((g) => g.docs).filter((d) => d.def).map((d) => d.id)), inv: new Set() };
   const others = c.taken.filter((a) => !prev || a.id !== prev.id);
 
+  // Законченное или снятое назначение — сводкой и событиями, без формы:
+  // править нечего, а «Сохранить» над историей сбивало бы с толку.
+  if (prev && !isLive(prev)) {
+    const oiLabels = prev.oiIds && prev.oiIds.length ? c.oi.filter((o) => prev.oiIds.includes(o.id)).map((o) => o.label) : ['объект целиком'];
+    const evs = eventsOf({}).filter((e) => e.assignId === prev.id).sort((x, y) => String(x.at).localeCompare(String(y.at)));
+    return `<aside class="ip-pane" aria-label="Назначение">
+      <header class="ip-pane-head">
+        <h2 title="${esc(target.title)}">${esc(target.title)}</h2>
+        <p class="ip-pane-sub">${esc(target.sub || '')} · <a href="${esc(build({ typeId: target.typeId, ocId: target.ocId }))}">карточка</a></p>
+        <p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev.state))}</span>
+          ${esc(prev.person)} · план ${esc(fmtDate(prev.plannedAt) || '—')}${prev.doneAt ? ` · закончен ${esc(fmtDate(prev.doneAt))}` : ''}</p>
+      </header>
+      <div class="ip-pane-body">
+        <section class="ip-sec"><h3>Объекты имущества</h3>${oiLabels.map((l) => `<p class="ip-line">${esc(l)}</p>`).join('')}</section>
+        <section class="ip-sec"><h3>События</h3>
+          <ul class="ip-evs">${evs.map((e) => `<li><time>${esc(fmtDate(e.at))} ${esc(new Date(e.at).toTimeString().slice(0, 5))}</time>
+            <span>${esc(EVENT_LABELS[e.kind] || e.kind)}${e.count ? `: ${e.count}` : ''}${e.text ? `: ${esc(e.text)}` : ''}${e.field ? `: ${esc(e.field)}` : ''}</span></li>`).join('')}</ul>
+        </section>
+      </div>
+    </aside>`;
+  }
+
   return `<aside class="ip-pane" aria-label="Назначение">
     <header class="ip-pane-head">
       <h2 title="${esc(target.title)}">${esc(target.title)}</h2>
@@ -106,7 +140,7 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
         · <a href="${esc(build({ typeId: target.typeId, ocId: target.ocId }))}">карточка</a></p>
       ${prev ? `<p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev.state))}</span>
         назначил ${esc(prev.by || '—')} ${esc(fmtDate(prev.at))}</p>` : ''}
-      ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${others.map((a) => `${esc(a.person)} (${a.oiIds && a.oiIds.length ? `ОИ: ${a.oiIds.length}` : 'целиком'})`).join(', ')}</p>` : ''}
+      ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
     </header>
     <div class="ip-pane-body">
       ${whoWhen(people, (prev && prev.person) || person, prev && prev.plannedAt)}

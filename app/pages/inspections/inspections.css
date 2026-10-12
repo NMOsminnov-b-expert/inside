@@ -174,3 +174,83 @@ body[data-page="inspections"] .ip-confirm{margin-right:auto;font-size:12.5px;fon
   body[data-page="inspections"] .ip-pane-body{overflow:visible;-webkit-mask-image:none;mask-image:none}
   body[data-page="inspections"] .ip-f-row{grid-template-columns:minmax(0,1fr) 170px}
 }
+
+/* ============ графики и история (pages/inspections/charts.js) ============ */
+/* Два графика рядом над вкладками; на узком — один под другим. Столбцы —
+   один цвет, акцент — сегодня; ось от нуля (высота — доля максимума). */
+body[data-page="inspections"] .ip-as{margin-left:auto}
+body[data-page="inspections"] .ipc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+body[data-page="inspections"] .ipc-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:10px 12px 8px;min-width:0}
+body[data-page="inspections"] .ipc-card header{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;margin-bottom:6px}
+body[data-page="inspections"] .ipc-card h3{margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#5a6b82}
+body[data-page="inspections"] .ipc-card header > span{font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ipc-card header b{color:var(--ink);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ipc-bars{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:3px;
+  height:96px;align-items:end;border-bottom:1px solid var(--line)}
+body[data-page="inspections"] .ipc-bar{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  height:100%;min-width:0;padding:0;border-radius:3px 3px 0 0;cursor:default}
+body[data-page="inspections"] .ipc-bar[data-ipc-day]{cursor:pointer}
+body[data-page="inspections"] .ipc-bar[data-ipc-day]:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ipc-col{display:block;width:72%;max-width:22px;min-height:0;border-radius:3px 3px 0 0;background:var(--blue-300)}
+body[data-page="inspections"] .ipc-bar.acc .ipc-col{background:var(--blue-600)}
+body[data-page="inspections"] .ipc-v{font-size:10.5px;color:var(--ink-label);font-variant-numeric:tabular-nums;line-height:14px}
+body[data-page="inspections"] .ipc-x{position:absolute;top:100%;margin-top:3px;font-size:10px;color:var(--muted);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ipc-foot{margin:18px 0 0;font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ipc-foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ipc-card .ipc-bars{margin-bottom:16px}
+
+/* Карта загрузки: число в ячейке и ступени цвета (легенда в шапке). */
+body[data-page="inspections"] .ipc-heat{margin-bottom:12px}
+body[data-page="inspections"] .ipc-legend{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+body[data-page="inspections"] .ipc-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:6px}
+body[data-page="inspections"] .ipc-heat-scroll{overflow:auto}
+body[data-page="inspections"] .ipc-heat-tbl{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;min-width:560px}
+body[data-page="inspections"] .ipc-heat-tbl th{font-size:10px;font-weight:600;color:var(--muted);text-align:center;white-space:nowrap;padding:2px 0}
+body[data-page="inspections"] .ipc-heat-tbl th.today{color:var(--blue-700)}
+body[data-page="inspections"] .ipc-heat-tbl thead th:first-child{text-align:left;width:190px}
+body[data-page="inspections"] .ipc-heat-tbl thead th:nth-child(2){width:46px}
+body[data-page="inspections"] .ipc-heat-tbl tbody th{text-align:left;font-size:12px;color:var(--ink);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;padding-right:6px}
+body[data-page="inspections"] .ipc-heat-tbl tbody tr{cursor:pointer}
+body[data-page="inspections"] .ipc-heat-tbl tbody tr:hover th{color:var(--blue-700)}
+body[data-page="inspections"] .ipc-heat-tbl td{height:24px;text-align:center;font-size:11.5px;font-variant-numeric:tabular-nums;
+  border-radius:4px;background:var(--slate-50);color:var(--ink)}
+body[data-page="inspections"] .ipc-heat-tbl td.num{background:none;text-align:right;padding-right:6px}
+body[data-page="inspections"] .h1,body[data-page="inspections"] .ipc-legend .h1{background:var(--blue-100)}
+body[data-page="inspections"] .h2,body[data-page="inspections"] .ipc-legend .h2{background:var(--blue-200)}
+body[data-page="inspections"] .h3,body[data-page="inspections"] .ipc-legend .h3{background:var(--blue-300)}
+body[data-page="inspections"] .ipc-heat-tbl td.h4{background:var(--blue-600);color:#fff;font-weight:700}
+body[data-page="inspections"] .ipc-legend .h4{background:var(--blue-600)}
+
+/* История — по дням: заголовок дня липкий, строка — время, кто, что, объект. */
+body[data-page="inspections"] .ipc-hist{padding:0}
+body[data-page="inspections"] .ipc-day-h{position:sticky;top:0;z-index:1;margin:0;padding:6px 12px;font-size:11.5px;font-weight:700;
+  color:var(--ink-label);background:var(--fill-head);border-bottom:1px solid var(--line-soft)}
+body[data-page="inspections"] .ipc-day-h span{margin-left:6px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ipc-day ul{list-style:none;margin:0;padding:0}
+body[data-page="inspections"] .ipc-ev{display:grid;grid-template-columns:44px minmax(0,1.1fr) minmax(0,1.4fr) minmax(0,1.6fr);gap:10px;
+  align-items:center;padding:6px 12px;font-size:12.5px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+body[data-page="inspections"] .ipc-ev:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ipc-ev.cur{background:var(--blue-50);box-shadow:inset 3px 0 0 var(--blue-600)}
+body[data-page="inspections"] .ipc-ev time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+body[data-page="inspections"] .ipc-ev > span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ipc-ev-who{font-weight:600}
+body[data-page="inspections"] .ipc-ev-obj{color:var(--muted)}
+body[data-page="inspections"] .ipc-ev-what.k-done{color:var(--teal-700);font-weight:600}
+body[data-page="inspections"] .ipc-ev-what.k-mismatch,
+body[data-page="inspections"] .ipc-ev-what.k-found{color:#a3361c}
+body[data-page="inspections"] .ipc-ev-what.k-removed{color:var(--muted)}
+
+/* Сводка законченного назначения в панели. */
+body[data-page="inspections"] .ip-line{margin:2px 0;font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-evs{list-style:none;margin:0;padding:0}
+body[data-page="inspections"] .ip-evs li{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;padding:3px 0;font-size:12.5px}
+body[data-page="inspections"] .ip-evs time{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+
+@media (max-width:1280px){
+  body[data-page="inspections"] .ipc{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ipc-ev{grid-template-columns:44px minmax(0,1fr) minmax(0,1.3fr)}
+  body[data-page="inspections"] .ipc-ev-obj{grid-column:2 / -1;margin-top:-4px}
+}

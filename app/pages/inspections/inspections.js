@@ -17,24 +17,28 @@ import {
   summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
+import { personChartsHTML, heatHTML, historyHTML } from './charts.js';
+import { EVENT_LABELS } from './model.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
 const STEP = 200;
 
 const view = {
-  tab: 'queue',          // queue | assigned
+  tab: 'queue',          // queue | assigned | history
   person: '',            // выбранный осмотрщик; пусто — все
   peopleMode: 'all',     // mine | all
   mine: [],              // «Мои осмотрщики»
   q: '',
   type: '',
   region: '',
+  histKind: '',          // вид события в «Истории»
+  histDay: '',           // день из графика «Сделано»
   shown: STEP,
 };
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['tab', 'person', 'peopleMode', 'mine', 'type', 'region']);
+persistView('inspections', view, ['tab', 'person', 'peopleMode', 'mine', 'type', 'region', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
@@ -149,7 +153,7 @@ export function mountInspections(host) {
     if (view.tab === 'queue' && checked.size > 1) {
       return paneHTML({ mode: 'many', people, person: view.person, targets: [...checked.values()] });
     }
-    if (view.tab === 'assigned') {
+    if (view.tab === 'assigned' || view.tab === 'history') {
       const a = allAssignments().find((x) => x.id === current);
       const t = a && target(a.typeId + '|' + a.ocId);
       return t ? paneHTML({ mode: 'one', people, person: view.person, target: t, prev: a, confirmRemove }) : paneHTML({ mode: 'none' });
@@ -169,9 +173,12 @@ export function mountInspections(host) {
     const assigned = assignedRows(all, view);
     const assignedN = view.q ? assignedRows(all, { person: view.person }).length : assigned.length;
     const facets = queueFacets(all);
+    const hist = historyHTML(all, { person: view.person, q: view.tab === 'history' ? view.q : '', kind: view.histKind, day: view.histDay }, current, Math.max(view.shown, STEP));
+    const histN = historyHTML(all, { person: view.person }, '', 1).total;
 
     // Экран не бывает пустым: строка, ушедшая из выборки, сменяется первой.
-    const keys = view.tab === 'queue' ? queue.map((s) => s.typeId + '|' + s.id) : assigned.map((r) => r.a.id);
+    const keys = view.tab === 'queue' ? queue.map((s) => s.typeId + '|' + s.id)
+      : view.tab === 'assigned' ? assigned.map((r) => r.a.id) : hist.keys;
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
 
     host.setCrumbs([{ label: 'Осмотры' }]);
@@ -182,21 +189,28 @@ export function mountInspections(host) {
       <section class="ip-work" aria-label="Объекты">
         <header class="ip-head">
           <h1>${esc(view.person || 'Все осмотрщики')}</h1>
-          ${me ? `<span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · закончено за 30 дн. <b>${me.done}</b></span>` : ''}
+          ${me ? `<span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · закончено за 30 дн. <b>${me.done}</b></span>
+            <a class="btn btn-ghost btn-sm ip-as" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>` : ''}
         </header>
-        <div class="itabs" role="tablist">${tab('queue', 'К назначению', queueN)}${tab('assigned', 'Назначено', assignedN)}</div>
+        ${view.person ? personChartsHTML(view.person) : heatHTML(people.filter((p) => view.peopleMode === 'all' || view.mine.includes(p.name)).map((p) => p.name))}
+        <div class="itabs" role="tablist">${tab('queue', 'К назначению', queueN)}${tab('assigned', 'Назначено', assignedN)}${tab('history', 'История', histN)}</div>
         <div class="itoolbar ip-toolbar">
           <span class="isearch">${SEARCH_ICON}<input data-ip-q value="${esc(view.q)}" autocomplete="off"
-            placeholder="${view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : 'ЕНИ, адрес, осмотрщик'}" aria-label="Поиск">
+            placeholder="${view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : view.tab === 'history' ? 'ЕНИ, адрес, осмотрщик, текст' : 'ЕНИ, адрес, осмотрщик'}" aria-label="Поиск">
             ${view.q ? '<button class="isearch-clear" data-ip-q-clear title="Очистить" aria-label="Очистить поиск">×</button>' : ''}</span>
           ${view.tab === 'queue' ? `<select class="select ip-filter" data-ip-type aria-label="Тип ОЦ"><option value="">Все типы ОЦ</option>
               ${facets.types.map((t) => `<option value="${esc(t.id)}" ${view.type === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
             <select class="select ip-filter" data-ip-region aria-label="Область"><option value="">Все области</option>
               ${facets.regions.map((r) => `<option ${view.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
+          ${view.tab === 'history' ? `<select class="select ip-filter" data-ip-kind aria-label="Вид события"><option value="">Все события</option>
+              ${Object.entries(EVENT_LABELS).map(([k, l]) => `<option value="${k}" ${view.histKind === k ? 'selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select>
+            ${view.histDay ? `<span class="ip-checked">День ${esc(view.histDay.slice(8, 10) + '.' + view.histDay.slice(5, 7))}
+              <button class="isearch-clear ip-checked-x" data-ip-day-clear title="Все дни" aria-label="Показать все дни">×</button></span>` : ''}` : ''}
           ${view.tab === 'queue' && checked.size ? `<span class="ip-checked">Отмечено <b>${checked.size}</b>
             <button class="isearch-clear ip-checked-x" data-ip-bulk-clear title="Снять отметки" aria-label="Снять отметки">×</button></span>` : ''}
         </div>
-        ${view.tab === 'queue' ? queueHTML(queue) : assignedHTML(assigned)}
+        ${view.tab === 'queue' ? queueHTML(queue) : view.tab === 'assigned' ? assignedHTML(assigned)
+          : hist.html + more(hist.shownN || 0, hist.total)}
       </section>
       ${pane()}
     </div>`);
@@ -233,12 +247,16 @@ export function mountInspections(host) {
 
   // --- вкладки, поиск, фильтры ---
   scope.on('click', '[data-ip-tab]', (e, b) => {
-    view.tab = b.dataset.ipTab; view.q = ''; view.shown = STEP; checked.clear(); current = ''; render();
+    view.tab = b.dataset.ipTab; view.q = ''; view.histDay = ''; view.shown = STEP; checked.clear(); current = ''; render();
   });
   scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
   scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
   scope.on('change', '[data-ip-type]', (e, el) => { view.type = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; view.shown = STEP; render(); });
+  scope.on('change', '[data-ip-kind]', (e, el) => { view.histKind = el.value; view.shown = STEP; render(); });
+  scope.on('click', '[data-ip-day-clear]', () => { view.histDay = ''; render(); });
+  // Щелчок по дню графика «Сделано» — история этого дня.
+  scope.on('click', '[data-ipc-day]', (e, b) => { view.tab = 'history'; view.histDay = b.dataset.ipcDay; view.q = ''; view.shown = STEP; current = ''; render(); });
   scope.on('click', '[data-ip-more]', () => { view.shown = Math.max(view.shown, STEP) + STEP; redraw(); });
 
   // --- строки: щелчок — в панель, флажок — в отметки ---
@@ -264,7 +282,7 @@ export function mountInspections(host) {
   scope.on('change', '[data-ip-f-whole]', (e, el) => { const box = scope.$('.ip-oi'); if (box) box.hidden = el.checked; });
   scope.on('click', '[data-ip-f-ok]', () => {
     const paneEl = scope.$('.ip-pane');
-    const prev = view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null;
+    const prev = view.tab !== 'queue' ? allAssignments().find((x) => x.id === current) : null;
     const targets = prev ? [target(prev.typeId + '|' + prev.ocId)]
       : checked.size > 1 ? [...checked.values()] : [target(current)];
     const res = submitPane(paneEl, { targets: targets.filter(Boolean), prev });

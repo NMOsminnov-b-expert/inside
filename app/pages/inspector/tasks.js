@@ -103,6 +103,8 @@ export function setInspector(name) {
 // историю. Внутри группы порядок по дате обновления, свежие сверху.
 function order(a, b) {
   if (a.pending !== b.pending) return a.pending ? -1 : 1;
+  // Ждущие — по плановой дате, ближайшие сверху; без даты — после датированных.
+  if (a.pending && (a.plannedAt || b.plannedAt)) return String(a.plannedAt || '9999').localeCompare(String(b.plannedAt || '9999'));
   return String(b.updatedAt).localeCompare(String(a.updatedAt));
 }
 
@@ -122,7 +124,7 @@ export function myTasks({ onlyPending = false } = {}) {
   });
 
   const out = [];
-  tasks.forEach(({ typeId, ocId, assign }) => {
+  tasks.forEach(({ typeId, ocId, assign, oiIds = [] }) => {
     const s = rowsOf.get(key(typeId, ocId));
     if (!s) return;
     const st = taskState(typeId, ocId);
@@ -142,6 +144,8 @@ export function myTasks({ onlyPending = false } = {}) {
       // без назначения — прежнее правило по статусу.
       pending: assign ? isLive(assign) && !st.done : s.status === READY_STATUS && !st.done,
       plannedAt: assign ? assign.plannedAt || '' : '',
+      // Назначенные ОИ: 0 — объект целиком.
+      oiAssigned: oiIds.length,
       assignId: assign ? assign.id : '',
       photos: st.photos.length,
       done: st.done,

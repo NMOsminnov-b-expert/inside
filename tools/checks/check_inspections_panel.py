@@ -73,7 +73,11 @@ def run(t):
     # --- «Назначено» и снятие ---------------------------------------------------------
     pg.click('[data-ip-tab="assigned"]')
     t.wait_for('[data-ip-row]')
-    t.ck(pg.locator('[data-ip-row]').count() >= 1, 'назначение не видно во вкладке «Назначено»')
+    mine = pg.evaluate("""async (k) => { const [typeId, ocId] = k.split('|'); const m = await import('./app/kernel/inspections.js');
+      const a = m.assignmentsOf(typeId, ocId).find((x) => !x.demo); return a ? a.id : ''; }""", key)
+    t.ck(pg.locator('[data-ip-row="%s"]' % mine).count() == 1, 'назначение не видно во вкладке «Назначено»')
+    pg.locator('[data-ip-row="%s"] td:nth-child(2)' % mine).click()
+    t.wait_for('tr.cur[data-ip-row="%s"]' % mine)
     t.ck(pg.input_value('[data-ip-f-person]') == person, 'панель назначения не показала действующее назначение')
     pg.click('[data-ip-remove]')
     t.wait_for('[data-ip-remove-yes]')
@@ -86,11 +90,11 @@ def run(t):
     name = pg.locator('[data-ip-star]').first.get_attribute('data-ip-star')
     pg.locator('[data-ip-star]').first.click()
     pg.click('[data-ip-mode="mine"]')
-    t.ck(pg.locator('[data-ip-person="%s"]' % name).count() == 1, 'осмотрщик не попал в «Мои»')
+    t.ck(pg.locator('.ip-person-main[data-ip-person="%s"]' % name).count() == 1, 'осмотрщик не попал в «Мои»')
     pg.evaluate("async () => (await import('./app/kernel/persist.js')).saveNow()")
     pg.reload()
     t.wait_for('.ip-people')
-    t.ck(pg.locator('[data-ip-mode="mine"][aria-pressed="true"]').count() == 1 and pg.locator('[data-ip-person="%s"]' % name).count() == 1,
+    t.ck(pg.locator('[data-ip-mode="mine"][aria-pressed="true"]').count() == 1 and pg.locator('.ip-person-main[data-ip-person="%s"]' % name).count() == 1,
          '«Мои осмотрщики» не пережили перезагрузку')
 
     # --- осмотрщику «Осмотры» — его экран ------------------------------------------------
@@ -110,3 +114,29 @@ def run(t):
     look = pg.evaluate("""() => ['.ip-pane .pick-btn', '.ip-pane [data-ip-f-date]', '.ip-pane [data-ip-f-note]'].map((s) => {
       const st = getComputedStyle(document.querySelector(s)); return [st.borderTopColor, st.borderTopLeftRadius, st.borderTopWidth]; })""")
     t.ck(look[0] == look[1] == look[2], 'поля панели оформлены по-разному (список, дата, комментарий): %s' % look)
+
+    # --- графики, карта загрузки, история, экран осмотрщика -------------------------------
+    # Просьба пользователя 12.10.2026: «не вижу отдельно интерфейса для осмотрщика,
+    # графиков с демо данными тоже» (ответ В1 — оба графика: статистика и загрузка).
+    t.open('#/inspections', wait='.ip-pane')
+    pg.click('.ip-person-main[data-ip-person=""]')
+    t.ck(t.wait_for('.ipc-heat td'), 'при «Все осмотрщики» нет карты загрузки')
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('.ipc-heat-tbl td:not(.num)')].some((td) => +td.textContent > 0)"),
+         'карта загрузки пуста — демо-назначений нет')
+    who = pg.locator('.ip-person-main[data-ip-person]:not([data-ip-person=""])').first.get_attribute('data-ip-person')
+    pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
+    t.ck(t.wait_until("() => document.querySelectorAll('.ipc .ipc-card').length === 2"), 'у осмотрщика нет двух графиков')
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('.ipc-bar .ipc-v')].some((v) => +v.textContent > 0)"),
+         'графики осмотрщика пусты')
+    day = pg.evaluate("() => { const b = [...document.querySelectorAll('[data-ipc-day]')].find((x) => +x.querySelector('.ipc-v').textContent > 0); return b ? b.dataset.ipcDay : ''; }")
+    if t.ck(day, 'в «Сделано» нет дня с осмотрами'):
+        pg.click('[data-ipc-day="%s"]' % day)
+        t.ck(t.wait_until("() => document.querySelector('[data-ip-tab=\"history\"]').classList.contains('on') && !!document.querySelector('.ipc-ev')"),
+             'щелчок по дню не открыл историю дня')
+        t.ck(pg.evaluate("(d) => [...document.querySelectorAll('.ipc-ev time')].every((x) => x.getAttribute('datetime') && new Date(x.getAttribute('datetime')).toDateString() === new Date(d + 'T12:00:00').toDateString())", day),
+             'в истории дня события других дней')
+    pg.click('a.ip-as')
+    t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), '«Экран осмотрщика» не открыл экран осмотрщика')
+    t.wait_until("async (w) => (await import('./app/pages/inspector/tasks.js')).currentInspector() === w", who)
+    shown = pg.evaluate("async () => (await import('./app/pages/inspector/tasks.js')).currentInspector()")
+    t.ck(shown == who, 'экран осмотрщика открыт не от того человека: %s вместо %s' % (shown, who))

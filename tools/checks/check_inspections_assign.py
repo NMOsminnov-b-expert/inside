@@ -42,7 +42,7 @@ def run(t):
     pg.locator('[data-modal-opt]').first.click()
 
     got = pg.evaluate("""async ([typeId, ocId]) => { const m = await import('./app/kernel/inspections.js');
-      const a = m.assignmentsOf(typeId, ocId); const ev = m.eventsOf({ typeId, ocId });
+      const a = m.assignmentsOf(typeId, ocId).filter((x) => !x.demo); const ev = m.eventsOf({ typeId, ocId }).filter((x) => !x.demo);
       return { n: a.length, person: a[0] && a[0].person, by: a[0] && a[0].by, ev: ev.map((e) => e.kind) }; }""", [type_id, oc_id])
     t.ck(got['n'] == 1 and got['person'] == person, 'назначение из реестра не заведено: %s' % got)
     t.ck('assigned' in got['ev'], 'назначение не попало в журнал событий: %s' % got)
@@ -55,7 +55,7 @@ def run(t):
     pg.evaluate("async () => (await import('./app/kernel/persist.js')).saveNow()")
     pg.reload()
     t.wait_for('.reg-tr')
-    n = pg.evaluate("async ([typeId, ocId]) => (await import('./app/kernel/inspections.js')).assignmentsOf(typeId, ocId).length", [type_id, oc_id])
+    n = pg.evaluate("async ([typeId, ocId]) => (await import('./app/kernel/inspections.js')).assignmentsOf(typeId, ocId).filter((x) => !x.demo).length", [type_id, oc_id])
     t.ck(n == 1, 'назначение не пережило перезагрузку: %s' % n)
 
     # --- назначение на отдельный ОИ видно осмотрщику -------------------------------------
@@ -72,9 +72,9 @@ def run(t):
 
     # --- снятие --------------------------------------------------------------------------------
     left = pg.evaluate("""async ([typeId, ocId]) => { const m = await import('./app/kernel/inspections.js');
-      m.assignmentsOf(typeId, ocId).forEach((a) => m.unassign(a.id));
+      m.assignmentsOf(typeId, ocId).filter((a) => !a.demo).forEach((a) => m.unassign(a.id));
       const r = (await import('./app/kernel/registry.js')).getType(typeId).records.loadRecord(ocId);
-      return { live: m.assignmentsOf(typeId, ocId).length, all: m.assignmentsOf(typeId, ocId, { live: false }).length, insp: (r.resp || {}).insp || '' }; }""",
+      const mine = (x) => !x.demo; return { live: m.assignmentsOf(typeId, ocId).filter(mine).length, all: m.assignmentsOf(typeId, ocId, { live: false }).filter(mine).length, insp: (r.resp || {}).insp || '' }; }""",
                        [type_id, oc_id])
     t.ck(left['live'] == 0 and left['all'] >= 1, 'снятое назначение пропало из истории или осталось действующим: %s' % left)
     t.ck(left['insp'] == '', 'после снятия осмотрщик остался в объекте оценки: %s' % left)

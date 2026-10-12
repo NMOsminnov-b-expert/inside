@@ -157,6 +157,12 @@ export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyP
   </div>`;
 }
 
+// Сегодня — по местной полуночи: просрочка плана считается по местным суткам.
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function cardHTML(t) {
   return `<li class="ins-card ${t.done ? 'is-done' : ''}">
     <a class="ins-card-a" href="#/insp/${encodeURIComponent(t.typeId)}/${encodeURIComponent(t.ocId)}">
@@ -167,7 +173,8 @@ function cardHTML(t) {
       <b class="ins-card-title">${esc(t.title)}</b>
       <span class="ins-card-eni mono">${esc(t.eni || '')}</span>
       <span class="ins-card-meta">
-        <span>ОИ: ${t.oiCount}</span>
+        ${t.plannedAt ? `<span class="${t.pending && t.plannedAt < todayIso() ? 'ins-warn' : ''}">план: ${esc(t.plannedAt.slice(8, 10) + '.' + t.plannedAt.slice(5, 7))}</span>` : ''}
+        <span>ОИ: ${t.oiAssigned ? `${t.oiAssigned} из ${t.oiCount}` : t.oiCount}</span>
         ${t.photos ? `<span>фото: ${t.photos}</span>` : ''}
         ${t.pendingNotes ? `<span class="ins-warn">заметок: ${t.pendingNotes}</span>` : ''}
         ${t.done ? `<span class="ins-done">${ico('ok', 14)} осмотр завершён</span>` : ''}

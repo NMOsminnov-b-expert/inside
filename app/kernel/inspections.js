@@ -17,6 +17,7 @@
 import { getType, sortedTypes } from './registry.js';
 import { registerPersisted, scheduleSave } from './persist.js';
 import { session } from './session.js';
+import { demoInspections } from './inspectionsDemo.js';
 
 // Состояния назначения — в порядке жизни.
 export const ASSIGN_STATES = [
@@ -34,8 +35,12 @@ export const isLive = (a) => !!a && LIVE.has(a.state);
 export const DEFAULT_DOC_KINDS = [/техн\S*\s*паспорт|техпаспорт/i, /кадастр/i, /ситуацион/i];
 export const isDefaultDoc = (kind) => DEFAULT_DOC_KINDS.some((re) => re.test(String(kind || '')));
 
-const assignments = [];
-const events = [];
+// Засев — демо-история (kernel/inspectionsDemo.js): заполняется до
+// регистрации в сохранении, поэтому считается исходными данными, а не
+// правками пользователя; правки ложатся поверх него, как у записей ОЦ.
+const demo = demoInspections();
+const assignments = demo.assignments;
+const events = demo.events;
 
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: назначения и их журнал — записи на сервере с автором
 // и временем сервера; осмотрщик видит только свои назначения, менеджер —
@@ -121,7 +126,8 @@ function syncResp(typeId, ocId) {
   if (!recs) return;
   const rec = recs.loadRecord(ocId);
   if (!rec) return;
-  const live = assignmentsOf(typeId, ocId).sort((x, y) => String(x.at).localeCompare(String(y.at)));
+  // Демо-назначения запись не трогают (kernel/inspectionsDemo.js).
+  const live = assignmentsOf(typeId, ocId).filter((a) => !a.demo).sort((x, y) => String(x.at).localeCompare(String(y.at)));
   const person = live.length ? live[live.length - 1].person : '';
   if (((rec.resp || {}).insp || '') === person) return;
   recs.assignResponsible(ocId, 'insp', person);
@@ -214,16 +220,30 @@ export function defaultDocIds(typeId, ocId) {
 
 // --- задачи осмотрщика ---------------------------------------------------------
 
-// Задачи человека: его действующие назначения плюс записи, где он стоит в
-// resp.insp без назначения (назначенные до появления назначений).
+// Задачи человека — по объекту, а не по назначению: назначений на один
+// объект бывает несколько (по ОИ), а едет осмотрщик на объект. В задаче —
+// все его действующие назначения по объекту (assigns), ближайшее из них
+// (assign) и назначенные ОИ (oiIds; пусто — объект целиком). Плюс записи,
+// где он стоит в resp.insp без назначения (назначенные до появления
+// назначений).
 export function tasksOf(person) {
-  const out = assignmentsOfPerson(person).map((a) => ({ typeId: a.typeId, ocId: a.ocId, assign: a }));
+  const byObj = new Map();
+  assignmentsOfPerson(person).forEach((a) => {
+    const k = a.typeId + '|' + a.ocId;
+    if (!byObj.has(k)) byObj.set(k, { typeId: a.typeId, ocId: a.ocId, assigns: [] });
+    byObj.get(k).assigns.push(a);
+  });
+  const out = [...byObj.values()].map((t) => {
+    const sorted = t.assigns.slice().sort((x, y) => String(x.plannedAt || '9999').localeCompare(String(y.plannedAt || '9999')));
+    const whole = t.assigns.some((a) => !a.oiIds || !a.oiIds.length);
+    return { ...t, assign: sorted[0], oiIds: whole ? [] : [...new Set(t.assigns.flatMap((a) => a.oiIds))] };
+  });
   const seen = new Set(out.map((t) => t.typeId + '|' + t.ocId));
   sortedTypes().forEach((t) => {
     const res = t.records.queryRecords({ filter: { mine: { role: 'insp', person } }, offset: 0, limit: 100000 });
     res.rows.forEach((s) => {
       const k = t.manifest.id + '|' + s.id;
-      if (seen.has(k) || assignmentsOf(t.manifest.id, s.id, { live: false }).length) return;
+      if (seen.has(k) || assignmentsOf(t.manifest.id, s.id, { live: false }).some((a) => !a.demo)) return;
       seen.add(k);
       out.push({ typeId: t.manifest.id, ocId: s.id, assign: null });
     });
