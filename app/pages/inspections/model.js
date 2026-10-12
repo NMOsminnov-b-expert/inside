@@ -8,7 +8,7 @@ import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
-  dayReport, reportTime, activitiesOn, activityKind, planOf,
+  dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
@@ -614,4 +614,33 @@ export function accountingSheets(names, from, to) {
       head: ['Осмотрщик', 'Авто', 'Топливо', 'Дней с пробегом', 'Пробег, км', 'Литры', 'Дней без вечернего отчёта'],
       widths: [34, 34, 9, 12, 11, 9, 14] },
   ];
+}
+
+// --- итоги по сотрудникам за период (ТЗ рабочего дня осмотрщика, раздел 9) ---
+//
+// По осмотрщику: дни с выездами, объекты и ОИ, снимки, пробег и литры,
+// отчёты вовремя / поздно / пропущены, пропущенные выезды, кадастровые
+// строки получено / нет / отказ. Всё — из тех же данных, что разделы панели.
+export function employeeSummary(all, names, from, to) {
+  const inRange = (iso) => !!iso && iso.slice(0, 10) >= from && iso.slice(0, 10) <= to;
+  const today = isoDay(new Date());
+  return names.map((name) => {
+    const days = reportDays(name, from, to);
+    const t = reportTotals(days);
+    const done = allAssignments().filter((a) => a.person === name && a.state === 'done' && inRange(dayOf(a.doneAt)));
+    const objects = new Set(done.map((a) => a.typeId + '|' + a.ocId)).size;
+    const oi = done.reduce((n, a) => n + ((a.oiIds && a.oiIds.length) || 1), 0);
+    const photos = eventsOf({ person: name }).filter((e) => e.kind === 'photos' && inRange(dayOf(e.at))).reduce((n, e) => n + (e.count || 0), 0);
+    const tripDays = days.filter((r) => r.d.trips > 0).length;
+    let onTime = 0;
+    let late = 0;
+    days.forEach(({ d }) => {
+      if (d.morning) { if (d.late) late++; else onTime++; }
+      if (d.evening) { if (d.eveningLate) late++; else onTime++; }
+    });
+    const missedTrips = allAssignments().filter((a) => a.person === name && isLive(a) && a.state === 'assigned' && a.plannedAt && a.plannedAt < today && inRange(a.plannedAt)).length;
+    const cad = { got: 0, none: 0, refused: 0 };
+    allCadRequests().filter((r) => r.person === name).forEach((r) => r.rows.forEach((x) => { if (x.result && inRange(x.answeredAt)) cad[x.result]++; }));
+    return { name, tripDays, objects, oi, photos, km: t.km, litres: t.litres, onTime, late, missedReports: t.missing, missedTrips, cad, days };
+  });
 }

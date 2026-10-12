@@ -31,7 +31,7 @@ import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
   queueBase, queueFilter, queueCounts, tripGroups, DUE, dueOf, availability, rankInspectors, onSiteContacts, ASSIGNED_PICKS, assignedPickOf,
-  reportDayRows, reportTotals, reportDays, accountingSheets, objectContents,
+  reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
@@ -636,6 +636,38 @@ export function mountInspections(host) {
     ${tile('Поздний выезд', t.late, t.late ? 'warn' : '', 'Утренний отчёт позже начала дня по графику')}${tile('Пропусков', t.missing, t.missing ? 'warn' : '', 'Отчёт не сдан к сроку')}
     ${tile('Пробег, км', numFmt(t.km))}${tile('Литры', numFmt(t.litres, 1), '', 'Пробег × расход авто / 100')}</div>`;
 
+  // Итоги по сотрудникам за период (раздел 9 ТЗ рабочего дня): строка на
+  // осмотрщика, суммы — в своих столбцах итоговой строки; щелчок — отчёты
+  // осмотрщика; выгрузка — xlsx (сводка и по дням).
+  const sumPeriod = { from: todayD.slice(0, 8) + '01', to: todayD };
+  function totalsHTML(list) {
+    const rows = employeeSummary(all, list.filter((p) => !p.fired).map((p) => p.name), sumPeriod.from, sumPeriod.to);
+    const tot = (k) => rows.reduce((n, r) => n + (typeof k === 'function' ? k(r) : r[k]), 0);
+    const cell = (v, warn) => `<td class="num ${warn && v ? 'ip-late' : ''}">${v ? numFmt(v, 1) : '—'}</td>`;
+    return `<div class="ip-repbar">
+        <div class="ip-repexp" role="group" aria-label="Период">
+          <span>Период</span>
+          <input class="input" type="date" data-ip-sum="from" value="${sumPeriod.from}" max="${todayD}" aria-label="Период с">
+          <span>—</span>
+          <input class="input" type="date" data-ip-sum="to" value="${sumPeriod.to}" max="${todayD}" aria-label="Период по">
+        </div>
+        <button class="btn btn-ghost btn-sm" data-ip-sum-xlsx>Выгрузить xlsx</button>
+      </div>
+      <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-sumtbl">
+        <colgroup><col class="c-name">${'<col class="c-k">'.repeat(10)}<col class="c-cad"></colgroup>
+        <thead><tr><th rowspan="2">Осмотрщик</th><th colspan="4" class="grp">Выезды</th><th colspan="2" class="grp">Пробег</th><th colspan="2" class="grp">Отчёты</th><th colspan="2" class="grp">Пропущено</th><th rowspan="2" class="num" title="Строк запросов документов: получено / нет в кадастре / отказ">Кадастр</th></tr>
+          <tr><th class="num" title="Рабочих дней с выездами">Дней</th><th class="num">Объектов</th><th class="num">ОИ</th><th class="num">Снимков</th>
+          <th class="num">Км</th><th class="num">Литры</th><th class="num">Вовремя</th><th class="num">Поздно</th><th class="num" title="Отчёт не сдан к сроку">Отчётов</th><th class="num" title="Дата прошла, осмотр не начат">Выездов</th></tr></thead>
+        <tbody>${rows.map((r) => `<tr data-ip-sum-open="${esc(r.name)}" tabindex="0">
+          <td>${esc(r.name)}</td>${cell(r.tripDays)}${cell(r.objects)}${cell(r.oi)}${cell(r.photos)}
+          ${cell(r.km)}${cell(r.litres)}${cell(r.onTime)}${cell(r.late, true)}${cell(r.missedReports, true)}${cell(r.missedTrips, true)}
+          <td class="num">${r.cad.got + r.cad.none + r.cad.refused ? `${r.cad.got} / ${r.cad.none} / ${r.cad.refused}` : '—'}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><th scope="row">Итого</th>${['tripDays', 'objects', 'oi', 'photos'].map((k) => cell(tot(k))).join('')}
+          ${cell(tot('km'))}${cell(Math.round(tot('litres') * 100) / 100)}${cell(tot('onTime'))}${cell(tot('late'))}${cell(tot('missedReports'))}${cell(tot('missedTrips'))}
+          <td class="num">${tot((r) => r.cad.got)} / ${tot((r) => r.cad.none)} / ${tot((r) => r.cad.refused)}</td></tr></tfoot>
+      </table></div></div>`;
+  }
+
   function allReportsHTML(list) {
     const rows = reportDayRows(list, rep.day);
     const t = reportTotals(rows);
@@ -857,8 +889,8 @@ export function mountInspections(host) {
         <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
-      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['reports', 'Отчёты'], ['norms', 'Нормы осмотра'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -1276,6 +1308,29 @@ export function mountInspections(host) {
       Object.assign(view, { section: 'people', person: n.person, personTab: 'profile' });
       render();
     }
+  });
+  // Итоги за период: период, переход к отчётам осмотрщика, выгрузка.
+  scope.on('change', '[data-ip-sum]', (e, el) => { if (el.value) { sumPeriod[el.dataset.ipSum] = el.value; redraw(); } });
+  scope.on('click', '[data-ip-sum-open]', (e, el) => {
+    Object.assign(view, { person: el.dataset.ipSumOpen, personTab: 'reports' });
+    rep.ym = sumPeriod.to.slice(0, 7);
+    detail = [];
+    render();
+  });
+  scope.on('click', '[data-ip-sum-xlsx]', async () => {
+    if (sumPeriod.to < sumPeriod.from) { host.toast('Начало периода позже окончания', 'warn'); return; }
+    const rows = employeeSummary(all, visiblePeople().filter((p) => !p.fired).map((p) => p.name), sumPeriod.from, sumPeriod.to);
+    const ddmm = (iso) => iso.split('-').reverse().join('.');
+    await downloadXlsx(`itogi-osmotrschikov_${sumPeriod.from}_${sumPeriod.to}.xlsx`, [
+      { name: 'Итоги', rows: rows.map((r) => [r.name, r.tripDays, r.objects, r.oi, r.photos, r.km, r.litres, r.onTime, r.late, r.missedReports, r.missedTrips, r.cad.got, r.cad.none, r.cad.refused]),
+        head: ['Осмотрщик', 'Дней с выездами', 'Объектов осмотрено', 'ОИ осмотрено', 'Снимков', 'Пробег, км', 'Литры', 'Отчётов вовремя', 'Отчётов поздно', 'Отчётов пропущено', 'Выездов пропущено', 'Кадастр: получено', 'Кадастр: нет', 'Кадастр: отказ'],
+        widths: [34, 10, 10, 10, 10, 10, 9, 10, 10, 10, 10, 10, 10, 10] },
+      { name: 'По дням', rows: rows.flatMap((r) => r.days.slice().reverse().map(({ date, d, planned, inspected }) => [r.name, ddmm(date), d.work ? 'рабочий' : d.reason, planned, inspected ?? '',
+        d.morning ? reportTime(d.morning.at) : d.missingMorning ? 'не сдан' : '', d.late ? 'да' : '', d.evening ? reportTime(d.evening.at) : d.missingEvening ? 'не сдан' : '', d.km ?? '', d.litres ?? ''])),
+        head: ['Осмотрщик', 'Дата', 'День', 'Выездов в плане', 'Осмотрено по отчёту', 'Утренний', 'Поздний выезд', 'Вечерний', 'Пробег, км', 'Литры'],
+        widths: [34, 11, 18, 10, 10, 10, 8, 10, 10, 9] },
+    ]);
+    host.toast('Итоги выгружены', 'ok');
   });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });

@@ -814,3 +814,16 @@ body[data-page="inspections"] .ip-note-t{overflow:hidden;text-overflow:ellipsis;
   body[data-page="inspections"] .ip-note-who,
   body[data-page="inspections"] .ip-note-t{grid-column:2}
 }
+
+/* Итоги за период (раздел 9): две строки шапки — группа и столбец; итог —
+   в своих столбцах, закреплён внизу. */
+body[data-page="inspections"] .ip-sumtbl{min-width:980px}
+body[data-page="inspections"] .ip-sumtbl col.c-cad{width:110px}
+body[data-page="inspections"] .ip-sumtbl thead th{white-space:normal;vertical-align:bottom}
+body[data-page="inspections"] .ip-sumtbl col.c-name{width:auto;min-width:220px}
+body[data-page="inspections"] .ip-sumtbl col.c-k{width:70px}
+body[data-page="inspections"] .ip-sumtbl th.grp{text-align:center;border-bottom:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-sumtbl tbody tr{cursor:pointer}
+body[data-page="inspections"] .ip-sumtbl tfoot th,
+body[data-page="inspections"] .ip-sumtbl tfoot td{position:sticky;bottom:0;background:var(--blue-50);font-weight:700;border-top:2px solid var(--line)}
+body[data-page="inspections"] .ip-sumtbl tfoot th{text-align:left}
