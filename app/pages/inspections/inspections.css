@@ -234,6 +234,7 @@ body[data-page="inspections"] .ipc-legend i{display:inline-block;width:10px;heig
 body[data-page="inspections"] .k-done{--k:var(--teal-600)}
 body[data-page="inspections"] .k-plan{--k:var(--blue-600)}
 body[data-page="inspections"] .k-late{--k:#a3361c}
+body[data-page="inspections"] .k-act{--k:var(--amber-600)}
 body[data-page="inspections"] .ipc-legend i{background:var(--k)}
 body[data-page="inspections"] .ipc-cal-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px}
 body[data-page="inspections"] .ipc-cal-tbl th{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:0 0 2px}
@@ -266,6 +267,7 @@ body[data-page="inspections"] .ipc-chip{display:block;margin-top:2px;padding:0 5
 .ipc-pop li i.k-done{color:var(--teal-700)}
 .ipc-pop li i.k-plan{color:var(--blue-700)}
 .ipc-pop li i.k-late{color:#a3361c}
+.ipc-pop li i.k-act{color:var(--amber-700)}
 
 /* Графики uPlot: легенда — строкой под графиком, значения точки под курсором. */
 body[data-page="inspections"] .ipc-plot{min-width:0}
@@ -671,3 +673,22 @@ body[data-page="inspections"] .ip-dp-list{margin:0;padding-left:16px}
 body[data-page="inspections"] .ip-odo{display:block;margin:6px 0 2px}
 body[data-page="inspections"] .ip-odo img{display:block;width:100%;max-width:180px;border-radius:8px;border:1px solid var(--line-soft)}
 body[data-page="inspections"] .ip-profile4.ip-fields{columns:auto;max-width:760px}
+
+/* Работа вне выездов (раздел 4 ТЗ рабочего дня): метка в календаре — янтарная
+   (свободный цвет: план — синий, осмотрено — бирюзовый, отпуск — фиолетовый);
+   любой день месяца у осмотрщика открывается щелчком. */
+body[data-page="inspections"] .ipc-chip.k-act{background:var(--amber-50);color:var(--amber-700)}
+body[data-page="inspections"] .ipc-cal-d.open{cursor:pointer}
+body[data-page="inspections"] .ip-acts{display:flex;flex-direction:column;gap:8px}
+body[data-page="inspections"] .ip-act-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+body[data-page="inspections"] .ip-act-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 8px;align-items:center;
+  padding:6px 8px;border-radius:8px;background:var(--amber-50)}
+body[data-page="inspections"] .ip-act-list i{font-style:normal;font-size:11.5px;font-weight:700;color:var(--amber-700)}
+body[data-page="inspections"] .ip-act-add{display:flex;flex-direction:column;gap:8px}
+body[data-page="inspections"] .ip-act-add .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-page="inspections"] .ip-act-add .field > label{font-size:12px;font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ip-act-add .field[hidden],
+body[data-page="inspections"] .ip-act-add .ip-prow[hidden]{display:none}
+body[data-page="inspections"] .ip-act-add .input,
+body[data-page="inspections"] .ip-act-add .select{height:34px;width:100%}
+body[data-page="inspections"] .ip-av.act{background:var(--amber-50);border-color:var(--amber-100)}

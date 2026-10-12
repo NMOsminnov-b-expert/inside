@@ -16,6 +16,7 @@
 // от нуля, значения точки под курсором — в легенде.
 import { esc } from '../../kernel/dom.js';
 import { plural } from '../../kernel/fmt.js';
+import { activityKind } from '../../kernel/inspections.js';
 import {
   tripsMonth, weeklySeries, historyRows, EVENT_LABELS, dayOf, todayIso,
 } from './model.js';
@@ -38,17 +39,23 @@ export function calendarHTML(all, person, ym) {
     const oi = d.trips.reduce((s, t) => s + t.oi, 0);
     const photos = d.trips.reduce((s, t) => s + t.photos, 0);
     const n = d.trips.length;
-    const label = `${wd(d.day)} ${ddmm(d.day)}${d.off ? ` (${d.off})` : ''}: ${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')}, ОИ ${oi}` : 'выездов нет'}`;
-    return `<td class="ipc-cal-d ${d.inMonth ? '' : 'out'} ${d.weekend || d.off ? 'we' : ''} ${d.absence ? 'away' : ''} ${d.today ? 'today' : ''} ${n ? 'has' : ''}"
-        ${n ? `tabindex="0" role="button" data-ipc-cal="${esc(d.day)}" data-ip-dp-open="day:${esc(d.day)}"` : ''} aria-label="${esc(label)}">
+    const acts = d.acts || [];
+    const actText = (a) => [activityKind(a.kind).label, a.region, a.project, a.object, a.time, a.note].filter(Boolean).join(' · ');
+    const label = `${wd(d.day)} ${ddmm(d.day)}${d.off ? ` (${d.off})` : ''}: ${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')}, ОИ ${oi}` : 'выездов нет'}${acts.length ? `; ${acts.map(actText).join('; ')}` : ''}`;
+    // У осмотрщика открывается любой день месяца: в панели дня отмечается
+    // работа вне выездов (раздел 4 ТЗ рабочего дня).
+    const open = n || (person && d.inMonth);
+    return `<td class="ipc-cal-d ${d.inMonth ? '' : 'out'} ${d.weekend || d.off ? 'we' : ''} ${d.absence ? 'away' : ''} ${d.today ? 'today' : ''} ${n ? 'has' : ''} ${open ? 'open' : ''}"
+        ${open ? `tabindex="0" role="button" ${n || acts.length ? `data-ipc-cal="${esc(d.day)}"` : ''} data-ip-dp-open="day:${esc(d.day)}"` : ''} aria-label="${esc(label)}">
       <span class="ipc-cal-n">${d.n}</span>
       ${d.absence ? `<span class="ipc-chip k-away" title="${esc(d.off)}${d.absence.note ? ' · ' + esc(d.absence.note) : ''}">${esc(d.off)}</span>` : ''}
+      ${acts.map((a) => `<span class="ipc-chip k-act" title="${esc(actText(a))}">${esc(activityKind(a.kind).short)}${a.region ? ` ${esc(a.region)}` : ''}</span>`).join('')}
       ${by.done.length ? `<span class="ipc-chip k-done">${by.done.length} · ОИ ${by.done.reduce((s, t) => s + t.oi, 0)}</span>` : ''}
       ${by.plan.length ? `<span class="ipc-chip k-plan">план ${by.plan.length}</span>` : ''}
       ${by.late.length ? `<span class="ipc-chip k-late">проср. ${by.late.length}</span>` : ''}
-      ${n ? `<template class="ipc-pop-src"><b>${esc(wd(d.day))}, ${esc(ddmm(d.day))}</b>
-        <span class="ipc-pop-sum">${n} ${plural(n, 'выезд', 'выезда', 'выездов')} · ОИ ${oi}${photos ? ` · снимков ${photos}` : ''}</span>
-        <ul>${d.trips.map((t) => `<li><i class="k-${t.kind}">${TRIP_LABEL[t.kind]}</i><span>${esc(t.title)}</span><em>ОИ ${t.oi}${t.photos ? ` · ${t.photos} сн.` : ''}</em></li>`).join('')}</ul>
+      ${n || acts.length ? `<template class="ipc-pop-src"><b>${esc(wd(d.day))}, ${esc(ddmm(d.day))}</b>
+        <span class="ipc-pop-sum">${n ? `${n} ${plural(n, 'выезд', 'выезда', 'выездов')} · ОИ ${oi}${photos ? ` · снимков ${photos}` : ''}` : 'выездов нет'}</span>
+        <ul>${acts.map((a) => `<li><i class="k-act">${esc(activityKind(a.kind).short)}</i><span>${esc([a.region, a.address, a.project, a.object, a.time, a.note].filter(Boolean).join(' · ') || activityKind(a.kind).label)}</span></li>`).join('')}${d.trips.map((t) => `<li><i class="k-${t.kind}">${TRIP_LABEL[t.kind]}</i><span>${esc(t.title)}</span><em>ОИ ${t.oi}${t.photos ? ` · ${t.photos} сн.` : ''}</em></li>`).join('')}</ul>
       </template>` : ''}
     </td>`;
   };
@@ -60,7 +67,7 @@ export function calendarHTML(all, person, ym) {
         <button class="btn btn-ghost btn-sm" data-ipc-month="1" aria-label="Следующий месяц">›</button>
         <button class="btn btn-ghost btn-sm" data-ipc-month="0">Сегодня</button>
       </span>
-      <span class="ipc-legend"><i class="k-done"></i>осмотрено <i class="k-plan"></i>план <i class="k-late"></i>просрочено</span>
+      <span class="ipc-legend"><i class="k-done"></i>осмотрено <i class="k-plan"></i>план <i class="k-late"></i>просрочено${person ? ' <i class="k-act"></i>вне выездов' : ''}</span>
     </header>
     <table class="ipc-cal-tbl">
       <thead><tr>${['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].map((x, i) => `<th class="${i >= 5 ? 'we' : ''}">${x}</th>`).join('')}</tr></thead>

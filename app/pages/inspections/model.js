@@ -8,7 +8,7 @@ import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
-  dayReport, reportTime,
+  dayReport, reportTime, activitiesOn, activityKind,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
@@ -286,7 +286,7 @@ export function tripsMonth(all, person, year, month) {
       // Нерабочий день человека: отпуск, больничный, выходной по графику.
       const wd = person ? workdayOf(person, iso) : { ok: true };
       week.push({ day: iso, n: d.getDate(), inMonth: d.getMonth() === month, weekend: i >= 5, today: iso === today, past: iso < today, trips,
-        off: wd.ok ? '' : wd.reason, absence: wd.absence || null });
+        off: wd.ok ? '' : wd.reason, absence: wd.absence || null, acts: person ? activitiesOn(person, iso) : [] });
       d.setDate(d.getDate() + 1);
     }
     weeks.push(week);
@@ -300,7 +300,8 @@ export function tripsMonth(all, person, year, month) {
 export function freeDays(person, n = 10) {
   const span = workdays(0, n, 1);
   const busy = new Set(allAssignments().filter((a) => isLive(a) && a.person === person && a.plannedAt).map((a) => a.plannedAt));
-  return span.filter((d) => !busy.has(d) && workdayOf(person, d).ok).length;
+  // Работа вне выездов (раздел 4 ТЗ рабочего дня) — день не свободный.
+  return span.filter((d) => !busy.has(d) && workdayOf(person, d).ok && !activitiesOn(person, d).length).length;
 }
 
 // Ряды для uPlot — по неделям: дневные линии рваные (выходные — ноль, дни
@@ -458,7 +459,11 @@ export function availability(person, n = 10) {
   const span = workdays(0, n, 1);
   const load = new Map();
   allAssignments().forEach((a) => { if (isLive(a) && a.person === person && a.plannedAt) load.set(a.plannedAt, (load.get(a.plannedAt) || 0) + 1); });
-  return span.map((day) => { const w = workdayOf(person, day); return { day, load: load.get(day) || 0, off: w.ok ? '' : w.reason }; });
+  return span.map((day) => {
+    const w = workdayOf(person, day);
+    const act = activitiesOn(person, day).map((a) => activityKind(a.kind).label + (a.region ? `: ${a.region}` : '')).join(', ');
+    return { day, load: load.get(day) || 0, off: w.ok ? '' : w.reason, act };
+  });
 }
 
 // «Кого назначить»: кто подходит к объекту (объектам) на дату. Причины —
@@ -475,12 +480,22 @@ export function rankInspectors(all, people, targets, date) {
     const beenHere = mine.some((a) => keys.has(a.typeId + '|' + a.ocId));
     const beenInst = !beenHere && mine.some((a) => insts.has((all.get(a.typeId + '|' + a.ocId) || {}).institution));
     const sameDay = date ? mine.filter((a) => isLive(a) && a.plannedAt === date).length : 0;
+    // Работа вне выездов в этот день: командировка в область объекта —
+    // совпадение области, остальное — день занят.
+    const acts = date ? activitiesOn(p.name, date) : [];
+    const tripHere = acts.some((a) => a.kind === 'trip' && regions.has(a.region));
+    const busyAct = acts.filter((a) => !(a.kind === 'trip' && regions.has(a.region)));
     const reasons = [];
-    if (date) reasons.push(w.ok ? { ok: true, text: `свободен ${date.slice(8, 10)}.${date.slice(5, 7)}${sameDay ? ` (уже ${sameDay})` : ''}` } : { ok: false, text: w.reason });
-    if (regions.size) reasons.push({ ok: regionOk, text: regionOk ? [...regions].join(', ') : 'другая область' });
+    if (date) {
+      if (!w.ok) reasons.push({ ok: false, text: w.reason });
+      else if (busyAct.length) reasons.push({ ok: false, text: busyAct.map((a) => activityKind(a.kind).short + (a.region ? ` (${a.region})` : '')).join(', ') });
+      else reasons.push({ ok: true, text: `свободен ${date.slice(8, 10)}.${date.slice(5, 7)}${sameDay ? ` (уже ${sameDay})` : ''}` });
+    }
+    if (tripHere) reasons.push({ ok: true, text: `командировка: ${[...regions].join(', ')}` });
+    else if (regions.size) reasons.push({ ok: regionOk, text: regionOk ? [...regions].join(', ') : 'другая область' });
     if (beenHere) reasons.push({ ok: true, text: 'был на объекте' });
     else if (beenInst) reasons.push({ ok: true, text: 'был в учреждении' });
-    const score = (date && w.ok ? 4 : date ? -6 : 0) + (regionOk ? 3 : 0) + (beenHere ? 2 : beenInst ? 1 : 0) - sameDay * 0.5 - p.live * 0.05;
+    const score = (date && w.ok ? 4 : date ? -6 : 0) - (busyAct.length ? 3 : 0) + (regionOk || tripHere ? 3 : 0) + (beenHere ? 2 : beenInst ? 1 : 0) - sameDay * 0.5 - p.live * 0.05;
     return { ...p, reasons, score };
   }).sort((a, b) => b.score - a.score || a.live - b.live || a.name.localeCompare(b.name, 'ru'));
 }

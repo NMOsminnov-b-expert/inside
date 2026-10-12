@@ -567,9 +567,9 @@ export function dayReport(person, date) {
   const cons = num(p.car.consumption);
   const litres = km !== null && cons !== null ? Math.round(km * cons) / 100 : null;
   const late = !!morning && hm(morning.at) > p.schedule.from;
-  // Отчёт обязателен в рабочий день с выездами (назначения с плановой датой
-  // этого дня). День без выездов — без пропуска: вопрос пользователю, нужен
-  // ли отчёт и в такой день (работа дома, разбор снимков — ТЗ раздел 4).
+  // Отчёт обязателен только в рабочий день с выездами — назначениями с
+  // плановой датой этого дня (ответ пользователя 12.10.2026 «Отчеты нужны
+  // только при выездах»): работа дома, разбор снимков, переезд — без отчёта.
   const trips = assignments.filter((a) => a.person === person && a.plannedAt === date && a.state !== 'removed').length;
   const due = work.ok && trips > 0;
   return {
@@ -582,4 +582,49 @@ export function dayReport(person, date) {
     missingMorning: due && !morning && (date < today || (date === today && nowHM > p.schedule.from)),
     missingEvening: due && !evening && (date < today || (date === today && nowHM > p.schedule.to)),
   };
+}
+
+// --- работа вне выездов (ТЗ рабочего дня осмотрщика, раздел 4) --------------
+//
+// Дни, когда осмотрщик работает, но не выезжает на осмотры системы: работа
+// дома (разбор документов и снимков по категориям), переезд в другую
+// область, командировка (область и временный адрес жилья), осмотры для
+// партнёров и других проектов (проект, объект, время — «тоже фиксируем в
+// системе»). Такой день — рабочий, но не свободный: в «свободно N дн.» и в
+// подсказке «Кого назначить» не считается. Отчёты за день в такой день не
+// нужны (ответ пользователя 12.10.2026 «Отчеты нужны только при выездах»).
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: записи с автором и временем сервера; кто вносит —
+// менеджер (план месяца, раздел 7) и сам осмотрщик (партнёрский осмотр,
+// работа дома) — развилка прав на сервере.
+
+export const ACTIVITY_KINDS = [
+  { key: 'home', label: 'Работа дома', short: 'дома' },
+  { key: 'move', label: 'Переезд в другую область', short: 'переезд' },
+  { key: 'trip', label: 'Командировка', short: 'команд.' },
+  { key: 'partner', label: 'Осмотр для партнёров', short: 'партнёры' },
+];
+export const activityKind = (k) => ACTIVITY_KINDS.find((x) => x.key === k) || { key: k, label: k, short: k };
+const activities = demo.activities || [];
+registerPersisted('inspections.activities', {
+  snapshot: () => activities,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    activities.splice(0, activities.length, ...saved.filter((x) => x && x.id));
+  },
+});
+
+export const activitiesOn = (person, iso) => activities.filter((a) => a.person === person && a.from <= iso && (a.to || a.from) >= iso);
+
+export function addActivity({ person, kind, from, to, ...rest }) {
+  if (!person || !kind || !from) return null;
+  const a = { id: nextId('ac'), person, kind, from, to: to && to >= from ? to : from, ...rest, at: now(), by: session.state.person };
+  activities.push(a);
+  changed();
+  return a;
+}
+
+export function removeActivity(id) {
+  const i = activities.findIndex((a) => a.id === id);
+  if (i >= 0) { activities.splice(i, 1); changed(); }
 }

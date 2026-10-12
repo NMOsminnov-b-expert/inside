@@ -20,6 +20,7 @@ import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
+  addActivity, removeActivity,
 } from '../../kernel/inspections.js';
 import { downloadXlsx } from '../../kernel/xlsx.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
@@ -318,8 +319,8 @@ export function mountInspections(host) {
           <b>${esc(p.name)}</b><span class="ip-rank-r">${p.reasons.map((r) => `<i class="${r.ok ? 'ok' : 'no'}">${esc(r.text)}</i>`).join('')}<i>в работе ${p.live}</i></span></button></li>`).join('')}</ul>
     </section>`;
     const mid = (chosen ? `<section class="ip-sec"><h3>${esc(chosen.split(' ').slice(0, 2).join(' '))} — ближайшие дни</h3>
-      <div class="ip-avail">${av.map((d) => `<button class="ip-av ${d.off ? 'off' : d.load ? 'busy' : 'free'} ${date === d.day ? 'on' : ''}" ${d.off ? 'disabled' : ''} data-ip-avail-day="${d.day}"
-          title="${esc(`${fmtDate(d.day)}: ${d.off || (d.load ? `назначено ${d.load}` : 'свободен')}`)}"><span>${d.day.slice(8, 10)}</span><b>${d.off ? '—' : d.load || ''}</b></button>`).join('')}</div>
+      <div class="ip-avail">${av.map((d) => `<button class="ip-av ${d.off ? 'off' : d.load ? 'busy' : d.act ? 'act' : 'free'} ${date === d.day ? 'on' : ''}" ${d.off ? 'disabled' : ''} data-ip-avail-day="${d.day}"
+          title="${esc(`${fmtDate(d.day)}: ${d.off || [d.load ? `назначено ${d.load}` : '', d.act].filter(Boolean).join(', ') || 'свободен'}`)}"><span>${d.day.slice(8, 10)}</span><b>${d.off ? '—' : d.load || (d.act ? '·' : '')}</b></button>`).join('')}</div>
     </section>` : '')
       + `<div class="ip-f-row"><div class="field"><label for="ip-f-deadline">${single ? 'Крайний срок осмотра' : 'Крайний срок для всех'}</label>
         <input class="input" type="date" id="ip-f-deadline" data-ip-f-deadline value="${esc(deadline)}"></div><div></div></div>`;
@@ -833,6 +834,28 @@ export function mountInspections(host) {
   scope.on('input', '[data-ip-people-q]', (e, el) => { peopleQ = el.value; keepFocus('[data-ip-people-q]'); });
   scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; redraw(); });
   scope.on('change', '[data-ip-psort]', (e, el) => { view.peopleSort = el.value; redraw(); });
+  // Работа вне выездов — в панели дня (раздел 4 ТЗ рабочего дня): поля
+  // показываются по виду; запись — на период «с — по».
+  scope.on('change', '[data-ip-act="kind"]', (e, el) => {
+    scope.$$('[data-ip-act-for]').forEach((x) => { x.hidden = !x.dataset.ipActFor.split(' ').includes(el.value); });
+  });
+  scope.on('click', '[data-ip-act-add]', () => {
+    const v = (k) => { const el = scope.$(`[data-ip-act="${k}"]`); return el && !el.closest('[hidden]') ? el.value.trim() : ''; };
+    const err = scope.$('[data-ip-act-err]');
+    const sel = detail[detail.length - 1];
+    const person = view.person || (sel && sel.person) || '';
+    if (!person) return;
+    if (!v('from')) { err.textContent = 'Укажите дату начала'; scope.$('[data-ip-act="from"]').focus(); return; }
+    if (v('to') && v('to') < v('from')) { err.textContent = 'Окончание раньше начала'; scope.$('[data-ip-act="to"]').focus(); return; }
+    if (v('kind') === 'trip' && !v('region')) { err.textContent = 'Укажите область командировки'; scope.$('[data-ip-act="region"]').focus(); return; }
+    if (v('kind') === 'partner' && !v('project')) { err.textContent = 'Укажите проект'; scope.$('[data-ip-act="project"]').focus(); return; }
+    const rec = { person, kind: v('kind'), from: v('from'), to: v('to') };
+    ['region', 'address', 'project', 'object', 'time', 'note'].forEach((k) => { if (v(k)) rec[k] = v(k); });
+    addActivity(rec);
+    redraw();
+    host.toast('Записано', 'ok');
+  });
+  scope.on('click', '[data-ip-act-del]', (e, b) => { removeActivity(b.dataset.ipActDel); redraw(); });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {

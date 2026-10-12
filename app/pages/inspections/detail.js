@@ -15,7 +15,8 @@
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
 import { plural } from '../../kernel/fmt.js';
-import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime } from '../../kernel/inspections.js';
+import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, ACTIVITY_KINDS } from '../../kernel/inspections.js';
+import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
@@ -42,7 +43,7 @@ function shell(title, sub, body, canBack, foot = '') {
 function dayHTML(all, sel, canBack) {
   const trips = tripsOfDay(all, sel.person || '', sel.day);
   const objects = new Set(trips.map((t) => t.a.typeId + '|' + t.a.ocId)).size;
-  const sub = `${sel.person ? esc(sel.person) + ' · ' : ''}${objects} ${plural(objects, 'объект', 'объекта', 'объектов')} · назначений ${trips.length}`;
+  const sub = `${sel.person ? esc(sel.person) + (trips.length ? ' · ' : '') : ''}${trips.length ? `${objects} ${plural(objects, 'объект', 'объекта', 'объектов')} · назначений ${trips.length}` : ''}`;
   const body = trips.length ? `<ul class="ip-dp-trips">${trips.map((t) => `<li class="ip-dp-trip k-${t.kind}" data-ip-dp-open="assign:${esc(t.a.id)}" tabindex="0">
       <div class="ip-dp-trip-h"><i class="k-${t.kind}">${KIND[t.kind]}</i>${sel.person ? '' : `<b>${esc(t.a.person)}</b>`}</div>
       <div class="ip-dp-trip-obj">${esc(t.s ? t.s.title : '—')}</div>
@@ -52,8 +53,39 @@ function dayHTML(all, sel, canBack) {
       ${t.kind === 'done' ? `<div class="ip-dp-line"><span>Итог</span><span class="ip-dp-v">снимков ${t.photos}${t.notes.length ? ` · заметок ${t.notes.length}` : ''}${t.mismatch.length ? ` · расхождений ${t.mismatch.length}` : ''}${t.found.length ? ` · выявлено ${t.found.length}` : ''}</span></div>
         ${t.notes.map((n) => `<div class="ip-dp-note">${esc(n)}</div>`).join('')}` : ''}
     </li>`).join('')}</ul>` : '<p class="ip-hint">В этот день выездов нет.</p>';
-  return shell(esc(dayTitle(sel.day)), sub, body, canBack,
+  const acts = sel.person ? activitiesHTML(sel.person, sel.day) : { list: '', form: '' };
+  return shell(esc(dayTitle(sel.day)), sub, acts.list + body + acts.form, canBack,
     trips.length ? `<button class="btn btn-ghost btn-sm" data-ip-dp-history="${esc(sel.day)}">Вся история дня</button>` : '');
+}
+
+// Работа вне выездов в этот день (ТЗ рабочего дня, раздел 4): записи —
+// над выездами дня, форма добавления — под ними. Поля — по виду: командировка — область и адрес жилья,
+// осмотр для партнёров — проект, объект и время.
+function activitiesHTML(person, day) {
+  const list = activitiesOn(person, day);
+  const line = (a) => [a.region, a.address, a.project, a.object, a.time, a.note].filter(Boolean).map(esc).join(' · ');
+  const f = (key, label, type = 'text', kinds = '') => `<div class="field" ${kinds ? `data-ip-act-for="${kinds}"` : ''}><label for="ip-act-${key}">${label}</label>
+    <input class="input" id="ip-act-${key}" data-ip-act="${key}" type="${type}" ${type === 'date' ? `value="${day}"` : ''}></div>`;
+  return {
+    list: list.length ? `<section class="ip-sec ip-acts"><h3>Работа вне выездов</h3><ul class="ip-act-list">${list.map((a) => `<li><i class="k-act">${esc(activityKind(a.kind).label)}</i>
+        <span class="ip-ab-dates">${esc(fmtDate(a.from))}${a.to && a.to !== a.from ? ` — ${esc(fmtDate(a.to))}` : ''}</span>
+        <button class="ip-x" data-ip-act-del="${esc(a.id)}" aria-label="Удалить" title="Удалить">×</button>
+        ${line(a) ? `<span class="ip-ab-note">${line(a)}</span>` : ''}</li>`).join('')}</ul></section>` : '',
+    form: `<section class="ip-sec ip-acts"><h3>Отметить работу вне выездов</h3>
+    <div class="ip-act-add" data-ip-act-form>
+      <div class="field"><label for="ip-act-kind">Вид</label><select class="select" id="ip-act-kind" data-ip-act="kind">
+        ${ACTIVITY_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div>
+      <div class="ip-prow">${f('from', 'С', 'date')}${f('to', 'По', 'date')}</div>
+      <div class="field" data-ip-act-for="trip move" hidden><label for="ip-act-region">Область</label><select class="select" id="ip-act-region" data-ip-act="region">
+        <option value="">—</option>${Object.values(ENI_REGIONS).map((r) => `<option>${esc(r)}</option>`).join('')}</select></div>
+      ${f('address', 'Временный адрес жилья', 'text', 'trip').replace('<div class="field" ', '<div class="field" hidden ')}
+      ${f('project', 'Проект', 'text', 'partner').replace('<div class="field" ', '<div class="field" hidden ')}
+      <div class="ip-prow" data-ip-act-for="partner" hidden>${f('object', 'Объект')}${f('time', 'Время', 'time')}</div>
+      ${f('note', 'Примечание')}
+      <div class="ip-profile-act"><span class="ip-err" data-ip-act-err role="alert"></span><button class="btn btn-ghost btn-sm" data-ip-act-add>Добавить</button></div>
+    </div>
+  </section>`,
+  };
 }
 
 // Назначение — сводка: кто, когда, что, документы, события; правка — в

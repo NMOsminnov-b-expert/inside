@@ -156,7 +156,7 @@ export function demoInspections() {
   }
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
-  return { assignments, events, reports, profiles };
+  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today) };
 }
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний
@@ -217,4 +217,31 @@ function demoReports(names, assignments, recs, today, rnd) {
     }
   });
   return { reports, profiles };
+}
+
+
+// Работа вне выездов (ТЗ рабочего дня, раздел 4): прошедшие будни без
+// выездов — работа дома (разбор снимков по категориям); у второго — 
+// командировка в Ош на следующей неделе, у первого — осмотр для партнёров.
+function demoActivities(names, assignments, today) {
+  const out = [];
+  let n = 0;
+  const iso = (k) => { const d = new Date(today); d.setDate(d.getDate() + k); return isoLocalDate(d); };
+  const dow = (k) => { const d = new Date(today); d.setDate(d.getDate() + k); return d.getDay(); };
+  names.forEach((person, pi) => {
+    for (let k = -30; k <= -1; k++) {
+      if (dow(k) === 0 || dow(k) === 6) continue;
+      const day = iso(k);
+      if (assignments.some((a) => a.person === person && a.plannedAt === day)) continue;
+      out.push({ id: `demo-ac-${++n}`, person, kind: 'home', from: day, to: day, note: 'разбор снимков по категориям', by: 'Региональный менеджер (демо)', demo: true });
+    }
+    if (pi === 1) {
+      let k = 7; while (dow(k) !== 1) k++;
+      out.push({ id: `demo-ac-${++n}`, person, kind: 'trip', from: iso(k), to: iso(k + 2), region: 'Ош', address: 'г. Ош, гостиница «Алай»', note: '', by: 'Региональный менеджер (демо)', demo: true });
+    }
+    if (pi === 0) {
+      out.push({ id: `demo-ac-${++n}`, person, kind: 'partner', from: iso(4), to: iso(4), project: 'Оценка для банка', object: 'Склад, г. Кант', time: '14:00', note: '', by: 'Региональный менеджер (демо)', demo: true });
+    }
+  });
+  return out;
 }
