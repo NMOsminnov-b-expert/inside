@@ -20,7 +20,7 @@ import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
-  addActivity, removeActivity, activitiesOn, activityKind,
+  addActivity, removeActivity, activitiesOn, activityKind, CAR_FUELS,
   planOf, setPlan, assign,
   allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, CAD_DOCS,
 } from '../../kernel/inspections.js';
@@ -525,7 +525,7 @@ export function mountInspections(host) {
     const car = profileOf(p.name).car;
     const f = (key, label, type = 'text', ph = '') => `<div class="field"><label for="ip-car-${key}">${label}</label>
       <input class="input" id="ip-car-${key}" data-ip-car="${key}" type="${type}" value="${esc(car[key] || '')}" ${ph ? `placeholder="${esc(ph)}"` : ''}></div>`;
-    const FUELS = ['АИ-92', 'АИ-95', 'Дизель', 'Газ'];
+    const FUELS = CAR_FUELS;
     return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4 ip-car2" data-ip-profile>
       <section class="ip-pcol" aria-labelledby="ip-h-car"><h3 id="ip-h-car">Авто</h3>
         ${f('make', 'Марка и модель')}
@@ -680,7 +680,7 @@ export function mountInspections(host) {
   // загрузка обратно — со сверкой по ФИО и показом изменений до применения:
   // пустое дописывается, различающееся — по отметке (правило слияния из
   // импорта APCS; практики предпросмотра импорта — csvbox, Grist, Coefficient).
-  const FUELS = ['АИ-92', 'АИ-95', 'Дизель', 'Газ'];
+  const FUELS = CAR_FUELS;
   const regionNames = () => Object.values(ENI_REGIONS);
   function gridCols() {
     const car = (key, label, type = 'text', extra = {}) => ({ key: `car.${key}`, label, type, width: 120, ...extra,
