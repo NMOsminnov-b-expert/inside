@@ -214,7 +214,12 @@ def run(t):
          'в «Статистике» всех осмотрщиков нет двух графиков (uPlot)')
     t.ck(pg.evaluate("async () => { const m = await import('./app/pages/inspections/model.js'); const s = m.weeklySeries(['Абдылдаев Айсултан Марсович', 'Бабашова Даяна Алтынбековна'], 8); return s.oi.flat().some((v) => v > 0); }"),
          'статистика пуста — демо-истории нет')
-    who = pg.locator('.ip-person-main[data-ip-person]:not([data-ip-person=""])').first.get_attribute('data-ip-person')
+    # Осмотрщик — с действующими назначениями, из списка «Все»: выше все
+    # назначения одного из них переданы другому, и после перезагрузки у него
+    # нет ни выездов, ни демо-истории (история строится по осмотрщикам из
+    # записей на момент загрузки).
+    pg.click('[data-ip-mode="all"]')
+    who = pg.evaluate("async () => { const k = await import('./app/kernel/inspections.js'); const n = new Map(); k.allAssignments().filter(k.isLive).forEach((a) => n.set(a.person, (n.get(a.person) || 0) + 1)); return [...n.entries()].sort((a, b) => b[1] - a[1])[0][0]; }")
     pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
     pg.click('[data-ip-ptab="trips"]')
     t.ck(t.wait_for('.ipc-cal .ipc-chip'), 'у осмотрщика нет календаря выездов с выездами')

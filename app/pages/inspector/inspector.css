@@ -887,3 +887,54 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
   .ins-oi-chev { transition: none; }
   .ins-btn:active { transform: none; }
 }
+
+
+/* --- отчёты за день (ТЗ рабочего дня осмотрщика, раздел 3) ---------------
+   Плашка над списком — две строки-ссылки во всю ширину (крупная цель под
+   палец), состояние справа меткой; экран отчёта — блоками, кнопка «Сдать»
+   внизу, ошибка над ней. */
+.ins-rep { display: flex; flex-direction: column; gap: 6px; }
+.ins-rep .ins-blk-h { margin-bottom: 2px; }
+.ins-rep-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+}
+.ins-rep-row:active { background: var(--blue-50); }
+.ins-rep-row svg { flex: 0 0 auto; color: var(--muted); transform: rotate(-90deg); }
+.ins-rep-t { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.ins-rep-t b { font-size: 15px; }
+.ins-rep-t small { font-size: 12px; color: var(--muted); }
+.ins-pill-late { background: var(--red-50); color: var(--danger); }
+
+.ins-rp .ins-body { display: flex; flex-direction: column; gap: 10px; }
+.ins-rp .ins-rows { margin-bottom: 8px; }
+.ins-rp .ins-rp-noodo { margin: 10px 0 0; }
+.ins-rp-odo { margin: 0 0 8px; }
+.ins-rp-photo { margin: 0; display: flex; gap: 10px; align-items: flex-end; }
+.ins-rp-photo img { width: 50%; max-width: 220px; border-radius: 10px; border: 1px solid var(--line-soft); }
+.ins-rp-photo figcaption { display: flex; gap: 8px; }
+.ins-rp-route { margin: 0 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ins-rp-route li { display: flex; gap: 6px; align-items: center; }
+.ins-rp-n { flex: 0 0 18px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.ins-rp-pt { padding-right: 12px; }
+.ins-rp-km { margin: 10px 0 0; }
+.ins-rp-extra { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 6px 0 6px 12px;
+  border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.ins-rp-add { display: flex; gap: 6px; margin-top: 8px; }
+.ins-rp-add .ins-num { padding-right: 12px; }
+.ins-rp-sum { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--blue-50); color: var(--blue-700); font-size: 14px; }
+.ins-rp-sum b { font-variant-numeric: tabular-nums; }
+.ins-rp-foot { position: sticky; bottom: 0; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); background: var(--bg); }
+.ins-rp-err { margin: 0 0 6px; min-height: 0; color: var(--danger); font-weight: 600; font-size: 13px; }
+.ins-rp-err:empty { display: none; }
+
+.ins-row-txt { display: flex; flex-direction: column; min-width: 0; padding: 8px 0; }
+.ins-row-txt small { font-size: 12px; font-weight: 500; color: var(--muted); }

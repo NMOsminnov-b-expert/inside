@@ -39,6 +39,21 @@
 img{max-width:100%;height:auto}
 html,body{height:100%}
 body{font:13px/1.45 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
+/* Ползунки прокрутки — один раз на весь макет, без системных полос Windows
+   со стрелками (практика polzunki-prokrutki-i-kraya-lent из графа APCS;
+   замечание пользователя 12.10.2026 по снимку профиля осмотрщика). В
+   компонентах scrollbar-width/scrollbar-color не ставить: в Chrome 121+ они
+   отключают ::-webkit-scrollbar, и системная полоса возвращается.
+   Только под мышью (pointer: fine): под пальцем заданная полоса перестаёт
+   гаснуть. */
+@media (pointer:fine){
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+  ::-webkit-scrollbar-button{display:none;width:0;height:0}
+  ::-webkit-scrollbar-thumb{background-color:var(--line);border:2px solid transparent;border-radius:999px;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background-color:var(--slate-400)}
+  @supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:var(--line) transparent}}
+}
 button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
 input,select,textarea{font:inherit;color:inherit}
 .muted{color:var(--muted)}

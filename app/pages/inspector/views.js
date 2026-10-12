@@ -120,7 +120,7 @@ const rowHTML = (label, value, mono) => `<div class="ins-row">
 
 // total и pendingCount приходят снаружи: считать их из показанного списка
 // нельзя — он уже отфильтрован, и «Все мои» показывали бы число ждущих.
-export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref }) {
+export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '' }) {
   return `<div class="ins">
     <header class="ins-head">
       <a class="ins-back" href="${esc(backHref)}" aria-label="К объектам оценки"
@@ -132,6 +132,7 @@ export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyP
     </header>
 
     <div class="ins-body ins-body-list">
+      ${reports}
       <div class="ins-seg" role="tablist">
         <button class="ins-seg-b ${onlyPending ? 'on' : ''}" data-only="1" role="tab"
           aria-selected="${onlyPending ? 'true' : 'false'}">Ждут осмотра${pendingCount ? ` · ${pendingCount}` : ''}</button>
@@ -648,6 +649,91 @@ export function lightboxHTML(p, oiList) {
       </div>
       <button class="ins-btn ins-btn-icon" data-drop="${esc(p.id)}"
         aria-label="Удалить снимок" title="Удалить снимок">${ico('trash', 18)}</button>
+    </div>
+  </div>`;
+}
+
+// --- отчёты за день (ТЗ рабочего дня осмотрщика, раздел 3) -------------------
+//
+// Плашка над списком: утренний и вечерний — сдан во столько-то, ждёт к сроку
+// или не сдан. Отчёт — отдельный экран (#/insp?report=…), «назад» телефона
+// возвращает к списку. Практики: учёт пробега в приложениях — показания
+// начала и конца дня, снимок одометра как главный путь, число — запасной;
+// цифровая клавиатура у чисел (inputmode).
+
+const fmtD = (iso) => iso.split('-').reverse().join('.');
+
+function repLine(kind, label, sub, r, due, missing) {
+  const state = r ? `<span class="ins-pill ins-pill-done">сдан ${esc(r)}</span>`
+    : missing ? '<span class="ins-pill ins-pill-late">не сдан</span>'
+      : `<span class="ins-pill ins-pill-wait">к ${esc(due)}</span>`;
+  return `<a class="ins-rep-row" href="#/insp?report=${kind}" data-rep-open="${kind}">
+    <span class="ins-rep-t"><b>${label}</b><small>${sub}</small></span>${state}${ico('chev', 18)}</a>`;
+}
+
+export function dayReportsHTML({ morning, evening, from, to, missingMorning, missingEvening }) {
+  return `<section class="ins-blk ins-rep" aria-label="Отчёты за сегодня">
+    <h2 class="ins-blk-h">Отчёты за сегодня</h2>
+    ${repLine('morning', 'Утренний', 'куда выезжаю, одометр', morning, from, missingMorning)}
+    ${repLine('evening', 'Вечерний', 'что осмотрено, пробег', evening, to, missingEvening)}
+  </section>`;
+}
+
+const checkRow = (attr, val, on, text, sub = '') => `<button type="button" class="ins-row ${on ? 'on' : ''}" ${attr}="${esc(val)}" aria-pressed="${on}">
+  <span class="ins-row-m" aria-hidden="true"></span><span class="ins-row-txt">${esc(text)}${sub ? `<small>${esc(sub)}</small>` : ''}</span></button>`;
+
+// draft — черновик формы; trips — выезды дня; prev — утренний (для вечернего:
+// показание утром и расчёт пробега); preview — { km, litres } или null.
+export function reportFormHTML({ kind, date, person, draft, trips, existing, prev, preview, err }) {
+  const morning = kind === 'morning';
+  const title = morning ? 'Утренний отчёт' : 'Вечерний отчёт';
+  const odo = `<section class="ins-blk">
+      <h2 class="ins-blk-h">Одометр</h2>
+      ${draft.noOdometer ? '' : `<div class="ins-field ins-rp-odo">
+        <label for="rpOdo">Показание, км${!morning && prev && prev.odometer ? ` · утром ${esc(Number(prev.odometer).toLocaleString('ru-RU'))}` : ''}</label>
+        <div class="ins-num-wrap"><input class="ins-num" id="rpOdo" data-rp="odometer" inputmode="numeric" autocomplete="off" value="${esc(draft.odometer)}"><span class="ins-num-u">км</span></div>
+      </div>
+      ${draft.photo ? `<figure class="ins-rp-photo"><img src="${esc(draft.photo)}" alt="Снимок одометра">
+          <figcaption><button type="button" class="ins-btn ins-btn-sm" data-rp-shoot>Переснять</button>
+            <button type="button" class="ins-icon-b" data-rp-unshoot aria-label="Убрать снимок" title="Убрать снимок">${ico('trash', 18)}</button></figcaption></figure>`
+        : `<button type="button" class="ins-btn ins-btn-wide" data-rp-shoot>${ico('photo', 20)} Сфотографировать одометр</button>`}`}
+      <div class="ins-rows ins-rp-noodo">${checkRow('data-rp-noodo', '1', draft.noOdometer, 'Одометра нет')}</div>
+    </section>`;
+  const routeBlk = !morning && draft.noOdometer ? `<section class="ins-blk">
+      <h2 class="ins-blk-h">Маршрут</h2>
+      <ol class="ins-rp-route">${draft.route.map((x, i) => `<li><span class="ins-rp-n">${i + 1}</span><input class="ins-num ins-rp-pt" data-rp-pt="${i}" value="${esc(x)}" aria-label="Пункт ${i + 1}" placeholder="${i === 0 ? 'откуда' : 'куда'}">
+        ${draft.route.length > 2 ? `<button type="button" class="ins-icon-b" data-rp-pt-drop="${i}" aria-label="Убрать пункт ${i + 1}">${ico('trash', 18)}</button>` : ''}</li>`).join('')}</ol>
+      <button type="button" class="ins-btn ins-btn-sm" data-rp-pt-add>Добавить пункт</button>
+      <div class="ins-field ins-rp-km"><label for="rpKm">Пробег по маршруту, км</label>
+        <div class="ins-num-wrap"><input class="ins-num" id="rpKm" data-rp="km" inputmode="decimal" autocomplete="off" value="${esc(draft.km)}"><span class="ins-num-u">км</span></div></div>
+    </section>` : '';
+  const placesBlk = morning ? `<section class="ins-blk">
+      <h2 class="ins-blk-h">Куда выезжаю</h2>
+      ${trips.length ? `<div class="ins-rows">${trips.map((t) => checkRow('data-rp-place', t.assignId, draft.pick.includes(t.assignId), t.title, t.sub)).join('')}</div>`
+        : '<p class="ins-hint">На сегодня выездов не назначено.</p>'}
+      ${draft.extra.map((x) => `<div class="ins-rp-extra"><span>${esc(x)}</span>
+        <button type="button" class="ins-icon-b" data-rp-extra-drop="${esc(x)}" aria-label="Убрать">${ico('trash', 18)}</button></div>`).join('')}
+      <div class="ins-rp-add"><input class="ins-num" data-rp-extra placeholder="№ и название учреждения" aria-label="Другое место">
+        <button type="button" class="ins-btn ins-btn-sm" data-rp-extra-add>Добавить</button></div>
+    </section>` : `<section class="ins-blk">
+      <h2 class="ins-blk-h">Осмотрено сегодня</h2>
+      ${trips.length ? `<div class="ins-rows">${trips.map((t) => checkRow('data-rp-done', t.assignId, draft.done.includes(t.assignId), t.title, t.sub)).join('')}</div>`
+        : '<p class="ins-hint">На сегодня выездов не назначено.</p>'}
+    </section>`;
+  return `<div class="ins ins-rp">
+    ${headerHTML({ title, sub: `${fmtD(date)} · ${person}`, backHref: '#/insp', backLabel: 'К моим осмотрам' })}
+    <div class="ins-body">
+      ${existing ? `<p class="ins-ro">${ico('ok', 16)} Сдан в ${esc(existing)} — правки сохраняются поверх</p>` : ''}
+      ${placesBlk}
+      ${odo}
+      ${routeBlk}
+      ${morning ? '' : `<section class="ins-blk"><h2 class="ins-blk-h">Комментарий</h2>
+        <textarea class="ins-ta" data-rp="note" rows="3" aria-label="Комментарий">${esc(draft.note)}</textarea></section>`}
+      ${preview ? `<p class="ins-rp-sum">Пробег за день <b>${preview.km} км</b>${preview.by ? ` ${preview.by}` : ''}${preview.litres !== null ? ` · бензин <b>${preview.litres.toLocaleString('ru-RU')} л</b>` : ''}</p>` : ''}
+      <div class="ins-rp-foot">
+        <p class="ins-rp-err" role="alert" data-rp-err>${err ? esc(err) : ''}</p>
+        <button type="button" class="ins-btn ins-btn-main ins-btn-wide" data-rp-send>${existing ? 'Сохранить отчёт' : 'Сдать отчёт'}</button>
+      </div>
     </div>
   </div>`;
 }

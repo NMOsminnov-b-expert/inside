@@ -19,12 +19,14 @@ import { persistView } from '../../kernel/viewState.js';
 import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
-  FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft,
+  FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
 } from '../../kernel/inspections.js';
+import { downloadXlsx } from '../../kernel/xlsx.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
-  summaries, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
+  summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
   queueBase, queueFilter, queueCounts, tripGroups, DUE, dueOf, availability, rankInspectors, onSiteContacts, ASSIGNED_PICKS, assignedPickOf,
+  reportDayRows, reportTotals, reportDays, accountingSheets,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
@@ -37,8 +39,8 @@ const view = {
   section: 'assign',     // assign | people | history
   tab: 'queue',          // в «Назначениях»: queue | assigned
   person: '',            // в «Осмотрщиках»: выбранный; пусто — все
-  personTab: 'trips',    // подраздел карточки: trips | stats | assigns | profile
-  allTab: 'summary',     // подраздел «Все осмотрщики»: summary | stats
+  personTab: 'trips',    // подраздел карточки: trips | reports | stats | assigns | profile | car
+  allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
   histPerson: '',        // в «Истории»: осмотрщик
   peopleMode: 'all',     // mine | all
@@ -85,6 +87,21 @@ export function mountInspections(host) {
   let draft = { key: '', person: '', date: '' };
   const now0 = new Date();
   let ym = { y: now0.getFullYear(), m: now0.getMonth() };
+  // Отчёты: день сводки — по умолчанию вчера (ТЗ 3.6: «с утра регионал
+  // смотрит вчерашние отчёты»); месяц в карточке осмотрщика; период выгрузки
+  // для бухгалтерии — с начала месяца по вчера.
+  const isoD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const shiftD = (iso, k) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + k); return isoD(d); };
+  const todayD = isoD(now0);
+  const lastWorkday = () => {
+    for (let k = 1; k <= 7; k++) {
+      const iso = shiftD(todayD, -k);
+      if (profileNames().some((n) => workdayOf(n, iso).ok)) return iso;
+    }
+    return shiftD(todayD, -1);
+  };
+  const rep = { day: lastWorkday(), ym: todayD.slice(0, 7), from: todayD.slice(0, 8) + '01', to: shiftD(todayD, -1) };
+  if (rep.to < rep.from) rep.from = rep.to.slice(0, 8) + '01';
   let peopleQ = '';
   let all = null;
   let people = [];
@@ -426,7 +443,7 @@ export function mountInspections(host) {
         ${f.options.map((o) => `<option ${v === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
       return `<div class="field"><label for="ip-cf-${esc(f.id)}">${esc(f.label)}</label><input class="input" id="ip-cf-${esc(f.id)}" data-ip-cf="${esc(f.id)}" type="${f.kind === 'number' ? 'number' : f.kind === 'date' ? 'date' : 'text'}" value="${esc(v || '')}"></div>`;
     };
-    return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4" data-ip-profile><div class="ip-pstack">
+    return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4" data-ip-profile>
       <section class="ip-pcol" aria-labelledby="ip-h-link"><h3 id="ip-h-link">Связь</h3>
         <div class="ip-prow">${field('phone', 'Телефон', 'tel', '+996 555 000 000')}
           ${seg('phoneType', 'Тип телефона', [['android', 'Android'], ['ios', 'iOS']], prof.phoneType)}</div>
@@ -452,7 +469,6 @@ export function mountInspections(host) {
         ${field('note', 'Примечание')}
         ${cf.map(cfInput).join('')}
       </section>
-      </div><div class="ip-pstack">
       <section class="ip-pcol" aria-labelledby="ip-c-reg-l"><h3 id="ip-c-reg-l">Области</h3>
         <div class="field">
           <ul class="ip-reglist" role="group" aria-labelledby="ip-c-reg-l">${Object.values(ENI_REGIONS)
@@ -482,7 +498,7 @@ export function mountInspections(host) {
           <div class="ip-profile-act"><span class="ip-err" data-ip-ab-err role="alert"></span><button class="btn btn-ghost btn-sm" data-ip-ab-add>Добавить</button></div>
         </div>
       </section>
-    </div></div></div>
+    </div></div>
     <div class="ip-profile-bar" data-ip-c-bar hidden role="region" aria-label="Несохранённые изменения">
       <span>Несохранённые изменения</span>
       <button class="btn btn-ghost btn-sm" data-ip-c-cancel>Отменить</button>
@@ -496,18 +512,18 @@ export function mountInspections(host) {
     const f = (key, label, type = 'text', ph = '') => `<div class="field"><label for="ip-car-${key}">${label}</label>
       <input class="input" id="ip-car-${key}" data-ip-car="${key}" type="${type}" value="${esc(car[key] || '')}" ${ph ? `placeholder="${esc(ph)}"` : ''}></div>`;
     const FUELS = ['АИ-92', 'АИ-95', 'Дизель', 'Газ'];
-    return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4" data-ip-profile><div class="ip-pstack">
+    return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4 ip-car2" data-ip-profile>
       <section class="ip-pcol" aria-labelledby="ip-h-car"><h3 id="ip-h-car">Авто</h3>
         ${f('make', 'Марка и модель')}
         <div class="ip-prow">${f('year', 'Год выпуска', 'number')}${f('plate', 'Госномер')}</div>
         ${f('note', 'Комментарий')}
-      </section></div><div class="ip-pstack">
+      </section>
       <section class="ip-pcol" aria-labelledby="ip-h-fuel"><h3 id="ip-h-fuel">Топливо и расход</h3>
         <div class="field"><span class="ip-flabel" id="ip-car-fuel-l">Топливо</span>
           <div class="ip-segf" role="radiogroup" aria-labelledby="ip-car-fuel-l">${FUELS.map((x) => `<label><input type="radio" name="ip-car-fuel" data-ip-car-radio="fuel" value="${x}" ${car.fuel === x ? 'checked' : ''}><span>${x}</span></label>`).join('')}</div></div>
         <div class="ip-prow">${f('engine', 'Объём двигателя, л', 'number')}${f('consumption', 'Расход на 100 км, л', 'number')}</div>
         <p class="ip-hint">Литры за день = пробег × расход / 100</p>
-      </section></div>
+      </section>
     </div></div>
     <div class="ip-profile-bar" data-ip-c-bar hidden role="region" aria-label="Несохранённые изменения">
       <span>Несохранённые изменения</span>
@@ -548,6 +564,7 @@ export function mountInspections(host) {
     } else if (view.personTab === 'assigns') body = personAssignsHTML(me.name);
     else if (view.personTab === 'profile') body = profileHTML(me);
     else if (view.personTab === 'car') body = carHTML(me);
+    else if (view.personTab === 'reports') body = personReportsHTML(me.name);
     else body = calendarHTML(all, me.name, ym);
     return `<section class="ip-work ip-card" aria-label="${esc(me.name)}">
       <header class="ip-card-head">
@@ -564,7 +581,7 @@ export function mountInspections(host) {
           <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
         </div>
       </header>
-      ${subTabs('data-ip-ptab', view.personTab, [['trips', 'Выезды'], ['stats', 'Статистика'], ['assigns', 'Назначения', me.live], ['profile', 'Профиль'], ['car', 'Авто']])}
+      ${subTabs('data-ip-ptab', view.personTab, [['trips', 'Выезды'], ['reports', 'Отчёты'], ['stats', 'Статистика'], ['assigns', 'Назначения', me.live], ['profile', 'Профиль'], ['car', 'Авто']])}
       <div class="ip-card-body">${body}</div>
     </section>`;
   }
@@ -578,6 +595,102 @@ export function mountInspections(host) {
     return `<div class="ip-tiles ip-byregion">${[...m.entries()].sort((a, b) => b[1] - a[1]).map(([r, n]) => tile(r, n)).join('')}</div>`;
   }
 
+  // --- отчёты за день (ТЗ рабочего дня осмотрщика, раздел 3) ---------------
+  //
+  // Ячейка отчёта: время сдачи; позже начала дня или на следующий день —
+  // жёлтой меткой; не сдан к сроку — красной; не рабочий день — причиной.
+  const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  const WDL = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+  const numFmt = (n, frac = 0) => (n === null || n === undefined ? '—' : n.toLocaleString('ru-RU', { maximumFractionDigits: frac, minimumFractionDigits: 0 }));
+  function repCell(d, kind) {
+    const r = d[kind];
+    if (r) {
+      const t = reportTime(r.at);
+      if (kind === 'morning' && d.late) return `<span class="ip-rmark warn" title="Позже начала дня по графику (${esc(d.lateFrom)})">${t}</span>`;
+      if (kind === 'evening' && d.eveningLate) return `<span class="ip-rmark warn" title="Сдан ${esc(fmtDate(r.at))}">${esc(fmtDate(r.at).slice(0, 5))} ${t}</span>`;
+      return `<span class="ip-rtime">${t}</span>`;
+    }
+    if (kind === 'morning' ? d.missingMorning : d.missingEvening) return '<span class="ip-rmark off">не сдан</span>';
+    return '<span class="ip-muted">—</span>';
+  }
+  // Обе ячейки отчётов; в не рабочий день без отчётов — одна, с причиной.
+  const repCells = (d) => (!d.work && !d.morning && !d.evening
+    ? `<td colspan="2"><span class="ip-muted">${esc(d.reason || 'не рабочий день')}</span></td>`
+    : `<td>${repCell(d, 'morning')}</td><td>${repCell(d, 'evening')}</td>`);
+  const kmCell = (d) => `${numFmt(d.km)}${d.kmBy === 'route' ? ' <abbr class="ip-muted" title="Одометра нет — пробег по маршруту">марш.</abbr>' : ''}`;
+  const repSel = () => { const x = detail[detail.length - 1]; return x && x.kind === 'report' ? `${x.name}|${x.date}` : ''; };
+  const reportTiles = (t, n) => `<div class="ip-tiles ip-reptiles">${tile('Утренний сдан', `${t.morning} из ${n}`)}${tile('Вечерний сдан', `${t.evening} из ${n}`)}
+    ${tile('Поздний выезд', t.late, t.late ? 'warn' : '', 'Утренний отчёт позже начала дня по графику')}${tile('Пропусков', t.missing, t.missing ? 'warn' : '', 'Отчёт не сдан к сроку')}
+    ${tile('Пробег, км', numFmt(t.km))}${tile('Литры', numFmt(t.litres, 1), '', 'Пробег × расход авто / 100')}</div>`;
+
+  function allReportsHTML(list) {
+    const rows = reportDayRows(list, rep.day);
+    const t = reportTotals(rows);
+    const n = t.due;
+    const wd = new Date(rep.day + 'T00:00:00').getDay();
+    const rel = rep.day === todayD ? 'сегодня' : rep.day === shiftD(todayD, -1) ? 'вчера' : rep.day === lastWorkday() ? `${WDL[wd]}, последний рабочий` : WDL[wd];
+    const sel = repSel();
+    return `<div class="ip-repbar">
+        <div class="ip-daynav" role="group" aria-label="День отчётов">
+          <button class="btn btn-ghost btn-sm" data-ip-rday="-1" aria-label="Предыдущий день">‹</button>
+          <input class="input" type="date" data-ip-rday-set value="${rep.day}" max="${todayD}" aria-label="День">
+          <button class="btn btn-ghost btn-sm" data-ip-rday="1" aria-label="Следующий день" ${rep.day >= todayD ? 'disabled' : ''}>›</button>
+          <span class="ip-repday">${esc(rel)}</span>
+        </div>
+        <div class="ip-repexp" role="group" aria-label="Выгрузка для бухгалтерии">
+          <span>Бухгалтерии</span>
+          <input class="input" type="date" data-ip-rexp="from" value="${rep.from}" max="${todayD}" aria-label="Период с">
+          <span>—</span>
+          <input class="input" type="date" data-ip-rexp="to" value="${rep.to}" max="${todayD}" aria-label="Период по">
+          <button class="btn btn-ghost btn-sm" data-ip-rexp-go>Выгрузить xlsx</button>
+        </div>
+      </div>
+      ${reportTiles(t, n)}
+      ${rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-reptbl">
+        <colgroup><col class="c-name"><col class="c-rep"><col class="c-rep"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-fuel"></colgroup>
+        <thead><tr><th>Осмотрщик</th><th>Утренний</th><th>Вечерний</th><th class="num" title="Назначений с плановой датой этого дня">План</th>
+          <th class="num" title="Отмечено осмотренным в вечернем отчёте">Осмотрено</th><th class="num">Пробег, км</th><th class="num">Литры</th><th>Топливо</th></tr></thead>
+        <tbody>${rows.map(({ name, d, planned, inspected }) => `<tr data-ip-dp-open="report:${esc(name)}|${rep.day}" tabindex="0" class="${sel === `${name}|${rep.day}` ? 'cur' : ''}">
+          <td>${esc(name)}</td>${repCells(d)}
+          <td class="num">${planned || '—'}</td><td class="num">${inspected === null ? '—' : inspected}</td>
+          <td class="num">${kmCell(d)}</td><td class="num">${numFmt(d.litres, 1)}</td><td>${esc(d.fuel || '—')}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><th scope="row">Итого</th><td>${t.morning} из ${n}</td><td>${t.evening} из ${n}</td><td class="num">${t.planned}</td><td class="num">${t.inspected}</td>
+          <td class="num">${numFmt(t.km)}</td><td class="num">${numFmt(t.litres, 1)}</td><td></td></tr></tfoot>
+      </table></div></div>` : '<p class="ip-hint ip-empty">Под фильтр никто не подошёл.</p>'}`;
+  }
+
+  // Отчёты осмотрщика за месяц — по дням, итог в своих столбцах.
+  function personReportsHTML(name) {
+    const [y, m] = rep.ym.split('-').map(Number);
+    const from = `${rep.ym}-01`;
+    const to = isoD(new Date(y, m, 0));
+    const rows = reportDays(name, from, to);
+    const t = reportTotals(rows);
+    const n = t.due;
+    const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    const sel = repSel();
+    return `<div class="ip-repbar">
+        <div class="ip-daynav" role="group" aria-label="Месяц отчётов">
+          <button class="btn btn-ghost btn-sm" data-ip-rmonth="-1" aria-label="Предыдущий месяц">‹</button>
+          <span class="ip-repmonth">${MONTHS[m - 1]} ${y}</span>
+          <button class="btn btn-ghost btn-sm" data-ip-rmonth="1" aria-label="Следующий месяц" ${rep.ym >= todayD.slice(0, 7) ? 'disabled' : ''}>›</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(name)}">Выгрузить месяц для бухгалтерии</button>
+      </div>
+      ${reportTiles(t, n)}
+      ${rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-reptbl">
+        <colgroup><col class="c-date"><col class="c-rep"><col class="c-rep"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"></colgroup>
+        <thead><tr><th>Дата</th><th>Утренний</th><th>Вечерний</th><th class="num">План</th><th class="num">Осмотрено</th><th class="num">Пробег, км</th><th class="num">Литры</th></tr></thead>
+        <tbody>${rows.map(({ date, d, planned, inspected }) => `<tr data-ip-dp-open="report:${esc(name)}|${date}" tabindex="0" class="${sel === `${name}|${date}` ? 'cur' : ''} ${d.work ? '' : 'ip-off'}">
+          <td class="num"><span class="ip-wd">${WD[new Date(date + 'T00:00:00').getDay()]}</span> ${esc(fmtDate(date))}</td>
+          ${repCells(d)}
+          <td class="num">${planned || '—'}</td><td class="num">${inspected === null ? '—' : inspected}</td>
+          <td class="num">${kmCell(d)}</td><td class="num">${numFmt(d.litres, 1)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><th scope="row">Итого</th><td>${t.morning} из ${n}</td><td>${t.evening} из ${n}</td><td class="num">${t.planned}</td><td class="num">${t.inspected}</td>
+          <td class="num">${numFmt(t.km)}</td><td class="num">${numFmt(t.litres, 1)}</td></tr></tfoot>
+      </table></div></div>` : '<p class="ip-hint ip-empty">В этом месяце отчётов нет.</p>'}`;
+  }
+
   function allCardHTML() {
     const list = visiblePeople();
     const sum = (k) => list.reduce((n, p) => n + p[k], 0);
@@ -587,8 +700,8 @@ export function mountInspections(host) {
         <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
-      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      ${subTabs('data-ip-atab', view.allTab, [['summary', 'Сводка'], ['reports', 'Отчёты'], ['stats', 'Статистика'], ['fields', 'Свои поля', allCustomFields().length]])}
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -656,6 +769,14 @@ export function mountInspections(host) {
       </nav>
       <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
+    // Лента подразделов на узком листается вбок — выбранный подраздел виден.
+    scope.$$('.ip-subtabs').forEach((bar) => {
+      bar.classList.toggle('is-overflow', bar.scrollWidth > bar.clientWidth + 1);
+      const on = bar.querySelector('.itab.on');
+      if (on && (on.offsetLeft < bar.scrollLeft || on.offsetLeft + on.offsetWidth > bar.scrollLeft + bar.clientWidth)) {
+        bar.scrollLeft = on.offsetLeft + on.offsetWidth - bar.clientWidth + 8;
+      }
+    });
     if (view.section === 'people') {
       mountStats(scope, host.ensureStyle, { names: visiblePeople().map((p) => p.name), person: view.person })
         .catch((e) => console.warn('Графики не нарисованы', e));
@@ -677,7 +798,7 @@ export function mountInspections(host) {
   // сбрасывать уже отмеченное (найдено проверкой 12.10.2026).
   const FORM = '.ip-pane [data-ip-f-oi], .ip-pane [data-ip-f-doc], .ip-pane [data-ip-f-inv], .ip-pane [data-ip-f-whole]';
   const redraw = () => {
-    const keep = ['.ip-scroll', '.ip-people-list', '.ip-card-body', '.ip-pane .ip-pane-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
+    const keep = ['.ip-scroll', '.ip-people-list', '.ip-card-body', '.ip-pscroll', '.ip-pane .ip-pane-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
     const key = draft.key;
     const form = scope.$$(FORM).map((el) => [el.getAttribute('data-ip-f-oi') || el.getAttribute('data-ip-f-doc') || el.getAttribute('data-ip-f-inv') || 'whole', el.checked]);
     const note = scope.$('[data-ip-f-note]') ? scope.$('[data-ip-f-note]').value : null;
@@ -712,6 +833,26 @@ export function mountInspections(host) {
   scope.on('input', '[data-ip-people-q]', (e, el) => { peopleQ = el.value; keepFocus('[data-ip-people-q]'); });
   scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; redraw(); });
   scope.on('change', '[data-ip-psort]', (e, el) => { view.peopleSort = el.value; redraw(); });
+  scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
+  scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
+  scope.on('click', '[data-ip-rmonth]', (e, b) => {
+    const [y, m] = rep.ym.split('-').map(Number);
+    const d = new Date(y, m - 1 + +b.dataset.ipRmonth, 1);
+    rep.ym = isoD(d).slice(0, 7);
+    detail = [];
+    redraw();
+  });
+  scope.on('change', '[data-ip-rexp]', (e, el) => { rep[el.dataset.ipRexp] = el.value; });
+  const exportAccounting = async (names, from, to) => {
+    if (!from || !to || to < from) { host.toast('Укажите период: начало не позже окончания', 'warn'); return; }
+    await downloadXlsx(`probeg-i-benzin_${from}_${to}.xlsx`, accountingSheets(names, from, to));
+    host.toast('Отчёт для бухгалтерии выгружен', 'ok');
+  };
+  scope.on('click', '[data-ip-rexp-go]', () => exportAccounting(visiblePeople().filter((p) => !p.fired).map((p) => p.name), rep.from, rep.to));
+  scope.on('click', '[data-ip-rexp-person]', (e, b) => {
+    const [y, m] = rep.ym.split('-').map(Number);
+    exportAccounting([b.dataset.ipRexpPerson], `${rep.ym}-01`, isoD(new Date(y, m, 0)));
+  });
   scope.on('click', '[data-ipc-month]', (e, b) => {
     const k = +b.dataset.ipcMonth;
     const d = k ? new Date(ym.y, ym.m + k, 1) : new Date();
@@ -792,7 +933,8 @@ export function mountInspections(host) {
   const openDetail = (spec, push) => {
     const i = spec.indexOf(':');
     const kind = spec.slice(0, i); const id = spec.slice(i + 1);
-    const sel = kind === 'day' ? { kind, day: id } : kind === 'person' ? { kind, name: id } : { kind, id };
+    const sel = kind === 'day' ? { kind, day: id } : kind === 'person' ? { kind, name: id }
+      : kind === 'report' ? { kind, name: id.split('|')[0], date: id.split('|')[1] } : { kind, id };
     detail = push ? [...detail, sel] : [sel];
     redraw();
   };

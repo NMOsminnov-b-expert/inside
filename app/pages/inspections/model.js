@@ -8,6 +8,7 @@ import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
+  dayReport, reportTime,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
@@ -145,8 +146,10 @@ export function inspectorRows(all) {
       done.set(a.person, (done.get(a.person) || 0) + 1);
     }
   });
-  // Справочник: профили, люди из записей и из назначений.
-  const names = new Set([...profileNames(), ...inspectorsInData().map((x) => x.name), ...live.keys()]);
+  // Справочник: профили, люди из записей и из назначений — любых, не только
+  // действующих: осмотрщик, чьи назначения все переданы другому, остаётся в
+  // справочнике со своей историей (прежде пропадал после перезагрузки).
+  const names = new Set([...profileNames(), ...inspectorsInData().map((x) => x.name), ...allAssignments().map((a) => a.person).filter(Boolean)]);
   const today = todayIso();
   return [...names].map((name) => ({
     name,
@@ -511,4 +514,89 @@ export function assignedPickOf(a) {
   if (a.plannedAt && a.plannedAt >= today && a.plannedAt <= addDays(today, 7)) out.add('week');
   if (a.plannedAt && !workdayOf(a.person, a.plannedAt).ok) out.add('away');
   return out;
+}
+
+// --- отчёты за день (ТЗ рабочего дня осмотрщика, раздел 3) -------------------
+
+// Строка дня осмотрщика: отчёты, план и осмотрено по отчёту.
+function reportRow(name, date) {
+  const d = dayReport(name, date);
+  const planned = allAssignments().filter((a) => a.person === name && a.plannedAt === date && a.state !== 'removed');
+  return { name, date, d, planned: planned.length, inspected: d.evening ? (d.evening.done || []).length : null };
+}
+
+// Все осмотрщики за день — «Отчёты за вчера» регионала (ТЗ 3.6).
+export function reportDayRows(people, date) {
+  return people.filter((p) => !p.fired).map((p) => reportRow(p.name, date));
+}
+
+// Итоги набора строк: сдано, поздно, пропуски, пробег и литры.
+export function reportTotals(rows) {
+  const t = { due: 0, morning: 0, evening: 0, late: 0, missing: 0, km: 0, litres: 0, inspected: 0, planned: 0 };
+  rows.forEach(({ d, planned, inspected }) => {
+    if (d.work && d.trips) t.due++;
+    if (d.morning) t.morning++;
+    if (d.evening) t.evening++;
+    if (d.late) t.late++;
+    if (d.missingMorning) t.missing++;
+    if (d.missingEvening) t.missing++;
+    if (d.km !== null) t.km += d.km;
+    if (d.litres !== null) t.litres += d.litres;
+    t.planned += planned;
+    t.inspected += inspected || 0;
+  });
+  t.litres = Math.round(t.litres * 100) / 100;
+  return t;
+}
+
+const datesBetween = (from, to) => {
+  const out = [];
+  const d = new Date(from + 'T00:00:00');
+  for (let iso = from; iso <= to; d.setDate(d.getDate() + 1), iso = isoDay(d)) out.push(iso);
+  return out;
+};
+
+// Дни осмотрщика за период: рабочие и те, где есть отчёт.
+export function reportDays(name, from, to) {
+  const today = isoDay(new Date());
+  return datesBetween(from, to < today ? to : today).reverse()
+    .map((date) => reportRow(name, date))
+    .filter((r) => r.d.work || r.d.morning || r.d.evening);
+}
+
+// Отчёт для бухгалтерии (ТЗ 3.4): по осмотрщику и дню — пробег, литры, вид
+// топлива, авто, показания одометра или маршрут адресами; цены нет.
+export function accountingSheets(names, from, to) {
+  const ddmm = (iso) => iso.split('-').reverse().join('.');
+  const rows = [];
+  const total = [];
+  names.forEach((name) => {
+    const p = profileOf(name);
+    const t = { days: 0, km: 0, litres: 0, noEvening: 0 };
+    reportDays(name, from, to).reverse().forEach(({ date, d }) => {
+      if (d.missingEvening) t.noEvening++;
+      if (!d.morning && !d.evening) return;
+      if (d.km !== null) { t.days++; t.km += d.km; }
+      if (d.litres !== null) t.litres += d.litres;
+      rows.push([
+        name, ddmm(date), p.car.make, p.car.plate, p.car.fuel, d.consumption ?? '',
+        d.morning && d.morning.odometer ? +d.morning.odometer : '', d.evening && d.evening.odometer ? +d.evening.odometer : '',
+        d.km ?? '', d.kmBy === 'odometer' ? 'по одометру' : d.kmBy === 'route' ? 'по маршруту' : '',
+        d.evening && d.evening.route && d.evening.route.length ? d.evening.route.join(' → ') : '',
+        d.litres ?? '',
+        d.morning ? reportTime(d.morning.at) : 'нет', d.evening ? `${d.eveningLate ? ddmm(dayOf(d.evening.at)) + ' ' : ''}${reportTime(d.evening.at)}` : 'нет',
+        [d.morning && d.morning.photo ? 'утро' : '', d.evening && d.evening.photo ? 'вечер' : ''].filter(Boolean).join(', ') || 'нет',
+      ]);
+    });
+    total.push([name, [p.car.make, p.car.plate].filter(Boolean).join(' · '), p.car.fuel, t.days, t.km, Math.round(t.litres * 100) / 100, t.noEvening]);
+  });
+  return [
+    { name: 'По дням', rows,
+      head: ['Осмотрщик', 'Дата', 'Авто', 'Госномер', 'Топливо', 'Расход, л/100 км', 'Одометр утром', 'Одометр вечером',
+        'Пробег, км', 'Пробег посчитан', 'Маршрут', 'Литры', 'Утренний отчёт', 'Вечерний отчёт', 'Снимки одометра'],
+      widths: [34, 11, 24, 14, 9, 10, 12, 12, 10, 14, 50, 9, 10, 16, 14] },
+    { name: 'Итог', rows: total,
+      head: ['Осмотрщик', 'Авто', 'Топливо', 'Дней с пробегом', 'Пробег, км', 'Литры', 'Дней без вечернего отчёта'],
+      widths: [34, 34, 9, 12, 11, 9, 14] },
+  ];
 }

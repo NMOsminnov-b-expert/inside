@@ -352,7 +352,18 @@ body[data-page="inspections"] .ip-tile span{font-size:10.5px;font-weight:700;tex
 body[data-page="inspections"] .ip-tile b{font-size:18px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.2}
 body[data-page="inspections"] .ip-tile.warn b{color:#a3361c}
 body[data-page="inspections"] .ip-card-head .ip-head-act{margin-left:0}
-body[data-page="inspections"] .ip-subtabs{flex:none}
+body[data-page="inspections"] .ip-subtabs{flex:none;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+/* Подразделов шесть: на узком лента листается вбок, а не переносится вторым
+   рядом; полоса у ленты вкладок скрыта намеренно (исключение практики о
+   ползунках). */
+body[data-page="inspections"] .ip-subtabs::-webkit-scrollbar{display:none}
+body[data-page="inspections"] .ip-subtabs .itab{flex:none;white-space:nowrap}
+/* Края листаемой ленты тают — слева узко, справа шире: обрезанная вкладка
+   не читается поломкой (практика polzunki-prokrutki-i-kraya-lent). Маска —
+   только когда лента не влезает. */
+body[data-page="inspections"] .ip-subtabs.is-overflow{
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 10px,#000 calc(100% - 28px),transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0,#000 10px,#000 calc(100% - 28px),transparent 100%)}
 body[data-page="inspections"] .ip-card-body{flex:1 1 auto;min-height:0;overflow:auto;padding-top:12px;display:flex;flex-direction:column;gap:12px}
 body[data-page="inspections"] .ip-card-body > *{flex:none}
 body[data-page="inspections"] .ip-card-body .ip-tiles .ip-tile{flex:1 1 110px}
@@ -551,16 +562,20 @@ body[data-page="inspections"] .ip-tbl.ip-grouped{min-width:660px}
    прокручивается само, подвал «Сохранить» — вне прокрутки (практика APCS
    panel-podval-deystviy…); низ тела тает маской. */
 body[data-page="inspections"] .ip-card-body:has(> .ip-pwrap){overflow:hidden}
-body[data-page="inspections"] .ip-pwrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px;
-  max-width:1040px;container-type:inline-size}
-body[data-page="inspections"] .ip-pscroll{flex:0 1 auto;min-height:0;overflow-y:auto}
+body[data-page="inspections"] .ip-pwrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px}
+/* Прокрутка — во всю ширину карточки: полоса у её края, а не посреди
+   экрана. */
+body[data-page="inspections"] .ip-pscroll{flex:0 1 auto;min-height:0;overflow-y:auto;scrollbar-gutter:stable}
 body[data-page="inspections"] .ip-pwrap:has(> .ip-profile-bar:not([hidden])) .ip-pscroll{
   -webkit-mask-image:linear-gradient(to top,transparent 0,#000 18px);mask-image:linear-gradient(to top,transparent 0,#000 18px)}
-body[data-page="inspections"] .ip-profile4{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
-body[data-page="inspections"] .ip-pstack{display:flex;flex-direction:column;gap:12px;min-width:0}
-@container (min-width:620px){
-  body[data-page="inspections"] .ip-profile4{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
+/* Блоки — колонками от 340 px (многоколоночная раскладка): на широком
+   экране три, на среднем две, на узком одна; браузер сам уравнивает высоту
+   колонок, блок не разрывается — ни растянутых полей, ни пустых мест
+   (замечания пользователя 12.10.2026 «размазал по горизонтали» и «пустые
+   места»). */
+body[data-page="inspections"] .ip-profile4{columns:340px 3;column-gap:12px}
+body[data-page="inspections"] .ip-profile4.ip-car2{columns:340px 2}
+body[data-page="inspections"] .ip-profile4 > .ip-pcol{break-inside:avoid;margin:0 0 12px}
 body[data-page="inspections"] .ip-profile4 .ip-pcol{gap:12px;padding:14px 16px 16px;border-radius:12px}
 body[data-page="inspections"] .ip-profile4 .ip-pcol h3{font-size:11px;letter-spacing:.6px;color:var(--ink-label);
   padding-bottom:10px;margin-bottom:2px;border-bottom:1px solid var(--line-soft)}
@@ -599,9 +614,9 @@ body[data-page="inspections"] .ip-inbtn [aria-disabled="true"]{opacity:.45;curso
 /* Чипы областей и дней — одной высоты. */
 body[data-page="inspections"] .ip-profile4 .ip-chipbox span{display:inline-flex;align-items:center;height:28px;padding:0 11px;font-size:12.5px}
 body[data-page="inspections"] .ip-profile4 .ip-day span{min-width:38px;justify-content:center}
-body[data-page="inspections"] .ip-warn{margin:-4px 0 0;padding:6px 10px;border-radius:6px;font-size:12.5px;
-  background:#fff6e5;color:#8a5a00;border:1px solid #f1d39a}
-body[data-page="inspections"] .ip-warn.off{background:#fdecec;color:#a32020;border-color:#f2b8b8}
+body[data-page="inspections"] .ip-warn{margin:-4px 0 0;padding:6px 10px;border-radius:8px;font-size:12.5px;
+  background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-100)}
+body[data-page="inspections"] .ip-warn.off{background:var(--red-50);color:var(--danger);border-color:#f3c1c1}
 body[data-page="inspections"] .ip-profile4 .ip-ab-add{padding-top:0;border-top:0}
 body[data-page="inspections"] .ip-profile4 .ip-absences li{padding:6px 8px}
 body[data-page="inspections"] .ip-prow3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -617,3 +632,42 @@ body[data-page="inspections"] .ip-profile-bar span{margin-right:auto;font-size:1
   body[data-page="inspections"] .ip-fields .ip-pcol{grid-column:auto}
   body[data-page="inspections"] .ip-prow3{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 }
+
+/* Отчёты за день: строка выбора дня и выгрузки, метки «поздно» и «не сдан»,
+   итоговая строка таблицы — суммы в своих столбцах. */
+body[data-page="inspections"] .ip-repbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+body[data-page="inspections"] .ip-daynav,
+body[data-page="inspections"] .ip-repexp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+body[data-page="inspections"] .ip-daynav .input,
+body[data-page="inspections"] .ip-repexp .input{height:30px;width:142px}
+body[data-page="inspections"] .ip-daynav .btn{min-width:32px;height:30px;justify-content:center}
+body[data-page="inspections"] .ip-repday,
+body[data-page="inspections"] .ip-repmonth{font-size:13px;font-weight:600;color:var(--ink)}
+body[data-page="inspections"] .ip-repmonth{min-width:120px;text-align:center}
+body[data-page="inspections"] .ip-repexp > span{font-size:12px;color:var(--muted)}
+body[data-page="inspections"] .ip-rtime,
+body[data-page="inspections"] .ip-rmark,
+body[data-page="inspections"] .ip-num{font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-rmark{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap}
+body[data-page="inspections"] .ip-rmark.warn{background:var(--amber-50);color:var(--amber-700)}
+body[data-page="inspections"] .ip-rmark.off{background:var(--red-50);color:var(--danger)}
+body[data-page="inspections"] .ip-reptbl{min-width:820px}
+body[data-page="inspections"] .ip-reptbl col.c-name{width:auto;min-width:200px}
+body[data-page="inspections"] .ip-reptbl col.c-rep{width:120px}
+/* Плитки сводки отчётов — ровной сеткой: шесть в ряд, три или две на узком. */
+body[data-page="inspections"] .ip-card-body:has(> .ip-reptiles){container-type:inline-size}
+body[data-page="inspections"] .ip-card-body .ip-reptiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+@container (min-width:380px){body[data-page="inspections"] .ip-card-body .ip-reptiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (min-width:780px){body[data-page="inspections"] .ip-card-body .ip-reptiles{grid-template-columns:repeat(6,minmax(0,1fr))}}
+body[data-page="inspections"] .ip-reptbl col.c-fuel{width:84px}
+body[data-page="inspections"] .ip-reptbl col.c-date{width:116px}
+body[data-page="inspections"] .ip-reptbl tfoot th,
+body[data-page="inspections"] .ip-reptbl tfoot td{position:sticky;bottom:0;background:var(--blue-50);font-weight:700;
+  border-top:2px solid var(--line);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-reptbl tfoot th{text-align:left}
+body[data-page="inspections"] .ip-reptbl tr.ip-off td{color:var(--muted)}
+body[data-page="inspections"] .ip-wd{display:inline-block;width:20px;color:var(--muted)}
+body[data-page="inspections"] .ip-dp-list{margin:0;padding-left:16px}
+body[data-page="inspections"] .ip-odo{display:block;margin:6px 0 2px}
+body[data-page="inspections"] .ip-odo img{display:block;width:100%;max-width:180px;border-radius:8px;border:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-profile4.ip-fields{columns:auto;max-width:760px}

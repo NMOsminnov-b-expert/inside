@@ -22,11 +22,12 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
-  foundOi, addFoundOi, removeFoundOi, PHOTO_CATS,
+  foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
+import { reportOf, saveReport, dayReport, reportTime, profileOf } from '../../kernel/inspections.js';
 import { allFields, mismatchHint } from './form.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -54,11 +55,102 @@ export function mountInspector(host) {
 
   const rec = () => loadTask(route.typeId, route.ocId);
 
+  // --- отчёты за день ------------------------------------------------------
+  //
+  // Черновик формы живёт, пока открыт экран отчёта; при входе собирается из
+  // сданного отчёта или из выездов дня (утром отмечены все места, вечером —
+  // законченные осмотры).
+  const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  let rp = null;
+  let rpErr = '';
+  function draftFor(kind) {
+    const date = isoToday();
+    const person = currentInspector();
+    const r = reportOf(person, date, kind);
+    const trips = dayTrips(date);
+    return {
+      kind, date, person,
+      // Утром: отмеченные выезды (по назначению) и места, дописанные вручную.
+      pick: r ? trips.filter((t) => (r.places || []).includes(t.label)).map((t) => t.assignId) : trips.map((t) => t.assignId),
+      extra: r ? (r.places || []).filter((x) => !trips.some((t) => t.label === x)) : [],
+      done: r ? [...(r.done || [])] : trips.filter((t) => t.done).map((t) => t.assignId),
+      odometer: r ? r.odometer || '' : '',
+      photo: r ? r.photo || '' : '',
+      noOdometer: r ? !!r.noOdometer : false,
+      route: r && r.route && r.route.length ? [...r.route] : ['дом', ''],
+      km: r ? r.km || '' : '',
+      note: r ? r.note || '' : '',
+    };
+  }
+  const numOf = (v) => { const n = parseFloat(String(v || '').replace(',', '.').replace(/\s/g, '')); return Number.isFinite(n) ? n : null; };
+  function rpPreview() {
+    if (!rp || rp.kind !== 'evening') return null;
+    const m = reportOf(rp.person, rp.date, 'morning');
+    let km = null;
+    let by = '';
+    if (!rp.noOdometer && m && numOf(m.odometer) !== null && numOf(rp.odometer) !== null && numOf(rp.odometer) >= numOf(m.odometer)) {
+      km = numOf(rp.odometer) - numOf(m.odometer); by = 'по одометру';
+    } else if (rp.noOdometer && numOf(rp.km) !== null) { km = numOf(rp.km); by = 'по маршруту'; }
+    if (km === null) return null;
+    const cons = numOf(profileOf(rp.person).car.consumption);
+    return { km, by, litres: cons === null ? null : Math.round(km * cons) / 100 };
+  }
+  // Чего не хватает — первым по порядку экрана; вместе с полем для курсора.
+  function rpMissing() {
+    if (rp.kind === 'morning' && !rp.pick.length && !rp.extra.length) return ['Отметьте, куда выезжаете, или добавьте место', '[data-rp-extra]'];
+    if (!rp.noOdometer) {
+      if (numOf(rp.odometer) === null) return ['Укажите показание одометра', '[data-rp="odometer"]'];
+      if (!rp.photo) return ['Сфотографируйте одометр', '[data-rp-shoot]'];
+      const m = rp.kind === 'evening' ? reportOf(rp.person, rp.date, 'morning') : null;
+      if (m && numOf(m.odometer) !== null && numOf(rp.odometer) < numOf(m.odometer)) {
+        return [`Показание меньше утреннего (${Number(m.odometer).toLocaleString('ru-RU')} км)`, '[data-rp="odometer"]'];
+      }
+    } else if (rp.kind === 'evening') {
+      if (rp.route.filter((x) => x.trim()).length < 2) return ['Укажите маршрут: откуда и куда ездили', '[data-rp-pt]'];
+      if (numOf(rp.km) === null) return ['Укажите пробег по маршруту', '[data-rp="km"]'];
+    }
+    return null;
+  }
+  function renderReport(kind) {
+    if (!rp || rp.kind !== kind || rp.date !== isoToday() || rp.person !== currentInspector()) { rp = draftFor(kind); rpErr = ''; }
+    const r = reportOf(rp.person, rp.date, kind);
+    scope.setHTML(reportFormHTML({
+      kind, date: rp.date, person: rp.person, draft: rp, trips: dayTrips(rp.date),
+      existing: r ? reportTime(r.at) : '', prev: kind === 'evening' ? reportOf(rp.person, rp.date, 'morning') : null,
+      preview: rpPreview(), err: rpErr,
+    }));
+  }
+  // Снимок одометра ужимается до 480 px по длинной стороне: так он
+  // сохраняется вместе с отчётом и переживает перезагрузку.
+  //
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: снимок — файл в хранилище в исходном качестве, с
+  // временем съёмки из EXIF (проверка, что снят в этот день); здесь — сжатая
+  // копия в данных отчёта.
+  const shrink = (file) => new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 480 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+    img.src = url;
+  });
+
   // --- отрисовка ----------------------------------------------------------
 
   function render() {
     const { typeId, ocId } = route;
     const section = SECTIONS.includes(route.section) ? route.section : 'task';
+
+    if (!typeId && route.query && (route.query.report === 'morning' || route.query.report === 'evening')) {
+      renderReport(route.query.report);
+      return;
+    }
 
     if (!typeId || !ocId) {
       // Список берём один раз целиком: из него же считаются оба счётчика в
@@ -73,6 +165,14 @@ export function mountInspector(host) {
         person: currentInspector(),
         onlyPending: ui.onlyPending,
         backHref: MENU_HREF,
+        reports: (() => {
+          const d = dayReport(currentInspector(), isoToday());
+          const p = profileOf(currentInspector());
+          return dayReportsHTML({
+            morning: d.morning ? reportTime(d.morning.at) : '', evening: d.evening ? reportTime(d.evening.at) : '',
+            from: p.schedule.from, to: p.schedule.to, missingMorning: d.missingMorning, missingEvening: d.missingEvening,
+          });
+        })(),
       }));
       return;
     }
@@ -209,6 +309,69 @@ export function mountInspector(host) {
   // Вешаются ОДИН раз на корень экрана: разметка переписывается на каждой
   // отрисовке, и слушатели на самих элементах пришлось бы навешивать заново
   // (этим уже отличались заметки и состав в карточках ОИ).
+
+  // Отчёт за день: отметки, поля, снимок, маршрут, отправка.
+  const rpToggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  scope.on('click', '[data-rp-place]', (e, el) => { rp.pick = rpToggle(rp.pick, el.dataset.rpPlace); render(); });
+  scope.on('click', '[data-rp-done]', (e, el) => { rp.done = rpToggle(rp.done, el.dataset.rpDone); render(); });
+  scope.on('click', '[data-rp-noodo]', () => { rp.noOdometer = !rp.noOdometer; rpErr = ''; render(); });
+  scope.on('input', '[data-rp]', (e, el) => {
+    rp[el.dataset.rp] = el.value;
+    if (el.dataset.rp !== 'note') {
+      const sum = scope.$('.ins-rp-sum');
+      const pv = rpPreview();
+      if (sum && pv) sum.innerHTML = `Пробег за день <b>${pv.km} км</b> ${pv.by}${pv.litres !== null ? ` · бензин <b>${pv.litres.toLocaleString('ru-RU')} л</b>` : ''}`;
+      else if (!sum && pv) render();
+    }
+  });
+  scope.on('input', '[data-rp-pt]', (e, el) => { rp.route[+el.dataset.rpPt] = el.value; });
+  scope.on('click', '[data-rp-pt-add]', () => { rp.route.push(''); render(); const all = scope.$$('[data-rp-pt]'); if (all.length) all[all.length - 1].focus(); });
+  scope.on('click', '[data-rp-pt-drop]', (e, el) => { rp.route.splice(+el.dataset.rpPtDrop, 1); render(); });
+  const addExtra = () => {
+    const inp = scope.$('[data-rp-extra]');
+    const v = inp ? inp.value.trim() : '';
+    if (!v) { if (inp) inp.focus(); return; }
+    if (!rp.extra.includes(v)) rp.extra.push(v);
+    render();
+  };
+  scope.on('click', '[data-rp-extra-add]', addExtra);
+  scope.on('keydown', '[data-rp-extra]', (e) => { if (e.key === 'Enter') { e.preventDefault(); addExtra(); } });
+  scope.on('click', '[data-rp-extra-drop]', (e, el) => { rp.extra = rp.extra.filter((x) => x !== el.dataset.rpExtraDrop); render(); });
+  scope.on('click', '[data-rp-shoot]', async () => {
+    const file = await pickFile('image/*', { capture: 'environment' });
+    if (!file) return;
+    if (isFileTooLarge(file)) { host.toast(`Снимок больше ${MAX_DOC_FILE_MB} МБ — уменьшите качество съёмки`, 'warn'); return; }
+    const url = await shrink(file);
+    if (!url) { host.toast('Снимок не открылся — попробуйте ещё раз', 'warn'); return; }
+    rp.photo = url;
+    rpErr = '';
+    render();
+  });
+  scope.on('click', '[data-rp-unshoot]', () => { rp.photo = ''; render(); });
+  scope.on('click', '[data-rp-send]', () => {
+    const miss = rpMissing();
+    if (miss) {
+      rpErr = miss[0];
+      render();
+      const el = scope.$(miss[1]);
+      if (el) el.focus();
+      return;
+    }
+    const data = {
+      person: rp.person, date: rp.date, kind: rp.kind, noOdometer: rp.noOdometer,
+      odometer: rp.noOdometer ? '' : String(numOf(rp.odometer)), photo: rp.noOdometer ? '' : rp.photo,
+    };
+    if (rp.kind === 'morning') {
+      const trips = dayTrips(rp.date);
+      data.places = [...trips.filter((t) => rp.pick.includes(t.assignId)).map((t) => t.label), ...rp.extra];
+    }
+    else Object.assign(data, { done: rp.done, note: rp.note.trim(), route: rp.noOdometer ? rp.route.map((x) => x.trim()).filter(Boolean) : [], km: rp.noOdometer ? String(numOf(rp.km)) : '' });
+    const had = !!reportOf(rp.person, rp.date, rp.kind);
+    saveReport(data);
+    host.toast(had ? 'Отчёт сохранён' : `${rp.kind === 'morning' ? 'Утренний' : 'Вечерний'} отчёт сдан`, 'ok');
+    rp = null;
+    location.hash = INSP_HREF;
+  });
 
   scope.on('click', '[data-only]', (e, el) => {
     ui.onlyPending = el.dataset.only === '1';

@@ -271,7 +271,7 @@ export function tasksOf(person) {
 // учёта или вносятся менеджером; здесь он заменится ссылкой на учётную
 // запись. Развилка — кто ведёт отпуска: кадры (выгрузка) или менеджер (ввод).
 
-const profiles = [];
+const profiles = demo.profiles || [];
 registerPersisted('inspections.people', {
   snapshot: () => profiles,
   restore: (saved) => {
@@ -500,4 +500,86 @@ export function poaDaysLeft(name) {
   if (!u) return null;
   const t = new Date(); t.setHours(0, 0, 0, 0);
   return Math.round((new Date(u + 'T00:00:00') - t) / 864e5);
+}
+
+// --- отчёты за день (ТЗ рабочего дня осмотрщика, раздел 3) -------------------
+//
+// Утренний — куда выезжает (объекты дня из назначений и дописанное вручную),
+// одометр числом и снимком. Вечерний — что осмотрено (отметки по назначениям
+// дня), одометр числом и снимком; без одометра — маршрут адресами и пробег.
+// Пробег дня — разница показаний; литры = пробег × расход авто / 100; деньги
+// считает бухгалтерия (ответ пользователя 12.10.2026), цены в системе нет.
+// Утренний позже начала дня по графику — поздний выезд; не сдан к началу или
+// к концу рабочего дня — пропуск.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: время сдачи — время сервера, снимок одометра — файл
+// в хранилище с временем съёмки из EXIF, а не ссылка вкладки; пробег без
+// одометра — расстояние по маршруту на карте (раздел 7), в макете его вводит
+// осмотрщик. Развилка — можно ли править сданный отчёт: в макете можно,
+// правка видна по времени «изменён».
+
+export const REPORT_KINDS = { morning: 'Утренний', evening: 'Вечерний' };
+const reports = demo.reports || [];
+registerPersisted('inspections.reports', {
+  snapshot: () => reports,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    reports.splice(0, reports.length, ...saved.filter((x) => x && x.id));
+  },
+});
+
+export const reportOf = (person, date, kind) => reports.find((r) => r.person === person && r.date === date && r.kind === kind) || null;
+export const reportsBetween = (from, to) => reports.filter((r) => r.date >= from && r.date <= to);
+
+export function saveReport({ person, date, kind, ...data }) {
+  let r = reportOf(person, date, kind);
+  if (!r) {
+    r = { id: nextId('rp'), person, date, kind, at: now(), by: session.state.person };
+    reports.push(r);
+  } else {
+    r.editedAt = now();
+  }
+  Object.assign(r, data);
+  changed();
+  return r;
+}
+
+const hm = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const localIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const reportTime = hm;
+const num = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
+
+// День осмотрщика по отчётам: что сдано, когда, пробег, литры, пропуски.
+export function dayReport(person, date) {
+  const p = profileOf(person);
+  const work = workdayOf(person, date);
+  const morning = reportOf(person, date, 'morning');
+  const evening = reportOf(person, date, 'evening');
+  const nowD = new Date();
+  const today = localIso(nowD);
+  const nowHM = hm(nowD.toISOString());
+  const odo0 = morning ? num(morning.odometer) : null;
+  const odo1 = evening ? num(evening.odometer) : null;
+  let km = null;
+  let kmBy = '';
+  if (odo0 !== null && odo1 !== null && odo1 >= odo0) { km = odo1 - odo0; kmBy = 'odometer'; }
+  else if (evening && num(evening.km) !== null) { km = num(evening.km); kmBy = 'route'; }
+  const cons = num(p.car.consumption);
+  const litres = km !== null && cons !== null ? Math.round(km * cons) / 100 : null;
+  const late = !!morning && hm(morning.at) > p.schedule.from;
+  // Отчёт обязателен в рабочий день с выездами (назначения с плановой датой
+  // этого дня). День без выездов — без пропуска: вопрос пользователю, нужен
+  // ли отчёт и в такой день (работа дома, разбор снимков — ТЗ раздел 4).
+  const trips = assignments.filter((a) => a.person === person && a.plannedAt === date && a.state !== 'removed').length;
+  const due = work.ok && trips > 0;
+  return {
+    person, date, work: work.ok, reason: work.reason, morning, evening, km, kmBy, litres,
+    fuel: p.car.fuel, car: [p.car.make, p.car.plate].filter(Boolean).join(' · '), consumption: cons,
+    late, lateFrom: p.schedule.from,
+    // Вечерний сдан на следующий день и позже — тоже пропуск срока.
+    eveningLate: !!evening && localIso(new Date(evening.at)) > date,
+    trips,
+    missingMorning: due && !morning && (date < today || (date === today && nowHM > p.schedule.from)),
+    missingEvening: due && !evening && (date < today || (date === today && nowHM > p.schedule.to)),
+  };
 }

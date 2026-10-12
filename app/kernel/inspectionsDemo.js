@@ -50,11 +50,11 @@ export function demoInspections() {
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       if (s.resp && s.resp.insp) people.add(s.resp.insp);
-      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id) });
+      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), place: [s.institution, s.title].filter(Boolean).join(' — ') });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
-  if (!names.length || !recs.length) return { assignments: [], events: [] };
+  if (!names.length || !recs.length) return { assignments: [], events: [], reports: [], profiles: [] };
 
   const rnd = mulberry32(20261012);
   const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
@@ -155,5 +155,66 @@ export function demoInspections() {
     ev(a2, 'assigned', new Date(a2.at));
   }
 
-  return { assignments, events };
+  const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
+  return { assignments, events, reports, profiles };
+}
+
+// Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний
+// около начала дня (часть — позже, это поздний выезд), вечерний к концу;
+// изредка отчёта нет; у одного из десяти дней одометра нет — маршрут
+// адресами. Снимок одометра в демо — картинка с показанием.
+const CARS = [
+  { make: 'Toyota Corolla', year: '2012', engine: '1.6', consumption: '8.5', plate: '01KG 214 ABE', fuel: 'АИ-92', note: '' },
+  { make: 'Honda Fit', year: '2009', engine: '1.3', consumption: '6.5', plate: '02KG 773 BAK', fuel: 'АИ-92', note: '' },
+  { make: 'Toyota Land Cruiser Prado', year: '2015', engine: '2.8', consumption: '11', plate: '01KG 905 ACM', fuel: 'Дизель', note: 'для области, горные дороги' },
+];
+const odoPhoto = (v) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120"><rect width="240" height="120" rx="10" fill="#1d2430"/>'
+  + '<text x="120" y="34" fill="#8fa3bd" font-family="Arial" font-size="13" text-anchor="middle">ODO km</text>'
+  + '<rect x="22" y="48" width="196" height="46" rx="6" fill="#0b0f15"/>'
+  + '<text x="120" y="82" fill="#f2c94c" font-family="Consolas,monospace" font-size="30" text-anchor="middle" letter-spacing="3">'
+  + String(v).padStart(6, '0') + '</text></svg>');
+const STREETS = ['ул. Советская', 'пр. Чуй', 'ул. Ленина', 'ул. Токтогула', 'ул. Ахунбаева'];
+
+function demoReports(names, assignments, recs, today, rnd) {
+  const reports = [];
+  const profiles = [];
+  const placeOf = new Map(recs.map((r) => [r.typeId + '|' + r.ocId, r.place]));
+  const at = (iso, h, m) => { const d = new Date(iso + 'T00:00:00'); d.setHours(h, m, 0, 0); return d.toISOString(); };
+  let n = 0;
+  names.forEach((person, pi) => {
+    const car = CARS[pi % CARS.length];
+    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car },
+      schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' }, absences: [], demo: true });
+    let odo = 84000 + pi * 37000 + Math.floor(rnd() * 900);
+    for (let back = 45; back >= 1; back--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - back);
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+      const iso = isoLocalDate(d);
+      const mine = assignments.filter((a) => a.person === person && a.plannedAt === iso);
+      if (!mine.length) continue;
+      const places = mine.map((a) => placeOf.get(a.typeId + '|' + a.ocId) || '').filter(Boolean);
+      const km = 18 + Math.floor(rnd() * (pi === 2 ? 190 : 110));
+      const noOdo = rnd() < 0.1;
+      const odo0 = odo;
+      odo += km;
+      // Утро: обычно 08:20–08:59; примерно каждый пятый — позже начала дня.
+      const late = rnd() < 0.2;
+      const mh = late ? 9 + Math.floor(rnd() * 2) : 8;
+      const mm = late ? 5 + Math.floor(rnd() * 50) : 20 + Math.floor(rnd() * 39);
+      if (rnd() > 0.04) {
+        reports.push({ id: `demo-rp-${++n}`, person, date: iso, kind: 'morning', at: at(iso, mh, mm), by: person, demo: true,
+          places, odometer: noOdo ? '' : String(odo0), photo: noOdo ? '' : odoPhoto(odo0), noOdometer: noOdo });
+      }
+      // Вечер: 17:30–19:00; изредка не сдан.
+      if (rnd() > 0.06) {
+        reports.push({ id: `demo-rp-${++n}`, person, date: iso, kind: 'evening', at: at(iso, 17 + Math.floor(rnd() * 2), 30 + Math.floor(rnd() * 29)), by: person, demo: true,
+          done: mine.filter((a) => a.state === 'done').map((a) => a.id),
+          odometer: noOdo ? '' : String(odo), photo: noOdo ? '' : odoPhoto(odo), noOdometer: noOdo,
+          route: noOdo ? ['дом', ...places.slice(0, 3), STREETS[Math.floor(rnd() * STREETS.length)], 'дом'] : [], km: noOdo ? String(km) : '', note: '' });
+      }
+    }
+  });
+  return { reports, profiles };
 }

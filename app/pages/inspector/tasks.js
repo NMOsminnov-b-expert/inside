@@ -380,3 +380,16 @@ export function photoGroups(rec, typeId, ocId) {
 
   return byOi;
 }
+
+// Выезды осмотрщика на день — для отчётов за день (ТЗ рабочего дня, раздел 3):
+// утром — куда выезжает, вечером — что осмотрено. Подпись места — как в
+// отчётах: учреждение — объект.
+export function dayTrips(date) {
+  return myTasks().filter((t) => t.assignId && t.plannedAt === date).map((t) => ({
+    assignId: t.assignId,
+    label: [t.institution, t.title].filter(Boolean).join(' — '),
+    title: t.title,
+    sub: [t.institution, t.eni].filter(Boolean).join(' · '),
+    done: t.done,
+  }));
+}
