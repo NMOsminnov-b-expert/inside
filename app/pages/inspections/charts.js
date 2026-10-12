@@ -78,7 +78,7 @@ export function heatHTML(names) {
       <thead><tr><th>Осмотрщик</th><th class="num" title="Плановая дата прошла">Проср.</th>
         ${days.map((d) => `<th class="${d === today ? 'today' : ''} ${wd(d) === 'пн' ? 'mon' : ''}" title="${wd(d)} ${ddmm(d)}">${d.slice(8, 10)}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r) => `<tr data-ip-person="${esc(r.name)}">
-        <th title="${esc(r.name)}">${esc(r.name)}</th>
+        <th>${esc(r.name)}</th>
         <td class="num ${r.late ? 'ip-late' : ''}">${r.late || ''}</td>
         ${r.cells.map((n, i) => `<td class="h${lvl(n)}" title="${esc(r.name)} · ${wd(days[i])} ${ddmm(days[i])}: ${n} ОИ">${n || ''}</td>`).join('')}
       </tr>`).join('')}</tbody>
@@ -118,9 +118,9 @@ export function historyHTML(all, f, current, limit) {
       <h3 class="ipc-day-h">${esc(dayTitle(day))} <span>${list.length}</span></h3>
       <ul>${list.map(({ e, s }) => `<li class="ipc-ev ${current === e.assignId ? 'cur' : ''}" data-ip-row="${esc(e.assignId)}">
         <time datetime="${esc(e.at)}" title="${esc(new Date(e.at).toLocaleString('ru-RU'))}">${fmtTime(e.at)}</time>
-        <span class="ipc-ev-who" title="${esc(e.person)}">${esc(e.person)}</span>
+        <span class="ipc-ev-who">${esc(e.person)}</span>
         <span class="ipc-ev-what k-${esc(e.kind)}">${esc(eventText(e))}</span>
-        <span class="ipc-ev-obj" title="${esc(s.title)}">${esc(s.title)}</span>
+        <span class="ipc-ev-obj">${esc(s.title)}</span>
       </li>`).join('')}</ul>
     </section>`).join('')}
   </div></div>`;

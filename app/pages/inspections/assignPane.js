@@ -50,7 +50,7 @@ function docLine(d, checked, attr) {
   return `<label class="ip-doc">
     <input type="checkbox" ${attr}="${esc(d.id)}" ${checked ? 'checked' : ''}>
     <span class="ip-doc-type">${esc(d.type || 'Документ')}</span>
-    <span class="ip-doc-name" title="${esc(d.name)}">${esc(d.name || '—')}</span>
+    <span class="ip-doc-name">${esc(d.name || '—')}</span>
     ${d.date ? `<span class="ip-doc-date">${esc(d.date)}</span>` : ''}
   </label>`;
 }
@@ -93,7 +93,7 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
       <div class="ip-pane-body">
         ${whoWhen(people, person, '')}
         <section class="ip-sec"><h3>Объекты</h3>
-          <ul class="ip-picked">${targets.map((t) => `<li><span class="ell" title="${esc(t.title)}">${esc(t.title)}</span>
+          <ul class="ip-picked">${targets.map((t) => `<li><span class="ell">${esc(t.title)}</span>
             <button class="ip-x" data-ip-unpick="${esc(t.typeId + '|' + t.ocId)}" aria-label="Убрать из выбора" title="Убрать из выбора">×</button></li>`).join('')}</ul>
         </section>
         ${note('')}
@@ -118,7 +118,7 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
     const evs = eventsOf({}).filter((e) => e.assignId === prev.id).sort((x, y) => String(x.at).localeCompare(String(y.at)));
     return `<aside class="ip-pane" aria-label="Назначение">
       <header class="ip-pane-head">
-        <h2 title="${esc(target.title)}">${esc(target.title)}</h2>
+        <h2>${esc(target.title)}</h2>
         <p class="ip-pane-sub">${esc(target.sub || '')} · <a href="${esc(build({ typeId: target.typeId, ocId: target.ocId }))}">карточка</a></p>
         <p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev.state))}</span>
           ${esc(prev.person)} · план ${esc(fmtDate(prev.plannedAt) || '—')}${prev.doneAt ? ` · закончен ${esc(fmtDate(prev.doneAt))}` : ''}</p>
@@ -135,7 +135,7 @@ export function paneHTML({ mode, people, person, target, targets = [], prev = nu
 
   return `<aside class="ip-pane" aria-label="Назначение">
     <header class="ip-pane-head">
-      <h2 title="${esc(target.title)}">${esc(target.title)}</h2>
+      <h2>${esc(target.title)}</h2>
       <p class="ip-pane-sub">${esc(target.sub || '')}${target.eni ? ` · <span class="mono">${esc(target.eni)}</span>` : ''}
         · <a href="${esc(build({ typeId: target.typeId, ocId: target.ocId }))}">карточка</a></p>
       ${prev ? `<p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev.state))}</span>

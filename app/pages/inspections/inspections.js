@@ -69,7 +69,7 @@ export function mountInspections(host) {
     const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!q || p.name.toLowerCase().includes(q)));
     const row = (p) => `<li class="ip-person ${view.person === p.name ? 'on' : ''}">
         <button class="ip-person-main" data-ip-person="${esc(p.name)}" aria-pressed="${view.person === p.name}">
-          <span class="ip-person-name" title="${esc(p.name)}">${esc(p.name)}</span>
+          <span class="ip-person-name">${esc(p.name)}</span>
           <span class="ip-person-load"><span>в работе <b>${p.live}</b></span>
             ${p.late ? `<span class="ip-late">просрочено <b>${p.late}</b></span>` : ''}
             <span>за 30 дн. <b>${p.done}</b></span></span>
@@ -116,8 +116,8 @@ export function mountInspections(host) {
         const k = s.typeId + '|' + s.id;
         return `<tr data-ip-row="${esc(k)}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
           <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
-          <td class="mono" title="${esc(s.eniAll || s.eni)}">${esc(s.eniAll || s.eni || '—')}</td>
-          <td><span class="ip-obj"><span class="ip-obj-t" title="${esc(s.title)}">${esc(s.title || '—')}</span>
+          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
+          <td><span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}</span>
             <span class="ip-obj-s" title="${esc([s.typeLabel, s.institution, regionOf(s), s.city].filter(Boolean).join(' · '))}">${esc([s.typeLabel, s.institution, s.city].filter(Boolean).join(' · '))}</span></span></td>
           <td class="num">${(s.metrics && s.metrics.oiCount) || 0}</td>
           <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
@@ -137,11 +137,11 @@ export function mountInspections(host) {
       <tbody>${shown.map(({ a, s }) => {
         const late = isOverdue(a);
         return `<tr data-ip-row="${esc(a.id)}" class="${current === a.id ? 'cur' : ''}" aria-selected="${current === a.id}">
-          <td class="mono" title="${esc(s.eniAll || s.eni)}">${esc(s.eniAll || s.eni || '—')}</td>
-          <td><span class="ip-obj"><span class="ip-obj-t" title="${esc(s.title)}">${esc(s.title || '—')}</span>
+          <td class="mono">${esc(s.eniAll || s.eni || '—')}</td>
+          <td><span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}</span>
             <span class="ip-obj-s">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></span></td>
           <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
-          <td title="${esc(a.person)}">${esc(a.person)}</td>
+          <td>${esc(a.person)}</td>
           <td class="num ${late ? 'ip-late' : ''}" title="${late ? 'Плановая дата прошла' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
           <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td>
         </tr>`;
