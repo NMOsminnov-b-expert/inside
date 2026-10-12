@@ -47,7 +47,11 @@ def main():
 
     try:
         with sync_playwright() as p:
-            b = p.chromium.launch()
+            # Без окна, но с полосами прокрутки: безголовый Chromium по умолчанию
+            # запускается с --hide-scrollbars, и на снимках не видно, что пользователь
+            # видит системную полосу со стрелками (снимок пользователя 12.10.2026).
+            # Видимое окно для этого не открывать — просьба пользователя 12.10.2026.
+            b = p.chromium.launch(ignore_default_args=['--hide-scrollbars'])
             pg = b.new_page(viewport={'width': args.width, 'height': args.height})
             pg.on('pageerror', lambda e: errs.append('PAGEERROR: ' + str(e)))
             pg.on('console', lambda m: errs.append('CONSOLE: ' + m.text) if m.type == 'error' else None)
