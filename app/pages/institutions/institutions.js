@@ -1468,8 +1468,11 @@ export function mountInstitutions(host) {
       }
 
       const attached = await attachedFileFrom(file);
+      const status = await detectAutoStatus(file);
+      // Документ мог уйти в архив, пока выбирался файл.
+      if (!getDocument(id)) return;
       addFile(id, attached);
-      updateDocument(id, { status: await detectAutoStatus(file) });
+      updateDocument(id, { status });
       state.docOpen = id;
       state.docFile = null;
       render();
@@ -1501,20 +1504,26 @@ export function mountInstitutions(host) {
     // Файл выбирается системным диалогом — единственное «окно», которого не
     // избежать, зато сам документ заводится строкой.
     const docFileBtn = scope.$('[data-idoc-file]');
+    // Черновик могли закрыть («Отмена», другой узел), пока выбирался и
+    // разбирался файл, — тогда прикреплять некуда (прежде — TypeError на null,
+    // код-ревью 09.10.2026). Проверяем, что это всё тот же черновик.
     if (docFileBtn) docFileBtn.onclick = async () => {
+      const draft = state.docNew;
       const file = await pickFile();
-      if (!file) return;
+      if (!file || state.docNew !== draft || !draft) return;
 
       if (isFileTooLarge(file)) {
-        state.docNew.error = `Файл больше ${MAX_DOC_FILE_MB} МБ — выберите другой.`;
+        draft.error = `Файл больше ${MAX_DOC_FILE_MB} МБ — выберите другой.`;
         render();
         return;
       }
 
       const attached = await attachedFileFrom(file);
-      state.docNew.files = [attached];
-      state.docNew.status = await detectAutoStatus(file);
-      state.docNew.error = '';
+      const status = await detectAutoStatus(file);
+      if (state.docNew !== draft) return;
+      draft.files = [attached];
+      draft.status = status;
+      draft.error = '';
       render();
     };
 

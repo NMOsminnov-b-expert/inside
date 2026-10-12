@@ -4,7 +4,7 @@
 // метаданные и привязка к объектам оценки справа, в сворачиваемых секциях.
 import { esc } from '../../kernel/dom.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
-import { statusTone, addFile, removeFile, addLink, removeLink } from '../../kernel/documentsRegistry.js';
+import { statusTone, addFile, removeFile, addLink, removeLink, getDocument } from '../../kernel/documentsRegistry.js';
 import { archiveRegistryDoc } from '../../kernel/archive.js';
 import { openDocumentModal, openLinkModal } from './create.js';
 import { pageViewerHTML, bindPageViewer } from '../../kernel/viewer/pageViewer.js';
@@ -288,6 +288,8 @@ export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChang
     if (!file) return;
     if (isFileTooLarge(file)) { host.toast(`Файл слишком большой (максимум ${MAX_DOC_FILE_MB} МБ)`, 'warn'); return; }
     const f = await attachedFileFrom(file);
+    // Документ мог уйти в архив, пока выбирался файл (код-ревью 09.10.2026).
+    if (!getDocument(doc.id)) return;
     addFile(doc.id, f);
     activeFileId = f.id;
     onChanged();
