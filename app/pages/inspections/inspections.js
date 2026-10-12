@@ -52,7 +52,7 @@ export function mountInspections(host) {
     const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!q || p.name.toLowerCase().includes(q)));
     const row = (p) => `<li class="ip-person ${view.person === p.name ? 'on' : ''}">
         <button class="ip-person-main" data-ip-person="${esc(p.name)}" aria-pressed="${view.person === p.name}">
-          <span class="ip-person-name">${esc(p.name)}</span>
+          <span class="ip-person-name" title="${esc(p.name)}">${esc(p.name)}</span>
           <span class="ip-person-load">
             <span class="ip-num" title="Назначено и не закончено">в работе <b>${p.live}</b></span>
             ${p.late ? `<span class="ip-num ip-late" title="Плановая дата прошла">просрочено <b>${p.late}</b></span>` : ''}
@@ -103,7 +103,7 @@ export function mountInspections(host) {
         <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-region"><col class="c-n"><col class="c-n"></colgroup>
         <thead><tr>
           <th class="c-check"><input type="checkbox" data-ip-all aria-label="Выбрать показанные" ${shown.length && shown.every((s) => selected.has(s.typeId + '|' + s.id)) ? 'checked' : ''}></th>
-          <th>ЕНИ</th><th>Объект</th><th>Область, город</th><th class="num" title="Объектов имущества">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
+          <th>ЕНИ</th><th>Объект</th><th title="Город; область — в подсказке ячейки">Город</th><th class="num" title="Объектов имущества">ОИ</th><th class="num" title="Документов у объекта и его ОИ">Док.</th>
         </tr></thead>
         <tbody>${shown.map((s) => {
           const k = s.typeId + '|' + s.id;
@@ -112,7 +112,7 @@ export function mountInspections(host) {
             <td class="mono"><span class="ell" title="${esc(s.eniAll || s.eni)}">${esc(s.eniAll || s.eni || '—')}</span></td>
             <td><span class="ip-obj"><span class="ell ip-obj-t" title="${esc(s.title)}">${esc(s.title || '—')}</span>
               <span class="ell ip-obj-s" title="${esc(s.typeLabel + ' · ' + (s.institution || ''))}">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></span></td>
-            <td><span class="ell" title="${esc([regionOf(s), s.city].filter(Boolean).join(', '))}">${esc([regionOf(s), s.city].filter(Boolean).join(', ') || '—')}</span></td>
+            <td><span class="ell" title="${esc([regionOf(s), s.city].filter(Boolean).join(', '))}">${esc(s.city || regionOf(s) || '—')}</span></td>
             <td class="num">${(s.metrics && s.metrics.oiCount) || 0}</td>
             <td class="num">${(s.metrics && s.metrics.docs) || 0}</td>
           </tr>`;
