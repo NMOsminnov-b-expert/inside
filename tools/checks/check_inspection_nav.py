@@ -37,6 +37,14 @@ def run(t):
     pg.keyboard.press('Enter')
     t.ck(t.wait_for('.kg td[data-r="0"]'), '«Перейти» не открыл таблицу')
     t.ck('t=table' in pg.evaluate('location.hash'), 'табличный вид не попал в адрес: %s' % pg.evaluate('location.hash'))
+    # Замечание пользователя 12.10.2026 «в таблице косяк»: закреплённая шапка
+    # таблицы ложилась поверх списка «Перейти».
+    pg.click('[data-ip-jump]')
+    t.wait_for('.ip-jump-list:not([hidden]) li')
+    hidden = pg.evaluate("""() => { const ul = document.querySelector('.ip-jump-list'); const r = ul.getBoundingClientRect(); let n = 0;
+      for (let y = r.top + 4; y < r.bottom - 4; y += 12) for (let x = r.left + 4; x < r.right - 4; x += 30) { if (!ul.contains(document.elementFromPoint(x, y))) n++; } return n; }""")
+    t.ck(hidden == 0, 'список «Перейти» перекрыт таблицей: %s точек' % hidden)
+    pg.keyboard.press('Escape')
     t.ck(pg.locator('.ip-peoplesec.ip-wide').count() == 1 and pg.locator('aside.ip-people').count() == 0,
          'табличный вид — со списком осмотрщиков сбоку')
     table_hash = pg.evaluate('location.hash')

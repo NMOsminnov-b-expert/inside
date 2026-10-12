@@ -840,7 +840,9 @@ body[data-page="inspections"] .ip-emptystate p{margin:0;color:var(--muted);font-
    APCS: «Обрубать интерфейс в никуда — плохая затея»; ряды выбора —
    переносом). */
 body[data-page="inspections"] .ip-subtabs{flex:none;flex-wrap:wrap}
-body[data-page="inspections"] .ip-sections{flex-wrap:wrap;align-items:flex-end}
+/* Ряд разделов — выше содержимого раздела: у .itabs свой слой (z-index:1),
+   и закреплённая шапка таблицы (слой 2) иначе ложится поверх списка «Перейти». */
+body[data-page="inspections"] .ip-sections{flex-wrap:wrap;align-items:flex-end;z-index:20}
 /* «Перейти» — в строке разделов справа; список — под полем. */
 body[data-page="inspections"] .ip-jump{position:relative;margin-left:auto;align-self:center;display:flex;align-items:center;gap:6px;
   min-width:220px;width:min(340px,40%);padding-bottom:4px}
