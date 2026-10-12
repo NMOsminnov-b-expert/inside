@@ -101,3 +101,12 @@ def run(t):
     pg.click('[data-nav="insp"]')
     t.ck(t.wait_until("() => location.hash.startsWith('#/insp') && !location.hash.startsWith('#/inspections')"),
          'осмотрщику «Осмотры» открыли не его экран: %s' % pg.evaluate('location.hash'))
+
+    # --- поля ввода одного вида ---------------------------------------------------------
+    # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у
+    # календаря та же проблема»: на страницах ядра поля рисовал браузер — рамка и
+    # скругление поля даты и комментария не совпадали со списком рядом.
+    t.open('#/inspections', wait='.ip-pane [data-ip-f-date]')
+    look = pg.evaluate("""() => ['.ip-pane .pick-btn', '.ip-pane [data-ip-f-date]', '.ip-pane [data-ip-f-note]'].map((s) => {
+      const st = getComputedStyle(document.querySelector(s)); return [st.borderTopColor, st.borderTopLeftRadius, st.borderTopWidth]; })""")
+    t.ck(look[0] == look[1] == look[2], 'поля панели оформлены по-разному (список, дата, комментарий): %s' % look)

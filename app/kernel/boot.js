@@ -6,7 +6,7 @@ import { start, parse, build, go, MENU_HREF, INST_HREF, DOCS_HREF } from './rout
 import { ensureStyle } from './css.js';
 import { toast } from './toast.js';
 import { takeLoadProblem } from './persist.js';
-import { confirmDialog, promptDialog, selectDialog } from './dialog.js';
+import { confirmDialog, promptDialog, selectDialog, closeModals } from './dialog.js';
 import { installOverflowTip } from './overflowTip.js';
 import { installSelectWatcher } from './dropdown.js';
 import { installDevNoteBounds } from './devNote.js';
@@ -157,6 +157,8 @@ function showRouteError(route, e) {
 async function onRoute(route) {
   const seq = ++routeSeq;
   const stale = () => seq !== routeSeq;
+  // Окно прежнего экрана с ним и уходит (kernel/dialog.js closeModals).
+  closeModals();
   if (route.name === 'dicts') {
     // Раздел открыт всем: состав перечней полезно видеть и оценщику, чтобы
     // понимать, откуда взялся список. Правит только администратор — это
