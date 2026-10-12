@@ -115,26 +115,55 @@ def run(t):
       const st = getComputedStyle(document.querySelector(s)); return [st.borderTopColor, st.borderTopLeftRadius, st.borderTopWidth]; })""")
     t.ck(look[0] == look[1] == look[2], 'поля панели оформлены по-разному (список, дата, комментарий): %s' % look)
 
-    # --- графики, карта загрузки, история, экран осмотрщика -------------------------------
-    # Просьба пользователя 12.10.2026: «не вижу отдельно интерфейса для осмотрщика,
-    # графиков с демо данными тоже» (ответ В1 — оба графика: статистика и загрузка).
+    # --- выезды, статистика, контакты, области ---------------------------------------
+    # Просьбы пользователя 12.10.2026: «не вижу… графиков с демо данными»; «график
+    # выездов, аля календарь, при наведении на дату информация за этот день»;
+    # «общая статистика в виде графиков uplot»; «для каждого осмотрщика нужны
+    # контактные данные»; «фильтрация по областям осмотрщиков».
     t.open('#/inspections', wait='.ip-pane')
     pg.click('.ip-person-main[data-ip-person=""]')
-    t.ck(t.wait_for('.ipc-heat td'), 'при «Все осмотрщики» нет карты загрузки')
-    t.ck(pg.evaluate("() => [...document.querySelectorAll('.ipc-heat-tbl td:not(.num)')].some((td) => +td.textContent > 0)"),
-         'карта загрузки пуста — демо-назначений нет')
+    t.ck(t.wait_until("() => document.querySelectorAll('.ipc-stats .uplot').length === 2", timeout=15000),
+         'при «Все осмотрщики» нет двух графиков статистики (uPlot)')
+    t.ck(pg.evaluate("async () => { const m = await import('./app/pages/inspections/model.js'); const s = m.weeklySeries(['Абдылдаев Айсултан Марсович', 'Бабашова Даяна Алтынбековна'], 8); return s.oi.flat().some((v) => v > 0); }"),
+         'статистика пуста — демо-истории нет')
     who = pg.locator('.ip-person-main[data-ip-person]:not([data-ip-person=""])').first.get_attribute('data-ip-person')
     pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
-    t.ck(t.wait_until("() => document.querySelectorAll('.ipc .ipc-card').length === 2"), 'у осмотрщика нет двух графиков')
-    t.ck(pg.evaluate("() => [...document.querySelectorAll('.ipc-bar .ipc-v')].some((v) => +v.textContent > 0)"),
-         'графики осмотрщика пусты')
-    day = pg.evaluate("() => { const b = [...document.querySelectorAll('[data-ipc-day]')].find((x) => +x.querySelector('.ipc-v').textContent > 0); return b ? b.dataset.ipcDay : ''; }")
-    if t.ck(day, 'в «Сделано» нет дня с осмотрами'):
+    t.ck(t.wait_for('.ipc-cal .ipc-chip'), 'у осмотрщика нет календаря выездов с выездами')
+    t.ck(t.wait_until("() => document.querySelectorAll('.ipc-stat .uplot').length === 1", timeout=15000), 'у осмотрщика нет графика статистики')
+
+    # окно дня — при наведении, в пределах экрана
+    pg.locator('[data-ipc-cal]').first.hover()
+    box = pg.evaluate("() => { const p = document.querySelector('.ipc-pop'); if (!p) return null; const r = p.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: innerWidth, h: innerHeight, n: p.querySelectorAll('li').length }; }")
+    t.ck(box and box['n'] > 0, 'наведение на день календаря не показало выезды дня: %s' % box)
+    if box:
+        t.ck(box['l'] >= 0 and box['r'] <= box['w'] and box['t'] >= 0 and box['b'] <= box['h'], 'окно дня выходит за экран: %s' % box)
+    pg.mouse.move(2, 2)
+    t.ck(t.wait_until("() => !document.querySelector('.ipc-pop')"), 'окно дня не прячется, когда мышь ушла')
+
+    day = pg.evaluate("() => { const d = document.querySelector('[data-ipc-day]'); return d ? d.dataset.ipcDay : ''; }")
+    if t.ck(day, 'в календаре нет прошедшего дня с выездами'):
         pg.click('[data-ipc-day="%s"]' % day)
-        t.ck(t.wait_until("() => document.querySelector('[data-ip-tab=\"history\"]').classList.contains('on') && !!document.querySelector('.ipc-ev')"),
-             'щелчок по дню не открыл историю дня')
-        t.ck(pg.evaluate("(d) => [...document.querySelectorAll('.ipc-ev time')].every((x) => x.getAttribute('datetime') && new Date(x.getAttribute('datetime')).toDateString() === new Date(d + 'T12:00:00').toDateString())", day),
+        t.ck(t.wait_until("() => document.querySelector('[data-ip-tab=history]').classList.contains('on') && !!document.querySelector('.ipc-ev')"),
+             'щелчок по дню календаря не открыл историю дня')
+        t.ck(pg.evaluate("(d) => [...document.querySelectorAll('.ipc-ev time')].every((x) => new Date(x.getAttribute('datetime')).toDateString() === new Date(d + 'T12:00:00').toDateString())", day),
              'в истории дня события других дней')
+
+    # контакты — правка на месте и сохранение
+    pg.click('[data-ip-c-edit]')
+    t.ck(pg.locator('.modal-back').count() == 0, 'контакты правятся в модальном окне')
+    pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
+    pg.fill('[data-ip-c="regions"]', 'Ошская область')
+    pg.click('[data-ip-c-save]')
+    t.ck(t.wait_for('.ip-contacts a[href^="tel:"]'), 'сохранённый телефон не показан ссылкой для звонка')
+
+    # фильтр по областям — по указанной в профиле
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Ошская область')"),
+         'область из профиля не попала в фильтр областей')
+    pg.select_option('[data-ip-region]', 'Ошская область')
+    t.ck(t.wait_until("(w) => { const ns = [...document.querySelectorAll('.ip-person-main[data-ip-person]')].map((b) => b.dataset.ipPerson).filter(Boolean); return ns.length === 1 && ns[0] === w; }", who),
+         'фильтр по области не оставил только осмотрщиков этой области')
+    pg.select_option('[data-ip-region]', '')
+
     pg.click('a.ip-as')
     t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), '«Экран осмотрщика» не открыл экран осмотрщика')
     t.wait_until("async (w) => (await import('./app/pages/inspector/tasks.js')).currentInspector() === w", who)

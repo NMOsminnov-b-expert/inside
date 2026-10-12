@@ -12,12 +12,12 @@
 // Видны все осмотрщики; менеджер собирает своих в «Мои осмотрщики» (ответ В5).
 import { esc } from '../../kernel/dom.js';
 import { persistView } from '../../kernel/viewState.js';
-import { allAssignments } from '../../kernel/inspections.js';
+import { allAssignments, profileOf, saveProfile, PROFILE_FIELDS } from '../../kernel/inspections.js';
 import {
   summaries, queueRows, queueFacets, assignedRows, inspectorRows, isOverdue, stateLabel, regionOf,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
-import { personChartsHTML, heatHTML, historyHTML } from './charts.js';
+import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { EVENT_LABELS } from './model.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
@@ -30,15 +30,17 @@ const view = {
   mine: [],              // «Мои осмотрщики»
   q: '',
   type: '',
-  region: '',
+  objRegion: '',
   histKind: '',          // вид события в «Истории»
-  histDay: '',           // день из графика «Сделано»
+  histDay: '',           // день из календаря выездов
+  region: '',            // область осмотрщиков (фильтр списка)
+  peopleSort: 'name',    // name | free — по имени или по свободным дням
   shown: STEP,
 };
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['tab', 'person', 'peopleMode', 'mine', 'type', 'region', 'histKind']);
+persistView('inspections', view, ['tab', 'person', 'peopleMode', 'mine', 'type', 'objRegion', 'histKind', 'region', 'peopleSort']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
@@ -50,6 +52,9 @@ export function mountInspections(host) {
   const checked = new Map();    // отмеченные флажками: key → target
   let current = '';             // строка в панели: key объекта или id назначения
   let confirmRemove = false;
+  let editContacts = false;
+  const now0 = new Date();
+  let ym = { y: now0.getFullYear(), m: now0.getMonth() };
   let peopleQ = '';
   let all = null;
   let people = [];
@@ -63,16 +68,52 @@ export function mountInspections(host) {
   };
 
   // --- осмотрщики ---------------------------------------------------------------
+  // Области — из данных: указанные в профилях и выведенные по объектам.
+  const regionList = () => [...new Set(people.flatMap((p) => p.regions))].sort((a, b) => a.localeCompare(b, 'ru'));
+  // Видимые осмотрщики: «Мои / Все», область, порядок. Тот же набор — в
+  // общих графиках, чтобы список и графики говорили об одних людях.
+  function visiblePeople() {
+    const mine = new Set(view.mine);
+    const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!view.region || p.regions.includes(view.region)));
+    return view.peopleSort === 'free'
+      ? list.slice().sort((a, b) => b.free - a.free || a.live - b.live || a.name.localeCompare(b.name, 'ru'))
+      : list;
+  }
+
+  // Контакты выбранного осмотрщика — в шапке, правка на месте (без окна).
+  function contactsHTML(p) {
+    const prof = profileOf(p.name);
+    if (editContacts) {
+      return `<div class="ip-contacts ip-contacts-edit">
+        ${PROFILE_FIELDS.map((f) => `<div class="field"><label for="ip-c-${f.key}">${f.label}</label>
+          <input class="input" id="ip-c-${f.key}" data-ip-c="${f.key}" type="${f.type || 'text'}" value="${esc(prof[f.key] || '')}"></div>`).join('')}
+        <div class="field"><label for="ip-c-regions">Области</label>
+          <input class="input" id="ip-c-regions" data-ip-c="regions" value="${esc((prof.regions || []).join(', '))}" placeholder="${esc(p.regions.join(', '))}"></div>
+        <div class="ip-contacts-act"><button class="btn btn-ghost btn-sm" data-ip-c-cancel>Отмена</button>
+          <button class="btn btn-primary btn-sm" data-ip-c-save>Сохранить</button></div>
+      </div>`;
+    }
+    const tel = (prof.phone || '').replace(/[^\d+]/g, '');
+    return `<div class="ip-contacts">
+      ${prof.phone ? `<a href="tel:${esc(tel)}">${esc(prof.phone)}</a>` : '<span class="ip-muted">телефон не указан</span>'}
+      ${prof.email ? `<a href="mailto:${esc(prof.email)}">${esc(prof.email)}</a>` : '<span class="ip-muted">почта не указана</span>'}
+      <span>${p.regions.length ? esc(p.regions.join(', ')) : '<span class="ip-muted">область не указана</span>'}${p.regions.length && p.derived ? ' <span class="ip-muted">(по объектам)</span>' : ''}</span>
+      ${prof.note ? `<span class="ip-muted">${esc(prof.note)}</span>` : ''}
+      <button class="btn btn-ghost btn-sm" data-ip-c-edit>${prof.phone || prof.email ? 'Изменить контакты' : 'Добавить контакты'}</button>
+    </div>`;
+  }
+
   function peopleHTML() {
     const mine = new Set(view.mine);
     const q = peopleQ.trim().toLowerCase();
-    const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!q || p.name.toLowerCase().includes(q)));
+    const list = visiblePeople().filter((p) => !q || p.name.toLowerCase().includes(q));
     const row = (p) => `<li class="ip-person ${view.person === p.name ? 'on' : ''}">
         <button class="ip-person-main" data-ip-person="${esc(p.name)}" aria-pressed="${view.person === p.name}">
           <span class="ip-person-name">${esc(p.name)}</span>
           <span class="ip-person-load"><span>в работе <b>${p.live}</b></span>
             ${p.late ? `<span class="ip-late">просрочено <b>${p.late}</b></span>` : ''}
-            <span>за 30 дн. <b>${p.done}</b></span></span>
+            <span>за 30 дн. <b>${p.done}</b></span>
+            <span title="Рабочих дней без плановых осмотров на две недели">свободно <b>${p.free}</b> дн.</span></span>
         </button>
         <button class="ip-star ${mine.has(p.name) ? 'on' : ''}" data-ip-star="${esc(p.name)}"
           title="${mine.has(p.name) ? 'Убрать из моих осмотрщиков' : 'Добавить в мои осмотрщики'}"
@@ -83,6 +124,13 @@ export function mountInspections(host) {
         <div class="ip-seg" role="group" aria-label="Какие осмотрщики">
           <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}">Мои <b>${view.mine.length}</b></button>
           <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все <b>${people.length}</b></button>
+        </div>
+        <div class="ip-people-filters">
+          <select class="select" data-ip-region aria-label="Область осмотрщиков"><option value="">Все области</option>
+            ${regionList().map((r) => `<option ${view.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+          <select class="select" data-ip-psort aria-label="Порядок осмотрщиков">
+            <option value="name" ${view.peopleSort === 'name' ? 'selected' : ''}>По имени</option>
+            <option value="free" ${view.peopleSort === 'free' ? 'selected' : ''}>Свободнее сверху</option></select>
         </div>
         <span class="isearch">${SEARCH_ICON}<input data-ip-people-q value="${esc(peopleQ)}" placeholder="Поиск по фамилии" aria-label="Поиск осмотрщика" autocomplete="off"></span>
       </div>
@@ -102,7 +150,7 @@ export function mountInspections(host) {
   function queueHTML(rows) {
     const shown = rows.slice(0, Math.max(view.shown, STEP));
     if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q || view.type || view.region ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
+      return `<p class="ip-hint ip-empty">${view.q || view.type || view.objRegion ? 'Под условия ничего не подошло — смягчите поиск или фильтры.' : 'Все объекты, удостоверенные по документам, назначены.'}</p>`;
     }
     return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl">
       <colgroup><col class="c-check"><col class="c-eni"><col><col class="c-n"><col class="c-n"></colgroup>
@@ -164,12 +212,14 @@ export function mountInspections(host) {
 
   // --- отрисовка ------------------------------------------------------------------
   function render() {
+    hidePop && hidePop();
+    destroyStats();
     all = summaries();
-    people = inspectorRows();
+    people = inspectorRows(all);
     if (view.person && !people.some((p) => p.name === view.person)) view.person = '';
     const me = people.find((p) => p.name === view.person);
-    const queue = queueRows(all, view);
-    const queueN = view.q || view.type || view.region ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
+    const queue = queueRows(all, { ...view, region: view.objRegion });
+    const queueN = view.q || view.type || view.objRegion ? queueRows(all, { q: '', type: '', region: '' }).length : queue.length;
     const assigned = assignedRows(all, view);
     const assignedN = view.q ? assignedRows(all, { person: view.person }).length : assigned.length;
     const facets = queueFacets(all);
@@ -189,10 +239,11 @@ export function mountInspections(host) {
       <section class="ip-work" aria-label="Объекты">
         <header class="ip-head">
           <h1>${esc(view.person || 'Все осмотрщики')}</h1>
-          ${me ? `<span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · закончено за 30 дн. <b>${me.done}</b></span>
+          ${me ? `<span class="ip-sum">в работе <b>${me.live}</b>${me.late ? ` · <span class="ip-late">просрочено <b>${me.late}</b></span>` : ''} · закончено за 30 дн. <b>${me.done}</b> · свободно <b>${me.free}</b> дн. из 10</span>
             <a class="btn btn-ghost btn-sm ip-as" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>` : ''}
         </header>
-        ${view.person ? personChartsHTML(view.person) : heatHTML(people.filter((p) => view.peopleMode === 'all' || view.mine.includes(p.name)).map((p) => p.name))}
+        ${me ? contactsHTML(me) : ''}
+        ${me ? `<div class="ipc">${calendarHTML(all, me.name, ym)}${statsHTML(me.name)}</div>` : statsHTML('')}
         <div class="itabs" role="tablist">${tab('queue', 'К назначению', queueN)}${tab('assigned', 'Назначено', assignedN)}${tab('history', 'История', histN)}</div>
         <div class="itoolbar ip-toolbar">
           <span class="isearch">${SEARCH_ICON}<input data-ip-q value="${esc(view.q)}" autocomplete="off"
@@ -200,8 +251,8 @@ export function mountInspections(host) {
             ${view.q ? '<button class="isearch-clear" data-ip-q-clear title="Очистить" aria-label="Очистить поиск">×</button>' : ''}</span>
           ${view.tab === 'queue' ? `<select class="select ip-filter" data-ip-type aria-label="Тип ОЦ"><option value="">Все типы ОЦ</option>
               ${facets.types.map((t) => `<option value="${esc(t.id)}" ${view.type === t.id ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
-            <select class="select ip-filter" data-ip-region aria-label="Область"><option value="">Все области</option>
-              ${facets.regions.map((r) => `<option ${view.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
+            <select class="select ip-filter" data-ip-objregion aria-label="Область объектов"><option value="">Все области</option>
+              ${facets.regions.map((r) => `<option ${view.objRegion === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>` : ''}
           ${view.tab === 'history' ? `<select class="select ip-filter" data-ip-kind aria-label="Вид события"><option value="">Все события</option>
               ${Object.entries(EVENT_LABELS).map(([k, l]) => `<option value="${k}" ${view.histKind === k ? 'selected' : ''}>${esc(l[0].toUpperCase() + l.slice(1))}</option>`).join('')}</select>
             ${view.histDay ? `<span class="ip-checked">День ${esc(view.histDay.slice(8, 10) + '.' + view.histDay.slice(5, 7))}
@@ -214,6 +265,14 @@ export function mountInspections(host) {
       </section>
       ${pane()}
     </div>`);
+    plotAfter();
+  }
+
+  // Графики рисуются после вставки разметки; прежние уничтожаются (uPlot
+  // держит холст и подписки — без destroy они копились бы с каждой отрисовкой).
+  function plotAfter() {
+    mountStats(scope, host.ensureStyle, { names: visiblePeople().map((p) => p.name), person: view.person })
+      .catch((e) => console.warn('Графики не нарисованы', e));
   }
 
   const keepFocus = (sel) => {
@@ -223,6 +282,7 @@ export function mountInspections(host) {
     const again = scope.$(sel);
     if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   };
+  const hidePop = bindCalendarPopover(scope);
 
   // Отрисовка с сохранением прокрутки таблицы и списка осмотрщиков.
   const redraw = () => {
@@ -236,7 +296,7 @@ export function mountInspections(host) {
   };
 
   // --- осмотрщики ---
-  scope.on('click', '[data-ip-person]', (e, b) => { view.person = b.dataset.ipPerson; view.shown = STEP; redraw(); });
+  scope.on('click', '[data-ip-person]', (e, b) => { view.person = b.dataset.ipPerson; editContacts = false; view.shown = STEP; redraw(); });
   scope.on('click', '[data-ip-star]', (e, b) => {
     const n = b.dataset.ipStar;
     view.mine = view.mine.includes(n) ? view.mine.filter((x) => x !== n) : [...view.mine, n];
@@ -252,7 +312,28 @@ export function mountInspections(host) {
   scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
   scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
   scope.on('change', '[data-ip-type]', (e, el) => { view.type = el.value; view.shown = STEP; render(); });
-  scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; view.shown = STEP; render(); });
+  scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; redraw(); });
+  scope.on('change', '[data-ip-psort]', (e, el) => { view.peopleSort = el.value; redraw(); });
+  scope.on('change', '[data-ip-objregion]', (e, el) => { view.objRegion = el.value; view.shown = STEP; render(); });
+  scope.on('click', '[data-ipc-month]', (e, b) => {
+    const k = +b.dataset.ipcMonth;
+    if (!k) { const d = new Date(); ym = { y: d.getFullYear(), m: d.getMonth() }; } else {
+      const d = new Date(ym.y, ym.m + k, 1); ym = { y: d.getFullYear(), m: d.getMonth() };
+    }
+    redraw();
+  });
+  scope.on('click', '[data-ip-c-edit]', () => { editContacts = true; redraw(); const f = scope.$('[data-ip-c="phone"]'); if (f) f.focus(); });
+  scope.on('click', '[data-ip-c-cancel]', () => { editContacts = false; redraw(); });
+  scope.on('click', '[data-ip-c-save]', () => {
+    const val = (k) => { const el = scope.$(`[data-ip-c="${k}"]`); return el ? el.value.trim() : ''; };
+    saveProfile(view.person, {
+      phone: val('phone'), email: val('email'), note: val('note'),
+      regions: val('regions').split(',').map((x) => x.trim()).filter(Boolean),
+    });
+    editContacts = false;
+    redraw();
+    host.toast('Контакты сохранены', 'ok');
+  });
   scope.on('change', '[data-ip-kind]', (e, el) => { view.histKind = el.value; view.shown = STEP; render(); });
   scope.on('click', '[data-ip-day-clear]', () => { view.histDay = ''; render(); });
   // Щелчок по дню графика «Сделано» — история этого дня.
@@ -312,6 +393,8 @@ export function mountInspections(host) {
   return {
     onRoute() { render(); },
     destroy() {
+      destroyStats();
+      hidePop();
       window.removeEventListener('inside:inspections', onChange);
       window.removeEventListener('inside:redraw', onChange);
     },

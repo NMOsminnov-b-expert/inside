@@ -18,6 +18,7 @@ import { getType, sortedTypes } from './registry.js';
 import { registerPersisted, scheduleSave } from './persist.js';
 import { session } from './session.js';
 import { demoInspections } from './inspectionsDemo.js';
+import { eniRegion } from './fmt.js';
 
 // Состояния назначения — в порядке жизни.
 export const ASSIGN_STATES = [
@@ -249,4 +250,60 @@ export function tasksOf(person) {
     });
   });
   return out;
+}
+
+// --- профили осмотрщиков: контакты и области -----------------------------------
+//
+// Просьба пользователя 12.10.2026: «для каждого осмотрщика нужны контактные
+// данные. Необходима фильтрация по областям осмотрщиков». Справочника
+// сотрудников в макете нет, поэтому профиль живёт здесь, по ФИО: телефон,
+// почта, области, примечание. Контакты в демо не выдумываются — у
+// осмотрщиков реальные фамилии; поля пустые, пока их не внесут.
+//
+// Область, если её не указали, выводится из объектов, которые человек
+// осматривал или должен осмотреть (по коду ЕНИ, eniRegion): решение 12.10
+// «каждый знает свою область» — фактическая область видна по его объектам.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: профиль — учётная запись сотрудника в справочнике
+// «Пользователи» (контакты, роль, области); здесь он заменится ссылкой на неё.
+
+const profiles = [];
+registerPersisted('inspections.people', {
+  snapshot: () => profiles,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    profiles.splice(0, profiles.length, ...saved.filter((x) => x && x.id));
+  },
+});
+
+export const PROFILE_FIELDS = [
+  { key: 'phone', label: 'Телефон', type: 'tel' },
+  { key: 'email', label: 'Почта', type: 'email' },
+  { key: 'note', label: 'Примечание' },
+];
+
+export function profileOf(name) {
+  return profiles.find((p) => p.id === name) || { id: name, phone: '', email: '', regions: [], note: '' };
+}
+
+export function saveProfile(name, patch) {
+  let p = profiles.find((x) => x.id === name);
+  if (!p) { p = { id: name, phone: '', email: '', regions: [], note: '' }; profiles.push(p); }
+  Object.assign(p, patch, { updatedAt: now(), updatedBy: session.state.person });
+  changed();
+  return p;
+}
+
+// Области человека: указанные в профиле, иначе — по его объектам (чаще
+// встречающиеся первыми). derived — признак, что выведены, а не указаны.
+export function regionsOf(name, summaryEni) {
+  const p = profileOf(name);
+  if (p.regions && p.regions.length) return { regions: p.regions, derived: false };
+  const count = new Map();
+  assignments.forEach((a) => {
+    if (a.person !== name) return;
+    const r = eniRegion(summaryEni(a.typeId, a.ocId));
+    if (r) count.set(r, (count.get(r) || 0) + 1);
+  });
+  return { regions: [...count.entries()].sort((x, y) => y[1] - x[1]).map(([r]) => r), derived: true };
 }

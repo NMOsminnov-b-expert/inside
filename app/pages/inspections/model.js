@@ -6,7 +6,7 @@
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { eniRegion } from '../../kernel/fmt.js';
 import {
-  allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf,
+  allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 
@@ -88,7 +88,8 @@ export const isOverdue = (a) => !!a.plannedAt && a.plannedAt < todayIso() && isL
 
 // Все осмотрщики с загрузкой: в работе (действующие назначения), из них
 // просрочено, закончено за 30 дней.
-export function inspectorRows() {
+// all — сводки записей (summaries): нужны для области по коду ЕНИ.
+export function inspectorRows(all) {
   const live = new Map();
   const late = new Map();
   const done = new Map();
@@ -107,6 +108,9 @@ export function inspectorRows() {
     live: live.get(name) || 0,
     late: late.get(name) || 0,
     done: done.get(name) || 0,
+    // Свободных рабочих дней на две недели — кому можно дать задачи.
+    free: freeDays(name, 10),
+    ...regionsOf(name, (typeId, ocId) => { const s = all && all.get(typeId + '|' + ocId); return s ? s.eni : ''; }),
   })).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 }
 
@@ -157,31 +161,7 @@ function workdays(from, count, dir) {
 
 const oiCount = (a) => (a.oiIds && a.oiIds.length) || 1;
 
-// Загрузка: ОИ по плановым датам на рабочие дни вперёд; просроченные — отдельно.
-export function loadByDay(person, days = 15) {
-  const span = workdays(0, days, 1);
-  const by = new Map(span.map((d) => [d, 0]));
-  let late = 0;
-  allAssignments().forEach((a) => {
-    if (!isLive(a) || (person && a.person !== person) || !a.plannedAt) return;
-    if (isOverdue(a)) late += oiCount(a);
-    else if (by.has(a.plannedAt)) by.set(a.plannedAt, by.get(a.plannedAt) + oiCount(a));
-  });
-  return { days: span.map((d) => ({ day: d, n: by.get(d) })), late };
-}
 
-// Сделано: осмотренные ОИ и снимки по рабочим дням назад.
-export function doneByDay(person, days = 22) {
-  const span = workdays(-1, days - 1, -1).concat(workdays(0, 1, 1));
-  const by = new Map(span.map((d) => [d, { n: 0, photos: 0 }]));
-  eventsOf({ person }).forEach((e) => {
-    const d = by.get(dayOf(e.at));
-    if (!d) return;
-    if (e.kind === 'done') { const a = allAssignments().find((x) => x.id === e.assignId); d.n += a ? oiCount(a) : 1; }
-    if (e.kind === 'photos') d.photos += e.count || 0;
-  });
-  return span.map((day) => ({ day, ...by.get(day) }));
-}
 
 // Итог за период: ОИ, объекты, снимки, заметки, расхождения, выявленное.
 export function periodTotals(person, sinceDay) {
@@ -197,17 +177,6 @@ export function periodTotals(person, sinceDay) {
   return { ...t, objects: t.objects.size };
 }
 
-// Карта загрузки «осмотрщик × день» — для «Все осмотрщики».
-export function heatRows(names, days = 15) {
-  const span = workdays(0, days, 1);
-  return {
-    days: span,
-    rows: names.map((name) => {
-      const l = loadByDay(name, days);
-      return { name, late: l.late, cells: l.days.map((d) => d.n) };
-    }),
-  };
-}
 
 export const EVENT_LABELS = {
   assigned: 'назначен на осмотр', updated: 'назначение изменено', progress: 'начал осмотр',
@@ -223,4 +192,89 @@ export function historyRows(all, f) {
     .map((e) => ({ e, s: all.get(e.typeId + '|' + e.ocId) }))
     .filter(({ e, s }) => s && (!q || `${s.eniAll || s.eni} ${s.title} ${e.person} ${e.text || ''}`.toLowerCase().includes(q)))
     .sort((x, y) => String(y.e.at).localeCompare(String(x.e.at)));
+}
+
+// --- календарь выездов, свободные дни, ряды для uPlot ------------------------------
+// Выезд — объект в день: законченный осмотр (по событию «закончил осмотр»)
+// или плановая дата действующего назначения. Несколько ОИ одного объекта в
+// один день — один выезд (просьба пользователя 12.10.2026: «график выездов,
+// аля календарь, при наведении на дату информация за этот день»).
+
+export function tripsMonth(all, person, year, month) {
+  const first = new Date(year, month, 1);
+  const start = new Date(first);
+  start.setDate(1 - ((first.getDay() + 6) % 7));     // понедельник недели 1-го числа
+  const byDay = new Map();
+  const put = (day, k, kind, a, extra) => {
+    if (!byDay.has(day)) byDay.set(day, new Map());
+    const m = byDay.get(day);
+    const s = all.get(k);
+    if (!m.has(k + kind)) m.set(k + kind, { kind, key: k, title: s ? s.title : '—', type: s ? s.typeLabel : '', oi: 0, photos: 0 });
+    const t = m.get(k + kind);
+    t.oi += (a && a.oiIds && a.oiIds.length) || 1;
+    t.photos += (extra && extra.photos) || 0;
+  };
+  const photosOf = new Map();
+  eventsOf({ person }).forEach((e) => { if (e.kind === 'photos') photosOf.set(e.assignId, (photosOf.get(e.assignId) || 0) + (e.count || 0)); });
+  allAssignments().forEach((a) => {
+    if (person && a.person !== person) return;
+    const k = a.typeId + '|' + a.ocId;
+    if (a.state === 'done' && a.doneAt) put(dayOf(a.doneAt), k, 'done', a, { photos: photosOf.get(a.id) });
+    else if (isLive(a) && a.plannedAt) put(a.plannedAt, k, isOverdue(a) ? 'late' : 'plan', a);
+  });
+  const today = todayIso();
+  const weeks = [];
+  const d = new Date(start);
+  for (let w = 0; w < 6; w++) {
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      const iso = isoDay(d);
+      const trips = byDay.has(iso) ? [...byDay.get(iso).values()] : [];
+      week.push({ day: iso, n: d.getDate(), inMonth: d.getMonth() === month, weekend: i >= 5, today: iso === today, past: iso < today, trips });
+      d.setDate(d.getDate() + 1);
+    }
+    weeks.push(week);
+    if (d.getMonth() !== month && w >= 3) break;
+  }
+  return weeks;
+}
+
+// Свободные рабочие дни на ближайшие n рабочих дней — без плановых осмотров.
+export function freeDays(person, n = 10) {
+  const span = workdays(0, n, 1);
+  const busy = new Set(allAssignments().filter((a) => isLive(a) && a.person === person && a.plannedAt).map((a) => a.plannedAt));
+  return span.filter((d) => !busy.has(d)).length;
+}
+
+// Ряды для uPlot — по неделям: дневные линии рваные (выходные — ноль, дни
+// без выездов — провал), по ним не видно, кто как работает; дневная
+// детализация — в календаре выездов. x — понедельник недели (секунды,
+// местная полночь), последние weeks законченных недель: текущая неделя только
+// началась, и её неполный итог читался бы как провал в конце линии.
+export function weeklySeries(names, weeks = 8) {
+  const mon = new Date();
+  mon.setHours(0, 0, 0, 0);
+  mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7) - weeks * 7);
+  const xs = [];
+  const starts = [];
+  for (let i = 0; i < weeks; i++) {
+    const d = new Date(mon); d.setDate(d.getDate() + i * 7);
+    xs.push(d.getTime() / 1000); starts.push(isoDay(d));
+  }
+  const end = new Date(mon); end.setDate(end.getDate() + weeks * 7);
+  const endDay = isoDay(end);
+  const weekOf = (day) => { if (day >= endDay) return -1; for (let i = weeks - 1; i >= 0; i--) if (day >= starts[i]) return i; return -1; };
+  const oi = names.map(() => new Array(weeks).fill(0));
+  const photos = names.map(() => new Array(weeks).fill(0));
+  const pos = new Map(names.map((n, i) => [n, i]));
+  const byId = new Map(allAssignments().map((a) => [a.id, a]));
+  eventsOf({}).forEach((e) => {
+    const p = pos.get(e.person);
+    if (p === undefined) return;
+    const i = weekOf(dayOf(e.at));
+    if (i < 0) return;
+    if (e.kind === 'done') { const a = byId.get(e.assignId); oi[p][i] += (a && a.oiIds && a.oiIds.length) || 1; }
+    if (e.kind === 'photos') photos[p][i] += e.count || 0;
+  });
+  return { xs, oi, photos };
 }

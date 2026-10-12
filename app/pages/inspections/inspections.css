@@ -164,9 +164,9 @@ body[data-page="inspections"] .ip-confirm{margin-right:auto;font-size:12.5px;fon
   body[data-page="inspections"] .ip{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;
     height:auto;min-height:100%}
   body[data-page="inspections"] .ip-people{border-right:0;border-bottom:1px solid var(--line)}
-  body[data-page="inspections"] .ip-people-head{flex-direction:row;align-items:center}
-  body[data-page="inspections"] .ip-seg{flex:0 0 170px}
-  body[data-page="inspections"] .ip-people-head .isearch{flex:1 1 auto}
+  body[data-page="inspections"] .ip-people-head{display:grid;grid-template-columns:170px minmax(0,1fr);align-items:center}
+  body[data-page="inspections"] .ip-people-head .ip-people-filters{grid-column:1 / -1;order:3;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  body[data-page="inspections"] .ip-people-head .isearch{min-width:0}
   body[data-page="inspections"] .ip-people-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
     gap:2px 6px;max-height:150px}
   body[data-page="inspections"] .ip-scroll{max-height:60vh}
@@ -175,54 +175,90 @@ body[data-page="inspections"] .ip-confirm{margin-right:auto;font-size:12.5px;fon
   body[data-page="inspections"] .ip-f-row{grid-template-columns:minmax(0,1fr) 170px}
 }
 
-/* ============ графики и история (pages/inspections/charts.js) ============ */
-/* Два графика рядом над вкладками; на узком — один под другим. Столбцы —
-   один цвет, акцент — сегодня; ось от нуля (высота — доля максимума). */
+/* ============ выезды, статистика, контакты (pages/inspections/stats.js) ============ */
 body[data-page="inspections"] .ip-as{margin-left:auto}
-body[data-page="inspections"] .ipc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+body[data-page="inspections"] .ipc{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:12px}
+body[data-page="inspections"] .ipc-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
 body[data-page="inspections"] .ipc-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:10px 12px 8px;min-width:0}
-body[data-page="inspections"] .ipc-card header{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;margin-bottom:6px}
+  box-shadow:var(--shadow);padding:10px 12px;min-width:0}
+body[data-page="inspections"] .ipc-card header{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:8px}
 body[data-page="inspections"] .ipc-card h3{margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#5a6b82}
 body[data-page="inspections"] .ipc-card header > span{font-size:11.5px;color:var(--muted)}
 body[data-page="inspections"] .ipc-card header b{color:var(--ink);font-variant-numeric:tabular-nums}
-body[data-page="inspections"] .ipc-bars{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:3px;
-  height:96px;align-items:end;border-bottom:1px solid var(--line)}
-body[data-page="inspections"] .ipc-bar{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
-  height:100%;min-width:0;padding:0;border-radius:3px 3px 0 0;cursor:default}
-body[data-page="inspections"] .ipc-bar[data-ipc-day]{cursor:pointer}
-body[data-page="inspections"] .ipc-bar[data-ipc-day]:hover{background:var(--fill-hover)}
-body[data-page="inspections"] .ipc-col{display:block;width:72%;max-width:22px;min-height:0;border-radius:3px 3px 0 0;background:var(--blue-300)}
-body[data-page="inspections"] .ipc-bar.acc .ipc-col{background:var(--blue-600)}
-body[data-page="inspections"] .ipc-v{font-size:10.5px;color:var(--ink-label);font-variant-numeric:tabular-nums;line-height:14px}
-body[data-page="inspections"] .ipc-x{position:absolute;top:100%;margin-top:3px;font-size:10px;color:var(--muted);white-space:nowrap;
-  font-variant-numeric:tabular-nums}
-body[data-page="inspections"] .ipc-foot{margin:18px 0 0;font-size:11.5px;color:var(--muted)}
-body[data-page="inspections"] .ipc-foot b{color:var(--ink);font-variant-numeric:tabular-nums}
-body[data-page="inspections"] .ipc-card .ipc-bars{margin-bottom:16px}
 
-/* Карта загрузки: число в ячейке и ступени цвета (легенда в шапке). */
-body[data-page="inspections"] .ipc-heat{margin-bottom:12px}
+/* Календарь: неделя — строка, ячейка — день; выходные приглушены, сегодня —
+   рамкой; в ячейке — выезды по видам (осмотрено / план / просрочено). */
+body[data-page="inspections"] .ipc-cal-nav{display:inline-flex;align-items:center;gap:6px}
+body[data-page="inspections"] .ipc-cal-nav b{min-width:110px;text-align:center;font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ipc-cal-nav .btn{height:26px;padding:0 9px}
 body[data-page="inspections"] .ipc-legend{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
-body[data-page="inspections"] .ipc-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:6px}
-body[data-page="inspections"] .ipc-heat-scroll{overflow:auto}
-body[data-page="inspections"] .ipc-heat-tbl{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;min-width:560px}
-body[data-page="inspections"] .ipc-heat-tbl th{font-size:10px;font-weight:600;color:var(--muted);text-align:center;white-space:nowrap;padding:2px 0}
-body[data-page="inspections"] .ipc-heat-tbl th.today{color:var(--blue-700)}
-body[data-page="inspections"] .ipc-heat-tbl thead th:first-child{text-align:left;width:190px}
-body[data-page="inspections"] .ipc-heat-tbl thead th:nth-child(2){width:46px}
-body[data-page="inspections"] .ipc-heat-tbl tbody th{text-align:left;font-size:12px;color:var(--ink);font-weight:600;
-  overflow:hidden;text-overflow:ellipsis;padding-right:6px}
-body[data-page="inspections"] .ipc-heat-tbl tbody tr{cursor:pointer}
-body[data-page="inspections"] .ipc-heat-tbl tbody tr:hover th{color:var(--blue-700)}
-body[data-page="inspections"] .ipc-heat-tbl td{height:24px;text-align:center;font-size:11.5px;font-variant-numeric:tabular-nums;
-  border-radius:4px;background:var(--slate-50);color:var(--ink)}
-body[data-page="inspections"] .ipc-heat-tbl td.num{background:none;text-align:right;padding-right:6px}
-body[data-page="inspections"] .h1,body[data-page="inspections"] .ipc-legend .h1{background:var(--blue-100)}
-body[data-page="inspections"] .h2,body[data-page="inspections"] .ipc-legend .h2{background:var(--blue-200)}
-body[data-page="inspections"] .h3,body[data-page="inspections"] .ipc-legend .h3{background:var(--blue-300)}
-body[data-page="inspections"] .ipc-heat-tbl td.h4{background:var(--blue-600);color:#fff;font-weight:700}
-body[data-page="inspections"] .ipc-legend .h4{background:var(--blue-600)}
+body[data-page="inspections"] .ipc-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:6px}
+body[data-page="inspections"] .k-done{--k:var(--teal-600)}
+body[data-page="inspections"] .k-plan{--k:var(--blue-600)}
+body[data-page="inspections"] .k-late{--k:#a3361c}
+body[data-page="inspections"] .ipc-legend i{background:var(--k)}
+body[data-page="inspections"] .ipc-cal-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:3px}
+body[data-page="inspections"] .ipc-cal-tbl th{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;padding:0 0 2px}
+body[data-page="inspections"] .ipc-cal-tbl th.we{color:var(--ink-faint)}
+body[data-page="inspections"] .ipc-cal-d{height:58px;vertical-align:top;padding:4px 5px;border-radius:7px;background:var(--fill-head);
+  border:1px solid transparent;overflow:hidden}
+body[data-page="inspections"] .ipc-cal-d.we{background:#f1f4f8}
+body[data-page="inspections"] .ipc-cal-d.out{opacity:.45}
+body[data-page="inspections"] .ipc-cal-d.today{border-color:var(--blue-600)}
+body[data-page="inspections"] .ipc-cal-d.has{background:#fff;border-color:var(--line-soft);cursor:default}
+body[data-page="inspections"] .ipc-cal-d[data-ipc-day]{cursor:pointer}
+body[data-page="inspections"] .ipc-cal-d.has:hover,
+body[data-page="inspections"] .ipc-cal-d.has:focus-visible{border-color:var(--blue-500);outline:none;box-shadow:0 0 0 2px rgba(22,104,201,.14)}
+body[data-page="inspections"] .ipc-cal-d.today.has{border-color:var(--blue-600)}
+body[data-page="inspections"] .ipc-cal-n{display:block;font-size:11.5px;font-weight:600;color:var(--ink-label);font-variant-numeric:tabular-nums;margin-bottom:2px}
+body[data-page="inspections"] .ipc-cal-d.today .ipc-cal-n{color:var(--blue-700)}
+body[data-page="inspections"] .ipc-chip{display:block;margin-top:2px;padding:0 5px;border-radius:4px;font-size:10.5px;font-weight:600;line-height:16px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--k);background:color-mix(in srgb,var(--k) 11%,#fff)}
+
+/* Окно дня — в <body>, вне страницы; положение считает stats.js. */
+.ipc-pop{position:fixed;z-index:450;width:min(340px,calc(100vw - 16px));padding:10px 12px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.18);font-size:12.5px;color:var(--ink);pointer-events:none}
+.ipc-pop b{display:block;font-size:13px}
+.ipc-pop .ipc-pop-sum{display:block;margin:2px 0 6px;color:var(--muted);font-size:12px}
+.ipc-pop ul{list-style:none;margin:0;padding:0}
+.ipc-pop li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:baseline;padding:3px 0;border-top:1px solid var(--line-soft)}
+.ipc-pop li span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ipc-pop li em{font-style:normal;color:var(--muted);font-size:11.5px;white-space:nowrap}
+.ipc-pop li i{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.ipc-pop li i.k-done{color:var(--teal-700)}
+.ipc-pop li i.k-plan{color:var(--blue-700)}
+.ipc-pop li i.k-late{color:#a3361c}
+
+/* Графики uPlot: легенда — строкой под графиком, значения точки под курсором. */
+body[data-page="inspections"] .ipc-plot{min-width:0}
+body[data-page="inspections"] .ipc-note{margin:2px 0 0;font-size:11px;color:var(--muted)}
+body[data-page="inspections"] .ipc-plot .uplot{font-family:inherit}
+body[data-page="inspections"] .ipc-plot .u-legend{font-size:11.5px;color:var(--ink);text-align:left;margin-top:4px}
+body[data-page="inspections"] .ipc-plot .u-legend th{font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ipc-plot .u-legend .u-value{font-variant-numeric:tabular-nums;color:var(--muted)}
+/* Двоеточие после подписи ставит uPlot; без значения под курсором оно висело
+   хвостом «: —». Значение несёт свою подпись («(7 за неделю)»). */
+body[data-page="inspections"] .ipc-plot .u-inline.u-live th::after{content:none}
+/* Строка оси дат в легенде («Time» у uPlot) не нужна: дата — в значении под курсором у каждой линии не дублируется, неделя видна по оси. */
+body[data-page="inspections"] .ipc-plot .u-legend .u-series:first-child{display:none}
+
+/* Контакты выбранного осмотрщика — строкой под шапкой; правка — на месте. */
+body[data-page="inspections"] .ip-contacts{display:flex;align-items:center;flex-wrap:wrap;gap:4px 16px;margin:-4px 0 12px;font-size:12.5px;color:var(--ink)}
+body[data-page="inspections"] .ip-contacts a{color:var(--blue-700);font-weight:600}
+body[data-page="inspections"] .ip-contacts .btn{margin-left:auto}
+body[data-page="inspections"] .ip-muted{color:var(--muted)}
+body[data-page="inspections"] .ip-contacts-edit{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;align-items:end;gap:8px 10px;
+  padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+body[data-page="inspections"] .ip-contacts-edit .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-page="inspections"] .ip-contacts-edit .field > label{font-size:11.5px;font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ip-contacts-edit .input{height:32px}
+body[data-page="inspections"] .ip-contacts-act{display:flex;gap:6px}
+body[data-page="inspections"] .ip-contacts-act .btn{margin:0}
+
+/* Фильтры списка осмотрщиков — область и порядок — в одну строку. */
+body[data-page="inspections"] .ip-people-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}
+body[data-page="inspections"] .ip-people-filters .select,
+body[data-page="inspections"] .ip-people-filters .pick-btn{height:30px;font-size:12px;min-width:0;width:100%}
 
 /* История — по дням: заголовок дня липкий, строка — время, кто, что, объект. */
 body[data-page="inspections"] .ipc-hist{padding:0}
@@ -249,8 +285,13 @@ body[data-page="inspections"] .ip-evs{list-style:none;margin:0;padding:0}
 body[data-page="inspections"] .ip-evs li{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;padding:3px 0;font-size:12.5px}
 body[data-page="inspections"] .ip-evs time{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
 
+@media (max-width:1440px){
+  body[data-page="inspections"] .ip-people-filters{grid-template-columns:minmax(0,1fr)}
+}
 @media (max-width:1280px){
-  body[data-page="inspections"] .ipc{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ipc,
+  body[data-page="inspections"] .ipc-stats{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ip-contacts-edit{grid-template-columns:repeat(2,minmax(0,1fr))}
   body[data-page="inspections"] .ipc-ev{grid-template-columns:44px minmax(0,1fr) minmax(0,1.3fr)}
   body[data-page="inspections"] .ipc-ev-obj{grid-column:2 / -1;margin-top:-4px}
 }
