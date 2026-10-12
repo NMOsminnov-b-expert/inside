@@ -21,8 +21,11 @@ import {
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity,
+  allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, CAD_DOCS,
 } from '../../kernel/inspections.js';
 import { downloadXlsx } from '../../kernel/xlsx.js';
+import { codeByName } from '../../kernel/institutions.js';
+import { build } from '../../kernel/router.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
@@ -42,6 +45,7 @@ const view = {
   person: '',            // в «Осмотрщиках»: выбранный; пусто — все
   personTab: 'trips',    // подраздел карточки: trips | reports | stats | assigns | profile | car
   allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields
+  cadSel: '',            // «Кадастр»: выбранный запрос
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
   histPerson: '',        // в «Истории»: осмотрщик
   peopleMode: 'all',     // mine | all
@@ -62,7 +66,7 @@ const view = {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
+persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
   'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -755,6 +759,102 @@ export function mountInspections(host) {
 
 
   // --- отрисовка ------------------------------------------------------------------
+  // --- кадастр и добывание документов (ТЗ рабочего дня осмотрщика, раздел 5)
+  //
+  // Слева — запросы (открытые сверху), справа — выбранный: сводка по строкам
+  // (получено N из M, нет, отказ, ждёт — полосой и плитками), строки с ответом,
+  // кто и когда ответил; или форма нового запроса. Практики: у каждой строки
+  // своё состояние, закрытые строки остаются в списке, причина «нет» и
+  // «отказа» — словами (FileInvite, Thomson Reuters Onvio, Box Requests).
+  let cadDraft = null;
+  const cadOpen = (r) => cadSummary(r).wait > 0;
+  const cadBar = (t) => `<div class="ip-cadbar" role="img" aria-label="Получено ${t.got}, нет ${t.none}, отказ ${t.refused}, ждёт ${t.wait} из ${t.total}">
+    ${['got', 'none', 'refused', 'wait'].map((k) => (t[k] ? `<i class="k-${k}" style="flex:${t[k]}"></i>` : '')).join('')}</div>`;
+  function cadListHTML() {
+    const list = allCadRequests().slice().sort((a, b) => (cadOpen(b) - cadOpen(a)) || String(b.at).localeCompare(String(a.at)));
+    return `<aside class="ip-people" aria-label="Запросы документов">
+      <div class="ip-people-head"><button class="btn btn-primary btn-sm" data-ip-cad-new>Новый запрос</button></div>
+      <ul class="ip-people-list">${list.map((r) => {
+        const t = cadSummary(r);
+        const late = r.due && r.due < todayD && t.wait;
+        return `<li class="ip-person ${view.cadSel === r.id ? 'on' : ''}"><button class="ip-person-main" data-ip-cad="${esc(r.id)}" aria-pressed="${view.cadSel === r.id}">
+          <span class="ip-person-name">№ ${r.no} · ${esc(cadKindLabel(r.kind))}</span>
+          <span class="ip-person-load"><span>${esc(r.person)}</span></span>
+          <span class="ip-person-load"><span>получено <b>${t.got}</b> из ${t.total}</span>${t.wait ? `<span class="${late ? 'ip-late' : ''}">ждёт <b>${t.wait}</b>${r.due ? ` · до ${esc(fmtDate(r.due).slice(0, 5))}` : ''}</span>` : '<span>закрыт</span>'}</span>
+          ${cadBar(t)}</button></li>`;
+      }).join('') || '<li class="ip-hint ip-people-empty">Запросов нет.</li>'}</ul>
+    </aside>`;
+  }
+  function cadCardHTML(r) {
+    const t = cadSummary(r);
+    const fmtAt = (iso) => (iso ? `${fmtDate(iso)} ${new Date(iso).toTimeString().slice(0, 5)}` : '');
+    return `<section class="ip-work ip-card" aria-label="Запрос № ${r.no}">
+      <header class="ip-card-head">
+        <div class="ip-card-title"><h1>${esc(cadKindLabel(r.kind))} № ${r.no}</h1>
+          <p class="ip-card-contacts">${esc(r.person)} · создан ${esc(fmtDate(r.at))}${r.by ? `, ${esc(r.by)}` : ''}${r.due ? ` · срок <b class="${r.due < todayD && t.wait ? 'ip-late' : ''}">${esc(fmtDate(r.due))}</b>` : ''}${r.note ? ` · ${esc(r.note)}` : ''}</p></div>
+        <div class="ip-tiles ip-tiles-head">${tile('Получено', `${t.got} из ${t.total}`)}${tile('Нет в кадастре', t.none, t.none ? 'warn' : '')}${tile('Отказ', t.refused, t.refused ? 'warn' : '')}${tile('Ждёт', t.wait)}</div>
+        <div class="ip-head-act"><button class="btn btn-ghost btn-sm" data-ip-cad-xlsx="${esc(r.id)}">Отчёт xlsx</button></div>
+      </header>
+      ${cadBar(t)}
+      <div class="ip-card-body"><div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-cadtbl">
+        <colgroup><col class="c-inst"><col class="c-eni"><col class="c-doc"><col class="c-res"><col class="c-file"><col class="c-date"><col class="c-ans"></colgroup>
+        <thead><tr><th>№ учр.</th><th>ЕНИ</th><th>Документ</th><th>Итог</th><th>Файл</th><th class="num">Дата скан.</th><th>Ответ</th></tr></thead>
+        <tbody>${r.rows.map((x) => {
+          const s = all.get(x.typeId + '|' + x.ocId);
+          return `<tr><td class="num" title="${esc(x.inst)}">${esc(codeByName(x.inst) || '—')}</td><td class="mono">${esc(x.eni)}</td>
+            <td><b>${esc(x.doc)}</b>${s ? `<span class="ip-sub">${esc(s.title)}</span>` : ''}${x.note ? `<span class="ip-sub">${esc(x.note)}</span>` : ''}</td>
+            <td><span class="ip-rmark ${x.result === 'got' ? 'ok' : x.result ? 'off' : 'wait'}">${esc(cadResultLabel(x.result))}</span></td>
+            <td>${x.file ? (x.file.docId && x.typeId ? `<a href="${esc(build({ typeId: x.typeId, ocId: x.ocId }))}" title="В документах объекта">${esc(x.file.name || cadFileName(x, codeByName(x.inst)))}</a>` : esc(x.file.name || cadFileName(x, codeByName(x.inst)))) : '—'}</td>
+            <td class="num">${esc(fmtDate(x.scanDate) || '—')}</td>
+            <td>${x.answer ? esc(x.answer) : ''}${x.answeredAt ? `<span class="ip-sub">${esc(x.answeredBy || '')}, ${esc(fmtAt(x.answeredAt))}</span>` : ''}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div></div></div>
+    </section>`;
+  }
+  function cadFormHTML() {
+    const d = cadDraft;
+    const eligible = people.filter((p) => !p.fired);
+    const q = (d.q || '').trim().toLowerCase();
+    const found = q.length >= 2 ? [...all.values()].filter((s) => (s.eni || '').toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q)).slice(0, 8) : [];
+    return `<section class="ip-work ip-card" aria-label="Новый запрос документов">
+      <header class="ip-card-head"><div class="ip-card-title"><h1>Новый запрос</h1></div></header>
+      <div class="ip-card-body"><div class="ip-cadform">
+        <div class="ip-prow">
+          <div class="field"><span class="ip-flabel" id="ip-cad-kind-l">Вид</span><div class="ip-segf" role="radiogroup" aria-labelledby="ip-cad-kind-l">${CAD_KINDS.map((k) => `<label><input type="radio" name="ip-cad-kind" data-ip-cadf="kind" value="${k.key}" ${d.kind === k.key ? 'checked' : ''}><span>${k.label}</span></label>`).join('')}</div></div>
+          <div class="field"><label for="ip-cad-person">Осмотрщик</label><select class="select" id="ip-cad-person" data-ip-cadf="person"><option value="">—</option>
+            ${eligible.map((p) => { const no = d.kind === 'cadastre' && !profileOf(p.name).cadastre; return `<option value="${esc(p.name)}" ${d.person === p.name ? 'selected' : ''} ${no ? 'disabled' : ''}>${esc(p.name)}${no ? ' — нет доступа в кадастр' : ''}</option>`; }).join('')}</select></div>
+        </div>
+        <div class="ip-prow">
+          <div class="field"><label for="ip-cad-due">Срок</label><input class="input" type="date" id="ip-cad-due" data-ip-cadf="due" value="${esc(d.due)}"></div>
+          <div class="field"><label for="ip-cad-note">Комментарий к запросу</label><input class="input" id="ip-cad-note" data-ip-cadf="note" value="${esc(d.note)}"></div>
+        </div>
+        <div class="field ip-cad-find"><label for="ip-cad-q">Добавить объект — ЕНИ или адрес</label>
+          <span class="isearch">${SEARCH_ICON}<input id="ip-cad-q" data-ip-cad-q value="${esc(d.q || '')}" autocomplete="off" placeholder="не меньше двух знаков"></span>
+          ${found.length ? `<ul class="ip-cad-found">${found.map((s) => `<li><button data-ip-cad-add="${esc(s.typeId + '|' + s.id)}"><span class="mono">${esc(s.eni || '')}</span> ${esc(s.title)}<span class="ip-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>` : ''}
+        </div>
+        <datalist id="ip-cad-docs">${CAD_DOCS.map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
+        ${d.rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-cadtbl">
+          <colgroup><col class="c-inst"><col class="c-eni"><col><col><col><col class="c-x"></colgroup>
+          <thead><tr><th>№ учр.</th><th>ЕНИ</th><th>Объект</th><th>Документ</th><th>Комментарий</th><th></th></tr></thead>
+          <tbody>${d.rows.map((x, i) => `<tr><td class="num" title="${esc(x.inst)}">${esc(codeByName(x.inst) || '—')}</td><td class="mono">${esc(x.eni)}</td><td>${esc(x.title)}</td>
+            <td><input class="input" list="ip-cad-docs" data-ip-cad-row="${i}" data-k="doc" value="${esc(x.doc)}" aria-label="Документ"></td>
+            <td><input class="input" data-ip-cad-row="${i}" data-k="note" value="${esc(x.note)}" aria-label="Комментарий"></td>
+            <td><button class="ip-x" data-ip-cad-del="${i}" aria-label="Убрать строку" title="Убрать строку">×</button></td></tr>`).join('')}</tbody>
+        </table></div></div>` : '<p class="ip-hint">Строк пока нет — найдите объект по ЕНИ или адресу.</p>'}
+        <div class="ip-profile-act"><span class="ip-err" data-ip-cad-err role="alert"></span>
+          <button class="btn btn-ghost btn-sm" data-ip-cad-cancel>Отменить</button>
+          <button class="btn btn-primary btn-sm" data-ip-cad-create>Создать запрос</button></div>
+      </div></div>
+    </section>`;
+  }
+  function cadSection() {
+    const list = allCadRequests();
+    if (!cadDraft && !cadRequest(view.cadSel)) view.cadSel = list.length ? list.slice().sort((a, b) => (cadOpen(b) - cadOpen(a)) || String(b.at).localeCompare(String(a.at)))[0].id : '';
+    const r = cadRequest(view.cadSel);
+    const card = cadDraft ? cadFormHTML() : r ? cadCardHTML(r) : '<section class="ip-work ip-card"><p class="ip-hint ip-empty">Запросов нет — создайте первый.</p></section>';
+    return { cls: 'ip-peoplesec ip-cadsec', html: cadListHTML() + card };
+  }
+
   function render() {
     hidePop();
     destroyStats();
@@ -762,11 +862,11 @@ export function mountInspections(host) {
     people = inspectorRows(all);
     if (view.person && !people.some((p) => p.name === view.person)) view.person = '';
     host.setCrumbs([{ label: 'Осмотры' }]);
-    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : assignSection();
+    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : assignSection();
     const top = (k, label) => `<button class="itab ${view.section === k ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${view.section === k}">${label}</button>`;
     scope.setHTML(`<div class="ip-page">
       <nav class="itabs ip-sections" role="tablist" aria-label="Разделы осмотров">
-        ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('history', 'История')}
+        ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('history', 'История')}
       </nav>
       <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
@@ -856,6 +956,50 @@ export function mountInspections(host) {
     host.toast('Записано', 'ok');
   });
   scope.on('click', '[data-ip-act-del]', (e, b) => { removeActivity(b.dataset.ipActDel); redraw(); });
+  // Кадастр: выбор запроса, новый запрос, строки, создание, отчёт.
+  scope.on('click', '[data-ip-cad]', (e, b) => { view.cadSel = b.dataset.ipCad; cadDraft = null; redraw(); });
+  scope.on('click', '[data-ip-cad-new]', () => { cadDraft = { kind: 'cadastre', person: '', due: '', note: '', q: '', rows: [] }; redraw(); scope.$('[data-ip-cad-q]').focus(); });
+  scope.on('click', '[data-ip-cad-cancel]', () => { cadDraft = null; redraw(); });
+  scope.on('change', '[data-ip-cadf]', (e, el) => {
+    cadDraft[el.dataset.ipCadf] = el.value;
+    if (el.dataset.ipCadf === 'kind' && el.value === 'cadastre' && cadDraft.person && !profileOf(cadDraft.person).cadastre) cadDraft.person = '';
+    if (el.dataset.ipCadf === 'kind') redraw();
+  });
+  scope.on('input', '[data-ip-cadf="note"]', (e, el) => { cadDraft.note = el.value; });
+  scope.on('input', '[data-ip-cad-q]', (e, el) => { cadDraft.q = el.value; redraw(); keepFocus('[data-ip-cad-q]'); });
+  scope.on('click', '[data-ip-cad-add]', (e, b) => {
+    const s = all.get(b.dataset.ipCadAdd);
+    if (s) cadDraft.rows.push({ typeId: s.typeId, ocId: s.id, inst: s.institution || '', eni: s.eni || '', title: s.title || '', doc: CAD_DOCS[0], note: '' });
+    cadDraft.q = '';
+    redraw();
+    scope.$('[data-ip-cad-q]').focus();
+  });
+  scope.on('input', '[data-ip-cad-row]', (e, el) => { cadDraft.rows[+el.dataset.ipCadRow][el.dataset.k] = el.value; });
+  scope.on('click', '[data-ip-cad-del]', (e, b) => { cadDraft.rows.splice(+b.dataset.ipCadDel, 1); redraw(); });
+  scope.on('click', '[data-ip-cad-create]', () => {
+    const err = scope.$('[data-ip-cad-err]');
+    const d = cadDraft;
+    if (!d.rows.length) { err.textContent = 'Добавьте хотя бы один объект'; scope.$('[data-ip-cad-q]').focus(); return; }
+    if (!d.person) { err.textContent = 'Выберите осмотрщика'; scope.$('[data-ip-cadf="person"]').focus(); return; }
+    const empty = d.rows.findIndex((x) => !x.doc.trim());
+    if (empty >= 0) { err.textContent = 'Укажите документ в каждой строке'; scope.$(`[data-ip-cad-row="${empty}"][data-k="doc"]`).focus(); return; }
+    const r = createCadRequest({ person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), rows: d.rows.map((x) => ({ ...x, doc: x.doc.trim(), note: x.note.trim() })) });
+    cadDraft = null;
+    view.cadSel = r.id;
+    redraw();
+    host.toast(`Запрос № ${r.no} создан`, 'ok');
+  });
+  // Отчёт по запросу (5.3): сколько получено, сколько нет, по каждой строке — причина.
+  scope.on('click', '[data-ip-cad-xlsx]', async (e, b) => {
+    const r = cadRequest(b.dataset.ipCadXlsx);
+    if (!r) return;
+    const rows = r.rows.map((x) => [codeByName(x.inst), x.inst, x.eni, (all.get(x.typeId + '|' + x.ocId) || {}).title || '', x.doc, x.note,
+      cadResultLabel(x.result), x.file ? x.file.name || cadFileName(x, codeByName(x.inst)) : '', x.scanDate ? fmtDate(x.scanDate) : '', x.answer || '', x.answeredBy || '', x.answeredAt ? fmtDate(x.answeredAt) : '']);
+    await downloadXlsx(`zapros-${r.no}_${r.kind}.xlsx`, [{ name: `Запрос № ${r.no}`, rows,
+      head: ['№ учр.', 'Учреждение', 'ЕНИ', 'Объект', 'Документ', 'Комментарий менеджера', 'Итог', 'Файл', 'Дата сканирования', 'Ответ', 'Ответил', 'Когда'],
+      widths: [9, 34, 22, 40, 26, 24, 14, 40, 12, 30, 28, 11] }]);
+    host.toast('Отчёт по запросу выгружен', 'ok');
+  });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {

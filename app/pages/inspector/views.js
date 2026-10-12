@@ -120,7 +120,7 @@ const rowHTML = (label, value, mono) => `<div class="ins-row">
 
 // total и pendingCount приходят снаружи: считать их из показанного списка
 // нельзя — он уже отфильтрован, и «Все мои» показывали бы число ждущих.
-export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '' }) {
+export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '', cad = '' }) {
   return `<div class="ins">
     <header class="ins-head">
       <a class="ins-back" href="${esc(backHref)}" aria-label="К объектам оценки"
@@ -133,6 +133,7 @@ export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyP
 
     <div class="ins-body ins-body-list">
       ${reports}
+      ${cad}
       <div class="ins-seg" role="tablist">
         <button class="ins-seg-b ${onlyPending ? 'on' : ''}" data-only="1" role="tab"
           aria-selected="${onlyPending ? 'true' : 'false'}">Ждут осмотра${pendingCount ? ` · ${pendingCount}` : ''}</button>
@@ -734,6 +735,51 @@ export function reportFormHTML({ kind, date, person, draft, trips, existing, pre
         <p class="ins-rp-err" role="alert" data-rp-err>${err ? esc(err) : ''}</p>
         <button type="button" class="ins-btn ins-btn-main ins-btn-wide" data-rp-send>${existing ? 'Сохранить отчёт' : 'Сдать отчёт'}</button>
       </div>
+    </div>
+  </div>`;
+}
+
+// --- запросы документов (ТЗ рабочего дня осмотрщика, раздел 5) ---------------
+//
+// Над списком — открытые запросы строками во всю ширину (как отчёты за
+// день); запрос — отдельный экран (#/insp?cad=…): по строке документа —
+// итог переключателем, для «получен» — PDF и дата сканирования, для «нет» и
+// «отказа» — причина; ответ сохраняется по строке.
+
+export function cadListHTML(list) {
+  if (!list.length) return '';
+  return `<section class="ins-blk ins-rep" aria-label="Запросы документов">
+    <h2 class="ins-blk-h">Запросы документов</h2>
+    ${list.map((r) => `<a class="ins-rep-row" href="#/insp?cad=${encodeURIComponent(r.id)}" data-cad-open="${esc(r.id)}">
+      <span class="ins-rep-t"><b>${esc(r.kindLabel)} № ${r.no}</b><small>${r.wait ? `ждёт ответа ${r.wait} из ${r.total}` : 'все строки отвечены'}${r.due ? ` · срок ${esc(fmtD(r.due).slice(0, 5))}` : ''}</small></span>
+      <span class="ins-pill ${r.wait ? (r.late ? 'ins-pill-late' : 'ins-pill-wait') : 'ins-pill-done'}">${r.got} из ${r.total}</span>${ico('chev', 18)}</a>`).join('')}
+  </section>`;
+}
+
+// req — запрос; rows — строки с подписями { row, code, title, draft };
+// results — CAD_RESULTS.
+export function cadScreenHTML({ req, kindLabel, rows, results }) {
+  return `<div class="ins ins-rp ins-cad">
+    ${headerHTML({ title: `${kindLabel} № ${req.no}`, sub: `${req.due ? `срок ${fmtD(req.due)} · ` : ''}строк ${rows.length}`, backHref: '#/insp', backLabel: 'К моим осмотрам' })}
+    <div class="ins-body">
+      ${req.note ? `<p class="ins-hint ins-cad-note">${esc(req.note)}</p>` : ''}
+      ${rows.map(({ row, code, title, fileName, draft, err }) => `<section class="ins-blk ins-cad-row" data-cad-row="${esc(row.id)}">
+        <h2 class="ins-cad-doc">${esc(row.doc)}</h2>
+        <p class="ins-cad-sub">${code ? `№ ${esc(code)} · ` : ''}<span class="mono">${esc(row.eni)}</span>${title ? `<br>${esc(title)}` : ''}</p>
+        ${row.note ? `<p class="ins-hint">${esc(row.note)}</p>` : ''}
+        <div class="ins-seg ins-cad-res" role="radiogroup" aria-label="Итог">${results.map((x) => `<button type="button" class="ins-seg-b ${draft.result === x.key ? 'on' : ''}" role="radio"
+          aria-checked="${draft.result === x.key}" data-cad-res="${esc(row.id)}|${x.key}">${x.label}</button>`).join('')}</div>
+        ${draft.result === 'got' ? `<div class="ins-cad-file">
+            ${draft.file || row.file ? `<span class="ins-cad-fname">${ico('docs', 18)} ${esc(fileName)}</span>` : ''}
+            <button type="button" class="ins-btn ins-btn-sm" data-cad-file="${esc(row.id)}">${draft.file || row.file ? 'Заменить PDF' : 'Прикрепить PDF'}</button></div>
+          <div class="ins-field"><label for="cadScan-${esc(row.id)}">Дата сканирования</label>
+            <input class="ins-num" type="date" id="cadScan-${esc(row.id)}" data-cad-scan="${esc(row.id)}" value="${esc(draft.scanDate)}"></div>` : ''}
+        ${draft.result ? `<div class="ins-field"><label for="cadAns-${esc(row.id)}">${draft.result === 'got' ? 'Комментарий' : 'Причина'}</label>
+          <textarea class="ins-ta" rows="2" id="cadAns-${esc(row.id)}" data-cad-ans="${esc(row.id)}">${esc(draft.answer)}</textarea></div>` : ''}
+        ${err ? `<p class="ins-rp-err" role="alert">${esc(err)}</p>` : ''}
+        ${row.answeredAt ? `<p class="ins-ro">${ico('ok', 16)} Ответ сохранён ${esc(fmtD(row.answeredAt.slice(0, 10)).slice(0, 5))} ${esc(new Date(row.answeredAt).toTimeString().slice(0, 5))} · ${esc(row.result === 'got' ? 'получен' : row.result === 'none' ? 'нет в кадастре' : 'отказ')}</p>` : ''}
+        ${draft.result ? `<button type="button" class="ins-btn ins-btn-main ins-btn-wide" data-cad-save="${esc(row.id)}">Сохранить ответ</button>` : ''}
+      </section>`).join('')}
     </div>
   </div>`;
 }

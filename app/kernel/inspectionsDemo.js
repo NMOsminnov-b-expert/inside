@@ -50,7 +50,7 @@ export function demoInspections() {
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       if (s.resp && s.resp.insp) people.add(s.resp.insp);
-      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), place: [s.institution, s.title].filter(Boolean).join(' — ') });
+      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '' });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -156,7 +156,7 @@ export function demoInspections() {
   }
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
-  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today) };
+  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today) };
 }
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний
@@ -184,7 +184,7 @@ function demoReports(names, assignments, recs, today, rnd) {
   let n = 0;
   names.forEach((person, pi) => {
     const car = CARS[pi % CARS.length];
-    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car },
+    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car }, cadastre: pi === 0,
       schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' }, absences: [], demo: true });
     let odo = 84000 + pi * 37000 + Math.floor(rnd() * 900);
     for (let back = 45; back >= 1; back--) {
@@ -243,5 +243,29 @@ function demoActivities(names, assignments, today) {
       out.push({ id: `demo-ac-${++n}`, person, kind: 'partner', from: iso(4), to: iso(4), project: 'Оценка для банка', object: 'Склад, г. Кант', time: '14:00', note: '', by: 'Региональный менеджер (демо)', demo: true });
     }
   });
+  return out;
+}
+
+// Запросы документов (ТЗ рабочего дня, раздел 5): у первого осмотрщика —
+// запрос в кадастр, часть строк отвечена; у второго — документы на месте,
+// без ответа. Файлов в демо нет; имя — по правилу «№ + ЕНИ + название».
+function demoCadastre(names, recs, today) {
+  if (!names.length) return [];
+  const iso = (k) => { const d = new Date(today); d.setDate(d.getDate() + k); return isoLocalDate(d); };
+  const at = (k, h) => { const d = new Date(today); d.setDate(d.getDate() + k); d.setHours(h, 15, 0, 0); return d.toISOString(); };
+  const pool = recs.filter((r) => r.eni).slice(0, 8);
+  const DOCS = ['Кадастровый план', 'Поэтажный план', 'Технический паспорт', 'Госакт на земельный участок'];
+  const by = 'Региональный менеджер (демо)';
+  const row = (r, i, extra = {}) => ({ id: `demo-cl-${r.ocId}-${i}`, typeId: r.typeId, ocId: r.ocId, inst: r.inst, eni: r.eni, doc: DOCS[i % DOCS.length], note: i === 1 ? 'нужна свежая выписка' : '', result: '', ...extra });
+  const out = [];
+  const a = pool.slice(0, 5).map((r, i) => row(r, i));
+  if (a[0]) Object.assign(a[0], { result: 'got', scanDate: iso(-3), answer: '', answeredAt: at(-2, 16), answeredBy: names[0], file: {} });
+  if (a[1]) Object.assign(a[1], { result: 'got', scanDate: iso(-2), answer: 'выписка от 2023 г.', answeredAt: at(-2, 16), answeredBy: names[0], file: {} });
+  if (a[2]) Object.assign(a[2], { result: 'none', answer: 'по ЕНИ сведений в кадастре нет', answeredAt: at(-1, 11), answeredBy: names[0] });
+  out.push({ id: 'demo-cr-1', no: 1, person: names[0], kind: 'cadastre', due: iso(3), note: 'к оценке по Министерству', at: at(-6, 10), by, rows: a, demo: true });
+  if (names[1]) {
+    out.push({ id: 'demo-cr-2', no: 2, person: names[1], kind: 'site', due: iso(5), note: 'запросить у завхоза на месте', at: at(-1, 15), by,
+      rows: pool.slice(5, 8).map((r, i) => row(r, i + 1)), demo: true });
+  }
   return out;
 }

@@ -692,3 +692,46 @@ body[data-page="inspections"] .ip-act-add .ip-prow[hidden]{display:none}
 body[data-page="inspections"] .ip-act-add .input,
 body[data-page="inspections"] .ip-act-add .select{height:34px;width:100%}
 body[data-page="inspections"] .ip-av.act{background:var(--amber-50);border-color:var(--amber-100)}
+
+/* Кадастр (раздел 5 ТЗ рабочего дня): полоса итога запроса — доли строк по
+   итогу; метки итога; форма нового запроса. */
+body[data-page="inspections"] .ip-cadbar{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--line-soft);margin-top:4px}
+body[data-page="inspections"] .ip-cadbar i{display:block}
+body[data-page="inspections"] .ip-cadbar .k-got{background:var(--teal-600)}
+body[data-page="inspections"] .ip-cadbar .k-none{background:var(--amber-600)}
+body[data-page="inspections"] .ip-cadbar .k-refused{background:var(--danger)}
+body[data-page="inspections"] .ip-cadbar .k-wait{background:var(--line)}
+body[data-page="inspections"] .ip-cadsec .ip-person-main .ip-cadbar{width:100%}
+body[data-page="inspections"] .ip-cadsec .ip-people-head .btn{width:100%;justify-content:center}
+body[data-page="inspections"] .ip-card > .ip-cadbar{margin:0 0 4px}
+body[data-page="inspections"] .ip-rmark.ok{background:var(--teal-50);color:var(--teal-700)}
+body[data-page="inspections"] .ip-rmark.wait{background:var(--slate-50);color:var(--slate-700)}
+body[data-page="inspections"] .ip-cadtbl{min-width:860px}
+body[data-page="inspections"] .ip-cadtbl col.c-inst{width:72px}
+body[data-page="inspections"] .ip-cadtbl col.c-eni{width:150px}
+body[data-page="inspections"] .ip-cadtbl col.c-res{width:132px}
+body[data-page="inspections"] .ip-cadtbl col.c-date{width:96px}
+body[data-page="inspections"] .ip-cadtbl col.c-x{width:48px}
+body[data-page="inspections"] .ip-cadtbl td{vertical-align:top;white-space:normal;overflow-wrap:break-word}
+body[data-page="inspections"] .ip-cadtbl col.c-doc{width:27%}
+body[data-page="inspections"] .ip-cadtbl col.c-ans{width:22%}
+body[data-page="inspections"] .ip-cadtbl col.c-file{width:18%}
+body[data-page="inspections"] .ip-cadtbl .ip-sub{display:block;font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-cadtbl .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+body[data-page="inspections"] .ip-cadtbl .input{height:30px;width:100%}
+body[data-page="inspections"] .ip-cadform{display:flex;flex-direction:column;gap:12px;max-width:1100px}
+body[data-page="inspections"] .ip-cadform .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+body[data-page="inspections"] .ip-cadform .field > label{font-size:12px;font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ip-cadform .input,
+body[data-page="inspections"] .ip-cadform .select{height:34px;width:100%}
+body[data-page="inspections"] .ip-cad-found{list-style:none;margin:4px 0 0;padding:4px;border:1px solid var(--line-input);border-radius:8px;background:var(--panel);
+  max-height:260px;overflow-y:auto}
+body[data-page="inspections"] .ip-cad-found button{display:block;width:100%;text-align:left;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12.5px}
+body[data-page="inspections"] .ip-cad-found button:hover,
+body[data-page="inspections"] .ip-cad-found button:focus-visible{background:var(--blue-50)}
+body[data-page="inspections"] .ip-cad-found .ip-sub{display:block;font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-cad-find .isearch{flex:none}
+body[data-page="inspections"] .ip-cadtbl td:last-child{text-overflow:clip}
+@media (max-width:1000px){
+  body[data-page="inspections"] .ip-cadform .ip-prow{grid-template-columns:minmax(0,1fr)}
+}

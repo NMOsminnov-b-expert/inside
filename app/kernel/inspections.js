@@ -18,6 +18,7 @@ import { getType, sortedTypes } from './registry.js';
 import { registerPersisted, scheduleSave } from './persist.js';
 import { session } from './session.js';
 import { demoInspections } from './inspectionsDemo.js';
+import { attachedFileFrom } from './fileUpload.js';
 import { eniRegion } from './fmt.js';
 
 // Состояния назначения — в порядке жизни.
@@ -628,3 +629,101 @@ export function removeActivity(id) {
   const i = activities.findIndex((a) => a.id === id);
   if (i >= 0) { activities.splice(i, 1); changed(); }
 }
+
+// --- кадастр и добывание документов (ТЗ рабочего дня осмотрщика, раздел 5) ---
+//
+// Запрос — перечень строк: учреждение, ЕНИ, документ, комментарий менеджера.
+// Два вида: «Запрос в кадастр» — осмотрщику с доступом в кадастр (раздел
+// 1.1); «Документы на месте» — добывание документов при осмотре (5.4), тот
+// же перечень и тот же ответ. Ответ по строке: итог (получен / нет в
+// кадастре / отказ), файл PDF с именем «№ + ЕНИ + название», дата
+// сканирования (именно сканирования), комментарий; кто и когда ответил.
+// Полученный файл сразу ложится в документы объекта оценки с датой
+// сканирования (5.3).
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: файл — в хранилище документов сервера; имя «№ + ЕНИ
+// + название» ставит сервер; дату сканирования осмотрщик вводит, а сервер
+// может сверить её с датой в метаданных PDF. Развилка — нужен ли проверяющий
+// (ЦОД) до того, как файл станет документом объекта.
+
+export const CAD_KINDS = [
+  { key: 'cadastre', label: 'Запрос в кадастр' },
+  { key: 'site', label: 'Документы на месте' },
+];
+export const CAD_RESULTS = [
+  { key: 'got', label: 'Получен' },
+  { key: 'none', label: 'Нет в кадастре' },
+  { key: 'refused', label: 'Отказ' },
+];
+export const cadResultLabel = (k) => (CAD_RESULTS.find((x) => x.key === k) || { label: 'Ждёт' }).label;
+// Документы, которые запрашивают чаще всего; можно вписать свой.
+export const CAD_DOCS = ['Кадастровый план', 'Поэтажный план', 'Технический паспорт', 'Госакт на земельный участок',
+  'Ситуационный план', 'Свидетельство о праве собственности'];
+
+const cadRequests = demo.cadastre || [];
+registerPersisted('inspections.cadastre', {
+  snapshot: () => cadRequests,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    cadRequests.splice(0, cadRequests.length, ...saved.filter((x) => x && x.id));
+  },
+});
+
+export const allCadRequests = () => cadRequests;
+export const cadRequest = (id) => cadRequests.find((r) => r.id === id) || null;
+
+export function createCadRequest({ person, kind = 'cadastre', due = '', note = '', rows = [] }) {
+  if (!person || !rows.length) return null;
+  const r = {
+    id: nextId('cr'), no: cadRequests.reduce((m, x) => Math.max(m, x.no || 0), 0) + 1,
+    person, kind, due, note, at: now(), by: session.state.person,
+    rows: rows.map((x) => ({ id: nextId('cl'), typeId: x.typeId || '', ocId: x.ocId || '', inst: x.inst || '', eni: x.eni || '', doc: x.doc || '', note: x.note || '', result: '' })),
+  };
+  cadRequests.unshift(r);
+  changed();
+  return r;
+}
+
+// Итог запроса: строк, получено, нет, отказ, ждёт.
+export function cadSummary(r) {
+  const t = { total: r.rows.length, got: 0, none: 0, refused: 0, wait: 0 };
+  r.rows.forEach((x) => { t[x.result || 'wait']++; });
+  return t;
+}
+
+// Номер документа в записи — как у модулей (ЕНИ-N): счётчик общий на запись.
+function nextRecDocId(rec) {
+  const used = (rec.docs || []).map((d) => d.id).concat((rec.oi || []).flatMap((o) => (o.docs || []).map((d) => d.id)))
+    .map((id) => { const m = /-(\d+)$/.exec(id || ''); return m ? +m[1] : NaN; }).filter((n) => !Number.isNaN(n));
+  return `${rec.eni || rec.id}-${(used.length ? Math.max(...used) : 0) + 1}`;
+}
+
+// Ответ по строке. file — File (PDF) или null; fileName — имя «№ + ЕНИ +
+// название», его собирает экран (он знает номер учреждения). Полученный
+// файл кладётся в документы объекта (rec.docs) с датой сканирования.
+export async function answerCadRow(reqId, rowId, { result, scanDate = '', answer = '', file = null, fileName = '' }) {
+  const r = cadRequest(reqId);
+  const row = r && r.rows.find((x) => x.id === rowId);
+  if (!row) return null;
+  Object.assign(row, { result, scanDate: result === 'got' ? scanDate : '', answer, answeredAt: now(), answeredBy: session.state.person });
+  if (result === 'got' && file) {
+    row.file = { name: fileName || file.name };
+    const t = row.typeId ? getType(row.typeId) : null;
+    const rec = t && t.records.loadRecord ? t.records.loadRecord(row.ocId) : null;
+    if (rec) {
+      rec.docs = rec.docs || [];
+      const doc = { id: nextRecDocId(rec), type: row.doc, name: (fileName || file.name).replace(/\.pdf$/i, ''), date: scanDate,
+        file: await attachedFileFrom(file), pages: null, source: `${cadKindLabel(r.kind)} № ${r.no}` };
+      rec.docs.push(doc);
+      row.file.docId = doc.id;
+    }
+  } else if (result !== 'got') {
+    delete row.file;
+  }
+  changed();
+  return row;
+}
+// Имя файла ответа — «№ учреждения + ЕНИ + название документа» (заметки
+// пользователя 12.10.2026); номер учреждения передаёт страница.
+export const cadFileName = (row, instCode = '') => `${[instCode, row.eni, row.doc].filter(Boolean).join(' ')}.pdf`.replace(/[\\/:*?"<>|]+/g, ' ');
+export const cadKindLabel = (k) => (CAD_KINDS.find((x) => x.key === k) || { label: k }).label;

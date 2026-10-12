@@ -151,6 +151,15 @@ export function codeOf(id) {
 
 // --- чтение ----------------------------------------------------------------
 
+// Код учреждения по названию — «№ учреждения» в запросах документов
+// (ТЗ рабочего дня осмотрщика, раздел 5). Нет такого учреждения — пусто.
+export function codeByName(name) {
+  if (!name) return '';
+  syncFromData();
+  const n = nodes.find((x) => x.name === name);
+  return n ? codeOf(n.id) : '';
+}
+
 export function allNodes() {
   syncFromData();
   return nodes.slice();

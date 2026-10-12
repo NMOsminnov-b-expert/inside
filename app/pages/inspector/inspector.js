@@ -24,10 +24,12 @@ import {
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
-import { reportOf, saveReport, dayReport, reportTime, profileOf } from '../../kernel/inspections.js';
+import { reportOf, saveReport, dayReport, reportTime, profileOf, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
+import { codeByName } from '../../kernel/institutions.js';
+import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, mismatchHint } from './form.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -120,6 +122,39 @@ export function mountInspector(host) {
       preview: rpPreview(), err: rpErr,
     }));
   }
+  // --- запросы документов (раздел 5) -----------------------------------------
+  //
+  // Черновик ответа по строке живёт, пока открыт экран запроса: итог, дата
+  // сканирования, комментарий, выбранный PDF (ещё не сохранён).
+  let cad = null;
+  const cadErr = {};
+  function cadDraftOf(id) {
+    const r = cadRequest(id);
+    return { id, rows: Object.fromEntries(r.rows.map((x) => [x.id, { result: x.result || '', scanDate: x.scanDate || '', answer: x.answer || '', file: null }])) };
+  }
+  function renderCad(id) {
+    if (!cad || cad.id !== id) { cad = cadDraftOf(id); Object.keys(cadErr).forEach((k) => delete cadErr[k]); }
+    const r = cadRequest(id);
+    const sums = new Map();
+    sortedTypesSummary(sums);
+    scope.setHTML(cadScreenHTML({
+      req: r, kindLabel: cadKindLabel(r.kind), results: CAD_RESULTS,
+      rows: r.rows.map((row) => {
+        const code = codeByName(row.inst);
+        return { row, code, title: (sums.get(row.typeId + '|' + row.ocId) || {}).title || '', draft: cad.rows[row.id],
+          fileName: (row.file && row.file.name) || cadFileName(row, code), err: cadErr[row.id] || '' };
+      }),
+    }));
+  }
+  // Подписи объектов строк — из сводок реестра (запрос по id у реестра нет).
+  function sortedTypesSummary(out) {
+    const need = new Set(cadRequest(cad.id).rows.map((x) => x.typeId));
+    sortedTypes().forEach((t) => {
+      if (!need.has(t.manifest.id)) return;
+      t.records.queryRecords({ filter: {}, offset: 0, limit: 100000 }).rows.forEach((s) => out.set(t.manifest.id + '|' + s.id, s));
+    });
+  }
+
   // Снимок одометра ужимается до 480 px по длинной стороне: так он
   // сохраняется вместе с отчётом и переживает перезагрузку.
   //
@@ -147,6 +182,11 @@ export function mountInspector(host) {
     const { typeId, ocId } = route;
     const section = SECTIONS.includes(route.section) ? route.section : 'task';
 
+    if (!typeId && route.query && route.query.cad && cadRequest(route.query.cad)) {
+      renderCad(route.query.cad);
+      return;
+    }
+
     if (!typeId && route.query && (route.query.report === 'morning' || route.query.report === 'evening')) {
       renderReport(route.query.report);
       return;
@@ -165,6 +205,10 @@ export function mountInspector(host) {
         person: currentInspector(),
         onlyPending: ui.onlyPending,
         backHref: MENU_HREF,
+        cad: cadListHTML(allCadRequests().filter((r) => r.person === currentInspector()).map((r) => {
+          const t = cadSummary(r);
+          return { id: r.id, no: r.no, kindLabel: cadKindLabel(r.kind), due: r.due, wait: t.wait, got: t.got, total: t.total, late: !!(r.due && r.due < isoToday() && t.wait) };
+        }).filter((r) => r.wait)),
         reports: (() => {
           const d = dayReport(currentInspector(), isoToday());
           const p = profileOf(currentInspector());
@@ -371,6 +415,44 @@ export function mountInspector(host) {
     host.toast(had ? 'Отчёт сохранён' : `${rp.kind === 'morning' ? 'Утренний' : 'Вечерний'} отчёт сдан`, 'ok');
     rp = null;
     location.hash = INSP_HREF;
+  });
+
+  // Запрос документов: итог, файл, дата сканирования, причина, сохранение.
+  scope.on('click', '[data-cad-res]', (e, el) => {
+    const [rowId, res] = el.dataset.cadRes.split('|');
+    cad.rows[rowId].result = res;
+    delete cadErr[rowId];
+    render();
+  });
+  scope.on('input', '[data-cad-scan]', (e, el) => { cad.rows[el.dataset.cadScan].scanDate = el.value; });
+  scope.on('input', '[data-cad-ans]', (e, el) => { cad.rows[el.dataset.cadAns].answer = el.value; });
+  scope.on('click', '[data-cad-file]', async (e, el) => {
+    const rowId = el.dataset.cadFile;
+    const file = await pickFile('application/pdf');
+    if (!file) return;
+    if (isFileTooLarge(file)) { host.toast(`Файл больше ${MAX_DOC_FILE_MB} МБ`, 'warn'); return; }
+    if (file.type && file.type !== 'application/pdf') { host.toast('Нужен файл PDF', 'warn'); return; }
+    cad.rows[rowId].file = file;
+    delete cadErr[rowId];
+    render();
+  });
+  scope.on('click', '[data-cad-save]', async (e, el) => {
+    const rowId = el.dataset.cadSave;
+    const d = cad.rows[rowId];
+    const req = cadRequest(cad.id);
+    const row = req.rows.find((x) => x.id === rowId);
+    let miss = '';
+    let at = '';
+    if (d.result === 'got' && !d.file && !row.file) { miss = 'Прикрепите PDF'; at = `[data-cad-file="${rowId}"]`; }
+    else if (d.result === 'got' && !d.scanDate) { miss = 'Укажите дату сканирования'; at = `[data-cad-scan="${rowId}"]`; }
+    else if (d.result !== 'got' && !d.answer.trim()) { miss = 'Укажите причину'; at = `[data-cad-ans="${rowId}"]`; }
+    if (miss) { cadErr[rowId] = miss; render(); const x = scope.$(at); if (x) x.focus(); return; }
+    await answerCadRow(cad.id, rowId, { result: d.result, scanDate: d.scanDate, answer: d.answer.trim(), file: d.file,
+      fileName: cadFileName(row, codeByName(row.inst)) });
+    d.file = null;
+    delete cadErr[rowId];
+    render();
+    host.toast(d.result === 'got' ? 'Ответ сохранён, файл — в документах объекта' : 'Ответ сохранён', 'ok');
   });
 
   scope.on('click', '[data-only]', (e, el) => {
