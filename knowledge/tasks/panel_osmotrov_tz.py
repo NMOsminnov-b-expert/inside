@@ -88,4 +88,5 @@ LINKS = [
     {'тип': 'опирается на', 'куда': 'sbor-praktik-pered-dizaynom', 'папка': 'rules'},
     {'тип': 'опирается на', 'куда': 'opyt-prilozheniya-osmotr-dlya-paneli-osmotrov', 'папка': 'practices'},
     {'тип': 'опирается на', 'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno', 'папка': 'practices'},
+    {'тип': 'опирается на', 'куда': 'opis-oborudovaniya-i-mehanizmov', 'папка': 'terms'},
 ]
