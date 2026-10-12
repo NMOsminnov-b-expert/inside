@@ -37,6 +37,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { detailHTML } from './detail.js';
 import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms } from './route.js';
+import { notifications, NOTE_KINDS, noteKind } from './notify.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
 const STEP = 200;
@@ -48,6 +49,9 @@ const view = {
   personTab: 'trips',    // подраздел карточки: trips | reports | stats | assigns | profile | car
   allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields
   cadSel: '',            // «Кадастр»: выбранный запрос
+  notesRead: [],         // «Уведомления»: id прочитанных
+  notesKind: '',         // «Уведомления»: отбор по виду
+  notesUnread: false,    // «Уведомления»: только непрочитанные
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
   histPerson: '',        // в «Истории»: осмотрщик
   peopleMode: 'all',     // mine | all
@@ -68,7 +72,7 @@ const view = {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мои осмотрщики» — личная настройка менеджера; в
 // макете живёт с видом экрана в браузере. На сервере — список у учётной
 // записи менеджера или, когда появится привязка к области, выводится из неё.
-persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
+persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode', 'mine',
   'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -1003,6 +1007,54 @@ export function mountInspections(host) {
     return { cls: 'ip-peoplesec ip-cadsec', html: cadListHTML() + card };
   }
 
+  // --- уведомления (ТЗ рабочего дня осмотрщика, раздел 8) -------------------
+  //
+  // Слева — отборы по видам с числом; справа — лента по дням, новые сверху;
+  // непрочитанное — жирным с точкой. Щелчок — к причине: отчёты дня,
+  // назначение, объект очереди, профиль; уведомление помечается прочитанным.
+  let notes = [];
+  const readSet = () => new Set(view.notesRead);
+  function notesSection() {
+    const read = readSet();
+    const mine = new Set(view.mine);
+    const base = notes.filter((n) => view.peopleMode !== 'mine' || !n.person || mine.has(n.person));
+    const list = base.filter((n) => (!view.notesKind || n.kind === view.notesKind) && (!view.notesUnread || !read.has(n.id)));
+    const count = (k) => base.filter((n) => n.kind === k).length;
+    const unreadN = base.filter((n) => !read.has(n.id)).length;
+    const relDay = (iso) => (iso === todayD ? 'Сегодня' : iso === shiftD(todayD, -1) ? 'Вчера' : iso > todayD ? `${WDL[new Date(iso + 'T00:00:00').getDay()]}, ${fmtDate(iso)} — впереди` : `${WDL[new Date(iso + 'T00:00:00').getDay()]}, ${fmtDate(iso)}`);
+    const days = [...new Set(list.map((n) => n.date))];
+    const aside = `<aside class="ip-people" aria-label="Отбор уведомлений">
+      <div class="ip-people-head">
+        <div class="ip-seg" role="group" aria-label="Чьи уведомления">
+          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}">Мои <b>${view.mine.length}</b></button>
+          <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все</button>
+        </div>
+        <label class="ip-check"><input type="checkbox" data-ip-notes-unread ${view.notesUnread ? 'checked' : ''}> Только непрочитанные · ${unreadN}</label>
+      </div>
+      <ul class="ip-people-list ip-note-kinds">
+        <li class="ip-person ${view.notesKind ? '' : 'on'}"><button class="ip-person-main" data-ip-notes-kind=""><span class="ip-person-name">Все уведомления</span><span class="ip-person-load"><span><b>${base.length}</b></span></span></button></li>
+        ${NOTE_KINDS.map((k) => `<li class="ip-person ${view.notesKind === k.key ? 'on' : ''}"><button class="ip-person-main" data-ip-notes-kind="${k.key}" ${count(k.key) ? '' : 'disabled'}>
+          <span class="ip-person-name"><i class="ip-note-dot ${k.tone}"></i>${esc(k.label)}</span><span class="ip-person-load"><span><b>${count(k.key)}</b></span></span></button></li>`).join('')}
+      </ul>
+    </aside>`;
+    const card = `<section class="ip-work ip-card" aria-label="Уведомления">
+      <header class="ip-card-head">
+        <div class="ip-card-title"><h1>Уведомления</h1><p class="ip-card-contacts">${list.length} · непрочитанных ${list.filter((n) => !read.has(n.id)).length}${view.peopleMode === 'mine' ? ' · мои осмотрщики' : ''}</p></div>
+        <div class="ip-head-act">${unreadN ? '<button class="btn btn-ghost btn-sm" data-ip-notes-readall>Отметить все прочитанными</button>' : ''}</div>
+      </header>
+      <div class="ip-card-body">${list.length ? days.map((d) => `<section class="ip-note-day"><h3>${esc(relDay(d))}</h3><ul class="ip-notes">${list.filter((n) => n.date === d).map((n) => {
+        const k = noteKind(n.kind);
+        return `<li><button class="ip-note ${read.has(n.id) ? '' : 'unread'}" data-ip-note="${esc(n.id)}">
+          <i class="ip-note-dot ${k.tone}" aria-hidden="true"></i>
+          <span class="ip-note-k">${esc(k.label)}</span>
+          <span class="ip-note-who">${esc(n.person || 'объект')}</span>
+          <span class="ip-note-t">${esc(n.text)}</span></button></li>`;
+      }).join('')}</ul></section>`).join('') : `<p class="ip-hint ip-empty">${view.notesUnread ? 'Непрочитанных уведомлений нет.' : 'Пропусков нет.'}</p>`}</div>
+    </section>`;
+    return { cls: 'ip-peoplesec ip-notesec', html: aside + card };
+  }
+  const markRead = (ids) => { view.notesRead = [...new Set([...ids, ...view.notesRead])].slice(0, 2000); };
+
   function render() {
     hidePop();
     destroyStats();
@@ -1010,11 +1062,13 @@ export function mountInspections(host) {
     people = inspectorRows(all);
     if (view.person && !people.some((p) => p.name === view.person)) view.person = '';
     host.setCrumbs([{ label: 'Осмотры' }]);
-    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : assignSection();
+    notes = notifications(all, people);
+    const unread = notes.filter((n) => !readSet().has(n.id)).length;
+    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : view.section === 'notes' ? notesSection() : assignSection();
     const top = (k, label) => `<button class="itab ${view.section === k ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${view.section === k}">${label}</button>`;
     scope.setHTML(`<div class="ip-page">
       <nav class="itabs ip-sections" role="tablist" aria-label="Разделы осмотров">
-        ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('history', 'История')}
+        ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('notes', `Уведомления${unread ? ` <b class="ip-unread">${unread}</b>` : ''}`)}${top('history', 'История')}
       </nav>
       <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
@@ -1196,6 +1250,33 @@ export function mountInspections(host) {
     redraw();
   });
   scope.on('click', '[data-ip-norm-take]', (e, b) => { setNorm(b.dataset.ipNormTake, { perM2: Math.round(+b.dataset.v * 1000) / 1000 }); redraw(); });
+  // Уведомления: отборы, прочитано, переход к причине.
+  scope.on('click', '[data-ip-notes-kind]', (e, b) => { view.notesKind = b.dataset.ipNotesKind; redraw(); });
+  scope.on('change', '[data-ip-notes-unread]', (e, el) => { view.notesUnread = el.checked; redraw(); });
+  scope.on('click', '[data-ip-notes-readall]', () => { markRead(notes.map((n) => n.id)); redraw(); });
+  scope.on('click', '[data-ip-note]', (e, b) => {
+    const n = notes.find((x) => x.id === b.dataset.ipNote);
+    if (!n) return;
+    markRead([n.id]);
+    detail = [];
+    if (n.go.report) {
+      Object.assign(view, { section: 'people', person: n.person, personTab: 'reports' });
+      rep.ym = n.go.report.slice(0, 7);
+      detail = [{ kind: 'report', name: n.person, date: n.go.report }];
+      render();
+    } else if (n.go.assign) {
+      view.pick = '';
+      gotoAssign(n.go.assign);
+    } else if (n.go.queue) {
+      Object.assign(view, { section: 'assign', tab: 'queue', q: '', cov: '', due: '', inst: '', objRegion: '', type: '' });
+      resetList();
+      current = n.go.queue;
+      render();
+    } else if (n.go.profile) {
+      Object.assign(view, { section: 'people', person: n.person, personTab: 'profile' });
+      render();
+    }
+  });
   scope.on('click', '[data-ip-rday]', (e, b) => { rep.day = shiftD(rep.day, +b.dataset.ipRday); if (rep.day > todayD) rep.day = todayD; detail = []; redraw(); });
   scope.on('change', '[data-ip-rday-set]', (e, el) => { if (el.value) { rep.day = el.value > todayD ? todayD : el.value; detail = []; redraw(); } });
   scope.on('click', '[data-ip-rmonth]', (e, b) => {

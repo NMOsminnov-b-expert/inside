@@ -457,6 +457,12 @@ export function unassignMany(ids) {
 export const STALL_DAYS = { notStarted: 5, notFinished: 10 };
 export function stallOf(a) {
   if (!isLive(a)) return '';
+  // Выезд на будущий день ещё не может зависнуть: «не начат 6 дн.» у
+  // назначения на следующую неделю — шум (уведомления, раздел 8 ТЗ рабочего
+  // дня осмотрщика, 12.10.2026).
+  const t = new Date();
+  const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  if (a.plannedAt && a.plannedAt > today) return '';
   const age = (Date.now() - new Date(a.at).getTime()) / 864e5;
   const own = events.some((e) => e.assignId === a.id && ['photos', 'note', 'progress', 'mismatch', 'found'].includes(e.kind));
   if (!own && age >= STALL_DAYS.notStarted) return `не начат ${Math.floor(age)} дн.`;

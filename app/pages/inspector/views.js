@@ -120,7 +120,7 @@ const rowHTML = (label, value, mono) => `<div class="ins-row">
 
 // total и pendingCount приходят снаружи: считать их из показанного списка
 // нельзя — он уже отфильтрован, и «Все мои» показывали бы число ждущих.
-export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '', cad = '' }) {
+export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '', cad = '', notes = '' }) {
   return `<div class="ins">
     <header class="ins-head">
       <a class="ins-back" href="${esc(backHref)}" aria-label="К объектам оценки"
@@ -132,6 +132,7 @@ export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyP
     </header>
 
     <div class="ins-body ins-body-list">
+      ${notes}
       ${reports}
       ${cad}
       <div class="ins-seg" role="tablist">
@@ -782,4 +783,15 @@ export function cadScreenHTML({ req, kindLabel, rows, results }) {
       </section>`).join('')}
     </div>
   </div>`;
+}
+
+// Уведомления осмотрщику о себе (ТЗ рабочего дня, пункт 8.2): новое
+// назначение, перенос даты, снятие, срок доверенности — за последние дни.
+export function notesHTML(list) {
+  if (!list.length) return '';
+  return `<section class="ins-blk ins-ntfs" aria-label="Уведомления">
+    <h2 class="ins-blk-h">Уведомления</h2>
+    <ul class="ins-ntf-list">${list.map((n) => `<li class="ins-ntf ${n.tone || ''}">${n.href ? `<a href="${esc(n.href)}">` : '<span>'}
+      <b>${esc(n.title)}</b><small>${esc(n.text)}</small>${n.href ? '</a>' : '</span>'}</li>`).join('')}</ul>
+  </section>`;
 }

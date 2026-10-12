@@ -24,12 +24,12 @@ import {
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
-import { reportOf, saveReport, dayReport, reportTime, profileOf, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
+import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, mismatchHint } from './form.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -122,6 +122,28 @@ export function mountInspector(host) {
       preview: rpPreview(), err: rpErr,
     }));
   }
+  // Уведомления о себе (пункт 8.2): события по своим назначениям за три дня
+  // — назначено, перенесена дата, снято; срок доверенности за 14 дней.
+  //
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: доставка — пушем приложения или в WhatsApp; здесь —
+  // список на экране «Мои осмотры».
+  function myNotes() {
+    const me = currentInspector();
+    const since = new Date(Date.now() - 3 * 864e5).toISOString();
+    const KIND = { assigned: 'Новое назначение', moved: 'Перенесена дата', removed: 'Назначение снято' };
+    const titles = new Map(myTasks().map((t) => [t.typeId + '|' + t.ocId, t.title]));
+    const out = eventsOf({ person: me })
+      .filter((e) => KIND[e.kind] && e.at >= since && e.who !== me)
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+      .slice(0, 5)
+      .map((e) => ({ title: `${KIND[e.kind]} · ${new Date(e.at).toLocaleDateString('ru-RU').slice(0, 5)}`,
+        text: [titles.get(e.typeId + '|' + e.ocId), e.text].filter(Boolean).join(' · '),
+        href: e.kind === 'removed' ? '' : `#/insp/${encodeURIComponent(e.typeId)}/${encodeURIComponent(e.ocId)}`, tone: e.kind === 'removed' ? 'warn' : '' }));
+    const d = poaDaysLeft(me);
+    if (d !== null && d <= 14) out.unshift({ title: 'Доверенность', text: d < 0 ? `истекла ${-d} дн. назад` : d === 0 ? 'истекает сегодня' : `истекает через ${d} дн.`, tone: 'off' });
+    return out;
+  }
+
   // --- запросы документов (раздел 5) -----------------------------------------
   //
   // Черновик ответа по строке живёт, пока открыт экран запроса: итог, дата
@@ -205,6 +227,7 @@ export function mountInspector(host) {
         person: currentInspector(),
         onlyPending: ui.onlyPending,
         backHref: MENU_HREF,
+        notes: notesHTML(myNotes()),
         cad: cadListHTML(allCadRequests().filter((r) => r.person === currentInspector()).map((r) => {
           const t = cadSummary(r);
           return { id: r.id, no: r.no, kindLabel: cadKindLabel(r.kind), due: r.due, wait: t.wait, got: t.got, total: t.total, late: !!(r.due && r.due < isoToday() && t.wait) };

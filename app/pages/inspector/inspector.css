@@ -952,3 +952,12 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 .ins-cad-fname { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
 .ins-cad .ins-field { margin: 0; }
 .ins-cad .ins-num { padding-right: 12px; }
+
+/* Уведомления о себе (пункт 8.2): строки во всю ширину, вид — словом. */
+.ins-ntf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ins-ntf a, .ins-ntf > span { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--line-soft); border-left: 3px solid var(--blue-600); color: var(--ink); text-decoration: none; background: var(--panel); }
+.ins-ntf.warn a, .ins-ntf.warn > span { border-left-color: var(--amber-600); }
+.ins-ntf.off a, .ins-ntf.off > span { border-left-color: var(--danger); }
+.ins-ntf b { font-size: 14px; }
+.ins-ntf small { font-size: 12px; color: var(--muted); }
