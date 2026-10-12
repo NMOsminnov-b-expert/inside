@@ -275,6 +275,39 @@ def run(t):
     pg.click('[data-ip-ptab="trips"]')
     t.ck(t.wait_for('.ipc-cal-d.away'), 'в календаре выездов не отмечены дни отпуска')
 
+    # Карточка по ТЗ рабочего дня осмотрщика (раздел 1–2): доверенность,
+    # свои поля, авто. Ловит: новые поля не доходят до сохранения, срок
+    # доверенности не предупреждает в шапке, своё поле не появляется в профиле.
+    pg.click('[data-ip-section="people"]')
+    pg.locator('.ip-person-main[data-ip-person=""]').click()
+    pg.click('[data-ip-atab="fields"]')
+    pg.fill('[data-ip-cfn="label"]', 'Размер одежды')
+    pg.select_option('[data-ip-cfn="kind"]', 'list')
+    pg.fill('[data-ip-cfn="options"]', 'S, M, L')
+    pg.click('[data-ip-cf-add]')
+    t.ck(t.wait_for('[data-ip-cf-del]'), 'своё поле не добавилось')
+    pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
+    pg.click('[data-ip-ptab="profile"]')
+    t.ck(t.wait_for('select[data-ip-cf]'), 'своё поле не появилось в профиле осмотрщика')
+    pg.select_option('select[data-ip-cf]', 'M')
+    soon = pg.evaluate("() => { const d = new Date(); d.setDate(d.getDate() + 5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
+    pg.fill('[data-ip-c="poaUntil"]', soon)
+    pg.fill('[data-ip-c="birthDate"]', '1990-04-01')
+    pg.locator('[data-ip-c-bool="cadastre"]').check()
+    pg.click('[data-ip-c-save]')
+    t.ck(t.wait_until("() => /доверенность: \d+ дн\./.test(document.querySelector('.ip-card-contacts')?.innerText || '')"),
+         'срок доверенности через 5 дней не предупреждает в шапке')
+    saved = pg.evaluate("async (w) => { const p = (await import('./app/kernel/inspections.js')).profileOf(w); return [p.birthDate, p.cadastre, Object.values(p.custom)[0]]; }", who)
+    t.ck(saved == ['1990-04-01', True, 'M'], 'профиль сохранён не полностью: %s' % saved)
+    pg.click('[data-ip-ptab="car"]')
+    pg.fill('[data-ip-car="make"]', 'Toyota Corolla')
+    pg.fill('[data-ip-car="consumption"]', '8')
+    pg.select_option('[data-ip-car="fuel"]', 'АИ-92')
+    pg.click('[data-ip-car-save]')
+    t.wait_for('[data-ip-car="make"]')
+    car = pg.evaluate("async (w) => (await import('./app/kernel/inspections.js')).profileOf(w).car", who)
+    t.ck(car.get('make') == 'Toyota Corolla' and car.get('consumption') == '8' and car.get('fuel') == 'АИ-92', 'авто не сохранено: %s' % car)
+
     # фильтр по областям — по указанной в профиле
     t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Ош')"),
          'область из профиля не попала в фильтр областей')

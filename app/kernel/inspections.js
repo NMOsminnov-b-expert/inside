@@ -293,12 +293,20 @@ export const absenceLabel = (k) => (ABSENCE_KINDS.find((x) => x.key === k) || {}
 export const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
 const isoWeekday = (iso) => { const d = new Date(iso + 'T00:00:00').getDay(); return d === 0 ? 7 : d; };
 
+// Поля профиля по ТЗ рабочего дня осмотрщика (запись графа
+// tz-rabota-osmotrschika, разделы 1–2): личное и жильё, доверенность, группа
+// WhatsApp области, тип телефона, доступ в кадастр, авто (одно — ответ
+// пользователя 12.10.2026), свои поля (custom: { id поля → значение }).
 export function blankProfile(name) {
   return {
-    id: name, phone: '', whatsapp: '', email: '', device: '', note: '',
+    id: name, phone: '', whatsapp: '', email: '', device: '', phoneType: '', note: '',
     regions: [], startDate: '', fired: false, firedDate: '',
+    birthDate: '', homeAddress: '', tempAddress: '', tempFrom: '', tempTo: '',
+    poaNumber: '', poaUntil: '', waGroup: '', waGroupLink: '', cadastre: false,
     schedule: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00' },
     absences: [],
+    car: { make: '', year: '', engine: '', consumption: '', plate: '', fuel: '', note: '' },
+    custom: {},
   };
 }
 
@@ -306,7 +314,9 @@ export function profileOf(name) {
   const p = profiles.find((x) => x.id === name);
   // Поля, добавленные позже, — со значениями по умолчанию: старый профиль
   // (только телефон и почта) не ломает график и отсутствия.
-  return p ? { ...blankProfile(name), ...p, schedule: { ...blankProfile(name).schedule, ...(p.schedule || {}) }, absences: p.absences || [] } : blankProfile(name);
+  const b = blankProfile(name);
+  return p ? { ...b, ...p, schedule: { ...b.schedule, ...(p.schedule || {}) }, absences: p.absences || [],
+    car: { ...b.car, ...(p.car || {}) }, custom: { ...(p.custom || {}) } } : b;
 }
 
 export function saveProfile(name, patch) {
@@ -443,4 +453,46 @@ export function stallOf(a) {
   if (!own && age >= STALL_DAYS.notStarted) return `не начат ${Math.floor(age)} дн.`;
   if (own && age >= STALL_DAYS.notFinished) return `не закончен ${Math.floor(age)} дн.`;
   return '';
+}
+
+// --- свои поля осмотрщиков ------------------------------------------------------
+//
+// ТЗ 1.2: менеджер заводит поле сам — «формат может меняться». Поле
+// появляется у всех осмотрщиков в профиле и в табличном виде.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: описание полей — справочник с правами на правку
+// (кто может заводить поля: администратор или любой менеджер).
+export const FIELD_KINDS = [
+  { key: 'text', label: 'Текст' },
+  { key: 'number', label: 'Число' },
+  { key: 'date', label: 'Дата' },
+  { key: 'bool', label: 'Да / нет' },
+  { key: 'list', label: 'Выбор из списка' },
+];
+const customFields = [];
+registerPersisted('inspections.fields', {
+  snapshot: () => customFields,
+  restore: (saved) => {
+    if (!Array.isArray(saved)) return;
+    customFields.splice(0, customFields.length, ...saved.filter((x) => x && x.id));
+  },
+});
+export const allCustomFields = () => customFields;
+export function addCustomField({ label, kind = 'text', options = [] }) {
+  if (!label || !label.trim()) return null;
+  const f = { id: nextId('cf'), label: label.trim(), kind, options: kind === 'list' ? options.filter(Boolean) : [], at: now(), by: session.state.person };
+  customFields.push(f);
+  changed();
+  return f;
+}
+export function removeCustomField(id) {
+  const i = customFields.findIndex((f) => f.id === id);
+  if (i >= 0) { customFields.splice(i, 1); changed(); }
+}
+
+// Доверенность: дней до окончания (отрицательно — истекла) или null.
+export function poaDaysLeft(name) {
+  const u = profileOf(name).poaUntil;
+  if (!u) return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((new Date(u + 'T00:00:00') - t) / 864e5);
 }
