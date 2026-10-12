@@ -10,7 +10,7 @@ import { photoPages, photoFileAt, photoGroups, catLabel } from './model.js';
 function phTileInner(oi, cat, i) {
   const f = photoFileAt(oi, cat, i);
   return f && f.dataUrl
-    ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">`
+    ? `<img class="ph-img" src="${esc(f.dataUrl)}" alt="${esc(f.name)}">`
     : `${esc(cat)} ${i + 1}`;
 }
 
@@ -19,7 +19,7 @@ export function miniThumbs(oi) {
   if (!pages.length) return '<span class="muted">—</span>';
   return `<div class="inline-row" style="gap:4px">${pages.slice(0, 3).map((p) => {
     const f = photoFileAt(oi, p.cat, p.i);
-    return `<div class="ph-mini" data-open-photo="${oi.id}|${p.cat}:${p.i}" title="${esc(p.cat)} ${p.i + 1}"${f && f.dataUrl ? ` style="background-image:url('${f.dataUrl}');background-size:cover;background-position:center"` : ''}></div>`;
+    return `<div class="ph-mini" data-open-photo="${oi.id}|${p.cat}:${p.i}" title="${esc(p.cat)} ${p.i + 1}"${f && f.dataUrl ? ` style="background-image:url('${esc(f.dataUrl)}');background-size:cover;background-position:center"` : ''}></div>`;
   }).join('')}<span class="tag-mini">${pages.length}</span></div>`;
 }
 
@@ -71,7 +71,7 @@ export function photoCell(oi) {
   const f = photoFileAt(oi, first.cat, first.i);
 
   return `<button class="ph-cell" data-photo-pop="${oi.id}"
-      title="${pages.length} фото — открыть список"${f && f.dataUrl ? ` style="background-image:url('${f.dataUrl}')"` : ''}>
+      title="${pages.length} фото — открыть список"${f && f.dataUrl ? ` style="background-image:url('${esc(f.dataUrl)}')"` : ''}>
     <span class="ph-cell-n">${pages.length}</span>
   </button>`;
 }
@@ -105,7 +105,7 @@ export function photoPopHTML(oi, ui) {
     const f = photoFileAt(oi, p.cat, p.i);
     return `<button class="ph-pop-item" data-open-photo="${oi.id}|${esc(p.cat)}:${p.i}"
         title="${esc(catLabel(oi, p.cat))} · фото ${p.i + 1}">
-      <span class="ph-pop-img"${f && f.dataUrl ? ` style="background-image:url('${f.dataUrl}')"` : ''}></span>
+      <span class="ph-pop-img"${f && f.dataUrl ? ` style="background-image:url('${esc(f.dataUrl)}')"` : ''}></span>
       <span class="ph-pop-cap">${esc(active ? String(p.i + 1) : catLabel(oi, p.cat) + ' · ' + (p.i + 1))}</span>
     </button>`;
   }).join('')}</div>`;

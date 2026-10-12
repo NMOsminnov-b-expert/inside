@@ -558,7 +558,7 @@ function photosHTML(oi, unit) {
   const tiles = Array.from({ length: n }, (_, i) => {
     const f = photoFileAt(oi, unit.id, i);
     return `<button class="ph mu-ph" data-mu-photo="${i}" title="Открыть фото ${i + 1} в просмотрщике">${
-      f && f.dataUrl ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">` : `фото ${i + 1}`}</button>`;
+      f && f.dataUrl ? `<img class="ph-img" src="${esc(f.dataUrl)}" alt="${esc(f.name)}">` : `фото ${i + 1}`}</button>`;
   }).join('');
 
   return `<div class="mu-sec">

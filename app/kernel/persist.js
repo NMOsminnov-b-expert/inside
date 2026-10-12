@@ -117,6 +117,26 @@ async function loadShared() {
 
 const shared = await loadShared();
 
+// Ссылки на файлы (dataUrl) из файлов сотрудников вставляются в разметку
+// просмотрщика и фото (src, style). Файл сотрудника — JSON, который можно
+// поправить руками, поэтому пропускаем только настоящие ссылки на файлы:
+// blob: и data: с картинкой или PDF. Остальное убираем — файл помечается
+// потерянным, как после перезагрузки (код-ревью 09.10.2026).
+// Проверяется ссылка целиком, а не только начало: строка вида
+// «data:image/png,x" onerror="…» начиналась правильно и выходила из атрибута.
+const FILE_REF = /^(blob:[^\s"'<>()`]+|data:(image\/[a-z0-9.+-]+|application\/pdf)(;[a-z0-9=.+-]+)*,[^\s"'<>()`]*)$/i;
+export function cleanFileRefs(value, seen = new WeakSet()) {
+  if (!value || typeof value !== 'object' || seen.has(value)) return;
+  seen.add(value);
+  if (Array.isArray(value)) { value.forEach((v) => cleanFileRefs(v, seen)); return; }
+  if (typeof value.dataUrl === 'string' && !FILE_REF.test(value.dataUrl)) {
+    delete value.dataUrl;
+    value.fileLost = true;
+  }
+  Object.values(value).forEach((v) => cleanFileRefs(v, seen));
+}
+Object.values(shared.files).forEach((file) => cleanFileRefs(file));
+
 // Метка копии в идентификаторах новых записей: счётчики в разных копиях
 // выдают одни и те же номера, и записи двух сотрудников слились бы в одну.
 // Без сервера макета метки нет — записи живут только в этом браузере.

@@ -788,7 +788,7 @@ function photosHTML(ctx, v, idx, set) {
       // а не картинку с адресом «undefined».
       const f = photoFileAt(set, cat, i);
       return `<button type="button" class="ph" data-ts-photo-open="${esc(cat)}|${i}" title="${esc(cat)} · фото ${i + 1}">${
-        f && f.dataUrl ? `<img class="ph-img" src="${f.dataUrl}" alt="${esc(f.name)}">` : `${esc(cat)} ${i + 1}`}</button>`;
+        f && f.dataUrl ? `<img class="ph-img" src="${esc(f.dataUrl)}" alt="${esc(f.name)}">` : `${esc(cat)} ${i + 1}`}</button>`;
     }).join('');
     const add = `<button class="btn btn-ghost btn-sm vh-sub-act" data-ts-photo-add="${esc(cat)}"
       title="Можно выбрать сразу несколько файлов">+ Фото</button>`;

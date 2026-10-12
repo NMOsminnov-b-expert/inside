@@ -20,7 +20,7 @@ function pdfPageHTML(d, page) {
   const ratio = (d.file.pageAspects || [])[page.src - 1] || d.file.aspect;
   const aspect = ratio ? `aspect-ratio:${1} / ${ratio};` : '';
   return `<canvas class="vpdf-canvas" style="${aspect}"
-    data-pdf-src="${page.src}" data-pdf-url="${d.file.dataUrl}"
+    data-pdf-src="${page.src}" data-pdf-url="${esc(d.file.dataUrl)}"
     data-pdf-doc="${esc(d.id)}" aria-label="${esc(d.name)} · страница ${page.src}"></canvas>
     <div class="vpdf-load"><div class="sk-h"></div>${[100, 92, 96, 85].map((w) => `<div class="sk-line" style="width:${w}%"></div>`).join('')}</div>`;
 }
@@ -31,12 +31,12 @@ ${withButton && can('attach') ? '<button class="btn btn-primary btn-sm" data-vre
 }
 
 function imagePageHTML(f) {
-  return `<img class="vimg" src="${f.dataUrl}" alt="${esc(f.name)}">`;
+  return `<img class="vimg" src="${esc(f.dataUrl)}" alt="${esc(f.name)}">`;
 }
 
 function otherPageHTML(f) {
   return `<div class="vempty-box">Предпросмотр недоступен для этого типа файла (${esc(f.mime || 'неизвестный формат')}).</div>
-<a class="btn btn-primary btn-sm" href="${f.dataUrl}" download="${esc(f.name)}" style="margin-top:8px;display:inline-block">Скачать «${esc(f.name)}»</a>`;
+<a class="btn btn-primary btn-sm" href="${esc(f.dataUrl)}" download="${esc(f.name)}" style="margin-top:8px;display:inline-block">Скачать «${esc(f.name)}»</a>`;
 }
 
 // Переключение по виду КОНКРЕТНОЙ страницы: у реального PDF страниц столько же,
@@ -166,7 +166,7 @@ export function renderDocMode(ctx, vctx) {
     ${d.pages.map((p, i) => `<div class="vthumb doc ${p.kind === 'pdf' ? 'real' : ''} ${i + 1 === dSt.page ? 'active' : ''} ${sel.includes(i + 1) ? 'sel' : ''}"
       data-vthumb="${i + 1}" ${can('editPages') ? 'draggable="true"' : ''}
       title="${can('editPages') ? `Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько` : `Страница ${i + 1}`}">
-      ${p.kind === 'pdf' && d.file && d.file.dataUrl ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${d.file.dataUrl}" data-pdf-thumb="96"></canvas>` : ''}
+      ${p.kind === 'pdf' && d.file && d.file.dataUrl ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${esc(d.file.dataUrl)}" data-pdf-thumb="96"></canvas>` : ''}
       ${can('editPages') ? `<button class="vthumb-del" data-vdelpage="${i + 1}" title="Убрать страницу">×</button>` : ''}<span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div></div>`}
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>
