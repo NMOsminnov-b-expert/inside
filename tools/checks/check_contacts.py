@@ -86,10 +86,13 @@ def run(t):
     t.wait_for('.ct-pop .ct-group.from')
     pos = pg.evaluate("() => getComputedStyle(document.querySelector('.ct-pop')).position")
     t.ck(pos == 'fixed', 'контакты не в выпадающей панели: %s' % pos)
-    t.ck('Контакт Подведа' in pg.locator('.ct-group.from').inner_text(), 'контакт подведа не подтянулся в ОЦ')
+    # Подтянутых групп может быть несколько — от подведа и выше по дереву
+    # (у головных учреждений есть демо-контакты, 12.10.2026).
+    t.ck(pg.locator('.ct-group.from').filter(has_text='Контакт Подведа').count() == 1, 'контакт подведа не подтянулся в ОЦ')
     t.ck(pg.locator('.ct-group.from [data-ct-edit], .ct-group.from [data-ct-del]').count() == 0,
          'подтянутый контакт можно править в ОЦ')
-    t.ck('+1' in pg.locator('.ct-sum').inner_text(), 'в сводке не учтён подтянутый контакт')
+    pulled = pg.evaluate("() => [...document.querySelectorAll('.ct-group.from [data-ct-id], .ct-group.from .ct-item')].length || document.querySelectorAll('.ct-group.from').length")
+    t.ck(('+%d' % pulled) in pg.locator('.ct-sum').inner_text(), 'в сводке не учтены подтянутые контакты: %s, ждали +%d' % (pg.locator('.ct-sum').inner_text(), pulled))
 
     # --- закрытие: Esc (просмотрщик остаётся), щелчок снаружи ------------------------
     viewer = pg.locator('[data-vclose]').count()

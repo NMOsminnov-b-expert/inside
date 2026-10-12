@@ -41,7 +41,9 @@ const dayAt = (base, shift, hour) => {
 const isWorkday = (d) => d.getDay() !== 0 && d.getDay() !== 6;
 const isoLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export function demoInspections() {
+// isDefaultDoc — правило «документ по умолчанию» из ядра (параметром, чтобы
+// не замыкать импорт ядра на себя).
+export function demoInspections({ isDefaultDoc = () => false } = {}) {
   const recs = [];
   const people = new Set();
   sortedTypes().forEach((t) => {
@@ -50,7 +52,8 @@ export function demoInspections() {
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       if (s.resp && s.resp.insp) people.add(s.resp.insp);
-      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' });
+      const defDocs = [...(r.docs || []), ...(r.oi || []).flatMap((o) => o.docs || [])].filter((d) => d && isDefaultDoc(d.type || d.name)).map((d) => d.id);
+      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), defDocs, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -168,7 +171,8 @@ export function demoInspections() {
   }
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
-  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today) };
+  const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
+  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today), deadlines };
 }
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний
@@ -303,4 +307,44 @@ function demoPlans(names, assignments, recs, today) {
     }
   });
   return out;
+}
+
+// Подробности назначений (просьба пользователя 12.10.2026 «Добавь демо
+// данные к назначению»): документы для осмотрщика — по умолчанию из записи
+// (кадастровый и поэтажный план), комментарии менеджера к части
+// действующих, сроки осмотра объектов (прошедший, на этой неделе, дальше),
+// отгул на день с плановым выездом — «План на отсутствие». Без генератора
+// случайных чисел — остальное демо не сдвигается.
+const MANAGER_NOTES = [
+  'Ключи у завхоза — позвонить накануне',
+  'Сначала основное здание, потом котельную',
+  'Сфотографировать счётчики и щитовую',
+  'На кровлю — через охрану, пропуск заказан',
+  'Сверить площади с техпаспортом на месте',
+  'Ответственный на месте с 10:00',
+];
+function demoAssignDetails(names, assignments, recs, profiles, today) {
+  const iso = (k) => { const d = new Date(today); d.setDate(d.getDate() + k); return isoLocalDate(d); };
+  const byKey = new Map(recs.map((r) => [r.typeId + '|' + r.ocId, r]));
+  let i = 0;
+  assignments.forEach((a) => {
+    const r = byKey.get(a.typeId + '|' + a.ocId);
+    if (r && !a.docs.length) a.docs = [...r.defDocs];
+    if ((a.state === 'assigned' || a.state === 'progress') && !a.note && (i++ % 3 === 0)) a.note = MANAGER_NOTES[i % MANAGER_NOTES.length];
+  });
+  // Сроки: объекты очереди (удостоверены, не все ОИ покрыты) и часть
+  // назначенных — прошедший, ближайший, через две недели.
+  const by = 'Региональный менеджер (демо)';
+  const at = new Date(today).toISOString();
+  const deadlines = [];
+  const put = (k, date) => { if (!deadlines.some((d) => d.id === k)) deadlines.push({ id: k, date, by, at, demo: true }); };
+  const ready = recs.filter((r) => r.status === READY);
+  [-2, 3, 14].forEach((k, j) => { if (ready[j]) put(ready[j].typeId + '|' + ready[j].ocId, iso(k)); });
+  assignments.filter((a) => a.state === 'assigned' && a.plannedAt >= iso(0)).slice(0, 6).forEach((a, j) => put(a.typeId + '|' + a.ocId, iso(j % 2 ? 9 : 5)));
+  // Отгул у третьего осмотрщика на день с плановым выездом.
+  const who = names[2 % names.length];
+  const clash = assignments.find((a) => a.person === who && a.state === 'assigned' && a.plannedAt >= iso(5));
+  const prof = profiles.find((p) => p.id === who);
+  if (clash && prof) prof.absences = [...(prof.absences || []), { id: 'demo-ab-1', kind: 'dayoff', from: clash.plannedAt, to: clash.plannedAt, note: 'отгул по семейным обстоятельствам' }];
+  return deadlines;
 }

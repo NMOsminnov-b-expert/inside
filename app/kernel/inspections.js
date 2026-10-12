@@ -43,7 +43,7 @@ export const isDefaultDoc = (kind) => DEFAULT_DOC_KINDS.some((re) => re.test(Str
 // Засев — демо-история (kernel/inspectionsDemo.js): заполняется до
 // регистрации в сохранении, поэтому считается исходными данными, а не
 // правками пользователя; правки ложатся поверх него, как у записей ОЦ.
-const demo = demoInspections();
+const demo = demoInspections({ isDefaultDoc });
 const assignments = demo.assignments;
 const events = demo.events;
 
@@ -406,7 +406,7 @@ export function regionsOf(name, summaryEni) {
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: срок — поле объекта оценки (или задания на осмотр)
 // с автором и временем сервера; развилка — один срок на объект или по ОИ.
-const deadlines = [];
+const deadlines = demo.deadlines || [];
 registerPersisted('inspections.deadlines', {
   snapshot: () => deadlines,
   restore: (saved) => {
