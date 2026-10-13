@@ -1,0 +1,4702 @@
+{
+ "v": 1,
+ "author": "nmosminnov-b-expert",
+ "sources": {
+  "records.apartment": {
+   "oc-ap-all": {
+    "at": "2026-10-06T03:36:39.742Z",
+    "item": {
+     "id": "oc-ap-all",
+     "typeId": "apartment",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (квартира)",
+     "purposeTP": "Жилое",
+     "eni": "1475616900000",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": false,
+     "updatedAt": "28.09.2026",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-ap-all-land",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Иное",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "1200.00",
+        "pravoUd": "",
+        "fact": "1200.00",
+        "build": "320.00"
+       },
+       "areasNote": "",
+       "eni": "1475616900",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Близкая к прямоугольной",
+       "relief": "Ровный",
+       "location": "В черте населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "leased": "Нет",
+       "leasePrice": "",
+       "leaseUnit": "сом / месяц",
+       "leaseTerm": "",
+       "leaseNote": "",
+       "utilities": [
+        "Электроснабжение",
+        "Водоснабжение"
+       ],
+       "electricity": "Подведены",
+       "centralWater": "Подведены",
+       "sewerage": "Проходят рядом",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Автономное",
+       "railway": "Нет",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [],
+       "purposeOther": "Под застройку",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-ap-all-flat",
+       "card": "apartment",
+       "letter": "К",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "",
+       "eni": "1475616910",
+       "year": "1985",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "64.20",
+        "pud": "64.20",
+        "fact": "64.20",
+        "build": "58.10"
+       },
+       "areasNote": "",
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": "2.70"
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Внутр. помещения": 2
+       },
+       "notes": [],
+       "apartment": {
+        "floor": "5",
+        "buildingFloors": "9",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "rights": "Собственность",
+        "rightsOther": "",
+        "annexList": [],
+        "loggias": [],
+        "balconies": [],
+        "terraces": []
+       },
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-ap-all-house",
+       "landId": "oi-ap-all-land",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Обособленный",
+       "eni": "1475616920",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "160.60",
+        "pud": "160.60",
+        "fact": "160.60",
+        "build": "98.60"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-ap-all-civil",
+       "landId": "oi-ap-all-land",
+       "card": "building",
+       "letter": "Б",
+       "name": "Гражданское здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616930",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "420.00",
+        "pud": "420.00",
+        "fact": "420.00",
+        "build": "310.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Нежилое · офисное",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-ap-all-prod",
+       "landId": "oi-ap-all-land",
+       "card": "building",
+       "letter": "В",
+       "name": "Производственное строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616940",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "1200.00",
+        "pud": "1200.00",
+        "fact": "1200.00",
+        "build": "980.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Производственно-складское",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-ap-all-other",
+       "landId": "oi-ap-all-land",
+       "card": "building",
+       "letter": "Г",
+       "name": "Прочее строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616950",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "48.00",
+        "pud": "48.00",
+        "fact": "48.00",
+        "build": "48.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Прочее",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      }
+     ],
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1",
+     "eniList": [
+      "1475616900000"
+     ],
+     "flat": "",
+     "auditLog": [
+      {
+       "id": "1475616900000-1",
+       "at": "28.09.2026 11:51:57",
+       "atTs": 1790574717970,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oc",
+       "targetId": null,
+       "targetLetter": null,
+       "targetName": null,
+       "cardType": null,
+       "field": "eni",
+       "action": "update",
+       "before": "1475616900",
+       "after": "1475616900000"
+      },
+      {
+       "id": "1475616900000-2",
+       "at": "28.09.2026 11:51:57",
+       "atTs": 1790574717970,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oc",
+       "targetId": null,
+       "targetLetter": null,
+       "targetName": null,
+       "cardType": null,
+       "field": "complex",
+       "action": "update",
+       "before": "да",
+       "after": "нет"
+      }
+     ]
+    }
+   }
+  },
+  "records.civil": {
+   "oc-cv-1": {
+    "at": "2026-10-06T03:36:39.743Z",
+    "item": {
+     "id": "oc-cv-1",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Административное",
+     "eni": "1475616710010",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Киевская",
+     "house": "218",
+     "gps": "42.8760, 74.5901",
+     "status": "Удостоверен по документам",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": true,
+     "updatedAt": "2026-08-17",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [
+      "Молчанов Кирилл Витальевич"
+     ],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [
+      {
+       "id": "n1",
+       "text": "Нет акта осмотра котельной",
+       "done": false,
+       "author": "",
+       "date": ""
+      },
+      {
+       "id": "n2",
+       "text": "Сверить площади по ПУД и техпаспорту",
+       "done": false,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-cv1-a",
+       "landId": "oi-cv1-l",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8764, 74.5906",
+       "card": "building",
+       "letter": "А",
+       "name": "Административное здание",
+       "status": "Основное",
+       "origin": "ml",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616710010",
+       "year": "1998",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "areas": {
+        "tp": "1840.50",
+        "pud": "1840.50",
+        "fact": "1846.20",
+        "build": "1620,00"
+       },
+       "floors": 4,
+       "floorList": [
+        {
+         "name": "Этаж 1",
+         "cat": "over",
+         "on": true,
+         "area": "",
+         "areaBuild": "405,00",
+         "hExt": "14.20",
+         "hInt": "3.10"
+        },
+        {
+         "name": "Этаж 2",
+         "cat": "over",
+         "on": true,
+         "area": "",
+         "areaBuild": "405,00",
+         "hExt": "14.20",
+         "hInt": "3.10"
+        },
+        {
+         "name": "Этаж 3",
+         "cat": "over",
+         "on": true,
+         "area": "",
+         "areaBuild": "405,00",
+         "hExt": "14.20",
+         "hInt": "3.10"
+        },
+        {
+         "name": "Этаж 4",
+         "cat": "over",
+         "on": true,
+         "area": "",
+         "areaBuild": "405,00",
+         "hExt": "14.20",
+         "hInt": "3.10"
+        },
+        {
+         "name": "Подвал",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Цоколь",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Мансарда",
+         "cat": "mansard",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": "",
+         "mansardType": "Отсутствует"
+        }
+       ],
+       "heights": {
+        "ext": "14.20",
+        "int": "3.10"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Силикатный кирпич"
+        ],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Плоская"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление",
+        "Чугунные радиаторы"
+       ],
+       "heatingOther": "",
+       "catClass": "Административное",
+       "litKind": "civil",
+       "purposeFact": "",
+       "capSigns": {
+        "arch": "Устаревшая / современная",
+        "constr": "Капитальная",
+        "plan": "Кабинетная",
+        "finish": [
+         "Простая"
+        ],
+        "eng": [
+         "Стандартное"
+        ]
+       },
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 4,
+        "Внутр. помещения": 5,
+        "Кровля": 2,
+        "Конструкции": 1
+       },
+       "notes": [
+        {
+         "id": "n3",
+         "text": "Нет фото цоколя со двора",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ],
+       "specials": [
+        {
+         "id": "s1",
+         "text": "Ремонт фасада — 2019 г.",
+         "date": ""
+        }
+       ],
+       "oiCategory": "admin-3",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": [],
+       "rentAreas": [],
+       "zones": [
+        {
+         "id": "zmum4l5hy15sc",
+         "name": "",
+         "litKind": "prod",
+         "purposeFact": "",
+         "capSigns": {
+          "arch": "Устаревшая / современная",
+          "constr": "Капитальная",
+          "plan": "Кабинетная",
+          "finish": [
+           "Простая"
+          ],
+          "eng": [
+           "Высокое"
+          ],
+          "crane": "Да",
+          "frame": [
+           "Блочные по железобетонному каркасу, утеплённые"
+          ],
+          "floors": [
+           "Простые"
+          ]
+         },
+         "heights": {
+          "int": "9,00"
+         },
+         "area": "620.00",
+         "condition": "Хорошее"
+        },
+        {
+         "id": "zmum4l5hyasmg",
+         "name": "",
+         "litKind": "civil",
+         "purposeFact": "",
+         "capSigns": {
+          "arch": "Устаревшая",
+          "constr": "Смешанная",
+          "plan": "Смешанная",
+          "finish": [
+           "Повышенная"
+          ],
+          "eng": [
+           "Стандартное"
+          ]
+         },
+         "heights": {
+          "int": "3.10"
+         },
+         "area": "1000,00",
+         "condition": "Удовлетворительное"
+        }
+       ]
+      },
+      {
+       "id": "oi-cv1-b",
+       "landId": "oi-cv1-l",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8768, 74.5911",
+       "card": "building",
+       "letter": "Б",
+       "name": "Котельная",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616710020",
+       "year": "1998",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "96.00",
+        "pud": "96.00",
+        "fact": "96.00",
+        "build": "96.00"
+       },
+       "floors": 1,
+       "floorList": [
+        {
+         "name": "Этаж 1",
+         "cat": "over",
+         "on": true,
+         "area": "96,00",
+         "areaBuild": "96,00",
+         "hExt": "4.50",
+         "hInt": "3.80"
+        },
+        {
+         "name": "Подвал",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Цоколь",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Мансарда",
+         "cat": "mansard",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": "",
+         "mansardType": "Отсутствует"
+        }
+       ],
+       "heights": {
+        "ext": "4.50",
+        "int": "3.80"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Шлакоблок"
+        ],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Металл"
+        ],
+        "floors": [
+         "Бетонные"
+        ],
+        "windows": [
+         "Алюминиевые"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Прочее (указать в особенностях)"
+       ],
+       "heatingOther": "",
+       "catClass": "Котельная",
+       "litKind": "prod",
+       "purposeFact": "Котельная",
+       "capSigns": {
+        "crane": "Нет",
+        "frame": [
+         "Блочные по железобетонному каркасу, без утепления"
+        ],
+        "floors": [
+         "Простые"
+        ],
+        "eng": [
+         "Стандартное"
+        ]
+       },
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 1,
+        "Конструкции": 2
+       },
+       "notes": [],
+       "specials": [],
+       "oiCategory": "prod-4",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": [],
+       "rentAreas": [],
+       "conditionTotal": "Хорошее"
+      },
+      {
+       "id": "oi-cv1-l",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8772, 74.5916",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Под общественную застройку",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "3200.00",
+        "fact": "3200.00",
+        "build": "1937.00"
+       },
+       "eni": "1475616710000",
+       "status": "Основное",
+       "origin": "ml",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [
+        {
+         "id": "cv1-ld1",
+         "type": "Гос. акт на землю",
+         "name": "Гос. акт №7/09",
+         "date": "18.04.2009"
+        }
+       ],
+       "photos": {
+        "Земельный участок": 2
+       },
+       "notes": [],
+       "utilities": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-cv1-m1",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8776, 74.5921",
+       "card": "mech",
+       "name": "Котёл газовый водогрейный КВГ-1,25 (+1)",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "mechanisms": [
+        {
+         "id": "mu-cv1-1",
+         "name": "Котёл газовый водогрейный КВГ-1,25",
+         "inv": "ИН-000145",
+         "cls": "Энергетическое оборудование",
+         "sub": "Котельное оборудование",
+         "type": "Водогрейные котлы",
+         "year": "2015",
+         "country": "Россия",
+         "params": {
+          "model": "КВГ-1,25-95",
+          "serial": "КВГ-125-4471",
+          "maker": "Бийский котельный завод",
+          "heatOutput": "1,25",
+          "heatOutput@unit": "МВт",
+          "pressure": "0,6",
+          "pressure@unit": "МПа",
+          "fuel": "Газ",
+          "efficiency": "92",
+          "mediumTemp": "95",
+          "boilerDesign": "Водотрубный"
+         },
+         "extra": [
+          {
+           "id": "mf-cv1-1",
+           "label": "Код ЕНИ",
+           "value": "1475616710100"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": "1840000"
+        },
+        {
+         "id": "mu-cv1-2",
+         "name": "Щит управления котельной",
+         "inv": "ИН-000146",
+         "cls": "Энергетическое оборудование",
+         "sub": "Электрощитовое оборудование",
+         "type": "Щит управления",
+         "year": "2015",
+         "country": "",
+         "params": {
+          "model": "ЩУ-К-63",
+          "serial": "2015-4471",
+          "current": "63",
+          "voltage": "380",
+          "voltage@unit": "В",
+          "ip": "IP54",
+          "modules": "18",
+          "mounting": "Напольный",
+          "caseMaterial": "Металл"
+         },
+         "extra": [],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "docs": [
+        {
+         "id": "cv1-md1",
+         "type": "ПУД",
+         "name": "Паспорт котла",
+         "date": "12.03.2015"
+        }
+       ],
+       "photos": {},
+       "notes": [],
+       "photoCatNames": {
+        "mu-cv1-1": "Котёл газовый водогрейный КВГ-1,25",
+        "mu-cv1-2": "Щит управления котельной"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-cv1-m2",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8780, 74.5926",
+       "card": "mech",
+       "groupName": "Комплекс техники (серверная)",
+       "name": "Комплекс техники (серверная)",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "mechanisms": [
+        {
+         "id": "mu-cv1-3",
+         "name": "Сервер HPE ProLiant DL380",
+         "inv": "ИН-000210",
+         "cls": "Офисное оборудование и мебель",
+         "sub": "Компьютерная и оргтехника",
+         "type": "Серверы",
+         "year": "2019",
+         "country": "",
+         "params": {
+          "model": "HPE ProLiant DL380 Gen10",
+          "serial": "CZ29100A7K",
+          "serverForm": "Стоечный",
+          "rackUnits": "2",
+          "cpu": "Intel Xeon Silver 4210",
+          "cpuCount": "2",
+          "ram": "64",
+          "ram@unit": "ГБ",
+          "storage": "4",
+          "storage@unit": "ТБ",
+          "disks": "4",
+          "raid": "RAID 5",
+          "psu": "2",
+          "os": "Ubuntu Server 22.04"
+         },
+         "extra": [
+          {
+           "id": "mf-cv1-2",
+           "label": "Код ЕНИ",
+           "value": "1475616710120"
+          }
+         ],
+         "comment": "",
+         "qty": "2",
+         "cost": ""
+        },
+        {
+         "id": "mu-cv1-4",
+         "name": "Коммутатор Cisco Catalyst 2960",
+         "inv": "ИН-000211",
+         "cls": "Офисное оборудование и мебель",
+         "sub": "Компьютерная и оргтехника",
+         "type": "Сетевое оборудование (роутеры, коммутаторы, точки доступа)",
+         "year": "2019",
+         "country": "",
+         "params": {
+          "model": "Cisco Catalyst 2960-X",
+          "netKind": "Коммутатор",
+          "ports": "48",
+          "portSpeed": "1 Гбит/с",
+          "managed": "Управляемый",
+          "poe": "Да"
+         },
+         "extra": [],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        },
+        {
+         "id": "mu-cv1-5",
+         "name": "ИБП APC 5000",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "year": "",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-cv1-3",
+           "label": "Узел комплекса",
+           "value": "Агрегат"
+          },
+          {
+           "id": "mf-cv1-4",
+           "label": "Код ЕНИ",
+           "value": "1475616710130"
+          }
+         ],
+         "comment": "Класс не определён — уточнить при осмотре.",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "docs": [],
+       "photos": {},
+       "notes": [
+        {
+         "id": "n4",
+         "text": "Составить перечень оборудования серверной",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ],
+       "photoCatNames": {
+        "mu-cv1-3": "Сервер HPE ProLiant DL380",
+        "mu-cv1-4": "Коммутатор Cisco Catalyst 2960",
+        "mu-cv1-5": "ИБП APC 5000"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-cv1-v1",
+       "card": "vehicle",
+       "name": "Toyota Hilux · 01KG777ABC",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "vehicle": {
+        "kind": "base",
+        "category": "Грузовое",
+        "base": "Лёгкий коммерческий (до 3,5 т)",
+        "f": {
+         "make": "Toyota Hilux",
+         "year": "2018",
+         "color": "Белый",
+         "vin": "MR0FZ29G101234567",
+         "bodyNo": "AN120-0123456",
+         "vtype": "грузовой, бортовой",
+         "fuel": "Бензин",
+         "engineVolume": "2755",
+         "plate": "01KG777ABC",
+         "wheelFormula": "4×4",
+         "gearbox": "Механическая",
+         "country": "Япония",
+         "mileage": "128000",
+         "state": "Хорошее",
+         "kit": "Запасное колесо, домкрат, набор ключей"
+        },
+        "extra": [
+         {
+          "id": "vx-cv1-1",
+          "label": "Газобаллонное оборудование",
+          "value": "Нет"
+         },
+         {
+          "id": "vx-cv1-2",
+          "label": "Страховой полис",
+          "value": "ОСАГО до 04.2027"
+         },
+         {
+          "id": "vx-cv1-3",
+          "label": "Особые отметки",
+          "value": "Надпись на бортах, тягово-сцепное устройство"
+         }
+        ],
+        "modules": [
+         {
+          "id": "vm-cv1-1",
+          "group": "Грузовые кузова",
+          "kind": "Бортовая платформа",
+          "f": {},
+          "extra": []
+         }
+        ]
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      }
+     ],
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Киевская, д. 218",
+     "auditLog": [
+      {
+       "id": "1475616710010-1",
+       "at": "29.09.2026 09:38:22",
+       "atTs": 1790653102073,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-a",
+       "targetLetter": "А",
+       "targetName": "Административное здание",
+       "cardType": "building",
+       "field": "litKind",
+       "action": "update",
+       "before": "civil",
+       "after": "prod"
+      },
+      {
+       "id": "1475616710010-2",
+       "at": "29.09.2026 09:38:22",
+       "atTs": 1790653102073,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-a",
+       "targetLetter": "А",
+       "targetName": "Административное здание",
+       "cardType": "building",
+       "field": "purposeFact",
+       "action": "update",
+       "before": "Административно-офисное",
+       "after": "—"
+      },
+      {
+       "id": "1475616710010-3",
+       "at": "29.09.2026 09:38:22",
+       "atTs": 1790653102073,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-a",
+       "targetLetter": "А",
+       "targetName": "Административное здание",
+       "cardType": "building",
+       "field": "oiCategory",
+       "action": "update",
+       "before": "admin-3",
+       "after": "prod-1"
+      },
+      {
+       "id": "1475616710010-4",
+       "at": "29.09.2026 09:38:57",
+       "atTs": 1790653137351,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-a",
+       "targetLetter": "А",
+       "targetName": "Административное здание",
+       "cardType": "building",
+       "field": "areas.build",
+       "action": "update",
+       "before": "620.00",
+       "after": "1620,00"
+      },
+      {
+       "id": "1475616710010-5",
+       "at": "29.09.2026 09:38:57",
+       "atTs": 1790653137351,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-a",
+       "targetLetter": "А",
+       "targetName": "Административное здание",
+       "cardType": "building",
+       "field": "litKind",
+       "action": "update",
+       "before": "prod",
+       "after": "civil"
+      },
+      {
+       "id": "1475616710010-6",
+       "at": "29.09.2026 09:38:57",
+       "atTs": 1790653137351,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-a",
+       "targetLetter": "А",
+       "targetName": "Административное здание",
+       "cardType": "building",
+       "field": "oiCategory",
+       "action": "update",
+       "before": "prod-1",
+       "after": "admin-3"
+      },
+      {
+       "id": "1475616710010-7",
+       "at": "29.09.2026 11:51:25",
+       "atTs": 1790661085784,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-cv1-b",
+       "targetLetter": "Б",
+       "targetName": "Котельная",
+       "cardType": "building",
+       "field": "conditionTotal",
+       "action": "update",
+       "before": "—",
+       "after": "Хорошее"
+      }
+     ]
+    }
+   },
+   "oc-cv-all": {
+    "at": "2026-10-06T03:36:39.743Z",
+    "item": {
+     "id": "oc-cv-all",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Административное",
+     "eni": "1475617100",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": true,
+     "updatedAt": "2026-09-11",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-cv-all-land",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Иное",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "1200.00",
+        "pravoUd": "",
+        "fact": "1200.00",
+        "build": "320.00"
+       },
+       "areasNote": "",
+       "eni": "1475617100",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Близкая к прямоугольной",
+       "relief": "Ровный",
+       "location": "В черте населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "leased": "Нет",
+       "leasePrice": "",
+       "leaseUnit": "сом / месяц",
+       "leaseTerm": "",
+       "leaseNote": "",
+       "utilities": [
+        "Электроснабжение",
+        "Водоснабжение"
+       ],
+       "electricity": "Подведены",
+       "centralWater": "Подведены",
+       "sewerage": "Проходят рядом",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Автономное",
+       "railway": "Нет",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [],
+       "purposeOther": "Под застройку",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-cv-all-flat",
+       "card": "apartment",
+       "letter": "К",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "",
+       "eni": "1475617110",
+       "year": "1985",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "64.20",
+        "pud": "64.20",
+        "fact": "64.20",
+        "build": "58.10"
+       },
+       "areasNote": "",
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": "2.70"
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Внутр. помещения": 2
+       },
+       "notes": [],
+       "apartment": {
+        "floor": "5",
+        "buildingFloors": "9",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "rights": "Собственность",
+        "rightsOther": "",
+        "loggias": [],
+        "balconies": [],
+        "terraces": [],
+        "annexList": []
+       },
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-cv-all-house",
+       "landId": "oi-cv-all-land",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Обособленный",
+       "eni": "1475617120",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "160.60",
+        "pud": "160.60",
+        "fact": "160.60",
+        "build": "98.60"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-cv-all-civil",
+       "landId": "oi-cv-all-land",
+       "card": "building",
+       "letter": "Б",
+       "name": "Гражданское здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617130",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "420.00",
+        "pud": "420.00",
+        "fact": "420.00",
+        "build": "310.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "",
+       "litKind": "civil",
+       "purposeFact": "",
+       "capSigns": {},
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "oiCategory": "",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-cv-all-prod",
+       "landId": "oi-cv-all-land",
+       "card": "building",
+       "letter": "В",
+       "name": "Производственное строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617140",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "1200.00",
+        "pud": "1200.00",
+        "fact": "1200.00",
+        "build": "980.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "",
+       "litKind": "prod",
+       "purposeFact": "",
+       "capSigns": {},
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "oiCategory": "",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-cv-all-other",
+       "landId": "oi-cv-all-land",
+       "card": "building",
+       "letter": "Г",
+       "name": "Прочее строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617150",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "48.00",
+        "pud": "48.00",
+        "fact": "48.00",
+        "build": "48.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "",
+       "litKind": "other",
+       "purposeFact": "",
+       "capSigns": {},
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "oiCategory": "other",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-cv-all-mech",
+       "card": "mech",
+       "name": "Котёл газовый КВГ-1,25",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "mechanisms": [
+        {
+         "id": "mu-muktn865-3",
+         "name": "Котёл газовый КВГ-1,25",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "year": "2015",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-muktn865-1",
+           "label": "Заводской номер",
+           "value": "DEMO-МЕХ"
+          },
+          {
+           "id": "mf-muktn865-2",
+           "label": "Код ЕНИ",
+           "value": "1475617160"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "photoCatNames": {
+        "mu-muktn865-3": "Котёл газовый КВГ-1,25"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-cv-all-office",
+       "card": "mech",
+       "name": "Косилка (+1)",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "mechanisms": [
+        {
+         "id": "mu-muktn865-6",
+         "name": "Косилка",
+         "inv": "",
+         "cls": "Прочее",
+         "sub": "",
+         "type": "",
+         "year": "2015",
+         "country": "",
+         "params": {
+          "otherKind": "Навесное оборудование",
+          "model": "Disco 2650"
+         },
+         "extra": [
+          {
+           "id": "mf-muktn865-4",
+           "label": "Заводской номер",
+           "value": "DEMO-ОФИС"
+          },
+          {
+           "id": "mf-muktn865-5",
+           "label": "Код ЕНИ",
+           "value": "1475617170"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        },
+        {
+         "id": "mu-muktntdf-8",
+         "name": "Пресс-подборщик",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "year": "",
+         "country": "",
+         "params": {},
+         "extra": [],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "photoCatNames": {
+        "mu-muktn865-6": "Косилка",
+        "mu-muktntdf-8": "Пресс-подборщик"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "groupName": ""
+      },
+      {
+       "id": "oi-226l",
+       "origin": "manual",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "card": "mech",
+       "name": "Механизм без названия",
+       "eni": "",
+       "letter": "",
+       "status": "",
+       "mechanisms": [
+        {
+         "id": "mu-muktnasz-7",
+         "name": "",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "year": "",
+         "country": "",
+         "params": {},
+         "extra": [],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "groupName": "",
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "landId": "oi-cv-all-land",
+       "photoCatNames": {
+        "mu-muktnasz-7": "Механизм без названия"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-1gh2",
+       "card": "aux",
+       "letter": "Д",
+       "name": "",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "residential": false,
+       "eni": "",
+       "areas": {
+        "tp": "",
+        "build": ""
+       },
+       "struct": {
+        "foundation": [],
+        "wallsExt": [],
+        "roof": []
+       },
+       "structOther": {},
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "landId": "oi-cv-all-land"
+      }
+     ],
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1",
+     "auditLog": [
+      {
+       "id": "1475617100-1",
+       "at": "28.09.2026 11:43:22",
+       "atTs": 1790574202534,
+       "person": "Осминов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-226l",
+       "targetLetter": "",
+       "targetName": "Механизм без названия",
+       "cardType": "mech",
+       "field": "(объект)",
+       "action": "create",
+       "before": "—",
+       "after": "Механизм без названия"
+      },
+      {
+       "id": "1475617100-2",
+       "at": "01.10.2026 11:21:20",
+       "atTs": 1790832080006,
+       "person": "Осминнов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-1gh2",
+       "targetLetter": "Д",
+       "targetName": "",
+       "cardType": "aux",
+       "field": "(объект)",
+       "action": "create",
+       "before": "—",
+       "after": "Литера Д · "
+      }
+     ]
+    }
+   },
+   "oc-pr-1": {
+    "at": "2026-10-06T04:12:07.434Z",
+    "item": {
+     "id": "oc-pr-1",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Производственное",
+     "eni": "1475616752200",
+     "city": "г. Кант",
+     "district": "Ысык-Атинский р-н",
+     "micro": "промзона",
+     "gps": "42.8901, 74.8512",
+     "status": "Осмотрен",
+     "institution": "Министерство промышленности (ТЕСТ)",
+     "podved": "Кантский завод (ТЕСТ)",
+     "complex": true,
+     "updatedAt": "2026-08-16",
+     "owners": [
+      "Министерство промышленности (ТЕСТ)"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [
+      {
+       "id": "n1",
+       "text": "Нужны обмеры высоты цеха по внешним замерам",
+       "done": false,
+       "author": "",
+       "date": ""
+      },
+      {
+       "id": "n2",
+       "text": "Проверить состав оборудования по инвентарным номерам",
+       "done": false,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-pr1-a",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8905, 74.8517",
+       "card": "building",
+       "letter": "А",
+       "name": "Производственный цех",
+       "status": "Основное",
+       "origin": "ml",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616752200",
+       "year": "1986",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "3240.00",
+        "pud": "3240.00",
+        "fact": "3252.40",
+        "build": "3240.00"
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "9.80",
+        "int": "8.60"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Сэндвич-панели"
+        ],
+        "ceilings": [
+         "Металлические балки"
+        ],
+        "roof": [
+         "Металл"
+        ],
+        "floors": [
+         "Бетонные"
+        ],
+        "windows": [
+         "Алюминиевые"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Прочее (указать в особенностях)"
+       ],
+       "heatingOther": "",
+       "catClass": "",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 3,
+        "Внутр. помещения": 3,
+        "Конструкции": 4,
+        "Кровля": 1
+       },
+       "notes": [
+        {
+         "id": "n3",
+         "text": "Нет фото узла крепления кран-балки",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ],
+       "litKind": "prod",
+       "capSigns": {},
+       "oiCategory": "",
+       "specials": [
+        {
+         "id": "s1",
+         "text": "Кран-балка в составе цеха",
+         "date": ""
+        }
+       ],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-pr1-b",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8909, 74.8522",
+       "card": "building",
+       "letter": "Б",
+       "name": "Склад готовой продукции",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616752210",
+       "year": "2003",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "860.00",
+        "pud": "860.00",
+        "fact": "860.00",
+        "build": "860.00"
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "6.20",
+        "int": "5.80"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Блочный"
+        ],
+        "wallsExt": [
+         "Сэндвич-панели"
+        ],
+        "ceilings": [
+         "Металлические балки"
+        ],
+        "roof": [
+         "Металл"
+        ],
+        "floors": [
+         "Бетонные"
+        ],
+        "windows": [
+         "Отсутствуют"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [],
+       "heatingOther": "",
+       "catClass": "",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 1,
+        "Конструкции": 1
+       },
+       "notes": [],
+       "litKind": "prod",
+       "capSigns": {},
+       "oiCategory": "",
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-pr1-l",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8913, 74.8527",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Под промышленную застройку",
+       "area": "18400.00",
+       "eni": "1475616752000",
+       "status": "Основное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [
+        {
+         "id": "pr1-ld1",
+         "type": "Гос. акт на землю",
+         "name": "Гос. акт №33/05",
+         "date": "21.07.2005"
+        }
+       ],
+       "photos": {
+        "Земельный участок": 2
+       },
+       "notes": [],
+       "utilities": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-pr1-m1",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8917, 74.8532",
+       "card": "mech",
+       "name": "Станок токарный 16К20",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "mechanisms": [
+        {
+         "id": "mu-muw5wtfb-3",
+         "name": "Станок токарный 16К20",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "madeYear": "",
+         "year": "1989",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-muw5wtfa-1",
+           "label": "Заводской номер",
+           "value": "16К20-77412"
+          },
+          {
+           "id": "mf-muw5wtfb-2",
+           "label": "Код ЕНИ",
+           "value": "1475616752300"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "photoCatNames": {
+        "mu-muw5wtfb-3": "Станок токарный 16К20"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-pr1-m2",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8921, 74.8537",
+       "card": "mech",
+       "name": "Механизм-комплекс (линия розлива)",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [
+        {
+         "id": "n4",
+         "text": "Уточнить состав линии по паспортам узлов",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ],
+       "mechanisms": [
+        {
+         "id": "mu-muw5wtfb-6",
+         "name": "Транспортёр подачи",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "madeYear": "",
+         "year": "",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-muw5wtfb-4",
+           "label": "Узел комплекса",
+           "value": "Узел"
+          },
+          {
+           "id": "mf-muw5wtfb-5",
+           "label": "Код ЕНИ",
+           "value": "1475616752320"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        },
+        {
+         "id": "mu-muw5wtfb-9",
+         "name": "Розливочный автомат",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "madeYear": "",
+         "year": "",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-muw5wtfb-7",
+           "label": "Узел комплекса",
+           "value": "Агрегат"
+          },
+          {
+           "id": "mf-muw5wtfb-8",
+           "label": "Код ЕНИ",
+           "value": "1475616752330"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        },
+        {
+         "id": "mu-muw5wtfb-c",
+         "name": "Станция мойки",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "madeYear": "",
+         "year": "",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-muw5wtfb-a",
+           "label": "Узел комплекса",
+           "value": "Станция"
+          },
+          {
+           "id": "mf-muw5wtfb-b",
+           "label": "Код ЕНИ",
+           "value": "1475616752340"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "groupName": "Механизм-комплекс (линия розлива)",
+       "photoCatNames": {
+        "mu-muw5wtfb-6": "Транспортёр подачи",
+        "mu-muw5wtfb-9": "Розливочный автомат",
+        "mu-muw5wtfb-c": "Станция мойки"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      }
+     ],
+     "address": "г. Кант, Ысык-Атинский р-н, промзона, ул. Промышленная, д. 4"
+    }
+   },
+   "oc-pr-2": {
+    "at": "2026-10-06T04:09:23.495Z",
+    "item": {
+     "id": "oc-pr-2",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Складское",
+     "eni": "1475616767100",
+     "city": "г. Бишкек",
+     "district": "Ленинский р-н",
+     "micro": "",
+     "gps": "42.8402, 74.5721",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "База снабжения",
+     "complex": false,
+     "updatedAt": "2026-07-31",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Карабекова Анара Тариеловна",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Бабашова Даяна Алтынбековна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-pr2-a",
+       "street": "Льва Толстого",
+       "house": "260",
+       "gps": "42.8406, 74.5726",
+       "card": "building",
+       "letter": "А",
+       "name": "Складской корпус",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616767100",
+       "year": "1994",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "areas": {
+        "tp": "1120.00",
+        "pud": "",
+        "fact": "",
+        "build": "1120.00"
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": ""
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Шлакоблок"
+        ],
+        "ceilings": [
+         "Металлические балки"
+        ],
+        "roof": [
+         "Мягкая"
+        ],
+        "floors": [
+         "Бетонные"
+        ],
+        "windows": [
+         "Отсутствуют"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [],
+       "heatingOther": "",
+       "catClass": "",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 1
+       },
+       "notes": [],
+       "litKind": "prod",
+       "capSigns": {},
+       "oiCategory": "",
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      }
+     ],
+     "address": "г. Бишкек, Ленинский р-н, ул. Льва Толстого, д. 260"
+    }
+   },
+   "oc-pr-all": {
+    "at": "2026-10-06T03:36:39.743Z",
+    "item": {
+     "id": "oc-pr-all",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Административное",
+     "eni": "1475617200",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": true,
+     "updatedAt": "2026-09-11",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-pr-all-land",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Иное",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "1200.00",
+        "pravoUd": "",
+        "fact": "1200.00",
+        "build": "320.00"
+       },
+       "areasNote": "",
+       "eni": "1475617200",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Близкая к прямоугольной",
+       "relief": "Ровный",
+       "location": "В черте населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "leased": "Нет",
+       "leasePrice": "",
+       "leaseUnit": "сом / месяц",
+       "leaseTerm": "",
+       "leaseNote": "",
+       "utilities": [
+        "Электроснабжение",
+        "Водоснабжение"
+       ],
+       "electricity": "Подведены",
+       "centralWater": "Подведены",
+       "sewerage": "Проходят рядом",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Автономное",
+       "railway": "Нет",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [],
+       "purposeOther": "Под застройку",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-pr-all-flat",
+       "card": "apartment",
+       "letter": "К",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "",
+       "eni": "1475617210",
+       "year": "1985",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "64.20",
+        "pud": "64.20",
+        "fact": "64.20",
+        "build": "58.10"
+       },
+       "areasNote": "",
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": "2.70"
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Внутр. помещения": 2
+       },
+       "notes": [],
+       "apartment": {
+        "floor": "5",
+        "buildingFloors": "9",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "rights": "Собственность",
+        "rightsOther": "",
+        "loggias": [],
+        "balconies": [],
+        "terraces": [],
+        "annexList": []
+       },
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-pr-all-house",
+       "landId": "oi-pr-all-land",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Обособленный",
+       "eni": "1475617220",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "160.60",
+        "pud": "160.60",
+        "fact": "160.60",
+        "build": "98.60"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-pr-all-civil",
+       "landId": "oi-pr-all-land",
+       "card": "building",
+       "letter": "Б",
+       "name": "Гражданское здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617230",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "420.00",
+        "pud": "420.00",
+        "fact": "420.00",
+        "build": "310.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [
+        {
+         "name": "Этаж 1",
+         "cat": "over",
+         "on": true,
+         "area": "",
+         "areaBuild": "155,00",
+         "hExt": "7.00",
+         "hInt": "3.00"
+        },
+        {
+         "name": "Этаж 2",
+         "cat": "over",
+         "on": true,
+         "area": "",
+         "areaBuild": "155,00",
+         "hExt": "7.00",
+         "hInt": "3.00"
+        },
+        {
+         "name": "Подвал",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Цоколь",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Мансарда",
+         "cat": "mansard",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": "",
+         "mansardType": "Отсутствует"
+        }
+       ],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Нежилое · офисное",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "litKind": "civil",
+       "capSigns": {},
+       "oiCategory": "",
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": [],
+       "rentAreas": []
+      },
+      {
+       "id": "oi-pr-all-prod",
+       "landId": "oi-pr-all-land",
+       "card": "building",
+       "letter": "В",
+       "name": "Производственное строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617240",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "1200.00",
+        "pud": "1200.00",
+        "fact": "1200.00",
+        "build": "980.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "litKind": "prod",
+       "capSigns": {},
+       "oiCategory": "",
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-pr-all-other",
+       "landId": "oi-pr-all-land",
+       "card": "building",
+       "letter": "Г",
+       "name": "Прочее строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617250",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "48.00",
+        "pud": "48.00",
+        "fact": "48.00",
+        "build": "48.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Прочее",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "litKind": "civil",
+       "capSigns": {},
+       "oiCategory": "",
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-pr-all-mech",
+       "card": "mech",
+       "name": "Котёл газовый КВГ-1,25",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "mechanisms": [
+        {
+         "id": "mu-mukxatdc-3",
+         "name": "Котёл газовый КВГ-1,25",
+         "inv": "",
+         "cls": "",
+         "sub": "",
+         "type": "",
+         "year": "2015",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-mukxatdc-1",
+           "label": "Заводской номер",
+           "value": "DEMO-МЕХ"
+          },
+          {
+           "id": "mf-mukxatdc-2",
+           "label": "Код ЕНИ",
+           "value": "1475617260"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "photoCatNames": {
+        "mu-mukxatdc-3": "Котёл газовый КВГ-1,25"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-pr-all-office",
+       "card": "mech",
+       "name": "Комплекс офисной техники",
+       "eni": "",
+       "status": "",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "mechanisms": [
+        {
+         "id": "mu-mukxatdc-6",
+         "name": "Комплекс офисной техники",
+         "inv": "",
+         "cls": "Офисное оборудование и мебель",
+         "sub": "",
+         "type": "",
+         "year": "2015",
+         "country": "",
+         "params": {},
+         "extra": [
+          {
+           "id": "mf-mukxatdc-4",
+           "label": "Заводской номер",
+           "value": "DEMO-ОФИС"
+          },
+          {
+           "id": "mf-mukxatdc-5",
+           "label": "Код ЕНИ",
+           "value": "1475617270"
+          }
+         ],
+         "comment": "",
+         "qty": "1",
+         "cost": ""
+        }
+       ],
+       "photoCatNames": {
+        "mu-mukxatdc-6": "Комплекс офисной техники"
+       },
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      }
+     ],
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1"
+    }
+   }
+  },
+  "records.mechanisms": {
+   "oc-mech-1": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-1",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-29",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-1-mech",
+      "card": "mech",
+      "name": "РУ (распределительное устройство) низкого / высокого напряжения (+1)",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-mumdd320-1",
+        "name": "",
+        "inv": "",
+        "cls": "Энергетическое оборудование",
+        "sub": "Распределительные устройства",
+        "type": "РУ (распределительное устройство) низкого / высокого напряжения",
+        "year": "",
+        "country": "",
+        "params": {
+         "drive": "Электрический",
+         "serial": "QTZ80-5015-8T",
+         "capacity": "8,00",
+         "span": "7,50",
+         "liftHeight": "50,00",
+         "liftSpeed": "0,62",
+         "voltage": "11,00",
+         "installation": "Внутренней установки"
+        },
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       },
+       {
+        "id": "mu-mumdj8fc-1",
+        "name": "",
+        "inv": "",
+        "cls": "Подъёмно-транспортное оборудование",
+        "sub": "Краны",
+        "type": "Башенные краны (если рассматриваются как оборудование, а не спецтехника)",
+        "year": "",
+        "country": "",
+        "params": {},
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       }
+      ],
+      "groupName": "",
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-mumdd320-1": "РУ (распределительное устройство) низкого / высокого напряжения",
+       "mu-mumdj8fc-1": "Башенные краны (если рассматриваются как оборудование, а не спецтехника)"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-2": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-2",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-29",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-2-mech",
+      "card": "mech",
+      "name": "Прочее",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-mumfqza7-1",
+        "name": "",
+        "inv": "",
+        "cls": "Прочее",
+        "sub": "",
+        "type": "",
+        "year": "",
+        "country": "",
+        "params": {
+         "otherKind": "Навесное оборудование",
+         "maker": "claas",
+         "model": "markant 55",
+         "baseMachine": "Трактор"
+        },
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       }
+      ],
+      "groupName": "",
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-mumfqza7-1": "Прочее"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-3": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-3",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-30",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-3-mech",
+      "card": "mech",
+      "name": "Башенный кран GTZ 63",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-munt0t1q-1",
+        "name": "Башенный кран GTZ 63",
+        "inv": "1114235374724",
+        "cls": "Подъёмно-транспортное оборудование",
+        "sub": "Краны",
+        "type": "Башенные краны (если рассматриваются как оборудование, а не спецтехника)",
+        "madeYear": "2011",
+        "year": "2011",
+        "country": "Китай",
+        "params": {
+         "model": "GTZ 63",
+         "maker": "jiangsu Zhengsu Construction Machinery Co. Ltd.",
+         "capacity": "6",
+         "span": "50",
+         "liftHeight": "121,00",
+         "drive": "Электрический",
+         "dutyGroup": "А4–А5 (средний)",
+         "control": "Из кабины"
+        },
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": "2000000,00"
+       }
+      ],
+      "groupName": "",
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-munt0t1q-1": "Башенный кран GTZ 63"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-4": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-4",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-30",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-4-mech",
+      "card": "mech",
+      "name": "КРУН-4М (+2)",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-munxv33o-1",
+        "name": "КРУН-4М",
+        "inv": "65416+51",
+        "cls": "Энергетическое оборудование",
+        "sub": "Распределительные устройства",
+        "type": "КРУ (комплектное распределительное устройство)",
+        "madeYear": "2025",
+        "year": "2025",
+        "country": "Кыргызстан",
+        "params": {
+         "model": "КРУН-4М",
+         "maker": "Байсал build",
+         "current": "1250,00",
+         "voltage@unit": "кВ",
+         "voltage": "10,00",
+         "feeders": "1",
+         "installation": "Наружной установки",
+         "ip": "IP54"
+        },
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       },
+       {
+        "id": "mu-munyfcqj-2",
+        "name": "Станок сварочный самодельный",
+        "inv": "",
+        "cls": "Технологическое (производственное) оборудование",
+        "sub": "Станки и обрабатывающие центры",
+        "type": "Прочие станки",
+        "madeYear": "2025",
+        "year": "2025",
+        "country": "Кыргызстан",
+        "params": {
+         "model": "-",
+         "serial": "1",
+         "maker": "Самодельный",
+         "control": "Полуавтоматическое"
+        },
+        "extra": [],
+        "comment": "Что это вообще такое?",
+        "qty": "1",
+        "cost": "1338000,00"
+       },
+       {
+        "id": "mu-munzaj8v-1",
+        "name": "Печь индукционная",
+        "inv": "-",
+        "cls": "Технологическое (производственное) оборудование",
+        "sub": "Печи, сушильные камеры, реакторы, ёмкости технологического назначения",
+        "type": "Промышленные печи",
+        "madeYear": "2010",
+        "year": "2012",
+        "country": "Китай",
+        "params": {
+         "model": "-",
+         "serial": "1835",
+         "maker": "-",
+         "heating": "Электрический",
+         "tempTo": "1750,00",
+         "vesselMaterial": "Прочее"
+        },
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       }
+      ],
+      "groupName": "",
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-munxv33o-1": "КРУН-4М",
+       "mu-munyfcqj-2": "Станок сварочный самодельный",
+       "mu-munzaj8v-1": "Печь индукционная"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-5": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-5",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-30",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-5-mech",
+      "card": "mech",
+      "name": "Печи, сушильные камеры, реакторы, ёмкости технологического назначения",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-muo02ik6-1",
+        "name": "",
+        "inv": "",
+        "cls": "Технологическое (производственное) оборудование",
+        "sub": "Печи, сушильные камеры, реакторы, ёмкости технологического назначения",
+        "type": "",
+        "madeYear": "",
+        "year": "",
+        "country": "",
+        "params": {},
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       }
+      ],
+      "groupName": "",
+      "contacts": [],
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-muo02ik6-1": "Печи, сушильные камеры, реакторы, ёмкости технологического назначения"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-6": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-6",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-01",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-6-mech",
+      "card": "mech",
+      "name": "Механизм без названия",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-mup06j1c-1",
+        "name": "",
+        "inv": "",
+        "cls": "",
+        "sub": "",
+        "type": "",
+        "madeYear": "",
+        "year": "",
+        "country": "",
+        "params": {},
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": ""
+       }
+      ],
+      "groupName": "",
+      "contacts": [],
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-mup06j1c-1": "Механизм без названия"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-7": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-7",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-01",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [
+      {
+       "id": "mech-doc-oc-mech-7-1-1790827945157",
+       "type": "Прочее",
+       "name": "Техническая характеристика.pdf",
+       "date": "01.10.2026",
+       "file": {
+        "name": "Техническая характеристика.pdf",
+        "mime": "application/pdf",
+        "kind": "pdf",
+        "size": 332194,
+        "localKey": "fmup0py2uc3lphp",
+        "pageCount": 2,
+        "pageAspects": [
+         0.7069121140142518,
+         0.7069121140142518
+        ],
+        "aspect": 0.7069121140142518,
+        "pages": [
+         {
+          "kind": "pdf",
+          "src": 1
+         },
+         {
+          "kind": "pdf",
+          "src": 2
+         }
+        ],
+        "fileLost": true
+       },
+       "pages": [
+        null,
+        null
+       ]
+      }
+     ],
+     "mech": {
+      "id": "oc-mech-7-mech",
+      "card": "mech",
+      "name": "Моющая линия Techwin",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-mup0gjci-2",
+        "name": "Моющая линия Techwin",
+        "inv": "",
+        "cls": "Технологическое (производственное) оборудование",
+        "sub": "Технологические линии и их составные агрегаты",
+        "type": "Производственные линии",
+        "madeYear": "2024",
+        "year": "2026",
+        "country": "Китай",
+        "params": {
+         "model": "TWQX=2500G",
+         "maker": "Foshan Techwin Glass Technology Co., LTD",
+         "product": "Мойка стекол",
+         "installedPower": "58,00",
+         "automation": "Полуавтоматическая",
+         "lineLength": "6,38"
+        },
+        "extra": [
+         {
+          "id": "mf-mup0qt91-1",
+          "label": "Напряжение и частота питания",
+          "value": "380V 50Hz 3PH"
+         },
+         {
+          "id": "mf-mup0ric3-2",
+          "label": "Масса",
+          "value": "4500 кг"
+         }
+        ],
+        "comment": "Линия для мойки стекол в рамках производства стеклопакетов",
+        "qty": "1",
+        "cost": ""
+       }
+      ],
+      "groupName": "",
+      "contacts": [],
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-mup0gjci-2": "Моющая линия Techwin"
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-mech-8": {
+    "at": "2026-10-06T03:36:39.748Z",
+    "item": {
+     "id": "oc-mech-8",
+     "typeId": "mechanisms",
+     "type": "Механизмы и оборудование",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-01",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "mech": {
+      "id": "oc-mech-8-mech",
+      "card": "mech",
+      "name": "Линия для автоматического раскроя стекла Intermac",
+      "eni": "",
+      "letter": "",
+      "status": "",
+      "mechanisms": [
+       {
+        "id": "mu-mup2mnkd-1",
+        "name": "Линия для автоматического раскроя стекла Intermac",
+        "inv": "",
+        "cls": "Технологическое (производственное) оборудование",
+        "sub": "Технологические линии и их составные агрегаты",
+        "type": "Производственные линии",
+        "madeYear": "2021",
+        "year": "2026",
+        "country": "Италия/ Китай",
+        "params": {
+         "model": "Intermac",
+         "maker": "BIESSE SPA INTERMAC GLASS & STONE DIVISION и Hotech Glass Loading Solutions",
+         "aggregates": "3"
+        },
+        "extra": [],
+        "comment": "",
+        "qty": "1",
+        "cost": "",
+        "state": "Рабочее",
+        "modules": [
+         {
+          "id": "mm-mup3myhj-1",
+          "name": "Автоматический стол загрузки",
+          "comment": "",
+          "extra": [],
+          "make": "Hotech",
+          "model": "Hotech LT-3727-D6",
+          "qty": "1"
+         },
+         {
+          "id": "mm-mup3mzsf-2",
+          "name": "Стол раскроя стекла",
+          "comment": "",
+          "extra": [],
+          "model": "GENIUS 37 CT-RED",
+          "qty": "1"
+         },
+         {
+          "id": "mm-mupaoeed-1",
+          "name": "Сервисный стол",
+          "model": "GENIUS BT-3727 ST",
+          "qty": "1",
+          "comment": "",
+          "extra": []
+         },
+         {
+          "id": "mm-mupaozct-2",
+          "name": "устройство сканирования бар-кодов",
+          "model": "",
+          "qty": "1",
+          "comment": "",
+          "extra": []
+         },
+         {
+          "id": "mm-mupapcxh-3",
+          "name": "дополнительные алмазные ножи для резки под разными углами в зависимости от толщины",
+          "model": "",
+          "qty": "10",
+          "comment": "",
+          "extra": []
+         },
+         {
+          "id": "mm-mupd9rk1-2",
+          "name": "",
+          "model": "",
+          "qty": "",
+          "comment": "",
+          "extra": []
+         },
+         {
+          "id": "mm-mupd9t35-3",
+          "name": "",
+          "model": "",
+          "qty": "",
+          "comment": "",
+          "extra": []
+         },
+         {
+          "id": "mm-mupd9up5-4",
+          "name": "",
+          "model": "",
+          "qty": "",
+          "comment": "",
+          "extra": []
+         }
+        ]
+       }
+      ],
+      "groupName": "",
+      "contacts": [],
+      "docs": [],
+      "photos": {},
+      "notes": [],
+      "photoCatNames": {
+       "mu-mup2mnkd-1": "Линия для автоматического раскроя стекла Intermac"
+      }
+     },
+     "oi": []
+    }
+   }
+  },
+  "records.residential-house": {
+   "oc-rh-all": {
+    "at": "2026-10-06T03:36:39.740Z",
+    "item": {
+     "id": "oc-rh-all",
+     "typeId": "residential-house",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (дом)",
+     "purposeTP": "Жилое",
+     "eni": "1475617000",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": true,
+     "updatedAt": "2026-09-11",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-rh-all-land",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Иное",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "1200.00",
+        "pravoUd": "",
+        "fact": "1200.00",
+        "build": "320.00"
+       },
+       "areasNote": "",
+       "eni": "1475617000",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Близкая к прямоугольной",
+       "relief": "Ровный",
+       "location": "В черте населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "leased": "Нет",
+       "leasePrice": "",
+       "leaseUnit": "сом / месяц",
+       "leaseTerm": "",
+       "leaseNote": "",
+       "utilities": [
+        "Электроснабжение",
+        "Водоснабжение"
+       ],
+       "electricity": "Подведены",
+       "centralWater": "Подведены",
+       "sewerage": "Проходят рядом",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Автономное",
+       "railway": "Нет",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [],
+       "purposeOther": "Под застройку",
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-rh-all-flat",
+       "card": "apartment",
+       "letter": "К",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "",
+       "eni": "1475617010",
+       "year": "1985",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "64.20",
+        "pud": "64.20",
+        "fact": "64.20",
+        "build": "58.10"
+       },
+       "areasNote": "",
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": "2.70"
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Внутр. помещения": 2
+       },
+       "notes": [],
+       "apartment": {
+        "floor": "5",
+        "buildingFloors": "9",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "rights": "Собственность",
+        "rightsOther": "",
+        "annexList": [],
+        "loggias": [],
+        "balconies": [],
+        "terraces": []
+       },
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-rh-all-house",
+       "landId": "oi-rh-all-land",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Обособленный",
+       "eni": "1475617020",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "160.60",
+        "pud": "160.60",
+        "fact": "160.60",
+        "build": "523,00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [
+        {
+         "name": "Этаж 1",
+         "cat": "over",
+         "on": false,
+         "area": "",
+         "areaBuild": "523,00",
+         "hExt": "7.00",
+         "hInt": "3.00"
+        },
+        {
+         "name": "Этаж 2",
+         "cat": "over",
+         "on": false,
+         "area": "",
+         "areaBuild": "523,00",
+         "hExt": "7.00",
+         "hInt": "3.00"
+        },
+        {
+         "name": "Подвал",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Цоколь",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Мансарда",
+         "cat": "mansard",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": "",
+         "mansardType": "Мансарда"
+        }
+       ],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": [],
+       "rentAreas": []
+      },
+      {
+       "id": "oi-rh-all-civil",
+       "landId": "oi-rh-all-land",
+       "card": "building",
+       "letter": "Б",
+       "name": "Гражданское здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617030",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "420.00",
+        "pud": "420.00",
+        "fact": "420.00",
+        "build": "310.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Нежилое · офисное",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-rh-all-prod",
+       "landId": "oi-rh-all-land",
+       "card": "building",
+       "letter": "В",
+       "name": "Производственное строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617040",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "1200.00",
+        "pud": "1200.00",
+        "fact": "1200.00",
+        "build": "980.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Производственно-складское",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      },
+      {
+       "id": "oi-rh-all-other",
+       "landId": "oi-rh-all-land",
+       "card": "building",
+       "letter": "Г",
+       "name": "Прочее строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617050",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "48.00",
+        "pud": "48.00",
+        "fact": "48.00",
+        "build": "48.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": [
+         "Бетонный"
+        ],
+        "wallsExt": [
+         "Кирпич"
+        ],
+        "wallsInt": [],
+        "ceilings": [
+         "Железобетонные плиты"
+        ],
+        "roof": [
+         "Шифер"
+        ],
+        "floors": [
+         "Плитка"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "catClass": "Прочее",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      }
+     ],
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1"
+    }
+   }
+  },
+  "records.vehicle": {
+   "oc-vehicle-1": {
+    "at": "2026-10-06T03:36:39.741Z",
+    "item": {
+     "id": "oc-vehicle-1",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-30",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "Тяжёлый грузовик (свыше 12 т)",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {},
+      "modules": [
+       {
+        "id": "vm-munwqmsu-2",
+        "group": "",
+        "kind": "",
+        "f": {},
+        "extra": []
+       }
+      ],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-1-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      },
+      "categoryAuto": false
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-2": {
+    "at": "2026-10-06T03:36:39.741Z",
+    "item": {
+     "id": "oc-vehicle-2",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-09-30",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "Среднетоннажный грузовик (3,5–12 т)",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {},
+      "modules": [
+       {
+        "id": "vm-muo0r5eu-2",
+        "group": "Медицинские",
+        "kind": "Передвижной медицинский кабинет",
+        "f": {},
+        "extra": []
+       },
+       {
+        "id": "vm-mup08qlh-2",
+        "group": "",
+        "kind": "",
+        "f": {},
+        "extra": []
+       }
+      ],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-2-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-3": {
+    "at": "2026-10-06T03:36:39.741Z",
+    "item": {
+     "id": "oc-vehicle-3",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-02",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Легковое",
+      "base": "Седан",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "fuel": "Гибрид",
+       "power@unit": "кВт",
+       "vtype": "легковой, седан"
+      },
+      "modules": [],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-3-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-nmosminnovbexper-4": {
+    "at": "2026-10-06T04:19:26.613Z",
+    "item": {
+     "id": "oc-vehicle-nmosminnovbexper-4",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-06",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Легковое",
+      "base": "Седан",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "fuel": "Электро",
+       "power@unit": "кВт"
+      },
+      "modules": [
+       {
+        "id": "vm-muw668aq-2",
+        "group": "",
+        "kind": "",
+        "f": {},
+        "extra": []
+       }
+      ],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-nmosminnovbexper-4-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-nmosminnovbexper-5": {
+    "at": "2026-10-06T04:24:20.337Z",
+    "item": {
+     "id": "oc-vehicle-nmosminnovbexper-5",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-06",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "Лёгкий коммерческий (до 3,5 т)",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "make": "Mercedes Sprinter"
+      },
+      "modules": [],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-nmosminnovbexper-5-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   }
+  }
+ }
+}
