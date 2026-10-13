@@ -63,8 +63,25 @@ function ensureCss(href) {
   document.head.appendChild(l);
 }
 
-// Карта участка: подложка OSM (разрешена пользователем 12.10.2026), контур —
-// залит, рамка — пунктиром. Без сети подложки нет, контур всё равно виден.
+// Карта участка: подложка OSM (разрешена пользователем 12.10.2026), сам
+// участок — по контуру, залит и обведён поверх соседей. Рамка (extent)
+// хранится, но не рисуется (замечание пользователя 13.10.2026: «рамка не по
+// точкам отмечена. Надо именно участок выделять, а не обводить. Не все
+// прямоугольное»). Контура нет — точка в центре и слова об этом.
+export function drawOwnParcel(L, map, geo, opts = {}) {
+  if (!map.getPane('own')) { map.createPane('own'); map.getPane('own').style.zIndex = 450; }
+  const [x1, y1, x2, y2] = geo.extent;
+  if (geo.contour) {
+    return L.polygon(geo.contour.map((poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]))),
+      { pane: 'own', color: '#1d4ed8', weight: 3, fillColor: '#3b82f6', fillOpacity: 0.35, interactive: !!opts.tip, ...opts.style })
+      .bindTooltip(opts.tip || '', { sticky: true, className: 'map-tip' })
+      .addTo(map);
+  }
+  return L.circleMarker([(y1 + y2) / 2, (x1 + x2) / 2], { pane: 'own', radius: 7, color: '#1d4ed8', weight: 3, fillColor: '#3b82f6', fillOpacity: 0.6 })
+    .bindTooltip(opts.tip ? `${opts.tip}<br><i>контура в Кадастре нет</i>` : 'Контура в Кадастре нет — точка в центре рамки', { className: 'map-tip' })
+    .addTo(map);
+}
+
 async function drawGeoMap(box, geo) {
   if (!box || !geo || !geo.extent) return;
   box.hidden = false;
@@ -75,14 +92,10 @@ async function drawGeoMap(box, geo) {
   box._map = map;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   const [x1, y1, x2, y2] = geo.extent;
-  L.rectangle([[y1, x1], [y2, x2]], { color: '#b45309', weight: 1.5, dashArray: '5 4', fill: false }).addTo(map);
-  if (geo.contour) {
-    L.polygon(geo.contour.map((poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]))),
-      { color: '#1668c9', weight: 2, fillOpacity: 0.18 }).addTo(map);
-  }
+  drawOwnParcel(L, map, geo);
   map.fitBounds([[y1, x1], [y2, x2]], { padding: [24, 24], maxZoom: 19 });
   // Участки и строения Кадастра вокруг (решение пользователя 13.10.2026).
-  attachCadastreLayers(L, map);
+  attachCadastreLayers(L, map, [[(y1 + y2) / 2, (x1 + x2) / 2]]);
 }
 
 export function bindGeo(ctx, rec) {

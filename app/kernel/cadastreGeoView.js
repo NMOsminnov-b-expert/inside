@@ -35,5 +35,5 @@ export function geoRowHTML(rec) {
         <button type="button" class="btn src-btn" id="btnGeoAddr">Найти по адресу</button>
       </div>
       <div class="geo-cands" id="geoCands" hidden></div>
-      <div class="geo-map" id="geoMap" ${g && g.extent ? '' : 'hidden'} role="img" aria-label="Участок на карте: контур и рамка из Кадастра"></div>`;
+      <div class="geo-map" id="geoMap" ${g && g.extent ? '' : 'hidden'} role="img" aria-label="Участок на карте по контуру из Кадастра, вокруг — соседние участки и строения"></div>`;
 }

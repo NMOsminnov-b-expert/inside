@@ -42,6 +42,7 @@ import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats,
 import { detailHTML } from './detail.js';
 import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord } from './route.js';
 import { attachCadastreLayers } from '../../kernel/cadastreLayers.js';
+import { drawOwnParcel } from '../../kernel/cadastreForm.ctrl.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
@@ -1015,42 +1016,51 @@ export function mountInspections(host) {
     if (route.person !== me.name) { route.person = me.name; route.day = firstWorkday(me.name); route.skip = new Set(); route.homeMode = false; }
     const r = dayRoute(all, me.name, route.day, route.skip);
     const wd = WDL[new Date(route.day + 'T00:00:00').getDay()];
+    // Переработка 13.10.2026 («Карта мелкая, список тоже. Пол экрана под
+    // мусор… неплотно упакованный»): день и итоги — одной строкой вместо
+    // плиток, список — узкой колонкой со своей прокруткой, остальное — карте
+    // (практика APCS «карта во всё место, список — одной панелью рядом»).
     const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'}" data-ip-stop="${i + 1}">
         <span class="ip-stop-n">${i + 1}</span>
         <div class="ip-stop-b">
-          <div class="ip-stop-h"><b>${esc(x.s.title)}</b><i class="${x.fixed ? 'k-plan' : 'k-act'}">${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i></div>
+          <b class="ip-stop-h" title="${esc(x.s.title)}">${esc(x.s.title)}</b>
           <span class="ip-sub">${esc([x.s.typeLabel, x.s.metrics && x.s.metrics.area ? `${Math.round(x.s.metrics.area).toLocaleString('ru-RU')} м²` : '', x.s.institution].filter(Boolean).join(' · '))}</span>
-          <span class="ip-stop-t">дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км</span>
+          <span class="ip-stop-t"><i class="${x.fixed ? 'k-plan' : 'k-act'}">${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i> · дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км</span>
         </div>
         ${x.fixed ? '' : `<button class="ip-x" data-ip-route-skip="${esc(x.key)}" aria-label="Убрать из маршрута" title="Убрать из маршрута">×</button>`}
       </li>`;
-    return `<div class="ip-repbar">
+    const addr = profileOf(me.name).homeAddress;
+    return `<div class="ip-repbar ip-routebar">
         <div class="ip-daynav" role="group" aria-label="День маршрута">
           <button class="btn btn-ghost btn-sm" data-ip-route-day="-1" aria-label="Предыдущий день">‹</button>
           <input class="input" type="date" data-ip-route-set value="${route.day}" aria-label="День">
           <button class="btn btn-ghost btn-sm" data-ip-route-day="1" aria-label="Следующий день">›</button>
           <span class="ip-repday">${esc(wd)}${r.regions.length ? ` · ${esc(r.regions.join(', '))}` : ''}</span>
         </div>
-        <div class="ip-route-act">
-          <button class="btn btn-ghost btn-sm ${route.homeMode ? 'on' : ''}" data-ip-route-home aria-pressed="${route.homeMode}">${route.homeMode ? 'Щёлкните по карте…' : 'Указать дом на карте'}</button>
-          ${r.proposed.length ? `<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные (${r.proposed.length})</button>` : ''}
-        </div>
+        <!-- Прогноз времени осмотра не показывается (указание пользователя
+             13.10.2026: «Прогнозируемое время осмотра надо убрать. Ситуации
+             бывают разными»; «Только скрыть в маршруте»): ни осмотр, ни
+             прибытие, ни возвращение — они складываются из прогноза. Нормы и
+             подбор предложений на день остаются. -->
+        <p class="ip-route-sum">выезд <b>${r.start}</b> · пробег <b>${r.km}</b> км · дорога <b>${dur(r.driveMin)}</b> · объектов <b>${r.stops.length}</b></p>
       </div>
-      <!-- Прогноз времени осмотра не показывается (указание пользователя
-           13.10.2026: «Прогнозируемое время осмотра надо убрать. Ситуации
-           бывают разными»; «Только скрыть в маршруте»): ни осмотр, ни
-           прибытие, ни возвращение — они складываются из прогноза. Нормы и
-           подбор предложений на день остаются. -->
-      <div class="ip-tiles ip-reptiles">${tile('Выезд', r.start)}${tile('Пробег, км', r.km)}${tile('Дорога', dur(r.driveMin))}${tile('Объектов', r.stops.length)}</div>
       ${!r.work.ok ? `<p class="ip-warn">Не рабочий день: ${esc(r.work.reason)}.</p>` : ''}
       ${!r.home.gps ? '<p class="ip-warn">Точка дома не указана — маршрут считается от первого объекта. Укажите дом на карте.</p>' : ''}
       <div class="ip-route">
+        <div class="ip-route-side">
         <ol class="ip-stops">
-          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Выезд — ${esc(r.home.label)}</b><span class="ip-stop-t"><b>${r.start}</b>${profileOf(me.name).homeAddress ? ` · ${esc(profileOf(me.name).homeAddress)}` : ''}</span></div></li>
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><span class="ip-stop-t" title="${esc(addr || '')}"><b>Выезд ${r.start}</b> · ${esc(addr || r.home.label)}</span></div></li>
           ${r.stops.map(stop).join('')}
-          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Возвращение — ${esc(r.home.label)}</b><span class="ip-stop-t">дорога ${r.back.min} мин · ${r.back.km.toFixed(1).replace('.', ',')} км</span></div></li>
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><span class="ip-stop-t"><b>Возвращение</b> · дорога ${r.back.min} мин · ${r.back.km.toFixed(1).replace('.', ',')} км</span></div></li>
         </ol>
-        <div class="ip-map" data-ip-map role="img" aria-label="Карта маршрута"></div>
+        ${r.proposed.length ? `<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные (${r.proposed.length})</button>` : ''}
+        </div>
+        <!-- «Указать дом» — кнопкой на самой карте: действие над картой
+             (островок управления поверх карты, практика APCS по картам). -->
+        <div class="ip-map-wrap">
+          <div class="ip-map" data-ip-map role="img" aria-label="Карта маршрута"></div>
+          <button class="btn btn-sm ip-map-btn ${route.homeMode ? 'on' : ''}" data-ip-route-home aria-pressed="${route.homeMode}">${route.homeMode ? 'Щёлкните по карте…' : 'Указать дом на карте'}</button>
+        </div>
       </div>
       ${route.skip.size ? `<p class="ip-hint">Убрано из предложений: ${route.skip.size}. <button class="btn btn-ghost btn-sm" data-ip-route-unskip>Вернуть</button></p>` : ''}
       ${r.noGps.length ? `<p class="ip-hint">Без координат, не на карте: ${r.noGps.map((x) => esc(x.s.title)).join('; ')}.</p>` : ''}`;
@@ -1066,7 +1076,7 @@ export function mountInspections(host) {
     // берём: карта растила бы карточку, а карточка — карту.
     const sc = box.closest('.ip-pscroll, .ip-card-body, .ip-scroll');
     const own = sc && /auto|scroll/.test(getComputedStyle(sc).overflowY) && sc.clientHeight < innerHeight - 1;
-    const narrow = getComputedStyle(box).position !== 'sticky';
+    const narrow = getComputedStyle(box.parentElement).position !== 'sticky';
     let h;
     if (narrow) {
       h = (own ? sc.clientHeight : innerHeight) * 0.5;
@@ -1079,6 +1089,8 @@ export function mountInspections(host) {
       h = (own ? sc.clientHeight : innerHeight) - top - pad - 12;
     }
     box.style.height = `${Math.max(300, Math.round(h))}px`;
+    // Список остановок — той же высоты, что карта, со своей прокруткой.
+    box.closest('.ip-route').style.setProperty('--route-h', box.style.height);
     // Только сообщить карте новый размер — без перевписывания: оно
     // перехватывало зум человека.
     if (routeMap) routeMap.invalidateSize({ pan: false, animate: false });
@@ -1130,9 +1142,9 @@ export function mountInspections(host) {
     r.stops.forEach((x) => {
       const rec = loadOcRecord(x.s.typeId, x.s.id);
       const geo = rec && rec.geo;
-      if (geo && geo.contour) {
-        L.polygon(geo.contour.map((poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]))), { color: '#1668c9', weight: 1.5, fillOpacity: 0.15, interactive: false }).addTo(map);
-      }
+      // Сам участок — по контуру, поверх соседей; рамку не рисуем (13.10.2026:
+      // «Надо именно участок выделять, а не обводить»).
+      if (geo && geo.extent) drawOwnParcel(L, map, geo);
     });
     // Значки — простая схема Leaflet (13.10.2026: перегруппировка при каждом
     // масштабе и повторное вписывание ломали зум и ставили значки мимо точек —
@@ -1143,9 +1155,9 @@ export function mountInspections(host) {
     if (r.home.gps && r.stops.length) pts.push(r.home.gps);
     if (pts.length > 1) L.polyline(pts, { color: '#1668c9', weight: 3, opacity: 0.8, dashArray: '6 6', interactive: false }).addTo(map);
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14, animate: false }); else map.setView([42.87, 74.59], 11, { animate: false });
-    // Участки и строения Кадастра вокруг — при приближении (решение
+    // Участки и строения Кадастра вокруг остановок — при приближении (решение
     // пользователя 13.10.2026 «Участки вокруг на карте, Строения на участке»).
-    attachCadastreLayers(L, map);
+    attachCadastreLayers(L, map, r.stops.map((x) => x.gps));
     const pinIcon = (cls, text, wide) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span${wide ? ' class="wide"' : ''}>${text}</span>`, iconSize: [wide ? 44 : 26, 26], iconAnchor: [wide ? 22 : 13, 13] });
     const groups = [];
     items.forEach((it) => {
