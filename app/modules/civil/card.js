@@ -25,3 +25,11 @@ export const BUILDING_OI_TYPES = [
   { label: 'Жилой дом', card: 'building', residential: true },
   { label: 'Прочее строение', card: 'building', litKind: 'other' },
 ];
+
+// Вспомогательные постройки — своя таблица под перечнем ОИ (решение
+// пользователя 17.09.2026; распространение 13.10.2026: «Вспомогательные
+// здания тоже распространяем»): разметка, поведение, создание и описание
+// вида для перечня.
+export { auxBlockHTML, bindAuxSection, newAuxOi } from './card/auxBuildings.js';
+export { AUX_CARD_META } from './oi/registry.js';
+export const AUX_OI_TYPE = { label: 'Вспомогательная постройка', card: 'aux' };

@@ -1,4 +1,5 @@
 import { esc } from '../../../kernel/dom.js';
+import { auxBlockHTML } from '../../civil/card.js';
 import { oiStageCellHTML } from '../../../kernel/oiStage.js';
 import {
   orderedColumns, columnVarsStyle, colGroupHTML, headAttrs, colLabelHTML, resizeGripHTML,
@@ -169,6 +170,9 @@ function sub(ctx, label, list, emptyText, kind, withHead, total) {
 // Движимое имущество — один раздел на механизмы и транспорт: в перечне их
 // смотрят вместе, а чем именно является строка, видно в столбце категории.
 const isMovable = (o) => o.card === 'mech' || o.card === 'vehicle';
+// Вспомогательные постройки — своей таблицей ниже движимого (civil/card.js).
+const isAux = (o) => o.card === 'aux';
+const isReal = (o) => !isMovable(o) && !isAux(o);
 
 function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
   return `<div class="acc oi-node ${open ? 'open' : ''}" data-oi-drop="${esc(dropId)}">
@@ -176,7 +180,8 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
       <span class="chev">▾</span>
       ${head}
       <span class="oi-node-count">
-        <span class="oi-node-cnt real" title="Литеры">${letters.filter((o) => !isMovable(o)).length}</span>
+        <span class="oi-node-cnt real" title="Литеры">${letters.filter(isReal).length}</span>
+        <span class="oi-node-cnt aux" title="Вспомогательные постройки">${letters.filter(isAux).length}</span>
         <span class="oi-node-cnt mov" title="Движимое имущество">${letters.filter(isMovable).length}</span>
       </span>
       ${meta}
@@ -184,13 +189,14 @@ function treeNode(ctx, { key, dropId, head, meta, letters, open, summary }) {
     <div class="acc-body" style="padding:0">
       ${summary || ''}
       ${colsRowHTML(ctx)}
-      ${sub(ctx, summary ? 'Здания и сооружения на земельном участке' : 'Здания и сооружения',
-        letters.filter((o) => !isMovable(o)),
+      ${sub(ctx, summary ? 'Основные здания и сооружения на земельном участке' : 'Основные здания и сооружения',
+        letters.filter(isReal),
         'Литер нет. Перетащите литеру сюда или добавьте через «+ Добавить ОИ».', 'real', false, true)}
       ${letters.some(isMovable)
     ? sub(ctx, 'Движимое имущество', letters.filter(isMovable),
       '', 'movable', false, false)
     : ''}
+      ${auxBlockHTML(ctx, letters.filter(isAux))}
     </div>
   </div>`;
 }

@@ -4,6 +4,7 @@ import { oiStageChips } from '../../../kernel/oiStage.js';
 import { fmtNum, num } from '../../../kernel/fmt.js';
 import { mechCardMeta } from '../../mechanisms/card.js';
 import { vehicleCardMeta } from '../../vehicle/card.js';
+import { AUX_CARD_META } from '../../civil/card.js';
 
 // Реестр карточек ОИ модуля «Земельный участок».
 export const OI_CARDS = {
@@ -82,6 +83,9 @@ export const OI_CARDS = {
   // модули (mechanisms/card.js, vehicle/card.js); карточки грузятся лениво.
   mech: { ...mechCardMeta(oiStageChips), load: () => import('./mech/index.js') },
   vehicle: { ...vehicleCardMeta(oiStageChips), load: () => import('./vehicle/index.js') },
+  // Вспомогательная постройка — своего экрана нет, правка в таблице под
+  // перечнем (civil/card.js, распространение 13.10.2026).
+  aux: AUX_CARD_META,
 };
 
 export function cardMeta(oi) {

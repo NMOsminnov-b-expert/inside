@@ -14,7 +14,7 @@ import { photoPages, addPhotoFile } from '../parts/photos/model.js';
 import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../oi/land/model.js';
 import { createMechOi } from '../../mechanisms/card.js';
-import { newBuildingOi } from '../../civil/card.js';
+import { newBuildingOi, newAuxOi, bindAuxSection } from '../../civil/card.js';
 import { createVehicleOi } from '../../vehicle/card.js';
 import { bindParties } from './parties.ctrl.js';
 
@@ -44,6 +44,7 @@ function createOi(ctx, type) {
   const letter = nextLetter(rec);
   // Литера — та же, что в нежилом здании (дверь civil/card.js, 13.10.2026).
   if (type.card === 'building') return newBuildingOi(rec, type, { nextId, letter });
+  if (type.card === 'aux') return newAuxOi({ nextId, letter });
 
   const oi = {
     id: nextId('oi'),
@@ -98,6 +99,9 @@ function createOi(ctx, type) {
 export function bindOcCard(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
+
+  // Вспомогательные постройки — таблица под перечнем (civil/card.js).
+  bindAuxSection(ctx, s);
 
   if (ctx.tab === 'audit') bindAuditTab(ctx);
 

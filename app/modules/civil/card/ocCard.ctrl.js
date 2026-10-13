@@ -1,7 +1,8 @@
 import { bindDocsColumns } from '../../../kernel/docsTable.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
-import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns, colVar } from '../../../kernel/columns.js';
-import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W, AUX_COLUMNS, AUX_FIXED_W, auxTotalRowHTML } from './oiTable.view.js';
+import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
+import { OI_COLUMNS, OI_COLUMNS_DEFAULT, OI_FIXED_W } from './oiTable.view.js';
+import { bindAuxSection, newAuxOi } from './auxBuildings.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { bindAuditTab } from '../audit/ctrl.js';
 import { bindComparative } from './comparative.ctrl.js';
@@ -17,7 +18,6 @@ import { bindPhotoExplorer } from '../parts/photos/explorer.js';
 import { createLandOi } from '../../land-plot/oi/land/model.js';
 import { createMechOi } from '../../mechanisms/card.js';
 import { createVehicleOi } from '../../vehicle/card.js';
-import { bindStructBox } from '../parts/struct/ms.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
 
@@ -47,140 +47,13 @@ function createOi(ctx, type) {
 
   const letter = nextLetter(rec);
 
-  // Вспомогательная постройка: набор полей урезан до того, что о ней
-  // действительно заполняют (решение пользователя 17.09.2026) — название,
-  // литера, две площади, три элемента конструктива и фото. Ни развёртки, ни
-  // износа, ни прав, ни адреса: своего экрана у неё нет, и всё лишнее в
-  // раскрытой строке перечня только мешало бы.
-  //
-  // Литера берётся из общего счётчика записи: постройка стоит на участке
-  // наравне с литерами, и вторая «Б» в перечне сбивала бы с толку.
-  if (type.card === 'aux') {
-    return {
-      id: nextId('oi'),
-      card: 'aux',
-      letter,
-      name: '',
-      // Вспомогательное — это и есть её отличие от основных объектов
-      // имущества, и поле «Основное/Вспомогательное» у оценки уже есть.
-      status: 'Вспомогательное',
-      origin: 'manual',
-      residential: false,
-      // Кода ЕНИ у вспомогательной постройки нет: он присваивается
-      // Кадастром объекту, а постройка учитывается в составе участка.
-      eni: '',
-      areas: { tp: '', build: '' },
-      struct: { foundation: [], wallsExt: [], roof: [] },
-      structOther: {},
-      flags: { entered: false, matched: false },
-      docs: [],
-      photos: {},
-      notes: [],
-    };
-  }
+  // Вспомогательная постройка — civil/card/auxBuildings.js (newAuxOi).
+  if (type.card === 'aux') return newAuxOi({ nextId, letter });
 
   const oi = newBuildingOi(rec, type, { nextId, letter });
   if (type.card === 'apartment') oi.apartment = null;
 
   return oi;
-}
-
-// Перегородки столбцов таблицы вспомогательных построек.
-//
-// Своя, а не bindColumnResize из ядра: та берёт ВСЕ перегородки скоупа и
-// привязывает их к одному контейнеру, поэтому на одном экране с перечнем ОИ
-// перегородки двух таблиц управляли бы чужими ширинами. Здесь перегородки
-// помечены своим признаком (data-aux-grip) и двигают только соседние столбцы
-// этой таблицы.
-//
-// Ширины хранятся в ui, поэтому переживают перерисовку; сумма не меняется —
-// сколько один столбец прибавил, столько соседний отдал, и таблица не
-// вылезает за отведённое место.
-const AUX_MIN_W = 46;
-
-function bindAuxColumns(ctx, s) {
-  const box = s.$('[data-aux-cols-box]');
-  if (!box) return;
-
-  // Подгонка под ширину места: сумма ширин столбцов всегда равна ширине
-  // таблицы, поэтому последний столбец не оказывается за краем, а свободного
-  // поля справа не остаётся.
-  //
-  // Во время перетаскивания перегородки подгонка молчит. Иначе она срабатывает
-  // по наблюдателю размеров прямо посреди перетаскивания и возвращает столбцы
-  // к сохранённой раскладке — перегородка тянется, а ширина откатывается
-  // назад (найдено проверкой в браузере: при синтетических событиях всё
-  // проходило в один тик и дефект не проявлялся).
-  let dragging = false;
-  const fit = () => { if (!dragging) applyFit(box, AUX_COLUMNS, ctx.ui.auxColWidths, AUX_FIXED_W); };
-  fit();
-
-  // Ширина меняется не только с окном: просмотрщик документов забирает половину
-  // экрана, и таблица становится уже без всякой перерисовки.
-  if (typeof ResizeObserver === 'function') {
-    if (ctx.ui.auxColsObserver) ctx.ui.auxColsObserver.disconnect();
-    const ro = new ResizeObserver(() => fit());
-    ro.observe(box);
-    ctx.ui.auxColsObserver = ro;
-  }
-
-  const byKey = new Map(AUX_COLUMNS.map((c) => [c.key, c]));
-
-  box.querySelectorAll('[data-aux-grip]').forEach((grip) => {
-    grip.onpointerdown = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const th = grip.closest('[data-col]');
-      const next = th && th.nextElementSibling;
-      if (!th || !next || !next.dataset.col) return;
-
-      const keyL = th.dataset.col;
-      const keyR = next.dataset.col;
-      const wL = Math.round(th.getBoundingClientRect().width);
-      const wR = Math.round(next.getBoundingClientRect().width);
-      const minL = Math.min((byKey.get(keyL) || {}).minWidth || AUX_MIN_W, wL);
-      const minR = Math.min((byKey.get(keyR) || {}).minWidth || AUX_MIN_W, wR);
-
-      const x0 = e.clientX;
-      let d = 0;
-
-      dragging = true;
-      box.classList.add('col-resizing');
-      grip.classList.add('active');
-
-      const move = (ev) => {
-        d = Math.max(minL - wL, Math.min(wR - minR, Math.round(ev.clientX - x0)));
-        // Имя переменной берём у ядра: разметка столбцов рисуется его же
-        // функцией, и своё имя тут просто не подхватилось бы.
-        box.style.setProperty(colVar(keyL), (wL + d) + 'px');
-        box.style.setProperty(colVar(keyR), (wR - d) + 'px');
-      };
-
-      const up = () => {
-        document.removeEventListener('pointermove', move);
-        document.removeEventListener('pointerup', up);
-        box.classList.remove('col-resizing');
-        grip.classList.remove('active');
-        if (!d) { dragging = false; return; }
-
-        // Сохраняем всю раскладку целиком: записав только две изменённые
-        // ширины, получили бы смесь с умолчаниями, сумма которой не сходится
-        // с шириной таблицы.
-        const patch = {};
-        th.parentElement.querySelectorAll('[data-col]').forEach((cell) => {
-          patch[cell.dataset.col] = Math.round(cell.getBoundingClientRect().width);
-        });
-        ctx.ui.auxColWidths = { ...(ctx.ui.auxColWidths || {}), ...patch };
-        dragging = false;
-      };
-
-      // Слушаем документ, а не саму перегородку: курсор во время перетаскивания
-      // уходит с неё, и события до неё не доходят. Снимаются слушатели в up.
-      document.addEventListener('pointermove', move);
-      document.addEventListener('pointerup', up);
-    };
-  });
 }
 
 export function bindOcCard(ctx) {
@@ -605,86 +478,8 @@ export function bindOcCard(ctx) {
     ctx.navigate({ rest: ['oi', tr.dataset.openOi] });
   });
 
-  // --- Вспомогательные постройки ------------------------------------------
-  // Постройки правятся прямо в ячейках своей таблицы. Набранное попадает в
-  // данные сразу (input), перерисовки нет: она заменила бы поле, в котором
-  // стоит курсор. Пересчитывается только итог по площади — единственное, что
-  // зависит от набранного и показано в другом месте.
-  const auxListOf = (oi) => rec.oi.filter((o) => o.card === 'aux'
-    && (o.landId || '') === (oi.landId || ''));
-
-  const refreshAuxTotal = (oi) => {
-    const row = s.$(`tr[data-aux-row="${oi.id}"]`);
-    const tfoot = row && row.closest('table') ? row.closest('table').querySelector('tfoot') : null;
-    if (tfoot) tfoot.innerHTML = auxTotalRowHTML(auxListOf(oi));
-  };
-
-  [['aux-name', (oi, v) => { oi.name = v; }],
-    ['aux-letter', (oi, v) => { oi.letter = v; }],
-    ['aux-year', (oi, v) => { oi.year = v; }],
-    ['aux-area', (oi, v) => { oi.areas.tp = v; }],
-  ].forEach(([attr, set]) => {
-    s.$$(`[data-${attr}]`).forEach((inp) => {
-      inp.oninput = () => {
-        const oi = rec.oi.find((o) => o.id === inp.getAttribute(`data-${attr}`));
-        if (!oi) return;
-        oi.areas = oi.areas || {};
-        set(oi, inp.value);
-        if (attr === 'aux-area') refreshAuxTotal(oi);
-      };
-    });
-  });
-
-  // Клик по строке раскрывает фото постройки. Поля, списки и кнопки из этого
-  // исключены: по ним щёлкают, чтобы править, а не чтобы раскрыть.
-  s.$$('tr[data-aux-row]').forEach((tr) => tr.onclick = (e) => {
-    if (e.target.closest('input, button, .ms, select, textarea, .aux-drag')) return;
-    const id = tr.dataset.auxRow;
-    ctx.ui.auxOpen = ctx.ui.auxOpen === id ? null : id;
-    ctx.render();
-  });
-
-  // Ручка переноса постройки: строка становится перетаскиваемой только пока
-  // нажата ручка, и снова обычной, когда кнопку отпустили или перенос
-  // закончился. Сам перенос обрабатывает общий механизм дерева ([data-drag-oi]).
-  s.$$('[data-aux-drag]').forEach((grip) => {
-    const row = grip.closest('tr');
-    grip.onpointerdown = () => { row.draggable = true; };
-    grip.onpointerup = () => { row.draggable = false; };
-    row.addEventListener('dragend', () => { row.draggable = false; });
-  });
-
-  const auxList = rec.oi.filter((o) => o.card === 'aux');
-  if (auxList.length) {
-    auxList.forEach((oi) => {
-      const row = s.$(`tr[data-aux-row="${oi.id}"]`);
-      if (row) row.querySelectorAll('[data-struct-field]').forEach((box) => bindStructBox(ctx, oi, box));
-    });
-
-    s.$$('.aux-tbl [data-ms-toggle]').forEach((c) => c.onclick = (e) => {
-      e.stopPropagation();
-      const drop = c.parentElement.querySelector('.ms-drop');
-      s.$$('.ms-drop').forEach((d) => { if (d !== drop) d.hidden = true; });
-      s.$$('.ms-control').forEach((mc) => { if (mc !== c) mc.classList.remove('open'); });
-      drop.hidden = !drop.hidden;
-      c.classList.toggle('open', !drop.hidden);
-    });
-
-    // Закрытие списков кликом вне них. Вешается ОДИН раз на скоуп: контроллер
-    // перепривязывается на каждой отрисовке, а документные слушатели снимаются
-    // только при уходе с экрана — иначе они копились бы всю сессию.
-    if (!s.root.dataset.auxMsOutsideBound) {
-      s.root.dataset.auxMsOutsideBound = '1';
-      s.onDocument('click', (e) => {
-        if (!e.target.closest('.ms')) {
-          s.$$('.ms-control').forEach((mc) => mc.classList.remove('open'));
-          s.$$('.ms-drop').forEach((d) => { d.hidden = true; });
-        }
-      });
-    }
-
-    bindAuxColumns(ctx, s);
-  }
+  // --- Вспомогательные постройки (civil/card/auxBuildings.js) ---
+  bindAuxSection(ctx, s);
 
   // Кнопка «Открыть» в шапке узла-участка: она не строка таблицы, поэтому
   // обработчик строк её не ловит (и не должен — строка ещё и отсекает клики

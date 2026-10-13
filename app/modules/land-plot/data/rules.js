@@ -18,6 +18,9 @@ export const OI_TYPES = [
   { label: 'Здание', card: 'building' },
   { label: 'Жилой дом', card: 'building', residential: true },
   { label: 'Прочее строение', card: 'building', litKind: 'other' },
+  // Вспомогательная постройка — как в нежилом здании (civil/card.js,
+  // распространение 13.10.2026): своя таблица под перечнем, правка в ячейках.
+  { label: 'Вспомогательная постройка', card: 'aux' },
 ];
 
 export const MOVABLE_OI_TYPES = [

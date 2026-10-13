@@ -5,6 +5,22 @@ import { fmtNum, num } from '../../../kernel/fmt.js';
 import { mechCardMeta } from '../../mechanisms/card.js';
 import { vehicleCardMeta } from '../../vehicle/card.js';
 
+// Вспомогательная постройка — одна на все типы ОЦ (дверь civil/card.js):
+// своего экрана нет (нет load), мета нужна перечню — подпись, площади, подытог.
+export const AUX_CARD_META = {
+  id: 'aux',
+  headLabel: 'Вспомогательная постройка',
+  listLabel: (oi) => `Лит ${esc(oi.letter)} · ${esc(oi.name)}`,
+  crumbLabel: (oi) => esc(oi.name),
+  plateKind: 'ОЦ → ОИ',
+  hasLetter: true,
+  tableCategory: () => 'Вспомогательная постройка',
+  tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
+  tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
+  areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
+  plateChips: () => [],
+};
+
 // Реестр карточек ОИ модуля «Нежилое здание».
 export const OI_CARDS = {
   building: {
@@ -57,19 +73,7 @@ export const OI_CARDS = {
   // Вспомогательная постройка: гараж, навес, летняя кухня. Своего экрана нет —
   // всё, что у неё есть, правится раскрытием строки в перечне ОЦ, поэтому нет
   // и load. Мета нужна ради перечня: подпись вида, площади и подытог.
-  aux: {
-    id: 'aux',
-    headLabel: 'Вспомогательная постройка',
-    listLabel: (oi) => `Лит ${esc(oi.letter)} · ${esc(oi.name)}`,
-    crumbLabel: (oi) => esc(oi.name),
-    plateKind: 'ОЦ → ОИ',
-    hasLetter: true,
-    tableCategory: () => 'Вспомогательная постройка',
-    tableArea: (oi) => (oi.areas && oi.areas.tp ? fmtNum(num(oi.areas.tp)) + ' м²' : '—'),
-    tableAreaBuild: (oi) => (oi.areas && oi.areas.build ? fmtNum(num(oi.areas.build)) + ' м²' : '—'),
-    areaValues: (oi) => ({ area: num((oi.areas || {}).tp), build: num((oi.areas || {}).build) }),
-    plateChips: () => [],
-  },
+  aux: AUX_CARD_META,
 
   // Квартиру можно добавить в объект оценки любого типа (решение пользователя
   // 02.09.2026), поэтому карточка есть и здесь — импортом из модуля квартиры.
