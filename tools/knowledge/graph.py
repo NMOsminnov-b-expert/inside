@@ -27,6 +27,19 @@ git; ищем по нему CodeGraph (RAG); записи размечаются
     --root <папка>  — другой проект (папка, где лежит его knowledge/): отдельные
     базы со своим набором папок в knowledge/schema.py, например база
     категорий по описям (02.10.2026). Без ключа — граф макета.
+
+Мультиграф (решение пользователя 13.10.2026: «Вынеси данные оттуда в
+отдельный граф… Просто будешь указывать, из какого проекта тебе оно надо… и
+между проектами поиск по всем графам тоже. Пускай это будет мультиграф»):
+
+    python tools/knowledge/graph.py graphs                  графы мультиграфа
+    python tools/knowledge/graph.py graphs add <папка>      добавить граф
+    python tools/knowledge/graph.py --project APCS find …   граф по имени папки
+    python tools/knowledge/graph.py --all find …            по всем графам (и tag)
+
+    Список графов — %LOCALAPPDATA%/Graf/multigraph.json (не в проекте и не в
+    .claude), плюс недавние проекты программы «Граф проекта» (settings.json
+    там же) и граф макета. Тот же список читает программа.
 """
 import ast
 import datetime
@@ -39,6 +52,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KNOW = os.path.join(ROOT, 'knowledge')
+HOME = ROOT   # граф макета — всегда в мультиграфе
 
 # Папка → вид записи.
 FOLDERS = {
@@ -56,6 +70,7 @@ FOLDERS = {
     'project': 'проект',
 }
 STATUSES = {'действует', 'отменено', 'открыт', 'закрыт', 'отложено', 'актуально', 'черновик', 'подтверждён'}
+_DEFAULT = (dict(FOLDERS), set(STATUSES))
 
 
 def use_root(root):
@@ -69,6 +84,7 @@ def use_root(root):
     global ROOT, KNOW, FOLDERS, STATUSES
     ROOT = os.path.abspath(root)
     KNOW = os.path.join(ROOT, 'knowledge')
+    FOLDERS, STATUSES = dict(_DEFAULT[0]), set(_DEFAULT[1])
     sp = os.path.join(KNOW, 'schema.py')
     if os.path.exists(sp):
         tree = ast.parse(io.open(sp, encoding='utf-8').read())
@@ -314,6 +330,62 @@ def cmd_find(text):
     print('найдено: %d' % len(hits))
 
 
+# --- мультиграф -------------------------------------------------------------
+
+def _graf_dir():
+    return os.path.join(os.environ.get('LOCALAPPDATA') or os.path.expanduser('~'), 'Graf')
+
+
+def graphs():
+    """Графы мультиграфа: [(имя, папка)] — граф макета, multigraph.json,
+    недавние проекты программы «Граф проекта»; только папки с knowledge/."""
+    import json
+    paths = [HOME]
+    for name, key in (('multigraph.json', 'Graphs'), ('settings.json', 'Recent')):
+        try:
+            data = json.load(io.open(os.path.join(_graf_dir(), name), encoding='utf-8-sig'))
+            paths += [g.get('Path') for g in data.get(key) or [] if g.get('Path')]
+        except (OSError, ValueError):
+            pass
+    out, seen = [], set()
+    for p in paths:
+        k = os.path.normcase(os.path.abspath(p))
+        if k not in seen and os.path.isdir(os.path.join(p, 'knowledge')):
+            seen.add(k)
+            out.append((os.path.basename(os.path.abspath(p)), os.path.abspath(p)))
+    return out
+
+
+def cmd_graphs(args):
+    import json
+    if args[:1] == ['add'] and len(args) > 1:
+        path = os.path.abspath(args[1])
+        if not os.path.isdir(os.path.join(path, 'knowledge')):
+            sys.exit('в %s нет knowledge/' % path)
+        f = os.path.join(_graf_dir(), 'multigraph.json')
+        try:
+            data = json.load(io.open(f, encoding='utf-8-sig'))
+        except (OSError, ValueError):
+            data = {'Graphs': []}
+        if not any(os.path.normcase(g['Path']) == os.path.normcase(path) for g in data['Graphs']):
+            data['Graphs'].append({'Path': path, 'Name': os.path.basename(path)})
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        io.open(f, 'w', encoding='utf-8').write(json.dumps(data, ensure_ascii=False, indent=2))
+    for name, path in graphs():
+        n = sum(len(glob.glob(os.path.join(path, 'knowledge', d, '*.py'))) for d in os.listdir(os.path.join(path, 'knowledge'))
+                if os.path.isdir(os.path.join(path, 'knowledge', d)))
+        print('%-14s %5d  %s' % (name, n, path))
+
+
+def find_graph(name):
+    for n, p in graphs():
+        if n.lower() == name.lower() or os.path.normcase(p) == os.path.normcase(os.path.abspath(name)):
+            return p
+    if os.path.isdir(os.path.join(name, 'knowledge')):
+        return name
+    sys.exit('нет графа «%s»; графы: %s' % (name, ', '.join(n for n, _ in graphs())))
+
+
 def cmd_tag(tag):
     n = 0
     for folder, p, r in load_all():
@@ -398,6 +470,19 @@ def main():
         i = args.index('--root')
         use_root(args[i + 1])
         del args[i:i + 2]
+    if '--project' in args:
+        i = args.index('--project')
+        use_root(find_graph(args[i + 1]))
+        del args[i:i + 2]
+    if '--all' in args:
+        args.remove('--all')
+        if not args or args[0] not in ('find', 'tag'):
+            sys.exit('--all — только с find и tag')
+        for name, path in graphs():
+            use_root(path)
+            print('=== %s' % name)
+            cmd_find(' '.join(args[1:])) if args[0] == 'find' else cmd_tag(args[1])
+        return
     if not args:
         print(__doc__)
         return
@@ -421,6 +506,8 @@ def main():
         cmd_new(args[1], ' '.join(args[2:]))
     elif cmd == 'stats':
         cmd_stats()
+    elif cmd == 'graphs':
+        cmd_graphs(args[1:])
     elif cmd == 'suggest':
         cmd_suggest(args[1] if len(args) > 1 else None)
     else:

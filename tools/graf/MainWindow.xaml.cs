@@ -31,10 +31,13 @@ public sealed partial class MainWindow : Window
     SemanticIndex? _sem;
     Dictionary<string, string> _semPathToId = new();
     List<Record> _semMatches = new();
+    // Мультиграф: найденное в остальных графах (13.10.2026).
+    List<(Multigraph.Graph G, Record R)> _otherMatches = new();
     CancellationTokenSource? _semCts;
     public bool SemBusy { get; private set; }
     public IReadOnlyList<Record> SemMatches => _semMatches;
     public IReadOnlyList<Record> TextMatches => _matches;
+    public IReadOnlyList<(Multigraph.Graph G, Record R)> OtherMatches => _otherMatches;
     int _mode; // 0 — граф, 1 — 3D, 2 — список
     bool _closingConfirmed;
 
@@ -81,9 +84,9 @@ public sealed partial class MainWindow : Window
         Panel.DeleteRequested += async r => await DeleteRecord(r);
 
         Search.TextChanged += (_, e) => { if (e.Reason == AutoSuggestionBoxTextChangeReason.UserInput) SearchChanged(); };
-        Search.QuerySubmitted += (_, e) =>
+        Search.QuerySubmitted += async (_, e) =>
         {
-            if (e.ChosenSuggestion is SearchItem si) { Select(si.R.Id, center: true); return; }
+            if (e.ChosenSuggestion is SearchItem si) { await OpenFound(si); return; }
             NextMatch();
         };
         Search.SuggestionChosen += (_, e) => { if (e.SelectedItem is SearchItem si) Search.Text = si.R.Title; };
@@ -148,6 +151,7 @@ public sealed partial class MainWindow : Window
         };
 
         SetMode(0);
+        Multigraph.MergeInto(_settings);
         if (root != null && Store.IsProject(root)) OpenProject(root);
         else ShowStart();
         Root.Loaded += (_, _) =>
@@ -196,7 +200,10 @@ public sealed partial class MainWindow : Window
         var name = new DirectoryInfo(root).Name;
         ProjectName.Text = name;
         Title = $"{name} — Граф проекта";
-        if (_remember) _settings.Touch(root);
+        if (_remember) { _settings.Touch(root); Multigraph.Add(root); }
+        // Записи остальных графов — заранее, чтобы первый поиск не ждал диска.
+        var others = Multigraph.Others(_settings, root);
+        Task.Run(() => { foreach (var g in others) Multigraph.Records(g.Root); });
         BuildProjectMenu();
         Start.Visibility = Visibility.Collapsed;
         if (Store.LoadErrors.Count > 0) Status($"Не прочитано файлов: {Store.LoadErrors.Count} — «Проверка» покажет какие");
@@ -746,12 +753,25 @@ public sealed partial class MainWindow : Window
 
     sealed class SearchItem
     {
-        public SearchItem(Record r, bool sem = false) { R = r; Sem = sem; }
+        public SearchItem(Record r, bool sem = false, Multigraph.Graph? g = null) { R = r; Sem = sem; G = g; }
         public Record R { get; }
         public bool Sem { get; }
+        // Запись другого графа мультиграфа — подписана именем графа.
+        public Multigraph.Graph? G { get; }
         // Цвет кольца на графе продублирован словом: смысл не передаётся одним
         // цветом (практика доступности).
-        public override string ToString() => $"{R.Title}  · {Schema.NameOf(R.Folder)}" + (Sem ? "  · по смыслу" : "");
+        public override string ToString() => $"{R.Title}  · {Schema.NameOf(R.Folder)}" + (Sem ? "  · по смыслу" : "") + (G != null ? $"  · граф {G.Name}" : "");
+    }
+
+    // Запись своего графа — выбрать; другого — открыть её граф и выбрать.
+    async Task OpenFound(SearchItem si)
+    {
+        if (si.G != null)
+        {
+            if (Panel.IsDirty && !await ConfirmLeave()) return;
+            OpenProject(si.G.Root);
+        }
+        Select(si.R.Id, center: true);
     }
 
     public void SearchChanged()
@@ -763,8 +783,10 @@ public sealed partial class MainWindow : Window
             .OrderByDescending(r => words.Count(w => r.Title.ToLowerInvariant().Contains(w)))
             .ThenBy(r => r.Title).ToList();
         _matchAt = -1;
+        _otherMatches = _code ? new() : Multigraph.Find(Multigraph.Others(_settings, Store.Root), words, 6);
         ClearSemantic();
         FillSuggestions();
+        if (_otherMatches.Count > 0) Status($"по словам {_matches.Count} · в других графах: " + string.Join(", ", _otherMatches.GroupBy(x => x.G.Name).Select(g => $"{g.Key} {g.Count()}")));
         Refresh();
         if (!_code && _sem != null && Search.Text.Trim().Length >= 3) _ = SearchSemantic(Search.Text.Trim());
     }
@@ -776,7 +798,8 @@ public sealed partial class MainWindow : Window
     {
         var text = _matches.Take(8).Select(r => new SearchItem(r));
         var sem = _semMatches.Where(r => !_matches.Contains(r)).Take(6).Select(r => new SearchItem(r, true));
-        Search.ItemsSource = text.Concat(sem).ToList();
+        var other = _otherMatches.Select(x => new SearchItem(x.R, false, x.G));
+        Search.ItemsSource = text.Concat(sem).Concat(other).ToList();
     }
 
     async Task SearchSemantic(string q)

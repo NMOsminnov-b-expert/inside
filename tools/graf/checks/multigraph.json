@@ -1,0 +1,6 @@
+[
+  {"op": "search", "text": "осмотрщик маршрут"},
+  {"op": "others", "min": 1},
+  {"op": "search", "text": ""},
+  {"op": "others", "min": 0}
+]

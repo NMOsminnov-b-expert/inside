@@ -43,6 +43,17 @@ public static class ScriptRunner
                         log.Add("  по смыслу: " + string.Join("; ", w.SemMatches.Select(r => r.Id)));
                         break;
                     }
+                    case "others":
+                    {
+                        // Мультиграф: найденное в остальных графах; min — сколько ждём не меньше.
+                        var got = w.OtherMatches;
+                        log.Add("  в других графах: " + string.Join("; ", got.Select(x => x.G.Name + ":" + x.R.Id)));
+                        if (st.TryGetProperty("min", out var mn) && got.Count < mn.GetInt32())
+                            log.Add($"  ОШИБКА мультиграф: найдено {got.Count}, ждали не меньше {mn.GetInt32()}");
+                        if (got.Any(x => string.Equals(x.G.Root, w.Store!.Root, StringComparison.OrdinalIgnoreCase)))
+                            log.Add("  ОШИБКА мультиграф: среди «других» — открытый граф");
+                        break;
+                    }
                     case "next": w.NextMatch(); break;
                     case "mode": w.SetModePublic(S("value") switch { "3d" => 1, "list" => 2, _ => 0 }); break;
                     case "pull":
