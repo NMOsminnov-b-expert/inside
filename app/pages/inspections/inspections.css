@@ -801,13 +801,19 @@ body[data-page="inspections"] .ipc-plan{font-size:10px;font-weight:600;color:var
    осмотр), справа карта OSM; на узком — карта под списком. */
 body[data-page="inspections"] .ip-route-act{display:flex;gap:8px;flex-wrap:wrap}
 body[data-page="inspections"] .ip-route-act .btn.on{background:var(--amber-50);border-color:var(--amber-600);color:var(--amber-700)}
-body[data-page="inspections"] .ip-route{display:grid;grid-template-columns:minmax(320px,2fr) minmax(0,3fr);gap:12px;min-height:420px}
+/* Эргономика (13.10.2026: «Карта должна динамически менять размер в
+   зависимости от размера, выделенного под нее… в высоту тоже»): на широком —
+   список слева в общей прокрутке, карта справа закреплена и высотой во всю
+   видимую область прокрутки (высоту ставит JS по месту, ResizeObserver
+   пересчитывает); на узком — карта над списком, на половину видимой высоты. */
+body[data-page="inspections"] .ip-route{display:grid;grid-template-columns:minmax(300px,2fr) minmax(0,3fr);gap:12px;align-items:start}
+body[data-page="inspections"] .ip-map{position:sticky;top:8px;height:420px;min-height:300px;border-radius:12px;border:1px solid var(--line-soft);overflow:hidden;background:var(--slate-50)}
 @media (max-width:1100px){
   body[data-page="inspections"] .ip-route{grid-template-columns:minmax(0,1fr)}
-  body[data-page="inspections"] .ip-map{min-height:360px}
+  body[data-page="inspections"] .ip-map{position:relative;top:0;order:-1}
 }
-body[data-page="inspections"] .ip-map{min-height:420px;border-radius:12px;border:1px solid var(--line-soft);overflow:hidden;background:var(--slate-50)}
-body[data-page="inspections"] .ip-stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:620px;overflow-y:auto}
+body[data-page="inspections"] .ip-map-err{display:flex;align-items:center;justify-content:center;height:100%;padding:16px;text-align:center;font-size:12.5px;color:var(--danger)}
+body[data-page="inspections"] .ip-stops{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 body[data-page="inspections"] .ip-stop{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:start;padding:8px 10px;
   background:var(--panel);border:1px solid var(--line-soft);border-radius:10px}
 body[data-page="inspections"] .ip-stop.home{background:var(--slate-50)}
@@ -825,6 +831,16 @@ body[data-page="inspections"] .ip-stop-t{font-size:12.5px;font-variant-numeric:t
   font:700 12px/1 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff}
 .ip-pin.prop span{background:#c07c1e}
 .ip-pin.home span{background:#54718f}
+/* Объединённый значок «2 · 5» — шире; подсказка карты — белая карточка с
+   тенью и ровным текстом, видна на любом месте значка (13.10.2026: «при
+   наведении подсказок особо не видно»). */
+.ip-pin span.wide{width:44px;padding:0 4px;font-size:11px;white-space:nowrap}
+.ip-pin{cursor:pointer}
+.leaflet-tooltip.ip-tip{max-width:280px;padding:7px 10px;border:1px solid #c3cfdd;border-radius:8px;background:#fff;color:#1b2a3a;
+  font:12.5px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;white-space:normal;box-shadow:0 6px 18px rgba(15,23,42,.18)}
+.leaflet-tooltip.ip-tip b{font-weight:700}
+.leaflet-tooltip.ip-tip i{font-style:normal;color:#5a6b82}
+.leaflet-tooltip.ip-tip hr{margin:6px 0;border:0;border-top:1px solid #dbe4ee}
 body[data-page="inspections"] .ip-normtbl{min-width:720px}
 body[data-page="inspections"] .ip-normtbl col.c-n{width:130px}
 body[data-page="inspections"] .ip-normtbl col.c-f{width:230px}

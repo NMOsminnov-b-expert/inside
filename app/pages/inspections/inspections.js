@@ -40,7 +40,7 @@ import {
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms } from './route.js';
+import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord } from './route.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
@@ -1014,7 +1014,7 @@ export function mountInspections(host) {
     if (route.person !== me.name) { route.person = me.name; route.day = firstWorkday(me.name); route.skip = new Set(); route.homeMode = false; }
     const r = dayRoute(all, me.name, route.day, route.skip);
     const wd = WDL[new Date(route.day + 'T00:00:00').getDay()];
-    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'}">
+    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'}" data-ip-stop="${i + 1}">
         <span class="ip-stop-n">${i + 1}</span>
         <div class="ip-stop-b">
           <div class="ip-stop-h"><b>${esc(x.s.title)}</b><i class="${x.fixed ? 'k-plan' : 'k-act'}">${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i></div>
@@ -1051,9 +1051,54 @@ export function mountInspections(host) {
       ${route.skip.size ? `<p class="ip-hint">Убрано из предложений: ${route.skip.size}. <button class="btn btn-ghost btn-sm" data-ip-route-unskip>Вернуть</button></p>` : ''}
       ${r.noGps.length ? `<p class="ip-hint">Без координат, не на карте: ${r.noGps.map((x) => esc(x.s.title)).join('; ')}.</p>` : ''}`;
   }
+  // Высота карты — по месту (13.10.2026: «в высоту тоже надо»): на широком —
+  // видимая высота прокрутки карточки (карта закреплена сбоку), на узком —
+  // половина её; при любом изменении размера — пересчёт и invalidateSize, иначе
+  // Leaflet рисует серые куски.
+  let routeObs = null;
+  function fitRouteMap(box) {
+    // Область, которая правда прокручивается сама; иначе (узкая раскладка —
+    // прокручивается страница) — высота окна. От растущей карточки высоту не
+    // берём: карта растила бы карточку, а карточка — карту.
+    const sc = box.closest('.ip-pscroll, .ip-card-body, .ip-scroll');
+    const own = sc && /auto|scroll/.test(getComputedStyle(sc).overflowY) && sc.clientHeight < innerHeight - 1;
+    const narrow = getComputedStyle(box).position !== 'sticky';
+    let h;
+    if (narrow) {
+      h = (own ? sc.clientHeight : innerHeight) * 0.5;
+    } else {
+      // Место под верхним краем карты в области прокрутки (при прокрутке в
+      // начало): короткий список не получает лишней прокрутки от карты
+      // («есть прокрутка — значит подстраивается криво», 13.10.2026).
+      const top = own ? box.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop : box.getBoundingClientRect().top + scrollY;
+      const pad = parseFloat(getComputedStyle(own ? sc : document.body).paddingBottom) || 0;
+      h = (own ? sc.clientHeight : innerHeight) - top - pad - 12;
+    }
+    box.style.height = `${Math.max(300, Math.round(h))}px`;
+    // Только сообщить карте новый размер — без перевписывания: оно
+    // перехватывало зум человека.
+    if (routeMap) routeMap.invalidateSize({ pan: false, animate: false });
+  }
   async function mountRouteMap() {
     const box = scope.$('[data-ip-map]');
     if (!box || !view.person) return;
+    if (routeObs) { routeObs.disconnect(); routeObs = null; }
+    fitRouteMap(box);
+    try {
+      await drawRouteMap(box);
+    } catch (e) {
+      // Карта не нарисовалась — говорим об этом в ней самой, а не пустым полем.
+      console.error('Карта маршрута не нарисована', e);
+      if (routeMap) { routeMap.remove(); routeMap = null; }
+      box.innerHTML = `<div class="ip-map-err">Карта не нарисовалась: ${esc(e.message || String(e))}. Обновите страницу (Ctrl+F5).</div>`;
+      return;
+    }
+    const sc = box.closest('.ip-pscroll, .ip-card-body, .ip-scroll');
+    routeObs = new ResizeObserver(() => { if (box.isConnected) fitRouteMap(box); else { routeObs.disconnect(); routeObs = null; } });
+    routeObs.observe(box.parentElement);
+    if (sc) routeObs.observe(sc);
+  }
+  async function drawRouteMap(box) {
     const r = dayRoute(all, view.person, route.day, route.skip);
     await host.ensureStyle('./app/vendor/leaflet/leaflet.css');
     const L = await import('../../vendor/leaflet/leaflet-src.esm.js');
@@ -1061,16 +1106,60 @@ export function mountInspections(host) {
     if (routeMap) { routeMap.remove(); routeMap = null; }
     const map = L.map(box, { scrollWheelZoom: true, attributionControl: true });
     routeMap = map;
+    box._map = map;   // для замеров и проверок: значок ↔ его точка на карте
     // Подложка OSM — общедоступные тайлы (исключение к правилу «данные наружу
     // не уходят», решение пользователя 12.10.2026); подпись — условие OSM.
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
-    const pin = (cls, text) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span>${text}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] });
-    const pts = [];
-    if (r.home.gps) { L.marker(r.home.gps, { icon: pin('home', '⌂'), title: r.home.label }).addTo(map); pts.push(r.home.gps); }
-    r.stops.forEach((x, i) => { L.marker(x.gps, { icon: pin(x.fixed ? 'fixed' : 'prop', i + 1), title: x.s.title }).addTo(map); pts.push(x.gps); });
+    // Значки остановок (замечания пользователя 13.10.2026: «есть косяки на
+    // карте»; «при наведении подсказок особо не видно, только на белом
+    // контуре»): близкие на текущем масштабе (ближе 24 px) — одним значком
+    // «2 · 5», пересчёт при каждом масштабе; подсказка карты (tooltip) — на
+    // всём значке: номер, адрес, прибытие, состояние; наведение на строку
+    // списка подсвечивает её значок. Контур участка из Кадастра (rec.geo) —
+    // на карте, виден при приближении.
+    const items = [];
+    if (r.home.gps) items.push({ n: '⌂', cls: 'home', ll: r.home.gps, tip: `<b>${esc(r.home.label === 'дом' ? 'Дом' : 'Временное жильё')}</b><br>выезд ${r.start} · возвращение ${r.back.arrive}` });
+    r.stops.forEach((x, i) => items.push({
+      n: String(i + 1), cls: x.fixed ? 'fixed' : 'prop', ll: x.gps,
+      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br>${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}прибытие ${x.arrive} · осмотр ${x.inspect} мин<br><i>${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i>`,
+    }));
+    r.stops.forEach((x) => {
+      const rec = loadOcRecord(x.s.typeId, x.s.id);
+      const geo = rec && rec.geo;
+      if (geo && geo.contour) {
+        L.polygon(geo.contour.map((poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]))), { color: '#1668c9', weight: 1.5, fillOpacity: 0.15, interactive: false }).addTo(map);
+      }
+    });
+    // Значки — простая схема Leaflet (13.10.2026: перегруппировка при каждом
+    // масштабе и повторное вписывание ломали зум и ставили значки мимо точек —
+    // «маркеры слетают», «зум перестал работать»): сначала вид карты, затем
+    // значки, один раз; близкие на начальном масштабе (ближе 24 px) — одним
+    // значком «2 · 5» с общей подсказкой; при зуме ничего не перестраивается.
+    const pts = items.map((x) => x.ll);
     if (r.home.gps && r.stops.length) pts.push(r.home.gps);
-    if (pts.length > 1) L.polyline(pts, { color: '#1668c9', weight: 3, opacity: 0.8, dashArray: '6 6' }).addTo(map);
-    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14 }); else map.setView([42.87, 74.59], 11);
+    if (pts.length > 1) L.polyline(pts, { color: '#1668c9', weight: 3, opacity: 0.8, dashArray: '6 6', interactive: false }).addTo(map);
+    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14, animate: false }); else map.setView([42.87, 74.59], 11, { animate: false });
+    const pinIcon = (cls, text, wide) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span${wide ? ' class="wide"' : ''}>${text}</span>`, iconSize: [wide ? 44 : 26, 26], iconAnchor: [wide ? 22 : 13, 13] });
+    const groups = [];
+    items.forEach((it) => {
+      const pt = map.latLngToLayerPoint(it.ll);
+      const g = groups.find((x) => x.pt.distanceTo(pt) < 24);
+      if (g) g.items.push(it); else groups.push({ pt, items: [it] });
+    });
+    const byN = new Map();
+    groups.forEach((g) => {
+      const lead = g.items[0];
+      const cls = g.items.some((x) => x.cls === 'fixed') ? 'fixed' : lead.cls;
+      const m = L.marker(lead.ll, { icon: pinIcon(cls, g.items.map((x) => x.n).join(' · '), g.items.length > 1), keyboard: false, riseOnHover: true })
+        .bindTooltip(g.items.map((x) => x.tip).join('<hr>'), { direction: 'top', offset: [0, -14], className: 'ip-tip', opacity: 1 })
+        .addTo(map);
+      g.items.forEach((x) => byN.set(x.n, m));
+    });
+    // Строка списка ↔ значок: наведение на строку открывает подсказку значка.
+    scope.$$('[data-ip-stop]').forEach((li) => {
+      li.addEventListener('mouseenter', () => { const m = byN.get(li.dataset.ipStop); if (m) m.openTooltip(); });
+      li.addEventListener('mouseleave', () => { const m = byN.get(li.dataset.ipStop); if (m) m.closeTooltip(); });
+    });
     map.on('click', (e) => {
       if (!route.homeMode) return;
       saveProfile(view.person, { homeGps: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}` });

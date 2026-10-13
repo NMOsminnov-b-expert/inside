@@ -54,6 +54,33 @@ def run(t):
     t.ck(pg.locator('.ip-stop.home').count() == 2, 'маршрут не начинается и не кончается домом')
     t.ck(pg.locator('.ip-pin').count() >= 2, 'на карте нет точек маршрута')
 
+    # Зум кнопкой и колесом: масштаб меняется, значки стоят на своих точках
+    # (замечания пользователя 13.10.2026: «при прокрутке маркеры слетают»,
+    # «зум перестал работать» — перегруппировка значков при каждом масштабе
+    # и перевписывание маршрута по наблюдателю размера ставили значки мимо
+    # точек и перехватывали зум).
+    drift = """() => { const box = document.querySelector('[data-ip-map]'); const map = box._map; const b = box.getBoundingClientRect(); let d = 0;
+      map.eachLayer((l) => { if (l.getLatLng && l._icon) { const p = map.latLngToContainerPoint(l.getLatLng()); const r = l._icon.getBoundingClientRect();
+        d = Math.max(d, Math.abs(r.left + r.width / 2 - b.left - p.x), Math.abs(r.top + r.height / 2 - b.top - p.y)); } });
+      return [map.getZoom(), Math.round(d)]; }"""
+    t.wait_until("() => { const b = document.querySelector('[data-ip-map]'); return b && b._map && b._map._loaded && !b._map._animatingZoom; }")
+    t.wait(300)
+    z0, _ = pg.evaluate(drift)
+    pg.click('.leaflet-control-zoom-in')
+    # Масштаб — списком: число вторым доводом wait_until считает пределом ожидания.
+    t.wait_until("([z]) => document.querySelector('[data-ip-map]')._map.getZoom() > z && !document.querySelector('[data-ip-map]')._map._animatingZoom", [z0])
+    z1, d1 = pg.evaluate(drift)
+    t.ck(z1 > z0 and d1 <= 3, 'зум кнопкой: масштаб %s → %s, значки мимо точек на %s px' % (z0, z1, d1))
+    mb = pg.locator('.ip-map').bounding_box()
+    pg.mouse.move(mb['x'] + mb['width'] * 0.7, mb['y'] + mb['height'] * 0.4)
+    for _ in range(3):
+        pg.mouse.wheel(0, -250)
+        t.wait(90)
+    t.wait_until("([z]) => document.querySelector('[data-ip-map]')._map.getZoom() > z && !document.querySelector('[data-ip-map]')._map._animatingZoom", [z1])
+    t.wait(500)
+    z2, d2 = pg.evaluate(drift)
+    t.ck(z2 > z1 and d2 <= 3, 'зум колесом: масштаб %s → %s, значки мимо точек на %s px' % (z1, z2, d2))
+
     # дом — щелчком по карте
     before = pg.evaluate("async (w) => (await %s).profileOf(w).homeGps" % K, WHO)
     pg.click('[data-ip-route-home]')

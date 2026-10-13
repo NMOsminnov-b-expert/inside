@@ -107,10 +107,19 @@ export function roadKm(a, b) {
 // Средняя скорость: по городу (до 15 км) — 30 км/ч, дальше — 60 км/ч.
 export const driveMinutes = (km) => Math.round(km < 15 ? (km / 30) * 60 : 30 + ((km - 15) / 60) * 60);
 
-const gpsOfObject = (typeId, ocId) => {
+export const loadOcRecord = (typeId, ocId) => {
   const t = getType(typeId);
-  const rec = t && t.records.loadRecord ? t.records.loadRecord(ocId) : null;
-  return rec ? parseGps(rec.gps) : null;
+  return t && t.records.loadRecord ? t.records.loadRecord(ocId) : null;
+};
+// Точка объекта: поле GPS карточки, а если пусто — центр рамки участка из
+// Кадастра (rec.geo, 13.10.2026: координаты по ЕНИ и адресу).
+const gpsOfObject = (typeId, ocId) => {
+  const rec = loadOcRecord(typeId, ocId);
+  if (!rec) return null;
+  const g = parseGps(rec.gps);
+  if (g) return g;
+  const e = rec.geo && rec.geo.extent;
+  return e ? [(e[1] + e[3]) / 2, (e[0] + e[2]) / 2] : null;
 };
 const hm = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
 const minOf = (t) => { const [h, m] = String(t || '09:00').split(':').map(Number); return h * 60 + (m || 0); };
