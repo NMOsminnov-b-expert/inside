@@ -23,12 +23,23 @@ function personSelect(people, value) {
   </select>`;
 }
 
-function whoWhen(people, person, date) {
-  return `<div class="ip-f-row">
-    <div class="field"><label for="ip-f-person">Осмотрщик<span class="req">*</span></label>${personSelect(people, person)}</div>
-    <div class="field ip-f-date"><label for="ip-f-date">Плановая дата</label>
-      <input class="input" type="date" id="ip-f-date" data-ip-f-date min="${todayIso()}" value="${esc(date || '')}"></div>
-  </div>`;
+// Кто и когда — одним блоком в порядке решения (перестройка панели
+// 13.10.2026: «Вот эта панель не очень удобная»): подбор «Кто поедет» с
+// днями выбранного прямо в его строке, полный список — одним полем «или
+// другой», затем плановая дата и крайний срок одной строкой. Раньше один и
+// тот же выбор стоял дважды — карточками и полем «Осмотрщик» под ними.
+function whoWhen(people, person, date, plan) {
+  return `<section class="ip-sec ip-sec-who"><h3>Кто поедет</h3>
+    ${plan ? plan.top : ''}
+    <div class="field ip-f-other"><label for="ip-f-person">${plan ? 'Или другой осмотрщик' : 'Осмотрщик'}<span class="req">*</span></label>${personSelect(people, person)}</div>
+  </section>
+  <section class="ip-sec"><h3>Когда</h3>
+    <div class="ip-f-row">
+      <div class="field ip-f-date"><label for="ip-f-date">Плановая дата</label>
+        <input class="input" type="date" id="ip-f-date" data-ip-f-date min="${todayIso()}" value="${esc(date || '')}"></div>
+      ${plan ? plan.deadline : '<div></div>'}
+    </div>
+  </section>`;
 }
 
 const note = (v) => `<div class="field"><label for="ip-f-note">Комментарий осмотрщику</label>
@@ -70,7 +81,7 @@ function oiState(c, id, prev) {
 function contentsHTML(c, pick, prev) {
   const whole = !pick.oi.size;
   const oi = c.oi.length ? `<section class="ip-sec">
-      <h3>Объекты имущества</h3>
+      <h3>Что осмотреть</h3>
       ${c.cov && c.cov.state !== 'none' && !prev ? `<p class="ip-hint">ОИ: осмотрено ${c.cov.done}, назначено ${c.cov.live}, свободно ${c.cov.free} из ${c.cov.total}.</p>` : ''}
       <label class="ip-check"><input type="checkbox" data-ip-f-whole ${whole ? 'checked' : ''} ${c.cov && c.cov.state !== 'none' && !prev ? 'disabled title="Часть ОИ уже назначена или осмотрена — отметьте свободные ниже"' : ''}> Объект целиком</label>
       <div class="ip-oi" ${whole ? 'hidden' : ''}>
@@ -78,18 +89,19 @@ function contentsHTML(c, pick, prev) {
           <span>${esc(o.label)}${st ? `<em>${st}</em>` : ''}</span></label>`; }).join('')}
       </div>
     </section>` : '';
+  // Документы и описи — свёрнуты, в заголовке — сколько отмечено: по
+  // умолчанию отмечено нужное (планы), раскрывают их, только чтобы поправить.
   const groups = c.groups.filter((g) => g.docs.length);
-  const docs = `<section class="ip-sec">
-      <h3>Документы для осмотрщика</h3>
+  const nDocs = groups.reduce((k, g) => k + g.docs.length, 0);
+  const docs = `<details class="ip-sec ip-fold"><summary><h3>Документы для осмотрщика</h3><span class="ip-fold-n">${nDocs ? `отмечено ${pick.docs.size} из ${nDocs}` : 'нет'}</span></summary>
       ${groups.length ? groups.map((g) => `<div class="ip-group"><div class="ip-group-h">${esc(g.label)}</div>
           ${g.docs.map((d) => docLine(d, pick.docs.has(d.id), 'data-ip-f-doc')).join('')}</div>`).join('')
         : '<p class="ip-hint">У объекта и его ОИ документов нет.</p>'}
-    </section>`;
-  const inv = `<section class="ip-sec">
-      <h3>Описи</h3>
+    </details>`;
+  const inv = `<details class="ip-sec ip-fold"><summary><h3>Описи</h3><span class="ip-fold-n">${c.inventories.length ? `отмечено ${pick.inv.size} из ${c.inventories.length}` : 'нет'}</span></summary>
       ${c.inventories.length ? c.inventories.map((d) => docLine(d, pick.inv.has(d.id), 'data-ip-f-inv')).join('')
         : '<p class="ip-hint">Описей нет — опись прикрепляется в карточке документом вида «Инвентаризационный список».</p>'}
-    </section>`;
+    </details>`;
   return oi + docs + inv;
 }
 
@@ -99,7 +111,7 @@ function contentsHTML(c, pick, prev) {
 // полоса доступности, срок, контакты на месте; date — выбранная плановая дата.
 export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null }) {
   if (mode === 'none') {
-    return `<aside class="ip-pane" aria-label="Назначение"><div class="ip-pane-body"><p class="ip-hint">Выберите объект в таблице.</p></div></aside>`;
+    return `<aside class="ip-pane ip-pane-none" aria-label="Назначение"><div class="ip-pane-body"><p class="ip-hint">Выберите объект в списке.</p></div></aside>`;
   }
 
   if (mode === 'many') {
@@ -107,9 +119,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       <header class="ip-pane-head"><h2>Выбрано объектов: ${targets.length}</h2>
         <p class="ip-pane-sub">Документы у каждого — по умолчанию: технический паспорт, кадастровый и ситуационный планы.</p></header>
       <div class="ip-pane-body">
-        ${plan ? plan.top : ''}
-        ${whoWhen(people, person, date)}
-        ${plan ? plan.mid : ''}
+        ${whoWhen(people, person, date, plan)}
         <section class="ip-sec"><h3>Объекты</h3>
           <ul class="ip-picked">${targets.map((t) => `<li><span class="ell">${esc(t.title)}</span>
             <button class="ip-x" data-ip-unpick="${esc(t.typeId + '|' + t.ocId)}" aria-label="Убрать из выбора" title="Убрать из выбора">×</button></li>`).join('')}</ul>
@@ -164,9 +174,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
     </header>
     <div class="ip-pane-body">
-      ${plan ? plan.top : ''}
-      ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt))}
-      ${plan ? plan.mid : ''}
+      ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan)}
       ${contentsHTML(c, pick, prev)}
       ${plan ? plan.bottom : ''}
       ${note(prev && prev.note)}

@@ -21,6 +21,17 @@ TOUCHES = ('app/pages/inspections/*', 'app/kernel/inspections.js', 'app/shell/sh
            'app/kernel/router.js', 'app/kernel/boot.js')
 
 
+def open_facets(t, pg):
+    if pg.locator('[data-ip-ff]').first.is_visible():
+        return
+    btn = pg.locator('.ip-fbtn[data-ip-ftoggle]')
+    if btn.count() and btn.is_visible():
+        btn.click()
+    else:
+        pg.click('.ip-facets-toggle')
+    t.wait_until("() => { const b = document.querySelector('[data-ip-ff]'); return b && b.offsetParent !== null; }")
+
+
 def run(t):
     pg = t.page
     t.open('', wait='.reg-tr')
@@ -42,6 +53,9 @@ def run(t):
     # поиске в К назначению должна быть». Объект с осмотренными и назначенными ОИ,
     # но со свободными — в очереди, фильтр «Частично осмотрены» его находит, а в
     # панели занятые ОИ не выбираются повторно.
+    # Отборы на сцене «Назначений» — панелью по кнопке «Отбор» (перестройка
+    # 13.10.2026); на узкой раскладке — раскрывашкой «Отборы».
+    open_facets(t, pg)
     pg.click('[data-ip-ff="cov"][data-ip-fv="inspected"]')
     if t.ck(t.wait_until("() => document.querySelectorAll('tr[data-ip-row]').length > 0 && [...document.querySelectorAll('tr[data-ip-row]')].every((r) => r.dataset.cov === 'inspected')"),
             'фильтр «Частично осмотрены» не нашёл частично осмотренных объектов'):
@@ -93,7 +107,11 @@ def run(t):
         pg.click('[data-ip-bulk-clear]')
 
     # --- «Назначено» и снятие ---------------------------------------------------------
+    # «Назначено» — сначала сотрудник, потом его объекты (13.10.2026): здесь —
+    # строка выбранного осмотрщика.
     pg.click('[data-ip-tab="assigned"]')
+    t.wait_for('[data-ip-aperson]')
+    pg.click('[data-ip-aperson="%s"]' % person)
     t.wait_for('[data-ip-row]')
     mine = pg.evaluate("""async (k) => { const [typeId, ocId] = k.split('|'); const m = await import('./app/kernel/inspections.js');
       const a = m.assignmentsOf(typeId, ocId).find((x) => !x.demo); return a ? a.id : ''; }""", key)
@@ -140,11 +158,19 @@ def run(t):
     t.ck(pg.locator('.ip-facets [data-ip-ff="due"][data-ip-fv="hot"]').count() == 1, 'в фильтрах нет «Горящие»')
     pg.click('[data-ip-bulk-clear]')
 
-    # «Назначено»: по осмотрщикам, «Переназначить все…», отбор «План на отсутствие»
+    # «Назначено»: список сотрудников (держит любое их число), у выбранного —
+    # его объекты и «Переназначить все…»; отбор «План на отсутствие»
     pg.click('[data-ip-tab="assigned"]')
-    t.wait_for('.ip-grouped tr.ip-grp')
+    t.wait_for('[data-ip-aperson]')
+    # Выбранный раньше сотрудник запоминается — к списку через «‹ Сотрудники».
+    if pg.locator('.ip-aback').count():
+        pg.click('.ip-aback')
+        t.wait_for('.ip-aperson')
+    t.ck(pg.locator('.ip-aperson:not(.ip-aperson-all)').count() >= 2, '«Назначено» не начинается со списка сотрудников')
+    pg.locator('.ip-aperson:not(.ip-aperson-all)').first.click()
+    t.wait_for('[data-ip-rg]')
     groups = pg.locator('[data-ip-rg]')
-    if t.ck(groups.count() >= 2, '«Назначено» не сгруппировано по осмотрщикам'):
+    if t.ck(groups.count() == 1, 'у выбранного сотрудника нет «Переназначить все…»'):
         frm = groups.first.get_attribute('data-ip-rg')
         n0 = pg.evaluate("async (w) => (await import('./app/kernel/inspections.js')).allAssignments().filter((a) => a.person === w && ['assigned', 'progress'].includes(a.state)).length", frm)
         groups.first.click()
@@ -193,11 +219,14 @@ def run(t):
     # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у
     # календаря та же проблема»: на страницах ядра поля рисовал браузер — рамка и
     # скругление поля даты и комментария не совпадали со списком рядом.
-    t.open('#/inspections', wait='.ip-page')
-    pg.click('[data-ip-section="assign"]')
-    t.wait_for('.ip-pane [data-ip-f-date]')
+    # Панель назначения очереди: «Назначено» могло остаться на сотруднике без
+    # назначений (выше всё переназначено) — там панели нет вовсе.
+    t.open('#/inspections?s=assign&t=queue', wait='.ip-page')
+    # Ждать все три поля разом: переход перерисовывает раздел, и одно поле
+    # успевало найтись в прежней отрисовке (сценарий падал через раз).
+    t.wait_until("() => ['.ip-pane .pick-btn', '.ip-pane [data-ip-f-date]', '.ip-pane [data-ip-f-note]'].every((s) => document.querySelector(s))")
     look = pg.evaluate("""() => ['.ip-pane .pick-btn', '.ip-pane [data-ip-f-date]', '.ip-pane [data-ip-f-note]'].map((s) => {
-      const st = getComputedStyle(document.querySelector(s)); return [st.borderTopColor, st.borderTopLeftRadius, st.borderTopWidth]; })""")
+      const el = document.querySelector(s); if (!el) return 'нет ' + s; const st = getComputedStyle(el); return [st.borderTopColor, st.borderTopLeftRadius, st.borderTopWidth]; })""")
     t.ck(look[0] == look[1] == look[2], 'поля панели оформлены по-разному (список, дата, комментарий): %s' % look)
 
     # --- выезды, статистика, контакты, области ---------------------------------------

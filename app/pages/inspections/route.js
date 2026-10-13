@@ -113,7 +113,7 @@ export const loadOcRecord = (typeId, ocId) => {
 };
 // Точка объекта: поле GPS карточки, а если пусто — центр рамки участка из
 // Кадастра (rec.geo, 13.10.2026: координаты по ЕНИ и адресу).
-const gpsOfObject = (typeId, ocId) => {
+export const gpsOfObject = (typeId, ocId) => {
   const rec = loadOcRecord(typeId, ocId);
   if (!rec) return null;
   const g = parseGps(rec.gps);

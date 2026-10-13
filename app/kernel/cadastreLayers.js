@@ -19,6 +19,11 @@ import { featuresInBox } from './cadastreGeo.js';
 import { esc } from './dom.js';
 import { formatEniText } from './eniField.js';
 
+// Плавный масштаб для всех карт макета (указание пользователя 13.10.2026:
+// «Зум тоже плавный, а не рывками»): дробные уровни, колесо — мелкими
+// шагами, кнопки — полуровнем.
+export const SMOOTH_ZOOM = { zoomSnap: 0, zoomDelta: 0.5, wheelPxPerZoomLevel: 110, wheelDebounceTime: 10 };
+
 const MIN_ZOOM = 16;
 const RADIUS = 150;          // м вокруг точки
 const MAX_POINTS = 12;       // точек за раз (остановок дня больше не бывает)

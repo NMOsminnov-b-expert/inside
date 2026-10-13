@@ -72,7 +72,8 @@ def run(t):
     t.ck(t.wait_for('[data-ip-section="assign"][aria-selected="true"]'), 'по ссылке открыт не раздел «Назначения»')
     t.ck(t.wait_for('[data-ip-tab="assigned"][aria-selected="true"]'), 'по ссылке открыт не подраздел «Назначено»')
 
-    # Объект по ЕНИ
+    # Объект по ЕНИ — в общем списке «Все назначения»
+    pg.click('[data-ip-aperson="*"]')
     t.wait_for('[data-ip-row]')
     eni = pg.evaluate("""() => { const re = /\\d[\\d-]{6,}\\d/; const el = [...document.querySelectorAll('[data-ip-row]')].find((r) => re.test(r.innerText));
       return el ? el.innerText.match(re)[0] : ''; }""")

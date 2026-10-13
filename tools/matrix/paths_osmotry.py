@@ -66,7 +66,7 @@ def _(p):
 
 @path('assigned-scroll-back', '«Назначено»: прокрутка → «Осмотрщики» → «Назад» → прокрутка на месте', 'Р3')
 def _(p):
-    p.open('#/inspections?s=assign&t=assigned', '[data-ip-row]')
+    p.open('#/inspections?s=assign&t=assigned&ap=*', '[data-ip-row]')
     top = p.scroll('.ip-scroll', 400)
     if not top:
         p.ck('список длиннее окна', False, 'не прокручивается', 'прокрутка > 0', soft=True)
@@ -141,7 +141,7 @@ def _(p):
     p.open('#/inspections?s=people&t=summary', '[data-ip-jump]')
     s1 = p.state()
     eni = p.page.evaluate("async () => { const m = await import('./app/kernel/inspections.js'); const a = m.allAssignments().find((x) => x.state === 'assigned'); return a ? a.ocId : ''; }")
-    p.open('#/inspections?s=assign&t=assigned', '[data-ip-row]')
+    p.open('#/inspections?s=assign&t=assigned&ap=*', '[data-ip-row]')
     text = p.page.evaluate("() => { const re = /\\d[\\d-]{6,}\\d/; const r = [...document.querySelectorAll('[data-ip-row]')].find((x) => re.test(x.innerText)); return r ? r.innerText.match(re)[0] : ''; }")
     p.open('#/inspections?s=people&t=summary', '[data-ip-jump]')
     p.ck('есть ЕНИ для поиска', bool(text), text or eni, 'ЕНИ назначенного объекта')

@@ -959,3 +959,248 @@ body[data-page="inspections"] .ip-facets-toggle{display:none;align-items:center;
   font-size:13px;font-weight:600;color:var(--blue-700);cursor:pointer;text-align:left}
 body[data-page="inspections"] .ip-facets-toggle:hover{background:var(--fill-hover)}
 body[data-page="inspections"] .ip-facets-toggle b{padding:0 7px;border-radius:999px;background:var(--blue-50);font-size:11.5px;font-variant-numeric:tabular-nums}
+
+/* ===================== СЦЕНА (перестройка по APCS, 13.10.2026) ===========
+   Решения пользователя: «Осмотры» — карта на всю рабочую область раздела,
+   левое меню и шапка системы остаются («Сайдбар не убираем. Вписываем его в
+   дизайн. Интерфейс регионалов — это переосмысление, но которое должно
+   логично вписаться в имеющуюся систему»). Островками — только режимы
+   «Осмотров», уведомления и «Перейти» («Назначения, осмотрщики и т.д. — ок.
+   Поиск тоже»). «Назначения» — панелями над картой: список слева,
+   назначение справа, отборы — панелью рядом со списком по кнопке «Отбор».
+   Остальные режимы — поверхностью над сценой. Образец — air.imash.kg
+   (APCS) и записи графа APCS plan-redesign, ui-primitives (скругления по
+   роли: контейнер 12, управление 8; глубина тенью, без рамки; цель нажатия
+   от 32 px). Только эта страница: остальной интерфейс не трогается. */
+body[data-page="inspections"]{--isle-h:44px;--isle-gap:10px;--scene-top:calc(var(--isle-h) + var(--isle-gap) * 2);
+  --lift:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.12)}
+body[data-page="inspections"] .main-row{position:relative}
+body[data-page="inspections"] .content{position:relative;z-index:1;padding:0;overflow:hidden;background:transparent;pointer-events:none}
+.ip-scene{position:absolute;inset:0;z-index:0;background:#e8edf2}
+body.ip-sheet-open .ip-scene{visibility:hidden}
+
+body[data-page="inspections"] .ip-page.ip-scened{position:relative;height:100%;background:transparent;pointer-events:none}
+body[data-page="inspections"] .ip-scened .ip{background:transparent}
+
+/* --- островки: режимы, уведомления, «Перейти» --------------------------- */
+body[data-page="inspections"] .ip-isles{position:absolute;top:var(--isle-gap);left:var(--isle-gap);right:var(--isle-gap);z-index:25;
+  display:flex;align-items:flex-start;gap:8px;pointer-events:none}
+body[data-page="inspections"] .ip-isl{pointer-events:auto;height:var(--isle-h);display:flex;align-items:center;gap:2px;padding:0 5px;
+  background:var(--panel);border-radius:12px;box-shadow:var(--lift);flex:none}
+body[data-page="inspections"] .ip-isles .ip-sections{border:0;flex-wrap:nowrap;align-items:center}
+body[data-page="inspections"] .ip-isles .ip-sections .itab{height:34px;padding:0 14px;border:0;border-radius:8px;font-size:13px;font-weight:500;margin:0}
+body[data-page="inspections"] .ip-isles .ip-sections .itab::after{display:none}
+body[data-page="inspections"] .ip-isles .ip-sections .itab:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-isles .ip-sections .itab.on{background:var(--blue-600);color:#fff}
+body[data-page="inspections"] .ip-bell{position:relative;width:var(--isle-h);justify-content:center;padding:0;cursor:pointer;color:var(--ink)}
+body[data-page="inspections"] .ip-bell svg{width:19px;height:19px;fill:currentColor}
+body[data-page="inspections"] .ip-bell.on{background:var(--blue-600);color:#fff}
+body[data-page="inspections"] .ip-bell .ip-unread{position:absolute;top:5px;right:4px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;
+  background:#c2410c;color:#fff;font-size:10.5px;line-height:17px;text-align:center}
+/* «Перейти» — в середине верхней полосы системы, над рабочей областью
+   (указание 13.10.2026: «Поиск — в центральную часть», «Вот сюда» — снимок
+   полосы с «Осмотры» и пользователем): ряд над картой свободен под режимы.
+   Узел остаётся в странице (обработчики раздела), встаёт на полосу
+   положением. */
+body[data-page="inspections"] .ip-isles .ip-jump{position:fixed;z-index:40;transform:translateX(-50%);
+  width:min(520px,40%);min-width:240px;height:32px;padding:0 6px 0 10px;gap:8px;border:1px solid var(--line);border-radius:10px;box-shadow:none}
+body[data-page="inspections"] .ip-isles .ip-jump:focus-within{border-color:var(--blue-600);box-shadow:0 0 0 3px var(--blue-50)}
+body[data-page="inspections"] .ip-isles .ip-jump .isearch{height:30px;flex:1 1 auto;border:0;background:transparent;box-shadow:none}
+body[data-page="inspections"] .ip-isles .ip-jump-list{top:calc(100% + 8px);border:0;box-shadow:var(--lift);border-radius:12px}
+
+/* --- «Назначения» на сцене: панели над картой ---------------------------- */
+body[data-page="inspections"] .on-scene{--list-w:clamp(400px,36%,620px);--pane-w:clamp(310px,26%,420px)}
+body[data-page="inspections"] .on-scene .ip.ip-assign{display:block}
+body[data-page="inspections"] .on-scene .ip-assign .ip-work{position:absolute;left:var(--isle-gap);top:var(--scene-top);bottom:var(--isle-gap);
+  width:var(--list-w);padding:12px 12px 8px;background:var(--panel);border-radius:12px;box-shadow:var(--lift);pointer-events:auto;z-index:10}
+body[data-page="inspections"] .on-scene .ip-assign .ip-pane{position:absolute;right:var(--isle-gap);top:var(--scene-top);bottom:var(--isle-gap);
+  width:var(--pane-w);border:0;border-radius:12px;box-shadow:var(--lift);overflow:hidden;pointer-events:auto;z-index:10}
+body[data-page="inspections"] .on-scene .ip-assign .ip-facets{display:none}
+body[data-page="inspections"] .on-scene .ip-assign .ip-facets.open{display:flex;flex-direction:column;position:absolute;top:var(--scene-top);bottom:var(--isle-gap);
+  left:calc(var(--isle-gap) + var(--list-w) + 8px);width:270px;overflow-y:auto;padding:12px;background:var(--panel);border:0;border-radius:12px;
+  box-shadow:var(--lift);pointer-events:auto;z-index:11}
+body[data-page="inspections"] .on-scene .ip-facets-toggle{display:none !important}
+body[data-page="inspections"] .ip-fbtn.on{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="inspections"] .ip-fbtn b{margin-left:4px;padding:0 6px;border-radius:999px;background:var(--blue-600);color:#fff;font-size:11px}
+/* Таблицы в панели — по ширине панели: ЕНИ ушёл во вторую строку объекта,
+   прежний минимум 660 px (под колонку ЕНИ) здесь не нужен; строка группы
+   переносится, адрес — до двух строк, а не многоточием. */
+body[data-page="inspections"] .on-scene .ip-tbl,
+body[data-page="inspections"] .on-scene .ip-tbl.ip-grouped{min-width:0}
+body[data-page="inspections"] .on-scene .ip-tbl col.c-date{width:88px}
+body[data-page="inspections"] .on-scene .ip-tbl col.c-cov{width:118px}
+body[data-page="inspections"] .on-scene .ip-tbl col.c-oi{width:68px}
+body[data-page="inspections"] .on-scene .ip-tbl col.c-state{width:118px}
+body[data-page="inspections"] .on-scene .ip-grp-row{flex-wrap:wrap;row-gap:4px}
+body[data-page="inspections"] .on-scene .ip-grp-t{flex-wrap:wrap;white-space:normal;text-align:left}
+body[data-page="inspections"] .on-scene .ip-tbl .ip-obj-t{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.leaflet-interactive.ip-dot{cursor:pointer}
+body[data-page="inspections"] .ip-scene-note{position:absolute;bottom:var(--isle-gap);left:calc(var(--isle-gap) * 2 + var(--list-w));height:auto;min-height:34px;
+  max-width:calc(100% - var(--list-w) - var(--pane-w) - 48px);margin:0;padding:8px 12px;font-size:12.5px;color:var(--ink);z-index:9}
+body[data-page="inspections"] .ip-scene-note[hidden]{display:none}
+body[data-page="inspections"] .ip-page:has(.ip-facets.open) .ip-scene-note{left:calc(var(--isle-gap) * 2 + var(--list-w) + 278px)}
+
+/* --- остальные режимы — поверхностью над сценой ------------------------ */
+body[data-page="inspections"] .on-sheet .ip{position:absolute;top:var(--scene-top);left:var(--isle-gap);right:var(--isle-gap);bottom:var(--isle-gap);
+  background:var(--bg);border-radius:12px;box-shadow:var(--lift);overflow:hidden;pointer-events:auto}
+
+/* --- ширины -------------------------------------------------------------- */
+@media (max-width:1280px){
+  body[data-page="inspections"] .ip-isles .ip-jump{width:min(360px,34%);min-width:200px}
+  body[data-page="inspections"] .ip-isles .ip-kbd{display:none}
+  body[data-page="inspections"] .on-scene{--list-w:clamp(360px,44%,520px);--pane-w:clamp(300px,32%,380px)}
+}
+/* Узкие окна (до 1100): как телефонный вид APCS — карта сверху, «Перейти»
+   — вторым рядом островков, панели списка, отборов и назначения ниже карты
+   обычной прокруткой рабочей области и при прокрутке наезжают на карту
+   листом. */
+@media (max-width:1100px){
+  body[data-page="inspections"] .ip-isles .ip-jump{width:min(320px,42%);min-width:180px}
+  body[data-page="inspections"] .content:has(.on-scene){overflow:auto}
+  body[data-page="inspections"] .ip-page.ip-scened.on-scene{height:auto;padding:calc(var(--scene-top) + 34vh) var(--isle-gap) var(--isle-gap)}
+  body[data-page="inspections"] .on-scene .ip.ip-assign{display:flex;flex-direction:column;gap:8px}
+  body[data-page="inspections"] .on-scene .ip-assign .ip-work,
+  body[data-page="inspections"] .on-scene .ip-assign .ip-pane,
+  body[data-page="inspections"] .on-scene .ip-assign .ip-facets.open{position:relative;left:auto;right:auto;top:auto;bottom:auto;width:auto}
+  body[data-page="inspections"] .on-scene .ip-assign .ip-facets.open{order:-1}
+  body[data-page="inspections"] .ip-scene-note{left:var(--isle-gap);right:var(--isle-gap);bottom:auto;top:calc(var(--scene-top) + 34vh - 46px);max-width:none}
+  body[data-page="inspections"] .ip-page:has(.ip-facets.open) .ip-scene-note{left:var(--isle-gap)}
+}
+@media (max-width:760px){
+  body[data-page="inspections"] .ip-isles .ip-sections .itab{padding:0 9px}
+}
+
+/* Скрываемые панели — язычком на краю (как боковая панель Google Maps):
+   свернул — язычок остаётся у края, по нему панель возвращается; точки
+   вписываются в освободившееся место. На узком окне панели в потоке —
+   язычков нет. */
+body[data-page="inspections"] .ip-edge{position:absolute;z-index:12;top:calc(var(--scene-top) + 14px);width:22px;height:48px;padding:0;
+  display:flex;align-items:center;justify-content:center;border-radius:0 8px 8px 0;background:var(--panel);box-shadow:var(--lift);
+  font-size:16px;color:var(--muted);cursor:pointer;pointer-events:auto}
+body[data-page="inspections"] .ip-edge:hover{color:var(--ink)}
+body[data-page="inspections"] .ip-edge-l{left:calc(var(--isle-gap) + var(--list-w))}
+body[data-page="inspections"] .ip-edge-r{right:calc(var(--isle-gap) + var(--pane-w));border-radius:8px 0 0 8px}
+body[data-page="inspections"] .hide-list .ip-work,
+body[data-page="inspections"] .hide-list .ip-facets.open{display:none !important}
+body[data-page="inspections"] .hide-list .ip-edge-l{left:0}
+body[data-page="inspections"] .hide-pane .ip-pane{display:none !important}
+body[data-page="inspections"] .hide-pane .ip-edge-r{right:0}
+body[data-page="inspections"] .hide-list .ip-scene-note{left:calc(var(--isle-gap) + 30px)}
+body[data-page="inspections"] .ip-page:has(.ip-facets.open):not(.hide-list) .ip-edge-l{left:calc(var(--isle-gap) + var(--list-w) + 278px)}
+@media (max-width:1100px){
+  body[data-page="inspections"] .ip-edge{display:none}
+  body[data-page="inspections"] .hide-list .ip-work,
+  body[data-page="inspections"] .hide-pane .ip-pane{display:flex !important}
+}
+
+/* --- Панели сцены изнутри (13.10.2026: «Вот эта панель не очень удобная…
+   Да и сами панели пока что не очень») ------------------------------------
+   Список — карточками строк, а не таблицей с шапкой: слева отметка, в
+   середине адрес до двух строк и «тип · учреждение · ЕНИ», справа срок или
+   план, под ним покрытие ОИ или состояние. Вкладки «К назначению /
+   Назначено» — сегментами (APCS). Разметка таблицы сохранена (строки,
+   флажки, обработчики, проверки), меняется только раскладка. */
+body[data-page="inspections"] .on-scene .ip-work > .itabs{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;margin:0 0 10px;
+  border:0;border-radius:10px;background:var(--fill-hover)}
+body[data-page="inspections"] .on-scene .ip-work > .itabs .itab{justify-content:center;height:32px;padding:0 10px;margin:0;border:0;border-radius:8px;font-size:13px}
+body[data-page="inspections"] .on-scene .ip-work > .itabs .itab::after{display:none}
+body[data-page="inspections"] .on-scene .ip-work > .itabs .itab.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.14)}
+body[data-page="inspections"] .on-scene .ip-cols{border:0;border-radius:0;background:transparent}
+body[data-page="inspections"] .on-scene .ip-tbl thead,
+body[data-page="inspections"] .on-scene .ip-tbl colgroup{display:none}
+body[data-page="inspections"] .on-scene .ip-tbl,
+body[data-page="inspections"] .on-scene .ip-tbl tbody{display:block}
+body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp{display:flex;align-items:flex-start;gap:10px;padding:10px 8px 6px;background:transparent;
+  position:sticky;top:0;z-index:2;background:var(--panel);border-bottom:1px solid var(--line-soft)}
+body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp td{display:block;padding:0;border:0;background:transparent}
+body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp td + td{flex:1 1 auto;min-width:0}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row]{display:grid;grid-template-columns:20px minmax(0,1fr) auto;column-gap:10px;row-gap:3px;
+  align-items:start;padding:9px 8px;border-bottom:1px solid var(--line-soft);border-radius:8px;cursor:pointer}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row]:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row].sel{background:var(--blue-50)}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row].cur{background:var(--blue-50);box-shadow:inset 3px 0 0 var(--blue-600)}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td{display:block;padding:0;border:0;background:transparent !important;box-shadow:none !important;min-width:0}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(1){grid-column:1;grid-row:1 / span 3;padding-top:2px}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(2){grid-column:3;grid-row:1;text-align:right;white-space:nowrap}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(3){grid-column:2;grid-row:1 / span 3}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(4){grid-column:3;grid-row:2;text-align:right;white-space:nowrap;font-size:12px;color:var(--muted)}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(5){grid-column:3;grid-row:3;text-align:right}
+/* «Назначено»: справа план, под ним состояние, ниже — сколько ОИ. */
+body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(4){grid-row:3}
+body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(5){grid-row:2}
+body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(5) .ip-flag{display:block;margin:2px 0 0}
+body[data-page="inspections"] .on-scene .ip-tbl .ip-obj-t{font-size:13px;font-weight:500;line-height:1.35}
+body[data-page="inspections"] .on-scene .ip-tbl .ip-obj-s{margin-top:2px}
+body[data-page="inspections"] .on-scene .ip-tbl .ip-cov{justify-content:flex-end}
+
+/* Назначение: подписи разделов — словами, без заглавных; «Кто поедет» —
+   строки подбора, у выбранного дни прямо в строке; документы, описи и
+   контакты — свёрнуты, в заголовке — сколько отмечено. */
+body[data-page="inspections"] .on-scene .ip-pane-head{padding:14px 16px 10px}
+body[data-page="inspections"] .on-scene .ip-pane-body{padding:6px 16px 14px}
+body[data-page="inspections"] .on-scene .ip-pane .ip-sec{padding:10px 0;border-top:1px solid var(--line-soft);margin:0}
+body[data-page="inspections"] .on-scene .ip-pane .ip-sec:first-child{border-top:0}
+body[data-page="inspections"] .on-scene .ip-pane .ip-sec h3{margin:0 0 8px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink)}
+body[data-page="inspections"] .on-scene .ip-rank{gap:2px}
+body[data-page="inspections"] .on-scene .ip-rank li{border-radius:10px}
+body[data-page="inspections"] .on-scene .ip-rank li.on{background:var(--blue-50);box-shadow:inset 0 0 0 1.5px var(--blue-600)}
+body[data-page="inspections"] .on-scene .ip-rank-b{border:0;background:transparent;padding:7px 10px;gap:2px}
+body[data-page="inspections"] .on-scene .ip-rank-b:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .on-scene .ip-rank li.on .ip-rank-b{background:transparent}
+body[data-page="inspections"] .on-scene .ip-rank-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;width:100%}
+body[data-page="inspections"] .on-scene .ip-rank-h b{font-size:13px;font-weight:600}
+body[data-page="inspections"] .on-scene .ip-rank-load{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .on-scene .ip-rank-r{display:block;font-size:11.5px;color:var(--muted);line-height:1.4}
+body[data-page="inspections"] .on-scene .ip-rank-r i{display:inline;padding:0;background:none;font-size:inherit;color:inherit}
+body[data-page="inspections"] .on-scene .ip-rank-r i.ok{background:none;color:var(--muted)}
+body[data-page="inspections"] .on-scene .ip-rank-r i.no{background:none;color:#a3361c;font-weight:600}
+body[data-page="inspections"] .on-scene .ip-rank li .ip-avail{padding:2px 10px 10px}
+body[data-page="inspections"] .on-scene .ip-f-other{margin-top:8px}
+body[data-page="inspections"] .on-scene .ip-f-other label{font-size:12px;color:var(--muted)}
+body[data-page="inspections"] .on-scene .ip-pane .ip-f-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+body[data-page="inspections"] .on-scene .ip-pane .ip-f-row .input{width:100%}
+body[data-page="inspections"] .on-scene .ip-fold > summary{display:flex;align-items:baseline;gap:8px;cursor:pointer;list-style:none}
+body[data-page="inspections"] .on-scene .ip-fold > summary::-webkit-details-marker{display:none}
+body[data-page="inspections"] .on-scene .ip-fold > summary::before{content:"\25B8";font-size:11px;color:var(--muted);width:10px}
+body[data-page="inspections"] .on-scene .ip-fold[open] > summary::before{content:"\25BE"}
+body[data-page="inspections"] .on-scene .ip-fold > summary h3{margin:0 !important}
+body[data-page="inspections"] .on-scene .ip-fold-n{margin-left:auto;font-size:12px;color:var(--muted)}
+body[data-page="inspections"] .on-scene .ip-fold[open] > summary{margin-bottom:8px}
+
+/* «Назначено»: сначала сотрудник — список строкой на человека (держит и
+   150 человек: поиск по фамилии, порядок, область, своя прокрутка). */
+body[data-page="inspections"] .ip-apeople-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:0 0 8px}
+body[data-page="inspections"] .ip-apeople{list-style:none;margin:0;padding:0;flex:1 1 auto;min-height:0;overflow-y:auto}
+body[data-page="inspections"] .ip-aperson{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;text-align:left;cursor:pointer;color:var(--ink)}
+body[data-page="inspections"] .ip-aperson:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-aperson-all{border-bottom:1px solid var(--line-soft);border-radius:8px 8px 0 0}
+body[data-page="inspections"] .ip-aperson-t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+body[data-page="inspections"] .ip-aperson-t b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-aperson-t span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-aperson-n{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-aperson-n b{font-size:14px;font-weight:600}
+body[data-page="inspections"] .ip-aperson-n i{font-style:normal;font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-aperson-n i.ip-late{color:#a3361c;font-weight:600}
+body[data-page="inspections"] .ip-ahead{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:0 0 8px;margin:0 0 6px;border-bottom:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-aback{flex:none}
+body[data-page="inspections"] .ip-ahead-t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+body[data-page="inspections"] .ip-ahead-t b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-ahead-t span{font-size:12px;color:var(--muted)}
+body[data-page="inspections"] .ip-ahead .ip-grp-act{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+
+/* Пустых блоков нет: пока объект не выбран, панели назначения на сцене нет. */
+body[data-page="inspections"] .on-scene .ip-pane-none,
+body[data-page="inspections"] .on-scene .ip-page:has(.ip-pane-none) .ip-edge-r{display:none}
+body[data-page="inspections"] .ip-page.on-scene:has(.ip-pane-none) .ip-edge-r{display:none}
+
+/* Подписи сцены снизу слева (строка слоя Кадастра) — правее панели списка,
+   а не под ней. */
+body:has(.ip-page.on-scene) .ip-scene .leaflet-bottom.leaflet-left{left:calc(var(--isle-gap) + clamp(400px,36%,620px))}
+body:has(.ip-page.on-scene .ip-facets.open) .ip-scene .leaflet-bottom.leaflet-left{left:calc(var(--isle-gap) + clamp(400px,36%,620px) + 278px)}
+body:has(.ip-page.on-scene.hide-list) .ip-scene .leaflet-bottom.leaflet-left{left:24px}
+@media (max-width:1280px){
+  body:has(.ip-page.on-scene) .ip-scene .leaflet-bottom.leaflet-left{left:calc(var(--isle-gap) + clamp(360px,44%,520px))}
+}
+@media (max-width:1100px){
+  body:has(.ip-page.on-scene) .ip-scene .leaflet-bottom.leaflet-left{left:0;bottom:auto;top:calc(var(--scene-top) + 34vh - 40px)}
+}

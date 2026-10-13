@@ -14,7 +14,7 @@ import { eniCodesOf, formatEniText } from './eniField.js';
 import { geoByEni, eniByAddress, centerOf } from './cadastreGeo.js';
 import { geoStatus } from './cadastreGeoView.js';
 import { esc } from './dom.js';
-import { attachCadastreLayers } from './cadastreLayers.js';
+import { attachCadastreLayers, SMOOTH_ZOOM } from './cadastreLayers.js';
 
 // Поставить значение в поле части адреса.
 //
@@ -88,7 +88,7 @@ async function drawGeoMap(box, geo) {
   ensureCss('./app/vendor/leaflet/leaflet.css');
   const L = await import('../vendor/leaflet/leaflet-src.esm.js');
   if (box._map) { box._map.remove(); box._map = null; }
-  const map = L.map(box, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+  const map = L.map(box, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, ...SMOOTH_ZOOM });
   box._map = map;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
   const [x1, y1, x2, y2] = geo.extent;

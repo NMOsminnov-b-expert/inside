@@ -72,7 +72,7 @@ def run(t):
     t.wait_until("() => { const b = document.querySelector('[data-ip-map]'); return b && b._map && b._map._loaded && !b._map._animatingZoom; }")
     t.wait(300)
     z0, _ = pg.evaluate(drift)
-    pg.click('.leaflet-control-zoom-in')
+    pg.click('[data-ip-map] .leaflet-control-zoom-in')   # своя кнопка: у «Осмотров» есть ещё карта-сцена
     # Масштаб — списком: число вторым доводом wait_until считает пределом ожидания.
     t.wait_until("([z]) => document.querySelector('[data-ip-map]')._map.getZoom() > z && !document.querySelector('[data-ip-map]')._map._animatingZoom", [z0])
     z1, d1 = pg.evaluate(drift)
