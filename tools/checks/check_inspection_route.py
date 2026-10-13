@@ -20,7 +20,7 @@ import base64
 
 NAME = 'маршрут дня'
 
-TOUCHES = ('app/pages/inspections/*', 'app/kernel/inspections.js', 'app/kernel/inspectionsDemo.js', 'app/vendor/leaflet/*')
+TOUCHES = ('app/pages/inspections/*', 'app/kernel/inspections.js', 'app/kernel/inspectionsDemo.js', 'app/vendor/maplibre/*', 'app/kernel/mapgl.js', 'app/kernel/cadastreLayersGL.js')
 
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
 K = "import('./app/kernel/inspections.js')"
@@ -56,7 +56,7 @@ def run(t):
 
     # --- маршрут --------------------------------------------------------------
     pg.click('[data-ip-ptab="route"]')
-    t.ck(t.wait_for('.ip-map.leaflet-container', timeout=15000), 'карта маршрута не нарисована')
+    t.ck(t.wait_for('.ip-map.maplibregl-map', timeout=15000), 'карта маршрута не нарисована')
     t.ck(pg.locator('.ip-stop.home').count() == 2, 'маршрут не начинается и не кончается домом')
     t.ck(pg.locator('.ip-pin').count() >= 2, 'на карте нет точек маршрута')
 
@@ -65,16 +65,19 @@ def run(t):
     # «зум перестал работать» — перегруппировка значков при каждом масштабе
     # и перевписывание маршрута по наблюдателю размера ставили значки мимо
     # точек и перехватывали зум).
+    # Карта — MapLibre (13.10.2026): значок — HTML-элемент у своей точки,
+    # box._pins — значки и их координаты.
     drift = """() => { const box = document.querySelector('[data-ip-map]'); const map = box._map; const b = box.getBoundingClientRect(); let d = 0;
-      map.eachLayer((l) => { if (l.getLatLng && l._icon) { const p = map.latLngToContainerPoint(l.getLatLng()); const r = l._icon.getBoundingClientRect();
-        d = Math.max(d, Math.abs(r.left + r.width / 2 - b.left - p.x), Math.abs(r.top + r.height / 2 - b.top - p.y)); } });
+      (box._pins || []).forEach(({ el, ll }) => { const p = map.project(ll); const r = el.getBoundingClientRect();
+        d = Math.max(d, Math.abs(r.left + r.width / 2 - b.left - p.x), Math.abs(r.top + r.height / 2 - b.top - p.y)); });
       return [map.getZoom(), Math.round(d)]; }"""
-    t.wait_until("() => { const b = document.querySelector('[data-ip-map]'); return b && b._map && b._map._loaded && !b._map._animatingZoom; }")
+    idle = "() => { const b = document.querySelector('[data-ip-map]'); const m = b && b._map; return !!m && m.loaded() && !m.isMoving() && !m.isZooming(); }"
+    t.wait_until(idle)
     t.wait(300)
     z0, _ = pg.evaluate(drift)
-    pg.click('[data-ip-map] .leaflet-control-zoom-in')   # своя кнопка: у «Осмотров» есть ещё карта-сцена
+    pg.click('[data-ip-map] .maplibregl-ctrl-zoom-in')   # своя кнопка: у «Осмотров» есть ещё карта-сцена
     # Масштаб — списком: число вторым доводом wait_until считает пределом ожидания.
-    t.wait_until("([z]) => document.querySelector('[data-ip-map]')._map.getZoom() > z && !document.querySelector('[data-ip-map]')._map._animatingZoom", [z0])
+    t.wait_until("([z]) => { const m = document.querySelector('[data-ip-map]')._map; return m.getZoom() > z && !m.isMoving() && !m.isZooming(); }", [z0])
     z1, d1 = pg.evaluate(drift)
     t.ck(z1 > z0 and d1 <= 3, 'зум кнопкой: масштаб %s → %s, значки мимо точек на %s px' % (z0, z1, d1))
     mb = pg.locator('.ip-map').bounding_box()
@@ -82,7 +85,7 @@ def run(t):
     for _ in range(3):
         pg.mouse.wheel(0, -250)
         t.wait(90)
-    t.wait_until("([z]) => document.querySelector('[data-ip-map]')._map.getZoom() > z && !document.querySelector('[data-ip-map]')._map._animatingZoom", [z1])
+    t.wait_until("([z]) => { const m = document.querySelector('[data-ip-map]')._map; return m.getZoom() > z && !m.isMoving() && !m.isZooming(); }", [z1])
     t.wait(500)
     z2, d2 = pg.evaluate(drift)
     t.ck(z2 > z1 and d2 <= 3, 'зум колесом: масштаб %s → %s, значки мимо точек на %s px' % (z1, z2, d2))
@@ -90,7 +93,7 @@ def run(t):
     # дом — щелчком по карте
     before = pg.evaluate("async (w) => (await %s).profileOf(w).homeGps" % K, WHO)
     pg.click('[data-ip-route-home]')
-    t.wait_for('.ip-map.leaflet-container')
+    t.wait_for('.ip-map.maplibregl-map')
     box = pg.locator('.ip-map').bounding_box()
     pg.mouse.click(box['x'] + box['width'] * 0.3, box['y'] + box['height'] * 0.7)
     t.ck(t.wait_until("async ([w, b]) => { const h = (await %s).profileOf(w).homeGps; return !!h && h !== b; }" % K, [WHO, before]),

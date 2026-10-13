@@ -69,4 +69,25 @@ export function hoverTip(gl, map) {
 }
 
 export const emptyFC = () => ({ type: 'FeatureCollection', features: [] });
+
+// Свой участок (участки) — по контуру из Кадастра, залит и обведён поверх
+// соседних; рамка (extent) хранится, но не рисуется (замечание пользователя
+// 13.10.2026: «Надо именно участок выделять, а не обводить. Не всё
+// прямоугольное»). Контура нет — точка в центре рамки. geos — [{ extent,
+// contour? }]. Возвращает рамку всех — [[minLon, minLat], [maxLon, maxLat]].
+export function ownParcelsGL(map, geos) {
+  const feats = [];
+  let box = null;
+  (geos || []).filter((g) => g && g.extent).forEach((g) => {
+    const [x1, y1, x2, y2] = g.extent;
+    box = box ? [[Math.min(box[0][0], x1), Math.min(box[0][1], y1)], [Math.max(box[1][0], x2), Math.max(box[1][1], y2)]] : [[x1, y1], [x2, y2]];
+    if (g.contour) feats.push({ type: 'Feature', geometry: { type: 'MultiPolygon', coordinates: g.contour }, properties: {} });
+    else feats.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [(x1 + x2) / 2, (y1 + y2) / 2] }, properties: { nocontour: true } });
+  });
+  map.addSource('own', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
+  map.addLayer({ id: 'own-fill', type: 'fill', source: 'own', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.35 } });
+  map.addLayer({ id: 'own-line', type: 'line', source: 'own', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#1d4ed8', 'line-width': 3 } });
+  map.addLayer({ id: 'own-pt', type: 'circle', source: 'own', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 7, 'circle-color': '#3b82f6', 'circle-stroke-color': '#1d4ed8', 'circle-stroke-width': 3 } });
+  return box;
+}
 export { esc };

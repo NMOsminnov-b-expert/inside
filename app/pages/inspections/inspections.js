@@ -41,11 +41,8 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { detailHTML } from './detail.js';
 import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord, gpsOfObject } from './route.js';
-import { attachCadastreLayers, SMOOTH_ZOOM } from '../../kernel/cadastreLayers.js';
-import { smoothWheel } from '../../kernel/smoothWheel.js';
-import { loadMapLibre, createMap, hoverTip, emptyFC } from '../../kernel/mapgl.js';
+import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
-import { drawOwnParcel } from '../../kernel/cadastreForm.ctrl.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
@@ -1134,7 +1131,7 @@ export function mountInspections(host) {
     box.closest('.ip-route').style.setProperty('--route-h', box.style.height);
     // Только сообщить карте новый размер — без перевписывания: оно
     // перехватывало зум человека.
-    if (routeMap) routeMap.invalidateSize({ pan: false, animate: false });
+    if (routeMap) routeMap.resize();
   }
   async function mountRouteMap() {
     const box = scope.$('[data-ip-map]');
@@ -1162,75 +1159,77 @@ export function mountInspections(host) {
     routeObs.observe(box.parentElement);
     if (sc) routeObs.observe(sc);
   }
+  // Карта маршрута — MapLibre GL, как сцена (указание пользователя
+  // 13.10.2026: «Переходи на maplibre… И не забудь про maplibre»): плавный
+  // масштаб, Кадастр где смотришь, свои участки — по контуру. Значки
+  // остановок — те же HTML-значки с номером; близкие на начальном масштабе
+  // (ближе 24 px) — одним «2 · 5»; при масштабе не перестраиваются (прежние
+  // замечания «маркеры слетают», «зум перестал работать»). Наведение на
+  // строку списка открывает подсказку её значка.
   async function drawRouteMap(box) {
     const r = dayRoute(all, view.person, route.day, route.skip);
-    await host.ensureStyle('./app/vendor/leaflet/leaflet.css');
-    const L = await import('../../vendor/leaflet/leaflet-src.esm.js');
+    const gl = await loadMapLibre(host.ensureStyle);
     if (!box.isConnected) return;
     if (routeMap) { routeMap.remove(); routeMap = null; }
-    const map = L.map(box, { scrollWheelZoom: true, attributionControl: true, ...SMOOTH_ZOOM });
-    smoothWheel(L, map);
+    const pts = [];
+    if (r.home.gps) pts.push(r.home.gps);
+    r.stops.forEach((x) => pts.push(x.gps));
+    const map = await createMap(gl, box, pts.length ? { center: [pts[0][1], pts[0][0]], zoom: 11 } : {});
+    if (!box.isConnected) { map.remove(); return; }
     routeMap = map;
     box._map = map;   // для замеров и проверок: значок ↔ его точка на карте
-    // Подложка OSM — общедоступные тайлы (исключение к правилу «данные наружу
-    // не уходят», решение пользователя 12.10.2026); подпись — условие OSM.
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
-    // Значки остановок (замечания пользователя 13.10.2026: «есть косяки на
-    // карте»; «при наведении подсказок особо не видно, только на белом
-    // контуре»): близкие на текущем масштабе (ближе 24 px) — одним значком
-    // «2 · 5», пересчёт при каждом масштабе; подсказка карты (tooltip) — на
-    // всём значке: номер, адрес, прибытие, состояние; наведение на строку
-    // списка подсвечивает её значок. Контур участка из Кадастра (rec.geo) —
-    // на карте, виден при приближении.
+    // Кадастр — первым слоем: маршрут и свои участки ложатся поверх.
+    attachCadastreGL(gl, map);
+    ownParcelsGL(map, r.stops.map((x) => { const rec = loadOcRecord(x.s.typeId, x.s.id); return rec && rec.geo; }));
+    const line = [...r.stops.map((x) => x.gps)];
+    if (r.home.gps && r.stops.length) { line.unshift(r.home.gps); line.push(r.home.gps); }
+    map.addSource('route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: line.map(([la, lo]) => [lo, la]) }, properties: {} } });
+    map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round' },
+      paint: { 'line-color': '#1668c9', 'line-width': 3, 'line-opacity': 0.8, 'line-dasharray': [2, 2] } });
+    if (pts.length > 1) {
+      const lats = pts.map((x) => x[0]);
+      const lons = pts.map((x) => x[1]);
+      map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: 48, maxZoom: 14, animate: false });
+    } else if (pts.length) map.jumpTo({ center: [pts[0][1], pts[0][0]], zoom: 14 });
     const items = [];
     if (r.home.gps) items.push({ n: '⌂', cls: 'home', ll: r.home.gps, tip: `<b>${esc(r.home.label === 'дом' ? 'Дом' : 'Временное жильё')}</b><br>выезд ${r.start}` });
     r.stops.forEach((x, i) => items.push({
       n: String(i + 1), cls: x.fixed ? 'fixed' : 'prop', ll: x.gps,
       tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br>${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км<br><i>${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i>`,
     }));
-    r.stops.forEach((x) => {
-      const rec = loadOcRecord(x.s.typeId, x.s.id);
-      const geo = rec && rec.geo;
-      // Сам участок — по контуру, поверх соседей; рамку не рисуем (13.10.2026:
-      // «Надо именно участок выделять, а не обводить»).
-      if (geo && geo.extent) drawOwnParcel(L, map, geo);
-    });
-    // Значки — простая схема Leaflet (13.10.2026: перегруппировка при каждом
-    // масштабе и повторное вписывание ломали зум и ставили значки мимо точек —
-    // «маркеры слетают», «зум перестал работать»): сначала вид карты, затем
-    // значки, один раз; близкие на начальном масштабе (ближе 24 px) — одним
-    // значком «2 · 5» с общей подсказкой; при зуме ничего не перестраивается.
-    const pts = items.map((x) => x.ll);
-    if (r.home.gps && r.stops.length) pts.push(r.home.gps);
-    if (pts.length > 1) L.polyline(pts, { color: '#1668c9', weight: 3, opacity: 0.8, dashArray: '6 6', interactive: false }).addTo(map);
-    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14, animate: false }); else map.setView([42.87, 74.59], 11, { animate: false });
-    // Участки и строения Кадастра вокруг остановок — при приближении (решение
-    // пользователя 13.10.2026 «Участки вокруг на карте, Строения на участке»).
-    attachCadastreLayers(L, map);
-    const pinIcon = (cls, text, wide) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span${wide ? ' class="wide"' : ''}>${text}</span>`, iconSize: [wide ? 44 : 26, 26], iconAnchor: [wide ? 22 : 13, 13] });
     const groups = [];
     items.forEach((it) => {
-      const pt = map.latLngToLayerPoint(it.ll);
-      const g = groups.find((x) => x.pt.distanceTo(pt) < 24);
+      const pt = map.project([it.ll[1], it.ll[0]]);
+      const g = groups.find((x) => Math.hypot(x.pt.x - pt.x, x.pt.y - pt.y) < 24);
       if (g) g.items.push(it); else groups.push({ pt, items: [it] });
     });
+    const tip = new gl.Popup({ closeButton: false, closeOnClick: false, className: 'map-tip-gl', offset: 16, maxWidth: '300px' });
     const byN = new Map();
+    box._pins = [];
     groups.forEach((g) => {
       const lead = g.items[0];
       const cls = g.items.some((x) => x.cls === 'fixed') ? 'fixed' : lead.cls;
-      const m = L.marker(lead.ll, { icon: pinIcon(cls, g.items.map((x) => x.n).join(' · '), g.items.length > 1), keyboard: false, riseOnHover: true })
-        .bindTooltip(g.items.map((x) => x.tip).join('<hr>'), { direction: 'top', offset: [0, -14], className: 'ip-tip', opacity: 1 })
-        .addTo(map);
-      g.items.forEach((x) => byN.set(x.n, m));
+      const wide = g.items.length > 1;
+      const el = document.createElement('div');
+      el.className = `ip-pin ${cls}`;
+      el.innerHTML = `<span${wide ? ' class="wide"' : ''}>${g.items.map((x) => x.n).join(' · ')}</span>`;
+      const ll = [lead.ll[1], lead.ll[0]];
+      const html = g.items.map((x) => x.tip).join('<hr>');
+      const open = () => tip.setLngLat(ll).setHTML(html).addTo(map);
+      el.addEventListener('mouseenter', open);
+      el.addEventListener('mouseleave', () => tip.remove());
+      new gl.Marker({ element: el, anchor: 'center' }).setLngLat(ll).addTo(map);
+      box._pins.push({ el, ll });
+      g.items.forEach((x) => byN.set(x.n, open));
     });
     // Строка списка ↔ значок: наведение на строку открывает подсказку значка.
     scope.$$('[data-ip-stop]').forEach((li) => {
-      li.addEventListener('mouseenter', () => { const m = byN.get(li.dataset.ipStop); if (m) m.openTooltip(); });
-      li.addEventListener('mouseleave', () => { const m = byN.get(li.dataset.ipStop); if (m) m.closeTooltip(); });
+      li.addEventListener('mouseenter', () => { const f = byN.get(li.dataset.ipStop); if (f) f(); });
+      li.addEventListener('mouseleave', () => tip.remove());
     });
     map.on('click', (e) => {
       if (!route.homeMode) return;
-      saveProfile(view.person, { homeGps: `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}` });
+      saveProfile(view.person, { homeGps: `${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}` });
       route.homeMode = false;
       redraw();
       host.toast('Точка дома сохранена', 'ok');

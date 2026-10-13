@@ -14,7 +14,8 @@ import { eniCodesOf, formatEniText } from './eniField.js';
 import { geoByEni, eniByAddress, centerOf } from './cadastreGeo.js';
 import { geoStatus } from './cadastreGeoView.js';
 import { esc } from './dom.js';
-import { attachCadastreLayers, SMOOTH_ZOOM } from './cadastreLayers.js';
+import { loadMapLibre, createMap, ownParcelsGL } from './mapgl.js';
+import { attachCadastreGL } from './cadastreLayersGL.js';
 
 // Поставить значение в поле части адреса.
 //
@@ -63,39 +64,22 @@ function ensureCss(href) {
   document.head.appendChild(l);
 }
 
-// Карта участка: подложка OSM (разрешена пользователем 12.10.2026), сам
-// участок — по контуру, залит и обведён поверх соседей. Рамка (extent)
-// хранится, но не рисуется (замечание пользователя 13.10.2026: «рамка не по
-// точкам отмечена. Надо именно участок выделять, а не обводить. Не все
-// прямоугольное»). Контура нет — точка в центре и слова об этом.
-export function drawOwnParcel(L, map, geo, opts = {}) {
-  if (!map.getPane('own')) { map.createPane('own'); map.getPane('own').style.zIndex = 450; }
-  const [x1, y1, x2, y2] = geo.extent;
-  if (geo.contour) {
-    return L.polygon(geo.contour.map((poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]))),
-      { pane: 'own', color: '#1d4ed8', weight: 3, fillColor: '#3b82f6', fillOpacity: 0.35, interactive: !!opts.tip, ...opts.style })
-      .bindTooltip(opts.tip || '', { sticky: true, className: 'map-tip' })
-      .addTo(map);
-  }
-  return L.circleMarker([(y1 + y2) / 2, (x1 + x2) / 2], { pane: 'own', radius: 7, color: '#1d4ed8', weight: 3, fillColor: '#3b82f6', fillOpacity: 0.6 })
-    .bindTooltip(opts.tip ? `${opts.tip}<br><i>контура в Кадастре нет</i>` : 'Контура в Кадастре нет — точка в центре рамки', { className: 'map-tip' })
-    .addTo(map);
-}
-
+// Карта участка — MapLibre GL (видеокарта; переход с Leaflet по указанию
+// пользователя 13.10.2026 «Переходи на maplibre»): подложка OSM, сам участок
+// — по контуру поверх соседних, вокруг — участки и строения Кадастра, где
+// смотришь (kernel/cadastreLayersGL.js).
 async function drawGeoMap(box, geo) {
   if (!box || !geo || !geo.extent) return;
   box.hidden = false;
-  ensureCss('./app/vendor/leaflet/leaflet.css');
-  const L = await import('../vendor/leaflet/leaflet-src.esm.js');
+  ensureCss('./app/vendor/maplibre/maplibre-gl.css');
+  const gl = await loadMapLibre();
   if (box._map) { box._map.remove(); box._map = null; }
-  const map = L.map(box, { zoomControl: true, attributionControl: true, scrollWheelZoom: false, ...SMOOTH_ZOOM });
+  const map = await createMap(gl, box);
   box._map = map;
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-  const [x1, y1, x2, y2] = geo.extent;
-  drawOwnParcel(L, map, geo);
-  map.fitBounds([[y1, x1], [y2, x2]], { padding: [24, 24], maxZoom: 19 });
-  // Участки и строения Кадастра вокруг (решение пользователя 13.10.2026).
-  attachCadastreLayers(L, map);
+  map.scrollZoom.disable();       // колесо — прокрутка карточки, масштаб — кнопками
+  attachCadastreGL(gl, map);
+  const ext = ownParcelsGL(map, [geo]);
+  map.fitBounds(ext, { padding: 24, maxZoom: 19, animate: false });
 }
 
 export function bindGeo(ctx, rec) {
