@@ -20,9 +20,10 @@ import { esc } from './dom.js';
 import { formatEniText } from './eniField.js';
 
 // Плавный масштаб для всех карт макета (указание пользователя 13.10.2026:
-// «Зум тоже плавный, а не рывками»): дробные уровни, колесо — мелкими
-// шагами, кнопки — полуровнем.
-export const SMOOTH_ZOOM = { zoomSnap: 0, zoomDelta: 0.5, wheelPxPerZoomLevel: 110, wheelDebounceTime: 10 };
+// «Зум тоже плавный, а не рывками»), но не медленный («Откорректируй зум…
+// ну устанешь колесико крутить»): щелчок колеса — около уровня, кнопки —
+// ровно уровень; шаг 0,25 — без мыльной подложки на промежуточных масштабах.
+export const SMOOTH_ZOOM = { zoomSnap: 0.25, zoomDelta: 1, wheelPxPerZoomLevel: 45, wheelDebounceTime: 20 };
 
 const MIN_ZOOM = 16;
 const RADIUS = 150;          // м вокруг точки
