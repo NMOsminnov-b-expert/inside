@@ -1,3 +1,4 @@
+import { geoRowHTML } from '../../../kernel/cadastreGeoView.js';
 import { eniAllOwn } from '../../../kernel/eniFold.js';
 import { pickSearchHTML } from '../../../kernel/pickSearch.js';
 import { institutionOptions, podvedOptionsOf } from '../../../kernel/institutions.js';
@@ -122,6 +123,7 @@ function locationSection(rec) {
         <span class="src-msg" id="cadMsg" role="status"></span>
         <button type="button" class="btn src-btn" id="btnCadastre">Заполнить адрес</button>
       </div>
+      ${geoRowHTML(rec)}
 
       <!-- Порядок полей — от общего к частному, как называют адрес вслух:
            область, район, населённый пункт, микрорайон, улица, дом, квартира.

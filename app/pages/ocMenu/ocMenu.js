@@ -20,6 +20,8 @@ import { bindColumnResize, bindColumnReorder, bindColumnsMenu, normalizeOrder, a
 import { previewHTML } from './preview.js';
 import { registerPersisted } from '../../kernel/persist.js';
 import { assignFromRegistry } from '../../kernel/inspections.js';
+import { geoByEni, eniByAddress, centerOf } from '../../kernel/cadastreGeo.js';
+import { eniCodesOf } from '../../kernel/eniField.js';
 
 // Главная — реестр объектов оценки (канва и решения 01.10.2026, задача графа
 // glavnaya-vkladki-nedvizhimoe-dvizhimoe, практика reestr-vkladki-vidy-filtry):
@@ -35,6 +37,9 @@ import { assignFromRegistry } from '../../kernel/inspections.js';
 
 // Состояние переживает уход в карточку и возврат: фильтр не сбрасывается.
 const state = createState();
+// Ход «Координаты из Кадастра» по отмеченным (geoBulk ниже): объявлен до
+// первой отрисовки — строку действий рисуют раньше, чем доходит до geoBulk.
+let geoRun = null;
 
 // Что открыто и как разложены столбцы — переживает перезагрузку (замечание
 // пользователя 09.09.2026). Сами ЗНАЧЕНИЯ фильтров сюда не входят: они живут в
@@ -264,10 +269,12 @@ export function mountOcMenu(host) {
         ${perms.assignInsp ? '<button class="btn btn-sm" data-bulk="insp">Назначить осмотрщика</button>' : ''}
         ${perms.setStatus ? '<button class="btn btn-sm" data-bulk="status">Сменить статус</button>' : ''}
         <button class="btn btn-sm" data-export>Экспорт выбранных</button>
+        ${geoRun && geoRun.live ? '' : '<button class="btn btn-sm" data-bulk="geo" title="Рамка и контур участка — по ЕНИ, а без ЕНИ — по адресу">Координаты из Кадастра</button>'}
         <span class="reg-grow"></span>
         <button class="btn btn-sm" data-bulk="clear">Снять выбор</button>
-      </div>`;
+      </div>${geoLineHTML()}`;
     }
+    if (geoRun) return geoLineHTML();
 
     if (isFilterEmpty(state.filter) && !state.sliceKey) return '';
     const all = totalObjects(state.tab);
@@ -598,12 +605,86 @@ export function mountOcMenu(host) {
     openRow(type.manifest.id, rec.id, ['create']);
   }
 
+  // --- координаты из Кадастра по отмеченным (решение пользователя 13.10.2026
+  // «Массово из реестра по отмеченным») ----------------------------------------
+  //
+  // По ЕНИ; без ЕНИ — по адресу (один участок — берём, несколько — запись
+  // пропускается: выбрать в карточке). Ход и итог — строкой под панелью
+  // действий, с причинами; «Остановить» прерывает после текущей записи.
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: фоновой задачей бэкенда с отчётом, а не циклом во
+  // вкладке; портал не любит частых запросов — очередь с паузами.
+  function geoLineHTML() {
+    if (!geoRun) return '';
+    const g = geoRun;
+    const why = Object.entries(g.why).map(([k, n]) => `${esc(k)} — ${n}`).join('; ');
+    return `<div class="reg-geo" role="status">
+      <span><b>Координаты из Кадастра:</b> ${g.done} из ${g.total} · нашлось <b>${g.ok}</b>${g.done - g.ok ? ` · не нашлось ${g.done - g.ok}` : ''}</span>
+      ${why ? `<span class="reg-geo-why">${why}</span>` : ''}
+      ${g.live ? '<button class="btn btn-sm" data-geo-stop>Остановить</button>' : '<button class="reg-bulk-link" data-geo-close>Закрыть</button>'}
+    </div>`;
+  }
+  const geoPaint = () => { const c = scope.$('[data-region-chips]'); if (c) c.innerHTML = chipsHTML(lastTotal); bindData(); };
+  async function geoBulk(ids) {
+    geoRun = { total: ids.length, done: 0, ok: 0, why: {}, live: true, stop: false };
+    geoPaint();
+    const miss = (k) => { geoRun.why[k] = (geoRun.why[k] || 0) + 1; };
+    const one = async ([id, typeId]) => {
+      let rec = null;
+      mutate(typeId, id, (api) => { rec = api.loadRecord(id); });
+      if (!rec) { miss('запись не открылась'); return; }
+      let code = String(eniCodesOf(rec.eni || '')[0] || '').replace(/\D/g, '');
+      let by = 'ЕНИ';
+      // Неполный ЕНИ (не 13 цифр) — как без ЕНИ: ищем по адресу.
+      if (code.length !== 13) {
+        if (code && (!rec.street || !(rec.city || rec.region))) { miss('ЕНИ не из 13 цифр, адреса нет'); return; }
+        code = '';
+      }
+      if (!code) {
+        if (!rec.street || !(rec.city || rec.region)) { miss('нет ни ЕНИ, ни адреса'); return; }
+        const found = await eniByAddress({ region: rec.region, district: rec.district, city: rec.city, street: rec.street, house: rec.house });
+        if (found.error) { miss('адрес не нашёлся в Кадастре'); return; }
+        const plots = found.candidates.filter((c) => !/кв\./.test(c.address));
+        if (plots.length !== 1) { miss('по адресу несколько участков — выбрать в карточке'); return; }
+        code = plots[0].eni;
+        by = 'адрес';
+      }
+      const res = await geoByEni(code);
+      if (res.error) {
+        miss(/не знает/.test(res.error) ? 'Кадастр не знает ЕНИ' : /13 цифр/.test(res.error) ? 'ЕНИ не из 13 цифр' : 'Кадастр не ответил');
+        return;
+      }
+      mutate(typeId, id, (api) => {
+        const r = api.loadRecord(id);
+        r.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src, by };
+        r.gps = centerOf(res.extent);
+        r.updatedAt = new Date().toISOString().slice(0, 10);
+      });
+      geoRun.ok += 1;
+    };
+    // По три запроса разом: портал отвечает за доли секунды, но сотни
+    // одновременных он не любит.
+    const queue = ids.slice();
+    const worker = async () => {
+      while (queue.length && !geoRun.stop) {
+        await one(queue.shift());
+        geoRun.done += 1;
+        geoPaint();
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    geoRun.live = false;
+    if (geoRun.stop) geoRun.total = geoRun.done;
+    geoPaint();
+    host.toast(`Координаты из Кадастра: нашлось ${geoRun.ok} из ${geoRun.done}`, geoRun.ok ? 'ok' : 'warn');
+  }
+
   async function bulkAction(kind) {
     const perms = rolePerms(state.role);
     const ids = [...state.selected.entries()];
     if (!ids.length) return;
 
     if (kind === 'clear') { state.selected.clear(); renderData(); return; }
+    if (kind === 'geo') { geoBulk(ids); return; }
     if (kind === 'insp' && !perms.assignInsp) return;
     if (kind === 'status' && !perms.setStatus) return;
 
@@ -720,6 +801,11 @@ export function mountOcMenu(host) {
   // изменении фильтра/поиска — навешиваются заново после каждой замены.
   function bindData() {
     const s = scope;
+
+    const geoStop = s.$('[data-geo-stop]');
+    if (geoStop) geoStop.onclick = () => { if (geoRun) geoRun.stop = true; geoStop.disabled = true; geoStop.textContent = 'Останавливаю…'; };
+    const geoClose = s.$('[data-geo-close]');
+    if (geoClose) geoClose.onclick = () => { geoRun = null; geoPaint(); };
 
     s.$$('[data-tab]').forEach((b) => b.onclick = () => switchTab(b.dataset.tab));
     s.$$('[data-create]').forEach((b) => b.onclick = (e) => createOc(e, b.dataset.create));

@@ -11,6 +11,9 @@
 import { addressByEni } from './cadastre.js';
 import { syncOcAddress, parseAddress } from './address.js';
 import { eniCodesOf, formatEniText } from './eniField.js';
+import { geoByEni, eniByAddress, centerOf } from './cadastreGeo.js';
+import { geoStatus } from './cadastreGeoView.js';
+import { esc } from './dom.js';
 
 // Поставить значение в поле части адреса.
 //
@@ -45,8 +48,134 @@ export const ADDR_PARTS = {
   flat: '#fFlat',
 };
 
+// --- координаты участка (строка «Координаты участка», kernel/cadastreGeoView.js) ---
+//
+// Решения пользователя 13.10.2026: хранится в карточке, блок «Местоположение»;
+// заполняется кнопкой по ЕНИ, по адресу, если ЕНИ нет, и массово из реестра.
+// Рамка — целиком («забираем всю рамку»), контур — тем же запросом; поле GPS
+// получает центр рамки и остаётся правимым.
+function ensureCss(href) {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = href;
+  document.head.appendChild(l);
+}
+
+// Карта участка: подложка OSM (разрешена пользователем 12.10.2026), контур —
+// залит, рамка — пунктиром. Без сети подложки нет, контур всё равно виден.
+async function drawGeoMap(box, geo) {
+  if (!box || !geo || !geo.extent) return;
+  box.hidden = false;
+  ensureCss('./app/vendor/leaflet/leaflet.css');
+  const L = await import('../vendor/leaflet/leaflet-src.esm.js');
+  if (box._map) { box._map.remove(); box._map = null; }
+  const map = L.map(box, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+  box._map = map;
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+  const [x1, y1, x2, y2] = geo.extent;
+  L.rectangle([[y1, x1], [y2, x2]], { color: '#b45309', weight: 1.5, dashArray: '5 4', fill: false }).addTo(map);
+  if (geo.contour) {
+    L.polygon(geo.contour.map((poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]))),
+      { color: '#1668c9', weight: 2, fillOpacity: 0.18 }).addTo(map);
+  }
+  map.fitBounds([[y1, x1], [y2, x2]], { padding: [24, 24], maxZoom: 19 });
+}
+
+export function bindGeo(ctx, rec) {
+  const s = ctx.scope;
+  const row = s.$('[data-geo]');
+  if (!row) return;
+  const btnEni = s.$('#btnGeoEni');
+  const btnAddr = s.$('#btnGeoAddr');
+  const msg = s.$('#geoMsg');
+  const cands = s.$('#geoCands');
+  const mapBox = s.$('#geoMap');
+  const eniField = s.$('#fEni');
+  const say = (text, kind) => { msg.innerHTML = text; msg.className = 'src-msg' + (kind ? ' ' + kind : ''); };
+  const codeOf = () => eniCodesOf((eniField || {}).value || rec.eni || '')[0] || '';
+  const addrOf = () => ({ region: rec.region, district: rec.district, city: rec.city, street: rec.street, house: rec.house });
+
+  // Кнопки говорят, чего не хватает (практика APCS: недоступная кнопка
+  // объясняет причину).
+  const refresh = () => {
+    const code = codeOf();
+    btnEni.disabled = !code;
+    btnEni.title = code ? `Рамка и контур участка по ЕНИ ${formatEniText(code)}` : 'Сначала введите код ЕНИ в блоке «Основные параметры»';
+    const a = addrOf();
+    const ok = a.street && (a.city || a.region);
+    btnAddr.disabled = !ok;
+    btnAddr.title = ok ? 'Найти ЕНИ участка по адресу в справочнике Кадастра' : 'Нужны населённый пункт (или область) и улица';
+  };
+  if (eniField) eniField.addEventListener('input', refresh);
+  row.addEventListener('mouseenter', refresh);
+  refresh();
+  if (rec.geo && rec.geo.extent) drawGeoMap(mapBox, rec.geo).catch(() => {});
+
+  const apply = (res, by) => {
+    rec.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src || 'Кадастр', by };
+    rec.gps = centerOf(res.extent);
+    const gps = s.$('#fGps');
+    if (gps) gps.value = rec.gps;
+    say(geoStatus(rec.geo), 'ok');
+    cands.hidden = true;
+    cands.innerHTML = '';
+    drawGeoMap(mapBox, rec.geo).catch((e) => console.warn('Карта участка не нарисована', e));
+  };
+  const busy = (b, on, text) => { b.disabled = on; b.textContent = on ? 'Запрашиваю…' : text; };
+
+  btnEni.onclick = async () => {
+    const code = codeOf();
+    if (!code) return;
+    busy(btnEni, true);
+    say('идёт запрос к Кадастру…');
+    const res = await geoByEni(code);
+    busy(btnEni, false, 'Координаты по ЕНИ');
+    refresh();
+    if (res.error) { say(esc(res.error), 'err'); return; }
+    apply(res, 'ЕНИ');
+    ctx.toast('Координаты участка получены из Кадастра', 'ok');
+  };
+
+  btnAddr.onclick = async () => {
+    busy(btnAddr, true);
+    say('ищу адрес в справочнике Кадастра…');
+    const found = await eniByAddress(addrOf());
+    busy(btnAddr, false, 'Найти по адресу');
+    refresh();
+    if (found.error) { say(esc(found.error), 'err'); return; }
+    // Один участок (без «кв.») — берём сразу и говорим, что взяли; несколько —
+    // список на месте: искали — нашлось.
+    const plots = found.candidates.filter((c) => !/кв\./.test(c.address));
+    if (plots.length === 1) {
+      say('нашёлся участок — запрашиваю координаты…');
+      const res = await geoByEni(plots[0].eni);
+      if (res.error) { say(esc(res.error), 'err'); return; }
+      apply(res, 'адрес');
+      say(`${geoStatus(rec.geo)} · ЕНИ по Кадастру ${esc(formatEniText(plots[0].eni))}: ${esc(plots[0].address)}`, 'ok');
+      return;
+    }
+    say(`в Кадастре ${found.candidates.length} подходящих — выберите участок`);
+    cands.hidden = false;
+    cands.innerHTML = `<p class="geo-cands-h">Искали: ${esc([rec.city || rec.region, rec.street, rec.house].filter(Boolean).join(', '))}</p>
+      <ul>${found.candidates.map((c, i) => `<li><span>${esc(c.address)}</span><span class="src-code">${esc(formatEniText(c.eni))}</span>
+        <button type="button" class="btn src-btn" data-geo-take="${i}">Взять</button></li>`).join('')}</ul>`;
+    cands.querySelectorAll('[data-geo-take]').forEach((b) => {
+      b.onclick = async () => {
+        const c = found.candidates[+b.dataset.geoTake];
+        say('запрашиваю координаты…');
+        const res = await geoByEni(c.eni);
+        if (res.error) { say(esc(res.error), 'err'); return; }
+        apply(res, 'адрес');
+        say(`${geoStatus(rec.geo)} · ЕНИ по Кадастру ${esc(formatEniText(c.eni))}: ${esc(c.address)}`, 'ok');
+      };
+    });
+  };
+}
+
 export function bindCadastre(ctx, rec) {
   const s = ctx.scope;
+  bindGeo(ctx, rec);
   const btn = s.$('#btnCadastre');
   if (!btn) return;
 

@@ -25,6 +25,8 @@ import argparse
 import json
 import re
 import sys
+import http.cookiejar
+import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -77,7 +79,57 @@ def fetch(eni: str, timeout: float = 20.0) -> dict:
     return {'eni': code, 'error': 'не найдено'}
 
 
+# Сквозной проход к карте портала — /portal/<путь> → cadastre.kg/svc-portal/map/<путь>
+# (13.10.2026, координаты участков по ЕНИ и адресу: рамка getFeatureExtent.do,
+# контур — WFS через proxy.do портала, справочник адресов searchAddr.do,
+# адрес → ЕНИ searchAddrResult.do; разбор — в app/kernel/cadastreGeo.js, один
+# на оба обхода — этот прокси и прокси Live Server /cadastre/…). Сессия
+# портала держится между запросами: часть его служб без неё отвечает ошибкой.
+PORTAL = 'https://cadastre.kg/svc-portal/map/'
+_jar = http.cookiejar.CookieJar()
+_opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(_jar))
+
+
+def portal(path_qs, body=None, ctype=None, timeout=30.0):
+    """Запрос к карте портала; (код, тип содержимого, байты)."""
+    headers = dict(HEADERS)
+    if ctype:
+        headers['Content-Type'] = ctype
+    elif body is None:
+        headers.pop('Content-Type', None)
+    req = urllib.request.Request(PORTAL + path_qs, data=body, headers=headers, method='POST' if body is not None else 'GET')
+    try:
+        with _opener.open(req, timeout=timeout) as resp:
+            return resp.status, resp.headers.get('Content-Type', 'text/plain'), resp.read()
+    except urllib.error.HTTPError as e:
+        return e.code, 'text/plain; charset=utf-8', ('портал ответил %s' % e.code).encode('utf-8')
+    except Exception as e:                      # сеть, таймаут
+        return 502, 'text/plain; charset=utf-8', ('портал недоступен: %s' % e).encode('utf-8')
+
+
 class Handler(BaseHTTPRequestHandler):
+    def _raw(self, code, ctype, body):
+        self.send_response(code)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _portal(self, body=None):
+        rest = self.path[len('/portal/'):]
+        if not rest or '..' in rest or rest.startswith(('http:', 'https:', '/')):
+            self._send(400, {'error': 'неверный путь'})
+            return
+        self._raw(*portal(rest, body, self.headers.get('Content-Type')))
+
+    def do_POST(self):
+        if not self.path.startswith('/portal/'):
+            self._send(404, {'error': 'нет такого пути'})
+            return
+        n = int(self.headers.get('Content-Length') or 0)
+        self._portal(self.rfile.read(n) if n else b'')
+
     def _send(self, code, payload):
         body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
         self.send_response(code)
@@ -96,6 +148,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.path.startswith('/portal/'):
+            self._portal()
+            return
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path not in ('/eni', '/'):
             self._send(404, {'error': 'нет такого пути'})
