@@ -60,6 +60,7 @@ const view = {
   aRegion: '',           // отбор сотрудников по области
   notesRead: [],         // «Уведомления»: id прочитанных
   gridWidths: {},        // «Таблица»: ширины столбцов
+  gridOrder: [],         // «Таблица»: порядок столбцов (перетаскиванием заголовка)
   notesKind: '',         // «Уведомления»: отбор по виду
   notesUnread: false,    // «Уведомления»: только непрочитанные
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
@@ -96,7 +97,7 @@ const view = {
 // (поле профиля «Ответственное лицо»; указание пользователя 12.10.2026
 // «Только по моим. Не по звездам»). ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: закрепление —
 // связь учётных записей осмотрщика и менеджера, «Мои» — по входу.
-persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode',
+persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'gridOrder', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode',
   'region', 'peopleSort', 'histKind', 'q', 'qs', 'qf', 'af', 'sets', 'setCur']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -913,6 +914,19 @@ export function mountInspections(host) {
   let gridSaving = false;   // своя правка: страница не перерисовывается
   let gridFull = false;
   let imp = null;     // разбор загруженного файла
+  // Своё поле — прямо из таблицы (указание пользователя 13.10.2026: «свои
+  // поля добавляем прямо в таблице»): «+ поле» в шапке открывает строку над
+  // таблицей — название, вид, варианты, обязательность; поле встаёт
+  // последним столбцом. Без окна поверх страницы.
+  let cfAdding = false;
+  const cfAddHTML = () => `<div class="ip-cfadd" role="group" aria-label="Новое поле таблицы">
+      <input class="input" data-ip-cfn="label" placeholder="Название поля" aria-label="Название поля" maxlength="60">
+      <select class="select" data-ip-cfn="kind" aria-label="Вид поля">${FIELD_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select>
+      <input class="input" data-ip-cfn="options" data-ip-cf-optsbox hidden placeholder="Варианты через запятую" aria-label="Варианты через запятую">
+      <label class="ip-check"><input type="checkbox" data-ip-cfn-req> Обязательное</label>
+      <span class="ip-err" data-ip-cf-err role="alert"></span>
+      <button class="btn btn-primary btn-sm" data-ip-cf-add>Добавить</button>
+      <button class="btn btn-ghost btn-sm" data-ip-cf-cancel>Отмена</button></div>`;
   function tableHTML() {
     if (imp) return importHTML();
     return `<div class="ip-gridwrap ${gridFull ? 'full' : ''}" data-ip-gridwrap>
@@ -920,10 +934,12 @@ export function mountInspections(host) {
         <span class="ip-hint">Правка — ввод или F2, Esc — отмена; блоки — Ctrl+C / Ctrl+V из Excel и в Excel; Ctrl+Z — отменить.</span>
         <div class="ip-route-act">
           <button class="btn btn-ghost btn-sm" data-ip-grid-full aria-pressed="${gridFull}">${gridFull ? 'Свернуть (Esc)' : 'На весь экран'}</button>
+          <button class="btn btn-ghost btn-sm" data-ip-cf-open title="Новый столбец таблицы — своё поле осмотрщиков">+ Своё поле</button>
           <button class="btn btn-ghost btn-sm" data-ip-grid-xlsx>Выгрузить xlsx</button>
           <button class="btn btn-ghost btn-sm" data-ip-grid-import>Загрузить xlsx</button>
         </div>
       </div>
+      ${cfAdding ? cfAddHTML() : ''}
       <div class="ip-grid" data-ip-grid></div>
     </div>`;
   }
@@ -941,6 +957,12 @@ export function mountInspections(host) {
         empty: ['Не закреплён', 'Область не указана'],
       },
       onWidths: (w) => { view.gridWidths = w; },
+      // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: порядок и ширины столбцов — личная настройка
+      // (сейчас — в памяти вкладки и её хранилище); на сервере — профиль
+      // пользователя или общий вид для всех регионалов: решить, чей порядок.
+      order: view.gridOrder,
+      onOrder: (keys) => { view.gridOrder = keys; },
+      onAddColumn: () => { cfAdding = true; redraw(); const f = scope.$('.ip-cfadd [data-ip-cfn="label"]'); if (f) f.focus(); },
       onChange: (changes) => {
         gridSaving = true;
         let errs;
@@ -2366,12 +2388,19 @@ export function mountInspections(host) {
     if (!v('label')) { scope.$('[data-ip-cf-err]').textContent = 'Укажите название'; scope.$('[data-ip-cfn="label"]').focus(); return; }
     if (v('kind') === 'list' && !v('options')) { scope.$('[data-ip-cf-err]').textContent = 'Укажите варианты через запятую'; return; }
     addCustomField({ label: v('label'), kind: v('kind'), options: v('options').split(',').map((x) => x.trim()), required: !!(scope.$('[data-ip-cfn-req]') || {}).checked });
+    cfAdding = false;
     redraw();
     host.toast('Поле добавлено', 'ok');
   });
   scope.on('click', '[data-ip-cf-del]', (e, b) => { removeCustomField(b.dataset.ipCfDel); redraw(); });
+  scope.on('click', '[data-ip-cf-cancel]', () => { cfAdding = false; redraw(); });
+  scope.on('click', '[data-ip-cf-open]', () => { cfAdding = true; redraw(); const f = scope.$('.ip-cfadd [data-ip-cfn="label"]'); if (f) f.focus(); });
   // «Варианты» — только у поля «выбор из списка».
   scope.on('change', '[data-ip-cfn="kind"]', (e, el) => { const box = scope.$('[data-ip-cf-optsbox]'); if (box) box.hidden = el.value !== 'list'; });
+  scope.on('keydown', '.ip-cfadd [data-ip-cfn]', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); const b = scope.$('.ip-cfadd [data-ip-cf-add]'); if (b) b.click(); }
+    if (e.key === 'Escape') { cfAdding = false; redraw(); }
+  });
   // Правка профиля показывает строку сохранения; «Уволен» открывает дату
   // увольнения. Поля добавления отпуска сюда не относятся — они сохраняются
   // своей кнопкой.

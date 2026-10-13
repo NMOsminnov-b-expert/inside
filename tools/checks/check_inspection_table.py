@@ -13,6 +13,10 @@
   * «На весь экран» не разворачивает, Esc не сворачивает;
   * выгрузка и загрузка обратно: изменения применяются без показа или
     «изменить» применяется без отметки;
+  * «+ поле» не заводит столбец своего поля прямо в таблице; перетаскивание
+    заголовка не меняет порядок столбцов или порядок теряется после
+    перезагрузки (указание пользователя 13.10.2026 «свои поля добавляем
+    прямо в таблице. Менять поля местами можем там же»);
   * в консоли ошибки.
 """
 import os
@@ -179,3 +183,18 @@ def run(t):
          'загрузка применила не то: дописать — да, изменить без отметки — нет')
     os.remove(path)
     t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'страница прокручивается вбок')
+
+    # --- своё поле прямо из таблицы и порядок столбцов перетаскиванием ---------------
+    pg.click('[data-kg-add]')
+    t.wait_for('.ip-cfadd [data-ip-cfn="label"]')
+    pg.fill('.ip-cfadd [data-ip-cfn="label"]', 'Проверка: размер')
+    pg.keyboard.press('Enter')
+    t.ck(t.wait_until("() => [...document.querySelectorAll('.kg thead tr:first-child th')].some((th) => th.textContent.trim() === 'Проверка: размер')"),
+         '«+ поле» не завело столбец своего поля')
+    i_mail, i_tel = col_index(pg, 'Почта'), col_index(pg, 'Телефон')
+    pg.locator('.kg thead tr:first-child th').nth(i_mail).drag_to(pg.locator('.kg thead tr:first-child th').nth(i_tel), target_position={'x': 4, 'y': 10})
+    t.ck(t.wait_until("() => { const h = [...document.querySelectorAll('.kg thead tr:first-child th')].map((th) => th.textContent.trim().replace(/ [↑↓]$/, '')); return h.indexOf('Почта') < h.indexOf('Телефон'); }"),
+         'перетаскивание заголовка не поставило «Почту» перед «Телефоном»')
+    pg.reload()
+    t.wait_for('.kg thead')
+    t.ck(col_index(pg, 'Почта') < col_index(pg, 'Телефон'), 'порядок столбцов не пережил перезагрузку')

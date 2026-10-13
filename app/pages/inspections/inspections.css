@@ -1272,3 +1272,9 @@ body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp{align-items:center;pad
 body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp .ip-grp-t b{font-size:13.5px;font-weight:700;color:var(--ink)}
 body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp .ip-grp-t span{color:#475569}
 body[data-page="inspections"] .on-scene .ip-tbl tr.ip-grp + tr[data-ip-row]{margin-top:4px}
+
+/* Строка нового поля над таблицей — на месте, без окна поверх страницы. */
+body[data-page="inspections"] .ip-cfadd{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;margin:0 0 8px;border-radius:10px;background:var(--blue-50)}
+body[data-page="inspections"] .ip-cfadd .input[data-ip-cfn="label"]{flex:1 1 220px;min-width:160px}
+body[data-page="inspections"] .ip-cfadd .input[data-ip-cfn="options"]{flex:1 1 220px}
+body[data-page="inspections"] .ip-cfadd .select{width:170px}

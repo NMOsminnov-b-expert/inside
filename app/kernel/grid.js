@@ -25,6 +25,13 @@
 // Фильтр столбца с filter: 'select' — выбор из значений столбца, а не поиск
 // по вхождению.
 //
+// Порядок столбцов (opts.order — ключи по порядку, opts.onOrder(keys)) —
+// перетаскиванием заголовка на место другого; закреплённые первые столбцы
+// стоят на месте. «+ поле» (opts.onAddColumn) — последний заголовок-кнопка:
+// новый столбец заводится прямо из таблицы (указание пользователя 13.10.2026
+// «свои поля добавляем прямо в таблице. Менять поля местами можем там же.
+// Простым перетягиванием»).
+//
 // Поля-выборы правятся выбором, а не текстом (замечание пользователя
 // 12.10.2026: «где поля — выбор, то в таблице тоже должен быть выбор, а не
 // текст»): у list и bool под ячейкой — список (ввод сужает, стрелки, Enter);
@@ -86,8 +93,15 @@ export function parseCell(col, text) {
 }
 
 export function mountGrid(host, opts) {
-  const cols = opts.columns;
   const frozen = opts.frozen ?? 1;
+  let cols = opts.columns.slice();
+  if (opts.order && opts.order.length) {
+    const at = new Map(opts.order.map((k, i) => [k, i]));
+    const fixed = cols.slice(0, frozen);
+    const rest = cols.slice(frozen).map((c, i) => [c, at.has(c.key) ? at.get(c.key) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+    cols = [...fixed, ...rest];
+  }
+  const ADD_W = 96;
   const widths = { ...(opts.widths || {}) };
   let rows = opts.rows;
   let view = [];                       // видимые строки (фильтр + сортировка)
@@ -142,12 +156,13 @@ export function mountGrid(host, opts) {
     }
   }
   function renderHead() {
-    tbl.querySelector('colgroup').innerHTML = cols.map((c) => `<col style="width:${W(c)}px">`).join('');
-    tbl.style.width = `${cols.reduce((n, c) => n + W(c), 0)}px`;
+    const addW = opts.onAddColumn ? ADD_W : 0;
+    tbl.querySelector('colgroup').innerHTML = cols.map((c) => `<col style="width:${W(c)}px">`).join('') + (addW ? `<col style="width:${addW}px">` : '');
+    tbl.style.width = `${cols.reduce((n, c) => n + W(c), 0) + addW}px`;
     const fz = (ci) => (ci < frozen ? ` kg-fz" style="left:${leftOf(ci)}px` : '');
-    tbl.querySelector('thead').innerHTML = `<tr>${cols.map((c, ci) => `<th class="kg-h${fz(ci)}" role="columnheader" aria-sort="${sort.key === c.key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'}" title="${esc(c.title || c.label)}">
+    tbl.querySelector('thead').innerHTML = `<tr>${cols.map((c, ci) => `<th class="kg-h${fz(ci)}" role="columnheader" data-kg-col="${ci}" ${opts.onOrder && ci >= frozen ? 'draggable="true"' : ''} aria-sort="${sort.key === c.key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'}" title="${esc(c.title || c.label)}">
         <button type="button" class="kg-sort" data-kg-sort="${esc(c.key)}">${esc(c.label)}${sort.key === c.key ? (sort.dir > 0 ? ' ↑' : ' ↓') : ''}</button>
-        <span class="kg-rs" data-kg-rs="${ci}" aria-hidden="true"></span></th>`).join('')}</tr>
+        <span class="kg-rs" data-kg-rs="${ci}" aria-hidden="true"></span></th>`).join('')}${opts.onAddColumn ? '<th class="kg-h kg-add" rowspan="2"><button type="button" class="kg-addb" data-kg-add title="Своё поле — новый столбец таблицы">+ поле</button></th>' : ''}</tr>
       <tr class="kg-frow">${cols.map((c, ci) => `<th class="kg-f${fz(ci)}">${c.filter === 'select'
         ? `<select class="kg-fin" data-kg-filter="${esc(c.key)}" aria-label="Фильтр: ${esc(c.label)}"><option value="">все</option>${[...new Set(rows.map((r) => cellText(c, r.cells[c.key])))].sort((a, b) => a.localeCompare(b, 'ru'))
           .map((v) => `<option value="${esc(v || '∅')}" ${filters[c.key] === (v || '∅') ? 'selected' : ''}>${esc(v || '— не указано —')}</option>`).join('')}</select>`
@@ -489,6 +504,47 @@ export function mountGrid(host, opts) {
     filters[f.dataset.kgFilter] = f.value;
     renderBody();
   });
+  // «+ поле» — новый столбец заводит страница (форма на месте, над таблицей).
+  tbl.querySelector('thead').addEventListener('click', (e) => {
+    if (e.target.closest('[data-kg-add]') && opts.onAddColumn) opts.onAddColumn();
+  });
+  // Порядок столбцов — перетаскиванием заголовка (HTML5 drag and drop):
+  // метка — край, куда встанет столбец; закреплённые — на месте.
+  let dragFrom = -1;
+  const thead = tbl.querySelector('thead');
+  const clearMarks = () => thead.querySelectorAll('.kg-drop-l, .kg-drop-r').forEach((th) => th.classList.remove('kg-drop-l', 'kg-drop-r'));
+  thead.addEventListener('dragstart', (e) => {
+    const th = e.target.closest('th[data-kg-col][draggable="true"]');
+    if (!th || e.target.closest('[data-kg-rs]')) { e.preventDefault(); return; }
+    dragFrom = +th.dataset.kgCol;
+    th.classList.add('kg-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', cols[dragFrom].key);
+  });
+  thead.addEventListener('dragover', (e) => {
+    const th = e.target.closest('th[data-kg-col]');
+    if (dragFrom < 0 || !th || +th.dataset.kgCol < frozen) return;
+    e.preventDefault();
+    clearMarks();
+    const r = th.getBoundingClientRect();
+    th.classList.add(e.clientX < r.left + r.width / 2 ? 'kg-drop-l' : 'kg-drop-r');
+  });
+  thead.addEventListener('drop', (e) => {
+    const th = e.target.closest('th[data-kg-col]');
+    if (dragFrom < 0 || !th) return;
+    e.preventDefault();
+    let to = +th.dataset.kgCol + (th.classList.contains('kg-drop-r') ? 1 : 0);
+    clearMarks();
+    if (to < frozen) to = frozen;
+    const [moved] = cols.splice(dragFrom, 1);
+    if (to > dragFrom) to -= 1;
+    cols.splice(to, 0, moved);
+    dragFrom = -1;
+    renderHead();
+    renderBody();
+    if (opts.onOrder) opts.onOrder(cols.map((c) => c.key));
+  });
+  thead.addEventListener('dragend', () => { dragFrom = -1; clearMarks(); thead.querySelectorAll('.kg-dragging').forEach((th) => th.classList.remove('kg-dragging')); });
   // Ширина столбца — перетаскиванием края заголовка.
   tbl.querySelector('thead').addEventListener('mousedown', (e) => {
     const h = e.target.closest('[data-kg-rs]');

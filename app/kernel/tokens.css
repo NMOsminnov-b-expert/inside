@@ -544,3 +544,13 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .maplibregl-popup.map-tip-gl .maplibregl-popup-tip{display:none}
 .maplibregl-popup.map-tip-gl{pointer-events:none}
 .cad-note.cad-note-gl{position:absolute;left:10px;bottom:10px;z-index:2}
+
+/* Таблица: «+ поле» и перенос столбцов перетаскиванием (kernel/grid.js). */
+.kg-add{vertical-align:middle;text-align:center}
+.kg-addb{all:unset;cursor:pointer;padding:3px 8px;border-radius:6px;font-weight:600;color:var(--blue-700);white-space:nowrap}
+.kg-addb:hover{background:var(--blue-50)}
+.kg-addb:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+.kg-h[draggable="true"]{cursor:grab}
+.kg-h.kg-dragging{opacity:.45}
+.kg-h.kg-drop-l{box-shadow:inset 3px 0 0 var(--blue-600)}
+.kg-h.kg-drop-r{box-shadow:inset -3px 0 0 var(--blue-600)}
