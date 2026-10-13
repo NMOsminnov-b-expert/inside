@@ -977,6 +977,8 @@ body[data-page="inspections"]{--isle-h:44px;--isle-gap:10px;--scene-top:calc(var
 body[data-page="inspections"] .main-row{position:relative}
 body[data-page="inspections"] .content{position:relative;z-index:1;padding:0;overflow:hidden;background:transparent;pointer-events:none}
 .ip-scene{position:absolute;inset:0;z-index:0;background:#e8edf2}
+/* MapLibre ставит контейнеру position:relative — сцена остаётся слоем на всю область. */
+.ip-scene.maplibregl-map{position:absolute;inset:0}
 body.ip-sheet-open .ip-scene{visibility:hidden}
 
 body[data-page="inspections"] .ip-page.ip-scened{position:relative;height:100%;background:transparent;pointer-events:none}
@@ -1195,12 +1197,43 @@ body[data-page="inspections"] .ip-page.on-scene:has(.ip-pane-none) .ip-edge-r{di
 
 /* Подписи сцены снизу слева (строка слоя Кадастра) — правее панели списка,
    а не под ней. */
-body:has(.ip-page.on-scene) .ip-scene .leaflet-bottom.leaflet-left{left:calc(var(--isle-gap) + clamp(400px,36%,620px))}
-body:has(.ip-page.on-scene .ip-facets.open) .ip-scene .leaflet-bottom.leaflet-left{left:calc(var(--isle-gap) + clamp(400px,36%,620px) + 278px)}
-body:has(.ip-page.on-scene.hide-list) .ip-scene .leaflet-bottom.leaflet-left{left:24px}
+body:has(.ip-page.on-scene) .ip-scene .cad-note-gl{left:calc(var(--isle-gap) + clamp(400px,36%,620px))}
+body:has(.ip-page.on-scene .ip-facets.open) .ip-scene .cad-note-gl{left:calc(var(--isle-gap) + clamp(400px,36%,620px) + 278px)}
+body:has(.ip-page.on-scene.hide-list) .ip-scene .cad-note-gl{left:24px}
 @media (max-width:1280px){
-  body:has(.ip-page.on-scene) .ip-scene .leaflet-bottom.leaflet-left{left:calc(var(--isle-gap) + clamp(360px,44%,520px))}
+  body:has(.ip-page.on-scene) .ip-scene .cad-note-gl{left:calc(var(--isle-gap) + clamp(360px,44%,520px))}
 }
 @media (max-width:1100px){
-  body:has(.ip-page.on-scene) .ip-scene .leaflet-bottom.leaflet-left{left:0;bottom:auto;top:calc(var(--scene-top) + 34vh - 40px)}
+  body:has(.ip-page.on-scene) .ip-scene .cad-note-gl{left:10px;bottom:auto;top:calc(var(--scene-top) + 34vh - 40px)}
 }
+
+/* Маршрут осмотрщика на сцене (шаг 2 перестройки, 13.10.2026): слева —
+   список осмотрщиков, рядом — карточка с днём и остановками, карта маршрута —
+   на всё остальное место рабочей области. Карта та же (обработчики, зум,
+   слои Кадастра) — меняется только раскладка; на узких окнах — прежняя. */
+@media (min-width:1101px){
+  body[data-page="inspections"] .on-route{--rp-w:270px;--rc-w:clamp(400px,32%,520px)}
+  body[data-page="inspections"] .on-sheet.on-route .ip{background:transparent;box-shadow:none;overflow:visible;pointer-events:none}
+  body[data-page="inspections"] .on-route .ip.ip-peoplesec{display:grid;grid-template-columns:var(--rp-w) var(--rc-w);gap:10px;align-items:stretch}
+  body[data-page="inspections"] .on-route .ip-people,
+  body[data-page="inspections"] .on-route .ip-card{background:var(--panel);border:0;border-radius:12px;box-shadow:var(--lift);pointer-events:auto;min-height:0}
+  body[data-page="inspections"] .on-route .ip-card{padding:12px 14px;display:flex;flex-direction:column;overflow:hidden}
+  body[data-page="inspections"] .on-route .ip-card-head{gap:8px 12px}
+  body[data-page="inspections"] .on-route .ip-tiles-head .ip-tile{min-width:0;flex:1 1 70px;padding:4px 8px}
+  body[data-page="inspections"] .on-route .ip-route{display:block}
+  body[data-page="inspections"] .on-route .ip-route-side{position:static;max-height:none}
+  body[data-page="inspections"] .on-route .ip-map-wrap{position:absolute;top:0;bottom:0;right:0;left:calc(var(--rp-w) + var(--rc-w) + 20px);pointer-events:auto}
+  body[data-page="inspections"] .on-route .ip-map{height:100% !important;min-height:0;border:0;border-radius:12px;box-shadow:var(--lift)}
+}
+
+/* Узкая карточка маршрута: плитки шапки — сеткой 2×2, подписи не упираются
+   в края («В копилку артефактов», снимок 13.10.2026). */
+@media (min-width:1101px){
+  body[data-page="inspections"] .on-route .ip-tiles-head{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%}
+  body[data-page="inspections"] .on-route .ip-tiles-head .ip-tile{min-width:0}
+}
+/* Подписи MapLibre (атрибуция, кнопки масштаба) — правее панели назначения. */
+body:has(.ip-page.on-scene) .ip-scene .maplibregl-ctrl-bottom-right{margin-right:calc(var(--isle-gap) + clamp(310px,26%,420px));}
+body:has(.ip-page.on-scene.hide-pane) .ip-scene .maplibregl-ctrl-bottom-right,
+body:has(.ip-page.on-scene .ip-pane-none) .ip-scene .maplibregl-ctrl-bottom-right{margin-right:0}
+@media (max-width:1100px){ body:has(.ip-page.on-scene) .ip-scene .maplibregl-ctrl-bottom-right{margin-right:0;margin-bottom:calc(100% - 34vh)} }

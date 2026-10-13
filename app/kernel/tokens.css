@@ -534,3 +534,13 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .leaflet-container path.leaflet-interactive:focus{outline:none}
 .leaflet-tooltip.map-tip,.leaflet-tooltip.ip-tip{min-width:210px}
 .leaflet-tooltip.map-tip b,.leaflet-tooltip.ip-tip b{white-space:nowrap}
+
+/* Карты MapLibre (kernel/mapgl.js): подсказка — как .map-tip у Leaflet,
+   строка слоя Кадастра — снизу слева поверх карты. */
+.maplibregl-popup.map-tip-gl .maplibregl-popup-content{min-width:210px;max-width:300px;padding:7px 10px;border:1px solid #c3cfdd;border-radius:8px;
+  background:#fff;color:#1b2a3a;font:12.5px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 6px 18px rgba(15,23,42,.18)}
+.maplibregl-popup.map-tip-gl .maplibregl-popup-content b{white-space:nowrap}
+.maplibregl-popup.map-tip-gl .maplibregl-popup-content i{font-style:normal;color:#5a6b82}
+.maplibregl-popup.map-tip-gl .maplibregl-popup-tip{display:none}
+.maplibregl-popup.map-tip-gl{pointer-events:none}
+.cad-note.cad-note-gl{position:absolute;left:10px;bottom:10px;z-index:2}

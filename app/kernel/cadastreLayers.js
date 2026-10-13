@@ -4,14 +4,15 @@
 // маршрута дня (вокруг остановок) и карта участка в карточке ОЦ (вокруг
 // участка).
 //
-// Только вокруг точек, а не по всей видимой части: по видимой части на
-// масштабе 16 в центре Бишкека выходило 500+ участков (обрезано пределом —
-// покрытие рваное) и 300+ строений — карта перегружена, а в портал уходило
-// куда больше нужного (снимок пользователя 13.10.2026). Вокруг каждой точки —
-// квадрат RADIUS м; грузится один раз при приближении (с MIN_ZOOM) и
-// хранится в памяти вкладки, никуда не записывается. Строка состояния на
-// карте: «приблизьте», «загружаю», «участков N · строений M», «Кадастр не
-// ответил» (практика APCS «три состояния блока»).
+// Где смотришь — там и Кадастр (13.10.2026: «И где кадастр?», «чтобы можно
+// было без проблем перемещаться»): видимая часть делится на клетки ~450 м,
+// клетка грузится один раз и запоминается, при перемещении догружаются только
+// новые. С масштаба 17 (кварталы): по видимой части на 16 в центре Бишкека
+// выходило 500+ участков и 300+ строений — карта перегружена («Ты всю базу
+// кадастра чтоль…», снимок пользователя 13.10.2026); на 17 — десятки.
+// Запросов разом — не больше трёх. Всё — в памяти вкладки, никуда не
+// пишется. Строка состояния на карте: «приблизьте», «загружаю», «участков N ·
+// строений M», «Кадастр не ответил» (практика APCS «три состояния блока»).
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: слой отдаёт свой картосервер из выгрузки Кадастра —
 // без запросов к порталу с рабочего места.
@@ -19,19 +20,17 @@ import { featuresInBox } from './cadastreGeo.js';
 import { esc } from './dom.js';
 import { formatEniText } from './eniField.js';
 
-// Плавный масштаб для всех карт макета (указание пользователя 13.10.2026:
-// «Зум тоже плавный, а не рывками»), но не медленный («Откорректируй зум…
-// ну устанешь колесико крутить»): щелчок колеса — около уровня, кнопки —
-// ровно уровень; шаг 0,25 — без мыльной подложки на промежуточных масштабах.
-export const SMOOTH_ZOOM = { zoomSnap: 0.25, zoomDelta: 1, wheelPxPerZoomLevel: 45, wheelDebounceTime: 20 };
+// Масштаб карт макета: дробные уровни (колесо ведёт kernel/smoothWheel.js —
+// одной плавной кривой), кнопки «+»/«−» — на уровень.
+export const SMOOTH_ZOOM = { zoomSnap: 0, zoomDelta: 1 };
 
-const MIN_ZOOM = 16;
-const RADIUS = 150;          // м вокруг точки
-const MAX_POINTS = 12;       // точек за раз (остановок дня больше не бывает)
+const MIN_ZOOM = 17;
+const CELL_LAT = 0.004;       // клетка ≈ 445 м по широте
+const CELL_LON = 0.0055;      // ≈ 450 м по долготе на широте Кыргызстана
+const PARALLEL = 3;           // запросов к порталу разом
 
-// points — [[широта, долгота], …]
-export function attachCadastreLayers(L, map, points) {
-  const pts = (points || []).filter(Boolean).slice(0, MAX_POINTS);
+// Второй довод (точки) больше не нужен: слои — по видимой части карты.
+export function attachCadastreLayers(L, map) {
   // Порядок слоёв — панелями карты, а не порядком загрузки: участки соседних
   // точек догружаются позже и иначе ложились поверх строений (по строению не
   // щёлкнуть). Снизу вверх: участки 380, строения 390, линия маршрута
@@ -46,11 +45,6 @@ export function attachCadastreLayers(L, map, points) {
   const say = (t, cls = '') => { const el = note.getContainer(); el.textContent = t; el.className = 'cad-note ' + cls; };
   const toLL = (poly) => poly.map((ring) => ring.map(([lon, lat]) => [lat, lon]));
   const shapes = (g) => (g.type === 'Polygon' ? [toLL(g.coordinates)] : g.type === 'MultiPolygon' ? g.coordinates.map(toLL) : []);
-  const boxOf = ([lat, lon]) => {
-    const dLat = RADIUS / 111320;
-    const dLon = RADIUS / (111320 * Math.cos(lat * Math.PI / 180));
-    return [lon - dLon, lat - dLat, lon + dLon, lat + dLat];
-  };
   const seen = new Set();      // ЕНИ и строения, уже нарисованные (квадраты соседних точек пересекаются)
   // Выделение участка — по его контуру, сколько бы в нём ни было точек:
   // заливка и толстая граница самой фигуры (замечание пользователя
@@ -81,62 +75,83 @@ export function attachCadastreLayers(L, map, points) {
     if (picked) { picked.setStyle(picked.options.base); picked = null; }
   };
   map.on('click', onMapClick);
-  let loaded = false;
-  let busy = false;
   let np = 0;
   let nb = 0;
-  if (!pts.length) { say('Кадастр: у объектов нет координат'); return () => { parcels.remove(); builds.remove(); note.remove(); }; }
-
-  const load = async () => {
-    if (loaded || busy) return;
-    if (map.getZoom() < MIN_ZOOM) { say('Кадастр: приблизьте карту — покажу участки и строения вокруг объектов'); return; }
-    busy = true;
-    say('Кадастр: загружаю участки вокруг объектов…');
-    try {
-      for (const p of pts) {
-        const box = boxOf(p);
-        const [ps, bs] = await Promise.all([
-          featuresInBox('ENI_WGS84', box, 'PROPCODE,DOMCODE,ADDRESS,NAZNACHENI,THE_GEOM', 200),
-          featuresInBox('ENI_BUILDINGS', box, 'PROPCODE,BUILD_TYPE,NAZNACHENI,ADDRESS,THE_GEOM', 200),
-        ]);
-        if (!map._loaded) return;              // карту уже убрали
-        ps.forEach((f) => {
-          const pr = f.properties || {};
-          const key = 'p' + (pr.PROPCODE || JSON.stringify(f.geometry).slice(0, 80));
-          if (seen.has(key)) return;
-          seen.add(key);
-          np += 1;
-          shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...PARCEL, pane: 'cadParcels', fill: true, className: 'cad-parcel', base: PARCEL, hot: PICKED })
-            .on('click', (e) => pick(e.target))
-            .bindTooltip(`<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>${esc(pr.NAZNACHENI)}</i>` : ''}`, { sticky: true, className: 'map-tip' })
-            .addTo(parcels));
-        });
-        bs.forEach((f) => {
-          const key = 'b' + JSON.stringify(f.geometry).slice(0, 120);
-          if (seen.has(key)) return;
-          seen.add(key);
-          nb += 1;
-          const pr = f.properties || {};
-          shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...BUILD, pane: 'cadBuilds', className: 'cad-build', base: BUILD, hot: BUILD_PICKED })
-            .on('click', (e) => pick(e.target))
-            .bindTooltip(`<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br>${esc(pr.NAZNACHENI)}` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`, { sticky: true, className: 'map-tip' })
-            .addTo(builds));
-        });
-        say(`Кадастр: вокруг объектов — участков ${np} · строений ${nb}`);
-      }
-      loaded = true;
-    } catch (e) {
-      say('Кадастр не ответил — запустите прокси: python tools/cadastre/proxy.py', 'err');
-    } finally {
-      busy = false;
+  let failed = false;
+  const cells = new Map();     // «i|j» → 'busy' | 'done'
+  const queue = [];
+  let running = 0;
+  const status = () => {
+    if (map.getZoom() < MIN_ZOOM) return say('Кадастр: приблизьте карту — покажу участки и строения');
+    if (failed) return say('Кадастр не ответил — запустите прокси: python tools/cadastre/proxy.py', 'err');
+    say(`Кадастр: участков ${np} · строений ${nb}${running || queue.length ? ' · загружаю…' : ''}`);
+  };
+  const drawParcels = (ps) => ps.forEach((f) => {
+    const pr = f.properties || {};
+    const key = 'p' + (pr.PROPCODE || JSON.stringify(f.geometry).slice(0, 80));
+    if (seen.has(key)) return;
+    seen.add(key);
+    np += 1;
+    shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...PARCEL, pane: 'cadParcels', fill: true, className: 'cad-parcel', base: PARCEL, hot: PICKED })
+      .on('click', (e) => pick(e.target))
+      .bindTooltip(`<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>${esc(pr.NAZNACHENI)}</i>` : ''}`, { sticky: true, className: 'map-tip' })
+      .addTo(parcels));
+  });
+  const drawBuilds = (bs) => bs.forEach((f) => {
+    const key = 'b' + JSON.stringify(f.geometry).slice(0, 120);
+    if (seen.has(key)) return;
+    seen.add(key);
+    nb += 1;
+    const pr = f.properties || {};
+    shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...BUILD, pane: 'cadBuilds', className: 'cad-build', base: BUILD, hot: BUILD_PICKED })
+      .on('click', (e) => pick(e.target))
+      .bindTooltip(`<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br>${esc(pr.NAZNACHENI)}` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`, { sticky: true, className: 'map-tip' })
+      .addTo(builds));
+  });
+  const pump = () => {
+    while (running < PARALLEL && queue.length) {
+      const [k, box] = queue.shift();
+      if (!map._loaded) return;
+      running += 1;
+      Promise.all([
+        featuresInBox('ENI_WGS84', box, 'PROPCODE,DOMCODE,ADDRESS,NAZNACHENI,THE_GEOM', 400),
+        featuresInBox('ENI_BUILDINGS', box, 'PROPCODE,BUILD_TYPE,NAZNACHENI,ADDRESS,THE_GEOM', 400),
+      ]).then(([ps, bs]) => {
+        if (!map._loaded) return;
+        cells.set(k, 'done');
+        drawParcels(ps);
+        drawBuilds(bs);
+      }).catch(() => { cells.delete(k); failed = true; })
+        .finally(() => { running -= 1; status(); pump(); });
     }
+  };
+  // Клетки видимой части (с запасом в полклетки) — в очередь, ближние к
+  // середине — первыми.
+  const load = () => {
+    if (map.getZoom() < MIN_ZOOM) { status(); return; }
+    failed = false;
+    const b = map.getBounds().pad(0.15);
+    const c = map.getCenter();
+    const want = [];
+    for (let i = Math.floor(b.getSouth() / CELL_LAT); i <= Math.floor(b.getNorth() / CELL_LAT); i++) {
+      for (let j = Math.floor(b.getWest() / CELL_LON); j <= Math.floor(b.getEast() / CELL_LON); j++) {
+        const k = i + '|' + j;
+        if (cells.has(k)) continue;
+        const box = [j * CELL_LON, i * CELL_LAT, (j + 1) * CELL_LON, (i + 1) * CELL_LAT];
+        want.push([k, box, Math.hypot((box[1] + box[3]) / 2 - c.lat, (box[0] + box[2]) / 2 - c.lng)]);
+      }
+    }
+    want.sort((x, y) => x[2] - y[2]).forEach(([k, box]) => { cells.set(k, 'busy'); queue.push([k, box]); });
+    status();
+    pump();
   };
   const onZoom = () => {
     const show = map.getZoom() >= MIN_ZOOM;
     [parcels, builds].forEach((g) => { if (show && !map.hasLayer(g)) g.addTo(map); if (!show && map.hasLayer(g)) g.remove(); });
-    if (show) { if (loaded) say(`Кадастр: вокруг объектов — участков ${np} · строений ${nb}`); else load(); } else say('Кадастр: приблизьте карту — покажу участки и строения вокруг объектов');
+    load();
   };
-  map.on('zoomend', onZoom);
+  map.on('moveend', onZoom);
+
   onZoom();
-  return () => { map.off('zoomend', onZoom); map.off('click', onMapClick); parcels.remove(); builds.remove(); note.remove(); };
+  return () => { map.off('moveend', onZoom); map.off('click', onMapClick); queue.length = 0; parcels.remove(); builds.remove(); note.remove(); };
 }

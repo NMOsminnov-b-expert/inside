@@ -95,7 +95,7 @@ async function drawGeoMap(box, geo) {
   drawOwnParcel(L, map, geo);
   map.fitBounds([[y1, x1], [y2, x2]], { padding: [24, 24], maxZoom: 19 });
   // Участки и строения Кадастра вокруг (решение пользователя 13.10.2026).
-  attachCadastreLayers(L, map, [[(y1 + y2) / 2, (x1 + x2) / 2]]);
+  attachCadastreLayers(L, map);
 }
 
 export function bindGeo(ctx, rec) {

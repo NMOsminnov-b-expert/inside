@@ -42,6 +42,9 @@ import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats,
 import { detailHTML } from './detail.js';
 import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord, gpsOfObject } from './route.js';
 import { attachCadastreLayers, SMOOTH_ZOOM } from '../../kernel/cadastreLayers.js';
+import { smoothWheel } from '../../kernel/smoothWheel.js';
+import { loadMapLibre, createMap, hoverTip, emptyFC } from '../../kernel/mapgl.js';
+import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { drawOwnParcel } from '../../kernel/cadastreForm.ctrl.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
 
@@ -1166,6 +1169,7 @@ export function mountInspections(host) {
     if (!box.isConnected) return;
     if (routeMap) { routeMap.remove(); routeMap = null; }
     const map = L.map(box, { scrollWheelZoom: true, attributionControl: true, ...SMOOTH_ZOOM });
+    smoothWheel(L, map);
     routeMap = map;
     box._map = map;   // для замеров и проверок: значок ↔ его точка на карте
     // Подложка OSM — общедоступные тайлы (исключение к правилу «данные наружу
@@ -1202,7 +1206,7 @@ export function mountInspections(host) {
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14, animate: false }); else map.setView([42.87, 74.59], 11, { animate: false });
     // Участки и строения Кадастра вокруг остановок — при приближении (решение
     // пользователя 13.10.2026 «Участки вокруг на карте, Строения на участке»).
-    attachCadastreLayers(L, map, r.stops.map((x) => x.gps));
+    attachCadastreLayers(L, map);
     const pinIcon = (cls, text, wide) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span${wide ? ' class="wide"' : ''}>${text}</span>`, iconSize: [wide ? 44 : 26, 26], iconAnchor: [wide ? 22 : 13, 13] });
     const groups = [];
     items.forEach((it) => {
@@ -1402,7 +1406,7 @@ export function mountInspections(host) {
   // карта подсвечивают одно; выбор не подменяет панель, в которой работают).
   // Вписывается в точки только при смене режима или вкладки — масштаб,
   // выбранный человеком, перерисовка не трогает.
-  const scene = { el: null, map: null, L: null, layer: null, fitKey: '', cadKey: '', cadOff: null };
+  const scene = { el: null, map: null, L: null, layer: null, fitKey: '' };
   let hideList = false;      // панели скрываемы (указание 13.10.2026: «Панели чтобы были скрываемыми»)
   let hidePane = false;
   const gpsCache = new Map();
@@ -1412,11 +1416,17 @@ export function mountInspections(host) {
     return gpsCache.get(k);
   };
   const DUE_COLOR = { hot: '#c2410c', week: '#d97706', later: '#2563eb', none: '#64748b' };
-  async function ensureScene() {
-    if (scene.map) return scene;
-    await host.ensureStyle('./app/vendor/leaflet/leaflet.css');
-    const L = await import('../../vendor/leaflet/leaflet-src.esm.js');
-    if (scene.map) return scene;
+  // Сцена — на MapLibre GL (видеокарта): плавный масштаб с инерцией, точки
+  // объектов растут при приближении, тысячи участков Кадастра без просадки
+  // (указание пользователя 13.10.2026: «Переходи на maplibre с их слоем»).
+  let sceneLoading = null;
+  function ensureScene() {
+    if (scene.map) return Promise.resolve(scene);
+    if (!sceneLoading) sceneLoading = buildScene().finally(() => { sceneLoading = null; });
+    return sceneLoading;
+  }
+  async function buildScene() {
+    const gl = await loadMapLibre(host.ensureStyle);
     const el = document.createElement('div');
     el.className = 'ip-scene';
     el.setAttribute('role', 'img');
@@ -1425,15 +1435,36 @@ export function mountInspections(host) {
     // и шапка остаются на своих местах; свернул меню — карта расширилась.
     const row = document.querySelector('.main-row') || document.body;
     row.insertBefore(el, row.firstChild);
-    // Масштаб — плавно, дробными шагами, а не скачком на целый уровень
-    // (указание 13.10.2026: «Зум тоже плавный, а не рывками»).
-    const map = L.map(el, { zoomControl: false, attributionControl: true, ...SMOOTH_ZOOM }).setView([42.87, 74.6], 11);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-    // Подложка OSM — исключение к правилу о данных (решение пользователя 12.10.2026).
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
-    Object.assign(scene, { el, map, L, layer: L.layerGroup().addTo(map) });
+    const map = await createMap(gl, el);
+    map.addSource('objs', { type: 'geojson', data: emptyFC() });
+    // Размер точки — от масштаба: издали мелкие, вблизи крупные («при
+    // приближении маркеры не меняют масштаб», 13.10.2026). Выбранная —
+    // крупнее и с тёмным кольцом, отмеченные — с белой обводкой.
+    const size = (cur, sel, base) => ['case', ['get', 'cur'], cur, ['get', 'sel'], sel, base];
+    map.addLayer({ id: 'objs', type: 'circle', source: 'objs', paint: {
+      'circle-radius': ['interpolate', ['exponential', 1.4], ['zoom'],
+        5, size(6, 4.5, 3), 10, size(8, 6.5, 5), 14, size(11, 9, 7), 17, size(15, 12.5, 10), 19, size(20, 17, 14)],
+      'circle-color': ['get', 'color'],
+      'circle-stroke-color': ['case', ['get', 'cur'], '#0f172a', '#ffffff'],
+      'circle-stroke-width': ['case', ['get', 'cur'], 3, ['get', 'sel'], 2.5, 1.5],
+    } });
+    const tip = hoverTip(gl, map);
+    map.on('mousemove', 'objs', (e) => {
+      map.getCanvas().style.cursor = 'pointer';
+      const f = e.features[0];
+      tip.show(f.geometry.coordinates, f.properties.tip);
+    });
+    map.on('mouseleave', 'objs', () => { map.getCanvas().style.cursor = ''; tip.hide(); });
+    // Двойной щелчок по точке — переход к объекту (указание 13.10.2026);
+    // считается по двум щелчкам одной точки (sceneClick), масштаб по
+    // двойному щелчку на точке погашен.
+    map.on('click', 'objs', (e) => { const x = scene.byKey.get(e.features[0].properties.k); if (x) sceneClick(x); });
+    map.on('dblclick', 'objs', (e) => e.preventDefault());
+    // Участки и строения Кадастра — где смотришь, под точками объектов.
+    attachCadastreGL(gl, map, { beforeId: 'objs' });
+    Object.assign(scene, { el, map, gl, byKey: new Map() });
     window.__ipScene = map;   // для замеров и проверок
-    scene.obs = new ResizeObserver(() => { if (scene.map) scene.map.invalidateSize({ pan: false }); });
+    scene.obs = new ResizeObserver(() => { if (scene.map) scene.map.resize(); });
     scene.obs.observe(el);
     return scene;
   }
@@ -1456,9 +1487,8 @@ export function mountInspections(host) {
     if (!on && !scene.map) return;
     const sc = await ensureScene();
     if (!sc.el.isConnected) { const row = document.querySelector('.main-row') || document.body; row.insertBefore(sc.el, row.firstChild); }
-    sc.map.invalidateSize({ pan: false });
-    const { L, map, layer } = sc;
-    layer.clearLayers();
+    sc.map.resize();
+    const { map } = sc;
     const every = scenePoints();
     const pts = every.filter((x) => x.ll);
     // Честно о том, чего на карте нет: точка только у объекта с координатами
@@ -1468,32 +1498,12 @@ export function mountInspections(host) {
       note.hidden = !every.length || pts.length === every.length;
       note.textContent = `На карте ${pts.length} из ${every.length} — у остальных нет координат (GPS или участка из Кадастра)`;
     }
-    pts.forEach((x) => {
-      const cur = x.k === current;
-      const sel = checked.has(x.k);
-      L.circleMarker(x.ll, { radius: cur ? 9 : sel ? 7 : 5.5, color: cur ? '#0f172a' : '#fff', weight: cur ? 3 : sel ? 2.5 : 1.5,
-        fillColor: x.color, fillOpacity: 0.95, className: 'ip-dot' + (cur ? ' cur' : '') })
-        .bindTooltip(x.tip, { className: 'map-tip', direction: 'top', offset: [0, -6] })
-        // Двойной щелчок — переход к объекту (указание 13.10.2026: «При
-        // нажатии на объект на карте — переход к нему (на двойной клик)»).
-        // Считается по двум щелчкам одной точки, а не событием браузера:
-        // первый щелчок выбирает объект и перерисовывает точки, второй
-        // попадает уже в новую — браузер двойного не видит («двойной клик не
-        // работает», 13.10.2026). Масштаб по двойному щелчку на точке
-        // погашен.
-        .on('click', (e) => { L.DomEvent.stop(e); sceneClick(x); })
-        .on('dblclick', (e) => L.DomEvent.stop(e))
-        .addTo(layer);
-    });
-    // Участки и строения Кадастра — вокруг выбранного и отмеченных объектов
-    // (как на маршруте и в карточке; «Куда кадастр пропал?», 13.10.2026).
-    const focus = pts.filter((x) => x.k === current || checked.has(x.k)).slice(0, 12);
-    const cadKey = on ? focus.map((x) => x.k).join(',') : '';
-    if (cadKey !== scene.cadKey) {
-      if (scene.cadOff) { scene.cadOff(); scene.cadOff = null; }
-      scene.cadKey = cadKey;
-      if (cadKey) scene.cadOff = attachCadastreLayers(L, map, focus.map((x) => x.ll));
-    }
+    sc.byKey = new Map(pts.map((x) => [x.k, x]));
+    map.getSource('objs').setData({ type: 'FeatureCollection', features: pts
+      // выбранная — последней: рисуется поверх соседей
+      .sort((a, b) => (a.k === current) - (b.k === current))
+      .map((x) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [x.ll[1], x.ll[0]] },
+        properties: { k: x.k, color: x.color, tip: x.tip, cur: x.k === current, sel: checked.has(x.k) } })) });
     const fitKey = view.section + '|' + view.tab + '|' + view.aPerson;
     if (on && pts.length && fitKey !== scene.fitKey) {
       scene.fitKey = fitKey;
@@ -1504,9 +1514,14 @@ export function mountInspections(host) {
       const box = sc.el.getBoundingClientRect();
       const isles = scope.$('.ip-isles');
       const top = isles ? isles.getBoundingClientRect().bottom - box.top + 12 : 72;
-      const pad = side ? { paddingTopLeft: [sceneLeft(box), top], paddingBottomRight: [sceneRight(box), 40] }
-        : { paddingTopLeft: [24, top], paddingBottomRight: [24, Math.max(40, box.bottom - (work ? work.getBoundingClientRect().top : box.bottom) + 24)] };
-      map.fitBounds(L.latLngBounds(pts.map((x) => x.ll)), { ...pad, maxZoom: 15, animate: false });
+      const padding = side ? { top, left: sceneLeft(box), right: sceneRight(box), bottom: 40 }
+        : { top, left: 24, right: 24, bottom: Math.max(40, box.bottom - (work ? work.getBoundingClientRect().top : box.bottom) + 24) };
+      const lats = pts.map((x) => x.ll[0]);
+      const lons = pts.map((x) => x.ll[1]);
+      // Поля не больше самой карты: иначе MapLibre отказывается вписывать.
+      if (padding.left + padding.right < box.width - 40 && padding.top + padding.bottom < box.height - 40) {
+        map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding, maxZoom: 15, animate: false });
+      }
     }
     if (!on) scene.fitKey = '';
   }
@@ -1889,7 +1904,10 @@ export function mountInspections(host) {
     // режимы «Осмотров», уведомления и «Перейти» (Ctrl K). Режимы с картой
     // (назначения) — панелями над ней; остальные — поверхностью над сценой.
     const onScene = view.section === 'assign';
-    scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${hideList ? 'hide-list' : ''} ${hidePane ? 'hide-pane' : ''}">
+    // Маршрут осмотрщика — тоже на сцене: список осмотрщиков и карточка с
+    // остановками — панелями, карта маршрута — на всё остальное место.
+    const onRoute = view.section === 'people' && !!view.person && view.personTab === 'route';
+    scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${hideList ? 'hide-list' : ''} ${hidePane ? 'hide-pane' : ''}">
       <div class="ip-isles">
         <nav class="ip-isl ip-sections" role="tablist" aria-label="Режимы осмотров">
           ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('history', 'История')}
