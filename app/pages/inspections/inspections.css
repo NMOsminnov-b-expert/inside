@@ -1237,3 +1237,22 @@ body:has(.ip-page.on-scene) .ip-scene .maplibregl-ctrl-bottom-right{margin-right
 body:has(.ip-page.on-scene.hide-pane) .ip-scene .maplibregl-ctrl-bottom-right,
 body:has(.ip-page.on-scene .ip-pane-none) .ip-scene .maplibregl-ctrl-bottom-right{margin-right:0}
 @media (max-width:1100px){ body:has(.ip-page.on-scene) .ip-scene .maplibregl-ctrl-bottom-right{margin-right:0;margin-bottom:calc(100% - 34vh)} }
+
+/* Подменю раздела — островком в строке режимов (13.10.2026: «Каждые такие
+   меню должны идти в строке выше»): те же сегменты, что у режимов; строка
+   островков переносится, если не влезла, — панели отсчитываются от её низа
+   (--scene-top ставит страница по замеру). */
+body[data-page="inspections"] .ip-isles{flex-wrap:wrap}
+body[data-page="inspections"] .ip-isles .ip-subisle{height:auto;min-height:var(--isle-h);flex-wrap:wrap;gap:2px;padding:5px;border:0;margin:0}
+body[data-page="inspections"] .ip-isles .ip-subisle .itab{height:34px;padding:0 12px;border:0;border-radius:8px;font-size:13px;font-weight:500;margin:0}
+body[data-page="inspections"] .ip-isles .ip-subisle .itab::after{display:none}
+body[data-page="inspections"] .ip-isles .ip-subisle .itab:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-isles .ip-subisle .itab.on{background:var(--ink);color:#fff}
+body[data-page="inspections"] .ip-isles .ip-subisle .itab.on b{color:#fff;background:rgba(255,255,255,.18)}
+
+/* «Выезды» — календарь на всю высоту карточки, а не полосой сверху с пустой
+   третью экрана под ней (снимок пользователя 13.10.2026 «Выезды.»; правило
+   «пустых блоков нет»): недели делят высоту поровну, 58 px — минимум клетки. */
+body[data-page="inspections"] .ip-card-body:has(> .ipc-cal:only-child){overflow:auto}
+body[data-page="inspections"] .ip-card-body > .ipc-cal:only-child{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+body[data-page="inspections"] .ip-card-body > .ipc-cal:only-child .ipc-cal-tbl{flex:1 1 auto;height:100%}

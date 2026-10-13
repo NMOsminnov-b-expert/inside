@@ -460,7 +460,7 @@ export function mountInspections(host) {
     const rowsAll = view.tab === 'queue' ? base : liveAll;
     return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : filtersHTML(rowsAll, view.q)}
       <section class="ip-work" aria-label="Назначения">
-        <div class="itabs" role="tablist">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', liveAll.length)}</div>
+        <div class="itabs ip-subtabs" role="tablist" aria-label="Назначения">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', liveAll.length)}</div>
         <div class="itoolbar ip-toolbar">
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : view.aPerson ? 'ЕНИ, адрес' : 'Фамилия сотрудника')}
           ${bare ? '' : (() => { const f = curFilter(); const n = Object.values(f.facets).reduce((k, v) => k + (v ? v.length : 0), 0) + Object.values(f.ranges).filter((r) => r && (r[0] || r[1])).length;
@@ -1529,6 +1529,29 @@ export function mountInspections(host) {
   // видимую часть сцены, а не под панели.
   const sceneLeft = (box) => { const el = scope.$('.ip-work'); return el && !hideList ? el.getBoundingClientRect().right - box.left + 16 : 40; };
   const sceneRight = (box) => { const el = scope.$('.ip-pane'); return el && !hidePane ? box.right - el.getBoundingClientRect().left + 16 : 40; };
+  // Подменю раздела — островком в строке режимов, а не внутри содержимого
+  // (указание пользователя 13.10.2026: «Вот эта навигация спрятана по сути.
+  // Её тоже надо перенести. Каждые такие меню должны идти в строке выше»).
+  // Узел переносится целиком — атрибуты и обработчики те же; не влезла
+  // строка — островки переносятся вторым рядом, и панели отсчитываются от
+  // её низа.
+  function liftSubTabs() {
+    const isles = scope.$('.ip-isles');
+    if (!isles) return;
+    const bell = scope.$('.ip-bell');
+    scope.$$('.ip > * .ip-subtabs, .ip > .ip-subtabs').forEach((el) => {
+      el.classList.add('ip-isl', 'ip-subisle');
+      isles.insertBefore(el, bell);
+    });
+    fitSceneTop();
+  }
+  function fitSceneTop() {
+    const page = scope.$('.ip-page');
+    const isles = scope.$('.ip-isles');
+    if (!page || !isles) return;
+    const top = Math.round(isles.getBoundingClientRect().bottom - page.getBoundingClientRect().top + 10);
+    page.style.setProperty('--scene-top', top + 'px');
+  }
   // «Перейти» стоит на верхней полосе системы по её середине: узел — в
   // странице (обработчики раздела), место — по полосе, при любом размере.
   function placeJump() {
@@ -1539,7 +1562,7 @@ export function mountInspections(host) {
     j.style.left = `${r.left + r.width / 2}px`;
     j.style.top = `${r.top + (r.height - 32) / 2}px`;
   }
-  const onResize = () => placeJump();
+  const onResize = () => { placeJump(); fitSceneTop(); };
   window.addEventListener('resize', onResize);
   const barObs = new ResizeObserver(onResize);
   if (document.querySelector('.topbar')) barObs.observe(document.querySelector('.topbar'));
@@ -1926,6 +1949,7 @@ export function mountInspections(host) {
         <button class="ip-edge ip-edge-r" data-ip-hide="pane" aria-expanded="${!hidePane}" title="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}" aria-label="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}">${hidePane ? '‹' : '›'}</button>` : ''}
     </div>`);
     placeJump();
+    liftSubTabs();
     syncUrl();
     const was = memo.get(vkey);
     if (was && was.draft) applyDraft(was.draft);
