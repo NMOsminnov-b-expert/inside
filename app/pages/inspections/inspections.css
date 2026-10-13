@@ -267,7 +267,11 @@ body[data-page="inspections"] .ipc-chip{display:block;margin-top:2px;padding:0 5
 .ipc-pop li i.k-act{color:var(--amber-700)}
 
 /* Графики uPlot: легенда — строкой под графиком, значения точки под курсором. */
-body[data-page="inspections"] .ipc-plot{min-width:0}
+/* Место под график держится до его прихода: графики рисуются после
+   загрузки uPlot, и карточки прыгали с нуля до полной высоты (матрица
+   взаимодействий 13.10.2026, флаг «прыгал»). 200 px — график 170 и строка
+   легенды; длинная легенда добирает своё. */
+body[data-page="inspections"] .ipc-plot{min-width:0;min-height:200px}
 body[data-page="inspections"] .ipc-note{margin:2px 0 0;font-size:11px;color:var(--muted)}
 body[data-page="inspections"] .ipc-plot .uplot{font-family:inherit}
 body[data-page="inspections"] .ipc-plot .u-legend{font-size:11.5px;color:var(--ink);text-align:left;margin-top:4px}
@@ -467,6 +471,53 @@ body[data-page="inspections"] .ip-fopt b{font-size:11.5px;font-weight:600;color:
 body[data-page="inspections"] .ip-fopt:hover{background:var(--fill-hover)}
 body[data-page="inspections"] .ip-fopt.on{background:var(--blue-50);color:var(--blue-700);font-weight:600;box-shadow:inset 3px 0 0 var(--blue-600)}
 body[data-page="inspections"] .ip-fopt.on b{color:var(--blue-700)}
+
+/* Гибкие отборы (решение пользователя 13.10.2026): в фасете можно отметить
+   несколько значений — у каждого квадратик отметки, а не одна полоса;
+   значение с нулём — тусклое; «Ещё N» раскрывает хвост; «сбросить» — рядом
+   с заголовком фасета. */
+body[data-page="inspections"] .ip-facet h3{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+body[data-page="inspections"] .ip-facet h3{align-items:center}
+body[data-page="inspections"] .ip-fclear{flex:none;width:20px;height:20px;border-radius:50%;padding:0;font-size:14px;font-weight:600;line-height:1;
+  text-transform:none;letter-spacing:0;color:var(--blue-600);cursor:pointer}
+body[data-page="inspections"] .ip-fclear:hover{background:var(--blue-50)}
+body[data-page="inspections"] .ip-fck{flex:none;width:13px;height:13px;border:1.5px solid var(--line-input);border-radius:3px;background:var(--panel)}
+body[data-page="inspections"] .ip-fopt.on .ip-fck{background:var(--blue-600);border-color:var(--blue-600);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.2 2.2 4.8-4.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-size:100%}
+body[data-page="inspections"] .ip-facet .ip-fopt.on{box-shadow:none}
+body[data-page="inspections"] .ip-fopt.zero{color:var(--muted)}
+body[data-page="inspections"] .ip-fmore{padding:3px 8px 0 29px;font-size:12px;font-weight:600;color:var(--blue-600);cursor:pointer;text-align:left}
+body[data-page="inspections"] .ip-fmore:hover{text-decoration:underline}
+/* Диапазоны: даты — строками «с» и «по» (два поля даты в колонку 170–210 px
+   не помещаются), числа — «от–до» в одну строку. */
+/* «от–до» в строку, пока на поле есть 84 px; в колонке 170 px (ширина 1280)
+   — друг под другом: поле в 42 px не вмещало четырёхзначную площадь. */
+body[data-page="inspections"] .ip-frange-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:6px;padding:0 6px}
+body[data-page="inspections"] .ip-frange.is-date .ip-frange-row{grid-template-columns:1fr}
+body[data-page="inspections"] .ip-frange-f{display:flex;align-items:center;gap:6px;min-width:0}
+body[data-page="inspections"] .ip-frange-f span{flex:none;width:18px;font-size:11.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-frange-f .input{flex:1 1 auto;min-width:0;height:30px;padding:0 6px;font-size:12.5px;font-variant-numeric:tabular-nums}
+/* Наборы отборов: строка набора с «×»; новый — поле и «Сохранить» на месте. */
+body[data-page="inspections"] .ip-sets{padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-set{display:flex;align-items:center;gap:2px}
+body[data-page="inspections"] .ip-set .ip-fopt{flex:1 1 auto;min-width:0}
+body[data-page="inspections"] .ip-set-x{flex:none;width:24px;height:24px;border-radius:6px;font-size:15px;line-height:1;color:var(--muted);cursor:pointer}
+body[data-page="inspections"] .ip-set-x:hover{background:var(--fill-hover);color:var(--red-700, #b42318)}
+body[data-page="inspections"] .ip-sets-empty{margin:0;padding:0 6px;font-size:11.5px}
+body[data-page="inspections"] .ip-set-add,
+body[data-page="inspections"] .ip-set-upd{margin:6px 6px 0;align-self:flex-start}
+body[data-page="inspections"] .ip-sets{display:flex;flex-direction:column}
+body[data-page="inspections"] .ip-set-new{display:flex;gap:6px;margin:6px 6px 0}
+body[data-page="inspections"] .ip-set-new .input{flex:1 1 auto;min-width:0;height:30px;font-size:12.5px}
+/* Применённые отборы «чипами» над списком: переносятся строками, ничего не
+   обрезается краем (практика «Chip Collection Reflow»). */
+body[data-page="inspections"] .ip-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 0 2px}
+body[data-page="inspections"] .ip-chip{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:2px 2px 2px 10px;border-radius:999px;
+  background:var(--blue-50);color:var(--blue-700);font-size:12px;font-weight:600}
+body[data-page="inspections"] .ip-chip button{width:22px;height:22px;border-radius:50%;font-size:14px;line-height:1;color:var(--blue-700);cursor:pointer}
+body[data-page="inspections"] .ip-chip button:hover{background:rgba(22,104,201,.14)}
+body[data-page="inspections"] .ip-chips-reset{padding:2px 6px;font-size:12px;font-weight:600;color:var(--blue-600);cursor:pointer}
+body[data-page="inspections"] .ip-chips-reset:hover{text-decoration:underline}
 
 /* Группы в таблице: строка группы — заголовок выезда или осмотрщика. */
 body[data-page="inspections"] .ip-grouped tr.ip-grp td{background:var(--fill-head);border-bottom:1px solid var(--line);padding:6px 10px}

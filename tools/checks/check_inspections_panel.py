@@ -42,7 +42,7 @@ def run(t):
     # поиске в К назначению должна быть». Объект с осмотренными и назначенными ОИ,
     # но со свободными — в очереди, фильтр «Частично осмотрены» его находит, а в
     # панели занятые ОИ не выбираются повторно.
-    pg.click('[data-ip-fcov="inspected"]')
+    pg.click('[data-ip-ff="cov"][data-ip-fv="inspected"]')
     if t.ck(t.wait_until("() => document.querySelectorAll('tr[data-ip-row]').length > 0 && [...document.querySelectorAll('tr[data-ip-row]')].every((r) => r.dataset.cov === 'inspected')"),
             'фильтр «Частично осмотрены» не нашёл частично осмотренных объектов'):
         pg.locator('tr[data-cov="inspected"] td:nth-child(3)').first.click()
@@ -50,7 +50,9 @@ def run(t):
         st = pg.evaluate("() => ({ taken: document.querySelectorAll('.ip-pane .ip-check.taken input:disabled').length, free: document.querySelectorAll('.ip-pane [data-ip-f-oi]:not(:disabled):checked').length, whole: document.querySelector('[data-ip-f-whole]').checked })")
         t.ck(st['taken'] >= 1 and st['free'] >= 1 and not st['whole'],
              'у частично осмотренного объекта занятые ОИ не отмечены или свободные не выбраны: %s' % st)
-    pg.click('[data-ip-fcov="none"]')
+    # С 13.10.2026 в фасете несколько значений («или»): снять одно, отметить другое.
+    pg.click('[data-ip-ff="cov"][data-ip-fv="inspected"]')
+    pg.click('[data-ip-ff="cov"][data-ip-fv="none"]')
     t.wait_until("() => [...document.querySelectorAll('tr[data-ip-row]')].every((r) => r.dataset.cov === 'none')")
     key = pg.locator('tr[data-cov="none"]').first.get_attribute('data-ip-row')
     pg.locator('tr[data-ip-row="%s"] td:nth-child(3)' % key).click()
@@ -110,7 +112,7 @@ def run(t):
     t.open('#/inspections', wait='.ip-page')
     pg.click('[data-ip-section="assign"]')
     pg.click('[data-ip-tab="queue"]')
-    t.wait_for('.ip-facets [data-ip-fdue], .ip-facets [data-ip-fcov]')
+    t.wait_for('.ip-facets [data-ip-ff="due"], .ip-facets [data-ip-ff="cov"]')
     t.ck(pg.locator('.ip-grouped tr.ip-grp').count() >= 1, '«К назначению» не сгруппировано по месту выезда')
     # «Кого назначить»: щелчок подставляет человека, отмеченное в панели не сбрасывается
     pg.locator('tr[data-ip-row] td:nth-child(4)').first.click()
@@ -135,7 +137,7 @@ def run(t):
     pg.fill('[data-ip-dl-date]', pg.evaluate("() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }"))
     pg.click('[data-ip-dl-set]')
     t.ck(t.wait_for('tr[data-ip-row="%s"] .ip-due.due-hot' % first), 'срок на сегодня не показан как горящий')
-    t.ck(pg.locator('.ip-facets [data-ip-fdue="hot"]').count() == 1, 'в фильтрах нет «Горящие»')
+    t.ck(pg.locator('.ip-facets [data-ip-ff="due"][data-ip-fv="hot"]').count() == 1, 'в фильтрах нет «Горящие»')
     pg.click('[data-ip-bulk-clear]')
 
     # «Назначено»: по осмотрщикам, «Переназначить все…», отбор «План на отсутствие»
@@ -154,7 +156,7 @@ def run(t):
         t.ck(n0 > 0 and n1 == 0, '«Переназначить все…» не перевело назначения: было %s, осталось %s' % (n0, n1))
         hist = pg.evaluate("async (w) => (await import('./app/kernel/inspections.js')).allAssignments().filter((a) => a.person === w && a.state === 'removed').length", frm)
         t.ck(hist >= n0, 'при переназначении потерялась история прежних назначений')
-    t.ck(pg.locator('.ip-facets [data-ip-fpick="stall"], .ip-facets [data-ip-fpick="away"]').count() == 2, 'нет отборов «Зависли» и «План на отсутствие»')
+    t.ck(pg.locator('.ip-facets [data-ip-ff="pick"][data-ip-fv="stall"], .ip-facets [data-ip-ff="pick"][data-ip-fv="away"]').count() == 2, 'нет отборов «Зависли» и «План на отсутствие»')
 
     # --- «Мои осмотрщики» (раздел «Осмотрщики») ---------------------------------------------
     pg.click('[data-ip-section="people"]')

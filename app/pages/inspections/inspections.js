@@ -33,7 +33,8 @@ import { build } from '../../kernel/router.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
-  queueBase, queueFilter, queueCounts, tripGroups, DUE, dueOf, availability, rankInspectors, onSiteContacts, ASSIGNED_PICKS, assignedPickOf,
+  queueBase, tripGroups, dueOf, availability, rankInspectors, onSiteContacts, assignedPickOf,
+  QUEUE_FACETS, QUEUE_RANGES, ASSIGNED_FACETS, ASSIGNED_RANGES, applyFilter, facetValues, filterChips, emptyFilter, filterActive,
   reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
@@ -65,9 +66,23 @@ const view = {
   type: '',
   objRegion: '',
   cov: '',               // «К назначению»: покрытие ОИ (COVERAGE)
-  due: '',               // «К назначению»: срочность (DUE)
+  due: '',               // прежние одиночные отборы — не используются с 13.10.2026
   inst: '',              // «К назначению»: учреждение
-  pick: '',              // «Назначено»: быстрый отбор (ASSIGNED_PICKS)
+  pick: '',              // прежний одиночный отбор «Назначено» — не используется с 13.10.2026
+  // Гибкие отборы (решение пользователя 13.10.2026): qf — «К назначению»,
+  // af — «Назначено»; { facets: { ключ: [значения] }, ranges: { ключ: [с, по] } }.
+  qf: emptyFilter(),
+  af: emptyFilter(),
+  // Поиск у каждой вкладки свой и переживает переходы (матрица путей
+  // 13.10.2026: поиск пропадал после «Назад»).
+  qs: { queue: '', assigned: '' },
+  // Сохранённые наборы отборов: { queue: [{ id, name, f }], assigned: [...] },
+  // выбранный — setCur. ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: наборы — личные настройки
+  // пользователя; развилка — хранить на сервере (следуют за человеком,
+  // можно поделиться набором с коллегами, как «общий вид» в Basis и
+  // Connective One) или в браузере (привязаны к рабочему месту).
+  sets: { queue: [], assigned: [] },
+  setCur: { queue: '', assigned: '' },
   histKind: '',
   histDay: '',
   shown: STEP,
@@ -77,7 +92,7 @@ const view = {
 // «Только по моим. Не по звездам»). ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: закрепление —
 // связь учётных записей осмотрщика и менеджера, «Мои» — по входу.
 persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode',
-  'region', 'peopleSort', 'type', 'objRegion', 'cov', 'due', 'inst', 'pick', 'histKind']);
+  'region', 'peopleSort', 'histKind', 'q', 'qs', 'qf', 'af', 'sets', 'setCur']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 // Подразделы карточки осмотрщика и «Все осмотрщики» — один список на
@@ -174,25 +189,104 @@ export function mountInspections(host) {
     ? `<span class="ip-due due-${s.due}" title="Крайний срок осмотра">${esc(fmtDate(s.deadline))}</span>`
     : '<span class="ip-muted">—</span>');
 
-  // Фасет: строки «значение · число», щелчок выбирает, повторный — снимает.
-  function facetHTML(title, attr, cur, items) {
-    if (!items.length) return '';
-    return `<section class="ip-facet"><h3>${title}</h3>
-      ${items.map(([k, label, n]) => `<button class="ip-fopt ${cur === k ? 'on' : ''}" ${attr}="${esc(k)}" aria-pressed="${cur === k}">
-        <span>${esc(label)}</span><b>${n}</b></button>`).join('')}
+  // --- гибкие отборы (решение пользователя 13.10.2026; запись графа
+  // gibkie-otbory-fasety-diapazony-nabory) ---------------------------------
+  //
+  // Колонка слева: наборы отборов → фасеты (несколько значений, «или» внутри,
+  // «и» между) → диапазоны. Над списком — строка применённых отборов
+  // «чипами» с «Сбросить все». Практики: Baymard (несколько значений в
+  // фасете, диапазон — полями ввода), PatternFly (чипы, когда значений
+  // несколько), Bright/saasui (главное сразу, остальное — «Ещё»), Basis,
+  // Cloudscape, Connective One (наборы: сохранить, обновить, удалить; поиск в
+  // набор не входит).
+  const FACET_SHOW = 6;
+  const facetMore = new Set();     // фасеты, раскрытые «Ещё N»
+  let setNaming = false;           // строка «Название набора» открыта
+  const fdefs = (tab) => (tab === 'queue' ? [QUEUE_FACETS, QUEUE_RANGES] : [ASSIGNED_FACETS, ASSIGNED_RANGES]);
+  const curFilter = () => (view.tab === 'queue' ? view.qf : view.af);
+  const setFilter = (f) => { if (view.tab === 'queue') view.qf = f; else view.af = f; };
+  function norm(f) {
+    const facets = Object.fromEntries(Object.entries(f.facets || {}).filter(([, v]) => v && v.length).map(([k, v]) => [k, [...v].sort()]).sort());
+    const ranges = Object.fromEntries(Object.entries(f.ranges || {}).filter(([, r]) => r && (r[0] || r[1])).sort());
+    return { facets, ranges };
+  }
+  const sameFilter = (a, b) => JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+
+  function facetBlockHTML(fv) {
+    const cur = curFilter().facets[fv.key] || [];
+    if (!fv.items.length || (fv.items.length < 2 && !cur.length)) return '';
+    const open = facetMore.has(fv.key);
+    // Отмеченные — всегда на виду, даже если по числу ниже порога.
+    const shown = open ? fv.items : fv.items.filter((it, i) => i < FACET_SHOW || cur.includes(it[0]));
+    const rest = fv.items.length - shown.length;
+    return `<section class="ip-facet" aria-label="${esc(fv.title)}"><h3>${esc(fv.title)}${cur.length ? ` <button class="ip-fclear" data-ip-fclear="${esc(fv.key)}" title="Снять отметки «${esc(fv.title)}»" aria-label="Снять отметки «${esc(fv.title)}»">×</button>` : ''}</h3>
+      ${shown.map(([k, label, n]) => {
+        const on = cur.includes(k);
+        return `<button class="ip-fopt ${on ? 'on' : ''} ${n ? '' : 'zero'}" data-ip-ff="${esc(fv.key)}" data-ip-fv="${esc(k)}" aria-pressed="${on}">
+        <i class="ip-fck" aria-hidden="true"></i><span>${esc(label)}</span><b>${n}</b></button>`;
+      }).join('')}
+      ${rest > 0 || open ? `<button class="ip-fmore" data-ip-fmore="${esc(fv.key)}" aria-expanded="${open}">${open ? 'Свернуть' : `Ещё ${rest}`}</button>` : ''}
     </section>`;
   }
 
-  function queueFacetsHTML(counts) {
-    const ord = (m, list) => list.filter(([k]) => m.get(k)).map(([k, l]) => [k, l, m.get(k)]);
-    const top = (m, labelOf = (k) => k) => [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'ru')).slice(0, 12).map(([k, n]) => [k, labelOf(k), n]);
-    return `<aside class="ip-facets" aria-label="Фильтры">
-      ${facetHTML('Срок', 'data-ip-fdue', view.due, ord(counts.due, DUE.map((d) => [d.key, d.label])))}
-      ${facetHTML('Покрытие ОИ', 'data-ip-fcov', view.cov, ord(counts.cov, COVERAGE.filter((c) => c.key).map((c) => [c.key, c.label])))}
-      ${facetHTML('Область', 'data-ip-fregion', view.objRegion, top(counts.region))}
-      ${facetHTML('Тип ОЦ', 'data-ip-ftype', view.type, top(counts.type, (k) => counts.typeLabel.get(k) || k))}
-      ${facetHTML('Учреждение', 'data-ip-finst', view.inst, top(counts.inst))}
+  function rangeBlockHTML(d, rows) {
+    const r = curFilter().ranges[d.key] || ['', ''];
+    const vals = rows.map((x) => d.val(x)).filter((v) => v !== '' && v != null);
+    if (!vals.length && !(r[0] || r[1])) return '';
+    const date = d.kind === 'date';
+    const nums = date ? [] : vals.map(Number);
+    const ph = date || !nums.length ? ['', ''] : [String(Math.floor(Math.min(...nums))), String(Math.ceil(Math.max(...nums)))];
+    const inp = (i, lab) => `<label class="ip-frange-f"><span>${lab}</span><input class="input" type="${date ? 'date' : 'number'}" ${date ? '' : 'min="0" inputmode="numeric"'}
+        data-ip-fr="${esc(d.key)}" data-ip-fr-i="${i}" value="${esc(r[i] || '')}" placeholder="${esc(ph[i])}" aria-label="${esc(d.title)} — ${lab}"></label>`;
+    return `<section class="ip-facet ip-frange ${date ? 'is-date' : ''}" aria-label="${esc(d.title)}"><h3>${esc(d.title)}${r[0] || r[1] ? ` <button class="ip-fclear" data-ip-frclear="${esc(d.key)}" title="Сбросить «${esc(d.title)}»" aria-label="Сбросить «${esc(d.title)}»">×</button>` : ''}</h3>
+      <div class="ip-frange-row">${inp(0, date ? 'с' : 'от')}${inp(1, date ? 'по' : 'до')}</div></section>`;
+  }
+
+  // Наборы отборов: применить, обновить изменённый, сохранить как новый,
+  // удалить. Число — сколько строк подходит под набор сейчас.
+  function setsHTML(rows, text) {
+    const tab = view.tab;
+    const [facets, ranges] = fdefs(tab);
+    const list = view.sets[tab] || [];
+    const cur = list.find((x) => x.id === view.setCur[tab]);
+    const f = curFilter();
+    const dirty = cur && !sameFilter(cur.f, f);
+    const can = filterActive(f);
+    return `<section class="ip-facet ip-sets" aria-label="Наборы отборов"><h3>Наборы отборов</h3>
+      ${list.length ? list.map((x) => {
+        const on = !!cur && cur.id === x.id;
+        const n = applyFilter(rows, facets, ranges, x.f, text).length;
+        return `<div class="ip-set ${on ? 'on' : ''}"><button class="ip-fopt ${on ? 'on' : ''}" data-ip-set="${esc(x.id)}" aria-pressed="${on}">
+          <span>${esc(x.name)}</span><b>${n}</b></button><button class="ip-set-x" data-ip-set-del="${esc(x.id)}" title="Удалить набор «${esc(x.name)}»" aria-label="Удалить набор «${esc(x.name)}»">×</button></div>`;
+      }).join('') : '<p class="ip-hint ip-sets-empty">Отметьте отборы и сохраните — набор включается одним щелчком.</p>'}
+      ${dirty ? `<button class="btn btn-ghost btn-sm ip-set-upd" data-ip-set-update>Обновить «${esc(cur.name)}»</button>` : ''}
+      ${setNaming ? `<div class="ip-set-new"><input class="input" data-ip-set-name maxlength="40" placeholder="Название набора" aria-label="Название набора">
+          <button class="btn btn-primary btn-sm" data-ip-set-save>Сохранить</button></div>`
+        : `<button class="btn btn-ghost btn-sm ip-set-add" data-ip-set-new ${can ? '' : 'disabled'} title="${can ? 'Сохранить текущие отборы набором' : 'Сначала отметьте отборы — сохранять пока нечего'}">Сохранить набор…</button>`}
+    </section>`;
+  }
+
+  function filtersHTML(rows, text) {
+    const [facets, ranges] = fdefs(view.tab);
+    const fvs = facetValues(rows, facets, ranges, curFilter(), text);
+    return `<aside class="ip-facets" aria-label="Отборы">
+      ${setsHTML(rows, text)}
+      ${fvs.map(facetBlockHTML).join('')}
+      ${ranges.map((d) => rangeBlockHTML(d, rows)).join('')}
     </aside>`;
+  }
+
+  // Строка применённых отборов над списком: у каждого — «×», в конце —
+  // «Сбросить все»; переносится, ничего не обрезается краем.
+  function chipsHTML(rows) {
+    const [facets, ranges] = fdefs(view.tab);
+    const f = curFilter();
+    const labels = new Map(facetValues(rows, facets, ranges, f, '').map((fv) => [fv.key, new Map(fv.items.map((it) => [it[0], it[1]]))]));
+    const chips = filterChips(f, facets, ranges, (d, v) => (labels.get(d.key) && labels.get(d.key).get(v)) || v);
+    if (!chips.length) return '';
+    return `<div class="ip-chips" role="group" aria-label="Применённые отборы">
+      ${chips.map((c) => `<span class="ip-chip">${esc(c.text)}<button data-ip-chip-x="${esc(c.kind)}|${esc(c.key)}|${esc(c.value || '')}" aria-label="Убрать отбор «${esc(c.text)}»" title="Убрать">×</button></span>`).join('')}
+      <button class="ip-chips-reset" data-ip-freset>Сбросить все</button></div>`;
   }
 
   // Пустота очереди — честно и с выходом (практика APCS «три состояния
@@ -244,7 +338,10 @@ export function mountInspections(host) {
   // «Переназначить все…» — в строке группы, на месте.
   function assignedHTML(rows) {
     if (!rows.length) {
-      return `<p class="ip-hint ip-empty">${view.q || view.pick ? 'Под отбор ничего не подошло.' : 'Действующих назначений нет.'}</p>`;
+      return view.q || filterActive(view.af)
+        ? `<div class="ip-emptystate"><b>Под отборы ничего не подошло</b><p>Отборы и поиск скрыли все назначения.</p>
+          <button class="btn btn-primary btn-sm" data-ip-qreset>Сбросить отборы</button></div>`
+        : '<p class="ip-hint ip-empty">Действующих назначений нет.</p>';
     }
     const by = new Map();
     rows.forEach((r) => { if (!by.has(r.a.person)) by.set(r.a.person, []); by.get(r.a.person).push(r); });
@@ -286,17 +383,6 @@ export function mountInspections(host) {
     </table></div></div>`;
   }
 
-  function assignedFacetsHTML(live) {
-    const cnt = new Map(ASSIGNED_PICKS.map((x) => [x.key, 0]));
-    live.forEach(({ a }) => { cnt.set('', cnt.get('') + 1); assignedPickOf(a).forEach((k) => cnt.set(k, (cnt.get(k) || 0) + 1)); });
-    const byPerson = new Map();
-    live.forEach(({ a }) => byPerson.set(a.person, (byPerson.get(a.person) || 0) + 1));
-    return `<aside class="ip-facets" aria-label="Отборы">
-      ${facetHTML('Отбор', 'data-ip-fpick', view.pick, ASSIGNED_PICKS.map((x) => [x.key, x.label, cnt.get(x.key) || 0]))}
-      ${facetHTML('Осмотрщик', 'data-ip-fperson', view.assignPerson, [...byPerson.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ru')).map(([k, n]) => [k, k, n]))}
-    </aside>`;
-  }
-
   // Строка массовых действий над отмеченными — в полосе инструментов.
   const CLEAR = '<button class="isearch-clear ip-checked-x" data-ip-bulk-clear title="Снять отметки" aria-label="Снять отметки">×</button>';
   function bulkHTML() {
@@ -317,24 +403,27 @@ export function mountInspections(host) {
 
   function assignSection() {
     const base = queueBase(all);
-    const qf = { q: view.q, due: view.due, cov: view.cov, region: view.objRegion, type: view.type, inst: view.inst };
-    const queue = queueFilter(base, qf);
-    const live = assignedRows(all, { q: view.q });
-    const assigned = live.filter(({ a }) => (!view.assignPerson || a.person === view.assignPerson) && (!view.pick || assignedPickOf(a).has(view.pick)))
+    const queue = applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.tab === 'queue' ? view.q : '');
+    const liveAll = assignedRows(all, { q: '' });
+    const assigned = applyFilter(liveAll, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.tab === 'assigned' ? view.q : '')
       .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
     const keys = view.tab === 'queue' ? tripGroups(queue.slice(0, Math.max(view.shown, STEP))).flatMap((g) => (collapsed.has(g.place) ? [] : g.rows.map((s) => s.typeId + '|' + s.id)))
       : assigned.filter(({ a }) => !collapsed.has('a:' + a.person)).map((r) => r.a.id);
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
     const sub = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
     // Пустая очередь — без колонки отборов и пустой панели: место — объяснению.
-    const bare = view.tab === 'queue' && !queue.length;
-    return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : view.tab === 'queue' ? queueFacetsHTML(queueCounts(base, qf)) : assignedFacetsHTML(live)}
+    // Только когда очередь пуста сама по себе: если её опустошили отборы,
+    // колонка отборов остаётся — иначе их не поправить (замер 13.10.2026).
+    const bare = view.tab === 'queue' && !base.length;
+    const rowsAll = view.tab === 'queue' ? base : liveAll;
+    return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : filtersHTML(rowsAll, view.q)}
       <section class="ip-work" aria-label="Назначения">
-        <div class="itabs" role="tablist">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', view.q ? assignedRows(all, { q: '' }).length : live.length)}</div>
+        <div class="itabs" role="tablist">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', liveAll.length)}</div>
         <div class="itoolbar ip-toolbar">
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : 'ЕНИ, адрес, осмотрщик')}
           ${bulkHTML()}
         </div>
+        ${bare ? '' : chipsHTML(rowsAll)}
         ${view.tab === 'queue' ? queueHTML(queue, base.length) : assignedHTML(assigned)}
       </section>${bare ? '' : pane()}` };
   }
@@ -1064,7 +1153,7 @@ export function mountInspections(host) {
         <div class="ip-daynav" role="group" aria-label="Месяц отчётов">
           <button class="btn btn-ghost btn-sm" data-ip-rmonth="-1" aria-label="Предыдущий месяц">‹</button>
           <span class="ip-repmonth">${MONTHS[m - 1]} ${y}</span>
-          <button class="btn btn-ghost btn-sm" data-ip-rmonth="1" aria-label="Следующий месяц" ${rep.ym >= todayD.slice(0, 7) ? 'disabled' : ''}>›</button>
+          <button class="btn btn-ghost btn-sm" data-ip-rmonth="1" aria-label="Следующий месяц" ${rep.ym >= todayD.slice(0, 7) ? 'disabled title="Отчётов за следующий месяц ещё нет"' : ''}>›</button>
         </div>
         <button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(name)}">Выгрузить месяц для бухгалтерии</button>
       </div>
@@ -1321,7 +1410,10 @@ export function mountInspections(host) {
       view.person = q.p || '';
       if (q.t) { if (view.person) view.personTab = q.t; else view.allTab = q.t; }
     }
-    if (q.s === 'assign' && q.t) view.tab = q.t;
+    if (q.s === 'assign' && q.t) {
+      if (q.t !== view.tab) { view.qs = { ...view.qs, [view.tab]: view.q }; view.q = view.qs[q.t] || ''; }
+      view.tab = q.t;
+    }
     if (q.s === 'cadastre' && q.c) view.cadSel = q.c;
     return true;
   }
@@ -1336,11 +1428,13 @@ export function mountInspections(host) {
   // без окна поверх страницы (правило «без модальных окон»).
   let jumpHi = 0;
   let jumpList = [];
-  function nav(patch) {
+  function nav(patch, cur = '') {
     if (patch.section && patch.section !== view.section) cadDraft = null;
+    if (patch.tab && patch.tab !== view.tab) { view.qs = { ...view.qs, [view.tab]: view.q }; view.q = view.qs[patch.tab] || ''; }
     Object.assign(view, patch);
     detail = [];
     resetList();
+    current = cur;
     render();
   }
   function jumpItems(q) {
@@ -1375,7 +1469,7 @@ export function mountInspections(host) {
         const k = s.typeId + '|' + s.id;
         const a = live.find((x) => x.typeId + '|' + x.ocId === k);
         list.push({ label: s.title, sub: `${s.eniAll || s.eni || ''} · ${a ? `назначено: ${a.person}` : inQueue.has(k) ? 'к назначению' : s.status}`,
-          go: () => (a ? gotoAssign(a.id) : inQueue.has(k) ? (() => { view.q = ''; current = k; nav({ section: 'assign', tab: 'queue' }); })() : (location.hash = build({ typeId: s.typeId, ocId: s.id }))) });
+          go: () => (a ? (revealAssigned(a.id), gotoAssign(a.id)) : inQueue.has(k) ? (() => { revealQueued(k); nav({ section: 'assign', tab: 'queue' }, k); })() : (location.hash = build({ typeId: s.typeId, ocId: s.id }))) });
       });
     }
     // Начало названия — выше вхождения в середину.
@@ -1407,7 +1501,56 @@ export function mountInspections(host) {
     x.go();
   }
 
+  // --- память вида (матрица путей 13.10.2026; правило APCS «не терять путь
+  // пользователя») ---------------------------------------------------------
+  //
+  // Уходя с вида, запоминаем по его адресу прокрутку списков, выбранную
+  // строку и начатую правку профиля или авто; возвращаясь — «Назад»,
+  // вкладкой, «Перейти» — возвращаем. Начатая правка не пропадает молча:
+  // поля на месте и видна строка «Несохранённые изменения».
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: черновик живёт в памяти вкладки; развилка —
+  // так и оставить (закрыл вкладку — черновика нет) или хранить его на
+  // сервере как незавершённую правку, видимую с другого рабочего места.
+  const SCROLLERS = ['.ip-scroll', '.ip-people-list', '.ip-pscroll'];
+  const memo = new Map();
+  let shownKey = '';
+  const DRAFT_SCOPE = '[data-ip-profile] input, [data-ip-profile] select, [data-ip-profile] textarea';
+  const ctlKey = (el) => [...el.attributes].filter((a) => a.name.startsWith('data-ip')).map((a) => `${a.name}=${a.value}`).join(' ')
+    + (el.type === 'radio' || el.type === 'checkbox' ? ` @${el.value}` : '');
+  function draftOf() {
+    const bar = scope.$('[data-ip-c-bar]');
+    if (!bar || bar.hidden) return null;
+    return scope.$$(DRAFT_SCOPE).filter((el) => !el.closest('[data-ip-ab-form]'))
+      .map((el) => [ctlKey(el), el.type === 'radio' || el.type === 'checkbox' ? el.checked : el.value]);
+  }
+  function applyDraft(d) {
+    const was = new Map(d);
+    scope.$$(DRAFT_SCOPE).forEach((el) => {
+      const k = ctlKey(el);
+      if (!was.has(k)) return;
+      if (el.type === 'radio' || el.type === 'checkbox') el.checked = was.get(k); else el.value = was.get(k);
+    });
+    const bar = scope.$('[data-ip-c-bar]');
+    if (bar) bar.hidden = false;
+    const fired = scope.$('[data-ip-c-radio="fired"]:checked');
+    const wrap = scope.$('[data-ip-cwrap="firedDate"]');
+    if (fired && wrap) wrap.hidden = fired.value !== '1';
+  }
+  // Сохранили или отменили — черновик снят, строка спрятана.
+  const dropDraft = () => {
+    const m = memo.get(urlOf());
+    if (m) m.draft = null;
+    const bar = scope.$('[data-ip-c-bar]');
+    if (bar) bar.hidden = true;
+  };
+
   function render() {
+    const vkey = urlOf();
+    if (shownKey) {
+      memo.set(shownKey, { scroll: SCROLLERS.map((x) => (scope.$(x) ? scope.$(x).scrollTop : 0)), current, draft: draftOf() });
+    }
+    const back = vkey !== shownKey ? memo.get(vkey) : null;
+    if (back && !current && back.current) current = back.current;
     if (grid) { gridState = grid.state(); grid.destroy(); grid = null; }
     hidePop();
     destroyStats();
@@ -1431,6 +1574,10 @@ export function mountInspections(host) {
       <div class="ip ${sec.cls}">${sec.html}</div>
     </div>`);
     syncUrl();
+    const was = memo.get(vkey);
+    if (was && was.draft) applyDraft(was.draft);
+    if (back) SCROLLERS.forEach((x, i) => { if (scope.$(x) && back.scroll[i]) scope.$(x).scrollTop = back.scroll[i]; });
+    shownKey = urlOf();
     if (routeMap) { routeMap.remove(); routeMap = null; }
     if (view.section === 'people' && !view.person && view.allTab === 'table' && !imp) mountTable();
     if (view.section === 'people' && view.person && view.personTab === 'route') {
@@ -1475,11 +1622,30 @@ export function mountInspections(host) {
     }
     keep.forEach(([s, y]) => { if (scope.$(s)) scope.$(s).scrollTop = y; });
   };
-  const resetList = () => { view.q = ''; view.shown = STEP; checked.clear(); current = ''; confirmRemove = false; };
+  // Поиск не сбрасывается переходом: он свой у каждой вкладки «Назначений»
+  // (view.qs) и возвращается вместе с ней.
+  const resetList = () => { view.shown = STEP; checked.clear(); current = ''; confirmRemove = false; };
+  // Объект из уведомления скрыт отборами — отборы снимаются, и об этом
+  // сказано, а не молча.
+  const revealQueued = (k) => {
+    const base = queueBase(all);
+    if (applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.qs.queue || '').some((x) => x.typeId + '|' + x.id === k)) return;
+    view.qf = { facets: {}, ranges: {} }; view.qs = { ...view.qs, queue: '' }; if (view.tab === 'queue') view.q = '';
+    host.toast('Отборы «К назначению» сняты — объект был скрыт ими', 'warn');
+  };
+  const revealAssigned = (id) => {
+    const live = assignedRows(all, { q: '' });
+    if (applyFilter(live, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.qs.assigned || '').some((r) => r.a.id === id)) return;
+    view.af = { facets: {}, ranges: {} }; view.qs = { ...view.qs, assigned: '' };
+    host.toast('Отборы «Назначено» сняты — назначение было скрыто ими', 'warn');
+  };
 
   // --- разделы и вкладки ---
   scope.on('click', '[data-ip-section]', (e, b) => { view.section = b.dataset.ipSection; detail = []; resetList(); render(); });
-  scope.on('click', '[data-ip-tab]', (e, b) => { view.tab = b.dataset.ipTab; reassignGroup = ''; resetList(); render(); });
+  scope.on('click', '[data-ip-tab]', (e, b) => {
+    view.qs = { ...view.qs, [view.tab]: view.q };
+    view.tab = b.dataset.ipTab; view.q = view.qs[view.tab] || ''; reassignGroup = ''; setNaming = false; resetList(); render();
+  });
 
   // --- осмотрщики ---
   scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; detail = []; redraw(); });
@@ -1618,11 +1784,12 @@ export function mountInspections(host) {
       detail = [{ kind: 'report', name: n.person, date: n.go.report }];
       render();
     } else if (n.go.assign) {
-      view.pick = '';
+      revealAssigned(n.go.assign);
       gotoAssign(n.go.assign);
     } else if (n.go.queue) {
-      Object.assign(view, { section: 'assign', tab: 'queue', q: '', cov: '', due: '', inst: '', objRegion: '', type: '' });
+      Object.assign(view, { section: 'assign', tab: 'queue' });
       resetList();
+      revealQueued(n.go.queue);
       current = n.go.queue;
       render();
     } else if (n.go.profile) {
@@ -1693,7 +1860,7 @@ export function mountInspections(host) {
     redraw();
     host.toast(errs.length ? `Применено с ошибками: ${errs[0]}` : `Применено изменений: ${ch.length}`, errs.length ? 'warn' : 'ok');
   });
-  scope.on('click', '[data-ip-qreset]', () => { Object.assign(view, { q: '', type: '', objRegion: '', cov: '', due: '', inst: '' }); resetList(); render(); });
+  scope.on('click', '[data-ip-qreset]', () => { view.q = ''; view.qs = { ...view.qs, [view.tab]: '' }; setFilter({ facets: {}, ranges: {} }); resetList(); render(); });
   // «Перейти»: ввод — список, стрелки, Enter, Esc; Ctrl+K — к полю.
   scope.on('focusin', '[data-ip-jump]', () => { jumpHi = 0; drawJump(); });
   scope.on('input', '[data-ip-jump]', () => { jumpHi = 0; drawJump(); });
@@ -1765,6 +1932,7 @@ export function mountInspections(host) {
       return;
     }
     saveProfile(view.person, patch);
+    dropDraft();
     redraw();
     host.toast('Профиль сохранён', 'ok');
   });
@@ -1773,6 +1941,7 @@ export function mountInspections(host) {
     scope.$$('[data-ip-car]').forEach((el) => { car[el.dataset.ipCar] = el.value.trim(); });
     scope.$$('[data-ip-car-radio]:checked').forEach((el) => { car[el.dataset.ipCarRadio] = el.value; });
     saveProfile(view.person, { car });
+    dropDraft();
     redraw();
     host.toast('Авто сохранено', 'ok');
   });
@@ -1798,7 +1967,7 @@ export function mountInspections(host) {
   };
   scope.on('input', '[data-ip-profile] input, [data-ip-profile] select', profileDirty);
   scope.on('change', '[data-ip-profile] input, [data-ip-profile] select', profileDirty);
-  scope.on('click', '[data-ip-c-cancel]', () => redraw());
+  scope.on('click', '[data-ip-c-cancel]', () => { dropDraft(); redraw(); });
   // «Чат» без номера не молчит: говорит, чего не хватает, и ставит курсор.
   scope.on('click', '[data-ip-wa-none]', () => {
     host.toast('Укажите телефон или номер WhatsApp и сохраните профиль', 'warn');
@@ -1835,15 +2004,83 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-dp-edit]', (e, b) => { detail = []; gotoAssign(b.dataset.ipDpEdit); });
 
   // --- поиск и фильтры ---
-  scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.shown = STEP; keepFocus('[data-ip-q]'); });
-  scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; render(); });
-  // Фасеты: щелчок выбирает значение, повторный — снимает.
-  const facet = (attr, key) => scope.on('click', `[${attr}]`, (e, b) => {
-    const v = b.getAttribute(attr);
-    view[key] = view[key] === v ? '' : v; view.shown = STEP; checked.clear(); render();
+  scope.on('input', '[data-ip-q]', (e, el) => { view.q = el.value; view.qs = { ...view.qs, [view.tab]: el.value }; view.shown = STEP; keepFocus('[data-ip-q]'); });
+  scope.on('click', '[data-ip-q-clear]', () => { view.q = ''; view.qs = { ...view.qs, [view.tab]: '' }; render(); });
+  // Гибкие отборы: значение фасета — отметка (повторный щелчок снимает),
+  // диапазон — по изменению поля, «чип» — снять один, «Сбросить все».
+  const refilter = (f) => { setFilter(f); view.shown = STEP; checked.clear(); redraw(); };
+  const fclone = () => JSON.parse(JSON.stringify(curFilter()));
+  scope.on('click', '[data-ip-ff]', (e, b) => {
+    const f = fclone();
+    const k = b.dataset.ipFf;
+    const v = b.dataset.ipFv;
+    const list = f.facets[k] || [];
+    f.facets[k] = list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
+    refilter(f);
   });
-  facet('data-ip-fdue', 'due'); facet('data-ip-fcov', 'cov'); facet('data-ip-fregion', 'objRegion');
-  facet('data-ip-ftype', 'type'); facet('data-ip-finst', 'inst'); facet('data-ip-fpick', 'pick'); facet('data-ip-fperson', 'assignPerson');
+  scope.on('click', '[data-ip-fclear]', (e, b) => { const f = fclone(); delete f.facets[b.dataset.ipFclear]; refilter(f); });
+  scope.on('click', '[data-ip-frclear]', (e, b) => { const f = fclone(); delete f.ranges[b.dataset.ipFrclear]; refilter(f); });
+  scope.on('click', '[data-ip-fmore]', (e, b) => { const k = b.dataset.ipFmore; if (facetMore.has(k)) facetMore.delete(k); else facetMore.add(k); redraw(); });
+  // Поле диапазона шлёт change и при уходе фокуса — в том числе когда
+  // перерисовка сама убирает поле; перерисовка внутри перерисовки роняла
+  // разметку («node to be removed is no longer a child», матрица 13.10.2026).
+  // Поэтому — на следующем такте и только если отбор правда изменился.
+  scope.on('change', '[data-ip-fr]', (e, el) => {
+    const f = fclone();
+    const k = el.dataset.ipFr;
+    const r = f.ranges[k] ? [...f.ranges[k]] : ['', ''];
+    const i = +el.dataset.ipFrI;
+    if ((r[i] || '') === el.value) return;
+    r[i] = el.value;
+    f.ranges[k] = r;
+    setTimeout(() => refilter(f), 0);
+  });
+  scope.on('click', '[data-ip-chip-x]', (e, b) => {
+    const [kind, k, v] = b.dataset.ipChipX.split('|');
+    const f = fclone();
+    if (kind === 'range') delete f.ranges[k];
+    else f.facets[k] = (f.facets[k] || []).filter((x) => x !== v);
+    refilter(f);
+  });
+  scope.on('click', '[data-ip-freset]', () => refilter({ facets: {}, ranges: {} }));
+  // Наборы отборов: применить, обновить, сохранить как новый, удалить.
+  scope.on('click', '[data-ip-set]', (e, b) => {
+    const x = (view.sets[view.tab] || []).find((y) => y.id === b.dataset.ipSet);
+    if (!x) return;
+    view.setCur = { ...view.setCur, [view.tab]: x.id };
+    refilter(JSON.parse(JSON.stringify(x.f)));
+  });
+  scope.on('click', '[data-ip-set-update]', () => {
+    const id = view.setCur[view.tab];
+    view.sets = { ...view.sets, [view.tab]: (view.sets[view.tab] || []).map((x) => (x.id === id ? { ...x, f: fclone() } : x)) };
+    redraw();
+    host.toast('Набор обновлён', 'ok');
+  });
+  scope.on('click', '[data-ip-set-new]', () => { setNaming = true; redraw(); const el = scope.$('[data-ip-set-name]'); if (el) el.focus(); });
+  const saveSet = () => {
+    const el = scope.$('[data-ip-set-name]');
+    const name = el ? el.value.trim() : '';
+    if (!name) { if (el) { el.focus(); el.setAttribute('aria-invalid', 'true'); } return; }
+    const id = 'set-' + Date.now().toString(36);
+    view.sets = { ...view.sets, [view.tab]: [...(view.sets[view.tab] || []), { id, name, f: fclone() }] };
+    view.setCur = { ...view.setCur, [view.tab]: id };
+    setNaming = false;
+    redraw();
+    host.toast(`Набор «${name}» сохранён`, 'ok');
+  };
+  scope.on('click', '[data-ip-set-save]', saveSet);
+  scope.on('keydown', '[data-ip-set-name]', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveSet(); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setNaming = false; redraw(); }
+  });
+  scope.on('click', '[data-ip-set-del]', (e, b) => {
+    const id = b.dataset.ipSetDel;
+    const gone = (view.sets[view.tab] || []).find((x) => x.id === id);
+    view.sets = { ...view.sets, [view.tab]: (view.sets[view.tab] || []).filter((x) => x.id !== id) };
+    if (view.setCur[view.tab] === id) view.setCur = { ...view.setCur, [view.tab]: '' };
+    redraw();
+    if (gone) host.toast(`Набор «${gone.name}» удалён`, 'ok');
+  });
   // Группы: свернуть, отметить целиком.
   scope.on('click', '[data-ip-gtoggle]', (e, b) => { const k = b.dataset.ipGtoggle; if (collapsed.has(k)) collapsed.delete(k); else collapsed.add(k); redraw(); });
   scope.on('change', '[data-ip-gcheck]', (e, el) => {
@@ -1854,7 +2091,7 @@ export function mountInspections(host) {
       tb.querySelectorAll('[data-ip-check]').forEach((x) => { const k = x.dataset.ipCheck; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
     });
     // Свёрнутая группа: отмечаем по данным, а не по строкам на экране.
-    if (collapsed.has(place)) queueFilter(queueBase(all), {}).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
+    if (collapsed.has(place)) applyFilter(queueBase(all), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
     redraw();
   });
   scope.on('change', '[data-ip-acheck]', (e, el) => { const id = el.dataset.ipAcheck; if (el.checked) checked.set(id, null); else checked.delete(id); redraw(); });

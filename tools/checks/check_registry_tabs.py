@@ -30,6 +30,10 @@ HEADS = "() => [...document.querySelectorAll('.reg-th')].map((e) => e.innerText.
 def run(t):
     pg = t.page
     pg.set_viewport_size({'width': 1440, 'height': 900})
+    # С 13.10.2026 демо-объём по умолчанию — 1000 (решение пользователя); счёт
+    # вкладок ниже — по сиду, поэтому сид включается явно.
+    t.open('', wait='.reg-tr')
+    t.set_bulk(0)
 
     # --- заводим по одной записи ТС и механизмов ----------------------------------
     for kind in ('vehicle', 'mechanisms'):

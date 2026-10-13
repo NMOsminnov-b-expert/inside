@@ -410,6 +410,128 @@ export function queueBase(all) {
   return out;
 }
 
+// --- гибкие отборы (решение пользователя 13.10.2026: «Несколько значений в
+// отборе, срок — период дат и площадь, район и населённый пункт,
+// сохранённые наборы отборов») ------------------------------------------------
+//
+// Отбор — { facets: { ключ: [значения] }, ranges: { ключ: [с, по] } } и
+// строка поиска. Внутри фасета значения — «или», между фасетами — «и»
+// (практика фасетного поиска Baymard: несколько значений в фасете; запись
+// графа gibkie-otbory-fasety-diapazony-nabory). Счётчик значения считается
+// без своего фасета — видно, сколько прибавит отметка.
+
+// Район — из адреса («Октябрьский р-н»), населённый пункт — из записи или
+// адреса («г. Бишкек», «с. Таш-Тюбе»).
+export function districtOf(s) {
+  const m = String(s.title || '').match(/([А-ЯЁA-Z][\wА-Яа-яЁё-]*\s+р-н)/);
+  return m ? m[1] : '';
+}
+// У земельных участков в «городе» бывает «Чуйская обл., Аламудунский р-н» —
+// это область и район, а не населённый пункт: берётся только часть с
+// «г.», «с.», «пгт».
+const SETTLEMENT = /(?:^|[\s,])((?:г\.|с\.|пгт\.?)\s*[А-ЯЁ][\wА-Яа-яЁё-]*)/;
+export function settlementOf(s) {
+  const m = String(s.city || '').match(SETTLEMENT) || String(s.title || '').match(SETTLEMENT);
+  return m ? m[1] : '';
+}
+
+// Фасеты и диапазоны очереди. val — значение строки (строка или список);
+// order — порядок значений, если он задан смыслом, а не числом.
+export const QUEUE_FACETS = [
+  { key: 'due', title: 'Срок', val: (s) => s.due, order: DUE },
+  { key: 'cov', title: 'Покрытие ОИ', val: (s) => s.cov.state, order: COVERAGE.filter((c) => c.key) },
+  { key: 'region', title: 'Область', val: (s) => regionOf(s) },
+  { key: 'district', title: 'Район', val: districtOf },
+  { key: 'settlement', title: 'Населённый пункт', val: settlementOf },
+  { key: 'type', title: 'Тип ОЦ', val: (s) => s.typeId, label: (s) => s.typeLabel },
+  { key: 'inst', title: 'Учреждение', val: (s) => s.institution },
+];
+export const QUEUE_RANGES = [
+  { key: 'deadline', title: 'Срок осмотра', kind: 'date', val: (s) => s.deadline },
+  { key: 'area', title: 'Площадь, м²', kind: 'number', val: (s) => (s.metrics && s.metrics.area) || 0 },
+  { key: 'free', title: 'Свободных ОИ', kind: 'number', val: (s) => s.cov.free },
+];
+// «Назначено» — строки { a, s }.
+export const ASSIGNED_FACETS = [
+  { key: 'pick', title: 'Отбор', val: ({ a }) => [...assignedPickOf(a)], order: ASSIGNED_PICKS_ORDER() },
+  { key: 'person', title: 'Осмотрщик', val: ({ a }) => a.person },
+  { key: 'region', title: 'Область', val: ({ s }) => regionOf(s) },
+  { key: 'district', title: 'Район', val: ({ s }) => districtOf(s) },
+  { key: 'type', title: 'Тип ОЦ', val: ({ s }) => s.typeId, label: ({ s }) => s.typeLabel },
+];
+export const ASSIGNED_RANGES = [
+  { key: 'planned', title: 'Плановая дата', kind: 'date', val: ({ a }) => a.plannedAt },
+];
+function ASSIGNED_PICKS_ORDER() {
+  return [{ key: 'late', label: 'Просрочено' }, { key: 'stall', label: 'Зависли' }, { key: 'today', label: 'Сегодня' },
+    { key: 'week', label: 'На неделе' }, { key: 'away', label: 'План на отсутствие' }];
+}
+
+const asList = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+export const emptyFilter = () => ({ facets: {}, ranges: {} });
+export function filterActive(f) {
+  return Object.values(f.facets || {}).some((v) => v && v.length) || Object.values(f.ranges || {}).some((r) => r && (r[0] || r[1]));
+}
+
+// Отбор строк. skip — фасет, который не применять (для его счётчиков).
+export function applyFilter(rows, facets, ranges, f, text, skip = '') {
+  const q = (text || '').trim().toLowerCase();
+  const fs = facets.filter((d) => d.key !== skip && (f.facets[d.key] || []).length);
+  const rs = ranges.filter((d) => f.ranges[d.key] && (f.ranges[d.key][0] || f.ranges[d.key][1]));
+  return rows.filter((r) => fs.every((d) => asList(d.val(r)).some((v) => f.facets[d.key].includes(v)))
+    && rs.every((d) => {
+      const [from, to] = f.ranges[d.key];
+      const v = d.val(r);
+      if (v === '' || v == null) return false;
+      if (d.kind === 'number') return (from === '' || from == null || +v >= +from) && (to === '' || to == null || +v <= +to);
+      return (!from || v >= from) && (!to || v <= to);
+    })
+    && (!q || textOf(r).toLowerCase().includes(q)));
+}
+function textOf(r) {
+  const s = r.s || r;
+  return `${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city || ''} ${r.a ? r.a.person : ''}`;
+}
+
+// Значения фасетов со счётчиками: [{ key, title, items: [[значение, подпись, число]] }].
+export function facetValues(rows, facets, ranges, f, text) {
+  return facets.map((d) => {
+    const m = new Map();
+    const labels = new Map();
+    applyFilter(rows, facets, ranges, f, text, d.key).forEach((r) => asList(d.val(r)).forEach((v) => {
+      if (!v) return;
+      m.set(v, (m.get(v) || 0) + 1);
+      if (d.label) labels.set(v, d.label(r));
+    }));
+    // Отмеченное, но сейчас не встречающееся, остаётся в списке с нулём —
+    // иначе снять отметку было бы нечем.
+    (f.facets[d.key] || []).forEach((v) => { if (!m.has(v)) m.set(v, 0); });
+    const lab = (v) => (d.order ? (d.order.find((o) => o.key === v) || {}).label || v : labels.get(v) || v);
+    // Значения с порядком по смыслу (срок, покрытие, отбор) — все, и с нулём:
+    // список не прыгает от отбора к отбору.
+    const items = d.order
+      ? d.order.map((o) => [o.key, o.label, m.get(o.key) || 0])
+      : [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'ru')).map(([v, n]) => [v, lab(v), n]);
+    return { key: d.key, title: d.title, items };
+  });
+}
+
+// Подписи применённых отборов — для строки «чипов».
+export function filterChips(f, facets, ranges, labelOf) {
+  const out = [];
+  facets.forEach((d) => (f.facets[d.key] || []).forEach((v) => out.push({ kind: 'facet', key: d.key, value: v, text: `${d.title}: ${labelOf(d, v)}` })));
+  ranges.forEach((d) => {
+    const r = f.ranges[d.key];
+    if (!r || !(r[0] || r[1])) return;
+    const date = d.kind === 'date';
+    const fmt = (x) => (date ? String(x).split('-').reverse().join('.') : String(x));
+    const [a, b] = r;
+    const text = a && b ? `${fmt(a)} – ${fmt(b)}` : a ? `${date ? 'с' : 'от'} ${fmt(a)}` : `${date ? 'по' : 'до'} ${fmt(b)}`;
+    out.push({ kind: 'range', key: d.key, text: `${d.title}: ${text}` });
+  });
+  return out;
+}
+
 // Фильтры очереди: f.q, f.due, f.cov, f.region, f.type, f.inst. skip — какой
 // фильтр не применять (счётчик фасета считается без самого фасета).
 export function queueFilter(rows, f, skip = '') {

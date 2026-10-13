@@ -72,9 +72,9 @@ function contentsHTML(c, pick, prev) {
   const oi = c.oi.length ? `<section class="ip-sec">
       <h3>Объекты имущества</h3>
       ${c.cov && c.cov.state !== 'none' && !prev ? `<p class="ip-hint">ОИ: осмотрено ${c.cov.done}, назначено ${c.cov.live}, свободно ${c.cov.free} из ${c.cov.total}.</p>` : ''}
-      <label class="ip-check"><input type="checkbox" data-ip-f-whole ${whole ? 'checked' : ''} ${c.cov && c.cov.state !== 'none' && !prev ? 'disabled' : ''}> Объект целиком</label>
+      <label class="ip-check"><input type="checkbox" data-ip-f-whole ${whole ? 'checked' : ''} ${c.cov && c.cov.state !== 'none' && !prev ? 'disabled title="Часть ОИ уже назначена или осмотрена — отметьте свободные ниже"' : ''}> Объект целиком</label>
       <div class="ip-oi" ${whole ? 'hidden' : ''}>
-        ${c.oi.map((o) => { const st = oiState(c, o.id, prev); return `<label class="ip-check ${st ? 'taken' : ''}"><input type="checkbox" data-ip-f-oi="${esc(o.id)}" ${pick.oi.has(o.id) ? 'checked' : ''} ${st ? 'disabled' : ''}>
+        ${c.oi.map((o) => { const st = oiState(c, o.id, prev); return `<label class="ip-check ${st ? 'taken' : ''}"><input type="checkbox" data-ip-f-oi="${esc(o.id)}" ${pick.oi.has(o.id) ? 'checked' : ''} ${st ? `disabled title="${esc(String(st).replace(/<[^>]+>/g, ''))}"` : ''}>
           <span>${esc(o.label)}${st ? `<em>${st}</em>` : ''}</span></label>`; }).join('')}
       </div>
     </section>` : '';
