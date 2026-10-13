@@ -202,6 +202,7 @@ export function mountInspections(host) {
   const FACET_SHOW = 6;
   const facetMore = new Set();     // фасеты, раскрытые «Ещё N»
   let setNaming = false;           // строка «Название набора» открыта
+  let facetsOpen = false;          // узкая раскладка: колонка отборов раскрыта
   const fdefs = (tab) => (tab === 'queue' ? [QUEUE_FACETS, QUEUE_RANGES] : [ASSIGNED_FACETS, ASSIGNED_RANGES]);
   const curFilter = () => (view.tab === 'queue' ? view.qf : view.af);
   const setFilter = (f) => { if (view.tab === 'queue') view.qf = f; else view.af = f; };
@@ -269,7 +270,10 @@ export function mountInspections(host) {
   function filtersHTML(rows, text) {
     const [facets, ranges] = fdefs(view.tab);
     const fvs = facetValues(rows, facets, ranges, curFilter(), text);
-    return `<aside class="ip-facets" aria-label="Отборы">
+    const f = curFilter();
+    const n = Object.values(f.facets).reduce((k, v) => k + (v ? v.length : 0), 0) + Object.values(f.ranges).filter((r) => r && (r[0] || r[1])).length;
+    return `<aside class="ip-facets ${facetsOpen ? 'open' : ''}" aria-label="Отборы">
+      <button class="ip-facets-toggle" data-ip-ftoggle aria-expanded="${facetsOpen}">${facetsOpen ? '▾' : '▸'} Отборы${n ? ` <b>${n}</b>` : ''}</button>
       ${setsHTML(rows, text)}
       ${fvs.map(facetBlockHTML).join('')}
       ${ranges.map((d) => rangeBlockHTML(d, rows)).join('')}
@@ -2043,6 +2047,7 @@ export function mountInspections(host) {
     refilter(f);
   });
   scope.on('click', '[data-ip-freset]', () => refilter({ facets: {}, ranges: {} }));
+  scope.on('click', '[data-ip-ftoggle]', () => { facetsOpen = !facetsOpen; redraw(); });
   // Наборы отборов: применить, обновить, сохранить как новый, удалить.
   scope.on('click', '[data-ip-set]', (e, b) => {
     const x = (view.sets[view.tab] || []).find((y) => y.id === b.dataset.ipSet);

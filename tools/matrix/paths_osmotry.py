@@ -195,7 +195,8 @@ def _(p):
 
 @path('queue-filters-back', '«К назначению»: отборы (район, площадь) → другой раздел → «Назад» → отборы и строки те же', 'Р2')
 def _(p):
-    p.open('#/inspections?s=assign&t=queue', '[data-ip-ff]')
+    p.open('#/inspections?s=assign&t=queue', '.ip-facets')
+    p.open_filters()
     p.click('[data-ip-ff="district"]')
     p.page.locator('[data-ip-fr="area"][data-ip-fr-i="0"]').fill('50')
     p.page.locator('[data-ip-fr="area"][data-ip-fr-i="0"]').dispatch_event('change')
@@ -209,7 +210,8 @@ def _(p):
 
 @path('queue-filter-set', '«К назначению»: сохранить набор → «Сбросить все» → набор одним щелчком → те же отборы и строки', 'Р2')
 def _(p):
-    p.open('#/inspections?s=assign&t=queue', '[data-ip-ff]')
+    p.open('#/inspections?s=assign&t=queue', '.ip-facets')
+    p.open_filters()
     p.click('[data-ip-ff="type"]')
     p.click('[data-ip-ff="due"][data-ip-fv="none"]')
     s1 = p.state()

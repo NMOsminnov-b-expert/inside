@@ -255,8 +255,13 @@ export function partyNames() {
   return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
+// Открытая синтетическая запись (materialize) лежит и в records, и в объёме —
+// в пределах текущего объёма её не считаем дважды (с объёмом по умолчанию
+// 1000, 13.10.2026, вкладка «Недвижимое» показывала 2016 вместо 1016).
 export function totalCount() {
-  return records.length + bulkCount();
+  const n = bulkCount();
+  const twice = records.filter((r) => isBulkId(r.id) && +r.id.slice(r.id.lastIndexOf('-b') + 2) < n).length;
+  return records.length - twice + n;
 }
 
 // Ленивая материализация: карточка синтетической записи собирается при открытии.

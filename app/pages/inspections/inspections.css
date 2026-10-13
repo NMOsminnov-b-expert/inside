@@ -579,6 +579,12 @@ body[data-page="inspections"] .ip-contacts-list a{color:var(--blue-700);font-wei
 @media (max-width:1100px){
   body[data-page="inspections"] .ip.ip-assign{grid-template-columns:minmax(0,1fr)}
   body[data-page="inspections"] .ip-facets{flex-direction:row;flex-wrap:wrap;overflow:visible;border-right:0;border-bottom:1px solid var(--line)}
+  /* Свёрнуты в «Отборы · N» (замер 13.10.2026: развёрнутые занимали экран над
+     списком, список начинался ниже 700 px; практика Bright — на узком
+     отборы отдельной раскрывашкой). Применённые видны «чипами» над списком. */
+  body[data-page="inspections"] .ip-facets .ip-facets-toggle{display:inline-flex}
+  body[data-page="inspections"] .ip-facets:not(.open) > :not(.ip-facets-toggle){display:none}
+  body[data-page="inspections"] .ip-facets:not(.open){padding:8px 10px}
   body[data-page="inspections"] .ip-facet{flex:1 1 200px}
 }
 
@@ -916,3 +922,9 @@ body[data-page="inspections"] .ip-jump-list .ip-jump-none{color:var(--muted);cur
 body[data-page="inspections"] .ip.ip-peoplesec.ip-wide{grid-template-columns:minmax(0,1fr)}
 body[data-page="inspections"] .ip-ab-list li{background:var(--violet-50)}
 body[data-page="inspections"] .ip-ab-list i{color:var(--violet-700)}
+
+/* Кнопка «Отборы · N» — только на узкой раскладке (см. @media 1100px). */
+body[data-page="inspections"] .ip-facets-toggle{display:none;align-items:center;gap:6px;flex:0 0 100%;padding:6px 8px;border-radius:7px;
+  font-size:13px;font-weight:600;color:var(--blue-700);cursor:pointer;text-align:left}
+body[data-page="inspections"] .ip-facets-toggle:hover{background:var(--fill-hover)}
+body[data-page="inspections"] .ip-facets-toggle b{padding:0 7px;border-radius:999px;background:var(--blue-50);font-size:11.5px;font-variant-numeric:tabular-nums}

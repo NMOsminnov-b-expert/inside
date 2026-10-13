@@ -376,7 +376,9 @@ export function placeOf(s) {
   const t = String(s.title || '');
   const m = t.match(/([А-ЯЁA-Z][\wА-Яа-яЁё-]*\s+р-н)/);
   const city = s.city || (t.match(/(?:г\.|с\.|пгт\.?)\s*[А-ЯЁ][\wА-Яа-яЁё-]*/) || [''])[0];
-  return [city, m ? m[1] : ''].filter(Boolean).join(', ') || 'Место не указано';
+  // У земельных участков район уже стоит в «городе» — второй раз не пишем.
+  const district = m && !String(city).includes(m[1]) ? m[1] : '';
+  return [city, district].filter(Boolean).join(', ') || 'Место не указано';
 }
 
 const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoDay(d); };

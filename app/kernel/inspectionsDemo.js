@@ -47,11 +47,22 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
   const recs = [];
   const people = new Set();
   sortedTypes().forEach((t) => {
-    const res = t.records.queryRecords({ filter: {}, offset: 0, limit: 1000 });
+    // Без предела: с демо-объёмом первые 1000 строк — одни синтетические, и
+    // записи сида до демо не доходили (статистика пустела, 13.10.2026).
+    const res = t.records.queryRecords({ filter: {}, offset: 0, limit: Number.MAX_SAFE_INTEGER });
     res.rows.forEach((s) => {
+      // Синтетические записи демо-объёма (…-b<N>) не открываем: loadRecord
+      // собирает полную запись и кладёт её в список, и с объёмом 1000 по
+      // умолчанию (13.10.2026) каждый старт собирал тысячу карточек, а счётчики
+      // реестра считали их дважды. Очередь «К назначению» видит их и так — по
+      // сводкам.
+      // Состав осмотрщиков — и из них (по сводке, без открытия): иначе он
+      // зависел от правок сида, и демо-история менялась от перезагрузки к
+      // перезагрузке.
+      if (s.resp && s.resp.insp) people.add(s.resp.insp);
+      if (/-b\d+$/.test(s.id)) return;
       const r = t.records.loadRecord(s.id);
       if (!r) return;
-      if (s.resp && s.resp.insp) people.add(s.resp.insp);
       const defDocs = [...(r.docs || []), ...(r.oi || []).flatMap((o) => o.docs || [])].filter((d) => d && isDefaultDoc(d.type || d.name)).map((d) => d.id);
       recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), defDocs, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' });
     });

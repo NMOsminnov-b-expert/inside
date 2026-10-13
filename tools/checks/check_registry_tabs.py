@@ -47,7 +47,10 @@ def run(t):
             pg.select_option('[data-ts-base]', 'Седельное ТС')
 
     # --- вкладки ---------------------------------------------------------------------
+    # Переход на главную перезагружает страницу, а объём не сохраняется между
+    # перезагрузками — сид включается снова.
     t.open('', wait='.reg-tr')
+    t.set_bulk(0)
     tabs = pg.eval_on_selector_all('.reg-tab', "els => els.map((e) => e.innerText.replace(/\\s+/g, ' ').trim())")
     t.ck(tabs == ['Недвижимое 16', 'Движимое 2'], 'вкладки не те: %s' % tabs)
     estate_heads = pg.evaluate(HEADS)

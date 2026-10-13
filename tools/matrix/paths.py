@@ -99,6 +99,13 @@ class P:
         self.page.go_back()
         self.wait(500)
 
+    def open_filters(self):
+        """Узкая раскладка (до 1100 px): отборы свёрнуты в «Отборы · N» — раскрыть, как человек."""
+        t = self.page.locator('[data-ip-ftoggle]')
+        if t.count() and t.is_visible() and not self.page.locator('.ip-facets.open').count():
+            t.click()
+            self.wait(300)
+
     def scroll(self, sel, px):
         return self.page.evaluate("([s, px]) => { const e = document.querySelector(s); if (!e) return 0; e.scrollTop = px; return Math.round(e.scrollTop); }", [sel, px])
 
