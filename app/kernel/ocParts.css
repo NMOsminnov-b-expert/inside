@@ -301,7 +301,7 @@ body[data-module] .geo-cands ul{margin:0;padding:0;list-style:none;display:flex;
 body[data-module] .geo-cands li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;padding:4px 0;border-top:1px solid var(--line-soft)}
 body[data-module] .geo-cands li:first-child{border-top:0}
 body[data-module] .geo-cands li > span:first-child{flex:1 1 260px;min-width:0}
-body[data-module] .geo-map{height:200px;margin:-4px 0 14px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--fill-head)}
+body[data-module] .geo-map{height:280px;margin:-4px 0 14px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--fill-head)}
 
 /* ===== Таблица пристроек (блок «Пристройки» карточки литеры) ==============
    Строка на пристройку: литера, вид, материалы, площадь — как на странице

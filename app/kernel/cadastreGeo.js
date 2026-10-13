@@ -200,3 +200,21 @@ export async function eniByAddress(addr) {
     return { error: e.message };
   }
 }
+
+// --- участки и строения вокруг (13.10.2026: «Хорошо бы видеть границы зоны с
+// кадастра»; уточнение — «Участки вокруг на карте, Строения на участке») ---
+//
+// Объекты слоя в рамке карты: typename — ENI_WGS84 (участки: код, дом,
+// адрес, назначение) или ENI_BUILDINGS (строения); box — [запад, юг, восток,
+// север] в долготе и широте. Ответ — GeoJSON-объекты в долготе и широте.
+export async function featuresInBox(typename, box, propertyname, max = 500) {
+  const [x1, y1] = merc(box[0], box[1]);
+  const [x2, y2] = merc(box[2], box[3]);
+  const body = new URLSearchParams({
+    service: 'WFS', version: '1.1.0', request: 'GetFeature', typename, propertyname,
+    srsname: 'EPSG:4326', outputFormat: 'application/json', maxFeatures: String(max),
+    bbox: `${x1},${y1},${x2},${y2},EPSG:3857`,
+  });
+  const fc = JSON.parse(await portal('proxy.do?http://localhost/o2map/services/wfs', body));
+  return fc.features || [];
+}

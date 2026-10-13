@@ -9,7 +9,8 @@
   * точка дома не ставится щелчком по карте;
   * убранный из предложений объект остаётся в маршруте;
   * «Назначить предложенные» не создаёт назначений на этот день;
-  * правка нормы осмотра не меняет время осмотра в маршруте;
+  * правка нормы осмотра не меняет расчёт маршрута; прогноз времени осмотра
+    снова виден на экране (убран 13.10.2026);
   * в консоли ошибки.
 
 Тайлы OSM в проверке подменяются пустой картинкой: сценарий не зависит от
@@ -29,6 +30,11 @@ WHO = 'Абдылдаев Айсултан Марсович'
 def run(t):
     pg = t.page
     pg.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG))
+    # Кадастровые слои (участки и строения вокруг, с масштаба 16) — пустым
+    # ответом: проверка не зависит ни от прокси, ни от портала.
+    EMPTY = '{"type":"FeatureCollection","features":[]}'
+    pg.route('http://127.0.0.1:8787/portal/**', lambda r: r.fulfill(status=200, content_type='application/json', body=EMPTY))
+    pg.route('**/cadastre/**', lambda r: r.fulfill(status=200, content_type='application/json', body=EMPTY))
     t.open('#/inspections', wait='[data-ip-section]')
     pg.click('[data-ip-section="people"]')
     pg.locator('.ip-person-main[data-ip-person="%s"]' % WHO).click()
@@ -110,7 +116,16 @@ def run(t):
         t.ck(False, 'в маршруте дня нет предложенных объектов (демо)')
 
     # --- нормы осмотра ---------------------------------------------------------
-    first = pg.locator('.ip-stop:not(.home) .ip-stop-t').first.inner_text()
+    # С 13.10.2026 время осмотра в маршруте не показывается (указание
+    # пользователя «Прогнозируемое время осмотра надо убрать»; «Только скрыть
+    # в маршруте») — нормы проверяются по расчёту маршрута, а на экране —
+    # что прогноза нет.
+    stop_t = pg.locator('.ip-stop:not(.home) .ip-stop-t').first.inner_text()
+    t.ck('осмотр' not in stop_t and '→' not in stop_t, 'в маршруте снова прогноз времени осмотра: «%s»' % stop_t)
+    t.ck(pg.locator('.ip-tile', has_text='Осмотры').count() == 0 and pg.locator('.ip-tile', has_text='Возвращение').count() == 0,
+         'в плитках маршрута снова «Осмотры» или «Возвращение»')
+    INSP = """async (w) => { const m = await import('./app/pages/inspections/model.js'); const r = await import('./app/pages/inspections/route.js'); const day = document.querySelector('[data-ip-route-set]').value; return r.dayRoute(m.summaries(), w, day, new Set()).stops.map((x) => x.inspect).join(','); }"""
+    first = pg.evaluate(INSP, WHO)
     pg.locator('.ip-person-main[data-ip-person=""]').click()
     pg.click('[data-ip-atab="norms"]')
     t.wait_for('[data-ip-norm]')
@@ -125,7 +140,7 @@ def run(t):
     pg.locator('.ip-person-main[data-ip-person="%s"]' % WHO).click()
     pg.click('[data-ip-ptab="route"]')
     t.wait_for('.ip-stop:not(.home) .ip-stop-t')
-    after = pg.locator('.ip-stop:not(.home) .ip-stop-t').first.inner_text()
+    after = pg.evaluate(INSP, WHO)
     t.ck(pg.locator('.toast').filter(has_text='не сохранил').count() == 0, 'правка норм не сохранилась: %s' % pg.locator('.toast').all_inner_texts())
-    t.ck(first != after and 'осмотр 1' in after, 'правка нормы не изменила время осмотра в маршруте: «%s» → «%s»' % (first, after))
+    t.ck(first != after, 'правка нормы не изменила расчёт времени осмотра в маршруте: «%s» → «%s»' % (first, after))
     t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'страница прокручивается вбок')

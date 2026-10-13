@@ -14,6 +14,7 @@ import { eniCodesOf, formatEniText } from './eniField.js';
 import { geoByEni, eniByAddress, centerOf } from './cadastreGeo.js';
 import { geoStatus } from './cadastreGeoView.js';
 import { esc } from './dom.js';
+import { attachCadastreLayers } from './cadastreLayers.js';
 
 // Поставить значение в поле части адреса.
 //
@@ -80,6 +81,8 @@ async function drawGeoMap(box, geo) {
       { color: '#1668c9', weight: 2, fillOpacity: 0.18 }).addTo(map);
   }
   map.fitBounds([[y1, x1], [y2, x2]], { padding: [24, 24], maxZoom: 19 });
+  // Участки и строения Кадастра вокруг (решение пользователя 13.10.2026).
+  attachCadastreLayers(L, map);
 }
 
 export function bindGeo(ctx, rec) {

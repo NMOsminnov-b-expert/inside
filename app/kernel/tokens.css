@@ -517,3 +517,16 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .kg-ck{flex:none;width:14px;height:14px;border:1.5px solid var(--line-input);border-radius:4px;background:var(--panel)}
 .kg-ck.on{background:var(--blue-600);border-color:var(--blue-600);box-shadow:inset 0 0 0 2px var(--panel)}
 
+
+/* Кадастровые слои на картах Leaflet (kernel/cadastreLayers.js, 13.10.2026):
+   строка состояния слоя и подсказка участка или строения — белая карточка с
+   тенью, видна на любом месте фигуры. */
+.cad-note{padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.92);color:#334155;font:11.5px/1.3 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.cad-note.err{color:#b42318}
+.leaflet-tooltip.map-tip{max-width:280px;padding:7px 10px;border:1px solid #c3cfdd;border-radius:8px;background:#fff;color:#1b2a3a;
+  font:12.5px/1.4 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;white-space:normal;box-shadow:0 6px 18px rgba(15,23,42,.18)}
+.leaflet-tooltip.map-tip i{font-style:normal;color:#5a6b82}
+/* Подсказка у края карты не сжимается в колонку: ЕНИ и заголовок — одной
+   строкой (снимок 13.10.2026: ЕНИ ломался по символам). */
+.leaflet-tooltip.map-tip,.leaflet-tooltip.ip-tip{min-width:210px}
+.leaflet-tooltip.map-tip b,.leaflet-tooltip.ip-tip b{white-space:nowrap}

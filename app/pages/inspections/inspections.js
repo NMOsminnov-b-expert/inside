@@ -41,6 +41,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { detailHTML } from './detail.js';
 import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord } from './route.js';
+import { attachCadastreLayers } from '../../kernel/cadastreLayers.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
@@ -1019,7 +1020,7 @@ export function mountInspections(host) {
         <div class="ip-stop-b">
           <div class="ip-stop-h"><b>${esc(x.s.title)}</b><i class="${x.fixed ? 'k-plan' : 'k-act'}">${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i></div>
           <span class="ip-sub">${esc([x.s.typeLabel, x.s.metrics && x.s.metrics.area ? `${Math.round(x.s.metrics.area).toLocaleString('ru-RU')} м²` : '', x.s.institution].filter(Boolean).join(' · '))}</span>
-          <span class="ip-stop-t">дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км → <b>${x.arrive}</b> · осмотр ${x.inspect} мин → ${x.leave}</span>
+          <span class="ip-stop-t">дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км</span>
         </div>
         ${x.fixed ? '' : `<button class="ip-x" data-ip-route-skip="${esc(x.key)}" aria-label="Убрать из маршрута" title="Убрать из маршрута">×</button>`}
       </li>`;
@@ -1035,16 +1036,19 @@ export function mountInspections(host) {
           ${r.proposed.length ? `<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные (${r.proposed.length})</button>` : ''}
         </div>
       </div>
-      <div class="ip-tiles ip-reptiles">${tile('Выезд', r.start)}${tile('Возвращение', r.back.arrive, r.over ? 'warn' : '', r.over ? `Позже конца дня (${r.end}) на ${r.over} мин` : `Конец дня — ${r.end}`)}
-        ${tile('Пробег, км', r.km)}${tile('Дорога', dur(r.driveMin))}${tile('Осмотры', dur(r.inspectMin))}${tile('Объектов', r.stops.length)}</div>
+      <!-- Прогноз времени осмотра не показывается (указание пользователя
+           13.10.2026: «Прогнозируемое время осмотра надо убрать. Ситуации
+           бывают разными»; «Только скрыть в маршруте»): ни осмотр, ни
+           прибытие, ни возвращение — они складываются из прогноза. Нормы и
+           подбор предложений на день остаются. -->
+      <div class="ip-tiles ip-reptiles">${tile('Выезд', r.start)}${tile('Пробег, км', r.km)}${tile('Дорога', dur(r.driveMin))}${tile('Объектов', r.stops.length)}</div>
       ${!r.work.ok ? `<p class="ip-warn">Не рабочий день: ${esc(r.work.reason)}.</p>` : ''}
       ${!r.home.gps ? '<p class="ip-warn">Точка дома не указана — маршрут считается от первого объекта. Укажите дом на карте.</p>' : ''}
-      ${r.over ? `<p class="ip-warn off">Возвращение позже конца рабочего дня (${esc(r.end)}) на ${r.over} мин.</p>` : ''}
       <div class="ip-route">
         <ol class="ip-stops">
           <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Выезд — ${esc(r.home.label)}</b><span class="ip-stop-t"><b>${r.start}</b>${profileOf(me.name).homeAddress ? ` · ${esc(profileOf(me.name).homeAddress)}` : ''}</span></div></li>
           ${r.stops.map(stop).join('')}
-          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Возвращение — ${esc(r.home.label)}</b><span class="ip-stop-t">дорога ${r.back.min} мин · ${r.back.km.toFixed(1).replace('.', ',')} км → <b class="${r.over ? 'ip-late' : ''}">${r.back.arrive}</b></span></div></li>
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b>Возвращение — ${esc(r.home.label)}</b><span class="ip-stop-t">дорога ${r.back.min} мин · ${r.back.km.toFixed(1).replace('.', ',')} км</span></div></li>
         </ol>
         <div class="ip-map" data-ip-map role="img" aria-label="Карта маршрута"></div>
       </div>
@@ -1118,10 +1122,10 @@ export function mountInspections(host) {
     // списка подсвечивает её значок. Контур участка из Кадастра (rec.geo) —
     // на карте, виден при приближении.
     const items = [];
-    if (r.home.gps) items.push({ n: '⌂', cls: 'home', ll: r.home.gps, tip: `<b>${esc(r.home.label === 'дом' ? 'Дом' : 'Временное жильё')}</b><br>выезд ${r.start} · возвращение ${r.back.arrive}` });
+    if (r.home.gps) items.push({ n: '⌂', cls: 'home', ll: r.home.gps, tip: `<b>${esc(r.home.label === 'дом' ? 'Дом' : 'Временное жильё')}</b><br>выезд ${r.start}` });
     r.stops.forEach((x, i) => items.push({
       n: String(i + 1), cls: x.fixed ? 'fixed' : 'prop', ll: x.gps,
-      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br>${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}прибытие ${x.arrive} · осмотр ${x.inspect} мин<br><i>${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i>`,
+      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br>${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км<br><i>${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i>`,
     }));
     r.stops.forEach((x) => {
       const rec = loadOcRecord(x.s.typeId, x.s.id);
@@ -1139,6 +1143,9 @@ export function mountInspections(host) {
     if (r.home.gps && r.stops.length) pts.push(r.home.gps);
     if (pts.length > 1) L.polyline(pts, { color: '#1668c9', weight: 3, opacity: 0.8, dashArray: '6 6', interactive: false }).addTo(map);
     if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14, animate: false }); else map.setView([42.87, 74.59], 11, { animate: false });
+    // Участки и строения Кадастра вокруг — при приближении (решение
+    // пользователя 13.10.2026 «Участки вокруг на карте, Строения на участке»).
+    attachCadastreLayers(L, map);
     const pinIcon = (cls, text, wide) => L.divIcon({ className: `ip-pin ${cls}`, html: `<span${wide ? ' class="wide"' : ''}>${text}</span>`, iconSize: [wide ? 44 : 26, 26], iconAnchor: [wide ? 22 : 13, 13] });
     const groups = [];
     items.forEach((it) => {
