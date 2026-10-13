@@ -1504,25 +1504,41 @@ export function mountInspections(host) {
       .map((x) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [x.ll[1], x.ll[0]] },
         properties: { k: x.k, color: x.color, tip: x.tip, cur: x.k === current, sel: checked.has(x.k) } })) });
     const fitKey = view.section + '|' + view.tab + '|' + view.aPerson;
-    if (on && pts.length && fitKey !== scene.fitKey) {
+    const box = sc.el.getBoundingClientRect();
+    const padding = scenePadding(box);
+    const roomy = padding.left + padding.right < box.width - 40 && padding.top + padding.bottom < box.height - 40;
+    const fitted = on && pts.length && fitKey !== scene.fitKey;
+    if (fitted) {
       scene.fitKey = fitKey;
-      // Широкое окно — панели по бокам; узкое — список под картой: точки
-      // вписываются в видимую часть сцены над ним.
-      const work = scope.$('.ip-work');
-      const side = work && getComputedStyle(work).position === 'absolute';
-      const box = sc.el.getBoundingClientRect();
-      const isles = scope.$('.ip-isles');
-      const top = isles ? isles.getBoundingClientRect().bottom - box.top + 12 : 72;
-      const padding = side ? { top, left: sceneLeft(box), right: sceneRight(box), bottom: 40 }
-        : { top, left: 24, right: 24, bottom: Math.max(40, box.bottom - (work ? work.getBoundingClientRect().top : box.bottom) + 24) };
       const lats = pts.map((x) => x.ll[0]);
       const lons = pts.map((x) => x.ll[1]);
       // Поля не больше самой карты: иначе MapLibre отказывается вписывать.
-      if (padding.left + padding.right < box.width - 40 && padding.top + padding.bottom < box.height - 40) {
-        map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding, maxZoom: 15, animate: false });
-      }
+      if (roomy) map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding, maxZoom: 15, animate: false });
     }
-    if (!on) scene.fitKey = '';
+    // Облёт к выбранному (замечание пользователя 13.10.2026: «Перенос к
+    // выбранному элементу не реализован. Он выбирается, но карта не
+    // перемещается»): выбор в списке плавно переносит карту к точке — в
+    // середину видимой части между панелями; совсем издали (мельче города) —
+    // заодно приближает до города. Выбор щелчком по самой карте её не
+    // двигает: точка и так перед глазами. «Меньше движения» — без анимации.
+    const cur = on && current ? sc.byKey.get(current) : null;
+    if (cur && current !== scene.flownTo && !fitted && !scene.fromMap && roomy) {
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      map.easeTo({ center: [cur.ll[1], cur.ll[0]], zoom: Math.max(map.getZoom(), 11), padding, duration: still ? 0 : 700 });
+    }
+    scene.flownTo = current;
+    scene.fromMap = false;
+    if (!on) { scene.fitKey = ''; scene.flownTo = ''; }
+  }
+  // Видимая часть сцены — без панелей и островков: широкое окно — панели по
+  // бокам, узкое — список под картой.
+  function scenePadding(box) {
+    const work = scope.$('.ip-work');
+    const side = work && getComputedStyle(work).position === 'absolute';
+    const isles = scope.$('.ip-isles');
+    const top = isles ? isles.getBoundingClientRect().bottom - box.top + 12 : 72;
+    return side ? { top, left: sceneLeft(box), right: sceneRight(box), bottom: 40 }
+      : { top, left: 24, right: 24, bottom: Math.max(40, box.bottom - (work ? work.getBoundingClientRect().top : box.bottom) + 24) };
   }
   // Место, которое панели занимают слева и справа: точки вписываются в
   // видимую часть сцены, а не под панели.
@@ -1594,6 +1610,7 @@ export function mountInspections(host) {
       return;
     }
     lastDot = { k: x.k, t: now };
+    scene.fromMap = true;
     // Щелчок по объекту открывает его панель назначения (даже скрытую),
     // повторный щелчок по тому же объекту — скрывает её (указание
     // 13.10.2026: «при нажатии на объект, если есть взаимодействие с боковой
