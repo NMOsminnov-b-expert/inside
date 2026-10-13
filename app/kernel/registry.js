@@ -32,7 +32,8 @@ export const OC_TYPES = [
     dictExport: residentialHouseDicts,
     // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
     // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
-    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
+    // Стили литеры нежилого здания — она одна на все типы ОЦ (civil/card.js, 13.10.2026).
+    styleHref: ['./app/modules/civil/module.css', './app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/residential-house/index.js'),
   },
   {
@@ -41,7 +42,8 @@ export const OC_TYPES = [
     dictExport: apartmentDicts,
     // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
     // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
-    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
+    // Стили литеры нежилого здания — она одна на все типы ОЦ (civil/card.js, 13.10.2026).
+    styleHref: ['./app/modules/civil/module.css', './app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/apartment/index.js'),
   },
   {
@@ -60,7 +62,8 @@ export const OC_TYPES = [
     dictExport: landPlotDicts,
     // Стили карточек ТС и механизмов — объектов имущества в любом ОЦ
     // (vehicle/card.js, mechanisms/card.js, решение пользователя 28.09.2026).
-    styleHref: ['./app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
+    // Стили литеры нежилого здания — она одна на все типы ОЦ (civil/card.js, 13.10.2026).
+    styleHref: ['./app/modules/civil/module.css', './app/modules/vehicle/module.css', './app/modules/mechanisms/module.css'],
     load: () => import('../modules/land-plot/index.js'),
   },
   {

@@ -10,11 +10,14 @@
 export const OI_TYPES = [
   { label: 'Земельный участок', card: 'land' },
   { label: 'Квартира', card: 'apartment' },
+  // Строения — как в нежилом здании (дверь civil/card.js, BUILDING_OI_TYPES):
+  // одно «Здание», вид литеры указывают внутри по фото (решение пользователя
+  // 23.09.2026), «Прочее строение» заводится сразу прочим. Распространено
+  // 13.10.2026; прежде здесь были «Гражданское здание» и «Производственное
+  // строение».
+  { label: 'Здание', card: 'building' },
   { label: 'Жилой дом', card: 'building', residential: true },
-  { label: 'Гражданское здание', card: 'building' },
-  { label: 'Производственное строение', card: 'building',
-    catClass: 'Производственно-складское' },
-  { label: 'Прочее строение', card: 'building' },
+  { label: 'Прочее строение', card: 'building', litKind: 'other' },
 ];
 
 export const MOVABLE_OI_TYPES = [

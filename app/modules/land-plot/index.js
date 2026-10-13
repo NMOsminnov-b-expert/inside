@@ -1,5 +1,6 @@
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
+import { migrateLiterKinds } from '../civil/card.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateFloorAreas } from './oi/building/floors.model.js';
 import { migrateTempMode } from './oi/building/tempMode.js';
@@ -123,6 +124,7 @@ export function main(host) {
         migrateMechUnits(rec);
         migrateSpecials(rec);
         migrateStruct(rec);
+        migrateLiterKinds(rec);
         migrateAnnexes(rec);
         draw();
       }
@@ -384,6 +386,7 @@ export function main(host) {
   migrateMechUnits(rec);
   migrateSpecials(rec);
   migrateStruct(rec);
+  migrateLiterKinds(rec);
   migrateAnnexes(rec);
   draw().then(resnapshot);
 
@@ -402,6 +405,7 @@ export function main(host) {
       migrateMechUnits(rec);
       migrateSpecials(rec);
       migrateStruct(rec);
+      migrateLiterKinds(rec);
       migrateAnnexes(rec);
       draw().then(resnapshot);
     },

@@ -188,7 +188,8 @@ class Tester:
         # или производственное, выбирают внутри карточки (решение
         # пользователя). Сценарии просят вид по-старому — переводим здесь.
         lit = None
-        if '/civil/' in pg.url and kind in ('Гражданское здание', 'Производственное строение'):
+        # С 13.10.2026 — во всех типах ОЦ (литера одна, дверь civil/card.js).
+        if kind in ('Гражданское здание', 'Производственное строение'):
             lit = 'civil' if kind == 'Гражданское здание' else 'prod'
             kind = 'Здание'
         toggle = pg.locator('[data-dd-toggle]')
@@ -345,6 +346,11 @@ def run_one(mod, part=None, headless=True, browser_=None):
         # прогона). Десяти секунд хватает с запасом, а на повторе упавшего
         # предел растёт вместе с остальными — cap×3.
         page.set_default_timeout(min(30000, int(10000 * CAP_SCALE)))
+        # Переход по адресу — отдельно и дольше: холодная загрузка макета —
+        # 257 модулей без сборки (3–4 с одна), а в параллельном прогоне с
+        # картой MapLibre (в браузере без видеокарты рисует процессор) уходила
+        # за 10 с, и сценарии падали на открытии, а не на проверке (13.10.2026).
+        page.set_default_navigation_timeout(30000)
         t = Tester(page, 'http://127.0.0.1:%d/app.html' % PORT)
         page.on('pageerror', lambda e, t=t: t.console.append('PAGEERROR: ' + str(e)))
         page.on('console', lambda m, t=t: t.console.append('CONSOLE: ' + m.text)

@@ -1,16 +1,6 @@
-import { render } from './view.js';
-import { bind } from './ctrl.js';
-import { buildFloors } from './floors.model.js';
-
-// Карточка ОИ «строение» внутри модуля «Жилое здание (дом)».
-export const card = {
-  id: 'building',
-
-  // Ленивая доинициализация данных карточки (этажная развёртка).
-  init(oi) {
-    if (!oi.floorList || !oi.floorList.length) buildFloors(oi);
-  },
-
-  render,
-  bind,
-};
+// Карточка литеры (строения) — одна на все типы ОЦ, из модуля «Нежилое
+// здание» через дверь civil/card.js (распространение 13.10.2026: вид литеры,
+// класс капитальности по признакам, подгруппы помещений). Прежняя копия
+// карточки в этой папке (view.js, ctrl.js…) больше не подключается —
+// удалять её — с отмашки пользователя.
+export { buildingOiCard as card } from '../../../civil/card.js';

@@ -472,6 +472,13 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   `mechanisms/module.css`, граница — `body .mu-stack`. Список разрешённых
   путей — `.dependency-cruiser.cjs` (`npm run lint:arch`); меняется правило —
   править и его.
+- Четвёртое исключение (распространение 13.10.2026, «Значит не
+  распространили... Исправляем»): литера (строение) нежилого здания — вид,
+  класс капитальности, подгруппы помещений — объект имущества в любом типе
+  ОЦ. Карточка одна — модуль `civil`, дверь одна — `civil/card.js`
+  (`buildingOiCard`, `newBuildingOi`, `migrateLiterKinds`); стили —
+  `civil/module.css`, правила блоков литеры (`.lk-*`, `.kc*`, `.zn*`) без
+  привязки к модулю.
 - Ядро не знает ни одного типа ОЦ и ни одного вида ОИ.
 - Модули ОЦ (`apartment`, `residential-house`, `civil`, `land-plot`,
   `vehicle`, `mechanisms`) изолированы друг от друга, кроме названных выше

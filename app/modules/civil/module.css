@@ -1,3 +1,9 @@
+/* Карточка литеры нежилого здания — одна на все типы ОЦ (дверь
+   civil/card.js, распространение 13.10.2026): правила её блоков (вид и
+   класс литеры .lk-*, класс капитальности .kc*, подгруппы помещений .zn*,
+   подсказка состояния, пристройки, суммы этажей) — без привязки к модулю
+   (body, а не body[data-module="civil"]): классы ни с чем не пересекаются,
+   файл подключают и квартира, жилой дом, земельный участок (kernel/registry.js). */
 /* Своё оформление типа ОЦ «civil»: вспомогательные постройки, тип и класс
    капитальности — этих блоков нет у других типов ОЦ. Форма механизмов —
    mechanisms/module.css. Общее оформление карточек живёт в ядре
@@ -56,7 +62,7 @@ body[data-module="civil"] .aux-tbl tbody tr:hover td{background:var(--fill-hover
 body[data-module="civil"] .aux-tbl td:focus-within,
 body[data-module="civil"] .aux-tbl td:has(.ms-control.open){background:var(--fill-pick);
   box-shadow:inset 0 0 0 2px var(--blue-600)}
-body[data-module="civil"] .aux-tbl .ax-cell:focus{border-color:transparent;background:transparent;
+body .aux-tbl .ax-cell:focus{border-color:transparent;background:transparent;
   box-shadow:none}
 body[data-module="civil"] .aux-tbl .ms-control.open{border-color:transparent;background:transparent;
   box-shadow:none}
@@ -115,31 +121,31 @@ body[data-module="civil"] .aux-tbl tfoot .oi-total .aux-c-area{text-align:right}
    его считает система. */
 /* В «Общих параметрах» — показ пары «тип | класс» (выбирают в блоке «Тип и
    класс капитальности»). Две колонки, на узкой карточке — друг под другом. */
-body[data-module="civil"] .lk-pair{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2fr);gap:12px;margin-bottom:10px}
+body .lk-pair{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2fr);gap:12px;margin-bottom:10px}
 /* Поля «Общих параметров» и признаки класса раскладываются по ширине карточки,
    а не по трети: у общей сетки g-3 минимум колонки 240px и треть ширины, и при
    широком просмотрщике (карточка ~530px) всё вставало в одну колонку, а при
    закрытом — последнее поле оставалось одно в строке (задача пользователя
    25.09.2026: «оптимизируй пустые зоны при разном соотношении просмотрщика»). */
-body[data-module="civil"] #q-gen .grid.g-3,
-body[data-module="civil"] #q-capclass .lk-signs{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-body[data-module="civil"] .lk-pair>.field{margin:0;min-width:0}
-body[data-module="civil"] .lk-note{font-size:12.5px;margin-top:2px}
+body #q-gen .grid.g-3,
+body #q-capclass .lk-signs{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+body .lk-pair>.field{margin:0;min-width:0}
+body .lk-note{font-size:12.5px;margin-top:2px}
 /* Зоны литеры (oi/building/zones.js) — паттерн «добавить ещё» (DWP Design
    System): у каждой зоны своя рамка с номером, названием, площадью, высотой,
    классом и кнопкой «убрать»; над зонами — сверка суммы площадей той же
    панелью, что у этажей (.floors-sums), и площади по классам. */
-body[data-module="civil"] .zn-split{margin-top:12px}
+body .zn-split{margin-top:12px}
 /* «По классам» — плашками: площадь по каждому классу и одна плашка «без
    класса» со ссылками на зоны; раньше — абзац «Зона N: не хватает …» на все
    зоны (замечание пользователя 25.09.2026). */
-body[data-module="civil"] .zn-chip{display:inline-flex;align-items:baseline;gap:6px;padding:3px 9px;border-radius:999px;
+body .zn-chip{display:inline-flex;align-items:baseline;gap:6px;padding:3px 9px;border-radius:999px;
   background:#eef4fb;border:1px solid #d5e3f3;color:var(--ink);white-space:nowrap}
-body[data-module="civil"] .zn-chip-v{font-variant-numeric:tabular-nums}
-body[data-module="civil"] .zn-chip.warn{background:#fdf4e3;border-color:#f0d9a8;color:#8a5a00}
-body[data-module="civil"] .zn-jump{border:0;background:none;padding:1px 4px;font:inherit;font-size:12px;color:var(--blue-700);
+body .zn-chip-v{font-variant-numeric:tabular-nums}
+body .zn-chip.warn{background:#fdf4e3;border-color:#f0d9a8;color:#8a5a00}
+body .zn-jump{border:0;background:none;padding:1px 4px;font:inherit;font-size:12px;color:var(--blue-700);
   cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
-body[data-module="civil"] .zn-jump:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body .zn-jump:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
 /* Зона: шапка (номер, название, класс, «убрать»), под ней группы полей с
    подписью — «Размеры» и «Состояние» в одну строку, затем «Тип и назначение» и
    «Признаки класса» (fieldset + legend, W3C WAI «Grouping Controls»). Поля
@@ -147,73 +153,73 @@ body[data-module="civil"] .zn-jump:focus-visible{outline:2px solid var(--blue-60
 /* Зоны — аккордеон: у каждой шапка-строка со сводкой (номер, название, тип,
    площадь, К, класс), раскрыта одна. Раскрытая зона выделена рамкой и фоном
    шапки, свёрнутые — компактные строки одна под другой. */
-body[data-module="civil"] .zn-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
-body[data-module="civil"] .zn{border:1px solid var(--line);border-radius:10px;background:#fff;transition:box-shadow .3s}
-body[data-module="civil"] .zn.open{border-color:#9dbbe0;box-shadow:0 1px 4px rgba(30,70,120,.08)}
-body[data-module="civil"] .zn.flash{box-shadow:0 0 0 3px #f0d9a8}
-body[data-module="civil"] .zn-top{display:flex;align-items:stretch;gap:6px;padding:4px 6px 4px 4px}
-body[data-module="civil"] .zn.open .zn-top{background:#eef4fb;border-bottom:1px solid #d5e3f3;border-radius:10px 10px 0 0}
-body[data-module="civil"] .zn-bar{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:none;
+body .zn-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+body .zn{border:1px solid var(--line);border-radius:10px;background:#fff;transition:box-shadow .3s}
+body .zn.open{border-color:#9dbbe0;box-shadow:0 1px 4px rgba(30,70,120,.08)}
+body .zn.flash{box-shadow:0 0 0 3px #f0d9a8}
+body .zn-top{display:flex;align-items:stretch;gap:6px;padding:4px 6px 4px 4px}
+body .zn.open .zn-top{background:#eef4fb;border-bottom:1px solid #d5e3f3;border-radius:10px 10px 0 0}
+body .zn-bar{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:none;
   padding:5px 6px;border-radius:7px;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
-body[data-module="civil"] .zn-bar:hover{background:rgba(30,90,160,.06)}
-body[data-module="civil"] .zn-bar:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
-body[data-module="civil"] .zn-bar .chev{flex:0 0 auto;color:var(--muted);transition:transform .15s}
-body[data-module="civil"] .zn:not(.open) .zn-bar .chev{transform:rotate(-90deg)}
-body[data-module="civil"] .zn-bar-info{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
-body[data-module="civil"] .zn-num{flex:0 0 auto;min-width:22px;height:22px;border-radius:6px;
+body .zn-bar:hover{background:rgba(30,90,160,.06)}
+body .zn-bar:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body .zn-bar .chev{flex:0 0 auto;color:var(--muted);transition:transform .15s}
+body .zn:not(.open) .zn-bar .chev{transform:rotate(-90deg)}
+body .zn-bar-info{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+body .zn-num{flex:0 0 auto;min-width:22px;height:22px;border-radius:6px;
   background:var(--amber-600, #c27c0e);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
-body[data-module="civil"] .zn-bar-name{font-weight:800;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
-body[data-module="civil"] .zn-bar-meta{font-size:12.5px;color:var(--slate-600, #52657a);font-variant-numeric:tabular-nums;display:inline-flex;flex-wrap:wrap;gap:0 6px}
-body[data-module="civil"] .zn-bar-dot{color:var(--line)}
-body[data-module="civil"] .zn-bar-miss{color:#8a5a00}
-body[data-module="civil"] .zn-bar-cls{margin-left:auto;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;
+body .zn-bar-name{font-weight:800;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40ch}
+body .zn-bar-meta{font-size:12.5px;color:var(--slate-600, #52657a);font-variant-numeric:tabular-nums;display:inline-flex;flex-wrap:wrap;gap:0 6px}
+body .zn-bar-dot{color:var(--line)}
+body .zn-bar-miss{color:#8a5a00}
+body .zn-bar-cls{margin-left:auto;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;
   background:#fdf4e3;color:#8a5a00;white-space:nowrap}
-body[data-module="civil"] .zn-bar-cls.ok{background:var(--blue-600);color:#fff}
-body[data-module="civil"] .zn-del{flex:0 0 auto;align-self:center}
-body[data-module="civil"] .zn-body{padding:2px 12px 12px;container:zn / inline-size}
-body[data-module="civil"] .zn-body[hidden]{display:none}
-body[data-module="civil"] .zn-fields-cond{grid-template-columns:minmax(0,420px)}
-body[data-module="civil"] .zn-fields-3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
-@container zn (min-width:520px){body[data-module="civil"] .zn-fields-cond{grid-template-columns:minmax(0,420px)}
-body[data-module="civil"] .zn-fields-3{grid-template-columns:minmax(160px,2fr) repeat(2,minmax(120px,1fr))}}
-body[data-module="civil"] .zn-grp{border:0;border-top:1px solid var(--line-soft);margin:10px 0 0;padding:8px 0 0;min-width:0}
-body[data-module="civil"] .zn-grp>legend{padding:0 8px 0 0;font-size:11px;font-weight:700;color:var(--slate-600, #52657a);
+body .zn-bar-cls.ok{background:var(--blue-600);color:#fff}
+body .zn-del{flex:0 0 auto;align-self:center}
+body .zn-body{padding:2px 12px 12px;container:zn / inline-size}
+body .zn-body[hidden]{display:none}
+body .zn-fields-cond{grid-template-columns:minmax(0,420px)}
+body .zn-fields-3{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+@container zn (min-width:520px){body .zn-fields-cond{grid-template-columns:minmax(0,420px)}
+body .zn-fields-3{grid-template-columns:minmax(160px,2fr) repeat(2,minmax(120px,1fr))}}
+body .zn-grp{border:0;border-top:1px solid var(--line-soft);margin:10px 0 0;padding:8px 0 0;min-width:0}
+body .zn-grp>legend{padding:0 8px 0 0;font-size:11px;font-weight:700;color:var(--slate-600, #52657a);
   text-transform:uppercase;letter-spacing:.05em}
-body[data-module="civil"] .zn-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:start}
-body[data-module="civil"] .zn-fields>.field{margin:0;min-width:0}
-body[data-module="civil"] .zn-num-f label{white-space:nowrap}
-body[data-module="civil"] .zn-num-f .input{text-align:right;font-variant-numeric:tabular-nums}
-body[data-module="civil"] .zn .lk-row{margin-bottom:0;align-items:flex-start}
-body[data-module="civil"] .zn .lk-signs{margin-bottom:0}
+body .zn-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:start}
+body .zn-fields>.field{margin:0;min-width:0}
+body .zn-num-f label{white-space:nowrap}
+body .zn-num-f .input{text-align:right;font-variant-numeric:tabular-nums}
+body .zn .lk-row{margin-bottom:0;align-items:flex-start}
+body .zn .lk-signs{margin-bottom:0}
 /* Подсказка под состоянием появляется после выбора; пустая место не держит —
    иначе под «Размерами» висела пустая полоса. */
-body[data-module="civil"] .zn .cond-hint.empty{display:none}
+body .zn .cond-hint.empty{display:none}
 /* Переключатель типа в узкой зоне не обрезается: кнопки делят ширину и
    переносят подпись. */
-body[data-module="civil"] .zn .lk-row>.field:first-child{min-width:0;max-width:100%}
-body[data-module="civil"] .zn .lk-seg{display:flex;max-width:100%}
-body[data-module="civil"] .zn .lk-seg-btn{flex:1 1 auto;min-width:0;white-space:normal;padding:7px 12px;line-height:1.2}
+body .zn .lk-row>.field:first-child{min-width:0;max-width:100%}
+body .zn .lk-seg{display:flex;max-width:100%}
+body .zn .lk-seg-btn{flex:1 1 auto;min-width:0;white-space:normal;padding:7px 12px;line-height:1.2}
 /* Признак, без которого класс не считается: подпись янтарная с меткой, под
    признаками — строка «Не хватает для класса: …» (ошибка рядом с полями). */
 body[data-module="civil"] .field.miss>label{color:#8a5a00}
 body[data-module="civil"] .field.miss>label::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
   background:#d99a1e;margin-left:5px;vertical-align:middle}
-body[data-module="civil"] .lk-miss{margin-top:8px;padding:6px 10px;border-radius:8px;background:#fdf4e3;color:#8a5a00;font-size:12.5px;line-height:1.4}
-body[data-module="civil"] .lk-miss[hidden]{display:none}
-body[data-module="civil"] .zn-add{margin-top:2px}
-body[data-module="civil"] .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
-body[data-module="civil"] .lk-row>.field{margin:0}
-body[data-module="civil"] .lk-row>.lk-purpose{flex:1 1 240px;max-width:420px}
-body[data-module="civil"] .lk-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
-body[data-module="civil"] .lk-seg-btn{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 14px;
+body .lk-miss{margin-top:8px;padding:6px 10px;border-radius:8px;background:#fdf4e3;color:#8a5a00;font-size:12.5px;line-height:1.4}
+body .lk-miss[hidden]{display:none}
+body .zn-add{margin-top:2px}
+body .lk-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px}
+body .lk-row>.field{margin:0}
+body .lk-row>.lk-purpose{flex:1 1 240px;max-width:420px}
+body .lk-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+body .lk-seg-btn{border:0;border-right:1px solid var(--line);background:#fff;padding:7px 14px;
   font:inherit;font-size:13px;color:var(--slate-700);cursor:pointer;white-space:nowrap}
-body[data-module="civil"] .lk-seg-btn:last-child{border-right:0}
-body[data-module="civil"] .lk-seg-btn:hover{background:var(--blue-50)}
-body[data-module="civil"] .lk-seg-btn.on{background:var(--blue-600);color:#fff;font-weight:700}
-body[data-module="civil"] .lk-seg-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
-body[data-module="civil"] .lk-class{min-height:34px;display:flex;align-items:center;padding:6px 10px;border:1px dashed var(--line);
+body .lk-seg-btn:last-child{border-right:0}
+body .lk-seg-btn:hover{background:var(--blue-50)}
+body .lk-seg-btn.on{background:var(--blue-600);color:#fff;font-weight:700}
+body .lk-seg-btn:focus-visible{outline:2px solid var(--blue-600);outline-offset:-2px}
+body .lk-class{min-height:34px;display:flex;align-items:center;padding:6px 10px;border:1px dashed var(--line);
   border-radius:8px;background:var(--slate-50);font-size:13px;line-height:1.3}
-body[data-module="civil"] label.lk-tip{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
+body label.lk-tip{text-decoration:underline dotted #9fb2c8;text-underline-offset:3px;cursor:help}
 
 /* Сводная «Капитальность и классы» (card/capSummary.view.js). Таблица
    прокручивается в своей обёртке и не растягивает карточку; числа по правому
@@ -239,7 +245,7 @@ body[data-module="civil"] .cs-litname{font-size:11.5px;color:var(--muted);margin
 /* Шкала состояния (data/conditionScale.js): под выбранным состоянием — ранг и
    диапазон износа; в сводной — матрица корректировок, раскрывается по запросу.
    Недопустимые значения — красным, как в методологии; диагональ — серым. */
-body[data-module="civil"] .cond-hint{font-size:11.5px;color:var(--muted);margin-top:4px;min-height:15px;font-variant-numeric:tabular-nums}
+body .cond-hint{font-size:11.5px;color:var(--muted);margin-top:4px;min-height:15px;font-variant-numeric:tabular-nums}
 body[data-module="civil"] .cm-box{margin-top:14px}
 body[data-module="civil"] .cm-box>summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--blue-700);padding:4px 0}
 body[data-module="civil"] .cm-box>summary:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
@@ -299,34 +305,34 @@ body[data-module="civil"] .cp-tbl [data-cp-out].excl{text-decoration:line-throug
    объяснимых оценок: исходные данные и расчёт видны, у шкалы — все диапазоны
    с подписями, текущий выделен и цветом, и начертанием. Ширина диапазона на
    шкале — пропорционально его длине от минимума К до 1. */
-body[data-module="civil"] .kc{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
-body[data-module="civil"] .kc:empty{display:none}
-body[data-module="civil"] .kc-formula{display:flex;flex-wrap:wrap;align-items:center;gap:4px 5px;font-size:13px;font-variant-numeric:tabular-nums}
-body[data-module="civil"] .kc-l{font-weight:800;color:var(--ink)}
-body[data-module="civil"] .kc-x{color:var(--muted)}
-body[data-module="civil"] .kc-f{padding:1px 5px;border-radius:5px;background:var(--slate-50);font-weight:600;cursor:help}
-body[data-module="civil"] .kc-f.none, body[data-module="civil"] .kc-res.none{background:#fdf4e3;color:#8a5a00}
-body[data-module="civil"] .kc-res{padding:1px 7px;border-radius:5px;background:#e3eefb;color:var(--blue-700);font-weight:800}
-body[data-module="civil"] .kc-cls{font-weight:800;color:var(--blue-700)}
-body[data-module="civil"] .kc-cls.none{font-weight:600;color:#8a5a00}
-body[data-module="civil"] .kc-scale{margin-top:8px}
-body[data-module="civil"] .kc-bands{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-body[data-module="civil"] .kc-band{min-width:0;padding:4px 6px;font-size:11px;line-height:1.25;color:var(--muted);
+body .kc{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+body .kc:empty{display:none}
+body .kc-formula{display:flex;flex-wrap:wrap;align-items:center;gap:4px 5px;font-size:13px;font-variant-numeric:tabular-nums}
+body .kc-l{font-weight:800;color:var(--ink)}
+body .kc-x{color:var(--muted)}
+body .kc-f{padding:1px 5px;border-radius:5px;background:var(--slate-50);font-weight:600;cursor:help}
+body .kc-f.none, body .kc-res.none{background:#fdf4e3;color:#8a5a00}
+body .kc-res{padding:1px 7px;border-radius:5px;background:#e3eefb;color:var(--blue-700);font-weight:800}
+body .kc-cls{font-weight:800;color:var(--blue-700)}
+body .kc-cls.none{font-weight:600;color:#8a5a00}
+body .kc-scale{margin-top:8px}
+body .kc-bands{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+body .kc-band{min-width:0;padding:4px 6px;font-size:11px;line-height:1.25;color:var(--muted);
   border-right:1px solid var(--line);background:#fff;display:flex;flex-direction:column}
-body[data-module="civil"] .kc-band:last-child{border-right:0}
-body[data-module="civil"] .kc-band b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body[data-module="civil"] .kc-band span{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body[data-module="civil"] .kc-band.on{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
+body .kc-band:last-child{border-right:0}
+body .kc-band b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .kc-band span{font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body .kc-band.on{background:var(--blue-600);border-color:var(--blue-600);color:#fff}
 /* Дорожка с отметкой К — под диапазонами, чтобы метка не наезжала на подписи. */
-body[data-module="civil"] .kc-track{position:relative;height:9px;margin:0 1px}
-body[data-module="civil"] .kc-mark{position:absolute;top:1px;width:0;height:0;margin-left:-6px;border:6px solid transparent;border-top:0;
+body .kc-track{position:relative;height:9px;margin:0 1px}
+body .kc-mark{position:absolute;top:1px;width:0;height:0;margin-left:-6px;border:6px solid transparent;border-top:0;
   border-bottom:8px solid #d99a1e}
 /* Коэффициент признака — в правом верхнем углу поля, на строке подписи. */
 body[data-module="civil"] .field[data-sign]{position:relative}
 body[data-module="civil"] .field[data-sign]>label{padding-right:46px}
-body[data-module="civil"] .kc-coef{position:absolute;top:0;right:0;font-size:11px;font-weight:700;line-height:16px;padding:0 5px;
+body .kc-coef{position:absolute;top:0;right:0;font-size:11px;font-weight:700;line-height:16px;padding:0 5px;
   border-radius:5px;background:#e3eefb;color:var(--blue-700);font-variant-numeric:tabular-nums;white-space:nowrap}
-body[data-module="civil"] .kc-coef.none{background:#fdf4e3;color:#8a5a00}
+body .kc-coef.none{background:#fdf4e3;color:#8a5a00}
 /* Тип нежилого здания по внутренней площади (card/typology.js) — первым в
    сводной: по нему назван сам ОЦ. Доли — одной полосой из трёх частей
    (практика «доли целого полосой», граф: praktika-dolya-celogo-polosoy):
@@ -364,23 +370,23 @@ body[data-module="civil"] .cs-avg-n{font-size:12px;color:var(--muted);font-varia
 /* Итоги литеры из подгрупп помещений — одна панель, строки «подпись —
    значение»: подписи одной колонкой, значения по левому краю одной линией; на
    узкой карточке подпись встаёт над значением. */
-body[data-module="civil"] .zn-sum{margin:0 0 10px;padding:8px 12px;border:1px solid #d5e3f3;border-radius:10px;background:#f4f8fd;
+body .zn-sum{margin:0 0 10px;padding:8px 12px;border:1px solid #d5e3f3;border-radius:10px;background:#f4f8fd;
   container:znsum / inline-size}
-body[data-module="civil"] .zn-sum-dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0}
-body[data-module="civil"] .zn-sum-row{display:contents}
-body[data-module="civil"] .zn-sum-row dt{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em;
+body .zn-sum-dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0}
+body .zn-sum-row{display:contents}
+body .zn-sum-row dt{font-size:11px;font-weight:700;color:var(--blue-700);text-transform:uppercase;letter-spacing:.04em;
   padding-top:4px;white-space:nowrap}
-body[data-module="civil"] .zn-sum-row dd{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;
+body .zn-sum-row dd{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;
   font-variant-numeric:tabular-nums;min-height:24px}
-body[data-module="civil"] .zn-sum-row dd b{font-weight:800}
-body[data-module="civil"] .zn-sum-note{font-size:12px;color:var(--muted)}
-body[data-module="civil"] .zn-avg-v{font-size:15px}
-body[data-module="civil"] .zn-st{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
-body[data-module="civil"] .zn-st.ok{background:#e3f4e8;color:#1f7a3d}
-body[data-module="civil"] .zn-st.warn{background:#fdf4e3;color:#8a5a00}
+body .zn-sum-row dd b{font-weight:800}
+body .zn-sum-note{font-size:12px;color:var(--muted)}
+body .zn-avg-v{font-size:15px}
+body .zn-st{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+body .zn-st.ok{background:#e3f4e8;color:#1f7a3d}
+body .zn-st.warn{background:#fdf4e3;color:#8a5a00}
 @container znsum (max-width:520px){
-  body[data-module="civil"] .zn-sum-dl{grid-template-columns:minmax(0,1fr);gap:2px}
-  body[data-module="civil"] .zn-sum-row dd{margin-bottom:6px}
+  body .zn-sum-dl{grid-template-columns:minmax(0,1fr);gap:2px}
+  body .zn-sum-row dd{margin-bottom:6px}
 }
-body[data-module="civil"] .zn-chip.warn{white-space:normal;flex-wrap:wrap}
-body[data-module="civil"] .zn-chip.warn .zn-jump{padding:0;font-size:inherit;color:inherit;font-weight:700}
+body .zn-chip.warn{white-space:normal;flex-wrap:wrap}
+body .zn-chip.warn .zn-jump{padding:0;font-size:inherit;color:inherit;font-weight:700}

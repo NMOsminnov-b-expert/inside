@@ -62,7 +62,9 @@ def run(t, part=None):
         t.wait(300)
         items = _menu(t)
 
-        missing = [x for x in (REALTY_CIVIL if 'civil' in route else REALTY) if x not in items]
+        # С 13.10.2026 «Здание» одно во всех типах ОЦ (литера нежилого здания
+        # распространена через дверь civil/card.js).
+        missing = [x for x in REALTY_CIVIL if x not in items]
         t.ck(not missing, '%s: в меню нет видов %s' % (label, missing))
 
         # Квартира открывается настоящей карточкой квартиры, а не литерой.
