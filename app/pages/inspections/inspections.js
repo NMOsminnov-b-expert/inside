@@ -1110,7 +1110,14 @@ export function mountInspections(host) {
       return;
     }
     const sc = box.closest('.ip-pscroll, .ip-card-body, .ip-scroll');
-    routeObs = new ResizeObserver(() => { if (box.isConnected) fitRouteMap(box); else { routeObs.disconnect(); routeObs = null; } });
+    // Наблюдатель снимает сам себя: к его вызову общий routeObs мог уже
+    // смениться или обнулиться перерисовкой (матрица взаимодействий 13.10.2026:
+    // «Cannot read properties of null (reading 'disconnect')»).
+    routeObs = new ResizeObserver((_, obs) => {
+      if (box.isConnected) { fitRouteMap(box); return; }
+      obs.disconnect();
+      if (routeObs === obs) routeObs = null;
+    });
     routeObs.observe(box.parentElement);
     if (sc) routeObs.observe(sc);
   }

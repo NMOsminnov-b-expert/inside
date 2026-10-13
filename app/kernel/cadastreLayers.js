@@ -26,6 +26,11 @@ const MAX_POINTS = 12;       // точек за раз (остановок дн�
 // points — [[широта, долгота], …]
 export function attachCadastreLayers(L, map, points) {
   const pts = (points || []).filter(Boolean).slice(0, MAX_POINTS);
+  // Порядок слоёв — панелями карты, а не порядком загрузки: участки соседних
+  // точек догружаются позже и иначе ложились поверх строений (по строению не
+  // щёлкнуть). Снизу вверх: участки 380, строения 390, линия маршрута
+  // (overlayPane, 400), свой участок ('own', 450), значки.
+  [['cadParcels', 380], ['cadBuilds', 390]].forEach(([n, z]) => { if (!map.getPane(n)) map.createPane(n).style.zIndex = z; });
   const parcels = L.layerGroup().addTo(map);
   const builds = L.layerGroup().addTo(map);
   const Note = L.Control.extend({
@@ -41,6 +46,35 @@ export function attachCadastreLayers(L, map, points) {
     return [lon - dLon, lat - dLat, lon + dLon, lat + dLat];
   };
   const seen = new Set();      // ЕНИ и строения, уже нарисованные (квадраты соседних точек пересекаются)
+  // Выделение участка — по его контуру, сколько бы в нём ни было точек:
+  // заливка и толстая граница самой фигуры (замечание пользователя
+  // 13.10.2026: «Выделение явно не по границам… Это не обязательно 4 точки!
+  // напиши нормальное выделение»). Прямоугольник, который был виден, —
+  // обводка фокуса браузера по габаритам фигуры; она снята в tokens.css.
+  // Щелчок по выделенному или мимо участков — снять выделение.
+  const PARCEL = { color: '#8b5cf6', opacity: 0.6, weight: 0.8, fillColor: '#8b5cf6', fillOpacity: 0 };
+  const PICKED = { color: '#6d28d9', opacity: 1, weight: 3, fillColor: '#8b5cf6', fillOpacity: 0.32 };
+  // Строения — так же (13.10.2026: «А со строениями как быть?»): одно
+  // выделенное на карте — участок или строение.
+  const BUILD = { color: '#64748b', opacity: 0.7, weight: 0.8, fillColor: '#94a3b8', fillOpacity: 0.22 };
+  const BUILD_PICKED = { color: '#334155', opacity: 1, weight: 3, fillColor: '#64748b', fillOpacity: 0.55 };
+  let picked = null;
+  let skip = false;            // щелчок по участку дошёл и до карты — его не считать «мимо»
+  const pick = (layer) => {
+    skip = true;
+    setTimeout(() => { skip = false; });
+    if (picked) picked.setStyle(picked.options.base);
+    picked = picked === layer ? null : layer;
+    if (picked) {
+      picked.setStyle(picked.options.hot);
+      picked.bringToFront();
+    }
+  };
+  const onMapClick = () => {
+    if (skip) { skip = false; return; }
+    if (picked) { picked.setStyle(picked.options.base); picked = null; }
+  };
+  map.on('click', onMapClick);
   let loaded = false;
   let busy = false;
   let np = 0;
@@ -66,7 +100,8 @@ export function attachCadastreLayers(L, map, points) {
           if (seen.has(key)) return;
           seen.add(key);
           np += 1;
-          shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { color: '#8b5cf6', opacity: 0.6, weight: 0.8, fill: true, fillOpacity: 0, className: 'cad-parcel' })
+          shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...PARCEL, pane: 'cadParcels', fill: true, className: 'cad-parcel', base: PARCEL, hot: PICKED })
+            .on('click', (e) => pick(e.target))
             .bindTooltip(`<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>${esc(pr.NAZNACHENI)}</i>` : ''}`, { sticky: true, className: 'map-tip' })
             .addTo(parcels));
         });
@@ -76,13 +111,13 @@ export function attachCadastreLayers(L, map, points) {
           seen.add(key);
           nb += 1;
           const pr = f.properties || {};
-          shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { color: '#64748b', opacity: 0.7, weight: 0.8, fillColor: '#94a3b8', fillOpacity: 0.22, className: 'cad-build' })
+          shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...BUILD, pane: 'cadBuilds', className: 'cad-build', base: BUILD, hot: BUILD_PICKED })
+            .on('click', (e) => pick(e.target))
             .bindTooltip(`<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br>${esc(pr.NAZNACHENI)}` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`, { sticky: true, className: 'map-tip' })
             .addTo(builds));
         });
         say(`Кадастр: вокруг объектов — участков ${np} · строений ${nb}`);
       }
-      parcels.eachLayer((l) => l.bringToBack());
       loaded = true;
     } catch (e) {
       say('Кадастр не ответил — запустите прокси: python tools/cadastre/proxy.py', 'err');
@@ -97,5 +132,5 @@ export function attachCadastreLayers(L, map, points) {
   };
   map.on('zoomend', onZoom);
   onZoom();
-  return () => { map.off('zoomend', onZoom); parcels.remove(); builds.remove(); note.remove(); };
+  return () => { map.off('zoomend', onZoom); map.off('click', onMapClick); parcels.remove(); builds.remove(); note.remove(); };
 }

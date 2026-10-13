@@ -528,5 +528,9 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .leaflet-tooltip.map-tip i{font-style:normal;color:#5a6b82}
 /* Подсказка у края карты не сжимается в колонку: ЕНИ и заголовок — одной
    строкой (снимок 13.10.2026: ЕНИ ломался по символам). */
+/* Фигуры карты (участки, строения): без обводки фокуса браузера — она рисует
+   прямоугольник по габаритам фигуры, а не по её границе (13.10.2026:
+   «Выделение явно не по границам»); выделение — стилем самой фигуры. */
+.leaflet-container path.leaflet-interactive:focus{outline:none}
 .leaflet-tooltip.map-tip,.leaflet-tooltip.ip-tip{min-width:210px}
 .leaflet-tooltip.map-tip b,.leaflet-tooltip.ip-tip b{white-space:nowrap}
