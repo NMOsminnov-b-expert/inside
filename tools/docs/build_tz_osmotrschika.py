@@ -18,11 +18,12 @@ from docx import Document
 from docx.shared import Pt, Cm
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-# Записи и их документы: python build_tz_osmotrschika.py [ux] — второй — разбор
-# UI/UX раздела «Осмотры».
+# Записи и их документы: python build_tz_osmotrschika.py [ux | panel] — разбор
+# UI/UX раздела «Осмотры», ТЗ панели осмотров регионала.
 DOCS = {
     'tz': ('tz_rabota_osmotrschika.py', 'tz-rabota-osmotrschika.docx'),
     'ux': ('razbor_ui_ux_razdela_osmotry_scenarii_putanica_navigacii_plan.py', 'razbor-ui-ux-osmotry.docx'),
+    'panel': ('panel_osmotrov_tz.py', 'tz-panel-osmotrov.docx'),
 }
 import sys
 _key = sys.argv[1] if len(sys.argv) > 1 else 'tz'
