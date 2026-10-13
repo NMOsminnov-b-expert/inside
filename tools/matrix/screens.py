@@ -16,7 +16,8 @@ from urllib.parse import quote
 # всегда, у него назначения, отчёты и профиль.
 PERSON = 'Абдылдаев Айсултан Марсович'
 
-_INSP_TOUCH = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/xlsx.js')
+_INSP_TOUCH = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/xlsx.js',
+               'app/kernel/mapgl.js', 'app/kernel/cadastreLayersGL.js', 'app/vendor/maplibre/')
 _INSPECTOR_TOUCH = ('app/pages/inspector/', 'app/kernel/inspections')
 _ALL = ['summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
 _PERSON = ['trips', 'plan', 'route', 'reports', 'stats', 'assigns', 'profile', 'car']
@@ -46,7 +47,11 @@ def _add(name, section, role, route, wait, touches, prep=()):
 
 
 _add('Осмотры · К назначению', 'osmotry', 'rm', '#/inspections?s=assign&t=queue', '[data-ip-section]', _INSP_TOUCH)
-_add('Осмотры · Назначено', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned', '[data-ip-section]', _INSP_TOUCH)
+# «Назначено» — сначала сотрудник, потом его объекты (перестройка 13.10.2026):
+# три уровня — список сотрудников, все назначения, объекты одного сотрудника.
+_add('Осмотры · Назначено · сотрудники', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned', '[data-ip-section]', _INSP_TOUCH)
+_add('Осмотры · Назначено · все', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned&ap=*', '[data-ip-section]', _INSP_TOUCH)
+_add('Осмотры · Назначено · сотрудник', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned&ap=' + quote(PERSON), '[data-ip-section]', _INSP_TOUCH)
 for k in _ALL:
     _add('Осмотры · Все осмотрщики · ' + k, 'osmotry', 'rm', '#/inspections?s=people&t=' + k, '[data-ip-section]', _INSP_TOUCH)
 for k in _PERSON:

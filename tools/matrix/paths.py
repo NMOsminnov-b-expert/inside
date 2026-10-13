@@ -100,11 +100,16 @@ class P:
         self.wait(500)
 
     def open_filters(self):
-        """Узкая раскладка (до 1100 px): отборы свёрнуты в «Отборы · N» — раскрыть, как человек."""
-        t = self.page.locator('[data-ip-ftoggle]')
-        if t.count() and t.is_visible() and not self.page.locator('.ip-facets.open').count():
-            t.click()
-            self.wait(300)
+        """Отборы открываются кнопкой «Отбор» над списком (сцена «Назначений»,
+        13.10.2026), на узкой раскладке — «Отборы · N»: раскрыть, как человек."""
+        if self.page.locator('.ip-facets.open').count():
+            return
+        for sel in ('.ip-fbtn[data-ip-ftoggle]', '.ip-facets-toggle[data-ip-ftoggle]'):
+            t = self.page.locator(sel)
+            if t.count() and t.first.is_visible():
+                t.first.click()
+                self.wait_for('.ip-facets.open [data-ip-ff]')
+                return
 
     def scroll(self, sel, px):
         return self.page.evaluate("([s, px]) => { const e = document.querySelector(s); if (!e) return 0; e.scrollTop = px; return Math.round(e.scrollTop); }", [sel, px])
@@ -131,6 +136,7 @@ def worker(pid, width, role, out):
         ctx.route('**/*', lambda r: r.continue_() if r.request.url.startswith(base) else r.fulfill(status=204, body=''))
         page = ctx.new_page()
         page.set_default_timeout(9000)
+        page.set_default_navigation_timeout(30000)   # холодная загрузка в параллельном прогоне — см. tools/checks/harness.py
         page.on('console', lambda m: res['console'].append(m.text[:200]) if m.type == 'error' else None)
         page.on('pageerror', lambda e: res['console'].append(('PAGEERROR ' + str(e))[:200]))
         page.on('dialog', lambda d: (res['console'].append('МОДАЛКА ' + d.message[:80]), d.dismiss()))

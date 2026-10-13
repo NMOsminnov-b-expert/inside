@@ -1559,8 +1559,13 @@ export function mountInspections(host) {
     const side = work && getComputedStyle(work).position === 'absolute';
     const isles = scope.$('.ip-isles');
     const top = isles ? isles.getBoundingClientRect().bottom - box.top + 12 : 72;
-    return side ? { top, left: sceneLeft(box), right: sceneRight(box), bottom: 40 }
+    const pad = side ? { top, left: sceneLeft(box), right: sceneRight(box), bottom: 40 }
       : { top, left: 24, right: 24, bottom: Math.max(40, box.bottom - (work ? work.getBoundingClientRect().top : box.bottom) + 24) };
+    // Только числа: сцена, скрытая под поверхностью или на узком окне до
+    // раскладки, давала NaN, и MapLibre падал «Invalid value for edge-insets»
+    // (матрица путей 13.10.2026).
+    Object.keys(pad).forEach((k) => { pad[k] = Number.isFinite(pad[k]) ? Math.max(0, Math.round(pad[k])) : 0; });
+    return pad;
   }
   // Место, которое панели занимают слева и справа: точки вписываются в
   // видимую часть сцены, а не под панели.

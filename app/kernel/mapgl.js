@@ -19,7 +19,13 @@ let loading = null;
 export function loadMapLibre(ensureStyle) {
   if (window.maplibregl) return Promise.resolve(window.maplibregl);
   if (!loading) {
-    loading = Promise.all([
+    // Движок (0,9 МБ) — после загрузки страницы: списки и панели появляются
+    // сразу, карта подтягивается следом. Вставленный раньше скрипт держал
+    // событие загрузки страницы — на слабом железе и в параллельных прогонах
+    // проверок открытие «Осмотров» уходило за 9–10 с (замер 13.10.2026).
+    const afterLoad = document.readyState === 'complete' ? Promise.resolve()
+      : new Promise((ok) => addEventListener('load', () => ok(), { once: true }));
+    loading = afterLoad.then(() => Promise.all([
       ensureStyle ? ensureStyle('./app/vendor/maplibre/maplibre-gl.css') : Promise.resolve(),
       new Promise((ok, fail) => {
         const s = document.createElement('script');
@@ -28,7 +34,7 @@ export function loadMapLibre(ensureStyle) {
         s.onerror = () => fail(new Error('MapLibre не загрузился'));
         document.head.appendChild(s);
       }),
-    ]).then(() => window.maplibregl);
+    ])).then(() => window.maplibregl);
   }
   return loading;
 }

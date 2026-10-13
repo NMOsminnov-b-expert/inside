@@ -70,6 +70,7 @@ def worker(idx, repeats, width, path):
         ctx.on('page', lambda pg: pg.close() if len(ctx.pages) > 1 else None)
         page = ctx.new_page()
         page.set_default_timeout(8000)
+        page.set_default_navigation_timeout(30000)   # холодная загрузка в параллельном прогоне — см. tools/checks/harness.py
         t = harness.Tester(page, base + '/app.html')
         events = {'console': [], 'dialog': []}
         page.on('console', lambda m: events['console'].append(m.text[:200]) if m.type == 'error' else None)
