@@ -6,6 +6,7 @@
 // карточки (materialize) — так 20 000 объектов не занимают память целиком.
 // Это же поведение будет у реального бэкенда: список — сводки, карточка — запрос.
 import { POOLS } from './bulkPools.js';
+import { demoParcel } from '../../../kernel/demoParcels.js';
 
 // Соль модуля: без неё все типы ОЦ получили бы одинаковые случайные данные.
 function saltOf(str) {
@@ -63,6 +64,9 @@ export function isBulkId(id) {
 
 // Адрес формируется по правилам этого типа ОЦ.
 export function addressOf(p, i) {
+  // Настоящий участок Кадастра (демо-выгрузка, 13.10.2026: «подтяни реальные
+  // ЕНИ в примеры») — город пула и адрес участка; без выгрузки — синтетика.
+  if (p.parcel) return `${p.city}, ${p.parcel.addr}`;
   return `${p.city}, ул. ${p.street}, д. ${p.house}`;
 }
 
@@ -82,7 +86,10 @@ function paramsFor(i) {
   const users = rnd() < 0.55 ? [pick(rnd, P.people)] : [];
   const status = pick(rnd, P.statuses);
   const purpose = pick(rnd, P.purposes);
-  const eni = String(P.eniBase + i * 7 + int(rnd, 0, 6));
+  // ЕНИ — настоящего участка из демо-выгрузки Кадастра (kernel/demoParcels.js):
+  // по нему карточка находит координаты, а «Осмотры» — точку на карте.
+  const parcel = demoParcel(city, i * 3 + (saltOf(P.idPrefix) % 113));   // свой сдвиг у модуля: одинаковые номера — разные участки
+  const eni = parcel ? parcel.eni : String(P.eniBase + i * 7 + int(rnd, 0, 6));
 
   const resp = {
     gov: pick(rnd, P.people),
@@ -107,7 +114,7 @@ function paramsFor(i) {
   const updatedAt = dateStr(rnd, -400, -1);
 
   return {
-    city, street, house, institution, podved, owners, users, status, purpose, eni, resp, docs,
+    parcel, city, street: parcel ? parcel.addr.replace(/\s*д\.\s*\S+$/, '') : street, house: parcel ? (parcel.addr.match(/д\.\s*(\S+)$/) || ['', ''])[1] : house, institution, podved, owners, users, status, purpose, eni, resp, docs,
     ml, mlUnverified, defects, updatedAt,
     metrics: { oiCount, area, landArea: Math.round(area * (0.4 + (rnd() * 1.6)) * 100) / 100, photos, docs, pendingNotes },
     flags: { ml, mlUnverified, defects, pendingNotes: pendingNotes > 0, specials },
