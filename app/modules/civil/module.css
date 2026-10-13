@@ -23,7 +23,7 @@
    движимого: он тише, и это ровно то, чем вспомогательная постройка
    отличается от литеры.
 --------------------------------------------------------------------------- */
-body[data-module="civil"] .oi-sub[data-oi-sub="aux"] .oi-sub-h{background:var(--slate-50);
+body[data-module] .oi-sub[data-oi-sub="aux"] .oi-sub-h{background:var(--slate-50);
   color:var(--slate-700);box-shadow:inset 3px 0 0 var(--slate-500)}
 body .oi-node-cnt.aux{background:var(--slate-50);color:var(--slate-700);
   border:1px solid var(--line);margin-left:4px}
