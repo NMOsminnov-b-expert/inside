@@ -1256,3 +1256,7 @@ body[data-page="inspections"] .ip-isles .ip-subisle .itab.on b{color:#fff;backgr
 body[data-page="inspections"] .ip-card-body:has(> .ipc-cal:only-child){overflow:auto}
 body[data-page="inspections"] .ip-card-body > .ipc-cal:only-child{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 body[data-page="inspections"] .ip-card-body > .ipc-cal:only-child .ipc-cal-tbl{flex:1 1 auto;height:100%}
+
+/* Подменю не шире строки: переносится внутри своего островка. */
+body[data-page="inspections"] .ip-isles .ip-subisle{flex:0 1 auto;max-width:100%;min-width:0}
+body[data-page="inspections"] .ip-isles .ip-jump{min-width:0}

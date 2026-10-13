@@ -1538,13 +1538,22 @@ export function mountInspections(host) {
   function liftSubTabs() {
     const isles = scope.$('.ip-isles');
     if (!isles) return;
-    const bell = scope.$('.ip-bell');
+    // Порядок: режимы, уведомления, подменю — колокольчик не уезжает один в
+    // нижний ряд, когда подменю переносится.
     scope.$$('.ip > * .ip-subtabs, .ip > .ip-subtabs').forEach((el) => {
       el.classList.add('ip-isl', 'ip-subisle');
-      isles.insertBefore(el, bell);
+      isles.appendChild(el);
     });
     fitSceneTop();
+    // Высота строки островков меняется и после отрисовки (догрузились
+    // шрифты и стили, перенос рядов): пересчёт по наблюдателю размера, иначе
+    // при обновлении страницы панели отсчитывались от завышенной строки и
+    // рабочую зону «сплющивало» (замечание пользователя 13.10.2026).
+    islesObs.disconnect();
+    islesObs.observe(isles);
   }
+  const islesObs = new ResizeObserver(() => fitSceneTop());
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitSceneTop());
   function fitSceneTop() {
     const page = scope.$('.ip-page');
     const isles = scope.$('.ip-isles');
@@ -1559,7 +1568,18 @@ export function mountInspections(host) {
     const bar = document.querySelector('.topbar');
     if (!j || !bar) return;
     const r = bar.getBoundingClientRect();
-    j.style.left = `${r.left + r.width / 2}px`;
+    // Ширина — по свободному месту полосы: «Осмотры» слева и меню
+    // пользователя справа не перекрываются ни на какой ширине окна.
+    // Середина полосы — если там хватает места; иначе — середина промежутка
+    // между «Осмотры» и меню пользователя.
+    const user = bar.querySelector('#userMenu');
+    const crumbs = bar.querySelector('#crumbs');
+    const from = (crumbs ? crumbs.getBoundingClientRect().right : r.left) + 16;
+    const to = (user ? user.getBoundingClientRect().left : r.right) - 16;
+    const mid = r.left + r.width / 2;
+    const half = Math.min(260, mid - from, to - mid);
+    if (half >= 150) { j.style.width = `${half * 2}px`; j.style.left = `${mid}px`; }
+    else { const w = Math.max(140, Math.min(520, to - from)); j.style.width = `${w}px`; j.style.left = `${from + w / 2}px`; }
     j.style.top = `${r.top + (r.height - 32) / 2}px`;
   }
   const onResize = () => { placeJump(); fitSceneTop(); };
@@ -2598,6 +2618,7 @@ export function mountInspections(host) {
       hidePop();
       window.removeEventListener('resize', onResize);
       barObs.disconnect();
+      islesObs.disconnect();
       if (scene.obs) { scene.obs.disconnect(); scene.obs = null; }
       if (scene.map) { scene.map.remove(); scene.map = null; }
       if (scene.el) { scene.el.remove(); scene.el = null; }
