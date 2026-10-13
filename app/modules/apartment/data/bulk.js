@@ -66,7 +66,7 @@ export function isBulkId(id) {
 export function addressOf(p, i) {
   // Настоящий участок Кадастра (демо-выгрузка, 13.10.2026: «подтяни реальные
   // ЕНИ в примеры») — город пула и адрес участка; без выгрузки — синтетика.
-  if (p.parcel) return `${p.city}, ${p.parcel.addr}, кв. ${1 + (i % 90)}`;
+  if (p.parcel) return `${p.city}, ул. ${p.street}${p.house ? `, д. ${p.house}` : ''}, кв. ${1 + (i % 90)}`;   // как собирает запись (ocFullAddress)
   return `${p.city}, ул. ${p.street}, д. ${p.house}, кв. ${1 + (i % 90)}`;
 }
 
@@ -114,7 +114,7 @@ function paramsFor(i) {
   const updatedAt = dateStr(rnd, -400, -1);
 
   return {
-    parcel, city, street: parcel ? parcel.addr.replace(/\s*д\.\s*\S+$/, '') : street, house: parcel ? (parcel.addr.match(/д\.\s*(\S+)$/) || ['', ''])[1] : house, institution, podved, owners, users, status, purpose, eni, resp, docs,
+    parcel, city, street: parcel ? parcel.addr.replace(/\s*д\.\s*\S+$/, '').replace(/^ул\.\s*/, '') : street, house: parcel ? (parcel.addr.match(/д\.\s*(\S+)$/) || ['', ''])[1] : house, institution, podved, owners, users, status, purpose, eni, resp, docs,
     ml, mlUnverified, defects, updatedAt,
     metrics: { oiCount, area, landArea: Math.round(area * (0.4 + (rnd() * 1.6)) * 100) / 100, photos, docs, pendingNotes },
     flags: { ml, mlUnverified, defects, pendingNotes: pendingNotes > 0, specials },
