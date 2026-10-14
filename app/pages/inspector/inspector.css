@@ -29,6 +29,9 @@ body[data-page="insp"] .content {
   padding: 0;
   background: var(--bg);
   -webkit-overflow-scrolling: touch;
+  /* Привязка прокрутки выключена: шапка сжимается при прокрутке, и браузер,
+     удерживая видимое, сдвигал прокрутку назад за порог — шапка дрожала. */
+  overflow-anchor: none;
 }
 
 /* --- каркас экрана ------------------------------------------------------ */
@@ -684,7 +687,7 @@ body[data-page="insp"] .content {
    простыни из двадцати восьми полей. */
 .ins-sum {
   position: sticky;
-  top: 56px;
+  top: var(--ins-head-h, 56px);
   z-index: 4;
   display: flex;
   align-items: center;
@@ -976,3 +979,35 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 .ins-ntf.off a, .ins-ntf.off > span { border-left-color: var(--danger); }
 .ins-ntf b { font-size: 14px; }
 .ins-ntf small { font-size: 12px; color: var(--muted); }
+
+/* --- шапка при прокрутке — в одну строку --------------------------------
+   Класс ставит inspector.js (onScroll) на body: разметка экрана
+   перерисовывается целиком, и класс на самом экране терялся бы. */
+body.ins-compact .ins-head { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
+body.ins-compact .ins-back { flex-basis: 40px; min-height: 40px; }
+body.ins-compact .ins-head-txt { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+body.ins-compact .ins-head-title { font-size: 15px; -webkit-line-clamp: 1; flex: 1 1 auto; min-width: 0; }
+body.ins-compact .ins-head-sub { display: none; }
+body.ins-compact .ins-head-eni { flex: 0 0 auto; margin: 0; white-space: nowrap; }
+body.ins-compact .ins-strip { display: none; }
+body.ins-compact .ins-sum { padding-top: 4px; padding-bottom: 4px; }
+body.ins-compact .ins-sum .ins-btn-sm { min-height: 40px; }
+
+/* --- списки выбора на экране осмотра — под палец --------------------------
+   Мультивыбор — тот же, что в карточках ОЦ (kernel/cards.css .ms-*), и та же
+   рамка со стрелкой, что у одиночного списка (класс select); здесь — размеры
+   под палец. Селекторы с body[data-page] — сильнее общих правил ядра. */
+body[data-page="insp"] .ins .ms-control { display: flex; align-items: center; width: 100%; height: auto; min-height: 48px;
+  border-radius: 10px; padding: 6px 30px 6px 10px; font-size: 15px; background-color: var(--panel); }
+body[data-page="insp"] .ins .ms-sum { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+body[data-page="insp"] .ins .ms-summary { font-size: 15px; color: var(--ink); }
+body[data-page="insp"] .ins .ms-sum .muted { color: var(--muted); }
+body[data-page="insp"] .ins .ms-drop { max-height: min(60dvh, 420px); }
+body[data-page="insp"] .ins .ms-opt { min-height: 44px; font-size: 15px; }
+body[data-page="insp"] .ins .ms-opt input { width: 20px; height: 20px; }
+body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
+@media (min-width: 720px) {
+  body[data-page="insp"] .ins .ms-control { min-height: 38px; font-size: 14px; }
+  body[data-page="insp"] .ins .ms-summary, body[data-page="insp"] .ins .ms-opt { font-size: 14px; }
+  body[data-page="insp"] .ins .ms-opt { min-height: 34px; }
+}

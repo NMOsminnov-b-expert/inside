@@ -26,6 +26,7 @@
 // сослаться на такой виджет, а не пытаться его заменить. Иначе конструктор
 // превратится во второй язык разметки, только хуже.
 import { esc } from './dom.js';
+import { msDropBodyHTML, bindMsSearch } from './multiSelect.js';
 
 // --- чтение и запись значения ---------------------------------------------
 //
@@ -94,13 +95,41 @@ const DEF_UI = {
 //     прячет уже отмеченное за свёрнутой подписью.
 const CHIPS_MAX = 5;
 
-const controlOf = (field) => field.control
-  || (field.opts.length <= CHIPS_MAX ? 'chips' : (field.multi ? 'rows' : 'select'));
+// ui.lists — экран, где любой выбор — список (экран осмотрщика, замечание
+// пользователя 14.10.2026: «формат в виде огромного количества кнопок
+// неудобен... лучше селекторы»): у вариантов осмотра длинные подписи («Нет
+// (доступно подключение)»), и четыре кнопки вставали в две-три строки на
+// каждое поле. Один ответ — выпадающий список, несколько — выпадающий
+// мультивыбор, тот же, что в карточках ОЦ (kernel/multiSelect.js).
+const controlOf = (field, ui = {}) => field.control
+  || (ui.lists ? (field.multi ? 'ms' : 'select')
+    : field.opts.length <= CHIPS_MAX ? 'chips' : (field.multi ? 'rows' : 'select'));
+
+function msSummaryHTML(list) {
+  const text = list.join(' / ');
+  return list.length
+    ? `<span class="ms-summary" title="${esc(text)}">${esc(text)}</span><span class="ms-count">${list.length}</span>`
+    : '<span class="muted">Не выбрано</span>';
+}
+
+const msBodyHTML = (field, list) => msDropBodyHTML({
+  options: field.opts, selected: list, optAttr: 'fs-ms', value: (v) => `${field.key}|${v}`,
+});
 
 function optsHTML(field, value, ui) {
   const list = Array.isArray(value) ? value : (value ? [value] : []);
 
-  if (controlOf(field) === 'select') {
+  if (controlOf(field, ui) === 'ms') {
+    // Класс select — та же рамка и стрелка, что у одиночного списка рядом.
+    return `<div class="ms" data-fs-msbox="${esc(field.key)}">
+      <div class="ms-control select" data-ms-control data-fs-ms-toggle role="button" tabindex="0" aria-expanded="false">
+        <span class="ms-sum" data-fs-ms-sum>${msSummaryHTML(list)}</span>
+      </div>
+      <div class="ms-drop" hidden>${msBodyHTML(field, list)}</div>
+    </div>`;
+  }
+
+  if (controlOf(field, ui) === 'select') {
     const cur = list[0] || '';
     return `<select class="${ui.select}" data-fs-sel="${esc(field.key)}">
       <option value="">${esc(field.emptyLabel || 'Не выбрано')}</option>
@@ -110,7 +139,7 @@ function optsHTML(field, value, ui) {
 
   // Строки и чипы — одна и та же кнопка выбора (data-fs-opt), отличаются
   // только классами и оформлением: обработчикам экрана про это знать не нужно.
-  const rows = controlOf(field) === 'rows';
+  const rows = controlOf(field, ui) === 'rows';
   const wrap = rows ? (ui.rows || ui.opts) : ui.opts;
   const item = rows ? (ui.row || ui.opt) : ui.opt;
 
@@ -150,7 +179,7 @@ export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
   // одиннадцать значений встают столбиком — та же простыня, от которой
   // избавлялись.
   const wide = field.opts && field.opts.length > CHIPS_MAX
-    && ['chips', 'rows'].includes(controlOf(field));
+    && ['chips', 'rows'].includes(controlOf(field, u));
 
   return `<div class="${u.field}${wide ? ' ' + (u.wide || 'fs-wide') : ''}" data-fs-field="${esc(field.key)}">
     <span class="${u.label}">${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>
@@ -211,6 +240,53 @@ export function bindFields(scope, { values, fields, onChange }) {
     }
 
     if (onChange) onChange(field, getValue(box, path));
+  });
+
+  // Выпадающий мультивыбор (ui.lists): открыть — касание по полю; закрыть —
+  // касание вне его или Escape; отметка пересобирает список «Выбрано / Не
+  // выбрано» на месте, не трогая остальной экран.
+  const closeMs = (except) => scope.$$('[data-fs-msbox] .ms-drop:not([hidden])').forEach((d) => {
+    if (d === except) return;
+    d.hidden = true;
+    const c = d.parentElement.querySelector('[data-fs-ms-toggle]');
+    if (c) { c.classList.remove('open'); c.setAttribute('aria-expanded', 'false'); }
+  });
+  const toggleMs = (el) => {
+    const drop = el.parentElement.querySelector('.ms-drop');
+    const open = drop.hidden;
+    closeMs(drop);
+    drop.hidden = !open;
+    el.classList.toggle('open', open);
+    el.setAttribute('aria-expanded', String(open));
+    if (open) bindMsSearch(drop);
+  };
+  scope.on('click', '[data-fs-ms-toggle]', (e, el) => toggleMs(el));
+  scope.on('keydown', '[data-fs-ms-toggle]', (e, el) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMs(el); }
+  });
+  scope.onDocument('click', (e) => { if (!e.target.closest('[data-fs-msbox]')) closeMs(); });
+  scope.onDocument('keydown', (e) => { if (e.key === 'Escape') closeMs(); });
+  scope.on('change', '[data-fs-ms]', (e, el) => {
+    const [key, opt] = String(el.dataset.fsMs).split('|');
+    const field = byKey.get(key);
+    if (!field) return;
+    const box = vals();
+    const path = field.path || field.key;
+    const cur = getValue(box, path);
+    const list = (Array.isArray(cur) ? cur : (cur ? [cur] : [])).filter((v) => v !== opt);
+    if (el.checked) list.push(opt);
+    const ordered = field.opts.filter((o) => list.includes(o));
+    setValue(box, path, ordered);
+    const wrap = el.closest('[data-fs-msbox]');
+    wrap.querySelector('[data-fs-ms-sum]').innerHTML = msSummaryHTML(ordered);
+    const drop = wrap.querySelector('.ms-drop');
+    const q = drop.querySelector('[data-ms-search]');
+    const text = q ? q.value : '';
+    drop.innerHTML = msBodyHTML(field, ordered);
+    bindMsSearch(drop);
+    const q2 = drop.querySelector('[data-ms-search]');
+    if (q2 && text) { q2.value = text; q2.dispatchEvent(new Event('input')); }
+    if (onChange) onChange(field, ordered, { inPlace: true });
   });
 
   scope.on('change', '[data-fs-sel]', (e, el) => {

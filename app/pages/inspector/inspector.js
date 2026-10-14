@@ -202,7 +202,41 @@ export function mountInspector(host) {
 
   // --- отрисовка ----------------------------------------------------------
 
+  // Шапка при прокрутке — в одну строку (замечание пользователя 14.10.2026:
+  // «При прокрутке... Может стоит лучше прятать и в минимальный режим и
+  // верхнюю часть экрана?»; практика верхней панели Material 3 — заголовок
+  // остаётся, мельче, остальное уходит): сверху — полная шапка; ниже порога —
+  // название и ЕНИ одной строкой, полоса статуса скрыта. Порог с запасом в обе
+  // стороны, чтобы шапка не дрожала на границе. Высота шапки — в переменной:
+  // по ней прилипает полоса «N из M полей» (прежде — 56 px числом, и при
+  // адресе в две строки полоса заезжала под шапку).
+  const content = () => document.querySelector('.content');
+  function syncHead() {
+    const head = scope.$('.ins-head');
+    if (head) document.body.style.setProperty('--ins-head-h', head.offsetHeight + 'px');
+  }
+  function onScroll() {
+    const el = content();
+    if (!el) return;
+    const y = el.scrollTop;
+    const on = document.body.classList.contains('ins-compact');
+    // Порог сжатия (140) больше разницы высот полной и сжатой шапки (до
+    // ~80 px): иначе после сжатия прокрутка оказывалась ниже порога
+    // раскрытия, и шапка дрожала (замечание пользователя 14.10.2026).
+    if (!on && y > 140) document.body.classList.add('ins-compact');
+    else if (on && y < 8) document.body.classList.remove('ins-compact');
+    else return;
+    syncHead();
+  }
+  scope.onDocument('scroll', onScroll, true);
+
   function render() {
+    draw();
+    onScroll();
+    syncHead();
+  }
+
+  function draw() {
     const { typeId, ocId } = route;
     const section = SECTIONS.includes(route.section) ? route.section : 'task';
 
@@ -335,6 +369,8 @@ export function mountInspector(host) {
     values: () => assetValues(route.typeId, route.ocId, route.oiId),
     fields: allFields(route.typeId),
     onChange: (field, value, opts) => {
+      // Мультивыбор пересобран на месте — перерисовка закрыла бы список.
+      if (opts && opts.inPlace) { refreshSum(); return; }
       if (!opts || !opts.typing) {
         render();
         return;
@@ -681,6 +717,8 @@ export function mountInspector(host) {
     },
     destroy() {
       closeLightbox();
+      document.body.classList.remove('ins-compact');
+      document.body.style.removeProperty('--ins-head-h');
     },
   };
 }

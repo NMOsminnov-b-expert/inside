@@ -44,6 +44,8 @@ const ico = (name, size = 20) =>
 // своё, а в настольной карточке будет своё — конструктор ядра принимает набор
 // классов снаружи.
 const FS_UI = {
+  // Любой выбор — списком (замечание пользователя 14.10.2026, kernel/fieldSchema.js).
+  lists: true,
   field: 'ins-fs',
   label: 'ins-fs-l',
   req: 'ins-fs-req',

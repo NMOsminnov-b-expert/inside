@@ -69,7 +69,7 @@ SECTIONS = [
 # Что должно быть нажимаемо пальцем. Селекторы, а не «все кнопки»: у скрытых и
 # служебных элементов размер не важен, а ложный провал хуже отсутствия проверки.
 TAP_SELECTORS = ['.ins-tab', '.ins-back', '.ins-btn', '.ins-seg-b', '.ins-oi-h',
-                 '.pick-btn', '.ins-chip', '.ins-row', '.ins-acc-h']
+                 '.pick-btn', '.ms-control', '.ins-chip', '.ins-row', '.ins-acc-h']
 
 MIN_TAP = 44
 
@@ -239,52 +239,41 @@ def run(t):
     t.ck(pg.locator('[data-asset-save]').count() == 1,
          'в закреплённой полосе нет кнопки сохранения')
 
-    chips = pg.locator('.ins-chip')
-    t.ck(chips.count() > 10, 'полей-чипов в осмотре подозрительно мало: %d' % chips.count())
+    # Любой выбор — списком (замечание пользователя 14.10.2026: «формат в виде
+    # огромного количества кнопок неудобен... лучше селекторы»): один ответ —
+    # выпадающий список, «1 или более» — выпадающий мультивыбор, как в карточках.
+    t.ck(pg.locator('.ins-fs .ins-chip, .ins-fs .ins-row').count() == 0, 'на экране осмотра остались кнопки-варианты вместо списков')
+    sels = pg.locator('.ins select[data-fs-sel]')
+    t.ck(sels.count() > 10, 'полей-списков в осмотре подозрительно мало: %d' % sels.count())
 
     sum_before = pg.locator('.ins-sum').inner_text()
-    chips.first.click()
-    t.wait_until('() => document.querySelectorAll(".ins-chip.on").length === 1')
-    t.ck(pg.locator('.ins-chip.on').count() == 1, 'выбор чипа не отметился')
-    t.ck(pg.locator('.ins-sum').inner_text() != sum_before,
-         'счётчик заполненного не изменился после выбора')
+    t.ck(pg.locator('select[data-fs-sel="electric"] option').count() == 5,
+         'в списке наличия сетей не «Не выбрано» и четыре варианта рабочей системы')
+    pg.select_option('select[data-fs-sel="electric"]', 'Не удалось установить')
+    t.wait_until("(b) => document.querySelector('.ins-sum').innerText !== b", sum_before)
+    t.ck(pg.locator('.ins-sum').inner_text() != sum_before, 'счётчик заполненного не изменился после выбора')
+    # Снять выбор — «Не выбрано» в том же списке.
+    pg.select_option('select[data-fs-sel="electric"]', '')
+    t.wait_until("(b) => document.querySelector('.ins-sum').innerText === b", sum_before)
+    t.ck(pg.locator('.ins-sum').inner_text() == sum_before, 'выбор «Не выбрано» не снял значение')
 
-    # Повторное нажатие снимает выбор — иначе ошибочное касание не исправить.
-    pg.locator('.ins-chip.on').first.click()
-    t.wait_until('() => document.querySelectorAll(".ins-chip.on").length === 0')
-    t.ck(pg.locator('.ins-chip.on').count() == 0, 'повторное нажатие не сняло выбор')
-
-    # Многозначные перечни длиннее пяти значений — СТРОКАМИ с отметкой, а не
-    # плитками (замечание пользователя 08.09.2026: «может от плиток перейти к
-    # таблицам… при нажатии на строку появляется отметка»). Замер на 390 px
-    # показывал, ради чего: одиннадцать плиток «систем отопления» вставали в
-    # десять рядов разной ширины.
-    rows_box = pg.locator('[data-fs-field="heatSystems"] .ins-rows')
-    t.ck(rows_box.count() == 1,
-         'многозначный перечень из одиннадцати значений не стал строками')
-
-    rows = pg.locator('[data-fs-field="heatSystems"] .ins-row')
-    t.ck(rows.count() == 11, 'в строках выбора %d значений вместо одиннадцати' % rows.count())
-    t.ck(pg.locator('[data-fs-field="heatSystems"] .ins-row-m').count() == 11,
-         'у строк выбора нет отметки')
-
-    rows.nth(2).click()
-    t.wait_until('() => document.querySelectorAll(".ins-row.on").length === 1')
-    t.ck(pg.locator('.ins-row.on').count() == 1, 'нажатие на строку не отметилось')
-
-    # Несколько ответов сразу — ради этого поле и многозначное.
-    rows.nth(5).click()
-    t.wait_until('() => document.querySelectorAll(".ins-row.on").length === 2')
-    t.ck(pg.locator('.ins-row.on').count() == 2, 'вторая строка не отметилась')
-
-    rows.nth(2).click()
-    t.wait_until('() => document.querySelectorAll(".ins-row.on").length === 1')
-    t.ck(pg.locator('.ins-row.on').count() == 1, 'повторное нажатие не сняло отметку строки')
-
-    # Короткие перечни («Да / Нет / Не удалось установить») остаются плитками:
-    # там они в две строки и выбираются в одно касание.
-    t.ck(pg.locator('[data-fs-field="electric"] .ins-chip').count() >= 3,
-         'короткий перечень наличия сетей перестал быть плитками')
+    # Многозначные: мультивыбор с отметками, несколько ответов сразу, снятие.
+    box = '[data-fs-msbox="heatSystems"]'
+    t.ck(pg.locator(box).count() == 1, '«Системы отопления (1 или более)» — не мультивыбор')
+    pg.locator(box + ' [data-fs-ms-toggle]').click()
+    opts = pg.locator(box + ' .ms-drop:not([hidden]) input[data-fs-ms]')
+    t.ck(opts.count() == 11, 'в мультивыборе %d значений вместо одиннадцати' % opts.count())
+    pg.locator(box + ' .ms-drop:not([hidden]) .ms-opt').nth(2).click()
+    t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 1", box)
+    pg.locator(box + ' .ms-drop:not([hidden]) [data-ms-rest] .ms-opt').nth(4).click()
+    t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 2", box)
+    t.ck(pg.locator(box + ' .ms-count').inner_text() == '2', 'в мультивыборе не отметились два значения')
+    t.ck(pg.locator(box + ' .ms-drop:not([hidden])').count() == 1, 'мультивыбор закрылся после отметки')
+    pg.locator(box + ' .ms-drop:not([hidden]) .ms-opt:has(input:checked)').first.click()
+    t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 1", box)
+    t.ck(pg.locator(box + ' .ms-count').inner_text() == '1', 'снятие отметки в мультивыборе не сработало')
+    pg.keyboard.press('Escape')
+    t.wait_until("(b) => !document.querySelector(b + ' .ms-drop:not([hidden])')", box)
 
     # Замеры: единицы, значение по документам и СИГНАЛ расхождения по ходу
     # ввода — сигнал, который появляется только после сохранения, на осмотре
