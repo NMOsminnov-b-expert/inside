@@ -29,7 +29,7 @@ import http.cookiejar
 import urllib.error
 import urllib.parse
 import urllib.request
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 URL = 'https://cadastre.kg/svc-portal/map/searchAddrResult.do'
 
@@ -107,14 +107,27 @@ def portal(path_qs, body=None, ctype=None, timeout=30.0):
         return 502, 'text/plain; charset=utf-8', ('портал недоступен: %s' % e).encode('utf-8')
 
 
+# Браузер закрыл соединение, не дождавшись ответа (перезагрузил страницу,
+# ушёл с экрана, истёк его таймаут) — ответ писать некуда. Это не ошибка
+# прокси: одна строка в журнале вместо стека (журнал пользователя 14.10.2026 —
+# ConnectionAbortedError [WinError 10053] на каждый брошенный запрос карты).
+GONE = (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)
+
+
 class Handler(BaseHTTPRequestHandler):
+    def _write(self, code, ctype, body):
+        try:
+            self.send_response(code)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except GONE:
+            sys.stdout.write('клиент не дождался ответа: %s' % self.path[:90] + chr(10))
+
     def _raw(self, code, ctype, body):
-        self.send_response(code)
-        self.send_header('Content-Type', ctype)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Content-Length', str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self._write(code, ctype, body)
 
     def _portal(self, body=None):
         rest = self.path[len('/portal/'):]
@@ -131,15 +144,9 @@ class Handler(BaseHTTPRequestHandler):
         self._portal(self.rfile.read(n) if n else b'')
 
     def _send(self, code, payload):
-        body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
-        self.send_response(code)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
         # Разрешаем любой источник: прокси слушает только петлевой адрес и
         # отдаёт публичные данные портала.
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Content-Length', str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self._write(code, 'application/json; charset=utf-8', json.dumps(payload, ensure_ascii=False).encode('utf-8'))
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -168,6 +175,16 @@ class Handler(BaseHTTPRequestHandler):
         sys.stdout.write('%s\n' % (fmt % args))
 
 
+class Server(ThreadingHTTPServer):
+    # Обрыв соединения браузером — и пока прокси читает запрос, и пока пишет
+    # ответ: одна строка в журнале, а не стек (WinError 10053/10054).
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], GONE):
+            sys.stdout.write('клиент оборвал соединение' + chr(10))
+            return
+        super().handle_error(request, client_address)
+
+
 def main():
     ap = argparse.ArgumentParser(description='Прокси к порталу Кадастра (адрес по ЕНИ)')
     ap.add_argument('--port', type=int, default=8787)
@@ -179,7 +196,12 @@ def main():
         print(json.dumps(fetch(args.check), ensure_ascii=False, indent=2))
         return
 
-    srv = HTTPServer((args.host, args.port), Handler)
+    # Запросы — параллельно: карта Кадастра просит клетки по три разом и
+    # контур участка рядом, а однопоточный сервер отвечал по очереди (замер
+    # 14.10.2026: четыре запроса — 0,56 / 1,12 / 1,77 / 2,31 с), и хвост
+    # очереди не укладывался в таймаут браузера (15 с).
+    srv = Server((args.host, args.port), Handler)
+    srv.daemon_threads = True
     print('Прокси Кадастра: http://%s:%d/eni?code=<ЕНИ>' % (args.host, args.port))
     print('Остановить — Ctrl+C')
     try:
