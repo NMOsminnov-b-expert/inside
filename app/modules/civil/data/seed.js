@@ -13,7 +13,7 @@ export function createSeed() {
       eni: '1030700400754',
       // Адрес целиком у записи: улица и дом переехали из объектов имущества
       // в блок «Местоположение» (решение пользователя 09.09.2026).
-      region: 'Бишкек',
+      region: '',
       city: 'г. Бишкек',
       district: '',
       micro: '',
@@ -364,7 +364,7 @@ export function createSeed() {
       type: 'Нежилое здание',
       purposeTP: 'Учебное',
       eni: '5041710026821',
-      region: 'Ош',
+      region: '',
       city: 'г. Ош',
       district: '',
       micro: '',

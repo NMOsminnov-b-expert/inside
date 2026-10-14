@@ -302,7 +302,7 @@ export function createSeed() {
       type: 'Жилое здание (дом)',
       purposeTP: 'Жилое',
       eni: '5041710026768',
-      region: 'Ош',
+      region: '',
       city: 'г. Ош',
       district: '',
       micro: '',
