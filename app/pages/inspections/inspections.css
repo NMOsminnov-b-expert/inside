@@ -1322,3 +1322,4 @@ body[data-page="inspections"] .ipc-ptbl thead th{white-space:normal;vertical-ali
 @media (max-width:900px){
   body[data-page="inspections"] .ipc-pgrid > .ipc-stats{grid-template-columns:minmax(0,1fr)}
 }
+

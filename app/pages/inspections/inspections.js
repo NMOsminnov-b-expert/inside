@@ -1395,6 +1395,36 @@ export function mountInspections(host) {
       </section>${pane()}` };
   }
 
+  // Краткая карточка назначения — «Назначено» до выбора осмотрщика: что за
+  // объект, кто, на когда, в каком состоянии; переход — в раздел осмотрщика
+  // с этой задачей.
+  function peekHTML() {
+    const a = peek && allAssignments().find((x) => x.id === peek);
+    const s = a && all.get(a.typeId + '|' + a.ocId);
+    if (!a || !s) {
+      return `<aside class="ip-pane ip-pane-none" aria-label="Назначение"><div class="ip-pane-body">
+        <p class="ip-hint">Выберите осмотрщика в списке или точку на карте.</p></div></aside>`;
+    }
+    const n = (a.oiIds || []).length;
+    return `<aside class="ip-pane" aria-label="Назначение">
+      <header class="ip-pane-head">
+        <h2>${esc(s.title)}</h2>
+        <p class="ip-pane-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}${s.eniAll || s.eni ? ` · <span class="mono">${esc(s.eniAll || s.eni)}</span>` : ''}</p>
+        <p class="ip-pane-meta"><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
+          ${a.plannedAt ? `план ${esc(fmtDate(a.plannedAt))}` : 'без даты'}${isOverdue(a) ? ' · <b class="ip-late">просрочено</b>' : ''}</p>
+      </header>
+      <div class="ip-pane-body">
+        <section class="ip-sec"><h3>Осмотрщик</h3><p class="ip-line"><b>${esc(a.person)}</b></p></section>
+        <section class="ip-sec"><h3>Что осмотреть</h3><p class="ip-line">${n ? `${n} ${plural(n, 'объект имущества', 'объекта имущества', 'объектов имущества')}` : 'Объект целиком'}</p>
+          ${a.note ? `<p class="ip-line ip-muted">${esc(a.note)}</p>` : ''}</section>
+      </div>
+      <footer class="ip-pane-foot">
+        <a class="btn btn-ghost" href="${esc(build({ typeId: a.typeId, ocId: a.ocId }))}">Карточка объекта</a>
+        <button class="btn btn-primary" data-ip-peek-open="${esc(a.id)}">Открыть у осмотрщика</button>
+      </footer>
+    </aside>`;
+  }
+
   // --- панель назначения (разделы «Назначения» и «История») -------------------------
   function pane() {
     const ensureDraft = (key, person, date) => { if (draft.key !== key) draft = { key, person: person || '', date: date || '' }; };
@@ -1403,6 +1433,7 @@ export function mountInspections(host) {
       ensureDraft('many:' + [...checked.keys()].join(','), view.assignPerson);
       return paneHTML({ mode: 'many', people, person: draft.person, date: draft.date, targets, plan: planHTML(targets, false) });
     }
+    if (view.section === 'assign' && view.tab === 'assigned' && !view.aPerson) return peekHTML();
     if (view.section === 'history' || view.tab === 'assigned') {
       const a = allAssignments().find((x) => x.id === current);
       const t = a && target(a.typeId + '|' + a.ocId);
@@ -1431,6 +1462,8 @@ export function mountInspections(host) {
   const scene = { el: null, map: null, L: null, layer: null, fitKey: '' };
   let hideList = false;      // панели скрываемы (указание 13.10.2026: «Панели чтобы были скрываемыми»)
   let hidePane = false;
+  // «Назначено» без выбранного осмотрщика: назначение, открытое с карты.
+  let peek = '';
   const gpsCache = new Map();
   const gpsOf = (typeId, id) => {
     const k = typeId + '|' + id;
@@ -1647,6 +1680,16 @@ export function mountInspections(host) {
     }
     lastDot = { k: x.k, t: now };
     scene.fromMap = true;
+    // «Назначено», осмотрщик не выбран: в списке — сотрудники, строки
+    // назначения нет — краткая карточка в боковой панели и переход в раздел
+    // осмотрщика с этой задачей (указания пользователя 14.10.2026:
+    // «Краткую информацию с кнопкой перехода… И открытием как раз его
+    // раздела», «не попап, а боковую панель под это дело»). Повторный
+    // щелчок — скрыть панель, как у остальных точек.
+    if (view.section === 'assign' && view.tab === 'assigned' && !view.aPerson) {
+      if (x.k === peek && !hidePane) { hidePane = true; redraw(); return; }
+      peek = x.k; hidePane = false; redraw(); return;
+    }
     // Щелчок по объекту открывает его панель назначения (даже скрытую),
     // повторный щелчок по тому же объекту — скрывает её (указание
     // 13.10.2026: «при нажатии на объект, если есть взаимодействие с боковой
@@ -1654,6 +1697,17 @@ export function mountInspections(host) {
     if (x.k === current && !hidePane) { hidePane = true; redraw(); return; }
     hidePane = false;
     pickFromScene(x.k);
+  }
+  // Раздел осмотрщика во «Назначено» с выбранной задачей.
+  function openAssigned(id) {
+    const a = allAssignments().find((y) => y.id === id);
+    if (!a) return;
+    peek = '';
+    view.aPerson = a.person; view.q = ''; reassignGroup = ''; checked.clear();
+    current = a.id; hidePane = false; confirmRemove = false;
+    render();
+    const row = scope.$(`[data-ip-row="${CSS.escape(a.id)}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
   }
   function pickFromScene(k) {
     current = k;
@@ -2002,7 +2056,11 @@ export function mountInspections(host) {
     // Маршрут осмотрщика — тоже на сцене: список осмотрщиков и карточка с
     // остановками — панелями, карта маршрута — на всё остальное место.
     const onRoute = view.section === 'people' && !!view.person && view.personTab === 'route';
-    scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${hideList ? 'hide-list' : ''} ${hidePane ? 'hide-pane' : ''}">
+    // Скрытые список и панель (кнопки ‹ › у краёв карты) — только у
+    // «Назначений»: перенесённые в другие разделы, они прятали там
+    // содержимое — пустые «Осмотрщики», «Кадастр», «История» без списка
+    // (замечание пользователя 14.10.2026 «Сломана панель регионалов»).
+    scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${onScene && hideList ? 'hide-list' : ''} ${onScene && hidePane ? 'hide-pane' : ''}">
       <div class="ip-isles">
         <nav class="ip-isl ip-sections" role="tablist" aria-label="Режимы осмотров">
           ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('history', 'История')}
@@ -2576,6 +2634,7 @@ export function mountInspections(host) {
   });
   // «Переназначить все…» в строке группы.
   scope.on('click', '[data-ip-rg]', (e, b) => { reassignGroup = b.dataset.ipRg; redraw(); });
+  scope.on('click', '[data-ip-peek-open]', (e, b) => openAssigned(b.dataset.ipPeekOpen));
   scope.on('click', '[data-ip-aperson]', (e, b) => {
     // Переход между уровнями — свой поиск: на первом — по фамилии, на втором — по объектам.
     view.aPerson = b.dataset.ipAperson; view.q = ''; reassignGroup = ''; checked.clear(); current = ''; render();
