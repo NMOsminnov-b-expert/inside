@@ -18,6 +18,4 @@ POINTS = [
     'С 13.10.2026 выгрузка — отдельный граф мультиграфа C:/vs code/APCS (запись multigraf-otdelnye-grafy-proektov-i-poisk-po-vsem): поиск — graph.py --project APCS find … или --all find …',
     'Предложено, без решения пользователя не делается: поля записи графа CODE, SEVERITY, CLOSED и команды stale / code / debt по образцу graph.py APCS; переход поиска по смыслу на Qwen3-Embedding-4B (81,5 % первой строкой против 72,8 % у 0.6B на 81 вопросе APCS; здесь 0.6B выбрана замером 02.10.2026).',
 ]
-LINKS = [
-    {'тип': 'относится к', 'куда': 'poisk-po-grafu-zamery-apcs', 'папка': 'practices'},
-]
+LINKS = [{'тип': 'относится к', 'куда': 'poisk-po-grafu-zamery-apcs', 'папка': 'practices'}]

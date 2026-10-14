@@ -26,6 +26,10 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'опирается на', 'куда': 'apcs-vygruzka-grafa-12-10-2026', 'папка': 'sources'},
-    {'тип': 'опирается на', 'куда': 'karta-marshruta-karta-vo-vse-mesto-spisok-odnoy-panelyu-ryadom-uchasto', 'папка': 'practices'},
+    {
+        'тип': 'опирается на',
+        'куда': 'karta-marshruta-karta-vo-vse-mesto-spisok-odnoy-panelyu-ryadom-uchasto',
+        'папка': 'practices',
+    },
     {'тип': 'относится к', 'куда': 'panel-osmotrov-tz', 'папка': 'tasks'},
 ]

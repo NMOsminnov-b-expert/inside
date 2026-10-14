@@ -18,5 +18,9 @@ POINTS = [
     'Применено: app/modules/vehicle/module.css, .vh-grid-fit — display:flex; flex-wrap:wrap; поле flex:1 1 150px (у ходовой 96px), мультивыбор — двойная доля. Подписи с длинной расшифровкой аббревиатуры в узком поле — словами с точкой, полное название в подсказке («Коробка пер.» → «Коробка передач (КПП)»).',
 ]
 LINKS = [
-    {'тип': 'применяется в', 'куда': 'kartochka-ts-po-zametkam-07-10-2026-kom-ubrana-tormoza-i-tral-sostoyan', 'папка': 'decisions'},
+    {
+        'тип': 'применяется в',
+        'куда': 'kartochka-ts-po-zametkam-07-10-2026-kom-ubrana-tormoza-i-tral-sostoyan',
+        'папка': 'decisions',
+    },
 ]

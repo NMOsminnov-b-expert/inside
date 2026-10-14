@@ -20,6 +20,14 @@ POINTS = [
     'Не сверялось: марки и модели (столбцы G и H — 603 и 2 942 значения); подсказок марок в карточке нет, записи в разнобой. Вопрос: делать ли подсказки марок и моделей.',
 ]
 LINKS = [
-    {'тип': 'связано с', 'куда': 'zapisi-tehpasportov-ts-stm-spectehnika-gruzopassazhirskiy-gruzovoe-ili', 'папка': 'decisions'},
-    {'тип': 'связано с', 'куда': 'privyazat-zapisi-tehpasportov-k-variantam-poiska-ts-po-knige-par', 'папка': 'tasks'},
+    {
+        'тип': 'связано с',
+        'куда': 'zapisi-tehpasportov-ts-stm-spectehnika-gruzopassazhirskiy-gruzovoe-ili',
+        'папка': 'decisions',
+    },
+    {
+        'тип': 'связано с',
+        'куда': 'privyazat-zapisi-tehpasportov-k-variantam-poiska-ts-po-knige-par',
+        'папка': 'tasks',
+    },
 ]

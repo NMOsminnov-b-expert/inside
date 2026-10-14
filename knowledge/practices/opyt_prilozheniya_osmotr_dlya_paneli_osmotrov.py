@@ -25,5 +25,9 @@ POINTS = [
 LINKS = [
     {'тип': 'опирается на', 'куда': 'apcs-vygruzka-grafa-12-10-2026', 'папка': 'sources'},
     {'тип': 'относится к', 'куда': 'panel-osmotrov-tz', 'папка': 'tasks'},
-    {'тип': 'относится к', 'куда': 'polya-osmotra-vtoroe-znachenie-ryadom-a-ne-pravka-dannyh-cod', 'папка': 'decisions'},
+    {
+        'тип': 'относится к',
+        'куда': 'polya-osmotra-vtoroe-znachenie-ryadom-a-ne-pravka-dannyh-cod',
+        'папка': 'decisions',
+    },
 ]

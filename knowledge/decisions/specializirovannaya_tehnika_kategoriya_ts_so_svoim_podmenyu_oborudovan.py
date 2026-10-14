@@ -20,5 +20,9 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'уточняет', 'куда': 'kartochka-ts-baza-modul', 'папка': 'decisions'},
-    {'тип': 'связано с', 'куда': 'oborudovanie-bez-mashiny-perenesti-iz-ts-v-mehanizmy-razbit-tam-po-kat', 'папка': 'tasks'},
+    {
+        'тип': 'связано с',
+        'куда': 'oborudovanie-bez-mashiny-perenesti-iz-ts-v-mehanizmy-razbit-tam-po-kat',
+        'папка': 'tasks',
+    },
 ]

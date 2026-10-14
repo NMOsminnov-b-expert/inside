@@ -17,5 +17,9 @@ POINTS = [
     'Решение пользователя 07.10.2026 — на вопрос, ставить ли контакты в остальные карточки: «во все ОЦ»; следом: «Механизмы не трогать». Сделано: поле во всех этих ОЦ, кроме механизмов. Остаётся — сделать контакты заметнее и сворачиваемыми.',
 ]
 LINKS = [
-    {'тип': 'уточняет', 'куда': 'kontakty-dlya-svyazi-u-oc-i-u-uzlov-dereva-uchrezhdeniy-v-oc-podtyagiv', 'папка': 'decisions'},
+    {
+        'тип': 'уточняет',
+        'куда': 'kontakty-dlya-svyazi-u-oc-i-u-uzlov-dereva-uchrezhdeniy-v-oc-podtyagiv',
+        'папка': 'decisions',
+    },
 ]

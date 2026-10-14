@@ -31,5 +31,9 @@ POINTS = [
 LINKS = [
     {'тип': 'уточняет', 'куда': 'matricy-vzaimodeystviy-putey-i-scenarii-po-rolyam', 'папка': 'tasks'},
     {'тип': 'опирается на', 'куда': 'tz-rabota-osmotrschika', 'папка': 'tasks'},
-    {'тип': 'опирается на', 'куда': 'razbor-ui-ux-razdela-osmotry-scenarii-putanica-navigacii-plan', 'папка': 'tasks'},
+    {
+        'тип': 'опирается на',
+        'куда': 'razbor-ui-ux-razdela-osmotry-scenarii-putanica-navigacii-plan',
+        'папка': 'tasks',
+    },
 ]

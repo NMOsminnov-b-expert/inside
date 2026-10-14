@@ -35,5 +35,9 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'уточняет', 'куда': 'kartochka-ts-baza-modul', 'папка': 'decisions'},
-    {'тип': 'уточняет', 'куда': 'shablony-mashin-v-poiske-ts-baza-moduli-i-tip-ts-neskolko-nazvaniy-na', 'папка': 'decisions'},
+    {
+        'тип': 'уточняет',
+        'куда': 'shablony-mashin-v-poiske-ts-baza-moduli-i-tip-ts-neskolko-nazvaniy-na',
+        'папка': 'decisions',
+    },
 ]

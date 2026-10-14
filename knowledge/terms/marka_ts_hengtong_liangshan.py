@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'marka-ts-hengtong-liangshan'
 KIND = 'понятие'
@@ -18,5 +15,4 @@ POINTS = [
     'Марка HENGTONG LIANGSHAN: моделей 1, записей в техпаспортах 3.',
     'CBZ9401TDP — записей в техпаспортах 3: полуприцеп, платформа — 100%. В поиске карточки: шаблон Бортовой — полуприцеп (100%).',
 ]
-LINKS = [
-]
+LINKS = []

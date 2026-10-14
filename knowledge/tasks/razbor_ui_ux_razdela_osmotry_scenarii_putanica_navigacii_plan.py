@@ -45,5 +45,9 @@ LINKS = [
     {'тип': 'уточняет', 'куда': 'panel-osmotrov-tz', 'папка': 'tasks'},
     {'тип': 'уточняет', 'куда': 'tz-rabota-osmotrschika', 'папка': 'tasks'},
     {'тип': 'опирается на', 'куда': 'polzunki-prokrutki-i-kraya-lent', 'папка': 'practices'},
-    {'тип': 'опирается на', 'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno', 'папка': 'practices'},
+    {
+        'тип': 'опирается на',
+        'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno',
+        'папка': 'practices',
+    },
 ]

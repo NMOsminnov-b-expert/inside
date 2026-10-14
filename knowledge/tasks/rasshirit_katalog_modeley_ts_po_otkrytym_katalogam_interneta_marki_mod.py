@@ -20,5 +20,9 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'относится к', 'куда': 'modeli-ts-po-markam', 'папка': 'terms'},
-    {'тип': 'относится к', 'куда': 'privyazat-zapisi-tehpasportov-k-variantam-poiska-ts-po-knige-par', 'папка': 'tasks'},
+    {
+        'тип': 'относится к',
+        'куда': 'privyazat-zapisi-tehpasportov-k-variantam-poiska-ts-po-knige-par',
+        'папка': 'tasks',
+    },
 ]

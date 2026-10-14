@@ -20,6 +20,14 @@ POINTS = [
     'Неоднозначные пары («цистерна», «мусоровоз», «пожарная машина», «погрузчик», «каток», «пикап» и др. — 25 пар) оставлены без привязки с примечанием «неоднозначно — выбрать»: равные по поиску варианты разные, автоматически привязалась бы первая по алфавиту (так ГАЗ 53 сначала стал ассенизаторской). Их модели в поиск не попадают, пока пару не разметят. После разметки: пересобрать книгу пар, затем tools/data/build_ts_models.py.',
 ]
 LINKS = [
-    {'тип': 'связано с', 'куда': 'zapisi-tehpasportov-ts-stm-spectehnika-gruzopassazhirskiy-gruzovoe-ili', 'папка': 'decisions'},
-    {'тип': 'связано с', 'куда': 'zapisi-tehpasportov-ts-bez-mesta-v-spravochnike-klassy-avtobusa-naznac', 'папка': 'questions'},
+    {
+        'тип': 'связано с',
+        'куда': 'zapisi-tehpasportov-ts-stm-spectehnika-gruzopassazhirskiy-gruzovoe-ili',
+        'папка': 'decisions',
+    },
+    {
+        'тип': 'связано с',
+        'куда': 'zapisi-tehpasportov-ts-bez-mesta-v-spravochnike-klassy-avtobusa-naznac',
+        'папка': 'questions',
+    },
 ]

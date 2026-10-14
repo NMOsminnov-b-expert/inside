@@ -28,6 +28,10 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'реализует', 'куда': 'tz-rabota-osmotrschika', 'папка': 'tasks'},
-    {'тип': 'опирается на', 'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno', 'папка': 'practices'},
+    {
+        'тип': 'опирается на',
+        'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno',
+        'папка': 'practices',
+    },
     {'тип': 'опирается на', 'куда': 'panel-podrobnostey-sprava', 'папка': 'practices'},
 ]

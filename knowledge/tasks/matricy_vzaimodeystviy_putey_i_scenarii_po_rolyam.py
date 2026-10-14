@@ -26,5 +26,9 @@ POINTS = [
 LINKS = [
     {'тип': 'опирается на', 'куда': 'matrica-vzaimodeystviy-kto-na-kogo-deystvuet', 'папка': 'practices'},
     {'тип': 'опирается на', 'куда': 'matrica-putey-chto-ostalos-posle-deystviya', 'папка': 'practices'},
-    {'тип': 'связано', 'куда': 'razbor-ui-ux-razdela-osmotry-scenarii-putanica-navigacii-plan', 'папка': 'tasks'},
+    {
+        'тип': 'связано',
+        'куда': 'razbor-ui-ux-razdela-osmotry-scenarii-putanica-navigacii-plan',
+        'папка': 'tasks',
+    },
 ]

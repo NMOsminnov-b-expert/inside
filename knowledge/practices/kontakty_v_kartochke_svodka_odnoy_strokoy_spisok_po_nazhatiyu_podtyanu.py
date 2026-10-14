@@ -20,6 +20,10 @@ POINTS = [
     'Узкий экран: строка контакта переходит в два ряда, форма — в один столбец; страница вбок не прокручивается.',
 ]
 LINKS = [
-    {'тип': 'реализует', 'куда': 'kontakty-dlya-svyazi-u-oc-i-u-uzlov-dereva-uchrezhdeniy-v-oc-podtyagiv', 'папка': 'decisions'},
+    {
+        'тип': 'реализует',
+        'куда': 'kontakty-dlya-svyazi-u-oc-i-u-uzlov-dereva-uchrezhdeniy-v-oc-podtyagiv',
+        'папка': 'decisions',
+    },
     {'тип': 'уточняет', 'куда': 'flazhki-i-kontakty-mehanizmov', 'папка': 'practices'},
 ]

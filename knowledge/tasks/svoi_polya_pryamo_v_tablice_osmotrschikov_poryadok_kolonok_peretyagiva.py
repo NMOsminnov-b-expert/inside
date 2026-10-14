@@ -18,5 +18,9 @@ POINTS = [
     'Нынешняя вкладка «Свои поля» после этого — лишняя; убирать её — с отмашки пользователя (правило «ничего не удалять без прямого указания»).',
 ]
 LINKS = [
-    {'тип': 'относится к', 'куда': 'perestroyka-osmotrov-po-apcs-karta-scena-ostrovki-paneli-rezhimov', 'папка': 'decisions'},
+    {
+        'тип': 'относится к',
+        'куда': 'perestroyka-osmotrov-po-apcs-karta-scena-ostrovki-paneli-rezhimov',
+        'папка': 'decisions',
+    },
 ]

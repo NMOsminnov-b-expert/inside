@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'marka-ts-wheeled-tractor'
 KIND = 'понятие'
@@ -18,5 +15,4 @@ POINTS = [
     'Марка WHEELED TRACTOR: моделей 1, записей в техпаспортах 1.',
     'DQ904 — записей в техпаспортах 1: СТМ, трактор — 100%. В поиске карточки: база: Трактор (100%).',
 ]
-LINKS = [
-]
+LINKS = []

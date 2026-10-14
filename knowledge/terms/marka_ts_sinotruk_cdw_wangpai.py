@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'marka-ts-sinotruk-cdw-wangpai'
 KIND = 'понятие'
@@ -18,5 +15,4 @@ POINTS = [
     'Марка SINOTRUK CDW WANGPAI: моделей 1, записей в техпаспортах 5.',
     'CDW — записей в техпаспортах 5: грузовой, самосвал — 100%. В поиске карточки: шаблон Самосвал — грузовое ТС (100%).',
 ]
-LINKS = [
-]
+LINKS = []

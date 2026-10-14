@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'marka-ts-xiangyang-tenglong'
 KIND = 'понятие'
@@ -18,5 +15,4 @@ POINTS = [
     'Марка XIANGYANG TENGLONG: моделей 1, записей в техпаспортах 1.',
     'SYC6900BEV — записей в техпаспортах 1: автобус, большой — 100%. В поиске карточки: база: Автобус (100%).',
 ]
-LINKS = [
-]
+LINKS = []

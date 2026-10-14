@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'modeli-ts-po-markam'
 KIND = 'понятие'
@@ -623,5 +620,9 @@ LINKS = [
     {'тип': 'содержит', 'куда': 'marka-ts-deutz-fahr', 'папка': 'terms'},
     {'тип': 'содержит', 'куда': 'marka-ts-barthau', 'папка': 'terms'},
     {'тип': 'содержит', 'куда': 'marka-ts-zeppelin', 'папка': 'terms'},
-    {'тип': 'относится к', 'куда': 'privyazat-zapisi-tehpasportov-k-variantam-poiska-ts-po-knige-par', 'папка': 'tasks'},
+    {
+        'тип': 'относится к',
+        'куда': 'privyazat-zapisi-tehpasportov-k-variantam-poiska-ts-po-knige-par',
+        'папка': 'tasks',
+    },
 ]

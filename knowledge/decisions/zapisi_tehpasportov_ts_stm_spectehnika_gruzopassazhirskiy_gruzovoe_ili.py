@@ -21,7 +21,15 @@ POINTS = [
     'Итог сверки: поиск «Вида объекта» не находил ничего по 15 822 строкам из 25 432, после правок — по 2 662 (почти всё — классы автобуса и общие слова «спецтранспорт», «другое»); «Тип ТС» без подбора категории — 0 строк (было 3 154: СТМ и грузопассажирский).',
 ]
 LINKS = [
-    {'тип': 'уточняет', 'куда': 'shablony-mashin-v-poiske-ts-baza-moduli-i-tip-ts-neskolko-nazvaniy-na', 'папка': 'decisions'},
-    {'тип': 'уточняет', 'куда': 'specializirovannaya-tehnika-kategoriya-ts-so-svoim-podmenyu-oborudovan', 'папка': 'decisions'},
+    {
+        'тип': 'уточняет',
+        'куда': 'shablony-mashin-v-poiske-ts-baza-moduli-i-tip-ts-neskolko-nazvaniy-na',
+        'папка': 'decisions',
+    },
+    {
+        'тип': 'уточняет',
+        'куда': 'specializirovannaya-tehnika-kategoriya-ts-so-svoim-podmenyu-oborudovan',
+        'папка': 'decisions',
+    },
     {'тип': 'связано с', 'куда': 'kartochka-ts-baza-modul', 'папка': 'decisions'},
 ]

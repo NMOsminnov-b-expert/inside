@@ -17,5 +17,9 @@ POINTS = [
     'Сборщик документа не перезаписывает файл, изменённый человеком после последней сборки: собирает рядом или останавливается с сообщением.',
 ]
 LINKS = [
-    {'тип': 'уточняет', 'куда': 'nichego-ne-udalyat-bez-pryamogo-ukazaniya-prosili-vyvesti-vyvodit-a-ne', 'папка': 'rules'},
+    {
+        'тип': 'уточняет',
+        'куда': 'nichego-ne-udalyat-bez-pryamogo-ukazaniya-prosili-vyvesti-vyvodit-a-ne',
+        'папка': 'rules',
+    },
 ]

@@ -36,9 +36,17 @@ POINTS = [
     'База категорий после пополнения книги (решение пользователя 02.10.2026: «Черновые меняем»): черновые классы, которые теперь есть в книге (музыкальные инструменты; студийное/звукозаписывающее; фото, видео; спортивный инвентарь), заменяются классами книги; черновыми остаются только категории, которых в книге нет.',
 ]
 LINKS = [
-    {'тип': 'опирается на', 'куда': 'gruppy-dvizhimogo-imuschestva-parametry-klassifikator-mehanizmov-i-spe', 'папка': 'sources'},
+    {
+        'тип': 'опирается на',
+        'куда': 'gruppy-dvizhimogo-imuschestva-parametry-klassifikator-mehanizmov-i-spe',
+        'папка': 'sources',
+    },
     {'тип': 'относится к', 'куда': 'kartochka-mekhanizmov-po-klassifikatoru', 'папка': 'decisions'},
-    {'тип': 'относится к', 'куда': 'tekhnologicheskoe-oborudovanie-net-v-klassifikatore', 'папка': 'questions'},
+    {
+        'тип': 'относится к',
+        'куда': 'tekhnologicheskoe-oborudovanie-net-v-klassifikatore',
+        'папка': 'questions',
+    },
     {'тип': 'относится к', 'куда': 'svobodnyy-format-i-poisk-po-derevu', 'папка': 'practices'},
     {'тип': 'опирается на', 'куда': 'dannye-proekta-naruzhu-ne-uhodyat', 'папка': 'rules'},
 ]

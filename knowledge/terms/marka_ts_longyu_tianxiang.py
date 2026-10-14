@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'marka-ts-longyu-tianxiang'
 KIND = 'понятие'
@@ -18,5 +15,4 @@ POINTS = [
     'Марка LONGYU TIANXIANG: моделей 1, записей в техпаспортах 1.',
     'TXC9400TDP — записей в техпаспортах 1: полуприцеп, автовоз — 100%. В поиске карточки: шаблон Автовоз — полуприцеп (100%).',
 ]
-LINKS = [
-]
+LINKS = []

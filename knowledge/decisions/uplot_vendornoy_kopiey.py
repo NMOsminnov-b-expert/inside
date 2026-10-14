@@ -18,5 +18,9 @@ POINTS = [
 ]
 LINKS = [
     {'тип': 'относится к', 'куда': 'panel-osmotrov-tz', 'папка': 'tasks'},
-    {'тип': 'опирается на', 'куда': 'pdf-js-pervaya-vneshnyaya-zavisimost-proekta-vendornoy-kopiey-2026-08', 'папка': 'decisions'},
+    {
+        'тип': 'опирается на',
+        'куда': 'pdf-js-pervaya-vneshnyaya-zavisimost-proekta-vendornoy-kopiey-2026-08',
+        'папка': 'decisions',
+    },
 ]

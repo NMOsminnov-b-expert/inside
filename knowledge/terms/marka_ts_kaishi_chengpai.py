@@ -3,9 +3,6 @@
 
 Запись графа знаний проекта (knowledge/terms). Файл — данные, не код:
 читается разбором (tools/knowledge/graph.py), не исполняется.
-
-СОБИРАЕТСЯ СКРИПТОМ — руками не править:
-    python tools/knowledge/build_ts_models_graph.py
 """
 ID = 'marka-ts-kaishi-chengpai'
 KIND = 'понятие'
@@ -18,5 +15,4 @@ POINTS = [
     'Марка KAISHI CHENGPAI: моделей 1, записей в техпаспортах 2.',
     'SX9220TCC — записей в техпаспортах 2: автобус, средний — 100%. В поиске карточки: база: Автобус (100%).',
 ]
-LINKS = [
-]
+LINKS = []

@@ -24,7 +24,11 @@ POINTS = [
     'Применено: «Осмотры → Осмотрщики → Профиль» и «Авто» (app/pages/inspections/inspections.js, profileHTML, carHTML; стили .ip-pwrap, .ip-pstack, .ip-segf, .ip-reglist, .ip-profile-bar).',
 ]
 LINKS = [
-    {'тип': 'опирается на', 'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno', 'папка': 'practices'},
+    {
+        'тип': 'опирается на',
+        'куда': 'panel-podval-deystviy-vybor-strokoy-dannye-chestno',
+        'папка': 'practices',
+    },
     {'тип': 'опирается на', 'куда': 'bez-modalok-prostranstvo-celikom-stili-iz-yadra', 'папка': 'rules'},
     {'тип': 'реализует', 'куда': 'tz-rabota-osmotrschika', 'папка': 'tasks'},
 ]
