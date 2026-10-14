@@ -184,7 +184,9 @@ const IMPROVE = ['Не благоустроен', 'Частично благоу
 const MECH_STATE = ['Рабочее', 'Условно пригодное', 'Нерабочее'];
 const landDict = (typeId, field, fallback) => (optionsFor(typeId, 'land', field) || fallback).filter((v) => !/^не (выбрано|заполнено)$/i.test(v));
 const at = (o, path) => path.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
-const docOf = (path) => (oi) => { const v = at(oi, path); return v == null || v === '' ? '' : String(v); };
+// Путь поля записи — при функции: по нему сборщик сверки
+// (tools/docs/build_sverka_osmotra.py) находит поле карточки.
+const docOf = (path) => Object.assign((oi) => { const v = at(oi, path); return v == null || v === '' ? '' : String(v); }, { path });
 
 // Квартира — блоки карточки квартиры: площади и высоты, конструктив и износ
 // (тот же справочник, что у литеры), состояние.
