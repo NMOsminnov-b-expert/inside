@@ -178,8 +178,16 @@ export function dayRoute(all, person, date, skip = new Set()) {
     km += l.km;
     at = x.gps;
   };
-  // Назначенные — ближайший следующий.
+  // Назначенные — в порядке, который задал осмотрщик (план дня, order —
+  // указание пользователя 14.10.2026 «нужна возможность перетаскиванием
+  // менять порядок для поездки»), остальные — ближайший следующий.
   let rest = [...fixed.values()].filter((x) => x.gps);
+  ((plan && plan.order) || []).forEach((k) => {
+    const x = rest.find((y) => y.key === k);
+    if (!x) return;
+    rest = rest.filter((y) => y !== x);
+    take(x);
+  });
   while (rest.length) {
     rest.sort((a, b) => roadKm(at || a.gps, a.gps) - roadKm(at || b.gps, b.gps));
     take(rest.shift());
@@ -203,7 +211,7 @@ export function dayRoute(all, person, date, skip = new Set()) {
   const finish = t + back.min;
   return {
     person, date, home, work: w, regions: [...regions], start: hm(start), end: hm(end),
-    stops, proposed, noGps, back: { ...back, arrive: hm(finish) },
+    stops, proposed, noGps, back: { ...back, arrive: hm(finish) }, ordered: !!(plan && plan.order && plan.order.length),
     km: Math.round(km + back.km), driveMin: stops.reduce((n, x) => n + x.drive, 0) + back.min,
     inspectMin: stops.reduce((n, x) => n + x.inspect, 0), over: finish > end ? Math.round(finish - end) : 0,
   };

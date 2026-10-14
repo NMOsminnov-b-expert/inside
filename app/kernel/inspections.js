@@ -494,6 +494,23 @@ export function skipDay(id, date, reason, note = '') {
   return a;
 }
 
+// Вернуть снятое с дня (указание пользователя 14.10.2026: «Снятое тоже
+// должна быть возможность заново назначить»): снятие отменяется — дата
+// возвращается, запись о снятии убирается, отчёт регионалу о нём
+// больше не показывается (событие unskipped).
+export function unskipDay(id, date) {
+  const a = assignmentById(id);
+  if (!a || !isLive(a)) return a;
+  const i = (a.skips || []).map((x) => x.date).lastIndexOf(date);
+  if (i < 0) return a;
+  a.skips = a.skips.filter((x, k) => k !== i);
+  a.plannedAt = date;
+  a.updatedAt = now();
+  logEvent('unskipped', a, { date });
+  changed();
+  return a;
+}
+
 export function unassignMany(ids) {
   ids.forEach((id) => setAssignState(id, 'removed'));
 }
@@ -807,7 +824,18 @@ export function setPlan(person, date, patch) {
   let p = planOf(person, date);
   if (!p) { p = { id: `pl-${person}-${date}`, person, date, region: '', district: '', institutions: '', note: '' }; plans.push(p); }
   Object.assign(p, patch, { at: now(), by: session.state.person });
-  if (!p.region && !p.district && !p.institutions && !p.note) plans.splice(plans.indexOf(p), 1);
+  if (!p.region && !p.district && !p.institutions && !p.note && !(p.order && p.order.length)) plans.splice(plans.indexOf(p), 1);
   changed();
   return p;
+}
+
+// Порядок выездов дня, заданный осмотрщиком перетаскиванием: ключи
+// «тип|запись» по порядку; пустой — снова «ближайший следующий». По нему
+// строится маршрут дня (pages/inspections/route.js) — и у осмотрщика, и в
+// «Маршруте» регионала, и ссылка «Весь маршрут» в навигатор.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: порядок — часть плана дня на сервере; при правке
+// регионалом и осмотрщиком одновременно — последняя правка побеждает или
+// регионал видит, что порядок задан осмотрщиком (развилка).
+export function setDayOrder(person, date, keys) {
+  return setPlan(person, date, { order: [...(keys || [])] });
 }

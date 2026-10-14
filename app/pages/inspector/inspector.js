@@ -24,7 +24,7 @@ import {
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
-import { allAssignments, assignmentById, isLive, takeForDay, skipDay } from '../../kernel/inspections.js';
+import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
@@ -69,6 +69,8 @@ export function mountInspector(host) {
     skipOpen: '',
     skipErr: '',
     pastOpen: false,
+    // Выезд, у которого раскрыто «Выше · Ниже» (ключ «тип|запись»).
+    moveOpen: '',
   };
 
   const rec = () => loadTask(route.typeId, route.ocId);
@@ -170,12 +172,18 @@ export function mountInspector(host) {
     const sumsOf = () => (sums || (sums = summaries()));
     // Снятие с дня — у назначения; снятое сегодня показывается в дне
     // зачёркнутым, а не в «Без даты».
-    const tasks = all.map((t) => {
-      const a = t.assignId ? assignmentById(t.assignId) : null;
-      const skip = a && a.skips && a.skips.length ? a.skips[a.skips.length - 1] : null;
-      return skip ? { ...t, skip } : t;
+    // У объекта бывает несколько назначений (по разным ОИ) — снятие ищется
+    // по всем действующим назначениям объекта у этого осмотрщика.
+    const skipOf = new Map();
+    allAssignments().forEach((a) => {
+      if (a.person !== me || !isLive(a) || !a.skips || !a.skips.length) return;
+      const sk = a.skips[a.skips.length - 1];
+      const k = a.typeId + '|' + a.ocId;
+      const was = skipOf.get(k);
+      if (!was || sk.at > was.at) skipOf.set(k, { ...sk, assignId: a.id });
     });
-    const skippedToday = tasks.filter((t) => t.skip && t.skip.date === date && !t.plannedAt);
+    const tasks = all.map((t) => (skipOf.has(t.key) ? { ...t, skip: skipOf.get(t.key) } : t));
+    const skippedToday = tasks.filter((t) => t.skip && t.skip.date === date);
     // Снятые регионалом за две недели — кроме переназначенных тому же
     // человеку (у объекта есть действующее назначение).
     const since = new Date(Date.now() - 14 * 864e5).toISOString();
@@ -187,7 +195,7 @@ export function mountInspector(host) {
         return s ? { at: a.removedAt, t: { key: a.typeId + '|' + a.ocId, typeId: a.typeId, ocId: a.ocId, title: s.title, typeLabel: s.typeLabel, institution: s.institution, eni: s.eniAll || s.eni, plannedAt: a.plannedAt, assignId: a.id } } : null;
       })
       .filter(Boolean);
-    const m = planModel({ tasks: tasks.filter((t) => !skippedToday.includes(t)), removed, today: date, q });
+    const m = planModel({ tasks: tasks.filter((t) => !(skippedToday.includes(t) && !t.plannedAt)), removed, today: date, q });
     const route = m.today.length ? dayRoute(sumsOf(), me, date) : null;
     const order = route ? route.stops.filter((x) => x.fixed).map((x) => x.key) : [];
     const rank = (t) => { const i = order.indexOf(t.typeId + '|' + t.ocId); return i < 0 ? 1e6 : i; };
@@ -205,6 +213,7 @@ export function mountInspector(host) {
       routeLinks: navLinks(pts), app: navApp(),
       marksOf: (t) => planMarks(t, events, seenAt),
       limit: ui.planLimit, skipOpen: ui.skipOpen, skipErr: ui.skipErr, pastOpen: ui.pastOpen,
+      ordered: !!(route && route.ordered), moveOpen: ui.moveOpen,
     };
   }
   // Поиск и «Показать ещё» перерисовывают только список: поле поиска не
@@ -887,6 +896,138 @@ export function mountInspector(host) {
   });
 
   // --- план осмотрщика (вкладка «Сегодня») ---------------------------------
+  // --- порядок выездов дня -------------------------------------------------
+  //
+  // Перетаскивание за ручку, «Выше · Ниже» по касанию ручки, стрелки
+  // клавиатуры (plan.js, tripHTML). Порядок пишется в план дня осмотрщика
+  // (setDayOrder) — по нему строится маршрут и у регионала.
+  const tripKeys = () => scope.$$('[data-plan-trips] > [data-trip-key]').map((li) => li.dataset.tripKey);
+  function saveOrder(keys, focusKey) {
+    setDayOrder(currentInspector(), isoToday(), keys);
+    renderPlanList();
+    if (focusKey) {
+      const g = scope.$(`[data-plan-grip="${CSS.escape(focusKey)}"]`);
+      if (g) g.focus({ preventScroll: true });
+    }
+  }
+  function moveTrip(key, dir) {
+    const keys = tripKeys();
+    const i = keys.indexOf(key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= keys.length) return;
+    [keys[i], keys[j]] = [keys[j], keys[i]];
+    saveOrder(keys, key);
+    host.toast(`Выезд теперь ${j + 1}-й`, 'ok');
+  }
+  scope.on('click', '[data-plan-move]', (e, el) => {
+    if (ui.moveOpen) moveTrip(ui.moveOpen, el.dataset.planMove === 'up' ? -1 : 1);
+  });
+  scope.on('keydown', '[data-plan-grip]', (e, el) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    moveTrip(el.dataset.planGrip, e.key === 'ArrowUp' ? -1 : 1);
+  });
+  scope.on('click', '[data-plan-order-reset]', () => {
+    ui.moveOpen = '';
+    saveOrder([]);
+    host.toast('Порядок — снова по маршруту от дома', 'ok');
+  });
+  scope.on('click', '[data-plan-unskip]', (e, el) => {
+    unskipDay(el.dataset.planUnskip, isoToday());
+    host.toast('Выезд снова на сегодня, отчёт о снятии убран', 'ok');
+    render();
+  });
+
+  // Перетаскивание: карточка идёт за пальцем, соседние расступаются по
+  // середине карточек; у края прокрутки список прокручивается сам. Без
+  // сдвига (меньше 6 px) — это касание: раскрыть «Выше · Ниже».
+  let drag = null;
+  scope.on('pointerdown', '[data-plan-grip]', (e, el) => {
+    if (e.button !== 0) return;
+    const li = el.closest('[data-trip-key]');
+    const pane = content();
+    if (!li || !pane) return;
+    drag = { el, li, pane, key: li.dataset.tripKey, y0: e.clientY, y: e.clientY, s0: pane.scrollTop, top0: li.offsetTop, on: false, id: e.pointerId, raf: 0 };
+    el.setPointerCapture(e.pointerId);
+  });
+  function dragPlace() {
+    const d = drag;
+    if (!d || !d.on) return;
+    // Куда встать — выше середины какой соседней карточки палец.
+    const sibs = [...d.li.parentElement.children].filter((x) => x !== d.li);
+    // Место — по пальцу: длинная карточка упирается в край списка, и по её
+    // середине последнее место было бы недостижимо.
+    const mid = d.y;
+    let before = null;
+    for (const x of sibs) {
+      const r = x.getBoundingClientRect();
+      if (mid < r.top + r.height / 2) { before = x; break; }
+    }
+    // Переставляются соседи, а не сама карточка: вынутый из документа
+    // элемент теряет захват указателя, и отпускание до него не доходит.
+    const list = d.li.parentElement;
+    const want = before ? [...list.children].indexOf(before) - ([...list.children].indexOf(before) > [...list.children].indexOf(d.li) ? 1 : 0) : list.children.length - 1;
+    let cur = [...list.children].indexOf(d.li);
+    while (cur < want) { list.insertBefore(d.li.nextElementSibling, d.li); cur += 1; }
+    while (cur > want) { list.insertBefore(d.li.previousElementSibling, d.li.nextElementSibling); cur -= 1; }
+    let dy = (d.y - d.y0) + (d.pane.scrollTop - d.s0) - (d.li.offsetTop - d.top0);
+    // Карточка не выходит за список выездов, даже если палец ушёл дальше.
+    const lr = list.getBoundingClientRect();
+    const base = d.li.getBoundingClientRect().top - (d.dy || 0);
+    dy = Math.max(lr.top - base, Math.min(lr.bottom - d.li.offsetHeight - base, dy));
+    d.dy = dy;
+    d.li.style.transform = `translateY(${dy}px)`;
+  }
+  function dragTick() {
+    const d = drag;
+    if (!d || !d.on) return;
+    const r = d.pane.getBoundingClientRect();
+    const edge = 56;
+    let v = d.y < r.top + edge ? -Math.ceil((r.top + edge - d.y) / 6) : d.y > r.bottom - edge ? Math.ceil((d.y - (r.bottom - edge)) / 6) : 0;
+    // Не дальше списка выездов: за его краем ставить некуда.
+    const lr = d.li.parentElement.getBoundingClientRect();
+    if ((v > 0 && lr.bottom <= r.bottom - 8) || (v < 0 && lr.top >= r.top + 8)) v = 0;
+    v = Math.max(-24, Math.min(24, v));
+    if (v) { d.pane.scrollTop += v; dragPlace(); }
+    d.raf = requestAnimationFrame(dragTick);
+  }
+  scope.onDocument('pointermove', (e) => {
+    const d = drag;
+    if (!d || e.pointerId !== d.id) return;
+    d.y = e.clientY;
+    if (!d.on && Math.abs(d.y - d.y0) < 6) return;
+    if (!d.on) {
+      d.on = true;
+      d.li.classList.add('is-drag');
+      d.li.parentElement.classList.add('is-sorting');
+      d.raf = requestAnimationFrame(dragTick);
+    }
+    dragPlace();
+  });
+  function dragEnd(e, cancel) {
+    const d = drag;
+    if (!d || (e && e.pointerId !== d.id)) return;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    if (!d.on) {
+      // Касание без сдвига — «Выше · Ниже».
+      if (!cancel) { ui.moveOpen = ui.moveOpen === d.key ? '' : d.key; renderPlanList(); const g = scope.$(`[data-plan-grip="${CSS.escape(d.key)}"]`); if (g) g.focus({ preventScroll: true }); }
+      return;
+    }
+    d.li.classList.remove('is-drag');
+    d.li.style.transform = '';
+    d.li.parentElement.classList.remove('is-sorting');
+    const keys = tripKeys();
+    const n = keys.indexOf(d.key);
+    if (cancel) { renderPlanList(); return; }
+    saveOrder(keys, d.key);
+    host.toast(`Выезд теперь ${n + 1}-й`, 'ok');
+  }
+  scope.onDocument('pointerup', (e) => dragEnd(e, false));
+  scope.onDocument('pointercancel', (e) => dragEnd(e, true));
+  // Ручка — не кнопка-действие: щелчок уже обработан в pointerup.
+  scope.on('click', '[data-plan-grip]', (e) => e.preventDefault());
+
   let planQTimer = 0;
   scope.on('input', '[data-plan-q]', (e, el) => {
     clearTimeout(planQTimer);

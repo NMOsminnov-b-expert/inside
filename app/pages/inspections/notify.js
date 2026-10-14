@@ -76,9 +76,12 @@ export function notifications(all, people, days = 7) {
   // отчет регионалу»): осмотрщик снял выезд с дня — с причиной, или взял на
   // день объект с другой датой.
   const from = (() => { const d = new Date(); d.setDate(d.getDate() - days + 1); return isoDay(d); })();
-  eventsOf().forEach((e) => {
+  const evs = eventsOf();
+  // Снятие, которое осмотрщик сам отменил, — не пропуск.
+  const undone = (e) => evs.some((u) => u.kind === 'unskipped' && u.assignId === e.assignId && u.date === e.date && u.at >= e.at);
+  evs.forEach((e) => {
     if (!e.date || e.date < from) return;
-    if (e.kind === 'skipped') push({ kind: 'skipped', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
+    if (e.kind === 'skipped' && !undone(e)) push({ kind: 'skipped', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
     if (e.kind === 'taken') push({ kind: 'offPlan', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — план был ${e.was ? ddmm(e.was) : 'без даты'}`, go: { assign: e.assignId } });
   });
 

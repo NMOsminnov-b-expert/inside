@@ -72,7 +72,7 @@ export function planMatch(t, q) {
 
 // Строка плана в секциях кроме сегодняшней — компактная: на телефоне в
 // экран входит неделя, а не два дня.
-function rowHTML(t, { marks = [], take = false, note = '', struck = false } = {}) {
+function rowHTML(t, { marks = [], take = false, note = '', struck = false, unskip = '' } = {}) {
   return `<li class="ins-pl-row ${struck ? 'is-struck' : ''} ${t.done ? 'is-done' : ''}">
     <a class="ins-pl-a" href="${hrefOf(t)}">
       <b class="ins-pl-t">${esc(t.title)}</b>
@@ -81,16 +81,31 @@ function rowHTML(t, { marks = [], take = false, note = '', struck = false } = {}
       ${marksHTML(marks)}
     </a>
     ${take ? `<button type="button" class="ins-btn ins-btn-sm ins-pl-take" data-plan-take="${esc(t.assignId)}">На сегодня</button>` : ''}
+    ${unskip ? `<button type="button" class="ins-btn ins-btn-sm ins-pl-take" data-plan-unskip="${esc(unskip)}">Вернуть на сегодня</button>` : ''}
   </li>`;
 }
 
 // Сегодняшний выезд — полный: «Ехать», снятие с дня.
-function tripHTML(x, i, { marks, app, skipOpen, skipErr }) {
+// Порядок выездов — перетаскиванием за ручку (указание пользователя
+// 14.10.2026 «нужна возможность перетаскиванием менять порядок для
+// поездки»). Ручка — не вся карточка: на телефоне перетаскивание иначе
+// спорит с прокруткой. Касание ручки без движения раскрывает «Выше ·
+// Ниже», стрелки клавиатуры двигают выезд — замена перетаскиванию (WCAG
+// 2.2, 2.5.7 Dragging Movements).
+function tripHTML(x, i, { marks, app, skipOpen, skipErr, n, moveOpen }) {
   const t = x.t;
   const canSkip = t.assignId && !t.done;
-  return `<li class="ins-trip ${t.done ? 'is-done' : ''}">
+  const grip = n > 1 && x.ll ? `<button type="button" class="ins-pl-grip" data-plan-grip="${esc(t.key)}"
+      aria-label="Переставить выезд ${i + 1} из ${n}: перетащите или нажмите, стрелки — выше и ниже"
+      aria-expanded="${moveOpen === t.key ? 'true' : 'false'}">${ico('grip', 20)}</button>` : '';
+  return `<li class="ins-trip ${t.done ? 'is-done' : ''} ${grip ? 'has-grip' : ''}" data-trip-key="${esc(t.key)}">
     <span class="ins-trip-n" aria-hidden="true">${t.done ? ico('ok', 14) : i + 1}</span>
+    ${grip}
     <div class="ins-trip-b">
+      ${moveOpen === t.key ? `<div class="ins-pl-move">
+        <button type="button" class="ins-btn ins-btn-sm" data-plan-move="up" ${i === 0 ? 'disabled' : ''}>Выше</button>
+        <button type="button" class="ins-btn ins-btn-sm" data-plan-move="down" ${i === n - 1 ? 'disabled' : ''}>Ниже</button>
+      </div>` : ''}
       <a class="ins-trip-a" href="${hrefOf(t)}">
         <b class="ins-trip-t">${esc(t.title)}</b>
         <span class="ins-trip-m">${esc(metaOf(t))}</span>
@@ -163,16 +178,26 @@ export function planModel({ tasks, removed, today, q }) {
 // Вся вкладка. stops — сегодняшние выезды в порядке маршрута ({ t, ll,
 // links }); skips — снятые сегодня ({ t, reason, note }); limit — сколько
 // строк рисовать в длинных секциях.
-export function planHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen, map = '' }) {
+export function planHTML(args) {
+  const { q, map = '' } = args;
   const search = `<div class="ins-pl-q">
     <span class="ins-pl-q-ico" aria-hidden="true">${ico('search', 18)}</span>
     <input class="ins-pl-q-in" type="search" inputmode="search" enterkeyhint="search" autocomplete="off"
       placeholder="Адрес, учреждение, ЕНИ" aria-label="Поиск по плану" value="${esc(q)}" data-plan-q>
   </div>`;
-  return `${search}${map}<div class="ins-pl" data-plan-list>${planListHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen })}</div>`;
+  return `${search}${map}<div class="ins-pl" data-plan-list>${planListHTML(args)}</div>`;
 }
 
-export function planListHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen }) {
+// Над выездами дня — чей порядок: маршрута («ближайший следующий от дома»)
+// или заданный осмотрщиком; заданный можно вернуть.
+function orderNote(stops, ordered) {
+  if (stops.filter((x) => x.ll).length < 2) return '';
+  return ordered
+    ? `<p class="ins-pl-ord">Порядок задан вами <button type="button" class="ins-pl-ord-b" data-plan-order-reset>Вернуть порядок маршрута</button></p>`
+    : `<p class="ins-pl-ord">Порядок — по маршруту от дома; поменять — перетащите за ${ico('grip', 14)}</p>`;
+}
+
+export function planListHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen, ordered = false, moveOpen = '' }) {
   const parts = [];
   let left = limit;
   const take = (list) => { const n = Math.max(0, Math.min(list.length, left)); left -= n; return list.slice(0, n); };
@@ -182,8 +207,9 @@ export function planListHTML({ m, today, q, stops, skips, routeLinks, app, marks
   const withGps = stops.filter((x) => x.ll && !x.t.done);
   const todayBody = stops.length || skips.length
     ? `${withGps.length > 1 ? navPickHTML('route', routeLinks, `Весь маршрут · ${withGps.length}`, app, false) : ''}
-      <ol class="ins-trips">${stops.map((x, i) => tripHTML(x, i, { marks: marksOf(x.t), app, skipOpen, skipErr })).join('')}</ol>
-      ${skips.length ? `<ul class="ins-pl-list">${skips.map((s) => rowHTML(s.t, { struck: true, note: `Снято вами: ${s.reason}${s.note ? ' — ' + s.note : ''}` })).join('')}</ul>` : ''}`
+      ${orderNote(stops, ordered)}
+      <ol class="ins-trips" data-plan-trips>${stops.map((x, i) => tripHTML(x, i, { marks: marksOf(x.t), app, skipOpen, skipErr, n: stops.filter((y) => y.ll).length, moveOpen })).join('')}</ol>
+      ${skips.length ? `<ul class="ins-pl-list">${skips.map((s) => rowHTML(s.t, { struck: true, unskip: s.t.skip.assignId, note: `Снято вами: ${s.reason}${s.note ? ' — ' + s.note : ''}` })).join('')}</ul>` : ''}`
     : `<p class="ins-empty">${q ? 'На сегодня по запросу ничего нет.' : 'На сегодня выездов нет — возьмите задачу из несделанных или будущих.'}</p>`;
   parts.push(sectionHTML(`Сегодня, ${ddmm(today)}`, stops.length, todayBody, { cls: 'ins-today is-today' }));
 
