@@ -2,6 +2,7 @@ import { createSeed } from './seed.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
 import { persistView, VIEWER_KEEP } from '../../../kernel/viewState.js';
 import { LETTER_SEQ } from './dictionaries.js';
+import { demoEniNear } from '../../../kernel/demoParcels.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 export const records = createSeed();
@@ -131,12 +132,10 @@ export function nextId(prefix) {
   return `${prefix}-${tag ? tag + '-' : ''}${seq.toString(36)}`;
 }
 
-// ЕНИ выдаётся от максимума уже использованных, а не от длины массива —
-// иначе после удаления ОИ код повторяется (исправление дефекта макета).
+// ЕНИ нового ОИ — настоящий участок Кадастра рядом с кодом записи
+// (kernel/demoParcels.js, demoEniNear); занятые коды записи не повторяются.
 export function nextEni(rec, base) {
-  const used = rec.oi.map((o) => parseInt(o.eni, 10)).filter((n) => !isNaN(n));
-  const max = used.length ? Math.max(...used) : parseInt(base, 10) || 1475616813000;
-  return String(max + 1);
+  return demoEniNear(base || rec.eni, [rec.eni, ...rec.oi.map((o) => o.eni)]);
 }
 
 // Id вида «<ЕНИ записи>-<порядковый номер>» — для записей лога действий

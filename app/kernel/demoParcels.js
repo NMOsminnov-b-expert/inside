@@ -11,3 +11,21 @@ export function demoParcel(city, i) {
   const list = DEMO_PARCELS[city];
   return list && list.length ? list[Math.abs(i | 0) % list.length] : null;
 }
+
+// Настоящий ЕНИ для нового ОИ демо-записи (указание пользователя 14.10.2026
+// «переходим на реальные. Чтобы при демонстрации не искать подходящий»):
+// свободный участок выгрузки, ближайший по коду к коду записи — тот же
+// квартал, затем зона, район, область. Раньше новый ОИ получал «код записи
+// + 1», которого Кадастр не знает. Занятые коды записи не повторяются —
+// и после удаления ОИ тоже.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: не нужен — ЕНИ объекта вносят по документам или
+// подбирают по Кадастру; сам код система не выдумывает.
+export function demoEniNear(base, used = []) {
+  const taken = new Set(used.filter(Boolean).map((e) => String(e).replace(/\D/g, '')));
+  const free = Object.values(DEMO_PARCELS).flat().map((p) => p.eni).filter((e) => !taken.has(e));
+  if (!free.length) return '';
+  const b = String(base || '').replace(/\D/g, '');
+  const common = (e) => { let n = 0; while (n < e.length && e[n] === b[n]) n++; return n; };
+  return free.reduce((best, e) => (common(e) > common(best) ? e : best), free[0]);
+}

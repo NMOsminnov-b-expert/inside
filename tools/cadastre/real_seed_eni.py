@@ -169,7 +169,13 @@ def fix_record(blk, typeId, rid, picker, log):
     for st, end, oid, card, land in reversed(ois):
         ob = out[st:end]
         if card in MOVABLE:
+            # ЕНИ у движимого нет, а стоит оно там же, где здание: адрес и
+            # координаты — участка записи.
             ob = set_field(ob, 10, 'eni', '')
+            street, house = split_addr(main['addr'])
+            ob = set_field(ob, 10, 'street', street)
+            ob = set_field(ob, 10, 'house', house)
+            ob = set_field(ob, 10, 'gps', center(main))
         else:
             p = by_oi[oid]
             street, house = split_addr(p['addr'])

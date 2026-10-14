@@ -153,9 +153,9 @@ export function createSeed() {
         },
         {
           id: 'oi-cv1-m1',
-          street: 'Киевская',
-          house: '218',
-          gps: '42.8776, 74.5921',
+          street: 'Суюмбаева А.',
+          house: '33',
+          gps: '42.8700, 74.6242',
           // Механизмы и оборудование: перечень единиц с классификацией и
           // параметрами классификатора (oi/mech). Своего кода ЕНИ и литеры у
           // ОИ этого вида нет — код, если он есть, записан своим полем единицы.
@@ -188,7 +188,7 @@ export function createSeed() {
                 mediumTemp: '95',
                 boilerDesign: 'Водотрубный',
               },
-              extra: [{ id: 'mf-cv1-1', label: 'Код ЕНИ', value: '1475616710100' }],
+              extra: [{ id: 'mf-cv1-1', label: 'Код ЕНИ', value: '1030700400754' }],
               comment: '',
               qty: '1',
               cost: '1840000',
@@ -225,9 +225,9 @@ export function createSeed() {
         },
         {
           id: 'oi-cv1-m2',
-          street: 'Киевская',
-          house: '218',
-          gps: '42.8780, 74.5926',
+          street: 'Суюмбаева А.',
+          house: '33',
+          gps: '42.8700, 74.6242',
           card: 'mech',
           groupName: 'Комплекс техники (серверная)',
           name: 'Комплекс техники (серверная)',
@@ -261,7 +261,7 @@ export function createSeed() {
                 psu: '2',
                 os: 'Ubuntu Server 22.04',
               },
-              extra: [{ id: 'mf-cv1-2', label: 'Код ЕНИ', value: '1475616710120' }],
+              extra: [{ id: 'mf-cv1-2', label: 'Код ЕНИ', value: '1030700400754' }],
               comment: '',
               qty: '2',
               cost: '',
@@ -300,7 +300,7 @@ export function createSeed() {
               params: {},
               extra: [
                 { id: 'mf-cv1-3', label: 'Узел комплекса', value: 'Агрегат' },
-                { id: 'mf-cv1-4', label: 'Код ЕНИ', value: '1475616710130' },
+                { id: 'mf-cv1-4', label: 'Код ЕНИ', value: '1030700400754' },
               ],
               comment: 'Класс не определён — уточнить при осмотре.',
               qty: '1',
