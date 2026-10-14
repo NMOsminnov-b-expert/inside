@@ -32,13 +32,14 @@ import { codeByName } from '../../kernel/institutions.js';
 import { build } from '../../kernel/router.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
-  summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS, periodTotals, dayOf, COVERAGE,
+  summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS,
   queueBase, tripGroups, dueOf, availability, rankInspectors, onSiteContacts, assignedPickOf,
   QUEUE_FACETS, QUEUE_RANGES, ASSIGNED_FACETS, ASSIGNED_RANGES, applyFilter, facetValues, filterChips, emptyFilter, filterActive,
   reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
+import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
 import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord, gpsOfObject } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
@@ -725,12 +726,9 @@ export function mountInspections(host) {
   function personCardHTML(me) {
     const prof = profileOf(me.name);
     const tel = (prof.phone || '').replace(/[^\d+]/g, '');
-    const since = new Date(); since.setDate(since.getDate() - 29);
-    const t = periodTotals(me.name, dayOf(since.toISOString()));
     let body;
     if (view.personTab === 'stats') {
-      body = `<div class="ip-tiles">${tile('ОИ за 30 дн.', t.oi)}${tile('Объектов', t.objects)}${tile('Снимков', t.photos)}
-        ${tile('Заметок', t.notes)}${tile('Расхождений', t.mismatch, t.mismatch ? 'warn' : '')}${tile('Выявлено', t.found)}</div>${statsHTML(me.name)}`;
+      body = statsHTML({ all, people: visiblePeople(), person: me.name, period: statPeriod() });
     } else if (view.personTab === 'assigns') body = personAssignsHTML(me.name);
     else if (view.personTab === 'profile') body = profileHTML(me);
     else if (view.personTab === 'car') body = carHTML(me);
@@ -802,6 +800,10 @@ export function mountInspections(host) {
   // осмотрщика, суммы — в своих столбцах итоговой строки; щелчок — отчёты
   // осмотрщика; выгрузка — xlsx (сводка и по дням).
   const sumPeriod = { from: todayD.slice(0, 8) + '01', to: todayD };
+  // Период статистики — один на «Все осмотрщики» и карточку осмотрщика:
+  // переходя от всех к человеку, смотришь тот же отрезок (statsData.js).
+  const statSel = { unit: 'month', offset: 0 };
+  const statPeriod = () => periodOf(statSel.unit, statSel.offset);
   function totalsHTML(list) {
     const rows = employeeSummary(all, list.filter((p) => !p.fired).map((p) => p.name), sumPeriod.from, sumPeriod.to);
     const tot = (k) => rows.reduce((n, r) => n + (typeof k === 'function' ? k(r) : r[k]), 0);
@@ -1363,7 +1365,7 @@ export function mountInspections(host) {
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
       ${subTabs('data-ip-atab', view.allTab, ALL_TABS.map(([k, l]) => (k === 'fields' ? [k, l, allCustomFields().length] : [k, l])))}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML('') : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML({ all, people: list, person: '', period: statPeriod() }) : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -2025,7 +2027,7 @@ export function mountInspections(host) {
       mountRouteMap().catch((e) => console.warn('Карта не нарисована', e));
     }
     if (view.section === 'people') {
-      mountStats(scope, host.ensureStyle, { names: visiblePeople().map((p) => p.name), person: view.person })
+      mountStats(scope, host.ensureStyle, { names: visiblePeople().filter((p) => !p.fired).map((p) => p.name), person: view.person, period: statPeriod() })
         .catch((e) => console.warn('Графики не нарисованы', e));
     }
   }
@@ -2240,6 +2242,20 @@ export function mountInspections(host) {
       render();
     }
   });
+  // Статистика: период, переход к осмотрщику, выгрузка xlsx — по всем или
+  // по выбранному (задача графа ekran-statistiki-osmotrov-pokazateli-i-vygruzka-xlsx).
+  scope.on('click', '[data-ip-sunit]', (e, b) => { statSel.unit = b.dataset.ipSunit; statSel.offset = 0; redraw(); });
+  scope.on('click', '[data-ip-sstep]', (e, b) => { statSel.offset = Math.max(0, statSel.offset + Number(b.dataset.ipSstep)); redraw(); });
+  const openStat = (name) => { Object.assign(view, { person: name, personTab: 'stats' }); detail = []; render(); };
+  scope.on('click', '[data-ip-stat-open]', (e, el) => openStat(el.dataset.ipStatOpen));
+  scope.on('keydown', '[data-ip-stat-open]', (e, el) => { if (e.key === 'Enter') openStat(el.dataset.ipStatOpen); });
+  scope.on('click', '[data-ip-sxlsx]', async () => {
+    const period = statPeriod();
+    const people = visiblePeople();
+    const sheets = view.person ? personSheets(all, people, view.person, period) : allSheets(all, people, period);
+    await downloadXlsx(exportName(view.person, period), sheets);
+  });
+
   // Итоги за период: период, переход к отчётам осмотрщика, выгрузка.
   scope.on('change', '[data-ip-sum]', (e, el) => { if (el.value) { sumPeriod[el.dataset.ipSum] = el.value; redraw(); } });
   scope.on('click', '[data-ip-sum-open]', (e, el) => {

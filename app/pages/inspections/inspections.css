@@ -1278,3 +1278,47 @@ body[data-page="inspections"] .ip-cfadd{display:flex;flex-wrap:wrap;align-items:
 body[data-page="inspections"] .ip-cfadd .input[data-ip-cfn="label"]{flex:1 1 220px;min-width:160px}
 body[data-page="inspections"] .ip-cfadd .input[data-ip-cfn="options"]{flex:1 1 220px}
 body[data-page="inspections"] .ip-cfadd .select{width:170px}
+
+/* Статистика (задача графа ekran-statistiki-osmotrov-pokazateli-i-vygruzka-xlsx):
+   период и выгрузка — одной строкой сверху; плитки, ОИ по видам; таблицы
+   показателей — числа справа, цифры одной ширины, итог и медиана команды — в
+   своих столбцах; прокрутка — внутри таблицы, не страницы. */
+body[data-page="inspections"] .ipc-sbar{margin-bottom:10px}
+body[data-page="inspections"] .ipc-sper{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
+body[data-page="inspections"] .ipc-seg3{grid-template-columns:repeat(3,auto)}
+body[data-page="inspections"] .ipc-seg3 button{padding:0 12px}
+body[data-page="inspections"] .ipc-kinds{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:8px 0 12px}
+body[data-page="inspections"] .ipc-kind{display:inline-flex;align-items:baseline;gap:4px;padding:2px 9px;border:1px solid var(--line);
+  border-radius:999px;background:var(--panel);font-size:12px;color:var(--ink-label);white-space:nowrap}
+body[data-page="inspections"] .ipc-kind b{color:var(--ink);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ipc-sec{margin-bottom:12px}
+body[data-page="inspections"] .ipc-sec .ip-cols{border:0;box-shadow:none;padding:0}
+body[data-page="inspections"] .ipc-mtbl{min-width:960px}
+body[data-page="inspections"] .ipc-mtbl col.c-name{width:auto;min-width:200px}
+body[data-page="inspections"] .ipc-mtbl col.c-k{width:78px}
+body[data-page="inspections"] .ipc-mtbl thead th,
+body[data-page="inspections"] .ipc-rtbl thead th{white-space:normal;vertical-align:bottom}
+body[data-page="inspections"] .ipc-mtbl tbody tr{cursor:pointer}
+body[data-page="inspections"] .ipc-ptbl{min-width:440px}
+body[data-page="inspections"] .ipc-ptbl col.c-k{width:140px}
+body[data-page="inspections"] .ipc-rtbl{min-width:740px}
+body[data-page="inspections"] .ipc-rtbl col.c-name{width:auto;min-width:180px}
+body[data-page="inspections"] .ipc-rtbl col.c-k{width:118px}
+body[data-page="inspections"] :is(.ipc-mtbl,.ipc-ptbl,.ipc-rtbl) td.num{font-variant-numeric:tabular-nums}
+body[data-page="inspections"] :is(.ipc-mtbl,.ipc-rtbl) tfoot :is(th,td){font-weight:700;background:var(--blue-50);border-top:2px solid var(--line)}
+body[data-page="inspections"] :is(.ipc-mtbl,.ipc-rtbl) tfoot th{text-align:left}
+body[data-page="inspections"] .ipc-mtbl tfoot tr.ipc-med :is(th,td){font-weight:600;color:var(--ink-label)}
+body[data-page="inspections"] .ipc-pgrid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:10px;align-items:start;margin-bottom:12px}
+body[data-page="inspections"] .ipc-pgrid > .ipc-sec,
+body[data-page="inspections"] .ipc-pgrid > .ipc-stats{margin-bottom:0}
+body[data-page="inspections"] .ipc-pgrid > .ipc-stats{grid-template-columns:minmax(0,1fr)}
+body[data-page="inspections"] .ipc-ptbl{min-width:0}
+body[data-page="inspections"] .ipc-ptbl col.c-k{width:96px}
+body[data-page="inspections"] .ipc-ptbl thead th{white-space:normal;vertical-align:bottom}
+@media (max-width:1280px){
+  body[data-page="inspections"] .ipc-pgrid{grid-template-columns:minmax(0,1fr)}
+  body[data-page="inspections"] .ipc-pgrid > .ipc-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:900px){
+  body[data-page="inspections"] .ipc-pgrid > .ipc-stats{grid-template-columns:minmax(0,1fr)}
+}

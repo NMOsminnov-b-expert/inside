@@ -18,8 +18,11 @@ import { esc } from '../../kernel/dom.js';
 import { plural } from '../../kernel/fmt.js';
 import { activityKind } from '../../kernel/inspections.js';
 import {
-  tripsMonth, weeklySeries, historyRows, EVENT_LABELS, dayOf, todayIso,
+  tripsMonth, historyRows, EVENT_LABELS, dayOf, todayIso,
 } from './model.js';
+import {
+  PERIOD_UNITS, OI_KINDS, METRICS, statsFor, regionRows, seriesOf, fmtMetric, worseThanMedian, periodText,
+} from './statsData.js';
 
 const WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
@@ -109,91 +112,194 @@ export function bindCalendarPopover(scope) {
 }
 
 // --- статистика (uPlot) ------------------------------------------------------------
+//
+// Экран «Статистика» у всех и у осмотрщика устроен одинаково (задача графа
+// ekran-statistiki-osmotrov-pokazateli-i-vygruzka-xlsx, 14.10.2026). Период и
+// выгрузка — одной строкой сверху, фильтр задаёт всё, что ниже (практика
+// дашбордов: «filters scope everything below them»). Плитки сводки и ОИ по
+// видам (п. 4.1 ТЗ). Показатели: у всех — таблица людей с итогом и медианой
+// команды в своих столбцах, у осмотрщика — значение рядом с медианой команды
+// (практика сравнительных панелей: число без опорного значения ничего не
+// говорит; хуже медианы — подсвечено). Графики — по одному показателю на
+// график, одна ось (у осмотрщика прежде ОИ и снимки делили две оси). Области
+// — где не хватает людей.
+const stile = (label, value, cls = '', hint = '') => `<div class="ip-tile ${cls}" ${hint ? `title="${esc(hint)}"` : ''}><span>${label}</span><b>${value}</b></div>`;
 
-// Место под графики; сами графики рисует mountStats после вставки разметки.
-export function statsHTML(person) {
-  if (person) {
-    return `<section class="ipc-card ipc-stat" aria-label="Статистика осмотрщика">
-      <header><h3>ОИ и снимки по неделям</h3><span>8 законченных недель</span></header>
-      <div class="ipc-plot" data-ipc-plot="person"></div>
-    </section>`;
-  }
+function periodBar(period) {
+  return `<div class="ip-repbar ipc-sbar">
+    <div class="ipc-sper">
+      <div class="ip-seg ipc-seg3" role="group" aria-label="Период">${PERIOD_UNITS.map(([k, l]) => `<button type="button" data-ip-sunit="${k}" aria-pressed="${period.unit === k}">${l}</button>`).join('')}</div>
+      <div class="ip-daynav" role="group" aria-label="Период статистики">
+        <button class="btn btn-ghost btn-sm" data-ip-sstep="1" aria-label="Предыдущий период">‹</button>
+        <span class="ip-repmonth">${esc(period.label)}</span>
+        <button class="btn btn-ghost btn-sm" data-ip-sstep="-1" aria-label="Следующий период" ${period.current ? 'disabled title="Выбран текущий период — следующий ещё не начался"' : ''}>›</button>
+      </div>
+      <span class="ip-hint">${esc(periodText(period))}${period.current ? ' · по сегодня' : ''}</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" data-ip-sxlsx>Выгрузить xlsx</button>
+  </div>`;
+}
+
+function tilesHTML(t) {
+  const kinds = OI_KINDS.filter(([k]) => t.kinds[k]);
+  return `<div class="ip-tiles">${stile('Объектов', t.objects)}${stile('ОИ', t.oi)}${stile('Снимков', t.photos)}
+      ${stile('Заметок', t.notes)}${stile('Расхождений', t.mismatch, t.mismatch ? 'warn' : '')}${stile('Выявлено', t.found)}</div>
+    <p class="ipc-kinds"><span class="ip-flabel">ОИ по видам</span>${kinds.length ? kinds.map(([k, l]) => `<span class="ipc-kind">${esc(l)} <b>${t.kinds[k]}</b></span>`).join('') : '<span class="ip-muted">осмотренных ОИ нет</span>'}</p>`;
+}
+
+const mcell = (m, v, med) => {
+  const bad = worseThanMedian(m, v, med);
+  return `<td class="num ${bad ? 'ip-late' : ''}" ${bad ? 'title="Хуже медианы команды больше чем на 10%"' : ''}>${fmtMetric(v, m.fmt)}</td>`;
+};
+
+function allTableHTML(st) {
+  if (!st.rows.length) return '<p class="ip-hint ip-empty">Под фильтр никто не подошёл.</p>';
+  return `<section class="ipc-card ipc-sec" aria-label="Показатели осмотрщиков"><header><h3>Показатели осмотрщиков</h3><span>щелчок по строке — статистика осмотрщика</span></header>
+    <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ipc-mtbl">
+      <colgroup><col class="c-name">${METRICS.map(() => '<col class="c-k">').join('')}</colgroup>
+      <thead><tr><th>Осмотрщик</th>${METRICS.map((m) => `<th class="num" ${m.hint ? `title="${esc(m.hint)}"` : ''}>${esc(m.short || m.label)}</th>`).join('')}</tr></thead>
+      <tbody>${st.rows.map((r) => `<tr data-ip-stat-open="${esc(r.name)}" tabindex="0"><td>${esc(r.name)}</td>${METRICS.map((m) => mcell(m, r[m.key], st.median[m.key])).join('')}</tr>`).join('')}</tbody>
+      <tfoot>
+        <tr><th scope="row">Итого</th>${METRICS.map((m) => `<td class="num">${m.key === 'oi' || m.key === 'objects' ? fmtMetric(st.total[m.key], 'int') : ''}</td>`).join('')}</tr>
+        <tr class="ipc-med"><th scope="row" title="Середина ряда: у половины команды больше, у половины меньше">Медиана команды</th>${METRICS.map((m) => `<td class="num">${fmtMetric(st.median[m.key], m.fmt)}</td>`).join('')}</tr>
+      </tfoot>
+    </table></div></div></section>`;
+}
+
+function personTableHTML(st, name) {
+  const me = st.rows.find((r) => r.name === name);
+  if (!me) return '';
+  return `<section class="ipc-card ipc-sec" aria-label="Показатели и медиана команды"><header><h3>Показатели</h3><span>рядом — медиана команды за тот же период</span></header>
+    <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ipc-ptbl">
+      <colgroup><col><col class="c-k"><col class="c-k"></colgroup>
+      <thead><tr><th>Показатель</th><th class="num">Значение</th><th class="num" title="Середина ряда: у половины команды больше, у половины меньше">Медиана команды</th></tr></thead>
+      <tbody>${METRICS.map((m) => `<tr><td ${m.hint ? `title="${esc(m.hint)}"` : ''}>${esc(m.label)}</td>${mcell(m, me[m.key], st.median[m.key])}<td class="num ip-muted">${fmtMetric(st.median[m.key], m.fmt)}</td></tr>`).join('')}
+        <tr><td>Рабочих дней в периоде</td><td class="num">${me.workdays}</td><td class="num"></td></tr>
+        <tr><td>Пробег, км · бензин, л</td><td class="num">${fmtMetric(me.km, 'dec')} · ${fmtMetric(me.litres, 'dec')}</td><td class="num"></td></tr>
+        <tr><td>Отчёты дня: вовремя · поздно · не сдано</td><td class="num">${me.repOnTime} · ${me.repLate} · ${me.repMissed}</td><td class="num"></td></tr>
+      </tbody>
+    </table></div></div></section>`;
+}
+
+function regionsHTML(rows) {
+  if (!rows.length) return '';
+  const sum = (k) => rows.reduce((n, r) => n + r[k], 0);
+  return `<section class="ipc-card ipc-sec" aria-label="По областям"><header><h3>По областям</h3><span>осмотрено — за период; ждёт назначения и просрочено — на сегодня</span></header>
+    <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ipc-rtbl">
+      <colgroup><col class="c-name"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"></colgroup>
+      <thead><tr><th>Область</th><th class="num">Осмотрено объектов</th><th class="num">Осмотрено ОИ</th><th class="num">Ждёт назначения</th><th class="num">Просрочено</th><th class="num">Осмотрщиков</th></tr></thead>
+      <tbody>${rows.map((r) => `<tr><td>${esc(r.region)}</td><td class="num">${r.objects || '—'}</td><td class="num">${r.oi || '—'}</td>
+        <td class="num">${r.waiting || '—'}</td><td class="num ${r.overdue ? 'ip-late' : ''}">${r.overdue || '—'}</td>${!r.people && (r.waiting || r.overdue) ? '<td class="num ip-late" title="Работа в области есть, осмотрщиков нет">0</td>' : `<td class="num">${r.people || '—'}</td>`}</tr>`).join('')}</tbody>
+      <tfoot><tr><th scope="row">Итого</th><td class="num">${sum('objects')}</td><td class="num">${sum('oi')}</td><td class="num">${sum('waiting')}</td><td class="num">${sum('overdue')}</td><td class="num"></td></tr></tfoot>
+    </table></div></div></section>`;
+}
+
+function plotsHTML(person, period) {
+  const by = period.unit === 'week' ? 'по рабочим дням' : 'по неделям';
+  const sub = person ? `${by} · пунктир — медиана команды` : by;
   return `<div class="ipc-stats">
-    <section class="ipc-card ipc-stat" aria-label="Осмотрено ОИ по неделям"><header><h3>Осмотрено ОИ</h3><span>по неделям · 8 законченных недель</span></header>
+    <section class="ipc-card ipc-stat" aria-label="Осмотрено ОИ"><header><h3>Осмотрено ОИ</h3><span>${sub}</span></header>
       <div class="ipc-plot" data-ipc-plot="oi"></div></section>
-    <section class="ipc-card ipc-stat" aria-label="Снимков по неделям"><header><h3>Снимков</h3><span>по неделям · 8 законченных недель</span></header>
+    <section class="ipc-card ipc-stat" aria-label="Снимков"><header><h3>Снимков</h3><span>${sub}</span></header>
       <div class="ipc-plot" data-ipc-plot="photos"></div></section>
   </div>`;
 }
 
+// Экран статистики: person пуст — все осмотрщики (people — список экрана).
+export function statsHTML({ all, people, person, period }) {
+  const names = people.filter((p) => !p.fired).map((p) => p.name);
+  if (person && !names.includes(person)) names.push(person);
+  const st = statsFor(all, names, period);
+  const t = person ? st.rows.find((r) => r.name === person) : st.total;
+  // У осмотрщика таблица короткая — графики рядом с ней, а не под пустой
+  // полосой справа; на узком окне — друг под другом.
+  return `${periodBar(period)}${tilesHTML(t)}
+    ${person ? `<div class="ipc-pgrid">${personTableHTML(st, person)}${plotsHTML(person, period)}</div>` : `${allTableHTML(st)}${plotsHTML(person, period)}`}
+    ${person ? '' : regionsHTML(regionRows(all, people, period))}`;
+}
+
 const cssVar = (n, d) => (getComputedStyle(document.documentElement).getPropertyValue(n) || '').trim() || d;
-const PALETTE = () => [cssVar('--blue-600', '#1668c9'), cssVar('--teal-600', '#0e8172'), cssVar('--amber-600', '#c07c1e'),
-  cssVar('--violet-600', '#7a41b8'), cssVar('--slate-500', '#54718f'), '#c8372d'];
+// Порядок цветов постоянный: человек сохраняет цвет при смене периода.
+// Палитра проверена сценарием скилла dataviz 14.10.2026 (светлость,
+// насыщенность, различимость соседних при дальтонизме — на светлой и тёмной
+// теме); красного нет — он у тревожных значений.
+const PALETTE = () => [cssVar('--blue-600', '#1668c9'), '#008a6e', cssVar('--amber-600', '#c07c1e'),
+  cssVar('--violet-600', '#7a41b8'), '#c2367f', '#5b7f12'];
 
 let plots = [];
 let ro = null;
+// Высота места графика после прошлой отрисовки: графики рисуются после
+// разметки (uPlot грузится лениво), и без запаса блоки ниже сдвигались
+// дважды — матрица взаимодействий 14.10.2026, флаг «ПРЫГАЛ».
+const lastH = {};
 export function destroyStats() {
   plots.forEach((p) => p.destroy());
   plots = [];
   if (ro) { ro.disconnect(); ro = null; }
 }
 
-function opts(uPlot, el, series, scales, yLabel) {
+function opts(el, series, yLabel, step) {
   const ink = cssVar('--muted', '#526073');
   const grid = cssVar('--line-soft', '#dbe4ee');
   const axis = (extra = {}) => ({ stroke: ink, grid: { stroke: grid, width: 1 }, ticks: { stroke: grid, width: 1 }, font: '11px system-ui, sans-serif', ...extra });
+  const dd = (v) => new Date(v * 1000).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
   return {
     width: el.clientWidth || 300,
     height: 170,
     padding: [8, 18, 0, 0],
     cursor: { drag: { x: false, y: false }, points: { size: 6 } },
     legend: { live: true },
-    scales: { x: { time: true }, ...scales },
+    scales: { x: { time: true }, y: { range: (u, min, max) => [0, Math.max(1, Math.ceil(max * 1.15))] } },
     axes: [
-      axis({ values: (u, ticks) => ticks.map((t) => { const d = new Date(t * 1000); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`; }), space: 44,
-      // Деления — по неделям данных; на узком графике — через одну-две, чтобы
+      axis({ values: (u, ticks) => ticks.map(dd), space: 44,
+      // Деления — по шагам данных; на узком графике — через один-два, чтобы
       // даты не слипались (одна подпись ~48 px).
-      splits: (u) => { const xs = u.data[0]; const w = u.bbox.width / (devicePixelRatio || 1); const step = Math.max(1, Math.ceil((xs.length * 48) / Math.max(w, 1))); return xs.filter((_, i) => (xs.length - 1 - i) % step === 0); } }),
+      splits: (u) => { const xs = u.data[0]; const w = u.bbox.width / (devicePixelRatio || 1); const k = Math.max(1, Math.ceil((xs.length * 48) / Math.max(w, 1))); return xs.filter((_, i) => (xs.length - 1 - i) % k === 0); } }),
       axis({ scale: 'y', size: 36, label: yLabel, labelSize: 14, labelFont: '11px system-ui, sans-serif' }),
-      ...(scales.y2 ? [axis({ scale: 'y2', side: 1, size: 40, grid: { show: false }, label: 'снимков', labelSize: 14, labelFont: '11px system-ui, sans-serif' })] : []),
     ],
-    series: [{ label: '', value: (u, v) => (v == null ? '' : `неделя с ${new Date(v * 1000).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`) }, ...series],
+    series: [{ label: '', value: (u, v) => (v == null ? '' : step === 'week' ? `неделя с ${dd(v)}` : dd(v)) }, ...series],
   };
 }
 
-// Нарисовать графики в местах [data-ipc-plot]. names — осмотрщики для
-// общих графиков; person — выбранный (свой график).
-export async function mountStats(scope, ensureStyle, { names, person }) {
+const medianOf = (vals) => { const v = [...vals].sort((a, b) => a - b); const m = Math.floor(v.length / 2); return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+
+// Нарисовать графики в местах [data-ipc-plot]. names — осмотрщики экрана;
+// person — выбранный: его линия и пунктиром медиана команды.
+export async function mountStats(scope, ensureStyle, { names, person, period }) {
   destroyStats();
   const spots = scope.$$('[data-ipc-plot]');
   if (!spots.length) return;
+  const hKey = (el) => `${person ? 'p' : 'a'}:${el.dataset.ipcPlot}`;
+  spots.forEach((el) => { if (lastH[hKey(el)]) el.style.minHeight = lastH[hKey(el)] + 'px'; });
   await ensureStyle('./app/vendor/uplot/uPlot.min.css');
   const { default: uPlot } = await import('../../vendor/uplot/uPlot.esm.js');
   if (!spots[0].isConnected) return;   // экран успел перерисоваться
-  const zeroMin = { range: (u, min, max) => [0, Math.max(1, Math.ceil(max * 1.15))] };
   const pal = PALETTE();
-  const line = (label, color, scale = 'y') => ({
-    label, scale, stroke: color, width: 2, points: { show: true, size: 5, fill: color },
-    value: (u, v) => (v == null ? '' : `(${v} за неделю)`),
+  const per = period.unit === 'week' ? 'за день' : 'за неделю';
+  const line = (label, color, extra = {}) => ({
+    label, stroke: color, width: 2, points: { show: true, size: 5, fill: color },
+    value: (u, v) => (v == null ? '' : `(${Math.round(v * 10) / 10} ${per})`), ...extra,
   });
   const sum = (arr) => arr.reduce((x, y) => x + y, 0);
+  const team = !person || names.includes(person) ? names : [...names, person];
+  const s = seriesOf(team, period);
   spots.forEach((el) => {
-    const kind = el.dataset.ipcPlot;
-    let data; let o;
-    if (kind === 'person') {
-      const s = weeklySeries([person], 8);
-      data = [s.xs, s.oi[0], s.photos[0]];
-      o = opts(uPlot, el, [line(`ОИ · ${sum(s.oi[0])}`, pal[0]), { ...line(`Снимков · ${sum(s.photos[0])}`, pal[1], 'y2'), dash: [4, 3], width: 1.5 }],
-        { y: zeroMin, y2: zeroMin }, 'ОИ');
+    const rows = el.dataset.ipcPlot === 'oi' ? s.oi : s.photos;
+    const y = el.dataset.ipcPlot === 'oi' ? 'ОИ' : 'снимков';
+    let data;
+    let series;
+    if (person) {
+      const i = team.indexOf(person);
+      data = [s.xs, rows[i], s.xs.map((_, k) => medianOf(rows.map((r) => r[k])))];
+      series = [line(`${person.split(' ').slice(0, 2).join(' ')} · ${sum(rows[i])}`, pal[0]),
+        line('Медиана команды', cssVar('--muted', '#526073'), { width: 1.5, dash: [4, 3], points: { show: false } })];
     } else {
-      const s = weeklySeries(names, 8);
-      const rows = kind === 'oi' ? s.oi : s.photos;
       data = [s.xs, ...rows];
-      // В легенде у человека — итог за 8 недель: виден без наведения.
-      o = opts(uPlot, el, names.map((n, i) => line(`${n.split(' ').slice(0, 2).join(' ')} · ${sum(rows[i])}`, pal[i % pal.length])), { y: zeroMin },
-        kind === 'oi' ? 'ОИ' : 'снимков');
+      // В легенде у человека — итог за период: виден без наведения.
+      series = team.map((n, i) => line(`${n.split(' ').slice(0, 2).join(' ')} · ${sum(rows[i])}`, pal[i % pal.length]));
     }
-    plots.push(new uPlot(o, data, el));
+    plots.push(new uPlot(opts(el, series, y, s.step), data, el));
+    lastH[hKey(el)] = el.offsetHeight;
   });
   // Ширина — по месту: при изменении окна или колонки графики подстраиваются.
   ro = new ResizeObserver(() => plots.forEach((p) => { const w = p.root.parentElement.clientWidth; if (w && Math.abs(w - p.width) > 2) p.setSize({ width: w, height: 170 }); }));

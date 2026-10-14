@@ -223,3 +223,18 @@ def _(p):
     p.ck('отборы сброшены', p.state()['отборы'] == '', p.state()['отборы'], '')
     p.click('[data-ip-set]')
     p.eq('набор вернул отборы и строки', pick(p.state(), 'отборы', 'строк'), pick(s1, 'отборы', 'строк'))
+
+
+@path('stats-period-person-back', '«Статистика»: квартал, шаг назад → строка осмотрщика → тот же период у него → «Назад» → период тот же', 'Р13')
+def _(p):
+    p.open('#/inspections?s=people&t=stats', '[data-ip-sunit]')
+    p.click('[data-ip-sunit="quarter"]')
+    p.click('[data-ip-sstep="1"]')
+    label = p.text('.ip-repmonth')
+    p.ck('выбран прошлый квартал', 'квартал' in label, label, '… квартал …')
+    p.click('[data-ip-stat-open]')
+    p.ck('у осмотрщика тот же период', p.text('.ip-repmonth') == label, p.text('.ip-repmonth'), label)
+    p.back()
+    s = p.state()
+    p.eq('вернулись к статистике всех с тем же периодом', {'подраздел': s['подраздел'], 'период': p.text('.ip-repmonth')},
+         {'подраздел': 'stats', 'период': label})
