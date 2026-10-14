@@ -61,6 +61,11 @@ _add('Осмотры · Кадастр', 'osmotry', 'rm', '#/inspections?s=cadas
 _add('Осмотры · Уведомления', 'osmotry', 'rm', '#/inspections?s=notes', '[data-ip-section]', _INSP_TOUCH)
 _add('Осмотры · История', 'osmotry', 'rm', '#/inspections?s=history', '[data-ip-section]', _INSP_TOUCH)
 
-_add('Осмотрщик · Задачи', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON), '.ins-page, .ins-list, main', _INSPECTOR_TOUCH)
+# Разделы верхнего уровня экрана осмотрщика (14.10.2026): Сегодня · Задачи ·
+# Запросы · Уведомления.
+_add('Осмотрщик · Сегодня', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON), '.ins-body', _INSPECTOR_TOUCH)
+_add('Осмотрщик · Задачи', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON) + '&tab=tasks', '.ins-page, .ins-list, main', _INSPECTOR_TOUCH)
+_add('Осмотрщик · Запросы', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON) + '&tab=cad', '.ins-body', _INSPECTOR_TOUCH)
+_add('Осмотрщик · Уведомления', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON) + '&tab=notes', '.ins-body', _INSPECTOR_TOUCH)
 _add('Осмотрщик · Задача', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON), '.ins-page, .ins-list, main', _INSPECTOR_TOUCH,
      prep=['a[href^="#/insp/"]'])

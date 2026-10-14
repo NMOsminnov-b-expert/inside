@@ -35,6 +35,9 @@ const I = {
   chev: '<path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
   ok: '<path d="M4 10.5 8 14.5 16 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   pen: '<path d="M3 17h4l9-9-4-4-9 9zM12 4l4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  today: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M7 3v3M13 3v3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.5" r="1.6" fill="currentColor"/>',
+  bell: '<path d="M5 14V9a5 5 0 0 1 10 0v5l1.5 1.5h-13zM8.5 17.5a1.6 1.6 0 0 0 3 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  nav: '<path d="M10 2.5 16.5 17 10 13.5 3.5 17z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
 };
 
 const ico = (name, size = 20) =>
@@ -138,22 +141,55 @@ const rowHTML = (label, value, mono) => `<div class="ins-row">
 
 // total и pendingCount приходят снаружи: считать их из показанного списка
 // нельзя — он уже отфильтрован, и «Все мои» показывали бы число ждущих.
-export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '', cad = '', notes = '' }) {
-  return `<div class="ins">
-    <header class="ins-head">
-      <a class="ins-back" href="${esc(backHref)}" aria-label="К объектам оценки"
-        title="К объектам оценки">${ico('back', 22)}</a>
-      <div class="ins-head-txt">
-        <b class="ins-head-title">Мои осмотры</b>
-        <span class="ins-head-sub">${esc(person)}</span>
-      </div>
-    </header>
+// Разделы верхнего уровня (14.10.2026, «проработать навигацию... переходы по
+// экранам»): прежде список «Мои осмотры» был лентой — уведомления, отчёты,
+// запросы и лишь под ними задачи, ниже первого экрана. Теперь у каждого свой
+// раздел нижней панели; первым — «Сегодня»: выезды дня по маршруту и отчёты.
+// Раздел — в адресе (?tab=), чтобы «назад» на телефоне возвращал туда же.
+export const HOME_TABS = [
+  { key: 'today', label: 'Сегодня', icon: 'today' },
+  { key: 'tasks', label: 'Задачи', icon: 'task' },
+  { key: 'cad', label: 'Запросы', icon: 'docs' },
+  { key: 'notes', label: 'Уведомления', icon: 'bell' },
+];
+
+function homeTabsHTML(cur, counts) {
+  return `<nav class="ins-tabs" aria-label="Разделы">
+  ${HOME_TABS.map((t) => {
+    const on = t.key === cur;
+    const n = counts[t.key];
+    return `<a class="ins-tab ${on ? 'on' : ''}" href="#/insp?tab=${t.key}" data-home-tab="${t.key}"
+      ${on ? 'aria-current="page"' : ''}>
+      <span class="ins-tab-ico">${ico(t.icon, 22)}${n ? `<i class="ins-tab-n">${n}</i>` : ''}</span>
+      <span class="ins-tab-l">${esc(t.label)}</span>
+    </a>`;
+  }).join('')}
+  </nav>`;
+}
+
+export function listHTML({
+  tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '', cad = '', notes = '',
+  tab = 'today', today = '', counts = {},
+}) {
+  const title = (HOME_TABS.find((t) => t.key === tab) || HOME_TABS[0]).label;
+  const asHTML = `<div class="ins-as">
+        <label for="insAs">Показать осмотры</label>
+        <select class="select ins-select" id="insAs" data-view-as>
+          ${inspectors.map((x) => `<option value="${esc(x.name)}" ${x.name === person ? 'selected' : ''}>${esc(x.name)} · ${x.count}</option>`).join('')}
+        </select>
+        <span class="ins-note">В работе осмотрщик — это вошедший пользователь;
+          выбор здесь нужен только макету, чтобы показать чужие назначения.</span>
+      </div>`;
+  let body;
+  if (tab === 'today') body = `${reports}${today}${asHTML}`;
+  else if (tab === 'cad') body = cad || '<p class="ins-empty">Запросов документов в кадастр нет.</p>';
+  else if (tab === 'notes') body = notes || '<p class="ins-empty">Уведомлений нет.</p>';
+  else body = null;
+  return `<div class="ins ins-home">
+    ${headerHTML({ title, sub: person, backHref, backLabel: 'К объектам оценки' })}
 
     <div class="ins-body ins-body-list">
-      ${notes}
-      ${reports}
-      ${cad}
-      <div class="ins-seg" role="tablist">
+      ${body !== null ? body : `<div class="ins-seg" role="tablist">
         <button class="ins-seg-b ${onlyPending ? 'on' : ''}" data-only="1" role="tab"
           aria-selected="${onlyPending ? 'true' : 'false'}">Ждут осмотра${pendingCount ? ` · ${pendingCount}` : ''}</button>
         <button class="ins-seg-b ${onlyPending ? '' : 'on'}" data-only="0" role="tab"
@@ -166,16 +202,89 @@ export function listHTML({ tasks, total, pendingCount, inspectors, person, onlyP
     ? 'Объектов, ждущих осмотра, нет. Посмотрите «Все мои».'
     : 'На этого осмотрщика объекты не назначены.'}</p>`}
 
-      <div class="ins-as">
-        <label for="insAs">Показать осмотры</label>
-        <select class="select ins-select" id="insAs" data-view-as>
-          ${inspectors.map((x) => `<option value="${esc(x.name)}" ${x.name === person ? 'selected' : ''}>${esc(x.name)} · ${x.count}</option>`).join('')}
-        </select>
-        <span class="ins-note">В работе осмотрщик — это вошедший пользователь;
-          выбор здесь нужен только макету, чтобы показать чужие назначения.</span>
-      </div>
+      ${asHTML}`}
+    </div>
+    ${homeTabsHTML(tab, counts)}
+  </div>`;
+}
+
+// --- «Сегодня»: выезды дня по маршруту --------------------------------------
+//
+// Порядок — маршрут дня (pages/inspections/route.js, dayRoute: ближайший
+// следующий от дома), тот же, что видит регионал в «Маршруте»; без координат
+// — в конце. У выезда — «Ехать» (выбор навигатора) и «Открыть».
+export function todayHTML({ date, stops, routeLinks, app = '' }) {
+  const ddmm = date.slice(8, 10) + '.' + date.slice(5, 7);
+  if (!stops.length) {
+    return `<section class="ins-blk"><h2 class="ins-blk-h">Выезды на ${esc(ddmm)}</h2>
+      <p class="ins-empty">На сегодня выездов не назначено. Все задачи — в разделе «Задачи».</p></section>`;
+  }
+  const withGps = stops.filter((x) => x.ll);
+  return `<section class="ins-blk ins-today">
+    <h2 class="ins-blk-h">Выезды на ${esc(ddmm)} · ${stops.length}</h2>
+    ${withGps.length > 1 ? navPickHTML('route', routeLinks, `Весь маршрут · ${withGps.length}`, app, false) : ''}
+    <ol class="ins-trips">
+      ${stops.map((x, i) => `<li class="ins-trip ${x.t.done ? 'is-done' : ''}">
+        <span class="ins-trip-n" aria-hidden="true">${x.t.done ? ico('ok', 14) : i + 1}</span>
+        <div class="ins-trip-b">
+          <a class="ins-trip-a" href="#/insp/${encodeURIComponent(x.t.typeId)}/${encodeURIComponent(x.t.ocId)}">
+            <b class="ins-trip-t">${esc(x.t.title)}</b>
+            <span class="ins-trip-m">${esc([x.t.typeLabel, x.t.institution].filter(Boolean).join(' · '))}</span>
+            <span class="ins-trip-m mono">${esc(x.t.eni || '')}</span>
+            <span class="ins-trip-m">ОИ: ${x.t.oiAssigned ? `${x.t.oiAssigned} из ${x.t.oiCount}` : x.t.oiCount}${x.t.photos ? ` · фото: ${x.t.photos}` : ''}${x.t.done ? ' · осмотр завершён' : ''}</span>
+          </a>
+          ${x.ll ? navPickHTML(x.t.key, x.links, 'Ехать', app) : '<span class="ins-trip-m ins-warn">Координат нет — адрес в задаче</span>'}
+        </div>
+      </li>`).join('')}
+    </ol>
+  </section>`;
+}
+
+// Кнопка «Ехать» с выбором навигатора — раскрывается на месте, без окна
+// поверх (правило проекта «без модальных окон»). Выбранный навигатор
+// запоминается (inspector.js), и дальше «Ехать» открывает его сразу.
+// links — { google, yandex, dgis, geo } от navLinks().
+export function navPickHTML(id, links, label, app = '', main = true) {
+  const cls = main ? 'ins-btn ins-btn-main ins-go-b' : 'ins-btn ins-go-b';
+  const known = app && links[app] ? NAVIGATORS.find((n) => n.key === app) : null;
+  return `<div class="ins-go" data-go="${esc(id)}">
+    <div class="ins-go-row">
+      ${known
+    ? `<a class="${cls}" href="${esc(links[app])}" target="_blank" rel="noopener" data-go-app="${known.key}">${ico('nav', 18)} ${esc(label)}<span class="ins-go-app">· ${esc(known.label)}</span></a>
+      <button type="button" class="ins-btn ins-go-alt" data-go-open="${esc(id)}" aria-expanded="false">Другой</button>`
+    : `<button type="button" class="${cls}" data-go-open="${esc(id)}" aria-expanded="false">${ico('nav', 18)} ${esc(label)}</button>`}
+    </div>
+    <div class="ins-go-pick" data-go-pick="${esc(id)}" hidden>
+      <span class="ins-go-h">Открыть в навигаторе</span>
+      ${NAVIGATORS.map((n) => links[n.key] ? `<a class="ins-btn ins-go-o" href="${esc(links[n.key])}" target="_blank" rel="noopener"
+        data-go-app="${n.key}">${esc(n.label)}</a>` : '').join('')}
     </div>
   </div>`;
+}
+
+export const NAVIGATORS = [
+  { key: 'google', label: 'Google Карты' },
+  { key: 'yandex', label: 'Яндекс Карты' },
+  { key: 'dgis', label: '2ГИС' },
+  { key: 'geo', label: 'Карты телефона' },
+];
+
+// Ссылки «проложить маршрут» в навигаторы. pts — [[широта, долгота], …]:
+// одна точка — до неё от текущего места, несколько — маршрут через все.
+// Форматы — открытые ссылки навигаторов (Google Maps URLs, Яндекс Карты
+// rtext, 2ГИС directions), приложение на телефоне перехватывает их само.
+export function navLinks(pts) {
+  if (!pts.length) return {};
+  const ll = (p) => `${p[0]},${p[1]}`;
+  const last = pts[pts.length - 1];
+  const mid = pts.slice(0, -1);
+  return {
+    google: `https://www.google.com/maps/dir/?api=1&destination=${ll(last)}&travelmode=driving${mid.length ? `&waypoints=${encodeURIComponent(mid.map(ll).join('|'))}` : ''}`,
+    yandex: `https://yandex.ru/maps/?rtext=~${pts.map(ll).join('~')}&rtt=auto`,
+    dgis: `https://2gis.kg/directions/points/${encodeURIComponent('|' + pts.map((p) => `${p[1]},${p[0]}`).join('|'))}`,
+    // Карты телефона — только до одной точки: geo: маршрута через несколько не знает.
+    geo: pts.length === 1 ? `geo:${ll(last)}?q=${ll(last)}` : '',
+  };
 }
 
 // Сегодня — по местной полуночи: просрочка плана считается по местным суткам.
@@ -204,10 +313,70 @@ function cardHTML(t) {
   </li>`;
 }
 
+// --- участок по Кадастру -------------------------------------------------
+//
+// Что известно об участке с портала Кадастра (rec.geo — kernel/cadastreGeo.js,
+// по ЕНИ или адресу, решение 13.10.2026 «Если там рамка, забираем всю
+// рамку»): когда и как получен контур, площадь по контуру рядом с площадью
+// участка по документам — расхождение видно на месте. Нет контура — кнопка
+// «Получить с Кадастра» по ЕНИ (ЕНИ наружу отправлять можно — решение
+// пользователя 13.10.2026).
+function cadParcelHTML(rec, geo, msg) {
+  const land = (rec.oi || []).find((o) => o.card === 'land');
+  const doc = land && land.areas ? parseFloat(String(land.areas.pravo || land.areas.fact || '').replace(',', '.')) : NaN;
+  const docLabel = land && land.areas && land.areas.pravo ? 'по документам' : 'по факту';
+  const docHint = land && land.areas && land.areas.pravo ? 'По правоустанавливающим документам — из карточки участка' : 'По факту — из карточки участка';
+  if (!geo || !geo.extent) {
+    return `<section class="ins-blk ins-cadp">
+      <h2 class="ins-blk-h">Участок по Кадастру</h2>
+      <p class="ins-empty">Контура участка нет.</p>
+      ${rec.eni ? `<button type="button" class="ins-btn ins-btn-wide" data-cad-geo>${ico('pin')} Получить с Кадастра по ЕНИ</button>` : ''}
+      ${msg ? `<p class="ins-hint" role="status" data-cad-geo-msg>${esc(msg)}</p>` : '<p class="ins-hint" role="status" data-cad-geo-msg></p>'}
+    </section>`;
+  }
+  const m2 = geo.contour ? contourAreaM2(geo.contour) : null;
+  const fmt = (v) => Math.round(v).toLocaleString('ru-RU');
+  const d = geo.at ? new Date(geo.at) : null;
+  const when = d && !isNaN(d) ? `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}` : '';
+  let diff = '';
+  if (m2 && Number.isFinite(doc) && doc > 0) {
+    const pct = ((m2 - doc) / doc) * 100;
+    const big = Math.abs(pct) >= 5;
+    diff = `<div class="ins-row ${big ? 'ins-cadp-warn' : ''}"><span class="ins-row-l">Разница</span>
+      <span class="ins-row-v">${pct > 0 ? '+' : '−'}${fmt(Math.abs(m2 - doc))} м² (${Math.abs(pct).toFixed(1).replace('.', ',')} %)${big ? ' — сверить на месте' : ''}</span></div>`;
+  }
+  return `<section class="ins-blk ins-cadp">
+    <h2 class="ins-blk-h">Участок по Кадастру</h2>
+    ${rowHTML('Контур', geo.contour ? `${geo.saved === false ? 'получен сейчас' : `получен ${when}`}${geo.by === 'адрес' ? ' по адресу' : ' по ЕНИ'}` : `только рамка, ${when} — запрашиваю контур…`)}
+    ${m2 ? rowHTML('Площадь по контуру', `≈ ${fmt(m2)} м²`) : ''}
+    ${Number.isFinite(doc) && doc > 0 ? `<div class="ins-row" title="${esc(docHint)}"><span class="ins-row-l">Площадь ${docLabel}</span><span class="ins-row-v">${fmt(doc)} м²</span></div>` : ''}
+    ${diff}
+    ${geo.house ? rowHTML('Дом по Кадастру', geo.house) : ''}
+    <p class="ins-hint">На карте: синим — участок, фиолетовым — соседние участки, серым — строения (видны при приближении).${geo.saved === false ? ' Контур получен сейчас и в карточку не записан.' : ''}</p>
+  </section>`;
+}
+
+// Площадь мультиполигона [[[ [долгота, широта], … ]]] в м² — по сфере
+// (формула площади сферического многоугольника, радиус 6 378 137 м);
+// дыры вычитаются. Для участков в сотни метров погрешность — доли процента.
+export function contourAreaM2(contour) {
+  const R2 = 6378137 * 6378137;
+  const rad = (x) => (x * Math.PI) / 180;
+  const ring = (pts) => {
+    let s = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[(i + 1) % pts.length];
+      s += rad(x2 - x1) * (2 + Math.sin(rad(y1)) + Math.sin(rad(y2)));
+    }
+    return Math.abs((s * R2) / 2);
+  };
+  return (contour || []).reduce((sum, poly) => sum + poly.reduce((a, r, i) => a + (i === 0 ? ring(r) : -ring(r)), 0), 0);
+}
+
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
-  const gps = (rec.gps || '').trim();
+export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '' }) {
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
   return `<div class="ins">
@@ -223,17 +392,16 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
       <div class="ins-cols">
         <section class="ins-blk">
           <h2 class="ins-blk-h">Куда ехать</h2>
-          ${gps ? `<div class="ins-map" data-map>
-            ${mapSchemeHTML()}
-            <span class="ins-map-gps mono">${esc(gps)}</span>
-          </div>
+          ${ll ? `<div class="ins-gmap" data-ins-map role="img"
+            aria-label="Участок на карте: контур из Кадастра, вокруг — соседние участки и строения"></div>
           <div class="ins-acts">
-            <a class="ins-btn ins-btn-main" data-open-map href="${mapLink(gps)}"
-              target="_blank" rel="noopener">${ico('pin')} Открыть в картах</a>
-            <button class="ins-btn ins-btn-icon" data-copy-gps="${esc(gps)}"
+            ${navPickHTML('task', navLinks([ll]), 'Ехать', app)}
+            <button class="ins-btn ins-btn-icon" data-copy-gps="${esc(`${ll[0].toFixed(6)}, ${ll[1].toFixed(6)}`)}"
               aria-label="Скопировать координаты" title="Скопировать координаты">${ico('copy')}</button>
-          </div>` : '<p class="ins-empty">Координаты объекта не заданы — ориентируйтесь по адресу.</p>'}
+          </div>` : '<p class="ins-empty">Координат нет — ни в карточке, ни с Кадастра. Ориентируйтесь по адресу.</p>'}
         </section>
+
+        ${cadParcelHTML(rec, geo, geoMsg)}
 
         <section class="ins-blk">
           <h2 class="ins-blk-h">Сводка</h2>
@@ -275,32 +443,6 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
 
     ${tabsHTML('task', hrefFor, counts)}
   </div>`;
-}
-
-// Схема вместо карты: тайлы тянуть неоткуда — у макета нет внешних
-// зависимостей, и на осмотре связь бывает хуже, чем в офисе.
-//
-// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь настоящая карта (2ГИС или Яндекс по API, как в
-// ТЗ) с точкой объекта и маршрутом, плюс заранее скачанная область для работы
-// без сети.
-function mapSchemeHTML() {
-  return `<svg class="ins-map-svg" viewBox="0 0 320 120" role="img"
-    aria-label="Схема: точка объекта на карте">
-    <rect width="320" height="120" fill="var(--ins-map-bg)"/>
-    <path d="M0 84h320M0 40h320M74 0v120M206 0v120" stroke="var(--ins-map-line)" stroke-width="6" fill="none"/>
-    <path d="M0 62h320" stroke="var(--ins-map-line)" stroke-width="12" fill="none"/>
-    <g transform="translate(146,26)" fill="none" stroke="var(--ins-map-pin)" stroke-width="2.5">
-      <path d="M14 44S26 30 26 20A12 12 0 0 0 2 20c0 10 12 24 12 24Z" fill="var(--ins-map-pin-fill)"/>
-      <circle cx="14" cy="20" r="4.5"/>
-    </g>
-  </svg>`;
-}
-
-// Ссылка одна на все платформы: geo: понимают и Android, и приложения карт на
-// iOS, а если обработчика нет — открывается веб-карта.
-function mapLink(gps) {
-  const [lat, lon] = String(gps).split(',').map((x) => x.trim());
-  return `geo:${encodeURIComponent(lat)},${encodeURIComponent(lon)}?q=${encodeURIComponent(lat + ',' + lon)}`;
 }
 
 // --- экран 3: карточка ОЦ, только для чтения ------------------------------

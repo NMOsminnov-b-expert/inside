@@ -99,13 +99,22 @@ def run(t):
     pg = t.page
     pg.set_viewport_size(PHONE)
 
-    # --- 1. список осмотров ---
-    t.open('#/insp', wait='.ins-list, .ins-empty')
+    # --- 0. разделы верхнего уровня (14.10.2026): «Сегодня · Задачи · Запросы ·
+    # Уведомления»; по умолчанию — «Сегодня»; раздел в адресе.
+    t.open('#/insp', wait='.ins-body')
     t.wait(300)
-
     t.ck(pg.locator('.ins').count() == 1, 'экран осмотрщика не открылся')
     t.ck(pg.locator('.sidebar').first.is_visible() is False,
          'на экране осмотрщика видно боковое меню настольного каркаса')
+    tabs = pg.eval_on_selector_all('[data-home-tab]', 'els => els.map((e) => e.dataset.homeTab)')
+    t.ck(tabs == ['today', 'tasks', 'cad', 'notes'], 'разделы верхнего уровня не те: %s' % tabs)
+    t.ck(pg.get_attribute('[data-home-tab][aria-current="page"]', 'data-home-tab') == 'today', 'первым открылся не раздел «Сегодня»')
+    pg.click('[data-home-tab="notes"]')
+    t.ck(t.wait_until("() => location.hash.includes('tab=notes')"), 'раздел «Уведомления» не попал в адрес')
+
+    # --- 1. список осмотров («Задачи») ---
+    t.open('#/insp?tab=tasks', wait='.ins-list, .ins-empty')
+    t.wait(300)
 
     segs = pg.eval_on_selector_all(
         '.ins-seg-b', 'els => els.map((e) => e.textContent.trim())')
@@ -136,11 +145,14 @@ def run(t):
     t.wait(300)
 
     t.ck(_has(t, 'Куда ехать'), 'в задаче нет блока «Куда ехать»')
-    t.ck(pg.locator('.ins-map-gps').count() == 1, 'в задаче не показаны координаты объекта')
-
-    href = pg.get_attribute('[data-open-map]', 'href') or ''
-    t.ck(href.startswith('geo:'),
-         'ссылка на карты не geo: — на телефоне её не подхватит приложение карт: %s' % href[:40])
+    # «Куда ехать» — карта участка и «Ехать» с выбором навигатора (14.10.2026):
+    # раскрывается на месте, ссылки — маршрутом в Google, Яндекс, 2ГИС и geo:.
+    t.ck(t.wait_for('[data-ins-map] .maplibregl-canvas'), 'в задаче нет карты участка')
+    pg.click('[data-go-open="task"]')
+    links = pg.evaluate("[...document.querySelectorAll('[data-go-pick=\"task\"]:not([hidden]) a')].map((a) => a.getAttribute('href'))")
+    t.ck(len(links) == 4 and links[0].startswith('https://www.google.com/maps/dir/') and links[-1].startswith('geo:'),
+         'выбор навигатора не раскрылся или ссылки не маршрутом: %s' % links)
+    t.ck(_has(t, 'Участок по Кадастру'), 'в задаче нет блока «Участок по Кадастру»')
     t.ck(pg.locator('[data-copy-gps]').count() == 1, 'нет кнопки «скопировать координаты»')
     t.ck(pg.locator('.ins-strip').count() == 1, 'статус объекта не показан полосой под шапкой')
 

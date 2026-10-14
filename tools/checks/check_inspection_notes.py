@@ -65,6 +65,7 @@ def run(t):
 
     # осмотрщик — новое назначение
     who = pg.evaluate("async () => (await %s).profileNames()[0]" % K)
-    t.open('#/insp?as=' + who, wait='.ins-body')
+    # Уведомления осмотрщика — свой раздел нижней панели (14.10.2026).
+    t.open('#/insp?as=' + who + '&tab=notes', wait='.ins-body')
     t.ck(t.wait_until("() => /Новое назначение/.test(document.querySelector('.ins-ntfs')?.innerText || '')"),
          'у осмотрщика нет уведомления о новом назначении')

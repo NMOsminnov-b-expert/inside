@@ -29,8 +29,13 @@ import { codeByName } from '../../kernel/institutions.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint } from './form.js';
+import { dayRoute, gpsOfObject } from '../inspections/route.js';
+import { summaries } from '../inspections/model.js';
+import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
+import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
+import { geoByEni } from '../../kernel/cadastreGeo.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, todayHTML, navLinks,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -129,6 +134,80 @@ export function mountInspector(host) {
   //
   // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: доставка — пушем приложения или в WhatsApp; здесь —
   // список на экране «Мои осмотры».
+  // «Сегодня»: выезды дня в порядке маршрута дня — того же, что видит
+  // регионал (dayRoute: ближайший следующий от дома); без координат — в конце.
+  function todaySection(all) {
+    const date = isoToday();
+    const mine = all.filter((t) => t.plannedAt === date);
+    const route = mine.length ? dayRoute(summaries(), currentInspector(), date) : null;
+    const order = route ? route.stops.filter((x) => x.fixed).map((x) => x.key) : [];
+    const rank = (t) => { const i = order.indexOf(t.typeId + '|' + t.ocId); return i < 0 ? 1e6 : i; };
+    const stops = mine.slice().sort((a, b) => rank(a) - rank(b)).map((t) => {
+      const ll = gpsOfObject(t.typeId, t.ocId);
+      return { t, ll, links: ll ? navLinks([ll]) : {} };
+    });
+    const pts = stops.filter((x) => x.ll && !x.t.done).map((x) => x.ll);
+    return todayHTML({ date, stops, routeLinks: navLinks(pts), app: navApp() });
+  }
+
+  // --- карта задачи и участок по Кадастру ---------------------------------
+  //
+  // Контур — rec.geo карточки; нет его — полученный сейчас по ЕНИ (geoMemo,
+  // в памяти вкладки, в карточку не пишется: данные карточки правит ЦОД).
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: полученный на выезде контур — заявкой ЦОД или
+  // сразу в карточку по правам; карта — со своего сервера тайлов и с
+  // заранее скачанной областью для работы без связи.
+  const geoMemo = new Map();
+  const geoOf = (r) => geoMemo.get(route.typeId + '|' + route.ocId) || (r.geo && r.geo.extent ? r.geo : null);
+  // В карточке только рамка (так её получают по ЕНИ, когда контур не пришёл)
+  // — контур дозапрашивается сам: рамку карта рисует точкой, и участка не
+  // было видно (замечание пользователя 14.10.2026: «Участок не
+  // отображается»). Раз на задачу: ответ «контура нет» не повторяем.
+  const contourTried = new Set();
+  function fillContour(r, geo) {
+    const key = route.typeId + '|' + route.ocId;
+    if (!geo || !geo.extent || geo.contour || !r.eni || contourTried.has(key)) return;
+    contourTried.add(key);
+    geoByEni(r.eni).then((g) => {
+      if (!g.contour) return;
+      geoMemo.set(key, { ...geo, contour: g.contour, house: g.house || geo.house, at: g.at, saved: false });
+      if (route.typeId + '|' + route.ocId === key && (route.section || 'task') === 'task') render();
+    });
+  }
+  const parseLL = (v) => { const m = /(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/.exec(String(v || '')); return m ? [+m[1], +m[2]] : null; };
+  let taskMap = null;
+  async function mountTaskMap(geo, ll) {
+    if (taskMap) { taskMap.remove(); taskMap = null; }
+    const el = scope.$('[data-ins-map]');
+    if (!el || !ll) return;
+    const gl = await loadMapLibre(host.ensureStyle);
+    if (!el.isConnected) return;
+    const map = await createMap(gl, el, { center: [ll[1], ll[0]], zoom: 16 });
+    if (!el.isConnected) { map.remove(); return; }
+    taskMap = map;
+    // Соседние участки и строения — только когда контур уже получен с
+    // Кадастра: без связи с порталом (прокси не поднят) их запросы падали бы
+    // на каждом открытии задачи.
+    if (geo && geo.extent) attachCadastreGL(gl, map);
+    // Есть контур — карта по нему; нет — точка объекта на масштабе 16, чтобы
+    // были видны улицы вокруг (рамка из одной точки приближала до 18).
+    const box = ownParcelsGL(map, [geo && geo.extent ? geo : { extent: [ll[1], ll[0], ll[1], ll[0]] }]);
+    if (box && geo && geo.extent) map.fitBounds(box, { padding: 32, maxZoom: 18, animate: false });
+  }
+
+  // «Назад» из задачи — в тот раздел верхнего уровня, откуда пришли.
+  const homeHref = () => (ui.homeTab && ui.homeTab !== 'today' ? `${INSP_HREF}?tab=${ui.homeTab}` : INSP_HREF);
+
+  // Выбранный навигатор — удобство одного телефона, в памяти браузера.
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: можно держать в профиле осмотрщика, чтобы выбор
+  // переезжал с ним на новый телефон.
+  function navApp() {
+    try { return localStorage.getItem('inside.insp.nav') || ''; } catch (e) { return ''; }
+  }
+  function setNavApp(v) {
+    try { localStorage.setItem('inside.insp.nav', v); } catch (e) { /* без памяти — спросим снова */ }
+  }
+
   function myNotes() {
     const me = currentInspector();
     const since = new Date(Date.now() - 3 * 864e5).toISOString();
@@ -284,7 +363,14 @@ export function mountInspector(host) {
       // переключателе, иначе «Все мои» показывало бы число ждущих осмотра.
       const all = myTasks();
       const pending = all.filter((t) => t.pending);
+      const tab = ['today', 'tasks', 'cad', 'notes'].includes(route.query && route.query.tab) ? route.query.tab : 'today';
+      ui.homeTab = tab;
+      const notesList = myNotes();
+      const cadOpen = allCadRequests().filter((r) => r.person === currentInspector() && cadSummary(r).wait).length;
       scope.setHTML(listHTML({
+        tab,
+        today: tab === 'today' ? todaySection(all) : '',
+        counts: { today: all.filter((t) => t.plannedAt === isoToday() && !t.done).length, cad: cadOpen, notes: notesList.length },
         tasks: ui.onlyPending ? pending : all,
         total: all.length,
         pendingCount: pending.length,
@@ -292,7 +378,7 @@ export function mountInspector(host) {
         person: currentInspector(),
         onlyPending: ui.onlyPending,
         backHref: MENU_HREF,
-        notes: notesHTML(myNotes()),
+        notes: notesList.length ? notesHTML(notesList) : '',
         cad: cadListHTML(allCadRequests().filter((r) => r.person === currentInspector()).map((r) => {
           const t = cadSummary(r);
           return { id: r.id, no: r.no, kindLabel: cadKindLabel(r.kind), due: r.due, wait: t.wait, got: t.got, total: t.total, late: !!(r.due && r.due < isoToday() && t.wait) };
@@ -385,7 +471,11 @@ export function mountInspector(host) {
       return;
     }
 
-    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: INSP_HREF }));
+    const geo = geoOf(r);
+    const ll = parseLL(r.gps) || (geo && geo.extent ? [(geo.extent[1] + geo.extent[3]) / 2, (geo.extent[0] + geo.extent[2]) / 2] : null);
+    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '' }));
+    mountTaskMap(geo, ll);
+    fillContour(r, geo);
   }
 
   // --- поля осмотра -------------------------------------------------------
@@ -707,6 +797,37 @@ export function mountInspector(host) {
     if (still) done(true);
   });
 
+  // Контур участка с Кадастра по ЕНИ — на месте, если в карточке его нет.
+  scope.on('click', '[data-cad-geo]', async (e, el) => {
+    const r = rec();
+    if (!r) return;
+    el.disabled = true;
+    const msg = scope.$('[data-cad-geo-msg]');
+    if (msg) msg.textContent = 'Запрашиваю Кадастр…';
+    const g = await geoByEni(r.eni);
+    if (g.error) {
+      ui.geoMsg = `Не получилось: ${g.error}`;
+    } else {
+      geoMemo.set(route.typeId + '|' + route.ocId, { ...g, by: 'ЕНИ', saved: false });
+      ui.geoMsg = '';
+    }
+    render();
+  });
+
+  // «Ехать»: выбор навигатора раскрывается на месте; выбранный запоминается.
+  scope.on('click', '[data-go-open]', (e, el) => {
+    const pick = scope.$(`[data-go-pick="${el.dataset.goOpen}"]`);
+    if (!pick) return;
+    pick.hidden = !pick.hidden;
+    el.setAttribute('aria-expanded', String(!pick.hidden));
+  });
+  scope.on('click', '[data-go-app]', (e, el) => {
+    if (navApp() === el.dataset.goApp) return;
+    setNavApp(el.dataset.goApp);
+    // Перерисовка — после перехода по ссылке: кнопки «Ехать» станут прямыми.
+    setTimeout(render, 0);
+  });
+
   // ЕНИ в шапке — касанием в буфер: его сверяют и вписывают на месте.
   scope.on('click', '[data-ins-copy]', async (e, el) => {
     try {
@@ -836,6 +957,7 @@ export function mountInspector(host) {
     },
     destroy() {
       closeLightbox();
+      if (taskMap) { taskMap.remove(); taskMap = null; }
     },
   };
 }

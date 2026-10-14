@@ -1021,3 +1021,38 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 @media (min-width: 720px) {
   body[data-page="insp"] .ins .ms-opt { min-height: 34px; }
 }
+
+/* --- «Сегодня»: выезды дня и «Ехать» ------------------------------------
+   Выезд — номер по маршруту, объект, «Ехать»; выбор навигатора раскрывается
+   под кнопкой на месте (правило «без модальных окон»). */
+.ins-trips { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ins-trip { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.ins-trip.is-done { background: var(--teal-50); border-color: var(--teal-100, #c8ece6); }
+.ins-trip-n { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px;
+  background: var(--blue-600); color: #fff; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ins-trip.is-done .ins-trip-n { background: var(--teal-600, #0e8172); }
+.ins-trip-b { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ins-trip-a { display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; min-width: 0; }
+.ins-trip-t { font-size: 15px; line-height: 1.3; color: var(--ink); }
+.ins-trip-m { font-size: 12.5px; color: var(--muted); }
+.ins-go { display: flex; flex-direction: column; gap: 6px; }
+.ins-go-row { display: flex; gap: 8px; }
+.ins-go-b { flex: 1 1 auto; gap: 8px; text-decoration: none; }
+.ins-go-app { font-weight: 500; opacity: .85; margin-left: 4px; }
+.ins-go-alt { flex: 0 0 auto; }
+.ins-go-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.ins-go-pick[hidden] { display: none; }
+.ins-go-h { grid-column: 1 / -1; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.ins-go-o { text-decoration: none; justify-content: center; }
+.ins-today > .ins-go { margin-top: 8px; }
+
+/* --- «Куда ехать»: карта участка; «Участок по Кадастру» -------------------- */
+.ins-gmap { position: relative; height: 240px; border-radius: 10px; overflow: hidden; background: var(--ins-map-bg);
+  border: 1px solid var(--line-soft); margin-bottom: 10px; }
+.ins-gmap .maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.ins-acts { display: flex; gap: 8px; align-items: flex-start; }
+.ins-acts .ins-go { flex: 1 1 auto; min-width: 0; }
+.ins-cadp-warn .ins-row-v { color: #a3361c; font-weight: 600; }
+@media (min-width: 720px) {
+  .ins-gmap { height: 300px; }
+}

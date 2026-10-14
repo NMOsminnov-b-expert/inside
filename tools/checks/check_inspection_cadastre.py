@@ -62,7 +62,8 @@ def run(t):
         rid, rowid, type_id, oc_id, eni, doc = req
 
         # --- осмотрщик ------------------------------------------------------------
-        t.open('#/insp?as=' + who, wait='.ins-body')
+        # Запросы осмотрщика — свой раздел нижней панели (14.10.2026).
+        t.open('#/insp?as=' + who + '&tab=cad', wait='.ins-body')
         t.ck(t.wait_for('[data-cad-open="%s"]' % rid), 'у осмотрщика нет нового запроса в «Запросах документов»')
         pg.click('[data-cad-open="%s"]' % rid)
         t.wait_for('[data-cad-row="%s"]' % rowid)
