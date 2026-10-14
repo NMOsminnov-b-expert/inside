@@ -186,7 +186,12 @@ const landDict = (typeId, field, fallback) => (optionsFor(typeId, 'land', field)
 const at = (o, path) => path.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
 // Путь поля записи — при функции: по нему сборщик сверки
 // (tools/docs/build_sverka_osmotra.py) находит поле карточки.
-const docOf = (path) => Object.assign((oi) => { const v = at(oi, path); return v == null || v === '' ? '' : String(v); }, { path });
+// Список (отопление — несколько видов сразу) — через запятую.
+const docOf = (path) => Object.assign((oi) => {
+  const v = at(oi, path);
+  if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+  return v == null || v === '' ? '' : String(v);
+}, { path });
 
 // Квартира — блоки карточки квартиры: площади и высоты, конструктив и износ
 // (тот же справочник, что у литеры), состояние.
@@ -199,7 +204,7 @@ const flatSections = (typeId) => {
       title: 'Замеры и площади',
       short: 'Замеры',
       fields: [
-        { key: 'areaFact', label: 'Общая площадь по факту', unit: 'м²', num: true, tpFrom: 'tp' },
+        { key: 'areaFact', label: 'Общая площадь по факту', unit: 'м²', num: true, tpFrom: 'pud' },
         { key: 'ceilInt', label: 'Высота по внутренним замерам', unit: 'м', num: true, tpFrom: 'heightInt' },
       ],
     },
@@ -213,7 +218,10 @@ const flatSections = (typeId) => {
       ],
     },
     b.find((s) => s.key === 'wear'),
-    { ...struct, fields: struct.fields.map((f) => (f.visible ? f : { ...f, doc: docOf('struct.' + f.key) })) },
+    // Отопление карточка хранит у ОИ (heating), а не в конструктиве: из
+    // struct.heating «по документам» всегда было пустым (сверка с карточками
+    // 14.10.2026).
+    { ...struct, fields: struct.fields.map((f) => (f.visible ? f : { ...f, doc: docOf(f.key === 'heating' ? 'heating' : 'struct.' + f.key) })) },
     b.find((s) => s.key === 'comments'),
   ];
 };
@@ -320,8 +328,15 @@ const buildingSections = (typeId) => [
     // пользователя 08.09.2026: «дублирует своим значением»). Рядом показываем,
     // что стоит по документам, чтобы расхождение было видно сразу.
     fields: [
-      { key: 'areaFact', label: 'Площадь фактическая', unit: 'м²', num: true, tpFrom: 'tp' },
-      { key: 'buildFact', label: 'Площадь застройки по факту', unit: 'м²', num: true, tpFrom: 'build' },
+      // «По документам» — общая площадь по правоустанавливающим документам
+      // (areas.pud). До сверки 14.10.2026 здесь стояло areas.tp, а это поле
+      // карточка с переименования площадей подписывает «Площадь по внешним
+      // замерам»; «площади застройки» в карточке больше нет — замер назван
+      // по полю карточки, с которым и сверяется (areas.build), ключ прежний:
+      // введённое осмотрщиком сохраняется. Решение пользователя: «Ошибки
+      // правим».
+      { key: 'areaFact', label: 'Площадь фактическая', unit: 'м²', num: true, tpFrom: 'pud' },
+      { key: 'buildFact', label: 'Общая площадь по внутреннему обмеру', unit: 'м²', num: true, tpFrom: 'build', tpLabel: 'в карточке' },
       { key: 'ceilExt', label: 'Потолки, внешние замеры', unit: 'м', num: true, tpFrom: 'heightExt' },
       { key: 'ceilInt', label: 'Потолки, внутренние замеры', unit: 'м', num: true, tpFrom: 'heightInt' },
     ],
@@ -382,7 +397,7 @@ export const allFields = (typeId, oi) => sections(typeId, oi).flatMap((s) => s.f
 // Что показать рядом с полем замера: значение из данных ЦОД.
 export function tpValue(oi, from) {
   if (!oi) return '';
-  if (from === 'tp' || from === 'build') return (oi.areas || {})[from] || '';
+  if (from === 'tp' || from === 'build' || from === 'pud') return (oi.areas || {})[from] || '';
   if (from === 'heightExt') return (oi.heights || {}).ext || '';
   if (from === 'heightInt') return (oi.heights || {}).int || '';
   return '';
@@ -416,15 +431,17 @@ export function mismatchHint(field, values, oi, ctx = {}) {
   const doc = tpValue(oi, field.tpFrom);
   const own = getValue(values, field.path || field.key);
   const unit = field.unit ? ' ' + field.unit : '';
+  // Обмер ЦОД — не документ: у такого поля подпись «в карточке».
+  const lbl = field.tpLabel || 'по документам';
 
-  if (!doc) return own ? '' : 'по документам: не заполнено';
-  if (!own) return `по документам: ${doc}${unit}`;
+  if (!doc) return own ? '' : `${lbl}: не заполнено`;
+  if (!own) return `${lbl}: ${doc}${unit}`;
 
   const a = parseFloat(String(doc).replace(',', '.'));
   const b = parseFloat(String(own).replace(',', '.'));
-  if (isNaN(a) || isNaN(b) || a === b) return `по документам: ${doc}${unit} — совпадает`;
+  if (isNaN(a) || isNaN(b) || a === b) return `${lbl}: ${doc}${unit} — совпадает`;
 
   const d = b - a;
   const sign = d > 0 ? '+' : '−';
-  return `РАСХОДИТСЯ: по документам ${doc}${unit}, ${sign}${Math.abs(d).toFixed(2)}${unit}`;
+  return `РАСХОДИТСЯ: ${lbl} ${doc}${unit}, ${sign}${Math.abs(d).toFixed(2)}${unit}`;
 }

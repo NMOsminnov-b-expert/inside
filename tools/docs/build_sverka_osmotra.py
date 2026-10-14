@@ -78,7 +78,7 @@ INSPECT = r"""async (pairs) => {
             key: f.key, label: f.label, opts: f.opts || null, multi: !!f.multi, unit: f.unit || '',
             num: !!f.num, req: !!f.req, long: !!f.long, cond: !!f.visible,
             doc: typeof f.doc === 'function' ? str(f.doc(oi)) : (f.tpFrom ? str(F.tpValue(oi, f.tpFrom)) : null),
-            docPath: typeof f.doc === 'function' ? str(f.doc.path) : (f.tpFrom ? ({ tp: 'areas.tp', build: 'areas.build', heightExt: 'heights.ext', heightInt: 'heights.int' })[f.tpFrom] || f.tpFrom : ''),
+            docPath: typeof f.doc === 'function' ? str(f.doc.path) : (f.tpFrom ? ({ tp: 'areas.tp', pud: 'areas.pud', build: 'areas.build', heightExt: 'heights.ext', heightInt: 'heights.int' })[f.tpFrom] || f.tpFrom : ''),
           })),
         })),
       });
@@ -116,7 +116,6 @@ ALIASES = {
     'Цоколь': ['Цоколь/подвал'],
     'Наличие центрального отопления': None,
     'Наличие автономного отопления': None,
-    'Площадь застройки по факту': None,
 }
 
 
@@ -275,7 +274,10 @@ def rows_of(data):
                         problems.append('в карточке список, в осмотре нет')
                     if dv == 'НЕТ':
                         problems.append('«по документам» не равно карточке')
-                    if src and src is not c and doc is not None:
+                    # Замер по факту сверяется с документами — это задумано: поле
+                    # «по документам» и должно быть другим, если оно по
+                    # правоустанавливающим документам.
+                    if src and src is not c and doc is not None and 'правоуст' not in src['подпись']:
                         problems.append('«по документам» — из поля «%s»' % src['подпись'])
                 sverka.append([
                     it['typeTitle'], oi, s['title'], f['label'] + (', ' + f['unit'] if f['unit'] else ''),
