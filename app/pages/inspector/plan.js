@@ -163,13 +163,13 @@ export function planModel({ tasks, removed, today, q }) {
 // Вся вкладка. stops — сегодняшние выезды в порядке маршрута ({ t, ll,
 // links }); skips — снятые сегодня ({ t, reason, note }); limit — сколько
 // строк рисовать в длинных секциях.
-export function planHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen }) {
+export function planHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen, map = '' }) {
   const search = `<div class="ins-pl-q">
     <span class="ins-pl-q-ico" aria-hidden="true">${ico('search', 18)}</span>
     <input class="ins-pl-q-in" type="search" inputmode="search" enterkeyhint="search" autocomplete="off"
       placeholder="Адрес, учреждение, ЕНИ" aria-label="Поиск по плану" value="${esc(q)}" data-plan-q>
   </div>`;
-  return `${search}<div class="ins-pl" data-plan-list>${planListHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen })}</div>`;
+  return `${search}${map}<div class="ins-pl" data-plan-list>${planListHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen })}</div>`;
 }
 
 export function planListHTML({ m, today, q, stops, skips, routeLinks, app, marksOf, limit, skipOpen, skipErr, pastOpen }) {
@@ -242,4 +242,68 @@ export function planListHTML({ m, today, q, stops, skips, routeLinks, app, marks
     parts.push('<p class="ins-empty">По запросу ничего не нашлось. Проверьте написание или ищите по ЕНИ.</p>');
   }
   return parts.join('');
+}
+
+// --- план на карте -----------------------------------------------------------
+//
+// Указание пользователя 14.10.2026: «Хорошо бы еще на карте их показывать
+// человеку» — и в «Сегодня», и в «Задачах»; «Карта должна быть крупнее…
+// Подстраиваем под удобство мобилки». Сегодняшние выезды — номерами в
+// порядке маршрута, несделанное раньше — оранжевым, дальше по плану —
+// серым; касание точки — строка объекта под картой. Точки — слоем карты
+// (на слабом телефоне сотня отдельных элементов тормозит), номерами —
+// только сегодняшние: их немного.
+export const PLAN_POINT_KINDS = [
+  { key: 'today', label: 'Сегодня', color: '#1d6fd8' },
+  { key: 'overdue', label: 'Не сделано раньше', color: '#d97706' },
+  { key: 'future', label: 'Дальше по плану', color: '#64748b' },
+  { key: 'done', label: 'Осмотр завершён', color: '#0e8172' },
+];
+
+// Точки плана: { key, ll, kind, n, title, sub, href }. gpsOf(t) — [широта,
+// долгота] или null.
+export function planPoints({ m, stops, today, gpsOf }) {
+  const out = [];
+  const add = (t, kind, n, sub) => {
+    const ll = gpsOf(t);
+    if (ll) out.push({ key: t.key, ll, kind, n, title: t.title, sub, href: hrefOf(t) });
+  };
+  stops.forEach((x, i) => add(x.t, x.t.done ? 'done' : 'today', x.t.done ? 0 : i + 1, `Сегодня · ${i + 1}-й по маршруту`));
+  m.overdue.forEach((t) => add(t, 'overdue', 0, `Не сделано, план был ${ddmm(t.plannedAt)}`));
+  for (const [d, list] of m.future) list.forEach((t) => add(t, 'future', 0, `${dayName(d, today)}, ${ddmm(d)}`));
+  return out;
+}
+
+// Точки «Задач» — объекты списка по их состоянию.
+export function taskPoints(tasks, today, gpsOf) {
+  const out = [];
+  tasks.forEach((t) => {
+    const ll = gpsOf(t);
+    if (!ll) return;
+    const kind = t.done ? 'done' : t.plannedAt === today ? 'today' : t.plannedAt && t.plannedAt < today && t.pending ? 'overdue' : 'future';
+    const sub = t.done ? 'Осмотр завершён' : t.plannedAt ? `План ${ddmm(t.plannedAt)}, ${dayName(t.plannedAt, today)}` : 'Без даты';
+    out.push({ key: t.key, ll, kind, n: 0, title: t.title, sub, href: hrefOf(t) });
+  });
+  return out;
+}
+
+export function planMapHTML({ kinds, label }) {
+  const used = PLAN_POINT_KINDS.filter((k) => kinds.includes(k.key));
+  return `<section class="ins-blk ins-plmap">
+    <div class="ins-gmap-w" data-ins-map-w>
+      <div class="ins-gmap ins-gmap-plan" data-plan-map role="img" aria-label="${esc(label)}"></div>
+      <button type="button" class="ins-gmap-t" data-map-big aria-pressed="false"
+        aria-label="Развернуть карту" title="Развернуть карту">${ico('expand', 20)}</button>
+    </div>
+    <div class="ins-plmap-leg">${used.map((k) => `<span class="ins-plmap-k"><i style="background:${k.color}"></i>${esc(k.label)}</span>`).join('')}</div>
+    <div class="ins-plmap-pick" data-plan-pick hidden></div>
+  </section>`;
+}
+
+export function planPickHTML(p) {
+  return `<a class="ins-plmap-a" href="${p.href}">
+      <b class="ins-pl-t">${esc(p.title)}</b>
+      <span class="ins-pl-m">${esc(p.sub)}</span>
+    </a>
+    <a class="ins-btn ins-btn-sm ins-plmap-open" href="${p.href}">Открыть</a>`;
 }

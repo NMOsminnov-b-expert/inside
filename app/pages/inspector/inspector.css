@@ -1058,7 +1058,11 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
    нижней панелью (координаты .ins-body ставит inspector.js, placeBig). */
 .ins-gmap-w { position: relative; margin-bottom: 10px; }
 .ins-gmap-w.is-big { position: fixed; z-index: 30; margin: 0; background: var(--panel); }
-.ins-gmap { position: relative; height: 240px; border-radius: 10px; overflow: hidden; background: var(--ins-map-bg);
+/* Карта крупнее (замечание пользователя 14.10.2026: «Карта должна быть
+   крупнее. В куда ехать. Подстраиваем под удобство мобилки»): около
+   половины высоты экрана телефона — карта читается без разворота, а
+   «Ехать» остаётся в первом экране. */
+.ins-gmap { position: relative; height: clamp(280px, 50vh, 520px); border-radius: 10px; overflow: hidden; background: var(--ins-map-bg);
   border: 1px solid var(--line-soft); }
 .ins-gmap-w.is-big .ins-gmap { height: 100%; border-radius: 0; border: 0; }
 .ins-gmap-t { position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; align-items: center; justify-content: center;
@@ -1073,7 +1077,7 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 .ins-cadp-empty p { margin: 0; }
 .ins-cadp-empty .ins-hint:empty { display: none; }
 @media (min-width: 720px) {
-  .ins-gmap { height: 300px; }
+  .ins-gmap { height: clamp(320px, 50vh, 560px); }
 }
 
 /* Разделы перечня ОИ на экране «Объект» — как в карточке ОЦ. */
@@ -1162,3 +1166,19 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 .ins-pl-skipf .ins-acts { flex-direction: column-reverse; align-items: stretch; }
 /* Цели нажатия — не меньше 44px (проверка «экраны осмотрщика»). */
 .ins-pl-take, .ins-pl-skip { min-height: 44px; }
+
+/* --- план на карте («Сегодня», «Задачи») -------------------------------- */
+.ins-gmap.ins-gmap-plan { height: clamp(260px, 42vh, 480px); }
+.ins-plmap .ins-gmap-w { margin-bottom: 8px; }
+.ins-plmap-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.ins-plmap-k { display: inline-flex; align-items: center; gap: 6px; }
+.ins-plmap-k i { width: 10px; height: 10px; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+.ins-plmap-pick { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 10px;
+  border: 1px solid var(--line-soft); border-radius: 10px; background: var(--blue-50); }
+.ins-plmap-pick[hidden] { display: none; }
+.ins-plmap-a { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
+.ins-plmap-open { flex: 0 0 auto; min-height: 44px; }
+.ins-mk { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
+  border: 2px solid #fff; border-radius: 999px; background: #1d6fd8; color: #fff; font-family: inherit; font-size: 13px; font-weight: 700; line-height: 1;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .35); cursor: pointer; }
+.ins-mk.on { background: var(--blue-800, #0f4fa8); transform: scale(1.15); }

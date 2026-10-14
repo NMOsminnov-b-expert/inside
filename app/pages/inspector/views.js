@@ -172,7 +172,7 @@ function homeTabsHTML(cur, counts) {
 
 export function listHTML({
   tasks, total, pendingCount, inspectors, person, onlyPending, backHref, reports = '', cad = '', notes = '',
-  tab = 'today', today = '', counts = {},
+  tab = 'today', today = '', counts = {}, tasksMap = '',
 }) {
   const title = (HOME_TABS.find((t) => t.key === tab) || HOME_TABS[0]).label;
   const asHTML = `<div class="ins-as">
@@ -198,6 +198,7 @@ export function listHTML({
         <button class="ins-seg-b ${onlyPending ? '' : 'on'}" data-only="0" role="tab"
           aria-selected="${onlyPending ? 'false' : 'true'}">Все мои · ${total}</button>
       </div>
+      ${tasksMap}
 
       ${tasks.length ? `<ul class="ins-list">
         ${tasks.map(cardHTML).join('')}

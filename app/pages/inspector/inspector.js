@@ -25,7 +25,7 @@ import {
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay } from '../../kernel/inspections.js';
-import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP } from './plan.js';
+import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -33,7 +33,7 @@ import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint } from './form.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
 import { summaries } from '../inspections/model.js';
-import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
+import { loadMapLibre, createMap, ownParcelsGL, emptyFC } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { geoByEni } from '../../kernel/cadastreGeo.js';
 import {
@@ -200,19 +200,21 @@ export function mountInspector(host) {
     const seenAt = planSeen(me);
     return {
       m, today: date, q, stops,
+      points: planPoints({ m, stops, today: date, gpsOf: gpsOfT }),
       skips: skippedToday.filter((t) => planMatch(t, q)).map((t) => ({ t, reason: t.skip.reason, note: t.skip.note })),
       routeLinks: navLinks(pts), app: navApp(),
       marksOf: (t) => planMarks(t, events, seenAt),
       limit: ui.planLimit, skipOpen: ui.skipOpen, skipErr: ui.skipErr, pastOpen: ui.pastOpen,
     };
   }
-  const todaySection = (all) => planHTML(planParts(all));
   // Поиск и «Показать ещё» перерисовывают только список: поле поиска не
   // пересоздаётся, фокус и клавиатура на телефоне не пропадают.
   function renderPlanList() {
     const box = scope.$('[data-plan-list]');
     if (!box) { render(); return; }
-    box.innerHTML = planListHTML(planParts(myTasks()));
+    const parts = planParts(myTasks());
+    box.innerHTML = planListHTML(parts);
+    setPlanPoints(parts.points, false);
   }
 
   // --- карта задачи и участок по Кадастру ---------------------------------
@@ -265,6 +267,94 @@ export function mountInspector(host) {
     if (mapBig) placeBig();
   }
 
+  // --- план на карте («Сегодня», «Задачи») -------------------------------
+  //
+  // Та же карта и те же два режима, что у задачи (одна карта на экране).
+  // Координаты объектов запоминаются на время экрана: запись грузится один
+  // раз, а не на каждую перерисовку.
+  const gpsMemo = new Map();
+  const gpsOfT = (t) => {
+    if (!gpsMemo.has(t.key)) gpsMemo.set(t.key, gpsOfObject(t.typeId, t.ocId));
+    return gpsMemo.get(t.key);
+  };
+  let planPts = [];
+  let planMarkers = [];
+  let planGl = null;
+  let planFitAll = false;
+  async function mountPlanMap(points, { fitAll = false } = {}) {
+    if (taskMap) { taskMap.remove(); taskMap = null; }
+    planPts = points;
+    planFitAll = fitAll;
+    planMarkers = [];
+    const el = scope.$('[data-plan-map]');
+    if (!el) return;
+    const gl = await loadMapLibre(host.ensureStyle);
+    if (!el.isConnected) return;
+    const map = await createMap(gl, el, { center: [74.6, 42.87], zoom: 6.5 });
+    if (!el.isConnected) { map.remove(); return; }
+    taskMap = map;
+    planGl = gl;
+    map.addSource('plan', { type: 'geojson', data: emptyFC() });
+    map.addLayer({ id: 'plan-pt', type: 'circle', source: 'plan', filter: ['==', ['get', 'n'], 0],
+      paint: { 'circle-radius': 8, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2 } });
+    map.on('click', 'plan-pt', (e) => { if (e.features && e.features[0]) pickPlanPoint(e.features[0].properties.key); });
+    map.on('mouseenter', 'plan-pt', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'plan-pt', () => { map.getCanvas().style.cursor = ''; });
+    setPlanPoints(planPts, true);
+    if (mapBig) placeBig();
+  }
+  function setPlanPoints(points, fit) {
+    planPts = points;
+    if (!taskMap || !taskMap.getSource('plan')) return;
+    const color = (k) => (PLAN_POINT_KINDS.find((x) => x.key === k) || PLAN_POINT_KINDS[2]).color;
+    // Важное — поверх: будущее снизу, сегодняшнее сверху.
+    const layer = { future: 0, done: 1, overdue: 2, today: 3 };
+    const drawn = points.slice().sort((a, b) => (layer[a.kind] || 0) - (layer[b.kind] || 0));
+    taskMap.getSource('plan').setData({ type: 'FeatureCollection', features: drawn.map((p) => ({
+      type: 'Feature', geometry: { type: 'Point', coordinates: [p.ll[1], p.ll[0]] }, properties: { key: p.key, n: p.n, color: color(p.kind) } })) });
+    planMarkers.forEach((mk) => mk.remove());
+    planMarkers = points.filter((p) => p.n).map((p) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ins-mk';
+      b.textContent = String(p.n);
+      b.dataset.key = p.key;
+      b.setAttribute('aria-label', `${p.n}: ${p.title}`);
+      b.addEventListener('click', (ev) => { ev.stopPropagation(); pickPlanPoint(p.key); });
+      return new planGl.Marker({ element: b }).setLngLat([p.ll[1], p.ll[0]]).addTo(taskMap);
+    });
+    if (fit) fitPlan();
+    pickPlanPoint('');
+  }
+  // Рамка карты: в «Сегодня» — сегодняшние выезды (нет их — несделанное,
+  // потом будущее), в «Задачах» — все точки списка.
+  function fitPlan() {
+    let sel = planPts;
+    if (!planFitAll) {
+      for (const k of ['today', 'overdue', 'future', 'done']) {
+        const part = planPts.filter((p) => p.kind === k);
+        if (part.length) { sel = part; break; }
+      }
+    }
+    if (!sel.length || !taskMap) { taskMapView = null; return; }
+    const lons = sel.map((p) => p.ll[1]);
+    const lats = sel.map((p) => p.ll[0]);
+    const box = [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]];
+    // Сверху справа — кнопка «Развернуть», снизу справа — масштаб: точки
+    // держатся в стороне от них, иначе крайнюю нельзя нажать.
+    const pad = { top: 64, right: 60, bottom: 56, left: 32 };
+    taskMapView = { box, maxZoom: 15, pad };
+    taskMap.fitBounds(box, { padding: pad, maxZoom: 15, animate: false });
+  }
+  function pickPlanPoint(key) {
+    const box = scope.$('[data-plan-pick]');
+    if (!box) return;
+    const p = key ? planPts.find((x) => x.key === key) : null;
+    box.hidden = !p;
+    box.innerHTML = p ? planPickHTML(p) : '';
+    planMarkers.forEach((mk) => mk.getElement().classList.toggle('on', !!p && mk.getElement().dataset.key === p.key));
+  }
+
   // Два режима карты задачи (замечание пользователя 14.10.2026: «Карта
   // крайне неудобна... в 2-х режимах. Почти на весь экран и в малом режиме»):
   // малая — в блоке «Куда ехать»; большая — всё место между шапкой и нижней
@@ -300,7 +390,7 @@ export function mountInspector(host) {
     }
     if (!taskMap) return;
     taskMap.resize();
-    if (taskMapView && taskMapView.box) taskMap.fitBounds(taskMapView.box, { padding: on ? 48 : 32, maxZoom: 18, animate: false });
+    if (taskMapView && taskMapView.box) taskMap.fitBounds(taskMapView.box, { padding: taskMapView.pad || (on ? 48 : 32), maxZoom: taskMapView.maxZoom || 18, animate: false });
   }
   scope.on('click', '[data-map-big]', () => setMapBig(!mapBig));
   scope.onDocument('keydown', (e) => { if (e.key === 'Escape' && mapBig) setMapBig(false); });
@@ -478,11 +568,18 @@ export function mountInspector(host) {
       ui.homeTab = tab;
       const notesList = myNotes();
       const cadOpen = allCadRequests().filter((r) => r.person === currentInspector() && cadSummary(r).wait).length;
+      const listed = ui.onlyPending ? pending : all;
+      const parts = tab === 'today' ? planParts(all) : null;
+      const tPts = tab === 'tasks' ? taskPoints(listed, isoToday(), gpsOfT) : null;
+      // Легенда — только виды, которые есть на карте.
+      const kindsOf = (pts) => [...new Set(pts.map((x) => x.kind))];
       scope.setHTML(listHTML({
         tab,
-        today: tab === 'today' ? todaySection(all) : '',
+        today: parts ? planHTML({ ...parts,
+          map: planMapHTML({ kinds: kindsOf(parts.points), label: 'План на карте: сегодняшние выезды номерами по маршруту, несделанное и будущее точками' }) }) : '',
+        tasksMap: tPts && tPts.length ? planMapHTML({ kinds: kindsOf(tPts), label: 'Задачи на карте по состоянию' }) : '',
         counts: { today: all.filter((t) => t.plannedAt === isoToday() && !t.done).length, cad: cadOpen, notes: notesList.length },
-        tasks: ui.onlyPending ? pending : all,
+        tasks: listed,
         total: all.length,
         pendingCount: pending.length,
         inspectors: inspectorsInData(),
@@ -503,6 +600,9 @@ export function mountInspector(host) {
           });
         })(),
       }));
+      if (parts) mountPlanMap(parts.points);
+      else if (tPts && tPts.length) mountPlanMap(tPts, { fitAll: true });
+      else if (taskMap) { taskMap.remove(); taskMap = null; }
       return;
     }
 
