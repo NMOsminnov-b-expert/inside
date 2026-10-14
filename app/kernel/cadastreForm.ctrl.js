@@ -113,7 +113,8 @@ export function bindGeo(ctx, rec) {
   if (rec.geo && rec.geo.extent) drawGeoMap(mapBox, rec.geo).catch(() => {});
 
   const apply = (res, by) => {
-    rec.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src || 'Кадастр', by };
+    rec.geo = { extent: res.extent, contour: res.contour, house: res.house, purpose: res.purpose || '', use: res.use || '', ownForm: res.ownForm || '',
+      eni: res.eni, at: res.at, src: res.src || 'Кадастр', by };
     rec.gps = centerOf(res.extent);
     const gps = s.$('#fGps');
     if (gps) gps.value = rec.gps;

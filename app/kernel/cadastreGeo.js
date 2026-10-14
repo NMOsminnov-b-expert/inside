@@ -87,20 +87,32 @@ export async function geoByEni(eni) {
       const filter = `<Filter><And><PropertyIsEqualTo matchCase="false"><PropertyName>PROPCODE</PropertyName><Literal>${dashed(code)}</Literal></PropertyIsEqualTo></And></Filter>`;
       const body = new URLSearchParams({
         service: 'WFS', version: '1.1.0', request: 'GetFeature', typename: 'ENI_AREA',
-        propertyname: 'PROPCODE,DOMCODE,THE_GEOM', srsname: 'EPSG:4326', outputFormat: 'application/json',
+        propertyname: 'PROPCODE,DOMCODE,NAZNACHENI,PROPFOR_NAME,PROPFORM_NAME,THE_GEOM', srsname: 'EPSG:4326', outputFormat: 'application/json',
         bbox: `${x1 - 5},${y1 - 5},${x2 + 5},${y2 + 5},EPSG:3857`, filter,
       });
       let contour = null;
       let house = '';
+      // Назначение, вид использования и форма собственности — по Кадастру,
+      // не по техпаспорту: показываются с этой подписью (указание
+      // пользователя 14.10.2026 «Сразу делаем пометку, что это назначение по
+      // кадастру, а не по ТП»; поля — запись графа
+      // cadastre-kg-otkrytye-zaprosy-portala-chto-mozhno-poluchit).
+      let purpose = '';
+      let use = '';
+      let ownForm = '';
       try {
         const fc = JSON.parse(await portal('proxy.do?http://localhost/o2map/services/wfs', body));
         const f = (fc.features || [])[0];
         if (f && f.geometry) {
           contour = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
-          house = (f.properties && f.properties.DOMCODE) || '';
+          const pr = f.properties || {};
+          house = pr.DOMCODE || '';
+          purpose = pr.NAZNACHENI || '';
+          use = pr.PROPFOR_NAME || '';
+          ownForm = pr.PROPFORM_NAME || '';
         }
       } catch (e) { /* рамка есть — контур необязателен */ }
-      res = { eni: code, extent, contour, house, at: new Date().toISOString(), src: 'Кадастр' };
+      res = { eni: code, extent, contour, house, purpose, use, ownForm, at: new Date().toISOString(), src: 'Кадастр' };
     }
   } catch (e) {
     return { eni: code, error: e.message };

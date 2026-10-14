@@ -655,7 +655,8 @@ export function mountOcMenu(host) {
       }
       mutate(typeId, id, (api) => {
         const r = api.loadRecord(id);
-        r.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src, by };
+        r.geo = { extent: res.extent, contour: res.contour, house: res.house, purpose: res.purpose || '', use: res.use || '', ownForm: res.ownForm || '',
+          eni: res.eni, at: res.at, src: res.src, by };
         r.gps = centerOf(res.extent);
         r.updatedAt = new Date().toISOString().slice(0, 10);
       });

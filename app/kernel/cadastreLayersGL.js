@@ -63,8 +63,8 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
     if (!f) { tip.hide(); return; }
     const pr = f.properties || {};
     tip.show(e.lngLat, f.source === 'cadP'
-      ? `<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>${esc(pr.NAZNACHENI)}</i>` : ''}`
-      : `<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br>${esc(pr.NAZNACHENI)}` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`);
+      ? `<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>назначение по Кадастру: ${esc(pr.NAZNACHENI)}</i>` : ''}`
+      : `<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br><i>назначение по Кадастру: ${esc(pr.NAZNACHENI)}</i>` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`);
   };
   const onOut = () => tip.hide();
   map.on('click', onClick);

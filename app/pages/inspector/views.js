@@ -326,6 +326,7 @@ function cadParcelHTML(rec, geo, msg) {
   return `<section class="ins-blk ins-cadp">
     <h2 class="ins-blk-h">Участок по Кадастру</h2>
     ${rowHTML('Контур', geo.contour ? `${geo.saved === false ? 'получен сейчас' : `получен ${when}`}${geo.by === 'адрес' ? ' по адресу' : ' по ЕНИ'}` : `только рамка, ${when} — запрашиваю контур…`)}
+    ${geo.purpose ? rowHTML('Назначение по Кадастру', geo.purpose) : ''}
     ${m2 ? rowHTML('Площадь по контуру', `≈ ${fmt(m2)} м²`) : ''}
     ${Number.isFinite(doc) && doc > 0 ? `<div class="ins-row" title="${esc(docHint)}"><span class="ins-row-l">Площадь ${docLabel}</span><span class="ins-row-v">${fmt(doc)} м²</span></div>` : ''}
     ${diff}
