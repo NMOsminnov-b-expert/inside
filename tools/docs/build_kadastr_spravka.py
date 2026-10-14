@@ -13,7 +13,12 @@ cadastre-kg-otkrytye-zaprosy-portala-chto-mozhno-poluchit.
 картосервера. Поэтому документация пересобирается одной командой и не
 отстаёт от портала:
 
-    python tools/docs/build_kadastr_spravka.py      # docs/kadastr-api.xlsx
+    python tools/docs/build_kadastr_spravka.py
+    # docs/kadastr-api.docx — документация для чтения: разделы по задачам
+    # docs/kadastr-api.xlsx — те же сведения таблицами (фильтры, поиск)
+
+«Что за коды? … давай docx» (пользователь 14.10.2026): разделы называются по
+задаче («Найти ЕНИ по адресу»), без служебных кодов.
 
 На портал уходят только ЕНИ демо-записи, адрес демо-записи и служебные
 запросы (решения пользователя 13.10.2026: ЕНИ и адреса отправлять можно).
@@ -135,9 +140,9 @@ FIELD = {
     'pageListSize': 'записей на странице', 'totalRows': 'всего записей', 'viewType': 'служебное', 'className': 'служебное',
     'hasValidateError': 'служебное', 'searchCondition': 'служебное: условие поиска', 'searchKeyword': 'служебное', 'mode': 'служебное',
     'extent': 'рамка', 'minx': 'наименьшая x (в C1 — долгота)', 'miny': 'наименьшая y (в C1 — широта)', 'maxx': 'наибольшая x',
-    'maxy': 'наибольшая y', 'feature': 'фигура', 'wkt': 'геометрия в WKT (местная система координат — лист «Общие сведения»)',
+    'maxy': 'наибольшая y', 'feature': 'фигура', 'wkt': 'геометрия в WKT (местная система координат — «Как обращаться», «Координаты»)',
     'features': 'объекты слоя', 'geometry': 'геометрия объекта', 'coordinates': 'координаты (долгота, широта при srsname=EPSG:4326)',
-    'properties': 'сведения объекта — поля слоя (лист «Слои картосервера»)', 'totalFeatures': 'всего объектов', 'numberMatched': 'найдено',
+    'properties': 'сведения объекта — раздел «Поля участка и строения»', 'totalFeatures': 'всего объектов', 'numberMatched': 'найдено',
     'numberReturned': 'возвращено', 'crs': 'система координат ответа', 'nameRu': 'название по-русски', 'nameKg': 'название по-киргизски',
     'comment': 'комментарий', 'userLroCode': 'служебное', 'fromIndex': 'служебное', 'toIndex': 'служебное', 'autoIndex': 'служебное',
     'maxPaginationSize': 'служебное', 'name': 'название', 'properties.name': 'название системы координат',
@@ -182,7 +187,7 @@ def endpoints(ctx):
              purpose='Справочник адресов каскадом: область → район → айыл аймак → село → улица. Каждый вызов отдаёт список следующего '
                      'уровня; код выбранного элемента (addrCd) передаётся в следующий вызов.',
              params=[P('mode', 'да', 'строка', 'какой уровень вернуть: region | ao | village | street', 'street'),
-                     P('oblast', 'да', 'код 32 знака', 'код области (из E1)', bish or '<код>'),
+                     P('oblast', 'да', 'код 32 знака', 'код области (со страницы карты)', bish or '<код>'),
                      P('region', 'для ao и ниже', 'код', 'код района (из mode=region)', ''),
                      P('ao', 'для village', 'код', 'код айыл аймака (из mode=ao)', ''),
                      P('village', 'для street', 'код', 'код села; у Бишкека и Оша — код самой «области»: улицы идут сразу после неё',
@@ -192,11 +197,11 @@ def endpoints(ctx):
         dict(id='B1', group='Поиск', name='ЕНИ по адресу / адрес по ЕНИ (список)', method='POST', path='map/searchAddrResult.do',
              data={'searchCondition': 'ADDR', 'inputPropCode': '', 'propCode': '', 'oblast': bish, 'region': '', 'ao': '', 'village': bish,
                    'street': st, 'buildingNumb': HOUSE, 'flatNumb': '', 'uchNo': '', 'page': 1, 'pageListSize': 12},
-             purpose='Поиск объектов недвижимости: по адресу (коды из A1 и номер дома) или по ЕНИ. Возвращает список ЕНИ с адресами; '
+             purpose='Поиск объектов недвижимости: по адресу (коды из справочника адресов и номер дома) или по ЕНИ. Возвращает список ЕНИ с адресами; '
                      'участок и квартиры дома — отдельными строками.',
              params=[P('searchCondition', 'да', 'строка', 'ADDR — по адресу; ENI — по коду', 'ADDR'),
                      P('propCode', 'для ENI', 'строка', 'ЕНИ, 13 цифр', ENI),
-                     P('oblast, region, ao, village, street', 'для ADDR', 'коды', 'коды из A1 (у Бишкека и Оша village = код области)', ''),
+                     P('oblast, region, ao, village, street', 'для ADDR', 'коды', 'коды из справочника адресов (у Бишкека и Оша village = код области)', ''),
                      P('buildingNumb', 'нет', 'строка', 'номер дома', HOUSE), P('flatNumb', 'нет', 'строка', 'номер квартиры', ''),
                      P('uchNo', 'нет', 'строка', 'номер участка', ''), P('inputPropCode', 'нет', 'строка', 'пусто', ''),
                      P('page', 'да', 'число', 'страница', '1'), P('pageListSize', 'да', 'число', 'записей на странице', '12')],
@@ -217,7 +222,7 @@ def endpoints(ctx):
              fmt='HTML', html='Как в B1: data-gab-item-key — ЕНИ, адрес — в <dd>.', errors='—', used='не используется'),
         dict(id='B4', group='Поиск', name='Поиск улиц по слову', method='POST', path='map/totalSearchStreetResult.do',
              data={'page': 1, 'pageListSize': 10, 'searchCondition': 'TOTAL', 'searchKeyword': STREET_WORD},
-             purpose='Улицы, в названии которых есть слово. id улицы — для линии улицы (C2).',
+             purpose='Улицы, в названии которых есть слово. id улицы — для запроса линии улицы.',
              params=[P('searchKeyword', 'да', 'строка', 'слово из названия улицы', STREET_WORD), P('searchCondition', 'да', 'строка', 'TOTAL', 'TOTAL'),
                      P('page, pageListSize', 'да', 'число', 'постраничность', '1, 10')],
              fmt='HTML', html='Строка улицы: data-gab-item-key — id улицы (32 знака), текст — название.', errors='—', used='не используется'),
@@ -234,7 +239,7 @@ def endpoints(ctx):
              params=[P('propCode', 'да', 'строка', 'ЕНИ, 13 цифр без дефисов', ENI)], fmt='JSON',
              errors='Нет участка — {"extent":null}.', used='kernel/cadastreGeo.js — geoByEni'),
         dict(id='C2', group='Геометрия', name='Линия улицы', method='GET', path='map/getStreetFeatureWkt.do', data={'id': sid},
-             purpose='Геометрия улицы по её id (из B4).', params=[P('id', 'да', 'строка 32 знака', 'id улицы из B4', sid)], fmt='JSON',
+             purpose='Геометрия улицы по её id (из поиска улиц по слову).', params=[P('id', 'да', 'строка 32 знака', 'id улицы из поиска улиц', sid)], fmt='JSON',
              errors='—', used='не используется'),
         dict(id='C3', group='Геометрия', name='Области без названий', method='GET', path='map/feature.do', data={'geoId': 1},
              purpose='Многоугольники по номеру: 1–4 — области 8–14 км в Бишкеке (вероятно, районы города), 5 и 6 — 37–40 км к западу и '
@@ -249,7 +254,7 @@ def endpoints(ctx):
              html='Имена слоёв — в <Name>.', errors='—', used='—'),
         dict(id='D2', group='Картосервер (WFS)', name='Состав полей слоя', method='POST', path=WFS,
              data={'service': 'WFS', 'version': '1.1.0', 'request': 'DescribeFeatureType', 'typename': 'ENI_AREA'},
-             purpose='Поля слоя и их типы (XSD). Состав всех слоёв — лист «Слои картосервера».',
+             purpose='Поля слоя и их типы (XSD). Состав полей — раздел «Поля участка и строения».',
              params=[P('request', 'да', 'строка', 'DescribeFeatureType', 'DescribeFeatureType'),
                      P('typename', 'да', 'строка', 'слой', 'ENI_AREA'), P('service, version', 'да', 'строка', 'WFS, 1.1.0', '')], fmt='XML',
              html='Поля — элементы <element name="…" type="…">.', errors='Нет слоя — исключение «is not exist».', used='—'),
@@ -282,20 +287,41 @@ def endpoints(ctx):
              html='—', errors='—', used='не используется'),
         dict(id='E2', group='Служебные', name='Настройки карты портала', method='GET', path='map/mapConfig.do', data=None,
              purpose='JavaScript-настройки карты: подложки (OSM, спутник Google), слои ENI_AREA и ENI_BUILDINGS; группы легенды «Границы», '
-                     '«Гидрография», «Дороги» — только названия и стили, слоёв за ними нет (лист «Чего нет»).',
+                     '«Гидрография», «Дороги» — только названия и стили, слоёв за ними нет (раздел «Чего на портале нет»).',
              params=[], fmt='JavaScript', html='—', errors='—', used='—'),
     ]
 
 
+# Раздел документа — по задаче, в порядке работы.
+TITLES = {
+    'E1': 'Открыть сессию и получить коды областей',
+    'A1': 'Пройти справочник адресов: область → район → айыл аймак → село → улица',
+    'B1': 'Найти ЕНИ по адресу (и адрес по ЕНИ списком)',
+    'B2': 'Адрес участка одной строкой и внутренние коды портала',
+    'C1': 'Рамка участка по ЕНИ',
+    'D3': 'Все сведения участка и контур по ЕНИ',
+    'D4': 'Участки и строения в прямоугольнике (соседи на карте)',
+    'B3': 'Адресный реестр «Дарек»',
+    'B4': 'Найти улицу по слову',
+    'C2': 'Линия улицы',
+    'C3': 'Области вокруг Бишкека (без названий)',
+    'D1': 'Какие слои есть у картосервера',
+    'D2': 'Какие поля у слоя',
+    'D5': 'Слои картинкой (WMS)',
+    'E2': 'Настройки карты портала',
+    'B5': 'Полнотекстовый поиск адресов (не работает)',
+}
+ORDER = list(TITLES)
+
 GENERAL = [
     ('Адрес', 'https://cadastre.kg/svc-portal/ — все пути запросов от этого адреса.'),
-    ('Сессия', 'Первым — GET map/main.do (E1): портал ставит куку JSESSIONID. Её передавать во всех запросах.'),
+    ('Сессия', 'Первым — GET map/main.do: портал ставит куку JSESSIONID. Её передавать во всех запросах.'),
     ('Заголовки', 'Referer: https://cadastre.kg/svc-portal/map/main.do. Для POST — Content-Type: application/x-www-form-urlencoded. '
                   'X-Requested-With: XMLHttpRequest — как у страницы портала.'),
     ('Кодировка', 'UTF-8 во всех ответах.'),
     ('ЕНИ', '13 цифр без дефисов (1030700400754) — в map/*.do; с дефисами (1-03-07-0040-0754) — в отборе картосервера (поле PROPCODE).'),
-    ('Координаты', 'C1 и GeoJSON картосервера при srsname=EPSG:4326 — долгота/широта. Отбор bbox картосервера — EPSG:3857 (метры). WKT из '
-                   'C2 и C3 — в местной системе: по замеру 14.10.2026 совпадает с «Kyrg-06, зона 3» (центральный меридиан 74°31′ в. д., '
+    ('Координаты', 'Рамка участка и GeoJSON картосервера при srsname=EPSG:4326 — долгота/широта. Отбор bbox картосервера — EPSG:3857 (метры). WKT линии улицы и '
+                   'областей вокруг Бишкека — в местной системе: по замеру 14.10.2026 совпадает с «Kyrg-06, зона 3» (центральный меридиан 74°31′ в. д., '
                    'ложное восточное смещение 3 300 000 м; ул. Суюмбаева в Бишкеке — x ≈ 3 308 480, y ≈ 4 765 050). Номер системы '
                    'портал не называет — перед расчётами сверить.'),
     ('Картосервер', 'O2Map за прокси портала: map/proxy.do?http://localhost/o2map/services/wfs (и /wms, /wmts). Слоёв четыре: ENI_AREA, '
@@ -305,8 +331,9 @@ GENERAL = [
     ('Из браузера', 'Портал не разрешает запросы с других сайтов (нет Access-Control-Allow-Origin) — нужен посредник. В макете: Live '
                     'Server проксирует /cadastre → https://cadastre.kg/svc-portal/map/ (.vscode/settings.json); запасной — '
                     'python tools/cadastre/proxy.py (http://127.0.0.1:8787/portal/<путь>).'),
-    ('Порядок', 'Участок по ЕНИ: E1 → C1 (рамка) → D3 (сведения и контур). ЕНИ по адресу: E1 (код области) → A1 (каскад до улицы) → '
-                'B1 (searchCondition=ADDR). Адрес по ЕНИ: B2 или B1 (searchCondition=ENI). Соседи на карте: D4.'),
+    ('Порядок', 'Сведения участка по ЕНИ: открыть сессию → рамка участка → все сведения участка и контур. ЕНИ по адресу: открыть '
+                'сессию (там коды областей) → справочник адресов до улицы → поиск по адресу. Адрес по ЕНИ: «Адрес участка одной строкой» '
+                'или поиск по ЕНИ. Соседи на карте: участки и строения в прямоугольнике.'),
     ('Статус', 'Внутренние запросы общедоступной карты, а не публичный API: без описания и обещаний, портал может поменять их без '
                'предупреждения. Решение пользователя 14.10.2026: если наработки пойдут в дело — запросить официальный доступ.'),
     ('Не делаем', 'Поиск по физическим лицам и владельцы — личные данные, не используются; закрытое входом не обходится; капча не обходится.'),
@@ -329,11 +356,11 @@ CLOSED = [
 ]
 
 ABSENT = [
-    ('Границы (областей, районов, сёл)', 'нет слоя на картосервере; в C3 — шесть фигур без названий вокруг Бишкека', 'OpenStreetMap'),
+    ('Границы (областей, районов, сёл)', 'нет слоя на картосервере; «Области вокруг Бишкека» — шесть фигур без названий', 'OpenStreetMap'),
     ('Дороги, железные дороги', 'нет слоя (ROADS, ROADM10, ROADM2, RAILW — «is not exist»); в коде страницы — только стили', 'OpenStreetMap'),
     ('Гидрография', 'нет слоя (HYDRO, RIVER, LAKE — «is not exist»)', 'OpenStreetMap'),
     ('Кадастровые зоны, кварталы', 'нет слоя (ZONE, BLOCK, QUARTER — «is not exist»)', '—'),
-    ('Улицы слоем', 'нет слоя; линия отдельной улицы — C2', 'OpenStreetMap'),
+    ('Улицы слоем', 'нет слоя; линия отдельной улицы — «Найти улицу и её линию»', 'OpenStreetMap'),
     ('Площадь участка, правообладатели, обременения, кадастровая стоимость', 'нет в полях слоёв', 'официальный доступ'),
 ]
 
@@ -363,15 +390,18 @@ def run():
     except (ValueError, KeyError, TypeError):
         ctx['bbox'] = ''
 
-    overview, params, answers, examples = [], [], [], []
-    for ep in endpoints(ctx):
+    overview, params, answers, examples, recs = [], [], [], [], []
+    eps = sorted(endpoints(ctx), key=lambda e: ORDER.index(e['id']) if e['id'] in ORDER else 99)
+    for ep in eps:
+        ep['name'] = TITLES.get(ep['id'], ep['name'])
         code, txt = call(ep['path'], ep['data'], ep['method'])
         txt_ex = ('Области (код — название): ' + '; '.join('%s — %s' % (c, n) for c, n in obl)) if ep['id'] == 'E1' else excerpt(txt)
         ok = code == 200 and 'access privileges' not in txt and 'Произошла ошибка' not in txt and 'is not exist' not in txt
-        overview.append([ep['id'], ep['group'], ep['name'], ep['purpose'], ep['method'], ep['path'], 'открыто', ep['used'],
-                         ('отвечает (%d)' % code) if ok else ('ошибка (%d): %s' % (code, plain(txt)[:90]))])
+        status = ('отвечает (%d)' % code) if ok else ('ошибка (%d): %s' % (code, plain(txt)[:90]))
+        overview.append([ep['name'], ep['group'], ep['purpose'], ep['method'], ep['path'], ep['used'], status])
         for pr in ep['params']:
-            params.append([ep['id'], ep['name']] + list(pr))
+            params.append([ep['name']] + list(pr))
+        mine = []
         parsed = False
         if txt.strip().startswith('{'):
             try:
@@ -383,15 +413,18 @@ def run():
                     seen.add(key)
                     last = path.split('.')[-1].replace('[]', '')
                     desc = LAYER_FIELD.get(last) if '.properties.' in path else None
-                    answers.append([ep['id'], ep['name'], path, typ, desc or FIELD.get(last, ''), ex])
+                    mine.append([path, typ, desc or FIELD.get(last, ''), ex])
                 parsed = True
             except ValueError:
                 pass
         if not parsed:
-            answers.append([ep['id'], ep['name'], '(%s)' % ep['fmt'], ep['fmt'], ep.get('html', ''), ''])
-        examples.append([ep['id'], ep['name'], curl(ep['method'], ep['path'], ep['data']), txt_ex, ep['errors']])
-        print('  %s %s: %s' % (ep['id'], ep['name'], overview[-1][-1][:70]))
-    return overview, params, answers, examples
+            mine.append(['(%s)' % ep['fmt'], ep['fmt'], ep.get('html', ''), ''])
+        answers += [[ep['name']] + r for r in mine]
+        cmd = curl(ep['method'], ep['path'], ep['data'])
+        examples.append([ep['name'], cmd, txt_ex, ep['errors']])
+        recs.append(dict(ep=ep, status=status, ok=ok, fields=mine, curl=cmd, answer=txt_ex))
+        print('  %s: %s' % (ep['name'][:50], status[:60]))
+    return overview, params, answers, examples, recs
 
 
 def layers():
@@ -462,15 +495,14 @@ def build(path, overview, params, answers, examples, lay_rows):
         ws.auto_filter.ref = ws.dimensions
 
     sheet('Общие сведения', ['Тема', 'Как устроено'], [list(x) for x in GENERAL], [16, 120])
-    sheet('Запросы', ['Код', 'Группа', 'Запрос', 'Назначение', 'Метод', 'Путь (от https://cadastre.kg/svc-portal/)', 'Доступ', 'В макете',
-                      'Проверено сейчас'], overview, [6, 18, 28, 60, 8, 40, 10, 34, 30], mono_cols=(6,),
-          mark=lambda r: str(r[-1]).startswith('ошибка'), freeze='C2')
-    sheet('Параметры', ['Код', 'Запрос', 'Параметр', 'Обязателен', 'Тип', 'Описание', 'Пример'], params, [6, 28, 26, 14, 14, 56, 44],
-          mono_cols=(3, 7), freeze='C2')
-    sheet('Ответы', ['Код', 'Запрос', 'Поле (путь в ответе)', 'Тип', 'Описание', 'Пример значения'], answers, [6, 28, 40, 12, 56, 40],
-          mono_cols=(3, 6), freeze='C2')
-    sheet('Примеры', ['Код', 'Запрос', 'Запрос командой (curl; кука — из E1)', 'Ответ сейчас (геометрия сокращена)', 'Ошибки и особенности'],
-          examples, [6, 26, 70, 90, 36], mono_cols=(3, 4), freeze='C2')
+    sheet('Запросы', ['Задача', 'Группа', 'Что даёт', 'Метод', 'Путь (от https://cadastre.kg/svc-portal/)', 'В макете', 'Проверено сейчас'],
+          overview, [34, 18, 60, 8, 40, 34, 30], mono_cols=(5,), mark=lambda r: str(r[-1]).startswith('ошибка'), freeze='B2')
+    sheet('Параметры', ['Задача', 'Параметр', 'Обязателен', 'Тип', 'Описание', 'Пример'], params, [34, 26, 14, 14, 56, 44],
+          mono_cols=(2, 6), freeze='B2')
+    sheet('Ответы', ['Задача', 'Поле (путь в ответе)', 'Тип', 'Описание', 'Пример значения'], answers, [34, 40, 12, 56, 40],
+          mono_cols=(2, 5), freeze='B2')
+    sheet('Примеры', ['Задача', 'Запрос командой (curl; кука — со страницы карты)', 'Ответ сейчас (геометрия сокращена)', 'Ошибки и особенности'],
+          examples, [34, 70, 90, 36], mono_cols=(2, 3), freeze='B2')
     sheet('Слои картосервера', ['Слой', 'Поле', 'Тип', 'Описание', 'Пример (ЕНИ %s)' % dashed(ENI)], lay_rows, [18, 18, 14, 56, 40],
           mono_cols=(2,))
     sheet('Закрытые', ['Что', 'Путь', 'Метод', 'Параметры', 'Почему закрыто', 'Для нас'], [list(x) for x in CLOSED],
@@ -480,13 +512,174 @@ def build(path, overview, params, answers, examples, lay_rows):
     wb.save(path)
 
 
+DOCX = os.path.join(ROOT, 'docs', 'kadastr-api.docx')
+
+
+def safe_docx(path):
+    lock = os.path.join(os.path.dirname(path), '~$' + os.path.basename(path)[2:])
+    if os.path.exists(lock) or os.path.exists(os.path.join(os.path.dirname(path), '~$' + os.path.basename(path))):
+        raise SystemExit('документ открыт — закройте и запустите снова')
+    if os.path.exists(path):
+        from docx import Document
+        by = Document(path).core_properties.last_modified_by
+        if by and by != 'Сборщик макета':
+            raise SystemExit('документ правил %s — не перезаписываю' % by)
+    return path
+
+
+def build_docx(path, recs, lay_rows):
+    """Документация для чтения: разделы по задачам, таблицы параметров и полей,
+    пример запроса и ответа. Служебные поля ответа в документ не идут — они в
+    таблице Excel."""
+    from docx import Document
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Pt, RGBColor, Cm
+
+    doc = Document()
+    for sec in doc.sections:
+        sec.left_margin = sec.right_margin = Cm(2)
+    st = doc.styles['Normal']
+    st.font.name = 'Calibri'
+    st.font.size = Pt(10.5)
+
+    def shade(cell, hexcolor):
+        tcPr = cell._tc.get_or_add_tcPr()
+        sh = OxmlElement('w:shd')
+        sh.set(qn('w:val'), 'clear')
+        sh.set(qn('w:color'), 'auto')
+        sh.set(qn('w:fill'), hexcolor)
+        tcPr.append(sh)
+
+    def table(cols, rows, widths, mono=()):
+        t = doc.add_table(rows=1, cols=len(cols))
+        t.style = 'Table Grid'
+        t.alignment = WD_TABLE_ALIGNMENT.LEFT
+        # Ширины — фиксированные: иначе Word подгоняет столбцы под текст и
+        # узкое описание вытягивается в столбик.
+        t.autofit = False
+        lay = OxmlElement('w:tblLayout')
+        lay.set(qn('w:type'), 'fixed')
+        t._tbl.tblPr.append(lay)
+        for i, c in enumerate(cols):
+            cell = t.rows[0].cells[i]
+            cell.text = ''
+            r = cell.paragraphs[0].add_run(c)
+            r.bold = True
+            r.font.size = Pt(9.5)
+            shade(cell, 'DCE9F7')
+        for row in rows:
+            cells = t.add_row().cells
+            for i, v in enumerate(row):
+                cells[i].text = ''
+                r = cells[i].paragraphs[0].add_run(str(v if v is not None else ''))
+                r.font.size = Pt(9)
+                if i in mono:
+                    r.font.name = 'Consolas'
+        for i, w in enumerate(widths):
+            t.columns[i].width = Cm(w)
+            for cell in t.columns[i].cells:
+                cell.width = Cm(w)
+        doc.add_paragraph()
+
+    def code(text):
+        p = doc.add_paragraph()
+        r = p.add_run(text)
+        r.font.name = 'Consolas'
+        r.font.size = Pt(8.5)
+        r.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+
+    def label(text):
+        p = doc.add_paragraph()
+        r = p.add_run(text)
+        r.bold = True
+
+    doc.add_heading('Кадастр (cadastre.kg): запросы к данным', 0)
+
+    doc.add_heading('Как обращаться', 1)
+    for t, x in GENERAL:
+        p = doc.add_paragraph(style='List Bullet')
+        p.add_run(t + '. ').bold = True
+        p.add_run(x)
+
+    doc.add_heading('Что нужно — где искать', 1)
+    table(['Задача', 'Что даёт', 'Метод и путь', 'Сейчас'],
+          [[r['ep']['name'], re.split(r'(?<=\.)\s', r['ep']['purpose'])[0], '%s %s' % (r['ep']['method'], r['ep']['path']),
+            'отвечает' if r['ok'] else 'ошибка'] for r in recs],
+          [4.2, 6.8, 4.6, 1.8], mono=(2,))
+
+    for r in recs:
+        ep = r['ep']
+        doc.add_heading(ep['name'], 1)
+        doc.add_paragraph(ep['purpose'])
+        label('Запрос')
+        code('%s %s%s' % (ep['method'], BASE, ep['path']))
+        if ep['params']:
+            label('Параметры')
+            table(['Параметр', 'Нужен', 'Тип', 'Описание', 'Пример'],
+                  [list(p[:4]) + [str(p[4])[:120]] for p in ep['params']], [3.4, 2.2, 2.2, 6.0, 3.8], mono=(0, 4))
+        label('Ответ — %s' % ep['fmt'])
+        fields = [f for f in r['fields'] if f[2] and not f[2].startswith('служебное')]
+        if ep['id'] in ('D3', 'D4'):
+            # Сведения участка — одним списком в разделе «Поля участка и строения».
+            fields = [f for f in fields if '.properties.' not in f[0]] + [['features[].properties.*', 'объект',
+                      'сведения участка — раздел «Поля участка и строения»', '']]
+        if fields and not fields[0][0].startswith('('):
+            table(['Поле', 'Тип', 'Что значит', 'Пример'], [[f[0], f[1], f[2], str(f[3])[:60]] for f in fields],
+                  [5.2, 1.8, 6.0, 4.6], mono=(0, 3))
+        elif ep.get('html') and ep['html'] != '—':
+            doc.add_paragraph(ep['html'])
+        label('Пример запроса')
+        code(r['curl'])
+        label('Ответ сейчас (%s)' % r['status'])
+        code(r['answer'][:1200])
+        if ep['errors'] and ep['errors'] != '—':
+            label('Ошибки и особенности')
+            doc.add_paragraph(ep['errors'])
+        if ep['used'] and ep['used'] not in ('—', 'не используется'):
+            p = doc.add_paragraph()
+            p.add_run('В макете: ').bold = True
+            p.add_run(ep['used'])
+
+    doc.add_heading('Поля участка и строения', 1)
+    doc.add_paragraph('Сведения объектов картосервера (раздел «Все сведения участка и контур по ЕНИ»). Слои ENI_AREA, ENI_WGS84, '
+                      'ENI_FACT_VALID — участки, у них одни и те же поля (у ENI_FACT_VALID нет AMNESTIED, FROM_GPS, STS); ENI_BUILDINGS — '
+                      'строения. Пример — по ЕНИ %s.' % dashed(ENI))
+    seen, rows = {}, []
+    for lay, name, typ, desc, ex in lay_rows:
+        key = name
+        if key in seen:
+            seen[key][1].append(lay)
+            if not seen[key][0][4] and ex:
+                seen[key][0][4] = ex
+            continue
+        row = [name, typ, desc, '', ex]
+        seen[key] = (row, [lay])
+        rows.append(row)
+    for row in rows:
+        row[3] = ', '.join(x.replace('ENI_', '') for x in seen[row[0]][1])
+    table(['Поле', 'Тип', 'Что значит', 'В слоях', 'Пример'], rows, [3.2, 2.0, 6.2, 3.0, 3.4], mono=(0,))
+
+    doc.add_heading('Что закрыто', 1)
+    table(['Что', 'Путь и параметры', 'Почему закрыто', 'Для нас'],
+          [[c[0], '%s %s — %s' % (c[2], c[1], c[3]), c[4], c[5]] for c in CLOSED], [4.0, 6.5, 3.4, 3.8])
+    doc.add_heading('Чего на портале нет', 1)
+    table(['Данные', 'Что на портале', 'Где взять'], [list(a) for a in ABSENT], [5.0, 8.5, 4.0])
+
+    doc.core_properties.author = doc.core_properties.last_modified_by = 'Сборщик макета'
+    doc.save(path)
+
+
 def main():
     path = safe_out(OUT)
-    overview, params, answers, examples = run()
+    dpath = safe_docx(DOCX)
+    overview, params, answers, examples, recs = run()
     lay_rows = layers()
     build(path, overview, params, answers, examples, lay_rows)
-    print('готово: %s — запросов %d, параметров %d, полей ответов %d, полей слоёв %d'
-          % (os.path.relpath(path, ROOT), len(overview), len(params), len(answers), len(lay_rows)))
+    build_docx(dpath, recs, lay_rows)
+    print('готово: %s; %s — запросов %d, полей ответов %d, полей слоёв %d'
+          % (os.path.relpath(dpath, ROOT), os.path.relpath(path, ROOT), len(overview), len(answers), len(lay_rows)))
 
 
 if __name__ == '__main__':
