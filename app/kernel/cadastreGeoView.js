@@ -22,8 +22,6 @@ export function geoStatus(geo) {
   const n = geo.contour ? geo.contour.reduce((k, p) => k + p.reduce((m, r) => m + r.length, 0), 0) : 0;
   return `рамка ${fmt(y1)}…${fmt(y2)} с. ш., ${fmt(x1)}…${fmt(x2)} в. д.`
     + (n ? ` · контур ${n} точ.` : ' · контура нет')
-    // Назначение — с подписью «по Кадастру»: его не путать с назначением по ТП.
-    + (geo.purpose ? ` · назначение по Кадастру: <b>${esc(geo.purpose)}</b>` : '')
     + ` · ${esc(geo.src || 'Кадастр')}${geo.by === 'адрес' ? ' по адресу' : ''}, ${day(geo.at)}`;
 }
 
