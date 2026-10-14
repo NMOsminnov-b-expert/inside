@@ -182,7 +182,11 @@ export function mountInspector(host) {
     if (!el || !ll) return;
     const gl = await loadMapLibre(host.ensureStyle);
     if (!el.isConnected) return;
-    const map = await createMap(gl, el, { center: [ll[1], ll[0]], zoom: 16 });
+    // Малый режим — «совместные жесты» (практика Google Maps и Mapbox против
+    // «карты-ловушки»): одним пальцем листается страница, двумя двигается
+    // карта, на компьютере масштаб — Ctrl + колесо. Развёрнутая карта
+    // слушается одного пальца (setMapBig).
+    const map = await createMap(gl, el, { center: [ll[1], ll[0]], zoom: 16, cooperativeGestures: !mapBig });
     if (!el.isConnected) { map.remove(); return; }
     taskMap = map;
     // Соседние участки и строения — только когда контур уже получен с
@@ -193,7 +197,51 @@ export function mountInspector(host) {
     // были видны улицы вокруг (рамка из одной точки приближала до 18).
     const box = ownParcelsGL(map, [geo && geo.extent ? geo : { extent: [ll[1], ll[0], ll[1], ll[0]] }]);
     if (box && geo && geo.extent) map.fitBounds(box, { padding: 32, maxZoom: 18, animate: false });
+    taskMapView = { box: geo && geo.extent ? box : null, center: [ll[1], ll[0]] };
+    if (mapBig) placeBig();
   }
+
+  // Два режима карты задачи (замечание пользователя 14.10.2026: «Карта
+  // крайне неудобна... в 2-х режимах. Почти на весь экран и в малом режиме»):
+  // малая — в блоке «Куда ехать»; большая — всё место между шапкой и нижней
+  // панелью (поверх содержимого, на месте, без окна). Свернуть — кнопкой или
+  // Esc. Карта та же: переключение не перезагружает слои.
+  let mapBig = false;
+  let taskMapView = null;
+  function placeBig() {
+    const w = scope.$('[data-ins-map-w]');
+    const body = scope.$('.ins-body');
+    if (!w) return;
+    if (mapBig && body) {
+      const r = body.getBoundingClientRect();
+      Object.assign(w.style, { top: r.top + 'px', left: r.left + 'px', width: r.width + 'px', height: r.height + 'px' });
+    } else {
+      ['top', 'left', 'width', 'height'].forEach((k) => { w.style[k] = ''; });
+    }
+  }
+  function setMapBig(on) {
+    mapBig = on;
+    const w = scope.$('[data-ins-map-w]');
+    const t = scope.$('[data-map-big]');
+    if (!w) return;
+    w.classList.toggle('is-big', on);
+    placeBig();
+    if (t) {
+      t.setAttribute('aria-pressed', String(on));
+      t.setAttribute('aria-label', on ? 'Свернуть карту' : 'Развернуть карту');
+      t.title = on ? 'Свернуть карту' : 'Развернуть карту';
+      t.innerHTML = on
+        ? '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M16 9h-5V4M4 11h5v5M11 9l6-6M9 11l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M12 3h5v5M8 17H3v-5M17 3l-6 6M3 17l6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
+    if (!taskMap) return;
+    if (on) taskMap.cooperativeGestures.disable(); else taskMap.cooperativeGestures.enable();
+    taskMap.resize();
+    if (taskMapView && taskMapView.box) taskMap.fitBounds(taskMapView.box, { padding: on ? 48 : 32, maxZoom: 18, animate: false });
+  }
+  scope.on('click', '[data-map-big]', () => setMapBig(!mapBig));
+  scope.onDocument('keydown', (e) => { if (e.key === 'Escape' && mapBig) setMapBig(false); });
+  window.addEventListener('resize', placeBig);
 
   // «Назад» из задачи — в тот раздел верхнего уровня, откуда пришли.
   const homeHref = () => (ui.homeTab && ui.homeTab !== 'today' ? `${INSP_HREF}?tab=${ui.homeTab}` : INSP_HREF);
@@ -946,6 +994,8 @@ export function mountInspector(host) {
   return {
     onRoute(next) {
       const sameTask = next.typeId === route.typeId && next.ocId === route.ocId;
+      // Развёрнутая карта — только на своём экране: любой переход её сворачивает.
+      mapBig = false;
       route = next;
       takeAs(next);
       // Открыли другую задачу — раскрытый ОИ от прошлой не нужен.
@@ -957,6 +1007,7 @@ export function mountInspector(host) {
     },
     destroy() {
       closeLightbox();
+      window.removeEventListener('resize', placeBig);
       if (taskMap) { taskMap.remove(); taskMap = null; }
     },
   };

@@ -38,6 +38,8 @@ const I = {
   today: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M7 3v3M13 3v3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.5" r="1.6" fill="currentColor"/>',
   bell: '<path d="M5 14V9a5 5 0 0 1 10 0v5l1.5 1.5h-13zM8.5 17.5a1.6 1.6 0 0 0 3 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   nav: '<path d="M10 2.5 16.5 17 10 13.5 3.5 17z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
+  expand: '<path d="M12 3h5v5M8 17H3v-5M17 3l-6 6M3 17l6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  shrink: '<path d="M16 9h-5V4M4 11h5v5M11 9l6-6M9 11l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 
 const ico = (name, size = 20) =>
@@ -244,7 +246,7 @@ export function todayHTML({ date, stops, routeLinks, app = '' }) {
 // поверх (правило проекта «без модальных окон»). Выбранный навигатор
 // запоминается (inspector.js), и дальше «Ехать» открывает его сразу.
 // links — { google, yandex, dgis, geo } от navLinks().
-export function navPickHTML(id, links, label, app = '', main = true) {
+export function navPickHTML(id, links, label, app = '', main = true, extra = '') {
   const cls = main ? 'ins-btn ins-btn-main ins-go-b' : 'ins-btn ins-go-b';
   const known = app && links[app] ? NAVIGATORS.find((n) => n.key === app) : null;
   return `<div class="ins-go" data-go="${esc(id)}">
@@ -253,6 +255,7 @@ export function navPickHTML(id, links, label, app = '', main = true) {
     ? `<a class="${cls}" href="${esc(links[app])}" target="_blank" rel="noopener" data-go-app="${known.key}">${ico('nav', 18)} ${esc(label)}<span class="ins-go-app">· ${esc(known.label)}</span></a>
       <button type="button" class="ins-btn ins-go-alt" data-go-open="${esc(id)}" aria-expanded="false">Другой</button>`
     : `<button type="button" class="${cls}" data-go-open="${esc(id)}" aria-expanded="false">${ico('nav', 18)} ${esc(label)}</button>`}
+      ${extra}
     </div>
     <div class="ins-go-pick" data-go-pick="${esc(id)}" hidden>
       <span class="ins-go-h">Открыть в навигаторе</span>
@@ -392,13 +395,15 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
       <div class="ins-cols">
         <section class="ins-blk">
           <h2 class="ins-blk-h">Куда ехать</h2>
-          ${ll ? `<div class="ins-gmap" data-ins-map role="img"
-            aria-label="Участок на карте: контур из Кадастра, вокруг — соседние участки и строения"></div>
-          <div class="ins-acts">
-            ${navPickHTML('task', navLinks([ll]), 'Ехать', app)}
-            <button class="ins-btn ins-btn-icon" data-copy-gps="${esc(`${ll[0].toFixed(6)}, ${ll[1].toFixed(6)}`)}"
-              aria-label="Скопировать координаты" title="Скопировать координаты">${ico('copy')}</button>
-          </div>` : '<p class="ins-empty">Координат нет — ни в карточке, ни с Кадастра. Ориентируйтесь по адресу.</p>'}
+          ${ll ? `<div class="ins-gmap-w" data-ins-map-w>
+            <div class="ins-gmap" data-ins-map role="img"
+              aria-label="Участок на карте: контур из Кадастра, вокруг — соседние участки и строения"></div>
+            <button type="button" class="ins-gmap-t" data-map-big aria-pressed="false"
+              aria-label="Развернуть карту" title="Развернуть карту">${ico('expand', 20)}</button>
+          </div>
+          ${navPickHTML('task', navLinks([ll]), 'Ехать', app, true,
+    `<button class="ins-btn ins-btn-icon" data-copy-gps="${esc(`${ll[0].toFixed(6)}, ${ll[1].toFixed(6)}`)}"
+              aria-label="Скопировать координаты" title="Скопировать координаты">${ico('copy')}</button>`)}` : '<p class="ins-empty">Координат нет — ни в карточке, ни с Кадастра. Ориентируйтесь по адресу.</p>'}
         </section>
 
         ${cadParcelHTML(rec, geo, geoMsg)}

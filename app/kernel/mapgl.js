@@ -52,13 +52,44 @@ export const OSM_STYLE = {
 };
 
 // Карта с подложкой и кнопками масштаба; без поворота и наклона — это план.
-export async function createMap(gl, el, { center = [74.6, 42.87], zoom = 6.5 } = {}) {
+// Подсказки «совместных жестов» (cooperativeGestures) — по-русски: карта в
+// потоке страницы двигается двумя пальцами, одним листается страница.
+const LOCALE_RU = {
+  'CooperativeGesturesHandler.WindowsHelpText': 'Масштаб — Ctrl + колесо мыши',
+  'CooperativeGesturesHandler.MacHelpText': 'Масштаб — ⌘ + колесо мыши',
+  'CooperativeGesturesHandler.MobileHelpText': 'Двигать карту — двумя пальцами',
+  // Подписи элементов карты — по-русски (были «Zoom in» и т. п.).
+  'NavigationControl.ZoomIn': 'Приблизить',
+  'NavigationControl.ZoomOut': 'Отдалить',
+  'NavigationControl.ResetBearing': 'Север вверх',
+  'AttributionControl.ToggleAttribution': 'Источники карты',
+  'AttributionControl.MapFeedback': 'Сообщить об ошибке на карте',
+  'FullscreenControl.Enter': 'Во весь экран',
+  'FullscreenControl.Exit': 'Выйти из полноэкранного режима',
+  'GeolocateControl.FindMyLocation': 'Где я',
+  'GeolocateControl.LocationNotAvailable': 'Местоположение недоступно',
+  'Map.Title': 'Карта',
+  'Popup.Close': 'Закрыть',
+  'ScaleControl.Meters': 'м',
+  'ScaleControl.Kilometers': 'км',
+};
+
+// more — дополнительные настройки карты (например, cooperativeGestures).
+export async function createMap(gl, el, { center = [74.6, 42.87], zoom = 6.5, ...more } = {}) {
   const map = new gl.Map({
     container: el, style: OSM_STYLE, center, zoom, maxZoom: 19.5,
     attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+    locale: LOCALE_RU, ...more,
   });
   map.touchZoomRotate.disableRotation();
   map.keyboard.disableRotation();
+  // Скорость масштаба колесом (замечание пользователя 14.10.2026: «зум
+  // медленный и ленивый»; замер: щелчок колеса — 0,15 уровня, уровень — за
+  // семь щелчков). Щелчок — 0,5 уровня, как в привычных картах; жест
+  // тачпада — быстрее встроенного, но без рывков. Одна настройка на все
+  // карты макета.
+  map.scrollZoom.setWheelZoomRate(1 / 115);
+  map.scrollZoom.setZoomRate(1 / 50);
   map.addControl(new gl.NavigationControl({ showCompass: false }), 'bottom-right');
   if (!map.loaded()) await new Promise((ok) => map.once('load', ok));
   return map;

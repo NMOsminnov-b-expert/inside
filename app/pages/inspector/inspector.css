@@ -617,7 +617,11 @@ body[data-page="insp"] .content {
   background: var(--line);
 }
 
-.ins-row {
+/* Строки выбора — только внутри своего контейнера .ins-rows: голое .ins-row
+   перебивало строки сведений «подпись — значение» (они того же класса), и те
+   вставали в одну строку с разным началом значения — огрех центровки
+   (замечание пользователя 14.10.2026). */
+.ins-rows .ins-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -644,11 +648,11 @@ body[data-page="insp"] .content {
   position: relative;
 }
 
-.ins-row.on { background: var(--blue-50, #eff6ff); color: var(--blue-700); font-weight: 600; }
+.ins-rows .ins-row.on { background: var(--blue-50, #eff6ff); color: var(--blue-700); font-weight: 600; }
 
-.ins-row.on .ins-row-m { background: var(--blue-600); border-color: var(--blue-600); }
+.ins-rows .ins-row.on .ins-row-m { background: var(--blue-600); border-color: var(--blue-600); }
 
-.ins-row.on .ins-row-m::after {
+.ins-rows .ins-row.on .ins-row-m::after {
   content: '';
   position: absolute;
   left: 6px;
@@ -660,7 +664,7 @@ body[data-page="insp"] .content {
   transform: rotate(45deg);
 }
 
-.ins-row:active { background: var(--blue-50, #eff6ff); }
+.ins-rows .ins-row:active { background: var(--blue-50, #eff6ff); }
 
 
 .ins-num-wrap { position: relative; display: flex; }
@@ -1043,12 +1047,24 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 .ins-go-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
 .ins-go-pick[hidden] { display: none; }
 .ins-go-h { grid-column: 1 / -1; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
-.ins-go-o { text-decoration: none; justify-content: center; }
+.ins-go-o { display: flex; align-items: center; justify-content: center; text-align: center; text-decoration: none;
+  line-height: 1.2; padding-left: 8px; padding-right: 8px; }
+.ins-go-row > .ins-btn-icon { flex: 0 0 48px; }
+.ins-go-b { justify-content: center; }
 .ins-today > .ins-go { margin-top: 8px; }
 
 /* --- «Куда ехать»: карта участка; «Участок по Кадастру» -------------------- */
+/* Два режима карты: малый — в блоке; большой — всё место между шапкой и
+   нижней панелью (координаты .ins-body ставит inspector.js, placeBig). */
+.ins-gmap-w { position: relative; margin-bottom: 10px; }
+.ins-gmap-w.is-big { position: fixed; z-index: 30; margin: 0; background: var(--panel); }
 .ins-gmap { position: relative; height: 240px; border-radius: 10px; overflow: hidden; background: var(--ins-map-bg);
-  border: 1px solid var(--line-soft); margin-bottom: 10px; }
+  border: 1px solid var(--line-soft); }
+.ins-gmap-w.is-big .ins-gmap { height: 100%; border-radius: 0; border: 0; }
+.ins-gmap-t { position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink);
+  box-shadow: var(--shadow); cursor: pointer; }
+.ins-gmap-t:hover { color: var(--blue-700); border-color: var(--blue-300); }
 .ins-gmap .maplibregl-ctrl-group button { width: 36px; height: 36px; }
 .ins-acts { display: flex; gap: 8px; align-items: flex-start; }
 .ins-acts .ins-go { flex: 1 1 auto; min-width: 0; }

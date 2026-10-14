@@ -68,8 +68,8 @@ SECTIONS = [
 
 # Что должно быть нажимаемо пальцем. Селекторы, а не «все кнопки»: у скрытых и
 # служебных элементов размер не важен, а ложный провал хуже отсутствия проверки.
-TAP_SELECTORS = ['.ins-tab', '.ins-back', '.ins-btn', '.ins-seg-b', '.ins-oi-h',
-                 '.pick-btn', '.ms-control', '.ins-chip', '.ins-row', '.ins-acc-h']
+TAP_SELECTORS = ['.ins-tab', '.ins-back', '.ins-btn', '.ins-seg-b', '.ins-oi-h', '.ins-gmap-t',
+                 '.pick-btn', '.ms-control', '.ins-chip', '.ins-rows .ins-row', '.ins-acc-h']
 
 MIN_TAP = 44
 
