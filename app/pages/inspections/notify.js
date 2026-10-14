@@ -13,7 +13,7 @@
 // и в WhatsApp или на почту (развилка канала, ТЗ 8.3); «прочитано» — у
 // учётной записи менеджера.
 import {
-  allAssignments, isLive, dayReport, workdayOf, poaDaysLeft, stallOf, reportTime,
+  allAssignments, isLive, dayReport, workdayOf, poaDaysLeft, stallOf, reportTime, eventsOf,
 } from '../../kernel/inspections.js';
 import { queueBase } from './model.js';
 import { plural } from '../../kernel/fmt.js';
@@ -23,6 +23,8 @@ export const NOTE_KINDS = [
   { key: 'late', label: 'Поздний выезд', tone: 'warn' },
   { key: 'noEvening', label: 'Нет вечернего отчёта', tone: 'off' },
   { key: 'missed', label: 'Пропущен выезд', tone: 'off' },
+  { key: 'skipped', label: 'Снято с дня осмотрщиком', tone: 'off' },
+  { key: 'offPlan', label: 'Взято не по плану', tone: 'warn' },
   { key: 'overdue', label: 'Срок объекта прошёл', tone: 'off' },
   { key: 'stalled', label: 'Назначение зависло', tone: 'warn' },
   { key: 'poa', label: 'Доверенность', tone: 'warn' },
@@ -68,6 +70,16 @@ export function notifications(all, people, days = 7) {
       const w = workdayOf(a.person, a.plannedAt);
       if (!w.ok) push({ kind: 'absence', person: a.person, date: a.plannedAt, ref: a.id, text: `${titleOf(a)} — ${w.reason}`, go: { assign: a.id } });
     }
+  });
+
+  // Не по плану (решение пользователя 14.10.2026 «если не совпало с планом —
+  // отчет регионалу»): осмотрщик снял выезд с дня — с причиной, или взял на
+  // день объект с другой датой.
+  const from = (() => { const d = new Date(); d.setDate(d.getDate() - days + 1); return isoDay(d); })();
+  eventsOf().forEach((e) => {
+    if (!e.date || e.date < from) return;
+    if (e.kind === 'skipped') push({ kind: 'skipped', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
+    if (e.kind === 'taken') push({ kind: 'offPlan', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — план был ${e.was ? ddmm(e.was) : 'без даты'}`, go: { assign: e.assignId } });
   });
 
   // Срок осмотра объекта (ставит менеджер) прошёл, объект не осмотрен.

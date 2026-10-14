@@ -33,6 +33,7 @@ const I = {
   copy: '<rect x="4" y="4" width="9" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 4V2.5h8.5V14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
   trash: '<path d="M4 6h12M8 6V4h4v2M6 6l1 11h6l1-11M9 9v5M11 9v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   chev: '<path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  search: '<circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 13l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   ok: '<path d="M4 10.5 8 14.5 16 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
   pen: '<path d="M3 17h4l9-9-4-4-9 9zM12 4l4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   today: '<rect x="3" y="4.5" width="14" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M7 3v3M13 3v3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="12.5" r="1.6" fill="currentColor"/>',
@@ -42,7 +43,7 @@ const I = {
   shrink: '<path d="M16 9h-5V4M4 11h5v5M11 9l6-6M9 11l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 
-const ico = (name, size = 20) =>
+export const ico = (name, size = 20) =>
   `<svg viewBox="0 0 20 20" width="${size}" height="${size}" aria-hidden="true">${I[name]}</svg>`;
 
 // Классы полей на этих экранах. Описание поля их не знает: оформление здесь
@@ -208,38 +209,6 @@ export function listHTML({
     </div>
     ${homeTabsHTML(tab, counts)}
   </div>`;
-}
-
-// --- «Сегодня»: выезды дня по маршруту --------------------------------------
-//
-// Порядок — маршрут дня (pages/inspections/route.js, dayRoute: ближайший
-// следующий от дома), тот же, что видит регионал в «Маршруте»; без координат
-// — в конце. У выезда — «Ехать» (выбор навигатора) и «Открыть».
-export function todayHTML({ date, stops, routeLinks, app = '' }) {
-  const ddmm = date.slice(8, 10) + '.' + date.slice(5, 7);
-  if (!stops.length) {
-    return `<section class="ins-blk"><h2 class="ins-blk-h">Выезды на ${esc(ddmm)}</h2>
-      <p class="ins-empty">На сегодня выездов не назначено. Все задачи — в разделе «Задачи».</p></section>`;
-  }
-  const withGps = stops.filter((x) => x.ll);
-  return `<section class="ins-blk ins-today">
-    <h2 class="ins-blk-h">Выезды на ${esc(ddmm)} · ${stops.length}</h2>
-    ${withGps.length > 1 ? navPickHTML('route', routeLinks, `Весь маршрут · ${withGps.length}`, app, false) : ''}
-    <ol class="ins-trips">
-      ${stops.map((x, i) => `<li class="ins-trip ${x.t.done ? 'is-done' : ''}">
-        <span class="ins-trip-n" aria-hidden="true">${x.t.done ? ico('ok', 14) : i + 1}</span>
-        <div class="ins-trip-b">
-          <a class="ins-trip-a" href="#/insp/${encodeURIComponent(x.t.typeId)}/${encodeURIComponent(x.t.ocId)}">
-            <b class="ins-trip-t">${esc(x.t.title)}</b>
-            <span class="ins-trip-m">${esc([x.t.typeLabel, x.t.institution].filter(Boolean).join(' · '))}</span>
-            <span class="ins-trip-m mono">${esc(x.t.eni || '')}</span>
-            <span class="ins-trip-m">ОИ: ${x.t.oiAssigned ? `${x.t.oiAssigned} из ${x.t.oiCount}` : x.t.oiCount}${x.t.photos ? ` · фото: ${x.t.photos}` : ''}${x.t.done ? ' · осмотр завершён' : ''}</span>
-          </a>
-          ${x.ll ? navPickHTML(x.t.key, x.links, 'Ехать', app) : '<span class="ins-trip-m ins-warn">Координат нет — адрес в задаче</span>'}
-        </div>
-      </li>`).join('')}
-    </ol>
-  </section>`;
 }
 
 // Кнопка «Ехать» с выбором навигатора — раскрывается на месте, без окна

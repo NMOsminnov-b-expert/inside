@@ -24,6 +24,8 @@ import {
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
+import { allAssignments, assignmentById, isLive, takeForDay, skipDay } from '../../kernel/inspections.js';
+import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
 import { fmtEni } from '../../kernel/fmt.js';
@@ -35,7 +37,7 @@ import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { geoByEni } from '../../kernel/cadastreGeo.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, todayHTML, navLinks, HAS_PREMISES,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, navLinks, HAS_PREMISES,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -60,6 +62,13 @@ export function mountInspector(host) {
     // Разделы формы, свёрнутые ВРУЧНУЮ. По умолчанию открыты все: свёрнутое
     // заранее приходится разворачивать (замечание пользователя 08.09.2026).
     collapsed: [],
+    // Вкладка «Сегодня» — весь план (plan.js): поиск, сколько строк
+    // нарисовано, открытая форма снятия с дня, свёрнутое прошлое.
+    planQ: '',
+    planLimit: PLAN_STEP,
+    skipOpen: '',
+    skipErr: '',
+    pastOpen: false,
   };
 
   const rec = () => loadTask(route.typeId, route.ocId);
@@ -134,20 +143,76 @@ export function mountInspector(host) {
   //
   // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: доставка — пушем приложения или в WhatsApp; здесь —
   // список на экране «Мои осмотры».
-  // «Сегодня»: выезды дня в порядке маршрута дня — того же, что видит
-  // регионал (dayRoute: ближайший следующий от дома); без координат — в конце.
-  function todaySection(all) {
+  // «Сегодня» — весь план осмотрщика по дням (plan.js). Сегодняшние выезды —
+  // в порядке маршрута дня, того же, что видит регионал (dayRoute: ближайший
+  // следующий от дома); без координат — в конце.
+  //
+  // «Новое» — назначено после прошлого открытия плана. Время прошлого
+  // открытия читается один раз за заход на экран, иначе метки гасли бы от
+  // любой перерисовки.
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «просмотрено» — у учётной записи осмотрщика на
+  // сервере (иначе на втором телефоне всё снова «новое»).
+  const seenMemo = new Map();
+  function planSeen(person) {
+    if (seenMemo.has(person)) return seenMemo.get(person);
+    const k = 'ins.planSeen.' + person;
+    let prev = '';
+    try { prev = localStorage.getItem(k) || ''; localStorage.setItem(k, new Date().toISOString()); } catch (e) { /* без хранилища — без меток «Новое» */ }
+    seenMemo.set(person, prev);
+    return prev;
+  }
+
+  function planParts(all) {
     const date = isoToday();
-    const mine = all.filter((t) => t.plannedAt === date);
-    const route = mine.length ? dayRoute(summaries(), currentInspector(), date) : null;
+    const me = currentInspector();
+    const q = ui.planQ.trim();
+    let sums = null;
+    const sumsOf = () => (sums || (sums = summaries()));
+    // Снятие с дня — у назначения; снятое сегодня показывается в дне
+    // зачёркнутым, а не в «Без даты».
+    const tasks = all.map((t) => {
+      const a = t.assignId ? assignmentById(t.assignId) : null;
+      const skip = a && a.skips && a.skips.length ? a.skips[a.skips.length - 1] : null;
+      return skip ? { ...t, skip } : t;
+    });
+    const skippedToday = tasks.filter((t) => t.skip && t.skip.date === date && !t.plannedAt);
+    // Снятые регионалом за две недели — кроме переназначенных тому же
+    // человеку (у объекта есть действующее назначение).
+    const since = new Date(Date.now() - 14 * 864e5).toISOString();
+    const liveKeys = new Set(all.map((t) => t.key));
+    const removed = allAssignments()
+      .filter((a) => a.person === me && a.state === 'removed' && (a.removedAt || '') >= since && !liveKeys.has(a.typeId + '|' + a.ocId))
+      .map((a) => {
+        const s = sumsOf().get(a.typeId + '|' + a.ocId);
+        return s ? { at: a.removedAt, t: { key: a.typeId + '|' + a.ocId, typeId: a.typeId, ocId: a.ocId, title: s.title, typeLabel: s.typeLabel, institution: s.institution, eni: s.eniAll || s.eni, plannedAt: a.plannedAt, assignId: a.id } } : null;
+      })
+      .filter(Boolean);
+    const m = planModel({ tasks: tasks.filter((t) => !skippedToday.includes(t)), removed, today: date, q });
+    const route = m.today.length ? dayRoute(sumsOf(), me, date) : null;
     const order = route ? route.stops.filter((x) => x.fixed).map((x) => x.key) : [];
     const rank = (t) => { const i = order.indexOf(t.typeId + '|' + t.ocId); return i < 0 ? 1e6 : i; };
-    const stops = mine.slice().sort((a, b) => rank(a) - rank(b)).map((t) => {
+    const stops = m.today.slice().sort((a, b) => rank(a) - rank(b)).map((t) => {
       const ll = gpsOfObject(t.typeId, t.ocId);
       return { t, ll, links: ll ? navLinks([ll]) : {} };
     });
     const pts = stops.filter((x) => x.ll && !x.t.done).map((x) => x.ll);
-    return todayHTML({ date, stops, routeLinks: navLinks(pts), app: navApp() });
+    const events = eventsOf({ person: me }).slice().sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    const seenAt = planSeen(me);
+    return {
+      m, today: date, q, stops,
+      skips: skippedToday.filter((t) => planMatch(t, q)).map((t) => ({ t, reason: t.skip.reason, note: t.skip.note })),
+      routeLinks: navLinks(pts), app: navApp(),
+      marksOf: (t) => planMarks(t, events, seenAt),
+      limit: ui.planLimit, skipOpen: ui.skipOpen, skipErr: ui.skipErr, pastOpen: ui.pastOpen,
+    };
+  }
+  const todaySection = (all) => planHTML(planParts(all));
+  // Поиск и «Показать ещё» перерисовывают только список: поле поиска не
+  // пересоздаётся, фокус и клавиатура на телефоне не пропадают.
+  function renderPlanList() {
+    const box = scope.$('[data-plan-list]');
+    if (!box) { render(); return; }
+    box.innerHTML = planListHTML(planParts(myTasks()));
   }
 
   // --- карта задачи и участок по Кадастру ---------------------------------
@@ -718,6 +783,40 @@ export function mountInspector(host) {
 
   scope.on('click', '[data-only]', (e, el) => {
     ui.onlyPending = el.dataset.only === '1';
+    render();
+  });
+
+  // --- план осмотрщика (вкладка «Сегодня») ---------------------------------
+  let planQTimer = 0;
+  scope.on('input', '[data-plan-q]', (e, el) => {
+    clearTimeout(planQTimer);
+    planQTimer = setTimeout(() => { ui.planQ = el.value; ui.planLimit = PLAN_STEP; renderPlanList(); }, 150);
+  });
+  scope.on('click', '[data-plan-more]', () => { ui.planLimit += PLAN_STEP; renderPlanList(); });
+  scope.on('click', '[data-plan-past]', () => { ui.pastOpen = !ui.pastOpen; renderPlanList(); });
+  scope.on('click', '[data-plan-take]', (e, el) => {
+    const a = assignmentById(el.dataset.planTake);
+    if (!a || !isLive(a)) return;
+    takeForDay(a.id, isoToday());
+    host.toast('Взято на сегодня — регионал увидит, что не по плану', 'ok');
+    renderPlanList();
+  });
+  scope.on('click', '[data-plan-skip]', (e, el) => { ui.skipOpen = el.dataset.planSkip; ui.skipErr = ''; renderPlanList(); });
+  scope.on('change', '[data-plan-skip-reason]', () => {
+    if (!ui.skipErr) return;
+    ui.skipErr = '';
+    const er = scope.$('.ins-pl-err');
+    if (er) er.remove();
+  });
+  scope.on('click', '[data-plan-skip-cancel]', () => { ui.skipOpen = ''; ui.skipErr = ''; renderPlanList(); });
+  scope.on('click', '[data-plan-skip-go]', (e, el) => {
+    const reason = (scope.$('[data-plan-skip-reason]') || {}).value || '';
+    const note = ((scope.$('[data-plan-skip-note]') || {}).value || '').trim();
+    if (!reason) { ui.skipErr = 'Выберите причину — её получит регионал'; renderPlanList(); return; }
+    if (reason === 'Другое' && !note) { ui.skipErr = 'Для «Другое» напишите причину в комментарии'; renderPlanList(); return; }
+    skipDay(el.dataset.planSkipGo, isoToday(), reason, note);
+    ui.skipOpen = ''; ui.skipErr = '';
+    host.toast('Снято с дня, причина отправлена регионалу', 'ok');
     render();
   });
 

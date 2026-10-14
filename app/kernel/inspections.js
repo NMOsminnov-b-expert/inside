@@ -455,6 +455,45 @@ export function moveDateMany(ids, plannedAt) {
   changed();
 }
 
+// --- осмотрщик сам меняет свой день -------------------------------------------
+//
+// Решения пользователя 14.10.2026 (запись графа
+// ekran-osmotrschika-pererabotat-ergonomika): осмотрщик сам выбирает, что
+// делать сегодня, из назначенного ему; несделанное берёт на сегодня «сразу»;
+// запросов на согласование нет, «но если не совпало с планом — отчет
+// регионалу», «на отмененное». Взятое не по плану и снятое с дня регионал
+// видит в уведомлениях (pages/inspections/notify.js), причина снятия
+// обязательна.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: отчёт о снятии — тем же каналом, что остальные
+// уведомления регионала (панель, WhatsApp или почта — развилка ТЗ 8.3);
+// права — осмотрщик меняет только свои назначения.
+export const SKIP_REASONS = ['Нет доступа на объект', 'Нет представителя учреждения', 'Не успеваю', 'Неисправно авто', 'Погода', 'Другое'];
+
+export function takeForDay(id, date) {
+  const a = assignmentById(id);
+  if (!a || !isLive(a) || !date || a.plannedAt === date) return a;
+  const was = a.plannedAt || '';
+  a.plannedAt = date;
+  a.updatedAt = now();
+  logEvent('taken', a, { date, was, text: `${was || 'без даты'} → ${date}` });
+  changed();
+  return a;
+}
+
+// Снятый с дня выезд остаётся назначенным, но без даты: следующую ставит
+// регионал или берёт сам осмотрщик. Снятие хранится у назначения (skips).
+export function skipDay(id, date, reason, note = '') {
+  const a = assignmentById(id);
+  if (!a || !isLive(a) || !reason) return a;
+  a.skips = [...(a.skips || []), { date, reason, note, at: now() }];
+  a.plannedAt = '';
+  a.updatedAt = now();
+  logEvent('skipped', a, { date, reason, note, text: reason + (note ? ` — ${note}` : '') });
+  changed();
+  return a;
+}
+
 export function unassignMany(ids) {
   ids.forEach((id) => setAssignState(id, 'removed'));
 }

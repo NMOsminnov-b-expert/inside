@@ -1079,3 +1079,86 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 /* Разделы перечня ОИ на экране «Объект» — как в карточке ОЦ. */
 .ins-oi-g { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-label); letter-spacing: .2px; }
 .ins-oi-g:first-of-type { margin-top: 4px; }
+
+/* --- «Сегодня»: весь план по дням (plan.js) -----------------------------
+   Секции по дням; заголовок дня прилипает к верху прокрутки, пока листают
+   его выезды. Строки вне сегодняшнего дня компактные: в экран телефона
+   входит неделя. Кнопка «На сегодня» — под палец (40px), справа от строки. */
+.ins-pl-q { position: relative; }
+.ins-pl-q-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); display: flex; pointer-events: none; }
+.ins-pl-q-in {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px 0 40px;
+  border: 1px solid var(--line-input);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+.ins-pl { display: flex; flex-direction: column; gap: 10px; }
+.ins-pl-sec.is-overdue { border-color: var(--amber-200, #f3d39b); }
+.ins-pl-sec.is-overdue > .ins-pl-h { color: var(--amber-700); }
+.ins-pl-day {
+  position: sticky;
+  top: calc(-1 * var(--ins-pad));
+  z-index: 1;
+  margin: 10px -12px 6px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ins-pl-day:first-of-type { margin-top: 0; }
+.ins-pl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ins-pl-list + .ins-pl-list { margin-top: 8px; }
+.ins-pl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.ins-pl-row:first-child { border-top: 0; }
+.ins-pl-a { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: inherit; text-decoration: none; }
+.ins-pl-t { font-size: 14px; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
+.ins-pl-m { font-size: 12.5px; color: var(--muted); }
+.ins-pl-row.is-done .ins-pl-t { color: var(--muted); }
+.ins-pl-row.is-struck .ins-pl-t { text-decoration: line-through; color: var(--muted); }
+.ins-pl-take { flex: 0 0 auto; white-space: nowrap; }
+.ins-pl-marks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.ins-pl-mark { padding: 1px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600; line-height: 18px; }
+.ins-pl-mark.is-new { background: var(--blue-100); color: var(--blue-700); }
+.ins-pl-mark.is-moved { background: var(--amber-50); color: var(--amber-700); }
+.ins-pl-mark.is-own { background: var(--teal-50); color: var(--teal-700); }
+.ins-pl-skip { align-self: flex-start; }
+.ins-pl-skipf { padding: 10px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--blue-50); }
+.ins-pl-skipf .ins-ta { min-height: 64px; }
+.ins-pl-err { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--danger, #b42318); }
+.ins-pl-more { margin-top: 8px; }
+.ins-pl-fold {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  margin: -6px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--slate-500);
+  font: inherit;
+  cursor: pointer;
+}
+.ins-pl-fold .ins-pl-h { margin: 0; }
+.ins-pl-fold[aria-expanded="true"] { margin-bottom: 4px; }
+.ins-pl-fold[aria-expanded="true"] .ins-pl-chev { transform: rotate(180deg); }
+.ins-pl-chev { display: flex; transition: transform .15s; }
+@media (prefers-reduced-motion: reduce) { .ins-pl-chev { transition: none; } }
+/* Две кнопки рядом на 390px переносят подписи — столбиком, главная сверху. */
+.ins-pl-skipf .ins-acts { flex-direction: column-reverse; align-items: stretch; }
+/* Цели нажатия — не меньше 44px (проверка «экраны осмотрщика»). */
+.ins-pl-take, .ins-pl-skip { min-height: 44px; }

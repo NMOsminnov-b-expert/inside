@@ -193,6 +193,19 @@ def _(p):
     p.eq('список тот же', [p.page.evaluate('location.hash'), p.page.locator('a[href^="#/insp/"]').count()], [h0, n0])
 
 
+@path('inspector-plan-search-back', 'Осмотрщик: «Сегодня» — поиск по плану → объект → «Назад» → поиск и найденное те же', 'О2', roles=('insp',), touches=_TI)
+def _(p):
+    p.open('#/insp?as=' + quote(PERSON), '[data-plan-q]')
+    p.page.fill('[data-plan-q]', 'ул')
+    p.wait_until("() => document.querySelectorAll('[data-plan-list] a[href^=\"#/insp/\"]').length > 0")
+    n0 = p.page.locator('[data-plan-list] a[href^="#/insp/"]').count()
+    p.page.locator('[data-plan-list] a[href^="#/insp/"]').first.click()
+    p.wait_until("() => /#\\/insp\\/[^?]/.test(location.hash)")
+    p.back()
+    p.wait_for('[data-plan-q]')
+    p.eq('поиск и найденное те же', [p.page.input_value('[data-plan-q]'), p.page.locator('[data-plan-list] a[href^="#/insp/"]').count()], ['ул', n0])
+
+
 @path('queue-filters-back', '«К назначению»: отборы (район, площадь) → другой раздел → «Назад» → отборы и строки те же', 'Р2')
 def _(p):
     p.open('#/inspections?s=assign&t=queue', '.ip-fbtn')
