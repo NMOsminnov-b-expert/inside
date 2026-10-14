@@ -59,8 +59,12 @@ body[data-page="insp"] .content {
   gap: 8px;
   min-height: 56px;
   padding: 8px var(--ins-pad);
-  background: var(--blue-700);
-  color: #fff;
+  /* Шапка — в общем стиле макета (замечание пользователя 14.10.2026: синяя
+     заливка «прям выбивается из стиля»): светлая поверхность, тёмный текст,
+     линия снизу — как шапка страниц и карточек панели регионалов. */
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
 }
 
 .ins-back {
@@ -71,9 +75,10 @@ body[data-page="insp"] .content {
   min-height: 44px;
   margin-left: -6px;
   border-radius: 10px;
-  color: #fff;
+  color: var(--ink);
   text-decoration: none;
 }
+.ins-back:hover { background: var(--blue-50); color: var(--blue-700); }
 
 .ins-head-txt { flex: 1 1 auto; min-width: 0; }
 
@@ -82,8 +87,9 @@ body[data-page="insp"] .content {
      display задаётся дважды намеренно: ниже -webkit-box включает обрезку в две
      строки, а block остаётся запасным для браузеров без неё. */
   display: block;
-  font-size: 15.5px;
+  font-size: 17px;
   font-weight: 700;
+  color: var(--ink);
   line-height: 1.25;
   /* Адрес длинный: две строки показываем, дальше многоточие — правило макета
      о длинных значениях (docs/tz/60-pul-zadach.md, пункт 2). */
@@ -95,8 +101,8 @@ body[data-page="insp"] .content {
 
 .ins-head-sub {
   display: block;
-  font-size: 11.5px;
-  color: var(--blue-200);
+  font-size: 12px;
+  color: var(--muted);
   margin-top: 1px;
 }
 
@@ -106,9 +112,9 @@ body[data-page="insp"] .content {
   display: block;
   margin-top: 2px;
   font-size: 12px;
-  color: var(--blue-100);
+  color: var(--muted);
 }
-.ins-head-eni b { font-size: 13px; color: #fff; letter-spacing: .2px; }
+.ins-head-eni b { font-size: 13px; color: var(--ink); letter-spacing: .2px; }
 
 .ins-body {
   flex: 1 1 auto;
@@ -891,7 +897,6 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
   outline-offset: 2px;
 }
 
-.ins-head :focus-visible { outline-color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
   .ins-oi-chev { transition: none; }
