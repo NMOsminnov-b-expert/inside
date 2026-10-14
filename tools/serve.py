@@ -85,8 +85,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     me = ''
 
     def end_headers(self):
-        # Макет правится на ходу — браузер не должен держать старые модули.
-        self.send_header('Cache-Control', 'no-store')
+        # Макет правится на ходу — браузер не должен держать старые модули,
+        # но и качать заново все 230+ файлов при каждом открытии незачем:
+        # no-cache — «перед использованием спроси»; неизменённый файл
+        # приходит ответом 304 без тела (по Last-Modified). Было no-store —
+        # каждое открытие тянуло ~4,5 МБ (замер 14.10.2026, «загрузка прям
+        # очень долгая»).
+        self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
 
     def log_message(self, fmt, *args):
@@ -147,6 +152,11 @@ def main():
         LOCAL = os.path.abspath(args.data)
     Handler.me = own_name(args.name, save=not args.data)
     write_manifest()
+    # Очередь соединений — 256, а не 5 по умолчанию: браузер открывает
+    # несколько соединений сразу, и на 230+ файлах лишние отбрасывались и
+    # повторялись с задержкой (так же, как у сервера автопроверок,
+    # tools/checks/serve.py).
+    http.server.ThreadingHTTPServer.request_queue_size = 256
     srv = http.server.ThreadingHTTPServer(('127.0.0.1', args.port), functools.partial(Handler, directory=ROOT))
     print('макет: http://127.0.0.1:%d/app.html' % args.port)
     print('карточки этой копии пишутся в %s (имя — .inside-local.json)'
