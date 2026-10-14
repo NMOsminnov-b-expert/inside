@@ -185,6 +185,17 @@ public sealed partial class MainWindow
         StartReindex(flag);
     }
 
+    // Репозиторий программы — вверх от её папки до tools/hooks/reindex.py.
+    static string? HomeReindex()
+    {
+        for (var d = new DirectoryInfo(AppContext.BaseDirectory); d != null; d = d.Parent)
+        {
+            var p = System.IO.Path.Combine(d.FullName, "tools", "hooks", "reindex.py");
+            if (File.Exists(p)) return p;
+        }
+        return null;
+    }
+
     // Тот же прогон, что после коммита (tools/hooks/reindex.py): "" — оба
     // индекса, --code, --sem — один, --stop — остановить идущие. Ход показывают
     // полоски, выгрузки перечитываются по окончании.
@@ -193,7 +204,15 @@ public sealed partial class MainWindow
         if (Store == null) return;
         try
         {
-            var psi = new System.Diagnostics.ProcessStartInfo("python", ("tools/hooks/reindex.py " + flag).Trim())
+            // Свой прогон у проекта — его tools/hooks/reindex.py; у графа без
+            // него (APCS — мультиграф, 14.10.2026: «подтяни телеметрию в
+            // приложение») — прогон репозитория программы с --root: ход пишется
+            // в .graf этого графа, и полоски показывают его.
+            var own = System.IO.Path.Combine(Store.Root, "tools", "hooks", "reindex.py");
+            var script = File.Exists(own) ? own : HomeReindex();
+            if (script == null) { Status("Прогон индексов не найден: нет tools/hooks/reindex.py"); return; }
+            var args = $"\"{script}\" {flag}" + (script == own ? "" : $" --root \"{Store.Root}\"");
+            var psi = new System.Diagnostics.ProcessStartInfo("python", args.Trim())
             {
                 WorkingDirectory = Store.Root, UseShellExecute = false, CreateNoWindow = true,
             };

@@ -36,12 +36,15 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 import asyncpg
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# GRAF_ROOT и GRAF_SEM_PROJECT — другой проект мультиграфа (tools/hooks/reindex.py --root).
+ROOT = os.environ.get('GRAF_ROOT') or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import graph  # noqa: E402
+if os.environ.get('GRAF_ROOT'):
+    graph.use_root(ROOT)
 
 SEM = os.path.join(os.environ['LOCALAPPDATA'], 'semsearch')
-PROJECT = 'inside'   # база — по имени проекта в реестре semsearch (с 02.10.2026 — индекс Qwen3)
+PROJECT = os.environ.get('GRAF_SEM_PROJECT') or 'inside'   # база — по имени проекта в реестре semsearch (с 02.10.2026 — индекс Qwen3)
 MODEL = 'Qwen3-Embedding-0.6B'
 TOP = 3          # связей на запись
 # Порог похожести — медиана похожести записи с ближайшим соседом (так он был

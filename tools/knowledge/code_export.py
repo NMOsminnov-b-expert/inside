@@ -24,7 +24,8 @@ import sys
 # Вывод — UTF-8 и в консоли с cp1251 (стрелки в итоговой строке).
 sys.stdout.reconfigure(encoding='utf-8')
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# GRAF_ROOT — другой проект мультиграфа (tools/hooks/reindex.py --root).
+ROOT = os.environ.get('GRAF_ROOT') or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB = os.path.join(ROOT, '.codegraph', 'codegraph.db')
 
 

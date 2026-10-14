@@ -50,10 +50,43 @@ trials.log.
     python tools/hooks/reindex.py --sem      # только по смыслу (и затем пробные)
     python tools/hooks/reindex.py --stop     # остановить идущие прогоны (--stop code | sem)
     python tools/hooks/reindex.py --trials   # пробные индексы
+    python tools/hooks/reindex.py --sem --root "C:/vs code/APCS"   # другой проект
+
+Другой проект мультиграфа (просьба пользователя 14.10.2026 «подтяни
+телеметрию в приложение» — ход индекса APCS в программе): --root — его папка;
+ход пишется в его .graf/index-status.json, который программа читает, когда
+открыт этот граф; проект semsearch — имя из его .codebase-mcp/config.json;
+выгрузки — те же сценарии этого репозитория с GRAF_ROOT; пробных индексов
+у других проектов нет.
 """
 import ctypes, datetime, io, json, os, pathlib, re, subprocess, sys
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
+HOME = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _root():
+    if '--root' in sys.argv:
+        i = sys.argv.index('--root')
+        if i + 1 < len(sys.argv):
+            return pathlib.Path(sys.argv[i + 1]).resolve()
+    return HOME
+
+
+ROOT = _root()
+FOREIGN = ROOT != HOME
+ROOT_ARGS = ['--root', str(ROOT)] if FOREIGN else []
+
+
+def _project():
+    if not FOREIGN:
+        return 'inside'
+    try:
+        return json.loads((ROOT / '.codebase-mcp' / 'config.json').read_text(encoding='utf-8'))['project']['name']
+    except (OSError, ValueError, KeyError):
+        return ROOT.name.lower()
+
+
+PROJECT = _project()
 G = ROOT / '.graf'
 STATUS = G / 'index-status.json'
 
@@ -73,7 +106,8 @@ SVC = LOCAL / 'semsearch' / 'svc.py'
 TRIALS = LOCAL / 'semsearch' / 'trials.json'
 
 # Python на localhost ходит через корпоративный прокси, если не сказать иначе.
-ENV = dict(os.environ, NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost', PYTHONIOENCODING='utf-8')
+ENV = dict(os.environ, NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost', PYTHONIOENCODING='utf-8',
+           **({'GRAF_ROOT': str(ROOT), 'GRAF_SEM_PROJECT': PROJECT} if FOREIGN else {}))
 HIDDEN = 0x08000000 if os.name == 'nt' else 0  # CREATE_NO_WINDOW
 GROUP = 0x00000200 if os.name == 'nt' else 0   # CREATE_NEW_PROCESS_GROUP
 
@@ -166,7 +200,7 @@ def codegraph(commit):
     if code:
         return put('codegraph', state='failed', finished=now(), note=last)
     put('codegraph', stage='выгрузка для программы')
-    code, last = run([sys.executable, 'tools/knowledge/code_export.py'])
+    code, last = run([sys.executable, HOME / 'tools' / 'knowledge' / 'code_export.py'])
     put('codegraph', state='done' if code == 0 else 'failed', stage='', finished=now(), note='' if code == 0 else last)
 
 
@@ -255,10 +289,10 @@ def semsearch(commit):
             return put('semsearch', state='failed', finished=now(), note='база или модель индексации не поднялись')
     try:
         put('semsearch', stage='дообновление индекса')
-        if not index_project('semsearch', 'inside', INDEX_OLLAMA):
+        if not index_project('semsearch', PROJECT, INDEX_OLLAMA):
             return
         put('semsearch', stage='выгрузка для программы')
-        code, last = run([SPY, 'tools/knowledge/semantic_export.py'])
+        code, last = run([SPY, HOME / 'tools' / 'knowledge' / 'semantic_export.py'])
         put('semsearch', state='done' if code == 0 else 'failed', stage='', finished=now(), note='' if code == 0 else last)
     finally:
         if SVC.exists():
@@ -294,7 +328,7 @@ def trials(commit):
 
 def start_trials():
     """Пробные — отдельным скрытым процессом: основной прогон их не ждёт."""
-    if not trial_items():
+    if FOREIGN or not trial_items():
         return
     subprocess.Popen([sys.executable, str(pathlib.Path(__file__).resolve()), '--trials'], cwd=ROOT,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -325,7 +359,7 @@ def loop(name, work):
 
 def spawn(flag):
     """Прогон отдельным скрытым процессом: вызвавший его не ждёт."""
-    subprocess.Popen([sys.executable, str(pathlib.Path(__file__).resolve()), flag], cwd=ROOT,
+    subprocess.Popen([sys.executable, str(pathlib.Path(__file__).resolve()), flag, *ROOT_ARGS], cwd=ROOT,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      creationflags=HIDDEN | GROUP)
 
