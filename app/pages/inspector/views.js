@@ -330,11 +330,15 @@ function cadParcelHTML(rec, geo, msg) {
   const docLabel = land && land.areas && land.areas.pravo ? 'по документам' : 'по факту';
   const docHint = land && land.areas && land.areas.pravo ? 'По правоустанавливающим документам — из карточки участка' : 'По факту — из карточки участка';
   if (!geo || !geo.extent) {
+    // Пустое состояние — одной плашкой: что не так и что сделать, вместе
+    // (пояснение и действие не расходятся на два блока; ход запроса — там же).
     return `<section class="ins-blk ins-cadp">
       <h2 class="ins-blk-h">Участок по Кадастру</h2>
-      <p class="ins-empty">Контура участка нет.</p>
-      ${rec.eni ? `<button type="button" class="ins-btn ins-btn-wide" data-cad-geo>${ico('pin')} Получить с Кадастра по ЕНИ</button>` : ''}
-      ${msg ? `<p class="ins-hint" role="status" data-cad-geo-msg>${esc(msg)}</p>` : '<p class="ins-hint" role="status" data-cad-geo-msg></p>'}
+      <div class="ins-empty ins-cadp-empty">
+        <p>${rec.eni ? 'Контура участка нет.' : 'Контура участка нет, ЕНИ не указан.'}</p>
+        <p class="ins-hint" role="status" data-cad-geo-msg>${esc(msg || '')}</p>
+        ${rec.eni ? `<button type="button" class="ins-btn ins-btn-wide" data-cad-geo>${ico('pin')} Получить с Кадастра по ЕНИ</button>` : ''}
+      </div>
     </section>`;
   }
   const m2 = geo.contour ? contourAreaM2(geo.contour) : null;

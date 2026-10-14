@@ -1069,6 +1069,9 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 .ins-acts { display: flex; gap: 8px; align-items: flex-start; }
 .ins-acts .ins-go { flex: 1 1 auto; min-width: 0; }
 .ins-cadp-warn .ins-row-v { color: #a3361c; font-weight: 600; }
+.ins-cadp-empty { display: flex; flex-direction: column; gap: 10px; }
+.ins-cadp-empty p { margin: 0; }
+.ins-cadp-empty .ins-hint:empty { display: none; }
 @media (min-width: 720px) {
   .ins-gmap { height: 300px; }
 }
