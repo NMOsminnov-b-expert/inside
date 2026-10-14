@@ -1462,6 +1462,62 @@ export function mountInspections(host) {
   const scene = { el: null, map: null, L: null, layer: null, fitKey: '' };
   let hideList = false;      // панели скрываемы (указание 13.10.2026: «Панели чтобы были скрываемыми»)
   let hidePane = false;
+  // Ширины панелей «Назначений», заданные человеком (px; 0 — по умолчанию).
+  const SPLIT_KEY = { list: 'inside.ip.listW', pane: 'inside.ip.paneW' };
+  const SPLIT_MIN = { list: 320, pane: 280 };
+  const SPLIT_MAX_SHARE = { list: 0.6, pane: 0.4 };
+  const MAP_MIN = 200;   // сколько карты остаётся между панелями
+  const splitSaved = { list: 0, pane: 0 };
+  try {
+    splitSaved.list = Number(localStorage.getItem(SPLIT_KEY.list)) || 0;
+    splitSaved.pane = Number(localStorage.getItem(SPLIT_KEY.pane)) || 0;
+  } catch (e) { /* без памяти браузера — ширины по умолчанию */ }
+  const pageW = () => { const p = scope.$('.ip-page'); return p ? p.clientWidth : window.innerWidth; };
+  // Текущая ширина панели на экране.
+  function splitWidth(which) {
+    const el = scope.$(which === 'list' ? '.on-scene .ip-assign .ip-work' : '.on-scene .ip-assign .ip-pane');
+    return Math.round(el ? el.getBoundingClientRect().width : splitSaved[which] || 0);
+  }
+  function splitRange(which) {
+    const other = which === 'list' ? 'pane' : 'list';
+    const W = pageW();
+    const otherW = splitWidth(other) || (other === 'pane' ? 300 : 400);
+    // Не меньше нынешней ширины: исходная ширина по умолчанию на средних
+    // окнах уже больше расчётного предела, и шаг «шире» её сжимал бы.
+    const room = Math.min(Math.round(W * SPLIT_MAX_SHARE[which]), W - otherW - MAP_MIN - 30);
+    return [SPLIT_MIN[which], Math.max(SPLIT_MIN[which], room, splitWidth(which))];
+  }
+  // Заданная ширина — с запасом на сужение окна: не больше доли окна.
+  function splitStyle() {
+    const css = [];
+    if (splitSaved.list) css.push(`--list-w:clamp(${SPLIT_MIN.list}px,${splitSaved.list}px,${SPLIT_MAX_SHARE.list * 100}%)`);
+    if (splitSaved.pane) css.push(`--pane-w:clamp(${SPLIT_MIN.pane}px,${splitSaved.pane}px,${SPLIT_MAX_SHARE.pane * 100}%)`);
+    return css.join(';');
+  }
+  function setSplit(which, px, save = true) {
+    const page = scope.$('.ip-page');
+    if (!page) return;
+    if (px) {
+      const [min, max] = splitRange(which);
+      splitSaved[which] = Math.round(Math.max(min, Math.min(max, px)));
+    } else {
+      splitSaved[which] = 0;
+    }
+    page.setAttribute('style', splitStyle());
+    const sep = scope.$(`[data-ip-split="${which}"]`);
+    if (sep) {
+      const [min, max] = splitRange(which);
+      sep.setAttribute('aria-valuenow', String(splitWidth(which)));
+      sep.setAttribute('aria-valuemin', String(min));
+      sep.setAttribute('aria-valuemax', String(max));
+    }
+    if (save) {
+      try {
+        if (splitSaved[which]) localStorage.setItem(SPLIT_KEY[which], String(splitSaved[which]));
+        else localStorage.removeItem(SPLIT_KEY[which]);
+      } catch (e) { /* без памяти браузера — до перезагрузки */ }
+    }
+  }
   // «Назначено» без выбранного осмотрщика: назначение, открытое с карты.
   let peek = '';
   const gpsCache = new Map();
@@ -2060,7 +2116,7 @@ export function mountInspections(host) {
     // «Назначений»: перенесённые в другие разделы, они прятали там
     // содержимое — пустые «Осмотрщики», «Кадастр», «История» без списка
     // (замечание пользователя 14.10.2026 «Сломана панель регионалов»).
-    scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${onScene && hideList ? 'hide-list' : ''} ${onScene && hidePane ? 'hide-pane' : ''}">
+    scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${onScene && hideList ? 'hide-list' : ''} ${onScene && hidePane ? 'hide-pane' : ''}" ${onScene ? `style="${splitStyle()}"` : ''}>
       <div class="ip-isles">
         <nav class="ip-isl ip-sections" role="tablist" aria-label="Режимы осмотров">
           ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('history', 'История')}
@@ -2076,10 +2132,13 @@ export function mountInspections(host) {
       <div class="ip ${sec.cls}">${sec.html}</div>
       ${onScene ? `<p class="ip-isl ip-scene-note" data-ip-scene-note role="status" hidden></p>
         <button class="ip-edge ip-edge-l" data-ip-hide="list" aria-expanded="${!hideList}" title="${hideList ? 'Показать список' : 'Скрыть список'}" aria-label="${hideList ? 'Показать список' : 'Скрыть список'}">${hideList ? '›' : '‹'}</button>
-        <button class="ip-edge ip-edge-r" data-ip-hide="pane" aria-expanded="${!hidePane}" title="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}" aria-label="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}">${hidePane ? '‹' : '›'}</button>` : ''}
+        <button class="ip-edge ip-edge-r" data-ip-hide="pane" aria-expanded="${!hidePane}" title="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}" aria-label="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}">${hidePane ? '‹' : '›'}</button>
+        ${hideList ? '' : splitHTML('list')}${hidePane ? '' : splitHTML('pane')}` : ''}
     </div>`);
     placeJump();
     liftSubTabs();
+    // Ширина в разделителе — уже по отрисованным панелям.
+    scope.$$('[data-ip-split]').forEach((sep) => sep.setAttribute('aria-valuenow', String(splitWidth(sep.dataset.ipSplit))));
     syncUrl();
     const was = memo.get(vkey);
     if (was && was.draft) applyDraft(was.draft);
@@ -2576,6 +2635,76 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-freset]', () => refilter({ facets: {}, ranges: {} }));
   scope.on('click', '[data-ip-ftoggle]', () => { facetsOpen = !facetsOpen; redraw(); });
   scope.on('click', '[data-ip-hide]', (e, b) => { if (b.dataset.ipHide === 'list') hideList = !hideList; else hidePane = !hidePane; redraw(); });
+
+  let splitDrag = null;
+  scope.on('pointerdown', '[data-ip-split]', (e, el) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const page = scope.$('.ip-page');
+    splitDrag = { which: el.dataset.ipSplit, id: e.pointerId, rect: page.getBoundingClientRect(), gap: parseFloat(getComputedStyle(page).getPropertyValue('--isle-gap')) || 10 };
+    el.setPointerCapture(e.pointerId);
+    page.classList.add('is-splitting');
+  });
+  scope.onDocument('pointermove', (e) => {
+    const d = splitDrag;
+    if (!d || e.pointerId !== d.id) return;
+    const px = d.which === 'list' ? e.clientX - d.rect.left - d.gap : d.rect.right - d.gap - e.clientX;
+    setSplit(d.which, px, false);
+  });
+  const splitEnd = (e) => {
+    const d = splitDrag;
+    if (!d || e.pointerId !== d.id) return;
+    splitDrag = null;
+    const page = scope.$('.ip-page');
+    if (page) page.classList.remove('is-splitting');
+    setSplit(d.which, splitSaved[d.which], true);
+    if (scene.map) scene.map.resize();
+  };
+  scope.onDocument('pointerup', splitEnd);
+  scope.onDocument('pointercancel', splitEnd);
+  scope.on('dblclick', '[data-ip-split]', (e, el) => { setSplit(el.dataset.ipSplit, 0); });
+  scope.on('keydown', '[data-ip-split]', (e, el) => {
+    const which = el.dataset.ipSplit;
+    const [min, max] = splitRange(which);
+    const cur = splitWidth(which);
+    // Стрелка — в сторону движения края: у списка край справа, у панели — слева.
+    const grow = which === 'list' ? 1 : -1;
+    const step = e.shiftKey ? 64 : 16;
+    let px = null;
+    if (e.key === 'ArrowRight') px = cur + step * grow;
+    else if (e.key === 'ArrowLeft') px = cur - step * grow;
+    else if (e.key === 'Home') px = min;
+    else if (e.key === 'End') px = max;
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (which === 'list') hideList = !hideList; else hidePane = !hidePane;
+      redraw();
+      return;
+    }
+    if (px === null) return;
+    e.preventDefault();
+    setSplit(which, px);
+  });
+
+  // --- ширина панелей «Назначений» ------------------------------------------
+  //
+  // Указание пользователя 14.10.2026: «надо бы сделать размеры панелей
+  // регулируемыми». Шаблон W3C «Window Splitter»: разделитель на внутреннем
+  // краю панели (role="separator", ширина в aria-valuenow); мышью — тянуть,
+  // двойной щелчок — исходная ширина; клавиатурой — ←/→ по 16 px (с Shift —
+  // 64), Home/End — наименьшая/наибольшая, Enter — скрыть панель (как ‹ ›).
+  // Пределы держат карту между панелями видимой.
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: ширины — личная настройка, здесь в памяти
+  // браузера; на сервере — в настройках учётной записи (тогда переезжают
+  // с человеком на другой компьютер) или так же локально — развилка.
+  function splitHTML(which) {
+    const w = splitWidth(which);
+    const [min, max] = splitRange(which);
+    return `<div class="ip-split ip-split-${which === 'list' ? 'l' : 'r'}" role="separator" tabindex="0" aria-orientation="vertical"
+      aria-label="${which === 'list' ? 'Ширина списка' : 'Ширина панели назначения'}" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${w}"
+      title="Тянуть — ширина, двойной щелчок — как было" data-ip-split="${which}"></div>`;
+  }
+
   // Наборы отборов: применить, обновить, сохранить как новый, удалить.
   scope.on('click', '[data-ip-set]', (e, b) => {
     const x = (view.sets[view.tab] || []).find((y) => y.id === b.dataset.ipSet);

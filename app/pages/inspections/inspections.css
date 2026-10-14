@@ -1323,3 +1323,19 @@ body[data-page="inspections"] .ipc-ptbl thead th{white-space:normal;vertical-ali
   body[data-page="inspections"] .ipc-pgrid > .ipc-stats{grid-template-columns:minmax(0,1fr)}
 }
 
+
+/* --- ширина панелей «Назначений»: разделители (14.10.2026) ---------------
+   Полоса 8 px на внутреннем краю панели; видимая черта — при наведении,
+   фокусе и перетаскивании. На время перетаскивания текст не выделяется. */
+body[data-page="inspections"] .ip-split{position:absolute;z-index:13;top:var(--scene-top);bottom:var(--isle-gap);width:8px;
+  cursor:col-resize;touch-action:none;outline:none;pointer-events:auto}
+body[data-page="inspections"] .ip-split::after{content:"";position:absolute;top:14px;bottom:14px;left:3px;width:2px;border-radius:2px;
+  background:transparent;transition:background .12s}
+body[data-page="inspections"] .ip-split:hover::after,
+body[data-page="inspections"] .ip-split:focus-visible::after,
+body[data-page="inspections"] .is-splitting .ip-split::after{background:var(--blue-600)}
+body[data-page="inspections"] .ip-split-l{left:calc(var(--isle-gap) + var(--list-w) - 4px)}
+body[data-page="inspections"] .ip-split-r{right:calc(var(--isle-gap) + var(--pane-w) - 4px)}
+body[data-page="inspections"] .is-splitting{-webkit-user-select:none;user-select:none;cursor:col-resize}
+@media (prefers-reduced-motion:reduce){body[data-page="inspections"] .ip-split::after{transition:none}}
+@media (max-width:1100px){body[data-page="inspections"] .ip-split{display:none}}
