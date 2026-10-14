@@ -1449,6 +1449,7 @@ export function mountInspections(host) {
   }
   async function buildScene() {
     const gl = await loadMapLibre(host.ensureStyle);
+    if (scene.dead) throw new Error('панель закрыта');
     const el = document.createElement('div');
     el.className = 'ip-scene';
     el.setAttribute('role', 'img');
@@ -1484,6 +1485,11 @@ export function mountInspections(host) {
     map.on('dblclick', 'objs', (e) => e.preventDefault());
     // Участки и строения Кадастра — где смотришь, под точками объектов.
     attachCadastreGL(gl, map, { beforeId: 'objs' });
+    // Панель успела закрыться, пока карта собиралась (движок грузится после
+    // загрузки страницы): уборка уже прошла, и карта осталась бы висеть
+    // поверх следующего экрана — так закрывала ссылки «Моих осмотров»
+    // (проверка «запросы документов», 14.10.2026).
+    if (scene.dead) { map.remove(); el.remove(); throw new Error('панель закрыта'); }
     Object.assign(scene, { el, map, gl, byKey: new Map() });
     window.__ipScene = map;   // для замеров и проверок
     scene.obs = new ResizeObserver(() => { if (scene.map) scene.map.resize(); });
@@ -1507,7 +1513,9 @@ export function mountInspections(host) {
   async function drawScene(on) {
     document.body.classList.toggle('ip-sheet-open', !on);
     if (!on && !scene.map) return;
-    const sc = await ensureScene();
+    let sc;
+    try { sc = await ensureScene(); } catch (e) { if (scene.dead) return; throw e; }
+    if (scene.dead) return;
     if (!sc.el.isConnected) { const row = document.querySelector('.main-row') || document.body; row.insertBefore(sc.el, row.firstChild); }
     sc.map.resize();
     const { map } = sc;
@@ -2679,6 +2687,7 @@ export function mountInspections(host) {
   return {
     onRoute(next) { if (applyRoute(next)) { detail = []; cadDraft = null; resetList(); } render(); },
     destroy() {
+      scene.dead = true;
       destroyStats();
       hidePop();
       window.removeEventListener('resize', onResize);

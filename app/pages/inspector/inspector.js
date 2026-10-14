@@ -206,19 +206,8 @@ export function mountInspector(host) {
   // «прятать в минимальный режим») снято тем же днём по замеру: новая шапка —
   // две короткие строки, сжатие экономило 15 px, а на пороге всё содержимое
   // разом съезжало на эти 15 px — «поведение напоминает желе при скролле».
-  // Высота шапки — в переменной: по ней прилипает строка разделов.
-  const content = () => document.querySelector('.content');
-  function syncHead() {
-    const head = scope.$('.ins-head');
-    // Точная высота, с долями пикселя: offsetHeight округляет (64,3 → 64), и
-    // строка разделов при прилипании съезжала на эти доли — замер 14.10.2026.
-    if (head) document.body.style.setProperty('--ins-head-h', head.getBoundingClientRect().height + 'px');
-    // Вкладки разделов на широком экране стоят под шапкой (прилипают), строка
-    // разделов — под ними; на телефоне вкладки внизу, и места не занимают.
-    const tabs = scope.$('.ins-tabs');
-    const top = tabs && getComputedStyle(tabs).position === 'sticky' && tabs.getBoundingClientRect().top < innerHeight / 2 ? tabs.getBoundingClientRect().height : 0;
-    document.body.style.setProperty('--ins-tabs-h', top + 'px');
-  }
+  // Прокручивается содержимое экрана, а не вся страница (inspector.css).
+  const content = () => scope.$('.ins-body');
   // Идёт переход к разделу из строки разделов: текущий раздел отмечен сразу
   // и на ходу не пересчитывается — иначе при дальнем переходе подсветка
   // перескакивала по каждому пройденному разделу и строка разделов дёргалась
@@ -231,6 +220,20 @@ export function mountInspector(host) {
     markCurrentSection();
   }
   scope.onDocument('scroll', onScroll, true);
+  // Колесо над шапкой, строкой разделов и панелью разделов прокручивает
+  // содержимое: они стоят вне прокрутки, и колесо над ними иначе не делало
+  // ничего (замер 14.10.2026). Горизонтальное колесо над строкой разделов —
+  // её собственное.
+  scope.onDocument('wheel', (e) => {
+    if (jumping || e.ctrlKey) return;
+    const t = e.target;
+    if (!t.closest || !t.closest('.ins') || t.closest('.ins-body') || t.closest('.ms-drop, .pick-menu')) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const pane = content();
+    if (!pane) return;
+    e.preventDefault();
+    pane.scrollBy({ top: e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * pane.clientHeight : e.deltaY });
+  }, { passive: false });
   // Текущий раздел в строке разделов — последний, чей заголовок ушёл под неё.
   function markCurrentSection() {
     const nav = scope.$('[data-secnav]');
@@ -260,7 +263,6 @@ export function mountInspector(host) {
   function render() {
     draw();
     onScroll();
-    syncHead();
   }
 
   function draw() {
@@ -687,7 +689,7 @@ export function mountInspector(host) {
       if (!jumping) return;
       jumping = false;
       pane.removeEventListener('scrollend', onEnd);
-      BREAK.forEach((t) => pane.removeEventListener(t, interrupt));
+      BREAK.forEach((t) => document.removeEventListener(t, interrupt, true));
       clearTimeout(guard);
       pinned = reached ? { key, y: pane.scrollTop } : null;
       onScroll();
@@ -696,8 +698,10 @@ export function mountInspector(host) {
     // scrollend есть не везде — запасной выход по времени.
     const guard = setTimeout(onEnd, 1200);
     pane.addEventListener('scrollend', onEnd);
-    // Колесо — не пассивно: его собственная прокрутка заменяется своей.
-    BREAK.forEach((t) => pane.addEventListener(t, interrupt, { passive: t !== 'wheel' }));
+    // Слушаем весь экран, а не только содержимое: после нажатия на раздел
+    // курсор стоит над строкой разделов, вне прокрутки. Колесо — не
+    // пассивно: его собственная прокрутка заменяется своей.
+    BREAK.forEach((t) => document.addEventListener(t, interrupt, { capture: true, passive: t !== 'wheel' }));
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     pane.scrollTo({ top: target, behavior: still ? 'auto' : 'smooth' });
     if (still) done(true);
@@ -832,8 +836,6 @@ export function mountInspector(host) {
     },
     destroy() {
       closeLightbox();
-      document.body.style.removeProperty('--ins-head-h');
-      document.body.style.removeProperty('--ins-tabs-h');
     },
   };
 }

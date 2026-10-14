@@ -20,12 +20,14 @@ body[data-page="insp"] .main-row { display: block; height: auto; }
 
 body[data-page="insp"] { font-size: 15px; }
 
-/* Прокрутка живёт в #content: у body она отключена каркасом (tokens.css), а
-   нижней панели нужен свой скроллящийся предок, иначе position:sticky ей не
-   за что зацепиться. */
+/* Прокручивается только содержимое экрана (.ins-body); шапка, строка
+   разделов и панель разделов стоят вне прокрутки (14.10.2026). Прежде они
+   прилипали (position:sticky) внутри прокручиваемой области — и на колесе
+   отставали на кадр: шапка дёргалась меньше чем на 2 px, над ней мелькала
+   полоска прокручиваемого содержимого (замечание пользователя). */
 body[data-page="insp"] .content {
   height: 100dvh;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
   background: var(--bg);
   -webkit-overflow-scrolling: touch;
@@ -44,7 +46,8 @@ body[data-page="insp"] .content {
 
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   /* На настольном экране колонка не растягивается на всю ширину: смотреть
      мобильный экран во всю ширину монитора неудобно и непохоже на телефон. */
   max-width: 480px;
@@ -54,8 +57,8 @@ body[data-page="insp"] .content {
 }
 
 .ins-head {
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex: 0 0 auto;
   z-index: 5;
   display: flex;
   align-items: center;
@@ -121,19 +124,21 @@ body[data-page="insp"] .content {
 
 .ins-body {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  overflow-anchor: none;
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: var(--ins-pad);
-  /* Место под нижнюю панель: она перекрывала бы последний блок. */
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
+.ins-body > * { flex-shrink: 0; }
 
 /* --- нижняя панель разделов --------------------------------------------- */
 .ins-tabs {
-  position: sticky;
-  bottom: 0;
-  margin-top: auto;
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
@@ -682,26 +687,7 @@ body[data-page="insp"] .content {
 
 /* Сводка по заполненности: на телефоне обязательные поля уезжают вниз по
    прокрутке, и «осталось 3» понятнее, чем красные рамки где-то там. */
-/* Полоса сводки закреплена под шапкой: и прогресс, и «Сохранить» должны быть
-   под рукой на любой прокрутке — в рабочей системе кнопка лежала в конце
-   простыни из двадцати восьми полей. */
-.ins-sum {
-  position: sticky;
-  top: var(--ins-head-h, 56px);
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px var(--ins-pad);
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  font-size: 13px;
-}
 
-.ins-sum-t i { font-style: normal; }
-/* 44 пикселя даже в узкой полосе: это главная кнопка экрана. */
-.ins-sum .ins-btn-sm { flex: 0 0 auto; min-height: 44px; }
 
 /* --- раздел-аккордеон --------------------------------------------------- */
 .ins-acc { padding: 0; overflow: hidden; }
@@ -866,13 +852,8 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
   .ins-secnav { order: 4; }
   .ins-body { order: 5; }
 
-  /* Вкладки прилипают под шапкой: иначе строка разделов сначала ехала вверх
-     вместе с ними и только потом вставала (замер 14.10.2026: 121 → 81 →
-     64 px за первые 80 px прокрутки) — «дёргается панель». */
+  /* Вкладки — над строкой разделов, вне прокрутки. */
   .ins-tabs {
-    position: sticky;
-    top: var(--ins-head-h, 56px);
-    z-index: 4;
     background: var(--panel);
     grid-template-columns: repeat(4, minmax(120px, max-content));
     justify-content: start;
@@ -992,7 +973,6 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
    одной строкой; под ним одна строка — ЕНИ (касание копирует), короткая
    подпись, «сохранено»; ход заполнения — полосой 3 px по низу шапки; разделы
    осмотра — строкой под шапкой. */
-.ins-head { position: sticky; }
 .ins-head-meta { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; margin-top: 2px; min-width: 0; }
 .ins-head-meta:empty { display: none; }
 .ins-head-eni { display: inline-flex; align-items: baseline; gap: 4px; margin: 0; padding: 2px 0; border: 0; background: none;
@@ -1005,7 +985,7 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 .ins-prog { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--line-soft); }
 .ins-prog i { display: block; height: 100%; background: var(--teal-600, #0e8172); transition: width .2s ease; }
 
-.ins-secnav { position: sticky; top: calc(var(--ins-head-h, 56px) + var(--ins-tabs-h, 0px)); z-index: 4; display: flex; gap: 6px; overflow-x: auto;
+.ins-secnav { flex: 0 0 auto; position: relative; z-index: 4; display: flex; gap: 6px; overflow-x: auto;
   padding: 6px var(--ins-pad); background: var(--panel); border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .ins-secnav::-webkit-scrollbar { display: none; }
 .ins-secnav-b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;

@@ -290,7 +290,7 @@ def run(t):
     t.ck(pg.evaluate(geo)[0] == before[0], 'высота шапки изменилась при переходе к разделу: %s → %s' % (before, pg.evaluate(geo)))
     t.ck(pg.evaluate("document.querySelector('[data-secnav] [aria-current=\"true\"]')?.dataset.gotoSec") == 'comments',
          'после перехода к «Комментариям» подсвечен другой раздел')
-    pg.evaluate("document.querySelector('.content').scrollTop = 0")
+    pg.evaluate("document.querySelector('.ins-body').scrollTop = 0")
     t.wait(200)
 
     # Замеры: единицы, значение по документам и СИГНАЛ расхождения по ходу
