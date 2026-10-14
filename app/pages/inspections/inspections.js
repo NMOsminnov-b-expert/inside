@@ -748,7 +748,6 @@ export function mountInspections(host) {
           ${tile('Свободно', `${me.free} дн.`, '', 'Рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', me.done, '', 'Законченных назначений')}</div>
         <div class="ip-head-act">
           <button class="btn btn-primary btn-sm" data-ip-assign-to="${esc(me.name)}">Назначить объекты</button>
-          <a class="btn btn-ghost btn-sm" href="#/insp?as=${encodeURIComponent(me.name)}" title="Экран осмотрщика — как его видит ${esc(me.name)}">Экран осмотрщика</a>
         </div>
       </header>
       ${subTabs('data-ip-ptab', view.personTab, PERSON_TABS.map(([k, l]) => (k === 'assigns' ? [k, l, me.live] : [k, l])))}

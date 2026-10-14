@@ -38,7 +38,8 @@ const SECTIONS = ['task', 'object', 'docs', 'photo'];
 export function mountInspector(host) {
   const { scope } = host;
   let route = host.route;
-  // Вход из панели осмотров: «Экран осмотрщика» открывает #/insp?as=<ФИО> —
+  // Вход — пункт бокового меню «Осмотры (осмотрщики)» (14.10.2026; кнопка
+  // «Экран осмотрщика» в панели регионалов убрана). Адрес #/insp?as=<ФИО> —
   // экран так, как его видит этот осмотрщик.
   const takeAs = (r) => { if (r && r.query && r.query.as) setInspector(r.query.as); };
   takeAs(route);

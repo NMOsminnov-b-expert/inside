@@ -184,7 +184,7 @@ async function onRoute(route) {
     }
     unmount();
     resetShellSlots();
-    setActiveNav('insp');
+    setActiveNav('insp-field');
     document.body.dataset.page = 'insp';
 
     const scope = createScope(contentRoot());

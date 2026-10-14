@@ -206,14 +206,16 @@ def run(t):
     t.ck(pg.locator('[data-ip-mode="mine"][aria-pressed="true"]').count() == 1 and sorted(shown2) == sorted(mine2),
          '«Мои осмотрщики» не пережили перезагрузку: %s / %s' % (shown2, mine2))
 
-    # --- осмотрщику «Осмотры» — его экран ------------------------------------------------
+    # --- «Осмотры (осмотрщики)» — экран выездных осмотрщиков; осмотрщику
+    # пункт регионалов не показывается (решение пользователя 14.10.2026) -----------
     t.open('', wait='.reg-tr')
     pg.click('[data-user-toggle]')
     pg.check('input[name="um-role"][value="insp"]')
     pg.keyboard.press('Escape')
-    pg.click('[data-nav="insp"]')
+    t.ck(t.wait_until("() => document.querySelector('[data-nav=\"insp\"]').hidden"), 'осмотрщику виден пункт «Осмотры (регионалы)»')
+    pg.click('[data-nav="insp-field"]')
     t.ck(t.wait_until("() => location.hash.startsWith('#/insp') && !location.hash.startsWith('#/inspections')"),
-         'осмотрщику «Осмотры» открыли не его экран: %s' % pg.evaluate('location.hash'))
+         '«Осмотры (осмотрщики)» открыли не экран осмотрщика: %s' % pg.evaluate('location.hash'))
 
     # --- поля ввода одного вида ---------------------------------------------------------
     # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у
@@ -372,8 +374,9 @@ def run(t):
          'фильтр по области не оставил только осмотрщиков этой области')
     pg.select_option('[data-ip-region]', '')
 
-    pg.click('a[href^="#/insp?as="]')
-    t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), '«Экран осмотрщика» не открыл экран осмотрщика')
+    t.ck(pg.locator('a[href^="#/insp?as="]').count() == 0, 'в карточке осталась кнопка «Экран осмотрщика» (убрана 14.10.2026)')
+    pg.evaluate("(w) => { location.hash = '#/insp?as=' + encodeURIComponent(w); }", who)
+    t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), 'адрес #/insp?as= не открыл экран осмотрщика')
     t.wait_until("async (w) => (await import('./app/pages/inspector/tasks.js')).currentInspector() === w", who)
     shown = pg.evaluate("async () => (await import('./app/pages/inspector/tasks.js')).currentInspector()")
     t.ck(shown == who, 'экран осмотрщика открыт не от того человека: %s вместо %s' % (shown, who))

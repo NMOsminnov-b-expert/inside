@@ -86,15 +86,26 @@ function bindNav() {
       if (b.dataset.nav === 'docs') location.hash = DOCS_HREF;
       if (b.dataset.nav === 'dict') location.hash = DICTS_HREF;
       if (b.dataset.nav === 'inst') location.hash = INST_HREF;
-      // «Осмотры»: осмотрщику — его задачи, остальным — панель назначения
-      // (ТЗ панели осмотров, 12.10.2026).
-      if (b.dataset.nav === 'insp') location.hash = session.state.role === 'insp' ? INSP_HREF : INSPECTIONS_HREF;
+      // Осмотры — два пункта (решение пользователя 14.10.2026: «выносим это
+      // дело в сайдбар в осмотры (осмотрщики). Интерфейс региональных
+      // менеджеров в сайдбаре помечаем как регионалы»): панель менеджеров и
+      // экран выездных осмотрщиков.
+      if (b.dataset.nav === 'insp') location.hash = INSPECTIONS_HREF;
+      if (b.dataset.nav === 'insp-field') location.hash = INSP_HREF;
     };
   });
 
   // Пункт «Архив» виден только тем, кому есть что в нём смотреть: администратору,
   // роли «любая» и сотруднику с закреплёнными учреждениями. Роль переключается
   // на ходу, поэтому пересчитываем при каждом изменении сессии.
+  // Осмотрщику панель регионалов не нужна — у него свой пункт.
+  const rmBtn = $('[data-nav="insp"]');
+  if (rmBtn) {
+    const syncRm = () => { rmBtn.hidden = session.state.role === 'insp'; };
+    syncRm();
+    session.subscribe(syncRm);
+  }
+
   const archiveBtn = $('[data-nav="archive"]');
   if (archiveBtn) {
     const sync = () => { archiveBtn.hidden = !(seesEverything() || myInstitutions().length > 0); };
