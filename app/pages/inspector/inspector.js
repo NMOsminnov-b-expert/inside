@@ -182,11 +182,10 @@ export function mountInspector(host) {
     if (!el || !ll) return;
     const gl = await loadMapLibre(host.ensureStyle);
     if (!el.isConnected) return;
-    // Малый режим — «совместные жесты» (практика Google Maps и Mapbox против
-    // «карты-ловушки»): одним пальцем листается страница, двумя двигается
-    // карта, на компьютере масштаб — Ctrl + колесо. Развёрнутая карта
-    // слушается одного пальца (setMapBig).
-    const map = await createMap(gl, el, { center: [ll[1], ll[0]], zoom: 16, cooperativeGestures: !mapBig });
+    // Карта двигается одним пальцем в обоих режимах (решение пользователя
+    // 14.10.2026: «Двигать карту двумя пальцами неудобно... Оставь одним»;
+    // совместные жесты — двумя пальцами — сняты).
+    const map = await createMap(gl, el, { center: [ll[1], ll[0]], zoom: 16 });
     if (!el.isConnected) { map.remove(); return; }
     taskMap = map;
     // Соседние участки и строения — только когда контур уже получен с
@@ -235,7 +234,6 @@ export function mountInspector(host) {
         : '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M12 3h5v5M8 17H3v-5M17 3l-6 6M3 17l6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     }
     if (!taskMap) return;
-    if (on) taskMap.cooperativeGestures.disable(); else taskMap.cooperativeGestures.enable();
     taskMap.resize();
     if (taskMapView && taskMapView.box) taskMap.fitBounds(taskMapView.box, { padding: on ? 48 : 32, maxZoom: 18, animate: false });
   }
