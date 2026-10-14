@@ -546,6 +546,8 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   выгруженному перечню (`claude-feedback-no-disk-browsing`).
 * **Ветка — `refactor`**, коммиты прямо в неё; `refactor-TS` влита и не
   используется (`claude-project-branch-refactor`).
+* **Карточки ОЦ пока не трогать** — новое только в осмотрах и общих картах;
+  правка ядра, задевающая карточку, — сначала спросить (`kartochki-oc-poka-ne-trogat`).
 * **Вкладка «Сравнительный подход» спрятана и под большим вопросом** — не
   открывать, не править и не развивать без прямого указания пользователя;
   косвенные поводы не в счёт (`claude-project-comparative-hidden`,
