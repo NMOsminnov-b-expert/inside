@@ -202,32 +202,33 @@ export function mountInspector(host) {
 
   // --- отрисовка ----------------------------------------------------------
 
-  // Шапка при прокрутке — в одну строку (замечание пользователя 14.10.2026:
-  // «При прокрутке... Может стоит лучше прятать и в минимальный режим и
-  // верхнюю часть экрана?»; практика верхней панели Material 3 — заголовок
-  // остаётся, мельче, остальное уходит): сверху — полная шапка; ниже порога —
-  // название и ЕНИ одной строкой, полоса статуса скрыта. Порог с запасом в обе
-  // стороны, чтобы шапка не дрожала на границе. Высота шапки — в переменной:
-  // по ней прилипает полоса «N из M полей» (прежде — 56 px числом, и при
-  // адресе в две строки полоса заезжала под шапку).
+  // Шапка всегда одной высоты. Сжатие при прокрутке (сделано 14.10.2026 по
+  // «прятать в минимальный режим») снято тем же днём по замеру: новая шапка —
+  // две короткие строки, сжатие экономило 15 px, а на пороге всё содержимое
+  // разом съезжало на эти 15 px — «поведение напоминает желе при скролле».
+  // Высота шапки — в переменной: по ней прилипает строка разделов.
   const content = () => document.querySelector('.content');
   function syncHead() {
     const head = scope.$('.ins-head');
-    if (head) document.body.style.setProperty('--ins-head-h', head.offsetHeight + 'px');
+    // Точная высота, с долями пикселя: offsetHeight округляет (64,3 → 64), и
+    // строка разделов при прилипании съезжала на эти доли — замер 14.10.2026.
+    if (head) document.body.style.setProperty('--ins-head-h', head.getBoundingClientRect().height + 'px');
+    // Вкладки разделов на широком экране стоят под шапкой (прилипают), строка
+    // разделов — под ними; на телефоне вкладки внизу, и места не занимают.
+    const tabs = scope.$('.ins-tabs');
+    const top = tabs && getComputedStyle(tabs).position === 'sticky' && tabs.getBoundingClientRect().top < innerHeight / 2 ? tabs.getBoundingClientRect().height : 0;
+    document.body.style.setProperty('--ins-tabs-h', top + 'px');
   }
+  // Идёт переход к разделу из строки разделов: текущий раздел отмечен сразу
+  // и на ходу не пересчитывается — иначе при дальнем переходе подсветка
+  // перескакивала по каждому пройденному разделу и строка разделов дёргалась
+  // вбок (замечание пользователя 14.10.2026; замер: 5 смен подсветки и 4
+  // сдвига строки за переход «Коммуникации → Комментарии» против 1 и 1).
+  let jumping = false;
+  let pinned = null;
   function onScroll() {
-    const el = content();
-    if (!el) return;
-    const y = el.scrollTop;
+    if (!content() || jumping) return;
     markCurrentSection();
-    const on = document.body.classList.contains('ins-compact');
-    // Порог сжатия (140) больше разницы высот полной и сжатой шапки (до
-    // ~80 px): иначе после сжатия прокрутка оказывалась ниже порога
-    // раскрытия, и шапка дрожала (замечание пользователя 14.10.2026).
-    if (!on && y > 140) document.body.classList.add('ins-compact');
-    else if (on && y < 8) document.body.classList.remove('ins-compact');
-    else return;
-    syncHead();
   }
   scope.onDocument('scroll', onScroll, true);
   // Текущий раздел в строке разделов — последний, чей заголовок ушёл под неё.
@@ -237,6 +238,12 @@ export function mountInspector(host) {
     const edge = nav.getBoundingClientRect().bottom + 12;
     let cur = '';
     scope.$$('[data-sec-box]').forEach((b) => { if (b.getBoundingClientRect().top <= edge) cur = b.dataset.secBox; });
+    // После перехода из строки разделов — нажатый раздел, пока экран стоит
+    // там же: у последних разделов страница кончается раньше, чем их
+    // заголовок встаёт под строку, и подсветка перескакивала на предыдущий.
+    const pane = content();
+    if (pinned && pane && Math.abs(pane.scrollTop - pinned.y) < 4) cur = pinned.key;
+    else pinned = null;
     nav.querySelectorAll('[data-goto-sec]').forEach((b) => {
       const on = b.dataset.gotoSec === cur;
       if (on !== (b.getAttribute('aria-current') === 'true')) {
@@ -643,13 +650,57 @@ export function mountInspector(host) {
     const key = el.dataset.gotoSec;
     const i = ui.collapsed.indexOf(key);
     if (i >= 0) { ui.collapsed.splice(i, 1); render(); }
-    const box = scope.$(`[data-sec-box="${key}"]`);
     const pane = content();
-    if (!box || !pane) return;
-    const nav = scope.$('[data-secnav]');
-    const top = nav ? nav.getBoundingClientRect().bottom : 0;
+    if (!pane || !scope.$(`[data-sec-box="${key}"]`)) return;
+    const targetOf = () => {
+      const nav = scope.$('[data-secnav]');
+      const top = nav ? nav.getBoundingClientRect().bottom : 0;
+      return pane.scrollTop + scope.$(`[data-sec-box="${key}"]`).getBoundingClientRect().top - top - 8;
+    };
+    const target = Math.max(0, Math.min(targetOf(), pane.scrollHeight - pane.clientHeight));
+    scope.$$('[data-secnav] [data-goto-sec]').forEach((b) => {
+      if (b.dataset.gotoSec === key) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    if (Math.abs(target - pane.scrollTop) < 2) { pinned = { key, y: pane.scrollTop }; return; }
+    jumping = true;
+    // Человек сам прервал переход (колесо, касание, мышь, клавиша — замечание
+    // пользователя 14.10.2026): плавную прокрутку останавливаем на месте, и
+    // шапка с текущим разделом пересчитываются по тому, где экран встал.
+    const BREAK = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+    // Ни колесо, ни касание плавную прокрутку сами не прерывают (замер
+    // 14.10.2026 в Chromium: переход доезжал до конца, движение колеса
+    // пропадало). Касание, мышь, клавиша — останавливаем на месте; колесо —
+    // останавливаем и прокручиваем на его величину.
+    const interrupt = (e) => {
+      if (!jumping) return;
+      let y = pane.scrollTop;
+      if (e.type === 'wheel') {
+        e.preventDefault();
+        y += e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * pane.clientHeight : e.deltaY;
+      }
+      pane.scrollTo({ top: y, behavior: 'auto' });
+      done(false);
+    };
+    // reached — переход дошёл до конца: тогда нажатый раздел остаётся
+    // отмеченным; прерванный — отмечается тот, где экран встал.
+    const done = (reached = true) => {
+      if (!jumping) return;
+      jumping = false;
+      pane.removeEventListener('scrollend', onEnd);
+      BREAK.forEach((t) => pane.removeEventListener(t, interrupt));
+      clearTimeout(guard);
+      pinned = reached ? { key, y: pane.scrollTop } : null;
+      onScroll();
+    };
+    const onEnd = () => done(Math.abs(pane.scrollTop - target) < 4);
+    // scrollend есть не везде — запасной выход по времени.
+    const guard = setTimeout(onEnd, 1200);
+    pane.addEventListener('scrollend', onEnd);
+    // Колесо — не пассивно: его собственная прокрутка заменяется своей.
+    BREAK.forEach((t) => pane.addEventListener(t, interrupt, { passive: t !== 'wheel' }));
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    pane.scrollTo({ top: pane.scrollTop + box.getBoundingClientRect().top - top - 8, behavior: still ? 'auto' : 'smooth' });
+    pane.scrollTo({ top: target, behavior: still ? 'auto' : 'smooth' });
+    if (still) done(true);
   });
 
   // ЕНИ в шапке — касанием в буфер: его сверяют и вписывают на месте.
@@ -781,8 +832,8 @@ export function mountInspector(host) {
     },
     destroy() {
       closeLightbox();
-      document.body.classList.remove('ins-compact');
       document.body.style.removeProperty('--ins-head-h');
+      document.body.style.removeProperty('--ins-tabs-h');
     },
   };
 }

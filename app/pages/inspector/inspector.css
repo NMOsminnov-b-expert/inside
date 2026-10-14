@@ -866,8 +866,14 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
   .ins-secnav { order: 4; }
   .ins-body { order: 5; }
 
+  /* Вкладки прилипают под шапкой: иначе строка разделов сначала ехала вверх
+     вместе с ними и только потом вставала (замер 14.10.2026: 121 → 81 →
+     64 px за первые 80 px прокрутки) — «дёргается панель». */
   .ins-tabs {
-    position: static;
+    position: sticky;
+    top: var(--ins-head-h, 56px);
+    z-index: 4;
+    background: var(--panel);
     grid-template-columns: repeat(4, minmax(120px, max-content));
     justify-content: start;
     gap: 4px;
@@ -999,7 +1005,7 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 .ins-prog { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--line-soft); }
 .ins-prog i { display: block; height: 100%; background: var(--teal-600, #0e8172); transition: width .2s ease; }
 
-.ins-secnav { position: sticky; top: var(--ins-head-h, 56px); z-index: 4; display: flex; gap: 6px; overflow-x: auto;
+.ins-secnav { position: sticky; top: calc(var(--ins-head-h, 56px) + var(--ins-tabs-h, 0px)); z-index: 4; display: flex; gap: 6px; overflow-x: auto;
   padding: 6px var(--ins-pad); background: var(--panel); border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .ins-secnav::-webkit-scrollbar { display: none; }
 .ins-secnav-b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
@@ -1014,20 +1020,6 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 .ins-objinfo .ins-blk-h { margin-bottom: 4px; }
 .ins-objinfo-a { margin: 0; font-size: 14px; color: var(--ink); line-height: 1.35; }
 .ins-objinfo-f { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
-
-/* При прокрутке вниз — ЕНИ рядом с названием в той же строке, остальное
-   уходит (класс ставит inspector.js на body: разметка перерисовывается). */
-body.ins-compact .ins-head { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
-body.ins-compact .ins-back { flex-basis: 40px; min-height: 40px; }
-body.ins-compact .ins-head-txt { display: flex; align-items: center; gap: 10px; min-width: 0; }
-body.ins-compact .ins-head-title { font-size: 15px; flex: 1 1 auto; min-width: 0; }
-body.ins-compact .ins-head-meta { flex: 0 0 auto; margin: 0; flex-wrap: nowrap; }
-body.ins-compact .ins-head-sub,
-body.ins-compact .ins-saved { display: none; }
-body.ins-compact .ins-strip { display: none; }
-/* Номер ЕНИ остаётся, подпись «ЕНИ» уходит: на 360 px она отнимала у
-   названия треть строки, а номер этого вида и так узнаётся. */
-body.ins-compact .ins-eni-l { display: none; }
 
 /* --- списки выбора на экране осмотра — под палец --------------------------
    Мультивыбор — тот же, что в карточках ОЦ (kernel/cards.css .ms-*), и та же

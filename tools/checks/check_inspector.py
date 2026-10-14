@@ -279,6 +279,20 @@ def run(t):
     pg.keyboard.press('Escape')
     t.wait_until("(b) => !document.querySelector(b + ' .ms-drop:not([hidden])')", box)
 
+    # Переход к дальнему разделу из строки разделов (замечания пользователя
+    # 14.10.2026: «сверху дергается панель», «напоминает желе»): шапка и
+    # строка разделов за переход не сдвигаются, подсвечен нажатый раздел.
+    geo = "(() => { const h = document.querySelector('.ins-head'), n = document.querySelector('.ins-secnav'); return [h.offsetHeight, Math.round(n.getBoundingClientRect().top)]; })()"
+    before = pg.evaluate(geo)
+    pg.click('[data-goto-sec="comments"]')
+    t.wait_until("() => document.querySelector('[data-secnav] [aria-current=\"true\"]')?.dataset.gotoSec === 'comments'")
+    t.wait(900)
+    t.ck(pg.evaluate(geo)[0] == before[0], 'высота шапки изменилась при переходе к разделу: %s → %s' % (before, pg.evaluate(geo)))
+    t.ck(pg.evaluate("document.querySelector('[data-secnav] [aria-current=\"true\"]')?.dataset.gotoSec") == 'comments',
+         'после перехода к «Комментариям» подсвечен другой раздел')
+    pg.evaluate("document.querySelector('.content').scrollTop = 0")
+    t.wait(200)
+
     # Замеры: единицы, значение по документам и СИГНАЛ расхождения по ходу
     # ввода — сигнал, который появляется только после сохранения, на осмотре
     # бесполезен.
