@@ -158,8 +158,142 @@ const other = (key, label) => ({
 // Внутренние стены в рабочей системе — тот же перечень, что наружные.
 const WALLS_INT = WALLS;
 
-// Разделы формы — функцией от типа ОЦ: материалы берутся из его справочников.
-export const sections = (typeId) => [
+// Разделы формы — по виду ОИ (аудит 14.10.2026: форма строения открывалась на
+// квартире, участке, механизмах и ТС; решение пользователя «Правим»): у
+// каждого вида — поля его карточки, которые проверяются на месте; списки — из
+// тех же справочников, что у карточки; рядом с полем — значение «по
+// документам» (field.doc — из записи ОИ). ТС — ждёт решения пользователя
+// («ТС пока что ждём»): формы нет, только снимки и заметка.
+export const sections = (typeId, oi) => {
+  const card = (oi && oi.card) || 'building';
+  if (card === 'apartment') return flatSections(typeId);
+  if (card === 'land') return landSections(typeId);
+  if (card === 'mech' || card === 'movable') return mechSections(oi);
+  if (card === 'vehicle') return [];
+  return buildingSections(typeId);
+};
+
+// Состояние — шкала карточки квартиры и литеры.
+const CONDITION = ['Отличное', 'Хорошее', 'Удовлетворительное', 'Плохое', 'Аварийное'];
+const NETWORK = ['Подведены', 'Проходят рядом', 'На удалении', 'Отсутствуют в районе'];
+const LAND_FORM = ['Квадратная', 'Прямоугольная', 'Близкая к прямоугольной', 'Трапециевидная', 'Вытянутая прямоугольная',
+  'Близкая к Г-образной', 'Г-образная', 'Неправильный многоугольник', 'Неправильный многоугольник с заужением',
+  'Узкая зауженная прямоугольная', 'Треугольная', 'Иное'];
+const LAND_RELIEF = ['Ровный', 'Слабый уклон', 'Средний уклон или с перепадами', 'Крутой уклон', 'Сложный рельеф'];
+const IMPROVE = ['Не благоустроен', 'Частично благоустроен', 'Благоустроен', 'Дорогое благоустройство'];
+const MECH_STATE = ['Рабочее', 'Условно пригодное', 'Нерабочее'];
+const landDict = (typeId, field, fallback) => (optionsFor(typeId, 'land', field) || fallback).filter((v) => !/^не (выбрано|заполнено)$/i.test(v));
+const at = (o, path) => path.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
+const docOf = (path) => (oi) => { const v = at(oi, path); return v == null || v === '' ? '' : String(v); };
+
+// Квартира — блоки карточки квартиры: площади и высоты, конструктив и износ
+// (тот же справочник, что у литеры), состояние.
+const flatSections = (typeId) => {
+  const b = buildingSections(typeId);
+  const struct = b.find((s) => s.key === 'struct');
+  return [
+    {
+      key: 'measure',
+      title: 'Замеры и площади',
+      short: 'Замеры',
+      fields: [
+        { key: 'areaFact', label: 'Общая площадь по факту', unit: 'м²', num: true, tpFrom: 'tp' },
+        { key: 'ceilInt', label: 'Высота по внутренним замерам', unit: 'м', num: true, tpFrom: 'heightInt' },
+      ],
+    },
+    {
+      key: 'state',
+      title: 'Состояние',
+      fields: [
+        { key: 'condInner', label: 'Внутреннее состояние', req: true, opts: CONDITION, doc: docOf('conditionInner') },
+        { key: 'condOuter', label: 'Внешнее состояние', req: true, opts: CONDITION, doc: docOf('conditionOuter') },
+        { key: 'condTotal', label: 'Итоговое состояние', opts: CONDITION, doc: docOf('conditionTotal') },
+      ],
+    },
+    b.find((s) => s.key === 'wear'),
+    { ...struct, fields: struct.fields.map((f) => (f.visible ? f : { ...f, doc: docOf('struct.' + f.key) })) },
+    b.find((s) => s.key === 'comments'),
+  ];
+};
+
+// Земельный участок — блоки карточки участка: площади, инженерные сети,
+// местоположение и форма, благоустройство.
+const landSections = (typeId) => [
+  {
+    key: 'measure',
+    title: 'Площади',
+    short: 'Площади',
+    fields: [
+      { key: 'areaFact', label: 'Площадь по факту', unit: 'м²', num: true, doc: docOf('areas.pravo'), docLabel: 'по правоустанавливающим' },
+      { key: 'buildFact', label: 'Застроенная площадь', unit: 'м²', num: true, doc: docOf('areas.build') },
+    ],
+  },
+  {
+    key: 'nets',
+    title: 'Инженерные сети',
+    short: 'Сети',
+    fields: [
+      { key: 'electricity', label: 'Наличие электроснабжения', req: true, opts: landDict(typeId, 'electricity', NETWORK), doc: docOf('electricity') },
+      { key: 'centralWater', label: 'Наличие водоснабжения', req: true, opts: landDict(typeId, 'centralWater', NETWORK), doc: docOf('centralWater') },
+      { key: 'sewerage', label: 'Наличие канализации', req: true, opts: landDict(typeId, 'sewerage', NETWORK), doc: docOf('sewerage') },
+      { key: 'gasification', label: 'Наличие газификации', req: true, opts: landDict(typeId, 'gasification', NETWORK), doc: docOf('gasification') },
+      { key: 'centralHeating', label: 'Наличие отопления', opts: landDict(typeId, 'centralHeating', [...NETWORK, 'Автономное']), doc: docOf('centralHeating') },
+      { key: 'railway', label: 'Наличие железнодорожной ветки', opts: landDict(typeId, 'railway', ['Нет', 'Есть', 'Возможно подвести']), doc: docOf('railway') },
+    ],
+  },
+  {
+    key: 'place',
+    title: 'Местоположение и форма',
+    short: 'Местоположение',
+    fields: [
+      { key: 'corner', label: 'Угловой / неугловой', opts: landDict(typeId, 'corner', ['Угловой', 'Неугловой']), doc: docOf('corner') },
+      { key: 'form', label: 'Форма участка', opts: landDict(typeId, 'form', LAND_FORM), doc: docOf('form') },
+      { key: 'relief', label: 'Рельеф участка', opts: landDict(typeId, 'relief', LAND_RELIEF), doc: docOf('relief') },
+      { key: 'encumbrance', label: 'Сервитуты и обременения', opts: landDict(typeId, 'encumbrance', ['Нет', 'Есть']), doc: docOf('encumbrance') },
+    ],
+  },
+  {
+    key: 'improve',
+    title: 'Благоустройство',
+    fields: [
+      { key: 'improvementRank', label: 'Наличие благоустройства', opts: IMPROVE, doc: docOf('improvementRank') },
+    ],
+  },
+  {
+    key: 'comments',
+    title: 'Комментарии',
+    fields: [
+      { key: 'features', label: 'Особенности участка', long: true, rows: 3 },
+      { key: 'note', label: 'Комментарий осмотрщика', long: true, rows: 3 },
+    ],
+  },
+];
+
+// Механизмы и оборудование — по каждой единице, как позиции описи в
+// приложении «Осмотр»: найдена ли на месте, номера с бирки и таблички рядом с
+// карточкой, состояние. «Нерабочее» — только при снимках (ответ В9
+// 12.10.2026; проверка — mismatchHint).
+const mechSections = (oi) => [
+  ...((oi && oi.mechanisms) || []).map((u, i) => ({
+    key: 'u' + i,
+    title: u.name || `Единица ${i + 1}`,
+    short: (u.inv || u.name || `№${i + 1}`).slice(0, 18),
+    fields: [
+      { key: `u.${u.id}.found`, path: `u.${u.id}.found`, label: 'На месте', req: true, opts: ['Найдено', 'Не найдено'] },
+      { key: `u.${u.id}.inv`, path: `u.${u.id}.inv`, label: 'Инвентарный номер с бирки', doc: () => u.inv || '' },
+      { key: `u.${u.id}.serial`, path: `u.${u.id}.serial`, label: 'Заводской номер с таблички', doc: () => (u.params && u.params.serial) || '' },
+      { key: `u.${u.id}.state`, path: `u.${u.id}.state`, label: 'Состояние', opts: MECH_STATE, doc: () => u.state || '', needsPhoto: 'Нерабочее' },
+    ],
+  })),
+  {
+    key: 'comments',
+    title: 'Комментарии',
+    fields: [{ key: 'note', label: 'Комментарий осмотрщика', long: true, rows: 3 }],
+  },
+];
+
+// Строение — форма рабочей системы (как была).
+const buildingSections = (typeId) => [
   {
     key: 'comm',
     title: 'Чек-лист коммуникаций',
@@ -241,7 +375,7 @@ export const sections = (typeId) => [
 
 // Плоский перечень полей — для подсчёта заполненного и обязательного
 // (kernel/fieldSchema.js: requiredLeft, filledCount).
-export const allFields = (typeId) => sections(typeId).flatMap((s) => s.fields);
+export const allFields = (typeId, oi) => sections(typeId, oi).flatMap((s) => s.fields);
 
 // Что показать рядом с полем замера: значение из данных ЦОД.
 export function tpValue(oi, from) {
@@ -254,14 +388,34 @@ export function tpValue(oi, from) {
 
 // Расхождение замера с документами — то, за чем едут на осмотр. Показываем не
 // нейтральной подсказкой, а сигналом: и значение по документам, и разницу.
-export function mismatchHint(field, values, oi) {
+export function mismatchHint(field, values, oi, ctx = {}) {
+  // «Нерабочее» у механизма — только при снимках (В9 12.10.2026).
+  const own0 = getValue(values, field.path || field.key);
+  if (field.needsPhoto && own0 === field.needsPhoto && !ctx.photos) return 'РАСХОДИТСЯ: «Нерабочее» ставится только при снимках — сначала снимите';
+  // Значение «по документам» из записи ОИ — у полей видов, кроме замеров строения.
+  if (typeof field.doc === 'function') {
+    const doc = field.doc(oi || {});
+    const own = own0;
+    const unit = field.unit ? ' ' + field.unit : '';
+    const lbl = field.docLabel ? `по документам (${field.docLabel})` : 'по документам';
+    if (!doc) return own ? '' : `${lbl}: не заполнено`;
+    if (!own) return `${lbl}: ${doc}${unit}`;
+    if (field.num) {
+      const a = parseFloat(String(doc).replace(',', '.'));
+      const b = parseFloat(String(own).replace(',', '.'));
+      if (!isNaN(a) && !isNaN(b) && a !== b) return `РАСХОДИТСЯ: ${lbl} ${doc}${unit}, ${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)}${unit}`;
+      return `${lbl}: ${doc}${unit} — совпадает`;
+    }
+    const same = String(own).trim().toLowerCase() === String(doc).trim().toLowerCase();
+    return same ? `${lbl}: ${doc} — совпадает` : `РАСХОДИТСЯ: ${lbl} ${doc}`;
+  }
   if (!field.tpFrom) return '';
 
   const doc = tpValue(oi, field.tpFrom);
   const own = getValue(values, field.path || field.key);
   const unit = field.unit ? ' ' + field.unit : '';
 
-  if (!doc) return own ? '' : 'по документам не заполнено';
+  if (!doc) return own ? '' : 'по документам: не заполнено';
   if (!own) return `по документам: ${doc}${unit}`;
 
   const a = parseFloat(String(doc).replace(',', '.'));

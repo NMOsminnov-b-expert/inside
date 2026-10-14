@@ -109,10 +109,17 @@ def findings(r):
     movable = card in ('vehicle', 'mech', 'movable')
     if r['screen'] == 'Осмотр ОИ':
         secs = i.get('sections', [])
-        if card != 'building' and any(s in BUILDING_FORM for s in secs):
-            out.append(('Форма осмотра строения (чек-лист коммуникаций, конструктив) на «%s» — поля не про этот вид ОИ' % KIND.get(card, card), 'высокая'))
+        # Чужие разделы: чек-лист коммуникаций — только у строения; конструктив
+        # — у строения и квартиры (он есть в карточке квартиры).
+        own = {'building': BUILDING_FORM, 'apartment': ('Конструктивные элементы',)}.get(card, ())
+        alien = [x for x in secs if x in BUILDING_FORM and x not in own]
+        if alien:
+            out.append(('Разделы формы строения на «%s»: %s — поля не про этот вид ОИ' % (KIND.get(card, card), ', '.join(alien)), 'высокая'))
         if not secs and not i.get('fields'):
-            out.append(('Полей осмотра нет — осмотреть этот ОИ нечем, кроме снимков', 'высокая'))
+            if card == 'vehicle':
+                out.append(('Формы осмотра ТС нет — ждёт решения пользователя («ТС пока что ждём», 14.10.2026)', 'низкая'))
+            else:
+                out.append(('Полей осмотра нет — осмотреть этот ОИ нечем, кроме снимков', 'высокая'))
         if not i.get('title'):
             out.append(('Нет заголовка экрана', 'средняя'))
     if r['screen'] == 'Задача':

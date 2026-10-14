@@ -216,7 +216,9 @@ export function sectionHTML(section, values, opts = {}) {
 // я и попался 08.09.2026: чипы писали в значения того ОИ, на котором экран
 // смонтировался, а показывали значения открытого — и выбор «не отмечался».
 export function bindFields(scope, { values, fields, onChange }) {
-  const byKey = new Map((fields || []).map((f) => [f.key, f]));
+  // fields — массив или функция: у экрана осмотра перечень зависит от вида ОИ.
+  const byKeyMap = () => new Map(((typeof fields === 'function' ? fields() : fields) || []).map((f) => [f.key, f]));
+  const byKey = { get: (k) => byKeyMap().get(k) };
   const vals = () => (typeof values === 'function' ? values() : values);
 
   scope.on('click', '[data-fs-opt]', (e, el) => {

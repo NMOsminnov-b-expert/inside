@@ -35,7 +35,7 @@ import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { geoByEni } from '../../kernel/cadastreGeo.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, todayHTML, navLinks,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, todayHTML, navLinks, HAS_PREMISES,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -478,6 +478,7 @@ export function mountInspector(host) {
           counts,
           backHref: inspHref({ typeId, ocId, section: 'object' }),
           savedText: savedTextOf(typeId, ocId, oi.id),
+          oiPhotos: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id).length,
         }));
         return;
       }
@@ -491,7 +492,7 @@ export function mountInspector(host) {
         hrefFor,
         assetHref: (oiId) => inspHref({ typeId, ocId, section: 'object', oiId }),
         // Число заполненных полей у ОИ — по нему видно, что осмотр начат.
-        filledFor: (oiId) => filledCount(allFields(typeId), assetValues(typeId, ocId, oiId)),
+        filledFor: (oiId) => filledCount(allFields(typeId, (r.oi || []).find((o) => o.id === oiId)), assetValues(typeId, ocId, oiId)),
         counts,
         backHref: taskHref,
       }));
@@ -535,7 +536,8 @@ export function mountInspector(host) {
     // Функцией, а не объектом: раздел меняется, и значения должны браться на
     // момент события, а не на момент монтажа экрана.
     values: () => assetValues(route.typeId, route.ocId, route.oiId),
-    fields: allFields(route.typeId),
+    // Перечень полей — по виду открытого ОИ (у каждого вида своя форма).
+    fields: () => allFields(route.typeId, curOi()),
     onChange: (field, value, opts) => {
       markSaved();
       // Мультивыбор пересобран на месте — перерисовка закрыла бы список.
@@ -558,7 +560,7 @@ export function mountInspector(host) {
 
     const r = rec();
     const oi = r && (r.oi || []).find((o) => o.id === route.oiId);
-    const text = mismatchHint(field, assetValues(route.typeId, route.ocId, route.oiId), oi);
+    const text = mismatchHint(field, assetValues(route.typeId, route.ocId, route.oiId), oi, { photos: oiPhotos() });
     box.textContent = text;
     box.classList.toggle('warn', /^РАСХОДИТСЯ/.test(text));
     refreshSum();
@@ -572,7 +574,7 @@ export function mountInspector(host) {
     const bar = scope.$('[data-ins-prog]');
     if (!bar) return;
     const values = assetValues(route.typeId, route.ocId, route.oiId);
-    const fields = allFields(route.typeId);
+    const fields = allFields(route.typeId, curOi());
     const filled = filledCount(fields, values);
     bar.style.width = (fields.length ? Math.round((filled / fields.length) * 100) : 0) + '%';
     const nav = scope.$('[data-secnav]');
@@ -580,14 +582,19 @@ export function mountInspector(host) {
     if (nav && r) {
       const cur = nav.querySelector('[aria-current="true"]');
       const curKey = cur ? cur.dataset.gotoSec : '';
-      nav.outerHTML = sectionNavHTML(sections(route.typeId), values,
-        premises(route.typeId, route.ocId, route.oiId).length, requiredLeft(fields, values));
+      nav.outerHTML = sectionNavHTML(sections(route.typeId, curOi()), values,
+        HAS_PREMISES.includes((curOi() || {}).card || 'building') ? premises(route.typeId, route.ocId, route.oiId).length : null, requiredLeft(fields, values));
       const again = curKey && scope.$(`[data-secnav] [data-goto-sec="${curKey}"]`);
       if (again) again.setAttribute('aria-current', 'true');
     }
     const saved = scope.$('[data-ins-saved]');
     if (saved) saved.textContent = savedTextOf(route.typeId, route.ocId, route.oiId);
   }
+
+  // Открытый ОИ и его снимки — для формы по виду ОИ и правила «нерабочее —
+  // только при снимках».
+  const curOi = () => { const r = rec(); return r && (r.oi || []).find((o) => o.id === route.oiId); };
+  const oiPhotos = () => (route.typeId && route.ocId ? taskState(route.typeId, route.ocId).photos.filter((p) => p.oiId === route.oiId).length : 0);
 
   // Сохранение — само (макет: значения и так в памяти вкладки). Время
   // последней правки — по ОИ, для отметки «сохранено ЧЧ:ММ» в шапке.

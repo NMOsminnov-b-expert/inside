@@ -1072,3 +1072,7 @@ body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 @media (min-width: 720px) {
   .ins-gmap { height: 300px; }
 }
+
+/* Разделы перечня ОИ на экране «Объект» — как в карточке ОЦ. */
+.ins-oi-g { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-label); letter-spacing: .2px; }
+.ins-oi-g:first-of-type { margin-top: 4px; }

@@ -305,6 +305,25 @@ def run(t):
     pg.evaluate("document.querySelector('.ins-body').scrollTop = 0")
     t.wait(200)
 
+    # Форма осмотра — по виду ОИ (аудит 14.10.2026: форма строения открывалась
+    # на любом ОИ). Квартира — без чек-листа коммуникаций, участок — сети,
+    # механизмы — по единицам; «нерабочее» без снимков — предупреждение; ТС —
+    # формы нет (ждёт решения пользователя).
+    def secs():
+        return pg.eval_on_selector_all('.ins-acc-t b', 'els => els.map((e) => e.textContent.trim())')
+    t.open('#/insp/apartment/oc-ap-1/object/oi-ap1-a', wait='.ins-acc-t')
+    t.ck('Состояние' in secs() and 'Чек-лист коммуникаций' not in secs(), 'у квартиры не её форма осмотра: %s' % secs())
+    t.open('#/insp/land-plot/oc-lp-1/object/oi-lp1-l1', wait='.ins-acc-t')
+    t.ck('Инженерные сети' in secs() and 'Конструктивные элементы' not in secs(), 'у участка не его форма осмотра: %s' % secs())
+    t.open('#/insp/civil/oc-cv-1/object/oi-cv1-m1', wait='.ins-acc-t')
+    t.ck('Котёл газовый водогрейный КВГ-1,25' in secs(), 'у механизмов нет разделов по единицам: %s' % secs())
+    pg.locator('select[data-fs-sel$=".state"]').first.select_option('Нерабочее')
+    t.ck(t.wait_until("() => /только при снимках/.test(document.body.innerText)"), '«Нерабочее» без снимков не остановлено предупреждением')
+    t.open('#/insp/civil/oc-cv-1/object/oi-cv1-v1', wait='.ins-body')
+    t.ck(pg.locator('[data-fs-field]').count() == 0 and _has(t, 'ещё не заданы'), 'у ТС показана форма осмотра (ждёт решения)')
+    t.open(ASSET, wait='.ins-fs')
+    t.wait(300)
+
     # Замеры: единицы, значение по документам и СИГНАЛ расхождения по ходу
     # ввода — сигнал, который появляется только после сохранения, на осмотре
     # бесполезен.

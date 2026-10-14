@@ -452,6 +452,17 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
 
 // --- экран 3: карточка ОЦ, только для чтения ------------------------------
 
+// Разделы перечня ОИ — те же, что в карточке ОЦ (узел участка: основные
+// здания и сооружения, движимое, вспомогательные постройки), чтобы осмотрщик
+// и ЦОД видели одно деление (аудит 14.10.2026: ОИ шли одним списком
+// вперемешку). Порядок — как в карточке.
+const OI_GROUPS = [
+  { label: 'Земельные участки', cards: ['land'] },
+  { label: 'Основные здания и сооружения', cards: ['building', 'apartment'], rest: true },
+  { label: 'Движимое имущество', cards: ['vehicle', 'mech', 'movable'] },
+  { label: 'Вспомогательные постройки', cards: ['aux'] },
+];
+
 export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, counts, backHref }) {
   const oi = rec.oi || [];
 
@@ -486,9 +497,13 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
 
       <section class="ins-blk">
         <h2 class="ins-blk-h">Объекты имущества · ${oi.length}</h2>
-        ${oi.length ? `<ul class="ins-oi">
-          ${oi.map((o) => oiItemHTML(o, o.id === openOi, assetHref, filledFor)).join('')}
-        </ul>` : '<p class="ins-empty">В объекте нет ни одного ОИ.</p>'}
+        ${oi.length ? OI_GROUPS.map((g) => {
+    const list = oi.filter((o) => g.cards.includes(o.card) || (g.rest && !OI_GROUPS.some((x) => x.cards.includes(o.card))));
+    return list.length ? `<h3 class="ins-oi-g">${esc(g.label)} · ${list.length}</h3>
+        <ul class="ins-oi">
+          ${list.map((o) => oiItemHTML(o, o.id === openOi, assetHref, filledFor)).join('')}
+        </ul>` : '';
+  }).join('') : '<p class="ins-empty">В объекте нет ни одного ОИ.</p>'}
       </section>
 
       <section class="ins-blk">
@@ -580,12 +595,12 @@ function foundItemHTML(f) {
 // нет вовсе. Добавили поле в описание — оно появится и здесь, и в карточке,
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
-  rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText,
+  rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
-  const SECTIONS = sections(typeId);
-  const ALL_FIELDS = allFields(typeId);
+  const SECTIONS = sections(typeId, oi);
+  const ALL_FIELDS = allFields(typeId, oi);
   const left = requiredLeft(ALL_FIELDS, values);
   const filled = filledCount(ALL_FIELDS, values);
 
@@ -607,7 +622,7 @@ export function assetHTML({
     progress: ALL_FIELDS.length ? filled / ALL_FIELDS.length : 0,
     saved: savedText || '',
   })}
-    ${sectionNavHTML(SECTIONS, values, premises.length, left)}
+    ${SECTIONS.length ? sectionNavHTML(SECTIONS, values, HAS_PREMISES.includes(oi.card || 'building') ? premises.length : null, left) : ''}
 
     <div class="ins-body">
       <section class="ins-blk ins-objinfo">
@@ -616,9 +631,12 @@ export function assetHTML({
         ${facts ? `<p class="ins-objinfo-f">${esc(facts)}</p>` : ''}
       </section>
 
-      ${SECTIONS.map((sec) => accordionHTML(sec, values, oi, collapsed)).join('')}
+      ${SECTIONS.length ? SECTIONS.map((sec) => accordionHTML(sec, values, oi, collapsed, { photos: oiPhotos })).join('')
+    : `<section class="ins-blk"><h2 class="ins-blk-h">Осмотр</h2>
+        <p class="ins-empty">Поля осмотра для этого вида ещё не заданы. Снимите объект и оставьте заметку в задаче —
+          ЦОД увидит их в карточке.</p></section>`}
 
-      ${premisesHTML(premises)}
+      ${HAS_PREMISES.includes(oi.card || 'building') ? premisesHTML(premises) : ''}
 
       <section class="ins-blk">
         <a class="ins-btn ins-btn-wide" href="${esc(photoHref)}">${ico('photo')} Прикрепить фото или документ</a>
@@ -632,13 +650,13 @@ export function assetHTML({
 // Раздел. Свёрнутый ОБЯЗАН говорить о себе: сколько полей заполнено и сколько
 // обязательных осталось — иначе свёртка прячет не только поля, но и то, что в
 // них не хватает.
-function accordionHTML(sec, values, oi, collapsed) {
+function accordionHTML(sec, values, oi, collapsed, ctx = {}) {
   const p = sectionProgress(sec, values);
   const open = !(collapsed || []).includes(sec.key);
 
   const inner = sectionHTML(sec, values, {
     ui: FS_UI,
-    hintFor: (f) => mismatchHint(f, values, oi),
+    hintFor: (f) => mismatchHint(f, values, oi, ctx),
     wrap: (s, html) => `<div class="ins-fs-grid">${html}</div>`,
   });
 
@@ -659,6 +677,9 @@ function accordionHTML(sec, values, oi, collapsed) {
   </section>`;
 }
 
+// Помещения — у строений и квартир; у участка и механизмов их нет.
+export const HAS_PREMISES = ['building', 'apartment'];
+
 // Строка разделов под шапкой: переход касанием к разделу и где не хватает
 // обязательного (янтарное число). Листается вбок, если не влезает; при
 // прокрутке отмечается текущий раздел (inspector.js, onScroll).
@@ -672,7 +693,7 @@ export function sectionNavHTML(sections, values, premisesN, left) {
   }).join('');
   return `<nav class="ins-secnav" data-secnav aria-label="Разделы осмотра${left ? `, обязательных осталось ${left}` : ''}">
     ${items}
-    <button type="button" class="ins-secnav-b" data-goto-sec="premises">Помещения${premisesN ? ` <span class="ins-secnav-n">${premisesN}</span>` : ''}</button>
+    ${premisesN === null ? '' : `<button type="button" class="ins-secnav-b" data-goto-sec="premises">Помещения${premisesN ? ` <span class="ins-secnav-n">${premisesN}</span>` : ''}</button>`}
   </nav>`;
 }
 
@@ -694,7 +715,7 @@ function premisesHTML(list) {
         <button class="ins-icon-b" data-pm-drop="${esc(pm.id)}"
           aria-label="Убрать помещение" title="Убрать помещение">${ico('trash', 18)}</button>
       </li>`).join('')}
-    </ul>` : '<p class="ins-empty">В строении пока нет помещений.</p>'}
+    </ul>` : '<p class="ins-empty">Помещений пока нет.</p>'}
     <button class="ins-btn ins-btn-wide" data-pm-add style="margin-top:10px">Добавить помещение</button>
     <p class="ins-hint">Поэтажные планы и экспликации — в техпаспорте, раздел «Документы».
       Планировку определяет оценщик, на осмотре её не заполняют.</p>
@@ -707,7 +728,6 @@ export function docsHTML({ rec, docs, hrefFor, counts, backHref }) {
   return `<div class="ins">
     ${headerHTML({
     title: 'Документы',
-    sub: rec.address,
     eni: fmtEni(rec.eni),
     backHref,
     backLabel: 'К задаче',
