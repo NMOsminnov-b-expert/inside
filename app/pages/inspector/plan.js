@@ -95,7 +95,7 @@ function rowHTML(t, { marks = [], take = false, note = '', struck = false, unski
 function tripHTML(x, i, { marks, app, skipOpen, skipErr, n, moveOpen }) {
   const t = x.t;
   const canSkip = t.assignId && !t.done;
-  const grip = n > 1 && x.ll ? `<button type="button" class="ins-pl-grip" data-plan-grip="${esc(t.key)}"
+  const grip = n > 1 ? `<button type="button" class="ins-pl-grip" data-plan-grip="${esc(t.key)}"
       aria-label="Переставить выезд ${i + 1} из ${n}: перетащите или нажмите, стрелки — выше и ниже"
       aria-expanded="${moveOpen === t.key ? 'true' : 'false'}">${ico('grip', 20)}</button>` : '';
   return `<li class="ins-trip ${t.done ? 'is-done' : ''} ${grip ? 'has-grip' : ''}" data-trip-key="${esc(t.key)}">
@@ -191,7 +191,7 @@ export function planHTML(args) {
 // Над выездами дня — чей порядок: маршрута («ближайший следующий от дома»)
 // или заданный осмотрщиком; заданный можно вернуть.
 function orderNote(stops, ordered) {
-  if (stops.filter((x) => x.ll).length < 2) return '';
+  if (stops.length < 2) return '';
   return ordered
     ? `<p class="ins-pl-ord">Порядок задан вами <button type="button" class="ins-pl-ord-b" data-plan-order-reset>Вернуть порядок маршрута</button></p>`
     : `<p class="ins-pl-ord">Порядок — по маршруту от дома; поменять — перетащите за ${ico('grip', 14)}</p>`;
@@ -208,7 +208,7 @@ export function planListHTML({ m, today, q, stops, skips, routeLinks, app, marks
   const todayBody = stops.length || skips.length
     ? `${withGps.length > 1 ? navPickHTML('route', routeLinks, `Весь маршрут · ${withGps.length}`, app, false) : ''}
       ${orderNote(stops, ordered)}
-      <ol class="ins-trips" data-plan-trips>${stops.map((x, i) => tripHTML(x, i, { marks: marksOf(x.t), app, skipOpen, skipErr, n: stops.filter((y) => y.ll).length, moveOpen })).join('')}</ol>
+      <ol class="ins-trips" data-plan-trips>${stops.map((x, i) => tripHTML(x, i, { marks: marksOf(x.t), app, skipOpen, skipErr, n: stops.length, moveOpen })).join('')}</ol>
       ${skips.length ? `<ul class="ins-pl-list">${skips.map((s) => rowHTML(s.t, { struck: true, unskip: s.t.skip.assignId, note: `Снято вами: ${s.reason}${s.note ? ' — ' + s.note : ''}` })).join('')}</ul>` : ''}`
     : `<p class="ins-empty">${q ? 'На сегодня по запросу ничего нет.' : 'На сегодня выездов нет — возьмите задачу из несделанных или будущих.'}</p>`;
   parts.push(sectionHTML(`Сегодня, ${ddmm(today)}`, stops.length, todayBody, { cls: 'ins-today is-today' }));

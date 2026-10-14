@@ -24,7 +24,7 @@ import {
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
 } from './tasks.js';
-import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder } from '../../kernel/inspections.js';
+import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
@@ -197,8 +197,18 @@ export function mountInspector(host) {
       .filter(Boolean);
     const m = planModel({ tasks: tasks.filter((t) => !(skippedToday.includes(t) && !t.plannedAt)), removed, today: date, q });
     const route = m.today.length ? dayRoute(sumsOf(), me, date) : null;
+    // Порядок, заданный осмотрщиком, — для всех выездов, и без координат
+    // тоже (их маршрут не считает, но в списке они стоят там, куда их
+    // поставили); остальные — по маршруту, без координат — в конце.
+    const own = ((planOf(me, date) || {}).order) || [];
     const order = route ? route.stops.filter((x) => x.fixed).map((x) => x.key) : [];
-    const rank = (t) => { const i = order.indexOf(t.typeId + '|' + t.ocId); return i < 0 ? 1e6 : i; };
+    const rank = (t) => {
+      const k = t.typeId + '|' + t.ocId;
+      const i = own.indexOf(k);
+      if (i >= 0) return i;
+      const j = order.indexOf(k);
+      return own.length + (j < 0 ? 1e6 : j);
+    };
     const stops = m.today.slice().sort((a, b) => rank(a) - rank(b)).map((t) => {
       const ll = gpsOfObject(t.typeId, t.ocId);
       return { t, ll, links: ll ? navLinks([ll]) : {} };
