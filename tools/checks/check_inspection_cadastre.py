@@ -47,7 +47,7 @@ def run(t):
              'осмотрщика без доступа в кадастр можно выбрать для запроса в кадастр')
         who = with_access[0]
 
-        pg.fill('[data-ip-cad-q]', '14756')
+        pg.fill('[data-ip-cad-q]', '1030700')
         t.wait_for('[data-ip-cad-add]')
         pg.locator('[data-ip-cad-add]').first.click()
         t.ck(t.wait_for('[data-ip-cad-row="0"][data-k="doc"]'), 'объект не добавился строкой запроса')

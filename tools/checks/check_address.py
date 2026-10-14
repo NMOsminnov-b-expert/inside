@@ -77,7 +77,7 @@ def run(t):
         t.ck(pg.locator(sel).count() == 1, 'в форме ОЦ нет поля «%s»' % name)
 
     before = pg.input_value('[data-addr-sum]')
-    t.ck('Киевская' in before and 'Бишкек' in before,
+    t.ck('Суюмбаева' in before and 'Бишкек' in before,
          'собранный адрес не показывает части записи: %s' % before)
 
     pg.fill('#fMicro', 'мкр. Проверочный')
@@ -341,7 +341,10 @@ def run(t):
       .map((e) => ({
         text: e.textContent.trim().slice(0, 40),
         ellipsis: getComputedStyle(e).textOverflow === 'ellipsis',
-        title: !!(e.title || (e.closest('[title]') && e.closest('[title]').title)),
+        // Подсказка, которую сейчас показывает ядро (kernel/overflowTip.js),
+        // на время показа переезжает из title в data-ov-title: указатель после
+        // прошлых шагов может стоять над любой строкой.
+        title: !!(e.title || e.dataset.ovTitle || (e.closest('[title]') && e.closest('[title]').title)),
       }))"""
 
     for where, route, wait in (('реестр', '#/', '.reg-thead'),
