@@ -236,8 +236,10 @@ def run(t):
     t.ck(_has(t, 'Не удалось установить'),
          'в шкале наличия сетей нет варианта «Не удалось установить» (шкала рабочей системы)')
     t.ck(pg.locator('.ins-fs-req').count() >= 5, 'обязательные поля не помечены')
-    t.ck(pg.locator('[data-asset-save]').count() == 1,
-         'в закреплённой полосе нет кнопки сохранения')
+    # Сохранение — само (пересмотр шапки 14.10.2026): ход — полосой в шапке,
+    # разделы — строкой под ней, после правки — «сохранено ЧЧ:ММ».
+    t.ck(pg.locator('.ins-head [data-ins-prog]').count() == 1, 'в шапке осмотра нет полосы хода заполнения')
+    t.ck(pg.locator('[data-secnav] [data-goto-sec]').count() >= 5, 'нет строки разделов осмотра')
 
     # Любой выбор — списком (замечание пользователя 14.10.2026: «формат в виде
     # огромного количества кнопок неудобен... лучше селекторы»): один ответ —
@@ -246,16 +248,18 @@ def run(t):
     sels = pg.locator('.ins select[data-fs-sel]')
     t.ck(sels.count() > 10, 'полей-списков в осмотре подозрительно мало: %d' % sels.count())
 
-    sum_before = pg.locator('.ins-sum').inner_text()
+    prog = "document.querySelector('[data-ins-prog]').style.width"
+    sum_before = pg.evaluate('() => ' + prog)
     t.ck(pg.locator('select[data-fs-sel="electric"] option').count() == 5,
          'в списке наличия сетей не «Не выбрано» и четыре варианта рабочей системы')
     pg.select_option('select[data-fs-sel="electric"]', 'Не удалось установить')
-    t.wait_until("(b) => document.querySelector('.ins-sum').innerText !== b", sum_before)
-    t.ck(pg.locator('.ins-sum').inner_text() != sum_before, 'счётчик заполненного не изменился после выбора')
+    t.wait_until("(b) => document.querySelector('[data-ins-prog]').style.width !== b", sum_before)
+    t.ck(pg.evaluate('() => ' + prog) != sum_before, 'полоса хода заполнения не сдвинулась после выбора')
+    t.ck(pg.locator('[data-ins-saved]').inner_text().startswith('✓ сохранено'), 'после правки нет отметки «сохранено»')
     # Снять выбор — «Не выбрано» в том же списке.
     pg.select_option('select[data-fs-sel="electric"]', '')
-    t.wait_until("(b) => document.querySelector('.ins-sum').innerText === b", sum_before)
-    t.ck(pg.locator('.ins-sum').inner_text() == sum_before, 'выбор «Не выбрано» не снял значение')
+    t.wait_until("(b) => document.querySelector('[data-ins-prog]').style.width === b", sum_before)
+    t.ck(pg.evaluate('() => ' + prog) == sum_before, 'выбор «Не выбрано» не снял значение')
 
     # Многозначные: мультивыбор с отметками, несколько ответов сразу, снятие.
     box = '[data-fs-msbox="heatSystems"]'

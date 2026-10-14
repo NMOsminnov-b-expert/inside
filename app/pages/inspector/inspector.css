@@ -97,7 +97,7 @@ body[data-page="insp"] .content {
   /* Адрес длинный: две строки показываем, дальше многоточие — правило макета
      о длинных значениях (docs/tz/60-pul-zadach.md, пункт 2). */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -863,7 +863,8 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
   .ins-head { order: 1; }
   .ins-strip { order: 2; }
   .ins-tabs { order: 3; }
-  .ins-body { order: 4; }
+  .ins-secnav { order: 4; }
+  .ins-body { order: 5; }
 
   .ins-tabs {
     position: static;
@@ -980,25 +981,64 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 .ins-ntf b { font-size: 14px; }
 .ins-ntf small { font-size: 12px; color: var(--muted); }
 
-/* --- шапка при прокрутке — в одну строку --------------------------------
-   Класс ставит inspector.js (onScroll) на body: разметка экрана
-   перерисовывается целиком, и класс на самом экране терялся бы. */
+/* --- шапка: строка сведений, полоса хода, строка разделов ----------------
+   Пересмотр 14.10.2026 («шапку надо радикально пересмотреть»): название —
+   одной строкой; под ним одна строка — ЕНИ (касание копирует), короткая
+   подпись, «сохранено»; ход заполнения — полосой 3 px по низу шапки; разделы
+   осмотра — строкой под шапкой. */
+.ins-head { position: sticky; }
+.ins-head-meta { display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; margin-top: 2px; min-width: 0; }
+.ins-head-meta:empty { display: none; }
+.ins-head-eni { display: inline-flex; align-items: baseline; gap: 4px; margin: 0; padding: 2px 0; border: 0; background: none;
+  font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; min-height: 24px; }
+.ins-head-eni b { font-size: 13px; color: var(--ink); letter-spacing: .2px; }
+.ins-head-eni:hover b { color: var(--blue-700); }
+.ins-head-sub { margin: 0; }
+.ins-saved { font-size: 12px; color: var(--teal-700, #0f6b5f); white-space: nowrap; }
+.ins-saved:empty { display: none; }
+.ins-prog { position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--line-soft); }
+.ins-prog i { display: block; height: 100%; background: var(--teal-600, #0e8172); transition: width .2s ease; }
+
+.ins-secnav { position: sticky; top: var(--ins-head-h, 56px); z-index: 4; display: flex; gap: 6px; overflow-x: auto;
+  padding: 6px var(--ins-pad); background: var(--panel); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.ins-secnav::-webkit-scrollbar { display: none; }
+.ins-secnav-b { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink-label);
+  font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.ins-secnav-b[aria-current="true"] { border-color: var(--blue-600); background: var(--blue-50); color: var(--blue-700); }
+.ins-secnav-n { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--slate-100, #eef2f6); color: var(--muted);
+  font-size: 11.5px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; line-height: 20px; }
+.ins-secnav-n.need { background: var(--amber-100, #fdecc8); color: var(--amber-800, #7a4a0a); }
+.ins-secnav-n.ok { background: var(--teal-50); color: var(--teal-700, #0f6b5f); }
+
+.ins-objinfo .ins-blk-h { margin-bottom: 4px; }
+.ins-objinfo-a { margin: 0; font-size: 14px; color: var(--ink); line-height: 1.35; }
+.ins-objinfo-f { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+/* При прокрутке вниз — ЕНИ рядом с названием в той же строке, остальное
+   уходит (класс ставит inspector.js на body: разметка перерисовывается). */
 body.ins-compact .ins-head { min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
 body.ins-compact .ins-back { flex-basis: 40px; min-height: 40px; }
-body.ins-compact .ins-head-txt { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-body.ins-compact .ins-head-title { font-size: 15px; -webkit-line-clamp: 1; flex: 1 1 auto; min-width: 0; }
-body.ins-compact .ins-head-sub { display: none; }
-body.ins-compact .ins-head-eni { flex: 0 0 auto; margin: 0; white-space: nowrap; }
+body.ins-compact .ins-head-txt { display: flex; align-items: center; gap: 10px; min-width: 0; }
+body.ins-compact .ins-head-title { font-size: 15px; flex: 1 1 auto; min-width: 0; }
+body.ins-compact .ins-head-meta { flex: 0 0 auto; margin: 0; flex-wrap: nowrap; }
+body.ins-compact .ins-head-sub,
+body.ins-compact .ins-saved { display: none; }
 body.ins-compact .ins-strip { display: none; }
-body.ins-compact .ins-sum { padding-top: 4px; padding-bottom: 4px; }
-body.ins-compact .ins-sum .ins-btn-sm { min-height: 40px; }
+/* Номер ЕНИ остаётся, подпись «ЕНИ» уходит: на 360 px она отнимала у
+   названия треть строки, а номер этого вида и так узнаётся. */
+body.ins-compact .ins-eni-l { display: none; }
 
 /* --- списки выбора на экране осмотра — под палец --------------------------
    Мультивыбор — тот же, что в карточках ОЦ (kernel/cards.css .ms-*), и та же
    рамка со стрелкой, что у одиночного списка (класс select); здесь — размеры
    под палец. Селекторы с body[data-page] — сильнее общих правил ядра. */
 body[data-page="insp"] .ins .ms-control { display: flex; align-items: center; width: 100%; height: auto; min-height: 48px;
-  border-radius: 10px; padding: 6px 30px 6px 10px; font-size: 15px; background-color: var(--panel); }
+  border-radius: 10px; padding: 6px 30px 6px 10px; font-size: 15px; background-color: var(--panel);
+  /* Стрелка — как у одиночного списка (.select в tokens.css): общее правило
+     .ms-control задаёт фон сокращённой записью и стирает её. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 1.4 5 5.4l4-4' fill='none' stroke='%237d93a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; }
 body[data-page="insp"] .ins .ms-sum { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
 body[data-page="insp"] .ins .ms-summary { font-size: 15px; color: var(--ink); }
 body[data-page="insp"] .ins .ms-sum .muted { color: var(--muted); }
@@ -1007,7 +1047,5 @@ body[data-page="insp"] .ins .ms-opt { min-height: 44px; font-size: 15px; }
 body[data-page="insp"] .ins .ms-opt input { width: 20px; height: 20px; }
 body[data-page="insp"] .ins .ms-search { height: 40px; font-size: 15px; }
 @media (min-width: 720px) {
-  body[data-page="insp"] .ins .ms-control { min-height: 38px; font-size: 14px; }
-  body[data-page="insp"] .ins .ms-summary, body[data-page="insp"] .ins .ms-opt { font-size: 14px; }
   body[data-page="insp"] .ins .ms-opt { min-height: 34px; }
 }

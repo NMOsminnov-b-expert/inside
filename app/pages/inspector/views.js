@@ -79,14 +79,25 @@ const statusTone = (status) => {
 // «Осмотрщик должен видеть и ЕНИ. Как при выезде, так и при осмотрах»):
 // шапка закреплена, и код виден при съёмке, в документах и на любой
 // прокрутке осмотра.
-export function headerHTML({ title, sub, backHref, backLabel, status, eni = '' }) {
+// Шапка всех экранов осмотрщика (пересмотр 14.10.2026, «шапку надо радикально
+// пересмотреть»): название одной строкой; под ним одна строка сведений — ЕНИ
+// (касание копирует), короткая подпись, отметка «сохранено»; внизу — тонкая
+// полоса хода заполнения там, где он есть. Адрес в шапке не стоит — он в
+// сведениях об объекте («Адрес к слову лучше в информацию об объекте
+// перенести»), ЕНИ — только здесь («И ЕНИ дублировать не нужно»).
+export function headerHTML({ title, sub, backHref, backLabel, status, eni = '', progress = null, saved = null }) {
+  const pct = progress === null ? null : Math.round(Math.max(0, Math.min(1, progress)) * 100);
   return `<header class="ins-head">
     <a class="ins-back" href="${esc(backHref)}" aria-label="${esc(backLabel)}" title="${esc(backLabel)}">${ico('back', 22)}</a>
     <div class="ins-head-txt">
-      <b class="ins-head-title">${esc(title)}</b>
-      ${sub ? `<span class="ins-head-sub">${esc(sub)}</span>` : ''}
-      ${eni ? `<span class="ins-head-eni" data-ins-eni>ЕНИ <b class="mono">${esc(eni)}</b></span>` : ''}
+      <b class="ins-head-title" title="${esc(title)}">${esc(title)}</b>
+      <span class="ins-head-meta">
+        ${eni ? `<button type="button" class="ins-head-eni" data-ins-eni data-ins-copy="${esc(eni)}" title="Скопировать ЕНИ"><span class="ins-eni-l">ЕНИ</span> <b class="mono">${esc(eni)}</b></button>` : ''}
+        ${sub ? `<span class="ins-head-sub">${esc(sub)}</span>` : ''}
+        ${saved !== null ? `<span class="ins-saved" data-ins-saved>${esc(saved)}</span>` : ''}
+      </span>
     </div>
+    ${pct !== null ? `<span class="ins-prog" role="progressbar" aria-label="Заполнено полей" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i data-ins-prog style="width:${pct}%"></i></span>` : ''}
   </header>
   ${status ? `<div class="ins-strip ins-strip-${statusTone(status)}">
     <span class="ins-strip-l">Статус</span>
@@ -201,8 +212,7 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
 
   return `<div class="ins">
     ${headerHTML({
-    title: rec.address || 'Объект оценки',
-    sub: rec.type,
+    title: rec.type || 'Объект оценки',
     eni: fmtEni(rec.eni),
     backHref,
     backLabel: 'К моим осмотрам',
@@ -227,9 +237,8 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref }) {
 
         <section class="ins-blk">
           <h2 class="ins-blk-h">Сводка</h2>
-          ${rowHTML('Тип ОЦ', rec.type)}
+          ${rowHTML('Адрес', rec.address)}
           ${rowHTML('Назначение по ТП', rec.purposeTP)}
-          ${rowHTML('Код ЕНИ', fmtEni(rec.eni), true)}
           ${rowHTML('Учреждение', rec.institution)}
           ${rowHTML('Подвед', rec.podved)}
           ${rowHTML('Объектов имущества', (rec.oi || []).length)}
@@ -302,7 +311,7 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
   return `<div class="ins">
     ${headerHTML({
     title: 'Объект оценки',
-    sub: rec.address,
+    sub: rec.type,
     eni: fmtEni(rec.eni),
     backHref,
     backLabel: 'К задаче',
@@ -316,9 +325,9 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
         <h2 class="ins-blk-h">Общие данные</h2>
         <div class="ins-cols">
           <div>
+            ${rowHTML('Адрес', rec.address)}
             ${rowHTML('Категория', rec.category)}
             ${rowHTML('Тип ОЦ', rec.type)}
-            ${rowHTML('Код ЕНИ', fmtEni(rec.eni), true)}
           </div>
           <div>
             ${rowHTML('Координаты', rec.gps, true)}
@@ -424,7 +433,7 @@ function foundItemHTML(f) {
 // нет вовсе. Добавили поле в описание — оно появится и здесь, и в карточке,
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
-  rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref,
+  rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText,
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
@@ -437,38 +446,27 @@ export function assetHTML({
   // разворачивать, а на осмотре нужно заполнять (замечание пользователя
   // 08.09.2026). Свернуть раздел можно руками — тогда он попадает в collapsed.
 
-  return `<div class="ins">
+  // Сохранение — само, по ходу ввода («Пробуй», 14.10.2026, вместо кнопки
+  // «Сохранить» в полосе): в шапке — «сохранено ЧЧ:ММ», ход заполнения —
+  // полоса под шапкой и строка разделов (sectionNavHTML).
+  const year = Array.isArray(oi.year) ? oi.year.join(', ') : oi.year;
+  const facts = [oi.floors ? `${oi.floors} эт.` : '', year ? `${year} г.` : ''].filter(Boolean).join(' · ');
+  return `<div class="ins ins-asset">
     ${headerHTML({
     title: oiLabel(oi),
-    sub: rec.address,
     eni: fmtEni(oi.eni || rec.eni),
     backHref,
     backLabel: 'К объектам имущества',
+    progress: ALL_FIELDS.length ? filled / ALL_FIELDS.length : 0,
+    saved: savedText || '',
   })}
-
-    <div class="ins-sum" data-sum>
-      <span class="ins-sum-t">
-        <b>${filled}</b> из ${ALL_FIELDS.length} полей
-        <i class="${left ? 'ins-warn' : 'ins-done'}">${left
-    ? `· обязательных ${left}`
-    : '· обязательные заполнены'}</i>
-      </span>
-      <button class="ins-btn ins-btn-main ins-btn-sm" data-asset-save>Сохранить</button>
-    </div>
+    ${sectionNavHTML(SECTIONS, values, premises.length, left)}
 
     <div class="ins-body">
-      <section class="ins-blk">
-        <h2 class="ins-blk-h">Объект</h2>
-        <div class="ins-cols">
-          <div>
-            ${rowHTML('Код ЕНИ', fmtEni(oi.eni), true)}
-            ${rowHTML('Наименование', oi.name)}
-          </div>
-          <div>
-            ${rowHTML('Этажность', oi.floors)}
-            ${rowHTML('Год постройки', Array.isArray(oi.year) ? oi.year.join(', ') : oi.year)}
-          </div>
-        </div>
+      <section class="ins-blk ins-objinfo">
+        <h2 class="ins-blk-h">Об объекте</h2>
+        ${rec.address ? `<p class="ins-objinfo-a">${esc(rec.address)}</p>` : ''}
+        ${facts ? `<p class="ins-objinfo-f">${esc(facts)}</p>` : ''}
       </section>
 
       ${SECTIONS.map((sec) => accordionHTML(sec, values, oi, collapsed)).join('')}
@@ -497,7 +495,7 @@ function accordionHTML(sec, values, oi, collapsed) {
     wrap: (s, html) => `<div class="ins-fs-grid">${html}</div>`,
   });
 
-  return `<section class="ins-blk ins-acc ${open ? 'on' : ''}">
+  return `<section class="ins-blk ins-acc ${open ? 'on' : ''}" data-sec-box="${esc(sec.key)}">
     <button class="ins-acc-h" data-sec="${esc(sec.key)}" aria-expanded="${open ? 'true' : 'false'}">
       <span class="ins-acc-t">
         <b>${esc(sec.title)}</b>
@@ -514,8 +512,25 @@ function accordionHTML(sec, values, oi, collapsed) {
   </section>`;
 }
 
+// Строка разделов под шапкой: переход касанием к разделу и где не хватает
+// обязательного (янтарное число). Листается вбок, если не влезает; при
+// прокрутке отмечается текущий раздел (inspector.js, onScroll).
+export function sectionNavHTML(sections, values, premisesN, left) {
+  const items = sections.map((s) => {
+    const p = sectionProgress(s, values);
+    return `<button type="button" class="ins-secnav-b" data-goto-sec="${esc(s.key)}">
+      ${esc(s.short || s.title)} <span class="ins-secnav-n${p.requiredLeft ? ' need' : (p.filled === p.total && p.total ? ' ok' : '')}"
+        title="${p.requiredLeft ? `Обязательных осталось: ${p.requiredLeft}` : `Заполнено ${p.filled} из ${p.total}`}">${p.requiredLeft || `${p.filled}/${p.total}`}</span>
+    </button>`;
+  }).join('');
+  return `<nav class="ins-secnav" data-secnav aria-label="Разделы осмотра${left ? `, обязательных осталось ${left}` : ''}">
+    ${items}
+    <button type="button" class="ins-secnav-b" data-goto-sec="premises">Помещения${premisesN ? ` <span class="ins-secnav-n">${premisesN}</span>` : ''}</button>
+  </nav>`;
+}
+
 function premisesHTML(list) {
-  return `<section class="ins-blk">
+  return `<section class="ins-blk" data-sec-box="premises">
     <h2 class="ins-blk-h">Помещения${list.length ? ' · ' + list.length : ''}</h2>
     ${list.length ? `<ul class="ins-pm">
       ${list.map((pm) => `<li class="ins-pm-i">

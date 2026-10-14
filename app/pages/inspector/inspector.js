@@ -28,9 +28,9 @@ import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDa
 import { codeByName } from '../../kernel/institutions.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes } from '../../kernel/registry.js';
-import { allFields, mismatchHint } from './form.js';
+import { allFields, sections, mismatchHint } from './form.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -219,6 +219,7 @@ export function mountInspector(host) {
     const el = content();
     if (!el) return;
     const y = el.scrollTop;
+    markCurrentSection();
     const on = document.body.classList.contains('ins-compact');
     // Порог сжатия (140) больше разницы высот полной и сжатой шапки (до
     // ~80 px): иначе после сжатия прокрутка оказывалась ниже порога
@@ -229,6 +230,25 @@ export function mountInspector(host) {
     syncHead();
   }
   scope.onDocument('scroll', onScroll, true);
+  // Текущий раздел в строке разделов — последний, чей заголовок ушёл под неё.
+  function markCurrentSection() {
+    const nav = scope.$('[data-secnav]');
+    if (!nav) return;
+    const edge = nav.getBoundingClientRect().bottom + 12;
+    let cur = '';
+    scope.$$('[data-sec-box]').forEach((b) => { if (b.getBoundingClientRect().top <= edge) cur = b.dataset.secBox; });
+    nav.querySelectorAll('[data-goto-sec]').forEach((b) => {
+      const on = b.dataset.gotoSec === cur;
+      if (on !== (b.getAttribute('aria-current') === 'true')) {
+        if (!on) { b.removeAttribute('aria-current'); return; }
+        b.setAttribute('aria-current', 'true');
+        // Текущий раздел — в видимую часть строки. Вбок — только саму строку:
+        // scrollIntoView прокрутил бы и экран, сбивая переход к разделу.
+        if (b.offsetLeft < nav.scrollLeft) nav.scrollLeft = b.offsetLeft - 8;
+        else if (b.offsetLeft + b.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = b.offsetLeft + b.offsetWidth - nav.clientWidth + 8;
+      }
+    });
+  }
 
   function render() {
     draw();
@@ -314,6 +334,7 @@ export function mountInspector(host) {
           hrefFor,
           counts,
           backHref: inspHref({ typeId, ocId, section: 'object' }),
+          savedText: savedTextOf(typeId, ocId, oi.id),
         }));
         return;
       }
@@ -369,6 +390,7 @@ export function mountInspector(host) {
     values: () => assetValues(route.typeId, route.ocId, route.oiId),
     fields: allFields(route.typeId),
     onChange: (field, value, opts) => {
+      markSaved();
       // Мультивыбор пересобран на месте — перерисовка закрыла бы список.
       if (opts && opts.inPlace) { refreshSum(); return; }
       if (!opts || !opts.typing) {
@@ -397,17 +419,42 @@ export function mountInspector(host) {
 
   // Счётчик заполненного в закреплённой полосе — тоже без перерисовки: он
   // должен идти вместе с вводом, иначе показывает вчерашнее число.
+  // Полоса хода под шапкой, строка разделов и «сохранено» — без
+  // перерисовки: они идут вместе с вводом, а перерисовка сняла бы фокус.
   function refreshSum() {
-    const box = scope.$('[data-sum] .ins-sum-t');
-    if (!box) return;
-
+    const bar = scope.$('[data-ins-prog]');
+    if (!bar) return;
     const values = assetValues(route.typeId, route.ocId, route.oiId);
-    const left = requiredLeft(allFields(route.typeId), values);
-    const filled = filledCount(allFields(route.typeId), values);
-    box.innerHTML = `<b>${filled}</b> из ${allFields(route.typeId).length} полей
-      <i class="${left ? 'ins-warn' : 'ins-done'}">${left
-    ? '· обязательных ' + left
-    : '· обязательные заполнены'}</i>`;
+    const fields = allFields(route.typeId);
+    const filled = filledCount(fields, values);
+    bar.style.width = (fields.length ? Math.round((filled / fields.length) * 100) : 0) + '%';
+    const nav = scope.$('[data-secnav]');
+    const r = rec();
+    if (nav && r) {
+      const cur = nav.querySelector('[aria-current="true"]');
+      const curKey = cur ? cur.dataset.gotoSec : '';
+      nav.outerHTML = sectionNavHTML(sections(route.typeId), values,
+        premises(route.typeId, route.ocId, route.oiId).length, requiredLeft(fields, values));
+      const again = curKey && scope.$(`[data-secnav] [data-goto-sec="${curKey}"]`);
+      if (again) again.setAttribute('aria-current', 'true');
+    }
+    const saved = scope.$('[data-ins-saved]');
+    if (saved) saved.textContent = savedTextOf(route.typeId, route.ocId, route.oiId);
+  }
+
+  // Сохранение — само (макет: значения и так в памяти вкладки). Время
+  // последней правки — по ОИ, для отметки «сохранено ЧЧ:ММ» в шапке.
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь уходит черновик осмотра ОИ на сервер (или в
+  // очередь отправки, когда нет связи); отметка — по ответу сервера, а без
+  // связи — «сохранено на телефоне». Развилка: отправлять каждое изменение
+  // или пачкой раз в несколько секунд.
+  const savedAt = new Map();
+  function markSaved() {
+    savedAt.set(`${route.typeId}|${route.ocId}|${route.oiId}`, new Date());
+  }
+  function savedTextOf(typeId, ocId, oiId) {
+    const d = savedAt.get(`${typeId}|${ocId}|${oiId}`);
+    return d ? `✓ сохранено ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
   }
 
   // --- обработчики экранов ------------------------------------------------
@@ -590,12 +637,29 @@ export function mountInspector(host) {
     if (pm) pm.area = el.value;
   });
 
-  scope.on('click', '[data-asset-save]', () => {
-    // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь уходит осмотр литеры на сервер. В макете
-    // значения и так лежат в памяти вкладки, поэтому кнопка только
-    // подтверждает — но она есть, потому что есть в рабочей системе, и без
-    // неё непонятно, чем осмотр заканчивается.
-    host.toast('Осмотр объекта сохранён', 'ok');
+  // Переход к разделу из строки разделов: свёрнутый раскрывается, экран
+  // прокручивается так, чтобы заголовок раздела встал под строку разделов.
+  scope.on('click', '[data-goto-sec]', (e, el) => {
+    const key = el.dataset.gotoSec;
+    const i = ui.collapsed.indexOf(key);
+    if (i >= 0) { ui.collapsed.splice(i, 1); render(); }
+    const box = scope.$(`[data-sec-box="${key}"]`);
+    const pane = content();
+    if (!box || !pane) return;
+    const nav = scope.$('[data-secnav]');
+    const top = nav ? nav.getBoundingClientRect().bottom : 0;
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    pane.scrollTo({ top: pane.scrollTop + box.getBoundingClientRect().top - top - 8, behavior: still ? 'auto' : 'smooth' });
+  });
+
+  // ЕНИ в шапке — касанием в буфер: его сверяют и вписывают на месте.
+  scope.on('click', '[data-ins-copy]', async (e, el) => {
+    try {
+      await navigator.clipboard.writeText(el.dataset.insCopy);
+      host.toast('ЕНИ скопирован', 'ok');
+    } catch (err) {
+      host.toast('Скопировать не удалось — ЕНИ виден в шапке', 'warn');
+    }
   });
 
   // --- объекты, выявленные на осмотре -------------------------------------
