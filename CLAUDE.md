@@ -534,6 +534,11 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
 * **Ничего не удалять без прямого указания**: «посмотри», «пройдись», «что
   лишнее» — вывести перечень в чат и ждать решения, а не править
   (`nichego-ne-udalyat-bez-pryamogo-ukazaniya-prosili-vyvesti-vyvodit-a-ne`).
+* **Перед правкой или пересборкой файла — проверить, что пользователь его не
+  редактирует**: не открыт ли (замок Word), не правил ли после последней
+  сборки (автор и время в свойствах); правил — не перезаписывать, показать его
+  правки и свои отдельно и спросить, как свести
+  (`pered-pravkoy-fayla-proverit-chto-polzovatel-ego-ne-redaktiruet`).
 * **Назван столбец (лист, диапазон) — читать только его**, без разбора остальной
   структуры файла; «не трогать» — значит и не читать
   (`ukazan-stolbec-chitat-tolko-ego-bez-razbora-ostalnoy-struktury-fayla`).

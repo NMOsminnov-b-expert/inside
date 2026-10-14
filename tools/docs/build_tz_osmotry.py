@@ -606,7 +606,24 @@ def build(data):
     return D.tables
 
 
+def safe_out():
+    """Файл, изменённый человеком после сборки, не перезаписывается (правило
+    графа pered-pravkoy-fayla-proverit-chto-polzovatel-ego-ne-redaktiruet):
+    сборка ложится рядом, docs/tz-osmotry.sborka.docx."""
+    global OUT
+    if not os.path.exists(OUT):
+        return
+    try:
+        who = Document(OUT).core_properties.last_modified_by or ''
+    except Exception:
+        who = '?'
+    if who not in ('', 'python-docx'):
+        OUT = OUT.replace('.docx', '.sborka.docx')
+        print('docs/tz-osmotry.docx правил «%s» — не перезаписываю, сборка рядом' % who)
+
+
 def main():
+    safe_out()
     data = collect()
     n = build(data)
     print('таблиц: %d, полей осмотра: %d → %s' % (n, sum(len(s['fields']) for s in data['form']), os.path.relpath(OUT, ROOT)))
