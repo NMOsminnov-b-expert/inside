@@ -41,7 +41,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, loadOcRecord, gpsOfObject } from './route.js';
+import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
@@ -1264,17 +1264,18 @@ export function mountInspections(host) {
   function normsHTML() {
     const fact = measuredNorms(all);
     const f3 = (v) => (v === undefined || v === null ? '' : String(Math.round(v * 1000) / 1000).replace('.', ','));
-    return `<p class="ip-hint">Осмотр объекта = основа + площадь × минут на 1 м². По этим нормам считается маршрут дня; «по факту» — из законченных осмотров: от первых снимков до окончания.</p>
+    return `<p class="ip-hint">Осмотр объекта = основа + площадь × минут на 1 м². Маршрут дня считается по норме «по факту», когда законченных осмотров вида ${FACT_MIN} и больше, иначе — по норме в таблице; «по факту» — от первых снимков до окончания осмотра.</p>
       <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-normtbl">
-        <colgroup><col><col class="c-n"><col class="c-n"><col class="c-f"><col class="c-n"></colgroup>
-        <thead><tr><th>Вид здания</th><th class="num">Основа, мин</th><th class="num">На 1 м², мин</th><th class="num">По факту на 1 м²</th><th class="num" title="Осмотр 1000 м² по норме">1000 м², мин</th></tr></thead>
+        <colgroup><col><col class="c-n"><col class="c-n"><col class="c-f"><col class="c-a"><col class="c-n"></colgroup>
+        <thead><tr><th>Вид здания</th><th class="num">Основа, мин</th><th class="num">На 1 м², мин</th><th class="num">По факту на 1 м²</th><th title="Какая норма на 1 м² идёт в расчёт маршрута">Действует</th><th class="num" title="Осмотр 1000 м² по действующей норме">1000 м², мин</th></tr></thead>
         <tbody>${NORM_KINDS.map((k) => {
-          const n = normOf(k.key);
+          const n = effectiveNorm(k.key, fact);
           const m = fact[k.key];
           return `<tr><td>${esc(k.label)}</td>
             <td class="num"><input class="input" inputmode="numeric" data-ip-norm="${k.key}" data-k="base" value="${n.base}" aria-label="Основа, ${esc(k.label)}"></td>
-            <td class="num"><input class="input" inputmode="decimal" data-ip-norm="${k.key}" data-k="perM2" value="${f3(n.perM2)}" aria-label="На 1 м², ${esc(k.label)}"></td>
+            <td class="num"><input class="input" inputmode="decimal" data-ip-norm="${k.key}" data-k="perM2" value="${f3(normOf(k.key).perM2)}" aria-label="На 1 м², ${esc(k.label)}"></td>
             <td class="num">${m ? `${f3(m.perM2)} <span class="ip-muted">· ${m.n} осм.</span> <button class="btn btn-ghost btn-sm" data-ip-norm-take="${k.key}" data-v="${m.perM2}">взять</button>` : '<span class="ip-muted">нет данных</span>'}</td>
+            <td ${n.by === 'fact' ? `title="По факту: ${n.n} законченных осмотров"` : `title="По норме в таблице: законченных осмотров ${m ? m.n : 0}, для факта нужно ${FACT_MIN}"`}>${n.by === 'fact' ? 'по факту' : 'норма'}</td>
             <td class="num"><b>${Math.round(n.base + 1000 * n.perM2)}</b></td></tr>`;
         }).join('')}</tbody>
       </table></div></div>`;

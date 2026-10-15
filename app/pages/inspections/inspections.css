@@ -856,10 +856,13 @@ body[data-page="inspections"] .ip-stop-t i{font-style:normal;font-weight:700;col
 .leaflet-tooltip.ip-tip b{font-weight:700}
 .leaflet-tooltip.ip-tip i{font-style:normal;color:#5a6b82}
 .leaflet-tooltip.ip-tip hr{margin:6px 0;border:0;border-top:1px solid #dbe4ee}
-body[data-page="inspections"] .ip-normtbl{min-width:720px}
-body[data-page="inspections"] .ip-normtbl col.c-n{width:130px}
-body[data-page="inspections"] .ip-normtbl col.c-f{width:230px}
-body[data-page="inspections"] .ip-normtbl .input{height:30px;width:90px;text-align:right;font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-normtbl{min-width:800px}
+body[data-page="inspections"] .ip-normtbl col.c-a{width:96px}
+/* Вид здания переносится, а не обрезается многоточием (15.10.2026). */
+body[data-page="inspections"] .ip-normtbl td:first-child{white-space:normal}
+body[data-page="inspections"] .ip-normtbl col.c-n{width:112px}
+body[data-page="inspections"] .ip-normtbl col.c-f{width:200px}
+body[data-page="inspections"] .ip-normtbl .input{height:30px;width:100%;max-width:90px;text-align:right;font-variant-numeric:tabular-nums}
 
 /* Уведомления (раздел 8 ТЗ рабочего дня): лента по дням, вид — точкой цвета
    и словом, непрочитанное — жирным; счётчик непрочитанных — на вкладке. */

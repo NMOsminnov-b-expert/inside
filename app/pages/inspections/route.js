@@ -58,11 +58,30 @@ export function setNorm(key, patch) {
   Object.assign(e, patch);
   scheduleSave();
 }
-export const inspectMinutes = (s) => {
-  const n = normOf(normKindOf(s));
+// Действующая норма: по факту, когда истории хватает, иначе — регионала
+// (решение пользователя 15.10.2026: «По факту, когда данных хватает»;
+// запись графа rekomendacii-naznacheniy-i-marshruta-…). fact — итог
+// measuredNorms; без него — норма регионала (сравнение факта с нормой в
+// статистике).
+export const FACT_MIN = 10;
+export function effectiveNorm(key, fact) {
+  const n = normOf(key);
+  const m = fact && fact[key];
+  return m && m.n >= FACT_MIN && Number.isFinite(m.perM2) ? { ...n, perM2: m.perM2, by: 'fact', n: m.n } : { ...n, by: 'norm' };
+}
+export const inspectMinutes = (s, fact) => {
+  const n = effectiveNorm(normKindOf(s), fact);
   const area = (s && s.metrics && s.metrics.area) || 0;
   return Math.round(n.base + area * n.perM2);
 };
+// Нормы по факту — из всей истории осмотров; пересчёт, только когда она
+// изменилась (маршрут считается на каждой перерисовке).
+let factCache = { key: '', norms: {} };
+export function factNorms(all) {
+  const key = allAssignments().length + '|' + eventsOf({}).length;
+  if (factCache.key !== key) factCache = { key, norms: measuredNorms(all) };
+  return factCache.norms;
+}
 
 // Нормы по факту: длительность осмотра — от первых снимков до окончания;
 // норма на 1 м² = (длительность − основа) / площадь; медиана по виду.
@@ -145,6 +164,7 @@ export function dayRoute(all, person, date, skip = new Set()) {
   const end = minOf(p.schedule.to);
   const plan = planOf(person, date);
   const regions = new Set(plan && plan.region ? [plan.region] : (p.regions || []));
+  const fact = factNorms(all);
 
   // Назначенные на день — по объекту, ОИ вместе.
   const fixed = new Map();
@@ -172,7 +192,7 @@ export function dayRoute(all, person, date, skip = new Set()) {
   const take = (x) => {
     const l = leg(x.gps);
     const arrive = t + l.min;
-    const insp = inspectMinutes(x.s);
+    const insp = inspectMinutes(x.s, fact);
     stops.push({ ...x, km: l.km, drive: l.min, arrive: hm(arrive), inspect: insp, leave: hm(arrive + insp) });
     t = arrive + insp;
     km += l.km;
@@ -200,7 +220,7 @@ export function dayRoute(all, person, date, skip = new Set()) {
       pool.sort((a, b) => roadKm(at, a.gps) - roadKm(at, b.gps));
       const x = pool.shift();
       const l = leg(x.gps);
-      const finish = t + l.min + inspectMinutes(x.s) + driveMinutes(roadKm(x.gps, home.gps));
+      const finish = t + l.min + inspectMinutes(x.s, fact) + driveMinutes(roadKm(x.gps, home.gps));
       if (finish > end) { if (l.km > 60) break; continue; }
       take(x);
       proposed.push(x.key);
