@@ -2278,8 +2278,13 @@ export function mountInspections(host) {
   // выбор осмотрщика или дня в полосе перестраивает панель и не должен
   // сбрасывать уже отмеченное (найдено проверкой 12.10.2026).
   const FORM = '.ip-pane [data-ip-f-oi], .ip-pane [data-ip-f-doc], .ip-pane [data-ip-f-inv], .ip-pane [data-ip-f-whole]';
-  const redraw = () => {
+  // anchor — поле, которое человек только что тронул: после перерисовки оно
+  // остаётся на том же месте экрана. Иначе блок выше (например, «Кто поедет»,
+  // пересчитанный под новую дату) менял высоту, и поле уезжало из-под руки
+  // (матрица взаимодействий, «сдвиг», 15.10.2026).
+  const redraw = (anchor = '') => {
     const keep = ['.ip-scroll', '.ip-people-list', '.ip-card-body', '.ip-pscroll', '.ip-pane .ip-pane-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
+    const at = anchor && scope.$(anchor) ? scope.$(anchor).getBoundingClientRect().top : null;
     const key = draft.key;
     const form = scope.$$(FORM).map((el) => [el.getAttribute('data-ip-f-oi') || el.getAttribute('data-ip-f-doc') || el.getAttribute('data-ip-f-inv') || 'whole', el.checked]);
     const note = scope.$('[data-ip-f-note]') ? scope.$('[data-ip-f-note]').value : null;
@@ -2296,6 +2301,9 @@ export function mountInspections(host) {
       if (note !== null && scope.$('[data-ip-f-note]')) scope.$('[data-ip-f-note]').value = note;
     }
     keep.forEach(([s, y]) => { if (scope.$(s)) scope.$(s).scrollTop = y; });
+    const moved = at !== null && scope.$(anchor);
+    const body = moved && moved.closest('.ip-pane-body');
+    if (body) body.scrollTop += moved.getBoundingClientRect().top - at;
   };
   // Поиск не сбрасывается переходом: он свой у каждой вкладки «Назначений»
   // (view.qs) и возвращается вместе с ней.
@@ -2927,13 +2935,13 @@ export function mountInspections(host) {
     redraw();
   });
   scope.on('click', '[data-ip-avail-day]', (e, b) => { draft.date = b.dataset.ipAvailDay; redraw(); });
-  scope.on('change', '[data-ip-f-person]', (e, el) => { draft.person = el.value; redraw(); });
-  scope.on('change', '[data-ip-f-date]', (e, el) => { draft.date = el.value; redraw(); });
+  scope.on('change', '[data-ip-f-person]', (e, el) => { draft.person = el.value; redraw('.ip-pane [data-ip-f-person]'); });
+  scope.on('change', '[data-ip-f-date]', (e, el) => { draft.date = el.value; redraw('.ip-pane [data-ip-f-date]'); });
   scope.on('change', '[data-ip-f-deadline]', (e, el) => {
     const keys = view.tab === 'queue' && checked.size > 1 ? [...checked.keys()]
       : (() => { const a = view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null; return [a ? a.typeId + '|' + a.ocId : current]; })();
     setDeadline(keys, el.value);
-    redraw();
+    redraw('.ip-pane [data-ip-f-deadline]');
   });
   scope.on('change', '[data-ip-hperson]', (e, el) => { view.histPerson = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-kind]', (e, el) => { view.histKind = el.value; view.shown = STEP; render(); });

@@ -209,7 +209,7 @@ def analyse(run, kind):
              if not vis(f0, k) and not vis(fl, k) and any(vis(f, k) for _, f in frames)]
     flags = list(run.get('flags', []))
     cover = [k for k in appeared if end.get(k, {}).get('fl') and end[k]['cov'] >= 0.34]
-    edge = [k for k in appeared if end.get(k, {}).get('fl') and fl[k][4] < 0.97]
+    edge = [k for k in appeared if end.get(k, {}).get('fl') and end[k].get('cut', fl[k][4]) < 0.97]
     if cover: flags.append('ПЕРЕКРЫТ')
     if edge: flags.append('ЗА КРАЕМ')
     if shift: flags.append('СДВИГ')

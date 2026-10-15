@@ -49,6 +49,23 @@
   };
   // Видимая доля: пересечение с окном и со всеми предками, которые режут
   // содержимое (overflow не visible).
+  // Обрезан ли слой «насовсем»: окном или предком с overflow hidden/clip.
+  // Прокручиваемый предок (auto/scroll) не в счёт — до обрезанного там
+  // докручиваются; на карте разделы — плавающие островки со своей прокруткой,
+  // и всё их содержимое иначе шло в «за краем» (разбор находок 15.10.2026).
+  const cut = (el) => {
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return 1;
+    let x0 = Math.max(r.left, 0), y0 = Math.max(r.top, 0);
+    let x1 = Math.min(r.right, innerWidth), y1 = Math.min(r.bottom, innerHeight);
+    for (let e = el.parentElement; e && e !== document.body; e = e.parentElement) {
+      const s = getComputedStyle(e);
+      const q = e.getBoundingClientRect();
+      if (/hidden|clip/.test(s.overflowX)) { x0 = Math.max(x0, q.left); x1 = Math.min(x1, q.right); }
+      if (/hidden|clip/.test(s.overflowY)) { y0 = Math.max(y0, q.top); y1 = Math.min(y1, q.bottom); }
+    }
+    return Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / (r.width * r.height);
+  };
   const visible = (el, r) => {
     if (!r.width || !r.height) return 0;
     let x0 = Math.max(r.left, 0), y0 = Math.max(r.top, 0);
@@ -69,7 +86,11 @@
     const seen = new Map();
     const out = [];
     for (const el of document.querySelectorAll(BLOCK)) {
-      if (el.closest('[data-mx-skip]')) continue;
+      // Элементы управления карты (масштаб, источник подложки) — часть карты,
+      // а не блок экрана: когда раздел ложится карточкой поверх карты, они
+      // законно уходят под неё, и матрица записывала это в «перекрыт» и
+      // «мелькнул» (разбор находок 15.10.2026).
+      if (el.closest('[data-mx-skip], .maplibregl-control-container')) continue;
       const r = el.getBoundingClientRect();
       if (r.width < 24 || r.height < 14) continue;
       const n = nameOf(el);
@@ -166,6 +187,11 @@
         const r = el.getBoundingClientRect();
         if (r.width < 4 || r.height < 4) continue;
         if (getComputedStyle(el).visibility === 'hidden') continue;
+        // Содержимое свёрнутого <details> скрыто, но рамку Chrome отдаёт
+        // ненулевую — матрица пыталась нажать невидимое и писала «не
+        // нажимается» (разбор находок 15.10.2026). Заголовок summary — в счёт.
+        const shut = el.closest('details:not([open])');
+        if (shut && !(el.tagName === 'SUMMARY' || el.closest('summary'))) continue;
         const sig = sigOf(el);
         const n = per.get(sig) || 0;
         per.set(sig, n + 1);
@@ -205,7 +231,7 @@
           if (t < ms) { requestAnimationFrame(tick); return; }
           obs.disconnect();
           const end = {};
-          for (const { key, el } of blocks()) end[key] = { cov: covered(el), fl: floating(el) };
+          for (const { key, el } of blocks()) end[key] = { cov: covered(el), fl: floating(el), cut: cut(el) };
           const a = document.activeElement;
           resolve({
             frames, muts, end,
