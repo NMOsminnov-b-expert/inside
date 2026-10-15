@@ -84,3 +84,6 @@ data/local/*.tmp
 
 # Прогоны матриц (tools/matrix) — данные прогона, не исходники.
 /tools/matrix/out/
+
+# Пакет графа знаний для другого компьютера (tools/knowledge/export_pack.py) — в git не идёт.
+/.pack/

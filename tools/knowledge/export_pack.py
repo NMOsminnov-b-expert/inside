@@ -93,7 +93,8 @@ def main():
     ap.add_argument('--out', default=str(ROOT.parent / 'graf-pack'))
     ap.add_argument('--katalog', default='', help='база категорий по описям (папка с knowledge/)')
     a = ap.parse_args()
-    out = pathlib.Path(a.out)
+    # Абсолютный: git bundle запускается из временного клона.
+    out = pathlib.Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
 
     n, last = graf_bundle(out)
