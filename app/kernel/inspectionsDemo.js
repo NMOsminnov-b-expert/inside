@@ -15,6 +15,8 @@
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-данных нет — история и загрузка строятся из
 // настоящих назначений и журнала.
 import { sortedTypes } from './registry.js';
+import { stepOf } from './status/flow.js';
+import { DEMO_PARCELS } from './demoParcels.js';
 
 function mulberry32(a) {
   return () => {
@@ -48,8 +50,18 @@ const roadKm = (a, b) => {
   const h = Math.sin(rad(b[0] - a[0]) / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(rad(b[1] - a[1]) / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(h)) * 1.3;
 };
-// Час езды: по городу 30 км/ч, дальше 60 — около 45 км по дороге.
-const NEAR_KM = 45;
+// Координаты синтетического объекта — его участок по ЕНИ (центр рамки), без
+// сборки карточки.
+let parcelLL = null;
+const llByEni = (eni) => {
+  if (!parcelLL) {
+    parcelLL = new Map();
+    Object.values(DEMO_PARCELS).forEach((list) => list.forEach((x) => {
+      if (x.eni && x.ext) parcelLL.set(String(x.eni), [(x.ext[1] + x.ext[3]) / 2, (x.ext[0] + x.ext[2]) / 2]);
+    }));
+  }
+  return parcelLL.get(String(eni || '').replace(/\D/g, '')) || null;
+};
 const isoLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // isDefaultDoc — правило «документ по умолчанию» из ядра (параметром, чтобы
@@ -62,20 +74,22 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
     // записи сида до демо не доходили (статистика пустела, 13.10.2026).
     const res = t.records.queryRecords({ filter: {}, offset: 0, limit: Number.MAX_SAFE_INTEGER });
     res.rows.forEach((s) => {
-      // Синтетические записи демо-объёма (…-b<N>) не открываем: loadRecord
-      // собирает полную запись и кладёт её в список, и с объёмом 1000 по
-      // умолчанию (13.10.2026) каждый старт собирал тысячу карточек, а счётчики
-      // реестра считали их дважды. Очередь «К назначению» видит их и так — по
-      // сводкам.
-      // Состав осмотрщиков — и из них (по сводке, без открытия): иначе он
-      // зависел от правок сида, и демо-история менялась от перезагрузки к
-      // перезагрузке.
+      // Состав осмотрщиков — и из синтетических (по сводке): иначе он зависел
+      // от правок сида, и демо-история менялась от перезагрузки к перезагрузке.
       if (s.resp && s.resp.insp) people.add(s.resp.insp);
-      if (/-b\d+$/.test(s.id)) return;
+      const base = { typeId: t.manifest.id, ocId: s.id, status: s.status, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' };
+      // Синтетические записи (…-b<N>) — по сводке, карточку не собираем:
+      // loadRecord кладёт её в список, и тысяча сборок на каждом старте
+      // тормозила и двоила счётчики (13.10.2026). Назначение на такой объект —
+      // целиком (oiIds пуст), координаты — участок по ЕНИ.
+      if (/-b\d+$/.test(s.id)) {
+        recs.push({ ...base, oi: [], defDocs: [], ll: llByEni(s.eni) });
+        return;
+      }
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       const defDocs = [...(r.docs || []), ...(r.oi || []).flatMap((o) => o.docs || [])].filter((d) => d && isDefaultDoc(d.type || d.name)).map((d) => d.id);
-      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), defDocs, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '', ll: llOf(r) });
+      recs.push({ ...base, oi: (r.oi || []).map((o) => o.id), defDocs, ll: llOf(r) || llByEni(s.eni) });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -101,31 +115,48 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
     return k[0] + (r.area || 0) * k[1];
   };
 
-  // Объекты осмотрщика — по реальным координатам: в часе езды от его дома
-  // (дорога ≈ прямая × 1,3, как в маршруте дня), а если рядом ничего нет —
-  // три ближайших. С 14.10.2026 демо-объекты стоят на настоящих участках по
-  // всей стране, и случайный выбор давал бишкекскому осмотрщику Нарын, Токмок
-  // и Кара-Суу в один день — день перегружался на 18 часов, а маршрут не
-  // предлагал ничего (замечание пользователя 15.10.2026 «маршрут дня
-  // правим»; «система рекомендаций… адаптивной к реальным данным»).
-  const pool = recs.filter((r) => r.status !== READY && r.oi.length);
-  const near = names.map((person, pi) => {
-    const home = parseLL(HOMES[pi % HOMES.length][1]);
-    const by = pool.map((r) => ({ r, km: r.ll && home ? roadKm(home, r.ll) : Infinity })).sort((a, b) => a.km - b.km);
-    const close = by.filter((x) => x.km <= NEAR_KM).map((x) => x.r);
-    return close.length ? close : by.slice(0, 3).map((x) => x.r);
-  });
-  const pickFor = (pi) => pick(near[pi]);
+  // Демо согласовано со шкалой статусов (указание пользователя 15.10.2026:
+  // «Поправь все демо данные осмотров… Иначе буду за ошибки их принимать»).
+  // Прежде объекты брались случайно с возвращением из 16 записей сида: один ОИ
+  // назначался по 9 раз, осматривался дважды, назначения стояли на объектах
+  // «В заполнении», а один день одного осмотрщика дробился на несколько
+  // назначений одного объекта. Теперь:
+  //   * прошлые осмотры — только объекты «Осмотрен» и дальше по шкале;
+  //   * живые назначения — только «Направлен на осмотр», и у каждого такого
+  //     объекта назначение есть;
+  //   * объект участвует в демо один раз, назначение — на объект целиком;
+  //   * осмотрщику — ближайший к его дому свободный объект (дорога ≈ прямая ×
+  //     1,3, как в маршруте дня): день не разъезжается по стране.
+  const INSPECTED = stepOf('Осмотрен');
+  const donePool = recs.filter((r) => stepOf(r.status) >= INSPECTED);
+  const livePool = recs.filter((r) => r.status === 'Направлен на осмотр');
+  const used = new Set();
+  const keyOf = (r) => r.typeId + '|' + r.ocId;
+  const homes = names.map((_, pi) => parseLL(HOMES[pi % HOMES.length][1]));
+  const kmFrom = (pi, r) => (r.ll && homes[pi] ? roadKm(homes[pi], r.ll) : 1e6);
+  const takeNear = (pool, pi) => {
+    let best = null;
+    let bestKm = Infinity;
+    pool.forEach((r) => {
+      if (used.has(keyOf(r))) return;
+      const km = kmFrom(pi, r);
+      if (km < bestKm) { bestKm = km; best = r; }
+    });
+    if (best) used.add(keyOf(best));
+    return best;
+  };
+  const nearestPerson = (r) => names.reduce((best, _, pi) => (kmFrom(pi, r) < kmFrom(best, r) ? pi : best), 0);
 
-  // Прошлое: у каждого осмотрщика в рабочий день 0–3 ОИ.
-  names.forEach((person, pi) => {
-    for (let back = 45; back >= 1; back--) {
-      const day = dayAt(today, -back, 9);
-      if (!isWorkday(day)) continue;
+  // Прошлое: у каждого осмотрщика в рабочий день 0–3 объекта. День за днём,
+  // осмотрщики по очереди — чтобы ближние объекты не достались одному.
+  for (let back = 45; back >= 1; back--) {
+    const day = dayAt(today, -back, 9);
+    if (!isWorkday(day)) continue;
+    names.forEach((person, pi) => {
       const k = Math.floor(rnd() * (pi === 0 ? 4 : 3.2));
       for (let j = 0; j < k; j++) {
-        const r = pickFor(pi);
-        const oiId = pick(r.oi);
+        const r = takeNear(donePool, pi);
+        if (!r) return;
         const at = dayAt(today, -back - 2 - Math.floor(rnd() * 5), 10);
         // Окончание — после снимков и заметок того же осмотра.
         // Длительность — около нормы осмотра по виду и площади (маршруты,
@@ -134,7 +165,7 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
         const start = dayAt(today, -back, 10 + j * 2);
         const done = new Date(start.getTime() + demoMinutes(r) * (0.8 + ((n * 37) % 50) / 100) * 60000);
         const a = {
-          id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [oiId], docs: [], inventories: [],
+          id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [], docs: [], inventories: [],
           plannedAt: isoLocalDate(day), note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
           state: 'done', doneAt: done.toISOString(), demo: true,
         };
@@ -147,40 +178,53 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
         if (rnd() < 0.08) ev(a, 'found', dayAt(today, -back, 11 + j * 2), { text: 'Навес у склада' });
         ev(a, 'done', done);
       }
-    }
+    });
+  }
+
+  const liveA = (r, person, day, state = 'assigned', at = dayAt(today, -1 - Math.floor(rnd() * 6), 15)) => {
+    const a = {
+      id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [], docs: [], inventories: [],
+      plannedAt: day ? isoLocalDate(day) : '', note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
+      state, doneAt: '', demo: true,
+    };
+    assignments.push(a);
+    ev(a, 'assigned', at);
+    return a;
+  };
+
+  // Пара просроченных — плановая дата прошла, осмотр не начат.
+  names.slice(0, 2).forEach((person, pi) => {
+    const r = takeNear(livePool, pi);
+    if (r) liveA(r, person, dayAt(today, -3 - pi, 9), 'assigned', dayAt(today, -8, 15));
   });
 
-  // Будущее: плановые на три недели вперёд, 0–3 в рабочий день; у первого
+  // Будущее: плановые на три недели вперёд, 0–2 в рабочий день; у первого
   // осмотрщика плотнее — чтобы на карте загрузки было видно перегруз.
-  names.forEach((person, pi) => {
-    for (let fwd = 0; fwd <= 21; fwd++) {
-      const day = dayAt(today, fwd, 9);
-      if (!isWorkday(day)) continue;
-      const k = Math.floor(rnd() * (pi === 0 ? 4.6 : 3));
+  for (let fwd = 0; fwd <= 21; fwd++) {
+    const day = dayAt(today, fwd, 9);
+    if (!isWorkday(day)) continue;
+    names.forEach((person, pi) => {
+      // У первого осмотрщика сегодня — не меньше двух выездов: на нём показан
+      // рабочий день («Сегодня», отчёты за день, маршрут).
+      const k = Math.max(fwd === 0 && pi === 0 ? 2 : 0, Math.floor(rnd() * (pi === 0 ? 3.2 : 2.2)));
       for (let j = 0; j < k; j++) {
-        const r = pickFor(pi);
-        const at = dayAt(today, -1 - Math.floor(rnd() * 6), 15);
-        const a = {
-          id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [pick(r.oi)], docs: [], inventories: [],
-          plannedAt: isoLocalDate(day), note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
-          state: fwd === 0 && j === 0 ? 'progress' : 'assigned', doneAt: '', demo: true,
-        };
-        assignments.push(a);
-        ev(a, 'assigned', at);
+        const r = takeNear(livePool, pi);
+        if (!r) return;
+        liveA(r, person, day, fwd === 0 && j === 0 ? 'progress' : 'assigned');
       }
-    }
-    // Пара просроченных — плановая дата прошла, осмотр не закончен.
-    if (pi < 2) {
-      const r = pickFor(pi);
-      const day = dayAt(today, -3 - pi, 9);
-      const a = {
-        id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [pick(r.oi)], docs: [], inventories: [],
-        plannedAt: isoLocalDate(day), note: '', by: 'Региональный менеджер (демо)', at: dayAt(today, -8, 15).toISOString(),
-        state: 'assigned', doneAt: '', demo: true,
-      };
-      assignments.push(a);
-      ev(a, 'assigned', new Date(a.at));
-    }
+    });
+  }
+
+  // Остальные «Направлен на осмотр» — тоже назначены (статус без назначения
+  // был бы той же ошибкой): ближайшему осмотрщику, на рабочие дни после трёх
+  // недель плана.
+  let later = 22;
+  livePool.filter((r) => !used.has(keyOf(r))).forEach((r) => {
+    used.add(keyOf(r));
+    let day = dayAt(today, later, 9);
+    while (!isWorkday(day)) { later += 1; day = dayAt(today, later, 9); }
+    liveA(r, names[nearestPerson(r)], day);
+    later += 1;
   });
 
   // Частично осмотренный объект очереди.
