@@ -39,6 +39,17 @@ const dayAt = (base, shift, hour) => {
   return d;
 };
 const isWorkday = (d) => d.getDay() !== 0 && d.getDay() !== 6;
+// Координаты записи: поле GPS, а если пусто — центр рамки участка Кадастра
+// (как gpsOfObject в pages/inspections/route.js; ядро страницу не импортирует).
+const parseLL = (v) => { const m = /(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/.exec(String(v || '')); return m ? [+m[1], +m[2]] : null; };
+const llOf = (r) => parseLL(r.gps) || (r.geo && r.geo.extent ? [(r.geo.extent[1] + r.geo.extent[3]) / 2, (r.geo.extent[0] + r.geo.extent[2]) / 2] : null);
+const roadKm = (a, b) => {
+  const rad = (x) => (x * Math.PI) / 180;
+  const h = Math.sin(rad(b[0] - a[0]) / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(rad(b[1] - a[1]) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h)) * 1.3;
+};
+// Час езды: по городу 30 км/ч, дальше 60 — около 45 км по дороге.
+const NEAR_KM = 45;
 const isoLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // isDefaultDoc — правило «документ по умолчанию» из ядра (параметром, чтобы
@@ -64,7 +75,7 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       const defDocs = [...(r.docs || []), ...(r.oi || []).flatMap((o) => o.docs || [])].filter((d) => d && isDefaultDoc(d.type || d.name)).map((d) => d.id);
-      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), defDocs, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' });
+      recs.push({ typeId: t.manifest.id, ocId: s.id, status: s.status, oi: (r.oi || []).map((o) => o.id), defDocs, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '', ll: llOf(r) });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -90,15 +101,30 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
     return k[0] + (r.area || 0) * k[1];
   };
 
-  // Прошлое: у каждого осмотрщика в рабочий день 0–3 ОИ.
+  // Объекты осмотрщика — по реальным координатам: в часе езды от его дома
+  // (дорога ≈ прямая × 1,3, как в маршруте дня), а если рядом ничего нет —
+  // три ближайших. С 14.10.2026 демо-объекты стоят на настоящих участках по
+  // всей стране, и случайный выбор давал бишкекскому осмотрщику Нарын, Токмок
+  // и Кара-Суу в один день — день перегружался на 18 часов, а маршрут не
+  // предлагал ничего (замечание пользователя 15.10.2026 «маршрут дня
+  // правим»; «система рекомендаций… адаптивной к реальным данным»).
   const pool = recs.filter((r) => r.status !== READY && r.oi.length);
+  const near = names.map((person, pi) => {
+    const home = parseLL(HOMES[pi % HOMES.length][1]);
+    const by = pool.map((r) => ({ r, km: r.ll && home ? roadKm(home, r.ll) : Infinity })).sort((a, b) => a.km - b.km);
+    const close = by.filter((x) => x.km <= NEAR_KM).map((x) => x.r);
+    return close.length ? close : by.slice(0, 3).map((x) => x.r);
+  });
+  const pickFor = (pi) => pick(near[pi]);
+
+  // Прошлое: у каждого осмотрщика в рабочий день 0–3 ОИ.
   names.forEach((person, pi) => {
     for (let back = 45; back >= 1; back--) {
       const day = dayAt(today, -back, 9);
       if (!isWorkday(day)) continue;
       const k = Math.floor(rnd() * (pi === 0 ? 4 : 3.2));
       for (let j = 0; j < k; j++) {
-        const r = pick(pool);
+        const r = pickFor(pi);
         const oiId = pick(r.oi);
         const at = dayAt(today, -back - 2 - Math.floor(rnd() * 5), 10);
         // Окончание — после снимков и заметок того же осмотра.
@@ -132,7 +158,7 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
       if (!isWorkday(day)) continue;
       const k = Math.floor(rnd() * (pi === 0 ? 4.6 : 3));
       for (let j = 0; j < k; j++) {
-        const r = pick(pool);
+        const r = pickFor(pi);
         const at = dayAt(today, -1 - Math.floor(rnd() * 6), 15);
         const a = {
           id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [pick(r.oi)], docs: [], inventories: [],
@@ -145,7 +171,7 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
     }
     // Пара просроченных — плановая дата прошла, осмотр не закончен.
     if (pi < 2) {
-      const r = pick(pool);
+      const r = pickFor(pi);
       const day = dayAt(today, -3 - pi, 9);
       const a = {
         id: `demo-as-${++n}`, typeId: r.typeId, ocId: r.ocId, person, oiIds: [pick(r.oi)], docs: [], inventories: [],

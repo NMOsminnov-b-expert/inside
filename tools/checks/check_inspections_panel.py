@@ -278,7 +278,9 @@ def run(t):
     t.ck(t.wait_until("() => !document.querySelector('.ipc-pop')"), 'окно дня не прячется, когда мышь ушла')
 
     # щелчок по дню (и будущему) — кто, куда, зачем — в панели справа; вглубь и назад
-    future = pg.evaluate("() => { const t = new Date(); const iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = [...document.querySelectorAll('[data-ip-dp-open^=\"day:\"]')].find((x) => x.dataset.ipDpOpen.slice(4) >= iso); return d ? d.dataset.ipDpOpen : ''; }")
+    # День — ближайший с выездами: у осмотрщика бывают дни без выездов, и
+    # тогда панель честно открывает отметку дня, а не выезды.
+    future = pg.evaluate("() => { const t = new Date(); const iso = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); const d = [...document.querySelectorAll('[data-ip-dp-open^=\"day:\"]')].find((x) => x.dataset.ipDpOpen.slice(4) >= iso && (x.closest('.ipc-cal-d') || x).querySelector('.ipc-chip')); return d ? d.dataset.ipDpOpen : ''; }")
     if t.ck(future, 'в календаре нет сегодняшнего или будущего дня с выездами'):
         pg.click('[data-ip-dp-open="%s"]' % future)
         t.ck(t.wait_for('.ip-detail-pane .ip-dp-trip'), 'щелчок по будущему дню не открыл выезды в панели справа')

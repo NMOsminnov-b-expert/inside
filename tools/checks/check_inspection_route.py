@@ -44,14 +44,17 @@ def run(t):
     t.wait_for('[data-ip-plan]')
     sel = pg.locator('select[data-ip-plan]').last
     day = sel.get_attribute('data-ip-plan')
-    sel.select_option('Нарын')
-    t.ck(t.wait_until("async ([w, d]) => ((await %s).planOf(w, d) || {}).region === 'Нарын'" % K, [WHO, day]),
+    # Область — домашняя у осмотрщика (Бишкек): с 14.10.2026 демо-объекты
+    # стоят на настоящих участках, и Нарын (≈ 255 км от дома) в день с
+    # возвращением не укладывается — предложений там честно нет.
+    sel.select_option('Бишкек')
+    t.ck(t.wait_until("async ([w, d]) => ((await %s).planOf(w, d) || {}).region === 'Бишкек'" % K, [WHO, day]),
          'область плана месяца не сохранилась из ячейки')
     pg.click('[data-ip-ptab="trips"]')
     t.wait_for('.ipc-cal')
     if day[:7] != pg.evaluate("() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }"):
         pg.click('[data-ipc-month="1"]')
-    t.ck(t.wait_until("(d) => /Нарын/.test(document.querySelector('.ipc-cal-d[aria-label*=\"' + d.slice(8, 10) + '.' + d.slice(5, 7) + '\"] .ipc-plan')?.textContent || '')", day),
+    t.ck(t.wait_until("(d) => /Бишкек/.test(document.querySelector('.ipc-cal-d[aria-label*=\"' + d.slice(8, 10) + '.' + d.slice(5, 7) + '\"] .ipc-plan')?.textContent || '')", day),
          'область плана не видна в календаре выездов')
 
     # --- маршрут --------------------------------------------------------------
