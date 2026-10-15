@@ -128,6 +128,11 @@ def run(t, part=None):
             '[data-step-card]', 'els => els.map((e) => e.textContent.replace(/\\s+/g, " ").trim())')
         got = ' | '.join(got)
         title = name.splitlines()[0]
+        # «Осмотры» — не тип ОЦ: перечни раздела по месту применения
+        # (kernel/inspectionsDicts.js, 15.10.2026), карточек ОЦ и ОИ у них нет.
+        if title == 'Осмотры':
+            t.ck('План и выезды' in got and 'Авто' in got, 'каталог «Осмотры» без своих разделов: %s' % got)
+            continue
         needed = ('Объект оценки',) if title in movable else (
             'Объект оценки', 'Литера (строение)', 'Квартира', 'Земельный участок')
         for need in needed:

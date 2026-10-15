@@ -61,14 +61,14 @@ COLLECT = """async () => {
       n: x.opts ? x.opts.length : 0, opts: x.opts && x.opts.length <= 6 ? x.opts : [], doc: !!x.tpFrom || typeof x.doc === 'function', long: !!x.long })) }));
   const forms = Object.fromEntries(Object.entries(STUB).map(([k, oi]) => [k, formOf(oi)]));
   return {
-    states: k.ASSIGN_STATES.map(lab), cadKinds: k.CAD_KINDS.map(lab), cadResults: k.CAD_RESULTS.map(lab), cadDocs: k.CAD_DOCS,
-    absence: k.ABSENCE_KINDS.map(lab), fieldKinds: k.FIELD_KINDS.map(lab), activity: k.ACTIVITY_KINDS.map(lab),
+    states: k.ASSIGN_STATES.map(lab), cadKinds: k.CAD_KINDS.map(lab), cadResults: k.CAD_RESULTS.map(lab), cadDocs: k.cadDocs(),
+    absence: k.absenceKinds().map(lab), fieldKinds: k.FIELD_KINDS.map(lab), activity: k.activityKinds().map(lab),
     events: Object.values(m.EVENT_LABELS), queueFacets: m.QUEUE_FACETS.map(lab), queueRanges: m.QUEUE_RANGES.map(lab),
     assignedFacets: m.ASSIGNED_FACETS.map(lab), assignedRanges: m.ASSIGNED_RANGES.map(lab),
     notes: n.NOTE_KINDS.map(lab), metrics: st.METRICS.map((x) => ({ label: x.label, hint: x.hint || '', fmt: x.fmt, better: x.better })),
     periods: st.PERIOD_UNITS.map((x) => x[1]), oiKinds: st.OI_KINDS.map((x) => x[1]),
     norms: r.NORM_KINDS.map((x) => ({ label: x.label, base: r.normOf(x.key).base, perM2: r.normOf(x.key).perM2 })),
-    photoCats: t.PHOTO_CATS, foundKinds: t.FOUND_KINDS, homeTabs: v.HOME_TABS.map(lab), navigators: v.NAVIGATORS.map(lab),
+    photoCats: t.PHOTO_CATS, foundKinds: k.foundKinds(), homeTabs: v.HOME_TABS.map(lab), navigators: v.NAVIGATORS.map(lab),
     form: forms.building, forms,
   };
 }"""

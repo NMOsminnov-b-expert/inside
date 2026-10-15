@@ -11,7 +11,7 @@
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
-import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
+import { tasksOf, allAssignments, isLive, foundKinds } from '../../kernel/inspections.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -282,7 +282,7 @@ export function addFoundOi(typeId, ocId, kind) {
   const list = foundOi(typeId, ocId);
   const item = {
     id: 'found-' + (++foundSeq),
-    kind: kind || FOUND_KINDS[0],
+    kind: kind || foundKinds()[0],
     name: '',
     note: '',
     foundAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
@@ -297,12 +297,6 @@ export function removeFoundOi(typeId, ocId, id) {
   if (i >= 0) list.splice(i, 1);
 }
 
-// Виды, которыми осмотрщик называет найденное. Перечень из ТЗ (вспомогательные
-// строения и постройки, которых нет в списке ЦОД) плюс движимое.
-export const FOUND_KINDS = [
-  'Навес', 'Сарай', 'Гараж', 'Склад', 'Времянка', 'Летняя кухня', 'Баня',
-  'Хозпостройка', 'Пристройка', 'Ограждение', 'Механизм', 'Прочее',
-];
 
 // --- фото -----------------------------------------------------------------
 

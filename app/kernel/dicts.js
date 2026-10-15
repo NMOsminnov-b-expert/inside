@@ -29,6 +29,7 @@
 //   * Правят администратор и роль «любая».
 //   * История — строкой в общем логе действий, версий и отката нет.
 import { sortedTypes } from './registry.js';
+import { INSPECTIONS_DICT_HOST, INSPECTIONS_DICT_SOURCES, INSPECTIONS_CARDS } from './inspectionsDicts.js';
 import { session, seesEverything } from './session.js';
 import { createStore } from './store.js';
 
@@ -38,6 +39,8 @@ export const CARD_LABEL = {
   apartment: 'Квартира',
   land: 'Земельный участок',
   movable: 'Движимое имущество',
+  // Справочники «Осмотров» (15.10.2026) — по месту применения.
+  ...INSPECTIONS_CARDS,
 };
 
 // Объекты имущества, которые не литеры: поля литер к ним не относятся. ТС и
@@ -46,7 +49,7 @@ export const CARD_LABEL = {
 const NOT_BUILDING = new Set(['land', 'movable', 'mech', 'vehicle']);
 
 // Порядок карточек в каталоге: сначала сам объект оценки, потом его части.
-const CARD_ORDER = ['oc', 'building', 'apartment', 'land', 'movable'];
+const CARD_ORDER = ['oc', 'building', 'apartment', 'land', 'movable', ...Object.keys(INSPECTIONS_CARDS)];
 
 // --- состояние -------------------------------------------------------------
 //
@@ -127,10 +130,16 @@ function makeItems(values, kind, groupLabels) {
 // Один справочник на каждую точку подключения. «Отопление» у квартиры и у
 // литеры — два разных справочника: правки независимы, и сразу видно, где что
 // применяется. Общий перечень на несколько полей больше не собирается.
+// Откуда берутся справочники: типы ОЦ и перечни «Осмотров» (они не тип ОЦ —
+// своей группой в конце каталога, kernel/inspectionsDicts.js).
+function dictHosts() {
+  return [...sortedTypes(), { manifest: INSPECTIONS_DICT_HOST, dictExport: { DICT_SOURCES: INSPECTIONS_DICT_SOURCES } }];
+}
+
 function build() {
   const list = [];
 
-  sortedTypes().forEach((type) => {
+  dictHosts().forEach((type) => {
     const sources = type.dictExport && type.dictExport.DICT_SOURCES;
     if (!sources) return;
 
@@ -217,7 +226,7 @@ export function catalogTree() {
   const all = allDicts();
   const tree = [];
 
-  sortedTypes().forEach((type) => {
+  dictHosts().forEach((type) => {
     const cards = new Set();
     const sources = type.dictExport && type.dictExport.DICT_SOURCES;
     (sources || []).forEach((src) => (src.slots || []).forEach((s) => cards.add(s.card)));
@@ -281,7 +290,7 @@ export function catalogTree() {
 
 export function allSlots() {
   const out = [];
-  sortedTypes().forEach((type) => {
+  dictHosts().forEach((type) => {
     const sources = type.dictExport && type.dictExport.DICT_SOURCES;
     (sources || []).forEach((src) => {
       (src.slots || []).forEach((slot) => {

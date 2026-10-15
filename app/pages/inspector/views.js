@@ -15,7 +15,8 @@ import { fmtEni } from '../../kernel/fmt.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
-import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_KINDS } from './tasks.js';
+import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel } from './tasks.js';
+import { foundKinds } from '../../kernel/inspections.js';
 import { sections, allFields, mismatchHint } from './form.js';
 
 // --- значки ---------------------------------------------------------------
@@ -493,7 +494,7 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
           <div class="ins-field">
             <label for="insFoundKind">Вид объекта</label>
             <select class="select ins-select" id="insFoundKind" data-found-kind>
-              ${FOUND_KINDS.map((k) => `<option>${esc(k)}</option>`).join('')}
+              ${foundKinds().map((k) => `<option>${esc(k)}</option>`).join('')}
             </select>
           </div>
           <button class="ins-btn ins-btn-main" data-found-add>Добавить объект</button>

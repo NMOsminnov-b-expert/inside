@@ -18,12 +18,12 @@ import { esc } from '../../kernel/dom.js';
 import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
 import {
-  allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, ABSENCE_KINDS, absenceLabel, WEEKDAYS, whatsappLink,
+  allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
-  addActivity, removeActivity, activitiesOn, activityKind, CAR_FUELS,
+  addActivity, removeActivity, activitiesOn, activityKind, carFuels,
   planOf, setPlan, assign,
-  allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, CAD_DOCS,
+  allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
 } from '../../kernel/inspections.js';
 import { downloadXlsx, readXlsx } from '../../kernel/xlsx.js';
 import { mountGrid, cellText, parseCell } from '../../kernel/grid.js';
@@ -664,7 +664,7 @@ export function mountInspections(host) {
             ${ab.note ? `<span class="ip-ab-note">${esc(ab.note)}</span>` : ''}</li>`).join('')}</ul>`
           : '<p class="ip-hint">Не запланированы</p>'}
         <div class="ip-ab-add" data-ip-ab-form>
-          <div class="field"><label for="ip-ab-kind">Вид</label><select class="select" id="ip-ab-kind" data-ip-ab="kind">${ABSENCE_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div>
+          <div class="field"><label for="ip-ab-kind">Вид</label><select class="select" id="ip-ab-kind" data-ip-ab="kind">${absenceKinds().map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div>
           <div class="ip-prow"><div class="field"><label for="ip-ab-from">С</label><input class="input" id="ip-ab-from" type="date" data-ip-ab="from"></div>
             <div class="field"><label for="ip-ab-to">По</label><input class="input" id="ip-ab-to" type="date" data-ip-ab="to"></div></div>
           <div class="field"><label for="ip-ab-note">Примечание</label><input class="input" id="ip-ab-note" data-ip-ab="note"></div>
@@ -684,7 +684,7 @@ export function mountInspections(host) {
     const car = profileOf(p.name).car;
     const f = (key, label, type = 'text', ph = '') => `<div class="field"><label for="ip-car-${key}">${label}</label>
       <input class="input" id="ip-car-${key}" data-ip-car="${key}" type="${type}" value="${esc(car[key] || '')}" ${ph ? `placeholder="${esc(ph)}"` : ''}></div>`;
-    const FUELS = CAR_FUELS;
+    const FUELS = carFuels();
     return `<div class="ip-pwrap"><div class="ip-pscroll"><div class="ip-profile4 ip-car2" data-ip-profile>
       <section class="ip-pcol" aria-labelledby="ip-h-car"><h3 id="ip-h-car">Авто</h3>
         ${f('make', 'Марка и модель')}
@@ -842,7 +842,7 @@ export function mountInspections(host) {
   // загрузка обратно — со сверкой по ФИО и показом изменений до применения:
   // пустое дописывается, различающееся — по отметке (правило слияния из
   // импорта APCS; практики предпросмотра импорта — csvbox, Grist, Coefficient).
-  const FUELS = CAR_FUELS;
+  const FUELS = carFuels();
   const regionNames = () => Object.values(ENI_REGIONS);
   function gridCols() {
     const car = (key, label, type = 'text', extra = {}) => ({ key: `car.${key}`, label, type, width: 120, ...extra,
@@ -1862,7 +1862,7 @@ export function mountInspections(host) {
           <span class="isearch">${SEARCH_ICON}<input id="ip-cad-q" data-ip-cad-q value="${esc(d.q || '')}" autocomplete="off" placeholder="не меньше двух знаков"></span>
           ${found.length ? `<ul class="ip-cad-found">${found.map((s) => `<li><button data-ip-cad-add="${esc(s.typeId + '|' + s.id)}"><span class="mono">${esc(s.eni || '')}</span> ${esc(s.title)}<span class="ip-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>` : ''}
         </div>
-        <datalist id="ip-cad-docs">${CAD_DOCS.map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
+        <datalist id="ip-cad-docs">${cadDocs().map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
         ${d.rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-cadtbl">
           <colgroup><col class="c-inst"><col class="c-eni"><col><col><col><col class="c-x"></colgroup>
           <thead><tr><th>№ учр.</th><th>ЕНИ</th><th>Объект</th><th>Документ</th><th>Комментарий</th><th></th></tr></thead>
@@ -2278,7 +2278,7 @@ export function mountInspections(host) {
   scope.on('input', '[data-ip-cad-q]', (e, el) => { cadDraft.q = el.value; redraw(); keepFocus('[data-ip-cad-q]'); });
   scope.on('click', '[data-ip-cad-add]', (e, b) => {
     const s = all.get(b.dataset.ipCadAdd);
-    if (s) cadDraft.rows.push({ typeId: s.typeId, ocId: s.id, inst: s.institution || '', eni: s.eni || '', title: s.title || '', doc: CAD_DOCS[0], note: '' });
+    if (s) cadDraft.rows.push({ typeId: s.typeId, ocId: s.id, inst: s.institution || '', eni: s.eni || '', title: s.title || '', doc: cadDocs()[0], note: '' });
     cadDraft.q = '';
     redraw();
     scope.$('[data-ip-cad-q]').focus();

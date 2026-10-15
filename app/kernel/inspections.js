@@ -20,6 +20,26 @@ import { session } from './session.js';
 import { demoInspections } from './inspectionsDemo.js';
 import { attachedFileFrom } from './fileUpload.js';
 import { eniRegion } from './fmt.js';
+import { optionsFor } from './dicts.js';
+import {
+  SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, FOUND_KINDS, CAR_FUELS,
+} from './inspectionsDicts.js';
+
+// Перечни «Осмотров» — из раздела «Справочники» (группа «Осмотры», решение
+// пользователя 15.10.2026), встроенные — запасные (kernel/inspectionsDicts.js).
+export { SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, FOUND_KINDS, CAR_FUELS };
+const fromDict = (card, field, fallback) => {
+  try { return optionsFor('inspections', card, field) || fallback; } catch (e) { return fallback; }
+};
+export const skipReasons = () => fromDict('plan', 'skipReason', SKIP_REASONS);
+export const cadDocs = () => fromDict('cad', 'docs', CAD_DOCS);
+export const foundKinds = () => fromDict('site', 'found', FOUND_KINDS);
+export const carFuels = () => fromDict('car', 'fuel', CAR_FUELS);
+// Отсутствия и работа вне выездов хранятся ключом: встроенные подписи
+// сопоставляются со своим ключом, новое значение справочника — само себе ключ.
+const keyed = (labels, builtIn) => labels.map((label) => builtIn.find((k) => k.label === label) || { key: label, label, short: label });
+export const absenceKinds = () => keyed(fromDict('plan', 'absence', ABSENCE_KINDS.map((k) => k.label)), ABSENCE_KINDS);
+export const activityKinds = () => keyed(fromDict('plan', 'activity', ACTIVITY_KINDS.map((k) => k.label)), ACTIVITY_KINDS);
 
 // Состояния назначения — в порядке жизни.
 export const ASSIGN_STATES = [
@@ -37,8 +57,13 @@ export const isLive = (a) => !!a && LIVE.has(a.state);
 // кадастровый, ситуационный»). Сверяются по виду и имени документа без
 // регистра.
 // Вид «Планировка» в справочнике документов — тот же поэтажный план.
-export const DEFAULT_DOC_KINDS = [/кадастр/i, /поэтаж/i, /планировк/i];
-export const isDefaultDoc = (kind) => DEFAULT_DOC_KINDS.some((re) => re.test(String(kind || '')));
+// Список — справочник «Документы по умолчанию в назначении»; сверка — по
+// основе первого слова (7 букв: «кадастр», «поэтажн», «планиро»).
+const stem = (v) => String(v || '').toLowerCase().replace(/ё/g, 'е').trim().split(/\s+/)[0].slice(0, 7);
+export const isDefaultDoc = (kind) => {
+  const k = String(kind || '').toLowerCase().replace(/ё/g, 'е');
+  return !!k && fromDict('assign', 'defaultDocs', DEFAULT_DOC_TYPES).some((v) => stem(v) && k.includes(stem(v)));
+};
 
 // Засев — демо-история (kernel/inspectionsDemo.js): заполняется до
 // регистрации в сохранении, поэтому считается исходными данными, а не
@@ -284,23 +309,11 @@ registerPersisted('inspections.people', {
   },
 });
 
-// Виды отсутствий — в порядке частоты.
-export const ABSENCE_KINDS = [
-  { key: 'vacation', label: 'Отпуск' },
-  { key: 'dayoff', label: 'Выходной' },
-  { key: 'sick', label: 'Больничный' },
-  { key: 'other', label: 'Другое' },
-];
 export const absenceLabel = (k) => (ABSENCE_KINDS.find((x) => x.key === k) || {}).label || k;
 
 // Рабочие дни недели: 1 — пн … 7 — вс (как в ISO, чтобы не путать с getDay()).
 export const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
 const isoWeekday = (iso) => { const d = new Date(iso + 'T00:00:00').getDay(); return d === 0 ? 7 : d; };
-
-// Виды топлива авто осмотрщика — один список на весь макет (профиль «Авто»,
-// табличный вид). «АИ-92 Евро» вместо «АИ-95» — указание пользователя
-// 12.10.2026.
-export const CAR_FUELS = ['АИ-92', 'АИ-92 Евро', 'Дизель', 'Газ'];
 
 // Поля профиля по ТЗ рабочего дня осмотрщика (запись графа
 // tz-rabota-osmotrschika, разделы 1–2): личное и жильё, доверенность, группа
@@ -468,7 +481,6 @@ export function moveDateMany(ids, plannedAt) {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: отчёт о снятии — тем же каналом, что остальные
 // уведомления регионала (панель, WhatsApp или почта — развилка ТЗ 8.3);
 // права — осмотрщик меняет только свои назначения.
-export const SKIP_REASONS = ['Нет доступа на объект', 'Нет представителя учреждения', 'Не успеваю', 'Неисправно авто', 'Погода', 'Другое'];
 
 export function takeForDay(id, date) {
   const a = assignmentById(id);
@@ -673,12 +685,7 @@ export function dayReport(person, date) {
 // менеджер (план месяца, раздел 7) и сам осмотрщик (партнёрский осмотр,
 // работа дома) — развилка прав на сервере.
 
-export const ACTIVITY_KINDS = [
-  { key: 'home', label: 'Работа дома', short: 'дома' },
-  { key: 'move', label: 'Переезд в другую область', short: 'переезд' },
-  { key: 'trip', label: 'Командировка', short: 'команд.' },
-  { key: 'partner', label: 'Осмотр для партнёров', short: 'партнёры' },
-];
+// Перечень — справочник «Работа вне выездов» (activityKinds выше).
 export const activityKind = (k) => ACTIVITY_KINDS.find((x) => x.key === k) || { key: k, label: k, short: k };
 const activities = demo.activities || [];
 registerPersisted('inspections.activities', {
@@ -730,9 +737,6 @@ export const CAD_RESULTS = [
   { key: 'refused', label: 'Отказ' },
 ];
 export const cadResultLabel = (k) => (CAD_RESULTS.find((x) => x.key === k) || { label: 'Ждёт' }).label;
-// Документы, которые запрашивают чаще всего; можно вписать свой.
-export const CAD_DOCS = ['Кадастровый план', 'Поэтажный план', 'Технический паспорт', 'Госакт на земельный участок',
-  'Ситуационный план', 'Свидетельство о праве собственности'];
 
 const cadRequests = demo.cadastre || [];
 registerPersisted('inspections.cadastre', {

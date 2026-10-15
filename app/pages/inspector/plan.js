@@ -17,7 +17,7 @@
 // порция строк, остальное — «Показать ещё»: на телефоне длинный список
 // иначе тормозит при каждой перерисовке.
 import { esc } from '../../kernel/dom.js';
-import { SKIP_REASONS } from '../../kernel/inspections.js';
+import { skipReasons } from '../../kernel/inspections.js';
 import { ico, navPickHTML } from './views.js';
 
 export const PLAN_STEP = 30;
@@ -128,7 +128,7 @@ function skipFormHTML(t, err) {
       <label for="plSkipR">Причина</label>
       <select class="select ins-select" id="plSkipR" data-plan-skip-reason>
         <option value="">— выберите —</option>
-        ${SKIP_REASONS.map((r) => `<option>${esc(r)}</option>`).join('')}
+        ${skipReasons().map((r) => `<option>${esc(r)}</option>`).join('')}
       </select>
     </div>
     <div class="ins-field">

@@ -15,7 +15,7 @@
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
 import { plural } from '../../kernel/fmt.js';
-import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, ACTIVITY_KINDS, ABSENCE_KINDS, absenceOn, absenceLabel } from '../../kernel/inspections.js';
+import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, activityKinds, absenceKinds, absenceOn, absenceLabel } from '../../kernel/inspections.js';
 import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 
@@ -80,8 +80,8 @@ function activitiesHTML(person, day) {
     form: `<section class="ip-sec ip-acts"><h3>Отметить работу вне выездов или отсутствие</h3>
     <div class="ip-act-add" data-ip-act-form>
       <div class="field"><label for="ip-act-kind">Вид</label><select class="select" id="ip-act-kind" data-ip-act="kind">
-        <optgroup label="Работа вне выездов">${ACTIVITY_KINDS.map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</optgroup>
-        <optgroup label="Отсутствие">${ABSENCE_KINDS.map((k) => `<option value="ab:${k.key}">${k.label}</option>`).join('')}</optgroup></select></div>
+        <optgroup label="Работа вне выездов">${activityKinds().map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</optgroup>
+        <optgroup label="Отсутствие">${absenceKinds().map((k) => `<option value="ab:${k.key}">${k.label}</option>`).join('')}</optgroup></select></div>
       <div class="ip-prow">${f('from', 'С', 'date')}${f('to', 'По', 'date')}</div>
       <div class="field" data-ip-act-for="trip move" hidden><label for="ip-act-region">Область</label><select class="select" id="ip-act-region" data-ip-act="region">
         <option value="">—</option>${Object.values(ENI_REGIONS).map((r) => `<option>${esc(r)}</option>`).join('')}</select></div>
