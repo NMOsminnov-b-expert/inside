@@ -2017,19 +2017,78 @@ export function mountInspections(host) {
     let list = words.length ? out.filter((x) => words.every((w) => x.kw.includes(w))) : out.slice(0, 8);
     // Объекты — по ЕНИ и адресу, от двух знаков: к назначению, к действующему
     // назначению или к карточке.
+    let found = 0;
     if (q.trim().length >= 2) {
       const live = allAssignments().filter((a) => a.state === 'assigned' || a.state === 'progress');
       const inQueue = new Set(queueBase(all).map((s) => s.typeId + '|' + s.id));
       [...all.values()].filter((s) => words.every((w) => `${s.eniAll || s.eni} ${s.title} ${s.institution}`.toLowerCase().includes(w))).slice(0, 6).forEach((s) => {
         const k = s.typeId + '|' + s.id;
         const a = live.find((x) => x.typeId + '|' + x.ocId === k);
+        found += 1;
         list.push({ label: s.title, sub: `${s.eniAll || s.eni || ''} · ${a ? `назначено: ${a.person}` : inQueue.has(k) ? 'к назначению' : s.status}`,
           go: () => (a ? (revealAssigned(a.id), gotoAssign(a.id)) : inQueue.has(k) ? (() => { revealQueued(k); nav({ section: 'assign', tab: 'queue' }, k); })() : (location.hash = build({ typeId: s.typeId, ocId: s.id }))) });
       });
     }
     // Начало названия — выше вхождения в середину.
     if (words.length) list = list.map((x, i) => ({ x, i, w: x.label.toLowerCase().startsWith(words[0]) ? 0 : 1 })).sort((a, b) => a.w - b.w || a.i - b.i).map((y) => y.x);
-    return list.slice(0, 12);
+    list = list.slice(0, 12);
+    // Адреса на местности — только когда в базе объектов по запросу нет
+    // (иначе свой объект полезнее, а набранное могло быть названием
+    // учреждения — его наружу не отправляем).
+    geo.want = q.trim().length >= 3 && !found ? q.trim() : '';
+    if (geo.want && geo.q === geo.want) {
+      geo.items.forEach((g) => list.push({ label: g.label, sub: `адрес · ${g.sub}`, go: () => gotoAddress(g), geo: true }));
+    }
+    return list;
+  }
+
+  // --- поиск адресов, как в навигаторе (решение пользователя 15.10.2026:
+  // «Поиск В осмотрах (регионалы)») ---------------------------------------
+  //
+  // Подсказки по мере набора — Photon (данные OpenStreetMap): от трёх знаков,
+  // после паузы 300 мс, до пяти вариантов, ближе к центру карты (практики
+  // подсказок адресов: Stadia Maps «Address autocomplete», Woosmap). Выбор
+  // переносит карту к месту и ставит метку; рядом — объекты очереди.
+  // Наружу уходит только адрес (решение 13.10.2026: «Адреса наружу
+  // передавать можем»).
+  //
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: свой Photon на выгрузке OSM по Кыргызстану (запросы
+  // не уходят наружу) или договор с 2ГИС — у него полнее дома и организации.
+  const geo = { want: '', q: '', items: [], timer: 0 };
+  function geoLookup() {
+    const q = geo.want;
+    if (!q || q === geo.q) return;
+    clearTimeout(geo.timer);
+    geo.timer = setTimeout(async () => {
+      const c = scene.map ? scene.map.getCenter() : { lat: 42.87, lng: 74.6 };
+      const url = `https://photon.komoot.io/api/?${new URLSearchParams({ q, limit: 5, lat: c.lat.toFixed(4), lon: c.lng.toFixed(4), bbox: '69.2,39.1,80.3,43.3' })}`;
+      let items = [];
+      try {
+        const r = await fetch(url);
+        const d = await r.json();
+        items = (d.features || []).map((f) => {
+          const pr = f.properties || {};
+          const street = [pr.street, pr.housenumber].filter(Boolean).join(', ');
+          const label = pr.name && pr.name !== pr.street ? [pr.name, street].filter(Boolean).join(' · ') : (street || pr.name || '');
+          return { label, sub: [pr.city || pr.county, pr.state].filter(Boolean).join(', ') || 'Кыргызстан', ll: [f.geometry.coordinates[1], f.geometry.coordinates[0]] };
+        }).filter((x) => x.label);
+      } catch (e) { items = []; }
+      geo.q = q;
+      geo.items = items;
+      const inp = scope.$('[data-ip-jump]');
+      if (inp && inp.value.trim() === q && document.activeElement === inp) drawJump();
+    }, 300);
+  }
+  async function gotoAddress(g) {
+    if (view.section !== 'assign') nav({ section: 'assign', tab: view.tab || 'queue' });
+    const sc = await ensureScene();
+    const gl = window.maplibregl;
+    if (sc.addr) sc.addr.remove();
+    const el = document.createElement('div');
+    el.className = 'ip-addr-pin';
+    el.title = g.label;
+    sc.addr = new gl.Marker({ element: el }).setLngLat([g.ll[1], g.ll[0]]).addTo(sc.map);
+    sc.map.flyTo({ center: [g.ll[1], g.ll[0]], zoom: 16, essential: true });
   }
   function drawJump() {
     const inp = scope.$('[data-ip-jump]');
@@ -2037,8 +2096,10 @@ export function mountInspections(host) {
     if (!inp || !ul) return;
     jumpList = jumpItems(inp.value);
     jumpHi = Math.max(0, Math.min(jumpHi, jumpList.length - 1));
-    ul.innerHTML = jumpList.map((x, i) => `<li role="option" id="ip-j-${i}" data-ip-jump-i="${i}" class="${i === jumpHi ? 'hi' : ''}" aria-selected="${i === jumpHi}"><b>${esc(x.label)}</b><span>${esc(x.sub)}</span></li>`).join('')
-      || '<li class="ip-jump-none">Ничего не нашлось</li>';
+    const firstGeo = jumpList.findIndex((x) => x.geo);
+    ul.innerHTML = jumpList.map((x, i) => `${i === firstGeo ? '<li class="ip-jump-sep" role="presentation">Адреса · OpenStreetMap</li>' : ''}<li role="option" id="ip-j-${i}" data-ip-jump-i="${i}" class="${i === jumpHi ? 'hi' : ''}" aria-selected="${i === jumpHi}"><b>${esc(x.label)}</b><span>${esc(x.sub)}</span></li>`).join('')
+      || `<li class="ip-jump-none">${geo.want && geo.q !== geo.want ? 'Ищу адрес…' : 'Ничего не нашлось'}</li>`;
+    geoLookup();
     ul.hidden = false;
     inp.setAttribute('aria-activedescendant', jumpList.length ? `ip-j-${jumpHi}` : '');
     scope.$('.ip-jump').setAttribute('aria-expanded', 'true');

@@ -325,6 +325,10 @@ def run_one(mod, part=None, headless=True, browser_=None):
 
     def go(br):
         page = br.new_page(viewport={'width': 1600, 'height': 1000})
+        # Геокодер адресов «Перейти» (Photon, 15.10.2026) — пустым ответом:
+        # проверки не зависят от сети и не нагружают общедоступный сервер.
+        page.route('https://photon.komoot.io/**', lambda r: r.fulfill(
+            status=200, content_type='application/json', body='{"type":"FeatureCollection","features":[]}'))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
         # прогона доставались бы следующему, и порядок запуска начал бы влиять

@@ -1346,3 +1346,6 @@ body[data-page="inspections"] .is-splitting{-webkit-user-select:none;user-select
 body[data-page="inspections"] .ip-far{padding-left:18px;margin:2px 0 0}
 /* Рекомендуемый день подбора «кому и когда» (15.10.2026). */
 body[data-page="inspections"] .ip-av.rec{border-color:var(--teal-600);border-style:dashed}
+/* Группа адресов в «Перейти» и метка выбранного адреса на карте (15.10.2026). */
+body[data-page="inspections"] .ip-jump-list li.ip-jump-sep{cursor:default;padding:8px 10px 2px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted)}
+body[data-page="inspections"] .ip-addr-pin{width:18px;height:18px;border-radius:50%;background:var(--warn,#d9480f);border:3px solid #fff;box-shadow:0 0 0 2px rgba(217,72,15,.35),0 2px 6px rgba(15,23,42,.3)}
