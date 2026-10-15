@@ -1,3 +1,4 @@
+import { bindOcMap } from '../../../kernel/cadastreForm.ctrl.js';
 import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
 import { archiveRecord } from '../../../kernel/archive.js';
@@ -112,6 +113,9 @@ function createOi(ctx, type) {
 export function bindOcCard(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
+
+  // Карта участка внизу блока 01 (kernel/cadastreForm.ctrl.js).
+  if (ctx.tab === 'general') bindOcMap(ctx, rec);
 
   // Вспомогательные постройки — таблица под перечнем (civil/card.js).
   bindAuxSection(ctx, s);

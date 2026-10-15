@@ -6,6 +6,7 @@ import { fmtEni } from '../../../kernel/fmt.js';
 import { eniAllOf } from '../../../kernel/eniFold.js';
 import { esc } from '../../../kernel/dom.js';
 import { ocContactsHTML } from '../../../kernel/contacts.js';
+import { ocMapHTML } from '../../../kernel/cadastreGeoView.js';
 import { ownersUsersHTML, responsiblesHTML } from './parties.view.js';
 import { partyNames } from '../records.js';
 import { tableOI } from './oiTable.view.js';
@@ -62,6 +63,8 @@ function partiesOC(ctx) {
 
       <div class="sec-h">Ответственные (без юриста)</div>
       ${responsiblesHTML(rec)}
+
+      ${ocMapHTML(rec)}
     </div></div>
   </div>`;
 }

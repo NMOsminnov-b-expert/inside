@@ -12,7 +12,8 @@ import { addressByEni } from './cadastre.js';
 import { syncOcAddress, parseAddress } from './address.js';
 import { eniCodesOf, formatEniText } from './eniField.js';
 import { geoByEni, eniByAddress, centerOf } from './cadastreGeo.js';
-import { geoStatus } from './cadastreGeoView.js';
+import { geoStatus, ocMapHidden, setOcMapHidden } from './cadastreGeoView.js';
+import { scheduleSave } from './persist.js';
 import { esc } from './dom.js';
 import { loadMapLibre, createMap, ownParcelsGL } from './mapgl.js';
 import { attachCadastreGL } from './cadastreLayersGL.js';
@@ -82,6 +83,75 @@ async function drawGeoMap(box, geo) {
   attachCadastreGL(gl, map);
   const ext = ownParcelsGL(map, [geo]);
   map.fitBounds(ext, { padding: 24, maxZoom: 19, animate: false });
+}
+
+// Карта участка в блоке 01 карточки ОЦ (kernel/cadastreGeoView.js, ocMapHTML).
+// Карточка перерисовывается почти на каждый щелчок, а каждая новая карта —
+// свой WebGL-контекст (браузер держит их не больше 16): уже нарисованная карта
+// той же записи переносится в новую разметку, а не создаётся заново.
+let ocMap = null;   // { key: «id записи|время координат», el }
+async function placeOcMap(box, rec) {
+  const key = rec.id + '|' + (rec.geo.at || '');
+  // Та же запись — та же карта, даже если она ещё дорисовывается.
+  if (ocMap && ocMap.key === key) {
+    ocMap.el.hidden = false;
+    box.replaceWith(ocMap.el);
+    if (ocMap.el._map) ocMap.el._map.resize();
+    return;
+  }
+  if (ocMap && ocMap.el._map) { ocMap.el._map.remove(); ocMap.el._map = null; }
+  ocMap = { key, el: box };
+  await drawGeoMap(box, rec.geo);
+}
+
+export function bindOcMap(ctx, rec) {
+  const s = ctx.scope;
+  const wrap = s.$('[data-oc-map]');
+  if (!wrap) return;
+  const tg = wrap.querySelector('[data-oc-map-toggle]');
+  const box = () => wrap.querySelector('#ocMapBox');
+  const show = () => {
+    const b = box();
+    if (b && b.hasAttribute('data-oc-map-box') && rec.geo && rec.geo.extent) {
+      placeOcMap(b, rec).catch((e) => console.warn('Карта участка не нарисована', e));
+    }
+  };
+  if (!ocMapHidden()) show();
+
+  // Показ и скрытие — на месте, без перерисовки карточки.
+  tg.onclick = () => {
+    const hide = !ocMapHidden();
+    setOcMapHidden(hide);
+    tg.setAttribute('aria-expanded', String(!hide));
+    tg.textContent = hide ? 'Показать карту' : 'Скрыть карту';
+    const b = box();
+    if (b) b.hidden = hide;
+    if (!hide) show();
+  };
+
+  const get = wrap.querySelector('[data-oc-map-get]');
+  if (get) {
+    get.onclick = async () => {
+      const code = eniCodesOf(rec.eni || '')[0] || '';
+      if (!code) return;
+      const msg = wrap.querySelector('[data-oc-map-msg]');
+      get.disabled = true;
+      get.textContent = 'Запрашиваю…';
+      if (msg) { msg.textContent = 'идёт запрос к Кадастру…'; msg.className = 'src-msg'; }
+      const res = await geoByEni(code);
+      if (res.error) {
+        get.disabled = false;
+        get.textContent = 'Получить по ЕНИ';
+        if (msg) { msg.textContent = res.error; msg.className = 'src-msg err'; }
+        return;
+      }
+      rec.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src || 'Кадастр', by: 'ЕНИ' };
+      rec.gps = centerOf(res.extent);
+      scheduleSave();
+      ctx.toast('Координаты участка получены из Кадастра', 'ok');
+      ctx.render();
+    };
+  }
 }
 
 export function bindGeo(ctx, rec) {

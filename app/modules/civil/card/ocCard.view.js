@@ -15,6 +15,7 @@ import { photosTab } from '../parts/photos/explorer.js';
 import { splitWrap, viewerHTML } from '../../../kernel/viewer/shell.js';
 import { addOiMenuHTML } from './addOiMenu.js';
 import { ocContactsHTML } from '../../../kernel/contacts.js';
+import { ocMapHTML } from '../../../kernel/cadastreGeoView.js';
 
 // Код ЕНИ в шапке — свёрнутые коды записи целиком: её собственный и коды её
 // объектов имущества, ровно как в столбце реестра (решение пользователя
@@ -87,6 +88,8 @@ function partiesOC(ctx) {
 
       <div class="sec-h">Ответственные (без юриста)</div>
       ${responsiblesHTML(rec)}
+
+      ${ocMapHTML(rec)}
     </div></div>
   </div>`;
 }

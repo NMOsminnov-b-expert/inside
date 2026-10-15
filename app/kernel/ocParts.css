@@ -312,6 +312,16 @@ body[data-module] .geo-cands li{display:flex;align-items:center;gap:10px;flex-wr
 body[data-module] .geo-cands li:first-child{border-top:0}
 body[data-module] .geo-cands li > span:first-child{flex:1 1 260px;min-width:0}
 body[data-module] .geo-map{height:280px;margin:-4px 0 14px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--fill-head)}
+/* Карта участка в блоке 01 карточки ОЦ (15.10.2026): раздел во всю ширину
+   блока, кнопка «Скрыть / Показать карту» — справа в его заголовке; без
+   координат — строка с кнопкой запроса в тоне строки «Кадастр» формы. */
+body[data-module] .oc-map-h{justify-content:space-between}
+body[data-module] .oc-map-tg{font-weight:600;text-transform:none;letter-spacing:0}
+body[data-module] .oc-map .geo-map{margin:0}
+body[data-module] .oc-map-none{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:8px;
+  background:var(--amber-50);border:1px solid var(--amber-100);font-size:12px;color:var(--muted)}
+body[data-module] .oc-map-none .src-msg{flex-basis:100%}
+body[data-module] .oc-map-none[hidden],body[data-module] .oc-map .geo-map[hidden]{display:none}
 
 /* ===== Таблица пристроек (блок «Пристройки» карточки литеры) ==============
    Строка на пристройку: литера, вид, материалы, площадь — как на странице

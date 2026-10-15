@@ -45,3 +45,38 @@ export function geoRowHTML(rec) {
       <div class="geo-cands" id="geoCands" hidden></div>
       <div class="geo-map" id="geoMap" ${g && g.extent ? '' : 'hidden'} role="img" aria-label="Участок на карте по контуру из Кадастра, вокруг — соседние участки и строения"></div>`;
 }
+
+// Карта участка в карточке ОЦ — раздел «Участок на карте» внизу блока 01
+// (решение пользователя 15.10.2026: «стоит карту добавить в блок 01 ОЦ как
+// опцию (скрываемая карта)»). Кнопка показа — по образцу раскрытия W3C ARIA
+// (Disclosure: button + aria-expanded + aria-controls). Без координат —
+// строка с кнопкой «Получить по ЕНИ», а не пустое место. Обработчик —
+// kernel/cadastreForm.ctrl.js (bindOcMap).
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: показ карты — удобство одного человека, хранится в
+// браузере; на сервере можно держать в личных настройках пользователя.
+const MAP_HIDDEN_KEY = 'inside.oc.mapHidden';
+export function ocMapHidden() {
+  try { return localStorage.getItem(MAP_HIDDEN_KEY) === '1'; } catch (e) { return false; }
+}
+export function setOcMapHidden(v) {
+  try { localStorage.setItem(MAP_HIDDEN_KEY, v ? '1' : '0'); } catch (e) { /* без памяти — до перезагрузки */ }
+}
+export function ocMapHTML(rec) {
+  const g = rec.geo;
+  const hidden = ocMapHidden();
+  const label = hidden ? 'Показать карту' : 'Скрыть карту';
+  const body = g && g.extent
+    ? `<div class="geo-map oc-map-box" id="ocMapBox" data-oc-map-box ${hidden ? 'hidden' : ''} role="img" aria-label="Участок на карте по контуру из Кадастра, вокруг — соседние участки и строения"></div>`
+    : `<div class="oc-map-none" id="ocMapBox" ${hidden ? 'hidden' : ''}>
+        <span>Координаты участка не получены</span>
+        <button type="button" class="btn src-btn" data-oc-map-get ${rec.eni ? '' : 'disabled title="Нет кода ЕНИ — координаты можно найти по адресу в форме ОЦ"'}>Получить по ЕНИ</button>
+        <span class="src-msg" data-oc-map-msg role="status"></span>
+      </div>`;
+  return `<div class="oc-map" data-oc-map>
+      <div class="sec-h oc-map-h">Участок на карте
+        <button type="button" class="btn btn-ghost btn-sm oc-map-tg" data-oc-map-toggle aria-expanded="${!hidden}" aria-controls="ocMapBox">${label}</button>
+      </div>
+      ${body}
+    </div>`;
+}

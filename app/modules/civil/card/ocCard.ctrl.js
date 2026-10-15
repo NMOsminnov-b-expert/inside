@@ -1,3 +1,4 @@
+import { bindOcMap } from '../../../kernel/cadastreForm.ctrl.js';
 import { bindDocsColumns } from '../../../kernel/docsTable.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
 import { bindColumnResize, bindColumnReorder, normalizeOrder, applyFit, orderedColumns } from '../../../kernel/columns.js';
@@ -62,6 +63,9 @@ export function bindOcCard(ctx) {
 
   const s = ctx.scope;
   const rec = ctx.rec;
+
+  // Карта участка внизу блока 01 (kernel/cadastreForm.ctrl.js).
+  if (ctx.tab === 'general') bindOcMap(ctx, rec);
 
   // --- Шкала статусов в шапке ---------------------------------------------
   bindStatusFlow(ctx);
