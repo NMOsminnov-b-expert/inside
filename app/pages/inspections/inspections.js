@@ -1073,6 +1073,16 @@ export function mountInspections(host) {
   const route = { day: '', person: '', skip: new Set(), homeMode: false };
   let routeMap = null;
   const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${m} мин`);
+  // Дальняя область плана (route.js, far): сколько ехать и кто ближе — с
+  // его свободными днями; никого — только предупреждение.
+  const ddmm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+  function farHTML(f) {
+    const where = f.regions.length ? f.regions.join(', ') : 'Область плана';
+    const head = `<p class="ip-warn">${esc(where)}: в день с возвращением не укладывается — до ближайшего объекта ${f.km} км, ≈ ${dur(f.min)} в одну сторону.</p>`;
+    if (!f.closer.length) return head + '<p class="ip-hint">Осмотрщиков, у которых этот круг укладывается в день, нет.</p>';
+    return head + `<ul class="ip-hint ip-far">${f.closer.map((c) => `<li><b>${esc(c.name)}</b> — ${c.km} км от дома до ближайшего объекта; ${c.days.length
+      ? `свободные дни: ${c.days.map(ddmm).join(', ')}` : 'свободных дней до конца месяца нет'}</li>`).join('')}</ul>`;
+  }
   function routeHTML(me) {
     if (route.person !== me.name) { route.person = me.name; route.day = firstWorkday(me.name); route.skip = new Set(); route.homeMode = false; }
     const r = dayRoute(all, me.name, route.day, route.skip);
@@ -1107,6 +1117,7 @@ export function mountInspections(host) {
       </div>
       ${!r.work.ok ? `<p class="ip-warn">Не рабочий день: ${esc(r.work.reason)}.</p>` : ''}
       ${!r.home.gps ? '<p class="ip-warn">Точка дома не указана — маршрут считается от первого объекта. Укажите дом на карте.</p>' : ''}
+      ${r.far ? farHTML(r.far) : ''}
       <div class="ip-route">
         <div class="ip-route-side">
         <ol class="ip-stops">

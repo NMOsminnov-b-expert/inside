@@ -21,7 +21,7 @@
 // с окнами времени.
 import { getType } from '../../kernel/registry.js';
 import {
-  allAssignments, isLive, eventsOf, profileOf, planOf, workdayOf, activitiesOn,
+  allAssignments, isLive, eventsOf, profileOf, planOf, workdayOf, activitiesOn, profileNames,
 } from '../../kernel/inspections.js';
 import { registerPersisted, scheduleSave } from '../../kernel/persist.js';
 import { queueBase, regionOf } from './model.js';
@@ -227,12 +227,50 @@ export function dayRoute(all, person, date, skip = new Set()) {
       pool = pool.filter((y) => y.key !== x.key);
     }
   }
+  // Дальняя область: объекты в области плана есть, но ни один не
+  // укладывается в день с возвращением — словами, сколько ехать, и кто
+  // живёт ближе (его свободные дни до конца месяца). Решение пользователя
+  // 15.10.2026: «Просто указываем, кто есть ближе и какие окна у него на этот
+  // месяц. Нет - значит предупреждаем».
+  let far = null;
+  if (home.gps && w.ok && cand.length && !proposed.length) {
+    const near = cand.map((x) => ({ x, km: roadKm(home.gps, x.gps) })).sort((a, b) => a.km - b.km)[0];
+    const one = driveMinutes(near.km);
+    if (start + 2 * one + inspectMinutes(near.x.s, fact) > end) {
+      far = { regions: [...regions], km: Math.round(near.km), min: one, closer: closerPeople(person, date, cand, fact) };
+    }
+  }
   const back = at && home.gps ? { km: roadKm(at, home.gps), min: driveMinutes(roadKm(at, home.gps)) } : { km: 0, min: 0 };
   const finish = t + back.min;
   return {
     person, date, home, work: w, regions: [...regions], start: hm(start), end: hm(end),
-    stops, proposed, noGps, back: { ...back, arrive: hm(finish) }, ordered: !!(plan && plan.order && plan.order.length),
+    stops, proposed, noGps, far, back: { ...back, arrive: hm(finish) }, ordered: !!(plan && plan.order && plan.order.length),
     km: Math.round(km + back.km), driveMin: stops.reduce((n, x) => n + x.drive, 0) + back.min,
     inspectMin: stops.reduce((n, x) => n + x.inspect, 0), over: finish > end ? Math.round(finish - end) : 0,
   };
+}
+
+// Кто живёт ближе к объектам дальней области: круг «дом — ближайший объект —
+// дом» с осмотром укладывается в его рабочий день; свободные дни — рабочие,
+// без отсутствий, работы вне выездов и назначений, от даты до конца месяца.
+function closerPeople(person, date, cand, fact) {
+  const last = new Date(date + 'T00:00:00');
+  last.setMonth(last.getMonth() + 1, 0);
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const busy = new Set(allAssignments().filter(isLive).map((a) => a.person + '|' + a.plannedAt));
+  return profileNames().filter((n) => n !== person).map((name) => {
+    const h = homeOf(name, date).gps;
+    if (!h) return null;
+    const near = cand.map((x) => ({ x, km: roadKm(h, x.gps) })).sort((a, b) => a.km - b.km)[0];
+    const p = profileOf(name);
+    const s = minOf(p.schedule.from);
+    const e = minOf(p.schedule.to);
+    if (s + 2 * driveMinutes(near.km) + inspectMinutes(near.x.s, fact) > e) return null;
+    const days = [];
+    for (const d = new Date(date + 'T00:00:00'); d <= last && days.length < 6; d.setDate(d.getDate() + 1)) {
+      const k = iso(d);
+      if (workdayOf(name, k).ok && !activitiesOn(name, k).length && !busy.has(name + '|' + k)) days.push(k);
+    }
+    return { name, km: Math.round(near.km), days };
+  }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 3);
 }

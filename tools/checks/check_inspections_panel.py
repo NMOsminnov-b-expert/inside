@@ -309,7 +309,7 @@ def run(t):
     # Полный профиль (решение пользователя 12.10.2026): связь, области, график,
     # отпуска; WhatsApp — ссылкой на чат.
     pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
-    pg.locator('.ip-reglist label:has([data-ip-c-region][value="Ош"])').click()
+    pg.locator('.ip-reglist label:has([data-ip-c-region][value="Баткен"])').click()
     t.ck(pg.locator('[data-ip-c-bar]').is_visible(), 'правка профиля не показала подвал сохранения')
     pg.click('[data-ip-c-save]')
     t.ck(t.wait_for('.ip-card-contacts a[href^="tel:"]'), 'сохранённый телефон не показан в шапке ссылкой для звонка')
@@ -368,10 +368,11 @@ def run(t):
     car = pg.evaluate("async (w) => (await import('./app/kernel/inspections.js')).profileOf(w).car", who)
     t.ck(car.get('make') == 'Toyota Corolla' and car.get('consumption') == '8' and car.get('fuel') == 'АИ-92', 'авто не сохранено: %s' % car)
 
-    # фильтр по областям — по указанной в профиле
-    t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Ош')"),
+    # фильтр по областям — по указанной в профиле (Баткен: там демо-осмотрщиков
+    # нет, и после отметки в фильтре остаётся один человек)
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('[data-ip-region] option')].some((o) => o.textContent === 'Баткен')"),
          'область из профиля не попала в фильтр областей')
-    pg.select_option('[data-ip-region]', 'Ош')
+    pg.select_option('[data-ip-region]', 'Баткен')
     t.ck(t.wait_until("(w) => { const ns = [...document.querySelectorAll('.ip-person-main[data-ip-person]')].map((b) => b.dataset.ipPerson).filter(Boolean); return ns.length === 1 && ns[0] === w; }", who),
          'фильтр по области не оставил только осмотрщиков этой области')
     pg.select_option('[data-ip-region]', '')

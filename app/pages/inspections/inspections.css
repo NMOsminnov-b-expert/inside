@@ -1342,3 +1342,5 @@ body[data-page="inspections"] .ip-split-r{right:calc(var(--isle-gap) + var(--pan
 body[data-page="inspections"] .is-splitting{-webkit-user-select:none;user-select:none;cursor:col-resize}
 @media (prefers-reduced-motion:reduce){body[data-page="inspections"] .ip-split::after{transition:none}}
 @media (max-width:1100px){body[data-page="inspections"] .ip-split{display:none}}
+/* Кто ближе к дальней области — списком под предупреждением. */
+body[data-page="inspections"] .ip-far{padding-left:18px;margin:2px 0 0}

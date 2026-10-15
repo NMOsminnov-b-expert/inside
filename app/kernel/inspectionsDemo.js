@@ -228,7 +228,12 @@ const odoPhoto = (v) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
   + '<text x="120" y="82" fill="#f2c94c" font-family="Consolas,monospace" font-size="30" text-anchor="middle" letter-spacing="3">'
   + String(v).padStart(6, '0') + '</text></svg>');
 // Дома осмотрщиков (маршрут дня, пункт 7.2): Бишкек, Бишкек, Кант.
-const HOMES = [['г. Бишкек, ул. Ахунбаева, 120', '42.8420, 74.5880'], ['г. Бишкек, мкр. Джал, 15', '42.8250, 74.5650'], ['г. Кант, ул. Ленина, 40', '42.8920, 74.8480']];
+// Дома демо-осмотрщиков и их область работы. Двое — в областях (Ош, Нарын):
+// рекомендации «кто ближе» к дальней области (решение пользователя
+// 15.10.2026) видны и в демо, а их назначения сами подбираются рядом с домом.
+const HOMES = [['г. Бишкек, ул. Ахунбаева, 120', '42.8420, 74.5880', 'Бишкек'], ['г. Бишкек, мкр. Джал, 15', '42.8250, 74.5650', 'Бишкек'],
+  ['г. Кант, ул. Ленина, 40', '42.8920, 74.8480', 'Чуй'], ['г. Ош, ул. Ленина, 200', '40.5280, 72.7985', 'Ош'],
+  ['г. Нарын, ул. Ленина, 30', '41.4287, 75.9911', 'Нарын']];
 const STREETS = ['ул. Советская', 'пр. Чуй', 'ул. Ленина', 'ул. Токтогула', 'ул. Ахунбаева'];
 
 function demoReports(names, assignments, recs, today, rnd) {
@@ -239,7 +244,7 @@ function demoReports(names, assignments, recs, today, rnd) {
   let n = 0;
   names.forEach((person, pi) => {
     const car = CARS[pi % CARS.length];
-    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car }, cadastre: pi === 0, regions: [pi === 2 ? 'Чуй' : 'Бишкек'],
+    profiles.push({ id: person, phone: `+996 555 10${pi} 2${pi}${pi}`, phoneType: pi % 2 ? 'ios' : 'android', car: { ...car }, cadastre: pi === 0, regions: [HOMES[pi % HOMES.length][2]],
       homeAddress: HOMES[pi % HOMES.length][0], homeGps: HOMES[pi % HOMES.length][1],
       // Ответственное лицо: двое — за текущим пользователем макета, третий —
       // за вторым регионалом (демо).
