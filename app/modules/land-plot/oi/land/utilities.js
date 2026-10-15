@@ -51,7 +51,7 @@ function summaryHTML(list) {
 export function utilitiesMS(ctx, oi) {
   const list = utilityList(oi);
 
-  return `<div class="field" data-util-field><label>Инженерное оснащение (мультивыбор)</label>
+  return `<div class="field" data-util-field><label>Инженерное оснащение</label>
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle="util" title="Открыть список">
         ${summaryHTML(list)}

@@ -28,7 +28,7 @@ export function heatingMS(ctx, oi, bare) {
 
   // bare — поле стоит ячейкой таблицы «Конструктив и износ»: подпись там уже
   // есть в первом столбце, а вторая сбивала бы строку по высоте.
-  return `<div class="field${bare ? ' f-bare' : ''}" data-heat-field>${bare ? '' : '<label>Отопление (мультивыбор)</label>'}
+  return `<div class="field${bare ? ' f-bare' : ''}" data-heat-field>${bare ? '' : '<label>Отопление</label>'}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
         ${summaryHTML(heating)}

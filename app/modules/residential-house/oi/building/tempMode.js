@@ -37,7 +37,7 @@ function summaryHTML(list) {
 export function tempModeMS(ctx, oi) {
   const list = tempList(oi);
 
-  return `<div class="field" data-temp-field><label>Температурный режим (мультивыбор)</label>
+  return `<div class="field" data-temp-field><label>Температурный режим</label>
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
         ${summaryHTML(list)}

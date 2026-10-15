@@ -28,7 +28,7 @@ export function heatingMS(ctx, oi, bare) {
   const heating = Array.isArray(oi.heating) ? oi.heating : [];
   const showOther = isOther(heating);
 
-  return `<div class="field${bare ? ' f-bare' : ''}" data-heat-field>${bare ? '' : '<label>Отопление (мультивыбор)</label>'}
+  return `<div class="field${bare ? ' f-bare' : ''}" data-heat-field>${bare ? '' : '<label>Отопление</label>'}
     <div class="ms">
       <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">
         ${summaryHTML(heating)}
