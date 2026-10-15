@@ -2,10 +2,16 @@ import { createSeed } from './seed.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
 import { persistView, VIEWER_KEEP } from '../../../kernel/viewState.js';
 import { LETTER_SEQ } from './dictionaries.js';
-import { demoEniNear } from '../../../kernel/demoParcels.js';
+import { demoEniNear, refreshDemoPlaces } from '../../../kernel/demoPlaces.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 export const records = createSeed();
+
+// Засев в нетронутом виде — образец мест демо-записей для сохранённых копий
+// (kernel/demoPlaces.js, refreshDemoPlaces): records к восстановлению уже
+// может быть перезаполнен.
+let pristine = null;
+const seedOf = () => pristine || (pristine = createSeed());
 
 // Введённое переживает перезагрузку страницы (требование пользователя
 // 09.09.2026). Сохраняются только данные: раскрытия, режимы и просмотрщик
@@ -20,6 +26,7 @@ registerPersisted('records.residential-house', {
     // «!saved.length → оставить засев» возвращало удалённые демо-записи после
     // перезагрузки (код-ревью 09.10.2026).
     if (!Array.isArray(saved)) return;
+    refreshDemoPlaces(saved, seedOf());
     records.splice(0, records.length, ...saved);
   },
 });
@@ -134,7 +141,7 @@ export function nextId(prefix) {
 }
 
 // ЕНИ нового ОИ — настоящий участок Кадастра рядом с кодом записи
-// (kernel/demoParcels.js, demoEniNear); занятые коды записи не повторяются.
+// (kernel/demoPlaces.js, demoEniNear); занятые коды записи не повторяются.
 export function nextEni(rec, base) {
   return demoEniNear(base || rec.eni, [rec.eni, ...rec.oi.map((o) => o.eni)]);
 }

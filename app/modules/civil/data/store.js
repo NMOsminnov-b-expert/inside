@@ -4,11 +4,18 @@ import { LETTER_SEQ } from './dictionaries.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
 import { persistView, VIEWER_KEEP } from '../../../kernel/viewState.js';
 import { migrateLiterKinds } from '../oi/building/migrate.js';
+import { refreshDemoPlaces } from '../../../kernel/demoPlaces.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 // С 28.09.2026 модуль — единый тип «Нежилое здание»: в нём и записи бывшего
 // «Производственного строения» (решение пользователя; data/seedProduction.js).
 export const records = [...createSeed(), ...createProductionSeed()];
+
+// Засев в нетронутом виде — образец мест демо-записей для сохранённых копий
+// (kernel/demoPlaces.js, refreshDemoPlaces): records к восстановлению уже
+// может быть перезаполнен.
+let pristine = null;
+const seedOf = () => pristine || (pristine = [...createSeed(), ...createProductionSeed()]);
 
 // Введённое переживает перезагрузку страницы (требование пользователя
 // 09.09.2026). Сохраняются только сами записи: раскрытия, режимы и просмотрщик
@@ -26,6 +33,7 @@ registerPersisted('records.civil', {
     // (records выше), снимок собирается из засева и правок — отдельно
     // возвращать их не нужно: прежняя добавка воскрешала удалённые.
     if (!Array.isArray(saved)) return;
+    refreshDemoPlaces(saved, seedOf());
     records.splice(0, records.length, ...saved);
   },
 });
@@ -40,6 +48,7 @@ registerPersisted('records.production', {
   snapshot: () => [],
   restore: (saved) => {
     if (!Array.isArray(saved)) return;
+    refreshDemoPlaces(saved, seedOf());
     saved.forEach((rec) => {
       rec.typeId = 'civil';
       rec.type = 'Нежилое здание';

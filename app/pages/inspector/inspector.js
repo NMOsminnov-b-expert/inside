@@ -252,12 +252,13 @@ export function mountInspector(host) {
   const contourTried = new Set();
   function fillContour(r, geo) {
     const key = route.typeId + '|' + route.ocId;
-    // Дозапрос и тогда, когда нет назначения по Кадастру (получено раньше,
-    // чем его стали брать, 14.10.2026).
-    if (!geo || !geo.extent || (geo.contour && geo.purpose) || !r.eni || contourTried.has(key)) return;
+    // Дозапрос и тогда, когда нет целевого назначения по Кадастру (получено
+    // раньше, чем его стали брать, 14.10.2026; показывается только оно —
+    // решение пользователя 15.10.2026 «Целевое только»).
+    if (!geo || !geo.extent || (geo.contour && geo.use) || !r.eni || contourTried.has(key)) return;
     contourTried.add(key);
     geoByEni(r.eni).then((g) => {
-      if (!g.contour && !g.purpose) return;
+      if (!g.contour && !g.use) return;
       geoMemo.set(key, { ...geo, contour: g.contour || geo.contour, house: g.house || geo.house,
         purpose: g.purpose || '', use: g.use || '', ownForm: g.ownForm || '', at: g.at, saved: false });
       if (route.typeId + '|' + route.ocId === key && (route.section || 'task') === 'task') render();
