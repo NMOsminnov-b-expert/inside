@@ -74,8 +74,6 @@ TAP_SELECTORS = ['.ins-tab', '.ins-back', '.ins-btn', '.ins-seg-b', '.ins-oi-h',
 MIN_TAP = 44
 
 # Установка значения в скрытый нативный селект своего списка.
-SET_WALLS = ("(el) => { el.value = 'Кирпич';"
-             " el.dispatchEvent(new Event('change', { bubbles: true })); }")
 
 # Снимок для проверки загрузки: 8×8 пикселей, генерируется на месте. Бинарь в
 # репозиторий тащить незачем, а настоящий файл нужен — Playwright отдаёт его
@@ -245,9 +243,11 @@ def run(t):
     t.ck(pg.locator('.ins-acc-need').count() >= 1,
          'у раздела с незаполненным обязательным нет счётчика')
 
-    t.ck(_has(t, 'Не удалось установить'),
-         'в шкале наличия сетей нет варианта «Не удалось установить» (шкала рабочей системы)')
-    t.ck(pg.locator('.ins-fs-req').count() >= 5, 'обязательные поля не помечены')
+    t.ck(pg.locator('select[data-fs-sel="condInner"] option', has_text='Удовлетворительное').count() >= 1,
+         'в «Внутреннем состоянии» нет шкалы карточки')
+    # Обязательные — как в карточке литеры: расположение строения, внутреннее
+    # и внешнее состояние.
+    t.ck(pg.locator('.ins-fs-req').count() >= 3, 'обязательные поля не помечены')
     # Сохранение — само (пересмотр шапки 14.10.2026): ход — полосой в шапке,
     # разделы — строкой под ней, после правки — «сохранено ЧЧ:ММ».
     t.ck(pg.locator('.ins-head [data-ins-prog]').count() == 1, 'в шапке осмотра нет полосы хода заполнения')
@@ -262,20 +262,22 @@ def run(t):
 
     prog = "document.querySelector('[data-ins-prog]').style.width"
     sum_before = pg.evaluate('() => ' + prog)
-    t.ck(pg.locator('select[data-fs-sel="electric"] option').count() == 5,
-         'в списке наличия сетей не «Не выбрано» и четыре варианта рабочей системы')
-    pg.select_option('select[data-fs-sel="electric"]', 'Не удалось установить')
+    # Форма строения — по карточке литеры (решение пользователя 15.10.2026
+    # «Эталон - ОЦ+ОИ»): «Расположение строения» — два значения карточки.
+    t.ck(pg.locator('select[data-fs-sel="buildType"] option').count() == 3,
+         'в списке «Расположение строения» не «Не выбрано» и два значения карточки')
+    pg.select_option('select[data-fs-sel="buildType"]', 'Встроенное')
     t.wait_until("(b) => document.querySelector('[data-ins-prog]').style.width !== b", sum_before)
     t.ck(pg.evaluate('() => ' + prog) != sum_before, 'полоса хода заполнения не сдвинулась после выбора')
     t.ck(pg.locator('[data-ins-saved]').inner_text().startswith('✓ сохранено'), 'после правки нет отметки «сохранено»')
     # Снять выбор — «Не выбрано» в том же списке.
-    pg.select_option('select[data-fs-sel="electric"]', '')
+    pg.select_option('select[data-fs-sel="buildType"]', '')
     t.wait_until("(b) => document.querySelector('[data-ins-prog]').style.width === b", sum_before)
     t.ck(pg.evaluate('() => ' + prog) == sum_before, 'выбор «Не выбрано» не снял значение')
 
     # Многозначные: мультивыбор с отметками, несколько ответов сразу, снятие.
-    box = '[data-fs-msbox="heatSystems"]'
-    t.ck(pg.locator(box).count() == 1, '«Системы отопления (1 или более)» — не мультивыбор')
+    box = '[data-fs-msbox="heating"]'
+    t.ck(pg.locator(box).count() == 1, '«Отопление» — не мультивыбор, как в карточке')
     pg.locator(box + ' [data-fs-ms-toggle]').click()
     opts = pg.locator(box + ' .ms-drop:not([hidden]) input[data-fs-ms]')
     t.ck(opts.count() == 11, 'в мультивыборе %d значений вместо одиннадцати' % opts.count())
@@ -312,9 +314,10 @@ def run(t):
     def secs():
         return pg.eval_on_selector_all('.ins-acc-t b', 'els => els.map((e) => e.textContent.trim())')
     t.open('#/insp/apartment/oc-ap-1/object/oi-ap1-a', wait='.ins-acc-t')
-    t.ck('Состояние' in secs() and 'Чек-лист коммуникаций' not in secs(), 'у квартиры не её форма осмотра: %s' % secs())
+    t.ck('Состояние' in secs() and 'Общие параметры квартиры' in secs() and 'Чек-лист коммуникаций' not in secs(),
+         'у квартиры не её форма осмотра: %s' % secs())
     t.open('#/insp/land-plot/oc-lp-1/object/oi-lp1-l1', wait='.ins-acc-t')
-    t.ck('Инженерные сети' in secs() and 'Конструктивные элементы' not in secs(), 'у участка не его форма осмотра: %s' % secs())
+    t.ck('Инженерные сети' in secs() and 'Конструктив и износ' not in secs(), 'у участка не его форма осмотра: %s' % secs())
     t.open('#/insp/civil/oc-cv-1/object/oi-cv1-m1', wait='.ins-acc-t')
     t.ck('Котёл газовый водогрейный КВГ-1,25' in secs(), 'у механизмов нет разделов по единицам: %s' % secs())
     pg.locator('select[data-fs-sel$=".state"]').first.select_option('Нерабочее')
@@ -323,6 +326,9 @@ def run(t):
     t.ck(pg.locator('[data-fs-field]').count() == 0 and _has(t, 'ещё не заданы'), 'у ТС показана форма осмотра (ждёт решения)')
     t.open(ASSET, wait='.ins-fs')
     t.wait(300)
+    # Строение — блоки карточки литеры; чек-лист коммуникаций — у участка.
+    t.ck('Конструктив и износ' in secs() and 'Состояние' in secs() and 'Чек-лист коммуникаций' not in secs(),
+         'у строения не блоки его карточки: %s' % secs())
 
     # Замеры: единицы, значение по документам и СИГНАЛ расхождения по ходу
     # ввода — сигнал, который появляется только после сохранения, на осмотре
@@ -338,36 +344,32 @@ def run(t):
     t.ck(pg.locator('.ins-num').first.input_value() == '1852.00', 'замер не вводится')
 
     # Длинные перечни — списком, а не чипами: у наружных стен 44 значения, и
-    # чипами это четыре экрана прокрутки на одно поле.
+    # чипами это четыре экрана прокрутки на одно поле. Материал — мультивыбор,
+    # как в карточке («Конструктив и износ»).
     sels = pg.locator('[data-fs-sel]').count()
     t.ck(sels >= 6, 'длинные перечни не стали списками: %d' % sels)
-    opts = pg.eval_on_selector_all('[data-fs-sel="wallsExt"] option', 'e => e.length')
+    walls = '[data-fs-msbox="wallsExt"]'
+    t.ck(pg.locator(walls).count() == 1, 'у наружных стен нет мультивыбора, как в карточке')
+    opts = pg.eval_on_selector_all(walls + ' input[data-fs-ms]', 'e => e.length')
     t.ck(opts > 40, 'в перечне наружных стен потерялись значения: %d' % opts)
-
-    t.ck(pg.locator('[data-fs-sel="wallsExt"]').count() == 1,
-         'у наружных стен нет списка выбора')
-
-    # Значение ставим в скрытый нативный селект: подпись своей кнопки обязана
-    # это подхватить (kernel/dropdown.js, syncButton).
-    pg.eval_on_selector('[data-fs-sel="wallsExt"]', SET_WALLS)
-    t.wait(300)
-    t.ck(pg.locator('[data-fs-sel="wallsExt"]').input_value() == 'Кирпич',
-         'выбор из списка не сохранился')
+    pg.locator(walls + ' [data-fs-ms-toggle]').click()
+    pg.locator(walls + ' .ms-drop:not([hidden]) .ms-opt', has_text='Кирпич').first.click()
+    t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 1", walls)
+    pg.keyboard.press('Escape')
+    t.ck('кирпич' in pg.locator(walls + ' [data-fs-ms-sum]').inner_text().lower(),
+         'сводка мультивыбора не показала выбранное значение')
 
     # Списки в модуле — СВОИ (kernel/dropdown.js), как во всём макете: иначе
     # поля выглядят браузерными, а перечень из 44 значений листают прокруткой
     # вместо поиска (замечание пользователя 08.09.2026 про стилизацию).
     t.ck(pg.locator('.pick-btn').count() >= 6,
          'списки не подменены своим компонентом: %d' % pg.locator('.pick-btn').count())
-    t.ck('кирпич' in pg.locator('[data-fs-field="wallsExt"] .pick-btn').inner_text().lower(),
-         'подпись своего списка не показала выбранное значение')
 
-    # Состав полей — как в рабочей системе (inside.html в корне проекта).
-    for label in ('Фундамент', 'Цоколь', 'Наружные стены', 'Внутренние стены', 'Двери'):
-        t.ck(_has(t, label), 'в конструктивных элементах нет поля «%s»' % label)
+    # Состав полей — как в карточке литеры («Конструктив и износ»).
+    for label in ('Фундамент', 'Цоколь/подвал', 'Наружные стены', 'Внутренние стены', 'Двери', 'Отделка', 'Утепление'):
+        t.ck(_has(t, label), 'в «Конструктиве и износе» нет поля «%s»' % label)
 
-    t.ck(pg.locator('.ins-ta').count() >= 2,
-         'в комментариях меньше двух полей: особенности и комментарий осмотрщика')
+    t.ck(pg.locator('.ins-ta').count() >= 1, 'в комментариях нет поля «Комментарий осмотрщика»')
 
     # Помещения: добавляются и убираются. Поэтажные планы там не нужны —
     # экспликации есть в техпаспорте (решение пользователя 08.09.2026).
