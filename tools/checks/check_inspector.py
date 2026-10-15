@@ -218,22 +218,25 @@ def run(t):
     t.open(ASSET, wait='.ins-acc')
     t.wait(300)
 
-    t.ck(pg.locator('.ins-acc').count() == 5,
-         'разделов формы не пять: %d' % pg.locator('.ins-acc').count())
+    # Строение нежилого здания — блоки карточки литеры (15.10.2026): общие
+    # параметры, площади и этажность, конструктив и износ, состояние, тип и
+    # класс капитальности, комментарии.
+    n = pg.locator('.ins-acc').count()
+    t.ck(n == 6, 'разделов формы строения не шесть: %d' % n)
 
     # Все разделы открыты по умолчанию: свёрнутое заранее приходится
     # разворачивать, а на осмотре нужно заполнять (замечание пользователя
     # 08.09.2026).
-    t.ck(pg.locator('.ins-acc.on').count() == 5,
-         'не все разделы открыты по умолчанию: %d из 5' % pg.locator('.ins-acc.on').count())
+    t.ck(pg.locator('.ins-acc.on').count() == n,
+         'не все разделы открыты по умолчанию: %d из %d' % (pg.locator('.ins-acc.on').count(), n))
 
     # Свернуть можно руками — и развернуть обратно.
     pg.locator('[data-sec="struct"]').click()
-    t.wait_until('() => document.querySelectorAll(".ins-acc.on").length === 4')
-    t.ck(pg.locator('.ins-acc.on').count() == 4, 'раздел не свернулся по нажатию')
+    t.wait_until('([n]) => document.querySelectorAll(".ins-acc.on").length === n - 1', [n])
+    t.ck(pg.locator('.ins-acc.on').count() == n - 1, 'раздел не свернулся по нажатию')
     pg.locator('[data-sec="struct"]').click()
-    t.wait_until('() => document.querySelectorAll(".ins-acc.on").length === 5')
-    t.ck(pg.locator('.ins-acc.on').count() == 5, 'раздел не развернулся обратно')
+    t.wait_until('([n]) => document.querySelectorAll(".ins-acc.on").length === n', [n])
+    t.ck(pg.locator('.ins-acc.on').count() == n, 'раздел не развернулся обратно')
 
     # Свёрнутый раздел говорит о себе: сколько заполнено из сколького.
     subs = pg.eval_on_selector_all('.ins-acc-sub', 'e => e.map((x) => x.textContent.trim())')

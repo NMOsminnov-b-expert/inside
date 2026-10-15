@@ -20,6 +20,7 @@
 
 import { getValue } from '../../kernel/fieldSchema.js';
 import { optionsFor } from '../../kernel/dicts.js';
+import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS } from '../../kernel/registry.js';
 
 // Ступени износа словами, а не проценты: на осмотре процент не измерить, его
 // считают позже по элементам (III этап ТЗ).
@@ -245,6 +246,43 @@ const stateSection = (typeId, card) => ({
   ],
 });
 
+// Тип и класс капитальности — как блок карточки литеры (civil/oi/building,
+// capClass.js; решение пользователя 15.10.2026 «Тип и класс капитальности надо
+// бы включить в осмотры»): тип объекта имущества, назначение по факту и
+// признаки класса своего типа. Какие поля видны — по типу, выбранному на
+// осмотре, а пока не выбран — по типу в карточке. Высота признака — из замера
+// «Высота по внутренним замерам». Показывается у нежилого строения, как в
+// карточке (fieldRules: showOiCategory).
+const kindByLabel = (label) => (LIT_KINDS.find((k) => k.label === label) || {}).key || '';
+const kindLabelOf = (key) => (LIT_KINDS.find((k) => k.key === key) || {}).label || '';
+const capClassSection = (oi) => {
+  const kindNow = (values) => kindByLabel(values.litKind) || (oi && oi.litKind) || '';
+  const own = (kind) => (oi && oi.litKind === kind);
+  const signDoc = (kind, key) => Object.assign((o) => {
+    if (!o || o.litKind !== kind) return '';
+    const v = (o.capSigns || {})[key];
+    return Array.isArray(v) ? v.filter(Boolean).join(', ') : (v || '');
+  }, { path: 'capSigns.' + key });
+  return {
+    key: 'capclass',
+    title: 'Тип и класс капитальности',
+    short: 'Класс',
+    fields: [
+      { key: 'litKind', label: 'Тип объекта имущества', opts: LIT_KINDS.map((k) => k.label), doc: Object.assign((o) => kindLabelOf(o && o.litKind), { path: 'litKind' }) },
+      ...LIT_KINDS.map((k) => ({
+        key: 'purposeFact_' + k.key, label: 'Назначение по факту', opts: LIT_PURPOSES[k.key] || [],
+        visible: (values) => kindNow(values) === k.key,
+        doc: Object.assign((o) => (own(k.key) ? o.purposeFact || '' : ''), { path: 'purposeFact' }),
+      })),
+      ...Object.entries(LIT_SIGNS).flatMap(([kind, signs]) => signs.filter((g) => !g.height).map((g) => ({
+        key: `cap_${kind}_${g.key}`, label: g.label, multi: !!g.multi, opts: g.options.map((o) => o[0]),
+        visible: (values) => kindNow(values) === kind,
+        doc: signDoc(kind, g.key),
+      }))),
+    ],
+  };
+};
+
 const commentsSection = {
   key: 'comments',
   title: 'Комментарии',
@@ -284,6 +322,7 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
   },
   structSection(typeId, 'building', { wallsExt: prod }),
   stateSection(typeId, 'building'),
+  ...(oi && oi.residential ? [] : [capClassSection(oi)]),
   ...(prod ? [{
     key: 'prod',
     title: 'Доп параметры (производственное строение)',
