@@ -390,6 +390,47 @@ def run(t):
     t.wait_until('() => document.querySelectorAll(".ins-pm-i").length === 0')
     t.ck(pg.locator('.ins-pm-i').count() == 0, 'помещение не убралось')
 
+    # Съёмка прямо из формы осмотра (15.10.2026: «Буквально кнопка»): снимок
+    # сразу этому ОИ, категория — по разделу на экране, место в форме не
+    # сбивается; «Снимки N» раскрывает сделанное по категориям. Ловит: снимок
+    # не к тому ОИ, сброс прокрутки после снимка, пустую панель.
+    t.open(ASSET, wait='[data-cam-shoot]')
+    # Форма — к началу «Конструктива» напрямую, без плавного перехода по
+    # строке разделов: иначе замер ловит середину прокрутки.
+    y0 = pg.evaluate("""() => { const b = document.querySelector('.ins-body'); const sec = document.querySelector('[data-sec-box="struct"]');
+      b.scrollTop += sec.getBoundingClientRect().top - b.getBoundingClientRect().top + 20; return b.scrollTop; }""")
+    with pg.expect_file_chooser() as fc:
+        pg.click('[data-cam-shoot]')
+    fc.value.set_files({'name': 'cam.png', 'mimeType': 'image/png', 'buffer': PNG_8x8})
+    t.wait_for('.ins-cam-btns [data-cam-list]')
+    got = pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
+      return K.taskState('%s', '%s').photos.filter(p => p.name === 'cam.png').map(p => [p.oiId, p.cat]); }""" % (TYPE, OC))
+    t.ck(got == [['oi-cv1-a', 'Конструкции']], 'снимок из формы не к этому ОИ или не в категорию раздела: %s' % got)
+    y1 = pg.evaluate("document.querySelector('.ins-body').scrollTop")
+    t.ck(abs(y1 - y0) < 4, 'после снимка форма прокрутилась: %s → %s' % (y0, y1))
+    pg.click('.ins-cam-btns [data-cam-list]')
+    t.ck(t.wait_for('.ins-cam-panel [data-shot]'), 'панель снимков не раскрылась или пуста')
+    t.ck('Конструкции' in pg.inner_text('.ins-cam-panel'), 'в панели нет категории снимка')
+    pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
+      K.taskState('%s', '%s').photos.filter(p => p.name === 'cam.png').forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
+
+    # Вкладки помнят своё место (15.10.2026: «Возврат из других разделов не
+    # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои
+    # состояния»): «Фото» → «Объект» — в ту же литеру и на то же место
+    # прокрутки; «Фото» — сразу на этой литере; «Объект» из литеры — к перечню.
+    t.open(ASSET, wait='[data-cam-shoot]')
+    pg.evaluate("document.querySelector('.ins-body').scrollTop = 400")
+    y = pg.evaluate("document.querySelector('.ins-body').scrollTop")
+    pg.locator('.ins-tabs a', has_text='Фото').click()
+    t.wait_for('[data-oi-pick]')
+    t.ck(pg.evaluate("document.querySelector('[data-oi-pick]').value") == 'oi-cv1-a', '«Фото» открылось не на текущей литере')
+    pg.locator('.ins-tabs a', has_text='Объект').click()
+    t.ck(t.wait_until("() => location.hash.endsWith('/object/oi-cv1-a')"), '«Объект» не вернул в литеру: %s' % pg.evaluate('location.hash'))
+    t.wait_for('[data-cam-shoot]')
+    t.ck(abs(pg.evaluate("document.querySelector('.ins-body').scrollTop") - y) < 4, 'возврат в литеру сбросил прокрутку')
+    pg.locator('.ins-tabs a', has_text='Объект').click()
+    t.ck(t.wait_until("() => location.hash.endsWith('/object')"), '«Объект» из литеры не ведёт к перечню ОИ')
+
     # Значения у каждого ОИ свои: заполненное у литеры не должно появиться у
     # другого объекта имущества.
     t.open(TASK + '/object/oi-cv1-b', wait='.ins-fs-grid')

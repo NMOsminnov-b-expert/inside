@@ -606,6 +606,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
   rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
+  shots = [], shotsOpen = false,
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
@@ -653,8 +654,55 @@ export function assetHTML({
       </section>
     </div>
 
+    ${cameraHTML(shots, shotsOpen)}
+
     ${tabsHTML('object', hrefFor, counts)}
   </div>`;
+}
+
+// Съёмка прямо из формы осмотра (указание пользователя 15.10.2026: «Должна
+// быть возможность выполнения фото прямо из карточки заполнения… Буквально
+// кнопка»): круглая кнопка камеры внизу справа, всегда под большим пальцем —
+// снимок сразу этому ОИ, категория — по разделу на экране. Рядом — «Снимки N»:
+// раскрывает панель уже сделанного по категориям в порядке съёмки («с
+// возможностью переноса и удаления» — касание снимка открывает просмотр, где
+// его переносят в другую категорию или к другому ОИ и удаляют). Панель не
+// модальная: форма под ней прокручивается и заполняется.
+const shotTime = (p) => p.at || (() => {
+  const t = parseInt(String(p.id || '').split('-')[1], 36);
+  return Number.isFinite(t) ? new Date(t).toISOString() : '';
+})();
+const hhmm = (iso) => (iso ? new Date(iso).toTimeString().slice(0, 5) : '');
+
+function cameraHTML(shots, open) {
+  const cats = [...PHOTO_CATS, ...new Set(shots.map((p) => p.cat).filter((c) => !PHOTO_CATS.includes(c)))];
+  const byCat = cats.map((c) => [c, shots.filter((p) => p.cat === c)
+    .sort((a, b) => shotTime(a).localeCompare(shotTime(b)))]).filter(([, l]) => l.length);
+  return `<div class="ins-cam" data-cam><div class="ins-cam-in">
+    ${open && shots.length ? `<section class="ins-cam-panel" id="insShots" aria-label="Снимки объекта">
+      <div class="ins-cam-head"><b>Снимки объекта · ${shots.length}</b>
+        <button class="ins-cam-x" data-cam-list aria-label="Скрыть снимки" title="Скрыть снимки">${ico('chev', 18)}</button></div>
+      <div class="ins-cam-scroll">
+        ${byCat.map(([c, list]) => `<div class="ins-shots">
+          <span class="ins-shots-h">${esc(c)} · ${list.length}</span>
+          <ul class="ins-grid">
+            ${list.map((p) => `<li class="ins-shot">
+              <button class="ins-shot-b" data-shot="${esc(p.id)}" title="Открыть: перенести или удалить">
+                <img src="${esc(p.dataUrl || p.url || '')}" alt="${esc(p.name)}" loading="lazy">
+                ${hhmm(shotTime(p)) ? `<span class="ins-shot-t">${esc(hhmm(shotTime(p)))}</span>` : ''}
+              </button>
+            </li>`).join('')}
+          </ul>
+        </div>`).join('')}
+      </div>
+      <p class="ins-hint">Касание снимка — просмотр: перенести в другую категорию или к другому объекту, удалить.</p>
+    </section>` : ''}
+    <div class="ins-cam-btns">
+      ${shots.length ? `<button class="ins-cam-list" data-cam-list aria-expanded="${open}" aria-controls="insShots">
+        ${ico('photo', 18)} Снимки <b>${shots.length}</b></button>` : ''}
+      <button class="ins-cam-shoot" data-cam-shoot aria-label="Сфотографировать" title="Сфотографировать">${ico('photo', 28)}</button>
+    </div>
+  </div></div>`;
 }
 
 // Раздел. Свёрнутый ОБЯЗАН говорить о себе: сколько полей заполнено и сколько

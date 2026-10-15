@@ -58,7 +58,7 @@ export const saveResults = () => scheduleSave();
 
 let photoSeq = 0;
 export function addResultPhoto(typeId, ocId, file, fields) {
-  const photo = { id: 'ph-' + Date.now().toString(36) + '-' + (++photoSeq), name: file.name || 'снимок', size: file.size, ...fields };
+  const photo = { id: 'ph-' + Date.now().toString(36) + '-' + (++photoSeq), name: file.name || 'снимок', size: file.size, at: new Date().toISOString(), ...fields };
   photo.dataUrl = URL.createObjectURL(file);
   keepFileLocally(file, photo);
   resultsOf(typeId, ocId).photos.push(photo);

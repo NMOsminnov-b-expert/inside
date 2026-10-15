@@ -58,6 +58,8 @@ export function mountInspector(host) {
     openOi: null,
     // К чему привязать следующий снимок. Пустое — возьмём первый ОИ записи.
     photoOi: '',
+    // Панель снимков в форме осмотра ОИ раскрыта.
+    shotsOpen: false,
     cat: PHOTO_CATS[0],
     // Разделы формы, свёрнутые ВРУЧНУЮ. По умолчанию открыты все: свёрнутое
     // заранее приходится разворачивать (замечание пользователя 08.09.2026).
@@ -518,9 +520,18 @@ export function mountInspector(host) {
   // сдвига строки за переход «Коммуникации → Комментарии» против 1 и 1).
   let jumping = false;
   let pinned = null;
+  // Отметка текущего раздела — не чаще раза за кадр: при быстрой прокрутке
+  // колесом событий десятки за кадр, и замер всех разделов на каждое
+  // перестраивал раскладку посреди прокрутки — страница дёргалась (замечание
+  // пользователя 15.10.2026).
+  let scrollFrame = 0;
   function onScroll() {
-    if (!content() || jumping) return;
-    markCurrentSection();
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      if (!content() || jumping) return;
+      markCurrentSection();
+    });
   }
   scope.onDocument('scroll', onScroll, true);
   // Колесо над шапкой, строкой разделов и панелью разделов прокручивает
@@ -562,6 +573,12 @@ export function mountInspector(host) {
       }
     });
   }
+
+  // Память вкладок задачи: последняя открытая литера («Объект» ведёт в неё) и
+  // прокрутка каждого экрана — на время работы приложения.
+  const lastOi = new Map();
+  const scrollOf = new Map();
+  const screenKey = (r) => [r.typeId, r.ocId, r.section, r.oiId, (r.query && r.query.tab) || ''].join('|');
 
   function render() {
     draw();
@@ -640,16 +657,28 @@ export function mountInspector(host) {
 
     const state = taskState(typeId, ocId);
     const docs = taskDocs(r);
-    const hrefFor = (s) => inspHref({ typeId, ocId, section: s });
+    // Вкладки помнят своё место (указание пользователя 15.10.2026: «Возврат из
+    // других разделов не возвращает обратно в ОИ… Нужно, что бы вкладки
+    // запоминали свои состояния»): «Объект» ведёт в литеру, где был осмотрщик;
+    // из самой литеры — к перечню ОИ.
+    const lastOiId = lastOi.get(typeId + '|' + ocId);
+    const inAsset = section === 'object' && route.oiId;
+    const hrefFor = (s) => (s === 'object' && lastOiId && !inAsset
+      ? inspHref({ typeId, ocId, section: 'object', oiId: lastOiId })
+      : inspHref({ typeId, ocId, section: s }));
     const counts = { docs: docs.length, photo: state.photos.length };
     const taskHref = inspHref({ typeId, ocId });
     const oiList = oiOptions(r, typeId, ocId);
+    // Запомненный ОИ мог исчезнуть (выявленное удалили) — тогда первый.
+    if (ui.photoOi && !oiList.some((o) => o.id === ui.photoOi)) ui.photoOi = '';
 
     // Осмотр одного объекта имущества — подраздел «Объекта»: раздел в панели
     // остаётся тот же, а «назад» ведёт к перечню, а не к задаче.
     if (section === 'object' && route.oiId) {
       const oi = inspOis(r, typeId, ocId).find((o) => o.id === route.oiId);
       if (oi) {
+        lastOi.set(typeId + '|' + ocId, oi.id);
+        ui.photoOi = oi.id;
         scope.setHTML(assetHTML({
           rec: r,
           oi,
@@ -665,12 +694,15 @@ export function mountInspector(host) {
           backHref: inspHref({ typeId, ocId, section: 'object' }),
           savedText: savedTextOf(typeId, ocId, oi.id),
           oiPhotos: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id).length,
+          shots: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id),
+          shotsOpen: ui.shotsOpen,
         }));
         return;
       }
     }
 
     if (section === 'object') {
+      lastOi.delete(typeId + '|' + ocId);
       scope.setHTML(objectHTML({
         rec: r,
         openOi: ui.openOi,
@@ -1309,10 +1341,54 @@ export function mountInspector(host) {
   scope.on('change', '[data-oi-pick]', (e, el) => { ui.photoOi = el.value; });
   scope.on('change', '[data-cat]', (e, el) => { ui.cat = el.value; });
 
+  // --- съёмка из формы осмотра ОИ ---------------------------------------
+  // Перерисовка без потери места в форме: осмотрщик снимает посреди раздела.
+  const renderKeep = () => {
+    const body = scope.$('.ins-body');
+    const y = body ? body.scrollTop : 0;
+    render();
+    const again = scope.$('.ins-body');
+    if (again) again.scrollTop = y;
+  };
+  // Категория снимка — по разделу формы на экране; поправить можно в просмотре.
+  const camCat = () => {
+    const card = (curOi() || {}).card || 'building';
+    // Раздел — тот, что стоит в верхней трети видимой части формы в момент
+    // снимка: отметка строки разделов догоняет прокрутку с задержкой.
+    const body = scope.$('.ins-body');
+    const line = body ? body.getBoundingClientRect().top + body.clientHeight / 3 : 0;
+    const boxes = scope.$$('[data-sec-box]').filter((b) => b.getBoundingClientRect().top <= line);
+    const k = boxes.length ? boxes[boxes.length - 1].dataset.secBox : '';
+    if (card === 'land') return 'Земельный участок';
+    if (k === 'struct' || k === 'capclass' || k === 'prod') return 'Конструкции';
+    if (k === 'premises' || card === 'apartment') return 'Внутр. помещения';
+    if (k === 'comments') return 'Прочее';
+    return 'Фасад';
+  };
+  scope.on('click', '[data-cam-list]', () => { ui.shotsOpen = !ui.shotsOpen; renderKeep(); });
+  scope.on('click', '[data-cam-shoot]', async () => {
+    if (!route.oiId) return;
+    const file = await pickFile('image/*', { capture: 'environment' });
+    if (!file) return;
+    if (isFileTooLarge(file)) {
+      host.toast(`Снимок больше ${MAX_DOC_FILE_MB} МБ — уменьшите качество съёмки`, 'warn');
+      return;
+    }
+    const cat = camCat();
+    const res = addPhoto(route.typeId, route.ocId, file, { oiId: route.oiId, cat });
+    if (res.error) {
+      host.toast(res.error, 'warn');
+      return;
+    }
+    // Без всплывающего сообщения: снимают сериями, и сообщения ложились на
+    // кнопку камеры. Отклик — число на «Снимки N».
+    renderKeep();
+  });
+
   scope.on('click', '[data-shoot]', async () => {
     const r = rec();
     const oiList = oiOptions(r || {}, route.typeId, route.ocId);
-    const oiId = ui.photoOi || (oiList[0] ? oiList[0].id : '');
+    const oiId = (oiList.some((o) => o.id === ui.photoOi) && ui.photoOi) || (oiList[0] ? oiList[0].id : '');
     if (!oiId) {
       host.toast('Не к чему привязать снимок: в объекте нет ОИ', 'warn');
       return;
@@ -1337,14 +1413,14 @@ export function mountInspector(host) {
     movePhoto(route.typeId, route.ocId, el.dataset.move, { cat: el.value });
     host.toast('Снимок перенесён в «' + el.value + '»', 'ok');
     closeLightbox();
-    render();
+    renderKeep();
   });
 
   scope.on('change', '[data-move-oi]', (e, el) => {
     movePhoto(route.typeId, route.ocId, el.dataset.moveOi, { oiId: el.value });
     host.toast('Снимок привязан к другому объекту', 'ok');
     closeLightbox();
-    render();
+    renderKeep();
   });
 
   scope.on('click', '[data-drop]', async (e, el) => {
@@ -1356,7 +1432,7 @@ export function mountInspector(host) {
     if (!ok) return;
     removePhoto(route.typeId, route.ocId, el.dataset.drop);
     closeLightbox();
-    render();
+    renderKeep();
   });
 
   // Просмотр снимка — слоем поверх, без перехода: осмотрщик открывает снимок,
@@ -1382,6 +1458,9 @@ export function mountInspector(host) {
   return {
     onRoute(next) {
       const sameTask = next.typeId === route.typeId && next.ocId === route.ocId;
+      // Прокрутка уходящего экрана — запомнить, приходящего — вернуть.
+      const body = scope.$('.ins-body');
+      if (body) scrollOf.set(screenKey(route), body.scrollTop);
       // Развёрнутая карта — только на своём экране: любой переход её сворачивает.
       mapBig = false;
       route = next;
@@ -1392,6 +1471,9 @@ export function mountInspector(host) {
         ui.photoOi = '';
       }
       render();
+      const y = scrollOf.get(screenKey(next));
+      const again = scope.$('.ins-body');
+      if (again && y) again.scrollTop = y;
     },
     destroy() {
       closeLightbox();
