@@ -109,6 +109,17 @@ const PERSON_TABS = [['trips', 'Выезды'], ['plan', 'План месяца'
   ['assigns', 'Объекты'], ['profile', 'Профиль'], ['car', 'Авто']];
 const ALL_TABS = [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
   ['stats', 'Статистика'], ['fields', 'Свои поля']];
+// Значки кнопок массовых действий: на узкой панели кнопка — только значок,
+// подпись — в подсказке и aria-label («На узких режимах ломается. Лучше на
+// узких режимах заменить некоторые кнопки на иконки», 15.10.2026).
+const svg = (body) => `<svg class="ip-bi" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const BULK_ICONS = {
+  reassign: svg('<circle cx="6" cy="5" r="2.5"/><path d="M1.5 13.5c.6-2.4 2.4-3.6 4.5-3.6 1 0 1.9.3 2.6.8"/><path d="M10.5 10.5h4M12.8 8.5l2 2-2 2"/>'),
+  move: svg('<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3M7 10.5h4M9.5 9l1.5 1.5L9.5 12"/>'),
+  remove: svg('<path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9M6.8 7v4.5M9.2 7v4.5"/>'),
+};
+const bulkBtn = (attr, icon, label, cls = '') => `<button class="btn btn-ghost btn-sm ip-bbtn ${cls}" ${attr} aria-label="${label}" title="${label}">${BULK_ICONS[icon]}<span class="ip-bt">${label}</span></button>`;
+
 const SEARCH_ICON = `<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
   <circle cx="6" cy="6" r="4.1" fill="none" stroke="currentColor" stroke-width="1.4"/>
   <path d="M9.2 9.2 12.4 12.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
@@ -453,13 +464,13 @@ export function mountInspections(host) {
         <input class="input" type="date" data-ip-dl-date aria-label="Крайний срок для отмеченных" title="Крайний срок для отмеченных">
         <button class="btn btn-ghost btn-sm" data-ip-dl-set>Поставить срок</button></span>`;
     }
-    return `<span class="ip-bulk2 ip-bulk-a"><span class="ip-bulk-n">Отмечено <b>${checked.size}</b>${CLEAR}</span>
+    return `<div class="ip-bulk-c"><span class="ip-bulk2 ip-bulk-a"><span class="ip-bulk-n">Отмечено <b>${checked.size}</b>${CLEAR}</span>
       <span class="ip-bulk-pair"><select class="select" data-ip-ba-person aria-label="Кому переназначить"><option value="">— кому —</option>
         ${people.filter((p) => !p.fired).map((p) => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('')}</select>
-      <button class="btn btn-ghost btn-sm" data-ip-ba-reassign>Переназначить</button></span>
+      ${bulkBtn('data-ip-ba-reassign', 'reassign', 'Переназначить')}</span>
       <span class="ip-bulk-pair"><input class="input" type="date" data-ip-ba-date aria-label="Новая плановая дата">
-      <button class="btn btn-ghost btn-sm" data-ip-ba-move>Перенести</button></span>
-      <button class="btn btn-ghost btn-sm ip-bulk-del" data-ip-ba-remove>Снять назначение</button></span>`;
+      ${bulkBtn('data-ip-ba-move', 'move', 'Перенести')}</span>
+      ${bulkBtn('data-ip-ba-remove', 'remove', 'Снять назначение', 'ip-bulk-del')}</span></div>`;
   }
 
   function assignSection() {
