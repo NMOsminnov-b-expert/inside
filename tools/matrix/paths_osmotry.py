@@ -208,6 +208,21 @@ def _(p):
     p.eq('поиск и найденное те же', [p.page.input_value('[data-plan-q]'), p.page.locator('[data-plan-list] a[href^="#/insp/"]').count()], ['ул', n0])
 
 
+@path('inspector-asset-tabs-back', 'Осмотрщик: литера, прокрутка → «Фото» → «Объект» → та же литера и то же место; «Фото» — на этой литере', 'О3', roles=('insp',), touches=_TI)
+def _(p):
+    # Указание пользователя 15.10.2026: «Возврат из других разделов не
+    # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои состояния».
+    p.open('#/insp/civil/oc-cv-1/object/oi-cv1-b?as=' + quote(PERSON), '[data-cam-shoot]')
+    y0 = p.page.evaluate("() => { const b = document.querySelector('.ins-body'); b.scrollTop = 400; return b.scrollTop; }")
+    p.page.locator('.ins-tabs a', has_text='Фото').click()
+    p.wait_for('[data-oi-pick]')
+    p.eq('«Фото» на текущей литере', p.page.evaluate("document.querySelector('[data-oi-pick]').value"), 'oi-cv1-b')
+    p.page.locator('.ins-tabs a', has_text='Объект').click()
+    p.wait_for('[data-cam-shoot]')
+    p.eq('та же литера и место', [p.page.evaluate('location.hash').split('?')[0].endswith('/object/oi-cv1-b'),
+                                   abs(p.page.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4], [True, True])
+
+
 @path('queue-filters-back', '«К назначению»: отборы (район, площадь) → другой раздел → «Назад» → отборы и строки те же', 'Р2')
 def _(p):
     p.open('#/inspections?s=assign&t=queue', '.ip-fbtn')
