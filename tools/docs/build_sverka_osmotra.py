@@ -77,6 +77,9 @@ INSPECT = r"""async (pairs) => {
           fields: s.fields.map((f) => ({
             key: f.key, label: f.label, opts: f.opts || null, multi: !!f.multi, unit: f.unit || '',
             num: !!f.num, req: !!f.req, long: !!f.long, cond: !!f.visible,
+            // Поле с условием показа (вариант по виду строения) — видно ли
+            // оно этому ОИ при пустом осмотре: вид берётся из записи ОИ.
+            shown: typeof f.visible === 'function' ? !!f.visible({}) : true,
             doc: typeof f.doc === 'function' ? str(f.doc(oi)) : (f.tpFrom ? str(F.tpValue(oi, f.tpFrom)) : null),
             docPath: typeof f.doc === 'function' ? str(f.doc.path) : (f.tpFrom ? ({ tp: 'areas.tp', pud: 'areas.pud', build: 'areas.build', heightExt: 'heights.ext', heightInt: 'heights.int' })[f.tpFrom] || f.tpFrom : ''),
           })),
@@ -86,6 +89,18 @@ INSPECT = r"""async (pairs) => {
   }
   return out;
 }"""
+
+# Переключатели сегментами карточки: подпись — aria-label группы, перечень —
+# надписи кнопок, значение — нажатая.
+SEGMENTS = r"""() => [...document.querySelectorAll('.oi-stack [role=radiogroup][aria-label]')].map((g) => {
+  const card = g.closest('.card');
+  const head = card && card.querySelector('h3');
+  const btns = [...g.querySelectorAll('button, [role=radio]')];
+  const on = btns.find((x) => x.getAttribute('aria-checked') === 'true' || x.getAttribute('aria-pressed') === 'true' || x.classList.contains('on'));
+  return { блок: head ? head.textContent.replace(/\s+/g, ' ').trim() : '', подпись: g.getAttribute('aria-label'),
+           значения: btns.map((x) => x.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean),
+           значение: on ? on.textContent.replace(/\s+/g, ' ').trim() : '' };
+})"""
 
 STOP = {'наличие', 'по', 'и', 'или', 'в', 'на', 'с', 'из', 'для', 'более', 'свой', 'вариант', 'м', 'м²', 'сом', 'шт', '1'}
 
@@ -129,6 +144,12 @@ def match(label, fields, section=''):
                     return f, 'другая подпись'
         return None, ''
     n = norm(label)
+    # Одна подпись в разных блоках («Полы» — материал в «Конструктив и
+    # износ» и признак в «Тип и класс капитальности»): сначала поле блока с
+    # тем же названием, что у раздела осмотра.
+    for f in fields:
+        if norm(f['подпись']) == n and norm(f.get('блок', '')) == norm(section):
+            return f, 'точно'
     for f in fields:
         if norm(f['подпись']) == n:
             return f, 'точно'
@@ -192,6 +213,19 @@ def collect():
                     pg.wait_for_timeout(400)
                     pg.evaluate("() => document.querySelectorAll('.card.closed').forEach(c => c.classList.remove('closed'))")
                     blocks = pg.evaluate(PROBE_V)
+                    # Переключатель сегментами («Тип объекта имущества» —
+                    # .lk-seg, role=radiogroup) разбор справочника не видит:
+                    # он знает списки и поля ввода. Добавляем такие поля к
+                    # блоку, где они стоят.
+                    seg = pg.evaluate(SEGMENTS)
+                    for g in seg:
+                        blk = next((b for b in blocks if b['заголовок'] == g['блок']), None)
+                        if blk is None:
+                            blk = {'заголовок': g['блок'], 'номер': '', 'поля': []}
+                            blocks.append(blk)
+                        if not any(f['подпись'] == g['подпись'] for f in blk['поля']):
+                            blk['поля'].append({'подпись': g['подпись'], 'значения': g['значения'], 'значение': g['значение'],
+                                                'вид': 'переключатель', 'ключ': '', 'атрибут': ''})
                 it['typeTitle'] = title
                 it['cardBlocks'] = blocks
                 data.append(it)
@@ -232,6 +266,12 @@ def rows_of(data):
         for s in it['secs']:
             for f in s['fields']:
                 if f['long'] or f['label'].endswith('свой вариант'):
+                    continue
+                # Вариант поля для другого вида строения (класс капитальности:
+                # у гражданского, производственно-складского и прочего свои
+                # перечни) этому ОИ не показывается — сравнивать его с
+                # карточкой значит ловить чужой перечень (сверка 15.10.2026).
+                if not f.get('shown', True):
                     continue
                 c, how = match(f['label'], cfields, s['title'])
                 if c:
