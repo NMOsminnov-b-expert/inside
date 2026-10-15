@@ -1344,3 +1344,5 @@ body[data-page="inspections"] .is-splitting{-webkit-user-select:none;user-select
 @media (max-width:1100px){body[data-page="inspections"] .ip-split{display:none}}
 /* Кто ближе к дальней области — списком под предупреждением. */
 body[data-page="inspections"] .ip-far{padding-left:18px;margin:2px 0 0}
+/* Рекомендуемый день подбора «кому и когда» (15.10.2026). */
+body[data-page="inspections"] .ip-av.rec{border-color:var(--teal-600);border-style:dashed}

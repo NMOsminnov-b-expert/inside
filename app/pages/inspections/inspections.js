@@ -33,7 +33,7 @@ import { build } from '../../kernel/router.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS,
-  queueBase, tripGroups, dueOf, availability, rankInspectors, onSiteContacts, assignedPickOf,
+  queueBase, tripGroups, dueOf, availability, onSiteContacts, assignedPickOf,
   QUEUE_FACETS, QUEUE_RANGES, ASSIGNED_FACETS, ASSIGNED_RANGES, applyFilter, facetValues, filterChips, emptyFilter, filterActive,
   reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
 } from './model.js';
@@ -41,7 +41,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject } from './route.js';
+import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
@@ -475,7 +475,10 @@ export function mountInspections(host) {
   // выбранного на 10 рабочих дней, срок осмотра объекта, контакты на месте.
   function planHTML(targets, single) {
     const date = draft.date;
-    const ranked = rankInspectors(all, people, targets, date).slice(0, 5);
+    // Подбор «кому и когда» — по настоящим данным (route.js, recommendAssign;
+    // решение пользователя 15.10.2026): загрузка, лучший день, срок, дорога.
+    const ranked = recommendAssign(all, people, targets, date).slice(0, 5);
+    const rec = (ranked.find((p) => p.name === draft.person) || {}).bestDay || '';
     const chosen = draft.person;
     const av = chosen ? availability(chosen, 10) : [];
     const deadlineDate = single ? deadlineOf(targets[0].typeId, targets[0].ocId) : '';
@@ -484,9 +487,9 @@ export function mountInspections(host) {
     // у выбранного прямо в строке — ближайшие дни, щелчок по дню ставит
     // плановую дату (выбор, который сам несёт сведения, — строкой, а не
     // кнопками отдельно от него; правило APCS interfeys-ne-lepit-knopki).
-    const days = chosen ? `<div class="ip-avail" role="group" aria-label="Ближайшие дни: ${esc(chosen)}">${av.map((d) => `<button class="ip-av ${d.off ? 'off' : d.load ? 'busy' : d.act ? 'act' : 'free'} ${date === d.day ? 'on' : ''}" ${d.off ? 'disabled' : ''} data-ip-avail-day="${d.day}"
-          title="${esc(`${fmtDate(d.day)}: ${d.off || [d.load ? `назначено ${d.load}` : '', d.act].filter(Boolean).join(', ') || 'свободен'}`)}"><span>${d.day.slice(8, 10)}</span><b>${d.off ? '—' : d.load || (d.act ? '·' : '')}</b></button>`).join('')}</div>` : '';
-    const top = `<ul class="ip-rank">${ranked.map((p) => `<li class="${chosen === p.name ? 'on' : ''}"><button class="ip-rank-b ${chosen === p.name ? 'on' : ''}" data-ip-pick-person="${esc(p.name)}" aria-pressed="${chosen === p.name}">
+    const days = chosen ? `<div class="ip-avail" role="group" aria-label="Ближайшие дни: ${esc(chosen)}">${av.map((d) => `<button class="ip-av ${d.off ? 'off' : d.load ? 'busy' : d.act ? 'act' : 'free'} ${date === d.day ? 'on' : ''} ${rec === d.day ? 'rec' : ''}" ${d.off ? 'disabled' : ''} data-ip-avail-day="${d.day}"
+          title="${esc(`${fmtDate(d.day)}: ${d.off || [d.load ? `назначено ${d.load}` : '', d.act].filter(Boolean).join(', ') || 'свободен'}${rec === d.day ? ' · рекомендуемый день' : ''}`)}"><span>${d.day.slice(8, 10)}</span><b>${d.off ? '—' : d.load || (d.act ? '·' : '')}</b></button>`).join('')}</div>` : '';
+    const top = `<ul class="ip-rank">${ranked.map((p) => `<li class="${chosen === p.name ? 'on' : ''}"><button class="ip-rank-b ${chosen === p.name ? 'on' : ''}" data-ip-pick-person="${esc(p.name)}" data-ip-pick-day="${esc(p.bestDay || '')}" aria-pressed="${chosen === p.name}">
           <span class="ip-rank-h"><b>${esc(p.name)}</b><span class="ip-rank-load">в работе ${p.live}</span></span>
           <span class="ip-rank-r">${p.reasons.map((r) => `<i class="${r.ok ? 'ok' : 'no'}">${esc(r.text)}</i>`).join(' · ')}</span></button>
           ${chosen === p.name ? days : ''}</li>`).join('')}</ul>
@@ -2818,7 +2821,12 @@ export function mountInspections(host) {
     host.toast(`Снято назначений: ${n}`, 'ok');
   });
   // Панель: «Кого назначить», день из полосы, осмотрщик и дата в полях, срок.
-  scope.on('click', '[data-ip-pick-person]', (e, b) => { draft.person = b.dataset.ipPickPerson; redraw(); });
+  // Выбор человека из подбора ставит его лучший день, если дата ещё не выбрана.
+  scope.on('click', '[data-ip-pick-person]', (e, b) => {
+    draft.person = b.dataset.ipPickPerson;
+    if (!draft.date && b.dataset.ipPickDay) draft.date = b.dataset.ipPickDay;
+    redraw();
+  });
   scope.on('click', '[data-ip-avail-day]', (e, b) => { draft.date = b.dataset.ipAvailDay; redraw(); });
   scope.on('change', '[data-ip-f-person]', (e, el) => { draft.person = el.value; redraw(); });
   scope.on('change', '[data-ip-f-date]', (e, el) => { draft.date = el.value; redraw(); });

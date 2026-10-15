@@ -21,7 +21,7 @@
 // с окнами времени.
 import { getType } from '../../kernel/registry.js';
 import {
-  allAssignments, isLive, eventsOf, profileOf, planOf, workdayOf, activitiesOn, profileNames,
+  allAssignments, isLive, eventsOf, profileOf, planOf, workdayOf, activitiesOn, profileNames, deadlineOf, activityKind,
 } from '../../kernel/inspections.js';
 import { registerPersisted, scheduleSave } from '../../kernel/persist.js';
 import { queueBase, regionOf } from './model.js';
@@ -273,4 +273,107 @@ function closerPeople(person, date, cand, fact) {
     }
     return { name, km: Math.round(near.km), days };
   }).filter(Boolean).sort((a, b) => a.km - b.km).slice(0, 3);
+}
+
+// --- кому и когда назначить -----------------------------------------------------
+//
+// Решения пользователя 15.10.2026 (запись графа rekomendacii-naznacheniy-i-
+// marshruta-…): рекомендовать регионалу осмотрщика и день; при споре
+// соображений — сначала равномерная загрузка, затем срок и дорога.
+//
+// Время дня — по настоящим данным: дорога от дома (временного жилья) через
+// назначенные объекты и обратно плюс осмотры по действующим нормам (по факту,
+// когда истории хватает). Загрузка — доля рабочего времени ближайших рабочих
+// дней, уже занятая выездами. Лучший день осмотрщика — где объект добавляет
+// меньше всего дороги и день после вставки укладывается в график; дни с
+// отсутствием или работой вне выездов (кроме командировки) не берутся; к сроку
+// — если можно.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: перебор «человек × день» — на сервере, по
+// маршрутизатору (OSRM, Valhalla) и с решателем задачи коммивояжёра; здесь —
+// прямая × 1,3 и ближайший следующий.
+export function dayLoad(all, person, date, extra = [], fact = factNorms(all)) {
+  const p = profileOf(person);
+  const home = homeOf(person, date).gps;
+  const stops = [];
+  const add = (typeId, ocId) => {
+    const k = typeId + '|' + ocId;
+    const s = all.get(k);
+    if (!s || stops.some((x) => x.key === k)) return;
+    stops.push({ key: k, s, gps: gpsOfObject(typeId, ocId) });
+  };
+  allAssignments().forEach((a) => { if (a.person === person && a.plannedAt === date && isLive(a)) add(a.typeId, a.ocId); });
+  extra.forEach((t) => add(t.typeId, t.ocId));
+  let at = home;
+  let drive = 0;
+  let rest = stops.filter((x) => x.gps);
+  while (rest.length) {
+    rest.sort((a, b) => roadKm(at || a.gps, a.gps) - roadKm(at || b.gps, b.gps));
+    const x = rest.shift();
+    if (at) drive += driveMinutes(roadKm(at, x.gps));
+    at = x.gps;
+  }
+  if (at && home) drive += driveMinutes(roadKm(at, home));
+  const inspect = stops.reduce((n, x) => n + inspectMinutes(x.s, fact), 0);
+  return { drive, inspect, total: drive + inspect, avail: minOf(p.schedule.to) - minOf(p.schedule.from), n: stops.length };
+}
+
+const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const ddmm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+
+// people — строки осмотрщиков ({ name, live, fired }), targets — объекты
+// ({ typeId, ocId }), date — плановая дата, если её уже выбрали.
+export function recommendAssign(all, people, targets, date = '', { days = 10 } = {}) {
+  const fact = factNorms(all);
+  const keys = new Set(targets.map((t) => t.typeId + '|' + t.ocId));
+  const insts = new Set(targets.map((t) => (all.get(t.typeId + '|' + t.ocId) || {}).institution).filter(Boolean));
+  const deadline = targets.map((t) => deadlineOf(t.typeId, t.ocId)).filter(Boolean).sort()[0] || '';
+  const today = isoOf(new Date());
+  return people.filter((p) => !p.fired).map((p) => {
+    const window = [];
+    for (const d = new Date(today + 'T00:00:00'); window.length < days; d.setDate(d.getDate() + 1)) {
+      const k = isoOf(d);
+      if (workdayOf(p.name, k).ok) window.push(k);
+      if (d - new Date(today + 'T00:00:00') > 60 * 864e5) break;
+    }
+    let used = 0;
+    let avail = 0;
+    window.forEach((k) => { const l = dayLoad(all, p.name, k, [], fact); used += l.total; avail += l.avail; });
+    const util = avail ? used / avail : 1;
+    const free = (k) => !activitiesOn(p.name, k).some((a) => a.kind !== 'trip');
+    const tries = (date ? [date] : window).filter((k) => workdayOf(p.name, k).ok && free(k)).map((k) => {
+      const base = dayLoad(all, p.name, k, [], fact);
+      const withT = dayLoad(all, p.name, k, targets, fact);
+      return { day: k, add: withT.drive - base.drive, fits: withT.total <= withT.avail, meets: !deadline || k <= deadline };
+    }).filter((x) => x.fits);
+    tries.sort((a, b) => (b.meets - a.meets) || (a.add - b.add) || a.day.localeCompare(b.day));
+    const best = tries[0] || null;
+    const mine = allAssignments().filter((a) => a.person === p.name);
+    const beenHere = mine.some((a) => keys.has(a.typeId + '|' + a.ocId));
+    const beenInst = !beenHere && mine.some((a) => insts.has((all.get(a.typeId + '|' + a.ocId) || {}).institution));
+    const reasons = [{ ok: util < 0.8, text: `загрузка ${Math.round(util * 100)}% на ${window.length} раб. дн.` }];
+    // Расстояние от дома до ближайшего из объектов — видно, почему не
+    // помещается: объект в другой области.
+    const home = homeOf(p.name, date || today).gps;
+    const pts = targets.map((t) => gpsOfObject(t.typeId, t.ocId)).filter(Boolean);
+    const km = home && pts.length ? Math.round(Math.min(...pts.map((g) => roadKm(home, g)))) : null;
+    // Выбранная дата занята не выездами — причиной словами, как раньше
+    // («Кого назначить»): отпуск, работа дома, обучение.
+    const off = date ? workdayOf(p.name, date) : { ok: true };
+    const busyAct = date ? activitiesOn(p.name, date).filter((a) => a.kind !== 'trip') : [];
+    if (!off.ok) reasons.push({ ok: false, text: off.reason });
+    else if (busyAct.length) reasons.push({ ok: false, text: busyAct.map((a) => activityKind(a.kind).short + (a.region ? ` (${a.region})` : '')).join(', ') });
+    else if (best) reasons.push({ ok: true, text: `${date ? 'в этот день' : ddmm(best.day)} · +${best.add} мин дороги` });
+    else reasons.push({ ok: false, text: date ? 'в этот день не помещается' : 'в ближайшие дни не помещается' });
+    if (km !== null) reasons.push({ ok: km <= 45, text: `от дома ${km} км` });
+    if (deadline && deadline < today) reasons.push({ ok: false, text: `срок ${ddmm(deadline)} прошёл` });
+    else if (deadline) reasons.push({ ok: !!(best && best.meets), text: best && best.meets ? `к сроку ${ddmm(deadline)} успевает` : `к сроку ${ddmm(deadline)} не успевает` });
+    if (beenHere) reasons.push({ ok: true, text: 'был на объекте' });
+    else if (beenInst) reasons.push({ ok: true, text: 'был в учреждении' });
+    return { ...p, reasons, util, best, bestDay: best ? best.day : '' };
+  }).sort((a, b) => (!!b.best - !!a.best)
+    || (Math.floor(a.util * 10) - Math.floor(b.util * 10))
+    || ((b.best && b.best.meets) - (a.best && a.best.meets))
+    || ((a.best ? a.best.add : 1e9) - (b.best ? b.best.add : 1e9))
+    || a.name.localeCompare(b.name, 'ru'));
 }

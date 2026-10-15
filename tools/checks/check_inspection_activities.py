@@ -66,7 +66,9 @@ def run(t):
       const m = await %s; const all = m.summaries();
       const people = m.inspectorRows(all);
       const any = m.queueBase(all)[0];
-      const r = any ? m.rankInspectors(all, people, [{ typeId: any.typeId, ocId: any.ocId }], d).find((p) => p.name === w) : null;
+      // Подбор «кому и когда» (route.js, recommendAssign; 15.10.2026).
+      const R = await import('./app/pages/inspections/route.js');
+      const r = any ? R.recommendAssign(all, people, [{ typeId: any.typeId, ocId: any.ocId }], d).find((p) => p.name === w) : null;
       return [m.freeDays(w, 10), r ? r.reasons.map((x) => (x.ok ? '+' : '-') + x.text).join('|') : ''];
     }""" % M, [who, day])
     t.ck(free1 == free0 - 1, 'день с работой дома остался свободным: было %s, стало %s' % (free0, free1))
