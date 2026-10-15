@@ -17,3 +17,7 @@ package-lock.json
 # tools/data/ts_templates.py, граф моделей knowledge/terms/marka_ts_*.py) в индексе есть.
 app/modules/vehicle/data/tsCatalog.js
 app/modules/vehicle/data/tsModels.js
+
+# Сохранения браузера пользователя (tools/serve.py → data/local/): меняются при
+# каждом сохранении в макете, искать в них по смыслу нечего.
+data/local/
