@@ -31,6 +31,11 @@ import * as mechanismsDicts from '../modules/mechanisms/data/dictExport.js';
 // — из модуля civil, единственного их источника (oi/building/capClass.js).
 // Страницы модулей не импортируют — дверь здесь, в реестре.
 export { KINDS as LIT_KINDS, PURPOSES as LIT_PURPOSES, SIGNS as LIT_SIGNS } from '../modules/civil/oi/building/capClass.js';
+// Вид литеры у записей, ещё не открытых в карточке: карточка проставляет его
+// при открытии по прежним признакам, а осмотр читал запись напрямую и видел
+// «пусто» (сверка полей осмотра и карточек, 15.10.2026; решение пользователя
+// «Правим»). Правило одно — дверь литеры civil/card.js.
+export { migrateLiterKinds } from '../modules/civil/card.js';
 
 export const OC_TYPES = [
   {

@@ -62,11 +62,14 @@ def card_attr(path):
 INSPECT = r"""async (pairs) => {
   const F = await import('./app/pages/inspector/form.js');
   const R = await import('./app/kernel/registry.js');
+  // Запись — как её читает экран осмотрщика (loadTask: вид литеры по правилу
+  // карточки), а не напрямую.
+  const T = await import('./app/pages/inspector/tasks.js');
   const str = (v) => (v == null ? '' : String(v));
   const out = [];
   for (const [typeId, ocId] of pairs) {
     const t = R.getType(typeId);
-    const rec = t && t.records.loadRecord ? t.records.loadRecord(ocId) : null;
+    const rec = t ? T.loadTask(typeId, ocId) : null;
     if (!rec) continue;
     for (const oi of rec.oi || []) {
       const secs = F.sections(typeId, oi);

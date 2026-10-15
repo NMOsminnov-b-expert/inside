@@ -9,7 +9,7 @@
 //
 // Записи берём через kernel/registry.js: страница не имеет права импортировать
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
-import { sortedTypes, getType } from '../../kernel/registry.js';
+import { sortedTypes, getType, migrateLiterKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, markDone } from '../../kernel/inspectionResults.js';
@@ -148,7 +148,12 @@ export function myTasks({ onlyPending = false } = {}) {
 export function loadTask(typeId, ocId) {
   const t = getType(typeId);
   if (!t || !t.records.loadRecord) return null;
-  return t.records.loadRecord(ocId) || null;
+  const rec = t.records.loadRecord(ocId) || null;
+  // Вид литеры — тем же правилом, что карточка при открытии: иначе у записи,
+  // не открытой в карточке, «Тип объекта имущества» в осмотре пуст, а
+  // карточка показала бы «Гражданская».
+  if (rec) migrateLiterKinds(rec);
+  return rec;
 }
 
 // Документы на осмотр — все, что есть у записи: и её собственные, и документы

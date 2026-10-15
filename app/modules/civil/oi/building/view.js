@@ -357,7 +357,7 @@ function prodExtraCard(ctx, oi, idx) {
 <div class="field"><label>Высота, м (ТП)</label><input class="input" data-prod-height value="${esc(numText(oi.prodHeight))}" inputmode="decimal"></div>
 ${tempModeMS(ctx, oi)}
 <div class="field"><label>Усиленность конструкции</label>
-<select class="select" data-struct-strength>${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+<select class="select" data-struct-strength>${emptyOptionHTML()}${opt('building', 'structStrength', STRUCT_STRENGTH).map((o) => `<option ${o === (oi.structStrength || '') ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
 </div>
 </div>
 </div></div>
