@@ -245,7 +245,7 @@ let premiseSeq = 0;
 
 export function addPremise(typeId, ocId, oiId) {
   const list = premises(typeId, ocId, oiId);
-  list.push({ id: 'pm-' + Date.now().toString(36) + (++premiseSeq), name: '', area: '' });
+  list.push({ id: 'pm-' + Date.now().toString(36) + (++premiseSeq), name: '' });
   saveResults();
   return list;
 }

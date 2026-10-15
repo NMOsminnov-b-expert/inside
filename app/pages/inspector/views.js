@@ -717,11 +717,6 @@ function premisesHTML(list) {
           <input class="input ins-input" data-pm-name="${esc(pm.id)}" value="${esc(pm.name)}"
             placeholder="Кабинет, коридор, санузел">
         </div>
-        <div class="ins-field ins-pm-area">
-          <label>Площадь, м²</label>
-          <input class="input ins-input" data-pm-area="${esc(pm.id)}" value="${esc(pm.area)}"
-            inputmode="decimal">
-        </div>
         <button class="ins-icon-b" data-pm-drop="${esc(pm.id)}"
           aria-label="Убрать помещение" title="Убрать помещение">${ico('trash', 18)}</button>
       </li>`).join('')}

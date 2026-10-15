@@ -251,8 +251,8 @@ const stateSection = (typeId, card) => ({
 // capClass.js; решение пользователя 15.10.2026 «Тип и класс капитальности надо
 // бы включить в осмотры»): тип объекта имущества, назначение по факту и
 // признаки класса своего типа. Какие поля видны — по типу, выбранному на
-// осмотре, а пока не выбран — по типу в карточке. Высота признака — из замера
-// «Высота по внутренним замерам». Показывается у нежилого строения, как в
+// осмотре, а пока не выбран — по типу в карточке. Признак «высота» на осмотре не
+// спрашивается: высоты осмотр не замеряет. Показывается у нежилого строения, как в
 // карточке (fieldRules: showOiCategory).
 const kindByLabel = (label) => (LIT_KINDS.find((k) => k.label === label) || {}).key || '';
 const kindLabelOf = (key) => (LIT_KINDS.find((k) => k.key === key) || {}).label || '';
@@ -308,17 +308,15 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
       { key: 'buildType', label: 'Расположение строения', req: !prod, opts: cardDict(typeId, 'building', 'buildType', BUILD_TYPE), doc: docOf('buildType') },
     ],
   },
+  // Площади и высоты на осмотре не замеряются (указание пользователя
+  // 15.10.2026: «Площади и высоты по осмотру не нужны») — они из документов и
+  // карточки. Остаётся этажность.
   {
     key: 'measure',
-    title: 'Площади и этажность',
-    short: 'Площади',
+    title: 'Этажность',
+    short: 'Этажи',
     fields: [
-      { key: 'areaFact', label: 'Общая по факту', unit: 'м²', num: true, tpFrom: 'pud' },
-      { key: 'buildFact', label: 'Общая площадь по внутреннему обмеру', unit: 'м²', num: true, tpFrom: 'build', tpLabel: 'в карточке' },
-      { key: 'areaExt', label: 'Площадь по внешним замерам', unit: 'м²', num: true, doc: docOf('areas.tp'), tpLabel: 'в карточке' },
       { key: 'floorsN', label: 'Количество этажей', num: true, doc: docOf('floors'), tpLabel: 'в карточке' },
-      { key: 'ceilExt', label: 'Высота по внешним замерам', unit: 'м', num: true, req: prod, tpFrom: 'heightExt' },
-      { key: 'ceilInt', label: 'Высота по внутренним замерам', unit: 'м', num: true, tpFrom: 'heightInt' },
     ],
   },
   structSection(typeId, 'building', { wallsExt: prod }),
@@ -336,7 +334,7 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
   commentsSection,
 ];
 
-// Квартира — блоки карточки квартиры: общие параметры, площади, конструктив
+// Квартира — блоки карточки квартиры: общие параметры, конструктив
 // и износ (справочники карточки квартиры), состояние.
 const flatSections = (typeId) => [
   {
@@ -352,25 +350,13 @@ const flatSections = (typeId) => [
       { key: 'aptLocation', label: 'Положение на этаже', opts: cardDict(typeId, 'apartment', 'location', APT_LOCATION), doc: docOf('apartment.location') },
     ],
   },
-  {
-    key: 'measure',
-    title: 'Площади квартиры',
-    short: 'Площади',
-    fields: [
-      { key: 'areaFact', label: 'Общая по факту', unit: 'м²', num: true, tpFrom: 'pud' },
-      { key: 'buildFact', label: 'Общая площадь по внутреннему обмеру', unit: 'м²', num: true, tpFrom: 'build', tpLabel: 'в карточке' },
-      { key: 'areaExt', label: 'Площадь по внешним замерам', unit: 'м²', num: true, doc: docOf('areas.tp'), tpLabel: 'в карточке' },
-      { key: 'ceilExt', label: 'Высота по внешним замерам', unit: 'м', num: true, tpFrom: 'heightExt' },
-      { key: 'ceilInt', label: 'Высота по внутренним замерам', unit: 'м', num: true, tpFrom: 'heightInt' },
-    ],
-  },
   structSection(typeId, 'apartment'),
   stateSection(typeId, 'apartment'),
   commentsSection,
 ];
 
 // Земельный участок — блоки карточки участка: основные параметры (что видно
-// на месте), площади, инженерные сети (сюда же — чек-лист коммуникаций
+// на месте), инженерные сети (сюда же — чек-лист коммуникаций
 // рабочей системы, решение пользователя 15.10.2026), благоустройство.
 const landSections = (typeId) => [
   {
@@ -385,15 +371,6 @@ const landSections = (typeId) => [
       { key: 'encumbrance', label: 'Наличие сервитутов и обременений', opts: landDict(typeId, 'encumbrance', ['Нет', 'Есть']), doc: docOf('encumbrance') },
       { key: 'form', label: 'Форма участка', opts: landDict(typeId, 'form', LAND_FORM), doc: docOf('form') },
       { key: 'relief', label: 'Рельеф участка', opts: landDict(typeId, 'relief', LAND_RELIEF), doc: docOf('relief') },
-    ],
-  },
-  {
-    key: 'measure',
-    title: 'Площади',
-    short: 'Площади',
-    fields: [
-      { key: 'areaFact', label: 'По факту', unit: 'м²', num: true, doc: docOf('areas.pravo'), docLabel: 'по правоустанавливающим' },
-      { key: 'buildFact', label: 'Застроенная площадь', unit: 'м²', num: true, doc: docOf('areas.build') },
     ],
   },
   {

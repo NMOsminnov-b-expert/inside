@@ -825,7 +825,6 @@ body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 }
 
 .ins-pm-i .ins-field { flex: 1 1 auto; margin: 0; min-width: 0; }
-.ins-pm-area { flex: 0 0 96px !important; }
 
 /* Выявленное на осмотре — тот же пункт списка ОИ, отмечен меткой
    «выявлено»: осмотрщик видит, что это не учтённая литера, а черновик. */

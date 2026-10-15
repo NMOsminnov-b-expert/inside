@@ -1138,11 +1138,8 @@ export function mountInspector(host) {
     if (pm) { pm.name = el.value; saveResults(); }
   });
 
-  scope.on('input', '[data-pm-area]', (e, el) => {
-    const pm = premises(route.typeId, route.ocId, route.oiId)
-      .find((x) => x.id === el.dataset.pmArea);
-    if (pm) { pm.area = el.value; saveResults(); }
-  });
+  // Площадь помещения на осмотре не вносится: «Площади и высоты по осмотру
+  // не нужны» (15.10.2026).
 
   // Переход к разделу из строки разделов: свёрнутый раскрывается, экран
   // прокручивается так, чтобы заголовок раздела встал под строку разделов.
