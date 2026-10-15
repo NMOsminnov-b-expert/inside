@@ -107,7 +107,7 @@ function apartmentOi(id, i, p, letter) {
       floor: String(1 + (i % 12)),
       buildingFloors: String(4 + (i % 9)),
       rooms: String(1 + (i % 4)),
-      series: ['Индивидуальная', '104', '105/106', 'Хрущёвка', 'Сталинка'][i % 5],
+      series: ['Индивидуальная', 'Серия 104', 'Серия 105/106', 'Хрущёвка', 'Сталинка'][i % 5],
       location: i % 4 ? 'Неугловое' : 'Угловое',
       locationOther: '',
       storeys: '1',
