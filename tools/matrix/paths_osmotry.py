@@ -148,9 +148,11 @@ def _(p):
     if not text:
         return
     p.click('[data-ip-jump]')
-    p.type(text[:8])
+    # Полный ЕНИ, и пункт с назначением, а не первый: у здания и квартир в нём
+    # один ЕНИ, первым в списке стоит здание — «Ввод» уводил в его карточку.
+    p.type(text)
     p.wait_for('.ip-jump-list:not([hidden]) li')
-    p.key('Enter')
+    p.page.locator('.ip-jump-list li', has_text='назначено').first.click()
     p.wait_until("() => location.hash.includes('s=assign')")
     st = p.state()
     p.ck('объект выбран в «Назначено»', bool(st['выбрано']), st['выбрано'], 'выбранная строка')

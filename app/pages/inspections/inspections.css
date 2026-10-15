@@ -1349,3 +1349,40 @@ body[data-page="inspections"] .ip-av.rec{border-color:var(--teal-600);border-sty
 /* Группа адресов в «Перейти» и метка выбранного адреса на карте (15.10.2026). */
 body[data-page="inspections"] .ip-jump-list li.ip-jump-sep{cursor:default;padding:8px 10px 2px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted)}
 body[data-page="inspections"] .ip-addr-pin{width:18px;height:18px;border-radius:50%;background:var(--warn,#d9480f);border:3px solid #fff;box-shadow:0 0 0 2px rgba(217,72,15,.35),0 2px 6px rgba(15,23,42,.3)}
+
+/* «Назначено»: группа одного адреса (указание пользователя 15.10.2026 «нет
+   группировки по адресам… визуально отмечать»). Заголовок — та же плашка,
+   что у групп очереди; строки группы — с отступом и линией слева, чтобы было
+   видно, где группа кончается. Метки «3 дня», «2 осмотрщика» — в строке
+   заголовка: адрес разнесён по дням или людям. */
+body[data-page="inspections"] .ip-grouped td .ip-grp-flag{display:inline-block;margin:0}
+/* Группа адреса не сворачивается — без треугольника («И лесом треугольник
+   тут», 15.10.2026); чекбокс — вровень с первой строкой адреса. */
+body[data-page="inspections"] .ip-agrp-t{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;min-width:0}
+body[data-page="inspections"] .ip-agrp-t b{flex:0 1 100%;font-size:13.5px;line-height:1.35}
+body[data-page="inspections"] .ip-agrp-t > span{color:var(--muted);font-size:12px}
+body[data-page="inspections"] .on-scene .ip-tbl tbody.ip-agrp tr.ip-grp{align-items:flex-start}
+body[data-page="inspections"] .on-scene .ip-tbl tbody.ip-agrp tr.ip-grp td.c-check{padding-top:2px}
+body[data-page="inspections"] .ip-agrp tr.ip-grp td.c-check input{margin:0}
+body[data-page="inspections"] .ip-grp-flag{background:var(--amber-50);color:var(--amber-700)}
+body[data-page="inspections"] .ip-grouped tr.ip-in-grp td:nth-child(3){padding-left:18px}
+body[data-page="inspections"] .on-scene .ip-tbl tbody.ip-agrp{margin:8px 0 10px}
+body[data-page="inspections"] .on-scene .ip-tbl tbody.ip-agrp tr.ip-grp{margin-top:0}
+body[data-page="inspections"] .on-scene .ip-tbl tr.ip-in-grp{margin-left:12px;border-left:2px solid var(--blue-200);border-radius:0 8px 8px 0}
+body[data-page="inspections"] .on-scene .ip-tbl tr.ip-in-grp .ip-obj-t{font-weight:600}
+
+/* Шапка выбранного сотрудника: «назад» — ссылкой над именем, а не кнопкой
+   рядом с ним; «Переназначить все…» — справа от имени. */
+body[data-page="inspections"] .ip-ahead .ip-aback{flex:0 0 100%;align-self:flex-start;width:max-content;max-width:100%;padding:2px 0;border:0;background:none;
+  font:inherit;font-size:12.5px;color:var(--blue-700);cursor:pointer;text-align:left}
+body[data-page="inspections"] .ip-ahead .ip-aback:hover{text-decoration:underline}
+body[data-page="inspections"] .ip-ahead .ip-aback:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px;border-radius:4px}
+
+/* Отмеченные: число и сброс, затем действия парами «что — кнопка»; пара не
+   разрывается, при узкой панели переносится целиком. */
+body[data-page="inspections"] .ip-bulk-a{display:flex;width:100%;box-sizing:border-box;padding:6px 8px 6px 12px;gap:6px 12px}
+body[data-page="inspections"] .ip-bulk-n{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+body[data-page="inspections"] .ip-bulk-pair{display:inline-flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0}
+body[data-page="inspections"] .ip-bulk-a .ip-bulk-pair .select,
+body[data-page="inspections"] .ip-bulk-a .ip-bulk-pair .pick-btn{min-width:0;width:170px}
+body[data-page="inspections"] .ip-bulk-del{margin-left:auto;color:var(--red-600)}

@@ -33,7 +33,7 @@ import { build } from '../../kernel/router.js';
 import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS,
-  queueBase, tripGroups, dueOf, availability, onSiteContacts, assignedPickOf,
+  queueBase, tripGroups, addrGroups, addrRest, addrKey, dueOf, availability, onSiteContacts, assignedPickOf,
   QUEUE_FACETS, QUEUE_RANGES, ASSIGNED_FACETS, ASSIGNED_RANGES, applyFilter, facetValues, filterChips, emptyFilter, filterActive,
   reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
 } from './model.js';
@@ -351,18 +351,38 @@ export function mountInspections(host) {
   // по области, своей прокруткой — держит любое их число. Второй — объекты
   // выбранного плоским списком по дате; «Переназначить все…» — одна кнопка
   // у выбранного. «Все назначения» — прежний общий список.
-  function assignedRowHTML({ a, s }) {
+  function assignedRowHTML({ a, s }, inGroup = false) {
     const picks = assignedPickOf(a);
     const stall = stallOf(a);
-    return `<tr data-ip-row="${esc(a.id)}" class="${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
+    const who = view.aPerson === '*' ? a.person : '';
+    const obj = inGroup
+      ? `<span class="ip-obj"><span class="ip-obj-t">${esc(addrRest(s) || s.typeLabel || 'Объект целиком')}</span>
+        <span class="ip-obj-s">${esc([who, addrRest(s) ? s.typeLabel : '', s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '))}</span></span>`
+      : objCell(s, [who, s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '));
+    return `<tr data-ip-row="${esc(a.id)}" class="${inGroup ? 'ip-in-grp' : ''} ${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
       <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
-      <td>${objCell(s, [view.aPerson === '*' ? a.person : '', s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '))}</td>
+      <td>${obj}</td>
       <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
       <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
         ${stall ? `<span class="ip-flag" title="Зависло">${esc(stall)}</span>` : ''}
         ${picks.has('away') ? `<span class="ip-flag away" title="Плановая дата — нерабочий день осмотрщика">${esc(workdayOf(a.person, a.plannedAt).reason)}</span>` : ''}</td>
     </tr>`;
+  }
+  // Группа назначений одного адреса. Одно назначение — обычной строкой, без
+  // заголовка: группа нужна там, где адрес повторяется.
+  function assignedGroupHTML(g) {
+    if (g.rows.length < 2) return `<tbody>${assignedRowHTML(g.rows[0])}</tbody>`;
+    const ids = g.rows.map((r) => r.a.id);
+    const allOn = ids.every((id) => checked.has(id));
+    const span = g.days.length > 1 ? `${fmtDate(g.days[0]).slice(0, 5)}–${fmtDate(g.days[g.days.length - 1]).slice(0, 5)}` : (g.days[0] ? fmtDate(g.days[0]) : 'без даты');
+    const flags = [g.days.length > 1 ? `<span class="ip-flag ip-grp-flag" title="Назначения одного адреса стоят на разные дни">${g.days.length} ${plural(g.days.length, 'день', 'дня', 'дней')}</span>` : '',
+      g.persons.length > 1 ? `<span class="ip-flag ip-grp-flag" title="Адрес поделён между осмотрщиками">${g.persons.length} ${plural(g.persons.length, 'осмотрщик', 'осмотрщика', 'осмотрщиков')}</span>` : ''].join('');
+    return `<tbody class="ip-grp-body ip-agrp"><tr class="ip-grp">
+        <td class="c-check"><input type="checkbox" data-ip-adcheck="${esc(g.addr)}" ${allOn ? 'checked' : ''} aria-label="Отметить все назначения адреса" title="Отметить все назначения адреса"></td>
+        <td colspan="4"><span class="ip-agrp-t"><b>${esc(g.addr)}</b>
+          <span>${g.rows.length} ${plural(g.rows.length, 'назначение', 'назначения', 'назначений')} · ${esc(span)}</span>${flags}</span></td></tr>
+      ${g.rows.map((r) => assignedRowHTML(r, true)).join('')}</tbody>`;
   }
   function assignedPeopleHTML(rows) {
     const by = new Map();
@@ -401,7 +421,7 @@ export function mountInspections(host) {
     const p = one ? (people.find((x) => x.name === view.aPerson) || { live: mine.length, late: 0, free: 0 }) : null;
     const others = people.filter((x) => !x.fired && x.name !== view.aPerson);
     const head = `<div class="ip-ahead">
-        <button class="btn btn-ghost btn-sm ip-aback" data-ip-aperson="" title="К списку сотрудников">‹ Сотрудники</button>
+        <button class="ip-aback" data-ip-aperson="" title="К списку сотрудников">‹ Все сотрудники</button>
         <div class="ip-ahead-t"><b>${one ? esc(view.aPerson) : 'Все назначения'}</b>
           <span>${mine.length}${one ? ` · в работе ${p.live}${p.late ? ` · <span class="ip-late">просрочено ${p.late}</span>` : ''} · свободно ${p.free} дн.` : ''}</span></div>
         ${one && mine.length ? (reassignGroup === view.aPerson ? `<span class="ip-grp-act"><select class="select" data-ip-rg-person aria-label="Кому переназначить"><option value="">— кому —</option>
@@ -420,7 +440,7 @@ export function mountInspections(host) {
       <colgroup><col class="c-check"><col class="c-date"><col><col class="c-oi"><col class="c-state"></colgroup>
       <thead><tr><th class="c-check"></th><th class="num" title="Плановая дата осмотра">План</th><th title="Адрес; ниже — тип ОЦ, учреждение, ЕНИ">Объект</th>
         <th title="Объекты имущества в назначении">ОИ</th><th>Состояние</th></tr></thead>
-      <tbody>${mine.map(assignedRowHTML).join('')}</tbody>
+      ${addrGroups(mine).map(assignedGroupHTML).join('')}
     </table></div></div>`;
   }
 
@@ -433,13 +453,13 @@ export function mountInspections(host) {
         <input class="input" type="date" data-ip-dl-date aria-label="Крайний срок для отмеченных" title="Крайний срок для отмеченных">
         <button class="btn btn-ghost btn-sm" data-ip-dl-set>Поставить срок</button></span>`;
     }
-    return `<span class="ip-bulk2">Отмечено <b>${checked.size}</b>${CLEAR}
-      <select class="select" data-ip-ba-person aria-label="Кому переназначить"><option value="">— кому —</option>
+    return `<span class="ip-bulk2 ip-bulk-a"><span class="ip-bulk-n">Отмечено <b>${checked.size}</b>${CLEAR}</span>
+      <span class="ip-bulk-pair"><select class="select" data-ip-ba-person aria-label="Кому переназначить"><option value="">— кому —</option>
         ${people.filter((p) => !p.fired).map((p) => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('')}</select>
-      <button class="btn btn-ghost btn-sm" data-ip-ba-reassign>Переназначить</button>
-      <input class="input" type="date" data-ip-ba-date aria-label="Новая плановая дата">
-      <button class="btn btn-ghost btn-sm" data-ip-ba-move>Перенести</button>
-      <button class="btn btn-ghost btn-sm" data-ip-ba-remove>Снять</button></span>`;
+      <button class="btn btn-ghost btn-sm" data-ip-ba-reassign>Переназначить</button></span>
+      <span class="ip-bulk-pair"><input class="input" type="date" data-ip-ba-date aria-label="Новая плановая дата">
+      <button class="btn btn-ghost btn-sm" data-ip-ba-move>Перенести</button></span>
+      <button class="btn btn-ghost btn-sm ip-bulk-del" data-ip-ba-remove>Снять назначение</button></span>`;
   }
 
   function assignSection() {
@@ -449,7 +469,8 @@ export function mountInspections(host) {
     const assigned = applyFilter(liveAll, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.tab === 'assigned' && view.aPerson ? view.q : '')
       .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
     const keys = view.tab === 'queue' ? tripGroups(queue.slice(0, Math.max(view.shown, STEP))).flatMap((g) => (collapsed.has(g.place) ? [] : g.rows.map((s) => s.typeId + '|' + s.id)))
-      : !view.aPerson ? [] : assigned.filter(({ a }) => view.aPerson === '*' || a.person === view.aPerson).map((r) => r.a.id);
+      : !view.aPerson ? [] : addrGroups(assigned.filter(({ a }) => view.aPerson === '*' || a.person === view.aPerson))
+        .flatMap((g) => g.rows.map((r) => r.a.id));
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
     const sub = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
     // Пустая очередь — без колонки отборов и пустой панели: место — объяснению.
@@ -2830,6 +2851,12 @@ export function mountInspections(host) {
     });
     // Свёрнутая группа: отмечаем по данным, а не по строкам на экране.
     if (collapsed.has(place)) applyFilter(queueBase(all), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
+    redraw();
+  });
+  scope.on('change', '[data-ip-adcheck]', (e, el) => {
+    const addr = el.dataset.ipAdcheck;
+    assignedRows(all, { q: '' }).filter(({ a, s }) => (view.aPerson === '*' || a.person === view.aPerson) && addrKey(s) === addr)
+      .forEach(({ a }) => { if (el.checked) checked.set(a.id, null); else checked.delete(a.id); });
     redraw();
   });
   scope.on('change', '[data-ip-acheck]', (e, el) => { const id = el.dataset.ipAcheck; if (el.checked) checked.set(id, null); else checked.delete(id); redraw(); });

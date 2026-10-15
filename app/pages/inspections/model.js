@@ -577,6 +577,27 @@ export function tripGroups(rows) {
   })).sort((a, b) => a.nearest.localeCompare(b.nearest) || b.free - a.free || a.place.localeCompare(b.place, 'ru'));
 }
 
+// Назначения по адресу здания (указание пользователя 15.10.2026: «В
+// назначениях нет группировки по адресам… И визуально отмечать это дело.
+// Иначе можно запутать человека»). Один объект назначают частями ОИ на разные
+// дни, в одном доме бывает несколько квартир — без группы это выглядит как
+// разные объекты. Ключ — адрес без квартиры; внутри — по плановой дате,
+// группы — по ближайшей дате. Остаток адреса («кв. 12») — подпись строки.
+const FLAT_TAIL = /\s*[—–-]\s*кв\.?\s*\S+\s*$/i;
+export const addrKey = (s) => String((s && s.title) || '').replace(FLAT_TAIL, '').trim() || String((s && s.id) || '');
+export const addrRest = (s) => String((s && s.title) || '').slice(addrKey(s).length).replace(/^\s*[—–-]\s*/, '').trim();
+
+export function addrGroups(rows) {
+  const by = new Map();
+  rows.forEach((r) => { const k = addrKey(r.s); if (!by.has(k)) by.set(k, []); by.get(k).push(r); });
+  const plan = (r) => String(r.a.plannedAt || '9999');
+  return [...by.entries()].map(([addr, list]) => {
+    list.sort((x, y) => plan(x).localeCompare(plan(y)));
+    const days = [...new Set(list.map((r) => r.a.plannedAt).filter(Boolean))].sort();
+    return { addr, rows: list, days, persons: [...new Set(list.map((r) => r.a.person))], first: plan(list[0]) };
+  }).sort((x, y) => x.first.localeCompare(y.first) || x.addr.localeCompare(y.addr, 'ru'));
+}
+
 // Доступность человека на ближайшие n рабочих дней: занятость планом и
 // нерабочие дни (отпуск, график).
 export function availability(person, n = 10) {

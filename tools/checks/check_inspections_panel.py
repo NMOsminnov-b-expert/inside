@@ -169,6 +169,22 @@ def run(t):
     t.ck(pg.locator('.ip-aperson:not(.ip-aperson-all)').count() >= 2, '«Назначено» не начинается со списка сотрудников')
     pg.locator('.ip-aperson:not(.ip-aperson-all)').first.click()
     t.wait_for('[data-ip-rg]')
+    # Группы по адресу (указание пользователя 15.10.2026: «В назначениях нет
+    # группировки по адресам… визуально отмечать»). Ловит: повторы адреса
+    # вразбивку, группу без счёта, отметку группы мимо её строк.
+    dup = pg.evaluate("""async () => { const M = await import('./app/pages/inspections/model.js');
+      const keys = [...document.querySelectorAll('tr[data-ip-row]:not(.ip-in-grp) .ip-obj-t')].map((e) => M.addrKey({ title: e.textContent }));
+      return keys.filter((k, i) => keys.indexOf(k) !== i); }""")
+    t.ck(not dup, 'адрес повторяется вне группы: %s' % dup[:2])
+    grp = pg.locator('tbody.ip-agrp')
+    if grp.count():
+        g = grp.first
+        n = g.locator('tr.ip-in-grp').count()
+        t.ck(n >= 2 and ('%d назнач' % n) in g.locator('tr.ip-grp').inner_text(), 'в заголовке группы адреса нет числа назначений')
+        g.locator('[data-ip-adcheck]').check()
+        t.ck(t.wait_until("(n) => document.querySelector('tbody.ip-agrp').querySelectorAll('tr.ip-in-grp.sel').length === n[0]", [n]),
+             'отметка адреса не отметила все его назначения')
+        pg.click('[data-ip-bulk-clear]')
     groups = pg.locator('[data-ip-rg]')
     if t.ck(groups.count() == 1, 'у выбранного сотрудника нет «Переназначить все…»'):
         frm = groups.first.get_attribute('data-ip-rg')
