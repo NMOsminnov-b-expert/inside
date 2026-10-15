@@ -788,7 +788,7 @@ export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, b
           <ul class="ins-grid">
             ${list.map((p) => `<li class="ins-shot">
               <button class="ins-shot-b" data-shot="${esc(p.id)}" title="Открыть снимок">
-                <img src="${esc(p.url)}" alt="${esc(p.name)}" loading="lazy">
+                <img src="${esc(p.dataUrl || p.url || "")}" alt="${esc(p.name)}" loading="lazy">
               </button>
             </li>`).join('')}
           </ul>
@@ -806,7 +806,7 @@ export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, b
 export function lightboxHTML(p, oiList) {
   return `<div class="ins-lb" data-lb>
     <button class="ins-lb-x" data-lb-close aria-label="Закрыть">${ico('back', 22)}</button>
-    <img src="${esc(p.url)}" alt="${esc(p.name)}">
+    <img src="${esc(p.dataUrl || p.url || "")}" alt="${esc(p.name)}">
     <div class="ins-lb-bar">
       <div class="ins-field">
         <label for="lbOi">Объект имущества</label>

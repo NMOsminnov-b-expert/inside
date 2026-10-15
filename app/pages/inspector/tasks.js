@@ -12,6 +12,7 @@
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { tasksOf, allAssignments, isLive, foundKinds } from '../../kernel/inspections.js';
+import { resultsOf, valuesOf, saveResults, addResultPhoto, markDone } from '../../kernel/inspectionResults.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -29,30 +30,16 @@ export const PHOTO_CATS = [
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 
-// Состояние осмотра живёт в памяти вкладки.
-//
-// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: здесь копятся заметка осмотрщика, его снимки и отметка
-// «осмотр завершён». На сервере это записи, привязанные к заданию на осмотр: у
-// них свой автор, время и порядок, а снимки уходят в файловое хранилище. Пока
-// всё пропадает при перезагрузке вкладки — как и остальные файлы макета.
-const local = new Map();
-
-export function taskState(typeId, ocId) {
-  const k = key(typeId, ocId);
-  if (!local.has(k)) local.set(k, { note: '', photos: [], done: false, assets: new Map() });
-  return local.get(k);
-}
+// Состояние осмотра — в ядре и сохраняется (kernel/inspectionResults.js,
+// 15.10.2026): прежде жило в памяти вкладки и пропадало при перезагрузке.
+export const taskState = (typeId, ocId) => resultsOf(typeId, ocId);
+export { saveResults, markDone };
 
 // Значения осмотра ОДНОГО объекта имущества. Осмотр ведётся по ОИ, а не по
 // записи целиком — так устроена и рабочая система (адрес её экрана:
 // /inspections/<id>/assets/<assetId>), и это единственный способ описать
 // литеру и котельную по-разному.
-export function assetValues(typeId, ocId, oiId) {
-  const assets = taskState(typeId, ocId).assets;
-  const k = oiId || '';
-  if (!assets.has(k)) assets.set(k, {});
-  return assets.get(k);
-}
+export const assetValues = (typeId, ocId, oiId) => valuesOf(typeId, ocId, oiId);
 
 // --- кто осматривает ------------------------------------------------------
 //
@@ -250,7 +237,8 @@ let premiseSeq = 0;
 
 export function addPremise(typeId, ocId, oiId) {
   const list = premises(typeId, ocId, oiId);
-  list.push({ id: 'pm-' + (++premiseSeq), name: '', area: '' });
+  list.push({ id: 'pm-' + Date.now().toString(36) + (++premiseSeq), name: '', area: '' });
+  saveResults();
   return list;
 }
 
@@ -258,6 +246,7 @@ export function removePremise(typeId, ocId, oiId, id) {
   const list = premises(typeId, ocId, oiId);
   const i = list.findIndex((x) => x.id === id);
   if (i >= 0) list.splice(i, 1);
+  saveResults();
 }
 
 // Объекты, выявленные НА ОСМОТРЕ. Решение пользователя 08.09.2026: такие
@@ -281,13 +270,14 @@ let foundSeq = 0;
 export function addFoundOi(typeId, ocId, kind) {
   const list = foundOi(typeId, ocId);
   const item = {
-    id: 'found-' + (++foundSeq),
+    id: 'found-' + Date.now().toString(36) + (++foundSeq),
     kind: kind || foundKinds()[0],
     name: '',
     note: '',
     foundAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
   };
   list.push(item);
+  saveResults();
   return item;
 }
 
@@ -295,37 +285,27 @@ export function removeFoundOi(typeId, ocId, id) {
   const list = foundOi(typeId, ocId);
   const i = list.findIndex((x) => x.id === id);
   if (i >= 0) list.splice(i, 1);
+  saveResults();
 }
 
 
 // --- фото -----------------------------------------------------------------
 
-let photoSeq = 0;
-
 export function addPhoto(typeId, ocId, file, { oiId = '', cat = '' } = {}) {
   const st = taskState(typeId, ocId);
   if (st.photos.length >= PHOTO_LIMIT) return { error: `Больше ${PHOTO_LIMIT} снимков на осмотр не нужно` };
-
-  const url = URL.createObjectURL(file);
-  const photo = {
-    id: 'ph-' + (++photoSeq),
-    name: file.name || 'снимок',
-    // К какому объекту имущества относится снимок. Без этого фото кровли не
-    // отличить от фото кровли соседней литеры.
+  // К какому объекту имущества относится снимок: без этого фото кровли не
+  // отличить от фото кровли соседней литеры.
+  //
+  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: координаты снимка ТЗ требует для каждого фото — из
+  // EXIF файла или у геолокации устройства в момент съёмки; это работа
+  // сервера и приложения, а не макета.
+  const photo = addResultPhoto(typeId, ocId, file, {
     oiId,
     cat: cat || PHOTO_CATS[0],
-    url,
-    size: file.size,
-    // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: координаты снимка ТЗ требует для каждого фото. В
-    // браузере их можно взять либо из EXIF файла, либо у геолокации устройства
-    // в момент съёмки; и то и другое — работа сервера и приложения, а не
-    // макета. Пока пишем координаты объекта: они показывают, как поле
-    // выглядит и куда встанет.
     gps: '',
     at: new Date().toISOString().slice(0, 16).replace('T', ' '),
-  };
-
-  st.photos.push(photo);
+  });
   return { photo };
 }
 
@@ -335,8 +315,9 @@ export function removePhoto(typeId, ocId, id) {
   if (i < 0) return;
   // Ссылку освобождаем сразу: снимков за смену набирается много, и держать
   // выброшенные blob'ы в памяти телефона незачем.
-  try { URL.revokeObjectURL(st.photos[i].url); } catch (e) { /* уже отозвана */ }
+  try { URL.revokeObjectURL(st.photos[i].dataUrl); } catch (e) { /* уже отозвана */ }
   st.photos.splice(i, 1);
+  saveResults();
 }
 
 // Перенос снимка — прямое требование ТЗ («должна быть предусмотрена
@@ -348,6 +329,7 @@ export function movePhoto(typeId, ocId, id, patch = {}) {
   if (!p) return;
   if (patch.cat !== undefined) p.cat = patch.cat;
   if (patch.oiId !== undefined) p.oiId = patch.oiId;
+  saveResults();
 }
 
 export function photoById(typeId, ocId, id) {

@@ -22,7 +22,7 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
-  foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips,
+  foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -725,6 +725,7 @@ export function mountInspector(host) {
     // Перечень полей — по виду открытого ОИ (у каждого вида своя форма).
     fields: () => allFields(route.typeId, curOi()),
     onChange: (field, value, opts) => {
+      saveResults();
       markSaved();
       // Мультивыбор пересобран на месте — перерисовка закрыла бы список.
       if (opts && opts.inPlace) { refreshSum(); return; }
@@ -1094,12 +1095,11 @@ export function mountInspector(host) {
 
   // Заметку пишем в состояние по ходу ввода и НЕ перерисовываем экран.
   scope.on('input', '[data-own-note]', (e, el) => {
-    if (route.typeId && route.ocId) taskState(route.typeId, route.ocId).note = el.value;
+    if (route.typeId && route.ocId) { taskState(route.typeId, route.ocId).note = el.value; saveResults(); }
   });
 
   scope.on('click', '[data-toggle-done]', () => {
-    const st = taskState(route.typeId, route.ocId);
-    st.done = !st.done;
+    const st = markDone(route.typeId, route.ocId, !taskState(route.typeId, route.ocId).done);
     host.toast(st.done ? 'Осмотр отмечен как завершённый' : 'Отметка снята', 'ok');
     render();
   });
@@ -1134,13 +1134,13 @@ export function mountInspector(host) {
   scope.on('input', '[data-pm-name]', (e, el) => {
     const pm = premises(route.typeId, route.ocId, route.oiId)
       .find((x) => x.id === el.dataset.pmName);
-    if (pm) pm.name = el.value;
+    if (pm) { pm.name = el.value; saveResults(); }
   });
 
   scope.on('input', '[data-pm-area]', (e, el) => {
     const pm = premises(route.typeId, route.ocId, route.oiId)
       .find((x) => x.id === el.dataset.pmArea);
-    if (pm) pm.area = el.value;
+    if (pm) { pm.area = el.value; saveResults(); }
   });
 
   // Переход к разделу из строки разделов: свёрнутый раскрывается, экран
@@ -1267,12 +1267,12 @@ export function mountInspector(host) {
 
   scope.on('input', '[data-found-name]', (e, el) => {
     const f = foundOi(route.typeId, route.ocId).find((x) => x.id === el.dataset.foundName);
-    if (f) f.name = el.value;
+    if (f) { f.name = el.value; saveResults(); }
   });
 
   scope.on('input', '[data-found-note]', (e, el) => {
     const f = foundOi(route.typeId, route.ocId).find((x) => x.id === el.dataset.foundNote);
-    if (f) f.note = el.value;
+    if (f) { f.note = el.value; saveResults(); }
   });
 
   // --- фото ---------------------------------------------------------------
