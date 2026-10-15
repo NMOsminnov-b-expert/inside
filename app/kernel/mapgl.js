@@ -74,6 +74,67 @@ const LOCALE_RU = {
   'ScaleControl.Kilometers': 'км',
 };
 
+// Масштаб колесом — своим обработчиком, с нелинейной скоростью (замечание
+// пользователя 15.10.2026: «поработай над ускорением зума/отдаления. Что бы
+// нелинейным оно было»; прежде — 14.10.2026 «зум медленный и ленивый» и
+// 13.10.2026 «пусть скорость зависит от масштаба»). Встроенный обработчик
+// MapLibre — одна скорость на любом масштабе и не больше уровня за событие,
+// разгон в него не вписать. Здесь щелчок двигает цель масштаба, а карта
+// догоняет её цепочкой плавных переходов (easeTo с общим easeId — без
+// событий «движение закончено» между шагами: слои Кадастра не дёргаются);
+// точка под курсором остаётся под курсором. Скорость — произведение двух
+// множителей:
+//   * от масштаба: издали (страна, область) щелчок — 0,85 уровня, вблизи
+//     (улица, участок) — 0,4: до места долетаешь быстро, у участка не
+//     проскакиваешь; между ними — плавная S-кривая, без изломов;
+//   * от быстроты: щелчки чаще двух за четверть секунды разгоняют масштаб до
+//     2,2 раза — «крутанул колесо» уводит далеко, одиночный щелчок точен.
+// Тачпад и щипок (мелкие частые шаги) — тот же множитель от масштаба, без
+// разгона и без догоняния: жест сам задаёт скорость. «Меньше движения» в
+// системе — без догоняния. Одна настройка на все карты макета.
+const NOTCH = 100;              // щелчок колеса — около 100 px прокрутки
+const BURST_MS = 250;           // окно, в котором считается быстрота
+const EASE_MS = 260;            // за сколько карта догоняет цель
+function levelsAt(z) {
+  const t = Math.min(1, Math.max(0, (z - 6) / 11));
+  const s = t * t * (3 - 2 * t);                 // S-кривая 0 → 1
+  return 0.85 - 0.45 * s;
+}
+const easeOut = (t) => 1 - (1 - t) ** 3;
+function wheelZoom(map) {
+  map.scrollZoom.disable();
+  const el = map.getCanvasContainer();
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hist = [];
+  let goal = null;
+  let idle = 0;
+  const easeId = 'wheel-' + Math.random().toString(36).slice(2);
+  el.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    let dy = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+    if (!dy) return;
+    const now = performance.now();
+    // Колесо — крупные целые шаги; тачпад и щипок (ctrlKey) — мелкие дробные.
+    const pad = e.ctrlKey || Math.abs(dy) < 40 || !Number.isInteger(dy);
+    if (e.ctrlKey) dy *= 4;                      // щипок приходит мелкими долями
+    const z = map.getZoom();
+    if (goal === null || now - idle > EASE_MS + 80) goal = z;
+    let boost = 1;
+    if (!pad) {
+      hist.push([now, Math.abs(dy)]);
+      while (hist.length && now - hist[0][0] > BURST_MS) hist.shift();
+      const notches = hist.reduce((n, h) => n + h[1], 0) / NOTCH;
+      boost = 1 + 1.2 * Math.min(1, Math.max(0, (notches - 2) / 4));
+    }
+    goal -= (dy / NOTCH) * levelsAt(goal) * boost;
+    goal = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), goal));
+    idle = now;
+    const r = el.getBoundingClientRect();
+    const around = map.unproject([e.clientX - r.left, e.clientY - r.top]);
+    map.easeTo({ zoom: goal, around, duration: pad || reduce ? 0 : EASE_MS, easing: easeOut, easeId }, { originalEvent: e });
+  }, { passive: false });
+}
+
 // more — дополнительные настройки карты (например, cooperativeGestures).
 export async function createMap(gl, el, { center = [74.6, 42.87], zoom = 6.5, ...more } = {}) {
   const map = new gl.Map({
@@ -83,13 +144,7 @@ export async function createMap(gl, el, { center = [74.6, 42.87], zoom = 6.5, ..
   });
   map.touchZoomRotate.disableRotation();
   map.keyboard.disableRotation();
-  // Скорость масштаба колесом (замечание пользователя 14.10.2026: «зум
-  // медленный и ленивый»; замер: щелчок колеса — 0,15 уровня, уровень — за
-  // семь щелчков). Щелчок — 0,5 уровня, как в привычных картах; жест
-  // тачпада — быстрее встроенного, но без рывков. Одна настройка на все
-  // карты макета.
-  map.scrollZoom.setWheelZoomRate(1 / 115);
-  map.scrollZoom.setZoomRate(1 / 50);
+  wheelZoom(map);
   map.addControl(new gl.NavigationControl({ showCompass: false }), 'bottom-right');
   if (!map.loaded()) await new Promise((ok) => map.once('load', ok));
   return map;

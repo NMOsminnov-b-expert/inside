@@ -76,7 +76,9 @@ async function drawGeoMap(box, geo) {
   if (box._map) { box._map.remove(); box._map = null; }
   const map = await createMap(gl, box);
   box._map = map;
-  map.scrollZoom.disable();       // колесо — прокрутка карточки, масштаб — кнопками
+  // Колесо над картой — масштаб (замечание пользователя 15.10.2026: «Зум на
+  // колесико не работает»; прежде колесо было отдано прокрутке карточки).
+  // Карточка прокручивается колесом всюду вне карты.
   attachCadastreGL(gl, map);
   const ext = ownParcelsGL(map, [geo]);
   map.fitBounds(ext, { padding: 24, maxZoom: 19, animate: false });
@@ -98,10 +100,12 @@ export function bindGeo(ctx, rec) {
 
   // Кнопки говорят, чего не хватает (практика APCS: недоступная кнопка
   // объясняет причину).
+  const codeBox = s.$('#cadCode');
   const refresh = () => {
     const code = codeOf();
+    if (codeBox) codeBox.textContent = code ? formatEniText(code) : 'код ЕНИ не введён';
     btnEni.disabled = !code;
-    btnEni.title = code ? `Рамка и контур участка по ЕНИ ${formatEniText(code)}` : 'Сначала введите код ЕНИ в блоке «Основные параметры»';
+    btnEni.title = code ? `Адрес, рамка и контур участка по ЕНИ ${formatEniText(code)}` : 'Сначала введите код ЕНИ в блоке «Основные параметры»';
     const a = addrOf();
     const ok = a.street && (a.city || a.region);
     btnAddr.disabled = !ok;
@@ -124,17 +128,24 @@ export function bindGeo(ctx, rec) {
   };
   const busy = (b, on, text) => { b.disabled = on; b.textContent = on ? 'Запрашиваю…' : text; };
 
+  // Одна кнопка — адрес и участок (решение пользователя 15.10.2026): оба
+  // запроса идут параллельно, итог — одной строкой; не ответил один —
+  // берётся то, что пришло, и говорится, чего нет.
   btnEni.onclick = async () => {
     const code = codeOf();
     if (!code) return;
     busy(btnEni, true);
     say('идёт запрос к Кадастру…');
-    const res = await geoByEni(code);
-    busy(btnEni, false, 'Координаты по ЕНИ');
+    const [addr, res] = await Promise.all([addressByEni(code), geoByEni(code)]);
+    busy(btnEni, false, 'Получить по ЕНИ');
     refresh();
-    if (res.error) { say(esc(res.error), 'err'); return; }
-    apply(res, 'ЕНИ');
-    ctx.toast('Координаты участка получены из Кадастра', 'ok');
+    const filled = addr.address ? fillAddress(ctx, rec, addr.address) : '';
+    if (res.error && !filled) { say(esc(res.error), 'err'); ctx.toast('Кадастр не ответил', 'warn'); return; }
+    if (!res.error) apply(res, 'ЕНИ');
+    const parts = [filled ? `адрес: ${esc(filled)}` : `адрес не получен${addr.error ? ` (${esc(addr.error)})` : ''}`,
+      res.error ? `участок не получен (${esc(res.error)})` : geoStatus(rec.geo)];
+    say(parts.join(' · '), filled && !res.error ? 'ok' : 'warn');
+    ctx.toast(filled && !res.error ? 'Адрес и участок получены из Кадастра' : 'Из Кадастра получено не всё', filled && !res.error ? 'ok' : 'warn');
   };
 
   btnAddr.onclick = async () => {
@@ -173,79 +184,25 @@ export function bindGeo(ctx, rec) {
   };
 }
 
-export function bindCadastre(ctx, rec) {
+// Адрес из ответа Кадастра — в поля блока «Местоположение». Заполняются и
+// пустые поля, и заполненные: человек сам нажал кнопку, значит ждёт адрес из
+// Кадастра, а не смесь со своим. Возвращает собранный адрес записи.
+function fillAddress(ctx, rec, address) {
   const s = ctx.scope;
+  const parsed = parseAddress(address);
+  Object.entries(ADDR_PARTS).forEach(([key, sel]) => {
+    const el = s.$(sel);
+    if (!el || !parsed[key]) return;
+    setAddrField(el, parsed[key]);
+    rec[key] = parsed[key];
+  });
+  syncOcAddress(rec);
+  const box = s.$('[data-addr-sum]');
+  if (box) box.value = rec.address;
+  if (ctx.updatePlate) ctx.updatePlate();
+  return address;
+}
+
+export function bindCadastre(ctx, rec) {
   bindGeo(ctx, rec);
-  const btn = s.$('#btnCadastre');
-  if (!btn) return;
-
-  const eniField = s.$('#fEni');
-  const codeBox = s.$('#cadCode');
-  const msgBox = s.$('#cadMsg');
-
-  const say = (text, kind) => {
-    if (!msgBox) return;
-    msgBox.textContent = text || '';
-    msgBox.className = 'src-msg' + (kind ? ' ' + kind : '');
-  };
-
-  // Кодов у записи бывает несколько, а Кадастр отвечает по одному — берём
-  // первый, тот же, что уходит в архив и документы.
-  const codeOf = () => eniCodesOf((eniField || {}).value || '')[0] || '';
-
-  // Код виден до нажатия: человек проверяет, по чему пойдёт запрос, а не гадает
-  // после. Кнопка без кода выключена — незачем звать портал впустую.
-  const refresh = () => {
-    const code = codeOf();
-    if (codeBox) codeBox.textContent = code ? formatEniText(code) : 'код ЕНИ не введён';
-    btn.disabled = !code;
-    btn.title = code
-      ? `Запросить адрес по коду ${formatEniText(code)}`
-      : 'Сначала введите код ЕНИ в блоке «Основные параметры»';
-  };
-
-  if (eniField) eniField.addEventListener('input', refresh);
-  refresh();
-
-  btn.onclick = async () => {
-    const code = codeOf();
-    if (!code) return;
-
-    const label = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Запрашиваю…';
-    say('идёт запрос к порталу…');
-
-    const res = await addressByEni(code);
-
-    btn.textContent = label;
-    refresh();
-
-    if (!res.address) {
-      // Ответ показываем в самой строке, а не только всплывающим сообщением:
-      // причина отказа длинная (перезапустить Live Server, поднять прокси), и
-      // всплывашка успевает исчезнуть раньше, чем её дочитают.
-      say(res.error || 'адрес не найден', 'err');
-      ctx.toast(res.error || 'Адрес не найден', 'warn');
-      return;
-    }
-
-    // Заполняем и пустые поля, и заполненные: человек сам нажал кнопку, значит
-    // ждёт адрес из Кадастра, а не смесь со своим.
-    const parsed = parseAddress(res.address);
-    Object.entries(ADDR_PARTS).forEach(([key, sel]) => {
-      const el = s.$(sel);
-      if (!el || !parsed[key]) return;
-      setAddrField(el, parsed[key]);
-      rec[key] = parsed[key];
-    });
-
-    syncOcAddress(rec);
-    const box = s.$('[data-addr-sum]');
-    if (box) box.value = rec.address;
-    if (ctx.updatePlate) ctx.updatePlate();
-
-    say(res.address, 'ok');
-    ctx.toast('Адрес заполнен из Кадастра', 'ok');
-  };
 }

@@ -35,7 +35,7 @@ function base(id, i, p) {
     city: p.city,
     street: p.street,
     house: p.house,
-    // Координаты — центр настоящего участка, рамка — как от «Координаты по ЕНИ».
+    // Координаты — центр настоящего участка, рамка — как от «Получить по ЕНИ».
     gps: p.parcel ? `${((p.parcel.ext[1] + p.parcel.ext[3]) / 2).toFixed(6)}, ${((p.parcel.ext[0] + p.parcel.ext[2]) / 2).toFixed(6)}` : '',
     ...(p.parcel ? { geo: { extent: p.parcel.ext, eni: p.parcel.eni, at: '2026-10-13T00:00:00.000Z', src: 'Кадастр (демо-выгрузка)', by: 'ЕНИ' } } : {}),
     status: p.status,

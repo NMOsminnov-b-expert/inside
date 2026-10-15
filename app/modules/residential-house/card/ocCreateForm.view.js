@@ -112,18 +112,6 @@ function locationSection(rec) {
     </div>
 
     <div class="card-pad">
-      <!-- Источник адреса — портал Кадастра. Строкой над полями, а не кнопкой у
-           поля адреса: запрос заполняет весь блок, а не одно поле, и видно, по
-           какому коду он пойдёт, ещё до нажатия. Подстановка ТОЛЬКО по кнопке —
-           автоматическая не давала убрать адрес вовсе: сотрёшь поля, тронешь
-           код, и они заполнены снова (замечание пользователя 09.09.2026). -->
-      <div class="src-row">
-        <span class="src-ic" aria-hidden="true">⌖</span>
-        <span class="src-name">Портал Кадастра</span>
-        <span class="src-code" id="cadCode"></span>
-        <span class="src-msg" id="cadMsg" role="status"></span>
-        <button type="button" class="btn src-btn" id="btnCadastre">Заполнить адрес</button>
-      </div>
       ${geoRowHTML(rec)}
 
       <!-- Порядок полей — от общего к частному, как называют адрес вслух:

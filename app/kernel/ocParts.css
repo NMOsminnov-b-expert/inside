@@ -283,6 +283,8 @@ body[data-module] .src-msg{flex:1;min-width:120px;font-size:11px;color:var(--mut
 body[data-module] .src-msg:empty{display:none}
 body[data-module] .src-msg.ok{color:var(--teal-700)}
 body[data-module] .src-msg.err{color:var(--danger)}
+/* Получено не всё (адрес без участка или наоборот) — предупреждение, не ошибка. */
+body[data-module] .src-msg.warn{color:var(--amber-700)}
 body[data-module] .src-btn{
   margin-left:auto;background:var(--panel);border-color:var(--amber-600);color:var(--amber-700);
   padding:4px 11px;font-size:11.5px;cursor:pointer}
@@ -291,6 +293,14 @@ body[data-module] .src-btn:hover:not(:disabled){background:var(--amber-50)}
 body[data-module] .src-btn:disabled{opacity:.55;cursor:default;border-color:var(--line);color:var(--muted)}
 /* Вторая кнопка строки встаёт рядом с первой, а не уезжает к краю. */
 body[data-module] .src-btn + .src-btn{margin-left:0}
+/* Строка «Кадастр» (15.10.2026, одна кнопка на адрес и участок): название,
+   код и кнопки — верхней строкой, кнопки всегда вместе и справа; итог
+   запроса — длинный (адрес, рамка, контур) — отдельной строкой во всю
+   ширину: рядом с кнопками он сжимался в узкую колонку и сталкивал вторую
+   кнопку на новую строку. */
+body[data-module] .src-acts{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+body[data-module] .src-acts .src-btn{margin-left:0}
+body[data-module] .geo-row .src-msg{order:10;flex-basis:100%}
 
 /* Координаты участка из Кадастра (13.10.2026): кандидаты по адресу — списком
    на месте, «искали — нашлось»; карта участка — контур и рамка, во всю
