@@ -1,0 +1,10 @@
+# Индекс CodeGraph — пересобирается на месте (codegraph init / sync).
+.codegraph/
+# Ход индексов и выгрузки для программы «Граф проекта».
+.graf/
+# Сборка программы — кладёт install.ps1 из пакета.
+tools/graf/dist/
+tools/graf/bin/
+tools/graf/obj/
+__pycache__/
+*.pyc
