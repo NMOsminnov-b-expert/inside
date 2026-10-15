@@ -421,7 +421,7 @@ export function mountInspections(host) {
     const p = one ? (people.find((x) => x.name === view.aPerson) || { live: mine.length, late: 0, free: 0 }) : null;
     const others = people.filter((x) => !x.fired && x.name !== view.aPerson);
     const head = `<div class="ip-ahead">
-        <button class="ip-aback" data-ip-aperson="" title="К списку сотрудников">‹ Все сотрудники</button>
+        <button class="ip-aback" data-ip-aperson="">‹ Все сотрудники</button>
         <div class="ip-ahead-t"><b>${one ? esc(view.aPerson) : 'Все назначения'}</b>
           <span>${mine.length}${one ? ` · в работе ${p.live}${p.late ? ` · <span class="ip-late">просрочено ${p.late}</span>` : ''} · свободно ${p.free} дн.` : ''}</span></div>
         ${one && mine.length ? (reassignGroup === view.aPerson ? `<span class="ip-grp-act"><select class="select" data-ip-rg-person aria-label="Кому переназначить"><option value="">— кому —</option>
