@@ -77,9 +77,17 @@ FOREIGN = ROOT != HOME
 ROOT_ARGS = ['--root', str(ROOT)] if FOREIGN else []
 
 
+# Индекс по смыслу проекта — inside-v2 (15.10.2026): нарезка по смысловым
+# границам и готовые векторы для неизменённых фрагментов (запись графа
+# indeks-po-smyslu-pereschityvat-tolko-izmenennye-fragmenty). Пока inside-v2
+# досчитывается, поиск Claude Code и выгрузка связей по смыслу читают прежний
+# inside; переключение — после сравнения точности на вопросах evaluate.py.
+HOME_SEM_PROJECT = 'inside-v2'
+
+
 def _project():
     if not FOREIGN:
-        return 'inside'
+        return HOME_SEM_PROJECT
     try:
         return json.loads((ROOT / '.codebase-mcp' / 'config.json').read_text(encoding='utf-8'))['project']['name']
     except (OSError, ValueError, KeyError):
