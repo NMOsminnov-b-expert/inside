@@ -15,8 +15,7 @@ import { fmtEni } from '../../kernel/fmt.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
-import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel } from './tasks.js';
-import { foundKinds } from '../../kernel/inspections.js';
+import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat } from './tasks.js';
 import { sections, allFields, mismatchHint } from './form.js';
 
 // --- значки ---------------------------------------------------------------
@@ -440,7 +439,7 @@ const OI_GROUPS = [
   { label: 'Вспомогательные постройки', cards: ['aux'] },
 ];
 
-export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, counts, backHref }) {
+export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, filledFor, counts, backHref }) {
   const oi = rec.oi || [];
 
   return `<div class="ins">
@@ -483,23 +482,7 @@ export function objectHTML({ rec, openOi, found, hrefFor, assetHref, filledFor, 
   }).join('') : '<p class="ins-empty">В объекте нет ни одного ОИ.</p>'}
       </section>
 
-      <section class="ins-blk">
-        <h2 class="ins-blk-h">Выявлено на осмотре${found.length ? ' · ' + found.length : ''}</h2>
-        ${found.length ? `<ul class="ins-found">
-          ${found.map(foundItemHTML).join('')}
-        </ul>` : `<p class="ins-empty">Если на месте нашлось строение или механизм,
-          которого нет в списке, добавьте его здесь — ЦОД увидит, что объект пришёл
-          с осмотра.</p>`}
-        <div class="ins-cols" style="margin-top:10px">
-          <div class="ins-field">
-            <label for="insFoundKind">Вид объекта</label>
-            <select class="select ins-select" id="insFoundKind" data-found-kind>
-              ${foundKinds().map((k) => `<option>${esc(k)}</option>`).join('')}
-            </select>
-          </div>
-          <button class="ins-btn ins-btn-main" data-found-add>Добавить объект</button>
-        </div>
-      </section>
+      ${foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor })}
     </div>
 
     ${tabsHTML('object', hrefFor, counts)}
@@ -540,29 +523,79 @@ function oiItemHTML(o, open, assetHref, filledFor) {
   </li>`;
 }
 
-// Выявленный на осмотре объект. Помечается признаком — по нему ЦОД видит, что
-// объект пришёл с осмотра, а не был заведён по документам (решение
-// пользователя 08.09.2026). Прикрепить к нему можно то, что получится:
-// наименование, заметку и фото через раздел «Фото».
-function foundItemHTML(f) {
-  return `<li class="ins-found-i">
-    <span class="ins-found-top">
-      <span class="ins-pill ins-pill-wait">выявлен на осмотре</span>
-      <span class="ins-found-kind">${esc(f.kind)}</span>
-      <span class="ins-found-at">${esc(f.foundAt)}</span>
-    </span>
-    <div class="ins-field">
-      <label>Наименование</label>
-      <input class="input ins-input" data-found-name="${esc(f.id)}" value="${esc(f.name)}"
-        placeholder="Например: навес за котельной">
-    </div>
-    <div class="ins-field">
-      <label>Описание с осмотра</label>
-      <textarea class="textarea ins-ta" data-found-note="${esc(f.id)}" rows="2"
-        placeholder="Размеры на глаз, состояние, примыкания">${esc(f.note)}</textarea>
-    </div>
-    <button class="ins-btn ins-btn-icon" data-found-drop="${esc(f.id)}"
-      aria-label="Убрать объект" title="Убрать объект">${ico('trash', 18)}</button>
+// Выявленные на осмотре здания — неутверждённые литеры (решение пользователя
+// 15.10.2026). Для осмотрщика — такой же ОИ, как учтённые: тот же пункт
+// списка, та же форма осмотра, снимки к нему. Отличие видно меткой
+// «выявлено» и действиями: пока осмотр не завершён — перенести снимки и
+// значения в учтённую литеру или удалить; после — «на разборе», правки нет.
+function foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor }) {
+  const lands = (rec.oi || []).filter((o) => o.card === 'land');
+  const targets = (rec.oi || []).filter((o) => o.card === 'building');
+  return `<section class="ins-blk">
+    <h2 class="ins-blk-h">Выявлено на осмотре${found.length ? ' · ' + found.length : ''}</h2>
+    ${found.length ? `<ul class="ins-oi">
+      ${found.map((f) => foundItemHTML(f, { open: f.id === openOi, locked, targets, lands, assetHref, filledFor })).join('')}
+    </ul>` : (locked ? '<p class="ins-empty">На осмотре новых зданий не выявлено.</p>' : '')}
+    ${locked ? '' : `<form class="ins-found-new" data-found-form>
+      <div class="ins-field">
+        <label for="insFoundCat">Категория</label>
+        <select class="select ins-select" id="insFoundCat" data-found-cat>
+          ${FOUND_CATS.map((c) => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}
+        </select>
+      </div>
+      ${lands.length > 1 ? `<div class="ins-field">
+        <label for="insFoundLand">Земельный участок</label>
+        <select class="select ins-select" id="insFoundLand" data-found-land>
+          ${lands.map((l) => `<option value="${esc(l.id)}">${esc([fmtEni(l.eni), l.name].filter(Boolean).join(' · '))}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      <div class="ins-field">
+        <label for="insFoundName">Название по факту</label>
+        <input class="input ins-input" id="insFoundName" data-found-new-name placeholder="Например: склад у ворот">
+      </div>
+      <button class="ins-btn ins-btn-main" type="submit">Добавить здание</button>
+    </form>`}
+  </section>`;
+}
+
+function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }) {
+  const land = lands.find((l) => l.id === f.landId);
+  const sub = [foundCat(f.cat).label, land && lands.length > 1 ? 'участок ' + fmtEni(land.eni) : ''].filter(Boolean).map(esc).join(' · ');
+  const filled = filledFor ? filledFor(f.id) : 0;
+  return `<li class="ins-oi-i ins-oi-found ${open ? 'on' : ''}">
+    <button class="ins-oi-h" data-oi="${esc(f.id)}" aria-expanded="${open ? 'true' : 'false'}">
+      <span class="ins-oi-t">
+        <b>${esc(f.name || foundCat(f.cat).label)}</b>
+        <span class="ins-oi-sub"><span class="ins-pill ins-pill-wait">${locked ? 'на разборе' : 'выявлено'}</span> ${sub}${f.foundAt ? ` · <span class="ins-nowrap">${esc(f.foundAt)}</span>` : ''}</span>
+      </span>
+      ${filled ? `<span class="ins-oi-n" title="Заполнено полей осмотра">${filled}</span>` : ''}
+      <span class="ins-oi-chev">${ico('chev', 18)}</span>
+    </button>
+    ${open ? `<div class="ins-oi-b">
+      ${locked ? `${rowHTML('Название', f.name)}${rowHTML('Описание с осмотра', f.note)}
+      <p class="ins-empty">Осмотр завершён — здание передано на разбор в карточку объекта оценки.</p>` : `
+      <div class="ins-field">
+        <label for="fn-${esc(f.id)}">Название по факту</label>
+        <input class="input ins-input" id="fn-${esc(f.id)}" data-found-name="${esc(f.id)}" value="${esc(f.name)}">
+      </div>
+      <div class="ins-field">
+        <label for="fd-${esc(f.id)}">Описание с осмотра</label>
+        <textarea class="textarea ins-ta" id="fd-${esc(f.id)}" data-found-note="${esc(f.id)}" rows="2"
+          placeholder="Размеры на глаз, примыкания">${esc(f.note)}</textarea>
+      </div>
+      <a class="ins-btn ins-btn-main ins-btn-wide ins-oi-go"
+        href="${esc(assetHref(f.id))}">${ico('pen')} ${filled ? 'Продолжить осмотр' : 'Осмотреть'}</a>
+      ${targets.length ? `<div class="ins-found-move">
+        <div class="ins-field">
+          <label for="fm-${esc(f.id)}">Перенести в учтённое здание</label>
+          <select class="select ins-select" id="fm-${esc(f.id)}" data-found-target="${esc(f.id)}">
+            ${targets.map((o) => `<option value="${esc(o.id)}">${esc(oiLabel(o))}</option>`).join('')}
+          </select>
+        </div>
+        <button class="ins-btn" type="button" data-found-move="${esc(f.id)}">Перенести снимки и значения</button>
+      </div>` : ''}
+      <button class="ins-btn ins-btn-del" type="button" data-found-drop="${esc(f.id)}">${ico('trash', 18)} Удалить выявленное</button>`}
+    </div>` : ''}
   </li>`;
 }
 

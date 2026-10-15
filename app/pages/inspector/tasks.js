@@ -11,7 +11,7 @@
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
-import { tasksOf, allAssignments, isLive, foundKinds } from '../../kernel/inspections.js';
+import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, markDone } from '../../kernel/inspectionResults.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
@@ -189,6 +189,8 @@ export function oiLabel(oi) {
   const name = raw;
 
   if (oi.card === 'building') {
+    // Выявленное на осмотре — по факту, без литеры.
+    if (oi.draft) return ['Выявлено', name || foundCat(oi.cat).label].join(' · ');
     const head = oi.letter ? 'Литера ' + oi.letter : 'Строение';
     return same(head) ? head : [head, name].filter(Boolean).join(' · ');
   }
@@ -217,8 +219,9 @@ export function oiLabel(oi) {
 }
 
 // Список ОИ записи для выбора: к чему привязать снимок.
-export function oiOptions(rec) {
-  return (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o) }));
+export function oiOptions(rec, typeId = '', ocId = '') {
+  const list = typeId && ocId ? inspOis(rec, typeId, ocId) : (rec.oi || []);
+  return list.map((o) => ({ id: o.id, label: oiLabel(o) }));
 }
 
 // --- помещения и выявленные объекты ---------------------------------------
@@ -249,42 +252,100 @@ export function removePremise(typeId, ocId, oiId, id) {
   saveResults();
 }
 
-// Объекты, выявленные НА ОСМОТРЕ. Решение пользователя 08.09.2026: такие
-// объекты нужно помечать и прикреплять к ним всё, что получится.
+// Выявленные на осмотре здания — неутверждённые литеры (решение пользователя
+// 15.10.2026, запись графа vyyavlennye-na-osmotre-zdaniya-…): «Увидел здание
+// — добавил его… По сути то же меню создания ОИ, однако сильно упрощенное»;
+// «для него всё должно выглядеть как обычная литера на участке». Черновик —
+// объект имущества того же вида (card 'building'), категория задаёт вид
+// литеры и признак жилого: по ним форма осмотра подбирает разделы
+// (производственные параметры, класс капитальности). Лежит в результатах
+// осмотра, а не в составе записи: новую карточку заводят только ЦОД и оценка
+// после разбора на вкладке «Результаты осмотра» карточки ОЦ. Буквы нет —
+// «Выявленное называем по факту», литеру ставят по техпаспорту.
 //
-// Держим их отдельным списком, а не добавляем в rec.oi: осмотрщик не правит
-// данные ЦОД (то же решение), и ЦОД должен видеть, что объект пришёл с
-// осмотра, а не был заведён по документам. Признак — не украшение: по нему
-// ЦОД решает, что достраивать в записи.
+// Пока осмотр не завершён, осмотрщик правит черновик, переносит снимки и
+// значения в учтённую литеру и удаляет созданное («сам осмотрщик может
+// понять, что допустил ошибку»); после завершения черновик закрыт и ждёт
+// разбора («По завершению осмотра»).
 //
-// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: на сервере это заявка на добавление объекта имущества
-// со своим автором и временем, которую ЦОД принимает или отклоняет.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: заявка на добавление объекта имущества с автором и
+// временем; на месте без связи — копится на телефоне и уходит с осмотром.
+export const FOUND_CATS = [
+  { key: 'house', label: 'Жилой дом', residential: true, litKind: '' },
+  { key: 'civil', label: 'Гражданское здание', residential: false, litKind: 'civil' },
+  { key: 'prod', label: 'Производственно-складское', residential: false, litKind: 'prod' },
+  { key: 'other', label: 'Прочее (навес, сарай…)', residential: false, litKind: 'other' },
+];
+export const foundCat = (key) => FOUND_CATS.find((c) => c.key === key) || FOUND_CATS[FOUND_CATS.length - 1];
+
 export function foundOi(typeId, ocId) {
   const st = taskState(typeId, ocId);
   if (!Array.isArray(st.found)) st.found = [];
+  // Прежние записи «выявлено» (вид словом, без карточки) — черновиками
+  // категории «Прочее»: вид становится названием.
+  st.found.forEach((f) => {
+    if (f.card) return;
+    Object.assign(f, { card: 'building', draft: true, cat: 'other', litKind: 'other', residential: false, name: f.name || f.kind || '', landId: '' });
+  });
   return st.found;
 }
 
-let foundSeq = 0;
+// Учтённые ОИ записи и выявленные — один список для осмотрщика.
+export const inspOis = (rec, typeId, ocId) => [...((rec && rec.oi) || []), ...foundOi(typeId, ocId)];
+export const isFoundLocked = (typeId, ocId) => !!taskState(typeId, ocId).done;
 
-export function addFoundOi(typeId, ocId, kind) {
-  const list = foundOi(typeId, ocId);
+let foundSeq = 0;
+const two = (n) => String(n).padStart(2, '0');
+// Местное время осмотра, как его видит осмотрщик: «15.10.2026 14:05».
+const stamp = (d) => `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
+
+export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = '', by = '' } = {}) {
+  const c = foundCat(cat);
   const item = {
     id: 'found-' + Date.now().toString(36) + (++foundSeq),
-    kind: kind || foundKinds()[0],
-    name: '',
+    card: 'building',
+    draft: true,
+    cat: c.key,
+    litKind: c.litKind,
+    residential: c.residential,
+    name: String(name || '').trim(),
     note: '',
-    foundAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    landId,
+    foundBy: by,
+    foundAt: stamp(new Date()),
   };
-  list.push(item);
+  foundOi(typeId, ocId).push(item);
   saveResults();
   return item;
 }
 
+// Перенести выявленное в учтённую литеру: снимки — к ней, значения осмотра —
+// в её пустые поля (заполненное у литеры не трогаем). Возвращает, сколько
+// снимков и значений перенесено.
+export function moveFoundTo(typeId, ocId, id, oiId) {
+  const st = taskState(typeId, ocId);
+  let photos = 0;
+  st.photos.forEach((p) => { if (p.oiId === id) { p.oiId = oiId; photos += 1; } });
+  const from = st.assets[id] || {};
+  const to = valuesOf(typeId, ocId, oiId);
+  let values = 0;
+  Object.entries(from).forEach(([k, v]) => {
+    const empty = to[k] == null || to[k] === '' || (Array.isArray(to[k]) && !to[k].length);
+    if (empty && v != null && v !== '' && !(Array.isArray(v) && !v.length)) { to[k] = v; values += 1; }
+  });
+  saveResults();
+  return { photos, values };
+}
+
+// Удалить выявленное. Снимки не пропадают — остаются без привязки к объекту
+// («Любые фото с осмотров — важная информация»).
 export function removeFoundOi(typeId, ocId, id) {
+  const st = taskState(typeId, ocId);
   const list = foundOi(typeId, ocId);
   const i = list.findIndex((x) => x.id === id);
   if (i >= 0) list.splice(i, 1);
+  st.photos.forEach((p) => { if (p.oiId === id) p.oiId = ''; });
+  delete st.assets[id];
   saveResults();
 }
 
@@ -344,7 +405,7 @@ export function photoGroups(rec, typeId, ocId) {
   const byOi = new Map();
 
   st.photos.forEach((p) => {
-    const oi = (rec.oi || []).find((o) => o.id === p.oiId);
+    const oi = inspOis(rec, typeId, ocId).find((o) => o.id === p.oiId);
     const key = p.oiId || '';
     if (!byOi.has(key)) {
       byOi.set(key, { label: oi ? oiLabel(oi) : 'Без привязки к объекту', cats: new Map() });

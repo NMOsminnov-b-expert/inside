@@ -22,7 +22,7 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
-  foundOi, addFoundOi, removeFoundOi, PHOTO_CATS, dayTrips, saveResults, markDone,
+  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -643,12 +643,12 @@ export function mountInspector(host) {
     const hrefFor = (s) => inspHref({ typeId, ocId, section: s });
     const counts = { docs: docs.length, photo: state.photos.length };
     const taskHref = inspHref({ typeId, ocId });
-    const oiList = oiOptions(r);
+    const oiList = oiOptions(r, typeId, ocId);
 
     // Осмотр одного объекта имущества — подраздел «Объекта»: раздел в панели
     // остаётся тот же, а «назад» ведёт к перечню, а не к задаче.
     if (section === 'object' && route.oiId) {
-      const oi = (r.oi || []).find((o) => o.id === route.oiId);
+      const oi = inspOis(r, typeId, ocId).find((o) => o.id === route.oiId);
       if (oi) {
         scope.setHTML(assetHTML({
           rec: r,
@@ -675,10 +675,11 @@ export function mountInspector(host) {
         rec: r,
         openOi: ui.openOi,
         found: foundOi(typeId, ocId),
+        locked: isFoundLocked(typeId, ocId),
         hrefFor,
         assetHref: (oiId) => inspHref({ typeId, ocId, section: 'object', oiId }),
         // Число заполненных полей у ОИ — по нему видно, что осмотр начат.
-        filledFor: (oiId) => filledCount(allFields(typeId, (r.oi || []).find((o) => o.id === oiId)), assetValues(typeId, ocId, oiId)),
+        filledFor: (oiId) => filledCount(allFields(typeId, inspOis(r, typeId, ocId).find((o) => o.id === oiId)), assetValues(typeId, ocId, oiId)),
         counts,
         backHref: taskHref,
       }));
@@ -746,7 +747,7 @@ export function mountInspector(host) {
     if (!box) return;
 
     const r = rec();
-    const oi = r && (r.oi || []).find((o) => o.id === route.oiId);
+    const oi = r && inspOis(r, route.typeId, route.ocId).find((o) => o.id === route.oiId);
     const text = mismatchHint(field, assetValues(route.typeId, route.ocId, route.oiId), oi, { photos: oiPhotos() });
     box.textContent = text;
     box.classList.toggle('warn', /^РАСХОДИТСЯ/.test(text));
@@ -780,7 +781,7 @@ export function mountInspector(host) {
 
   // Открытый ОИ и его снимки — для формы по виду ОИ и правила «нерабочее —
   // только при снимках».
-  const curOi = () => { const r = rec(); return r && (r.oi || []).find((o) => o.id === route.oiId); };
+  const curOi = () => { const r = rec(); return r && inspOis(r, route.typeId, route.ocId).find((o) => o.id === route.oiId); };
   const oiPhotos = () => (route.typeId && route.ocId ? taskState(route.typeId, route.ocId).photos.filter((p) => p.oiId === route.oiId).length : 0);
 
   // Сохранение — само (макет: значения и так в памяти вкладки). Время
@@ -1247,18 +1248,49 @@ export function mountInspector(host) {
 
   // --- объекты, выявленные на осмотре -------------------------------------
 
-  scope.on('click', '[data-found-add]', () => {
-    const kind = (scope.$('[data-found-kind]') || {}).value;
-    addFoundOi(route.typeId, route.ocId, kind);
-    host.toast('Объект добавлен и помечен «выявлен на осмотре»', 'ok');
+  // Добавить выявленное здание: категория, участок (если их несколько) и
+  // название по факту. Созданное сразу раскрыто — осмотрщик видит, что оно
+  // появилось, и отсюда идёт в форму осмотра.
+  scope.on('submit', '[data-found-form]', (e) => {
+    e.preventDefault();
+    const val = (sel) => (scope.$(sel) || {}).value || '';
+    const lands = ((rec() || {}).oi || []).filter((o) => o.card === 'land');
+    const item = addFoundOi(route.typeId, route.ocId, {
+      cat: val('[data-found-cat]'),
+      name: val('[data-found-new-name]'),
+      landId: val('[data-found-land]') || (lands[0] ? lands[0].id : ''),
+      by: currentInspector(),
+    });
+    ui.openOi = item.id;
+    host.toast('Здание добавлено — «выявлено на осмотре»', 'ok');
+    render();
+  });
+
+  // Ошибся — это учтённая литера: снимки и значения уходят к ней, черновик
+  // удаляется. Значения литеры, уже внесённые на осмотре, не затираются.
+  scope.on('click', '[data-found-move]', async (e, el) => {
+    const id = el.dataset.foundMove;
+    const sel = scope.$(`[data-found-target="${id}"]`);
+    if (!sel || !sel.value) return;
+    const label = sel.options[sel.selectedIndex].text;
+    const ok = await host.confirm({
+      title: 'Перенести в учтённое здание?',
+      text: `Снимки и значения осмотра перейдут к «${label}», выявленное будет удалено. Заполненное у литеры не меняется.`,
+      okLabel: 'Перенести',
+    });
+    if (!ok) return;
+    const res = moveFoundTo(route.typeId, route.ocId, id, sel.value);
+    removeFoundOi(route.typeId, route.ocId, id);
+    ui.openOi = sel.value;
+    host.toast(`Перенесено: снимков ${res.photos}, значений ${res.values}`, 'ok');
     render();
   });
 
   scope.on('click', '[data-found-drop]', async (e, el) => {
     const ok = await host.confirm({
-      title: 'Убрать объект?',
-      text: 'Выявленный объект и всё, что к нему записано, пропадёт.',
-      okLabel: 'Убрать', danger: true,
+      title: 'Удалить выявленное?',
+      text: 'Значения осмотра здания пропадут. Снимки останутся в разделе «Фото» без привязки к объекту.',
+      okLabel: 'Удалить', danger: true,
     });
     if (!ok) return;
     removeFoundOi(route.typeId, route.ocId, el.dataset.foundDrop);
@@ -1282,7 +1314,7 @@ export function mountInspector(host) {
 
   scope.on('click', '[data-shoot]', async () => {
     const r = rec();
-    const oiList = oiOptions(r || {});
+    const oiList = oiOptions(r || {}, route.typeId, route.ocId);
     const oiId = ui.photoOi || (oiList[0] ? oiList[0].id : '');
     if (!oiId) {
       host.toast('Не к чему привязать снимок: в объекте нет ОИ', 'warn');
@@ -1342,7 +1374,7 @@ export function mountInspector(host) {
     const p = photoById(route.typeId, route.ocId, el.dataset.shot);
     if (!p) return;
     closeLightbox();
-    scope.root.insertAdjacentHTML('beforeend', lightboxHTML(p, oiOptions(rec() || {})));
+    scope.root.insertAdjacentHTML('beforeend', lightboxHTML(p, oiOptions(rec() || {}, route.typeId, route.ocId)));
   });
 
   scope.on('click', '[data-lb-close]', closeLightbox);

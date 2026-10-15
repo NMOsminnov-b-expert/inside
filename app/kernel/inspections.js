@@ -22,18 +22,17 @@ import { attachedFileFrom } from './fileUpload.js';
 import { eniRegion } from './fmt.js';
 import { optionsFor } from './dicts.js';
 import {
-  SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, FOUND_KINDS, CAR_FUELS,
+  SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, CAR_FUELS,
 } from './inspectionsDicts.js';
 
 // Перечни «Осмотров» — из раздела «Справочники» (группа «Осмотры», решение
 // пользователя 15.10.2026), встроенные — запасные (kernel/inspectionsDicts.js).
-export { SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, FOUND_KINDS, CAR_FUELS };
+export { SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, CAR_FUELS };
 const fromDict = (card, field, fallback) => {
   try { return optionsFor('inspections', card, field) || fallback; } catch (e) { return fallback; }
 };
 export const skipReasons = () => fromDict('plan', 'skipReason', SKIP_REASONS);
 export const cadDocs = () => fromDict('cad', 'docs', CAD_DOCS);
-export const foundKinds = () => fromDict('site', 'found', FOUND_KINDS);
 export const carFuels = () => fromDict('car', 'fuel', CAR_FUELS);
 // Отсутствия и работа вне выездов хранятся ключом: встроенные подписи
 // сопоставляются со своим ключом, новое значение справочника — само себе ключ.

@@ -45,14 +45,6 @@ export const CAD_DOCS = ['Кадастровый план', 'Поэтажный 
 // Сверяются с видом и именем документа объекта без регистра, по основе слова.
 export const DEFAULT_DOC_TYPES = ['Кадастровый план', 'Поэтажный план', 'Планировка'];
 
-// Виды, которыми осмотрщик называет найденное. Перечень из ТЗ
-// (вспомогательные строения и постройки, которых нет в списке ЦОД) плюс
-// движимое.
-export const FOUND_KINDS = [
-  'Навес', 'Сарай', 'Гараж', 'Склад', 'Времянка', 'Летняя кухня', 'Баня',
-  'Хозпостройка', 'Пристройка', 'Ограждение', 'Механизм', 'Прочее',
-];
-
 // Виды топлива авто осмотрщика. «АИ-92 Евро» вместо «АИ-95» — указание
 // пользователя 12.10.2026.
 export const CAR_FUELS = ['АИ-92', 'АИ-92 Евро', 'Дизель', 'Газ'];
@@ -62,7 +54,6 @@ export const INSPECTIONS_CARDS = {
   plan: 'План и выезды',
   assign: 'Назначение',
   cad: 'Запросы в Кадастр',
-  site: 'Осмотр на месте',
   car: 'Авто',
 };
 
@@ -74,6 +65,5 @@ export const INSPECTIONS_DICT_SOURCES = [
   { key: 'insp-absence', kind: 'flat', values: ABSENCE_KINDS.map((k) => k.label), slots: [{ card: 'plan', field: 'absence', label: 'Виды отсутствия' }] },
   { key: 'insp-defdocs', kind: 'flat', values: DEFAULT_DOC_TYPES, slots: [{ card: 'assign', field: 'defaultDocs', label: 'Документы по умолчанию в назначении' }] },
   { key: 'insp-caddocs', kind: 'flat', values: CAD_DOCS, slots: [{ card: 'cad', field: 'docs', label: 'Документы для запросов' }] },
-  { key: 'insp-found', kind: 'flat', values: FOUND_KINDS, slots: [{ card: 'site', field: 'found', label: 'Что найдено на осмотре' }] },
   { key: 'insp-fuel', kind: 'flat', values: CAR_FUELS, slots: [{ card: 'car', field: 'fuel', label: 'Топливо' }] },
 ];

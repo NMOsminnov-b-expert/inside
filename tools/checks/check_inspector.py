@@ -56,6 +56,7 @@ PHONE = {'width': 390, 'height': 844}
 WIDE = {'width': 1280, 'height': 900}
 
 TASK = '#/insp/civil/oc-cv-1'
+TYPE, OC = 'civil', 'oc-cv-1'
 ASSET = TASK + '/object/oi-cv1-a'
 
 # Разделы задачи и признак, по которому видно, что открылся нужный.
@@ -394,34 +395,64 @@ def run(t):
     t.ck(pg.input_value('.ins-num') == '',
          'значения осмотра общие для разных ОИ — должны быть у каждого свои')
 
-    # --- 5б. объект, выявленный на осмотре ---
+    # --- 5б. здание, выявленное на осмотре ---
     #
-    # Решение пользователя 08.09.2026: выявленный объект помечается, и к нему
-    # прикрепляется то, что получится. Признак — не украшение: по нему ЦОД
-    # видит, что объект пришёл с осмотра, а не заведён по документам.
+    # Решение пользователя 15.10.2026: выявленное здание — неутверждённая
+    # литера, для осмотрщика «как обычная литера на участке»: тот же пункт
+    # списка с меткой «выявлено», та же форма осмотра по категории, снимки к
+    # нему. Удалённое уносит значения, но не снимки («Любые фото с осмотров —
+    # важная информация»). Ловит: черновик без формы осмотра, снимки,
+    # пропавшие вместе с черновиком, перенос, затирающий значения литеры.
     t.open(TASK + '/object', wait='.ins-oi')
     t.wait(250)
-    t.ck(_has(t, 'Выявлено на осмотре'), 'нет раздела для выявленных на осмотре объектов')
+    t.ck(_has(t, 'Выявлено на осмотре'), 'нет раздела для выявленных на осмотре зданий')
 
-    pg.select_option('[data-found-kind]', 'Навес')
-    pg.locator('[data-found-add]').click()
-    t.wait_for('.ins-found-i')
-    t.ck(pg.locator('.ins-found-i').count() == 1, 'выявленный объект не добавился')
-    t.ck('выявлен на осмотре' in pg.locator('.ins-found-i').inner_text().lower(),
-         'выявленный объект не помечен: %s' % pg.locator('.ins-found-i').inner_text()[:60])
-    t.ck('навес' in pg.locator('.ins-found-kind').inner_text().lower(),
-         'у выявленного объекта не тот вид: %s' % pg.locator('.ins-found-kind').inner_text())
+    pg.select_option('[data-found-cat]', 'prod')
+    pg.fill('[data-found-new-name]', 'Склад у ворот')
+    pg.locator('.ins-found-new button[type=submit]').click()
+    t.wait_for('.ins-oi-found')
+    t.ck(pg.locator('.ins-oi-found').count() == 1, 'выявленное здание не добавилось')
+    head = pg.locator('.ins-oi-found .ins-oi-h').inner_text().lower()
+    t.ck('выявлено' in head and 'склад у ворот' in head,
+         'выявленное здание без метки или названия: %s' % head[:80])
+    t.ck(pg.locator('.ins-oi-found [data-found-name]').count() == 1,
+         'созданное здание не раскрылось для правки')
 
-    pg.fill('[data-found-name]', 'Навес за котельной')
-    pg.fill('[data-found-note]', 'Металлический, примыкает к литере Б')
-    t.ck(pg.input_value('[data-found-name]') == 'Навес за котельной',
-         'наименование выявленного объекта не вводится')
+    pg.fill('.ins-oi-found [data-found-note]', 'Металлический, примыкает к литере Б')
+    found_id = pg.get_attribute('.ins-oi-found [data-found-name]', 'data-found-name')
 
+    # Форма осмотра — по категории: производственно-складское получает
+    # производственные параметры и класс капитальности, как литера в карточке.
+    pg.locator('.ins-oi-found .ins-oi-go').click()
+    t.wait_for('.ins-fs')
+    body = pg.locator('.ins-body').inner_text().lower()
+    t.ck('капитальност' in body, 'у выявленного здания нет раздела класса капитальности')
+    t.ck(pg.locator('[data-fs-field]').count() > 5,
+         'у выявленного здания нет формы осмотра')
+
+    # Снимок к выявленному — тем же разделом «Фото».
+    opts = pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
+      const r = await K.loadTask('%s', '%s'); return K.oiOptions(r, '%s', '%s').map(o => o.id); }""" % (TYPE, OC, TYPE, OC))
+    t.ck(found_id in opts, 'выявленное здание не предлагается для привязки снимков')
+    pg.evaluate("""async (id) => { const K = await import('./app/pages/inspector/tasks.js');
+      const f = new File([new Uint8Array([137,80,78,71])], 'склад.png', { type: 'image/png' });
+      K.addPhoto('%s', '%s', f, { oiId: id, cat: 'Фасад' }); }""" % (TYPE, OC), found_id)
+
+    t.open(TASK + '/object', wait='.ins-oi-found')
+    if not pg.locator('[data-found-drop]').count():
+        pg.locator('.ins-oi-found .ins-oi-h').click()
+    t.wait_for('[data-found-drop]')
     pg.locator('[data-found-drop]').click()
-    if t.ck(t.wait_for('.modal'), 'удаление выявленного объекта не спросило подтверждения'):
+    if t.ck(t.wait_for('.modal'), 'удаление выявленного здания не спросило подтверждения'):
         pg.locator('[data-modal-ok]').last.click()
-        t.wait_until('() => document.querySelectorAll(".ins-found-i").length === 0')
-        t.ck(pg.locator('.ins-found-i').count() == 0, 'выявленный объект не убрался')
+        t.wait_until('() => document.querySelectorAll(".ins-oi-found").length === 0')
+        t.ck(pg.locator('.ins-oi-found').count() == 0, 'выявленное здание не удалилось')
+        kept = pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
+          return K.taskState('%s', '%s').photos.filter(p => p.name === 'склад.png').map(p => p.oiId); }""" % (TYPE, OC))
+        t.ck(kept == [''], 'снимок удалённого здания пропал или остался привязан: %s' % kept)
+        # Снимок — тестовый: убрать, чтобы раздел «Фото» ниже начинал с чистого.
+        pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
+          K.taskState('%s', '%s').photos.filter(p => p.name === 'склад.png').forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
 
     left_native = pg.eval_on_selector_all(
         '.ins select.select:not(.pick-native)', 'els => els.length')
