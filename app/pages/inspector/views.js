@@ -15,7 +15,7 @@ import { fmtEni } from '../../kernel/fmt.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
-import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat } from './tasks.js';
+import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat, UNSORTED } from './tasks.js';
 import { sections, allFields, mismatchHint } from './form.js';
 
 // --- значки ---------------------------------------------------------------
@@ -355,7 +355,7 @@ export function contourAreaM2(contour) {
 
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '' }) {
+export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0 }) {
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
   return `<div class="ins">
@@ -414,9 +414,12 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
       </section>
 
       <section class="ins-blk">
-        <button class="ins-btn ${state.done ? '' : 'ins-btn-main'} ins-btn-wide" data-toggle-done>
+        <button class="ins-btn ${state.done ? '' : 'ins-btn-main'} ins-btn-wide" data-toggle-done
+          ${!state.done && unsorted ? 'aria-describedby="insUnsorted"' : ''}>
           ${ico('ok')} ${state.done ? 'Снять отметку «осмотр завершён»' : 'Осмотр завершён'}
         </button>
+        ${!state.done && unsorted ? `<p class="ins-hint ins-hint-warn" id="insUnsorted">Снимков не распределено по категориям: ${unsorted}.
+          Распределите их — кнопка «Не распределено» у камеры в осмотре объекта или раздел «Фото», — затем завершайте осмотр.</p>` : ''}
         <p class="ins-hint">Статус «Осмотрен» ставит ЦОД после проверки —
           отметка говорит ему, что можно проверять.</p>
       </section>
@@ -677,12 +680,15 @@ const shotTime = (p) => (p.at && LEGACY_AT.test(p.at) ? p.at.replace(' ', 'T') +
 })();
 const hhmm = (iso) => (iso ? new Date(iso).toTimeString().slice(0, 5) : '');
 
-// Категория снимка видна и выбирается рядом с кнопкой (вопрос пользователя
-// 16.10.2026: «А как определяется категория? Не вижу выбора»): по умолчанию —
-// по разделу формы на экране (подпись «по разделу»), выбранная вручную
-// держится, пока не вернут «По разделу».
+// Категория — после съёмки (указание пользователя 16.10.2026: «Лучше тогда
+// уже понаделать фото, а потом их к категории при выходе с камеры
+// определить»): вернувшись с камеры, осмотрщик видит «Новые снимки · N» —
+// миниатюры, все отмечены, и кнопки категорий; касание категории относит
+// туда отмеченные. Серию по разным категориям — снять отметку с части и
+// отнести остальное. «Позже» — снимки остаются «Не распределено» (кнопка
+// у камеры), осмотр не завершить, пока они есть.
 function cameraHTML(shots, open, cam = {}) {
-  const cats = [...PHOTO_CATS, ...new Set(shots.map((p) => p.cat).filter((c) => !PHOTO_CATS.includes(c)))];
+  const cats = [UNSORTED, ...PHOTO_CATS, ...new Set(shots.map((p) => p.cat).filter((c) => c !== UNSORTED && !PHOTO_CATS.includes(c)))];
   const byCat = cats.map((c) => [c, shots.filter((p) => p.cat === c)
     .sort((a, b) => shotTime(a).localeCompare(shotTime(b)))]).filter(([, l]) => l.length);
   return `<div class="ins-cam" data-cam><div class="ins-cam-in">
@@ -704,19 +710,38 @@ function cameraHTML(shots, open, cam = {}) {
       </div>
       <p class="ins-hint">Касание снимка — просмотр: перенести в другую категорию или к другому объекту, удалить.</p>
     </section>` : ''}
-    ${cam.catOpen ? `<div class="ins-cam-cats" role="listbox" aria-label="Категория снимков">
-      <button type="button" role="option" class="${cam.manual ? '' : 'on'}" aria-selected="${!cam.manual}" data-cam-cat-pick="">По разделу</button>
-      ${PHOTO_CATS.map((c) => `<button type="button" role="option" class="${cam.manual === c ? 'on' : ''}" aria-selected="${cam.manual === c}" data-cam-cat-pick="${esc(c)}">${esc(c)}</button>`).join('')}
-    </div>` : ''}
+    ${cam.sortOpen && (cam.batch || []).length ? sortHTML(cam.batch, cam.sel || new Set()) : ''}
     <div class="ins-cam-btns">
-      <button type="button" class="ins-cam-cat" data-cam-cat aria-expanded="${!!cam.catOpen}" title="Категория снимков">
-        <span class="ins-cam-cat-k">Категория</span>
-        <b data-cam-cat-l>${esc(cam.label || '')}</b>${cam.manual ? '' : '<i>по разделу</i>'}</button>
+      ${!cam.sortOpen && (cam.batch || []).length ? `<button type="button" class="ins-cam-unsorted" data-cam-sort>
+        Не распределено <b>${cam.batch.length}</b></button>` : ''}
       ${shots.length ? `<button class="ins-cam-list" data-cam-list aria-expanded="${open}" aria-controls="insShots">
         ${ico('photo', 18)} Снимки <b>${shots.length}</b></button>` : ''}
-      <button class="ins-cam-shoot" data-cam-shoot aria-label="Снять или выбрать снимки" title="Снять или выбрать снимки — можно несколько">${ico('photo', 28)}</button>
+      <button class="ins-cam-shoot" data-cam-shoot aria-label="Снять или выбрать снимки — можно несколько, категорию выберете после">${ico('photo', 28)}</button>
     </div>
   </div></div>`;
+}
+
+function sortHTML(batch, sel) {
+  const n = batch.filter((p) => sel.has(p.id)).length;
+  return `<section class="ins-cam-panel ins-cam-sort" aria-label="Новые снимки — категория">
+    <div class="ins-cam-head"><b>Не распределено · ${batch.length}</b>
+      <button class="ins-cam-later" type="button" data-cam-later>Позже</button></div>
+    <div class="ins-cam-scroll">
+      <ul class="ins-grid">
+        ${batch.map((p) => `<li class="ins-shot">
+          <button class="ins-shot-b ins-shot-sel ${sel.has(p.id) ? 'on' : ''}" type="button" data-cam-sel="${esc(p.id)}"
+            aria-pressed="${sel.has(p.id)}" title="${sel.has(p.id) ? 'Снять отметку' : 'Отметить'}">
+            <img src="${esc(p.dataUrl || p.url || '')}" alt="${esc(p.name)}">
+            <span class="ins-shot-mark" aria-hidden="true">${sel.has(p.id) ? '✓' : ''}</span>
+          </button>
+        </li>`).join('')}
+      </ul>
+      <span class="ins-shots-h">${n ? `Отнести отмеченные (${n}) в категорию:` : 'Отметьте снимки, чтобы отнести их в категорию'}</span>
+      <div class="ins-cam-cats">
+        ${PHOTO_CATS.map((c) => `<button type="button" data-cam-put="${esc(c)}" ${n ? '' : 'disabled'}>${esc(c)}</button>`).join('')}
+      </div>
+    </div>
+  </section>`;
 }
 
 // Раздел. Свёрнутый ОБЯЗАН говорить о себе: сколько полей заполнено и сколько
@@ -907,6 +932,7 @@ export function lightboxHTML(p, oiList) {
       <div class="ins-field">
         <label for="lbCat">Категория</label>
         <select class="select ins-select" id="lbCat" data-move="${esc(p.id)}">
+          ${PHOTO_CATS.includes(p.cat) ? '' : `<option value="" selected disabled>${esc(p.cat || UNSORTED)}</option>`}
           ${PHOTO_CATS.map((c) => `<option ${c === p.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}
         </select>
       </div>

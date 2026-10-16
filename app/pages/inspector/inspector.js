@@ -22,7 +22,7 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
-  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, dayTrips, saveResults, markDone,
+  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -60,10 +60,9 @@ export function mountInspector(host) {
     photoOi: '',
     // Панель снимков в форме осмотра ОИ раскрыта.
     shotsOpen: false,
-    // Категория снимков, выбранная вручную ('' — по разделу на экране), и
-    // раскрыт ли её список.
-    camCat: '',
-    camCatOpen: false,
+    // Разбор снимков «Не распределено» раскрыт; отмеченные в нём.
+    sortOpen: false,
+    camSel: new Set(),
     cat: PHOTO_CATS[0],
     // Разделы формы, свёрнутые ВРУЧНУЮ. По умолчанию открыты все: свёрнутое
     // заранее приходится разворачивать (замечание пользователя 08.09.2026).
@@ -535,7 +534,6 @@ export function mountInspector(host) {
       scrollFrame = 0;
       if (!content() || jumping) return;
       markCurrentSection();
-      refreshCamCat();
     });
   }
   scope.onDocument('scroll', onScroll, true);
@@ -701,7 +699,7 @@ export function mountInspector(host) {
           oiPhotos: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id).length,
           shots: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id),
           shotsOpen: ui.shotsOpen,
-          cam: { manual: ui.camCat, label: ui.camCat || (oi.card === 'land' ? 'Земельный участок' : oi.card === 'apartment' ? 'Внутр. помещения' : 'Фасад'), catOpen: ui.camCatOpen },
+          cam: { batch: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id && p.cat === UNSORTED), sel: ui.camSel, sortOpen: ui.sortOpen },
         }));
         return;
       }
@@ -747,7 +745,7 @@ export function mountInspector(host) {
 
     const geo = geoOf(r);
     const ll = parseLL(r.gps) || (geo && geo.extent ? [(geo.extent[1] + geo.extent[3]) / 2, (geo.extent[0] + geo.extent[2]) / 2] : null);
-    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '' }));
+    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId) }));
     mountTaskMap(geo, ll);
     fillContour(r, geo);
   }
@@ -1138,6 +1136,11 @@ export function mountInspector(host) {
   });
 
   scope.on('click', '[data-toggle-done]', () => {
+    const left = unsortedCount(route.typeId, route.ocId);
+    if (!taskState(route.typeId, route.ocId).done && left) {
+      host.toast(`Не завершить: снимков не распределено по категориям — ${left}`, 'warn');
+      return;
+    }
     const st = markDone(route.typeId, route.ocId, !taskState(route.typeId, route.ocId).done);
     host.toast(st.done ? 'Осмотр отмечен как завершённый' : 'Отметка снята', 'ok');
     render();
@@ -1356,35 +1359,40 @@ export function mountInspector(host) {
     const again = scope.$('.ins-body');
     if (again) again.scrollTop = y;
   };
-  // Категория снимка — по разделу формы на экране; поправить можно в просмотре.
-  const camCat = () => ui.camCat || autoCat();
-  const autoCat = () => {
-    const card = (curOi() || {}).card || 'building';
-    // Раздел — тот, что стоит в верхней трети видимой части формы в момент
-    // снимка: отметка строки разделов догоняет прокрутку с задержкой.
-    const body = scope.$('.ins-body');
-    const line = body ? body.getBoundingClientRect().top + body.clientHeight / 3 : 0;
-    const boxes = scope.$$('[data-sec-box]').filter((b) => b.getBoundingClientRect().top <= line);
-    const k = boxes.length ? boxes[boxes.length - 1].dataset.secBox : '';
-    if (card === 'land') return 'Земельный участок';
-    if (k === 'struct' || k === 'capclass' || k === 'prod') return 'Конструкции';
-    if (k === 'premises' || card === 'apartment') return 'Внутр. помещения';
-    if (k === 'comments') return 'Прочее';
-    return 'Фасад';
-  };
-  // Подпись категории «по разделу» идёт за прокруткой — без перерисовки.
-  const refreshCamCat = () => {
-    const l = scope.$('[data-cam-cat-l]');
-    if (l && !ui.camCat) l.textContent = autoCat();
-  };
-  scope.on('click', '[data-cam-list]', () => { ui.shotsOpen = !ui.shotsOpen; renderKeep(); refreshCamCat(); });
-  scope.on('click', '[data-cam-cat]', () => { ui.camCatOpen = !ui.camCatOpen; renderKeep(); refreshCamCat(); });
-  scope.on('click', '[data-cam-cat-pick]', (e, el) => {
-    ui.camCat = el.dataset.camCatPick;
-    ui.camCatOpen = false;
+  scope.on('click', '[data-cam-list]', () => { ui.shotsOpen = !ui.shotsOpen; renderKeep(); });
+  // Разбор новых снимков по категориям.
+  scope.on('click', '[data-cam-sel]', (e, el) => {
+    const id = el.dataset.camSel;
+    if (ui.camSel.has(id)) ui.camSel.delete(id); else ui.camSel.add(id);
     renderKeep();
-    refreshCamCat();
   });
+  const unsortedHere = () => taskState(route.typeId, route.ocId).photos
+    .filter((p) => p.oiId === route.oiId && p.cat === UNSORTED).map((p) => p.id);
+  scope.on('click', '[data-cam-put]', (e, el) => {
+    const cat = el.dataset.camPut;
+    const ids = unsortedHere().filter((id) => ui.camSel.has(id));
+    if (!ids.length) return;
+    ids.forEach((id) => movePhoto(route.typeId, route.ocId, id, { cat }));
+    // Остаток — снова отмечен целиком: следующую категорию — одним касанием.
+    const rest = unsortedHere();
+    ui.camSel = new Set(rest);
+    if (!rest.length) ui.sortOpen = false;
+    host.toast(`В «${cat}»: ${ids.length}`, 'ok');
+    renderKeep();
+  });
+  scope.on('click', '[data-cam-later]', () => {
+    const n = unsortedHere().length;
+    if (n) host.toast(`Не распределено: ${n} — до завершения осмотра`, 'warn');
+    ui.sortOpen = false;
+    renderKeep();
+  });
+  scope.on('click', '[data-cam-sort]', () => {
+    ui.sortOpen = true;
+    ui.shotsOpen = false;
+    ui.camSel = new Set(unsortedHere());
+    renderKeep();
+  });
+
   // Несколько снимков за раз (16.10.2026: «стоит добавить возможность делать
   // несколько фото за раз»): система предлагает камеру или галерею с выбором
   // нескольких; все — этому ОИ в выбранную категорию.
@@ -1392,19 +1400,22 @@ export function mountInspector(host) {
     if (!route.oiId) return;
     const files = await pickFiles('image/*');
     if (!files.length) return;
-    const cat = camCat();
-    let added = 0;
     let big = 0;
     let stop = '';
+    const fresh = [];
     for (const file of files) {
       if (isFileTooLarge(file)) { big += 1; continue; }
-      const res = addPhoto(route.typeId, route.ocId, file, { oiId: route.oiId, cat });
+      // До разбора — «Не распределено»: снимок не теряется, если разбор
+      // отложат, а осмотр не завершить, пока он не распределён.
+      const res = addPhoto(route.typeId, route.ocId, file, { oiId: route.oiId, cat: UNSORTED });
       if (res.error) { stop = res.error; break; }
-      added += 1;
+      fresh.push(res.photo.id);
     }
     if (big) host.toast(`Не добавлено ${big}: больше ${MAX_DOC_FILE_MB} МБ`, 'warn');
     if (stop) host.toast(stop, 'warn');
-    if (files.length > 1 && added) host.toast(`Добавлено снимков: ${added} · ${cat}`, 'ok');
+    ui.shotsOpen = false;
+    // Разбор — сразу; отмечены только что сделанные.
+    if (fresh.length) { ui.sortOpen = true; ui.camSel = new Set(fresh); }
     // Без всплывающего сообщения: снимают сериями, и сообщения ложились на
     // кнопку камеры. Отклик — число на «Снимки N».
     renderKeep();
@@ -1483,7 +1494,7 @@ export function mountInspector(host) {
   return {
     onRoute(next) {
       const sameTask = next.typeId === route.typeId && next.ocId === route.ocId;
-      if (next.oiId !== route.oiId) { ui.camCat = ''; ui.camCatOpen = false; }
+      if (next.oiId !== route.oiId) { ui.sortOpen = false; ui.camSel = new Set(); }
       // Прокрутка уходящего экрана — запомнить, приходящего — вернуть.
       const body = scope.$('.ins-body');
       if (body) scrollOf.set(screenKey(route), body.scrollTop);

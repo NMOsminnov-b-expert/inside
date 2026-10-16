@@ -28,6 +28,12 @@ export const PHOTO_CATS = [
   'Земельный участок', 'Документы на месте', 'Прочее',
 ];
 
+// Снимок, ещё не отнесённый к категории (16.10.2026: «надо оставить на
+// распределить потом. При том не даём завершить осмотр, пока не распределили
+// фото»). Категорией съёмки не является — в перечень выбора не входит.
+export const UNSORTED = 'Не распределено';
+export const unsortedCount = (typeId, ocId) => taskState(typeId, ocId).photos.filter((p) => p.cat === UNSORTED).length;
+
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 
 // Состояние осмотра — в ядре и сохраняется (kernel/inspectionResults.js,

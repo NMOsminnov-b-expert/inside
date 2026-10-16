@@ -390,29 +390,42 @@ def run(t):
     t.wait_until('() => document.querySelectorAll(".ins-pm-i").length === 0')
     t.ck(pg.locator('.ins-pm-i').count() == 0, 'помещение не убралось')
 
-    # Съёмка прямо из формы осмотра (15.10.2026: «Буквально кнопка»): снимок
-    # сразу этому ОИ, категория — по разделу на экране, место в форме не
-    # сбивается; «Снимки N» раскрывает сделанное по категориям. Ловит: снимок
-    # не к тому ОИ, сброс прокрутки после снимка, пустую панель.
+    # Съёмка прямо из формы осмотра (15.10.2026: «Буквально кнопка»;
+    # 16.10.2026: «понаделать фото, а потом их к категории при выходе с камеры
+    # определить… часть в 1, часть в другое… оставить на распределить потом…
+    # не даём завершить осмотр, пока не распределили»). Ловит: снимок не к
+    # тому ОИ, сброс прокрутки, разбор не всех отмеченных, завершение осмотра
+    # при нераспределённых.
     t.open(ASSET, wait='[data-cam-shoot]')
-    # Форма — к началу «Конструктива» напрямую, без плавного перехода по
-    # строке разделов: иначе замер ловит середину прокрутки.
-    y0 = pg.evaluate("""() => { const b = document.querySelector('.ins-body'); const sec = document.querySelector('[data-sec-box="struct"]');
-      b.scrollTop += sec.getBoundingClientRect().top - b.getBoundingClientRect().top + 20; return b.scrollTop; }""")
+    y0 = pg.evaluate("""() => { const b = document.querySelector('.ins-body'); b.scrollTop = 300; return b.scrollTop; }""")
     with pg.expect_file_chooser() as fc:
         pg.click('[data-cam-shoot]')
-    fc.value.set_files({'name': 'cam.png', 'mimeType': 'image/png', 'buffer': PNG_8x8})
-    t.wait_for('.ins-cam-btns [data-cam-list]')
-    got = pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
-      return K.taskState('%s', '%s').photos.filter(p => p.name === 'cam.png').map(p => [p.oiId, p.cat]); }""" % (TYPE, OC))
-    t.ck(got == [['oi-cv1-a', 'Конструкции']], 'снимок из формы не к этому ОИ или не в категорию раздела: %s' % got)
-    y1 = pg.evaluate("document.querySelector('.ins-body').scrollTop")
-    t.ck(abs(y1 - y0) < 4, 'после снимка форма прокрутилась: %s → %s' % (y0, y1))
-    pg.click('.ins-cam-btns [data-cam-list]')
-    t.ck(t.wait_for('.ins-cam-panel [data-shot]'), 'панель снимков не раскрылась или пуста')
-    t.ck('Конструкции' in pg.inner_text('.ins-cam-panel'), 'в панели нет категории снимка')
+    t.ck(fc.value.is_multiple(), 'кнопка камеры не даёт выбрать несколько снимков')
+    fc.value.set_files([{'name': 'cam%d.png' % i, 'mimeType': 'image/png', 'buffer': PNG_8x8} for i in range(3)])
+    t.wait_for('.ins-cam-sort [data-cam-sel]')
+    shots = """async () => { const K = await import('./app/pages/inspector/tasks.js');
+      return K.taskState('%s', '%s').photos.filter(p => /^cam\d/.test(p.name)).map(p => [p.oiId, p.cat]); }""" % (TYPE, OC)
+    t.ck(pg.evaluate(shots) == [['oi-cv1-a', 'Не распределено']] * 3, 'новые снимки не к этому ОИ или не «Не распределено»: %s' % pg.evaluate(shots))
+    t.ck(abs(pg.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4, 'после снимка форма прокрутилась')
+    t.ck(pg.locator('.ins-cam-sort [data-cam-sel].on').count() == 3, 'после съёмки отмечены не все новые снимки')
+    pg.locator('.ins-cam-sort [data-cam-sel]').nth(2).click()
+    pg.click('[data-cam-put="Кровля"]')
+    t.wait_until("() => document.querySelectorAll('.ins-cam-sort [data-cam-sel]').length === 1")
+    pg.click('[data-cam-later]')
+    t.wait_for('[data-cam-sort]')
+    t.ck(sorted(c for _, c in pg.evaluate(shots)) == ['Кровля', 'Кровля', 'Не распределено'], 'часть серии не ушла в «Кровлю»: %s' % pg.evaluate(shots))
+    t.open(TASK, wait='[data-toggle-done]')
+    t.ck(pg.locator('#insUnsorted').count() == 1, 'у «Осмотр завершён» нет пояснения про нераспределённые снимки')
+    pg.click('[data-toggle-done]')
+    t.wait(300)
+    t.ck(not pg.evaluate("async () => (await import('./app/pages/inspector/tasks.js')).taskState('%s', '%s').done" % (TYPE, OC)),
+         'осмотр завершился при нераспределённых снимках')
+    t.open(ASSET, wait='[data-cam-sort]')
+    pg.click('[data-cam-sort]')
+    pg.click('[data-cam-put="Фасад"]')
+    t.wait_until("() => !document.querySelector('[data-cam-sort], .ins-cam-sort')")
     pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
-      K.taskState('%s', '%s').photos.filter(p => p.name === 'cam.png').forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
+      K.taskState('%s', '%s').photos.filter(p => /^cam\d/.test(p.name)).forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
 
     # Вкладки помнят своё место (15.10.2026: «Возврат из других разделов не
     # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои
