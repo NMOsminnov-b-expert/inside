@@ -1319,7 +1319,10 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
    название, к чему относится, «Отмена · Сохранить». */
 .ins-scan-new { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-soft); }
 .ins-scan-new .ins-field { margin: 0; }
-.ins-scans .ins-docs + .ins-btn { margin-top: 10px; }
+/* Части блока сканов — столбцом с ровным промежутком: пояснение «пусто»
+   прилегало к кнопке вплотную (замечание пользователя 16.10.2026). */
+.ins-scans { display: flex; flex-direction: column; gap: 10px; }
+.ins-scans > .ins-blk-h, .ins-scans > .ins-empty, .ins-scans > .ins-docs, .ins-scans > .ins-scan-new { margin: 0; }
 
 /* Голосовые заметки (16.10.2026): большая кнопка записи; во время записи —
    красная точка, время и полоска громкости; записи — строкой: слушать,
@@ -1348,3 +1351,6 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 /* Инженерные сети для всех объектов (16.10.2026). */
 .ins-common-nets .ins-hint { margin: 0 0 10px; }
 .ins-common-nets .ins-fs-grid { gap: 10px 12px; }
+/* Поля над кнопкой во всю ширину — с промежутком: в «Фото» выбор объекта и
+   категории прилегал к «Снять или выбрать» вплотную. */
+.ins-cols + .ins-btn-wide { margin-top: 10px; }
