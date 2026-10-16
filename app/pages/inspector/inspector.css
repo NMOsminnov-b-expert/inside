@@ -1314,3 +1314,9 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 }
 .ins-cam-unsorted:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; }
 .ins-hint-warn { color: var(--amber-700); }
+
+/* Сканы с осмотра (16.10.2026): форма нового документа — миниатюры страниц,
+   название, к чему относится, «Отмена · Сохранить». */
+.ins-scan-new { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-soft); }
+.ins-scan-new .ins-field { margin: 0; }
+.ins-scans .ins-docs + .ins-btn { margin-top: 10px; }

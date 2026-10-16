@@ -419,6 +419,24 @@ def run(t):
     t.ck(pg.locator('.ins-contacts .ct-group.own a[href="tel:+996555000001"]').count() == 1, 'у своего контакта телефон не ведёт к звонку')
     pg.evaluate("""async () => { const a = (await import('./app/pages/inspector/tasks.js')).contactsOf('%s', '%s'); a.splice(0, a.length); }""" % (TYPE, OC))
 
+    # Сканы с осмотра (16.10.2026: «документы, отсканированные осмотрщиком
+    # помечаются, как с осмотра и их должен удостоверить и обработать ЦОД»):
+    # несколько страниц — один документ, с названием и объектом; метка.
+    t.open(TASK + '/docs', wait='[data-scan-add]')
+    with pg.expect_file_chooser() as fc:
+        pg.click('[data-scan-add]')
+    t.ck(fc.value.is_multiple(), 'скан — только одна страница')
+    fc.value.set_files([{'name': 'pg%d.png' % i, 'mimeType': 'image/png', 'buffer': PNG_8x8} for i in range(2)])
+    t.wait_for('[data-scan-title]')
+    pg.fill('[data-scan-title]', 'Проверка скана')
+    pg.select_option('[data-scan-oi]', 'oi-cv1-a')
+    pg.click('[data-scan-save]')
+    t.wait_until("() => /Проверка скана/.test(document.querySelector('.ins-scans')?.innerText || '')")
+    sc = pg.evaluate("""async () => (await import('./app/pages/inspector/tasks.js')).scansOf('%s', '%s').map(s => [s.title, s.oiId, s.pages.length, s.source, s.status])""" % (TYPE, OC))
+    t.ck(sc == [['Проверка скана', 'oi-cv1-a', 2, 'осмотр', 'ждёт ЦОД']], 'скан сохранился не так: %s' % sc)
+    t.ck('с осмотра' in pg.inner_text('.ins-scans'), 'скан не помечен «с осмотра»')
+    pg.evaluate("""async () => { const a = (await import('./app/pages/inspector/tasks.js')).scansOf('%s', '%s'); a.splice(0, a.length); }""" % (TYPE, OC))
+
     # Вкладки помнят своё место (15.10.2026: «Возврат из других разделов не
     # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои
     # состояния»): «Фото» → «Объект» — в ту же литеру и на то же место

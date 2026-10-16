@@ -12,7 +12,7 @@
 import { sortedTypes, getType, migrateLiterKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
-import { resultsOf, valuesOf, saveResults, addResultPhoto, markDone } from '../../kernel/inspectionResults.js';
+import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, markDone } from '../../kernel/inspectionResults.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -41,6 +41,21 @@ export const UNSORTED = 'Не распределено';
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: контакт с осмотра — заявка ЦОД: добавить в контакты
 // объекта или учреждения, с автором и временем; развилка — переносить сами
 // или оставлять при осмотре.
+export function scansOf(typeId, ocId) {
+  const st = taskState(typeId, ocId);
+  if (!Array.isArray(st.scans)) st.scans = [];
+  return st.scans;
+}
+export const addScan = (typeId, ocId, files, opts) => addResultScan(typeId, ocId, files, { ...opts, by: currentInspector() });
+export function removeScan(typeId, ocId, id) {
+  const list = scansOf(typeId, ocId);
+  const i = list.findIndex((x) => x.id === id);
+  if (i < 0) return;
+  list[i].pages.forEach((p) => { try { URL.revokeObjectURL(p.dataUrl); } catch (e) { /* уже отозвана */ } });
+  list.splice(i, 1);
+  saveResults();
+}
+
 export function contactsOf(typeId, ocId) {
   const st = taskState(typeId, ocId);
   if (!Array.isArray(st.contacts)) st.contacts = [];

@@ -837,7 +837,7 @@ function contactsHTML({ own, editing, object, chain }) {
   </section>`;
 }
 
-export function docsHTML({ rec, docs, hrefFor, counts, backHref }) {
+export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], draft = null, oiList = [], locked = false }) {
   return `<div class="ins">
     ${headerHTML({
     title: 'Документы',
@@ -847,14 +847,57 @@ export function docsHTML({ rec, docs, hrefFor, counts, backHref }) {
   })}
 
     <div class="ins-body">
+      ${scanBlockHTML({ scans, draft, oiList, locked })}
+      <section class="ins-blk">
+        <h2 class="ins-blk-h">Назначенные документы${docs.length ? ' · ' + docs.length : ''}</h2>
       ${docs.length ? `<ul class="ins-docs">
         ${docs.map(docItemHTML).join('')}
       </ul>` : `<p class="ins-empty">На осмотр документы не назначены.
         Их выбирает региональный менеджер при назначении осмотра.</p>`}
+      </section>
     </div>
 
     ${tabsHTML('docs', hrefFor, counts)}
   </div>`;
+}
+
+// Сканы с осмотра (16.10.2026): «Отсканировать документ» — снять или выбрать
+// несколько страниц; затем форма прямо здесь — название и к какому объекту
+// относится, миниатюры страниц; «Сохранить» — документ в списке «Отсканировано
+// на осмотре» с меткой «с осмотра · ждёт удостоверения ЦОД».
+function scanBlockHTML({ scans, draft, oiList, locked }) {
+  const ownerOf = (id) => (oiList.find((o) => o.id === id) || {}).label || 'Объект оценки';
+  return `<section class="ins-blk ins-scans" aria-label="Сканы с осмотра">
+    <h2 class="ins-blk-h">Отсканировано на осмотре${scans.length ? ' · ' + scans.length : ''}</h2>
+    ${draft ? `<div class="ins-scan-new">
+      <ul class="ins-grid">${draft.urls.map((u, i) => `<li class="ins-shot"><span class="ins-shot-b"><img src="${esc(u)}" alt="Страница ${i + 1}"></span></li>`).join('')}</ul>
+      <div class="ins-field">
+        <label for="insScanTitle">Название документа</label>
+        <input class="input ins-input" id="insScanTitle" data-scan-title value="${esc(draft.title || '')}" placeholder="Например: техпаспорт, акт, договор аренды">
+      </div>
+      <div class="ins-field">
+        <label for="insScanOi">К чему относится</label>
+        <select class="select ins-select" id="insScanOi" data-scan-oi>
+          <option value="" ${draft.oiId ? '' : 'selected'}>Объект оценки</option>
+          ${oiList.map((o) => `<option value="${esc(o.id)}" ${o.id === draft.oiId ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="ins-acts">
+        <button class="ins-btn" type="button" data-scan-cancel>Отмена</button>
+        <button class="ins-btn ins-btn-main" type="button" data-scan-save>Сохранить · ${draft.urls.length} стр.</button>
+      </div>
+    </div>` : ''}
+    ${scans.length ? `<ul class="ins-docs">${scans.map((s) => `<li class="ins-doc ins-scan">
+      <span class="ins-doc-ico">${ico('docs')}</span>
+      <span class="ins-doc-t">
+        <b>${esc(s.title)}</b>
+        <small>${esc([ownerOf(s.oiId), `${s.pages.length} стр.`].join(' · '))}</small>
+        <span class="ins-pill ins-pill-wait">с осмотра · ${esc(s.status === 'ждёт ЦОД' ? 'ждёт удостоверения ЦОД' : s.status)}</span>
+      </span>
+      ${locked ? '' : `<button class="ins-btn ins-btn-icon" type="button" data-scan-drop="${esc(s.id)}" aria-label="Удалить скан" title="Удалить скан">${ico('trash', 18)}</button>`}
+    </li>`).join('')}</ul>` : (draft ? '' : '<p class="ins-empty">Документ, которого нет в списке, — снимите его страницы: ЦОД удостоверит и разнесёт.</p>')}
+    ${locked || draft ? '' : `<button class="ins-btn ins-btn-main ins-btn-wide" type="button" data-scan-add>${ico('docs')} Отсканировать документ</button>`}
+  </section>`;
 }
 
 // owner — чей это документ: объект оценки, литера, механизм или транспортное

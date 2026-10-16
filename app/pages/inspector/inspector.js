@@ -22,7 +22,8 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
-  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf, dayTrips, saveResults, markDone,
+  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
+  scansOf, addScan, removeScan, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -61,6 +62,8 @@ export function mountInspector(host) {
     photoOi: '',
     // Панель снимков в форме осмотра ОИ раскрыта.
     shotsOpen: false,
+    // Скан, ещё не сохранённый: страницы (файлы), название, к чему относится.
+    scanDraft: null,
     // Контакты на месте: правка своего (как в карточках, kernel/contacts.js).
     ct: { open: true, editing: null },
     // Разбор снимков «Не распределено» раскрыт; отмеченные в нём.
@@ -726,7 +729,8 @@ export function mountInspector(host) {
     }
 
     if (section === 'docs') {
-      scope.setHTML(docsHTML({ rec: r, docs, hrefFor, counts, backHref: taskHref }));
+      scope.setHTML(docsHTML({ rec: r, docs, hrefFor, counts, backHref: taskHref,
+        scans: scansOf(typeId, ocId), draft: ui.scanDraft, oiList, locked: !!state.done }));
       return;
     }
 
@@ -1291,6 +1295,38 @@ export function mountInspector(host) {
     } catch (err) {
       host.toast('Скопировать не удалось — ЕНИ виден в шапке', 'warn');
     }
+  });
+
+  // --- сканы документов с осмотра -------------------------------------------
+  scope.on('click', '[data-scan-add]', async () => {
+    const files = (await pickFiles('image/*,application/pdf')).filter((f) => !isFileTooLarge(f));
+    if (!files.length) return;
+    ui.scanDraft = { files, urls: files.map((f) => URL.createObjectURL(f)), title: '', oiId: '' };
+    renderKeep();
+    const t = scope.$('[data-scan-title]');
+    if (t) t.focus();
+  });
+  scope.on('input', '[data-scan-title]', (e, el) => { if (ui.scanDraft) ui.scanDraft.title = el.value; });
+  scope.on('change', '[data-scan-oi]', (e, el) => { if (ui.scanDraft) ui.scanDraft.oiId = el.value; });
+  const dropDraft = () => {
+    if (ui.scanDraft) ui.scanDraft.urls.forEach((u) => { try { URL.revokeObjectURL(u); } catch (err) { /* уже */ } });
+    ui.scanDraft = null;
+  };
+  scope.on('click', '[data-scan-cancel]', () => { dropDraft(); renderKeep(); });
+  scope.on('click', '[data-scan-save]', () => {
+    const d = ui.scanDraft;
+    if (!d) return;
+    const title = (scope.$('[data-scan-title]') || {}).value || d.title;
+    addScan(route.typeId, route.ocId, d.files, { title: String(title || '').trim(), oiId: d.oiId });
+    dropDraft();
+    host.toast('Скан сохранён — ждёт удостоверения ЦОД', 'ok');
+    renderKeep();
+  });
+  scope.on('click', '[data-scan-drop]', async (e, el) => {
+    const ok = await host.confirm({ title: 'Удалить скан?', text: 'Документ и все его страницы пропадут из осмотра.', okLabel: 'Удалить', danger: true });
+    if (!ok) return;
+    removeScan(route.typeId, route.ocId, el.dataset.scanDrop);
+    renderKeep();
   });
 
   // --- объекты, выявленные на осмотре -------------------------------------

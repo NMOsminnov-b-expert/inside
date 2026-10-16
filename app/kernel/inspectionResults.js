@@ -18,7 +18,7 @@ import { keepFileLocally } from './localFiles.js';
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 const results = new Map();
-const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [], contacts: [] });
+const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [], contacts: [], scans: [] });
 
 registerPersisted('inspections.results', {
   snapshot: () => [...results.values()],
@@ -64,6 +64,32 @@ export function addResultPhoto(typeId, ocId, file, fields) {
   resultsOf(typeId, ocId).photos.push(photo);
   scheduleSave();
   return photo;
+}
+
+// Документ, отсканированный осмотрщиком (решение пользователя 16.10.2026:
+// «документы, отсканированные осмотрщиком помечаются, как с осмотра и их
+// должен удостоверить и обработать ЦОД»): страницы — файлы, как снимки;
+// состояние — «ждёт ЦОД», пока ЦОД его не удостоверил.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: скан — документ записи с источником «осмотр», автором
+// и временем; удостоверение ЦОД — его действие с отметкой; развилка — куда
+// скан попадает после удостоверения (документы ОЦ или ОИ) и что с
+// отклонённым.
+let scanSeq = 0;
+export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '' } = {}) {
+  const pages = files.map((file, i) => {
+    const pg = { id: 'sp-' + Date.now().toString(36) + '-' + (++scanSeq) + '-' + i, name: file.name || 'страница', size: file.size, type: file.type || '' };
+    pg.dataUrl = URL.createObjectURL(file);
+    keepFileLocally(file, pg);
+    return pg;
+  });
+  const scan = { id: 'sc-' + Date.now().toString(36) + '-' + (++scanSeq), title: title || 'Документ с осмотра', oiId, by,
+    at: new Date().toISOString(), source: 'осмотр', status: 'ждёт ЦОД', pages };
+  const r = resultsOf(typeId, ocId);
+  if (!Array.isArray(r.scans)) r.scans = [];
+  r.scans.push(scan);
+  scheduleSave();
+  return scan;
 }
 
 export function markDone(typeId, ocId, done) {
