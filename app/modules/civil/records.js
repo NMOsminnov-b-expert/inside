@@ -5,7 +5,7 @@ import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
 import { partyName } from './card/parties.view.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
 import { adoptBaseline, removedIds } from '../../kernel/persist.js';
-import { fmtNum, num } from '../../kernel/fmt.js';
+import { fmtNum, num, localIso } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { session } from '../../kernel/session.js';
 import { records, addRecord, nextId } from './data/store.js';
@@ -309,7 +309,7 @@ export { setBulkCount, bulkCount };
 // пустую запись (статус «В заполнении»), меню открывает её форму
 // редактирования (см. app/pages/ocMenu/ocMenu.js). Один экран, а не два.
 export function createRecord() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localIso();
 
   const rec = {
     id: nextId('oc-cv'),
@@ -349,7 +349,7 @@ export function setStatus(id, status) {
   const rec = loadRecord(id);
   if (!rec) return null;
   rec.status = status;
-  rec.updatedAt = new Date().toISOString().slice(0, 10);
+  rec.updatedAt = localIso();
   return rec;
 }
 
@@ -358,7 +358,7 @@ export function assignResponsible(id, role, person) {
   if (!rec) return null;
   rec.resp = Object.assign({ gov: '', cod: '', appr: '', insp: '' }, rec.resp);
   rec.resp[role] = person;
-  rec.updatedAt = new Date().toISOString().slice(0, 10);
+  rec.updatedAt = localIso();
   return rec;
 }
 
@@ -378,6 +378,6 @@ export function setInstitution(id, { institution = '', podved = '', nodeId = '' 
   rec.institution = institution;
   rec.podved = podved;
   rec.institutionId = nodeId;
-  rec.updatedAt = new Date().toISOString().slice(0, 10);
+  rec.updatedAt = localIso();
   return rec;
 }

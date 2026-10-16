@@ -2,6 +2,7 @@ import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/regis
 import { manifest } from './manifest.js';
 import { tsTitle, whatLabel, tsOf } from './tsModel.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
+import { localIso } from '../../kernel/fmt.js';
 
 const records = [];
 let seq = 0;
@@ -103,7 +104,7 @@ export function setBulkCount() {}
 export function createRecord() {
   const rec = {
     id: nextId(), typeId: manifest.id, type: manifest.label, category: 'Движимое', status: 'В заполнении',
-    city: '', institution: '', podved: '', eni: '', updatedAt: new Date().toISOString().slice(0, 10),
+    city: '', institution: '', podved: '', eni: '', updatedAt: localIso(),
     // Пользователей у ТС не ведут — блок сторон в карточке только с
     // собственниками; пустой список оставлен ради общих столбцов реестра.
     owners: [], users: [], resp: { gov: '', cod: '', appr: '', insp: '' }, docs: [],

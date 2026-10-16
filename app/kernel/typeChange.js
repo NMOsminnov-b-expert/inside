@@ -22,6 +22,7 @@
 // будет делать серверную часть; важно одно — операция должна быть атомарной,
 // иначе объект потеряется между типами.
 import { sortedTypes, getType } from './registry.js';
+import { localIso } from './fmt.js';
 
 // Поля, которые есть у любой записи независимо от типа: их сравнивать
 // бессмысленно — они переносятся всегда.
@@ -214,7 +215,7 @@ export function changeOcType(rec, toTypeId) {
   // Категория (недвижимое/движимое) идёт от нового типа: у движимого своя
   // карточка, и оставлять чужую пометку нельзя.
   if (to.manifest.category) taken.category = to.manifest.category;
-  taken.updatedAt = new Date().toISOString().slice(0, 10);
+  taken.updatedAt = localIso();
 
   to.records.restoreRecord(taken);
   return { rec: taken, moved: (taken.oi || []).length };

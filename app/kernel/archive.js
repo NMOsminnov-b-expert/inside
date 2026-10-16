@@ -25,7 +25,7 @@ import {
 } from './archiveStore.js';
 import { takeDocument, restoreDocument, getDocument } from './documentsRegistry.js';
 import { eniIndexes, pendingBatch } from './archiveStore.js';
-import { ENI_UNIQUE } from './fmt.js';
+import { ENI_UNIQUE, localIso } from './fmt.js';
 
 export { entryById } from './archiveStore.js';
 
@@ -426,7 +426,7 @@ function staffOfRecord(rec, oi) {
 
 // Сегодняшняя дата — тем же форматом, что у записей (ГГГГ-ММ-ДД).
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: время возврата ставит сервер, а не браузер.
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => localIso();
 
 // Вернуть документ туда, откуда он был убран. Если литеры больше нет (её могли
 // удалить, пока документ лежал в архиве), возвращаем в документы самого ОЦ —

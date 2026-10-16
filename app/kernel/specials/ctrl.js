@@ -1,7 +1,8 @@
 import { addSpecial, removeSpecial, setSpecialText } from './model.js';
+import { localIso } from '../fmt.js';
 
 // Дата записи ставится в момент добавления — как её видит оценщик.
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localIso();
 
 // Обработчики блока «Особенности». Вызывается из bind карточки ОИ.
 export function bindSpecials(ctx, oi) {

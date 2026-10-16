@@ -10,6 +10,7 @@
 // всех 5 модулей (kernel/session.js), поэтому смена роли здесь сразу
 // видна и внутри карточек.
 import { session, ROLES } from '../../kernel/session.js';
+import { localIso } from '../../kernel/fmt.js';
 
 export { ROLES };
 
@@ -129,7 +130,7 @@ export function resetCols(state) {
 export const queryFilter = (state, f = state.filter) => ({ ...f, kind: state.tab });
 
 export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return localIso();
 }
 
 export function emptyFilter() {

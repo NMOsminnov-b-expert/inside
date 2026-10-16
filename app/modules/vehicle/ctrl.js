@@ -24,6 +24,7 @@ import {
   normVin, vinWarning, normPlate, idMissing,
   SELF_CAT,
 } from './tsModel.js';
+import { localIso } from '../../kernel/fmt.js';
 
 // Контроллер карточки ТС как объекта оценки.
 //
@@ -634,7 +635,7 @@ export function bindVehicle(ctx) {
   const save = s.$('[data-vehicle-save]');
   if (save) {
     save.onclick = () => {
-      ctx.rec.updatedAt = new Date().toISOString().slice(0, 10);
+      ctx.rec.updatedAt = localIso();
       ctx.toast('ОЦ транспортного средства сохранён', 'ok');
     };
   }

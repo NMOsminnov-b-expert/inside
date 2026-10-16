@@ -164,6 +164,13 @@ export function dateIso(value) {
   const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(value || '').trim());
   return m ? `${m[3]}-${m[2]}-${m[1]}` : (value || null);
 }
+// Сегодня (или дата d) — ГГГГ-ММ-ДД по МЕСТНОМУ времени. Срез
+// toISOString() даёт дату по UTC: у пользователя в поясе +6 с 00:00 до 06:00
+// «сегодня» выходило вчерашним (замечание пользователя 16.10.2026, решение
+// «Правим»).
+export function localIso(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 export function dateRu(value) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
   return m ? `${m[3]}.${m[2]}.${m[1]}` : (value || '');

@@ -1,6 +1,7 @@
 import { NOTE_DEFAULT } from './store.js';
 import { addNote, removeNote, findNote } from './model.js';
 import { session } from '../session.js';
+import { localIso } from '../fmt.js';
 
 // Кто и когда — берём в момент добавления. Пользователь общий на весь макет
 // (kernel/session.js), поэтому смена роли/лица здесь сразу видна.
@@ -9,7 +10,7 @@ import { session } from '../session.js';
 // пользователь, а автора и дату проставлять надёжнее на стороне сервера —
 // клиентскому времени и клиентскому «кто я» доверять нельзя.
 const author = () => session.state.person;
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localIso();
 
 function syncPop(input, text) {
   const row = input.closest('.note-row');

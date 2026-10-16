@@ -22,6 +22,7 @@ import { registerPersisted } from '../../kernel/persist.js';
 import { assignFromRegistry } from '../../kernel/inspections.js';
 import { geoByEni, eniByAddress, centerOf } from '../../kernel/cadastreGeo.js';
 import { eniCodesOf } from '../../kernel/eniField.js';
+import { localIso } from '../../kernel/fmt.js';
 
 // Главная — реестр объектов оценки (канва и решения 01.10.2026, задача графа
 // glavnaya-vkladki-nedvizhimoe-dvizhimoe, практика reestr-vkladki-vidy-filtry):
@@ -657,7 +658,7 @@ export function mountOcMenu(host) {
         const r = api.loadRecord(id);
         r.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src, by };
         r.gps = centerOf(res.extent);
-        r.updatedAt = new Date().toISOString().slice(0, 10);
+        r.updatedAt = localIso();
       });
       geoRun.ok += 1;
     };
@@ -721,7 +722,7 @@ export function mountOcMenu(host) {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `oc-reestr-${state.tab === 'movable' ? 'dvizhimoe' : 'nedvizhimoe'}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `oc-reestr-${state.tab === 'movable' ? 'dvizhimoe' : 'nedvizhimoe'}-${localIso()}.csv`;
     a.click();
     // Ссылку отзываем, когда скачивание уже началось: сразу после click() в
     // части браузеров оно обрывалось (код-ревью 09.10.2026).

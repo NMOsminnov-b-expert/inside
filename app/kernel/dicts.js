@@ -32,6 +32,7 @@ import { sortedTypes } from './registry.js';
 import { INSPECTIONS_DICT_HOST, INSPECTIONS_DICT_SOURCES, INSPECTIONS_CARDS } from './inspectionsDicts.js';
 import { session, seesEverything } from './session.js';
 import { createStore } from './store.js';
+import { localIso } from './fmt.js';
 
 export const CARD_LABEL = {
   oc: 'Объект оценки',
@@ -68,7 +69,7 @@ export const dicts = createStore({ list: null });
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${String(++seq).padStart(3, '0')}`;
 
-const today = () => new Date().toISOString().slice(0, 10).split('-').reverse().join('.');
+const today = () => localIso().split('-').reverse().join('.');
 
 // --- разбор значений перечня ----------------------------------------------
 

@@ -4,6 +4,7 @@ import { bindStatusFlow } from '../../kernel/status/flow.ctrl.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindMechForm } from './form/ctrl.js';
 import { mechOf } from './records.js';
+import { localIso } from '../../kernel/fmt.js';
 
 // Контроллер карточки ОЦ «Механизмы и оборудование»: форма перечня — общая с
 // объектом имущества (form/ctrl.js), стороны, шкала статусов и просмотрщик —
@@ -20,7 +21,7 @@ export function bindMech(ctx) {
   const save = s.$('[data-mech-save]');
   if (save) {
     save.onclick = () => {
-      ctx.rec.updatedAt = new Date().toISOString().slice(0, 10);
+      ctx.rec.updatedAt = localIso();
       ctx.toast('ОЦ механизмов и оборудования сохранён', 'ok');
     };
   }

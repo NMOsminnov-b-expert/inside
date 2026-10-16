@@ -1,7 +1,7 @@
 import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
 import { manifest } from './manifest.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
-import { fmtNum } from '../../kernel/fmt.js';
+import { fmtNum, localIso } from '../../kernel/fmt.js';
 import {
   mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath, migrateMechHolder, mechListLabel,
 } from './form/model.js';
@@ -135,7 +135,7 @@ export function createRecord() {
   const id = nextId();
   const rec = {
     id, typeId: manifest.id, type: manifest.label, category: 'Движимое', status: 'В заполнении',
-    city: '', institution: '', podved: '', eni: '', updatedAt: new Date().toISOString().slice(0, 10),
+    city: '', institution: '', podved: '', eni: '', updatedAt: localIso(),
     // Пользователей, как у ОЦ ТС, не ведут — блок сторон только с
     // собственниками; пустой список оставлен ради общих столбцов реестра.
     owners: [], users: [], resp: { gov: '', cod: '', appr: '', insp: '' }, docs: [],
