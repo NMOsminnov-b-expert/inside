@@ -16,7 +16,7 @@
 // Поля осмотра строятся из описания (form.js) конструктором ядра
 // (kernel/fieldSchema.js) — в этом файле нет ни одной подписи поля.
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
-import { pickFile, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
+import { pickFile, pickFiles, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { bindFields, filledCount, requiredLeft } from '../../kernel/fieldSchema.js';
 import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
@@ -60,6 +60,10 @@ export function mountInspector(host) {
     photoOi: '',
     // Панель снимков в форме осмотра ОИ раскрыта.
     shotsOpen: false,
+    // Категория снимков, выбранная вручную ('' — по разделу на экране), и
+    // раскрыт ли её список.
+    camCat: '',
+    camCatOpen: false,
     cat: PHOTO_CATS[0],
     // Разделы формы, свёрнутые ВРУЧНУЮ. По умолчанию открыты все: свёрнутое
     // заранее приходится разворачивать (замечание пользователя 08.09.2026).
@@ -531,6 +535,7 @@ export function mountInspector(host) {
       scrollFrame = 0;
       if (!content() || jumping) return;
       markCurrentSection();
+      refreshCamCat();
     });
   }
   scope.onDocument('scroll', onScroll, true);
@@ -696,6 +701,7 @@ export function mountInspector(host) {
           oiPhotos: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id).length,
           shots: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id),
           shotsOpen: ui.shotsOpen,
+          cam: { manual: ui.camCat, label: ui.camCat || (oi.card === 'land' ? 'Земельный участок' : oi.card === 'apartment' ? 'Внутр. помещения' : 'Фасад'), catOpen: ui.camCatOpen },
         }));
         return;
       }
@@ -1351,7 +1357,8 @@ export function mountInspector(host) {
     if (again) again.scrollTop = y;
   };
   // Категория снимка — по разделу формы на экране; поправить можно в просмотре.
-  const camCat = () => {
+  const camCat = () => ui.camCat || autoCat();
+  const autoCat = () => {
     const card = (curOi() || {}).card || 'building';
     // Раздел — тот, что стоит в верхней трети видимой части формы в момент
     // снимка: отметка строки разделов догоняет прокрутку с задержкой.
@@ -1365,21 +1372,39 @@ export function mountInspector(host) {
     if (k === 'comments') return 'Прочее';
     return 'Фасад';
   };
-  scope.on('click', '[data-cam-list]', () => { ui.shotsOpen = !ui.shotsOpen; renderKeep(); });
+  // Подпись категории «по разделу» идёт за прокруткой — без перерисовки.
+  const refreshCamCat = () => {
+    const l = scope.$('[data-cam-cat-l]');
+    if (l && !ui.camCat) l.textContent = autoCat();
+  };
+  scope.on('click', '[data-cam-list]', () => { ui.shotsOpen = !ui.shotsOpen; renderKeep(); refreshCamCat(); });
+  scope.on('click', '[data-cam-cat]', () => { ui.camCatOpen = !ui.camCatOpen; renderKeep(); refreshCamCat(); });
+  scope.on('click', '[data-cam-cat-pick]', (e, el) => {
+    ui.camCat = el.dataset.camCatPick;
+    ui.camCatOpen = false;
+    renderKeep();
+    refreshCamCat();
+  });
+  // Несколько снимков за раз (16.10.2026: «стоит добавить возможность делать
+  // несколько фото за раз»): система предлагает камеру или галерею с выбором
+  // нескольких; все — этому ОИ в выбранную категорию.
   scope.on('click', '[data-cam-shoot]', async () => {
     if (!route.oiId) return;
-    const file = await pickFile('image/*', { capture: 'environment' });
-    if (!file) return;
-    if (isFileTooLarge(file)) {
-      host.toast(`Снимок больше ${MAX_DOC_FILE_MB} МБ — уменьшите качество съёмки`, 'warn');
-      return;
-    }
+    const files = await pickFiles('image/*');
+    if (!files.length) return;
     const cat = camCat();
-    const res = addPhoto(route.typeId, route.ocId, file, { oiId: route.oiId, cat });
-    if (res.error) {
-      host.toast(res.error, 'warn');
-      return;
+    let added = 0;
+    let big = 0;
+    let stop = '';
+    for (const file of files) {
+      if (isFileTooLarge(file)) { big += 1; continue; }
+      const res = addPhoto(route.typeId, route.ocId, file, { oiId: route.oiId, cat });
+      if (res.error) { stop = res.error; break; }
+      added += 1;
     }
+    if (big) host.toast(`Не добавлено ${big}: больше ${MAX_DOC_FILE_MB} МБ`, 'warn');
+    if (stop) host.toast(stop, 'warn');
+    if (files.length > 1 && added) host.toast(`Добавлено снимков: ${added} · ${cat}`, 'ok');
     // Без всплывающего сообщения: снимают сериями, и сообщения ложились на
     // кнопку камеры. Отклик — число на «Снимки N».
     renderKeep();
@@ -1458,6 +1483,7 @@ export function mountInspector(host) {
   return {
     onRoute(next) {
       const sameTask = next.typeId === route.typeId && next.ocId === route.ocId;
+      if (next.oiId !== route.oiId) { ui.camCat = ''; ui.camCatOpen = false; }
       // Прокрутка уходящего экрана — запомнить, приходящего — вернуть.
       const body = scope.$('.ins-body');
       if (body) scrollOf.set(screenKey(route), body.scrollTop);

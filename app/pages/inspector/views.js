@@ -606,7 +606,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
   rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
-  shots = [], shotsOpen = false,
+  shots = [], shotsOpen = false, cam = {},
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
@@ -654,7 +654,7 @@ export function assetHTML({
       </section>
     </div>
 
-    ${cameraHTML(shots, shotsOpen)}
+    ${cameraHTML(shots, shotsOpen, cam)}
 
     ${tabsHTML('object', hrefFor, counts)}
   </div>`;
@@ -677,7 +677,11 @@ const shotTime = (p) => (p.at && LEGACY_AT.test(p.at) ? p.at.replace(' ', 'T') +
 })();
 const hhmm = (iso) => (iso ? new Date(iso).toTimeString().slice(0, 5) : '');
 
-function cameraHTML(shots, open) {
+// Категория снимка видна и выбирается рядом с кнопкой (вопрос пользователя
+// 16.10.2026: «А как определяется категория? Не вижу выбора»): по умолчанию —
+// по разделу формы на экране (подпись «по разделу»), выбранная вручную
+// держится, пока не вернут «По разделу».
+function cameraHTML(shots, open, cam = {}) {
   const cats = [...PHOTO_CATS, ...new Set(shots.map((p) => p.cat).filter((c) => !PHOTO_CATS.includes(c)))];
   const byCat = cats.map((c) => [c, shots.filter((p) => p.cat === c)
     .sort((a, b) => shotTime(a).localeCompare(shotTime(b)))]).filter(([, l]) => l.length);
@@ -700,10 +704,17 @@ function cameraHTML(shots, open) {
       </div>
       <p class="ins-hint">Касание снимка — просмотр: перенести в другую категорию или к другому объекту, удалить.</p>
     </section>` : ''}
+    ${cam.catOpen ? `<div class="ins-cam-cats" role="listbox" aria-label="Категория снимков">
+      <button type="button" role="option" class="${cam.manual ? '' : 'on'}" aria-selected="${!cam.manual}" data-cam-cat-pick="">По разделу</button>
+      ${PHOTO_CATS.map((c) => `<button type="button" role="option" class="${cam.manual === c ? 'on' : ''}" aria-selected="${cam.manual === c}" data-cam-cat-pick="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div>` : ''}
     <div class="ins-cam-btns">
+      <button type="button" class="ins-cam-cat" data-cam-cat aria-expanded="${!!cam.catOpen}" title="Категория снимков">
+        <span class="ins-cam-cat-k">Категория</span>
+        <b data-cam-cat-l>${esc(cam.label || '')}</b>${cam.manual ? '' : '<i>по разделу</i>'}</button>
       ${shots.length ? `<button class="ins-cam-list" data-cam-list aria-expanded="${open}" aria-controls="insShots">
         ${ico('photo', 18)} Снимки <b>${shots.length}</b></button>` : ''}
-      <button class="ins-cam-shoot" data-cam-shoot aria-label="Сфотографировать" title="Сфотографировать">${ico('photo', 28)}</button>
+      <button class="ins-cam-shoot" data-cam-shoot aria-label="Снять или выбрать снимки" title="Снять или выбрать снимки — можно несколько">${ico('photo', 28)}</button>
     </div>
   </div></div>`;
 }

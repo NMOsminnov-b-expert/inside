@@ -54,6 +54,20 @@ export function pickFile(accept, { capture = '' } = {}) {
   });
 }
 
+// Несколько файлов за раз — массив (пустой, если выбор отменён). На телефоне
+// без capture система предлагает и камеру, и галерею с выбором нескольких.
+export function pickFiles(accept, { multiple = true } = {}) {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    if (accept) input.accept = accept;
+    input.multiple = !!multiple;
+    input.addEventListener('cancel', () => resolve([]));
+    input.onchange = () => resolve(input.files ? [...input.files] : []);
+    input.click();
+  });
+}
+
 // Нет бэкенда — файл целиком живёт в памяти на вкладке, поэтому ограничиваем
 // размер, чтобы не подвесить страницу большим файлом.
 export const MAX_DOC_FILE_MB = 15;
