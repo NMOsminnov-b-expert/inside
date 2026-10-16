@@ -154,7 +154,9 @@ function formHTML(c, key) {
   </div>`;
 }
 
-function listHTML(list, { key = '', editing = null, editable = false } = {}) {
+// Открыт наружу для экрана осмотрщика: контакты объекта и учреждения — только
+// просмотр, без перехода к правке учреждения (16.10.2026).
+export function listHTML(list, { key = '', editing = null, editable = false } = {}) {
   return `<div class="ct-list">${list.map((c) => (editable && editing === c.id ? formHTML(c, key) : itemHTML(c, key, editable))).join('')}</div>`;
 }
 

@@ -11,6 +11,7 @@
 // form.js): одно описание — и мобильный экран, и, в дальнейшем, настольная
 // карточка. Это и есть «конструктор», о котором просил пользователь.
 import { esc } from '../../kernel/dom.js';
+import { ownHTML, listHTML as contactListHTML, isEmptyContact } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
@@ -355,7 +356,7 @@ export function contourAreaM2(contour) {
 
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0 }) {
+export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null }) {
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
   return `<div class="ins">
@@ -394,6 +395,8 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
           ${rowHTML('Оператор ЦОД', (rec.resp || {}).cod)}
         </section>
       </div>
+
+      ${contacts ? contactsHTML(contacts) : ''}
 
       <section class="ins-blk">
         <h2 class="ins-blk-h">Примечания к объекту</h2>
@@ -815,6 +818,24 @@ function premisesHTML(list) {
 }
 
 // --- экран 4: документы ---------------------------------------------------
+
+// Контакты на месте: свои, добавленные на осмотре (правка на месте, как в
+// карточках), и контакты объекта и учреждения — только просмотр: телефон —
+// звонок, почта — письмо (как в приложении «Осмотр»: «Касание телефона —
+// звонок»).
+function contactsHTML({ own, editing, object, chain }) {
+  const known = [...object, ...chain.flatMap((g) => g.contacts)].filter((c) => !isEmptyContact(c));
+  return `<section class="ins-blk ins-contacts" aria-label="Контакты на месте">
+    <h2 class="ins-blk-h">Контакты на месте</h2>
+    ${ownHTML(own, { key: 'insp', editing, title: 'Добавлены на осмотре',
+    empty: 'Кто встретил, кто отвечает за объект — ФИО, телефон, комментарий' })}
+    ${object.length ? `<section class="ct-group from"><header class="ct-group-h"><span class="ct-group-k">Контакты объекта</span></header>
+      ${contactListHTML(object)}</section>` : ''}
+    ${chain.map((g) => `<section class="ct-group from"><header class="ct-group-h"><span class="ct-group-k">От учреждения</span><b title="${esc(g.name)}">${esc(g.name)}</b></header>
+      ${contactListHTML(g.contacts)}</section>`).join('')}
+    ${known.length ? '' : '<p class="ins-hint">У объекта и учреждения контактов нет.</p>'}
+  </section>`;
+}
 
 export function docsHTML({ rec, docs, hrefFor, counts, backHref }) {
   return `<div class="ins">

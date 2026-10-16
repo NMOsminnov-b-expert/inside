@@ -32,6 +32,20 @@ export const PHOTO_CATS = [
 // распределить потом. При том не даём завершить осмотр, пока не распределили
 // фото»). Категорией съёмки не является — в перечень выбора не входит.
 export const UNSORTED = 'Не распределено';
+
+// Контакты, добавленные осмотрщиком на месте (решение пользователя 16.10.2026:
+// «У осмотрщика должна быть возможность добавить контакты с комментариями»).
+// Поля — как у контактов карточек и учреждений (kernel/contacts.js): имя,
+// должность, телефон, почта, комментарий.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: контакт с осмотра — заявка ЦОД: добавить в контакты
+// объекта или учреждения, с автором и временем; развилка — переносить сами
+// или оставлять при осмотре.
+export function contactsOf(typeId, ocId) {
+  const st = taskState(typeId, ocId);
+  if (!Array.isArray(st.contacts)) st.contacts = [];
+  return st.contacts;
+}
 export const unsortedCount = (typeId, ocId) => taskState(typeId, ocId).photos.filter((p) => p.cat === UNSORTED).length;
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;

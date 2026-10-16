@@ -22,12 +22,13 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
-  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, dayTrips, saveResults, markDone,
+  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
+import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint } from './form.js';
@@ -60,6 +61,8 @@ export function mountInspector(host) {
     photoOi: '',
     // Панель снимков в форме осмотра ОИ раскрыта.
     shotsOpen: false,
+    // Контакты на месте: правка своего (как в карточках, kernel/contacts.js).
+    ct: { open: true, editing: null },
     // Разбор снимков «Не распределено» раскрыт; отмеченные в нём.
     sortOpen: false,
     camSel: new Set(),
@@ -745,7 +748,11 @@ export function mountInspector(host) {
 
     const geo = geoOf(r);
     const ll = parseLL(r.gps) || (geo && geo.extent ? [(geo.extent[1] + geo.extent[3]) / 2, (geo.extent[0] + geo.extent[2]) / 2] : null);
-    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId) }));
+    const chain = institutionChain(r.institution, r.podved).map((x) => ({ name: x.node ? x.node.name : (x.name || 'Учреждение'), contacts: x.contacts || [] }))
+      .filter((g) => g.contacts.length);
+    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId),
+      contacts: { own: contactsOf(typeId, ocId), editing: ui.ct.editing, object: r.contacts || [], chain } }));
+    bindContacts(scope, 'insp', { list: () => contactsOf(typeId, ocId), ui: ui.ct, rerender: () => renderKeep(), onChange: saveResults });
     mountTaskMap(geo, ll);
     fillContour(r, geo);
   }

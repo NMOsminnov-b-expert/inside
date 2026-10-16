@@ -18,7 +18,7 @@ import { keepFileLocally } from './localFiles.js';
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 const results = new Map();
-const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [] });
+const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [], contacts: [] });
 
 registerPersisted('inspections.results', {
   snapshot: () => [...results.values()],

@@ -403,6 +403,22 @@ def run(t):
     pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
       K.taskState('%s', '%s').photos.filter(p => /^cam\d/.test(p.name)).forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
 
+    # Контакты на месте (16.10.2026: «добавить контакты с комментариями»):
+    # свой контакт — правка на месте, как в карточках; телефон — звонок.
+    t.open(TASK, wait='.ins-contacts')
+    pg.click('[data-ct-add="insp"]')
+    t.wait_for('[data-ct-f$="|name"]')
+    pg.fill('[data-ct-f$="|name"]', 'Проверка Контакт')
+    pg.fill('[data-ct-f$="|phone"]', '+996 555 00 00 01')
+    pg.fill('[data-ct-f$="|note"]', 'встретил на месте')
+    pg.locator('[data-ct-f$="|note"]').dispatch_event('change')
+    pg.click('[data-ct-done="insp"]')
+    t.wait_until("() => /Проверка Контакт/.test(document.querySelector('.ins-contacts .ct-group.own')?.innerText || '')")
+    got = pg.evaluate("""async () => (await import('./app/pages/inspector/tasks.js')).contactsOf('%s', '%s').map(c => [c.name, c.note])""" % (TYPE, OC))
+    t.ck(['Проверка Контакт', 'встретил на месте'] in got, 'контакт с комментарием не сохранился: %s' % got)
+    t.ck(pg.locator('.ins-contacts .ct-group.own a[href="tel:+996555000001"]').count() == 1, 'у своего контакта телефон не ведёт к звонку')
+    pg.evaluate("""async () => { const a = (await import('./app/pages/inspector/tasks.js')).contactsOf('%s', '%s'); a.splice(0, a.length); }""" % (TYPE, OC))
+
     # Вкладки помнят своё место (15.10.2026: «Возврат из других разделов не
     # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои
     # состояния»): «Фото» → «Объект» — в ту же литеру и на то же место
