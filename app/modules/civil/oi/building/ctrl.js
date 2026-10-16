@@ -31,8 +31,11 @@ import { scaleHint, scaleTitle } from '../../data/conditionScale.js';
 import {
   capMsSummary, capMsBody, kcHTML, kcCoefHTML, zonesSumsBody, zoneBarInfoHTML, openZoneId,
 } from './view.js';
+import { bindOiNets } from '../../../land-plot/oi/land/oiNets.js';
 
 export function bind(ctx, oi) {
+  // Инженерные сети ОИ (16.10.2026): своё значение, от участка или по умолчанию.
+  bindOiNets(ctx.scope, oi, { rec: ctx.rec, rerender: () => ctx.render() });
   bindAnnexes(ctx, oi);
   bindYearField(ctx, oi);
   bindDocsColumns(ctx.scope);

@@ -12,6 +12,7 @@ import { openDocViewer, openPhotoInPlace, VS } from '../../../../kernel/viewer/s
 import { nextDocId } from '../../data/store.js';
 import { DOC_TYPES, LAND_PLAN_DOC_TYPES } from '../../data/dictionaries.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
+import { OI_NETS, landNetChanged } from './oiNets.js';
 
 export function bind(ctx, oi) {
   bindDocsColumns(ctx.scope);
@@ -62,7 +63,11 @@ export function bind(ctx, oi) {
   };
   Object.entries(valueBindings).forEach(([selector, key]) => {
     const input = s.$(selector);
-    if (input) input.onchange = () => { oi[key] = input.value; };
+    if (input) input.onchange = () => {
+      oi[key] = input.value;
+      // Сети участка — в ОИ на нём (16.10.2026): свои значения ОИ — с вопросом.
+      if (OI_NETS.some((f) => f.key === key)) landNetChanged(ctx.rec, oi, key, input.value);
+    };
   });
 
   // Числовые поля вне списка выше: им нужен не просто onchange, а разбор и

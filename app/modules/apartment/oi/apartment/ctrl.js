@@ -16,8 +16,11 @@ import { openDocViewer, openPhotoInPlace } from '../../../../kernel/viewer/state
 import { nextId, nextDocId } from '../../data/store.js';
 import { bindAreasNote, updateAreasNote } from '../../../../kernel/areasNote.js';
 import { bindColumnReorder } from '../../../../kernel/columns.js';
+import { bindOiNets } from '../../../land-plot/oi/land/oiNets.js';
 
 export function bind(ctx, oi) {
+  // Инженерные сети ОИ (16.10.2026): своё значение, от участка или по умолчанию.
+  bindOiNets(ctx.scope, oi, { rec: ctx.rec, rerender: () => ctx.render() });
   bindYearField(ctx, oi);
 
   // Планировки правятся прямо в строке. Слушатели прямые: карточка

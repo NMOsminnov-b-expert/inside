@@ -25,6 +25,7 @@ import {
   zonesOf, hasZones, hasKind, zonesSum, diffText, typesText, zoneTitle, zoneClassInfo,
   classDistribution, unclassText, missingText, zonesAvgK, classLine,
 } from './zones.js';
+import { oiNetsCard } from '../../../land-plot/oi/land/oiNets.js';
 
 
 // Типы ОЦ, у которых сам объект оценки жилой. Списком, а не поиском подстроки
@@ -729,6 +730,7 @@ ${generalCard(ctx, oi, idx())}
 ${areasCard(ctx, oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
+${oiNetsCard(ctx, oi, idx())}
 ${rq.showOiCategory ? capClassCard(ctx, oi, idx()) : ''}
 ${annexesCard(ctx, oi, idx())}
 ${rq.prod ? prodExtraCard(ctx, oi, idx()) : ''}

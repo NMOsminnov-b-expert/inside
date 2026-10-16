@@ -17,12 +17,16 @@ export function cardKey(head) {
   return (h || head).textContent.trim();
 }
 
-// После отрисовки — вернуть свёрнутость.
+// После отрисовки — вернуть свёрнутость. Блок с data-card-default="closed"
+// свёрнут, пока его не открыли руками (блок инженерных сетей ОИ на участке,
+// 16.10.2026: «он скрыт (просто свернут), если литера на участке»).
 export function applyCardToggles(root, ui) {
   const closed = (ui && ui.cardsClosed) || {};
   root.querySelectorAll('[data-card-toggle]').forEach((head) => {
     const card = head.closest('.card');
-    if (card) card.classList.toggle('collapsed', !!closed[cardKey(head)]);
+    const key = cardKey(head);
+    const shut = key in closed ? !!closed[key] : head.dataset.cardDefault === 'closed';
+    if (card) card.classList.toggle('collapsed', shut);
   });
 }
 
@@ -37,8 +41,11 @@ export function bindCardToggles(scope, ui) {
     if (!card) return;
     const key = cardKey(head);
     ui.cardsClosed = ui.cardsClosed || {};
-    if (card.classList.contains('collapsed')) delete ui.cardsClosed[key];
-    else ui.cardsClosed[key] = true;
+    // Открытый руками блок «свёрнут по умолчанию» помнится открытым (false),
+    // остальные — как прежде: открыт — ключа нет.
+    if (card.classList.contains('collapsed')) {
+      if (head.dataset.cardDefault === 'closed') ui.cardsClosed[key] = false; else delete ui.cardsClosed[key];
+    } else ui.cardsClosed[key] = true;
     card.classList.toggle('collapsed', !!ui.cardsClosed[key]);
   });
 }

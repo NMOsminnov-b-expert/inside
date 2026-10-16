@@ -347,7 +347,10 @@ export const LAND_UTILITY_STATUS = ['Подведены', 'Проходят ря
 // Значения пока совпадают; расходиться они начнут в работе.
 export const LAND_ELECTRICITY_STATUS = [...LAND_UTILITY_STATUS];
 export const LAND_WATER_STATUS = [...LAND_UTILITY_STATUS];
-export const LAND_SEWERAGE_STATUS = [...LAND_UTILITY_STATUS];
+// Канализация — с типом в самом значении, без отдельного поля (решение
+// пользователя 16.10.2026: «у жилых домов так же важен тип канализации.
+// Центральная / септик / очистные… без добавления поля типа»; «набор — ок»).
+export const LAND_SEWERAGE_STATUS = ['Подведена центральная', 'Септик', 'Очистные сооружения', 'Проходят рядом', 'На удалении', 'Отсутствуют в районе'];
 export const LAND_GAS_STATUS = [...LAND_UTILITY_STATUS];
 
 // Отопление отличается от прочих сетей: оно бывает автономным — котёл на самом

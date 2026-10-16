@@ -17,6 +17,7 @@ import { heatingMS } from './heating.js';
 import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
+import { oiNetsCard } from '../../../land-plot/oi/land/oiNets.js';
 
 function letterControlHTML(ctx, oi) {
   if (ctx.ui.letterEdit === oi.id) {
@@ -369,6 +370,7 @@ ${areasCard(ctx, oi, idx())}
 ${plansCard(oi, idx())}
 ${structCard(ctx, oi, idx())}
 ${conditionCard(ctx, oi, idx())}
+${oiNetsCard(ctx, oi, idx())}
 ${annexesCard(ctx, oi, idx())}
 ${photosCard(ctx, oi, idx())}
 </div>`;
