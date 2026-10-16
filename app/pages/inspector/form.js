@@ -319,8 +319,10 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
       { key: 'floorsN', label: 'Количество этажей', num: true, doc: docOf('floors'), tpLabel: 'в карточке' },
     ],
   },
-  structSection(typeId, 'building', { wallsExt: prod }),
-  stateSection(typeId, 'building'),
+  // Конструктив, износ и состояние осмотрщик не заполняет (решение
+  // пользователя 16.10.2026: «осмотрщик конструктив и износ не заполняет…
+  // Состояние тоже»): их определяют по снимкам. structSection и stateSection
+  // остаются в коде — описание полей карточки, понадобятся для сверки.
   ...(oi && oi.residential ? [] : [capClassSection(oi)]),
   ...(prod ? [{
     key: 'prod',
@@ -350,8 +352,6 @@ const flatSections = (typeId) => [
       { key: 'aptLocation', label: 'Положение на этаже', opts: cardDict(typeId, 'apartment', 'location', APT_LOCATION), doc: docOf('apartment.location') },
     ],
   },
-  structSection(typeId, 'apartment'),
-  stateSection(typeId, 'apartment'),
   commentsSection,
 ];
 

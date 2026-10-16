@@ -219,11 +219,11 @@ def run(t):
     t.open(ASSET, wait='.ins-acc')
     t.wait(300)
 
-    # Строение нежилого здания — блоки карточки литеры (15.10.2026): общие
-    # параметры, площади и этажность, конструктив и износ, состояние, тип и
-    # класс капитальности, комментарии.
+    # Строение нежилого здания: общие параметры, этажность, тип и класс
+    # капитальности, комментарии. Конструктив, износ и состояние осмотрщик не
+    # заполняет (решение пользователя 16.10.2026).
     n = pg.locator('.ins-acc').count()
-    t.ck(n == 6, 'разделов формы строения не шесть: %d' % n)
+    t.ck(n == 4, 'разделов формы строения не четыре: %d' % n)
 
     # Все разделы открыты по умолчанию: свёрнутое заранее приходится
     # разворачивать, а на осмотре нужно заполнять (замечание пользователя
@@ -232,37 +232,32 @@ def run(t):
          'не все разделы открыты по умолчанию: %d из %d' % (pg.locator('.ins-acc.on').count(), n))
 
     # Свернуть можно руками — и развернуть обратно.
-    pg.locator('[data-sec="struct"]').click()
+    pg.locator('[data-sec="capclass"]').click()
     t.wait_until('([n]) => document.querySelectorAll(".ins-acc.on").length === n - 1', [n])
     t.ck(pg.locator('.ins-acc.on').count() == n - 1, 'раздел не свернулся по нажатию')
-    pg.locator('[data-sec="struct"]').click()
+    pg.locator('[data-sec="capclass"]').click()
     t.wait_until('([n]) => document.querySelectorAll(".ins-acc.on").length === n', [n])
     t.ck(pg.locator('.ins-acc.on').count() == n, 'раздел не развернулся обратно')
 
     # Свёрнутый раздел говорит о себе: сколько заполнено из сколького.
     subs = pg.eval_on_selector_all('.ins-acc-sub', 'e => e.map((x) => x.textContent.trim())')
     t.ck(all(' из ' in x for x in subs), 'у разделов нет прогресса: %s' % subs)
-    t.ck(any('по возможности' in x for x in subs),
-         'необязательный раздел не помечен: %s' % subs)
     t.ck(pg.locator('.ins-acc-need').count() >= 1,
          'у раздела с незаполненным обязательным нет счётчика')
 
-    t.ck(pg.locator('select[data-fs-sel="condInner"] option', has_text='Удовлетворительное').count() >= 1,
-         'в «Внутреннем состоянии» нет шкалы карточки')
-    # Обязательные — как в карточке литеры: расположение строения, внутреннее
-    # и внешнее состояние.
-    t.ck(pg.locator('.ins-fs-req').count() >= 3, 'обязательные поля не помечены')
+    # Обязательные — как в карточке литеры: расположение строения.
+    t.ck(pg.locator('.ins-fs-req').count() >= 1, 'обязательные поля не помечены')
     # Сохранение — само (пересмотр шапки 14.10.2026): ход — полосой в шапке,
     # разделы — строкой под ней, после правки — «сохранено ЧЧ:ММ».
     t.ck(pg.locator('.ins-head [data-ins-prog]').count() == 1, 'в шапке осмотра нет полосы хода заполнения')
-    t.ck(pg.locator('[data-secnav] [data-goto-sec]').count() >= 5, 'нет строки разделов осмотра')
+    t.ck(pg.locator('[data-secnav] [data-goto-sec]').count() >= 4, 'нет строки разделов осмотра')
 
     # Любой выбор — списком (замечание пользователя 14.10.2026: «формат в виде
     # огромного количества кнопок неудобен... лучше селекторы»): один ответ —
     # выпадающий список, «1 или более» — выпадающий мультивыбор, как в карточках.
     t.ck(pg.locator('.ins-fs .ins-chip, .ins-fs .ins-row').count() == 0, 'на экране осмотра остались кнопки-варианты вместо списков')
     sels = pg.locator('.ins select[data-fs-sel]')
-    t.ck(sels.count() > 10, 'полей-списков в осмотре подозрительно мало: %d' % sels.count())
+    t.ck(sels.count() >= 3, 'полей-списков в осмотре подозрительно мало: %d' % sels.count())
 
     prog = "document.querySelector('[data-ins-prog]').style.width"
     sum_before = pg.evaluate('() => ' + prog)
@@ -280,14 +275,16 @@ def run(t):
     t.ck(pg.evaluate('() => ' + prog) == sum_before, 'выбор «Не выбрано» не снял значение')
 
     # Многозначные: мультивыбор с отметками, несколько ответов сразу, снятие.
-    box = '[data-fs-msbox="heating"]'
-    t.ck(pg.locator(box).count() == 1, '«Отопление» — не мультивыбор, как в карточке')
+    # Мультивыбор — «Инженерное оснащение» класса капитальности (признак с
+    # несколькими ответами, как в карточке литеры).
+    box = '[data-fs-msbox="cap_civil_eng"]'
+    t.ck(pg.locator(box).count() == 1, '«Инженерное оснащение» — не мультивыбор, как в карточке')
     pg.locator(box + ' [data-fs-ms-toggle]').click()
     opts = pg.locator(box + ' .ms-drop:not([hidden]) input[data-fs-ms]')
-    t.ck(opts.count() == 11, 'в мультивыборе %d значений вместо одиннадцати' % opts.count())
-    pg.locator(box + ' .ms-drop:not([hidden]) .ms-opt').nth(2).click()
+    t.ck(opts.count() >= 3, 'в мультивыборе мало значений: %d' % opts.count())
+    pg.locator(box + ' .ms-drop:not([hidden]) .ms-opt').nth(0).click()
     t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 1", box)
-    pg.locator(box + ' .ms-drop:not([hidden]) [data-ms-rest] .ms-opt').nth(4).click()
+    pg.locator(box + ' .ms-drop:not([hidden]) .ms-opt:not(:has(input:checked))').first.click()
     t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 2", box)
     t.ck(pg.locator(box + ' .ms-count').inner_text() == '2', 'в мультивыборе не отметились два значения')
     t.ck(pg.locator(box + ' .ms-drop:not([hidden])').count() == 1, 'мультивыбор закрылся после отметки')
@@ -318,7 +315,7 @@ def run(t):
     def secs():
         return pg.eval_on_selector_all('.ins-acc-t b', 'els => els.map((e) => e.textContent.trim())')
     t.open('#/insp/apartment/oc-ap-1/object/oi-ap1-a', wait='.ins-acc-t')
-    t.ck('Состояние' in secs() and 'Общие параметры квартиры' in secs() and 'Чек-лист коммуникаций' not in secs(),
+    t.ck('Общие параметры квартиры' in secs() and 'Состояние' not in secs() and 'Конструктив и износ' not in secs(),
          'у квартиры не её форма осмотра: %s' % secs())
     t.open('#/insp/land-plot/oc-lp-1/object/oi-lp1-l1', wait='.ins-acc-t')
     t.ck('Инженерные сети' in secs() and 'Конструктив и износ' not in secs(), 'у участка не его форма осмотра: %s' % secs())
@@ -331,8 +328,8 @@ def run(t):
     t.open(ASSET, wait='.ins-fs')
     t.wait(300)
     # Строение — блоки карточки литеры; чек-лист коммуникаций — у участка.
-    t.ck('Конструктив и износ' in secs() and 'Состояние' in secs() and 'Чек-лист коммуникаций' not in secs(),
-         'у строения не блоки его карточки: %s' % secs())
+    t.ck('Тип и класс капитальности' in secs() and 'Конструктив и износ' not in secs() and 'Состояние' not in secs(),
+         'у строения не его форма осмотра: %s' % secs())
 
     # Площади и высоты на осмотре не замеряются (указание пользователя
     # 15.10.2026) — из чисел у строения только этажность. Её значение из
@@ -349,31 +346,10 @@ def run(t):
          'расхождение этажности с карточкой не поднято сигналом')
     t.ck(pg.locator('.ins-num').first.input_value() == '9', 'этажность не вводится')
 
-    # Длинные перечни — списком, а не чипами: у наружных стен 44 значения, и
-    # чипами это четыре экрана прокрутки на одно поле. Материал — мультивыбор,
-    # как в карточке («Конструктив и износ»).
-    sels = pg.locator('[data-fs-sel]').count()
-    t.ck(sels >= 6, 'длинные перечни не стали списками: %d' % sels)
-    walls = '[data-fs-msbox="wallsExt"]'
-    t.ck(pg.locator(walls).count() == 1, 'у наружных стен нет мультивыбора, как в карточке')
-    opts = pg.eval_on_selector_all(walls + ' input[data-fs-ms]', 'e => e.length')
-    t.ck(opts > 40, 'в перечне наружных стен потерялись значения: %d' % opts)
-    pg.locator(walls + ' [data-fs-ms-toggle]').click()
-    pg.locator(walls + ' .ms-drop:not([hidden]) .ms-opt', has_text='Кирпич').first.click()
-    t.wait_until("(b) => document.querySelectorAll(b + ' input[data-fs-ms]:checked').length === 1", walls)
-    pg.keyboard.press('Escape')
-    t.ck('кирпич' in pg.locator(walls + ' [data-fs-ms-sum]').inner_text().lower(),
-         'сводка мультивыбора не показала выбранное значение')
-
-    # Списки в модуле — СВОИ (kernel/dropdown.js), как во всём макете: иначе
-    # поля выглядят браузерными, а перечень из 44 значений листают прокруткой
-    # вместо поиска (замечание пользователя 08.09.2026 про стилизацию).
-    t.ck(pg.locator('.pick-btn').count() >= 6,
+    # Списки в модуле — СВОИ (kernel/dropdown.js), как во всём макете
+    # (замечание пользователя 08.09.2026 про стилизацию).
+    t.ck(pg.locator('.pick-btn').count() >= 3,
          'списки не подменены своим компонентом: %d' % pg.locator('.pick-btn').count())
-
-    # Состав полей — как в карточке литеры («Конструктив и износ»).
-    for label in ('Фундамент', 'Цоколь/подвал', 'Наружные стены', 'Внутренние стены', 'Двери', 'Отделка', 'Утепление'):
-        t.ck(_has(t, label), 'в «Конструктиве и износе» нет поля «%s»' % label)
 
     t.ck(pg.locator('.ins-ta').count() >= 1, 'в комментариях нет поля «Комментарий осмотрщика»')
 
