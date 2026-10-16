@@ -23,7 +23,7 @@ import {
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
-  scansOf, addScan, removeScan, dayTrips, saveResults, markDone,
+  scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -705,6 +705,8 @@ export function mountInspector(host) {
           oiPhotos: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id).length,
           shots: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id),
           shotsOpen: ui.shotsOpen,
+          voices: voicesOf(typeId, ocId, oi.id),
+          recording: voiceRec && { oiId: voiceRec.oiId },
           cam: { batch: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id && p.cat === UNSORTED), sel: ui.camSel, sortOpen: ui.sortOpen },
         }));
         return;
@@ -755,7 +757,8 @@ export function mountInspector(host) {
     const chain = institutionChain(r.institution, r.podved).map((x) => ({ name: x.node ? x.node.name : (x.name || 'Учреждение'), contacts: x.contacts || [] }))
       .filter((g) => g.contacts.length);
     scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId),
-      contacts: { own: contactsOf(typeId, ocId), editing: ui.ct.editing, object: r.contacts || [], chain } }));
+      contacts: { own: contactsOf(typeId, ocId), editing: ui.ct.editing, object: r.contacts || [], chain },
+      voices: voicesOf(typeId, ocId, ''), recording: voiceRec && { oiId: voiceRec.oiId } }));
     bindContacts(scope, 'insp', { list: () => contactsOf(typeId, ocId), ui: ui.ct, rerender: () => renderKeep(), onChange: saveResults });
     mountTaskMap(geo, ll);
     fillContour(r, geo);
@@ -1297,6 +1300,90 @@ export function mountInspector(host) {
     }
   });
 
+  // --- голосовые заметки --------------------------------------------------
+  // Диктофон (16.10.2026): запись — MediaRecorder с микрофона, громкость —
+  // AnalyserNode; время и полоска обновляются без перерисовки экрана.
+  // Ушли с экрана во время записи — записанное сохраняется (как в «Осмотре»).
+  let voiceRec = null;
+  let voicePlayer = null;
+  const stopVoice = (save = true) => {
+    const vr = voiceRec;
+    if (!vr) return;
+    voiceRec = null;
+    clearInterval(vr.timer);
+    cancelAnimationFrame(vr.raf);
+    vr.save = save;
+    try { vr.mr.stop(); } catch (e) { /* уже остановлен */ }
+    vr.stream.getTracks().forEach((t) => t.stop());
+    if (vr.ctx) vr.ctx.close().catch(() => {});
+  };
+  scope.on('click', '[data-voice-rec]', async (e, el) => {
+    if (voiceRec) { stopVoice(true); return; }
+    const oiId = el.dataset.voiceRec || '';
+    if (!navigator.mediaDevices || !window.MediaRecorder) { host.toast('Запись голоса в этом браузере недоступна', 'warn'); return; }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      host.toast('Нет доступа к микрофону — разрешите его в настройках браузера', 'warn');
+      return;
+    }
+    const mr = new MediaRecorder(stream);
+    const chunks = [];
+    const t0 = Date.now();
+    const typeId = route.typeId;
+    const ocId = route.ocId;
+    const vr = { oiId, mr, stream, chunks, t0, save: true, timer: 0, raf: 0, ctx: null };
+    mr.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    mr.onstop = () => {
+      const dur = (Date.now() - t0) / 1000;
+      if (!vr.save || !chunks.length || dur < 0.5) { renderKeep(); return; }
+      addVoice(typeId, ocId, new Blob(chunks, { type: mr.mimeType || 'audio/webm' }), { oiId, dur });
+      host.toast('Голосовая заметка сохранена', 'ok');
+      renderKeep();
+    };
+    mr.start(500);
+    voiceRec = vr;
+    renderKeep();
+    vr.timer = setInterval(() => {
+      const t = scope.$('[data-voice-time]');
+      if (t) { const s = Math.floor((Date.now() - t0) / 1000); t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+    }, 250);
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      vr.ctx = new Ctx();
+      const an = vr.ctx.createAnalyser();
+      an.fftSize = 512;
+      vr.ctx.createMediaStreamSource(stream).connect(an);
+      const buf = new Uint8Array(an.fftSize);
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let peak = 0;
+        for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
+        const bar = scope.$('[data-voice-lvl]');
+        if (bar) bar.style.width = Math.min(100, Math.round((peak / 128) * 160)) + '%';
+        vr.raf = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (err) { /* без полоски громкости — запись идёт */ }
+  });
+  scope.on('click', '[data-voice-play]', (e, el) => {
+    const v = voicesOf(route.typeId, route.ocId).find((x) => x.id === el.dataset.voicePlay);
+    if (!v) return;
+    if (voicePlayer && voicePlayer.id === v.id) { voicePlayer.audio.pause(); voicePlayer = null; return; }
+    if (voicePlayer) voicePlayer.audio.pause();
+    const audio = new Audio(v.dataUrl);
+    voicePlayer = { id: v.id, audio };
+    audio.onended = () => { voicePlayer = null; };
+    audio.play().catch(() => host.toast('Не удалось воспроизвести запись', 'warn'));
+  });
+  scope.on('click', '[data-voice-drop]', async (e, el) => {
+    const ok = await host.confirm({ title: 'Удалить голосовую заметку?', text: 'Запись пропадёт из осмотра.', okLabel: 'Удалить', danger: true });
+    if (!ok) return;
+    removeVoice(route.typeId, route.ocId, el.dataset.voiceDrop);
+    renderKeep();
+  });
+
   // --- сканы документов с осмотра -------------------------------------------
   scope.on('click', '[data-scan-add]', async () => {
     const files = (await pickFiles('image/*,application/pdf')).filter((f) => !isFileTooLarge(f));
@@ -1558,6 +1645,7 @@ export function mountInspector(host) {
       if (again && y) again.scrollTop = y;
     },
     destroy() {
+      stopVoice(true);
       closeLightbox();
       window.removeEventListener('resize', placeBig);
       if (taskMap) { taskMap.remove(); taskMap = null; }

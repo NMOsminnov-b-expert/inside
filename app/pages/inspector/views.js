@@ -29,6 +29,8 @@ const I = {
   task: '<path d="M6 3h6a1 1 0 0 1 1 1v1h2v13H3V5h2V4a1 1 0 0 1 1-1Zm-1 6h8M5 12h8M5 15h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   object: '<path d="M3 17V6l6-3 6 3v11M7 17v-4h4v4M6 9h2M11 9h2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   docs: '<path d="M5 2h6l4 4v12H5zM11 2v4h4M7 11h6M7 14h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  play: '<path d="M6 4.5v11l9-5.5z" fill="currentColor"/>',
+  stop: '<rect x="5" y="5" width="10" height="10" rx="1.5" fill="currentColor"/>',
   photo: '<path d="M3 7h3l1.5-2h5L14 7h3v10H3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>',
   pin: '<path d="M10 18s6-5.5 6-9.5A6 6 0 0 0 4 8.5C4 12.5 10 18 10 18Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="10" cy="8.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/>',
   copy: '<rect x="4" y="4" width="9" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 4V2.5h8.5V14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
@@ -356,7 +358,8 @@ export function contourAreaM2(contour) {
 
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null }) {
+export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null }) {
+
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
   return `<div class="ins">
@@ -412,8 +415,8 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
         <h2 class="ins-blk-h">Моя заметка с осмотра</h2>
         <textarea class="textarea ins-ta" data-own-note rows="4"
           placeholder="Что увидели на месте: расхождения, доступ, кто встречал">${esc(state.note)}</textarea>
-        <p class="ins-hint">Заметка уйдёт в объект вместе с фотографиями.
-          Голосовые примечания появятся в серверной версии.</p>
+        <p class="ins-hint">Заметка уйдёт в объект вместе с фотографиями.</p>
+        ${voiceHTML(voices, recording, '')}
       </section>
 
       <section class="ins-blk">
@@ -612,7 +615,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
   rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
-  shots = [], shotsOpen = false, cam = {},
+  shots = [], shotsOpen = false, cam = {}, voices = [], recording = null,
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
@@ -652,6 +655,11 @@ export function assetHTML({
     : `<section class="ins-blk"><h2 class="ins-blk-h">Осмотр</h2>
         <p class="ins-empty">Поля осмотра для этого вида ещё не заданы. Снимите объект и оставьте заметку в задаче —
           ЦОД увидит их в карточке.</p></section>`}
+
+      <section class="ins-blk">
+        <h2 class="ins-blk-h">Голосовые заметки${voices.length ? ' · ' + voices.length : ''}</h2>
+        ${voiceHTML(voices, recording, oi.id)}
+      </section>
 
       ${HAS_PREMISES.includes(oi.card || 'building') ? premisesHTML(premises) : ''}
 
@@ -818,6 +826,27 @@ function premisesHTML(list) {
 }
 
 // --- экран 4: документы ---------------------------------------------------
+
+// Голосовые заметки (16.10.2026, образец — диктофон приложения «Осмотр»):
+// большая кнопка — запись, ещё раз — стоп и сохранение; пока пишет — время и
+// полоска громкости (видно, что микрофон слышит). Запись — касание: слушать
+// или остановить; длительность, время записи; удалить.
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function voiceHTML(list, recording, oiId) {
+  const on = recording && recording.oiId === oiId;
+  return `<div class="ins-voice" data-voice-box="${esc(oiId)}">
+    ${list.length ? `<ul class="ins-voice-list">${list.map((v) => `<li class="ins-voice-i">
+      <button class="ins-voice-play" type="button" data-voice-play="${esc(v.id)}" aria-label="Прослушать заметку ${esc(mmss(v.dur || 0))}">${ico('play', 18)}</button>
+      <span class="ins-voice-t"><b>${esc(mmss(v.dur || 0))}</b><small>${esc(v.at ? new Date(v.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')}</small></span>
+      <button class="ins-btn ins-btn-icon" type="button" data-voice-drop="${esc(v.id)}" aria-label="Удалить заметку" title="Удалить заметку">${ico('trash', 18)}</button>
+    </li>`).join('')}</ul>` : ''}
+    <button class="ins-voice-rec ${on ? 'on' : ''}" type="button" data-voice-rec="${esc(oiId)}" aria-pressed="${on ? 'true' : 'false'}">
+      <span class="ins-voice-dot" aria-hidden="true"></span>
+      <span data-voice-label>${on ? 'Остановить и сохранить' : 'Записать голосовую заметку'}</span>
+      ${on ? '<span class="ins-voice-time" data-voice-time>0:00</span><span class="ins-voice-lvl" aria-hidden="true"><i data-voice-lvl></i></span>' : ''}
+    </button>
+  </div>`;
+}
 
 // Контакты на месте: свои, добавленные на осмотре (правка на месте, как в
 // карточках), и контакты объекта и учреждения — только просмотр: телефон —

@@ -12,7 +12,7 @@
 import { sortedTypes, getType, migrateLiterKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
-import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, markDone } from '../../kernel/inspectionResults.js';
+import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -41,6 +41,21 @@ export const UNSORTED = 'Не распределено';
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: контакт с осмотра — заявка ЦОД: добавить в контакты
 // объекта или учреждения, с автором и временем; развилка — переносить сами
 // или оставлять при осмотре.
+export function voicesOf(typeId, ocId, oiId = null) {
+  const st = taskState(typeId, ocId);
+  if (!Array.isArray(st.voices)) st.voices = [];
+  return oiId === null ? st.voices : st.voices.filter((v) => (v.oiId || '') === oiId);
+}
+export const addVoice = (typeId, ocId, blob, opts) => addResultVoice(typeId, ocId, blob, { ...opts, by: currentInspector() });
+export function removeVoice(typeId, ocId, id) {
+  const list = voicesOf(typeId, ocId);
+  const i = list.findIndex((x) => x.id === id);
+  if (i < 0) return;
+  try { URL.revokeObjectURL(list[i].dataUrl); } catch (e) { /* уже отозвана */ }
+  list.splice(i, 1);
+  saveResults();
+}
+
 export function scansOf(typeId, ocId) {
   const st = taskState(typeId, ocId);
   if (!Array.isArray(st.scans)) st.scans = [];

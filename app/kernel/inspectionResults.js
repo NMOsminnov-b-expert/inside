@@ -18,7 +18,7 @@ import { keepFileLocally } from './localFiles.js';
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 const results = new Map();
-const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [], contacts: [], scans: [] });
+const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [], contacts: [], scans: [], voices: [] });
 
 registerPersisted('inspections.results', {
   snapshot: () => [...results.values()],
@@ -90,6 +90,27 @@ export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by =
   r.scans.push(scan);
   scheduleSave();
   return scan;
+}
+
+// Голосовая заметка осмотрщика (решение пользователя 16.10.2026: «Голосовые
+// заметки тоже»): к объекту в целом (oiId пуст) или к ОИ. Файл — как снимок.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: запись — файл осмотра на сервере с автором и
+// временем; развилка — расшифровка в текст на сервере (поиск по заметкам) или
+// только прослушивание.
+let voiceSeq = 0;
+export function addResultVoice(typeId, ocId, blob, { oiId = '', dur = 0, by = '' } = {}) {
+  const ext = /ogg/.test(blob.type) ? 'ogg' : /mp4|aac/.test(blob.type) ? 'm4a' : 'webm';
+  const file = new File([blob], `заметка-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${ext}`, { type: blob.type || 'audio/webm' });
+  const v = { id: 'vn-' + Date.now().toString(36) + '-' + (++voiceSeq), name: file.name, size: file.size, type: file.type,
+    oiId, dur: Math.round(dur), by, at: new Date().toISOString() };
+  v.dataUrl = URL.createObjectURL(file);
+  keepFileLocally(file, v);
+  const r = resultsOf(typeId, ocId);
+  if (!Array.isArray(r.voices)) r.voices = [];
+  r.voices.push(v);
+  scheduleSave();
+  return v;
 }
 
 export function markDone(typeId, ocId, done) {

@@ -1320,3 +1320,28 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .ins-scan-new { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-soft); }
 .ins-scan-new .ins-field { margin: 0; }
 .ins-scans .ins-docs + .ins-btn { margin-top: 10px; }
+
+/* Голосовые заметки (16.10.2026): большая кнопка записи; во время записи —
+   красная точка, время и полоска громкости; записи — строкой: слушать,
+   длительность и время, удалить. */
+.ins-voice { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ins-voice-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ins-voice-i { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--panel); }
+.ins-voice-play { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; background: var(--blue-50); color: var(--blue-700); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ins-voice-play:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; }
+.ins-voice-t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.ins-voice-t b { font-variant-numeric: tabular-nums; }
+.ins-voice-t small { color: var(--muted); font-size: 12px; }
+.ins-voice-rec {
+  min-height: 48px; width: 100%; padding: 0 14px; border-radius: 12px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer;
+}
+.ins-voice-rec:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; }
+.ins-voice-dot { width: 14px; height: 14px; flex: none; border-radius: 50%; background: #d03a2a; }
+.ins-voice-rec.on { border-color: #d03a2a; background: #fdeceb; color: #8f2318; font-weight: 600; }
+.ins-voice-rec.on .ins-voice-dot { border-radius: 3px; }
+.ins-voice-time { margin-left: auto; font-variant-numeric: tabular-nums; }
+.ins-voice-lvl { width: 64px; height: 6px; flex: none; border-radius: 3px; background: rgba(208, 58, 42, .18); overflow: hidden; }
+.ins-voice-lvl i { display: block; height: 100%; width: 0; background: #d03a2a; transition: width .08s linear; }
+@media (prefers-reduced-motion: reduce) { .ins-voice-lvl i { transition: none; } }
