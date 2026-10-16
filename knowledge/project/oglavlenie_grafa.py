@@ -26,6 +26,7 @@ LINKS = [
     {'тип': 'раздел', 'куда': 'karta-razdela-metodologiya-i-raschety', 'папка': 'project'},
     {'тип': 'раздел', 'куда': 'karta-razdela-roli-sistemy', 'папка': 'project'},
     {'тип': 'раздел', 'куда': 'karta-razdela-osmotry', 'папка': 'project'},
+    {'тип': 'раздел', 'куда': 'karta-razdela-reestr-opisey', 'папка': 'project'},
     {'тип': 'раздел', 'куда': 'karta-razdela-dokumenty-foto-i-prosmotrschik', 'папка': 'project'},
     {'тип': 'раздел', 'куда': 'karta-razdela-oformlenie-interfeysa', 'папка': 'project'},
     {'тип': 'раздел', 'куда': 'karta-razdela-proverki', 'папка': 'project'},
