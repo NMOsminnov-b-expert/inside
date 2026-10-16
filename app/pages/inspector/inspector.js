@@ -23,7 +23,7 @@ import {
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions, premises, addPremise, removePremise,
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
-  scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, dayTrips, saveResults, markDone,
+  scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -32,7 +32,7 @@ import { codeByName } from '../../kernel/institutions.js';
 import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes } from '../../kernel/registry.js';
-import { allFields, sections, mismatchHint } from './form.js';
+import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from './form.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
 import { summaries } from '../inspections/model.js';
 import { loadMapLibre, createMap, ownParcelsGL, emptyFC } from '../../kernel/mapgl.js';
@@ -665,6 +665,8 @@ export function mountInspector(host) {
     }
 
     const state = taskState(typeId, ocId);
+    // Значение сетей из карточки — по записи ОЦ (участок, закрепление литер).
+    setNetsRec(r);
     const docs = taskDocs(r);
     // Вкладки помнят своё место (указание пользователя 15.10.2026: «Возврат из
     // других разделов не возвращает обратно в ОИ… Нужно, что бы вкладки
@@ -720,6 +722,7 @@ export function mountInspector(host) {
         openOi: ui.openOi,
         found: foundOi(typeId, ocId),
         locked: isFoundLocked(typeId, ocId),
+        common: commonNets(r, typeId, ocId),
         hrefFor,
         assetHref: (oiId) => inspHref({ typeId, ocId, section: 'object', oiId }),
         // Число заполненных полей у ОИ — по нему видно, что осмотр начат.
@@ -1172,7 +1175,8 @@ export function mountInspector(host) {
   // Свернуть или развернуть раздел формы. По умолчанию открыты все — сворачивает
   // только сам осмотрщик, если раздел ему сейчас не нужен.
   scope.on('click', '[data-sec]', (e, el) => {
-    const key = el.dataset.sec;
+    // Свёрнутый по умолчанию раздел помнится открытым — «+ключ».
+    const key = el.dataset.secClosed ? '+' + el.dataset.sec : el.dataset.sec;
     const i = ui.collapsed.indexOf(key);
     if (i >= 0) ui.collapsed.splice(i, 1); else ui.collapsed.push(key);
     render();
@@ -1298,6 +1302,49 @@ export function mountInspector(host) {
     } catch (err) {
       host.toast('Скопировать не удалось — ЕНИ виден в шапке', 'warn');
     }
+  });
+
+  // --- инженерные сети для всех объектов ---------------------------------
+  // Объекты без участка, их несколько: строения и квартиры записи и выявленные.
+  function netTargets(r, typeId, ocId) {
+    if (!r || (r.oi || []).some((o) => o.card === 'land')) return [];
+    const list = inspOis(r, typeId, ocId).filter((o) => o.card === 'building' || o.card === 'apartment');
+    return list.length >= 2 ? list : [];
+  }
+  function commonNets(r, typeId, ocId) {
+    const targets = netTargets(r, typeId, ocId);
+    if (!targets.length) return null;
+    const flds = allFields(typeId, targets[0]).filter((f) => NETS_KEYS.includes(f.key));
+    return {
+      count: targets.length,
+      fields: flds.map((f) => {
+        const vals = targets.map((o) => assetValues(typeId, ocId, o.id)[f.key] || '');
+        const same = vals.every((v) => v === vals[0]);
+        return { key: f.key, label: f.label, opts: f.opts, value: same ? vals[0] : '', mixed: !same };
+      }),
+    };
+  }
+  scope.on('change', '[data-common-net]', async (e, el) => {
+    const key = el.dataset.commonNet;
+    const value = el.value;
+    if (!value) return;
+    const r = rec();
+    const targets = netTargets(r, route.typeId, route.ocId);
+    const own = targets.filter((o) => { const v = assetValues(route.typeId, route.ocId, o.id)[key]; return v && v !== value; });
+    let skip = new Set();
+    // Своё значение у части объектов — спрашиваем («Спрашиваем пользователя»).
+    if (own.length) {
+      const ok = await host.confirm({
+        title: 'Заменить у объектов со своим значением?',
+        text: `У ${own.length} из ${targets.length} уже стоит своё: ${own.map((o) => `${oiLabel(o)} — ${assetValues(route.typeId, route.ocId, o.id)[key]}`).join('; ')}. Заменить и у них?`,
+        okLabel: 'Заменить у всех',
+      });
+      if (!ok) skip = new Set(own.map((o) => o.id));
+    }
+    targets.forEach((o) => { if (!skip.has(o.id)) assetValues(route.typeId, route.ocId, o.id)[key] = value; });
+    saveResults();
+    host.toast(`Поставлено: ${targets.length - skip.size} из ${targets.length}`, 'ok');
+    renderKeep();
   });
 
   // --- голосовые заметки --------------------------------------------------

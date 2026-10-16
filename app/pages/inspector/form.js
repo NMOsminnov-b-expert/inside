@@ -20,7 +20,7 @@
 
 import { getValue } from '../../kernel/fieldSchema.js';
 import { optionsFor } from '../../kernel/dicts.js';
-import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS } from '../../kernel/registry.js';
+import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS, OI_NETS, netValue, netsLandOf } from '../../kernel/registry.js';
 
 // Ступени износа словами, а не проценты: на осмотре процент не измерить, его
 // считают позже по элементам (III этап ТЗ).
@@ -146,7 +146,7 @@ const WALLS_INT = WALLS;
 // заметка.
 export const sections = (typeId, oi) => {
   const card = (oi && oi.card) || 'building';
-  if (card === 'apartment') return flatSections(typeId);
+  if (card === 'apartment') return flatSections(typeId, oi);
   if (card === 'land') return landSections(typeId);
   if (card === 'mech' || card === 'movable') return mechSections(oi);
   if (card === 'vehicle') return [];
@@ -284,6 +284,25 @@ const capClassSection = (oi) => {
   };
 };
 
+// Инженерные сети ОИ в осмотре (16.10.2026): те же поля и перечни, что в
+// карточке; рядом — значение из карточки (своё, от участка или по
+// умолчанию). Раздел свёрнут, если ОИ на участке, и открыт без участка.
+// Запись ОЦ для значения из карточки ставит экран осмотрщика (setNetsRec):
+// значение участка берётся из записи, а форма знает только ОИ.
+let NETS_REC = null;
+export const setNetsRec = (rec) => { NETS_REC = rec; };
+const netsSection = (typeId, oi) => ({
+  key: 'nets',
+  title: 'Инженерные сети',
+  short: 'Сети',
+  closed: !!netsLandOf(NETS_REC, oi),
+  fields: OI_NETS.map((f) => ({
+    key: f.key, label: f.label, opts: landDict(typeId, f.key, f.list), tpLabel: 'в карточке',
+    doc: Object.assign((o) => netValue(NETS_REC, o, f.key).value, { path: 'nets.' + f.key }),
+  })),
+});
+export const NETS_KEYS = OI_NETS.map((f) => f.key);
+
 const commentsSection = {
   key: 'comments',
   title: 'Комментарии',
@@ -323,6 +342,7 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
   // пользователя 16.10.2026: «осмотрщик конструктив и износ не заполняет…
   // Состояние тоже»): их определяют по снимкам. structSection и stateSection
   // остаются в коде — описание полей карточки, понадобятся для сверки.
+  netsSection(typeId, oi),
   ...(oi && oi.residential ? [] : [capClassSection(oi)]),
   ...(prod ? [{
     key: 'prod',
@@ -338,7 +358,7 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
 
 // Квартира — блоки карточки квартиры: общие параметры, конструктив
 // и износ (справочники карточки квартиры), состояние.
-const flatSections = (typeId) => [
+const flatSections = (typeId, oi) => [
   {
     key: 'general',
     title: 'Общие параметры квартиры',
@@ -352,6 +372,7 @@ const flatSections = (typeId) => [
       { key: 'aptLocation', label: 'Положение на этаже', opts: cardDict(typeId, 'apartment', 'location', APT_LOCATION), doc: docOf('apartment.location') },
     ],
   },
+  netsSection(typeId, oi),
   commentsSection,
 ];
 

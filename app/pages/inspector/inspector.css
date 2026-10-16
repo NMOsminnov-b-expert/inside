@@ -1345,3 +1345,6 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .ins-voice-lvl { width: 64px; height: 6px; flex: none; border-radius: 3px; background: rgba(208, 58, 42, .18); overflow: hidden; }
 .ins-voice-lvl i { display: block; height: 100%; width: 0; background: #d03a2a; transition: width .08s linear; }
 @media (prefers-reduced-motion: reduce) { .ins-voice-lvl i { transition: none; } }
+/* Инженерные сети для всех объектов (16.10.2026). */
+.ins-common-nets .ins-hint { margin: 0 0 10px; }
+.ins-common-nets .ins-fs-grid { gap: 10px 12px; }

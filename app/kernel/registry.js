@@ -36,6 +36,9 @@ export { KINDS as LIT_KINDS, PURPOSES as LIT_PURPOSES, SIGNS as LIT_SIGNS } from
 // «пусто» (сверка полей осмотра и карточек, 15.10.2026; решение пользователя
 // «Правим»). Правило одно — дверь литеры civil/card.js.
 export { migrateLiterKinds } from '../modules/civil/card.js';
+// Инженерные сети ОИ — для формы осмотра (решение пользователя 16.10.2026:
+// «Это и для осмотров и для ЦОД»): поля, значение из карточки и участок ОИ.
+export { OI_NETS, netValue, netsLandOf } from '../modules/land-plot/oi/land/oiNets.js';
 
 export const OC_TYPES = [
   {

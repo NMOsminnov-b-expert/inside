@@ -448,7 +448,7 @@ const OI_GROUPS = [
   { label: 'Вспомогательные постройки', cards: ['aux'] },
 ];
 
-export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, filledFor, counts, backHref }) {
+export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, filledFor, counts, backHref, common = null }) {
   const oi = rec.oi || [];
 
   return `<div class="ins">
@@ -491,6 +491,7 @@ export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, fil
   }).join('') : '<p class="ins-empty">В объекте нет ни одного ОИ.</p>'}
       </section>
 
+      ${common ? commonNetsHTML(common) : ''}
       ${foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor })}
     </div>
 
@@ -530,6 +531,28 @@ function oiItemHTML(o, open, assetHref, filledFor) {
         href="${esc(assetHref(o.id))}">${ico('pen')} ${filled ? 'Продолжить осмотр' : 'Осмотреть'}</a>
     </div>` : ''}
   </li>`;
+}
+
+// Инженерные сети для всех объектов разом (решение пользователя 16.10.2026:
+// «Много объектов без участка — можем заполнить для всех разом, однако внутри
+// каждой карточки инженерные сети всё ещё можно поменять отдельно»; «У
+// осмотрщика для всех разом заполнение будет»). Значение — то, что стоит у
+// всех; у объектов разное — «разные», выбор ставит всем (со своими — вопрос).
+function commonNetsHTML({ fields, count }) {
+  return `<section class="ins-blk ins-common-nets" aria-label="Инженерные сети для всех объектов">
+    <h2 class="ins-blk-h">Инженерные сети — для всех объектов · ${count}</h2>
+    <p class="ins-hint">Участка у объекта нет: выбранное ставится всем объектам, у отдельного — правится в его осмотре.</p>
+    <div class="ins-fs-grid">
+      ${fields.map((f) => `<div class="ins-field">
+        <label for="cn-${esc(f.key)}">${esc(f.label)}</label>
+        <select class="select ins-select" id="cn-${esc(f.key)}" data-common-net="${esc(f.key)}">
+          <option value="" ${f.value ? '' : 'selected'}>${f.mixed ? 'Разные' : 'Не выбрано'}</option>
+          ${f.opts.map((o) => `<option ${o === f.value ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+        </select>
+        ${f.mixed ? '<span class="ins-fs-hint">у объектов разные значения</span>' : ''}
+      </div>`).join('')}
+    </div>
+  </section>`;
 }
 
 // Выявленные на осмотре здания — неутверждённые литеры (решение пользователя
@@ -760,7 +783,9 @@ function sortHTML(batch, sel) {
 // них не хватает.
 function accordionHTML(sec, values, oi, collapsed, ctx = {}) {
   const p = sectionProgress(sec, values);
-  const open = !(collapsed || []).includes(sec.key);
+  // Раздел «свёрнут по умолчанию» (sec.closed — сети ОИ на участке) открыт,
+  // только если его открыли руками: в collapsed — «+ключ».
+  const open = sec.closed ? (collapsed || []).includes('+' + sec.key) : !(collapsed || []).includes(sec.key);
 
   const inner = sectionHTML(sec, values, {
     ui: FS_UI,
@@ -769,7 +794,7 @@ function accordionHTML(sec, values, oi, collapsed, ctx = {}) {
   });
 
   return `<section class="ins-blk ins-acc ${open ? 'on' : ''}" data-sec-box="${esc(sec.key)}">
-    <button class="ins-acc-h" data-sec="${esc(sec.key)}" aria-expanded="${open ? 'true' : 'false'}">
+    <button class="ins-acc-h" data-sec="${esc(sec.key)}" ${sec.closed ? 'data-sec-closed="1"' : ''} aria-expanded="${open ? 'true' : 'false'}">
       <span class="ins-acc-t">
         <b>${esc(sec.title)}</b>
         <span class="ins-acc-sub">${p.filled} из ${p.total}${sec.optional ? ' · по возможности' : ''}</span>
