@@ -18,6 +18,7 @@ POINTS = [
 LINKS = [
     {'тип': 'якорь', 'куда': 'tz-reestr-opisey', 'папка': 'tasks'},
     {'тип': 'якорь', 'куда': 'normalizovannaya-opis-format', 'папка': 'terms'},
+    {'тип': 'якорь', 'куда': 'oshibki-apcs-uchtennye-v-reestre-opisey', 'папка': 'practices'},
     {'тип': 'якорь', 'куда': 'opis-oborudovaniya-i-mehanizmov', 'папка': 'terms'},
     {'тип': 'якорь', 'куда': 'kategorizaciya-mehanizmov-i-oborudovaniya-po-realnym-opisyam-i-import', 'папка': 'tasks'},
 ]
