@@ -47,6 +47,14 @@ const DEFAULTS = {
 };
 const KIND_LABEL = { flat: 'квартиры', house: 'жилого дома', civil: 'гражданского здания', prod: 'производственного', other: '' };
 
+// Прежнее «Подведены» у канализации — до типов в перечне (16.10.2026). Решение
+// пользователя: «просто очисти. Это — макет» — значение сбрасывается в пустое.
+export function cleanLegacyNets(o) {
+  if (!o) return;
+  if (o.sewerage === 'Подведены') o.sewerage = '';
+  if (o.nets && o.nets.sewerage === 'Подведены') delete o.nets.sewerage;
+}
+
 export function netsKindOf(oi) {
   if (!oi) return 'other';
   if (oi.card === 'apartment') return 'flat';
@@ -93,6 +101,8 @@ const srcText = (rec, oi, src) => {
 
 export function oiNetsCard(ctx, oi, idx) {
   const rec = ctx.rec;
+  cleanLegacyNets(oi);
+  cleanLegacyNets(netsLandOf(rec, oi));
   const onLand = !!netsLandOf(rec, oi);
   return `<div class="card t-blue" id="q-nets">
 <div class="card-head" data-card-toggle data-card-key="${onLand ? 'oi-nets-land' : 'oi-nets-free'}" data-card-default="${onLand ? 'closed' : 'open'}">

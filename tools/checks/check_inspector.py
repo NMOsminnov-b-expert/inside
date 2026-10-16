@@ -219,11 +219,11 @@ def run(t):
     t.open(ASSET, wait='.ins-acc')
     t.wait(300)
 
-    # Строение нежилого здания: общие параметры, этажность, инженерные сети,
+    # Строение нежилого здания: общие параметры (с этажностью), инженерные сети,
     # тип и класс капитальности, комментарии. Конструктив, износ и состояние
     # осмотрщик не заполняет (решение пользователя 16.10.2026).
     n = pg.locator('.ins-acc').count()
-    t.ck(n == 5, 'разделов формы строения не пять: %d' % n)
+    t.ck(n == 4, 'разделов формы строения не четыре: %d' % n)
 
     # Все разделы открыты по умолчанию (замечание пользователя 08.09.2026),
     # кроме инженерных сетей литеры на участке: «он скрыт (просто свернут),
@@ -385,7 +385,7 @@ def run(t):
     fc.value.set_files([{'name': 'cam%d.png' % i, 'mimeType': 'image/png', 'buffer': PNG_8x8} for i in range(3)])
     t.wait_for('.ins-cam-sort [data-cam-sel]')
     shots = """async () => { const K = await import('./app/pages/inspector/tasks.js');
-      return K.taskState('%s', '%s').photos.filter(p => /^cam\d/.test(p.name)).map(p => [p.oiId, p.cat]); }""" % (TYPE, OC)
+      return K.taskState('%s', '%s').photos.filter(p => /^cam\\d/.test(p.name)).map(p => [p.oiId, p.cat]); }""" % (TYPE, OC)
     t.ck(pg.evaluate(shots) == [['oi-cv1-a', 'Не распределено']] * 3, 'новые снимки не к этому ОИ или не «Не распределено»: %s' % pg.evaluate(shots))
     t.ck(abs(pg.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4, 'после снимка форма прокрутилась')
     t.ck(pg.locator('.ins-cam-sort [data-cam-sel].on').count() == 3, 'после съёмки отмечены не все новые снимки')
@@ -406,7 +406,7 @@ def run(t):
     pg.click('[data-cam-put="Фасад"]')
     t.wait_until("() => !document.querySelector('[data-cam-sort], .ins-cam-sort')")
     pg.evaluate("""async () => { const K = await import('./app/pages/inspector/tasks.js');
-      K.taskState('%s', '%s').photos.filter(p => /^cam\d/.test(p.name)).forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
+      K.taskState('%s', '%s').photos.filter(p => /^cam\\d/.test(p.name)).forEach(p => K.removePhoto('%s', '%s', p.id)); }""" % (TYPE, OC, TYPE, OC))
 
     # Контакты на месте (16.10.2026: «добавить контакты с комментариями»):
     # свой контакт — правка на месте, как в карточках; телефон — звонок.
@@ -460,7 +460,7 @@ def run(t):
     pg.click('[data-doc-view^="demo-tp"]')
     t.ck(t.wait_for('[data-doc-img]'), 'документ не открылся на месте')
     pg.click('[data-doc-page="1"]')
-    t.ck(t.wait_until("() => /2\s*\/\s*2/.test(document.querySelector('.ins-viewer-pages')?.innerText || '')"), 'страницы документа не листаются')
+    t.ck(t.wait_until("() => /2\\s*\\/\\s*2/.test(document.querySelector('.ins-viewer-pages')?.innerText || '')"), 'страницы документа не листаются')
     t.ck(pg.evaluate("() => { const c = document.querySelector('[data-cam-shoot]').getBoundingClientRect(); const e = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2); return !!e && !!e.closest('[data-cam-shoot]'); }"),
          'при открытом документе кнопка камеры закрыта')
     pg.click('[data-doc-close]')

@@ -17,6 +17,7 @@ import { photoAccordions } from '../../parts/photos/blocks.js';
 import { splitWrap, viewerHTML } from '../../../../kernel/viewer/shell.js';
 import { areasNoteHTML } from '../../../../kernel/areasNote.js';
 import { numText } from '../../../../kernel/numField.js';
+import { cleanLegacyNets } from './oiNets.js';
 
 // Признак аренды и единицы измерения платы — короткие перечни, заведены здесь,
 // а не в справочниках: править их некому и незачем, «сом / месяц» это не
@@ -206,6 +207,7 @@ ${improvementsFields(ctx, oi)}
 }
 
 export function render(ctx, oi) {
+  cleanLegacyNets(oi);
   const agricultural = oi.landType !== 'Несельскохозяйственный';
   const idx = blockNumbers();
 
