@@ -668,7 +668,10 @@ export function assetHTML({
 // возможностью переноса и удаления» — касание снимка открывает просмотр, где
 // его переносят в другую категорию или к другому ОИ и удаляют). Панель не
 // модальная: форма под ней прокручивается и заполняется.
-const shotTime = (p) => p.at || (() => {
+// Время снимка — ISO с поясом. Ранние записи хранили «ГГГГ-ММ-ДД ЧЧ:ММ» по
+// UTC без пояса — их читаем как UTC.
+const LEGACY_AT = /^\d{4}-\d\d-\d\d \d\d:\d\d$/;
+const shotTime = (p) => (p.at && LEGACY_AT.test(p.at) ? p.at.replace(' ', 'T') + ':00Z' : p.at) || (() => {
   const t = parseInt(String(p.id || '').split('-')[1], 36);
   return Number.isFinite(t) ? new Date(t).toISOString() : '';
 })();

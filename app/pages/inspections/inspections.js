@@ -634,7 +634,9 @@ export function mountInspections(host) {
     const seg = (key, label, opts, cur) => `<div class="field"><span class="ip-flabel" id="ip-c-${key}-l">${label}</span>
       <div class="ip-segf" role="radiogroup" aria-labelledby="ip-c-${key}-l">${opts.map(([v, t]) => `<label><input type="radio" name="ip-c-${key}" data-ip-c-radio="${key}" value="${v}" ${cur === v ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div></div>`;
     const fmtD = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
-    const today = new Date().toISOString().slice(0, 10);
+    // Местная дата, а не UTC: до 06:00 по Бишкеку UTC-дата — ещё вчерашняя.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const poa = poaDaysLeft(p.name);
     const wa = whatsappLink(p.name);
     const cf = allCustomFields();

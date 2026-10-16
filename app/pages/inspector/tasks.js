@@ -370,7 +370,10 @@ export function addPhoto(typeId, ocId, file, { oiId = '', cat = '' } = {}) {
     oiId,
     cat: cat || PHOTO_CATS[0],
     gps: '',
-    at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+    // Полная отметка времени с поясом: прежнее «ГГГГ-ММ-ДД ЧЧ:ММ», вырезанное
+    // из UTC-строки, читалось как местное, и снимки показывали время по UTC
+    // (замечание пользователя 15.10.2026: «Я в поясе +6»).
+    at: new Date().toISOString(),
   });
   return { photo };
 }
