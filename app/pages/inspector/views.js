@@ -638,7 +638,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
   rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
-  shots = [], shotsOpen = false, cam = {}, voices = [], recording = null,
+  shots = [], shotsOpen = false, cam = {}, voices = [], recording = null, viewer = '',
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
@@ -666,6 +666,7 @@ export function assetHTML({
     saved: savedText || '',
   })}
     ${SECTIONS.length ? sectionNavHTML(SECTIONS, values, HAS_PREMISES.includes(oi.card || 'building') ? premises.length : null, left) : ''}
+    ${viewer}
 
     <div class="ins-body">
       <section class="ins-blk ins-objinfo">
@@ -891,7 +892,7 @@ function contactsHTML({ own, editing, object, chain }) {
   </section>`;
 }
 
-export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], draft = null, oiList = [], locked = false }) {
+export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], draft = null, oiList = [], locked = false, viewer = '' }) {
   return `<div class="ins">
     ${headerHTML({
     title: 'Документы',
@@ -899,6 +900,7 @@ export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], dra
     backHref,
     backLabel: 'К задаче',
   })}
+    ${viewer}
 
     <div class="ins-body">
       ${scanBlockHTML({ scans, draft, oiList, locked })}
@@ -969,8 +971,8 @@ function docItemHTML({ doc: d, owner }) {
       <span class="ins-doc-owner">${esc(owner)}</span>
       <span class="ins-doc-sub">${esc(meta || 'без файла')}</span>
     </span>
-    ${file && file.dataUrl
-    ? `<a class="ins-btn ins-btn-sm" href="${esc(file.dataUrl)}" target="_blank" rel="noopener">Открыть</a>`
+    ${file && (file.dataUrl || file.url)
+    ? `<button type="button" class="ins-btn ins-btn-sm" data-doc-view="${esc(d.id)}">Открыть</button>`
     : '<span class="ins-doc-no">файла нет</span>'}
   </li>`;
 }

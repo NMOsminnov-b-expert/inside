@@ -33,6 +33,7 @@ import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from './form.js';
+import { docsForOi, kindOfDoc, viewerHTML, bindViewer } from './docViewer.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
 import { summaries } from '../inspections/model.js';
 import { loadMapLibre, createMap, ownParcelsGL, emptyFC } from '../../kernel/mapgl.js';
@@ -62,6 +63,9 @@ export function mountInspector(host) {
     photoOi: '',
     // Панель снимков в форме осмотра ОИ раскрыта.
     shotsOpen: false,
+    // Просмотр документов рядом с камерой: открытый документ, свёрнут ли, и
+    // масштаб/сдвиг/страница каждого (docViewer.js).
+    docv: { open: '', collapsed: false, views: {} },
     // Скан, ещё не сохранённый: страницы (файлы), название, к чему относится.
     scanDraft: null,
     // Контакты на месте: правка своего (как в карточках, kernel/contacts.js).
@@ -707,10 +711,12 @@ export function mountInspector(host) {
           oiPhotos: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id).length,
           shots: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id),
           shotsOpen: ui.shotsOpen,
+          viewer: (() => { const vd = docsForOi(r, oi); if (ui.docv.open && !vd.some((d) => d.id === ui.docv.open)) ui.docv.open = ''; return viewerHTML(vd, ui.docv); })(),
           voices: voicesOf(typeId, ocId, oi.id),
           recording: voiceRec && { oiId: voiceRec.oiId },
           cam: { batch: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id && p.cat === UNSORTED), sel: ui.camSel, sortOpen: ui.sortOpen },
         }));
+        bindViewer(scope.root, ui.docv, ui.docv.open);
         return;
       }
     }
@@ -734,8 +740,13 @@ export function mountInspector(host) {
     }
 
     if (section === 'docs') {
+      // «Открыть» — тот же просмотр, что в форме ОИ (только открытый документ).
+      const opened = docs.find((x) => x.doc.id === ui.docv.open);
+      const vd = opened ? [{ id: opened.doc.id, kind: kindOfDoc(opened.doc), title: opened.doc.title || opened.doc.name || 'Документ',
+        owner: opened.owner, pages: [opened.doc.file && (opened.doc.file.dataUrl || opened.doc.file.url)].filter(Boolean) }] : [];
       scope.setHTML(docsHTML({ rec: r, docs, hrefFor, counts, backHref: taskHref,
-        scans: scansOf(typeId, ocId), draft: ui.scanDraft, oiList, locked: !!state.done }));
+        scans: scansOf(typeId, ocId), draft: ui.scanDraft, oiList, locked: !!state.done, viewer: viewerHTML(vd, ui.docv) }));
+      bindViewer(scope.root, ui.docv, ui.docv.open);
       return;
     }
 
@@ -1302,6 +1313,23 @@ export function mountInspector(host) {
     } catch (err) {
       host.toast('Скопировать не удалось — ЕНИ виден в шапке', 'warn');
     }
+  });
+
+  // --- просмотр документов -------------------------------------------------
+  scope.on('click', '[data-doc-view]', (e, el) => {
+    const id = el.dataset.docView;
+    // Тот же документ — свернуть/развернуть; другой — открыть его.
+    if (ui.docv.open === id) ui.docv.collapsed = !ui.docv.collapsed;
+    else { ui.docv.open = id; ui.docv.collapsed = false; }
+    renderKeep();
+  });
+  scope.on('click', '[data-doc-collapse]', () => { ui.docv.collapsed = !ui.docv.collapsed; renderKeep(); });
+  scope.on('click', '[data-doc-close]', () => { ui.docv.open = ''; ui.docv.collapsed = false; renderKeep(); });
+  scope.on('click', '[data-doc-page]', (e, el) => {
+    const v = ui.docv.views[ui.docv.open] = ui.docv.views[ui.docv.open] || { page: 0 };
+    v.page = Math.max(0, (v.page || 0) + Number(el.dataset.docPage));
+    v.s = 1; v.x = 0; v.y = 0;
+    renderKeep();
   });
 
   // --- инженерные сети для всех объектов ---------------------------------

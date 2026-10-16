@@ -450,6 +450,22 @@ def run(t):
     t.open(ASSET, wait='[data-voice-rec="oi-cv1-a"]')
     t.ck(pg.locator('[data-voice-rec="oi-cv1-a"]').count() == 1, 'в форме ОИ нет записи голосовой заметки')
 
+    # Документы рядом с камерой (16.10.2026: «быстро смотреть генплан,
+    # техпаспорт, поэтажку и в то же время и фотографировать»): строка
+    # документов в форме ОИ, документ — на месте, листается; камера доступна.
+    t.open(ASSET, wait='[data-docbar]')
+    kinds = pg.evaluate("() => [...document.querySelectorAll('[data-doc-view]')].map(b => b.textContent)")
+    t.ck(any('Генплан' in k for k in kinds) and any('Техпаспорт' in k for k in kinds) and any('Поэтажный' in k for k in kinds),
+         'в строке документов ОИ нет генплана, техпаспорта и поэтажного плана: %s' % kinds)
+    pg.click('[data-doc-view^="demo-tp"]')
+    t.ck(t.wait_for('[data-doc-img]'), 'документ не открылся на месте')
+    pg.click('[data-doc-page="1"]')
+    t.ck(t.wait_until("() => /2\s*\/\s*2/.test(document.querySelector('.ins-viewer-pages')?.innerText || '')"), 'страницы документа не листаются')
+    t.ck(pg.evaluate("() => { const c = document.querySelector('[data-cam-shoot]').getBoundingClientRect(); const e = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2); return !!e && !!e.closest('[data-cam-shoot]'); }"),
+         'при открытом документе кнопка камеры закрыта')
+    pg.click('[data-doc-close]')
+    t.wait_until("() => !document.querySelector('[data-doc-img]')")
+
     # Вкладки помнят своё место (15.10.2026: «Возврат из других разделов не
     # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои
     # состояния»): «Фото» → «Объект» — в ту же литеру и на то же место

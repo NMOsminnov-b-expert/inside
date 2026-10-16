@@ -1354,3 +1354,48 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 /* Поля над кнопкой во всю ширину — с промежутком: в «Фото» выбор объекта и
    категории прилегал к «Снять или выбрать» вплотную. */
 .ins-cols + .ins-btn-wide { margin-top: 10px; }
+
+/* --- просмотр документов рядом с камерой (16.10.2026) ----------------------
+   Строка документов объекта — под строкой разделов, вне прокрутки формы;
+   открытый документ — под ней, верхняя часть экрана (на телефоне), форма и
+   кнопка камеры — ниже и работают. На широком экране — справа от формы. */
+.ins-docbar { flex: 0 0 auto; display: flex; flex-direction: column; background: var(--panel); border-bottom: 1px solid var(--line); }
+.ins-docbar-row { display: flex; gap: 6px; padding: 6px var(--ins-pad); overflow-x: auto; scrollbar-width: none; }
+.ins-docbar-row::-webkit-scrollbar { display: none; }
+.ins-docchip {
+  flex: none; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ins-docchip i { font-style: normal; font-size: 10.5px; color: #a3361c; text-transform: uppercase; letter-spacing: .04em; }
+.ins-docchip.on { border-color: var(--blue-600); background: var(--blue-50); color: var(--blue-700); font-weight: 600; }
+.ins-docchip:focus-visible, .ins-viewer-b:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; }
+.ins-viewer { display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
+.ins-viewer-bar { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px var(--ins-pad); min-height: 40px; }
+.ins-viewer-bar > b { flex: 1 1 auto; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ins-viewer-pages { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.ins-viewer-pages button, .ins-viewer-b {
+  width: 36px; height: 36px; border: 0; border-radius: 8px; background: none; color: var(--ink); font-size: 18px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ins-viewer-pages button:disabled { opacity: .35; cursor: default; }
+.ins-viewer-b:hover, .ins-viewer-pages button:not(:disabled):hover { background: var(--blue-50); }
+.ins-viewer-stage {
+  position: relative; height: 42vh; min-height: 220px; overflow: hidden; background: #e9edf2;
+  touch-action: none; display: flex; align-items: center; justify-content: center; cursor: grab;
+}
+.ins-viewer-stage img { max-width: 100%; max-height: 100%; transform-origin: center center; user-select: none; -webkit-user-drag: none; will-change: transform; }
+.ins-viewer-none { margin: 0; padding: 16px; color: var(--muted); font-size: 13px; text-align: center; }
+@media (min-width: 720px) { .ins-docbar { order: 4; } }
+/* Широкий экран: документ — справа от формы, во всю высоту окна. */
+@media (min-width: 1280px) {
+  /* Форма и документ делят окно по одной мерке: форма — слева шириной
+     --ins-doc-w, документ — от её края до правого края окна. */
+  body[data-page="insp"]:has(.ins-viewer-stage) { --ins-doc-w: min(900px, 58vw); }
+  body[data-page="insp"]:has(.ins-viewer-stage) .ins { margin-left: 0; max-width: var(--ins-doc-w); }
+  .ins-docbar.open:not(.collapsed) .ins-viewer {
+    position: fixed; top: 0; bottom: 0; left: var(--ins-doc-w); right: 0; z-index: 4;
+    background: var(--panel); border-left: 1px solid var(--line); border-top: 0;
+  }
+  .ins-docbar.open:not(.collapsed) .ins-viewer-stage { flex: 1 1 auto; height: auto; }
+}
