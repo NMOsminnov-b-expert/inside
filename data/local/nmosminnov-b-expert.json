@@ -2,9 +2,894 @@
  "v": 1,
  "author": "nmosminnov-b-expert",
  "sources": {
+  "inspections.assignments": {
+   "as-mv52soo0": {
+    "at": "2026-10-12T09:55:19.242Z",
+    "item": {
+     "id": "as-mv52soo0",
+     "typeId": "civil",
+     "ocId": "oc-cv-1",
+     "person": "Абдылдаев Айсултан Марсович",
+     "oiIds": [
+      "oi-cv1-l",
+      "oi-cv1-m1",
+      "oi-cv1-m2",
+      "oi-cv1-v1"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "",
+     "note": "",
+     "by": "Осминнов Н.",
+     "at": "2026-10-12T09:55:18.828Z",
+     "state": "assigned",
+     "doneAt": ""
+    }
+   },
+   "as-mv54pocq": {
+    "at": "2026-10-12T10:58:17.205Z",
+    "item": {
+     "id": "as-mv54pocq",
+     "typeId": "apartment",
+     "ocId": "oc-ap-2",
+     "person": "Абдылдаев Айсултан Марсович",
+     "oiIds": [],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-12",
+     "note": "",
+     "by": "Осминнов Н.",
+     "at": "2026-10-12T10:58:16.780Z",
+     "state": "assigned",
+     "doneAt": ""
+    }
+   },
+   "demo-as-1173": {
+    "at": "2026-10-14T08:28:31.089Z",
+    "item": {
+     "id": "demo-as-1173",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-mv6kvnm6",
+     "person": "Осминнов Н.",
+     "oiIds": [
+      "oi-mv6kvnm7"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-14",
+     "note": "Сверить площади с техпаспортом на месте",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-08T09:45:00.000Z",
+     "state": "assigned",
+     "doneAt": "",
+     "demo": true,
+     "updatedAt": "2026-10-14T08:28:30.642Z"
+    }
+   },
+   "demo-as-1177": {
+    "at": "2026-10-14T08:37:12.412Z",
+    "item": {
+     "id": "demo-as-1177",
+     "typeId": "civil",
+     "ocId": "oc-cv-2",
+     "person": "Осминнов Н.",
+     "oiIds": [
+      "oi-cv2-a"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-14",
+     "note": "",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-12T09:45:00.000Z",
+     "state": "assigned",
+     "doneAt": "",
+     "demo": true,
+     "updatedAt": "2026-10-14T08:37:11.986Z"
+    }
+   },
+   "demo-as-1179": {
+    "at": "2026-10-14T08:37:21.526Z",
+    "item": {
+     "id": "demo-as-1179",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-all",
+     "person": "Осминнов Н.",
+     "oiIds": [
+      "oi-lp-all-civil"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-14",
+     "note": "Сначала основное здание, потом котельную",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-12T09:45:00.000Z",
+     "state": "assigned",
+     "doneAt": "",
+     "demo": true,
+     "updatedAt": "2026-10-14T08:37:20.954Z",
+     "skips": []
+    }
+   },
+   "demo-as-1181": {
+    "at": "2026-10-14T08:44:29.614Z",
+    "item": {
+     "id": "demo-as-1181",
+     "typeId": "civil",
+     "ocId": "oc-pr-all",
+     "person": "Осминнов Н.",
+     "oiIds": [
+      "oi-pr-all-land"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-14",
+     "note": "",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-10T09:45:00.000Z",
+     "state": "assigned",
+     "doneAt": "",
+     "demo": true,
+     "updatedAt": "2026-10-14T08:44:29.196Z"
+    }
+   },
+   "demo-as-468": {
+    "at": "2026-10-12T11:04:45.453Z",
+    "item": {
+     "id": "demo-as-468",
+     "typeId": "residential-house",
+     "ocId": "oc-rh-all",
+     "person": "Абдылдаев Айсултан Марсович",
+     "oiIds": [
+      "oi-rh-all-other"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-12",
+     "note": "",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-11T09:45:00.000Z",
+     "state": "removed",
+     "doneAt": "",
+     "demo": true,
+     "removedAt": "2026-10-12T11:04:45.017Z"
+    }
+   },
+   "demo-as-470": {
+    "at": "2026-10-12T11:04:48.932Z",
+    "item": {
+     "id": "demo-as-470",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-2",
+     "person": "Абдылдаев Айсултан Марсович",
+     "oiIds": [
+      "oi-lp2-l1"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-13",
+     "note": "",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-11T09:45:00.000Z",
+     "state": "removed",
+     "doneAt": "",
+     "demo": true,
+     "removedAt": "2026-10-12T11:04:48.480Z"
+    }
+   },
+   "demo-as-472": {
+    "at": "2026-10-12T11:05:15.580Z",
+    "item": {
+     "id": "demo-as-472",
+     "typeId": "apartment",
+     "ocId": "oc-ap-1",
+     "person": "Абдылдаев Айсултан Марсович",
+     "oiIds": [
+      "oi-ap1-a"
+     ],
+     "docs": [],
+     "inventories": [],
+     "plannedAt": "2026-10-13",
+     "note": "",
+     "by": "Региональный менеджер (демо)",
+     "at": "2026-10-11T09:45:00.000Z",
+     "state": "removed",
+     "doneAt": "",
+     "demo": true,
+     "removedAt": "2026-10-12T11:05:15.142Z"
+    }
+   }
+  },
+  "inspections.events": {
+   "ev-mv52soo1": {
+    "at": "2026-10-12T09:55:19.244Z",
+    "item": {
+     "id": "ev-mv52soo1",
+     "at": "2026-10-12T09:55:18.828Z",
+     "who": "Осминнов Н.",
+     "kind": "assigned",
+     "assignId": "as-mv52soo0",
+     "typeId": "civil",
+     "ocId": "oc-cv-1",
+     "person": "Абдылдаев Айсултан Марсович"
+    }
+   },
+   "ev-mv54pocr": {
+    "at": "2026-10-12T10:58:17.206Z",
+    "item": {
+     "id": "ev-mv54pocr",
+     "at": "2026-10-12T10:58:16.780Z",
+     "who": "Осминнов Н.",
+     "kind": "assigned",
+     "assignId": "as-mv54pocq",
+     "typeId": "apartment",
+     "ocId": "oc-ap-2",
+     "person": "Абдылдаев Айсултан Марсович"
+    }
+   },
+   "ev-mv559hx3": {
+    "at": "2026-10-12T11:04:45.455Z",
+    "item": {
+     "id": "ev-mv559hx3",
+     "at": "2026-10-12T11:04:45.017Z",
+     "who": "Осминнов Н.",
+     "kind": "removed",
+     "assignId": "demo-as-468",
+     "typeId": "residential-house",
+     "ocId": "oc-rh-all",
+     "person": "Абдылдаев Айсултан Марсович"
+    }
+   },
+   "ev-mv559hx4": {
+    "at": "2026-10-12T11:04:48.934Z",
+    "item": {
+     "id": "ev-mv559hx4",
+     "at": "2026-10-12T11:04:48.480Z",
+     "who": "Осминнов Н.",
+     "kind": "removed",
+     "assignId": "demo-as-470",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-2",
+     "person": "Абдылдаев Айсултан Марсович"
+    }
+   },
+   "ev-mv559hx5": {
+    "at": "2026-10-12T11:05:15.581Z",
+    "item": {
+     "id": "ev-mv559hx5",
+     "at": "2026-10-12T11:05:15.142Z",
+     "who": "Осминнов Н.",
+     "kind": "removed",
+     "assignId": "demo-as-472",
+     "typeId": "apartment",
+     "ocId": "oc-ap-1",
+     "person": "Абдылдаев Айсултан Марсович"
+    }
+   },
+   "ev-mv7uia2m": {
+    "at": "2026-10-14T08:28:31.092Z",
+    "item": {
+     "id": "ev-mv7uia2m",
+     "at": "2026-10-14T08:28:30.642Z",
+     "who": "Осминнов Н.",
+     "kind": "taken",
+     "assignId": "demo-as-1173",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-mv6kvnm6",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14",
+     "was": "2026-10-15",
+     "text": "2026-10-15 → 2026-10-14"
+    }
+   },
+   "ev-mv7uia2n": {
+    "at": "2026-10-14T08:28:32.165Z",
+    "item": {
+     "id": "ev-mv7uia2n",
+     "at": "2026-10-14T08:28:31.738Z",
+     "who": "Осминнов Н.",
+     "kind": "taken",
+     "assignId": "demo-as-1179",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-all",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14",
+     "was": "2026-10-19",
+     "text": "2026-10-19 → 2026-10-14"
+    }
+   },
+   "ev-mv7uia2o": {
+    "at": "2026-10-14T08:29:26.938Z",
+    "item": {
+     "id": "ev-mv7uia2o",
+     "at": "2026-10-14T08:29:26.391Z",
+     "who": "Осминнов Н.",
+     "kind": "skipped",
+     "assignId": "demo-as-1179",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-all",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14",
+     "reason": "Другое",
+     "note": "На завтра",
+     "text": "Другое — На завтра"
+    }
+   },
+   "ev-mv7uwdvj": {
+    "at": "2026-10-14T08:37:12.414Z",
+    "item": {
+     "id": "ev-mv7uwdvj",
+     "at": "2026-10-14T08:37:11.986Z",
+     "who": "Осминнов Н.",
+     "kind": "taken",
+     "assignId": "demo-as-1177",
+     "typeId": "civil",
+     "ocId": "oc-cv-2",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14",
+     "was": "2026-10-16",
+     "text": "2026-10-16 → 2026-10-14"
+    }
+   },
+   "ev-mv7uwdvk": {
+    "at": "2026-10-14T08:37:21.531Z",
+    "item": {
+     "id": "ev-mv7uwdvk",
+     "at": "2026-10-14T08:37:20.954Z",
+     "who": "Осминнов Н.",
+     "kind": "unskipped",
+     "assignId": "demo-as-1179",
+     "typeId": "land-plot",
+     "ocId": "oc-lp-all",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14"
+    }
+   },
+   "ev-mv7v0jlm": {
+    "at": "2026-10-14T08:44:29.616Z",
+    "item": {
+     "id": "ev-mv7v0jlm",
+     "at": "2026-10-14T08:44:29.196Z",
+     "who": "Осминнов Н.",
+     "kind": "taken",
+     "assignId": "demo-as-1181",
+     "typeId": "civil",
+     "ocId": "oc-pr-all",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14",
+     "was": "2026-10-20",
+     "text": "2026-10-20 → 2026-10-14"
+    }
+   }
+  },
+  "inspections.fields": {
+   "cf-mv6hqf2c": {
+    "at": "2026-10-13T09:41:39.882Z",
+    "removed": true
+   }
+  },
+  "inspections.people": {
+   "Абдылдаев Айсултан Марсович": {
+    "at": "2026-10-12T11:35:05.894Z",
+    "item": {
+     "id": "Абдылдаев Айсултан Марсович",
+     "phone": "+996 555 100 200",
+     "phoneType": "android",
+     "car": {
+      "make": "Toyota Corolla",
+      "year": "2012",
+      "engine": "1.6",
+      "consumption": "8.5",
+      "plate": "01KG 214 ABE",
+      "fuel": "АИ-92",
+      "note": ""
+     },
+     "cadastre": true,
+     "homeAddress": "г. Бишкек, ул. Ахунбаева, 120",
+     "homeGps": "42.8420, 74.5880",
+     "schedule": {
+      "days": [
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "from": "09:00",
+      "to": "18:00"
+     },
+     "absences": [],
+     "demo": true,
+     "whatsapp": "",
+     "email": "",
+     "device": "",
+     "waGroup": "",
+     "firedDate": "",
+     "poaNumber": "",
+     "poaUntil": "",
+     "birthDate": "",
+     "startDate": "",
+     "tempAddress": "",
+     "tempFrom": "",
+     "tempTo": "",
+     "note": "",
+     "fired": false,
+     "regions": [
+      "Иссык-Куль",
+      "Чуй"
+     ],
+     "custom": {},
+     "updatedAt": "2026-10-12T11:35:05.483Z",
+     "updatedBy": "Осминнов Н.",
+     "manager": ""
+    }
+   },
+   "Бабашова Даяна Алтынбековна": {
+    "at": "2026-10-12T11:35:01.847Z",
+    "item": {
+     "id": "Бабашова Даяна Алтынбековна",
+     "phone": "+996 555 101 211",
+     "phoneType": "ios",
+     "car": {
+      "make": "Honda Fit",
+      "year": "2009",
+      "engine": "1.3",
+      "consumption": "6.5",
+      "plate": "02KG 773 BAK",
+      "fuel": "АИ-92",
+      "note": ""
+     },
+     "cadastre": false,
+     "regions": [
+      "Бишкек"
+     ],
+     "homeAddress": "г. Бишкек, мкр. Джал, 15",
+     "homeGps": "42.8250, 74.5650",
+     "manager": "Осминнов Н.",
+     "schedule": {
+      "days": [
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "from": "09:00",
+      "to": "18:00"
+     },
+     "absences": [],
+     "demo": true,
+     "updatedAt": "2026-10-12T11:35:01.427Z",
+     "updatedBy": "Осминнов Н."
+    }
+   }
+  },
+  "inspections.plan": {
+   "demo-pl-5-2026-10-14": {
+    "at": "2026-10-14T08:49:36.972Z",
+    "item": {
+     "id": "demo-pl-5-2026-10-14",
+     "person": "Осминнов Н.",
+     "date": "2026-10-14",
+     "region": "Чуй",
+     "district": "",
+     "institutions": "",
+     "note": "",
+     "demo": true,
+     "order": [
+      "civil|oc-cv-2",
+      "land-plot|oc-lp-all",
+      "land-plot|oc-lp-mv6kvnm6",
+      "civil|oc-pr-all"
+     ],
+     "at": "2026-10-14T08:49:36.548Z",
+     "by": "Осминнов Н."
+    }
+   }
+  },
   "records.apartment": {
+   "oc-ap-1": {
+    "at": "2026-10-13T10:51:05.256Z",
+    "item": {
+     "id": "oc-ap-1",
+     "typeId": "apartment",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (квартира)",
+     "purposeTP": "Жилое",
+     "eni": "1475616844120",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "мкр. Асанбай",
+     "gps": "42.8402, 74.6180",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Подвед Министерства для ТЕСТ",
+     "complex": false,
+     "updatedAt": "2026-10-12",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": ""
+     },
+     "notes": [
+      {
+       "id": "n10",
+       "text": "Нет ПУД на квартиру — запросить в учреждении",
+       "done": false,
+       "author": "",
+       "date": ""
+      },
+      {
+       "id": "n11",
+       "text": "Уточнить серию дома",
+       "done": true,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "card": "apartment",
+       "letter": "А",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "ml",
+       "residential": true,
+       "resCat": "",
+       "year": "2012",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "78.60",
+        "pud": "78.60",
+        "fact": "79.10",
+        "build": ""
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": ""
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": [],
+        "wallsExt": [
+         "Газобетон"
+        ],
+        "ceilings": [
+         "Монолит"
+        ],
+        "roof": [],
+        "floors": [
+         "Ламинат"
+        ],
+        "windows": [
+         "ПВХ (стеклопакет)"
+        ],
+        "doors": [
+         "Металлические"
+        ]
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление",
+        "Современные радиаторы"
+       ],
+       "heatingOther": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2,
+        "Внутр. помещения": 4
+       },
+       "notes": [
+        {
+         "id": "n12",
+         "text": "Фото санузла нечитаемое",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ],
+       "apartment": {
+        "floor": "7",
+        "buildingFloors": "12",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Угловое",
+        "locationOther": "",
+        "storeys": "1",
+        "loggiaBuildArea": "4.20",
+        "balconyBuildArea": "3.10",
+        "rights": "Собственность",
+        "rightsOther": "",
+        "annexList": [],
+        "loggias": [
+         {
+          "id": "loggias1",
+          "label": "№1",
+          "area": ""
+         }
+        ],
+        "balconies": [
+         {
+          "id": "balconies2",
+          "label": "№1",
+          "area": ""
+         }
+        ],
+        "terraces": []
+       },
+       "id": "oi-ap1-a",
+       "street": "Байтик Баатыра",
+       "house": "42",
+       "gps": "42.8406, 74.6185",
+       "flat": "78",
+       "eni": "1475616844120",
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oi-mv6k8bcx",
+       "card": "building",
+       "letter": "Б",
+       "name": "Здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616844120",
+       "street": "",
+       "house": "",
+       "flat": "",
+       "gps": "42.8402, 74.6180",
+       "year": "",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "rights": "Собственность",
+       "oiCategory": "",
+       "areas": {
+        "tp": "",
+        "pud": "",
+        "fact": "",
+        "build": ""
+       },
+       "floors": 1,
+       "floorList": [
+        {
+         "name": "Этаж 1",
+         "cat": "over",
+         "on": true,
+         "area": "0,00",
+         "areaBuild": "0,00",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Подвал",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Цоколь",
+         "cat": "under",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": ""
+        },
+        {
+         "name": "Мансарда",
+         "cat": "mansard",
+         "on": false,
+         "area": "",
+         "areaBuild": "",
+         "hExt": "",
+         "hInt": "",
+         "mansardType": "Отсутствует"
+        }
+       ],
+       "heights": {
+        "ext": "",
+        "int": ""
+       },
+       "buildType": "Отдельностоящее",
+       "mansardType": "Отсутствует",
+       "rentAreas": [],
+       "struct": {
+        "foundation": [],
+        "wallsExt": [],
+        "wallsInt": [],
+        "ceilings": [],
+        "roof": [],
+        "floors": [],
+        "windows": [],
+        "doors": []
+       },
+       "structOther": {},
+       "heating": [],
+       "heatingOther": "",
+       "wear": {
+        "finish": "Не выбрано",
+        "insulation": "Не выбрано",
+        "roof": "Не выбрано",
+        "plinth": "Не выбрано",
+        "floors": "Не выбрано",
+        "ceilings": "Не выбрано",
+        "windows": "Не выбрано",
+        "doors": "Не выбрано",
+        "heating": "Не выбрано"
+       },
+       "catClass": "",
+       "litKind": "",
+       "capSigns": {},
+       "prodHeight": "",
+       "dis": false,
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "specials": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": [],
+       "annexList": []
+      }
+     ],
+     "address": "г. Бишкек, Первомайский р-н, мкр. Асанбай, ул. Байтик Баатыра, д. 42 — кв. 78",
+     "auditLog": [
+      {
+       "id": "1475616844120-1",
+       "at": "13.10.2026 16:51:04",
+       "atTs": 1791888664802,
+       "person": "Осминнов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-mv6k8bcx",
+       "targetLetter": "Б",
+       "targetName": "Здание",
+       "cardType": "building",
+       "field": "(объект)",
+       "action": "create",
+       "before": "—",
+       "after": "Литера Б · Здание"
+      }
+     ]
+    }
+   },
+   "oc-ap-2": {
+    "at": "2026-10-12T04:48:31.639Z",
+    "item": {
+     "id": "oc-ap-2",
+     "typeId": "apartment",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (квартира)",
+     "purposeTP": "Жилое",
+     "eni": "1475616848800",
+     "city": "г. Бишкек",
+     "district": "Октябрьский р-н",
+     "micro": "мкр. Джал",
+     "gps": "42.8534, 74.6109",
+     "status": "Удостоверен по документам",
+     "institution": "Мэрия г. Бишкек",
+     "podved": "Управление жилищного фонда",
+     "complex": false,
+     "updatedAt": "2026-08-05",
+     "owners": [
+      "Мэрия г. Бишкек"
+     ],
+     "users": [
+      "Бабашова Даяна Алтынбековна"
+     ],
+     "resp": {
+      "gov": "Карабекова Анара Тариеловна",
+      "cod": "Айдай",
+      "appr": "Бабашова Даяна Алтынбековна",
+      "insp": "Абдылдаев Айсултан Марсович"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "card": "apartment",
+       "letter": "А",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "",
+       "year": "1989",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "44.30",
+        "pud": "44.30",
+        "fact": "44.30",
+        "build": ""
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": ""
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": "",
+        "wallsExt": "Жжёный кирпич",
+        "ceilings": "Железобетонные плиты",
+        "roof": "",
+        "floors": "Линолеум",
+        "windows": "Деревянные",
+        "doors": "Деревянные"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление",
+        "Чугунные радиаторы"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 1,
+        "Внутр. помещения": 2
+       },
+       "notes": [],
+       "apartment": {
+        "floor": "2",
+        "buildingFloors": "5",
+        "rooms": "2",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "loggiaCount": "",
+        "balconyCount": "1",
+        "loggiaBuildArea": "",
+        "balconyBuildArea": "2.80",
+        "rights": "Собственность",
+        "rightsOther": ""
+       },
+       "id": "oi-ap2-a",
+       "street": "Ахунбаева",
+       "house": "91",
+       "gps": "42.8538, 74.6114",
+       "flat": "14",
+       "eni": "1475616848800"
+      }
+     ],
+     "address": "г. Бишкек, Октябрьский р-н, мкр. Джал, ул. Ахунбаева, д. 91 — кв. 14"
+    }
+   },
    "oc-ap-all": {
-    "at": "2026-10-06T03:36:39.742Z",
+    "at": "2026-10-14T07:35:44.677Z",
     "item": {
      "id": "oc-ap-all",
      "typeId": "apartment",
@@ -473,7 +1358,7 @@
      ],
      "address": "Нарынская область, г. Нарын, ул. Чаначев С., д. 39а",
      "eniList": [
-      "4050200011269"
+      "1475616900000"
      ],
      "flat": "",
      "auditLog": [
@@ -515,7 +1400,7 @@
   },
   "records.civil": {
    "oc-cv-1": {
-    "at": "2026-10-06T03:36:39.743Z",
+    "at": "2026-10-12T09:55:19.240Z",
     "item": {
      "id": "oc-cv-1",
      "typeId": "civil",
@@ -523,19 +1408,19 @@
      "category": "Недвижимое",
      "type": "Нежилое здание",
      "purposeTP": "Административное",
-     "eni": "1030700400754",
-     "region": "",
+     "eni": "1475616710010",
+     "region": "Чуйская область",
      "city": "г. Бишкек",
-     "district": "",
+     "district": "Первомайский р-н",
      "micro": "",
-     "street": "Суюмбаева А.",
-     "house": "33",
-     "gps": "42.8700, 74.6242",
+     "street": "Киевская",
+     "house": "218",
+     "gps": "42.8760, 74.5901",
      "status": "Удостоверен по документам",
      "institution": "Министерство для ТЕСТА",
      "podved": "Административный департамент",
      "complex": true,
-     "updatedAt": "2026-08-17",
+     "updatedAt": "2026-10-12",
      "owners": [
       "Министерство для ТЕСТА"
      ],
@@ -546,7 +1431,7 @@
       "gov": "Абдылдаев Айсултан Марсович",
       "cod": "Айдай",
       "appr": "Молчанов Кирилл Витальевич",
-      "insp": "Карабекова Анара Тариеловна"
+      "insp": "Абдылдаев Айсултан Марсович"
      },
      "notes": [
       {
@@ -569,9 +1454,9 @@
       {
        "id": "oi-cv1-a",
        "landId": "oi-cv1-l",
-       "street": "Суюмбаева А.",
-       "house": "33",
-       "gps": "42.8700, 74.6242",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8764, 74.5906",
        "card": "building",
        "letter": "А",
        "name": "Административное здание",
@@ -579,7 +1464,7 @@
        "origin": "ml",
        "residential": false,
        "resCat": "",
-       "eni": "1030700400754",
+       "eni": "1475616710010",
        "year": "1998",
        "flags": {
         "entered": true,
@@ -794,9 +1679,9 @@
       {
        "id": "oi-cv1-b",
        "landId": "oi-cv1-l",
-       "street": "Суюмбаева А.",
-       "house": "33",
-       "gps": "42.8700, 74.6242",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8768, 74.5911",
        "card": "building",
        "letter": "Б",
        "name": "Котельная",
@@ -804,7 +1689,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "1030700400754",
+       "eni": "1475616710020",
        "year": "1998",
        "flags": {
         "entered": true,
@@ -923,9 +1808,9 @@
       },
       {
        "id": "oi-cv1-l",
-       "street": "Суюмбаева А.",
-       "house": "33",
-       "gps": "42.8700, 74.6242",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8772, 74.5916",
        "card": "land",
        "name": "Земельный участок",
        "purpose": "Под общественную застройку",
@@ -935,7 +1820,7 @@
         "fact": "3200.00",
         "build": "1937.00"
        },
-       "eni": "1030700400754",
+       "eni": "1475616710000",
        "status": "Основное",
        "origin": "ml",
        "flags": {
@@ -962,9 +1847,9 @@
       },
       {
        "id": "oi-cv1-m1",
-       "street": "Суюмбаева А.",
-       "house": "33",
-       "gps": "42.8700, 74.6242",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8776, 74.5921",
        "card": "mech",
        "name": "Котёл газовый водогрейный КВГ-1,25 (+1)",
        "eni": "",
@@ -1001,7 +1886,7 @@
           {
            "id": "mf-cv1-1",
            "label": "Код ЕНИ",
-           "value": "1030700400754"
+           "value": "1475616710100"
           }
          ],
          "comment": "",
@@ -1055,9 +1940,9 @@
       },
       {
        "id": "oi-cv1-m2",
-       "street": "Суюмбаева А.",
-       "house": "33",
-       "gps": "42.8700, 74.6242",
+       "street": "Киевская",
+       "house": "218",
+       "gps": "42.8780, 74.5926",
        "card": "mech",
        "groupName": "Комплекс техники (серверная)",
        "name": "Комплекс техники (серверная)",
@@ -1098,7 +1983,7 @@
           {
            "id": "mf-cv1-2",
            "label": "Код ЕНИ",
-           "value": "1030700400754"
+           "value": "1475616710120"
           }
          ],
          "comment": "",
@@ -1146,7 +2031,7 @@
           {
            "id": "mf-cv1-4",
            "label": "Код ЕНИ",
-           "value": "1030700400754"
+           "value": "1475616710130"
           }
          ],
          "comment": "Класс не определён — уточнить при осмотре.",
@@ -1243,7 +2128,7 @@
        "terraces": []
       }
      ],
-     "address": "г. Бишкек, ул. Суюмбаева А., д. 33",
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Киевская, д. 218",
      "auditLog": [
       {
        "id": "1475616710010-1",
@@ -1360,8 +2245,122 @@
      ]
     }
    },
+   "oc-cv-2": {
+    "at": "2026-10-12T04:57:58.019Z",
+    "item": {
+     "id": "oc-cv-2",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Учебное",
+     "eni": "1475616725400",
+     "region": "Ошская область",
+     "city": "г. Ош",
+     "district": "Ошский р-н",
+     "micro": "мкр. Анар",
+     "street": "Масалиева",
+     "house": "5",
+     "gps": "40.5219, 72.8003",
+     "status": "В заполнении",
+     "institution": "Министерство образования (ТЕСТ)",
+     "podved": "Ошское городское управление",
+     "complex": false,
+     "updatedAt": "2026-08-09",
+     "owners": [
+      "Министерство образования (ТЕСТ)"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Карабекова Анара Тариеловна",
+      "cod": "Айдай",
+      "appr": "Бабашова Даяна Алтынбековна",
+      "insp": "Абдылдаев Айсултан Марсович"
+     },
+     "notes": [
+      {
+       "id": "n17",
+       "text": "Нет техпаспорта — только выписка",
+       "done": false,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-cv2-a",
+       "street": "Масалиева",
+       "house": "5",
+       "gps": "40.5223, 72.8008",
+       "card": "building",
+       "letter": "А",
+       "name": "Учебный корпус",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475616725400",
+       "year": "1975",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "areas": {
+        "tp": "2410.00",
+        "pud": "",
+        "fact": "",
+        "build": "810.00"
+       },
+       "floors": 3,
+       "floorList": [],
+       "heights": {
+        "ext": "11.40",
+        "int": "3.20"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": "Бутобетонный",
+        "wallsExt": "Жжёный кирпич",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Линолеум",
+        "windows": "Деревянные",
+        "doors": "Деревянные"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Учебное",
+       "litKind": "civil",
+       "purposeFact": "Образования",
+       "capSigns": {
+        "arch": "Устаревшая",
+        "constr": "Капитальная",
+        "plan": "Кабинетная",
+        "finish": [
+         "Стандартная"
+        ],
+        "eng": [
+         "Стандартное"
+        ]
+       },
+       "dis": true,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": []
+      }
+     ],
+     "address": "Ошская область, Ошский р-н, г. Ош, мкр. Анар, ул. Масалиева, д. 5"
+    }
+   },
    "oc-cv-all": {
-    "at": "2026-10-06T03:36:39.743Z",
+    "at": "2026-10-14T07:35:44.676Z",
     "item": {
      "id": "oc-cv-all",
      "typeId": "civil",
@@ -2067,8 +3066,169 @@
      ]
     }
    },
+   "oc-cv-mv6ivzbr": {
+    "at": "2026-10-13T10:19:20.882Z",
+    "item": {
+     "id": "oc-cv-mv6ivzbr",
+     "typeId": "civil",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Нежилое здание",
+     "purposeTP": "Административное",
+     "eni": "",
+     "address": "",
+     "city": "",
+     "gps": "",
+     "status": "В заполнении",
+     "institution": "",
+     "podved": "",
+     "complex": false,
+     "updatedAt": "2026-10-13",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "Осминнов Н.",
+      "appr": "",
+      "insp": ""
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-mv6ivzbs",
+       "card": "aux",
+       "letter": "А",
+       "name": "Навес",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "residential": false,
+       "eni": "",
+       "areas": {
+        "tp": "",
+        "build": ""
+       },
+       "struct": {
+        "foundation": [],
+        "wallsExt": [],
+        "roof": []
+       },
+       "structOther": {},
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": []
+      },
+      {
+       "id": "oi-mv6ivzbt",
+       "card": "aux",
+       "letter": "Б",
+       "name": "",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "residential": false,
+       "eni": "",
+       "areas": {
+        "tp": "",
+        "build": ""
+       },
+       "struct": {
+        "foundation": [],
+        "wallsExt": [],
+        "roof": []
+       },
+       "structOther": {},
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": []
+      },
+      {
+       "id": "oi-mv6ivzbu",
+       "card": "building",
+       "letter": "В",
+       "name": "Здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "",
+       "street": "",
+       "house": "",
+       "flat": "",
+       "gps": "",
+       "year": "",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "rights": "Собственность",
+       "oiCategory": "",
+       "areas": {
+        "tp": "",
+        "pud": "",
+        "fact": "",
+        "build": "",
+        "loggias": "",
+        "balconies": ""
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": ""
+       },
+       "buildType": "Отдельностоящее",
+       "mansardType": "Отсутствует",
+       "loggiasCount": "",
+       "balconiesCount": "",
+       "rentAreas": [],
+       "struct": {
+        "foundation": "",
+        "wallsExt": "",
+        "wallsInt": "",
+        "ceilings": "",
+        "roof": "",
+        "floors": "",
+        "windows": "",
+        "doors": ""
+       },
+       "structOther": {},
+       "heating": [],
+       "heatingOther": "",
+       "wear": {
+        "finish": "Не выбрано",
+        "insulation": "Не выбрано",
+        "roof": "Не выбрано",
+        "plinth": "Не выбрано",
+        "floors": "Не выбрано",
+        "ceilings": "Не выбрано",
+        "windows": "Не выбрано",
+        "doors": "Не выбрано",
+        "heating": "Не выбрано"
+       },
+       "comment": "",
+       "features": "",
+       "catClass": "",
+       "litKind": "",
+       "capSigns": {},
+       "prodHeight": "",
+       "dis": false,
+       "docs": [],
+       "photos": {},
+       "notes": []
+      }
+     ]
+    }
+   },
    "oc-pr-1": {
-    "at": "2026-10-06T04:12:07.434Z",
+    "at": "2026-10-14T07:35:44.676Z",
     "item": {
      "id": "oc-pr-1",
      "typeId": "civil",
@@ -2318,9 +3478,9 @@
       },
       {
        "id": "oi-pr1-m1",
-       "street": "Космодемьянской",
-       "house": "15а",
-       "gps": "42.8813, 74.8490",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8917, 74.8532",
        "card": "mech",
        "name": "Станок токарный 16К20",
        "eni": "",
@@ -2372,9 +3532,9 @@
       },
       {
        "id": "oi-pr1-m2",
-       "street": "Космодемьянской",
-       "house": "15а",
-       "gps": "42.8813, 74.8490",
+       "street": "Промышленная",
+       "house": "4",
+       "gps": "42.8921, 74.8537",
        "card": "mech",
        "name": "Механизм-комплекс (линия розлива)",
        "eni": "",
@@ -2490,12 +3650,12 @@
        "terraces": []
       }
      ],
-     "address": "Чуйская область, Ысык-Атинский р-н, г. Кант, ул. Космодемьянской, д. 15а",
+     "address": "Чуйская область, Ысык-Атинский р-н, г. Кант, ул. Космодемьянской, д. 15а; ул. Промышленная, д. 4",
      "region": "Чуйская область"
     }
    },
    "oc-pr-2": {
-    "at": "2026-10-06T04:09:23.495Z",
+    "at": "2026-10-14T07:35:44.676Z",
     "item": {
      "id": "oc-pr-2",
      "typeId": "civil",
@@ -2606,7 +3766,7 @@
     }
    },
    "oc-pr-all": {
-    "at": "2026-10-06T03:36:39.743Z",
+    "at": "2026-10-07T10:39:11.175Z",
     "item": {
      "id": "oc-pr-all",
      "typeId": "civil",
@@ -2614,14 +3774,14 @@
      "category": "Недвижимое",
      "type": "Нежилое здание",
      "purposeTP": "Административное",
-     "eni": "7031300130521",
+     "eni": "1475617200",
      "region": "Чуйская область",
-     "city": "г. Кара-Балта",
-     "district": "Жайылский р-н",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
      "micro": "",
-     "street": "Таисии Владимировой",
-     "house": "36",
-     "gps": "42.8112, 73.8316",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
      "status": "В заполнении",
      "institution": "Министерство для ТЕСТА",
      "podved": "Административный департамент",
@@ -2653,7 +3813,7 @@
         "build": "320.00"
        },
        "areasNote": "",
-       "eni": "7031300130521",
+       "eni": "1475617200",
        "status": "Основное",
        "rights": "Собственность",
        "form": "Близкая к прямоугольной",
@@ -2703,7 +3863,7 @@
        "origin": "manual",
        "residential": true,
        "resCat": "",
-       "eni": "7031300100213",
+       "eni": "1475617210",
        "year": "1985",
        "flags": {
         "entered": true,
@@ -2790,7 +3950,7 @@
        "origin": "manual",
        "residential": true,
        "resCat": "Обособленный",
-       "eni": "7031300130226",
+       "eni": "1475617220",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -2863,7 +4023,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "7031300120135",
+       "eni": "1475617230",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -2987,7 +4147,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "7031300100190",
+       "eni": "1475617240",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -3063,7 +4223,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "7031300100775",
+       "eni": "1475617250",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -3163,7 +4323,7 @@
           {
            "id": "mf-mukxatdc-2",
            "label": "Код ЕНИ",
-           "value": "7031300130521"
+           "value": "1475617260"
           }
          ],
          "comment": "",
@@ -3213,7 +4373,7 @@
           {
            "id": "mf-mukxatdc-5",
            "label": "Код ЕНИ",
-           "value": "7031300130521"
+           "value": "1475617270"
           }
          ],
          "comment": "",
@@ -3230,13 +4390,1099 @@
        "terraces": []
       }
      ],
-     "address": "Чуйская область, Жайылский р-н, г. Кара-Балта, ул. Таисии Владимировой, д. 36"
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1",
+     "contacts": [
+      {
+       "id": "ct-muxz642v1",
+       "name": "Никита",
+       "position": "ЦОД",
+       "phone": "+996509028275",
+       "email": "яыамффы",
+       "note": "фымафуйм"
+      }
+     ]
+    }
+   }
+  },
+  "records.land-plot": {
+   "oc-lp-1": {
+    "at": "2026-10-12T04:57:58.020Z",
+    "item": {
+     "id": "oc-lp-1",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "Сельскохозяйственное",
+     "eni": "1475616900120",
+     "city": "с. Лебединовка",
+     "district": "Аламудунский р-н",
+     "micro": "",
+     "gps": "42.8912, 74.7301",
+     "status": "Осмотрен",
+     "institution": "Министерство сельского хозяйства (ТЕСТ)",
+     "podved": "Аламудунское управление",
+     "complex": false,
+     "updatedAt": "2026-08-14",
+     "owners": [
+      "Министерство сельского хозяйства (ТЕСТ)"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [
+      {
+       "id": "n22",
+       "text": "Нет свежей выписки по границам",
+       "done": false,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-lp1-l1",
+       "street": "Лебединовская",
+       "house": "12",
+       "gps": "42.8916, 74.7306",
+       "card": "land",
+       "name": "Участок №1 (основной)",
+       "purpose": "Сельскохозяйственное",
+       "landType": "Сельскохозяйственный",
+       "areas": {
+        "pravo": "12400.00",
+        "fact": "12000.00",
+        "build": ""
+       },
+       "eni": "1475616900120",
+       "rights": "Собственность",
+       "useCategory": "Орошаемая пашня",
+       "irrigation": "Хорошая",
+       "soil": "Чернозёмная",
+       "bonitet": "78",
+       "stoniness": "Нет",
+       "utilities": {
+        "electricity": true,
+        "water": true,
+        "sewerage": false,
+        "heating": false
+       },
+       "form": "Правильная",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "Участок расположен вдоль региональной дороги, подъезд возможен с восточной стороны.",
+       "roadLocation": "Вблизи междугородней трассы (до 300 м)",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "gasification": "Отсутствуют в районе",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Подведены",
+       "autonomousHeating": "Отсутствуют в районе",
+       "status": "Основное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [
+        {
+         "id": "lp1-ld1",
+         "type": "Гос. акт на землю",
+         "name": "Гос. акт №91/16",
+         "date": "11.11.2016"
+        }
+       ],
+       "photos": {
+        "Земельный участок": 3
+       },
+       "notes": []
+      },
+      {
+       "id": "oi-lp1-l2",
+       "street": "Лебединовская",
+       "house": "12",
+       "gps": "42.8920, 74.7311",
+       "card": "land",
+       "name": "Участок №2 (смежный)",
+       "purpose": "Сельскохозяйственное",
+       "landType": "Сельскохозяйственный",
+       "areas": {
+        "pravo": "3150.00",
+        "fact": "3150.00",
+        "build": ""
+       },
+       "eni": "1475616900130",
+       "rights": "Бессрочное пользование",
+       "useCategory": "Сенокос",
+       "irrigation": "Отсутствует",
+       "soil": "Каштановая",
+       "bonitet": "52",
+       "stoniness": "Слабая",
+       "utilities": {
+        "electricity": false,
+        "water": false,
+        "sewerage": false,
+        "heating": false
+       },
+       "form": "Неправильная",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [
+        {
+         "id": "n23",
+         "text": "Уточнить, входит ли участок в состав ОЦ",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ]
+      }
+     ],
+     "address": "с. Лебединовка, Аламудунский р-н, ул. Лебединовская, д. 12"
+    }
+   },
+   "oc-lp-2": {
+    "at": "2026-10-12T11:04:48.931Z",
+    "item": {
+     "id": "oc-lp-2",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "Под застройку",
+     "eni": "1475616904550",
+     "city": "г. Бишкек",
+     "district": "Свердловский р-н",
+     "micro": "",
+     "gps": "42.8721, 74.6053",
+     "status": "В заполнении",
+     "institution": "Мэрия г. Бишкек",
+     "podved": "Управление земельных ресурсов",
+     "complex": false,
+     "updatedAt": "2026-10-12",
+     "owners": [
+      "Мэрия г. Бишкек"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Карабекова Анара Тариеловна",
+      "cod": "Айдай",
+      "appr": "Бабашова Даяна Алтынбековна",
+      "insp": ""
+     },
+     "notes": [
+      {
+       "id": "n24",
+       "text": "Нет гос. акта — только решение мэрии",
+       "done": false,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-lp2-l1",
+       "street": "Ибраимова",
+       "house": "115",
+       "gps": "42.8725, 74.6058",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Под общественную застройку",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "2100.00",
+        "fact": "2100.00",
+        "build": "0"
+       },
+       "eni": "1475616904550",
+       "rights": "Собственность",
+       "form": "Правильная",
+       "location": "В центре населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "На центральной трассе населенного пункта — вторая линия",
+       "corner": "Угловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "gasification": "Отсутствуют в районе",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Подведены",
+       "autonomousHeating": "Отсутствуют в районе",
+       "status": "Основное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 2
+       },
+       "notes": []
+      }
+     ],
+     "address": "г. Бишкек, Свердловский р-н, ул. Ибраимова, д. 115"
+    }
+   },
+   "oc-lp-all": {
+    "at": "2026-10-12T04:57:58.020Z",
+    "item": {
+     "id": "oc-lp-all",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "Административное",
+     "eni": "1475617300",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": true,
+     "updatedAt": "2026-09-11",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-lp-all-land",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Под застройку",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "1200.00",
+        "pravoUd": "",
+        "fact": "1200.00",
+        "build": "320.00"
+       },
+       "areasNote": "",
+       "eni": "1475617300",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Близкая к прямоугольной",
+       "relief": "Ровный",
+       "location": "В черте населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "leased": "Нет",
+       "leasePrice": "",
+       "leaseUnit": "сом / месяц",
+       "leaseTerm": "",
+       "leaseNote": "",
+       "utilities": {
+        "electricity": true,
+        "water": true,
+        "sewerage": false,
+        "heating": false
+       },
+       "electricity": "Подведены",
+       "centralWater": "Подведены",
+       "sewerage": "Проходят рядом",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Автономное",
+       "railway": "Нет",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": []
+      },
+      {
+       "id": "oi-lp-all-flat",
+       "card": "apartment",
+       "letter": "К",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "",
+       "eni": "1475617310",
+       "year": "1985",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "64.20",
+        "pud": "64.20",
+        "fact": "64.20",
+        "build": "58.10"
+       },
+       "areasNote": "",
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": "2.70"
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Кирпич",
+        "wallsInt": "",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Плитка",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Металлические"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Внутр. помещения": 2
+       },
+       "notes": [],
+       "apartment": {
+        "floor": "5",
+        "buildingFloors": "9",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "rights": "Собственность",
+        "rightsOther": ""
+       }
+      },
+      {
+       "id": "oi-lp-all-house",
+       "landId": "oi-lp-all-land",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Обособленный",
+       "eni": "1475617320",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "160.60",
+        "pud": "160.60",
+        "fact": "160.60",
+        "build": "98.60"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Кирпич",
+        "wallsInt": "",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Плитка",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Металлические"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": []
+      },
+      {
+       "id": "oi-lp-all-civil",
+       "landId": "oi-lp-all-land",
+       "card": "building",
+       "letter": "Б",
+       "name": "Гражданское здание",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617330",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "420.00",
+        "pud": "420.00",
+        "fact": "420.00",
+        "build": "310.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Кирпич",
+        "wallsInt": "",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Плитка",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Металлические"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Нежилое · офисное",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": []
+      },
+      {
+       "id": "oi-lp-all-prod",
+       "landId": "oi-lp-all-land",
+       "card": "building",
+       "letter": "В",
+       "name": "Производственное строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617340",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "1200.00",
+        "pud": "1200.00",
+        "fact": "1200.00",
+        "build": "980.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Кирпич",
+        "wallsInt": "",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Плитка",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Металлические"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Производственно-складское",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": []
+      },
+      {
+       "id": "oi-lp-all-other",
+       "landId": "oi-lp-all-land",
+       "card": "building",
+       "letter": "Г",
+       "name": "Прочее строение",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": false,
+       "resCat": "",
+       "eni": "1475617350",
+       "year": "2005",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "48.00",
+        "pud": "48.00",
+        "fact": "48.00",
+        "build": "48.00"
+       },
+       "areasNote": "",
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "7.00",
+        "int": "3.00"
+       },
+       "buildType": "Отдельностоящее",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Кирпич",
+        "wallsInt": "",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Плитка",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Металлические"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Прочее",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2
+       },
+       "notes": []
+      }
+     ],
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1"
+    }
+   },
+   "oc-lp-b168": {
+    "at": "2026-10-13T10:08:18.581Z",
+    "item": {
+     "id": "oc-lp-b168",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "Под общественную застройку",
+     "eni": "5041510012188",
+     "address": "Ошская обл., Кара-Сууйский р-н, ул. Ак-Орго5, д. 78/1",
+     "city": "Ошская обл., Кара-Сууйский р-н",
+     "street": "Ак-Орго5",
+     "house": "78/1",
+     "gps": "40.693934, 72.876441",
+     "geo": {
+      "extent": [
+       72.87625,
+       40.693773,
+       72.876631,
+       40.694095
+      ],
+      "eni": "5041510012188",
+      "at": "2026-10-13T00:00:00.000Z",
+      "src": "Кадастр (демо-выгрузка)",
+      "by": "ЕНИ"
+     },
+     "status": "Удостоверен по документам",
+     "institution": "Фонд госимущества (ТЕСТ)",
+     "podved": "Подведомственная организация",
+     "complex": false,
+     "updatedAt": "2025-08-22",
+     "owners": [
+      "Фонд госимущества (ТЕСТ)"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Молчанов Кирилл Витальевич",
+      "cod": "Бабашова Даяна Алтынбековна",
+      "appr": "Абдылдаев Айсултан Марсович",
+      "insp": "Молчанов Кирилл Витальевич"
+     },
+     "notes": [],
+     "docs": [
+      {
+       "id": "oc-lp-b168-d0",
+       "type": "Техпаспорт",
+       "name": "Документ №268",
+       "date": "12.05.2024",
+       "pages": null
+      },
+      {
+       "id": "oc-lp-b168-d1",
+       "type": "ПУД",
+       "name": "Документ №269",
+       "date": "12.05.2024",
+       "pages": null
+      },
+      {
+       "id": "oc-lp-b168-d2",
+       "type": "Гос. акт на землю",
+       "name": "Документ №270",
+       "date": "12.05.2024",
+       "pages": null
+      }
+     ],
+     "oi": [
+      {
+       "id": "oc-lp-b168-oil1",
+       "card": "land",
+       "name": "Участок №1 (основной)",
+       "purpose": "Сельскохозяйственное",
+       "landType": "Сельскохозяйственный",
+       "areas": {
+        "pravo": "1960,68",
+        "fact": "1960,68",
+        "build": ""
+       },
+       "eni": "5041510012279",
+       "rights": "Собственность",
+       "useCategory": "Орошаемая пашня",
+       "irrigation": "Средняя",
+       "soil": "Чернозёмная",
+       "bonitet": "65",
+       "stoniness": "Нет",
+       "utilities": [
+        "Электроснабжение",
+        "Водоснабжение"
+       ],
+       "form": "Правильная",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "gasification": "Отсутствуют в районе",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Проходят рядом",
+       "autonomousHeating": "На удалении",
+       "status": "Основное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oc-lp-b168-oil2",
+       "card": "land",
+       "name": "Участок №2 (смежный)",
+       "purpose": "Сельскохозяйственное",
+       "landType": "Сельскохозяйственный",
+       "areas": {
+        "pravo": "840,29",
+        "fact": "840,29",
+        "build": ""
+       },
+       "eni": "5041510012280",
+       "rights": "Собственность",
+       "useCategory": "Орошаемая пашня",
+       "irrigation": "Средняя",
+       "soil": "Чернозёмная",
+       "bonitet": "65",
+       "stoniness": "Нет",
+       "utilities": [
+        "Электроснабжение",
+        "Водоснабжение"
+       ],
+       "form": "Правильная",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "gasification": "Отсутствуют в районе",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Проходят рядом",
+       "autonomousHeating": "На удалении",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      }
+     ]
+    }
+   },
+   "oc-lp-b235": {
+    "at": "2026-10-13T10:08:26.261Z",
+    "item": {
+     "id": "oc-lp-b235",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "Под индивидуальное жилищное строительство",
+     "eni": "7081910015941",
+     "address": "Чуйская обл., Сокулукский р-н, ул. Жетиген ул, д. 2а",
+     "city": "Чуйская обл., Сокулукский р-н",
+     "street": "Жетиген ул",
+     "house": "2а",
+     "gps": "42.871663, 74.318488",
+     "geo": {
+      "extent": [
+       74.318003,
+       42.871567,
+       74.318973,
+       42.87176
+      ],
+      "eni": "7081910015941",
+      "at": "2026-10-13T00:00:00.000Z",
+      "src": "Кадастр (демо-выгрузка)",
+      "by": "ЕНИ"
+     },
+     "status": "Удостоверен по документам",
+     "institution": "Министерство сельского хозяйства (ТЕСТ)",
+     "podved": "Подведомственная организация",
+     "complex": false,
+     "updatedAt": "2025-09-14",
+     "owners": [
+      "Министерство сельского хозяйства (ТЕСТ)"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Молчанов Кирилл Витальевич",
+      "cod": "Карабекова Анара Тариеловна",
+      "appr": "Карабекова Анара Тариеловна",
+      "insp": "Молчанов Кирилл Витальевич"
+     },
+     "notes": [],
+     "docs": [
+      {
+       "id": "oc-lp-b235-d0",
+       "type": "Техпаспорт",
+       "name": "Документ №335",
+       "date": "12.05.2024",
+       "pages": null
+      },
+      {
+       "id": "oc-lp-b235-d1",
+       "type": "ПУД",
+       "name": "Документ №336",
+       "date": "12.05.2024",
+       "pages": null
+      },
+      {
+       "id": "oc-lp-b235-d2",
+       "type": "Гос. акт на землю",
+       "name": "Документ №337",
+       "date": "12.05.2024",
+       "pages": null
+      },
+      {
+       "id": "oc-lp-b235-d3",
+       "type": "Акт осмотра",
+       "name": "Документ №338",
+       "date": "12.05.2024",
+       "pages": null
+      }
+     ],
+     "oi": [
+      {
+       "id": "oc-lp-b235-oil1",
+       "card": "land",
+       "name": "Участок №1 (основной)",
+       "purpose": "Под индивидуальное жилищное строительство",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "1586,33",
+        "fact": "1586,33",
+        "build": "0"
+       },
+       "eni": "7081910016032",
+       "rights": "Собственность",
+       "useCategory": "",
+       "irrigation": "",
+       "soil": "",
+       "bonitet": "",
+       "stoniness": "",
+       "utilities": [
+        "Электроснабжение"
+       ],
+       "form": "Правильная",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Подведены",
+       "autonomousHeating": "На удалении",
+       "status": "Основное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 2
+       },
+       "notes": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      },
+      {
+       "id": "oc-lp-b235-oil2",
+       "card": "land",
+       "name": "Участок №2 (смежный)",
+       "purpose": "Под индивидуальное жилищное строительство",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "679,85",
+        "fact": "679,85",
+        "build": "0"
+       },
+       "eni": "7081910016033",
+       "rights": "Собственность",
+       "useCategory": "",
+       "irrigation": "",
+       "soil": "",
+       "bonitet": "",
+       "stoniness": "",
+       "utilities": [
+        "Электроснабжение"
+       ],
+       "form": "Правильная",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Нет",
+       "buildingType": "",
+       "buildingArea": "",
+       "gasification": "Проходят рядом",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Подведены",
+       "autonomousHeating": "На удалении",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [],
+       "photos": {
+        "Земельный участок": 2
+       },
+       "notes": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      }
+     ]
+    }
+   },
+   "oc-lp-mv6j915c": {
+    "at": "2026-10-13T10:36:06.325Z",
+    "item": {
+     "id": "oc-lp-mv6j915c",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "",
+     "eni": "",
+     "address": "",
+     "city": "",
+     "gps": "",
+     "status": "В заполнении",
+     "institution": "",
+     "podved": "",
+     "complex": false,
+     "updatedAt": "13.10.2026",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "Осминнов Н.",
+      "appr": "",
+      "insp": ""
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [],
+     "eniList": [],
+     "region": "",
+     "district": "",
+     "micro": "",
+     "street": "",
+     "house": "",
+     "flat": ""
+    }
+   },
+   "oc-lp-mv6kvnm6": {
+    "at": "2026-10-13T11:12:23.676Z",
+    "item": {
+     "id": "oc-lp-mv6kvnm6",
+     "typeId": "land-plot",
+     "residential": false,
+     "category": "Недвижимое",
+     "type": "Земельный участок",
+     "purposeTP": "",
+     "eni": "",
+     "address": "",
+     "city": "",
+     "gps": "",
+     "status": "В заполнении",
+     "institution": "",
+     "podved": "",
+     "complex": false,
+     "updatedAt": "13.10.2026",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "Осминнов Н.",
+      "appr": "",
+      "insp": ""
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-mv6kvnm7",
+       "card": "aux",
+       "letter": "А",
+       "name": "",
+       "status": "Вспомогательное",
+       "origin": "manual",
+       "residential": false,
+       "eni": "",
+       "areas": {
+        "tp": "",
+        "build": ""
+       },
+       "struct": {
+        "foundation": [],
+        "wallsExt": [],
+        "roof": []
+       },
+       "structOther": {},
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": []
+      }
+     ],
+     "eniList": [],
+     "region": "",
+     "district": "",
+     "micro": "",
+     "street": "",
+     "house": "",
+     "flat": ""
     }
    }
   },
   "records.mechanisms": {
    "oc-mech-1": {
-    "at": "2026-10-06T03:36:39.748Z",
+    "at": "2026-10-09T05:49:11.400Z",
     "item": {
      "id": "oc-mech-1",
      "typeId": "mechanisms",
@@ -3275,16 +5521,37 @@
         "year": "",
         "country": "",
         "params": {
-         "drive": "Электрический",
          "serial": "QTZ80-5015-8T",
-         "capacity": "8,00",
-         "span": "7,50",
-         "liftHeight": "50,00",
-         "liftSpeed": "0,62",
          "voltage": "11,00",
          "installation": "Внутренней установки"
         },
-        "extra": [],
+        "extra": [
+         {
+          "id": "mf-mv0jp75e-1",
+          "label": "drive",
+          "value": "Электрический"
+         },
+         {
+          "id": "mf-mv0jp75e-2",
+          "label": "capacity",
+          "value": "8,00"
+         },
+         {
+          "id": "mf-mv0jp75e-3",
+          "label": "span",
+          "value": "7,50"
+         },
+         {
+          "id": "mf-mv0jp75e-4",
+          "label": "liftHeight",
+          "value": "50,00"
+         },
+         {
+          "id": "mf-mv0jp75e-5",
+          "label": "liftSpeed",
+          "value": "0,62"
+         }
+        ],
         "comment": "",
         "qty": "1",
         "cost": ""
@@ -3295,7 +5562,7 @@
         "inv": "",
         "cls": "Подъёмно-транспортное оборудование",
         "sub": "Краны",
-        "type": "Башенные краны (если рассматриваются как оборудование, а не спецтехника)",
+        "type": "Башенные краны",
         "year": "",
         "country": "",
         "params": {},
@@ -3311,7 +5578,7 @@
       "notes": [],
       "photoCatNames": {
        "mu-mumdd320-1": "РУ (распределительное устройство) низкого / высокого напряжения",
-       "mu-mumdj8fc-1": "Башенные краны (если рассматриваются как оборудование, а не спецтехника)"
+       "mu-mumdj8fc-1": "Башенные краны"
       }
      },
      "oi": []
@@ -3380,7 +5647,7 @@
     }
    },
    "oc-mech-3": {
-    "at": "2026-10-06T03:36:39.748Z",
+    "at": "2026-10-09T05:49:11.400Z",
     "item": {
      "id": "oc-mech-3",
      "typeId": "mechanisms",
@@ -3415,7 +5682,7 @@
         "inv": "1114235374724",
         "cls": "Подъёмно-транспортное оборудование",
         "sub": "Краны",
-        "type": "Башенные краны (если рассматриваются как оборудование, а не спецтехника)",
+        "type": "Башенные краны",
         "madeYear": "2011",
         "year": "2011",
         "country": "Китай",
@@ -3447,7 +5714,7 @@
     }
    },
    "oc-mech-4": {
-    "at": "2026-10-06T03:36:39.748Z",
+    "at": "2026-10-09T05:49:11.400Z",
     "item": {
      "id": "oc-mech-4",
      "typeId": "mechanisms",
@@ -3507,7 +5774,7 @@
         "inv": "",
         "cls": "Технологическое (производственное) оборудование",
         "sub": "Станки и обрабатывающие центры",
-        "type": "Прочие станки",
+        "type": "",
         "madeYear": "2025",
         "year": "2025",
         "country": "Кыргызстан",
@@ -3517,7 +5784,13 @@
          "maker": "Самодельный",
          "control": "Полуавтоматическое"
         },
-        "extra": [],
+        "extra": [
+         {
+          "id": "mf-mv0jp75e-6",
+          "label": "Прежний тип",
+          "value": "Прочие станки"
+         }
+        ],
         "comment": "Что это вообще такое?",
         "qty": "1",
         "cost": "1338000,00"
@@ -3528,7 +5801,7 @@
         "inv": "-",
         "cls": "Технологическое (производственное) оборудование",
         "sub": "Печи, сушильные камеры, реакторы, ёмкости технологического назначения",
-        "type": "Промышленные печи",
+        "type": "Муфельные, туннельные, камерные печи",
         "madeYear": "2010",
         "year": "2012",
         "country": "Китай",
@@ -3678,7 +5951,7 @@
     }
    },
    "oc-mech-7": {
-    "at": "2026-10-06T03:36:39.748Z",
+    "at": "2026-10-09T05:49:11.400Z",
     "item": {
      "id": "oc-mech-7",
      "typeId": "mechanisms",
@@ -3748,7 +6021,7 @@
         "inv": "",
         "cls": "Технологическое (производственное) оборудование",
         "sub": "Технологические линии и их составные агрегаты",
-        "type": "Производственные линии",
+        "type": "",
         "madeYear": "2024",
         "year": "2026",
         "country": "Китай",
@@ -3770,6 +6043,11 @@
           "id": "mf-mup0ric3-2",
           "label": "Масса",
           "value": "4500 кг"
+         },
+         {
+          "id": "mf-mv0jp75e-7",
+          "label": "Прежний тип",
+          "value": "Производственные линии"
          }
         ],
         "comment": "Линия для мойки стекол в рамках производства стеклопакетов",
@@ -3790,7 +6068,7 @@
     }
    },
    "oc-mech-8": {
-    "at": "2026-10-06T03:36:39.748Z",
+    "at": "2026-10-09T05:49:11.400Z",
     "item": {
      "id": "oc-mech-8",
      "typeId": "mechanisms",
@@ -3825,7 +6103,7 @@
         "inv": "",
         "cls": "Технологическое (производственное) оборудование",
         "sub": "Технологические линии и их составные агрегаты",
-        "type": "Производственные линии",
+        "type": "",
         "madeYear": "2021",
         "year": "2026",
         "country": "Италия/ Китай",
@@ -3834,7 +6112,13 @@
          "maker": "BIESSE SPA INTERMAC GLASS & STONE DIVISION и Hotech Glass Loading Solutions",
          "aggregates": "3"
         },
-        "extra": [],
+        "extra": [
+         {
+          "id": "mf-mv0jp75e-8",
+          "label": "Прежний тип",
+          "value": "Производственные линии"
+         }
+        ],
         "comment": "",
         "qty": "1",
         "cost": "",
@@ -3922,28 +6206,25 @@
    }
   },
   "records.residential-house": {
-   "oc-rh-all": {
-    "at": "2026-10-06T03:36:39.740Z",
+   "oc-rh-1": {
+    "at": "2026-10-12T04:57:58.005Z",
     "item": {
-     "id": "oc-rh-all",
+     "id": "oc-rh-1",
      "typeId": "residential-house",
      "residential": true,
      "category": "Недвижимое",
      "type": "Жилое здание (дом)",
      "purposeTP": "Жилое",
-     "eni": "6050300080001",
-     "region": "Таласская область",
-     "city": "г. Талас",
-     "district": "",
+     "eni": "1475616813510",
+     "city": "г. Бишкек",
+     "district": "Ленинский р-н",
      "micro": "",
-     "street": "Бердике-Баатыр",
-     "house": "132а",
-     "gps": "42.5259, 72.2287",
+     "gps": "42.8746, 74.5698",
      "status": "В заполнении",
      "institution": "Министерство для ТЕСТА",
-     "podved": "Административный департамент",
-     "complex": true,
-     "updatedAt": "2026-09-11",
+     "podved": "Подвед Министерства для ТЕСТ",
+     "complex": false,
+     "updatedAt": "2026-08-18",
      "owners": [
       "Министерство для ТЕСТА"
      ],
@@ -3953,6 +6234,552 @@
       "cod": "Айдай",
       "appr": "Молчанов Кирилл Витальевич",
       "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [
+      {
+       "id": "n1",
+       "text": "Не полный ПУД — не хватает страниц 4-7",
+       "done": false,
+       "author": "",
+       "date": ""
+      },
+      {
+       "id": "n2",
+       "text": "Нет гос. акта на землю",
+       "done": false,
+       "author": "",
+       "date": ""
+      },
+      {
+       "id": "n3",
+       "text": "Техпаспорт от 2020 года — проверить актуальность",
+       "done": true,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-a",
+       "street": "Фрунзе",
+       "house": "35",
+       "gps": "42.8750, 74.5703",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилое здание",
+       "status": "Основное",
+       "origin": "ml",
+       "residential": true,
+       "resCat": "Обособленный",
+       "eni": "1475616813510",
+       "year": "1990",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "96.40",
+        "pud": "96.40",
+        "fact": "96.40",
+        "build": "98.60"
+       },
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "5.90",
+        "int": "2.70"
+       },
+       "buildType": "Отдельностоящее",
+       "structureKind": "Дом",
+       "structureKindOther": "",
+       "rights": "Собственность",
+       "rightsOther": "",
+       "loggiaCount": "",
+       "balconyCount": "",
+       "loggiaBuildArea": "",
+       "balconyBuildArea": "",
+       "mansardType": "",
+       "features": "",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Жжёный кирпич",
+        "ceilings": "Железобетонные плиты",
+        "roof": "Шифер",
+        "floors": "Деревянные",
+        "windows": "Деревянные",
+        "doors": "Деревянные"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "Капитальный ремонт кровли — 2018 г.",
+       "catClass": "Жилое здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 3,
+        "Внутр. помещения": 4,
+        "Кровля": 2,
+        "Конструкции": 2
+       },
+       "notes": [
+        {
+         "id": "n4",
+         "text": "Нет страницы 5 в техпаспорте",
+         "done": false,
+         "author": "",
+         "date": ""
+        },
+        {
+         "id": "n5",
+         "text": "Плохое качество скана фото фасада",
+         "done": false,
+         "author": "",
+         "date": ""
+        },
+        {
+         "id": "n6",
+         "text": "Уточнить год постройки — расхождение в документах",
+         "done": true,
+         "author": "",
+         "date": ""
+        }
+       ]
+      },
+      {
+       "id": "oi-b",
+       "street": "Фрунзе",
+       "house": "35",
+       "gps": "42.8754, 74.5708",
+       "flat": "12",
+       "card": "apartment",
+       "letter": "Б",
+       "name": "Квартира",
+       "status": "Основное",
+       "origin": "ml",
+       "residential": true,
+       "resCat": "",
+       "eni": "1475616813520",
+       "year": "1985",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "64.20",
+        "pud": "64.20",
+        "fact": "64.20",
+        "build": ""
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "",
+        "int": ""
+       },
+       "buildType": "Встроенное",
+       "struct": {
+        "foundation": "",
+        "wallsExt": "Жжёный кирпич",
+        "ceilings": "Железобетонные плиты",
+        "roof": "",
+        "floors": "Ламинат",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Деревянные"
+       },
+       "structOther": {},
+       "heating": [
+        "Центральное водяное отопление",
+        "Современные радиаторы"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Гражданское здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2,
+        "Внутр. помещения": 3
+       },
+       "notes": [
+        {
+         "id": "n7",
+         "text": "Уточнить серию дома",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ],
+       "apartment": {
+        "floor": "5",
+        "buildingFloors": "9",
+        "rooms": "3",
+        "series": "105/106",
+        "location": "Неугловое",
+        "locationOther": "",
+        "storeys": "1",
+        "loggiaCount": "",
+        "balconyCount": "",
+        "loggiaBuildArea": "",
+        "balconyBuildArea": "",
+        "rights": "",
+        "rightsOther": ""
+       }
+      },
+      {
+       "id": "oi-l",
+       "street": "Фрунзе",
+       "house": "35",
+       "gps": "42.8758, 74.5713",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Под индивидуальное жилищное строительство",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "640.00",
+        "fact": "640.00",
+        "build": "210.00"
+       },
+       "eni": "1475616813500",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Близкая к прямоугольной",
+       "location": "На окраине населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Внутри района",
+       "corner": "Неугловой",
+       "encumbrance": "Есть",
+       "encumbranceArea": "48.00",
+       "buildings": "Есть",
+       "buildingType": "Жилой дом",
+       "buildingArea": "210.00",
+       "gasification": "Подведены",
+       "centralHeating": "Отсутствуют в районе",
+       "centralWater": "Подведены",
+       "autonomousHeating": "Подведены",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [
+        {
+         "id": "147561681351-4",
+         "type": "Гос. акт на землю",
+         "name": "Гос. акт №44/07",
+         "date": "03.02.2019"
+        }
+       ],
+       "photos": {
+        "Земельный участок": 2
+       },
+       "notes": [
+        {
+         "id": "n8",
+         "text": "Границы участка на плане не совпадают с фактическими",
+         "done": false,
+         "author": "",
+         "date": ""
+        }
+       ]
+      }
+     ],
+     "address": "г. Бишкек, Ленинский р-н, ул. Фрунзе, д. 35 — кв. 12"
+    }
+   },
+   "oc-rh-2": {
+    "at": "2026-10-12T04:57:58.005Z",
+    "item": {
+     "id": "oc-rh-2",
+     "typeId": "residential-house",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (дом)",
+     "purposeTP": "Жилое",
+     "eni": "1475616822040",
+     "city": "г. Бишкек",
+     "district": "Свердловский р-н",
+     "micro": "мкр. Восток-5",
+     "gps": "42.8801, 74.6021",
+     "status": "Осмотрен",
+     "institution": "Мэрия г. Бишкек",
+     "podved": "МП «Бишкекжилремстрой»",
+     "complex": false,
+     "updatedAt": "2026-08-11",
+     "owners": [
+      "Мэрия г. Бишкек"
+     ],
+     "users": [
+      "Бабашова Даяна Алтынбековна"
+     ],
+     "resp": {
+      "gov": "Карабекова Анара Тариеловна",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": "Абдылдаев Айсултан Марсович"
+     },
+     "notes": [
+      {
+       "id": "n9",
+       "text": "Сверить площадь застройки с обмерами",
+       "done": false,
+       "author": "",
+       "date": ""
+      }
+     ],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-rh2-a",
+       "street": "Чуй",
+       "house": "104",
+       "gps": "42.8805, 74.6026",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Таунхаус",
+       "eni": "1475616822040",
+       "year": "2004",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "184.70",
+        "pud": "184.70",
+        "fact": "186.10",
+        "build": "112.00"
+       },
+       "floors": 2,
+       "floorList": [],
+       "heights": {
+        "ext": "6.40",
+        "int": "2.80"
+       },
+       "buildType": "Отдельностоящее",
+       "structureKind": "Коттедж",
+       "structureKindOther": "",
+       "rights": "Собственность",
+       "rightsOther": "",
+       "loggiaCount": "1",
+       "balconyCount": "2",
+       "loggiaBuildArea": "5.40",
+       "balconyBuildArea": "6.80",
+       "mansardType": "",
+       "features": "Нестандартная высота потолков на 2 этаже — 3.20 м",
+       "struct": {
+        "foundation": "Бетонный",
+        "wallsExt": "Газобетон",
+        "ceilings": "Монолит",
+        "roof": "Металл",
+        "floors": "Ламинат",
+        "windows": "ПВХ (стеклопакет)",
+        "doors": "Металлические"
+       },
+       "structOther": {},
+       "heating": [
+        "Современные радиаторы"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Жилое здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 2,
+        "Внутр. помещения": 2,
+        "Кровля": 1
+       },
+       "notes": []
+      },
+      {
+       "id": "oi-rh2-l",
+       "street": "Чуй",
+       "house": "104",
+       "gps": "42.8809, 74.6031",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "Под индивидуальное жилищное строительство",
+       "landType": "Несельскохозяйственный",
+       "areas": {
+        "pravo": "420.00",
+        "fact": "420.00",
+        "build": "140.00"
+       },
+       "eni": "1475616822000",
+       "status": "Основное",
+       "rights": "Собственность",
+       "form": "Прямоугольная",
+       "location": "В центре населенного пункта",
+       "locationFeatures": "",
+       "roadLocation": "Вблизи центральной трассы населенного пункта",
+       "corner": "Угловой",
+       "encumbrance": "Нет",
+       "encumbranceArea": "",
+       "buildings": "Есть",
+       "buildingType": "Жилой дом",
+       "buildingArea": "140.00",
+       "gasification": "Подведены",
+       "centralHeating": "Проходят рядом",
+       "centralWater": "Подведены",
+       "autonomousHeating": "Подведены",
+       "flags": {
+        "entered": true,
+        "matched": true
+       },
+       "docs": [
+        {
+         "id": "147561682204-3",
+         "type": "Гос. акт на землю",
+         "name": "Гос. акт №12/21",
+         "date": "15.06.2021"
+        }
+       ],
+       "photos": {
+        "Земельный участок": 1
+       },
+       "notes": []
+      }
+     ],
+     "address": "г. Бишкек, Свердловский р-н, мкр. Восток-5, ул. Чуй, д. 104"
+    }
+   },
+   "oc-rh-3": {
+    "at": "2026-10-12T04:57:58.005Z",
+    "item": {
+     "id": "oc-rh-3",
+     "typeId": "residential-house",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (дом)",
+     "purposeTP": "Жилое",
+     "eni": "1475616839170",
+     "city": "г. Ош",
+     "district": "Ошский р-н",
+     "micro": "",
+     "gps": "40.5283, 72.7985",
+     "status": "Удостоверен после осмотра",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Ошский филиал",
+     "complex": false,
+     "updatedAt": "2026-07-29",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Бабашова Даяна Алтынбековна",
+      "insp": "Карабекова Анара Тариеловна"
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-rh3-a",
+       "street": "Ленина",
+       "house": "8",
+       "gps": "40.5287, 72.7990",
+       "card": "building",
+       "letter": "А",
+       "name": "Жилой дом",
+       "status": "Основное",
+       "origin": "manual",
+       "residential": true,
+       "resCat": "Полдома",
+       "eni": "1475616839170",
+       "year": "1978",
+       "flags": {
+        "entered": true,
+        "matched": false
+       },
+       "areas": {
+        "tp": "72.30",
+        "pud": "72.30",
+        "fact": "72.30",
+        "build": "80.00"
+       },
+       "floors": 1,
+       "floorList": [],
+       "heights": {
+        "ext": "3.10",
+        "int": "2.60"
+       },
+       "buildType": "Отдельностоящее",
+       "structureKind": "Дом",
+       "structureKindOther": "",
+       "rights": "Бессрочное пользование",
+       "rightsOther": "",
+       "loggiaCount": "",
+       "balconyCount": "",
+       "loggiaBuildArea": "",
+       "balconyBuildArea": "",
+       "mansardType": "",
+       "features": "",
+       "struct": {
+        "foundation": "Бутобетонный",
+        "wallsExt": "Саман",
+        "ceilings": "Деревянные балки",
+        "roof": "Шифер",
+        "floors": "Деревянные",
+        "windows": "Деревянные",
+        "doors": "Деревянные"
+       },
+       "structOther": {},
+       "heating": [
+        "Печное отопление"
+       ],
+       "heatingOther": "",
+       "comment": "",
+       "catClass": "Жилое здание",
+       "dis": false,
+       "docs": [],
+       "photos": {
+        "Фасад": 1
+       },
+       "notes": []
+      }
+     ],
+     "address": "г. Ош, Ошский р-н, ул. Ленина, д. 8"
+    }
+   },
+   "oc-rh-all": {
+    "at": "2026-10-12T11:04:45.448Z",
+    "item": {
+     "id": "oc-rh-all",
+     "typeId": "residential-house",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (дом)",
+     "purposeTP": "Жилое",
+     "eni": "1475617000",
+     "region": "Чуйская область",
+     "city": "г. Бишкек",
+     "district": "Первомайский р-н",
+     "micro": "",
+     "street": "Демонстрационная",
+     "house": "1",
+     "gps": "42.8700, 74.5900",
+     "status": "В заполнении",
+     "institution": "Министерство для ТЕСТА",
+     "podved": "Административный департамент",
+     "complex": true,
+     "updatedAt": "2026-10-12",
+     "owners": [
+      "Министерство для ТЕСТА"
+     ],
+     "users": [],
+     "resp": {
+      "gov": "Абдылдаев Айсултан Марсович",
+      "cod": "Айдай",
+      "appr": "Молчанов Кирилл Витальевич",
+      "insp": ""
      },
      "notes": [],
      "docs": [],
@@ -3970,7 +6797,7 @@
         "build": "320.00"
        },
        "areasNote": "",
-       "eni": "6050300080001",
+       "eni": "1475617000",
        "status": "Основное",
        "rights": "Собственность",
        "form": "Близкая к прямоугольной",
@@ -4020,7 +6847,7 @@
        "origin": "manual",
        "residential": true,
        "resCat": "",
-       "eni": "6050400100539",
+       "eni": "1475617010",
        "year": "1985",
        "flags": {
         "entered": true,
@@ -4107,7 +6934,7 @@
        "origin": "manual",
        "residential": true,
        "resCat": "Обособленный",
-       "eni": "6050300070316",
+       "eni": "1475617020",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -4228,7 +7055,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "6050300080063",
+       "eni": "1475617030",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -4301,7 +7128,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "6050300080043",
+       "eni": "1475617040",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -4374,7 +7201,7 @@
        "origin": "manual",
        "residential": false,
        "resCat": "",
-       "eni": "6050300080106",
+       "eni": "1475617050",
        "year": "2005",
        "flags": {
         "entered": true,
@@ -4438,13 +7265,131 @@
        "annexList": []
       }
      ],
-     "address": "Таласская область, г. Талас, ул. Бердике-Баатыр, д. 132а"
+     "address": "Чуйская область, Первомайский р-н, г. Бишкек, ул. Демонстрационная, д. 1"
+    }
+   },
+   "oc-rh-mv6j913e": {
+    "at": "2026-10-13T10:29:37.986Z",
+    "item": {
+     "id": "oc-rh-mv6j913e",
+     "typeId": "residential-house",
+     "residential": true,
+     "category": "Недвижимое",
+     "type": "Жилое здание (дом)",
+     "purposeTP": "Жилое",
+     "eni": "",
+     "address": "",
+     "city": "",
+     "gps": "",
+     "status": "В заполнении",
+     "institution": "",
+     "podved": "",
+     "complex": false,
+     "updatedAt": "13.10.2026",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "Осминнов Н.",
+      "appr": "",
+      "insp": ""
+     },
+     "notes": [],
+     "docs": [],
+     "oi": [
+      {
+       "id": "oi-l-mv6j913f",
+       "card": "land",
+       "name": "Земельный участок",
+       "purpose": "",
+       "landType": "Сельскохозяйственный",
+       "areas": {
+        "pravo": "",
+        "pravoUd": "",
+        "fact": "",
+        "build": ""
+       },
+       "eni": "",
+       "street": "",
+       "house": "",
+       "rights": "",
+       "rightsOther": "",
+       "useCategory": "",
+       "irrigation": "",
+       "soil": "",
+       "bonitet": "",
+       "stoniness": "",
+       "utilities": [],
+       "form": "",
+       "location": "",
+       "locationFeatures": "",
+       "roadLocation": "",
+       "corner": "",
+       "encumbrance": "Нет",
+       "leased": "Нет",
+       "leasePrice": "",
+       "leaseUnit": "",
+       "leaseTerm": "",
+       "leaseNote": "",
+       "encumbranceArea": "",
+       "encumbranceNote": "",
+       "landCategory": "",
+       "gasification": "",
+       "centralHeating": "",
+       "centralWater": "",
+       "electricity": "",
+       "sewerage": "",
+       "gps": "",
+       "zone": "",
+       "microdistrict": "",
+       "distanceToCenter": "",
+       "auxBuildings": [],
+       "improvementRank": "",
+       "improvementNote": "",
+       "status": "Основное",
+       "flags": {
+        "entered": false,
+        "matched": false
+       },
+       "docs": [],
+       "photos": {},
+       "notes": [],
+       "tempMode": [],
+       "loggias": [],
+       "balconies": [],
+       "terraces": []
+      }
+     ],
+     "eniList": [],
+     "region": "",
+     "district": "",
+     "micro": "",
+     "street": "",
+     "house": "",
+     "flat": "",
+     "auditLog": [
+      {
+       "id": "oc-rh-mv6j913e-1",
+       "at": "13.10.2026 16:29:37",
+       "atTs": 1791887377461,
+       "person": "Осминнов Н.",
+       "role": "any",
+       "category": "oi",
+       "targetId": "oi-l-mv6j913f",
+       "targetName": "Земельный участок",
+       "cardType": "land",
+       "field": "(объект)",
+       "action": "create",
+       "before": "—",
+       "after": "Земельный участок"
+      }
+     ]
     }
    }
   },
   "records.vehicle": {
    "oc-vehicle-1": {
-    "at": "2026-10-06T03:36:39.741Z",
+    "at": "2026-10-12T04:11:09.669Z",
     "item": {
      "id": "oc-vehicle-1",
      "typeId": "vehicle",
@@ -4468,7 +7413,7 @@
      "vehicle": {
       "kind": "base",
       "category": "Грузовое",
-      "base": "Тяжёлый грузовик (свыше 12 т)",
+      "base": "Грузовое ТС",
       "selfGroup": "",
       "selfKind": "",
       "modGroup": "",
@@ -4495,8 +7440,439 @@
      "oi": []
     }
    },
+   "oc-vehicle-10": {
+    "at": "2026-10-07T04:57:43.734Z",
+    "item": {
+     "id": "oc-vehicle-10",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-07",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "Грузовое ТС",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "make": "ГАЗ 3307",
+       "vtype": "грузовой, цистерна",
+       "plate": "2882SK",
+       "docNo": "КР 0656634",
+       "year": "1992",
+       "color": "голубой",
+       "wheel": "Левый",
+       "seats": "2",
+       "vin": "1492041",
+       "bodyNo": "0338216",
+       "chassisNo": "1492041",
+       "fuel": "Бензин",
+       "power@unit": "л.с.",
+       "engineVolume": "4250",
+       "massEmpty": "10000",
+       "gearbox": "Механическая",
+       "massMax": "14500",
+       "dublKabina": "Нет",
+       "generalState": "Рабочее",
+       "mileage": "793192",
+       "kit": "Цистерна для нефтепродуктов 4500 кг"
+      },
+      "modules": [
+       {
+        "id": "vm-muxmr5kk-2",
+        "group": "Цистерны",
+        "kind": "Бензовоз (светлые нефтепродукты)",
+        "f": {
+         "year": "1992",
+         "state": "Удовлетворительное"
+        },
+        "extra": []
+       }
+      ],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-10-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-11": {
+    "at": "2026-10-12T04:11:09.669Z",
+    "item": {
+     "id": "oc-vehicle-11",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-07",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Прицепы и полуприцепы",
+      "base": "Прицеп",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "vtype": "прицеп, легковой",
+       "plate": "585SK",
+       "docNo": "КР № 0632493",
+       "regDate": "2015-05-22",
+       "make": "SPCN",
+       "year": "2000",
+       "color": "черный",
+       "chassisNo": "CA1047699",
+       "generalState": "Рабочее",
+       "massEmpty": "300",
+       "massMax": "1000"
+      },
+      "modules": [],
+      "extra": [
+       {
+        "id": "vx-mv4qioms-2",
+        "label": "Техническое состояние",
+        "value": "Удовлетворительное"
+       }
+      ],
+      "photoSet": {
+       "id": "oc-vehicle-11-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-12": {
+    "at": "2026-10-07T10:41:38.244Z",
+    "item": {
+     "id": "oc-vehicle-12",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-07",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Легковое",
+      "base": "Легковой автомобиль и внедорожник",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "plate": "2884SK",
+       "docNo": "КР №0047033",
+       "regDate": "2015-06-06",
+       "make": "LHX9401TDP",
+       "vin": "YV2J4DGA4YB242522",
+       "bodyNo": "YV2J4DGA4YB242522",
+       "chassisNo": "YV2J4DGA4YB242522",
+       "power@unit": "л.с.",
+       "dublKabina": "Нет",
+       "generalState": "Рабочее",
+       "vtype": "полуприцеп, низкорамный (трал)",
+       "year": "2014"
+      },
+      "modules": [
+       {
+        "id": "vm-muxndzab-3",
+        "group": "Грузовые кузова",
+        "kind": "Изотермический фургон",
+        "f": {},
+        "extra": []
+       },
+       {
+        "id": "vm-muxndzab-4",
+        "group": "Подъёмные",
+        "kind": "Кран-манипулятор (КМУ)",
+        "f": {
+         "model": "PK12080",
+         "maker": "Palfinger",
+         "drive": "От двигателя базы через коробку отбора мощности (КОМ)",
+         "state": "Хорошее"
+        },
+        "extra": []
+       },
+       {
+        "id": "vm-muxoaab2-5",
+        "group": "Грузовые кузова",
+        "kind": "Низкорамная платформа (трал)",
+        "f": {},
+        "extra": []
+       }
+      ],
+      "extra": [
+       {
+        "id": "vx-muxoavme-6",
+        "label": "№ двигателя",
+        "value": "D78192704"
+       },
+       {
+        "id": "vx-muxoavme-7",
+        "label": "Тип топлива",
+        "value": "Дизель"
+       },
+       {
+        "id": "vx-muxoavme-8",
+        "label": "Рабочий объём двигателя",
+        "value": "7300"
+       },
+       {
+        "id": "vx-muxoavme-9",
+        "label": "Тип КПП",
+        "value": "Механическая"
+       },
+       {
+        "id": "vx-muxpiwnu-2",
+        "label": "Техническое состояние",
+        "value": "Хорошее"
+       },
+       {
+        "id": "vx-muxpiwnu-3",
+        "label": "Руль",
+        "value": "Левый"
+       },
+       {
+        "id": "vx-muxpiwnu-4",
+        "label": "Пробег",
+        "value": "2111"
+       },
+       {
+        "id": "vx-muxucr9e-2",
+        "label": "Масса без нагрузки",
+        "value": "9180"
+       },
+       {
+        "id": "vx-muxucr9e-3",
+        "label": "Максимальная разрешённая масса",
+        "value": "19500"
+       },
+       {
+        "id": "vx-muxucr9e-4",
+        "label": "Число осей",
+        "value": "2"
+       }
+      ],
+      "photoSet": {
+       "id": "oc-vehicle-12-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-13": {
+    "at": "2026-10-07T09:03:50.636Z",
+    "item": {
+     "id": "oc-vehicle-13",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-07",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Легковое",
+      "base": "Легковой автомобиль и внедорожник",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "make": "KIA GRAND SPORTAGE",
+       "vtype": "кабриолет"
+      },
+      "modules": [],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-13-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-14": {
+    "at": "2026-10-07T09:56:39.980Z",
+    "item": {
+     "id": "oc-vehicle-14",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-07",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "self",
+      "category": "Грузовое",
+      "base": "Грузовое ТС",
+      "selfGroup": "Дорожные",
+      "selfKind": "Каток асфальтовый",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "make": "DODGE RAM",
+       "fuel": "Бензин",
+       "power@unit": "л.с.",
+       "trim": "Своя"
+      },
+      "modules": [
+       {
+        "id": "vm-muxxi3cx-7",
+        "group": "Подъёмные",
+        "kind": "Кран-манипулятор (КМУ)",
+        "f": {},
+        "extra": [
+         {
+          "id": "vx-muxxiaoh-8",
+          "label": "",
+          "value": ""
+         }
+        ]
+       }
+      ],
+      "extra": [
+       {
+        "id": "vx-muxwxl8g-2",
+        "label": "",
+        "value": ""
+       }
+      ],
+      "photoSet": {
+       "id": "oc-vehicle-14-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-15": {
+    "at": "2026-10-07T10:04:48.225Z",
+    "item": {
+     "id": "oc-vehicle-15",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-07",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Легковое",
+      "base": "Легковой автомобиль и внедорожник",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "vtype": "легковой",
+       "make": "HONDA HR-V"
+      },
+      "modules": [],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-15-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
    "oc-vehicle-2": {
-    "at": "2026-10-06T03:36:39.741Z",
+    "at": "2026-10-12T04:11:09.669Z",
     "item": {
      "id": "oc-vehicle-2",
      "typeId": "vehicle",
@@ -4520,7 +7896,7 @@
      "vehicle": {
       "kind": "base",
       "category": "Грузовое",
-      "base": "Среднетоннажный грузовик (3,5–12 т)",
+      "base": "Грузовое ТС",
       "selfGroup": "",
       "selfKind": "",
       "modGroup": "",
@@ -4554,7 +7930,7 @@
     }
    },
    "oc-vehicle-3": {
-    "at": "2026-10-06T03:36:39.741Z",
+    "at": "2026-10-12T04:11:09.669Z",
     "item": {
      "id": "oc-vehicle-3",
      "typeId": "vehicle",
@@ -4578,7 +7954,7 @@
      "vehicle": {
       "kind": "base",
       "category": "Легковое",
-      "base": "Седан",
+      "base": "Легковой автомобиль и внедорожник",
       "selfGroup": "",
       "selfKind": "",
       "modGroup": "",
@@ -4600,8 +7976,210 @@
      "oi": []
     }
    },
+   "oc-vehicle-6": {
+    "at": "2026-10-06T04:47:26.891Z",
+    "item": {
+     "id": "oc-vehicle-6",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-06",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {},
+      "modules": [],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-6-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-7": {
+    "at": "2026-10-12T04:11:09.669Z",
+    "item": {
+     "id": "oc-vehicle-7",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-06",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "Грузовое ТС",
+      "selfGroup": "Землеройные",
+      "selfKind": "Думпер (мини-самосвал)",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "generalState": "Иное",
+       "vtype": "специальный, автобетоносмеситель"
+      },
+      "modules": [
+       {
+        "id": "vm-muwhazca-4",
+        "group": "Грузовые кузова",
+        "kind": "Низкорамная платформа (трал)",
+        "f": {},
+        "extra": []
+       }
+      ],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-7-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-8": {
+    "at": "2026-10-06T10:37:05.386Z",
+    "item": {
+     "id": "oc-vehicle-8",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-06",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Грузовое",
+      "base": "Грузовое ТС",
+      "selfGroup": "",
+      "selfKind": "",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "vtype": "грузовой, рефрижератор"
+      },
+      "modules": [
+       {
+        "id": "vm-muwhcs58-2",
+        "group": "Грузовые кузова",
+        "kind": "Низкорамная платформа (трал)",
+        "f": {},
+        "extra": []
+       },
+       {
+        "id": "vm-muwhejgf-3",
+        "group": "Грузовые кузова",
+        "kind": "Рефрижератор",
+        "f": {},
+        "extra": []
+       }
+      ],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-8-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
+   "oc-vehicle-9": {
+    "at": "2026-10-07T08:10:16.370Z",
+    "item": {
+     "id": "oc-vehicle-9",
+     "typeId": "vehicle",
+     "type": "Транспортные средства",
+     "category": "Движимое",
+     "status": "В заполнении",
+     "city": "",
+     "institution": "",
+     "podved": "",
+     "eni": "",
+     "updatedAt": "2026-10-06",
+     "owners": [],
+     "users": [],
+     "resp": {
+      "gov": "",
+      "cod": "",
+      "appr": "",
+      "insp": ""
+     },
+     "docs": [],
+     "vehicle": {
+      "kind": "base",
+      "category": "Тракторы и специальные шасси",
+      "base": "Вездеход, гусеничный транспортёр",
+      "selfGroup": "Землеройные",
+      "selfKind": "Экскаватор",
+      "modGroup": "",
+      "modKind": "",
+      "f": {
+       "make": "TOYOTA CAMRY"
+      },
+      "modules": [],
+      "extra": [],
+      "photoSet": {
+       "id": "oc-vehicle-9-photo",
+       "name": "Фото с осмотра",
+       "photos": {},
+       "photoFiles": {}
+      }
+     },
+     "oi": []
+    }
+   },
    "oc-vehicle-nmosminnovbexper-4": {
-    "at": "2026-10-06T04:19:26.613Z",
+    "at": "2026-10-12T04:11:09.669Z",
     "item": {
      "id": "oc-vehicle-nmosminnovbexper-4",
      "typeId": "vehicle",
@@ -4625,14 +8203,15 @@
      "vehicle": {
       "kind": "base",
       "category": "Легковое",
-      "base": "Седан",
+      "base": "Легковой автомобиль и внедорожник",
       "selfGroup": "",
       "selfKind": "",
       "modGroup": "",
       "modKind": "",
       "f": {
        "fuel": "Электро",
-       "power@unit": "кВт"
+       "power@unit": "кВт",
+       "vtype": "легковой, седан"
       },
       "modules": [
        {
@@ -4655,7 +8234,7 @@
     }
    },
    "oc-vehicle-nmosminnovbexper-5": {
-    "at": "2026-10-06T04:24:20.337Z",
+    "at": "2026-10-12T04:11:09.669Z",
     "item": {
      "id": "oc-vehicle-nmosminnovbexper-5",
      "typeId": "vehicle",
@@ -4679,7 +8258,7 @@
      "vehicle": {
       "kind": "base",
       "category": "Грузовое",
-      "base": "Лёгкий коммерческий (до 3,5 т)",
+      "base": "Грузовое ТС",
       "selfGroup": "",
       "selfKind": "",
       "modGroup": "",

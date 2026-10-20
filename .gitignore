@@ -87,3 +87,6 @@ data/local/*.tmp
 
 # Пакет графа знаний для другого компьютера (tools/knowledge/export_pack.py) — в git не идёт.
 /.pack/
+
+# Скрипты по просьбам коллег (Scripts)
+/Scripts/
