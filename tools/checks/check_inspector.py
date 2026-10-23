@@ -375,6 +375,38 @@ def run(t):
     t.ck(cap() == ['Назначение по факту', 'Кран-балка', 'Полы'], 'производственно-складское: поля класса %s' % cap())
     t.open(ASSET, wait='.ins-fs')
 
+    # Сети участка на осмотре — копией в литеры на нём (решение 16.10.2026,
+    # пользователь 23.10.2026: «автоматический перенос инженерных сетей с
+    # земельного участка… переносим копию. Внутри ОИ оно может меняться»).
+    # Ловит: значение участка не доходит до литер; своё значение литеры
+    # затирается без вопроса.
+    val = lambda oi: pg.evaluate("""async (oi) => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', oi).electricity || ''""", oi)
+    pick = lambda opt: pg.evaluate("""(opt) => {
+        const sel = document.querySelector('[data-fs-sel="electricity"]');
+        if (sel) { sel.value = opt; sel.dispatchEvent(new Event('change', { bubbles: true })); return; }
+        document.querySelector(`[data-fs-opt="electricity|${opt}"]`).click(); }""", opt)
+    t.open(TASK + '/object/oi-cv1-l', wait='[data-sec-box="nets"]')
+    pick('На удалении')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', 'oi-cv1-b').electricity === 'На удалении'""")
+    t.ck(val('oi-cv1-a') == 'На удалении' and val('oi-cv1-b') == 'На удалении',
+         'сеть участка не перенеслась в литеры: %s, %s' % (val('oi-cv1-a'), val('oi-cv1-b')))
+    # Своё значение у литеры — при новой правке участка вопрос; «Отмена» его сохраняет.
+    pg.evaluate("""async () => { const T = await import('./app/pages/inspector/tasks.js');
+        T.assetValues('civil', 'oc-cv-1', 'oi-cv1-a').electricity = 'Отсутствуют в районе'; T.saveResults(); }""")
+    pick('Подведены')
+    t.wait_for('[data-modal-cancel]')
+    pg.locator('[data-modal-cancel]').click()
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', 'oi-cv1-b').electricity === 'Подведены'""")
+    t.ck(val('oi-cv1-a') == 'Отсутствуют в районе', 'своё значение литеры затёрто без согласия: %s' % val('oi-cv1-a'))
+    t.ck(val('oi-cv1-b') == 'Подведены', 'не правленная копия не обновилась: %s' % val('oi-cv1-b'))
+    # Копия в литере правится отдельно и участок не трогает.
+    t.ck(pg.evaluate("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', 'oi-cv1-l').electricity""") == 'Подведены', 'значение участка сбилось')
+    t.open(ASSET, wait='.ins-fs')
+
     # Съёмка прямо из формы осмотра (15.10.2026: «Буквально кнопка»;
     # 16.10.2026: «понаделать фото, а потом их к категории при выходе с камеры
     # определить… часть в 1, часть в другое… оставить на распределить потом…

@@ -31,7 +31,7 @@ import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDa
 import { codeByName } from '../../kernel/institutions.js';
 import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
-import { sortedTypes } from '../../kernel/registry.js';
+import { sortedTypes, netsLandOf } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from './form.js';
 import { docsForOi, kindOfDoc, viewerHTML, bindViewer } from './docViewer.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
@@ -789,6 +789,11 @@ export function mountInspector(host) {
     // Перечень полей — по виду открытого ОИ (у каждого вида своя форма).
     fields: () => allFields(route.typeId, curOi()),
     onChange: (field, value, opts) => {
+      // Сеть участка — копией в строения и квартиры на нём (carryLandNet).
+      if (NETS_KEYS.includes(field.key) && (curOi() || {}).card === 'land') {
+        carryLandNet(field.key, value);
+        return;
+      }
       saveResults();
       markSaved();
       // Мультивыбор пересобран на месте — перерисовка закрыла бы список.
@@ -1352,6 +1357,47 @@ export function mountInspector(host) {
     host.toast(`Поставлено: ${targets.length - skip.size} из ${targets.length}`, 'ok');
     renderKeep();
   });
+
+  // --- инженерные сети участка → копия в ОИ на нём ------------------------
+  // Решение пользователя 16.10.2026 (участок есть — в литеру копия его
+  // значений, её можно менять; значения участка поменялись — литеры, где
+  // значение пришло от участка и его не меняли, обновляются сами, где меняли —
+  // спрашиваем; «это и для осмотров и для ЦОД») и 23.10.2026: «автоматический
+  // перенос инженерных сетей с земельного участка… переносим копию. Внутри ОИ
+  // оно может меняться». Перенесённое участок помнит в своих значениях осмотра
+  // (netsCarried): ОИ со значением, равным перенесённому, — копия, не правленая.
+  function landNetTargets(r, land) {
+    return inspOis(r, route.typeId, route.ocId)
+      .filter((o) => (o.card === 'building' || o.card === 'apartment') && (netsLandOf(r, o) || {}).id === land.id);
+  }
+  async function carryLandNet(key, value) {
+    const r = rec();
+    const land = curOi();
+    const landVals = assetValues(route.typeId, route.ocId, land.id);
+    const carried = landVals.netsCarried = landVals.netsCarried || {};
+    const was = carried[key] || '';
+    const targets = r ? landNetTargets(r, land) : [];
+    const valOf = (o) => assetValues(route.typeId, route.ocId, o.id)[key] || '';
+    const own = targets.filter((o) => valOf(o) && valOf(o) !== was && valOf(o) !== value);
+    let skip = new Set();
+    if (own.length && value) {
+      const ok = await host.confirm({
+        title: 'Заменить у объектов со своим значением?',
+        text: `У ${own.length} из ${targets.length} уже стоит своё: ${own.map((o) => `${oiLabel(o)} — ${valOf(o)}`).join('; ')}. Поставить «${value}» и у них?`,
+        okLabel: 'Заменить у всех',
+      });
+      if (!ok) skip = new Set(own.map((o) => o.id));
+    } else if (own.length) {
+      skip = new Set(own.map((o) => o.id)); // участок очищен — своё у ОИ остаётся
+    }
+    const moved = targets.filter((o) => !skip.has(o.id) && valOf(o) !== value);
+    moved.forEach((o) => { assetValues(route.typeId, route.ocId, o.id)[key] = value; });
+    carried[key] = value;
+    saveResults();
+    markSaved();
+    if (moved.length) host.toast(`${value ? 'Перенесено' : 'Снято'} в объектах на участке: ${moved.length}`, 'ok');
+    render();
+  }
 
   // --- голосовые заметки --------------------------------------------------
   // Диктофон (16.10.2026): запись — MediaRecorder с микрофона, громкость —
