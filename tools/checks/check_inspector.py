@@ -405,6 +405,31 @@ def run(t):
     # Копия в литере правится отдельно и участок не трогает.
     t.ck(pg.evaluate("""async () => (await import('./app/pages/inspector/tasks.js'))
         .assetValues('civil', 'oc-cv-1', 'oi-cv1-l').electricity""") == 'Подведены', 'значение участка сбилось')
+    # «Заменить у всех» — своё значение литеры заменяется значением участка.
+    pick('Проходят рядом')
+    t.wait_for('[data-modal-ok]')
+    pg.locator('[data-modal-ok]').click()
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', 'oi-cv1-a').electricity === 'Проходят рядом'""")
+    t.ck(val('oi-cv1-a') == 'Проходят рядом' and val('oi-cv1-b') == 'Проходят рядом',
+         '«Заменить у всех» не заменило: %s, %s' % (val('oi-cv1-a'), val('oi-cv1-b')))
+    # После перезагрузки участок помнит перенесённое: копии обновляются без вопроса.
+    pg.reload()
+    t.wait_for('[data-sec-box="nets"]')
+    pick('На удалении')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', 'oi-cv1-a').electricity === 'На удалении'""")
+    t.ck(pg.locator('[data-modal-ok]').count() == 0, 'после перезагрузки копии участка сочтены своими — лишний вопрос')
+    t.ck(val('oi-cv1-b') == 'На удалении', 'после перезагрузки копия не обновилась: %s' % val('oi-cv1-b'))
+    # Участок очищен: копия снимается, своё значение литеры остаётся без вопроса.
+    pg.evaluate("""async () => { const T = await import('./app/pages/inspector/tasks.js');
+        T.assetValues('civil', 'oc-cv-1', 'oi-cv1-a').electricity = 'Подведены'; T.saveResults(); }""")
+    pick('')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-1', 'oi-cv1-b').electricity === ''""")
+    t.ck(pg.locator('[data-modal-ok]').count() == 0, 'очистка участка задаёт вопрос')
+    t.ck(val('oi-cv1-a') == 'Подведены' and val('oi-cv1-b') == '',
+         'очистка участка: своё должно остаться, копия — сняться: %s, %s' % (val('oi-cv1-a'), val('oi-cv1-b')))
     t.open(ASSET, wait='.ins-fs')
 
     # Съёмка прямо из формы осмотра (15.10.2026: «Буквально кнопка»;
