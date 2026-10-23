@@ -279,33 +279,7 @@ export function oiOptions(rec, typeId = '', ocId = '') {
   return list.map((o) => ({ id: o.id, label: oiLabel(o) }));
 }
 
-// --- помещения и выявленные объекты ---------------------------------------
-
-// Помещения строения. В рабочей системе такой раздел есть («Помещения» с
-// кнопкой «Добавить помещение»), но в присланном снимке он пуст — состав
-// строки оттуда не виден. Здесь пара, без которой помещение не описать:
-// наименование и площадь. Состав уточним по заполненному примеру.
-export function premises(typeId, ocId, oiId) {
-  const v = assetValues(typeId, ocId, oiId);
-  if (!Array.isArray(v.premises)) v.premises = [];
-  return v.premises;
-}
-
-let premiseSeq = 0;
-
-export function addPremise(typeId, ocId, oiId) {
-  const list = premises(typeId, ocId, oiId);
-  list.push({ id: 'pm-' + Date.now().toString(36) + (++premiseSeq), name: '' });
-  saveResults();
-  return list;
-}
-
-export function removePremise(typeId, ocId, oiId, id) {
-  const list = premises(typeId, ocId, oiId);
-  const i = list.findIndex((x) => x.id === id);
-  if (i >= 0) list.splice(i, 1);
-  saveResults();
-}
+// --- выявленные объекты ---------------------------------------
 
 // Выявленные на осмотре здания — неутверждённые литеры (решение пользователя
 // 15.10.2026, запись графа vyyavlennye-na-osmotre-zdaniya-…): «Увидел здание

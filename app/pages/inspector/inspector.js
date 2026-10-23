@@ -21,7 +21,7 @@ import { bindFields, filledCount, requiredLeft } from '../../kernel/fieldSchema.
 import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
-  taskDocs, oiOptions, premises, addPremise, removePremise,
+  taskDocs, oiOptions,
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
   scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
 } from './tasks.js';
@@ -40,7 +40,7 @@ import { loadMapLibre, createMap, ownParcelsGL, emptyFC } from '../../kernel/map
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { geoByEni } from '../../kernel/cadastreGeo.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, navLinks, HAS_PREMISES,
+  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, navLinks,
 } from './views.js';
 
 const SECTIONS = ['task', 'object', 'docs', 'photo'];
@@ -699,7 +699,6 @@ export function mountInspector(host) {
           oi,
           typeId,
           values: assetValues(typeId, ocId, oi.id),
-          premises: premises(typeId, ocId, oi.id),
           collapsed: ui.collapsed,
           // Фото прикрепляются в своём разделе, но с уже выбранным объектом:
           // осмотрщик пришёл из осмотра этой литеры, и переспрашивать нечего.
@@ -836,8 +835,7 @@ export function mountInspector(host) {
     if (nav && r) {
       const cur = nav.querySelector('[aria-current="true"]');
       const curKey = cur ? cur.dataset.gotoSec : '';
-      nav.outerHTML = sectionNavHTML(sections(route.typeId, curOi()), values,
-        HAS_PREMISES.includes((curOi() || {}).card || 'building') ? premises(route.typeId, route.ocId, route.oiId).length : null, requiredLeft(fields, values));
+      nav.outerHTML = sectionNavHTML(sections(route.typeId, curOi()), values, requiredLeft(fields, values));
       const again = curKey && scope.$(`[data-secnav] [data-goto-sec="${curKey}"]`);
       if (again) again.setAttribute('aria-current', 'true');
     }
@@ -1192,26 +1190,6 @@ export function mountInspector(host) {
     if (i >= 0) ui.collapsed.splice(i, 1); else ui.collapsed.push(key);
     render();
   });
-
-  scope.on('click', '[data-pm-add]', () => {
-    addPremise(route.typeId, route.ocId, route.oiId);
-    render();
-  });
-
-  scope.on('click', '[data-pm-drop]', (e, el) => {
-    removePremise(route.typeId, route.ocId, route.oiId, el.dataset.pmDrop);
-    render();
-  });
-
-  // Ввод в помещение НЕ перерисовывает экран: иначе поле теряло бы фокус.
-  scope.on('input', '[data-pm-name]', (e, el) => {
-    const pm = premises(route.typeId, route.ocId, route.oiId)
-      .find((x) => x.id === el.dataset.pmName);
-    if (pm) { pm.name = el.value; saveResults(); }
-  });
-
-  // Площадь помещения на осмотре не вносится: «Площади и высоты по осмотру
-  // не нужны» (15.10.2026).
 
   // Переход к разделу из строки разделов: свёрнутый раскрывается, экран
   // прокручивается так, чтобы заголовок раздела встал под строку разделов.

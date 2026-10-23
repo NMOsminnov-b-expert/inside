@@ -637,7 +637,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 // нет вовсе. Добавили поле в описание — оно появится и здесь, и в карточке,
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
-  rec, typeId, oi, values, premises, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
+  rec, typeId, oi, values, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
   shots = [], shotsOpen = false, cam = {}, voices = [], recording = null, viewer = '',
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
@@ -665,7 +665,7 @@ export function assetHTML({
     progress: ALL_FIELDS.length ? filled / ALL_FIELDS.length : 0,
     saved: savedText || '',
   })}
-    ${SECTIONS.length ? sectionNavHTML(SECTIONS, values, HAS_PREMISES.includes(oi.card || 'building') ? premises.length : null, left) : ''}
+    ${SECTIONS.length ? sectionNavHTML(SECTIONS, values, left) : ''}
     ${viewer}
 
     <div class="ins-body">
@@ -685,7 +685,6 @@ export function assetHTML({
         ${voiceHTML(voices, recording, oi.id)}
       </section>
 
-      ${HAS_PREMISES.includes(oi.card || 'building') ? premisesHTML(premises) : ''}
 
       <section class="ins-blk">
         <a class="ins-btn ins-btn-wide" href="${esc(photoHref)}">${ico('photo')} Прикрепить фото или документ</a>
@@ -811,13 +810,11 @@ function accordionHTML(sec, values, oi, collapsed, ctx = {}) {
   </section>`;
 }
 
-// Помещения — у строений и квартир; у участка и механизмов их нет.
-export const HAS_PREMISES = ['building', 'apartment'];
 
 // Строка разделов под шапкой: переход касанием к разделу и где не хватает
 // обязательного (янтарное число). Листается вбок, если не влезает; при
 // прокрутке отмечается текущий раздел (inspector.js, onScroll).
-export function sectionNavHTML(sections, values, premisesN, left) {
+export function sectionNavHTML(sections, values, left) {
   const items = sections.map((s) => {
     const p = sectionProgress(s, values);
     return `<button type="button" class="ins-secnav-b" data-goto-sec="${esc(s.key)}">
@@ -827,28 +824,7 @@ export function sectionNavHTML(sections, values, premisesN, left) {
   }).join('');
   return `<nav class="ins-secnav" data-secnav aria-label="Разделы осмотра${left ? `, обязательных осталось ${left}` : ''}">
     ${items}
-    ${premisesN === null ? '' : `<button type="button" class="ins-secnav-b" data-goto-sec="premises">Помещения${premisesN ? ` <span class="ins-secnav-n">${premisesN}</span>` : ''}</button>`}
   </nav>`;
-}
-
-function premisesHTML(list) {
-  return `<section class="ins-blk" data-sec-box="premises">
-    <h2 class="ins-blk-h">Помещения${list.length ? ' · ' + list.length : ''}</h2>
-    ${list.length ? `<ul class="ins-pm">
-      ${list.map((pm) => `<li class="ins-pm-i">
-        <div class="ins-field">
-          <label>Наименование</label>
-          <input class="input ins-input" data-pm-name="${esc(pm.id)}" value="${esc(pm.name)}"
-            placeholder="Кабинет, коридор, санузел">
-        </div>
-        <button class="ins-icon-b" data-pm-drop="${esc(pm.id)}"
-          aria-label="Убрать помещение" title="Убрать помещение">${ico('trash', 18)}</button>
-      </li>`).join('')}
-    </ul>` : '<p class="ins-empty">Помещений пока нет.</p>'}
-    <button class="ins-btn ins-btn-wide" data-pm-add style="margin-top:10px">Добавить помещение</button>
-    <p class="ins-hint">Поэтажные планы и экспликации — в техпаспорте, раздел «Документы».
-      Планировку определяет оценщик, на осмотре её не заполняют.</p>
-  </section>`;
 }
 
 // --- экран 4: документы ---------------------------------------------------

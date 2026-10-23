@@ -809,20 +809,8 @@ body[data-page="insp"] .pick-menu { max-width: min(420px, 94vw); }
 body[data-page="insp"] .pick-opt { min-height: 44px; display: flex; align-items: center; font-size: 14px; }
 body[data-page="insp"] .pick-search { min-height: 44px; font-size: 15px; }
 
-/* --- помещения и выявленные объекты ------------------------------------- */
-.ins-pm, .ins-found { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-
-.ins-pm-i {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  background: var(--blue-50);
-}
-
-.ins-pm-i .ins-field { flex: 1 1 auto; margin: 0; min-width: 0; }
+/* --- выявленные объекты ------------------------------------------------- */
+.ins-found { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 
 /* Выявленное на осмотре — тот же пункт списка ОИ, отмечен меткой
    «выявлено»: осмотрщик видит, что это не учтённая литера, а черновик. */
