@@ -256,8 +256,20 @@ const stateSection = (typeId, card) => ({
 // карточке (fieldRules: showOiCategory).
 const kindByLabel = (label) => (LIT_KINDS.find((k) => k.label === label) || {}).key || '';
 const kindLabelOf = (key) => (LIT_KINDS.find((k) => k.key === key) || {}).label || '';
+// У производственно-складского на осмотре — только назначение по факту,
+// кран-балка и полы; конструкция и инженерное оснащение пока спрятаны (решение
+// пользователя 23.10.2026: «Для производственно складской в типе и классе
+// капитальности оставляем назначение по факту, кран балку, полы. Остальное пока
+// прячем»). У гражданского спрятан уровень отделки (23.10.2026: «В типе и классе
+// капитальности в осмотрах гражданских прячем уровень отделки»). Спрятаны, а не
+// удалены: вернуть — убрать ключ из списка.
+const CAP_HIDDEN = { prod: ['frame', 'eng'], civil: ['finish'] };
 const capClassSection = (oi) => {
   const kindNow = (values) => kindByLabel(values.litKind) || (oi && oi.litKind) || '';
+  // «Тип объекта имущества» тоже прячется, если строение производственно-складское
+  // по карточке и тип на осмотре не меняли. Если осмотрщик сам выбрал тип, поле
+  // остаётся — иначе после выбора его нельзя было бы исправить.
+  const kindFieldVisible = (values) => !(oi && oi.litKind === 'prod' && !values.litKind);
   const own = (kind) => (oi && oi.litKind === kind);
   const signDoc = (kind, key) => Object.assign((o) => {
     if (!o || o.litKind !== kind) return '';
@@ -269,13 +281,13 @@ const capClassSection = (oi) => {
     title: 'Тип и класс капитальности',
     short: 'Класс',
     fields: [
-      { key: 'litKind', label: 'Тип объекта имущества', opts: LIT_KINDS.map((k) => k.label), doc: Object.assign((o) => kindLabelOf(o && o.litKind), { path: 'litKind' }) },
+      { key: 'litKind', label: 'Тип объекта имущества', opts: LIT_KINDS.map((k) => k.label), visible: kindFieldVisible, doc: Object.assign((o) => kindLabelOf(o && o.litKind), { path: 'litKind' }) },
       ...LIT_KINDS.map((k) => ({
         key: 'purposeFact_' + k.key, label: 'Назначение по факту', opts: LIT_PURPOSES[k.key] || [],
         visible: (values) => kindNow(values) === k.key,
         doc: Object.assign((o) => (own(k.key) ? o.purposeFact || '' : ''), { path: 'purposeFact' }),
       })),
-      ...Object.entries(LIT_SIGNS).flatMap(([kind, signs]) => signs.filter((g) => !g.height).map((g) => ({
+      ...Object.entries(LIT_SIGNS).flatMap(([kind, signs]) => signs.filter((g) => !g.height && !(CAP_HIDDEN[kind] || []).includes(g.key)).map((g) => ({
         key: `cap_${kind}_${g.key}`, label: g.label, multi: !!g.multi, opts: g.options.map((o) => o[0]),
         visible: (values) => kindNow(values) === kind,
         doc: signDoc(kind, g.key),
