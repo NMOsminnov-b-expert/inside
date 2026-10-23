@@ -548,6 +548,9 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   используется (`claude-project-branch-refactor`).
 * **Карточки ОЦ пока не трогать** — новое только в осмотрах и общих картах;
   правка ядра, задевающая карточку, — сначала спросить (`kartochki-oc-poka-ne-trogat`).
+* **После перерыва — проверить, что всё поднято**: semsearch (`svc.py status`),
+  CodeGraph, базы и серверы задачи; упавшее поднять, в ответе сказать
+  (`posle-pereryva-proverit-chto-vse-instrumenty-podnyaty`).
 * **ТЗ — только в графе**: запись `tasks` «ТЗ: …» с постановкой, пунктами,
   вопросами и ответами; текстовое ТЗ (docx, `docs/tz`) не пишется — рудимент
   (`tz-tolko-v-grafe`).
