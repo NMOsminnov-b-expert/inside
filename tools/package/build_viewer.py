@@ -8,7 +8,7 @@
 макет»; в сборке — засев и карточки сотрудников, правки зрителя сохраняются у
 него.
 
-    python tools/package/build_viewer.py                 # в C:/vs code/inside-dist
+    python tools/package/build_viewer.py                 # в C:/vs code/inside-dist (zip и exe)
     python tools/package/build_viewer.py --out D:/показ
 
 Что внутри exe (окно запуска — tools/package/launcher/Launcher.cs):
@@ -28,6 +28,7 @@ import argparse
 import datetime
 import io
 import os
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -118,7 +119,10 @@ def main():
         z.write(exe, NAME + '.exe')
     print('готово: %s (%.1f МБ)' % (out, os.path.getsize(out) / 2 ** 20))
     print('  %s; файлов макета %d; карточки: %s' % (build, n, ', '.join(cards) or 'нет'))
-    print('  exe отдельно: %s' % exe)
+    # exe и рядом с архивом: его можно передать и без распаковки.
+    plain = os.path.join(args.out, NAME + '.exe')
+    shutil.copyfile(exe, plain)
+    print('  exe отдельно: %s' % plain)
 
 
 if __name__ == '__main__':
