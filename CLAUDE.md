@@ -167,6 +167,13 @@ MCP (`.claude/knowledge-graph/`) снят, всё его содержимое п
    nomic; прежний индекс сохранён как проект `inside-nomic`). Запросу
    сервер сам добавляет инструкцию модели (`EMBED_QUERY_PREFIX` в `.env`).
 
+   Выдачу переставляет **реранкер** Qwen3-Reranker-0.6B (решение
+   пользователя 23.10.2026 «Просто добавь»; на 61 вопросе по записям графа
+   первым 37% → 61%): llama-server на 127.0.0.1:8091, поднимает и гасит
+   `svc.py` вместе с Ollama. На ЦП — около 18 с на поиск; быстрый поиск без
+   него — `search_code(..., rerank=false)`. Запись
+   `reranker-dlya-poiska-po-grafu-znaniy`.
+
    semsearch работает только на этом компьютере: PostgreSQL и Ollama —
    в `%LOCALAPPDATA%\semsearch`, на localhost, и живут, только пока нужны:
    поднимает их `svc.py` там же — при старте сервера semsearch в Claude
