@@ -121,8 +121,11 @@ def main():
     print('  %s; файлов макета %d; карточки: %s' % (build, n, ', '.join(cards) or 'нет'))
     # exe и рядом с архивом: его можно передать и без распаковки.
     plain = os.path.join(args.out, NAME + '.exe')
-    shutil.copyfile(exe, plain)
-    print('  exe отдельно: %s' % plain)
+    try:
+        shutil.copyfile(exe, plain)
+        print('  exe отдельно: %s' % plain)
+    except PermissionError:
+        print('  exe не заменён: %s открыт (окно запуска не закрыто); новый — %s' % (plain, exe))
 
 
 if __name__ == '__main__':

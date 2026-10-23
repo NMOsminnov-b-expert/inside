@@ -34,6 +34,19 @@ LOCAL = os.path.join(ROOT, 'data', 'local')
 CONFIG = os.path.join(ROOT, '.inside-local.json')
 MAX_BODY = 32 * 1024 * 1024
 
+# Карта портала Кадастра через тот же адрес, что и макет: /cadastre/<путь> →
+# cadastre.kg/svc-portal/map/<путь> — так же, как прокси Live Server
+# (.vscode/settings.json), и макет пробует этот путь, если своего прокси на
+# 8787 нет (kernel/cadastre.js, kernel/cadastreGeo.js). Нужен сборке для
+# показа (tools/package): там макет может встать на любой свободный порт
+# (пользователь 23.10.2026: «порт занят — переходим на другой»), а адрес
+# прокси 8787 в макете зашит. Запрос к порталу — код прокси (tools/cadastre/proxy.py).
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'cadastre'))
+try:
+    import proxy as cadastre_proxy
+except ImportError:  # копия без прокси — путь /cadastre/ отвечает 404
+    cadastre_proxy = None
+
 TRANSLIT = dict(zip('абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
                     ['a', 'b', 'v', 'g', 'd', 'e', 'e', 'zh', 'z', 'i', 'y', 'k', 'l', 'm', 'n', 'o', 'p', 'r',
                      's', 't', 'u', 'f', 'h', 'ts', 'ch', 'sh', 'sch', '', 'y', '', 'e', 'yu', 'ya']))
@@ -106,7 +119,23 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def cadastre(self, body=None):
+        rest = self.path[len('/cadastre/'):]
+        if not cadastre_proxy or not rest or '..' in rest or rest.startswith(('http:', 'https:', '/')):
+            return self.reply(404, {'error': 'нет такого адреса'})
+        code, ctype, data = cadastre_proxy.portal(rest, body, self.headers.get('Content-Type'))
+        try:
+            self.send_response(code)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Length', str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass  # браузер не дождался ответа
+
     def do_GET(self):
+        if self.path.startswith('/cadastre/'):
+            return self.cadastre()
         if self.path.split('?')[0] != '/__persist':
             return super().do_GET()
         out = {}
@@ -118,6 +147,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.reply(200, {'me': self.me, 'files': out})
 
     def do_POST(self):
+        if self.path.startswith('/cadastre/'):
+            n = int(self.headers.get('Content-Length') or 0)
+            return self.cadastre(self.rfile.read(n) if n else b'')
         if self.path.split('?')[0] != '/__persist':
             return self.reply(404, {'error': 'нет такого адреса'})
         size = int(self.headers.get('Content-Length') or 0)
