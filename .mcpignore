@@ -21,3 +21,7 @@ app/modules/vehicle/data/tsModels.js
 # Сохранения браузера пользователя (tools/serve.py → data/local/): меняются при
 # каждом сохранении в макете, искать в них по смыслу нечего.
 data/local/
+
+# Записанные ответы портала Кадастра для автопроверок (tools/checks/cadastre_fixture.py):
+# сырые ответы, около 1 МБ; описание образцов — в самом модуле.
+tools/checks/fixtures/

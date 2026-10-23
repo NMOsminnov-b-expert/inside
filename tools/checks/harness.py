@@ -51,6 +51,8 @@ import subprocess
 import sys
 import time
 
+import cadastre_fixture
+
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -346,9 +348,10 @@ def run_one(mod, part=None, headless=True, browser_=None):
         # известным контуром, карта звала слои Кадастра — «отчёты за день»
         # падали на отказе соединения и 404. Сценарий, которому нужен другой
         # ответ, ставит свой page.route: поставленный позже проверяется первым.
-        empty_fc = '{"type":"FeatureCollection","features":[]}'
-        net.route('http://127.0.0.1:8787/**', lambda r: r.fulfill(status=200, content_type='application/json', body=empty_fc))
-        net.route('**/cadastre/**', lambda r: r.fulfill(status=200, content_type='application/json', body=empty_fc))
+        # Ответы Кадастра — записанные с портала (cadastre_fixture.py): карта
+        # рисует настоящие рамки и соседние участки, без сети (пользователь
+        # 23.10.2026: «рамки участков и запросы в кадастр нужны если что»).
+        cadastre_fixture.install(net)
         net.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG_1PX))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
