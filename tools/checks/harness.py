@@ -319,16 +319,37 @@ def browser(headless=True):
             br.close()
 
 
+# Клетка подложки карты в проверках — PNG 1×1: карте важен сам ответ.
+PNG_1PX = __import__('base64').b64decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
+
+
 def run_one(mod, part=None, headless=True, browser_=None):
     """Прогнать файл проверок (или одну его часть). Возвращает отчёт словарём."""
     started = time.time()
 
     def go(br):
         page = br.new_page(viewport={'width': 1600, 'height': 1000})
+        # Подмены — на весь контекст (page.context.route), не на страницу: при
+        # перехвате на странице окно просмотра документа (window.open +
+        # document.write, kernel/viewer/popout.js) не загружало ни одного файла
+        # стилей — «просмотрщик: площадь» падал (поймано 23.10.2026; у людей окно
+        # работает, без перехвата — тоже).
+        net = page.context
         # Геокодер адресов «Перейти» (Photon, 15.10.2026) — пустым ответом:
         # проверки не зависят от сети и не нагружают общедоступный сервер.
-        page.route('https://photon.komoot.io/**', lambda r: r.fulfill(
+        net.route('https://photon.komoot.io/**', lambda r: r.fulfill(
             status=200, content_type='application/json', body='{"type":"FeatureCollection","features":[]}'))
+        # Кадастр (свой прокси 8787 и путь /cadastre/ того же адреса) и подложка
+        # OSM — тоже без сети, для КАЖДОГО сценария (23.10.2026): задачи осмотров
+        # в демо раздаются по дате, и в день, когда первой оказывалась задача с
+        # известным контуром, карта звала слои Кадастра — «отчёты за день»
+        # падали на отказе соединения и 404. Сценарий, которому нужен другой
+        # ответ, ставит свой page.route: поставленный позже проверяется первым.
+        empty_fc = '{"type":"FeatureCollection","features":[]}'
+        net.route('http://127.0.0.1:8787/**', lambda r: r.fulfill(status=200, content_type='application/json', body=empty_fc))
+        net.route('**/cadastre/**', lambda r: r.fulfill(status=200, content_type='application/json', body=empty_fc))
+        net.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG_1PX))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
         # прогона доставались бы следующему, и порядок запуска начал бы влиять

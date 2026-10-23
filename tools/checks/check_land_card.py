@@ -271,10 +271,18 @@ def run(t):
     # --- 7. заметка для разработчиков ---
     notes = pg.locator('.dev-note')
     t.ck(notes.count() >= 2, 'заметок «i» меньше двух: %d' % notes.count())
-    notes.first.scroll_into_view_if_needed()
-    notes.first.hover()
-    t.wait(400)
-    t.ck(pg.locator('.dev-note-pop').first.is_visible(), 'заметка «i» не раскрывается')
+    # Карточка перерисовывается после ввода координат (шаг 6): наведение могло
+    # попасть на прежний узел, а новый не получает :hover, пока мышь не сдвинется
+    # (поймано 23.10.2026). Как человек — увести курсор и навести снова.
+    shown = False
+    for _ in range(3):
+        pg.mouse.move(0, 0)
+        notes.first.scroll_into_view_if_needed()
+        notes.first.hover()
+        shown = t.wait_until("() => { const p = document.querySelector('.dev-note-pop'); return !!p && p.getBoundingClientRect().width > 0; }")
+        if shown:
+            break
+    t.ck(shown, 'заметка «i» не раскрывается')
 
     # Заметка не должна уезжать за границы окна: раньше у полей правой колонки
     # текст раскрывался вправо и половина оказывалась за краем экрана

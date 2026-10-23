@@ -301,7 +301,19 @@ function canon(value) {
   });
   return Object.keys(out).length ? out : undefined;
 }
-const textOf = (it) => JSON.stringify(canon(stripBlobs(it)) || {});
+// Производные поля записи в сравнение «правили ли» не входят: их пересобирает
+// сам макет. rec.address собирается из частей адреса при каждом открытии записи
+// (loadRecord → syncOcAddress, kernel/address.js), и экраны, открывающие записи
+// массово (осмотры, маршруты), делали «правленой» каждую — в файл сотрудника
+// уходили все записи типа (проверка «общие карточки сотрудников», 23.10.2026).
+const DERIVED = ['address'];
+const withoutDerived = (it) => {
+  if (!it || typeof it !== 'object' || Array.isArray(it)) return it;
+  const out = { ...it };
+  DERIVED.forEach((k) => { delete out[k]; });
+  return out;
+};
+const textOf = (it) => JSON.stringify(canon(withoutDerived(stripBlobs(it))) || {});
 
 const rowsOf = (list) => new Map(list.filter((it) => it && it.id != null).map((it) => [String(it.id), textOf(it)]));
 

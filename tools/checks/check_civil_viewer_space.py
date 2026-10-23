@@ -194,6 +194,11 @@ def run(t):
     # --- отдельное окно -------------------------------------------------------------------
     pg.click('[data-vmode="doc"]')
     t.wait_for('.vstage canvas')
+    # Перехват запросов Playwright (подмены Кадастра, геокодера и подложки в
+    # harness) не даёт окну, написанному через document.write, загрузить стили:
+    # окно оставалось без вёрстки, лист не листался (поймано 23.10.2026; у людей
+    # и без перехвата окно работает). Здесь подмены не нужны — снимаются.
+    pg.context.unroute_all(behavior='ignoreErrors')
     with pg.context.expect_page() as info:
         pg.click('[data-vpopout]')
     pop = info.value
