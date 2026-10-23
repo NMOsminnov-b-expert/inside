@@ -44,10 +44,13 @@ import base64
 import os
 import tempfile
 
+import re
+
 NAME = 'экраны осмотрщика'
 
 # Файлы, после правки которых сценарий обязателен (отбор в run.py --changed).
 TOUCHES = (
+    'app/modules/civil/data/seed.js',
     'app/pages/inspector/*', 'app/kernel/fieldSchema.js',
     'app/kernel/fileUpload.js', 'app/kernel/tokens.css',
 )
@@ -430,6 +433,105 @@ def run(t):
     t.ck(pg.locator('[data-modal-ok]').count() == 0, 'очистка участка задаёт вопрос')
     t.ck(val('oi-cv1-a') == 'Подведены' and val('oi-cv1-b') == '',
          'очистка участка: своё должно остаться, копия — сняться: %s, %s' % (val('oi-cv1-a'), val('oi-cv1-b')))
+
+    # Переход по якорю страницу не перезагружает — до перехода всё на странице
+    # помечается, ждём узел, нарисованный заново (иначе ожидание засчитывал
+    # прежний экран).
+    def go(route, wait):
+        # Тот же адрес — экран не перерисуется, переходить незачем.
+        if pg.evaluate('() => location.hash') == route:
+            return
+        pg.evaluate("() => document.querySelectorAll('*').forEach((e) => e.setAttribute('data-stale', ''))")
+        t.open(route, wait=wait + ':not([data-stale])')
+
+    # Два участка (демо oc-cv-nets2): перенос — только в ОИ своего участка;
+    # незакреплённая литера и выявленный без участка — от первого участка;
+    # выявленный на участке 2 — от второго. Квартира — как литера.
+    N2 = '#/insp/civil/oc-cv-nets2/object/'
+    v2 = lambda oi, key='electricity': pg.evaluate("""async ([oi, key]) => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets2', oi)[key] || ''""", [oi, key])
+    go(N2 + 'oi-cvn2-l1', wait='[data-sec-box="nets"]')
+    found = pg.evaluate("""async () => { const T = await import('./app/pages/inspector/tasks.js');
+        const a = T.addFoundOi('civil', 'oc-cv-nets2', { cat: 'other', name: 'Сарай без участка' });
+        const b = T.addFoundOi('civil', 'oc-cv-nets2', { cat: 'other', name: 'Сарай на участке 2', landId: 'oi-cvn2-l2' });
+        T.saveResults(); return [a.id, b.id]; }""")
+    pg.reload()  # выявленные добавлены в обход экрана — перечитать
+    t.wait_for('[data-sec-box="nets"]')
+    pick('Подведены')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets2', 'oi-cvn2-k').electricity === 'Подведены'""")
+    got = {oi: v2(oi) for oi in ('oi-cvn2-a', 'oi-cvn2-k', 'oi-cvn2-c', 'oi-cvn2-b', found[0], found[1])}
+    t.ck(got == {'oi-cvn2-a': 'Подведены', 'oi-cvn2-k': 'Подведены', 'oi-cvn2-c': 'Подведены', 'oi-cvn2-b': '',
+                 found[0]: 'Подведены', found[1]: ''},
+         'участок 1: перенос не в те объекты: %s' % got)
+    go(N2 + 'oi-cvn2-l2', wait='[data-sec-box="nets"]')
+    pick('На удалении')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets2', 'oi-cvn2-b').electricity === 'На удалении'""")
+    got = {oi: v2(oi) for oi in ('oi-cvn2-a', 'oi-cvn2-k', 'oi-cvn2-c', 'oi-cvn2-b', found[0], found[1])}
+    t.ck(got == {'oi-cvn2-a': 'Подведены', 'oi-cvn2-k': 'Подведены', 'oi-cvn2-c': 'Подведены', 'oi-cvn2-b': 'На удалении',
+                 found[0]: 'Подведены', found[1]: 'На удалении'},
+         'участок 2: перенос не в те объекты: %s' % got)
+    # Квартира: копия правится в самом ОИ и участок не трогает.
+    go(N2 + 'oi-cvn2-k', wait='[data-sec-box="nets"]')
+    pg.evaluate("""async () => { const T = await import('./app/pages/inspector/tasks.js');
+        T.assetValues('civil', 'oc-cv-nets2', 'oi-cvn2-k').electricity = 'Отсутствуют в районе'; T.saveResults(); }""")
+    t.ck(v2('oi-cvn2-l1') == 'Подведены', 'правка квартиры задела участок')
+    # Подсказка «в карточке» — значение карточки по своему участку или по
+    # умолчанию для вида: у производственной на участке 2 — «Подведены».
+    go(N2 + 'oi-cvn2-b', wait='[data-sec-box="nets"]')
+    if 'on' not in (pg.locator('[data-sec-box="nets"]').get_attribute('class') or '').split():
+        pg.locator('[data-sec-box="nets"] button').first.click()
+    t.wait_until("() => /в карточке/.test(document.querySelector('[data-sec-box=nets]').innerText)")
+    hint = pg.inner_text('[data-sec-box="nets"]')
+    t.ck(re.search(r'в карточке:? Подведены', hint), 'у литеры участка 2 нет значения из карточки: %s' % hint[:200])
+
+    # Без участка (демо oc-cv-nets0): сети у ОИ открыты, переноса нет, на экране
+    # «Объект» — «для всех объектов»: ставит всем; своё у части — вопрос;
+    # «Отмена» оставляет своё, «Заменить у всех» — заменяет.
+    N0 = '#/insp/civil/oc-cv-nets0/object'
+    v0 = lambda oi: pg.evaluate("""async (oi) => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets0', oi).electricity || ''""", oi)
+    go(N0 + '/oi-cvn0-a', wait='[data-sec-box="nets"]')
+    t.ck('on' in (pg.locator('[data-sec-box="nets"]').get_attribute('class') or '').split(),
+         'у литеры без участка сети свёрнуты')
+    go(N0, wait='[data-common-net="electricity"]')
+    common = lambda v: pg.evaluate("""(v) => { const el = document.querySelector('[data-common-net="electricity"]');
+        el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }""", v)
+    common('Подведены')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets0', 'oi-cvn0-k').electricity === 'Подведены'""")
+    t.ck([v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')] == ['Подведены'] * 3,
+         '«для всех объектов» поставило не всем: %s' % [v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')])
+    pg.evaluate("""async () => { const T = await import('./app/pages/inspector/tasks.js');
+        T.assetValues('civil', 'oc-cv-nets0', 'oi-cvn0-b').electricity = 'Отсутствуют в районе'; T.saveResults(); }""")
+    go(N0, wait='[data-common-net="electricity"]')
+    common('На удалении')
+    t.wait_for('[data-modal-cancel]')
+    pg.locator('[data-modal-cancel]').click()
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets0', 'oi-cvn0-a').electricity === 'На удалении'""")
+    t.ck([v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')] == ['На удалении', 'Отсутствуют в районе', 'На удалении'],
+         '«для всех»: «Отмена» не оставила своё: %s' % [v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')])
+    go(N0, wait='[data-common-net="electricity"]')
+    common('Проходят рядом')
+    t.wait_for('[data-modal-ok]')
+    pg.locator('[data-modal-ok]').click()
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets0', 'oi-cvn0-b').electricity === 'Проходят рядом'""")
+    t.ck([v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')] == ['Проходят рядом'] * 3,
+         '«для всех»: «Заменить у всех» не заменило: %s' % [v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')])
+    # После перезагрузки экран помнит, что ставил «для всех»: без вопроса.
+    pg.reload()
+    t.wait_for('[data-common-net="electricity"]')
+    common('На удалении')
+    t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
+        .assetValues('civil', 'oc-cv-nets0', 'oi-cvn0-b').electricity === 'На удалении'""")
+    t.ck(pg.locator('[data-modal-ok]').count() == 0, '«для всех» после перезагрузки сочло поставленное своим')
+    # «Не выбрано» в общем поле значения объектов не стирает.
+    common('')
+    t.ck([v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')] == ['На удалении'] * 3,
+         '«для всех»: «Не выбрано» стёрло значения: %s' % [v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')])
     t.open(ASSET, wait='.ins-fs')
 
     # Съёмка прямо из формы осмотра (15.10.2026: «Буквально кнопка»;

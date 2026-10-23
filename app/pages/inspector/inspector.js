@@ -1341,7 +1341,13 @@ export function mountInspector(host) {
     if (!value) return;
     const r = rec();
     const targets = netTargets(r, route.typeId, route.ocId);
-    const own = targets.filter((o) => { const v = assetValues(route.typeId, route.ocId, o.id)[key]; return v && v !== value; });
+    // Своё — то, что отличается и от нового значения, и от поставленного прежде
+    // «для всех» (его объект получил отсюда, а не сам): иначе после первого же
+    // заполнения все объекты считались бы «со своим» (найдено проверкой 23.10.2026).
+    const st = taskState(route.typeId, route.ocId);
+    const common = st.netsCommon = st.netsCommon || {};
+    const was = common[key] || '';
+    const own = targets.filter((o) => { const v = assetValues(route.typeId, route.ocId, o.id)[key]; return v && v !== value && v !== was; });
     let skip = new Set();
     // Своё значение у части объектов — спрашиваем («Спрашиваем пользователя»).
     if (own.length) {
@@ -1353,6 +1359,7 @@ export function mountInspector(host) {
       if (!ok) skip = new Set(own.map((o) => o.id));
     }
     targets.forEach((o) => { if (!skip.has(o.id)) assetValues(route.typeId, route.ocId, o.id)[key] = value; });
+    common[key] = value;
     saveResults();
     host.toast(`Поставлено: ${targets.length - skip.size} из ${targets.length}`, 'ok');
     renderKeep();

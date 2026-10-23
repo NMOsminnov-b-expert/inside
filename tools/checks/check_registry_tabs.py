@@ -52,7 +52,8 @@ def run(t):
     t.open('', wait='.reg-tr')
     t.set_bulk(0)
     tabs = pg.eval_on_selector_all('.reg-tab', "els => els.map((e) => e.innerText.replace(/\\s+/g, ' ').trim())")
-    t.ck(tabs == ['Недвижимое 16', 'Движимое 2'], 'вкладки не те: %s' % tabs)
+    # 18: + две демо-записи «Сети: …» (23.10.2026).
+    t.ck(tabs == ['Недвижимое 18', 'Движимое 2'], 'вкладки не те: %s' % tabs)
     estate_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' in estate_heads and 'ОБЪЕКТ' in estate_heads, 'у недвижимого нет ЕНИ и объекта: %s' % estate_heads)
     t.ck(pg.locator('.reg-tr .reg-obj-s').count() > 0, 'у объекта нет второй строки (тип · учреждение)')
@@ -140,7 +141,7 @@ def run(t):
     t.set_role('any')
     t.set_bulk(20000)
     est = pg.locator('[data-tab="estate"] span').inner_text().replace('\xa0', '').replace(' ', '')
-    t.ck(est == '20016', 'демо-объём 20 000 дал не 20 016 недвижимых: %s' % est)
+    t.ck(est == '20018', 'демо-объём 20 000 дал не 20 018 недвижимых: %s' % est)
     t.set_bulk(0)
 
     # --- узкие ширины -------------------------------------------------------------------------
