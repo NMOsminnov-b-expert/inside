@@ -71,6 +71,10 @@ INSPECT = r"""async (pairs) => {
     const t = R.getType(typeId);
     const rec = t ? T.loadTask(typeId, ocId) : null;
     if (!rec) continue;
+    // Сети ОИ «в карточке» берут значение участка из записи ОЦ — экран
+    // осмотрщика ставит её сам (setNetsRec); без неё сверка видела только
+    // значения по умолчанию и считала расхождением то, чего на экране нет.
+    F.setNetsRec(rec);
     for (const oi of rec.oi || []) {
       const secs = F.sections(typeId, oi);
       out.push({
