@@ -329,7 +329,9 @@ async function onRoute(route) {
   const mod = await type.load();
   if (stale()) return;
 
-  const scope = createScope(contentRoot());
+  // Карточки перерисовываются почти на каждый щелчок — сверкой дерева, а не
+  // заменой (kernel/morph.js): фокус, каретка и прокрутка блоков сохраняются.
+  const scope = createScope(contentRoot(), { morph: true });
   const host = makeHost(route, scope, route.typeId);
 
   document.body.dataset.module = route.typeId;

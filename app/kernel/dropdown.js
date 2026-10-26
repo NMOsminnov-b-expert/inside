@@ -278,8 +278,13 @@ function openMenu(btn, select) {
 
 // --- прокачка --------------------------------------------------------------
 
+// Исходный класс селекта: upgrade заменяет его на pick-native, а разворот
+// перед сверкой дерева (unwrapSelects) должен вернуть селект к разметке шаблона.
+const nativeClass = new WeakMap();
+
 function upgrade(select) {
   select.dataset[DONE] = '1';
+  nativeClass.set(select, select.className);
 
   const wrap = document.createElement('span');
   wrap.className = 'pick';
@@ -320,6 +325,20 @@ export function enhanceSelects(root) {
   closeMenu();
   root.querySelectorAll('select.select').forEach((s) => {
     if (!s.dataset[DONE]) upgrade(s);
+  });
+}
+
+// Перед сверкой дерева (kernel/morph.js): свой список — обратно в селект, как
+// в шаблоне. Иначе сверка видела бы на месте <select class="select"> обёртку
+// с кнопкой и пересобирала бы её; после сверки enhanceSelects ставит кнопку
+// заново, а сам селект с его значением остаётся тем же узлом.
+export function unwrapSelects(root) {
+  closeMenu();
+  root.querySelectorAll('span.pick > select.pick-native').forEach((select) => {
+    const wrap = select.parentNode;
+    select.className = nativeClass.has(select) ? nativeClass.get(select) : 'select';
+    delete select.dataset[DONE];
+    wrap.replaceWith(select);
   });
 }
 
