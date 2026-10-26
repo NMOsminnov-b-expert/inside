@@ -272,6 +272,13 @@ def run(t):
     notes = pg.locator('.dev-note')
     t.ck(notes.count() >= 2, 'заметок «i» меньше двух: %d' % notes.count())
     notes.first.scroll_into_view_if_needed()
+    # Заметка у верхнего края под липкой шапкой: Playwright перед наведением
+    # сам прокручивает карточку к началу, шапка раскрывается (kernel/
+    # stickyHead.js), и содержимое съезжает — курсор оказывался мимо заметки,
+    # и она «не раскрывалась» (полный прогон 26.10.2026). Второе наведение —
+    # уже на успокоившуюся раскладку.
+    notes.first.hover()
+    t.wait(400)
     notes.first.hover()
     t.wait(400)
     t.ck(pg.locator('.dev-note-pop').first.is_visible(), 'заметка «i» не раскрывается')
