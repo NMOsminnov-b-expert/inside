@@ -332,11 +332,27 @@ def run_one(mod, part=None, headless=True, browser_=None):
         # просмотрщика (window.open) не доходили до его документа, и сценарий
         # «просмотрщик: площадь» падал с 15.10.2026 (найдено полным прогоном
         # 26.10.2026).
+        #
+        # Кадастр — так же пустыми ответами: свой прокси (127.0.0.1:8787) и путь
+        # /cadastre/ сервера макета. Иначе результат зависел от того, запущен
+        # ли прокси на машине и отвечает ли портал: после перезагрузки 26.10.2026
+        # «отчёты за день» падали на ERR_CONNECTION_REFUSED в консоли. Сценарий,
+        # которому нужен свой ответ Кадастра, ставит свой перехват (page.route) —
+        # он срабатывает для запросов, которые сюда не попали.
         page.add_init_script("""(() => {
           const real = window.fetch;
-          window.fetch = (u, o) => String((u && u.url) || u).startsWith('https://photon.komoot.io/')
-            ? Promise.resolve(new Response('{"type":"FeatureCollection","features":[]}', { headers: { 'Content-Type': 'application/json' } }))
-            : real.call(window, u, o);
+          const EMPTY = '{"type":"FeatureCollection","features":[]}';
+          const stub = (url) => {
+            if (url.startsWith('https://photon.komoot.io/')) return EMPTY;
+            if (url.startsWith('http://127.0.0.1:8787/eni')) return '{"error":"не найдено"}';
+            if (url.startsWith('http://127.0.0.1:8787/portal/') || /^(\\/|https?:\\/\\/(127\\.0\\.0\\.1|localhost)(:\\d+)?\\/)cadastre\\//.test(url)) return EMPTY;
+            return null;
+          };
+          window.fetch = (u, o) => {
+            const body = stub(String((u && u.url) || u));
+            return body === null ? real.call(window, u, o)
+              : Promise.resolve(new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+          };
         })()""")
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
