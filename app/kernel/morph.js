@@ -142,6 +142,20 @@ export function morphInto(root, html, prepare) {
   install();
   if (prepare) prepare(root);
   freshen(root);
+  // Переходы CSS — выключены на время сверки (.morphing, kernel/tokens.css):
+  // стили применяются сразу, как при замене целиком, и только потом переходы
+  // включаются снова (найдено полным прогоном 26.10.2026, «просмотрщик:
+  // площадь» — панель миниатюр плавно съёживалась после прикрепления файла).
+  root.classList.add('morphing');
+  try {
+    morphTree(root, html);
+    void root.offsetWidth;
+  } finally {
+    root.classList.remove('morphing');
+  }
+}
+
+function morphTree(root, html) {
   Idiomorph.morph(root, html, {
     morphStyle: 'innerHTML',
     callbacks: {

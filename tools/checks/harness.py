@@ -327,8 +327,17 @@ def run_one(mod, part=None, headless=True, browser_=None):
         page = br.new_page(viewport={'width': 1600, 'height': 1000})
         # Геокодер адресов «Перейти» (Photon, 15.10.2026) — пустым ответом:
         # проверки не зависят от сети и не нагружают общедоступный сервер.
-        page.route('https://photon.komoot.io/**', lambda r: r.fulfill(
-            status=200, content_type='application/json', body='{"type":"FeatureCollection","features":[]}'))
+        # Подменяется fetch в самой странице, а не перехватом Playwright
+        # (page.route): с включённым перехватом клавиши во втором окне
+        # просмотрщика (window.open) не доходили до его документа, и сценарий
+        # «просмотрщик: площадь» падал с 15.10.2026 (найдено полным прогоном
+        # 26.10.2026).
+        page.add_init_script("""(() => {
+          const real = window.fetch;
+          window.fetch = (u, o) => String((u && u.url) || u).startsWith('https://photon.komoot.io/')
+            ? Promise.resolve(new Response('{"type":"FeatureCollection","features":[]}', { headers: { 'Content-Type': 'application/json' } }))
+            : real.call(window, u, o);
+        })()""")
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
         # прогона доставались бы следующему, и порядок запуска начал бы влиять
