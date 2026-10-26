@@ -23,7 +23,9 @@ Live Server и работает только у того, кто её запус
 """
 import argparse
 import json
+import os
 import re
+import socket
 import ssl
 import sys
 import threading
@@ -262,6 +264,17 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class Server(ThreadingHTTPServer):
+    # Порт — только свой. В Windows SO_REUSEADDR (его ставит http.server) даёт
+    # второму процессу молча слушать тот же порт: 26.10.2026 на 8787 висели два
+    # прокси сразу, и запросы расходились между ними как придётся. Поэтому
+    # исключительное занятие порта: второй запуск получает «порт занят».
+    allow_reuse_address = os.name != 'nt'
+
+    def server_bind(self):
+        if os.name == 'nt':
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
     # Обрыв соединения браузером — и пока прокси читает запрос, и пока пишет
     # ответ: одна строка в журнале, а не стек (WinError 10053/10054).
     def handle_error(self, request, client_address):
@@ -286,7 +299,11 @@ def main():
     # контур участка рядом, а однопоточный сервер отвечал по очереди (замер
     # 14.10.2026: четыре запроса — 0,56 / 1,12 / 1,77 / 2,31 с), и хвост
     # очереди не укладывался в таймаут браузера (15 с).
-    srv = Server((args.host, args.port), Handler)
+    try:
+        srv = Server((args.host, args.port), Handler)
+    except OSError as e:
+        print('Порт %d занят — прокси, вероятно, уже запущен (%s)' % (args.port, e))
+        sys.exit(1)
     srv.daemon_threads = True
     print('Прокси Кадастра: http://%s:%d/eni?code=<ЕНИ>' % (args.host, args.port))
     print('Остановить — Ctrl+C')
