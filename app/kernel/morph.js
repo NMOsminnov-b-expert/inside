@@ -110,6 +110,19 @@ function freshen(root) {
   }
 }
 
+// Холст рисует код (страницы PDF в просмотрщике, kernel/viewer/pdf.js): его
+// width, height, класс ready и стиль ставит отрисовка, а не шаблон, и сверка
+// сняла бы их — картинка стёрлась бы, а pdf.js по своему кэшу считал бы её
+// нарисованной (найдено полным прогоном 26.10.2026: «после перезагрузки
+// страниц PDF не две»). Источник картинки — data-атрибуты; пока они те же,
+// холст не трогаем. Сменился источник — сверка как обычно, отрисовка
+// перерисует по новому ключу.
+function sameCanvas(oldEl, newEl) {
+  if (oldEl.tagName !== 'CANVAS' || newEl.nodeType !== 1 || newEl.tagName !== 'CANVAS') return false;
+  const data = (el) => [...el.attributes].filter((a) => a.name.startsWith('data-')).map((a) => a.name + '=' + a.value).sort().join('|');
+  return data(oldEl) === data(newEl);
+}
+
 function syncAttributes(oldEl, newEl) {
   for (const a of [...oldEl.attributes]) if (!newEl.hasAttribute(a.name)) oldEl.removeAttribute(a.name);
   for (const a of newEl.attributes) if (oldEl.getAttribute(a.name) !== a.value) oldEl.setAttribute(a.name, a.value);
@@ -137,6 +150,7 @@ export function morphInto(root, html, prepare) {
           if (newNode.nodeType === 1) syncAttributes(oldNode, newNode);
           return false;
         }
+        if (oldNode.nodeType === 1 && sameCanvas(oldNode, newNode)) return false;
         return true;
       },
     },
