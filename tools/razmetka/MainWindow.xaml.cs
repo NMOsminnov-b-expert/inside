@@ -134,7 +134,7 @@ public partial class MainWindow : Window
         if (dlg.ShowDialog(this) != true) return;
         if (File.Exists(Path.Combine(dlg.FolderName, ProjectStore.FileName)))
         {
-            MessageBox.Show(this, "В этой папке уже есть проект — он будет открыт.", "Разметка");
+            Ui.Ask.Show(this, "В этой папке уже есть проект — он будет открыт.", "Разметка");
             OpenDir(dlg.FolderName);
             return;
         }
@@ -154,15 +154,15 @@ public partial class MainWindow : Window
         if (confirm && _store != null && !ConfirmDiscard()) return;
         if (!File.Exists(Path.Combine(dir, ProjectStore.FileName)))
         {
-            MessageBox.Show(this, "В папке нет файла razmetka.json — это не папка проекта.", "Разметка");
+            Ui.Ask.Show(this, "В папке нет файла razmetka.json — это не папка проекта.", "Разметка");
             return;
         }
         ProjectStore store;
         try { store = ProjectStore.Open(dir); }
-        catch (Exception ex) { MessageBox.Show(this, $"Проект не открылся: {ex.Message}", "Разметка"); return; }
+        catch (Exception ex) { Ui.Ask.Show(this, $"Проект не открылся: {ex.Message}", "Разметка"); return; }
         LoadStore(store);
         var draft = askDraft ? store.PendingDraft() : null;
-        if (draft != null && MessageBox.Show(this, "Есть несохранённые правки с прошлого раза. Восстановить их?",
+        if (draft != null && Ui.Ask.Show(this, "Есть несохранённые правки с прошлого раза. Восстановить их?",
                 "Разметка", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
         {
             store.Replace(draft);
@@ -224,7 +224,7 @@ public partial class MainWindow : Window
     bool ConfirmDiscard()
     {
         if (!_dirty || _store == null) return true;
-        var r = MessageBox.Show(this, "Сохранить изменения в проекте?", "Разметка", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        var r = Ui.Ask.Show(this, "Сохранить изменения в проекте?", "Разметка", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (r == MessageBoxResult.Cancel) return false;
         if (r == MessageBoxResult.Yes) Save();
         else _store.DeleteDraft();
@@ -331,7 +331,7 @@ public partial class MainWindow : Window
             foreach (var f in files)
             {
                 try { added.Add(LayerOps.AddImage(_sheet, _store, _store.ImportFile(f), Path.GetFileName(f)).Id); }
-                catch (Exception ex) { MessageBox.Show(this, $"Не удалось открыть «{Path.GetFileName(f)}»: {ex.Message}", "Разметка"); }
+                catch (Exception ex) { Ui.Ask.Show(this, $"Не удалось открыть «{Path.GetFileName(f)}»: {ex.Message}", "Разметка"); }
             }
         });
         View.Select(added);
@@ -369,7 +369,7 @@ public partial class MainWindow : Window
         int count;
         Cursor = Cursors.Wait;
         try { count = await Model.PdfPages.Count(path); }
-        catch (Exception ex) { MessageBox.Show(this, $"Не удалось открыть PDF: {ex.Message}", "Разметка"); return; }
+        catch (Exception ex) { Ui.Ask.Show(this, $"Не удалось открыть PDF: {ex.Message}", "Разметка"); return; }
         finally { Cursor = null; }
         string doc, chTitle;
         List<int> pages;
@@ -404,7 +404,7 @@ public partial class MainWindow : Window
             }).ToList());
         }
         catch (OperationCanceledException) { Status("Добавление PDF остановлено"); return; }
-        catch (Exception ex) { MessageBox.Show(this, $"Не удалось добавить PDF: {ex.Message}", "Разметка"); return; }
+        catch (Exception ex) { Ui.Ask.Show(this, $"Не удалось добавить PDF: {ex.Message}", "Разметка"); return; }
         finally
         {
             _pdfCts = null;
@@ -462,7 +462,7 @@ public partial class MainWindow : Window
             write(dlg.FileName);
             Status($"Экспорт готов: {dlg.FileName}");
         }
-        catch (Exception ex) { MessageBox.Show(this, $"Экспорт не удался: {ex.Message}", "Разметка"); }
+        catch (Exception ex) { Ui.Ask.Show(this, $"Экспорт не удался: {ex.Message}", "Разметка"); }
         finally { Cursor = null; }
     }
 
@@ -604,7 +604,7 @@ public partial class MainWindow : Window
     void DeleteSheet(Chapter ch, Sheet sh)
     {
         if (_store == null) return;
-        if ((sh.Layers.Count > 0 || sh.Links.Count > 0) && MessageBox.Show(this,
+        if ((sh.Layers.Count > 0 || sh.Links.Count > 0) && Ui.Ask.Show(this,
                 $"Удалить разворот «{sh.Title}»" + (sh.Links.Count > 0 ? $" вместе со связями ({sh.Links.Count})?" : "?"),
                 "Разметка", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         var i = ch.Sheets.IndexOf(sh);
@@ -616,7 +616,7 @@ public partial class MainWindow : Window
     void DeleteChapter(Chapter ch)
     {
         if (_store == null) return;
-        if (MessageBox.Show(this, $"Удалить главу «{ch.Title}» со всеми разворотами ({ch.Sheets.Count})?", "Разметка",
+        if (Ui.Ask.Show(this, $"Удалить главу «{ch.Title}» со всеми разворотами ({ch.Sheets.Count})?", "Разметка",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         Edit("Удаление главы", () => _store.Project.Chapters.Remove(ch));
         if (ch == _chapter) PickSheet(_store.Project.Chapters.FirstOrDefault(), _store.Project.Chapters.FirstOrDefault()?.Sheets.FirstOrDefault());

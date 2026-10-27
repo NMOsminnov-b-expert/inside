@@ -32,9 +32,12 @@ public sealed class AutoBox : Grid
         _pop.PlacementTarget = Box;
         _pop.Child = new Border
         {
-            Background = Kit.B("Card"), BorderBrush = Kit.B("Line"), BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8), Padding = new Thickness(2), Margin = new Thickness(0, 4, 8, 8), Child = _list,
         };
+        // Цвета — ссылкой на ресурс темы: поле может пережить смену темы.
+        ((Border)_pop.Child).SetResourceReference(Border.BackgroundProperty, "Card");
+        ((Border)_pop.Child).SetResourceReference(Border.BorderBrushProperty, "Line");
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         Children.Add(_pop);
         Box.TextChanged += (_, _) => { if (!_picking && Box.IsKeyboardFocused) Suggest(); };

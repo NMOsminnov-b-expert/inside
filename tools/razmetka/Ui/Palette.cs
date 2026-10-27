@@ -30,8 +30,15 @@ public sealed class Palette : Border
         VerticalAlignment = VerticalAlignment.Top;
         Margin = new Thickness(0, 72, 0, 0);
         Width = 620;
-        Background = Kit.B("Card");
-        BorderBrush = Kit.B("Line");
+        // Палитра создаётся один раз при запуске и живёт всё время работы:
+        // цвета — ссылкой на ресурс темы. Кисть, взятая один раз, оставалась
+        // светлой после переключения на тёмную тему — белый фон, светлый текст
+        // команд не виден (обход тёмной темы 27.10.2026).
+        SetResourceReference(BackgroundProperty, "Card");
+        SetResourceReference(BorderBrushProperty, "Line");
+        _placeholder.SetResourceReference(TextBlock.ForegroundProperty, "Faint");
+        _q.SetResourceReference(Control.ForegroundProperty, "Ink");
+        _q.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.CaretBrushProperty, "Ink");
         BorderThickness = new Thickness(1);
         CornerRadius = new CornerRadius(8);
 

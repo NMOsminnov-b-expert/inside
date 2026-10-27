@@ -71,7 +71,7 @@ public static class ScriptRunner
                         break;
                     }
                     case "open":
-                        w.OpenDir(st.GetProperty("dir").GetString()!, askDraft: false);
+                        w.OpenDir(st.GetProperty("dir").GetString()!, askDraft: false, confirm: false);  // правки прошлых шагов не спрашиваем: ответить некому
                         break;
                     case "sheet":
                     {
@@ -370,6 +370,38 @@ public static class ScriptRunner
                         await task;
                         log.Add(worst <= limit ? $"  ок: окно отвечало, наибольшая задержка {worst:0} мс"
                             : $"  НЕ ТАК: окно замирало на {worst:0} мс (допустимо {limit:0})");
+                        break;
+                    }
+                    // Окно-вопрос в цветах темы (Ui/Ask.cs): показать, снять, закрыть.
+                    case "askShot":
+                    {
+                        var shotPath = st.GetProperty("path").GetString()!;
+                        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                        timer.Tick += (_, _) =>
+                        {
+                            timer.Stop();
+                            var ask = System.Windows.Application.Current.Windows.OfType<Window>().LastOrDefault(x => x.Owner == w);
+                            if (ask == null) return;
+                            Shot(ask, shotPath);
+                            ask.Close();
+                        };
+                        timer.Start();
+                        Ui.Ask.Show(w, "Сохранить изменения в проекте?", "Разметка", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                        log.Add(File.Exists(shotPath) ? "  ок: окно-вопрос" : "  НЕ ТАК: окно-вопрос не снято");
+                        break;
+                    }
+                    // Снимок открытого окна по имени его типа (ChecksWindow, KeysEditor…)
+                    // и закрытие — для обхода экранов, например в тёмной теме.
+                    case "winShot":
+                    {
+                        await Idle();
+                        await Task.Delay(300);
+                        var type = st.GetProperty("type").GetString();
+                        var win = System.Windows.Application.Current.Windows.OfType<Window>().LastOrDefault(x => x.GetType().Name == type);
+                        if (win == null) { log.Add($"  НЕ ТАК: окно {type} не открылось"); break; }
+                        Shot(win, st.GetProperty("path").GetString()!);
+                        log.Add($"  ок: окно {type}");
+                        win.Close();
                         break;
                     }
                     case "export":

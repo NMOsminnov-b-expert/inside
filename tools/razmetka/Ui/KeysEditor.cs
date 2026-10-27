@@ -180,7 +180,7 @@ public sealed class KeysEditor : Window
     void ResetAll()
     {
         if (_settings.Keys.Count == 0) { Hint("Все клавиши и так исходные"); return; }
-        if (MessageBox.Show(this, $"Вернуть исходные клавиши у всех изменённых команд ({_settings.Keys.Count})?", "Клавиши",
+        if (Ask.Show(this, $"Вернуть исходные клавиши у всех изменённых команд ({_settings.Keys.Count})?", "Клавиши",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         _settings.Keys.Clear();
         Hint("Все клавиши — исходные");
