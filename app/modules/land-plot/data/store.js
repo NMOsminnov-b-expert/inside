@@ -1,11 +1,19 @@
 import { createSeed } from './seed.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
+import { syncOcAddress } from '../../../kernel/address.js';
 import { persistView, VIEWER_KEEP } from '../../../kernel/viewState.js';
 import { LETTER_SEQ } from './dictionaries.js';
 import { demoEniNear, refreshDemoPlaces } from '../../../kernel/demoPlaces.js';
 
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
+// Адрес записи — производное от её частей (kernel/address.js); loadOcRecord
+// пересобирает его при каждой загрузке. Собираем и здесь, до регистрации в
+// persist.js: иначе адрес появлялся у записей засева уже после снимка
+// baseline, и каждая загруженная запись считалась правкой и уходила в общий
+// файл сотрудника (полный прогон 26.10.2026, «общие карточки сотрудников»; с
+// 12.10.2026 панель осмотров загружает все записи).
 export const records = createSeed();
+records.forEach(syncOcAddress);
 
 // Засев в нетронутом виде — образец мест демо-записей для сохранённых копий
 // (kernel/demoPlaces.js, refreshDemoPlaces): records к восстановлению уже
@@ -27,6 +35,7 @@ registerPersisted('records.land-plot', {
     // перезагрузки (код-ревью 09.10.2026).
     if (!Array.isArray(saved)) return;
     refreshDemoPlaces(saved, seedOf());
+    saved.forEach(syncOcAddress);
     records.splice(0, records.length, ...saved);
   },
 });

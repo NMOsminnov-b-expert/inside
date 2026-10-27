@@ -26,6 +26,7 @@ import http.server
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
 
@@ -171,6 +172,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.reply(200, {'ok': True})
 
 
+class Server(http.server.ThreadingHTTPServer):
+    # Порт — только свой (как у прокси Кадастра, tools/cadastre/proxy.py): в
+    # Windows SO_REUSEADDR даёт второму процессу молча слушать занятый порт, и
+    # на 127.0.0.1:5500 рядом с Live Server (0.0.0.0:5500) отвечал то один, то
+    # другой. Исключительное занятие — второй запуск получает «порт занят».
+    allow_reuse_address = os.name != 'nt'
+
+    def server_bind(self):
+        if os.name == 'nt':
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--port', type=int, default=5500)
@@ -189,7 +203,11 @@ def main():
     # повторялись с задержкой (так же, как у сервера автопроверок,
     # tools/checks/serve.py).
     http.server.ThreadingHTTPServer.request_queue_size = 256
-    srv = http.server.ThreadingHTTPServer(('127.0.0.1', args.port), functools.partial(Handler, directory=ROOT))
+    try:
+        srv = Server(('127.0.0.1', args.port), functools.partial(Handler, directory=ROOT))
+    except OSError as e:
+        print('Порт %d занят — макет на нём уже отвечает (Live Server или другая копия): %s' % (args.port, e))
+        sys.exit(1)
     print('макет: http://127.0.0.1:%d/app.html' % args.port)
     print('карточки этой копии пишутся в %s (имя — .inside-local.json)'
           % os.path.relpath(os.path.join(LOCAL, Handler.me + '.json'), ROOT))

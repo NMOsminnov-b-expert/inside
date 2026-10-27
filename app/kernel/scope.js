@@ -1,10 +1,16 @@
-import { enhanceSelects } from './dropdown.js';
+import { enhanceSelects, unwrapSelects } from './dropdown.js';
 import { enhanceMsDrops } from './msDrop.js';
+import { morphInto } from './morph.js';
 
 // Скоуп DOM: всё, что делает экран, ищется ТОЛЬКО внутри своего корня.
 // Это то, что позволяет держать на странице несколько карточек одновременно
 // и не ловить чужие элементы через document.querySelector.
-export function createScope(rootEl) {
+//
+// opts.morph — перерисовка сверкой дерева, а не заменой (kernel/morph.js):
+// узлы, которые не изменились, остаются теми же, поле сохраняет фокус и
+// каретку, блоки — прокрутку. Включено у экранов модулей (карточки ОЦ и ОИ,
+// kernel/boot.js); остальные экраны пока рисуют заменой целиком.
+export function createScope(rootEl, opts = {}) {
   let root = rootEl;
   const off = [];
 
@@ -15,7 +21,8 @@ export function createScope(rootEl) {
     $$: (sel) => Array.from(root.querySelectorAll(sel)),
 
     setHTML(html) {
-      root.innerHTML = html;
+      if (opts.morph) morphInto(root, html, unwrapSelects);
+      else root.innerHTML = html;
       // Нативные списки заменяются своими сразу после отрисовки — одной точкой
       // на весь макет, поэтому разметку страниц менять не пришлось.
       enhanceSelects(root);

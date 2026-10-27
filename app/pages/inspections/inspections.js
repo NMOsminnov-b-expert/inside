@@ -30,7 +30,8 @@ import { mountGrid, cellText, parseCell } from '../../kernel/grid.js';
 import { pickFile } from '../../kernel/fileUpload.js';
 import { codeByName } from '../../kernel/institutions.js';
 import { build } from '../../kernel/router.js';
-import { ENI_REGIONS, plural } from '../../kernel/fmt.js';
+import { ENI_REGIONS, plural, fmtEni } from '../../kernel/fmt.js';
+import { eniCodesOf } from '../../kernel/eniField.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS,
   queueBase, tripGroups, addrGroups, addrRest, addrKey, dueOf, availability, onSiteContacts, assignedPickOf,
@@ -2026,6 +2027,22 @@ export function mountInspections(host) {
     current = cur;
     render();
   }
+  // Строка поиска «Перейти» для объекта: каждый его ЕНИ целиком — с тире и
+  // одними цифрами. У объекта с несколькими ЕНИ сводка хранит их свёрнутыми
+  // («1-03-07-0040-(1021, 1112, 1113)»), и полный набранный ЕНИ в ней не
+  // встречался: назначенный участок не находился (матрица путей, путь
+  // jump-eni-back, 26.10.2026). Собирается раз на сводку — поиск идёт на
+  // каждое нажатие по всем объектам.
+  const hayCache = new WeakMap();
+  function jumpHay(s) {
+    let h = hayCache.get(s);
+    if (h === undefined) {
+      const codes = eniCodesOf(s.eniAll || s.eni);
+      h = `${s.eniAll || s.eni} ${codes.join(' ')} ${codes.map(fmtEni).join(' ')} ${s.title} ${s.institution}`.toLowerCase();
+      hayCache.set(s, h);
+    }
+    return h;
+  }
   function jumpItems(q) {
     const out = [];
     const add = (label, sub, go, kw = '') => out.push({ label, sub, go, kw: `${label} ${sub} ${kw}`.toLowerCase() });
@@ -2055,7 +2072,7 @@ export function mountInspections(host) {
     if (q.trim().length >= 2) {
       const live = allAssignments().filter((a) => a.state === 'assigned' || a.state === 'progress');
       const inQueue = new Set(queueBase(all).map((s) => s.typeId + '|' + s.id));
-      [...all.values()].filter((s) => words.every((w) => `${s.eniAll || s.eni} ${s.title} ${s.institution}`.toLowerCase().includes(w))).slice(0, 6).forEach((s) => {
+      [...all.values()].filter((s) => words.every((w) => jumpHay(s).includes(w))).slice(0, 6).forEach((s) => {
         const k = s.typeId + '|' + s.id;
         const a = live.find((x) => x.typeId + '|' + x.ocId === k);
         found += 1;

@@ -371,7 +371,7 @@ def run(t):
     pg.fill('[data-ip-c="birthDate"]', '1990-04-01')
     pg.locator('.ip-segf label:has([data-ip-c-radio="cadastre"][value="1"])').click()
     pg.click('[data-ip-c-save]')
-    t.ck(t.wait_until("() => /доверенность: \d+ дн\./.test(document.querySelector('.ip-card-contacts')?.innerText || '')"),
+    t.ck(t.wait_until(r"() => /доверенность: \d+ дн\./.test(document.querySelector('.ip-card-contacts')?.innerText || '')"),
          'срок доверенности через 5 дней не предупреждает в шапке')
     saved = pg.evaluate("async (w) => { const p = (await import('./app/kernel/inspections.js')).profileOf(w); return [p.birthDate, p.cadastre, Object.values(p.custom)[0]]; }", who)
     t.ck(saved == ['1990-04-01', True, 'M'], 'профиль сохранён не полностью: %s' % saved)

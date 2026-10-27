@@ -22,6 +22,7 @@ NAME = 'просмотрщик: файлы после перезагрузки'
 TOUCHES = (
     'app/kernel/localFiles.js', 'app/kernel/persist.js', 'app/kernel/fileUpload.js',
     'app/modules/*/parts/docs/model.js', 'app/kernel/viewer/doc.js', 'app/kernel/viewer/ctrl.js',
+    'app/kernel/viewer/pdf.js', 'app/kernel/morph.js',
 )
 
 OC = '#/oc/civil/oc-cv-1'

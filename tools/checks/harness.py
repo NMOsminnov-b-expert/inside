@@ -51,7 +51,7 @@ import subprocess
 import sys
 import time
 
-import cadastre_fixture
+import cadastre_fixture  # noqa: F401 — записанные ответы Кадастра (use_cadastre_fixture)
 
 from playwright.sync_api import sync_playwright
 
@@ -326,33 +326,56 @@ PNG_1PX = __import__('base64').b64decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
 
 
+def use_cadastre_fixture(page):
+    """Кадастр — записанными ответами портала вместо пустой заглушки.
+
+    Пометка ставится и в текущий документ, и в будущие (перезагрузка, окна)."""
+    page.add_init_script('window.__cadastreFixture = true')
+    page.evaluate('window.__cadastreFixture = true')
+    cadastre_fixture.install(page.context)
+
+
 def run_one(mod, part=None, headless=True, browser_=None):
     """Прогнать файл проверок (или одну его часть). Возвращает отчёт словарём."""
     started = time.time()
 
     def go(br):
         page = br.new_page(viewport={'width': 1600, 'height': 1000})
-        # Подмены — на весь контекст (page.context.route), не на страницу: при
-        # перехвате на странице окно просмотра документа (window.open +
-        # document.write, kernel/viewer/popout.js) не загружало ни одного файла
-        # стилей — «просмотрщик: площадь» падал (поймано 23.10.2026; у людей окно
-        # работает, без перехвата — тоже).
-        net = page.context
         # Геокодер адресов «Перейти» (Photon, 15.10.2026) — пустым ответом:
         # проверки не зависят от сети и не нагружают общедоступный сервер.
-        net.route('https://photon.komoot.io/**', lambda r: r.fulfill(
-            status=200, content_type='application/json', body='{"type":"FeatureCollection","features":[]}'))
-        # Кадастр (свой прокси 8787 и путь /cadastre/ того же адреса) и подложка
-        # OSM — тоже без сети, для КАЖДОГО сценария (23.10.2026): задачи осмотров
-        # в демо раздаются по дате, и в день, когда первой оказывалась задача с
-        # известным контуром, карта звала слои Кадастра — «отчёты за день»
-        # падали на отказе соединения и 404. Сценарий, которому нужен другой
-        # ответ, ставит свой page.route: поставленный позже проверяется первым.
-        # Ответы Кадастра — записанные с портала (cadastre_fixture.py): карта
-        # рисует настоящие рамки и соседние участки, без сети (пользователь
-        # 23.10.2026: «рамки участков и запросы в кадастр нужны если что»).
-        cadastre_fixture.install(net)
-        net.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG_1PX))
+        # Подменяется fetch в самой странице, а не перехватом Playwright
+        # (page.route): с включённым перехватом клавиши во втором окне
+        # просмотрщика (window.open) не доходили до его документа, и сценарий
+        # «просмотрщик: площадь» падал с 15.10.2026 (найдено полным прогоном
+        # 26.10.2026).
+        #
+        # Кадастр — так же пустыми ответами: свой прокси (127.0.0.1:8787) и путь
+        # /cadastre/ сервера макета. Иначе результат зависел от того, запущен
+        # ли прокси на машине и отвечает ли портал: после перезагрузки 26.10.2026
+        # «отчёты за день» падали на ERR_CONNECTION_REFUSED в консоли.
+        # Сценарию, которому нужны настоящие рамки и соседние участки
+        # (check_cadastre_geo.py; пользователь 23.10.2026: «рамки участков и
+        # запросы в кадастр нужны если что»), — use_cadastre_fixture(page):
+        # пометка window.__cadastreFixture пропускает запросы Кадастра мимо
+        # заглушки к записанным ответам портала (cadastre_fixture.py).
+        page.add_init_script("""(() => {
+          const real = window.fetch;
+          const EMPTY = '{"type":"FeatureCollection","features":[]}';
+          const stub = (url) => {
+            if (url.startsWith('https://photon.komoot.io/')) return EMPTY;
+            if (window.__cadastreFixture) return null;
+            if (url.startsWith('http://127.0.0.1:8787/eni')) return '{"error":"не найдено"}';
+            if (url.startsWith('http://127.0.0.1:8787/portal/') || /^(\\/|https?:\\/\\/(127\\.0\\.0\\.1|localhost)(:\\d+)?\\/)cadastre\\//.test(url)) return EMPTY;
+            return null;
+          };
+          window.fetch = (u, o) => {
+            const body = stub(String((u && u.url) || u));
+            return body === null ? real.call(window, u, o)
+              : Promise.resolve(new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+          };
+        })()""")
+        # Подложка OSM — клеткой 1×1 без сети (23.10.2026): карте важен сам ответ.
+        page.context.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG_1PX))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
         # прогона доставались бы следующему, и порядок запуска начал бы влиять

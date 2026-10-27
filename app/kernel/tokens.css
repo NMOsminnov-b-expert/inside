@@ -554,3 +554,10 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .kg-h.kg-dragging{opacity:.45}
 .kg-h.kg-drop-l{box-shadow:inset 3px 0 0 var(--blue-600)}
 .kg-h.kg-drop-r{box-shadow:inset -3px 0 0 var(--blue-600)}
+
+/* Сверка дерева при перерисовке (kernel/morph.js): на время сверки переходы
+   выключены. Узел, который сверка взяла под другую разметку, иначе плавно
+   ехал бы от прежнего вида к новому (панель миниатюр просмотрщика — от ширины
+   области «перетащите файл» к 108px), а прежняя замена целиком рисовала
+   новый вид сразу. Переходы от действий человека после отрисовки — как были. */
+.morphing,.morphing *{transition:none !important}

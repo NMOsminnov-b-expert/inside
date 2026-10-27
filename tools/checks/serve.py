@@ -18,6 +18,13 @@ class Server(http.server.ThreadingHTTPServer):
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
+    # HTTP/1.1 — соединение держится (keep-alive), и браузер тянет сотни файлов
+    # модулей по нескольким соединениям. По HTTP/1.0 на каждый файл
+    # открывалось новое: пять сценариев оставляли ~9000 сокетов в TIME_WAIT, и
+    # полный прогон выбирал динамические порты Windows (16 384) — браузер
+    # падал на «net::ERR_NO_BUFFER_SPACE» (полный прогон 26.10.2026).
+    protocol_version = 'HTTP/1.1'
+
     def log_message(self, *args):
         pass
 

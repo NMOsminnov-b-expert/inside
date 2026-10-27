@@ -40,7 +40,7 @@ def run(t):
     # --- ЕНИ в шапке задачи (указание пользователя 12.10.2026) -----------------
     t.open('#/insp?as=' + WHO + '&tab=tasks', wait='.ins-card-a')
     pg.locator('.ins-card-a').first.click()
-    t.ck(t.wait_until("() => /\d-\d+-\d+-\d+/.test(document.querySelector('.ins-head [data-ins-eni]')?.textContent || '')"),
+    t.ck(t.wait_until(r"() => /\d-\d+-\d+-\d+/.test(document.querySelector('.ins-head [data-ins-eni]')?.textContent || '')"),
          'в шапке задачи осмотрщика нет ЕНИ')
 
     # --- утренний ---------------------------------------------------------------

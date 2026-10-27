@@ -2,6 +2,7 @@ import { createSeed } from './seed.js';
 import { createProductionSeed } from './seedProduction.js';
 import { LETTER_SEQ } from './dictionaries.js';
 import { registerPersisted, copyTag } from '../../../kernel/persist.js';
+import { syncOcAddress } from '../../../kernel/address.js';
 import { persistView, VIEWER_KEEP } from '../../../kernel/viewState.js';
 import { migrateLiterKinds } from '../oi/building/migrate.js';
 import { refreshDemoPlaces } from '../../../kernel/demoPlaces.js';
@@ -9,7 +10,14 @@ import { refreshDemoPlaces } from '../../../kernel/demoPlaces.js';
 // Данные и UI-состояние ЭТОГО модуля. Один экземпляр на сессию (ES-модуль).
 // С 28.09.2026 модуль — единый тип «Нежилое здание»: в нём и записи бывшего
 // «Производственного строения» (решение пользователя; data/seedProduction.js).
+// Адрес записи — производное от её частей (kernel/address.js); loadOcRecord
+// пересобирает его при каждой загрузке. Собираем и здесь, до регистрации в
+// persist.js: иначе адрес появлялся у записей засева уже после снимка
+// baseline, и каждая загруженная запись считалась правкой и уходила в общий
+// файл сотрудника (полный прогон 26.10.2026, «общие карточки сотрудников»; с
+// 12.10.2026 панель осмотров загружает все записи).
 export const records = [...createSeed(), ...createProductionSeed()];
+records.forEach(syncOcAddress);
 
 // Засев в нетронутом виде — образец мест демо-записей для сохранённых копий
 // (kernel/demoPlaces.js, refreshDemoPlaces): records к восстановлению уже
@@ -34,6 +42,7 @@ registerPersisted('records.civil', {
     // возвращать их не нужно: прежняя добавка воскрешала удалённые.
     if (!Array.isArray(saved)) return;
     refreshDemoPlaces(saved, seedOf());
+    saved.forEach(syncOcAddress);
     records.splice(0, records.length, ...saved);
   },
 });

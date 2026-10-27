@@ -2,8 +2,9 @@
 """Кадастр: рамка и контур участка по ЕНИ, адрес, соседние участки на карте.
 
 Пользователь 23.10.2026: «рамки участков и запросы в кадастр нужны если что».
-Ответы портала — записанные (cadastre_fixture.py, fixtures/cadastre.json), их
-отдаёт harness каждому сценарию; сеть не нужна.
+Ответы портала — записанные (cadastre_fixture.py, fixtures/cadastre.json):
+остальным сценариям harness отдаёт пустую заглушку, этот включает записанные
+ответы (harness.use_cadastre_fixture); сеть не нужна.
 
 Ловит:
   * по ЕНИ нет рамки или контура участка (geoByEni), или адреса (addressByEni);
@@ -18,13 +19,14 @@
     участка с известным контуром.
 """
 import cadastre_fixture as cf
+from harness import use_cadastre_fixture
 
 NAME = 'Кадастр: рамки и запросы'
 
 TOUCHES = (
     'app/kernel/cadastre.js', 'app/kernel/cadastreGeo.js', 'app/kernel/cadastreLayersGL.js',
     'app/kernel/cadastreLayers.js', 'app/kernel/cadastreForm.ctrl.js', 'app/kernel/mapgl.js',
-    'tools/checks/cadastre_fixture.py', 'tools/checks/fixtures/cadastre.json',
+    'tools/checks/cadastre_fixture.py', 'tools/checks/fixtures/cadastre.json', 'tools/checks/harness.py',
 )
 
 ENI = '1030700400754'
@@ -35,6 +37,7 @@ C = "import('./app/kernel/cadastre.js')"
 def run(t):
     pg = t.page
     t.open('#/', wait='.reg-thead')
+    use_cadastre_fixture(pg)
 
     # --- рамка и контур по ЕНИ -------------------------------------------------
     g = pg.evaluate("async (e) => await (await %s).geoByEni(e)" % G, ENI)
@@ -59,12 +62,12 @@ def run(t):
     # Прокси нет — соединение с 8787 отказывает; изображаем подменой fetch
     # (обрыв запроса пишет ошибку в консоль, а она для проверок — провал).
     fresh = pg.evaluate("""async (e) => { const orig = window.fetch;
-        window.fetch = (u, o) => (/127\.0\.0\.1:8787/.test(String(u)) ? Promise.reject(new TypeError('Failed to fetch')) : orig(u, o));
+        window.fetch = (u, o) => (/127\\.0\\.0\\.1:8787/.test(String(u)) ? Promise.reject(new TypeError('Failed to fetch')) : orig(u, o));
         try { const m = await import('./app/kernel/cadastreGeo.js?noproxy=' + Date.now()); return await m.geoByEni(e); }
         finally { window.fetch = orig; } }""", ENI)
     t.ck(len(fresh.get('extent') or []) == 4, 'через /cadastre/ (без своего прокси) нет рамки: %s' % str(fresh)[:200])
     a2 = pg.evaluate("""async (e) => { const orig = window.fetch;
-        window.fetch = (u, o) => (/127\.0\.0\.1:8787/.test(String(u)) ? Promise.reject(new TypeError('Failed to fetch')) : orig(u, o));
+        window.fetch = (u, o) => (/127\\.0\\.0\\.1:8787/.test(String(u)) ? Promise.reject(new TypeError('Failed to fetch')) : orig(u, o));
         try { const m = await import('./app/kernel/cadastre.js?noproxy=' + Date.now()); return await m.addressByEni(e); }
         finally { window.fetch = orig; } }""", ENI)
     t.ck('Суюмбаева' in str(a2), 'через /cadastre/ (без своего прокси) нет адреса по ЕНИ: %s' % a2)
