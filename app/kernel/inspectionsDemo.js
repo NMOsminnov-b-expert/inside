@@ -258,8 +258,8 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
   const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
-  demoTs(names, recs, partial, assignments, events, today, () => ++n);
-  return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today), deadlines };
+  const results = demoTs(names, recs, partial, assignments, events, today, () => ++n);
+  return { assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today), deadlines };
 }
 
 // Осмотр ТС (этап А, запись графа osmotr-ts-na-meste-i-po-snimkam): записи
@@ -270,7 +270,7 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
 // после остального демо и без генератора случайных чисел: прежняя
 // демо-история не сдвигается.
 function demoTs(names, recs, partial, assignments, events, today, next) {
-  if (!names.length) return;
+  if (!names.length) return [];
   const who = (i) => names[i % names.length];
   const mk = (r, person, shift, oiIds = [], extra = {}) => {
     const at = dayAt(today, -2, 15);
@@ -291,7 +291,7 @@ function demoTs(names, recs, partial, assignments, events, today, next) {
   // ТС в записи недвижимости (кроме частичного объекта): назначение «объект
   // целиком» у одного, ТС передано другому — у прежнего явный перечень.
   const r = recs.find((x) => x !== partial && x.status === READY && (x.tsOi || []).length && x.oi.length > x.tsOi.length);
-  if (!r) return;
+  if (!r) return demoTsResults(recs, partial, assignments, today);
   const from = who(0);
   const to = who(4);
   const a = mk(r, from, 2, r.oi.filter((x) => !r.tsOi.includes(x)));
@@ -301,6 +301,59 @@ function demoTs(names, recs, partial, assignments, events, today, next) {
     typeId: r.typeId, ocId: r.ocId, person: from, oiId: r.tsOi[0], to, text: `кому: ${to}`, demo: true });
   events.push({ id: `demo-ev-${next()}`, at, who: 'Региональный менеджер (демо)', kind: 'received', assignId: b.id,
     typeId: r.typeId, ocId: r.ocId, person: to, oiId: r.tsOi[0], from, text: `от: ${from}`, demo: true });
+  return demoTsResults(recs, partial, assignments, today);
+}
+
+// Демо-результаты осмотра ТС — чтобы этап А был виден без ручного ввода
+// (вымышленные данные): КамАЗ с КМУ — форма заполнена частично, одно
+// расхождение (госномер), адрес на момент осмотра и место съёмки; прицеп —
+// «Не найдено» с «где» и «со слов кого»; на объекте с выявленными зданиями —
+// два выявленных ТС («видел сам» и «со слов» контактного лица).
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-результатов нет — результаты осмотра вносит
+// осмотрщик на месте.
+function demoTsResults(recs, partial, assignments, today) {
+  const out = [];
+  const two = (n) => String(n).padStart(2, '0');
+  const stamp = (d) => `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
+  const has = (id) => recs.some((r) => r.typeId === 'vehicle' && r.ocId === id);
+  if (has('oc-vehicle-d2')) {
+    const at = dayAt(today, 0, 10);
+    out.push({
+      typeId: 'vehicle', ocId: 'oc-vehicle-d2',
+      assets: { ts: {
+        ts: { found: 'Найдено', addr: 'г. Бишкек, ул. Демонстрационная, 7 (стоянка у склада)',
+          place: { lat: 42.8751, lon: 74.6049, acc: 9, at: at.toISOString() } },
+        f: { plate: '02KG201DEM', vin: 'XTC43118000000002', chassisNo: 'XTC43118000000002', mileage: '214000', engineHours: '6100' },
+      } },
+    });
+  }
+  if (has('oc-vehicle-d3')) {
+    out.push({
+      typeId: 'vehicle', ocId: 'oc-vehicle-d3',
+      assets: { ts: { ts: { found: 'Не найдено', where: 'На стоянке у склада на момент осмотра не было', whoSaid: 'Охранник склада Асанов Т. (демо)' } } },
+    });
+  }
+  if (partial) {
+    const a = assignments.find((x) => x.typeId === partial.typeId && x.ocId === partial.ocId && x.state === 'assigned');
+    const by = a ? a.person : '';
+    const foundAt = stamp(dayAt(today, 0, 11));
+    const ts = (id, make, plate, category, where, note, source) => ({
+      id, card: 'vehicle', draft: true, cat: 'ts',
+      vehicle: { kind: 'base', category, f: { make, plate }, modules: [], extra: [] },
+      name: [make, plate].filter(Boolean).join(' · '), where, note, source, foundBy: by, foundAt,
+    });
+    out.push({
+      typeId: partial.typeId, ocId: partial.ocId,
+      found: [
+        ts('demo-found-ts-1', 'Toyota Hilux', '05KG515DEM', 'Легковое', 'Во дворе за складом',
+          'Пикап, кузов с тентом, номер читается, ключей у охраны нет', { kind: 'self' }),
+        ts('demo-found-ts-2', '', '', 'Грузовое', '',
+          'Со слов сторожа, на территории стоит самосвал, его пригнали на ремонт', { kind: 'words', name: 'Сторож Иманалиев К. (демо)', label: 'Сторож Иманалиев К. (демо)' }),
+      ],
+    });
+  }
+  return out;
 }
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний

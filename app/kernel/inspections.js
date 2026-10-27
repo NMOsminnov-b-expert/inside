@@ -18,6 +18,7 @@ import { getType, sortedTypes } from './registry.js';
 import { registerPersisted, scheduleSave } from './persist.js';
 import { session } from './session.js';
 import { demoInspections } from './inspectionsDemo.js';
+import { registerDemoResults } from './inspectionResults.js';
 import { attachedFileFrom } from './fileUpload.js';
 import { eniRegion } from './fmt.js';
 import { optionsFor } from './dicts.js';
@@ -68,6 +69,7 @@ export const isDefaultDoc = (kind) => {
 // регистрации в сохранении, поэтому считается исходными данными, а не
 // правками пользователя; правки ложатся поверх него, как у записей ОЦ.
 const demo = demoInspections({ isDefaultDoc });
+registerDemoResults(demo.results);
 const assignments = demo.assignments;
 const events = demo.events;
 

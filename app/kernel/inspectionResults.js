@@ -29,8 +29,27 @@ registerPersisted('inspections.results', {
       const [typeId, ocId] = String(r.id).split('|');
       results.set(r.id, { ...blank(typeId, ocId), ...r, assets: r.assets && typeof r.assets === 'object' ? r.assets : {} });
     });
+    seedDemoResults();
   },
 });
+
+// Демо-результаты осмотра (kernel/inspectionsDemo.js): добавляются, когда по
+// объекту результатов ещё нет — и при первом запуске, и после восстановления
+// сохранённого состояния, сделанного до их появления. Заведённое осмотрщиком
+// не затирается.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-результатов нет, эта подмешка уходит с засевом.
+let demoResults = [];
+function seedDemoResults() {
+  demoResults.forEach((d) => {
+    const k = key(d.typeId, d.ocId);
+    if (!results.has(k)) results.set(k, { ...blank(d.typeId, d.ocId), ...JSON.parse(JSON.stringify(d)), id: k, demo: true });
+  });
+}
+export function registerDemoResults(list) {
+  demoResults = Array.isArray(list) ? list : [];
+  seedDemoResults();
+}
 
 // Состояние осмотра объекта (создаётся при первом обращении).
 export function resultsOf(typeId, ocId) {

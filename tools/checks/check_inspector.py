@@ -104,6 +104,9 @@ def run(t):
     # --- 0. разделы верхнего уровня (14.10.2026): «Сегодня · Задачи · Запросы ·
     # Уведомления»; по умолчанию — «Сегодня»; раздел в адресе.
     t.open('#/insp', wait='.ins-body')
+    # Демо-результаты (выявленные ТС на oc-cv-1) — их видит check_inspector_ts;
+    # здесь осмотр начинается с пустого.
+    t.clear_demo_results('civil|oc-cv-1')
     t.wait(300)
     t.ck(pg.locator('.ins').count() == 1, 'экран осмотрщика не открылся')
     t.ck(pg.locator('.sidebar').first.is_visible() is False,

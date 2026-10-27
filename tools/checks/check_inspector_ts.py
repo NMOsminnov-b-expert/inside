@@ -96,6 +96,20 @@ def run(t):
     pg.add_init_script(GEO)
     pg.set_viewport_size(PHONE)
 
+    # --- 0. Демо-результаты (для ручной проверки): КамАЗ — частично заполнен, одно
+    # расхождение (госномер), адрес и место; прицеп — «Не найдено»; на oc-cv-1 —
+    # два выявленных ТС. Потом сбрасываются: ниже сценарии вносят своё с нуля.
+    t.open(as_('#/insp/vehicle/oc-vehicle-d2/object/ts', A), wait='.ins-acc')
+    t.ck('РАСХОДИТСЯ' in pg.inner_text('[data-fs-field="f.plate"] .ins-fs-hint'), 'в демо у КамАЗа нет расхождения госномера')
+    t.ck('совпадает' in pg.inner_text('[data-fs-field="f.mileage"] .ins-fs-hint'), 'в демо у КамАЗа пробег не совпал')
+    t.ck(pg.input_value('[data-fs-input="ts.addr"]') != '' and '42.875100, 74.604900' in pg.inner_text('[data-ts-where]'), 'в демо у КамАЗа нет адреса или места съёмки')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', M), wait='.ins-acc')
+    t.ck(pg.locator('[data-fs-field="ts.where"]').count() == 1 and pg.locator('[data-fs-field="ts.whoSaid"]').count() == 1, 'в демо у прицепа нет «где» и «со слов кого»')
+    t.open(as_('#/insp/civil/oc-cv-1/object', B), wait='.ins-oi')
+    found = pg.eval_on_selector_all('.ins-oi-found .ins-oi-h', 'els => els.map((e) => e.innerText)')
+    t.ck(len(found) == 2 and 'видел сам' in found[0] and 'со слов' in found[1], 'в демо нет двух выявленных ТС: %s' % found)
+    t.clear_demo_results('vehicle|oc-vehicle-d2', 'vehicle|oc-vehicle-d3', 'civil|oc-cv-1')
+
     # --- 1. ОЦ «ТС» с модулем: только поля «на месте» -----------------------------
     TS2 = '#/insp/vehicle/oc-vehicle-d2/object/ts'
     t.open(as_(TS2, A), wait='.ins-acc')

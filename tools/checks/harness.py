@@ -277,6 +277,18 @@ class Tester:
         self.open_ms += int((time.time() - started) * 1000)
         return self.page
 
+    def clear_demo_results(self, *keys):
+        """Убрать демо-результаты осмотра по объектам (ключ «тип|id»): сценарии,
+        которые сами заводят ввод на этих объектах, начинают с пустого осмотра;
+        сами демо-результаты проверяет check_inspector_ts до сброса."""
+        self.page.evaluate("""async (keys) => {
+          const R = await import('./app/kernel/inspectionResults.js');
+          keys.forEach((k) => { const [ty, oc] = k.split('|'); const st = R.resultsOf(ty, oc);
+            st.assets = {}; st.found = []; st.note = ''; });
+          R.saveResults();
+        }""", list(keys))
+        self.wait(800)
+
     def text(self):
         return self.page.evaluate('() => document.body.innerText')
 
