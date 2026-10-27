@@ -427,6 +427,7 @@ public static class ScriptRunner
                         var outp = st.GetProperty("path").GetString()!;
                         if (kind == "html") Export.Exporter.Html(w.Store!, outp);
                         else if (kind == "xlsx") Export.Exporter.Xlsx(w.Store!, outp);
+                        else if (kind == "png") Export.Exporter.Png(w.Store!, w.Store!.Project.Chapters.First(c => c.Sheets.Contains(w.Canvas.Sheet!)), w.Canvas.Sheet!, outp);
                         break;
                     }
                     case "checks":

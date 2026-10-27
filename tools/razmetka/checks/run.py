@@ -22,6 +22,9 @@ from_scratch — пустая {TMP}/fresh. Провал — «НЕ ТАК» ил
   tabs_and_flow           Ctrl+PageDown, «Подряд», прокрутка, Enter, узкое окно
   theme_and_remap         тёмная тема, переназначение клавиши, окно «Клавиши»
   rotation_and_tilt       поворот [ ], «Выровнять по линии», рамки на повёрнутом
+  export_layouts          выгрузка HTML, Excel, PNG после копий и PDF столбиком,
+                          в ряд и по разворотам; сверка со сканами пиксель в
+                          пиксель (export_verify.py); PNG обратно — байт в байт
   export_html             экспорт HTML (сама страница — браузером отдельно)
   dark_theme              все экраны в тёмной теме после переключения на ходу:
                           главное окно, режимы, палитра, клавиши, проверка,
@@ -55,6 +58,10 @@ for name in names:
     bad = [l for l in log if 'НЕ ТАК' in l or 'ОШИБКА' in l]
     oks = sum('ок:' in l for l in log)
     ok = code == 0 and not bad
+    # Выгрузка — ещё и сверкой со сканами пиксель в пиксель (export_verify.py).
+    if ok and name == 'export_layouts':
+        ok = subprocess.run([sys.executable, str(here / 'export_verify.py')], capture_output=True).returncode == 0
+        if not ok: bad = ['сверка со сканами: python tools/razmetka/checks/export_verify.py']
     print(f'{"ок  " if ok else "ПРОВАЛ"} {name}: проверок {oks}' + ('' if ok else f', код {code}; ' + ' | '.join(bad[:3])))
     if not ok: failed.append(name)
 print('всё в порядке' if not failed else 'провалы: ' + ', '.join(failed))

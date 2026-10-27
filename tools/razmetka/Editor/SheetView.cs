@@ -263,12 +263,25 @@ public sealed class SheetView : FrameworkElement
 
     public RenderTargetBitmap RenderBitmap(double scale, out Rect bounds, bool native = true)
     {
-        _native = native;
+        bounds = ExportBounds();
+        return RenderPart(scale, bounds, native);
+    }
+
+    // Область выгрузки разворота: всё видимое с запасом под подписи над
+    // картинками (они стоят выше слоя).
+    public Rect ExportBounds()
+    {
         var b = Bounds();
         if (b.IsEmpty) b = new Rect(0, 0, 400, 300);
-        // Подписи над картинками стоят выше слоя — запас сверху.
-        b = new Rect(b.X - 40, b.Y - 70, b.Width + 80, b.Height + 110);
-        bounds = b;
+        return new Rect(b.X - 40, b.Y - 70, b.Width + 80, b.Height + 110);
+    }
+
+    // Кусок разворота b (координаты полотна) в масштабе scale. Выгрузка
+    // длинного разворота идёт кусками: целиком в исходном масштабе он не
+    // помещается в одну картинку (Export/Exporter.cs).
+    public RenderTargetBitmap RenderPart(double scale, Rect b, bool native = true)
+    {
+        _native = native;
         var (zoom, off, link, filter, lens) = (Zoom, Offset, LinkId, Filter, Lens);
         Zoom = scale;
         Offset = new Vector(-b.X * scale, -b.Y * scale);

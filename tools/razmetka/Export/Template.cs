@@ -64,7 +64,7 @@ button:focus-visible,.stage:focus-visible{outline:2px solid var(--accent);outlin
 .stage.zoomed{cursor:grab}
 .stage.drag{cursor:grabbing}
 .cam{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-.cam img{display:block}
+.cam img{display:block;position:absolute;max-width:none}
 .cam svg{position:absolute;left:0;top:0}
 .hit{fill:none;stroke:transparent;stroke-width:26;pointer-events:stroke;cursor:pointer}
 .hitc{fill:transparent;cursor:pointer}
@@ -210,8 +210,13 @@ kbd{font:600 11px "Segoe UI",sans-serif;border:1px solid var(--line2);border-bot
     var st = el('div', 'stage'); st.tabIndex = 0; st.setAttribute('aria-label', 'Разворот: Ctrl + колесо — масштаб, перетаскивание — сдвиг');
     st.style.aspectRatio = s.w + ' / ' + s.h;
     var cam = el('div', 'cam'); cam.style.width = s.w + 'px'; cam.style.height = s.h + 'px';
-    var img = el('img'); img.src = 'data:image/png;base64,' + s.img; img.alt = s.title; img.width = s.w; img.height = s.h; img.decoding = 'async'; img.loading = 'lazy';
-    img.style.width = s.w + 'px'; img.style.height = s.h + 'px'; img.draggable = false; cam.appendChild(img);
+    // Разворот — кусками в исходном масштабе (длинный разворот целиком в
+    // одну картинку не помещается); куски стоят на своих местах под стрелками.
+    s.tiles.forEach(function(t){
+      var img = el('img'); img.src = 'data:image/png;base64,' + t.img; img.alt = s.title; img.decoding = 'async'; img.loading = 'lazy';
+      img.style.left = t.x + 'px'; img.style.top = t.y + 'px'; img.style.width = t.w + 'px'; img.style.height = t.h + 'px';
+      img.draggable = false; cam.appendChild(img);
+    });
     var svg = sv('svg', {width:s.w, height:s.h, viewBox:'0 0 ' + s.w + ' ' + s.h}); cam.appendChild(svg);
     s.links.forEach(function(k, i){
       var g = sv('g', {'class':'lk'}); g.dataset.i = i;

@@ -27,28 +27,107 @@ public static class Exporter
 
     // Масштаб экспорта — по самой подробной картинке разворота: пиксель
     // исходника ложится в пиксель выгрузки, ничего не уменьшается (требование
-    // пользователя 29.09.2026: «потери качества недопустимы»). Потолок — чтобы
-    // огромный разворот не съел память: 16000 точек по стороне, 120 Мп.
+    // пользователя 29.09.2026: «потери качества недопустимы»).
+    //
+    // Прежде был потолок 16000 точек по стороне и 120 Мп на весь разворот, и
+    // разворот со страницами PDF столбиком (импорт «Столбиком на один»,
+    // 27.10.2026) выгружался примерно в 130 dpi вместо 300. Теперь разворот
+    // рисуется кусками (Tiles), и потолок остаётся только на случай
+    // разворота-гиганта: MaxPixels на весь разворот.
+    public const double MaxPixels = 1.2e9;
+
     public static double NativeScale(ProjectStore store, Sheet s, Rect bounds)
     {
         var k = 1.0;
         foreach (var l in s.Layers.Where(l => !l.Hidden && l.Kind == LayerKind.Image && l.W > 0))
             k = Math.Max(k, l.Crop.W / l.W);
-        var w = Math.Max(1, bounds.Width + 80);
-        var h = Math.Max(1, bounds.Height + 110);
-        k = Math.Min(k, Math.Min(16000 / w, 16000 / h));
-        k = Math.Min(k, Math.Sqrt(120e6 / (w * h)));
+        k = Math.Min(k, Math.Sqrt(MaxPixels / Math.Max(1, bounds.Width * bounds.Height)));
         return Math.Max(1, k);
     }
 
-    public static void Png(ProjectStore store, Chapter ch, Sheet s, string path)
+    // Начало области выгрузки — так, чтобы самая подробная картинка легла
+    // пиксель в пиксель: при сдвиге на долю пикселя её точки пересчитывались
+    // с размытием (сверка со сканом 27.10.2026: в среднем 1 из 255, местами
+    // до 22). Повёрнутую картинку пиксель в пиксель не положить — её не
+    // выравниваем.
+    public static Rect Snap(Sheet s, Rect b, double k)
+    {
+        var l = s.Layers.Where(x => !x.Hidden && x.Kind == LayerKind.Image && x.W > 0 && x.Rotation == 0)
+            .OrderByDescending(x => x.Crop.W / x.W).FirstOrDefault();
+        if (l == null) return b;
+        var x0 = l.X - Math.Ceiling((l.X - b.X) * k - 1e-6) / k;
+        var y0 = l.Y - Math.Ceiling((l.Y - b.Y) * k - 1e-6) / k;
+        return new Rect(x0, y0, b.Right - x0, b.Bottom - y0);
+    }
+
+    // Кусок выгрузки: место на полотне (относительно начала области выгрузки)
+    // и картинка. Сторона куска — не больше TilePx точек: такие картинки
+    // браузер и WPF держат без труда. Куски перекрываются на Overlap точек —
+    // при дробном масштабе в браузере между ними не проступает шов.
+    public const int TilePx = 4096;
+    const int Overlap = 2;
+
+    public sealed record Tile(double X, double Y, double W, double H, BitmapSource Bmp);
+
+    public static IEnumerable<Tile> Tiles(SheetView v, double k, Rect b)
+    {
+        var pxW = (int)Math.Ceiling(b.Width * k);
+        var pxH = (int)Math.Ceiling(b.Height * k);
+        for (var py = 0; py < pxH; py += TilePx)
+            for (var px = 0; px < pxW; px += TilePx)
+            {
+                var w = Math.Min(TilePx + Overlap, pxW - px);
+                var h = Math.Min(TilePx + Overlap, pxH - py);
+                var world = new Rect(b.X + px / k, b.Y + py / k, w / k, h / k);
+                var bmp = v.RenderPart(k, world);
+                yield return new Tile(px / k, py / k, w / k, h / k, Opaque(bmp));
+            }
+    }
+
+    // Разворот на белом: прозрачность не нужна, PNG без неё на четверть
+    // легче, пиксели те же.
+    static BitmapSource Opaque(BitmapSource bmp)
+    {
+        var c = new FormatConvertedBitmap(bmp, PixelFormats.Bgr24, null, 0);
+        c.Freeze();
+        return c;
+    }
+
+    // PNG разворота. Помещается в одну картинку (16000 точек по стороне,
+    // 250 Мп) — один файл; нет — частями «имя-1.png», «имя-2.png»… сверху вниз
+    // и слева направо, каждая — кусок разворота в исходном масштабе.
+    // Возвращает записанные файлы.
+    public static List<string> Png(ProjectStore store, Chapter ch, Sheet s, string path)
     {
         var v = ViewFor(store, ch, s);
-        var bmp = v.RenderBitmap(NativeScale(store, s, v.Bounds()), out _);
-        var enc = new PngBitmapEncoder();
-        enc.Frames.Add(BitmapFrame.Create(bmp));
-        using var f = File.Create(path);
-        enc.Save(f);
+        var b = v.ExportBounds();
+        var k = NativeScale(store, s, b);
+        b = Snap(s, b, k);
+        var (pxW, pxH) = (Math.Ceiling(b.Width * k), Math.Ceiling(b.Height * k));
+        var files = new List<string>();
+        void Save(BitmapSource bmp, string p)
+        {
+            var enc = new PngBitmapEncoder();
+            enc.Frames.Add(BitmapFrame.Create(bmp));
+            using var f = File.Create(p);
+            enc.Save(f);
+            files.Add(p);
+        }
+        if (pxW <= 16000 && pxH <= 16000 && pxW * pxH <= 250e6) { Save(Opaque(v.RenderPart(k, b)), path); return files; }
+        var stem = Path.Combine(Path.GetDirectoryName(path) ?? "", Path.GetFileNameWithoutExtension(path));
+        // Части — полосами во всю ширину (или высоту — у разворота в ряд),
+        // чтобы их было меньше и они читались по порядку.
+        var tall = pxH >= pxW;
+        var step = tall ? Math.Max(1, (int)Math.Floor(Math.Min(16000, 250e6 / pxW))) : Math.Max(1, (int)Math.Floor(Math.Min(16000, 250e6 / pxH)));
+        var n = 0;
+        for (var o = 0.0; o < (tall ? pxH : pxW); o += step)
+        {
+            var part = tall
+                ? new Rect(b.X, b.Y + o / k, b.Width, Math.Min(step, pxH - o) / k)
+                : new Rect(b.X + o / k, b.Y, Math.Min(step, pxW - o) / k, b.Height);
+            Save(Opaque(v.RenderPart(k, part)), $"{stem}-{++n}.png");
+        }
+        return files;
     }
 
     static string PngBase64(BitmapSource bmp)
@@ -75,7 +154,11 @@ public static class Exporter
             foreach (var s in ch.Sheets)
             {
                 var v = ViewFor(store, ch, s);
-                var bmp = v.RenderBitmap(NativeScale(store, s, v.Bounds()), out var b);
+                var b = v.ExportBounds();
+                var scale = NativeScale(store, s, b);
+                b = Snap(s, b, scale);
+                var tiles = Tiles(v, scale, b)
+                    .Select(t => new { x = t.X, y = t.Y, w = t.W, h = t.H, img = PngBase64(t.Bmp) }).ToList();
                 var rows = v.TableRowRects();
                 var ordered = SheetGeo.Ordered(s);
                 double[] P(Point q) => new[] { Math.Round(q.X - b.X, 1), Math.Round(q.Y - b.Y, 1) };
@@ -102,7 +185,7 @@ public static class Exporter
                 sheets.Add(new
                 {
                     id = s.Id, chapter = ch.Title, doc = ch.DocName, title = s.Title, page = s.Page,
-                    w = Math.Round(b.Width, 1), h = Math.Round(b.Height, 1), img = PngBase64(bmp), links,
+                    w = Math.Round(b.Width, 1), h = Math.Round(b.Height, 1), tiles, links,
                     notes = s.Notes.Select(n => new { x = Math.Round(n.X - b.X), y = Math.Round(n.Y - b.Y), text = n.Text, author = n.Author }).ToList(),
                 });
             }

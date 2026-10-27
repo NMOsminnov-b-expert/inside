@@ -460,11 +460,15 @@ public partial class MainWindow : Window
             first = one;
             var busy = one.Layers.Where(l => !l.Hidden).ToList();
             double x = busy.Count == 0 ? 0 : busy.Max(l => l.X + l.W) + 120, y = busy.Count == 0 ? 0 : busy.Min(l => l.Y);
+            // Промежуток — целое число пикселей скана: в выгрузке каждая
+            // страница ложится пиксель в пиксель (Export/Exporter.cs, Snap).
+            var px = Model.PdfPages.CanvasDpi / Model.PdfPages.Dpi;
+            var gap = Math.Round(60 / px) * px;
             foreach (var p in placed)
             {
                 var l = Page(one, p);
                 (l.X, l.Y) = (x, y);
-                if (layout == "row") x += l.W + 60; else y += l.H + 60;
+                if (layout == "row") x += l.W + gap; else y += l.H + gap;
                 ids.Add(l.Id);
             }
         });
@@ -501,7 +505,12 @@ public partial class MainWindow : Window
 
     void ExportHtml() => ExportTo("HTML-страница|*.html", ".html", p => Export.Exporter.Html(_store!, p));
     void ExportXlsx() => ExportTo("Книга Excel|*.xlsx", ".xlsx", p => Export.Exporter.Xlsx(_store!, p));
-    void ExportPng() => ExportTo("Картинка PNG|*.png", ".png", p => Export.Exporter.Png(_store!, _chapter!, _sheet!, p));
+    void ExportPng() => ExportTo("Картинка PNG|*.png", ".png", p =>
+    {
+        var files = Export.Exporter.Png(_store!, _chapter!, _sheet!, p);
+        // Длинный разворот — частями: сказать, сколько их и где.
+        if (files.Count > 1) Dispatcher.BeginInvoke(() => Status($"Разворот длинный — выгружен частями: {files.Count} ({Path.GetFileName(files[0])} … {Path.GetFileName(files[^1])})"));
+    });
 
     void PasteImage()
     {
