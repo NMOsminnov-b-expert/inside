@@ -14,6 +14,8 @@ from_scratch — пустая {TMP}/fresh. Провал — «НЕ ТАК» ил
   basic_navigation        Tab по связям, описание, палитра, шпаргалка, PageDown
   link_draw_describe      связь обводкой, описание, заметка, фокус в списке,
                           палитра по разворотам, F8, узкое окно, Ctrl+\
+  clipboard               Ctrl+C/X/V между разворотами, Ctrl+A, перенос из
+                          «Слоёв», связи с картинками, PDF столбиком и в ряд
   crop_menu_palette       обрезка C и Enter, меню правой кнопки, палитра,
                           новый разворот, отмена
   lossless_import_export  PDF 300 dpi, фото байт в байт, экспорт HTML и Excel
@@ -29,14 +31,15 @@ from_scratch — пустая {TMP}/fresh. Провал — «НЕ ТАК» ил
 
     python tools/razmetka/checks/run.py [имя …]
 """
-import pathlib, shutil, subprocess, sys, tempfile
+import os, pathlib, shutil, subprocess, sys, tempfile
 
 sys.stdout.reconfigure(encoding='utf-8')
 here = pathlib.Path(__file__).resolve().parent
 root = here.parents[2]
 docs = root / 'Примеры доков'
 sample = docs / 'Перенос документов в систему — разметка'
-exe = here.parent / 'dist' / 'Razmetka.exe'
+# RAZMETKA_EXE — другая сборка (например, когда dist\Razmetka.exe открыт у пользователя).
+exe = pathlib.Path(os.environ.get('RAZMETKA_EXE') or here.parent / 'dist' / 'Razmetka.exe')
 names = sys.argv[1:] or sorted(p.stem for p in here.glob('*.json'))
 failed = []
 for name in names:

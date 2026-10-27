@@ -219,6 +219,7 @@ public partial class MainWindow
             SyncSelText();
             PlaceSelBar();
         };
+        InitLayerDrag();
         Layers.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Delete) { DeleteSelected(); e.Handled = true; }
@@ -339,6 +340,8 @@ public partial class MainWindow
             g.Children.Add(dot);
         }
         var item = new ListBoxItem { Content = g, Tag = sh, Padding = new Thickness(6, 5, 8, 5), ToolTip = $"{sh.Title}{(sh.Page.Length > 0 ? " · " + sh.Page : "")}" };
+        // Картинки из списка «Слои» — на строку разворота: перенос, с Ctrl — копия.
+        AcceptLayerDrop(item, sh);
         var m = new ContextMenu();
         var i = ch.Sheets.IndexOf(sh);
         AddAll(m,

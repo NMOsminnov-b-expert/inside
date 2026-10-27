@@ -62,6 +62,10 @@ public static class ScriptRunner
                             // поворот слоя st.layer — в десятых долях градуса
                             "rot10" => (int)Math.Round((w.Canvas.Sheet!.Layers.First(x => x.Name == st.GetProperty("layer").GetString()).Rotation) * 10),
                             "dark" => Ui.Theme.IsDark ? 1 : 0,
+                            "locked" => w.Canvas.Sheet?.Layers.Count(x => x.Locked) ?? -1,
+                            "selected" => w.Canvas.Selection.Count,
+                            // все картинки разворота — в пределах полотна без наложений
+                            "overlaps" => Overlaps(w.Canvas.Sheet!),
                             // есть ли в проекте картинка, байт в байт равная файлу st.file
                             "sameAsFile" => w.Store!.Project.Assets.Values.Any(x => File.ReadAllBytes(Path.Combine(w.Store.Dir, "images", x.File)).AsSpan().SequenceEqual(File.ReadAllBytes(st.GetProperty("file").GetString()!))) ? 1 : 0,
                             _ => -99,
@@ -73,6 +77,21 @@ public static class ScriptRunner
                     case "open":
                         w.OpenDir(st.GetProperty("dir").GetString()!, askDraft: false, confirm: false);  // правки прошлых шагов не спрашиваем: ответить некому
                         break;
+                    // Перенос (или копия) слоёв по именам на разворот to — как
+                    // перетаскиванием из списка «Слои».
+                    // Выбрать все видимые слои разворота, и закреплённые тоже.
+                    case "selectAll":
+                        w.Canvas.Select(w.Canvas.Sheet!.Layers.Where(l => !l.Hidden).Select(l => l.Id));
+                        break;
+                    case "moveLayers":
+                    {
+                        var names = st.GetProperty("layers").EnumerateArray().Select(x => x.GetString()).ToHashSet();
+                        var ids = w.Canvas.Sheet!.Layers.Where(l => names.Contains(l.Name)).Select(l => l.Id).ToList();
+                        var to = st.GetProperty("to");
+                        var tch = w.Store!.Project.Chapters[to.GetProperty("chapter").GetInt32()];
+                        w.MoveLayersTo(tch.Sheets[to.GetProperty("index").GetInt32()], ids, st.TryGetProperty("copy", out var cp) && cp.GetBoolean());
+                        break;
+                    }
                     case "sheet":
                     {
                         var ch = w.Store!.Project.Chapters[st.GetProperty("chapter").GetInt32()];
@@ -319,8 +338,7 @@ public static class ScriptRunner
                         break;
                     }
                     case "pdf":
-                        await w.AddPdf(st.GetProperty("path").GetString()!, (st.GetProperty("pages").GetString()!,
-                            st.GetProperty("doc").GetString()!, st.GetProperty("chapter").GetString()!));
+                        await w.AddPdf(st.GetProperty("path").GetString()!, PdfOptsOf(st));
                         break;
                     // Окно выбора страниц PDF: открыть, дождаться миниатюр, отметить
                     // страницы щелчками («click»: [номер, …], «shift» — номер для
@@ -354,8 +372,7 @@ public static class ScriptRunner
                     // «maxLagMs» — провал. «shot» — снимок полосы хода.
                     case "pdfLive":
                     {
-                        var task = w.AddPdf(st.GetProperty("path").GetString()!, (st.GetProperty("pages").GetString()!,
-                            st.GetProperty("doc").GetString()!, st.GetProperty("chapter").GetString()!));
+                        var task = w.AddPdf(st.GetProperty("path").GetString()!, PdfOptsOf(st));
                         var limit = st.TryGetProperty("maxLagMs", out var ml) ? ml.GetDouble() : 250;
                         var shot = st.TryGetProperty("shot", out var sp) ? sp.GetString() : null;
                         double worst = 0;
@@ -568,6 +585,21 @@ public static class ScriptRunner
         var dy = at.TryGetProperty("dy", out var ddy) ? ddy.GetDouble() : 0;
         return new Point(p.X + dx, p.Y + dy);
     }
+
+    static int Overlaps(Model.Sheet sh)
+    {
+        var ls = sh.Layers.Where(l => !l.Hidden && l.Kind == Model.LayerKind.Image).ToList();
+        var n = 0;
+        for (var i = 0; i < ls.Count; i++)
+            for (var j = i + 1; j < ls.Count; j++)
+                if (ls[i].X < ls[j].X + ls[j].W && ls[j].X < ls[i].X + ls[i].W && ls[i].Y < ls[j].Y + ls[j].H && ls[j].Y < ls[i].Y + ls[i].H) n++;
+        return n;
+    }
+
+    static MainWindow.PdfOpts PdfOptsOf(JsonElement st) => new(st.GetProperty("pages").GetString()!,
+        st.GetProperty("doc").GetString()!, st.GetProperty("chapter").GetString()!,
+        st.TryGetProperty("layout", out var lo) ? lo.GetString()! : "sheets",
+        st.TryGetProperty("dest", out var de) ? de.GetString()! : "new");
 
     static void Shot(Window w, string path)
     {

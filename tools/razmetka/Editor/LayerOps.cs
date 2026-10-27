@@ -170,7 +170,7 @@ public static class LayerOps
             ? System.IO.Path.GetFileNameWithoutExtension(name) : name;
     }
 
-    static string UniqueName(Sheet s, string name)
+    public static string UniqueName(Sheet s, string name)
     {
         if (s.Layers.All(l => l.Name != name)) return name;
         for (var i = 2; ; i++)

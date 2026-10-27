@@ -92,8 +92,10 @@ public partial class MainWindow
         // Правка
         Add("edit.undo", "Отменить", "Правка", Scope.App, Undo, () => HasProject, keys: K(Key.Z, C));
         Add("edit.redo", "Повторить", "Правка", Scope.App, Redo, () => HasProject, keysText: "Ctrl+Y", keys: new[] { K(Key.Y, C), K(Key.Z, CS) });
-        Add("edit.paste", "Вставить картинку из буфера", "Правка", Scope.App, PasteImage, () => HasSheet, "Снимок экрана Win+Shift+S — и сюда", keys: K(Key.V, C));
-        Add("edit.all", "Выбрать все слои", "Правка", Scope.Canvas, () => View.Select(_sheet!.Layers.Where(l => !l.Hidden && !l.Locked).Select(l => l.Id)), () => HasSheet, keys: K(Key.A, C));
+        Add("edit.copy", "Копировать", "Правка", Scope.App, () => CopyLayers(false), () => CanCopy, "Выбранные картинки — в буфер; вставить — Ctrl+V на нужном развороте", keys: K(Key.C, C));
+        Add("edit.cut", "Вырезать", "Правка", Scope.App, () => CopyLayers(true), () => CanCopy, "В буфер и убрать с разворота", keys: K(Key.X, C));
+        Add("edit.paste", "Вставить", "Правка", Scope.App, Paste, () => HasSheet, "Из буфера: скопированные картинки, снимок экрана (Win+Shift+S), файлы картинок или PDF", keys: K(Key.V, C));
+        Add("edit.all", "Выбрать все слои", "Правка", Scope.App, () => View.Select(_sheet!.Layers.Where(l => !l.Hidden && !l.Locked).Select(l => l.Id)), () => HasSheet, keys: K(Key.A, C));
         Add("edit.dup", "Копия", "Правка", Scope.Canvas, () => { if (LinkSel) DuplicateLink(); else Duplicate(); }, () => LinkSel || LayersSel,
             "Связь — копия ниже на высоту рамки; слой — копия со сдвигом", keys: K(Key.D, C));
         Add("edit.delete", "Удалить выбранное", "Правка", Scope.Canvas, DeleteAny, () => LinkSel || LayersSel || View.SelectedNote != null,
@@ -393,7 +395,7 @@ public partial class MainWindow
     {
         "project.save" => "", "project.open" => "", "project.new" => "",
         "tool.select" => "", "tool.hand" => "", "tool.link" => "", "tool.note" => "", "tool.lens" => "",
-        "edit.undo" => "", "edit.redo" => "", "edit.dup" => "", "edit.delete" => "", "edit.paste" => "",
+        "edit.undo" => "", "edit.redo" => "", "edit.dup" => "", "edit.delete" => "", "edit.copy" => "", "edit.cut" => "", "edit.paste" => "",
         "layer.crop" => "", "view.fit" => "", "view.in" => "", "view.out" => "", "go.search" => "",
         "sheet.pdf" => "", "sheet.image" => "", "help.keys" => "", "check.next" or "project.checks" => "",
         _ when c.Id.StartsWith("project.export") => "",
@@ -528,6 +530,8 @@ public partial class MainWindow
                         Mc("layer.lock", "Закрепить", sel),
                         Mc("layer.hide", "Скрыть", sel),
                         new Separator(),
+                        t.Kind == "layer" ? Mc("edit.copy", null, sel) : null,
+                        t.Kind == "layer" ? Mc("edit.cut", null, sel) : null,
                         Mc("edit.dup", null, sel),
                         Mc("edit.delete", "Удалить", sel));
                 break;

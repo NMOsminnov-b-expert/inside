@@ -115,7 +115,9 @@ public partial class MainWindow
                 DragDrop.DoDragDrop(tab, new DataObject(typeof(Sheet), s0), DragDropEffects.Move);
             };
             tab.MouseLeftButtonUp += (_, _) => _tabDragFrom = null;
-            tab.DragOver += (_, e) => { e.Effects = e.Data.GetDataPresent(typeof(Sheet)) ? DragDropEffects.Move : DragDropEffects.None; e.Handled = true; };
+            tab.DragOver += (_, e) => { if (!e.Data.GetDataPresent(typeof(Sheet))) return; e.Effects = DragDropEffects.Move; e.Handled = true; };
+            // Картинки из списка «Слои» — на вкладку: перенос на этот разворот.
+            AcceptLayerDrop(tab, s0);
             tab.Drop += (_, e) =>
             {
                 if (e.Data.GetData(typeof(Sheet)) is not Sheet moved || moved == s0 || !ch.Sheets.Contains(moved)) return;

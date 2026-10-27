@@ -26,8 +26,13 @@ public sealed class PdfImportDialog : Window
     readonly TextBox _pages = Kit.Box();
     readonly AutoBox _doc;
     readonly TextBox _chapter = Kit.Box();
-    readonly RadioButton _new = new() { Content = "Новой главой", IsChecked = true, Margin = new Thickness(0, 4, 14, 4), VerticalAlignment = VerticalAlignment.Center };
-    readonly RadioButton _cur = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 4) };
+    readonly ComboBox _dest = new() { MinHeight = 30, VerticalContentAlignment = VerticalAlignment.Center };
+    readonly ComboBoxItem _new = new() { Content = "Новой главой", Tag = "new" };
+    readonly ComboBoxItem _cur = new() { Tag = "chapter" };
+    readonly ComboBoxItem _here = new() { Tag = "sheet" };
+    readonly Border _layoutHost = new();
+    string _layout = "sheets";
+    readonly bool _hasSheet;
     readonly Button _ok;
     readonly TextBlock _summary = Kit.Text("", 12, "Muted");
     readonly CancellationTokenSource _thumbsCts = new();
@@ -40,16 +45,25 @@ public sealed class PdfImportDialog : Window
     public string DocName => _doc.Text.Trim();
     public string ChapterTitle => _chapter.Text.Trim();
     public IReadOnlyList<int> SelectedPages => _sel.OrderBy(x => x).ToList();
-    public bool NewChapter => _new.IsChecked == true;
+    public bool NewChapter => Dest == "new";
+    // Раскладка (пользователь 27.10.2026: «выбираем, разбивать по страницам
+    // или поместить все на 1 страницу в вертикальном/горизонтальном виде»):
+    // "sheets" — каждая страница своим разворотом, "column" — все на один
+    // разворот столбиком, "row" — в ряд.
+    public string Layout => _layout;
+    // Куда: "new" — новая глава, "chapter" — в выбранную главу, "sheet" — на
+    // открытый разворот (только для раскладки на один разворот).
+    public string Dest => (_dest.SelectedItem as ComboBoxItem)?.Tag as string ?? "new";
 
-    public PdfImportDialog(string path, int count, string? currentChapter, IEnumerable<string> knownDocs)
+    public PdfImportDialog(string path, int count, string? currentChapter, IEnumerable<string> knownDocs,
+        string? currentSheet = null, bool here = false)
     {
         _path = path;
         _count = count;
         _sel = Enumerable.Range(1, count).ToHashSet();
         Title = "Документ из PDF";
         Width = 800;
-        Height = 660;
+        Height = 700;
         MinWidth = 560;
         MinHeight = 540;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -66,8 +80,16 @@ public sealed class PdfImportDialog : Window
         _chapter.Text = $"Перенос: {name}";
         _cur.Content = currentChapter != null ? $"В главу «{currentChapter}»" : "В выбранную главу";
         _cur.IsEnabled = currentChapter != null;
-        _new.Checked += (_, _) => _chapter.IsEnabled = true;
-        _cur.Checked += (_, _) => _chapter.IsEnabled = false;
+        _hasSheet = currentSheet != null;
+        _here.Content = currentSheet != null ? $"На разворот «{currentSheet}»" : "На открытый разворот";
+        _dest.Items.Add(_new);
+        _dest.Items.Add(_cur);
+        _dest.Items.Add(_here);
+        _dest.SelectedItem = _new;
+        _dest.SelectionChanged += (_, _) => _chapter.IsEnabled = Dest == "new";
+        // Вставка PDF на открытый разворот (Ctrl+V файла, перетаскивание на
+        // разворот) — сразу «все на один, столбиком, сюда».
+        if (here && _hasSheet) { _layout = "column"; _here.IsEnabled = true; _dest.SelectedItem = _here; }
 
         // --- шапка: файл и быстрый выбор ------------------------------------
         var head = new DockPanel { Margin = new Thickness(16, 14, 16, 8) };
@@ -100,7 +122,8 @@ public sealed class PdfImportDialog : Window
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var fPages = Kit.Field("Страницы", _pages, "1-3, 5 — или щелчками; Shift — диапазон");
+        var fPages = Kit.Field("Страницы", _pages, tip: "1-3, 5 — или щелчками по миниатюрам; Shift — диапазон");
+        _pages.ToolTip = "1-3, 5 — или щелчками по миниатюрам; Shift — диапазон";
         var fDoc = Kit.Field("Документ в таблице связей", _doc);
         Grid.SetColumn(fDoc, 1);
         row.Children.Add(fPages);
@@ -108,13 +131,12 @@ public sealed class PdfImportDialog : Window
         form.Children.Add(row);
         // «Куда» и название главы — одной строкой: на низком окне миниатюрам
         // остаётся больше места.
-        var where = new WrapPanel { MinHeight = 30 };
-        where.Children.Add(_new);
-        where.Children.Add(_cur);
+        BuildLayout();
+        form.Children.Add(Kit.Field("Раскладка", _layoutHost));
         var row2 = new Grid();
         row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var fWhere = Kit.Field("Куда", where);
+        var fWhere = Kit.Field("Куда", _dest);
         var fChapter = Kit.Field("Название новой главы", _chapter);
         Grid.SetColumn(fChapter, 1);
         row2.Children.Add(fWhere);
@@ -150,6 +172,25 @@ public sealed class PdfImportDialog : Window
         };
         Loaded += (_, _) => { Refresh(); _ok.Focus(); _ = LoadThumbs(); };
         Closed += (_, _) => _thumbsCts.Cancel();
+    }
+
+    void BuildLayout()
+    {
+        _layoutHost.Child = Kit.Segmented(new (string, string, string?)[]
+        {
+            ("sheets", "По разворотам", "Каждая страница — свой разворот"),
+            ("column", "Столбиком на один", "Все страницы на один разворот, сверху вниз"),
+            ("row", "В ряд на один", "Все страницы на один разворот, слева направо"),
+        }, _layout, k => { _layout = k; BuildLayout(); SyncDest(); });
+        SyncDest();
+    }
+
+    // «На разворот» — только когда все страницы ложатся на один разворот.
+    void SyncDest()
+    {
+        _here.IsEnabled = _hasSheet && _layout != "sheets";
+        if (_dest.SelectedItem == _here && !_here.IsEnabled) _dest.SelectedItem = _cur.IsEnabled ? _cur : _new;
+        if (_ok != null) Refresh();
     }
 
     Border Tile(int page)
