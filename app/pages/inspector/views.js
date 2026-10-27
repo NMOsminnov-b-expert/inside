@@ -13,6 +13,7 @@
 import { esc } from '../../kernel/dom.js';
 import { ownHTML, listHTML as contactListHTML, isEmptyContact } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
+import { fmtPlace } from '../../kernel/geoHere.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
@@ -665,6 +666,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 export function assetHTML({
   rec, typeId, oi, values, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
   shots = [], shotsOpen = false, cam = {}, voices = [], recording = null, viewer = '', tsShots = null, tripAddr = '',
+  locating = false, placeMsg = '',
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
   // справочников, поэтому описание формы уже не константа.
@@ -703,7 +705,7 @@ export function assetHTML({
         ${facts ? `<p class="ins-objinfo-f">${esc(facts)}</p>` : ''}
       </section>
 
-      ${SECTIONS.length ? SECTIONS.map((sec) => accordionHTML(sec, values, oi, collapsed, { photos: oiPhotos, tripAddr })).join('')
+      ${SECTIONS.length ? SECTIONS.map((sec) => accordionHTML(sec, values, oi, collapsed, { photos: oiPhotos, tripAddr, locating, placeMsg })).join('')
     : `<section class="ins-blk"><h2 class="ins-blk-h">Осмотр</h2>
         <p class="ins-empty">Поля осмотра для этого вида ещё не заданы. Снимите объект и оставьте заметку в задаче —
           ЦОД увидит их в карточке.</p></section>`}
@@ -848,12 +850,17 @@ function accordionHTML(sec, values, oi, collapsed, ctx = {}) {
 
 // Действия внутри раздела, которые не поля: у ТС в «Нахождении» — подстановка
 // адреса объекта выезда (ТС осматривают вместе с недвижимостью — заметка
-// пользователя 27.10.2026 «Часто ТС осматривают вместе с недвижкой»).
+// пользователя 27.10.2026 «Часто ТС осматривают вместе с недвижкой») и место
+// по телефону (ответ В4: «имеет смысл внедрить»): «широта, долгота · ±точность ·
+// время».
 function widgetHTML(kind, values, oi, ctx) {
   if (kind !== 'tsPlace') return '';
   const addr = ctx.tripAddr || '';
+  const place = fmtPlace((values.ts || {}).place);
   return `<div class="ins-ts-place" data-ts-place>
     ${addr ? `<button type="button" class="ins-btn ins-btn-sm" data-ts-addr="${esc(addr)}" title="${esc(addr)}">${ico('pin', 18)} Подставить адрес объекта выезда</button>` : ''}
+    <button type="button" class="ins-btn ins-btn-sm" data-ts-locate ${ctx.locating ? 'disabled' : ''}>${ico('nav', 18)} ${ctx.locating ? 'Определяю место…' : 'Записать место'}</button>
+    <p class="ins-ts-where" data-ts-where>${place ? `Место: <b>${esc(place)}</b>` : (ctx.placeMsg ? esc(ctx.placeMsg) : 'Место не записано')}</p>
   </div>`;
 }
 
@@ -1086,6 +1093,7 @@ export function lightboxHTML(p, oiList, cats = PHOTO_CATS) {
   return `<div class="ins-lb" data-lb>
     <button class="ins-lb-x" data-lb-close aria-label="Закрыть">${ico('back', 22)}</button>
     <img src="${esc(p.dataUrl || p.url || "")}" alt="${esc(p.name)}">
+    <p class="ins-lb-place" data-lb-place>${p.place ? `Место съёмки: ${esc(fmtPlace(p.place))}` : 'Место съёмки не записано'}</p>
     <div class="ins-lb-bar">
       <div class="ins-field">
         <label for="lbOi">Объект имущества</label>

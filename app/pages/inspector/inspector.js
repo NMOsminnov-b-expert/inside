@@ -40,6 +40,7 @@ import { summaries } from '../inspections/model.js';
 import { loadMapLibre, createMap, ownParcelsGL, emptyFC } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { geoByEni } from '../../kernel/cadastreGeo.js';
+import { hereNow } from '../../kernel/geoHere.js';
 import {
   listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, navLinks,
 } from './views.js';
@@ -78,6 +79,9 @@ export function mountInspector(host) {
     // «Осмотр завершён» при недостающих обязательных снимках ТС: перечень и
     // причина раскрыты под кнопкой (null — закрыто).
     doneCheck: null,
+    // «Записать место» у ТС: идёт запрос к телефону; сообщение, если места нет.
+    locating: false,
+    placeMsg: '',
     // Разделы формы, свёрнутые ВРУЧНУЮ. По умолчанию открыты все: свёрнутое
     // заранее приходится разворачивать (замечание пользователя 08.09.2026).
     collapsed: [],
@@ -722,6 +726,8 @@ export function mountInspector(host) {
           // ТС — ОИ записи недвижимости, а не сам ОЦ «ТС»).
           tsShots: isInspTs(oi) ? tsShotState(typeId, ocId, oi) : null,
           tripAddr: oi.card === 'vehicle' && !oi.ocSelf ? r.address || '' : '',
+          locating: ui.locating,
+          placeMsg: ui.placeMsg,
         }));
         bindViewer(scope.root, ui.docv, ui.docv.open);
         return;
@@ -1722,6 +1728,23 @@ export function mountInspector(host) {
     if (res.error) { host.toast(res.error, 'warn'); return; }
     renderKeep();
   });
+  // «Записать место» — координаты телефона в значения осмотра ТС. Нет
+  // разрешения или сигнала — строка «не определено», без ошибки.
+  scope.on('click', '[data-ts-locate]', async () => {
+    const at = [route.typeId, route.ocId, route.oiId];
+    ui.locating = true; ui.placeMsg = '';
+    renderKeep();
+    const place = await hereNow({ maxAge: 0 });
+    ui.locating = false;
+    if (place) {
+      const vals = assetValues(...at);
+      vals.ts = vals.ts || {};
+      vals.ts.place = place;
+      saveResults();
+      markSaved();
+    } else ui.placeMsg = 'Место не определено: нет разрешения на геолокацию или сигнала';
+    if (route.typeId === at[0] && route.ocId === at[1] && route.oiId === at[2]) renderKeep();
+  });
   // Адрес ТС на момент осмотра — адрес объекта выезда одним касанием.
   scope.on('click', '[data-ts-addr]', (e, el) => {
     const vals = assetValues(route.typeId, route.ocId, route.oiId);
@@ -1806,7 +1829,7 @@ export function mountInspector(host) {
   return {
     onRoute(next) {
       const sameTask = next.typeId === route.typeId && next.ocId === route.ocId;
-      if (next.oiId !== route.oiId) { ui.sortOpen = false; ui.camSel = new Set(); }
+      if (next.oiId !== route.oiId) { ui.sortOpen = false; ui.camSel = new Set(); ui.placeMsg = ''; }
       // Прокрутка уходящего экрана — запомнить, приходящего — вернуть.
       const body = scope.$('.ins-body');
       if (body) scrollOf.set(screenKey(route), body.scrollTop);

@@ -11,6 +11,7 @@
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
 import { sortedTypes, getType, migrateLiterKinds, tsName, tsShots } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
+import { hereNow } from '../../kernel/geoHere.js';
 import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
 
@@ -444,9 +445,8 @@ export function addPhoto(typeId, ocId, file, { oiId = '', cat = '' } = {}) {
   // К какому объекту имущества относится снимок: без этого фото кровли не
   // отличить от фото кровли соседней литеры.
   //
-  // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: координаты снимка ТЗ требует для каждого фото — из
-  // EXIF файла или у геолокации устройства в момент съёмки; это работа
-  // сервера и приложения, а не макета.
+  // Место съёмки — координаты телефона (ответ В4 27.10.2026, kernel/geoHere.js):
+  // приходят после снимка; нет разрешения или сигнала — снимок без места.
   const photo = addResultPhoto(typeId, ocId, file, {
     oiId,
     cat: cat || PHOTO_CATS[0],
@@ -456,6 +456,7 @@ export function addPhoto(typeId, ocId, file, { oiId = '', cat = '' } = {}) {
     // (замечание пользователя 15.10.2026: «Я в поясе +6»).
     at: new Date().toISOString(),
   });
+  hereNow().then((place) => { if (place) { photo.place = place; saveResults(); } });
   return { photo };
 }
 
