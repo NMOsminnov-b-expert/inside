@@ -52,15 +52,16 @@ def run(t):
     t.open('', wait='.reg-tr')
     t.set_bulk(0)
     tabs = pg.eval_on_selector_all('.reg-tab', "els => els.map((e) => e.innerText.replace(/\\s+/g, ' ').trim())")
-    # 18: + две демо-записи «Сети: …» (23.10.2026).
-    t.ck(tabs == ['Недвижимое 18', 'Движимое 2'], 'вкладки не те: %s' % tabs)
+    # 18: + две демо-записи «Сети: …» (23.10.2026). Движимое: заведённые здесь
+    # ТС и механизмы + четыре демо-записи ОЦ «ТС» для осмотра ТС (27.10.2026).
+    t.ck(tabs == ['Недвижимое 18', 'Движимое 6'], 'вкладки не те: %s' % tabs)
     estate_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' in estate_heads and 'ОБЪЕКТ' in estate_heads, 'у недвижимого нет ЕНИ и объекта: %s' % estate_heads)
     t.ck(pg.locator('.reg-tr .reg-obj-s').count() > 0, 'у объекта нет второй строки (тип · учреждение)')
 
     pg.click('[data-tab="movable"]')
     t.wait_until("() => location.hash.includes('tab=movable')")
-    t.ck(pg.locator('.reg-tr').count() == 2, 'на вкладке «Движимое» не две записи')
+    t.ck(pg.locator('.reg-tr').count() == 6, 'на вкладке «Движимое» не шесть записей (2 заведённые + 4 демо ТС)')
     mov_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' not in mov_heads and 'ПОЗИЦИЙ' in mov_heads and 'РЕГ. / ИНВ. №' in mov_heads,
          'столбцы движимого не те: %s' % mov_heads)
@@ -74,7 +75,7 @@ def run(t):
     t.wait_until("() => !document.querySelector('.reg-tr') && !!document.querySelector('.reg-empty')")
     t.ck('ничего не найдено' in pg.locator('.reg-empty').inner_text(), 'пустой отбор без пояснения')
     pg.locator('[data-chip-remove^="q|"]').first.click()
-    t.wait_until("() => document.querySelectorAll('.reg-tr').length === 2")
+    t.wait_until("() => document.querySelectorAll('.reg-tr').length === 6")
 
     # Превью движимого открывается без ошибки, состав — от модуля.
     before = len(t.console)

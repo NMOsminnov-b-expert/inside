@@ -187,7 +187,8 @@ export function myTasks({ onlyPending = false } = {}) {
       status: s.status,
       institution: s.institution,
       updatedAt: s.updatedAt,
-      oiCount: (s.metrics && s.metrics.oiCount) || 0,
+      // ОЦ «ТС» — сама машина: один объект осмотра.
+      oiCount: (s.metrics && s.metrics.oiCount) || 1,
       pendingNotes: (s.metrics && s.metrics.pendingNotes) || 0,
       // По назначению ждёт, пока назначение действует и осмотр не закончен;
       // без назначения — прежнее правило по статусу.
@@ -196,6 +197,10 @@ export function myTasks({ onlyPending = false } = {}) {
       // Назначенные ОИ: 0 — объект целиком.
       oiAssigned: oiIds.length,
       assignId: assign ? assign.id : '',
+      // Движимое (ТС) без адреса и координат: в плане и списке — «Адрес
+      // уточняется на месте», на карту и в маршрут не ставится (запись графа
+      // osmotr-ts-na-meste-i-po-snimkam).
+      addrPending: addrPending(typeId, ocId),
       photos: st.photos.length,
       done: st.done,
     });
@@ -203,6 +208,13 @@ export function myTasks({ onlyPending = false } = {}) {
 
   out.sort(order);
   return onlyPending ? out.filter((x) => x.pending) : out;
+}
+
+function addrPending(typeId, ocId) {
+  const t = getType(typeId);
+  if (!t || t.manifest.assetKind !== 'movable' || !t.records.loadRecord) return false;
+  const rec = t.records.loadRecord(ocId);
+  return !!rec && !String(rec.address || '').trim() && !String(rec.gps || '').trim();
 }
 
 // Полная запись нужна на экране задачи: координаты, примечания, документы и

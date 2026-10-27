@@ -77,6 +77,7 @@ function rowHTML(t, { marks = [], take = false, note = '', struck = false, unski
     <a class="ins-pl-a" href="${hrefOf(t)}">
       <b class="ins-pl-t">${esc(t.title)}</b>
       <span class="ins-pl-m">${esc(metaOf(t))}</span>
+      ${t.addrPending ? '<span class="ins-pl-m">Адрес уточняется на месте</span>' : ''}
       ${note ? `<span class="ins-pl-m ${struck ? '' : 'ins-warn'}">${esc(note)}</span>` : ''}
       ${marksHTML(marks)}
     </a>
@@ -113,7 +114,7 @@ function tripHTML(x, i, { marks, app, skipOpen, skipErr, n, moveOpen }) {
         <span class="ins-trip-m">ОИ: ${t.oiAssigned ? `${t.oiAssigned} из ${t.oiCount}` : t.oiCount}${t.photos ? ` · фото: ${t.photos}` : ''}${t.done ? ' · осмотр завершён' : ''}</span>
         ${marksHTML(marks)}
       </a>
-      ${x.ll ? navPickHTML(t.key, x.links, 'Ехать', app) : '<span class="ins-trip-m ins-warn">Координат нет — адрес в задаче</span>'}
+      ${x.ll ? navPickHTML(t.key, x.links, 'Ехать', app) : `<span class="ins-trip-m ins-warn">${t.addrPending ? 'Адрес уточняется на месте' : 'Координат нет — адрес в задаче'}</span>`}
       ${canSkip && skipOpen !== t.assignId ? `<button type="button" class="ins-btn ins-btn-sm ins-pl-skip" data-plan-skip="${esc(t.assignId)}" aria-expanded="false">Снять с дня</button>` : ''}
       ${canSkip && skipOpen === t.assignId ? skipFormHTML(t, skipErr) : ''}
     </div>

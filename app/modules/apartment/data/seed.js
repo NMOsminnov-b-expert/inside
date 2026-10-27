@@ -168,6 +168,27 @@ export function createSeed() {
             rights: 'Собственность', rightsOther: '',
           },
         }),
+        // ТС при квартире — пример ТС, переданного другому осмотрщику отдельно
+        // от остального объекта (демо осмотров, kernel/inspectionsDemo.js).
+        // Номер и VIN вымышленные.
+        {
+          id: 'oi-ap2-v1',
+          card: 'vehicle',
+          name: 'Honda Fit · 05KG500DEM',
+          eni: '',
+          status: '',
+          origin: 'manual',
+          flags: { entered: true, matched: false },
+          vehicle: {
+            kind: 'base', category: 'Легковое', base: 'Легковой автомобиль и внедорожник',
+            f: { make: 'Honda Fit', year: '2008', color: 'Синий', bodyNo: 'GD1-0000005', vtype: 'легковой, хэтчбек 5 дв.',
+              plate: '05KG500DEM', wheel: 'Правый', mileage: '187000' },
+            extra: [], modules: [],
+          },
+          docs: [],
+          photos: {},
+          notes: [],
+        },
       ],
     },
 

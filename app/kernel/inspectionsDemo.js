@@ -14,7 +14,7 @@
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-данных нет — история и загрузка строятся из
 // настоящих назначений и журнала.
-import { sortedTypes } from './registry.js';
+import { sortedTypes, isTsHolder } from './registry.js';
 import { stepOf } from './status/flow.js';
 import { DEMO_PARCELS } from './demoParcels.js';
 
@@ -89,7 +89,9 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
       const r = t.records.loadRecord(s.id);
       if (!r) return;
       const defDocs = [...(r.docs || []), ...(r.oi || []).flatMap((o) => o.docs || [])].filter((d) => d && isDefaultDoc(d.type || d.name)).map((d) => d.id);
-      recs.push({ ...base, oi: (r.oi || []).map((o) => o.id), defDocs, ll: llOf(r) || llByEni(s.eni) });
+      // ts — ОЦ «ТС»; tsOi — ТС среди ОИ записи (демо осмотра ТС, ниже).
+      recs.push({ ...base, oi: (r.oi || []).map((o) => o.id), defDocs, ll: llOf(r) || llByEni(s.eni),
+        ts: isTsHolder(r), tsOi: (r.oi || []).filter(isTsHolder).map((o) => o.id) });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -243,7 +245,10 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
     ev(a1, 'note', dayAt(today, -4, 11), { text: 'Доступ на кровлю закрыт' });
     ev(a1, 'done', doneDay);
     const a2 = {
-      id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person: names[2 % names.length], oiIds: [partial.oi[1]], docs: [], inventories: [],
+      // Выезд «недвижимость + ТС» (заметка пользователя 27.10.2026 «Часто ТС
+      // осматривают вместе с недвижкой»): ТС объекта — в том же назначении.
+      id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person: names[2 % names.length],
+      oiIds: [partial.oi[1], ...(partial.tsOi || []).filter((x) => x !== partial.oi[1])], docs: [], inventories: [],
       plannedAt: isoLocalDate(dayAt(today, 3, 9)), note: '', by: 'Региональный менеджер (демо)',
       at: dayAt(today, -1, 15).toISOString(), state: 'assigned', doneAt: '', demo: true,
     };
@@ -253,7 +258,49 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
   const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
+  demoTs(names, recs, partial, assignments, events, today, () => ++n);
   return { assignments, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today), deadlines };
+}
+
+// Осмотр ТС (этап А, запись графа osmotr-ts-na-meste-i-po-snimkam): записи
+// ОЦ «ТС» назначены осмотрщикам — первому две на сегодня (одна без адреса:
+// «Адрес уточняется на месте» в плане дня), остальные на ближайшие дни; ТС
+// внутри записи недвижимости передано другому осмотрщику отдельно от
+// остальных ОИ («ТС может быть переназначен отдельно от ОЦ»). Добавляются
+// после остального демо и без генератора случайных чисел: прежняя
+// демо-история не сдвигается.
+function demoTs(names, recs, partial, assignments, events, today, next) {
+  if (!names.length) return;
+  const who = (i) => names[i % names.length];
+  const mk = (r, person, shift, oiIds = [], extra = {}) => {
+    const at = dayAt(today, -2, 15);
+    const a = {
+      id: `demo-as-${next()}`, typeId: r.typeId, ocId: r.ocId, person, oiIds, docs: [], inventories: [],
+      plannedAt: isoLocalDate(dayAt(today, shift, 9)), note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
+      state: 'assigned', doneAt: '', demo: true, ...extra,
+    };
+    assignments.push(a);
+    events.push({ id: `demo-ev-${next()}`, at: at.toISOString(), who: a.by, kind: 'assigned', assignId: a.id,
+      typeId: a.typeId, ocId: a.ocId, person, demo: true });
+    return a;
+  };
+  const own = recs.filter((r) => r.ts);
+  // Первому осмотрщику — сегодня: с адресом и без адреса.
+  const plan = [[0, 0], [0, 0], [4, 2], [2, 1]];
+  own.forEach((r, i) => { const [p, d] = plan[i % plan.length]; mk(r, who(p), d); });
+  // ТС в записи недвижимости (кроме частичного объекта): назначение «объект
+  // целиком» у одного, ТС передано другому — у прежнего явный перечень.
+  const r = recs.find((x) => x !== partial && x.status === READY && (x.tsOi || []).length && x.oi.length > x.tsOi.length);
+  if (!r) return;
+  const from = who(0);
+  const to = who(4);
+  const a = mk(r, from, 2, r.oi.filter((x) => !r.tsOi.includes(x)));
+  const b = mk(r, to, 3, [r.tsOi[0]]);
+  const at = dayAt(today, -1, 11).toISOString();
+  events.push({ id: `demo-ev-${next()}`, at, who: 'Региональный менеджер (демо)', kind: 'transferred', assignId: a.id,
+    typeId: r.typeId, ocId: r.ocId, person: from, oiId: r.tsOi[0], to, text: `кому: ${to}`, demo: true });
+  events.push({ id: `demo-ev-${next()}`, at, who: 'Региональный менеджер (демо)', kind: 'received', assignId: b.id,
+    typeId: r.typeId, ocId: r.ocId, person: to, oiId: r.tsOi[0], from, text: `от: ${from}`, demo: true });
 }
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний

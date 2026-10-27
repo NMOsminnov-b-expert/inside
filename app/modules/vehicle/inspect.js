@@ -118,6 +118,10 @@ export function tsShots(holder) {
   return [...base, ...mods];
 }
 
+// Держит ли запись или ОИ сведения ТС (ОЦ «ТС» или ОИ «Транспортное
+// средство») — для демо назначений ядра, которое видов ОИ не знает.
+export const isTsHolder = (x) => !!x && (x.card === 'vehicle' || (!!x.vehicle && !x.card));
+
 // Виды ТС для выявленного на осмотре: категории каталога и спецтехника.
 export const tsFoundKinds = () => [...CATEGORIES, SELF_CAT];
 

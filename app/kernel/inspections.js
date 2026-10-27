@@ -231,6 +231,30 @@ export function reassign(id, person) {
   return assign({ ...a, person });
 }
 
+// Передать один ОИ назначения другому осмотрщику (заметка пользователя
+// 27.10.2026 «ТС может быть переназначен отдельно от ОЦ другому осмотрщику»;
+// запись графа osmotr-ts-na-meste-i-po-snimkam). У прежнего остаются прочие
+// ОИ: назначение «объект целиком» становится явным перечнем остальных ОИ
+// записи. Новому — назначение на этот ОИ с той же плановой датой, документами
+// и комментарием. Единственный ОИ назначения — обычное переназначение.
+// Возвращает новое назначение или null.
+export function transferOi(id, oiId, person) {
+  const a = assignmentById(id);
+  if (!a || !isLive(a) || !oiId || !person || a.person === person || !coversOi(a, oiId)) return null;
+  const recs = recordsOf(a.typeId);
+  const rec = recs && recs.loadRecord(a.ocId);
+  const all = a.oiIds && a.oiIds.length ? a.oiIds : ((rec && rec.oi) || []).map((o) => o.id);
+  const rest = all.filter((x) => x !== oiId);
+  if (!rest.length) return reassign(id, person);
+  a.oiIds = rest;
+  a.updatedAt = now();
+  logEvent('transferred', a, { oiId, to: person, text: `кому: ${person}` });
+  const b = assign({ typeId: a.typeId, ocId: a.ocId, person, oiIds: [oiId], docs: [...(a.docs || [])],
+    inventories: [...(a.inventories || [])], plannedAt: a.plannedAt || '', note: a.note || '' });
+  if (b) logEvent('received', b, { oiId, from: a.person, text: `от: ${a.person}` });
+  return b;
+}
+
 // Назначение из реестра («Назначить осмотрщика» у ЦОД): объект целиком,
 // документы — по умолчанию.
 export function assignFromRegistry(typeId, ocId, person) {

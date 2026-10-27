@@ -1425,3 +1425,10 @@ body[data-page="inspections"] .on-scene .ip-grp-t > b{grid-column:2;grid-row:1;l
 body[data-page="inspections"] .on-scene .ip-grp-t > span:not(.ip-grp-chev){grid-column:2;justify-self:start;white-space:normal}
 /* «Отбор» — в рост поля поиска рядом (34), а не мелкой кнопкой (25). */
 body[data-page="inspections"] .ip-toolbar .ip-fbtn{height:34px;min-height:34px;padding:0 12px;box-sizing:border-box}
+/* ТС назначения — «Передать другому осмотрщику» на месте (assignPane.js, tsPassHTML). */
+body[data-page="inspections"] .ip-ts-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-ts-row:first-of-type{border-top:0}
+body[data-page="inspections"] .ip-ts-l{flex:1 1 180px;min-width:0;font-size:13px;overflow-wrap:anywhere}
+body[data-page="inspections"] .ip-ts-form{padding:8px 10px 10px;border:1px solid var(--line-soft);border-radius:8px;background:var(--blue-50,#eff6ff)}
+body[data-page="inspections"] .ip-ts-form .ip-err{display:block;margin:6px 0 0}
+body[data-page="inspections"] .ip-ts-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}

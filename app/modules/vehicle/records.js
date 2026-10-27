@@ -3,8 +3,13 @@ import { manifest } from './manifest.js';
 import { tsTitle, whatLabel, tsOf } from './tsModel.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { localIso } from '../../kernel/fmt.js';
+import { createSeed } from './data/seed.js';
 
-const records = [];
+// Демо-записи для осмотра ТС (data/seed.js) — исходные данные; правки
+// пользователя ложатся поверх них сохранением, как у остальных типов ОЦ.
+const records = createSeed();
+records.forEach((r) => tsOf(r));
+const SEED_IDS = records.map((r) => r.id);
 let seq = 0;
 
 // Введённое переживает перезагрузку страницы — как у остальных типов ОЦ
@@ -22,7 +27,10 @@ registerPersisted('records.vehicle', {
     // «!saved.length → оставить засев» возвращало удалённые демо-записи после
     // перезагрузки (код-ревью 09.10.2026).
     if (!Array.isArray(saved)) return;
-    records.splice(0, records.length, ...saved);
+    // Демо-записи — после заведённых пользователем: новая запись встаёт первой
+    // (createRecord), и после перезагрузки порядок тот же.
+    const demo = new Set(SEED_IDS);
+    records.splice(0, records.length, ...saved.filter((r) => !demo.has(r.id)), ...saved.filter((r) => demo.has(r.id)));
     // Старые записи переводятся сразу при загрузке, а не при первом открытии
     // карточки: реестр читает данные машины напрямую, и у старых записей в
     // фасетах и поиске стояли прежние категории и базы (код-ревью 09.10.2026).

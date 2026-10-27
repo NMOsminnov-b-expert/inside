@@ -280,6 +280,7 @@ function cardHTML(t) {
       </span>
       <b class="ins-card-title">${esc(t.title)}</b>
       <span class="ins-card-eni mono">${esc(t.eni || '')}</span>
+      ${t.addrPending ? '<span class="ins-card-meta">Адрес уточняется на месте</span>' : ''}
       <span class="ins-card-meta">
         ${t.plannedAt ? `<span class="${t.pending && t.plannedAt < todayIso() ? 'ins-warn' : ''}">план: ${esc(t.plannedAt.slice(8, 10) + '.' + t.plannedAt.slice(5, 7))}</span>` : ''}
         <span>ОИ: ${t.oiAssigned ? `${t.oiAssigned} из ${t.oiCount}` : t.oiCount}</span>
@@ -393,7 +394,7 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
         <section class="ins-blk">
           <h2 class="ins-blk-h">Сводка</h2>
           ${rowHTML('Адрес', rec.address || 'Адрес уточняется на месте')}
-          ${rowHTML('Назначение по ТП', rec.purposeTP)}
+          ${rec.vehicle ? '' : rowHTML('Назначение по ТП', rec.purposeTP)}
           ${rowHTML('Учреждение', rec.institution)}
           ${rowHTML('Подвед', rec.podved)}
           ${rec.vehicle ? '' : rowHTML('Объектов имущества', oiCount === null ? (rec.oi || []).length : oiCount)}

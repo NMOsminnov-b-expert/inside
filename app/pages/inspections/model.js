@@ -185,7 +185,8 @@ export function objectContents(typeId, ocId) {
   const all = groups.flatMap((g) => g.docs);
   return {
     rec,
-    oi: (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o) })),
+    // card — вид ОИ: у ТС в назначении есть «Передать другому осмотрщику».
+    oi: (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o), card: o.card || '' })),
     groups: groups.map((g) => ({ ...g, docs: g.docs.filter((d) => !isInventory(d)) })),
     inventories: all.filter(isInventory),
     taken: assignmentsOf(typeId, ocId),
@@ -235,6 +236,7 @@ export const EVENT_LABELS = {
   assigned: 'назначен на осмотр', updated: 'назначение изменено', progress: 'начал осмотр',
   done: 'закончил осмотр', removed: 'назначение снято', moved: 'перенесена дата',
   photos: 'загрузил снимки', note: 'внёс заметку', mismatch: 'отметил расхождение', found: 'отметил выявленное',
+  transferred: 'ОИ передан другому осмотрщику', received: 'ОИ передан от другого осмотрщика',
 };
 
 // История: события новыми сверху; фильтр — осмотрщик, вид, день, поиск.

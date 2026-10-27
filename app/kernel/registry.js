@@ -42,7 +42,7 @@ export { OI_NETS, netValue, netsLandOf } from '../modules/land-plot/oi/land/oiNe
 // Осмотр ТС — для экрана осмотрщика (запись графа osmotr-ts-na-meste-i-po-
 // snimkam): поля «на месте» с подписями и значениями из каталога и записи ТС,
 // ракурсы снимков, виды выявленного ТС. Дверь модуля ТС одна — vehicle/card.js.
-export { tsInspectPlan, tsShots, tsFoundKinds, tsName } from '../modules/vehicle/card.js';
+export { tsInspectPlan, tsShots, tsFoundKinds, tsName, isTsHolder } from '../modules/vehicle/card.js';
 
 export const OC_TYPES = [
   {

@@ -109,7 +109,7 @@ function contentsHTML(c, pick, prev) {
 // prev — действующее назначение.
 // plan — вставки планирования (inspections.js planHTML): «Кого назначить»,
 // полоса доступности, срок, контакты на месте; date — выбранная плановая дата.
-export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null }) {
+export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null, transfer = null }) {
   if (mode === 'none') {
     return `<aside class="ip-pane ip-pane-none" aria-label="Назначение"><div class="ip-pane-body"><p class="ip-hint">Выберите объект в списке.</p></div></aside>`;
   }
@@ -176,6 +176,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
     <div class="ip-pane-body">
       ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan)}
       ${contentsHTML(c, pick, prev)}
+      ${prev ? tsPassHTML(c, prev, people, transfer) : ''}
       ${plan ? plan.bottom : ''}
       ${note(prev && prev.note)}
     </div>
@@ -189,6 +190,39 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
         : '<button class="btn btn-primary" data-ip-f-ok>Назначить</button>'}
     </footer>
   </aside>`;
+}
+
+// ТС назначения — передать другому осмотрщику отдельно от остальных ОИ
+// (заметка пользователя 27.10.2026 «ТС может быть переназначен отдельно от ОЦ
+// другому осмотрщику»; запись графа osmotr-ts-na-meste-i-po-snimkam). Форма —
+// на месте, под строкой ТС, без окна поверх. transfer — { oiId, err } открытой.
+function tsPassHTML(c, prev, people, transfer) {
+  const covered = (o) => !prev.oiIds || !prev.oiIds.length || prev.oiIds.includes(o.id);
+  const list = c.oi.filter((o) => o.card === 'vehicle' && covered(o));
+  if (!list.length) return '';
+  const whole = !prev.oiIds || !prev.oiIds.length;
+  return `<section class="ip-sec ip-ts-pass"><h3>Транспортные средства</h3>
+    ${whole || prev.oiIds.length > 1 ? '<p class="ip-hint">ТС передаётся другому осмотрщику отдельно — остальные ОИ остаются в этом назначении.</p>' : ''}
+    ${list.map((o) => {
+    const open = transfer && transfer.oiId === o.id;
+    return `<div class="ip-ts-row">
+      <span class="ip-ts-l">${esc(o.label)}</span>
+      ${open ? '' : `<button class="btn btn-ghost btn-sm" data-ip-ts-pass="${esc(o.id)}">Передать другому осмотрщику</button>`}
+    </div>
+    ${open ? `<div class="ip-ts-form">
+      <div class="field"><label for="ip-ts-person">Кому</label>
+        <select class="select" id="ip-ts-person" data-ip-ts-person>
+          <option value="">— выберите —</option>
+          ${people.filter((p) => p.name !== prev.person).map((p) => `<option value="${esc(p.name)}">${esc(p.name)}${p.live ? ` · в работе ${p.live}` : ''}</option>`).join('')}
+        </select></div>
+      ${transfer.err ? `<p class="ip-err" role="alert">${esc(transfer.err)}</p>` : ''}
+      <div class="ip-ts-acts">
+        <button class="btn btn-ghost btn-sm" data-ip-ts-cancel>Отмена</button>
+        <button class="btn btn-primary btn-sm" data-ip-ts-go="${esc(o.id)}">Передать</button>
+      </div>
+    </div>` : ''}`;
+  }).join('')}
+  </section>`;
 }
 
 // Считать форму панели и назначить. Возвращает { error } или { made, person }.

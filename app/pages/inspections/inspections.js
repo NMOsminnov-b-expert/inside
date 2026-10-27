@@ -22,7 +22,7 @@ import {
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
-  planOf, setPlan, assign,
+  planOf, setPlan, assign, transferOi,
   allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
 } from '../../kernel/inspections.js';
 import { downloadXlsx, readXlsx } from '../../kernel/xlsx.js';
@@ -130,6 +130,8 @@ export function mountInspections(host) {
   const checked = new Map();    // отмеченные флажками: key → target
   let current = '';             // строка в панели: key объекта или id назначения
   let confirmRemove = false;
+  // Передача ТС из назначения другому осмотрщику: { assignId, oiId, err }.
+  let tsPass = null;
   // Панель подробностей: стопка выборов { kind, … }, последний показывается
   // (detail.js). Открывается по щелчку в «Осмотрщиках»; «‹ Назад» — шаг
   // по стопке, «Закрыть» и Escape — убрать панель.
@@ -1490,6 +1492,7 @@ export function mountInspections(host) {
       if (!t) return paneHTML({ mode: 'none' });
       ensureDraft('a:' + a.id, a.person, a.plannedAt);
       return paneHTML({ mode: 'one', people, person: draft.person, date: draft.date, target: t, prev: a, confirmRemove,
+        transfer: tsPass && tsPass.assignId === a.id ? tsPass : null,
         plan: view.section === 'assign' ? planHTML([t], true) : null });
     }
     const t = current && target(current);
@@ -3004,6 +3007,25 @@ export function mountInspections(host) {
     host.toast(prev ? 'Назначение сохранено' : `Назначено: ${res.person} · объектов ${res.made.length}`, 'ok');
   });
   scope.on('click', '[data-ip-remove]', () => { confirmRemove = true; redraw(); });
+  // ТС — другому осмотрщику (assignPane.js, tsPassHTML).
+  scope.on('click', '[data-ip-ts-pass]', (e, b) => { tsPass = { assignId: current, oiId: b.dataset.ipTsPass, err: '' }; redraw(); });
+  scope.on('click', '[data-ip-ts-cancel]', () => { tsPass = null; redraw(); });
+  scope.on('click', '[data-ip-ts-go]', () => {
+    if (!tsPass) return;
+    const sel = scope.$('[data-ip-ts-person]');
+    const person = sel ? sel.value : '';
+    if (!person) {
+      tsPass.err = 'Выберите осмотрщика';
+      redraw();
+      const again = scope.$('[data-ip-ts-person]');
+      if (again) again.focus();
+      return;
+    }
+    const b = transferOi(tsPass.assignId, tsPass.oiId, person);
+    tsPass = null;
+    redraw();
+    host.toast(b ? `ТС передано: ${person}` : 'Передать не удалось — назначение уже не действует', b ? 'ok' : 'warn');
+  });
   scope.on('click', '[data-ip-remove-no]', () => { confirmRemove = false; redraw(); });
   scope.on('click', '[data-ip-remove-yes]', (e, b) => {
     unassign(b.dataset.ipRemoveYes);
