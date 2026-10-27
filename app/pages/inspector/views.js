@@ -474,7 +474,7 @@ const OI_GROUPS = [
 
 // ois — ОИ, которые осматривает этот осмотрщик (у ОЦ «ТС» — сама машина);
 // others — сколько ОИ записи назначено другим.
-export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, filledFor, counts, backHref, common = null, ois = null, others = 0 }) {
+export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, filledFor, counts, backHref, common = null, ois = null, others = 0, foundTs = null }) {
   const oi = ois || rec.oi || [];
 
   return `<div class="ins">
@@ -519,7 +519,7 @@ export function objectHTML({ rec, openOi, found, locked, hrefFor, assetHref, fil
       </section>
 
       ${common ? commonNetsHTML(common) : ''}
-      ${foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor })}
+      ${foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor, ts: foundTs || {} })}
     </div>
 
     ${tabsHTML('object', hrefFor, counts)}
@@ -587,21 +587,31 @@ function commonNetsHTML({ fields, count }) {
 // списка, та же форма осмотра, снимки к нему. Отличие видно меткой
 // «выявлено» и действиями: пока осмотр не завершён — перенести снимки и
 // значения в учтённую литеру или удалить; после — «на разборе», правки нет.
-function foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor }) {
+function foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor, ts = {} }) {
   const lands = (rec.oi || []).filter((o) => o.card === 'land');
   const targets = (rec.oi || []).filter((o) => o.card === 'building');
+  const isTs = ts.cat === FOUND_TS;
   return `<section class="ins-blk">
     <h2 class="ins-blk-h">Выявлено на осмотре${found.length ? ' · ' + found.length : ''}</h2>
     ${found.length ? `<ul class="ins-oi">
-      ${found.map((f) => foundItemHTML(f, { open: f.id === openOi, locked, targets, lands, assetHref, filledFor })).join('')}
-    </ul>` : (locked ? '<p class="ins-empty">На осмотре новых зданий не выявлено.</p>' : '')}
-    ${locked ? '' : `<form class="ins-found-new" data-found-form>
+      ${found.map((f) => (f.card === 'vehicle'
+    ? foundTsItemHTML(f, { open: f.id === openOi, locked, ts })
+    : foundItemHTML(f, { open: f.id === openOi, locked, targets, lands, assetHref, filledFor }))).join('')}
+    </ul>` : (locked ? '<p class="ins-empty">На осмотре ничего не выявлено.</p>' : '')}
+    ${locked ? '' : ts.draft ? `<div class="ins-found-new ins-fts-new">
+      <h3 class="ins-oi-g">Новое ТС</h3>
+      ${foundTsFormHTML(ts.draft, { ts, isNew: true })}
+    </div>` : `<form class="ins-found-new" data-found-form>
       <div class="ins-field">
         <label for="insFoundCat">Категория</label>
         <select class="select ins-select" id="insFoundCat" data-found-cat>
-          ${FOUND_CATS.map((c) => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}
+          ${FOUND_CATS.map((c) => `<option value="${c.key}" ${ts.cat === c.key ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}
+          <option value="${FOUND_TS}" ${isTs ? 'selected' : ''}>ТС</option>
         </select>
       </div>
+      ${isTs ? `<p class="ins-hint">Транспортное средство, которого нет в записи: всё, что удалось узнать, — снимки, документы, описание, со слов кого.</p>
+      <button class="ins-btn ins-btn-main" type="submit">Добавить ТС</button>
+    </form>` : `
       ${lands.length > 1 ? `<div class="ins-field">
         <label for="insFoundLand">Земельный участок</label>
         <select class="select ins-select" id="insFoundLand" data-found-land>
@@ -613,8 +623,103 @@ function foundBlockHTML({ rec, found, locked, openOi, assetHref, filledFor }) {
         <input class="input ins-input" id="insFoundName" data-found-new-name placeholder="Например: склад у ворот">
       </div>
       <button class="ins-btn ins-btn-main" type="submit">Добавить здание</button>
-    </form>`}
+    </form>`}`}
   </section>`;
+}
+
+// Выявленные ТС (ответ пользователя на В2 27.10.2026: «Выявленное о новом ТС он
+// может указать все, что только найдет. Как минимум - документы… может быть и
+// комментарий, мол такой то автомобиль с таким то номером (иногда и без) был
+// обнаружен. Это может быть и со слов людей на месте (контактные лица)»). Все
+// поля необязательные; сохраняется, когда есть хотя бы одно сведение —
+// описание, снимок или документ. Черновик уходит на разбор, как выявленные
+// здания. ts — виды ТС, контакты осмотра, счёт снимков и документов по id.
+export const FOUND_TS = 'ts';
+export const FOUND_TS_SRC = [['self', 'Видел сам'], ['words', 'Со слов']];
+function foundTsFormHTML(d, { ts, isNew }) {
+  const id = d.id;
+  const n = (ts.countsOf && ts.countsOf(id)) || { photos: 0, scans: 0 };
+  const contacts = ts.contacts || [];
+  const v = d.vehicle || {};
+  const f = v.f || {};
+  const src = d.source || {};
+  const inp = (key, label, value, extra = '') => `<div class="ins-field">
+      <label for="fts-${esc(key)}-${esc(id)}">${label}</label>
+      <input class="input ins-input" id="fts-${esc(key)}-${esc(id)}" data-fts="${esc(key)}" data-fts-id="${esc(id)}" value="${esc(value || '')}" ${extra}>
+    </div>`;
+  return `<div class="ins-fts" data-fts-box="${esc(id)}">
+    <div class="ins-fs-grid">
+      <div class="ins-field">
+        <label for="fts-kind-${esc(id)}">Вид</label>
+        <select class="select ins-select" id="fts-kind-${esc(id)}" data-fts="kind" data-fts-id="${esc(id)}">
+          <option value="">Не выбрано</option>
+          ${(ts.kinds || []).map((k) => `<option ${k === v.category ? 'selected' : ''}>${esc(k)}</option>`).join('')}
+        </select>
+      </div>
+      ${inp('make', 'Марка и модель', f.make, 'maxlength="80"')}
+      ${inp('plate', 'Госномер', f.plate, 'maxlength="20" autocapitalize="characters"')}
+      ${inp('vin', 'VIN', f.vin, 'maxlength="20" autocapitalize="characters"')}
+    </div>
+    <div class="ins-field">
+      <label for="fts-where-${esc(id)}">Где стоит</label>
+      <input class="input ins-input" id="fts-where-${esc(id)}" data-fts="where" data-fts-id="${esc(id)}" value="${esc(d.where || '')}" maxlength="200" placeholder="Например: во дворе за складом">
+    </div>
+    <div class="ins-field" data-fts-note-box>
+      <label for="fts-note-${esc(id)}">Описание</label>
+      <textarea class="textarea ins-ta" id="fts-note-${esc(id)}" data-fts="note" data-fts-id="${esc(id)}" rows="2"
+        placeholder="Что за машина, номер, кто ей пользуется">${esc(d.note || '')}</textarea>
+      ${d.err ? `<p class="ins-pl-err" role="alert" data-fts-err>${esc(d.err)}</p>` : ''}
+    </div>
+    <div class="ins-field">
+      <span class="ins-fs-l" id="fts-src-l-${esc(id)}">Источник сведений</span>
+      <div class="ins-seg" role="group" aria-labelledby="fts-src-l-${esc(id)}">
+        ${FOUND_TS_SRC.map(([k, l]) => `<button type="button" class="ins-seg-b ${(src.kind || 'self') === k ? 'on' : ''}" aria-pressed="${(src.kind || 'self') === k}" data-fts-src="${k}" data-fts-id="${esc(id)}">${l}</button>`).join('')}
+      </div>
+    </div>
+    ${src.kind === 'words' ? `<div class="ins-fs-grid">
+      ${contacts.length ? `<div class="ins-field">
+        <label for="fts-ct-${esc(id)}">Контактное лицо</label>
+        <select class="select ins-select" id="fts-ct-${esc(id)}" data-fts="contactId" data-fts-id="${esc(id)}">
+          <option value="">Другой — ФИО и телефон</option>
+          ${contacts.map((c) => `<option value="${esc(c.id)}" ${c.id === src.contactId ? 'selected' : ''}>${esc([c.name || 'Без имени', c.phone].filter(Boolean).join(' · '))}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      ${src.contactId ? '' : `${inp('fio', 'ФИО', src.name, 'maxlength="120"')}${inp('phone', 'Телефон', src.phone, 'type="tel" inputmode="tel" maxlength="30"')}`}
+    </div>` : ''}
+    <div class="ins-acts ins-fts-acts">
+      <button type="button" class="ins-btn" data-fts-shoot="${esc(id)}">${ico('photo', 18)} Снимки${n.photos ? ` · ${n.photos}` : ''}</button>
+      <button type="button" class="ins-btn" data-fts-doc="${esc(id)}">${ico('docs', 18)} Документ${n.scans ? ` · ${n.scans}` : ''}</button>
+    </div>
+    ${isNew ? `<div class="ins-acts">
+      <button type="button" class="ins-btn" data-fts-cancel>Отмена</button>
+      <button type="button" class="ins-btn ins-btn-main" data-fts-save>Сохранить ТС</button>
+    </div>` : `<button class="ins-btn ins-btn-del" type="button" data-found-drop="${esc(id)}">${ico('trash', 18)} Удалить выявленное</button>`}
+  </div>`;
+}
+
+function foundTsItemHTML(f, { open, locked, ts }) {
+  const v = f.vehicle || {};
+  const fv = v.f || {};
+  const n = (ts.countsOf && ts.countsOf(f.id)) || { photos: 0, scans: 0 };
+  const src = f.source || {};
+  const who = src.kind === 'words' ? `со слов: ${src.label || src.name || 'контактного лица'}` : 'видел сам';
+  const sub = [v.category, who].filter(Boolean).map(esc).join(' · ');
+  return `<li class="ins-oi-i ins-oi-found ${open ? 'on' : ''}">
+    <button class="ins-oi-h" data-oi="${esc(f.id)}" aria-expanded="${open ? 'true' : 'false'}">
+      <span class="ins-oi-t">
+        <b>${esc(['ТС', fv.make || '', fv.plate || ''].filter(Boolean).join(' · '))}</b>
+        <span class="ins-oi-sub"><span class="ins-pill ins-pill-wait">${locked ? 'на разборе' : 'выявлено'}</span> ${sub}${f.foundAt ? ` · <span class="ins-nowrap">${esc(f.foundAt)}</span>` : ''}</span>
+      </span>
+      <span class="ins-oi-chev">${ico('chev', 18)}</span>
+    </button>
+    ${open ? `<div class="ins-oi-b">
+      ${locked ? `${rowHTML('Вид', v.category)}${rowHTML('Марка и модель', fv.make)}${rowHTML('Госномер', fv.plate, true)}${rowHTML('VIN', fv.vin, true)}
+        ${rowHTML('Где стоит', f.where)}${rowHTML('Описание', f.note)}${rowHTML('Источник сведений', who)}
+        ${rowHTML('Снимков · документов', `${n.photos} · ${n.scans}`)}
+        <p class="ins-empty">Осмотр завершён — ТС передано на разбор в карточку объекта оценки.</p>`
+    : foundTsFormHTML(f, { ts, isNew: false })}
+    </div>` : ''}
+  </li>`;
 }
 
 function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }) {

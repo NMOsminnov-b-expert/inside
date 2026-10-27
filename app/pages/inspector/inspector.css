@@ -1413,3 +1413,8 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
   position: absolute; top: 16px; left: 64px; right: 12px; margin: 0;
   font-size: 12.5px; color: #e2e8f0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
 }
+/* Выявленное ТС: поля в блоке «Выявлено», снимки и документ — кнопками. */
+.ins-fts .ins-fs-grid { margin-bottom: 0; }
+.ins-fts .ins-field { margin-top: 10px; }
+.ins-fts-acts .ins-btn { flex: 1 1 0; }
+.ins-fts-new .ins-oi-g { margin-top: 0; }

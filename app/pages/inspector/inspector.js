@@ -24,6 +24,7 @@ import {
   taskDocs, oiOptions,
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
   othersOiCount, isInspTs, tsShotState, tsShotsMissing,
+  newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
   scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
@@ -79,6 +80,9 @@ export function mountInspector(host) {
     // «Осмотр завершён» при недостающих обязательных снимках ТС: перечень и
     // причина раскрыты под кнопкой (null — закрыто).
     doneCheck: null,
+    // Блок «Выявлено»: выбранная категория и черновик нового ТС (до сохранения).
+    foundCat: '',
+    tsDraft: null,
     // «Записать место» у ТС: идёт запрос к телефону; сообщение, если места нет.
     locating: false,
     placeMsg: '',
@@ -740,6 +744,13 @@ export function mountInspector(host) {
         rec: r,
         ois: inspOis(r, typeId, ocId).filter((o) => !o.draft),
         others: othersOiCount(r, typeId, ocId),
+        foundTs: {
+          cat: ui.foundCat,
+          draft: ui.tsDraft && ui.tsDraft.key === typeId + '|' + ocId ? ui.tsDraft.d : null,
+          kinds: foundTsKinds(),
+          contacts: contactsOf(typeId, ocId).filter((c) => c.name || c.phone),
+          countsOf: (id) => foundTsCounts(typeId, ocId, id),
+        },
         openOi: ui.openOi,
         found: foundOi(typeId, ocId),
         locked: isFoundLocked(typeId, ocId),
@@ -1586,6 +1597,14 @@ export function mountInspector(host) {
   // появилось, и отсюда идёт в форму осмотра.
   scope.on('submit', '[data-found-form]', (e) => {
     e.preventDefault();
+    // ТС — свой черновик с полями на месте, сохраняется кнопкой «Сохранить ТС».
+    if (ui.foundCat === 'ts') {
+      ui.tsDraft = { key: route.typeId + '|' + route.ocId, d: newFoundTs(currentInspector()) };
+      renderKeep();
+      const k = scope.$('[data-fts="kind"]');
+      if (k) k.focus();
+      return;
+    }
     const val = (sel) => (scope.$(sel) || {}).value || '';
     const lands = ((rec() || {}).oi || []).filter((o) => o.card === 'land');
     const item = addFoundOi(route.typeId, route.ocId, {
@@ -1628,6 +1647,83 @@ export function mountInspector(host) {
     if (!ok) return;
     removeFoundOi(route.typeId, route.ocId, el.dataset.foundDrop);
     render();
+  });
+
+  scope.on('change', '[data-found-cat]', (e, el) => {
+    const was = ui.foundCat === 'ts';
+    ui.foundCat = el.value;
+    if (was !== (el.value === 'ts')) renderKeep();
+  });
+
+  // --- выявленные ТС ---------------------------------------------------------
+  const ftsOf = (id) => {
+    if (ui.tsDraft && ui.tsDraft.d.id === id) return ui.tsDraft.d;
+    return foundOi(route.typeId, route.ocId).find((x) => x.id === id && x.card === 'vehicle') || null;
+  };
+  const isDraftTs = (d) => !!(ui.tsDraft && ui.tsDraft.d === d);
+  const ftsSet = (el, rerender) => {
+    const d = ftsOf(el.dataset.ftsId);
+    if (!d) return;
+    setFoundTs(d, el.dataset.fts, el.value, contactsOf(route.typeId, route.ocId));
+    if (d.err && el.dataset.fts === 'note' && el.value.trim()) {
+      d.err = '';
+      const er = scope.$('[data-fts-err]');
+      if (er) er.remove();
+    }
+    if (!isDraftTs(d)) saveResults();
+    if (rerender) renderKeep();
+  };
+  scope.on('input', '[data-fts]', (e, el) => { if (el.tagName !== 'SELECT') ftsSet(el, false); });
+  scope.on('change', '[data-fts]', (e, el) => { if (el.tagName === 'SELECT') ftsSet(el, el.dataset.fts === 'contactId'); });
+  scope.on('click', '[data-fts-src]', (e, el) => {
+    const d = ftsOf(el.dataset.ftsId);
+    if (!d) return;
+    d.source = { ...(d.source || {}), kind: el.dataset.ftsSrc };
+    if (!isDraftTs(d)) saveResults();
+    renderKeep();
+  });
+  scope.on('click', '[data-fts-shoot]', async (e, el) => {
+    const id = el.dataset.ftsShoot;
+    const files = (await pickFiles('image/*')).filter((f) => !isFileTooLarge(f));
+    if (!files.length) return;
+    for (const file of files) {
+      const res = addPhoto(route.typeId, route.ocId, file, { oiId: id, cat: 'Прочее' });
+      if (res.error) { host.toast(res.error, 'warn'); break; }
+    }
+    const d = ftsOf(id);
+    if (d) d.err = '';
+    renderKeep();
+  });
+  scope.on('click', '[data-fts-doc]', async (e, el) => {
+    const id = el.dataset.ftsDoc;
+    const files = (await pickFiles('image/*,application/pdf')).filter((f) => !isFileTooLarge(f));
+    if (!files.length) return;
+    addScan(route.typeId, route.ocId, files, { title: 'Документ выявленного ТС', oiId: id });
+    const d = ftsOf(id);
+    if (d) d.err = '';
+    host.toast('Документ сохранён — ждёт удостоверения ЦОД', 'ok');
+    renderKeep();
+  });
+  scope.on('click', '[data-fts-cancel]', () => {
+    if (ui.tsDraft) dropFoundTsDraft(route.typeId, route.ocId, ui.tsDraft.d.id);
+    ui.tsDraft = null;
+    renderKeep();
+  });
+  scope.on('click', '[data-fts-save]', () => {
+    const t = ui.tsDraft;
+    if (!t) return;
+    if (foundTsEmpty(route.typeId, route.ocId, t.d)) {
+      t.d.err = 'Нужно хотя бы одно сведение: описание, снимок или документ';
+      renderKeep();
+      const note = scope.$('[data-fts="note"]');
+      if (note) note.focus();
+      return;
+    }
+    const item = addFoundTs(route.typeId, route.ocId, t.d);
+    ui.tsDraft = null;
+    ui.openOi = item.id;
+    host.toast('ТС добавлено — «выявлено на осмотре»', 'ok');
+    renderKeep();
   });
 
   scope.on('input', '[data-found-name]', (e, el) => {

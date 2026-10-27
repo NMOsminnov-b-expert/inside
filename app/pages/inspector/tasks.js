@@ -9,7 +9,7 @@
 //
 // Записи берём через kernel/registry.js: страница не имеет права импортировать
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
-import { sortedTypes, getType, migrateLiterKinds, tsName, tsShots } from '../../kernel/registry.js';
+import { sortedTypes, getType, migrateLiterKinds, tsName, tsShots, tsFoundKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { hereNow } from '../../kernel/geoHere.js';
 import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
@@ -406,6 +406,71 @@ export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = ''
   return item;
 }
 
+// Выявленное ТС (ответ пользователя на В2 27.10.2026; запись графа
+// osmotr-ts-na-meste-i-po-snimkam): черновик ОИ «Транспортное средство» —
+// вид, марка, номера, где стоит, описание и источник сведений («видел сам» или
+// «со слов» контактного лица). Снимки и документы — по id черновика, как у
+// выявленного здания. Сохраняется, когда есть хотя бы одно сведение: описание,
+// снимок или документ.
+export function newFoundTs(by = '') {
+  return {
+    id: 'found-' + Date.now().toString(36) + (++foundSeq),
+    card: 'vehicle',
+    draft: true,
+    cat: 'ts',
+    vehicle: { kind: '', category: '', f: {}, modules: [], extra: [] },
+    name: '',
+    where: '',
+    note: '',
+    source: { kind: 'self' },
+    foundBy: by,
+    foundAt: stamp(new Date()),
+  };
+}
+export const foundTsKinds = () => tsFoundKinds();
+export function foundTsCounts(typeId, ocId, id) {
+  const st = taskState(typeId, ocId);
+  return {
+    photos: st.photos.filter((p) => p.oiId === id).length,
+    scans: (st.scans || []).filter((x) => x.oiId === id).length,
+  };
+}
+// Пустое ли выявленное ТС: нет ни описания, ни снимка, ни документа.
+export function foundTsEmpty(typeId, ocId, d) {
+  const n = foundTsCounts(typeId, ocId, d.id);
+  return !String(d.note || '').trim() && !n.photos && !n.scans;
+}
+// Правка поля выявленного ТС (черновик или сохранённое).
+export function setFoundTs(d, key, value, contacts = []) {
+  const v = d.vehicle;
+  if (key === 'kind') {
+    v.category = value;
+    // Спецтехника — свой вид объекта у карточки ТС (tsModel.js, SELF_CAT).
+    v.kind = !value ? '' : value === tsFoundKinds().slice(-1)[0] ? 'self' : 'base';
+  } else if (['make', 'plate', 'vin'].includes(key)) v.f[key] = value;
+  else if (key === 'where' || key === 'note') d[key] = value;
+  else if (key === 'contactId') {
+    const c = contacts.find((x) => x.id === value);
+    d.source = { ...d.source, contactId: value, label: c ? c.name || c.phone || '' : '' };
+  } else if (key === 'fio') d.source = { ...d.source, name: value, label: value };
+  else if (key === 'phone') d.source = { ...d.source, phone: value };
+  d.name = [v.f.make, v.f.plate].filter(Boolean).join(' · ');
+}
+export function addFoundTs(typeId, ocId, d) {
+  delete d.err;
+  foundOi(typeId, ocId).push(d);
+  saveResults();
+  return d;
+}
+// Отменённый черновик: снимки и документы остаются в осмотре без привязки —
+// «Любые фото с осмотров — важная информация».
+export function dropFoundTsDraft(typeId, ocId, id) {
+  const st = taskState(typeId, ocId);
+  st.photos.forEach((p) => { if (p.oiId === id) p.oiId = ''; });
+  (st.scans || []).forEach((x) => { if (x.oiId === id) x.oiId = ''; });
+  saveResults();
+}
+
 // Перенести выявленное в учтённую литеру: снимки — к ней, значения осмотра —
 // в её пустые поля (заполненное у литеры не трогаем). Возвращает, сколько
 // снимков и значений перенесено.
@@ -432,6 +497,7 @@ export function removeFoundOi(typeId, ocId, id) {
   const i = list.findIndex((x) => x.id === id);
   if (i >= 0) list.splice(i, 1);
   st.photos.forEach((p) => { if (p.oiId === id) p.oiId = ''; });
+  (st.scans || []).forEach((x) => { if (x.oiId === id) x.oiId = ''; });
   delete st.assets[id];
   saveResults();
 }
