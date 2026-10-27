@@ -168,6 +168,26 @@ public sealed class ProjectStore
         return Store(Encode(new PngBitmapEncoder(), bmp), ".png", bmp.PixelWidth, bmp.PixelHeight, name);
     }
 
+    // Готовый файл картинки (страница PDF из фонового процесса) — в images/
+    // под именем-хэшем, без перекодирования. Проект не трогает, поэтому
+    // зовётся из фонового потока; в проект картинку вносит Register — внутри
+    // правки, в потоке окна.
+    public string PlaceFile(string src, string ext)
+    {
+        string hash;
+        using (var f = File.OpenRead(src)) hash = Convert.ToHexString(SHA1.HashData(f))[..16].ToLowerInvariant();
+        var dst = Path.Combine(Dir, ImagesDir, hash + ext);
+        if (File.Exists(dst)) File.Delete(src);
+        else File.Move(src, dst);
+        return hash;
+    }
+
+    public string Register(string hash, string ext, int w, int h, string name)
+    {
+        if (!Project.Assets.ContainsKey(hash)) Project.Assets[hash] = new AssetInfo { File = hash + ext, W = w, H = h, Name = name };
+        return hash;
+    }
+
     string Store(byte[] data, string ext, int w, int h, string name)
     {
         var hash = Convert.ToHexString(SHA1.HashData(data))[..16].ToLowerInvariant();

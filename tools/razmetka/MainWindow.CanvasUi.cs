@@ -137,7 +137,13 @@ public partial class MainWindow
             ModeActions.Children.Add(b);
         }
         string? step = null, text = null;
-        if (View.AlignStep >= 0)
+        if (PdfBusy)
+        {
+            step = $"PDF · {_pdfDone} из {_pdfTotal}";
+            text = "Страницы рисуются в фоне — работать можно и сейчас";
+            Act("Остановить", "Esc", CancelPdf);
+        }
+        else if (View.AlignStep >= 0)
         {
             step = $"Подгонка · {View.AlignStep + 1} из 4";
             text = View.AlignStep switch

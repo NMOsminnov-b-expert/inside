@@ -193,6 +193,7 @@ public partial class MainWindow
     // Esc — на уровень вверх: сначала режим, потом выбор.
     void Escape()
     {
+        if (PdfBusy) { CancelPdf(); return; }
         if (View.CropLayerId != null) { View.EndCrop(); return; }
         if (View.AlignStep >= 0) { View.CancelAlign(); return; }
         if (View.LinkTool || View.NoteTool || View.HandTool || View.StraightenTool) { SetTool("select"); return; }

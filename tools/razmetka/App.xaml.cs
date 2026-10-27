@@ -17,15 +17,16 @@ public partial class App : Application
         var args = e.Args;
         // Дочерний процесс для PDF (Model/PdfPages.cs): без окна; выход —
         // сразу после записи, не дожидаясь закрытия движка PDF.
-        if (args.Length >= 2 && args[0] is "--pdf-count" or "--pdf-render")
+        if (args.Length >= 2 && args[0] is "--pdf-count" or "--pdf-render-many")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var code = 0;
             try
             {
                 if (args[0] == "--pdf-count") Console.Out.Write(await Model.PdfPages.CountHere(args[1]));
-                else await Model.PdfPages.RenderHere(args[1], int.Parse(args[2]),
-                    double.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture), args[4]);
+                else await Model.PdfPages.RenderManyHere(args[1],
+                    double.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture), args[3],
+                    args[4].Split(',').Select(int.Parse));
             }
             catch (Exception) { code = 1; }
             Console.Out.Flush();

@@ -348,54 +348,97 @@ public partial class MainWindow : Window
     // Документ из PDF: каждая выбранная страница — разворот со страницей-слоем
     // (закреплён: страницу не сдвинуть случайно, пока рисуешь рамки).
     // opts — для сценариев проверки: (страницы, документ, глава).
+    //
+    // Страницы рисуются в фоне (Model/PdfPages.cs), файлы укладываются в проект
+    // тоже в фоне; окно в это время работает, ход — в полосе режима над
+    // полотном, «Остановить» или Esc прерывает. В потоке окна остаётся только
+    // завести развороты (жалоба пользователя 27.10.2026: «стопорит весь
+    // интерфейс»).
+    CancellationTokenSource? _pdfCts;
+    int _pdfDone, _pdfTotal;
+
+    public bool PdfBusy => _pdfCts != null;
+    public int PdfDone => _pdfDone;
+
+    public void CancelPdf() => _pdfCts?.Cancel();
+
     public async Task AddPdf(string path, (string Pages, string Doc, string Chapter)? opts)
     {
         if (_store == null) return;
+        if (_pdfCts != null) { Status("Предыдущий PDF ещё добавляется — дождитесь или остановите (Esc)"); return; }
         int count;
+        Cursor = Cursors.Wait;
         try { count = await Model.PdfPages.Count(path); }
         catch (Exception ex) { MessageBox.Show(this, $"Не удалось открыть PDF: {ex.Message}", "Разметка"); return; }
-        string pagesText, doc, chTitle;
+        finally { Cursor = null; }
+        string doc, chTitle;
+        List<int> pages;
         var newChapter = true;
-        if (opts is { } o) (pagesText, doc, chTitle) = o;
+        if (opts is { } o) { pages = Model.PdfPages.ParseRange(o.Pages, count); (doc, chTitle) = (o.Doc, o.Chapter); }
         else
         {
-            var d = new PdfImportDialog(path, count, _chapter != null) { Owner = this };
+            var known = _store.Project.Chapters.Select(c => c.DocName);
+            var d = new PdfImportDialog(path, count, _chapter?.Title, known) { Owner = this };
             if (d.ShowDialog() != true) return;
-            (pagesText, doc, chTitle, newChapter) = (d.Pages, d.DocName, d.ChapterTitle, d.NewChapter);
+            (pages, doc, chTitle, newChapter) = (d.SelectedPages.ToList(), d.DocName, d.ChapterTitle, d.NewChapter);
         }
-        var pages = Model.PdfPages.ParseRange(pagesText, count);
         if (pages.Count == 0) { Status("Страницы не выбраны"); return; }
-        Status($"Страницы PDF: {pages.Count}…");
-        Cursor = Cursors.Wait;
-        var images = new List<(int Page, BitmapSource Bmp)>();
-        try { foreach (var n in pages) images.Add((n, await Model.PdfPages.Render(path, n))); }
-        finally { Cursor = null; }
+        // Глава назначения — та, что была выбрана в окне, а не та, на которую
+        // пользователь перейдёт, пока страницы рисуются.
+        var into = newChapter ? null : _chapter;
+        var store = _store;
+        var tmp = Path.Combine(Path.GetTempPath(), $"razmetka-pdf-{Guid.NewGuid():N}");
+        var cts = new CancellationTokenSource();
+        (_pdfCts, _pdfDone, _pdfTotal) = (cts, 0, pages.Count);
+        SyncTool();
+        var placed = new List<(int Page, string Hash, int W, int H)>();
+        try
+        {
+            await Model.PdfPages.RenderMany(path, pages, Model.PdfPages.Dpi, tmp,
+                _ => Dispatcher.BeginInvoke(() => { _pdfDone++; SyncTool(); }), cts.Token);
+            placed = await Task.Run(() => pages.Select(n =>
+            {
+                var png = Model.PdfPages.PagePng(tmp, n);
+                var (w, h) = Model.PdfPages.PngSize(png);
+                return (n, store.PlaceFile(png, ".png"), w, h);
+            }).ToList());
+        }
+        catch (OperationCanceledException) { Status("Добавление PDF остановлено"); return; }
+        catch (Exception ex) { MessageBox.Show(this, $"Не удалось добавить PDF: {ex.Message}", "Разметка"); return; }
+        finally
+        {
+            _pdfCts = null;
+            SyncTool();
+            try { Directory.Delete(tmp, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+        // Пока рисовалось, проект могли закрыть или открыть другой.
+        if (_store != store) return;
         Chapter? target = null;
         Sheet? first = null;
         Edit("Документ из PDF", () =>
         {
-            target = newChapter || _chapter == null
-                ? new Chapter { Title = string.IsNullOrWhiteSpace(chTitle) ? Path.GetFileNameWithoutExtension(path) : chTitle, DocName = doc }
-                : _chapter;
+            target = into != null && _store.Project.Chapters.Contains(into)
+                ? into
+                : new Chapter { Title = string.IsNullOrWhiteSpace(chTitle) ? Path.GetFileNameWithoutExtension(path) : chTitle, DocName = doc };
             if (!_store.Project.Chapters.Contains(target)) _store.Project.Chapters.Add(target);
             // Заготовка нового проекта («Глава 1» с пустым разворотом) не
             // остаётся рядом с документом: пустая — уходит.
             _store.Project.Chapters.RemoveAll(c => c != target && c.Sheets.All(x => x.Layers.Count == 0 && x.Links.Count == 0 && x.Notes.Count == 0));
-            foreach (var (n, bmp) in images)
+            foreach (var (n, hash, w, h) in placed)
             {
                 var sh = new Sheet { Title = $"Страница {n}", Page = $"стр. {n}" };
-                var asset = _store.Import(bmp, $"{Path.GetFileName(path)}, стр. {n}");
+                var asset = _store.Register(hash, ".png", w, h, $"{Path.GetFileName(path)}, стр. {n}");
                 // Страница рисуется в 300 dpi, а на полотне стоит в прежнем
                 // размере (как при 110 dpi) — рамки и снимки системы рядом не
                 // становятся мелкими; подробность — при увеличении и в экспорте.
-                var l = LayerOps.AddImage(sh, _store, asset, $"{doc}, стр. {n}", _store.Project.Assets[asset].W * Model.PdfPages.CanvasDpi / Model.PdfPages.Dpi);
+                var l = LayerOps.AddImage(sh, _store, asset, $"{doc}, стр. {n}", w * Model.PdfPages.CanvasDpi / Model.PdfPages.Dpi);
                 l.Locked = true;
                 target.Sheets.Add(sh);
                 first ??= sh;
             }
         });
         if (first != null) PickSheet(target, first);
-        Status($"Добавлено разворотов: {images.Count}");
+        Status($"Добавлено разворотов: {placed.Count}");
     }
 
     // Стрелки, оторванные от рамок (например, после переноса старой разметки,
@@ -473,6 +516,10 @@ public partial class MainWindow : Window
             return;
         }
         if (_sheet == null) { Status("Сначала откройте проект — картинки ложатся на разворот"); return; }
+        // PDF — через окно выбора страниц (по одному файлу за раз), остальное —
+        // картинками на разворот.
+        var pdf = files.FirstOrDefault(f => File.Exists(f) && Path.GetExtension(f).Equals(".pdf", StringComparison.OrdinalIgnoreCase));
+        if (pdf != null) { _ = AddPdf(pdf, null); return; }
         AddImageFiles(files.Where(File.Exists));
     }
 

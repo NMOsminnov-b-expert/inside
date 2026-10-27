@@ -322,6 +322,56 @@ public static class ScriptRunner
                         await w.AddPdf(st.GetProperty("path").GetString()!, (st.GetProperty("pages").GetString()!,
                             st.GetProperty("doc").GetString()!, st.GetProperty("chapter").GetString()!));
                         break;
+                    // Окно выбора страниц PDF: открыть, дождаться миниатюр, отметить
+                    // страницы щелчками («click»: [номер, …], «shift» — номер для
+                    // Shift+щелчка), снять, закрыть.
+                    case "pdfDialog":
+                    {
+                        var pdfPath = st.GetProperty("path").GetString()!;
+                        var count = await Model.PdfPages.Count(pdfPath);
+                        var d = new PdfImportDialog(pdfPath, count, w.Store!.Project.Chapters.FirstOrDefault()?.Title, new[] { "Госакт" }) { Owner = w };
+                        if (st.TryGetProperty("w", out var dw)) d.Width = dw.GetDouble();
+                        if (st.TryGetProperty("h", out var dh)) d.Height = dh.GetDouble();
+                        d.Show();
+                        var until = DateTime.Now.AddSeconds(30);
+                        while (d.ThumbsShown < count && DateTime.Now < until) await Task.Delay(100);
+                        log.Add(d.ThumbsShown == count ? $"  ок: миниатюр {count}" : $"  НЕ ТАК: миниатюр {d.ThumbsShown}, ждали {count}");
+                        if (st.TryGetProperty("click", out var cl)) foreach (var c in cl.EnumerateArray()) d.Toggle(c.GetInt32(), false);
+                        if (st.TryGetProperty("shift", out var sh)) d.Toggle(sh.GetInt32(), true);
+                        if (st.TryGetProperty("expect", out var ex))
+                        {
+                            var got = Model.PdfPages.FormatRange(d.SelectedPages);
+                            log.Add(got == ex.GetString() ? $"  ок: отмечены {got}" : $"  НЕ ТАК: отмечены {got}, ждали {ex.GetString()}");
+                        }
+                        await Idle();
+                        if (st.TryGetProperty("shot", out var sp)) Shot(d, sp.GetString()!);
+                        d.Close();
+                        break;
+                    }
+                    // Импорт PDF без ожидания: окно должно отвечать, пока страницы
+                    // рисуются (жалоба пользователя 27.10.2026 «стопорит весь
+                    // интерфейс»). Раз в 30 мс — отметка; задержка сверх
+                    // «maxLagMs» — провал. «shot» — снимок полосы хода.
+                    case "pdfLive":
+                    {
+                        var task = w.AddPdf(st.GetProperty("path").GetString()!, (st.GetProperty("pages").GetString()!,
+                            st.GetProperty("doc").GetString()!, st.GetProperty("chapter").GetString()!));
+                        var limit = st.TryGetProperty("maxLagMs", out var ml) ? ml.GetDouble() : 250;
+                        var shot = st.TryGetProperty("shot", out var sp) ? sp.GetString() : null;
+                        double worst = 0;
+                        var clock = System.Diagnostics.Stopwatch.StartNew();
+                        while (!task.IsCompleted)
+                        {
+                            var t0 = clock.Elapsed.TotalMilliseconds;
+                            await Task.Delay(30);
+                            worst = Math.Max(worst, clock.Elapsed.TotalMilliseconds - t0 - 30);
+                            if (shot != null && w.PdfBusy && w.PdfDone >= 1) { Shot(w, shot); shot = null; }
+                        }
+                        await task;
+                        log.Add(worst <= limit ? $"  ок: окно отвечало, наибольшая задержка {worst:0} мс"
+                            : $"  НЕ ТАК: окно замирало на {worst:0} мс (допустимо {limit:0})");
+                        break;
+                    }
                     case "export":
                     {
                         var kind = st.GetProperty("kind").GetString();

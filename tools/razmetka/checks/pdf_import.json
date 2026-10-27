@@ -1,0 +1,13 @@
+[
+ {"op": "size", "w": 1400, "h": 880},
+ {"op": "create", "dir": "{TMP}/fresh", "title": "Импорт PDF"},
+ {"op": "pdfDialog", "path": "{DOCS}/0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf", "shot": "{TMP}/dialog.png"},
+ {"op": "pdfDialog", "path": "{DOCS}/0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf", "click": [2], "shift": 4, "expect": "1, 5-10", "shot": "{TMP}/dialog-pick.png"},
+ {"op": "pdfDialog", "path": "{DOCS}/0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf", "w": 560, "h": 540, "shot": "{TMP}/dialog-narrow.png"},
+ {"op": "cmd", "id": "view.theme.dark"},
+ {"op": "pdfDialog", "path": "{DOCS}/0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf", "shot": "{TMP}/dialog-dark.png"},
+ {"op": "cmd", "id": "view.theme.light"},
+ {"op": "pdfLive", "path": "{DOCS}/0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf", "pages": "", "doc": "Техпаспорт", "chapter": "Техпаспорт", "shot": "{TMP}/progress.png"},
+ {"op": "assert", "what": "sheets", "eq": 10},
+ {"op": "shot", "path": "{TMP}/done.png"}
+]
