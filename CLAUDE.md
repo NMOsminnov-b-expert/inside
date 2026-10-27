@@ -558,8 +558,9 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   (`ukazan-stolbec-chitat-tolko-ego-bez-razbora-ostalnoy-struktury-fayla`).
 * **К диску Y: и папкам с исходными фото не обращаться** — только к
   выгруженному перечню (`claude-feedback-no-disk-browsing`).
-* **Ветка — `refactor`**, коммиты прямо в неё; `refactor-TS` влита и не
-  используется (`claude-project-branch-refactor`).
+* **Ветка — `осмотры`** (с 27.10.2026; догнала main), коммиты прямо в неё;
+  `refactor` влит в main, `refactor-TS` влита и не используется
+  (`claude-project-branch-refactor`).
 * **Карточки ОЦ пока не трогать** — новое только в осмотрах и общих картах;
   правка ядра, задевающая карточку, — сначала спросить (`kartochki-oc-poka-ne-trogat`).
 * **После перерыва — проверить, что всё поднято**: semsearch (`svc.py status`),
