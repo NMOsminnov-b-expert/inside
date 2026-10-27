@@ -18,7 +18,8 @@
 //
 // Что описание УЖЕ умеет: текст, число с единицей, одиночный и множественный
 // выбор кнопками-чипами, длинный текст, обязательность, показ рядом значения
-// «по документам» (для полей, которые осмотрщик заполняет своим замером).
+// «по документам» (для полей, которые осмотрщик заполняет своим замером),
+// подсказку к подписи (note — всплывает над подписью, текст из каталога ТС).
 //
 // Чего оно СПЕЦИАЛЬНО не умеет: поэтажную развёртку, таблицу конструктива с
 // износом, аренду по этажам, выбор с поиском. Это не поля, а свои виджеты со
@@ -182,7 +183,7 @@ export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
     && ['chips', 'rows'].includes(controlOf(field, u));
 
   return `<div class="${u.field}${wide ? ' ' + (u.wide || 'fs-wide') : ''}" data-fs-field="${esc(field.key)}">
-    <span class="${u.label}">${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>
+    <span class="${u.label}"${field.note ? ` title="${esc(field.note)}"` : ''}>${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>
     ${body}
     ${hint ? `<span class="${u.hint}${/^РАСХОДИТСЯ/.test(hint) ? ' warn' : ''}">${esc(hint)}</span>` : ''}
   </div>`;

@@ -19,3 +19,7 @@ export { PHOTO_CATS } from './photos.js';
 export {
   vehicleOiCard, vehicleCardMeta, createVehicleOi, migrateVehicleOi, syncVehicleName,
 } from './oiCard.js';
+// Осмотр ТС осмотрщиком (запись графа osmotr-ts-na-meste-i-po-snimkam): поля
+// «на месте», ракурсы снимков, виды выявленного ТС. Экран осмотрщика берёт их
+// через kernel/registry.js.
+export { TS_ONSITE, tsInspectPlan, tsShots, tsFoundKinds, tsName } from './inspect.js';

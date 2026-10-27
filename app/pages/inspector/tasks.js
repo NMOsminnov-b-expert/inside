@@ -9,9 +9,9 @@
 //
 // Записи берём через kernel/registry.js: страница не имеет права импортировать
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
-import { sortedTypes, getType, migrateLiterKinds } from '../../kernel/registry.js';
+import { sortedTypes, getType, migrateLiterKinds, tsName, tsShots } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
-import { tasksOf, allAssignments, isLive } from '../../kernel/inspections.js';
+import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
@@ -119,9 +119,19 @@ export function inspectorsInData() {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ru'));
 }
 
+// Кто осматривает — считается по всем записям, а спрашивают об этом на каждой
+// отрисовке много раз (перечень ОИ, снимки по ОИ): ответ держим до конца
+// текущей задачи браузера.
+let curMemo = null;
 export function currentInspector() {
   if (viewAs) return viewAs;
+  if (curMemo !== null) return curMemo;
+  curMemo = pickInspector();
+  setTimeout(() => { curMemo = null; }, 0);
+  return curMemo;
+}
 
+function pickInspector() {
   // Сначала человек из сессии: если осмотры на него есть, показываем его.
   const me = session.state.person;
   const list = inspectorsInData();
@@ -132,6 +142,7 @@ export function currentInspector() {
 
 export function setInspector(name) {
   viewAs = name || null;
+  curMemo = null;
 }
 
 // --- список задач ---------------------------------------------------------
@@ -262,6 +273,7 @@ export function oiLabel(oi) {
     return ['Механизмы и оборудование', name].filter(Boolean).join(' · ');
   }
   if (oi.card === 'vehicle') {
+    if (oi.draft) return ['Выявлено', 'ТС', name || (oi.vehicle || {}).category].filter(Boolean).join(' · ');
     return ['Транспортное средство', name].filter(Boolean).join(' · ');
   }
   if (oi.card === 'movable') {
@@ -319,8 +331,53 @@ export function foundOi(typeId, ocId) {
   return st.found;
 }
 
-// Учтённые ОИ записи и выявленные — один список для осмотрщика.
-export const inspOis = (rec, typeId, ocId) => [...((rec && rec.oi) || []), ...foundOi(typeId, ocId)];
+// ОЦ «ТС» — сама машина, объектов имущества у записи нет (rec.vehicle — те же
+// сведения, что oi.vehicle у ТС внутри недвижимости). Осматривается она той же
+// формой, что ТС-ОИ, — как объект «ts» этой записи.
+export const SELF_TS = 'ts';
+const selfTs = (rec) => (rec && rec.vehicle && !(rec.oi || []).length
+  ? [{ id: SELF_TS, card: 'vehicle', vehicle: rec.vehicle, name: tsName(rec), docs: [], ocSelf: true }] : []);
+
+// ОИ, назначенные осмотрщику по объекту: null — объект целиком или назначений
+// нет (прежнее правило: осмотрщик видит все ОИ). ТС, переданное другому
+// осмотрщику (решение пользователя 27.10.2026: «ТС может быть переназначен
+// отдельно от ОЦ»), у прежнего из перечня уходит.
+export function assignedOiIds(typeId, ocId) {
+  const me = currentInspector();
+  const mine = assignmentsOf(typeId, ocId).filter((a) => a.person === me);
+  if (!mine.length || mine.some((a) => !a.oiIds || !a.oiIds.length)) return null;
+  return new Set(mine.flatMap((a) => a.oiIds));
+}
+
+// Учтённые ОИ записи (назначенные этому осмотрщику) и выявленные — один
+// список для осмотрщика.
+export function inspOis(rec, typeId, ocId) {
+  const ids = assignedOiIds(typeId, ocId);
+  const own = [...((rec && rec.oi) || []), ...selfTs(rec)].filter((o) => !ids || ids.has(o.id));
+  return [...own, ...foundOi(typeId, ocId)];
+}
+// Сколько ОИ записи осматривают другие осмотрщики — строкой в перечне.
+export function othersOiCount(rec, typeId, ocId) {
+  const ids = assignedOiIds(typeId, ocId);
+  return ids ? ((rec && rec.oi) || []).filter((o) => !ids.has(o.id)).length : 0;
+}
+
+// --- снимки ТС по ракурсам ---------------------------------------------------
+//
+// Перечень ракурсов — модуль ТС (tsShots, запись графа osmotr-ts-na-meste-i-
+// po-snimkam); подпись ракурса — категория снимка. Снято — есть снимок этого
+// ТС в этой категории. «Не найдено» — снимать нечего, недостающих нет.
+export const isInspTs = (oi) => !!oi && oi.card === 'vehicle' && !oi.draft;
+export function tsShotState(typeId, ocId, oi) {
+  const photos = taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id);
+  return tsShots(oi).map((s) => ({ ...s, n: photos.filter((p) => p.cat === s.label).length }));
+}
+export function tsShotsMissing(rec, typeId, ocId) {
+  return inspOis(rec, typeId, ocId).filter(isInspTs)
+    .filter((oi) => (valuesOf(typeId, ocId, oi.id).ts || {}).found !== 'Не найдено')
+    .map((oi) => ({ oi, missing: tsShotState(typeId, ocId, oi).filter((s) => s.req && !s.n) }))
+    .filter((x) => x.missing.length);
+}
 export const isFoundLocked = (typeId, ocId) => !!taskState(typeId, ocId).done;
 
 let foundSeq = 0;
@@ -435,9 +492,10 @@ export function photoById(typeId, ocId, id) {
 export function photoGroups(rec, typeId, ocId) {
   const st = taskState(typeId, ocId);
   const byOi = new Map();
+  const ois = inspOis(rec, typeId, ocId);
 
   st.photos.forEach((p) => {
-    const oi = inspOis(rec, typeId, ocId).find((o) => o.id === p.oiId);
+    const oi = ois.find((o) => o.id === p.oiId);
     const key = p.oiId || '';
     if (!byOi.has(key)) {
       byOi.set(key, { label: oi ? oiLabel(oi) : 'Без привязки к объекту', cats: new Map() });

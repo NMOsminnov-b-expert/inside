@@ -332,7 +332,8 @@ def run(t):
     pg.locator('select[data-fs-sel$=".state"]').first.select_option('Нерабочее')
     t.ck(t.wait_until("() => /только при снимках/.test(document.body.innerText)"), '«Нерабочее» без снимков не остановлено предупреждением')
     t.open('#/insp/civil/oc-cv-1/object/oi-cv1-v1', wait='.ins-body')
-    t.ck(pg.locator('[data-fs-field]').count() == 0 and _has(t, 'ещё не заданы'), 'у ТС показана форма осмотра (ждёт решения)')
+    # ТС — своя форма «на месте» (решение 27.10.2026, check_inspector_ts.py).
+    t.ck(pg.locator('[data-fs-field="ts.found"]').count() == 1 and 'Нахождение' in secs(), 'у ТС нет формы осмотра «на месте»: %s' % secs())
     t.open(ASSET, wait='.ins-fs')
     t.wait(300)
     # Строение — блоки карточки литеры; чек-лист коммуникаций — у участка.

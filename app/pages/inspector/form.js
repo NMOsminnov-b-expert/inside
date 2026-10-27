@@ -20,7 +20,7 @@
 
 import { getValue } from '../../kernel/fieldSchema.js';
 import { optionsFor } from '../../kernel/dicts.js';
-import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS, OI_NETS, netValue, netsLandOf } from '../../kernel/registry.js';
+import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS, OI_NETS, netValue, netsLandOf, tsInspectPlan } from '../../kernel/registry.js';
 
 // Ступени износа словами, а не проценты: на осмотре процент не измерить, его
 // считают позже по элементам (III этап ТЗ).
@@ -143,13 +143,15 @@ const WALLS_INT = WALLS;
 // значение «по документам» (field.doc — из записи ОИ). Ключи прежних полей
 // сохранены там, где смысл тот же: введённое осмотрщиком не теряется. ТС —
 // ждёт решения пользователя («ТС пока что ждём»): формы нет, только снимки и
-// заметка.
+// заметка. С 27.10.2026 у ТС своя форма — поля «на месте» (vehicleSections).
 export const sections = (typeId, oi) => {
   const card = (oi && oi.card) || 'building';
   if (card === 'apartment') return flatSections(typeId, oi);
   if (card === 'land') return landSections(typeId);
   if (card === 'mech' || card === 'movable') return mechSections(oi);
-  if (card === 'vehicle') return [];
+  // Выявленное на осмотре ТС — черновик со своими полями в блоке «Выявлено»
+  // (views.js, foundTsHTML): формы осмотра у него нет.
+  if (card === 'vehicle') return oi.draft ? [] : vehicleSections(oi);
   return buildingSections(typeId, oi);
 };
 
@@ -444,6 +446,79 @@ const mechSections = (oi) => [
   commentsSection,
 ];
 
+// Транспортное средство — ОЦ «ТС» или ОИ «Транспортное средство» (решение
+// пользователя 27.10.2026, запись графа osmotr-ts-na-meste-i-po-snimkam).
+// Только поля «на месте»: что читается с таблички, прибора или документа,
+// считается или меряется рулеткой; рядом — значение из записи ТС и
+// «РАСХОДИТСЯ». Поля «по снимкам» (состояния, комплектация, КПП, тормоза…)
+// заполняют ЦОД и оценка — осмотрщику они не показываются. Состав, подписи,
+// единицы и подсказки — из каталога ТС через дверь модуля (kernel/registry.js,
+// tsInspectPlan); здесь — только раскладка по разделам.
+//
+// Первым — «Нахождение»: ТС не закреплено за адресом (заметка пользователя
+// 27.10.2026 «ТС не закреплены за конкретным адресом»). «Не найдено» — где оно
+// и по чьим словам; остальные разделы при этом скрыты: опознавать нечего.
+// Адрес — на момент осмотра и необязательный («Адрес мог меняться. Указываем
+// (опционально) на момент осмотра»). Место съёмки и подстановка адреса
+// объекта выезда — действия раздела (views.js, widget 'tsPlace').
+export const TS_FOUND = ['Найдено', 'Не найдено'];
+export const tsMissing = (values) => getValue(values, 'ts.found') === 'Не найдено';
+const tsHere = (values) => !tsMissing(values);
+const NUM_TYPES = ['int', 'num', 'year'];
+// Поле каталога → поле формы. prefix — где лежит значение у осмотра: 'f' у
+// машины, 'm.<id>' у модуля (как f и modules[].f у записи ТС).
+function tsField(prefix, d, { label = d.label } = {}) {
+  const key = `${prefix}.${d.key}`;
+  const one = d.units.length <= 1;
+  const field = {
+    key,
+    label,
+    note: d.hint,
+    visible: tsHere,
+    doc: Object.assign(() => d.doc, { path: `vehicle.${prefix === 'f' ? 'f' : 'modules'}.${d.key}` }),
+    ...(d.fromDocs ? {} : { tpLabel: 'в карточке' }),
+  };
+  if (d.type === 'select') Object.assign(field, { opts: d.options });
+  else if (d.type === 'area') Object.assign(field, { long: true, rows: 2 });
+  else if (NUM_TYPES.includes(d.type)) Object.assign(field, { num: true, int: d.type !== 'num', unit: one ? d.units[0] || '' : d.unit });
+  // Номера сверяются без пробелов и дефисов: «01 KG 777 ABC» — тот же госномер.
+  else Object.assign(field, { loose: true, max: 40 });
+  // Пробег — в км или милях: единицу выбирают рядом (как в карточке ТС).
+  const unitField = one ? [] : [{
+    key: key + '@unit', label: `${d.label}, единица`, opts: d.units, visible: tsHere,
+  }];
+  return [field, ...unitField];
+}
+function vehicleSections(oi) {
+  const plan = tsInspectPlan(oi);
+  const sec = (key, title, short, fields) => ({ key, title, short, fields });
+  const list = [
+    {
+      key: 'where',
+      title: 'Нахождение',
+      short: 'Нахождение',
+      widget: 'tsPlace',
+      fields: [
+        { key: 'ts.found', label: 'На месте', req: true, opts: TS_FOUND },
+        { key: 'ts.where', label: 'Где находится', long: true, rows: 2, visible: tsMissing },
+        { key: 'ts.whoSaid', label: 'Со слов кого', max: 120, visible: tsMissing },
+        { key: 'ts.addr', label: 'Адрес на момент осмотра', max: 200 },
+      ],
+    },
+    sec('ident', 'Опознание', 'Опознание', plan.ident.flatMap((d) => tsField('f', d))),
+    sec('readings', 'Показания', 'Показания', plan.readings.flatMap((d) => tsField('f', d))),
+    sec('seen', 'Видно на месте', 'Видно', plan.visible.flatMap((d) => tsField('f', d))),
+    sec('plates', 'Таблички', 'Таблички', plan.plates.flatMap((d) => tsField('f', d))),
+    ...plan.modules.map((m) => sec('mod-' + m.id, `Модуль: ${m.title}`, m.title.slice(0, 18), m.fields.flatMap((d) => tsField('m.' + m.id, d)))),
+    sec('kit', 'Комплектность', 'Комплектность', [
+      ...plan.kit.flatMap((d) => tsField('f', d)),
+      ...plan.modules.flatMap((m) => m.kit.flatMap((d) => tsField('m.' + m.id, d, { label: `${d.label} модуля: ${m.title}` }))),
+    ]),
+    commentsSection,
+  ];
+  return list.filter((s) => s.fields.length);
+}
+
 // Плоский перечень полей — для подсчёта заполненного и обязательного
 // (kernel/fieldSchema.js: requiredLeft, filledCount).
 export const allFields = (typeId, oi) => sections(typeId, oi).flatMap((s) => s.fields);
@@ -475,12 +550,14 @@ export function mismatchHint(field, values, oi, ctx = {}) {
     if (field.num) {
       const a = parseFloat(String(doc).replace(',', '.'));
       const b = parseFloat(String(own).replace(',', '.'));
-      if (!isNaN(a) && !isNaN(b) && a !== b) return `РАСХОДИТСЯ: ${lbl} ${doc}${unit}, ${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)}${unit}`;
+      if (!isNaN(a) && !isNaN(b) && a !== b) return `РАСХОДИТСЯ: ${lbl} ${doc}${unit}, ${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(field.int ? 0 : 2)}${unit}`;
       return `${lbl}: ${doc}${unit} — совпадает`;
     }
     // Мультивыбор — набор значений: порядок не важен.
     const set = (v) => [].concat(Array.isArray(v) ? v : String(v).split(/,\s*/)).map((x) => String(x).trim().toLowerCase()).filter(Boolean).sort().join('|');
-    const same = Array.isArray(own) ? set(own) === set(doc) : String(own).trim().toLowerCase() === String(doc).trim().toLowerCase();
+    // loose — номера (госномер, VIN): пробелы и дефисы не в счёт.
+    const norm = (v) => String(v).trim().toLowerCase().replace(field.loose ? /[\s-]+/g : /^$/, '');
+    const same = Array.isArray(own) ? set(own) === set(doc) : norm(own) === norm(doc);
     return same ? `${lbl}: ${doc} — совпадает` : `РАСХОДИТСЯ: ${lbl} ${doc}`;
   }
   if (!field.tpFrom) return '';
