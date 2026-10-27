@@ -70,7 +70,7 @@ _add('Осмотрщик · Уведомления', 'osmotry', 'insp', '#/insp?
 _add('Осмотрщик · Задача', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON), '.ins-page, .ins-list, main', _INSPECTOR_TOUCH,
      prep=['a[href^="#/insp/"]'])
 # Осмотр ТС (этап А, 27.10.2026): ОЦ «ТС» с модулем и без адреса, форма «на
-# месте» и перечень ракурсов; выявленное ТС в блоке «Выявлено».
+# месте»; выявленное ТС в блоке «Выявлено».
 _TS_TOUCH = _INSPECTOR_TOUCH + ('app/modules/vehicle/inspect.js', 'app/modules/vehicle/data/seed.js', 'app/kernel/geoHere.js')
 _add('Осмотрщик · Осмотр ТС', 'osmotry', 'insp', '#/insp/vehicle/oc-vehicle-d2/object/ts?as=' + quote(PERSON), '.ins-acc', _TS_TOUCH)
 _add('Осмотрщик · Объект · выявленное ТС', 'osmotry', 'insp', '#/insp/civil/oc-cv-1/object?as=' + quote('Бабашова Даяна Алтынбековна'),

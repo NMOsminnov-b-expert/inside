@@ -23,7 +23,7 @@ import {
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions,
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
-  othersOiCount, isInspTs, tsShotState, tsShotsMissing,
+  othersOiCount,
   newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
   scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
 } from './tasks.js';
@@ -77,9 +77,6 @@ export function mountInspector(host) {
     sortOpen: false,
     camSel: new Set(),
     cat: PHOTO_CATS[0],
-    // «Осмотр завершён» при недостающих обязательных снимках ТС: перечень и
-    // причина раскрыты под кнопкой (null — закрыто).
-    doneCheck: null,
     // Блок «Выявлено»: выбранная категория и черновик нового ТС (до сохранения).
     foundCat: '',
     tsDraft: null,
@@ -725,10 +722,9 @@ export function mountInspector(host) {
           viewer: (() => { const vd = docsForOi(r, oi); if (ui.docv.open && !vd.some((d) => d.id === ui.docv.open)) ui.docv.open = ''; return viewerHTML(vd, ui.docv); })(),
           voices: voicesOf(typeId, ocId, oi.id),
           recording: voiceRec && { oiId: voiceRec.oiId },
-          cam: { batch: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id && p.cat === UNSORTED), sel: ui.camSel, sortOpen: ui.sortOpen, cats: catsOf(oi) },
-          // ТС: перечень ракурсов и подстановка адреса объекта выезда (если
-          // ТС — ОИ записи недвижимости, а не сам ОЦ «ТС»).
-          tsShots: isInspTs(oi) ? tsShotState(typeId, ocId, oi) : null,
+          cam: { batch: taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id && p.cat === UNSORTED), sel: ui.camSel, sortOpen: ui.sortOpen },
+          // ТС: подстановка адреса объекта выезда (если ТС — ОИ записи
+          // недвижимости, а не сам ОЦ «ТС»).
           tripAddr: oi.card === 'vehicle' && !oi.ocSelf ? r.address || '' : '',
           locating: ui.locating,
           placeMsg: ui.placeMsg,
@@ -796,9 +792,8 @@ export function mountInspector(host) {
     const ll = parseLL(r.gps) || (geo && geo.extent ? [(geo.extent[1] + geo.extent[3]) / 2, (geo.extent[0] + geo.extent[2]) / 2] : null);
     const chain = institutionChain(r.institution, r.podved).map((x) => ({ name: x.node ? x.node.name : (x.name || 'Учреждение'), contacts: x.contacts || [] }))
       .filter((g) => g.contacts.length);
-    if (ui.doneCheck && ui.doneCheck.key !== typeId + '|' + ocId) ui.doneCheck = null;
     scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId),
-      doneCheck: ui.doneCheck, oiCount: inspOis(r, typeId, ocId).filter((o) => !o.draft).length,
+      oiCount: inspOis(r, typeId, ocId).filter((o) => !o.draft).length,
       contacts: { own: contactsOf(typeId, ocId), editing: ui.ct.editing, object: r.contacts || [], chain },
       voices: voicesOf(typeId, ocId, ''), recording: voiceRec && { oiId: voiceRec.oiId } }));
     bindContacts(scope, 'insp', { list: () => contactsOf(typeId, ocId), ui: ui.ct, rerender: () => renderKeep(), onChange: saveResults });
@@ -880,10 +875,6 @@ export function mountInspector(host) {
   // Открытый ОИ и его снимки — для формы по виду ОИ и правила «нерабочее —
   // только при снимках».
   const curOi = () => { const r = rec(); return r && inspOis(r, route.typeId, route.ocId).find((o) => o.id === route.oiId); };
-  // Категории снимков ОИ: у ТС — ракурсы перечня и общие «Документы на месте»
-  // и «Прочее»; у остальных — общий перечень.
-  const catsOf = (oi) => (isInspTs(oi)
-    ? [...tsShotState(route.typeId, route.ocId, oi).map((x) => x.label), 'Документы на месте', 'Прочее'] : PHOTO_CATS);
   const oiPhotos = () => (route.typeId && route.ocId ? taskState(route.typeId, route.ocId).photos.filter((p) => p.oiId === route.oiId).length : 0);
 
   // Сохранение — само (макет: значения и так в памяти вкладки). Время
@@ -1208,45 +1199,10 @@ export function mountInspector(host) {
       host.toast(`Не завершить: снимков не распределено по категориям — ${left}`, 'warn');
       return;
     }
-    // Обязательные ракурсы ТС не сняты — не запрет, а перечень и причина на
-    // месте (запись графа osmotr-ts-na-meste-i-po-snimkam).
-    if (!st0.done) {
-      const miss = tsShotsMissing(rec(), route.typeId, route.ocId);
-      if (miss.length) {
-        ui.doneCheck = { key: route.typeId + '|' + route.ocId, err: '', reason: '',
-          missing: miss.map((x) => ({ label: oiLabel(x.oi), shots: x.missing.map((m) => m.label) })) };
-        renderKeep();
-        const why = scope.$('[data-done-why]');
-        if (why) why.focus();
-        return;
-      }
-    }
-    if (st0.done) st0.shotsReason = null;
     const st = markDone(route.typeId, route.ocId, !st0.done);
     host.toast(st.done ? 'Осмотр отмечен как завершённый' : 'Отметка снята', 'ok');
     render();
   });
-  scope.on('input', '[data-done-why]', (e, el) => { if (ui.doneCheck) ui.doneCheck.reason = el.value; });
-  scope.on('click', '[data-done-cancel]', () => { ui.doneCheck = null; renderKeep(); });
-  scope.on('click', '[data-done-go]', () => {
-    const d = ui.doneCheck;
-    if (!d) return;
-    const text = String(((scope.$('[data-done-why]') || {}).value) || d.reason || '').trim();
-    if (!text) {
-      d.err = 'Укажите причину — без неё ЦОД не поймёт, почему снимков нет';
-      renderKeep();
-      const why = scope.$('[data-done-why]');
-      if (why) why.focus();
-      return;
-    }
-    const st = taskState(route.typeId, route.ocId);
-    st.shotsReason = { text, missing: d.missing, at: new Date().toISOString() };
-    markDone(route.typeId, route.ocId, true);
-    ui.doneCheck = null;
-    host.toast('Осмотр отмечен как завершённый — с причиной недостающих снимков', 'ok');
-    render();
-  });
-
   scope.on('click', '[data-oi]', (e, el) => {
     ui.openOi = ui.openOi === el.dataset.oi ? null : el.dataset.oi;
     render();
@@ -1812,18 +1768,6 @@ export function mountInspector(host) {
     renderKeep();
   });
 
-  // Снимок ракурса ТС — касанием пункта перечня: камера и сразу в категорию
-  // этого ракурса, без разбора «Не распределено».
-  scope.on('click', '[data-ts-shot]', async (e, el) => {
-    if (!route.oiId) return;
-    const cat = el.dataset.tsShot;
-    const file = await pickFile('image/*', { capture: 'environment' });
-    if (!file) return;
-    if (isFileTooLarge(file)) { host.toast(`Снимок больше ${MAX_DOC_FILE_MB} МБ — уменьшите качество съёмки`, 'warn'); return; }
-    const res = addPhoto(route.typeId, route.ocId, file, { oiId: route.oiId, cat });
-    if (res.error) { host.toast(res.error, 'warn'); return; }
-    renderKeep();
-  });
   // «Записать место» — координаты телефона в значения осмотра ТС. Нет
   // разрешения или сигнала — строка «не определено», без ошибки.
   scope.on('click', '[data-ts-locate]', async () => {
@@ -1914,7 +1858,7 @@ export function mountInspector(host) {
     if (!p) return;
     closeLightbox();
     const owner = inspOis(rec() || {}, route.typeId, route.ocId).find((o) => o.id === p.oiId);
-    scope.root.insertAdjacentHTML('beforeend', lightboxHTML(p, oiOptions(rec() || {}, route.typeId, route.ocId), catsOf(owner)));
+    scope.root.insertAdjacentHTML('beforeend', lightboxHTML(p, oiOptions(rec() || {}, route.typeId, route.ocId)));
   });
 
   scope.on('click', '[data-lb-close]', closeLightbox);

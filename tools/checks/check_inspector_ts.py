@@ -9,14 +9,14 @@
     раздел модуля — таблички модуля не снимут;
   * рядом с номером — значение из записи ТС и «РАСХОДИТСЯ»; госномер с
     пробелами не должен давать ложного расхождения;
-  * «Не найдено» — где и со слов кого, остальные разделы и ракурсы скрыты;
+  * «Не найдено» — где и со слов кого, остальные разделы скрыты;
   * адрес на момент осмотра: пустой, свой, подставленный адрес объекта выезда
     (только у ТС внутри недвижимости, у ОЦ «ТС» кнопки нет);
   * место съёмки: есть разрешение — «широта, долгота · ±точность»; нет
     разрешения — снимок без места, без ошибки в консоли;
-  * перечень ракурсов: обязательные отмечены, снятое помечено, у прицепа нет
-    приборной панели; «Осмотр завершён» без обязательных — перечень и причина,
-    без причины не завершается;
+  * снимки ТС — обычная съёмка осмотрщика (камера, разбор по общим
+    категориям), у снимка — место съёмки; обязательных снимков нет,
+    «Осмотр завершён» без перечня недостающего и без причины;
   * выявленные ТС: отказ без сведений (ошибка у поля), одно и несколько,
     источник «видел сам» / «со слов» (контакт осмотра или ФИО), снимок и
     документ как единственное сведение, отмена черновика;
@@ -136,62 +136,51 @@ def run(t):
     t.ck(t.wait_until("() => /не определено/.test(document.querySelector('[data-ts-where]').textContent)"), 'без разрешения нет сообщения «не определено»')
     t.ck((val(pg, 'vehicle', 'oc-vehicle-d2', 'ts', 'ts.place') or {}).get('lat') == 42.8746, 'отказ в разрешении стёр записанное место')
 
-    # Ракурсы: обязательные отмечены; съёмка касанием пункта; место у снимка.
-    rows = pg.eval_on_selector_all('[data-ts-shot]', 'els => els.map((e) => e.dataset.tsShot)')
-    t.ck(rows[:6] == ['Спереди', 'Сзади', 'Слева', 'Справа', 'Приборная панель с пробегом', 'Табличка VIN'], 'ракурсы не те: %s' % rows)
-    t.ck('Кран-манипулятор (КМУ): табличка' in rows, 'нет ракурсов модуля: %s' % rows)
-    t.ck(pg.locator('.ins-shotlist .ins-fs-req').count() == 6, 'обязательных ракурсов отмечено не шесть')
-    shoot(t, '[data-ts-shot="Спереди"]', 'front-noplace.png')
-    t.wait_for('[data-ts-shot="Спереди"].on')
+    # Снимки: обычная съёмка камерой осмотрщика, заданного перечня нет; место у снимка.
+    t.ck(pg.locator('[data-ts-shot], .ins-shotlist').count() == 0, 'у ТС есть перечень снимков по видам')
+    t.wait_for('[data-cam-shoot]')
+    shoot(t, '[data-cam-shoot]', 'front-noplace.png')
+    t.wait_for('.ins-cam-sort [data-cam-sel]')
+    pg.click('[data-cam-put="Фасад"]')
+    t.wait_until("() => !document.querySelector('.ins-cam-sort [data-cam-sel]')")
     pg.evaluate("window.__geo = 'ok'")
-    shoot(t, '[data-ts-shot="Сзади"]', 'back.png')
-    t.wait_for('[data-ts-shot="Сзади"].on')
+    shoot(t, '[data-cam-shoot]', 'back.png')
+    t.wait_for('.ins-cam-sort [data-cam-sel]')
     t.ck(t.wait_until("async () => (%s).taskState('vehicle', 'oc-vehicle-d2').photos.some((p) => p.name === 'back.png' && p.place && p.place.acc === 12)" % T),
          'у снимка нет места съёмки')
     t.ck(pg.evaluate("async () => !(%s).taskState('vehicle', 'oc-vehicle-d2').photos.find((p) => p.name === 'front-noplace.png').place" % T),
          'снимок без разрешения получил место')
-    # Просмотр снимка — с местом.
+    pg.click('[data-cam-put="Фасад"]')
+    t.wait_until("() => !document.querySelector('.ins-cam-sort [data-cam-sel]')")
+    # Просмотр снимка — с местом; категории — общие, как у прочих ОИ.
     pg.evaluate("async () => { const p = (%s).taskState('vehicle', 'oc-vehicle-d2').photos.find((x) => x.name === 'back.png'); document.querySelector('[data-cam-list]').click(); await new Promise((r) => setTimeout(r, 200)); document.querySelector('[data-shot=\"' + p.id + '\"]').click(); }" % T)
     t.wait_for('[data-lb-place]')
     t.ck('Место съёмки: 42.874600, 74.612200' in pg.inner_text('[data-lb-place]'), 'в просмотре снимка нет места')
     cats = pg.eval_on_selector_all('[data-move] option', 'els => els.map((e) => e.textContent)')
-    t.ck('Спереди' in cats and 'Фасад' not in cats, 'категории снимка ТС — не ракурсы: %s' % cats[:5])
+    t.ck('Фасад' in cats and 'Спереди' not in cats, 'категории снимка ТС — не общие: %s' % cats[:5])
     pg.click('[data-lb-close]')
 
-    # «Не найдено»: где и со слов кого; разделы и ракурсы скрыты.
+    # «Не найдено»: где и со слов кого; разделы скрыты.
     pick(pg, '[data-fs-sel="ts.found"]', 'Не найдено')
     t.wait_for('[data-fs-field="ts.where"]')
     t.ck(pg.locator('[data-fs-field="ts.whoSaid"]').count() == 1, 'при «Не найдено» нет «Со слов кого»')
     t.ck(secs(pg) == ['Нахождение', 'Комментарии'], 'при «Не найдено» видны разделы: %s' % secs(pg))
-    t.ck(pg.locator('[data-ts-shot]').count() == 0, 'при «Не найдено» виден перечень ракурсов')
     pick(pg, '[data-fs-sel="ts.found"]', 'Найдено')
-    t.wait_for('[data-ts-shot]')
+    t.wait_until("() => document.querySelectorAll('[data-fs-field]').length > 4")
 
-    # «Осмотр завершён» без обязательных: перечень, причина обязательна.
+    # «Осмотр завершён» — как у прочих осмотров: без перечня недостающего и причины.
     t.open(as_('#/insp/vehicle/oc-vehicle-d2', A), wait='[data-toggle-done]')
     pg.click('[data-toggle-done]')
-    t.wait_for('[data-done-check]')
-    miss = pg.inner_text('.ins-done-miss')
-    t.ck('Слева' in miss and 'Табличка VIN' in miss and 'Спереди' not in miss, 'перечень недостающего не тот: %s' % miss)
-    t.ck(pg.evaluate("async () => !(%s).taskState('vehicle', 'oc-vehicle-d2').done" % T), 'осмотр завершён без причины')
-    pg.click('[data-done-go]')
-    t.wait_for('[data-done-check] .ins-pl-err')
-    t.ck(pg.evaluate("async () => !(%s).taskState('vehicle', 'oc-vehicle-d2').done" % T), 'завершён с пустой причиной')
-    pg.fill('[data-done-why]', 'Кабина закрыта, ключей нет')
-    pg.click('[data-done-go]')
-    t.ck(t.wait_until("async () => (%s).taskState('vehicle', 'oc-vehicle-d2').done" % T), '«Завершить с причиной» не завершил')
-    t.ck(pg.evaluate("async () => (%s).taskState('vehicle', 'oc-vehicle-d2').shotsReason.text" % T) == 'Кабина закрыта, ключей нет', 'причина не сохранена')
+    t.ck(t.wait_until("async () => (%s).taskState('vehicle', 'oc-vehicle-d2').done" % T) and pg.locator('[data-done-check]').count() == 0,
+         '«Осмотр завершён» потребовал перечня или причины')
 
     # --- 2. ТС без модуля, прицеп ------------------------------------------------
     t.open(as_('#/insp/vehicle/oc-vehicle-d1/object/ts', A), wait='.ins-acc')
     t.ck(not any(x.startswith('Модуль:') for x in secs(pg)), 'у ТС без модуля есть раздел модуля: %s' % secs(pg))
     t.ck(pg.locator('[data-fs-field="f.wheel"]').count() == 1, 'у легкового нет руля')
     t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', M), wait='.ins-acc')
-    rows = pg.eval_on_selector_all('[data-ts-shot]', 'els => els.map((e) => e.dataset.tsShot)')
-    t.ck('Приборная панель с пробегом' not in rows and 'Двигатель' not in rows, 'у прицепа ракурсы машины: %s' % rows)
-    t.ck(pg.locator('.ins-shotlist .ins-fs-req').count() == 5, 'у прицепа обязательных ракурсов не пять')
     t.ck('мм' in pg.inner_text('[data-fs-field="m.vm-d3-1.dlinaPlatformy"]'), 'у длины платформы нет единицы мм')
-    # Без обязательных снимков — «Не найдено»: завершается без вопросов.
+    # «Не найдено» — завершается без вопросов.
     pick(pg, '[data-fs-sel="ts.found"]', 'Не найдено')
     t.wait_for('[data-fs-field="ts.where"]')
     t.open(as_('#/insp/vehicle/oc-vehicle-d3', M), wait='[data-toggle-done]')

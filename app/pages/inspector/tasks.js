@@ -9,7 +9,7 @@
 //
 // Записи берём через kernel/registry.js: страница не имеет права импортировать
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
-import { sortedTypes, getType, migrateLiterKinds, tsName, tsShots, tsFoundKinds } from '../../kernel/registry.js';
+import { sortedTypes, getType, migrateLiterKinds, tsName, tsFoundKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { hereNow } from '../../kernel/geoHere.js';
 import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
@@ -375,22 +375,6 @@ export function othersOiCount(rec, typeId, ocId) {
   return ids ? ((rec && rec.oi) || []).filter((o) => !ids.has(o.id)).length : 0;
 }
 
-// --- снимки ТС по ракурсам ---------------------------------------------------
-//
-// Перечень ракурсов — модуль ТС (tsShots, запись графа osmotr-ts-na-meste-i-
-// po-snimkam); подпись ракурса — категория снимка. Снято — есть снимок этого
-// ТС в этой категории. «Не найдено» — снимать нечего, недостающих нет.
-export const isInspTs = (oi) => !!oi && oi.card === 'vehicle' && !oi.draft;
-export function tsShotState(typeId, ocId, oi) {
-  const photos = taskState(typeId, ocId).photos.filter((p) => p.oiId === oi.id);
-  return tsShots(oi).map((s) => ({ ...s, n: photos.filter((p) => p.cat === s.label).length }));
-}
-export function tsShotsMissing(rec, typeId, ocId) {
-  return inspOis(rec, typeId, ocId).filter(isInspTs)
-    .filter((oi) => (valuesOf(typeId, ocId, oi.id).ts || {}).found !== 'Не найдено')
-    .map((oi) => ({ oi, missing: tsShotState(typeId, ocId, oi).filter((s) => s.req && !s.n) }))
-    .filter((x) => x.missing.length);
-}
 export const isFoundLocked = (typeId, ocId) => !!taskState(typeId, ocId).done;
 
 let foundSeq = 0;

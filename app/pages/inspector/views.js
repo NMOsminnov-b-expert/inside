@@ -360,7 +360,7 @@ export function contourAreaM2(contour) {
 
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null, doneCheck = null, oiCount = null }) {
+export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null, oiCount = null }) {
 
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
@@ -429,34 +429,12 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
         </button>
         ${!state.done && unsorted ? `<p class="ins-hint ins-hint-warn" id="insUnsorted">Снимков не распределено по категориям: ${unsorted}.
           Распределите их — кнопка «Не распределено» у камеры в осмотре объекта или раздел «Фото», — затем завершайте осмотр.</p>` : ''}
-        ${!state.done && doneCheck ? doneCheckHTML(doneCheck) : ''}
-        ${state.done && state.shotsReason && state.shotsReason.text ? `<p class="ins-hint">Не сняты обязательные ракурсы, причина: ${esc(state.shotsReason.text)}</p>` : ''}
         <p class="ins-hint">Статус «Осмотрен» ставит ЦОД после проверки —
           отметка говорит ему, что можно проверять.</p>
       </section>
     </div>
 
     ${tabsHTML('task', hrefFor, counts)}
-  </div>`;
-}
-
-// «Осмотр завершён» при недостающих обязательных снимках ТС — не запрет
-// (машину могут не показать), а перечень недостающего на месте и причина
-// (запись графа osmotr-ts-na-meste-i-po-snimkam; правило «без модальных
-// окон» — блок раскрывается под кнопкой).
-function doneCheckHTML({ missing, err = '', reason = '' }) {
-  return `<div class="ins-done-check" data-done-check role="group" aria-label="Не сняты обязательные ракурсы ТС">
-    <p class="ins-hint ins-hint-warn">Не сняты обязательные ракурсы:</p>
-    <ul class="ins-done-miss">${missing.map((m) => `<li><b>${esc(m.label)}</b> — ${esc(m.shots.join(', '))}</li>`).join('')}</ul>
-    <div class="ins-field">
-      <label for="insDoneWhy">Причина</label>
-      <textarea class="textarea ins-ta" id="insDoneWhy" data-done-why rows="2" placeholder="Например: машину не показали, кабина закрыта">${esc(reason)}</textarea>
-    </div>
-    ${err ? `<p class="ins-pl-err" role="alert">${esc(err)}</p>` : ''}
-    <div class="ins-acts">
-      <button type="button" class="ins-btn" data-done-cancel>Вернуться к съёмке</button>
-      <button type="button" class="ins-btn ins-btn-main" data-done-go>Завершить с причиной</button>
-    </div>
   </div>`;
 }
 
@@ -771,7 +749,7 @@ function foundItemHTML(f, { open, locked, targets, lands, assetHref, filledFor }
 // когда карточка на конструктор перейдёт.
 export function assetHTML({
   rec, typeId, oi, values, photoHref, collapsed, hrefFor, counts, backHref, savedText, oiPhotos = 0,
-  shots = [], shotsOpen = false, cam = {}, voices = [], recording = null, viewer = '', tsShots = null, tripAddr = '',
+  shots = [], shotsOpen = false, cam = {}, voices = [], recording = null, viewer = '', tripAddr = '',
   locating = false, placeMsg = '',
 }) {
   // Разделы и перечень полей — по типу ОЦ задачи: материалы приходят из его
@@ -819,8 +797,6 @@ export function assetHTML({
         <p class="ins-empty">Поля осмотра для этого вида ещё не заданы. Снимите объект и оставьте заметку в задаче —
           ЦОД увидит их в карточке.</p></section>`}
 
-      ${tsShots && !(values.ts && values.ts.found === 'Не найдено') ? tsShotsHTML(tsShots) : ''}
-
       <section class="ins-blk">
         <h2 class="ins-blk-h">Голосовые заметки${voices.length ? ' · ' + voices.length : ''}</h2>
         ${voiceHTML(voices, recording, oi.id)}
@@ -863,9 +839,7 @@ const hhmm = (iso) => (iso ? new Date(iso).toTimeString().slice(0, 5) : '');
 // отнести остальное. «Позже» — снимки остаются «Не распределено» (кнопка
 // у камеры), осмотр не завершить, пока они есть.
 function cameraHTML(shots, open, cam = {}) {
-  // Категории снимков — по виду ОИ: у ТС это ракурсы (cam.cats), у остальных —
-  // общий перечень.
-  const own = cam.cats || PHOTO_CATS;
+  const own = PHOTO_CATS;
   const cats = [UNSORTED, ...own, ...new Set(shots.map((p) => p.cat).filter((c) => c !== UNSORTED && !own.includes(c)))];
   const byCat = cats.map((c) => [c, shots.filter((p) => p.cat === c)
     .sort((a, b) => shotTime(a).localeCompare(shotTime(b)))]).filter(([, l]) => l.length);
@@ -972,27 +946,6 @@ function widgetHTML(kind, values, oi, ctx) {
     <p class="ins-ts-where" data-ts-where>${ctx.placeMsg ? esc(ctx.placeMsg) + (place ? '. ' : '') : ''}${place ? `${ctx.placeMsg ? 'Записано прежде' : 'Место'}: <b>${esc(place)}</b>` : (ctx.placeMsg ? '' : 'Место не записано')}</p>
   </div>`;
 }
-
-// Снимки ТС по ракурсам (запись графа osmotr-ts-na-meste-i-po-snimkam;
-// практика praktiki-osmotra-ts-i-skanirovaniya-dokumentov: «перечень
-// названных ракурсов с отметкой снятого; обязательные отделены»). Касание
-// пункта — съёмка этого ракурса: снимок сразу в его категорию, без разбора.
-function tsShotsHTML(shots) {
-  if (!shots || !shots.length) return '';
-  const req = shots.filter((x) => x.req);
-  const reqDone = req.filter((x) => x.n).length;
-  const row = (x) => `<button type="button" class="ins-row ${x.n ? 'on' : ''}" data-ts-shot="${esc(x.label)}" aria-pressed="${x.n ? 'true' : 'false'}">
-      <span class="ins-row-m" aria-hidden="true"></span>
-      <span class="ins-row-txt"><span>${esc(x.label)}${x.req ? '<i class="ins-fs-req" aria-label="обязательный">*</i>' : ''}</span>${x.n ? `<small>снято: ${x.n}</small>` : ''}</span>
-      <span class="ins-shotlist-cam">${ico('photo', 18)}</span>
-    </button>`;
-  return `<section class="ins-blk ins-shotlist" data-sec-box="shots" aria-label="Снимки по ракурсам">
-    <h2 class="ins-blk-h">Снимки по ракурсам</h2>
-    <p class="ins-hint ${reqDone < req.length ? 'ins-hint-warn' : ''}" data-ts-shots-sum>Обязательные (*): снято ${reqDone} из ${req.length}. Касание — снять этот ракурс.</p>
-    <div class="ins-rows">${shots.map(row).join('')}</div>
-  </section>`;
-}
-
 
 // Строка разделов под шапкой: переход касанием к разделу и где не хватает
 // обязательного (янтарное число). Листается вбок, если не влезает; при
@@ -1197,7 +1150,6 @@ export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, b
 // Полноэкранный просмотр снимка — он же место, где снимок переносят и
 // удаляют. В сетке для двух списков и кнопки нет ширины, а здесь есть: и
 // смотреть удобнее, и промахнуться по мелкой кнопке невозможно.
-// cats — категории снимков этого ОИ (у ТС — ракурсы).
 export function lightboxHTML(p, oiList, cats = PHOTO_CATS) {
   return `<div class="ins-lb" data-lb>
     <button class="ins-lb-x" data-lb-close aria-label="Закрыть">${ico('back', 22)}</button>
