@@ -187,7 +187,9 @@ def _(p):
     p.open('#/insp?as=' + quote(PERSON), 'a[href^="#/insp/"]')
     h0 = p.page.evaluate('location.hash')
     n0 = p.page.locator('a[href^="#/insp/"]').count()
-    p.page.locator('a[href^="#/insp/"]').first.click()
+    # Задача объекта недвижимости: у ОЦ «ТС» ЕНИ нет (ТС стоит на учёте не в
+    # Кадастре), а первым в плане может стоять ТС (демо осмотра ТС, 27.10.2026).
+    p.page.locator('a[href^="#/insp/"]:not([href*="/vehicle/"])').first.click()
     p.wait_until("() => /#\\/insp\\/[^?]/.test(location.hash)")
     p.ck('ЕНИ в шапке задачи', p.page.locator('[data-ins-eni]').count() > 0, p.page.locator('[data-ins-eni]').count(), '> 0')
     p.back()
@@ -199,7 +201,9 @@ def _(p):
 def _(p):
     p.open('#/insp?as=' + quote(PERSON), '[data-plan-q]')
     p.page.fill('[data-plan-q]', 'ул')
-    p.wait_until("() => document.querySelectorAll('[data-plan-list] a[href^=\"#/insp/\"]').length > 0")
+    # Отбор по плану — с задержкой ввода (150 мс): ждём, пока в списке не
+    # останется не подходящих («ул» нет у ТС «Toyota Camry»).
+    p.wait_until("() => { const a = [...document.querySelectorAll('[data-plan-list] a[href^=\"#/insp/\"]')]; return a.length > 0 && a.every((x) => /ул/i.test(x.innerText)); }")
     n0 = p.page.locator('[data-plan-list] a[href^="#/insp/"]').count()
     p.page.locator('[data-plan-list] a[href^="#/insp/"]').first.click()
     p.wait_until("() => /#\\/insp\\/[^?]/.test(location.hash)")
@@ -221,6 +225,22 @@ def _(p):
     p.wait_for('[data-cam-shoot]')
     p.eq('та же литера и место', [p.page.evaluate('location.hash').split('?')[0].endswith('/object/oi-cv1-b'),
                                    abs(p.page.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4], [True, True])
+
+
+@path('inspector-ts-tabs-back', 'Осмотрщик: осмотр ТС, госномер, прокрутка → «Задача» → «Объект» → то же ТС, введённое и место те же', 'О8', roles=('insp',), touches=_TI + ('app/modules/vehicle/inspect.js',))
+def _(p):
+    # Осмотр ТС (этап А, 27.10.2026): ОЦ «ТС» осматривается объектом «ts».
+    p.open('#/insp/vehicle/oc-vehicle-d2/object/ts?as=' + quote(PERSON), '[data-fs-input="f.plate"]')
+    p.fill('[data-fs-input="f.plate"]', '02KG200DEM')
+    y0 = p.page.evaluate("() => { const b = document.querySelector('.ins-body'); b.scrollTop = 300; return b.scrollTop; }")
+    p.page.locator('.ins-tabs a', has_text='Задача').click()
+    p.wait_for('[data-toggle-done]')
+    p.page.locator('.ins-tabs a', has_text='Объект').click()
+    p.wait_for('[data-fs-input="f.plate"]')
+    p.eq('то же ТС, госномер и место', [p.page.evaluate('location.hash').split('?')[0].endswith('/object/ts'),
+                                       p.page.input_value('[data-fs-input="f.plate"]'),
+                                       abs(p.page.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4],
+         [True, '02KG200DEM', True])
 
 
 @path('queue-filters-back', '«К назначению»: отборы (район, площадь) → другой раздел → «Назад» → отборы и строки те же', 'Р2')

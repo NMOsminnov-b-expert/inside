@@ -796,6 +796,9 @@ export function assetHTML({
     ${headerHTML({
     title: oiLabel(oi),
     eni: fmtEni(oi.eni || rec.eni),
+    // У ОЦ «ТС» ЕНИ нет: строка под заголовком — вид ТС, иначе появление
+    // «сохранено» сдвигало бы заголовок (матрица взаимодействий 27.10.2026).
+    sub: !(oi.eni || rec.eni) && oi.card === 'vehicle' ? (oi.vehicle && oi.vehicle.category) || 'Транспортное средство' : '',
     backHref,
     backLabel: 'К объектам имущества',
     progress: ALL_FIELDS.length ? filled / ALL_FIELDS.length : 0,
@@ -966,7 +969,7 @@ function widgetHTML(kind, values, oi, ctx) {
   return `<div class="ins-ts-place" data-ts-place>
     ${addr ? `<button type="button" class="ins-btn ins-btn-sm" data-ts-addr="${esc(addr)}" title="${esc(addr)}">${ico('pin', 18)} Подставить адрес объекта выезда</button>` : ''}
     <button type="button" class="ins-btn ins-btn-sm" data-ts-locate ${ctx.locating ? 'disabled' : ''}>${ico('nav', 18)} ${ctx.locating ? 'Определяю место…' : 'Записать место'}</button>
-    <p class="ins-ts-where" data-ts-where>${place ? `Место: <b>${esc(place)}</b>` : (ctx.placeMsg ? esc(ctx.placeMsg) : 'Место не записано')}</p>
+    <p class="ins-ts-where" data-ts-where>${ctx.placeMsg ? esc(ctx.placeMsg) + (place ? '. ' : '') : ''}${place ? `${ctx.placeMsg ? 'Записано прежде' : 'Место'}: <b>${esc(place)}</b>` : (ctx.placeMsg ? '' : 'Место не записано')}</p>
   </div>`;
 }
 
