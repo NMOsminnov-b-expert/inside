@@ -558,6 +558,9 @@ python tools/visual-parity/report.py --route "#/oc/civil/oc-cv-1"     --click "t
   (`ukazan-stolbec-chitat-tolko-ego-bez-razbora-ostalnoy-struktury-fayla`).
 * **К диску Y: и папкам с исходными фото не обращаться** — только к
   выгруженному перечню (`claude-feedback-no-disk-browsing`).
+* **Помощники: исполнение — Sonnet с узкой постановкой и проверкой каждого
+  шага, сбор сведений — Haiku; и только на длительные задачи**, короткое —
+  самому (`modeli-dlya-agentov-sonnet-ispolnenie-haiku-sbor`).
 * **Ветка — `осмотры`** (с 27.10.2026; догнала main), коммиты прямо в неё;
   `refactor` влит в main, `refactor-TS` влита и не используется
   (`claude-project-branch-refactor`).

@@ -1417,5 +1417,8 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .ins-fts .ins-fs-grid { margin-bottom: 0; }
 .ins-fts .ins-field { margin-top: 10px; }
 .ins-fts-acts .ins-btn { flex: 1 1 0; }
+/* Черновик ТС — заголовок над формой, а не в ряд с ней, как у строки
+   «Категория + Добавить» (.ins-found-new — гибкий ряд). */
+.ins-found-new.ins-fts-new { display: block; }
 .ins-fts-new .ins-oi-g { margin-top: 0; }
 .ins-fts .ins-acts .ins-btn { white-space: nowrap; }
