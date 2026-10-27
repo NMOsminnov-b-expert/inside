@@ -1418,3 +1418,4 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .ins-fts .ins-field { margin-top: 10px; }
 .ins-fts-acts .ins-btn { flex: 1 1 0; }
 .ins-fts-new .ins-oi-g { margin-top: 0; }
+.ins-fts .ins-acts .ins-btn { white-space: nowrap; }

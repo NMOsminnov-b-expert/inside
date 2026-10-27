@@ -693,7 +693,7 @@ function foundTsFormHTML(d, { ts, isNew }) {
     </div>
     ${isNew ? `<div class="ins-acts">
       <button type="button" class="ins-btn" data-fts-cancel>Отмена</button>
-      <button type="button" class="ins-btn ins-btn-main" data-fts-save>Сохранить ТС</button>
+      <button type="button" class="ins-btn ins-btn-main" data-fts-save>Сохранить</button>
     </div>` : `<button class="ins-btn ins-btn-del" type="button" data-found-drop="${esc(id)}">${ico('trash', 18)} Удалить выявленное</button>`}
   </div>`;
 }
@@ -983,7 +983,7 @@ function tsShotsHTML(shots) {
   const reqDone = req.filter((x) => x.n).length;
   const row = (x) => `<button type="button" class="ins-row ${x.n ? 'on' : ''}" data-ts-shot="${esc(x.label)}" aria-pressed="${x.n ? 'true' : 'false'}">
       <span class="ins-row-m" aria-hidden="true"></span>
-      <span class="ins-row-txt">${esc(x.label)}${x.req ? '<i class="ins-fs-req" aria-label="обязательный">*</i>' : ''}${x.n ? `<small>снято: ${x.n}</small>` : ''}</span>
+      <span class="ins-row-txt"><span>${esc(x.label)}${x.req ? '<i class="ins-fs-req" aria-label="обязательный">*</i>' : ''}</span>${x.n ? `<small>снято: ${x.n}</small>` : ''}</span>
       <span class="ins-shotlist-cam">${ico('photo', 18)}</span>
     </button>`;
   return `<section class="ins-blk ins-shotlist" data-sec-box="shots" aria-label="Снимки по ракурсам">
