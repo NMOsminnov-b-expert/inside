@@ -43,6 +43,8 @@ A = 'Абдылдаев Айсултан Марсович'
 B = 'Бабашова Даяна Алтынбековна'
 K = 'Карабекова Анара Тариеловна'
 M = 'Молчанов Кирилл Витальевич'
+# Демо осмотров ТС выдано человеку из сессии (inspectionsDemo.js, me).
+ME = 'Осминнов Н.'
 
 PNG = base64.b64decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJ0lEQVR4nGP8z8DAwMDAxIAGWBg'
@@ -99,20 +101,20 @@ def run(t):
     # --- 0. Демо-результаты (для ручной проверки): КамАЗ — частично заполнен, одно
     # расхождение (госномер), адрес и место; прицеп — «Не найдено»; на oc-cv-1 —
     # два выявленных ТС. Потом сбрасываются: ниже сценарии вносят своё с нуля.
-    t.open(as_('#/insp/vehicle/oc-vehicle-d2/object/ts', A), wait='.ins-acc')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d2/object/ts', ME), wait='.ins-acc')
     t.ck('РАСХОДИТСЯ' in pg.inner_text('[data-fs-field="f.plate"] .ins-fs-hint'), 'в демо у КамАЗа нет расхождения госномера')
     t.ck('совпадает' in pg.inner_text('[data-fs-field="f.mileage"] .ins-fs-hint'), 'в демо у КамАЗа пробег не совпал')
     t.ck(pg.input_value('[data-fs-input="ts.addr"]') != '' and '42.875100, 74.604900' in pg.inner_text('[data-ts-where]'), 'в демо у КамАЗа нет адреса или места съёмки')
-    t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', M), wait='.ins-acc')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', ME), wait='.ins-acc')
     t.ck(pg.locator('[data-fs-field="ts.where"]').count() == 1 and pg.locator('[data-fs-field="ts.whoSaid"]').count() == 1, 'в демо у прицепа нет «где» и «со слов кого»')
-    t.open(as_('#/insp/civil/oc-cv-1/object', B), wait='.ins-oi')
+    t.open(as_('#/insp/civil/oc-cv-1/object', ME), wait='.ins-oi')
     found = pg.eval_on_selector_all('.ins-oi-found .ins-oi-h', 'els => els.map((e) => e.innerText)')
     t.ck(len(found) == 2 and 'видел сам' in found[0] and 'со слов' in found[1], 'в демо нет двух выявленных ТС: %s' % found)
     t.clear_demo_results('vehicle|oc-vehicle-d2', 'vehicle|oc-vehicle-d3', 'civil|oc-cv-1')
 
     # --- 1. ОЦ «ТС» с модулем: только поля «на месте» -----------------------------
     TS2 = '#/insp/vehicle/oc-vehicle-d2/object/ts'
-    t.open(as_(TS2, A), wait='.ins-acc')
+    t.open(as_(TS2, ME), wait='.ins-acc')
     s = secs(pg)
     t.ck(s[:4] == ['Нахождение', 'Опознание', 'Показания', 'Видно на месте'], 'разделы ТС не те: %s' % s)
     t.ck('Модуль: Кран-манипулятор (КМУ)' in s and 'Комплектность' in s and 'Комментарии' in s, 'нет раздела модуля или комплектности: %s' % s)
@@ -183,33 +185,33 @@ def run(t):
     t.wait_until("() => document.querySelectorAll('[data-fs-field]').length > 4")
 
     # «Осмотр завершён» — как у прочих осмотров: без перечня недостающего и причины.
-    t.open(as_('#/insp/vehicle/oc-vehicle-d2', A), wait='[data-toggle-done]')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d2', ME), wait='[data-toggle-done]')
     pg.click('[data-toggle-done]')
     t.ck(t.wait_until("async () => (%s).taskState('vehicle', 'oc-vehicle-d2').done" % T) and pg.locator('[data-done-check]').count() == 0,
          '«Осмотр завершён» потребовал перечня или причины')
 
     # --- 2. ТС без модуля, прицеп ------------------------------------------------
-    t.open(as_('#/insp/vehicle/oc-vehicle-d1/object/ts', A), wait='.ins-acc')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d1/object/ts', ME), wait='.ins-acc')
     t.ck(not any(x.startswith('Модуль:') for x in secs(pg)), 'у ТС без модуля есть раздел модуля: %s' % secs(pg))
     t.ck(pg.locator('[data-fs-field="f.wheel"]').count() == 1, 'у легкового нет руля')
-    t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', M), wait='.ins-acc')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', ME), wait='.ins-acc')
     t.ck('мм' in pg.inner_text('[data-fs-field="m.vm-d3-1.dlinaPlatformy"]'), 'у длины платформы нет единицы мм')
     # «Не найдено» — завершается без вопросов.
     pick(pg, '[data-fs-sel="ts.found"]', 'Не найдено')
     t.wait_for('[data-fs-field="ts.where"]')
-    t.open(as_('#/insp/vehicle/oc-vehicle-d3', M), wait='[data-toggle-done]')
+    t.open(as_('#/insp/vehicle/oc-vehicle-d3', ME), wait='[data-toggle-done]')
     pg.click('[data-toggle-done]')
     t.ck(t.wait_until("async () => (%s).taskState('vehicle', 'oc-vehicle-d3').done" % T) and pg.locator('[data-done-check]').count() == 0,
          '«Не найдено» потребовало снимков')
 
     # --- 3. План дня и задачи: ТС без адреса ---------------------------------------
-    t.open(as_('#/insp', A), wait='[data-plan-trips]')
+    t.open(as_('#/insp', ME), wait='[data-plan-trips]')
     trips = pg.eval_on_selector_all('[data-trip-key]', 'els => els.map((e) => [e.dataset.tripKey, e.innerText])')
     d2 = [x for x in trips if x[0] == 'vehicle|oc-vehicle-d2']
     d1 = [x for x in trips if x[0] == 'vehicle|oc-vehicle-d1']
     t.ck(d2 and 'Адрес уточняется на месте' in d2[0][1] and 'Ехать' not in d2[0][1], 'ТС без адреса в плане дня: %s' % d2)
     t.ck(d1 and 'Ехать' in d1[0][1], 'ТС с координатами без «Ехать»: %s' % d1)
-    t.open(as_('#/insp?tab=tasks', A), wait='.ins-card-a')
+    t.open(as_('#/insp?tab=tasks', ME), wait='.ins-card-a')
     pg.click('[data-only="0"]')   # d2 уже завершён выше — смотрим «Все мои»
     t.wait_until("() => [...document.querySelectorAll('.ins-card-a')].some((a) => a.getAttribute('href').includes('oc-vehicle-d2'))")
     cards = pg.eval_on_selector_all('.ins-card-a', 'els => els.map((e) => [e.getAttribute("href"), e.innerText])')
@@ -217,12 +219,12 @@ def run(t):
     t.ck(c2 and 'Адрес уточняется на месте' in c2[0][1], 'в списке задач у ТС без адреса нет строки: %s' % c2)
 
     # --- 4. ТС внутри недвижимости: свои ОИ, подстановка адреса --------------------
-    t.open(as_('#/insp/civil/oc-cv-1/object', B), wait='.ins-oi')
+    t.open(as_('#/insp/civil/oc-cv-1/object', ME), wait='.ins-oi')
     heads = pg.eval_on_selector_all('.ins-oi-t b', 'els => els.map((e) => e.textContent.trim())')
     t.ck(any('Toyota Hilux' in h for h in heads) and len([h for h in heads if h.startswith('Литера') or h.startswith('Строение')]) == 1,
          'у осмотрщика не его ОИ (литера и ТС): %s' % heads)
     t.ck('осматривают другие осмотрщики' in t.text(), 'не сказано, что прочие ОИ у других')
-    t.open(as_('#/insp/civil/oc-cv-1/object/oi-cv1-v1', B), wait='[data-ts-addr]')
+    t.open(as_('#/insp/civil/oc-cv-1/object/oi-cv1-v1', ME), wait='[data-ts-addr]')
     pg.evaluate("window.__geo = 'deny'")
     pg.click('[data-ts-addr]')
     t.ck(t.wait_until("async () => ((%s).assetValues('civil', 'oc-cv-1', 'oi-cv1-v1').ts || {}).addr === 'г. Бишкек, ул. Суюмбаева А., д. 33'" % T),
@@ -230,7 +232,7 @@ def run(t):
     t.ck(pg.input_value('[data-fs-input="ts.addr"]') == 'г. Бишкек, ул. Суюмбаева А., д. 33', 'подставленный адрес не виден в поле')
 
     # --- 5. Выявленные ТС ------------------------------------------------------------
-    t.open(as_('#/insp/civil/oc-cv-1/object', B), wait='[data-found-cat]')
+    t.open(as_('#/insp/civil/oc-cv-1/object', ME), wait='[data-found-cat]')
     pg.evaluate("window.__geo = 'ok'")
     n0 = pg.evaluate("async () => (%s).foundOi('civil', 'oc-cv-1').length" % T)
 
@@ -269,7 +271,7 @@ def run(t):
     t.ck(f2['source'].get('kind') == 'self', 'источник по умолчанию не «видел сам»')
     # Документ как единственное сведение; «со слов» — контакт осмотра.
     pg.evaluate("""async () => { const K = %s; K.contactsOf('civil', 'oc-cv-1').push({ id: 'ct-chk-1', name: 'Завхоз Петров', position: '', phone: '+996 700 1', email: '', note: '' }); K.saveResults(); }""" % T)
-    t.open(as_('#/insp/civil/oc-cv-1/object', B), wait='[data-found-cat]')
+    t.open(as_('#/insp/civil/oc-cv-1/object', ME), wait='[data-found-cat]')
     new_ts()
     with pg.expect_file_chooser() as fc:
         pg.click('.ins-fts-new [data-fts-doc]')
@@ -297,7 +299,7 @@ def run(t):
 
     # --- 6. Передача ТС другому осмотрщику ----------------------------------------
     pg.set_viewport_size({'width': 1280, 'height': 900})
-    aid = pg.evaluate("async ([p]) => (%s).allAssignments().find((a) => a.ocId === 'oc-cv-1' && a.person === p && a.state === 'assigned').id" % KI, [B])
+    aid = pg.evaluate("async ([p]) => (%s).allAssignments().find((a) => a.ocId === 'oc-cv-1' && a.person === p && a.state === 'assigned').id" % KI, [ME])
     t.open('#/inspections?s=assign&t=assigned&ap=*', wait='[data-ip-row]')
     pg.click('[data-ip-row="%s"]' % aid)
     t.wait_for('[data-ip-ts-pass]')
@@ -318,13 +320,13 @@ def run(t):
          'передача из «объект целиком»: %s' % res)
     # У прежнего осмотрщика ТС из перечня ушло.
     pg.set_viewport_size(PHONE)
-    t.open(as_('#/insp/civil/oc-cv-1/object', B), wait='.ins-oi')
+    t.open(as_('#/insp/civil/oc-cv-1/object', ME), wait='.ins-oi')
     heads = pg.eval_on_selector_all('.ins-oi-t b', 'els => els.map((e) => e.textContent.trim())')
     t.ck(not any(h.startswith('Транспортное средство') for h in heads), 'переданное ТС осталось у прежнего: %s' % heads)
     # Демо: ТС при квартире у другого осмотрщика.
     t.open(as_('#/insp/apartment/oc-ap-2/object', A), wait='.ins-oi')
     t.ck('Honda Fit' not in t.text(), 'у прежнего осмотрщика видно переданное ТС квартиры')
-    t.open(as_('#/insp/apartment/oc-ap-2/object', M), wait='.ins-oi')
+    t.open(as_('#/insp/apartment/oc-ap-2/object', ME), wait='.ins-oi')
     heads = pg.eval_on_selector_all('.ins-oi-t b', 'els => els.map((e) => e.textContent.trim())')
     t.ck(len(heads) == 1 and 'Honda Fit' in heads[0], 'у получившего не только ТС: %s' % heads)
 

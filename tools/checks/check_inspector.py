@@ -45,6 +45,7 @@ import os
 import tempfile
 
 import re
+from urllib.parse import quote
 
 NAME = 'экраны осмотрщика'
 
@@ -97,13 +98,26 @@ def _has(t, text):
     return text.lower() in t.text().lower()
 
 
+# Осмотрщик сценария — явно: человеку из сессии демо выдало только литеру Б и
+# ТС объекта oc-cv-1 (выезд «здание + ТС»), а здесь проверяется объект
+# целиком. Выбор держится при переходах по якорю, перезагрузка его сбрасывает —
+# поэтому перезагрузка через reload_as.
+WHO = 'Карабекова Анара Тариеловна'
+
+
+def reload_as(pg):
+    pg.evaluate("(q) => { if (!location.hash.includes('as=')) location.hash += (location.hash.includes('?') ? '&' : '?') + 'as=' + q; }", quote(WHO))
+    pg.wait_for_timeout(200)
+    pg.reload()
+
+
 def run(t):
     pg = t.page
     pg.set_viewport_size(PHONE)
 
     # --- 0. разделы верхнего уровня (14.10.2026): «Сегодня · Задачи · Запросы ·
     # Уведомления»; по умолчанию — «Сегодня»; раздел в адресе.
-    t.open('#/insp', wait='.ins-body')
+    t.open('#/insp?as=' + quote(WHO), wait='.ins-body')
     # Демо-результаты (выявленные ТС на oc-cv-1) — их видит check_inspector_ts;
     # здесь осмотр начинается с пустого.
     t.clear_demo_results('civil|oc-cv-1')
@@ -421,7 +435,7 @@ def run(t):
     t.ck(val('oi-cv1-a') == 'Проходят рядом' and val('oi-cv1-b') == 'Проходят рядом',
          '«Заменить у всех» не заменило: %s, %s' % (val('oi-cv1-a'), val('oi-cv1-b')))
     # После перезагрузки участок помнит перенесённое: копии обновляются без вопроса.
-    pg.reload()
+    reload_as(pg)
     t.wait_for('[data-sec-box="nets"]')
     pick('На удалении')
     t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
@@ -459,7 +473,7 @@ def run(t):
         const a = T.addFoundOi('civil', 'oc-cv-nets2', { cat: 'other', name: 'Сарай без участка' });
         const b = T.addFoundOi('civil', 'oc-cv-nets2', { cat: 'other', name: 'Сарай на участке 2', landId: 'oi-cvn2-l2' });
         T.saveResults(); return [a.id, b.id]; }""")
-    pg.reload()  # выявленные добавлены в обход экрана — перечитать
+    reload_as(pg)  # выявленные добавлены в обход экрана — перечитать
     t.wait_for('[data-sec-box="nets"]')
     pick('Подведены')
     t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))
@@ -526,7 +540,7 @@ def run(t):
     t.ck([v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')] == ['Проходят рядом'] * 3,
          '«для всех»: «Заменить у всех» не заменило: %s' % [v0(o) for o in ('oi-cvn0-a', 'oi-cvn0-b', 'oi-cvn0-k')])
     # После перезагрузки экран помнит, что ставил «для всех»: без вопроса.
-    pg.reload()
+    reload_as(pg)
     t.wait_for('[data-common-net="electricity"]')
     common('На удалении')
     t.wait_until("""async () => (await import('./app/pages/inspector/tasks.js'))

@@ -66,7 +66,10 @@ const isoLocalDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSt
 
 // isDefaultDoc — правило «документ по умолчанию» из ядра (параметром, чтобы
 // не замыкать импорт ядра на себя).
-export function demoInspections({ isDefaultDoc = () => false } = {}) {
+// me — человек из сессии: демо осмотров ТС и запрос в кадастр выдаются и ему,
+// чтобы этап А проверялся «на себе» (просьба пользователя 27.10.2026: «Я не
+// вижу в осмотрах ни 1 записи. проверяю на себе»).
+export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
   const recs = [];
   const people = new Set();
   sortedTypes().forEach((t) => {
@@ -247,7 +250,7 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
     const a2 = {
       // Выезд «недвижимость + ТС» (заметка пользователя 27.10.2026 «Часто ТС
       // осматривают вместе с недвижкой»): ТС объекта — в том же назначении.
-      id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person: names[2 % names.length],
+      id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person: me || names[2 % names.length],
       oiIds: [partial.oi[1], ...(partial.tsOi || []).filter((x) => x !== partial.oi[1])], docs: [], inventories: [],
       plannedAt: isoLocalDate(dayAt(today, 3, 9)), note: '', by: 'Региональный менеджер (демо)',
       at: dayAt(today, -1, 15).toISOString(), state: 'assigned', doneAt: '', demo: true,
@@ -258,8 +261,8 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
   const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
-  const results = demoTs(names, recs, partial, assignments, events, today, () => ++n);
-  return { assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today), plans: demoPlans(names, assignments, recs, today), deadlines };
+  const results = demoTs(names, recs, partial, assignments, events, today, () => ++n, me);
+  return { assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me), plans: demoPlans(names, assignments, recs, today), deadlines };
 }
 
 // Осмотр ТС (этап А, запись графа osmotr-ts-na-meste-i-po-snimkam): записи
@@ -269,9 +272,12 @@ export function demoInspections({ isDefaultDoc = () => false } = {}) {
 // остальных ОИ («ТС может быть переназначен отдельно от ОЦ»). Добавляются
 // после остального демо и без генератора случайных чисел: прежняя
 // демо-история не сдвигается.
-function demoTs(names, recs, partial, assignments, events, today, next) {
+function demoTs(names, recs, partial, assignments, events, today, next, me = '') {
   if (!names.length) return [];
-  const who = (i) => names[i % names.length];
+  // Первый в перечне — человек из сессии: ему выезды по ТС сегодня и
+  // переданное ТС.
+  const list = me ? [me, ...names.filter((x) => x !== me)] : names;
+  const who = (i) => list[i % list.length];
   const mk = (r, person, shift, oiIds = [], extra = {}) => {
     const at = dayAt(today, -2, 15);
     const a = {
@@ -285,15 +291,16 @@ function demoTs(names, recs, partial, assignments, events, today, next) {
     return a;
   };
   const own = recs.filter((r) => r.ts);
-  // Первому осмотрщику — сегодня: с адресом и без адреса.
-  const plan = [[0, 0], [0, 0], [4, 2], [2, 1]];
+  // Человеку из сессии — сегодня с адресом и без адреса и прицеп «Не
+  // найдено» на послезавтра.
+  const plan = [[0, 0], [0, 0], [0, 2], [2, 1]];
   own.forEach((r, i) => { const [p, d] = plan[i % plan.length]; mk(r, who(p), d); });
   // ТС в записи недвижимости (кроме частичного объекта): назначение «объект
   // целиком» у одного, ТС передано другому — у прежнего явный перечень.
   const r = recs.find((x) => x !== partial && x.status === READY && (x.tsOi || []).length && x.oi.length > x.tsOi.length);
   if (!r) return demoTsResults(recs, partial, assignments, today);
-  const from = who(0);
-  const to = who(4);
+  const from = who(1);
+  const to = who(0);
   const a = mk(r, from, 2, r.oi.filter((x) => !r.tsOi.includes(x)));
   const b = mk(r, to, 3, [r.tsOi[0]]);
   const at = dayAt(today, -1, 11).toISOString();
@@ -457,7 +464,7 @@ function demoActivities(names, assignments, today) {
 // Запросы документов (ТЗ рабочего дня, раздел 5): у первого осмотрщика —
 // запрос в кадастр, часть строк отвечена; у второго — документы на месте,
 // без ответа. Файлов в демо нет; имя — по правилу «№ + ЕНИ + название».
-function demoCadastre(names, recs, today) {
+function demoCadastre(names, recs, today, me = '') {
   if (!names.length) return [];
   const iso = (k) => { const d = new Date(today); d.setDate(d.getDate() + k); return isoLocalDate(d); };
   const at = (k, h) => { const d = new Date(today); d.setDate(d.getDate() + k); d.setHours(h, 15, 0, 0); return d.toISOString(); };
@@ -474,6 +481,12 @@ function demoCadastre(names, recs, today) {
   if (names[1]) {
     out.push({ id: 'demo-cr-2', no: 2, person: names[1], kind: 'site', due: iso(5), note: 'запросить у завхоза на месте', at: at(-1, 15), by,
       rows: pool.slice(5, 8).map((r, i) => row(r, i + 1)), demo: true });
+  }
+  // Человеку из сессии — свой запрос в кадастр: одна строка отвечена, две ждут.
+  if (me && !out.some((r) => r.person === me)) {
+    const c = pool.slice(0, 3).map((r, i) => ({ ...row(r, i), id: `demo-cl-me-${r.ocId}-${i}` }));
+    if (c[0]) Object.assign(c[0], { result: 'got', scanDate: iso(-1), answer: '', answeredAt: at(-1, 15), answeredBy: me, file: {} });
+    out.push({ id: 'demo-cr-3', no: 3, person: me, kind: 'cadastre', due: iso(2), note: 'к оценке по Министерству', at: at(-2, 10), by, rows: c, demo: true });
   }
   return out;
 }

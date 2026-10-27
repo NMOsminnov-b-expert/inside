@@ -68,7 +68,7 @@ export const isDefaultDoc = (kind) => {
 // Засев — демо-история (kernel/inspectionsDemo.js): заполняется до
 // регистрации в сохранении, поэтому считается исходными данными, а не
 // правками пользователя; правки ложатся поверх него, как у записей ОЦ.
-const demo = demoInspections({ isDefaultDoc });
+const demo = demoInspections({ isDefaultDoc, me: session.state.person });
 registerDemoResults(demo.results);
 const assignments = demo.assignments;
 const events = demo.events;
