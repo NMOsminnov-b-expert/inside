@@ -22,7 +22,7 @@ import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
   setInspector, addPhoto, removePhoto, movePhoto, photoById, photoGroups,
   taskDocs, oiOptions,
-  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, UNSORTED, unsortedCount, contactsOf,
+  foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, photoCatsOf, UNSORTED, unsortedCount, contactsOf,
   othersOiCount,
   newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
   scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
@@ -774,7 +774,11 @@ export function mountInspector(host) {
 
     if (section === 'photo') {
       const oiId = ui.photoOi || (oiList[0] ? oiList[0].id : '');
+      // Категории — по виду выбранного ОИ (у ТС свои).
+      const cats = photoCatsOf(inspOis(r, typeId, ocId).find((o) => o.id === oiId));
+      if (!cats.includes(ui.cat)) ui.cat = cats[0];
       scope.setHTML(photoHTML({
+        cats,
         groups: photoGroups(r, typeId, ocId),
         total: state.photos.length,
         oiId,
@@ -1694,7 +1698,8 @@ export function mountInspector(host) {
 
   // --- фото ---------------------------------------------------------------
 
-  scope.on('change', '[data-oi-pick]', (e, el) => { ui.photoOi = el.value; });
+  // Другой ОИ — другие категории съёмки (у ТС свои): экран перерисовывается.
+  scope.on('change', '[data-oi-pick]', (e, el) => { ui.photoOi = el.value; render(); });
   scope.on('change', '[data-cat]', (e, el) => { ui.cat = el.value; });
 
   // --- съёмка из формы осмотра ОИ ---------------------------------------
@@ -1858,7 +1863,7 @@ export function mountInspector(host) {
     if (!p) return;
     closeLightbox();
     const owner = inspOis(rec() || {}, route.typeId, route.ocId).find((o) => o.id === p.oiId);
-    scope.root.insertAdjacentHTML('beforeend', lightboxHTML(p, oiOptions(rec() || {}, route.typeId, route.ocId)));
+    scope.root.insertAdjacentHTML('beforeend', lightboxHTML(p, oiOptions(rec() || {}, route.typeId, route.ocId), photoCatsOf(owner)));
   });
 
   scope.on('click', '[data-lb-close]', closeLightbox);

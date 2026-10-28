@@ -55,6 +55,26 @@ import cadastre_fixture  # noqa: F401 — записанные ответы Ка
 
 from playwright.sync_api import sync_playwright
 
+
+# Прогоны — с пониженным приоритетом: пользователь работает на той же машине
+# параллельно (28.10.2026: «Я параллельно работать не могу. Проц задыхается»).
+# На Windows порождённые процессы (браузеры Playwright, потоки run.py)
+# наследуют «ниже обычного», и процессор достаётся сначала человеку.
+def _lower_priority():
+    if os.environ.get('INSIDE_CHECKS_PRIO') == 'normal':
+        return
+    try:
+        if os.name == 'nt':
+            import ctypes
+            ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x00004000)
+        else:
+            os.nice(10)
+    except Exception:
+        pass
+
+
+_lower_priority()
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 PORT = int(os.environ.get('INSIDE_CHECKS_PORT') or 8971)
 

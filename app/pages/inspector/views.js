@@ -17,7 +17,7 @@ import { fmtPlace } from '../../kernel/geoHere.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
-import { PHOTO_CATS, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat, UNSORTED } from './tasks.js';
+import { PHOTO_CATS, photoCatsOf, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat, UNSORTED } from './tasks.js';
 import { sections, allFields, mismatchHint } from './form.js';
 
 // --- значки ---------------------------------------------------------------
@@ -808,7 +808,7 @@ export function assetHTML({
       </section>
     </div>
 
-    ${cameraHTML(shots, shotsOpen, cam)}
+    ${cameraHTML(shots, shotsOpen, cam, photoCatsOf(oi))}
 
     ${tabsHTML('object', hrefFor, counts)}
   </div>`;
@@ -838,8 +838,7 @@ const hhmm = (iso) => (iso ? new Date(iso).toTimeString().slice(0, 5) : '');
 // туда отмеченные. Серию по разным категориям — снять отметку с части и
 // отнести остальное. «Позже» — снимки остаются «Не распределено» (кнопка
 // у камеры), осмотр не завершить, пока они есть.
-function cameraHTML(shots, open, cam = {}) {
-  const own = PHOTO_CATS;
+function cameraHTML(shots, open, cam = {}, own = PHOTO_CATS) {
   const cats = [UNSORTED, ...own, ...new Set(shots.map((p) => p.cat).filter((c) => c !== UNSORTED && !own.includes(c)))];
   const byCat = cats.map((c) => [c, shots.filter((p) => p.cat === c)
     .sort((a, b) => shotTime(a).localeCompare(shotTime(b)))]).filter(([, l]) => l.length);
@@ -901,7 +900,7 @@ function sortHTML(batch, sel, cats = PHOTO_CATS) {
 // них не хватает.
 function accordionHTML(sec, values, oi, collapsed, ctx = {}) {
   const p = sectionProgress(sec, values);
-  // Все поля раздела скрыты условием (ТС «Не найдено» — опознавать нечего) —
+  // Все поля раздела скрыты условием —
   // раздела нет: пустой заголовок «0 из 0» только занимал бы экран.
   if (!p.total && !sec.widget) return '';
   // Раздел «свёрнут по умолчанию» (sec.closed — сети ОИ на участке) открыт,
@@ -1095,7 +1094,7 @@ function docItemHTML({ doc: d, owner }) {
 // (требование пользователя 08.09.2026): фото кровли без литеры не отличить от
 // фото кровли соседней литеры, а «какой механизм» — единственное, что делает
 // снимок механизма осмысленным.
-export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, backHref, sub, eni = '' }) {
+export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, backHref, sub, eni = '', cats = PHOTO_CATS }) {
   return `<div class="ins">
     ${headerHTML({
     title: 'Фото с осмотра',
@@ -1117,7 +1116,7 @@ export function photoHTML({ groups, total, oiId, cat, oiList, hrefFor, counts, b
           <div class="ins-field">
             <label for="insCat">Категория съёмки</label>
             <select class="select ins-select" id="insCat" data-cat>
-              ${PHOTO_CATS.map((c) => `<option ${c === cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+              ${cats.map((c) => `<option ${c === cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}
             </select>
           </div>
         </div>

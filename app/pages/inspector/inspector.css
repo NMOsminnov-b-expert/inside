@@ -1389,7 +1389,7 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 }
 
 /* --- осмотр ТС (запись графа osmotr-ts-na-meste-i-po-snimkam) ------------- */
-/* Действия раздела «Нахождение»: подстановка адреса объекта выезда, место
+/* Действия раздела «Место осмотра»: подстановка адреса объекта выезда, место
    съёмки. Под полями раздела, в строку, переносятся на узком экране. */
 .ins-ts-place { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .ins-ts-place:empty { display: none; }

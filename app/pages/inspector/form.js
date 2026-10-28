@@ -455,15 +455,13 @@ const mechSections = (oi) => [
 // единицы и подсказки — из каталога ТС через дверь модуля (kernel/registry.js,
 // tsInspectPlan); здесь — только раскладка по разделам.
 //
-// Первым — «Нахождение»: ТС не закреплено за адресом (заметка пользователя
-// 27.10.2026 «ТС не закреплены за конкретным адресом»). «Не найдено» — где оно
-// и по чьим словам; остальные разделы при этом скрыты: опознавать нечего.
-// Адрес — на момент осмотра и необязательный («Адрес мог меняться. Указываем
-// (опционально) на момент осмотра»). Место съёмки и подстановка адреса
-// объекта выезда — действия раздела (views.js, widget 'tsPlace').
-export const TS_FOUND = ['Найдено', 'Не найдено'];
-export const tsMissing = (values) => getValue(values, 'ts.found') === 'Не найдено';
-const tsHere = (values) => !tsMissing(values);
+// Первым — «Место осмотра»: ТС не закреплено за адресом (заметка пользователя
+// 27.10.2026 «ТС не закреплены за конкретным адресом»). Адрес — на момент
+// осмотра и необязательный («Адрес мог меняться. Указываем (опционально) на
+// момент осмотра»). Место съёмки и подстановка адреса объекта выезда —
+// действия раздела (views.js, widget 'tsPlace'). Отметки «найдено / не
+// найдено» нет (пользователь 28.10.2026: «Для подобных ситуаций существуют
+// статусы самого осмотра»).
 const NUM_TYPES = ['int', 'num', 'year'];
 // Поле каталога → поле формы. prefix — где лежит значение у осмотра: 'f' у
 // машины, 'm.<id>' у модуля (как f и modules[].f у записи ТС).
@@ -474,7 +472,6 @@ function tsField(prefix, d, { label = d.label } = {}) {
     key,
     label,
     note: d.hint,
-    visible: tsHere,
     doc: Object.assign(() => d.doc, { path: `vehicle.${prefix === 'f' ? 'f' : 'modules'}.${d.key}` }),
     ...(d.fromDocs ? {} : { tpLabel: 'в карточке' }),
   };
@@ -485,7 +482,7 @@ function tsField(prefix, d, { label = d.label } = {}) {
   else Object.assign(field, { loose: true, max: 40 });
   // Пробег — в км или милях: единицу выбирают рядом (как в карточке ТС).
   const unitField = one ? [] : [{
-    key: key + '@unit', label: `${d.label}, единица`, opts: d.units, visible: tsHere,
+    key: key + '@unit', label: `${d.label}, единица`, opts: d.units,
   }];
   return [field, ...unitField];
 }
@@ -495,13 +492,10 @@ function vehicleSections(oi) {
   const list = [
     {
       key: 'where',
-      title: 'Нахождение',
-      short: 'Нахождение',
+      title: 'Место осмотра',
+      short: 'Место',
       widget: 'tsPlace',
       fields: [
-        { key: 'ts.found', label: 'На месте', req: true, opts: TS_FOUND },
-        { key: 'ts.where', label: 'Где находится', long: true, rows: 2, visible: tsMissing },
-        { key: 'ts.whoSaid', label: 'Со слов кого', max: 120, visible: tsMissing },
         { key: 'ts.addr', label: 'Адрес на момент осмотра', max: 200 },
       ],
     },

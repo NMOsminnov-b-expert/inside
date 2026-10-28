@@ -33,7 +33,7 @@
     python tools/matrix/interactions.py --screen Кадастр # экраны с этим словом
     python tools/matrix/interactions.py --changed        # затронутые правкой
     python tools/matrix/interactions.py --all            # всё — по просьбе пользователя
-      [--repeats 3] [--width 1600] [--jobs 4]
+      [--repeats 3] [--width 1600] [--jobs 2]
 
 Отчёт — tools/matrix/out/interactions.json и .md; таблицу для человека
 собирает tools/docs/build_matrix_report.py.
@@ -315,7 +315,7 @@ def main():
     if args[:1] == ['--worker']:
         return worker(int(args[1]), int(args[2]), int(args[3]), args[4])
     opt = lambda k, d: args[args.index(k) + 1] if k in args else d
-    repeats, width, jobs = int(opt('--repeats', 3)), int(opt('--width', 1600)), int(opt('--jobs', 4))
+    repeats, width, jobs = int(opt('--repeats', 3)), int(opt('--width', 1600)), int(opt('--jobs', 2))
     if '--all' in args:
         idx = list(range(len(SCREENS)))
     elif '--changed' in args:
