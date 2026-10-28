@@ -78,6 +78,7 @@ function rowHTML(t, { marks = [], take = false, note = '', struck = false, unski
       <b class="ins-pl-t">${esc(t.title)}</b>
       <span class="ins-pl-m">${esc(metaOf(t))}</span>
       ${t.addrPending ? '<span class="ins-pl-m">Адрес уточняется на месте</span>' : ''}
+      ${t.retakes ? `<span class="ins-pl-m ins-warn">Переснять: ${t.retakes}</span>` : ''}
       ${note ? `<span class="ins-pl-m ${struck ? '' : 'ins-warn'}">${esc(note)}</span>` : ''}
       ${marksHTML(marks)}
     </a>
@@ -112,6 +113,7 @@ function tripHTML(x, i, { marks, app, skipOpen, skipErr, n, moveOpen }) {
         <span class="ins-trip-m">${esc(metaOf(t))}</span>
         <span class="ins-trip-m mono">${esc(t.eni || '')}</span>
         <span class="ins-trip-m">ОИ: ${t.oiAssigned ? `${t.oiAssigned} из ${t.oiCount}` : t.oiCount}${t.photos ? ` · фото: ${t.photos}` : ''}${t.done ? ' · осмотр завершён' : ''}</span>
+        ${t.retakes ? `<span class="ins-trip-m ins-warn">Переснять: ${t.retakes}</span>` : ''}
         ${marksHTML(marks)}
       </a>
       ${x.ll ? navPickHTML(t.key, x.links, 'Ехать', app) : `<span class="ins-trip-m ins-warn">${t.addrPending ? 'Адрес уточняется на месте' : 'Координат нет — адрес в задаче'}</span>`}

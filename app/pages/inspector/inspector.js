@@ -17,6 +17,7 @@
 // (kernel/fieldSchema.js) — в этом файле нет ни одной подписи поля.
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
 import { pickFile, pickFiles, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
+import { newEditor, mountScanEditor, disposeEditor } from './scanEditor.js';
 import { bindFields, filledCount, requiredLeft } from '../../kernel/fieldSchema.js';
 import {
   myTasks, loadTask, taskState, assetValues, inspectorsInData, currentInspector,
@@ -25,7 +26,7 @@ import {
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, photoCatsOf, UNSORTED, unsortedCount, contactsOf,
   othersOiCount,
   newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
-  scansOf, addScan, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
+  scansOf, addScan, replaceScan, retakesOf, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -69,7 +70,9 @@ export function mountInspector(host) {
     // Просмотр документов рядом с камерой: открытый документ, свёрнут ли, и
     // масштаб/сдвиг/страница каждого (docViewer.js).
     docv: { open: '', collapsed: false, views: {} },
-    // Скан, ещё не сохранённый: страницы (файлы), название, к чему относится.
+    // Скан, ещё не отправленный: editor — страницы съёмки (scanEditor.js); phase
+    // 'edit' — съёмка, 'form' — название и к чему относится (files/urls — готовые
+    // страницы); retakeId — пересъёмка возвращённого скана.
     scanDraft: null,
     // Контакты на месте: правка своего (как в карточках, kernel/contacts.js).
     ct: { open: true, editing: null },
@@ -767,8 +770,22 @@ export function mountInspector(host) {
       const vd = opened ? [{ id: opened.doc.id, kind: kindOfDoc(opened.doc), title: opened.doc.title || opened.doc.name || 'Документ',
         owner: opened.owner, pages: [opened.doc.file && (opened.doc.file.dataUrl || opened.doc.file.url)].filter(Boolean) }] : [];
       scope.setHTML(docsHTML({ rec: r, docs, hrefFor, counts, backHref: taskHref,
-        scans: scansOf(typeId, ocId), draft: ui.scanDraft, oiList, locked: !!state.done, viewer: viewerHTML(vd, ui.docv) }));
+        scans: scansOf(typeId, ocId), retakes: retakesOf(typeId, ocId).map((x) => x.id), draft: ui.scanDraft, oiList, locked: !!state.done, viewer: viewerHTML(vd, ui.docv) }));
       bindViewer(scope.root, ui.docv, ui.docv.open);
+      const sd = ui.scanDraft;
+      if (sd && sd.phase === 'edit') {
+        mountScanEditor(scope.$('[data-sced]'), sd.ed, {
+          toast: (text, tone) => host.toast(text, tone),
+          onDone: (files) => {
+            sd.files = files;
+            sd.urls = files.map((f) => URL.createObjectURL(f));
+            sd.phase = 'form';
+            renderKeep();
+            const t = scope.$('[data-scan-title]');
+            if (t) t.focus();
+          },
+        });
+      }
       return;
     }
 
@@ -1519,28 +1536,50 @@ export function mountInspector(host) {
   });
 
   // --- сканы документов с осмотра -------------------------------------------
-  scope.on('click', '[data-scan-add]', async () => {
-    const files = (await pickFiles('image/*,application/pdf')).filter((f) => !isFileTooLarge(f));
-    if (!files.length) return;
-    ui.scanDraft = { files, urls: files.map((f) => URL.createObjectURL(f)), title: '', oiId: '' };
+  const startDraft = (extra = {}) => {
+    ui.scanDraft = { ed: newEditor(), phase: 'edit', files: [], urls: [], title: '', oiId: '', retakeId: '', ...extra };
     renderKeep();
-    const t = scope.$('[data-scan-title]');
-    if (t) t.focus();
+  };
+  scope.on('click', '[data-scan-add]', () => startDraft());
+  // Переснять возвращённое: та же съёмка, но новые страницы заменят скан.
+  scope.on('click', '[data-scan-retake]', (e, el) => {
+    const s = scansOf(route.typeId, route.ocId).find((x) => x.id === el.dataset.scanRetake);
+    if (s) startDraft({ retakeId: s.id, title: s.title, oiId: s.oiId || '' });
   });
   scope.on('input', '[data-scan-title]', (e, el) => { if (ui.scanDraft) ui.scanDraft.title = el.value; });
   scope.on('change', '[data-scan-oi]', (e, el) => { if (ui.scanDraft) ui.scanDraft.oiId = el.value; });
+  const dropUrls = (d) => { d.urls.forEach((u) => { try { URL.revokeObjectURL(u); } catch (err) { /* уже */ } }); d.urls = []; d.files = []; };
   const dropDraft = () => {
-    if (ui.scanDraft) ui.scanDraft.urls.forEach((u) => { try { URL.revokeObjectURL(u); } catch (err) { /* уже */ } });
+    if (ui.scanDraft) { dropUrls(ui.scanDraft); disposeEditor(ui.scanDraft.ed); }
     ui.scanDraft = null;
   };
   scope.on('click', '[data-scan-cancel]', () => { dropDraft(); renderKeep(); });
-  scope.on('click', '[data-scan-save]', () => {
+  // Из формы — назад к страницам: углы и порядок сохранены, готовые файлы сброшены.
+  scope.on('click', '[data-scan-back]', () => {
     const d = ui.scanDraft;
     if (!d) return;
-    const title = (scope.$('[data-scan-title]') || {}).value || d.title;
-    addScan(route.typeId, route.ocId, d.files, { title: String(title || '').trim(), oiId: d.oiId });
+    dropUrls(d);
+    d.phase = 'edit';
+    renderKeep();
+  });
+  scope.on('click', '[data-scan-save]', () => {
+    const d = ui.scanDraft;
+    if (!d || !d.files.length) return;
+    if (d.retakeId) {
+      try {
+        replaceScan(route.typeId, route.ocId, d.retakeId, d.files);
+      } catch (err) {
+        host.toast(err.message, 'warn');
+        return;
+      }
+      host.toast('Скан переснят — снова ждёт разбора', 'ok');
+    } else {
+      const title = (scope.$('[data-scan-title]') || {}).value || d.title;
+      addScan(route.typeId, route.ocId, d.files, { title: String(title || '').trim(), oiId: d.oiId });
+      host.toast('Скан сохранён — ждёт удостоверения ЦОД', 'ok');
+    }
+    // Файлы ушли в данные со своими blob-ссылками; превью формы — отдельные.
     dropDraft();
-    host.toast('Скан сохранён — ждёт удостоверения ЦОД', 'ok');
     renderKeep();
   });
   scope.on('click', '[data-scan-drop]', async (e, el) => {

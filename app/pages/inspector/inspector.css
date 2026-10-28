@@ -241,6 +241,7 @@ body[data-page="insp"] .content {
 .ins-pill-go { background: var(--blue-100); color: var(--blue-700); }
 .ins-pill-wait { background: var(--amber-50); color: var(--amber-700); }
 .ins-pill-done { background: var(--teal-50); color: var(--teal-700); }
+.ins-pill-bad { background: var(--red-50); color: #b91c1c; }
 
 .ins-cols { display: flex; flex-direction: column; gap: 10px; }
 
@@ -1410,3 +1411,55 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .ins-found-new.ins-fts-new { display: block; }
 .ins-fts-new .ins-oi-g { margin-top: 0; }
 .ins-fts .ins-acts .ins-btn { white-space: nowrap; }
+
+
+/* --- съёмка документа и пересъёмка (scanEditor.js) ---------------------- */
+.ins-scan.is-retake { border-color: #f1b4b4; background: var(--red-50); align-items: flex-start; }
+.ins-scan.is-retake .ins-doc-t { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.ins-scan.is-retake .ins-doc-t small { display: block; }
+.ins-retake-why { color: #b91c1c; font-weight: 600; overflow-wrap: anywhere; }
+.ins-scan-retake { align-self: stretch; margin-top: 6px; }
+.sced-for { margin: 0 0 8px; }
+
+.sced { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+/* Поля 22 px вокруг сцены: ручка угла (44 px) у края снимка не уходит за край блока. */
+.sced-wrap { display: flex; justify-content: center; padding: 22px; background: var(--blue-50); border-radius: 12px; overflow: hidden; min-width: 0; }
+.sced-stage { position: relative; flex: 0 0 auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.sced-img, .sced-ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sced-ov { pointer-events: none; }
+.sced-img.f-gray { filter: grayscale(1); }
+.sced-img.f-bw { filter: grayscale(1) contrast(3) brightness(1.1); }
+.sced-h {
+  position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; cursor: grab; touch-action: none;
+}
+.sced-h::before {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+  border-radius: 50%; background: var(--blue-600); border: 3px solid #fff; box-shadow: 0 0 0 1px #0b2a4d99;
+}
+.sced-h:focus-visible::before, .sced-h.drag::before { box-shadow: 0 0 0 3px var(--blue-200), 0 0 0 4px var(--blue-700); }
+.sced-h.drag { cursor: grabbing; }
+.sced-hint { margin: -2px 0 0; }
+.sced-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sced-b { min-height: 44px; padding: 0 12px; flex: 1 1 auto; }
+.sced-b:disabled, .sced-go .ins-btn:disabled { opacity: .45; cursor: default; }
+.sced-seg { flex: 1 1 200px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--blue-50); border-radius: 12px; }
+.sced-fb { min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: var(--slate-700); font: inherit; font-weight: 600; cursor: pointer; }
+.sced-fb.on { background: var(--panel); color: var(--blue-700); box-shadow: var(--shadow); }
+.sced-strip { list-style: none; margin: 0; padding: 2px 2px 6px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; }
+.sced-strip li { flex: 0 0 auto; }
+.sced-th {
+  position: relative; display: flex; align-items: center; justify-content: center; width: 72px; height: 96px; padding: 0;
+  border: 2px solid var(--line-soft); border-radius: 10px; background: var(--blue-50); cursor: pointer; overflow: hidden;
+}
+.sced-th canvas { max-width: 100%; max-height: 100%; display: block; }
+.sced-th.on { border-color: var(--blue-600); box-shadow: 0 0 0 2px var(--blue-100); }
+.sced-th b { position: absolute; left: 4px; top: 4px; min-width: 18px; padding: 0 4px; border-radius: 9px; background: #0b2a4dcc; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.sced-order { display: flex; gap: 8px; }
+.sced-del { color: var(--red-600); flex: 0 0 auto; }
+.sced-add { display: flex; gap: 8px; }
+.sced-go { display: flex; flex-direction: column; gap: 8px; }
+@media (min-width: 760px) {
+  .sced-go { flex-direction: row-reverse; }
+  .sced-go .ins-btn-wide { width: auto; flex: 1 1 0; }
+}

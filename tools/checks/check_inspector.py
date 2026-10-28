@@ -609,19 +609,25 @@ def run(t):
     # помечаются, как с осмотра и их должен удостоверить и обработать ЦОД»):
     # несколько страниц — один документ, с названием и объектом; метка.
     t.open(TASK + '/docs', wait='[data-scan-add]')
+    pg.click('[data-scan-add]')
+    t.wait_for('[data-sced-files]')
     with pg.expect_file_chooser() as fc:
-        pg.click('[data-scan-add]')
+        pg.click('[data-sced-files]')
     t.ck(fc.value.is_multiple(), 'скан — только одна страница')
     fc.value.set_files([{'name': 'pg%d.png' % i, 'mimeType': 'image/png', 'buffer': PNG_8x8} for i in range(2)])
+    # Съёмка (scanEditor.js) подробно проверяется в check_inspector_scan.py;
+    # здесь — только путь «страницы → Готово → форма → Отправить».
+    t.wait_for('[data-sced-done]:not([disabled])')
+    pg.click('[data-sced-done]')
     t.wait_for('[data-scan-title]')
     pg.fill('[data-scan-title]', 'Проверка скана')
     pg.select_option('[data-scan-oi]', 'oi-cv1-a')
     pg.click('[data-scan-save]')
     t.wait_until("() => /Проверка скана/.test(document.querySelector('.ins-scans')?.innerText || '')")
-    sc = pg.evaluate("""async () => (await import('./app/pages/inspector/tasks.js')).scansOf('%s', '%s').map(s => [s.title, s.oiId, s.pages.length, s.source, s.status])""" % (TYPE, OC))
+    sc = pg.evaluate("""async () => (await import('./app/pages/inspector/tasks.js')).scansOf('%s', '%s').filter(s => s.title === 'Проверка скана').map(s => [s.title, s.oiId, s.pages.length, s.source, s.status])""" % (TYPE, OC))
     t.ck(sc == [['Проверка скана', 'oi-cv1-a', 2, 'осмотр', 'ждёт ЦОД']], 'скан сохранился не так: %s' % sc)
     t.ck('с осмотра' in pg.inner_text('.ins-scans'), 'скан не помечен «с осмотра»')
-    pg.evaluate("""async () => { const a = (await import('./app/pages/inspector/tasks.js')).scansOf('%s', '%s'); a.splice(0, a.length); }""" % (TYPE, OC))
+    pg.evaluate("""async () => { const a = (await import('./app/pages/inspector/tasks.js')).scansOf('%s', '%s'); const i = a.findIndex(s => s.title === 'Проверка скана'); if (i >= 0) a.splice(i, 1); }""" % (TYPE, OC))
 
     # Голосовые заметки (16.10.2026: «Голосовые заметки тоже»): кнопка записи —
     # на экране задачи (объект в целом) и в форме ОИ. Сама запись проверяется

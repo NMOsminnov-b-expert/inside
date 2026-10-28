@@ -99,18 +99,45 @@ export function addResultPhoto(typeId, ocId, file, fields) {
 // скан попадает после удостоверения (документы ОЦ или ОИ) и что с
 // отклонённым.
 let scanSeq = 0;
-export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '' } = {}) {
-  const pages = files.map((file, i) => {
+function makeScanPages(files) {
+  return files.map((file, i) => {
     const pg = { id: 'sp-' + Date.now().toString(36) + '-' + (++scanSeq) + '-' + i, name: file.name || 'страница', size: file.size, type: file.type || '' };
     pg.dataUrl = URL.createObjectURL(file);
     keepFileLocally(file, pg);
     return pg;
   });
+}
+export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '' } = {}) {
+  const pages = makeScanPages(files);
   const scan = { id: 'sc-' + Date.now().toString(36) + '-' + (++scanSeq), title: title || 'Документ с осмотра', oiId, by,
     at: new Date().toISOString(), source: 'осмотр', status: 'ждёт ЦОД', pages };
   const r = resultsOf(typeId, ocId);
   if (!Array.isArray(r.scans)) r.scans = [];
   r.scans.push(scan);
+  scheduleSave();
+  return scan;
+}
+
+// Пересъёмка возвращённого скана (этап В, пункт В3): новые страницы заменяют
+// прежние, у скана снимается пометка возврата (scan.retake) и отметка разбора
+// (scan.review) — в очереди «Сканы с осмотров» он снова «Ждёт разбора».
+// Название и ОИ остаются прежними.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: пересъёмка — новая версия того же документа с
+// сохранением прежней и причины возврата (история разбора); здесь прежние
+// страницы и причина не хранятся.
+export function replaceScanPages(typeId, ocId, scanId, files, { by = '' } = {}) {
+  const scan = (resultsOf(typeId, ocId).scans || []).find((s) => s.id === scanId);
+  if (!scan) throw new Error('Скан не найден');
+  if (!scan.retake) throw new Error('Скан не возвращён на пересъёмку');
+  if (!files.length) throw new Error('Нет страниц');
+  (scan.pages || []).forEach((p) => { try { URL.revokeObjectURL(p.dataUrl); } catch (e) { /* уже отозвана */ } });
+  scan.pages = makeScanPages(files);
+  delete scan.retake;
+  delete scan.review;
+  scan.status = 'ждёт ЦОД';
+  scan.at = new Date().toISOString();
+  if (by) scan.by = by;
   scheduleSave();
   return scan;
 }

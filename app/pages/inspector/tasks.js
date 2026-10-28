@@ -13,7 +13,8 @@ import { sortedTypes, getType, migrateLiterKinds, tsName, tsFoundKinds } from '.
 import { session } from '../../kernel/session.js';
 import { hereNow } from '../../kernel/geoHere.js';
 import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
-import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
+import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, replaceScanPages, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
+import { retakesOf } from '../../kernel/scanQueue.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -74,6 +75,8 @@ export function scansOf(typeId, ocId) {
   return st.scans;
 }
 export const addScan = (typeId, ocId, files, opts) => addResultScan(typeId, ocId, files, { ...opts, by: currentInspector() });
+export const replaceScan = (typeId, ocId, id, files) => replaceScanPages(typeId, ocId, id, files, { by: currentInspector() });
+export { retakesOf };
 export function removeScan(typeId, ocId, id) {
   const list = scansOf(typeId, ocId);
   const i = list.findIndex((x) => x.id === id);
@@ -213,6 +216,8 @@ export function myTasks({ onlyPending = false } = {}) {
       // osmotr-ts-na-meste-i-po-snimkam).
       addrPending: addrPending(typeId, ocId),
       photos: st.photos.length,
+      // Возвращённые ЦОД сканы, которые осмотрщик ещё не переснял.
+      retakes: retakesOf(typeId, ocId).length,
       done: st.done,
     });
   });

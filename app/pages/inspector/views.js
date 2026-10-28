@@ -286,6 +286,7 @@ function cardHTML(t) {
         <span>ОИ: ${t.oiAssigned ? `${t.oiAssigned} из ${t.oiCount}` : t.oiCount}</span>
         ${t.photos ? `<span>фото: ${t.photos}</span>` : ''}
         ${t.pendingNotes ? `<span class="ins-warn">заметок: ${t.pendingNotes}</span>` : ''}
+        ${t.retakes ? `<span class="ins-warn">Переснять: ${t.retakes}</span>` : ''}
         ${t.done ? `<span class="ins-done">${ico('ok', 14)} осмотр завершён</span>` : ''}
       </span>
     </a>
@@ -1003,7 +1004,7 @@ function contactsHTML({ own, editing, object, chain }) {
   </section>`;
 }
 
-export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], draft = null, oiList = [], locked = false, viewer = '' }) {
+export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], retakes = [], draft = null, oiList = [], locked = false, viewer = '' }) {
   return `<div class="ins">
     ${headerHTML({
     title: 'Документы',
@@ -1014,7 +1015,7 @@ export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], dra
     ${viewer}
 
     <div class="ins-body">
-      ${scanBlockHTML({ scans, draft, oiList, locked })}
+      ${scanBlockHTML({ scans, retakes, draft, oiList, locked })}
       <section class="ins-blk">
         <h2 class="ins-blk-h">Назначенные документы${docs.length ? ' · ' + docs.length : ''}</h2>
       ${docs.length ? `<ul class="ins-docs">
@@ -1028,17 +1029,46 @@ export function docsHTML({ rec, docs, hrefFor, counts, backHref, scans = [], dra
   </div>`;
 }
 
-// Сканы с осмотра (16.10.2026): «Отсканировать документ» — снять или выбрать
-// несколько страниц; затем форма прямо здесь — название и к какому объекту
-// относится, миниатюры страниц; «Сохранить» — документ в списке «Отсканировано
-// на осмотре» с меткой «с осмотра · ждёт удостоверения ЦОД».
-function scanBlockHTML({ scans, draft, oiList, locked }) {
+// Сканы с осмотра (16.10.2026): «Отсканировать документ» открывает съёмку
+// прямо в блоке (scanEditor.js: страницы, углы, поворот, фильтр); «Готово» —
+// форма: название и к какому объекту относится; «Отправить» — документ в списке
+// «Отсканировано на осмотре» с меткой «с осмотра · ждёт удостоверения ЦОД».
+// Возвращённый ЦОД скан стоит первым с пометкой «Переснять»: пересъёмка — та же
+// съёмка, новые страницы заменяют скан (шаг 3 этапа В, пункт В3).
+const when = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+function scanItemHTML(s, { ownerOf, open, locked, busy }) {
+  const back = open && s.retake;
+  return `<li class="ins-doc ins-scan ${back ? 'is-retake' : ''}">
+      <span class="ins-doc-ico">${ico('docs')}</span>
+      <span class="ins-doc-t">
+        <b>${esc(s.title)}</b>
+        <small>${esc([ownerOf(s.oiId), `${s.pages.length} стр.`].join(' · '))}</small>
+        ${back ? `<span class="ins-pill ins-pill-bad">Переснять</span>
+          <small class="ins-retake-why">Причина: ${esc(s.retake.reason)}</small>
+          <small>Вернул: ${esc([s.retake.by, when(s.retake.at)].filter(Boolean).join(' · '))}</small>
+          ${locked || busy ? '' : `<button class="ins-btn ins-btn-main ins-scan-retake" type="button" data-scan-retake="${esc(s.id)}">Переснять</button>`}`
+    : `<span class="ins-pill ins-pill-wait">с осмотра · ${esc(s.status === 'ждёт ЦОД' ? 'ждёт удостоверения ЦОД' : s.status)}</span>`}
+      </span>
+      ${locked ? '' : `<button class="ins-btn ins-btn-icon" type="button" data-scan-drop="${esc(s.id)}" aria-label="Удалить скан" title="Удалить скан">${ico('trash', 18)}</button>`}
+    </li>`;
+}
+
+function scanBlockHTML({ scans, retakes, draft, oiList, locked }) {
   const ownerOf = (id) => (oiList.find((o) => o.id === id) || {}).label || 'Объект оценки';
+  const isOpen = (s) => retakes.includes(s.id);
+  const list = [...scans].sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)));
+  const form = draft && draft.phase === 'form';
+  const retaking = draft && draft.retakeId ? scans.find((s) => s.id === draft.retakeId) : null;
   return `<section class="ins-blk ins-scans" aria-label="Сканы с осмотра">
     <h2 class="ins-blk-h">Отсканировано на осмотре${scans.length ? ' · ' + scans.length : ''}</h2>
-    ${draft ? `<div class="ins-scan-new">
+    ${draft && !form ? `${retaking ? `<p class="ins-hint sced-for">Пересъёмка: «${esc(retaking.title)}». Новые страницы заменят прежние.</p>` : ''}<div data-sced></div>` : ''}
+    ${form ? `<div class="ins-scan-new">
       <ul class="ins-grid">${draft.urls.map((u, i) => `<li class="ins-shot"><span class="ins-shot-b"><img src="${esc(u)}" alt="Страница ${i + 1}"></span></li>`).join('')}</ul>
-      <div class="ins-field">
+      ${retaking ? `<p class="ins-hint">Новые страницы заменят скан «${esc(retaking.title)}» и вернут его на разбор.</p>` : `<div class="ins-field">
         <label for="insScanTitle">Название документа</label>
         <input class="input ins-input" id="insScanTitle" data-scan-title value="${esc(draft.title || '')}" placeholder="Например: техпаспорт, акт, договор аренды">
       </div>
@@ -1048,21 +1078,14 @@ function scanBlockHTML({ scans, draft, oiList, locked }) {
           <option value="" ${draft.oiId ? '' : 'selected'}>Объект оценки</option>
           ${oiList.map((o) => `<option value="${esc(o.id)}" ${o.id === draft.oiId ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
         </select>
-      </div>
-      <div class="ins-acts">
-        <button class="ins-btn" type="button" data-scan-cancel>Отмена</button>
-        <button class="ins-btn ins-btn-main" type="button" data-scan-save>Сохранить · ${draft.urls.length} стр.</button>
+      </div>`}
+      <div class="sced-go">
+        <button class="ins-btn ins-btn-main ins-btn-wide" type="button" data-scan-save>Отправить · ${draft.urls.length} стр.</button>
+        <button class="ins-btn ins-btn-wide" type="button" data-scan-back>К страницам</button>
+        <button class="ins-btn ins-btn-wide" type="button" data-scan-cancel>Отмена</button>
       </div>
     </div>` : ''}
-    ${scans.length ? `<ul class="ins-docs">${scans.map((s) => `<li class="ins-doc ins-scan">
-      <span class="ins-doc-ico">${ico('docs')}</span>
-      <span class="ins-doc-t">
-        <b>${esc(s.title)}</b>
-        <small>${esc([ownerOf(s.oiId), `${s.pages.length} стр.`].join(' · '))}</small>
-        <span class="ins-pill ins-pill-wait">с осмотра · ${esc(s.status === 'ждёт ЦОД' ? 'ждёт удостоверения ЦОД' : s.status)}</span>
-      </span>
-      ${locked ? '' : `<button class="ins-btn ins-btn-icon" type="button" data-scan-drop="${esc(s.id)}" aria-label="Удалить скан" title="Удалить скан">${ico('trash', 18)}</button>`}
-    </li>`).join('')}</ul>` : (draft ? '' : '<p class="ins-empty">Документ, которого нет в списке, — снимите его страницы: ЦОД удостоверит и разнесёт.</p>')}
+    ${list.length ? `<ul class="ins-docs">${list.map((s) => scanItemHTML(s, { ownerOf, open: isOpen(s), locked, busy: !!draft })).join('')}</ul>` : (draft ? '' : '<p class="ins-empty">Документ, которого нет в списке, — снимите его страницы: ЦОД удостоверит и разнесёт.</p>')}
     ${locked || draft ? '' : `<button class="ins-btn ins-btn-main ins-btn-wide" type="button" data-scan-add>${ico('docs')} Отсканировать документ</button>`}
   </section>`;
 }
