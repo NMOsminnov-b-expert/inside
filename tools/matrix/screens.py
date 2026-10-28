@@ -60,6 +60,10 @@ for k in _PERSON:
 _add('Осмотры · Кадастр', 'osmotry', 'rm', '#/inspections?s=cadastre', '[data-ip-section]', _INSP_TOUCH)
 _add('Осмотры · Уведомления', 'osmotry', 'rm', '#/inspections?s=notes', '[data-ip-section]', _INSP_TOUCH)
 _add('Осмотры · История', 'osmotry', 'rm', '#/inspections?s=history', '[data-ip-section]', _INSP_TOUCH)
+_SCANS_TOUCH = ('app/pages/scans/', 'app/kernel/scanQueue.js', 'app/kernel/inspectionResults.js', 'app/kernel/inspections')
+_add('Сканы с осмотров · Ждёт разбора', 'osmotry', 'rm', '#/scans', '.sc-main', _SCANS_TOUCH)
+_add('Сканы с осмотров · Принято', 'osmotry', 'rm', '#/scans?state=accepted', '.sc-main', _SCANS_TOUCH)
+_add('Сканы с осмотров · Возвращено', 'osmotry', 'rm', '#/scans?state=returned', '.sc-main', _SCANS_TOUCH)
 
 # Разделы верхнего уровня экрана осмотрщика (14.10.2026): Сегодня · Задачи ·
 # Запросы · Уведомления.

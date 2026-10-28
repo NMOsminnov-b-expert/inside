@@ -1,0 +1,133 @@
+/* Сканы с осмотров (pages/scans): перечень и панель выбранного рядом.
+   Своё у страницы — только раскладка; вкладки (.itab), таблица (.icols/.itbl),
+   поля (.field/.input/.select) и кнопки (.btn) — общие примитивы ядра, те же,
+   что в панели осмотров (правило графа bez-modalok-prostranstvo-celikom-stili-iz-yadra).
+
+   Ширины: перечень — остаток, панель — 38 % в пределах 360–520 px.
+   До 900 px — одна колонка: перечень, а по выбору строки панель открывается
+   вместо него с кнопкой «К перечню». */
+body[data-page="scans"] .sc{display:flex;flex-direction:column;height:100%;min-height:0;padding:10px 14px 14px;background:var(--bg);
+  box-sizing:border-box;overflow:hidden}
+body[data-page="scans"] .sc-top{flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;
+  border-bottom:1px solid var(--line);margin-bottom:12px}
+body[data-page="scans"] .sc-tabs{border-bottom:0;flex:0 1 auto}
+body[data-page="scans"] .sc-tools{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding-bottom:6px}
+body[data-page="scans"] .sc-segw{display:flex;align-items:center;gap:6px}
+body[data-page="scans"] .sc-seglab{font-size:12px;color:var(--muted)}
+/* Переключатель из нескольких половин — той же высоты, что поле поиска. */
+body[data-page="scans"] .sc-seg{display:inline-flex;height:30px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+body[data-page="scans"] .sc-seg button{padding:0 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+body[data-page="scans"] .sc-seg button + button{border-left:1px solid var(--line)}
+body[data-page="scans"] .sc-seg button:hover{color:var(--ink);background:var(--blue-50)}
+body[data-page="scans"] .sc-seg button[aria-pressed="true"]{background:var(--blue-50);color:var(--blue-700)}
+
+body[data-page="scans"] .sc-main{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(360px,38%,520px);gap:12px}
+body[data-page="scans"] .sc-list{min-width:0;min-height:0;display:flex;flex-direction:column}
+body[data-page="scans"] .sc-list .icols{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+body[data-page="scans"] .sc-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+body[data-page="scans"] .sc-empty{grid-column:1 / -1;margin:0;padding:18px;font-size:13px;color:var(--muted);
+  background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);align-self:start}
+
+/* Таблица: дата и страницы — узкие цифры одной ширины, остальное — доли. */
+body[data-page="scans"] .sc-tbl col.c-d{width:84px}
+body[data-page="scans"] .sc-tbl col.c-s{width:84px}
+body[data-page="scans"] .sc-tbl col.c-p{width:48px}
+body[data-page="scans"] .sc-tbl th{position:sticky;top:0;z-index:1}
+body[data-page="scans"] .sc-tbl td{white-space:normal;vertical-align:top;padding:8px 10px;overflow-wrap:anywhere}
+body[data-page="scans"] .sc-tbl th{padding:8px 10px}
+body[data-page="scans"] .sc-date{font-variant-numeric:tabular-nums;white-space:nowrap !important}
+body[data-page="scans"] .sc-tbl tbody tr.cur td{background:var(--blue-50)}
+body[data-page="scans"] .sc-tbl tbody tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--blue-600)}
+body[data-page="scans"] .sc-t{display:block;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body[data-page="scans"] .sc-s{display:block;margin-top:2px;font-size:11.5px;color:var(--muted);line-height:1.3}
+body[data-page="scans"] .sc-why{display:block;margin-top:3px;font-size:11.5px;color:#a3361c;line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body[data-page="scans"] .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+
+body[data-page="scans"] .sc-src,
+body[data-page="scans"] .sc-st{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;
+  border:1px solid transparent}
+body[data-page="scans"] .sc-src-insp{background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-200)}
+body[data-page="scans"] .sc-src-cad{background:var(--amber-50);color:var(--amber-700);border-color:var(--amber-100)}
+body[data-page="scans"] .sc-st-wait{background:var(--slate-50);color:var(--slate-700);border-color:var(--line)}
+body[data-page="scans"] .sc-st-accepted{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
+body[data-page="scans"] .sc-st-returned{background:var(--amber-50);color:var(--amber-700);border-color:var(--amber-100)}
+body[data-page="scans"] .sc-st-rejected{background:#fdf3f3;color:#a3361c;border-color:#f3c1c1}
+
+/* Панель выбранного: шапка, прокручиваемое тело, подвал с действиями. */
+body[data-page="scans"] .sc-pane{display:flex;flex-direction:column;min-width:0;min-height:0;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+body[data-page="scans"] .sc-head{flex:none;padding:12px 16px 10px;border-bottom:1px solid var(--line-soft)}
+body[data-page="scans"] .sc-head h2{margin:0;font-size:14px;font-weight:700;color:var(--ink);line-height:1.35;overflow-wrap:anywhere}
+body[data-page="scans"] .sc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+body[data-page="scans"] .sc-back{display:none;margin-bottom:8px}
+body[data-page="scans"] .sc-body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 16px 14px;display:flex;flex-direction:column;gap:14px}
+body[data-page="scans"] .sc-body > *{flex:none}
+body[data-page="scans"] .sc-sec h3{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--ink)}
+
+/* Просмотр страниц: крупная текущая и лента миниатюр. */
+body[data-page="scans"] .sc-big{display:flex;align-items:center;justify-content:center;min-height:140px;max-height:clamp(140px,26vh,300px);
+  background:var(--slate-50);border:1px solid var(--line-soft);border-radius:8px;overflow:hidden}
+body[data-page="scans"] .sc-page{display:block;width:100%;height:100%;max-height:clamp(140px,26vh,300px);object-fit:contain;border:0;background:#fff}
+body[data-page="scans"] iframe.sc-page{height:clamp(140px,26vh,300px)}
+body[data-page="scans"] .sc-lost{margin:0;padding:16px;font-size:12.5px;color:var(--muted);text-align:center}
+body[data-page="scans"] .sc-strip{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-top:8px}
+body[data-page="scans"] .sc-pn{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="scans"] .sc-pn b{color:var(--ink)}
+body[data-page="scans"] .sc-thumbs{display:flex;gap:6px;flex-wrap:wrap}
+body[data-page="scans"] .sc-th{position:relative;width:46px;height:58px;border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted)}
+body[data-page="scans"] .sc-th img{width:100%;height:100%;object-fit:cover}
+body[data-page="scans"] .sc-th i{position:absolute;right:2px;bottom:2px;min-width:14px;padding:0 3px;border-radius:4px;
+  background:rgba(14,47,79,.75);color:#fff;font-style:normal;font-size:10px;line-height:14px;text-align:center}
+body[data-page="scans"] .sc-th.on{border-color:var(--blue-600);box-shadow:0 0 0 2px var(--blue-100)}
+
+body[data-page="scans"] .sc-dl{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;margin:0}
+body[data-page="scans"] .sc-dl > div{display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;font-size:12.5px}
+body[data-page="scans"] .sc-dl dt{color:var(--muted)}
+body[data-page="scans"] .sc-dl dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
+body[data-page="scans"] .sc-dl a{color:var(--blue-600)}
+
+body[data-page="scans"] .sc-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+body[data-page="scans"] .sc-f-wide{grid-column:1 / -1}
+body[data-page="scans"] .sc-pane .field > label{font-size:12px;font-weight:600;color:var(--ink-label)}
+body[data-page="scans"] .sc-pane .select,
+body[data-page="scans"] .sc-pane .input{height:34px;width:100%}
+
+body[data-page="scans"] .sc-foot{flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 16px 12px;
+  border-top:1px solid var(--line-soft);background:var(--panel)}
+body[data-page="scans"] .sc-foot-link{align-items:flex-start}
+body[data-page="scans"] .sc-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+body[data-page="scans"] .sc-acts .sc-ok{margin-left:auto}
+body[data-page="scans"] .sc-acts .btn{height:34px;justify-content:center}
+body[data-page="scans"] .sc-acts .btn:disabled{opacity:.5;cursor:not-allowed}
+body[data-page="scans"] .sc-hint{margin:0;font-size:12px;color:var(--muted);line-height:1.4}
+body[data-page="scans"] .sc-err{margin:0;font-size:12px;color:#a3361c}
+body[data-page="scans"] [hidden]{display:none !important}
+
+/* ============ ширины ============ */
+@media (max-width:1280px){
+  body[data-page="scans"] .sc-main{grid-template-columns:minmax(0,1fr) clamp(340px,40%,420px)}
+  body[data-page="scans"] .sc-form{grid-template-columns:minmax(0,1fr);gap:8px}
+  body[data-page="scans"] .sc-dl > div{grid-template-columns:112px minmax(0,1fr)}
+}
+@media (max-width:900px){
+  body[data-page="scans"] .sc{padding:8px 10px 12px}
+  body[data-page="scans"] .sc-main{grid-template-columns:minmax(0,1fr)}
+  /* Перечень или панель — по выбору строки; «К перечню» возвращает. */
+  body[data-page="scans"] .sc .sc-pane{display:none}
+  body[data-page="scans"] .sc.sc-detail .sc-pane{display:flex}
+  body[data-page="scans"] .sc.sc-detail .sc-list{display:none}
+  body[data-page="scans"] .sc.sc-detail .sc-top{display:none}
+  body[data-page="scans"] .sc-back{display:inline-flex}
+  body[data-page="scans"] .sc-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  body[data-page="scans"] .sc-form{grid-template-columns:minmax(0,1fr)}
+  body[data-page="scans"] .sc-tbl col.c-s{width:0}
+  body[data-page="scans"] .sc-tbl th:nth-child(2),
+  body[data-page="scans"] .sc-tbl td:nth-child(2){display:none}
+  body[data-page="scans"] .sc-acts .btn{flex:1 1 auto}
+  body[data-page="scans"] .sc-acts .sc-ok{margin-left:0}
+  body[data-page="scans"] .sc-tabs .itab{padding:8px 9px}
+}

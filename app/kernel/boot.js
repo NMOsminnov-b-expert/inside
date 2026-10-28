@@ -20,6 +20,7 @@ import { mountDicts } from '../pages/dicts/dicts.js';
 import { mountInstitutions } from '../pages/institutions/institutions.js';
 import { mountInspector } from '../pages/inspector/inspector.js';
 import { mountInspections } from '../pages/inspections/inspections.js';
+import { mountScans } from '../pages/scans/scans.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -213,6 +214,26 @@ async function onRoute(route) {
     if (stale()) { scope.destroy(); return; }
     const instance = mountInspections(host);
     current = { kind: 'inspections', instance, scope };
+    return;
+  }
+
+  if (route.name === 'scans') {
+    // Очередь «Сканы с осмотров»: что осмотрщики сняли на месте и что ответил
+    // кадастр, ждёт разбора ЦОД и регионала (kernel/scanQueue.js).
+    if (current && current.kind === 'scans') {
+      current.instance.onRoute(route);
+      return;
+    }
+    unmount();
+    resetShellSlots();
+    setActiveNav('scans');
+    document.body.dataset.page = 'scans';
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/scans/scans.css');
+    if (stale()) { scope.destroy(); return; }
+    const instance = mountScans(host);
+    current = { kind: 'scans', instance, scope };
     return;
   }
 

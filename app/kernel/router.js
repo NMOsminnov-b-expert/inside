@@ -5,6 +5,7 @@
 //   #/docs                      — реестр «Документы» (не зависит от типов ОЦ)
 //   #/dicts                     — справочники значений
 //   #/institutions              — учреждения (сводка по объектам и документам)
+//   #/scans                     — сканы с осмотров (очередь разбора ЦОД)
 // Query после «?» отдаётся экрану как объект.
 // Разбор сегмента без падения: адрес с битой %-последовательностью
 // (#/oc/civil/100%) бросал URIError — приложение не стартовало или переставало
@@ -47,6 +48,12 @@ export function parse(hash = location.hash) {
   // Панель осмотров — назначение осмотрщиков (ТЗ panel-osmotrov-tz).
   if (segs[0] === 'inspections') {
     return { name: 'inspections', query };
+  }
+
+  // Сканы с осмотров — очередь разбора (kernel/scanQueue.js); вкладка, отборы
+  // и выбранный элемент — в query: ?state=&src=&who=&key=.
+  if (segs[0] === 'scans') {
+    return { name: 'scans', query };
   }
 
   // Учреждения — сводка по объектам оценки и документам одного учреждения.
@@ -136,3 +143,4 @@ export const DOCS_HREF = '#/docs';
 export const DICTS_HREF = '#/dicts';
 export const INST_HREF = '#/institutions';
 export const INSPECTIONS_HREF = '#/inspections';
+export const SCANS_HREF = '#/scans';
