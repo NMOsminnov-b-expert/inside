@@ -177,10 +177,10 @@ export function mountScans(host) {
       <div class="field"><label for="sc-f-reason">Причина возврата или отклонения</label>
         <input class="input" id="sc-f-reason" data-sc-f-reason value="${esc(draft.reason)}" autocomplete="off" placeholder="Например: страница смазана, не видна печать"></div>
       <p class="sc-err" data-sc-err ${err ? '' : 'hidden'}>${esc(err)}</p>
-      <p class="sc-hint" data-sc-need ${empty ? '' : 'hidden'}>Чтобы вернуть или отклонить, укажите причину.</p>
+      <p class="sc-hint" id="scNeed" data-sc-need ${empty ? '' : 'hidden'}>Чтобы вернуть или отклонить, укажите причину.</p>
       <div class="sc-acts">
-        <button class="btn btn-ghost" data-sc-return ${empty ? 'disabled' : ''}>Вернуть на пересъёмку</button>
-        <button class="btn btn-danger" data-sc-reject ${empty ? 'disabled' : ''}>Отклонить</button>
+        <button class="btn btn-ghost" data-sc-return aria-describedby="scNeed" ${empty ? 'disabled title="Укажите причину возврата"' : ''}>Вернуть на пересъёмку</button>
+        <button class="btn btn-danger" data-sc-reject aria-describedby="scNeed" ${empty ? 'disabled title="Укажите причину отклонения"' : ''}>Отклонить</button>
         <button class="btn btn-primary sc-ok" data-sc-accept>Принять</button>
       </div></footer>`;
   }
@@ -290,6 +290,8 @@ export function mountScans(host) {
     const empty = !draft.reason.trim();
     scope.$('[data-sc-return]').disabled = empty;
     scope.$('[data-sc-reject]').disabled = empty;
+    scope.$('[data-sc-return]').title = empty ? 'Укажите причину возврата' : '';
+    scope.$('[data-sc-reject]').title = empty ? 'Укажите причину отклонения' : '';
     scope.$('[data-sc-need]').hidden = !empty;
   });
   // ↑↓ — соседняя строка перечня, если фокус не в поле ввода.
