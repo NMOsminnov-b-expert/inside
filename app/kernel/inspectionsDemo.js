@@ -354,8 +354,64 @@ function demoTsResults(recs, partial, assignments, today) {
       ],
     });
   }
+  demoScans(out, recs, assignments, today);
   return out;
 }
+
+// Демо-сканы с осмотров — во всех состояниях очереди «Сканы с осмотров»
+// (kernel/scanQueue.js): три ждут разбора (техпаспорт ТС в две страницы,
+// документ литеры oi-cv1-b, план ОЦ), один принят, один возвращён на
+// пересъёмку, один отклонён. Страницы — картинки с названием документа.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-сканов нет — их снимает осмотрщик. У принятого
+// демо-скана документа в записи нет (docId пуст): записи на старте демо не
+// загружаются.
+function demoScans(out, recs, assignments, today) {
+  const find = (id) => recs.find((r) => r.ocId === id);
+  const personOf = (r) => { const a = assignments.find((x) => x.typeId === r.typeId && x.ocId === r.ocId && x.state === 'assigned'); return a ? a.person : ''; };
+  const add = (r, scans) => {
+    let e = out.find((x) => x.typeId === r.typeId && x.ocId === r.ocId);
+    if (!e) { e = { typeId: r.typeId, ocId: r.ocId }; out.push(e); }
+    e.scans = (e.scans || []).concat(scans);
+  };
+  const page = (label, n, total) => ({ id: `demo-sp-${label.length}-${n}-${Math.abs(hash(label + n))}`, name: `${label}, стр. ${n}.svg`, size: 1800, type: 'image/svg+xml', dataUrl: scanPage(label, n, total) });
+  const mk = (id, title, oiId, by, shiftDays, hour, nPages, review) => {
+    const at = dayAt(today, shiftDays, hour).toISOString();
+    const sc = { id, title, oiId, by, at, source: 'осмотр', status: review ? { accepted: 'принят', returned: 'возвращён', rejected: 'отклонён' }[review.state] : 'ждёт ЦОД',
+      pages: Array.from({ length: nPages }, (_, i) => page(title, i + 1, nPages)) };
+    if (review) sc.review = { reason: '', docId: '', by: 'Оператор ЦОД (демо)', at: dayAt(today, shiftDays, hour + 2).toISOString(), ...review };
+    if (review && review.state === 'returned') sc.retake = { reason: review.reason, by: sc.review.by, at: sc.review.at };
+    return sc;
+  };
+  const ts = find('oc-vehicle-d2');
+  if (ts) {
+    const by = personOf(ts);
+    add(ts, [
+      mk('demo-sc-1', 'Технический паспорт', '', by, 0, 11, 2, null),
+      mk('demo-sc-5', 'Страховой полис', '', by, -2, 10, 1, { state: 'rejected', reason: 'Не тот объект' }),
+    ]);
+  }
+  const cv = find('oc-cv-1');
+  if (cv) {
+    const by = personOf(cv);
+    add(cv, [
+      mk('demo-sc-2', 'Акт обмера литеры Б', 'oi-cv1-b', by, 0, 12, 1, null),
+      mk('demo-sc-3', 'Поэтажный план', '', by, -1, 15, 1, null),
+      mk('demo-sc-4', 'Свидетельство о праве собственности', '', by, -3, 14, 1, { state: 'accepted' }),
+      mk('demo-sc-6', 'Договор аренды', 'oi-cv1-b', by, -2, 16, 2, { state: 'returned', reason: 'Снимок смазан, переснять страницу 2' }),
+    ]);
+  }
+}
+
+// Короткий хеш строки — для устойчивых id страниц демо.
+const hash = (str) => { let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0; return h; };
+// Страница демо-скана: лист с названием документа и номером страницы.
+const scanPage = (label, n, total) => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="594" viewBox="0 0 420 594"><rect width="420" height="594" fill="#f4f1e8"/>'
+  + '<rect x="24" y="24" width="372" height="546" fill="none" stroke="#b9b29c" stroke-width="2"/>'
+  + '<text x="210" y="90" fill="#3a3a3a" font-family="Arial" font-size="22" text-anchor="middle">' + label.replace(/[<&]/g, ' ') + '</text>'
+  + '<text x="210" y="124" fill="#6b6b6b" font-family="Arial" font-size="14" text-anchor="middle">демо-скан · страница ' + n + ' из ' + total + '</text>'
+  + [0, 1, 2, 3, 4, 5, 6].map((i) => '<rect x="48" y="' + (170 + i * 44) + '" width="' + (324 - (i % 3) * 40) + '" height="8" fill="#cfc9b6"/>').join('') + '</svg>');
 
 // Авто осмотрщиков и их отчёты за день (ТЗ рабочего дня, раздел 3): утренний
 // около начала дня (часть — позже, это поздний выезд), вечерний к концу;
@@ -468,8 +524,10 @@ function demoCadastre(names, recs, today, me = '') {
   const row = (r, i, extra = {}) => ({ id: `demo-cl-${r.ocId}-${i}`, typeId: r.typeId, ocId: r.ocId, inst: r.inst, eni: r.eni, doc: DOCS[i % DOCS.length], note: i === 1 ? 'нужна свежая выписка' : '', result: '', ...extra });
   const out = [];
   const a = pool.slice(0, 5).map((r, i) => row(r, i));
-  if (a[0]) Object.assign(a[0], { result: 'got', scanDate: iso(-3), answer: '', answeredAt: at(-2, 16), answeredBy: names[0], file: {} });
-  if (a[1]) Object.assign(a[1], { result: 'got', scanDate: iso(-2), answer: 'выписка от 2023 г.', answeredAt: at(-2, 16), answeredBy: names[0], file: {} });
+  // Ответ «Получен» — файл у строки ждёт проверки ЦОД (kernel/scanQueue.js).
+  const gotFile = (r) => ({ name: `${r.eni} ${r.doc}.pdf`, attached: { name: `${r.eni} ${r.doc}.svg`, mime: 'image/svg+xml', kind: 'image', dataUrl: scanPage(r.doc, 1, 1), size: 1800 } });
+  if (a[0]) Object.assign(a[0], { result: 'got', scanDate: iso(-3), answer: '', answeredAt: at(-2, 16), answeredBy: names[0], file: gotFile(a[0]) });
+  if (a[1]) Object.assign(a[1], { result: 'got', scanDate: iso(-2), answer: 'выписка от 2023 г.', answeredAt: at(-2, 16), answeredBy: names[0], file: gotFile(a[1]) });
   if (a[2]) Object.assign(a[2], { result: 'none', answer: 'по ЕНИ сведений в кадастре нет', answeredAt: at(-1, 11), answeredBy: names[0] });
   out.push({ id: 'demo-cr-1', no: 1, person: names[0], kind: 'cadastre', due: iso(3), note: 'к оценке по Министерству', at: at(-6, 10), by, rows: a, demo: true });
   if (names[1]) {
@@ -479,7 +537,7 @@ function demoCadastre(names, recs, today, me = '') {
   // Человеку из сессии — свой запрос в кадастр: одна строка отвечена, две ждут.
   if (me && !out.some((r) => r.person === me)) {
     const c = pool.slice(0, 3).map((r, i) => ({ ...row(r, i), id: `demo-cl-me-${r.ocId}-${i}` }));
-    if (c[0]) Object.assign(c[0], { result: 'got', scanDate: iso(-1), answer: '', answeredAt: at(-1, 15), answeredBy: me, file: {} });
+    if (c[0]) Object.assign(c[0], { result: 'got', scanDate: iso(-1), answer: '', answeredAt: at(-1, 15), answeredBy: me, file: gotFile(c[0]) });
     out.push({ id: 'demo-cr-3', no: 3, person: me, kind: 'cadastre', due: iso(2), note: 'к оценке по Министерству', at: at(-2, 10), by, rows: c, demo: true });
   }
   return out;

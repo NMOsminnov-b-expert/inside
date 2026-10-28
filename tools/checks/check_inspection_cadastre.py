@@ -88,13 +88,13 @@ def run(t):
           const row = k.cadRequest(rid).rows.find((x) => x.id === rowid);
           const rec = reg.getType(tid).records.loadRecord(oid);
           const d = (rec.docs || []).find((x) => x.id === (row.file || {}).docId);
-          return [row.result, row.scanDate, (row.file || {}).name, d ? [d.date, d.type, d.name, !!d.file] : null];
+          return [row.result, row.scanDate, (row.file || {}).name, d ? [d.date, d.type, d.name, !!d.file] : null, !!(row.file || {}).attached];
         }""" % K, [rid, rowid, type_id, oc_id])
         t.ck(got[0] == 'got' and got[1] == '2026-10-01', 'итог строки сохранён неверно: %s' % got)
         t.ck(bool(got[2]) and eni in got[2] and doc in got[2] and got[2].endswith('.pdf'),
              'имя файла не «№ + ЕНИ + название»: %s' % got[2])
-        t.ck(got[3] is not None and got[3][0] == '2026-10-01' and got[3][1] == doc and got[3][3],
-             'файл не лёг в документы объекта с датой сканирования: %s' % (got[3],))
+        # Решение 27.10.2026 (В2): файл ждёт проверки ЦОД, в документы записи сам не ложится.
+        t.ck(got[3] is None and got[4], 'ответ кадастра попал в документы объекта без проверки ЦОД: %s' % (got,))
 
         # --- регионал видит итог и выгружает отчёт ------------------------------------
         t.open('#/inspections', wait='[data-ip-section]')

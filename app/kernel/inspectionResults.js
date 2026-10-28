@@ -58,6 +58,10 @@ export function resultsOf(typeId, ocId) {
   return results.get(k);
 }
 
+// Все результаты осмотров (без создания пустых) — очередь «Сканы с осмотров»
+// (kernel/scanQueue.js) перебирает по ним сканы.
+export const allResults = () => [...results.values()];
+
 // Был ли осмотр объекта вообще — без создания пустой записи.
 export function hasResults(typeId, ocId) {
   const r = results.get(key(typeId, ocId));

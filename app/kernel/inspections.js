@@ -164,7 +164,7 @@ function syncResp(typeId, ocId) {
   recs.assignResponsible(ocId, 'insp', person);
 }
 
-function changed() {
+export function changed() {
   scheduleSave();
   window.dispatchEvent(new CustomEvent('inside:inspections'));
 }
@@ -795,31 +795,31 @@ export function cadSummary(r) {
 }
 
 // Номер документа в записи — как у модулей (ЕНИ-N): счётчик общий на запись.
-function nextRecDocId(rec) {
+export function nextRecDocId(rec) {
   const used = (rec.docs || []).map((d) => d.id).concat((rec.oi || []).flatMap((o) => (o.docs || []).map((d) => d.id)))
     .map((id) => { const m = /-(\d+)$/.exec(id || ''); return m ? +m[1] : NaN; }).filter((n) => !Number.isNaN(n));
   return `${rec.eni || rec.id}-${(used.length ? Math.max(...used) : 0) + 1}`;
 }
 
 // Ответ по строке. file — File (PDF) или null; fileName — имя «№ + ЕНИ +
-// название», его собирает экран (он знает номер учреждения). Полученный
-// файл кладётся в документы объекта (rec.docs) с датой сканирования.
+// название», его собирает экран (он знает номер учреждения). Полученный файл
+// в документы объекта САМ не попадает: он ждёт проверки ЦОД в очереди «Сканы с
+// осмотров» (kernel/scanQueue.js, решение пользователя 27.10.2026, В2: «ответы
+// на запросы кадастра проверяет ЦОД и без проверки в документы записи не
+// попадают»); документ у записи создаёт acceptScan. Файл лежит у строки:
+// row.file.attached.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: файл — в хранилище документов сервера; до проверки он
+// «входящий», а не документ объекта.
 export async function answerCadRow(reqId, rowId, { result, scanDate = '', answer = '', file = null, fileName = '' }) {
   const r = cadRequest(reqId);
   const row = r && r.rows.find((x) => x.id === rowId);
   if (!row) return null;
   Object.assign(row, { result, scanDate: result === 'got' ? scanDate : '', answer, answeredAt: now(), answeredBy: session.state.person });
+  // Новый ответ — новая проверка: прежняя отметка ЦОД (возврат) снимается.
+  delete row.review;
   if (result === 'got' && file) {
-    row.file = { name: fileName || file.name };
-    const t = row.typeId ? getType(row.typeId) : null;
-    const rec = t && t.records.loadRecord ? t.records.loadRecord(row.ocId) : null;
-    if (rec) {
-      rec.docs = rec.docs || [];
-      const doc = { id: nextRecDocId(rec), type: row.doc, name: (fileName || file.name).replace(/\.pdf$/i, ''), date: scanDate,
-        file: await attachedFileFrom(file), pages: null, source: `${cadKindLabel(r.kind)} № ${r.no}` };
-      rec.docs.push(doc);
-      row.file.docId = doc.id;
-    }
+    row.file = { name: fileName || file.name, attached: await attachedFileFrom(file) };
   } else if (result !== 'got') {
     delete row.file;
   }
