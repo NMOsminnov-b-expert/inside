@@ -26,7 +26,7 @@ import {
   unitParam, unitParamUnit, unitTitle, unitClassPath, totalQty, totalCost, hasCost,
   unitPhotoCount, hasLineModules, showsModules,
 } from './model.js';
-import { MASS, MECH_STATES } from '../data/mechFields.js';
+import { MASS, MECH_STATES, MECH_STATE_NOTES, MECH_REPAIR } from '../data/mechFields.js';
 
 // Стоимость — балансовая (уточнение пользователя 17.09.2026). За единицу она
 // или за всё количество в строке, по-прежнему не решено.
@@ -325,7 +325,11 @@ function nameHTML(unit) {
 // (заметки пользователя 01.10.2026): страна происхождения, масса, год выпуска,
 // год ввода в эксплуатацию, состояние. Раньше страна и годы стояли в учётных
 // сведениях.
+//
+// Под строкой — описание выбранного состояния (таблица пользователя
+// 28.10.2026): каким состояние считается, видно на месте, без подсказки.
 function commonHTML(unit) {
+  const note = MECH_STATE_NOTES[unit.state] || '';
   return `<div class="grid g-2 mu-params mu-common">
     ${asksCountry(unit) ? `<div class="field">
       <label for="mu-country">Страна происхождения</label>
@@ -344,12 +348,13 @@ function commonHTML(unit) {
     </div>
     <div class="field">
       <label for="mu-state">Состояние</label>
-      <select class="select" id="mu-state" data-mu-state>
+      <select class="select" id="mu-state" data-mu-state${note ? ' aria-describedby="mu-state-note"' : ''}>
         <option value="">Не выбрано</option>
-        ${MECH_STATES.map((o) => `<option ${o === unit.state ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+        ${MECH_STATES.map((o) => `<option ${o === unit.state ? 'selected' : ''} title="${esc(MECH_STATE_NOTES[o])}">${esc(o)}</option>`).join('')}
       </select>
     </div>
-  </div>`;
+  </div>
+  ${note ? `<p class="mu-hint mu-state-note" id="mu-state-note" data-mu-state-note><b>${esc(unit.state)}</b> — ${esc(note)}</p>` : ''}`;
 }
 
 // Учётные сведения: количество и балансовая стоимость. Год выпуска и год
@@ -540,15 +545,19 @@ function extraHTML(unit) {
 // строкой, а не подсказкой внутри поля: у свободного текста нет формата, и
 // пример в поле читался бы как образец, который надо повторить (практика
 // helper text, PatternFly, CFPB).
+// При состоянии «В ремонте» комментарий обязателен: в нём — причина ремонта
+// (таблица состояний пользователя 28.10.2026).
 function commentHTML(unit) {
+  const repair = unit.state === MECH_REPAIR;
   return `<div class="mu-sec">
-    <div class="sec-h">Комментарий</div>
+    <div class="sec-h">Комментарий${repair ? ' <i class="req" aria-hidden="true">*</i>' : ''}</div>
     <div class="field mu-comment-field">
-      <label for="mu-comment" class="sr-only">Комментарий</label>
-      <span class="mu-hint" id="mu-comment-hint">Не нашли подходящего поля или сомневаетесь в значении —
-        опишите здесь своими словами.</span>
+      <label for="mu-comment" class="sr-only">Комментарий${repair ? ' — причина ремонта' : ''}</label>
+      <span class="mu-hint" id="mu-comment-hint">${repair ? 'Состояние «В ремонте»: укажите причину ремонта.'
+    : `Не нашли подходящего поля или сомневаетесь в значении —
+        опишите здесь своими словами.`}</span>
       <textarea class="input mu-comment" id="mu-comment" data-mu-comment rows="3"
-        aria-describedby="mu-comment-hint">${esc(unit.comment || '')}</textarea>
+        aria-describedby="mu-comment-hint"${repair ? ' aria-required="true"' : ''}>${esc(unit.comment || '')}</textarea>
     </div>
   </div>`;
 }

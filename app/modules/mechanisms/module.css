@@ -157,6 +157,12 @@ body .mu-stack .mu-state::before{content:'';width:8px;height:8px;border-radius:5
 body .mu-stack .mu-state-0::before{background:var(--teal-600)}
 body .mu-stack .mu-state-1::before{background:var(--amber-500, #f59e0b)}
 body .mu-stack .mu-state-2::before{background:var(--danger)}
+/* «В ремонте» — не оценка исправности, а временное положение: нейтральный
+   синий, не из шкалы «зелёный — жёлтый — красный». */
+body .mu-stack .mu-state-3::before{background:var(--blue-500)}
+/* Описание выбранного состояния — строкой под общими полями, во всю ширину. */
+body .mu-stack .mu-state-note{display:block;margin:8px 0 0;max-width:80ch;line-height:1.45}
+body .mu-stack .mu-state-note b{color:var(--ink);font-weight:600}
 
 /* Модули линии — отдельные карточки: рамка, шапка своим фоном с номером, отступ
    между карточками. Две-три подряд читаются как разные агрегаты, а не как одна

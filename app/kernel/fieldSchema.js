@@ -76,6 +76,7 @@ const DEF_UI = {
   select: 'select fs-select',
   wide: 'fs-wide',
   hint: 'fs-hint',
+  optNote: 'fs-optnote',
 };
 
 // Чипами, строками или списком — решает длина перечня и число ответов, а не
@@ -170,6 +171,9 @@ function inputHTML(field, value, ui) {
 // осмотрщик не правит данные ЦОД, а дублирует своим значением).
 export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
   const u = Object.assign({}, DEF_UI, ui);
+  // optNotes — описания значений перечня ({ значение: описание }): под полем —
+  // описание выбранного, своей строкой, не вместо «по документам».
+  const note = field.optNotes && typeof value === 'string' ? field.optNotes[value] || '' : '';
 
   const body = field.opts ? optsHTML(field, value, u)
     : field.long ? `<textarea class="${u.area}" data-fs-input="${esc(field.key)}"
@@ -186,6 +190,7 @@ export function fieldHTML(field, value, { ui = {}, hint = '' } = {}) {
     <span class="${u.label}"${field.note ? ` title="${esc(field.note)}"` : ''}>${esc(field.label)}${field.req ? `<i class="${u.req}" aria-hidden="true">*</i>` : ''}</span>
     ${body}
     ${hint ? `<span class="${u.hint}${/^РАСХОДИТСЯ/.test(hint) ? ' warn' : ''}">${esc(hint)}</span>` : ''}
+    ${note ? `<span class="${u.optNote}" data-fs-optnote>${esc(note)}</span>` : ''}
   </div>`;
 }
 

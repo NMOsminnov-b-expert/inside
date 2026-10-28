@@ -16,6 +16,7 @@ import { openPhotoInPlace } from '../../../kernel/viewer/state.js';
 import { pickFile, attachedFileFrom, isFileTooLarge, MAX_DOC_FILE_MB } from '../../../kernel/fileUpload.js';
 import { addPhotoFile, photoPages } from '../photos.js';
 import { unitsTable, selectedUnit, modOpen } from './view.js';
+import { MECH_REPAIR } from '../data/mechFields.js';
 import {
   mechUnits, createUnit, setClass, setSub, unitTitle, dropUnitPhotos, syncMechName,
 } from './model.js';
@@ -227,9 +228,11 @@ export function bindMechForm(ctx, oi) {
   const country = s.$('[data-mu-country]');
   if (country) country.oninput = () => { unit.country = capInput(country); };
 
-  // Состояние — в строку состава сразу (колонка «Состояние»).
+  // Состояние — в строку состава сразу (колонка «Состояние»). Карточка
+  // перерисовывается: под полем — описание состояния, у «В ремонте»
+  // комментарий становится обязательным.
   const stateSel = s.$('[data-mu-state]');
-  if (stateSel) stateSel.onchange = () => { unit.state = stateSel.value; refreshList(); };
+  if (stateSel) stateSel.onchange = () => { unit.state = stateSel.value; rerender(); };
 
   const made = s.$('[data-mu-made]');
   bindCheckedField(made, yearError, (v) => { unit.madeYear = v; });
@@ -303,7 +306,11 @@ export function bindMechForm(ctx, oi) {
   // написанное, а комментарий как раз и читают целиком.
   const comment = s.$('[data-mu-comment]');
   if (comment) {
-    comment.oninput = () => { unit.comment = comment.value; };
+    // «В ремонте» без причины — сообщение у поля, пока причину не впишут.
+    const repairCheck = () => setFieldError(comment,
+      unit.state === MECH_REPAIR && !comment.value.trim() ? 'Укажите причину ремонта' : '');
+    repairCheck();
+    comment.oninput = () => { unit.comment = comment.value; repairCheck(); };
   }
 
   // Многострочные поля растут под текст, а после ручной растяжки держат размер.

@@ -334,6 +334,14 @@ def run(t):
     # на любом ОИ). Квартира — без чек-листа коммуникаций, участок — сети,
     # механизмы — по единицам; «нерабочее» без снимков — предупреждение; ТС —
     # формы нет (ждёт решения пользователя).
+    # Выбор значения поля осмотра: чипами или списком — как поле нарисовано.
+    def pick_fs(pg, box, val):
+        sel = pg.locator(box + ' select')
+        if sel.count():
+            sel.first.select_option(val)
+        else:
+            key = pg.get_attribute(box, 'data-fs-field')
+            pg.locator(box + ' [data-fs-opt="%s|%s"]' % (key, val)).first.click()
     def secs():
         return pg.eval_on_selector_all('.ins-acc-t b', 'els => els.map((e) => e.textContent.trim())')
     t.open('#/insp/apartment/oc-ap-1/object/oi-ap1-a', wait='.ins-acc-t')
@@ -346,7 +354,26 @@ def run(t):
     t.ck('Инженерные сети' in secs() and 'Конструктив и износ' not in secs(), 'у участка не его форма осмотра: %s' % secs())
     t.open('#/insp/civil/oc-cv-1/object/oi-cv1-m1', wait='.ins-acc-t')
     t.ck('Котёл газовый водогрейный КВГ-1,25' in secs(), 'у механизмов нет разделов по единицам: %s' % secs())
-    pg.locator('select[data-fs-sel$=".state"]').first.select_option('Нерабочее')
+    # Состояния оборудования (таблица пользователя 28.10.2026): четыре, под
+    # полем — описание выбранного; «В ремонте» — обязательная причина ремонта.
+    st0 = '[data-fs-field="u.mu-cv1-1.state"]'
+    def state_opts():
+        return pg.eval_on_selector_all(st0 + ' [data-fs-opt], ' + st0 + ' option', 'els => els.map((e) => e.textContent.trim()).filter((x) => x && x !== "Не выбрано")')
+    t.ck(state_opts() == ['Рабочее', 'Условно пригодное', 'Нерабочее', 'В ремонте'], 'варианты состояния у осмотрщика не те: %s' % state_opts())
+    t.ck(pg.locator(st0 + ' [data-fs-optnote]').count() == 0, 'описание состояния стоит, хотя состояние не выбрано')
+    t.ck('по документам: Рабочее' in pg.inner_text(st0), 'нет состояния по документам у котла')
+    t.ck('по документам: В ремонте' in pg.inner_text('[data-fs-field="u.mu-cv1-2.state"]'), 'нет состояния «В ремонте» по документам у щита')
+    t.ck(pg.locator('[data-fs-field="u.mu-cv1-1.repair"]').count() == 0, 'причина ремонта стоит без «В ремонте»')
+    for st, frag in (('Рабочее', 'полностью исправно'), ('Условно пригодное', 'с ограничениями либо после вложений'),
+                     ('Нерабочее', 'экономически нецелесообразно'), ('В ремонте', 'по результатам завершения ремонта')):
+        pick_fs(pg, st0, st)
+        t.ck(t.wait_until("([s, f]) => (document.querySelector(s + ' [data-fs-optnote]') || {}).textContent?.includes(f)", [st0, frag]),
+             'нет описания состояния «%s» у осмотрщика' % st)
+        t.ck(t.wait_until("([n]) => document.querySelectorAll('[data-fs-field=\"u.mu-cv1-1.repair\"]').length === n", [1 if st == 'В ремонте' else 0]),
+             '«%s»: поле «Причина ремонта» %s' % (st, 'не появилось' if st == 'В ремонте' else 'лишнее'))
+    rep = pg.locator('[data-fs-field="u.mu-cv1-1.repair"]')
+    t.ck('Причина ремонта' in rep.inner_text() and rep.locator('.ins-fs-req').count() == 1, 'причина ремонта не обязательна')
+    pick_fs(pg, st0, 'Нерабочее')
     t.ck(t.wait_until("() => /только при снимках/.test(document.body.innerText)"), '«Нерабочее» без снимков не остановлено предупреждением')
     t.open('#/insp/civil/oc-cv-1/object/oi-cv1-v1', wait='.ins-body')
     # ТС — своя форма «на месте» (решение 27.10.2026, check_inspector_ts.py).

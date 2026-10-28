@@ -72,6 +72,7 @@ const FS_UI = {
   wide: 'ins-fs-wide',
   area: 'ins-ta',
   hint: 'ins-fs-hint',
+  optNote: 'ins-fs-optnote',
 };
 
 // --- общие части ----------------------------------------------------------

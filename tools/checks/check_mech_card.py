@@ -451,10 +451,38 @@ def run(t):
         t.ck(first.locator(sel_).count() == 1, 'в основных параметрах нет %s' % sel_)
     t.ck(pg.locator('[data-mu-f="mass"]').count() == 1, 'масса задвоилась')
     opts = pg.eval_on_selector_all('[data-mu-state] option', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(opts == ['Не выбрано', 'Рабочее', 'Условно пригодное', 'Нерабочее'], 'варианты состояния не те: %s' % opts)
+    # Таблица состояний оборудования (пользователь 28.10.2026): четыре
+    # состояния, под полем — описание выбранного, у «В ремонте» комментарий
+    # (причина ремонта) обязателен.
+    t.ck(opts == ['Не выбрано', 'Рабочее', 'Условно пригодное', 'Нерабочее', 'В ремонте'], 'варианты состояния не те: %s' % opts)
+    pg.fill('[data-mu-comment]', '')
+    pg.select_option('[data-mu-state]', '')
+    t.ck(t.wait_until("() => !document.querySelector('[data-mu-state-note]')"), 'описание состояния стоит, хотя состояние не выбрано')
+    notes = {
+        'Рабочее': 'полностью исправно',
+        'Условно пригодное': 'Эксплуатация возможна с ограничениями',
+        'Нерабочее': 'экономически нецелесообразно',
+        'В ремонте': 'определяется по результатам завершения ремонта',
+    }
+    short = {'Условно пригодное': 'Усл. пригодное'}
+    for st, frag in notes.items():
+        pg.select_option('[data-mu-state]', st)
+        t.wait_until("(st) => [...document.querySelectorAll('.mu-row.on .mu-state')].some((e) => e.title === st)", st)
+        t.ck(pg.locator('.mu-row.on .mu-state').inner_text().strip() == short.get(st, st), 'состояние «%s» не попало в таблицу состава' % st)
+        note = pg.locator('[data-mu-state-note]')
+        t.ck(note.count() == 1 and frag in note.inner_text(), 'нет описания состояния «%s»' % st)
+        t.ck(pg.get_attribute('[data-mu-state]', 'aria-describedby') == 'mu-state-note', 'поле состояния не ссылается на описание')
+        repair = st == 'В ремонте'
+        err = pg.locator('.mu-comment-field [data-field-err]')
+        has_err = err.count() == 1 and err.inner_text().strip() == 'Укажите причину ремонта'
+        t.ck(has_err == repair, '«%s»: сообщение о причине ремонта %s' % (st, 'не показано' if repair else 'лишнее'))
+        t.ck(('причину ремонта' in pg.locator('#mu-comment-hint').inner_text()) == repair, '«%s»: подсказка комментария не та' % st)
+        t.ck(pg.locator('.mu-row.on .mu-state-3').count() == (1 if repair else 0), '«%s»: точка «В ремонте» не та' % st)
+    pg.fill('[data-mu-comment]', 'Замена подшипников')
+    t.ck(t.wait_until("() => !document.querySelector('.mu-comment-field [data-field-err]').textContent"), 'причина вписана, а сообщение осталось')
     pg.select_option('[data-mu-state]', 'Условно пригодное')
     t.wait_until("() => [...document.querySelectorAll('.mu-row.on .mu-state')].some((e) => e.title === 'Условно пригодное')")
-    t.ck(pg.locator('.mu-row.on .mu-state').get_attribute('title') == 'Условно пригодное' and pg.locator('.mu-row.on .mu-state').inner_text().strip() == 'Усл. пригодное', 'состояние не попало в таблицу состава')
+    t.ck(pg.input_value('[data-mu-comment]') == 'Замена подшипников', 'смена состояния стёрла комментарий')
 
     # --- модули линии (заметка 01.10.2026) -----------------------------------------
     # У любой линии (с таблицы от 02.10.2026 все типы подгруппы — линии);
