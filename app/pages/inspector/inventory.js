@@ -3,7 +3,7 @@
 // mehanizmov): поиск одним полем «Инв. номер или название», сводка «N из M
 // осмотрено · сегодня +K», чипы отбора, сортировка; строка — значок
 // состояния, №, инв. номер, приоритет, наименование, «· N шт», место,
-// «Снять»; раскрытая позиция — снимки, состояние оборудования, «Осмотрено»,
+// «Фото»; раскрытая позиция — снимки, состояние оборудования, «Осмотрено»,
 // «Не найдено», комментарий. «Нет в описи» — предмет есть, в описи нет.
 //
 // Состояния — те же четыре, что в карточке механизмов (таблица пользователя
@@ -68,11 +68,16 @@ function itemPanelHTML(inv, it, m, { locked, err, docs }) {
       <div><dt>Первонач., сом</dt><dd class="num">${money(it.costInitial)}</dd></div>
       <div><dt>Список</dt><dd>${esc(it.list)} · П${it.priority}</dd></div>
     </dl>
+    ${locked ? '' : `<div class="inv-acts">
+      <button type="button" class="ins-btn ins-btn-main" data-inv-seen="${esc(it.id)}">${m && m.state === 'seen' ? 'Осмотрено ✓' : 'Отметить осмотренным'}</button>
+      <button type="button" class="ins-btn" data-inv-missing="${esc(it.id)}">${m && m.state === 'missing' ? 'Не найдено ✓' : 'Не найдено'}</button>
+      ${m && m.state ? `<button type="button" class="ins-btn" data-inv-unmark="${esc(it.id)}">Снять отметку</button>` : ''}
+    </div>`}
     <div class="inv-photos">
       ${photos.map((p, i) => `<a class="inv-ph" href="${esc(p.dataUrl || '#')}" target="_blank" rel="noopener" aria-label="Снимок ${i + 1}"><img src="${esc(p.dataUrl || '')}" alt=""></a>`).join('')}
-      ${locked ? '' : `<button type="button" class="ins-btn inv-shoot" data-inv-shoot="${esc(it.id)}">Снять${photos.length ? ` · ${photos.length}` : ''}</button>`}
+      ${locked ? '' : `<button type="button" class="ins-btn inv-shoot" data-inv-shoot="${esc(it.id)}">Фото${photos.length ? ` · ${photos.length}` : ''}</button>
+      <button type="button" class="ins-btn inv-doc" data-inv-doc="${esc(it.id)}" title="Паспорт, акт, гарантийный талон — снимки или PDF; уходят оператору ЦОД">Документ</button>`}
     </div>
-    ${locked ? '' : `<button type="button" class="ins-btn inv-doc" data-inv-doc="${esc(it.id)}" title="Паспорт, акт, гарантийный талон — снимки или PDF; уходят оператору ЦОД">Документ на позицию</button>`}
     ${docs && docs.length ? `<p class="ins-hint">Документы позиции: ${docs.map((d) => esc(d.type + ' · ' + d.name)).join('; ')}</p>` : ''}
     <div class="ins-field">
       <label for="inv-cond-${esc(it.id)}">Состояние</label>
@@ -87,11 +92,6 @@ function itemPanelHTML(inv, it, m, { locked, err, docs }) {
       <textarea class="input ins-input" id="inv-cm-${esc(it.id)}" rows="2" data-inv-comment="${esc(it.id)}" ${locked ? 'disabled' : ''}
         placeholder="Что видно на месте">${esc((m && m.comment) || '')}</textarea>
     </div>
-    ${locked ? '' : `<div class="inv-acts">
-      <button type="button" class="ins-btn ins-btn-main" data-inv-seen="${esc(it.id)}">${m && m.state === 'seen' ? 'Осмотрено ✓' : 'Отметить осмотренным'}</button>
-      <button type="button" class="ins-btn" data-inv-missing="${esc(it.id)}">${m && m.state === 'missing' ? 'Не найдено ✓' : 'Не найдено'}</button>
-      ${m && m.state ? `<button type="button" class="ins-btn" data-inv-unmark="${esc(it.id)}">Снять отметку</button>` : ''}
-    </div>`}
     ${m && m.state ? `<p class="ins-hint">Отметил: ${esc(m.by || '—')} · ${esc(String(m.at || '').slice(0, 16).replace('T', ' '))}</p>` : ''}
   </div>`;
 }
@@ -107,7 +107,7 @@ export function inventoryHTML({ inv, marks, extras, progress, st, headerHTML, ba
   const cnt = (k) => inv.items.filter((it) => chipFilter(k, it, marks.get(it.id) || null)).length;
   const prSeen = (n) => { const x = progress.byPriority[n] || { total: 0, seen: 0 }; return `${x.seen}/${x.total}`; };
   return `<div class="ins">
-    ${headerHTML({ title: inv.title, sub: [inv.institution, inv.podved].filter(Boolean).join(' · '), backHref, backLabel: 'К задаче',
+    ${headerHTML({ title: inv.title, sub: [inv.institution, inv.podved && !String(inv.title).includes(inv.podved) ? inv.podved : ''].filter(Boolean).join(' · '), backHref, backLabel: 'К задаче',
     progress: progress.total ? (progress.seen + progress.missing) / progress.total : 0 })}
     <div class="ins-body inv">
       <section class="ins-blk inv-sum" aria-label="Ход описи">
@@ -132,10 +132,10 @@ export function inventoryHTML({ inv, marks, extras, progress, st, headerHTML, ba
           <button type="button" class="inv-row-b" data-inv-open="${esc(it.id)}" aria-expanded="${st.open === it.id}" aria-controls="inv-item-${esc(it.id)}">
             ${icoState(m)}
             <span class="inv-no">${it.no}</span>
-            <span class="inv-main"><b>${esc(it.name)}</b>${it.qty > 1 ? ` <span class="ins-hint">· ${it.qty} шт</span>` : ''}
+            <span class="inv-main"><b>${esc(it.name)}${it.qty > 1 ? ` <span class="inv-qty">· ${it.qty} шт</span>` : ''}</b>
               <small><span class="mono">${esc(it.inv)}</span> · П${it.priority} · ${esc(it.place || '—')}${m && m.cond ? ` · ${esc(m.cond)}` : ''}</small></span>
           </button>
-          ${locked ? '' : `<button type="button" class="ins-btn inv-snap" data-inv-shoot="${esc(it.id)}" aria-label="Снять «${esc(it.name)}»">Снять</button>`}
+          ${locked || st.open === it.id ? '' : `<button type="button" class="ins-btn inv-snap" data-inv-shoot="${esc(it.id)}" aria-label="Фото «${esc(it.name)}»">Фото</button>`}
         </div>
         ${st.open === it.id ? itemPanelHTML(inv, it, m, { locked, err: st.err, docs: itemDocs ? itemDocs(it.id) : [] }) : ''}
       </li>`).join('')}</ul>

@@ -1487,7 +1487,7 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 
 /* --- Опись у осмотрщика (этап Б4, 29.10.2026) -------------------------------
    По образцу «Осмотра»: сводка, поиск одним полем, чипы отбора, строка —
-   значок состояния, №, наименование, инв. номер и место; «Снять» — отдельной
+   значок состояния, №, наименование, инв. номер и место; «Фото» — отдельной
    кнопкой справа. Высоты касания — 44px. */
 .inv { display: flex; flex-direction: column; gap: 10px; }
 .inv-sum { gap: 2px; }
@@ -1499,7 +1499,7 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .inv-q .input { width: 100%; min-height: 44px; }
 .inv-sort { min-height: 44px; }
 .inv-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
-.inv-chip { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; color: var(--ink); }
+.inv-chip { flex: none; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; color: var(--ink); }
 .inv-chip b { margin-left: 4px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .inv-chip.on { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
 .inv-chip.on b { color: #fff; }
@@ -1530,7 +1530,8 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
 .inv-photos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .inv-ph { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line-soft); display: block; }
 .inv-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.inv-shoot { min-height: 44px; }
+.inv-shoot, .inv-doc { min-height: 44px; flex: 1 1 120px; max-width: 220px; }
+.inv-qty { font-weight: 400; color: var(--muted); white-space: nowrap; }
 .inv-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 .inv-acts .ins-btn { min-height: 44px; }
 .inv-extra-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }

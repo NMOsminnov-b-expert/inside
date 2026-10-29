@@ -1580,7 +1580,7 @@ export function mountInspector(host) {
   scope.on('click', '[data-inv-chip]', (e, el) => { ui.inv.chip = el.dataset.invChip; ui.inv.shown = INV_PAGE; renderKeep(); });
   scope.on('click', '[data-inv-more]', () => { ui.inv.shown += INV_PAGE; renderKeep(); });
   scope.on('click', '[data-inv-open]', (e, el) => { ui.inv.open = ui.inv.open === el.dataset.invOpen ? '' : el.dataset.invOpen; ui.inv.err = ''; renderKeep(); });
-  // «Снять» — съёмка в одно касание; снимок — к позиции.
+  // «Фото» — съёмка в одно касание; снимок — к позиции.
   scope.on('click', '[data-inv-shoot]', async (e, el) => {
     const id = el.dataset.invShoot;
     const file = await pickFile('image/*', { capture: 'environment' });
