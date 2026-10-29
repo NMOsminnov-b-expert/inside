@@ -77,6 +77,20 @@ def _(p):
     p.eq('прокрутка и выбор на месте', pick(p.state(), 'подраздел', 'прокрутка', 'выбрано'), pick(s1, 'подраздел', 'прокрутка', 'выбрано'))
 
 
+@path('load-route-back', '«Загрузка»: клетка дня → «Маршрут дня» → «Назад» → та же клетка выбрана, дней столько же', 'Р-загрузка')
+def _(p):
+    p.open('#/inspections?s=people&t=load', '.ip-load-tbl')
+    p.click('.ip-ld.is-some [data-ip-load]')
+    sel1 = p.page.evaluate("() => (document.querySelector('.ip-ld.on [data-ip-load]') || {}).dataset?.ipLoad || ''")
+    days1 = p.page.locator('.ip-load-tbl thead .ip-ld-day').count()
+    p.ck('клетка выбрана', bool(sel1), sel1, 'ФИО|день')
+    p.click('[data-ip-load-route]')
+    p.back()
+    p.page.wait_for_selector('.ip-load-tbl', timeout=9000)
+    sel2 = p.page.evaluate("() => (document.querySelector('.ip-ld.on [data-ip-load]') || {}).dataset?.ipLoad || ''")
+    p.eq('клетка и дни те же', {'клетка': sel2, 'дней': p.page.locator('.ip-load-tbl thead .ip-ld-day').count()}, {'клетка': sel1, 'дней': days1})
+
+
 @path('table-filter-jump-back', 'Таблица: фильтр «ФИО» → «Перейти» к осмотрщику → «Назад» → фильтр и строки те же', 'Р10')
 def _(p):
     p.open('#/inspections?s=people&t=table', '.kg td[data-r="0"]')
@@ -180,6 +194,22 @@ def _(p):
         p.wait(300)
         p.eq('панель закрыта (%s)' % how, p.page.locator('.ip-detail-pane').count(), 0)
         p.eq('месяц тот же (%s)' % how, p.text('.ipc-cal-nav b'), month)
+
+
+@path('inventory-search-back', 'Опись: поиск и отбор → к задаче → «Назад» → поиск, отбор и строки те же', 'О-опись', roles=('insp',), touches=_TI + ('app/kernel/inventories.js',))
+def _(p):
+    p.open('#/insp/civil/oc-cv-1/inv/inv-mt-adm?as=%D0%9E%D1%81%D0%BC%D0%B8%D0%BD%D0%BD%D0%BE%D0%B2%20%D0%9D.', '.inv-list')
+    p.fill('[data-inv-q]', 'стол')
+    p.click('[data-inv-chip="todo"]')
+    st = lambda: {'поиск': p.page.input_value('[data-inv-q]'), 'отбор': p.page.evaluate("() => (document.querySelector('.inv-chip.on') || {}).dataset?.invChip || ''"),
+                  'строк': p.page.locator('.inv-row').count()}
+    s1 = st()
+    p.ck('поиск сузил опись', s1['строк'] > 0, s1['строк'], '> 0')
+    p.click('.ins-back')
+    p.page.wait_for_selector('.inv-task', timeout=9000)
+    p.back()
+    p.page.wait_for_selector('.inv-list', timeout=9000)
+    p.eq('поиск, отбор и строки те же', st(), s1)
 
 
 @path('inspector-task-back', 'Осмотрщик: задачи → задача → «Назад» → список на месте', 'О2', roles=('insp',), touches=_TI)
