@@ -18,7 +18,7 @@
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
 import { pickFile, pickFiles, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { pdfToJpegFiles } from '../../kernel/viewer/pdf.js';
-import { inventoryById, markOf, markItem, unmarkItem, addItemPhoto, extrasOf, addExtra, progressOf, itemDocsOf } from '../../kernel/inventories.js';
+import { inventoryById, markOf, markItem, unmarkItem, addItemPhoto, extrasOf, addExtra as addInvExtra, progressOf, itemDocsOf } from '../../kernel/inventories.js';
 import { inventoryHTML, taskInventoriesHTML, PAGE as INV_PAGE } from './inventory.js';
 import { attachDialog } from '../../kernel/viewer/files.js';
 import { optionsFor } from '../../kernel/dicts.js';
@@ -1640,7 +1640,7 @@ export function mountInspector(host) {
     e.preventDefault();
     const name = (scope.$('[data-inv-x-name]') || {}).value || '';
     if (!name.trim()) return;
-    addExtra(ui.inv.id, { name, comment: (scope.$('[data-inv-x-cm]') || {}).value || '' }, invBy());
+    addInvExtra(ui.inv.id, { name, comment: (scope.$('[data-inv-x-cm]') || {}).value || '' }, invBy());
     ui.inv.extraOpen = false;
     host.toast('Добавлено в «Нет в описи»', 'ok');
     renderKeep();

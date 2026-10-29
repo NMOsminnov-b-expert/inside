@@ -81,13 +81,13 @@ def run(t):
     t.ck(t.wait_until("() => /только при снимках/.test(document.body.innerText)"), '«Нерабочее» без снимков не остановлено')
     t.ck(pg.input_value('[data-inv-cond="%s"]' % first) != 'Нерабочее', '«Нерабочее» без снимков осталось выбранным')
     pg.select_option('[data-inv-cond="%s"]' % first, 'В ремонте')
-    t.ck(t.wait_until("([i, f]) => import('./app/kernel/inventories.js').then((I) => (I.markOf(i, f) || {}).cond === 'В ремонте')", [inv_id, first]),
+    t.ck(t.wait_until("async ([i, f]) => { const I = await import('./app/kernel/inventories.js'); return (I.markOf(i, f) || {}).cond === 'В ремонте'; }", [inv_id, first]),
          '«В ремонте» без снимков не принято')
     choose(pg, '.inv-item [data-inv-shoot="%s"]' % first, [{'name': 'a.png', 'mimeType': 'image/png', 'buffer': png(120, 90)}])
-    t.ck(t.wait_until("([i, f]) => import('./app/kernel/inventories.js').then((I) => ((I.markOf(i, f) || {}).photos || []).length === 1)", [inv_id, first]),
+    t.ck(t.wait_until("async ([i, f]) => { const I = await import('./app/kernel/inventories.js'); return ((I.markOf(i, f) || {}).photos || []).length === 1; }", [inv_id, first]),
          'снимок не лёг к позиции')
     pg.select_option('[data-inv-cond="%s"]' % first, 'Нерабочее')
-    t.ck(t.wait_until("([i, f]) => import('./app/kernel/inventories.js').then((I) => (I.markOf(i, f) || {}).cond === 'Нерабочее')", [inv_id, first]),
+    t.ck(t.wait_until("async ([i, f]) => { const I = await import('./app/kernel/inventories.js'); return (I.markOf(i, f) || {}).cond === 'Нерабочее'; }", [inv_id, first]),
          '«Нерабочее» со снимком не принято')
     pg.click('[data-inv-open="%s"]' % second)
     pg.click('[data-inv-missing="%s"]' % second)
@@ -109,7 +109,7 @@ def run(t):
     pg.click('[data-inv-extra]')
     pg.fill('[data-inv-x-name]', 'Холодильник Атлант')
     pg.click('[data-inv-extra-form] button[type="submit"]')
-    t.ck(t.wait_until("(i) => import('./app/kernel/inventories.js').then((I) => I.extrasOf(i).some((x) => x.name === 'Холодильник Атлант'))", inv_id),
+    t.ck(t.wait_until("async (i) => { const I = await import('./app/kernel/inventories.js'); return I.extrasOf(i).some((x) => x.name === 'Холодильник Атлант'); }", inv_id),
          '«Нет в описи» не добавило предмет')
 
     # Документ на позицию → очередь ЦОД (источник «опись») → документ позиции.
@@ -122,7 +122,7 @@ def run(t):
     q = """async ([i, f]) => { const Q = await import('./app/kernel/scanQueue.js');
       return Q.scanQueue({ source: 'опись' }).filter((x) => x.inv && x.inv.invId === i && x.inv.itemId === f)
         .map((x) => ({ key: x.key, title: x.title, cod: x.cod, state: x.state })); }"""
-    t.ck(t.wait_until("([i, f]) => import('./app/kernel/scanQueue.js').then((Q) => Q.scanQueue({ source: 'опись' }).some((x) => x.inv && x.inv.itemId === f))", [inv_id, first], 9000),
+    t.ck(t.wait_until("async ([i, f]) => { const Q = await import('./app/kernel/scanQueue.js'); return Q.scanQueue({ source: 'опись' }).some((x) => x.inv && x.inv.itemId === f); }", [inv_id, first], 9000),
          'документ на позицию не в очереди источником «опись»')
     items = pg.evaluate(q, [inv_id, first])
     t.ck(items and items[0]['title'] == 'Паспорт станка' and items[0]['state'] == 'wait', 'в очереди не тот скан: %s' % items)
@@ -159,3 +159,19 @@ def run(t):
         t.open('#/inspections?s=people&p=%s&t=assigns' % quote(ME), wait='.ip-page')
         pg.locator('[data-ip-dp-open="assign:%s"]' % aid).first.click()
     t.ck(t.wait_until("() => /осмотрено\\s*1\\s*из/.test(document.body.innerText)"), 'в подробностях назначения нет хода описи «осмотрено 1 из …»')
+
+    # Отчёт по описи (Б5): листы как в «Осмотре», итог сходится с отметками, кнопка выгружает.
+    sheets = pg.evaluate("async (i) => (await import('./app/kernel/inventories.js')).inventoryReportSheets(i).map((s) => ({ name: s.name, rows: s.rows }))", inv_id)
+    names = [x['name'] for x in sheets]
+    t.ck(names[0] == 'Итог' and names[-2:] == ['По дням', 'Нет в описи'] and 'Основной' in names, 'листы отчёта не те: %s' % names)
+    tot = sheets[0]['rows'][-1]
+    t.ck(tot[0] == 'Всего' and tot[2] == data['total'] and tot[3] == 1, 'итог отчёта не сходится с отметками: %s' % tot)
+    ex = pg.evaluate("async (i) => (await import('./app/kernel/inventories.js')).extrasOf(i)", inv_id)
+    t.ck(any(r[0] == 'Холодильник Атлант' for r in sheets[-1]['rows']), 'в «Нет в описи» нет добавленного предмета: %s / %s' % (sheets[-1]['rows'], ex))
+    btn = pg.locator('[data-ip-inv-report="%s"]' % inv_id)
+    if btn.count():
+        with pg.expect_download() as dl:
+            btn.first.click()
+        t.ck(dl.value.suggested_filename.endswith('.xlsx'), 'кнопка отчёта не отдала xlsx')
+    else:
+        t.ck(False, 'в подробностях назначения нет кнопки «Отчёт по описи»')

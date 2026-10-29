@@ -46,6 +46,7 @@ import { dayRoute, dayLoad, factNorms, NORM_KINDS, normOf, setNorm, measuredNorm
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
+import { inventoryById, inventoryReportSheets } from '../../kernel/inventories.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
 const STEP = 200;
@@ -2716,6 +2717,14 @@ export function mountInspections(host) {
   });
   // Назначение из панели подробностей — открыть его в «Назначениях».
   const gotoAssign = (id) => { view.section = 'assign'; view.tab = 'assigned'; view.assignPerson = ''; resetList(); current = id; render(); };
+  // Отчёт по описи (Б5): листы — kernel/inventories.js.
+  scope.on('click', '[data-ip-inv-report]', async (e, b) => {
+    const id = b.dataset.ipInvReport;
+    const inv = inventoryById(id);
+    if (!inv) return;
+    await downloadXlsx(`opis_${id}_${new Date().toISOString().slice(0, 10)}.xlsx`, inventoryReportSheets(id));
+    host.toast('Отчёт по описи выгружен', 'ok');
+  });
   // Режимы раздела «Осмотрщики и назначения».
   scope.on('click', '[data-ip-team]', (e, b) => {
     const k = b.dataset.ipTeam;

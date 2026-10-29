@@ -194,3 +194,47 @@ export function progressOf(invId, today = new Date().toISOString().slice(0, 10))
   });
   return p;
 }
+
+// Отчёт по описи (Б5, листы — как в приложении «Осмотр», термин
+// opis-oborudovaniya-i-mehanizmov): «Итог» по спискам и приоритетам, лист на
+// каждый список, «По дням», «Нет в описи». Листы — для kernel/xlsx.js.
+export function inventoryReportSheets(invId) {
+  const inv = inventoryById(invId);
+  if (!inv) return [];
+  const ddmm = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+  const rowsOf = inv.items.map((it) => ({ it, m: markOf(invId, it.id) || {} }));
+  const lists = [...new Set(inv.items.map((it) => it.list))];
+  const sumBy = (pick) => {
+    const r = rowsOf.filter(pick);
+    const seen = r.filter((x) => x.m.state === 'seen' || x.m.state === 'missing');
+    return [r.length, seen.length, r.length - seen.length, r.length ? Math.round((seen.length / r.length) * 100) : 0,
+      seen.reduce((n, x) => n + (x.it.costInitial || 0), 0), r.filter((x) => x.m.cond === 'Нерабочее').length,
+      r.filter((x) => x.m.state === 'missing').length];
+  };
+  const total = [];
+  lists.forEach((l) => {
+    total.push([l, 'все', ...sumBy((x) => x.it.list === l)]);
+    [1, 2, 3].forEach((p) => { if (rowsOf.some((x) => x.it.list === l && x.it.priority === p)) total.push([l, `П${p}`, ...sumBy((x) => x.it.list === l && x.it.priority === p)]); });
+  });
+  total.push(['Всего', '', ...sumBy(() => true)]);
+  const head = ['№', 'Инв. номер', 'Наименование', 'Место', 'Кол-во', 'Первонач. стоимость, сом', 'Балансовая стоимость, сом', 'Приоритет',
+    'Осмотрено', 'Состояние', 'Снимков', 'Документов', 'Комментарий', 'Отметил', 'Когда'];
+  const listSheets = lists.map((l) => ({
+    name: l,
+    head,
+    rows: rowsOf.filter((x) => x.it.list === l).map(({ it, m }) => [it.no, it.inv, it.name, it.place, it.qty, it.costInitial, it.costBalance, `П${it.priority}`,
+      m.state === 'seen' ? 'Да' : m.state === 'missing' ? 'Не найдено' : 'Нет', m.cond || '', (m.photos || []).length, itemDocsOf(invId, it.id).length,
+      m.comment || '', m.by || '', m.at ? `${ddmm(m.at)} ${m.at.slice(11, 16)}` : '']),
+    widths: [6, 14, 36, 16, 8, 14, 14, 9, 11, 18, 8, 10, 30, 18, 16],
+  }));
+  const days = new Map();
+  rowsOf.forEach(({ m }) => { if (m.state && m.at) { const d = m.at.slice(0, 10); days.set(d, (days.get(d) || 0) + 1); } });
+  return [
+    { name: 'Итог', head: ['Список', 'Приоритет', 'Позиций', 'Осмотрено', 'Не осмотрено', '% осмотрено', 'Первонач. стоимость осмотренного, сом', 'Нерабочих', 'Не найдено'],
+      rows: total, widths: [12, 10, 10, 10, 12, 11, 20, 10, 11] },
+    ...listSheets,
+    { name: 'По дням', head: ['Дата', 'Отмечено позиций'], rows: [...days.entries()].sort().map(([d, n]) => [ddmm(d), n]), widths: [12, 12] },
+    { name: 'Нет в описи', head: ['Название', 'Комментарий', 'Кто', 'Когда'],
+      rows: extrasOf(invId).map((x) => [x.name, x.comment || '', x.by || '', ddmm(x.at)]), widths: [36, 40, 18, 12] },
+  ];
+}

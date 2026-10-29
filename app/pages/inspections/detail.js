@@ -117,7 +117,8 @@ function assignHTML(all, a, canBack) {
     const pr = progressOf(id);
     if (!inv || !pr) return '';
     // Ход описи (Б5): счёт общий для всех выездов по описи (Б3).
-    return `<p class="ip-line"><b>${esc(inv.title)}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}</p>`;
+    return `<p class="ip-line"><b>${esc(inv.title)}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}
+      <br><button type="button" class="btn btn-ghost btn-sm" data-ip-inv-report="${esc(id)}">Отчёт по описи (xlsx)</button></p>`;
   }).join('')}</section>` : ''}
     <section class="ip-sec"><h3>События</h3>
       <ul class="ip-evs">${evs.map((e) => `<li><time>${esc(fmtDate(e.at))} ${esc(new Date(e.at).toTimeString().slice(0, 5))}</time>
