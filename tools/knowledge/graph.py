@@ -262,6 +262,22 @@ def check():
     return recs, problems
 
 
+def reindex_in_background():
+    """tools/hooks/reindex.py скрытым процессом: CodeGraph и поиск по смыслу (ход —
+    .graf/index-status.json, журналы — .graf/reindex-*.log)."""
+    import subprocess
+    script = os.path.join(ROOT, 'tools', 'hooks', 'reindex.py')
+    if not os.path.exists(script):
+        return
+    flags = 0x08000000 | 0x00000008 if os.name == 'nt' else 0  # без окна, отдельно от консоли
+    try:
+        subprocess.Popen([sys.executable, script], cwd=ROOT, creationflags=flags,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print('индексы обновляются в фоне (CodeGraph и поиск по смыслу)')
+    except OSError as e:
+        print('индексы не запущены: %s' % e)
+
+
 # --- команды ---------------------------------------------------------------
 
 def cmd_rules(full=False):
@@ -493,6 +509,11 @@ def main():
             print(pr)
         notes = cmd_warnings(recs, '--full' in args)
         print('записей: %d, ошибок: %d, замечаний к наполнению: %d' % (len(recs), len(problems), notes))
+        # Граф не в git (решение пользователя 29.10.2026 «Не отдаем в гит knowledge», запись
+        # graf-znaniy-ne-uhodit-v-git-tolko-na-etom-kompyutere): коммита по правке графа нет, и
+        # хук post-commit индексы не обновит — их обновляет проверка, в фоне, как хук.
+        if not problems and '--no-reindex' not in args and os.environ.get('INSIDE_NO_REINDEX') != '1':
+            reindex_in_background()
         sys.exit(1 if problems else 0)
     elif cmd == 'rules':
         cmd_rules('--full' in args)
