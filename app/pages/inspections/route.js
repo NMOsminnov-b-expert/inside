@@ -156,7 +156,10 @@ export function homeOf(person, date) {
 // --- маршрут дня ------------------------------------------------------------------
 
 // skip — ключи предложенных объектов, которые регионал снял.
-export function dayRoute(all, person, date, skip = new Set()) {
+// propose — дополнять ли день предложениями из очереди (на «Маршруте» у
+// регионала по умолчанию скрыты, пользователь 29.10.2026 «По умолчанию
+// пускай будет скрыто»): без них пробег и время — только по назначенному.
+export function dayRoute(all, person, date, skip = new Set(), { propose = true } = {}) {
   const p = profileOf(person);
   const home = homeOf(person, date);
   const w = workdayOf(person, date);
@@ -178,7 +181,7 @@ export function dayRoute(all, person, date, skip = new Set()) {
   const noGps = [...fixed.values()].filter((x) => !x.gps);
 
   // Кандидаты — очередь «К назначению» с координатами, в области плана.
-  const cand = queueBase(all)
+  const cand = (propose ? queueBase(all) : [])
     .filter((s) => !fixed.has(s.typeId + '|' + s.id) && !skip.has(s.typeId + '|' + s.id))
     .filter((s) => !regions.size || regions.has(regionOf(s)))
     .map((s) => ({ key: s.typeId + '|' + s.id, s, gps: gpsOfObject(s.typeId, s.id), fixed: false, cov: s.cov }))

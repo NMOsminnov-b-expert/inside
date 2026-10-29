@@ -102,8 +102,20 @@ def run(t):
     t.ck(t.wait_until("async ([w, b]) => { const h = (await %s).profileOf(w).homeGps; return !!h && h !== b; }" % K, [WHO, before]),
          'точка дома не сохранилась щелчком по карте')
 
-    # убрать предложенное
+    # Предложения на день скрыты по умолчанию (29.10.2026 «По умолчанию пускай
+    # будет скрыто») — включаются переключателем; пробег без них — только по назначенным.
     t.wait_for('.ip-stop.home')
+    t.ck(pg.locator('.ip-stop.prop').count() == 0 and not pg.is_checked('[data-ip-route-prop]'), 'предложения на день видны по умолчанию')
+    pg.check('[data-ip-route-prop]')
+    t.ck(t.wait_until("() => document.querySelectorAll('.ip-stop.prop').length > 0"), 'переключатель не показал предложения на день')
+    # Список прокручивается колесом (замечание 29.10.2026), шапка на месте.
+    lst = pg.locator('.ip-route-side > .ip-stops')
+    if pg.viewport_size['width'] > 1100 and pg.evaluate("() => { const l = document.querySelector('.ip-route-side > .ip-stops'); return l.scrollHeight > l.clientHeight; }"):
+        bb = lst.bounding_box()
+        pg.mouse.move(bb['x'] + 40, bb['y'] + 40)
+        pg.mouse.wheel(0, 300)
+        t.ck(t.wait_until("() => document.querySelector('.ip-route-side > .ip-stops').scrollTop > 0"), 'список остановок не прокручивается колесом')
+    # убрать предложенное
     skip = pg.locator('[data-ip-route-skip]')
     if skip.count():
         key = skip.first.get_attribute('data-ip-route-skip')
@@ -163,3 +175,13 @@ def run(t):
     day = goday.get_attribute('data-ip-route-goday')
     goday.click()
     t.ck(t.wait_until("([d]) => (document.querySelector('[data-ip-route-set]') || {}).value === d", [day]), 'дата из «Все объекты» не открыла маршрут дня %s' % day)
+
+    # «К назначению»: выбор осмотрщика ставит на карту его дом (29.10.2026).
+    t.open('#/inspections?s=assign&t=queue', wait='[data-ip-pick-person]')
+    t.ck(pg.locator('.ip-pin-home').count() == 0, 'дом на карте до выбора осмотрщика')
+    for i in (0, 1):
+        b = pg.locator('[data-ip-pick-person]').nth(i)
+        who = b.get_attribute('data-ip-pick-person')
+        b.click()
+        t.ck(t.wait_until("([w]) => { const e = document.querySelector('.ip-pin-home'); return !!e && e.title.includes(w); }", [who]),
+             'на карте нет дома выбранного осмотрщика %s' % who)

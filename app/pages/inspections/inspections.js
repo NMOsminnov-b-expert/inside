@@ -42,7 +42,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, dayLoad, factNorms, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign } from './route.js';
+import { dayRoute, dayLoad, factNorms, homeOf, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
@@ -1132,7 +1132,8 @@ export function mountInspections(host) {
   const firstWorkday = (name) => { for (let k = 0; k < 14; k++) { const d = shiftD(todayD, k); if (workdayOf(name, d).ok) return d; } return todayD; };
   // mode — 'day' (маршрут дня) | 'all' (все объекты осмотрщика на карте,
   // замечание пользователя 29.10.2026 «Нужен просмотр и всех обьектов»).
-  const route = { day: '', person: '', skip: new Set(), homeMode: false, mode: 'day' };
+  // showProp — показывать предложенные на день (по умолчанию скрыты, 29.10.2026).
+  const route = { day: '', person: '', skip: new Set(), homeMode: false, mode: 'day', showProp: false };
   let routeMap = null;
   const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${m} мин`);
   // Дальняя область плана (route.js, far): сколько ехать и кто ближе — с
@@ -1191,7 +1192,7 @@ export function mountInspections(host) {
       <button type="button" class="${route.mode !== 'all' ? 'on' : ''}" data-ip-route-mode="day" aria-pressed="${route.mode !== 'all'}">День</button>
       <button type="button" class="${route.mode === 'all' ? 'on' : ''}" data-ip-route-mode="all" aria-pressed="${route.mode === 'all'}">Все объекты</button></div>`;
     if (route.mode === 'all') return `<div class="ip-repbar ip-routebar">${modeSeg}</div>${allObjectsHTML(me)}`;
-    const r = dayRoute(all, me.name, route.day, route.skip);
+    const r = dayRoute(all, me.name, route.day, route.skip, { propose: route.showProp });
     const wd = WDL[new Date(route.day + 'T00:00:00').getDay()];
     // Переработка 13.10.2026 («Карта мелкая, список тоже. Пол экрана под
     // мусор… неплотно упакованный»): день и итоги — одной строкой вместо
@@ -1235,8 +1236,9 @@ export function mountInspections(host) {
       <div class="ip-route">
         <div class="ip-route-side">
         <div class="ip-stops-head">
-          <span class="ip-legend"><i class="k-fixed"></i>назначено ${nFixed}</span>${r.proposed.length ? `<span class="ip-legend"><i class="k-prop"></i>предложено ${r.proposed.length}</span>
-          <button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные</button>` : ''}
+          <span class="ip-legend"><i class="k-fixed"></i>назначено ${nFixed}</span>${r.proposed.length ? `<span class="ip-legend"><i class="k-prop"></i>предложено ${r.proposed.length}</span>` : ''}
+          <label class="ip-prop-tg"><input type="checkbox" data-ip-route-prop ${route.showProp ? 'checked' : ''}> Предложения на день</label>
+          ${r.proposed.length ? '<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные</button>' : ''}
         </div>
         <ol class="ip-stops">
           <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b class="ip-stop-h">Выезд в ${r.start}</b><span class="ip-sub">${esc(addr || r.home.label)}</span></div></li>
@@ -1319,7 +1321,7 @@ export function mountInspections(host) {
   // строку списка открывает подсказку её значка.
   async function drawRouteMap(box) {
     if (route.mode === 'all') return drawAllMap(box);
-    const r = dayRoute(all, view.person, route.day, route.skip);
+    const r = dayRoute(all, view.person, route.day, route.skip, { propose: route.showProp });
     const gl = await loadMapLibre(host.ensureStyle);
     if (!box.isConnected) return;
     if (routeMap) { routeMap.remove(); routeMap = null; }
@@ -1908,6 +1910,7 @@ export function mountInspections(host) {
       .sort((a, b) => (a.k === current) - (b.k === current))
       .map((x) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [x.ll[1], x.ll[0]] },
         properties: { k: x.k, color: x.color, tip: x.tip, cur: x.k === current, sel: checked.has(x.k) } })) });
+    sceneHome(sc, on);
     const fitKey = view.section + '|' + view.tab + '|' + view.aPerson;
     const box = sc.el.getBoundingClientRect();
     const padding = scenePadding(box);
@@ -1934,6 +1937,35 @@ export function mountInspections(host) {
     scene.flownTo = current;
     scene.fromMap = false;
     if (!on) { scene.fitKey = ''; scene.flownTo = ''; }
+  }
+  // Дом выбранного в панели осмотрщика — на карте очереди (пользователь
+  // 29.10.2026: «В режиме к назначению при нажатии на осмотрщика, должен
+  // отображаться и его дом»): видно, откуда он поедет к объекту. На дату из
+  // панели — с учётом командировки и временного жилья (route.js homeOf).
+  function sceneHome(sc, on) {
+    const who = on && view.section === 'assign' ? draft.person : '';
+    const h = who ? homeOf(who, draft.date || new Date().toISOString().slice(0, 10)) : null;
+    const obj = current && sc.byKey ? sc.byKey.get(current) : null;
+    // Пунктир «дом → выбранный объект»: в панели — «от дома N км».
+    const line = h && h.gps && obj && obj.ll ? [[h.gps[1], h.gps[0]], [obj.ll[1], obj.ll[0]]] : null;
+    if (!sc.map.getSource('home-line')) {
+      sc.map.addSource('home-line', { type: 'geojson', data: emptyFC() });
+      sc.map.addLayer({ id: 'home-line', type: 'line', source: 'home-line', layout: { 'line-cap': 'round' },
+        paint: { 'line-color': '#54718f', 'line-width': 2, 'line-opacity': 0.75, 'line-dasharray': [2, 2] } });
+    }
+    sc.map.getSource('home-line').setData(line ? { type: 'Feature', geometry: { type: 'LineString', coordinates: line }, properties: {} } : emptyFC());
+    const key = h && h.gps ? `${who}|${h.gps.join(',')}` : '';
+    if (sc.homeKey === key) return;
+    if (sc.home) { sc.home.remove(); sc.home = null; }
+    sc.homeKey = key;
+    if (!key) return;
+    const el = document.createElement('div');
+    el.className = 'ip-pin home ip-pin-home';
+    el.innerHTML = '<span>⌂</span>';
+    const addr = profileOf(who).homeAddress || '';
+    el.setAttribute('aria-label', `${h.label === 'дом' ? 'Дом' : 'Временное жильё'}: ${who}`);
+    el.title = `${h.label === 'дом' ? 'Дом' : 'Временное жильё'} · ${who}${addr ? ' · ' + addr : ''}`;
+    sc.home = new sc.gl.Marker({ element: el, anchor: 'center' }).setLngLat([h.gps[1], h.gps[0]]).addTo(sc.map);
   }
   // Видимая часть сцены — без панелей и островков: широкое окно — панели по
   // бокам, узкое — список под картой.
@@ -2683,6 +2715,7 @@ export function mountInspections(host) {
     if (next) next.focus();
   });
   // Маршрут дня: день, дом на карте, убрать/вернуть предложенное, назначить.
+  scope.on('change', '[data-ip-route-prop]', (e, el) => { route.showProp = el.checked; route.skip = new Set(); redraw(); });
   scope.on('click', '[data-ip-route-mode]', (e, b) => { route.mode = b.dataset.ipRouteMode === 'all' ? 'all' : 'day'; redraw(); });
   scope.on('click', '[data-ip-route-goday]', (e, b) => { route.mode = 'day'; route.day = b.dataset.ipRouteGoday; route.skip = new Set(); redraw(); });
   scope.on('click', '[data-ip-route-day]', (e, b) => { route.day = shiftD(route.day, +b.dataset.ipRouteDay); route.skip = new Set(); redraw(); });
@@ -2691,7 +2724,7 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-route-skip]', (e, b) => { route.skip.add(b.dataset.ipRouteSkip); redraw(); });
   scope.on('click', '[data-ip-route-unskip]', () => { route.skip = new Set(); redraw(); });
   scope.on('click', '[data-ip-route-assign]', () => {
-    const r = dayRoute(all, view.person, route.day, route.skip);
+    const r = dayRoute(all, view.person, route.day, route.skip, { propose: route.showProp });
     let n = 0;
     r.proposed.forEach((k) => {
       const x = r.stops.find((s) => s.key === k);
