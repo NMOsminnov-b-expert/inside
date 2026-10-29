@@ -800,8 +800,12 @@ export function mountInspections(host) {
             ${(() => { const d = poaDaysLeft(me.name); return d !== null && d <= 14 ? ` · <span class="ip-badge ${d < 0 ? 'off' : 'away'}">${d < 0 ? 'доверенность истекла' : `доверенность: ${d} дн.`}</span>` : ''; })()}
             · ${prof.email ? `<a href="mailto:${esc(prof.email)}">${esc(prof.email)}</a>` : '<span class="ip-muted">почта не указана</span>'}
             · ${esc(me.regions.join(', ') || 'область не указана')}${me.derived && me.regions.length ? ' <span class="ip-muted">(по объектам)</span>' : ''}</p></div>
-        <div class="ip-tiles ip-tiles-head">${tile('В работе', me.live)}${tile('Просрочено', me.late, me.late ? 'warn' : '')}
-          ${tile('Свободно', `${me.free} дн.`, '', 'Рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', me.done, '', 'Законченных назначений')}</div>
+        ${view.personTab === 'route'
+    // На «Маршруте» место отдано карте и остановкам (замечание пользователя
+    // 29.10.2026 «Выглядит максимально топорно»): показатели — строкой.
+    ? `<p class="ip-head-stats"><span>в работе <b>${me.live}</b></span>${me.late ? `<span class="warn">просрочено <b>${me.late}</b></span>` : ''}<span title="Рабочих дней без плановых осмотров из ближайших 10">свободно <b>${me.free}</b> дн.</span><span title="Законченных назначений">за 30 дн. <b>${me.done}</b></span></p>`
+    : `<div class="ip-tiles ip-tiles-head">${tile('В работе', me.live)}${tile('Просрочено', me.late, me.late ? 'warn' : '')}
+          ${tile('Свободно', `${me.free} дн.`, '', 'Рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', me.done, '', 'Законченных назначений')}</div>`}
         <div class="ip-head-act">
           <button class="btn btn-primary btn-sm" data-ip-assign-to="${esc(me.name)}">Назначить объекты</button>
         </div>
@@ -1126,7 +1130,9 @@ export function mountInspections(host) {
   // назначаются одной кнопкой на этот день.
   const objectContentsIds = (typeId, ocId) => { const c = objectContents(typeId, ocId); return c ? c.oi.map((o) => o.id) : []; };
   const firstWorkday = (name) => { for (let k = 0; k < 14; k++) { const d = shiftD(todayD, k); if (workdayOf(name, d).ok) return d; } return todayD; };
-  const route = { day: '', person: '', skip: new Set(), homeMode: false };
+  // mode — 'day' (маршрут дня) | 'all' (все объекты осмотрщика на карте,
+  // замечание пользователя 29.10.2026 «Нужен просмотр и всех обьектов»).
+  const route = { day: '', person: '', skip: new Set(), homeMode: false, mode: 'day' };
   let routeMap = null;
   const dur = (m) => (m >= 60 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${m} мин`);
   // Дальняя область плана (route.js, far): сколько ехать и кто ближе — с
@@ -1139,25 +1145,77 @@ export function mountInspections(host) {
     return head + `<ul class="ip-hint ip-far">${f.closer.map((c) => `<li><b>${esc(c.name)}</b> — ${c.km} км от дома до ближайшего объекта; ${c.days.length
       ? `свободные дни: ${c.days.map(ddmm).join(', ')}` : 'свободных дней до конца месяца нет'}</li>`).join('')}</ul>`;
   }
+  function personObjects(name) {
+    return allAssignments().filter((a) => a.person === name && isLive(a))
+      .map((a) => ({ a, s: all.get(a.typeId + '|' + a.ocId), gps: gpsOfObject(a.typeId, a.ocId), late: isOverdue(a) }))
+      .filter((x) => x.s)
+      .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
+  }
+  function allObjectsHTML(me) {
+    const list = personObjects(me.name);
+    const groups = new Map();
+    list.forEach((x, i) => {
+      const k = x.a.plannedAt || '';
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push({ ...x, n: i + 1 });
+    });
+    const late = list.filter((x) => x.late).length;
+    const none = list.filter((x) => !x.a.plannedAt).length;
+    const wdOf = (iso) => WDL[new Date(iso + 'T00:00:00').getDay()].slice(0, 2);
+    return `<div class="ip-route">
+        <div class="ip-route-side">
+          <div class="ip-stops-head">
+            <span class="ip-legend"><i class="k-fixed"></i>с датой ${list.length - none - late}</span>${late ? `<span class="ip-legend"><i class="k-late"></i>просрочено ${late}</span>` : ''}${none ? `<span class="ip-legend"><i class="k-none"></i>без даты ${none}</span>` : ''}
+          </div>
+          ${list.length ? `<ol class="ip-stops">${[...groups.entries()].map(([day, xs]) => `<li class="ip-dgroup">
+            ${day ? `<button type="button" class="ip-dgroup-h" data-ip-route-goday="${esc(day)}" title="Маршрут этого дня">${esc(wdOf(day))} ${esc(fmtDate(day))} · ${xs.length} ${plural(xs.length, 'объект', 'объекта', 'объектов')}<span>маршрут дня →</span></button>`
+    : `<span class="ip-dgroup-h none">без плановой даты · ${xs.length}</span>`}
+            <ol class="ip-stops">${xs.map((x) => `<li class="ip-stop ${x.late ? 'late' : x.a.plannedAt ? 'fixed' : 'none'}" data-ip-stop="${x.n}">
+              <span class="ip-stop-n">${x.n}</span>
+              <div class="ip-stop-b"><b class="ip-stop-h">${esc(x.s.title)}</b>
+                <span class="ip-sub">${esc([x.s.typeLabel, x.s.institution].filter(Boolean).join(' · '))}</span></div>
+              <button type="button" class="ip-x ip-open" data-ip-dp-open="assign:${esc(x.a.id)}" aria-label="Подробности назначения" title="Подробности назначения">›</button>
+            </li>`).join('')}</ol></li>`).join('')}</ol>`
+    : '<p class="ip-hint ip-empty">Объектов в работе нет.</p>'}
+        </div>
+        <div class="ip-map-wrap">
+          <div class="ip-map" data-ip-map role="img" aria-label="Все объекты осмотрщика на карте"></div>
+        </div>
+      </div>
+      ${list.some((x) => !x.gps) ? `<p class="ip-hint">Без координат, не на карте: ${list.filter((x) => !x.gps).map((x) => esc(x.s.title)).join('; ')}.</p>` : ''}`;
+  }
+
   function routeHTML(me) {
     if (route.person !== me.name) { route.person = me.name; route.day = firstWorkday(me.name); route.skip = new Set(); route.homeMode = false; }
+    const modeSeg = `<div class="seg ip-route-mode" role="group" aria-label="Что показать">
+      <button type="button" class="${route.mode !== 'all' ? 'on' : ''}" data-ip-route-mode="day" aria-pressed="${route.mode !== 'all'}">День</button>
+      <button type="button" class="${route.mode === 'all' ? 'on' : ''}" data-ip-route-mode="all" aria-pressed="${route.mode === 'all'}">Все объекты</button></div>`;
+    if (route.mode === 'all') return `<div class="ip-repbar ip-routebar">${modeSeg}</div>${allObjectsHTML(me)}`;
     const r = dayRoute(all, me.name, route.day, route.skip);
     const wd = WDL[new Date(route.day + 'T00:00:00').getDay()];
     // Переработка 13.10.2026 («Карта мелкая, список тоже. Пол экрана под
     // мусор… неплотно упакованный»): день и итоги — одной строкой вместо
     // плиток, список — узкой колонкой со своей прокруткой, остальное — карте
     // (практика APCS «карта во всё место, список — одной панелью рядом»).
-    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'}" data-ip-stop="${i + 1}">
-        <span class="ip-stop-n">${i + 1}</span>
+    // Строка остановки (переработка 29.10.2026, практики планировщиков
+    // маршрутов — запись графа marshrut-dnya-…): номер — тот же, что на
+    // карте, цвет номера — назначено или предложено (легенда над списком),
+    // дорога от предыдущей — «+мин · км», близкое — «рядом».
+    const km = (v) => v.toFixed(1).replace('.', ',');
+    const leg = (x) => (x.km < 0.3 ? 'рядом' : `+${x.drive} мин · ${km(x.km)} км`);
+    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'} ${x.done ? 'done' : ''}" data-ip-stop="${i + 1}">
+        <span class="ip-stop-n" aria-label="${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}, ${i + 1}">${x.done ? '✓' : i + 1}</span>
         <div class="ip-stop-b">
-          <b class="ip-stop-h" title="${esc(x.s.title)}">${esc(x.s.title)}</b>
+          <b class="ip-stop-h">${esc(x.s.title)}</b>
           <span class="ip-sub">${esc([x.s.typeLabel, x.s.metrics && x.s.metrics.area ? `${Math.round(x.s.metrics.area).toLocaleString('ru-RU')} м²` : '', x.s.institution].filter(Boolean).join(' · '))}</span>
-          <span class="ip-stop-t"><i class="${x.fixed ? 'k-plan' : 'k-act'}">${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i> · дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км</span>
         </div>
+        <span class="ip-stop-leg" title="${x.km < 0.3 ? 'Рядом с предыдущей точкой' : 'Дорога от предыдущей точки'}">${leg(x)}</span>
         ${x.fixed ? '' : `<button class="ip-x" data-ip-route-skip="${esc(x.key)}" aria-label="Убрать из маршрута" title="Убрать из маршрута">×</button>`}
       </li>`;
+    const nFixed = r.stops.filter((x) => x.fixed).length;
     const addr = profileOf(me.name).homeAddress;
     return `<div class="ip-repbar ip-routebar">
+        ${modeSeg}
         <div class="ip-daynav" role="group" aria-label="День маршрута">
           <button class="btn btn-ghost btn-sm" data-ip-route-day="-1" aria-label="Предыдущий день">‹</button>
           <input class="input" type="date" data-ip-route-set value="${route.day}" aria-label="День">
@@ -1169,19 +1227,22 @@ export function mountInspections(host) {
              бывают разными»; «Только скрыть в маршруте»): ни осмотр, ни
              прибытие, ни возвращение — они складываются из прогноза. Нормы и
              подбор предложений на день остаются. -->
-        <p class="ip-route-sum">выезд <b>${r.start}</b> · пробег <b>${r.km}</b> км · дорога <b>${dur(r.driveMin)}</b> · объектов <b>${r.stops.length}</b></p>
+        <p class="ip-route-sum"><span>выезд <b>${r.start}</b></span><span>объектов <b>${r.stops.length}</b></span><span>пробег <b>${r.km}</b> км</span><span>в пути <b>${dur(r.driveMin)}</b></span></p>
       </div>
       ${!r.work.ok ? `<p class="ip-warn">Не рабочий день: ${esc(r.work.reason)}.</p>` : ''}
       ${!r.home.gps ? '<p class="ip-warn">Точка дома не указана — маршрут считается от первого объекта. Укажите дом на карте.</p>' : ''}
       ${r.far ? farHTML(r.far) : ''}
       <div class="ip-route">
         <div class="ip-route-side">
+        <div class="ip-stops-head">
+          <span class="ip-legend"><i class="k-fixed"></i>назначено ${nFixed}</span>${r.proposed.length ? `<span class="ip-legend"><i class="k-prop"></i>предложено ${r.proposed.length}</span>
+          <button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные</button>` : ''}
+        </div>
         <ol class="ip-stops">
-          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><span class="ip-stop-t" title="${esc(addr || '')}"><b>Выезд ${r.start}</b> · ${esc(addr || r.home.label)}</span></div></li>
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b class="ip-stop-h">Выезд в ${r.start}</b><span class="ip-sub">${esc(addr || r.home.label)}</span></div></li>
           ${r.stops.map(stop).join('')}
-          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><span class="ip-stop-t"><b>Возвращение</b> · дорога ${r.back.min} мин · ${r.back.km.toFixed(1).replace('.', ',')} км</span></div></li>
+          <li class="ip-stop home"><span class="ip-stop-n">⌂</span><div class="ip-stop-b"><b class="ip-stop-h">Возвращение</b><span class="ip-sub">${esc(addr || r.home.label)}</span></div><span class="ip-stop-leg">+${r.back.min} мин · ${km(r.back.km)} км</span></li>
         </ol>
-        ${r.proposed.length ? `<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные (${r.proposed.length})</button>` : ''}
         </div>
         <!-- «Указать дом» — кнопкой на самой карте: действие над картой
              (островок управления поверх карты, практика APCS по картам). -->
@@ -1257,6 +1318,7 @@ export function mountInspections(host) {
   // замечания «маркеры слетают», «зум перестал работать»). Наведение на
   // строку списка открывает подсказку её значка.
   async function drawRouteMap(box) {
+    if (route.mode === 'all') return drawAllMap(box);
     const r = dayRoute(all, view.person, route.day, route.skip);
     const gl = await loadMapLibre(host.ensureStyle);
     if (!box.isConnected) return;
@@ -1285,7 +1347,8 @@ export function mountInspections(host) {
     if (r.home.gps) items.push({ n: '⌂', cls: 'home', ll: r.home.gps, tip: `<b>${esc(r.home.label === 'дом' ? 'Дом' : 'Временное жильё')}</b><br>выезд ${r.start}` });
     r.stops.forEach((x, i) => items.push({
       n: String(i + 1), cls: x.fixed ? 'fixed' : 'prop', ll: x.gps,
-      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br>${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}дорога ${x.drive} мин · ${x.km.toFixed(1).replace('.', ',')} км<br><i>${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</i>`,
+      title: `${i + 1}. ${x.s.title}`,
+      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br><span class="ip-tip-sub">${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</span>`,
     }));
     const groups = [];
     items.forEach((it) => {
@@ -1302,20 +1365,39 @@ export function mountInspections(host) {
       const wide = g.items.length > 1;
       const el = document.createElement('div');
       el.className = `ip-pin ${cls}`;
-      el.innerHTML = `<span${wide ? ' class="wide"' : ''}>${g.items.map((x) => x.n).join(' · ')}</span>`;
+      // Подпись склейки — диапазоном подряд идущих номеров: «9–12», иначе «2, 5».
+      const nums = g.items.map((x) => x.n);
+      const seq = nums.every((n, k) => k === 0 || Number(n) === Number(nums[k - 1]) + 1) && nums.every((n) => /^\d+$/.test(n));
+      el.innerHTML = `<span${wide ? ' class="wide"' : ''}>${wide ? (seq ? `${nums[0]}–${nums[nums.length - 1]}` : nums.slice(0, 3).join(', ') + (nums.length > 3 ? '…' : '')) : nums[0]}</span>`;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', wide ? `Остановки ${nums.join(', ')} — приблизить` : g.items[0].title || 'Выезд');
       const ll = [lead.ll[1], lead.ll[0]];
-      const html = g.items.map((x) => x.tip).join('<hr>');
+      // Окно — коротко: у склейки до трёх адресов и «ещё N».
+      const html = wide
+        ? `${g.items.slice(0, 3).map((x) => `<div class="ip-tip-row">${x.title ? esc(x.title) : '<b>Выезд</b>'}</div>`).join('')}${g.items.length > 3 ? `<div class="ip-tip-more">ещё ${g.items.length - 3} — щёлкните, чтобы приблизить</div>` : '<div class="ip-tip-more">щёлкните, чтобы приблизить</div>'}`
+        : lead.tip;
       const open = () => tip.setLngLat(ll).setHTML(html).addTo(map);
       el.addEventListener('mouseenter', open);
       el.addEventListener('mouseleave', () => tip.remove());
+      // Склейка по щелчку — приближение, пока точки не разойдутся.
+      if (wide) {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          tip.remove();
+          const lo = g.items.map((x) => x.ll[1]);
+          const la = g.items.map((x) => x.ll[0]);
+          map.fitBounds([[Math.min(...lo), Math.min(...la)], [Math.max(...lo), Math.max(...la)]], { padding: 80, maxZoom: 18 });
+        });
+      }
       new gl.Marker({ element: el, anchor: 'center' }).setLngLat(ll).addTo(map);
       box._pins.push({ el, ll });
-      g.items.forEach((x) => byN.set(x.n, open));
+      g.items.forEach((x) => byN.set(x.n, el));
     });
-    // Строка списка ↔ значок: наведение на строку открывает подсказку значка.
+    // Строка списка ↔ значок: наведение на строку подсвечивает её значок
+    // (практика «выбор в списке подсвечивает метку»), без окна поверх карты.
     scope.$$('[data-ip-stop]').forEach((li) => {
-      li.addEventListener('mouseenter', () => { const f = byN.get(li.dataset.ipStop); if (f) f(); });
-      li.addEventListener('mouseleave', () => tip.remove());
+      li.addEventListener('mouseenter', () => { const el = byN.get(li.dataset.ipStop); if (el) el.classList.add('hl'); });
+      li.addEventListener('mouseleave', () => { const el = byN.get(li.dataset.ipStop); if (el) el.classList.remove('hl'); });
     });
     map.on('click', (e) => {
       if (!route.homeMode) return;
@@ -1323,6 +1405,71 @@ export function mountInspections(host) {
       route.homeMode = false;
       redraw();
       host.toast('Точка дома сохранена', 'ok');
+    });
+  }
+
+  // Все объекты осмотрщика на карте: цвет — с датой, просрочено, без даты;
+  // номер — тот же, что в списке; строка списка подсвечивает значок.
+  async function drawAllMap(box) {
+    const list = personObjects(view.person).map((x, i) => ({ ...x, n: i + 1 })).filter((x) => x.gps);
+    const gl = await loadMapLibre(host.ensureStyle);
+    if (!box.isConnected) return;
+    if (routeMap) { routeMap.remove(); routeMap = null; }
+    const map = await createMap(gl, box, list.length ? { center: [list[0].gps[1], list[0].gps[0]], zoom: 11 } : {});
+    if (!box.isConnected) { map.remove(); return; }
+    routeMap = map;
+    box._map = map;
+    attachCadastreGL(gl, map);
+    if (list.length > 1) {
+      const la = list.map((x) => x.gps[0]);
+      const lo = list.map((x) => x.gps[1]);
+      map.fitBounds([[Math.min(...lo), Math.min(...la)], [Math.max(...lo), Math.max(...la)]], { padding: 48, maxZoom: 14, animate: false });
+    } else if (list.length) map.jumpTo({ center: [list[0].gps[1], list[0].gps[0]], zoom: 14 });
+    const tip = new gl.Popup({ closeButton: false, closeOnClick: false, className: 'map-tip-gl', offset: 16, maxWidth: '300px' });
+    const byN = new Map();
+    box._pins = [];
+    // Близкие значки (ближе 24 px) — одним «2–5»: щелчок приближает, окно —
+    // до трёх адресов; одиночный значок с датой ведёт в маршрут этого дня.
+    const groups = [];
+    list.forEach((x) => {
+      const pt = map.project([x.gps[1], x.gps[0]]);
+      const g = groups.find((y) => Math.hypot(y.pt.x - pt.x, y.pt.y - pt.y) < 24);
+      if (g) g.items.push(x); else groups.push({ pt, items: [x] });
+    });
+    groups.forEach((g) => {
+      const x = g.items[0];
+      const wide = g.items.length > 1;
+      const cls = g.items.some((y) => y.late) ? 'late' : g.items.some((y) => y.a.plannedAt) ? 'fixed' : 'none';
+      const nums = g.items.map((y) => y.n);
+      const seq = nums.every((n, k) => k === 0 || n === nums[k - 1] + 1);
+      const el = document.createElement('div');
+      el.className = `ip-pin ${cls}`;
+      el.innerHTML = `<span${wide ? ' class="wide"' : ''}>${wide ? (seq ? `${nums[0]}–${nums[nums.length - 1]}` : nums.slice(0, 3).join(', ') + (nums.length > 3 ? '…' : '')) : x.n}</span>`;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', wide ? `Объекты ${nums.join(', ')} — приблизить` : `${x.n}. ${x.s.title}`);
+      const ll = [x.gps[1], x.gps[0]];
+      const when = (y) => `${y.a.plannedAt ? `план ${esc(fmtDate(y.a.plannedAt))}` : 'без даты'}${y.late ? ' · просрочено' : ''}`;
+      const html = wide
+        ? `${g.items.slice(0, 3).map((y) => `<div class="ip-tip-row">${y.n}. ${esc(y.s.title)} <span class="ip-tip-sub">· ${when(y)}</span></div>`).join('')}<div class="ip-tip-more">${g.items.length > 3 ? `ещё ${g.items.length - 3} — ` : ''}щёлкните, чтобы приблизить</div>`
+        : `<b>${x.n}. ${esc(x.s.title)}</b><br><span class="ip-tip-sub">${when(x)}${x.a.plannedAt ? ' · щёлкните — маршрут дня' : ''}</span>`;
+      el.addEventListener('mouseenter', () => tip.setLngLat(ll).setHTML(html).addTo(map));
+      el.addEventListener('mouseleave', () => tip.remove());
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tip.remove();
+        if (wide) {
+          const lo = g.items.map((y) => y.gps[1]);
+          const la = g.items.map((y) => y.gps[0]);
+          map.fitBounds([[Math.min(...lo), Math.min(...la)], [Math.max(...lo), Math.max(...la)]], { padding: 80, maxZoom: 18 });
+        } else if (x.a.plannedAt) { route.mode = 'day'; route.day = x.a.plannedAt; route.skip = new Set(); redraw(); }
+      });
+      new gl.Marker({ element: el, anchor: 'center' }).setLngLat(ll).addTo(map);
+      box._pins.push({ el, ll });
+      g.items.forEach((y) => byN.set(String(y.n), el));
+    });
+    scope.$$('[data-ip-stop]').forEach((li) => {
+      li.addEventListener('mouseenter', () => { const el = byN.get(li.dataset.ipStop); if (el) el.classList.add('hl'); });
+      li.addEventListener('mouseleave', () => { const el = byN.get(li.dataset.ipStop); if (el) el.classList.remove('hl'); });
     });
   }
 
@@ -2536,6 +2683,8 @@ export function mountInspections(host) {
     if (next) next.focus();
   });
   // Маршрут дня: день, дом на карте, убрать/вернуть предложенное, назначить.
+  scope.on('click', '[data-ip-route-mode]', (e, b) => { route.mode = b.dataset.ipRouteMode === 'all' ? 'all' : 'day'; redraw(); });
+  scope.on('click', '[data-ip-route-goday]', (e, b) => { route.mode = 'day'; route.day = b.dataset.ipRouteGoday; route.skip = new Set(); redraw(); });
   scope.on('click', '[data-ip-route-day]', (e, b) => { route.day = shiftD(route.day, +b.dataset.ipRouteDay); route.skip = new Set(); redraw(); });
   scope.on('change', '[data-ip-route-set]', (e, el) => { if (el.value) { route.day = el.value; route.skip = new Set(); redraw(); } });
   scope.on('click', '[data-ip-route-home]', () => { route.homeMode = !route.homeMode; redraw(); });
@@ -2738,7 +2887,7 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-load-route]', (e, b) => {
     const [name, day] = b.dataset.ipLoadRoute.split('|');
     view.section = 'people'; view.person = name; view.personTab = 'route';
-    route.person = name; route.day = day; route.skip = new Set(); route.homeMode = false;
+    route.person = name; route.day = day; route.skip = new Set(); route.homeMode = false; route.mode = 'day';
     detail = []; render();
   });
   scope.on('click', '[data-ip-load-assign]', (e, b) => {

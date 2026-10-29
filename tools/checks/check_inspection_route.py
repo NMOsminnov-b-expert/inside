@@ -114,7 +114,8 @@ def run(t):
     if pg.locator('[data-ip-route-assign]').count():
         rday = pg.input_value('[data-ip-route-set]')
         n0 = pg.evaluate("async ([w, d]) => (await %s).allAssignments().filter((a) => a.person === w && a.plannedAt === d && a.state !== 'removed').length" % K, [WHO, rday])
-        want = int(pg.locator('[data-ip-route-assign]').inner_text().split('(')[1].rstrip(')'))
+        # С 29.10.2026 число предложенных — в легенде над списком, а не на кнопке.
+        want = pg.locator('.ip-stop.prop').count()
         pg.click('[data-ip-route-assign]')
         t.ck(t.wait_until("async ([w, d, n]) => (await %s).allAssignments().filter((a) => a.person === w && a.plannedAt === d && a.state !== 'removed').length === n" % K, [WHO, rday, n0 + want]),
              '«Назначить предложенные» не создало %s назначений на %s' % (want, rday))
@@ -126,7 +127,7 @@ def run(t):
     # пользователя «Прогнозируемое время осмотра надо убрать»; «Только скрыть
     # в маршруте») — нормы проверяются по расчёту маршрута, а на экране —
     # что прогноза нет.
-    stop_t = pg.locator('.ip-stop:not(.home) .ip-stop-t').first.inner_text()
+    stop_t = pg.locator('.ip-stop:not(.home)').first.inner_text()
     t.ck('осмотр' not in stop_t and '→' not in stop_t, 'в маршруте снова прогноз времени осмотра: «%s»' % stop_t)
     t.ck(pg.locator('.ip-tile', has_text='Осмотры').count() == 0 and pg.locator('.ip-tile', has_text='Возвращение').count() == 0,
          'в плитках маршрута снова «Осмотры» или «Возвращение»')
@@ -145,8 +146,20 @@ def run(t):
         t.wait_until("(k) => document.querySelector('[data-ip-norm=\"' + k + '\"][data-k=\"base\"]').value === '120'", k)
     pg.locator('.ip-person-main[data-ip-person="%s"]' % WHO).click()
     pg.click('[data-ip-ptab="route"]')
-    t.wait_for('.ip-stop:not(.home) .ip-stop-t')
+    t.wait_for('.ip-stop:not(.home) .ip-stop-leg')
     after = pg.evaluate(INSP, WHO)
     t.ck(pg.locator('.toast').filter(has_text='не сохранил').count() == 0, 'правка норм не сохранилась: %s' % pg.locator('.toast').all_inner_texts())
     t.ck(first != after, 'правка нормы не изменила расчёт времени осмотра в маршруте: «%s» → «%s»' % (first, after))
     t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'страница прокручивается вбок')
+
+    # «День / Все объекты» (29.10.2026, «Нужен просмотр и всех обьектов»):
+    # все объекты осмотрщика в работе — по датам; дата ведёт в маршрут дня.
+    pg.click('[data-ip-route-mode="all"]')
+    t.ck(t.wait_for('.ip-dgroup'), 'нет режима «Все объекты»')
+    live = pg.evaluate("async (w) => { const k = await %s; return k.allAssignments().filter((a) => a.person === w && k.isLive(a)).length; }" % K, WHO)
+    t.ck(pg.locator('.ip-dgroup .ip-stop').count() == live, 'в «Все объекты» не все объекты в работе: %d / %d' % (pg.locator('.ip-dgroup .ip-stop').count(), live))
+    t.ck(t.wait_until("() => document.querySelectorAll('.ip-pin').length > 0", 9000), 'на карте «Все объекты» нет значков')
+    goday = pg.locator('[data-ip-route-goday]').first
+    day = goday.get_attribute('data-ip-route-goday')
+    goday.click()
+    t.ck(t.wait_until("([d]) => (document.querySelector('[data-ip-route-set]') || {}).value === d", [day]), 'дата из «Все объекты» не открыла маршрут дня %s' % day)

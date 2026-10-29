@@ -1490,3 +1490,49 @@ body[data-page="inspections"] .ip-load-objs button:hover{background:var(--fill-h
 /* Назначение на выбранный день — отметка над очередью. */
 body[data-page="inspections"] .ip-assign-day{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:6px 10px;border-radius:8px;background:var(--blue-50);font-size:12.5px}
 body[data-page="inspections"] .ip-assign-day .isearch-clear{margin-left:auto}
+
+/* --- Маршрут дня: переработка 29.10.2026 («Выглядит максимально топорно») ---
+   Практики планировщиков маршрутов (запись графа marshrut-dnya-…): номер в
+   списке = номер на карте, начало и возвращение — отдельно; назначено /
+   предложено — цветом номера и легендой над списком; дорога от предыдущей —
+   справа приглушённо; показатели осмотрщика — строкой, итоги дня — плашками. */
+body[data-page="inspections"] .ip-head-stats{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="inspections"] .ip-head-stats b{color:var(--ink)}
+body[data-page="inspections"] .ip-head-stats .warn b,body[data-page="inspections"] .ip-head-stats .warn{color:var(--danger)}
+body[data-page="inspections"] .ip-route-sum{display:flex;flex-wrap:wrap;gap:6px}
+body[data-page="inspections"] .ip-route-sum span{padding:3px 9px;border-radius:999px;background:var(--slate-50,#f1f5f9);border:1px solid var(--line-soft);font-size:12.5px;white-space:nowrap}
+body[data-page="inspections"] .ip-stops-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;flex:none;padding:2px 2px 4px}
+body[data-page="inspections"] .ip-stops-head .btn{margin-left:auto}
+body[data-page="inspections"] .ip-legend{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+body[data-page="inspections"] .ip-legend i{width:10px;height:10px;border-radius:50%;background:var(--blue-600)}
+body[data-page="inspections"] .ip-legend i.k-prop{background:var(--amber-600)}
+body[data-page="inspections"] .ip-legend i.k-late{background:var(--danger)}
+body[data-page="inspections"] .ip-legend i.k-none{background:var(--slate-500)}
+body[data-page="inspections"] .ip-stop{grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center}
+body[data-page="inspections"] .ip-stop-h{-webkit-line-clamp:2}
+body[data-page="inspections"] .ip-stop-leg{font-size:11.5px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums;align-self:center}
+body[data-page="inspections"] .ip-stop.done .ip-stop-n{background:var(--teal-600)}
+body[data-page="inspections"] .ip-stop:hover{border-color:var(--blue-300)}
+.ip-pin.hl span{transform:scale(1.25);box-shadow:0 0 0 4px rgba(22,104,201,.35),0 1px 4px rgba(0,0,0,.35)}
+.ip-pin span{transition:transform .12s}
+@media (prefers-reduced-motion:reduce){.ip-pin span{transition:none}}
+.ip-tip-sub{color:#5b6b7f}
+.ip-tip-row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.ip-tip-row + .ip-tip-row{margin-top:2px}
+.ip-tip-more{margin-top:4px;color:#5b6b7f;font-size:11.5px}
+.ip-pin.late span{background:#dc2626}
+.ip-pin.none span{background:#64748b}
+/* «День / Все объекты» на маршруте (29.10.2026): переключатель — как у
+   «Загрузки»; все объекты — группами по плановой дате, заголовок группы ведёт
+   в маршрут дня. */
+body[data-page="inspections"] .ip-route-mode{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:var(--fill-hover,#eef2f7)}
+body[data-page="inspections"] .ip-route-mode button{height:30px;padding:0 12px;border:0;border-radius:8px;background:transparent;font:inherit;font-size:13px;cursor:pointer;color:var(--ink);white-space:nowrap}
+body[data-page="inspections"] .ip-route-mode button.on{background:var(--panel);box-shadow:0 1px 3px rgba(15,23,42,.14);font-weight:600}
+body[data-page="inspections"] .ip-dgroup{list-style:none;display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+body[data-page="inspections"] .ip-dgroup-h{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border:0;border-radius:8px;background:var(--slate-50,#f1f5f9);font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);text-align:left;cursor:pointer}
+body[data-page="inspections"] .ip-dgroup-h span{margin-left:auto;font-weight:400;color:var(--blue-700)}
+body[data-page="inspections"] .ip-dgroup-h.none{cursor:default;color:var(--muted)}
+body[data-page="inspections"] .ip-dgroup-h:hover:not(.none){background:var(--blue-50)}
+body[data-page="inspections"] .ip-stop.late .ip-stop-n{background:var(--danger)}
+body[data-page="inspections"] .ip-stop.none .ip-stop-n{background:var(--slate-500)}
+body[data-page="inspections"] .ip-open{font-size:16px}
