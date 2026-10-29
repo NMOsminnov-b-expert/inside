@@ -49,6 +49,13 @@ export function docPageHTML(d, n) {
   // браузере, kernel/localFiles.js): рисовать нечего — говорим прямо.
   if (!d.file || !d.file.dataUrl) return lostFileHTML(n === 1);
 
+  // Страница многостраничного скана — свой файл (ensureDocPages, page.scan).
+  const own = page.scan != null && d.scanPages ? d.scanPages[page.scan] : null;
+  if (own) {
+    const f = { name: own.name, mime: own.type, dataUrl: own.dataUrl };
+    if (!f.dataUrl) return lostFileHTML(false);
+    return page.kind === 'image' ? imagePageHTML(f) : otherPageHTML(f);
+  }
   if (page.kind === 'pdf') return pdfPageHTML(d, page);
   if (page.kind === 'image') return imagePageHTML(d.file);
   return otherPageHTML(d.file);
@@ -167,6 +174,7 @@ export function renderDocMode(ctx, vctx) {
       data-vthumb="${i + 1}" ${can('editPages') ? 'draggable="true"' : ''}
       title="${can('editPages') ? `Страница ${i + 1} — перетащите, чтобы изменить порядок; Ctrl+клик — выбрать несколько` : `Страница ${i + 1}`}">
       ${p.kind === 'pdf' && d.file && d.file.dataUrl ? `<canvas class="vthumb-canvas" data-pdf-src="${p.src}" data-pdf-url="${esc(d.file.dataUrl)}" data-pdf-thumb="96"></canvas>` : ''}
+      ${p.scan != null && p.kind === 'image' && d.scanPages && d.scanPages[p.scan] && d.scanPages[p.scan].dataUrl ? `<img class="vthumb-img" src="${esc(d.scanPages[p.scan].dataUrl)}" alt="" loading="lazy">` : ''}
       ${can('editPages') ? `<button class="vthumb-del" data-vdelpage="${i + 1}" title="Убрать страницу">×</button>` : ''}<span class="vthumb-num">${i + 1}</span></div>`).join('')}
     </div></div>`}
     <div class="vstage" data-vstage><div class="vribbon" data-vribbon>

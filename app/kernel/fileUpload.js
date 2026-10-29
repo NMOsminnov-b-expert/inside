@@ -22,6 +22,17 @@ import { keepFileLocally } from './localFiles.js';
 export function ensureDocPages(d) {
   if (d.pages) return;
 
+  // Многостраничный скан с осмотра: файлом служит первая страница, а все
+  // страницы — в d.scanPages (kernel/scanQueue.js, acceptScan). Каждая — свой
+  // лист: page.scan — номер страницы скана (решение пользователя 29.10.2026 «В
+  // карточке показываем все страницы»).
+  if (d.scanPages && d.scanPages.length > 1) {
+    d.pages = d.scanPages.map((p, i) => ({
+      kind: (p.type || '').startsWith('image/') ? 'image' : 'other', scan: i,
+    }));
+    return;
+  }
+
   if (d.file && d.file.kind === 'pdf') {
     const n = Math.max(1, d.file.pageCount || 1);
     d.pages = Array.from({ length: n }, (_, i) => ({ kind: 'pdf', src: i + 1 }));

@@ -17,6 +17,7 @@
 // (kernel/fieldSchema.js) — в этом файле нет ни одной подписи поля.
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
 import { pickFile, pickFiles, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
+import { pdfToJpegFiles } from '../../kernel/viewer/pdf.js';
 import { newEditor, mountScanEditor, disposeEditor } from './scanEditor.js';
 import { bindFields, filledCount, requiredLeft } from '../../kernel/fieldSchema.js';
 import {
@@ -36,7 +37,7 @@ import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes, netsLandOf } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from './form.js';
-import { docsForOi, kindOfDoc, viewerHTML, bindViewer } from './docViewer.js';
+import { docsForOi, docPages, kindOfDoc, viewerHTML, bindViewer } from './docViewer.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
 import { summaries } from '../inspections/model.js';
 import { loadMapLibre, createMap, ownParcelsGL, emptyFC } from '../../kernel/mapgl.js';
@@ -767,8 +768,14 @@ export function mountInspector(host) {
     if (section === 'docs') {
       // «Открыть» — тот же просмотр, что в форме ОИ (только открытый документ).
       const opened = docs.find((x) => x.doc.id === ui.docv.open);
-      const vd = opened ? [{ id: opened.doc.id, kind: kindOfDoc(opened.doc), title: opened.doc.title || opened.doc.name || 'Документ',
-        owner: opened.owner, pages: [opened.doc.file && (opened.doc.file.dataUrl || opened.doc.file.url)].filter(Boolean) }] : [];
+      // Предпросмотр скана: черновик перед отправкой ('scan-draft') или
+      // отправленный скан ('scan-<id>') — все его страницы.
+      const draftPeek = ui.docv.open === 'scan-draft' && ui.scanDraft && ui.scanDraft.phase === 'form'
+        ? { id: 'scan-draft', kind: 'doc', title: 'Предпросмотр', owner: '', pages: ui.scanDraft.urls } : null;
+      const sentScan = /^scan-/.test(ui.docv.open || '') && !draftPeek ? scansOf(typeId, ocId).find((x) => 'scan-' + x.id === ui.docv.open) : null;
+      const sentPeek = sentScan ? { id: 'scan-' + sentScan.id, kind: 'doc', title: sentScan.title, owner: '', pages: sentScan.pages.map((p) => p.dataUrl).filter(Boolean) } : null;
+      const vd = draftPeek ? [draftPeek] : sentPeek ? [sentPeek] : opened ? [{ id: opened.doc.id, kind: kindOfDoc(opened.doc), title: opened.doc.title || opened.doc.name || 'Документ',
+        owner: opened.owner, pages: docPages(opened.doc) }] : [];
       scope.setHTML(docsHTML({ rec: r, docs, hrefFor, counts, backHref: taskHref,
         scans: scansOf(typeId, ocId), retakes: retakesOf(typeId, ocId).map((x) => x.id), draft: ui.scanDraft, oiList, locked: !!state.done, viewer: viewerHTML(vd, ui.docv) }));
       bindViewer(scope.root, ui.docv, ui.docv.open);
@@ -1541,6 +1548,43 @@ export function mountInspector(host) {
     renderKeep();
   };
   scope.on('click', '[data-scan-add]', () => startDraft());
+  // Готовый файл (решение пользователя 29.10.2026 «В сканы возвращаем выбор. На
+  // кнопку подгрузки»): снимки — страницами как есть, PDF — раскладывается на
+  // страницы-картинки; дальше — тот же просмотр перед отправкой, что после съёмки.
+  const uploadDraft = async (extra = {}) => {
+    const picked = await pickFiles('image/*,application/pdf');
+    if (!picked.length) return;
+    const big = picked.find((f) => isFileTooLarge(f));
+    if (big) { host.toast(`«${big.name}» больше ${MAX_DOC_FILE_MB} МБ`, 'warn'); return; }
+    const odd = picked.find((f) => !(f.type || '').startsWith('image/') && f.type !== 'application/pdf');
+    if (odd) { host.toast(`«${odd.name}» — не снимок и не PDF`, 'warn'); return; }
+    host.toast('Готовим страницы…');
+    let files = [];
+    try {
+      for (const f of picked) files = files.concat(f.type === 'application/pdf' ? await pdfToJpegFiles(f) : [f]);
+    } catch (err) {
+      host.toast('Файл не прочитался: ' + (err && err.message ? err.message : 'неизвестная ошибка'), 'warn');
+      return;
+    }
+    if (!files.length) { host.toast('В файле нет страниц', 'warn'); return; }
+    ui.scanDraft = { ed: newEditor(), phase: 'form', files, urls: files.map((f) => URL.createObjectURL(f)),
+      title: picked.length === 1 ? picked[0].name.replace(/\.[^.]+$/, '') : '', oiId: '', retakeId: '', uploaded: true, ...extra };
+    renderKeep();
+  };
+  scope.on('click', '[data-scan-upload]', () => uploadDraft());
+  scope.on('click', '[data-scan-retake-upload]', (e, el) => {
+    const s = scansOf(route.typeId, route.ocId).find((x) => x.id === el.dataset.scanRetakeUpload);
+    if (s) uploadDraft({ retakeId: s.id, title: s.title, oiId: s.oiId || '' });
+  });
+  // Предпросмотр: страницы черновика и отправленного скана — в том же просмотре
+  // документов, что у документов объекта (касание миниатюры — эта страница).
+  scope.on('click', '[data-scan-peek]', (e, el) => {
+    const [id, n] = el.dataset.scanPeek.split('|');
+    ui.docv.open = id;
+    ui.docv.collapsed = false;
+    ui.docv.views[id] = { page: Number(n) || 0 };
+    renderKeep();
+  });
   // Переснять возвращённое: та же съёмка, но новые страницы заменят скан.
   scope.on('click', '[data-scan-retake]', (e, el) => {
     const s = scansOf(route.typeId, route.ocId).find((x) => x.id === el.dataset.scanRetake);

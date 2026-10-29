@@ -1315,6 +1315,24 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
    прилегало к кнопке вплотную (замечание пользователя 16.10.2026). */
 .ins-scans { display: flex; flex-direction: column; gap: 10px; }
 .ins-scans > .ins-blk-h, .ins-scans > .ins-empty, .ins-scans > .ins-docs, .ins-scans > .ins-scan-new { margin: 0; }
+/* Начать скан — две равные кнопки в строку: «Сфотографировать» (съёмка с
+   выравниванием) и «Загрузить файл» (снимки или PDF) — решение пользователя
+   29.10.2026; на узком экране каждая на всю ширину, высота касания 44px. */
+.ins-scan-start { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.ins-scan-start .ins-btn { min-height: 44px; justify-content: center; white-space: nowrap; }
+/* Миниатюры страниц документа — целиком и вертикально (лист, а не фото 4:3). */
+.ins-scan-new .ins-shot-b { aspect-ratio: 3 / 4; background: #fff; }
+.ins-scan-new .ins-shot-b img { object-fit: contain; }
+/* Счётчик страниц просмотра — одной строкой. */
+.ins-viewer-pages > span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ins-scan-go { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Название отправленного скана — кнопка предпросмотра, выглядит как текст. */
+.ins-scan-open { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ins-scan-open b { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.ins-scan-open:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; border-radius: 4px; }
+/* Номер страницы на миниатюре перед отправкой. */
+.ins-shot-n { position: absolute; left: 6px; bottom: 6px; min-width: 22px; padding: 1px 6px; border-radius: 999px; background: rgba(15, 23, 42, .72); color: #fff; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
+.ins-shot-b:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; }
 
 /* Голосовые заметки (16.10.2026): большая кнопка записи; во время записи —
    красная точка, время и полоска громкости; записи — строкой: слушать,

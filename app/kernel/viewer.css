@@ -337,6 +337,8 @@ kbd,.vmenu kbd{display:inline-block;padding:1px 5px;
 .vthumb-img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:cover;border-radius:3px}
 .vthumb.pho.real::after{content:none}
 .vthumb-canvas.ready{opacity:1}
+/* Миниатюра страницы скана-картинки — как миниатюра PDF (решение 29.10.2026). */
+.vthumb-img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);object-fit:contain;background:#fff}
 /* Перетаскивание миниатюр: порядок страниц + Ctrl-множественный выбор. */
 .vthumb.dragging{opacity:.4}
 .vthumb.sel{border-color:var(--teal-600);box-shadow:0 0 0 2px rgba(10,92,80,.25)}

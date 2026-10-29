@@ -110,6 +110,41 @@ export async function getPdfPageAspects(blobUrl) {
   }
 }
 
+// PDF — страницами-картинками (JPEG), как отдаёт сканер документов. Нужно там,
+// где документ показывают и разбирают постранично: скан с осмотра, загруженный
+// готовым файлом (решение пользователя 29.10.2026 «В сканы возвращаем выбор»).
+// Длинная сторона — не больше maxSide точек, как у страниц редактора съёмки.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: исходный PDF хранится на сервере как есть, а страницы-
+// картинки для просмотра готовит сервер; на телефоне PDF не разбирается.
+export async function pdfToJpegFiles(file, { maxSide = 2000, quality = 0.85 } = {}) {
+  const url = URL.createObjectURL(file);
+  try {
+    const doc = await (await loadLib()).getDocument(url).promise;
+    const out = [];
+    const base = (file.name || 'документ').replace(/\.pdf$/i, '');
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n);
+      const vp1 = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: Math.min(4, maxSide / Math.max(vp1.width, vp1.height)) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(vp.width);
+      canvas.height = Math.round(vp.height);
+      const g = canvas.getContext('2d');
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: g, viewport: vp }).promise;
+      const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+      out.push(new File([blob], `${base} — стр. ${n}.jpg`, { type: 'image/jpeg' }));
+      page.cleanup();
+    }
+    doc.destroy();
+    return out;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 // Что уже нарисовано в конкретном canvas: чтобы не перерисовывать страницу на
 // каждый клик по интерфейсу (ctx.render() зовётся часто), но перерисовывать при
 // реальной смене масштаба — иначе canvas мылится при зуме.

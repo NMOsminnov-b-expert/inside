@@ -68,6 +68,15 @@ function demoFloor(oi, title) {
       <text x="${rx + rw / 2}" y="${ry + rh / 2 + 28}" text-anchor="middle" font-size="16" fill="#555">${a}</text>`).join('')}`, 800, 560);
 }
 
+// Страницы документа для просмотра: у принятого многостраничного скана — все
+// его страницы (d.scanPages), иначе — файл документа (решение пользователя
+// 29.10.2026 «В карточке показываем все страницы»).
+export function docPages(d) {
+  if (d.scanPages && d.scanPages.length) return d.scanPages.map((p) => p.dataUrl || p.url).filter(Boolean);
+  if (d.pages) return d.pages.map((p) => p.dataUrl || p.url).filter(Boolean);
+  return [(d.file && (d.file.dataUrl || d.file.url))].filter(Boolean);
+}
+
 // Документы объекта имущества: свои документы ОИ, участка, на котором он
 // стоит, и объекта оценки; виды, которых нет, — условными демо-документами.
 export function docsForOi(rec, oi) {
@@ -80,7 +89,7 @@ export function docsForOi(rec, oi) {
     ...(rec.docs || []).map((d) => ({ d, owner: 'объект оценки' })),
   ].map(({ d, owner }) => ({
     id: d.id, kind: kindOfDoc(d), title: d.title || d.name || d.type || 'Документ', owner,
-    pages: d.pages ? d.pages.map((p) => p.dataUrl || p.url).filter(Boolean) : [(d.file && (d.file.dataUrl || d.file.url))].filter(Boolean),
+    pages: docPages(d),
     pdf: !!(d.file && /pdf/.test(d.file.type || d.file.name || '')),
   }));
   const has = (k) => real.some((r) => r.kind === k && r.pages.length);

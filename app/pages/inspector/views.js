@@ -1046,12 +1046,14 @@ function scanItemHTML(s, { ownerOf, open, locked, busy }) {
   return `<li class="ins-doc ins-scan ${back ? 'is-retake' : ''}">
       <span class="ins-doc-ico">${ico('docs')}</span>
       <span class="ins-doc-t">
-        <b>${esc(s.title)}</b>
+        <button type="button" class="ins-scan-open" data-scan-peek="scan-${esc(s.id)}|0" title="Посмотреть страницы"><b>${esc(s.title)}</b></button>
         <small>${esc([ownerOf(s.oiId), `${s.pages.length} стр.`].join(' · '))}</small>
         ${back ? `<span class="ins-pill ins-pill-bad">Переснять</span>
           <small class="ins-retake-why">Причина: ${esc(s.retake.reason)}</small>
           <small>Вернул: ${esc([s.retake.by, when(s.retake.at)].filter(Boolean).join(' · '))}</small>
-          ${locked || busy ? '' : `<button class="ins-btn ins-btn-main ins-scan-retake" type="button" data-scan-retake="${esc(s.id)}">Переснять</button>`}`
+          ${locked || busy ? '' : `<span class="ins-scan-go">
+            <button class="ins-btn ins-btn-main ins-scan-retake" type="button" data-scan-retake="${esc(s.id)}">Переснять</button>
+            <button class="ins-btn ins-scan-retake" type="button" data-scan-retake-upload="${esc(s.id)}">Загрузить файл</button></span>`}`
     : `<span class="ins-pill ins-pill-wait">с осмотра · ${esc(s.status === 'ждёт ЦОД' ? 'ждёт удостоверения ЦОД' : s.status)}</span>`}
       </span>
       ${locked ? '' : `<button class="ins-btn ins-btn-icon" type="button" data-scan-drop="${esc(s.id)}" aria-label="Удалить скан" title="Удалить скан">${ico('trash', 18)}</button>`}
@@ -1068,7 +1070,8 @@ function scanBlockHTML({ scans, retakes, draft, oiList, locked }) {
     <h2 class="ins-blk-h">Отсканировано на осмотре${scans.length ? ' · ' + scans.length : ''}</h2>
     ${draft && !form ? `${retaking ? `<p class="ins-hint sced-for">Пересъёмка: «${esc(retaking.title)}». Новые страницы заменят прежние.</p>` : ''}<div data-sced></div>` : ''}
     ${form ? `<div class="ins-scan-new">
-      <ul class="ins-grid">${draft.urls.map((u, i) => `<li class="ins-shot"><span class="ins-shot-b"><img src="${esc(u)}" alt="Страница ${i + 1}"></span></li>`).join('')}</ul>
+      <p class="ins-hint">Проверьте страницы перед отправкой — касание открывает страницу крупно.</p>
+      <ul class="ins-grid">${draft.urls.map((u, i) => `<li class="ins-shot"><button type="button" class="ins-shot-b" data-scan-peek="scan-draft|${i}" aria-label="Страница ${i + 1} — открыть"><img src="${esc(u)}" alt="Страница ${i + 1}"><span class="ins-shot-n">${i + 1}</span></button></li>`).join('')}</ul>
       ${retaking ? `<p class="ins-hint">Новые страницы заменят скан «${esc(retaking.title)}» и вернут его на разбор.</p>` : `<div class="ins-field">
         <label for="insScanTitle">Название документа</label>
         <input class="input ins-input" id="insScanTitle" data-scan-title value="${esc(draft.title || '')}" placeholder="Например: техпаспорт, акт, договор аренды">
@@ -1082,12 +1085,15 @@ function scanBlockHTML({ scans, retakes, draft, oiList, locked }) {
       </div>`}
       <div class="sced-go">
         <button class="ins-btn ins-btn-main ins-btn-wide" type="button" data-scan-save>Отправить · ${draft.urls.length} стр.</button>
-        <button class="ins-btn ins-btn-wide" type="button" data-scan-back>К страницам</button>
+        ${draft.uploaded ? '' : '<button class="ins-btn ins-btn-wide" type="button" data-scan-back>К страницам</button>'}
         <button class="ins-btn ins-btn-wide" type="button" data-scan-cancel>Отмена</button>
       </div>
     </div>` : ''}
     ${list.length ? `<ul class="ins-docs">${list.map((s) => scanItemHTML(s, { ownerOf, open: isOpen(s), locked, busy: !!draft })).join('')}</ul>` : (draft ? '' : '<p class="ins-empty">Документ, которого нет в списке, — снимите его страницы: ЦОД удостоверит и разнесёт.</p>')}
-    ${locked || draft ? '' : `<button class="ins-btn ins-btn-main ins-btn-wide" type="button" data-scan-add>${ico('docs')} Отсканировать документ</button>`}
+    ${locked || draft ? '' : `<div class="ins-scan-start">
+      <button class="ins-btn ins-btn-main" type="button" data-scan-add>${ico('photo')} Сфотографировать</button>
+      <button class="ins-btn" type="button" data-scan-upload title="Снимки или PDF с телефона">${ico('docs')} Загрузить файл</button>
+    </div>`}
   </section>`;
 }
 
