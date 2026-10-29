@@ -354,7 +354,7 @@ export function recommendAssign(all, people, targets, date = '', { days = 10 } =
     const mine = allAssignments().filter((a) => a.person === p.name);
     const beenHere = mine.some((a) => keys.has(a.typeId + '|' + a.ocId));
     const beenInst = !beenHere && mine.some((a) => insts.has((all.get(a.typeId + '|' + a.ocId) || {}).institution));
-    const reasons = [{ ok: util < 0.8, text: `загрузка ${Math.round(util * 100)}% на ${window.length} раб. дн.` }];
+    const reasons = [{ ok: util < 0.8, text: `загрузка ${Math.round(util * 100)}%`, tip: `загрузка ${Math.round(util * 100)}% на ${window.length} раб. дн.` }];
     // Расстояние от дома до ближайшего из объектов — видно, почему не
     // помещается: объект в другой области.
     const home = homeOf(p.name, date || today).gps;
@@ -367,10 +367,11 @@ export function recommendAssign(all, people, targets, date = '', { days = 10 } =
     if (!off.ok) reasons.push({ ok: false, text: off.reason });
     else if (busyAct.length) reasons.push({ ok: false, text: busyAct.map((a) => activityKind(a.kind).short + (a.region ? ` (${a.region})` : '')).join(', ') });
     else if (best) reasons.push({ ok: true, text: `${date ? 'в этот день' : ddmm(best.day)} · +${best.add} мин дороги` });
-    else reasons.push({ ok: false, text: date ? 'в этот день не помещается' : 'в ближайшие дни не помещается' });
+    else reasons.push({ ok: false, text: date ? 'в этот день не помещается' : 'не помещается', tip: date ? '' : `в ближайшие ${window.length} раб. дн. не помещается` });
     if (km !== null) reasons.push({ ok: km <= 45, text: `от дома ${km} км` });
     if (deadline && deadline < today) reasons.push({ ok: false, text: `срок ${ddmm(deadline)} прошёл` });
-    else if (deadline) reasons.push({ ok: !!(best && best.meets), text: best && best.meets ? `к сроку ${ddmm(deadline)} успевает` : `к сроку ${ddmm(deadline)} не успевает` });
+    // «Не успевает к сроку» при «не помещается» — повтор: не пишется.
+    else if (deadline && best) reasons.push({ ok: best.meets, text: best.meets ? `успевает к ${ddmm(deadline)}` : `не успевает к ${ddmm(deadline)}` });
     if (beenHere) reasons.push({ ok: true, text: 'был на объекте' });
     else if (beenInst) reasons.push({ ok: true, text: 'был в учреждении' });
     return { ...p, reasons, util, best, bestDay: best ? best.day : '' };

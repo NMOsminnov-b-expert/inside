@@ -542,7 +542,7 @@ export function mountInspections(host) {
           title="${esc(`${fmtDate(d.day)}: ${d.off || [d.load ? `назначено ${d.load}` : '', d.act].filter(Boolean).join(', ') || 'свободен'}${rec === d.day ? ' · рекомендуемый день' : ''}`)}"><span>${d.day.slice(8, 10)}</span><b>${d.off ? '—' : d.load || (d.act ? '·' : '')}</b></button>`).join('')}</div>` : '';
     const top = `<ul class="ip-rank">${ranked.map((p) => `<li class="${chosen === p.name ? 'on' : ''}"><button class="ip-rank-b ${chosen === p.name ? 'on' : ''}" data-ip-pick-person="${esc(p.name)}" data-ip-pick-day="${esc(p.bestDay || '')}" aria-pressed="${chosen === p.name}">
           <span class="ip-rank-h"><b>${esc(p.name)}</b><span class="ip-rank-load">в работе ${p.live}</span></span>
-          <span class="ip-rank-r">${p.reasons.map((r) => `<i class="${r.ok ? 'ok' : 'no'}">${esc(r.text)}</i>`).join(' · ')}</span></button>
+          <span class="ip-rank-r">${p.reasons.map((r) => `<i class="${r.ok ? 'ok' : 'no'}"${r.tip ? ` title="${esc(r.tip)}"` : ''}>${esc(r.text)}</i>`).join(' · ')}</span></button>
           ${chosen === p.name ? days : ''}</li>`).join('')}</ul>
       ${chosen && !ranked.some((p) => p.name === chosen) ? days : ''}`;
     const deadline = `<div class="field"><label for="ip-f-deadline">${single ? 'Крайний срок' : 'Крайний срок для всех'}</label>
