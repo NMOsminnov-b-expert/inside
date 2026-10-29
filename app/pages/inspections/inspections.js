@@ -22,7 +22,7 @@ import {
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
-  planOf, setPlan, assign, transferOi,
+  planOf, setPlan, assign, transferOi, isLive,
   allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
 } from '../../kernel/inspections.js';
 import { downloadXlsx, readXlsx } from '../../kernel/xlsx.js';
@@ -42,7 +42,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
 import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign } from './route.js';
+import { dayRoute, dayLoad, factNorms, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
@@ -55,7 +55,10 @@ const view = {
   tab: 'queue',          // в «Назначениях»: queue | assigned
   person: '',            // в «Осмотрщиках»: выбранный; пусто — все
   personTab: 'trips',    // подраздел карточки: trips | reports | stats | assigns | profile | car
-  allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields
+  allTab: 'load',        // подраздел «Все осмотрщики»: load | summary | reports | stats | fields
+  loadSel: '',           // «Загрузка»: выбранная клетка «ФИО|день»
+  loadDays: 10,          // «Загрузка»: рабочих дней в полосе
+  assignDay: '',         // «К назначению»: день, на который назначают (из «Загрузки»)
   cadSel: '',            // «Кадастр»: выбранный запрос
   aPerson: '',           // «Назначено»: '' — выбор сотрудника, '*' — все назначения, иначе — ФИО
   aSort: 'late',         // порядок сотрудников: late | load | name
@@ -108,7 +111,7 @@ const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') 
 // разделом «Назначения» и с меткой «назн. N» календаря (разбор UI/UX 12.10.2026).
 const PERSON_TABS = [['trips', 'Выезды'], ['plan', 'План месяца'], ['route', 'Маршрут'], ['reports', 'Отчёты'], ['stats', 'Статистика'],
   ['assigns', 'Объекты'], ['profile', 'Профиль'], ['car', 'Авто']];
-const ALL_TABS = [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
+const ALL_TABS = [['load', 'Загрузка'], ['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
   ['stats', 'Статистика'], ['fields', 'Свои поля']];
 // Значки кнопок массовых действий: на узкой панели кнопка — только значок,
 // подпись — в подсказке и aria-label («На узких режимах ломается. Лучше на
@@ -476,6 +479,17 @@ export function mountInspections(host) {
       ${bulkBtn('data-ip-ba-remove', 'remove', 'Снять назначение', 'ip-bulk-del')}</span></div>`;
   }
 
+  // Режимы раздела «Осмотрщики и назначения»: осмотрщики (загрузка, маршруты,
+  // карточки), очередь к назначению, назначенное. Числа — те же, что в списках.
+  function teamModesHTML() {
+    const nQueue = queueBase(all).length;
+    const nLive = assignedRows(all, { q: '' }).length;
+    const cur = view.section === 'people' ? 'people' : view.tab === 'assigned' ? 'assigned' : 'queue';
+    const b = (k, label, n) => `<button class="itab ${cur === k ? 'on' : ''}" role="tab" data-ip-team="${k}" aria-selected="${cur === k}">${label}${n !== undefined ? ` <b>${n}</b>` : ''}</button>`;
+    return `<nav class="itabs ip-isl ip-subisle ip-team" role="tablist" aria-label="Осмотрщики и назначения">
+      ${b('people', 'Осмотрщики')}${b('queue', 'К назначению', nQueue)}${b('assigned', 'Назначено', nLive)}</nav>`;
+  }
+
   function assignSection() {
     const base = queueBase(all);
     const queue = applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.tab === 'queue' ? view.q : '');
@@ -494,7 +508,8 @@ export function mountInspections(host) {
     const rowsAll = view.tab === 'queue' ? base : liveAll;
     return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : filtersHTML(rowsAll, view.q)}
       <section class="ip-work" aria-label="Назначения">
-        <div class="itabs ip-subtabs" role="tablist" aria-label="Назначения">${sub('queue', 'К назначению', base.length)}${sub('assigned', 'Назначено', liveAll.length)}</div>
+        ${view.tab === 'queue' && view.assignDay ? `<p class="ip-assign-day" role="status">Назначение на <b>${fmtDate(view.assignDay)}</b>${view.assignPerson ? ` · ${esc(view.assignPerson)}` : ''}
+          <button type="button" class="isearch-clear" data-ip-assign-day-clear title="Без дня" aria-label="Назначать без заданного дня">×</button></p>` : ''}
         <div class="itoolbar ip-toolbar">
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : view.aPerson ? 'ЕНИ, адрес' : 'Фамилия сотрудника')}
           ${bare ? '' : (() => { const f = curFilter(); const n = Object.values(f.facets).reduce((k, v) => k + (v ? v.length : 0), 0) + Object.values(f.ranges).filter((r) => r && (r[0] || r[1])).length;
@@ -1406,6 +1421,75 @@ export function mountInspections(host) {
       </table></div></div>` : '<p class="ip-hint ip-empty">В этом месяце отчётов нет.</p>'}`;
   }
 
+  // «Загрузка» — осмотрщики × ближайшие рабочие дни (решение пользователя
+  // 29.10.2026: «нельзя просматривать загруженность, видеть маршруты по дням
+  // для осмотрщиков»; практики — запись графа doska-naznacheniy-osmotrschikov-…).
+  // В клетке — объектов на день и доля рабочего дня, занятая выездами (дорога
+  // и осмотр по нормам, как в «Кого назначить»); перегруз — больше 100%.
+  // Касание клетки — день под полосой: объекты дня, «Маршрут дня»,
+  // «Назначить на этот день»; назначение сразу меняет клетку.
+  function loadBoardHTML(list) {
+    if (!list.length) return '<p class="ip-hint ip-empty">В отборе нет осмотрщиков — измените «Мои / Все» или область.</p>';
+    const fact = factNorms(all);
+    const rows = list.map((p) => ({ p, days: availability(p.name, view.loadDays) }));
+    const days = rows[0].days.map((d) => d.day);
+    const wd = (iso) => WDL[new Date(iso + 'T00:00:00').getDay()];
+    const cells = new Map();
+    const cell = (p, d) => {
+      const key = p.name + '|' + d.day;
+      const on = view.loadSel === key;
+      if (d.off) {
+        cells.set(key, { p, d, off: d.off });
+        return `<td class="ip-ld is-off ${on ? 'on' : ''}"><button type="button" class="ip-ld-b" data-ip-load="${esc(key)}" aria-pressed="${on}"
+          title="${esc(`${p.name} · ${wd(d.day)} ${fmtDate(d.day)} · ${d.off}`)}"><span class="ip-ld-off">${esc(d.off)}</span></button></td>`;
+      }
+      const L = dayLoad(all, p.name, d.day, [], fact);
+      const pct = L.avail ? Math.round((L.total / L.avail) * 100) : 0;
+      const lvl = pct > 100 ? 'over' : pct >= 80 ? 'full' : d.load ? 'some' : 'free';
+      cells.set(key, { p, d, pct, lvl });
+      return `<td class="ip-ld is-${lvl} ${on ? 'on' : ''}"><button type="button" class="ip-ld-b" data-ip-load="${esc(key)}" aria-pressed="${on}"
+        title="${esc(`${p.name} · ${wd(d.day)} ${fmtDate(d.day)} · объектов ${d.load} · загрузка ${pct}%${d.act ? ' · ' + d.act : ''}`)}">
+        <b>${d.load || '—'}</b><span class="ip-ld-bar" aria-hidden="true"><i style="width:${Math.min(100, pct)}%"></i></span>
+        <small>${d.load ? `${pct}%` : 'свободен'}</small></button></td>`;
+    };
+    const body = rows.map(({ p, days: ds }) => `<tr><th scope="row" class="ip-ld-who">
+        <button type="button" class="ip-ld-name" data-ip-person="${esc(p.name)}" title="Карточка осмотрщика">${esc(p.name)}</button>
+        <small>в работе ${p.live}${p.late ? ` · <span class="ip-late">просрочено ${p.late}</span>` : ''}</small></th>
+        ${ds.map((d) => cell(p, d)).join('')}</tr>`).join('');
+    const sel = cells.get(view.loadSel);
+    return `<div class="ip-load">
+      <div class="ip-load-bar-top">
+        <p class="ip-hint">Объектов на день и доля рабочего дня, занятая выездами. Касание клетки — объекты дня, маршрут и назначение на этот день.</p>
+        <div class="seg ip-load-span" role="group" aria-label="Сколько дней показать">
+          ${[[5, 'Неделя'], [10, '2 недели'], [20, 'Месяц']].map(([n, l]) => `<button type="button" class="${view.loadDays === n ? 'on' : ''}" data-ip-load-days="${n}" aria-pressed="${view.loadDays === n}">${l}</button>`).join('')}
+        </div>
+      </div>
+      <div class="ip-load-wrap"><table class="ip-load-tbl">
+        <thead><tr><th scope="col" class="ip-ld-who">Осмотрщик</th>${days.map((d) => `<th scope="col" class="ip-ld-day" title="${esc(wd(d))}"><span>${wd(d).slice(0, 2)}</span><b>${d.slice(8, 10)}.${d.slice(5, 7)}</b></th>`).join('')}</tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+      <p class="ip-load-legend"><span class="is-free">свободен</span><span class="is-some">есть объекты</span><span class="is-full">80–100%</span><span class="is-over">перегруз</span><span class="is-off">не работает</span></p>
+      ${sel ? loadDayHTML(sel) : ''}
+    </div>`;
+  }
+
+  // Выбранный день осмотрщика под полосой загрузки.
+  function loadDayHTML({ p, d, pct, off }) {
+    const list = allAssignments().filter((a) => a.person === p.name && a.plannedAt === d.day && isLive(a));
+    const wd = WDL[new Date(d.day + 'T00:00:00').getDay()];
+    return `<section class="ip-load-day" aria-label="${esc(`${p.name}, ${fmtDate(d.day)}`)}">
+      <header><h3>${esc(p.name)} · ${esc(wd)} ${fmtDate(d.day)}</h3>
+        <p>${off ? `<span class="ip-late">${esc(off)}</span>` : `объектов <b>${list.length}</b> · загрузка <b>${pct}%</b>`}${d.act ? ` · ${esc(d.act)}` : ''}</p>
+        <div class="ip-load-day-act">
+          <button type="button" class="btn btn-ghost btn-sm" data-ip-load-route="${esc(p.name + '|' + d.day)}">Маршрут дня</button>
+          ${off ? '' : `<button type="button" class="btn btn-primary btn-sm" data-ip-load-assign="${esc(p.name + '|' + d.day)}">Назначить на этот день</button>`}
+        </div></header>
+      ${list.length ? `<ul class="ip-load-objs">${list.map((a) => { const s = all.get(a.typeId + '|' + a.ocId) || {};
+        return `<li><button type="button" data-ip-dp-open="assign:${esc(a.id)}">${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</button></li>`; }).join('')}</ul>`
+    : `<p class="ip-hint">${off ? 'В этот день осмотрщик не работает — назначать нельзя.' : 'На этот день объектов нет.'}</p>`}
+    </section>`;
+  }
+
   function allCardHTML() {
     const list = visiblePeople();
     const sum = (k) => list.reduce((n, p) => n + p[k], 0);
@@ -1416,7 +1500,7 @@ export function mountInspections(host) {
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
       ${subTabs('data-ip-atab', view.allTab, ALL_TABS.map(([k, l]) => (k === 'fields' ? [k, l, allCustomFields().length] : [k, l])))}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML({ all, people: list, person: '', period: statPeriod() }) : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      <div class="ip-card-body">${view.allTab === 'load' ? loadBoardHTML(list) : view.allTab === 'stats' ? statsHTML({ all, people: list, person: '', period: statPeriod() }) : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -1482,7 +1566,7 @@ export function mountInspections(host) {
     const ensureDraft = (key, person, date) => { if (draft.key !== key) draft = { key, person: person || '', date: date || '' }; };
     if (view.section === 'assign' && view.tab === 'queue' && checked.size > 1) {
       const targets = [...checked.values()].filter(Boolean);
-      ensureDraft('many:' + [...checked.keys()].join(','), view.assignPerson);
+      ensureDraft('many:' + [...checked.keys()].join(','), view.assignPerson, view.assignDay);
       return paneHTML({ mode: 'many', people, person: draft.person, date: draft.date, targets, plan: planHTML(targets, false) });
     }
     if (view.section === 'assign' && view.tab === 'assigned' && !view.aPerson) return peekHTML();
@@ -1497,7 +1581,7 @@ export function mountInspections(host) {
     }
     const t = current && target(current);
     if (!t) return paneHTML({ mode: 'none' });
-    ensureDraft('q:' + current, view.assignPerson);
+    ensureDraft('q:' + current, view.assignPerson, view.assignDay);
     return paneHTML({ mode: 'one', people, person: draft.person, date: draft.date, target: t, plan: planHTML([t], true) });
   }
 
@@ -2231,7 +2315,10 @@ export function mountInspections(host) {
     notes = notifications(all, people);
     const unread = notes.filter((n) => !readSet().has(n.id)).length;
     const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : view.section === 'notes' ? notesSection() : assignSection();
-    const top = (k, label) => `<button class="itab ${view.section === k ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${view.section === k}">${label}</button>`;
+    const top = (k, label, on = view.section === k) => `<button class="itab ${on ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${on}">${label}</button>`;
+    // «Осмотрщики» и «Назначения» — один раздел (решение пользователя
+    // 29.10.2026): наверху одна кнопка, режимы раздела — общей полосой.
+    const team = view.section === 'people' || view.section === 'assign';
     // Сцена (перестройка по APCS, решение пользователя 13.10.2026 — запись
     // графа perestroyka-osmotrov-po-apcs-…): карта на всю рабочую область
     // раздела — справа от левого меню и под шапкой системы, они остаются
@@ -2249,8 +2336,9 @@ export function mountInspections(host) {
     scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${onScene && hideList ? 'hide-list' : ''} ${onScene && hidePane ? 'hide-pane' : ''}" ${onScene ? `style="${splitStyle()}"` : ''}>
       <div class="ip-isles">
         <nav class="ip-isl ip-sections" role="tablist" aria-label="Режимы осмотров">
-          ${top('assign', 'Назначения')}${top('people', 'Осмотрщики')}${top('cadastre', 'Кадастр')}${top('history', 'История')}
+          ${top('people', 'Осмотрщики и назначения', team)}${top('cadastre', 'Кадастр')}${top('history', 'История')}
         </nav>
+        ${team ? teamModesHTML() : ''}
         <div class="ip-isl ip-jump" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="ip-jump-list">
           <span class="isearch">${SEARCH_ICON}<input data-ip-jump placeholder="Перейти: осмотрщик, ЕНИ, адрес…" aria-label="Перейти" autocomplete="off" aria-controls="ip-jump-list"></span>
           <kbd class="ip-kbd" aria-hidden="true">Ctrl K</kbd>
@@ -2624,10 +2712,32 @@ export function mountInspections(host) {
   });
   // «Назначить объекты» — в «Назначения» с этим осмотрщиком в панели.
   scope.on('click', '[data-ip-assign-to]', (e, b) => {
-    view.section = 'assign'; view.tab = 'queue'; view.assignPerson = b.dataset.ipAssignTo; detail = []; resetList(); render();
+    view.section = 'assign'; view.tab = 'queue'; view.assignPerson = b.dataset.ipAssignTo; view.assignDay = ''; detail = []; resetList(); render();
   });
   // Назначение из панели подробностей — открыть его в «Назначениях».
   const gotoAssign = (id) => { view.section = 'assign'; view.tab = 'assigned'; view.assignPerson = ''; resetList(); current = id; render(); };
+  // Режимы раздела «Осмотрщики и назначения».
+  scope.on('click', '[data-ip-team]', (e, b) => {
+    const k = b.dataset.ipTeam;
+    if (k === 'people') view.section = 'people';
+    else { view.section = 'assign'; view.tab = k; }
+    detail = []; resetList(); render();
+  });
+  // «Загрузка»: клетка — выбранный день; «Маршрут дня»; «Назначить на этот день».
+  scope.on('click', '[data-ip-load]', (e, b) => { view.loadSel = view.loadSel === b.dataset.ipLoad ? '' : b.dataset.ipLoad; detail = []; render(); });
+  scope.on('click', '[data-ip-load-days]', (e, b) => { view.loadDays = Number(b.dataset.ipLoadDays) || 10; render(); });
+  scope.on('click', '[data-ip-load-route]', (e, b) => {
+    const [name, day] = b.dataset.ipLoadRoute.split('|');
+    view.section = 'people'; view.person = name; view.personTab = 'route';
+    route.person = name; route.day = day; route.skip = new Set(); route.homeMode = false;
+    detail = []; render();
+  });
+  scope.on('click', '[data-ip-load-assign]', (e, b) => {
+    const [name, day] = b.dataset.ipLoadAssign.split('|');
+    view.section = 'assign'; view.tab = 'queue'; view.assignPerson = name; view.assignDay = day;
+    draft = { key: '' }; detail = []; resetList(); render();
+  });
+  scope.on('click', '[data-ip-assign-day-clear]', () => { view.assignDay = ''; draft = { key: '' }; render(); });
   scope.on('click', '[data-ip-ptab]', (e, b) => { view.personTab = b.dataset.ipPtab; detail = []; render(); });
   scope.on('click', '[data-ip-atab]', (e, b) => { view.allTab = b.dataset.ipAtab; detail = []; render(); });
   scope.on('click', '[data-ip-c-save]', () => {

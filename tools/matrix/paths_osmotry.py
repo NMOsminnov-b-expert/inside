@@ -25,7 +25,7 @@ STATE_JS = """() => {
   return {
     адрес: location.hash,
     раздел: on('data-ip-section'),
-    подраздел: on('data-ip-tab') || on('data-ip-atab') || on('data-ip-ptab'),
+    подраздел: on('data-ip-team') || on('data-ip-tab') || on('data-ip-atab') || on('data-ip-ptab'),
     поиск: q('[data-ip-q]') ? q('[data-ip-q]').value : null,
     строк: document.querySelectorAll('[data-ip-row]').length,
     выбрано: q('tr.cur[data-ip-row]') ? q('tr.cur[data-ip-row]').getAttribute('data-ip-row') : '',

@@ -19,7 +19,7 @@ PERSON = 'Абдылдаев Айсултан Марсович'
 _INSP_TOUCH = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/xlsx.js',
                'app/kernel/mapgl.js', 'app/kernel/cadastreLayersGL.js', 'app/vendor/maplibre/')
 _INSPECTOR_TOUCH = ('app/pages/inspector/', 'app/kernel/inspections')
-_ALL = ['summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
+_ALL = ['load', 'summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
 _PERSON = ['trips', 'plan', 'route', 'reports', 'stats', 'assigns', 'profile', 'car']
 
 SCREENS = []

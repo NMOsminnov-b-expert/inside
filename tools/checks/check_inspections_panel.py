@@ -109,7 +109,7 @@ def run(t):
     # --- «Назначено» и снятие ---------------------------------------------------------
     # «Назначено» — сначала сотрудник, потом его объекты (13.10.2026): здесь —
     # строка выбранного осмотрщика.
-    pg.click('[data-ip-tab="assigned"]')
+    pg.click('[data-ip-team="assigned"]')
     t.wait_for('[data-ip-aperson]')
     pg.click('[data-ip-aperson="%s"]' % person)
     t.wait_for('[data-ip-row]')
@@ -123,13 +123,13 @@ def run(t):
     t.wait_for('[data-ip-remove-yes]')
     t.ck(pg.locator('.modal-back').count() == 0, 'подтверждение снятия — модальным окном')
     pg.click('[data-ip-remove-yes]')
-    pg.click('[data-ip-tab="queue"]')
+    pg.click('[data-ip-team="queue"]')
     t.ck(t.wait_for('[data-ip-row="%s"]' % key), 'снятое назначение не вернуло объект в «К назначению»')
 
     # --- планирование (этап 2, решения пользователя 12.10.2026) -------------------------------
     t.open('#/inspections', wait='.ip-page')
-    pg.click('[data-ip-section="assign"]')
-    pg.click('[data-ip-tab="queue"]')
+    pg.click('[data-ip-team="queue"]')
+    pg.click('[data-ip-team="queue"]')
     t.wait_for('.ip-facets [data-ip-ff="due"], .ip-facets [data-ip-ff="cov"]')
     t.ck(pg.locator('.ip-grouped tr.ip-grp').count() >= 1, '«К назначению» не сгруппировано по месту выезда')
     # «Кого назначить»: щелчок подставляет человека, отмеченное в панели не сбрасывается
@@ -160,7 +160,7 @@ def run(t):
 
     # «Назначено»: список сотрудников (держит любое их число), у выбранного —
     # его объекты и «Переназначить все…»; отбор «План на отсутствие»
-    pg.click('[data-ip-tab="assigned"]')
+    pg.click('[data-ip-team="assigned"]')
     t.wait_for('[data-ip-aperson]')
     # Выбранный раньше сотрудник запоминается — к списку через «‹ Сотрудники».
     if pg.locator('.ip-aback').count():
@@ -254,7 +254,7 @@ def run(t):
     # контактные данные»; «фильтрация по областям осмотрщиков».
     t.open('#/inspections', wait='.ip-page')
     # «Статистика по человеку отдельно» (12.10.2026): в «Назначениях» графиков нет.
-    pg.click('[data-ip-section="assign"]')
+    pg.click('[data-ip-team="queue"]')
     t.wait_for('.ip-assign')
     t.ck(pg.locator('.ip-assign .uplot, .ip-assign .ipc-cal').count() == 0, 'в «Назначениях» снова графики и календарь — назначения уезжают вниз')
     pg.click('[data-ip-section="people"]')
@@ -262,6 +262,8 @@ def run(t):
     pg.click('.ip-person-main[data-ip-person=""]')
     # «Все осмотрщики» — подразделами «Сводка · Статистика» (ответ «Карточка —
     # подразделами» 12.10.2026); строка сводки открывает краткую карточку справа.
+    # Первая вкладка с 29.10.2026 — «Загрузка» (check_inspection_load.py).
+    pg.click('[data-ip-atab="summary"]')
     t.wait_for('.ip-ptable tr[data-ip-dp-open]')
     pg.locator('.ip-ptable tr[data-ip-dp-open]').first.click()
     t.ck(t.wait_for('.ip-detail-pane [data-ip-assign-to]'), 'строка сводки не открыла краткую карточку осмотрщика в панели справа')

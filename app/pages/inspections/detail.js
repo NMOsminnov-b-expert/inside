@@ -118,7 +118,7 @@ function assignHTML(all, a, canBack) {
   const sub = `${esc(s ? [s.typeLabel, s.institution].filter(Boolean).join(' · ') : '')} · <span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
     · <a href="${esc(build({ typeId: a.typeId, ocId: a.ocId }))}">карточка</a>`;
   return shell(esc(s ? s.title : '—'), sub, body, canBack,
-    isLive(a) ? `<button class="btn btn-primary btn-sm" data-ip-dp-edit="${esc(a.id)}">Изменить в «Назначениях»</button>` : '');
+    isLive(a) ? `<button class="btn btn-primary btn-sm" data-ip-dp-edit="${esc(a.id)}">Изменить в «Назначено»</button>` : '');
 }
 
 // Краткая карточка осмотрщика — из сводной таблицы.

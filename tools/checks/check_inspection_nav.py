@@ -69,8 +69,8 @@ def run(t):
     t.open('#/inspections?s=assign&t=assigned', wait='[data-ip-section]')
     pg.reload()
     t.wait_for('[data-ip-section]')
-    t.ck(t.wait_for('[data-ip-section="assign"][aria-selected="true"]'), 'по ссылке открыт не раздел «Назначения»')
-    t.ck(t.wait_for('[data-ip-tab="assigned"][aria-selected="true"]'), 'по ссылке открыт не подраздел «Назначено»')
+    t.ck(t.wait_for('[data-ip-section="people"][aria-selected="true"]'), 'по ссылке открыт не раздел «Осмотрщики и назначения»')
+    t.ck(t.wait_for('[data-ip-team="assigned"][aria-selected="true"]'), 'по ссылке открыт не подраздел «Назначено»')
 
     # Объект по ЕНИ — в общем списке «Все назначения»
     pg.click('[data-ip-aperson="*"]')
