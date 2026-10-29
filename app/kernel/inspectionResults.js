@@ -109,11 +109,13 @@ function makeScanPages(files) {
 }
 // docType — вид документа, который предложил осмотрщик (окно прикрепления,
 // 29.10.2026); ЦОД при приёме видит его первым и может поменять.
-export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '', docType = '' } = {}) {
+// inv — { invId, itemId }: скан по позиции описи (этап Б, В13).
+export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '', docType = '', inv = null } = {}) {
   const pages = makeScanPages(files);
   const scan = { id: 'sc-' + Date.now().toString(36) + '-' + (++scanSeq), title: title || 'Документ с осмотра', oiId, by,
     at: new Date().toISOString(), source: 'осмотр', status: 'ждёт ЦОД', pages };
   if (docType) scan.docType = docType;
+  if (inv) scan.inv = { invId: inv.invId, itemId: inv.itemId };
   const r = resultsOf(typeId, ocId);
   if (!Array.isArray(r.scans)) r.scans = [];
   r.scans.push(scan);

@@ -276,9 +276,9 @@ function matchText(doc, q) {
 // Список учреждений, встречающихся в документах, — для фильтра «от кого».
 // Собираем из самих записей, а не из отдельного справочника: реестр документов
 // ни от чего не зависит, и учреждение здесь — свободный текст.
-export function documentInstitutions() {
+export function documentInstitutions(extra = []) {
   const set = new Set();
-  documents.forEach((d) => { if (d.institution) set.add(d.institution); });
+  [...documents, ...extra].forEach((d) => { if (d.institution) set.add(d.institution); });
   return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
 }
 
@@ -306,11 +306,15 @@ const SORTABLE = {
 };
 
 // filter: { q, type, status, institution, dateFrom, dateTo, sort, dir, offset, limit }
+// extra — строки документов карточек и описей того же вида (их подаёт
+// страница, kernel/allDocs.js; реестр сам данных модулей не собирает), source
+// — откуда: '' все, 'registry' реестр, 'card' карточки, 'inventory' описи.
 export function queryDocuments({
   q = '', type = '', status = '', institution = '', dateFrom = '', dateTo = '',
-  sort = '', dir = 'asc', offset = 0, limit = 25,
+  sort = '', dir = 'asc', offset = 0, limit = 25, extra = [], source = '',
 } = {}) {
-  const filtered = documents.filter((d) => (!type || d.type === type)
+  const pool = [...(!source || source === 'registry' ? documents : []), ...extra.filter((d) => !source || d.source === source)];
+  const filtered = pool.filter((d) => (!type || d.type === type)
     && (!status || d.status === status)
     && (!institution || d.institution === institution)
     && matchDate(d, dateFrom, dateTo)

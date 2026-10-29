@@ -27,9 +27,12 @@ import { session } from './session.js';
 import { scheduleSave } from './persist.js';
 import { allResults, resultsOf } from './inspectionResults.js';
 import { allCadRequests, cadRequest, cadKindLabel, nextRecDocId, changed as cadChanged } from './inspections.js';
+import { inventoryById, addItemDoc } from './inventories.js';
+import { allNodes, staffOf } from './institutions.js';
 
 export const SCAN_SOURCES = [
   { key: 'осмотр', label: 'Осмотр' },
+  { key: 'опись', label: 'Опись' },
   { key: 'кадастр', label: 'Кадастр' },
 ];
 export const SCAN_STATES = [
@@ -60,15 +63,27 @@ function cadPages(row) {
   return [{ id: `${row.id}-p1`, name: f.name, size: f.size, type: f.mime || '', dataUrl: f.dataUrl, localKey: f.localKey }];
 }
 
+// Скан по позиции описи (В13): оператор ЦОД — того подведа, чья опись
+// (В11 «Ответственный за подвед - оператор ЦОД»); после приёма — документ
+// позиции описи (kernel/inventories.js).
+function invCod(inv) {
+  if (!inv) return '';
+  const node = allNodes().find((n) => n.name === (inv.podved || inv.institution));
+  const st = node ? staffOf(node).cod : null;
+  return st ? st.name : '';
+}
 function scanItem(res, s, cache) {
   const review = s.review || {};
   const rec = cache(res.typeId, res.ocId);
+  const inv = s.inv ? inventoryById(s.inv.invId) : null;
+  const item = inv ? inv.items.find((x) => x.id === s.inv.itemId) : null;
   return {
-    key: scanKey(res.typeId, res.ocId, s.id), source: 'осмотр', typeId: res.typeId, ocId: res.ocId, oiId: s.oiId || '',
+    inv: s.inv ? { invId: s.inv.invId, itemId: s.inv.itemId, invTitle: inv ? inv.title : '', item: item ? `${item.no}. ${item.name} · ${item.inv}` : '' } : null,
+    key: scanKey(res.typeId, res.ocId, s.id), source: s.inv ? 'опись' : 'осмотр', typeId: res.typeId, ocId: res.ocId, oiId: s.oiId || '',
     title: s.title || 'Документ с осмотра', docType: s.docType || '', by: s.by || '', at: s.at || '', pages: s.pages || [],
     state: review.state || 'wait', reason: review.reason || '', decidedBy: review.by || '', decidedAt: review.at || '', docId: review.docId || '',
-    cod: rec && rec.resp ? rec.resp.cod || '' : '', insp: rec && rec.resp ? rec.resp.insp || '' : '',
-    place: placeOf(rec), eni: rec ? rec.eni || '' : '',
+    cod: s.inv ? invCod(inv) || (rec && rec.resp ? rec.resp.cod || '' : '') : rec && rec.resp ? rec.resp.cod || '' : '', insp: rec && rec.resp ? rec.resp.insp || '' : '',
+    place: s.inv && inv ? [inv.institution, inv.podved].filter(Boolean).join(' — ') : placeOf(rec), eni: rec ? rec.eni || '' : '',
   };
 }
 
@@ -90,7 +105,7 @@ function cadItem(req, row, cache) {
 
 // Плоский список очереди, новые сверху.
 //   state  — 'wait' | 'accepted' | 'returned' | 'rejected' | '' (все);
-//   source — 'осмотр' | 'кадастр' | '' (все);
+//   source — 'осмотр' | 'опись' | 'кадастр' | '' (все);
 //   role   — 'cod': только записи, где person — оператор ЦОД (resp.cod);
 //            'regional' и 'all': все. ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: у записи нет поля
 //            регионального менеджера, поэтому «мне» у регионала пока равно «все»;
@@ -107,8 +122,11 @@ export function scanQueue({ state = '', source = '', role = 'all', mine = false,
     return recs.get(k);
   };
   const items = [];
-  if (!source || source === 'осмотр') {
-    allResults().forEach((res) => (res.scans || []).forEach((s) => items.push(scanItem(res, s, cache))));
+  if (!source || source === 'осмотр' || source === 'опись') {
+    allResults().forEach((res) => (res.scans || []).forEach((s) => {
+      const x = scanItem(res, s, cache);
+      if (!source || x.source === source) items.push(x);
+    }));
   }
   if (!source || source === 'кадастр') {
     allCadRequests().forEach((req) => req.rows.forEach((row) => {
@@ -208,6 +226,15 @@ export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
     from: loc.kind === 'scan' ? `скан осмотра, ${loc.scan.by || ''}`.replace(/, $/, '') : `${cadKindLabel(loc.req.kind)} № ${loc.req.no}`,
   };
   if (!attached && pages.length > 1) doc.scanPages = pages.map((p) => ({ ...p }));
+  // Скан по позиции описи — документ позиции, а не записи ОЦ (В13).
+  if (loc.kind === 'scan' && loc.scan.inv) {
+    doc.source = 'опись';
+    doc.from = `скан описи, ${loc.scan.by || ''}`.replace(/, $/, '');
+    addItemDoc(loc.scan.inv.invId, loc.scan.inv.itemId, doc);
+    setReview(loc, { state: 'accepted', reason: '', by: me(), at: now(), docId: doc.id, oiId: '' });
+    scheduleSave();
+    return doc;
+  }
   target.docs = target.docs || [];
   target.docs.push(doc);
   setReview(loc, { state: 'accepted', reason: '', by: me(), at: now(), docId: doc.id, oiId: oiId || '' });

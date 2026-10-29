@@ -18,6 +18,7 @@ import { plural } from '../../kernel/fmt.js';
 import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, activityKinds, absenceKinds, absenceOn, absenceLabel } from '../../kernel/inspections.js';
 import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
+import { inventoryById, progressOf } from '../../kernel/inventories.js';
 
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -111,6 +112,13 @@ function assignHTML(all, a, canBack) {
       ${a.note ? `<div class="ip-dp-line"><span>Комментарий</span><span class="ip-dp-v">${esc(a.note)}</span></div>` : ''}
     </section>
     <section class="ip-sec"><h3>Объекты имущества</h3>${oi.map((l) => `<p class="ip-line">${esc(l)}</p>`).join('')}</section>
+    ${(a.inventories || []).length ? `<section class="ip-sec"><h3>Описи</h3>${(a.inventories || []).map((id) => {
+    const inv = inventoryById(id);
+    const pr = progressOf(id);
+    if (!inv || !pr) return '';
+    // Ход описи (Б5): счёт общий для всех выездов по описи (Б3).
+    return `<p class="ip-line"><b>${esc(inv.title)}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}</p>`;
+  }).join('')}</section>` : ''}
     <section class="ip-sec"><h3>События</h3>
       <ul class="ip-evs">${evs.map((e) => `<li><time>${esc(fmtDate(e.at))} ${esc(new Date(e.at).toTimeString().slice(0, 5))}</time>
         <span>${esc(EVENT_LABELS[e.kind] || e.kind)}${e.count ? `: ${e.count}` : ''}${e.text ? `: ${esc(e.text)}` : ''}${e.field ? `: ${esc(e.field)}` : ''}</span></li>`).join('')}</ul>

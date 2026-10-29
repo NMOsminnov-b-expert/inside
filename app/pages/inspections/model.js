@@ -12,6 +12,7 @@ import {
 } from '../../kernel/inspections.js';
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
+import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
 
 export { READY_STATUS };
 
@@ -171,7 +172,6 @@ export function inspectorRows(all) {
 // Описи — документы-перечни оборудования и механизмов (запись графа
 // opis-oborudovaniya-i-mehanizmov). В карточке они лежат документами вида
 // «Инвентаризационный список» или «Опись».
-const isInventory = (d) => /опис|инвентаризац/i.test(`${d.type || ''} ${d.name || ''}`);
 
 // ОИ записи и документы — сгруппированные по владельцу: сначала объект
 // оценки, затем каждый ОИ (ТЗ 3.3).
@@ -182,13 +182,17 @@ export function objectContents(typeId, ocId) {
   const doc = (d, owner) => ({ id: d.id, type: d.type || '', name: d.name || '', date: d.date || '', owner, def: isDefaultDoc(d.type || d.name) });
   const groups = [{ id: '', label: 'Объект оценки', docs: (rec.docs || []).map((d) => doc(d, '')) }];
   (rec.oi || []).forEach((o) => groups.push({ id: o.id, label: oiLabel(o), docs: (o.docs || []).map((d) => doc(d, o.id)) }));
-  const all = groups.flatMap((g) => g.docs);
   return {
     rec,
     // card — вид ОИ: у ТС в назначении есть «Передать другому осмотрщику».
     oi: (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o), card: o.card || '' })),
-    groups: groups.map((g) => ({ ...g, docs: g.docs.filter((d) => !isInventory(d)) })),
-    inventories: all.filter(isInventory),
+    groups,
+    // Описи — из базы описей учреждения записи (этап Б2; kernel/inventories.js),
+    // а не документы карточки: отметки позиций живут у описи, счёт общий.
+    inventories: inventoriesForRecord(rec).map((d) => {
+      const pr = progressOf(d.id);
+      return { id: d.id, type: 'Опись', name: d.title, date: `${pr.total} поз.${pr.seen || pr.missing ? ` · осмотрено ${pr.seen}` : ''}` };
+    }),
     taken: assignmentsOf(typeId, ocId),
     cov: coverageOf(typeId, ocId),
   };

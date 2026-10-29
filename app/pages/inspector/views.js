@@ -362,7 +362,7 @@ export function contourAreaM2(contour) {
 
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null, oiCount = null }) {
+export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null, oiCount = null, inventories = '' }) {
 
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
@@ -404,6 +404,7 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
         </section>
       </div>
 
+      ${inventories}
       ${contacts ? contactsHTML(contacts) : ''}
 
       <section class="ins-blk">

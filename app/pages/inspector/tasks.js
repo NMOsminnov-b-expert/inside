@@ -15,6 +15,7 @@ import { hereNow } from '../../kernel/geoHere.js';
 import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, replaceScanPages, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
 import { retakesOf } from '../../kernel/scanQueue.js';
+import { inventoryById } from '../../kernel/inventories.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
@@ -366,6 +367,17 @@ export function foundOi(typeId, ocId) {
 export const SELF_TS = 'ts';
 const selfTs = (rec) => (rec && rec.vehicle && !(rec.oi || []).length
   ? [{ id: SELF_TS, card: 'vehicle', vehicle: rec.vehicle, name: tsName(rec), docs: [], ocSelf: true }] : []);
+
+// Описи, приложенные к назначениям этого осмотрщика по объекту (этап Б2):
+// [{ inv, assignId }] без повторов.
+export function myInventories(typeId, ocId) {
+  const me = currentInspector();
+  const out = new Map();
+  assignmentsOf(typeId, ocId).filter((a) => a.person === me && isLive(a)).forEach((a) => {
+    (a.inventories || []).forEach((id) => { const inv = inventoryById(id); if (inv && !out.has(id)) out.set(id, { inv, assignId: a.id }); });
+  });
+  return [...out.values()];
+}
 
 // ОИ, назначенные осмотрщику по объекту: null — объект целиком или назначений
 // нет (прежнее правило: осмотрщик видит все ОИ). ТС, переданное другому

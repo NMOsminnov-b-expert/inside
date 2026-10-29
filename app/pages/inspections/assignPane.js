@@ -100,7 +100,7 @@ function contentsHTML(c, pick, prev) {
     </details>`;
   const inv = `<details class="ip-sec ip-fold"><summary><h3>Описи</h3><span class="ip-fold-n">${c.inventories.length ? `отмечено ${pick.inv.size} из ${c.inventories.length}` : 'нет'}</span></summary>
       ${c.inventories.length ? c.inventories.map((d) => docLine(d, pick.inv.has(d.id), 'data-ip-f-inv')).join('')
-        : '<p class="ip-hint">Описей нет — опись прикрепляется в карточке документом вида «Инвентаризационный список».</p>'}
+        : '<p class="ip-hint">У учреждения записи описей в базе нет.</p>'}
     </details>`;
   return oi + docs + inv;
 }

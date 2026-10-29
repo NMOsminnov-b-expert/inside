@@ -1484,3 +1484,57 @@ body[data-page="insp"]:has(.ins-cam) .toast-wrap { bottom: 150px; }
   .sced-go { flex-direction: row-reverse; }
   .sced-go .ins-btn-wide { width: auto; flex: 1 1 0; }
 }
+
+/* --- Опись у осмотрщика (этап Б4, 29.10.2026) -------------------------------
+   По образцу «Осмотра»: сводка, поиск одним полем, чипы отбора, строка —
+   значок состояния, №, наименование, инв. номер и место; «Снять» — отдельной
+   кнопкой справа. Высоты касания — 44px. */
+.inv { display: flex; flex-direction: column; gap: 10px; }
+.inv-sum { gap: 2px; }
+.inv-sum-main { margin: 0; font-size: 15px; }
+.inv-sum-main b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.inv-today { color: var(--teal-700); font-weight: 600; }
+.inv-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.inv-q { display: block; min-width: 0; }
+.inv-q .input { width: 100%; min-height: 44px; }
+.inv-sort { min-height: 44px; }
+.inv-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.inv-chip { flex: none; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; color: var(--ink); }
+.inv-chip b { margin-left: 4px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.inv-chip.on { background: var(--blue-600); border-color: var(--blue-600); color: #fff; }
+.inv-chip.on b { color: #fff; }
+.inv-chip:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 2px; }
+.inv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.inv-row { border: 1px solid var(--line-soft); border-radius: 12px; background: var(--panel); }
+.inv-row.open { border-color: var(--blue-300); }
+.inv-row-h { display: flex; align-items: stretch; gap: 6px; padding: 4px 6px 4px 4px; }
+.inv-row-b { flex: 1 1 auto; min-width: 0; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 6px; border: 0; border-radius: 8px; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.inv-row-b:focus-visible { outline: 3px solid var(--blue-300); outline-offset: 0; }
+.inv-no { flex: none; min-width: 26px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+.inv-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.inv-main b { font-size: 14px; overflow-wrap: anywhere; }
+.inv-main small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-main .mono, .inv-facts .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.inv-snap { flex: none; align-self: center; min-height: 44px; }
+.inv-st { flex: none; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; position: relative; font-size: 13px; font-weight: 700; }
+.inv-st-todo { border: 2px solid var(--line); }
+.inv-st-ok { background: var(--teal-50); color: var(--teal-700); }
+.inv-st-miss { background: var(--red-50); color: #b91c1c; }
+.inv-st i { position: absolute; right: -6px; bottom: -4px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 999px; background: var(--teal-700); color: #fff; font-size: 10px; font-style: normal; line-height: 16px; text-align: center; }
+.inv-item { padding: 4px 10px 12px; display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed var(--line-soft); }
+.inv-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 12px; margin: 8px 0 0; }
+.inv-facts div { min-width: 0; }
+.inv-facts dt { font-size: 11.5px; color: var(--muted); }
+.inv-facts dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.inv-facts .num { font-variant-numeric: tabular-nums; }
+.inv-photos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.inv-ph { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line-soft); display: block; }
+.inv-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.inv-shoot { min-height: 44px; }
+.inv-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.inv-acts .ins-btn { min-height: 44px; }
+.inv-extra-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.inv-extra-f { display: flex; flex-direction: column; gap: 8px; }
+.inv-task-a { display: flex; flex-direction: column; gap: 2px; min-height: 44px; justify-content: center; color: var(--ink); text-decoration: none; padding: 4px 0; }
+.inv-task-a b { color: var(--blue-700); }
+.inv-task-a small { color: var(--muted); font-size: 12px; }

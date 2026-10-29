@@ -67,6 +67,7 @@ export function parse(hash = location.hash) {
   //   #/insp/<typeId>/<ocId>            — задача: куда ехать, сводка, примечания
   //   #/insp/<typeId>/<ocId>/<раздел>   — object | docs | photo
   //   #/insp/<typeId>/<ocId>/object/<oiId> — осмотр одного объекта имущества
+  //   #/insp/<typeId>/<ocId>/inv/<invId> — опись, приложенная к назначению
   //
   // Раздел стоит В АДРЕСЕ, а не в состоянии экрана: у осмотрщика на телефоне
   // кнопка «назад» — основной способ вернуться, и она должна возвращать на
@@ -133,7 +134,8 @@ export function inspHref({ typeId, ocId, section, oiId } = {}) {
   if (typeId && ocId) {
     parts.push(typeId, ocId);
     if (section && section !== 'task') parts.push(section);
-    if (oiId && section === 'object') parts.push(oiId);
+    // object/<ОИ>, inv/<опись> (экран описи, этап Б4).
+    if (oiId && (section === 'object' || section === 'inv')) parts.push(oiId);
   }
   return '#/' + parts.map(encodeURIComponent).join('/');
 }

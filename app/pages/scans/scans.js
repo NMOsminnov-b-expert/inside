@@ -24,7 +24,7 @@ import {
 } from '../../kernel/scanQueue.js';
 import { oiLabel } from '../inspector/tasks.js';
 
-const SRC_LABEL = { 'осмотр': 'Осмотр', 'кадастр': 'Кадастр' };
+const SRC_LABEL = { 'осмотр': 'Осмотр', 'опись': 'Опись', 'кадастр': 'Кадастр' };
 // Перечень видов документов, если справочник типа ОЦ ещё не заведён.
 const DOC_TYPES_FALLBACK = ['Техпаспорт', 'ПУД', 'Гос. акт на землю', 'Акт осмотра', 'Фото', 'Прочее'];
 const WHO = [['me', 'Мне'], ['all', 'Все']];
@@ -152,6 +152,7 @@ export function mountScans(host) {
     return `<section class="sc-sec" aria-label="Сведения"><dl class="sc-dl">
       ${row('Объект', card)}${row('ЕНИ', it.eni ? `<span class="mono">${esc(it.eni)}</span>` : '')}
       ${row('Объект имущества', oi ? esc(oiLabel(oi)) : '')}
+      ${it.inv ? row('Опись', esc(it.inv.invTitle)) + row('Позиция описи', esc(it.inv.item)) : ''}
       ${row('Источник', esc(SRC_LABEL[it.source]))}${row('Запрос', esc(it.request || ''))}
       ${row('Прислал', esc(it.by || '—'))}${row('Получено', esc(fmtFull(it.at)))}
       ${row('Дата сканирования', it.scanDate ? esc(it.scanDate.split('-').reverse().join('.')) : '')}${row('Ответ', esc(it.answer || ''))}
@@ -165,9 +166,9 @@ export function mountScans(host) {
     return `<section class="sc-sec" aria-label="Принять как"><h3>Принять как</h3><div class="sc-form">
       <div class="field"><label for="sc-f-type">Вид документа</label>
         <select class="select" id="sc-f-type" data-sc-f-type>${types.map((t) => `<option ${draft.docType === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
-      <div class="field"><label for="sc-f-oi">К чему относится</label>
+      ${it.inv ? `<div class="field"><label>К чему относится</label><p class="sc-hint">Позиция описи: ${esc(it.inv.item)}</p></div>` : `<div class="field"><label for="sc-f-oi">К чему относится</label>
         <select class="select" id="sc-f-oi" data-sc-f-oi><option value="" ${draft.oiId ? '' : 'selected'}>Объект оценки в целом</option>
-          ${ois.map((o) => `<option value="${esc(o.id)}" ${draft.oiId === o.id ? 'selected' : ''}>${esc(oiLabel(o))}</option>`).join('')}</select></div>
+          ${ois.map((o) => `<option value="${esc(o.id)}" ${draft.oiId === o.id ? 'selected' : ''}>${esc(oiLabel(o))}</option>`).join('')}</select></div>`}
       <div class="field sc-f-wide"><label for="sc-f-title">Название документа</label>
         <input class="input" id="sc-f-title" data-sc-f-title value="${esc(draft.title)}" autocomplete="off"></div>
     </div></section>`;

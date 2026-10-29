@@ -20,11 +20,16 @@ import {
   documentInstitutions,
 } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
+import { cardDocuments } from '../../kernel/allDocs.js';
 import { detailHTML, bindDetail } from './detail.js';
 import { persistView, persistSizes } from '../../kernel/viewState.js';
 
+// source — где искать (решение пользователя 29.10.2026 «ВСЕ документы из
+// краточек доступны для поиска по всем документам»): '' все, 'registry'
+// реестр, 'card' карточки ОЦ и ОИ, 'inventory' позиции описей.
+const SOURCES = [['', 'Везде'], ['registry', 'Реестр документов'], ['card', 'Карточки ОЦ и ОИ'], ['inventory', 'Позиции описей']];
 const state = {
-  q: '', type: '', status: '', institution: '', dateFrom: '', dateTo: '',
+  q: '', type: '', status: '', institution: '', dateFrom: '', dateTo: '', source: '',
   sort: '', dir: 'asc', page: 1, pageSize: 25,
 };
 
@@ -32,12 +37,12 @@ const state = {
 // 09.10.2026: «в каком виде мы страницу закрываем, в таком же она потом
 // должна открываться», kernel/viewState.js). Сохраняются поиск, фильтры,
 // порядок и страница списка.
-persistView('docs', state, ['q', 'type', 'status', 'institution', 'dateFrom', 'dateTo', 'sort', 'dir', 'page', 'pageSize']);
+persistView('docs', state, ['q', 'type', 'status', 'institution', 'dateFrom', 'dateTo', 'source', 'sort', 'dir', 'page', 'pageSize']);
 
 // Есть ли что сбрасывать: кнопка сброса появляется только когда фильтр реально
 // сужает список, иначе она просто занимает место.
 const hasFilters = () => !!(state.q || state.type || state.status || state.institution
-  || state.dateFrom || state.dateTo);
+  || state.dateFrom || state.dateTo || state.source);
 
 // Столбцы можно и тянуть за перегородку (ширина), и перетаскивать за шапку
 // (порядок) — тот же механизм, что в реестре ОЦ и перечне ОИ (kernel/columns.js).
@@ -100,15 +105,19 @@ function cellHTML(col, doc, n) {
 }
 
 function rowHTML(cols, doc, n) {
-  return `<tr data-doc-row="${esc(doc.id)}">${cols.map((c) => cellHTML(c, doc, n)).join('')}</tr>`;
+  // Документ карточки — открывает карточку, где он лежит; позиции описи —
+  // строка без перехода (своей страницы у описи у регионала нет).
+  const go = doc.href ? ` data-doc-href="${esc(doc.href)}"` : doc.source === 'inventory' ? ' data-doc-inv' : ` data-doc-row="${esc(doc.id)}"`;
+  return `<tr${go} class="${doc.source ? 'docs-ext' : ''}">${cols.map((c) => cellHTML(c, doc, n)).join('')}</tr>`;
 }
 
 function listHTML() {
   const stats = documentStats();
   const offset = (state.page - 1) * state.pageSize;
+  const extra = cardDocuments();
   const { rows, total } = queryDocuments({
     q: state.q, type: state.type, status: state.status, institution: state.institution,
-    dateFrom: state.dateFrom, dateTo: state.dateTo,
+    dateFrom: state.dateFrom, dateTo: state.dateTo, extra, source: state.source,
     sort: state.sort, dir: state.dir, offset, limit: state.pageSize,
   });
   const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
@@ -136,6 +145,10 @@ function listHTML() {
         ${state.q ? '<button class="docs-search-clear" data-docs-q-clear title="Очистить">×</button>' : ''}
       </span>
 
+      <select class="select docs-filter" data-docs-source aria-label="Где искать">
+        ${SOURCES.map(([v, l]) => `<option value="${v}" ${state.source === v ? 'selected' : ''}>${v ? l : 'Где: везде'}</option>`).join('')}
+      </select>
+
       <select class="select docs-filter" data-docs-type>
         <option value="">Тип: все</option>
         ${DOC_TYPES.map((t) => `<option ${state.type === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
@@ -148,7 +161,7 @@ function listHTML() {
 
       <select class="select docs-filter wide" data-docs-inst>
         <option value="">От кого: все</option>
-        ${documentInstitutions().map((i) => `<option ${state.institution === i ? 'selected' : ''}>${esc(i)}</option>`).join('')}
+        ${documentInstitutions(extra).map((i) => `<option ${state.institution === i ? 'selected' : ''}>${esc(i)}</option>`).join('')}
       </select>
 
       <span class="docs-period" title="Дата документа">
@@ -308,6 +321,7 @@ export function mountDocs(host) {
     const reset = scope.$('[data-docs-reset]');
     if (reset) reset.onclick = () => {
       state.q = '';
+      state.source = '';
       state.type = '';
       state.status = '';
       state.institution = '';
@@ -341,6 +355,9 @@ export function mountDocs(host) {
     scope.$$('[data-doc-row]').forEach((tr) => tr.onclick = () => {
       location.hash = DOCS_HREF + '/' + encodeURIComponent(tr.dataset.docRow);
     });
+    scope.$$('[data-doc-href]').forEach((tr) => tr.onclick = () => { location.hash = tr.dataset.docHref; });
+    const src = scope.$('[data-docs-source]');
+    if (src) src.onchange = () => { state.source = src.value; state.page = 1; render(); };
 
     const createBtn = scope.$('[data-docs-create]');
     if (createBtn) createBtn.onclick = () => openDocumentModal(host, { onSaved: render });

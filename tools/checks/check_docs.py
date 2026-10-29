@@ -72,11 +72,12 @@ def run(t):
     # --- 2. сортировка ---
     pg.locator('th[data-docs-sort="date"]').first.click()
     t.wait(400)
-    asc = pg.eval_on_selector_all('[data-doc-row] td:nth-child(5)',
+    # Все строки выдачи: с 29.10.2026 в ней и документы карточек (data-doc-href).
+    asc = pg.eval_on_selector_all('tbody tr td:nth-child(5)',
                                   'els => els.map((e) => e.textContent.trim()).filter((x) => x !== "—")')
     pg.locator('th[data-docs-sort="date"]').first.click()
     t.wait(400)
-    desc = pg.eval_on_selector_all('[data-doc-row] td:nth-child(5)',
+    desc = pg.eval_on_selector_all('tbody tr td:nth-child(5)',
                                    'els => els.map((e) => e.textContent.trim()).filter((x) => x !== "—")')
     t.ck(asc and desc and asc[0] != desc[0],
          'сортировка по дате не меняет порядок: %s / %s' % (asc[:2], desc[:2]))

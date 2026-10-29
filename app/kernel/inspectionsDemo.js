@@ -14,6 +14,7 @@
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-данных нет — история и загрузка строятся из
 // настоящих назначений и журнала.
+import { allInventories } from './inventories.js';
 import { sortedTypes, isTsHolder } from './registry.js';
 import { stepOf } from './status/flow.js';
 import { DEMO_PARCELS } from './demoParcels.js';
@@ -251,7 +252,9 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
       // Выезд «недвижимость + ТС» (заметка пользователя 27.10.2026 «Часто ТС
       // осматривают вместе с недвижкой»): ТС объекта — в том же назначении.
       id: `demo-as-${++n}`, typeId: partial.typeId, ocId: partial.ocId, person: me || names[2 % names.length],
-      oiIds: [partial.oi[1], ...(partial.tsOi || []).filter((x) => x !== partial.oi[1])], docs: [], inventories: [],
+      // Описи учреждения (этап Б2): опись подведа и котельной — к тому же выезду.
+      oiIds: [partial.oi[1], ...(partial.tsOi || []).filter((x) => x !== partial.oi[1])], docs: [],
+      inventories: allInventories().filter((d) => d.institution === partial.inst).slice(0, 2).map((d) => d.id),
       plannedAt: isoLocalDate(dayAt(today, 3, 9)), note: '', by: 'Региональный менеджер (демо)',
       at: dayAt(today, -1, 15).toISOString(), state: 'assigned', doneAt: '', demo: true,
     };

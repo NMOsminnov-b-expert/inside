@@ -18,6 +18,8 @@
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
 import { pickFile, pickFiles, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { pdfToJpegFiles } from '../../kernel/viewer/pdf.js';
+import { inventoryById, markOf, markItem, unmarkItem, addItemPhoto, extrasOf, addExtra, progressOf, itemDocsOf } from '../../kernel/inventories.js';
+import { inventoryHTML, taskInventoriesHTML, PAGE as INV_PAGE } from './inventory.js';
 import { attachDialog } from '../../kernel/viewer/files.js';
 import { optionsFor } from '../../kernel/dicts.js';
 import { newEditor, mountScanEditor, disposeEditor } from './scanEditor.js';
@@ -29,7 +31,7 @@ import {
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, photoCatsOf, UNSORTED, unsortedCount, contactsOf,
   othersOiCount,
   newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
-  scansOf, addScan, replaceScan, retakesOf, removeScan, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
+  scansOf, addScan, replaceScan, retakesOf, removeScan, myInventories, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
 } from './tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
@@ -47,10 +49,10 @@ import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { geoByEni } from '../../kernel/cadastreGeo.js';
 import { hereNow } from '../../kernel/geoHere.js';
 import {
-  listHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, navLinks,
+  listHTML, headerHTML, taskHTML, objectHTML, assetHTML, docsHTML, photoHTML, lightboxHTML, dayReportsHTML, reportFormHTML, cadListHTML, cadScreenHTML, notesHTML, sectionNavHTML, navLinks,
 } from './views.js';
 
-const SECTIONS = ['task', 'object', 'docs', 'photo'];
+const SECTIONS = ['task', 'object', 'docs', 'photo', 'inv'];
 
 export function mountInspector(host) {
   const { scope } = host;
@@ -73,6 +75,8 @@ export function mountInspector(host) {
     // Просмотр документов рядом с камерой: открытый документ, свёрнут ли, и
     // масштаб/сдвиг/страница каждого (docViewer.js).
     docv: { open: '', collapsed: false, views: {} },
+    // Экран описи (этап Б4): поиск, отбор, порядок, раскрытая позиция, порция.
+    inv: { id: '', q: '', chip: 'all', sort: 'no', open: '', shown: 60, err: '', extraOpen: false },
     // Скан, ещё не отправленный: editor — страницы съёмки (scanEditor.js); phase
     // 'edit' — съёмка, 'form' — название и к чему относится (files/urls — готовые
     // страницы); retakeId — пересъёмка возвращённого скана.
@@ -683,6 +687,22 @@ export function mountInspector(host) {
       return;
     }
 
+    if (section === 'inv') {
+      const inv = inventoryById(route.oiId);
+      const mine = myInventories(typeId, ocId);
+      const own = mine.find((x) => x.inv.id === route.oiId);
+      if (!inv || !own) {
+        scope.setHTML(`<div class="ins"><div class="ins-body"><p class="ins-empty">Опись не приложена к вашему назначению.</p>
+          <a class="ins-btn ins-btn-main ins-btn-wide" href="${inspHref({ typeId, ocId })}">К задаче</a></div></div>`);
+        return;
+      }
+      if (ui.inv.id !== inv.id) ui.inv = { id: inv.id, q: '', chip: 'all', sort: 'no', open: '', shown: INV_PAGE, err: '', extraOpen: false };
+      const marks = new Map(inv.items.map((it) => [it.id, markOf(inv.id, it.id)]).filter(([, m]) => m));
+      scope.setHTML(inventoryHTML({ inv, marks, extras: extrasOf(inv.id), progress: progressOf(inv.id), st: ui.inv, headerHTML,
+        backHref: inspHref({ typeId, ocId }), locked: !!taskState(typeId, ocId).done, itemDocs: (itemId) => itemDocsOf(inv.id, itemId) }));
+      return;
+    }
+
     const state = taskState(typeId, ocId);
     // Значение сетей из карточки — по записи ОЦ (участок, закрепление литер).
     setNetsRec(r);
@@ -825,7 +845,8 @@ export function mountInspector(host) {
     scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId),
       oiCount: inspOis(r, typeId, ocId).filter((o) => !o.draft).length,
       contacts: { own: contactsOf(typeId, ocId), editing: ui.ct.editing, object: r.contacts || [], chain },
-      voices: voicesOf(typeId, ocId, ''), recording: voiceRec && { oiId: voiceRec.oiId } }));
+      voices: voicesOf(typeId, ocId, ''), recording: voiceRec && { oiId: voiceRec.oiId },
+      inventories: taskInventoriesHTML(myInventories(typeId, ocId).map(({ inv }) => ({ inv, progress: progressOf(inv.id), href: inspHref({ typeId, ocId, section: 'inv', oiId: inv.id }) }))) }));
     bindContacts(scope, 'insp', { list: () => contactsOf(typeId, ocId), ui: ui.ct, rerender: () => renderKeep(), onChange: saveResults });
     mountTaskMap(geo, ll);
     fillContour(r, geo);
@@ -1541,6 +1562,87 @@ export function mountInspector(host) {
     const ok = await host.confirm({ title: 'Удалить голосовую заметку?', text: 'Запись пропадёт из осмотра.', okLabel: 'Удалить', danger: true });
     if (!ok) return;
     removeVoice(route.typeId, route.ocId, el.dataset.voiceDrop);
+    renderKeep();
+  });
+
+  // --- опись (этап Б4) ----------------------------------------------------
+  const invOwn = () => myInventories(route.typeId, route.ocId).find((x) => x.inv.id === ui.inv.id);
+  const invBy = () => { const o = invOwn(); return { by: currentInspector(), assignId: o ? o.assignId : '' }; };
+  // Поиск — без потери фокуса и курсора: экран перерисовывается целиком.
+  scope.on('input', '[data-inv-q]', (e, el) => {
+    ui.inv.q = el.value; ui.inv.shown = INV_PAGE;
+    const pos = el.selectionStart;
+    render();
+    const q = scope.$('[data-inv-q]');
+    if (q) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (err) { /* type=search */ } }
+  });
+  scope.on('change', '[data-inv-sort]', (e, el) => { ui.inv.sort = el.value; renderKeep(); });
+  scope.on('click', '[data-inv-chip]', (e, el) => { ui.inv.chip = el.dataset.invChip; ui.inv.shown = INV_PAGE; renderKeep(); });
+  scope.on('click', '[data-inv-more]', () => { ui.inv.shown += INV_PAGE; renderKeep(); });
+  scope.on('click', '[data-inv-open]', (e, el) => { ui.inv.open = ui.inv.open === el.dataset.invOpen ? '' : el.dataset.invOpen; ui.inv.err = ''; renderKeep(); });
+  // «Снять» — съёмка в одно касание; снимок — к позиции.
+  scope.on('click', '[data-inv-shoot]', async (e, el) => {
+    const id = el.dataset.invShoot;
+    const file = await pickFile('image/*', { capture: 'environment' });
+    if (!file) return;
+    if (isFileTooLarge(file)) { host.toast(`Снимок больше ${MAX_DOC_FILE_MB} МБ`, 'warn'); return; }
+    addItemPhoto(ui.inv.id, id, file, invBy());
+    const n = (markOf(ui.inv.id, id).photos || []).length;
+    host.toast(`+1 снимок · всего ${n}`, 'ok');
+    ui.inv.open = id; ui.inv.err = '';
+    renderKeep();
+  });
+  // Состояние: «Нерабочее» — только при снимках (В9).
+  scope.on('change', '[data-inv-cond]', (e, el) => {
+    const id = el.dataset.invCond;
+    const m = markOf(ui.inv.id, id);
+    if (el.value === 'Нерабочее' && !(m && (m.photos || []).length)) {
+      ui.inv.err = '«Нерабочее» ставится только при снимках — сначала снимите';
+      el.value = (m && m.cond) || '';
+      renderKeep();
+      return;
+    }
+    ui.inv.err = '';
+    markItem(ui.inv.id, id, { cond: el.value, state: (m && m.state) || 'seen' }, invBy());
+    renderKeep();
+  });
+  scope.on('change', '[data-inv-comment]', (e, el) => { const m = markOf(ui.inv.id, el.dataset.invComment); markItem(ui.inv.id, el.dataset.invComment, { comment: el.value, state: (m && m.state) || '' }, invBy()); });
+  scope.on('click', '[data-inv-seen]', (e, el) => { markItem(ui.inv.id, el.dataset.invSeen, { state: 'seen' }, invBy()); ui.inv.err = ''; renderKeep(); });
+  scope.on('click', '[data-inv-missing]', (e, el) => { markItem(ui.inv.id, el.dataset.invMissing, { state: 'missing', cond: '' }, invBy()); ui.inv.err = ''; renderKeep(); });
+  scope.on('click', '[data-inv-unmark]', (e, el) => { unmarkItem(ui.inv.id, el.dataset.invUnmark); renderKeep(); });
+  // Документ на позицию — то же окно прикрепления, что везде; уходит на
+  // разбор оператору ЦОД подведа, после приёма — документ позиции (В11, В13).
+  scope.on('click', '[data-inv-doc]', async (e, el) => {
+    const itemId = el.dataset.invDoc;
+    const picked = await pickFiles('image/*,application/pdf');
+    if (!picked.length) return;
+    const odd = picked.find((f) => !(f.type || '').startsWith('image/') && f.type !== 'application/pdf');
+    if (odd) { host.toast(`«${odd.name}» — не снимок и не PDF`, 'warn'); return; }
+    const inv = inventoryById(ui.inv.id);
+    const item = inv && inv.items.find((x) => x.id === itemId);
+    const types = optionsFor(route.typeId, 'oc', 'docType') || ['Техпаспорт', 'ПУД', 'Акт осмотра', 'Прочее'];
+    const rows = await attachDialog(document, picked, { types, whereLabel: item ? `позиция ${item.no} · ${item.inv}` : 'позиция описи', okLabel: 'Отправить' });
+    if (!rows || !rows.length) return;
+    let n = 0;
+    for (const row of rows) {
+      let pages;
+      try { pages = row.pdf ? await pdfToJpegFiles(row.file) : [row.file]; } catch (err) { host.toast(`«${row.file.name}» не прочитался`, 'warn'); continue; }
+      if (!pages.length) continue;
+      addScan(route.typeId, route.ocId, pages, { title: String(row.name || '').replace(/\.[^.]+$/, '').trim(), docType: row.type, inv: { invId: ui.inv.id, itemId } });
+      n++;
+    }
+    if (n) host.toast(n > 1 ? `Отправлено документов: ${n} — ждут оператора ЦОД` : 'Документ отправлен — ждёт оператора ЦОД', 'ok');
+    renderKeep();
+  });
+  scope.on('click', '[data-inv-extra]', () => { ui.inv.extraOpen = true; renderKeep(); const f = scope.$('[data-inv-x-name]'); if (f) f.focus(); });
+  scope.on('click', '[data-inv-extra-cancel]', () => { ui.inv.extraOpen = false; renderKeep(); });
+  scope.on('submit', '[data-inv-extra-form]', (e) => {
+    e.preventDefault();
+    const name = (scope.$('[data-inv-x-name]') || {}).value || '';
+    if (!name.trim()) return;
+    addExtra(ui.inv.id, { name, comment: (scope.$('[data-inv-x-cm]') || {}).value || '' }, invBy());
+    ui.inv.extraOpen = false;
+    host.toast('Добавлено в «Нет в описи»', 'ok');
     renderKeep();
   });
 
