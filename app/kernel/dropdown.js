@@ -102,7 +102,12 @@ function place(menu, btn) {
   const r = btn.getBoundingClientRect();
   const gap = 4;
   menu.style.minWidth = r.width + 'px';
-  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)) + 'px';
+  // Край — по ФАКТИЧЕСКОЙ ширине списка: с длинными пунктами он шире кнопки, и
+  // выравнивание по ширине кнопки уводило правый край за окно (матрица
+  // взаимодействий 28.10.2026). Шире окна список не бывает: ширину ограничивают
+  // стили (.pick-menu, не шире 420px и 92% окна).
+  const w = menu.offsetWidth;
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
 
   // Вниз, если снизу хватает места; иначе вверх — иначе список у нижнего края
   // экрана открывался бы за пределы окна.
