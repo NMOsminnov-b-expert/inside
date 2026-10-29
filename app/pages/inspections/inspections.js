@@ -369,6 +369,14 @@ export function mountInspections(host) {
   // по области, своей прокруткой — держит любое их число. Второй — объекты
   // выбранного плоским списком по дате; «Переназначить все…» — одна кнопка
   // у выбранного. «Все назначения» — прежний общий список.
+  // Что осматривается: часть ОИ — «3 из 5 ОИ»; весь объект — словами, а в карточке
+  // панели (on-scene) не печатается: это обычный случай (разбор удобства 29.10.2026 —
+  // одинокое «все» ничего не говорило).
+  function oiScope(a, s) {
+    return a.oiIds && a.oiIds.length
+      ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length} ОИ`
+      : '<span class="ip-oi-all">весь объект</span>';
+  }
   function assignedRowHTML({ a, s }, inGroup = false) {
     const picks = assignedPickOf(a);
     const stall = stallOf(a);
@@ -381,7 +389,7 @@ export function mountInspections(host) {
       <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
       <td>${obj}</td>
-      <td>${a.oiIds && a.oiIds.length ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length}` : 'все'}</td>
+      <td>${oiScope(a, s)}</td>
       <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
         ${stall ? `<span class="ip-flag" title="Зависло">${esc(stall)}</span>` : ''}
         ${picks.has('away') ? `<span class="ip-flag away" title="Плановая дата — нерабочий день осмотрщика">${esc(workdayOf(a.person, a.plannedAt).reason)}</span>` : ''}</td>
@@ -635,7 +643,7 @@ export function mountInspections(host) {
       <tbody>${rows.map((a) => { const s = all.get(a.typeId + '|' + a.ocId) || {}; return `<tr data-ip-dp-open="assign:${esc(a.id)}" class="${sel === a.id ? 'cur' : ''}">
         <td class="num ${isOverdue(a) ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
         <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
-        <td>${a.oiIds && a.oiIds.length ? a.oiIds.length : 'все'}</td>
+        <td>${oiScope(a, s)}</td>
         <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td></tr>`; }).join('')}</tbody>
     </table></div></div>`;
   }

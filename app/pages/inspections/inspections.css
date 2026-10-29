@@ -1135,6 +1135,15 @@ body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(5){
 body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(4){grid-row:3}
 body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(5){grid-row:2}
 body[data-page="inspections"] .on-scene .ip-tbl tr[data-ip-row] td:nth-child(5) .ip-flag{display:block;margin:2px 0 0}
+/* «Назначено» в панели (разбор удобства 29.10.2026): карточка в три строки — справа дата и
+   «N из M ОИ», состояние и пометки — строкой под адресом, а не столбиком справа. */
+body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(3){grid-row:1 / span 2}
+body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(4){grid-row:2}
+body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(5){grid-column:2 / span 2;grid-row:3;
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;text-align:left}
+body[data-page="inspections"] .on-scene .ip-tbl:has(col.c-state) tr[data-ip-row] td:nth-child(5) .ip-flag{display:inline-block;margin:0}
+body[data-page="inspections"] .on-scene .ip-oi-all{display:none}
+body[data-page="inspections"] .ip-oi-all{color:var(--muted)}
 body[data-page="inspections"] .on-scene .ip-tbl .ip-obj-t{font-size:13px;font-weight:500;line-height:1.35}
 body[data-page="inspections"] .on-scene .ip-tbl .ip-obj-s{margin-top:2px}
 body[data-page="inspections"] .on-scene .ip-tbl .ip-cov{justify-content:flex-end}
