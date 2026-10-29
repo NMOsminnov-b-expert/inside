@@ -117,13 +117,14 @@ export async function getPdfPageAspects(blobUrl) {
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: исходный PDF хранится на сервере как есть, а страницы-
 // картинки для просмотра готовит сервер; на телефоне PDF не разбирается.
-export async function pdfToJpegFiles(file, { maxSide = 2000, quality = 0.85 } = {}) {
+export async function pdfToJpegFiles(file, { maxSide = 2000, quality = 0.85, pages = 0 } = {}) {
   const url = URL.createObjectURL(file);
   try {
     const doc = await (await loadLib()).getDocument(url).promise;
     const out = [];
     const base = (file.name || 'документ').replace(/\.pdf$/i, '');
-    for (let n = 1; n <= doc.numPages; n++) {
+    const last = pages ? Math.min(pages, doc.numPages) : doc.numPages;
+    for (let n = 1; n <= last; n++) {
       const page = await doc.getPage(n);
       const vp1 = page.getViewport({ scale: 1 });
       const vp = page.getViewport({ scale: Math.min(4, maxSide / Math.max(vp1.width, vp1.height)) });

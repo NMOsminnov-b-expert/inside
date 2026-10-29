@@ -107,10 +107,13 @@ function makeScanPages(files) {
     return pg;
   });
 }
-export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '' } = {}) {
+// docType — вид документа, который предложил осмотрщик (окно прикрепления,
+// 29.10.2026); ЦОД при приёме видит его первым и может поменять.
+export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by = '', docType = '' } = {}) {
   const pages = makeScanPages(files);
   const scan = { id: 'sc-' + Date.now().toString(36) + '-' + (++scanSeq), title: title || 'Документ с осмотра', oiId, by,
     at: new Date().toISOString(), source: 'осмотр', status: 'ждёт ЦОД', pages };
+  if (docType) scan.docType = docType;
   const r = resultsOf(typeId, ocId);
   if (!Array.isArray(r.scans)) r.scans = [];
   r.scans.push(scan);

@@ -85,7 +85,9 @@ export function mountScans(host) {
     if (it.source === 'кадастр' && it.title && !list.includes(it.title)) list.unshift(it.title);
     return list;
   };
-  const defaultDocType = (it, types) => (types.includes(it.title) ? it.title : (types.includes('Прочее') ? 'Прочее' : types[0] || ''));
+  // Вид — предложенный осмотрщиком, затем совпавший с названием, затем «Прочее».
+  const defaultDocType = (it, types) => (it.docType && types.includes(it.docType) ? it.docType
+    : types.includes(it.title) ? it.title : (types.includes('Прочее') ? 'Прочее' : types[0] || ''));
 
   function ensureDraft(it) {
     if (draft.key === it.key) return;

@@ -65,7 +65,7 @@ function scanItem(res, s, cache) {
   const rec = cache(res.typeId, res.ocId);
   return {
     key: scanKey(res.typeId, res.ocId, s.id), source: 'осмотр', typeId: res.typeId, ocId: res.ocId, oiId: s.oiId || '',
-    title: s.title || 'Документ с осмотра', by: s.by || '', at: s.at || '', pages: s.pages || [],
+    title: s.title || 'Документ с осмотра', docType: s.docType || '', by: s.by || '', at: s.at || '', pages: s.pages || [],
     state: review.state || 'wait', reason: review.reason || '', decidedBy: review.by || '', decidedAt: review.at || '', docId: review.docId || '',
     cod: rec && rec.resp ? rec.resp.cod || '' : '', insp: rec && rec.resp ? rec.resp.insp || '' : '',
     place: placeOf(rec), eni: rec ? rec.eni || '' : '',

@@ -18,6 +18,8 @@
 import { MENU_HREF, INSP_HREF, inspHref } from '../../kernel/router.js';
 import { pickFile, pickFiles, isFileTooLarge, MAX_DOC_FILE_MB } from '../../kernel/fileUpload.js';
 import { pdfToJpegFiles } from '../../kernel/viewer/pdf.js';
+import { attachDialog } from '../../kernel/viewer/files.js';
+import { optionsFor } from '../../kernel/dicts.js';
 import { newEditor, mountScanEditor, disposeEditor } from './scanEditor.js';
 import { bindFields, filledCount, requiredLeft } from '../../kernel/fieldSchema.js';
 import {
@@ -1571,7 +1573,38 @@ export function mountInspector(host) {
       title: picked.length === 1 ? picked[0].name.replace(/\.[^.]+$/, '') : '', oiId: '', retakeId: '', uploaded: true, ...extra };
     renderKeep();
   };
-  scope.on('click', '[data-scan-upload]', () => uploadDraft());
+  // Новые документы файлом — то же окно прикрепления, что в документах карточки
+  // (решение пользователя 29.10.2026): несколько файлов, у каждого — название,
+  // вид, к чему относится, предпросмотр; каждый файл — свой скан.
+  scope.on('click', '[data-scan-upload]', async () => {
+    const picked = await pickFiles('image/*,application/pdf');
+    if (!picked.length) return;
+    const odd = picked.find((f) => !(f.type || '').startsWith('image/') && f.type !== 'application/pdf');
+    if (odd) { host.toast(`«${odd.name}» — не снимок и не PDF`, 'warn'); return; }
+    const r = rec() || {};
+    const types = optionsFor(route.typeId, 'oc', 'docType') || ['Техпаспорт', 'ПУД', 'Гос. акт на землю', 'Акт осмотра', 'Прочее'];
+    const rows = await attachDialog(document, picked, {
+      types, whereLabel: 'на разбор ЦОД', okLabel: 'Отправить',
+      place: { label: 'К чему относится', value: '', options: [{ value: '', label: 'Объект оценки' }, ...oiOptions(r, route.typeId, route.ocId).map((o) => ({ value: o.id, label: o.label }))] },
+    });
+    if (!rows || !rows.length) return;
+    host.toast('Готовим страницы…');
+    let n = 0;
+    for (const row of rows) {
+      let pages;
+      try {
+        pages = row.pdf ? await pdfToJpegFiles(row.file) : [row.file];
+      } catch (err) {
+        host.toast(`«${row.file.name}» не прочитался`, 'warn');
+        continue;
+      }
+      if (!pages.length) continue;
+      addScan(route.typeId, route.ocId, pages, { title: String(row.name || '').replace(/\.[^.]+$/, '').trim(), oiId: row.place, docType: row.type });
+      n++;
+    }
+    if (n) host.toast(n > 1 ? `Отправлено документов: ${n} — ждут удостоверения ЦОД` : 'Документ отправлен — ждёт удостоверения ЦОД', 'ok');
+    renderKeep();
+  });
   scope.on('click', '[data-scan-retake-upload]', (e, el) => {
     const s = scansOf(route.typeId, route.ocId).find((x) => x.id === el.dataset.scanRetakeUpload);
     if (s) uploadDraft({ retakeId: s.id, title: s.title, oiId: s.oiId || '' });

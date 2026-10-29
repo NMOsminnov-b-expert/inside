@@ -252,8 +252,35 @@ kbd,.vmenu kbd{display:inline-block;padding:1px 5px;
 .vattach-all{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:10px;font-size:12px;color:var(--muted)}
 .vattach-all .select{width:auto;min-width:200px}
 .vattach-list{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
-.vattach-row{display:grid;grid-template-columns:20px minmax(0,1fr) 180px 72px;align-items:center;gap:10px;
+.vattach-row{display:grid;grid-template-columns:20px 48px minmax(0,1fr) 180px 72px;align-items:center;gap:10px;
   padding:7px 10px;border-bottom:1px solid var(--line-soft)}
+/* Окно у осмотрщика — ещё «К чему относится» (решение 29.10.2026). */
+.vattach.with-place{max-width:920px;width:min(920px,calc(100vw - 32px))}
+.vattach.with-place .vattach-row{grid-template-columns:20px 48px minmax(0,1fr) 170px 190px 72px}
+/* Миниатюра файла — кнопка предпросмотра: лист целиком, касание 44px+. */
+.vattach-thumb{width:48px;height:60px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;
+  overflow:hidden;display:flex;align-items:center;justify-content:center;font:600 10px/1 inherit;color:var(--muted)}
+.vattach-thumb img{width:100%;height:100%;object-fit:contain;display:block}
+.vattach-thumb:focus-visible{outline:3px solid var(--blue-300);outline-offset:2px}
+/* Предпросмотр файла в том же окне: страницы столбцом, номер под каждой. */
+.vattach-peek-head{display:flex;align-items:center;gap:10px;min-width:0}
+.vattach-peek-head span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vattach-peek-body{max-height:70vh;overflow:auto;background:var(--slate-100,#eef2f7);display:flex;flex-direction:column;gap:12px;align-items:center}
+.vattach-peek-body figure{margin:0;width:100%;max-width:680px}
+.vattach-peek-body img{width:100%;height:auto;display:block;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,.18)}
+.vattach-peek-body figcaption{font-size:11.5px;color:var(--muted);text-align:center;margin-top:4px;font-variant-numeric:tabular-nums}
+.vattach-wait{color:var(--muted);font-size:13px}
+/* Узкий экран (телефон осмотрщика): строка — карточкой, поля под миниатюрой. */
+@media (max-width:640px){
+  .vattach-row,.vattach.with-place .vattach-row{grid-template-columns:20px 48px minmax(0,1fr);grid-auto-rows:auto}
+  /* Списки ядра обёрнуты в .pick (kernel/dropdown.js) — правило и для обёртки. */
+  .vattach-row > .select,.vattach-row > .pick{grid-column:2 / -1;width:100%;display:block}
+  .vattach-row > .pick .pick-btn{width:100%}
+  .vattach-row > .input{grid-column:3 / -1;grid-row:1}
+  .vattach-size{grid-column:3 / -1;text-align:left}
+  .vattach-all{justify-content:flex-start;flex-wrap:wrap}
+  .vattach-all .select{min-width:0;flex:1 1 160px}
+}
 .vattach-row:last-child{border-bottom:0}
 .vattach-row.off{opacity:.5}
 .vattach-size{font-size:11.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}

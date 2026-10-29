@@ -1,6 +1,11 @@
 import { esc } from '../dom.js';
 import { openTabOnly } from './state.js';
-import { docListFor, attachedFileFrom, isFileTooLarge, scopeLabel, nextDocId, maxFileMb, docTypes } from './deps.js';
+import { docListFor, attachedFileFrom, scopeLabel, nextDocId, docTypes } from './deps.js';
+// Предел размера — из ядра напрямую: окно прикрепления открывается и там, где
+// просмотрщика нет (у осмотрщика), и доступа к данным модуля у него нет.
+import { isFileTooLarge, MAX_DOC_FILE_MB } from '../fileUpload.js';
+
+const maxFileMb = () => MAX_DOC_FILE_MB;
 
 // Прикрепление документов пачкой: выбором, перетаскиванием и вставкой.
 //
@@ -50,29 +55,51 @@ const kb = (n) => (n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1).replace('.', 
 
 // Окно подтверждения пачки. Своё, а не kernel/dialog.js: там нет окна со
 // списком строк, а здесь у каждого файла своё имя и вид.
-function batchDialog(doc, files, types, whereLabel) {
+//
+// Одно окно на всю систему (решение пользователя 29.10.2026: «При прикреплении
+// через документы у нас должно прикрепляться все через такое же окно как в
+// документах. Важно добавить предпросмотр документа. и возможность подгрузки
+// нескольких документов. Для каждого - свои параметры»): карточка ОЦ и
+// осмотрщик. У каждого файла — миниатюра, касание открывает предпросмотр
+// целиком (у PDF — все страницы); place — необязательное поле «К чему
+// относится» со своим списком (у осмотрщика).
+export function attachDialog(doc, files, { types, whereLabel = '', place = null, okLabel = 'Прикрепить' } = {}) {
   return new Promise((resolve) => {
     doc.querySelectorAll('.modal-back').forEach((old) => old.remove());
     const rows = files.map((f) => ({
       file: f, name: f.name, type: guessType(f.name, types), big: isFileTooLarge(f), on: !isFileTooLarge(f),
+      place: place ? place.value || '' : '', thumb: '',
+      pdf: f.type === 'application/pdf' || /\.pdf$/i.test(f.name), image: (f.type || '').startsWith('image/'),
     }));
+    const urls = [];
+    const urlOf = (f) => { const u = URL.createObjectURL(f); urls.push(u); return u; };
+    rows.forEach((r) => { if (r.image) r.thumb = urlOf(r.file); });
+    let peek = -1;          // какой файл открыт в предпросмотре
+    let peekPages = null;   // его страницы — ссылки на картинки; null — готовятся
 
     const back = doc.createElement('div');
     back.className = 'modal-back';
     const typeOpts = (cur) => types.map((t) => `<option ${t === cur ? 'selected' : ''}>${esc(t)}</option>`).join('');
-    const draw = () => {
+    const placeOpts = (cur) => (place ? place.options : [])
+      .map((o) => `<option value="${esc(o.value)}" ${o.value === cur ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+    const thumbHTML = (r, i) => `<button type="button" class="vattach-thumb" data-att-peek="${i}"
+      aria-label="Предпросмотр «${esc(r.file.name)}»" title="Предпросмотр">
+      ${r.thumb ? `<img src="${esc(r.thumb)}" alt="">` : `<span>${r.pdf ? 'PDF' : 'файл'}</span>`}</button>`;
+    const listHTML = () => {
       const n = rows.filter((r) => r.on).length;
-      back.innerHTML = `<div class="modal vattach" role="dialog" aria-modal="true" aria-labelledby="vattachTitle">
-        <div class="modal-head" id="vattachTitle">Прикрепить документы · ${esc(whereLabel)}</div>
+      return `<div class="modal vattach ${place ? 'with-place' : ''}" role="dialog" aria-modal="true" aria-labelledby="vattachTitle">
+        <div class="modal-head" id="vattachTitle">${esc(okLabel)} документы · ${esc(whereLabel)}</div>
         <div class="modal-body">
-          <div class="vattach-all"><label for="vattachAll">Вид для всех</label>
-            <select class="select" id="vattachAll" data-att-all><option value="">— как подобрано —</option>${typeOpts('')}</select></div>
+          ${rows.length > 1 ? `<div class="vattach-all"><label for="vattachAll">Вид для всех</label>
+            <select class="select" id="vattachAll" data-att-all><option value="">— как подобрано —</option>${typeOpts('')}</select></div>` : ''}
           <div class="vattach-list">
             ${rows.map((r, i) => `<div class="vattach-row ${r.on ? '' : 'off'}">
               <input type="checkbox" data-att-on="${i}" ${r.on ? 'checked' : ''} ${r.big ? 'disabled' : ''}
                 aria-label="Прикрепить «${esc(r.file.name)}»">
+              ${thumbHTML(r, i)}
               <input class="input" data-att-name="${i}" value="${esc(r.name)}" aria-label="Название документа">
               <select class="select" data-att-type="${i}" aria-label="Вид документа">${typeOpts(r.type)}</select>
+              ${place ? `<select class="select" data-att-place="${i}" aria-label="${esc(place.label)}">${placeOpts(r.place)}</select>` : ''}
               <span class="vattach-size ${r.big ? 'warn' : ''}" title="${r.big ? `Больше ${maxFileMb()} МБ — не прикрепить` : ''}">
                 ${r.big ? `больше ${maxFileMb()} МБ` : kb(r.file.size)}</span>
             </div>`).join('')}
@@ -80,30 +107,75 @@ function batchDialog(doc, files, types, whereLabel) {
         </div>
         <div class="modal-foot">
           <button class="btn btn-ghost" data-att-cancel>Отмена</button>
-          <button class="btn btn-primary" data-att-ok ${n ? '' : 'disabled'}>Прикрепить${n > 1 ? ` · ${n}` : ''}</button>
+          <button class="btn btn-primary" data-att-ok ${n ? '' : 'disabled'}>${esc(okLabel)}${n > 1 ? ` · ${n}` : ''}</button>
         </div></div>`;
+    };
+    const peekHTML = () => {
+      const r = rows[peek];
+      const body = peekPages === null ? '<p class="vattach-wait">Готовим страницы…</p>'
+        : peekPages.length ? peekPages.map((u, k) => `<figure><img src="${esc(u)}" alt="Страница ${k + 1}">
+          <figcaption>${k + 1} из ${peekPages.length}</figcaption></figure>`).join('')
+          : '<p class="vattach-wait">Предпросмотр недоступен для этого типа файла.</p>';
+      return `<div class="modal vattach vattach-peek" role="dialog" aria-modal="true" aria-labelledby="vattachPeekTitle">
+        <div class="modal-head vattach-peek-head"><button class="btn btn-ghost btn-sm" data-att-back>← К списку</button>
+          <span id="vattachPeekTitle">${esc(r.file.name)}</span></div>
+        <div class="modal-body vattach-peek-body">${body}</div></div>`;
+    };
+    const draw = () => {
+      back.innerHTML = peek >= 0 ? peekHTML() : listHTML();
       bind();
     };
+    const closePeek = () => { peek = -1; peekPages = null; draw(); };
+    const openPeek = async (i) => {
+      peek = i;
+      const r = rows[i];
+      peekPages = r.image ? [r.thumb] : r.pdf ? null : [];
+      draw();
+      if (!r.pdf) return;
+      try {
+        const { pdfToJpegFiles } = await import('./pdf.js');
+        const pages = await pdfToJpegFiles(r.file, { maxSide: 1400 });
+        if (peek !== i) return;
+        peekPages = pages.map(urlOf);
+      } catch (e) {
+        if (peek !== i) return;
+        peekPages = [];
+      }
+      draw();
+    };
 
-    const done = (v) => { back.remove(); resolve(v); };
+    const done = (v) => { back.remove(); urls.forEach((u) => URL.revokeObjectURL(u)); resolve(v); };
     const bind = () => {
-      back.querySelectorAll('[data-att-name]').forEach((i) => i.oninput = () => { rows[+i.dataset.attName].name = i.value; });
-      back.querySelectorAll('[data-att-type]').forEach((s) => s.onchange = () => { rows[+s.dataset.attType].type = s.value; });
-      back.querySelectorAll('[data-att-on]').forEach((c) => c.onchange = () => { rows[+c.dataset.attOn].on = c.checked; draw(); });
+      const toList = back.querySelector('[data-att-back]');
+      if (toList) {
+        toList.onclick = closePeek;
+        toList.focus();
+        return;
+      }
+      back.querySelectorAll('[data-att-name]').forEach((i) => { i.oninput = () => { rows[+i.dataset.attName].name = i.value; }; });
+      back.querySelectorAll('[data-att-type]').forEach((s) => { s.onchange = () => { rows[+s.dataset.attType].type = s.value; }; });
+      back.querySelectorAll('[data-att-place]').forEach((s) => { s.onchange = () => { rows[+s.dataset.attPlace].place = s.value; }; });
+      back.querySelectorAll('[data-att-on]').forEach((c) => { c.onchange = () => { rows[+c.dataset.attOn].on = c.checked; draw(); }; });
+      back.querySelectorAll('[data-att-peek]').forEach((b) => { b.onclick = () => openPeek(+b.dataset.attPeek); });
       const all = back.querySelector('[data-att-all]');
-      all.onchange = () => {
-        if (!all.value) return;
-        rows.forEach((r) => { r.type = all.value; });
-        draw();
-      };
+      if (all) {
+        all.onchange = () => {
+          if (!all.value) return;
+          rows.forEach((r) => { r.type = all.value; });
+          draw();
+        };
+      }
       back.querySelector('[data-att-cancel]').onclick = () => done(null);
       back.querySelector('[data-att-ok]').onclick = () => done(rows.filter((r) => r.on));
     };
 
     back.addEventListener('mousedown', (e) => { if (e.target === back) done(null); });
     back.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); done(null); }
-      if (e.key === 'Enter' && e.target.tagName !== 'SELECT') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (peek >= 0) closePeek(); else done(null);
+      }
+      if (e.key === 'Enter' && peek < 0 && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
         e.preventDefault();
         const ok = back.querySelector('[data-att-ok]');
         if (ok && !ok.disabled) ok.click();
@@ -111,10 +183,24 @@ function batchDialog(doc, files, types, whereLabel) {
     });
     draw();
     doc.body.appendChild(back);
+    // Миниатюра PDF — первая страница, по готовности.
+    rows.forEach(async (r) => {
+      if (!r.pdf) return;
+      try {
+        const { pdfToJpegFiles } = await import('./pdf.js');
+        const [first] = await pdfToJpegFiles(r.file, { maxSide: 240, pages: 1 });
+        if (!first) return;
+        r.thumb = urlOf(first);
+        const b = back.querySelector(`[data-att-peek="${rows.indexOf(r)}"]`);
+        if (b) b.innerHTML = `<img src="${esc(r.thumb)}" alt="">`;
+      } catch (e) { /* миниатюры нет — останется «PDF» */ }
+    });
     const first = back.querySelector('[data-att-name]');
     if (first) first.focus();
   });
 }
+
+const batchDialog = (doc, files, types, whereLabel) => attachDialog(doc, files, { types, whereLabel });
 
 // Куда прикрепляется: в карточке литеры — к литере, иначе — к объекту оценки.
 export const attachScope = (ctx) => ((ctx.view === 'oi' && ctx.oi) ? ctx.oi.id : 'oc');
