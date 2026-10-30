@@ -151,7 +151,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       <header class="ip-pane-head">
         <h2>${esc(target.title)}</h2>
         <p class="ip-pane-sub">${esc(target.sub || '')} · <a href="${esc(build({ typeId: target.typeId, ocId: target.ocId }))}">карточка</a></p>
-        <p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev.state))}</span>
+        <p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev))}</span>
           ${esc(prev.person)} · план ${esc(fmtDate(prev.plannedAt) || '—')}${prev.doneAt ? ` · закончен ${esc(fmtDate(prev.doneAt))}` : ''}</p>
       </header>
       <div class="ip-pane-body">
@@ -169,7 +169,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       <h2>${esc(target.title)}</h2>
       <p class="ip-pane-sub">${esc(target.sub || '')}${target.eni ? ` · <span class="mono">${esc(target.eni)}</span>` : ''}
         · <a href="${esc(build({ typeId: target.typeId, ocId: target.ocId }))}">карточка</a></p>
-      ${prev ? `<p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev.state))}</span>
+      ${prev ? `<p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev))}</span>
         назначил ${esc(prev.by || '—')} ${esc(fmtDate(prev.at))}</p>` : ''}
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
     </header>

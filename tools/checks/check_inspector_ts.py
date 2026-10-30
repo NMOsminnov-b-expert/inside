@@ -180,11 +180,18 @@ def run(t):
     t.ck(pg.locator('[data-fs-field="ts.found"], [data-fs-field="ts.where"], [data-fs-field="ts.whoSaid"]').count() == 0,
          'у ТС снова отметка «найдено / не найдено»')
 
-    # «Осмотр завершён» — как у прочих осмотров: без перечня недостающего и причины.
+    # «Осмотр завершён» — как у прочих осмотров: без причины; при незаполненном —
+    # перечень ссылками и «Завершить с пометкой «неполный осмотр»» (ответ
+    # пользователя 30.10.2026 «Предупреждать, разрешать»). Отметка — у
+    # назначения осмотрщика («Каждый свою часть»).
     t.open(as_('#/insp/vehicle/oc-vehicle-d2', ME), wait='[data-toggle-done]')
     pg.click('[data-toggle-done]')
-    t.ck(t.wait_until("async () => (%s).taskState('vehicle', 'oc-vehicle-d2').done" % T) and pg.locator('[data-done-check]').count() == 0,
-         '«Осмотр завершён» потребовал перечня или причины')
+    t.wait_until("() => document.querySelector('[data-done-anyway]') || /завершён/.test((document.querySelector('[data-toggle-done]') || {}).textContent || '')")
+    if pg.locator('[data-done-anyway]').count():
+        t.ck(pg.locator('.ins-gaps-list a').count() > 0, 'перечень незаполненного пуст')
+        pg.click('[data-done-anyway]')
+    t.ck(t.wait_until("async () => (%s).isDoneByMe('vehicle', 'oc-vehicle-d2')" % T) and pg.locator('[data-done-check]').count() == 0,
+         '«Осмотр завершён» не завершил осмотр или потребовал причину')
 
     # --- 2. ТС без модуля, прицеп ------------------------------------------------
     t.open(as_('#/insp/vehicle/oc-vehicle-d1/object/ts', ME), wait='.ins-acc')
@@ -291,7 +298,9 @@ def run(t):
 
     # --- 6. Передача ТС другому осмотрщику ----------------------------------------
     pg.set_viewport_size({'width': 1280, 'height': 900})
-    aid = pg.evaluate("async ([p]) => (%s).allAssignments().find((a) => a.ocId === 'oc-cv-1' && a.person === p && a.state === 'assigned').id" % KI, [ME])
+    # Действующее назначение: после ввода выше оно «В работе» (30.10.2026 —
+    # первый ввод осмотрщика переводит назначение из «Назначено»).
+    aid = pg.evaluate("async ([p]) => { const K = %s; return K.allAssignments().find((a) => a.ocId === 'oc-cv-1' && a.person === p && K.isLive(a)).id; }" % KI, [ME])
     t.open('#/inspections?s=assign&t=assigned&ap=*', wait='[data-ip-row]')
     pg.click('[data-ip-row="%s"]' % aid)
     t.wait_for('[data-ip-ts-pass]')

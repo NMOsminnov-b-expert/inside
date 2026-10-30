@@ -13,11 +13,18 @@ import {
 import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
+import { hasResults } from '../../kernel/inspectionResults.js';
 
 export { READY_STATUS };
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
-export const stateLabel = (k) => (ASSIGN_STATES.find((s) => s.key === k) || {}).label || k;
+// Подпись состояния; у назначения — с пометкой «неполный осмотр» (осмотр
+// завершён при незаполненном — ответ пользователя 30.10.2026).
+export const stateLabel = (x) => {
+  const k = x && typeof x === 'object' ? x.state : x;
+  const label = (ASSIGN_STATES.find((s) => s.key === k) || {}).label || k;
+  return x && typeof x === 'object' && x.state === 'done' && x.incomplete ? `${label} · неполный` : label;
+};
 
 // Сводки всех записей — одним проходом на отрисовку данных: панель смотрит
 // во все типы ОЦ сразу, а запрос по id у реестра нет.
@@ -87,7 +94,9 @@ export function queueRows(all, f) {
     const cov = coverageOf(s.typeId, s.id);
     if (cov.state === 'full') return;
     if (f.cov && cov.state !== f.cov) return;
-    out.push({ ...s, cov });
+    // Осмотр начат и снят (переназначение — «Передать новому», ответ
+    // пользователя 30.10.2026): введённое ждёт нового осмотрщика.
+    out.push({ ...s, cov, partial: hasResults(s.typeId, s.id) });
   });
   return out.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 }

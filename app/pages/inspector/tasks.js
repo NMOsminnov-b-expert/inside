@@ -12,7 +12,7 @@
 import { sortedTypes, getType, migrateLiterKinds, tsName, tsFoundKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
 import { hereNow } from '../../kernel/geoHere.js';
-import { tasksOf, allAssignments, isLive, assignmentsOf } from '../../kernel/inspections.js';
+import { tasksOf, allAssignments, isLive, assignmentsOf, workDone, startWork } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, replaceScanPages, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
 import { retakesOf } from '../../kernel/scanQueue.js';
 import { inventoryById } from '../../kernel/inventories.js';
@@ -60,7 +60,7 @@ export function voicesOf(typeId, ocId, oiId = null) {
   if (!Array.isArray(st.voices)) st.voices = [];
   return oiId === null ? st.voices : st.voices.filter((v) => (v.oiId || '') === oiId);
 }
-export const addVoice = (typeId, ocId, blob, opts) => addResultVoice(typeId, ocId, blob, { ...opts, by: currentInspector() });
+export const addVoice = (typeId, ocId, blob, opts) => { startWork(currentInspector(), typeId, ocId); return addResultVoice(typeId, ocId, blob, { ...opts, by: currentInspector() }); };
 export function removeVoice(typeId, ocId, id) {
   const list = voicesOf(typeId, ocId);
   const i = list.findIndex((x) => x.id === id);
@@ -75,7 +75,7 @@ export function scansOf(typeId, ocId) {
   if (!Array.isArray(st.scans)) st.scans = [];
   return st.scans;
 }
-export const addScan = (typeId, ocId, files, opts) => addResultScan(typeId, ocId, files, { ...opts, by: currentInspector() });
+export const addScan = (typeId, ocId, files, opts) => { startWork(currentInspector(), typeId, ocId); return addResultScan(typeId, ocId, files, { ...opts, by: currentInspector() }); };
 export const replaceScan = (typeId, ocId, id, files) => replaceScanPages(typeId, ocId, id, files, { by: currentInspector() });
 export { retakesOf };
 export function removeScan(typeId, ocId, id) {
@@ -192,6 +192,7 @@ export function myTasks({ onlyPending = false } = {}) {
     const s = rowsOf.get(key(typeId, ocId));
     if (!s) return;
     const st = taskState(typeId, ocId);
+    const done = isDoneByMe(typeId, ocId);
     out.push({
       key: key(typeId, ocId),
       typeId,
@@ -207,7 +208,7 @@ export function myTasks({ onlyPending = false } = {}) {
       pendingNotes: (s.metrics && s.metrics.pendingNotes) || 0,
       // По назначению ждёт, пока назначение действует и осмотр не закончен;
       // без назначения — прежнее правило по статусу.
-      pending: assign ? isLive(assign) && !st.done : s.status === READY_STATUS && !st.done,
+      pending: assign ? isLive(assign) && !done : s.status === READY_STATUS && !done,
       plannedAt: assign ? assign.plannedAt || '' : '',
       // Назначенные ОИ: 0 — объект целиком.
       oiAssigned: oiIds.length,
@@ -219,7 +220,7 @@ export function myTasks({ onlyPending = false } = {}) {
       photos: st.photos.length,
       // Возвращённые ЦОД сканы, которые осмотрщик ещё не переснял.
       retakes: retakesOf(typeId, ocId).length,
-      done: st.done,
+      done,
     });
   });
 
@@ -403,7 +404,14 @@ export function othersOiCount(rec, typeId, ocId) {
   return ids ? ((rec && rec.oi) || []).filter((o) => !ids.has(o.id)).length : 0;
 }
 
-export const isFoundLocked = (typeId, ocId) => !!taskState(typeId, ocId).done;
+// Закончен ли осмотр этим осмотрщиком: по его назначениям (ответ пользователя
+// 30.10.2026 «Каждый свою часть» — у каждого своя отметка); без назначения —
+// прежняя отметка объекта.
+export function isDoneByMe(typeId, ocId) {
+  const byAssign = workDone(currentInspector(), typeId, ocId);
+  return byAssign === null ? !!taskState(typeId, ocId).done : byAssign;
+}
+export const isFoundLocked = (typeId, ocId) => isDoneByMe(typeId, ocId);
 
 let foundSeq = 0;
 const two = (n) => String(n).padStart(2, '0');
@@ -537,6 +545,7 @@ export function addPhoto(typeId, ocId, file, { oiId = '', cat = '' } = {}) {
   //
   // Место съёмки — координаты телефона (ответ В4 27.10.2026, kernel/geoHere.js):
   // приходят после снимка; нет разрешения или сигнала — снимок без места.
+  startWork(currentInspector(), typeId, ocId);
   const photo = addResultPhoto(typeId, ocId, file, {
     oiId,
     cat: cat || PHOTO_CATS[0],

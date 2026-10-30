@@ -31,9 +31,9 @@ import {
   foundOi, addFoundOi, removeFoundOi, moveFoundTo, inspOis, isFoundLocked, PHOTO_CATS, photoCatsOf, UNSORTED, unsortedCount, contactsOf,
   othersOiCount,
   newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
-  scansOf, addScan, replaceScan, retakesOf, removeScan, myInventories, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone,
+  scansOf, addScan, replaceScan, retakesOf, removeScan, myInventories, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone, isDoneByMe,
 } from './tasks.js';
-import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf } from '../../kernel/inspections.js';
+import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf, startWork, finishWork } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
 import { codeByName } from '../../kernel/institutions.js';
@@ -842,7 +842,16 @@ export function mountInspector(host) {
     const ll = parseLL(r.gps) || (geo && geo.extent ? [(geo.extent[1] + geo.extent[3]) / 2, (geo.extent[0] + geo.extent[2]) / 2] : null);
     const chain = institutionChain(r.institution, r.podved).map((x) => ({ name: x.node ? x.node.name : (x.name || 'Учреждение'), contacts: x.contacts || [] }))
       .filter((g) => g.contacts.length);
-    scope.setHTML(taskHTML({ rec: r, state, hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId),
+    // Снятые назначения других осмотрщиков с введённым — «Передать новому»
+    // (ответ пользователя 30.10.2026): новый продолжает с введённого.
+    const me = currentInspector();
+    const prevBy = state.photos.length || Object.keys(state.assets || {}).length || state.note
+      ? [...new Map(allAssignments().filter((a) => a.typeId === typeId && a.ocId === ocId && a.state === 'removed' && a.person !== me)
+        .map((a) => [a.person, a])).values()].map((a) => ({ person: a.person, at: a.removedAt || '' }))
+      : [];
+    scope.setHTML(taskHTML({ rec: r, state, done: isDoneByMe(typeId, ocId), prevBy,
+      doneGaps: ui.doneGaps && ui.doneGaps.key === typeId + '|' + ocId ? ui.doneGaps.list : null,
+      gapHref: (oiId) => inspHref({ typeId, ocId, section: 'object', oiId }), hrefFor, counts, backHref: homeHref(), geo, ll, app: navApp(), geoMsg: ui.geoMsg || '', unsorted: unsortedCount(typeId, ocId),
       oiCount: inspOis(r, typeId, ocId).filter((o) => !o.draft).length,
       contacts: { own: contactsOf(typeId, ocId), editing: ui.ct.editing, object: r.contacts || [], chain },
       voices: voicesOf(typeId, ocId, ''), recording: voiceRec && { oiId: voiceRec.oiId },
@@ -1243,17 +1252,49 @@ export function mountInspector(host) {
     if (route.typeId && route.ocId) { taskState(route.typeId, route.ocId).note = el.value; saveResults(); }
   });
 
+  // Первый ввод осмотрщика по объекту — назначение «В работе» (ответ
+  // пользователя 30.10.2026 «Каждый свою часть»). Ввод в отчётах и запросах
+  // кадастра объекта не касается: у них нет route.typeId.
+  const onWork = () => { if (route.typeId && route.ocId) startWork(currentInspector(), route.typeId, route.ocId); };
+  scope.on('input', 'input, textarea, select', onWork);
+  scope.on('change', 'input, textarea, select', onWork);
+
+  // Что не заполнено к завершению — по ОИ осмотрщика (ответ 30.10.2026
+  // «Предупреждать, разрешать»): нетронутые ОИ и ОИ с незаполненными
+  // обязательными полями.
+  function doneGaps() {
+    const r = rec();
+    if (!r) return [];
+    return inspOis(r, route.typeId, route.ocId).filter((o) => !o.draft).map((o) => {
+      const fields = allFields(route.typeId, o);
+      const values = assetValues(route.typeId, route.ocId, o.id);
+      const filled = filledCount(fields, values);
+      const left = requiredLeft(fields, values);
+      return filled && !left ? null : { id: o.id, label: oiLabel(o), untouched: !filled, left };
+    }).filter(Boolean);
+  }
+  function applyDone(done, incomplete = false) {
+    const { typeId, ocId } = route;
+    // Нет назначения (объект осмотрщика по карточке) — прежняя отметка объекта.
+    if (!finishWork(currentInspector(), typeId, ocId, done, { incomplete })) markDone(typeId, ocId, done);
+    ui.doneGaps = null;
+    host.toast(done ? (incomplete ? 'Осмотр завершён с пометкой «неполный осмотр»' : 'Осмотр отмечен как завершённый') : 'Отметка снята', 'ok');
+    render();
+  }
   scope.on('click', '[data-toggle-done]', () => {
+    const done = isDoneByMe(route.typeId, route.ocId);
+    if (done) { applyDone(false); return; }
     const left = unsortedCount(route.typeId, route.ocId);
-    const st0 = taskState(route.typeId, route.ocId);
-    if (!st0.done && left) {
+    if (left) {
       host.toast(`Не завершить: снимков не распределено по категориям — ${left}`, 'warn');
       return;
     }
-    const st = markDone(route.typeId, route.ocId, !st0.done);
-    host.toast(st.done ? 'Осмотр отмечен как завершённый' : 'Отметка снята', 'ok');
-    render();
+    const gaps = doneGaps();
+    if (gaps.length) { ui.doneGaps = { key: route.typeId + '|' + route.ocId, list: gaps }; render(); return; }
+    applyDone(true);
   });
+  scope.on('click', '[data-done-anyway]', () => applyDone(true, true));
+  scope.on('click', '[data-done-cancel]', () => { ui.doneGaps = null; render(); });
   scope.on('click', '[data-oi]', (e, el) => {
     ui.openOi = ui.openOi === el.dataset.oi ? null : el.dataset.oi;
     render();

@@ -362,7 +362,26 @@ export function contourAreaM2(contour) {
 
 // --- экран 2: задача ------------------------------------------------------
 
-export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null, oiCount = null, inventories = '' }) {
+// Незаполненное к завершению осмотра (ответ пользователя 30.10.2026
+// «Предупреждать, разрешать»): ОИ осмотрщика ссылками в их формы; завершить
+// можно с пометкой «неполный осмотр» — её видят регионал и ЦОД.
+function gapsHTML(gaps, gapHref) {
+  return `<div class="ins-gaps" role="group" aria-labelledby="insGapsH">
+    <p class="ins-gaps-h" id="insGapsH">Не заполнено к завершению</p>
+    <ul class="ins-gaps-list">
+      ${gaps.map((g) => `<li><a href="${esc(gapHref(g.id))}">
+        <span class="ins-gaps-t">${esc(g.label)}</span>
+        <span class="ins-gaps-n">${g.untouched ? 'не начат' : `обязательных: ${g.left}`}</span>
+      </a></li>`).join('')}
+    </ul>
+    <div class="ins-gaps-acts">
+      <button class="ins-btn ins-btn-wide" data-done-anyway>Завершить с пометкой «неполный осмотр»</button>
+      <button class="ins-btn ins-btn-wide" data-done-cancel>Вернуться к осмотру</button>
+    </div>
+  </div>`;
+}
+
+export function taskHTML({ rec, state, done = false, prevBy = [], doneGaps = null, gapHref = () => '', hrefFor, counts, backHref, geo = null, ll = null, app = '', geoMsg = '', unsorted = 0, contacts = null, voices = [], recording = null, oiCount = null, inventories = '' }) {
 
   const notes = (rec.notes || []).filter((n) => n && n.text);
 
@@ -426,11 +445,13 @@ export function taskHTML({ rec, state, hrefFor, counts, backHref, geo = null, ll
       </section>
 
       <section class="ins-blk">
-        <button class="ins-btn ${state.done ? '' : 'ins-btn-main'} ins-btn-wide" data-toggle-done
-          ${!state.done && unsorted ? 'aria-describedby="insUnsorted"' : ''}>
-          ${ico('ok')} ${state.done ? 'Снять отметку «осмотр завершён»' : 'Осмотр завершён'}
-        </button>
-        ${!state.done && unsorted ? `<p class="ins-hint ins-hint-warn" id="insUnsorted">Снимков не распределено по категориям: ${unsorted}.
+        ${prevBy.length ? `<p class="ins-hint">Осмотр начат до вас: ${prevBy.map((x) => `${esc(x.person)}${x.at ? `, снято ${esc(new Date(x.at).toLocaleDateString('ru-RU'))}` : ''}`).join('; ')}.
+          Введённое сохранено — продолжайте с него.</p>` : ''}
+        ${doneGaps ? gapsHTML(doneGaps, gapHref) : `<button class="ins-btn ${done ? '' : 'ins-btn-main'} ins-btn-wide" data-toggle-done
+          ${!done && unsorted ? 'aria-describedby="insUnsorted"' : ''}>
+          ${ico('ok')} ${done ? 'Снять отметку «осмотр завершён»' : 'Осмотр завершён'}
+        </button>`}
+        ${!done && unsorted ? `<p class="ins-hint ins-hint-warn" id="insUnsorted">Снимков не распределено по категориям: ${unsorted}.
           Распределите их — кнопка «Не распределено» у камеры в осмотре объекта или раздел «Фото», — затем завершайте осмотр.</p>` : ''}
         <p class="ins-hint">Статус «Осмотрен» ставит ЦОД после проверки —
           отметка говорит ему, что можно проверять.</p>

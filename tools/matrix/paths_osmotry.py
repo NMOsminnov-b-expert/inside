@@ -25,7 +25,9 @@ STATE_JS = """() => {
   return {
     адрес: location.hash,
     раздел: on('data-ip-section'),
-    подраздел: on('data-ip-team') || on('data-ip-tab') || on('data-ip-atab') || on('data-ip-ptab'),
+    // Ряд «Осмотрщики · К назначению · Назначено» (data-ip-team, объединение
+    // разделов 29.10.2026) — последним: подраздел — вкладка под ним.
+    подраздел: on('data-ip-tab') || on('data-ip-atab') || on('data-ip-ptab') || on('data-ip-team'),
     поиск: q('[data-ip-q]') ? q('[data-ip-q]').value : null,
     строк: document.querySelectorAll('[data-ip-row]').length,
     выбрано: q('tr.cur[data-ip-row]') ? q('tr.cur[data-ip-row]').getAttribute('data-ip-row') : '',

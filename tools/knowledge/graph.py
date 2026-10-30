@@ -28,6 +28,7 @@ CodeGraph, поиска по смыслу и сборщиков; файл, из�
     python tools/knowledge/graph.py tag <метка>    записи с меткой
     python tools/knowledge/graph.py new <папка> <заголовок>   новая запись-заготовка
     python tools/knowledge/graph.py stats          сколько чего и числа качества (связность, одиночки, центры)
+    python tools/knowledge/graph.py open [--all] [--tag м]  открытые задачи и вопросы, старые сверху (--all — и отложенные; --tag — с меткой)
 
   Правка (только граф макета, в базе; история — history):
     graph.py show <id>                         запись целиком
@@ -626,6 +627,29 @@ def cmd_sql(query):
         _store().sync()  # правка запросом — сразу в файлы выгрузки
 
 
+def cmd_open(args):
+    """Открытые задачи и вопросы (и отложенные с --all; --tag м — только с меткой): дата, сколько дней, заголовок."""
+    import datetime
+    load_all()
+    st = "('открыт','отложено')" if '--all' in args else "('открыт')"
+    tag = _opts(args, '--tag')[0] if '--tag' in args else None
+    _, data, _ = _store().sql(
+        "select folder, id, status, date, title, tags from rec where folder in ('tasks','questions') "
+        "and status in %s order by date nulls first, id" % st)
+    if tag:
+        data = [row for row in data if tag in (row[5] or [])]
+    data = [row[:5] for row in data]
+    today = datetime.date.today()
+    for folder, rid, status, date, title in data:
+        try:
+            age = '%4d дн.' % (today - datetime.date.fromisoformat(str(date))).days
+        except ValueError:
+            age = '   — дн.'
+        mark = ' (отложено)' if status == 'отложено' else ''
+        print('%-10s %s %s  %-50s %s%s' % (date or '—', age, folder[:4], rid[:50], ' '.join(str(title).split())[:90], mark))
+    print('всего: %d' % len(data))
+
+
 def cmd_stats():
     import quality
     recs = load_all()
@@ -752,6 +776,8 @@ def main():
         _store().sync()
     elif cmd == 'stats':
         cmd_stats()
+    elif cmd == 'open':
+        cmd_open(args[1:])
     elif cmd == 'graphs':
         cmd_graphs(args[1:])
     elif cmd == 'suggest':

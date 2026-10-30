@@ -149,16 +149,17 @@ function recordsOf(typeId) {
   return t ? t.records : null;
 }
 
-// resp.insp — осмотрщик последнего действующего назначения или пусто.
-// Пишем, только если поменялось: assignResponsible двигает дату обновления
-// записи, и пустой пересчёт не должен её трогать.
+// resp.insp — осмотрщик последнего не снятого назначения (действующего или
+// законченного) или пусто: законченный осмотр осмотрщика из карточки не
+// убирает. Пишем, только если поменялось: assignResponsible двигает дату
+// обновления записи, и пустой пересчёт не должен её трогать.
 function syncResp(typeId, ocId) {
   const recs = recordsOf(typeId);
   if (!recs) return;
   const rec = recs.loadRecord(ocId);
   if (!rec) return;
   // Демо-назначения запись не трогают (kernel/inspectionsDemo.js).
-  const live = assignmentsOf(typeId, ocId).filter((a) => !a.demo).sort((x, y) => String(x.at).localeCompare(String(y.at)));
+  const live = assignmentsOf(typeId, ocId, { live: false }).filter((a) => !a.demo && a.state !== 'removed').sort((x, y) => String(x.at).localeCompare(String(y.at)));
   const person = live.length ? live[live.length - 1].person : '';
   if (((rec.resp || {}).insp || '') === person) return;
   recs.assignResponsible(ocId, 'insp', person);
@@ -210,19 +211,52 @@ export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [
   return a;
 }
 
-export function setAssignState(id, state) {
+// extra — сведения к переходу: { incomplete } у «Осмотр закончен» (осмотр
+// завершён при незаполненном — ответ пользователя 30.10.2026 «Предупреждать,
+// разрешать»; пометку видят регионал и ЦОД).
+export function setAssignState(id, state, extra = {}) {
   const a = assignmentById(id);
   if (!a || a.state === state || !ASSIGN_STATES.some((s) => s.key === state)) return a;
+  const was = a.state;
   a.state = state;
-  if (state === 'done') a.doneAt = now();
+  if (state === 'done') { a.doneAt = now(); a.incomplete = !!extra.incomplete; }
+  if (was === 'done' && state !== 'done') { a.doneAt = ''; a.incomplete = false; }
   if (state === 'removed') a.removedAt = now();
-  logEvent(state, a);
+  logEvent(state, a, extra.incomplete ? { text: 'неполный осмотр' } : {});
   syncResp(a.typeId, a.ocId);
   changed();
   return a;
 }
 
 export const unassign = (id) => setAssignState(id, 'removed');
+
+// Ход осмотра — по назначению, а не по объекту (ответ пользователя
+// 30.10.2026 «Каждый свою часть»): у объекта бывает несколько осмотрщиков на
+// разные ОИ, и отметка одного не должна закрывать осмотр другого.
+// Свои назначения осмотрщика на объект — действующие и законченные.
+export const myAssignsOn = (person, typeId, ocId) =>
+  assignmentsOf(typeId, ocId, { live: false }).filter((a) => a.person === person && a.state !== 'removed');
+
+// Первый ввод осмотрщика: «Назначено» → «В работе» (событие для истории,
+// статистики и «не начат N дн.»).
+export function startWork(person, typeId, ocId) {
+  myAssignsOn(person, typeId, ocId).filter((a) => a.state === 'assigned').forEach((a) => setAssignState(a.id, 'progress'));
+}
+
+// «Осмотр завершён» и снятие отметки. Объект закончен, когда закончены все
+// его назначения.
+export function finishWork(person, typeId, ocId, done, { incomplete = false } = {}) {
+  const mine = myAssignsOn(person, typeId, ocId);
+  mine.forEach((a) => setAssignState(a.id, done ? 'done' : 'progress', done ? { incomplete } : {}));
+  return mine.length;
+}
+
+// Закончен ли осмотр осмотрщика по объекту: есть свои назначения и все
+// закончены. null — назначений нет (объект осмотрщика по карточке).
+export function workDone(person, typeId, ocId) {
+  const mine = myAssignsOn(person, typeId, ocId);
+  return mine.length ? mine.every((a) => a.state === 'done') : null;
+}
 
 // Переназначить другому: прежнее снимается, новое заводится с тем же
 // составом — история у обоих остаётся.
@@ -283,13 +317,16 @@ export function defaultDocIds(typeId, ocId) {
 // назначений).
 export function tasksOf(person) {
   const byObj = new Map();
-  assignmentsOfPerson(person).forEach((a) => {
+  // Законченные назначения остаются в задачах осмотрщика — с пометкой
+  // «осмотр завершён» и возможностью снять отметку.
+  assignmentsOfPerson(person, { live: false }).filter((a) => a.state !== 'removed').forEach((a) => {
     const k = a.typeId + '|' + a.ocId;
     if (!byObj.has(k)) byObj.set(k, { typeId: a.typeId, ocId: a.ocId, assigns: [] });
     byObj.get(k).assigns.push(a);
   });
   const out = [...byObj.values()].map((t) => {
-    const sorted = t.assigns.slice().sort((x, y) => String(x.plannedAt || '9999').localeCompare(String(y.plannedAt || '9999')));
+    // Действующее — первым: по нему план и «ждёт осмотра».
+    const sorted = t.assigns.slice().sort((x, y) => (isLive(y) - isLive(x)) || String(x.plannedAt || '9999').localeCompare(String(y.plannedAt || '9999')));
     const whole = t.assigns.some((a) => !a.oiIds || !a.oiIds.length);
     return { ...t, assign: sorted[0], oiIds: whole ? [] : [...new Set(t.assigns.flatMap((a) => a.oiIds))] };
   });

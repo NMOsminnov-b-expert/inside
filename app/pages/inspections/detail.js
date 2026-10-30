@@ -124,7 +124,7 @@ function assignHTML(all, a, canBack) {
       <ul class="ip-evs">${evs.map((e) => `<li><time>${esc(fmtDate(e.at))} ${esc(new Date(e.at).toTimeString().slice(0, 5))}</time>
         <span>${esc(EVENT_LABELS[e.kind] || e.kind)}${e.count ? `: ${e.count}` : ''}${e.text ? `: ${esc(e.text)}` : ''}${e.field ? `: ${esc(e.field)}` : ''}</span></li>`).join('')}</ul>
     </section>`;
-  const sub = `${esc(s ? [s.typeLabel, s.institution].filter(Boolean).join(' · ') : '')} · <span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
+  const sub = `${esc(s ? [s.typeLabel, s.institution].filter(Boolean).join(' · ') : '')} · <span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span>
     · <a href="${esc(build({ typeId: a.typeId, ocId: a.ocId }))}">карточка</a>`;
   return shell(esc(s ? s.title : '—'), sub, body, canBack,
     isLive(a) ? `<button class="btn btn-primary btn-sm" data-ip-dp-edit="${esc(a.id)}">Изменить в «Назначено»</button>` : '');

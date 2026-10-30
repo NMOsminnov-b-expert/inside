@@ -175,7 +175,7 @@ export function mountInspections(host) {
       sub: [s.typeLabel, s.institution].filter(Boolean).join(' · '), eni: s.eniAll || s.eni,
     } : null;
   };
-  const objCell = (s, sub) => `<span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}</span>
+  const objCell = (s, sub, flag = '') => `<span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}${flag ? ` <span class="ip-flag">${esc(flag)}</span>` : ''}</span>
     <span class="ip-obj-s">${esc(sub)}</span></span>`;
   const more = (n, total) => (total > n ? `<div class="ip-more"><span>Показаны первые ${n} из ${total}</span>
     <button class="btn btn-ghost btn-sm" data-ip-more>Показать ещё ${Math.min(total - n, STEP)}</button></div>` : '');
@@ -353,7 +353,7 @@ export function mountInspections(host) {
             return `<tr data-ip-row="${esc(k)}" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
               <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
               <td class="num">${dueCell(s)}</td>
-              <td>${objCell(s, [s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '))}</td>
+              <td>${objCell(s, [s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '), s.partial ? 'частично осмотрен' : '')}</td>
               <td>${covCell(s.cov)}</td>
             </tr>`;
           }).join('') : ''}</tbody>`;
@@ -390,7 +390,7 @@ export function mountInspections(host) {
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
       <td>${obj}</td>
       <td>${oiScope(a, s)}</td>
-      <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
+      <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span>
         ${stall ? `<span class="ip-flag" title="Зависло">${esc(stall)}</span>` : ''}
         ${picks.has('away') ? `<span class="ip-flag away" title="Плановая дата — нерабочий день осмотрщика">${esc(workdayOf(a.person, a.plannedAt).reason)}</span>` : ''}</td>
     </tr>`;
@@ -644,7 +644,7 @@ export function mountInspections(host) {
         <td class="num ${isOverdue(a) ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
         <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
         <td>${oiScope(a, s)}</td>
-        <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span></td></tr>`; }).join('')}</tbody>
+        <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span></td></tr>`; }).join('')}</tbody>
     </table></div></div>`;
   }
 
@@ -1704,7 +1704,7 @@ export function mountInspections(host) {
       <header class="ip-pane-head">
         <h2>${esc(s.title)}</h2>
         <p class="ip-pane-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}${s.eniAll || s.eni ? ` · <span class="mono">${esc(s.eniAll || s.eni)}</span>` : ''}</p>
-        <p class="ip-pane-meta"><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a.state))}</span>
+        <p class="ip-pane-meta"><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span>
           ${a.plannedAt ? `план ${esc(fmtDate(a.plannedAt))}` : 'без даты'}${isOverdue(a) ? ' · <b class="ip-late">просрочено</b>' : ''}</p>
       </header>
       <div class="ip-pane-body">
