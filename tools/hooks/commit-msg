@@ -1,0 +1,3 @@
+#!/bin/sh
+# «Задача: <кто>» и без «Co-Authored-By: Claude»: tools/hooks/commit_rules.py commit-msg.
+exec python "$(git rev-parse --show-toplevel)/tools/hooks/commit_rules.py" commit-msg "$1"

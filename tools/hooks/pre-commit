@@ -1,0 +1,3 @@
+#!/bin/sh
+# Журнал изменений — вместе с правкой: tools/hooks/commit_rules.py pre-commit.
+exec python "$(git rev-parse --show-toplevel)/tools/hooks/commit_rules.py" pre-commit

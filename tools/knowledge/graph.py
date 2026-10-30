@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Граф знаний проекта — knowledge/: чтение, запись, проверка, поиск.
+"""Граф знаний проекта: чтение, запись, проверка, поиск.
 
-Решение пользователя 28.09.2026: знания проекта живут в графе knowledge/ в
-git; ищем по нему CodeGraph (RAG); записи размечаются метками; журнал —
-история коммитов и их описания.
+Источник записей — база knowledge в PostgreSQL (решение пользователя
+30.10.2026 «все же переносим его целиком в psql. Так будет надежнее и
+проще»; устройство — tools/knowledge/store.py). Журнал правок — таблица
+history в той же базе; копия базы — раз в день, .graf/knowledge-backup/.
+Граф не в git (29.10.2026). Папка knowledge/ — выгрузка из базы для
+CodeGraph, поиска по смыслу и сборщиков; файл, изменённый в обход базы
+(программой «Граф проекта» или руками), при следующем вызове забирается в
+базу. Писать — командами ниже или запросом (sql), а не правкой файлов.
 
-Почему запись — Python-файл, а не YAML или Markdown. CodeGraph находит текст
+Почему выгрузка — Python-файлы, а не YAML или Markdown. CodeGraph находит текст
 только в значениях констант исходного кода: у YAML он читает одни ключи
 (значения там бывают паролями), Markdown не читает вовсе (проверено
 28.09.2026). Поэтому запись — модуль с константами:
@@ -23,6 +28,18 @@ git; ищем по нему CodeGraph (RAG); записи размечаются
     python tools/knowledge/graph.py tag <метка>    записи с меткой
     python tools/knowledge/graph.py new <папка> <заголовок>   новая запись-заготовка
     python tools/knowledge/graph.py stats          сколько чего и числа качества (связность, одиночки, центры)
+
+  Правка (только граф макета, в базе; история — history):
+    graph.py show <id>                         запись целиком
+    graph.py new <папка> <заголовок> [--tag м]… [--source …] [--point …]… [--link тип=куда]… [--status …]
+    graph.py add <id> <текст пункта>           пункт в конец
+    graph.py set <id> <поле> <значение>        статус, заголовок, источник, дата, метки (через запятую), папка
+    graph.py link <id> <тип> <куда>            связь; unlink <id> <куда> [тип] — снять
+    graph.py put <файл.py> [<папка>]           запись целиком из файла того же формата
+    graph.py rm <id>                           удалить (только по прямому указанию)
+    graph.py history [<id>] [-n N]             последние правки: кто, когда, что
+    graph.py sql "<запрос>"                    запрос к базе: таблицы record, history; виды rec, link
+    graph.py sync | backup | init              файлы ↔ база; копия базы; создать базу и забрать файлы
 
     --root <папка>  — другой проект (папка, где лежит его knowledge/): отдельные
     базы со своим набором папок в knowledge/schema.py, например база
@@ -53,6 +70,8 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 KNOW = os.path.join(ROOT, 'knowledge')
 HOME = ROOT   # граф макета — всегда в мультиграфе
+DB_MODE = True   # граф макета — в базе (store.py); графы других проектов — файлы
+_synced = False
 
 # Папка → вид записи.
 FOLDERS = {
@@ -81,8 +100,9 @@ def use_root(root):
         STATUSES = ['…', …]          (необязательно)
 
     Тот же файл читает программа «Граф проекта» (Schema.Load)."""
-    global ROOT, KNOW, FOLDERS, STATUSES
+    global ROOT, KNOW, FOLDERS, STATUSES, DB_MODE
     ROOT = os.path.abspath(root)
+    DB_MODE = os.path.normcase(ROOT) == os.path.normcase(os.path.abspath(HOME))
     KNOW = os.path.join(ROOT, 'knowledge')
     FOLDERS, STATUSES = dict(_DEFAULT[0]), set(_DEFAULT[1])
     sp = os.path.join(KNOW, 'schema.py')
@@ -208,13 +228,29 @@ def render(folder, rec):
     return '\n'.join(out) + '\n'
 
 
+def _store():
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import store
+    return store
+
+
 def save(folder, rec):
+    if DB_MODE:
+        _store().put(folder, rec)
+        return
     os.makedirs(os.path.join(KNOW, folder), exist_ok=True)
     with io.open(path_of(folder, rec['id']), 'w', encoding='utf-8', newline='\n') as f:
         f.write(render(folder, rec))
 
 
 def load_all(folders=None):
+    global _synced
+    if DB_MODE:
+        st = _store()
+        if not _synced:
+            st.sync()
+            _synced = True
+        return [(f, path_of(f, r['id']), r) for f, r in st.rows(folders)]
     out = []
     for folder in folders or FOLDERS:
         for p in sorted(glob.glob(os.path.join(KNOW, folder, '*.py'))):
@@ -236,7 +272,7 @@ def check():
         if not rid:
             problems.append('%s: нет ID' % rel)
             continue
-        if os.path.basename(p) != file_name(rid):
+        if not DB_MODE and os.path.basename(p) != file_name(rid):
             problems.append('%s: имя файла не совпадает с ID %s' % (rel, rid))
         if rid in ids:
             problems.append('%s: ID %s уже есть в %s' % (rel, rid, ids[rid]))
@@ -284,13 +320,21 @@ def cmd_rules(full=False):
     """Действующие правила: одна строка — заголовок и ID; full — с пунктами.
     Короткий вид — для начала работы: полный текст правила читается по ID
     (codegraph query <ID> или файл knowledge/rules/<id>.py)."""
+    # Группы — метки «правила-…» (сортировка правил 30.10.2026, аудит настроек).
+    groups = {}
     for folder, p, r in load_all(['rules']):
         if r.get('статус') != 'действует':
             continue
-        print('- %s  [%s]' % (' '.join(str(r.get('заголовок')).split()), r['id']))
-        if full:
-            for pt in r.get('пункты') or []:
-                print('    · ' + ' '.join(str(pt).split()))
+        g = next((t for t in r.get('метки') or [] if t.startswith('правила-')), 'правила-прочее')
+        groups.setdefault(g, []).append(r)
+    order = ['правила-работа', 'правила-интерфейс', 'правила-проверки', 'правила-код']
+    for g in sorted(groups, key=lambda x: order.index(x) if x in order else len(order)):
+        print('\n## %s' % g.split('-', 1)[1].capitalize())
+        for r in groups[g]:
+            print('- %s  [%s]' % (' '.join(str(r.get('заголовок')).split()), r['id']))
+            if full:
+                for pt in r.get('пункты') or []:
+                    print('    · ' + ' '.join(str(pt).split()))
 
 
 def sections(recs):
@@ -334,6 +378,13 @@ def cmd_toc():
 
 
 def cmd_find(text):
+    if DB_MODE:
+        load_all()
+        hits, total = _store().find(text)
+        for folder, rid, title, rank in hits:
+            print('%-10s %-50s %s' % (folder, rid[:50], title))
+        print('найдено: %d' % total)
+        return
     words = [w.lower() for w in text.split()]
     hits = []
     for folder, p, r in load_all():
@@ -416,19 +467,163 @@ def author():
     return out.stdout.decode('utf-8', 'replace').strip()
 
 
-def cmd_new(folder, title):
+def _opts(args, name):
+    """Значения повторяемого ключа --name из списка аргументов (вынимаются)."""
+    out = []
+    while name in args:
+        i = args.index(name)
+        out.append(args[i + 1])
+        del args[i:i + 2]
+    return out
+
+
+def cmd_new(folder, args):
     from migrate_from_graph import slug  # noqa: E402 — транслитерация одна на весь граф
+    if folder not in FOLDERS:
+        sys.exit('нет папки «%s»; папки: %s' % (folder, ', '.join(FOLDERS)))
+    tags, sources = _opts(args, '--tag'), _opts(args, '--source')
+    points, links, status = _opts(args, '--point'), _opts(args, '--link'), _opts(args, '--status')
+    title = ' '.join(args)
     rid = slug(title)
     rec = {
-        'id': rid, 'вид': FOLDERS[folder], 'заголовок': title, 'метки': [FOLDERS[folder]],
-        'статус': 'открыт' if folder in ('questions', 'tasks') else 'действует',
-        'дата': datetime.date.today().isoformat(), 'источник': 'кто решил, где: сообщение, документ, совещание',
-        'пункты': [], 'связи': [],
+        'id': rid, 'вид': FOLDERS[folder], 'заголовок': title,
+        'метки': [FOLDERS[folder]] + [t for t in tags if t != FOLDERS[folder]],
+        'статус': status[0] if status else ('открыт' if folder in ('questions', 'tasks') else 'действует'),
+        'дата': datetime.date.today().isoformat(),
+        'источник': sources[0] if sources else 'кто решил, где: сообщение, документ, совещание',
+        'пункты': points, 'связи': [],
     }
-    if os.path.exists(path_of(folder, rid)):
+    if DB_MODE:
+        load_all()  # сверка файлов с базой до правки
+        if _store().get(rid)[1]:
+            sys.exit('уже есть: ' + rid)
+        for ln in links:
+            typ, _, dst = ln.partition('=')
+            rec['связи'].append(_link(typ, dst))
+    elif os.path.exists(path_of(folder, rid)):
         sys.exit('уже есть: ' + os.path.relpath(path_of(folder, rid), ROOT))
     save(folder, rec)
-    print(os.path.relpath(path_of(folder, rid), ROOT), '— автор git:', author())
+    print(rid, '—', os.path.relpath(path_of(folder, rid), ROOT), '— автор:', author())
+
+
+# --- правка записей в базе ----------------------------------------------------
+
+FIELDS = {'статус': 'статус', 'status': 'статус', 'заголовок': 'заголовок', 'title': 'заголовок',
+          'источник': 'источник', 'source': 'источник', 'дата': 'дата', 'date': 'дата',
+          'метки': 'метки', 'tags': 'метки', 'вид': 'вид', 'папка': 'папка', 'folder': 'папка',
+          'термин': 'термин', 'определение': 'определение'}
+
+
+def _need(rid):
+    if not DB_MODE:
+        sys.exit('правка командами — только граф макета (в базе)')
+    load_all()
+    folder, rec = _store().get(rid)
+    if not rec:
+        sys.exit('нет записи ' + rid)
+    return folder, rec
+
+
+def _link(typ, dst):
+    f, r = _store().get(dst)
+    if not r:
+        sys.exit('связь ведёт в несуществующую запись ' + dst)
+    return {'тип': typ, 'куда': dst, 'папка': f}
+
+
+def cmd_show(rid):
+    folder, rec = _need(rid)
+    print(render(folder, rec), end='')
+
+
+def cmd_add(rid, text):
+    folder, rec = _need(rid)
+    rec['пункты'] = list(rec.get('пункты') or []) + [text]
+    save(folder, rec)
+    print('%s: пунктов %d' % (rid, len(rec['пункты'])))
+
+
+def cmd_set(rid, field, value):
+    folder, rec = _need(rid)
+    key = FIELDS.get(field.lower())
+    if not key:
+        sys.exit('поле: ' + ', '.join(sorted(set(FIELDS.values()))))
+    if key == 'папка':
+        if value not in FOLDERS:
+            sys.exit('нет папки ' + value)
+        folder, rec['вид'] = value, FOLDERS[value]
+    elif key == 'метки':
+        rec['метки'] = [t.strip() for t in value.split(',') if t.strip()]
+    else:
+        if key == 'статус' and value not in STATUSES:
+            sys.exit('статус: ' + ', '.join(sorted(STATUSES)))
+        rec[key] = value
+    save(folder, rec)
+    print('%s: %s = %s' % (rid, key, value))
+
+
+def cmd_link(rid, typ, dst):
+    folder, rec = _need(rid)
+    links = list(rec.get('связи') or [])
+    if any(l.get('тип') == typ and l.get('куда') == dst for l in links):
+        print('связь уже есть')
+        return
+    rec['связи'] = links + [_link(typ, dst)]
+    save(folder, rec)
+    print('%s —%s→ %s' % (rid, typ, dst))
+
+
+def cmd_unlink(rid, dst, typ=None):
+    folder, rec = _need(rid)
+    before = list(rec.get('связи') or [])
+    rec['связи'] = [l for l in before if not (l.get('куда') == dst and (typ is None or l.get('тип') == typ))]
+    save(folder, rec)
+    print('снято связей: %d' % (len(before) - len(rec['связи'])))
+
+
+def cmd_put(path, folder=None):
+    rec = read(path)
+    if not rec.get('id'):
+        sys.exit('в файле нет ID')
+    if DB_MODE:
+        load_all()
+    if not folder:
+        parent = os.path.basename(os.path.dirname(os.path.abspath(path)))
+        kinds = {v: k for k, v in FOLDERS.items() if k not in ('terms', 'fields')}
+        folder = parent if parent in FOLDERS else (_store().get(rec['id'])[0] or kinds.get(rec.get('вид')))
+    if folder not in FOLDERS:
+        sys.exit('папка записи не определена — укажите: put <файл> <папка>')
+    save(folder, rec)
+    print('%s → %s' % (rec['id'], folder))
+
+
+def cmd_rm(rid):
+    _need(rid)
+    print('удалена' if _store().delete(rid) else 'нет записи')
+
+
+def cmd_history(args):
+    import json
+    n = int(_opts(args, '-n')[0]) if '-n' in args else 30
+    for num, rid, at, by, op, old, new in _store().history(args[0] if args else None, n):
+        what = ''
+        if old and new:
+            o, w = json.loads(old), json.loads(new)
+            what = ', '.join(k for k in dict.fromkeys(list(o) + list(w)) if o.get(k) != w.get(k))
+        print('%s  %-28s %-7s %-50s %s' % (at.strftime('%Y-%m-%d %H:%M'), (by or '')[:28], op, rid[:50], what))
+
+
+def cmd_sql(query):
+    load_all()  # сначала забрать файлы, изменённые в обход базы
+    cols, data, count = _store().sql(query)
+    if cols:
+        print(' | '.join(cols))
+        for row in data:
+            print(' | '.join('' if v is None else ' '.join(str(v).split()) for v in row))
+        print('строк: %d' % len(data))
+    else:
+        print('затронуто строк: %d' % count)
+        _store().sync()  # правка запросом — сразу в файлы выгрузки
 
 
 def cmd_stats():
@@ -512,6 +707,10 @@ def main():
         # Граф не в git (решение пользователя 29.10.2026 «Не отдаем в гит knowledge», запись
         # graf-znaniy-ne-uhodit-v-git-tolko-na-etom-kompyutere): коммита по правке графа нет, и
         # хук post-commit индексы не обновит — их обновляет проверка, в фоне, как хук.
+        if DB_MODE and not problems:
+            out = _store().backup()
+            if out:
+                print('копия базы графа:', os.path.relpath(out, ROOT))
         if not problems and '--no-reindex' not in args and os.environ.get('INSIDE_NO_REINDEX') != '1':
             reindex_in_background()
         sys.exit(1 if problems else 0)
@@ -524,7 +723,33 @@ def main():
     elif cmd == 'tag':
         cmd_tag(args[1])
     elif cmd == 'new':
-        cmd_new(args[1], ' '.join(args[2:]))
+        cmd_new(args[1], args[2:])
+    elif cmd == 'show':
+        cmd_show(args[1])
+    elif cmd == 'add':
+        cmd_add(args[1], ' '.join(args[2:]))
+    elif cmd == 'set':
+        cmd_set(args[1], args[2], ' '.join(args[3:]))
+    elif cmd == 'link':
+        cmd_link(args[1], args[2], args[3])
+    elif cmd == 'unlink':
+        cmd_unlink(args[1], args[2], args[3] if len(args) > 3 else None)
+    elif cmd == 'put':
+        cmd_put(args[1], args[2] if len(args) > 2 else None)
+    elif cmd == 'rm':
+        cmd_rm(args[1])
+    elif cmd == 'history':
+        cmd_history(args[1:])
+    elif cmd == 'sql':
+        cmd_sql(' '.join(args[1:]))
+    elif cmd == 'sync':
+        _store().sync()
+    elif cmd == 'backup':
+        out = _store().backup(force=True)
+        print(out or 'копия не сделана')
+    elif cmd == 'init':
+        _store().init()
+        _store().sync()
     elif cmd == 'stats':
         cmd_stats()
     elif cmd == 'graphs':

@@ -15,7 +15,7 @@ before-report): 1920, 1600, 1280, 1100, 900, 760. Прогон — на стен
     python tools/matrix/paths.py                    # все пути раздела «Осмотры»
     python tools/matrix/paths.py --path jump        # пути с этим словом в id
     python tools/matrix/paths.py --changed          # затронутые правкой
-      [--widths 1920,1280,760] [--jobs 4]
+      [--widths 1920,1280,760] [--jobs 2]
 
 Отчёт — tools/matrix/out/paths.json и .md.
 """
@@ -198,7 +198,7 @@ def main():
         return worker(args[1], int(args[2]), args[3], args[4])
     opt = lambda k, d: args[args.index(k) + 1] if k in args else d
     widths = [int(x) for x in opt('--widths', ','.join(map(str, WIDTHS))).split(',')]
-    jobs = int(opt('--jobs', 4))
+    jobs = int(opt('--jobs', 2))
     sel = PATHS
     if '--path' in args:
         sel = [x for x in PATHS if opt('--path', '') in x['id']]
