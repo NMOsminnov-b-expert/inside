@@ -44,7 +44,7 @@ if os.environ.get('GRAF_ROOT'):
     graph.use_root(ROOT)
 
 SEM = os.path.join(os.environ['LOCALAPPDATA'], 'semsearch')
-PROJECT = os.environ.get('GRAF_SEM_PROJECT') or 'inside'   # база — по имени проекта в реестре semsearch (с 02.10.2026 — индекс Qwen3)
+PROJECT = os.environ.get('GRAF_SEM_PROJECT') or 'inside-v2'   # база — по имени проекта в реестре semsearch (с 30.10.2026 — inside-v2, как у поиска Claude Code)
 MODEL = 'Qwen3-Embedding-0.6B'
 TOP = 3          # связей на запись
 # Порог похожести — медиана похожести записи с ближайшим соседом (так он был
