@@ -319,7 +319,9 @@ function dayTitle(day) {
 function eventText(e) {
   const base = EVENT_LABELS[e.kind] || e.kind;
   if (e.kind === 'photos') return `${base}: ${e.count}`;
-  if (e.kind === 'note' || e.kind === 'found') return `${base}: ${e.text || ''}`;
+  // Приёмка ЦОД (вкладка «Результаты осмотра»): причина возврата, принятый ОИ,
+  // перенесённое в карточку значение — словами из события.
+  if (e.kind === 'note' || e.kind === 'found' || e.kind === 'returned' || e.kind === 'accepted' || e.kind === 'applied') return `${base}: ${e.text || ''}`;
   if (e.kind === 'mismatch') return `${base}: ${e.field || ''}`;
   return base;
 }

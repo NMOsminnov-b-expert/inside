@@ -769,6 +769,9 @@ def run(t):
          'на экране остались нативные списки: %d — в макете списки свои' % left_native)
 
     # --- 6. фото: привязка к объекту имущества, перенос, удаление ---
+    # Сетка считается от пустой: демо вкладки «Результаты осмотра» кладёт на
+    # oc-cv-1 снимки двух осмотрщиков (kernel/inspectionsDemo.js).
+    pg.evaluate("async () => { (await import('./app/kernel/inspectionResults.js')).resultsOf('civil', 'oc-cv-1').photos.length = 0; }")
     t.open(TASK + '/photo', wait='[data-shoot]')
     t.wait(250)
     t.ck(pg.locator('[data-oi-pick] option').count() >= 2,

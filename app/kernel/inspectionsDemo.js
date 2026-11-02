@@ -98,7 +98,9 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
       recs.push({ ...base, oi: (r.oi || []).map((o) => o.id), defDocs, ll: llOf(r) || llByEni(s.eni),
         ts: isTsHolder(r), tsOi: (r.oi || []).filter(isTsHolder).map((o) => o.id),
         // Вид ОИ и единицы механизмов — для демо вкладки «Результаты осмотра».
-        ois: (r.oi || []).map((o) => ({ id: o.id, card: o.card, litKind: o.litKind || '', units: (o.mechanisms || []).map((u) => u.id) })) });
+        // ОЦ «Механизмы» без ОИ — перечень у самой записи, во вкладке это ОИ «mech».
+        ois: (r.oi || []).length ? r.oi.map((o) => ({ id: o.id, card: o.card, litKind: o.litKind || '', units: (o.mechanisms || []).map((u) => u.id) }))
+          : r.mech ? [{ id: 'mech', card: 'mech', litKind: '', units: (r.mech.mechanisms || []).map((u) => u.id) }] : [] });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -680,6 +682,13 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   if (!names.length) return out;
   const list = me ? [me, ...names.filter((x) => x !== me)] : names;
   const who = (i) => list[i % list.length];
+  // Всё демо вкладки — на человека из сессии (пользователь 02.11.2026: «Все
+  // демо данные на мой аккаунт вешаем»); второй осмотрщик — только у нежилого.
+  const p0 = me || who(1);
+  const own = (a) => {
+    events.filter((x) => x.assignId === a.id).forEach((x) => { x.person = p0; if (x.who === a.person) x.who = p0; });
+    a.person = p0;
+  };
   const rec = (id) => recs.find((r) => r.ocId === id && (r.ois || []).length);
   const mine = (r) => assignments.filter((a) => a.typeId === r.typeId && a.ocId === r.ocId && a.state !== 'removed');
   const evt = (a, kind, d, extra = {}) => events.push({ id: `demo-ev-${next()}`, at: d.toISOString(), who: kind === 'assigned' ? a.by : a.person, kind,
@@ -731,7 +740,7 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   // Жилой дом «Осмотрен» — осмотр закончен целиком, все ОИ, контакт и заметка.
   const house = rec('oc-rh-2');
   if (house && !mine(house).length) {
-    const p = who(1);
+    const p = p0;
     mkA(house, p, [], 'done', -3);
     const e = fill(house, house.ois, p, -3);
     e.note = 'Доступ ко всем помещениям был, сопровождал завхоз';
@@ -740,7 +749,7 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   // Участок «Осмотрен» — закончен.
   const land = rec('oc-lp-1');
   if (land && !mine(land).length) {
-    const p = who(2);
+    const p = p0;
     mkA(land, p, [], 'done', -2);
     fill(land, land.ois, p, -2).note = 'Границы на местности совпадают с планом, ограждение по периметру';
   }
@@ -748,7 +757,7 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   const prod = rec('oc-pr-1');
   if (prod) {
     const a = mine(prod).find((x) => x.state === 'done');
-    if (a) fill(prod, prod.ois, a.person, -5);
+    if (a) { own(a); fill(prod, prod.ois, p0, -5); }
   }
   // Нежилое «Удостоверен по документам», двое осмотрщиков: литера закончена
   // (a1 прежнего демо), механизмы и ТС — в работе у второго.
@@ -763,26 +772,33 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   }
   // Квартира «Удостоверен по документам»: закончена с пометкой «неполный»
   // (внесена половина значений), ТС передано другому и ещё не осмотрено.
-  const flat = rec('oc-ap-2');
+  // Квартира — закончена с пометкой «неполный» (внесена половина значений).
+  // Не oc-ap-2: там демо передачи ТС (demoTs), и закрытое назначение прежнего
+  // осмотрщика снова показывало ему переданное ТС.
+  const flat = recs.find((x) => x.typeId === 'apartment' && x.ocId !== 'oc-ap-2' && !/-b\d+$/.test(x.ocId)
+    && (x.ois || []).some((o) => o.card === 'apartment') && !mine(x).length);
   if (flat) {
-    const a = mine(flat).find((x) => !(x.oiIds || []).every((id) => (flat.tsOi || []).includes(id)) && x.state === 'assigned');
-    if (a) {
-      setState(a, 'done', -1, true);
-      const ois = flat.ois.filter((o) => !a.oiIds.length || a.oiIds.includes(o.id)).filter((o) => o.card !== 'vehicle');
-      fill(flat, ois.slice(0, 1), a.person, -1, 0.5).note = 'Жильцы не пустили в одну комнату — осмотрена частично';
-    }
+    mkA(flat, p0, [], 'done', -1, true);
+    const ois = flat.ois.filter((o) => o.card === 'apartment').slice(0, 1);
+    fill(flat, ois, p0, -1, 0.5).note = 'Жильцы не пустили в одну комнату — осмотрена частично';
   }
   // Для среза ЦОД «Осмотр закончен — проверить»: объект демо-объёма, где ЦОД —
   // человек из сессии (в сиде ЦОД у всех записей другой). Состав ОИ у таких
   // записей не собирается (см. выше) — результаты по объекту в целом.
   const forSlice = recs.find((r) => r.status === READY && /-b\d+$/.test(r.ocId) && me && r.cod === me && !mine(r).length);
   if (forSlice) {
-    const p = who(1);
+    const p = p0;
     mkA(forSlice, p, [], 'done', -1);
     const e = entry(forSlice);
     e.note = 'Объект осмотрен целиком, расхождений с документами не выявлено';
     ['Фасад', 'Внутр. помещения'].forEach((cat, i) => e.photos.push({ id: `demo-ph-${forSlice.ocId}-${i}`, name: `${cat}.svg`, size: 1500,
       type: 'image/svg+xml', dataUrl: photoImg('Объект оценки', cat, i + 1), at: dayAt(today, -1, 10 + i).toISOString(), oiId: '', cat, by: p }));
+  }
+  // ОЦ «Механизмы и оборудование» — осмотр закончен, значения по единицам.
+  const mechOc = recs.find((r) => r.typeId === 'mechanisms' && (r.ois || []).length && r.ois[0].units.length && !mine(r).length);
+  if (mechOc) {
+    mkA(mechOc, p0, [], 'done', -2);
+    fill(mechOc, mechOc.ois, p0, -2).note = 'Оборудование на месте, инвентарные номера сверены по табличкам';
   }
   return out;
 }

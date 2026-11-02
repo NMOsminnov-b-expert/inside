@@ -1,56 +1,149 @@
 /* Вкладка «Результаты осмотра» карточки ОЦ (pages/inspector/results.js).
-   Блоки — общие примитивы карточек (.card, .card-head, .card-pad, .tbl, .pill
-   из kernel/cards.css и tokens.css); здесь — только сетка «подпись — значение»,
-   снимки и отступы между блоками. */
-body[data-module] .ir { display: flex; flex-direction: column; gap: 14px; padding: 14px 0; }
+   Раскладка «Сверка главная» (ответ пользователя 02.11.2026): слева — ОИ
+   строками с состоянием приёмки, справа — выбранный ОИ (лента снимков,
+   крупный просмотр на месте ленты, сверка), внизу — подвал решений вне
+   прокрутки. Блоки — общие примитивы (.card, .card-head, .card-pad, .tbl,
+   .pill, .btn из kernel/cards.css и tokens.css); крупный просмотр — классы
+   просмотрщика ядра (kernel/viewer.css). Здесь — только раскладка и то, чего
+   в примитивах нет. */
+body[data-module] .ir { display: flex; flex-direction: column; gap: 12px; padding: 12px 0 0; }
 body[data-module] .ir .card-head { cursor: default; }
-
-/* Таблица осмотров прокручивается в своей обёртке; колонки — долями. */
-body[data-module] .ir-tbl-wrap { overflow-x: auto; }
-body[data-module] .ir-tbl { width: 100%; min-width: 620px; table-layout: fixed; border-collapse: collapse; }
-body[data-module] .ir-tbl .ir-c-who { width: 24%; }
-body[data-module] .ir-tbl .ir-c-st { width: 22%; }
-body[data-module] .ir-tbl .ir-c-d { width: 11%; }
-body[data-module] .ir-tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
-body[data-module] .ir-tbl td.ir-wrap { white-space: normal; overflow-wrap: anywhere; }
-/* Уже 1000 px строки таблицы — карточками: подпись у каждого значения,
-   ни один столбец не уходит за край (правило «подписи не обрезаются»). */
-@media (max-width: 1000px) {
-  body[data-module] .ir-tbl { min-width: 0; table-layout: auto; }
-  body[data-module] .ir-tbl colgroup, body[data-module] .ir-tbl thead { display: none; }
-  body[data-module] .ir-tbl, body[data-module] .ir-tbl tbody, body[data-module] .ir-tbl tr { display: block; }
-  body[data-module] .ir-tbl tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); }
-  body[data-module] .ir-tbl td { display: block; padding: 0; border: 0; background: none !important; white-space: normal; overflow: visible; }
-  body[data-module] .ir-tbl td::before { content: attr(data-l); display: block; font-size: 11px; color: var(--muted); }
-  body[data-module] .ir-tbl td.num { text-align: left; }
-}
+body[data-module] .ir-muted { color: var(--muted); font-size: 12px; }
+body[data-module] .ir-sub { margin: 16px 0 6px; font-size: 11.5px; font-weight: 700; color: #3f4c63; text-transform: uppercase; letter-spacing: .4px; }
+body[data-module] .ir-sub:first-child { margin-top: 0; }
+body[data-module] .ir-sub b { font-variant-numeric: tabular-nums; }
 body[data-module] .ir-pill-warn { background: var(--amber-50); color: var(--amber-700); border: 1px solid var(--amber-100); }
 
-/* Подпись над значением, сетка колонками по ширине. */
+/* Сводка: кто осматривал, статус объекта, числа. */
+body[data-module] .ir-sum { padding: 10px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 28px; }
+body[data-module] .ir-sum-who { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+body[data-module] .ir-sum-a { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+body[data-module] .ir-sum-stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-left: auto; }
+body[data-module] .ir-stat { font-size: 12.5px; color: #3f4c63; white-space: nowrap; }
+body[data-module] .ir-stat b { font-size: 15px; font-variant-numeric: tabular-nums; color: var(--ink, #1f2a37); }
+body[data-module] .ir-stat.warn b { color: var(--amber-700); }
+
+/* Строки слева, выбранное справа. */
+body[data-module] .ir-work { display: grid; grid-template-columns: minmax(240px, 22%) minmax(0, 1fr); gap: 12px; align-items: start; }
+body[data-module] .ir-nav { position: sticky; top: calc(var(--plate-h, 0px) + 10px); }
+body[data-module] .ir-nav .card-head .hint { font-variant-numeric: tabular-nums; }
+body[data-module] .ir-nav-list { display: flex; flex-direction: column; max-height: calc(100vh - var(--plate-h, 0px) - 150px); overflow-y: auto; }
+/* flex: none — в списке с потолком высоты строки иначе сжимались и налезали. */
+body[data-module] .ir-item { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; min-height: 44px; padding: 9px 14px;
+  text-align: left; background: none; border: 0; border-top: 1px solid var(--line-soft); font: inherit; color: inherit; cursor: pointer; }
+body[data-module] .ir-item:first-child { border-top: 0; }
+body[data-module] .ir-item:hover { background: var(--blue-50); }
+body[data-module] .ir-item.on { background: var(--blue-50); box-shadow: inset 3px 0 0 var(--blue-600); }
+body[data-module] .ir-item:focus-visible { outline: 2px solid var(--blue-600); outline-offset: -2px; }
+body[data-module] .ir-item-t { font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
+body[data-module] .ir-item-n { font-size: 12px; color: #3f4c63; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+body[data-module] .ir-diff-n { color: var(--amber-700); }
+
+/* Состояние приёмки — словом и цветом. */
+body[data-module] .ir-st { font-size: 11px; }
+body[data-module] .ir-st-ok { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-100); }
+body[data-module] .ir-st-wait { background: var(--blue-100); color: var(--blue-700); }
+body[data-module] .ir-st-warn { background: var(--amber-50); color: var(--amber-700); border: 1px solid var(--amber-100); }
+body[data-module] .ir-st-gray { background: var(--slate-50); color: var(--slate-700); }
+
+body[data-module] .ir-main { min-width: 0; display: flex; flex-direction: column; }
+body[data-module] .ir-det .card-head { flex-wrap: wrap; gap: 6px 10px; }
+body[data-module] .ir-det-by { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-left: auto; }
+body[data-module] .ir-ret, body[data-module] .ir-acc { margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; overflow-wrap: anywhere; }
+body[data-module] .ir-ret { background: var(--amber-50); color: var(--amber-700); border: 1px solid var(--amber-100); }
+body[data-module] .ir-acc { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-100); }
+
+/* Лента снимков: категории чипами, страница миниатюр, листание страниц. */
+body[data-module] .ir-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+body[data-module] .ir-chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line-input); background: #fff; font: inherit; font-size: 12px; color: #33445c; cursor: pointer; }
+body[data-module] .ir-chip b { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+body[data-module] .ir-chip:hover { border-color: var(--blue-500); }
+body[data-module] .ir-chip.on { background: var(--blue-50); border-color: var(--blue-600); color: var(--blue-700); }
+body[data-module] .ir-chip.on b { color: var(--blue-700); }
+body[data-module] .ir-chip:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 1px; }
+body[data-module] .ir-thumbs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+body[data-module] .ir-thumb { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; padding: 0; border: 1px solid var(--line-soft); border-radius: 6px;
+  overflow: hidden; background: var(--blue-50); cursor: zoom-in; }
+body[data-module] .ir-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+body[data-module] .ir-thumb:hover { border-color: var(--blue-500); }
+body[data-module] .ir-thumb:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 1px; }
+body[data-module] .ir-thumb-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 6px; font-size: 10.5px; color: #fff; background: rgba(15, 23, 42, .55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+body[data-module] .ir-thumb-none { display: flex; height: 100%; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
+body[data-module] .ir-pager { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; font-size: 12px; color: #3f4c63; font-variant-numeric: tabular-nums; }
+body[data-module] .ir-ph-none { margin: 0; }
+
+/* Крупный просмотр на месте ленты: просмотрщик ядра, в потоке, а не липкой колонкой. */
+body[data-module] .viewer.irv { position: static; width: auto; min-width: 0; height: auto; min-height: 0; flex: none; animation: none; box-shadow: none; }
+body[data-module] .irv .vbar { padding: 6px 10px; border-bottom: 1px solid var(--line-soft); background: #fbfdff; }
+body[data-module] .irv-n { font-size: 12px; color: #46536b; font-variant-numeric: tabular-nums; min-width: 56px; text-align: center; }
+body[data-module] .irv-cap { font-size: 12px; color: #33445c; min-width: 0; overflow-wrap: anywhere; }
+body[data-module] .irv .tool-btn[disabled] { opacity: .4; cursor: default; background: none; border-color: transparent; }
+/* flex: none — у сцены ядра flex: 1, в колонке без высоты это обнуляет её. */
+body[data-module] .irv-stage { display: flex; flex: none; height: min(62vh, 640px); padding: 12px; container-type: size; }
+body[data-module] .irv-img { display: block; min-height: 0; object-fit: contain; margin: auto; }
+body[data-module] .irv-stage:not(.zoomed):not(.side) .irv-img { width: 100%; height: 100%; }
+/* Увеличенный — от левого верхнего угла: по центру лишнее уходило бы и
+   влево, куда прокрутка не достаёт. */
+body[data-module] .irv-stage.zoomed .irv-img { margin: 0; max-width: none; max-height: none; flex: none; }
+body[data-module] .irv-box { position: relative; flex: none; margin: auto; }
+body[data-module] .irv-stage.zoomed .irv-box { margin: 0; }
+body[data-module] .irv-stage.side .irv-img { position: absolute; left: 50%; top: 50%; height: auto; max-width: none; margin: 0; }
+body[data-module] .irv .photo-fill { width: 320px; max-width: 100%; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; margin: auto; }
+
+/* Сверка «в карточке / на осмотре»: прокрутка в своей обёртке, колонки долями. */
+body[data-module] .ir-cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-top: 16px; }
+body[data-module] .ir-cmp-head .ir-sub { margin: 0 0 6px; }
+body[data-module] .ir-only { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; margin-left: auto; }
+body[data-module] .ir-tbl-wrap { overflow-x: auto; }
+body[data-module] .ir-cmp { width: 100%; table-layout: fixed; border-collapse: collapse; }
+body[data-module] .ir-cmp .ir-c-f { width: 28%; }
+body[data-module] .ir-cmp .ir-c-m { width: 214px; }
+body[data-module] .ir-cmp td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+body[data-module] .ir-chk { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+body[data-module] .ir-cmp tr.diff td { background: var(--amber-50) !important; }
+body[data-module] .ir-cmp tr.ir-grp th { padding: 10px 10px 4px; text-align: left; font-size: 12.5px; font-weight: 700; color: #3f4c63; text-transform: none; letter-spacing: 0; background: var(--panel); border-bottom: 1px solid var(--line-soft); }
+body[data-module] .ir-ok { font-size: 12px; color: var(--teal-700); }
+body[data-module] .ir-apply { padding: 2px 9px; font-size: 11.5px; }
+
 body[data-module] .ir-kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 18px; margin: 0; }
 body[data-module] .ir-kv div { min-width: 0; }
 body[data-module] .ir-kv dt { font-size: 11.5px; color: var(--muted); }
 body[data-module] .ir-kv dd { margin: 2px 0 0; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
-
-body[data-module] .ir-sub { margin: 14px 0 6px; font-size: 11.5px; font-weight: 700; color: #3f4c63; text-transform: uppercase; letter-spacing: .4px; }
-body[data-module] .ir-sub:first-child { margin-top: 0; }
-body[data-module] .ir-sub b { font-variant-numeric: tabular-nums; }
-body[data-module] .ir-muted { color: var(--muted); font-size: 12px; }
 body[data-module] .ir-note { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+body[data-module] .ir-plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+body[data-module] .ir-plain li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+body[data-module] .ir-empty { padding: 24px 16px; color: var(--muted); }
 
-/* Категории снимков — в строку с переносом, снимки категории — рядом:
-   столбик по одной категории оставлял справа пустую ширину. */
-body[data-module] .ir-ph-groups { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 14px; }
-body[data-module] .ir-ph-groups:first-child { margin-top: 0; }
-body[data-module] .ir-ph-group .ir-sub { margin: 0 0 6px; }
-body[data-module] .ir-ph { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-body[data-module] .ir-ph li { display: flex; flex-direction: column; gap: 3px; width: 128px; }
-body[data-module] .ir-ph img, body[data-module] .ir-ph-none { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; border: 1px solid var(--line-soft); background: var(--blue-50); }
-body[data-module] .ir-ph-none { display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); text-align: center; }
-body[data-module] .ir-ph-at { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Подвал решений: вне прокрутки содержимого — липкий низ, тень сверху. */
+body[data-module] .ir-foot { position: sticky; bottom: 0; z-index: 5; margin-top: 10px; padding: 10px 14px; background: #fff;
+  border: 1.5px solid var(--line); border-radius: var(--radius); box-shadow: 0 -6px 16px rgba(15, 23, 42, .08); display: flex; flex-direction: column; gap: 8px; }
+body[data-module] .ir-foot-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+body[data-module] .ir-foot-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+body[data-module] .ir-foot-all { margin-left: auto; }
+body[data-module] .ir-foot-all b { font-variant-numeric: tabular-nums; }
+body[data-module] .ir-msg { margin: 0; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; overflow-wrap: anywhere; }
+body[data-module] .ir-msg.warn { background: var(--amber-50); color: var(--amber-700); border: 1px solid var(--amber-100); }
+body[data-module] .ir-msg.ok { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-100); }
+body[data-module] .ir-ret-form { display: flex; flex-direction: column; gap: 6px; }
+body[data-module] .ir-ret-l { font-size: 12px; font-weight: 600; color: #33445c; }
+body[data-module] .ir-ret-form textarea { width: 100%; min-height: 54px; resize: vertical; }
 
-body[data-module] .ir-list, body[data-module] .ir-voice, body[data-module] .ir-found { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-body[data-module] .ir-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-body[data-module] .ir-voice li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-body[data-module] .ir-found li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--amber-100); border-radius: 8px; background: var(--amber-50); overflow-wrap: anywhere; }
-body[data-module] .ir-empty { padding: 24px 16px; }
+/* Уже 1100 px — строки над выбранным. */
+@media (max-width: 1100px) {
+  body[data-module] .ir-work { grid-template-columns: minmax(0, 1fr); }
+  body[data-module] .ir-nav { position: static; }
+  body[data-module] .ir-nav-list { max-height: 260px; }
+  body[data-module] .ir-sum-stats { margin-left: 0; }
+}
+/* Уже 1000 px — сверка карточками: подпись у каждого значения. */
+@media (max-width: 1000px) {
+  body[data-module] .ir-cmp colgroup, body[data-module] .ir-cmp thead { display: none; }
+  body[data-module] .ir-cmp, body[data-module] .ir-cmp tbody { display: block; }
+  body[data-module] .ir-cmp tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  body[data-module] .ir-cmp tr.ir-grp { display: block; padding: 10px 0 0; }
+  body[data-module] .ir-cmp tr.ir-grp th { display: block; padding: 0; border: 0; }
+  body[data-module] .ir-cmp td { display: block; padding: 0; border: 0; }
+  body[data-module] .ir-cmp td::before { content: attr(data-l); display: block; font-size: 11px; color: var(--muted); }
+  body[data-module] .ir-foot-all { margin-left: 0; }
+}

@@ -47,15 +47,70 @@ def run(t):
     pg.click('[data-tab="inspection"]')
     t.wait_for('.ir')
     t.ck('tab=inspection' in pg.evaluate('() => location.hash'), 'вкладка не в адресе')
-    heads = pg.eval_on_selector_all('.ir .card-head h3', 'els => els.map((e) => e.textContent.trim())')
-    t.ck(heads[:1] == ['Осмотры'], 'нет блока «Осмотры»: %s' % heads)
+    t.ck(pg.locator('.ir .ir-sum').count() == 1, 'нет сводки осмотра')
+    t.ck(pg.locator('.ir [data-ir-sel]').count() > 0, 'нет списка ОИ')
     t.ck(pg.evaluate("async () => (await import('./app/kernel/inspectionResults.js')).allResults().length") == n0,
          'просмотр вкладки создал записи результатов')
+    if pg.locator('[data-ir-sel="__obj"]').count():
+        pg.click('[data-ir-sel="__obj"]')
+        t.wait_until("() => !!document.querySelector('.ir-det h3') && document.querySelector('.ir-det h3').textContent.includes('Объект в целом')")
     t.ck(pg.locator('.ir a[href*="#/scans"]').count() > 0, 'у сканов нет ссылки на разбор')
+
+    # --- приёмка ЦОД: «В карточку», «Принять ОИ», возврат с причиной ----------------
+    # (решение priemka-osmotra-cod-vo-vkladke-rezultaty-osmotra-po-oi-vozvrat-po-oi-v)
+    t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir-work')
+    t.ck(pg.locator('.ir-foot [data-ir-accept-all]').is_visible(), 'подвал решений не на экране')
+    pg.click('[data-ir-accept-all]')
+    t.ck(t.wait_until("() => /Не приняты/.test((document.querySelector('.ir-msg') || {}).textContent || '')"), '«Принять осмотр» не назвал непринятые ОИ')
+    n0 = pg.locator('.ir-cmp tr.diff').count()
+    if t.ck(n0 > 0, 'у выбранного ОИ нет расхождения для «В карточку»'):
+        pg.locator('.ir-cmp tr.diff [data-ir-apply]').first.click()
+        t.ck(t.wait_until("([n]) => document.querySelectorAll('.ir-cmp tr.diff').length === n - 1", [n0]), '«В карточку» не сняло расхождение')
+    pg.click('[data-ir-accept]')
+    t.ck(t.wait_until("() => /принят/.test(document.querySelector('.ir-item.on').textContent)"), 'ОИ не принят')
+    pg.locator('[data-ir-sel]').nth(1).click()
+    pg.click('[data-ir-return]')
+    t.ck(t.wait_until("() => !!document.querySelector('[data-ir-reason]') && !document.querySelector('.modal')"), 'причина возврата — не на месте или окном')
+    pg.click('[data-ir-return-go]')
+    t.ck(t.wait_until("() => /причину/.test((document.querySelector('.ir-msg') || {}).textContent || '')"), 'возврат без причины не остановлен')
+    pg.fill('[data-ir-reason]', 'Нет снимков кровли')
+    pg.click('[data-ir-return-go]')
+    t.ck(t.wait_until("() => /на доосмотре/.test(document.querySelector('.ir-item.on').textContent)"), 'ОИ не на доосмотре')
+    st = pg.evaluate("""async () => { const K = await import('./app/kernel/inspections.js');
+      return { states: K.allAssignments().filter((a) => a.ocId === 'oc-pr-1' && a.state !== 'removed').map((a) => a.state),
+        ev: K.eventsOf({ ocId: 'oc-pr-1' }).filter((e) => e.kind === 'returned').map((e) => e.text) }; }""")
+    t.ck('progress' in st['states'] and 'Нет снимков кровли' in st['ev'], 'возврат не вернул назначение в работу с причиной: %s' % st)
+
+    # --- лента на тысячи снимков: страница 16, категории, крупный просмотр -----------
+    oid = pg.evaluate("""async () => { const R = await import('./app/kernel/inspectionResults.js'); const r = R.resultsOf('civil', 'oc-pr-1');
+      const id = Object.keys(r.assets)[0]; const src = r.photos.find((p) => p.dataUrl).dataUrl;
+      for (let i = 0; i < 3000; i++) r.photos.push({ id: 'big-' + i, name: 'x', dataUrl: src, oiId: id, cat: i % 7 ? 'Внутр. помещения' : 'Фасад', at: new Date().toISOString(), by: 'проверка' });
+      return id; }""")
+    t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir-work')
+    pg.click('[data-ir-sel="%s"]' % oid)
+    t.ck(t.wait_until("() => document.querySelectorAll('.ir-thumb').length === 16"), 'на странице ленты не 16 снимков')
+    pg.click('[data-irp="1"]')
+    t.ck(t.wait_until("() => /17–32/.test(document.querySelector('.ir-pager').textContent)"), 'лента не листается страницами')
+    pg.click('[data-irc="Фасад"]')
+    t.ck(t.wait_until("() => /из 4[0-9]{2}/.test(document.querySelector('.ir-pager').textContent)"), 'чип категории не сузил ленту')
+    pg.locator('.ir-thumb').first.click()
+    t.ck(t.wait_until("() => !!document.querySelector('.irv-img') && !document.querySelector('.ir-thumbs')"), 'крупный просмотр не встал на место ленты')
+    hh = pg.evaluate("() => Math.round(document.querySelector('.irv-stage').getBoundingClientRect().height)")
+    t.ck(hh > 300, 'сцена просмотра схлопнулась: %d px' % hh)
+    pg.keyboard.press('ArrowRight')
+    t.ck(t.wait_until("() => document.querySelector('.irv-n').textContent.trim().startsWith('2')"), '→ не листает')
+    pg.click('[data-irv-zoom="1"]')
+    pg.click('[data-irv-rot]')
+    pg.wait_for_timeout(200)
+    edge = pg.evaluate("""() => { const s = document.querySelector('.irv-stage').getBoundingClientRect(); const i = document.querySelector('.irv-img').getBoundingClientRect();
+      return [Math.round(i.left - s.left), Math.round(i.top - s.top)]; }""")
+    t.ck(edge[0] >= 0 and edge[1] >= 0, 'повёрнутый увеличенный снимок ушёл за левый или верхний край: %s' % edge)
+    pg.keyboard.press('Escape')
+    t.ck(t.wait_until("() => !!document.querySelector('.ir-thumbs')"), 'Esc не вернул к ленте')
     for w in (1920, 1280, 1100, 900, 760):
         pg.set_viewport_size({'width': w, 'height': 900})
         m = pg.evaluate("""() => { const d = document.scrollingElement;
-          const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
+          const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3, .ir-item-t')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
           return { hscroll: d.scrollWidth > d.clientWidth, cut }; }""")
         t.ck(not m['hscroll'] and not m['cut'], '%d: вбок или обрезано: %s' % (w, m))
     pg.set_viewport_size({'width': 1600, 'height': 900})
@@ -65,7 +120,7 @@ def run(t):
     t.ck(tabs(pg) == ['general', 'inspection'], 'вкладки ТС не те: %s' % tabs(pg))
     pg.click('[data-tab="inspection"]')
     t.wait_for('.ir')
-    t.ck(pg.locator('.ir-kv dd').count() > 0, 'у ТС не показаны значения осмотра')
+    t.ck(pg.locator('.ir-cmp tbody td[data-l="На осмотре"]').count() > 0, 'у ТС не показаны значения осмотра')
     pg.click('[data-tab="general"]')
     t.ck(t.wait_until("() => !/tab=/.test(location.hash) && !document.querySelector('.ir')"), 'ТС не вернулась на «Общие данные»')
 

@@ -5,13 +5,18 @@ import { fmtNum, localIso } from '../../kernel/fmt.js';
 import {
   mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath, migrateMechHolder, mechListLabel,
 } from './form/model.js';
+import { createSeed } from './data/seed.js';
 
 // Записи ОЦ «Механизмы и оборудование». Устроены как у ОЦ «Транспортные
 // средства» (ответ пользователя 28.09.2026): стороны у самой записи, перечень
 // единиц — в rec.mech, в том же виде, что у объекта имущества «Механизмы и
 // оборудование» в любом другом ОЦ (mechanisms/form/model.js). Один ОЦ — один
 // список.
-const records = [];
+// Демо-записи (data/seed.js) — исходные данные; правки пользователя ложатся
+// поверх них сохранением, как у ОЦ «Транспортные средства».
+const records = createSeed();
+records.forEach((r) => { migrateMechHolder(r.mech); syncMechName(r.mech); });
+const SEED_IDS = records.map((r) => r.id);
 let seq = 0;
 
 // Введённое переживает перезагрузку страницы — как у остальных типов ОЦ
@@ -24,7 +29,13 @@ registerPersisted('records.mechanisms', {
     // «!saved.length → оставить засев» возвращало удалённые демо-записи после
     // перезагрузки (код-ревью 09.10.2026).
     if (!Array.isArray(saved)) return;
-    records.splice(0, records.length, ...saved);
+    // Демо-записи, которых в сохранённом нет (состояние сохранено до их
+    // появления), добавляются по id — как у ТС (vehicle/records.js).
+    // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-записей на сервере нет; удалённая вручную
+    // демо-запись в макете возвращается после перезагрузки.
+    const have = new Set(saved.map((r) => r.id));
+    const missing = records.filter((r) => SEED_IDS.includes(r.id) && !have.has(r.id));
+    records.splice(0, records.length, ...saved, ...missing);
     records.forEach((rec) => migrateMechHolder(rec.mech));
     seq = saved.reduce((max, r) => Math.max(max, Number(String(r.id).split('-').pop()) || 0), seq);
   },

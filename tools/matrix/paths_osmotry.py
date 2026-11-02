@@ -320,3 +320,26 @@ def _(p):
     s = p.state()
     p.eq('вернулись к статистике всех с тем же периодом', {'подраздел': s['подраздел'], 'период': p.text('.ip-repmonth')},
          {'подраздел': 'stats', 'период': label})
+
+
+# Приёмка ЦОД во вкладке «Результаты осмотра» (решение 02.11.2026
+# priemka-osmotra-cod-vo-vkladke-rezultaty-osmotra-po-oi-vozvrat-po-oi-v):
+# возврат ОИ с причиной виден в «Истории» осмотров, «Назад» возвращает к тому
+# же ОИ во вкладке.
+@path('cod-return-history', 'Результаты осмотра: вернуть ОИ с причиной → «История» осмотров — событие с причиной → «Назад» → тот же ОИ на доосмотре',
+      'Ц5', roles=('cod', 'any'), touches=_TI + ('app/kernel/inspectionResults.js',))
+def _(p):
+    p.open('#/oc/civil/oc-pr-1?tab=inspection', '.ir-work')
+    p.click('[data-ir-sel]:nth-child(2)')
+    label = p.text('.ir-item.on .ir-item-t')
+    p.click('[data-ir-return]')
+    p.fill('[data-ir-reason]', 'Проверка матрицы: доснять кровлю')
+    p.click('[data-ir-return-go]')
+    p.ck('ОИ на доосмотре', 'на доосмотре' in p.text('.ir-item.on'), p.text('.ir-item.on'), 'на доосмотре')
+    p.open('#/inspections?s=history', '[data-ip-section]')
+    body = p.text('main') if p.page.locator('main').count() else p.text('body')
+    p.ck('в «Истории» — возврат с причиной', 'доснять кровлю' in body, 'нет', 'причина видна')
+    p.back()
+    p.wait_for('.ir-work')
+    p.eq('тот же ОИ выбран и на доосмотре', {'ОИ': p.text('.ir-item.on .ir-item-t'), 'на доосмотре': 'на доосмотре' in p.text('.ir-item.on')},
+         {'ОИ': label, 'на доосмотре': True})

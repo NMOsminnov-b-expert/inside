@@ -53,15 +53,16 @@ def run(t):
     t.set_bulk(0)
     tabs = pg.eval_on_selector_all('.reg-tab', "els => els.map((e) => e.innerText.replace(/\\s+/g, ' ').trim())")
     # 18: + две демо-записи «Сети: …» (23.10.2026). Движимое: заведённые здесь
-    # ТС и механизмы + четыре демо-записи ОЦ «ТС» для осмотра ТС (27.10.2026).
-    t.ck(tabs == ['Недвижимое 18', 'Движимое 6'], 'вкладки не те: %s' % tabs)
+    # ТС и механизмы + четыре демо-записи ОЦ «ТС» для осмотра ТС (27.10.2026)
+    # + две демо-записи ОЦ «Механизмы и оборудование» (02.11.2026).
+    t.ck(tabs == ['Недвижимое 18', 'Движимое 8'], 'вкладки не те: %s' % tabs)
     estate_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' in estate_heads and 'ОБЪЕКТ' in estate_heads, 'у недвижимого нет ЕНИ и объекта: %s' % estate_heads)
     t.ck(pg.locator('.reg-tr .reg-obj-s').count() > 0, 'у объекта нет второй строки (тип · учреждение)')
 
     pg.click('[data-tab="movable"]')
     t.wait_until("() => location.hash.includes('tab=movable')")
-    t.ck(pg.locator('.reg-tr').count() == 6, 'на вкладке «Движимое» не шесть записей (2 заведённые + 4 демо ТС)')
+    t.ck(pg.locator('.reg-tr').count() == 8, 'на вкладке «Движимое» не восемь записей (2 заведённые + 4 демо ТС + 2 демо механизмов)')
     mov_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' not in mov_heads and 'ПОЗИЦИЙ' in mov_heads and 'РЕГ. / ИНВ. №' in mov_heads,
          'столбцы движимого не те: %s' % mov_heads)

@@ -179,3 +179,22 @@ export function markDone(typeId, ocId, done) {
   scheduleSave();
   return r;
 }
+
+// Приёмка осмотра ЦОД по ОИ (вкладка «Результаты осмотра», решение пользователя
+// 02.11.2026 priemka-osmotra-cod-vo-vkladke-rezultaty-osmotra-po-oi-vozvrat-po-oi-v):
+// review[oiId] — { state: 'accepted' | 'returned', reason, by, at }. Просмотр
+// ничего не создаёт: решение читается без пустой записи.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: решение по ОИ — запись приёмки с автором и временем
+// сервера и историей (принят → возвращён → принят), а не последнее значение.
+export function reviewOf(typeId, ocId, oiId) {
+  const r = results.get(key(typeId, ocId));
+  return (r && r.review && r.review[oiId]) || null;
+}
+export function setReview(typeId, ocId, oiId, patch) {
+  const r = resultsOf(typeId, ocId);
+  if (!r.review || typeof r.review !== 'object') r.review = {};
+  r.review[oiId] = { ...patch, at: new Date().toISOString() };
+  scheduleSave();
+  return r.review[oiId];
+}

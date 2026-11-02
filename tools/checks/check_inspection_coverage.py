@@ -110,11 +110,16 @@ def run(t):
             t.open('#/oc/%s/%s?tab=inspection' % (ty, oc), wait='[data-oc-head]')
             t.ck(pg.locator('[data-tab="inspection"]').count() == 1, '%s %s: нет вкладки «Результаты осмотра»' % (p['label'], oc))
             t.ck(t.wait_until("() => !!document.querySelector('.ir')"), '%s %s: вкладка не открылась' % (p['label'], oc))
-            blocks = pg.evaluate("""() => [...document.querySelectorAll('.ir .card.t-teal[data-oi]')].map((c) => ({
-                id: c.dataset.oi, h: c.querySelector('h3').textContent.trim(), dd: c.querySelectorAll('dd').length, ph: c.querySelectorAll('.ir-ph li').length }))""")
+            items = pg.evaluate("() => [...document.querySelectorAll('.ir [data-ir-sel]')].map((b) => b.dataset.irSel)")
             for oi in done:
-                b = next((x for x in blocks if x['id'] == oi['id']), None)
-                t.ck(b, '%s %s: нет блока ОИ «%s» (блоки %s)' % (p['label'], oc, oi['label'], [x['h'] for x in blocks]))
+                t.ck(oi['id'] in items, '%s %s: нет ОИ «%s» в списке вкладки' % (p['label'], oc, oi['label']))
+                if oi['id'] not in items:
+                    continue
+                pg.click('.ir [data-ir-sel="%s"]' % oi['id'])
+                t.wait_until("(id) => !!document.querySelector('.ir-det[data-oi=\"' + id + '\"]')", oi['id'])
+                b = pg.evaluate("""(id) => { const c = document.querySelector('.ir-det[data-oi="' + id + '"]');
+                  return c && { dd: c.querySelectorAll('.ir-cmp td[data-l="На осмотре"]').length, ph: document.querySelectorAll('.ir-main [data-irv-ph]').length }; }""", oi['id'])
+                t.ck(b, '%s %s: подробности ОИ «%s» не открылись' % (p['label'], oc, oi['label']))
                 if b:
                     t.ck(b['dd'] >= min(oi['filled'], 1), '%s · %s: значения осмотра не показаны (%d из %d)' % (p['label'], oi['label'], b['dd'], oi['filled']))
                     t.ck(b['ph'] >= 1, '%s · %s: снимок не показан' % (p['label'], oi['label']))
@@ -123,7 +128,7 @@ def run(t):
             for w in (760, 1920):
                 pg.set_viewport_size({'width': w, 'height': 900})
                 m = pg.evaluate("""() => { const d = document.scrollingElement;
-                  const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
+                  const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3, .ir-item-t')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
                   return { hscroll: d.scrollWidth > d.clientWidth, cut }; }""")
                 t.ck(not m['hscroll'] and not m['cut'], '%s %s, %d: вбок или обрезано: %s' % (p['label'], oc, w, m))
             pg.set_viewport_size({'width': 1600, 'height': 900})

@@ -230,6 +230,31 @@ export function setAssignState(id, state, extra = {}) {
 
 export const unassign = (id) => setAssignState(id, 'removed');
 
+// Возврат ОИ на доосмотр ЦОД (ответ пользователя 02.11.2026 «По ОИ, а не
+// целиком»): законченное назначение, покрывающее ОИ, снова «В работе» у того
+// же осмотрщика; в назначении — какие ОИ и почему возвращены, в журнале —
+// событие «returned» с причиной (его видит регионал в «Назначено» и «Истории»).
+// Принятые ОИ того же назначения остаются принятыми — решение по ОИ хранится
+// в результатах осмотра (inspectionResults.js, reviewOf).
+export function returnOis(typeId, ocId, oiIds, reason) {
+  const text = String(reason || '').trim();
+  if (!text) throw new Error('Причина возврата обязательна');
+  const hit = assignmentsOf(typeId, ocId, { live: false })
+    .filter((a) => a.state === 'done' && oiIds.some((id) => coversOi(a, id)));
+  hit.forEach((a) => {
+    const ids = oiIds.filter((id) => coversOi(a, id));
+    a.returned = [...(a.returned || []), { oiIds: ids, reason: text, by: session.state.person, at: now() }];
+    // Напрямую, а не setAssignState: тот пишет «начал осмотр», а здесь — возврат.
+    a.state = 'progress';
+    a.doneAt = '';
+    a.incomplete = false;
+    logEvent('returned', a, { text, oiIds: ids });
+    syncResp(a.typeId, a.ocId);
+  });
+  changed();
+  return hit;
+}
+
 // Ход осмотра — по назначению, а не по объекту (ответ пользователя
 // 30.10.2026 «Каждый свою часть»): у объекта бывает несколько осмотрщиков на
 // разные ОИ, и отметка одного не должна закрывать осмотр другого.
