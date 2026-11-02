@@ -75,6 +75,13 @@ body[data-module] .ir-plain { list-style: none; margin: 0; padding: 0; display: 
 body[data-module] .ir-plain li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 body[data-module] .ir-empty { padding: 24px 16px; color: var(--muted); }
 
+/* Импорт архива приложения «Осмотр» — опция начального этапа. */
+body[data-module] .ir-imp { padding: 8px 14px; display: flex; flex-direction: column; gap: 8px; }
+body[data-module] .ir-imp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+body[data-module] .ir-imp label.btn { cursor: pointer; }
+body[data-module] .ir-imp-list { margin: 6px 0 0; padding-left: 18px; }
+body[data-module] .ir-imp-list li { margin: 2px 0; }
+
 /* Голосовые заметки: номер, плеер браузера, кто · когда · длительность. */
 body[data-module] .ir-voices { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 body[data-module] .ir-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 10px; border: 1px solid var(--line-soft); border-radius: 8px; background: #fbfdff; }

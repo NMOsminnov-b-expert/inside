@@ -35,6 +35,7 @@ import { session } from '../../kernel/session.js';
 import { STATUS_MAIN } from '../../kernel/status/flow.js';
 import { colGroupHTML, colLabelHTML, resizeGripHTML, colVar } from '../../kernel/columns.js';
 import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
+import { importArchive } from './archiveImport.js';
 import { sections, setNetsRec } from './form.js';
 import { oiLabel, ownOis } from './tasks.js';
 
@@ -69,7 +70,7 @@ const norm = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/
 // Состояние вкладки по объекту — в памяти страницы.
 const views = new Map();
 const viewOf = (key) => {
-  if (!views.has(key)) views.set(key, { sel: '', only: false, returning: false, reason: '', msg: '', tone: '', colW: {} });
+  if (!views.has(key)) views.set(key, { sel: '', only: false, returning: false, reason: '', msg: '', tone: '', colW: {}, imp: null });
   return views.get(key);
 };
 
@@ -179,6 +180,25 @@ const CMP_COLS = [
   { key: 'c-act', label: 'Действие', width: 120 },
 ];
 const headHTML = (cols) => `<thead><tr>${cols.map((c, i) => `<th data-col="${c.key}" class="${c.num ? 'num' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}</th>`).join('')}</tr></thead>`;
+
+// Импорт архива приложения «Осмотр» — опция начального этапа
+// (archiveImport.js): пока приложение не синхронизируется с сервером, его
+// архив загружается сюда. Итог — на месте: что легло, с чем сопоставлено, что
+// выявлено, что пропущено.
+function importHTML(v) {
+  const m = v.imp;
+  const line = (label, list) => (list && list.length ? `<li><b>${esc(label)}:</b> ${esc(list.join('; '))}</li>` : '');
+  const res = m && !m.busy && (m.error ? `<p class="ir-msg warn" role="status">Архив не загружен: ${esc(m.error)}</p>`
+    : `<div class="ir-msg ok" role="status"><b>Из архива${m.object ? ` «${esc(m.object)}»` : ''}:</b> снимков ${m.photos}, значений ${m.values}, голосовых ${m.voices}, документов ${m.scans}, контактов ${m.contacts}${m.repeated ? ` · уже были — ${m.repeated}` : ''}.
+      <ul class="ir-imp-list">${line('Сопоставлено с ОИ', m.matched)}${line('Выявлено на осмотре (нет среди ОИ)', m.found)}${line('Пропущено', m.skipped)}</ul></div>`);
+  return `<div class="card ir-imp">
+    <div class="ir-imp-row">
+      <button type="button" class="btn btn-ghost btn-sm" data-ir-zip ${m && m.busy ? 'disabled' : ''} title="ZIP-архив объекта из приложения «Осмотр» («Отправить архивом» или папка «Осмотры/<объект>» с телефона)">
+        ${m && m.busy ? 'Загружается…' : 'Загрузить архив приложения «Осмотр»…'}</button>
+      <span class="pill ir-st ir-st-warn" title="Обмен архивом — пока приложение не синхронизируется с сервером">начальный этап</span>
+      <span class="ir-muted">снимки, значения полей, голос, документы и контакты из папки объекта</span>
+    </div>${res || ''}</div>`;
+}
 
 // «Что осмотрено» — таблица, строка выбирает (кнопка в первой ячейке — для
 // клавиатуры, щелчок по строке — для мыши).
@@ -323,6 +343,7 @@ function render(typeId, rec) {
   const anyDone = list.some((a) => a.state === 'done') || !!(r && r.done);
   return `<div class="ir" data-ir-key="${esc(key)}">
     ${summaryHTML(rec, list, items, r)}
+    ${importHTML(v)}
     ${items.length ? `<div class="ir-grow">${navHTML(items, v.sel, v)}${detailHTML(typeId, rec, r, item, v, anyDone)}${footHTML(rec, items, item, v)}</div>`
       : `<div class="empty ir-empty">${list.length ? 'Осмотр назначен, на осмотре пока ничего не внесено.' : 'По объекту осмотров не было.'}</div>`}
   </div>`;
@@ -399,6 +420,7 @@ document.addEventListener('click', (e) => {
   const { v } = c;
   const hit = (s) => e.target.closest(s);
   let n;
+  if (hit('[data-ir-zip]')) { runImport(el.dataset.irKey); return; }
   if ((n = hit('[data-ir-sel]') || (!hit('button, a, input, select, textarea') && hit('[data-ir-row]')))) {
     Object.assign(v, { sel: n.dataset.irSel || n.dataset.irRow, returning: false, reason: '', msg: '' });
   } else if ((n = hit('[data-ir-apply]'))) {
@@ -439,6 +461,38 @@ document.addEventListener('click', (e) => {
   else return;
   rerender(el);
 });
+// Загрузка архива: выбор файла → разбор → итог на месте. Поле выбора файла —
+// своё, вне разметки вкладки (как выбор снимков у ТС, vehicle/photos.js):
+// пока открыт выбор, карточку перерисовывают фоновые записи файлов
+// (kernel/localFiles.js), и поле в разметке пропадало вместе с выбором.
+function pickZip() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.zip,application/zip';
+    input.addEventListener('cancel', () => resolve(null));
+    input.onchange = () => resolve((input.files && input.files[0]) || null);
+    input.click();
+  });
+}
+async function runImport(key) {
+  const [typeId, ocId] = key.split('|');
+  const t = getType(typeId);
+  const rec = t && t.records.loadRecord(ocId);
+  if (!rec) return;
+  const file = await pickZip();
+  if (!file) return;
+  const v = viewOf(key);
+  const redraw = () => window.dispatchEvent(new CustomEvent('inside:redraw'));
+  v.imp = { busy: true };
+  redraw();
+  try {
+    v.imp = await importArchive(typeId, rec, file);
+  } catch (err) {
+    v.imp = { error: err.message || String(err) };
+  }
+  redraw();
+}
 document.addEventListener('input', (e) => {
   if (!e.target.matches('[data-ir-reason]')) return;
   const el = e.target.closest('.ir[data-ir-key]');

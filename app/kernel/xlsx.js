@@ -71,3 +71,12 @@ export async function readXlsx(file) {
       .map((r) => r.map((v) => (v instanceof Date ? iso(v) : v === null || v === undefined ? '' : String(v)))),
   }));
 }
+
+// Строки первого листа книги — массивами значений (чтение; импорт контактов
+// из архива приложения «Осмотр», pages/inspector/archiveImport.js).
+export async function xlsxRows(buf) {
+  const X = await load();
+  const wb = X.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return ws ? X.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false }) : [];
+}
