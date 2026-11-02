@@ -41,7 +41,9 @@ export function main(host) {
   let rec = load(route.ocId);
   forRecord(route.ocId);
   const ctx = {
-    host, scope, manifest, today: todayStr(), ui, tab: 'general', view: 'oc',
+    host, scope, manifest, today: todayStr(), ui, view: 'oc',
+    // Вкладка — из адреса (?tab=inspection — «Результаты осмотра», kernel/inspectionTab.js).
+    get tab() { return (route.query && route.query.tab) || 'general'; },
     get rec() { return rec; },
     // Снимки ТС держит сама запись — просмотрщик ядра берёт их у ctx.oi
     // (photos.js). Вид экрана остаётся «oc»: документы — объекта оценки.
@@ -63,6 +65,7 @@ export function main(host) {
     if (!ui.viewerClosed && !ui.viewer) ui.viewer = { mode: 'doc' };
     scope.setHTML(viewVehicle(ctx));
     bindVehicle(ctx);
+    scope.$$('[data-tab]').forEach((b) => b.onclick = () => host.navigate({ ocId: rec.id, rest: [], query: b.dataset.tab === 'general' ? {} : { tab: b.dataset.tab } }));
     // Шапка после отрисовки — новый узел: следить за её высотой заново, иначе
     // просмотрщик остаётся со старым отступом и заезжает под шапку (так же
     // делают остальные типы ОЦ; в модуле ТС этого не было).

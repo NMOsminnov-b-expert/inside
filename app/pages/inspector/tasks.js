@@ -368,6 +368,18 @@ export function foundOi(typeId, ocId) {
 export const SELF_TS = 'ts';
 const selfTs = (rec) => (rec && rec.vehicle && !(rec.oi || []).length
   ? [{ id: SELF_TS, card: 'vehicle', vehicle: rec.vehicle, name: tsName(rec), docs: [], ocSelf: true }] : []);
+// ОЦ «Механизмы и оборудование» — перечень единиц у самой записи (rec.mech,
+// тот же вид, что ОИ «Механизмы и оборудование» в любом ОЦ): во вкладке
+// «Результаты осмотра» — как объект «mech» этой записи. У осмотрщика (inspOis)
+// не подставляется: экран осмотрщика переходит на приложение «Осмотр», там
+// механизмы-ОЦ должны осматриваться (требование к переходу, аудит 02.11.2026).
+export const SELF_MECH = 'mech';
+const selfMech = (rec) => (rec && rec.mech && !(rec.oi || []).length
+  ? [{ ...rec.mech, id: SELF_MECH, card: 'mech', docs: rec.mech.docs || [], ocSelf: true }] : []);
+const selfOis = (rec) => [...selfTs(rec), ...selfMech(rec)];
+// Все учтённые ОИ записи с ТС-ОЦ «ts» и механизмами-ОЦ «mech» — без отбора по
+// осмотрщику (вкладка «Результаты осмотра» карточки, pages/inspector/results.js).
+export const ownOis = (rec) => [...((rec && rec.oi) || []), ...selfOis(rec)];
 
 // Описи, приложенные к назначениям этого осмотрщика по объекту (этап Б2):
 // [{ inv, assignId }] без повторов.
@@ -395,6 +407,9 @@ export function assignedOiIds(typeId, ocId) {
 // список для осмотрщика.
 export function inspOis(rec, typeId, ocId) {
   const ids = assignedOiIds(typeId, ocId);
+  // Экран осмотрщика не трогаем (указание пользователя 02.11.2026: интерфейс
+  // осмотрщика будет взят из приложения «Осмотр») — механизмы-ОЦ здесь не
+  // подставляются, только во вкладке «Результаты осмотра» (ownOis).
   const own = [...((rec && rec.oi) || []), ...selfTs(rec)].filter((o) => !ids || ids.has(o.id));
   return [...own, ...foundOi(typeId, ocId)];
 }

@@ -1,6 +1,7 @@
 import { blockNumbers } from '../../kernel/blockIndex.js';
 import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
+import { hasInspection, inspectionTabHTML, INSPECTION_TAB } from '../../kernel/inspectionTab.js';
 import { fmtNum } from '../../kernel/fmt.js';
 import { ownerNames, mechOf } from './records.js';
 import { partiesHTML } from './parties.view.js';
@@ -38,11 +39,12 @@ function headMech(ctx) {
     ],
     actions: `<button class="btn btn-ghost" data-mech-back>← К объектам оценки</button>
       <button class="btn btn-primary" data-mech-save>Сохранить</button>`,
-    tabs: [{ key: 'general', label: 'Общие данные' }],
+    tabs: [{ key: 'general', label: 'Общие данные' }, ...(hasInspection(ctx.manifest.id, ctx.rec.id) ? [INSPECTION_TAB] : [])],
   });
 }
 
 export function viewMech(ctx) {
+  if (ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, ctx.rec.id)) return `${headMech(ctx)}${inspectionTabHTML(ctx.manifest.id, ctx.rec)}`;
   return `${headMech(ctx)}
     ${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, formHTML(ctx))}`;
 }

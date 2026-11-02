@@ -1,4 +1,5 @@
 import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
+import { hasInspection, inspectionTabHTML } from '../../../kernel/inspectionTab.js';
 import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { eniAllOf } from '../../../kernel/eniFold.js';
@@ -45,7 +46,7 @@ function headOC(ctx) {
     // «Сравнительный подход» — только у гражданского ОЦ (методология «Категории
     // и классы зданий», 25.09.2026); вкладка перед «Логами». СПРЯТАНА: см.
     // COMPARATIVE_HIDDEN ниже.
-    tabs: COMPARATIVE_HIDDEN ? ocTabs(canViewAuditLog(rec)) : withComparative(ocTabs(canViewAuditLog(rec))),
+    tabs: COMPARATIVE_HIDDEN ? ocTabs(canViewAuditLog(rec), hasInspection(ctx.manifest.id, rec.id)) : withComparative(ocTabs(canViewAuditLog(rec), hasInspection(ctx.manifest.id, rec.id))),
   });
 }
 
@@ -104,6 +105,7 @@ export function viewOC(ctx) {
   return `${headOC(ctx)}
 
     ${tab === 'general' ? generalTab
+      : ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, rec.id) ? inspectionTabHTML(ctx.manifest.id, rec)
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
       : ctx.tab === 'comparative' && !COMPARATIVE_HIDDEN ? comparativeTab(ctx)
       : photosTab(ctx)}`;

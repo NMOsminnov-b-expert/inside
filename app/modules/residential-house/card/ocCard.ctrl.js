@@ -140,7 +140,7 @@ export function bindOcCard(ctx) {
       if (!ctx.ui.viewerDoc && docs.length) ctx.ui.viewerDoc = { scope: 'oc', id: docs[0].id };
     } else if (tab === 'photo') {
       ctx.ui.viewer = { mode: 'photo' };
-    } else if (tab === 'audit') {
+    } else if (tab === 'audit' || tab === 'inspection') {
       // Лог действий — на всю ширину, без просмотрщика документов рядом.
       ctx.ui.viewer = null;
     } else {

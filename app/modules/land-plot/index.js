@@ -296,7 +296,7 @@ export function main(host) {
   // их отсутствии viewerHTML сам покажет приглашение прикрепить документ.
   function ensureViewerDefault() {
     // Исключение — вкладка «Логи»: она на всю ширину, просмотрщику там не место.
-    if (route.rest.length === 0 && route.query.tab === 'audit') return;
+    if (route.rest.length === 0 && ['audit', 'inspection'].includes(route.query.tab)) return;
     // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
     if (ui.viewerClosed) return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };

@@ -1,4 +1,5 @@
 import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
+import { hasInspection, inspectionTabHTML } from '../../../kernel/inspectionTab.js';
 import { recFlags } from '../records.js';
 import { canViewAuditLog } from '../../../kernel/audit/access.js';
 import { auditTab } from '../audit/view.js';
@@ -36,7 +37,7 @@ function headOC(ctx) {
     ],
     flags: recFlags(rec),
     menu: addOiMenuHTML(rec),
-    tabs: ocTabs(canViewAuditLog(rec)),
+    tabs: ocTabs(canViewAuditLog(rec), hasInspection(ctx.manifest.id, rec.id)),
   });
 }
 
@@ -76,6 +77,7 @@ export function viewOC(ctx) {
   return `${headOC(ctx)}
 
     ${ctx.tab === 'general' ? generalTab
+      : ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, rec.id) ? inspectionTabHTML(ctx.manifest.id, rec)
       : ctx.tab === 'audit' && canViewAuditLog(rec) ? auditTab(ctx)
       : photosTab(ctx)}`;
 }

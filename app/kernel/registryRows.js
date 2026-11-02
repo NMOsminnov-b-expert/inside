@@ -37,6 +37,8 @@ export function matchSummary(s, f, skip) {
   }
   if (skip !== 'stale' && f.staleDays && daysBetween(s.updatedAt, f.today) < f.staleDays) return false;
 
+  if (skip !== 'keys' && f.keys && !f.keys.has(`${s.typeId}|${s.id}`)) return false;
+
   if (skip !== 'mine' && f.mine && f.mine.person) {
     const p = f.mine.person;
     if (f.mine.role === 'any') {

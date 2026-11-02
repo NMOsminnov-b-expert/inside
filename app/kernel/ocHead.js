@@ -1,3 +1,4 @@
+import { INSPECTION_TAB } from './inspectionTab.js';
 import { esc } from './dom.js';
 import { flagBadgesHTML } from './flagBadges.js';
 import { statusFlowHTML } from './status/flow.view.js';
@@ -69,10 +70,12 @@ export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', actions = nu
   </div>`;
 }
 
-// Вкладки карточки ОЦ одинаковы у всех типов: общие данные, фото и логи —
+// Вкладки карточки ОЦ одинаковы у всех типов: общие данные, фото, результаты
+// осмотра (если по объекту были осмотры, kernel/inspectionTab.js) и логи —
 // последние только тем, кому они доступны.
-export const ocTabs = (canAudit) => [
+export const ocTabs = (canAudit, withInspection = false) => [
   { key: 'general', label: 'Общие данные' },
   { key: 'photo', label: 'Фото' },
+  ...(withInspection ? [INSPECTION_TAB] : []),
   ...(canAudit ? [{ key: 'audit', label: 'Логи' }] : []),
 ];

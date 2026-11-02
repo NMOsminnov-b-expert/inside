@@ -53,7 +53,7 @@ const recOf = (typeId, ocId) => {
 const placeOf = (rec) => (rec ? [rec.institution, rec.address || rec.title || rec.name].filter(Boolean).join(' — ') : '');
 
 // Ключи элементов: «осмотр» — scan|тип|ОЦ|id скана; «кадастр» — cad|id запроса|id строки.
-const scanKey = (typeId, ocId, id) => `scan|${typeId}|${ocId}|${id}`;
+export const scanKey = (typeId, ocId, id) => `scan|${typeId}|${ocId}|${id}`;
 const cadKey = (reqId, rowId) => `cad|${reqId}|${rowId}`;
 
 // Страницы строки кадастра: один файл ответа (PDF или картинка).

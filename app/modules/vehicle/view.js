@@ -4,6 +4,7 @@ import { blockNumbers } from '../../kernel/blockIndex.js';
 import { ownerNames } from './records.js';
 import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
+import { hasInspection, inspectionTabHTML, INSPECTION_TAB } from '../../kernel/inspectionTab.js';
 import { partiesHTML } from './parties.view.js';
 import { ocContactsHTML } from '../../kernel/contacts.js';
 import { tsFieldHTML } from './tsFields.view.js';
@@ -876,11 +877,12 @@ function headVehicle(ctx) {
         title="Новый объект оценки с тем же видом, базой, характеристиками и модулями">Создать похожее</button>
       <button class="btn btn-ghost" data-vehicle-back>← К объектам оценки</button>
       <button class="btn btn-primary" data-vehicle-save>Сохранить</button>`,
-    tabs: [{ key: 'general', label: 'Общие данные' }],
+    tabs: [{ key: 'general', label: 'Общие данные' }, ...(hasInspection(ctx.manifest.id, ctx.rec.id) ? [INSPECTION_TAB] : [])],
   });
 }
 
 export function viewVehicle(ctx) {
+  if (ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, ctx.rec.id)) return `${headVehicle(ctx)}${inspectionTabHTML(ctx.manifest.id, ctx.rec)}`;
   return `${headVehicle(ctx)}
     ${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, formHTML(ctx))}`;
 }

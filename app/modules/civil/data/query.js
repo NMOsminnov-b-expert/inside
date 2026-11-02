@@ -44,6 +44,10 @@ export function matches(s, f, skip) {
     if (daysBetween(s.updatedAt, f.today) < f.staleDays) return false;
   }
 
+  // Только записи из списка «тип|id» (срез «Осмотр закончен — проверить»,
+  // pages/ocMenu/slices.js): признака в самой записи нет.
+  if (skip !== 'keys' && f.keys && !f.keys.has(`${s.typeId}|${s.id}`)) return false;
+
   if (skip !== 'mine' && f.mine && f.mine.person) {
     const role = f.mine.role;
     if (role === 'any') {

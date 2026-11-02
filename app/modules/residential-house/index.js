@@ -299,7 +299,7 @@ export function main(host) {
   // прикрепить документ. Исключение — вкладка «Логи»: там просмотрщику
   // не место, она на всю ширину.
   function ensureViewerDefault() {
-    if (route.rest.length === 0 && route.query.tab === 'audit') return;
+    if (route.rest.length === 0 && ['audit', 'inspection'].includes(route.query.tab)) return;
     // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
     if (ui.viewerClosed) return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };

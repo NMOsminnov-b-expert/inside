@@ -58,6 +58,10 @@ export function resultsOf(typeId, ocId) {
   return results.get(k);
 }
 
+// Результаты осмотра объекта или null — без создания пустой записи: просмотр
+// (вкладка «Результаты осмотра» карточки) не должен ничего записывать.
+export const peekResults = (typeId, ocId) => results.get(key(typeId, ocId)) || null;
+
 // Все результаты осмотров (без создания пустых) — очередь «Сканы с осмотров»
 // (kernel/scanQueue.js) перебирает по ним сканы.
 export const allResults = () => [...results.values()];

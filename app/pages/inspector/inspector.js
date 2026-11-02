@@ -41,6 +41,8 @@ import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes, netsLandOf } from '../../kernel/registry.js';
 import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from './form.js';
+// Вкладка «Результаты осмотра» карточки ОЦ регистрируется в ядре при загрузке.
+import './results.js';
 import { docsForOi, docPages, kindOfDoc, viewerHTML, bindViewer } from './docViewer.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
 import { summaries } from '../inspections/model.js';

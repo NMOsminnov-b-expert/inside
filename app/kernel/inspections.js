@@ -251,6 +251,18 @@ export function finishWork(person, typeId, ocId, done, { incomplete = false } = 
   return mine.length;
 }
 
+// Объекты, осмотр которых закончен: есть не снятые назначения и все
+// закончены — «тип|id» (срез ЦОД «Осмотр закончен — проверить»).
+export function finishedObjects() {
+  const by = new Map();
+  assignments.forEach((a) => {
+    if (a.state === 'removed') return;
+    const k = a.typeId + '|' + a.ocId;
+    by.set(k, (by.get(k) !== false) && a.state === 'done');
+  });
+  return new Set([...by].filter(([, done]) => done).map(([k]) => k));
+}
+
 // Закончен ли осмотр осмотрщика по объекту: есть свои назначения и все
 // закончены. null — назначений нет (объект осмотрщика по карточке).
 export function workDone(person, typeId, ocId) {

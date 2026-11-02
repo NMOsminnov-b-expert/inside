@@ -313,7 +313,7 @@ export function main(host) {
     // Так же и «Сравнительный подход»: широкая таблица аналогов (пока вкладка
     // спрятана — COMPARATIVE_HIDDEN, card/ocCard.view.js — её адрес ведёт на
     // «Общие данные», и просмотрщик там нужен).
-    const wide = COMPARATIVE_HIDDEN ? ['audit'] : ['audit', 'comparative'];
+    const wide = COMPARATIVE_HIDDEN ? ['audit', 'inspection'] : ['audit', 'comparative', 'inspection'];
     if (route.rest.length === 0 && wide.includes(route.query.tab)) return;
     // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
     if (ui.viewerClosed) return;

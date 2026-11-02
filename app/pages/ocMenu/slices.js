@@ -1,6 +1,7 @@
 import { esc } from '../../kernel/dom.js';
 import { emptyFilter, rolePerms, isFilterEmpty } from './state.js';
 import { countAll } from './query.js';
+import { finishedObjects } from '../../kernel/inspections.js';
 
 // Срезы — именованные фильтры: пользователь видит не размер базы, а свою
 // работу. Две группы одной строкой над таблицей (канва главной 01.10.2026,
@@ -18,6 +19,11 @@ export function sliceDefs(tab) {
       patch: { mine: 'appr', status: ['Осмотрен'] } },
     { key: 'my-cod', group: 'my', short: 'Мне удостоверить', label: 'Мне удостоверить', hint: 'я оператор ЦОД · в заполнении',
       patch: { mine: 'cod', status: ['В заполнении'] } },
+    // Осмотр закончен, «Осмотрен» не поставлен — ЦОД проверяет результаты
+    // (вкладка «Результаты осмотра») и ставит статус (ответ пользователя
+    // 30.10.2026 «Вкладка в карточке + срез»).
+    { key: 'my-cod-insp', group: 'my', short: 'Осмотр закончен', label: 'Осмотр закончен — проверить', hint: 'я оператор ЦОД · осмотр закончен, «Осмотрен» не поставлен',
+      patch: { mine: 'cod', status: ['Удостоверен по документам', 'Направлен на осмотр'], keys: finishedObjects } },
     { key: 'my-all', group: 'my', short: 'Все мои', label: 'Все мои объекты', hint: 'я в любой роли',
       patch: { mine: 'any' } },
     { key: 'notes', group: 'att', short: 'Заметки', label: 'С невыполненными заметками', hint: 'есть незакрытые замечания', dot: 'amber',
@@ -40,6 +46,7 @@ export function filterForSlice(def, person) {
   if (p.status) f.status = p.status.slice();
   if (p.flags) f.flags = p.flags.slice();
   if (p.staleDays) f.staleDays = p.staleDays;
+  if (p.keys) f.keys = p.keys();
 
   return f;
 }
@@ -64,6 +71,11 @@ export function invalidateSliceCounts() {
   cache = null;
 }
 
+// Срез «Осмотр закончен» зависит от назначений, а не от записей: их смена
+// версию данных реестра не двигает — счётчики сбрасываем по событию осмотров
+// (kernel/inspections.js, changed()).
+window.addEventListener('inside:inspections', invalidateSliceCounts);
+
 export function slicesHTML(state, version) {
   const counts = sliceCounts(state, version);
   // Срезы «мне…» — только уместные для роли: остальные роли эту работу не
@@ -84,9 +96,9 @@ export function slicesHTML(state, version) {
       <button class="reg-view ${allOn ? 'on' : ''}" data-view-all aria-pressed="${allOn}" title="Все объекты вкладки, без фильтров">Все <em>${counts.all.toLocaleString('ru')}</em></button>
       ${my}
     </div>
-    <span class="reg-views-sep" aria-hidden="true"></span>
-    <span class="reg-views-label">Внимание</span>
-    <div class="reg-views" role="group" aria-label="Требуют внимания">${att}</div>`;
+    <div class="reg-views" role="group" aria-label="Требуют внимания">
+      <span class="reg-views-sep" aria-hidden="true"></span><span class="reg-views-label">Внимание</span>${att}
+    </div>`;
 }
 
 export function sliceLabel(tab, key) {

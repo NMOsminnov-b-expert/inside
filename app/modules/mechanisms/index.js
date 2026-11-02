@@ -37,7 +37,9 @@ export function main(host) {
   let rec = load(route.ocId);
   forRecord(route.ocId);
   const ctx = {
-    host, scope, manifest, today: todayStr(), ui, tab: 'general', view: 'oc',
+    host, scope, manifest, today: todayStr(), ui, view: 'oc',
+    // Вкладка — из адреса (?tab=inspection — «Результаты осмотра», kernel/inspectionTab.js).
+    get tab() { return (route.query && route.query.tab) || 'general'; },
     get rec() { return rec; },
     // Снимки единиц держит перечень записи (rec.mech) — просмотрщик ядра берёт
     // их у ctx.oi. Вид экрана остаётся «oc»: документы — объекта оценки.
@@ -60,6 +62,7 @@ export function main(host) {
     scope.setHTML(viewMech(ctx));
     applyCardToggles(scope.root, ui);
     bindMech(ctx);
+    scope.$$('[data-tab]').forEach((b) => b.onclick = () => host.navigate({ ocId: rec.id, rest: [], query: b.dataset.tab === 'general' ? {} : { tab: b.dataset.tab } }));
     if (scope.watchStickyHead) scope.watchStickyHead();
     if (scope.syncStickyHead) scope.syncStickyHead();
   }

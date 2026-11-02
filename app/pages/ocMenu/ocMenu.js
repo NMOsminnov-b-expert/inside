@@ -188,7 +188,7 @@ export function mountOcMenu(host) {
   function filterCount() {
     const f = state.filter;
     return ['status', 'typeId', 'region', 'city', 'institution', 'insp', 'flags'].reduce((n, k) => n + (f[k] || []).length, 0)
-      + (f.staleDays ? 1 : 0) + (f.mine ? 1 : 0);
+      + (f.staleDays ? 1 : 0) + (f.mine ? 1 : 0) + (f.keys ? 1 : 0);
   }
 
   // «⋯» — столбцы, плотность строк и экспорт одним меню.
@@ -228,14 +228,17 @@ export function mountOcMenu(host) {
 
   function barHTML() {
     const n = filterCount();
+    // Кнопки справа — одной группой, прижатой вправо и при переносе ряда:
+    // иначе «Фильтры» и «⋯» уходили в начало второй строки, и меню «⋯»
+    // открывалось под боковой панелью (02.11.2026, срез «Осмотр закончен»).
     return `${slicesHTML(state, dataVersion)}
-      <span class="reg-grow"></span>
+      <span class="reg-tools">
       ${recentHTML()}
       <button class="btn btn-ghost reg-filter-btn ${state.facetsOpen ? 'on' : ''}" data-facets-toggle aria-expanded="${state.facetsOpen}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
         Фильтры${n ? ` <b>${n}</b>` : ''}
       </button>
-      ${moreMenuHTML()}`;
+      ${moreMenuHTML()}</span>`;
   }
 
   // Подписи применённых фильтров — чипами с крестиком.
@@ -254,6 +257,7 @@ export function mountOcMenu(host) {
       (f.flags || []).forEach((v) => out.push({ key: 'flags', value: v, label: FLAG_LABELS[v] || v }));
       if (f.staleDays) out.push({ key: 'stale', value: '', label: `Без движения ${f.staleDays}+ дней` });
       if (f.mine) out.push({ key: 'mine', value: '', label: 'Мои объекты' });
+      if (f.keys) out.push({ key: 'keys', value: '', label: 'Осмотр закончен' });
     }
     return out;
   }
@@ -567,6 +571,7 @@ export function mountOcMenu(host) {
       if (loc) loc.value = '';
     } else if (key === 'stale') f.staleDays = 0;
     else if (key === 'mine') f.mine = null;
+    else if (key === 'keys') f.keys = null;
     else if (Array.isArray(f[key])) f[key] = f[key].filter((x) => x !== value);
     state.sliceKey = null;
     cursor = -1;
