@@ -70,12 +70,12 @@ function photosHTML(photos) {
   if (!photos.length) return '';
   const byCat = new Map();
   photos.forEach((p) => { const c = p.cat || 'Прочее'; if (!byCat.has(c)) byCat.set(c, []); byCat.get(c).push(p); });
-  return [...byCat].map(([cat, list]) => `<div class="ir-ph-group">
+  return `<div class="ir-ph-groups">${[...byCat].map(([cat, list]) => `<div class="ir-ph-group">
       <p class="ir-sub">${esc(cat)} <b>${list.length}</b></p>
       <ul class="ir-ph">${list.map((p) => `<li>${p.dataUrl
         ? `<img src="${esc(p.dataUrl)}" alt="${esc(cat)}" loading="lazy">`
         : '<span class="ir-ph-none">снимок не загружен</span>'}<span class="ir-ph-at">${esc(ddmm(p.at))}</span></li>`).join('')}</ul>
-    </div>`).join('');
+    </div>`).join('')}</div>`;
 }
 
 function oiHTML(typeId, oi, r) {

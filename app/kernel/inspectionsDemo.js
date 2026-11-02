@@ -81,7 +81,8 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
       // Состав осмотрщиков — и из синтетических (по сводке): иначе он зависел
       // от правок сида, и демо-история менялась от перезагрузки к перезагрузке.
       if (s.resp && s.resp.insp) people.add(s.resp.insp);
-      const base = { typeId: t.manifest.id, ocId: s.id, status: s.status, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '' };
+      const base = { typeId: t.manifest.id, ocId: s.id, status: s.status, place: [s.institution, s.title].filter(Boolean).join(' — '), eni: s.eni || '', inst: s.institution || '', area: (s.metrics && s.metrics.area) || 0, kind: s.typeLabel || '',
+        cod: (s.resp && s.resp.cod) || '' };
       // Синтетические записи (…-b<N>) — по сводке, карточку не собираем:
       // loadRecord кладёт её в список, и тысяча сборок на каждом старте
       // тормозила и двоила счётчики (13.10.2026). Назначение на такой объект —
@@ -95,7 +96,9 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
       const defDocs = [...(r.docs || []), ...(r.oi || []).flatMap((o) => o.docs || [])].filter((d) => d && isDefaultDoc(d.type || d.name)).map((d) => d.id);
       // ts — ОЦ «ТС»; tsOi — ТС среди ОИ записи (демо осмотра ТС, ниже).
       recs.push({ ...base, oi: (r.oi || []).map((o) => o.id), defDocs, ll: llOf(r) || llByEni(s.eni),
-        ts: isTsHolder(r), tsOi: (r.oi || []).filter(isTsHolder).map((o) => o.id) });
+        ts: isTsHolder(r), tsOi: (r.oi || []).filter(isTsHolder).map((o) => o.id),
+        // Вид ОИ и единицы механизмов — для демо вкладки «Результаты осмотра».
+        ois: (r.oi || []).map((o) => ({ id: o.id, card: o.card, litKind: o.litKind || '', units: (o.mechanisms || []).map((u) => u.id) })) });
     });
   });
   const names = [...people].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -264,7 +267,8 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
 
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
   const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
-  const results = demoTs(names, recs, partial, assignments, events, today, () => ++n, me);
+  const results = demoResultsTab(demoTs(names, recs, partial, assignments, events, today, () => ++n, me),
+    recs, assignments, events, today, () => ++n, me, names);
   return { assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me), plans: demoPlans(names, assignments, recs, today), deadlines };
 }
 
@@ -604,4 +608,181 @@ function demoAssignDetails(names, assignments, recs, profiles, today) {
   const prof = profiles.find((p) => p.id === who);
   if (clash && prof) prof.absences = [...(prof.absences || []), { id: 'demo-ab-1', kind: 'dayoff', from: clash.plannedAt, to: clash.plannedAt, note: 'отгул по семейным обстоятельствам' }];
   return deadlines;
+}
+
+// Демо вкладки «Результаты осмотра» карточки ОЦ (просьба пользователя
+// 02.11.2026: «Добавь тестовые данные для проверки этого экрана. Мне
+// необходимо просмотреть все самому в интерфейсе»). По объекту каждого типа
+// недвижимости — значения осмотра по всем ОИ, снимки по категориям, заметка и
+// контакт; состояния разные: закончен (жилой дом), закончен с пометкой
+// «неполный» (квартира), двое осмотрщиков — один закончил, другой в работе
+// (нежилое здание с механизмами и ТС), в работе (участок). Объекты —
+// «Удостоверен по документам», где ЦОД — человек из сессии: законченные видны
+// в срезе «Осмотр закончен — проверить». Без генератора случайных чисел и после
+// остального демо — прежняя история не сдвигается. Данные вымышленные.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-результатов нет — их вносит осмотрщик.
+const DEMO_VALUES = {
+  land: { location: 'На окраине населенного пункта', roadLocation: 'Вблизи междугородней трассы (до 300 м)', corner: 'Угловой',
+    encumbrance: 'Нет', form: 'Прямоугольная', relief: 'Ровный', electricity: 'Подведены', centralWater: 'Подведены',
+    gasification: 'Проходят рядом', improvementRank: 'Частично благоустроен', note: 'Участок огорожен, въезд с улицы, покрытие частично асфальт' },
+  apartment: { aptFloor: '4', aptBuildingFloors: '9', aptRooms: '3', aptSeries: 'Серия 97', aptLocation: 'Угловое',
+    electricity: 'Подведены', centralHeating: 'Подведены', note: 'Окна заменены, в одной комнате следы протечки на потолке' },
+  building: { buildType: 'Отдельностоящее', floorsN: '2', electricity: 'Подведены', centralWater: 'Подведены',
+    centralHeating: 'Подведены', note: 'Фасад требует покраски, кровля без видимых протечек' },
+  vehicle: { 'ts.addr': 'Во дворе объекта, у гаражей', 'f.plate': '01KG123DEM', 'f.mileage': '187400' },
+};
+const LIT_VALUES = {
+  civil: { litKind: 'Гражданская', purposeFact_civil: 'Административно-офисное', cap_civil_arch: 'Современная', cap_civil_constr: 'Капитальная' },
+  prod: { litKind: 'Производственно-складская', purposeFact_prod: 'Склад', cap_prod_crane: 'Нет' },
+};
+const PHOTO_CATS_DEMO = {
+  building: ['Фасад', 'Внутр. помещения', 'Кровля'], land: ['Земельный участок'], apartment: ['Внутр. помещения', 'Фасад'],
+  mech: ['Прочее'], vehicle: ['Машина'],
+};
+const HUES = { 'Фасад': 205, 'Внутр. помещения': 32, 'Кровля': 0, 'Земельный участок': 110, 'Прочее': 270, 'Машина': 180 };
+
+function photoImg(label, cat, n) {
+  const h = HUES[cat] == null ? 210 : HUES[cat];
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">'
+    + `<rect width="480" height="360" fill="hsl(${h},35%,${78 - n * 6}%)"/><rect x="0" y="230" width="480" height="130" fill="hsl(${h},25%,${62 - n * 5}%)"/>`
+    + `<text x="240" y="160" fill="#26323f" font-family="Arial" font-size="26" text-anchor="middle">${cat}</text>`
+    + `<text x="240" y="196" fill="#3d4a59" font-family="Arial" font-size="15" text-anchor="middle">${label} · демо-снимок ${n}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+  const last = keys.pop();
+  const box = keys.reduce((o, k) => (o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}), obj);
+  box[last] = value;
+}
+
+function oiValues(oi, part = 1) {
+  const v = {};
+  const base = oi.card === 'mech' ? {} : (DEMO_VALUES[oi.card] || {});
+  const keys = Object.keys(base);
+  keys.slice(0, Math.max(1, Math.round(keys.length * part))).forEach((k) => setPath(v, k, base[k]));
+  if (oi.card === 'building' && LIT_VALUES[oi.litKind]) Object.entries(LIT_VALUES[oi.litKind]).forEach(([k, x]) => { v[k] = x; });
+  if (oi.card === 'mech') {
+    oi.units.slice(0, Math.max(1, Math.round(oi.units.length * part))).forEach((u, i) => {
+      setPath(v, `u.${u}.found`, 'Найдено');
+      setPath(v, `u.${u}.inv`, `ИНВ-00${i + 1}24`);
+      setPath(v, `u.${u}.serial`, `SN-DEMO-${4410 + i}`);
+      setPath(v, `u.${u}.state`, i ? 'Условно пригодное' : 'Рабочее');
+    });
+  }
+  return v;
+}
+
+function demoResultsTab(prev, recs, assignments, events, today, next, me, names) {
+  const out = prev.slice();
+  if (!names.length) return out;
+  const list = me ? [me, ...names.filter((x) => x !== me)] : names;
+  const who = (i) => list[i % list.length];
+  const rec = (id) => recs.find((r) => r.ocId === id && (r.ois || []).length);
+  const mine = (r) => assignments.filter((a) => a.typeId === r.typeId && a.ocId === r.ocId && a.state !== 'removed');
+  const evt = (a, kind, d, extra = {}) => events.push({ id: `demo-ev-${next()}`, at: d.toISOString(), who: kind === 'assigned' ? a.by : a.person, kind,
+    assignId: a.id, typeId: a.typeId, ocId: a.ocId, person: a.person, demo: true, ...extra });
+  const mkA = (r, person, oiIds, state, dayShift, incomplete = false) => {
+    const at = dayAt(today, dayShift - 3, 15);
+    const a = {
+      id: `demo-as-${next()}`, typeId: r.typeId, ocId: r.ocId, person, oiIds, docs: [], inventories: [],
+      plannedAt: isoLocalDate(dayAt(today, dayShift, 9)), note: '', by: 'Региональный менеджер (демо)', at: at.toISOString(),
+      state, doneAt: '', demo: true,
+    };
+    assignments.push(a);
+    evt(a, 'assigned', at);
+    return setState(a, state, dayShift, incomplete);
+  };
+  // Перевести назначение демо: «В работе» и «Осмотр закончен» с событиями.
+  function setState(a, state, dayShift, incomplete = false) {
+    if (state === 'assigned') return a;
+    evt(a, 'progress', dayAt(today, dayShift, 10));
+    a.state = state;
+    if (state === 'done') {
+      a.doneAt = dayAt(today, dayShift, 13).toISOString();
+      a.incomplete = !!incomplete;
+      evt(a, 'done', dayAt(today, dayShift, 13), incomplete ? { text: 'неполный осмотр' } : {});
+    }
+    return a;
+  }
+  const entry = (r) => {
+    let e = out.find((x) => x.typeId === r.typeId && x.ocId === r.ocId);
+    if (!e) { e = { typeId: r.typeId, ocId: r.ocId }; out.push(e); }
+    e.assets = e.assets || {};
+    e.photos = e.photos || [];
+    e.contacts = e.contacts || [];
+    return e;
+  };
+  const fill = (r, ois, by, dayShift, part = 1) => {
+    const e = entry(r);
+    ois.forEach((oi) => {
+      e.assets[oi.id] = oiValues(oi, part);
+      (PHOTO_CATS_DEMO[oi.card] || ['Прочее']).forEach((cat, i) => {
+        e.photos.push({ id: `demo-ph-${r.ocId}-${oi.id}-${i}`, name: `${cat}.svg`, size: 1500, type: 'image/svg+xml',
+          dataUrl: photoImg(oi.card === 'mech' ? 'Механизмы' : 'Объект имущества', cat, i + 1),
+          at: dayAt(today, dayShift, 10 + i).toISOString(), oiId: oi.id, cat, by });
+      });
+    });
+    return e;
+  };
+
+  // Жилой дом «Осмотрен» — осмотр закончен целиком, все ОИ, контакт и заметка.
+  const house = rec('oc-rh-2');
+  if (house && !mine(house).length) {
+    const p = who(1);
+    mkA(house, p, [], 'done', -3);
+    const e = fill(house, house.ois, p, -3);
+    e.note = 'Доступ ко всем помещениям был, сопровождал завхоз';
+    e.contacts.push({ id: 'demo-ct-oc-rh-2', name: 'Асанов Бакыт (демо)', role: 'завхоз', phone: '+996 555 010 203' });
+  }
+  // Участок «Осмотрен» — закончен.
+  const land = rec('oc-lp-1');
+  if (land && !mine(land).length) {
+    const p = who(2);
+    mkA(land, p, [], 'done', -2);
+    fill(land, land.ois, p, -2).note = 'Границы на местности совпадают с планом, ограждение по периметру';
+  }
+  // Производственное «Осмотрен» — значения к уже законченному назначению.
+  const prod = rec('oc-pr-1');
+  if (prod) {
+    const a = mine(prod).find((x) => x.state === 'done');
+    if (a) fill(prod, prod.ois, a.person, -5);
+  }
+  // Нежилое «Удостоверен по документам», двое осмотрщиков: литера закончена
+  // (a1 прежнего демо), механизмы и ТС — в работе у второго.
+  const civ = rec('oc-cv-1');
+  if (civ) {
+    mine(civ).forEach((a) => {
+      const ois = civ.ois.filter((o) => a.oiIds.includes(o.id));
+      if (a.state === 'done') fill(civ, ois, a.person, -4);
+      else { setState(a, 'progress', 0); fill(civ, ois, a.person, 0, 0.5); }
+    });
+    entry(civ).note = 'Литера осмотрена; оборудование котельной и ТС — в работе у второго осмотрщика';
+  }
+  // Квартира «Удостоверен по документам»: закончена с пометкой «неполный»
+  // (внесена половина значений), ТС передано другому и ещё не осмотрено.
+  const flat = rec('oc-ap-2');
+  if (flat) {
+    const a = mine(flat).find((x) => !(x.oiIds || []).every((id) => (flat.tsOi || []).includes(id)) && x.state === 'assigned');
+    if (a) {
+      setState(a, 'done', -1, true);
+      const ois = flat.ois.filter((o) => !a.oiIds.length || a.oiIds.includes(o.id)).filter((o) => o.card !== 'vehicle');
+      fill(flat, ois.slice(0, 1), a.person, -1, 0.5).note = 'Жильцы не пустили в одну комнату — осмотрена частично';
+    }
+  }
+  // Для среза ЦОД «Осмотр закончен — проверить»: объект демо-объёма, где ЦОД —
+  // человек из сессии (в сиде ЦОД у всех записей другой). Состав ОИ у таких
+  // записей не собирается (см. выше) — результаты по объекту в целом.
+  const forSlice = recs.find((r) => r.status === READY && /-b\d+$/.test(r.ocId) && me && r.cod === me && !mine(r).length);
+  if (forSlice) {
+    const p = who(1);
+    mkA(forSlice, p, [], 'done', -1);
+    const e = entry(forSlice);
+    e.note = 'Объект осмотрен целиком, расхождений с документами не выявлено';
+    ['Фасад', 'Внутр. помещения'].forEach((cat, i) => e.photos.push({ id: `demo-ph-${forSlice.ocId}-${i}`, name: `${cat}.svg`, size: 1500,
+      type: 'image/svg+xml', dataUrl: photoImg('Объект оценки', cat, i + 1), at: dayAt(today, -1, 10 + i).toISOString(), oiId: '', cat, by: p }));
+  }
+  return out;
 }
