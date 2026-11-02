@@ -1,3 +1,4 @@
+import { inspectionViewerCtx } from '../../kernel/inspectionTab.js';
 import { bindViewer } from '../../kernel/viewer/ctrl.js';
 import { bindSplitPanes } from '../../kernel/viewer/shell.js';
 import { bindStatusFlow } from '../../kernel/status/flow.ctrl.js';
@@ -15,7 +16,8 @@ export function bindMech(ctx) {
 
   bindParties(ctx);
   bindStatusFlow(ctx);
-  bindViewer(ctx);
+  // На вкладке «Результаты осмотра» — снимки осмотра (kernel/inspectionTab.js).
+  bindViewer(inspectionViewerCtx(ctx));
   bindSplitPanes(ctx);
 
   const save = s.$('[data-mech-save]');

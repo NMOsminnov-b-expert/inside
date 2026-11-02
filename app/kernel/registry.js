@@ -38,7 +38,7 @@ export { KINDS as LIT_KINDS, PURPOSES as LIT_PURPOSES, SIGNS as LIT_SIGNS } from
 export { migrateLiterKinds } from '../modules/civil/card.js';
 // Инженерные сети ОИ — для формы осмотра (решение пользователя 16.10.2026:
 // «Это и для осмотров и для ЦОД»): поля, значение из карточки и участок ОИ.
-export { OI_NETS, netValue, netsLandOf } from '../modules/land-plot/oi/land/oiNets.js';
+export { OI_NETS, netValue, netsLandOf, BATHROOM, bathroomOf } from '../modules/land-plot/oi/land/oiNets.js';
 // Осмотр ТС — для экрана осмотрщика (запись графа osmotr-ts-na-meste-i-po-
 // snimkam): поля «на месте» с подписями и значениями из каталога и записи ТС,
 // виды выявленного ТС. Дверь модуля ТС одна — vehicle/card.js.

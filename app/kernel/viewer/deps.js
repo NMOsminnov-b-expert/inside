@@ -43,10 +43,16 @@ export const nextDocId = (rec) => need().nextDocId(rec);
 export const docTypes = () => need().docTypes();
 
 // --- фото ---------------------------------------------------------------------
-export const photoPages = (oi) => need().photoPages(oi);
-export const photoGroups = (oi) => need().photoGroups(oi);
-export const photoFileAt = (oi, cat, i) => need().photoFileAt(oi, cat, i);
-export const catLabel = (oi, cat) => need().catLabel(oi, cat);
+// Снимки осмотра (вкладка «Результаты осмотра», kernel/inspectionTab.js) —
+// держатель того же вида, что у ОИ, но читает его ядро само: у модулей свой
+// порядок и перечень категорий (у ТС — только «Машина» и «Модули»), а
+// категории осмотра — свои.
+const own = (oi) => !!(oi && oi.inspectionPhotos);
+const ownGroups = (oi) => Object.keys(oi.photos || {}).map((cat) => ({ cat, items: Array.from({ length: oi.photos[cat] }, (_, i) => ({ cat, i })) }));
+export const photoPages = (oi) => (own(oi) ? ownGroups(oi).flatMap((g) => g.items) : need().photoPages(oi));
+export const photoGroups = (oi) => (own(oi) ? ownGroups(oi) : need().photoGroups(oi));
+export const photoFileAt = (oi, cat, i) => (own(oi) ? (((oi.photoFiles || {})[cat] || [])[i] || null) : need().photoFileAt(oi, cat, i));
+export const catLabel = (oi, cat) => (own(oi) ? cat : need().catLabel(oi, cat));
 
 // --- лог действий и архив ------------------------------------------------------
 export const pushDocPageLog = (rec, d, action, page) => need().pushDocPageLog(rec, d, action, page);

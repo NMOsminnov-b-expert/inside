@@ -20,3 +20,25 @@ export const INSPECTION_TAB = { key: 'inspection', label: 'Результаты 
 export function inspectionTabHTML(typeId, rec) {
   return impl ? impl.render(typeId, rec) : '<div class="empty">Результаты осмотра недоступны.</div>';
 }
+
+// Просмотрщик карточки на вкладке — тот же, что на остальных вкладках ОЦ и ОИ
+// («Фото · Документы · Сравнение»; пользователь 02.11.2026: «Просмотрщик у нас
+// уже существует со всеми его режимами. Так же нужны и документы со
+// сравнением»). Снимки в нём — снимки осмотра выбранного во вкладке: держатель
+// того же вида, что у ОИ (photos — {категория: число}, photoFiles — файлы), с
+// пометкой inspectionPhotos (просмотрщик читает его сам и не даёт переносить,
+// kernel/viewer/deps.js, photo.js). Просмотрщику отдаётся наследник контекста
+// карточки с этим держателем вместо ctx.oi: сам ctx.oi на вкладке не меняется
+// (по нему карточка строит крошки и обработчики литер).
+export function inspectionViewerCtx(ctx) {
+  if (!impl || !impl.holder || ctx.tab !== 'inspection' || !ctx.rec || !hasInspection(ctx.manifest.id, ctx.rec.id)) return ctx;
+  const holder = impl.holder(ctx.manifest.id, ctx.rec);
+  return Object.create(ctx, { oi: { value: holder, enumerable: true } });
+}
+
+// При входе на вкладку просмотрщик открывается на снимках осмотра («Фото»);
+// дальше режим — как выберет человек. ui — состояние карточки модуля.
+export function syncInspectionViewer(ui, onTab) {
+  if (onTab && !ui.inspViewer && !ui.viewerClosed) ui.viewer = { mode: 'photo' };
+  ui.inspViewer = !!onTab;
+}

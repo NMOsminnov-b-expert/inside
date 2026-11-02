@@ -4,7 +4,7 @@ import { blockNumbers } from '../../kernel/blockIndex.js';
 import { ownerNames } from './records.js';
 import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
-import { hasInspection, inspectionTabHTML, INSPECTION_TAB } from '../../kernel/inspectionTab.js';
+import { hasInspection, inspectionTabHTML, INSPECTION_TAB, inspectionViewerCtx } from '../../kernel/inspectionTab.js';
 import { partiesHTML } from './parties.view.js';
 import { ocContactsHTML } from '../../kernel/contacts.js';
 import { tsFieldHTML } from './tsFields.view.js';
@@ -882,7 +882,7 @@ function headVehicle(ctx) {
 }
 
 export function viewVehicle(ctx) {
-  if (ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, ctx.rec.id)) return `${headVehicle(ctx)}${inspectionTabHTML(ctx.manifest.id, ctx.rec)}`;
+  if (ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, ctx.rec.id)) return `${headVehicle(ctx)}${splitWrap(ctx.ui.viewer ? viewerHTML(inspectionViewerCtx(ctx)) : null, inspectionTabHTML(ctx.manifest.id, ctx.rec))}`;
   return `${headVehicle(ctx)}
     ${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, formHTML(ctx))}`;
 }

@@ -21,6 +21,7 @@ import {
 } from '../../data/dictionaries.js';
 import { opt } from '../../data/opts.js';
 import { confirmDialog } from '../../../../kernel/dialog.js';
+import { msDropBodyHTML, bindMsSearch } from '../../../../kernel/multiSelect.js';
 
 // Поля — ключи те же, что у участка. Отопление — прежний перечень и без
 // значения по умолчанию: типы отопления — постоянный вопрос
@@ -32,6 +33,32 @@ export const OI_NETS = [
   { key: 'gasification', label: 'Наличие газификации', list: LAND_GAS_STATUS },
   { key: 'centralHeating', label: 'Наличие отопления', list: LAND_HEATING_STATUS },
 ];
+
+// Санузел — где он: внутри / снаружи, бывают оба (решение пользователя
+// 02.11.2026, запись графа pole-sanuzel-vnutri-snaruzhi-v-inzhenernyh-setyah-liter-i-kvartir):
+// у строений и квартир во всех типах ОЦ, кроме участка; заполняет и осмотрщик.
+// Своё значение ОИ (oi.nets.bathroom — список), без участка и умолчаний:
+// у участка санузла нет. Перечень — справочник слота 'land' (как у сетей).
+export const BATHROOM = { key: 'bathroom', label: 'Санузел', list: ['Внутри', 'Снаружи'] };
+export const bathroomOf = (oi) => {
+  const v = ((oi && oi.nets) || {})[BATHROOM.key];
+  return Array.isArray(v) ? v : (v ? [v] : []);
+};
+const bathList = () => opt('land', BATHROOM.key, BATHROOM.list);
+const bathSummary = (v) => (v.length
+  ? `<span class="ms-summary" title="${esc(v.join(', '))}">${esc(v.join(', '))}</span><span class="ms-count">${v.length}</span>`
+  : '<span class="muted">не выбрано</span>');
+function bathFieldHTML(oi) {
+  const v = bathroomOf(oi);
+  return `<div class="field oi-net ${v.length ? 'own' : ''}" data-bath-field>
+  <label>${esc(BATHROOM.label)}</label>
+  <div class="ms">
+    <div class="ms-control" data-ms-control data-ms-toggle title="Открыть список">${bathSummary(v)}<span class="chev">▾</span></div>
+    <div class="ms-drop" hidden>${msDropBodyHTML({ options: bathList(), selected: v, optAttr: 'bath-opt' })}</div>
+  </div>
+  <span class="oi-net-src">можно выбрать оба</span>
+</div>`;
+}
 
 const ON = 'Подведены';
 // Значения по умолчанию по виду ОИ («У квартир… вода, канализация,
@@ -125,6 +152,7 @@ ${OI_NETS.map((f) => {
     : esc(srcText(rec, oi, v.src))}</span>
 </div>`;
   }).join('')}
+${bathFieldHTML(oi)}
 </div></div></div>
 </div>`;
 }
@@ -172,6 +200,33 @@ export function bindOiNets(scope, oi, { rec, onChange = () => {}, rerender = () 
       if (oi.nets) delete oi.nets[key];
       onChange(key, was, '');
       rerender();
+    };
+  });
+  bindBathroom(scope, oi, onChange);
+}
+
+// Санузел: отметка флажка — сразу в ОИ; сводка и список перерисовываются на
+// месте, без перерисовки карточки, — список остаётся открытым (как отопление).
+// Слушатели — прямо на флажках: они умирают вместе с разметкой.
+function bindBathroom(scope, oi, onChange) {
+  const box = scope.$('[data-bath-field]');
+  if (!box) return;
+  bindMsSearch(box.querySelector('.ms-drop'));
+  box.querySelectorAll('[data-bath-opt]').forEach((cb) => {
+    cb.onchange = () => {
+      const was = bathroomOf(oi).join(', ');
+      const set = new Set(bathroomOf(oi));
+      if (cb.checked) set.add(cb.dataset.bathOpt); else set.delete(cb.dataset.bathOpt);
+      const next = bathList().filter((x) => set.has(x));
+      oi.nets = oi.nets || {};
+      if (next.length) oi.nets[BATHROOM.key] = next; else delete oi.nets[BATHROOM.key];
+      onChange(BATHROOM.key, was, next.join(', '));
+      const mc = box.querySelector('[data-ms-control]');
+      const drop = box.querySelector('.ms-drop');
+      if (mc) mc.innerHTML = `${bathSummary(next)}<span class="chev">▾</span>`;
+      if (drop) drop.innerHTML = msDropBodyHTML({ options: bathList(), selected: next, optAttr: 'bath-opt' });
+      box.classList.toggle('own', next.length > 0);
+      bindBathroom(scope, oi, onChange);
     };
   });
 }

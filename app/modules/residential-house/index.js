@@ -1,3 +1,4 @@
+import { inspectionViewerCtx, syncInspectionViewer } from '../../kernel/inspectionTab.js';
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 import { migrateLiterKinds } from '../civil/card.js';
@@ -284,7 +285,8 @@ export function main(host) {
 
     bindBody();
     bindPlateActions(ctx);
-    bindViewer(ctx);
+    // На вкладке «Результаты осмотра» — снимки осмотра (kernel/inspectionTab.js).
+    bindViewer(inspectionViewerCtx(ctx));
     bindSplitPanes(ctx);
 
     scope.root.scrollTop = top;
@@ -299,7 +301,7 @@ export function main(host) {
   // прикрепить документ. Исключение — вкладка «Логи»: там просмотрщику
   // не место, она на всю ширину.
   function ensureViewerDefault() {
-    if (route.rest.length === 0 && ['audit', 'inspection'].includes(route.query.tab)) return;
+    if (route.rest.length === 0 && route.query.tab === 'audit') return;
     // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
     if (ui.viewerClosed) return;
     if (!ui.viewer) ui.viewer = { mode: 'doc' };
@@ -310,7 +312,10 @@ export function main(host) {
     // осмысленный (плитки по литерам, см. parts/photos/explorer.js).
     const onOi = route.rest[0] === 'oi';
     const onOcPhotoTab = route.rest.length === 0 && route.query.tab === 'photo';
-    if (!onOi && !onOcPhotoTab && ui.viewer.mode !== 'doc') ui.viewer = { mode: 'doc' };
+    // «Результаты осмотра»: фото — снимки осмотра выбранного во вкладке.
+    const onInsp = route.rest.length === 0 && route.query.tab === 'inspection';
+    syncInspectionViewer(ui, onInsp);
+    if (!onOi && !onOcPhotoTab && !onInsp && ui.viewer.mode !== 'doc') ui.viewer = { mode: 'doc' };
   }
 
   // Лог действий (вкладка «Логи» в карточке ОЦ, см. card/ocCard.view.js):

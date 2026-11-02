@@ -1,5 +1,5 @@
 import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
-import { hasInspection, inspectionTabHTML } from '../../../kernel/inspectionTab.js';
+import { hasInspection, inspectionTabHTML, inspectionViewerCtx } from '../../../kernel/inspectionTab.js';
 import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { eniAllOf } from '../../../kernel/eniFold.js';
@@ -78,7 +78,8 @@ export function viewOC(ctx) {
   return `${headOC(ctx)}
 
     ${ctx.tab === 'general' ? generalTab
-      : ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, rec.id) ? inspectionTabHTML(ctx.manifest.id, rec)
+      : ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, rec.id)
+        ? splitWrap(ctx.ui.viewer ? viewerHTML(inspectionViewerCtx(ctx)) : null, inspectionTabHTML(ctx.manifest.id, rec))
       : ctx.tab === 'audit' && showAudit ? auditTab(ctx)
       : photosTab(ctx)}`;
 }

@@ -118,7 +118,7 @@ def run(t):
                 pg.click('.ir [data-ir-sel="%s"]' % oi['id'])
                 t.wait_until("(id) => !!document.querySelector('.ir-det[data-oi=\"' + id + '\"]')", oi['id'])
                 b = pg.evaluate("""(id) => { const c = document.querySelector('.ir-det[data-oi="' + id + '"]');
-                  return c && { dd: c.querySelectorAll('.ir-cmp td[data-l="На осмотре"]').length, ph: document.querySelectorAll('.ir-main [data-irv-ph]').length }; }""", oi['id'])
+                  return c && { dd: c.querySelectorAll('.ir-cmp td[data-l="На осмотре"]').length, ph: +(((document.querySelector('.viewer [data-vmode=photo]') || {}).textContent || '').replace(/\\D/g, '') || 0) }; }""", oi['id'])
                 t.ck(b, '%s %s: подробности ОИ «%s» не открылись' % (p['label'], oc, oi['label']))
                 if b:
                     t.ck(b['dd'] >= min(oi['filled'], 1), '%s · %s: значения осмотра не показаны (%d из %d)' % (p['label'], oi['label'], b['dd'], oi['filled']))
@@ -128,7 +128,7 @@ def run(t):
             for w in (760, 1920):
                 pg.set_viewport_size({'width': w, 'height': 900})
                 m = pg.evaluate("""() => { const d = document.scrollingElement;
-                  const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3, .ir-item-t')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
+                  const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3, .ir-rowbtn')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
                   return { hscroll: d.scrollWidth > d.clientWidth, cut }; }""")
                 t.ck(not m['hscroll'] and not m['cut'], '%s %s, %d: вбок или обрезано: %s' % (p['label'], oc, w, m))
             pg.set_viewport_size({'width': 1600, 'height': 900})

@@ -20,7 +20,7 @@
 
 import { getValue } from '../../kernel/fieldSchema.js';
 import { optionsFor } from '../../kernel/dicts.js';
-import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS, OI_NETS, netValue, netsLandOf, tsInspectPlan } from '../../kernel/registry.js';
+import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS, OI_NETS, netValue, netsLandOf, tsInspectPlan, BATHROOM, bathroomOf } from '../../kernel/registry.js';
 
 // Ступени износа словами, а не проценты: на осмотре процент не измерить, его
 // считают позже по элементам (III этап ТЗ).
@@ -321,10 +321,16 @@ const netsSection = (typeId, oi) => ({
   title: 'Инженерные сети',
   short: 'Сети',
   closed: !!netsLandOf(NETS_REC, oi),
-  fields: OI_NETS.map((f) => ({
-    key: f.key, label: f.label, opts: landDict(typeId, f.key, f.list), tpLabel: 'в карточке',
-    doc: Object.assign((o) => netValue(NETS_REC, o, f.key).value, { path: 'nets.' + f.key }),
-  })),
+  fields: [
+    ...OI_NETS.map((f) => ({
+      key: f.key, label: f.label, opts: landDict(typeId, f.key, f.list), tpLabel: 'в карточке',
+      doc: Object.assign((o) => netValue(NETS_REC, o, f.key).value, { path: 'nets.' + f.key }),
+    })),
+    // Санузел — внутри / снаружи, оба сразу бывают (решение 02.11.2026,
+    // pole-sanuzel-vnutri-snaruzhi-v-inzhenernyh-setyah-liter-i-kvartir).
+    { key: BATHROOM.key, label: BATHROOM.label, multi: true, opts: landDict(typeId, BATHROOM.key, BATHROOM.list), tpLabel: 'в карточке',
+      doc: Object.assign((o) => bathroomOf(o).join(', '), { path: 'nets.' + BATHROOM.key }) },
+  ],
 });
 export const NETS_KEYS = OI_NETS.map((f) => f.key);
 

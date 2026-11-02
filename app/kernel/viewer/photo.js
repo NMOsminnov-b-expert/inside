@@ -22,7 +22,8 @@ export function renderPhotoMode(ctx, vctx) {
   }
   const pSt = vctx.pSt || { page: 1, rot: 0 };
 
-  const targets = moveTargets(ctx, oi);
+  // Снимки осмотра — только смотреть: перенос к литере — у снимков карточки.
+  const targets = oi.inspectionPhotos ? [] : moveTargets(ctx, oi);
   const moveSelect = targets.length
     ? `<div class="tool-group"><select class="select vcat" data-move-photo title="Перенести текущее фото к другой литере">
         <option value="">Перенести к литере…</option>

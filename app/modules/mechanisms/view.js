@@ -1,7 +1,7 @@
 import { blockNumbers } from '../../kernel/blockIndex.js';
 import { splitWrap, viewerHTML } from '../../kernel/viewer/shell.js';
 import { ocHeadHTML } from '../../kernel/ocHead.js';
-import { hasInspection, inspectionTabHTML, INSPECTION_TAB } from '../../kernel/inspectionTab.js';
+import { hasInspection, inspectionTabHTML, INSPECTION_TAB, inspectionViewerCtx } from '../../kernel/inspectionTab.js';
 import { fmtNum } from '../../kernel/fmt.js';
 import { ownerNames, mechOf } from './records.js';
 import { partiesHTML } from './parties.view.js';
@@ -44,7 +44,7 @@ function headMech(ctx) {
 }
 
 export function viewMech(ctx) {
-  if (ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, ctx.rec.id)) return `${headMech(ctx)}${inspectionTabHTML(ctx.manifest.id, ctx.rec)}`;
+  if (ctx.tab === 'inspection' && hasInspection(ctx.manifest.id, ctx.rec.id)) return `${headMech(ctx)}${splitWrap(ctx.ui.viewer ? viewerHTML(inspectionViewerCtx(ctx)) : null, inspectionTabHTML(ctx.manifest.id, ctx.rec))}`;
   return `${headMech(ctx)}
     ${splitWrap(ctx.ui.viewer ? viewerHTML(ctx) : null, formHTML(ctx))}`;
 }

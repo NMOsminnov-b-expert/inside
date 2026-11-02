@@ -1,3 +1,4 @@
+import { inspectionViewerCtx, syncInspectionViewer } from '../../kernel/inspectionTab.js';
 import { archiveOi } from '../../kernel/archive.js';
 import { migrateAreaList } from '../../kernel/areaList.js';
 import { migrateAnnexList } from './oi/building/annexes.js';
@@ -296,7 +297,8 @@ export function main(host) {
     bindBody();
     bindPlateActions(ctx);
     // Окно просмотра на втором мониторе bindViewer перерисовывает сам.
-    bindViewer(ctx);
+    // На вкладке «Результаты осмотра» — снимки осмотра (kernel/inspectionTab.js).
+    bindViewer(inspectionViewerCtx(ctx));
     bindSplitPanes(ctx);
 
     scope.root.scrollTop = top;
@@ -313,7 +315,7 @@ export function main(host) {
     // Так же и «Сравнительный подход»: широкая таблица аналогов (пока вкладка
     // спрятана — COMPARATIVE_HIDDEN, card/ocCard.view.js — её адрес ведёт на
     // «Общие данные», и просмотрщик там нужен).
-    const wide = COMPARATIVE_HIDDEN ? ['audit', 'inspection'] : ['audit', 'comparative', 'inspection'];
+    const wide = COMPARATIVE_HIDDEN ? ['audit'] : ['audit', 'comparative'];
     if (route.rest.length === 0 && wide.includes(route.query.tab)) return;
     // Закрыли крестиком — не возвращаем: открыть можно закладкой «Документы».
     if (ui.viewerClosed) return;
@@ -326,7 +328,10 @@ export function main(host) {
     // осмысленный (плитки по литерам, см. parts/photos/explorer.js).
     const onOi = route.rest[0] === 'oi';
     const onOcPhotoTab = route.rest.length === 0 && route.query.tab === 'photo';
-    if (!onOi && !onOcPhotoTab && ui.viewer.mode !== 'doc') ui.viewer = { mode: 'doc' };
+    // «Результаты осмотра»: фото — снимки осмотра выбранного во вкладке.
+    const onInsp = route.rest.length === 0 && route.query.tab === 'inspection';
+    syncInspectionViewer(ui, onInsp);
+    if (!onOi && !onOcPhotoTab && !onInsp && ui.viewer.mode !== 'doc') ui.viewer = { mode: 'doc' };
   }
 
   // Лог действий (вкладка «Логи»): снимок записи снимается ПОСЛЕ отрисовки,

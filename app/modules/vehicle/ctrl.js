@@ -1,3 +1,4 @@
+import { inspectionViewerCtx } from '../../kernel/inspectionTab.js';
 import { bindNumField } from '../../kernel/numField.js';
 import { bindAutoGrowAll } from '../../kernel/autoGrow.js';
 import { bindViewer } from '../../kernel/viewer/ctrl.js';
@@ -629,7 +630,8 @@ export function bindVehicle(ctx) {
       return { note: `В карточке пусто полей: ${empty.length}. Перевести можно и так.`, list };
     },
   });
-  bindViewer(ctx);
+  // На вкладке «Результаты осмотра» — снимки осмотра (kernel/inspectionTab.js).
+  bindViewer(inspectionViewerCtx(ctx));
   bindSplitPanes(ctx);
 
   const save = s.$('[data-vehicle-save]');

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Результаты осмотра у ЦОД: вкладка карточки ОЦ и срез реестра.
+"""
+Результаты осмотра у ЦОД: вкладка карточки ОЦ и срез реестра.
 
 Ответы пользователя 30.10.2026 «Вкладка в карточке + срез» и 02.11.2026
 «Снять запрет для вкладки» (исключение из правила kartochki-oc-poka-ne-trogat:
@@ -58,17 +59,17 @@ def run(t):
 
     # --- объект среза из демо-объёма: значения и снимки по ОИ дописываются при открытии
     sl = pg.evaluate("""async () => { const R = await import('./app/kernel/inspectionResults.js');
-      const r = R.allResults().find((x) => x.demo && /-b\d+$/.test(x.ocId) && (x.voices || []).length && (x.scans || []).length);
+      const r = R.allResults().find((x) => x.demo && /-b\\d+$/.test(x.ocId) && (x.voices || []).length && (x.scans || []).length);
       return r ? [r.typeId, r.ocId] : null; }""")
     if t.ck(sl, 'нет демо-осмотра объекта из демо-объёма (срез ЦОД)'):
-        t.open('#/oc/%s/%s?tab=inspection' % tuple(sl), wait='.ir-work')
-        rows = pg.eval_on_selector_all('[data-ir-sel]:not([data-ir-sel="__obj"])', 'els => els.map((e) => e.innerText)')
-        t.ck(rows and all('значений' in r and 'снимков' in r for r in rows), 'у ОИ объекта среза нет значений или снимков: %s' % rows)
-        t.ck(pg.locator('.ir-thumb').count() == 16, 'у ОИ объекта среза не полная страница снимков')
+        t.open('#/oc/%s/%s?tab=inspection' % tuple(sl), wait='.ir')
+        rows = pg.eval_on_selector_all('.ir-nav-tbl tbody tr:not([data-ir-row="__obj"])', 'els => els.map((e) => [...e.cells].map((c) => c.textContent.trim()))')
+        t.ck(rows and all(r[2] not in ('', '—') and r[3] not in ('', '—') for r in rows), 'у ОИ объекта среза нет значений или снимков: %s' % rows)
+        t.ck(t.wait_until("() => /Фото · [1-9]/.test((document.querySelector('.viewer [data-vmode=photo]') || {}).textContent || '')"), 'у ОИ объекта среза нет снимков в просмотрщике')
 
     # --- приёмка ЦОД: «В карточку», «Принять ОИ», возврат с причиной ----------------
     # (решение priemka-osmotra-cod-vo-vkladke-rezultaty-osmotra-po-oi-vozvrat-po-oi-v)
-    t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir-work')
+    t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir')
     t.ck(pg.locator('.ir-foot [data-ir-accept-all]').is_visible(), 'подвал решений не на экране')
     pg.click('[data-ir-accept-all]')
     t.ck(t.wait_until("() => /Не приняты/.test((document.querySelector('.ir-msg') || {}).textContent || '')"), '«Принять осмотр» не назвал непринятые ОИ')
@@ -77,7 +78,7 @@ def run(t):
         pg.locator('.ir-cmp tr.diff [data-ir-apply]').first.click()
         t.ck(t.wait_until("([n]) => document.querySelectorAll('.ir-cmp tr.diff').length === n - 1", [n0]), '«В карточку» не сняло расхождение')
     pg.click('[data-ir-accept]')
-    t.ck(t.wait_until("() => /принят/.test(document.querySelector('.ir-item.on').textContent)"), 'ОИ не принят')
+    t.ck(t.wait_until("() => /принят/.test(document.querySelector('.ir-nav-tbl tr.on').textContent)"), 'ОИ не принят')
     pg.locator('[data-ir-sel]').nth(1).click()
     pg.click('[data-ir-return]')
     t.ck(t.wait_until("() => !!document.querySelector('[data-ir-reason]') && !document.querySelector('.modal')"), 'причина возврата — не на месте или окном')
@@ -85,42 +86,33 @@ def run(t):
     t.ck(t.wait_until("() => /причину/.test((document.querySelector('.ir-msg') || {}).textContent || '')"), 'возврат без причины не остановлен')
     pg.fill('[data-ir-reason]', 'Нет снимков кровли')
     pg.click('[data-ir-return-go]')
-    t.ck(t.wait_until("() => /на доосмотре/.test(document.querySelector('.ir-item.on').textContent)"), 'ОИ не на доосмотре')
+    t.ck(t.wait_until("() => /на доосмотре/.test(document.querySelector('.ir-nav-tbl tr.on').textContent)"), 'ОИ не на доосмотре')
     st = pg.evaluate("""async () => { const K = await import('./app/kernel/inspections.js');
       return { states: K.allAssignments().filter((a) => a.ocId === 'oc-pr-1' && a.state !== 'removed').map((a) => a.state),
         ev: K.eventsOf({ ocId: 'oc-pr-1' }).filter((e) => e.kind === 'returned').map((e) => e.text) }; }""")
     t.ck('progress' in st['states'] and 'Нет снимков кровли' in st['ev'], 'возврат не вернул назначение в работу с причиной: %s' % st)
 
-    # --- лента на тысячи снимков: страница 16, категории, крупный просмотр -----------
+    # --- просмотрщик карточки: снимки осмотра выбранного ОИ, документы, сравнение ---
+    # (пользователь 02.11.2026: «Просмотрщик у нас уже существует со всеми его
+    # режимами. Так же нужны и документы со сравнением»; у ОИ — до 3000 снимков).
     oid = pg.evaluate("""async () => { const R = await import('./app/kernel/inspectionResults.js'); const r = R.resultsOf('civil', 'oc-pr-1');
       const id = Object.keys(r.assets)[0]; const src = r.photos.find((p) => p.dataUrl).dataUrl;
       for (let i = 0; i < 3000; i++) r.photos.push({ id: 'big-' + i, name: 'x', dataUrl: src, oiId: id, cat: i % 7 ? 'Внутр. помещения' : 'Фасад', at: new Date().toISOString(), by: 'проверка' });
-      return id; }""")
-    t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir-work')
-    pg.click('[data-ir-sel="%s"]' % oid)
-    t.ck(t.wait_until("() => document.querySelectorAll('.ir-thumb').length === 16"), 'на странице ленты не 16 снимков')
-    pg.click('[data-irp="1"]')
-    t.ck(t.wait_until("() => /17–32/.test(document.querySelector('.ir-pager').textContent)"), 'лента не листается страницами')
-    pg.click('[data-irc="Фасад"]')
-    t.ck(t.wait_until("() => /из 4[0-9]{2}/.test(document.querySelector('.ir-pager').textContent)"), 'чип категории не сузил ленту')
-    pg.locator('.ir-thumb').first.click()
-    t.ck(t.wait_until("() => !!document.querySelector('.irv-img') && !document.querySelector('.ir-thumbs')"), 'крупный просмотр не встал на место ленты')
-    hh = pg.evaluate("() => Math.round(document.querySelector('.irv-stage').getBoundingClientRect().height)")
-    t.ck(hh > 300, 'сцена просмотра схлопнулась: %d px' % hh)
-    pg.keyboard.press('ArrowRight')
-    t.ck(t.wait_until("() => document.querySelector('.irv-n').textContent.trim().startsWith('2')"), '→ не листает')
-    pg.click('[data-irv-zoom="1"]')
-    pg.click('[data-irv-rot]')
-    pg.wait_for_timeout(200)
-    edge = pg.evaluate("""() => { const s = document.querySelector('.irv-stage').getBoundingClientRect(); const i = document.querySelector('.irv-img').getBoundingClientRect();
-      return [Math.round(i.left - s.left), Math.round(i.top - s.top)]; }""")
-    t.ck(edge[0] >= 0 and edge[1] >= 0, 'повёрнутый увеличенный снимок ушёл за левый или верхний край: %s' % edge)
-    pg.keyboard.press('Escape')
-    t.ck(t.wait_until("() => !!document.querySelector('.ir-thumbs')"), 'Esc не вернул к ленте')
+      return [id, r.photos.filter((p) => p.oiId === id).length]; }""")
+    t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir')
+    t.ck(pg.locator('.split > .viewer').count() == 1 and pg.locator('.split > .grow .ir').count() == 1, 'слева нет просмотрщика карточки')
+    pg.click('[data-ir-sel="%s"]' % oid[0])
+    t.ck(t.wait_until("([n]) => (document.querySelector('.viewer [data-vmode=photo]') || {}).textContent.includes(String(n))", [oid[1]]),
+         'в «Фото» просмотрщика не снимки выбранного ОИ (%d)' % oid[1])
+    t.ck(pg.locator('.viewer [data-move-photo]').count() == 0, 'снимки осмотра можно перенести к литере')
+    pg.click('.viewer [data-vmode="doc"]')
+    t.ck(t.wait_until("() => document.querySelector('.viewer [data-vmode=doc]').classList.contains('active')"), '«Документы» не включаются')
+    pg.click('.viewer [data-vmode="compare"]')
+    t.ck(t.wait_until("() => document.querySelector('.viewer [data-vmode=compare]').classList.contains('active')"), '«Сравнение» не включается')
     for w in (1920, 1280, 1100, 900, 760):
         pg.set_viewport_size({'width': w, 'height': 900})
         m = pg.evaluate("""() => { const d = document.scrollingElement;
-          const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3, .ir-item-t')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
+          const cut = [...document.querySelectorAll('.ir dt, .ir dd, .ir th, .ir td, .ir .card-head h3, .ir-rowbtn')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 30));
           return { hscroll: d.scrollWidth > d.clientWidth, cut }; }""")
         t.ck(not m['hscroll'] and not m['cut'], '%d: вбок или обрезано: %s' % (w, m))
     pg.set_viewport_size({'width': 1600, 'height': 900})

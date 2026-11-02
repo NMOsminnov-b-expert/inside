@@ -1,3 +1,4 @@
+import { syncInspectionViewer } from '../../kernel/inspectionTab.js';
 import { manifest } from './manifest.js';
 import { loadRecord } from './records.js';
 import { viewVehicle } from './view.js';
@@ -63,6 +64,8 @@ export function main(host) {
     host.setDrawer(null);
     // Просмотрщик виден по умолчанию; прячется только крестиком.
     if (!ui.viewerClosed && !ui.viewer) ui.viewer = { mode: 'doc' };
+    // «Результаты осмотра»: при входе — снимки осмотра (kernel/inspectionTab.js).
+    syncInspectionViewer(ui, ctx.tab === 'inspection');
     scope.setHTML(viewVehicle(ctx));
     bindVehicle(ctx);
     scope.$$('[data-tab]').forEach((b) => b.onclick = () => host.navigate({ ocId: rec.id, rest: [], query: b.dataset.tab === 'general' ? {} : { tab: b.dataset.tab } }));

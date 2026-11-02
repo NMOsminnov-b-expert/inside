@@ -8,15 +8,17 @@
 // Регистрируется в ядре (kernel/inspectionTab.js): модули карточек к экрану
 // осмотрщика не ходят.
 //
-// Раскладка: сверху сводка (кто осматривал, сколько ОИ принято, расхождения,
-// снимки); слева — ОИ строками с состоянием приёмки; справа — выбранный ОИ:
-// лента снимков (категории чипами, страницами — у литеры бывает до 3000
-// снимков, «по 1 литере минздрава внутренние помещения»), крупный просмотр на
-// месте ленты, сверка «в карточке / на осмотре» по разделам формы с «В
-// карточку» у поля; внизу закреплён подвал решений: «Принять ОИ», «Вернуть на
-// доосмотр» с причиной на месте (без окна), «Принять осмотр» — статус
-// «Осмотрен». Кнопки нажимаются всегда и говорят, чего не хватает (практика
-// panel-podval-deystviy-vybor-strokoy-dannye-chestno).
+// Раскладка — как у карточки ОЦ (замечание 02.11.2026 «просмотрщик - сбоку.
+// Как в ОЦ… По оформлению таблиц подгляди в таблицах карточек ОЦ… Кнопки
+// должны быть явными. Столбцы регулируемыми»): сверху сводка; слева —
+// просмотрщик снимков выбранного во всю высоту с разделителем (разметка
+// .split / .viewer / .vsplit / .grow ядра), лента миниатюр окнами — у литеры
+// бывает до 3000 снимков; справа — «Что осмотрено» таблицей и выбранное: сверка
+// «Поле | В карточке | На осмотре | Сверка | Действие» с «В карточку»; таблицы —
+// в рамке, как в карточке, столбцы тянутся перегородками; внизу закреплён
+// подвал решений: «Принять ОИ», «Вернуть на доосмотр» с причиной на месте (без
+// окна), «Принять осмотр» — статус «Осмотрен». Кнопки нажимаются всегда и
+// говорят, чего не хватает (практика panel-podval-deystviy-vybor-strokoy-dannye-chestno).
 //
 // Просмотр ничего не создаёт (peekResults, reviewOf); пишут только решения.
 import { esc } from '../../kernel/dom.js';
@@ -31,7 +33,7 @@ import { scheduleSave } from '../../kernel/persist.js';
 import { localIso } from '../../kernel/fmt.js';
 import { session } from '../../kernel/session.js';
 import { STATUS_MAIN } from '../../kernel/status/flow.js';
-import { ICON_ROTATE } from '../../kernel/viewer/icons.js';
+import { colGroupHTML, colLabelHTML, resizeGripHTML, colVar } from '../../kernel/columns.js';
 import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { sections, setNetsRec } from './form.js';
 import { oiLabel, ownOis } from './tasks.js';
@@ -39,7 +41,6 @@ import { oiLabel, ownOis } from './tasks.js';
 ensureStyle('./app/pages/inspector/results.css');
 
 const OBJ = '__obj';
-const PAGE = 16;              // снимков на странице ленты
 const DONE_STATUS = 'Осмотрен';
 const ddmm = (iso) => (iso ? new Date(iso).toLocaleDateString('ru-RU') : '');
 const dt = (iso) => (iso ? new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
@@ -68,10 +69,9 @@ const norm = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/
 // Состояние вкладки по объекту — в памяти страницы.
 const views = new Map();
 const viewOf = (key) => {
-  if (!views.has(key)) views.set(key, { sel: '', only: false, cat: '', page: 0, photo: -1, zoom: 100, rot: 0, returning: false, reason: '', msg: '', tone: '' });
+  if (!views.has(key)) views.set(key, { sel: '', only: false, returning: false, reason: '', msg: '', tone: '', colW: {} });
   return views.get(key);
 };
-const resetPhotos = (v) => Object.assign(v, { cat: '', page: 0, photo: -1, zoom: 100, rot: 0 });
 
 function hasAny(r) {
   return !!(r && (r.photos.length || (r.found || []).length || r.note || (r.scans || []).length
@@ -90,7 +90,7 @@ function compareOf(typeId, rec, oi, r) {
   return sections(typeId, oi).flatMap((s) => s.fields.map((f) => {
     const insp = shown(getValue(values, f.key));
     const card = typeof f.doc === 'function' ? shown(f.doc(oi)) : '';
-    return { group: s.title || '', label: f.label, insp, card, path: (f.doc && f.doc.path) || '', diff: !!(insp && card && norm(insp) !== norm(card)) };
+    return { group: s.title || '', label: f.label, insp, card, multi: !!f.multi, path: (f.doc && f.doc.path) || '', diff: !!(insp && card && norm(insp) !== norm(card)) };
   })).filter((x) => x.insp);
 }
 
@@ -113,20 +113,22 @@ const stagePill = (st) => `<span class="pill ir-st ir-st-${st.tone}">${esc(st.la
 function itemsOf(typeId, rec, r, list) {
   const items = [];
   const photosOf = (id) => (r ? r.photos.filter((p) => (p.oiId || '') === id) : []);
+  const voicesOf = (id) => (r ? (r.voices || []).filter((x) => (x.oiId || '') === id) : []);
   const free = photosOf('');
-  if (r && (r.note || free.length || (r.scans || []).length || (r.contacts || []).length || (r.voices || []).length)) {
-    const sub = [r.note ? 'заметка' : '', (r.contacts || []).length ? 'контакты' : '', (r.voices || []).length ? 'голосовые' : '', (r.scans || []).length ? 'сканы' : ''].filter(Boolean).join(', ');
-    items.push({ id: OBJ, kind: 'obj', label: 'Объект в целом', sub: sub || 'снимки', photos: free, values: 0, diffs: 0 });
+  const freeVoices = voicesOf('');
+  if (r && (r.note || free.length || (r.scans || []).length || (r.contacts || []).length || freeVoices.length)) {
+    const sub = [r.note ? 'заметка' : '', (r.contacts || []).length ? 'контакты' : '', (r.scans || []).length ? 'сканы' : ''].filter(Boolean).join(', ');
+    items.push({ id: OBJ, kind: 'obj', label: 'Объект в целом', sub: sub || 'снимки', photos: free, voices: freeVoices, values: 0, diffs: 0 });
   }
   ownOis(rec).forEach((oi) => {
     const cmp = compareOf(typeId, rec, oi, r);
     const by = list.filter((a) => coversOi(a, oi.id));
-    const x = { id: oi.id, kind: 'oi', oi, label: oiLabel(oi), by, cmp, photos: photosOf(oi.id), values: cmp.length,
+    const x = { id: oi.id, kind: 'oi', oi, label: oiLabel(oi), by, cmp, photos: photosOf(oi.id), voices: voicesOf(oi.id), values: cmp.length,
       diffs: cmp.filter((c) => c.diff).length, done: by.some((a) => a.state === 'done'), review: reviewOf(typeId, rec.id, oi.id) };
     x.stage = stageOf(x);
     items.push(x);
   });
-  ((r && r.found) || []).forEach((f) => items.push({ id: f.id, kind: 'found', found: f, label: oiLabel(f), photos: photosOf(f.id), values: 0, diffs: 0 }));
+  ((r && r.found) || []).forEach((f) => items.push({ id: f.id, kind: 'found', found: f, label: oiLabel(f), photos: photosOf(f.id), voices: voicesOf(f.id), values: 0, diffs: 0 }));
   return items;
 }
 // ОИ, которые принимаются: на них было назначение.
@@ -156,89 +158,63 @@ function summaryHTML(rec, list, items, r) {
   </div>`;
 }
 
-// Строки слева — выбор, несущий сведения: строкой с числами.
-function navHTML(items, sel) {
-  return `<nav class="card ir-nav" aria-label="Что осмотрено">
+// --- таблицы: оформление и перегородки столбцов — как в таблицах карточки ОЦ ---
+// Рамка-обёртка .ir-frame (как .cs-scroll карточки), общая .tbl ядра,
+// перегородки — kernel/columns.js (colGroupHTML, resizeGripHTML); ширины держит
+// состояние вкладки (v.colW[таблица]), во время перетаскивания — переменные
+// --cw-* на рамке.
+const NAV_COLS = [
+  { key: 'n-obj', label: 'Объект', width: 220 },
+  { key: 'n-st', label: 'Приёмка', width: 150 },
+  { key: 'n-val', label: 'Знач.', width: 62, num: true, title: 'Значений осмотра' },
+  { key: 'n-ph', label: 'Снимков', width: 76, num: true },
+  { key: 'n-vo', label: 'Голос.', width: 62, num: true, title: 'Голосовые заметки' },
+  { key: 'n-diff', label: 'Расх.', width: 62, num: true, title: 'Расхождений с карточкой' },
+];
+const CMP_COLS = [
+  { key: 'c-f', label: 'Поле', width: 230 },
+  { key: 'c-card', label: 'В карточке', width: 200 },
+  { key: 'c-insp', label: 'На осмотре', width: 200 },
+  { key: 'c-chk', label: 'Сверка', width: 120 },
+  { key: 'c-act', label: 'Действие', width: 120 },
+];
+const headHTML = (cols) => `<thead><tr>${cols.map((c, i) => `<th data-col="${c.key}" class="${c.num ? 'num' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}</th>`).join('')}</tr></thead>`;
+
+// «Что осмотрено» — таблица, строка выбирает (кнопка в первой ячейке — для
+// клавиатуры, щелчок по строке — для мыши).
+function navHTML(items, sel, v) {
+  return `<section class="card t-blue ir-nav" aria-label="Что осмотрено">
     <div class="card-head"><h3>Что осмотрено</h3><span class="hint">${items.length}</span></div>
-    <div class="ir-nav-list">${items.map((x) => {
-    const counts = [x.values ? `значений ${x.values}` : '', x.photos.length ? `снимков ${num(x.photos.length)}` : ''].filter(Boolean).join(' · ');
-    const sub = x.kind === 'oi' ? stagePill(x.stage) : x.kind === 'found' ? '<span class="pill ir-st ir-st-warn">выявлено на осмотре</span>' : `<span class="ir-muted">${esc(x.sub)}</span>`;
-    return `<button type="button" class="ir-item ${x.id === sel ? 'on' : ''}" data-ir-sel="${esc(x.id)}" aria-current="${x.id === sel}">
-      <span class="ir-item-t">${esc(x.label)}</span>
-      <span class="ir-item-s">${sub}</span>
-      <span class="ir-item-n">${esc(counts || (x.kind === 'oi' ? 'значений осмотра нет' : ''))}${x.diffs ? ` · <b class="ir-diff-n">расхождений ${x.diffs}</b>` : ''}</span>
-    </button>`;
-  }).join('')}</div></nav>`;
+    <div class="card-pad"><div class="ir-frame" data-ir-tbl="nav"><table class="tbl ir-tbl ir-nav-tbl">${colGroupHTML(NAV_COLS, v.colW.nav)}${headHTML(NAV_COLS)}
+      <tbody>${items.map((x) => {
+    const st = x.kind === 'oi' ? stagePill(x.stage) : x.kind === 'found' ? '<span class="pill ir-st ir-st-warn">выявлено</span>' : `<span class="ir-muted">${esc(x.sub)}</span>`;
+    const n = (k) => (k ? num(k) : '<span class="ir-muted">—</span>');
+    return `<tr class="${x.id === sel ? 'on' : ''}" data-ir-row="${esc(x.id)}">
+        <td class="ir-f"><button type="button" class="ir-rowbtn" data-ir-sel="${esc(x.id)}" aria-current="${x.id === sel}">${esc(x.label)}</button></td>
+        <td>${st}</td><td class="num">${n(x.values)}</td><td class="num">${n(x.photos.length)}</td><td class="num">${n(x.voices.length)}</td>
+        <td class="num">${x.diffs ? `<b class="ir-diff-n">${x.diffs}</b>` : n(0)}</td></tr>`;
+  }).join('')}</tbody></table></div></div></section>`;
 }
 
-const byCat = (photos) => {
-  const m = new Map();
-  photos.forEach((p, i) => { const c = p.cat || 'Прочее'; if (!m.has(c)) m.set(c, []); m.get(c).push([p, i]); });
-  return [...m];
-};
-
-// Снимки выбранного: категории чипами с числом, лента страницами по PAGE
-// (тысячи снимков не рисуются разом), крупный просмотр — на месте ленты.
-function photosHTML(item, v) {
-  const all = item.photos;
-  if (!all.length) return '<p class="ir-muted ir-ph-none">Снимков нет.</p>';
-  const cats = byCat(all);
-  if (v.cat && !cats.some(([c]) => c === v.cat)) v.cat = '';
-  const list = v.cat ? cats.find(([c]) => c === v.cat)[1] : all.map((p, i) => [p, i]);
-  const chip = (cat, n, on) => `<button type="button" class="ir-chip ${on ? 'on' : ''}" data-irc="${esc(cat)}" aria-pressed="${on}">${esc(cat || 'Все')} <b>${num(n)}</b></button>`;
-  const chips = cats.length > 1 ? `<div class="ir-chips" role="group" aria-label="Категории снимков">${chip('', all.length, !v.cat)}${cats.map(([c, l]) => chip(c, l.length, v.cat === c)).join('')}</div>` : '';
-  const pos = list.findIndex(([, i]) => i === v.photo);
-  if (pos >= 0) return chips + viewerHTML(item, list, pos, v);
-  const pages = Math.max(1, Math.ceil(list.length / PAGE));
-  v.page = Math.min(Math.max(v.page, 0), pages - 1);
-  const from = v.page * PAGE;
-  const part = list.slice(from, from + PAGE);
-  return `${chips}<div class="ir-strip">
-    <ul class="ir-thumbs">${part.map(([p, i]) => `<li><button type="button" class="ir-thumb" data-irv-ph="${i}" aria-label="Открыть снимок: ${esc(p.cat || 'снимок')} ${i + 1}">
-      ${p.dataUrl ? `<img src="${esc(p.dataUrl)}" alt="" loading="lazy">` : '<span class="ir-thumb-none">не загружен</span>'}
-      <span class="ir-thumb-cap">${esc(p.cat || 'Прочее')}</span></button></li>`).join('')}</ul>
-    ${pages > 1 ? `<div class="ir-pager"><button type="button" class="btn btn-ghost btn-sm" data-irp="-1" aria-label="Предыдущие снимки" ${v.page ? '' : 'disabled'}>‹</button>
-      <span>${num(from + 1)}–${num(from + part.length)} из ${num(list.length)}</span>
-      <button type="button" class="btn btn-ghost btn-sm" data-irp="1" aria-label="Следующие снимки" ${v.page < pages - 1 ? '' : 'disabled'}>›</button></div>` : ''}
-  </div>`;
-}
-
-// Крупный просмотр — в вёрстке просмотрщика ядра (kernel/viewer.css: .vbar,
-// .tool-btn, .vstage), управление своё на data-irv-*: доступ просмотрщика ядра
-// один на страницу (kernel/viewer/deps.js), и подмена отняла бы его у вкладки
-// «Фото».
-function viewerHTML(item, list, pos, v) {
-  const [cur] = list[pos];
-  const n = list.length;
-  const zoomed = v.zoom > 100;
-  // Поворот на 90° и 270° меняет местами ширину и высоту: снимок кладётся в
-  // рамку размером с видимый прямоугольник (fitSide). Размеры — от сцены (cq).
-  const side = v.rot % 180 === 90;
-  const z = v.zoom / 100;
-  const style = side
-    ? `width:calc(${z} * (100cqh - 24px));${zoomed ? '' : 'max-height:calc(100cqw - 24px);'}transform:translate(-50%, -50%) rotate(${v.rot}deg)`
-    : `${zoomed ? `width:calc(${z} * (100cqw - 24px));` : ''}transform:rotate(${v.rot}deg)`;
-  return `<section class="viewer irv" aria-label="Просмотр снимка">
-    <div class="vbar">
-      <div class="tool-group">
-        <button type="button" class="tool-btn" data-irv-step="-1" title="Предыдущий (←)" aria-label="Предыдущий снимок" ${n < 2 ? 'disabled' : ''}>‹</button>
-        <span class="irv-n"><b>${num(pos + 1)}</b> / ${num(n)}</span>
-        <button type="button" class="tool-btn" data-irv-step="1" title="Следующий (→)" aria-label="Следующий снимок" ${n < 2 ? 'disabled' : ''}>›</button>
-      </div>
-      <span class="irv-cap"><b>${esc(cur.cat || 'Снимок')}</b>${cur.by ? ` · ${esc(cur.by)}` : ''}${cur.at ? ` · ${esc(dt(cur.at))}` : ''}</span>
-      <div class="tool-group right">
-        <button type="button" class="tool-btn" data-irv-zoom="-1" title="Уменьшить" aria-label="Уменьшить" ${zoomed ? '' : 'disabled'}>−</button>
-        <span class="zoom-label">${v.zoom}%</span>
-        <button type="button" class="tool-btn" data-irv-zoom="1" title="Увеличить" aria-label="Увеличить" ${v.zoom >= 300 ? 'disabled' : ''}>+</button>
-        <button type="button" class="tool-btn" data-irv-rot title="Повернуть" aria-label="Повернуть">${ICON_ROTATE}</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-irv-close title="К ленте (Esc)">К ленте</button>
-      </div>
-    </div>
-    <div class="vstage irv-stage ${zoomed ? 'zoomed' : ''} ${side ? 'side' : ''}">
-      ${cur.dataUrl ? `${side ? '<div class="irv-box">' : ''}<img class="irv-img" src="${esc(cur.dataUrl)}" alt="${esc((cur.cat || 'Снимок') + ' — ' + item.label)}" style="${style}">${side ? '</div>' : ''}`
-    : '<div class="photo-fill">Снимок не загружен</div>'}
-    </div>
-  </section>`;
+// Снимки выбранного — для просмотрщика карточки (kernel/inspectionTab.js,
+// inspectionViewerCtx): держатель того же вида, что у ОИ, — photos
+// {категория: число} и photoFiles {категория: [снимок]}; пометка
+// inspectionPhotos — читать его ядру самому и не давать переносить к литере.
+function holder(typeId, rec) {
+  const v = viewOf(typeId + '|' + rec.id);
+  const r = peekResults(typeId, rec.id);
+  // Модуль рисует просмотрщик раньше вкладки — демо дописывается и здесь.
+  if (completeRichDemo(r, rec)) scheduleSave();
+  const items = itemsOf(typeId, rec, r, assignsOf(typeId, rec.id));
+  const item = items.find((x) => x.id === v.sel) || items.find((x) => x.kind === 'oi' && x.stage.key === 'wait') || items[0];
+  const h = { id: `insp:${typeId}|${rec.id}|${item ? item.id : ''}`, name: item ? `Снимки осмотра · ${item.label}` : 'Снимки осмотра',
+    letter: '', inspectionPhotos: true, photos: {}, photoFiles: {}, docs: [] };
+  (item ? item.photos : []).forEach((p) => {
+    const c = p.cat || 'Прочее';
+    h.photos[c] = (h.photos[c] || 0) + 1;
+    (h.photoFiles[c] = h.photoFiles[c] || []).push({ id: p.id, name: p.name || c, dataUrl: p.dataUrl || '', at: p.at, by: p.by });
+  });
+  return h;
 }
 
 function compareHTML(cmp, v) {
@@ -246,22 +222,30 @@ function compareHTML(cmp, v) {
   const diffs = cmp.filter((x) => x.diff).length;
   const rows = (v.only ? cmp.map((x, i) => [x, i]).filter(([x]) => x.diff) : cmp.map((x, i) => [x, i]));
   const grouped = new Set(cmp.map((x) => x.group)).size > 1;
-  const check = (x, i) => {
-    const can = x.path && norm(x.insp) !== norm(x.card);
-    const btn = can ? ` <button type="button" class="btn btn-sm ir-apply" data-ir-apply="${i}" title="Записать «${esc(x.insp)}» в карточку">В карточку</button>` : '';
-    if (x.diff) return `<span class="pill ir-pill-warn">расходится</span>${btn}`;
-    if (x.card) return '<span class="ir-ok">совпадает</span>';
-    return `<span class="ir-muted">в карточке нет</span>${btn}`;
-  };
-  return `<div class="ir-cmp-head"><p class="ir-sub">Сверка <b>${cmp.length}</b></p>
-      <label class="ir-only"><input type="checkbox" data-ir-only ${v.only ? 'checked' : ''} ${diffs ? '' : 'disabled'}> только расхождения (${diffs})</label></div>
-    <div class="ir-tbl-wrap"><table class="tbl ir-cmp">
-      <colgroup><col class="ir-c-f"><col><col><col class="ir-c-m"></colgroup>
-      <thead><tr><th>Поле</th><th>В карточке</th><th>На осмотре</th><th>Сверка</th></tr></thead>
-      <tbody>${rows.map(([x, i], k) => `${grouped && (k === 0 || rows[k - 1][0].group !== x.group) ? `<tr class="ir-grp"><th colspan="4" scope="colgroup">${esc(x.group)}</th></tr>` : ''}<tr class="${x.diff ? 'diff' : ''}">
-        <td data-l="Поле">${esc(x.label)}</td><td data-l="В карточке">${x.card ? esc(x.card) : '<span class="ir-muted">—</span>'}</td><td data-l="На осмотре"><b>${esc(x.insp)}</b></td>
-        <td data-l="Сверка"><span class="ir-chk">${check(x, i)}</span></td></tr>`).join('') || '<tr><td colspan="4" class="ir-muted">Расхождений нет.</td></tr>'}</tbody>
+  const chk = (x) => (x.diff ? '<span class="pill ir-pill-warn">расходится</span>' : x.card ? '<span class="ir-ok">совпадает</span>' : '<span class="ir-muted">в карточке нет</span>');
+  const act = (x, i) => (x.path && norm(x.insp) !== norm(x.card)
+    ? `<button type="button" class="btn btn-ghost btn-sm ir-apply" data-ir-apply="${i}" title="Записать «${esc(x.insp)}» в карточку">В карточку</button>` : '');
+  return `<div class="ir-cmp-head"><p class="ir-sub">Сверка <b>${cmp.length}</b>${diffs ? ` · <span class="ir-diff-n">расхождений ${diffs}</span>` : ''}</p>
+      <label class="ir-only"><input type="checkbox" data-ir-only ${v.only ? 'checked' : ''} ${diffs ? '' : 'disabled'}> только расхождения</label></div>
+    <div class="ir-frame" data-ir-tbl="cmp"><table class="tbl ir-tbl ir-cmp">${colGroupHTML(CMP_COLS, v.colW.cmp)}${headHTML(CMP_COLS)}
+      <tbody>${rows.map(([x, i], k) => `${grouped && (k === 0 || rows[k - 1][0].group !== x.group) ? `<tr class="ir-grp"><th colspan="5" scope="colgroup">${esc(x.group)}</th></tr>` : ''}<tr class="${x.diff ? 'diff' : ''}">
+        <td class="ir-f" data-l="Поле">${esc(x.label)}</td><td data-l="В карточке">${x.card ? esc(x.card) : '<span class="ir-muted">—</span>'}</td><td data-l="На осмотре"><b>${esc(x.insp)}</b></td>
+        <td data-l="Сверка">${chk(x)}</td><td data-l="Действие">${act(x, i)}</td></tr>`).join('') || '<tr><td colspan="5" class="ir-muted">Расхождений нет.</td></tr>'}</tbody>
     </table></div>`;
+}
+
+// Голосовые заметки осмотрщика (решение 16.10.2026 «Голосовые заметки тоже»;
+// 02.11.2026 «Нужно уметь их слушать»): плеер браузера на месте, кто и когда
+// записал, длительность. Файл недоступен (запись не пережила перезагрузку в
+// макете) — так и сказано, а не пустой плеер.
+const durText = (sec) => (sec > 0 ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}` : '');
+function voicesHTML(list) {
+  if (!list || !list.length) return '';
+  return `<p class="ir-sub">Голосовые заметки <b>${list.length}</b></p>
+    <ul class="ir-voices">${list.map((x, i) => `<li class="ir-voice">
+      <span class="ir-voice-n">${i + 1}</span>
+      ${x.dataUrl ? `<audio controls preload="metadata" src="${esc(x.dataUrl)}" aria-label="Голосовая заметка ${i + 1}"></audio>` : '<span class="ir-muted">файл записи недоступен</span>'}
+      <span class="ir-voice-m">${esc([x.by, dt(x.at), durText(x.dur)].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul>`;
 }
 
 function objectHTML(typeId, ocId, r) {
@@ -270,26 +254,24 @@ function objectHTML(typeId, ocId, r) {
   return [
     r && r.note ? `<p class="ir-sub">Заметка осмотрщика</p><p class="ir-note">${esc(r.note)}</p>` : '',
     r && (r.contacts || []).length ? `<p class="ir-sub">Контакты с осмотра</p><ul class="ir-plain">${r.contacts.map((c) => `<li>${esc([c.name, c.role, c.phone].filter(Boolean).join(' · '))}</li>`).join('')}</ul>` : '',
-    r && (r.voices || []).length ? `<p class="ir-sub">Голосовые заметки <b>${r.voices.length}</b></p>
-      <ul class="ir-plain">${r.voices.map((x) => `<li>${x.dataUrl ? `<audio controls preload="none" src="${esc(x.dataUrl)}"></audio>` : ''} <span class="ir-muted">${esc(x.by || '')} · ${esc(dt(x.at))}</span></li>`).join('')}</ul>` : '',
+    voicesHTML(((r && r.voices) || []).filter((x) => !x.oiId)),
     scans.length ? `<p class="ir-sub">Сканы документов <b>${scans.length}</b></p>
-      <ul class="ir-plain">${scans.map((s) => `<li><a href="#/scans?${state(s) !== 'wait' ? `state=${esc(state(s))}&` : ''}key=${encodeURIComponent(scanKey(typeId, ocId, s.id))}">${esc(s.title || 'Документ с осмотра')}</a>
+      <ul class="ir-plain">${scans.map((s) => `<li><a class="btn btn-ghost btn-sm" href="#/scans?${state(s) !== 'wait' ? `state=${esc(state(s))}&` : ''}key=${encodeURIComponent(scanKey(typeId, ocId, s.id))}">${esc(s.title || 'Документ с осмотра')} →</a>
         <span class="pill pill-gray">${esc(scanStateLabel(state(s)))}</span> <span class="ir-muted">${esc(ddmm(s.at))}</span></li>`).join('')}</ul>` : '',
-  ].join('');
+  ].join('') || '<p class="ir-muted">Кроме снимков, по объекту в целом ничего не внесено.</p>';
 }
 
 function detailHTML(typeId, rec, r, item, v, anyDone) {
-  if (!item) return '<div class="card ir-det"><div class="card-pad ir-muted">Выберите слева, что смотреть.</div></div>';
-  const photos = `<p class="ir-sub">Снимки <b>${num(item.photos.length)}</b></p>${photosHTML(item, v)}`;
+  if (!item) return '<div class="card ir-det"><div class="card-pad ir-muted">Выберите в таблице выше, что смотреть.</div></div>';
   if (item.kind === 'obj') {
-    return `<div class="card t-slate ir-det"><div class="card-head"><h3>Объект в целом</h3></div><div class="card-pad">${objectHTML(typeId, rec.id, r)}${photos}</div></div>`;
+    return `<div class="card t-slate ir-det"><div class="card-head"><h3>Объект в целом</h3></div><div class="card-pad">${objectHTML(typeId, rec.id, r)}</div></div>`;
   }
   if (item.kind === 'found') {
     const f = item.found;
     return `<div class="card t-amber ir-det"><div class="card-head"><h3>${esc(item.label)}</h3><span class="hint">выявлено на осмотре</span></div>
       <div class="card-pad">${anyDone ? `<dl class="ir-kv">
         ${[['Где', f.where], ['Кто выявил', f.foundBy], ['Когда', f.foundAt], ['Источник', f.source && f.source.label], ['Описание', f.note]]
-          .filter(([, x]) => x).map(([l, x]) => `<div><dt>${esc(l)}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>${photos}`
+          .filter(([, x]) => x).map(([l, x]) => `<div><dt>${esc(l)}</dt><dd>${esc(x)}</dd></div>`).join('')}</dl>${voicesHTML(item.voices)}`
         : '<p class="ir-muted">Выявленное показывается после завершения осмотра.</p>'}</div></div>`;
   }
   const by = item.by.length ? item.by.map((a) => `<span class="ir-sum-a"><b>${esc(a.person)}</b> ${statePill(a)}${a.doneAt ? ` <span class="ir-muted">${esc(ddmm(a.doneAt))}</span>` : ''}</span>`).join('')
@@ -298,28 +280,30 @@ function detailHTML(typeId, rec, r, item, v, anyDone) {
   const note = rv && rv.state === 'returned' ? `<p class="ir-ret">Возвращён на доосмотр ${esc(dt(rv.at))}${rv.by ? ` · ${esc(rv.by)}` : ''}: ${esc(rv.reason || '')}</p>`
     : rv && rv.state === 'accepted' ? `<p class="ir-acc">Принят ${esc(dt(rv.at))}${rv.by ? ` · ${esc(rv.by)}` : ''}</p>` : '';
   return `<div class="card t-teal ir-det" data-oi="${esc(item.id)}"><div class="card-head"><h3>${esc(item.label)}</h3>${stagePill(item.stage)}<span class="ir-det-by">${by}</span></div>
-    <div class="card-pad">${note}${photos}${compareHTML(item.cmp, v)}</div></div>`;
+    <div class="card-pad">${note}${voicesHTML(item.voices)}${compareHTML(item.cmp, v)}</div></div>`;
 }
 
-// Подвал решений: по выбранному ОИ и по осмотру целиком.
+// Подвал решений: по выбранному ОИ и по осмотру целиком. Кнопки — явные:
+// главное залито, остальное в рамке (btn-primary / btn-ghost ядра).
 function footHTML(rec, items, item, v) {
   const oi = item && item.kind === 'oi' ? item : null;
   const msg = v.msg ? `<p class="ir-msg ${v.tone === 'ok' ? 'ok' : 'warn'}" role="status">${esc(v.msg)}</p>` : '';
   const ret = oi && v.returning ? `<div class="ir-ret-form">
       <label class="ir-ret-l" for="ir-reason">Причина возврата «${esc(oi.label)}»</label>
       <textarea id="ir-reason" class="input" rows="2" maxlength="500" data-ir-reason placeholder="Что доснять или проверить на месте">${esc(v.reason)}</textarea>
-      <div class="ir-foot-row"><button type="button" class="btn btn-primary btn-sm" data-ir-return-go>Вернуть осмотрщику</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-ir-return-cancel>Отмена</button></div></div>` : '';
+      <div class="ir-foot-row"><button type="button" class="btn btn-primary" data-ir-return-go>Вернуть осмотрщику</button>
+        <button type="button" class="btn btn-ghost" data-ir-return-cancel>Отмена</button></div></div>` : '';
+  const accepted = oi && oi.stage.key === 'accepted';
   const left = oi && !v.returning ? `<div class="ir-foot-row">
-      <button type="button" class="btn btn-sm ${oi.stage.key === 'accepted' ? 'btn-ghost' : 'btn-primary'}" data-ir-accept>${oi.stage.key === 'accepted' ? 'Принят' : 'Принять ОИ'}</button>
-      <button type="button" class="btn btn-sm" data-ir-return>Вернуть на доосмотр…</button></div>` : '';
+      <button type="button" class="btn ${accepted ? 'btn-ghost' : 'btn-primary'}" data-ir-accept>${accepted ? '✓ Принят' : 'Принять ОИ'}</button>
+      <button type="button" class="btn btn-ghost ir-btn-warn" data-ir-return>Вернуть на доосмотр…</button></div>` : '';
   const ois = toAccept(items);
-  const accepted = ois.filter((x) => x.stage.key === 'accepted').length;
+  const done = ois.filter((x) => x.stage.key === 'accepted').length;
   return `<div class="ir-foot" role="region" aria-label="Решения по осмотру">
     ${msg}${ret}
     <div class="ir-foot-bar">${left}
-      <div class="ir-foot-row ir-foot-all"><span class="ir-muted">Принято ОИ: <b>${accepted} из ${ois.length}</b></span>
-        <button type="button" class="btn btn-sm btn-primary" data-ir-accept-all>Принять осмотр</button></div>
+      <div class="ir-foot-row ir-foot-all"><span class="ir-muted">Принято ОИ: <b>${done} из ${ois.length}</b></span>
+        <button type="button" class="btn btn-primary" data-ir-accept-all>Принять осмотр</button></div>
     </div>
   </div>`;
 }
@@ -339,7 +323,7 @@ function render(typeId, rec) {
   const anyDone = list.some((a) => a.state === 'done') || !!(r && r.done);
   return `<div class="ir" data-ir-key="${esc(key)}">
     ${summaryHTML(rec, list, items, r)}
-    ${items.length ? `<div class="ir-work">${navHTML(items, v.sel)}<div class="ir-main">${detailHTML(typeId, rec, r, item, v, anyDone)}${footHTML(rec, items, item, v)}</div></div>`
+    ${items.length ? `<div class="ir-grow">${navHTML(items, v.sel, v)}${detailHTML(typeId, rec, r, item, v, anyDone)}${footHTML(rec, items, item, v)}</div>`
       : `<div class="empty ir-empty">${list.length ? 'Осмотр назначен, на осмотре пока ничего не внесено.' : 'По объекту осмотров не было.'}</div>`}
   </div>`;
 }
@@ -354,41 +338,22 @@ function ctxOf(el) {
   const items = itemsOf(typeId, rec, peekResults(typeId, ocId), assignsOf(typeId, ocId));
   return { typeId, rec, v, items, item: items.find((x) => x.id === v.sel) };
 }
+// Перерисовка — всей карточки (kernel/boot.js, inside:redraw): просмотрщик
+// слева рисует модуль, и снимки выбранного должны смениться и там. Фокус
+// возвращается на ту же кнопку.
 function rerender(el) {
-  const c = ctxOf(el);
-  if (!c) return;
-  const y = window.scrollY;
   const focus = document.activeElement && el.contains(document.activeElement) ? focusKey(document.activeElement) : '';
-  el.outerHTML = render(c.typeId, c.rec);
-  window.scrollTo(0, y);
-  // Фокус остаётся на той же кнопке: перерисовка не выбрасывает клавиатуру.
-  const back = focus && document.querySelector(`.ir[data-ir-key="${CSS.escape(el.dataset.irKey)}"] ${focus}`);
-  if (back) back.focus();
-  document.querySelectorAll('.irv-stage.side .irv-img').forEach((img) => { if (img.complete) fitSide(img); });
+  window.dispatchEvent(new CustomEvent('inside:redraw'));
+  if (!focus) return;
+  requestAnimationFrame(() => setTimeout(() => {
+    const back = document.querySelector(`.ir ${focus}`);
+    if (back) back.focus();
+  }, 0));
 }
-const FOCUS_ATTRS = ['data-ir-sel', 'data-irv-ph', 'data-irv-step', 'data-irv-zoom', 'data-irv-rot', 'data-irc', 'data-irp', 'data-ir-only', 'data-ir-reason', 'data-ir-accept', 'data-ir-return'];
+const FOCUS_ATTRS = ['data-ir-sel', 'data-ir-only', 'data-ir-reason', 'data-ir-accept', 'data-ir-return', 'data-ir-apply'];
 const focusKey = (n) => FOCUS_ATTRS.filter((a) => n.hasAttribute(a))
   .map((a) => `[${a}${n.getAttribute(a) ? `="${CSS.escape(n.getAttribute(a))}"` : ''}]`)[0] || '';
 
-// Рамка повёрнутого снимка — по его видимому прямоугольнику (после загрузки).
-function fitSide(img) {
-  const rc = img.getBoundingClientRect();
-  if (!rc.width) return;
-  Object.assign(img.parentElement.style, { width: `${Math.round(rc.width)}px`, height: `${Math.round(rc.height)}px` });
-}
-document.addEventListener('load', (e) => { if (e.target.matches && e.target.matches('.irv-stage.side .irv-img')) fitSide(e.target); }, true);
-
-// Снимки текущей ленты (с учётом категории) — индексы в общем перечне ОИ.
-function listIdx(c) {
-  const all = c.item ? c.item.photos : [];
-  return all.map((p, i) => [p, i]).filter(([p]) => !c.v.cat || (p.cat || 'Прочее') === c.v.cat).map(([, i]) => i);
-}
-function step(c, d) {
-  const idx = listIdx(c);
-  const pos = idx.indexOf(c.v.photo);
-  if (pos < 0 || idx.length < 2) return;
-  Object.assign(c.v, { photo: idx[(pos + d + idx.length) % idx.length], zoom: 100, rot: 0 });
-}
 const say = (v, msg, tone = 'warn') => Object.assign(v, { msg, tone });
 
 // Записать значение осмотра в поле карточки (ответ «В карточку» по полю).
@@ -401,7 +366,7 @@ function applyToCard(c, row) {
   const keys = row.path.split('.');
   const last = keys.pop();
   const box = keys.reduce((o, k) => (o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}), target);
-  box[last] = Array.isArray(box[last]) ? row.insp.split(/,\s*/).filter(Boolean) : row.insp;
+  box[last] = Array.isArray(box[last]) || row.multi ? row.insp.split(/,\s*/).filter(Boolean) : row.insp;
   c.rec.updatedAt = localIso();
   scheduleSave();
   logEvent('applied', null, { typeId: c.typeId, ocId: c.rec.id, oiId: oi.id, text: `${row.label}: ${row.card || '—'} → ${row.insp}` });
@@ -434,15 +399,9 @@ document.addEventListener('click', (e) => {
   const { v } = c;
   const hit = (s) => e.target.closest(s);
   let n;
-  if ((n = hit('[data-ir-sel]'))) { resetPhotos(v); Object.assign(v, { sel: n.dataset.irSel, returning: false, reason: '', msg: '' }); }
-  else if ((n = hit('[data-irc]'))) Object.assign(v, { cat: n.dataset.irc, page: 0, photo: -1 });
-  else if ((n = hit('[data-irp]'))) v.page += +n.dataset.irp;
-  else if ((n = hit('[data-irv-ph]'))) Object.assign(v, { photo: +n.dataset.irvPh, zoom: 100, rot: 0 });
-  else if ((n = hit('[data-irv-step]'))) step(c, +n.dataset.irvStep);
-  else if ((n = hit('[data-irv-zoom]'))) v.zoom = Math.min(300, Math.max(100, v.zoom + 50 * +n.dataset.irvZoom));
-  else if (hit('[data-irv-rot]')) v.rot = (v.rot + 90) % 360;
-  else if (hit('[data-irv-close]')) Object.assign(v, { photo: -1, zoom: 100, rot: 0 });
-  else if ((n = hit('[data-ir-apply]'))) {
+  if ((n = hit('[data-ir-sel]') || (!hit('button, a, input, select, textarea') && hit('[data-ir-row]')))) {
+    Object.assign(v, { sel: n.dataset.irSel || n.dataset.irRow, returning: false, reason: '', msg: '' });
+  } else if ((n = hit('[data-ir-apply]'))) {
     const row = c.item && c.item.cmp[+n.dataset.irApply];
     if (!row) return;
     applyToCard(c, row);
@@ -487,22 +446,63 @@ document.addEventListener('input', (e) => {
 });
 document.addEventListener('change', (e) => {
   const el = e.target.closest('.ir[data-ir-key]');
-  if (!el || !e.target.matches('[data-ir-only]')) return;
-  viewOf(el.dataset.irKey).only = e.target.checked;
+  if (!el) return;
+  const v = viewOf(el.dataset.irKey);
+  if (e.target.matches('[data-ir-only]')) v.only = e.target.checked;
+  else return;
   rerender(el);
 });
-// ← → листают и Esc закрывает крупный просмотр, пока он открыт и фокус не в поле.
-document.addEventListener('keydown', (e) => {
-  if (!['ArrowRight', 'ArrowLeft', 'Escape'].includes(e.key)) return;
-  if (e.altKey || e.ctrlKey || e.metaKey || e.target.closest('input, select, textarea, [contenteditable]')) return;
-  const el = document.querySelector('.ir[data-ir-key]');
-  if (!el || !el.querySelector('.irv')) return;
-  const c = ctxOf(el);
-  if (!c) return;
-  if (e.key === 'Escape') Object.assign(c.v, { photo: -1, zoom: 100, rot: 0 });
-  else step(c, e.key === 'ArrowRight' ? 1 : -1);
+// Перегородки столбцов таблиц — как bindColumnResize ядра: меняются два
+// соседних столбца. Вкладка перерисовывается вместе с карточкой, поэтому
+// обработчик — на документе, а не на элементах.
+document.addEventListener('pointerdown', (e) => {
+  const grip = e.target.closest('.ir [data-col-grip]');
+  if (!grip) return;
+  // Карточка вешает свои обработчики на все перегородки страницы и гасит
+  // событие (kernel/columns.js, bindColumnResize) — перехват при погружении.
+  e.stopPropagation();
+  const el = e.target.closest('.ir[data-ir-key]');
+  const v = viewOf(el.dataset.irKey);
   e.preventDefault();
-  rerender(el);
-});
+  const target = grip;
+  target.setPointerCapture(e.pointerId);
+  let move;
+  let up;
+  {
+    const th = grip.closest('[data-col]');
+    const next = th && th.nextElementSibling;
+    const box = th && th.closest('[data-ir-tbl]');
+    if (!next || !box) return;
+    const wL = Math.round(th.getBoundingClientRect().width);
+    const wR = Math.round(next.getBoundingClientRect().width);
+    const x0 = e.clientX;
+    let d = 0;
+    box.classList.add('col-resizing');
+    grip.classList.add('active');
+    move = (ev) => {
+      d = Math.max(60 - wL, Math.min(wR - 60, Math.round(ev.clientX - x0)));
+      box.style.setProperty(colVar(th.dataset.col), (wL + d) + 'px');
+      box.style.setProperty(colVar(next.dataset.col), (wR - d) + 'px');
+    };
+    up = () => {
+      box.classList.remove('col-resizing');
+      grip.classList.remove('active');
+      if (!d) return;
+      const w = {};
+      th.parentElement.querySelectorAll('[data-col]').forEach((cell) => {
+        w[cell.dataset.col] = cell === th ? wL + d : cell === next ? wR - d : Math.round(cell.getBoundingClientRect().width);
+      });
+      v.colW[box.dataset.irTbl] = w;
+    };
+  }
+  const stop = () => {
+    target.releasePointerCapture(e.pointerId);
+    target.removeEventListener('pointermove', move);
+    target.removeEventListener('pointerup', stop);
+    up();
+  };
+  target.addEventListener('pointermove', move);
+  target.addEventListener('pointerup', stop);
+}, true);
 
-setInspectionTab({ has, render });
+setInspectionTab({ has, render, holder });

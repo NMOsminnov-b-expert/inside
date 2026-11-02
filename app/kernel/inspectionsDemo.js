@@ -629,9 +629,9 @@ const DEMO_VALUES = {
     encumbrance: 'Нет', form: 'Прямоугольная', relief: 'Ровный', electricity: 'Подведены', centralWater: 'Подведены',
     gasification: 'Проходят рядом', improvementRank: 'Частично благоустроен', note: 'Участок огорожен, въезд с улицы, покрытие частично асфальт' },
   apartment: { aptFloor: '4', aptBuildingFloors: '9', aptRooms: '3', aptSeries: 'Серия 97', aptLocation: 'Угловое',
-    electricity: 'Подведены', centralHeating: 'Подведены', note: 'Окна заменены, в одной комнате следы протечки на потолке' },
+    electricity: 'Подведены', centralHeating: 'Подведены', bathroom: ['Внутри'], note: 'Окна заменены, в одной комнате следы протечки на потолке' },
   building: { buildType: 'Отдельностоящее', floorsN: '2', electricity: 'Подведены', centralWater: 'Подведены',
-    sewerage: 'Подведены', gasification: 'Проходят рядом', centralHeating: 'Подведены', note: 'Фасад требует покраски, кровля без видимых протечек' },
+    sewerage: 'Подведены', gasification: 'Проходят рядом', centralHeating: 'Подведены', bathroom: ['Внутри', 'Снаружи'], note: 'Фасад требует покраски, кровля без видимых протечек' },
   vehicle: { 'ts.addr': 'Во дворе объекта, у гаражей', 'f.plate': '01KG123DEM', 'f.mileage': '187400' },
 };
 const LIT_VALUES = {
@@ -801,7 +801,7 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
 // Версия демо-результатов: сохранённое в браузере демо прежней версии
 // заменяется новым (kernel/inspectionResults.js, seedDemoResults); введённое
 // руками не трогается. Поднимать при изменении демо-результатов.
-const DEMO_RESULTS_VER = '2026-11-02-срез';
+const DEMO_RESULTS_VER = '2026-11-02-санузел';
 
 // Объект среза ЦОД «Осмотр закончен — проверить» — «в боевом режиме»
 // (пользователь 02.11.2026: «Заполни детальными тестовыми данными. Снимками и
@@ -843,7 +843,7 @@ function richSlice(r, mkA, entry, by, today) {
     { id: `demo-sc-${r.ocId}-1`, title: 'Технический паспорт', oiId: '', by, at: at(11), source: 'осмотр', status: 'ждёт ЦОД', pages: pages('Технический паспорт', 3) },
     { id: `demo-sc-${r.ocId}-2`, title: 'Акт осмотра с подписью завхоза', oiId: '', by, at: at(12), source: 'осмотр', status: 'ждёт ЦОД', pages: pages('Акт осмотра', 1) },
   ];
-  e.voices = [{ id: `demo-vn-${r.ocId}-1`, name: 'заметка-подвал.wav', size: 8044, type: 'audio/wav', oiId: '', dur: 1, by, at: at(13), dataUrl: silenceWav() }];
+  e.voices = [{ id: `demo-vn-${r.ocId}-1`, name: 'заметка-подвал.wav', size: 16044, type: 'audio/wav', oiId: '', dur: 2, by, at: at(13), dataUrl: toneWav(440) }];
   e.richPending = { by, t0 };
 }
 
@@ -860,17 +860,27 @@ export function completeRichDemo(res, rec) {
     (RICH_PHOTOS[oi.card] || [['Прочее', 4]]).forEach(([cat, cnt]) => {
       for (let i = 1; i <= cnt; i++) richShot(res, rec.id, oi.id, cat, i, CARD_WORD[oi.card] || 'Объект имущества', t0, by);
     });
+    // Голосовая заметка к каждому ОИ — звуковая заглушка своей высоты.
+    res.voices = res.voices || [];
+    res.voices.push({ id: `demo-vn-${rec.id}-${oi.id}`, name: `заметка-${oi.card}.wav`, size: 16044, type: 'audio/wav', oiId: oi.id, dur: 2, by,
+      at: new Date(t0 + 3600000 + res.voices.length * 600000).toISOString(), dataUrl: toneWav(330 + 110 * res.voices.length) });
   });
   delete res.richPending;
   return true;
 }
 
-// Голосовая заметка-заглушка: секунда тишины (WAV, 8 кГц, 8 бит).
-function silenceWav() {
-  const n = 8000;
+// Голосовая заметка-заглушка: две секунды ровного тона (WAV, 8 кГц, 8 бит) —
+// слышно, что плеер играет; речи в демо нет.
+function toneWav(hz) {
+  const rate = 8000;
+  const n = rate * 2;
   const head = [0x52, 0x49, 0x46, 0x46, ...le(36 + n, 4), 0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, ...le(16, 4), ...le(1, 2), ...le(1, 2),
-    ...le(8000, 4), ...le(8000, 4), ...le(1, 2), ...le(8, 2), 0x64, 0x61, 0x74, 0x61, ...le(n, 4)];
-  const bin = String.fromCharCode(...head) + String.fromCharCode(128).repeat(n);
-  return 'data:audio/wav;base64,' + (typeof btoa === 'function' ? btoa(bin) : '');
+    ...le(rate, 4), ...le(rate, 4), ...le(1, 2), ...le(8, 2), 0x64, 0x61, 0x74, 0x61, ...le(n, 4)];
+  let body = '';
+  for (let i = 0; i < n; i++) {
+    const fade = Math.min(1, i / 400, (n - i) / 400);
+    body += String.fromCharCode(Math.round(128 + 40 * fade * Math.sin((2 * Math.PI * hz * i) / rate)));
+  }
+  return 'data:audio/wav;base64,' + (typeof btoa === 'function' ? btoa(String.fromCharCode(...head) + body) : '');
 }
 function le(v, bytes) { return Array.from({ length: bytes }, (_, i) => (v >> (8 * i)) & 255); }

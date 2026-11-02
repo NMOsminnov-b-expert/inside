@@ -329,17 +329,17 @@ def _(p):
 @path('cod-return-history', 'Результаты осмотра: вернуть ОИ с причиной → «История» осмотров — событие с причиной → «Назад» → тот же ОИ на доосмотре',
       'Ц5', roles=('cod', 'any'), touches=_TI + ('app/kernel/inspectionResults.js',))
 def _(p):
-    p.open('#/oc/civil/oc-pr-1?tab=inspection', '.ir-work')
-    p.click('[data-ir-sel]:nth-child(2)')
-    label = p.text('.ir-item.on .ir-item-t')
+    p.open('#/oc/civil/oc-pr-1?tab=inspection', '.ir-nav-tbl')
+    p.click('.ir-nav-tbl tbody tr:nth-child(2) [data-ir-sel]')
+    label = p.text('.ir-nav-tbl tr.on .ir-rowbtn')
     p.click('[data-ir-return]')
     p.fill('[data-ir-reason]', 'Проверка матрицы: доснять кровлю')
     p.click('[data-ir-return-go]')
-    p.ck('ОИ на доосмотре', 'на доосмотре' in p.text('.ir-item.on'), p.text('.ir-item.on'), 'на доосмотре')
+    p.ck('ОИ на доосмотре', 'на доосмотре' in p.text('.ir-nav-tbl tr.on'), p.text('.ir-nav-tbl tr.on'), 'на доосмотре')
     p.open('#/inspections?s=history', '[data-ip-section]')
     body = p.text('main') if p.page.locator('main').count() else p.text('body')
     p.ck('в «Истории» — возврат с причиной', 'доснять кровлю' in body, 'нет', 'причина видна')
     p.back()
-    p.wait_for('.ir-work')
-    p.eq('тот же ОИ выбран и на доосмотре', {'ОИ': p.text('.ir-item.on .ir-item-t'), 'на доосмотре': 'на доосмотре' in p.text('.ir-item.on')},
+    p.wait_for('.ir-nav-tbl')
+    p.eq('тот же ОИ выбран и на доосмотре', {'ОИ': p.text('.ir-nav-tbl tr.on .ir-rowbtn'), 'на доосмотре': 'на доосмотре' in p.text('.ir-nav-tbl tr.on')},
          {'ОИ': label, 'на доосмотре': True})
