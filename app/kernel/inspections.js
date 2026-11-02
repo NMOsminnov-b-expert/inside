@@ -69,7 +69,7 @@ export const isDefaultDoc = (kind) => {
 // регистрации в сохранении, поэтому считается исходными данными, а не
 // правками пользователя; правки ложатся поверх него, как у записей ОЦ.
 const demo = demoInspections({ isDefaultDoc, me: session.state.person });
-registerDemoResults(demo.results);
+registerDemoResults(demo.results, demo.resultsVer);
 const assignments = demo.assignments;
 const events = demo.events;
 

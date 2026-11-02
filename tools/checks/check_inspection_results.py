@@ -56,6 +56,16 @@ def run(t):
         t.wait_until("() => !!document.querySelector('.ir-det h3') && document.querySelector('.ir-det h3').textContent.includes('Объект в целом')")
     t.ck(pg.locator('.ir a[href*="#/scans"]').count() > 0, 'у сканов нет ссылки на разбор')
 
+    # --- объект среза из демо-объёма: значения и снимки по ОИ дописываются при открытии
+    sl = pg.evaluate("""async () => { const R = await import('./app/kernel/inspectionResults.js');
+      const r = R.allResults().find((x) => x.demo && /-b\d+$/.test(x.ocId) && (x.voices || []).length && (x.scans || []).length);
+      return r ? [r.typeId, r.ocId] : null; }""")
+    if t.ck(sl, 'нет демо-осмотра объекта из демо-объёма (срез ЦОД)'):
+        t.open('#/oc/%s/%s?tab=inspection' % tuple(sl), wait='.ir-work')
+        rows = pg.eval_on_selector_all('[data-ir-sel]:not([data-ir-sel="__obj"])', 'els => els.map((e) => e.innerText)')
+        t.ck(rows and all('значений' in r and 'снимков' in r for r in rows), 'у ОИ объекта среза нет значений или снимков: %s' % rows)
+        t.ck(pg.locator('.ir-thumb').count() == 16, 'у ОИ объекта среза не полная страница снимков')
+
     # --- приёмка ЦОД: «В карточку», «Принять ОИ», возврат с причиной ----------------
     # (решение priemka-osmotra-cod-vo-vkladke-rezultaty-osmotra-po-oi-vozvrat-po-oi-v)
     t.open('#/oc/civil/oc-pr-1?tab=inspection', wait='.ir-work')

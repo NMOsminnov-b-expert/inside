@@ -32,6 +32,7 @@ import { localIso } from '../../kernel/fmt.js';
 import { session } from '../../kernel/session.js';
 import { STATUS_MAIN } from '../../kernel/status/flow.js';
 import { ICON_ROTATE } from '../../kernel/viewer/icons.js';
+import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { sections, setNetsRec } from './form.js';
 import { oiLabel, ownOis } from './tasks.js';
 
@@ -328,6 +329,8 @@ function render(typeId, rec) {
   const v = viewOf(key);
   const list = assignsOf(typeId, rec.id);
   const r = peekResults(typeId, rec.id);
+  // Демо объекта среза: значения и снимки по ОИ — когда карточка собрана.
+  if (completeRichDemo(r, rec)) scheduleSave();
   const items = itemsOf(typeId, rec, r, list);
   if (!items.some((x) => x.id === v.sel)) {
     v.sel = (items.find((x) => x.kind === 'oi' && x.stage.key === 'wait') || items.find((x) => x.kind === 'oi' && (x.values || x.photos.length)) || items[0] || {}).id || '';

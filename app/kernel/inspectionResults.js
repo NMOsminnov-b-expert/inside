@@ -39,15 +39,21 @@ registerPersisted('inspections.results', {
 // не затирается.
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-результатов нет, эта подмешка уходит с засевом.
+// Демо прежней версии (сохранено в браузере до правки генератора) заменяется
+// новым: ver — версия демо-результатов (inspectionsDemo.js, DEMO_RESULTS_VER).
+// Решения ЦОД по такому объекту при смене версии тоже сбрасываются.
 let demoResults = [];
+let demoVer = '';
 function seedDemoResults() {
   demoResults.forEach((d) => {
     const k = key(d.typeId, d.ocId);
-    if (!results.has(k)) results.set(k, { ...blank(d.typeId, d.ocId), ...JSON.parse(JSON.stringify(d)), id: k, demo: true });
+    const cur = results.get(k);
+    if (!cur || (cur.demo && cur.demoVer !== demoVer)) results.set(k, { ...blank(d.typeId, d.ocId), ...JSON.parse(JSON.stringify(d)), id: k, demo: true, demoVer });
   });
 }
-export function registerDemoResults(list) {
+export function registerDemoResults(list, ver = '') {
   demoResults = Array.isArray(list) ? list : [];
+  demoVer = ver;
   seedDemoResults();
 }
 

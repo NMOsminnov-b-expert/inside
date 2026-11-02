@@ -271,7 +271,7 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
   const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
   const results = demoResultsTab(demoTs(names, recs, partial, assignments, events, today, () => ++n, me),
     recs, assignments, events, today, () => ++n, me, names);
-  return { assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me), plans: demoPlans(names, assignments, recs, today), deadlines };
+  return { resultsVer: DEMO_RESULTS_VER, assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me), plans: demoPlans(names, assignments, recs, today), deadlines };
 }
 
 // Осмотр ТС (этап А, запись графа osmotr-ts-na-meste-i-po-snimkam): записи
@@ -631,7 +631,7 @@ const DEMO_VALUES = {
   apartment: { aptFloor: '4', aptBuildingFloors: '9', aptRooms: '3', aptSeries: 'Серия 97', aptLocation: 'Угловое',
     electricity: 'Подведены', centralHeating: 'Подведены', note: 'Окна заменены, в одной комнате следы протечки на потолке' },
   building: { buildType: 'Отдельностоящее', floorsN: '2', electricity: 'Подведены', centralWater: 'Подведены',
-    centralHeating: 'Подведены', note: 'Фасад требует покраски, кровля без видимых протечек' },
+    sewerage: 'Подведены', gasification: 'Проходят рядом', centralHeating: 'Подведены', note: 'Фасад требует покраски, кровля без видимых протечек' },
   vehicle: { 'ts.addr': 'Во дворе объекта, у гаражей', 'f.plate': '01KG123DEM', 'f.mileage': '187400' },
 };
 const LIT_VALUES = {
@@ -646,8 +646,10 @@ const HUES = { 'Фасад': 205, 'Внутр. помещения': 32, 'Кро�
 
 function photoImg(label, cat, n) {
   const h = HUES[cat] == null ? 210 : HUES[cat];
+  // Светлота — по кругу из пяти: снимков в категории бывают десятки.
+  const t = ((n - 1) % 5) + 1;
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">'
-    + `<rect width="480" height="360" fill="hsl(${h},35%,${78 - n * 6}%)"/><rect x="0" y="230" width="480" height="130" fill="hsl(${h},25%,${62 - n * 5}%)"/>`
+    + `<rect width="480" height="360" fill="hsl(${h},35%,${78 - t * 6}%)"/><rect x="0" y="230" width="480" height="130" fill="hsl(${h},25%,${62 - t * 5}%)"/>`
     + `<text x="240" y="160" fill="#26323f" font-family="Arial" font-size="26" text-anchor="middle">${cat}</text>`
     + `<text x="240" y="196" fill="#3d4a59" font-family="Arial" font-size="15" text-anchor="middle">${label} · демо-снимок ${n}</text></svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
@@ -786,14 +788,7 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   // человек из сессии (в сиде ЦОД у всех записей другой). Состав ОИ у таких
   // записей не собирается (см. выше) — результаты по объекту в целом.
   const forSlice = recs.find((r) => r.status === READY && /-b\d+$/.test(r.ocId) && me && r.cod === me && !mine(r).length);
-  if (forSlice) {
-    const p = p0;
-    mkA(forSlice, p, [], 'done', -1);
-    const e = entry(forSlice);
-    e.note = 'Объект осмотрен целиком, расхождений с документами не выявлено';
-    ['Фасад', 'Внутр. помещения'].forEach((cat, i) => e.photos.push({ id: `demo-ph-${forSlice.ocId}-${i}`, name: `${cat}.svg`, size: 1500,
-      type: 'image/svg+xml', dataUrl: photoImg('Объект оценки', cat, i + 1), at: dayAt(today, -1, 10 + i).toISOString(), oiId: '', cat, by: p }));
-  }
+  if (forSlice) richSlice(forSlice, mkA, entry, p0, today);
   // ОЦ «Механизмы и оборудование» — осмотр закончен, значения по единицам.
   const mechOc = recs.find((r) => r.typeId === 'mechanisms' && (r.ois || []).length && r.ois[0].units.length && !mine(r).length);
   if (mechOc) {
@@ -802,3 +797,80 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
   }
   return out;
 }
+
+// Версия демо-результатов: сохранённое в браузере демо прежней версии
+// заменяется новым (kernel/inspectionResults.js, seedDemoResults); введённое
+// руками не трогается. Поднимать при изменении демо-результатов.
+const DEMO_RESULTS_VER = '2026-11-02-срез';
+
+// Объект среза ЦОД «Осмотр закончен — проверить» — «в боевом режиме»
+// (пользователь 02.11.2026: «Заполни детальными тестовыми данными. Снимками и
+// т.д. (просто снимки - заглушки)»): осмотр закончен целиком; по объекту —
+// заметка, контакты, два скана документов, голосовая заметка и снимки; по
+// каждому ОИ — все значения осмотра и десятки снимков-заглушек по категориям.
+//
+// Объект — синтетическая запись демо-объёма: её карточку генератор не
+// собирает (сборка кладёт запись в список и меняет счётчики реестра, 13.10.2026),
+// поэтому значения и снимки по ОИ дописываются при первом открытии вкладки
+// «Результаты осмотра», когда карточка уже собрана (completeRichDemo).
+const RICH_PHOTOS = {
+  building: [['Фасад', 14], ['Внутр. помещения', 48], ['Кровля', 9], ['Конструкции', 6]],
+  land: [['Земельный участок', 12]],
+  apartment: [['Внутр. помещения', 22], ['Фасад', 4]],
+  mech: [['Прочее', 6]],
+  vehicle: [['Машина', 8]],
+};
+const CARD_WORD = { building: 'Литера', land: 'Участок', apartment: 'Квартира', mech: 'Механизмы', vehicle: 'ТС' };
+
+function richShot(e, ocId, oiId, cat, n, label, t0, by) {
+  const k = e.photos.length + 1;
+  e.photos.push({ id: `demo-ph-${ocId}-${k}`, name: `${cat} ${n}.svg`, size: 1500, type: 'image/svg+xml', dataUrl: photoImg(label, cat, n),
+    at: new Date(t0 + k * 47000).toISOString(), oiId, cat, by });
+}
+
+function richSlice(r, mkA, entry, by, today) {
+  mkA(r, by, [], 'done', -1);
+  const e = entry(r);
+  const t0 = dayAt(today, -1, 9).getTime();
+  e.note = 'Осмотрен целиком. Фасад требует покраски, в подвале следы подтопления; участок огорожен, въезд с улицы. Этажность по факту отличается от техпаспорта — надстроен мансардный этаж.';
+  e.contacts.push({ id: `demo-ct-${r.ocId}-1`, name: 'Садыков Эрлан (демо)', role: 'завхоз', phone: '+996 555 101 202' },
+    { id: `demo-ct-${r.ocId}-2`, name: 'Иманалиева Гульнара (демо)', role: 'бухгалтер учреждения', phone: '+996 700 303 404' });
+  [['Фасад', 3], ['Прочее', 2]].forEach(([cat, cnt]) => { for (let i = 1; i <= cnt; i++) richShot(e, r.ocId, '', cat, i, 'Объект оценки', t0, by); });
+  const at = (h) => dayAt(today, -1, h).toISOString();
+  const pages = (title, n) => Array.from({ length: n }, (_, i) => ({ id: `demo-sp-${r.ocId}-${title.length}-${i + 1}`, name: `${title}, стр. ${i + 1}.svg`,
+    size: 1800, type: 'image/svg+xml', dataUrl: scanPage(title, i + 1, n) }));
+  e.scans = [
+    { id: `demo-sc-${r.ocId}-1`, title: 'Технический паспорт', oiId: '', by, at: at(11), source: 'осмотр', status: 'ждёт ЦОД', pages: pages('Технический паспорт', 3) },
+    { id: `demo-sc-${r.ocId}-2`, title: 'Акт осмотра с подписью завхоза', oiId: '', by, at: at(12), source: 'осмотр', status: 'ждёт ЦОД', pages: pages('Акт осмотра', 1) },
+  ];
+  e.voices = [{ id: `demo-vn-${r.ocId}-1`, name: 'заметка-подвал.wav', size: 8044, type: 'audio/wav', oiId: '', dur: 1, by, at: at(13), dataUrl: silenceWav() }];
+  e.richPending = { by, t0 };
+}
+
+// Дописать значения и снимки по ОИ собранной карточки (см. richSlice): один
+// раз, отметка richPending снимается. Возвращает, было ли что дописать.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-результатов нет, функция уходит вместе с засевом.
+export function completeRichDemo(res, rec) {
+  if (!res || !res.richPending || !rec) return false;
+  const { by, t0 } = res.richPending;
+  (rec.oi || []).forEach((o) => {
+    const oi = { id: o.id, card: o.card, litKind: o.litKind || '', units: (o.mechanisms || []).map((u) => u.id) };
+    res.assets[oi.id] = oiValues(oi, 1);
+    (RICH_PHOTOS[oi.card] || [['Прочее', 4]]).forEach(([cat, cnt]) => {
+      for (let i = 1; i <= cnt; i++) richShot(res, rec.id, oi.id, cat, i, CARD_WORD[oi.card] || 'Объект имущества', t0, by);
+    });
+  });
+  delete res.richPending;
+  return true;
+}
+
+// Голосовая заметка-заглушка: секунда тишины (WAV, 8 кГц, 8 бит).
+function silenceWav() {
+  const n = 8000;
+  const head = [0x52, 0x49, 0x46, 0x46, ...le(36 + n, 4), 0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, ...le(16, 4), ...le(1, 2), ...le(1, 2),
+    ...le(8000, 4), ...le(8000, 4), ...le(1, 2), ...le(8, 2), 0x64, 0x61, 0x74, 0x61, ...le(n, 4)];
+  const bin = String.fromCharCode(...head) + String.fromCharCode(128).repeat(n);
+  return 'data:audio/wav;base64,' + (typeof btoa === 'function' ? btoa(bin) : '');
+}
+function le(v, bytes) { return Array.from({ length: bytes }, (_, i) => (v >> (8 * i)) & 255); }
