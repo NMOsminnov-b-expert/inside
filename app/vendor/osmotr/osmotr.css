@@ -73,3 +73,9 @@ html, body, #app { touch-action: none; }
 .osmotr-install { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 8px); z-index: 9; display: flex; gap: 12px; align-items: center;
   background: #1F6FEB; color: #fff; border-radius: 14px; padding: 12px 14px; font: 15px/1.35 -apple-system, system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
 .osmotr-install button { flex: none; border: 0; border-radius: 18px; min-height: 36px; padding: 6px 14px; background: rgba(255,255,255,.22); color: #fff; font: inherit; font-weight: 600; }
+
+/* Свайп от края — «назад» (glue.js, edgeBack): кружок со стрелкой у края, полный — отпустить и вернуться. */
+.osmotr-edge-back { position: fixed; left: 0; top: 0; width: 44px; height: 44px; border-radius: 50%; z-index: 20;
+  display: grid; place-items: center; font: 600 30px/1 -apple-system, system-ui, sans-serif; pointer-events: none; opacity: 0;
+  background: rgba(31,35,40,.55); color: #fff; transition: background .12s; }
+.osmotr-edge-back.ready { background: #1f6feb; }

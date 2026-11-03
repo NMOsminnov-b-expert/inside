@@ -31,17 +31,36 @@
           'Обновите систему: Настройки → Основные → Обновление ПО.</p><small></small></div>'
         el.querySelector('small').textContent = why
       }
+      // Не загрузилось, хотя браузер подходит (сеть, обрыв) — другое: обновить, а не менять телефон.
+      const failed = why => {
+        const el = document.getElementById('loading')
+        if (!el) return
+        el.className = 'unsupported'
+        el.innerHTML = '<div><b>«Осмотр» не загрузился</b><p>Проверьте связь с сервером и откройте приложение заново.</p><small></small></div>'
+        el.querySelector('small').textContent = why
+      }
       const gc = (() => { try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 3, 1, 95, 0])) } catch { return false } })()
       if (!gc) return unsupported('нет WebAssembly GC')
-      addEventListener('error', e => { if (document.getElementById('loading')) unsupported(String(e.message || e.error || 'ошибка загрузки')) })
-      addEventListener('unhandledrejection', e => { if (document.getElementById('loading')) unsupported(String(e.reason?.message ?? e.reason)) })
+      // «Не подходит» — только когда не собирается сам WebAssembly. Прочие сбои при загрузке (первый запуск: кэш без сети
+      // ещё ставится, обрыв) пишутся молча, а показываются, только если приложение так и не открылось: прежде любая
+      // ошибка сразу говорила «браузер не подходит», и приложение тут же открывалось поверх (автор, 03.11.2026).
+      let problem = null
+      const note = why => {
+        if (!document.getElementById('loading')) return
+        if (/CompileError|LinkError|WebAssembly\.(Module|instantiate|compile)/i.test(why)) unsupported(why); else problem ??= why
+      }
+      addEventListener('error', e => note(String(e.message || e.error || 'ошибка загрузки')))
+      addEventListener('unhandledrejection', e => note(String(e.reason?.message ?? e.reason)))
       const s = document.createElement('script')
       s.src = 'osmotr.js'
+      s.onerror = () => { problem ??= 'не загрузился osmotr.js' }
       document.body.append(s)
+      setTimeout(() => { if (document.getElementById('loading') && !document.querySelector('#loading.unsupported')) failed(problem ?? 'загрузка дольше 30 с') }, 30000)
     })()
 
-    // Без сети — из кэша (sw.js создаёт tools/web/sw.mjs при сборке); нужен https (или localhost).
-    if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js')
+    // Без сети — из кэша (sw.js создаёт tools/web/sw.mjs при сборке); нужен https (или localhost). Не поставился —
+    // приложение работает и так, это не ошибка запуска.
+    if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {})
   </script>
 </body>
 </html>

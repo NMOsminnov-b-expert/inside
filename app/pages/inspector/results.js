@@ -143,6 +143,9 @@ function summaryHTML(rec, list, items, r) {
   const scans = (r && r.scans) || [];
   const waitScans = scans.filter((s) => !(s.review && s.review.state)).length;
   const found = ((r && r.found) || []).length;
+  // Удалено осмотрщиком на телефоне после отправки — в системе остаётся с пометкой (решение 03.11.2026: «Система копит всё»).
+  const deleted = r ? [...(r.photos || []), ...(r.voices || []), ...(r.scans || [])].filter((x) => x.deletedByInspector).length : 0;
+  const outcome = r && r.outcome;
   const stat = (n, label, warn = false) => `<span class="ir-stat ${warn && n && n !== '0' ? 'warn' : ''}"><b>${n}</b> ${esc(label)}</span>`;
   const people = [...new Set(list.map((a) => a.person))];
   return `<div class="card t-blue ir-sum">
@@ -155,7 +158,10 @@ function summaryHTML(rec, list, items, r) {
       ${stat(num(photos), plural(photos, 'снимок', 'снимка', 'снимков'))}
       ${scans.length ? stat(`${waitScans} из ${scans.length}`, 'сканов ждут разбора', waitScans > 0) : ''}
       ${found ? stat(found, 'выявлено на осмотре', true) : ''}
+      ${deleted ? stat(deleted, 'удалено осмотрщиком на телефоне', true) : ''}
     </div>
+    ${outcome ? `<div class="ir-sum-who"><span class="ir-sum-a">Осмотр не состоялся: <b>${esc(outcome.reason)}</b>${outcome.note ? ` — ${esc(outcome.note)}` : ''}</span>
+      <span class="ir-muted">${esc(outcome.by)} · ${esc(ddmm(outcome.at))}</span></div>` : ''}
   </div>`;
 }
 

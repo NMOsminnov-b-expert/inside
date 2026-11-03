@@ -24,12 +24,15 @@
 // литер — по идентификатору ОИ, который приложение получит с назначением.
 import { readZip } from '../../kernel/zipRead.js';
 import { xlsxRows } from '../../kernel/xlsx.js';
+import { setValue } from '../../kernel/fieldSchema.js';
 import { resultsOf, valuesOf, addResultPhoto, addResultVoice, addResultScan, saveResults } from '../../kernel/inspectionResults.js';
 import { allAssignments, coversOi, changed } from '../../kernel/inspections.js';
 import { ownOis } from './tasks.js';
 
 const REAL = 'Недвижимое';
-const MOVABLE = 'Движимое';
+// «Транспортные средства» — с 03.11.2026 (решение пользователя); «Движимое» — прежние архивы.
+const MOVABLES = ['Транспортные средства', 'Движимое'];
+const isMovable = (x) => MOVABLES.includes(x);
 const DOCS = 'Документы';
 const MACHINES = 'Механизмы и оборудование';
 const LAND = 'Земельный участок';
@@ -53,7 +56,7 @@ function timeOf(name) {
 
 // Корень объекта в архиве: всё до первой служебной папки («Недвижимое» и т. д.).
 function objectRoot(entries) {
-  const marks = [REAL, MOVABLE, DOCS, MACHINES, 'Объект.txt', 'Контакты.xlsx'];
+  const marks = [REAL, ...MOVABLES, DOCS, MACHINES, 'Объект.txt', 'Контакты.xlsx'];
   for (const e of entries) {
     const parts = e.path.split('/');
     const i = parts.findIndex((x) => marks.includes(x));
@@ -81,10 +84,18 @@ export async function importArchive(typeId, rec, file) {
 }
 
 // Файлы папки объекта приложения → результаты осмотра. entries — [{ rel, read,
-// oiId? }]: rel — путь от папки объекта («Недвижимое/Литер А/Фасад/…jpg»), read —
-// Blob файла, oiId — ОИ, к которому относится папка (приложение в режиме E•state
-// знает его из назначения — pages/osmotr/bridge.js; у архива его нет, ОИ ищется
-// по букве литеры и госномеру). Общий разбор архива и отправки из приложения.
+// oiId?, depth? }]: rel — путь от папки объекта («Недвижимое/Литера А/Фасад/…jpg»),
+// read — Blob файла; oiId — ОИ, к которому относится папка, depth — сколько
+// частей пути занимает папка этого ОИ (0 — объект и есть ОИ: объект-ТС).
+// Приложение в режиме E•state знает их из назначения (pages/osmotr/bridge.js); у
+// архива их нет — ОИ ищется по букве литеры, ЕНИ участка и госномеру. Общий
+// разбор архива и отправки из приложения.
+//
+// Решения пользователя 03.11.2026 (аудит приложения): документы — «Любые
+// форматы куда угодно» (файл из любой папки «Документы» — скан на разбор ЦОД, к
+// своему ОИ); удаления на телефоне — «Система копит всё» (markDeleted —
+// пометка, а не удаление). Итог по каждому файлу — results: принят или нет и
+// почему (приложение отмечает отправленным только принятое).
 export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {}) {
   const ocId = rec.id;
   const r = resultsOf(typeId, ocId);
@@ -92,109 +103,149 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
   const ois = ownOis(rec);
   const list = allAssignments().filter((a) => a.typeId === typeId && a.ocId === ocId && a.state !== 'removed');
   const byOf = (oiId) => ((list.find((a) => coversOi(a, oiId)) || list[0] || {}).person || '');
-  const sum = { photos: 0, values: 0, voices: 0, scans: 0, contacts: 0, found: [], matched: [], skipped: [], repeated: 0 };
+  const sum = { photos: 0, values: 0, voices: 0, scans: 0, contacts: 0, found: [], matched: [], skipped: [], repeated: 0, taken: 0, results: [] };
 
   // Папка ОИ в архиве → id ОИ (своего или выявленного).
   const folderMap = new Map();
   const foundFor = (label, card, extra = {}) => {
     let f = r.found.find((x) => x.source && x.source.label === source && norm(x.name) === norm(label));
     if (!f) {
-      f = { id: `found-arc-${Date.now().toString(36)}-${r.found.length + 1}`, card, name: label, where: card === 'vehicle' ? MOVABLE : REAL,
-        foundBy: byOf(''), foundAt: new Date().toISOString().slice(0, 10), note: source === SOURCE ? 'выявлено на осмотре (из архива приложения)' : 'выявлено на осмотре', source: { kind: source === SOURCE ? 'archive' : 'app', label: source }, ...extra };
+      f = { id: `found-arc-${Date.now().toString(36)}-${r.found.length + 1}`, card, name: label, where: card === 'vehicle' ? MOVABLES[0] : REAL,
+        foundBy: byOf(''), foundAt: new Date().toISOString().slice(0, 10), note: source === SOURCE ? 'выявлено на осмотре (из архива приложения)' : 'выявлено на осмотре',
+        source: { kind: source === SOURCE ? 'archive' : 'app', label: source }, ...extra };
       r.found.push(f);
     }
     if (!sum.found.includes(label)) sum.found.push(label);
     return f.id;
   };
-  const oiFor = (top, name, given = '') => {
+  // ОИ по пути (архив): литера по букве или названию; участок — по ЕНИ подпапки, иначе первый; ТС — по госномеру.
+  const oiFor = (parts) => {
+    const top = parts[0];
+    const name = parts[1];
+    if (top === REAL && name === LAND) {
+      const lands = ois.filter((o) => o.card === 'land');
+      const sub = parts.length > 3 ? String(parts[2]).replace(/\D/g, '') : '';
+      const byEni = sub && lands.find((o) => String(o.eni || '').replace(/\D/g, '') === sub);
+      if (byEni) return { id: byEni.id, depth: 3 };
+      const key = `${top}/${name}`;
+      if (!folderMap.has(key)) folderMap.set(key, lands[0] ? lands[0].id : foundFor(LAND, 'land'));
+      return { id: folderMap.get(key), depth: 2 };
+    }
     const key = `${top}/${name}`;
-    if (folderMap.has(key)) return folderMap.get(key);
+    if (folderMap.has(key)) return { id: folderMap.get(key), depth: 2 };
     let id = '';
-    if (given && ois.some((o) => o.id === given)) id = given;
-    else if (top === REAL && name === LAND) {
-      const land = ois.find((o) => o.card === 'land');
-      id = land ? land.id : foundFor(LAND, 'land');
-    } else if (top === REAL) {
+    if (top === REAL) {
       const l = letterOf(name);
       const hit = ois.find((o) => (o.card === 'building' || o.card === 'apartment') && o.letter && norm(o.letter) === l)
         || ois.find((o) => (o.card === 'building' || o.card === 'apartment') && norm(o.name) === norm(name))
         || (ois.filter((o) => o.card === 'apartment').length === 1 && ois.filter((o) => o.card === 'building').length === 0 ? ois.find((o) => o.card === 'apartment') : null);
       id = hit ? hit.id : foundFor(name, 'building');
-    } else if (top === MOVABLE) {
+    } else if (isMovable(top)) {
       const p = plateKey(name);
       const hit = ois.find((o) => o.card === 'vehicle' && plateKey(((o.vehicle || {}).f || {}).plate) === p);
       id = hit ? hit.id : foundFor(name, 'vehicle', { plate: name });
     }
     if (id && !sum.matched.includes(name) && !sum.found.includes(name)) sum.matched.push(name);
     folderMap.set(key, id);
-    return id;
+    return { id, depth: 2 };
   };
 
   const has = (arr, name, oiId) => (arr || []).some((x) => x.name === name && (x.oiId || '') === oiId);
 
   for (const e of entries) {
-    const parts = e.rel.split('/');
-    const name = parts[parts.length - 1];
+    const parts = e.rel.split('/').filter(Boolean);
+    const name = parts[parts.length - 1] || '';
     const top = parts[0];
+    let taken = false;
+    let why = '';
+    const skip = (text) => { why = text; sum.skipped.push(text); };
     try {
-      if (top === MACHINES) { sum.skipped.push('описи «Механизмов и оборудования» — на начальном этапе не разбираются'); continue; }
-      if (parts.length === 1) {
-        if (name === 'Контакты.xlsx') {
-          const rows = await xlsxRows(await (await e.read()).arrayBuffer());
-          const head = (rows[0] || []).map(norm);
-          const col = (re) => head.findIndex((h) => re.test(h));
-          const ci = { name: col(/фио|имя|контакт/), role: col(/должн|роль|кто/), phone: col(/тел/) };
-          rows.slice(1).forEach((row) => {
-            const c = { name: row[ci.name] || row[0] || '', role: ci.role >= 0 ? row[ci.role] : '', phone: ci.phone >= 0 ? row[ci.phone] : '' };
-            if (!c.name && !c.phone) return;
-            if ((r.contacts || []).some((x) => norm(x.name) === norm(c.name) && norm(x.phone) === norm(c.phone))) { sum.repeated++; return; }
-            (r.contacts = r.contacts || []).push({ id: `ct-arc-${Date.now().toString(36)}-${r.contacts.length + 1}`, ...c, source });
-            sum.contacts++;
-          });
-        }
-        continue;
-      }
-      // Документы объекта и недвижимости — сканы на разбор ЦОД.
-      if ((top === DOCS || (top === REAL && parts[1] === DOCS)) && ext(name) === 'pdf') {
-        if ((r.scans || []).some((s) => s.title === name)) { sum.repeated++; continue; }
-        addResultScan(typeId, ocId, [await asFile(e, name)], { title: name, by: byOf('') });
-        sum.scans++;
-        continue;
-      }
-      if (top !== REAL && top !== MOVABLE) { if (isPhoto(name)) sum.skipped.push(`«${top}» — своя категория объекта, на начальном этапе не разбирается`); continue; }
-      if (parts.length < 3) continue;
-      const oiId = oiFor(top, parts[1], e.oiId);
-      if (!oiId) continue;
-      const inner = parts.slice(2);
-      if (inner.length === 1 && ext(name) === 'json') {
+      // ОИ файла: из назначения (приложение) или по пути (архив).
+      const given = e.oiId && ois.some((o) => o.id === e.oiId);
+      const at = given ? { id: e.oiId, depth: Number.isFinite(e.depth) ? e.depth : 2 }
+        : (parts.length >= 3 && (top === REAL || isMovable(top))) ? oiFor(parts) : { id: '', depth: 0 };
+      const oiId = at.id;
+      const inner = parts.slice(at.depth);
+      const docAt = parts.slice(0, -1).indexOf(DOCS);
+      if (top === MACHINES) {
+        skip('описи «Механизмов и оборудования» — отдельным обменом описи');
+      } else if (docAt >= 0) {
+        // Документ — из любой папки «Документы», любого формата, к ОИ этой папки (или к объекту).
+        if ((r.scans || []).some((s) => s.title === name && (s.oiId || '') === oiId)) { sum.repeated++; taken = true; }
+        else { addResultScan(typeId, ocId, [await asFile(e, name)], { title: name, oiId, by: byOf(oiId) }); sum.scans++; taken = true; }
+      } else if (parts.length === 1 && name === 'Контакты.xlsx') {
+        const rows = await xlsxRows(await (await e.read()).arrayBuffer());
+        const head = (rows[0] || []).map(norm);
+        const col = (re) => head.findIndex((h) => re.test(h));
+        const ci = { name: col(/фио|имя|контакт/), role: col(/должн|роль|кто/), phone: col(/тел/) };
+        rows.slice(1).forEach((row) => {
+          const c = { name: row[ci.name] || row[0] || '', role: ci.role >= 0 ? row[ci.role] : '', phone: ci.phone >= 0 ? row[ci.phone] : '' };
+          if (!c.name && !c.phone) return;
+          if ((r.contacts || []).some((x) => norm(x.name) === norm(c.name) && norm(x.phone) === norm(c.phone))) { sum.repeated++; return; }
+          (r.contacts = r.contacts || []).push({ id: `ct-arc-${Date.now().toString(36)}-${r.contacts.length + 1}`, ...c, source });
+          sum.contacts++;
+        });
+        taken = true;
+      } else if (parts.length === 1 && name === 'Объект.txt') {
+        taken = true; // сведения объекта приходят из системы — сам файл не нужен
+      } else if (!oiId) {
+        skip(top === REAL || isMovable(top) ? `«${e.rel}» — не определился объект имущества` : `«${top}» — не раздел объекта`);
+      } else if (inner.length === 1 && ext(name) === 'json') {
         const vals = JSON.parse(await (await e.read()).text());
         const into = valuesOf(typeId, ocId, oiId);
         Object.entries(vals).forEach(([k, v]) => {
           if (k.startsWith('carried.') || v === '' || (Array.isArray(v) && !v.length)) return;
-          into[k] = v;
+          // Ключ с точкой («f.mileage», «ts.addr», «u.<id>.state») — вложенно, как пишет форма осмотра (fieldSchema.setValue):
+          // иначе значение ложилось буквальным ключом «f.mileage», и форма его не видела.
+          setValue(into, k, v);
           sum.values++;
         });
-        continue;
-      }
-      if (isPhoto(name)) {
-        if (has(r.photos, name, oiId)) { sum.repeated++; continue; }
-        const cat = inner.length > 1 ? inner[0] : 'Прочее';
-        addResultPhoto(typeId, ocId, await asFile(e, name), { oiId, cat, by: byOf(oiId), at: timeOf(name), source });
-        sum.photos++;
+        taken = true;
+      } else if (isPhoto(name)) {
+        if (has(r.photos, name, oiId)) { sum.repeated++; taken = true; }
+        else {
+          const cat = inner.length > 1 ? inner[0] : 'Прочее';
+          addResultPhoto(typeId, ocId, await asFile(e, name), { oiId, cat, by: byOf(oiId), at: timeOf(name), source });
+          sum.photos++; taken = true;
+        }
       } else if (isVoice(name)) {
-        if (has(r.voices, name, oiId)) { sum.repeated++; continue; }
-        const v = addResultVoice(typeId, ocId, await e.read(), { oiId, by: byOf(oiId) });
-        Object.assign(v, { name, at: timeOf(name), source });
-        sum.voices++;
+        if (has(r.voices, name, oiId)) { sum.repeated++; taken = true; }
+        else {
+          const v = addResultVoice(typeId, ocId, await e.read(), { oiId, by: byOf(oiId) });
+          Object.assign(v, { name, at: timeOf(name), source });
+          sum.voices++; taken = true;
+        }
       } else if (isVideo(name)) {
-        sum.skipped.push('видео — на начальном этапе не переносится');
+        skip('видео — система пока не принимает');
+      } else {
+        skip(`«${name}» — не снимок, не голос и не документ: документы кладутся в папку «${DOCS}»`);
       }
     } catch (err) {
-      sum.skipped.push(`«${e.rel}»: ${err.message}`);
+      skip(`«${e.rel}»: ${err.message}`);
     }
+    if (taken) sum.taken++;
+    sum.results.push({ rel: e.rel, taken, why });
   }
   saveResults();
   changed();
   sum.skipped = [...new Set(sum.skipped)];
   return sum;
+}
+
+// Удалённое на телефоне — пометка в результатах, а не удаление (решение 03.11.2026:
+// «Система копит всё»): снимок, голос или документ с этим именем у этого ОИ
+// получает deletedByInspector — когда и кем. Сколько отмечено.
+export function markDeleted(typeId, rec, rel, { oiId = '', by = '' } = {}) {
+  const name = String(rel || '').split('/').pop();
+  const r = resultsOf(typeId, rec.id);
+  const at = new Date().toISOString();
+  let n = 0;
+  [r.photos, r.voices, r.scans].forEach((arr) => (arr || []).forEach((x) => {
+    if ((x.name === name || x.title === name) && (!oiId || (x.oiId || '') === oiId) && !x.deletedByInspector) {
+      x.deletedByInspector = { at, by };
+      n++;
+    }
+  }));
+  if (n) { saveResults(); changed(); }
+  return n;
 }

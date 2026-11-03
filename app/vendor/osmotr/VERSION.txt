@@ -1,1 +1,1 @@
-Приложение «Осмотр», коммит e1a8e93 2026-11-03 E•state integration (PWA): sign-in, assigned objects, sending as you shoot, map
+Приложение «Осмотр», коммит ceb7799 2026-11-03 E•state: three entities, honest sending, inventory exchange, route, outcomes

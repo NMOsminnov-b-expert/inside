@@ -298,8 +298,30 @@
   document.addEventListener('gesturestart', e => e.preventDefault(), { passive: false })
   // Двойное касание: iOS приближает страницу и при touch-action (автор, 02.11.2026: «и в камере работает»).
   // Второе быстрое касание гасится; кнопка нажимается сама, иначе пропал бы быстрый снимок. Поля ввода не трогаем.
+  // Клавиатура: iOS поднимает её, только если фокус поставлен прямо в обработчике касания, а Compose ставит его
+  // кадром позже или уже поставил сам, открыв окно. Попали в поле ввода (дерево доступности) — фокус здесь же:
+  // в элемент ввода Compose, а пока его нет — в скрытое поле, и Compose заберёт уже открытую клавиатуру.
+  let keyHolder = null
+  const raiseKeyboard = e => {
+    const t = e.changedTouches[0], root = document.querySelector('compose-component > div')?.shadowRoot
+    if (!t || !root || e.touches.length) return
+    const inside = b => { const r = b.getBoundingClientRect(); return t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom }
+    if (![...root.querySelectorAll('[role=textbox][contenteditable=true]')].some(inside)) return
+    const input = root.activeElement
+    if (input?.isContentEditable) { input.blur(); input.focus({ preventScroll: true }); return }
+    if (!keyHolder) {
+      keyHolder = document.createElement('input')
+      keyHolder.setAttribute('aria-hidden', 'true'); keyHolder.tabIndex = -1
+      keyHolder.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0;font-size:16px'   // мельче 16px iOS приближает страницу
+      document.body.append(keyHolder)
+    }
+    keyHolder.style.top = t.clientY + 'px'; keyHolder.style.left = t.clientX + 'px'
+    keyHolder.focus({ preventScroll: true })
+    setTimeout(() => { if (document.activeElement === keyHolder) keyHolder.blur() }, 1000)
+  }
   let lastTouch = 0
   document.addEventListener('touchend', e => {
+    raiseKeyboard(e)
     const now = performance.now(), quick = now - lastTouch < 400
     lastTouch = now
     if (!quick || e.touches.length || e.target.closest?.('input, textarea, select, video[controls]')) return
@@ -368,12 +390,72 @@
     history.pushState({ osmotr: 'app' }, '')
     addEventListener('popstate', () => {
       history.pushState({ osmotr: 'app' }, '')
-      const camera = document.querySelector('.osmotr-camera .done')
-      if (camera) { camera.click(); return } // на экране камеры «назад» = «Готово»
-      const player = document.querySelector('.osmotr-player .close')
-      if (player) { player.click(); return } // видео — закрыть проигрыватель
-      osmotrWeb.onBack?.()
+      osmotrWeb.goBack()
     })
+    edgeBack()
+  }
+  osmotrWeb.goBack = () => {
+    const camera = document.querySelector('.osmotr-camera .done')
+    if (camera) { camera.click(); return } // на экране камеры «назад» = «Готово»
+    const player = document.querySelector('.osmotr-player .close')
+    if (player) { player.click(); return } // видео — закрыть проигрыватель
+    osmotrWeb.onBack?.()
+  }
+
+  // ---------- Клавиатура: приложение — над ней ----------
+  // iOS и Chrome не ужимают страницу под клавиатуру, а кладут её поверх: поле комментария уходило под неё (автор,
+  // 03.11.2026). Холст приложения — ровно видимая часть: Compose перекладывает экран, как на телефоне с отступом.
+  if (window.visualViewport) {
+    const vv = window.visualViewport
+    const fit = () => {
+      const app = document.getElementById('app'); if (!app) return
+      const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      app.style.bottom = covered > 80 ? covered + 'px' : ''
+      if (covered > 80 && vv.offsetTop) window.scrollTo(0, 0)   // iOS сдвигает страницу к полю — вернуть
+    }
+    vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit)
+  }
+
+  // ---------- Свайп от левого края — «назад», как в iOS ----------
+  // У приложения с экрана «Домой» на iPhone нет «назад» ни кнопкой, ни жестом (автор, 03.11.2026: «На ios жесты назад
+  // работают иначе»). Во вкладке Safari край листает историю сам — там не включаем, иначе шаг вышел бы двойным.
+  // Палец от края ведёт кружок со стрелкой; отпустили дальше порога — назад, раньше — ничего.
+  const edgeBack = () => {
+    const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))
+    if (!(standalone && ios) && !globalThis.__osmotrEdgeBack) return   // __osmotrEdgeBack — для автотестов
+    const EDGE = 24, GO = 80
+    let x0 = 0, y0 = 0, on = false, dx = 0
+    const mark = document.createElement('div')
+    mark.className = 'osmotr-edge-back'; mark.setAttribute('aria-hidden', 'true'); mark.textContent = '‹'
+    document.body.append(mark)
+    const show = () => {
+      const k = Math.min(1, dx / GO)
+      mark.style.opacity = String(k)
+      mark.style.transform = `translate(${Math.min(dx, GO) * 0.6 - 44}px, ${y0 - 22}px) scale(${0.7 + 0.3 * k})`
+      mark.classList.toggle('ready', dx >= GO)
+    }
+    addEventListener('touchstart', e => {
+      const t = e.touches[0]
+      on = e.touches.length === 1 && t.clientX <= EDGE && !document.querySelector('.osmotr-camera')
+      if (on) { x0 = t.clientX; y0 = t.clientY; dx = 0 }
+    }, { capture: true, passive: true })
+    addEventListener('touchmove', e => {
+      if (!on) return
+      const t = e.touches[0]
+      dx = t.clientX - x0
+      if (Math.abs(t.clientY - y0) > Math.max(40, dx)) { on = false; dx = 0; show(); return }   // вертикально — это прокрутка
+      if (dx > 8) { e.preventDefault(); e.stopPropagation(); show() }
+    }, { capture: true, passive: false })
+    const end = () => {
+      if (!on) return
+      on = false
+      const go = dx >= GO
+      dx = 0; show()
+      if (go) osmotrWeb.goBack()
+    }
+    addEventListener('touchend', end, { capture: true, passive: true })
+    addEventListener('touchcancel', () => { on = false; dx = 0; show() }, { capture: true, passive: true })
   }
 
   // ---------- Диктофон: голосовые заметки к папке и описи ----------
@@ -830,6 +912,8 @@
     embedded: () => !!parentWin,
     online: () => navigator.onLine !== false,
     onChanged(f) { changed = f },
+    /** Содержимое Blob системы (книга описи) — байтами. */
+    bytes(blob, done) { blob.arrayBuffer().then(a => done(new Uint8Array(a)), () => done(null)) },
     /** Запрос системе; done(ok, json, blob, error). Ответа нет [ms] — «нет связи с системой». */
     ask(t, json, blob, ms, done) {
       if (!parentWin) return done(false, null, null, 'не в системе')
