@@ -8,12 +8,14 @@
 // Прежний экран осмотрщика (#/insp, pages/inspector) не удалён: на нём держатся
 // автопроверки и ссылки панели регионала; из меню он убран.
 //
-// Обмен с макетом — пока архивом: приложение выгружает осмотр архивом, ЦОД
-// загружает его во вкладке «Результаты осмотра» карточки ОЦ (archiveImport.js).
-// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: задание и результат — через сервер (API), а не файлом.
+// Обмен с системой — мостом (bridge.js): вход по учётной записи E•state,
+// назначенные объекты, отправка снятого в «Результаты осмотра». Архив
+// (archiveImport.js) остаётся запасным путём.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: задание и результат — через сервер (API), а не окном макета.
 
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import { INSP_HREF } from '../../kernel/router.js';
+import { connectBridge } from './bridge.js';
 
 export const OSMOTR_SRC = './app/vendor/osmotr/index.html';
 // Есть ли сборка и какая — пишет tools/osmotr/sync_pwa.py; файл в репозитории всегда
@@ -27,6 +29,7 @@ export function mountOsmotr(host) {
   setCrumbs([{ label: 'Главная', to: '#/' }, { label: 'Осмотры (осмотрщики)', current: true }]);
   scope.setHTML('<div class="om-page"></div>');
   const page = scope.$('.om-page');
+  let disconnect = null;
   // Сборки нет (папку кладёт tools/osmotr/sync_pwa.py) — сказать прямо и дать
   // прежний экран, а не показывать в рамке ответ сервера «404».
   fetch(OSMOTR_INFO, { cache: 'no-store' })
@@ -35,13 +38,16 @@ export function mountOsmotr(host) {
       const ok = !!(info && info.present);
       if (!page.isConnected) return;
       page.innerHTML = ok
-        ? `<iframe class="om-frame" src="${OSMOTR_SRC}" title="Приложение «Осмотр»"
+        ? `<iframe class="om-frame" src="${OSMOTR_SRC}" aria-label="Приложение «Осмотр»"
              allow="camera; geolocation; microphone; clipboard-write"></iframe>`
         : `<div class="om-none">
              <b>Приложение «Осмотр» не подключено к макету</b>
              <span>Нет сборки приложения в app/vendor/osmotr.</span>
              <a class="btn btn-ghost" href="${INSP_HREF}">Прежний экран осмотрщика</a>
            </div>`;
+      // Вход, назначенные объекты, отправка снятого — через мост (bridge.js).
+      const frame = page.querySelector('.om-frame');
+      if (frame) disconnect = connectBridge(frame);
     });
-  return { onRoute() {} };
+  return { onRoute() {}, destroy() { if (disconnect) disconnect(); } };
 }

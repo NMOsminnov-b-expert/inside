@@ -74,7 +74,18 @@ export async function importArchive(typeId, rec, file) {
   if (root === null) throw new Error('В архиве нет папок объекта осмотра («Недвижимое», «Движимое», «Документы»)');
   const others = new Set(all.map((e) => e.path).filter((p) => !p.startsWith(root ? root + '/' : '')).map((p) => p.split('/').slice(0, 2).join('/')));
   const entries = all.filter((e) => !root || e.path.startsWith(root + '/')).map((e) => ({ ...e, rel: root ? e.path.slice(root.length + 1) : e.path }));
+  const sum = await applyEntries(typeId, rec, entries);
+  if (others.size && root) sum.skipped.push(`в архиве есть и другие объекты — взят «${root.split('/').pop()}»`);
+  sum.object = root ? root.split('/').pop() : '';
+  return sum;
+}
 
+// Файлы папки объекта приложения → результаты осмотра. entries — [{ rel, read,
+// oiId? }]: rel — путь от папки объекта («Недвижимое/Литер А/Фасад/…jpg»), read —
+// Blob файла, oiId — ОИ, к которому относится папка (приложение в режиме E•state
+// знает его из назначения — pages/osmotr/bridge.js; у архива его нет, ОИ ищется
+// по букве литеры и госномеру). Общий разбор архива и отправки из приложения.
+export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {}) {
   const ocId = rec.id;
   const r = resultsOf(typeId, ocId);
   if (!Array.isArray(r.found)) r.found = [];
@@ -86,20 +97,21 @@ export async function importArchive(typeId, rec, file) {
   // Папка ОИ в архиве → id ОИ (своего или выявленного).
   const folderMap = new Map();
   const foundFor = (label, card, extra = {}) => {
-    let f = r.found.find((x) => x.source && x.source.label === SOURCE && norm(x.name) === norm(label));
+    let f = r.found.find((x) => x.source && x.source.label === source && norm(x.name) === norm(label));
     if (!f) {
       f = { id: `found-arc-${Date.now().toString(36)}-${r.found.length + 1}`, card, name: label, where: card === 'vehicle' ? MOVABLE : REAL,
-        foundBy: byOf(''), foundAt: new Date().toISOString().slice(0, 10), note: 'выявлено на осмотре (из архива приложения)', source: { kind: 'archive', label: SOURCE }, ...extra };
+        foundBy: byOf(''), foundAt: new Date().toISOString().slice(0, 10), note: source === SOURCE ? 'выявлено на осмотре (из архива приложения)' : 'выявлено на осмотре', source: { kind: source === SOURCE ? 'archive' : 'app', label: source }, ...extra };
       r.found.push(f);
     }
     if (!sum.found.includes(label)) sum.found.push(label);
     return f.id;
   };
-  const oiFor = (top, name) => {
+  const oiFor = (top, name, given = '') => {
     const key = `${top}/${name}`;
     if (folderMap.has(key)) return folderMap.get(key);
     let id = '';
-    if (top === REAL && name === LAND) {
+    if (given && ois.some((o) => o.id === given)) id = given;
+    else if (top === REAL && name === LAND) {
       const land = ois.find((o) => o.card === 'land');
       id = land ? land.id : foundFor(LAND, 'land');
     } else if (top === REAL) {
@@ -136,7 +148,7 @@ export async function importArchive(typeId, rec, file) {
             const c = { name: row[ci.name] || row[0] || '', role: ci.role >= 0 ? row[ci.role] : '', phone: ci.phone >= 0 ? row[ci.phone] : '' };
             if (!c.name && !c.phone) return;
             if ((r.contacts || []).some((x) => norm(x.name) === norm(c.name) && norm(x.phone) === norm(c.phone))) { sum.repeated++; return; }
-            (r.contacts = r.contacts || []).push({ id: `ct-arc-${Date.now().toString(36)}-${r.contacts.length + 1}`, ...c, source: SOURCE });
+            (r.contacts = r.contacts || []).push({ id: `ct-arc-${Date.now().toString(36)}-${r.contacts.length + 1}`, ...c, source });
             sum.contacts++;
           });
         }
@@ -151,7 +163,7 @@ export async function importArchive(typeId, rec, file) {
       }
       if (top !== REAL && top !== MOVABLE) { if (isPhoto(name)) sum.skipped.push(`«${top}» — своя категория объекта, на начальном этапе не разбирается`); continue; }
       if (parts.length < 3) continue;
-      const oiId = oiFor(top, parts[1]);
+      const oiId = oiFor(top, parts[1], e.oiId);
       if (!oiId) continue;
       const inner = parts.slice(2);
       if (inner.length === 1 && ext(name) === 'json') {
@@ -167,12 +179,12 @@ export async function importArchive(typeId, rec, file) {
       if (isPhoto(name)) {
         if (has(r.photos, name, oiId)) { sum.repeated++; continue; }
         const cat = inner.length > 1 ? inner[0] : 'Прочее';
-        addResultPhoto(typeId, ocId, await asFile(e, name), { oiId, cat, by: byOf(oiId), at: timeOf(name), source: SOURCE });
+        addResultPhoto(typeId, ocId, await asFile(e, name), { oiId, cat, by: byOf(oiId), at: timeOf(name), source });
         sum.photos++;
       } else if (isVoice(name)) {
         if (has(r.voices, name, oiId)) { sum.repeated++; continue; }
         const v = addResultVoice(typeId, ocId, await e.read(), { oiId, by: byOf(oiId) });
-        Object.assign(v, { name, at: timeOf(name), source: SOURCE });
+        Object.assign(v, { name, at: timeOf(name), source });
         sum.voices++;
       } else if (isVideo(name)) {
         sum.skipped.push('видео — на начальном этапе не переносится');
@@ -184,7 +196,5 @@ export async function importArchive(typeId, rec, file) {
   saveResults();
   changed();
   sum.skipped = [...new Set(sum.skipped)];
-  if (others.size && root) sum.skipped.push(`в архиве есть и другие объекты — взят «${root.split('/').pop()}»`);
-  sum.object = root ? root.split('/').pop() : '';
   return sum;
 }

@@ -802,3 +802,55 @@
     document.body.append(root)
   }
 })()
+
+// ---------- E•state: приложение в рамке страницы осмотрщиков системы ----------
+// Ветка estate-integration (решения автора 03.11.2026: учётная запись E•state, только назначенные
+// объекты, отправка по мере съёмки, без связи — копится). Обмен — сообщениями с родительским окном
+// своего же источника (postMessage): { osmotr: 1, id, t, body, blob } туда, { osmotr: 1, re, ok, body,
+// blob, error } обратно; { osmotr: 1, t: 'changed' } — назначения поменялись. Вне рамки — приложение
+// работает как прежде, без системы.
+;(() => {
+  'use strict'
+  const web = globalThis.osmotrWeb
+  const parentWin = window.parent !== window ? window.parent : null
+  const waiting = new Map()
+  let changed = null
+  let seq = 0
+  addEventListener('message', e => {
+    if (!parentWin || e.source !== parentWin || e.origin !== location.origin) return
+    const m = e.data
+    if (!m || m.osmotr !== 1) return
+    if (m.t === 'changed') { if (changed) changed(); return }
+    const w = waiting.get(m.re)
+    if (!w) return
+    waiting.delete(m.re); clearTimeout(w.timer)
+    w.done(!!m.ok, m.ok ? JSON.stringify(m.body ?? {}) : null, m.blob ?? null, m.ok ? null : String(m.error || 'отказ системы'))
+  })
+  web.estate = {
+    embedded: () => !!parentWin,
+    online: () => navigator.onLine !== false,
+    onChanged(f) { changed = f },
+    /** Запрос системе; done(ok, json, blob, error). Ответа нет [ms] — «нет связи с системой». */
+    ask(t, json, blob, ms, done) {
+      if (!parentWin) return done(false, null, null, 'не в системе')
+      const id = 'o' + (++seq) + '-' + Date.now().toString(36)
+      const timer = setTimeout(() => { waiting.delete(id); done(false, null, null, 'нет ответа системы') }, ms)
+      waiting.set(id, { done, timer })
+      let body = {}
+      try { body = JSON.parse(json || '{}') } catch {}
+      parentWin.postMessage({ osmotr: 1, id, t, body, blob: blob || null }, location.origin)
+    },
+  }
+
+  // ---------- Карта: клетки OpenStreetMap (подложка; © участники OpenStreetMap) ----------
+  web.tile = (z, x, y, done) => {
+    fetch(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`, { mode: 'cors' })
+      .then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+      .then(a => done(new Uint8Array(a)), () => done(null))
+  }
+  /** Внешняя ссылка (маршрут в навигаторе) — новой вкладкой. */
+  web.openUrl = url => {
+    const w = window.open(url, '_blank', 'noopener')
+    if (!w) { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.click() }
+  }
+})()

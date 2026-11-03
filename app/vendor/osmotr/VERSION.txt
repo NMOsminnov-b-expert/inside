@@ -1,1 +1,1 @@
-Приложение «Осмотр», коммит 2f2d0de 2026-11-03 3.22 (38): one bar of two buttons on top of a place; hints by rule; sheet stays calm
+Приложение «Осмотр», коммит e1a8e93 2026-11-03 E•state integration (PWA): sign-in, assigned objects, sending as you shoot, map
