@@ -230,8 +230,9 @@ def run(t):
     pg.keyboard.press('Escape')
     t.ck(t.wait_until("() => document.querySelector('[data-nav=\"insp\"]').hidden"), 'осмотрщику виден пункт «Осмотры (регионалы)»')
     pg.click('[data-nav="insp-field"]')
-    t.ck(t.wait_until("() => location.hash.startsWith('#/insp') && !location.hash.startsWith('#/inspections')"),
-         '«Осмотры (осмотрщики)» открыли не экран осмотрщика: %s' % pg.evaluate('location.hash'))
+    # С 03.11.2026 — приложение «Осмотр» (PWA) на странице #/osmotr.
+    t.ck(t.wait_until("() => location.hash === '#/osmotr' && !!document.querySelector('.om-frame, .om-none')"),
+         '«Осмотры (осмотрщики)» открыли не приложение «Осмотр»: %s' % pg.evaluate('location.hash'))
 
     # --- поля ввода одного вида ---------------------------------------------------------
     # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у

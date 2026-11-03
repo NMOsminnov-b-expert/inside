@@ -1,0 +1,75 @@
+/* Обёртка PWA: холст Compose на весь экран, экран камеры и кнопка «Поделиться» поверх. */
+:root { color-scheme: light dark; --bg: #F4F6F8; --fg: #1F2328; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0D1117; --fg: #E6EDF3; } }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); overscroll-behavior: none; }
+body { font: 16px -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+/* Жесты разбирает приложение: iOS игнорирует user-scalable=no, и двойное касание приближало страницу без возврата. */
+html, body, #app { touch-action: none; }
+#app { position: fixed; inset: 0; }
+#loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 600; opacity: .6; }
+#loading.unsupported { opacity: 1; font-size: 16px; font-weight: 400; padding: 24px; text-align: center; line-height: 1.45; }
+#loading.unsupported b { font-size: 19px; }
+#loading.unsupported small { opacity: .6; }
+
+.osmotr-camera { position: fixed; inset: 0; z-index: 10; background: #000; color: #fff; touch-action: none; font: 15px -apple-system, system-ui, sans-serif; }
+.osmotr-camera .frame { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); overflow: hidden; }
+.osmotr-camera video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.osmotr-camera .blink { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.osmotr-camera .grid { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to right, transparent calc(33.33% - .5px), rgba(255,255,255,.55) calc(33.33% - .5px), rgba(255,255,255,.55) calc(33.33% + .5px), transparent calc(33.33% + .5px),
+    transparent calc(66.67% - .5px), rgba(255,255,255,.55) calc(66.67% - .5px), rgba(255,255,255,.55) calc(66.67% + .5px), transparent calc(66.67% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.55) calc(33.33% - .5px), rgba(255,255,255,.55) calc(33.33% + .5px), transparent calc(33.33% + .5px),
+    transparent calc(66.67% - .5px), rgba(255,255,255,.55) calc(66.67% - .5px), rgba(255,255,255,.55) calc(66.67% + .5px), transparent calc(66.67% + .5px)); }
+.osmotr-camera .focus { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid #FFD60A; border-radius: 8px; pointer-events: none; }
+.osmotr-camera button { font: inherit; color: #fff; border: 0; cursor: pointer; }
+.osmotr-camera .chips { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 132px; display: flex; flex-wrap: wrap; gap: 8px; }
+.osmotr-camera .chips button { background: rgba(0, 0, 0, .6); border-radius: 18px; min-height: 36px; padding: 6px 14px; }
+.osmotr-camera .chips button[aria-pressed="true"] { background: #FFD60A; color: #000; }
+.osmotr-camera .counter, .osmotr-camera .writing, .osmotr-camera .timer { position: absolute; background: rgba(0, 0, 0, .6); color: #fff; }
+.osmotr-camera .counter { top: calc(env(safe-area-inset-top) + 12px); right: 12px; border-radius: 16px; padding: 8px 14px; }
+.osmotr-camera .writing { top: calc(env(safe-area-inset-top) + 56px); right: 12px; border-radius: 16px; padding: 8px 14px; font-size: 13px; }
+.osmotr-camera .timer { left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 100px); border-radius: 16px; padding: 6px 14px;
+  background: #D1242F; font-variant-numeric: tabular-nums; font-weight: 600; }
+.osmotr-camera .zooms { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 160px); display: flex; gap: 8px;
+  background: rgba(0, 0, 0, .45); border-radius: 22px; padding: 4px; }
+.osmotr-camera .zooms button { min-width: 44px; height: 36px; border-radius: 18px; background: transparent; font-size: 14px; font-weight: 600; }
+.osmotr-camera .zooms button[aria-pressed="true"] { background: rgba(255, 255, 255, .25); color: #FFD60A; }
+.osmotr-camera .modes { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 112px); display: flex; gap: 4px; }
+.osmotr-camera .modes button { background: rgba(0, 0, 0, .45); border-radius: 16px; min-height: 36px; padding: 6px 14px; font-size: 14px; font-weight: 600; letter-spacing: .04em; }
+.osmotr-camera .modes button[aria-pressed="true"] { color: #FFD60A; }
+.osmotr-camera.recording .chips, .osmotr-camera.recording .modes { opacity: .4; pointer-events: none; }
+.osmotr-camera .shutter { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%);
+  width: 72px; height: 72px; border-radius: 36px; background: #fff; border: 6px solid rgba(255, 255, 255, .5); background-clip: padding-box; }
+.osmotr-camera .shutter.video { background: #D1242F; background-clip: padding-box; }
+.osmotr-camera.recording .shutter.video { border-radius: 20px; }
+.osmotr-camera .shutter:disabled { opacity: .5; }
+.osmotr-camera .shutter:active { transform: translateX(-50%) scale(.94); }
+.osmotr-camera .thumb { position: absolute; left: 24px; bottom: calc(env(safe-area-inset-bottom) + 32px); width: 56px; height: 56px;
+  border-radius: 12px; object-fit: cover; background: #444; }
+.osmotr-camera .thumb:not([src]) { visibility: hidden; }
+.osmotr-camera .done { position: absolute; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 36px); width: 104px; height: 48px; border-radius: 24px;
+  background: rgba(0, 0, 0, .6); font-size: 18px; font-weight: 600; }
+.osmotr-camera .message { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 48px);
+  background: rgba(0, 0, 0, .8); border-radius: 12px; padding: 12px 16px; text-align: center; }
+/* Лёжа (низкий экран) — зум и режимы в стороне от спуска, кадр не закрывают. */
+@media (max-height: 500px) {
+  .osmotr-camera .zooms { left: auto; right: 12px; transform: none; bottom: auto; top: calc(env(safe-area-inset-top) + 100px); flex-direction: column; }
+  .osmotr-camera .modes { left: 92px; transform: none; bottom: calc(env(safe-area-inset-bottom) + 36px); }
+  .osmotr-camera .done { right: 12px; }
+  .osmotr-camera .timer { top: calc(env(safe-area-inset-top) + 56px); }
+}
+.osmotr-camera [hidden] { display: none; }
+
+.osmotr-player { position: fixed; inset: 0; z-index: 11; background: #000; color: #fff; font: 15px -apple-system, system-ui, sans-serif; }
+.osmotr-player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.osmotr-player .close { position: absolute; top: calc(env(safe-area-inset-top) + 12px); right: 12px; min-height: 40px; padding: 8px 16px; border: 0;
+  border-radius: 20px; background: rgba(0, 0, 0, .6); color: #fff; font: inherit; font-weight: 600; }
+.osmotr-player .name { position: absolute; top: calc(env(safe-area-inset-top) + 20px); left: 16px; right: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+
+.osmotr-share { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%); z-index: 20;
+  background: #1F6FEB; color: #fff; border: 0; border-radius: 24px; padding: 14px 22px; font: 600 16px -apple-system, system-ui, sans-serif;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
+
+.osmotr-install { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 8px); z-index: 9; display: flex; gap: 12px; align-items: center;
+  background: #1F6FEB; color: #fff; border-radius: 14px; padding: 12px 14px; font: 15px/1.35 -apple-system, system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.osmotr-install button { flex: none; border: 0; border-radius: 18px; min-height: 36px; padding: 6px 14px; background: rgba(255,255,255,.22); color: #fff; font: inherit; font-weight: 600; }

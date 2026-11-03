@@ -1,0 +1,6 @@
+/* Страница осмотрщиков — приложение «Осмотр» (PWA) во всю область содержимого. */
+body[data-page="osmotr"] .om-page{display:flex;height:100%;min-height:0;background:var(--bg)}
+body[data-page="osmotr"] .om-frame{flex:1;width:100%;height:100%;min-height:0;border:0;display:block;background:var(--bg)}
+body[data-page="osmotr"] .om-none{margin:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 32px;background:#fff;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:13px;text-align:center}
+body[data-page="osmotr"] .om-none b{color:var(--ink, #1b2a3d);font-size:15px}
+body[data-page="osmotr"] .om-none .btn{margin-top:6px;text-decoration:none}

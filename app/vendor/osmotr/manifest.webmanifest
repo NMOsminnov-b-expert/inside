@@ -1,0 +1,17 @@
+{
+  "name": "Осмотр",
+  "short_name": "Осмотр",
+  "description": "Фотофиксация при осмотрах оборудования по описям",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F6F8",
+  "theme_color": "#1F6FEB",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

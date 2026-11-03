@@ -21,6 +21,7 @@ import { mountInstitutions } from '../pages/institutions/institutions.js';
 import { mountInspector } from '../pages/inspector/inspector.js';
 import { mountInspections } from '../pages/inspections/inspections.js';
 import { mountScans } from '../pages/scans/scans.js';
+import { mountOsmotr } from '../pages/osmotr/osmotr.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
 
@@ -214,6 +215,20 @@ async function onRoute(route) {
     if (stale()) { scope.destroy(); return; }
     const instance = mountInspections(host);
     current = { kind: 'inspections', instance, scope };
+    return;
+  }
+
+  if (route.name === 'osmotr') {
+    // Осмотры (осмотрщики) — приложение «Осмотр» (PWA) во всю область.
+    if (current && current.kind === 'osmotr') return;
+    unmount();
+    resetShellSlots();
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/osmotr/osmotr.css');
+    if (stale()) { scope.destroy(); return; }
+    const instance = mountOsmotr(host);
+    current = { kind: 'osmotr', instance, scope };
     return;
   }
 

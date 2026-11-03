@@ -1,6 +1,6 @@
 import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
-import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, INSP_HREF, INSPECTIONS_HREF, SCANS_HREF } from '../kernel/router.js';
+import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF, INSPECTIONS_HREF, SCANS_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
 import { registerPersisted } from '../kernel/persist.js';
 
@@ -89,9 +89,9 @@ function bindNav() {
       // Осмотры — два пункта (решение пользователя 14.10.2026: «выносим это
       // дело в сайдбар в осмотры (осмотрщики). Интерфейс региональных
       // менеджеров в сайдбаре помечаем как регионалы»): панель менеджеров и
-      // экран выездных осмотрщиков.
+      // экран выездных осмотрщиков — приложение «Осмотр» (03.11.2026).
       if (b.dataset.nav === 'insp') location.hash = INSPECTIONS_HREF;
-      if (b.dataset.nav === 'insp-field') location.hash = INSP_HREF;
+      if (b.dataset.nav === 'insp-field') location.hash = OSMOTR_HREF;
       if (b.dataset.nav === 'scans') location.hash = SCANS_HREF;
     };
   });

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Осмотр">
+  <meta name="theme-color" content="#F4F6F8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)">
+  <title>Осмотр</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="osmotr.css">
+  <script src="glue.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="loading">Осмотр</div>
+  <script>
+    // Приложение — Kotlin/Wasm: нужен WebAssembly со сборкой мусора (WasmGC) — Safari 18.2 (iOS 18.2) и новее,
+    // Chrome 119+, Firefox 120+. Старее — сказать прямо, а не висеть на заставке.
+    (() => {
+      const unsupported = why => {
+        const el = document.getElementById('loading')
+        if (!el) return
+        el.className = 'unsupported'
+        el.innerHTML = '<div><b>Этот браузер не подходит для «Осмотра»</b><p>Нужен iOS 18.2 или новее (Safari), Chrome 119+ или Firefox 120+. ' +
+          'Обновите систему: Настройки → Основные → Обновление ПО.</p><small></small></div>'
+        el.querySelector('small').textContent = why
+      }
+      const gc = (() => { try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 3, 1, 95, 0])) } catch { return false } })()
+      if (!gc) return unsupported('нет WebAssembly GC')
+      addEventListener('error', e => { if (document.getElementById('loading')) unsupported(String(e.message || e.error || 'ошибка загрузки')) })
+      addEventListener('unhandledrejection', e => { if (document.getElementById('loading')) unsupported(String(e.reason?.message ?? e.reason)) })
+      const s = document.createElement('script')
+      s.src = 'osmotr.js'
+      document.body.append(s)
+    })()
+
+    // Без сети — из кэша (sw.js создаёт tools/web/sw.mjs при сборке); нужен https (или localhost).
+    if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js')
+  </script>
+</body>
+</html>

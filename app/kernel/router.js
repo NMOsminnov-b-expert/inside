@@ -85,6 +85,10 @@ export function parse(hash = location.hash) {
     };
   }
 
+  // Осмотры (осмотрщики) — приложение «Осмотр» в браузере (pages/osmotr,
+  // решение пользователя 03.11.2026); прежний экран — #/insp выше.
+  if (segs[0] === 'osmotr') return { name: 'osmotr', query };
+
   if (segs[0] === 'oc' && segs[1]) {
     return {
       name: 'module',
@@ -126,6 +130,7 @@ export function start(onRoute) {
 }
 
 export const INSP_HREF = '#/insp';
+export const OSMOTR_HREF = '#/osmotr';
 
 // Адрес экрана осмотрщика. Раздел 'task' в адрес не пишем — он и так по
 // умолчанию, а короткий адрес читается в отладке и в логе понятнее.
