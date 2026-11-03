@@ -26,6 +26,8 @@ import { reviewOf, resultsOf, saveResults, valuesOf, addResultPhoto } from '../.
 import { inventoryById, markItem, markOf, addItemPhoto } from '../../kernel/inventories.js';
 import { xlsxBytes } from '../../kernel/xlsx.js';
 import { getValue, setValue } from '../../kernel/fieldSchema.js';
+import { geoByEni, centerOf } from '../../kernel/cadastreGeo.js';
+import { scheduleSave } from '../../kernel/persist.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { loadTask, ownOis, oiLabel } from '../inspector/tasks.js';
 import { gpsOfObject } from '../inspections/route.js';
@@ -177,6 +179,47 @@ async function applyInventory({ typeId, ocId, rec, list, person, assignId }, rel
   return { taken: true, why: '' }; // книга описи, отчёт, журнал — служебное приложения
 }
 
+// --- Место участка по ЕНИ для карты осмотрщика (пользователь 03.11.2026: «Запусти для карты подтягивание ЕНИ…
+// отобрази на карте осмотрщиков. Обязательно») ---
+//
+// У назначенного объекта с ЕНИ, у которого в карточке ещё нет участка из Кадастра, рамка и контур подтягиваются
+// тем же путём, что «Координаты по ЕНИ» в карточке и «Координаты из Кадастра» в реестре (kernel/cadastreGeo.js,
+// прокси tools/cadastre/proxy.py), и записываются в карточку ОЦ (rec.geo, точка — центр рамки). Фоном, по три
+// запроса разом: ответ на «assignments» не ждёт Кадастра; закончили — приложению «changed», карта перерисуется.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: место по ЕНИ подтягивает бэкенд при назначении, с кэшем — приложение получает готовое.
+const geoTried = new Set();
+let geoRunning = false;
+let geoDone = null;
+
+async function fillGeo(objects) {
+  // Нет участка — или есть одна рамка без контура (контур нужен карте): подтянуть.
+  const queue = objects.filter(({ rec }) => !(rec.geo && rec.geo.extent && rec.geo.contour && rec.geo.contour.length) && String(rec.eni || '').replace(/\D/g, '').length === 13
+    && !geoTried.has(rec.id));
+  if (!queue.length || geoRunning) return;
+  geoRunning = true;
+  let got = 0;
+  const one = async ({ rec }) => {
+    geoTried.add(rec.id);
+    const res = await geoByEni(rec.eni);
+    if (res.error || !res.extent) return;
+    rec.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src || 'Кадастр', by: 'ЕНИ' };
+    rec.gps = centerOf(res.extent);
+    got += 1;
+  };
+  const work = async () => { while (queue.length) await one(queue.shift()); };
+  await Promise.all([work(), work(), work()]);
+  geoRunning = false;
+  if (got) { scheduleSave(); if (geoDone) geoDone(); }
+}
+
+// Контур участка — внешнее кольцо первого многоугольника, [[долгота, широта]…] (не больше 200 точек).
+function ringOf(geo) {
+  const ring = geo && geo.contour && geo.contour[0] && geo.contour[0][0];
+  if (!Array.isArray(ring) || ring.length < 3) return [];
+  const step = Math.max(1, Math.ceil(ring.length / 200));
+  return ring.filter((_, i) => i % step === 0).map(([x, y]) => [+x, +y]);
+}
+
 // Назначенные объекты осмотрщика: по одному на ОЦ.
 function myObjects(person) {
   const by = new Map();
@@ -217,7 +260,7 @@ function myObjects(person) {
       state, plannedAt: list.map((a) => a.plannedAt).filter(Boolean).sort()[0] || '', deadline: deadlineOf(typeId, ocId) || '',
       note: list.map((a) => a.note).filter(Boolean).join('\n'), by: list[0].by || '',
       eni: rec.eni || '', address: rec.address || '', institution: [rec.institution, rec.podved].filter(Boolean).join(' · '),
-      lat: gps ? gps[0] : null, lon: gps ? gps[1] : null,
+      lat: gps ? gps[0] : null, lon: gps ? gps[1] : null, contour: ringOf(rec.geo), geoSrc: rec.geo && rec.geo.src ? rec.geo.src : '',
       ois, docs, contacts, returned,
       inventories: inventoriesOf(rec, list, ownOis(rec).filter((o) => whole || list.some((a) => coversOi(a, o.id))))
         .map(({ id, kind, title, folder, items }) => ({ id, kind, title, folder, count: items.length })),
@@ -252,7 +295,10 @@ const handlers = {
     return { person, role, roleLabel: roleLabel(role), system: 'E•state', canInspect: INSPECTING.has(role) };
   },
   assignments() {
-    return { items: myObjects(session.state.person) };
+    const items = myObjects(session.state.person);
+    // Место по ЕНИ — фоном (fillGeo); ответ — сразу.
+    fillGeo(items.map((x) => ({ rec: loadTask(x.typeId, x.ocId) })).filter((x) => x.rec)).catch(() => { geoRunning = false; });
+    return { items };
   },
   async doc(body) {
     const { rec } = findObject(session.state.person, body.assignId);
@@ -335,6 +381,7 @@ export function connectBridge(frame) {
   window.addEventListener('message', onMessage);
   window.addEventListener('inside:inspections', onChanged);
   const unsub = session.subscribe(onChanged);
+  geoDone = onChanged;
   return () => {
     window.removeEventListener('message', onMessage);
     window.removeEventListener('inside:inspections', onChanged);
