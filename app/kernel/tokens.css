@@ -543,6 +543,19 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .maplibregl-popup.map-tip-gl .maplibregl-popup-content i{font-style:normal;color:#5a6b82}
 .maplibregl-popup.map-tip-gl .maplibregl-popup-tip{display:none}
 .maplibregl-popup.map-tip-gl{pointer-events:none;-webkit-user-select:none;user-select:none}
+/* Подпись участка и строения Кадастра (kernel/cadastreTip.js, 04.11.2026: «максимум информации об участке… и о здании»):
+   заголовок, адрес, строки «подпись — значение», список строений, даты внизу. */
+.leaflet-tooltip.map-tip:has(.cad-tip){max-width:340px}
+.maplibregl-popup.map-tip-gl .maplibregl-popup-content:has(.cad-tip){max-width:340px}
+.cad-tip{display:flex;flex-direction:column;gap:2px}
+.cad-tip .cad-tip-h b{white-space:normal}
+.cad-tip .cad-tip-addr{color:#33445c}
+.cad-tip .cad-tip-warn{color:#b42318;font-weight:600}
+.cad-tip .cad-tip-row{display:flex;justify-content:space-between;gap:10px}
+.cad-tip .cad-tip-row span{color:#5a6b82;white-space:nowrap}
+.cad-tip .cad-tip-row b{min-width:0;font-weight:600;text-align:right;white-space:normal}
+.cad-tip .cad-tip-list{margin:0 0 2px;padding-left:16px;color:#33445c}
+.cad-tip .cad-tip-foot{margin-top:2px;color:#8fa3ba;font-size:11.5px}
 .cad-note.cad-note-gl{position:absolute;left:10px;bottom:10px;z-index:2}
 
 /* Таблица: «+ поле» и перенос столбцов перетаскиванием (kernel/grid.js). */

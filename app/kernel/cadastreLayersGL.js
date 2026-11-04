@@ -12,8 +12,7 @@
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: слой отдаёт свой картосервер векторными тайлами из
 // выгрузки Кадастра — без запросов к порталу с рабочего места.
 import { featuresInBox } from './cadastreGeo.js';
-import { esc } from './dom.js';
-import { formatEniText } from './eniField.js';
+import { PARCEL_FIELDS, BUILD_FIELDS, parcelTipHTML, buildingTipHTML, buildsOfParcel } from './cadastreTip.js';
 import { emptyFC, hoverTip } from './mapgl.js';
 
 const MIN_ZOOM = 16;
@@ -61,10 +60,12 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
     if (busyLayer(e.point)) return;
     const f = under(e.point);
     if (!f) { tip.hide(); return; }
-    const pr = f.properties || {};
+    // Свойства и контур — из своего списка (у объектов карты геометрия обрезана по клеткам отрисовки).
+    const own = (f.source === 'cadP' ? parcels : builds).find((x) => x.id === f.id) || f;
+    const pr = own.properties || {};
     tip.show(e.lngLat, f.source === 'cadP'
-      ? `<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>назначение по Кадастру: ${esc(pr.NAZNACHENI)}</i>` : ''}`
-      : `<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br><i>назначение по Кадастру: ${esc(pr.NAZNACHENI)}</i>` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`);
+      ? parcelTipHTML(pr, own.geometry, buildsOfParcel(pr.PROPCODE, builds))
+      : buildingTipHTML(pr, own.geometry));
   };
   const onOut = () => tip.hide();
   map.on('click', onClick);
@@ -77,7 +78,7 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
   let failed = false;
   const status = () => {
     if (map.getZoom() < MIN_ZOOM) return say('Кадастр: приблизьте карту — покажу участки и строения');
-    if (failed) return say('Кадастр не ответил — запустите прокси: python tools/cadastre/proxy.py', 'err');
+    if (failed) return say('Кадастр ответил не на всё — подвиньте карту, чтобы повторить', 'err');
     say(`Кадастр: участков ${parcels.length} · строений ${builds.length}${running || queue.length ? ' · загружаю…' : ''}`);
   };
   const take = (list, out, prefix, keyOf) => list.forEach((f) => {
@@ -91,8 +92,8 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
       const box = queue.shift();
       running += 1;
       Promise.all([
-        featuresInBox('ENI_WGS84', box, 'PROPCODE,DOMCODE,ADDRESS,NAZNACHENI,THE_GEOM', 800),
-        featuresInBox('ENI_BUILDINGS', box, 'PROPCODE,BUILD_TYPE,NAZNACHENI,ADDRESS,THE_GEOM', 800),
+        featuresInBox('ENI_WGS84', box, PARCEL_FIELDS, 800),
+        featuresInBox('ENI_BUILDINGS', box, BUILD_FIELDS, 800),
       ]).then(([ps, bs]) => {
         if (!map.getStyle()) return;
         take(ps, parcels, 'p', (f) => (f.properties && f.properties.PROPCODE) || JSON.stringify(f.geometry).slice(0, 80));

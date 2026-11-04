@@ -24,7 +24,7 @@ from harness import use_cadastre_fixture
 NAME = 'Кадастр: рамки и запросы'
 
 TOUCHES = (
-    'app/kernel/cadastre.js', 'app/kernel/cadastreGeo.js', 'app/kernel/cadastreLayersGL.js',
+    'app/kernel/cadastre.js', 'app/kernel/cadastreGeo.js', 'app/kernel/cadastreLayersGL.js', 'app/kernel/cadastreTip.js', 'app/kernel/tokens.css',
     'app/kernel/cadastreLayers.js', 'app/kernel/cadastreForm.ctrl.js', 'app/kernel/mapgl.js',
     'tools/checks/cadastre_fixture.py', 'tools/checks/fixtures/cadastre.json', 'tools/checks/harness.py',
 )
@@ -38,6 +38,27 @@ def run(t):
     pg = t.page
     t.open('#/', wait='.reg-thead')
     use_cadastre_fixture(pg)
+
+    # --- подписи участка и строения Кадастра: всё, что отдаёт слой (04.11.2026) --------
+    TIP = "await import('./app/kernel/cadastreTip.js')"
+    sq = {'type': 'Polygon', 'coordinates': [[[74.62, 42.87], [74.6205, 42.87], [74.6205, 42.8704], [74.62, 42.8704], [74.62, 42.87]]]}
+    parcel = {'PROPCODE': '1-03-07-0040-0280', 'DOMCODE': '5', 'ADDRESS': 'ул. Осмонкула д.5', 'FULL_ADDRESS': 'Бишкек г., Свердловский р-н, Осмонкула ул. 5',
+              'NAZNACHENI': 'Жилой дом', 'PROPFOR_NAME': 'Жилое', 'PROPFORM_NAME': 'Частная', 'DATEINS': '2021-03-23 12:41:49',
+              'DATEUPD': '2024-08-09 04:27:49', 'CODE_LRO': '103', 'AMNESTIED': 'True', 'FROM_GPS': 'False', 'OID_LRO': '-9999', 'PRIMECHANI': '-9999'}
+    blds = [{'properties': {'PROPCODE': '1-03-07-0040-0280-01', 'BUILD_TYPE': 'Капитальное', 'NAZNACHENI': 'Жилой дом'}},
+            {'properties': {'PROPCODE': '1-03-07-0040-0281-01', 'NAZNACHENI': 'Гараж'}}]
+    txt = pg.evaluate("async ([pr, g, b]) => { const m = %s; const d = document.createElement('div'); d.innerHTML = m.parcelTipHTML(pr, g, m.buildsOfParcel(pr.PROPCODE, b)); return d.innerText; }" % TIP,
+                      [parcel, sq, blds])
+    for need in ('Участок · ЕНИ 1-03-07-0040-0280', 'Осмонкула ул. 5', 'Назначение по Кадастру', 'Жилой дом', 'Вид использования', 'Жилое',
+                 'Форма собственности', 'Частная', 'Площадь по контуру', '804 м²', 'Строения на участке', 'Капитальное', 'Амнистия',
+                 'код 103', 'внесено 23.03.2021', 'изменено 09.08.2024'):
+        t.ck(need in txt, 'подпись участка без «%s»: %s' % (need, txt.replace(chr(10), ' | ')))
+    t.ck('-9999' not in txt and 'Гараж' not in txt, 'в подписи участка служебное значение или чужое строение: %s' % txt.replace(chr(10), ' | '))
+    btxt = pg.evaluate("async ([pr, g]) => { const m = %s; const d = document.createElement('div'); d.innerHTML = m.buildingTipHTML(pr, g); return d.innerText; }" % TIP,
+                       [{'PROPCODE': '1-03-07-0040-0247-06', 'FULL_ADDRE': 'г. Бишкек, ул. Сагымбая 18а', 'PROPFORM_N': 'Самовольная застройка',
+                         'PRIMECHANI': 'Ликвидирован', 'DATEINS': '2020/11/04 06:52:39.000'}, sq])
+    for need in ('Строение', 'код 1-03-07-0040-0247-06', 'Сагымбая 18а', 'Ликвидирован', 'Самовольная застройка', 'Площадь застройки по контуру', 'внесено 04.11.2020'):
+        t.ck(need in btxt, 'подпись строения без «%s»: %s' % (need, btxt.replace(chr(10), ' | ')))
 
     # --- рамка и контур по ЕНИ -------------------------------------------------
     g = pg.evaluate("async (e) => await (await %s).geoByEni(e)" % G, ENI)

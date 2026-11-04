@@ -152,11 +152,32 @@ export async function createMap(gl, el, { center = [74.6, 42.87], zoom = 6.5, ..
 
 // Подсказка при наведении — одна на карту, оформление как у подсказок
 // Leaflet в макете (.map-tip): белая карточка с тенью.
+// Подсказка раскрывается туда, где больше места: курсор в нижней половине карты —
+// над ним, в правой — слева (правило «подсказки не выходят за границы»: подпись
+// участка Кадастра длинная и у нижнего края карты уходила под край, 04.11.2026).
 export function hoverTip(gl, map) {
-  const pop = new gl.Popup({ closeButton: false, closeOnClick: false, className: 'map-tip-gl', offset: 10, maxWidth: '300px' });
+  let pop = null;
+  let side = '';
   return {
-    show(lngLat, html) { pop.setLngLat(lngLat).setHTML(html).addTo(map); },
-    hide() { pop.remove(); },
+    show(lngLat, html) {
+      // Место — по видимой части: карта бывает выше окна, её низ — за краем экрана.
+      const p = map.project(lngLat);
+      const r = map.getContainer().getBoundingClientRect();
+      const y = r.top + p.y;
+      const x = r.left + p.x;
+      const below = Math.min(r.bottom, window.innerHeight) - y;
+      const above = y - Math.max(r.top, 0);
+      const right = Math.min(r.right, window.innerWidth) - x;
+      const left = x - Math.max(r.left, 0);
+      const anchor = (below >= above ? 'top' : 'bottom') + '-' + (right >= left ? 'left' : 'right');
+      if (!pop || side !== anchor) {
+        if (pop) pop.remove();
+        pop = new gl.Popup({ closeButton: false, closeOnClick: false, className: 'map-tip-gl', offset: 10, maxWidth: '340px', anchor });
+        side = anchor;
+      }
+      pop.setLngLat(lngLat).setHTML(html).addTo(map);
+    },
+    hide() { if (pop) pop.remove(); },
   };
 }
 

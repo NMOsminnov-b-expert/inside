@@ -17,8 +17,7 @@
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: слой отдаёт свой картосервер из выгрузки Кадастра —
 // без запросов к порталу с рабочего места.
 import { featuresInBox } from './cadastreGeo.js';
-import { esc } from './dom.js';
-import { formatEniText } from './eniField.js';
+import { PARCEL_FIELDS, BUILD_FIELDS, parcelTipHTML, buildingTipHTML, buildsOfParcel } from './cadastreTip.js';
 
 // Масштаб карт макета: дробные уровни (колесо ведёт kernel/smoothWheel.js —
 // одной плавной кривой), кнопки «+»/«−» — на уровень.
@@ -77,13 +76,14 @@ export function attachCadastreLayers(L, map) {
   map.on('click', onMapClick);
   let np = 0;
   let nb = 0;
+  const buildFeats = [];       // строения — для подписи участка «Строения на участке»
   let failed = false;
   const cells = new Map();     // «i|j» → 'busy' | 'done'
   const queue = [];
   let running = 0;
   const status = () => {
     if (map.getZoom() < MIN_ZOOM) return say('Кадастр: приблизьте карту — покажу участки и строения');
-    if (failed) return say('Кадастр не ответил — запустите прокси: python tools/cadastre/proxy.py', 'err');
+    if (failed) return say('Кадастр ответил не на всё — подвиньте карту, чтобы повторить', 'err');
     say(`Кадастр: участков ${np} · строений ${nb}${running || queue.length ? ' · загружаю…' : ''}`);
   };
   const drawParcels = (ps) => ps.forEach((f) => {
@@ -94,7 +94,8 @@ export function attachCadastreLayers(L, map) {
     np += 1;
     shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...PARCEL, pane: 'cadParcels', fill: true, className: 'cad-parcel', base: PARCEL, hot: PICKED })
       .on('click', (e) => pick(e.target))
-      .bindTooltip(`<b>ЕНИ ${esc(formatEniText(String(pr.PROPCODE || '').replace(/\D/g, '')))}</b>${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}${pr.NAZNACHENI ? `<br><i>назначение по Кадастру: ${esc(pr.NAZNACHENI)}</i>` : ''}`, { sticky: true, className: 'map-tip' })
+      // Содержимое — при наведении: строения участка подгружаются позже участков.
+      .bindTooltip(() => parcelTipHTML(pr, f.geometry, buildsOfParcel(pr.PROPCODE, buildFeats)), { sticky: true, className: 'map-tip' })
       .addTo(parcels));
   });
   const drawBuilds = (bs) => bs.forEach((f) => {
@@ -102,10 +103,11 @@ export function attachCadastreLayers(L, map) {
     if (seen.has(key)) return;
     seen.add(key);
     nb += 1;
+    buildFeats.push(f);
     const pr = f.properties || {};
     shapes(f.geometry || {}).forEach((poly) => L.polygon(poly, { ...BUILD, pane: 'cadBuilds', className: 'cad-build', base: BUILD, hot: BUILD_PICKED })
       .on('click', (e) => pick(e.target))
-      .bindTooltip(`<b>Строение${pr.BUILD_TYPE ? ` · ${esc(pr.BUILD_TYPE)}` : ''}</b>${pr.NAZNACHENI ? `<br><i>назначение по Кадастру: ${esc(pr.NAZNACHENI)}</i>` : ''}${pr.ADDRESS ? `<br>${esc(pr.ADDRESS)}` : ''}`, { sticky: true, className: 'map-tip' })
+      .bindTooltip(() => buildingTipHTML(pr, f.geometry), { sticky: true, className: 'map-tip' })
       .addTo(builds));
   });
   const pump = () => {
@@ -114,8 +116,8 @@ export function attachCadastreLayers(L, map) {
       if (!map._loaded) return;
       running += 1;
       Promise.all([
-        featuresInBox('ENI_WGS84', box, 'PROPCODE,DOMCODE,ADDRESS,NAZNACHENI,THE_GEOM', 400),
-        featuresInBox('ENI_BUILDINGS', box, 'PROPCODE,BUILD_TYPE,NAZNACHENI,ADDRESS,THE_GEOM', 400),
+        featuresInBox('ENI_WGS84', box, PARCEL_FIELDS, 400),
+        featuresInBox('ENI_BUILDINGS', box, BUILD_FIELDS, 400),
       ]).then(([ps, bs]) => {
         if (!map._loaded) return;
         cells.set(k, 'done');
