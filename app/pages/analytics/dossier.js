@@ -99,7 +99,6 @@ function overviewHTML(d) {
   const tile = (label, ha, cls = '') => `<div class="ad-kpi ${cls}"><span>${esc(label)}</span><b>${fmt.area(ha)}</b><i>${fmt.pct(share(ha, A))}</i></div>`;
   // Место среди посчитанных аймаков — по доле занятого и по свободной площади.
   const done = d.all.filter((x) => x.occ && x.occ.zones);
-  const rank = (val) => { const s = done.map(val).sort((x, y) => y - x); return s.indexOf(val(a)) + 1; };
   const bal = a.balance && a.balance.parts ? a.balance.parts : [];
   const q = a.quality && a.quality.note;
   return `<div class="ad-kpis">
@@ -110,17 +109,50 @@ function overviewHTML(d) {
       <ul class="ad-keys">${parts.map(([c, l, h]) => `<li><i class="s-${c}"></i>${esc(l)} <b>${fmt.pct(share(h, A))}</b></li>`).join('')}</ul>
     </section>
     <div class="ad-cols">
+      ${freeZonesHTML(d)}
       <section class="ad-card"><h3>Земельный баланс Кадастра</h3>
-        ${bal.length ? `<dl class="an-bal">${bal.map((p) => `<dt>${esc(p.label)}</dt><dd class="num">${fmt.area(p.ha)}</dd>`).join('')}
-        <dt class="an-bal-total">Всего по балансу</dt><dd class="num an-bal-total">${fmt.area(a.balance.total)}</dd>
-        <dt>По контуру Дарека</dt><dd class="num">${fmt.area(A)}</dd></dl>` : '<p class="ad-muted">Баланса нет</p>'}
+        ${bal.length ? `<table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Категория земель</th><th class="num">Площадь</th><th class="num">Доля баланса</th></tr></thead><tbody>
+        ${bal.map((p) => `<tr><td>${esc(p.label)}</td><td class="num">${fmt.area(p.ha)}</td>${shareCell(a.balance.total ? p.ha / a.balance.total : 0, fmt, 'm-o')}</tr>`).join('')}
+        </tbody><tfoot><tr><td>Всего по балансу</td><td class="num">${fmt.area(a.balance.total)}</td><td class="num">100 %</td></tr>
+        <tr class="ad-tf2"><td>По контуру Дарека</td><td class="num">${fmt.area(A)}</td><td class="num">${a.balance.total ? `${A >= a.balance.total ? '+' : '−'}${fmt.pct(Math.abs(A / a.balance.total - 1))}` : ''}</td></tr></tfoot></table>` : '<p class="ad-muted">Баланса нет</p>'}
         ${q ? `<p class="an-d-note">Контур Дарека: ${esc(q)}.</p>` : ''}</section>
-      ${d.members ? membersHTML(d) : `<section class="ad-card"><h3>Среди посчитанных аймаков (${done.length})</h3>
-        <dl class="an-bal"><dt>Доля занятого участками с ЕНИ</dt><dd class="num">${rank((x) => x.occ.share)}-е место</dd>
-        <dt>Свободная площадь</dt><dd class="num">${rank((x) => x.occ.freeHa)}-е место</dd>
-        <dt>Здания без ЕНИ</dt><dd class="num">${rank((x) => x.occ.bldHa || 0)}-е место</dd></dl>
-        <p class="an-d-note">Посчитано ${esc(fmt.date(o.at))}. Участков в расчёте: ${(o.parcels || 0).toLocaleString('ru-RU')}.</p></section>`}
+      ${d.members ? membersHTML(d) : rankHTML(d, done)}
     </div>`;
+}
+
+// Свободная земля аймака по покрову — таблица с цветом зоны, как на карте.
+function freeZonesHTML(d) {
+  const { a, fmt } = d;
+  const o = a.occ;
+  const zs = d.parts.filter((p) => p.free && (o.zones || {})[p.key] > 0).map((p) => [p, o.zones[p.key]]).sort((x, y) => y[1] - x[1]);
+  if (!zs.length) return '';
+  const tot = zs.reduce((t, x) => t + x[1], 0);
+  return `<section class="ad-card"><h3>Свободная земля по покрову</h3>
+    <div class="ad-stack" role="img" aria-label="${esc(zs.map(([p, h]) => `${p.label} ${fmt.pct(h / tot)}`).join(', '))}">${zs.map(([p, h]) => `<i style="background:${p.color};flex:${(h / tot).toFixed(4)} 1 0" title="${esc(p.label)}: ${esc(fmt.area(h))}"></i>`).join('')}</div>
+    <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Покров земли</th><th class="num">Площадь</th><th class="num">Доля свободного</th></tr></thead><tbody>
+    ${zs.map(([p, h]) => `<tr><td><i class="an-dsw" style="background:${p.color}"></i>${esc(p.label)}</td><td class="num">${fmt.area(h)}</td>${shareCell(h / tot, fmt, 'm-f')}</tr>`).join('')}
+    </tbody><tfoot><tr><td>Свободно</td><td class="num">${fmt.area(o.freeHa)}</td><td class="num">100 %</td></tr></tfoot></table>
+    <p class="an-d-note">Покров — ESA WorldCover 2021; свободно — вне участков, дорог, воды, рельефа и зданий, без узких полос и клочков.</p></section>`;
+}
+
+// Место аймака среди посчитанных: значение, среднее по посчитанным и место.
+function rankHTML(d, done) {
+  const { a, fmt } = d;
+  const o = a.occ;
+  const A = a.areaHa || 1;
+  const rows = [
+    ['Доля занятого участками с ЕНИ', (x) => x.occ.share, (v) => fmt.pct(v)],
+    ['Доля свободной земли', (x) => x.occ.freeHa / (x.areaHa || 1), (v) => fmt.pct(v)],
+    ['Свободная площадь', (x) => x.occ.freeHa, (v) => fmt.area(v)],
+    ['Рельеф — непригодно', (x) => (x.occ.reliefHa || 0) + (x.occ.rockHa || 0) + (x.occ.snowHa || 0), (v) => fmt.area(v)],
+    ['Здания без ЕНИ, площадь', (x) => x.occ.bldHa || 0, (v) => fmt.area(v)],
+  ];
+  const n = done.length;
+  return `<section class="ad-card"><h3>Среди посчитанных аймаков</h3>
+    <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Показатель</th><th class="num">В аймаке</th><th class="num">Среднее</th><th class="num">Место</th></tr></thead><tbody>
+    ${rows.map(([l, val, f]) => { const vs = done.map(val); const s2 = [...vs].sort((x, y) => y - x); const me = val(a); return `<tr><td>${esc(l)}</td><td class="num"><b>${f(me)}</b></td><td class="num ad-src">${f(vs.reduce((t, x) => t + x, 0) / (n || 1))}</td><td class="num"><span class="ad-place">${s2.indexOf(me) + 1} из ${n}</span></td></tr>`; }).join('')}
+    </tbody></table>
+    <p class="an-d-note">Место — по убыванию. Посчитано ${esc(fmt.date(o.at))}. Участков в расчёте: ${(o.parcels || 0).toLocaleString('ru-RU')}; площадь по контуру ${fmt.area(A)}.</p></section>`;
 }
 
 // Аймаки набора — для сравнения: площадь, занято, свободно, рельеф, без ЕНИ.

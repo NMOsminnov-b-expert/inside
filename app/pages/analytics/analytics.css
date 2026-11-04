@@ -617,3 +617,17 @@ body[data-page="analytics"] .ad-steps li{display:inline-flex;align-items:center;
 body[data-page="analytics"] .ad-steps li span{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#fff;color:#1c5cab;font-size:11px;font-weight:700}
 body[data-page="analytics"] .ad-steps li:not(:last-child)::after{content:"→";margin-left:6px;color:#8a96a8}
 body[data-page="analytics"] .ad-steps li:last-child{background:#fdebd9;color:#8a3d00}
+
+/* «Обзор» и «Объекты» — теми же сводными таблицами; подписи полос «Свободной земли» не режутся. */
+body[data-page="analytics"] .ad-bar .ap-l{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+body[data-page="analytics"] .ad-tbl-c tfoot tr.ad-tf2 td{font-weight:400;color:#41536a;border-top:0}
+body[data-page="analytics"] .ad-place{display:inline-block;min-width:54px;padding:2px 8px;border-radius:999px;background:#eef4fc;color:#1c5cab;font-weight:600;text-align:center}
+body[data-page="analytics"] .ad-mini.m-f i{background:#e8730c}
+body[data-page="analytics"] .ad-kpi.k-a::before{background:#0d366b}
+body[data-page="analytics"] .ad-objs .an-d-sec h3{display:none}
+/* Узкая карточка: заголовки колонок переносятся, полоса доли — короче; таблица не шире карточки. */
+body[data-page="analytics"] .ad-tbl-c th,body[data-page="analytics"] .ad-tbl-c th.num{white-space:normal}
+body[data-page="analytics"] .ad-mini{width:40px}
+body[data-page="analytics"] .ad-card{overflow-x:auto}
+/* Карточки в колонке тела досье не сжимаются (с overflow они теряли высоту). */
+body[data-page="analytics"] .ad-body > *{flex-shrink:0}

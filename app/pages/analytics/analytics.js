@@ -907,7 +907,8 @@ export function mountAnalytics(host) {
         if (!cube1.length) return parcelsHTML(null, {}, view.pm, null, { empty: true });
         return parcelsHTML(parcelSum(cube1, view.dpf, view.pm), view.dpf, view.pm, { n: (n) => nf(n, 0), area: (ha) => `${ar(ha)} ${ul()}`, pct: (x) => pct(x) });
       },
-      objectsHTML: () => (r.objs.length ? detailHTML({ a: { ...a, balance: null, occ: null }, objs: r.objs }) : '<p class="ad-muted">Объектов системы здесь нет.</p>'),
+      objectsHTML: () => `<div class="ad-kpis"><div class="ad-kpi k-a"><span>Объектов оценки в системе</span><b>${nf(r.objs.length, 0)}</b><i>с точкой на карте в ${tg.members ? 'аймаках набора' : 'аймаке'}</i></div></div>
+        <section class="ad-card ad-objs"><h3>Объекты оценки</h3>${r.objs.length ? detailHTML({ a: { ...a, balance: null, occ: null }, objs: r.objs }) : '<p class="ad-muted">Объектов системы здесь нет.</p>'}</section>`,
     });
   };
   // Досье обновляется по частям (пользователь 04.11.2026: «Интерфейс багует… нет вообще никаких
