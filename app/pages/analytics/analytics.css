@@ -1,0 +1,203 @@
+/* Аналитика · Земли по айыл аймакам (pages/analytics/analytics.js).
+   Оформление — из примитивов ядра (.itoolbar, .isearch, .icols, .itbl, .select,
+   .btn); здесь — раскладка страницы, доли колонок и раскрытая строка. Таблица
+   прокручивается вбок в своей обёртке, страница — нет. */
+body[data-page="analytics"] .an-f{flex:0 1 220px;min-width:160px}
+body[data-page="analytics"] .an-tbl{min-width:1320px}
+body[data-page="analytics"] .an-tbl col.c-name{width:19%}
+body[data-page="analytics"] .an-tbl col.c-dist{width:11%}
+body[data-page="analytics"] .an-tbl col.c-obl{width:8%}
+body[data-page="analytics"] .an-tbl col.c-n{width:8.5%}
+body[data-page="analytics"] .an-tbl col.c-p{width:6.5%}
+body[data-page="analytics"] .an-tbl col.c-oc{width:4.5%}
+body[data-page="analytics"] .an-tbl col.c-act{width:12%}
+body[data-page="analytics"] .an-tbl th{white-space:nowrap}
+body[data-page="analytics"] .an-name b{font-weight:600}
+body[data-page="analytics"] .an-caret{display:inline-block;width:14px;color:#7c8ea6}
+body[data-page="analytics"] .an-sub{display:block;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+body[data-page="analytics"] .an-name .an-sub{padding-left:14px}
+body[data-page="analytics"] .an-act{text-align:right}
+body[data-page="analytics"] .an-act .btn{margin-left:6px}
+body[data-page="analytics"] .an-run{font-size:11.5px;color:var(--blue-700);font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .an-err{font-size:11.5px;color:#b42318}
+body[data-page="analytics"] .an-row.open td{background:var(--blue-50)}
+body[data-page="analytics"] .an-tbl tfoot td{padding:8px 12px;font-size:12.5px;font-weight:700;border-top:1px solid var(--line);background:#f6f9fd;white-space:nowrap}
+body[data-page="analytics"] .an-tbl tbody tr.an-drow{cursor:default}
+body[data-page="analytics"] .an-tbl tbody tr.an-drow:hover td{background:#fff}
+body[data-page="analytics"] .an-drow > td{white-space:normal;padding:4px 16px 14px 30px;background:#fff}
+body[data-page="analytics"] .an-detail{display:flex;flex-wrap:wrap;gap:14px 36px}
+body[data-page="analytics"] .an-d-sec{flex:0 1 330px;min-width:260px}
+body[data-page="analytics"] .an-d-objs{flex:1 1 100%}
+body[data-page="analytics"] .an-d-sec h3{margin:8px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82}
+body[data-page="analytics"] .an-bal{display:grid;grid-template-columns:1fr auto;gap:3px 16px;margin:0;font-size:12.5px}
+body[data-page="analytics"] .an-bal dt{color:var(--muted)}
+body[data-page="analytics"] .an-bal dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+body[data-page="analytics"] .an-bal .an-bal-total{font-weight:700;color:var(--ink);border-top:1px solid var(--line-soft);padding-top:3px}
+body[data-page="analytics"] .an-d-note{margin:6px 0 0;font-size:11.5px;color:var(--muted)}
+body[data-page="analytics"] .an-objs{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+body[data-page="analytics"] .an-objs th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82;padding:4px 10px 4px 0;border-bottom:1px solid var(--line-soft)}
+body[data-page="analytics"] .an-objs th:nth-child(1){width:150px}
+body[data-page="analytics"] .an-objs th:nth-child(3){width:150px}
+body[data-page="analytics"] .an-objs td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line-soft);vertical-align:top;white-space:normal;overflow-wrap:anywhere}
+body[data-page="analytics"] .an-eni{font-variant-numeric:tabular-nums;white-space:nowrap}
+body[data-page="analytics"] .an-empty,body[data-page="analytics"] .an-empty-page{color:var(--muted);font-size:12.5px;padding:14px 12px}
+body[data-page="analytics"] .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Отбор одной строкой на карту и таблицу; числа «от–до» — узкие поля. */
+body[data-page="analytics"] .an-filters{gap:10px 14px}
+body[data-page="analytics"] .an-range{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+body[data-page="analytics"] .an-num{width:56px;height:34px;padding:0 8px;border:1px solid var(--line-input);border-radius:8px;font-size:13px;
+  text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);background:#fff}
+body[data-page="analytics"] .an-num-w{width:84px}
+body[data-page="analytics"] .an-num:focus{outline:none;border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(22,104,201,.14)}
+body[data-page="analytics"] .an-check{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);white-space:nowrap}
+/* Подсказка аймака на карте. */
+.an-tip b{display:block;font-size:13px}
+.an-tip > span{display:block;color:#5a6b82;margin-bottom:5px}
+.an-tip dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0}
+.an-tip dt{color:#5a6b82;white-space:nowrap}
+.an-tip dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.maplibregl-popup.an-pop{pointer-events:auto}
+.maplibregl-popup.an-pop i{display:block;margin-top:2px}
+/* Цвет ступени занятости у названия — тот же, что на карте. */
+body[data-page="analytics"] .an-sw{display:inline-block;flex:none;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid rgba(13,54,107,.25)}
+body[data-page="analytics"] .an-row.sel td{box-shadow:inset 0 1px 0 #1c5cab,inset 0 -1px 0 #1c5cab}
+body[data-page="analytics"] .an-row.sel td:first-child{box-shadow:inset 3px 0 0 #1c5cab,inset 0 1px 0 #1c5cab,inset 0 -1px 0 #1c5cab}
+
+/* ============ Сцена по APCS (как «Осмотры»): карта на всю рабочую область,
+   островки и панели над ней; скругления по роли — контейнер 12, управление 8;
+   глубина тенью, без рамки. Движение — только transform и opacity, одна
+   длительность на событие; «меньше движения» — без сдвига, затуханием. ===== */
+body[data-page="analytics"]{--isle-h:46px;--isle-gap:10px;--scene-top:calc(var(--isle-h) + var(--isle-gap) * 2);--list-w:clamp(360px,26vw,480px);
+  --lift:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.12);--an-dur:220ms;--an-ease:cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"]{--an-dur:120ms}}
+body[data-page="analytics"] .main-row{position:relative}
+body[data-page="analytics"] .content{position:relative;z-index:1;padding:0;overflow:hidden;background:transparent;pointer-events:none}
+.an-scene{position:absolute;inset:0;z-index:0;background:#e8edf2}
+.an-scene.maplibregl-map{position:absolute;inset:0}
+body.an-table-open .an-scene{visibility:hidden}
+body[data-page="analytics"] .an-page{position:relative;height:100%;pointer-events:none}
+
+/* --- островки сверху: отбор слева, вид и итоги справа --- */
+body[data-page="analytics"] .an-isles{position:absolute;top:var(--isle-gap);left:var(--isle-gap);right:var(--isle-gap);z-index:25;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;pointer-events:none}
+body[data-page="analytics"] .an-isl{pointer-events:auto;min-height:var(--isle-h);display:flex;align-items:center;gap:8px;padding:5px 8px;
+  background:var(--panel);border-radius:12px;box-shadow:var(--lift);min-width:0}
+body[data-page="analytics"] .an-isl-filter{flex:1 1 auto;max-width:760px}
+body[data-page="analytics"] .an-isl-filter .isearch{flex:1 1 220px;min-width:160px;height:34px}
+body[data-page="analytics"] .an-isl-filter .an-f{flex:0 1 170px;min-width:120px}
+body[data-page="analytics"] .an-fbtn{height:34px;flex:none}
+body[data-page="analytics"] .an-fbtn.on{background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-500)}
+body[data-page="analytics"] .an-fbtn b{margin-left:4px;padding:0 6px;border-radius:999px;background:var(--blue-600);color:#fff;font-size:11px}
+body[data-page="analytics"] .an-isl-sum{flex:0 1 auto;gap:14px;padding-left:5px}
+body[data-page="analytics"] .an-seg{display:flex;gap:2px;flex:none}
+body[data-page="analytics"] .an-seg .itab{height:34px;padding:0 12px;border:0;border-radius:8px;font-size:13px;font-weight:500;margin:0}
+body[data-page="analytics"] .an-seg .itab::after{display:none}
+body[data-page="analytics"] .an-seg .itab:hover{background:var(--fill-hover)}
+body[data-page="analytics"] .an-seg .itab.on{background:var(--blue-600);color:#fff}
+body[data-page="analytics"] .an-kv{display:flex;flex-direction:column;line-height:1.15;white-space:nowrap}
+body[data-page="analytics"] .an-kv span{font-size:10.5px;color:var(--muted)}
+body[data-page="analytics"] .an-kv b{font-size:14px;font-variant-numeric:tabular-nums;color:var(--ink)}
+body[data-page="analytics"] .an-kv i{font-style:normal;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .an-isl-sum .btn-primary{height:34px;flex:none}
+
+/* --- «Отбор» — панелью рядом со списком --- */
+body[data-page="analytics"] .an-facets{position:absolute;top:var(--scene-top);left:calc(var(--isle-gap) * 2 + var(--list-w));z-index:24;
+  padding:12px 14px;background:var(--panel);border-radius:12px;box-shadow:var(--lift);pointer-events:none;
+  opacity:0;transform:translateY(-6px);visibility:hidden;
+  transition:opacity var(--an-dur) var(--an-ease),transform var(--an-dur) var(--an-ease),visibility 0s linear var(--an-dur)}
+body[data-page="analytics"] .facets-open .an-facets{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition-delay:0s}
+body[data-page="analytics"] .hide-list .an-facets{left:calc(var(--isle-gap) + 30px)}
+body[data-page="analytics"] .an-facets-in{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+body[data-page="analytics"] .an-facets .an-range > span{display:inline-block;min-width:96px}
+
+/* --- панель списка слева, скрывается язычком --- */
+body[data-page="analytics"] .an-list{position:absolute;left:var(--isle-gap);top:var(--scene-top);bottom:var(--isle-gap);width:var(--list-w);z-index:10;
+  display:flex;flex-direction:column;min-height:0;background:var(--panel);border-radius:12px;box-shadow:var(--lift);pointer-events:auto;
+  transition:transform var(--an-dur) var(--an-ease),opacity var(--an-dur) var(--an-ease),visibility 0s linear 0s}
+body[data-page="analytics"] .hide-list .an-list{transform:translateX(calc(-100% - var(--isle-gap) - 4px));opacity:0;visibility:hidden;
+  transition:transform var(--an-dur) var(--an-ease),opacity var(--an-dur) var(--an-ease),visibility 0s linear var(--an-dur)}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .hide-list .an-list{transform:none}}
+body[data-page="analytics"] .an-status{margin:0;padding:10px 14px 8px;font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--line-soft)}
+body[data-page="analytics"] .an-list-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px}
+body[data-page="analytics"] .an-edge{position:absolute;z-index:12;top:calc(var(--scene-top) + 14px);left:calc(var(--isle-gap) + var(--list-w));width:22px;height:48px;padding:0;
+  display:flex;align-items:center;justify-content:center;border-radius:0 8px 8px 0;background:var(--panel);box-shadow:var(--lift);
+  font-size:16px;color:var(--muted);cursor:pointer;pointer-events:auto;transition:transform var(--an-dur) var(--an-ease)}
+body[data-page="analytics"] .an-edge:hover{color:var(--ink)}
+body[data-page="analytics"] .hide-list .an-edge{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w))))}
+
+/* Строка-карточка аймака: название и доля; код · район · область и «не занято»; площадь и расчёт. */
+body[data-page="analytics"] .an-items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+body[data-page="analytics"] .an-item{position:relative;padding:9px 10px 8px;border-radius:8px;cursor:pointer;outline:none}
+body[data-page="analytics"] .an-item:hover{background:var(--fill-hover)}
+body[data-page="analytics"] .an-item:focus-visible{box-shadow:0 0 0 2px var(--blue-500)}
+body[data-page="analytics"] .an-item.sel{background:var(--blue-50);box-shadow:inset 3px 0 0 #1c5cab}
+body[data-page="analytics"] .an-it-h,body[data-page="analytics"] .an-it-s,body[data-page="analytics"] .an-it-m{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0}
+body[data-page="analytics"] .an-it-h b{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="analytics"] .an-it-share{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap}
+body[data-page="analytics"] .an-it-s{margin-top:2px;font-size:11.5px;color:var(--muted)}
+body[data-page="analytics"] .an-it-s > span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="analytics"] .an-it-s .num,body[data-page="analytics"] .an-it-m .num{white-space:nowrap;font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .an-it-m{margin-top:4px;font-size:11.5px;color:var(--muted);align-items:center}
+body[data-page="analytics"] .an-it-act{display:flex;align-items:center;gap:6px;flex:none}
+/* Ход расчёта — полосой: растёт масштабом (transform), не шириной. */
+body[data-page="analytics"] .an-bar{height:3px;margin-top:6px;border-radius:2px;background:var(--line-soft);overflow:hidden}
+body[data-page="analytics"] .an-bar i{display:block;height:100%;background:var(--blue-600);transform-origin:left center;transition:transform 300ms linear}
+body[data-page="analytics"] .an-item .an-detail{margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft);cursor:default;
+  animation:an-in var(--an-dur) var(--an-ease)}
+body[data-page="analytics"] .an-item .an-d-sec{flex:1 1 100%;min-width:0}
+@keyframes an-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .an-item .an-detail{animation-name:an-fade}}
+@keyframes an-fade{from{opacity:0}to{opacity:1}}
+body[data-page="analytics"] .an-item .an-objs th:nth-child(1){width:120px}
+body[data-page="analytics"] .an-item .an-objs th:nth-child(4),body[data-page="analytics"] .an-item .an-objs td:nth-child(4){display:none}
+
+/* --- «Таблица» — поверхностью над сценой --- */
+body[data-page="analytics"] .an-sheet{position:absolute;top:var(--scene-top);left:var(--isle-gap);right:var(--isle-gap);bottom:var(--isle-gap);z-index:20;
+  background:var(--bg);border-radius:12px;box-shadow:var(--lift);overflow:hidden;pointer-events:none;
+  opacity:0;transform:translateY(8px);visibility:hidden;
+  transition:opacity var(--an-dur) var(--an-ease),transform var(--an-dur) var(--an-ease),visibility 0s linear var(--an-dur)}
+body[data-page="analytics"] .on-table .an-sheet{opacity:1;transform:none;visibility:visible;pointer-events:auto;transition-delay:0s}
+body[data-page="analytics"] .an-sheet-body{height:100%;overflow:auto;padding:12px}
+body[data-page="analytics"] .an-sheet .an-wrap{overflow:visible}
+body[data-page="analytics"] .on-table .an-list,body[data-page="analytics"] .on-table .an-edge,
+body[data-page="analytics"] .on-table .an-layers,body[data-page="analytics"] .on-table .an-legend{visibility:hidden}
+
+/* --- слои и легенда — островками внизу, правее списка --- */
+body[data-page="analytics"] .an-layers,body[data-page="analytics"] .an-legend{position:absolute;z-index:9;bottom:var(--isle-gap);pointer-events:auto;
+  background:var(--panel);border:0;border-radius:12px;box-shadow:var(--lift);font-size:12px;color:var(--ink);
+  transition:transform var(--an-dur) var(--an-ease)}
+body[data-page="analytics"] .an-layers{left:calc(var(--isle-gap) * 2 + var(--list-w));margin:0;padding:8px 12px 9px;display:flex;flex-direction:column;gap:4px}
+body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 3 + var(--list-w) + 180px);padding:8px 12px}
+body[data-page="analytics"] .hide-list .an-layers,body[data-page="analytics"] .hide-list .an-legend{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
+body[data-page="analytics"] .an-layers legend{padding:0;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82;float:left;width:100%;margin-bottom:2px}
+body[data-page="analytics"] .an-layers label{display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer}
+body[data-page="analytics"] .an-legend b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82;margin-bottom:4px}
+body[data-page="analytics"] .an-legend ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:auto auto;gap:3px 14px}
+body[data-page="analytics"] .an-legend li{display:flex;align-items:center;gap:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .an-legend i{width:16px;height:11px;border-radius:3px;border:1px solid rgba(13,54,107,.25)}
+body[data-page="analytics"] .an-legend i.an-lg-none{background:#fff;border:1.5px dashed #1c5cab}
+/* Подпись слоя Кадастра — над островком слоёв; со списком уезжает вместе
+   (подпись — в карте, вне страницы: признак скрытия — класс на body). */
+body[data-page="analytics"] .an-scene .cad-note-gl{left:calc(var(--isle-gap) * 2 + var(--list-w));bottom:calc(var(--isle-gap) + 140px);
+  transition:transform var(--an-dur) var(--an-ease)}
+body.an-list-hidden .an-scene .cad-note-gl{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
+
+/* --- узкие окна (до 1100): карта сверху, панели листом ниже --- */
+@media (max-width:1100px){
+  body[data-page="analytics"] .content{overflow:auto}
+  body[data-page="analytics"] .an-page{height:auto;padding:calc(var(--scene-top) + 46px + 40vh) var(--isle-gap) var(--isle-gap)}
+  body[data-page="analytics"] .an-isles{flex-wrap:wrap}
+  body[data-page="analytics"] .an-isl-filter{max-width:none;flex:1 1 100%;flex-wrap:wrap}
+  body[data-page="analytics"] .an-isl-sum{flex:1 1 100%;flex-wrap:wrap}
+  body[data-page="analytics"] .an-list{position:relative;left:auto;top:auto;bottom:auto;width:auto;transform:none !important;opacity:1 !important;visibility:visible !important}
+  body[data-page="analytics"] .an-list-body{overflow:visible}
+  body[data-page="analytics"] .an-edge{display:none}
+  body[data-page="analytics"] .an-facets{position:relative;top:auto;left:auto !important;margin-bottom:8px;display:none}
+  body[data-page="analytics"] .facets-open .an-facets{display:block}
+  body[data-page="analytics"] .an-layers,body[data-page="analytics"] .an-legend{bottom:auto;top:calc(var(--scene-top) + 46px + 40vh - 140px);transform:none !important}
+  body[data-page="analytics"] .an-layers{left:var(--isle-gap)}
+  body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 2 + 180px)}
+  body[data-page="analytics"] .an-sheet{position:fixed;top:120px}
+  body[data-page="analytics"] .an-scene .cad-note-gl{display:none}
+}

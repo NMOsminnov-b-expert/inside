@@ -543,6 +543,10 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .maplibregl-popup.map-tip-gl .maplibregl-popup-content i{font-style:normal;color:#5a6b82}
 .maplibregl-popup.map-tip-gl .maplibregl-popup-tip{display:none}
 .maplibregl-popup.map-tip-gl{pointer-events:none;-webkit-user-select:none;user-select:none}
+/* Кнопка «Границы» (kernel/mapgl.js, BoundsControl) — в группе кнопок масштаба: подпись словом, нажата — цветом бренда. */
+.maplibregl-ctrl-group.map-bounds-ctrl button{width:auto;padding:0 9px;font:600 12px/29px -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#41536a;white-space:nowrap}
+.maplibregl-ctrl-group.map-bounds-ctrl button[aria-pressed="true"]{background:var(--brand-600);color:#fff}
+.maplibregl-ctrl-group.map-bounds-ctrl button[aria-pressed="true"]:hover{background:var(--brand-700)}
 /* Подпись участка и строения Кадастра (kernel/cadastreTip.js, 04.11.2026: «максимум информации об участке… и о здании»):
    заголовок, адрес, строки «подпись — значение», список строений, даты внизу. */
 .leaflet-tooltip.map-tip:has(.cad-tip){max-width:340px}

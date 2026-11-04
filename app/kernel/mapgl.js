@@ -135,18 +135,129 @@ function wheelZoom(map) {
   }, { passive: false });
 }
 
+// Административные границы — слоем карты адресного регистра «Дарек» ГУ «Кадастр»
+// (сервер QGIS map.darek.kg, WMS; пользователь 04.11.2026: «Границы регионов,
+// айыльных аймаков, административных границ… Нужна актуальная информация»;
+// «Давай сначала на карте подложку»). Картинки только видимой части, как на
+// самой карте Дарека; уровень сервер выбирает по масштабу сам: издали области,
+// ближе районы, вблизи айыл аймаки (до 1:300 000). Сервер отдаёт картинки с
+// любого адреса (Access-Control-Allow-Origin: *), только по http.
+// Источник и проверки — запись графа cadastre-kg-otkrytye-zaprosy-portala-chto-mozhno-poluchit.
+const BOUNDS_LAYERS = 'Граница Кыргызстана,Границы областей,Границы районов,Границы айылных аймаков,Линии — периметр анклавов';
+const BOUNDS_URL = 'http://map.darek.kg/qgis/qgis_mapserv.fcgi.exe?map=' + encodeURIComponent('C:/OSGeo4W64/projects/ГИСАР/ГИСАР.qgz')
+  + '&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=&FORMAT=image/png&TRANSPARENT=true&CRS=EPSG:3857'
+  + '&LAYERS=' + encodeURIComponent(BOUNDS_LAYERS);
+// Одна картинка на видимую часть карты, а не квадратами: сервер подписывает
+// каждую картинку отдельно, и квадраты повторяли подписи областей и аймаков
+// внахлёст (снимки 04.11.2026). Так же берёт картинку сама карта Дарека.
+const merc = ([lon, lat]) => [lon * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) * 20037508.34 / Math.PI];
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: показ границ — удобство одного человека, хранится в
+// браузере; на сервере — в личных настройках. Сам слой — открытая карта Дарека
+// без договора: для работы — официальный доступ (решение 14.10.2026 о Кадастре).
+const BOUNDS_KEY = 'inside.map.bounds';
+const BOUNDS_ATTR = 'Границы: ГУ «Кадастр», <a href="http://darek.kg/Map" target="_blank" rel="noopener">адресный регистр «Дарек»</a>';
+const boundsOn = () => { try { return localStorage.getItem(BOUNDS_KEY) !== '0'; } catch (e) { return true; } };
+const setBoundsOn = (v) => { try { localStorage.setItem(BOUNDS_KEY, v ? '1' : '0'); } catch (e) { /* до перезагрузки */ } };
+
+function addBounds(map) {
+  let shown = '';
+  let want = '';
+  let timer = 0;
+  const load = () => {
+    if (!boundsOn() || !map.getStyle()) return;
+    const c = map.getCanvas();
+    const w = Math.min(2048, Math.round(c.clientWidth));
+    const h = Math.min(2048, Math.round(c.clientHeight));
+    if (w < 50 || h < 50) return;
+    const b = map.getBounds();
+    const nw = [b.getWest(), Math.min(85, b.getNorth())];
+    const se = [b.getEast(), Math.max(-85, b.getSouth())];
+    const [x1, y2] = merc(nw);
+    const [x2, y1] = merc(se);
+    const url = `${BOUNDS_URL}&WIDTH=${w}&HEIGHT=${h}&BBOX=${x1},${y1},${x2},${y2}`;
+    if (url === shown || url === want) return;
+    want = url;
+    // Картинка сначала грузится, затем подменяет прежнюю — без мигания пустотой.
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      // Пока грузилась, карту сдвинули — эта картинка уже не нужна, ждём следующую.
+      if (!map.getStyle() || url !== want) return;
+      const coords = [[nw[0], nw[1]], [se[0], nw[1]], [se[0], se[1]], [nw[0], se[1]]];
+      const src = map.getSource('bounds');
+      shown = url;
+      if (src) { apply({ url, coordinates: coords }); return; }
+      map.addSource('bounds', { type: 'image', url, coordinates: coords });
+      busy = true;
+      // Над подложкой OSM, под всем, что карта добавила (участки, строения, точки).
+      const above = (map.getStyle().layers || []).find((l) => l.id !== 'osm');
+      map.addLayer({ id: 'bounds', type: 'raster', source: 'bounds', paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 },
+        layout: { visibility: boundsOn() ? 'visible' : 'none' } }, above ? above.id : undefined);
+    };
+    img.src = url;
+  };
+  // Подмена картинки — по очереди: новая, пока карта грузит прежнюю, обрывала её
+  // («AbortError» в консоли, сценарий аналитики 04.11.2026). Ждёт загрузки
+  // прежней; из ждущих берётся последняя.
+  let busy = false;
+  let queued = null;
+  const apply = (img) => {
+    if (busy) { queued = img; return; }
+    busy = true;
+    map.getSource('bounds').updateImage(img);
+  };
+  map.on('sourcedata', (e) => {
+    if (e.sourceId !== 'bounds' || !e.isSourceLoaded || !busy) return;
+    busy = false;
+    if (queued) { const q = queued; queued = null; apply(q); }
+  });
+  map.on('moveend', () => { clearTimeout(timer); timer = setTimeout(load, 250); });
+  map.on('resize', () => { clearTimeout(timer); timer = setTimeout(load, 250); });
+  map._boundsLoad = load;
+  load();
+}
+
+// Кнопка «Границы» — в группе кнопок масштаба: включить и выключить слой.
+// Выбор общий для всех карт системы.
+class BoundsControl {
+  onAdd(map) {
+    const box = document.createElement('div');
+    box.className = 'maplibregl-ctrl maplibregl-ctrl-group map-bounds-ctrl';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'Границы';
+    const sync = () => {
+      const on = boundsOn();
+      b.setAttribute('aria-pressed', String(on));
+      b.title = on ? 'Скрыть административные границы (Кадастр, «Дарек»)' : 'Показать административные границы: области, районы, айыл аймаки (Кадастр, «Дарек»)';
+    };
+    b.onclick = () => {
+      setBoundsOn(!boundsOn());
+      if (map.getLayer('bounds')) map.setLayoutProperty('bounds', 'visibility', boundsOn() ? 'visible' : 'none');
+      if (boundsOn() && map._boundsLoad) map._boundsLoad();
+      sync();
+    };
+    sync();
+    box.appendChild(b);
+    return box;
+  }
+  onRemove() {}
+}
+
 // more — дополнительные настройки карты (например, cooperativeGestures).
 export async function createMap(gl, el, { center = [74.6, 42.87], zoom = 6.5, ...more } = {}) {
   const map = new gl.Map({
     container: el, style: OSM_STYLE, center, zoom, maxZoom: 19.5,
-    attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+    attributionControl: { compact: true, customAttribution: BOUNDS_ATTR }, dragRotate: false, pitchWithRotate: false, touchPitch: false,
     locale: LOCALE_RU, ...more,
   });
   map.touchZoomRotate.disableRotation();
   map.keyboard.disableRotation();
   wheelZoom(map);
+  map.addControl(new BoundsControl(), 'bottom-right');
   map.addControl(new gl.NavigationControl({ showCompass: false }), 'bottom-right');
   if (!map.loaded()) await new Promise((ok) => map.once('load', ok));
+  addBounds(map);
   return map;
 }
 

@@ -21,6 +21,7 @@ import { mountInstitutions } from '../pages/institutions/institutions.js';
 import { mountInspector } from '../pages/inspector/inspector.js';
 import { mountInspections } from '../pages/inspections/inspections.js';
 import { mountScans } from '../pages/scans/scans.js';
+import { mountAnalytics } from '../pages/analytics/analytics.js';
 import { mountOsmotr } from '../pages/osmotr/osmotr.js';
 
 let current = null;   // { kind: 'menu' | typeId, instance, scope }
@@ -249,6 +250,25 @@ async function onRoute(route) {
     if (stale()) { scope.destroy(); return; }
     const instance = mountScans(host);
     current = { kind: 'scans', instance, scope };
+    return;
+  }
+
+  if (route.name === 'analytics') {
+    // Аналитика: земли по айыл аймакам (pages/analytics/analytics.js).
+    if (current && current.kind === 'analytics') {
+      current.instance.onRoute(route);
+      return;
+    }
+    unmount();
+    resetShellSlots();
+    setActiveNav('analytics');
+    document.body.dataset.page = 'analytics';
+    const scope = createScope(contentRoot());
+    const host = makeHost(route, scope, null);
+    await host.ensureStyle('./app/pages/analytics/analytics.css');
+    if (stale()) { scope.destroy(); return; }
+    const instance = mountAnalytics(host);
+    current = { kind: 'analytics', instance, scope };
     return;
   }
 

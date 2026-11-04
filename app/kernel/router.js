@@ -56,6 +56,11 @@ export function parse(hash = location.hash) {
     return { name: 'scans', query };
   }
 
+  // Аналитика — земли по айыл аймакам (pages/analytics, 04.11.2026).
+  if (segs[0] === 'analytics') {
+    return { name: 'analytics', query };
+  }
+
   // Учреждения — сводка по объектам оценки и документам одного учреждения.
   if (segs[0] === 'institutions') {
     return { name: 'institutions', query };
@@ -151,3 +156,4 @@ export const DICTS_HREF = '#/dicts';
 export const INST_HREF = '#/institutions';
 export const INSPECTIONS_HREF = '#/inspections';
 export const SCANS_HREF = '#/scans';
+export const ANALYTICS_HREF = '#/analytics';

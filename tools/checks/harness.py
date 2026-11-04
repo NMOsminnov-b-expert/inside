@@ -358,6 +358,34 @@ PNG_1PX = __import__('base64').b64decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==')
 
 
+# Ответ карты «Дарек» на «что в точке» (GetFeatureInfo) — один аймак вокруг
+# демо-ЕНИ 1030700400754 (oc-cv-1, ул. Суюмбаева 33): квадрат ±0,004° — в нём
+# лежат записанные участки Кадастра (cadastre_fixture), так что расчёт занятости
+# даёт долю между 0 и 1. Баланс — как у настоящего аймака «Достук а.а.».
+DAREK_AIMAK = {
+    'type': 'Feature', 'id': 'Границы айылных аймаков.1',
+    'geometry': {'type': 'MultiPolygon', 'coordinates': [[[[74.6202, 42.8659], [74.6282, 42.8659], [74.6282, 42.8739], [74.6202, 42.8739], [74.6202, 42.8659]]]]},
+    'properties': {'Аймак': 'Проверочный а.а.', 'Код аймака': '1-03-07', 'Район': 'Свердловский', 'Область': 'Бишкек',
+                   'Общая площадь (га)': '15911', 'Земли сельскохозяйственного назначения (га)': 13634.0, 'Земли населенных пунктов (га)': '1091',
+                   'Земли промышленности, транспорта, связи, энергетики, обороны и иного назначения (га)': '743', ' Земли лесного фонда (га)': '154',
+                   'Земли водного фонда (га)': '289', 'Земли особо охраняемых природных территорий (га)': '0', 'Земли запаса (га)': '0'},
+}
+DAREK_QUARTER = {'type': 'Feature', 'id': 'Квартал (насел. пункт).1', 'geometry': None,
+                 'properties': {'kvartalcod': '1-03-07-0040', 'coate': '41711 000 000 00 0'}}
+
+
+def darek_route(route):
+    import json as _json
+    url = route.request.url
+    if 'REQUEST=GetFeatureInfo' in url:
+        feats = [DAREK_AIMAK] if 'WITH_GEOMETRY=true' in url else [dict(DAREK_AIMAK, geometry=None), DAREK_QUARTER]
+        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin': '*'},
+                      body=_json.dumps({'type': 'FeatureCollection', 'features': feats}, ensure_ascii=False))
+    else:
+        # Картинку читают с полотна (ГФСУ) — нужен ответ «можно с любого адреса», как у настоящего сервера.
+        route.fulfill(status=200, content_type='image/png', headers={'Access-Control-Allow-Origin': '*'}, body=PNG_1PX)
+
+
 def use_cadastre_fixture(page):
     """Кадастр — записанными ответами портала вместо пустой заглушки.
 
@@ -408,6 +436,12 @@ def run_one(mod, part=None, headless=True, browser_=None):
         })()""")
         # Подложка OSM — клеткой 1×1 без сети (23.10.2026): карте важен сам ответ.
         page.context.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG_1PX))
+        # Карта «Дарек» ГУ «Кадастр» (границы, аймаки, 04.11.2026) — без сети:
+        # картинки — клеткой 1×1, «что в точке» — записанный аймак (darek_fixture).
+        page.context.route('http://map.darek.kg/**', darek_route)
+        # Готовые данные аналитики (app/data/analytics/land-seed.json) — не для
+        # сценариев: те видят только записанный аймак.
+        page.context.route('**/app/data/analytics/land-seed.json', lambda r: r.fulfill(status=200, content_type='application/json', body='{"aimaks":[],"adm":{}}'))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего
         # прогона доставались бы следующему, и порядок запуска начал бы влиять

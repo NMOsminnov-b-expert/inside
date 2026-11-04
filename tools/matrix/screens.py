@@ -83,3 +83,8 @@ _TS_TOUCH = _INSPECTOR_TOUCH + ('app/modules/vehicle/inspect.js', 'app/modules/v
 _add('Осмотрщик · Осмотр ТС', 'osmotry', 'insp', '#/insp/vehicle/oc-vehicle-d2/object/ts?as=' + quote(PERSON), '.ins-acc', _TS_TOUCH)
 _add('Осмотрщик · Объект · выявленное ТС', 'osmotry', 'insp', '#/insp/civil/oc-cv-1/object?as=' + quote('Бабашова Даяна Алтынбековна'),
      '.ins-oi', _TS_TOUCH)
+
+# Аналитика · Земли по айыл аймакам (04.11.2026): Дарек и Кадастр — записанными
+# ответами (harness: map.darek.kg, use_cadastre_fixture).
+_add('Аналитика · Земли по айыл аймакам', 'analytics', 'rm', '#/analytics', '.an-page',
+     ('app/pages/analytics/', 'app/kernel/landStats.js', 'app/kernel/darekAdmin.js', 'app/kernel/mapgl.js'))

@@ -1,6 +1,6 @@
 import { $, esc } from '../kernel/dom.js';
 import { createScope } from '../kernel/scope.js';
-import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF, INSPECTIONS_HREF, SCANS_HREF } from '../kernel/router.js';
+import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF, INSPECTIONS_HREF, SCANS_HREF, ANALYTICS_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
 import { registerPersisted } from '../kernel/persist.js';
 
@@ -93,6 +93,7 @@ function bindNav() {
       if (b.dataset.nav === 'insp') location.hash = INSPECTIONS_HREF;
       if (b.dataset.nav === 'insp-field') location.hash = OSMOTR_HREF;
       if (b.dataset.nav === 'scans') location.hash = SCANS_HREF;
+      if (b.dataset.nav === 'analytics') location.hash = ANALYTICS_HREF;
     };
   });
 
