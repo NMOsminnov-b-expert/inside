@@ -108,7 +108,9 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
   // Папка ОИ в архиве → id ОИ (своего или выявленного).
   const folderMap = new Map();
   const foundFor = (label, card, extra = {}) => {
-    let f = r.found.find((x) => x.source && x.source.label === source && norm(x.name) === norm(label));
+    // Выявленное — одно, откуда бы ни пришло: часть файлов уходит сразу из приложения, часть — архивом, и по
+    // разной метке источника ОИ заводился дважды (аудит приложения 03.11.2026, п. 29).
+    let f = r.found.find((x) => x.source && (x.source.kind === 'archive' || x.source.kind === 'app' || x.source.label === source) && norm(x.name) === norm(label));
     if (!f) {
       f = { id: `found-arc-${Date.now().toString(36)}-${r.found.length + 1}`, card, name: label, where: card === 'vehicle' ? MOVABLES[0] : REAL,
         foundBy: byOf(''), foundAt: new Date().toISOString().slice(0, 10), note: source === SOURCE ? 'выявлено на осмотре (из архива приложения)' : 'выявлено на осмотре',
@@ -177,12 +179,24 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
         const rows = await xlsxRows(await (await e.read()).arrayBuffer());
         const head = (rows[0] || []).map(norm);
         const col = (re) => head.findIndex((h) => re.test(h));
-        const ci = { name: col(/фио|имя|контакт/), role: col(/должн|роль|кто/), phone: col(/тел/) };
+        const ci = { name: col(/фио|имя|контакт/), role: col(/должн|роль|кто/), phone: col(/тел/), email: col(/почт|mail/), note: col(/прим|коммент/) };
+        const cell = (row, i) => (i >= 0 && row[i] != null ? String(row[i]) : '');
+        // Контакт — по телефону: исправленный осмотрщиком (имя, должность) обновляет прежний, а не заводится
+        // вторым; почта и примечание не теряются (аудит приложения 03.11.2026, п. 30).
+        const tel = (x) => String(x || '').replace(/\D/g, '').slice(-9);
         rows.slice(1).forEach((row) => {
-          const c = { name: row[ci.name] || row[0] || '', role: ci.role >= 0 ? row[ci.role] : '', phone: ci.phone >= 0 ? row[ci.phone] : '' };
+          const c = { name: cell(row, ci.name) || String(row[0] || ''), role: cell(row, ci.role), phone: cell(row, ci.phone), email: cell(row, ci.email), note: cell(row, ci.note) };
           if (!c.name && !c.phone) return;
-          if ((r.contacts || []).some((x) => norm(x.name) === norm(c.name) && norm(x.phone) === norm(c.phone))) { sum.repeated++; return; }
-          (r.contacts = r.contacts || []).push({ id: `ct-arc-${Date.now().toString(36)}-${r.contacts.length + 1}`, ...c, source });
+          const list = (r.contacts = r.contacts || []);
+          const same = list.find((x) => (tel(c.phone) && tel(x.phone) === tel(c.phone)) || (!tel(c.phone) && !tel(x.phone) && norm(x.name) === norm(c.name)));
+          if (same) {
+            const upd = Object.entries(c).filter(([k, v]) => v && v !== same[k]);
+            if (!upd.length) { sum.repeated++; return; }
+            upd.forEach(([k, v]) => { same[k] = v; });
+            sum.contacts++;
+            return;
+          }
+          list.push({ id: `ct-arc-${Date.now().toString(36)}-${list.length + 1}`, ...c, source });
           sum.contacts++;
         });
         taken = true;
@@ -194,7 +208,9 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
         const vals = JSON.parse(await (await e.read()).text());
         const into = valuesOf(typeId, ocId, oiId);
         Object.entries(vals).forEach(([k, v]) => {
-          if (k.startsWith('carried.') || v === '' || (Array.isArray(v) && !v.length)) return;
+          // objKind — тип ОИ формы приложения: его присылает сама система (bridge.js oiTypeOf), в значения осмотра
+          // он не идёт — иначе ложился в них неизвестным полем (аудит приложения 03.11.2026, п. 13).
+          if (k === 'objKind' || k.startsWith('carried.') || v === '' || (Array.isArray(v) && !v.length)) return;
           // Ключ с точкой («f.mileage», «ts.addr», «u.<id>.state») — вложенно, как пишет форма осмотра (fieldSchema.setValue):
           // иначе значение ложилось буквальным ключом «f.mileage», и форма его не видела.
           setValue(into, k, v);

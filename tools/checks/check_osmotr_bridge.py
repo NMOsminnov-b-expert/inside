@@ -133,6 +133,31 @@ def run(t):
         st = pg.evaluate("async ([ty, oc]) => { const k = %s; const p = (await import('./app/kernel/session.js')).session.state.person; return k.myAssignsOn(p, ty, oc).map((a) => a.state); }" % KI, [typeId, ocId])
         t.ck(st and all(x == 'progress' for x in st), 'первая отправка не перевела в «В работе»: %s' % st)
 
+    # --- разбор присланного (аудит приложения 03.11.2026, пп. 13, 29, 30) ---
+    imp = pg.evaluate("""async ([ty, oc, oiId]) => {
+      const A = await import('./app/pages/inspector/archiveImport.js'); const R = await import('./app/kernel/registry.js');
+      const K = await import('./app/kernel/inspectionResults.js'); const X = await import('./app/kernel/xlsx.js');
+      const rec = R.getType(ty).records.loadRecord(oc);
+      const blob = (t, type) => async () => new Blob([t], { type });
+      // 13: objKind в значения не идёт, остальное — идёт.
+      await A.applyEntries(ty, rec, [{ rel: 'x/params.json', oiId, depth: 1, read: blob(JSON.stringify({ objKind: 'Здание', chkNote: 'да' }), 'application/json') }], { source: 'приложение «Осмотр»' });
+      const vals = K.valuesOf(ty, oc, oiId);
+      // 29: выявленное из приложения и из архива — одно.
+      const jpg = blob(new Uint8Array([255, 216, 255, 224]), 'image/jpeg');
+      await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Фасад/a_20261104_101500_001.jpg', read: jpg }], { source: 'приложение «Осмотр»' });
+      await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Фасад/a_20261104_101600_002.jpg', read: jpg }]);
+      const found = K.resultsOf(ty, oc).found.filter((f) => f.name === 'Литера Щ-проверка').length;
+      // 30: контакт по телефону — исправленное имя обновляет прежний, почта сохраняется.
+      const book = (name) => async () => new Blob([await X.xlsxBytes([{ name: 'К', head: ['ФИО', 'Должность', 'Телефон', 'Почта'], rows: [[name, 'завхоз', '+996 700 11 22 33', 'zav@ex.kg']] }])]);
+      await A.applyEntries(ty, rec, [{ rel: 'Контакты.xlsx', read: book('Проверочный Контакт') }]);
+      await A.applyEntries(ty, rec, [{ rel: 'Контакты.xlsx', read: book('Проверочный Контакт Исправленный') }]);
+      const cs = K.resultsOf(ty, oc).contacts.filter((c) => String(c.phone).replace(/\D/g, '').endsWith('700112233'));
+      return { objKind: 'objKind' in vals, chk: vals.chkNote, found, contacts: cs.map((c) => [c.name, c.email || '']) };
+    }""", [typeId, ocId, oi['id']])
+    t.ck(not imp['objKind'] and imp['chk'] == 'да', 'objKind попал в значения осмотра или значения не приняты: %s' % imp)
+    t.ck(imp['found'] == 1, 'выявленное из приложения и из архива заведено дважды: %s' % imp['found'])
+    t.ck(imp['contacts'] == [['Проверочный Контакт Исправленный', 'zav@ex.kg']], 'контакт по телефону не обновился или потерял почту: %s' % imp['contacts'])
+
     # --- «Осмотр закончен» ---
     # После «закончен» и после снятия назначения снятое всё равно принимается (решение 03.11.2026).
     f = pg.evaluate(ASK, ['finish', {'assignId': it['id']}, False])
