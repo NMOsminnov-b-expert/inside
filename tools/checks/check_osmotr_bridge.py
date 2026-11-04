@@ -151,12 +151,20 @@ def run(t):
       const book = (name) => async () => new Blob([await X.xlsxBytes([{ name: 'К', head: ['ФИО', 'Должность', 'Телефон', 'Почта'], rows: [[name, 'завхоз', '+996 700 11 22 33', 'zav@ex.kg']] }])]);
       await A.applyEntries(ty, rec, [{ rel: 'Контакты.xlsx', read: book('Проверочный Контакт') }]);
       await A.applyEntries(ty, rec, [{ rel: 'Контакты.xlsx', read: book('Проверочный Контакт Исправленный') }]);
-      const cs = K.resultsOf(ty, oc).contacts.filter((c) => String(c.phone).replace(/\D/g, '').endsWith('700112233'));
-      return { objKind: 'objKind' in vals, chk: vals.chkNote, found, contacts: cs.map((c) => [c.name, c.email || '']) };
+      const cs = K.resultsOf(ty, oc).contacts.filter((c) => String(c.phone).replace(/\D/g, '').endsWith('700112233')).map((c) => [c.name, c.email || '']);
+      // 9: комментарий папки и контакты из папки ОИ — принимаются.
+      const txt = (t) => blob(t, 'text/plain');
+      await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Фасад/Комментарий.txt', read: txt('трещина у входа') }]);
+      await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Фасад/Комментарий.txt', read: txt('трещина у входа') }]);
+      const note = String(K.resultsOf(ty, oc).note || '').split('\\n').filter((l) => l === 'Недвижимое / Литера Щ-проверка / Фасад: трещина у входа').length;
+      const sub = await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Контакты.xlsx', read: book('Проверочный Подпапка') }]);
+      return { objKind: 'objKind' in vals, chk: vals.chkNote, found, contacts: cs, note, subTaken: sub.taken };
     }""", [typeId, ocId, oi['id']])
     t.ck(not imp['objKind'] and imp['chk'] == 'да', 'objKind попал в значения осмотра или значения не приняты: %s' % imp)
     t.ck(imp['found'] == 1, 'выявленное из приложения и из архива заведено дважды: %s' % imp['found'])
     t.ck(imp['contacts'] == [['Проверочный Контакт Исправленный', 'zav@ex.kg']], 'контакт по телефону не обновился или потерял почту: %s' % imp['contacts'])
+    t.ck(imp['note'] == 1, 'комментарий папки не принят или удвоился: %s' % imp['note'])
+    t.ck(imp['subTaken'] == 1, 'контакты из папки ОИ не приняты')
 
     # --- «Осмотр закончен» ---
     # После «закончен» и после снятия назначения снятое всё равно принимается (решение 03.11.2026).

@@ -175,7 +175,9 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
         // Документ — из любой папки «Документы», любого формата, к ОИ этой папки (или к объекту).
         if ((r.scans || []).some((s) => s.title === name && (s.oiId || '') === oiId)) { sum.repeated++; taken = true; }
         else { addResultScan(typeId, ocId, [await asFile(e, name)], { title: name, oiId, by: byOf(oiId) }); sum.scans++; taken = true; }
-      } else if (parts.length === 1 && name === 'Контакты.xlsx') {
+      } else if (name === 'Контакты.xlsx') {
+        // Контакты — из любой папки: приложение даёт завести их и у ОИ, а система читала только корень
+        // объекта (аудит приложения 03.11.2026, п. 9). Ложатся в контакты объекта.
         const rows = await xlsxRows(await (await e.read()).arrayBuffer());
         const head = (rows[0] || []).map(norm);
         const col = (re) => head.findIndex((h) => re.test(h));
@@ -199,6 +201,16 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
           list.push({ id: `ct-arc-${Date.now().toString(36)}-${list.length + 1}`, ...c, source });
           sum.contacts++;
         });
+        taken = true;
+      } else if (name === 'Комментарий.txt') {
+        // Комментарий к объекту или к папке (категории, ОИ) — в примечание осмотра объекта; у папки — с её путём.
+        // Прежде файл отбрасывался как «не снимок» (аудит приложения 03.11.2026, п. 9). Система копит всё:
+        // исправленный комментарий добавляется строкой, прежний остаётся.
+        const text = (await (await e.read()).text()).trim();
+        const where = parts.slice(0, -1).join(' / ');
+        const line = where ? `${where}: ${text}` : text;
+        if (text && !String(r.note || '').split('\n').includes(line)) { r.note = [r.note, line].filter(Boolean).join('\n'); sum.values++; }
+        else if (text) sum.repeated++;
         taken = true;
       } else if (parts.length === 1 && name === 'Объект.txt') {
         taken = true; // сведения объекта приходят из системы — сам файл не нужен
