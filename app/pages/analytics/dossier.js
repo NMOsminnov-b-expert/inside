@@ -265,29 +265,47 @@ function waterHTML(d) {
   </div>`;
 }
 
+// Источники — карточками: что даёт источник, откуда, точность и лицензия, и его цифра в этом аймаке
+// (пользователь 04.11.2026: «источники данных тоже не оформлены»). Цвет полосы — цвет той же части
+// на карте и в легенде. Параметры — таблицей «значение — что значит»; порядок учёта — цепочкой.
 function sourcesHTML(d) {
-  const o = d.a.occ;
+  const { a, fmt } = d;
+  const o = a.occ;
+  const c = o.cmp || {};
+  const nfr0 = (x) => Math.round(x || 0).toLocaleString('ru-RU');
+  const zonesHa = Object.values(o.zones || {}).reduce((t, x) => t + x, 0);
   const src = [
-    ['Участки с ЕНИ, сведения', 'ГУ «Кадастр», картосервер портала (ENI_WGS84)', 'контуры, форма собственности, вид использования, назначение, даты'],
-    ['Границы и баланс аймака', 'Адресный регистр «Дарек», ГУ «Кадастр»', 'контур аймака, земельный баланс по категориям'],
-    ['Дороги, вода, русла', 'OpenStreetMap (векторные плитки OpenFreeMap)', 'ширина коридора дороги и русла — по классу'],
-    ['Овраги, обрывы, карьеры', 'OpenStreetMap (Overpass)', 'линии и контуры природных и нарушенных форм'],
-    ['Вода, покров земли', 'ESA WorldCover 2021 v200, 10 м (CC BY 4.0)', 'вода и болота; зоны свободной земли'],
-    ['Крутые склоны', 'Copernicus DEM GLO-30, 30 м', 'уклон по высотам'],
-    ['Здания', 'Microsoft Global ML Building Footprints, выпуск 2026-02 (ODbL)', 'контуры зданий по снимкам'],
+    ['o', 'Участки с ЕНИ', 'ГУ «Кадастр» — картосервер портала, слой ENI_WGS84', 'контуры, форма собственности, вид использования, назначение, даты', `${nfr0(o.parcels)} участков`, `занято ${fmt.area(o.occHa)}`],
+    ['a', 'Границы и баланс аймака', 'Адресный регистр «Дарек», ГУ «Кадастр»', 'контур аймака, земельный баланс по категориям', fmt.area(a.areaHa), a.balance && a.balance.total ? `по балансу ${fmt.area(a.balance.total)}` : 'баланса нет'],
+    ['r', 'Дороги, вода, русла', 'OpenStreetMap — векторные плитки OpenFreeMap', 'коридор дороги и русла — по классу', `дороги ${fmt.area(o.roadsHa || 0)}`, `вода ${fmt.area(c.waterOsmHa || 0)}`],
+    ['g', 'Овраги, обрывы, карьеры, осыпи', 'OpenStreetMap — Overpass', 'линии и контуры природных и нарушенных форм', fmt.area(c.reliefOsmHa || 0), o.reliefOk === false ? 'не получено' : 'до вычета участков'],
+    ['w', 'Вода, покров земли', 'ESA WorldCover 2021 v200 · 10 м · CC BY 4.0', 'вода и болота, голая поверхность, снег; зоны свободной земли', `вода ${fmt.area(c.waterWcHa || 0)}`, `зоны ${fmt.area(zonesHa)}`],
+    ['l', 'Рельеф', 'Copernicus DEM GLO-30 · 30 м, сгущение до 10 м', `уклон: круче ${o.slope}° — крутой склон${o.rockSlope ? `, круче ${o.rockSlope}° на голой поверхности — скалы` : ''}`, fmt.area(c.steepHa || 0), 'склонов до вычета'],
+    ['b', 'Здания', 'Microsoft Global ML Building Footprints · выпуск 2026-02 · ODbL', `контуры по снимкам; на участке — от ${fmt.pct(o.bldOn != null ? o.bldOn : 0.1)} площади`, `${nfr0(c.buildings)} зданий`, `без ЕНИ ${nfr0(c.buildingsNoEni)}`],
   ];
-  return `<section class="ad-card"><h3>Источники</h3>
-      <table class="itbl ad-tbl"><thead><tr><th>Что</th><th>Откуда</th><th>Как используется</th></tr></thead>
-      <tbody>${src.map((r) => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table></section>
-    <section class="ad-card"><h3>Параметры расчёта</h3><dl class="an-bal">
-      <dt>Узкая полоса — непригодна, уже</dt><dd class="num">${esc(String(o.strip))} м</dd>
-      <dt>Клочок — непригоден, меньше</dt><dd class="num">${esc(String(o.minPatch))} м²</dd>
-      <dt>Крутой склон — круче</dt><dd class="num">${esc(String(o.slope))}°</dd>
-      <dt>Двор здания без ЕНИ</dt><dd class="num">${esc(String(o.bldYard))} м</dd>
-      <dt>Ширина коридора дороги</dt><dd class="num">магистраль 50 · главная 32 · жилая 16 · проезд 10 · полевая 6 м</dd>
-      <dt>Ширина русла</dt><dd class="num">река 25 · канал 10 · ручей 5 · коллектор 4 · арык 3 м</dd>
-      <dt>Порядок учёта</dt><dd>участки → дороги → вода → рельеф → здания без ЕНИ</dd></dl>
-      <p class="an-d-note">${esc(o.by || '')}. Посчитано ${esc(d.fmt.date(o.at))}.</p></section>`;
+  const steps = ['Участки с ЕНИ', 'Дороги', 'Вода', 'Овраги, карьеры', 'Скалы и осыпи', 'Снег и лёд', 'Крутые склоны', 'Здания без ЕНИ', 'Полосы и клочки', 'Свободно'];
+  const par = [
+    ['Узкая полоса', `уже ${o.strip} м`, 'промежуток между участками и дорогами — непригоден'],
+    ['Клочок', `меньше ${o.minPatch} м²`, 'обрывок свободной земли — непригоден'],
+    ['Крутой склон', `круче ${o.slope}°`, 'по рельефу Copernicus DEM — непригоден'],
+    ...(o.rockSlope ? [['Скалы', `круче ${o.rockSlope}°`, 'голая поверхность WorldCover на таком склоне — скалы и осыпи; положе — голая земля, свободна']] : []),
+    ['Здание на участке', `от ${fmt.pct(o.bldOn != null ? o.bldOn : 0.1)} площади`, 'доля площади контура здания на участках с ЕНИ'],
+    ['Двор здания без ЕНИ', `${o.bldYard} м`, 'полоса вокруг здания вне участков — занято'],
+    ['Коридор дороги', '6–50 м', 'магистраль 50 · главная 32 · жилая 16 · проезд 10 · полевая 6 м'],
+    ['Ширина русла', '3–25 м', 'река 25 · канал 10 · ручей 5 · коллектор 4 · арык 3 м'],
+    ['Вода на участке', 'от 20 % площади', 'участок с ЕНИ считается лежащим на воде'],
+  ];
+  return `<div class="ad-src-grid">${src.map(([k, t, from, use, v1, v2]) => `<section class="ad-srcc c-${k}">
+      <h3>${esc(t)}</h3><p class="ad-srcc-from">${esc(from)}</p>
+      <p class="ad-srcc-use">${esc(use)}</p>
+      <div class="ad-srcc-v"><b class="num">${esc(v1)}</b><span>${esc(v2)}</span></div></section>`).join('')}</div>
+    <section class="ad-card"><h3>Порядок учёта</h3>
+      <ol class="ad-steps">${steps.map((s, i) => `<li><span class="num">${i + 1}</span>${esc(s)}</li>`).join('')}</ol>
+      <p class="an-d-note">Каждая следующая часть считается только там, где не легли предыдущие: площадь не учитывается дважды.</p></section>
+    <section class="ad-card"><h3>Параметры расчёта</h3>
+      <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Параметр</th><th class="num">Значение</th><th>Что значит</th></tr></thead>
+      <tbody>${par.map(([n, v, w]) => `<tr><td>${esc(n)}</td><td class="num">${esc(v)}</td><td class="ad-src">${esc(w)}</td></tr>`).join('')}</tbody></table>
+      <p class="an-d-note">${esc(o.by || '')}. Посчитано ${esc(fmt.date(o.at))}.</p></section>`;
 }
 
 // Листы выгрузки досье.
