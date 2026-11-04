@@ -31,6 +31,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -60,6 +61,61 @@ namespace EstateLauncher
                 Application.Run(new MainForm());
             }
             return 0;
+        }
+    }
+
+    // Объект задания Windows с «погасить всё при закрытии»: серверы Python
+    // кладутся в него при запуске, и Windows гасит их, как только процесс окна
+    // завершился любым путём — закрыли окно, сняли в диспетчере задач, упало
+    // (пользователь 04.11.2026: «Не забудь проверку отключения приложения
+    // полностью проверить»). Не получилось создать — остаётся прежнее гашение.
+    static class KillJob
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        struct BasicLimit
+        {
+            public long PerProcessUserTimeLimit, PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass, SchedulingClass;
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        struct IoCounters { public ulong R, W, O, RB, WB, OB; }
+        [StructLayout(LayoutKind.Sequential)]
+        struct ExtendedLimit
+        {
+            public BasicLimit Basic;
+            public IoCounters Io;
+            public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
+        }
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        static extern IntPtr CreateJobObject(IntPtr attrs, string name);
+        [DllImport("kernel32.dll")]
+        static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref ExtendedLimit info, uint size);
+        [DllImport("kernel32.dll")]
+        static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+
+        static IntPtr job = Create();
+
+        static IntPtr Create()
+        {
+            try
+            {
+                IntPtr h = CreateJobObject(IntPtr.Zero, null);
+                if (h == IntPtr.Zero) return h;
+                var info = new ExtendedLimit();
+                info.Basic.LimitFlags = 0x2000;  // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+                // 9 — JobObjectExtendedLimitInformation
+                return SetInformationJobObject(h, 9, ref info, (uint)Marshal.SizeOf(typeof(ExtendedLimit))) ? h : IntPtr.Zero;
+            }
+            catch (Exception) { return IntPtr.Zero; }
+        }
+
+        public static void Add(Process p)
+        {
+            try { if (job != IntPtr.Zero) AssignProcessToJobObject(job, p.Handle); } catch (Exception) { }
         }
     }
 
@@ -234,6 +290,7 @@ namespace EstateLauncher
             p.ErrorDataReceived += h;
             p.Exited += delegate { lock (w) w.Dispose(); };
             p.Start();
+            KillJob.Add(p);
             p.BeginOutputReadLine();
             p.BeginErrorReadLine();
             return p;

@@ -26,7 +26,8 @@ import { reviewOf, resultsOf, saveResults, valuesOf, addResultPhoto } from '../.
 import { inventoryById, markItem, markOf, addItemPhoto } from '../../kernel/inventories.js';
 import { xlsxBytes } from '../../kernel/xlsx.js';
 import { getValue, setValue } from '../../kernel/fieldSchema.js';
-import { geoByEni, centerOf } from '../../kernel/cadastreGeo.js';
+import { geoByEni, centerOf, featuresInBox, dashed } from '../../kernel/cadastreGeo.js';
+import { PARCEL_FIELDS, BUILD_FIELDS, buildsOfParcel, parcelRows } from '../../kernel/cadastreTip.js';
 import { scheduleSave } from '../../kernel/persist.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { loadTask, ownOis, oiLabel } from '../inspector/tasks.js';
@@ -193,7 +194,8 @@ let geoDone = null;
 
 async function fillGeo(objects) {
   // Нет участка — или есть одна рамка без контура (контур нужен карте): подтянуть.
-  const queue = objects.filter(({ rec }) => !(rec.geo && rec.geo.extent && rec.geo.contour && rec.geo.contour.length) && String(rec.eni || '').replace(/\D/g, '').length === 13
+  // Нет участка, нет контура или нет сведений участка (props) — подтянуть.
+  const queue = objects.filter(({ rec }) => !(rec.geo && rec.geo.extent && rec.geo.contour && rec.geo.contour.length && rec.geo.props) && String(rec.eni || '').replace(/\D/g, '').length === 13
     && !geoTried.has(rec.id));
   if (!queue.length || geoRunning) return;
   geoRunning = true;
@@ -202,7 +204,14 @@ async function fillGeo(objects) {
     geoTried.add(rec.id);
     const res = await geoByEni(rec.eni);
     if (res.error || !res.extent) return;
-    rec.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src || 'Кадастр', by: 'ЕНИ' };
+    // Сведения участка и строения на нём — слоями картосервера в рамке участка (всё, что отдаёт Кадастр).
+    const box = [res.extent[0] - 0.0002, res.extent[1] - 0.0002, res.extent[2] + 0.0002, res.extent[3] + 0.0002];
+    const [ps, bs] = await Promise.all([featuresInBox('ENI_WGS84', box, PARCEL_FIELDS, 200).catch(() => []), featuresInBox('ENI_BUILDINGS', box, BUILD_FIELDS, 200).catch(() => [])]);
+    const own = ps.find((f) => String((f.properties || {}).PROPCODE || '') === dashed(res.eni));
+    const props = own ? { ...own.properties } : {};
+    const builds = buildsOfParcel(res.eni, bs).map((f) => ({ properties: f.properties || {} }));
+    rec.geo = { extent: res.extent, contour: res.contour, house: res.house, eni: res.eni, at: res.at, src: res.src || 'Кадастр', by: 'ЕНИ',
+      purpose: res.purpose || '', use: res.use || '', ownForm: res.ownForm || '', props, builds };
     rec.gps = centerOf(res.extent);
     got += 1;
   };
@@ -261,6 +270,9 @@ function myObjects(person) {
       note: list.map((a) => a.note).filter(Boolean).join('\n'), by: list[0].by || '',
       eni: rec.eni || '', address: rec.address || '', institution: [rec.institution, rec.podved].filter(Boolean).join(' · '),
       lat: gps ? gps[0] : null, lon: gps ? gps[1] : null, contour: ringOf(rec.geo), geoSrc: rec.geo && rec.geo.src ? rec.geo.src : '',
+      // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
+      parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },
+        rec.geo.contour ? { type: 'MultiPolygon', coordinates: rec.geo.contour } : null, rec.geo.builds || []) : [],
       ois, docs, contacts, returned,
       inventories: inventoriesOf(rec, list, ownOis(rec).filter((o) => whole || list.some((a) => coversOi(a, o.id))))
         .map(({ id, kind, title, folder, items }) => ({ id, kind, title, folder, count: items.length })),

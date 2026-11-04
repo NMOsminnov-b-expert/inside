@@ -74,6 +74,27 @@ export function buildsOfParcel(parcelCode, builds) {
 
 const buildWord = (pr) => [val(pr.BUILD_TYPE), val(pr.NAZNACHENI)].filter(Boolean).join(', ') || 'строение';
 
+// Сведения участка строками «подпись — значение» — одни и те же для подписи на карте макета и для карточки
+// объекта на карте приложения «Осмотр» (pages/osmotr/bridge.js).
+export function parcelRows(pr, geometry, builds = []) {
+  const addr = val(pr.FULL_ADDRESS) || val(pr.ADDRESS);
+  const bl = builds.map((f) => buildWord(f.properties || {}) + (val((f.properties || {}).PRIMECHANI) ? ` (${val(f.properties.PRIMECHANI)})` : ''));
+  return [
+    ['Адрес по Кадастру', addr],
+    ['Назначение по Кадастру', val(pr.NAZNACHENI)],
+    ['Вид использования', val(pr.PROPFOR_NAME)],
+    ['Форма собственности', val(pr.PROPFORM_NAME)],
+    ['Площадь по контуру', areaText(areaM2(geometry))],
+    ['Номер дома', val(pr.DOMCODE) && !addr.includes(val(pr.DOMCODE)) ? val(pr.DOMCODE) : ''],
+    ['Строения на участке', bl.length ? `${bl.length}: ${bl.slice(0, 4).join('; ')}${bl.length > 4 ? '; …' : ''}` : ''],
+    ['Амнистия', yes(pr.AMNESTIED) ? 'да' : ''],
+    ['Координаты', yes(pr.FROM_GPS) ? 'сняты по GPS' : ''],
+    ['Примечание', val(pr.PRIMECHANI)],
+    ['Регистрационный орган', val(pr.CODE_LRO) ? 'код ' + val(pr.CODE_LRO) : ''],
+    ['В Кадастре', dates(pr)],
+  ].filter(([, v]) => v).map(([label, value]) => ({ label, value }));
+}
+
 export function parcelTipHTML(pr, geometry, builds = []) {
   const code = digits(pr.PROPCODE);
   const addr = val(pr.FULL_ADDRESS) || val(pr.ADDRESS);

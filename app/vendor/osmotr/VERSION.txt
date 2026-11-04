@@ -1,1 +1,1 @@
-Приложение «Осмотр», коммит cac2c28 2026-11-03 Map: cadastre plot contours of assigned objects
+Приложение «Осмотр», коммит 45c93dd 2026-11-04 Map card: cadastre plot facts of the assigned object

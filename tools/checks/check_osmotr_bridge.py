@@ -18,11 +18,15 @@
   * запрос по чужому объекту выполняется;
   * сообщения не из своей рамки обрабатываются.
 """
+from harness import use_cadastre_fixture
+import cadastre_fixture as cf
+
 NAME = 'мост E•state — приложение «Осмотр»'
 
 TOUCHES = (
     'app/pages/osmotr/*', 'app/pages/inspector/archiveImport.js', 'app/pages/inspector/tasks.js',
     'app/kernel/inspections.js', 'app/kernel/inspectionResults.js', 'app/kernel/session.js',
+    'app/kernel/cadastreGeo.js', 'app/kernel/cadastreTip.js',
 )
 
 # Запрос из окна рамки — так его шлёт приложение (glue.js, osmotrWeb.estate.ask).
@@ -43,6 +47,7 @@ KR = "await import('./app/kernel/inspectionResults.js')"
 
 def run(t):
     pg = t.page
+    use_cadastre_fixture(pg)  # записанные ответы Кадастра: сведения участка по демо-ЕНИ
     t.open('#/osmotr', wait='.om-frame, .om-none')
     if not t.ck(pg.locator('.om-frame').count() == 1, 'на странице осмотрщиков нет рамки приложения (нет сборки app/vendor/osmotr?)'):
         return
@@ -79,6 +84,21 @@ def run(t):
     tsin = [o for x in items if x['entity'] == 'real' for o in x['ois'] if o['kind'] == 'vehicle']
     t.ck(all(o['path'].startswith('Транспортные средства/') for o in tsin), 'ТС внутри недвижимости — не в «Транспортных средствах»: %s' % tsin[:2])
     t.ck(sum(1 for x in items if x['lat'] is not None) > 0, 'ни у одного объекта нет координат')
+    # Сведения участка из Кадастра (04.11.2026: «максимум информации об участке… И о здании»): система сама
+    # подтягивает их по ЕНИ в фоне и отдаёт строками «подпись — значение» для карточки на карте приложения.
+    withEni = [x for x in items if ''.join(c for c in (x.get('eni') or '') if c.isdigit()) == cf.KNOWN_ENI]
+    got = []
+    for _ in range(30):
+        b = (pg.evaluate(ASK, ['assignments', {}, False]).get('body') or {}).get('items') or []
+        got = [x for x in b if x.get('parcel')]
+        if got:
+            break
+        pg.wait_for_timeout(2000)
+    if t.ck(withEni, 'у осмотрщика нет назначения с ЕНИ, известным записанному Кадастру (%s)' % cf.KNOWN_ENI):
+        t.ck(got, 'ни у одного объекта с ЕНИ нет сведений участка из Кадастра (Кадастр недоступен?)')
+        labels = {f['label'] for x in got for f in x['parcel']}
+        t.ck({'Площадь по контуру'} <= labels and all(f['value'] for x in got for f in x['parcel']), 'сведения участка без площади или с пустыми значениями: %s' % sorted(labels))
+        t.ck(all(x.get('contour') for x in got), 'сведения участка есть, а контура нет')
     t.ck(all(x['state'] in ('assigned', 'progress', 'done') for x in items), 'неизвестное состояние')
     ranks = [1 if x['state'] == 'done' else 0 for x in items]
     t.ck(ranks == sorted(ranks), 'законченные идут раньше незаконченных')

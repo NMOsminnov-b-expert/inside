@@ -31,6 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FILE = os.path.join(HERE, 'fixtures', 'cadastre.json')
 EMPTY_FC = '{"type":"FeatureCollection","features":[]}'
 JSON = 'application/json;charset=UTF-8'
+KNOWN_ENI = '1030700400754'  # демо oc-cv-1: рамка, контур, адрес, соседи и строения записаны
 
 _fix = None
 # Сколько раз что спрашивали — по ним сценарий видит, что карта сходила за слоями.
