@@ -370,12 +370,12 @@ export function mountAnalytics(host) {
     const ramp = `<span class="an-ramp" aria-hidden="true">${STEPS.map((x) => `<i style="background:${x.color}"></i>`).join('')}</span>`;
     return `<section class="an-legend" aria-label="Легенда и слои карты">
       <h2 class="an-lg-h">Легенда</h2>
-      ${row('share', '', 'Занято участками с ЕНИ')}
-      <div class="an-lg-ramp">${ramp}<span class="an-ramp-ticks" aria-hidden="true"><i>0</i><i>20</i><i>40</i><i>60</i><i>80</i><i>100 %</i></span>
+      ${row('share', '', 'Занято участками с ЕНИ, %')}
+      <div class="an-lg-ramp">${ramp}<span class="an-ramp-ticks" aria-hidden="true"><i>0</i><i>20</i><i>40</i><i>60</i><i>80</i><i>100</i></span>
         <span class="an-lg-note"><i class="an-lg-none" aria-hidden="true"></i>не посчитано</span></div>
       ${row('free', `<i class="an-lg-sw" style="background:${FREE_COLOR}" aria-hidden="true"></i>`, 'Незанятая земля')}
       <div class="an-lg-row an-lg-static" title="Дороги и улицы вне участков с ЕНИ — не свободная земля (OpenStreetMap, ширина по классу)">
-        <span class="an-switch-gap" aria-hidden="true"></span><i class="an-lg-sw" style="background:${ROAD_COLOR}" aria-hidden="true"></i><span>Дороги — вне незанятой земли</span></div>
+        <span class="an-switch-gap" aria-hidden="true"></span><i class="an-lg-sw" style="background:${ROAD_COLOR}" aria-hidden="true"></i><span>Дороги</span></div>
       ${row('objs', '<i class="an-lg-dot" aria-hidden="true"></i>', 'ОЦ системы')}
       ${row('cad', '<i class="an-lg-sw an-lg-cad" aria-hidden="true"></i>', 'Участки Кадастра вблизи')}
     </section>`;
@@ -385,6 +385,7 @@ export function mountAnalytics(host) {
   // Подписи аймаков на карте — HTML-метками (у подложки нет шрифтов для подписей
   // слоем); видны с приближения 8, едут вместе с картой (transform).
   const labels = new Map();
+  let declutterRef = null;
   const syncLabels = (shown) => {
     const want = new Set(shown.map((r) => r.a.code));
     labels.forEach((m, c) => { if (!want.has(c)) { m.remove(); labels.delete(c); } });
@@ -394,12 +395,15 @@ export function mountAnalytics(host) {
       const html = `<b>${esc(a.aimak)}</b>${a.occ ? `<span>${pct(a.occ.share)}</span>` : ''}`;
       let m = labels.get(a.code);
       if (!m) {
+        // Прозрачность метки карта пишет в стиль самого элемента — видимость и
+        // оформление подписи живут на вложенном (.an-lbl-in), его карта не трогает.
         const el = document.createElement('div');
         el.className = 'an-lbl';
+        el.innerHTML = '<div class="an-lbl-in"></div>';
         m = new gl.Marker({ element: el, anchor: 'center' }).setLngLat(pt).addTo(map);
         labels.set(a.code, m);
       }
-      const el = m.getElement();
+      const el = m.getElement().firstChild;
       if (el.innerHTML !== html) el.innerHTML = html;
       el.classList.toggle('sel', view.sel === a.code);
     });
@@ -418,6 +422,7 @@ export function mountAnalytics(host) {
     }).filter(Boolean);
     map.getSource('objs').setData({ type: 'FeatureCollection', features: pts });
     syncLabels(shown);
+    if (declutterRef) declutterRef();
     // Незанятая земля — картинка на посчитанный аймак.
     // Скрытые отбором не снимаются с карты, а прячутся: снятие во время загрузки
     // картинки обрывает её с ошибкой в консоли.
@@ -551,7 +556,7 @@ export function mountAnalytics(host) {
     // Подписи не налезают друг на друга: после остановки карты лишние прячутся;
     // первой — подпись выбранного аймака, дальше — по площади.
     const declutter = () => {
-      const list = [...labels.entries()].map(([c, m]) => ({ c, el: m.getElement(), a: allAimaks().find((x) => x.code === c) }))
+      const list = [...labels.entries()].map(([c, m]) => ({ c, el: m.getElement().firstChild, a: allAimaks().find((x) => x.code === c) }))
         .sort((x, y) => (y.c === view.sel) - (x.c === view.sel) || ((y.a && y.a.areaHa) || 0) - ((x.a && x.a.areaHa) || 0));
       const taken = [];
       list.forEach(({ el }) => {
@@ -562,6 +567,7 @@ export function mountAnalytics(host) {
         if (!hit) taken.push(r);
       });
     };
+    declutterRef = declutter;
     const lblZoom = () => { sceneEl.classList.toggle('an-lbl-on', map.getZoom() >= 8); declutter(); };
     // Во время движения — только видимость (без замеров на каждом кадре), порядок — по остановке.
     map.on('zoom', () => sceneEl.classList.toggle('an-lbl-on', map.getZoom() >= 8));
