@@ -146,7 +146,7 @@ export function mountAnalytics(host) {
     const occ = done.reduce((s, r) => s + r.a.occ.occHa, 0);
     const todo = shown.filter((r) => !r.a.occ && !runs.has(r.a.code)).length;
     const fc = facetCount();
-    const kv = (label, value, sub = '') => `<span class="an-kv"><span>${label}</span><b>${value}</b>${sub ? `<i>${sub}</i>` : ''}</span>`;
+    const kv = (label, value, sub = '', cls = '') => `<span class="an-kv${cls}"><span>${label}</span><b>${value}</b>${sub ? `<i>${sub}</i>` : ''}</span>`;
     return `<div class="an-isl an-isl-filter">
         <span class="isearch">${SEARCH_ICON}<input data-an-q value="${esc(view.q)}" autocomplete="off" placeholder="Айыл аймак, код, ЕНИ, адрес" aria-label="Поиск по аймакам и объектам">
           ${view.q ? '<button class="isearch-clear" data-an-q-clear title="Очистить" aria-label="Очистить поиск">×</button>' : ''}</span>
@@ -160,11 +160,11 @@ export function mountAnalytics(host) {
           <button type="button" class="itab${view.mode === 'table' ? ' on' : ''}" data-an-mode="table" aria-pressed="${view.mode === 'table'}">Таблица</button>
         </span>
         ${kv('Посчитано', `${done.length} из ${shown.length}`)}
-        ${kv('Площадь, га', nf(area, 0))}
+        ${kv('Площадь, га', nf(area, 0), '', ' an-kv-area')}
         ${kv('Занято, га', nf(occ, 0), area ? pct(occ / area) : '')}
         ${kv('Не занято, га', nf(area - occ, 0), area ? pct((area - occ) / area) : '')}
         ${batch ? `<span class="an-run" role="status">осталось: ${batch.left}</span><button type="button" class="btn btn-ghost btn-sm" data-an-batch-stop>Стоп</button>`
-          : `<button type="button" class="btn btn-primary" data-an-batch ${todo ? '' : 'disabled'} title="${todo ? 'Посчитать по очереди непосчитанные аймаки из показанных' : 'Все показанные посчитаны'}">Посчитать показанные${todo ? ` · ${todo}` : ''}</button>`}
+          : `<button type="button" class="btn btn-primary" data-an-batch ${todo ? '' : 'disabled'} title="${todo ? 'Посчитать по очереди непосчитанные аймаки из показанных' : 'Все показанные посчитаны'}"><span class="an-long">Посчитать показанные</span><span class="an-short">Посчитать</span>${todo ? ` · ${todo}` : ''}</button>`}
       </div>`;
   };
   const facetsHTML = () => `<div class="an-facets-in">

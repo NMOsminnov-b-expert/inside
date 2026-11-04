@@ -100,6 +100,13 @@ body[data-page="analytics"] .an-kv span{font-size:10.5px;color:var(--muted)}
 body[data-page="analytics"] .an-kv b{font-size:14px;font-variant-numeric:tabular-nums;color:var(--ink)}
 body[data-page="analytics"] .an-kv i{font-style:normal;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 body[data-page="analytics"] .an-isl-sum .btn-primary{height:34px;flex:none}
+body[data-page="analytics"] .an-short{display:none}
+@media (max-width:1440px){
+  body[data-page="analytics"] .an-kv-area{display:none}
+  body[data-page="analytics"] .an-long{display:none}
+  body[data-page="analytics"] .an-short{display:inline}
+  body[data-page="analytics"] .an-isl-sum{gap:10px}
+}
 
 /* --- «Отбор» — панелью рядом со списком --- */
 body[data-page="analytics"] .an-facets{position:absolute;top:var(--scene-top);left:calc(var(--isle-gap) * 2 + var(--list-w));z-index:24;
@@ -168,7 +175,8 @@ body[data-page="analytics"] .an-layers,body[data-page="analytics"] .an-legend{po
   background:var(--panel);border:0;border-radius:12px;box-shadow:var(--lift);font-size:12px;color:var(--ink);
   transition:transform var(--an-dur) var(--an-ease)}
 body[data-page="analytics"] .an-layers{left:calc(var(--isle-gap) * 2 + var(--list-w));margin:0;padding:8px 12px 9px;display:flex;flex-direction:column;gap:4px}
-body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 3 + var(--list-w) + 180px);padding:8px 12px}
+/* Легенда — над слоями тем же столбцом: справа внизу место у строки источников карты. */
+body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 2 + var(--list-w));bottom:calc(var(--isle-gap) + 128px);padding:8px 12px}
 body[data-page="analytics"] .hide-list .an-layers,body[data-page="analytics"] .hide-list .an-legend{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
 body[data-page="analytics"] .an-layers legend{padding:0;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82;float:left;width:100%;margin-bottom:2px}
 body[data-page="analytics"] .an-layers label{display:flex;align-items:center;gap:7px;white-space:nowrap;cursor:pointer}
@@ -179,7 +187,7 @@ body[data-page="analytics"] .an-legend i{width:16px;height:11px;border-radius:3p
 body[data-page="analytics"] .an-legend i.an-lg-none{background:#fff;border:1.5px dashed #1c5cab}
 /* Подпись слоя Кадастра — над островком слоёв; со списком уезжает вместе
    (подпись — в карте, вне страницы: признак скрытия — класс на body). */
-body[data-page="analytics"] .an-scene .cad-note-gl{left:calc(var(--isle-gap) * 2 + var(--list-w));bottom:calc(var(--isle-gap) + 140px);
+body[data-page="analytics"] .an-scene .cad-note-gl{left:calc(var(--isle-gap) * 2 + var(--list-w));bottom:calc(var(--isle-gap) + 256px);
   transition:transform var(--an-dur) var(--an-ease)}
 body.an-list-hidden .an-scene .cad-note-gl{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
 
@@ -197,7 +205,7 @@ body.an-list-hidden .an-scene .cad-note-gl{transform:translateX(calc(-1 * (var(-
   body[data-page="analytics"] .facets-open .an-facets{display:block}
   body[data-page="analytics"] .an-layers,body[data-page="analytics"] .an-legend{bottom:auto;top:calc(var(--scene-top) + 46px + 40vh - 140px);transform:none !important}
   body[data-page="analytics"] .an-layers{left:var(--isle-gap)}
-  body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 2 + 180px)}
+  body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 2 + 170px)}
   body[data-page="analytics"] .an-sheet{position:fixed;top:120px}
   body[data-page="analytics"] .an-scene .cad-note-gl{display:none}
 }
