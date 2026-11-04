@@ -39,7 +39,7 @@ import { enhanceSelects } from '../../kernel/dropdown.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { fillAdmin, pointOf } from '../../kernel/darekAdmin.js';
-import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed } from '../../kernel/landStats.js';
+import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, freeView } from '../../kernel/landStats.js';
 
 const SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 // Типы ОЦ с участком (у ТС и механизмов земли нет).
@@ -54,18 +54,63 @@ const STEPS = [
   { to: 1.01, color: '#104281', label: '80–100 %' },
 ];
 const FREE_COLOR = '#e8730c';
-const LAYERS = [
-  { key: 'share', label: 'Занятость аймаков' },
-  { key: 'free', label: 'Незанятая земля' },
-  { key: 'objs', label: 'ОЦ системы' },
-  { key: 'cad', label: 'Участки Кадастра' },
-];
+const ROAD_COLOR = '#8a96a8';
+// Доли аймака: занято, под дорогами, не занято (у расчётов до дорог — без дорог).
+const roadSh = (o) => (o && o.roadsShare) || 0;
+const freeSh = (o) => (o ? (o.freeShare != null ? o.freeShare : 1 - o.share) : 0);
+const roadHa = (o) => (o && o.roadsHa) || 0;
+// Незанятая земля — картинка ≈ 30 м на точку: издали показывает, где не занято;
+// вблизи её клетки видны (замечание пользователя 04.11.2026 «Что за квадраты?»),
+// а незанятое и так видно промежутками между участками Кадастра — с 12 она
+// тает и к 14 уходит. Сглаживание — без клеток при любом масштабе.
+const FREE_OPACITY = ['interpolate', ['linear'], ['zoom'], 11.5, 0.55, 13, 0.55, 13.5, 0];
+// Вблизи (с 13,5) — точная картинка под экран (landStats.freeView): контуры
+// аймаков минус участки Кадастра минус дороги, в разрешении экрана.
+const VIEW_ZOOM = 13;
+const VIEW_OPACITY = ['interpolate', ['linear'], ['zoom'], 13, 0, 13.5, 0.55];
+const merc3857 = ([lon, lat]) => [lon * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) * 20037508.34 / Math.PI];
 
+// Единицы площади (пользователь 04.11.2026: «Единицы измерения тоже
+// подтягиваем»): как у величин с несколькими единицами в системе (kernel/
+// fieldSpec.js) — выбор списком рядом с числом; сокращение с точкой, полное — в
+// подсказке. Хранятся гектары, показ — в выбранной; выбор общий на страницу и
+// запоминается. s / f — знаков после запятой коротко (список, итоги) и в таблице.
+const UNITS = [
+  { key: 'ha', label: 'га', full: 'гектары', k: 1, s: 0, f: 2 },
+  { key: 'km', label: 'км²', full: 'квадратные километры', k: 0.01, s: 1, f: 2 },
+  { key: 'm', label: 'м²', full: 'квадратные метры', k: 10000, s: 0, f: 0 },
+  { key: 'sot', label: 'сот.', full: 'сотки (1 сотка = 100 м²)', k: 100, s: 0, f: 0 },
+];
+const UNIT_KEY = 'inside.analytics.unit';
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: единица и порядок — личные настройки пользователя.
+const unitSaved = () => { try { return localStorage.getItem(UNIT_KEY) || 'ha'; } catch (e) { return 'ha'; } };
+// Порядок списка и таблицы: по смыслу аналитики — где больше незанятого, где выше занятость.
+const SORTS = [
+  { key: 'place', label: 'По области и району' },
+  { key: 'free', label: 'Больше незанятой земли' },
+  { key: 'share-', label: 'Ниже занятость' },
+  { key: 'share', label: 'Выше занятость' },
+  { key: 'area', label: 'Больше площадь' },
+  { key: 'oc', label: 'Больше ОЦ системы' },
+];
 const nf = (n, d = 2) => (n == null || !Number.isFinite(n) ? '' : n.toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d }));
 const pct = (x) => (x == null || !Number.isFinite(x) ? '' : (x * 100).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %');
 const dateOf = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 const digits = (s) => String(s || '').replace(/\D/g, '');
 const numIn = (v) => { const n = parseFloat(String(v || '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
+
+// Точка подписи аймака: середина самого большого кольца (у аймаков из
+// нескольких частей середина общей рамки бывает вне аймака).
+function labelPoint(geometry) {
+  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  let best = null;
+  let bestN = -1;
+  polys.forEach((rings) => { if (rings[0] && rings[0].length > bestN) { best = rings[0]; bestN = rings[0].length; } });
+  if (!best) return null;
+  const x = best.reduce((t, c) => t + c[0], 0) / best.length;
+  const y = best.reduce((t, c) => t + c[1], 0) / best.length;
+  return [x, y];
+}
 
 // Рамка контура [[запад, юг], [восток, север]].
 function boundsOf(geometry) {
@@ -82,8 +127,13 @@ export function mountAnalytics(host) {
   const view = {
     q: '', oblast: '', district: '', shareFrom: '', shareTo: '', freeFrom: '', onlyDone: false,
     open: new Set(), sel: '', layers: { share: true, free: true, objs: true, cad: true },
-    mode: 'map', hideList: false, facets: false,
+    mode: 'map', hideList: false, facets: false, unit: unitSaved(), sort: 'place', hov: '',
   };
+  const U = () => UNITS.find((u) => u.key === view.unit) || UNITS[0];
+  // Площадь из гектаров в выбранной единице: short — список и итоги, иначе — таблица.
+  const ar = (ha, short = true) => (ha == null || !Number.isFinite(ha) ? '' : nf(ha * U().k, short ? U().s : U().f));
+  const ul = () => U().label;
+  const unitAbbr = () => `<abbr title="${esc(U().full)}">${esc(U().label)}</abbr>`;
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const MOVE_MS = reduce ? 0 : 650;   // перелёт карты к аймаку
   let sceneEl = null;
@@ -113,8 +163,14 @@ export function mountAnalytics(host) {
   const rows = () => {
     const by = new Map();
     objects().forEach((o) => { const c = o.rec.adm && o.rec.adm.aimakCode; if (c) (by.get(c) || by.set(c, []).get(c)).push(o); });
-    return allAimaks().map((a) => ({ a, objs: by.get(a.code) || [] }))
-      .sort((x, y) => (x.a.oblast || '').localeCompare(y.a.oblast || '', 'ru') || (x.a.district || '').localeCompare(y.a.district || '', 'ru') || (x.a.aimak || '').localeCompare(y.a.aimak || '', 'ru'));
+    const place = (x, y) => (x.a.oblast || '').localeCompare(y.a.oblast || '', 'ru') || (x.a.district || '').localeCompare(y.a.district || '', 'ru') || (x.a.aimak || '').localeCompare(y.a.aimak || '', 'ru');
+    // Непосчитанные — в конце любого порядка по занятости.
+    const num = (f) => (x, y) => { const a = f(x); const b = f(y); return (a == null) - (b == null) || (b - a) || place(x, y); };
+    const by2 = {
+      place, free: num((r) => (r.a.occ ? r.a.occ.freeHa : null)), share: num((r) => (r.a.occ ? r.a.occ.share : null)),
+      'share-': num((r) => (r.a.occ ? -r.a.occ.share : null)), area: num((r) => r.a.areaHa), oc: num((r) => r.objs.length),
+    };
+    return allAimaks().map((a) => ({ a, objs: by.get(a.code) || [] })).sort(by2[view.sort] || place);
   };
 
   const matches = (r) => {
@@ -127,7 +183,7 @@ export function mountAnalytics(host) {
     if ((view.onlyDone || sf != null || st != null || ff != null) && !a.occ) return false;
     if (sf != null && a.occ.share * 100 < sf) return false;
     if (st != null && a.occ.share * 100 > st) return false;
-    if (ff != null && a.occ.freeHa < ff) return false;
+    if (ff != null && a.occ.freeHa < ff / U().k) return false;
     const q = view.q.trim().toLowerCase();
     if (!q) return true;
     const qd = digits(q);
@@ -144,6 +200,8 @@ export function mountAnalytics(host) {
     const done = shown.filter((r) => r.a.occ);
     const area = done.reduce((s, r) => s + r.a.areaHa, 0);
     const occ = done.reduce((s, r) => s + r.a.occ.occHa, 0);
+    const rds = done.reduce((s, r) => s + roadHa(r.a.occ), 0);
+    const fre = done.reduce((s, r) => s + r.a.occ.freeHa, 0);
     const todo = shown.filter((r) => !r.a.occ && !runs.has(r.a.code)).length;
     const fc = facetCount();
     const kv = (label, value, sub = '', cls = '') => `<span class="an-kv${cls}"><span>${label}</span><b>${value}</b>${sub ? `<i>${sub}</i>` : ''}</span>`;
@@ -160,9 +218,10 @@ export function mountAnalytics(host) {
           <button type="button" class="itab${view.mode === 'table' ? ' on' : ''}" data-an-mode="table" aria-pressed="${view.mode === 'table'}">Таблица</button>
         </span>
         ${kv('Посчитано', `${done.length} из ${shown.length}`)}
-        ${kv('Площадь, га', nf(area, 0), '', ' an-kv-area')}
-        ${kv('Занято, га', nf(occ, 0), area ? pct(occ / area) : '')}
-        ${kv('Не занято, га', nf(area - occ, 0), area ? pct((area - occ) / area) : '')}
+        ${kv(`Площадь, ${unitAbbr()}`, ar(area), '', ' an-kv-area')}
+        ${kv(`Занято, ${unitAbbr()}`, ar(occ), area ? pct(occ / area) : '')}
+        ${kv(`Дороги, ${unitAbbr()}`, ar(rds), area ? pct(rds / area) : '', ' an-kv-area')}
+        ${kv(`Не занято, ${unitAbbr()}`, ar(fre), area ? pct(fre / area) : '')}
         ${batch ? `<span class="an-run" role="status">осталось: ${batch.left}</span><button type="button" class="btn btn-ghost btn-sm" data-an-batch-stop>Стоп</button>`
           : `<button type="button" class="btn btn-primary" data-an-batch ${todo ? '' : 'disabled'} title="${todo ? 'Посчитать по очереди непосчитанные аймаки из показанных' : 'Все показанные посчитаны'}"><span class="an-long">Посчитать показанные</span><span class="an-short">Посчитать</span>${todo ? ` · ${todo}` : ''}</button>`}
       </div>`;
@@ -171,8 +230,8 @@ export function mountAnalytics(host) {
       <label class="an-range" title="Доля площади аймака под участками с ЕНИ"><span>Занято, %</span>
         <input class="an-num" data-an-f="shareFrom" inputmode="decimal" value="${esc(view.shareFrom)}" placeholder="от" aria-label="Занято, % от">
         <input class="an-num" data-an-f="shareTo" inputmode="decimal" value="${esc(view.shareTo)}" placeholder="до" aria-label="Занято, % до"></label>
-      <label class="an-range" title="Незанятая площадь аймака не меньше, га"><span>Не занято, га</span>
-        <input class="an-num an-num-w" data-an-f="freeFrom" inputmode="decimal" value="${esc(view.freeFrom)}" placeholder="от" aria-label="Не занято, га от"></label>
+      <label class="an-range" title="Незанятая площадь аймака не меньше, ${esc(U().full)}"><span>Не занято, ${esc(ul())}</span>
+        <input class="an-num an-num-w" data-an-f="freeFrom" inputmode="decimal" value="${esc(view.freeFrom)}" placeholder="от" aria-label="Не занято, ${esc(ul())} от"></label>
       <label class="an-check"><input type="checkbox" data-an-done ${view.onlyDone ? 'checked' : ''}> Только посчитанные</label>
       ${facetCount() ? '<button type="button" class="btn btn-ghost btn-sm" data-an-facets-clear>Сбросить</button>' : ''}
     </div>`;
@@ -185,7 +244,9 @@ export function mountAnalytics(host) {
 
   // --- панель списка: строки-карточки ---
   const listHTML = (all, shown) => {
-    if (!all.length) return `<p class="an-empty-page">${binding.busy ? 'Привязываю объекты к аймакам…' : 'Нет объектов с точкой на карте: аймаки появятся, когда у объектов будут координаты участка или GPS.'}</p>`;
+    // Пока идёт привязка — серые карточки той же высоты, что строки: список не прыгает, когда приходят данные.
+    if (!all.length && binding.busy) return `<ul class="an-items an-skel" aria-hidden="true">${'<li class="an-item"><i></i><i></i><i></i></li>'.repeat(5)}</ul><p class="sr-only" role="status">Привязываю объекты к аймакам…</p>`;
+    if (!all.length) return '<p class="an-empty-page">Нет объектов с точкой на карте: аймаки появятся, когда у объектов будут координаты участка или GPS.</p>';
     if (!shown.length) return '<p class="an-empty-page">Ничего не найдено</p>';
     return `<ul class="an-items">${shown.map((r) => {
       const a = r.a;
@@ -193,12 +254,13 @@ export function mountAnalytics(host) {
       const run = runs.get(a.code);
       const going = run && !run.error && run.done < run.total;
       const sw = a.occ ? STEPS.find((x) => a.occ.share < x.to).color : '';
-      return `<li class="an-item${open ? ' open' : ''}${view.sel === a.code ? ' sel' : ''}" data-an-open="${esc(a.code)}" aria-expanded="${open}" tabindex="0">
+      return `<li class="an-item${open ? ' open' : ''}${view.sel === a.code ? ' sel' : ''}${view.hov === a.code ? ' hov' : ''}" data-an-open="${esc(a.code)}" aria-expanded="${open}" tabindex="0">
         <div class="an-it-h">${sw ? `<span class="an-sw" style="background:${sw}" aria-hidden="true"></span>` : ''}<b>${esc(a.aimak)}</b>
           <span class="an-it-share num">${a.occ ? pct(a.occ.share) : ''}</span></div>
         <div class="an-it-s"><span>${esc([a.code, a.district, a.oblast].filter(Boolean).join(' · '))}</span>
-          <span class="num">${a.occ ? `не занято ${nf(a.occ.freeHa, 0)} га` : ''}</span></div>
-        <div class="an-it-m"><span class="num">площадь ${nf(a.areaHa, 0)} га${a.balance ? ` · по балансу ${nf(a.balance.total, 0)}` : ''}${r.objs.length ? ` · ОЦ ${r.objs.length}` : ''}</span>
+          <span class="num">${a.occ ? `не занято ${ar(a.occ.freeHa)} ${esc(ul())}` : ''}</span></div>
+        ${a.occ ? `<div class="an-mbar" role="img" aria-label="Занято ${pct(a.occ.share)}, дороги ${pct(roadSh(a.occ))}, не занято ${pct(freeSh(a.occ))}"><i class="o" style="width:${(a.occ.share * 100).toFixed(2)}%"></i>${roadSh(a.occ) ? `<i class="r" style="width:${(roadSh(a.occ) * 100).toFixed(2)}%"></i>` : ''}<i class="f"></i></div>` : ''}
+        <div class="an-it-m"><span class="num">площадь ${ar(a.areaHa)} ${esc(ul())}${a.balance ? ` · по балансу ${ar(a.balance.total)}` : ''}${r.objs.length ? ` · ОЦ ${r.objs.length}` : ''}</span>
           <span class="an-it-act">${runCell(a)}</span></div>
         ${going ? `<div class="an-bar" aria-hidden="true"><i style="transform:scaleX(${(run.done / run.total).toFixed(3)})"></i></div>` : ''}
         ${open ? detailHTML(r) : ''}
@@ -219,15 +281,18 @@ export function mountAnalytics(host) {
   };
 
   const detailHTML = ({ a, objs }) => {
-    const bal = a.balance && a.balance.parts && a.balance.parts.length ? `<div class="an-d-sec"><h3>Земельный баланс аймака, га</h3>
-      <dl class="an-bal">${a.balance.parts.map((p) => `<dt>${esc(p.label)}</dt><dd class="num">${nf(p.ha, 0)}</dd>`).join('')}
-      <dt class="an-bal-total">Всего</dt><dd class="num an-bal-total">${nf(a.balance.total, 0)}</dd></dl></div>` : '';
+    const tot = a.balance && a.balance.total;
+    const bal = a.balance && a.balance.parts && a.balance.parts.length ? `<div class="an-d-sec"><h3>Земельный баланс аймака, ${unitAbbr()}</h3>
+      <dl class="an-bal">${a.balance.parts.map((p) => `<dt>${esc(p.label)}</dt><dd class="num">${ar(p.ha)}</dd>
+        ${tot ? `<span class="an-bb" aria-hidden="true"><i style="width:${Math.min(100, (p.ha / tot) * 100).toFixed(2)}%"></i></span>` : ''}`).join('')}
+      <dt class="an-bal-total">Всего</dt><dd class="num an-bal-total">${ar(tot)}</dd></dl></div>` : '';
     const occ = a.occ ? `<div class="an-d-sec"><h3>Занятость участками с ЕНИ</h3>
-      <dl class="an-bal"><dt>Занято</dt><dd class="num">${nf(a.occ.occHa)} га · ${pct(a.occ.share)}</dd>
-      <dt>Не занято</dt><dd class="num">${nf(a.occ.freeHa)} га · ${pct(1 - a.occ.share)}</dd>
-      <dt>ГФСУ</dt><dd class="num">${nf(a.occ.gfsuHa)} га · ${pct(a.occ.gfsuShare)}</dd>
+      <dl class="an-bal"><dt>Занято</dt><dd class="num">${ar(a.occ.occHa, false)} ${esc(ul())} · ${pct(a.occ.share)}</dd>
+      <dt>Под дорогами</dt><dd class="num">${a.occ.roadsShare != null ? `${ar(roadHa(a.occ), false)} ${esc(ul())} · ${pct(roadSh(a.occ))}` : 'не посчитано'}</dd>
+      <dt>Не занято</dt><dd class="num">${ar(a.occ.freeHa, false)} ${esc(ul())} · ${pct(freeSh(a.occ))}</dd>
+      <dt>ГФСУ</dt><dd class="num">${ar(a.occ.gfsuHa, false)} ${esc(ul())} · ${pct(a.occ.gfsuShare)}</dd>
       <dt>Участков в расчёте</dt><dd class="num">${a.occ.parcels.toLocaleString('ru-RU')}</dd></dl>
-      <p class="an-d-note">Посчитано ${dateOf(a.occ.at)} по контурам участков Кадастра в границах аймака; ГФСУ — по слою карты «Дарек».</p></div>` : '';
+      <p class="an-d-note">Посчитано ${dateOf(a.occ.at)}: занято — по контурам участков Кадастра в границах аймака; дороги — по OpenStreetMap, ширина по классу дороги (оценка)${a.occ.roadsMissing ? `, без дорог в квадратах: ${a.occ.roadsMissing}` : ''}; ГФСУ — по слою карты «Дарек».</p></div>` : '';
     const list = objs.length ? `<div class="an-d-sec an-d-objs"><h3>ОЦ системы в аймаке</h3>
       <table class="an-objs"><thead><tr><th>ЕНИ</th><th>Объект</th><th>Квартал</th><th>Земли в точке</th></tr></thead><tbody>
       ${objs.map((o) => {
@@ -241,6 +306,14 @@ export function mountAnalytics(host) {
     return `<div class="an-detail">${bal}${occ}${list}</div>`;
   };
 
+  // Шапка с сортировкой: щелчок — этот порядок (aria-sort для чтения с экрана).
+  const SORT_OF = { area: 'area', free: 'free', share: 'share', oc: 'oc' };
+  const th = (key, label, title) => {
+    const on = view.sort === SORT_OF[key] || (key === 'share' && view.sort === 'share-');
+    const dir = on ? (view.sort === 'share-' ? 'ascending' : 'descending') : 'none';
+    return `<th class="num an-th-sort${on ? ' on' : ''}" aria-sort="${dir}" title="${esc(title)}"><button type="button" data-an-sort="${key}">${label}${on ? `<span aria-hidden="true">${dir === 'ascending' ? '▲' : '▼'}</span>` : ''}</button></th>`;
+  };
+  const unitsHTML = () => `<span class="an-units" role="group" aria-label="Единицы площади">${UNITS.map((u) => `<button type="button" class="${u.key === view.unit ? 'on' : ''}" data-an-unit="${u.key}" aria-pressed="${u.key === view.unit}" title="${esc(u.full)}">${esc(u.label)}</button>`).join('')}</span>`;
   const tableHTML = (all, shown) => {
     if (!all.length) return `<p class="an-empty-page">${binding.busy ? 'Привязываю объекты к аймакам…' : 'Нет объектов с точкой на карте.'}</p>`;
     const done = shown.filter((r) => r.a.occ);
@@ -253,54 +326,90 @@ export function mountAnalytics(host) {
       return `<tr class="an-row${open ? ' open' : ''}${view.sel === a.code ? ' sel' : ''}" data-an-open="${esc(a.code)}" aria-expanded="${open}" tabindex="0">
           <td class="an-name"><span class="an-caret" aria-hidden="true">${open ? '▾' : '▸'}</span>${a.occ ? `<span class="an-sw" style="background:${STEPS.find((s) => a.occ.share < s.to).color}" aria-hidden="true"></span>` : ''}<b>${esc(a.aimak)}</b><span class="an-sub">${esc(a.code)}</span></td>
           <td>${esc(a.district)}</td><td>${esc(a.oblast)}</td>
-          <td class="num">${nf(a.areaHa)}</td>
-          <td class="num">${a.balance ? nf(a.balance.total, 0) : ''}</td>
-          <td class="num">${a.occ ? nf(a.occ.occHa) : ''}</td>
-          <td class="num">${a.occ ? nf(a.occ.freeHa) : ''}</td>
+          <td class="num">${ar(a.areaHa, false)}</td>
+          <td class="num">${a.balance ? ar(a.balance.total) : ''}</td>
+          <td class="num">${a.occ ? ar(a.occ.occHa, false) : ''}</td>
+          <td class="num">${a.occ && a.occ.roadsShare != null ? ar(roadHa(a.occ), false) : ''}</td>
+          <td class="num">${a.occ ? ar(a.occ.freeHa, false) : ''}</td>
           <td class="num">${a.occ ? pct(a.occ.share) : ''}</td>
-          <td class="num">${a.occ ? nf(a.occ.gfsuHa) : ''}</td>
+          <td class="num">${a.occ ? ar(a.occ.gfsuHa, false) : ''}</td>
           <td class="num">${r.objs.length || ''}</td>
           <td class="an-act">${runCell(a)}</td>
-        </tr>${open ? `<tr class="an-drow"><td colspan="11">${detailHTML(r)}</td></tr>` : ''}`;
+        </tr>${open ? `<tr class="an-drow"><td colspan="12">${detailHTML(r)}</td></tr>` : ''}`;
     }).join('');
-    return `<div class="icols an-wrap"><table class="itbl an-tbl">
-        <colgroup><col class="c-name"><col class="c-dist"><col class="c-obl"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-p"><col class="c-n"><col class="c-oc"><col class="c-act"></colgroup>
+    return `<div class="an-sheet-h"><b>Айыл аймаки</b><span class="an-sheet-n">показано ${shown.length} из ${all.length} · посчитано ${done.length}</span>${unitsHTML()}</div>
+      <div class="icols an-wrap"><table class="itbl an-tbl">
+        <colgroup><col class="c-name"><col class="c-dist"><col class="c-obl"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-p"><col class="c-n"><col class="c-oc"><col class="c-act"></colgroup>
         <thead><tr>
           <th>Айыл аймак</th><th>Район</th><th>Область</th>
-          <th class="num" title="Площадь аймака по его контуру на карте «Дарек»">Площадь, га</th>
-          <th class="num" title="Общая площадь по земельному балансу аймака (Кадастр)">По балансу, га</th>
-          <th class="num" title="Площадь под участками с ЕНИ в границах аймака">Занято, га</th>
-          <th class="num" title="Площадь аймака без участков с ЕНИ">Не занято, га</th>
-          <th class="num" title="Доля площади аймака под участками с ЕНИ">Занято</th>
-          <th class="num" title="Государственный фонд сельскохозяйственных угодий">ГФСУ, га</th>
-          <th class="num" title="Объектов оценки системы в аймаке">ОЦ</th>
+          ${th('area', `Площадь, ${esc(ul())}`, `Площадь аймака по его контуру на карте «Дарек», ${U().full}`)}
+          <th class="num" title="Общая площадь по земельному балансу аймака (Кадастр), ${esc(U().full)}">По балансу, ${esc(ul())}</th>
+          <th class="num" title="Площадь под участками с ЕНИ в границах аймака, ${esc(U().full)}">Занято, ${esc(ul())}</th>
+          <th class="num" title="Площадь под дорогами вне участков с ЕНИ (OpenStreetMap, ширина по классу), ${esc(U().full)}">Дороги, ${esc(ul())}</th>
+          ${th('free', `Не занято, ${esc(ul())}`, `Площадь аймака без участков с ЕНИ и дорог, ${U().full}`)}
+          ${th('share', 'Занято', 'Доля площади аймака под участками с ЕНИ')}
+          <th class="num" title="Государственный фонд сельскохозяйственных угодий, ${esc(U().full)}">ГФСУ, ${esc(ul())}</th>
+          ${th('oc', 'ОЦ', 'Объектов оценки системы в аймаке')}
           <th><span class="sr-only">Расчёт</span></th>
         </tr></thead>
-        <tbody>${body || '<tr><td colspan="11" class="an-empty">Ничего не найдено</td></tr>'}</tbody>
-        ${done.length ? `<tfoot><tr><td colspan="3">Итого по посчитанным: ${done.length}</td><td class="num">${nf(tArea)}</td><td></td>
-          <td class="num">${nf(tOcc)}</td><td class="num">${nf(tArea - tOcc)}</td><td class="num">${pct(tArea ? tOcc / tArea : null)}</td>
-          <td class="num">${nf(sum((a) => a.occ.gfsuHa))}</td><td colspan="2"></td></tr></tfoot>` : ''}
+        <tbody>${body || '<tr><td colspan="12" class="an-empty">Ничего не найдено</td></tr>'}</tbody>
+        ${done.length ? `<tfoot><tr><td colspan="3">Итого по посчитанным: ${done.length}</td><td class="num">${ar(tArea, false)}</td><td></td>
+          <td class="num">${ar(tOcc, false)}</td><td class="num">${ar(sum((a) => roadHa(a.occ)), false)}</td><td class="num">${ar(sum((a) => a.occ.freeHa), false)}</td><td class="num">${pct(tArea ? tOcc / tArea : null)}</td>
+          <td class="num">${ar(sum((a) => a.occ.gfsuHa), false)}</td><td colspan="2"></td></tr></tfoot>` : ''}
       </table></div>`;
   };
 
   // --- карта ---
-  const legendHTML = () => `<div class="an-legend" aria-label="Легенда карты">
-      <b>Занято участками с ЕНИ</b>
-      <ul>${STEPS.map((s) => `<li><i style="background:${s.color}"></i>${s.label}</li>`).join('')}
-        <li><i class="an-lg-none"></i>не посчитано</li>
-        <li><i style="background:${FREE_COLOR}"></i>незанятая земля</li></ul>
-    </div>`;
-  const layersHTML = () => `<fieldset class="an-layers"><legend>Слои</legend>
-      ${LAYERS.map((l) => `<label><input type="checkbox" data-an-layer="${l.key}" ${view.layers[l.key] ? 'checked' : ''}> ${l.label}</label>`).join('')}
-    </fieldset>`;
+  // Легенда — она же переключатель слоёв (практика legend-interactive: щелчок по
+  // строке легенды прячет и показывает слой). Занятость — непрерывной шкалой
+  // ступеней 0–100 %; «не посчитано» и дороги — без переключателя (это не слои).
+  const legendHTML = () => {
+    const row = (key, swatch, label, title = '') => `<label class="an-lg-row"${title ? ` title="${esc(title)}"` : ''}>
+        <input type="checkbox" class="an-sw-in" data-an-layer="${key}" ${view.layers[key] ? 'checked' : ''}>
+        <span class="an-switch" aria-hidden="true"></span>${swatch}<span>${label}</span></label>`;
+    const ramp = `<span class="an-ramp" aria-hidden="true">${STEPS.map((x) => `<i style="background:${x.color}"></i>`).join('')}</span>`;
+    return `<section class="an-legend" aria-label="Легенда и слои карты">
+      <h2 class="an-lg-h">Легенда</h2>
+      ${row('share', '', 'Занято участками с ЕНИ')}
+      <div class="an-lg-ramp">${ramp}<span class="an-ramp-ticks" aria-hidden="true"><i>0</i><i>20</i><i>40</i><i>60</i><i>80</i><i>100 %</i></span>
+        <span class="an-lg-note"><i class="an-lg-none" aria-hidden="true"></i>не посчитано</span></div>
+      ${row('free', `<i class="an-lg-sw" style="background:${FREE_COLOR}" aria-hidden="true"></i>`, 'Незанятая земля')}
+      <div class="an-lg-row an-lg-static" title="Дороги и улицы вне участков с ЕНИ — не свободная земля (OpenStreetMap, ширина по классу)">
+        <span class="an-switch-gap" aria-hidden="true"></span><i class="an-lg-sw" style="background:${ROAD_COLOR}" aria-hidden="true"></i><span>Дороги — вне незанятой земли</span></div>
+      ${row('objs', '<i class="an-lg-dot" aria-hidden="true"></i>', 'ОЦ системы')}
+      ${row('cad', '<i class="an-lg-sw an-lg-cad" aria-hidden="true"></i>', 'Участки Кадастра вблизи')}
+    </section>`;
+  };
 
   const freeIds = new Set();
+  // Подписи аймаков на карте — HTML-метками (у подложки нет шрифтов для подписей
+  // слоем); видны с приближения 8, едут вместе с картой (transform).
+  const labels = new Map();
+  const syncLabels = (shown) => {
+    const want = new Set(shown.map((r) => r.a.code));
+    labels.forEach((m, c) => { if (!want.has(c)) { m.remove(); labels.delete(c); } });
+    shown.forEach(({ a }) => {
+      const pt = a.geometry && labelPoint(a.geometry);
+      if (!pt) return;
+      const html = `<b>${esc(a.aimak)}</b>${a.occ ? `<span>${pct(a.occ.share)}</span>` : ''}`;
+      let m = labels.get(a.code);
+      if (!m) {
+        const el = document.createElement('div');
+        el.className = 'an-lbl';
+        m = new gl.Marker({ element: el, anchor: 'center' }).setLngLat(pt).addTo(map);
+        labels.set(a.code, m);
+      }
+      const el = m.getElement();
+      if (el.innerHTML !== html) el.innerHTML = html;
+      el.classList.toggle('sel', view.sel === a.code);
+    });
+  };
   let freeShown = new Set();
   const syncMap = (shown) => {
     if (!map || !map.getSource('aim')) return;
     const feats = shown.map(({ a, objs }) => ({
       type: 'Feature', geometry: a.geometry,
-      properties: { code: a.code, share: a.occ ? a.occ.share : -1, sel: view.sel === a.code, oc: objs.length },
+      properties: { code: a.code, share: a.occ ? a.occ.share : -1, sel: view.sel === a.code, dim: !!view.sel && view.sel !== a.code, oc: objs.length },
     }));
     map.getSource('aim').setData({ type: 'FeatureCollection', features: feats });
     const pts = shown.flatMap(({ objs }) => objs).map((o) => {
@@ -308,6 +417,7 @@ export function mountAnalytics(host) {
       return p && { type: 'Feature', geometry: { type: 'Point', coordinates: [p[1], p[0]] }, properties: { title: o.title, href: o.href, eni: o.rec.eni || '' } };
     }).filter(Boolean);
     map.getSource('objs').setData({ type: 'FeatureCollection', features: pts });
+    syncLabels(shown);
     // Незанятая земля — картинка на посчитанный аймак.
     // Скрытые отбором не снимаются с карты, а прячутся: снятие во время загрузки
     // картинки обрывает её с ошибкой в консоли.
@@ -321,7 +431,7 @@ export function mountAnalytics(host) {
       }
       map.addSource(id, { type: 'image', url: a.occ.free.url, coordinates: a.occ.free.coords });
       map.getSource(id)._at = a.occ.at;
-      map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0.55, 'raster-opacity-transition': { duration: reduce ? 0 : 300, delay: 0 }, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } }, 'aim-line');
+      map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': FREE_OPACITY, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } }, 'aim-line');
       freeIds.add(a.code);
     });
     applyLayers();
@@ -332,6 +442,7 @@ export function mountAnalytics(host) {
     const vis = (on) => (on ? 'visible' : 'none');
     if (map.getLayer('aim-fill')) map.setLayoutProperty('aim-fill', 'visibility', vis(view.layers.share));
     freeIds.forEach((c) => map.setLayoutProperty('free-' + c, 'visibility', vis(view.layers.free && freeShown.has(c))));
+    if (map.getLayer('free-view')) map.setLayoutProperty('free-view', 'visibility', vis(view.layers.free));
     if (map.getLayer('objs')) map.setLayoutProperty('objs', 'visibility', vis(view.layers.objs));
     (map.getStyle().layers || []).filter((l) => l.source === 'cadP' || l.source === 'cadB')
       .forEach((l) => map.setLayoutProperty(l.id, 'visibility', vis(view.layers.cad)));
@@ -345,9 +456,11 @@ export function mountAnalytics(host) {
     return { top: wide ? 80 : 30, bottom: 40, left, right: 60 };
   };
   const ease = (t) => 1 - (1 - t) ** 3;
+  let pendingFly = '';   // выбор до загрузки карты — перелёт после неё
   const flyTo = (code) => {
     const a = allAimaks().find((x) => x.code === code);
-    if (map && a && a.geometry) map.fitBounds(boundsOf(a.geometry), { padding: padding(), maxZoom: 13, duration: MOVE_MS, easing: ease, essential: false });
+    if (!map) { pendingFly = code; return; }
+    if (a && a.geometry) map.fitBounds(boundsOf(a.geometry), { padding: padding(), maxZoom: 13, duration: MOVE_MS, easing: ease, essential: false });
   };
 
   const tipHTML = (code) => {
@@ -355,8 +468,8 @@ export function mountAnalytics(host) {
     if (!r) return '';
     const a = r.a;
     return `<div class="an-tip"><b>${esc(a.aimak)}</b><span>${esc([a.district, a.oblast].filter(Boolean).join(', '))} · код ${esc(a.code)}</span>
-      <dl><dt>Площадь</dt><dd>${nf(a.areaHa, 0)} га</dd>
-      ${a.occ ? `<dt>Занято</dt><dd>${nf(a.occ.occHa, 0)} га · ${pct(a.occ.share)}</dd><dt>Не занято</dt><dd>${nf(a.occ.freeHa, 0)} га · ${pct(1 - a.occ.share)}</dd>`
+      <dl><dt>Площадь</dt><dd>${ar(a.areaHa)} ${esc(ul())}</dd>
+      ${a.occ ? `<dt>Занято</dt><dd>${ar(a.occ.occHa)} ${esc(ul())} · ${pct(a.occ.share)}</dd>${roadSh(a.occ) ? `<dt>Дороги</dt><dd>${ar(roadHa(a.occ))} ${esc(ul())} · ${pct(roadSh(a.occ))}</dd>` : ''}<dt>Не занято</dt><dd>${ar(a.occ.freeHa)} ${esc(ul())} · ${pct(freeSh(a.occ))}</dd>`
         : '<dt>Занятость</dt><dd>не посчитана</dd>'}
       ${r.objs.length ? `<dt>ОЦ системы</dt><dd>${r.objs.length}</dd>` : ''}</dl></div>`;
   };
@@ -373,33 +486,94 @@ export function mountAnalytics(host) {
     row.insertBefore(sceneEl, row.firstChild);
     map = await createMap(gl, sceneEl, { center: [74.6, 41.4], zoom: 5.6, fadeDuration: reduce ? 0 : 200 });
     if (dead) { map.remove(); return; }
+    sceneEl._map = map;   // для сценариев проверки: масштаб и состояние карты
     attachCadastreGL(gl, map);
     const firstCad = (map.getStyle().layers || []).find((l) => l.source === 'cadP' || l.source === 'cadB');
     const before = firstCad ? firstCad.id : undefined;
-    map.addSource('aim', { type: 'geojson', data: emptyFC() });
+    map.addSource('aim', { type: 'geojson', data: emptyFC(), promoteId: 'code' });
     map.addSource('objs', { type: 'geojson', data: emptyFC() });
     const color = ['step', ['get', 'share'], STEPS[0].color, ...STEPS.slice(1).flatMap((s, i) => [STEPS[i].to, s.color])];
     // Переходы раскраски — одной длительностью: посчитанный аймак проявляется, а не вспыхивает.
     const fade = { duration: reduce ? 0 : 300, delay: 0 };
     map.addLayer({ id: 'aim-fill', type: 'fill', source: 'aim', filter: ['>=', ['get', 'share'], 0],
-      paint: { 'fill-color': color, 'fill-color-transition': fade, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.62, 12, 0.3], 'fill-opacity-transition': fade } }, before);
+      paint: { 'fill-color': color, 'fill-color-transition': fade, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 8, ['case', ['get', 'dim'], 0.28, 0.62], 12, ['case', ['get', 'dim'], 0.14, 0.3], 14, ['case', ['get', 'dim'], 0.04, 0.08]], 'fill-opacity-transition': fade } }, before);
     map.addLayer({ id: 'aim-hit', type: 'fill', source: 'aim', paint: { 'fill-color': '#000', 'fill-opacity': 0 } }, before);
     // Контур: посчитанный — сплошной, непосчитанный — пунктиром; выбранный — толще и темнее.
-    const lineW = ['case', ['get', 'sel'], 3, 1.2];
-    const lineC = ['case', ['get', 'sel'], '#0d366b', '#1c5cab'];
+    const hovS = ['boolean', ['feature-state', 'hov'], false];
+    const lineW = ['case', ['get', 'sel'], 3, hovS, 2.4, 1.2];
+    const lineC = ['case', ['any', ['get', 'sel'], hovS], '#0d366b', '#1c5cab'];
     map.addLayer({ id: 'aim-line', type: 'line', source: 'aim', filter: ['>=', ['get', 'share'], 0], paint: { 'line-color': lineC, 'line-width': lineW } }, before);
     map.addLayer({ id: 'aim-line-none', type: 'line', source: 'aim', filter: ['<', ['get', 'share'], 0],
       paint: { 'line-color': lineC, 'line-width': lineW, 'line-dasharray': [2, 1.5] } }, before);
     map.addLayer({ id: 'objs', type: 'circle', source: 'objs',
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 14, 7], 'circle-color': '#0d366b', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
     tip = hoverTip(gl, map);
+    // Точная незанятая земля под экран: после остановки карты, по очереди (новая
+    // картинка не обрывает загрузку прежней), прежняя видна, пока готовится новая.
+    let vBusy = false;
+    let vQueued = null;
+    let vTimer = 0;
+    let vSeq = 0;
+    const vApply = (img) => {
+      if (!map || !map.getStyle()) return;
+      if (vBusy) { vQueued = img; return; }
+      const src = map.getSource('free-view');
+      vBusy = true;
+      if (src) src.updateImage(img);
+      else {
+        map.addSource('free-view', { type: 'image', url: img.url, coordinates: img.coordinates });
+        map.addLayer({ id: 'free-view', type: 'raster', source: 'free-view', paint: { 'raster-opacity': VIEW_OPACITY, 'raster-fade-duration': 0 } }, 'aim-line');
+      }
+    };
+    map.on('sourcedata', (e) => {
+      if (e.sourceId !== 'free-view' || !e.isSourceLoaded || !vBusy) return;
+      vBusy = false;
+      if (vQueued) { const q = vQueued; vQueued = null; vApply(q); }
+    });
+    const viewFree = async () => {
+      if (!map || map.getZoom() < VIEW_ZOOM || !view.layers.free || view.mode !== 'map') return;
+      const seq = ++vSeq;
+      const c = map.getCanvas();
+      const k = Math.min(1, 2048 / Math.max(c.clientWidth, c.clientHeight));
+      const w = Math.round(c.clientWidth * k);
+      const h = Math.round(c.clientHeight * k);
+      const bb = map.getBounds();
+      const [x1, y1] = merc3857([bb.getWest(), bb.getSouth()]);
+      const [x2, y2] = merc3857([bb.getEast(), bb.getNorth()]);
+      try {
+        const img = await freeView(rows().filter(matches).map((r) => r.a), [x1, y1, x2, y2], w, h);
+        if (seq !== vSeq || dead || !img) return;
+        vApply({ url: img.url, coordinates: img.coords });
+      } catch (e) { console.warn('Незанятая земля вблизи не нарисована', e); }
+    };
+    map.on('moveend', () => { clearTimeout(vTimer); vTimer = setTimeout(viewFree, 200); });
+    sceneEl._viewFree = viewFree;
+    // Подписи не налезают друг на друга: после остановки карты лишние прячутся;
+    // первой — подпись выбранного аймака, дальше — по площади.
+    const declutter = () => {
+      const list = [...labels.entries()].map(([c, m]) => ({ c, el: m.getElement(), a: allAimaks().find((x) => x.code === c) }))
+        .sort((x, y) => (y.c === view.sel) - (x.c === view.sel) || ((y.a && y.a.areaHa) || 0) - ((x.a && x.a.areaHa) || 0));
+      const taken = [];
+      list.forEach(({ el }) => {
+        el.classList.remove('hid');
+        const r = el.getBoundingClientRect();
+        const hit = taken.some((t) => !(r.right + 4 < t.left || r.left - 4 > t.right || r.bottom + 2 < t.top || r.top - 2 > t.bottom));
+        el.classList.toggle('hid', hit);
+        if (!hit) taken.push(r);
+      });
+    };
+    const lblZoom = () => { sceneEl.classList.toggle('an-lbl-on', map.getZoom() >= 8); declutter(); };
+    // Во время движения — только видимость (без замеров на каждом кадре), порядок — по остановке.
+    map.on('zoom', () => sceneEl.classList.toggle('an-lbl-on', map.getZoom() >= 8));
+    map.on('moveend', lblZoom);
+    lblZoom();
     const cadAt = (pt) => map.queryRenderedFeatures(pt).some((f) => f.source === 'cadP' || f.source === 'cadB' || f.layer.id === 'objs');
     map.on('mousemove', 'aim-hit', (e) => {
       if (cadAt(e.point)) { tip.hide(); return; }
       const c = e.features[0] && e.features[0].properties.code;
-      if (c) { map.getCanvas().style.cursor = 'pointer'; tip.show(e.lngLat, tipHTML(c)); }
+      if (c) { map.getCanvas().style.cursor = 'pointer'; tip.show(e.lngLat, tipHTML(c)); hover(c); }
     });
-    map.on('mouseleave', 'aim-hit', () => { map.getCanvas().style.cursor = ''; tip.hide(); });
+    map.on('mouseleave', 'aim-hit', () => { map.getCanvas().style.cursor = ''; tip.hide(); hover(''); });
     map.on('click', 'aim-hit', (e) => {
       if (cadAt(e.point)) return;
       const c = e.features[0] && e.features[0].properties.code;
@@ -421,7 +595,7 @@ export function mountAnalytics(host) {
     if (dead) return;
     update();
     const all = allAimaks().filter((a) => a.geometry);
-    if (all.length) {
+    if (pendingFly) { const c = pendingFly; pendingFly = ''; flyTo(c); } else if (all.length) {
       const b = all.map((a) => boundsOf(a.geometry)).reduce((x, y) => [[Math.min(x[0][0], y[0][0]), Math.min(x[0][1], y[0][1])], [Math.max(x[1][0], y[1][0]), Math.max(x[1][1], y[1][1])]]);
       map.fitBounds(b, { padding: padding(), animate: false });
     }
@@ -447,6 +621,10 @@ export function mountAnalytics(host) {
     enhanceSelects(isles);
     page.querySelector('[data-an-facets-box]').innerHTML = facetsHTML();
     page.querySelector('[data-an-status]').innerHTML = statusText(all, shown);
+    const lh = page.querySelector('[data-an-list-h]');
+    lh.innerHTML = `<label class="an-sort"><span>Порядок</span><select class="select" data-an-sortsel aria-label="Порядок аймаков">${SORTS.map((o) => `<option value="${o.key}" ${o.key === view.sort ? 'selected' : ''}>${o.label}</option>`).join('')}</select></label>
+      ${unitsHTML()}`;
+    enhanceSelects(lh);
     const list = page.querySelector('[data-an-list]');
     const top = list.scrollTop;
     list.innerHTML = listHTML(all, shown);
@@ -454,6 +632,13 @@ export function mountAnalytics(host) {
     if (view.mode === 'table') page.querySelector('[data-an-table]').innerHTML = tableHTML(all, shown);
     if (keep) { const i = page.querySelector(keep.sel); if (i) { i.focus(); try { i.setSelectionRange(keep.s, keep.e); } catch (e) { /* поле без выделения */ } } }
     syncMap(shown);
+    if (sceneEl) {
+      const done = shown.filter((r) => r.a.occ);
+      const A = done.reduce((t, r) => t + r.a.areaHa, 0);
+      const O = done.reduce((t, r) => t + r.a.occ.occHa, 0);
+      const F = done.reduce((t, r) => t + r.a.occ.freeHa, 0);
+      sceneEl.setAttribute('aria-label', A ? `Карта айыл аймаков: показано ${shown.length}, посчитано ${done.length}; занято ${pct(O / A)}, не занято ${pct(F / A)} площади посчитанных` : `Карта айыл аймаков: показано ${shown.length}`);
+    }
   };
 
   scope.setHTML(`<div class="an-page">
@@ -461,12 +646,12 @@ export function mountAnalytics(host) {
       <div class="an-isles" data-an-isles></div>
       <div class="an-facets" id="anFacets" data-an-facets-box></div>
       <aside class="an-list" aria-label="Айыл аймаки">
+        <div class="an-list-h" data-an-list-h></div>
         <p class="an-status" role="status" data-an-status></p>
         <div class="an-list-body" data-an-list></div>
       </aside>
       <button type="button" class="an-edge" data-an-edge aria-label="Скрыть список аймаков" title="Скрыть список аймаков">‹</button>
       <section class="an-sheet" aria-label="Таблица аймаков"><div class="an-sheet-body" data-an-table></div></section>
-      ${layersHTML()}
       ${legendHTML()}
     </div>`);
 
@@ -503,6 +688,34 @@ export function mountAnalytics(host) {
   scope.on('click', '[data-an-batch-stop]', () => { if (batch) { batch.ctrl.aborted = true; runs.forEach((r) => { r.ctrl.aborted = true; }); } });
   scope.on('click', '[data-an-q-clear]', () => { view.q = ''; update(); });
   scope.on('click', '[data-an-facets]', () => { view.facets = !view.facets; update(); });
+  scope.on('click', '[data-an-unit]', (e, t) => {
+    // Порог «Не занято от» пересчитывается в новую единицу — отбор не меняется.
+    const ff = numIn(view.freeFrom);
+    const was = U().k;
+    view.unit = t.dataset.anUnit;
+    if (ff != null) view.freeFrom = String(Math.round((ff / was) * U().k * 100) / 100).replace('.', ',');
+    try { localStorage.setItem(UNIT_KEY, view.unit); } catch (err) { /* до перезагрузки */ }
+    update();
+  });
+  scope.on('change', '[data-an-sortsel]', (e, t) => { view.sort = t.value; update(); });
+  scope.on('click', '[data-an-sort]', (e, t) => {
+    const k = t.dataset.anSort;
+    view.sort = k === 'share' ? (view.sort === 'share' ? 'share-' : 'share') : (view.sort === k ? 'place' : k);
+    update();
+  });
+  // Наведение на строку подсвечивает аймак на карте (список и карта — одно выделенное, практика APCS).
+  const hover = (code) => {
+    if (view.hov === code) return;
+    if (map && view.hov) map.setFeatureState({ source: 'aim', id: view.hov }, { hov: false });
+    view.hov = code;
+    if (map && code) map.setFeatureState({ source: 'aim', id: code }, { hov: true });
+    scope.root.querySelectorAll('.an-item.hov').forEach((el) => el.classList.remove('hov'));
+    if (code) { const li = scope.root.querySelector(`.an-item[data-an-open="${CSS.escape(code)}"]`); if (li) li.classList.add('hov'); }
+  };
+  scope.on('mouseover', '.an-item', (e, t) => hover(t.dataset.anOpen));
+  // С клавиатуры — то же, что мышью: строка в фокусе подсвечивает аймак на карте.
+  scope.on('focusin', '.an-item', (e, t) => hover(t.dataset.anOpen));
+  scope.on('mouseleave', '.an-list-body', () => hover(''));
   scope.on('click', '[data-an-facets-clear]', () => { view.shareFrom = ''; view.shareTo = ''; view.freeFrom = ''; view.onlyDone = false; update(); });
   scope.on('click', '[data-an-mode]', (e, t) => { view.mode = t.dataset.anMode; update(); });
   scope.on('click', '[data-an-edge]', (e, t) => {

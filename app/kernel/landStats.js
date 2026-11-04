@@ -20,6 +20,9 @@
 //      контуром аймака срезается. Площадь точки — по её широте.
 //   4. Доля = покрытое / контур аймака на тех же полотнах; занято, га = доля ×
 //      площадь аймака по контуру.
+//   5. Дороги — отдельной категорией («Дороги не считаем свободными землями»,
+//      04.11.2026): линии OpenStreetMap (kernel/osmRoads.js) шириной по классу
+//      в контуре аймака за вычетом участков; не занято = остальное.
 //   ГФСУ (фонд сельхозугодий) у Кадастра контурами не отдаётся — его доля по
 //   картинке слоя Дарека (заливка) на тех же полотнах; подписана отдельно.
 //
@@ -30,6 +33,8 @@ import { registerPersisted, scheduleSave } from './persist.js';
 import { parseAdmin } from './darekAdmin.js';
 import { areaM2 } from './cadastreTip.js';
 import { featuresInBox } from './cadastreGeo.js';
+import { cachedFetch } from './netCache.js';
+import { roadsInBox, strokeRoads } from './osmRoads.js';
 
 const BASE = 'http://map.darek.kg/qgis/qgis_mapserv.fcgi.exe?map=' + encodeURIComponent('C:/OSGeo4W64/projects/ГИСАР/ГИСАР.qgz');
 const AIMAK_LAYER = 'Границы айылных аймаков';
@@ -66,7 +71,7 @@ export async function aimakAt(lat, lon) {
     CRS: 'CRS:84', BBOX: [lon - d, lat - d, lon + d, lat + d].join(','), WIDTH: '101', HEIGHT: '101', I: '50', J: '50',
     INFO_FORMAT: 'application/json', FEATURE_COUNT: '1', WITH_GEOMETRY: 'true',
   });
-  const r = await fetch(BASE + '&' + q.toString());
+  const r = await cachedFetch(BASE + '&' + q.toString(), { ttlDays: 30 });
   if (!r.ok) throw new Error('Дарек ответил ' + r.status);
   const fc = await r.json();
   const f = (fc.features || [])[0];
@@ -98,7 +103,8 @@ function loadImage(url) {
 async function parcelsIn(b, depth = 0) {
   const [lon1, lat1] = unmerc(b[0], b[1]);
   const [lon2, lat2] = unmerc(b[2], b[3]);
-  const fs = await featuresInBox('ENI_WGS84', [lon1, lat1, lon2, lat2], 'PROPCODE,THE_GEOM', MAX);
+  // Контуры — в кэше браузера на 7 дней: повторный расчёт и показ того же места не идут в Кадастр.
+  const fs = await featuresInBox('ENI_WGS84', [lon1, lat1, lon2, lat2], 'PROPCODE,THE_GEOM', MAX, { cacheDays: 7 });
   if (fs.length < MAX || depth >= 4) return fs;
   const mx = (b[0] + b[2]) / 2;
   const my = (b[1] + b[3]) / 2;
@@ -150,6 +156,14 @@ function fillAll(ctx, geometries, b) {
   geometries.forEach((g) => { if (g) { ctx.beginPath(); path(ctx, g, b); ctx.fill('evenodd'); } });
 }
 
+// Стереть контуры с полотна (что под участками — не дорога и не свободно).
+function eraseAll(ctx, geometries, b) {
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  geometries.forEach((g) => { if (g) { ctx.beginPath(); path(ctx, g, b); ctx.fill('evenodd'); } });
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 function clipTo(ctx, geometry, b) {
   ctx.globalCompositeOperation = 'destination-in';
   ctx.beginPath();
@@ -182,6 +196,8 @@ export async function estimateAimak(code, { onProgress, signal } = {}) {
   let mask = 0;
   let occ = 0;
   let gfsu = 0;
+  let roads = 0;
+  let roadsMissing = 0;
   const seen = new Set();
   let done = 0;
   for (const b of tiles) {
@@ -191,17 +207,28 @@ export async function estimateAimak(code, { onProgress, signal } = {}) {
     if (m > 0) {
       const url = `${BASE}&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=${encodeURIComponent(GFSU_LAYER)}&STYLES=&FORMAT=image/png&TRANSPARENT=true`
         + `&CRS=EPSG:3857&WIDTH=${SIZE}&HEIGHT=${SIZE}&BBOX=${b.join(',')}`;
-      const [fs, img] = await Promise.all([parcelsIn(b), loadImage(url)]);
+      const [fs, img, rd] = await Promise.all([parcelsIn(b), loadImage(url), roadsInBox(b).catch(() => null)]);
+      if (!rd) roadsMissing++;
       fs.forEach((f) => seen.add((f.properties || {}).PROPCODE || f.id));
-      fillAll(ctx, fs.map((f) => f.geometry), b);
+      const geoms = fs.map((f) => f.geometry);
+      fillAll(ctx, geoms, b);
       clipTo(ctx, row.geometry, b);
       occ += coveredM2(ctx, b);
-      // Незанятое в квадрате: контур аймака минус участки — уменьшенно на общее полотно.
-      ctx.globalCompositeOperation = 'source-out';
-      ctx.beginPath();
-      path(ctx, row.geometry, b);
+      // Под дорогами: дороги в контуре аймака за вычетом участков (дорога, оформленная участком, — «занято»).
+      ctx.clearRect(0, 0, SIZE, SIZE);
+      ctx.strokeStyle = '#000';
+      if (rd) strokeRoads(ctx, rd, b, SIZE);
+      clipTo(ctx, row.geometry, b);
+      eraseAll(ctx, geoms, b);
+      roads += coveredM2(ctx, b);
+      // Незанятое: контур аймака минус участки минус дороги — уменьшенно на общее полотно.
+      fillAll(ctx, [row.geometry], b);
+      eraseAll(ctx, geoms, b);
+      ctx.globalCompositeOperation = 'destination-out';
+      if (rd) strokeRoads(ctx, rd, b, SIZE);
+      ctx.globalCompositeOperation = 'source-in';
       ctx.fillStyle = FREE_COLOR;
-      ctx.fill('evenodd');
+      ctx.fillRect(0, 0, SIZE, SIZE);
       ctx.globalCompositeOperation = 'source-over';
       fctx.drawImage(ctx.canvas, (b[0] - x1) / FREE_RES, (y2 - b[3]) / FREE_RES, TILE / FREE_RES, TILE / FREE_RES);
       ctx.fillStyle = '#000';
@@ -215,14 +242,18 @@ export async function estimateAimak(code, { onProgress, signal } = {}) {
     if (onProgress) onProgress(done, tiles.length);
   }
   const share = mask ? occ / mask : 0;
+  const rshare = mask ? roads / mask : 0;
   const gshare = mask ? gfsu / mask : 0;
+  const r2 = (x) => Math.round(x * 100) / 100;
   row.occ = {
-    share, occHa: Math.round(row.areaHa * share * 100) / 100, freeHa: Math.round(row.areaHa * (1 - share) * 100) / 100,
+    share, occHa: r2(row.areaHa * share),
+    roadsShare: rshare, roadsHa: r2(row.areaHa * rshare), roadsMissing,
+    freeShare: Math.max(0, 1 - share - rshare), freeHa: r2(row.areaHa * Math.max(0, 1 - share - rshare)),
     gfsuShare: gshare, gfsuHa: Math.round(row.areaHa * gshare * 100) / 100,
     parcels: seen.size, tiles: tiles.length, at: new Date().toISOString(),
     // Незанятая земля картинкой: углы — [запад, север], [восток, север], [восток, юг], [запад, юг].
     free: { url: free.toDataURL('image/png'), coords: [unmerc(x1, y2), unmerc(x2, y2), unmerc(x2, y1), unmerc(x1, y1)] },
-    by: 'контуры участков Кадастра (ENI_WGS84); ГФСУ — картинка слоя Дарека',
+    by: 'контуры участков Кадастра (ENI_WGS84); дороги — OpenStreetMap (ширина по классу); ГФСУ — картинка слоя Дарека',
   };
   scheduleSave();
   return row;
@@ -272,4 +303,51 @@ export function exportSeed(objs) {
   const adm = {};
   objs.forEach((o) => { if (o.rec.adm && o.rec.adm.aimakCode) adm[o.typeId + '|' + o.rec.id] = o.rec.adm; });
   return { at: new Date().toISOString(), aimaks: allAimaks(), adm };
+}
+
+// --- незанятая земля на видимой части карты (вблизи) -------------------------
+// Пользователь 04.11.2026 про картинку аймака ≈ 30 м: «Я про грубую очень
+// сетку при приближении». Вблизи незанятое рисуется заново под экран: контуры
+// посчитанных аймаков минус участки Кадастра минус дороги OSM, по координатам,
+// в разрешении экрана. Контуры и дороги — из кэша (kernel/netCache.js).
+// view — [x1, y1, x2, y2] в метрах карты; w × h — точек полотна. Возвращает
+// { url, coords } для источника-картинки карты или null, если аймаков в виде нет.
+export async function freeView(rows, view, w, h) {
+  const hit = rows.filter((a) => a && a.geometry && a.occ).filter((a) => {
+    const polys = a.geometry.type === 'Polygon' ? [a.geometry.coordinates] : a.geometry.coordinates;
+    if (!a._bb) {
+      let [bx1, by1, bx2, by2] = [Infinity, Infinity, -Infinity, -Infinity];
+      polys.forEach((rings) => rings[0].forEach(([lon, lat]) => { const [x, y] = merc(lon, lat); bx1 = Math.min(bx1, x); by1 = Math.min(by1, y); bx2 = Math.max(bx2, x); by2 = Math.max(by2, y); }));
+      Object.defineProperty(a, '_bb', { value: [bx1, by1, bx2, by2], enumerable: false, configurable: true });
+    }
+    const bb = a._bb;
+    return !(bb[2] < view[0] || bb[0] > view[2] || bb[3] < view[1] || bb[1] > view[3]);
+  });
+  if (!hit.length) return null;
+  const [fs, rd] = await Promise.all([parcelsIn(view), roadsInBox(view).catch(() => [])]);
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d');
+  const kx = w / (view[2] - view[0]);
+  const ky = h / (view[3] - view[1]);
+  const trace = (g) => {
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+    polys.forEach((rings) => rings.forEach((ring) => ring.forEach(([lon, lat], i) => {
+      const [x, y] = merc(lon, lat);
+      const px = (x - view[0]) * kx;
+      const py = (view[3] - y) * ky;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    })));
+  };
+  ctx.fillStyle = FREE_COLOR;
+  hit.forEach((a) => { ctx.beginPath(); trace(a.geometry); ctx.fill('evenodd'); });
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  fs.forEach((f) => { if (f.geometry) { ctx.beginPath(); trace(f.geometry); ctx.fill('evenodd'); } });
+  ctx.strokeStyle = '#000';
+  // Полотно не квадратное: дороги — с масштабом по ширине (kx ≈ ky у экрана).
+  strokeRoads(ctx, rd, [view[0], view[3] - (view[2] - view[0]), view[2], view[3]], w);
+  ctx.globalCompositeOperation = 'source-over';
+  return { url: cv.toDataURL('image/png'), coords: [unmerc(view[0], view[3]), unmerc(view[2], view[3]), unmerc(view[2], view[1]), unmerc(view[0], view[1])] };
 }

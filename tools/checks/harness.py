@@ -439,6 +439,12 @@ def run_one(mod, part=None, headless=True, browser_=None):
         # Карта «Дарек» ГУ «Кадастр» (границы, аймаки, 04.11.2026) — без сети:
         # картинки — клеткой 1×1, «что в точке» — записанный аймак (darek_fixture).
         page.context.route('http://map.darek.kg/**', darek_route)
+        # Дороги OpenStreetMap (векторные плитки OpenFreeMap, kernel/osmRoads.js) —
+        # без сети: описание источника и пустые плитки (дорог нет).
+        page.context.route('https://tiles.openfreemap.org/**', lambda r: r.fulfill(
+            status=200, headers={'Access-Control-Allow-Origin': '*'},
+            content_type='application/json' if r.request.url.rstrip('/').endswith('/planet') else 'application/x-protobuf',
+            body='{"tiles":["https://tiles.openfreemap.org/planet/check/{z}/{x}/{y}.pbf"]}' if r.request.url.rstrip('/').endswith('/planet') else b''))
         # Готовые данные аналитики (app/data/analytics/land-seed.json) — не для
         # сценариев: те видят только записанный аймак.
         page.context.route('**/app/data/analytics/land-seed.json', lambda r: r.fulfill(status=200, content_type='application/json', body='{"aimaks":[],"adm":{}}'))

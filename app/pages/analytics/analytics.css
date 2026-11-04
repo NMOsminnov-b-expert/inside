@@ -3,7 +3,7 @@
    .btn); здесь — раскладка страницы, доли колонок и раскрытая строка. Таблица
    прокручивается вбок в своей обёртке, страница — нет. */
 body[data-page="analytics"] .an-f{flex:0 1 220px;min-width:160px}
-body[data-page="analytics"] .an-tbl{min-width:1320px}
+body[data-page="analytics"] .an-tbl{min-width:1460px}
 body[data-page="analytics"] .an-tbl col.c-name{width:19%}
 body[data-page="analytics"] .an-tbl col.c-dist{width:11%}
 body[data-page="analytics"] .an-tbl col.c-obl{width:8%}
@@ -208,4 +208,102 @@ body.an-list-hidden .an-scene .cad-note-gl{transform:translateX(calc(-1 * (var(-
   body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 2 + 170px)}
   body[data-page="analytics"] .an-sheet{position:fixed;top:120px}
   body[data-page="analytics"] .an-scene .cad-note-gl{display:none}
+}
+
+/* --- шапка списка: порядок и единицы площади --- */
+body[data-page="analytics"] .an-list-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px 0}
+body[data-page="analytics"] .an-sort{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto;font-size:11.5px;color:var(--muted)}
+body[data-page="analytics"] .an-sort .select,body[data-page="analytics"] .an-sort .dd{flex:1 1 auto;min-width:0;max-width:230px;height:30px}
+/* Единицы — сегментами: выбранная залита, полное название — в подсказке. */
+body[data-page="analytics"] .an-units{display:inline-flex;flex:none;padding:2px;border-radius:8px;background:var(--slate-50, #f1f5f9);gap:2px}
+body[data-page="analytics"] .an-units button{height:26px;min-width:34px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;color:#41536a;
+  font-variant-numeric:tabular-nums;transition:background-color 160ms ease,color 160ms ease}
+body[data-page="analytics"] .an-units button:hover{background:#fff;color:var(--ink)}
+body[data-page="analytics"] .an-units button.on{background:#fff;color:var(--blue-700);box-shadow:0 1px 2px rgba(15,23,42,.12)}
+body[data-page="analytics"] .an-units button:focus-visible{outline:2px solid var(--blue-500);outline-offset:1px}
+body[data-page="analytics"] abbr[title]{text-decoration:none;cursor:help}
+
+/* --- строка-карточка: полоска «занято / не занято» --- */
+body[data-page="analytics"] .an-mbar{display:flex;height:6px;margin:7px 0 2px;border-radius:3px;overflow:hidden;background:#f3d3b4}
+body[data-page="analytics"] .an-mbar i{display:block;height:100%}
+body[data-page="analytics"] .an-mbar .o{background:#256abf}
+body[data-page="analytics"] .an-mbar .f{flex:1 1 auto;background:#e8730c;opacity:.75;margin-left:2px}
+body[data-page="analytics"] .an-item.hov:not(.sel){background:var(--fill-hover);box-shadow:inset 3px 0 0 #9ec5f4}
+
+/* --- баланс: тонкая полоска доли категории (один цвет — величина, не категория) --- */
+body[data-page="analytics"] .an-bal .an-bb{grid-column:1/-1;display:block;height:3px;margin:-1px 0 3px;border-radius:2px;background:var(--line-soft);overflow:hidden}
+body[data-page="analytics"] .an-bal .an-bb i{display:block;height:100%;background:#86b6ef}
+
+/* --- таблица: сортировка по шапке --- */
+body[data-page="analytics"] .an-th-sort button{all:unset;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
+body[data-page="analytics"] .an-th-sort button:hover{color:var(--ink)}
+body[data-page="analytics"] .an-th-sort button:focus-visible{outline:2px solid var(--blue-500);outline-offset:2px;border-radius:3px}
+body[data-page="analytics"] .an-th-sort.on{color:var(--blue-700)}
+body[data-page="analytics"] .an-th-sort span{font-size:8px}
+
+/* --- подписи аймаков на карте: видны с приближения, проявляются прозрачностью --- */
+.an-lbl{pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 7px;border-radius:8px;
+  background:rgba(255,255,255,.92);box-shadow:0 1px 2px rgba(15,23,42,.18);font:600 11.5px/1.2 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color:#16233a;white-space:nowrap;opacity:0;transition:opacity 200ms ease}
+.an-lbl span{font-weight:700;color:#14508c;font-variant-numeric:tabular-nums}
+.an-lbl.sel{box-shadow:0 0 0 2px #1c5cab,0 2px 6px rgba(15,23,42,.2)}
+.an-scene.an-lbl-on .an-lbl{opacity:1}
+@media (prefers-reduced-motion:reduce){.an-lbl{transition:none}}
+body[data-page="analytics"] .an-sheet-h{display:flex;align-items:center;gap:12px;margin:0 0 10px}
+body[data-page="analytics"] .an-sheet-h b{font-size:14px;color:var(--ink)}
+body[data-page="analytics"] .an-sheet-n{flex:1 1 auto;font-size:12px;color:var(--muted)}
+body[data-page="analytics"] .an-mbar .r{background:#8a96a8;margin-left:2px}
+body[data-page="analytics"] .an-tbl col.c-n{width:7.5%}
+.an-scene.an-lbl-on .an-lbl.hid{opacity:0}
+
+/* === Легенда — она же слои (практика legend-interactive), 04.11.2026 ===
+   Одна панель внизу слева от списка вместо двух островков; строка — переключатель
+   слоя; занятость — шкалой ступеней 0–100 %. Перебивает прежние правила
+   .an-legend выше (тот же вес, позже в файле). */
+body[data-page="analytics"] .an-legend{left:calc(var(--isle-gap) * 2 + var(--list-w));bottom:var(--isle-gap);width:248px;padding:10px 12px 10px;
+  display:flex;flex-direction:column;gap:6px}
+body[data-page="analytics"] .an-lg-h{margin:0 0 2px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5a6b82}
+body[data-page="analytics"] .an-lg-row{display:flex;align-items:center;gap:8px;min-height:24px;font-size:12px;color:var(--ink);cursor:pointer;user-select:none}
+body[data-page="analytics"] .an-lg-static{cursor:default;color:var(--muted)}
+/* Переключатель: настоящий флажок под рисованным (клавиатура и чтение с экрана — как у флажка). */
+body[data-page="analytics"] .an-sw-in{position:absolute;opacity:0;width:1px;height:1px}
+body[data-page="analytics"] .an-switch,body[data-page="analytics"] .an-switch-gap{position:relative;flex:none;width:26px;height:15px}
+body[data-page="analytics"] .an-switch{border-radius:999px;background:#c3cfdd;transition:background-color 160ms ease}
+body[data-page="analytics"] .an-switch::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 2px rgba(15,23,42,.25);transition:transform 160ms ease}
+body[data-page="analytics"] .an-sw-in:checked + .an-switch{background:var(--blue-600)}
+body[data-page="analytics"] .an-sw-in:checked + .an-switch::after{transform:translateX(11px)}
+body[data-page="analytics"] .an-sw-in:focus-visible + .an-switch{outline:2px solid var(--blue-500);outline-offset:2px}
+body[data-page="analytics"] .an-lg-row:has(.an-sw-in:not(:checked)) > span:last-child{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .an-switch,body[data-page="analytics"] .an-switch::after{transition:none}}
+body[data-page="analytics"] .an-lg-sw{flex:none;width:14px;height:10px;border-radius:3px;border:1px solid rgba(13,54,107,.2)}
+body[data-page="analytics"] .an-lg-cad{background:transparent;border:1.5px solid #7b6fd6}
+body[data-page="analytics"] .an-lg-dot{flex:none;width:10px;height:10px;margin:0 2px;border-radius:50%;background:#0d366b;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(13,54,107,.25)}
+body[data-page="analytics"] .an-lg-ramp{display:flex;flex-direction:column;gap:2px;margin:-2px 0 2px 34px}
+body[data-page="analytics"] .an-ramp{display:flex;height:9px;border-radius:3px;overflow:hidden}
+body[data-page="analytics"] .an-ramp i{flex:1 1 0}
+body[data-page="analytics"] .an-ramp-ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .an-ramp-ticks i{font-style:normal}
+body[data-page="analytics"] .an-lg-note{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:11px;color:var(--muted)}
+body[data-page="analytics"] .an-lg-note .an-lg-none{width:14px;height:10px;border-radius:3px;background:#fff;border:1.5px dashed #1c5cab}
+body[data-page="analytics"] .hide-list .an-legend{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
+body[data-page="analytics"] .an-scene .cad-note-gl{bottom:calc(var(--isle-gap) + 262px)}
+
+/* Выход быстрее входа (exit-faster-than-enter): панели прячутся за 150 мс, появляются за 220. */
+body[data-page="analytics"]{--an-out:150ms}
+body[data-page="analytics"] .hide-list .an-list{transition:transform var(--an-out) cubic-bezier(.4,0,1,1),opacity var(--an-out) linear,visibility 0s linear var(--an-out)}
+body[data-page="analytics"] .an-facets{transition:opacity var(--an-out) linear,transform var(--an-out) cubic-bezier(.4,0,1,1),visibility 0s linear var(--an-out)}
+body[data-page="analytics"] .facets-open .an-facets{transition:opacity var(--an-dur) var(--an-ease),transform var(--an-dur) var(--an-ease),visibility 0s}
+
+/* Заглушки списка при привязке: мерцание прозрачностью; «меньше движения» — без мерцания. */
+body[data-page="analytics"] .an-skel .an-item{cursor:default;display:flex;flex-direction:column;gap:7px;padding:12px 10px}
+body[data-page="analytics"] .an-skel i{display:block;height:10px;border-radius:4px;background:#e6edf5;animation:an-pulse 1.2s ease-in-out infinite}
+body[data-page="analytics"] .an-skel i:nth-child(1){width:55%;height:12px}
+body[data-page="analytics"] .an-skel i:nth-child(2){width:80%}
+body[data-page="analytics"] .an-skel i:nth-child(3){width:100%;height:6px}
+@keyframes an-pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .an-skel i{animation:none}}
+
+@media (max-width:1100px){
+  body[data-page="analytics"] .an-legend{left:var(--isle-gap);bottom:auto;top:calc(var(--scene-top) + 46px + 40vh - 250px);transform:none !important}
 }

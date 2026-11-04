@@ -23,6 +23,8 @@
 // официальному доступу (Кадастр готовит модуль карты) и на стороне сервера, с
 // хранением привязки в базе, а не в записи ОЦ браузера.
 
+import { cachedFetch } from './netCache.js';
+
 const BASE = 'http://map.darek.kg/qgis/qgis_mapserv.fcgi.exe?map=' + encodeURIComponent('C:/OSGeo4W64/projects/ГИСАР/ГИСАР.qgz');
 const LAYERS = ['Границы айылных аймаков', 'Границы районов', 'Границы областей', 'Квартал (насел. пункт)',
   'Сельскохозяйственные земли', 'ГФСУ', 'Лесная служба', 'Особо охранемые природные территории', 'Трансформация земель'];
@@ -103,7 +105,7 @@ export async function adminAt(lat, lon) {
   });
   let res;
   try {
-    const r = await fetch(BASE + '&' + q.toString());
+    const r = await cachedFetch(BASE + '&' + q.toString(), { ttlDays: 30 });
     if (!r.ok) throw new Error('ответ ' + r.status);
     res = { ...parseAdmin(await r.json()), at: new Date().toISOString(), src: 'Дарек' };
   } catch (e) {

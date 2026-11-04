@@ -24,6 +24,8 @@
 // карточке (как здесь) или в отдельной таблице геометрий с индексом по
 // пространству (поиск «что рядом», маршруты по многим объектам).
 
+import { cachedFetch } from './netCache.js';
+
 const OWN = 'http://127.0.0.1:8787/portal/';
 const LIVE = '/cadastre/';
 const TIMEOUT = 15000;
@@ -219,7 +221,8 @@ export async function eniByAddress(addr) {
 // Объекты слоя в рамке карты: typename — ENI_WGS84 (участки: код, дом,
 // адрес, назначение) или ENI_BUILDINGS (строения); box — [запад, юг, восток,
 // север] в долготе и широте. Ответ — GeoJSON-объекты в долготе и широте.
-export async function featuresInBox(typename, box, propertyname, max = 500) {
+// cacheDays — держать ответ в кэше браузера столько дней (kernel/netCache.js); 0 — без кэша.
+export async function featuresInBox(typename, box, propertyname, max = 500, { cacheDays = 0 } = {}) {
   const [x1, y1] = merc(box[0], box[1]);
   const [x2, y2] = merc(box[2], box[3]);
   const body = new URLSearchParams({
@@ -227,6 +230,10 @@ export async function featuresInBox(typename, box, propertyname, max = 500) {
     srsname: 'EPSG:4326', outputFormat: 'application/json', maxFeatures: String(max),
     bbox: `${x1},${y1},${x2},${y2},EPSG:3857`,
   });
-  const fc = JSON.parse(await portal('proxy.do?http://localhost/o2map/services/wfs', body));
+  const ask = () => portal('proxy.do?http://localhost/o2map/services/wfs', body);
+  const text = cacheDays
+    ? await (await cachedFetch('cadastre:wfs', { body: body.toString(), ttlDays: cacheDays, fetcher: async () => new Response(await ask(), { headers: { 'Content-Type': 'application/json' } }) })).text()
+    : await ask();
+  const fc = JSON.parse(text);
   return fc.features || [];
 }
