@@ -39,6 +39,10 @@ import { roadsInBox, strokeRoads } from './osmRoads.js';
 const BASE = 'http://map.darek.kg/qgis/qgis_mapserv.fcgi.exe?map=' + encodeURIComponent('C:/OSGeo4W64/projects/ГИСАР/ГИСАР.qgz');
 const AIMAK_LAYER = 'Границы айылных аймаков';
 const GFSU_LAYER = 'ГФСУ';
+// Сведения участка для сводки «Участки» (пользователь 04.11.2026: «нужна сводка
+// по тому, что вытащили. Сколько в гос собственности, сколько в частной. Что без
+// меток… всевозможные срезы»).
+const PARCEL_PROPS = 'PROPCODE,NAZNACHENI,PROPFOR_NAME,PROPFORM_NAME,DATEINS,AMNESTIED,FROM_GPS,THE_GEOM';
 const SIZE = 2048;             // сторона полотна, точек
 const TILE = 4096;             // сторона квадрата, метров карты (2 м на точку)
 const MAX = 3000;              // предел ответа Кадастра на квадрат
@@ -49,6 +53,12 @@ const FREE_COLOR = '#e8730c';
 
 // Аймаки: код аймака → { code, aimak, district, oblast, balance, geometry, areaHa, occ }.
 const aimaks = new Map();
+// Сведения участков аймака (parcelStats) в хранилище браузера не кладутся —
+// сотни тысяч строк не помещаются; живут в памяти и в файле готовых данных
+// app/data/analytics/land-parcels.json.
+const parcelStats = new Map();   // код аймака → { dict, rows }
+export const parcelStatsOf = (code) => parcelStats.get(code) || null;
+export const allParcelStats = () => [...parcelStats.entries()];
 registerPersisted('analytics.aimaks', {
   snapshot: () => [...aimaks.values()],
   restore: (saved) => {
@@ -104,7 +114,7 @@ async function parcelsIn(b, depth = 0) {
   const [lon1, lat1] = unmerc(b[0], b[1]);
   const [lon2, lat2] = unmerc(b[2], b[3]);
   // Контуры — в кэше браузера на 7 дней: повторный расчёт и показ того же места не идут в Кадастр.
-  const fs = await featuresInBox('ENI_WGS84', [lon1, lat1, lon2, lat2], 'PROPCODE,THE_GEOM', MAX, { cacheDays: 7 });
+  const fs = await featuresInBox('ENI_WGS84', [lon1, lat1, lon2, lat2], PARCEL_PROPS, MAX, { cacheDays: 7 });
   if (fs.length < MAX || depth >= 4) return fs;
   const mx = (b[0] + b[2]) / 2;
   const my = (b[1] + b[3]) / 2;
@@ -196,6 +206,21 @@ export async function estimateAimak(code, { onProgress, signal } = {}) {
   let mask = 0;
   let occ = 0;
   let gfsu = 0;
+  // Участки аймака для сводки: один участок — одному аймаку (центр контура в
+  // контуре аймака), площадь — по контуру; значения — словарями, строки — числами.
+  const dict = { form: [''], use: [''], purp: [''] };
+  const idx = (k, v) => { const x = String(v == null ? '' : v).trim(); const s2 = x === 'None' || x === '-9999' || x === 'null' ? '' : x; let i = dict[k].indexOf(s2); if (i < 0) { i = dict[k].length; dict[k].push(s2); } return i; };
+  const prow = [];
+  const collect = (f) => {
+    const g = f.geometry;
+    if (!g) return;
+    const c = centroidOf(g);
+    if (!c || !insideGeom(c, row.geometry)) return;
+    const pr = f.properties || {};
+    const y = String(pr.DATEINS || '').match(/^(\d{4})/);
+    prow.push([Math.round(areaM2(g)), idx('form', pr.PROPFORM_NAME), idx('use', pr.PROPFOR_NAME), idx('purp', pr.NAZNACHENI),
+      y ? +y[1] : 0, /^(true|1)$/i.test(String(pr.AMNESTIED || '')) ? 1 : 0, /^(true|1)$/i.test(String(pr.FROM_GPS || '')) ? 1 : 0]);
+  };
   let roads = 0;
   let roadsMissing = 0;
   const seen = new Set();
@@ -209,7 +234,12 @@ export async function estimateAimak(code, { onProgress, signal } = {}) {
         + `&CRS=EPSG:3857&WIDTH=${SIZE}&HEIGHT=${SIZE}&BBOX=${b.join(',')}`;
       const [fs, img, rd] = await Promise.all([parcelsIn(b), loadImage(url), roadsInBox(b).catch(() => null)]);
       if (!rd) roadsMissing++;
-      fs.forEach((f) => seen.add((f.properties || {}).PROPCODE || f.id));
+      fs.forEach((f) => {
+        const k = (f.properties || {}).PROPCODE || f.id;
+        if (seen.has(k)) return;
+        seen.add(k);
+        collect(f);
+      });
       const geoms = fs.map((f) => f.geometry);
       fillAll(ctx, geoms, b);
       clipTo(ctx, row.geometry, b);
@@ -255,8 +285,34 @@ export async function estimateAimak(code, { onProgress, signal } = {}) {
     free: { url: free.toDataURL('image/png'), coords: [unmerc(x1, y2), unmerc(x2, y2), unmerc(x2, y1), unmerc(x1, y1)] },
     by: 'контуры участков Кадастра (ENI_WGS84); дороги — OpenStreetMap (ширина по классу); ГФСУ — картинка слоя Дарека',
   };
+  parcelStats.set(row.code, { dict, rows: prow, at: row.occ.at });
   scheduleSave();
   return row;
+}
+
+// Середина самого большого кольца контура [долгота, широта].
+function centroidOf(g) {
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+  let best = null;
+  polys.forEach((rings) => { if (rings[0] && (!best || rings[0].length > best.length)) best = rings[0]; });
+  if (!best || !best.length) return null;
+  let x = 0;
+  let y = 0;
+  best.forEach((p) => { x += p[0]; y += p[1]; });
+  return [x / best.length, y / best.length];
+}
+// Точка в контуре (чёт-нечет по всем кольцам).
+function insideGeom([x, y], g) {
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  let inside = false;
+  polys.forEach((rings) => rings.forEach((ring) => {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  }));
+  return inside;
 }
 
 // Покрытие квадрата контурами — для сверки с точным объединением (проверки).
@@ -299,6 +355,23 @@ export function loadSeed() {
 export const seedInfo = () => ({ at: seedAt, aimaks: Object.keys(seedAdm).length ? allAimaks().length : 0 });
 export const seedAdmOf = (typeId, id) => seedAdm[typeId + '|' + id] || null;
 // Снимок для файла готовых данных: все аймаки и привязки переданных записей.
+export function exportParcels() {
+  return { at: new Date().toISOString(), aimaks: Object.fromEntries(parcelStats) };
+}
+// Сведения участков из файла готовых данных — по запросу экрана «Участки».
+let parcelsLoading = null;
+export function loadParcelsSeed() {
+  if (!parcelsLoading) {
+    parcelsLoading = fetch('./app/data/analytics/land-parcels.json').then((r) => (r.ok ? r.json() : null)).catch(() => null).then((d) => {
+      if (!d || !d.aimaks) return;
+      Object.entries(d.aimaks).forEach(([code, st]) => {
+        const own = parcelStats.get(code);
+        if (!own || (st.at || '') > (own.at || '')) parcelStats.set(code, st);
+      });
+    });
+  }
+  return parcelsLoading;
+}
 export function exportSeed(objs) {
   const adm = {};
   objs.forEach((o) => { if (o.rec.adm && o.rec.adm.aimakCode) adm[o.typeId + '|' + o.rec.id] = o.rec.adm; });

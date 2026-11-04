@@ -123,3 +123,28 @@ def run(t):
         pg.wait_for_timeout(300)
         t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'страница прокручивается вбок на %d' % w)
     pg.set_viewport_size({'width': 1440, 'height': 900})
+
+    # --- «Участки»: сводка со срезами (04.11.2026) ---
+    # Участки — из расчёта аймака (записанный аймак и участки Кадастра).
+    pg.click('[data-an-mode="parcels"]')
+    if t.ck(t.wait_for('.ap-kpis'), '«Участки» не открылись'):
+        kp = pg.evaluate("() => [...document.querySelectorAll('.ap-kpi b')].map((b) => b.innerText)")
+        tot = num(kp[0])
+        forms = sum(num(x) for x in kp[1:6])
+        t.ck(tot and tot > 0, 'участков нет: %s' % kp)
+        # Формы собственности в плитках: государственная, муниципальная, частная, другая, без метки
+        # (+ «самовольная застройка», если есть — она только в срезе).
+        sv = num(pg.evaluate("() => { const b = [...document.querySelectorAll('.ap-card:first-child .ap-bar')].find((x) => x.querySelector('.ap-l').innerText === 'Самовольная застройка'); return b ? b.querySelector('.ap-v').innerText : '0'; }")) or 0
+        t.ck(abs(forms + sv - tot) < 0.5, 'плитки собственности не сходятся с итогом: %s + %s ≠ %s' % (forms, sv, tot))
+        first = pg.locator('.ap-card:nth-child(2) [data-ap-dim]').first
+        val = first.get_attribute('data-ap-v')
+        first.click()
+        t.ck(t.wait_until("() => document.querySelector('.ap-chips')"), 'щелчок по столбцу не добавил отбор')
+        t.ck(val in pg.inner_text('.ap-chips'), 'в отборе нет выбранного значения %s' % val)
+        t.ck(num(pg.inner_text('.ap-kpi-main b')) <= tot, 'отбор не сузил итог')
+        pg.click('[data-ap-clear]')
+        t.ck(t.wait_until("() => !document.querySelector('.ap-chips')"), '«Сбросить отбор» не снял отбор')
+        pg.set_viewport_size({'width': 900, 'height': 900})
+        pg.wait_for_timeout(300)
+        t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), '«Участки» прокручиваются вбок на 900')
+        pg.set_viewport_size({'width': 1440, 'height': 900})

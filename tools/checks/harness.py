@@ -447,6 +447,7 @@ def run_one(mod, part=None, headless=True, browser_=None):
             body='{"tiles":["https://tiles.openfreemap.org/planet/check/{z}/{x}/{y}.pbf"]}' if r.request.url.rstrip('/').endswith('/planet') else b''))
         # Готовые данные аналитики (app/data/analytics/land-seed.json) — не для
         # сценариев: те видят только записанный аймак.
+        page.context.route('**/app/data/analytics/land-parcels.json', lambda r: r.fulfill(status=200, content_type='application/json', body='{"aimaks":{}}'))
         page.context.route('**/app/data/analytics/land-seed.json', lambda r: r.fulfill(status=200, content_type='application/json', body='{"aimaks":[],"adm":{}}'))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,
         # 09.09.2026). Для сценария это чужое состояние: правки предыдущего

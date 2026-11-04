@@ -22,6 +22,8 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'app', 'data', 'analytics', 'land-seed.json')
+# Сведения участков для экрана «Участки» — отдельным файлом (большой; читается по запросу).
+OUT_P = os.path.join(ROOT, 'app', 'data', 'analytics', 'land-parcels.json')
 
 
 def free_port():
@@ -60,11 +62,16 @@ def main():
                 page.wait_for_function("() => !document.querySelector('[data-an-batch-stop]') && !document.querySelector('.an-run')", timeout=3600000, polling=3000)
                 print('посчитано за %d с' % (time.time() - t))
             snap = page.evaluate('() => window.__anExport()')
+            parcels = page.evaluate('() => window.__anExportParcels()')
             br.close()
         done = [a for a in snap['aimaks'] if a.get('occ')]
         os.makedirs(os.path.dirname(OUT), exist_ok=True)
         with open(OUT, 'w', encoding='utf-8') as f:
             json.dump(snap, f, ensure_ascii=False, separators=(',', ':'))
+        with open(OUT_P, 'w', encoding='utf-8') as f:
+            json.dump(parcels, f, ensure_ascii=False, separators=(',', ':'))
+        print('участки: %s — аймаков %d, участков %d, %.1f МБ' % (os.path.relpath(OUT_P, ROOT), len(parcels['aimaks']),
+              sum(len(v['rows']) for v in parcels['aimaks'].values()), os.path.getsize(OUT_P) / 1e6))
         print('сохранено: %s — аймаков %d (посчитано %d), привязок ОЦ %d, %.1f МБ' % (
             os.path.relpath(OUT, ROOT), len(snap['aimaks']), len(done), len(snap['adm']), os.path.getsize(OUT) / 1e6))
     finally:

@@ -39,7 +39,8 @@ import { enhanceSelects } from '../../kernel/dropdown.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { fillAdmin, pointOf } from '../../kernel/darekAdmin.js';
-import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, freeCell, aimaksInCell, CELL } from '../../kernel/landStats.js';
+import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, exportParcels, freeCell, aimaksInCell, CELL, allParcelStats, loadParcelsSeed } from '../../kernel/landStats.js';
+import { buildCube, summarize as parcelSum, parcelsHTML } from './parcels.js';
 
 const SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 // Типы ОЦ с участком (у ТС и механизмов земли нет).
@@ -54,6 +55,27 @@ const STEPS = [
   { to: 1.01, color: '#104281', label: '80–100 %' },
 ];
 const FREE_COLOR = '#e8730c';
+// Части аймака векторного расчёта (tools/analytics/land_pipeline.py, файлы
+// app/data/analytics/free/<код>.json): свободное — по зонам покрова ESA
+// WorldCover; непригодное и занятое без ЕНИ — своими цветами.
+export const PARTS = [
+  { key: 'farm', label: 'Пашня', color: '#f2a73b', free: true },
+  { key: 'grass', label: 'Луга и пастбища', color: '#f6d365', free: true },
+  { key: 'shrub', label: 'Кустарник', color: '#b5c94f', free: true },
+  { key: 'wood', label: 'Деревья', color: '#5fa35a', free: true },
+  { key: 'built', label: 'Застроенная территория', color: '#e8730c', free: true },
+  { key: 'bare', label: 'Голая земля, скалы, снег', color: '#c9b49a', free: true },
+  { key: 'none', label: 'Без класса', color: '#f0b27a', free: true },
+  { key: 'bld', label: 'Здания без ЕНИ (по снимкам)', color: '#c2185b' },
+  { key: 'water', label: 'Вода и русла', color: '#4fa3d9' },
+  { key: 'relief', label: 'Овраги, обрывы, крутые склоны', color: '#8d6e63' },
+  { key: 'roads', label: 'Дороги', color: '#8a96a8' },
+  { key: 'strips', label: 'Узкие полосы (непригодны)', color: '#b9b9b9' },
+  { key: 'small', label: 'Клочки (непригодны)', color: '#9e9e9e' },
+];
+const PART_COLOR = ['match', ['get', 'zone'], ...PARTS.flatMap((x) => [x.key, x.color]), '#e8730c'];
+const isVec = (a) => !!(a && a.occ && a.occ.zones);
+const vecUrl = (code) => `./app/data/analytics/free/${String(code).replace(/,/g, '_')}.json`;
 const ROAD_COLOR = '#8a96a8';
 // Доли аймака: занято, под дорогами, не занято (у расчётов до дорог — без дорог).
 const roadSh = (o) => (o && o.roadsShare) || 0;
@@ -128,6 +150,8 @@ export function mountAnalytics(host) {
     q: '', oblast: '', district: '', shareFrom: '', shareTo: '', freeFrom: '', onlyDone: false,
     open: new Set(), sel: '', layers: { share: true, free: true, objs: true, cad: true },
     mode: 'map', hideList: false, facets: false, unit: unitSaved(), sort: 'place', hov: '',
+    pf: {}, pm: 'count',
+    lgShut: (() => { try { return localStorage.getItem('inside.analytics.legend') === '0'; } catch (e) { return false; } })(),   // «Участки»: отбор срезов (ключ среза → набор значений) и мера
   };
   const U = () => UNITS.find((u) => u.key === view.unit) || UNITS[0];
   // Площадь из гектаров в выбранной единице: short — список и итоги, иначе — таблица.
@@ -216,6 +240,7 @@ export function mountAnalytics(host) {
         <span class="an-seg" role="group" aria-label="Вид">
           <button type="button" class="itab${view.mode === 'map' ? ' on' : ''}" data-an-mode="map" aria-pressed="${view.mode === 'map'}">Карта</button>
           <button type="button" class="itab${view.mode === 'table' ? ' on' : ''}" data-an-mode="table" aria-pressed="${view.mode === 'table'}">Таблица</button>
+          <button type="button" class="itab${view.mode === 'parcels' ? ' on' : ''}" data-an-mode="parcels" aria-pressed="${view.mode === 'parcels'}" title="Сводка по участкам с ЕНИ: собственность, вид использования, назначение, метки — со срезами">Участки</button>
         </span>
         ${kv('Посчитано', `${done.length} из ${shown.length}`)}
         ${kv(`Площадь, ${unitAbbr()}`, ar(area), '', ' an-kv-area')}
@@ -259,7 +284,7 @@ export function mountAnalytics(host) {
           <span class="an-it-share num">${a.occ ? pct(a.occ.share) : ''}</span></div>
         <div class="an-it-s"><span>${esc([a.code, a.district, a.oblast].filter(Boolean).join(' · '))}</span>
           <span class="num">${a.occ ? `не занято ${ar(a.occ.freeHa)} ${esc(ul())}` : ''}</span></div>
-        ${a.occ ? `<div class="an-mbar" role="img" aria-label="Занято ${pct(a.occ.share)}, дороги ${pct(roadSh(a.occ))}, не занято ${pct(freeSh(a.occ))}"><i class="o" style="width:${(a.occ.share * 100).toFixed(2)}%"></i>${roadSh(a.occ) ? `<i class="r" style="width:${(roadSh(a.occ) * 100).toFixed(2)}%"></i>` : ''}<i class="f"></i></div>` : ''}
+        ${a.occ ? mbarHTML(a) : ''}
         <div class="an-it-m"><span class="num">площадь ${ar(a.areaHa)} ${esc(ul())}${a.balance ? ` · по балансу ${ar(a.balance.total)}` : ''}${r.objs.length ? ` · ОЦ ${r.objs.length}` : ''}</span>
           <span class="an-it-act">${runCell(a)}</span></div>
         ${going ? `<div class="an-bar" aria-hidden="true"><i style="transform:scaleX(${(run.done / run.total).toFixed(3)})"></i></div>` : ''}
@@ -274,12 +299,50 @@ export function mountAnalytics(host) {
       return `<span class="an-run" role="status">квадратов ${r.done} из ${r.total}</span>
         <button type="button" class="btn btn-ghost btn-sm" data-an-stop="${esc(a.code)}">Стоп</button>`;
     }
+    // Векторный расчёт (источники, база, очистка) — инструментом, не в браузере: браузерный пересчёт затёр бы его.
+    if (isVec(a)) return `<span class="an-vec" title="${esc(a.occ.by || '')}. Пересчёт — python tools/analytics/land_pipeline.py --aimak «${esc(a.aimak)}»">по векторам · ${esc(dateOf(a.occ.at))}</span>`;
     const label = a.occ ? 'Пересчитать' : 'Посчитать';
     const title = a.occ ? `Посчитано ${dateOf(a.occ.at)}: участков ${a.occ.parcels.toLocaleString('ru-RU')}` : 'Занятость участками с ЕНИ — по контурам Кадастра в границах аймака';
     return `${r && r.error ? `<span class="an-err" title="${esc(r.error)}">не посчитано</span>` : ''}
       <button type="button" class="btn btn-ghost btn-sm" data-an-run="${esc(a.code)}" title="${esc(title)}">${label}</button>`;
   };
 
+  // Полоска частей аймака: занято · дороги · вода · рельеф · без ЕНИ · непригодно · свободно.
+  const partsOf = (a) => {
+    const o = a.occ;
+    const A = a.areaHa || 1;
+    if (!isVec(a)) return [['o', o.share, 'занято'], ['r', roadSh(o), 'дороги'], ['f', freeSh(o), 'не занято']];
+    return [['o', o.occHa / A, 'занято'], ['r', (o.roadsHa || 0) / A, 'дороги'], ['w', (o.waterHa || 0) / A, 'вода'], ['l', (o.reliefHa || 0) / A, 'рельеф'],
+      ['b', (o.bldHa || 0) / A, 'здания без ЕНИ'], ['u', ((o.stripsHa || 0) + (o.smallHa || 0)) / A, 'непригодно'], ['f', o.freeHa / A, 'свободно']];
+  };
+  const mbarHTML = (a) => {
+    const ps = partsOf(a).filter((x) => x[1] > 0.0005);
+    return `<div class="an-mbar" role="img" aria-label="${esc(ps.map((x) => `${x[2]} ${pct(x[1])}`).join(', '))}">${ps.map((x) => `<i class="${x[0]}" style="flex:${x[1].toFixed(4)} 1 0" title="${esc(x[2])} ${pct(x[1])}"></i>`).join('')}</div>`;
+  };
+  const vecHTML = (a) => {
+    if (!isVec(a)) return '';
+    const o = a.occ;
+    const A = a.areaHa || 1;
+    const row = (label, h, cls = '') => `<dt class="${cls}">${esc(label)}</dt><dd class="num ${cls}">${ar(h, false)} ${esc(ul())} · ${pct(h / A)}</dd>`;
+    const c = o.cmp || {};
+    const q = a.quality && a.quality.note;
+    return `<div class="an-d-sec"><h3>Земли аймака по источникам</h3>
+      <dl class="an-bal">${row('Занято участками с ЕНИ', o.occHa)}${row('Дороги', o.roadsHa || 0)}${row('Вода и русла', o.waterHa || 0)}
+      ${row('Овраги, обрывы, крутые склоны', o.reliefHa || 0)}${row('Здания без ЕНИ (по снимкам)', o.bldHa || 0)}
+      ${row('Узкие полосы и клочки — непригодны', (o.stripsHa || 0) + (o.smallHa || 0))}${row('Свободно', o.freeHa, 'an-bal-total')}</dl></div>
+      <div class="an-d-sec"><h3>Свободно по покрову земли</h3>
+      <dl class="an-bal">${PARTS.filter((x) => x.free && (o.zones[x.key] || 0) > 0).map((x) => `<dt><i class="an-dsw" style="background:${x.color}"></i>${esc(x.label)}</dt><dd class="num">${ar(o.zones[x.key], false)} ${esc(ul())}</dd>`).join('')}</dl></div>
+      <div class="an-d-sec"><h3>Сверка источников</h3>
+      <dl class="an-bal"><dt>Вода — OpenStreetMap</dt><dd class="num">${ar(c.waterOsmHa || 0, false)} ${esc(ul())}</dd>
+      <dt>Вода — ESA WorldCover</dt><dd class="num">${ar(c.waterWcHa || 0, false)} ${esc(ul())}</dd>
+      <dt>Вода — в обоих</dt><dd class="num">${ar(c.waterBothHa || 0, false)} ${esc(ul())}</dd>
+      <dt>Рельеф — OpenStreetMap</dt><dd class="num">${ar(c.reliefOsmHa || 0, false)} ${esc(ul())}</dd>
+      <dt>Склоны круче ${esc(String(o.slope || 12))}° — Copernicus DEM</dt><dd class="num">${ar(c.steepHa || 0, false)} ${esc(ul())}</dd>
+      <dt>Зданий по снимкам · из них вне ЕНИ</dt><dd class="num">${(c.buildings || 0).toLocaleString('ru-RU')} · ${(c.buildingsNoEni || 0).toLocaleString('ru-RU')}</dd></dl>
+      ${c.parcelsOnWater && Object.keys(c.parcelsOnWater).length ? `<h3 class="an-d-sub">Участки с ЕНИ на воде (20 % площади и больше)</h3>
+      <dl class="an-bal">${Object.entries(c.parcelsOnWater).sort((x, y) => y[1].n - x[1].n).map(([f, v]) => `<dt>${esc(f)}</dt><dd class="num">${v.n.toLocaleString('ru-RU')} уч. · ${ar(v.ha, false)} ${esc(ul())}</dd>`).join('')}</dl>` : ''}
+      <p class="an-d-note">Узкие полосы — уже ${esc(String(o.strip))} м, клочки — меньше ${esc(String(o.minPatch))} м²; здания без ЕНИ — с двором ${esc(String(o.bldYard))} м.${q ? ` Контур Дарека: ${esc(q)}.` : ''}</p></div>`;
+  };
   const detailHTML = ({ a, objs }) => {
     const tot = a.balance && a.balance.total;
     const bal = a.balance && a.balance.parts && a.balance.parts.length ? `<div class="an-d-sec"><h3>Земельный баланс аймака, ${unitAbbr()}</h3>
@@ -303,7 +366,7 @@ export function mountAnalytics(host) {
           <td>${esc(ad.quarter || '')}${ad.coate ? `<span class="an-sub">СОАТЕ ${esc(ad.coate)}</span>` : ''}</td>
           <td>${esc(lands || '—')}</td></tr>`;
       }).join('')}</tbody></table></div>` : '';
-    return `<div class="an-detail">${bal}${occ}${list}</div>`;
+    return `<div class="an-detail">${bal}${isVec(a) ? vecHTML(a) : occ}${list}</div>`;
   };
 
   // Шапка с сортировкой: щелчок — этот порядок (aria-sort для чтения с экрана).
@@ -369,19 +432,22 @@ export function mountAnalytics(host) {
         <span class="an-switch" aria-hidden="true"></span>${swatch}<span>${label}</span></label>`;
     const ramp = `<span class="an-ramp" aria-hidden="true">${STEPS.map((x) => `<i style="background:${x.color}"></i>`).join('')}</span>`;
     return `<section class="an-legend" aria-label="Легенда и слои карты">
-      <h2 class="an-lg-h">Легенда</h2>
+      <button type="button" class="an-lg-h" data-an-lg-toggle aria-expanded="${!view.lgShut}" aria-controls="anLgBody">Легенда<span aria-hidden="true">${view.lgShut ? '▸' : '▾'}</span></button>
+      <div class="an-lg-body" id="anLgBody" ${view.lgShut ? 'hidden' : ''}>
       ${row('share', '', 'Занято участками с ЕНИ, %')}
       <div class="an-lg-ramp">${ramp}<span class="an-ramp-ticks" aria-hidden="true"><i>0</i><i>20</i><i>40</i><i>60</i><i>80</i><i>100</i></span>
         <span class="an-lg-note"><i class="an-lg-none" aria-hidden="true"></i>не посчитано</span></div>
-      ${row('free', `<i class="an-lg-sw" style="background:${FREE_COLOR}" aria-hidden="true"></i>`, 'Незанятая земля')}
-      <div class="an-lg-row an-lg-static" title="Дороги и улицы вне участков с ЕНИ — не свободная земля (OpenStreetMap, ширина по классу)">
-        <span class="an-switch-gap" aria-hidden="true"></span><i class="an-lg-sw" style="background:${ROAD_COLOR}" aria-hidden="true"></i><span>Дороги</span></div>
+      ${row('free', `<i class="an-lg-sw" style="background:${FREE_COLOR}" aria-hidden="true"></i>`, 'Части аймака: свободно и непригодно')}
+      <ul class="an-lg-parts">${PARTS.map((x) => `<li><i style="background:${x.color}" aria-hidden="true"></i>${esc(x.label)}</li>`).join('')}</ul>
       ${row('objs', '<i class="an-lg-dot" aria-hidden="true"></i>', 'ОЦ системы')}
       ${row('cad', '<i class="an-lg-sw an-lg-cad" aria-hidden="true"></i>', 'Участки Кадастра вблизи')}
+      </div>
     </section>`;
   };
 
   const freeIds = new Set();
+  const vecIds = new Set();
+  let vecShown = new Set();
   // Подписи аймаков на карте — HTML-метками (у подложки нет шрифтов для подписей
   // слоем); видны с приближения 8, едут вместе с картой (transform).
   const labels = new Map();
@@ -428,10 +494,23 @@ export function mountAnalytics(host) {
     // Клетки вблизи зависят от показанных посчитанных аймаков и даты расчёта — сменились, перерисовать.
     const sig = shown.filter((r) => r.a.occ).map((r) => r.a.code + '@' + r.a.occ.at).join('|');
     if (cellsApi && sig !== cellSig) { cellSig = sig; cellsApi.drop(); cellsApi.load(); }
-    // Незанятая земля — картинка на посчитанный аймак.
+    // Векторный расчёт — части аймака векторами (файл free/<код>.json), без картинки и клеток.
+    shown.filter((r) => isVec(r.a)).forEach(({ a }) => {
+      const id = 'fv-' + a.code;
+      if (map.getSource(id)) {
+        if (map.getSource(id)._at !== a.occ.at) { map.getSource(id).setData(vecUrl(a.code)); map.getSource(id)._at = a.occ.at; }
+        return;
+      }
+      map.addSource(id, { type: 'geojson', data: vecUrl(a.code), tolerance: 0.2 });
+      map.getSource(id)._at = a.occ.at;
+      map.addLayer({ id, type: 'fill', source: id, paint: { 'fill-color': PART_COLOR, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 15, 0.55] } }, 'aim-line');
+      vecIds.add(a.code);
+    });
+    vecShown = new Set(shown.filter((r) => isVec(r.a)).map((r) => r.a.code));
+    // Незанятая земля — картинка на посчитанный аймак (прежний расчёт по точкам).
     // Скрытые отбором не снимаются с карты, а прячутся: снятие во время загрузки
     // картинки обрывает её с ошибкой в консоли.
-    freeShown = new Set(shown.filter((r) => r.a.occ && r.a.occ.free).map((r) => r.a.code));
+    freeShown = new Set(shown.filter((r) => r.a.occ && r.a.occ.free && !isVec(r.a)).map((r) => r.a.code));
     shown.filter((r) => freeShown.has(r.a.code)).forEach(({ a }) => {
       const id = 'free-' + a.code;
       const src = map.getSource(id);
@@ -452,6 +531,7 @@ export function mountAnalytics(host) {
     const vis = (on) => (on ? 'visible' : 'none');
     if (map.getLayer('aim-fill')) map.setLayoutProperty('aim-fill', 'visibility', vis(view.layers.share));
     freeIds.forEach((c) => map.setLayoutProperty('free-' + c, 'visibility', vis(view.layers.free && freeShown.has(c))));
+    vecIds.forEach((c) => map.setLayoutProperty('fv-' + c, 'visibility', vis(view.layers.free && vecShown.has(c))));
     if (cellsApi) { cellsApi.all.forEach((c) => { if (map.getLayer(c.id)) map.setLayoutProperty(c.id, 'visibility', vis(view.layers.free)); }); if (view.layers.free) cellsApi.load(); }
     if (map.getLayer('objs')) map.setLayoutProperty('objs', 'visibility', vis(view.layers.objs));
     (map.getStyle().layers || []).filter((l) => l.source === 'cadP' || l.source === 'cadB')
@@ -526,7 +606,7 @@ export function mountAnalytics(host) {
     let cellQ = [];
     let cellRun = 0;
     let cellGen = 0;
-    const cellShown = () => rows().filter(matches).map((r) => r.a);
+    const cellShown = () => rows().filter(matches).map((r) => r.a).filter((a) => !isVec(a));
     const dropCells = () => {
       cellGen++;
       cellQ = [];
@@ -645,9 +725,10 @@ export function mountAnalytics(host) {
     if (!page) return;
     page.classList.toggle('hide-list', view.hideList);
     document.body.classList.toggle('an-list-hidden', view.hideList);
-    page.classList.toggle('on-table', view.mode === 'table');
+    // «Таблица» и «Участки» — поверхностью над сценой.
+    page.classList.toggle('on-table', view.mode === 'table' || view.mode === 'parcels');
     page.classList.toggle('facets-open', view.facets);
-    document.body.classList.toggle('an-table-open', view.mode === 'table');
+    document.body.classList.toggle('an-table-open', view.mode === 'table' || view.mode === 'parcels');
     const isles = page.querySelector('[data-an-isles]');
     const active = document.activeElement;
     const keep = active && page.contains(active) && active.matches('input[data-an-q],input[data-an-f]')
@@ -665,6 +746,7 @@ export function mountAnalytics(host) {
     list.innerHTML = listHTML(all, shown);
     list.scrollTop = top;
     if (view.mode === 'table') page.querySelector('[data-an-table]').innerHTML = tableHTML(all, shown);
+    if (view.mode === 'parcels') page.querySelector('[data-an-table]').innerHTML = parcelsView(shown);
     if (keep) { const i = page.querySelector(keep.sel); if (i) { i.focus(); try { i.setSelectionRange(keep.s, keep.e); } catch (e) { /* поле без выделения */ } } }
     syncMap(shown);
     if (sceneEl) {
@@ -689,6 +771,29 @@ export function mountAnalytics(host) {
       <section class="an-sheet" aria-label="Таблица аймаков"><div class="an-sheet-body" data-an-table></div></section>
       ${legendHTML()}
     </div>`);
+
+  // --- «Участки»: сводка со срезами (pages/analytics/parcels.js) ---
+  // Таблица участков строится один раз на набор аймаков (отбор страницы — область,
+  // район, поиск — сужает и её); срезы пересчитываются по отбору щелчком.
+  let cube = null;
+  let cubeSig = '';
+  let parcelsState = 'idle';   // idle → loading → ready
+  const parcelsView = (shown) => {
+    if (parcelsState !== 'ready') {
+      if (parcelsState === 'idle') {
+        parcelsState = 'loading';
+        loadParcelsSeed().then(() => { parcelsState = 'ready'; update(); });
+      }
+      return parcelsHTML(null, {}, view.pm, null, { loading: true });
+    }
+    const stats = new Map(allParcelStats());
+    const list = shown.map((r) => r.a).filter((a) => stats.has(a.code));
+    const sig = list.map((a) => a.code + '@' + (stats.get(a.code).at || '')).join('|');
+    if (sig !== cubeSig) { cube = buildCube(list, stats); cubeSig = sig; }
+    if (!cube.length) return parcelsHTML(null, {}, view.pm, null, { empty: true });
+    const fmt = { n: (n) => nf(n, 0), area: (ha) => `${ar(ha)} ${ul()}`, pct: (x) => pct(x) };
+    return parcelsHTML(parcelSum(cube, view.pf, view.pm), view.pf, view.pm, fmt);
+  };
 
   // --- действия ---
   const run = async (code) => {
@@ -753,6 +858,25 @@ export function mountAnalytics(host) {
   scope.on('mouseleave', '.an-list-body', () => hover(''));
   scope.on('click', '[data-an-facets-clear]', () => { view.shareFrom = ''; view.shareTo = ''; view.freeFrom = ''; view.onlyDone = false; update(); });
   scope.on('click', '[data-an-mode]', (e, t) => { view.mode = t.dataset.anMode; update(); });
+  // Легенда сворачивается (замечание пользователя 04.11.2026: «надо ее к тому же сделать скрываемой»); выбор запоминается.
+  scope.on('click', '[data-an-lg-toggle]', (e, t) => {
+    view.lgShut = !view.lgShut;
+    try { localStorage.setItem('inside.analytics.legend', view.lgShut ? '0' : '1'); } catch (err) { /* до перезагрузки */ }
+    t.setAttribute('aria-expanded', String(!view.lgShut));
+    t.querySelector('span').textContent = view.lgShut ? '▸' : '▾';
+    scope.root.querySelector('#anLgBody').hidden = view.lgShut;
+  });
+  scope.on('click', '[data-ap-dim]', (e, t) => {
+    const k = t.dataset.apDim;
+    const v = t.dataset.apV;
+    const set = view.pf[k] || new Set();
+    if (set.has(v)) set.delete(v); else set.add(v);
+    view.pf[k] = set;
+    update();
+  });
+  scope.on('click', '[data-ap-off]', (e, t) => { const set = view.pf[t.dataset.apOff]; if (set) set.delete(t.dataset.apV); update(); });
+  scope.on('click', '[data-ap-clear]', () => { view.pf = {}; update(); });
+  scope.on('click', '[data-ap-metric]', (e, t) => { view.pm = t.dataset.apMetric; update(); });
   scope.on('click', '[data-an-edge]', (e, t) => {
     view.hideList = !view.hideList;
     t.textContent = view.hideList ? '›' : '‹';
@@ -814,6 +938,7 @@ export function mountAnalytics(host) {
   // Для сборки файла готовых данных (tools/analytics/build_land_seed.py).
   host.exportLandSeed = () => exportSeed(objects());
   window.__anExport = () => exportSeed(objects());
+  window.__anExportParcels = () => exportParcels();
 
   return {
     onRoute() { update(); },
@@ -824,6 +949,7 @@ export function mountAnalytics(host) {
       if (map) { map.remove(); map = null; }
       if (sceneEl) { sceneEl.remove(); sceneEl = null; }
       delete window.__anExport;
+      delete window.__anExportParcels;
       document.body.classList.remove('an-table-open', 'an-list-hidden');
     },
   };
