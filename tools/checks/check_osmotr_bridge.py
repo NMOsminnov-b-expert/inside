@@ -26,7 +26,7 @@ NAME = 'мост E•state — приложение «Осмотр»'
 TOUCHES = (
     'app/pages/osmotr/*', 'app/pages/inspector/archiveImport.js', 'app/pages/inspector/tasks.js',
     'app/kernel/inspections.js', 'app/kernel/inspectionResults.js', 'app/kernel/session.js',
-    'app/kernel/cadastreGeo.js', 'app/kernel/cadastreTip.js',
+    'app/kernel/cadastreGeo.js', 'app/kernel/cadastreTip.js', 'app/pages/inspector/results.js', 'app/kernel/viewer/photo.js',
 )
 
 # Запрос из окна рамки — так его шлёт приложение (glue.js, osmotrWeb.estate.ask).
@@ -158,13 +158,20 @@ def run(t):
       await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Фасад/Комментарий.txt', read: txt('трещина у входа') }]);
       const note = String(K.resultsOf(ty, oc).note || '').split('\\n').filter((l) => l === 'Недвижимое / Литера Щ-проверка / Фасад: трещина у входа').length;
       const sub = await A.applyEntries(ty, rec, [{ rel: 'Недвижимое/Литера Щ-проверка/Контакты.xlsx', read: book('Проверочный Подпапка') }]);
-      return { objKind: 'objKind' in vals, chk: vals.chkNote, found, contacts: cs, note, subTaken: sub.taken };
+      // 24: поворот снимка — и раньше снимка (ждёт его), и после.
+      await A.applyEntries(ty, rec, [{ rel: 'x/Фасад/.t1_20261104_120000_001.jpg.поворот', oiId, depth: 1, read: txt('1') }]);
+      await A.applyEntries(ty, rec, [{ rel: 'x/Фасад/t1_20261104_120000_001.jpg', oiId, depth: 1, read: jpg }]);
+      await A.applyEntries(ty, rec, [{ rel: 'x/Фасад/t3_20261104_120100_002.jpg', oiId, depth: 1, read: jpg }]);
+      await A.applyEntries(ty, rec, [{ rel: 'x/Фасад/.t3_20261104_120100_002.jpg.поворот', oiId, depth: 1, read: txt('3') }]);
+      const turns = K.resultsOf(ty, oc).photos.filter((p) => /^t[13]_/.test(p.name)).map((p) => [p.name.slice(0, 2), p.turn || 0]);
+      return { objKind: 'objKind' in vals, chk: vals.chkNote, found, contacts: cs, note, subTaken: sub.taken, turns };
     }""", [typeId, ocId, oi['id']])
     t.ck(not imp['objKind'] and imp['chk'] == 'да', 'objKind попал в значения осмотра или значения не приняты: %s' % imp)
     t.ck(imp['found'] == 1, 'выявленное из приложения и из архива заведено дважды: %s' % imp['found'])
     t.ck(imp['contacts'] == [['Проверочный Контакт Исправленный', 'zav@ex.kg']], 'контакт по телефону не обновился или потерял почту: %s' % imp['contacts'])
     t.ck(imp['note'] == 1, 'комментарий папки не принят или удвоился: %s' % imp['note'])
     t.ck(imp['subTaken'] == 1, 'контакты из папки ОИ не приняты')
+    t.ck(sorted(imp['turns']) == [['t1', 1], ['t3', 3]], 'поворот снимка из приложения не записан: %s' % imp['turns'])
 
     # --- «Осмотр закончен» ---
     # После «закончен» и после снятия назначения снятое всё равно принимается (решение 03.11.2026).

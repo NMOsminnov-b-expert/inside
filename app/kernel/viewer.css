@@ -555,3 +555,9 @@ body[data-module].viewer-dock .st-mini .st-mini-lbl{display:none}
 .vtab-drop::after{content:attr(data-drop-label);position:absolute;inset:6px;z-index:6;pointer-events:none;
   display:flex;align-items:center;justify-content:center;border:2px dashed var(--blue-600);border-radius:8px;
   background:rgba(37,99,235,.08);color:var(--blue-700);font-weight:700;font-size:13px}
+/* Поворот самого снимка (снимки осмотра из приложения «Осмотр», photo.js turnCls). На боку снимок
+   вписывается по меньшей стороне: ширина листа становится его высотой. */
+.vimg.vturn-2,.vthumb-img.vturn-2{transform:rotate(180deg)}
+.vimg.vturn-1,.vimg.vturn-3{width:auto;max-width:none;height:auto;max-height:100%;aspect-ratio:auto}
+.vimg.vturn-1,.vthumb-img.vturn-1{transform:rotate(90deg)}
+.vimg.vturn-3,.vthumb-img.vturn-3{transform:rotate(270deg)}

@@ -61,7 +61,8 @@ def run(t):
     pg.click('[data-ip-ptab="route"]')
     t.ck(t.wait_for('.ip-map.maplibregl-map', timeout=15000), 'карта маршрута не нарисована')
     t.ck(pg.locator('.ip-stop.home').count() == 2, 'маршрут не начинается и не кончается домом')
-    t.ck(pg.locator('.ip-pin').count() >= 2, 'на карте нет точек маршрута')
+    # Значки ставятся после загрузки стиля карты — ждать их, а не считать сразу (падало примерно раз в три прогона).
+    t.ck(t.wait_until("() => document.querySelectorAll('.ip-pin').length >= 2"), 'на карте нет точек маршрута')
 
     # Зум кнопкой и колесом: масштаб меняется, значки стоят на своих точках
     # (замечания пользователя 13.10.2026: «при прокрутке маркеры слетают»,
@@ -96,7 +97,9 @@ def run(t):
     # дом — щелчком по карте
     before = pg.evaluate("async (w) => (await %s).profileOf(w).homeGps" % K, WHO)
     pg.click('[data-ip-route-home]')
-    t.wait_for('.ip-map.maplibregl-map')
+    t.wait_for('.ip-map-wrap.picking .ip-map.maplibregl-map')
+    # Карта после нажатия пересоздаётся: щелчок — когда она загружена и слушает (иначе уходил в пустоту).
+    t.wait_until(idle)
     box = pg.locator('.ip-map').bounding_box()
     pg.mouse.click(box['x'] + box['width'] * 0.3, box['y'] + box['height'] * 0.7)
     t.ck(t.wait_until("async ([w, b]) => { const h = (await %s).profileOf(w).homeGps; return !!h && h !== b; }" % K, [WHO, before]),

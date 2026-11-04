@@ -46,6 +46,29 @@ function applyRotation(ctx, st) {
   });
 }
 
+// Снимок, повёрнутый на четверть в самом снимке (снимки осмотра из приложения «Осмотр», photo.js turnCls):
+// ширина и высота меняются местами — лист получает высоту повёрнутого снимка, снимок вписывается по ширине
+// листа. Без этого он вылезал за лист (аудит приложения 03.11.2026, п. 24).
+function fitTurned(ctx) {
+  ctx.scope.$$('.vimg.vturn-1, .vimg.vturn-3').forEach((img) => {
+    const fit = () => {
+      const page = img.parentElement;
+      if (!page || !img.naturalWidth) return;
+      // Ширина — внешней обёртки листа: сам лист с абсолютным снимком ширину теряет.
+      const box = page.parentElement || page;
+      const w = Math.min(box.clientWidth, 900) || 600;
+      const r = img.naturalWidth / img.naturalHeight;
+      page.style.position = 'relative';
+      page.style.width = w + 'px';
+      page.style.height = Math.round(w * r) + 'px';
+      Object.assign(img.style, { position: 'absolute', left: '50%', top: '50%', maxWidth: 'none', maxHeight: 'none',
+        width: Math.round(w * r) + 'px', height: w + 'px',
+        transform: `translate(-50%, -50%) rotate(${img.classList.contains('vturn-1') ? 90 : 270}deg)` });
+    };
+    if (img.complete) fit(); else img.addEventListener('load', fit, { once: true });
+  });
+}
+
 function rotateViewer(ctx, deg = 90) {
   const st = vSt(ctx);
   if (!st) return;
@@ -540,6 +563,7 @@ function bindViewerSurface(ctx) {
   // по клику: состояние поворота живёт в VS и переживает перерисовку экрана.
   const rotSt = vSt(ctx);
   if (rotSt && rotSt.rot) applyRotation(ctx, rotSt);
+  fitTurned(ctx);
 
   s.$$('[data-vthumb]').forEach((t) => t.onclick = (e) => {
     if (e.target.closest('[data-vdelpage]')) return;

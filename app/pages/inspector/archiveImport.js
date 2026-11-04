@@ -229,11 +229,21 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
           sum.values++;
         });
         taken = true;
+      } else if (/^\..+\.поворот$/.test(name)) {
+        // Поворот снимка в приложении — скрытым файлом «.<снимок>.поворот» (четверти по часовой): снимок в системе
+        // показывается так же (аудит приложения 03.11.2026, п. 24). Снимок мог ещё не прийти — поворот ждёт его.
+        const photo = name.slice(1, -'.поворот'.length);
+        const q = ((parseInt((await (await e.read()).text()).trim(), 10) || 0) % 4 + 4) % 4;
+        const hit = (r.photos || []).find((x) => x.name === photo && (x.oiId || '') === oiId);
+        if (hit) hit.turn = q; else (r.turns = r.turns || {})[`${oiId}|${photo}`] = q;
+        taken = true;
       } else if (isPhoto(name)) {
         if (has(r.photos, name, oiId)) { sum.repeated++; taken = true; }
         else {
           const cat = inner.length > 1 ? inner[0] : 'Прочее';
-          addResultPhoto(typeId, ocId, await asFile(e, name), { oiId, cat, by: byOf(oiId), at: timeOf(name), source });
+          const ph = addResultPhoto(typeId, ocId, await asFile(e, name), { oiId, cat, by: byOf(oiId), at: timeOf(name), source });
+          const wait = r.turns && r.turns[`${oiId}|${name}`];
+          if (ph && wait != null) { ph.turn = wait; delete r.turns[`${oiId}|${name}`]; }
           sum.photos++; taken = true;
         }
       } else if (isVoice(name)) {

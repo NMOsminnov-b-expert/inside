@@ -240,7 +240,7 @@ function holder(typeId, rec) {
   (item ? item.photos : []).forEach((p) => {
     const c = p.cat || 'Прочее';
     h.photos[c] = (h.photos[c] || 0) + 1;
-    (h.photoFiles[c] = h.photoFiles[c] || []).push({ id: p.id, name: p.name || c, dataUrl: p.dataUrl || '', at: p.at, by: p.by });
+    (h.photoFiles[c] = h.photoFiles[c] || []).push({ id: p.id, name: p.name || c, dataUrl: p.dataUrl || '', at: p.at, by: p.by, turn: p.turn || 0 });
   });
   return h;
 }
