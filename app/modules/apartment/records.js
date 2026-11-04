@@ -1,5 +1,6 @@
 // Контракт модуля для меню ОЦ: сводки, запросы, фасеты, локатор, создание.
 // Меню не знает предметной области — только форму сводки и смысл полей фильтра.
+import { migrateMovable, migrateMechUnits } from '../mechanisms/card.js';
 import { recHasSpecials } from '../../kernel/specials/model.js';
 import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
@@ -265,15 +266,34 @@ export function totalCount() {
 }
 
 // Ленивая материализация: карточка синтетической записи собирается при открытии.
+// Перевод прежних видов — один раз на запись. Если он что-то поменял, переведённый
+// вид становится исходным (adoptBaseline): иначе сохранение сочло бы перевод правкой
+// человека и унесло запись засева в свой файл.
+const migrated = new WeakSet();
+function migrateOnce(rec) {
+  if (migrated.has(rec)) return;
+  migrated.add(rec);
+  const before = JSON.stringify(rec.oi);
+  migrateMovable(rec);
+  migrateMechUnits(rec);
+  if (JSON.stringify(rec.oi) !== before) adoptBaseline('records.apartment', rec);
+}
+
 export function loadRecord(id) {
   const found = records.find((r) => r.id === id);
   // Адрес записи — производное от её частей и адресов ОИ (kernel/address.js).
   // Собираем при загрузке: rec.address читают шапка, архив, лог и поиск, а
   // строкой он больше нигде не задаётся.
-  if (found) { syncOcAddress(found); return found; }
+  // Прежние виды ОИ («movable», единицы механизмов старой формы) — переводятся
+  // при любом чтении записи, а не только при открытии карточки: экраны осмотров
+  // читают запись напрямую и видели старый вид (решение пользователя 04.11.2026
+  // по задаче «старые ОИ вида movable у осмотрщика» — «Правим»).
+  if (found) { migrateOnce(found); syncOcAddress(found); return found; }
 
   const built = materialize(id, buildBulkRecord);
   if (built) {
+    migrateMovable(built);
+    migrateMechUnits(built);
     addRecord(built);
     syncOcAddress(built);
     // Собранная запись — исходный вид, а не правка (kernel/persist.js).

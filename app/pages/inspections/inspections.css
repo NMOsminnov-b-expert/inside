@@ -1557,3 +1557,14 @@ body[data-page="inspections"] .ip-open{font-size:16px}
 }
 body[data-page="inspections"] .ip-prop-tg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);cursor:pointer;white-space:nowrap;min-height:32px}
 body[data-page="inspections"] .ip-prop-tg input{width:16px;height:16px;margin:0}
+
+/* Указание дома на карте: полоса режима вверху по центру — подсказка и «Отмена»; курсор — перекрестие. */
+body[data-page="inspections"] .ip-map-mode{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;display:flex;align-items:center;gap:10px;
+  max-width:calc(100% - 20px);padding:6px 6px 6px 12px;border-radius:10px;background:var(--panel);box-shadow:0 2px 10px rgba(15,23,42,.22);
+  border-left:3px solid var(--amber-600);font-size:12.5px;color:var(--ink);animation:ip-mode-in 160ms ease-out}
+body[data-page="inspections"] .ip-map-mode span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-map-mode .btn{flex:0 0 auto}
+body[data-page="inspections"] .ip-map-wrap.picking .maplibregl-canvas,body[data-page="inspections"] .ip-map-wrap.picking .leaflet-container{cursor:crosshair}
+@keyframes ip-mode-in{from{opacity:0;transform:translate(-50%,-4px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){body[data-page="inspections"] .ip-map-mode{animation-name:ip-fade}}
+@keyframes ip-fade{from{opacity:0}to{opacity:1}}

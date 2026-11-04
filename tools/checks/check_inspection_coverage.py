@@ -24,6 +24,7 @@ TOUCHES = (
     'app/kernel/inspectionResults.js', 'app/kernel/fieldSchema.js', 'app/kernel/registry.js',
     'app/modules/*/card/ocCard.view.js', 'app/modules/*/index.js', 'app/modules/*/data/seed.js',
     'app/modules/vehicle/view.js', 'app/modules/mechanisms/view.js', 'app/modules/mechanisms/records.js',
+    'app/modules/*/records.js', 'app/modules/mechanisms/form/model.js',
 )
 
 INSP = 'Айдай'
@@ -62,13 +63,14 @@ PICK = """async () => {
     const seen = new Set(); const picks = [];
     for (const s of rows) {
       const rec = t.records.loadRecord(s.id); if (!rec) continue;
-      const kinds = T.ownOis(rec).map((o) => o.card).filter((k) => k !== 'movable');
+      const kinds = T.ownOis(rec).map((o) => o.card);
+      if (kinds.includes('movable')) out.movable = (out.movable || 0) + 1;
       if (!kinds.some((k) => !seen.has(k))) continue;
       kinds.forEach((k) => seen.add(k)); picks.push(s.id);
     }
     out.push({ ty: t.manifest.id, label: t.manifest.label, picks, kinds: [...seen] });
   }
-  return out;
+  return { plan: out, movable: out.movable || 0 };
 }"""
 
 
@@ -83,7 +85,11 @@ def run(t):
     t.wait_until("() => location.hash.includes('mechanisms')")
     t.open('', wait='.reg-tr')
 
-    plan = pg.evaluate(PICK)
+    got = pg.evaluate(PICK)
+    plan = got['plan']
+    # Прежний вид «movable» переводится при чтении записи (loadRecord, 04.11.2026) —
+    # осмотры его видеть не должны.
+    t.ck(got['movable'] == 0, 'записей с ОИ прежнего вида «movable» при чтении: %d' % got['movable'])
     want = {'residential-house': {'building', 'land'}, 'apartment': {'apartment'}, 'civil': {'building', 'mech', 'vehicle', 'land'},
             'land-plot': {'land'}, 'vehicle': {'vehicle'}, 'mechanisms': {'mech'}}
     for p in plan:

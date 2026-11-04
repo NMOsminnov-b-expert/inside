@@ -38,7 +38,23 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
   const note = document.createElement('div');
   note.className = 'cad-note cad-note-gl';
   map.getContainer().appendChild(note);
-  const say = (t, cls = '') => { note.textContent = t; note.className = 'cad-note cad-note-gl ' + cls; };
+  // Подпись — над атрибуцией карты, только когда та дотягивается до неё: на узкой
+  // карте атрибуция разворачивается во всю ширину низа в одну-две строки, и подпись
+  // ложилась на неё («Осмотрщики → Маршрут», 04.11.2026). Иначе — у нижнего края.
+  const place = () => {
+    const box = map.getContainer();
+    const at = box.querySelector('.maplibregl-ctrl-attrib');
+    note.style.bottom = '';
+    if (!at || !note.textContent) return;
+    const a = at.getBoundingClientRect();
+    const n = note.getBoundingClientRect();
+    if (a.width && a.left < n.right + 8) note.style.bottom = Math.round(box.getBoundingClientRect().bottom - a.top + 6) + 'px';
+  };
+  const say = (t, cls = '') => { note.textContent = t; note.className = 'cad-note cad-note-gl ' + cls; place(); };
+  map.on('resize', place);
+  // Атрибуция сворачивается и разворачивается сама (компактный вид на узкой карте).
+  const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
+  if (attrib && typeof MutationObserver === 'function') new MutationObserver(place).observe(attrib, { attributes: true, attributeFilter: ['class'] });
 
   // Выделение — по контуру самой фигуры; одно на карте; повторный щелчок или
   // щелчок мимо снимает.
@@ -77,7 +93,7 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
   let running = 0;
   let failed = false;
   const status = () => {
-    if (map.getZoom() < MIN_ZOOM) return say('Кадастр: приблизьте карту — покажу участки и строения');
+    if (map.getZoom() < MIN_ZOOM) return say('Участки и строения Кадастра — при приближении карты');
     if (failed) return say('Кадастр ответил не на всё — подвиньте карту, чтобы повторить', 'err');
     say(`Кадастр: участков ${parcels.length} · строений ${builds.length}${running || queue.length ? ' · загружаю…' : ''}`);
   };

@@ -13,15 +13,20 @@
 // своим автором и временем; снимки — в файловом хранилище сервера. На месте
 // связь бывает плохой — приложение копит записи и снимки на телефоне и
 // отправляет, когда связь есть (развилка: очередь отправки и её показ).
-import { registerPersisted, scheduleSave } from './persist.js';
+import { registerPersisted, scheduleSave, adoptBaseline } from './persist.js';
 import { keepFileLocally } from './localFiles.js';
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 const results = new Map();
 const blank = (typeId, ocId) => ({ id: key(typeId, ocId), typeId, ocId, note: '', photos: [], done: false, doneAt: '', assets: {}, found: [], contacts: [], scans: [], voices: [] });
 
+// Пустой результат (заведён чтением через resultsOf) — не данные: в сохранение не идёт,
+// иначе каждая копия писала бы пустые записи в свой файл.
+const isEmpty = (r) => !(r.note || r.done || (r.photos || []).length || (r.found || []).length || (r.contacts || []).length
+  || (r.scans || []).length || (r.voices || []).length || Object.keys(r.assets || {}).length || Object.keys(r.review || {}).length);
+
 registerPersisted('inspections.results', {
-  snapshot: () => [...results.values()],
+  snapshot: () => [...results.values()].filter((r) => !isEmpty(r)),
   restore: (saved) => {
     if (!Array.isArray(saved)) return;
     results.clear();
@@ -48,7 +53,13 @@ function seedDemoResults() {
   demoResults.forEach((d) => {
     const k = key(d.typeId, d.ocId);
     const cur = results.get(k);
-    if (!cur || (cur.demo && cur.demoVer !== demoVer)) results.set(k, { ...blank(d.typeId, d.ocId), ...JSON.parse(JSON.stringify(d)), id: k, demo: true, demoVer });
+    if (!cur || (cur.demo && cur.demoVer !== demoVer)) {
+      results.set(k, { ...blank(d.typeId, d.ocId), ...JSON.parse(JSON.stringify(d)), id: k, demo: true, demoVer });
+      // Демо — исходный вид, а не правка этой копии: заводится после сбора сохранённого,
+      // и без этого каждая копия переписывала все демо-результаты в свой файл
+      // (проверка «общие карточки сотрудников», 04.11.2026).
+      adoptBaseline('inspections.results', results.get(k));
+    }
   });
 }
 export function registerDemoResults(list, ver = '') {

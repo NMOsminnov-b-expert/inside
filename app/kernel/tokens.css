@@ -560,7 +560,9 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .cad-tip .cad-tip-row b{min-width:0;font-weight:600;text-align:right;white-space:normal}
 .cad-tip .cad-tip-list{margin:0 0 2px;padding-left:16px;color:#33445c}
 .cad-tip .cad-tip-foot{margin-top:2px;color:#8fa3ba;font-size:11.5px}
-.cad-note.cad-note-gl{position:absolute;left:10px;bottom:10px;z-index:2}
+/* Подпись Кадастра — у нижнего края; над атрибуцией её поднимает cadastreLayersGL.js,
+   когда атрибуция дотягивается до неё (снимок «Осмотрщики → Маршрут», 04.11.2026). */
+.cad-note.cad-note-gl{position:absolute;left:10px;bottom:10px;z-index:2;max-width:calc(100% - 100px)}
 
 /* Таблица: «+ поле» и перенос столбцов перетаскиванием (kernel/grid.js). */
 .kg-add{vertical-align:middle;text-align:center}

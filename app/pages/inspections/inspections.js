@@ -1256,9 +1256,14 @@ export function mountInspections(host) {
         </div>
         <!-- «Указать дом» — кнопкой на самой карте: действие над картой
              (островок управления поверх карты, практика APCS по картам). -->
-        <div class="ip-map-wrap">
+        <!-- Режим указания дома — полосой вверху карты с подсказкой и «Отменой», курсор —
+             перекрестие, Esc — отмена (пользователь 03.11.2026: «Баги в отображении… Осмотрщики» —
+             прежде кнопка сама становилась жёлтой плашкой «Щёлкните по карте…» поверх подписей). -->
+        <div class="ip-map-wrap${route.homeMode ? ' picking' : ''}">
           <div class="ip-map" data-ip-map role="img" aria-label="Карта маршрута"></div>
-          <button class="btn btn-sm ip-map-btn ${route.homeMode ? 'on' : ''}" data-ip-route-home aria-pressed="${route.homeMode}">${route.homeMode ? 'Щёлкните по карте…' : 'Указать дом на карте'}</button>
+          ${route.homeMode
+            ? '<div class="ip-map-mode" role="status"><span>Щёлкните по дому на карте</span><button type="button" class="btn btn-ghost btn-sm" data-ip-route-home>Отмена</button></div>'
+            : '<button type="button" class="btn btn-sm ip-map-btn" data-ip-route-home aria-pressed="false">Указать дом на карте</button>'}
         </div>
       </div>
       ${route.skip.size ? `<p class="ip-hint">Убрано из предложений: ${route.skip.size}. <button class="btn btn-ghost btn-sm" data-ip-route-unskip>Вернуть</button></p>` : ''}
@@ -2729,6 +2734,7 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-route-day]', (e, b) => { route.day = shiftD(route.day, +b.dataset.ipRouteDay); route.skip = new Set(); redraw(); });
   scope.on('change', '[data-ip-route-set]', (e, el) => { if (el.value) { route.day = el.value; route.skip = new Set(); redraw(); } });
   scope.on('click', '[data-ip-route-home]', () => { route.homeMode = !route.homeMode; redraw(); });
+  scope.on('keydown', '.ip-map-wrap.picking, .ip-map-wrap.picking *', (e) => { if (e.key === 'Escape') { route.homeMode = false; redraw(); } });
   scope.on('click', '[data-ip-route-skip]', (e, b) => { route.skip.add(b.dataset.ipRouteSkip); redraw(); });
   scope.on('click', '[data-ip-route-unskip]', () => { route.skip = new Set(); redraw(); });
   scope.on('click', '[data-ip-route-assign]', () => {

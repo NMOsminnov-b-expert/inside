@@ -82,7 +82,7 @@ export function attachCadastreLayers(L, map) {
   const queue = [];
   let running = 0;
   const status = () => {
-    if (map.getZoom() < MIN_ZOOM) return say('Кадастр: приблизьте карту — покажу участки и строения');
+    if (map.getZoom() < MIN_ZOOM) return say('Участки и строения Кадастра — при приближении карты');
     if (failed) return say('Кадастр ответил не на всё — подвиньте карту, чтобы повторить', 'err');
     say(`Кадастр: участков ${np} · строений ${nb}${running || queue.length ? ' · загружаю…' : ''}`);
   };
