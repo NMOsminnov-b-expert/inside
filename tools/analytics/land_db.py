@@ -48,6 +48,7 @@ create index if not exists parcel_aimak on parcel (aimak_code);
 create table if not exists building (
   id bigserial primary key, aimak_code text references aimak(code), on_eni boolean, area_m2 double precision,
   source text default 'Microsoft Building Footprints', geom geometry(Polygon, 4326));
+alter table if exists building add column if not exists cover double precision;
 create index if not exists building_geom on building using gist (geom);
 create index if not exists building_aimak on building (aimak_code);
 create table if not exists land_part (
@@ -77,7 +78,7 @@ def _multi(geom_json):
 
 def save(conn, a, occ, parcels, buildings, parts):
     """a — аймак (как в land-seed.json); parcels — [(propcode, props, geojson_ll, area_m2, inside)];
-    buildings — [(geojson_ll, area_m2, on_eni)]; parts — [{'kind','zone','area_ha','geom'}]."""
+    buildings — [(geojson_ll, area_m2, on_eni, доля площади на участках)]; parts — [{'kind','zone','area_ha','geom'}]."""
     code = a['code']
     cur = conn.cursor()
     cur.execute('insert into aimak (code, name, district, oblast, area_ha, balance, geom, updated_at) values (%s, %s, %s, %s, %s, %s, '
@@ -96,8 +97,8 @@ def save(conn, a, occ, parcels, buildings, parts):
                     'purpose = excluded.purpose, dateins = excluded.dateins, amnestied = excluded.amnestied, from_gps = excluded.from_gps, '
                     'area_m2 = excluded.area_m2, water_share = excluded.water_share, geom = excluded.geom, fetched_at = now()', rows)
     cur.execute('delete from building where aimak_code = %s', (code,))
-    cur.executemany('insert into building (aimak_code, on_eni, area_m2, geom) values (%s, %s, %s, ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326))',
-                    [(code, on, m2, json.dumps(gj)) for gj, m2, on in buildings])
+    cur.executemany('insert into building (aimak_code, on_eni, area_m2, cover, geom) values (%s, %s, %s, %s, ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326))',
+                    [(code, on, m2, cv, json.dumps(gj)) for gj, m2, on, cv in buildings])
     cur.execute('delete from land_part where aimak_code = %s', (code,))
     cur.executemany('insert into land_part (aimak_code, kind, zone, area_ha, geom) values (%s, %s, %s, %s, ' + _multi(None) + ')',
                     [(code, p['kind'], p['zone'], p['area_ha'], json.dumps(p['geom'])) for p in parts])

@@ -90,11 +90,21 @@ ZONES = [
     ('grass', 'Луга и пастбища', (30, 100)),
     ('farm', 'Пашня', (40,)),
     ('built', 'Застроенная территория', (50,)),
-    ('bare', 'Голая земля, скалы, снег', (60, 70)),
+    ('bare', 'Голая земля (пологая)', (60,)),
     ('none', 'Без класса', ()),
 ]
 SLOPE = 12.0       # крутой склон, градусов (≈ 21 %): круче — непригоден
+# Скалы, горы и голая земля — по-разному (пользователь 04.11.2026: «разделять скалы, горы, голую
+# землю. они по разному входят в оценку пригодности»): голая поверхность WorldCover (60) на склоне
+# круче ROCK_SLOPE — скалы и осыпи; положе — голая земля (свободна, своя зона).
+ROCK_SLOPE = 20.0
 BLD_YARD = 3.0     # двор вокруг здания без ЕНИ, м
+# Здание на участке с ЕНИ — по доле площади контура на участках (пользователь 04.11.2026: «на OSM не с
+# очень высокой точностью расположены здания, а значит не все срабатывания "Без ЕНИ" валидные»;
+# «анализировать, касается ли здание участка. По процентам площади. Выше порога - на участке»;
+# порог — ответ пользователя «10 %»). Прежде — по точке внутри контура: здание, снятое со сдвигом на
+# границу участка, уходило в «без ЕНИ».
+BLD_ON = 0.10
 LANDCOVER = {'wood': 'wood', 'forest': 'wood', 'farmland': 'farm', 'grass': 'grass',
              'rock': 'bare', 'sand': 'bare', 'ice': 'bare'}
 LANDUSE_BUILT = {'residential', 'commercial', 'industrial', 'retail', 'garages', 'railway', 'school', 'university',
@@ -110,8 +120,12 @@ def cached(key, fetch, binary=False):
             data = f.read()
         return data if binary else json.loads(data.decode('utf-8'))
     data = fetch()
-    with open(path, 'wb') as f:
+    # Запись через временный файл: при расчёте в несколько процессов один и тот же ответ могут
+    # записывать двое — читатель не должен увидеть половину файла.
+    tmp = '%s.%d.tmp' % (path, os.getpid())
+    with open(tmp, 'wb') as f:
         f.write(data if binary else json.dumps(data, ensure_ascii=False).encode('utf-8'))
+    os.replace(tmp, path)
     return data
 
 
@@ -238,11 +252,39 @@ def to_ll(g, inv):
         return mapping(shapely.transform(g, lambda c: np.round(c, 6)))
 
 
+def smooth(g, r):
+    """Сглаживание контура маски растра: ступеньки пикселей срезаются (раскрытие и закрытие на r м),
+    форма сохраняется; затем упрощение на 1 м."""
+    if g is None or g.is_empty:
+        return g
+    return clean_geom(g.buffer(r, quad_segs=4).buffer(-2 * r, quad_segs=4).buffer(r, quad_segs=4)).simplify(1.0, preserve_topology=True)
+
+
 def clean_geom(g):
     g = shapely.make_valid(g)
     if g.geom_type == 'GeometryCollection':
         g = unary_union([p for p in g.geoms if p.geom_type in ('Polygon', 'MultiPolygon')])
     return g
+
+
+def building_cover(blds, parcels):
+    """Доля площади каждого здания на участках (0…1); здания и участки — в одной метрической проекции.
+    Перекрывающиеся участки объединяются, чтобы площадь не считалась дважды."""
+    if not parcels:
+        return [0.0] * len(blds)
+    tree = shapely.STRtree(parcels)
+    out = []
+    for g in blds:
+        if g.is_empty or g.area <= 0:
+            out.append(0.0)
+            continue
+        idx = tree.query(g, predicate='intersects')
+        if not len(idx):
+            out.append(0.0)
+            continue
+        over = parcels[idx[0]] if len(idx) == 1 else unary_union([parcels[i] for i in idx])
+        out.append(min(1.0, clean_geom(g.intersection(over)).area / g.area))
+    return out
 
 
 def run_aimak(a, strip, min_patch, log):
@@ -307,7 +349,7 @@ def run_aimak(a, strip, min_patch, log):
     size = 2 * W / 2 ** Z
     tx1, tx2 = int((mx1 + W) // size), int((mx2 + W) // size)
     ty1, ty2 = int((W - my2) // size), int((W - my1) // size)
-    roads, water = [], []
+    roads, water, rock_osm, snow_osm = [], [], [], []
     for x in range(tx1, tx2 + 1):
         for y in range(ty1, ty2 + 1):
             tl = tile(x, y)
@@ -324,8 +366,14 @@ def run_aimak(a, strip, min_patch, log):
                 if w and pr.get('brunnel') != 'tunnel' and g.geom_type in ('LineString', 'MultiLineString'):
                     water.append(transform(fwd, g).buffer(w / 2, cap_style='flat', quad_segs=2))
             for pr, g in tl.get('landcover', []):
-                if pr.get('class') == 'wetland' and g.geom_type in ('Polygon', 'MultiPolygon'):
+                if g.geom_type not in ('Polygon', 'MultiPolygon'):
+                    continue
+                if pr.get('class') == 'wetland':
                     water.append(transform(fwd, g))
+                elif pr.get('class') == 'rock' or pr.get('subclass') in ('bare_rock', 'scree', 'shingle'):
+                    rock_osm.append(transform(fwd, g))
+                elif pr.get('class') == 'ice':
+                    snow_osm.append(transform(fwd, g))
     # рельеф
     rel = []
     try:
@@ -335,7 +383,9 @@ def run_aimak(a, strip, min_patch, log):
                 continue
             tg = el.get('tags') or {}
             closed = pts[0] == pts[-1] and len(pts) >= 4
-            if closed and (tg.get('landuse') == 'quarry' or tg.get('natural') in ('scree', 'gully', 'ravine')):
+            if closed and tg.get('natural') == 'scree':
+                rock_osm.append(transform(fwd, Polygon(pts)).buffer(0))
+            elif closed and (tg.get('landuse') == 'quarry' or tg.get('natural') in ('gully', 'ravine')):
                 rel.append(transform(fwd, Polygon(pts)).buffer(0))
             else:
                 w = RELIEF_W.get(tg.get('natural'), 8)
@@ -360,36 +410,58 @@ def run_aimak(a, strip, min_patch, log):
     bb = (lo1 - 0.002, la1 - 0.002, lo2 + 0.002, la2 + 0.002)
     loc = lambda gs: [transform(fwd, g) for g in gs]   # noqa: E731
     wc, wct = sources.worldcover(bb, cached)
-    water_wc = u(loc(sources.vectorize(np.isin(wc, (80, 90)), wct)))
+    water_wc = smooth(u(loc(sources.vectorize(np.isin(wc, (80, 90)), wct))), 5)
     z, zt = sources.dem(bb, cached)
-    steep = u(loc(sources.vectorize(sources.slope_deg(z, zt) > SLOPE, zt)))
+    zf, zft = sources.refine(z, zt, 3)    # 30 м → 10 м, билинейно
+    slope = sources.slope_deg(zf, zft)
+    steep = smooth(u(loc(sources.vectorize(slope > SLOPE, zft))), 5)
+    steep_rock = smooth(u(loc(sources.vectorize(slope > ROCK_SLOPE, zft))), 5)
+    bare_wc = smooth(u(loc(sources.vectorize(wc == 60, wct))), 5)
+    snow_wc = smooth(u(loc(sources.vectorize(wc == 70, wct))), 5)
+    rock_u = u([u(rock_osm), clean_geom(bare_wc.intersection(steep_rock)) if not bare_wc.is_empty and not steep_rock.is_empty else Polygon()])
+    snow_u = u([u(snow_osm), snow_wc])
     aim_prep = shapely.prepared.prep(aim_ll) if hasattr(shapely, 'prepared') else None
     blds = [g for g in sources.buildings(bb, cached) if aim_ll.contains(g.representative_point())]
     bld_loc = loc(blds)
-    bld_u = u([g.buffer(BLD_YARD, quad_segs=2) for g in bld_loc])
+    bld_cov = building_cover(bld_loc, polys)
+    on_eni = [c >= BLD_ON for c in bld_cov]
+    # Двор — только у зданий без ЕНИ; здание на участке занятость не добавляет.
+    bld_u = u([g.buffer(BLD_YARD, quad_segs=2) for g, on in zip(bld_loc, on_eni) if not on])
     log('  источники: WorldCover, рельеф, зданий Microsoft %d (%.0f с)' % (len(blds), time.time() - t0))
     water_osm = u(water)
     rel_osm = u(rel)
     roads_u = u(roads)
     water_u = u([water_osm, water_wc])
-    rel_u = u([rel_osm, steep])
+    rel_u = u([rel_osm, steep])   # для сверки и совместимости
     # Порядок: участки главнее всего; дальше дороги, вода, рельеф — без двойного счёта.
     roads_only = minus(roads_u, parcels_u)
     water_only = minus(water_u, parcels_u, roads_u)
-    rel_only = minus(rel_u, parcels_u, roads_u, water_u)
+    # Порядок: участки → дороги → вода → овраги (OSM) → скалы → снег → крутые склоны → здания без ЕНИ.
+    gully_only = minus(rel_osm, parcels_u, roads_u, water_u)
+    rock_only = minus(rock_u, parcels_u, roads_u, water_u, rel_osm)
+    snow_only = minus(snow_u, parcels_u, roads_u, water_u, rel_osm, rock_u)
+    steep_only = minus(steep, parcels_u, roads_u, water_u, rel_osm, rock_u, snow_u)
+    rel_only = u([gully_only, steep_only])
     # Здания по снимкам вне участков с ЕНИ — фактически занято без ЕНИ.
-    bld_only = minus(bld_u, parcels_u, roads_u, water_u, rel_u)
-    rest = minus(aim, parcels_u, roads_u, water_u, rel_u, bld_u)
+    bld_only = minus(bld_u, parcels_u, roads_u, water_u, rel_osm, rock_u, snow_u, steep)
+    rest = minus(aim, parcels_u, roads_u, water_u, rel_osm, rock_u, snow_u, steep, bld_u)
     # Сверка источников: сколько воды и рельефа знает каждый, сколько — только один.
     cmp = {
         'waterOsmHa': round(minus(water_osm, parcels_u).area / 1e4, 2), 'waterWcHa': round(minus(water_wc, parcels_u).area / 1e4, 2),
         'waterBothHa': round(clean_geom(minus(water_osm, parcels_u).intersection(water_wc)).area / 1e4, 2) if not water_osm.is_empty and not water_wc.is_empty else 0.0,
         'reliefOsmHa': round(minus(rel_osm, parcels_u).area / 1e4, 2), 'steepHa': round(minus(steep, parcels_u).area / 1e4, 2),
     }
-    on_eni = [g.representative_point().within(parcels_u) for g in bld_loc]
     cmp['buildings'] = len(blds)
     cmp['buildingsNoEni'] = int(sum(1 for x in on_eni if not x))
-    db_blds = [(mapping(g), gl.area, on) for g, gl, on in zip(blds, bld_loc, on_eni)]
+    cmp['buildingsOnEni'] = len(blds) - cmp['buildingsNoEni']
+    cmp['bldOn'] = BLD_ON
+    # Здания по доле площади на участках — шагом 5 %: [0–5 %), [5–10 %), …, [95–100 %), 100 %. По ней
+    # досье пересчитывает соотношение «с ЕНИ / без ЕНИ» для другого порога без нового расчёта.
+    hist = [0] * 21
+    for c in bld_cov:
+        hist[min(20, int(c * 20 + 1e-9))] += 1
+    cmp['bldCoverHist'] = hist
+    db_blds = [(mapping(g), gl.area, on, cv) for g, gl, on, cv in zip(blds, bld_loc, on_eni, bld_cov)]
     # Участки на воде (пользователь 04.11.2026: «Есть участки водные в частной собственности»):
     # доля площади участка на воде (OSM ∪ WorldCover); 20 % и больше — в сводку по формам собственности.
     water_share = [0.0] * len(polys)
@@ -431,7 +503,7 @@ def run_aimak(a, strip, min_patch, log):
         if k == 'none':
             part = left
         else:
-            zu = u(loc(sources.vectorize(np.isin(wc, codes) & free_mask, wct))) if codes else Polygon()
+            zu = smooth(u(loc(sources.vectorize(np.isin(wc, codes) & free_mask, wct))), 5) if codes else Polygon()
             part = clean_geom(left.intersection(zu)) if not zu.is_empty and not left.is_empty else Polygon()
             left = minus(left, zu)
         by_zone[k] = part.area / 1e4
@@ -441,7 +513,8 @@ def run_aimak(a, strip, min_patch, log):
             free_feats.append({'type': 'Feature', 'properties': {'zone': k}, 'geometry': gj})
             parts.append({'kind': 'free', 'zone': k, 'area_ha': part.area / 1e4, 'geom': gj})
     # непригодное и занятое без ЕНИ — тоже векторами (для карты и базы)
-    for k, g in (('roads', roads_only), ('water', water_only), ('relief', rel_only), ('bld', bld_only), ('strips', strips), ('small', small_u)):
+    for k, g in (('roads', roads_only), ('water', water_only), ('gully', gully_only), ('rock', rock_only), ('snow', snow_only), ('steep', steep_only),
+                 ('bld', bld_only), ('strips', strips), ('small', small_u)):
         if not g.is_empty:
             gj = to_ll(g.simplify(0.8, preserve_topology=True), inv)
             free_feats.append({'type': 'Feature', 'properties': {'zone': k}, 'geometry': gj})
@@ -455,7 +528,9 @@ def run_aimak(a, strip, min_patch, log):
         'share': ha(parcels_u) / area, 'occHa': round(ha(parcels_u), 2),
         'roadsShare': ha(roads_only) / area, 'roadsHa': round(ha(roads_only), 2), 'roadsMissing': 0,
         'waterHa': round(ha(water_only), 2), 'reliefHa': round(ha(rel_only), 2), 'reliefOk': relief_ok,
-        'bldHa': round(ha(bld_only), 2), 'cmp': cmp, 'slope': SLOPE, 'bldYard': BLD_YARD,
+        'gullyHa': round(ha(gully_only), 2), 'rockHa': round(ha(rock_only), 2), 'snowHa': round(ha(snow_only), 2), 'steepHa': round(ha(steep_only), 2),
+        'rockSlope': ROCK_SLOPE,
+        'bldHa': round(ha(bld_only), 2), 'cmp': cmp, 'slope': SLOPE, 'bldYard': BLD_YARD, 'bldOn': BLD_ON,
         'stripsHa': round(ha(strips), 2), 'smallHa': round(ha(small_u), 2),
         'freeShare': ha(free) / area, 'freeHa': round(ha(free), 2),
         'zones': {k: round(v, 2) for k, v in by_zone.items()},
@@ -463,11 +538,12 @@ def run_aimak(a, strip, min_patch, log):
         'parcels': len(feats), 'tiles': done, 'at': datetime.now(timezone.utc).isoformat(),
         'strip': strip, 'minPatch': min_patch,
         'by': ('векторный расчёт (shapely): участки — Кадастр (ENI_WGS84); дороги — OpenStreetMap; вода — OpenStreetMap и ESA WorldCover 2021; '
-               'рельеф — OpenStreetMap (овраги, обрывы, карьеры) и Copernicus DEM (склон круче %g°); здания без ЕНИ — Microsoft Building Footprints (двор %g м); '
-               'зоны свободной земли — ESA WorldCover; узкие полосы уже %g м и клочки меньше %g м² — непригодны') % (SLOPE, BLD_YARD, strip, min_patch),
+               'овраги, обрывы, карьеры — OpenStreetMap; скалы и осыпи — OpenStreetMap и голая поверхность WorldCover на склоне круче %g°; снег и лёд — WorldCover и OpenStreetMap; крутые склоны — Copernicus DEM (круче %g°); здания без ЕНИ — Microsoft Building Footprints (двор %g м); '
+               'зоны свободной земли — ESA WorldCover; узкие полосы уже %g м и клочки меньше %g м² — непригодны') % (ROCK_SLOPE, SLOPE, BLD_YARD, strip, min_patch),
     }
-    log('  готово: занято %.1f га (%.1f %%), дороги %.1f, вода %.1f, рельеф %.1f, здания без ЕНИ %.1f, полосы %.1f, клочки %.1f, свободно %.1f га (%.0f с)' % (
-        occ['occHa'], occ['share'] * 100, occ['roadsHa'], occ['waterHa'], occ['reliefHa'], occ['bldHa'], occ['stripsHa'], occ['smallHa'], occ['freeHa'], time.time() - t0))
+    log('  готово: занято %.1f га (%.1f %%), дороги %.1f, вода %.1f, овраги %.1f, скалы %.1f, снег %.1f, склоны %.1f, здания без ЕНИ %.1f, полосы %.1f, клочки %.1f, свободно %.1f га (%.0f с)' % (
+        occ['occHa'], occ['share'] * 100, occ['roadsHa'], occ['waterHa'], occ['gullyHa'], occ['rockHa'], occ['snowHa'], occ['steepHa'], occ['bldHa'],
+        occ['stripsHa'], occ['smallHa'], occ['freeHa'], time.time() - t0))
     log('  сверка: %s' % json.dumps(cmp, ensure_ascii=False))
     return occ, {'dict': dct, 'rows': rows, 'at': occ['at']}, {'type': 'FeatureCollection', 'features': free_feats}, (db_parcels, db_blds, parts)
 
@@ -494,6 +570,18 @@ def darek_aimak(lat, lon):
             'geometry': f['geometry'], 'areaHa': round(transform(fwd, g).area / 1e4, 2), 'at': datetime.now(timezone.utc).isoformat()}
 
 
+def _work(job):
+    """Аймак в отдельном процессе (пользователь 04.11.2026: «рассчеты думаю стоит в многопоток
+    перевести»): считает и возвращает итог; файлы и базу пишет главный процесс по очереди."""
+    a, strip, min_patch = job
+    log = lambda s: print('[%s] %s' % (a['aimak'], s.strip()), flush=True)   # noqa: E731
+    try:
+        return a['code'], run_aimak(a, strip, min_patch, log), None
+    except Exception as ex:  # noqa: BLE001
+        import traceback
+        return a['code'], None, '%s\n%s' % (ex, traceback.format_exc()[-1500:])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--aimak', default='')
@@ -502,6 +590,7 @@ def main():
     ap.add_argument('--point', default='', help='добавить аймак по точке «широта,долгота» (контур и баланс — Дарек)')
     ap.add_argument('--no-db', action='store_true', help='не писать в базу lands (PostgreSQL + PostGIS)')
     ap.add_argument('--skip-done', action='store_true', help='пропустить аймаки, уже посчитанные векторным расчётом')
+    ap.add_argument('--jobs', type=int, default=3, help='аймаков одновременно (процессов); 1 — по очереди. Большой аймак — до 1–2 ГБ памяти')
     args = ap.parse_args()
     log = lambda s: print(s, flush=True)   # noqa: E731
     seed = json.load(open(SEED, encoding='utf-8'))
@@ -524,16 +613,29 @@ def main():
     if args.skip_done:
         todo = [a for a in todo if not (a.get('occ') or {}).get('zones')]
     failed = []
-    for a in todo:
-        log('%s (%s)' % (a['aimak'], a['code']))
-        try:
-            occ, pst, free, dbrows = run_aimak(a, args.strip, args.min_patch, log)
-        except Exception as ex:  # noqa: BLE001
-            import traceback
-            log('  НЕ ПОСЧИТАН: %s' % ex)
-            log(traceback.format_exc()[-1500:])
+    by_code = {a['code']: a for a in todo}
+
+    def results():
+        if args.jobs <= 1 or len(todo) <= 1:
+            for a in todo:
+                log('%s (%s)' % (a['aimak'], a['code']))
+                yield _work((a, args.strip, args.min_patch))
+            return
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        log('аймаков %d, процессов %d' % (len(todo), min(args.jobs, len(todo))))
+        with ProcessPoolExecutor(max_workers=min(args.jobs, len(todo))) as ex:
+            futs = [ex.submit(_work, (a, args.strip, args.min_patch)) for a in todo]
+            for f in as_completed(futs):
+                yield f.result()
+
+    for code, res, err in results():
+        a = by_code[code]
+        if err:
+            log('%s (%s): НЕ ПОСЧИТАН: %s' % (a['aimak'], code, err))
             failed.append(a['aimak'])
             continue
+        occ, pst, free, dbrows = res
+        log('%s (%s): записываю' % (a['aimak'], code))
         if db is not None:
             land_db.save(db, a, occ, *dbrows)
             log('  в базе lands: участков %d, зданий %d, частей %d' % tuple(len(x) for x in dbrows))

@@ -36,12 +36,12 @@ import { OC_TYPES } from '../../kernel/registry.js';
 import { scheduleSave } from '../../kernel/persist.js';
 import { formatEniText } from '../../kernel/eniField.js';
 import { enhanceSelects } from '../../kernel/dropdown.js';
-import { loadMapLibre, createMap, hoverTip, emptyFC } from '../../kernel/mapgl.js';
+import { loadMapLibre, createMap, emptyFC } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { fillAdmin, pointOf } from '../../kernel/darekAdmin.js';
 import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, exportParcels, freeCell, aimaksInCell, CELL, allParcelStats, loadParcelsSeed } from '../../kernel/landStats.js';
 import { buildCube, summarize as parcelSum, parcelsHTML } from './parcels.js';
-import { dossierHTML, patchesOf, pickPatches, dossierSheets } from './dossier.js';
+import { dossierHTML, patchesOf, pickPatches, dossierSheets, terrainOf } from './dossier.js';
 import { downloadXlsx } from '../../kernel/xlsx.js';
 import { go } from '../../kernel/router.js';
 
@@ -67,11 +67,17 @@ export const PARTS = [
   { key: 'shrub', label: 'Кустарник', color: '#b5c94f', free: true },
   { key: 'wood', label: 'Деревья', color: '#5fa35a', free: true },
   { key: 'built', label: 'Застроенная территория', color: '#e8730c', free: true },
-  { key: 'bare', label: 'Голая земля, скалы, снег', color: '#c9b49a', free: true },
+  { key: 'bare', label: 'Голая земля (пологая)', color: '#d8c7a6', free: true },
   { key: 'none', label: 'Без класса', color: '#f0b27a', free: true },
   { key: 'bld', label: 'Здания без ЕНИ (по снимкам)', color: '#c2185b' },
   { key: 'water', label: 'Вода и русла', color: '#4fa3d9' },
-  { key: 'relief', label: 'Овраги, обрывы, крутые склоны', color: '#8d6e63' },
+  // Рельеф раздельно (пользователь 04.11.2026: «разделять скалы, горы, голую землю. они по разному
+  // входят в оценку пригодности»); 'relief' — расчёты до разделения, в легенде не показывается.
+  { key: 'gully', label: 'Овраги, обрывы, карьеры', color: '#7b4f3a' },
+  { key: 'rock', label: 'Скалы и осыпи', color: '#6b6478' },
+  { key: 'snow', label: 'Снег и лёд', color: '#c5d6e3' },
+  { key: 'steep', label: 'Крутые склоны', color: '#b07d5a' },
+  { key: 'relief', label: 'Рельеф', color: '#8d6e63', legacy: true },
   { key: 'roads', label: 'Дороги', color: '#8a96a8' },
   { key: 'strips', label: 'Узкие полосы (непригодны)', color: '#b9b9b9' },
   { key: 'small', label: 'Клочки (непригодны)', color: '#9e9e9e' },
@@ -156,7 +162,8 @@ export function mountAnalytics(host) {
     pf: {}, pm: 'count',
     // Досье аймака: код, вкладка, отбор массивов, свой отбор срезов участков, выбранный массив.
     dossier: (host.route && host.route.query && host.route.query.a) || '', dtab: 'overview',
-    dcfg: { min: 0.1, zones: new Set() }, dpf: {}, dpick: 0,
+    dcfg: { min: 0.1, zones: new Set(), bldOn: null }, dpf: {}, dpick: 0,
+    dshut: false,   // досье свёрнуто: карта целиком, кнопка «Досье: …» справа
     pickSet: new Set(),   // аймаки, отмеченные для досье набора
     lgShut: (() => { try { return localStorage.getItem('inside.analytics.legend') === '0'; } catch (e) { return false; } })(),   // «Участки»: отбор срезов (ключ среза → набор значений) и мера
   };
@@ -284,7 +291,7 @@ export function mountAnalytics(host) {
     if (!shown.length) return '<p class="an-empty-page">Ничего не найдено</p>';
     return `<ul class="an-items">${shown.map((r) => {
       const a = r.a;
-      const open = view.open.has(a.code);
+      const open = view.open.has(a.code) && !isVec(a);   // посчитанный — досье, без свода в строке
       const run = runs.get(a.code);
       const going = run && !run.error && run.done < run.total;
       const sw = a.occ ? STEPS.find((x) => a.occ.share < x.to).color : '';
@@ -321,7 +328,8 @@ export function mountAnalytics(host) {
     const o = a.occ;
     const A = a.areaHa || 1;
     if (!isVec(a)) return [['o', o.share, 'занято'], ['r', roadSh(o), 'дороги'], ['f', freeSh(o), 'не занято']];
-    return [['o', o.occHa / A, 'занято'], ['r', (o.roadsHa || 0) / A, 'дороги'], ['w', (o.waterHa || 0) / A, 'вода'], ['l', (o.reliefHa || 0) / A, 'рельеф'],
+    return [['o', o.occHa / A, 'занято'], ['r', (o.roadsHa || 0) / A, 'дороги'], ['w', (o.waterHa || 0) / A, 'вода'],
+      ...terrainOf(o).map(([c, l, h]) => [c, h / A, l.toLowerCase()]),
       ['b', (o.bldHa || 0) / A, 'здания без ЕНИ'], ['u', ((o.stripsHa || 0) + (o.smallHa || 0)) / A, 'непригодно'], ['f', o.freeHa / A, 'свободно']];
   };
   const mbarHTML = (a) => {
@@ -337,7 +345,7 @@ export function mountAnalytics(host) {
     const q = a.quality && a.quality.note;
     return `<div class="an-d-sec"><h3>Земли аймака по источникам</h3>
       <dl class="an-bal">${row('Занято участками с ЕНИ', o.occHa)}${row('Дороги', o.roadsHa || 0)}${row('Вода и русла', o.waterHa || 0)}
-      ${row('Овраги, обрывы, крутые склоны', o.reliefHa || 0)}${row('Здания без ЕНИ (по снимкам)', o.bldHa || 0)}
+      ${terrainOf(o).map(([, l, h]) => row(l, h)).join('')}${row('Здания без ЕНИ (по снимкам)', o.bldHa || 0)}
       ${row('Узкие полосы и клочки — непригодны', (o.stripsHa || 0) + (o.smallHa || 0))}${row('Свободно', o.freeHa, 'an-bal-total')}</dl></div>
       <div class="an-d-sec"><h3>Свободно по покрову земли</h3>
       <dl class="an-bal">${PARTS.filter((x) => x.free && (o.zones[x.key] || 0) > 0).map((x) => `<dt><i class="an-dsw" style="background:${x.color}"></i>${esc(x.label)}</dt><dd class="num">${ar(o.zones[x.key], false)} ${esc(ul())}</dd>`).join('')}</dl></div>
@@ -345,7 +353,7 @@ export function mountAnalytics(host) {
       <dl class="an-bal"><dt>Вода — OpenStreetMap</dt><dd class="num">${ar(c.waterOsmHa || 0, false)} ${esc(ul())}</dd>
       <dt>Вода — ESA WorldCover</dt><dd class="num">${ar(c.waterWcHa || 0, false)} ${esc(ul())}</dd>
       <dt>Вода — в обоих</dt><dd class="num">${ar(c.waterBothHa || 0, false)} ${esc(ul())}</dd>
-      <dt>Рельеф — OpenStreetMap</dt><dd class="num">${ar(c.reliefOsmHa || 0, false)} ${esc(ul())}</dd>
+      <dt>Овраги, обрывы, карьеры — OpenStreetMap</dt><dd class="num">${ar(c.reliefOsmHa || 0, false)} ${esc(ul())}</dd>
       <dt>Склоны круче ${esc(String(o.slope || 12))}° — Copernicus DEM</dt><dd class="num">${ar(c.steepHa || 0, false)} ${esc(ul())}</dd>
       <dt>Зданий по снимкам · из них вне ЕНИ</dt><dd class="num">${(c.buildings || 0).toLocaleString('ru-RU')} · ${(c.buildingsNoEni || 0).toLocaleString('ru-RU')}</dd></dl>
       ${c.parcelsOnWater && Object.keys(c.parcelsOnWater).length ? `<h3 class="an-d-sub">Участки с ЕНИ на воде (20 % площади и больше)</h3>
@@ -447,7 +455,7 @@ export function mountAnalytics(host) {
       <div class="an-lg-ramp">${ramp}<span class="an-ramp-ticks" aria-hidden="true"><i>0</i><i>20</i><i>40</i><i>60</i><i>80</i><i>100</i></span>
         <span class="an-lg-note"><i class="an-lg-none" aria-hidden="true"></i>не посчитано</span></div>
       ${row('free', `<i class="an-lg-sw" style="background:${FREE_COLOR}" aria-hidden="true"></i>`, 'Части аймака: свободно и непригодно')}
-      <ul class="an-lg-parts">${PARTS.map((x) => `<li><i style="background:${x.color}" aria-hidden="true"></i>${esc(x.label)}</li>`).join('')}</ul>
+      <ul class="an-lg-parts">${PARTS.filter((x) => !x.legacy).map((x) => `<li><i style="background:${x.color}" aria-hidden="true"></i>${esc(x.label)}</li>`).join('')}</ul>
       ${row('objs', '<i class="an-lg-dot" aria-hidden="true"></i>', 'ОЦ системы')}
       ${row('cad', '<i class="an-lg-sw an-lg-cad" aria-hidden="true"></i>', 'Участки Кадастра вблизи')}
       </div>
@@ -551,8 +559,8 @@ export function mountAnalytics(host) {
   const padding = () => {
     const list = scope.root.querySelector('.an-list');
     const wide = innerWidth > 1100;
-    const dossierOn = !!view.dossier && view.mode === 'map';
-    const left = wide && list && !view.hideList && !dossierOn ? list.getBoundingClientRect().width + 30 : 30;
+    const dossierOn = !!view.dossier && view.mode === 'map' && !view.dshut;
+    const left = wide && list && !view.hideList && !(view.dossier && view.mode === 'map') ? list.getBoundingClientRect().width + 30 : 30;
     const dbox = scope.root.querySelector('.an-dossier');
     const right = wide && dossierOn && dbox ? dbox.getBoundingClientRect().width + 30 : 60;
     return { top: wide ? 80 : 30, bottom: 40, left, right };
@@ -578,7 +586,9 @@ export function mountAnalytics(host) {
       <dl><dt>Площадь</dt><dd>${ar(a.areaHa)} ${esc(ul())}</dd>
       ${a.occ ? `<dt>Занято</dt><dd>${ar(a.occ.occHa)} ${esc(ul())} · ${pct(a.occ.share)}</dd>${roadSh(a.occ) ? `<dt>Дороги</dt><dd>${ar(roadHa(a.occ))} ${esc(ul())} · ${pct(roadSh(a.occ))}</dd>` : ''}<dt>Не занято</dt><dd>${ar(a.occ.freeHa)} ${esc(ul())} · ${pct(freeSh(a.occ))}</dd>`
         : '<dt>Занятость</dt><dd>не посчитана</dd>'}
-      ${r.objs.length ? `<dt>ОЦ системы</dt><dd>${r.objs.length}</dd>` : ''}</dl></div>`;
+      ${isVec(a) ? `<dt>Вода</dt><dd>${ar(a.occ.waterHa || 0)} ${esc(ul())}</dd>${terrainOf(a.occ).filter((x) => x[2] > 0).map(([, l, h]) => `<dt>${esc(l)}</dt><dd>${ar(h)} ${esc(ul())}</dd>`).join('')}` : ''}
+      ${r.objs.length ? `<dt>ОЦ системы</dt><dd>${r.objs.length}</dd>` : ''}</dl>
+      ${a.occ ? mbarHTML(a) : ''}${isVec(a) ? '<em>Щелчок — досье аймака</em>' : ''}</div>`;
   };
 
   const mountMap = async () => {
@@ -616,7 +626,22 @@ export function mountAnalytics(host) {
     map.addLayer({ id: 'dsel', type: 'line', source: 'dsel', paint: { 'line-color': ['case', ['get', 'pick'], '#0d366b', '#7a2e00'], 'line-width': ['case', ['get', 'pick'], 3.5, 1.4] } });
     map.addLayer({ id: 'objs', type: 'circle', source: 'objs',
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 14, 7], 'circle-color': '#0d366b', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
-    tip = hoverTip(gl, map);
+    // Сведения об аймаке под курсором — карточкой в углу карты, а не у курсора (пользователь 04.11.2026:
+    // «попап на курсоре сильно мешает... Его бы куда нибудь в бок»; практика — информационная
+    // карточка хороплета в углу карты). Пересобирается только при смене аймака.
+    tip = (() => {
+      let shown = '';
+      const box = () => scope.root.querySelector('[data-an-hov]');
+      return {
+        show(code) {
+          const el = box();
+          if (!el) return;
+          if (shown !== code) { el.innerHTML = tipHTML(code); shown = code; }
+          el.classList.add('on');
+        },
+        hide() { const el = box(); if (el) el.classList.remove('on'); shown = ''; },
+      };
+    })();
     // Незанятая земля вблизи — клетками CELL метров карты (как плитки): ближние к
     // середине — первыми, кольцо вокруг экрана — заранее, во время движения — раз
     // в 250 мс. Нарисованная клетка остаётся; больше 120 — дальние снимаются.
@@ -705,7 +730,7 @@ export function mountAnalytics(host) {
     map.on('mousemove', 'aim-hit', (e) => {
       if (cadAt(e.point)) { tip.hide(); return; }
       const c = e.features[0] && e.features[0].properties.code;
-      if (c) { map.getCanvas().style.cursor = 'pointer'; tip.show(e.lngLat, tipHTML(c)); hover(c); }
+      if (c) { map.getCanvas().style.cursor = 'pointer'; tip.show(c); hover(c); }
     });
     map.on('mouseleave', 'aim-hit', () => { map.getCanvas().style.cursor = ''; tip.hide(); hover(''); });
     map.on('click', 'aim-hit', (e) => {
@@ -731,6 +756,8 @@ export function mountAnalytics(host) {
     if (dead) return;
     update();
     const all = allAimaks().filter((a) => a.geometry);
+    // Досье по ссылке (?a=…) — карта сразу к его аймакам, а не ко всей стране.
+    if (!pendingFly && view.dossier) pendingFly = view.dossier;
     if (pendingFly) { const c = pendingFly; pendingFly = ''; flyTo(c); } else if (all.length) {
       const b = all.map((a) => boundsOf(a.geometry)).reduce((x, y) => [[Math.min(x[0][0], y[0][0]), Math.min(x[0][1], y[0][1])], [Math.max(x[1][0], y[1][0]), Math.max(x[1][1], y[1][1])]]);
       map.fitBounds(b, { padding: padding(), animate: false });
@@ -750,13 +777,17 @@ export function mountAnalytics(host) {
     page.classList.toggle('on-table', view.mode === 'table' || view.mode === 'parcels');
     page.classList.toggle('facets-open', view.facets);
     page.classList.toggle('on-dossier', !!view.dossier && view.mode === 'map');
-    const dbox = page.querySelector('[data-an-dossier]');
-    if (dbox) {
-      const keepScroll = dbox.querySelector('.ad-body') ? dbox.querySelector('.ad-body').scrollTop : 0;
-      dbox.innerHTML = view.dossier && view.mode === 'map' ? dossierView() : '';
-      const b2 = dbox.querySelector('.ad-body');
-      if (b2) b2.scrollTop = keepScroll;
+    // Свёрнутое досье (пользователь 04.11.2026: «добавить возможность свернуть аналитику. Открываем ее на
+    // кнопку. С возможностью скрытия»): панель уезжает вправо, на её месте — кнопка с названием.
+    page.classList.toggle('dossier-shut', !!view.dossier && view.mode === 'map' && view.dshut);
+    const fab = page.querySelector('[data-ad-unfold]');
+    if (fab) {
+      const tg0 = view.dossier && view.dshut ? targetOf(view.dossier) : null;
+      fab.hidden = !tg0;
+      if (tg0) fab.querySelector('b').textContent = tg0.a.aimak;
     }
+    const dbox = page.querySelector('[data-an-dossier]');
+    if (dbox) renderDossier(dbox);
     document.body.classList.toggle('an-table-open', view.mode === 'table' || view.mode === 'parcels');
     const isles = page.querySelector('[data-an-isles]');
     const active = document.activeElement;
@@ -816,15 +847,19 @@ export function mountAnalytics(host) {
     const keys = ['occHa', 'roadsHa', 'waterHa', 'reliefHa', 'bldHa', 'stripsHa', 'smallHa', 'freeHa', 'gfsuHa', 'parcels'];
     const o = { zones: {}, cmp: { parcelsOnWater: {} } };
     keys.forEach((k) => { o[k] = list.reduce((t, a) => t + (a.occ[k] || 0), 0); });
+    // Рельеф раздельно — только если все аймаки набора посчитаны с разделением.
+    if (list.every((a) => a.occ.rockHa != null)) ['gullyHa', 'rockHa', 'snowHa', 'steepHa'].forEach((k) => { o[k] = list.reduce((t, a) => t + (a.occ[k] || 0), 0); });
     list.forEach((a) => {
       Object.entries(a.occ.zones || {}).forEach(([k, v]) => { o.zones[k] = (o.zones[k] || 0) + v; });
       Object.entries(a.occ.cmp || {}).forEach(([k, v]) => {
         if (k === 'parcelsOnWater') Object.entries(v || {}).forEach(([f, x]) => { const y = o.cmp.parcelsOnWater[f] || { n: 0, ha: 0 }; y.n += x.n; y.ha += x.ha; o.cmp.parcelsOnWater[f] = y; });
+        else if (k === 'bldOn') o.cmp[k] = v;
+        else if (Array.isArray(v)) o.cmp[k] = v.map((x, i) => x + ((o.cmp[k] || [])[i] || 0));
         else if (typeof v === 'number') o.cmp[k] = (o.cmp[k] || 0) + v;
       });
     });
     const f = list[0].occ;
-    Object.assign(o, { strip: f.strip, minPatch: f.minPatch, slope: f.slope, bldYard: f.bldYard, by: f.by,
+    Object.assign(o, { strip: f.strip, minPatch: f.minPatch, slope: f.slope, rockSlope: f.rockSlope, bldYard: f.bldYard, bldOn: f.bldOn, by: f.by,
       at: list.map((a) => a.occ.at).sort()[0] });
     return o;
   };
@@ -875,6 +910,59 @@ export function mountAnalytics(host) {
       objectsHTML: () => (r.objs.length ? detailHTML({ a: { ...a, balance: null, occ: null }, objs: r.objs }) : '<p class="ad-muted">Объектов системы здесь нет.</p>'),
     });
   };
+  // Досье обновляется по частям (пользователь 04.11.2026: «Интерфейс багует… нет вообще никаких
+  // анимаций»; практика APCS dvizhenie-otvechaet-na-vopros-i-stoit-malo): шапка и вкладки остаются на
+  // месте — переходы цвета и полоска активной вкладки доигрывают; тело меняется, только если
+  // изменилось. Смена вкладки — тело проявляется (opacity, transform), полосы растут масштабом;
+  // длительность и кривая — токены --an-dur/--an-ease; «Меньше движения» — только затухание.
+  let dossierTab = '';
+  const dur = () => parseFloat(getComputedStyle(scope.root.querySelector('.an-page') || document.body).getPropertyValue('--an-dur')) || 220;
+  const placeInk = (ad, animate) => {
+    const ink = ad.querySelector('.ad-ink');
+    const tab = ad.querySelector('.ad-tab.on');
+    if (!ink || !tab) return;
+    const to = `translateX(${tab.offsetLeft}px) scaleX(${tab.offsetWidth})`;
+    if (!animate) { ink.style.transition = 'none'; ink.style.transform = to; void ink.offsetWidth; ink.style.transition = ''; return; }
+    ink.style.transform = to;
+  };
+  const renderDossier = (dbox) => {
+    if (!view.dossier || view.mode !== 'map') { if (dbox.firstChild) dbox.replaceChildren(); dossierTab = ''; return; }
+    const tpl = document.createElement('template');
+    tpl.innerHTML = dossierView();
+    const next = tpl.content.querySelector('.ad');
+    const cur = dbox.querySelector('.ad');
+    if (!next) { dbox.replaceChildren(); return; }
+    const tabChanged = dossierTab !== view.dtab;
+    dossierTab = view.dtab;
+    if (!cur || cur.dataset.key !== next.dataset.key) {
+      dbox.replaceChildren(next);
+      placeInk(next, false);
+      return;
+    }
+    const h1 = cur.querySelector('.ad-head');
+    const h2 = next.querySelector('.ad-head');
+    if (h1 && h2 && h1.innerHTML !== h2.innerHTML) h1.replaceWith(h2);
+    cur.querySelectorAll('.ad-tab').forEach((b) => {
+      const on = b.dataset.adTab === view.dtab;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    placeInk(cur, true);
+    const b1 = cur.querySelector('.ad-body');
+    const b2 = next.querySelector('.ad-body');
+    if (!b1 || !b2 || b1.innerHTML === b2.innerHTML) return;
+    const st = b1.scrollTop;
+    b1.innerHTML = b2.innerHTML;
+    if (!tabChanged) { b1.scrollTop = st; return; }
+    b1.scrollTop = 0;
+    const active = cur.querySelector('.ad-tab.on');
+    if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    b1.classList.remove('ad-enter');
+    void b1.offsetWidth;
+    b1.classList.add('ad-enter');
+    setTimeout(() => b1.classList.remove('ad-enter'), dur() + 60);
+  };
   // Выбранные отбором массивы — обводкой на карте.
   const syncDossierMap = () => {
     if (!map || !map.getSource('dsel')) return;
@@ -883,6 +971,7 @@ export function mountAnalytics(host) {
     map.getSource('dsel').setData({ type: 'FeatureCollection', features: sel.slice(0, 3000).map((x) => ({ type: 'Feature', geometry: x.geom, properties: { pick: x.id === view.dpick } })) });
   };
   const openDossier = (code) => {
+    view.dshut = false;
     view.dossier = code;
     view.dtab = 'overview';
     view.dpf = {};
@@ -907,6 +996,8 @@ export function mountAnalytics(host) {
       <button type="button" class="an-edge" data-an-edge aria-label="Скрыть список аймаков" title="Скрыть список аймаков">‹</button>
       <section class="an-sheet" aria-label="Таблица аймаков"><div class="an-sheet-body" data-an-table></div></section>
       <div class="an-dossier" data-an-dossier></div>
+      <div class="an-hovcard" data-an-hov aria-hidden="true"></div>
+      <button type="button" class="an-dfab" data-ad-unfold hidden aria-label="Развернуть досье" title="Развернуть досье"><span aria-hidden="true">‹</span> Досье: <b></b></button>
       ${legendHTML()}
     </div>`);
 
@@ -1018,10 +1109,33 @@ export function mountAnalytics(host) {
   scope.on('click', '[data-ap-clear]', () => { if (view.dossier && view.mode === 'map') view.dpf = {}; else view.pf = {}; update(); });
   scope.on('click', '[data-ad-open]', (e, t) => { e.stopPropagation(); openDossier(t.dataset.adOpen); });
   scope.on('click', '[data-ad-close]', () => closeDossier());
+  const foldDossier = (shut) => {
+    view.dshut = shut;
+    update();
+    const to = scope.root.querySelector(shut ? '[data-ad-unfold]' : '[data-ad-fold]');
+    if (to) to.focus({ preventScroll: true });
+  };
+  scope.on('click', '[data-ad-fold]', () => foldDossier(true));
+  scope.on('click', '[data-ad-unfold]', () => foldDossier(false));
   scope.on('click', '[data-an-pick]', (e) => e.stopPropagation());
   scope.on('change', '[data-an-pick]', (e, t) => { if (t.checked) view.pickSet.add(t.dataset.anPick); else view.pickSet.delete(t.dataset.anPick); update(); });
   scope.on('click', '[data-ad-tab]', (e, t) => { view.dtab = t.dataset.adTab; update(); });
+  scope.on('keydown', '[data-ad-tab]', (e, t) => {
+    const tabs = [...t.parentElement.querySelectorAll('[data-ad-tab]')];
+    const i = tabs.indexOf(t);
+    const j = e.key === 'ArrowRight' ? (i + 1) % tabs.length : e.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length
+      : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault();
+    tabs[j].focus();
+    tabs[j].click();
+  });
+  scope.on('keydown', '.an-dossier', (e) => {
+    if (e.key !== 'Escape' || e.target.closest('input,select,textarea')) return;
+    closeDossier();
+  });
   scope.on('click', '[data-ad-preset]', (e, t) => { view.dcfg.min = +t.dataset.adPreset; update(); });
+  scope.on('click', '[data-ad-bldon]', (e, t) => { view.dcfg.bldOn = +t.dataset.adBldon; update(); });
   scope.on('change', '[data-ad-min]', (e, t) => { const v = numIn(t.value); if (v != null && v >= 0) view.dcfg.min = v; update(); });
   scope.on('change', '[data-ad-zone]', () => {
     const boxes = [...scope.root.querySelectorAll('[data-ad-zone]')];
@@ -1064,6 +1178,9 @@ export function mountAnalytics(host) {
   scope.on('click', '[data-an-open]', (e, t) => {
     if (e.target.closest('a,button,select,input')) return;
     const c = t.dataset.anOpen;
+    // Посчитанный по векторам — досье (пользователь 04.11.2026: «такой свод не годится. Нужна
+    // отдельная панель с красиво оформленной детализацией»); в строке — только у непосчитанных.
+    if (isVec(allAimaks().find((x) => x.code === c))) { openDossier(c); return; }
     if (view.open.has(c)) view.open.delete(c); else view.open.add(c);
     view.sel = c;
     update();

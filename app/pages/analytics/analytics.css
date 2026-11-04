@@ -375,7 +375,10 @@ body[data-page="analytics"] .an-mbar i:first-child{margin-left:0}
 body[data-page="analytics"] .an-mbar .o{background:#256abf}
 body[data-page="analytics"] .an-mbar .r{background:#8a96a8}
 body[data-page="analytics"] .an-mbar .w{background:#4fa3d9}
-body[data-page="analytics"] .an-mbar .l{background:#8d6e63}
+body[data-page="analytics"] .an-mbar .l{background:#b07d5a}
+body[data-page="analytics"] .an-mbar .g{background:#7b4f3a}
+body[data-page="analytics"] .an-mbar .k{background:#6b6478}
+body[data-page="analytics"] .an-mbar .s{background:#c5d6e3}
 body[data-page="analytics"] .an-mbar .b{background:#c2185b}
 body[data-page="analytics"] .an-mbar .u{background:#b9b9b9}
 body[data-page="analytics"] .an-mbar .f{background:#e8730c;opacity:.85}
@@ -404,7 +407,7 @@ body[data-page="analytics"] .an-dossier{position:absolute;top:var(--scene-top);r
   display:none;pointer-events:auto}
 body[data-page="analytics"] .on-dossier .an-dossier{display:block;animation:ad-in var(--an-dur) var(--an-ease)}
 @keyframes ad-in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .on-dossier .an-dossier{animation:none}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .on-dossier .an-dossier{animation-name:an-fade}}
 body[data-page="analytics"] .on-dossier .an-list,body[data-page="analytics"] .on-dossier .an-edge,body[data-page="analytics"] .on-dossier .an-facets{visibility:hidden}
 body[data-page="analytics"] .on-dossier .an-legend{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
 body[data-page="analytics"] .ad{display:flex;flex-direction:column;height:100%;background:var(--bg);border-radius:12px;box-shadow:var(--lift);overflow:hidden}
@@ -429,7 +432,10 @@ body[data-page="analytics"] .ad-kpi.k-area::before{background:var(--blue-600)}
 body[data-page="analytics"] .ad-kpi.k-o::before,body[data-page="analytics"] .ad-stack .s-o,body[data-page="analytics"] .ad-keys .s-o{background:#256abf}
 body[data-page="analytics"] .ad-kpi.k-r::before,body[data-page="analytics"] .ad-stack .s-r,body[data-page="analytics"] .ad-keys .s-r{background:#8a96a8}
 body[data-page="analytics"] .ad-kpi.k-w::before,body[data-page="analytics"] .ad-stack .s-w,body[data-page="analytics"] .ad-keys .s-w{background:#4fa3d9}
-body[data-page="analytics"] .ad-kpi.k-l::before,body[data-page="analytics"] .ad-stack .s-l,body[data-page="analytics"] .ad-keys .s-l{background:#8d6e63}
+body[data-page="analytics"] .ad-kpi.k-l::before,body[data-page="analytics"] .ad-stack .s-l,body[data-page="analytics"] .ad-keys .s-l{background:#b07d5a}
+body[data-page="analytics"] .ad-kpi.k-g::before,body[data-page="analytics"] .ad-stack .s-g,body[data-page="analytics"] .ad-keys .s-g{background:#7b4f3a}
+body[data-page="analytics"] .ad-kpi.k-k::before,body[data-page="analytics"] .ad-stack .s-k,body[data-page="analytics"] .ad-keys .s-k{background:#6b6478}
+body[data-page="analytics"] .ad-kpi.k-s::before,body[data-page="analytics"] .ad-stack .s-s,body[data-page="analytics"] .ad-keys .s-s{background:#c5d6e3}
 body[data-page="analytics"] .ad-kpi.k-b::before,body[data-page="analytics"] .ad-stack .s-b,body[data-page="analytics"] .ad-keys .s-b{background:#c2185b}
 body[data-page="analytics"] .ad-kpi.k-u::before,body[data-page="analytics"] .ad-stack .s-u,body[data-page="analytics"] .ad-keys .s-u{background:#b9b9b9}
 body[data-page="analytics"] .ad-kpi.k-f::before,body[data-page="analytics"] .ad-stack .s-f,body[data-page="analytics"] .ad-keys .s-f{background:#e8730c}
@@ -461,3 +467,128 @@ body[data-page="analytics"] .an-pick{margin:0 6px 0 0;flex:none;cursor:pointer}
 @media (max-width:1100px){
   body[data-page="analytics"] .an-dossier{position:fixed;top:120px;left:var(--isle-gap);right:var(--isle-gap);width:auto}
 }
+
+/* Карточка аймака под курсором — в правом верхнем углу карты (замечание 04.11.2026: попап у курсора
+   мешает). При открытом досье — левее панели. Появление — прозрачностью, без сдвига. */
+body[data-page="analytics"] .an-hovcard{position:absolute;top:var(--scene-top);right:var(--isle-gap);z-index:14;width:290px;padding:10px 12px;
+  background:var(--panel);border-radius:12px;box-shadow:var(--lift);font-size:12px;color:var(--ink);pointer-events:none;
+  opacity:0;visibility:hidden;transition:opacity 120ms ease,visibility 0s linear 120ms}
+body[data-page="analytics"] .an-hovcard.on{opacity:1;visibility:visible;transition:opacity 120ms ease}
+body[data-page="analytics"] .on-dossier .an-hovcard{right:calc(var(--isle-gap) * 2 + clamp(560px,46vw,880px))}
+body[data-page="analytics"] .on-table .an-hovcard{display:none}
+body[data-page="analytics"] .an-hovcard .an-tip dt{white-space:normal}
+body[data-page="analytics"] .an-hovcard .an-mbar{margin-top:8px}
+body[data-page="analytics"] .an-hovcard em{display:block;margin-top:6px;font-style:normal;color:#5a6b82}
+@media (max-width:1100px){body[data-page="analytics"] .an-hovcard{top:calc(var(--scene-top) + 56px)}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .an-hovcard,body[data-page="analytics"] .an-hovcard.on{transition:none}}
+/* Досье на узком экране (≤1100): в потоке страницы под картой вместо списка — не под строкой
+   фильтров, без своей прокрутки; вкладки — в одну строку с прокруткой вбок внутри полосы. */
+@media (max-width:1100px){
+  body[data-page="analytics"] .an-dossier{position:relative;top:auto;right:auto;bottom:auto;width:auto;z-index:auto}
+  body[data-page="analytics"] .on-dossier .an-list{display:none}
+  body[data-page="analytics"] .ad{height:auto;overflow:visible}
+  body[data-page="analytics"] .ad-body{overflow:visible}
+  body[data-page="analytics"] .on-dossier .an-hovcard{right:var(--isle-gap)}
+}
+/* Вкладки досье не обрезаются: на средних ширинах — плотнее. */
+@media (max-width:1440px){body[data-page="analytics"] .ad-tabs .ad-tab{padding-left:8px;padding-right:8px}}
+/* Узкий экран: легенда — в пределах поля карты, не заходит на список и досье под ним; длинная — прокручивается. */
+@media (max-width:1100px){body[data-page="analytics"] .an-legend{max-height:240px}}
+
+/* Досье: шапка и вкладки не сжимаются длинным содержимым (снимок пользователя 04.11.2026 — вкладки
+   срезаны). Активная вкладка — полоской, которая переезжает (transform), а не нижней рамкой. */
+body[data-page="analytics"] .ad-head,body[data-page="analytics"] .ad-tabs{flex:0 0 auto}
+body[data-page="analytics"] .ad-tabs{position:relative;scrollbar-width:none}
+body[data-page="analytics"] .ad-tabs::-webkit-scrollbar{display:none}
+body[data-page="analytics"] .ad-tab.on{border-bottom-color:transparent}
+body[data-page="analytics"] .ad-ink{position:absolute;left:0;bottom:0;width:1px;height:2px;background:var(--blue-600);transform-origin:left center;
+  pointer-events:none;transition:transform var(--an-dur) var(--an-ease)}
+body[data-page="analytics"] .ad-body.ad-enter{animation:ad-pane var(--an-dur) var(--an-ease) both}
+body[data-page="analytics"] .ad-body.ad-enter .ap-track i,body[data-page="analytics"] .ad-body.ad-enter .ad-stack{transform-origin:left center;animation:ad-grow var(--an-dur) var(--an-ease) both}
+@keyframes ad-pane{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ad-grow{from{transform:scaleX(0)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){
+  body[data-page="analytics"] .ad-body.ad-enter{animation-name:an-fade}
+  body[data-page="analytics"] .ad-body.ad-enter .ap-track i,body[data-page="analytics"] .ad-body.ad-enter .ad-stack{animation:none}
+}
+/* Здания по снимкам в досье: с ЕНИ / без ЕНИ — полосой и образцами тех же цветов. */
+body[data-page="analytics"] .ad-bld .ad-stack{margin:2px 0 10px}
+body[data-page="analytics"] .ad-bld .an-dsw.s-o{background:#256abf}
+body[data-page="analytics"] .ad-bld .an-dsw.s-b{background:#c2185b}
+body[data-page="analytics"] .ad-bld .an-d-sub{margin:10px 0 4px;font-size:12px;font-weight:600;color:var(--ink)}
+
+/* «Вода и здания»: таблицы со сводной строкой, доля — числом и тонкой полосой, распределение зданий
+   столбцами (пользователь 04.11.2026: «качественно оформить в виде карточек, сводок, таблиц»). */
+body[data-page="analytics"] .ad-tbl-c{width:100%;margin-top:4px;font-size:12.5px}
+body[data-page="analytics"] .ad-tbl-c th{font-size:11px;font-weight:600;color:#5a6b82;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+body[data-page="analytics"] .ad-tbl-c td{padding:6px 8px;border-bottom:1px solid #eef2f7;vertical-align:middle}
+body[data-page="analytics"] .ad-tbl-c .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+body[data-page="analytics"] .ad-tbl-c tfoot td{font-weight:600;color:var(--ink);border-bottom:0;border-top:1px solid var(--line-soft)}
+body[data-page="analytics"] .ad-tbl-c .ad-src{color:#5a6b82;font-size:12px}
+body[data-page="analytics"] .ad-sh{width:118px}
+body[data-page="analytics"] .ad-sh span:first-child{display:inline-block;min-width:44px}
+body[data-page="analytics"] .ad-mini{display:inline-block;width:56px;height:6px;margin-left:8px;border-radius:3px;background:#eef3f9;overflow:hidden;vertical-align:middle}
+body[data-page="analytics"] .ad-mini i{display:block;height:100%;border-radius:3px;background:#5598e7;transform-origin:left center}
+body[data-page="analytics"] .ad-mini.m-o i{background:#256abf}
+body[data-page="analytics"] .ad-mini.m-b i{background:#c2185b}
+body[data-page="analytics"] .ad-mini.m-w i{background:#4fa3d9}
+body[data-page="analytics"] .ad-mini.m-g i{background:#7b4f3a}
+body[data-page="analytics"] .ad-mini.m-k i{background:#6b6478}
+body[data-page="analytics"] .ad-mini.m-s i{background:#9fb8cc}
+body[data-page="analytics"] .ad-mini.m-l i{background:#b07d5a}
+body[data-page="analytics"] .an-dsw.s-o{background:#256abf}
+body[data-page="analytics"] .an-dsw.s-b{background:#c2185b}
+body[data-page="analytics"] .an-dsw.s-w,body[data-page="analytics"] .ad-stack .s-w{background:#4fa3d9}
+body[data-page="analytics"] .an-dsw.s-wo,body[data-page="analytics"] .ad-stack .s-wo{background:#8cc3e8}
+body[data-page="analytics"] .an-dsw.s-ww,body[data-page="analytics"] .ad-stack .s-ww{background:#2b7bb5}
+body[data-page="analytics"] .an-dsw.s-g{background:#7b4f3a}
+body[data-page="analytics"] .an-dsw.s-k{background:#6b6478}
+body[data-page="analytics"] .an-dsw.s-s{background:#c5d6e3}
+body[data-page="analytics"] .an-dsw.s-l{background:#b07d5a}
+body[data-page="analytics"] .ad-card .ad-stack{margin:2px 0 8px}
+body[data-page="analytics"] .ad-kv{display:flex;justify-content:space-between;gap:12px;margin:10px 0 0;padding:8px 10px;border-radius:8px;background:#f4f7fb;font-size:12.5px;color:#41536a}
+body[data-page="analytics"] .ad-kv b{color:var(--ink)}
+body[data-page="analytics"] .ad-bld-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px 24px;align-items:start}
+body[data-page="analytics"] .ad-hist{display:flex;align-items:flex-end;gap:2px;height:96px;padding:6px 0 0;border-bottom:1px solid var(--line-soft)}
+body[data-page="analytics"] .ad-hist i{flex:1 1 0;height:100%;border-radius:3px 3px 0 0;transform-origin:bottom center;transform:scaleY(max(var(--h),.02))}
+body[data-page="analytics"] .ad-hist i.h-o{background:#256abf}
+body[data-page="analytics"] .ad-hist i.h-b{background:#c2185b}
+body[data-page="analytics"] .ad-hist i:hover{filter:brightness(1.15)}
+body[data-page="analytics"] .ad-hist-x{display:flex;justify-content:space-between;margin:3px 0 8px;font-size:11px;color:#5a6b82}
+body[data-page="analytics"] .ad-body.ad-enter .ad-hist i{animation:ad-col var(--an-dur) var(--an-ease) both}
+body[data-page="analytics"] .ad-body.ad-enter .ad-mini i{animation:ad-mini var(--an-dur) var(--an-ease) both}
+@keyframes ad-col{from{transform:scaleY(0)}}
+@keyframes ad-mini{from{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .ad-body.ad-enter .ad-hist i,body[data-page="analytics"] .ad-body.ad-enter .ad-mini i{animation:none}}
+
+/* Свёрнутое досье: панель уезжает вправо (transform, opacity) — карта целиком; кнопка «Досье: …» на её
+   месте возвращает панель. Та же длительность и кривая, что у появления. */
+body[data-page="analytics"] .an-dossier{transition:transform var(--an-dur) var(--an-ease),opacity var(--an-dur) var(--an-ease),visibility 0s linear 0s}
+body[data-page="analytics"] .dossier-shut .an-dossier{transform:translateX(calc(100% + var(--isle-gap) * 2));opacity:0;visibility:hidden;pointer-events:none;
+  transition:transform var(--an-dur) var(--an-ease),opacity var(--an-dur) var(--an-ease),visibility 0s linear var(--an-dur)}
+body[data-page="analytics"] .dossier-shut .an-hovcard{right:var(--isle-gap);top:calc(var(--scene-top) + 52px)}
+body[data-page="analytics"] .ad-fold span{display:inline-block;margin-left:2px}
+body[data-page="analytics"] .an-dfab{all:unset;box-sizing:border-box;position:absolute;z-index:16;top:var(--scene-top);right:var(--isle-gap);display:flex;align-items:center;gap:6px;
+  max-width:min(360px,60vw);height:40px;padding:0 14px;border-radius:12px;background:var(--panel);box-shadow:var(--lift);font-size:13px;color:var(--ink);cursor:pointer;
+  white-space:nowrap;pointer-events:auto;animation:an-fab-in var(--an-dur) var(--an-ease)}
+body[data-page="analytics"] .an-dfab[hidden]{display:none}
+body[data-page="analytics"] .an-dfab b{overflow:hidden;text-overflow:ellipsis;min-width:0}
+body[data-page="analytics"] .an-dfab span{color:var(--blue-600);font-size:15px}
+body[data-page="analytics"] .an-dfab:hover{background:var(--fill-hover)}
+body[data-page="analytics"] .an-dfab:focus-visible{outline:2px solid var(--blue-500);outline-offset:2px}
+@keyframes an-fab-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .an-dfab{animation-name:an-fade}}
+@media (max-width:1100px){
+  body[data-page="analytics"] .dossier-shut .an-dossier{display:none}
+  body[data-page="analytics"] .dossier-shut .an-list{display:block}
+  body[data-page="analytics"] .an-dfab{top:calc(var(--scene-top) + 56px)}
+}
+/* Сводные таблицы досье — на примитиве .itbl ядра, но без обрезки: ширина колонок по содержимому,
+   подписи переносятся, числа — в строку; строки не нажимаются — без руки и подсветки. */
+body[data-page="analytics"] .ad-tbl-c{table-layout:auto}
+body[data-page="analytics"] .ad-tbl-c th{padding:6px 8px}
+body[data-page="analytics"] .ad-tbl-c td{overflow:visible;text-overflow:clip;white-space:normal;padding:6px 8px}
+body[data-page="analytics"] .ad-tbl-c td.num,body[data-page="analytics"] .ad-tbl-c th.num{white-space:nowrap}
+body[data-page="analytics"] .ad-tbl-c tbody tr{cursor:default}
+body[data-page="analytics"] .ad-tbl-c tbody tr:hover td{background:transparent}
+body[data-page="analytics"] .ad-tbl-c .ad-sh{width:1%}

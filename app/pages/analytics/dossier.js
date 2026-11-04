@@ -55,13 +55,14 @@ export const pickPatches = (patches, cfg) => patches.filter((p) => p.ha >= cfg.m
 // d — { a, objs, tab, cfg, patches (null — грузятся), all (посчитанные аймаки), parts (PARTS), fmt, parcelsHTML }
 export function dossierHTML(d) {
   const { a, tab } = d;
-  return `<section class="ad" aria-label="Досье аймака ${esc(a.aimak)}">
+  return `<section class="ad" data-key="${esc(a.code)}" aria-label="Досье: ${esc(a.aimak)}">
     <header class="ad-head">
       <button type="button" class="btn btn-ghost btn-sm ad-back" data-ad-close>‹ Все аймаки</button>
       <div class="ad-title"><h2>${esc(a.aimak)}</h2><span>${esc([a.code, a.district, a.oblast].filter(Boolean).join(' · '))}</span></div>
       <button type="button" class="btn btn-ghost btn-sm" data-ad-xlsx title="Обзор, свободные массивы, участки по формам собственности, сверка источников">Выгрузить в Excel</button>
+      <button type="button" class="btn btn-ghost btn-sm ad-fold" data-ad-fold aria-expanded="true" aria-label="Свернуть досье" title="Свернуть досье — карта целиком">Свернуть <span aria-hidden="true">›</span></button>
     </header>
-    <nav class="ad-tabs" role="tablist">${TABS.map((t) => `<button type="button" role="tab" class="ad-tab${t.key === tab ? ' on' : ''}" aria-selected="${t.key === tab}" data-ad-tab="${t.key}">${esc(t.label)}</button>`).join('')}</nav>
+    <nav class="ad-tabs" role="tablist" aria-label="Разделы досье">${TABS.map((t) => `<button type="button" role="tab" class="ad-tab${t.key === tab ? ' on' : ''}" aria-selected="${t.key === tab}" tabindex="${t.key === tab ? 0 : -1}" data-ad-tab="${t.key}">${esc(t.label)}</button>`).join('')}<i class="ad-ink" aria-hidden="true"></i></nav>
     <div class="ad-body" role="tabpanel">${tabHTML(d)}</div>
   </section>`;
 }
@@ -78,14 +79,22 @@ function tabHTML(d) {
 
 const share = (x, A) => (A ? x / A : 0);
 
+// Непригодный рельеф по видам: [класс, подпись, га]. Расчёты до разделения (нет rockHa) — одной строкой.
+export function terrainOf(o) {
+  if (o.rockHa == null) return [['l', 'Овраги, обрывы, крутые склоны', o.reliefHa || 0]];
+  return [['g', 'Овраги, обрывы, карьеры', o.gullyHa || 0], ['k', 'Скалы и осыпи', o.rockHa || 0],
+    ['s', 'Снег и лёд', o.snowHa || 0], ['l', `Крутые склоны (круче ${o.slope}°)`, o.steepHa || 0]];
+}
+
 function overviewHTML(d) {
   const { a, fmt } = d;
   const o = a.occ;
   const A = a.areaHa || 1;
   const parts = [
     ['o', 'Занято участками с ЕНИ', o.occHa], ['r', 'Дороги', o.roadsHa || 0], ['w', 'Вода и русла', o.waterHa || 0],
-    ['l', 'Овраги, обрывы, крутые склоны', o.reliefHa || 0], ['b', 'Здания без ЕНИ', o.bldHa || 0],
-    ['u', 'Непригодно: узкие полосы и клочки', (o.stripsHa || 0) + (o.smallHa || 0)], ['f', 'Свободно', o.freeHa],
+    // Виды рельефа, которых в аймаке нет (0 га), — без плиток: пустые плитки только отвлекают.
+    ...terrainOf(o).filter((x, i, all) => all.length === 1 || x[2] / A >= 0.0005), ['b', 'Здания без ЕНИ', o.bldHa || 0],
+    ['u', 'Узкие полосы и клочки', (o.stripsHa || 0) + (o.smallHa || 0)], ['f', 'Свободно', o.freeHa],
   ];
   const tile = (label, ha, cls = '') => `<div class="ad-kpi ${cls}"><span>${esc(label)}</span><b>${fmt.area(ha)}</b><i>${fmt.pct(share(ha, A))}</i></div>`;
   // Место среди посчитанных аймаков — по доле занятого и по свободной площади.
@@ -157,30 +166,102 @@ function freeHTML(d) {
     </section>`;
 }
 
+// Здания по снимкам: с ЕНИ и без ЕНИ — по доле площади контура на участках (пользователь 04.11.2026:
+// «По процентам площади. Выше порога - на участке» — порог 10 %; «проводить процентное соотношение
+// зданий с ЕНИ и зданий без ЕНИ»). Порог в досье меняет только счёт зданий (по распределению
+// cmp.bldCoverHist шагом 5 %); площадь без ЕНИ посчитана расчётом при его пороге.
+// Оформление — плитки итогов, таблицы с итоговой строкой, распределение столбцами (пользователь
+// 04.11.2026: «качественно оформить в виде карточек, сводок, таблиц. Сейчас очень бедно»).
+export const BLD_PRESETS = [0.05, 0.1, 0.2, 0.3, 0.5];
+const BLD_GROUPS = [[0, 2, 'меньше 10 %'], [2, 6, '10–30 %'], [6, 10, '30–50 %'], [10, 18, '50–90 %'], [18, 21, '90 % и больше']];
+const nfr = (x) => Math.round(x || 0).toLocaleString('ru-RU');
+// Ячейка доли: число и тонкая полоса (масштабом, не шириной).
+const shareCell = (x, fmt, cls = '') => `<td class="num ad-sh"><span>${fmt.pct(x)}</span><span class="ad-mini ${cls}" aria-hidden="true"><i style="transform:scaleX(${Math.max(0, Math.min(1, x)).toFixed(4)})"></i></span></td>`;
+
+function bldState(d) {
+  const o = d.a.occ;
+  const c = o.cmp || {};
+  const n = c.buildings || 0;
+  const base = o.bldOn != null ? o.bldOn : null;
+  const hist = Array.isArray(c.bldCoverHist) && c.bldCoverHist.length === 21 ? c.bldCoverHist : null;
+  const thr = hist && d.cfg.bldOn != null ? d.cfg.bldOn : base;
+  const no = hist && thr != null ? hist.slice(0, Math.round(thr * 20)).reduce((t, x) => t + x, 0) : (c.buildingsNoEni || 0);
+  return { n, no, on: n - no, base, hist, thr };
+}
+
+function bldHTML(d) {
+  const { a, fmt } = d;
+  const o = a.occ;
+  const { n, no, on, base, hist, thr } = bldState(d);
+  const rule = base == null ? 'по точке внутри контура (расчёт до перехода на долю площади)' : `на участке — ${fmt.pct(thr)} площади контура и больше`;
+  const max = hist ? Math.max(1, ...hist) : 1;
+  const cut = thr != null ? Math.round(thr * 20) : 0;
+  return `<section class="ad-card ad-bld ad-wide"><h3>Здания по снимкам</h3>
+    <div class="ad-bld-grid">
+      <div>
+        <div class="ad-stack" role="img" aria-label="На участках с ЕНИ ${fmt.pct(n ? on / n : 0)}, без ЕНИ ${fmt.pct(n ? no / n : 0)}">${n ? `<i class="s-o" style="flex:${(on / n).toFixed(4)} 1 0"></i><i class="s-b" style="flex:${(no / n).toFixed(4)} 1 0"></i>` : ''}</div>
+        <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Здания</th><th class="num">Число</th><th class="num">Доля</th></tr></thead><tbody>
+          <tr><td><i class="an-dsw s-o"></i>На участках с ЕНИ</td><td class="num">${nfr(on)}</td>${shareCell(n ? on / n : 0, fmt, 'm-o')}</tr>
+          <tr><td><i class="an-dsw s-b"></i>Без ЕНИ</td><td class="num">${nfr(no)}</td>${shareCell(n ? no / n : 0, fmt, 'm-b')}</tr>
+        </tbody><tfoot><tr><td>Всего по снимкам</td><td class="num">${nfr(n)}</td><td class="num">100 %</td></tr></tfoot></table>
+        <p class="ad-kv"><span>Площадь без ЕНИ с двором ${esc(String(o.bldYard))} м${base != null ? `, порог ${fmt.pct(base)}` : ''}</span><b class="num">${fmt.area(o.bldHa || 0)}</b></p>
+      </div>
+      ${hist ? `<div>
+        <div class="ad-cfg-row"><span class="ad-cfg-l">Порог «на участке»</span><span class="ad-presets">${BLD_PRESETS.map((v) => `<button type="button" class="ap-chip${Math.abs(v - thr) < 1e-9 ? ' on' : ''}" data-ad-bldon="${v}" aria-pressed="${Math.abs(v - thr) < 1e-9}">${fmt.pct(v)}</button>`).join('')}</span></div>
+        <div class="ad-hist" role="img" aria-label="Здания по доле площади на участках с ЕНИ, шаг 5 %">${hist.map((x, i) => `<i class="${i < cut ? 'h-b' : 'h-o'}" style="--h:${(x / max).toFixed(4)}" title="${i === 20 ? '100 %' : `${i * 5}–${i * 5 + 5} %`}: ${nfr(x)} зд."></i>`).join('')}</div>
+        <div class="ad-hist-x" aria-hidden="true"><span>0 %</span><span>доля площади здания на участках</span><span>100 %</span></div>
+        <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Доля площади на участках</th><th class="num">Зданий</th><th class="num">Доля</th></tr></thead><tbody>
+          ${BLD_GROUPS.map(([i, j, l]) => { const k = hist.slice(i, j).reduce((t, x) => t + x, 0); return `<tr><td>${esc(l)}</td><td class="num">${nfr(k)}</td>${shareCell(n ? k / n : 0, fmt)}</tr>`; }).join('')}
+        </tbody></table></div>` : ''}
+    </div>
+    <p class="an-d-note">Microsoft Global ML Building Footprints — контуры зданий по снимкам. Привязка снимков к Кадастру неточна на метры, поэтому здание считается по доле площади: ${esc(rule)}.</p></section>`;
+}
+
 function waterHTML(d) {
   const { a, fmt } = d;
   const o = a.occ;
   const c = o.cmp || {};
-  const wet = c.parcelsOnWater || {};
-  return `<div class="ad-cols">
-    <section class="ad-card"><h3>Вода и русла</h3><dl class="an-bal">
-      <dt>Вода вне участков с ЕНИ</dt><dd class="num">${fmt.area(o.waterHa || 0)}</dd>
-      <dt>OpenStreetMap</dt><dd class="num">${fmt.area(c.waterOsmHa || 0)}</dd>
-      <dt>ESA WorldCover</dt><dd class="num">${fmt.area(c.waterWcHa || 0)}</dd>
-      <dt>В обоих источниках</dt><dd class="num">${fmt.area(c.waterBothHa || 0)}</dd></dl>
+  const A = a.areaHa || 1;
+  const wet = Object.entries(c.parcelsOnWater || {}).sort((x, y) => y[1].ha - x[1].ha);
+  const wetN = wet.reduce((t, [, v]) => t + v.n, 0);
+  const wetHa = wet.reduce((t, [, v]) => t + v.ha, 0);
+  const b = bldState(d);
+  const osm = c.waterOsmHa || 0;
+  const wc = c.waterWcHa || 0;
+  const both = c.waterBothHa || 0;
+  const onlyO = Math.max(0, osm - both);
+  const onlyW = Math.max(0, wc - both);
+  const any = onlyO + onlyW + both || 1;
+  const tile = (label, val, sub, cls) => `<div class="ad-kpi ${cls}"><span>${esc(label)}</span><b>${val}</b><i>${sub}</i></div>`;
+  const terr = terrainOf(o);
+  const terrHa = terr.reduce((t, x) => t + x[2], 0);
+  const src = { g: 'OpenStreetMap', k: 'OpenStreetMap, ESA WorldCover и рельеф', s: 'ESA WorldCover, OpenStreetMap', l: 'Copernicus DEM' };
+  return `<div class="ad-kpis">
+      ${tile('Вода вне участков с ЕНИ', fmt.area(o.waterHa || 0), `${fmt.pct((o.waterHa || 0) / A)} площади`, 'k-w')}
+      ${tile('Участки с ЕНИ на воде', `${nfr(wetN)} уч.`, fmt.area(wetHa), 'k-w')}
+      ${tile('Зданий по снимкам', nfr(b.n), `с ЕНИ ${fmt.pct(b.n ? b.on / b.n : 0)}`, 'k-o')}
+      ${tile('Зданий без ЕНИ', nfr(b.no), `${fmt.pct(b.n ? b.no / b.n : 0)} зданий`, 'k-b')}
+    </div>
+    <div class="ad-cols">
+    <section class="ad-card"><h3>Вода по источникам</h3>
+      <div class="ad-stack" role="img" aria-label="Только OpenStreetMap ${fmt.pct(onlyO / any)}, в обоих ${fmt.pct(both / any)}, только WorldCover ${fmt.pct(onlyW / any)}"><i class="s-wo" style="flex:${(onlyO / any).toFixed(4)} 1 0"></i><i class="s-w" style="flex:${(both / any).toFixed(4)} 1 0"></i><i class="s-ww" style="flex:${(onlyW / any).toFixed(4)} 1 0"></i></div>
+      <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Источник</th><th class="num">Площадь</th><th class="num">Доля воды</th></tr></thead><tbody>
+        <tr><td><i class="an-dsw s-wo"></i>Только OpenStreetMap</td><td class="num">${fmt.area(onlyO)}</td>${shareCell(onlyO / any, fmt, 'm-w')}</tr>
+        <tr><td><i class="an-dsw s-w"></i>В обоих источниках</td><td class="num">${fmt.area(both)}</td>${shareCell(both / any, fmt, 'm-w')}</tr>
+        <tr><td><i class="an-dsw s-ww"></i>Только ESA WorldCover</td><td class="num">${fmt.area(onlyW)}</td>${shareCell(onlyW / any, fmt, 'm-w')}</tr>
+      </tbody><tfoot><tr><td>Вода вне участков с ЕНИ</td><td class="num">${fmt.area(o.waterHa || 0)}</td><td class="num">${fmt.pct((o.waterHa || 0) / A)} аймака</td></tr></tfoot></table>
       <p class="an-d-note">WorldCover (10 м) не различает русла уже ~10 м — арыки и каналы видит OpenStreetMap.</p></section>
     <section class="ad-card"><h3>Участки с ЕНИ на воде</h3>
-      ${Object.keys(wet).length ? `<dl class="an-bal">${Object.entries(wet).sort((x, y) => y[1].n - x[1].n).map(([f, v]) => `<dt>${esc(f)}</dt><dd class="num">${v.n.toLocaleString('ru-RU')} уч. · ${fmt.area(v.ha)}</dd>`).join('')}</dl>
+      ${wet.length ? `<table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Форма собственности</th><th class="num">Участков</th><th class="num">Площадь</th><th class="num">Доля</th></tr></thead><tbody>
+        ${wet.map(([f, v]) => `<tr><td>${esc(f)}</td><td class="num">${nfr(v.n)}</td><td class="num">${fmt.area(v.ha)}</td>${shareCell(wetHa ? v.ha / wetHa : 0, fmt, 'm-w')}</tr>`).join('')}
+      </tbody><tfoot><tr><td>Всего</td><td class="num">${nfr(wetN)}</td><td class="num">${fmt.area(wetHa)}</td><td class="num">100 %</td></tr></tfoot></table>
       <p class="an-d-note">На воде — 20 % площади участка и больше (вода OpenStreetMap и WorldCover).</p>` : '<p class="ad-muted">Нет участков, на 20 % и больше лежащих на воде.</p>'}</section>
-    <section class="ad-card"><h3>Здания по снимкам</h3><dl class="an-bal">
-      <dt>Зданий в аймаке</dt><dd class="num">${(c.buildings || 0).toLocaleString('ru-RU')}</dd>
-      <dt>Вне участков с ЕНИ</dt><dd class="num">${(c.buildingsNoEni || 0).toLocaleString('ru-RU')} · ${fmt.pct(c.buildings ? c.buildingsNoEni / c.buildings : 0)}</dd>
-      <dt>Площадь без ЕНИ с двором ${esc(String(o.bldYard))} м</dt><dd class="num">${fmt.area(o.bldHa || 0)}</dd></dl>
-      <p class="an-d-note">Microsoft Global ML Building Footprints — контуры зданий, распознанные по снимкам.</p></section>
-    <section class="ad-card"><h3>Рельеф</h3><dl class="an-bal">
-      <dt>Овраги, обрывы, карьеры — OpenStreetMap</dt><dd class="num">${fmt.area(c.reliefOsmHa || 0)}</dd>
-      <dt>Склоны круче ${esc(String(o.slope))}° — Copernicus DEM</dt><dd class="num">${fmt.area(c.steepHa || 0)}</dd>
-      <dt>Рельеф вне участков, дорог и воды</dt><dd class="num">${fmt.area(o.reliefHa || 0)}</dd></dl></section>
+    ${bldHTML(d)}
+    <section class="ad-card ad-wide"><h3>Рельеф — непригодно</h3>
+      <table class="itbl ad-tbl ad-tbl-c"><thead><tr><th>Вид</th><th>Источник</th><th class="num">Площадь</th><th class="num">Доля аймака</th></tr></thead><tbody>
+        ${terr.map(([k, l, h]) => `<tr><td><i class="an-dsw s-${k}"></i>${esc(l)}</td><td class="ad-src">${esc(src[k] || 'OpenStreetMap, Copernicus DEM')}</td><td class="num">${fmt.area(h)}</td>${shareCell(h / A, fmt, 'm-' + k)}</tr>`).join('')}
+      </tbody><tfoot><tr><td colspan="2">Всего вне участков, дорог и воды</td><td class="num">${fmt.area(terrHa)}</td><td class="num">${fmt.pct(terrHa / A)}</td></tr></tfoot></table>
+      <p class="an-d-note">До вычета участков: овраги, обрывы, карьеры OpenStreetMap — ${fmt.area(c.reliefOsmHa || 0)}; склоны круче ${esc(String(o.slope))}° по Copernicus DEM — ${fmt.area(c.steepHa || 0)}.${o.rockHa != null ? ` Скалы и осыпи — OpenStreetMap и голая поверхность WorldCover на склоне круче ${esc(String(o.rockSlope))}°; положе — голая земля, она свободна.` : ''}</p></section>
   </div>`;
 }
 
@@ -216,7 +297,7 @@ export function dossierSheets(d) {
   const A = a.areaHa || 1;
   const r2 = (x) => Math.round(x * 100) / 100;
   const overview = [['Площадь по контуру', r2(A), 100], ['Занято участками с ЕНИ', r2(o.occHa), r2(o.occHa / A * 100)], ['Дороги', r2(o.roadsHa || 0), r2((o.roadsHa || 0) / A * 100)],
-    ['Вода и русла', r2(o.waterHa || 0), r2((o.waterHa || 0) / A * 100)], ['Овраги, обрывы, крутые склоны', r2(o.reliefHa || 0), r2((o.reliefHa || 0) / A * 100)],
+    ['Вода и русла', r2(o.waterHa || 0), r2((o.waterHa || 0) / A * 100)], ...terrainOf(o).map(([, l, h]) => [l, r2(h), r2(h / A * 100)]),
     ['Здания без ЕНИ', r2(o.bldHa || 0), r2((o.bldHa || 0) / A * 100)], ['Узкие полосы', r2(o.stripsHa || 0), r2((o.stripsHa || 0) / A * 100)],
     ['Клочки', r2(o.smallHa || 0), r2((o.smallHa || 0) / A * 100)], ['Свободно', r2(o.freeHa), r2(o.freeHa / A * 100)],
     ...d.parts.filter((p) => p.free).map((p) => ['  свободно: ' + p.label, r2(o.zones[p.key] || 0), r2((o.zones[p.key] || 0) / A * 100)])];
@@ -226,7 +307,9 @@ export function dossierSheets(d) {
     { name: 'Свободные массивы', head: ['№', 'Покров', 'Площадь, га', 'Запад', 'Юг', 'Восток', 'Север'],
       rows: (d.patches ? pickPatches(d.patches, d.cfg) : []).map((p, i) => [i + 1, (d.parts.find((x) => x.key === p.zone) || {}).label || p.zone, r2(p.ha), ...p.bounds.flat().map((v) => +v.toFixed(6))]) },
     { name: 'Сверка', head: ['Показатель', 'Значение'], rows: [['Вода — OpenStreetMap, га', c.waterOsmHa], ['Вода — ESA WorldCover, га', c.waterWcHa], ['Вода — в обоих, га', c.waterBothHa],
-      ['Рельеф — OpenStreetMap, га', c.reliefOsmHa], ['Склоны круче ' + o.slope + '° — Copernicus DEM, га', c.steepHa], ['Зданий по снимкам', c.buildings], ['Зданий вне ЕНИ', c.buildingsNoEni],
+      ['Овраги, обрывы, карьеры — OpenStreetMap, га', c.reliefOsmHa], ['Склоны круче ' + o.slope + '° — Copernicus DEM, га', c.steepHa], ['Зданий по снимкам', c.buildings], ['Зданий на участках с ЕНИ', c.buildings != null ? c.buildings - (c.buildingsNoEni || 0) : null], ['Зданий без ЕНИ', c.buildingsNoEni],
+      ['Порог «на участке», доля площади здания', o.bldOn != null ? o.bldOn : 'по точке внутри контура'],
+      ...(Array.isArray(c.bldCoverHist) ? c.bldCoverHist.map((x, i) => [`Зданий с долей на участках ${i * 5}–${Math.min(100, i * 5 + 5)} %${i === 20 ? ' (целиком)' : ''}`, x]) : []),
       ...Object.entries(c.parcelsOnWater || {}).map(([f, v]) => [`Участки на воде: ${f}`, `${v.n} уч., ${v.ha} га`])] },
   ];
   if (d.parcelRows) sheets.push({ name: 'Участки по формам', head: ['Форма собственности', 'Участков', 'Площадь, га'], rows: d.parcelRows });

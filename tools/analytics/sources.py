@@ -80,6 +80,16 @@ def slope_deg(z, tr):
     return np.degrees(np.arctan(np.hypot(gx, gy)))
 
 
+def refine(z, tr, k=3):
+    """Сгущение сетки в k раз с билинейным переходом (пользователь 04.11.2026: «Нужна большая
+    точность»; клетки рельефа 30 м давали ступенчатые склоны): (массив, transform)."""
+    from rasterio.warp import reproject, Resampling
+    out = np.empty((z.shape[0] * k, z.shape[1] * k), dtype='float32')
+    t2 = rasterio.Affine(tr.a / k, tr.b, tr.c, tr.d, tr.e / k, tr.f)
+    reproject(z.astype('float32'), out, src_transform=tr, src_crs='EPSG:4326', dst_transform=t2, dst_crs='EPSG:4326', resampling=Resampling.bilinear)
+    return out, t2
+
+
 def vectorize(mask, tr):
     """Маска → многоугольники в lon/lat."""
     if not mask.any():
