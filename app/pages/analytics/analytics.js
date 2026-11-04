@@ -907,8 +907,7 @@ export function mountAnalytics(host) {
         if (!cube1.length) return parcelsHTML(null, {}, view.pm, null, { empty: true });
         return parcelsHTML(parcelSum(cube1, view.dpf, view.pm), view.dpf, view.pm, { n: (n) => nf(n, 0), area: (ha) => `${ar(ha)} ${ul()}`, pct: (x) => pct(x) });
       },
-      objectsHTML: () => `<div class="ad-kpis"><div class="ad-kpi k-a"><span>Объектов оценки в системе</span><b>${nf(r.objs.length, 0)}</b><i>с точкой на карте в ${tg.members ? 'аймаках набора' : 'аймаке'}</i></div></div>
-        <section class="ad-card ad-objs"><h3>Объекты оценки</h3>${r.objs.length ? detailHTML({ a: { ...a, balance: null, occ: null }, objs: r.objs }) : '<p class="ad-muted">Объектов системы здесь нет.</p>'}</section>`,
+      objectsHTML: () => objectsHTML(r.objs, !!tg.members),
     });
   };
   // Досье обновляется по частям (пользователь 04.11.2026: «Интерфейс багует… нет вообще никаких
@@ -963,6 +962,33 @@ export function mountAnalytics(host) {
     void b1.offsetWidth;
     b1.classList.add('ad-enter');
     setTimeout(() => b1.classList.remove('ad-enter'), dur() + 60);
+  };
+  // Объекты оценки в досье — карточками (пользователь 04.11.2026: «Обьекты и источники делаем
+  // красивше»): итоги — плитками (всего, с ЕНИ, по типам), объект — карточка с типом, адресом-ссылкой,
+  // ЕНИ, кварталом и СОАТЕ, откуда взята точка, и землями в точке.
+  const objectsHTML = (objs, isSet) => {
+    if (!objs.length) return '<section class="ad-card"><h3>Объекты оценки</h3><p class="ad-muted">Объектов системы с точкой на карте здесь нет.</p></section>';
+    const withEni = objs.filter((o) => o.rec.eni).length;
+    const types = new Map();
+    objs.forEach((o) => types.set(o.typeLabel, (types.get(o.typeLabel) || 0) + 1));
+    const kpi = (label, v, sub, cls) => `<div class="ad-kpi ${cls}"><span>${esc(label)}</span><b>${v}</b><i>${esc(sub)}</i></div>`;
+    return `<div class="ad-kpis">${kpi('Объектов оценки', nf(objs.length, 0), isSet ? 'в аймаках набора' : 'с точкой в аймаке', 'k-a')}
+        ${kpi('С ЕНИ', nf(withEni, 0), pct(withEni / objs.length) + ' объектов', 'k-o')}
+        ${[...types.entries()].sort((x, y) => y[1] - x[1]).slice(0, 2).map(([t, n]) => kpi(t, nf(n, 0), pct(n / objs.length) + ' объектов', 'k-r')).join('')}</div>
+      <div class="ad-obj-grid">${objs.map((o) => {
+        const ad = o.rec.adm || {};
+        const lands = (ad.lands || []).map((l) => [l.kind, l.use, l.area, l.eni && `ЕНИ ${l.eni}`, l.note].filter(Boolean).join(', '));
+        return `<article class="ad-obj">
+          <header><span class="ad-obj-type">${esc(o.typeLabel)}</span>${o.rec.eni ? `<span class="ad-obj-eni num">ЕНИ ${esc(formatEniText(digits(o.rec.eni).slice(0, 13)))}</span>` : '<span class="ad-obj-eni none">без ЕНИ</span>'}</header>
+          <a class="ad-obj-title" href="${esc(o.href)}">${esc(o.title)}</a>
+          <dl class="ad-obj-meta">
+            <div><dt>Квартал</dt><dd class="num">${esc(ad.quarter || '—')}</dd></div>
+            <div><dt>СОАТЕ</dt><dd class="num">${esc(ad.coate || '—')}</dd></div>
+            <div><dt>Точка на карте</dt><dd>${esc(ad.by || '—')}</dd></div>
+          </dl>
+          ${lands.length ? `<p class="ad-obj-lands"><b>Земли в точке:</b> ${esc(lands.join('; '))}</p>` : ''}
+        </article>`;
+      }).join('')}</div>`;
   };
   // Выбранные отбором массивы — обводкой на карте.
   const syncDossierMap = () => {

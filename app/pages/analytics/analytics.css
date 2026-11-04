@@ -631,3 +631,36 @@ body[data-page="analytics"] .ad-mini{width:40px}
 body[data-page="analytics"] .ad-card{overflow-x:auto}
 /* Карточки в колонке тела досье не сжимаются (с overflow они теряли высоту). */
 body[data-page="analytics"] .ad-body > *{flex-shrink:0}
+
+/* «Источники» v2: группы, знак источника цветом его части на карте, плашки точности и лицензии,
+   две цифры в аймаке. «Объекты»: карточка на объект — тип, ЕНИ, адрес-ссылка, сведения сеткой. */
+body[data-page="analytics"] .ad-group{display:flex;align-items:center;gap:8px;margin:4px 2px 0;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#5a6b82}
+body[data-page="analytics"] .ad-group span{display:inline-grid;place-items:center;min-width:20px;height:18px;padding:0 6px;border-radius:999px;background:#e6edf6;color:#41536a;font-size:11px;letter-spacing:0}
+body[data-page="analytics"] .ad-srcc{padding:12px 14px 12px 16px;gap:8px}
+body[data-page="analytics"] .ad-srcc::before{display:none}
+body[data-page="analytics"] .ad-srcc header{display:flex;align-items:flex-start;gap:10px}
+body[data-page="analytics"] .ad-srcc-tag{flex:0 0 auto;display:inline-grid;place-items:center;min-width:42px;height:28px;padding:0 6px;border-radius:8px;background:var(--c);color:#fff;font-size:11px;font-weight:700;letter-spacing:.3px}
+body[data-page="analytics"] .ad-srcc.c-w .ad-srcc-tag,body[data-page="analytics"] .ad-srcc.c-r .ad-srcc-tag,body[data-page="analytics"] .ad-srcc.c-l .ad-srcc-tag{color:#12263f}
+body[data-page="analytics"] .ad-srcc header h3{margin:0 0 2px}
+body[data-page="analytics"] .ad-srcc-chips{display:flex;flex-wrap:wrap;gap:4px;margin:0}
+body[data-page="analytics"] .ad-srcc-chips span{height:22px;display:inline-flex;align-items:center;padding:0 8px;border-radius:999px;background:#f1f5fa;color:#41536a;font-size:11.5px}
+body[data-page="analytics"] .ad-srcc-v{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 0;padding-top:10px;border-top:1px solid #eef2f7}
+body[data-page="analytics"] .ad-srcc-v div{min-width:0}
+body[data-page="analytics"] .ad-srcc-v dt{font-size:11px;color:#5a6b82}
+body[data-page="analytics"] .ad-srcc-v dd{margin:2px 0 0;font-size:15px;font-weight:700;color:var(--ink);text-align:left}
+body[data-page="analytics"] .ad-obj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+body[data-page="analytics"] .ad-obj{display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--panel);border-radius:10px;box-shadow:0 1px 2px rgba(15,23,42,.06);
+  transition:box-shadow 160ms ease,transform 160ms ease}
+body[data-page="analytics"] .ad-obj:hover{box-shadow:var(--lift)}
+body[data-page="analytics"] .ad-obj header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+body[data-page="analytics"] .ad-obj-type{height:22px;display:inline-flex;align-items:center;padding:0 9px;border-radius:999px;background:#eef4fc;color:#1c5cab;font-size:11.5px;font-weight:600}
+body[data-page="analytics"] .ad-obj-eni{font-size:12px;color:#41536a}
+body[data-page="analytics"] .ad-obj-eni.none{color:#8a3d00}
+body[data-page="analytics"] .ad-obj-title{font-size:14px;font-weight:600;line-height:1.35;color:var(--blue-700);text-decoration:none}
+body[data-page="analytics"] .ad-obj-title:hover{text-decoration:underline}
+body[data-page="analytics"] .ad-obj-title:focus-visible{outline:2px solid var(--blue-500);outline-offset:2px;border-radius:4px}
+body[data-page="analytics"] .ad-obj-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding-top:8px;border-top:1px solid #eef2f7}
+body[data-page="analytics"] .ad-obj-meta dt{font-size:11px;color:#5a6b82}
+body[data-page="analytics"] .ad-obj-meta dd{margin:2px 0 0;font-size:12.5px;color:var(--ink);text-align:left;overflow-wrap:anywhere}
+body[data-page="analytics"] .ad-obj-lands{margin:0;font-size:12px;color:#41536a}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .ad-obj{transition:none}}

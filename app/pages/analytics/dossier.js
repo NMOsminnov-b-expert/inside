@@ -21,8 +21,8 @@ export const TABS = [
   { key: 'free', label: 'Свободная земля' },
   { key: 'parcels', label: 'Участки' },
   { key: 'water', label: 'Вода и здания' },
-  { key: 'sources', label: 'Источники' },
   { key: 'objects', label: 'Объекты системы' },
+  { key: 'sources', label: 'Источники' },
 ];
 // Классы площади свободных массивов, га.
 export const PATCH_CLASSES = [[0.1, 'до 0,1 га'], [0.5, '0,1–0,5 га'], [1, '0,5–1 га'], [5, '1–5 га'], [20, '5–20 га'], [100, '20–100 га'], [Infinity, 'больше 100 га']];
@@ -297,23 +297,36 @@ function waterHTML(d) {
   </div>`;
 }
 
-// Источники — карточками: что даёт источник, откуда, точность и лицензия, и его цифра в этом аймаке
-// (пользователь 04.11.2026: «источники данных тоже не оформлены»). Цвет полосы — цвет той же части
-// на карте и в легенде. Параметры — таблицей «значение — что значит»; порядок учёта — цепочкой.
+// Источники — по группам (государственные порталы, открытые данные), карточкой на источник: знак
+// источника, что даёт, плашки точности и лицензии, две цифры в этом аймаке (пользователь 04.11.2026:
+// «источники данных тоже не оформлены»; «Блок источников переносим в конец. Обьекты и источники
+// делаем красивше»). Цвет знака — цвет той же части на карте. Ниже — порядок учёта и параметры.
 function sourcesHTML(d) {
   const { a, fmt } = d;
   const o = a.occ;
   const c = o.cmp || {};
   const nfr0 = (x) => Math.round(x || 0).toLocaleString('ru-RU');
   const zonesHa = Object.values(o.zones || {}).reduce((t, x) => t + x, 0);
-  const src = [
-    ['o', 'Участки с ЕНИ', 'ГУ «Кадастр» — картосервер портала, слой ENI_WGS84', 'контуры, форма собственности, вид использования, назначение, даты', `${nfr0(o.parcels)} участков`, `занято ${fmt.area(o.occHa)}`],
-    ['a', 'Границы и баланс аймака', 'Адресный регистр «Дарек», ГУ «Кадастр»', 'контур аймака, земельный баланс по категориям', fmt.area(a.areaHa), a.balance && a.balance.total ? `по балансу ${fmt.area(a.balance.total)}` : 'баланса нет'],
-    ['r', 'Дороги, вода, русла', 'OpenStreetMap — векторные плитки OpenFreeMap', 'коридор дороги и русла — по классу', `дороги ${fmt.area(o.roadsHa || 0)}`, `вода ${fmt.area(c.waterOsmHa || 0)}`],
-    ['g', 'Овраги, обрывы, карьеры, осыпи', 'OpenStreetMap — Overpass', 'линии и контуры природных и нарушенных форм', fmt.area(c.reliefOsmHa || 0), o.reliefOk === false ? 'не получено' : 'до вычета участков'],
-    ['w', 'Вода, покров земли', 'ESA WorldCover 2021 v200 · 10 м · CC BY 4.0', 'вода и болота, голая поверхность, снег; зоны свободной земли', `вода ${fmt.area(c.waterWcHa || 0)}`, `зоны ${fmt.area(zonesHa)}`],
-    ['l', 'Рельеф', 'Copernicus DEM GLO-30 · 30 м, сгущение до 10 м', `уклон: круче ${o.slope}° — крутой склон${o.rockSlope ? `, круче ${o.rockSlope}° на голой поверхности — скалы` : ''}`, fmt.area(c.steepHa || 0), 'склонов до вычета'],
-    ['b', 'Здания', 'Microsoft Global ML Building Footprints · выпуск 2026-02 · ODbL', `контуры по снимкам; на участке — от ${fmt.pct(o.bldOn != null ? o.bldOn : 0.1)} площади`, `${nfr0(c.buildings)} зданий`, `без ЕНИ ${nfr0(c.buildingsNoEni)}`],
+  const bldOn = fmt.pct(o.bldOn != null ? o.bldOn : 0.1);
+  const groups = [
+    ['Государственные порталы', [
+      { k: 'o', tag: 'ЕНИ', t: 'Участки с ЕНИ', from: 'ГУ «Кадастр» — картосервер портала, слой ENI_WGS84', chips: ['контуры участков', 'форма собственности', 'вид использования'],
+        use: 'занятая земля, сводка участков по формам собственности и назначению', v: [[nfr0(o.parcels), 'участков'], [fmt.area(o.occHa), 'занято']] },
+      { k: 'a', tag: 'Дарек', t: 'Границы и баланс аймака', from: 'Адресный регистр «Дарек», ГУ «Кадастр»', chips: ['контур аймака', 'земельный баланс'],
+        use: 'границы расчёта и сверка с балансом по категориям земель', v: [[fmt.area(a.areaHa), 'по контуру'], [a.balance && a.balance.total ? fmt.area(a.balance.total) : '—', 'по балансу']] },
+    ]],
+    ['Открытые данные', [
+      { k: 'r', tag: 'OSM', t: 'Дороги, вода, русла', from: 'OpenStreetMap — векторные плитки OpenFreeMap', chips: ['ODbL', 'коридор по классу'],
+        use: 'дороги и русла — коридором по классу, водоёмы и болота — контуром', v: [[fmt.area(o.roadsHa || 0), 'дороги'], [fmt.area(c.waterOsmHa || 0), 'вода']] },
+      { k: 'g', tag: 'OSM', t: 'Овраги, обрывы, карьеры, осыпи', from: 'OpenStreetMap — Overpass', chips: ['ODbL', 'линии и контуры'],
+        use: 'нарушенные и природные формы рельефа — непригодно', v: [[fmt.area(c.reliefOsmHa || 0), o.reliefOk === false ? 'не получено' : 'до вычета участков'], [fmt.area(o.gullyHa != null ? o.gullyHa : 0), 'в расчёте']] },
+      { k: 'w', tag: 'ESA', t: 'Покров земли и вода', from: 'ESA WorldCover 2021 v200', chips: ['10 м', 'CC BY 4.0'],
+        use: 'вода и болота, голая поверхность, снег; зоны свободной земли', v: [[fmt.area(c.waterWcHa || 0), 'вода'], [fmt.area(zonesHa), 'свободно по зонам']] },
+      { k: 'l', tag: 'DEM', t: 'Рельеф', from: 'Copernicus DEM GLO-30', chips: ['30 м → 10 м', `круче ${o.slope}°`, ...(o.rockSlope ? [`скалы круче ${o.rockSlope}°`] : [])],
+        use: 'уклон по высотам: крутые склоны и скалы — непригодно', v: [[fmt.area(c.steepHa || 0), 'склонов до вычета'], [fmt.area(o.steepHa != null ? o.steepHa : (o.reliefHa || 0)), 'в расчёте']] },
+      { k: 'b', tag: 'MS', t: 'Здания по снимкам', from: 'Microsoft Global ML Building Footprints, выпуск 2026-02', chips: ['ODbL', `на участке — от ${bldOn}`],
+        use: 'здания вне участков с ЕНИ — занято без ЕНИ', v: [[nfr0(c.buildings), 'зданий'], [nfr0(c.buildingsNoEni), 'без ЕНИ']] },
+    ]],
   ];
   const steps = ['Участки с ЕНИ', 'Дороги', 'Вода', 'Овраги, карьеры', 'Скалы и осыпи', 'Снег и лёд', 'Крутые склоны', 'Здания без ЕНИ', 'Полосы и клочки', 'Свободно'];
   const par = [
@@ -321,16 +334,18 @@ function sourcesHTML(d) {
     ['Клочок', `меньше ${o.minPatch} м²`, 'обрывок свободной земли — непригоден'],
     ['Крутой склон', `круче ${o.slope}°`, 'по рельефу Copernicus DEM — непригоден'],
     ...(o.rockSlope ? [['Скалы', `круче ${o.rockSlope}°`, 'голая поверхность WorldCover на таком склоне — скалы и осыпи; положе — голая земля, свободна']] : []),
-    ['Здание на участке', `от ${fmt.pct(o.bldOn != null ? o.bldOn : 0.1)} площади`, 'доля площади контура здания на участках с ЕНИ'],
+    ['Здание на участке', `от ${bldOn} площади`, 'доля площади контура здания на участках с ЕНИ'],
     ['Двор здания без ЕНИ', `${o.bldYard} м`, 'полоса вокруг здания вне участков — занято'],
     ['Коридор дороги', '6–50 м', 'магистраль 50 · главная 32 · жилая 16 · проезд 10 · полевая 6 м'],
     ['Ширина русла', '3–25 м', 'река 25 · канал 10 · ручей 5 · коллектор 4 · арык 3 м'],
     ['Вода на участке', 'от 20 % площади', 'участок с ЕНИ считается лежащим на воде'],
   ];
-  return `<div class="ad-src-grid">${src.map(([k, t, from, use, v1, v2]) => `<section class="ad-srcc c-${k}">
-      <h3>${esc(t)}</h3><p class="ad-srcc-from">${esc(from)}</p>
-      <p class="ad-srcc-use">${esc(use)}</p>
-      <div class="ad-srcc-v"><b class="num">${esc(v1)}</b><span>${esc(v2)}</span></div></section>`).join('')}</div>
+  const card = (s) => `<section class="ad-srcc c-${s.k}">
+      <header><span class="ad-srcc-tag" aria-hidden="true">${esc(s.tag)}</span><div><h3>${esc(s.t)}</h3><p class="ad-srcc-from">${esc(s.from)}</p></div></header>
+      <p class="ad-srcc-use">${esc(s.use)}</p>
+      <p class="ad-srcc-chips">${s.chips.map((x) => `<span>${esc(x)}</span>`).join('')}</p>
+      <dl class="ad-srcc-v">${s.v.map(([v, l]) => `<div><dt>${esc(l)}</dt><dd class="num">${esc(v)}</dd></div>`).join('')}</dl></section>`;
+  return `${groups.map(([g, list]) => `<h3 class="ad-group">${esc(g)}<span>${list.length}</span></h3><div class="ad-src-grid">${list.map(card).join('')}</div>`).join('')}
     <section class="ad-card"><h3>Порядок учёта</h3>
       <ol class="ad-steps">${steps.map((s, i) => `<li><span class="num">${i + 1}</span>${esc(s)}</li>`).join('')}</ol>
       <p class="an-d-note">Каждая следующая часть считается только там, где не легли предыдущие: площадь не учитывается дважды.</p></section>
