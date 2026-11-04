@@ -39,7 +39,7 @@ import { enhanceSelects } from '../../kernel/dropdown.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { fillAdmin, pointOf } from '../../kernel/darekAdmin.js';
-import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, freeView } from '../../kernel/landStats.js';
+import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, freeCell, aimaksInCell, CELL } from '../../kernel/landStats.js';
 
 const SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 // Типы ОЦ с участком (у ТС и механизмов земли нет).
@@ -63,11 +63,11 @@ const roadHa = (o) => (o && o.roadsHa) || 0;
 // вблизи её клетки видны (замечание пользователя 04.11.2026 «Что за квадраты?»),
 // а незанятое и так видно промежутками между участками Кадастра — с 12 она
 // тает и к 14 уходит. Сглаживание — без клеток при любом масштабе.
-const FREE_OPACITY = ['interpolate', ['linear'], ['zoom'], 11.5, 0.55, 13, 0.55, 13.5, 0];
-// Вблизи (с 13,5) — точная картинка под экран (landStats.freeView): контуры
-// аймаков минус участки Кадастра минус дороги, в разрешении экрана.
-const VIEW_ZOOM = 13;
-const VIEW_OPACITY = ['interpolate', ['linear'], ['zoom'], 13, 0, 13.5, 0.55];
+const FREE_OPACITY = ['interpolate', ['linear'], ['zoom'], 11.5, 0.55, 13.6, 0.55, 14.1, 0];
+// Вблизи (с 13,6) — клетки по координатам (landStats.freeCell): контуры аймаков
+// минус участки Кадастра минус дороги; остаются на карте, дорисовываются при движении.
+const VIEW_ZOOM = 13.4;
+const VIEW_OPACITY = ['interpolate', ['linear'], ['zoom'], 13.6, 0, 14.1, 0.55];
 const merc3857 = ([lon, lat]) => [lon * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) * 20037508.34 / Math.PI];
 
 // Единицы площади (пользователь 04.11.2026: «Единицы измерения тоже
@@ -386,6 +386,8 @@ export function mountAnalytics(host) {
   // слоем); видны с приближения 8, едут вместе с картой (transform).
   const labels = new Map();
   let declutterRef = null;
+  let cellsApi = null;   // клетки незанятой земли вблизи (mountMap)
+  let cellSig = '';
   const syncLabels = (shown) => {
     const want = new Set(shown.map((r) => r.a.code));
     labels.forEach((m, c) => { if (!want.has(c)) { m.remove(); labels.delete(c); } });
@@ -423,6 +425,9 @@ export function mountAnalytics(host) {
     map.getSource('objs').setData({ type: 'FeatureCollection', features: pts });
     syncLabels(shown);
     if (declutterRef) declutterRef();
+    // Клетки вблизи зависят от показанных посчитанных аймаков и даты расчёта — сменились, перерисовать.
+    const sig = shown.filter((r) => r.a.occ).map((r) => r.a.code + '@' + r.a.occ.at).join('|');
+    if (cellsApi && sig !== cellSig) { cellSig = sig; cellsApi.drop(); cellsApi.load(); }
     // Незанятая земля — картинка на посчитанный аймак.
     // Скрытые отбором не снимаются с карты, а прячутся: снятие во время загрузки
     // картинки обрывает её с ошибкой в консоли.
@@ -447,7 +452,7 @@ export function mountAnalytics(host) {
     const vis = (on) => (on ? 'visible' : 'none');
     if (map.getLayer('aim-fill')) map.setLayoutProperty('aim-fill', 'visibility', vis(view.layers.share));
     freeIds.forEach((c) => map.setLayoutProperty('free-' + c, 'visibility', vis(view.layers.free && freeShown.has(c))));
-    if (map.getLayer('free-view')) map.setLayoutProperty('free-view', 'visibility', vis(view.layers.free));
+    if (cellsApi) { cellsApi.all.forEach((c) => { if (map.getLayer(c.id)) map.setLayoutProperty(c.id, 'visibility', vis(view.layers.free)); }); if (view.layers.free) cellsApi.load(); }
     if (map.getLayer('objs')) map.setLayoutProperty('objs', 'visibility', vis(view.layers.objs));
     (map.getStyle().layers || []).filter((l) => l.source === 'cadP' || l.source === 'cadB')
       .forEach((l) => map.setLayoutProperty(l.id, 'visibility', vis(view.layers.cad)));
@@ -513,46 +518,70 @@ export function mountAnalytics(host) {
     map.addLayer({ id: 'objs', type: 'circle', source: 'objs',
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 14, 7], 'circle-color': '#0d366b', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
     tip = hoverTip(gl, map);
-    // Точная незанятая земля под экран: после остановки карты, по очереди (новая
-    // картинка не обрывает загрузку прежней), прежняя видна, пока готовится новая.
-    let vBusy = false;
-    let vQueued = null;
-    let vTimer = 0;
-    let vSeq = 0;
-    const vApply = (img) => {
-      if (!map || !map.getStyle()) return;
-      if (vBusy) { vQueued = img; return; }
-      const src = map.getSource('free-view');
-      vBusy = true;
-      if (src) src.updateImage(img);
-      else {
-        map.addSource('free-view', { type: 'image', url: img.url, coordinates: img.coordinates });
-        map.addLayer({ id: 'free-view', type: 'raster', source: 'free-view', paint: { 'raster-opacity': VIEW_OPACITY, 'raster-fade-duration': 0 } }, 'aim-line');
+    // Незанятая земля вблизи — клетками CELL метров карты (как плитки): ближние к
+    // середине — первыми, кольцо вокруг экрана — заранее, во время движения — раз
+    // в 250 мс. Нарисованная клетка остаётся; больше 120 — дальние снимаются.
+    const cellsOn = new Map();   // «i/j» → { id, url, b }
+    const cellsWait = new Set();
+    let cellQ = [];
+    let cellRun = 0;
+    let cellGen = 0;
+    const cellShown = () => rows().filter(matches).map((r) => r.a);
+    const dropCells = () => {
+      cellGen++;
+      cellQ = [];
+      cellsWait.clear();
+      cellsOn.forEach((c) => { if (map.getLayer(c.id)) map.removeLayer(c.id); if (map.getSource(c.id)) map.removeSource(c.id); URL.revokeObjectURL(c.url); });
+      cellsOn.clear();
+    };
+    const cellPump = () => {
+      while (cellRun < 2 && cellQ.length) {
+        const { key, b } = cellQ.shift();
+        const gen = cellGen;
+        cellRun++;
+        freeCell(cellShown(), b).then((img) => {
+          if (gen !== cellGen || dead || !map || !map.getStyle()) { if (img) URL.revokeObjectURL(img.url); return; }
+          if (!img) return;
+          const id = 'fc-' + key.replace('/', '_');
+          map.addSource(id, { type: 'image', url: img.url, coordinates: img.coords });
+          map.addLayer({ id, type: 'raster', source: id, layout: { visibility: view.layers.free ? 'visible' : 'none' },
+            paint: { 'raster-opacity': VIEW_OPACITY, 'raster-fade-duration': 0 } }, 'aim-line');
+          cellsOn.set(key, { id, url: img.url, b });
+        }).catch((e) => console.warn('Клетка незанятой земли не нарисована', e))
+          .finally(() => { cellsWait.delete(key); cellRun--; cellPump(); });
       }
     };
-    map.on('sourcedata', (e) => {
-      if (e.sourceId !== 'free-view' || !e.isSourceLoaded || !vBusy) return;
-      vBusy = false;
-      if (vQueued) { const q = vQueued; vQueued = null; vApply(q); }
-    });
-    const viewFree = async () => {
+    const cellLoad = () => {
       if (!map || map.getZoom() < VIEW_ZOOM || !view.layers.free || view.mode !== 'map') return;
-      const seq = ++vSeq;
-      const c = map.getCanvas();
-      const k = Math.min(1, 2048 / Math.max(c.clientWidth, c.clientHeight));
-      const w = Math.round(c.clientWidth * k);
-      const h = Math.round(c.clientHeight * k);
       const bb = map.getBounds();
       const [x1, y1] = merc3857([bb.getWest(), bb.getSouth()]);
       const [x2, y2] = merc3857([bb.getEast(), bb.getNorth()]);
-      try {
-        const img = await freeView(rows().filter(matches).map((r) => r.a), [x1, y1, x2, y2], w, h);
-        if (seq !== vSeq || dead || !img) return;
-        vApply({ url: img.url, coordinates: img.coords });
-      } catch (e) { console.warn('Незанятая земля вблизи не нарисована', e); }
+      const cx = (x1 + x2) / 2;
+      const cy = (y1 + y2) / 2;
+      const shown = cellShown();
+      for (let i = Math.floor(x1 / CELL) - 1; i <= Math.floor(x2 / CELL) + 1; i++) {
+        for (let j = Math.floor(y1 / CELL) - 1; j <= Math.floor(y2 / CELL) + 1; j++) {
+          const key = i + '/' + j;
+          if (cellsOn.has(key) || cellsWait.has(key)) continue;
+          const b = [i * CELL, j * CELL, (i + 1) * CELL, (j + 1) * CELL];
+          if (!aimaksInCell(shown, b).length) continue;
+          cellsWait.add(key);
+          cellQ.push({ key, b });
+        }
+      }
+      const d = (c) => Math.hypot((c.b[0] + c.b[2]) / 2 - cx, (c.b[1] + c.b[3]) / 2 - cy);
+      cellQ.sort((p, q) => d(p) - d(q));
+      // Дальние нарисованные — снять, если их много (память и число слоёв карты).
+      if (cellsOn.size > 120) {
+        [...cellsOn.entries()].map(([k, c]) => [k, c, d(c)]).sort((p, q) => q[2] - p[2]).slice(0, cellsOn.size - 120)
+          .forEach(([k, c]) => { if (map.getLayer(c.id)) map.removeLayer(c.id); if (map.getSource(c.id)) map.removeSource(c.id); URL.revokeObjectURL(c.url); cellsOn.delete(k); });
+      }
+      cellPump();
     };
-    map.on('moveend', () => { clearTimeout(vTimer); vTimer = setTimeout(viewFree, 200); });
-    sceneEl._viewFree = viewFree;
+    let cellT = 0;
+    map.on('move', () => { if (!cellT) cellT = setTimeout(() => { cellT = 0; cellLoad(); }, 250); });
+    map.on('moveend', cellLoad);
+    cellsApi = { drop: dropCells, load: cellLoad, all: cellsOn };
     // Подписи не налезают друг на друга: после остановки карты лишние прячутся;
     // первой — подпись выбранного аймака, дальше — по площади.
     const declutter = () => {

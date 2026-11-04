@@ -92,26 +92,42 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
       const box = queue.shift();
       running += 1;
       Promise.all([
-        featuresInBox('ENI_WGS84', box, PARCEL_FIELDS, 800),
-        featuresInBox('ENI_BUILDINGS', box, BUILD_FIELDS, 800),
+        // Клетка — в кэше браузера на 7 дней (kernel/netCache.js): вернулся на место — без запроса.
+        featuresInBox('ENI_WGS84', box, PARCEL_FIELDS, 800, { cacheDays: 7 }),
+        featuresInBox('ENI_BUILDINGS', box, BUILD_FIELDS, 800, { cacheDays: 7 }),
       ]).then(([ps, bs]) => {
         if (!map.getStyle()) return;
         take(ps, parcels, 'p', (f) => (f.properties && f.properties.PROPCODE) || JSON.stringify(f.geometry).slice(0, 80));
         take(bs, builds, 'b', (f) => JSON.stringify(f.geometry).slice(0, 120));
-        map.getSource('cadP').setData({ type: 'FeatureCollection', features: parcels });
-        map.getSource('cadB').setData({ type: 'FeatureCollection', features: builds });
+        flush();
       }).catch(() => { failed = true; cells.delete(box.join(',')); })
         .finally(() => { running -= 1; status(); pump(); });
     }
   };
+  // Слой обновляется разом не чаще раза в 150 мс: каждая клетка, ставившая
+  // данные сразу, заново раскладывала весь растущий слой (замечание
+  // пользователя 04.11.2026 — «Отрисовывается только пока карта в состоянии
+  // покоя», «отрисовка тормозит»).
+  let flushT = 0;
+  const flush = () => {
+    if (flushT) return;
+    flushT = setTimeout(() => {
+      flushT = 0;
+      if (!map.getStyle()) return;
+      map.getSource('cadP').setData({ type: 'FeatureCollection', features: parcels });
+      map.getSource('cadB').setData({ type: 'FeatureCollection', features: builds });
+    }, 150);
+  };
+  // Клетки — под экран и кольцом вокруг (подгрузка заранее), и не только по
+  // остановке: во время движения — раз в 250 мс. Ближние к середине — первыми.
   const load = () => {
     if (map.getZoom() < MIN_ZOOM) { status(); return; }
     failed = false;
     const b = map.getBounds();
     const c = b.getCenter();
     const want = [];
-    for (let i = Math.floor(b.getSouth() / CELL_LAT); i <= Math.floor(b.getNorth() / CELL_LAT); i++) {
-      for (let j = Math.floor(b.getWest() / CELL_LON); j <= Math.floor(b.getEast() / CELL_LON); j++) {
+    for (let i = Math.floor(b.getSouth() / CELL_LAT) - 1; i <= Math.floor(b.getNorth() / CELL_LAT) + 1; i++) {
+      for (let j = Math.floor(b.getWest() / CELL_LON) - 1; j <= Math.floor(b.getEast() / CELL_LON) + 1; j++) {
         const box = [j * CELL_LON, i * CELL_LAT, (j + 1) * CELL_LON, (i + 1) * CELL_LAT];
         const k = box.join(',');
         if (cells.has(k)) continue;
@@ -119,14 +135,19 @@ export function attachCadastreGL(gl, map, { beforeId } = {}) {
         want.push([box, Math.hypot((box[1] + box[3]) / 2 - c.lat, (box[0] + box[2]) / 2 - c.lng)]);
       }
     }
-    want.sort((x, y) => x[1] - y[1]).forEach(([box]) => queue.push(box));
+    want.forEach(([box]) => queue.push(box));
+    const d = (box) => Math.hypot((box[1] + box[3]) / 2 - c.lat, (box[0] + box[2]) / 2 - c.lng);
+    queue.sort((x, y) => d(x) - d(y));
     status();
     pump();
   };
+  let moveT = 0;
+  const onMoving = () => { if (!moveT) moveT = setTimeout(() => { moveT = 0; load(); }, 250); };
   map.on('moveend', load);
+  map.on('move', onMoving);
   load();
   return () => {
-    map.off('moveend', load); map.off('click', onClick); map.off('mousemove', onMove); map.off('mouseout', onOut);
+    map.off('moveend', load); map.off('move', onMoving); clearTimeout(moveT); clearTimeout(flushT); map.off('click', onClick); map.off('mousemove', onMove); map.off('mouseout', onOut);
     queue.length = 0; tip.hide(); note.remove();
   };
 }

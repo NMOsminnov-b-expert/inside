@@ -305,38 +305,47 @@ export function exportSeed(objs) {
   return { at: new Date().toISOString(), aimaks: allAimaks(), adm };
 }
 
-// --- незанятая земля на видимой части карты (вблизи) -------------------------
+// --- незанятая земля вблизи — клетками ------------------------------------
 // Пользователь 04.11.2026 про картинку аймака ≈ 30 м: «Я про грубую очень
-// сетку при приближении». Вблизи незанятое рисуется заново под экран: контуры
-// посчитанных аймаков минус участки Кадастра минус дороги OSM, по координатам,
-// в разрешении экрана. Контуры и дороги — из кэша (kernel/netCache.js).
-// view — [x1, y1, x2, y2] в метрах карты; w × h — точек полотна. Возвращает
-// { url, coords } для источника-картинки карты или null, если аймаков в виде нет.
-export async function freeView(rows, view, w, h) {
-  const hit = rows.filter((a) => a && a.geometry && a.occ).filter((a) => {
+// сетку при приближении»; затем про картинку под экран: «Отрисовывается только
+// пока карта в состоянии покоя». Вблизи незанятое рисуется клетками (как плитки
+// карты): клетка CELL метров карты — контуры посчитанных аймаков минус участки
+// Кадастра минус дороги OSM, по координатам, 1024 точки (≈ 1,5 м земли на точку);
+// нарисованная клетка остаётся на карте, при движении дорисовываются новые.
+// Контуры и дороги — из кэша (kernel/netCache.js). Картинка — файлом в памяти
+// браузера (toBlob, без кодирования в строку).
+export const CELL = 2048;   // метров карты
+const CELL_PX = 1024;
+
+function bboxOf(a) {
+  if (!a._bb) {
     const polys = a.geometry.type === 'Polygon' ? [a.geometry.coordinates] : a.geometry.coordinates;
-    if (!a._bb) {
-      let [bx1, by1, bx2, by2] = [Infinity, Infinity, -Infinity, -Infinity];
-      polys.forEach((rings) => rings[0].forEach(([lon, lat]) => { const [x, y] = merc(lon, lat); bx1 = Math.min(bx1, x); by1 = Math.min(by1, y); bx2 = Math.max(bx2, x); by2 = Math.max(by2, y); }));
-      Object.defineProperty(a, '_bb', { value: [bx1, by1, bx2, by2], enumerable: false, configurable: true });
-    }
-    const bb = a._bb;
-    return !(bb[2] < view[0] || bb[0] > view[2] || bb[3] < view[1] || bb[1] > view[3]);
-  });
+    let [bx1, by1, bx2, by2] = [Infinity, Infinity, -Infinity, -Infinity];
+    polys.forEach((rings) => rings[0].forEach(([lon, lat]) => { const [x, y] = merc(lon, lat); bx1 = Math.min(bx1, x); by1 = Math.min(by1, y); bx2 = Math.max(bx2, x); by2 = Math.max(by2, y); }));
+    Object.defineProperty(a, '_bb', { value: [bx1, by1, bx2, by2], enumerable: false, configurable: true });
+  }
+  return a._bb;
+}
+const meets = (bb, b) => !(bb[2] < b[0] || bb[0] > b[2] || bb[3] < b[1] || bb[1] > b[3]);
+
+// Аймаки (посчитанные), задевающие клетку b = [x1, y1, x2, y2] (метры карты).
+export const aimaksInCell = (rows, b) => rows.filter((a) => a && a.geometry && a.occ && meets(bboxOf(a), b));
+
+// Картинка незанятой земли клетки: { url, coords } или null, если аймаков в клетке нет.
+export async function freeCell(rows, b) {
+  const hit = aimaksInCell(rows, b);
   if (!hit.length) return null;
-  const [fs, rd] = await Promise.all([parcelsIn(view), roadsInBox(view).catch(() => [])]);
+  const [fs, rd] = await Promise.all([parcelsIn(b), roadsInBox(b).catch(() => [])]);
   const cv = document.createElement('canvas');
-  cv.width = w;
-  cv.height = h;
+  cv.width = cv.height = CELL_PX;
   const ctx = cv.getContext('2d');
-  const kx = w / (view[2] - view[0]);
-  const ky = h / (view[3] - view[1]);
+  const k = CELL_PX / (b[2] - b[0]);
   const trace = (g) => {
     const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
     polys.forEach((rings) => rings.forEach((ring) => ring.forEach(([lon, lat], i) => {
       const [x, y] = merc(lon, lat);
-      const px = (x - view[0]) * kx;
-      const py = (view[3] - y) * ky;
+      const px = (x - b[0]) * k;
+      const py = (b[3] - y) * k;
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     })));
   };
@@ -346,8 +355,7 @@ export async function freeView(rows, view, w, h) {
   ctx.fillStyle = '#000';
   fs.forEach((f) => { if (f.geometry) { ctx.beginPath(); trace(f.geometry); ctx.fill('evenodd'); } });
   ctx.strokeStyle = '#000';
-  // Полотно не квадратное: дороги — с масштабом по ширине (kx ≈ ky у экрана).
-  strokeRoads(ctx, rd, [view[0], view[3] - (view[2] - view[0]), view[2], view[3]], w);
-  ctx.globalCompositeOperation = 'source-over';
-  return { url: cv.toDataURL('image/png'), coords: [unmerc(view[0], view[3]), unmerc(view[2], view[3]), unmerc(view[2], view[1]), unmerc(view[0], view[1])] };
+  strokeRoads(ctx, rd, b, CELL_PX);
+  const blob = await new Promise((ok) => cv.toBlob(ok, 'image/png'));
+  return { url: URL.createObjectURL(blob), coords: [unmerc(b[0], b[3]), unmerc(b[2], b[3]), unmerc(b[2], b[1]), unmerc(b[0], b[1])] };
 }
