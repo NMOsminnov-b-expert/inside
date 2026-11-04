@@ -19,6 +19,8 @@ import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activ
 import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 import { inventoryById, progressOf } from '../../kernel/inventories.js';
+import { peekResults } from '../../kernel/inspectionResults.js';
+import { ownOis, mechProgress, oiLabel as taskOiLabel } from '../inspector/tasks.js';
 
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -120,6 +122,7 @@ function assignHTML(all, a, canBack) {
     return `<p class="ip-line"><b>${esc(inv.title)}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}
       <br><button type="button" class="btn btn-ghost btn-sm" data-ip-inv-report="${esc(id)}">Отчёт по описи (xlsx)</button></p>`;
   }).join('')}</section>` : ''}
+    ${mechHTML(a, c)}
     <section class="ip-sec"><h3>События</h3>
       <ul class="ip-evs">${evs.map((e) => `<li><time>${esc(fmtDate(e.at))} ${esc(new Date(e.at).toTimeString().slice(0, 5))}</time>
         <span>${esc(EVENT_LABELS[e.kind] || e.kind)}${e.count ? `: ${e.count}` : ''}${e.text ? `: ${esc(e.text)}` : ''}${e.field ? `: ${esc(e.field)}` : ''}</span></li>`).join('')}</ul>
@@ -128,6 +131,19 @@ function assignHTML(all, a, canBack) {
     · <a href="${esc(build({ typeId: a.typeId, ocId: a.ocId }))}">карточка</a>`;
   return shell(esc(s ? s.title : '—'), sub, body, canBack,
     isLive(a) ? `<button class="btn btn-primary btn-sm" data-ip-dp-edit="${esc(a.id)}">Изменить в «Назначено»</button>` : '');
+}
+
+// Механизмы назначения — по описи (решение 04.11.2026 «Истина - опись»):
+// ход по отметкам единиц из результатов осмотра, общий для всех выездов.
+function mechHTML(a, c) {
+  if (!c || !c.rec) return '';
+  const r = peekResults(a.typeId, a.ocId);
+  const ois = ownOis(c.rec).filter((o) => o.card === 'mech' && (!a.oiIds || !a.oiIds.length || a.oiIds.includes(o.id)));
+  if (!ois.length) return '';
+  return `<section class="ip-sec"><h3>Механизмы по описи</h3>${ois.map((o) => {
+    const pr = mechProgress(o, r && r.assets && r.assets[o.id]);
+    return `<p class="ip-line"><b>${esc(taskOiLabel(o))}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.done ? ' · <b>осмотрены все</b>' : ''}</p>`;
+  }).join('')}</section>`;
 }
 
 // Краткая карточка осмотрщика — из сводной таблицы.

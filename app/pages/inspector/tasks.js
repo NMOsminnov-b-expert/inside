@@ -381,6 +381,30 @@ const selfOis = (rec) => [...selfTs(rec), ...selfMech(rec)];
 // осмотрщику (вкладка «Результаты осмотра» карточки, pages/inspector/results.js).
 export const ownOis = (rec) => [...((rec && rec.oi) || []), ...selfOis(rec)];
 
+// Ход осмотра механизмов по описи — по отметкам единиц (поля осмотра
+// «u.<единица>.found» — «Найдено» / «Не найдено» и «u.<единица>.state»).
+// Решение пользователя 04.11.2026: «Механизмы подвязываются из описей. В
+// приложении есть статусы осмотрено/не осмотрено по описям. Истина - опись» —
+// осмотренность механизмов (ОИ и ОЦ «Механизмы и оборудование») считается по
+// отметкам единиц, а не по отметке «Осмотр закончен» назначения.
+// values — значения осмотра этого ОИ (inspectionResults.valuesOf / assets[oi.id]).
+export function mechProgress(oi, values) {
+  const units = (oi && oi.mechanisms) || [];
+  const v = values || {};
+  const get = (id, k) => String(((v.u || {})[id] || {})[k] || v[`u.${id}.${k}`] || '');
+  const p = { total: units.length, seen: 0, missing: 0, broken: 0, repair: 0 };
+  units.forEach((u) => {
+    const f = get(u.id, 'found');
+    const st = get(u.id, 'state');
+    if (f === 'Найдено') p.seen++;
+    if (f === 'Не найдено') p.missing++;
+    if (st === 'Нерабочее') p.broken++;
+    if (st === 'В ремонте') p.repair++;
+  });
+  p.done = p.total > 0 && p.seen + p.missing === p.total;
+  return p;
+}
+
 // Описи, приложенные к назначениям этого осмотрщика по объекту (этап Б2):
 // [{ inv, assignId }] без повторов.
 export function myInventories(typeId, ocId) {

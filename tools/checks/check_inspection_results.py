@@ -198,3 +198,27 @@ def run(t):
     pg.evaluate("async ([ty, id]) => (%s).finishWork('Айдай', ty, id, false)" % KI, pick[:2])
     t.ck(not pg.evaluate("async (k) => (%s).finishedObjects().has(k)" % KI, '%s|%s' % (pick[0], pick[1])),
          'после снятия отметки объект остался законченным')
+
+    # --- механизмы по описи (решение 04.11.2026 «Истина - опись») ---
+    # ОЦ «Механизмы и оборудование»: все единицы отмечены «Найдено» в значениях
+    # осмотра — ОИ «механизмы» осмотрен по описи без «Осмотр закончен», ход виден
+    # во вкладке «Результаты осмотра».
+    mech = pg.evaluate("""async () => { const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspector/tasks.js');
+      const t = R.getType('mechanisms'); const rec = (t.records.allRecords() || []).find((r) => r.mech && (r.mech.mechanisms || []).length > 1);
+      if (!rec) return null; const oi = T.ownOis(rec).find((o) => o.card === 'mech'); return [rec.id, oi.id, oi.mechanisms.map((u) => u.id)]; }""")
+    if t.ck(mech, 'нет ОЦ «Механизмы» с несколькими единицами'):
+        oc, oid, units = mech
+        pg.evaluate("""async ([oc, oid, units]) => { const IR = await import('./app/kernel/inspectionResults.js'); const F = await import('./app/kernel/fieldSchema.js');
+          const v = IR.valuesOf('mechanisms', oc, oid); units.forEach((u, i) => F.setValue(v, 'u.' + u + '.found', i === 0 ? 'Не найдено' : 'Найдено'));
+          F.setValue(v, 'u.' + units[1] + '.state', 'Нерабочее'); IR.saveResults(); }""", [oc, oid, units])
+        pr = pg.evaluate("""async ([oc, oid]) => { const IR = await import('./app/kernel/inspectionResults.js'); const T = await import('./app/pages/inspector/tasks.js');
+          const R = await import('./app/kernel/registry.js'); const rec = R.getType('mechanisms').records.loadRecord(oc);
+          const oi = T.ownOis(rec).find((o) => o.id === oid); return T.mechProgress(oi, IR.peekResults('mechanisms', oc).assets[oid]); }""", [oc, oid])
+        t.ck(pr['total'] == len(units) and pr['seen'] == len(units) - 1 and pr['missing'] == 1 and pr['broken'] == 1 and pr['done'],
+             'ход механизмов по описи посчитан неверно: %s' % pr)
+        pg.evaluate("async (oc) => (%s).assign({ typeId: 'mechanisms', ocId: oc, person: 'Айдай' })" % KI, oc)
+        t.open('#/oc/mechanisms/%s?tab=inspection' % oc, wait='.ir')
+        txt = pg.inner_text('.ir')
+        t.ck('по описи: осмотрено %d из %d' % (len(units), len(units)) in txt and 'не найдено 1' in txt and 'нерабочих 1' in txt,
+             'во «Результатах осмотра» нет хода механизмов по описи: %s' % txt[:300])
+        t.ck('ждёт приёмки' in txt, 'механизмы, отмеченные по описи полностью, не ждут приёмки')

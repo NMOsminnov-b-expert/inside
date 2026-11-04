@@ -37,7 +37,7 @@ import { colGroupHTML, colLabelHTML, resizeGripHTML, colVar } from '../../kernel
 import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { importArchive } from './archiveImport.js';
 import { sections, setNetsRec } from './form.js';
-import { oiLabel, ownOis } from './tasks.js';
+import { oiLabel, ownOis, mechProgress } from './tasks.js';
 
 ensureStyle('./app/pages/inspector/results.css');
 
@@ -124,8 +124,10 @@ function itemsOf(typeId, rec, r, list) {
   ownOis(rec).forEach((oi) => {
     const cmp = compareOf(typeId, rec, oi, r);
     const by = list.filter((a) => coversOi(a, oi.id));
+    // Механизмы — по описи (решение 04.11.2026 «Истина - опись»): осмотрены, когда отмечены все единицы.
+    const mech = oi.card === 'mech' ? mechProgress(oi, r && r.assets && r.assets[oi.id]) : null;
     const x = { id: oi.id, kind: 'oi', oi, label: oiLabel(oi), by, cmp, photos: photosOf(oi.id), voices: voicesOf(oi.id), values: cmp.length,
-      diffs: cmp.filter((c) => c.diff).length, done: by.some((a) => a.state === 'done'), review: reviewOf(typeId, rec.id, oi.id) };
+      diffs: cmp.filter((c) => c.diff).length, done: by.some((a) => a.state === 'done') || !!(mech && mech.done), mech, review: reviewOf(typeId, rec.id, oi.id) };
     x.stage = stageOf(x);
     items.push(x);
   });
@@ -213,7 +215,7 @@ function navHTML(items, sel, v) {
     <div class="card-head"><h3>Что осмотрено</h3><span class="hint">${items.length}</span></div>
     <div class="card-pad"><div class="ir-frame" data-ir-tbl="nav"><table class="tbl ir-tbl ir-nav-tbl">${colGroupHTML(NAV_COLS, v.colW.nav)}${headHTML(NAV_COLS)}
       <tbody>${items.map((x) => {
-    const st = x.kind === 'oi' ? stagePill(x.stage) : x.kind === 'found' ? '<span class="pill ir-st ir-st-warn">выявлено</span>' : `<span class="ir-muted">${esc(x.sub)}</span>`;
+    const st = x.kind === 'oi' ? stagePill(x.stage) + (x.mech && x.mech.total ? `<span class="ir-muted ir-mech">по описи: осмотрено ${x.mech.seen + x.mech.missing} из ${x.mech.total}${x.mech.missing ? ` · не найдено ${x.mech.missing}` : ''}${x.mech.broken ? ` · нерабочих ${x.mech.broken}` : ''}${x.mech.repair ? ` · в ремонте ${x.mech.repair}` : ''}</span>` : '') : x.kind === 'found' ? '<span class="pill ir-st ir-st-warn">выявлено</span>' : `<span class="ir-muted">${esc(x.sub)}</span>`;
     const n = (k) => (k ? num(k) : '<span class="ir-muted">—</span>');
     return `<tr class="${x.id === sel ? 'on' : ''}" data-ir-row="${esc(x.id)}">
         <td class="ir-f"><button type="button" class="ir-rowbtn" data-ir-sel="${esc(x.id)}" aria-current="${x.id === sel}">${esc(x.label)}</button></td>

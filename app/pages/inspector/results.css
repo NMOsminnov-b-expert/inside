@@ -113,3 +113,5 @@ body[data-module] .ir-ret-form textarea { width: 100%; min-height: 54px; resize:
 @media (max-width: 1000px) {
   body[data-module] .ir-foot-all { margin-left: 0; }
 }
+/* Механизмы — ход по описи под отметкой приёмки (решение 04.11.2026 «Истина - опись»). */
+.ir-mech{display:block;margin-top:3px;font-size:11.5px;white-space:normal}
