@@ -229,6 +229,15 @@ def local_proj(lon0, lat0):
     return fwd, inv
 
 
+def to_ll(g, inv):
+    """Контур в долготу и широту, 6 знаков: чинится, округляется поточечно (без перестройки топологии)."""
+    g = clean_geom(transform(inv, g))
+    try:
+        return mapping(shapely.set_precision(g, 1e-6, mode='pointwise'))
+    except Exception:  # noqa: BLE001
+        return mapping(shapely.transform(g, lambda c: np.round(c, 6)))
+
+
 def clean_geom(g):
     g = shapely.make_valid(g)
     if g.geom_type == 'GeometryCollection':
@@ -428,17 +437,17 @@ def run_aimak(a, strip, min_patch, log):
         by_zone[k] = part.area / 1e4
         if not part.is_empty:
             simp = part.simplify(0.8, preserve_topology=True)
-            gj = mapping(shapely.set_precision(transform(inv, simp), 1e-6))
+            gj = to_ll(simp, inv)
             free_feats.append({'type': 'Feature', 'properties': {'zone': k}, 'geometry': gj})
             parts.append({'kind': 'free', 'zone': k, 'area_ha': part.area / 1e4, 'geom': gj})
     # непригодное и занятое без ЕНИ — тоже векторами (для карты и базы)
     for k, g in (('roads', roads_only), ('water', water_only), ('relief', rel_only), ('bld', bld_only), ('strips', strips), ('small', small_u)):
         if not g.is_empty:
-            gj = mapping(shapely.set_precision(transform(inv, g.simplify(0.8, preserve_topology=True)), 1e-6))
+            gj = to_ll(g.simplify(0.8, preserve_topology=True), inv)
             free_feats.append({'type': 'Feature', 'properties': {'zone': k}, 'geometry': gj})
             parts.append({'kind': k, 'zone': '', 'area_ha': g.area / 1e4, 'geom': gj})
     parts.append({'kind': 'occupied', 'zone': '', 'area_ha': parcels_u.area / 1e4,
-                  'geom': mapping(shapely.set_precision(transform(inv, parcels_u.simplify(0.5, preserve_topology=True)), 1e-6))})
+                  'geom': to_ll(parcels_u.simplify(0.5, preserve_topology=True), inv)})
     log('  зоны (%.0f с)' % (time.time() - t0))
     area = aim.area / 1e4
     ha = lambda g: (g.area / 1e4) if not g.is_empty else 0.0   # noqa: E731
@@ -492,6 +501,7 @@ def main():
     ap.add_argument('--min-patch', type=float, default=200.0, help='клочок, м²: меньше — непригоден')
     ap.add_argument('--point', default='', help='добавить аймак по точке «широта,долгота» (контур и баланс — Дарек)')
     ap.add_argument('--no-db', action='store_true', help='не писать в базу lands (PostgreSQL + PostGIS)')
+    ap.add_argument('--skip-done', action='store_true', help='пропустить аймаки, уже посчитанные векторным расчётом')
     args = ap.parse_args()
     log = lambda s: print(s, flush=True)   # noqa: E731
     seed = json.load(open(SEED, encoding='utf-8'))
@@ -511,9 +521,19 @@ def main():
         except Exception as ex:  # noqa: BLE001
             log('база lands недоступна — пишу только файлы: %s' % ex)
     todo = [a for a in seed['aimaks'] if a.get('geometry') and (not args.aimak or a['aimak'].lower().startswith(args.aimak.lower()))]
+    if args.skip_done:
+        todo = [a for a in todo if not (a.get('occ') or {}).get('zones')]
+    failed = []
     for a in todo:
         log('%s (%s)' % (a['aimak'], a['code']))
-        occ, pst, free, dbrows = run_aimak(a, args.strip, args.min_patch, log)
+        try:
+            occ, pst, free, dbrows = run_aimak(a, args.strip, args.min_patch, log)
+        except Exception as ex:  # noqa: BLE001
+            import traceback
+            log('  НЕ ПОСЧИТАН: %s' % ex)
+            log(traceback.format_exc()[-1500:])
+            failed.append(a['aimak'])
+            continue
         if db is not None:
             land_db.save(db, a, occ, *dbrows)
             log('  в базе lands: участков %d, зданий %d, частей %d' % tuple(len(x) for x in dbrows))
@@ -535,6 +555,11 @@ def main():
         }
         if not raw.is_valid:
             a['geometry'] = mapping(fixed)
+        # Точка подписи — гарантированно внутри самой большой части (среднее вершин у
+        # изрезанного контура уходило за его пределы: подпись «Ысык-Кол» стояла на озере).
+        big = max(getattr(fixed, 'geoms', [fixed]), key=lambda g: g.area)
+        lp = big.representative_point()
+        a['label'] = [round(lp.x, 6), round(lp.y, 6)]
         old = a.get('occ') or {}
         if old.get('free'):
             occ['free'] = old['free']    # картинка издали — пока прежняя; векторы — в free/<код>.json
@@ -551,6 +576,7 @@ def main():
         parcels['at'] = seed['at']
         with open(PARCELS, 'w', encoding='utf-8') as f:
             json.dump(parcels, f, ensure_ascii=False, separators=(',', ':'))
+    log('ИТОГ: посчитано %d, не посчитано %d%s' % (len(todo) - len(failed), len(failed), (' — ' + ', '.join(failed)) if failed else ''))
 
 
 if __name__ == '__main__':

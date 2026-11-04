@@ -41,6 +41,9 @@ import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { fillAdmin, pointOf } from '../../kernel/darekAdmin.js';
 import { allAimaks, aimakAt, estimateAimak, loadSeed, seedAdmOf, exportSeed, exportParcels, freeCell, aimaksInCell, CELL, allParcelStats, loadParcelsSeed } from '../../kernel/landStats.js';
 import { buildCube, summarize as parcelSum, parcelsHTML } from './parcels.js';
+import { dossierHTML, patchesOf, pickPatches, dossierSheets } from './dossier.js';
+import { downloadXlsx } from '../../kernel/xlsx.js';
+import { go } from '../../kernel/router.js';
 
 const SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 // Типы ОЦ с участком (у ТС и механизмов земли нет).
@@ -151,6 +154,10 @@ export function mountAnalytics(host) {
     open: new Set(), sel: '', layers: { share: true, free: true, objs: true, cad: true },
     mode: 'map', hideList: false, facets: false, unit: unitSaved(), sort: 'place', hov: '',
     pf: {}, pm: 'count',
+    // Досье аймака: код, вкладка, отбор массивов, свой отбор срезов участков, выбранный массив.
+    dossier: (host.route && host.route.query && host.route.query.a) || '', dtab: 'overview',
+    dcfg: { min: 0.1, zones: new Set() }, dpf: {}, dpick: 0,
+    pickSet: new Set(),   // аймаки, отмеченные для досье набора
     lgShut: (() => { try { return localStorage.getItem('inside.analytics.legend') === '0'; } catch (e) { return false; } })(),   // «Участки»: отбор срезов (ключ среза → набор значений) и мера
   };
   const U = () => UNITS.find((u) => u.key === view.unit) || UNITS[0];
@@ -234,6 +241,8 @@ export function mountAnalytics(host) {
           ${view.q ? '<button class="isearch-clear" data-an-q-clear title="Очистить" aria-label="Очистить поиск">×</button>' : ''}</span>
         <select class="select an-f" data-an-oblast aria-label="Область">${options(all.map((r) => r.a.oblast), view.oblast, 'Все области')}</select>
         <select class="select an-f" data-an-district aria-label="Район">${options(all.filter((r) => !view.oblast || r.a.oblast === view.oblast).map((r) => r.a.district), view.district, 'Все районы')}</select>
+        ${view.district && all.some((r) => r.a.district === view.district && isVec(r.a)) ? `<button type="button" class="btn btn-ghost an-fbtn" data-ad-open="${esc('d:' + view.district)}" title="Подробная аналитика по всем посчитанным аймакам района">Досье района</button>` : ''}
+        ${view.pickSet.size > 1 ? `<button type="button" class="btn btn-primary an-fbtn" data-ad-open="${esc('m:' + [...view.pickSet].join('|'))}">Досье выбранных · ${view.pickSet.size}</button>` : ''}
         <button type="button" class="btn btn-ghost an-fbtn${view.facets ? ' on' : ''}" data-an-facets aria-expanded="${view.facets}" aria-controls="anFacets">Отбор${fc ? `<b>${fc}</b>` : ''}</button>
       </div>
       <div class="an-isl an-isl-sum">
@@ -280,13 +289,13 @@ export function mountAnalytics(host) {
       const going = run && !run.error && run.done < run.total;
       const sw = a.occ ? STEPS.find((x) => a.occ.share < x.to).color : '';
       return `<li class="an-item${open ? ' open' : ''}${view.sel === a.code ? ' sel' : ''}${view.hov === a.code ? ' hov' : ''}" data-an-open="${esc(a.code)}" aria-expanded="${open}" tabindex="0">
-        <div class="an-it-h">${sw ? `<span class="an-sw" style="background:${sw}" aria-hidden="true"></span>` : ''}<b>${esc(a.aimak)}</b>
+        <div class="an-it-h">${isVec(a) ? `<input type="checkbox" class="an-pick" data-an-pick="${esc(a.code)}" ${view.pickSet.has(a.code) ? 'checked' : ''} aria-label="Отметить «${esc(a.aimak)}» для досье набора" title="В досье набора">` : ''}${sw ? `<span class="an-sw" style="background:${sw}" aria-hidden="true"></span>` : ''}<b>${esc(a.aimak)}</b>
           <span class="an-it-share num">${a.occ ? pct(a.occ.share) : ''}</span></div>
         <div class="an-it-s"><span>${esc([a.code, a.district, a.oblast].filter(Boolean).join(' · '))}</span>
           <span class="num">${a.occ ? `не занято ${ar(a.occ.freeHa)} ${esc(ul())}` : ''}</span></div>
         ${a.occ ? mbarHTML(a) : ''}
         <div class="an-it-m"><span class="num">площадь ${ar(a.areaHa)} ${esc(ul())}${a.balance ? ` · по балансу ${ar(a.balance.total)}` : ''}${r.objs.length ? ` · ОЦ ${r.objs.length}` : ''}</span>
-          <span class="an-it-act">${runCell(a)}</span></div>
+          <span class="an-it-act">${isVec(a) ? `<button type="button" class="btn btn-ghost btn-sm" data-ad-open="${esc(a.code)}" title="Подробная аналитика аймака">Досье</button>` : ''}${runCell(a)}</span></div>
         ${going ? `<div class="an-bar" aria-hidden="true"><i style="transform:scaleX(${(run.done / run.total).toFixed(3)})"></i></div>` : ''}
         ${open ? detailHTML(r) : ''}
       </li>`;
@@ -458,7 +467,7 @@ export function mountAnalytics(host) {
     const want = new Set(shown.map((r) => r.a.code));
     labels.forEach((m, c) => { if (!want.has(c)) { m.remove(); labels.delete(c); } });
     shown.forEach(({ a }) => {
-      const pt = a.geometry && labelPoint(a.geometry);
+      const pt = a.label || (a.geometry && labelPoint(a.geometry));
       if (!pt) return;
       const html = `<b>${esc(a.aimak)}</b>${a.occ ? `<span>${pct(a.occ.share)}</span>` : ''}`;
       let m = labels.get(a.code);
@@ -542,12 +551,20 @@ export function mountAnalytics(host) {
   const padding = () => {
     const list = scope.root.querySelector('.an-list');
     const wide = innerWidth > 1100;
-    const left = wide && list && !view.hideList ? list.getBoundingClientRect().width + 30 : 30;
-    return { top: wide ? 80 : 30, bottom: 40, left, right: 60 };
+    const dossierOn = !!view.dossier && view.mode === 'map';
+    const left = wide && list && !view.hideList && !dossierOn ? list.getBoundingClientRect().width + 30 : 30;
+    const dbox = scope.root.querySelector('.an-dossier');
+    const right = wide && dossierOn && dbox ? dbox.getBoundingClientRect().width + 30 : 60;
+    return { top: wide ? 80 : 30, bottom: 40, left, right };
   };
   const ease = (t) => 1 - (1 - t) ** 3;
   let pendingFly = '';   // выбор до загрузки карты — перелёт после неё
   const flyTo = (code) => {
+    if (String(code).startsWith('d:') || String(code).startsWith('m:')) {
+      const bs = membersOf(code).map((r) => boundsOf(r.a.geometry));
+      if (map && bs.length) map.fitBounds(bs.reduce((x, y) => [[Math.min(x[0][0], y[0][0]), Math.min(x[0][1], y[0][1])], [Math.max(x[1][0], y[1][0]), Math.max(x[1][1], y[1][1])]]), { padding: padding(), maxZoom: 13, duration: MOVE_MS, easing: ease });
+      return;
+    }
     const a = allAimaks().find((x) => x.code === code);
     if (!map) { pendingFly = code; return; }
     if (a && a.geometry) map.fitBounds(boundsOf(a.geometry), { padding: padding(), maxZoom: 13, duration: MOVE_MS, easing: ease, essential: false });
@@ -595,6 +612,8 @@ export function mountAnalytics(host) {
     map.addLayer({ id: 'aim-line', type: 'line', source: 'aim', filter: ['>=', ['get', 'share'], 0], paint: { 'line-color': lineC, 'line-width': lineW } }, before);
     map.addLayer({ id: 'aim-line-none', type: 'line', source: 'aim', filter: ['<', ['get', 'share'], 0],
       paint: { 'line-color': lineC, 'line-width': lineW, 'line-dasharray': [2, 1.5] } }, before);
+    map.addSource('dsel', { type: 'geojson', data: emptyFC() });
+    map.addLayer({ id: 'dsel', type: 'line', source: 'dsel', paint: { 'line-color': ['case', ['get', 'pick'], '#0d366b', '#7a2e00'], 'line-width': ['case', ['get', 'pick'], 3.5, 1.4] } });
     map.addLayer({ id: 'objs', type: 'circle', source: 'objs',
       paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 4, 14, 7], 'circle-color': '#0d366b', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
     tip = hoverTip(gl, map);
@@ -693,6 +712,8 @@ export function mountAnalytics(host) {
       if (cadAt(e.point)) return;
       const c = e.features[0] && e.features[0].properties.code;
       if (!c) return;
+      const a0 = allAimaks().find((x) => x.code === c);
+      if (isVec(a0)) { openDossier(c); return; }
       view.sel = c;
       view.open.add(c);
       update();
@@ -728,6 +749,14 @@ export function mountAnalytics(host) {
     // «Таблица» и «Участки» — поверхностью над сценой.
     page.classList.toggle('on-table', view.mode === 'table' || view.mode === 'parcels');
     page.classList.toggle('facets-open', view.facets);
+    page.classList.toggle('on-dossier', !!view.dossier && view.mode === 'map');
+    const dbox = page.querySelector('[data-an-dossier]');
+    if (dbox) {
+      const keepScroll = dbox.querySelector('.ad-body') ? dbox.querySelector('.ad-body').scrollTop : 0;
+      dbox.innerHTML = view.dossier && view.mode === 'map' ? dossierView() : '';
+      const b2 = dbox.querySelector('.ad-body');
+      if (b2) b2.scrollTop = keepScroll;
+    }
     document.body.classList.toggle('an-table-open', view.mode === 'table' || view.mode === 'parcels');
     const isles = page.querySelector('[data-an-isles]');
     const active = document.activeElement;
@@ -749,6 +778,7 @@ export function mountAnalytics(host) {
     if (view.mode === 'parcels') page.querySelector('[data-an-table]').innerHTML = parcelsView(shown);
     if (keep) { const i = page.querySelector(keep.sel); if (i) { i.focus(); try { i.setSelectionRange(keep.s, keep.e); } catch (e) { /* поле без выделения */ } } }
     syncMap(shown);
+    syncDossierMap();
     if (sceneEl) {
       const done = shown.filter((r) => r.a.occ);
       const A = done.reduce((t, r) => t + r.a.areaHa, 0);
@@ -757,6 +787,113 @@ export function mountAnalytics(host) {
       sceneEl.setAttribute('aria-label', A ? `Карта айыл аймаков: показано ${shown.length}, посчитано ${done.length}; занято ${pct(O / A)}, не занято ${pct(F / A)} площади посчитанных` : `Карта айыл аймаков: показано ${shown.length}`);
     }
   };
+
+  // --- досье аймака (pages/analytics/dossier.js) ---
+  const vecCache = new Map();   // код → Promise<FeatureCollection>
+  const vecOf = (code) => {
+    if (!vecCache.has(code)) vecCache.set(code, fetch(vecUrl(code)).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+    return vecCache.get(code);
+  };
+  let patches = null;
+  let patchesFor = '';
+  const fmtD = { area: (ha) => `${ar(ha)} ${ul()}`, pct: (x) => pct(x), n: (n) => nf(n, 0), date: (iso) => dateOf(iso) };
+  const dossierCube = (a) => {
+    const stats = new Map(allParcelStats());
+    const tg = targetOf(view.dossier);
+    const list = tg && tg.members ? tg.members : [a];
+    return buildCube(list.filter((x) => stats.has(x.code)), stats);
+  };
+  // Цель досье (пользователь 04.11.2026: «По каждому административному району, либо по нескольким нужна
+  // полная детализация по всем категориям»): «<код>» — аймак, «d:<район>» — посчитанные аймаки района,
+  // «m:<код>|<код>» — набор, отмеченный в списке. Набор — сумма аймаков по всем категориям.
+  const membersOf = (key) => {
+    const all = rows().filter((r) => isVec(r.a));
+    if (key.startsWith('d:')) return all.filter((r) => r.a.district === key.slice(2));
+    if (key.startsWith('m:')) { const set = new Set(key.slice(2).split('|')); return all.filter((r) => set.has(r.a.code)); }
+    return rows().filter((r) => r.a.code === key);
+  };
+  const sumOcc = (list) => {
+    const keys = ['occHa', 'roadsHa', 'waterHa', 'reliefHa', 'bldHa', 'stripsHa', 'smallHa', 'freeHa', 'gfsuHa', 'parcels'];
+    const o = { zones: {}, cmp: { parcelsOnWater: {} } };
+    keys.forEach((k) => { o[k] = list.reduce((t, a) => t + (a.occ[k] || 0), 0); });
+    list.forEach((a) => {
+      Object.entries(a.occ.zones || {}).forEach(([k, v]) => { o.zones[k] = (o.zones[k] || 0) + v; });
+      Object.entries(a.occ.cmp || {}).forEach(([k, v]) => {
+        if (k === 'parcelsOnWater') Object.entries(v || {}).forEach(([f, x]) => { const y = o.cmp.parcelsOnWater[f] || { n: 0, ha: 0 }; y.n += x.n; y.ha += x.ha; o.cmp.parcelsOnWater[f] = y; });
+        else if (typeof v === 'number') o.cmp[k] = (o.cmp[k] || 0) + v;
+      });
+    });
+    const f = list[0].occ;
+    Object.assign(o, { strip: f.strip, minPatch: f.minPatch, slope: f.slope, bldYard: f.bldYard, by: f.by,
+      at: list.map((a) => a.occ.at).sort()[0] });
+    return o;
+  };
+  const targetOf = (key) => {
+    const ms = membersOf(key);
+    if (!ms.length) return null;
+    if (!key.startsWith('d:') && !key.startsWith('m:')) return { a: ms[0].a, objs: ms[0].objs, members: null };
+    const list = ms.map((r) => r.a);
+    const area = list.reduce((t, a) => t + (a.areaHa || 0), 0);
+    const occ = sumOcc(list);
+    occ.share = area ? occ.occHa / area : 0;
+    const bal = new Map();
+    let balTot = 0;
+    list.forEach((a) => { (a.balance && a.balance.parts || []).forEach((p) => bal.set(p.label, (bal.get(p.label) || 0) + (p.ha || 0))); balTot += (a.balance && a.balance.total) || 0; });
+    const title = key.startsWith('d:') ? `Район: ${key.slice(2)}` : `Набор аймаков: ${list.length}`;
+    return {
+      a: { code: key, aimak: title, district: [...new Set(list.map((a) => a.district))].join(', '), oblast: [...new Set(list.map((a) => a.oblast))].join(', '),
+        areaHa: area, occ, balance: balTot ? { total: balTot, parts: [...bal.entries()].map(([label, ha]) => ({ label, ha })) } : null,
+        quality: { note: list.filter((a) => a.quality && a.quality.note).map((a) => `${a.aimak} — ${a.quality.note}`).join('; ') } },
+      objs: ms.flatMap((r) => r.objs), members: list,
+    };
+  };
+  const dossierView = () => {
+    const tg = targetOf(view.dossier);
+    if (!tg) return '';
+    const r = tg;
+    const a = tg.a;
+    const memberCodes = (tg.members || [a]).map((x) => x.code);
+    if (patchesFor !== view.dossier) {
+      patches = null;
+      patchesFor = view.dossier;
+      const want = view.dossier;
+      Promise.all(memberCodes.map((c) => vecOf(c))).then((fcs) => {
+        if (patchesFor !== want) return;
+        const freeKeys = new Set(PARTS.filter((x) => x.free).map((x) => x.key));
+        patches = fcs.flatMap((fc) => patchesOf(fc, freeKeys)).sort((x, y) => y.ha - x.ha).map((x, i) => ({ ...x, id: i + 1 }));
+        update();
+      });
+    }
+    return dossierHTML({
+      a, objs: r.objs, members: tg.members, tab: view.dtab, cfg: view.dcfg, patches, pick: view.dpick, all: allAimaks(), parts: PARTS, fmt: fmtD,
+      parcelsHTML: () => {
+        if (parcelsState !== 'ready') { if (parcelsState === 'idle') { parcelsState = 'loading'; loadParcelsSeed().then(() => { parcelsState = 'ready'; update(); }); } return parcelsHTML(null, {}, view.pm, null, { loading: true }); }
+        const cube1 = dossierCube(a);
+        if (!cube1.length) return parcelsHTML(null, {}, view.pm, null, { empty: true });
+        return parcelsHTML(parcelSum(cube1, view.dpf, view.pm), view.dpf, view.pm, { n: (n) => nf(n, 0), area: (ha) => `${ar(ha)} ${ul()}`, pct: (x) => pct(x) });
+      },
+      objectsHTML: () => (r.objs.length ? detailHTML({ a: { ...a, balance: null, occ: null }, objs: r.objs }) : '<p class="ad-muted">Объектов системы здесь нет.</p>'),
+    });
+  };
+  // Выбранные отбором массивы — обводкой на карте.
+  const syncDossierMap = () => {
+    if (!map || !map.getSource('dsel')) return;
+    const on = view.dossier && view.dtab === 'free' && patches;
+    const sel = on ? pickPatches(patches, view.dcfg) : [];
+    map.getSource('dsel').setData({ type: 'FeatureCollection', features: sel.slice(0, 3000).map((x) => ({ type: 'Feature', geometry: x.geom, properties: { pick: x.id === view.dpick } })) });
+  };
+  const openDossier = (code) => {
+    view.dossier = code;
+    view.dtab = 'overview';
+    view.dpf = {};
+    view.dpick = 0;
+    view.sel = code;
+    view.mode = 'map';
+    go('#/analytics?a=' + encodeURIComponent(code), { replace: true });
+    update();
+    flyTo(code);
+  };
+  const closeDossier = () => { view.dossier = ''; go('#/analytics', { replace: true }); update(); };
 
   scope.setHTML(`<div class="an-page">
       <h1 class="sr-only">Земли по айыл аймакам</h1>
@@ -769,6 +906,7 @@ export function mountAnalytics(host) {
       </aside>
       <button type="button" class="an-edge" data-an-edge aria-label="Скрыть список аймаков" title="Скрыть список аймаков">‹</button>
       <section class="an-sheet" aria-label="Таблица аймаков"><div class="an-sheet-body" data-an-table></div></section>
+      <div class="an-dossier" data-an-dossier></div>
       ${legendHTML()}
     </div>`);
 
@@ -866,16 +1004,50 @@ export function mountAnalytics(host) {
     t.querySelector('span').textContent = view.lgShut ? '▸' : '▾';
     scope.root.querySelector('#anLgBody').hidden = view.lgShut;
   });
+  const pfNow = () => (view.dossier && view.mode === 'map' ? view.dpf : view.pf);
   scope.on('click', '[data-ap-dim]', (e, t) => {
+    const f = pfNow();
     const k = t.dataset.apDim;
     const v = t.dataset.apV;
-    const set = view.pf[k] || new Set();
+    const set = f[k] || new Set();
     if (set.has(v)) set.delete(v); else set.add(v);
-    view.pf[k] = set;
+    f[k] = set;
     update();
   });
-  scope.on('click', '[data-ap-off]', (e, t) => { const set = view.pf[t.dataset.apOff]; if (set) set.delete(t.dataset.apV); update(); });
-  scope.on('click', '[data-ap-clear]', () => { view.pf = {}; update(); });
+  scope.on('click', '[data-ap-off]', (e, t) => { const set = pfNow()[t.dataset.apOff]; if (set) set.delete(t.dataset.apV); update(); });
+  scope.on('click', '[data-ap-clear]', () => { if (view.dossier && view.mode === 'map') view.dpf = {}; else view.pf = {}; update(); });
+  scope.on('click', '[data-ad-open]', (e, t) => { e.stopPropagation(); openDossier(t.dataset.adOpen); });
+  scope.on('click', '[data-ad-close]', () => closeDossier());
+  scope.on('click', '[data-an-pick]', (e) => e.stopPropagation());
+  scope.on('change', '[data-an-pick]', (e, t) => { if (t.checked) view.pickSet.add(t.dataset.anPick); else view.pickSet.delete(t.dataset.anPick); update(); });
+  scope.on('click', '[data-ad-tab]', (e, t) => { view.dtab = t.dataset.adTab; update(); });
+  scope.on('click', '[data-ad-preset]', (e, t) => { view.dcfg.min = +t.dataset.adPreset; update(); });
+  scope.on('change', '[data-ad-min]', (e, t) => { const v = numIn(t.value); if (v != null && v >= 0) view.dcfg.min = v; update(); });
+  scope.on('change', '[data-ad-zone]', () => {
+    const boxes = [...scope.root.querySelectorAll('[data-ad-zone]')];
+    const on = boxes.filter((b) => b.checked).map((b) => b.dataset.adZone);
+    view.dcfg.zones = on.length === boxes.length ? new Set() : new Set(on);
+    update();
+  });
+  scope.on('click', '[data-ad-patch]', (e, t) => {
+    const id = +t.dataset.adPatch;
+    const x = patches && patches.find((q) => q.id === id);
+    if (!x) return;
+    view.dpick = id;
+    update();
+    if (map) map.fitBounds(x.bounds, { padding: padding(), maxZoom: 16, duration: MOVE_MS, easing: ease });
+  });
+  scope.on('keydown', '[data-ad-patch]', (e, t) => { if (e.key === 'Enter') t.click(); });
+  scope.on('click', '[data-ad-xlsx]', () => {
+    const r = targetOf(view.dossier);
+    if (!r) return;
+    const cube1 = dossierCube(r.a);
+    const byForm = new Map();
+    cube1.forEach((p) => { const x = byForm.get(p.form) || [0, 0]; x[0]++; x[1] += p.ha; byForm.set(p.form, x); });
+    const d = dossierSheets({ a: r.a, parts: PARTS, patches, cfg: view.dcfg, fmt: fmtD,
+      parcelRows: cube1.length ? [...byForm.entries()].sort((x, y) => y[1][0] - x[1][0]).map(([f, v]) => [f, v[0], Math.round(v[1] * 100) / 100]) : null });
+    downloadXlsx(d.name, d.sheets);
+  });
   scope.on('click', '[data-ap-metric]', (e, t) => { view.pm = t.dataset.apMetric; update(); });
   scope.on('click', '[data-an-edge]', (e, t) => {
     view.hideList = !view.hideList;
@@ -941,7 +1113,12 @@ export function mountAnalytics(host) {
   window.__anExportParcels = () => exportParcels();
 
   return {
-    onRoute() { update(); },
+    // Досье — из адреса («?a=<код>», «?a=d:<район>», «?a=m:<код>|<код>»): ссылка, «Назад», перезагрузка.
+    onRoute(route) {
+      const want = (route && route.query && route.query.a) || '';
+      if (want !== view.dossier) { view.dossier = want; view.dtab = 'overview'; view.dpf = {}; view.dpick = 0; view.mode = 'map'; if (want) setTimeout(() => flyTo(want), 0); }
+      update();
+    },
     destroy() {
       dead = true;
       runs.forEach((r) => { if (r.ctrl) r.ctrl.aborted = true; });

@@ -148,3 +148,28 @@ def run(t):
         pg.wait_for_timeout(300)
         t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), '«Участки» прокручиваются вбок на 900')
         pg.set_viewport_size({'width': 1440, 'height': 900})
+
+    # --- досье аймака (04.11.2026): итоги векторного расчёта — записанные, части — файлом (harness.DOSSIER_FREE) ---
+    pg.evaluate("""async () => { const L = await import('./app/kernel/landStats.js'); const a = L.aimakByCode('1-03-07');
+      a.occ = { ...a.occ, zones: { farm: 2.1, grass: 0.5 }, roadsHa: 1, waterHa: 0.2, reliefHa: 0, bldHa: 0.1, stripsHa: 0.05, smallHa: 0.01, freeHa: 2.6,
+        cmp: { waterOsmHa: 0.2, waterWcHa: 0.1, waterBothHa: 0.1, reliefOsmHa: 0, steepHa: 0, buildings: 10, buildingsNoEni: 2, parcelsOnWater: { 'Частная': { n: 1, ha: 0.3 } } },
+        strip: 6, minPatch: 200, slope: 12, bldYard: 3, by: 'проверка' };
+      a.quality = { note: 'контур из 2 частей' }; }""")
+    t.open('#/analytics?a=1-03-07', wait='.ad-kpis')
+    t.ck(pg.locator('.ad-kpi').count() >= 8, 'в обзоре досье нет плиток частей аймака')
+    t.ck('Проверочный' in pg.inner_text('.ad-title'), 'досье открыло не тот аймак: %s' % pg.inner_text('.ad-title'))
+    t.ck('контур из 2 частей' in pg.inner_text('.ad-body'), 'нет пометки о качестве контура')
+    pg.click('[data-ad-tab="free"]')
+    t.ck(t.wait_until("() => document.querySelector('.ad-res')", timeout=10000), 'вкладка «Свободная земля» не открылась')
+    t.ck(t.wait_until("() => document.querySelectorAll('[data-ad-patch]').length === 2"), 'массивов не два: %s' % pg.locator('[data-ad-patch]').count())
+    pg.click('[data-ad-preset="1"]')
+    t.ck(t.wait_until("() => document.querySelectorAll('[data-ad-patch]').length === 1"), 'отбор «от 1 га» не оставил один массив')
+    pg.click('[data-ad-tab="water"]')
+    t.ck(t.wait_until("() => document.querySelector('.ad-body').innerText.includes('Частная')"), 'нет участков на воде по формам собственности')
+    pg.click('[data-ad-tab="sources"]')
+    t.ck(t.wait_until("() => document.querySelector('.ad-body').innerText.includes('Copernicus')"), 'нет вкладки источников')
+    with pg.expect_download(timeout=15000) as dl:
+        pg.click('[data-ad-xlsx]')
+    t.ck(dl.value.suggested_filename.endswith('.xlsx'), 'выгрузка досье не xlsx: %s' % dl.value.suggested_filename)
+    pg.click('[data-ad-close]')
+    t.ck(t.wait_until("() => !document.querySelector('.ad') && location.hash === '#/analytics'"), '«‹ Все аймаки» не закрыло досье')

@@ -396,3 +396,68 @@ body[data-page="analytics"] .an-lg-body[hidden]{display:none}
 body[data-page="analytics"] .an-legend ul.an-lg-parts{display:grid;grid-template-columns:1fr;gap:2px}
 body[data-page="analytics"] .an-d-sub{margin:10px 0 4px;font-size:11px;font-weight:700;color:#5a6b82}
 body[data-page="analytics"] .an-vec{font-size:11px;color:var(--muted);white-space:nowrap;cursor:help}
+
+/* ============ Досье аймака, района, набора (pages/analytics/dossier.js) ============
+   Панель справа над сценой; карта — к аймаку, список спрятан. Появление — сдвигом
+   и прозрачностью (transform, opacity), одна длительность. */
+body[data-page="analytics"] .an-dossier{position:absolute;top:var(--scene-top);right:var(--isle-gap);bottom:var(--isle-gap);width:clamp(560px,46vw,880px);z-index:15;
+  display:none;pointer-events:auto}
+body[data-page="analytics"] .on-dossier .an-dossier{display:block;animation:ad-in var(--an-dur) var(--an-ease)}
+@keyframes ad-in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){body[data-page="analytics"] .on-dossier .an-dossier{animation:none}}
+body[data-page="analytics"] .on-dossier .an-list,body[data-page="analytics"] .on-dossier .an-edge,body[data-page="analytics"] .on-dossier .an-facets{visibility:hidden}
+body[data-page="analytics"] .on-dossier .an-legend{transform:translateX(calc(-1 * (var(--isle-gap) + var(--list-w)) + 26px))}
+body[data-page="analytics"] .ad{display:flex;flex-direction:column;height:100%;background:var(--bg);border-radius:12px;box-shadow:var(--lift);overflow:hidden}
+body[data-page="analytics"] .ad-head{display:flex;align-items:center;gap:12px;padding:12px 14px 8px;background:var(--panel)}
+body[data-page="analytics"] .ad-title{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+body[data-page="analytics"] .ad-title h2{margin:0;font-size:17px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="analytics"] .ad-title span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="analytics"] .ad-tabs{display:flex;gap:2px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line-soft);overflow-x:auto}
+body[data-page="analytics"] .ad-tab{all:unset;cursor:pointer;padding:9px 12px 8px;font-size:13px;color:#41536a;border-bottom:2px solid transparent;white-space:nowrap;transition:color 160ms ease,border-color 160ms ease}
+body[data-page="analytics"] .ad-tab:hover{color:var(--ink)}
+body[data-page="analytics"] .ad-tab.on{color:var(--blue-700);border-bottom-color:var(--blue-600);font-weight:600}
+body[data-page="analytics"] .ad-tab:focus-visible{outline:2px solid var(--blue-500);outline-offset:-2px;border-radius:4px}
+body[data-page="analytics"] .ad-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+body[data-page="analytics"] .ad-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+body[data-page="analytics"] .ad-kpi{position:relative;display:flex;flex-direction:column;gap:1px;padding:9px 12px 9px 15px;background:var(--panel);border-radius:10px;
+  box-shadow:0 1px 2px rgba(15,23,42,.06);min-width:0}
+body[data-page="analytics"] .ad-kpi::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:4px;border-radius:0 3px 3px 0;background:#c3cfdd}
+body[data-page="analytics"] .ad-kpi span{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-page="analytics"] .ad-kpi b{font-size:16px;font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+body[data-page="analytics"] .ad-kpi i{font-style:normal;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .ad-kpi.k-area::before{background:var(--blue-600)}
+body[data-page="analytics"] .ad-kpi.k-o::before,body[data-page="analytics"] .ad-stack .s-o,body[data-page="analytics"] .ad-keys .s-o{background:#256abf}
+body[data-page="analytics"] .ad-kpi.k-r::before,body[data-page="analytics"] .ad-stack .s-r,body[data-page="analytics"] .ad-keys .s-r{background:#8a96a8}
+body[data-page="analytics"] .ad-kpi.k-w::before,body[data-page="analytics"] .ad-stack .s-w,body[data-page="analytics"] .ad-keys .s-w{background:#4fa3d9}
+body[data-page="analytics"] .ad-kpi.k-l::before,body[data-page="analytics"] .ad-stack .s-l,body[data-page="analytics"] .ad-keys .s-l{background:#8d6e63}
+body[data-page="analytics"] .ad-kpi.k-b::before,body[data-page="analytics"] .ad-stack .s-b,body[data-page="analytics"] .ad-keys .s-b{background:#c2185b}
+body[data-page="analytics"] .ad-kpi.k-u::before,body[data-page="analytics"] .ad-stack .s-u,body[data-page="analytics"] .ad-keys .s-u{background:#b9b9b9}
+body[data-page="analytics"] .ad-kpi.k-f::before,body[data-page="analytics"] .ad-stack .s-f,body[data-page="analytics"] .ad-keys .s-f{background:#e8730c}
+body[data-page="analytics"] .ad-card{background:var(--panel);border-radius:10px;padding:12px 14px;box-shadow:0 1px 2px rgba(15,23,42,.06);min-width:0}
+body[data-page="analytics"] .ad-card h3{margin:0 0 8px;font-size:12px;font-weight:700;color:#3d4d63}
+body[data-page="analytics"] .ad-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+body[data-page="analytics"] .ad-wide{grid-column:1/-1}
+body[data-page="analytics"] .ad-stack{display:flex;height:18px;border-radius:5px;overflow:hidden;gap:1px;background:#fff}
+body[data-page="analytics"] .ad-keys{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:var(--muted)}
+body[data-page="analytics"] .ad-keys li{display:flex;align-items:center;gap:5px;white-space:nowrap}
+body[data-page="analytics"] .ad-keys i{width:10px;height:10px;border-radius:2px}
+body[data-page="analytics"] .ad-keys b{color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+body[data-page="analytics"] .ad-muted{color:var(--muted);font-size:12px;margin:0}
+body[data-page="analytics"] .ad-cfg-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;margin-bottom:8px}
+body[data-page="analytics"] .ad-cfg-l{min-width:150px;font-size:12px;color:var(--muted)}
+body[data-page="analytics"] .ad-presets{display:flex;flex-wrap:wrap;gap:6px}
+body[data-page="analytics"] .ap-chip.on{background:var(--blue-600);color:#fff;border-color:var(--blue-600)}
+body[data-page="analytics"] .ad-zones{display:flex;flex-wrap:wrap;gap:6px 12px}
+body[data-page="analytics"] .ad-zone{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap}
+body[data-page="analytics"] .ad-zone i{width:10px;height:10px;border-radius:2px}
+body[data-page="analytics"] .ad-res{margin:4px 0 0;font-size:12.5px;color:var(--ink)}
+body[data-page="analytics"] .ad-res b{font-variant-numeric:tabular-nums}
+body[data-page="analytics"] .ad-bar{cursor:default}
+body[data-page="analytics"] .ad-tbl td{white-space:normal}
+body[data-page="analytics"] .ad-tbl tbody tr.sel td{background:var(--blue-50)}
+body[data-page="analytics"] .ad-tbl tbody tr[data-ad-patch],body[data-page="analytics"] .ad-tbl tbody tr[data-ad-open]{cursor:pointer}
+body[data-page="analytics"] .an-pick{margin:0 6px 0 0;flex:none;cursor:pointer}
+@media (max-width:1280px){body[data-page="analytics"] .ad-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1100px){
+  body[data-page="analytics"] .an-dossier{position:fixed;top:120px;left:var(--isle-gap);right:var(--isle-gap);width:auto}
+}

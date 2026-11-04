@@ -374,6 +374,14 @@ DAREK_QUARTER = {'type': 'Feature', 'id': 'Квартал (насел. пунк�
                  'properties': {'kvartalcod': '1-03-07-0040', 'coate': '41711 000 000 00 0'}}
 
 
+# Части аймака для досье (сценарий check_analytics): квадраты у демо-ЕНИ.
+DOSSIER_FREE = __import__('json').dumps({'type': 'FeatureCollection', 'features': [
+    {'type': 'Feature', 'properties': {'zone': 'farm'}, 'geometry': {'type': 'Polygon', 'coordinates': [[[74.6205, 42.8662], [74.6222, 42.8662], [74.6222, 42.8675], [74.6205, 42.8675], [74.6205, 42.8662]]]}},
+    {'type': 'Feature', 'properties': {'zone': 'grass'}, 'geometry': {'type': 'Polygon', 'coordinates': [[[74.6250, 42.8700], [74.62585, 42.8700], [74.62585, 42.87065], [74.6250, 42.87065], [74.6250, 42.8700]]]}},
+    {'type': 'Feature', 'properties': {'zone': 'roads'}, 'geometry': {'type': 'Polygon', 'coordinates': [[[74.6230, 42.8662], [74.6232, 42.8662], [74.6232, 42.8739], [74.6230, 42.8739], [74.6230, 42.8662]]]}},
+]})
+
+
 def darek_route(route):
     import json as _json
     url = route.request.url
@@ -447,6 +455,8 @@ def run_one(mod, part=None, headless=True, browser_=None):
             body='{"tiles":["https://tiles.openfreemap.org/planet/check/{z}/{x}/{y}.pbf"]}' if r.request.url.rstrip('/').endswith('/planet') else b''))
         # Готовые данные аналитики (app/data/analytics/land-seed.json) — не для
         # сценариев: те видят только записанный аймак.
+        # Части аймака векторного расчёта (досье) — два массива свободной земли: 2 га пашни и 0,5 га лугов.
+        page.context.route('**/app/data/analytics/free/*.json', lambda r: r.fulfill(status=200, content_type='application/json', body=DOSSIER_FREE))
         page.context.route('**/app/data/analytics/land-parcels.json', lambda r: r.fulfill(status=200, content_type='application/json', body='{"aimaks":{}}'))
         page.context.route('**/app/data/analytics/land-seed.json', lambda r: r.fulfill(status=200, content_type='application/json', body='{"aimaks":[],"adm":{}}'))
         # Данные переживают перезагрузку через localStorage (kernel/persist.js,

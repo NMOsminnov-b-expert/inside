@@ -155,6 +155,7 @@ const merc = ([lon, lat]) => [lon * 20037508.34 / 180, Math.log(Math.tan((90 + l
 // браузере; на сервере — в личных настройках. Сам слой — открытая карта Дарека
 // без договора: для работы — официальный доступ (решение 14.10.2026 о Кадастре).
 const BOUNDS_KEY = 'inside.map.bounds';
+const BOUNDS_MAXZOOM = 12.5;
 const BOUNDS_ATTR = 'Границы: ГУ «Кадастр», <a href="http://darek.kg/Map" target="_blank" rel="noopener">адресный регистр «Дарек»</a>';
 const boundsOn = () => { try { return localStorage.getItem(BOUNDS_KEY) !== '0'; } catch (e) { return true; } };
 const setBoundsOn = (v) => { try { localStorage.setItem(BOUNDS_KEY, v ? '1' : '0'); } catch (e) { /* до перезагрузки */ } };
@@ -164,7 +165,9 @@ function addBounds(map) {
   let want = '';
   let timer = 0;
   const load = () => {
-    if (!boundsOn() || !map.getStyle()) return;
+    // Вблизи границы Дарека не нужны и мешают: линии у него толстые (на местности),
+    // с 12,5 расплываются в широкую ленту поверх участков (снимок 04.11.2026, Каракол).
+    if (!boundsOn() || !map.getStyle() || map.getZoom() > BOUNDS_MAXZOOM) return;
     const c = map.getCanvas();
     const w = Math.min(2048, Math.round(c.clientWidth));
     const h = Math.min(2048, Math.round(c.clientHeight));
@@ -191,7 +194,7 @@ function addBounds(map) {
       busy = true;
       // Над подложкой OSM, под всем, что карта добавила (участки, строения, точки).
       const above = (map.getStyle().layers || []).find((l) => l.id !== 'osm');
-      map.addLayer({ id: 'bounds', type: 'raster', source: 'bounds', paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 },
+      map.addLayer({ id: 'bounds', type: 'raster', source: 'bounds', maxzoom: BOUNDS_MAXZOOM, paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 0 },
         layout: { visibility: boundsOn() ? 'visible' : 'none' } }, above ? above.id : undefined);
     };
     img.src = url;
