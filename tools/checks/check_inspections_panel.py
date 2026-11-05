@@ -113,6 +113,20 @@ def run(t):
     t.wait_for('[data-ip-aperson]')
     pg.click('[data-ip-aperson="%s"]' % person)
     t.wait_for('[data-ip-row]')
+    # Массовое «Снять назначение» — сразу, с «Отменить» в уведомлении (решение пользователя 05.11.2026).
+    if t.ck(pg.locator('[data-ip-acheck]').count() >= 2, 'во «Назначено» у сотрудника меньше двух назначений — нечем проверить массовое снятие'):
+        ks = [pg.locator('[data-ip-acheck]').nth(i).get_attribute('data-ip-acheck') for i in range(2)]
+        st0 = pg.evaluate("async (ks) => { const m = await import('./app/kernel/inspections.js'); return ks.map((k) => (m.assignmentById(k) || {}).state); }", ks)
+        pg.locator('[data-ip-acheck]').nth(0).check()
+        pg.locator('[data-ip-acheck]').nth(1).check()
+        pg.click('[data-ip-ba-remove]')
+        t.ck(t.wait_until("() => document.querySelector('.toast.has-act .toast-act')"), 'после массового снятия нет «Отменить»')
+        gone = pg.evaluate("async (ks) => { const m = await import('./app/kernel/inspections.js'); return ks.map((k) => (m.assignmentById(k) || {}).state); }", ks)
+        t.ck(gone == ['removed', 'removed'], 'массовое снятие не сняло назначения: %s' % gone)
+        pg.click('.toast.has-act .toast-act')
+        t.ck(t.wait_until("async ([ks, st]) => { const m = await import('./app/kernel/inspections.js'); return ks.every((k, i) => (m.assignmentById(k) || {}).state === st[i]); }", [ks, st0]),
+             '«Отменить» не вернуло назначения в прежнее состояние')
+        t.wait_for('[data-ip-row]')
     mine = pg.evaluate("""async (k) => { const [typeId, ocId] = k.split('|'); const m = await import('./app/kernel/inspections.js');
       const a = m.assignmentsOf(typeId, ocId).find((x) => !x.demo); return a ? a.id : ''; }""", key)
     t.ck(pg.locator('[data-ip-row="%s"]' % mine).count() == 1, 'назначение не видно во вкладке «Назначено»')

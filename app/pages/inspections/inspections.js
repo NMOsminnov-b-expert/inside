@@ -19,7 +19,7 @@ import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
 import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink,
-  deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, stallOf, workdayOf,
+  deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, restoreMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
   planOf, setPlan, assign, transferOi, isLive,
@@ -3261,8 +3261,9 @@ export function mountInspections(host) {
     host.toast(`Перенесено на ${d.split('-').reverse().join('.')}: ${n}`, 'ok');
   });
   scope.on('click', '[data-ip-ba-remove]', () => {
-    const n = checked.size; unassignMany([...checked.keys()]); checked.clear(); current = ''; redraw();
-    host.toast(`Снято назначений: ${n}`, 'ok');
+    const n = checked.size; const was = unassignMany([...checked.keys()]); checked.clear(); current = ''; redraw();
+    // Без подтверждения, но с отменой сразу после (решение пользователя 05.11.2026).
+    host.toast(`Снято назначений: ${n}`, 'ok', { action: { label: 'Отменить', run: () => { restoreMany(was); redraw(); host.toast(`Возвращено назначений: ${was.length}`, 'ok'); } } });
   });
   // Панель: «Кого назначить», день из полосы, осмотрщик и дата в полях, срок.
   // Выбор человека из подбора ставит его лучший день, если дата ещё не выбрана.

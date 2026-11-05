@@ -622,8 +622,24 @@ export function unskipDay(id, date) {
   return a;
 }
 
+// Возвращает прежние состояния — для «Отменить» сразу после снятия (restoreMany).
 export function unassignMany(ids) {
+  const was = ids.map((id) => [id, (assignmentById(id) || {}).state]).filter(([, s]) => s && s !== 'removed');
   ids.forEach((id) => setAssignState(id, 'removed'));
+  return was;
+}
+
+// Отмена массового снятия: назначения возвращаются в прежнее состояние, в истории — «снятие отменено».
+export function restoreMany(was) {
+  (was || []).forEach(([id, state]) => {
+    const a = assignmentById(id);
+    if (!a || a.state !== 'removed') return;
+    a.state = state;
+    delete a.removedAt;
+    logEvent('restored', a);
+    syncResp(a.typeId, a.ocId);
+  });
+  changed();
 }
 
 // «Зависло»: назначено давно, а осмотр не начат (нет событий осмотрщика), или

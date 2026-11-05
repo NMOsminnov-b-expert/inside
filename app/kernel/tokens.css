@@ -87,6 +87,10 @@ input,select,textarea{font:inherit;color:inherit}
    оно ничего не делает и уходит само. */
 .toast-wrap{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:200;pointer-events:none}
 .toast{background:#0e2f4f;color:#eaf3f8;padding:9px 14px;border-radius:9px;font-size:12.5px;box-shadow:0 8px 20px rgba(15,23,42,.35);animation:tin .18s ease;max-width:420px}
+.toast.has-act{display:flex;align-items:center;gap:14px;pointer-events:auto}
+.toast-act{all:unset;cursor:pointer;flex:0 0 auto;padding:4px 10px;margin:-4px -6px -4px 0;border-radius:6px;font-weight:600;color:#9fd0ff}
+.toast-act:hover{background:rgba(255,255,255,.12)}
+.toast-act:focus-visible{outline:2px solid #9fd0ff;outline-offset:1px}
 .toast.ok{background:var(--teal-700)}
 .toast.warn{background:var(--warn)}
 @keyframes tin{from{transform:translateY(8px);opacity:0}}
