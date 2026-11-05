@@ -1568,3 +1568,8 @@ body[data-page="inspections"] .ip-map-wrap.picking .maplibregl-canvas,body[data-
 @keyframes ip-mode-in{from{opacity:0;transform:translate(-50%,-4px)}to{opacity:1;transform:translate(-50%,0)}}
 @media (prefers-reduced-motion:reduce){body[data-page="inspections"] .ip-map-mode{animation-name:ip-fade}}
 @keyframes ip-fade{from{opacity:0}to{opacity:1}}
+
+/* Предупреждения о плановой дате (в прошлом, позже срока, осмотрщик не работает) — под строкой «Когда»,
+   янтарной полосой: сохранить можно (решение пользователя 05.11.2026). */
+body[data-page="inspections"] .ip-date-warn{display:flex;flex-direction:column;gap:2px;margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--amber-600);
+  border-radius:0 6px 6px 0;background:var(--amber-50);color:var(--amber-700);font-size:12.5px}

@@ -86,7 +86,21 @@ def run(t):
         pg.locator('[data-ip-f-oi]').first.check()
     person = pg.eval_on_selector('[data-ip-f-person]', "s => s.options[1].value")
     pg.select_option('[data-ip-f-person]', person)
-    pg.fill('[data-ip-f-date]', '2099-01-15')
+    # Предупреждения о плановой дате (решение пользователя 05.11.2026 «Предупреждать»): в прошлом,
+    # позже крайнего срока, осмотрщик в отсутствии — рядом с датой, сохранить можно.
+    warn = "() => (document.querySelector('[data-ip-date-warn]') || {}).innerText || ''"
+    def set_date(v):
+        pg.fill('[data-ip-f-date]', v)
+        pg.dispatch_event('[data-ip-f-date]', 'change')
+    set_date('2020-01-15')
+    t.ck(t.wait_until("() => /дата в прошлом/.test((document.querySelector('[data-ip-date-warn]') || {}).innerText || '')"), 'нет предупреждения о дате в прошлом: %r' % pg.evaluate(warn))
+    ab = pg.evaluate("async ([k, p]) => { const m = await import('./app/kernel/inspections.js'); m.setDeadline([k], '2099-01-10'); return m.addAbsence(p, { kind: 'vacation', from: '2099-01-15' }).id; }", [key, person])
+    set_date('2099-01-15')
+    t.ck(t.wait_until("() => /позже крайнего срока 10\.01\.2099/.test((document.querySelector('[data-ip-date-warn]') || {}).innerText || '')"), 'нет предупреждения «позже крайнего срока»: %r' % pg.evaluate(warn))
+    t.ck(t.wait_until("(p) => ((document.querySelector('[data-ip-date-warn]') || {}).innerText || '').includes(p + ':')", person), 'нет предупреждения об отсутствии осмотрщика: %r' % pg.evaluate(warn))
+    pg.evaluate("async ([k, p, id]) => { const m = await import('./app/kernel/inspections.js'); m.setDeadline([k], ''); m.removeAbsence(p, id); }", [key, person, ab])
+    set_date('2099-01-15')
+    t.ck(t.wait_until("() => !document.querySelector('[data-ip-date-warn]')"), 'предупреждение осталось при допустимой дате: %r' % pg.evaluate(warn))
     pg.click('[data-ip-f-ok]')
     t.wait_until("(k) => !document.querySelector('[data-ip-row=\"' + k + '\"]')", key)
 

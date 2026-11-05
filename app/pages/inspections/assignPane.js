@@ -11,7 +11,7 @@
 // (ТЗ рабочего дня осмотрщика, пункт 6.1).
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
-import { assign, unassign, isLive, eventsOf } from '../../kernel/inspections.js';
+import { assign, unassign, isLive, eventsOf, deadlineOf, workdayOf } from '../../kernel/inspections.js';
 import { objectContents, todayIso, stateLabel, EVENT_LABELS } from './model.js';
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
@@ -28,7 +28,22 @@ function personSelect(people, value) {
 // днями выбранного прямо в его строке, полный список — одним полем «или
 // другой», затем плановая дата и крайний срок одной строкой. Раньше один и
 // тот же выбор стоял дважды — карточками и полем «Осмотрщик» под ними.
-function whoWhen(people, person, date, plan) {
+// Предупреждения о плановой дате — рядом с ней, сохранить можно (решение пользователя 05.11.2026
+// «Предупреждать»): дата в прошлом, позже крайнего срока объекта, день, когда осмотрщик не работает
+// (отсутствие, выходной по графику, уволен — workdayOf).
+function dateWarnings(person, date, targets) {
+  if (!date) return [];
+  const out = [];
+  if (date < todayIso()) out.push('дата в прошлом');
+  const late = (targets || []).map((t) => deadlineOf(t.typeId, t.ocId)).filter((d) => d && d < date);
+  if (late.length === 1 && (targets || []).length === 1) out.push(`позже крайнего срока ${fmtDate(late[0])}`);
+  else if (late.length) out.push(`позже крайнего срока у ${late.length} из ${targets.length} объектов`);
+  if (person) { const w = workdayOf(person, date); if (!w.ok) out.push(`${person}: ${w.reason}`); }
+  return out;
+}
+
+function whoWhen(people, person, date, plan, targets = []) {
+  const warns = dateWarnings(person, date, targets);
   return `<section class="ip-sec ip-sec-who"><h3>Кто поедет</h3>
     ${plan ? plan.top : ''}
     <div class="field ip-f-other"><label for="ip-f-person">${plan ? 'Или другой осмотрщик' : 'Осмотрщик'}<span class="req">*</span></label>${personSelect(people, person)}</div>
@@ -39,6 +54,7 @@ function whoWhen(people, person, date, plan) {
         <input class="input" type="date" id="ip-f-date" data-ip-f-date min="${todayIso()}" value="${esc(date || '')}"></div>
       ${plan ? plan.deadline : '<div></div>'}
     </div>
+    ${warns.length ? `<p class="ip-date-warn" role="status" data-ip-date-warn>${warns.map((w) => `<span>${esc(w)}</span>`).join('')}</p>` : ''}
   </section>`;
 }
 
@@ -119,7 +135,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       <header class="ip-pane-head"><h2>Выбрано объектов: ${targets.length}</h2>
         <p class="ip-pane-sub">Документы у каждого — по умолчанию: технический паспорт, кадастровый и ситуационный планы.</p></header>
       <div class="ip-pane-body">
-        ${whoWhen(people, person, date, plan)}
+        ${whoWhen(people, person, date, plan, targets)}
         <section class="ip-sec"><h3>Объекты</h3>
           <ul class="ip-picked">${targets.map((t) => `<li><span class="ell">${esc(t.title)}</span>
             <button class="ip-x" data-ip-unpick="${esc(t.typeId + '|' + t.ocId)}" aria-label="Убрать из выбора" title="Убрать из выбора">×</button></li>`).join('')}</ul>
@@ -174,7 +190,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
     </header>
     <div class="ip-pane-body">
-      ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan)}
+      ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan, [target])}
       ${contentsHTML(c, pick, prev)}
       ${prev ? tsPassHTML(c, prev, people, transfer) : ''}
       ${plan ? plan.bottom : ''}
