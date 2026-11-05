@@ -68,6 +68,10 @@ def run(t):
     t.ck(sorted(ids) == sorted(i for i in mine if i in ids) and len(ids) <= len(mine),
          'assignments: объекты не совпадают с назначениями человека: %d из %d' % (len(ids), len(mine)))
     t.ck(len(set(ids)) == len(ids), 'assignments: объект повторяется')
+    # ЕНИ выезда — свёртка ЕНИ назначенных ОИ (решение пользователя 05.11.2026 «Только назначенных ОИ»).
+    fold = pg.evaluate("""async (items) => { const F = await import('./app/kernel/eniFold.js');
+      return items.filter((x) => x.ois.some((o) => o.eni)).map((x) => [x.eni, F.foldEniList(x.ois.map((o) => o.eni).filter(Boolean))]); }""", items)
+    t.ck(fold and all(a == b for a, b in fold), 'ЕНИ выезда — не ЕНИ назначенных ОИ: %s' % [x for x in fold if x[0] != x[1]][:3])
     letters = [o['path'] for x in items for o in x['ois'] if o['kind'] == 'building']
     t.ck(letters and all(p.startswith('Недвижимое/') for p in letters), 'литеры не в «Недвижимом»: %s' % letters[:5])
     t.ck(any(p.startswith('Недвижимое/Литера ') for p in letters), 'литера — не «Литера <буква>»: %s' % letters[:5])

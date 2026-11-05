@@ -19,6 +19,7 @@
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: те же запросы — HTTP API сервера с входом по учётной
 // записи (токен), а не сообщения окну макета; файлы — в хранилище сервера.
 // Приложение вне рамки (на телефоне) ходит на сервер напрямую.
+import { foldEniList } from '../../kernel/eniFold.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { getType } from '../../kernel/registry.js';
 import { assignmentsOfPerson, coversOi, deadlineOf, startWork, finishWork, myAssignsOn, logEvent, changed } from '../../kernel/inspections.js';
@@ -268,7 +269,8 @@ function myObjects(person) {
       id: key, typeId, ocId, entity, typeLabel: t ? t.manifest.label : '', title: titleOf(rec, ocId),
       state, plannedAt: list.map((a) => a.plannedAt).filter(Boolean).sort()[0] || '', deadline: deadlineOf(typeId, ocId) || '',
       note: list.map((a) => a.note).filter(Boolean).join('\n'), by: list[0].by || '',
-      eni: rec.eni || '', address: rec.address || '', institution: [rec.institution, rec.podved].filter(Boolean).join(' · '),
+      // ЕНИ — назначенных ОИ (решение пользователя 05.11.2026 «Только назначенных ОИ»), объект целиком — всех.
+      eni: foldEniList(ois.map((x) => x.eni).filter(Boolean)) || rec.eni || '', address: rec.address || '', institution: [rec.institution, rec.podved].filter(Boolean).join(' · '),
       lat: gps ? gps[0] : null, lon: gps ? gps[1] : null, contour: ringOf(rec.geo), geoSrc: rec.geo && rec.geo.src ? rec.geo.src : '',
       // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },

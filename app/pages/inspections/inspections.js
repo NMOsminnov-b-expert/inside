@@ -14,6 +14,7 @@
 // Работа на месте, без модальных окон; экран не бывает пустым (правило
 // графа bez-modalok-prostranstvo-celikom-stili-iz-yadra). Поиск, вкладки и
 // таблицы — общие примитивы kernel/tokens.css.
+import { foldEniList } from '../../kernel/eniFold.js';
 import { esc } from '../../kernel/dom.js';
 import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
@@ -385,14 +386,23 @@ export function mountInspections(host) {
       ? `${a.oiIds.length} из ${(s.metrics && s.metrics.oiCount) || a.oiIds.length} ОИ`
       : '<span class="ip-oi-all">весь объект</span>';
   }
+  // ЕНИ назначения (решение пользователя 05.11.2026 «Только назначенных ОИ»): свёртка ЕНИ назначенных ОИ
+  // из самой записи; объект целиком — всех ОИ. Сводка реестра держала то один ЕНИ, то свёрнутый список
+  // (eniAll подгружался позже) — номер менялся после перерисовки.
+  const eniOfAssign = (a, s) => {
+    const rec = a ? loadOcRecord(a.typeId, a.ocId) : null;
+    const ids = a && a.oiIds && a.oiIds.length ? new Set(a.oiIds) : null;
+    const codes = rec ? (rec.oi || []).filter((o) => !ids || ids.has(o.id)).map((o) => o.eni).filter(Boolean) : [];
+    return foldEniList(codes) || (rec && rec.eni) || (s && (s.eniAll || s.eni)) || '';
+  };
   function assignedRowHTML({ a, s }, inGroup = false) {
     const picks = assignedPickOf(a);
     const stall = stallOf(a);
     const who = view.aPerson === '*' ? a.person : '';
     const obj = inGroup
       ? `<span class="ip-obj"><span class="ip-obj-t">${esc(addrRest(s) || s.typeLabel || 'Объект целиком')}</span>
-        <span class="ip-obj-s">${esc([who, addrRest(s) ? s.typeLabel : '', s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '))}</span></span>`
-      : objCell(s, [who, s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '));
+        <span class="ip-obj-s">${esc([who, addrRest(s) ? s.typeLabel : '', s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '))}</span></span>`
+      : objCell(s, [who, s.typeLabel, s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '));
     return `<tr data-ip-row="${esc(a.id)}" class="${inGroup ? 'ip-in-grp' : ''} ${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
       <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
@@ -1749,7 +1759,7 @@ export function mountInspections(host) {
       const t = a && target(a.typeId + '|' + a.ocId);
       if (!t) return paneHTML({ mode: 'none' });
       ensureDraft('a:' + a.id, a.person, a.plannedAt);
-      return paneHTML({ mode: 'one', people: pickable(a.person), person: draft.person, date: draft.date, target: t, prev: a, confirmRemove,
+      return paneHTML({ mode: 'one', people: pickable(a.person), person: draft.person, date: draft.date, target: { ...t, eni: eniOfAssign(a, all.get(a.typeId + '|' + a.ocId)) }, prev: a, confirmRemove,
         transfer: tsPass && tsPass.assignId === a.id ? tsPass : null,
         plan: view.section === 'assign' ? planHTML([t], true) : null });
     }
