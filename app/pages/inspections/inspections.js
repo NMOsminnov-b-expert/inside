@@ -187,6 +187,14 @@ export function mountInspections(host) {
   // --- осмотрщики: набор, области ------------------------------------------------
   const regionList = () => [...new Set(people.flatMap((p) => p.regions))].sort((a, b) => a.localeCompare(b, 'ru'));
   const myPeople = () => new Set(people.filter((p) => profileOf(p.name).manager === session.state.person).map((p) => p.name));
+  // Кого можно назначить (решение пользователя 05.11.2026 «Мои — и в выборе»): при «Мои» — закреплённые за
+  // вошедшим регионалом и он сам (регионал может быть исполнителем), при «Все» — любой; уволенных нет.
+  // keep — уже выбранный в назначении человек остаётся в выборе, даже если он не «свой».
+  const pickable = (keep = '') => {
+    const mine = myPeople();
+    const me = session.state.person;
+    return people.filter((p) => p.name === keep || (!p.fired && (view.peopleMode === 'all' || mine.has(p.name) || p.name === me)));
+  };
   function visiblePeople() {
     const mine = myPeople();
     const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!view.region || p.regions.includes(view.region)));
@@ -536,7 +544,7 @@ export function mountInspections(host) {
     const date = draft.date;
     // Подбор «кому и когда» — по настоящим данным (route.js, recommendAssign;
     // решение пользователя 15.10.2026): загрузка, лучший день, срок, дорога.
-    const ranked = recommendAssign(all, people, targets, date).slice(0, 5);
+    const ranked = recommendAssign(all, pickable(), targets, date).slice(0, 5);
     const rec = (ranked.find((p) => p.name === draft.person) || {}).bestDay || '';
     const chosen = draft.person;
     const av = chosen ? availability(chosen, 10) : [];
@@ -1733,7 +1741,7 @@ export function mountInspections(host) {
     if (view.section === 'assign' && view.tab === 'queue' && checked.size > 1) {
       const targets = [...checked.values()].filter(Boolean);
       ensureDraft('many:' + [...checked.keys()].join(','), view.assignPerson, view.assignDay);
-      return paneHTML({ mode: 'many', people, person: draft.person, date: draft.date, targets, plan: planHTML(targets, false) });
+      return paneHTML({ mode: 'many', people: pickable(draft.person), person: draft.person, date: draft.date, targets, plan: planHTML(targets, false) });
     }
     if (view.section === 'assign' && view.tab === 'assigned' && !view.aPerson) return peekHTML();
     if (view.section === 'history' || view.tab === 'assigned') {
@@ -1741,14 +1749,14 @@ export function mountInspections(host) {
       const t = a && target(a.typeId + '|' + a.ocId);
       if (!t) return paneHTML({ mode: 'none' });
       ensureDraft('a:' + a.id, a.person, a.plannedAt);
-      return paneHTML({ mode: 'one', people, person: draft.person, date: draft.date, target: t, prev: a, confirmRemove,
+      return paneHTML({ mode: 'one', people: pickable(a.person), person: draft.person, date: draft.date, target: t, prev: a, confirmRemove,
         transfer: tsPass && tsPass.assignId === a.id ? tsPass : null,
         plan: view.section === 'assign' ? planHTML([t], true) : null });
     }
     const t = current && target(current);
     if (!t) return paneHTML({ mode: 'none' });
     ensureDraft('q:' + current, view.assignPerson, view.assignDay);
-    return paneHTML({ mode: 'one', people, person: draft.person, date: draft.date, target: t, plan: planHTML([t], true) });
+    return paneHTML({ mode: 'one', people: pickable(draft.person), person: draft.person, date: draft.date, target: t, plan: planHTML([t], true) });
   }
 
 
