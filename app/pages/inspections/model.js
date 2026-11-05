@@ -10,7 +10,7 @@ import {
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
   dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests,
 } from '../../kernel/inspections.js';
-import { inspectorsInData, oiLabel, READY_STATUS } from '../inspector/tasks.js';
+import { inspectorsInData, oiLabel, READY_STATUS, loadTask } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
 import { hasResults } from '../../kernel/inspectionResults.js';
@@ -473,6 +473,8 @@ export const QUEUE_RANGES = [
   { key: 'area', title: 'Площадь, м²', kind: 'number', val: (s) => (s.metrics && s.metrics.area) || 0 },
   { key: 'free', title: 'Свободных ОИ', kind: 'number', val: (s) => s.cov.free },
 ];
+const ASSIGN_STATE_ORDER = [{ key: 'assigned', label: 'Назначено' }, { key: 'progress', label: 'В работе' },
+  { key: 'late', label: 'Просрочено' }, { key: 'returned', label: 'Возвращено на доосмотр' }];
 // «Назначено» — строки { a, s }.
 export const ASSIGNED_FACETS = [
   { key: 'pick', title: 'Отбор', val: ({ a }) => [...assignedPickOf(a)], order: ASSIGNED_PICKS_ORDER() },
@@ -480,7 +482,30 @@ export const ASSIGNED_FACETS = [
   { key: 'region', title: 'Область', val: ({ s }) => regionOf(s) },
   { key: 'district', title: 'Район', val: ({ s }) => districtOf(s) },
   { key: 'type', title: 'Тип ОЦ', val: ({ s }) => s.typeId, label: ({ s }) => s.typeLabel },
+  // Для большого штата (решение пользователя 05.11.2026 на вопрос «Какие отборы нужны регионалу в
+  // «Назначено»»): состояние, учреждение, состав (с ТС, с оборудованием), срок объекта.
+  { key: 'state', title: 'Состояние', val: assignStateOf, order: ASSIGN_STATE_ORDER },
+  { key: 'inst', title: 'Учреждение', val: ({ s }) => s.institution },
+  { key: 'kit', title: 'Состав', val: assignKitOf, order: [{ key: 'vehicle', label: 'С ТС' }, { key: 'mech', label: 'С оборудованием' }] },
+  { key: 'due', title: 'Срок', val: ({ a }) => dueOf(deadlineOf(a.typeId, a.ocId)), order: DUE },
 ];
+// Состояние назначения для отбора: назначено или в работе; просрочено и возвращено — дополнительно.
+function assignStateOf({ a }) {
+  const out = [a.state];
+  if (isOverdue(a)) out.push('late');
+  if ((a.returned || []).length) out.push('returned');
+  return out;
+}
+// Есть ли среди назначенных ОИ транспортное средство или механизмы (опись, единицы механизмов).
+function assignKitOf({ a }) {
+  const rec = loadTask(a.typeId, a.ocId);
+  const ids = a.oiIds && a.oiIds.length ? new Set(a.oiIds) : null;
+  const cards = new Set(((rec && rec.oi) || []).filter((o) => !ids || ids.has(o.id)).map((o) => o.card));
+  const out = [];
+  if (a.typeId === 'vehicle' || cards.has('vehicle')) out.push('vehicle');
+  if (a.typeId === 'mechanisms' || cards.has('mech') || (a.inventories || []).length) out.push('mech');
+  return out;
+}
 export const ASSIGNED_RANGES = [
   { key: 'planned', title: 'Плановая дата', kind: 'date', val: ({ a }) => a.plannedAt },
 ];
