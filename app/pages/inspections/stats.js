@@ -323,7 +323,8 @@ function eventText(e) {
   // перенесённое в карточку значение — словами из события.
   if (e.kind === 'note' || e.kind === 'found' || e.kind === 'returned' || e.kind === 'accepted' || e.kind === 'applied' || e.kind === 'outcome') return `${base}: ${e.text || ''}`;
   if (e.kind === 'mismatch') return `${base}: ${e.field || ''}`;
-  return base;
+  // Перенос, изменение, переназначение, снятие — «было → стало» словами события.
+  return e.text ? `${base}: ${e.text}` : base;
 }
 
 // История — по дням, новые сверху; строка выбирает назначение в панели.
@@ -341,7 +342,7 @@ export function historyHTML(all, f, current, limit) {
       <ul>${list.map(({ e, s }) => `<li class="ipc-ev ${current === e.assignId ? 'cur' : ''}" data-ip-row="${esc(e.assignId)}">
         <time datetime="${esc(e.at)}" title="${esc(new Date(e.at).toLocaleString('ru-RU'))}">${fmtTime(e.at)}</time>
         <span class="ipc-ev-who">${esc(e.person)}</span>
-        <span class="ipc-ev-what k-${esc(e.kind)}">${esc(eventText(e))}</span>
+        <span class="ipc-ev-what k-${esc(e.kind)}">${esc(eventText(e))}${e.who && e.who !== e.person ? `<i class="ipc-ev-by" title="Кто сделал"> · ${esc(e.who)}</i>` : ''}</span>
         <span class="ipc-ev-obj">${esc(s.title)}</span>
       </li>`).join('')}</ul>
     </section>`).join('')}

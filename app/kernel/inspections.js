@@ -187,8 +187,10 @@ export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [
   let a = prev && isLive(prev) && prev.person === person ? prev
     : assignments.find((x) => isLive(x) && x.typeId === typeId && x.ocId === ocId && x.person === person && sameOi(x));
   if (a) {
+    // «Было → стало» (решение пользователя 05.11.2026 на вопрос «Автор и «было → стало» в истории назначений»).
+    const diff = changesOf(a, { oiIds, docs, inventories, plannedAt, note });
     Object.assign(a, { oiIds: [...oiIds], docs: [...docs], inventories: [...inventories], plannedAt, note, updatedAt: now() });
-    logEvent('updated', a);
+    logEvent('updated', a, diff ? { text: diff } : {});
   } else {
     a = {
       id: nextId('as'),
@@ -300,8 +302,28 @@ export function workDone(person, typeId, ocId) {
 export function reassign(id, person) {
   const a = assignmentById(id);
   if (!a || !person || a.person === person) return a;
+  const was = a.person;
   setAssignState(id, 'removed');
-  return assign({ ...a, person });
+  const off = events.filter((e) => e.assignId === id && e.kind === 'removed').pop();
+  if (off) off.text = `переназначено: ${was} → ${person}`;
+  const b = assign({ ...a, person });
+  const on = b && events.filter((e) => e.assignId === b.id && e.kind === 'assigned').pop();
+  if (on) on.text = `переназначено: ${was} → ${person}`;
+  return b;
+}
+
+// Что поменялось в назначении — словами: «дата 05.11.2026 → 07.11.2026; ОИ 1 → 2; документов 3 → 2; комментарий».
+const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : 'без даты');
+function changesOf(a, next) {
+  const out = [];
+  if ((a.plannedAt || '') !== (next.plannedAt || '')) out.push(`дата ${dmy(a.plannedAt)} → ${dmy(next.plannedAt)}`);
+  const n = (x) => (x || []).length;
+  const same = (x, y) => String([...(x || [])].sort()) === String([...(y || [])].sort());
+  if (!same(a.oiIds, next.oiIds)) out.push(`ОИ ${n(a.oiIds) || 'весь объект'} → ${n(next.oiIds) || 'весь объект'}`);
+  if (!same(a.docs, next.docs)) out.push(`документов ${n(a.docs)} → ${n(next.docs)}`);
+  if (!same(a.inventories, next.inventories)) out.push(`описей ${n(a.inventories)} → ${n(next.inventories)}`);
+  if ((a.note || '') !== (next.note || '')) out.push('комментарий осмотрщику');
+  return out.join('; ');
 }
 
 // Передать один ОИ назначения другому осмотрщику (заметка пользователя
@@ -577,7 +599,7 @@ export function moveDateMany(ids, plannedAt) {
     const was = a.plannedAt;
     a.plannedAt = plannedAt;
     a.updatedAt = now();
-    logEvent('moved', a, { text: `${was || 'без даты'} → ${plannedAt || 'без даты'}` });
+    logEvent('moved', a, { text: `${dmy(was)} → ${dmy(plannedAt)}` });
   });
   changed();
 }

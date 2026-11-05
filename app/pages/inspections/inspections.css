@@ -1576,3 +1576,7 @@ body[data-page="inspections"] .ip-date-warn{display:flex;flex-direction:column;g
 
 /* Отсутствие на дни с назначениями — пометка в списке отсутствий с «Переназначить». */
 body[data-page="inspections"] .ip-ab-conf{flex:1 1 100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;color:var(--amber-700);font-size:12.5px}
+
+/* «История»: что сделано — с «было → стало», переносится, а не обрезается; автор, если это не сам осмотрщик. */
+body[data-page="inspections"] .ipc-ev > span.ipc-ev-what{white-space:normal;overflow:visible}
+body[data-page="inspections"] .ipc-ev-by{font-style:normal;color:var(--muted)}
