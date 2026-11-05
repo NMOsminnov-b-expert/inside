@@ -1573,3 +1573,6 @@ body[data-page="inspections"] .ip-map-wrap.picking .maplibregl-canvas,body[data-
    янтарной полосой: сохранить можно (решение пользователя 05.11.2026). */
 body[data-page="inspections"] .ip-date-warn{display:flex;flex-direction:column;gap:2px;margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--amber-600);
   border-radius:0 6px 6px 0;background:var(--amber-50);color:var(--amber-700);font-size:12.5px}
+
+/* Отсутствие на дни с назначениями — пометка в списке отсутствий с «Переназначить». */
+body[data-page="inspections"] .ip-ab-conf{flex:1 1 100%;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;color:var(--amber-700);font-size:12.5px}

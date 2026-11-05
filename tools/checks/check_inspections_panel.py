@@ -374,6 +374,15 @@ def run(t):
     t.ck(pg.locator('.ip-card-contacts .ip-badge.away').count() == 1, 'в шапке нет отметки «отпуск до …»')
     pg.click('[data-ip-ptab="trips"]')
     t.ck(t.wait_for('.ipc-cal-d.away'), 'в календаре выездов не отмечены дни отпуска')
+    # Отпуск на дни с назначениями (решение пользователя 05.11.2026 «Предупреждать + переназначить»):
+    # в списке отсутствий — «назначений: N» и «Переназначить» → «Назначено» с отмеченными.
+    mv = pg.evaluate("async ([w, d]) => { const m = await import('./app/kernel/inspections.js'); const a = m.allAssignments().find((x) => x.person === w && m.isLive(x)); if (!a) return ''; m.moveDateMany([a.id], d); return a.id; }", [who, ab[0]])
+    if t.ck(mv, 'у осмотрщика нет действующего назначения — нечем проверить отпуск с назначениями'):
+        pg.click('[data-ip-ptab="profile"]')
+        t.ck(t.wait_for('.ip-ab-conf [data-ip-ab-fix]'), 'у отпуска на дни с назначениями нет «Переназначить»')
+        pg.click('.ip-ab-conf [data-ip-ab-fix]')
+        t.ck(t.wait_until("(id) => document.querySelector('[data-ip-team=assigned]').classList.contains('on') && document.querySelector('[data-ip-acheck=\"' + id + '\"]')?.checked", mv),
+             '«Переназначить» не открыло «Назначено» с отмеченным назначением')
 
     # Карточка по ТЗ рабочего дня осмотрщика (раздел 1–2): доверенность,
     # свои поля, авто. Ловит: новые поля не доходят до сохранения, срок

@@ -722,7 +722,10 @@ export function mountInspections(host) {
             <i class="k-away">${esc(absenceLabel(ab.kind))}</i>
             <span class="ip-ab-dates">${esc(fmtD(ab.from))}${ab.to && ab.to !== ab.from ? ` — ${esc(fmtD(ab.to))}` : ''}</span>
             <button class="ip-x" data-ip-ab-del="${esc(ab.id)}" aria-label="Удалить" title="Удалить">×</button>
-            ${ab.note ? `<span class="ip-ab-note">${esc(ab.note)}</span>` : ''}</li>`).join('')}</ul>`
+            ${ab.note ? `<span class="ip-ab-note">${esc(ab.note)}</span>` : ''}
+            ${(() => { const n = (ab.to || ab.from) >= today ? absenceConflicts(view.person, ab.from, ab.to).length : 0;
+              return n ? `<span class="ip-ab-conf" role="status">на эти дни назначений: ${n}
+                <button type="button" class="btn btn-ghost btn-sm" data-ip-ab-fix="${esc(ab.id)}">Переназначить</button></span>` : ''; })()}</li>`).join('')}</ul>`
           : '<p class="ip-hint">Не запланированы</p>'}
         <div class="ip-ab-add" data-ip-ab-form>
           <div class="field"><label for="ip-ab-kind">Вид</label><select class="select" id="ip-ab-kind" data-ip-ab="kind">${absenceKinds().map((k) => `<option value="${k.key}">${k.label}</option>`).join('')}</select></div>
@@ -2611,6 +2614,22 @@ export function mountInspections(host) {
   // Поиск не сбрасывается переходом: он свой у каждой вкладки «Назначений»
   // (view.qs) и возвращается вместе с ней.
   const resetList = () => { view.shown = STEP; checked.clear(); current = ''; confirmRemove = false; };
+  // Отсутствие на дни с назначениями (решение пользователя 05.11.2026 «Предупреждать + переназначить»):
+  // живые назначения человека с плановой датой в периоде; «Переназначить» — «Назначено» этого
+  // человека с ними отмеченными (массовое «Переназначить» там же).
+  const absenceConflicts = (person, from, to) => allAssignments()
+    .filter((a) => a.person === person && isLive(a) && a.plannedAt && a.plannedAt >= from && a.plannedAt <= (to || from));
+  const goReassign = (person, ids) => {
+    nav({ section: 'assign', tab: 'assigned', aPerson: person });
+    ids.forEach((id) => checked.set(id, null));
+    render();
+  };
+  const warnAbsence = (person, from, to, saved) => {
+    const hit = absenceConflicts(person, from, to);
+    if (!hit.length) { host.toast(saved, 'ok'); return; }
+    host.toast(`${saved}. На эти дни назначений: ${hit.length}`, 'warn',
+      { action: { label: 'Переназначить', run: () => goReassign(person, hit.map((a) => a.id)) } });
+  };
   // Объект из уведомления скрыт отборами — отборы снимаются, и об этом
   // сказано, а не молча.
   const revealQueued = (k) => {
@@ -2659,7 +2678,7 @@ export function mountInspections(host) {
     if (v('kind').startsWith('ab:')) {
       addAbsence(person, { kind: v('kind').slice(3), from: v('from'), to: v('to'), note: v('note') });
       redraw();
-      host.toast('Отсутствие записано', 'ok');
+      warnAbsence(person, v('from'), v('to'), 'Отсутствие записано');
       return;
     }
     const rec = { person, kind: v('kind'), from: v('from'), to: v('to') };
@@ -3022,7 +3041,11 @@ export function mountInspections(host) {
     if (v('to') && v('to') < v('from')) { scope.$('[data-ip-ab-err]').textContent = 'Окончание раньше начала'; return; }
     addAbsence(view.person, { kind: v('kind'), from: v('from'), to: v('to'), note: v('note') });
     redraw();
-    host.toast('Отсутствие добавлено', 'ok');
+    warnAbsence(view.person, v('from'), v('to'), 'Отсутствие добавлено');
+  });
+  scope.on('click', '[data-ip-ab-fix]', (e, b) => {
+    const ab = profileOf(view.person).absences.find((x) => x.id === b.dataset.ipAbFix);
+    if (ab) goReassign(view.person, absenceConflicts(view.person, ab.from, ab.to).map((a) => a.id));
   });
   scope.on('click', '[data-ip-ab-del]', (e, b) => { removeAbsence(view.person, b.dataset.ipAbDel); redraw(); });
 
