@@ -914,6 +914,51 @@ export function createCadRequest({ person, kind = 'cadastre', due = '', note = '
   return r;
 }
 
+// Правка открытого запроса, закрытие и напоминание (решение пользователя 05.11.2026 на вопрос «Изменение
+// запроса кадастра и повторы строк»: «Правка и без повторов»). Строки с ответом не трогаются: правятся и
+// убираются только ждущие ответа; rows — ждущие строки после правки (у прежних — их id).
+export function updateCadRequest(id, { person, kind, due = '', note = '', rows = [] }) {
+  const r = cadRequest(id);
+  if (!r || r.closedAt) return null;
+  const answered = r.rows.filter((x) => x.result);
+  const wait = rows.map((x) => {
+    const was = x.id && r.rows.find((y) => y.id === x.id && !y.result);
+    return was ? Object.assign(was, { doc: x.doc || '', note: x.note || '' })
+      : { id: nextId('cl'), typeId: x.typeId || '', ocId: x.ocId || '', inst: x.inst || '', eni: x.eni || '', doc: x.doc || '', note: x.note || '', result: '' };
+  });
+  const changes = [];
+  if (person && person !== r.person) changes.push(`осмотрщик ${r.person} → ${person}`);
+  if ((due || '') !== (r.due || '')) changes.push(`срок ${r.due || '—'} → ${due || '—'}`);
+  const before = r.rows.filter((x) => !x.result).length;
+  if (before !== wait.length) changes.push(`строк без ответа ${before} → ${wait.length}`);
+  Object.assign(r, { person: person || r.person, kind: kind || r.kind, due, note, rows: [...answered, ...wait] });
+  (r.log = r.log || []).push({ at: now(), by: session.state.person, kind: 'edit', text: changes.join('; ') || 'изменён' });
+  changed();
+  return r;
+}
+export function closeCadRequest(id, closed = true) {
+  const r = cadRequest(id);
+  if (!r) return null;
+  if (closed) Object.assign(r, { closedAt: now(), closedBy: session.state.person });
+  else { delete r.closedAt; delete r.closedBy; }
+  (r.log = r.log || []).push({ at: now(), by: session.state.person, kind: closed ? 'close' : 'reopen' });
+  changed();
+  return r;
+}
+export function remindCadRequest(id) {
+  const r = cadRequest(id);
+  if (!r || r.closedAt) return null;
+  (r.log = r.log || []).push({ at: now(), by: session.state.person, kind: 'remind' });
+  changed();
+  return r;
+}
+// Повторы: пара «объект + документ» уже ждёт ответа в другом открытом запросе. exceptId — правимый запрос.
+export function cadDuplicateOf(ocId, doc, exceptId = '') {
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  return cadRequests.find((r) => r.id !== exceptId && !r.closedAt
+    && r.rows.some((x) => !x.result && x.ocId === ocId && norm(x.doc) === norm(doc))) || null;
+}
+
 // Итог запроса: строк, получено, нет, отказ, ждёт.
 export function cadSummary(r) {
   const t = { total: r.rows.length, got: 0, none: 0, refused: 0, wait: 0 };

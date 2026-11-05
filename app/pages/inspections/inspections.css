@@ -1580,3 +1580,11 @@ body[data-page="inspections"] .ip-ab-conf{flex:1 1 100%;display:flex;align-items
 /* «История»: что сделано — с «было → стало», переносится, а не обрезается; автор, если это не сам осмотрщик. */
 body[data-page="inspections"] .ipc-ev > span.ipc-ev-what{white-space:normal;overflow:visible}
 body[data-page="inspections"] .ipc-ev-by{font-style:normal;color:var(--muted)}
+
+/* Запрос кадастра: закрыт, напомнено, изменён — строкой под полосой итога. */
+body[data-page="inspections"] .ip-cad-log{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 16px 0;font-size:12.5px;color:var(--muted)}
+body[data-page="inspections"] .ip-cad-log b{color:var(--ink)}
+/* Форма запроса (новый и правка): таблица строк — во всю ширину формы без прокрутки вбок. */
+body[data-page="inspections"] .ip-cadform .ip-cadtbl{min-width:0}
+body[data-page="inspections"] .ip-cadform .ip-cadtbl col.c-eni{width:128px}
+body[data-page="inspections"] .ip-cadform .ip-cadtbl col.c-inst{width:72px}

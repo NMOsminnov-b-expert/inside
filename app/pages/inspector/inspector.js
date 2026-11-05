@@ -641,7 +641,7 @@ export function mountInspector(host) {
       const tab = ['today', 'tasks', 'cad', 'notes'].includes(route.query && route.query.tab) ? route.query.tab : 'today';
       ui.homeTab = tab;
       const notesList = myNotes();
-      const cadOpen = allCadRequests().filter((r) => r.person === currentInspector() && cadSummary(r).wait).length;
+      const cadOpen = allCadRequests().filter((r) => r.person === currentInspector() && !r.closedAt && cadSummary(r).wait).length;
       const listed = ui.onlyPending ? pending : all;
       const parts = tab === 'today' ? planParts(all) : null;
       const tPts = tab === 'tasks' ? taskPoints(listed, isoToday(), gpsOfT) : null;

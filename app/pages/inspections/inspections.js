@@ -24,7 +24,7 @@ import {
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
   planOf, setPlan, assign, transferOi, isLive,
-  allCadRequests, cadRequest, createCadRequest, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
+  allCadRequests, cadRequest, createCadRequest, updateCadRequest, closeCadRequest, remindCadRequest, cadDuplicateOf, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
 } from '../../kernel/inspections.js';
 import { downloadXlsx, readXlsx } from '../../kernel/xlsx.js';
 import { mountGrid, cellText, parseCell } from '../../kernel/grid.js';
@@ -2133,7 +2133,7 @@ export function mountInspections(host) {
   // своё состояние, закрытые строки остаются в списке, причина «нет» и
   // «отказа» — словами (FileInvite, Thomson Reuters Onvio, Box Requests).
   let cadDraft = null;
-  const cadOpen = (r) => cadSummary(r).wait > 0;
+  const cadOpen = (r) => !r.closedAt && cadSummary(r).wait > 0;
   const cadBar = (t) => `<div class="ip-cadbar" role="img" aria-label="Получено ${t.got}, нет ${t.none}, отказ ${t.refused}, ждёт ${t.wait} из ${t.total}">
     ${['got', 'none', 'refused', 'wait'].map((k) => (t[k] ? `<i class="k-${k}" style="flex:${t[k]}"></i>` : '')).join('')}</div>`;
   function cadListHTML() {
@@ -2142,11 +2142,11 @@ export function mountInspections(host) {
       <div class="ip-people-head"><button class="btn btn-primary btn-sm" data-ip-cad-new>Новый запрос</button></div>
       <ul class="ip-people-list">${list.map((r) => {
         const t = cadSummary(r);
-        const late = r.due && r.due < todayD && t.wait;
+        const late = !r.closedAt && r.due && r.due < todayD && t.wait;
         return `<li class="ip-person ${view.cadSel === r.id ? 'on' : ''}"><button class="ip-person-main" data-ip-cad="${esc(r.id)}" aria-pressed="${view.cadSel === r.id}">
           <span class="ip-person-name">№ ${r.no} · ${esc(cadKindLabel(r.kind))}</span>
           <span class="ip-person-load"><span>${esc(r.person)}</span></span>
-          <span class="ip-person-load"><span>получено <b>${t.got}</b> из ${t.total}</span>${t.wait ? `<span class="${late ? 'ip-late' : ''}">ждёт <b>${t.wait}</b>${r.due ? ` · до ${esc(fmtDate(r.due).slice(0, 5))}` : ''}</span>` : '<span>закрыт</span>'}</span>
+          <span class="ip-person-load"><span>получено <b>${t.got}</b> из ${t.total}</span>${r.closedAt ? '<span>закрыт</span>' : t.wait ? `<span class="${late ? 'ip-late' : ''}">ждёт <b>${t.wait}</b>${r.due ? ` · до ${esc(fmtDate(r.due).slice(0, 5))}` : ''}</span>` : '<span>закрыт</span>'}</span>
           ${cadBar(t)}</button></li>`;
       }).join('') || '<li class="ip-hint ip-people-empty">Запросов нет.</li>'}</ul>
     </aside>`;
@@ -2159,9 +2159,17 @@ export function mountInspections(host) {
         <div class="ip-card-title"><h1>${esc(cadKindLabel(r.kind))} № ${r.no}</h1>
           <p class="ip-card-contacts">${esc(r.person)} · создан ${esc(fmtDate(r.at))}${r.by ? `, ${esc(r.by)}` : ''}${r.due ? ` · срок <b class="${r.due < todayD && t.wait ? 'ip-late' : ''}">${esc(fmtDate(r.due))}</b>` : ''}${r.note ? ` · ${esc(r.note)}` : ''}</p></div>
         <div class="ip-tiles ip-tiles-head">${tile('Получено', `${t.got} из ${t.total}`)}${tile('Нет в кадастре', t.none, t.none ? 'warn' : '')}${tile('Отказ', t.refused, t.refused ? 'warn' : '')}${tile('Ждёт', t.wait)}</div>
-        <div class="ip-head-act"><button class="btn btn-ghost btn-sm" data-ip-cad-xlsx="${esc(r.id)}">Отчёт xlsx</button></div>
+        <div class="ip-head-act">
+          ${r.closedAt ? `<button class="btn btn-ghost btn-sm" data-ip-cad-reopen="${esc(r.id)}">Открыть снова</button>`
+            : `<button class="btn btn-ghost btn-sm" data-ip-cad-edit="${esc(r.id)}">Изменить</button>
+              ${t.wait ? `<button class="btn btn-ghost btn-sm" data-ip-cad-remind="${esc(r.id)}" title="Отметить напоминание осмотрщику">Напомнить</button>` : ''}
+              <button class="btn btn-ghost btn-sm" data-ip-cad-close="${esc(r.id)}">Закрыть</button>`}
+          <button class="btn btn-ghost btn-sm" data-ip-cad-xlsx="${esc(r.id)}">Отчёт xlsx</button></div>
       </header>
       ${cadBar(t)}
+      ${r.closedAt || (r.log || []).length ? `<p class="ip-cad-log">${r.closedAt ? `<b>Закрыт</b> ${esc(fmtAt(r.closedAt))}${r.closedBy ? `, ${esc(r.closedBy)}` : ''}${t.wait ? ` · без ответа осталось строк: ${t.wait}` : ''}` : ''}
+        ${(r.log || []).filter((x) => x.kind === 'remind').slice(-1).map((x) => `<span>напомнено ${esc(fmtAt(x.at))}${x.by ? `, ${esc(x.by)}` : ''}</span>`).join('')}
+        ${(r.log || []).filter((x) => x.kind === 'edit').slice(-1).map((x) => `<span>изменён ${esc(fmtAt(x.at))}: ${esc(x.text)}</span>`).join('')}</p>` : ''}
       <div class="ip-card-body"><div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-cadtbl">
         <colgroup><col class="c-inst"><col class="c-eni"><col class="c-doc"><col class="c-res"><col class="c-file"><col class="c-date"><col class="c-ans"></colgroup>
         <thead><tr><th>№ учр.</th><th>ЕНИ</th><th>Документ</th><th>Итог</th><th>Файл</th><th class="num">Дата скан.</th><th>Ответ</th></tr></thead>
@@ -2182,8 +2190,10 @@ export function mountInspections(host) {
     const eligible = people.filter((p) => !p.fired);
     const q = (d.q || '').trim().toLowerCase();
     const found = q.length >= 2 ? [...all.values()].filter((s) => `${s.eniAll || ''} ${s.eni || ''}`.toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q)).slice(0, 8) : [];
-    return `<section class="ip-work ip-card" aria-label="Новый запрос документов">
-      <header class="ip-card-head"><div class="ip-card-title"><h1>Новый запрос</h1></div></header>
+    const edit = d.editId ? cadRequest(d.editId) : null;
+    return `<section class="ip-work ip-card" aria-label="${edit ? `Запрос № ${edit.no} — правка` : 'Новый запрос документов'}">
+      <header class="ip-card-head"><div class="ip-card-title"><h1>${edit ? `Запрос № ${edit.no} — правка` : 'Новый запрос'}</h1>
+        ${edit && edit.rows.some((x) => x.result) ? `<p class="ip-card-contacts">Строки с ответом не меняются — их ${edit.rows.filter((x) => x.result).length}; ниже — ждущие ответа.</p>` : ''}</div></header>
       <div class="ip-card-body"><div class="ip-cadform">
         <div class="ip-prow">
           <div class="field"><span class="ip-flabel" id="ip-cad-kind-l">Вид</span><div class="ip-segf" role="radiogroup" aria-labelledby="ip-cad-kind-l">${CAD_KINDS.map((k) => `<label><input type="radio" name="ip-cad-kind" data-ip-cadf="kind" value="${k.key}" ${d.kind === k.key ? 'checked' : ''}><span>${k.label}</span></label>`).join('')}</div></div>
@@ -2209,7 +2219,7 @@ export function mountInspections(host) {
         </table></div></div>` : '<p class="ip-hint">Строк пока нет — найдите объект по ЕНИ или адресу.</p>'}
         <div class="ip-profile-act"><span class="ip-err" data-ip-cad-err role="alert"></span>
           <button class="btn btn-ghost btn-sm" data-ip-cad-cancel>Отменить</button>
-          <button class="btn btn-primary btn-sm" data-ip-cad-create>Создать запрос</button></div>
+          <button class="btn btn-primary btn-sm" data-ip-cad-create>${d.editId ? 'Сохранить' : 'Создать запрос'}</button></div>
       </div></div>
     </section>`;
   }
@@ -2719,7 +2729,11 @@ export function mountInspections(host) {
   scope.on('input', '[data-ip-cad-q]', (e, el) => { cadDraft.q = el.value; redraw(); keepFocus('[data-ip-cad-q]'); });
   scope.on('click', '[data-ip-cad-add]', (e, b) => {
     const s = all.get(b.dataset.ipCadAdd);
-    if (s) cadDraft.rows.push({ typeId: s.typeId, ocId: s.id, inst: s.institution || '', eni: s.eni || '', title: s.title || '', doc: cadDocs()[0], note: '' });
+    // Повтор пары «объект + документ» в самом запросе не добавляется: второй раз — следующий документ перечня.
+    const used = new Set(cadDraft.rows.filter((x) => s && x.ocId === s.id).map((x) => x.doc.trim().toLowerCase()));
+    const doc = cadDocs().find((x) => !used.has(x.toLowerCase()));
+    if (s && doc) cadDraft.rows.push({ typeId: s.typeId, ocId: s.id, inst: s.institution || '', eni: s.eni || '', title: s.title || '', doc, note: '' });
+    else if (s) host.toast('Все документы перечня по этому объекту уже в запросе', 'warn');
     cadDraft.q = '';
     redraw();
     scope.$('[data-ip-cad-q]').focus();
@@ -2733,11 +2747,45 @@ export function mountInspections(host) {
     if (!d.person) { err.textContent = 'Выберите осмотрщика'; scope.$('[data-ip-cadf="person"]').focus(); return; }
     const empty = d.rows.findIndex((x) => !x.doc.trim());
     if (empty >= 0) { err.textContent = 'Укажите документ в каждой строке'; scope.$(`[data-ip-cad-row="${empty}"][data-k="doc"]`).focus(); return; }
-    const r = createCadRequest({ person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), rows: d.rows.map((x) => ({ ...x, doc: x.doc.trim(), note: x.note.trim() })) });
+    // Без повторов (решение пользователя 05.11.2026): одна пара «объект + документ» — один раз в запросе и не
+    // во втором открытом запросе.
+    const pair = (x) => `${x.ocId}|${x.doc.trim().toLowerCase()}`;
+    const twice = d.rows.findIndex((x, i) => d.rows.findIndex((y) => pair(y) === pair(x)) !== i);
+    if (twice >= 0) { err.textContent = `«${d.rows[twice].doc.trim()}» по объекту «${d.rows[twice].title}» — уже есть строкой выше`; scope.$(`[data-ip-cad-row="${twice}"][data-k="doc"]`).focus(); return; }
+    const dupAt = d.rows.findIndex((x) => !x.id && cadDuplicateOf(x.ocId, x.doc, d.editId || ''));
+    if (dupAt >= 0) {
+      const x = d.rows[dupAt];
+      err.textContent = `«${x.doc.trim()}» по объекту «${x.title}» уже ждёт ответа в запросе № ${cadDuplicateOf(x.ocId, x.doc, d.editId || '').no}`;
+      scope.$(`[data-ip-cad-row="${dupAt}"][data-k="doc"]`).focus();
+      return;
+    }
+    const rows = d.rows.map((x) => ({ ...x, doc: x.doc.trim(), note: x.note.trim() }));
+    const r = d.editId ? updateCadRequest(d.editId, { person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), rows })
+      : createCadRequest({ person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), rows });
     cadDraft = null;
     view.cadSel = r.id;
     redraw();
-    host.toast(`Запрос № ${r.no} создан`, 'ok');
+    host.toast(d.editId ? `Запрос № ${r.no} изменён` : `Запрос № ${r.no} создан`, 'ok');
+  });
+  scope.on('click', '[data-ip-cad-edit]', (e, b) => {
+    const r = cadRequest(b.dataset.ipCadEdit);
+    if (!r) return;
+    cadDraft = { editId: r.id, kind: r.kind, person: r.person, due: r.due || '', note: r.note || '', q: '',
+      rows: r.rows.filter((x) => !x.result).map((x) => ({ id: x.id, typeId: x.typeId, ocId: x.ocId, inst: x.inst, eni: x.eni,
+        title: (all.get(x.typeId + '|' + x.ocId) || {}).title || '', doc: x.doc, note: x.note || '' })) };
+    redraw();
+  });
+  scope.on('click', '[data-ip-cad-close]', (e, b) => {
+    const id = b.dataset.ipCadClose;
+    closeCadRequest(id);
+    redraw();
+    host.toast('Запрос закрыт', 'ok', { action: { label: 'Отменить', run: () => { closeCadRequest(id, false); redraw(); } } });
+  });
+  scope.on('click', '[data-ip-cad-reopen]', (e, b) => { closeCadRequest(b.dataset.ipCadReopen, false); redraw(); });
+  scope.on('click', '[data-ip-cad-remind]', (e, b) => {
+    const r = remindCadRequest(b.dataset.ipCadRemind);
+    redraw();
+    if (r) host.toast(`Напоминание по запросу № ${r.no} — ${r.person}`, 'ok');
   });
   // Отчёт по запросу (5.3): сколько получено, сколько нет, по каждой строке — причина.
   scope.on('click', '[data-ip-cad-xlsx]', async (e, b) => {

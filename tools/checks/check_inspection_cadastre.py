@@ -61,6 +61,35 @@ def run(t):
         req = pg.evaluate("async () => { const r = (await %s).allCadRequests()[0]; return [r.id, r.rows[0].id, r.rows[0].typeId, r.rows[0].ocId, r.rows[0].eni, r.rows[0].doc]; }" % K)
         rid, rowid, type_id, oc_id, eni, doc = req
 
+        # --- правка и без повторов (решение пользователя 05.11.2026 «Правка и без повторов») ---
+        pg.click('[data-ip-cad-new]')
+        pg.fill('[data-ip-cad-q]', '1030700')
+        t.wait_for('[data-ip-cad-add]')
+        pg.locator('[data-ip-cad-add]').first.click()
+        t.wait_for('[data-ip-cad-row="0"][data-k="doc"]')
+        pg.fill('[data-ip-cad-q]', '1030700')
+        t.wait_for('[data-ip-cad-add]')
+        pg.locator('[data-ip-cad-add]').first.click()
+        t.wait_for('[data-ip-cad-row="1"][data-k="doc"]')
+        d2 = [pg.input_value('[data-ip-cad-row="%d"][data-k="doc"]' % i) for i in (0, 1)]
+        t.ck(d2[0] != d2[1], 'один объект дважды добавился с одним и тем же документом: %s' % d2)
+        pg.select_option('[data-ip-cadf="person"]', who)
+        pg.click('[data-ip-cad-create]')
+        t.ck(t.wait_until("() => /уже ждёт ответа в запросе/.test(document.querySelector('[data-ip-cad-err]')?.textContent || '')"),
+             'пара «объект + документ» из открытого запроса добавилась во второй запрос')
+        pg.click('[data-ip-cad-cancel]')
+        pg.click('[data-ip-cad="%s"]' % rid)
+        pg.click('[data-ip-cad-edit="%s"]' % rid)
+        t.wait_for('[data-ip-cadf="due"]')
+        pg.fill('[data-ip-cadf="due"]', '2099-04-04')
+        pg.dispatch_event('[data-ip-cadf="due"]', 'change')
+        pg.click('[data-ip-cad-create]')
+        ed = pg.evaluate("async (id) => { const r = (await %s).cadRequest(id); return [r.due, r.rows.length, (r.log || []).map((x) => x.kind)]; }" % K, rid)
+        t.ck(ed[0] == '2099-04-04' and ed[1] == 1 and 'edit' in ed[2], 'правка открытого запроса не записалась: %s' % ed)
+        t.ck(t.wait_for('[data-ip-cad-remind="%s"]' % rid), 'у открытого запроса нет «Напомнить»')
+        pg.click('[data-ip-cad-remind="%s"]' % rid)
+        t.ck(t.wait_until("() => /напомнено/.test(document.querySelector('.ip-cad-log')?.textContent || '')"), 'напоминание не отмечено в запросе')
+
         # --- осмотрщик ------------------------------------------------------------
         # Запросы осмотрщика — свой раздел нижней панели (14.10.2026).
         t.open('#/insp?as=' + who + '&tab=cad', wait='.ins-body')
@@ -108,6 +137,11 @@ def run(t):
         import openpyxl
         ws = openpyxl.load_workbook(out).active
         t.ck(ws.freeze_panes == 'A2' and ws.max_row == 2 and ws.cell(2, 7).value == 'Получен', 'отчёт по запросу неверен')
+        # Закрыть — запрос «закрыт» в списке, «Открыть снова» возвращает.
+        pg.click('[data-ip-cad-close="%s"]' % rid)
+        t.ck(t.wait_until("(id) => /закрыт/.test(document.querySelector('[data-ip-cad=\"' + id + '\"]')?.textContent || '')", rid), 'закрытый запрос не помечен «закрыт» в списке')
+        pg.click('[data-ip-cad-reopen="%s"]' % rid)
+        t.ck(t.wait_for('[data-ip-cad-close="%s"]' % rid), '«Открыть снова» не вернуло запрос в работу')
         os.remove(out)
         t.ck(pg.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'страница прокручивается вбок')
     finally:
