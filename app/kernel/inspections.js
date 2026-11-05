@@ -446,9 +446,24 @@ export function profileOf(name) {
 export function saveProfile(name, patch) {
   let p = profiles.find((x) => x.id === name);
   if (!p) { p = blankProfile(name); profiles.push(p); }
+  const wasFired = !!p.fired;
   Object.assign(p, patch, { updatedAt: now(), updatedBy: session.state.person });
+  if (p.fired && !wasFired) releaseFired(name, p.firedDate);
   changed();
   return p;
+}
+
+// Увольнение (решение пользователя 05.11.2026 «Вернуть в «К назначению»»): незаконченные назначения
+// снимаются — объекты возвращаются в очередь; сделанное (снимки, значения) остаётся в результатах.
+// Дата увольнения в будущем — снимаются только выезды с этого дня и без даты.
+function releaseFired(name, firedDate) {
+  const from = firedDate && firedDate > localIso(new Date()) ? firedDate : '';
+  assignments.filter((a) => a.person === name && isLive(a) && (!from || !a.plannedAt || a.plannedAt >= from)).forEach((a) => {
+    a.state = 'removed';
+    a.removedAt = now();
+    logEvent('removed', a, { text: 'осмотрщик уволен — объект возвращён к назначению' });
+    syncResp(a.typeId, a.ocId);
+  });
 }
 
 export function addAbsence(name, { kind, from, to, note = '' }) {
