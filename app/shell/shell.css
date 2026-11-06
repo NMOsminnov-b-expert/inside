@@ -198,7 +198,7 @@ body[data-page="inspections"] .goto + .top-user{margin-left:auto}
 .goto{min-width:160px}
 .goto-list{right:auto;width:max(100%,340px);max-width:calc(100vw - 24px)}
 /* Шапка не шире экрана: крошки сжимаются первыми (многоточие), на узком — без роли в кнопке пользователя. */
-.crumbs{min-width:0;flex:1 1 auto;overflow:hidden;white-space:nowrap}
+.crumbs{min-width:0;flex:0 1 auto;overflow:hidden;white-space:nowrap}
 .goto{flex:0 1 420px;min-width:140px}
 @media (max-width:1000px){.top-user-role{display:none}}
 .crumbs [data-crumb]{min-width:3ch;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}

@@ -19,7 +19,7 @@ import { esc } from '../../kernel/dom.js';
 import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
 import {
-  allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink,
+  allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink, absenceOn, dayReport,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, restoreMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
@@ -2250,6 +2250,44 @@ export function mountInspections(host) {
   // назначение, объект очереди, профиль; уведомление помечается прочитанным.
   let notes = [];
   const readSet = () => new Set(view.notesRead);
+  // «Сегодня» регионала (решение пользователя 05.11.2026 по разбору 12.10: «Сегодня» — один экран
+  // утреннего обхода: горящие, просроченные, отсутствия, уведомления). Каждая строка ведёт туда,
+  // где с ней работают; пустой блок говорит, что всё в порядке.
+  function todaySection() {
+    const read = readSet();
+    const mine = myPeople();
+    const ofMine = (name) => view.peopleMode !== 'mine' || !name || mine.has(name);
+    const active = people.filter((p) => !p.fired && ofMine(p.name));
+    const hot = queueBase(all).filter((s) => s.deadline && s.deadline <= shiftD(todayD, 3))
+      .sort((a, b) => String(a.deadline).localeCompare(String(b.deadline))).slice(0, 12);
+    const late = notes.filter((n) => ['missed', 'overdue', 'stalled', 'noMorning', 'noEvening'].includes(n.kind) && ofMine(n.person) && n.date <= todayD)
+      .slice(0, 12);
+    const away = active.map((p) => ({ p, ab: absenceOn(p.name, todayD), n: allAssignments().filter((a) => a.person === p.name && isLive(a) && a.plannedAt === todayD).length }))
+      .filter((x) => x.ab);
+    const trips = active.map((p) => ({ p, r: dayReport(p.name, todayD) })).filter((x) => x.r.trips);
+    const fresh = notes.filter((n) => !read.has(n.id) && ofMine(n.person)).slice(0, 8);
+    const block = (title, n, body, empty, more = '') => `<section class="ip-today-b" aria-label="${esc(title)}">
+      <h3>${esc(title)} <b class="ip-today-n">${n}</b>${more}</h3>${n ? body : `<p class="ip-hint">${esc(empty)}</p>`}</section>`;
+    const li = (attr, a, b, c = '') => `<li><button type="button" class="ip-today-row" ${attr}><span class="ip-today-a">${esc(a)}</span><span class="ip-today-s">${esc(b)}</span>${c ? `<span class="ip-today-c">${c}</span>` : ''}</button></li>`;
+    const wd = WDL[new Date(todayD + 'T00:00:00').getDay()];
+    const card = `<section class="ip-work ip-card ip-today" aria-label="Сегодня">
+      <header class="ip-card-head">
+        <div class="ip-card-title"><h1>Сегодня</h1><p class="ip-card-contacts">${esc(wd)}, ${esc(fmtDate(todayD))}${view.peopleMode === 'mine' ? ' · мои осмотрщики' : ''}</p></div>
+        <div class="ip-head-act"><div class="ip-seg" role="group" aria-label="Чьи">
+          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
+          <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все</button></div></div>
+      </header>
+      <div class="ip-card-body ip-today-grid">
+        ${block('Горит срок', hot.length, `<ul class="ip-today-list">${hot.map((s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, `${s.deadline < todayD ? 'срок прошёл' : 'срок'} ${fmtDate(s.deadline)}`, s.cov && s.cov.state === 'part' ? 'частично назначен' : 'не назначен')).join('')}</ul>`, 'Объектов со сроком в ближайшие три дня без назначения нет.')}
+        ${block('Пропущено и просрочено', late.length, `<ul class="ip-today-list">${late.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, 'Пропусков отчётов и выездов нет.')}
+        ${block('Отсутствуют сегодня', away.length, `<ul class="ip-today-list">${away.map(({ p, ab, n }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, absenceLabel(ab.kind) + (ab.to && ab.to !== todayD ? ` до ${fmtDate(ab.to)}` : ''), n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : '')).join('')}</ul>`, 'Все осмотрщики на месте.')}
+        ${block('Выезды сегодня', trips.length, `<ul class="ip-today-list">${trips.map(({ p, r }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, `${r.trips} ${r.trips === 1 ? 'выезд' : r.trips < 5 ? 'выезда' : 'выездов'}`, r.morning ? `утренний ${esc(reportTime(r.morning.at))}` : r.missingMorning ? '<b class="ip-late">нет утреннего</b>' : 'утренний ещё не сдан')).join('')}</ul>`, 'На сегодня выездов не назначено.')}
+        ${block('Новые уведомления', fresh.length, `<ul class="ip-today-list">${fresh.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`)).join('')}</ul>`, 'Непрочитанных уведомлений нет.', ' <button type="button" class="btn btn-ghost btn-sm" data-ip-section="notes">Все уведомления</button>')}
+      </div>
+    </section>`;
+    return { cls: 'ip-todaysec', html: card };
+  }
+
   function notesSection() {
     const read = readSet();
     const mine = myPeople();
@@ -2371,6 +2409,7 @@ export function mountInspections(host) {
     const add = (label, sub, go, kw = '') => out.push({ label, sub, go, kw: `${label} ${sub} ${kw}`.toLowerCase() });
     add('Таблица осмотрщиков', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'table' }), 'excel эксель список ответственное');
     add('Отчёты за день', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'reports' }), 'вчера утренний вечерний пробег бензин бухгалтерия выгрузка');
+    add('Сегодня', 'утренний обход: сроки, пропуски, отсутствия', () => nav({ section: 'today' }), 'утро обход горит');
     add('Уведомления', 'пропуски отчётов и выездов', () => nav({ section: 'notes' }), 'пропуск');
     add('К назначению', 'Назначения · очередь', () => nav({ section: 'assign', tab: 'queue' }), 'очередь назначить');
     add('Назначено', 'Назначения · действующие', () => nav({ section: 'assign', tab: 'assigned' }), 'переназначить снять');
@@ -2550,7 +2589,7 @@ export function mountInspections(host) {
     host.setCrumbs([{ label: 'Осмотры' }]);
     notes = notifications(all, people);
     const unread = notes.filter((n) => !readSet().has(n.id)).length;
-    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : view.section === 'notes' ? notesSection() : assignSection();
+    const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : view.section === 'notes' ? notesSection() : view.section === 'today' ? todaySection() : assignSection();
     const top = (k, label, on = view.section === k) => `<button class="itab ${on ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${on}">${label}</button>`;
     // «Осмотрщики» и «Назначения» — один раздел (решение пользователя
     // 29.10.2026): наверху одна кнопка, режимы раздела — общей полосой.
@@ -2572,7 +2611,7 @@ export function mountInspections(host) {
     scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${onScene && hideList ? 'hide-list' : ''} ${onScene && hidePane ? 'hide-pane' : ''}" ${onScene ? `style="${splitStyle()}"` : ''}>
       <div class="ip-isles">
         <nav class="ip-isl ip-sections" role="tablist" aria-label="Режимы осмотров">
-          ${top('people', 'Осмотрщики и назначения', team)}${top('cadastre', 'Кадастр')}${top('history', 'История')}
+          ${top('today', 'Сегодня')}${top('people', 'Осмотрщики и назначения', team)}${top('cadastre', 'Кадастр')}${top('history', 'История')}
         </nav>
         ${team ? teamModesHTML() : ''}
         <div class="ip-isl ip-jump" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="ip-jump-list">
@@ -2860,6 +2899,16 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-norm-take]', (e, b) => { setNorm(b.dataset.ipNormTake, { perM2: Math.round(+b.dataset.v * 1000) / 1000 }); redraw(); });
   // Уведомления: отборы, прочитано, переход к причине.
   scope.on('click', '[data-ip-notes-kind]', (e, b) => { view.notesKind = b.dataset.ipNotesKind; redraw(); });
+  // «Сегодня»: объект — в очередь «К назначению» на нём; осмотрщик — его выезды.
+  scope.on('click', '[data-ip-today-q]', (e, b) => {
+    const k = b.dataset.ipTodayQ;
+    Object.assign(view, { section: 'assign', tab: 'queue' });
+    resetList();
+    revealQueued(k);
+    current = k;
+    render();
+  });
+  scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
   scope.on('change', '[data-ip-notes-unread]', (e, el) => { view.notesUnread = el.checked; redraw(); });
   scope.on('click', '[data-ip-notes-readall]', () => { markRead(notes.map((n) => n.id)); redraw(); });
   scope.on('click', '[data-ip-note]', (e, b) => {
