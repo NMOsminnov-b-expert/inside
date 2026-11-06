@@ -70,13 +70,18 @@ export function mountGoto() {
   box.setAttribute('aria-haspopup', 'listbox');
   box.setAttribute('aria-owns', 'goto-list');
   box.innerHTML = `<span class="goto-in"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg>
-    <input data-goto placeholder="Перейти: ЕНИ, адрес, осмотрщик, раздел" aria-label="Перейти (Ctrl+K)" autocomplete="off" aria-controls="goto-list" aria-autocomplete="list">
+    <input data-goto placeholder="Перейти: ЕНИ, адрес…" aria-label="Перейти (Ctrl+K)" autocomplete="off" aria-controls="goto-list" aria-autocomplete="list">
     <kbd class="goto-kbd" aria-hidden="true">Ctrl K</kbd></span>
     <ul class="goto-list" id="goto-list" role="listbox" aria-label="Куда перейти" hidden></ul>`;
   const user = $('#userMenu');
   bar.insertBefore(box, user || null);
   const inp = box.querySelector('[data-goto]');
   const ul = box.querySelector('.goto-list');
+  // На узком экране подсказка короче — длинная обрезалась бы на середине слова.
+  const narrow = window.matchMedia('(max-width: 900px)');
+  const ph = () => { inp.placeholder = narrow.matches ? 'Перейти…' : 'Перейти: ЕНИ, адрес…'; };
+  ph();
+  narrow.addEventListener('change', ph);
   let list = [];
   let hi = 0;
   const close = () => { ul.hidden = true; box.setAttribute('aria-expanded', 'false'); inp.removeAttribute('aria-activedescendant'); };

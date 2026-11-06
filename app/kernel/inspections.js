@@ -180,11 +180,14 @@ function syncResp(typeId, ocId) {
   recs.assignResponsible(ocId, 'insp', person);
 }
 
-// Возврат на доосмотр: принятый осмотр («Осмотрен») снова «Направлен на осмотр».
+// Возврат на доосмотр: принятый осмотр («Осмотрен») и объект на этапах оценки до её
+// окончания снова «Направлен на осмотр» — возвращает ЦОД при приёмке или оценщик
+// (решение пользователя 06.11.2026 по оценке после осмотра: «Вернуть на доосмотр» с причиной).
+const REOPEN_FROM = [DONE_STATUS, 'Удостоверен после осмотра', 'Готов к оценке', 'В процессе оценки'];
 function reopenStatus(typeId, ocId) {
   const recs = recordsOf(typeId);
   const rec = recs && recs.loadRecord(ocId);
-  if (rec) moveStatus(recs, rec, ocId, [DONE_STATUS], SENT_STATUS);
+  if (rec) moveStatus(recs, rec, ocId, REOPEN_FROM, SENT_STATUS);
 }
 
 export function changed() {

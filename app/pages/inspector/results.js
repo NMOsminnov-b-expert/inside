@@ -92,9 +92,17 @@ function compareOf(typeId, rec, oi, r) {
   return sections(typeId, oi).flatMap((s) => s.fields.map((f) => {
     const insp = shown(getValue(values, f.key));
     const card = typeof f.doc === 'function' ? shown(f.doc(oi)) : '';
-    return { group: s.title || '', label: f.label, insp, card, multi: !!f.multi, path: (f.doc && f.doc.path) || '', diff: !!(insp && card && norm(insp) !== norm(card)) };
+    const row = { group: s.title || '', label: f.label, insp, card, multi: !!f.multi, path: (f.doc && f.doc.path) || '', diff: !!(insp && card && norm(insp) !== norm(card)) };
+    // Счётчики (пробег, моточасы): рост к данным карточки — норма, расходится только уменьшение
+    // (решение пользователя 06.11.2026 «Рост — норма, уменьшение — расхождение»).
+    const a = counterNum(insp);
+    const b = counterNum(card);
+    if (COUNTERS.has(String(f.key).split('.').pop()) && a !== null && b !== null) Object.assign(row, { diff: a < b, grew: a > b ? a - b : 0, fell: a < b });
+    return row;
   })).filter((x) => x.insp);
 }
+const COUNTERS = new Set(['mileage', 'engineHours', 'hours']);
+const counterNum = (v) => { const m = String(v || '').replace(/\s/g, '').replace(',', '.').match(/^-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
 
 // Где ОИ в приёмке: принят, снова сдан после возврата, на доосмотре, ждёт
 // приёмки, осмотр идёт, не назначен.
@@ -266,7 +274,8 @@ function compareHTML(cmp, v) {
   const diffs = cmp.filter((x) => x.diff).length;
   const rows = (v.only ? cmp.map((x, i) => [x, i]).filter(([x]) => x.diff) : cmp.map((x, i) => [x, i]));
   const grouped = new Set(cmp.map((x) => x.group)).size > 1;
-  const chk = (x) => (x.diff ? '<span class="pill ir-pill-warn">расходится</span>' : x.card ? '<span class="ir-ok">совпадает</span>' : '<span class="ir-muted">в карточке нет</span>');
+  const chk = (x) => (x.fell ? '<span class="pill ir-pill-warn">меньше, чем в карточке</span>' : x.diff ? '<span class="pill ir-pill-warn">расходится</span>'
+    : x.grew ? `<span class="ir-muted">+${x.grew.toLocaleString('ru-RU')} с данных карточки</span>` : x.card ? '<span class="ir-ok">совпадает</span>' : '<span class="ir-muted">в карточке нет</span>');
   const act = (x, i) => (x.path && norm(x.insp) !== norm(x.card)
     ? `<button type="button" class="btn btn-ghost btn-sm ir-apply" data-ir-apply="${i}" title="Записать «${esc(x.insp)}» в карточку">В карточку</button>` : '');
   return `<div class="ir-cmp-head"><p class="ir-sub">Сверка <b>${cmp.length}</b>${diffs ? ` · <span class="ir-diff-n">расхождений ${diffs}</span>` : ''}</p>
