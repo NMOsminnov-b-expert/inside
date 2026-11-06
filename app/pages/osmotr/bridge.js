@@ -67,6 +67,21 @@ function folderOf(oi, rec, entity, landNo) {
 }
 
 // Название объекта в приложении (имя папки): адрес; у ТС — марка и госномер; у механизмов — опись.
+// Сведения для задачи осмотрщика строками «подпись — значение» (решение пользователя 06.11.2026 по задаче
+// ТС: «Марка, госномер + контакт»): у ТС — марка и модель, госномер, VIN; без адреса — адрес учреждения.
+function factsOf(rec) {
+  const v = (rec.vehicle || {}).f || {};
+  const out = [];
+  const add = (label, value) => { if (value) out.push({ label, value: String(value) }); };
+  if (rec.vehicle) {
+    add('Марка и модель', [v.make, v.model].filter(Boolean).join(' '));
+    add('Госномер', v.plate);
+    add('VIN', v.vin);
+  }
+  if (!rec.address) add('Учреждение', [rec.institution, rec.podved].filter(Boolean).join(' · '));
+  return out;
+}
+
 function titleOf(rec, ocId) {
   const v = (rec.vehicle || {}).f || {};
   const ts = [v.make, v.plate].filter(Boolean).join(' · ');
@@ -287,7 +302,7 @@ function myObjects(person) {
       // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },
         rec.geo.contour ? { type: 'MultiPolygon', coordinates: rec.geo.contour } : null, rec.geo.builds || []) : [],
-      ois, docs, contacts, returned,
+      ois, docs, contacts, returned, facts: factsOf(rec),
       inventories: inventoriesOf(rec, list, ownOis(rec).filter((o) => whole || list.some((a) => coversOi(a, o.id))))
         .map(({ id, kind, title, folder, items }) => ({ id, kind, title, folder, count: items.length })),
     });

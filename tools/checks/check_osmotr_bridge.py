@@ -61,6 +61,11 @@ def run(t):
     # --- назначенные объекты: свои, без снятых; ОИ с папками ---
     a = pg.evaluate(ASK, ['assignments', {}, False])
     items = (a.get('body') or {}).get('items') or []
+    # Задача ТС — марка, госномер, VIN (решение 06.11.2026 «Марка, госномер + контакт»).
+    tsi = [x for x in items if x.get('entity') == 'vehicle']
+    if tsi:
+        labels = [f.get('label') for f in tsi[0].get('facts') or []]
+        t.ck('Госномер' in labels and 'Марка и модель' in labels, 'у задачи ТС нет марки или госномера: %s' % labels)
     t.ck(a['ok'] and len(items) > 0, 'assignments: пусто или отказ: %s' % (a.get('error') or ''))
     mine = pg.evaluate("""async () => { const k = %s; const p = (await import('./app/kernel/session.js')).session.state.person;
       return [...new Set(k.assignmentsOfPerson(p, { live: false }).filter((a) => a.state !== 'removed').map((a) => a.typeId + '|' + a.ocId))]; }""" % KI)
