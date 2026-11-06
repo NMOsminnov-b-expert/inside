@@ -199,7 +199,8 @@ function reportHTML(all, sel, assignments, canBack) {
         ${e.note ? `<div class="ip-dp-line"><span>Комментарий</span><span class="ip-dp-v">${esc(e.note)}</span></div>` : ''}` : missing(d.missingEvening)}
     </section>
     <section class="ip-sec"><h3>Пробег и бензин</h3>
-      <div class="ip-dp-line"><span>Пробег</span><span class="ip-dp-v">${d.km === null ? '—' : `<b class="ip-num">${d.km} км</b> <span class="ip-muted">${d.kmBy === 'route' ? 'по маршруту' : 'по одометру'}</span>`}</span></div>
+      <div class="ip-dp-line"><span>Пробег</span><span class="ip-dp-v">${d.km === null ? '—' : `<b class="ip-num">${d.km} км</b> <span class="ip-muted">${d.kmBy === 'route' ? 'по маршруту осмотрщика' : 'по одометру'}</span>`}</span></div>
+      <div class="ip-dp-line"><span>По дорогам (OSM)</span><span class="ip-dp-v" data-ip-osm-km="${esc(d.person + '|' + d.date)}"><span class="ip-muted">считается…</span></span></div>
       <div class="ip-dp-line"><span>Литры</span><span class="ip-dp-v">${d.litres === null ? (d.km !== null ? '<span class="ip-muted">расход авто не указан</span>' : '—') : `<b class="ip-num">${d.litres.toLocaleString('ru-RU')} л</b> <span class="ip-muted">${d.km} × ${d.consumption} / 100</span>`}</span></div>
       <div class="ip-dp-line"><span>Авто</span><span class="ip-dp-v">${esc(d.car || '—')}${d.fuel ? ` · ${esc(d.fuel)}` : ''}</span></div>
     </section>`;

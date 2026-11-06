@@ -16,10 +16,11 @@
 // таблицы — общие примитивы kernel/tokens.css.
 import { foldEniList } from '../../kernel/eniFold.js';
 import { esc } from '../../kernel/dom.js';
+import { toast } from '../../kernel/toast.js';
 import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
 import {
-  allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink, absenceOn, dayReport,
+  allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink, absenceOn, dayReport, moveRequests, decideMove,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, restoreMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
@@ -43,7 +44,7 @@ import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML, periodBar } from './stats.js';
 import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, dayLoad, factNorms, homeOf, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign, layoutBatch } from './route.js';
+import { dayRoute, dayLoad, factNorms, homeOf, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign, layoutBatch, osrmKm, dayPoints } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
@@ -888,8 +889,9 @@ export function mountInspections(host) {
     const r = d[kind];
     if (r) {
       const t = reportTime(r.at);
+      // Сдан в другой день (до 3 рабочих дней, решение 06.11.2026) — «сдан позже» с датой.
+      if ((kind === 'morning' && d.morningFiledLate) || (kind === 'evening' && d.eveningLate)) return `<span class="ip-rmark warn" title="Сдан позже: ${esc(fmtDate(r.at))} ${t}">позже · ${esc(fmtDate(r.at).slice(0, 5))}</span>`;
       if (kind === 'morning' && d.late) return `<span class="ip-rmark warn" title="Позже начала дня по графику (${esc(d.lateFrom)})">${t}</span>`;
-      if (kind === 'evening' && d.eveningLate) return `<span class="ip-rmark warn" title="Сдан ${esc(fmtDate(r.at))}">${esc(fmtDate(r.at).slice(0, 5))} ${t}</span>`;
       return `<span class="ip-rtime">${t}</span>`;
     }
     if (kind === 'morning' ? d.missingMorning : d.missingEvening) return '<span class="ip-rmark off">не сдан</span>';
@@ -2269,6 +2271,12 @@ export function mountInspections(host) {
       .filter((x) => x.ab);
     const trips = active.map((p) => ({ p, r: dayReport(p.name, todayD) })).filter((x) => x.r.trips);
     const fresh = notes.filter((n) => !read.has(n.id) && ofMine(n.person)).slice(0, 8);
+    // Запросы переноса — ответ прямо здесь (решение 06.11.2026: «Регионал должен подтвердить перенос»).
+    const moves = moveRequests().filter((a) => ofMine(a.person));
+    const moveLi = (a) => `<li class="ip-today-move"><span class="ip-today-a">${esc((all.get(a.typeId + '|' + a.ocId) || {}).title || '—')}</span>
+      <span class="ip-today-s">${esc(a.person)} · ${esc(a.moveReq.from ? fmtDate(a.moveReq.from) : 'без даты')} → <b>${esc(fmtDate(a.moveReq.date))}</b> · ${esc(a.moveReq.reason)}${a.moveReq.note ? ` — ${esc(a.moveReq.note)}` : ''}</span>
+      <span class="ip-today-acts"><button type="button" class="btn btn-primary btn-sm" data-ip-move-ok="${esc(a.id)}">Разрешить</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-ip-move-no="${esc(a.id)}">Отклонить</button></span></li>`;
     const block = (title, n, body, empty, more = '') => `<section class="ip-today-b" aria-label="${esc(title)}">
       <h3>${esc(title)} <b class="ip-today-n">${n}</b>${more}</h3>${n ? body : `<p class="ip-hint">${esc(empty)}</p>`}</section>`;
     const li = (attr, a, b, c = '') => `<li><button type="button" class="ip-today-row" ${attr}><span class="ip-today-a">${esc(a)}</span><span class="ip-today-s">${esc(b)}</span>${c ? `<span class="ip-today-c">${c}</span>` : ''}</button></li>`;
@@ -2281,6 +2289,7 @@ export function mountInspections(host) {
           <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все</button></div></div>
       </header>
       <div class="ip-card-body ip-today-grid">
+        ${moves.length ? block('Запрошен перенос', moves.length, `<ul class="ip-today-list">${moves.map(moveLi).join('')}</ul>`, '') : ''}
         ${block('Горит срок', hot.length, `<ul class="ip-today-list">${hot.map((s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, `${s.deadline < todayD ? 'срок прошёл' : 'срок'} ${fmtDate(s.deadline)}`, s.cov && s.cov.state === 'part' ? 'частично назначен' : 'не назначен')).join('')}</ul>`, 'Объектов со сроком в ближайшие три дня без назначения нет.')}
         ${block('Пропущено и просрочено', late.length, `<ul class="ip-today-list">${late.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, 'Пропусков отчётов и выездов нет.')}
         ${block('Отсутствуют сегодня', away.length, `<ul class="ip-today-list">${away.map(({ p, ab, n }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, absenceLabel(ab.kind) + (ab.to && ab.to !== todayD ? ` до ${fmtDate(ab.to)}` : ''), n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : '')).join('')}</ul>`, 'Все осмотрщики на месте.')}
@@ -2289,6 +2298,20 @@ export function mountInspections(host) {
       </div>
     </section>`;
     return { cls: 'ip-todaysec', html: card };
+  }
+
+  // Пробег дня по дорогам (OSRM/OSM) — дописывается в отчёт дня, когда сервис ответит.
+  function fillOsmKm() {
+    scope.$$('[data-ip-osm-km]').forEach((el) => {
+      const [person, date] = el.dataset.ipOsmKm.split('|');
+      const pts = dayPoints(person, date);
+      if (!pts) { el.innerHTML = '<span class="ip-muted">нет дома или мест объектов — не посчитать</span>'; return; }
+      osrmKm(pts).then((km) => {
+        if (!el.isConnected) return;
+        el.innerHTML = km === null ? '<span class="ip-muted">сервис маршрутов не ответил</span>'
+          : `<b class="ip-num">${km.toLocaleString('ru-RU')} км</b> <span class="ip-muted">дом → объекты дня (${pts.length - 2}) → дом</span>`;
+      });
+    });
   }
 
   function notesSection() {
@@ -2633,6 +2656,7 @@ export function mountInspections(host) {
     </div>`);
     placeJump();
     liftSubTabs();
+    fillOsmKm();
     // Ширина в разделителе — уже по отрисованным панелям.
     scope.$$('[data-ip-split]').forEach((sep) => sep.setAttribute('aria-valuenow', String(splitWidth(sep.dataset.ipSplit))));
     syncUrl();
@@ -2925,6 +2949,8 @@ export function mountInspections(host) {
     render();
   });
   scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
+  scope.on('click', '[data-ip-move-ok]', (e, b) => { decideMove(b.dataset.ipMoveOk, true); toast('Перенос разрешён', 'ok'); redraw(); });
+  scope.on('click', '[data-ip-move-no]', (e, b) => { decideMove(b.dataset.ipMoveNo, false); toast('Перенос отклонён — выезд на прежней дате', 'ok'); redraw(); });
   // Часть описи в форме назначения — видна у отмеченной описи; «Позиции по номерам» — поле номеров.
   scope.on('change', '.ip-pane [data-ip-f-inv]', (e, el) => {
     const box = scope.$(`[data-ip-invpart-box="${CSS.escape(el.dataset.ipFInv)}"]`);

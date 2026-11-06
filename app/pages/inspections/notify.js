@@ -34,6 +34,7 @@ export const NOTE_KINDS = [
   { key: 'cadGot', label: 'Ответ кадастра получен', tone: 'ok' },
   { key: 'retake', label: 'Скан не переснят', tone: 'warn' },
   { key: 'handed', label: 'Осмотр сдан', tone: 'ok' },
+  { key: 'moveReq', label: 'Запрошен перенос выезда', tone: 'warn' },
 ];
 export const noteKind = (k) => NOTE_KINDS.find((x) => x.key === k) || { key: k, label: k, tone: '' };
 
@@ -119,6 +120,12 @@ export function notifications(all, people, days = 7) {
       push({ kind: 'retake', person: s.by || '', date: day(s.retake.at), ref: s.id,
         text: `${titleOf(res)} — ${s.title || 'скан'}: ${s.retake.reason}`, go: { href: `#/scans?state=returned&key=${encodeURIComponent(`scan|${res.typeId}|${res.ocId}|${s.id}`)}` } });
     });
+  });
+  // Запрос переноса ждёт ответа регионала — до ответа, без срока давности.
+  allAssignments().forEach((a) => {
+    if (!isLive(a) || !a.moveReq) return;
+    push({ kind: 'moveReq', person: a.person, date: day(a.moveReq.at), ref: a.id + '|' + a.moveReq.at,
+      text: `${titleOf(a)} — ${a.moveReq.from ? ddmm(a.moveReq.from) : 'без даты'} → ${ddmm(a.moveReq.date)}: ${a.moveReq.reason}`, go: { assign: a.id } });
   });
   allAssignments().forEach((a) => {
     if (a.state !== 'done' || a.demo || day(a.doneAt) < from) return;

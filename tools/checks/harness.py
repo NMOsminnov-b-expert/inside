@@ -444,6 +444,9 @@ def run_one(mod, part=None, headless=True, browser_=None):
         })()""")
         # Подложка OSM — клеткой 1×1 без сети (23.10.2026): карте важен сам ответ.
         page.context.route('https://tile.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='image/png', body=PNG_1PX))
+        # Маршрут по дорогам (OSRM, пробег дня — pages/inspections/route.js): постоянный ответ 42,5 км, без сети.
+        page.context.route('https://router.project-osrm.org/**', lambda r: r.fulfill(status=200, content_type='application/json',
+                           headers={'Access-Control-Allow-Origin': '*'}, body='{"code":"Ok","routes":[{"distance":42500,"duration":3600}]}'))
         # Карта «Дарек» ГУ «Кадастр» (границы, аймаки, 04.11.2026) — без сети:
         # картинки — клеткой 1×1, «что в точке» — записанный аймак (darek_fixture).
         page.context.route('http://map.darek.kg/**', darek_route)

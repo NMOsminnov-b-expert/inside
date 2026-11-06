@@ -676,6 +676,38 @@ export function skipDay(id, date, reason, note = '') {
   return a;
 }
 
+// Перенос выезда осмотрщиком — с подтверждением регионала (решения пользователя 06.11.2026: «Причина
+// «Объект закрыт», Регионал должен подтвердить перенос»; «Остаётся на старой дате + «запрошен перенос»»).
+// Пока регионал не ответил, выезд стоит на прежней дате с запросом (a.moveReq: желаемая дата, причина);
+// разрешил — дата меняется; отклонил — запрос снимается с причиной отказа; не ответил до конца дня —
+// выезд пропущен (уведомление «Пропущен выезд» считает, как прежде, по плановой дате).
+export function requestMove(id, { date, reason, note = '' }) {
+  const a = assignmentById(id);
+  if (!a || !isLive(a) || !date || !reason) return null;
+  a.moveReq = { date, reason, note, from: a.plannedAt || '', by: session.state.person, at: now() };
+  a.updatedAt = now();
+  logEvent('moveRequested', a, { date, text: `${a.plannedAt || 'без даты'} → ${date}: ${reason}${note ? ` — ${note}` : ''}` });
+  changed();
+  return a;
+}
+export function decideMove(id, ok, why = '') {
+  const a = assignmentById(id);
+  if (!a || !a.moveReq) return null;
+  const r = a.moveReq;
+  delete a.moveReq;
+  if (ok) {
+    a.plannedAt = r.date;
+    logEvent('moveAllowed', a, { date: r.date, text: `${r.from || 'без даты'} → ${r.date}` });
+  } else {
+    a.moveRefused = { ...r, why, decidedBy: session.state.person, decidedAt: now() };
+    logEvent('moveRefused', a, { date: r.from, text: `${r.date}: ${why || 'без причины'}` });
+  }
+  a.updatedAt = now();
+  changed();
+  return a;
+}
+export const moveRequests = () => assignments.filter((a) => isLive(a) && a.moveReq);
+
 // Вернуть снятое с дня (указание пользователя 14.10.2026: «Снятое тоже
 // должна быть возможность заново назначить»): снятие отменяется — дата
 // возвращается, запись о снятии убирается, отчёт регионалу о нём
@@ -804,8 +836,23 @@ registerPersisted('inspections.reports', {
 export const reportOf = (person, date, kind) => reports.find((r) => r.person === person && r.date === date && r.kind === kind) || null;
 export const reportsBetween = (from, to) => reports.filter((r) => r.date >= from && r.date <= to);
 
+// Отчёт за прошедший день — не позже 3 рабочих дней осмотрщика после него, с пометкой «сдан позже»
+// (решение пользователя 06.11.2026 «Да, 3 раб. дня, пометка»). Позже — не принимается (null).
+export const LATE_REPORT_WORKDAYS = 3;
+export function lateWorkdays(person, date, today = localIso(new Date())) {
+  let n = 0;
+  for (let d = new Date(date + 'T00:00:00'); ;) {
+    d.setDate(d.getDate() + 1);
+    const iso = localIso(d);
+    if (iso > today) break;
+    if (workdayOf(person, iso).ok) n++;
+  }
+  return n;
+}
 export function saveReport({ person, date, kind, ...data }) {
   let r = reportOf(person, date, kind);
+  const today = localIso(new Date());
+  if (!r && date < today && lateWorkdays(person, date, today) > LATE_REPORT_WORKDAYS) return null;
   if (!r) {
     r = { id: nextId('rp'), person, date, kind, at: now(), by: session.state.person };
     reports.push(r);
@@ -851,6 +898,8 @@ export function dayReport(person, date) {
     late, lateFrom: p.schedule.from,
     // Вечерний сдан на следующий день и позже — тоже пропуск срока.
     eveningLate: !!evening && localIso(new Date(evening.at)) > date,
+    // Утренний, сданный в другой день, — тоже «сдан позже».
+    morningFiledLate: !!morning && localIso(new Date(morning.at)) > date,
     trips,
     missingMorning: due && !morning && (date < today || (date === today && nowHM > p.schedule.from)),
     missingEvening: due && !evening && (date < today || (date === today && nowHM > p.schedule.to)),

@@ -117,6 +117,38 @@ export const parseGps = (v) => {
 };
 const toRad = (x) => (x * Math.PI) / 180;
 // Км по дорогам ≈ по прямой × 1,3 (средний коэффициент извилистости).
+// Пробег дня по дорогам — сервис маршрутов OSRM по картам OSM (решение пользователя 06.11.2026: «Можно во
+// внешний (OSRM/OSM)», затем «Используем OSM»): дом → осмотренные за день объекты → дом, длина маршрута в км.
+// Наружу уходят только координаты точек — без имён, адресов и ЕНИ. Ответы запоминаются на вкладку.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: расчёт — на сервере (свой OSRM или договорной сервис), без обращения браузера
+// к внешнему адресу; публичный сервер OSRM — только для макета (ограничение частоты запросов).
+const OSRM = 'https://router.project-osrm.org/route/v1/driving/';
+const osrmMemo = new Map();
+export async function osrmKm(points) {
+  const pts = points.filter(Boolean);
+  if (pts.length < 2) return 0;
+  const path = pts.map(([lat, lon]) => `${lon.toFixed(6)},${lat.toFixed(6)}`).join(';');
+  if (osrmMemo.has(path)) return osrmMemo.get(path);
+  const p = fetch(`${OSRM}${path}?overview=false`).then((r) => (r.ok ? r.json() : null))
+    .then((j) => (j && j.code === 'Ok' && j.routes && j.routes[0] ? Math.round(j.routes[0].distance / 100) / 10 : null))
+    .catch(() => null);
+  osrmMemo.set(path, p);
+  const km = await p;
+  if (km === null) osrmMemo.delete(path);
+  return km;
+}
+// Точки дня осмотрщика: дом (или временное жильё), объекты с законченным осмотром или выездом на этот день по
+// времени окончания, дом. null — нет дома или объектов с местом.
+export function dayPoints(person, date) {
+  const home = homeOf(person, date).gps;
+  if (!home) return null;
+  const objs = allAssignments().filter((a) => a.person === person && a.plannedAt === date && a.state !== 'removed')
+    .sort((x, y) => String(x.doneAt || '9').localeCompare(String(y.doneAt || '9')))
+    .map((a) => gpsOfObject(a.typeId, a.ocId)).filter(Boolean);
+  return objs.length ? [home, ...objs, home] : null;
+}
+
 export function roadKm(a, b) {
   const dLat = toRad(b[0] - a[0]);
   const dLon = toRad(b[1] - a[1]);
