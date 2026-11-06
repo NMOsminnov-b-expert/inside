@@ -149,16 +149,29 @@ export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by =
 // (scan.review) — в очереди «Сканы с осмотров» он снова «Ждёт разбора».
 // Название и ОИ остаются прежними.
 //
+// Названные при возврате страницы (retake.pages, номера с 1; решение пользователя 06.11.2026
+// «Названные страницы + история») заменяются по порядку новыми, остальные остаются; лишние
+// новые — в конец. Без названных — заменяются все. Причины возвратов — в scan.returns
+// (kernel/scanQueue.js), здесь не стираются.
+//
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: пересъёмка — новая версия того же документа с
-// сохранением прежней и причины возврата (история разбора); здесь прежние
-// страницы и причина не хранятся.
+// сохранением прежних страниц; здесь прежние страницы заменяются.
 export function replaceScanPages(typeId, ocId, scanId, files, { by = '' } = {}) {
   const scan = (resultsOf(typeId, ocId).scans || []).find((s) => s.id === scanId);
   if (!scan) throw new Error('Скан не найден');
   if (!scan.retake) throw new Error('Скан не возвращён на пересъёмку');
   if (!files.length) throw new Error('Нет страниц');
-  (scan.pages || []).forEach((p) => { try { URL.revokeObjectURL(p.dataUrl); } catch (e) { /* уже отозвана */ } });
-  scan.pages = makeScanPages(files);
+  const named = (scan.retake.pages || []).filter((n) => n >= 1 && n <= (scan.pages || []).length);
+  const fresh = makeScanPages(files);
+  const revoke = (p) => { try { URL.revokeObjectURL(p.dataUrl); } catch (e) { /* уже отозвана */ } };
+  if (named.length) {
+    const pages = scan.pages.slice();
+    named.forEach((n, i) => { if (fresh[i]) { revoke(pages[n - 1]); pages[n - 1] = fresh[i]; } });
+    scan.pages = [...pages, ...fresh.slice(named.length)];
+  } else {
+    (scan.pages || []).forEach(revoke);
+    scan.pages = fresh;
+  }
   delete scan.retake;
   delete scan.review;
   scan.status = 'ждёт ЦОД';

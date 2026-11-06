@@ -13,8 +13,9 @@
 // и в WhatsApp или на почту (развилка канала, ТЗ 8.3); «прочитано» — у
 // учётной записи менеджера.
 import {
-  allAssignments, isLive, dayReport, workdayOf, poaDaysLeft, stallOf, reportTime, eventsOf,
+  allAssignments, isLive, dayReport, workdayOf, poaDaysLeft, stallOf, reportTime, eventsOf, allCadRequests, cadKindLabel,
 } from '../../kernel/inspections.js';
+import { allResults } from '../../kernel/inspectionResults.js';
 import { queueBase } from './model.js';
 import { plural } from '../../kernel/fmt.js';
 
@@ -29,6 +30,10 @@ export const NOTE_KINDS = [
   { key: 'stalled', label: 'Назначение зависло', tone: 'warn' },
   { key: 'poa', label: 'Доверенность', tone: 'warn' },
   { key: 'absence', label: 'План на отсутствие', tone: 'warn' },
+  // Кадастр и сканы (решение пользователя 06.11.2026 «В ленту и число на меню»).
+  { key: 'cadGot', label: 'Ответ кадастра получен', tone: 'ok' },
+  { key: 'retake', label: 'Скан не переснят', tone: 'warn' },
+  { key: 'handed', label: 'Осмотр сдан', tone: 'ok' },
 ];
 export const noteKind = (k) => NOTE_KINDS.find((x) => x.key === k) || { key: k, label: k, tone: '' };
 
@@ -94,6 +99,31 @@ export function notifications(all, people, days = 7) {
   active.forEach((p) => {
     const d = poaDaysLeft(p.name);
     if (d !== null && d <= 14) push({ kind: 'poa', person: p.name, date: today, ref: String(d < 0 ? 'out' : d === 0 ? 'today' : 'soon'), text: d < 0 ? `истекла ${-d} дн. назад` : d === 0 ? 'истекает сегодня' : `истекает через ${d} дн.`, go: { profile: true } });
+  });
+
+  // Ответ кадастра получен и ещё не разобран; скан возвращён и не переснят; осмотр сдан и не принят.
+  const day = (iso) => String(iso || '').slice(0, 10);
+  allCadRequests().forEach((req) => {
+    if (req.closedAt) return;
+    req.rows.forEach((row) => {
+      if (row.result !== 'got' || row.review || day(row.answeredAt) < from) return;
+      push({ kind: 'cadGot', person: row.answeredBy || req.person, date: day(row.answeredAt), ref: row.id,
+        text: `${cadKindLabel(req.kind)} № ${req.no} — ${row.doc || 'документ'}`, go: { href: `#/scans?src=${encodeURIComponent('кадастр')}&key=${encodeURIComponent(`cad|${req.id}|${row.id}`)}` } });
+    });
+  });
+  allResults().forEach((res) => {
+    const list = res.scans || [];
+    list.forEach((s) => {
+      if (!s.retake) return;
+      if (list.some((n) => n !== s && n.title === s.title && (n.oiId || '') === (s.oiId || '') && String(n.at) > String(s.retake.at))) return;
+      push({ kind: 'retake', person: s.by || '', date: day(s.retake.at), ref: s.id,
+        text: `${titleOf(res)} — ${s.title || 'скан'}: ${s.retake.reason}`, go: { href: `#/scans?state=returned&key=${encodeURIComponent(`scan|${res.typeId}|${res.ocId}|${s.id}`)}` } });
+    });
+  });
+  allAssignments().forEach((a) => {
+    if (a.state !== 'done' || a.demo || day(a.doneAt) < from) return;
+    push({ kind: 'handed', person: a.person, date: day(a.doneAt), ref: a.id, text: titleOf(a) + (a.incomplete ? ' — неполный' : ''),
+      go: { href: `#/oc/${a.typeId}/${a.ocId}?tab=inspection` } });
   });
 
   return out.sort((x, y) => y.date.localeCompare(x.date) || noteKind(x.kind).label.localeCompare(noteKind(y.kind).label));

@@ -26,7 +26,7 @@ import { getType } from './registry.js';
 import { session } from './session.js';
 import { scheduleSave } from './persist.js';
 import { allResults, resultsOf } from './inspectionResults.js';
-import { allCadRequests, cadRequest, cadKindLabel, nextRecDocId, changed as cadChanged } from './inspections.js';
+import { allCadRequests, cadRequest, cadKindLabel, nextRecDocId, changed as cadChanged, profileOf } from './inspections.js';
 import { inventoryById, addItemDoc } from './inventories.js';
 import { allNodes, staffOf } from './institutions.js';
 
@@ -82,6 +82,7 @@ function scanItem(res, s, cache) {
     key: scanKey(res.typeId, res.ocId, s.id), source: s.inv ? 'опись' : 'осмотр', typeId: res.typeId, ocId: res.ocId, oiId: s.oiId || '',
     title: s.title || 'Документ с осмотра', docType: s.docType || '', by: s.by || '', at: s.at || '', pages: s.pages || [],
     state: review.state || 'wait', reason: review.reason || '', decidedBy: review.by || '', decidedAt: review.at || '', docId: review.docId || '',
+    returns: s.returns || [], scanId: s.id, doc: acceptedDoc(rec, review.docId),
     cod: s.inv ? invCod(inv) || (rec && rec.resp ? rec.resp.cod || '' : '') : rec && rec.resp ? rec.resp.cod || '' : '', insp: rec && rec.resp ? rec.resp.insp || '' : '',
     place: s.inv && inv ? [inv.institution, inv.podved].filter(Boolean).join(' — ') : placeOf(rec), eni: rec ? rec.eni || '' : '',
   };
@@ -100,21 +101,29 @@ function cadItem(req, row, cache) {
     place: placeOf(rec) || row.inst || '', eni: row.eni || (rec && rec.eni) || '',
     // К вопросу: дата сканирования и комментарий ответа — для экрана разбора.
     scanDate: row.scanDate || '', answer: row.answer || '', request: `${cadKindLabel(req.kind)} № ${req.no}`,
+    returns: row.returns || [], doc: acceptedDoc(rec, review.docId || (row.file && row.file.docId)),
   };
+}
+
+// Документ принятого — как он сейчас в карточке (вид, название, ОИ): от них правка принятого.
+function acceptedDoc(rec, docId) {
+  const at = findDoc(rec, docId);
+  return at ? { type: at.doc.type, name: at.doc.name, oiId: at.holder === rec ? '' : at.holder.id } : null;
 }
 
 // Плоский список очереди, новые сверху.
 //   state  — 'wait' | 'accepted' | 'returned' | 'rejected' | '' (все);
 //   source — 'осмотр' | 'опись' | 'кадастр' | '' (все);
 //   role   — 'cod': только записи, где person — оператор ЦОД (resp.cod);
-//            'regional' и 'all': все. ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: у записи нет поля
-//            регионального менеджера, поэтому «мне» у регионала пока равно «все»;
-//            на сервере — записи его региона/подведов;
+//            'rm': сканы осмотрщиков, закреплённых за регионалом person (профиль
+//            осмотрщика, manager; решение пользователя 06.11.2026 «Сканы его
+//            осмотрщиков»); 'all': все;
 //   mine   — краткая форма: при role 'all' означает role 'cod';
 //   person — по умолчанию человек из сессии.
 export function scanQueue({ state = '', source = '', role = 'all', mine = false, person = '' } = {}) {
   const who = person || me();
   const onlyCod = role === 'cod' || (mine && role === 'all');
+  const mineRm = (x) => [x.by, x.insp].some((n) => n && profileOf(n).manager === who);
   const recs = new Map();
   const cache = (typeId, ocId) => {
     const k = `${typeId}|${ocId}`;
@@ -135,7 +144,7 @@ export function scanQueue({ state = '', source = '', role = 'all', mine = false,
     }));
   }
   return items
-    .filter((x) => (!state || x.state === state) && (!onlyCod || x.cod === who))
+    .filter((x) => (!state || x.state === state) && (!onlyCod || x.cod === who) && (role !== 'rm' || mineRm(x)))
     .sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
 
@@ -172,7 +181,8 @@ function setReview(loc, review) {
     loc.scan.review = review;
     // Прежнее поле статуса (его показывает экран осмотрщика) держим в согласии.
     loc.scan.status = { accepted: 'принят', returned: 'возвращён', rejected: 'отклонён' }[review.state] || loc.scan.status;
-    scheduleSave();
+    // Число на пункте меню и лента регионала пересчитываются по этому событию.
+    cadChanged();
   } else {
     loc.row.review = review;
     cadChanged();
@@ -250,26 +260,40 @@ export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: осмотрщику уходит уведомление (задача «Переснять» в
 // его плане дня); здесь он увидит пометку только при открытии экрана.
-export function returnScan(key, reason) {
+//
+// pages — номера страниц (с 1), которые надо переснять (решение пользователя 06.11.2026
+// «Названные страницы + история»): пересъёмка заменит только их; пусто — все. Каждый возврат
+// пишется в историю скана (returns) — её видит ЦОД при следующем разборе.
+export function returnScan(key, reason, { pages = [] } = {}) {
   const why = String(reason || '').trim();
   failIf(!why, 'Укажите причину возврата');
   const loc = locate(key);
   failIf(!loc, 'Элемент очереди не найден');
   failIf(stateOf(loc) !== 'wait', 'Вернуть можно только скан, ждущий разбора');
   const review = { state: 'returned', reason: why, by: me(), at: now(), docId: '' };
+  const nums = [...new Set(pages.map(Number).filter((n) => n > 0))].sort((a, b) => a - b);
+  const entry = { kind: 'returned', reason: why, by: me(), at: now(), pages: nums };
   if (loc.kind === 'scan') {
-    loc.scan.retake = { reason: why, by: me(), at: now() };
+    loc.scan.retake = { reason: why, by: me(), at: now(), pages: nums };
+    loc.scan.returns = [...(loc.scan.returns || []), entry];
     setReview(loc, review);
   } else {
-    const row = loc.row;
-    review.pages = cadPages(row);
-    const prev = String(row.note || '').replace(/^Возвращено ЦОД: [^·]*(?: · )?/, '');
-    row.note = `Возвращено ЦОД: ${why}${prev ? ' · ' + prev : ''}`;
-    Object.assign(row, { result: '', scanDate: '', answer: '' });
-    delete row.file;
-    setReview(loc, review);
+    backToWait(loc, review, `Возвращено ЦОД: ${why}`, entry);
   }
   return true;
+}
+
+// Строка кадастра снова ждёт ответа осмотрщика: прежний ответ — в review (история),
+// причина — в примечании строки (его видят осмотрщик и регионал в строке запроса).
+function backToWait(loc, review, note, entry) {
+  const row = loc.row;
+  review.pages = cadPages(row);
+  const prev = String(row.note || '').replace(/^(Возвращено|Отклонено) ЦОД: [^·]*(?: · )?/, '');
+  row.note = `${note}${prev ? ' · ' + prev : ''}`;
+  row.returns = [...(row.returns || []), entry];
+  Object.assign(row, { result: '', scanDate: '', answer: '' });
+  delete row.file;
+  setReview(loc, review);
 }
 
 // Отклонить: причина обязательна; повторного съёмки не требует.
@@ -279,8 +303,87 @@ export function rejectScan(key, reason) {
   const loc = locate(key);
   failIf(!loc, 'Элемент очереди не найден');
   failIf(stateOf(loc) !== 'wait', 'Отклонить можно только скан, ждущий разбора');
-  setReview(loc, { state: 'rejected', reason: why, by: me(), at: now(), docId: '' });
+  const review = { state: 'rejected', reason: why, by: me(), at: now(), docId: '' };
+  // Ответ кадастра (решение пользователя 06.11.2026 «Снова «Ждёт» + причина»): строка
+  // возвращается осмотрщику ждущей, причина отклонения видна ему и регионалу.
+  if (loc.kind === 'cad') backToWait(loc, review, `Отклонено ЦОД: ${why}`, { kind: 'rejected', reason: why, by: me(), at: now(), pages: [] });
+  else setReview(loc, review);
   return true;
+}
+
+// Документ принятого скана в записи: у ОЦ или у одного из ОИ.
+function findDoc(rec, docId) {
+  if (!rec || !docId) return null;
+  for (const h of [rec, ...(rec.oi || [])]) {
+    const i = (h.docs || []).findIndex((d) => d.id === docId);
+    if (i >= 0) return { holder: h, i, doc: h.docs[i] };
+  }
+  return null;
+}
+
+// Правка принятого (решение пользователя 06.11.2026 на «Отмена решения по скану»: отмена не
+// нужна, нужна «Правка вида и ОИ принятого»): вид, название и к чему относится — документ
+// переносится между ОЦ и его ОИ; правка пишется в историю скана.
+export function editAccepted(key, { docType = '', oiId = '', title = '' } = {}) {
+  const loc = locate(key);
+  failIf(!loc, 'Элемент очереди не найден');
+  failIf(stateOf(loc) !== 'accepted', 'Править можно только принятый скан');
+  failIf(loc.kind === 'scan' && loc.scan.inv, 'Документ позиции описи правится в описи');
+  const review = loc.kind === 'scan' ? loc.scan.review : loc.row.review;
+  const docId = (review && review.docId) || (loc.kind === 'cad' && loc.row.file && loc.row.file.docId) || '';
+  const typeId = loc.kind === 'scan' ? loc.typeId : loc.row.typeId;
+  const ocId = loc.kind === 'scan' ? loc.ocId : loc.row.ocId;
+  const rec = recOf(typeId, ocId);
+  const at = findDoc(rec, docId);
+  failIf(!at, 'Документ у объекта не найден — его могли удалить из карточки');
+  const target = oiId ? (rec.oi || []).find((o) => o.id === oiId) : rec;
+  failIf(!target, 'ОИ записи не найден');
+  const was = { type: at.doc.type, name: at.doc.name, oi: at.holder === rec ? '' : at.holder.id };
+  if (docType) at.doc.type = docType;
+  if (title.trim()) at.doc.name = title.trim();
+  if (target !== at.holder) {
+    at.holder.docs.splice(at.i, 1);
+    target.docs = target.docs || [];
+    target.docs.push(at.doc);
+  }
+  const text = [was.type !== at.doc.type ? `вид: ${was.type} → ${at.doc.type}` : '', was.name !== at.doc.name ? `название: ${was.name} → ${at.doc.name}` : '',
+    was.oi !== (oiId || '') ? 'перенесён к другому ОИ' : ''].filter(Boolean).join('; ');
+  const entry = { kind: 'edited', reason: text || 'без изменений', by: me(), at: now(), pages: [] };
+  if (loc.kind === 'scan') loc.scan.returns = [...(loc.scan.returns || []), entry];
+  else loc.row.returns = [...(loc.row.returns || []), entry];
+  if (review) review.oiId = oiId || '';
+  rec.updatedAt = now();
+  scheduleSave();
+  cadChanged();
+  return at.doc;
+}
+
+// Перенос скана к другому объекту (решение пользователя 06.11.2026 «Перенос к другому
+// объекту»: поиском по ЕНИ или адресу, к записи или её ОИ). Только ждущий разбора скан
+// осмотра: ответ кадастра привязан к строке запроса, скан описи — к позиции. Возвращает
+// новый ключ очереди.
+export function moveScan(key, { typeId, ocId, oiId = '' }) {
+  const loc = locate(key);
+  failIf(!loc, 'Элемент очереди не найден');
+  failIf(loc.kind !== 'scan', 'Ответ кадастра переносится правкой запроса');
+  failIf(loc.scan.inv, 'Скан описи относится к позиции описи');
+  failIf(stateOf(loc) !== 'wait', 'Перенести можно только скан, ждущий разбора');
+  failIf(loc.typeId === typeId && loc.ocId === ocId && (loc.scan.oiId || '') === oiId, 'Скан уже у этого объекта');
+  const rec = recOf(typeId, ocId);
+  failIf(!rec, 'Запись объекта оценки не найдена');
+  failIf(oiId && !(rec.oi || []).some((o) => o.id === oiId), 'ОИ записи не найден');
+  const from = resultsOf(loc.typeId, loc.ocId);
+  const scan = loc.scan;
+  from.scans = from.scans.filter((x) => x !== scan);
+  const was = recOf(loc.typeId, loc.ocId);
+  scan.returns = [...(scan.returns || []), { kind: 'moved', reason: `перенесён от объекта ${(was && was.eni) || placeOf(was) || loc.ocId}`, by: me(), at: now(), pages: [] }];
+  scan.oiId = oiId;
+  const to = resultsOf(typeId, ocId);
+  if (!Array.isArray(to.scans)) to.scans = [];
+  to.scans.push(scan);
+  scheduleSave();
+  cadChanged();
+  return scanKey(typeId, ocId, scan.id);
 }
 
 // Пометка «Переснять» для экрана осмотрщика: незакрытые возвраты осмотрщика

@@ -3,6 +3,7 @@ import { createScope } from '../kernel/scope.js';
 import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF, INSPECTIONS_HREF, SCANS_HREF, ANALYTICS_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
 import { registerPersisted } from '../kernel/persist.js';
+import { scanCounts } from '../kernel/scanQueue.js';
 
 // Каркас окна. Ничего не знает про ОЦ/ОИ: рисует только то, что ему отдали.
 const state = { collapsed: false, drawer: null, drawerOpen: false, userExtra: null };
@@ -106,6 +107,22 @@ function bindNav() {
     const syncRm = () => { rmBtn.hidden = session.state.role === 'insp'; };
     syncRm();
     session.subscribe(syncRm);
+  }
+
+  // Число ждущих разбора на «Сканы с осмотров» (решение пользователя 06.11.2026 «В ленту и
+  // число на меню»): пересчёт при правках осмотров и сканов, смене роли и переходах.
+  const scanCount = $('[data-nav-count="scans"]');
+  if (scanCount) {
+    const syncScans = () => {
+      const n = scanCounts().wait;
+      scanCount.textContent = n > 99 ? '99+' : String(n);
+      scanCount.hidden = !n;
+      scanCount.closest('.nav-item').setAttribute('aria-label', `Сканы с осмотров${n ? `, ждут разбора: ${n}` : ''}`);
+    };
+    window.addEventListener('inside:inspections', syncScans);
+    window.addEventListener('hashchange', syncScans);
+    session.subscribe(syncScans);
+    setTimeout(syncScans, 0);
   }
 
   const archiveBtn = $('[data-nav="archive"]');

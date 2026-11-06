@@ -871,6 +871,7 @@ body[data-page="inspections"] .ip-unread{display:inline-block;min-width:18px;pad
 body[data-page="inspections"] .ip-note-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--line);flex:none}
 body[data-page="inspections"] .ip-note-dot.off{background:var(--danger)}
 body[data-page="inspections"] .ip-note-dot.warn{background:var(--amber-600)}
+body[data-page="inspections"] .ip-note-dot.ok{background:var(--teal-600)}
 body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-name{display:flex;align-items:center;gap:8px}
 body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;justify-items:start}
 body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-load{justify-self:end}

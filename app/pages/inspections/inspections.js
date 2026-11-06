@@ -547,7 +547,6 @@ export function mountInspections(host) {
       : !view.aPerson ? [] : addrGroups(assigned.filter(({ a }) => view.aPerson === '*' || a.person === view.aPerson))
         .flatMap((g) => g.rows.map((r) => r.a.id));
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
-    const sub = (k, label, n) => `<button class="itab ${view.tab === k ? 'on' : ''}" role="tab" data-ip-tab="${k}" aria-selected="${view.tab === k}">${label} <b>${n}</b></button>`;
     // Пустая очередь — без колонки отборов и пустой панели: место — объяснению.
     // Только когда очередь пуста сама по себе: если её опустошили отборы,
     // колонка отборов остаётся — иначе их не поправить (замер 13.10.2026).
@@ -2889,6 +2888,8 @@ export function mountInspections(host) {
     } else if (n.go.profile) {
       Object.assign(view, { section: 'people', person: n.person, personTab: 'profile' });
       render();
+    } else if (n.go.href) {
+      location.hash = n.go.href;
     }
   });
   // Статистика: период, переход к осмотрщику, выгрузка xlsx — по всем или

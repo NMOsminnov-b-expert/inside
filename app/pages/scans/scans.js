@@ -10,17 +10,20 @@
 // Вкладка, отборы и выбранный элемент живут в адресе (?state=&src=&who=&key=),
 // чтобы «Назад» из карточки объекта возвращал на тот же скан.
 //
-// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: «Мне» — записи, где вошедший — оператор ЦОД (resp.cod);
-// у регионала пока равно «Все» (scanQueue). Право разбора на сервере — по роли
-// и региону, с журналом решений.
+// «Мне» (решение пользователя 06.11.2026 «Сканы его осмотрщиков»): у регионала — сканы
+// осмотрщиков, закреплённых за ним; у ЦОД — сканы его записей, и у ЦОД это вид по умолчанию.
+// Принятый скан правится (вид, название, к чему относится), ждущий — переносится к другому
+// объекту; возврат называет страницы к пересъёмке; история разбора видна в панели.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: право разбора на сервере — по роли и региону, с журналом решений.
 import { esc } from '../../kernel/dom.js';
 import { session } from '../../kernel/session.js';
 import { go, build } from '../../kernel/router.js';
-import { getType } from '../../kernel/registry.js';
+import { getType, sortedTypes } from '../../kernel/registry.js';
 import { optionsFor } from '../../kernel/dicts.js';
 import { toast } from '../../kernel/toast.js';
 import {
-  scanQueue, scanCounts, acceptScan, returnScan, rejectScan, SCAN_SOURCES, SCAN_STATES, scanStateLabel,
+  scanQueue, scanCounts, acceptScan, returnScan, rejectScan, editAccepted, moveScan, SCAN_SOURCES, SCAN_STATES, scanStateLabel,
 } from '../../kernel/scanQueue.js';
 import { oiLabel } from '../inspector/tasks.js';
 
@@ -46,7 +49,9 @@ export function mountScans(host) {
   const { scope } = host;
   let route = host.route;
   // Черновик панели выбранного: переживает перерисовку, пока выбран тот же скан.
-  let draft = { key: '', docType: '', oiId: '', title: '', reason: '' };
+  let draft = { key: '', docType: '', oiId: '', title: '', reason: '', pages: [] };
+  // Перенос к другому объекту: строка поиска, выбранная запись и ОИ.
+  let move = { key: '', q: '', pick: null, oiId: '' };
   let pageNo = 0;          // текущая страница скана в просмотре
   let pageKey = '';
   let err = '';
@@ -55,13 +60,15 @@ export function mountScans(host) {
   const q = () => (route && route.query) || {};
   const stateKey = () => (SCAN_STATES.some((s) => s.key === q().state) ? q().state : 'wait');
   const srcKey = () => (SCAN_SOURCES.some((s) => s.key === q().src) ? q().src : '');
-  const whoKey = () => (q().who === 'me' ? 'me' : 'all');
+  // У ЦОД по умолчанию — «Мне», у остальных — «Все».
+  const whoDefault = () => (session.state.role === 'cod' ? 'me' : 'all');
+  const whoKey = () => (q().who === 'me' || q().who === 'all' ? q().who : whoDefault());
   const hrefOf = (patch) => {
     const cur = { state: stateKey(), src: srcKey(), who: whoKey(), key: q().key || '', ...patch };
     const parts = [];
     if (cur.state !== 'wait') parts.push('state=' + encodeURIComponent(cur.state));
     if (cur.src) parts.push('src=' + encodeURIComponent(cur.src));
-    if (cur.who !== 'all') parts.push('who=' + cur.who);
+    if (cur.who !== whoDefault()) parts.push('who=' + cur.who);
     if (cur.key) parts.push('key=' + encodeURIComponent(cur.key));
     return '#/scans' + (parts.length ? '?' + parts.join('&') : '');
   };
@@ -71,7 +78,7 @@ export function mountScans(host) {
 
   const filter = () => ({
     state: stateKey(), source: srcKey(),
-    role: whoKey() === 'me' ? 'cod' : 'all', person: session.state.person,
+    role: whoKey() === 'me' ? (session.state.role === 'rm' ? 'rm' : 'cod') : 'all', person: session.state.person,
   });
   const itemsNow = () => scanQueue(filter());
 
@@ -92,7 +99,9 @@ export function mountScans(host) {
   function ensureDraft(it) {
     if (draft.key === it.key) return;
     const types = docTypesFor(it);
-    draft = { key: it.key, docType: defaultDocType(it, types), oiId: it.oiId || '', title: it.title, reason: '' };
+    draft = it.doc ? { key: it.key, docType: it.doc.type, oiId: it.doc.oiId, title: it.doc.name, reason: '', pages: [] }
+      : { key: it.key, docType: defaultDocType(it, types), oiId: it.oiId || '', title: it.title, reason: '', pages: [] };
+    move = { key: it.key, q: '', pick: null, oiId: '' };
     err = '';
   }
 
@@ -156,14 +165,25 @@ export function mountScans(host) {
       ${row('Источник', esc(SRC_LABEL[it.source]))}${row('Запрос', esc(it.request || ''))}
       ${row('Прислал', esc(it.by || '—'))}${row('Получено', esc(fmtFull(it.at)))}
       ${row('Дата сканирования', it.scanDate ? esc(it.scanDate.split('-').reverse().join('.')) : '')}${row('Ответ', esc(it.answer || ''))}
-      ${decided}</dl></section>`;
+      ${decided}</dl></section>${historyHTML(it)}`;
   }
 
-  function formHTML(it, rec) {
+  // История разбора: возвраты (с названными страницами), отклонения, правки, переносы.
+  const HIST_KIND = { returned: 'Возвращено', rejected: 'Отклонено', edited: 'Исправлено', moved: 'Перенесено' };
+  function historyHTML(it) {
+    if (!(it.returns || []).length) return '';
+    return `<section class="sc-sec" aria-label="История разбора"><h3>История разбора</h3><ol class="sc-hist">
+      ${it.returns.slice().reverse().map((h) => `<li><span class="sc-hist-k">${esc(HIST_KIND[h.kind] || h.kind)}</span>
+        <span class="sc-hist-t">${esc(h.reason || '')}${(h.pages || []).length ? ` · стр. ${esc(h.pages.join(', '))}` : ''}</span>
+        <span class="sc-s">${esc(h.by || '—')}, ${esc(fmtFull(h.at))}</span></li>`).join('')}</ol></section>`;
+  }
+
+  function formHTML(it, rec, head = 'Принять как') {
     ensureDraft(it);
     const types = docTypesFor(it);
+    if (draft.docType && !types.includes(draft.docType)) types.unshift(draft.docType);
     const ois = rec ? rec.oi || [] : [];
-    return `<section class="sc-sec" aria-label="Принять как"><h3>Принять как</h3><div class="sc-form">
+    return `<section class="sc-sec" aria-label="${esc(head)}"><h3>${esc(head)}</h3><div class="sc-form">
       <div class="field"><label for="sc-f-type">Вид документа</label>
         <select class="select" id="sc-f-type" data-sc-f-type>${types.map((t) => `<option ${draft.docType === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
       ${it.inv ? `<div class="field"><label>К чему относится</label><p class="sc-hint">Позиция описи: ${esc(it.inv.item)}</p></div>` : `<div class="field"><label for="sc-f-oi">К чему относится</label>
@@ -179,6 +199,10 @@ export function mountScans(host) {
     return `<footer class="sc-foot">
       <div class="field"><label for="sc-f-reason">Причина возврата или отклонения</label>
         <input class="input" id="sc-f-reason" data-sc-f-reason value="${esc(draft.reason)}" autocomplete="off" placeholder="Например: страница смазана, не видна печать"></div>
+      ${it.pages.length > 1 && it.source !== 'кадастр' ? `<div class="sc-repg" role="group" aria-label="Страницы к пересъёмке">
+        <span class="sc-seglab">Переснять страницы</span>
+        ${it.pages.map((p, i) => `<button type="button" class="sc-pgchip" data-sc-retake-page="${i + 1}" aria-pressed="${draft.pages.includes(i + 1)}">${i + 1}</button>`).join('')}
+        <span class="sc-hint">${draft.pages.length ? '' : 'не отмечены — все'}</span></div>` : ''}
       <p class="sc-err" data-sc-err ${err ? '' : 'hidden'}>${esc(err)}</p>
       <p class="sc-hint" id="scNeed" data-sc-need ${empty ? '' : 'hidden'}>Чтобы вернуть или отклонить, укажите причину.</p>
       <div class="sc-acts">
@@ -188,11 +212,50 @@ export function mountScans(host) {
       </div></footer>`;
   }
 
+  // Перенос к другому объекту: поиск по ЕНИ или адресу, выбор записи и ОИ.
+  function findRecs(text) {
+    const s = text.trim().toLowerCase();
+    if (s.length < 2) return [];
+    const out = [];
+    for (const t of sortedTypes()) {
+      if (!t.records.queryRecords) continue;
+      out.push(...t.records.queryRecords({ filter: { q: s }, offset: 0, limit: 6 }).rows.map((r) => ({ ...r, typeId: t.manifest.id })));
+      if (out.length >= 6) break;
+    }
+    return out.slice(0, 6);
+  }
+  function moveHitsHTML(it) {
+    if (move.q.trim().length < 2) return '<p class="sc-hint">Наберите ЕНИ или часть адреса — от двух знаков.</p>';
+    const hits = findRecs(move.q).filter((r) => !(r.typeId === it.typeId && r.id === it.ocId));
+    if (!hits.length) return '<p class="sc-hint">Не найдено. Проверьте ЕНИ или наберите улицу без номера дома.</p>';
+    return `<ul class="sc-hits" role="listbox" aria-label="Найденные объекты">${hits.map((r) => {
+      const k = r.typeId + '|' + r.id;
+      return `<li><button type="button" role="option" aria-selected="${!!move.pick && move.pick === k}" data-sc-move-pick="${esc(k)}">
+        <span class="sc-t" title="${esc(r.title || r.address || r.id)}">${esc(r.title || r.address || r.id)}</span><span class="sc-s mono">${esc(r.eni || '')}</span></button></li>`;
+    }).join('')}</ul>`;
+  }
+  function moveHTML(it) {
+    const [ty, oc] = move.pick ? move.pick.split('|') : ['', ''];
+    const prec = move.pick ? (getType(ty) || { records: { loadRecord: () => null } }).records.loadRecord(oc) : null;
+    return `<section class="sc-sec" aria-label="Перенести к другому объекту"><h3>Перенести к другому объекту</h3>
+      <div class="field"><label for="sc-move-q">ЕНИ или адрес</label>
+        <input class="input" id="sc-move-q" data-sc-move-q value="${esc(move.q)}" autocomplete="off" placeholder="Например: 1-01-01 или Чуй"></div>
+      <div data-sc-move-hits>${moveHitsHTML(it)}</div>
+      ${prec ? `<div class="sc-form"><div class="field"><label for="sc-move-oi">К чему относится</label>
+        <select class="select" id="sc-move-oi" data-sc-move-oi><option value="">Объект оценки в целом</option>
+          ${(prec.oi || []).map((o) => `<option value="${esc(o.id)}" ${move.oiId === o.id ? 'selected' : ''}>${esc(oiLabel(o))}</option>`).join('')}</select></div>
+        <div class="field sc-move-go"><button type="button" class="btn btn-ghost" data-sc-move-go>Перенести</button></div></div>` : ''}
+    </section>`;
+  }
+
   function paneHTML(it) {
     const rec = recOf(it);
     const wait = it.state === 'wait';
+    const canEdit = it.state === 'accepted' && it.docId && !it.inv;
     const docLink = it.state === 'accepted' && it.docId
-      ? `<footer class="sc-foot sc-foot-link"><a class="btn btn-ghost" data-sc-open-doc href="${esc(build({ typeId: it.typeId, ocId: it.ocId }))}">Открыть документ у объекта</a></footer>` : '';
+      ? `<footer class="sc-foot sc-foot-link"><p class="sc-err" data-sc-err ${err ? '' : 'hidden'}>${esc(err)}</p><div class="sc-acts">
+        <a class="btn btn-ghost" data-sc-open-doc href="${esc(build({ typeId: it.typeId, ocId: it.ocId }))}">Открыть документ у объекта</a>
+        ${canEdit ? '<button class="btn btn-primary" data-sc-edit>Сохранить правку</button>' : ''}</div></footer>` : '';
     return `<aside class="sc-pane" aria-label="Выбранный скан">
       <header class="sc-head">
         <button class="btn btn-ghost btn-sm sc-back" data-sc-back>‹ К перечню</button>
@@ -200,7 +263,7 @@ export function mountScans(host) {
         <p class="sc-meta"><span class="sc-src sc-src-${it.source === 'кадастр' ? 'cad' : 'insp'}">${esc(SRC_LABEL[it.source])}</span>
           <span class="sc-st sc-st-${it.state}">${esc(scanStateLabel(it.state))}</span></p>
       </header>
-      <div class="sc-body">${viewerHTML(it)}${wait ? formHTML(it, rec) : ''}${infoHTML(it, rec)}</div>
+      <div class="sc-body">${viewerHTML(it)}${wait ? formHTML(it, rec) : canEdit ? formHTML(it, rec, 'Исправить принятое') : ''}${wait && it.source === 'осмотр' ? moveHTML(it) : ''}${infoHTML(it, rec)}</div>
       ${wait ? footHTML(it) : docLink}
     </aside>`;
   }
@@ -243,7 +306,7 @@ export function mountScans(host) {
   function afterAction(prevIdx) {
     const items = itemsNow();
     const next = items[Math.min(prevIdx, items.length - 1)];
-    draft = { key: '', docType: '', oiId: '', title: '', reason: '' };
+    draft = { key: '', docType: '', oiId: '', title: '', reason: '', pages: [] };
     nav({ key: next ? next.key : '' });
   }
 
@@ -257,8 +320,22 @@ export function mountScans(host) {
       if (kind === 'accept') {
         acceptScan(it.key, { docType: draft.docType, oiId: draft.oiId, title: draft.title });
         toast('Принято, документ у объекта', 'ok');
+      } else if (kind === 'edit') {
+        editAccepted(it.key, { docType: draft.docType, oiId: draft.oiId, title: draft.title });
+        toast('Правка сохранена', 'ok');
+        err = '';
+        render();
+        return;
+      } else if (kind === 'move') {
+        const [ty, oc] = move.pick.split('|');
+        const nk = moveScan(it.key, { typeId: ty, ocId: oc, oiId: move.oiId });
+        toast('Скан перенесён к другому объекту', 'ok');
+        err = '';
+        draft = { key: '', docType: '', oiId: '', title: '', reason: '', pages: [] };
+        nav({ key: nk });
+        return;
       } else if (kind === 'return') {
-        returnScan(it.key, draft.reason);
+        returnScan(it.key, draft.reason, { pages: draft.pages });
         toast('Возвращено осмотрщику', 'ok');
       } else {
         rejectScan(it.key, draft.reason);
@@ -282,6 +359,22 @@ export function mountScans(host) {
   scope.on('click', '[data-sc-back]', () => nav({ key: '' }));
   scope.on('click', '[data-sc-page]', (e, b) => { pageNo = Number(b.dataset.scPage) || 0; render(); });
   scope.on('click', '[data-sc-accept]', () => act('accept'));
+  scope.on('click', '[data-sc-edit]', () => act('edit'));
+  scope.on('click', '[data-sc-move-go]', () => { if (move.pick) act('move'); });
+  scope.on('click', '[data-sc-retake-page]', (e, b) => {
+    const n = Number(b.dataset.scRetakePage);
+    draft.pages = draft.pages.includes(n) ? draft.pages.filter((x) => x !== n) : [...draft.pages, n].sort((x, y) => x - y);
+    render();
+  });
+  // Поиск переноса: подсказки по мере ввода, без перерисовки панели — поле не теряет фокус.
+  scope.on('input', '[data-sc-move-q]', (e, el) => {
+    move.q = el.value;
+    const it = itemsNow().find((x) => x.key === (q().key || '')) || itemsNow()[0];
+    const box = scope.$('[data-sc-move-hits]');
+    if (box && it) box.innerHTML = moveHitsHTML(it);
+  });
+  scope.on('click', '[data-sc-move-pick]', (e, b) => { move.pick = b.dataset.scMovePick; move.oiId = ''; render(); });
+  scope.on('change', '[data-sc-move-oi]', (e, el) => { move.oiId = el.value; });
   scope.on('click', '[data-sc-return]', (e, b) => { if (!b.disabled) act('return'); });
   scope.on('click', '[data-sc-reject]', (e, b) => { if (!b.disabled) act('reject'); });
   scope.on('change', '[data-sc-f-type]', (e, el) => { draft.docType = el.value; });
