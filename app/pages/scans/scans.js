@@ -28,6 +28,28 @@ import {
 import { oiLabel } from '../inspector/tasks.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
+import { persistSizes } from '../../kernel/viewState.js';
+import { scheduleSave } from '../../kernel/persist.js';
+
+// Площади страницы (указание пользователя 06.11.2026: «главное — сам документ… выделив большую часть
+// площади под него» и «регулирование размеров площадей тоже добавляем»): ширина перечня в % и ширина
+// колонки полей разбора в px — перетаскиванием разделителей, стрелками, двойной щелчок — по умолчанию.
+// Запоминаются, как ширины на других страницах (kernel/viewState.js).
+const SIZE0 = { list: 30, side: 340 };
+const LIST_MIN = 18;
+const LIST_MAX = 60;
+const SIDE_MIN = 260;
+const SIDE_MAX = 560;
+const sizes = { ...SIZE0 };
+persistSizes('scans-sizes', () => ({ ...sizes }), (s) => {
+  if (Number.isFinite(s.list)) sizes.list = Math.min(LIST_MAX, Math.max(LIST_MIN, s.list));
+  if (Number.isFinite(s.side)) sizes.side = Math.min(SIDE_MAX, Math.max(SIDE_MIN, s.side));
+});
+const splitHTML = (kind) => (kind === 'list'
+  ? `<div class="sc-split" role="separator" aria-orientation="vertical" tabindex="0" data-sc-split="list" aria-label="Ширина перечня"
+      aria-valuemin="${LIST_MIN}" aria-valuemax="${LIST_MAX}" aria-valuenow="${Math.round(sizes.list)}" title="Перетащите, чтобы изменить ширину; двойной щелчок — как было"></div>`
+  : `<div class="sc-split sc-split-side" role="separator" aria-orientation="vertical" tabindex="0" data-sc-split="side" aria-label="Ширина полей разбора"
+      aria-valuemin="${SIDE_MIN}" aria-valuemax="${SIDE_MAX}" aria-valuenow="${Math.round(sizes.side)}" title="Перетащите, чтобы изменить ширину; двойной щелчок — как было"></div>`);
 
 const SRC_LABEL = { 'осмотр': 'Осмотр', 'опись': 'Опись', 'кадастр': 'Кадастр' };
 // Перечень видов документов, если справочник типа ОЦ ещё не заведён.
@@ -133,7 +155,8 @@ export function mountScans(host) {
     return `<tr data-sc-row="${esc(it.key)}" class="${cur ? 'cur' : ''}" aria-selected="${cur}" tabindex="-1">
       <td class="sc-date">${esc(fmtFull(it.at).slice(0, 10))}<span class="sc-s">${esc(fmtFull(it.at).slice(11))}</span></td>
       <td>${srcTag(it)}</td>
-      <td>${srcTag(it, 'sc-src-narrow')}<span class="sc-t">${esc(it.title)}</span><span class="sc-s">${esc(it.by || '—')}</span>${reason}</td>
+      <td>${srcTag(it, 'sc-src-narrow')}<span class="sc-t">${esc(it.title)}</span><span class="sc-s">${esc(it.by || '—')}</span>${reason}
+        <span class="sc-s sc-narrow-obj">${esc(it.inv ? it.inv.invTitle : it.place || '—')}${!it.inv && eniOf(it) ? ` · <span class="mono">${esc(eniOf(it))}</span>` : ''} · ${esc(fmtFull(it.at))}</span></td>
       <td title="${esc(it.inv ? it.inv.invTitle : it.place || '')}">${it.inv ? `<span class="sc-t">${esc(it.inv.invTitle)}</span><span class="sc-s">${esc(it.inv.item)}</span>`
     : `<span class="sc-t">${esc(it.place || '—')}</span><span class="sc-s mono">${esc(eniOf(it))}</span>`}</td>
       <td class="num">${it.pages.length}</td></tr>`;
@@ -290,8 +313,9 @@ export function mountScans(host) {
         <p class="sc-meta">${srcTag(it)}
           <span class="sc-st sc-st-${it.state}">${esc(scanStateLabel(it.state))}</span></p>
       </header>
-      <div class="sc-body">${viewerHTML(it)}${wait ? formHTML(it, rec) : canEdit ? formHTML(it, rec, 'Исправить принятое') : ''}${wait && it.source === 'осмотр' ? moveHTML(it) : ''}${infoHTML(it, rec)}</div>
-      ${wait ? footHTML(it) : docLink}
+      <div class="sc-body" style="--sc-side:${sizes.side}px"><div class="sc-docarea">${viewerHTML(it)}</div>${splitHTML('side')}
+        <div class="sc-sidecol"><div class="sc-side">${wait ? formHTML(it, rec) : canEdit ? formHTML(it, rec, 'Исправить принятое') : ''}${wait && it.source === 'осмотр' ? moveHTML(it) : ''}${infoHTML(it, rec)}</div>
+        ${wait ? footHTML(it) : docLink}</div></div>
     </aside>`;
   }
 
@@ -310,15 +334,15 @@ export function mountScans(host) {
     const curKey = hasUrl ? urlKey : (items[0] ? items[0].key : '');
     const it = items.find((x) => x.key === curKey) || null;
     host.setCrumbs([{ label: 'Сканы с осмотров' }]);
-    const keep = ['.sc-scroll', '.sc-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
+    const keep = ['.sc-scroll', '.sc-body', '.sc-side'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
     const keepKey = scope.$('.sc-pane') ? (scope.$('.sc-pane').dataset.scKey || '') : '';
     const empty = !items.length;
-    scope.setHTML(`<div class="sc ${hasUrl ? 'sc-detail' : ''} ${empty ? 'sc-bare' : ''}">
+    scope.setHTML(`<div class="sc ${hasUrl ? 'sc-detail' : ''} ${empty ? 'sc-bare' : ''}" style="--sc-list:${sizes.list}%">
       <div class="sc-top">${tabsHTML()}
         <div class="sc-tools">${seg('Источник', 'data-sc-src', SRC, srcKey())}${seg('Чьи', 'data-sc-who', WHO, whoKey())}</div></div>
       <div class="sc-main">${empty
     ? `<p class="sc-empty">${stateKey() === 'wait' ? 'Сканов, ждущих разбора, нет' : `Сканов в состоянии «${esc(scanStateLabel(stateKey()))}» нет`}${emptyMine()}</p>`
-    : listHTML(items, curKey) + (it ? paneHTML(it) : '')}</div></div>`);
+    : listHTML(items, curKey) + (it ? splitHTML('list') + paneHTML(it) : '')}</div></div>`);
     keep.forEach(([s, y]) => { const el = scope.$(s); if (el && (keepKey === curKey || s === '.sc-scroll')) el.scrollTop = y; });
     const cur = scope.$('tr.cur');
     if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
@@ -438,6 +462,47 @@ export function mountScans(host) {
     if (next && next.key !== urlKey) { e.preventDefault(); nav({ key: next.key }); }
   });
   bindPageViewerKeys(scope);
+  // Разделители площадей: перетаскивание (pointer), стрелки — шаг, Home — как было, двойной щелчок — как было.
+  const applySizes = () => {
+    const sc = scope.$('.sc');
+    if (sc) sc.style.setProperty('--sc-list', sizes.list + '%');
+    const body = scope.$('.sc-body');
+    if (body) body.style.setProperty('--sc-side', sizes.side + 'px');
+    scope.$$('[data-sc-split]').forEach((el) => el.setAttribute('aria-valuenow', String(Math.round(el.dataset.scSplit === 'list' ? sizes.list : sizes.side))));
+  };
+  const setSize = (kind, v) => {
+    if (kind === 'list') sizes.list = Math.min(LIST_MAX, Math.max(LIST_MIN, v));
+    else sizes.side = Math.min(SIDE_MAX, Math.max(SIDE_MIN, v));
+    applySizes();
+  };
+  scope.on('pointerdown', '[data-sc-split]', (e, el) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const kind = el.dataset.scSplit;
+    const box = (kind === 'list' ? scope.$('.sc-main') : scope.$('.sc-body')).getBoundingClientRect();
+    el.classList.add('on');
+    el.setPointerCapture(e.pointerId);
+    const move = (ev) => setSize(kind, kind === 'list' ? ((ev.clientX - box.left) / box.width) * 100 : box.right - ev.clientX);
+    const up = () => {
+      el.classList.remove('on');
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      scheduleSave();
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  });
+  scope.on('keydown', '[data-sc-split]', (e, el) => {
+    const kind = el.dataset.scSplit;
+    const step = kind === 'list' ? 2 : 20;
+    // Разделитель полей — у правого края: стрелка влево расширяет поля, вправо — сужает.
+    const dir = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (dir) { e.preventDefault(); setSize(kind, kind === 'list' ? sizes.list + dir * step : sizes.side - dir * step); scheduleSave(); }
+    if (e.key === 'Home') { e.preventDefault(); setSize(kind, SIZE0[kind]); scheduleSave(); }
+  });
+  scope.on('dblclick', '[data-sc-split]', (e, el) => { setSize(el.dataset.scSplit, SIZE0[el.dataset.scSplit]); scheduleSave(); });
   const off = session.subscribe(() => { if (scope.root.isConnected) render(); });
 
   render();

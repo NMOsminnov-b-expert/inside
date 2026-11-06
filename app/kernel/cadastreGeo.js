@@ -51,14 +51,17 @@ async function call(base, path, body) {
 
 // Запрос к карте портала через первый ответивший обход.
 async function portal(path, body) {
-  const order = via === 'live' ? [LIVE, OWN] : [OWN, LIVE];
+  // Сначала путь того же адреса — его проксирует сервер макета (tools/serve.py; указание пользователя
+  // 06.11.2026 «Через serve.py подключай прокси»); свой прокси 8787 — запасной. Иначе каждый запрос
+  // сначала падал на незапущенный 8787 и сыпал ошибки в консоль.
+  const order = via === 'own' ? [OWN, LIVE] : [LIVE, OWN];
   const why = [];
   for (const base of order) {
     const r = await call(base, path, body);
     if (r.text !== undefined) { via = base === OWN ? 'own' : 'live'; return r.text; }
     why.push(`${base === OWN ? 'свой прокси' : 'прокси Live Server'} — ${r.fail}`);
   }
-  throw new Error(`Кадастр не ответил (${why.join('; ')}). Запустите прокси: python tools/cadastre/proxy.py`);
+  throw new Error(`Кадастр не ответил (${why.join('; ')}). Откройте макет через сервер: python tools/serve.py`);
 }
 
 const digits = (eni) => String(eni || '').replace(/\D/g, '').slice(0, 13);

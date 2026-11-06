@@ -151,7 +151,8 @@ export async function addressByEni(eni) {
   tried.own = '';
   tried.live = '';
 
-  const addr = (await askOwnProxy(code)) || (await askLiveServer(code));
+  // Сначала путь того же адреса (сервер макета tools/serve.py проксирует /cadastre/), затем свой прокси 8787.
+  const addr = (await askLiveServer(code)) || (await askOwnProxy(code));
 
   // Обходы отваливаются молча (fetch пишет в консоль только сетевую ошибку),
   // поэтому итог каждого пишем сами: иначе «не работает» не диагностируется.

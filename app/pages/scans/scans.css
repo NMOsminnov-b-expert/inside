@@ -21,7 +21,9 @@ body[data-page="scans"] .sc-seg button + button{border-left:1px solid var(--line
 body[data-page="scans"] .sc-seg button:hover{color:var(--ink);background:var(--blue-50)}
 body[data-page="scans"] .sc-seg button[aria-pressed="true"]{background:var(--blue-50);color:var(--blue-700)}
 
-body[data-page="scans"] .sc-main{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(360px,38%,520px);gap:12px}
+/* Перечень — регулируемая доля (--sc-list), документ — всё остальное; между ними — разделитель. */
+body[data-page="scans"] .sc-main{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(300px,var(--sc-list,30%)) 10px minmax(420px,1fr);gap:0}
+body[data-page="scans"] .sc.sc-bare .sc-main,body[data-page="scans"] .sc-main:not(:has(.sc-pane)){grid-template-columns:minmax(0,1fr)}
 body[data-page="scans"] .sc-list{min-width:0;min-height:0;display:flex;flex-direction:column}
 body[data-page="scans"] .sc-list .icols{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 body[data-page="scans"] .sc-scroll{flex:1 1 auto;min-height:0;overflow:auto}
@@ -107,7 +109,7 @@ body[data-page="scans"] [hidden]{display:none !important}
 
 /* ============ ширины ============ */
 @media (max-width:1280px){
-  body[data-page="scans"] .sc-main{grid-template-columns:minmax(0,1fr) clamp(340px,40%,420px)}
+  body[data-page="scans"] .sc-main{grid-template-columns:minmax(280px,var(--sc-list,30%)) 10px minmax(380px,1fr)}
   body[data-page="scans"] .sc-form{grid-template-columns:minmax(0,1fr);gap:8px}
   body[data-page="scans"] .sc-dl > div{grid-template-columns:112px minmax(0,1fr)}
 }
@@ -166,3 +168,71 @@ body[data-page="scans"] .sc-headrow{display:flex;align-items:center;gap:8px}
 body[data-page="scans"] .sc-steps{margin-left:auto;display:inline-flex;gap:4px}
 body[data-page="scans"] .sc-steps .btn{min-width:32px;justify-content:center}
 body[data-page="scans"] .sc-as b{color:var(--ink)}
+
+/* Разделители площадей: полоса 10 px (цель захвата), линия по центру, при наведении и перетаскивании — ярче. */
+body[data-page="scans"] .sc-split{position:relative;cursor:col-resize;touch-action:none;outline:none}
+body[data-page="scans"] .sc-split::before{content:'';position:absolute;top:8px;bottom:8px;left:4px;width:2px;border-radius:2px;background:transparent;transition:background .12s}
+body[data-page="scans"] .sc-split:hover::before,body[data-page="scans"] .sc-split.on::before{background:var(--blue-200)}
+body[data-page="scans"] .sc-split:focus-visible::before{background:var(--blue-600)}
+/* Тело панели: документ — вся высота; поля разбора — колонкой справа (широкая панель) или под документом. */
+body[data-page="scans"] .sc-pane{container-type:inline-size}
+body[data-page="scans"] .sc-body{padding:0;gap:0;display:flex;flex-direction:column;overflow:auto}
+body[data-page="scans"] .sc-docarea{flex:none;display:flex;padding:10px 12px 0;height:max(420px,62vh)}
+body[data-page="scans"] .sc-docarea > *{flex:1 1 auto;min-width:0}
+body[data-page="scans"] .sc-view{height:auto}
+body[data-page="scans"] .sc-side{display:flex;flex-direction:column;gap:14px;padding:12px 16px 14px}
+body[data-page="scans"] .sc-split-side{display:none}
+@container (min-width: 820px){
+  body[data-page="scans"] .sc-body{display:grid;grid-template-columns:minmax(0,1fr) 10px var(--sc-side,340px);overflow:hidden}
+  body[data-page="scans"] .sc-docarea{height:auto;min-height:0;padding:10px 0 10px 12px}
+  body[data-page="scans"] .sc-split-side{display:block}
+  body[data-page="scans"] .sc-side{min-height:0;overflow:auto;scrollbar-gutter:stable;padding:10px 12px 12px 4px}
+}
+/* Узкий перечень: источник — меткой в строке документа, столбец убран. */
+body[data-page="scans"] .sc-list{container-type:inline-size}
+@container (max-width: 620px){
+  body[data-page="scans"] .sc-tbl col.c-s{display:none}
+  body[data-page="scans"] .sc-tbl th:nth-child(2),body[data-page="scans"] .sc-tbl td:nth-child(2){display:none}
+  body[data-page="scans"] .sc-src-narrow{display:inline-block;margin-bottom:3px}
+}
+@media (max-width:900px){
+  body[data-page="scans"] .sc-main{grid-template-columns:minmax(0,1fr)}
+  body[data-page="scans"] .sc-split{display:none}
+}
+
+/* Подвал решения — в колонке полей разбора: документ занимает всю высоту слева. На узкой панели
+   колонка идёт под документом, подвал прилипает к низу прокрутки. */
+body[data-page="scans"] .sc-sidecol{display:flex;flex-direction:column;min-width:0}
+body[data-page="scans"] .sc-sidecol > .sc-foot{position:sticky;bottom:0;z-index:1}
+@container (min-width: 820px){
+  body[data-page="scans"] .sc-sidecol{min-height:0}
+  body[data-page="scans"] .sc-sidecol > .sc-side{flex:1 1 auto}
+  body[data-page="scans"] .sc-sidecol > .sc-foot{position:static;padding:10px 12px 12px 4px}
+}
+
+/* Узкая панель: без общей прокрутки — документ забирает свободную высоту, поля разбора — блок со
+   своей прокруткой (не больше половины), подвал решения всегда на виду. */
+body[data-page="scans"] .sc-body{overflow:hidden}
+body[data-page="scans"] .sc-docarea{flex:1 1 auto;height:auto;min-height:260px}
+body[data-page="scans"] .sc-sidecol{flex:0 1 auto;max-height:52%;min-height:0;border-top:1px solid var(--line-soft)}
+body[data-page="scans"] .sc-sidecol > .sc-side{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable}
+body[data-page="scans"] .sc-sidecol > .sc-foot{position:static}
+@container (min-width: 820px){
+  body[data-page="scans"] .sc-sidecol{max-height:none;border-top:0}
+}
+/* Узкий перечень (до 460 px): в строке — документ и страницы; объект, ЕНИ и дата — строкой под названием. */
+body[data-page="scans"] .sc-narrow-obj{display:none}
+@container (max-width: 460px){
+  body[data-page="scans"] .sc-tbl col.c-d,body[data-page="scans"] .sc-tbl col.c-o{display:none}
+  body[data-page="scans"] .sc-tbl th:nth-child(1),body[data-page="scans"] .sc-tbl td:nth-child(1),
+  body[data-page="scans"] .sc-tbl th:nth-child(4),body[data-page="scans"] .sc-tbl td:nth-child(4){display:none}
+  body[data-page="scans"] .sc-narrow-obj{display:block}
+}
+/* Шапка панели в две строки: название и метки слева, «‹ ›» справа — высота уходит документу. */
+body[data-page="scans"] .sc-head{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:10px 16px 8px}
+body[data-page="scans"] .sc-head > h2,body[data-page="scans"] .sc-head > .sc-meta{grid-column:1}
+body[data-page="scans"] .sc-head > .sc-headrow{grid-column:2;grid-row:1 / span 2;align-self:start}
+@media (max-width:900px){
+  body[data-page="scans"] .sc-head{grid-template-columns:minmax(0,1fr)}
+  body[data-page="scans"] .sc-head > .sc-headrow{grid-column:1;grid-row:auto}
+}
