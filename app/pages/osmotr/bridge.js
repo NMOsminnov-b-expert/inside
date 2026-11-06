@@ -24,10 +24,11 @@ import { session, roleLabel } from '../../kernel/session.js';
 import { getType } from '../../kernel/registry.js';
 import { assignmentsOfPerson, coversOi, deadlineOf, startWork, finishWork, myAssignsOn, logEvent, changed, inventoryHolders,
   isLive, eventsOf, planOf, absenceOn, absenceLabel, takeForDay, requestMove, skipReasons, reportOf, saveReport, lateWorkdays,
-  LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadKindLabel } from '../../kernel/inspections.js';
+  LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadKindLabel, answerCadRow, cadResultLabel } from '../../kernel/inspections.js';
+import { fmtEni } from '../../kernel/fmt.js';
 import { scanQueue } from '../../kernel/scanQueue.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
-import { reviewOf, resultsOf, saveResults, valuesOf, addResultPhoto } from '../../kernel/inspectionResults.js';
+import { reviewOf, resultsOf, saveResults, valuesOf, addResultPhoto, addResultScan } from '../../kernel/inspectionResults.js';
 import { inventoryById, markItem, markOf, addItemPhoto, inPart, partLabel } from '../../kernel/inventories.js';
 import { xlsxBytes } from '../../kernel/xlsx.js';
 import { getValue, setValue } from '../../kernel/fieldSchema.js';
@@ -188,6 +189,29 @@ async function applyInventory({ typeId, ocId, rec, list, person, assignId }, rel
     saveResults(); changed();
     return { taken: true, why: '' };
   }
+  // Комментарий папки предмета — причина ремонта и примечание к позициям папки (решение 06.11.2026 «Причина
+  // обязательна везде + чип»: причина «В ремонте» доходит до ЦОД и в отчёт по описи).
+  if (name === 'Комментарий.txt' && inner.length >= 2) {
+    const text = (await blob.text()).trim();
+    const its = (items || []).map((k) => itemOf(inv, k)).filter((it) => it && it.own !== false);
+    if (!its.length) return { taken: false, why: 'комментарий не в папке предмета описи' };
+    its.forEach((it) => mark(it, { comment: text }));
+    saveResults(); changed();
+    return { taken: true, why: '' };
+  }
+  // Акт (документ) на группу позиций (указание пользователя 06.11.2026: «Акт может быть составлен на группу
+  // позиций»): PDF или снимок документа в папке «Акты» описи с перечнем инвентарников → скан описи на разбор ЦОД,
+  // после приёма — документ каждой позиции группы.
+  if (inner[0] === 'Акты' && /\.(pdf|jpe?g|png|webp|heic)$/i.test(name) && inv.kind === 'inv') {
+    const its = (items || []).map((k) => itemOf(inv, k)).filter((it) => it && it.own !== false);
+    if (!its.length) return { taken: false, why: 'у акта нет позиций описи' };
+    const r = resultsOf(typeId, ocId);
+    if ((r.scans || []).some((s) => s.title === name && s.inv && s.inv.invId === inv.id)) return { taken: true, why: '' };
+    addResultScan(typeId, ocId, [new File([blob], name, { type: blob.type || (/\.pdf$/i.test(name) ? 'application/pdf' : 'image/jpeg') })],
+      { title: name.replace(/\.[^.]+$/, ''), by: person, inv: { invId: inv.id, itemIds: its.map((it) => it.id) } });
+    saveResults(); changed();
+    return { taken: true, why: '' };
+  }
   if (/\.(jpe?g|png|webp|heic)$/i.test(name)) {
     const found = (items || []).map((k) => itemOf(inv, k)).filter(Boolean);
     if (!found.length) return { taken: false, why: 'снимок не в папке предмета описи' };
@@ -318,6 +342,9 @@ function myObjects(person) {
       removed: list.every((a) => a.state === 'removed'), removedAt: list.every((a) => a.state === 'removed') ? (list[0].removedAt || '') : '',
       moveReq: (list.find((a) => a.moveReq) || {}).moveReq || null,
       moveRefused: (list.find((a) => a.moveRefused) || {}).moveRefused || null,
+      // Сканы на пересъёмку: какой документ, к какому ОИ, какие страницы и почему (решение 06.11.2026).
+      retakes: (resultsOf(typeId, ocId).scans || []).filter((x) => x.retake).map((x) => ({ title: x.title || '', oiId: x.oiId || '',
+        reason: x.retake.reason || '', pages: x.retake.pages || [], at: x.retake.at || '' })),
       inventories: inventoriesOf(rec, list, ownOis(rec).filter((o) => whole || list.some((a) => coversOi(a, o.id))))
         .map(({ id, kind, title, folder, items }) => ({ id, kind, title, folder, count: items.length })),
     });
@@ -415,6 +442,36 @@ const handlers = {
   exit() {
     setTimeout(() => { if (history.length > 1) history.back(); else location.hash = '#/'; }, 0);
     return {};
+  },
+
+  // --- запросы документов (кадастр) у осмотрщика (пачка Б, решения 06.11.2026) -------------------------
+  // Открытые и закрытые — отдельно; у строки — что просят, по какому объекту, ответ, разбор ЦОД и причина возврата
+  // или отклонения («Снова «Ждёт» + причина»). Ответ можно поправить до разбора и после приёма (новой редакцией).
+  cadastre() {
+    const person = session.state.person;
+    const state = (x) => (x.review ? x.review.state : x.file && x.file.docId ? 'accepted' : x.result ? 'wait' : '');
+    return { requests: allCadRequests().filter((r) => r.person === person).map((r) => ({
+      id: r.id, no: r.no, kind: cadKindLabel(r.kind), due: r.due || '', note: r.note || '', at: r.at, closed: !!r.closedAt,
+      rows: r.rows.map((x) => {
+        const rec = x.typeId && x.ocId ? loadTask(x.typeId, x.ocId) : null;
+        return { id: x.id, doc: x.doc || '', title: rec ? titleOf(rec, x.ocId) : '', eni: fmtEni(x.eni) || x.eni || '', inst: x.inst || '',
+          result: x.result || '', resultLabel: x.result ? cadResultLabel(x.result) : 'Ждёт', answer: x.answer || '', scanDate: x.scanDate || '',
+          file: x.file ? x.file.name || '' : '', review: state(x), note: x.note || '', answeredAt: x.answeredAt || '' };
+      }) })) };
+  },
+  // Ответ по строке: result 'got' (с файлом — снимок или PDF камеры), 'none', 'refused'.
+  async cadAnswer(body, blob) {
+    const person = session.state.person;
+    const r = allCadRequests().find((x) => x.id === body.reqId && x.person === person);
+    if (!r) throw new Error('запрос не ваш или не найден');
+    const result = ['got', 'none', 'refused'].includes(body.result) ? body.result : '';
+    if (!result) throw new Error('нужен результат');
+    if (result === 'got' && !blob) throw new Error('нужен файл документа');
+    const name = String(body.fileName || 'документ.pdf');
+    const file = blob ? new File([blob], name, { type: blob.type || (/\.pdf$/i.test(name) ? 'application/pdf' : 'image/jpeg') }) : null;
+    const row = await answerCadRow(r.id, String(body.rowId || ''), { result, scanDate: String(body.scanDate || ''), answer: String(body.answer || ''), file, fileName: name });
+    if (!row) throw new Error('строка не найдена');
+    return { at: row.answeredAt };
   },
 
   // --- день осмотрщика (план пользователя 06.11.2026, пачка А) -----------------------------------------

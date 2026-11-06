@@ -295,3 +295,48 @@ def run(t):
         n = pg.evaluate("async ([ty, oc]) => (%s).eventsOf({ typeId: ty, ocId: oc }).filter((e) => e.kind === 'outcome' && e.text === 'Нет доступа — chk-повтор').length" % KI, [ty, oc])
         m = pg.evaluate("async ([ty, oc]) => { const K = %s; const p = (await import('./app/kernel/session.js')).session.state.person; return K.myAssignsOn(p, ty, oc).length; }" % KI, [ty, oc])
         t.ck(o1['ok'] and o2['ok'] and n == m, 'повтор исхода записан дважды: событий %s при назначениях %s' % (n, m))
+
+    # --- пачка Б (06.11.2026): пересъёмка, запросы документов, причина ремонта, акт на группу позиций ---
+    SENDB = '''async ([body, text, type]) => {
+      const w = document.querySelector('.om-frame').contentWindow;
+      const id = 'b' + Math.random().toString(36).slice(2);
+      const p = new Promise((res) => w.addEventListener('message', (e) => { if (e.data && e.data.re === id) res({ ok: e.data.ok, body: e.data.body, error: e.data.error }); }));
+      w.__chkB2 = new w.Blob([text], { type });
+      w.eval(`parent.postMessage({ osmotr: 1, id: ${JSON.stringify(id)}, t: ${JSON.stringify(body.__t || 'send')}, body: ${JSON.stringify(body)}, blob: window.__chkB2 }, location.origin)`);
+      return await p; }'''
+    cad = pg.evaluate(ASK, ['cadastre', {}, False])
+    t.ck(cad['ok'] and isinstance(cad['body'].get('requests'), list), 'запросы документов осмотрщика не пришли: %s' % str(cad)[:200])
+    reqs = [r for r in (cad['body'].get('requests') or []) if not r['closed'] and r['rows']]
+    if reqs:
+        r0, row0 = reqs[0], reqs[0]['rows'][0]
+        ans = pg.evaluate(SENDB, [{'__t': 'cadAnswer', 'reqId': r0['id'], 'rowId': row0['id'], 'result': 'got', 'fileName': 'ответ.pdf', 'scanDate': '2026-11-06'}, '%PDF-1.4 chk', 'application/pdf'])
+        cad2 = pg.evaluate(ASK, ['cadastre', {}, False])
+        row1 = next(x for r in cad2['body']['requests'] if r['id'] == r0['id'] for x in r['rows'] if x['id'] == row0['id'])
+        t.ck(ans['ok'] and row1['result'] == 'got' and row1['file'], 'ответ на запрос документов не записан: %s %s' % (ans, row1))
+    # Пересъёмка: скан с открытым возвратом — новый файл того же названия заменяет, а не пропускается.
+    if live:
+        oid = live[0]['id']
+        ty, oc = oid.split('|')
+        pg.evaluate("""async ([ty, oc]) => { const IR = await import('./app/kernel/inspectionResults.js'); const r = IR.resultsOf(ty, oc);
+          r.scans = r.scans || []; r.scans.push({ id: 'chk-rt', title: 'Пересъёмка.pdf', oiId: '', by: 'x', at: '2026-11-01T10:00:00Z', source: 'осмотр', status: 'возвращён',
+            pages: [{ name: 'old.pdf', type: 'application/pdf', dataUrl: 'data:application/pdf;base64,JVBERg==' }], retake: { reason: 'смазано', pages: [], at: '2026-11-02T10:00:00Z' } }); IR.saveResults(); }""", [ty, oc])
+        a5 = pg.evaluate(ASK, ['assignments', {}, False])
+        rt = next((x for x in a5['body']['items'] if x['id'] == oid), {}).get('retakes') or []
+        t.ck(any(x['title'] == 'Пересъёмка.pdf' and x['reason'] == 'смазано' for x in rt), 'в задаче нет сведений о пересъёмке: %s' % rt)
+        sn = pg.evaluate(SENDB, [{'assignId': oid, 'rel': 'Документы/Пересъёмка.pdf'}, '%PDF-1.4 new', 'application/pdf'])
+        st = pg.evaluate("async ([ty, oc]) => { const s = (await import('./app/kernel/inspectionResults.js')).resultsOf(ty, oc).scans.find((x) => x.id === 'chk-rt'); return [!!s.retake, s.pages.length && s.pages[0].name]; }", [ty, oc])
+        t.ck(sn['ok'] and st[0] is False, 'пересъёмка не заменила скан с возвратом: %s %s' % (sn, st))
+    # Причина ремонта (Комментарий.txt папки предмета) и акт на группу позиций (папка «Акты»).
+    if withinv:
+        x = next((y for y in withinv if any(i['kind'] == 'inv' for i in y['inventories'])), None)
+        if x:
+            inv = next(i for i in x['inventories'] if i['kind'] == 'inv')
+            its = pg.evaluate("async (id) => (await import('./app/kernel/inventories.js')).inventoryById(id).items.slice(0, 2).map((i) => [i.id, i.inv])", inv['id'])
+            pg.evaluate("async ([ty, oc, iv]) => { const K = await import('./app/kernel/inspections.js'); K.assignmentsOf(ty, oc).filter((a) => (a.inventories || []).includes(iv)).forEach((a) => { a.invParts = {}; }); }", x['id'].split('|') + [inv['id']])
+            cm = pg.evaluate(SENDB, [{'assignId': x['id'], 'rel': inv['folder'] + '/1. ' + its[0][1] + '/Комментарий.txt', 'items': [its[0][1]]}, 'Сломан привод, ждёт запчасть', 'text/plain'])
+            mk = pg.evaluate("async ([iv, it]) => ((await import('./app/kernel/inventories.js')).markOf(iv, it) || {}).comment || ''", [inv['id'], its[0][0]])
+            t.ck(cm['ok'] and 'Сломан привод' in mk, 'причина ремонта не дошла до позиции описи: %s %r' % (cm, mk))
+            ac = pg.evaluate(SENDB, [{'assignId': x['id'], 'rel': inv['folder'] + '/Акты/Акт группы.pdf', 'items': [i[1] for i in its]}, '%PDF-1.4 act', 'application/pdf'])
+            sc = pg.evaluate("""async ([ty, oc, iv]) => { const s = ((await import('./app/kernel/inspectionResults.js')).resultsOf(ty, oc).scans || []).find((y) => y.inv && y.inv.invId === iv && y.title === 'Акт группы');
+              return s ? (s.inv.itemIds || []).length : 0; }""", x['id'].split('|') + [inv['id']])
+            t.ck(ac['ok'] and sc == 2, 'акт на группу позиций не стал сканом описи на 2 позиции: %s %s' % (ac, sc))

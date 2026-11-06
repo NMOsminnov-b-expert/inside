@@ -25,7 +25,7 @@
 import { readZip } from '../../kernel/zipRead.js';
 import { xlsxRows } from '../../kernel/xlsx.js';
 import { setValue } from '../../kernel/fieldSchema.js';
-import { resultsOf, valuesOf, addResultPhoto, addResultVoice, addResultScan, saveResults } from '../../kernel/inspectionResults.js';
+import { resultsOf, valuesOf, addResultPhoto, addResultVoice, addResultScan, saveResults, replaceScanPages } from '../../kernel/inspectionResults.js';
 import { allAssignments, coversOi, changed } from '../../kernel/inspections.js';
 import { ownOis } from './tasks.js';
 
@@ -173,7 +173,11 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
         skip('описи «Механизмов и оборудования» — отдельным обменом описи');
       } else if (docAt >= 0) {
         // Документ — из любой папки «Документы», любого формата, к ОИ этой папки (или к объекту).
-        if ((r.scans || []).some((s) => s.title === name && (s.oiId || '') === oiId)) { sum.repeated++; taken = true; }
+        // Возвращённый на пересъёмку (scan.retake) — новый файл заменяет названные страницы (решение 06.11.2026
+        // «Названные страницы + история»); прочий повтор того же документа — пропускается.
+        const same = (r.scans || []).find((s) => s.title === name && (s.oiId || '') === oiId);
+        if (same && same.retake) { replaceScanPages(typeId, ocId, same.id, [await asFile(e, name)], { by: byOf(oiId) }); sum.scans++; taken = true; }
+        else if (same) { sum.repeated++; taken = true; }
         else { addResultScan(typeId, ocId, [await asFile(e, name)], { title: name, oiId, by: byOf(oiId) }); sum.scans++; taken = true; }
       } else if (name === 'Контакты.xlsx') {
         // Контакты — из любой папки: приложение даёт завести их и у ОИ, а система читала только корень
