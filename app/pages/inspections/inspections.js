@@ -35,15 +35,15 @@ import { ENI_REGIONS, plural, fmtEni } from '../../kernel/fmt.js';
 import { eniCodesOf } from '../../kernel/eniField.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS,
-  queueBase, tripGroups, addrGroups, addrRest, addrKey, dueOf, availability, onSiteContacts, assignedPickOf,
+  queueBase, regionOf, districtOf, tripGroups, addrGroups, addrRest, addrKey, dueOf, availability, onSiteContacts, assignedPickOf,
   QUEUE_FACETS, QUEUE_RANGES, ASSIGNED_FACETS, ASSIGNED_RANGES, applyFilter, facetValues, filterChips, emptyFilter, filterActive,
   reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
-import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML } from './stats.js';
+import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML, periodBar } from './stats.js';
 import { periodOf, allSheets, personSheets, exportName } from './statsData.js';
 import { detailHTML } from './detail.js';
-import { dayRoute, dayLoad, factNorms, homeOf, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign } from './route.js';
+import { dayRoute, dayLoad, factNorms, homeOf, NORM_KINDS, normOf, setNorm, measuredNorms, effectiveNorm, FACT_MIN, loadOcRecord, gpsOfObject, recommendAssign, layoutBatch } from './route.js';
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
@@ -517,9 +517,29 @@ export function mountInspections(host) {
       ${b('people', 'Осмотрщики')}${b('queue', 'К назначению', nQueue)}${b('assigned', 'Назначено', nLive)}</nav>`;
   }
 
+  // Подходит ли объект осмотрщику на день: место (план месяца на день или области профиля) и время дня.
+  const fitCache = new Map();
+  function fitsDay(s, person, day) {
+    const k = `${person}|${day}|${s.typeId}|${s.id}|${allAssignments().length}`;
+    if (fitCache.has(k)) return fitCache.get(k);
+    const plan = planOf(person, day);
+    const regs = profileOf(person).regions || [];
+    const where = plan && plan.region ? regionOf(s) === plan.region && (!plan.district || districtOf(s) === plan.district)
+      : !regs.length || regs.includes(regionOf(s));
+    let ok = where;
+    if (ok) { const l = dayLoad(all, person, day, [{ typeId: s.typeId, ocId: s.id }]); ok = l.total <= l.avail; }
+    if (fitCache.size > 5000) fitCache.clear();
+    fitCache.set(k, ok);
+    return ok;
+  }
   function assignSection() {
     const base = queueBase(all);
-    const queue = applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.tab === 'queue' ? view.q : '');
+    const queueAll = applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.tab === 'queue' ? view.q : '');
+    // Назначение на день из «Загрузки» (решение пользователя 05.11.2026 «Раскладка с правкой»: «Назначить на
+    // этот день» сужает очередь): объекты области из плана месяца на этот день, иначе — областей осмотрщика,
+    // и те, что помещаются в день вместе с дорогой (dayLoad). «Показать все» — без сужения.
+    const fitDay = view.tab === 'queue' && view.assignDay && view.assignPerson;
+    const queue = fitDay && !view.assignAll ? queueAll.filter((s) => fitsDay(s, view.assignPerson, view.assignDay)) : queueAll;
     const liveAll = assignedRows(all, { q: '' });
     const assigned = applyFilter(liveAll, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.tab === 'assigned' && view.aPerson ? view.q : '')
       .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
@@ -536,6 +556,8 @@ export function mountInspections(host) {
     return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : filtersHTML(rowsAll, view.q)}
       <section class="ip-work" aria-label="Назначения">
         ${view.tab === 'queue' && view.assignDay ? `<p class="ip-assign-day" role="status">Назначение на <b>${fmtDate(view.assignDay)}</b>${view.assignPerson ? ` · ${esc(view.assignPerson)}` : ''}
+          ${fitDay ? `· подходит <b>${view.assignAll ? queueAll.filter((s) => fitsDay(s, view.assignPerson, view.assignDay)).length : queue.length}</b> из ${queueAll.length}
+            <button type="button" class="btn btn-ghost btn-sm" data-ip-assign-fit>${view.assignAll ? 'Только подходящие' : 'Показать все'}</button>` : ''}
           <button type="button" class="isearch-clear" data-ip-assign-day-clear title="Без дня" aria-label="Назначать без заданного дня">×</button></p>` : ''}
         <div class="itoolbar ip-toolbar">
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : view.aPerson ? 'ЕНИ, адрес' : 'Фамилия сотрудника')}
@@ -887,24 +909,17 @@ export function mountInspections(host) {
   // Итоги по сотрудникам за период (раздел 9 ТЗ рабочего дня): строка на
   // осмотрщика, суммы — в своих столбцах итоговой строки; щелчок — отчёты
   // осмотрщика; выгрузка — xlsx (сводка и по дням).
-  const sumPeriod = { from: todayD.slice(0, 8) + '01', to: todayD };
-  // Период статистики — один на «Все осмотрщики» и карточку осмотрщика:
-  // переходя от всех к человеку, смотришь тот же отрезок (statsData.js).
-  const statSel = { unit: 'month', offset: 0 };
-  const statPeriod = () => periodOf(statSel.unit, statSel.offset);
+  // Период — один на «Статистику», «Итоги» и отчёты осмотрщика, у всех и в карточке осмотрщика (решение
+  // пользователя 05.11.2026 «Один общий»): переходя между ними, смотришь тот же отрезок (statsData.js).
+  const statSel = { unit: 'month', offset: 0, from: todayD.slice(0, 8) + '01', to: todayD };
+  const statPeriod = () => periodOf(statSel.unit, statSel.offset, statSel);
+  // Итоги — по сегодня включительно: дни впереди не наступили.
+  const sumPeriod = { get from() { return statPeriod().from; }, get to() { return statPeriod().upto; } };
   function totalsHTML(list) {
     const rows = employeeSummary(all, list.filter((p) => !p.fired).map((p) => p.name), sumPeriod.from, sumPeriod.to);
     const tot = (k) => rows.reduce((n, r) => n + (typeof k === 'function' ? k(r) : r[k]), 0);
     const cell = (v, warn) => `<td class="num ${warn && v ? 'ip-late' : ''}">${v ? numFmt(v, 1) : '—'}</td>`;
-    return `<div class="ip-repbar">
-        <div class="ip-repexp" role="group" aria-label="Период">
-          <span>Период</span>
-          <input class="input" type="date" data-ip-sum="from" value="${sumPeriod.from}" max="${todayD}" aria-label="Период с">
-          <span>—</span>
-          <input class="input" type="date" data-ip-sum="to" value="${sumPeriod.to}" max="${todayD}" aria-label="Период по">
-        </div>
-        <button class="btn btn-ghost btn-sm" data-ip-sum-xlsx>Выгрузить xlsx</button>
-      </div>
+    return `${periodBar(statPeriod(), '<button class="btn btn-ghost btn-sm" data-ip-sum-xlsx>Выгрузить xlsx</button>')}
       <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-sumtbl">
         <colgroup><col class="c-name">${'<col class="c-k">'.repeat(10)}<col class="c-cad"></colgroup>
         <thead><tr><th rowspan="2">Осмотрщик</th><th colspan="4" class="grp">Выезды</th><th colspan="2" class="grp">Пробег</th><th colspan="2" class="grp">Отчёты</th><th colspan="2" class="grp">Пропущено</th><th rowspan="2" class="num" title="Строк запросов документов: получено / нет в кадастре / отказ">Кадастр</th></tr>
@@ -1575,22 +1590,14 @@ export function mountInspections(host) {
 
   // Отчёты осмотрщика за месяц — по дням, итог в своих столбцах.
   function personReportsHTML(name) {
-    const [y, m] = rep.ym.split('-').map(Number);
-    const from = `${rep.ym}-01`;
-    const to = isoD(new Date(y, m, 0));
+    const per = statPeriod();
+    const from = per.from;
+    const to = per.upto;
     const rows = reportDays(name, from, to);
     const t = reportTotals(rows);
     const n = t.due;
-    const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
     const sel = repSel();
-    return `<div class="ip-repbar">
-        <div class="ip-daynav" role="group" aria-label="Месяц отчётов">
-          <button class="btn btn-ghost btn-sm" data-ip-rmonth="-1" aria-label="Предыдущий месяц">‹</button>
-          <span class="ip-repmonth">${MONTHS[m - 1]} ${y}</span>
-          <button class="btn btn-ghost btn-sm" data-ip-rmonth="1" aria-label="Следующий месяц" ${rep.ym >= todayD.slice(0, 7) ? 'disabled title="Отчётов за следующий месяц ещё нет"' : ''}>›</button>
-        </div>
-        <button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(name)}">Выгрузить месяц для бухгалтерии</button>
-      </div>
+    return `${periodBar(per, `<button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(name)}">Выгрузить для бухгалтерии</button>`)}
       ${reportTiles(t, n)}
       ${rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-reptbl">
         <colgroup><col class="c-date"><col class="c-rep"><col class="c-rep"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"></colgroup>
@@ -1751,7 +1758,13 @@ export function mountInspections(host) {
     if (view.section === 'assign' && view.tab === 'queue' && checked.size > 1) {
       const targets = [...checked.values()].filter(Boolean);
       ensureDraft('many:' + [...checked.keys()].join(','), view.assignPerson, view.assignDay);
-      return paneHTML({ mode: 'many', people: pickable(draft.person), person: draft.person, date: draft.date, targets, plan: planHTML(targets, false) });
+      // Раскладка по дням — когда осмотрщик выбран; правки дней держатся в draft.lay до смены осмотрщика.
+      if (draft.person && (!draft.lay || draft.layFor !== draft.person || draft.layN !== targets.length)) {
+        draft.lay = Object.fromEntries(layoutBatch(all, draft.person, targets, { from: draft.date || todayD }));
+        draft.layFor = draft.person; draft.layN = targets.length;
+      }
+      return paneHTML({ mode: 'many', people: pickable(draft.person), person: draft.person, date: draft.date, targets, plan: planHTML(targets, false),
+        layout: draft.person ? draft.lay : null });
     }
     if (view.section === 'assign' && view.tab === 'assigned' && !view.aPerson) return peekHTML();
     if (view.section === 'history' || view.tab === 'assigned') {
@@ -2858,6 +2871,10 @@ export function mountInspections(host) {
     if (n.go.report) {
       Object.assign(view, { section: 'people', person: n.person, personTab: 'reports' });
       rep.ym = n.go.report.slice(0, 7);
+      // Отчёты — по общему периоду: месяц дня из уведомления.
+      const [ry, rm] = n.go.report.split('-').map(Number);
+      const t0 = new Date();
+      Object.assign(statSel, { unit: 'month', offset: Math.max(0, (t0.getFullYear() - ry) * 12 + t0.getMonth() + 1 - rm) });
       detail = [{ kind: 'report', name: n.person, date: n.go.report }];
       render();
     } else if (n.go.assign) {
@@ -2876,7 +2893,11 @@ export function mountInspections(host) {
   });
   // Статистика: период, переход к осмотрщику, выгрузка xlsx — по всем или
   // по выбранному (задача графа ekran-statistiki-osmotrov-pokazateli-i-vygruzka-xlsx).
-  scope.on('click', '[data-ip-sunit]', (e, b) => { statSel.unit = b.dataset.ipSunit; statSel.offset = 0; redraw(); });
+  scope.on('click', '[data-ip-sunit]', (e, b) => {
+    // В «Период» — с отрезка, который был выбран: от него удобнее сдвигать границы.
+    if (b.dataset.ipSunit === 'custom' && statSel.unit !== 'custom') { const p = statPeriod(); statSel.from = p.from; statSel.to = p.upto; }
+    statSel.unit = b.dataset.ipSunit; statSel.offset = 0; redraw();
+  });
   scope.on('click', '[data-ip-sstep]', (e, b) => { statSel.offset = Math.max(0, statSel.offset + Number(b.dataset.ipSstep)); redraw(); });
   const openStat = (name) => { Object.assign(view, { person: name, personTab: 'stats' }); detail = []; render(); };
   scope.on('click', '[data-ip-stat-open]', (e, el) => openStat(el.dataset.ipStatOpen));
@@ -2889,7 +2910,14 @@ export function mountInspections(host) {
   });
 
   // Итоги за период: период, переход к отчётам осмотрщика, выгрузка.
-  scope.on('change', '[data-ip-sum]', (e, el) => { if (el.value) { sumPeriod[el.dataset.ipSum] = el.value; redraw(); } });
+  scope.on('change', '[data-ip-prange]', (e, el) => {
+    if (!el.value) return;
+    const k = el.dataset.ipPrange;
+    statSel[k] = el.value;
+    // «С» позже «по» — другая граница подтягивается к выбранной, а не меняется местами.
+    if (statSel.from > statSel.to) { if (k === 'from') statSel.to = el.value; else statSel.from = el.value; }
+    redraw();
+  });
   scope.on('click', '[data-ip-sum-open]', (e, el) => {
     Object.assign(view, { person: el.dataset.ipSumOpen, personTab: 'reports' });
     rep.ym = sumPeriod.to.slice(0, 7);
@@ -2983,8 +3011,8 @@ export function mountInspections(host) {
   };
   scope.on('click', '[data-ip-rexp-go]', () => exportAccounting(visiblePeople().filter((p) => !p.fired).map((p) => p.name), rep.from, rep.to));
   scope.on('click', '[data-ip-rexp-person]', (e, b) => {
-    const [y, m] = rep.ym.split('-').map(Number);
-    exportAccounting([b.dataset.ipRexpPerson], `${rep.ym}-01`, isoD(new Date(y, m, 0)));
+    const p = statPeriod();
+    exportAccounting([b.dataset.ipRexpPerson], p.from, p.upto);
   });
   scope.on('click', '[data-ipc-month]', (e, b) => {
     const k = +b.dataset.ipcMonth;
@@ -3027,7 +3055,8 @@ export function mountInspections(host) {
     view.section = 'assign'; view.tab = 'queue'; view.assignPerson = name; view.assignDay = day;
     draft = { key: '' }; detail = []; resetList(); render();
   });
-  scope.on('click', '[data-ip-assign-day-clear]', () => { view.assignDay = ''; draft = { key: '' }; render(); });
+  scope.on('click', '[data-ip-assign-day-clear]', () => { view.assignDay = ''; view.assignAll = false; draft = { key: '' }; render(); });
+  scope.on('click', '[data-ip-assign-fit]', () => { view.assignAll = !view.assignAll; resetList(); render(); });
   scope.on('click', '[data-ip-ptab]', (e, b) => { view.personTab = b.dataset.ipPtab; detail = []; render(); });
   scope.on('click', '[data-ip-atab]', (e, b) => { view.allTab = b.dataset.ipAtab; detail = []; render(); });
   scope.on('click', '[data-ip-c-save]', () => {
@@ -3364,6 +3393,8 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-avail-day]', (e, b) => { draft.date = b.dataset.ipAvailDay; redraw(); });
   scope.on('change', '[data-ip-f-person]', (e, el) => { draft.person = el.value; redraw('.ip-pane [data-ip-f-person]'); });
   scope.on('change', '[data-ip-f-date]', (e, el) => { draft.date = el.value; redraw('.ip-pane [data-ip-f-date]'); });
+  scope.on('change', '[data-ip-lay]', (e, el) => { if (draft.lay) draft.lay[el.dataset.ipLay] = el.value; });
+  scope.on('click', '[data-ip-relayout]', () => { draft.lay = null; redraw(); });
   scope.on('change', '[data-ip-f-deadline]', (e, el) => {
     const keys = view.tab === 'queue' && checked.size > 1 ? [...checked.keys()]
       : (() => { const a = view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null; return [a ? a.typeId + '|' + a.ocId : current]; })();

@@ -1297,7 +1297,7 @@ body[data-page="inspections"] .ip-cfadd .select{width:170px}
    своих столбцах; прокрутка — внутри таблицы, не страницы. */
 body[data-page="inspections"] .ipc-sbar{margin-bottom:10px}
 body[data-page="inspections"] .ipc-sper{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
-body[data-page="inspections"] .ipc-seg3{grid-template-columns:repeat(3,auto)}
+body[data-page="inspections"] .ipc-seg3{grid-template-columns:repeat(4,auto)}
 body[data-page="inspections"] .ipc-seg3 button{padding:0 12px}
 body[data-page="inspections"] .ipc-kinds{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:8px 0 12px}
 body[data-page="inspections"] .ipc-kind{display:inline-flex;align-items:baseline;gap:4px;padding:2px 9px;border:1px solid var(--line);
@@ -1588,3 +1588,9 @@ body[data-page="inspections"] .ip-cad-log b{color:var(--ink)}
 body[data-page="inspections"] .ip-cadform .ip-cadtbl{min-width:0}
 body[data-page="inspections"] .ip-cadform .ip-cadtbl col.c-eni{width:128px}
 body[data-page="inspections"] .ip-cadform .ip-cadtbl col.c-inst{width:72px}
+
+/* Пачка объектов по дням: строка — объект, свой день, убрать. */
+body[data-page="inspections"] .ip-picked-days li{display:grid;grid-template-columns:minmax(0,1fr) 150px auto;align-items:center;gap:8px}
+body[data-page="inspections"] .ip-picked-days .input{height:30px}
+body[data-page="inspections"] .ip-picked-days li{grid-template-columns:minmax(0,1fr) 136px auto}
+body[data-page="inspections"] .ip-picked-days .ell{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}

@@ -51,10 +51,10 @@ function whoWhen(people, person, date, plan, targets = []) {
   <section class="ip-sec"><h3>Когда</h3>
     <div class="ip-f-row">
       <div class="field ip-f-date"><label for="ip-f-date">Плановая дата</label>
-        <input class="input" type="date" id="ip-f-date" data-ip-f-date min="${todayIso()}" value="${esc(date || '')}"></div>
+        <input class="input" type="date" id="ip-f-date" data-ip-f-date min="${todayIso()}" value="${esc(date || '')}"${warns.length ? ' aria-describedby="ip-f-date-warn"' : ''}></div>
       ${plan ? plan.deadline : '<div></div>'}
     </div>
-    ${warns.length ? `<p class="ip-date-warn" role="status" data-ip-date-warn>${warns.map((w) => `<span>${esc(w)}</span>`).join('')}</p>` : ''}
+    ${warns.length ? `<p class="ip-date-warn" id="ip-f-date-warn" role="status" data-ip-date-warn>${warns.map((w) => `<span>${esc(w)}</span>`).join('')}</p>` : ''}
   </section>`;
 }
 
@@ -125,7 +125,7 @@ function contentsHTML(c, pick, prev) {
 // prev — действующее назначение.
 // plan — вставки планирования (inspections.js planHTML): «Кого назначить»,
 // полоса доступности, срок, контакты на месте; date — выбранная плановая дата.
-export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null, transfer = null }) {
+export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null, transfer = null, layout = null }) {
   if (mode === 'none') {
     return `<aside class="ip-pane ip-pane-none" aria-label="Назначение"><div class="ip-pane-body"><p class="ip-hint">Выберите объект в списке.</p></div></aside>`;
   }
@@ -136,9 +136,13 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
         <p class="ip-pane-sub">Документы у каждого — по умолчанию: технический паспорт, кадастровый и ситуационный планы.</p></header>
       <div class="ip-pane-body">
         ${whoWhen(people, person, date, plan, targets)}
-        <section class="ip-sec"><h3>Объекты</h3>
-          <ul class="ip-picked">${targets.map((t) => `<li><span class="ell">${esc(t.title)}</span>
-            <button class="ip-x" data-ip-unpick="${esc(t.typeId + '|' + t.ocId)}" aria-label="Убрать из выбора" title="Убрать из выбора">×</button></li>`).join('')}</ul>
+        <section class="ip-sec"><h3>Объекты${layout ? ' по дням' : ''}</h3>
+          ${layout ? `<p class="ip-hint">День каждому объекту — по норме, дороге от дома и уже назначенному; правится в строке. Пустая дата — общая плановая дата выше.
+            <button type="button" class="btn btn-ghost btn-sm" data-ip-relayout>Разложить заново</button></p>` : ''}
+          <ul class="ip-picked ${layout ? 'ip-picked-days' : ''}">${targets.map((t) => { const k = t.typeId + '|' + t.ocId; return `<li><span class="ell">${esc(t.title)}</span>
+            ${layout ? `<input class="input" type="date" data-ip-lay="${esc(k)}" value="${esc(layout[k] || '')}" aria-label="День: ${esc(t.title)}">` : ''}
+            <button class="ip-x" data-ip-unpick="${esc(k)}" aria-label="Убрать из выбора" title="Убрать из выбора">×</button></li>`; }).join('')}</ul>
+          ${layout && targets.some((t) => !layout[t.typeId + '|' + t.ocId]) ? '<p class="ip-date-warn" role="status"><span>Не поместились в ближайшие рабочие дни — укажите день сами.</span></p>' : ''}
         </section>
         ${note('')}
       </div>
@@ -257,6 +261,8 @@ export function submitPane(root, { targets, prev }) {
   };
   const made = targets.map((t) => assign({
     ...common,
+    // День из раскладки по дням (пачка): своя дата строки, пустая — общая плановая дата.
+    plannedAt: (root.querySelector(`[data-ip-lay="${CSS.escape(t.typeId + '|' + t.ocId)}"]`) || {}).value || common.plannedAt,
     typeId: t.typeId,
     ocId: t.ocId,
     oiIds,

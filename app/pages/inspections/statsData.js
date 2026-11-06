@@ -24,9 +24,17 @@ const ROMAN = ['I', 'II', 'III', 'IV'];
 // Неделя (пн–вс), месяц или квартал; offset — шагов назад от текущего.
 // Границы — от сегодняшней даты, годы не зашиты. Текущий период — по
 // сегодня: дни впереди ещё не наступили, и в рабочие дни они не идут.
-export const PERIOD_UNITS = [['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал']];
+// «Период» — свой отрезок «с — по» (решение пользователя 05.11.2026 «Один общий» выбор периода для отчётов,
+// итогов и статистики: неделя / месяц / квартал + «с — по»).
+export const PERIOD_UNITS = [['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал'], ['custom', 'Период']];
 
-export function periodOf(unit, offset) {
+export function periodOf(unit, offset, range = null) {
+  if (unit === 'custom' && range && range.from && range.to) {
+    const today0 = isoDay(new Date());
+    const [a, b] = range.from <= range.to ? [range.from, range.to] : [range.to, range.from];
+    return { unit, offset: 0, from: a, to: b, upto: b < today0 ? b : today0, label: `${ddmmyyyy(a)} – ${ddmmyyyy(b)}`, current: b >= today0, custom: true };
+  }
+  if (unit === 'custom') unit = 'month';
   const t = new Date();
   t.setHours(0, 0, 0, 0);
   let from;

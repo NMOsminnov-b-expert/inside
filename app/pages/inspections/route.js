@@ -324,6 +324,41 @@ export function dayLoad(all, person, date, extra = [], fact = factNorms(all)) {
 const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const ddmm = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 
+// Раскладка пачки объектов по дням осмотрщика (решение пользователя 05.11.2026 «Раскладка с правкой»):
+// рабочие дни подряд от from (сегодня), в день — пока объекты с дорогой от дома и уже назначенным
+// помещаются в рабочее время (dayLoad); раньше — с более ранним сроком, объекты одного населённого
+// пункта — рядом, чтобы ложились в один день. Возвращает Map «тип|запись» → день ('' — не поместилось).
+export function layoutBatch(all, person, targets, { from = '', days = 30 } = {}) {
+  const fact = factNorms(all);
+  const out = new Map();
+  const place = (t) => String((all.get(t.typeId + '|' + t.ocId) || {}).city || '');
+  const order = targets.slice().sort((a, b) => String(deadlineOf(a.typeId, a.ocId) || '9999').localeCompare(String(deadlineOf(b.typeId, b.ocId) || '9999'))
+    || place(a).localeCompare(place(b), 'ru'));
+  const start = new Date((from || isoOf(new Date())) + 'T00:00:00');
+  let rest = order;
+  for (let i = 0, d = new Date(start); rest.length && i < days * 3; i++, d.setDate(d.getDate() + 1)) {
+    const day = isoOf(d);
+    if (!workdayOf(person, day).ok) continue;
+    // День, уже занятый назначениями до предела, пропускается.
+    const base = dayLoad(all, person, day, [], fact);
+    if (base.n && base.total >= base.avail) continue;
+    const put = [];
+    // Сначала — объекты того же места, что первый оставшийся: маршрут дня короче. Первый объект дня
+    // ложится всегда — дальний выезд занимает день целиком; дальше — пока помещается в рабочее время.
+    const first = place(rest[0]);
+    const tryOrder = [...rest.filter((t) => place(t) === first), ...rest.filter((t) => place(t) !== first)];
+    tryOrder.forEach((t) => {
+      if (!put.length) { put.push(t); return; }
+      const l = dayLoad(all, person, day, [...put, t], fact);
+      if (l.total <= l.avail) put.push(t);
+    });
+    put.forEach((t) => out.set(t.typeId + '|' + t.ocId, day));
+    rest = rest.filter((t) => !put.includes(t));
+  }
+  rest.forEach((t) => out.set(t.typeId + '|' + t.ocId, ''));
+  return out;
+}
+
 // people — строки осмотрщиков ({ name, live, fired }), targets — объекты
 // ({ typeId, ocId }), date — плановая дата, если её уже выбрали.
 export function recommendAssign(all, people, targets, date = '', { days = 10 } = {}) {

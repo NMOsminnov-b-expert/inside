@@ -125,18 +125,25 @@ export function bindCalendarPopover(scope) {
 // — где не хватает людей.
 const stile = (label, value, cls = '', hint = '') => `<div class="ip-tile ${cls}" ${hint ? `title="${esc(hint)}"` : ''}><span>${label}</span><b>${value}</b></div>`;
 
-function periodBar(period) {
+// Выбор периода — один на «Статистику», «Итоги» и отчёты осмотрщика (решение пользователя 05.11.2026
+// «Один общий»): неделя / месяц / квартал со стрелками или «Период» — «с — по». action — кнопка выгрузки справа.
+export function periodBar(period, action = '<button class="btn btn-ghost btn-sm" data-ip-sxlsx>Выгрузить xlsx</button>') {
+  const custom = period.unit === 'custom';
   return `<div class="ip-repbar ipc-sbar">
     <div class="ipc-sper">
       <div class="ip-seg ipc-seg3" role="group" aria-label="Период">${PERIOD_UNITS.map(([k, l]) => `<button type="button" data-ip-sunit="${k}" aria-pressed="${period.unit === k}">${l}</button>`).join('')}</div>
-      <div class="ip-daynav" role="group" aria-label="Период статистики">
+      ${custom ? `<div class="ip-repexp" role="group" aria-label="Период с — по">
+          <input class="input" type="date" data-ip-prange="from" value="${esc(period.from)}" aria-label="Период с">
+          <span>—</span>
+          <input class="input" type="date" data-ip-prange="to" value="${esc(period.to)}" aria-label="Период по"></div>`
+        : `<div class="ip-daynav" role="group" aria-label="Период">
         <button class="btn btn-ghost btn-sm" data-ip-sstep="1" aria-label="Предыдущий период">‹</button>
         <span class="ip-repmonth">${esc(period.label)}</span>
         <button class="btn btn-ghost btn-sm" data-ip-sstep="-1" aria-label="Следующий период" ${period.current ? 'disabled title="Выбран текущий период — следующий ещё не начался"' : ''}>›</button>
-      </div>
+      </div>`}
       <span class="ip-hint">${esc(periodText(period))}${period.current ? ' · по сегодня' : ''}</span>
     </div>
-    <button class="btn btn-ghost btn-sm" data-ip-sxlsx>Выгрузить xlsx</button>
+    ${action}
   </div>`;
 }
 
