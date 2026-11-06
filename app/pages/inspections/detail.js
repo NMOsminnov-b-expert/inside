@@ -193,6 +193,7 @@ function reportHTML(all, sel, assignments, canBack) {
     <section class="ip-sec"><h3>Вечерний отчёт</h3>
       ${e ? `<div class="ip-dp-line"><span>Сдан</span><span class="ip-dp-v">${when(e, d.eveningLate ? `сдан ${esc(fmtDate(e.at))}` : '')}</span></div>
         <div class="ip-dp-line"><span>Осмотрено</span><span class="ip-dp-v">${doneList.length ? `<ul class="ip-dp-list">${doneList.map((a) => { const s = all.get(a.typeId + '|' + a.ocId); return `<li><a href="#" data-ip-dp-open="assign:${esc(a.id)}">${esc(s ? s.title : a.ocId)}</a></li>`; }).join('')}</ul>` : '—'}</span></div>
+        ${(e.partial || []).length ? `<div class="ip-dp-line"><span>Осмотрено частично</span><span class="ip-dp-v"><ul class="ip-dp-list">${e.partial.map((x) => { const a = assignments.find((y) => y.id === x.assignId); const s = a ? all.get(a.typeId + '|' + a.ocId) : null; return `<li>${esc(s ? s.title : '—')}${x.reason ? ` <span class="ip-muted">— ${esc(x.reason)}</span>` : ''}</li>`; }).join('')}</ul></span></div>` : ''}
         ${e.noOdometer || !e.odometer
           ? `<div class="ip-dp-line"><span>Маршрут</span><span class="ip-dp-v">${(e.route || []).length ? esc(e.route.join(' → ')) : '—'}</span></div>`
           : `<div class="ip-dp-line"><span>Одометр</span><span class="ip-dp-v">${odo(e)}</span></div>${photo(e)}`}

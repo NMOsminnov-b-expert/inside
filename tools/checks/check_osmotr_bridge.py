@@ -261,3 +261,29 @@ def run(t):
       setTimeout(() => { window.removeEventListener('message', on); res(answered); }, 400);
     })""")
     t.ck(stray is False, 'ответ на сообщение не из рамки приложения')
+
+    # --- день осмотрщика (пачка А, план 06.11.2026): причины, уведомления, планы, взять на день, перенос, отчёт ---
+    rs = pg.evaluate(ASK, ['reasons', {}, False])
+    t.ck(rs['ok'] and 'Объект закрыт' in (rs['body'].get('move') or []), 'нет причины «Объект закрыт» для переноса: %s' % rs)
+    nt = pg.evaluate(ASK, ['notes', {}, False])
+    t.ck(nt['ok'] and isinstance(nt['body'].get('items'), list), 'лента уведомлений осмотрщика не пришла: %s' % nt)
+    pl = pg.evaluate(ASK, ['plans', {'days': 14}, False])
+    t.ck(pl['ok'] and len(pl['body'].get('days') or []) == 14 and 'noDate' in pl['body'], 'планы не пришли: %s' % str(pl)[:200])
+    live = [x for x in items if not x.get('removed') and x.get('state') != 'done']
+    if t.ck(live, 'нет действующего объекта для переноса'):
+        oid = live[0]['id']
+        far = pg.evaluate("() => { const d = new Date(); d.setDate(d.getDate() + 9); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
+        mv = pg.evaluate(ASK, ['move', {'objectId': oid, 'date': far, 'reason': 'Объект закрыт', 'note': 'chk'}, False])
+        a2 = pg.evaluate(ASK, ['assignments', {}, False])
+        got = next((x for x in a2['body']['items'] if x['id'] == oid), {})
+        t.ck(mv['ok'] and (got.get('moveReq') or {}).get('date') == far, 'запрос переноса не дошёл до задачи: %s %s' % (mv, got.get('moveReq')))
+        tk = pg.evaluate(ASK, ['take', {'objectId': oid, 'date': far}, False])
+        a3 = pg.evaluate(ASK, ['assignments', {}, False])
+        t.ck(tk['ok'] and next((x for x in a3['body']['items'] if x['id'] == oid), {}).get('plannedAt') == far, '«взять на день» не поставило дату: %s' % tk)
+    rp = pg.evaluate(ASK, ['report', {}, False])
+    t.ck(rp['ok'] and 'trips' in rp['body'] and 'routeKm' in rp['body'], 'отчёт дня не пришёл: %s' % str(rp)[:200])
+    sv = pg.evaluate(ASK, ['saveReport', {'kind': 'evening', 'data': {'km': '12', 'done': [], 'partial': []}}, False])
+    t.ck(sv['ok'] and sv['body'].get('at'), 'вечерний отчёт не сохранился: %s' % sv)
+    old = pg.evaluate("() => { const d = new Date(); d.setDate(d.getDate() - 20); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
+    so = pg.evaluate(ASK, ['saveReport', {'kind': 'evening', 'date': old, 'data': {'km': '1'}}, False])
+    t.ck(not so['ok'] or not so['body'], 'отчёт за 20 дней назад принят: %s' % so)

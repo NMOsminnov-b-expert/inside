@@ -22,7 +22,11 @@
 import { foldEniList } from '../../kernel/eniFold.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { getType } from '../../kernel/registry.js';
-import { assignmentsOfPerson, coversOi, deadlineOf, startWork, finishWork, myAssignsOn, logEvent, changed, inventoryHolders } from '../../kernel/inspections.js';
+import { assignmentsOfPerson, coversOi, deadlineOf, startWork, finishWork, myAssignsOn, logEvent, changed, inventoryHolders,
+  isLive, eventsOf, planOf, absenceOn, absenceLabel, takeForDay, requestMove, skipReasons, reportOf, saveReport, lateWorkdays,
+  LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadKindLabel } from '../../kernel/inspections.js';
+import { scanQueue } from '../../kernel/scanQueue.js';
+import { osrmKm, dayPoints } from '../inspections/route.js';
 import { reviewOf, resultsOf, saveResults, valuesOf, addResultPhoto } from '../../kernel/inspectionResults.js';
 import { inventoryById, markItem, markOf, addItemPhoto, inPart, partLabel } from '../../kernel/inventories.js';
 import { xlsxBytes } from '../../kernel/xlsx.js';
@@ -258,9 +262,16 @@ function ringOf(geo) {
 }
 
 // Назначенные объекты осмотрщика: по одному на ОЦ.
+const isoDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 function myObjects(person) {
   const by = new Map();
-  assignmentsOfPerson(person, { live: false }).filter((a) => a.state !== 'removed').forEach((a) => {
+  const today = isoDay();
+  // Снятое регионалом сегодня — до конца дня с меткой «Снято регионалом» (решение 06.11.2026 «Метка + уведомление»).
+  const mine = assignmentsOfPerson(person, { live: false });
+  const keep = (a) => a.state !== 'removed' || (String(a.removedAt || '').slice(0, 10) === today
+    && !mine.some((b) => b !== a && b.typeId === a.typeId && b.ocId === a.ocId && b.state !== 'removed'));
+  mine.filter(keep).forEach((a) => {
     const k = a.typeId + '|' + a.ocId;
     if (!by.has(k)) by.set(k, []);
     by.get(k).push(a);
@@ -303,6 +314,10 @@ function myObjects(person) {
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },
         rec.geo.contour ? { type: 'MultiPolygon', coordinates: rec.geo.contour } : null, rec.geo.builds || []) : [],
       ois, docs, contacts, returned, facts: factsOf(rec),
+      // Снято регионалом сегодня; запрос переноса и ответ на него (решения 06.11.2026).
+      removed: list.every((a) => a.state === 'removed'), removedAt: list.every((a) => a.state === 'removed') ? (list[0].removedAt || '') : '',
+      moveReq: (list.find((a) => a.moveReq) || {}).moveReq || null,
+      moveRefused: (list.find((a) => a.moveRefused) || {}).moveRefused || null,
       inventories: inventoriesOf(rec, list, ownOis(rec).filter((o) => whole || list.some((a) => coversOi(a, o.id))))
         .map(({ id, kind, title, folder, items }) => ({ id, kind, title, folder, count: items.length })),
     });
@@ -397,6 +412,85 @@ const handlers = {
   exit() {
     setTimeout(() => { if (history.length > 1) history.back(); else location.hash = '#/'; }, 0);
     return {};
+  },
+
+  // --- день осмотрщика (план пользователя 06.11.2026, пачка А) -----------------------------------------
+  // Причины переноса и снятия с дня — из справочника системы («Объект закрыт» — решение 06.11.2026).
+  reasons() { return { move: skipReasons() }; },
+  // Лента уведомлений осмотрщика за 14 дней: назначения, возвраты, снятия, переносы, сканы, запросы документов.
+  notes() {
+    const person = session.state.person;
+    const since = (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString(); })();
+    const mineIds = new Set(assignmentsOfPerson(person, { live: false }).map((a) => a.id));
+    const LABEL = { assigned: 'Новое назначение', returned: 'Возврат на доосмотр', removed: 'Снято регионалом', moveAllowed: 'Перенос разрешён',
+      moveRefused: 'Перенос отклонён', updated: 'Назначение изменено', moved: 'Перенесена дата' };
+    const out = eventsOf({}).filter((e) => mineIds.has(e.assignId) && LABEL[e.kind] && String(e.at) >= since && e.who !== person)
+      .map((e) => ({ id: e.id || `${e.kind}|${e.assignId}|${e.at}`, kind: e.kind, label: LABEL[e.kind], text: e.text || '', at: e.at, objectId: `${e.typeId}|${e.ocId}` }));
+    scanQueue({}).filter((x) => x.by === person && (x.state === 'returned' || x.state === 'rejected') && String(x.decidedAt) >= since)
+      .forEach((x) => out.push({ id: 'scan|' + x.key + '|' + x.decidedAt, kind: 'scan-' + x.state, label: x.state === 'returned' ? 'Скан вернули на пересъёмку' : 'Скан отклонён',
+        text: `${x.title}: ${x.reason}`, at: x.decidedAt, objectId: `${x.typeId}|${x.ocId}` }));
+    allCadRequests().filter((r) => r.person === person && !r.closedAt && String(r.at) >= since)
+      .forEach((r) => out.push({ id: 'cad|' + r.id, kind: 'cadastre', label: 'Новый запрос документов', text: `${cadKindLabel(r.kind)} № ${r.no}: строк ${r.rows.length}`, at: r.at, objectId: '' }));
+    return { items: out.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 100) };
+  },
+  // Планы: дни вперёд — область по плану месяца, отсутствие, выезды; отдельно — задачи без даты.
+  plans(body) {
+    const person = session.state.person;
+    const n = Math.min(42, Math.max(1, Number(body && body.days) || 28));
+    const list = assignmentsOfPerson(person, { live: true });
+    const obj = (a) => ({ objectId: `${a.typeId}|${a.ocId}`, title: titleOf(loadTask(a.typeId, a.ocId) || {}, a.ocId), state: a.state, moveReq: a.moveReq || null });
+    const days = [];
+    for (let i = 0; i < n; i++) {
+      const d = new Date(); d.setDate(d.getDate() + i);
+      const iso = isoDay(d);
+      const plan = planOf(person, iso);
+      const ab = absenceOn(person, iso);
+      days.push({ date: iso, workday: workdayOf(person, iso).ok, region: plan ? [plan.region, plan.district].filter(Boolean).join(', ') : '',
+        absence: ab ? absenceLabel(ab.kind) : '', items: list.filter((a) => a.plannedAt === iso).map(obj) });
+    }
+    return { days, noDate: list.filter((a) => !a.plannedAt).map(obj),
+      overdue: list.filter((a) => a.plannedAt && a.plannedAt < isoDay()).map((a) => ({ ...obj(a), date: a.plannedAt })) };
+  },
+  // Взять задачу без даты на любой день (решение 06.11.2026: «Может не только на сегодня, но и взять на другую дату»).
+  take(body) {
+    const person = session.state.person;
+    const { typeId, ocId } = findObject(person, body.objectId);
+    const date = String(body.date || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('нужна дата');
+    myAssignsOn(person, typeId, ocId).filter(isLive).forEach((a) => takeForDay(a.id, date));
+    return {};
+  },
+  // Запрос переноса — регионал подтверждает (решение 06.11.2026).
+  move(body) {
+    const person = session.state.person;
+    const { typeId, ocId } = findObject(person, body.objectId);
+    const list = myAssignsOn(person, typeId, ocId).filter(isLive);
+    if (!list.length) throw new Error('назначение не действует');
+    list.forEach((a) => requestMove(a.id, { date: String(body.date || ''), reason: String(body.reason || ''), note: String(body.note || '') }));
+    return {};
+  },
+  // Отчёт дня: утро и вечер, выезды дня с исходами, пробег по дорогам (OSRM/OSM), можно ли ещё сдать.
+  async report(body) {
+    const person = session.state.person;
+    const date = String((body && body.date) || isoDay());
+    const morning = reportOf(person, date, 'morning');
+    const evening = reportOf(person, date, 'evening');
+    const trips = assignmentsOfPerson(person, { live: false }).filter((a) => a.plannedAt === date && a.state !== 'removed')
+      .map((a) => ({ assignId: a.id, objectId: `${a.typeId}|${a.ocId}`, title: titleOf(loadTask(a.typeId, a.ocId) || {}, a.ocId), state: a.state }));
+    const pts = dayPoints(person, date);
+    const routeKm = pts ? await osrmKm(pts) : null;
+    const late = date < isoDay() ? lateWorkdays(person, date) : 0;
+    return { date, morning: morning || null, evening: evening || null, trips, routeKm, workday: workdayOf(person, date).ok,
+      canFile: !!(morning && evening) || late <= LATE_REPORT_WORKDAYS, lateDays: late };
+  },
+  // Сохранить отчёт: kind 'morning' — { odometer, noOdometer }; 'evening' — { km, kmByRoute, odometer, fuel, done: [assignId],
+  // partial: [{ assignId, reason }], note }. Позже 3 рабочих дней — отказ.
+  saveReport(body) {
+    const person = session.state.person;
+    const kind = body.kind === 'morning' ? 'morning' : 'evening';
+    const r = saveReport({ person, date: String(body.date || isoDay()), kind, ...(body.data || {}) });
+    if (!r) throw new Error('срок сдачи отчёта за этот день прошёл');
+    return { at: r.at };
   },
 };
 
