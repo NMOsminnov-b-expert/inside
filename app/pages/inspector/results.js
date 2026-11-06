@@ -101,7 +101,7 @@ function compareOf(typeId, rec, oi, r) {
     return row;
   })).filter((x) => x.insp);
 }
-const COUNTERS = new Set(['mileage', 'engineHours', 'hours']);
+const COUNTERS = new Set(['mileage', 'engineHours']);
 const counterNum = (v) => { const m = String(v || '').replace(/\s/g, '').replace(',', '.').match(/^-?\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
 
 // Где ОИ в приёмке: принят, снова сдан после возврата, на доосмотре, ждёт

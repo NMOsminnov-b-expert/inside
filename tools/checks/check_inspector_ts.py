@@ -4,9 +4,10 @@
 Что сторожит сценарий — дефекты, которых нельзя допустить при правке формы,
 снимков, выявленного и назначений:
 
-  * форма ТС — только поля «на месте»: появится поле «по снимкам» (состояние,
-    КПП, тормоза) — осмотрщик начнёт судить о том, чего не умеет; пропадёт
-    раздел модуля — таблички модуля не снимут;
+  * форма ТС — как в приложении «Осмотр» (решение 02.11.2026, сверка 06.11.2026): госномер,
+    пробег, моточасы, руль, тип топлива; появится поле «по снимкам» (состояние, КПП, тормоза)
+    или снятое 02.11 (VIN, кузов, шасси, оси, модули, комплектность) — осмотрщик начнёт
+    судить о том, чего не умеет;
   * рядом с номером — значение из записи ТС и «РАСХОДИТСЯ»; госномер с
     пробелами не должен давать ложного расхождения;
   * отметки «найдено / не найдено» у ТС нет (снята 28.10.2026);
@@ -114,13 +115,12 @@ def run(t):
     TS2 = '#/insp/vehicle/oc-vehicle-d2/object/ts'
     t.open(as_(TS2, ME), wait='.ins-acc')
     s = secs(pg)
-    t.ck(s[:4] == ['Место осмотра', 'Опознание', 'Показания', 'Видно на месте'], 'разделы ТС не те: %s' % s)
-    t.ck('Модуль: Кран-манипулятор (КМУ)' in s and 'Комплектность' in s and 'Комментарии' in s, 'нет раздела модуля или комплектности: %s' % s)
+    t.ck(s == ['Место осмотра', 'Опознание', 'Показания', 'Двигатель', 'Комментарии'], 'разделы ТС не как в приложении: %s' % s)
     keys = pg.eval_on_selector_all('[data-fs-field]', 'els => els.map((e) => e.dataset.fsField)')
-    bad = [k for k in keys if k.split('.')[-1] in ('state', 'gearbox', 'brakeType', 'trim', 'wheelFormula', 'drive', 'engineKind', 'fuel')]
-    t.ck(not bad, 'в форме осмотрщика поля «по снимкам»: %s' % bad)
-    t.ck({'f.plate', 'f.vin', 'f.chassisNo', 'f.mileage', 'f.engineHours', 'f.axles', 'm.vm-d2-1.serialNo', 'm.vm-d2-1.hours', 'f.kit'} <= set(keys),
-         'нет полей «на месте»: %s' % keys)
+    bad = [k for k in keys if k.split('.')[-1] in ('state', 'gearbox', 'brakeType', 'trim', 'wheelFormula', 'drive', 'engineKind',
+                                                   'vin', 'bodyNo', 'chassisNo', 'axles', 'kit', 'serialNo', 'hours') or k.startswith('m.')]
+    t.ck(not bad, 'в форме осмотрщика поля «по снимкам» или снятые 02.11: %s' % bad)
+    t.ck({'f.plate', 'f.mileage', 'f.engineHours', 'f.wheel', 'f.fuel'} <= set(keys), 'нет полей, как в приложении: %s' % keys)
     t.ck(pg.locator('[data-ts-addr]').count() == 0, 'у ОЦ «ТС» предложен адрес объекта выезда')
     t.ck('Адрес уточняется на месте' in pg.inner_text('.ins-objinfo'), 'у ТС без адреса не сказано «Адрес уточняется на месте»')
     hint = lambda k: pg.inner_text('[data-fs-field="%s"] .ins-fs-hint' % k)
@@ -201,7 +201,10 @@ def run(t):
     cats1 = pg.evaluate("async () => { const T = %s; return [T.photoCatsOf({ card: 'vehicle', vehicle: { modules: [] } }), T.photoCatsOf({ card: 'building' })]; }" % T)
     t.ck(cats1[0] == ['Машина', 'Документы на месте', 'Прочее'] and 'Фасад' in cats1[1], 'категории снимков по виду ОИ не те: %s' % cats1)
     t.open(as_('#/insp/vehicle/oc-vehicle-d3/object/ts', ME), wait='.ins-acc')
-    t.ck('мм' in pg.inner_text('[data-fs-field="m.vm-d3-1.dlinaPlatformy"]'), 'у длины платформы нет единицы мм')
+    # Разделов модулей нет (решение 02.11.2026); единица — у пробега, как в приложении (км / мили).
+    t.ck(not any(x.startswith('Модуль:') for x in secs(pg)), 'у ТС с модулем есть раздел модуля: %s' % secs(pg))
+    keys3 = pg.eval_on_selector_all('[data-fs-field]', 'els => els.map((e) => e.dataset.fsField)')
+    t.ck(not [k for k in keys3 if k.startswith('m.')], 'у ТС с модулем — поля модуля: %s' % keys3)
 
     # --- 3. План дня и задачи: ТС без адреса ---------------------------------------
     t.open(as_('#/insp', ME), wait='[data-plan-trips]')

@@ -16,22 +16,22 @@
 // меняется: карточки ОЦ пока не трогаем (запись графа kartochki-oc-poka-ne-trogat).
 import { TS_MODULE_FIELDS } from './data/tsCatalog.js';
 import {
-  tsOf, tsTitle, commonFields, specialFields, moduleSpecial, moduleTitle, isTrailer, CATEGORIES, SELF_CAT,
+  tsOf, tsTitle, commonFields, specialFields, moduleSpecial, CATEGORIES, SELF_CAT,
 } from './tsModel.js';
 
 // Ключи каталога, которые осмотрщик заполняет на месте, по разделам формы
 // (запись графа osmotr-ts-na-meste-i-po-snimkam, пункт «На месте»).
+// Поля — как в приложении «Осмотр» (решение пользователя 02.11.2026, записано у полей приложения:
+// «модули, VIN, номера кузова и шасси осмотрщик не ставит; адрес можно прикрепить геометкой; оси и
+// комплектность убраны, вместо них — топливо»; сверка с удалённой веткой приложения 06.11.2026 —
+// «Значит добавляем тип топлива»). Прежние значения в записях остаются.
 export const TS_ONSITE = {
-  // Опознание: рядом — значение «по документам» и пометка расхождения.
-  ident: ['plate', 'vin', 'bodyNo', 'chassisNo'],
-  // Показания приборов: одометр, счётчик моточасов.
-  readings: ['mileage', 'engineHours'],
-  // Видно глазом.
-  visible: ['axles', 'wheel'],
-  // Таблички модуля, моточасы модуля и замеры рулеткой.
-  module: ['maker', 'model', 'serialNo', 'year', 'gruzopodemnost', 'hours', 'dlinaPlatformy', 'pogruzochnayaVysota'],
-  // Что есть при машине.
-  kit: ['kit'],
+  // Опознание: госномер (в приложении подставляется сам — с названия папки ТС).
+  ident: ['plate'],
+  // Показания приборов и руль.
+  readings: ['mileage', 'engineHours', 'wheel'],
+  // Двигатель: тип топлива.
+  engine: ['fuel'],
 };
 
 // Поле каталога → описание для формы осмотра: подпись, тип, единицы, подсказка
@@ -70,20 +70,7 @@ export function tsInspectPlan(holder) {
     title: tsTitle(v),
     ident: pickFields(own, TS_ONSITE.ident, f),
     readings: pickFields(own, TS_ONSITE.readings, f),
-    visible: pickFields(own, TS_ONSITE.visible, f),
-    // Оборудование без машины — само табличка модуля.
-    plates: v.kind === 'module' ? pickFields(own, TS_ONSITE.module, f) : [],
-    kit: pickFields(own, TS_ONSITE.kit, f),
-    modules: (v.modules || []).map((m) => {
-      const list = [...TS_MODULE_FIELDS, ...moduleSpecial(m.kind)];
-      const mf = m.f || {};
-      return {
-        id: m.id,
-        title: moduleTitle(m),
-        fields: pickFields(list, TS_ONSITE.module, mf),
-        kit: pickFields(list, TS_ONSITE.kit, mf),
-      };
-    }),
+    engine: pickFields(own, TS_ONSITE.engine, f),
   };
 }
 

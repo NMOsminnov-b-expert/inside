@@ -518,15 +518,10 @@ function vehicleSections(oi) {
         { key: 'ts.addr', label: 'Адрес на момент осмотра', max: 200 },
       ],
     },
+    // Разделы и поля — как в приложении «Осмотр» (modules/vehicle/inspect.js, TS_ONSITE).
     sec('ident', 'Опознание', 'Опознание', plan.ident.flatMap((d) => tsField('f', d))),
     sec('readings', 'Показания', 'Показания', plan.readings.flatMap((d) => tsField('f', d))),
-    sec('seen', 'Видно на месте', 'Видно', plan.visible.flatMap((d) => tsField('f', d))),
-    sec('plates', 'Таблички', 'Таблички', plan.plates.flatMap((d) => tsField('f', d))),
-    ...plan.modules.map((m) => sec('mod-' + m.id, `Модуль: ${m.title}`, m.title.slice(0, 18), m.fields.flatMap((d) => tsField('m.' + m.id, d)))),
-    sec('kit', 'Комплектность', 'Комплектность', [
-      ...plan.kit.flatMap((d) => tsField('f', d)),
-      ...plan.modules.flatMap((m) => m.kit.flatMap((d) => tsField('m.' + m.id, d, { label: `${d.label} модуля: ${m.title}` }))),
-    ]),
+    sec('engine', 'Двигатель', 'Двигатель', plan.engine.flatMap((d) => tsField('f', d))),
     commentsSection,
   ];
   return list.filter((s) => s.fields.length);
