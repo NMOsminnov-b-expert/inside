@@ -287,3 +287,11 @@ def run(t):
     old = pg.evaluate("() => { const d = new Date(); d.setDate(d.getDate() - 20); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
     so = pg.evaluate(ASK, ['saveReport', {'kind': 'evening', 'date': old, 'data': {'km': '1'}}, False])
     t.ck(not so['ok'] or not so['body'], 'отчёт за 20 дней назад принят: %s' % so)
+    # Повтор исхода «не состоялся» в тот же день — одно событие (отчёт дня может уйти ещё раз).
+    if live:
+        o1 = pg.evaluate(ASK, ['outcome', {'assignId': live[0]['id'], 'reason': 'Нет доступа', 'note': 'chk-повтор'}, False])
+        o2 = pg.evaluate(ASK, ['outcome', {'assignId': live[0]['id'], 'reason': 'Нет доступа', 'note': 'chk-повтор'}, False])
+        ty, oc = live[0]['id'].split('|')
+        n = pg.evaluate("async ([ty, oc]) => (%s).eventsOf({ typeId: ty, ocId: oc }).filter((e) => e.kind === 'outcome' && e.text === 'Нет доступа — chk-повтор').length" % KI, [ty, oc])
+        m = pg.evaluate("async ([ty, oc]) => { const K = %s; const p = (await import('./app/kernel/session.js')).session.state.person; return K.myAssignsOn(p, ty, oc).length; }" % KI, [ty, oc])
+        t.ck(o1['ok'] and o2['ok'] and n == m, 'повтор исхода записан дважды: событий %s при назначениях %s' % (n, m))

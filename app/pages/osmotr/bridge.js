@@ -403,7 +403,10 @@ const handlers = {
     const person = session.state.person;
     const { typeId, ocId } = findObject(person, body.assignId);
     const text = [body.reason, body.note].filter(Boolean).join(' — ');
-    myAssignsOn(person, typeId, ocId).forEach((a) => logEvent('outcome', a, { text }));
+    // Повтор того же исхода в тот же день (например, отчёт дня сдан ещё раз) — не дублируется.
+    const today = isoDay();
+    const same = (a) => eventsOf({ typeId, ocId }).some((e) => e.kind === 'outcome' && e.assignId === a.id && e.text === text && String(e.at).slice(0, 10) === today);
+    myAssignsOn(person, typeId, ocId).filter((a) => !same(a)).forEach((a) => logEvent('outcome', a, { text }));
     resultsOf(typeId, ocId).outcome = { reason: String(body.reason || ''), note: String(body.note || ''), by: person, at: new Date().toISOString() };
     saveResults();
     changed();
@@ -425,7 +428,11 @@ const handlers = {
     const LABEL = { assigned: 'Новое назначение', returned: 'Возврат на доосмотр', removed: 'Снято регионалом', moveAllowed: 'Перенос разрешён',
       moveRefused: 'Перенос отклонён', updated: 'Назначение изменено', moved: 'Перенесена дата' };
     const out = eventsOf({}).filter((e) => mineIds.has(e.assignId) && LABEL[e.kind] && String(e.at) >= since && e.who !== person)
-      .map((e) => ({ id: e.id || `${e.kind}|${e.assignId}|${e.at}`, kind: e.kind, label: LABEL[e.kind], text: e.text || '', at: e.at, objectId: `${e.typeId}|${e.ocId}` }));
+      .map((e) => {
+        // Название объекта — всегда первым: у «Новое назначение» своего текста нет, без названия непонятно, о чём.
+        const title = titleOf(loadTask(e.typeId, e.ocId) || {}, e.ocId);
+        return { id: e.id || `${e.kind}|${e.assignId}|${e.at}`, kind: e.kind, label: LABEL[e.kind], text: [title, e.text].filter(Boolean).join(' — '), at: e.at, objectId: `${e.typeId}|${e.ocId}` };
+      });
     scanQueue({}).filter((x) => x.by === person && (x.state === 'returned' || x.state === 'rejected') && String(x.decidedAt) >= since)
       .forEach((x) => out.push({ id: 'scan|' + x.key + '|' + x.decidedAt, kind: 'scan-' + x.state, label: x.state === 'returned' ? 'Скан вернули на пересъёмку' : 'Скан отклонён',
         text: `${x.title}: ${x.reason}`, at: x.decidedAt, objectId: `${x.typeId}|${x.ocId}` }));
