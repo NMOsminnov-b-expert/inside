@@ -48,3 +48,20 @@ def run(t):
         t.ck(t.wait_until("() => decodeURIComponent(location.hash).startsWith('#/docs/inv:')"), 'строка документа описи не открывается: %s' % pg.evaluate('location.hash'))
         t.ck(t.wait_for('.docs-inv .viewer, .docs-inv [class*=viewer]'), 'у документа позиции описи нет просмотра')
         t.ck('Опись:' in pg.inner_text('.docs-inv-head'), 'не видно, из какой описи документ')
+
+    # Плитка «Всего» — по тому же набору, что список (аудит 30.10: «19 всего» при 2570 строках).
+    t.open('#/docs', wait='[data-docs-q]')
+    st = pg.evaluate("""async () => { const D = await import('./app/kernel/documentsRegistry.js'); const A = await import('./app/kernel/allDocs.js');
+      const extra = A.cardDocuments(); return [D.documentStats(extra).total, D.queryDocuments({ extra, limit: 1 }).total,
+        +(document.querySelector('.docs-stat b') || {}).textContent]; }""")
+    t.ck(st[0] == st[1] == st[2], 'плитка «Всего» не совпадает со списком: %s' % st)
+    # Принятый скан — в поиске сразу, без ожидания сводки.
+    hit = pg.evaluate("""async () => { const IR = await import('./app/kernel/inspectionResults.js'); const Q = await import('./app/kernel/scanQueue.js');
+      const A = await import('./app/kernel/allDocs.js'); const R = await import('./app/kernel/registry.js');
+      A.cardDocuments();
+      const oc = R.getType('civil').records.queryRecords({ filter: {}, offset: 0, limit: 3 }).rows[0].id;
+      const b = Uint8Array.from(atob('%s'), (c) => c.charCodeAt(0));
+      const s = IR.addResultScan('civil', oc, [new File([b], 'z.gif', { type: 'image/gif' })], { title: 'Свежий скан сводки', by: 'Айдай' });
+      Q.acceptScan('scan|civil|' + oc + '|' + s.id, { docType: 'Прочее', title: 'Свежий скан сводки' });
+      return A.cardDocuments().some((d) => d.title === 'Свежий скан сводки'); }""" % GIF)
+    t.ck(hit, 'принятый скан не попал в сводку поиска сразу')

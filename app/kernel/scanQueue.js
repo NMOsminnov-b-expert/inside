@@ -28,6 +28,7 @@ import { scheduleSave } from './persist.js';
 import { allResults, resultsOf } from './inspectionResults.js';
 import { allCadRequests, cadRequest, cadKindLabel, nextRecDocId, changed as cadChanged, profileOf } from './inspections.js';
 import { inventoryById, addItemDoc } from './inventories.js';
+import { resetCardDocuments } from './allDocs.js';
 import { allNodes, staffOf } from './institutions.js';
 
 export const SCAN_SOURCES = [
@@ -187,6 +188,8 @@ const stateOf = (loc) => (loc.kind === 'scan'
   : (loc.row.review ? loc.row.review.state : (loc.row.file && loc.row.file.docId ? 'accepted' : 'wait')));
 
 function setReview(loc, review) {
+  // Принятый или поправленный документ — сразу в поиске по всем документам (сводка держится секунды).
+  resetCardDocuments();
   if (loc.kind === 'scan') {
     loc.scan.review = review;
     // Прежнее поле статуса (его показывает экран осмотрщика) держим в согласии.
@@ -363,6 +366,7 @@ export function editAccepted(key, { docType = '', oiId = '', title = '' } = {}) 
   else loc.row.returns = [...(loc.row.returns || []), entry];
   if (review) review.oiId = oiId || '';
   rec.updatedAt = now();
+  resetCardDocuments();
   scheduleSave();
   cadChanged();
   return at.doc;

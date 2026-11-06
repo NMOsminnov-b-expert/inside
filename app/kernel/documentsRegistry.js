@@ -338,9 +338,12 @@ export function queryDocuments({
   return { rows: filtered.slice(offset, offset + limit), total: filtered.length };
 }
 
-export function documentStats() {
-  const stats = { total: documents.length };
+// Плитки над списком — по тому же набору, что и список (реестр, карточки, описи; «Где»): «19 всего»
+// при 2570 строках списка было про один реестр (находка аудита 30.10.2026).
+export function documentStats(extra = [], source = '') {
+  const pool = [...(!source || source === 'registry' ? documents : []), ...extra.filter((d) => !source || d.source === source)];
+  const stats = { total: pool.length };
   DOC_STATUSES.forEach((s) => { stats[s] = 0; });
-  documents.forEach((d) => { stats[d.status] = (stats[d.status] || 0) + 1; });
+  pool.forEach((d) => { stats[d.status] = (stats[d.status] || 0) + 1; });
   return stats;
 }

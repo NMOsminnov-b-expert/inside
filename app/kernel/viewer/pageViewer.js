@@ -84,11 +84,13 @@ function syncTabs(files) {
   VS.tabOrder = VS.tabOrder.filter((k) => !k.startsWith(SC + '|')).concat(ids.map((id) => tabKey(SC, id)));
 }
 
-function ctxFor(doc, { scope, host, activeFileId, onChange }) {
+function ctxFor(doc, { scope, host, activeFileId, onChange, rail: railInit }) {
   const ui = uiFor(doc.id);
   const files = doc.files || [];
   syncTabs(files);
 
+  // Миниатюры страниц — начальное состояние (opts.rail), дальше — как переключит человек.
+  if (railInit !== undefined && ui.railCollapsed === undefined) ui.railCollapsed = !railInit;
   const active = files.find((f) => f.id === activeFileId) || files[0];
   if (active) ui.viewerDoc = { scope: SC, id: active.id };
 

@@ -30,6 +30,7 @@ import { fmtEni } from '../../kernel/fmt.js';
 import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
 import { persistSizes } from '../../kernel/viewState.js';
 import { scheduleSave } from '../../kernel/persist.js';
+import { openDocNext } from '../../kernel/inspectionTab.js';
 
 // Площади страницы (указание пользователя 06.11.2026: «главное — сам документ… выделив большую часть
 // площади под него» и «регулирование размеров площадей тоже добавляем»): ширина перечня в % и ширина
@@ -185,7 +186,8 @@ export function mountScans(host) {
     if (!it.pages.length) return '<p class="sc-hint">В скане нет страниц.</p>';
     const doc = viewDoc(it);
     if (!doc.files.length) return '<p class="sc-hint">Файлы страниц недоступны — они не сохранились после перезагрузки.</p>';
-    return `<section class="sc-view" aria-label="Страницы скана">${pageViewerHTML(doc, { activeFileId: viewFile.get(it.key) })}</section>`;
+    // Миниатюры — если страниц больше одной (пользователь 06.11.2026).
+    return `<section class="sc-view" aria-label="Страницы скана">${pageViewerHTML(doc, { activeFileId: viewFile.get(it.key), rail: it.pages.length > 1 })}</section>`;
   }
 
   function infoHTML(it, rec) {
@@ -349,7 +351,7 @@ export function mountScans(host) {
     if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
     if (it && scope.$('.sc-view .viewer, .sc-view [data-vmode], .sc-view')) {
       const doc = viewDoc(it);
-      if (doc.files.length) bindPageViewer(scope, doc, { within: '.sc-view', onChange: (id) => { if (id) viewFile.set(it.key, id); render(); } });
+      if (doc.files.length) bindPageViewer(scope, doc, { within: '.sc-view', rail: it.pages.length > 1, onChange: (id) => { if (id) viewFile.set(it.key, id); render(); } });
     }
   }
 
@@ -420,6 +422,11 @@ export function mountScans(host) {
   });
   scope.on('click', '[data-sc-accept]', () => act('accept'));
   scope.on('click', '[data-sc-edit]', () => act('edit'));
+  // «Открыть …» у принятого — карточка откроется сразу на этом документе.
+  scope.on('click', '[data-sc-open-doc]', () => {
+    const it = itemsNow().find((x) => x.key === (q().key || ''));
+    if (it && it.docId) openDocNext((it.doc && it.doc.oiId) || 'oc', it.docId);
+  });
   scope.on('click', '[data-sc-move-go]', () => { if (move.pick) act('move'); });
   scope.on('click', '[data-sc-retake-page]', (e, b) => {
     const n = Number(b.dataset.scRetakePage);

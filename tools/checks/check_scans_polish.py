@@ -88,7 +88,9 @@ def run(t):
     pg.focus('[data-sc-split="list"]')
     pg.keyboard.press('ArrowRight')
     t.ck(pg.evaluate(LW) > w1, 'стрелка вправо не расширила перечень')
-    pg.wait_for_timeout(1200)
+    # Сохранение — по факту: записать сразу и дождаться отметки о сохранении.
+    t0 = pg.evaluate("async () => { const P = await import('./app/kernel/persist.js'); const was = P.lastSavedAt(); await P.saveNow(); return was; }")
+    t.wait_until("async (was) => { const P = await import('./app/kernel/persist.js'); return P.lastSavedAt() !== was; }", t0)
     t.open('#/scans?x=1', wait='.sc-main')
     t.open('#/scans?key=%s' % k2.replace('|', '%7C'), wait='[data-sc-split="list"]')
     w2 = pg.evaluate(LW)
@@ -112,3 +114,22 @@ def run(t):
           const tabs = document.querySelector('.sc-view .vtabs'); return { gap: Math.round(a.top - m.top), h: Math.round(a.height), vh: innerHeight, tabs: !!tabs && getComputedStyle(tabs).display !== 'none' }; }""")
         t.ck(g['gap'] <= 2 and g['h'] >= g['vh'] * 0.85 and not g['tabs'], '%d: над документом шапка или он ниже 85%% окна: %s' % (w, g))
     pg.set_viewport_size({'width': 1600, 'height': 900})
+
+    # --- «Открыть …» у принятого — карточка сразу на документе; миниатюры по числу страниц ---
+    one = pg.evaluate("""async ([ty, oc]) => { const IR = await import('./app/kernel/inspectionResults.js');
+      const b = Uint8Array.from(atob('%s'), (c) => c.charCodeAt(0));
+      const s = IR.addResultScan(ty, oc, [new File([b], 'o.gif', { type: 'image/gif' })], { title: 'Скан одной страницы', by: 'Айдай' });
+      return 'scan|' + ty + '|' + oc + '|' + s.id; }""" % GIF, ['civil', oc])
+    t.open('#/scans?key=%s' % one.replace('|', '%7C'), wait='.sc-view')
+    t.ck(pg.locator('.sc-view .vrail').count() == 0, 'у одностраничного скана открыта колонка миниатюр')
+    k3 = pg.evaluate(MAKE, ['civil', oc, 'Скан двух страниц', None])
+    t.open('#/scans?key=%s' % k3.replace('|', '%7C'), wait='.sc-view')
+    t.ck(t.wait_for('.sc-view .vrail', timeout=5000), 'у многостраничного скана нет колонки миниатюр')
+    pg.evaluate("() => { const s = document.querySelector('[data-sc-f-type]'); if (s && !s.value) { s.value = [...s.options].find((o) => o.value).value; s.dispatchEvent(new Event('change', { bubbles: true })); } }")
+    pg.fill('[data-sc-f-title]', 'Документ для открытия')
+    pg.click('[data-sc-accept]')
+    t.open('#/scans?state=accepted&key=%s' % k2.replace('|', '%7C'), wait='[data-sc-open-doc]')
+    pg.click('[data-sc-open-doc]')
+    t.ck(t.wait_until("() => location.hash.startsWith('#/oc/')"), '«Открыть …» не открыл карточку')
+    t.ck(t.wait_until("() => /Документ для открытия/.test((document.querySelector('.viewer') || {}).textContent || '')", 12000),
+         'карточка открылась не на принятом документе')

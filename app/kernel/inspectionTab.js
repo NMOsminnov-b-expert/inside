@@ -56,4 +56,20 @@ export function inspectionViewerCtx(ctx) {
 export function syncInspectionViewer(ui, onTab) {
   if (onTab && !ui.inspViewer && !ui.viewerClosed) ui.viewer = { mode: 'photo' };
   ui.inspViewer = !!onTab;
+  // Документ, заказанный ссылкой с другой страницы (openDocNext), — открыть в просмотрщике карточки.
+  if (pendingDoc && Date.now() - pendingDoc.at < 8000) {
+    ui.viewer = { mode: 'doc' };
+    ui.viewerDoc = { scope: pendingDoc.scope, id: pendingDoc.id };
+    ui.viewerClosed = false;
+    pendingDoc = null;
+  }
+}
+
+// Открыть карточку сразу на документе (пользователь 06.11.2026 на «Открыть документ у объекта» со
+// страницы сканов: «Разрешаю — только это»). Страница вызывает перед переходом в карточку; карточка
+// при первой отрисовке просмотрщика (syncInspectionViewer — общий вызов всех модулей карточек)
+// выбирает этот документ. scope — 'oc' или id ОИ, где лежит документ.
+let pendingDoc = null;
+export function openDocNext(scope, id) {
+  pendingDoc = id ? { scope: scope || 'oc', id, at: Date.now() } : null;
 }

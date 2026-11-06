@@ -115,9 +115,9 @@ function rowHTML(cols, doc, n) {
 }
 
 function listHTML() {
-  const stats = documentStats();
   const offset = (state.page - 1) * state.pageSize;
   const extra = cardDocuments();
+  const stats = documentStats(extra, state.source);
   const { rows, total } = queryDocuments({
     q: state.q, type: state.type, status: state.status, institution: state.institution,
     dateFrom: state.dateFrom, dateTo: state.dateTo, extra, source: state.source,
