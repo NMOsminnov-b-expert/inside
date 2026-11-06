@@ -43,6 +43,7 @@ const KINDS = [
   ['Станок сверлильный', 'Мастерская', 155000, 98000],
 ];
 
+const DEPT_OF = { 'Каб.': 'Администрация', 'Конф.-зал': 'Администрация', 'Архив': 'Архив', 'Котельная': 'Хозяйственная служба', 'Гараж': 'Хозяйственная служба', 'Мастерская': 'Хозяйственная служба' };
 function makeItems(seed, n, prefix) {
   const r = rng(seed);
   return Array.from({ length: n }, (_, i) => {
@@ -55,6 +56,8 @@ function makeItems(seed, n, prefix) {
       name, place: `${place} ${place === 'Каб.' ? 100 + Math.floor(r() * 30) : ''}`.trim(),
       qty, costInitial: Math.round(ci * qty), costBalance: Math.round(cb * qty * k), priority: pr,
       list: pr === 3 ? 'Резерв' : 'Основной', sheet: 'Опись', year: 2012 + Math.floor(r() * 13),
+      // Отдел учреждения — из ответа учреждения на нормализованную опись (демо: по месту).
+      dept: DEPT_OF[place] || 'Администрация',
     };
   });
 }
@@ -112,13 +115,67 @@ export const markOf = (invId, itemId) => marks.get(mk(invId, itemId)) || null;
 
 // Отметить позицию: patch — { state, cond, comment }; кто и по какому
 // назначению — всегда последние.
+// Журнал отметок (решение пользователя 06.11.2026 «Нужны оба варианта»: вся опись у каждого —
+// с журналом отметок, кто и когда; разные отметки — расхождение для ЦОД). Расхождение — другой
+// человек поставил другое «найдено / не найдено» или другое состояние, чем прежний.
 export function markItem(invId, itemId, patch, { by = '', assignId = '' } = {}) {
   const k = mk(invId, itemId);
   const cur = marks.get(k) || { photos: [] };
-  const next = { ...cur, ...patch, by, assignId, at: new Date().toISOString() };
+  const at = new Date().toISOString();
+  const next = { ...cur, ...patch, by, assignId, at };
+  const differs = cur.by && by && cur.by !== by
+    && (('state' in patch && (cur.state || '') !== (patch.state || '')) || ('cond' in patch && (cur.cond || '') !== (patch.cond || '')));
+  if (differs) next.conflict = { by: cur.by, state: cur.state || '', cond: cur.cond || '', at: cur.at || '' };
+  else if (cur.conflict && by === cur.conflict.by) delete next.conflict;
+  next.log = [...(cur.log || []), { by, at, state: next.state || '', cond: next.cond || '', assignId }].slice(-20);
   marks.set(k, next);
   scheduleSave();
   return next;
+}
+
+// Расхождения отметок описи — для ЦОД.
+export function conflictsOf(invId) {
+  const inv = inventoryById(invId);
+  return inv ? inv.items.map((it) => ({ item: it, mark: markOf(invId, it.id) })).filter((x) => x.mark && x.mark.conflict) : [];
+}
+
+// Деление описи между осмотрщиками (тот же ответ: «деление по позициям, приоритетам и т.д. В том
+// числе по ответам описей от учреждений — учреждение может поделить нормализованную опись по
+// своим отделам»). Часть — { by, values }: by 'all' | 'priority' | 'list' | 'dept' | 'range'
+// (values — номера «1-20, 35»). Чужие позиции у осмотрщика — только для чтения.
+export const PART_KINDS = [
+  { key: 'all', label: 'Вся опись' },
+  { key: 'priority', label: 'Приоритет' },
+  { key: 'list', label: 'Список' },
+  { key: 'dept', label: 'Отдел учреждения' },
+  { key: 'range', label: 'Позиции' },
+];
+const rangeSet = (text) => {
+  const out = new Set();
+  String(text || '').split(/[,;\s]+/).filter(Boolean).forEach((p) => {
+    const m = p.match(/^(\d+)(?:[-–](\d+))?$/);
+    if (!m) return;
+    const a = +m[1];
+    const b = m[2] ? +m[2] : a;
+    for (let i = Math.min(a, b); i <= Math.max(a, b) && i - Math.min(a, b) < 100000; i++) out.add(i);
+  });
+  return out;
+};
+export function inPart(item, part) {
+  if (!part || !part.by || part.by === 'all') return true;
+  const vals = (part.values || []).map(String);
+  if (part.by === 'range') return rangeSet(vals.join(',')).has(item.no);
+  return vals.includes(String(item[part.by] ?? ''));
+}
+export function partLabel(part) {
+  if (!part || !part.by || part.by === 'all') return 'вся опись';
+  const k = PART_KINDS.find((x) => x.key === part.by);
+  return `${(k ? k.label : part.by).toLowerCase()} ${(part.values || []).join(', ')}`;
+}
+// Значения для деления: какие приоритеты, списки и отделы есть в описи.
+export function partValues(invId, by) {
+  const inv = inventoryById(invId);
+  return inv ? [...new Set(inv.items.map((it) => it[by]).filter((v) => v !== undefined && v !== ''))].sort() : [];
 }
 export function unmarkItem(invId, itemId) {
   const cur = marks.get(mk(invId, itemId));
@@ -191,7 +248,7 @@ export function allItemDocs() {
 export function progressOf(invId, today = new Date().toISOString().slice(0, 10)) {
   const inv = inventoryById(invId);
   if (!inv) return null;
-  const p = { total: inv.items.length, seen: 0, missing: 0, broken: 0, repair: 0, today: 0, photos: 0, extra: extrasOf(invId).length, byPriority: {} };
+  const p = { total: inv.items.length, seen: 0, missing: 0, broken: 0, repair: 0, today: 0, photos: 0, conflicts: 0, extra: extrasOf(invId).length, byPriority: {} };
   inv.items.forEach((it) => {
     const m = markOf(invId, it.id);
     const pr = (p.byPriority[it.priority] = p.byPriority[it.priority] || { total: 0, seen: 0 });
@@ -202,6 +259,7 @@ export function progressOf(invId, today = new Date().toISOString().slice(0, 10))
     if (m.state === 'missing') p.missing++;
     if (m.cond === 'Нерабочее') p.broken++;
     if (m.cond === 'В ремонте') p.repair++;
+    if (m.conflict) p.conflicts++;
     if (m.state && String(m.at || '').slice(0, 10) === today) p.today++;
   });
   return p;
@@ -229,15 +287,16 @@ export function inventoryReportSheets(invId) {
     [1, 2, 3].forEach((p) => { if (rowsOf.some((x) => x.it.list === l && x.it.priority === p)) total.push([l, `П${p}`, ...sumBy((x) => x.it.list === l && x.it.priority === p)]); });
   });
   total.push(['Всего', '', ...sumBy(() => true)]);
-  const head = ['№', 'Инв. номер', 'Наименование', 'Место', 'Кол-во', 'Первонач. стоимость, сом', 'Балансовая стоимость, сом', 'Приоритет',
-    'Осмотрено', 'Состояние', 'Снимков', 'Документов', 'Комментарий', 'Отметил', 'Когда'];
+  const head = ['№', 'Инв. номер', 'Наименование', 'Место', 'Отдел', 'Кол-во', 'Первонач. стоимость, сом', 'Балансовая стоимость, сом', 'Приоритет',
+    'Осмотрено', 'Состояние', 'Снимков', 'Документов', 'Комментарий', 'Отметил', 'Когда', 'Разные отметки'];
+  const was = (c) => (c ? `${c.by}: ${c.state === 'seen' ? 'найдено' : c.state === 'missing' ? 'не найдено' : '—'}${c.cond ? `, ${c.cond}` : ''}` : '');
   const listSheets = lists.map((l) => ({
     name: l,
     head,
-    rows: rowsOf.filter((x) => x.it.list === l).map(({ it, m }) => [it.no, it.inv, it.name, it.place, it.qty, it.costInitial, it.costBalance, `П${it.priority}`,
+    rows: rowsOf.filter((x) => x.it.list === l).map(({ it, m }) => [it.no, it.inv, it.name, it.place, it.dept || '', it.qty, it.costInitial, it.costBalance, `П${it.priority}`,
       m.state === 'seen' ? 'Да' : m.state === 'missing' ? 'Не найдено' : 'Нет', m.cond || '', (m.photos || []).length, itemDocsOf(invId, it.id).length,
-      m.comment || '', m.by || '', m.at ? `${ddmm(m.at)} ${m.at.slice(11, 16)}` : '']),
-    widths: [6, 14, 36, 16, 8, 14, 14, 9, 11, 18, 8, 10, 30, 18, 16],
+      m.comment || '', m.by || '', m.at ? `${ddmm(m.at)} ${m.at.slice(11, 16)}` : '', was(m.conflict)]),
+    widths: [6, 14, 36, 16, 20, 8, 14, 14, 9, 11, 18, 8, 10, 30, 18, 16, 28],
   }));
   const days = new Map();
   rowsOf.forEach(({ m }) => { if (m.state && m.at) { const d = m.at.slice(0, 10); days.set(d, (days.get(d) || 0) + 1); } });

@@ -2673,6 +2673,9 @@ export function mountInspections(host) {
     const key = draft.key;
     const form = scope.$$(FORM).map((el) => [el.getAttribute('data-ip-f-oi') || el.getAttribute('data-ip-f-doc') || el.getAttribute('data-ip-f-inv') || 'whole', el.checked]);
     const note = scope.$('[data-ip-f-note]') ? scope.$('[data-ip-f-note]').value : null;
+    // Часть описи и номера позиций — тоже переживают перерисовку (выбор осмотрщика или дня).
+    const partKey = (el) => (el.dataset.ipFInvpart ? 'p|' + el.dataset.ipFInvpart : 'r|' + el.dataset.ipFInvrange);
+    const parts = scope.$$('.ip-pane [data-ip-f-invpart], .ip-pane [data-ip-f-invrange]').map((el) => [partKey(el), el.value]);
     render();
     if (draft.key === key && form.length) {
       const was = new Map(form);
@@ -2684,6 +2687,16 @@ export function mountInspections(host) {
       const whole = scope.$('[data-ip-f-whole]');
       if (box && whole) box.hidden = whole.checked;
       if (note !== null && scope.$('[data-ip-f-note]')) scope.$('[data-ip-f-note]').value = note;
+      const pv = new Map(parts);
+      scope.$$('.ip-pane [data-ip-f-invpart], .ip-pane [data-ip-f-invrange]').forEach((el) => { if (pv.has(partKey(el))) el.value = pv.get(partKey(el)); });
+      scope.$$('.ip-pane [data-ip-f-inv]').forEach((el) => {
+        const b = scope.$(`[data-ip-invpart-box="${CSS.escape(el.dataset.ipFInv)}"]`);
+        if (b) b.hidden = !el.checked;
+      });
+      scope.$$('.ip-pane [data-ip-f-invpart]').forEach((el) => {
+        const r = scope.$(`[data-ip-f-invrange="${CSS.escape(el.dataset.ipFInvpart)}"]`);
+        if (r) r.hidden = !el.value.startsWith('range|');
+      });
     }
     keep.forEach(([s, y]) => { if (scope.$(s)) scope.$(s).scrollTop = y; });
     const moved = at !== null && scope.$(anchor);
@@ -2909,6 +2922,18 @@ export function mountInspections(host) {
     render();
   });
   scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
+  // Часть описи в форме назначения — видна у отмеченной описи; «Позиции по номерам» — поле номеров.
+  scope.on('change', '.ip-pane [data-ip-f-inv]', (e, el) => {
+    const box = scope.$(`[data-ip-invpart-box="${CSS.escape(el.dataset.ipFInv)}"]`);
+    if (box) box.hidden = !el.checked;
+    const fold = el.closest('details');
+    const n = fold && fold.querySelector('.ip-fold-n');
+    if (n) n.textContent = `отмечено ${fold.querySelectorAll('[data-ip-f-inv]:checked').length} из ${fold.querySelectorAll('[data-ip-f-inv]').length}`;
+  });
+  scope.on('change', '[data-ip-f-invpart]', (e, el) => {
+    const inp = scope.$(`[data-ip-f-invrange="${CSS.escape(el.dataset.ipFInvpart)}"]`);
+    if (inp) { inp.hidden = !el.value.startsWith('range|'); if (!inp.hidden) inp.focus(); }
+  });
   scope.on('change', '[data-ip-notes-unread]', (e, el) => { view.notesUnread = el.checked; redraw(); });
   scope.on('click', '[data-ip-notes-readall]', () => { markRead(notes.map((n) => n.id)); redraw(); });
   scope.on('click', '[data-ip-note]', (e, b) => {

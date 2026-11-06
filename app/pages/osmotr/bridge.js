@@ -22,9 +22,9 @@
 import { foldEniList } from '../../kernel/eniFold.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { getType } from '../../kernel/registry.js';
-import { assignmentsOfPerson, coversOi, deadlineOf, startWork, finishWork, myAssignsOn, logEvent, changed } from '../../kernel/inspections.js';
+import { assignmentsOfPerson, coversOi, deadlineOf, startWork, finishWork, myAssignsOn, logEvent, changed, inventoryHolders } from '../../kernel/inspections.js';
 import { reviewOf, resultsOf, saveResults, valuesOf, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { inventoryById, markItem, markOf, addItemPhoto } from '../../kernel/inventories.js';
+import { inventoryById, markItem, markOf, addItemPhoto, inPart, partLabel } from '../../kernel/inventories.js';
 import { xlsxBytes } from '../../kernel/xlsx.js';
 import { getValue, setValue } from '../../kernel/fieldSchema.js';
 import { geoByEni, centerOf, featuresInBox, dashed } from '../../kernel/cadastreGeo.js';
@@ -107,12 +107,19 @@ function inventoriesOf(rec, list, ois) {
     const inv = inventoryById(id);
     if (!inv || seen.has(id)) return;
     seen.add(id);
-    out.push({ id, kind: 'inv', title: inv.title, items: inv.items.map((it, i) => ({ id: it.id, no: it.no || i + 1, inv: it.inv || '', name: it.name, place: it.place || '',
-      qty: it.qty || 1, cost: it.costInitial || '', balance: it.costBalance || '', priority: it.priority || '', list: it.list || '' })) });
+    // Деление описи (решение пользователя 06.11.2026 «Нужны оба варианта»): свои позиции — по частям
+    // своих назначений (нет части — вся опись); у чужих — кто осматривает, отметки по ним не принимаются.
+    const mine = list.filter((a) => (a.inventories || []).includes(id));
+    const own = (it) => mine.some((a) => inPart(it, (a.invParts || {})[id]));
+    const others = inventoryHolders(id).filter((h) => !mine.some((a) => a.id === h.assignId));
+    const whoOf = (it) => others.filter((h) => inPart(it, h.part)).map((h) => h.person).join(', ');
+    out.push({ id, kind: 'inv', title: inv.title, part: mine.map((a) => partLabel((a.invParts || {})[id])).join('; '), items: inv.items.map((it, i) => ({ id: it.id, no: it.no || i + 1, inv: it.inv || '', name: it.name, place: it.place || '',
+      qty: it.qty || 1, cost: it.costInitial || '', balance: it.costBalance || '', priority: it.priority || '', list: it.list || '', dept: it.dept || '',
+      own: own(it), who: own(it) ? '' : whoOf(it) || 'не в вашей части' })) });
   });
   ois.filter((o) => o.card === 'mech').forEach((o) => {
     out.push({ id: 'mech:' + o.id, kind: 'mech', oiId: o.id, title: oiLabel(o),
-      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: '', priority: '', list: '' })) });
+      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: '', priority: '', list: '', dept: '', own: true, who: '' })) });
   });
   return out.map((x) => ({ ...x, folder: `${MACHINES}/${clean(x.title)}` }));
 }
@@ -125,8 +132,9 @@ function itemOf(inv, key) {
 }
 
 async function inventoryBook(inv) {
-  const head = ['№', 'Инв. номер', 'Наименование', 'Место', 'Кол-во', 'Первонач. стоимость, сом', 'Балансовая стоимость, сом', 'Приоритет', 'Список'];
-  const rows = inv.items.map((it) => [it.no, it.inv, it.name, it.place, it.qty, it.cost, it.balance, it.priority, it.list]);
+  // «Отдел» и «Осматривает» — в конце: приложение узнаёт столбцы по заголовкам, прежние остаются на местах.
+  const head = ['№', 'Инв. номер', 'Наименование', 'Место', 'Кол-во', 'Первонач. стоимость, сом', 'Балансовая стоимость, сом', 'Приоритет', 'Список', 'Отдел', 'Осматривает'];
+  const rows = inv.items.map((it) => [it.no, it.inv, it.name, it.place, it.qty, it.cost, it.balance, it.priority, it.list, it.dept || '', it.own ? 'вы' : it.who]);
   return new Blob([await xlsxBytes([{ name: 'Опись', head, rows }])], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
@@ -139,6 +147,8 @@ async function applyInventory({ typeId, ocId, rec, list, person, assignId }, rel
   const name = inner[inner.length - 1];
   const vals = inv.kind === 'mech' ? valuesOf(typeId, ocId, inv.oiId) : null;
   const mark = (it, patch) => {
+    // Чужая позиция (другая часть описи) — только для чтения: отметку не принимаем.
+    if (it.own === false) return;
     if (vals) {
       if (patch.state === 'seen') setValue(vals, `u.${it.id}.found`, 'Найдено');
       if (patch.cond !== undefined) setValue(vals, `u.${it.id}.state`, patch.cond);
@@ -152,7 +162,7 @@ async function applyInventory({ typeId, ocId, rec, list, person, assignId }, rel
     const cond = MARK_FILES[name];
     listed.forEach((it) => mark(it, cond ? { cond, app: name } : { state: 'seen', comment: 'осмотрено ранее' }));
     // Снятые в приложении отметки — снимаются и здесь (только те, что ставило приложение этим файлом).
-    if (cond) inv.items.filter((it) => !listed.includes(it)).forEach((it) => {
+    if (cond) inv.items.filter((it) => !listed.includes(it) && it.own !== false).forEach((it) => {
       if (vals) { if ((getValue(vals, `u.${it.id}.state`) || '') === cond) setValue(vals, `u.${it.id}.state`, ''); }
       else { const m = markOf(inv.id, it.id); if (m && m.app === name && m.cond === cond) markItem(inv.id, it.id, { cond: '', app: '' }, { by: person, assignId }); }
     });
@@ -160,8 +170,10 @@ async function applyInventory({ typeId, ocId, rec, list, person, assignId }, rel
     return { taken: true, why: '' };
   }
   if (/\.(jpe?g|png|webp|heic)$/i.test(name)) {
-    const hit = (items || []).map((k) => itemOf(inv, k)).filter(Boolean);
-    if (!hit.length) return { taken: false, why: 'снимок не в папке предмета описи' };
+    const found = (items || []).map((k) => itemOf(inv, k)).filter(Boolean);
+    if (!found.length) return { taken: false, why: 'снимок не в папке предмета описи' };
+    const hit = found.filter((it) => it.own !== false);
+    if (!hit.length) return { taken: false, why: 'позиция в чужой части описи — только для чтения' };
     for (const it of hit) {
       mark(it, { state: 'seen' });
       if (!vals) {

@@ -18,7 +18,7 @@ import { plural } from '../../kernel/fmt.js';
 import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, activityKinds, absenceKinds, absenceOn, absenceLabel } from '../../kernel/inspections.js';
 import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
-import { inventoryById, progressOf } from '../../kernel/inventories.js';
+import { inventoryById, progressOf, partLabel } from '../../kernel/inventories.js';
 import { peekResults } from '../../kernel/inspectionResults.js';
 import { ownOis, mechProgress, oiLabel as taskOiLabel } from '../inspector/tasks.js';
 
@@ -119,7 +119,8 @@ function assignHTML(all, a, canBack) {
     const pr = progressOf(id);
     if (!inv || !pr) return '';
     // Ход описи (Б5): счёт общий для всех выездов по описи (Б3).
-    return `<p class="ip-line"><b>${esc(inv.title)}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}
+    const part = (a.invParts || {})[id];
+    return `<p class="ip-line"><b>${esc(inv.title)}</b>${part ? ` <span class="ip-sub">— ${esc(partLabel(part))}</span>` : ''}<br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}${pr.conflicts ? ` · <b class="ip-late">разные отметки ${pr.conflicts}</b>` : ''}
       <br><button type="button" class="btn btn-ghost btn-sm" data-ip-inv-report="${esc(id)}">Отчёт по описи (xlsx)</button></p>`;
   }).join('')}</section>` : ''}
     ${mechHTML(a, c)}

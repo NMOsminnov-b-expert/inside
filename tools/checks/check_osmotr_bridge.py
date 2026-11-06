@@ -228,6 +228,16 @@ def run(t):
             r3 = pg.evaluate(SENDTXT, [{'assignId': x['id'], 'rel': inv['folder'] + '/1. ' + first[1] + '/chk_20261103_130000_001.jpg', 'items': [first[1]]}, 'ÿØÿ'])
             m3 = pg.evaluate("async ([iv, it]) => { const m = (await import('./app/kernel/inventories.js')).markOf(iv, it) || {}; return [m.state, (m.photos || []).map((p) => p.name)]; }", [inv['id'], first[0]])
             t.ck(r3['ok'] and r3['body']['taken'] and m3[0] == 'seen' and 'chk_20261103_130000_001.jpg' in m3[1], 'снимок предмета описи не лёг: %s %s' % (r3, m3))
+            # Деление описи (решение 06.11.2026 «Нужны оба варианта»): у назначения — позиция 1; позиция 2 —
+            # чужая, отметка по ней из приложения не принимается.
+            second = pg.evaluate("""async ([key, iv]) => { const K = await import('./app/kernel/inspections.js'); const I = await import('./app/kernel/inventories.js');
+              const [ty, oc] = key.split('|'); K.assignmentsOf(ty, oc).filter((a) => (a.inventories || []).includes(iv)).forEach((a) => { a.invParts = { [iv]: { by: 'range', values: ['1'] } }; });
+              const it = I.inventoryById(iv).items[1]; return [it.id, it.inv]; }""", [x['id'], inv['id']])
+            r4 = pg.evaluate(SENDTXT, [{'assignId': x['id'], 'rel': inv['folder'] + '/Нерабочие.txt'}, second[1] + '\n'])
+            m4 = pg.evaluate("async ([iv, it]) => ((await import('./app/kernel/inventories.js')).markOf(iv, it) || {}).cond || ''", [inv['id'], second[0]])
+            t.ck(r4['ok'] and m4 != 'Нерабочее', 'отметка по чужой части описи принята: %s %s' % (r4, m4))
+            r5 = pg.evaluate(SENDTXT, [{'assignId': x['id'], 'rel': inv['folder'] + '/2. ' + second[1] + '/chk_20261106_130000_001.jpg', 'items': [second[1]]}, 'ÿØÿ'])
+            t.ck(r5['ok'] and not r5['body']['taken'] and 'чужой части' in (r5['body'].get('why') or ''), 'снимок чужой позиции описи принят: %s' % r5)
 
     # --- осмотр не состоялся: событие с причиной и исход в результатах ---
     oc = pg.evaluate(ASK, ['outcome', {'assignId': it['id'], 'reason': 'Нет доступа', 'note': 'chk-закрыто'}, False])

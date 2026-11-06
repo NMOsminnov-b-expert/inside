@@ -203,7 +203,9 @@ export function changed() {
 // docs не передан — документы по умолчанию (defaultDocIds). prevId — правка
 // действующего назначения: тот же человек — меняется на месте, другой —
 // прежнее снимается, новое заводится (история у обоих остаётся).
-export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [], plannedAt = '', note = '', prevId = '' }) {
+// invParts — часть описи у этого назначения: { id описи: { by, values } } (kernel/inventories.js,
+// PART_KINDS); нет — вся опись.
+export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [], plannedAt = '', note = '', prevId = '', invParts = {} }) {
   if (!typeId || !ocId || !person) return null;
   if (!Array.isArray(docs)) docs = defaultDocIds(typeId, ocId);
   const prev = prevId ? assignmentById(prevId) : null;
@@ -214,7 +216,7 @@ export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [
   if (a) {
     // «Было → стало» (решение пользователя 05.11.2026 на вопрос «Автор и «было → стало» в истории назначений»).
     const diff = changesOf(a, { oiIds, docs, inventories, plannedAt, note });
-    Object.assign(a, { oiIds: [...oiIds], docs: [...docs], inventories: [...inventories], plannedAt, note, updatedAt: now() });
+    Object.assign(a, { oiIds: [...oiIds], docs: [...docs], inventories: [...inventories], invParts: { ...invParts }, plannedAt, note, updatedAt: now() });
     logEvent('updated', a, diff ? { text: diff } : {});
   } else {
     a = {
@@ -223,6 +225,7 @@ export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [
       oiIds: [...oiIds],
       docs: [...docs],
       inventories: [...inventories],
+      invParts: { ...invParts },
       plannedAt,
       note,
       by: session.state.person,
@@ -309,6 +312,12 @@ export function finishWork(person, typeId, ocId, done, { incomplete = false } = 
 // «Мои осмотры» (решение пользователя 06.11.2026 «Только назначения»): объекты, на которые у
 // человека есть действующее назначение регионала, — ключи «тип|запись». Одно число везде:
 // срез «Мне осмотреть», задачи осмотрщика, приложение «Осмотр».
+// У кого опись уже в действующих назначениях (регионалу: «опись уже у такого-то»).
+export function inventoryHolders(invId, exceptId = '') {
+  return assignments.filter((a) => isLive(a) && a.id !== exceptId && (a.inventories || []).includes(invId))
+    .map((a) => ({ person: a.person, part: (a.invParts || {})[invId] || null, assignId: a.id }));
+}
+
 export function liveObjectsOf(person) {
   return new Set(assignments.filter((a) => a.person === person && isLive(a)).map((a) => a.typeId + '|' + a.ocId));
 }

@@ -11,8 +11,9 @@
 // (ТЗ рабочего дня осмотрщика, пункт 6.1).
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
-import { assign, unassign, isLive, eventsOf, deadlineOf, workdayOf } from '../../kernel/inspections.js';
+import { assign, unassign, isLive, eventsOf, deadlineOf, workdayOf, inventoryHolders } from '../../kernel/inspections.js';
 import { objectContents, todayIso, stateLabel, EVENT_LABELS } from './model.js';
+import { PART_KINDS, partValues, partLabel } from '../../kernel/inventories.js';
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 
@@ -114,8 +115,24 @@ function contentsHTML(c, pick, prev) {
           ${g.docs.map((d) => docLine(d, pick.docs.has(d.id), 'data-ip-f-doc')).join('')}</div>`).join('')
         : '<p class="ip-hint">У объекта и его ОИ документов нет.</p>'}
     </details>`;
-  const inv = `<details class="ip-sec ip-fold"><summary><h3>Описи</h3><span class="ip-fold-n">${c.inventories.length ? `отмечено ${pick.inv.size} из ${c.inventories.length}` : 'нет'}</span></summary>
-      ${c.inventories.length ? c.inventories.map((d) => docLine(d, pick.inv.has(d.id), 'data-ip-f-inv')).join('')
+  // Опись — вся или часть (решение пользователя 06.11.2026 «Нужны оба варианта»): приоритет,
+  // список, отдел учреждения или номера позиций; рядом — у кого опись уже назначена.
+  const parts = (prev && prev.invParts) || {};
+  const invPart = (d) => {
+    const p = parts[d.id] || { by: 'all', values: [] };
+    const holders = inventoryHolders(d.id, prev ? prev.id : '');
+    const opts = [['all', '', 'Вся опись'], ...['priority', 'list', 'dept'].flatMap((by) => partValues(d.id, by)
+      .map((v) => [by, String(v), `${PART_KINDS.find((k) => k.key === by).label}: ${v}`])), ['range', '', 'Позиции по номерам…']];
+    const cur = p.by === 'range' ? 'range|' : `${p.by}|${(p.values || [])[0] || ''}`;
+    return `<div class="ip-invpart" ${pick.inv.has(d.id) ? '' : 'hidden'} data-ip-invpart-box="${esc(d.id)}">
+      <label class="ip-invpart-l" for="ip-ip-${esc(d.id)}">Часть описи</label>
+      <select class="select" id="ip-ip-${esc(d.id)}" data-ip-f-invpart="${esc(d.id)}">${opts.map(([by, v, l]) => `<option value="${esc(by + '|' + v)}" ${cur === by + '|' + v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+      <input class="input" data-ip-f-invrange="${esc(d.id)}" placeholder="Например: 1-20, 35" aria-label="Номера позиций" value="${esc(p.by === 'range' ? (p.values || []).join(', ') : '')}" ${p.by === 'range' ? '' : 'hidden'}>
+      ${holders.length ? `<p class="ip-hint">Уже у: ${holders.map((h) => `${esc(h.person)} (${esc(partLabel(h.part))})`).join('; ')}</p>` : ''}
+    </div>`;
+  };
+  const inv = `<details class="ip-sec ip-fold" ${Object.keys(parts).length ? 'open' : ''}><summary><h3>Описи</h3><span class="ip-fold-n">${c.inventories.length ? `отмечено ${pick.inv.size} из ${c.inventories.length}` : 'нет'}</span></summary>
+      ${c.inventories.length ? c.inventories.map((d) => docLine(d, pick.inv.has(d.id), 'data-ip-f-inv') + invPart(d)).join('')
         : '<p class="ip-hint">У учреждения записи описей в базе нет.</p>'}
     </details>`;
   return oi + docs + inv;
@@ -268,9 +285,29 @@ export function submitPane(root, { targets, prev }) {
     oiIds,
     docs: single ? [...root.querySelectorAll('[data-ip-f-doc]:checked')].map((x) => x.dataset.ipFDoc) : undefined,
     inventories: single ? [...root.querySelectorAll('[data-ip-f-inv]:checked')].map((x) => x.dataset.ipFInv) : [],
+    invParts: single ? invPartsOf(root) : {},
     prevId: prev ? prev.id : '',
   })).filter(Boolean);
   return { made, person };
+}
+
+// Части описей из формы: только у отмеченных описей и только не «вся опись».
+function invPartsOf(root) {
+  const out = {};
+  root.querySelectorAll('[data-ip-f-inv]:checked').forEach((x) => {
+    const id = x.dataset.ipFInv;
+    const sel = root.querySelector(`[data-ip-f-invpart="${CSS.escape(id)}"]`);
+    if (!sel) return;
+    const [by, v] = sel.value.split('|');
+    if (by === 'all') return;
+    if (by === 'range') {
+      const txt = (root.querySelector(`[data-ip-f-invrange="${CSS.escape(id)}"]`) || {}).value || '';
+      if (txt.trim()) out[id] = { by, values: txt.split(/[,;]+/).map((s) => s.trim()).filter(Boolean) };
+      return;
+    }
+    out[id] = { by, values: [v] };
+  });
+  return out;
 }
 
 export { unassign };
