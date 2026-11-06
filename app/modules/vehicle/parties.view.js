@@ -2,6 +2,7 @@ import { esc } from '../../kernel/dom.js';
 import { pickSearchHTML } from '../../kernel/pickSearch.js';
 import { institutionOptions, podvedOptionsOf } from '../../kernel/institutions.js';
 import { PEOPLE } from './data/dictionaries.js';
+import { inspectorsFieldHTML } from '../../kernel/inspectionTab.js';
 
 // Блок «Учреждение, собственники и ответственные» — копия блока 01 карточки
 // гражданского здания (civil/card/parties.view.js), но без пользователей
@@ -137,7 +138,7 @@ function responsiblesHTML(rec) {
     ${personSelect('gov', 'Ответственный от гос. учреждения')}
     ${personSelect('cod', 'Оператор ЦОД')}
     ${personSelect('appr', 'Оценщик')}
-    ${personSelect('insp', 'Осмотрщик')}
+    ${inspectorsFieldHTML(rec)}
   </div>`;
 }
 

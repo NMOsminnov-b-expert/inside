@@ -14,7 +14,7 @@
 //
 // Ядро не знает видов ОИ: ОИ здесь — только id внутри записи, подписи и
 // документы берёт страница через kernel/registry.js.
-import { getType, sortedTypes } from './registry.js';
+import { getType } from './registry.js';
 import { registerPersisted, scheduleSave } from './persist.js';
 import { session } from './session.js';
 import { demoInspections } from './inspectionsDemo.js';
@@ -303,6 +303,13 @@ export function finishWork(person, typeId, ocId, done, { incomplete = false } = 
 
 // Объекты, осмотр которых закончен: есть не снятые назначения и все
 // закончены — «тип|id» (срез ЦОД «Осмотр закончен — проверить»).
+// «Мои осмотры» (решение пользователя 06.11.2026 «Только назначения»): объекты, на которые у
+// человека есть действующее назначение регионала, — ключи «тип|запись». Одно число везде:
+// срез «Мне осмотреть», задачи осмотрщика, приложение «Осмотр».
+export function liveObjectsOf(person) {
+  return new Set(assignments.filter((a) => a.person === person && isLive(a)).map((a) => a.typeId + '|' + a.ocId));
+}
+
 export function finishedObjects() {
   const by = new Map();
   assignments.forEach((a) => {
@@ -412,16 +419,8 @@ export function tasksOf(person) {
     const whole = t.assigns.some((a) => !a.oiIds || !a.oiIds.length);
     return { ...t, assign: sorted[0], oiIds: whole ? [] : [...new Set(t.assigns.flatMap((a) => a.oiIds))] };
   });
-  const seen = new Set(out.map((t) => t.typeId + '|' + t.ocId));
-  sortedTypes().forEach((t) => {
-    const res = t.records.queryRecords({ filter: { mine: { role: 'insp', person } }, offset: 0, limit: 100000 });
-    res.rows.forEach((s) => {
-      const k = t.manifest.id + '|' + s.id;
-      if (seen.has(k) || assignmentsOf(t.manifest.id, s.id, { live: false }).some((a) => !a.demo)) return;
-      seen.add(k);
-      out.push({ typeId: t.manifest.id, ocId: s.id, assign: null });
-    });
-  });
+  // Объекты «по карточке» (поле «Осмотрщик» без назначения) задачами больше не считаются:
+  // «мои осмотры» — только назначения регионала (решение пользователя 06.11.2026).
   return out;
 }
 

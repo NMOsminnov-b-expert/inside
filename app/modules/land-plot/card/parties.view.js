@@ -1,5 +1,6 @@
 import { esc } from '../../../kernel/dom.js';
 import { PEOPLE } from '../data/dictionaries.js';
+import { inspectorsFieldHTML } from '../../../kernel/inspectionTab.js';
 
 // Собственники и пользователи — блоками, а не строками в общей сетке.
 //
@@ -204,6 +205,6 @@ export function responsiblesHTML(rec) {
     ${personSelect('gov', 'Ответственный от гос. учреждения')}
     ${personSelect('cod', 'Оператор ЦОД')}
     ${personSelect('appr', 'Оценщик')}
-    ${personSelect('insp', 'Осмотрщик')}
+    ${inspectorsFieldHTML(rec)}
   </div>`;
 }

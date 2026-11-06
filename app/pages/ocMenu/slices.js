@@ -1,7 +1,7 @@
 import { esc } from '../../kernel/dom.js';
 import { emptyFilter, rolePerms, isFilterEmpty } from './state.js';
 import { countAll } from './query.js';
-import { finishedObjects } from '../../kernel/inspections.js';
+import { finishedObjects, liveObjectsOf } from '../../kernel/inspections.js';
 
 // Срезы — именованные фильтры: пользователь видит не размер базы, а свою
 // работу. Две группы одной строкой над таблицей (канва главной 01.10.2026,
@@ -13,8 +13,10 @@ import { finishedObjects } from '../../kernel/inspections.js';
 // short — подпись в строке, label — полное название (подсказка и чип фильтра).
 export function sliceDefs(tab) {
   const all = [
-    { key: 'my-insp', group: 'my', short: 'Мне осмотреть', label: 'Мне осмотреть', hint: 'я осмотрщик · удостоверено по документам',
-      patch: { mine: 'insp', status: ['Удостоверен по документам'] } },
+    // «Мои осмотры» — только действующие назначения регионала (решение пользователя 06.11.2026
+    // «Только назначения»): то же число, что в задачах осмотрщика и в приложении «Осмотр».
+    { key: 'my-insp', group: 'my', short: 'Мне осмотреть', label: 'Мне осмотреть', hint: 'назначено мне на осмотр',
+      patch: { keys: liveObjectsOf } },
     { key: 'my-appr', group: 'my', short: 'Мне оценить', label: 'Мне оценить', hint: 'я оценщик · осмотрено',
       patch: { mine: 'appr', status: ['Осмотрен'] } },
     { key: 'my-cod', group: 'my', short: 'Мне удостоверить', label: 'Мне удостоверить', hint: 'я оператор ЦОД · в заполнении',
@@ -46,7 +48,7 @@ export function filterForSlice(def, person) {
   if (p.status) f.status = p.status.slice();
   if (p.flags) f.flags = p.flags.slice();
   if (p.staleDays) f.staleDays = p.staleDays;
-  if (p.keys) f.keys = p.keys();
+  if (p.keys) f.keys = p.keys(person);
 
   return f;
 }

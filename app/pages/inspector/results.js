@@ -602,4 +602,16 @@ function stepNote(typeId, rec) {
   return list.some((a) => a.state === 'progress' || a.state === 'done') ? 'в работе' : 'назначен';
 }
 
-setInspectionTab({ has, render, holder, stepNote });
+// Осмотрщики объекта по назначениям: «Айдай — Литер А, Навес» или «Айдай — весь объект».
+function inspectors(rec) {
+  if (!rec) return [];
+  const list = allAssignments().filter((a) => a.ocId === rec.id && a.state !== 'removed' && !a.demo);
+  const by = new Map();
+  list.forEach((a) => {
+    const ois = a.oiIds && a.oiIds.length ? a.oiIds.map((id) => { const o = (rec.oi || []).find((x) => x.id === id); return o ? oiLabel(o) : id; }) : ['весь объект'];
+    by.set(a.person, [...new Set([...(by.get(a.person) || []), ...ois])]);
+  });
+  return [...by].map(([p, ois]) => `${p} — ${ois.join(', ')}`);
+}
+
+setInspectionTab({ has, render, holder, stepNote, inspectors });

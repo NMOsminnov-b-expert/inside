@@ -1372,3 +1372,10 @@ body[data-module] .scrolled #ctxPlateWrap::after{content:"";position:absolute;le
 .oi-net.own .oi-net-src{color:var(--blue-700)}
 .oi-net-back{padding:0;border:0;background:none;font:inherit;color:var(--blue-700);text-decoration:underline;cursor:pointer;text-align:left}
 .oi-net-back:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px;border-radius:3px}
+
+/* Осмотрщики объекта — по назначениям, только чтение (решение 06.11.2026 «Только назначения»):
+   подпись — как у полей, значение — по строке на осмотрщика, переносится, а не обрезается. */
+body[data-module] .resp-insp{height:auto;min-height:36px;display:flex;flex-direction:column;justify-content:center;gap:2px;
+  white-space:normal;overflow-wrap:anywhere;background:var(--slate-50);cursor:default}
+body[data-module] .resp-insp-none{color:var(--muted)}
+body[data-module] .grid:has(.resp-insp){align-items:start}

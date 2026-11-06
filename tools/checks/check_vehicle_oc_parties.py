@@ -43,8 +43,9 @@ def run(t):
     t.ck(pg.locator('[data-pt-add="user"], [data-pt-name^="user|"]').count() == 0,
          'в карточке ТС есть пользователи')
 
+    # Три выбора (учреждение, ЦОД, оценщик); осмотрщик — по назначениям, только чтение.
     empty = pg.eval_on_selector_all('[data-resp]', 'els => els.map((e) => e.value)')
-    t.ck(len(empty) == 4 and not any(empty), 'у новой карточки назначены ответственные: %s' % empty)
+    t.ck(len(empty) == 3 and not any(empty), 'у новой карточки назначены ответственные: %s' % empty)
 
     # --- учреждение и подвед ---------------------------------------------------
     pg.click('[data-ps="inst"] [data-ps-toggle]')
@@ -85,11 +86,15 @@ def run(t):
     pg.press('[data-pt-share="owner|0"]', 'Tab')
     t.wait_until("() => (document.querySelector('.pt-sum') || {}).textContent?.includes('50%')")
 
-    pg.select_option('[data-resp="insp"]', 'Айдай')
+    # Осмотрщик — по назначениям регионала, ЦОД его не выбирает (решение пользователя 06.11.2026
+    # «Только назначения»): поле только для чтения; ответственного проверяем на оценщике.
+    t.ck(pg.locator('[data-resp="insp"]').count() == 0 and pg.locator('[data-resp-insp]').count() == 1 and pg.locator('[data-resp-insp] input, [data-resp-insp] select').count() == 0,
+         'поле «Осмотрщик» выбирается руками, а не показывает назначения')
+    pg.select_option('[data-resp="appr"]', 'Айдай')
     rec = pg.evaluate(REC)
     t.ck(rec['owners'] and rec['owners'][0]['name'] == 'ООО Проверка' and rec['owners'][0]['share'] == '1/2',
          'собственник не записался: %s' % rec['owners'])
-    t.ck(rec['resp'].get('insp') == 'Айдай', 'осмотрщик не записался: %s' % rec['resp'])
+    t.ck(rec['resp'].get('appr') == 'Айдай', 'оценщик не записался: %s' % rec['resp'])
 
     pg.click('[data-pt-rm="owner|0"]')
     t.wait_until("() => !document.querySelector('[data-pt-name]')")

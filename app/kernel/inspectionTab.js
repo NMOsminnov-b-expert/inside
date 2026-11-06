@@ -21,6 +21,17 @@ export const INSPECTION_TAB = { key: 'inspection', label: 'Результаты 
 // «Шаг — по приёмке ЦОД»: «В работе» и «закончен» шаги не двигают — подписью под шагом).
 export const inspectionStepNote = (typeId, rec) => (impl && impl.stepNote ? impl.stepNote(typeId, rec) : '');
 
+// Поле «Осмотрщик» блока ответственных — по назначениям регионала, только чтение (решение
+// пользователя 06.11.2026 «Только назначения»: ЦОД осмотрщика руками не задаёт; двое — оба, с ОИ).
+export function inspectorsFieldHTML(rec) {
+  const list = impl && impl.inspectors ? impl.inspectors(rec) : [];
+  const safe = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // Только чтение — не поле ввода: по строке на осмотрщика, длинный перечень ОИ переносится, а не обрезается.
+  return `<div class="field"><label id="resp-insp-l">${list.length > 1 ? 'Осмотрщики' : 'Осмотрщик'}</label>
+    <div class="input resp-insp" role="group" aria-labelledby="resp-insp-l" data-resp-insp title="Назначает региональный менеджер в разделе «Осмотры»">
+      ${list.length ? list.map((x) => `<span>${safe(x)}</span>`).join('') : '<span class="resp-insp-none">не назначен</span>'}</div></div>`;
+}
+
 export function inspectionTabHTML(typeId, rec) {
   return impl ? impl.render(typeId, rec) : '<div class="empty">Результаты осмотра недоступны.</div>';
 }
