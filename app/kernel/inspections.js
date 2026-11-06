@@ -153,6 +153,19 @@ function recordsOf(typeId) {
 // законченного) или пусто: законченный осмотр осмотрщика из карточки не
 // убирает. Пишем, только если поменялось: assignResponsible двигает дату
 // обновления записи, и пустой пересчёт не должен её трогать.
+// Статус ОЦ по шкале — от осмотра (решение пользователя 06.11.2026 «Шаг — по приёмке ЦОД»,
+// «Сам список не меняем»): первое назначение — «Направлен на осмотр»; сняты все назначения —
+// снова «Удостоверен по документам»; приёмка ЦОД — «Осмотрен» (results.js); возврат ОИ на
+// доосмотр — назад к «Направлен на осмотр». Статус двигается только с этих шагов: объект,
+// который уже дальше по шкале или ещё не удостоверен, не трогается.
+export const READY_STATUS = 'Удостоверен по документам';
+export const SENT_STATUS = 'Направлен на осмотр';
+export const DONE_STATUS = 'Осмотрен';
+function moveStatus(recs, rec, ocId, from, to) {
+  if (!from.includes(rec.status)) return;
+  recs.setStatus(ocId, to);
+}
+
 function syncResp(typeId, ocId) {
   const recs = recordsOf(typeId);
   if (!recs) return;
@@ -160,9 +173,18 @@ function syncResp(typeId, ocId) {
   if (!rec) return;
   // Демо-назначения запись не трогают (kernel/inspectionsDemo.js).
   const live = assignmentsOf(typeId, ocId, { live: false }).filter((a) => !a.demo && a.state !== 'removed').sort((x, y) => String(x.at).localeCompare(String(y.at)));
+  if (live.length) moveStatus(recs, rec, ocId, [READY_STATUS], SENT_STATUS);
+  else moveStatus(recs, rec, ocId, [SENT_STATUS], READY_STATUS);
   const person = live.length ? live[live.length - 1].person : '';
   if (((rec.resp || {}).insp || '') === person) return;
   recs.assignResponsible(ocId, 'insp', person);
+}
+
+// Возврат на доосмотр: принятый осмотр («Осмотрен») снова «Направлен на осмотр».
+function reopenStatus(typeId, ocId) {
+  const recs = recordsOf(typeId);
+  const rec = recs && recs.loadRecord(ocId);
+  if (rec) moveStatus(recs, rec, ocId, [DONE_STATUS], SENT_STATUS);
 }
 
 export function changed() {
@@ -253,6 +275,7 @@ export function returnOis(typeId, ocId, oiIds, reason) {
     logEvent('returned', a, { text, oiIds: ids });
     syncResp(a.typeId, a.ocId);
   });
+  if (hit.length) reopenStatus(typeId, ocId);
   changed();
   return hit;
 }

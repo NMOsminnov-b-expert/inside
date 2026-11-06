@@ -1262,6 +1262,9 @@ body[data-module] .st-done .st-lbl{color:var(--ink-label)}
 body[data-module] .st-cur .st-dot{background:var(--amber-600);border-color:var(--amber-600);
   box-shadow:0 0 0 4px var(--amber-100)}
 body[data-module] .st-cur .st-lbl{color:var(--amber-700);font-weight:600}
+/* Подпись под текущим шагом: где объект внутри шага («в работе», «ждёт приёмки»). */
+body[data-module] .st-sub{font-size:11px;line-height:1.25;color:var(--muted);max-width:118px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+body[data-module] .st-sub-mini{max-width:none;display:inline;white-space:nowrap;margin-left:6px}
 /* Доступный переход: обводка цветом шкалы — «сюда можно» (как в рабочей
    системе); под курсором заливается, подпись подчёркивается. */
 body[data-module] button.st-next{cursor:pointer;border-radius:8px}

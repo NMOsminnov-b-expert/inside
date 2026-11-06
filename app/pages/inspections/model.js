@@ -10,7 +10,7 @@ import {
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
   dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests,
 } from '../../kernel/inspections.js';
-import { inspectorsInData, oiLabel, READY_STATUS, loadTask } from '../inspector/tasks.js';
+import { inspectorsInData, oiLabel, READY_STATUS, inQueueStatus, loadTask } from '../inspector/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
 import { hasResults } from '../../kernel/inspectionResults.js';
@@ -82,12 +82,12 @@ export const COVERAGE = [
 ];
 
 // Очередь «К назначению» (ТЗ 3.2): объекты в статусе «Удостоверен по
-// документам», у которых есть свободные ОИ. Фильтр f.cov — по покрытию.
+// документам» или уже «Направлен на осмотр» (назначена часть ОИ), у которых есть свободные ОИ. Фильтр f.cov — по покрытию.
 export function queueRows(all, f) {
   const q = (f.q || '').trim().toLowerCase();
   const out = [];
   all.forEach((s) => {
-    if (s.status !== READY_STATUS) return;
+    if (!inQueueStatus(s.status)) return;
     if (f.type && s.typeId !== f.type) return;
     if (f.region && regionOf(s) !== f.region) return;
     if (q && !`${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city}`.toLowerCase().includes(q)) return;
@@ -107,7 +107,7 @@ export function queueFacets(all) {
   const types = new Map();
   const regions = new Map();
   all.forEach((s) => {
-    if (s.status !== READY_STATUS) return;
+    if (!inQueueStatus(s.status)) return;
     types.set(s.typeId, s.typeLabel);
     const r = regionOf(s);
     if (r) regions.set(r, (regions.get(r) || 0) + 1);
@@ -423,7 +423,7 @@ export function dueOf(date) {
 export function queueBase(all) {
   const out = [];
   all.forEach((s) => {
-    if (s.status !== READY_STATUS) return;
+    if (!inQueueStatus(s.status)) return;
     const cov = coverageOf(s.typeId, s.id);
     if (cov.state === 'full') return;
     const deadline = deadlineOf(s.typeId, s.id);

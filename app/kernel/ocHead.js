@@ -1,4 +1,4 @@
-import { INSPECTION_TAB } from './inspectionTab.js';
+import { INSPECTION_TAB, inspectionStepNote } from './inspectionTab.js';
 import { esc } from './dom.js';
 import { flagBadgesHTML } from './flagBadges.js';
 import { statusFlowHTML } from './status/flow.view.js';
@@ -66,7 +66,7 @@ export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', actions = nu
     <div class="oc-head-tabs" role="tablist" aria-label="Разделы объекта оценки">
       ${tabs.map(tab).join('')}
     </div>
-    <div class="oc-head-status">${statusFlowHTML(rec, ctx.ui)}</div>
+    <div class="oc-head-status">${statusFlowHTML(rec, ctx.ui, inspectionStepNote(ctx.manifest.id, rec))}</div>
   </div>`;
 }
 

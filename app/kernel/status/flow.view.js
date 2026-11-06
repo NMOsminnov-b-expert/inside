@@ -36,9 +36,10 @@ function stateOf(name, status, next, flow) {
 }
 
 // Шаг — кнопка, только если на него можно перейти.
-function node(name, state, cls, go) {
+// note — подпись под текущим шагом (где объект внутри шага, например «в работе»).
+function node(name, state, cls, go, note = '') {
   const inner = `<span class="st-dot" aria-hidden="true"></span>
-    <span class="st-lbl">${esc(name)}</span>
+    <span class="st-lbl">${esc(name)}</span>${state === 'cur' && note ? `<span class="st-sub">${esc(note)}</span>` : ''}
     <span class="sr-only">— ${STATE_WORD[state]}</span>`;
   const attrs = `class="${cls} st-${state}" title="${esc(name)}"`;
   if (state === 'next') {
@@ -56,7 +57,7 @@ function fullHTML(status, next, o) {
   const steps = flow.main.map((name) => {
     const branch = flow.branch[name];
     return `<li class="st-item">
-      ${node(name, stateOf(name, status, next, flow), 'st-step', go)}
+      ${node(name, stateOf(name, status, next, flow), 'st-step', go, o.note)}
       ${branch ? `<span class="st-fork" aria-hidden="true"></span>
         ${node(branch, stateOf(branch, status, next, flow), 'st-branch', go)}` : ''}
     </li>`;
@@ -81,7 +82,7 @@ function miniHTML(status, next, o) {
   return `<div class="st-mini">
     <span class="st-mini-lbl">Статус</span>
     <span class="st-pill ${isBranch(status, flow) ? 'st-pill-branch' : ''}" aria-current="step">
-      <span class="st-pill-dot" aria-hidden="true"></span>${esc(status || 'не задан')}</span>
+      <span class="st-pill-dot" aria-hidden="true"></span>${esc(status || 'не задан')}</span>${o.note ? `<span class="st-sub st-sub-mini">${esc(o.note)}</span>` : ''}
     ${known ? `<span class="st-bar" aria-hidden="true">${bar}</span>
       <span class="st-count">${at + 1} из ${flow.main.length}</span>` : ''}
     ${next.length ? `<span class="st-then"><span class="st-next-lbl">Далее:</span>${btns}</span>`
@@ -96,7 +97,7 @@ function miniHTML(status, next, o) {
 // одном экране не перехватывали нажатия друг друга; collapsed — свёрнута ли.
 export function flowHTML(status, o) {
   const opts = {
-    flow: o.flow, go: `${o.key}-go`, toggle: `${o.key}-toggle`,
+    flow: o.flow, go: `${o.key}-go`, toggle: `${o.key}-toggle`, note: o.note || '',
   };
   const next = nextOf(status, o.flow);
   const tid = `${o.key}FlowTitle`;
@@ -108,8 +109,8 @@ export function flowHTML(status, o) {
   </nav>`;
 }
 
-export function statusFlowHTML(rec, ui) {
+export function statusFlowHTML(rec, ui, note = '') {
   return flowHTML(rec.status || '', {
-    flow: OC_FLOW, key: 'status', title: 'Статус объекта оценки', collapsed: ui && ui.statusCollapsed,
+    flow: OC_FLOW, key: 'status', title: 'Статус объекта оценки', collapsed: ui && ui.statusCollapsed, note,
   });
 }

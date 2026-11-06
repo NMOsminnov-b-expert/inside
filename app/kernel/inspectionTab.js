@@ -17,6 +17,10 @@ export const hasInspection = (typeId, ocId) => !!(impl && impl.has(typeId, ocId)
 
 export const INSPECTION_TAB = { key: 'inspection', label: 'Результаты осмотра' };
 
+// Подпись под текущим шагом шкалы ОЦ — где осмотр внутри шага (решение пользователя 06.11.2026
+// «Шаг — по приёмке ЦОД»: «В работе» и «закончен» шаги не двигают — подписью под шагом).
+export const inspectionStepNote = (typeId, rec) => (impl && impl.stepNote ? impl.stepNote(typeId, rec) : '');
+
 export function inspectionTabHTML(typeId, rec) {
   return impl ? impl.render(typeId, rec) : '<div class="empty">Результаты осмотра недоступны.</div>';
 }

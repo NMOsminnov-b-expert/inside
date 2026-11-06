@@ -23,7 +23,7 @@
 // Просмотр ничего не создаёт (peekResults, reviewOf); пишут только решения.
 import { esc } from '../../kernel/dom.js';
 import { ensureStyle } from '../../kernel/css.js';
-import { allAssignments, ASSIGN_STATES, coversOi, logEvent, changed, returnOis } from '../../kernel/inspections.js';
+import { allAssignments, ASSIGN_STATES, coversOi, logEvent, changed, returnOis, DONE_STATUS, SENT_STATUS } from '../../kernel/inspections.js';
 import { peekResults, reviewOf, setReview } from '../../kernel/inspectionResults.js';
 import { getValue } from '../../kernel/fieldSchema.js';
 import { setInspectionTab } from '../../kernel/inspectionTab.js';
@@ -33,6 +33,7 @@ import { scheduleSave } from '../../kernel/persist.js';
 import { localIso } from '../../kernel/fmt.js';
 import { session } from '../../kernel/session.js';
 import { STATUS_MAIN } from '../../kernel/status/flow.js';
+import { OI_FLOW, stageOf as oiStageOf } from '../../kernel/oiStage.js';
 import { colGroupHTML, colLabelHTML, resizeGripHTML, colVar } from '../../kernel/columns.js';
 import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { importArchive } from './archiveImport.js';
@@ -42,7 +43,7 @@ import { oiLabel, ownOis, mechProgress } from './tasks.js';
 ensureStyle('./app/pages/inspector/results.css');
 
 const OBJ = '__obj';
-const DONE_STATUS = 'Осмотрен';
+// «Осмотрен» — шаг шкалы ОЦ после приёмки всех ОИ (kernel/inspections.js).
 const ddmm = (iso) => (iso ? new Date(iso).toLocaleDateString('ru-RU') : '');
 const dt = (iso) => (iso ? new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 const assignsOf = (typeId, ocId) => allAssignments().filter((a) => a.typeId === typeId && a.ocId === ocId && a.state !== 'removed');
@@ -136,6 +137,21 @@ function itemsOf(typeId, rec, r, list) {
 }
 // ОИ, которые принимаются: на них было назначение.
 const toAccept = (items) => items.filter((x) => x.kind === 'oi' && x.by.length);
+
+// Пустой ОИ — ни снимка, ни голосовой, ни значения, ни отметки по описи: принять нельзя
+// (решение пользователя 06.11.2026 «Запрещать»), только вернуть на доосмотр.
+const isEmptyOi = (x) => !x.photos.length && !(x.voices || []).length && !x.values && !(x.mech && (x.mech.seen + x.mech.missing));
+
+// Шкала ОИ от приёмки ЦОД (решение 06.11.2026 «Шаг — по приёмке ЦОД»): принят — «Осмотрено»,
+// возвращён на доосмотр — снова «Заполнено». Только с этих шагов: «Оценено» не трогаем.
+// ОИ-сама запись (ТС, механизмы — ocSelf) своей шкалы не имеет: у неё шкала ОЦ.
+const OI_DONE = OI_FLOW.main[2];
+const OI_FILLED = OI_FLOW.main[1];
+function stepOi(oi, to) {
+  if (!oi || oi.ocSelf) return;
+  const cur = oiStageOf(oi);
+  if (to === OI_DONE ? OI_FLOW.main.indexOf(cur) < OI_FLOW.main.indexOf(OI_DONE) : cur === OI_DONE) oi.stage = to;
+}
 
 function summaryHTML(rec, list, items, r) {
   const ois = toAccept(items);
@@ -440,8 +456,12 @@ document.addEventListener('click', (e) => {
     const x = c.item;
     if (x.stage.key === 'accepted') say(v, `«${x.label}» уже принят.`, 'ok');
     else if (!x.done) say(v, `«${x.label}»: ${x.by.length ? 'осмотр ещё идёт — принять можно, когда осмотрщик закончит' : 'осмотр не назначен — принимать нечего'}.`);
+    else if (isEmptyOi(x)) say(v, `«${x.label}»: нет ни снимков, ни значений — принять нельзя. Верните на доосмотр с причиной.`);
     else {
       setReview(c.typeId, c.rec.id, x.id, { state: 'accepted', by: session.state.person });
+      stepOi(x.oi, OI_DONE);
+      c.rec.updatedAt = localIso();
+      scheduleSave();
       logEvent('accepted', null, { typeId: c.typeId, ocId: c.rec.id, oiId: x.id, text: x.label });
       changed();
       say(v, `«${x.label}» принят.`, 'ok');
@@ -463,7 +483,12 @@ document.addEventListener('click', (e) => {
     const x = c.item;
     const hitA = returnOis(c.typeId, c.rec.id, [x.id], reason);
     setReview(c.typeId, c.rec.id, x.id, { state: 'returned', reason, by: session.state.person });
+    stepOi(x.oi, OI_FILLED);
+    c.rec.updatedAt = localIso();
+    scheduleSave();
     Object.assign(v, { returning: false, reason: '' });
+    // Статус ОЦ мог вернуться к «Направлен на осмотр» (kernel/inspections.js, returnOis) — шапка карточки.
+    window.dispatchEvent(new CustomEvent('inside:redraw'));
     say(v, `«${x.label}» возвращён на доосмотр: ${[...new Set(hitA.map((a) => a.person))].join(', ') || 'осмотрщику'}.`, 'ok');
   } else if (hit('[data-ir-accept-all]')) acceptAll(c);
   else return;
@@ -567,4 +592,14 @@ document.addEventListener('pointerdown', (e) => {
   target.addEventListener('pointerup', stop);
 }, true);
 
-setInspectionTab({ has, render, holder });
+// Подпись под шагом «Направлен на осмотр»: назначен → в работе → ждёт приёмки (осмотр закончен); возвращённое — на доосмотре.
+function stepNote(typeId, rec) {
+  if (!rec || rec.status !== SENT_STATUS) return '';
+  const list = assignsOf(typeId, rec.id);
+  if (!list.length) return '';
+  if (list.some((a) => a.state !== 'done' && (a.returned || []).length)) return 'на доосмотре';
+  if (list.every((a) => a.state === 'done')) return 'ждёт приёмки';
+  return list.some((a) => a.state === 'progress' || a.state === 'done') ? 'в работе' : 'назначен';
+}
+
+setInspectionTab({ has, render, holder, stepNote });

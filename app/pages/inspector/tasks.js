@@ -19,7 +19,11 @@ import { inventoryById } from '../../kernel/inventories.js';
 
 // Статус, в котором объект ждёт осмотра. Тот же, что в срезе «Мне осмотреть»:
 // до удостоверения по документам осматривать нечего — данные ЦОД ещё не готовы.
-export const READY_STATUS = 'Удостоверен по документам';
+// Статусы шкалы ОЦ у осмотра — в ядре (kernel/inspections.js): там же их двигают назначения.
+// В очереди «К назначению» — удостоверенные и уже направленные, у которых остались свободные ОИ.
+import { READY_STATUS, SENT_STATUS } from '../../kernel/inspections.js';
+export { READY_STATUS, SENT_STATUS };
+export const inQueueStatus = (status) => status === READY_STATUS || status === SENT_STATUS;
 
 // Лимит снимков из ТЗ: 250 на основное строение и участок, 50 на
 // вспомогательное. Здесь общий лимит на задачу — по строениям он разойдётся,
