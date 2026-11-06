@@ -29,7 +29,7 @@ body[data-page="scans"] .sc-empty{grid-column:1 / -1;margin:0;padding:18px;font-
   background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);align-self:start}
 
 /* Таблица: дата и страницы — узкие цифры одной ширины, остальное — доли. */
-body[data-page="scans"] .sc-tbl col.c-d{width:84px}
+body[data-page="scans"] .sc-tbl col.c-d{width:96px}
 body[data-page="scans"] .sc-tbl col.c-s{width:84px}
 body[data-page="scans"] .sc-tbl col.c-p{width:48px}
 body[data-page="scans"] .sc-tbl th{position:sticky;top:0;z-index:1}
@@ -61,7 +61,7 @@ body[data-page="scans"] .sc-head{flex:none;padding:12px 16px 10px;border-bottom:
 body[data-page="scans"] .sc-head h2{margin:0;font-size:14px;font-weight:700;color:var(--ink);line-height:1.35;overflow-wrap:anywhere}
 body[data-page="scans"] .sc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
 body[data-page="scans"] .sc-back{display:none;margin-bottom:8px}
-body[data-page="scans"] .sc-body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px 16px 14px;display:flex;flex-direction:column;gap:14px}
+body[data-page="scans"] .sc-body{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;padding:12px 16px 14px;display:flex;flex-direction:column;gap:14px}
 body[data-page="scans"] .sc-body > *{flex:none}
 body[data-page="scans"] .sc-sec h3{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--ink)}
 
@@ -94,7 +94,7 @@ body[data-page="scans"] .sc-pane .field > label{font-size:12px;font-weight:600;c
 body[data-page="scans"] .sc-pane .select,
 body[data-page="scans"] .sc-pane .input{height:34px;width:100%}
 
-body[data-page="scans"] .sc-foot{flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 16px 12px;
+body[data-page="scans"] .sc-foot{flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 16px 12px;overflow-y:hidden;scrollbar-gutter:stable;
   border-top:1px solid var(--line-soft);background:var(--panel)}
 body[data-page="scans"] .sc-foot-link{align-items:flex-start}
 body[data-page="scans"] .sc-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -124,9 +124,11 @@ body[data-page="scans"] [hidden]{display:none !important}
 }
 @media (max-width:760px){
   body[data-page="scans"] .sc-form{grid-template-columns:minmax(0,1fr)}
-  body[data-page="scans"] .sc-tbl col.c-s{width:0}
+  /* Источник — меткой в строке документа, столбец убран вместе с его col. */
+  body[data-page="scans"] .sc-tbl col.c-s{display:none}
   body[data-page="scans"] .sc-tbl th:nth-child(2),
   body[data-page="scans"] .sc-tbl td:nth-child(2){display:none}
+  body[data-page="scans"] .sc-src-narrow{display:inline-block;margin-bottom:3px}
   body[data-page="scans"] .sc-acts .btn{flex:1 1 auto}
   body[data-page="scans"] .sc-acts .sc-ok{margin-left:0}
   body[data-page="scans"] .sc-tabs .itab{padding:8px 9px}
@@ -152,3 +154,15 @@ body[data-page="scans"] .sc-hits button[aria-selected="true"]{border-color:var(-
 body[data-page="scans"] .sc-hits .sc-t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body[data-page="scans"] .sc-hits .sc-s{flex:none}
 body[data-page="scans"] .sc-move-go{align-self:end}
+
+/* Метки источников — свой цвет у каждого; в строке документа — только на узком экране. */
+body[data-page="scans"] .sc-src-inv{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
+body[data-page="scans"] .sc-src-narrow{display:none}
+@media (max-width:760px){body[data-page="scans"] .sc-src-narrow{display:inline-block;margin-bottom:3px}}
+/* Просмотрщик ядра: высота — по экрану, не миниатюра. */
+body[data-page="scans"] .sc-view{display:flex;height:clamp(320px,55vh,640px);border:1px solid var(--line-soft);border-radius:8px;overflow:hidden}
+body[data-page="scans"] .sc-view > *{flex:1 1 auto;min-width:0}
+body[data-page="scans"] .sc-headrow{display:flex;align-items:center;gap:8px}
+body[data-page="scans"] .sc-steps{margin-left:auto;display:inline-flex;gap:4px}
+body[data-page="scans"] .sc-steps .btn{min-width:32px;justify-content:center}
+body[data-page="scans"] .sc-as b{color:var(--ink)}

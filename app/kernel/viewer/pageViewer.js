@@ -1,4 +1,4 @@
-import { ensureFilePages } from '../fileUpload.js';
+import { ensureFilePages, ensureDocPages } from '../fileUpload.js';
 import { setViewerDeps } from './deps.js';
 import { viewerHTML } from './shell.js';
 import { bindViewer, viewerKeydown } from './ctrl.js';
@@ -40,17 +40,22 @@ const uiFor = (docId) => {
 
 // Файл документа → «документ» в понимании просмотрщика: вид берём у документа,
 // название — у файла, страницы считает ядро (kernel/fileUpload.js).
-const asDoc = (doc, f) => ({ id: f.id, type: doc.type || 'Файл', name: f.name, file: f, pages: f.pages });
+// Многостраничный скан (f.scanPages — страницы-картинки) — один документ, каждая страница — свой лист,
+// как в карточке после приёма (kernel/fileUpload.js, ensureDocPages).
+const asDoc = (doc, f) => ({ id: f.id, type: doc.type || 'Файл', name: f.name, file: f, pages: f.scanPages ? null : f.pages, scanPages: f.scanPages || null });
 
 function depsFor(doc) {
-  const list = () => (doc.files || []).map((f) => { ensureFilePages(f); return asDoc(doc, f); });
+  const list = () => (doc.files || []).map((f) => { if (!f.scanPages) ensureFilePages(f); return asDoc(doc, f); });
   return {
     typeId: 'doc',
     typeLabel: 'Документ',
     can: CAN,
 
     docListFor: () => list(),
-    ensureDocPages: (d) => { ensureFilePages(d.file); d.pages = d.file.pages; },
+    ensureDocPages: (d) => {
+      if (d.scanPages && d.scanPages.length > 1) { ensureDocPages(d); return; }
+      ensureFilePages(d.file); d.pages = d.file.pages;
+    },
     attachedFileFrom: (f) => f,
     isFileTooLarge: () => false,
     maxFileMb: 15,

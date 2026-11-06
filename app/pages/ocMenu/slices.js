@@ -2,6 +2,7 @@ import { esc } from '../../kernel/dom.js';
 import { emptyFilter, rolePerms, isFilterEmpty } from './state.js';
 import { countAll } from './query.js';
 import { finishedObjects, liveObjectsOf } from '../../kernel/inspections.js';
+import { scanWaitObjects } from '../../kernel/scanQueue.js';
 
 // Срезы — именованные фильтры: пользователь видит не размер базы, а свою
 // работу. Две группы одной строкой над таблицей (канва главной 01.10.2026,
@@ -29,6 +30,10 @@ export function sliceDefs(tab) {
     // 30.10.2026 «Вкладка в карточке + срез»).
     { key: 'my-cod-insp', group: 'my', short: 'Осмотр закончен', label: 'Осмотр закончен — проверить', hint: 'я оператор ЦОД · осмотр закончен, «Осмотрен» не поставлен',
       patch: { mine: 'cod', status: ['Удостоверен по документам', 'Направлен на осмотр'], keys: finishedObjects } },
+    // Сканы с осмотров и ответы кадастра ждут разбора по записям, где я — оператор ЦОД (находка
+    // аудита 30.10: у ЦОД нет среза «ждут сканы»; разбор — на странице «Сканы с осмотров»).
+    { key: 'my-cod-scans', group: 'my', short: 'Ждут сканы', label: 'Ждут разбора сканы', hint: 'я оператор ЦОД · сканы с осмотра или ответы кадастра ждут разбора',
+      patch: { keys: scanWaitObjects } },
     { key: 'my-all', group: 'my', short: 'Все мои', label: 'Все мои объекты', hint: 'я в любой роли',
       patch: { mine: 'any' } },
     { key: 'notes', group: 'att', short: 'Заметки', label: 'С невыполненными заметками', hint: 'есть незакрытые замечания', dot: 'amber',

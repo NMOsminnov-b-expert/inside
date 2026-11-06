@@ -17,15 +17,15 @@ export { ROLES };
 // Что роли можно делать в реестре — какие срезы «мне…» видны и какие
 // действия доступны. «any» и «admin» — видно как администратору.
 const ROLE_PERMS = {
-  any: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-cod-insp', 'my-all'], create: true, assignInsp: true, setStatus: true },
+  any: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-cod-insp', 'my-cod-scans', 'my-all'], create: true, assignInsp: true, setStatus: true },
   insp: { slices: ['my-insp', 'my-all'], create: false, assignInsp: false, setStatus: false },
   appr: { slices: ['my-appr', 'my-all'], create: false, assignInsp: false, setStatus: false },
-  cod: { slices: ['my-cod', 'my-cod-insp', 'my-all'], create: true, assignInsp: true, setStatus: true },
+  cod: { slices: ['my-cod', 'my-cod-insp', 'my-cod-scans', 'my-all'], create: true, assignInsp: true, setStatus: true },
   // Региональный менеджер назначает осмотры (ТЗ панели осмотров, 12.10.2026);
   // объекты не заводит и статус не ставит — «Осмотрен» ставит ЦОД.
   rm: { slices: ['my-all'], create: false, assignInsp: true, setStatus: false },
   gov: { slices: ['my-all'], create: true, assignInsp: false, setStatus: false },
-  admin: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-cod-insp', 'my-all'], create: true, assignInsp: true, setStatus: true },
+  admin: { slices: ['my-insp', 'my-appr', 'my-cod', 'my-cod-insp', 'my-cod-scans', 'my-all'], create: true, assignInsp: true, setStatus: true },
 };
 
 export function rolePerms(key) {

@@ -97,6 +97,8 @@ def run(t):
     t.ck(not moved['fromA'] and moved['toB'] and moved['oi'] == rb['oi'][0], 'перенос не переложил скан: %s' % moved)
 
     # --- приём и правка принятого: вид и ОИ ------------------------------------------
+    # Вид документа обязателен, если осмотрщик его не предложил (находка аудита 30.10).
+    pg.evaluate("() => { const s = document.querySelector('[data-sc-f-type]'); if (s && !s.value) { s.value = [...s.options].find((o) => o.value).value; s.dispatchEvent(new Event('change', { bubbles: true })); } }")
     pg.click('[data-sc-accept]')
     t.open('#/scans?state=accepted&key=%s' % nk.replace('|', '%7C'), wait='[data-sc-edit]')
     pg.select_option('[data-sc-f-oi]', '')

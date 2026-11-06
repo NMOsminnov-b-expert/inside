@@ -22,7 +22,7 @@
 // (кто, когда, что решил); здесь любой пользователь макета может принять,
 // вернуть и отклонить любой скан. Развилка — кому из ролей разрешён разбор
 // (оператор ЦОД записи; регионал «обычно разбирает он», решение В2).
-import { getType } from './registry.js';
+import { getType, tsName, isTsHolder } from './registry.js';
 import { session } from './session.js';
 import { scheduleSave } from './persist.js';
 import { allResults, resultsOf } from './inspectionResults.js';
@@ -50,7 +50,9 @@ const recOf = (typeId, ocId) => {
   const t = typeId ? getType(typeId) : null;
   return t && t.records.loadRecord ? t.records.loadRecord(ocId) : null;
 };
-const placeOf = (rec) => (rec ? [rec.institution, rec.address || rec.title || rec.name].filter(Boolean).join(' — ') : '');
+// Где объект: учреждение и адрес; у ТС адреса нет — марка и госномер (находка аудита 30.10: два скана
+// по разным ТС были неотличимы).
+const placeOf = (rec) => (rec ? [rec.institution, isTsHolder(rec) ? tsName(rec) : rec.address || rec.title || rec.name].filter(Boolean).join(' — ') : '');
 
 // Ключи элементов: «осмотр» — scan|тип|ОЦ|id скана; «кадастр» — cad|id запроса|id строки.
 export const scanKey = (typeId, ocId, id) => `scan|${typeId}|${ocId}|${id}`;
@@ -149,6 +151,11 @@ export function scanQueue({ state = '', source = '', role = 'all', mine = false,
   return items
     .filter((x) => (!state || x.state === state) && (!onlyCod || x.cod === who) && (role !== 'rm' || mineRm(x)))
     .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+
+// Записи, по которым у ЦОД person ждут разбора сканы, — ключи «тип|запись» (срез реестра «Ждут сканы»).
+export function scanWaitObjects(person = '') {
+  return new Set(scanQueue({ state: 'wait', role: 'cod', person }).filter((x) => !x.inv).map((x) => `${x.typeId}|${x.ocId}`));
 }
 
 // Числа для вкладок: { wait, accepted, returned, rejected, all }.

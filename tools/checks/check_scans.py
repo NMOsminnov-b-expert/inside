@@ -166,6 +166,8 @@ def run(t):
       return { typeId: it.typeId, ocId: it.ocId, oiId: it.oiId, title: it.title };
     }""", key)
     pg.fill('[data-sc-f-title]', 'Акт обмера (принят в проверке)')
+    # Вид документа обязателен, если осмотрщик его не предложил (находка аудита 30.10).
+    pg.evaluate("() => { const s = document.querySelector('[data-sc-f-type]'); if (s && !s.value) { s.value = [...s.options].find((o) => o.value).value; s.dispatchEvent(new Event('change', { bubbles: true })); } }")
     pg.click('[data-sc-accept]')
     t.wait_until("(k) => !document.querySelector('[data-sc-row=\"' + k + '\"]')", key)
     err = pg.locator('[data-sc-err]:not([hidden])')
@@ -199,6 +201,8 @@ def run(t):
         n = pg.locator('[data-sc-row]').count()
         if not n:
             break
+        # Вид документа обязателен, если осмотрщик его не предложил (находка аудита 30.10).
+        pg.evaluate("() => { const s = document.querySelector('[data-sc-f-type]'); if (s && !s.value) { s.value = [...s.options].find((o) => o.value).value; s.dispatchEvent(new Event('change', { bubbles: true })); } }")
         pg.click('[data-sc-accept]')
         t.wait_until("(n) => document.querySelectorAll('[data-sc-row]').length < n", n)
     t.ck(pg.locator('.sc-empty').count() == 1 and pg.inner_text('.sc-empty').strip() == 'Сканов, ждущих разбора, нет',

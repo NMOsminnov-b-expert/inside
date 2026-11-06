@@ -26,11 +26,17 @@ import {
   scanQueue, scanCounts, acceptScan, returnScan, rejectScan, editAccepted, moveScan, SCAN_SOURCES, SCAN_STATES, scanStateLabel,
 } from '../../kernel/scanQueue.js';
 import { oiLabel } from '../inspector/tasks.js';
+import { fmtEni } from '../../kernel/fmt.js';
+import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
 
 const SRC_LABEL = { 'осмотр': 'Осмотр', 'опись': 'Опись', 'кадастр': 'Кадастр' };
 // Перечень видов документов, если справочник типа ОЦ ещё не заведён.
 const DOC_TYPES_FALLBACK = ['Техпаспорт', 'ПУД', 'Гос. акт на землю', 'Акт осмотра', 'Фото', 'Прочее'];
 const WHO = [['me', 'Мне'], ['all', 'Все']];
+// Класс метки источника: у каждого свой цвет (осмотр, опись, кадастр).
+const SRC_CLS = { 'осмотр': 'insp', 'опись': 'inv', 'кадастр': 'cad' };
+const srcTag = (it, extra = '') => `<span class="sc-src sc-src-${SRC_CLS[it.source] || 'insp'} ${extra}">${esc(SRC_LABEL[it.source])}</span>`;
+const eniOf = (it) => (it.eni ? fmtEni(it.eni) || it.eni : '');
 const SRC = [['', 'Все'], ...SCAN_SOURCES.map((s) => [s.key, s.label])];
 
 // Дата и время — «ДД.ММ ЧЧ:ММ» по местному времени.
@@ -52,8 +58,10 @@ export function mountScans(host) {
   let draft = { key: '', docType: '', oiId: '', title: '', reason: '', pages: [] };
   // Перенос к другому объекту: строка поиска, выбранная запись и ОИ.
   let move = { key: '', q: '', pick: null, oiId: '' };
-  let pageNo = 0;          // текущая страница скана в просмотре
-  let pageKey = '';
+  // Черновики панели — по каждому скану: причина и выбор не теряются при переходе на соседний.
+  const drafts = new Map();
+  // Открытая страница скана в просмотрщике — по ключу скана.
+  const viewFile = new Map();
   let err = '';
 
   // --- состояние из адреса ---------------------------------------------------
@@ -92,12 +100,15 @@ export function mountScans(host) {
     if (it.source === 'кадастр' && it.title && !list.includes(it.title)) list.unshift(it.title);
     return list;
   };
-  // Вид — предложенный осмотрщиком, затем совпавший с названием, затем «Прочее».
+  // Вид — предложенный осмотрщиком, затем совпавший с названием; иначе не выбран — ЦОД выбирает сам
+  // (находка аудита 30.10: «Принять» одним щелчком клало вид «Прочее»).
   const defaultDocType = (it, types) => (it.docType && types.includes(it.docType) ? it.docType
-    : types.includes(it.title) ? it.title : (types.includes('Прочее') ? 'Прочее' : types[0] || ''));
+    : types.includes(it.title) ? it.title : '');
 
   function ensureDraft(it) {
     if (draft.key === it.key) return;
+    if (draft.key) drafts.set(draft.key, draft);
+    if (drafts.has(it.key)) { draft = drafts.get(it.key); err = ''; return; }
     const types = docTypesFor(it);
     draft = it.doc ? { key: it.key, docType: it.doc.type, oiId: it.doc.oiId, title: it.doc.name, reason: '', pages: [] }
       : { key: it.key, docType: defaultDocType(it, types), oiId: it.oiId || '', title: it.title, reason: '', pages: [] };
@@ -120,10 +131,11 @@ export function mountScans(host) {
     const reason = it.state === 'returned' || it.state === 'rejected'
       ? `<span class="sc-why">${esc(scanStateLabel(it.state))}: ${esc(it.reason || '—')}</span>` : '';
     return `<tr data-sc-row="${esc(it.key)}" class="${cur ? 'cur' : ''}" aria-selected="${cur}" tabindex="-1">
-      <td class="sc-date">${esc(fmtAt(it.at))}</td>
-      <td><span class="sc-src sc-src-${it.source === 'кадастр' ? 'cad' : 'insp'}">${esc(SRC_LABEL[it.source])}</span></td>
-      <td><span class="sc-t">${esc(it.title)}</span><span class="sc-s">${esc(it.by || '—')}</span>${reason}</td>
-      <td title="${esc(it.place || '')}"><span class="sc-t">${esc(it.place || '—')}</span><span class="sc-s mono">${esc(it.eni || '')}</span></td>
+      <td class="sc-date">${esc(fmtFull(it.at).slice(0, 10))}<span class="sc-s">${esc(fmtFull(it.at).slice(11))}</span></td>
+      <td>${srcTag(it)}</td>
+      <td>${srcTag(it, 'sc-src-narrow')}<span class="sc-t">${esc(it.title)}</span><span class="sc-s">${esc(it.by || '—')}</span>${reason}</td>
+      <td title="${esc(it.inv ? it.inv.invTitle : it.place || '')}">${it.inv ? `<span class="sc-t">${esc(it.inv.invTitle)}</span><span class="sc-s">${esc(it.inv.item)}</span>`
+    : `<span class="sc-t">${esc(it.place || '—')}</span><span class="sc-s mono">${esc(eniOf(it))}</span>`}</td>
       <td class="num">${it.pages.length}</td></tr>`;
   }
 
@@ -134,22 +146,23 @@ export function mountScans(host) {
       <tbody>${items.map((it) => rowHTML(it, it.key === curKey)).join('')}</tbody></table></div></div></div>`;
   }
 
+  // Страницы скана — просмотрщиком ядра (масштаб, поворот, во весь экран, листание): решать «смазано,
+  // не видна печать» по миниатюре нельзя (находка аудита 30.10). Страница скана — файл просмотрщика.
+  const kindOf = (t) => ((t || '').startsWith('image/') ? 'image' : t === 'application/pdf' ? 'pdf' : 'other');
+  // Скан — один документ: страницы-картинки — листами одного файла, PDF — сам файл.
+  const viewDoc = (it) => {
+    const pages = it.pages.filter((p) => p && p.dataUrl);
+    if (!pages.length) return { id: 'scan:' + it.key, type: it.title, files: [] };
+    const first = pages[0];
+    const file = { id: it.key + '#f', name: it.title, type: first.type || '', mime: first.type || '', kind: kindOf(first.type), dataUrl: first.dataUrl, size: first.size || 0 };
+    if (pages.length > 1) file.scanPages = pages.map((p) => ({ name: p.name, type: p.type || '', dataUrl: p.dataUrl }));
+    return { id: 'scan:' + it.key, type: it.title, files: [file] };
+  };
   function viewerHTML(it) {
-    if (pageKey !== it.key) { pageKey = it.key; pageNo = 0; }
-    const pages = it.pages;
-    if (!pages.length) return '<p class="sc-hint">В скане нет страниц.</p>';
-    pageNo = Math.max(0, Math.min(pageNo, pages.length - 1));
-    const p = pages[pageNo];
-    const big = p.type === 'application/pdf'
-      ? `<iframe class="sc-page" src="${esc(p.dataUrl || '')}" title="${esc(p.name)}"></iframe>`
-      : `<img class="sc-page" data-sc-img src="${esc(p.dataUrl || '')}" alt="${esc(p.name)}">`;
-    return `<section class="sc-view" aria-label="Страницы скана">
-      <div class="sc-big">${big}<p class="sc-lost" hidden>Файл страницы недоступен — он не сохранился после перезагрузки.</p></div>
-      <div class="sc-strip" role="group" aria-label="Страницы">
-        <span class="sc-pn">Страница <b>${pageNo + 1}</b> из ${pages.length}</span>
-        ${pages.length > 1 ? `<span class="sc-thumbs">${pages.map((pg, i) => `<button type="button" class="sc-th ${i === pageNo ? 'on' : ''}" data-sc-page="${i}" aria-label="Страница ${i + 1}" aria-pressed="${i === pageNo}">
-          ${pg.type === 'application/pdf' ? '<span>PDF</span>' : `<img src="${esc(pg.dataUrl || '')}" alt="">`}<i>${i + 1}</i></button>`).join('')}</span>` : ''}
-      </div></section>`;
+    if (!it.pages.length) return '<p class="sc-hint">В скане нет страниц.</p>';
+    const doc = viewDoc(it);
+    if (!doc.files.length) return '<p class="sc-hint">Файлы страниц недоступны — они не сохранились после перезагрузки.</p>';
+    return `<section class="sc-view" aria-label="Страницы скана">${pageViewerHTML(doc, { activeFileId: viewFile.get(it.key) })}</section>`;
   }
 
   function infoHTML(it, rec) {
@@ -159,7 +172,7 @@ export function mountScans(host) {
     const decided = it.state !== 'wait'
       ? row(scanStateLabel(it.state), `${esc(it.decidedBy || '—')}, ${esc(fmtFull(it.decidedAt))}`) + row('Причина', esc(it.reason)) : '';
     return `<section class="sc-sec" aria-label="Сведения"><dl class="sc-dl">
-      ${row('Объект', card)}${row('ЕНИ', it.eni ? `<span class="mono">${esc(it.eni)}</span>` : '')}
+      ${it.inv ? '' : row('Объект', card) + row('ЕНИ', it.eni ? `<span class="mono">${esc(eniOf(it))}</span>` : '')}
       ${row('Объект имущества', oi ? esc(oiLabel(oi)) : '')}
       ${it.inv ? row('Опись', esc(it.inv.invTitle)) + row((it.inv.itemIds || []).length > 1 ? 'Позиции описи' : 'Позиция описи', esc(it.inv.item)) : ''}
       ${row('Источник', esc(SRC_LABEL[it.source]))}${row('Запрос', esc(it.request || ''))}
@@ -185,13 +198,21 @@ export function mountScans(host) {
     const ois = rec ? rec.oi || [] : [];
     return `<section class="sc-sec" aria-label="${esc(head)}"><h3>${esc(head)}</h3><div class="sc-form">
       <div class="field"><label for="sc-f-type">Вид документа</label>
-        <select class="select" id="sc-f-type" data-sc-f-type>${types.map((t) => `<option ${draft.docType === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+        <select class="select" id="sc-f-type" data-sc-f-type ${draft.docType ? '' : 'aria-invalid="false"'}>${draft.docType ? '' : '<option value="" selected>— выберите вид —</option>'}${types.map((t) => `<option ${draft.docType === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
       ${it.inv ? `<div class="field"><label>К чему относится</label><p class="sc-hint">Позиция описи: ${esc(it.inv.item)}</p></div>` : `<div class="field"><label for="sc-f-oi">К чему относится</label>
         <select class="select" id="sc-f-oi" data-sc-f-oi><option value="" ${draft.oiId ? '' : 'selected'}>Объект оценки в целом</option>
           ${ois.map((o) => `<option value="${esc(o.id)}" ${draft.oiId === o.id ? 'selected' : ''}>${esc(oiLabel(o))}</option>`).join('')}</select></div>`}
       <div class="field sc-f-wide"><label for="sc-f-title">Название документа</label>
         <input class="input" id="sc-f-title" data-sc-f-title value="${esc(draft.title)}" autocomplete="off"></div>
     </div></section>`;
+  }
+
+  // Итог выбора над «Принять» — видно, как ляжет документ, даже если поля формы под прокруткой.
+  function asText(it) {
+    const rec = recOf(it);
+    const oi = draft.oiId && rec ? (rec.oi || []).find((o) => o.id === draft.oiId) : null;
+    const to = it.inv ? (it.inv.item || 'позиция описи') : oi ? oiLabel(oi) : 'объект оценки в целом';
+    return `Принять как: <b>${esc(draft.docType || 'вид не выбран')}</b> · ${esc(to)}`;
   }
 
   function footHTML(it) {
@@ -203,6 +224,7 @@ export function mountScans(host) {
         <span class="sc-seglab">Переснять страницы</span>
         ${it.pages.map((p, i) => `<button type="button" class="sc-pgchip" data-sc-retake-page="${i + 1}" aria-pressed="${draft.pages.includes(i + 1)}">${i + 1}</button>`).join('')}
         <span class="sc-hint">${draft.pages.length ? '' : 'не отмечены — все'}</span></div>` : ''}
+      <p class="sc-hint sc-as" data-sc-as>${asText(it)}</p>
       <p class="sc-err" data-sc-err ${err ? '' : 'hidden'}>${esc(err)}</p>
       <p class="sc-hint" id="scNeed" data-sc-need ${empty ? '' : 'hidden'}>Чтобы вернуть или отклонить, укажите причину.</p>
       <div class="sc-acts">
@@ -252,20 +274,32 @@ export function mountScans(host) {
     const rec = recOf(it);
     const wait = it.state === 'wait';
     const canEdit = it.state === 'accepted' && it.docId && !it.inv;
+    // Документ принят к ОИ — ссылка на ОИ, к объекту в целом — на карточку ОЦ.
+    const docOi = it.doc && it.doc.oiId;
+    const docOiRec = docOi && rec ? (rec.oi || []).find((o) => o.id === docOi) : null;
     const docLink = it.state === 'accepted' && it.docId
       ? `<footer class="sc-foot sc-foot-link"><p class="sc-err" data-sc-err ${err ? '' : 'hidden'}>${esc(err)}</p><div class="sc-acts">
-        <a class="btn btn-ghost" data-sc-open-doc href="${esc(build({ typeId: it.typeId, ocId: it.ocId }))}">Открыть документ у объекта</a>
+        ${it.inv ? '' : `<a class="btn btn-ghost" data-sc-open-doc href="${esc(build({ typeId: it.typeId, ocId: it.ocId, rest: docOi ? ['oi', docOi] : [] }))}"
+          title="${esc(`«${it.doc ? it.doc.name : it.title}» — во вкладке документов`)}">Открыть ${docOiRec ? `«${esc(oiLabel(docOiRec))}»` : 'карточку объекта'}</a>`}
         ${canEdit ? '<button class="btn btn-primary" data-sc-edit>Сохранить правку</button>' : ''}</div></footer>` : '';
-    return `<aside class="sc-pane" aria-label="Выбранный скан">
+    return `<aside class="sc-pane" aria-label="Выбранный скан" data-sc-key="${esc(it.key)}">
       <header class="sc-head">
-        <button class="btn btn-ghost btn-sm sc-back" data-sc-back>‹ К перечню</button>
+        <div class="sc-headrow"><button class="btn btn-ghost btn-sm sc-back" data-sc-back>‹ К перечню</button>
+          <span class="sc-steps"><button type="button" class="btn btn-ghost btn-sm" data-sc-step="-1" aria-label="Предыдущий скан" title="Предыдущий (↑)">‹</button><button type="button" class="btn btn-ghost btn-sm" data-sc-step="1" aria-label="Следующий скан" title="Следующий (↓)">›</button></span></div>
         <h2>${esc(it.title)}</h2>
-        <p class="sc-meta"><span class="sc-src sc-src-${it.source === 'кадастр' ? 'cad' : 'insp'}">${esc(SRC_LABEL[it.source])}</span>
+        <p class="sc-meta">${srcTag(it)}
           <span class="sc-st sc-st-${it.state}">${esc(scanStateLabel(it.state))}</span></p>
       </header>
       <div class="sc-body">${viewerHTML(it)}${wait ? formHTML(it, rec) : canEdit ? formHTML(it, rec, 'Исправить принятое') : ''}${wait && it.source === 'осмотр' ? moveHTML(it) : ''}${infoHTML(it, rec)}</div>
       ${wait ? footHTML(it) : docLink}
     </aside>`;
+  }
+
+  // Пустое «Мне» — сколько их у всех и переход на «Все».
+  function emptyMine() {
+    if (whoKey() !== 'me') return '';
+    const n = scanQueue({ ...filter(), role: 'all' }).length;
+    return n ? `<br><span class="sc-hint">${whoDefault() === 'me' ? 'Среди ваших' : 'У вас'} их нет; у всех — ${n}. <button type="button" class="btn btn-ghost btn-sm" data-sc-who="all">Показать все</button></span>` : '';
   }
 
   // --- отрисовка -------------------------------------------------------------
@@ -277,29 +311,24 @@ export function mountScans(host) {
     const it = items.find((x) => x.key === curKey) || null;
     host.setCrumbs([{ label: 'Сканы с осмотров' }]);
     const keep = ['.sc-scroll', '.sc-body'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
-    const keepKey = scope.$('.sc-pane') ? pageKey : '';
+    const keepKey = scope.$('.sc-pane') ? (scope.$('.sc-pane').dataset.scKey || '') : '';
     const empty = !items.length;
     scope.setHTML(`<div class="sc ${hasUrl ? 'sc-detail' : ''} ${empty ? 'sc-bare' : ''}">
       <div class="sc-top">${tabsHTML()}
-        <div class="sc-tools">${seg('Источник', 'data-sc-src', SRC, srcKey())}${seg('Показывать', 'data-sc-who', WHO, whoKey())}</div></div>
+        <div class="sc-tools">${seg('Источник', 'data-sc-src', SRC, srcKey())}${seg('Чьи', 'data-sc-who', WHO, whoKey())}</div></div>
       <div class="sc-main">${empty
-    ? `<p class="sc-empty">${stateKey() === 'wait' ? 'Сканов, ждущих разбора, нет' : `Сканов в состоянии «${esc(scanStateLabel(stateKey()))}» нет`}</p>`
+    ? `<p class="sc-empty">${stateKey() === 'wait' ? 'Сканов, ждущих разбора, нет' : `Сканов в состоянии «${esc(scanStateLabel(stateKey()))}» нет`}${emptyMine()}</p>`
     : listHTML(items, curKey) + (it ? paneHTML(it) : '')}</div></div>`);
-    keep.forEach(([s, y]) => { const el = scope.$(s); if (el && (keepKey === pageKey || s === '.sc-scroll')) el.scrollTop = y; });
+    keep.forEach(([s, y]) => { const el = scope.$(s); if (el && (keepKey === curKey || s === '.sc-scroll')) el.scrollTop = y; });
     const cur = scope.$('tr.cur');
     if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
-    bindImg();
+    if (it && scope.$('.sc-view .viewer, .sc-view [data-vmode], .sc-view')) {
+      const doc = viewDoc(it);
+      if (doc.files.length) bindPageViewer(scope, doc, { within: '.sc-view', onChange: (id) => { if (id) viewFile.set(it.key, id); render(); } });
+    }
   }
 
-  function bindImg() {
-    const img = scope.$('[data-sc-img]');
-    if (!img) return;
-    img.addEventListener('error', () => {
-      img.hidden = true;
-      const lost = scope.$('.sc-lost');
-      if (lost) lost.hidden = false;
-    }, { once: true });
-  }
+
 
   // Следующий по списку после разобранного: на то же место, а если разобранный
   // был последним — на предыдущий (практика очередей проверки, auto-advance).
@@ -318,6 +347,7 @@ export function mountScans(host) {
     if (!it) return;
     try {
       if (kind === 'accept') {
+        if (!draft.docType && !it.inv) throw new Error('Выберите вид документа');
         acceptScan(it.key, { docType: draft.docType, oiId: draft.oiId, title: draft.title });
         toast('Принято, документ у объекта', 'ok');
       } else if (kind === 'edit') {
@@ -357,7 +387,12 @@ export function mountScans(host) {
   scope.on('click', '[data-sc-who]', (e, b) => nav({ who: b.dataset.scWho, key: '' }));
   scope.on('click', '[data-sc-row]', (e, tr) => { if (!e.target.closest('a')) nav({ key: tr.dataset.scRow }); });
   scope.on('click', '[data-sc-back]', () => nav({ key: '' }));
-  scope.on('click', '[data-sc-page]', (e, b) => { pageNo = Number(b.dataset.scPage) || 0; render(); });
+  scope.on('click', '[data-sc-step]', (e, b) => {
+    const items = itemsNow();
+    const at = items.findIndex((x) => x.key === (q().key || ''));
+    const next = items[Math.max(0, Math.min(items.length - 1, (at < 0 ? 0 : at) + Number(b.dataset.scStep)))];
+    if (next) nav({ key: next.key });
+  });
   scope.on('click', '[data-sc-accept]', () => act('accept'));
   scope.on('click', '[data-sc-edit]', () => act('edit'));
   scope.on('click', '[data-sc-move-go]', () => { if (move.pick) act('move'); });
@@ -377,8 +412,9 @@ export function mountScans(host) {
   scope.on('change', '[data-sc-move-oi]', (e, el) => { move.oiId = el.value; });
   scope.on('click', '[data-sc-return]', (e, b) => { if (!b.disabled) act('return'); });
   scope.on('click', '[data-sc-reject]', (e, b) => { if (!b.disabled) act('reject'); });
-  scope.on('change', '[data-sc-f-type]', (e, el) => { draft.docType = el.value; });
-  scope.on('change', '[data-sc-f-oi]', (e, el) => { draft.oiId = el.value; });
+  const syncAs = () => { const it = itemsNow().find((x) => x.key === (q().key || '')) || itemsNow()[0]; const p = scope.$('[data-sc-as]'); if (p && it) p.innerHTML = asText(it); };
+  scope.on('change', '[data-sc-f-type]', (e, el) => { draft.docType = el.value; syncAs(); });
+  scope.on('change', '[data-sc-f-oi]', (e, el) => { draft.oiId = el.value; syncAs(); });
   scope.on('input', '[data-sc-f-title]', (e, el) => { draft.title = el.value; });
   // Причина: кнопки включаются на лету, без перерисовки — иначе поле теряет фокус.
   scope.on('input', '[data-sc-f-reason]', (e, el) => {
@@ -401,6 +437,7 @@ export function mountScans(host) {
     const next = items[Math.max(0, Math.min(items.length - 1, (at < 0 ? 0 : at) + (e.key === 'ArrowDown' ? 1 : -1)))];
     if (next && next.key !== urlKey) { e.preventDefault(); nav({ key: next.key }); }
   });
+  bindPageViewerKeys(scope);
   const off = session.subscribe(() => { if (scope.root.isConnected) render(); });
 
   render();

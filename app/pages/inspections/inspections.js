@@ -2187,7 +2187,7 @@ export function mountInspections(host) {
         <thead><tr><th>№ учр.</th><th>ЕНИ</th><th>Документ</th><th>Итог</th><th>Файл</th><th class="num">Дата скан.</th><th>Ответ</th></tr></thead>
         <tbody>${r.rows.map((x) => {
           const s = all.get(x.typeId + '|' + x.ocId);
-          return `<tr><td class="num" title="${esc(x.inst)}">${esc(codeByName(x.inst) || '—')}</td><td class="mono">${esc(x.eni)}</td>
+          return `<tr><td class="num" title="${esc(x.inst)}">${esc(codeByName(x.inst) || '—')}</td><td class="mono">${esc(fmtEni(x.eni) || x.eni)}</td>
             <td><b>${esc(x.doc)}</b>${s ? `<span class="ip-sub">${esc(s.title)}</span>` : ''}${x.note ? `<span class="ip-sub">${esc(x.note)}</span>` : ''}</td>
             <td><span class="ip-rmark ${x.result === 'got' ? 'ok' : x.result ? 'off' : 'wait'}">${esc(cadResultLabel(x.result))}</span></td>
             <td>${x.file ? (x.file.docId && x.typeId ? `<a href="${esc(build({ typeId: x.typeId, ocId: x.ocId }))}" title="В документах объекта">${esc(x.file.name || cadFileName(x, codeByName(x.inst)))}</a>` : esc(x.file.name || cadFileName(x, codeByName(x.inst)))) : '—'}</td>
@@ -2201,7 +2201,10 @@ export function mountInspections(host) {
     const d = cadDraft;
     const eligible = people.filter((p) => !p.fired);
     const q = (d.q || '').trim().toLowerCase();
-    const found = q.length >= 2 ? [...all.values()].filter((s) => `${s.eniAll || ''} ${s.eni || ''}`.toLowerCase().includes(q) || (s.title || '').toLowerCase().includes(q)).slice(0, 8) : [];
+    // ЕНИ ищется и с дефисами, и одними цифрами — как набрали.
+    const qd = q.replace(/\D/g, '');
+    const found = q.length >= 2 ? [...all.values()].filter((s) => `${s.eniAll || ''} ${s.eni || ''}`.toLowerCase().includes(q)
+      || (qd.length >= 4 && `${s.eniAll || ''} ${s.eni || ''}`.replace(/\D/g, '').includes(qd)) || (s.title || '').toLowerCase().includes(q)).slice(0, 8) : [];
     const edit = d.editId ? cadRequest(d.editId) : null;
     return `<section class="ip-work ip-card" aria-label="${edit ? `Запрос № ${edit.no} — правка` : 'Новый запрос документов'}">
       <header class="ip-card-head"><div class="ip-card-title"><h1>${edit ? `Запрос № ${edit.no} — правка` : 'Новый запрос'}</h1>
@@ -2218,13 +2221,13 @@ export function mountInspections(host) {
         </div>
         <div class="field ip-cad-find"><label for="ip-cad-q">Добавить объект — ЕНИ или адрес</label>
           <span class="isearch">${SEARCH_ICON}<input id="ip-cad-q" data-ip-cad-q value="${esc(d.q || '')}" autocomplete="off" placeholder="не меньше двух знаков"></span>
-          ${found.length ? `<ul class="ip-cad-found">${found.map((s) => `<li><button data-ip-cad-add="${esc(s.typeId + '|' + s.id)}"><span class="mono">${esc(s.eni || '')}</span> ${esc(s.title)}<span class="ip-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>` : ''}
+          ${found.length ? `<ul class="ip-cad-found">${found.map((s) => `<li><button data-ip-cad-add="${esc(s.typeId + '|' + s.id)}"><span class="mono">${esc(fmtEni(s.eni) || s.eni || '')}</span> ${esc(s.title)}<span class="ip-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>` : ''}
         </div>
         <datalist id="ip-cad-docs">${cadDocs().map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
         ${d.rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-cadtbl">
           <colgroup><col class="c-inst"><col class="c-eni"><col><col><col><col class="c-x"></colgroup>
           <thead><tr><th>№ учр.</th><th>ЕНИ</th><th>Объект</th><th>Документ</th><th>Комментарий</th><th></th></tr></thead>
-          <tbody>${d.rows.map((x, i) => `<tr><td class="num" title="${esc(x.inst)}">${esc(codeByName(x.inst) || '—')}</td><td class="mono">${esc(x.eni)}</td><td>${esc(x.title)}</td>
+          <tbody>${d.rows.map((x, i) => `<tr><td class="num" title="${esc(x.inst)}">${esc(codeByName(x.inst) || '—')}</td><td class="mono">${esc(fmtEni(x.eni) || x.eni)}</td><td>${esc(x.title)}</td>
             <td><input class="input" list="ip-cad-docs" data-ip-cad-row="${i}" data-k="doc" value="${esc(x.doc)}" aria-label="Документ"></td>
             <td><input class="input" data-ip-cad-row="${i}" data-k="note" value="${esc(x.note)}" aria-label="Комментарий"></td>
             <td><button class="ip-x" data-ip-cad-del="${i}" aria-label="Убрать строку" title="Убрать строку">×</button></td></tr>`).join('')}</tbody>
