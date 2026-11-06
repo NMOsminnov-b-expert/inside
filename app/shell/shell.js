@@ -4,6 +4,7 @@ import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF,
 import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
 import { registerPersisted } from '../kernel/persist.js';
 import { scanCounts } from '../kernel/scanQueue.js';
+import { mountGoto } from './goto.js';
 
 // Каркас окна. Ничего не знает про ОЦ/ОИ: рисует только то, что ему отдали.
 const state = { collapsed: false, drawer: null, drawerOpen: false, userExtra: null };
@@ -11,6 +12,7 @@ let drawerScope = null;
 
 export function initShell() {
   bindSidebar();
+  mountGoto();
   bindDrawerTab();
   bindNav();
   bindUserMenu();

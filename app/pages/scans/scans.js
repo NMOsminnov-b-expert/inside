@@ -161,7 +161,7 @@ export function mountScans(host) {
     return `<section class="sc-sec" aria-label="Сведения"><dl class="sc-dl">
       ${row('Объект', card)}${row('ЕНИ', it.eni ? `<span class="mono">${esc(it.eni)}</span>` : '')}
       ${row('Объект имущества', oi ? esc(oiLabel(oi)) : '')}
-      ${it.inv ? row('Опись', esc(it.inv.invTitle)) + row('Позиция описи', esc(it.inv.item)) : ''}
+      ${it.inv ? row('Опись', esc(it.inv.invTitle)) + row((it.inv.itemIds || []).length > 1 ? 'Позиции описи' : 'Позиция описи', esc(it.inv.item)) : ''}
       ${row('Источник', esc(SRC_LABEL[it.source]))}${row('Запрос', esc(it.request || ''))}
       ${row('Прислал', esc(it.by || '—'))}${row('Получено', esc(fmtFull(it.at)))}
       ${row('Дата сканирования', it.scanDate ? esc(it.scanDate.split('-').reverse().join('.')) : '')}${row('Ответ', esc(it.answer || ''))}

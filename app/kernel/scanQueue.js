@@ -76,9 +76,12 @@ function scanItem(res, s, cache) {
   const review = s.review || {};
   const rec = cache(res.typeId, res.ocId);
   const inv = s.inv ? inventoryById(s.inv.invId) : null;
-  const item = inv ? inv.items.find((x) => x.id === s.inv.itemId) : null;
+  const ids = s.inv ? (s.inv.itemIds && s.inv.itemIds.length ? s.inv.itemIds : [s.inv.itemId]) : [];
+  const items = inv ? ids.map((id) => inv.items.find((x) => x.id === id)).filter(Boolean) : [];
+  const item = items[0] || null;
   return {
-    inv: s.inv ? { invId: s.inv.invId, itemId: s.inv.itemId, invTitle: inv ? inv.title : '', item: item ? `${item.no}. ${item.name} · ${item.inv}` : '' } : null,
+    inv: s.inv ? { invId: s.inv.invId, itemId: s.inv.itemId, itemIds: ids, invTitle: inv ? inv.title : '',
+      item: items.length > 1 ? `позиции ${items.map((x) => x.no).join(', ')} (${items.length})` : item ? `${item.no}. ${item.name} · ${item.inv}` : '' } : null,
     key: scanKey(res.typeId, res.ocId, s.id), source: s.inv ? 'опись' : 'осмотр', typeId: res.typeId, ocId: res.ocId, oiId: s.oiId || '',
     title: s.title || 'Документ с осмотра', docType: s.docType || '', by: s.by || '', at: s.at || '', pages: s.pages || [],
     state: review.state || 'wait', reason: review.reason || '', decidedBy: review.by || '', decidedAt: review.at || '', docId: review.docId || '',
@@ -240,7 +243,7 @@ export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
   if (loc.kind === 'scan' && loc.scan.inv) {
     doc.source = 'опись';
     doc.from = `скан описи, ${loc.scan.by || ''}`.replace(/, $/, '');
-    addItemDoc(loc.scan.inv.invId, loc.scan.inv.itemId, doc);
+    addItemDoc(loc.scan.inv.invId, (loc.scan.inv.itemIds || []).length ? loc.scan.inv.itemIds : loc.scan.inv.itemId, doc);
     setReview(loc, { state: 'accepted', reason: '', by: me(), at: now(), docId: doc.id, oiId: '' });
     scheduleSave();
     return doc;

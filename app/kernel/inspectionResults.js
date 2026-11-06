@@ -136,7 +136,8 @@ export function addResultScan(typeId, ocId, files, { title = '', oiId = '', by =
   const scan = { id: 'sc-' + Date.now().toString(36) + '-' + (++scanSeq), title: title || 'Документ с осмотра', oiId, by,
     at: new Date().toISOString(), source: 'осмотр', status: 'ждёт ЦОД', pages };
   if (docType) scan.docType = docType;
-  if (inv) scan.inv = { invId: inv.invId, itemId: inv.itemId };
+  // Скан на группу позиций (акт на несколько позиций) — itemIds; на одну — itemId.
+  if (inv) scan.inv = { invId: inv.invId, itemId: inv.itemId || (inv.itemIds || [])[0] || '', ...((inv.itemIds || []).length > 1 ? { itemIds: inv.itemIds.slice() } : {}) };
   const r = resultsOf(typeId, ocId);
   if (!Array.isArray(r.scans)) r.scans = [];
   r.scans.push(scan);

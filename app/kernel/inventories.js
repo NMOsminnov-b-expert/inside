@@ -152,26 +152,38 @@ export function addExtra(invId, { name, comment = '' }, { by = '', assignId = ''
   return x;
 }
 
-// Документы позиции (В13): принятый ЦОД скан по описи.
+// Документы позиции (В13): принятый ЦОД скан по описи. Документ бывает на группу позиций —
+// например, акт на несколько позиций (указание пользователя 06.11.2026: «Акт может быть
+// составлен на группу позиций»): он лежит у каждой позиции группы с одним id, в doc.items —
+// позиции группы.
 export function itemDocsOf(invId, itemId) {
   return itemDocs.get(mk(invId, itemId)) || [];
 }
-export function addItemDoc(invId, itemId, doc) {
-  const k = mk(invId, itemId);
-  itemDocs.set(k, [...(itemDocs.get(k) || []), doc]);
+export function addItemDoc(invId, itemIds, doc) {
+  const ids = [...new Set(Array.isArray(itemIds) ? itemIds : [itemIds])].filter(Boolean);
+  if (ids.length > 1) doc.items = ids;
+  ids.forEach((itemId) => {
+    const k = mk(invId, itemId);
+    itemDocs.set(k, [...(itemDocs.get(k) || []), doc]);
+  });
   scheduleSave();
   return doc;
 }
-// Все документы позиций — для поиска по всем документам.
+// Все документы позиций — для поиска по всем документам; документ группы — один раз,
+// items — все его позиции.
 export function allItemDocs() {
-  const out = [];
+  const out = new Map();
   itemDocs.forEach((docs, k) => {
     const [invId, itemId] = k.split('|');
     const inv = inventoryById(invId);
     const item = inv && inv.items.find((x) => x.id === itemId);
-    docs.forEach((d) => out.push({ doc: d, inv, item }));
+    docs.forEach((d) => {
+      const key = `${invId}|${d.id}`;
+      if (!out.has(key)) out.set(key, { doc: d, inv, item, items: [] });
+      if (item) out.get(key).items.push(item);
+    });
   });
-  return out;
+  return [...out.values()];
 }
 
 // Ход описи (Б5): осмотрено / не найдено / нерабочих / в ремонте / сегодня /

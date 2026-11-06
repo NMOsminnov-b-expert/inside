@@ -43,12 +43,13 @@ export function cardDocuments() {
       (rec.oi || []).forEach((o) => (o.docs || []).forEach((d) => out.push(row(d, o))));
     });
   });
-  allItemDocs().forEach(({ doc: d, inv, item }) => {
+  allItemDocs().forEach(({ doc: d, inv, item, items = [] }) => {
     if (!inv) return;
+    const where = items.length > 1 ? ` · позиции ${items.map((x) => x.no).join(', ')}` : item ? ` · позиция ${item.no} · ${item.inv}` : '';
     out.push({
       id: `inv:${inv.id}|${item ? item.id : ''}|${d.id}`, title: d.name || '', type: d.type || 'Прочее', raw: d, files: fileOf(d).length ? fileOf(d) : [{ name: d.name || '—' }],
       number: '', date: isoDate(d.date), institution: inv.institution || '', regAuthority: '', regDate: '',
-      affiliation: `Опись: ${inv.title}${item ? ` · позиция ${item.no} · ${item.inv}` : ''}`,
+      affiliation: `Опись: ${inv.title}${where}`,
       status: d.status || 'Загружен', source: 'inventory', href: '',
     });
   });
