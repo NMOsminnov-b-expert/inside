@@ -297,3 +297,13 @@ body .docs-modal .df-preview-body .vpage{width:320px;min-height:420px;padding:18
    не помещается. Раньше остаток отдавался резиновой колонке, и при нехватке
    места table-layout:fixed ломал раскладку; теперь таблица прокручивается. */
 body[data-page="docs"] .docs-cols{overflow-x:auto}
+
+/* Документ позиции описи — только просмотр (решение 06.11.2026): сведения сверху, просмотрщик ниже. */
+body[data-page="docs"] .docs-inv{display:flex;flex-direction:column;gap:12px;min-height:0}
+body[data-page="docs"] .docs-inv-head h2{margin:8px 0;font-size:16px}
+body[data-page="docs"] .docs-inv-dl{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px;margin:0}
+body[data-page="docs"] .docs-inv-dl > div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;font-size:12.5px}
+body[data-page="docs"] .docs-inv-dl dt{color:var(--muted)}
+body[data-page="docs"] .docs-inv-dl dd{margin:0;overflow-wrap:anywhere}
+body[data-page="docs"] .docs-inv-view{min-height:520px;display:flex;overflow:hidden}
+body[data-page="docs"] .docs-inv-view > *{flex:1 1 auto;min-width:0}

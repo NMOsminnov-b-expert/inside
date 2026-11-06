@@ -20,7 +20,8 @@ import {
   documentInstitutions,
 } from '../../kernel/documentsRegistry.js';
 import { openDocumentModal } from './create.js';
-import { cardDocuments } from '../../kernel/allDocs.js';
+import { cardDocuments, inventoryDocument } from '../../kernel/allDocs.js';
+import { pageViewerHTML, bindPageViewer } from '../../kernel/viewer/pageViewer.js';
 import { detailHTML, bindDetail } from './detail.js';
 import { persistView, persistSizes } from '../../kernel/viewState.js';
 
@@ -86,8 +87,10 @@ function cellHTML(col, doc, n) {
   if (col.key === 'idx') return `<td class="mono">${n}</td>`;
   if (col.key === 'type') return `<td><span class="tag-mini">${esc(doc.type || '—')}</span></td>`;
   if (col.key === 'name') {
+    // Название документа (как в карточке), без него — вид и имя файла.
     const fname = (doc.files || [])[0];
-    const nameCell = `${esc(doc.type || '—')} · ${fname ? esc(fname.name) : '—'}`;
+    const nameCell = doc.title ? `${esc(doc.title)}${fname && fname.name !== doc.title ? ` · ${esc(fname.name)}` : ''}`
+      : `${esc(doc.type || '—')} · ${fname ? esc(fname.name) : '—'}`;
     return `<td><span class="ell" title="${nameCell}">${nameCell}</span></td>`;
   }
   if (col.key === 'number') return `<td>${esc(doc.number || '—')}</td>`;
@@ -105,9 +108,9 @@ function cellHTML(col, doc, n) {
 }
 
 function rowHTML(cols, doc, n) {
-  // Документ карточки — открывает карточку, где он лежит; позиции описи —
-  // строка без перехода (своей страницы у описи у регионала нет).
-  const go = doc.href ? ` data-doc-href="${esc(doc.href)}"` : doc.source === 'inventory' ? ' data-doc-inv' : ` data-doc-row="${esc(doc.id)}"`;
+  // Документ карточки — открывает карточку, где он лежит; документ позиции описи —
+  // свою страницу просмотра (#/docs/inv:…), реестровый — карточку документа.
+  const go = doc.href ? ` data-doc-href="${esc(doc.href)}"` : ` data-doc-row="${esc(doc.id)}"`;
   return `<tr${go} class="${doc.source ? 'docs-ext' : ''}">${cols.map((c) => cellHTML(c, doc, n)).join('')}</tr>`;
 }
 
@@ -245,11 +248,38 @@ export function mountDocs(host) {
     state.page = 1;
   }
 
+  // Документ позиции описи — только просмотр: название, откуда, вид и дата, файл в просмотрщике.
+  function renderInventoryDoc(id) {
+    setActiveNav('docs');
+    const doc = inventoryDocument(id);
+    setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }, { label: doc ? (doc.title || doc.type) : 'Не найден', current: true }]);
+    if (!doc) {
+      scope.setHTML(`<div class="card card-pad">Документ позиции описи не найден.
+        <button class="btn btn-ghost btn-sm" data-docs-back-menu style="margin-left:10px">К документам</button></div>`);
+      const b = scope.$('[data-docs-back-menu]');
+      if (b) b.onclick = () => { location.hash = DOCS_HREF; };
+      return;
+    }
+    const row = (k, v) => (v ? `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>` : '');
+    scope.setHTML(`<div class="docs-inv">
+      <section class="card card-pad docs-inv-head">
+        <button class="btn btn-ghost btn-sm" data-docs-back-menu>‹ К документам</button>
+        <h2>${esc(doc.title || doc.type)}</h2>
+        <dl class="docs-inv-dl">${row('Вид', doc.type)}${row('Откуда', doc.affiliation)}${row('Учреждение', doc.institution)}${row('Дата', doc.date)}${row('Статус', doc.status)}</dl>
+      </section>
+      <section class="card docs-inv-view">${doc.files.length ? pageViewerHTML(doc, {}) : '<p class="card-pad">Файл документа недоступен — он не сохранился после перезагрузки.</p>'}</section>
+    </div>`);
+    const b = scope.$('[data-docs-back-menu]');
+    if (b) b.onclick = () => { location.hash = DOCS_HREF; };
+    if (doc.files.length) bindPageViewer(scope, doc, { host, onChange: () => renderInventoryDoc(id) });
+  }
+
   function render() {
     const id = route && route.id;
     const fromInst = !!(route && route.query && route.query.from === 'inst');
     setActiveNav(fromInst ? 'inst' : 'docs');
 
+    if (id && id.startsWith('inv:')) { renderInventoryDoc(id); return; }
     if (id) {
       const doc = getDocument(id);
       if (!doc) {

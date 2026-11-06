@@ -266,7 +266,9 @@ function matchText(doc, q) {
   if (!q) return true;
   // Наименование в списке складывается из типа и имени файла, поэтому в поиск
   // входят оба — искать по тому, что человек видит в столбце.
-  const hay = [doc.type, doc.number, doc.date, doc.owner, doc.institution,
+  // Название, введённое ЦОД («Паспорт принтера»), — главное (решение пользователя 06.11.2026
+  // «По названию и имени файла»); имя файла — запасное.
+  const hay = [doc.title, doc.type, doc.number, doc.date, doc.owner, doc.institution,
     doc.regAuthority, doc.regDate, doc.affiliation,
     ...(doc.files || []).map((f) => f.name)]
     .filter(Boolean).join(' ').toLowerCase();
