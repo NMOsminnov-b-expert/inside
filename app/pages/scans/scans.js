@@ -305,16 +305,17 @@ export function mountScans(host) {
         ${it.inv ? '' : `<a class="btn btn-ghost" data-sc-open-doc href="${esc(build({ typeId: it.typeId, ocId: it.ocId, rest: docOi ? ['oi', docOi] : [] }))}"
           title="${esc(`«${it.doc ? it.doc.name : it.title}» — во вкладке документов`)}">Открыть ${docOiRec ? `«${esc(oiLabel(docOiRec))}»` : 'карточку объекта'}</a>`}
         ${canEdit ? '<button class="btn btn-primary" data-sc-edit>Сохранить правку</button>' : ''}</div></footer>` : '';
+    // Над документом ничего нет (указание пользователя 06.11.2026: «Оптимизируем по высоте зону для
+    // просмотрщика… Шапка сверху, шапка снизу. Переделываем страницу»): название, метки и «‹ ›» — верхом
+    // колонки полей разбора; на узкой панели — короткой строкой над документом.
     return `<aside class="sc-pane" aria-label="Выбранный скан" data-sc-key="${esc(it.key)}">
-      <header class="sc-head">
-        <div class="sc-headrow"><button class="btn btn-ghost btn-sm sc-back" data-sc-back>‹ К перечню</button>
-          <span class="sc-steps"><button type="button" class="btn btn-ghost btn-sm" data-sc-step="-1" aria-label="Предыдущий скан" title="Предыдущий (↑)">‹</button><button type="button" class="btn btn-ghost btn-sm" data-sc-step="1" aria-label="Следующий скан" title="Следующий (↓)">›</button></span></div>
-        <h2>${esc(it.title)}</h2>
-        <p class="sc-meta">${srcTag(it)}
-          <span class="sc-st sc-st-${it.state}">${esc(scanStateLabel(it.state))}</span></p>
-      </header>
       <div class="sc-body" style="--sc-side:${sizes.side}px"><div class="sc-docarea">${viewerHTML(it)}</div>${splitHTML('side')}
-        <div class="sc-sidecol"><div class="sc-side">${wait ? formHTML(it, rec) : canEdit ? formHTML(it, rec, 'Исправить принятое') : ''}${wait && it.source === 'осмотр' ? moveHTML(it) : ''}${infoHTML(it, rec)}</div>
+        <div class="sc-sidecol"><header class="sc-head">
+          <button class="btn btn-ghost btn-sm sc-back" data-sc-back>‹ К перечню</button>
+          <h2 title="${esc(it.title)}">${esc(it.title)}</h2>
+          <span class="sc-steps"><button type="button" class="btn btn-ghost btn-sm" data-sc-step="-1" aria-label="Предыдущий скан" title="Предыдущий (↑)">‹</button><button type="button" class="btn btn-ghost btn-sm" data-sc-step="1" aria-label="Следующий скан" title="Следующий (↓)">›</button></span>
+          <p class="sc-meta">${srcTag(it)}<span class="sc-st sc-st-${it.state}">${esc(scanStateLabel(it.state))}</span></p>
+        </header><div class="sc-side">${wait ? formHTML(it, rec) : canEdit ? formHTML(it, rec, 'Исправить принятое') : ''}${wait && it.source === 'осмотр' ? moveHTML(it) : ''}${infoHTML(it, rec)}</div>
         ${wait ? footHTML(it) : docLink}</div></div>
     </aside>`;
   }
@@ -337,12 +338,12 @@ export function mountScans(host) {
     const keep = ['.sc-scroll', '.sc-body', '.sc-side'].map((s) => [s, scope.$(s) ? scope.$(s).scrollTop : 0]);
     const keepKey = scope.$('.sc-pane') ? (scope.$('.sc-pane').dataset.scKey || '') : '';
     const empty = !items.length;
+    // Состояния и отборы — верхом колонки перечня, а не полосой во всю ширину над документом.
+    const top = `<div class="sc-top">${tabsHTML()}
+        <div class="sc-tools">${seg('Источник', 'data-sc-src', SRC, srcKey())}${seg('Чьи', 'data-sc-who', WHO, whoKey())}</div></div>`;
+    const emptyText = `<p class="sc-empty">${stateKey() === 'wait' ? 'Сканов, ждущих разбора, нет' : `Сканов в состоянии «${esc(scanStateLabel(stateKey()))}» нет`}${emptyMine()}</p>`;
     scope.setHTML(`<div class="sc ${hasUrl ? 'sc-detail' : ''} ${empty ? 'sc-bare' : ''}" style="--sc-list:${sizes.list}%">
-      <div class="sc-top">${tabsHTML()}
-        <div class="sc-tools">${seg('Источник', 'data-sc-src', SRC, srcKey())}${seg('Чьи', 'data-sc-who', WHO, whoKey())}</div></div>
-      <div class="sc-main">${empty
-    ? `<p class="sc-empty">${stateKey() === 'wait' ? 'Сканов, ждущих разбора, нет' : `Сканов в состоянии «${esc(scanStateLabel(stateKey()))}» нет`}${emptyMine()}</p>`
-    : listHTML(items, curKey) + (it ? splitHTML('list') + paneHTML(it) : '')}</div></div>`);
+      <div class="sc-main"><div class="sc-left">${top}${empty ? emptyText : listHTML(items, curKey)}</div>${it ? splitHTML('list') + paneHTML(it) : ''}</div></div>`);
     keep.forEach(([s, y]) => { const el = scope.$(s); if (el && (keepKey === curKey || s === '.sc-scroll')) el.scrollTop = y; });
     const cur = scope.$('tr.cur');
     if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
@@ -480,6 +481,7 @@ export function mountScans(host) {
     e.preventDefault();
     const kind = el.dataset.scSplit;
     const box = (kind === 'list' ? scope.$('.sc-main') : scope.$('.sc-body')).getBoundingClientRect();
+    // Перечень — доля ширины .sc-main.
     el.classList.add('on');
     el.setPointerCapture(e.pointerId);
     const move = (ev) => setSize(kind, kind === 'list' ? ((ev.clientX - box.left) / box.width) * 100 : box.right - ev.clientX);

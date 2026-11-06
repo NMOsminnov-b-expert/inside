@@ -103,3 +103,12 @@ def run(t):
         vis = pg.evaluate("() => { const b = document.querySelector('[data-sc-accept]').getBoundingClientRect(); return b.bottom <= innerHeight && b.top >= 0; }")
         t.ck(vis, '%d: «Принять» не в видимой части' % w)
     pg.set_viewport_size({'width': 1600, 'height': 900})
+
+    # --- высота документа (указание 06.11.2026: «Шапка сверху, шапка снизу. Переделываем страницу») ---
+    for w in (1920, 1280, 900):
+        pg.set_viewport_size({'width': w, 'height': 1000})
+        t.open('#/scans?key=%s' % k2.replace('|', '%7C'), wait='.sc-docarea')
+        g = pg.evaluate("""() => { const a = document.querySelector('.sc-docarea').getBoundingClientRect(); const m = document.querySelector('.sc-main').getBoundingClientRect();
+          const tabs = document.querySelector('.sc-view .vtabs'); return { gap: Math.round(a.top - m.top), h: Math.round(a.height), vh: innerHeight, tabs: !!tabs && getComputedStyle(tabs).display !== 'none' }; }""")
+        t.ck(g['gap'] <= 2 and g['h'] >= g['vh'] * 0.85 and not g['tabs'], '%d: над документом шапка или он ниже 85%% окна: %s' % (w, g))
+    pg.set_viewport_size({'width': 1600, 'height': 900})
