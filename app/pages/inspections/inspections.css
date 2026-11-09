@@ -1621,3 +1621,6 @@ body[data-page="inspections"] .ip-invpart[hidden]{display:none}
 /* Запрос переноса в «Сегодня»: строка с ответом регионала. */
 body[data-page="inspections"] .ip-today-move{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding:6px 8px;border-radius:8px}
 body[data-page="inspections"] .ip-today-acts{display:flex;gap:6px;margin-top:4px}
+
+body[data-page="inspections"] .ip-today-why{display:grid;gap:4px;margin-top:6px}
+body[data-page="inspections"] .ip-today-why label{font-size:12px;font-weight:600;color:var(--ink-label)}

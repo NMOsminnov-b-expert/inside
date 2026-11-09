@@ -50,8 +50,15 @@ def run(t):
     pg.click('.ip-today [data-ip-mode="all"]')
     t.wait_for('[data-ip-move-no="%s"]' % a['id'])
     pg.click('[data-ip-move-no="%s"]' % a['id'])
-    st = pg.evaluate("async (id) => { const x = (%s).allAssignments().find((y) => y.id === id); return [x.plannedAt, !!x.moveReq, !!x.moveRefused]; }" % K, a['id'])
-    t.ck(st == [a['later'], False, True], '«Отклонить» не оставило прежнюю дату: %s' % st)
+    # Причина отказа обязательна (пользователь 09.11.2026): без неё — ошибка у поля.
+    t.wait_for('[data-ip-move-why="%s"]' % a['id'])
+    pg.click('[data-ip-move-refuse="%s"]' % a['id'])
+    t.ck(t.wait_until("() => /причину/.test((document.querySelector('[data-ip-move-err]') || {}).textContent || '')"), 'отказ без причины не остановлен')
+    pg.fill('[data-ip-move-why="%s"]' % a['id'], 'Объект в плане недели')
+    pg.click('[data-ip-move-refuse="%s"]' % a['id'])
+    t.wait_until("(id) => !document.querySelector('[data-ip-move-why=\"' + id + '\"]')", a['id'])
+    st = pg.evaluate("async (id) => { const x = (%s).allAssignments().find((y) => y.id === id); return [x.plannedAt, !!x.moveReq, (x.moveRefused || {}).why || '']; }" % K, a['id'])
+    t.ck(st == [a['later'], False, 'Объект в плане недели'], '«Отклонить» не оставило прежнюю дату или потеряло причину: %s' % st)
 
     # Отчёт задним числом: до 3 рабочих дней — да, с пометкой; позже — нет.
     rep = pg.evaluate("""async () => { const K = %s; %s

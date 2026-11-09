@@ -158,3 +158,10 @@ def run(t):
              % (kind, st['buttons'], st['next']))
         t.ck(pg.locator('.pill-status').count() == 0,
              '%s: статус остался плашкой среди действий' % kind)
+
+    # Узкий экран (до 900 px): шкала — свёрнутой строкой, без кнопок «Развернуть» (пользователь 09.11.2026).
+    pg.set_viewport_size({'width': 760, 'height': 900})
+    t.ck(t.wait_until("() => { const f = document.querySelector('.st-flow .st-full'), m = document.querySelector('.st-flow .st-mini'); return f && m && getComputedStyle(f).display === 'none' && getComputedStyle(m).display !== 'none'; }"),
+         'на 760 шкала статусов не свёрнута')
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('.st-flow .st-toggle')].every((b) => getComputedStyle(b).display === 'none')"), 'на 760 видна кнопка разворота шкалы')
+    pg.set_viewport_size({'width': 1600, 'height': 900})

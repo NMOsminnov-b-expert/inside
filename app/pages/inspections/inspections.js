@@ -2255,6 +2255,7 @@ export function mountInspections(host) {
   // назначение, объект очереди, профиль; уведомление помечается прочитанным.
   let notes = [];
   const readSet = () => new Set(view.notesRead);
+  let moveRefusing = '';   // запрос переноса, по которому вводят причину отказа
   // «Сегодня» регионала (решение пользователя 05.11.2026 по разбору 12.10: «Сегодня» — один экран
   // утреннего обхода: горящие, просроченные, отсутствия, уведомления). Каждая строка ведёт туда,
   // где с ней работают; пустой блок говорит, что всё в порядке.
@@ -2276,7 +2277,12 @@ export function mountInspections(host) {
     const moveLi = (a) => `<li class="ip-today-move"><span class="ip-today-a">${esc((all.get(a.typeId + '|' + a.ocId) || {}).title || '—')}</span>
       <span class="ip-today-s">${esc(a.person)} · ${esc(a.moveReq.from ? fmtDate(a.moveReq.from) : 'без даты')} → <b>${esc(fmtDate(a.moveReq.date))}</b> · ${esc(a.moveReq.reason)}${a.moveReq.note ? ` — ${esc(a.moveReq.note)}` : ''}</span>
       <span class="ip-today-acts"><button type="button" class="btn btn-primary btn-sm" data-ip-move-ok="${esc(a.id)}">Разрешить</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-ip-move-no="${esc(a.id)}">Отклонить</button></span></li>`;
+      <button type="button" class="btn btn-ghost btn-sm" data-ip-move-no="${esc(a.id)}" aria-expanded="${moveRefusing === a.id}">Отклонить</button></span>
+      ${moveRefusing === a.id ? `<span class="ip-today-why"><label for="ip-mv-why-${esc(a.id)}">Причина отказа</label>
+        <input class="input" id="ip-mv-why-${esc(a.id)}" data-ip-move-why="${esc(a.id)}" autocomplete="off" placeholder="Например: объект в плане недели, перенос невозможен">
+        <span class="ip-err" data-ip-move-err role="alert"></span>
+        <span class="ip-today-acts"><button type="button" class="btn btn-danger btn-sm" data-ip-move-refuse="${esc(a.id)}">Отклонить перенос</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-ip-move-cancel>Отмена</button></span></span>` : ''}</li>`;
     const block = (title, n, body, empty, more = '') => `<section class="ip-today-b" aria-label="${esc(title)}">
       <h3>${esc(title)} <b class="ip-today-n">${n}</b>${more}</h3>${n ? body : `<p class="ip-hint">${esc(empty)}</p>`}</section>`;
     const li = (attr, a, b, c = '') => `<li><button type="button" class="ip-today-row" ${attr}><span class="ip-today-a">${esc(a)}</span><span class="ip-today-s">${esc(b)}</span>${c ? `<span class="ip-today-c">${c}</span>` : ''}</button></li>`;
@@ -2950,7 +2956,19 @@ export function mountInspections(host) {
   });
   scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
   scope.on('click', '[data-ip-move-ok]', (e, b) => { decideMove(b.dataset.ipMoveOk, true); toast('Перенос разрешён', 'ok'); redraw(); });
-  scope.on('click', '[data-ip-move-no]', (e, b) => { decideMove(b.dataset.ipMoveNo, false); toast('Перенос отклонён — выезд на прежней дате', 'ok'); redraw(); });
+  // Отказ — с обязательной причиной (пользователь 09.11.2026: «Да, обязательна»): поле прямо в строке, без окна.
+  scope.on('click', '[data-ip-move-no]', (e, b) => { moveRefusing = b.dataset.ipMoveNo; redraw(); const f = scope.$(`[data-ip-move-why="${CSS.escape(moveRefusing)}"]`); if (f) f.focus(); });
+  scope.on('click', '[data-ip-move-cancel]', () => { moveRefusing = ''; redraw(); });
+  scope.on('click', '[data-ip-move-refuse]', (e, b) => {
+    const id = b.dataset.ipMoveRefuse;
+    const f = scope.$(`[data-ip-move-why="${CSS.escape(id)}"]`);
+    const why = f ? f.value.trim() : '';
+    if (!why) { const er = scope.$('[data-ip-move-err]'); if (er) er.textContent = 'Укажите причину — её увидит осмотрщик'; if (f) { f.setAttribute('aria-invalid', 'true'); f.focus(); } return; }
+    decideMove(id, false, why);
+    moveRefusing = '';
+    toast('Перенос отклонён — выезд на прежней дате', 'ok');
+    redraw();
+  });
   // Часть описи в форме назначения — видна у отмеченной описи; «Позиции по номерам» — поле номеров.
   scope.on('change', '.ip-pane [data-ip-f-inv]', (e, el) => {
     const box = scope.$(`[data-ip-invpart-box="${CSS.escape(el.dataset.ipFInv)}"]`);

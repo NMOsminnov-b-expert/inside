@@ -1379,3 +1379,11 @@ body[data-module] .resp-insp{height:auto;min-height:36px;display:flex;flex-direc
   white-space:normal;overflow-wrap:anywhere;background:var(--slate-50);cursor:default}
 body[data-module] .resp-insp-none{color:var(--muted)}
 body[data-module] .grid:has(.resp-insp){align-items:start}
+/* Шкала статусов ОЦ на узком экране (до 900 px) — всегда свёрнутой строкой: девять подписей шагов
+   там налезали друг на друга (пользователь 09.11.2026: «Разрешаю — свёрнутая на узком»). Кнопки
+   «Развернуть / Свернуть» на узком не нужны. */
+@media (max-width:900px){
+  body[data-module] .st-flow .st-full{display:none}
+  body[data-module] .st-flow .st-mini{display:flex}
+  body[data-module] .st-flow .st-toggle{display:none}
+}
