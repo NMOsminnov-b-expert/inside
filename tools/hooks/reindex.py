@@ -284,7 +284,9 @@ def services_down():
 # (сервер MCP, программа «Граф проекта») — основной на 1 потоке (решение
 # пользователя 02.10.2026: «3 потока на сервер индексации и 1 на поиск. Надо
 # разделить ресурсы. Индексация не должна тормозить работу»; svc.py, up-index).
-INDEX_OLLAMA = {'OLLAMA_BASE_URL': 'http://127.0.0.1:11435', 'OLLAMA_NUM_THREAD': '3'}
+# С 09.11.2026 — через основную Ollama на одном потоке (пользователь: «под работу дается 3 ядра. Под embed только
+# 1 в 1 процессе. Не более.»): отдельная Ollama индексации не поднимается (svc.py, up-index).
+INDEX_OLLAMA = {'OLLAMA_BASE_URL': 'http://127.0.0.1:11434', 'OLLAMA_NUM_THREAD': '1'}
 
 
 def semsearch(commit):
@@ -326,7 +328,7 @@ def trials(commit):
         if not services_up(key):
             continue
         env = {'OLLAMA_EMBEDDING_MODEL': t['model'], 'EMBEDDING_DIM': str(t['dim']),
-               'EMBED_QUERY_PREFIX': t.get('prefix', ''), 'OLLAMA_NUM_THREAD': str(t.get('threads', 3)),
+               'EMBED_QUERY_PREFIX': t.get('prefix', ''), 'OLLAMA_NUM_THREAD': '1',
                'OLLAMA_NUM_CTX': str(t.get('ctx', 1024))}
         try:
             if index_project(key, t['project'], env):
