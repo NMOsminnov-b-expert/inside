@@ -39,16 +39,21 @@ def run(t):
     foot = num(pg.locator('.ip-sumtbl tfoot td').nth(km_col - 2).inner_text())
     t.ck(abs(total - foot) < 0.5, 'итог пробега %s не равен сумме строк %s' % (foot, total))
 
-    frm, to = pg.input_value('[data-ip-sum="from"]'), pg.input_value('[data-ip-sum="to"]')
+    # Период — общий выбор периода (решение пользователя 05.11.2026 «Один общий»): «Период» с — по.
+    pg.click('[data-ip-sunit="custom"]')
+    t.wait_for('[data-ip-prange="from"]')
+    rows = pg.locator('.ip-sumtbl tbody tr')
+    foot = num(pg.locator('.ip-sumtbl tfoot td').nth(km_col - 2).inner_text())
+    frm, to = pg.input_value('[data-ip-prange="from"]'), pg.input_value('[data-ip-prange="to"]')
     who = rows.first.get_attribute('data-ip-sum-open')
     km_model = pg.evaluate("""async ([w, f, t]) => { const m = await import('./app/pages/inspections/model.js');
       return m.reportTotals(m.reportDays(w, f, t)).km; }""", [who, frm, to])
     t.ck(abs(num(rows.first.locator('td').nth(km_col - 1).inner_text()) - km_model) < 0.5, 'пробег в итогах расходится с отчётами за день')
 
     # период — один день: пробег меньше или равен
-    pg.fill('[data-ip-sum="from"]', to)
-    pg.dispatch_event('[data-ip-sum="from"]', 'change')
-    t.ck(t.wait_until("(v) => document.querySelector('[data-ip-sum=\"from\"]').value === v", to), 'период не применился')
+    pg.fill('[data-ip-prange="from"]', to)
+    pg.dispatch_event('[data-ip-prange="from"]', 'change')
+    t.ck(t.wait_until("(v) => document.querySelector('[data-ip-prange=\"from\"]').value === v", to), 'период не применился')
     foot1 = num(pg.locator('.ip-sumtbl tfoot td').nth(km_col - 2).inner_text())
     t.ck(foot1 <= foot, 'смена периода не пересчитала итоги: %s → %s' % (foot, foot1))
 

@@ -274,7 +274,7 @@ function compareHTML(cmp, v) {
   const diffs = cmp.filter((x) => x.diff).length;
   const rows = (v.only ? cmp.map((x, i) => [x, i]).filter(([x]) => x.diff) : cmp.map((x, i) => [x, i]));
   const grouped = new Set(cmp.map((x) => x.group)).size > 1;
-  const chk = (x) => (x.fell ? '<span class="pill ir-pill-warn">меньше, чем в карточке</span>' : x.diff ? '<span class="pill ir-pill-warn">расходится</span>'
+  const chk = (x) => (x.fell ? '<span class="pill ir-pill-warn" title="Меньше, чем в карточке: счётчик не может уменьшиться">меньше</span>' : x.diff ? '<span class="pill ir-pill-warn">расходится</span>'
     : x.grew ? `<span class="ir-muted">+${x.grew.toLocaleString('ru-RU')} с данных карточки</span>` : x.card ? '<span class="ir-ok">совпадает</span>' : '<span class="ir-muted">в карточке нет</span>');
   const act = (x, i) => (x.path && norm(x.insp) !== norm(x.card)
     ? `<button type="button" class="btn btn-ghost btn-sm ir-apply" data-ir-apply="${i}" title="Записать «${esc(x.insp)}» в карточку">В карточку</button>` : '');
