@@ -288,6 +288,9 @@ export const LAND_RELIEF = [
 export const IRRIGATION_TYPE = ['Арык', 'Канал', 'Речка', 'Скважина', 'Водопровод', 'Прочее'];
 
 export const IRRIGATION_ACCESS = ['Хорошая', 'Средняя', 'Ограничена', 'Отсутствует'];
+// Удалённость полива — как далеко источник (пользователь 13.11.2026; то же поле —
+// в приложении «Осмотр», ключ irrigationDistance).
+export const IRRIGATION_DISTANCE = ['На участке', 'Рядом', 'На незначительном удалении', 'Удалён'];
 export const LAND_LOCATION = ['В центре населенного пункта', 'На окраине населенного пункта'];
 export const LAND_ROAD_LOCATION = [
   'На междугородней трассе — первая линия',

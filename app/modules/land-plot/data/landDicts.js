@@ -154,6 +154,16 @@ export const LAND_DICT_SOURCES = [
     ],
   },
   {
+    key: 'IRRIGATION_DISTANCE',
+    title: 'Удалённость полива',
+    kind: 'list',
+    system: false,
+    values: D.IRRIGATION_DISTANCE,
+    slots: [
+      { card: 'land', field: 'irrigationDistance', label: 'Удалённость полива' },
+    ],
+  },
+  {
     key: 'IRRIGATION_TYPE',
     title: 'Тип полива',
     kind: 'list',

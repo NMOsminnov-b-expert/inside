@@ -170,6 +170,7 @@ const BY_CARD = {
     'areas.build': 'Застроенная площадь',
     useCategory: 'Категория и разрешённое использование',
     irrigation: 'Доступность полива',
+    irrigationDistance: 'Удалённость полива',
     irrigationType: 'Тип полива',
     soil: 'Тип почвы',
     bonitet: 'Балл бонитета',

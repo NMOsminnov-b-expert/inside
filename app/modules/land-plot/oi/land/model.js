@@ -34,6 +34,7 @@ export function createLandOi(rec, { nextId, nextEni, multiple = false } = {}) {
     rightsOther: '',
     useCategory: '',
     irrigation: '',
+    irrigationDistance: '',
     soil: '',
     bonitet: '',
     stoniness: '',

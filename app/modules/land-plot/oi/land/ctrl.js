@@ -21,6 +21,7 @@ export function bind(ctx, oi) {
   const valueBindings = {
     '[data-land-use]': 'useCategory',
     '[data-land-irrigation]': 'irrigation',
+    '[data-land-irrigation-distance]': 'irrigationDistance',
     '[data-land-irrigation-type]': 'irrigationType',
     '[data-land-soil]': 'soil',
     '[data-land-bonitet]': 'bonitet',

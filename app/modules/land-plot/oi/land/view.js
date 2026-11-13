@@ -2,7 +2,7 @@ import { esc } from '../../../../kernel/dom.js';
 import { emptyOptionHTML } from '../../../../kernel/emptyOption.js';
 import { blockNumbers } from '../../../../kernel/blockIndex.js';
 import { fmtEni } from '../../../../kernel/fmt.js';
-import { LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS,
+import { LAND_TYPES, LAND_USE_CATEGORIES, IRRIGATION_ACCESS, IRRIGATION_DISTANCE,
   LAND_LOCATION, LAND_ROAD_LOCATION, LAND_CORNER, LAND_ENCUMBRANCE,
   LAND_ELECTRICITY_STATUS, LAND_WATER_STATUS, LAND_SEWERAGE_STATUS, LAND_GAS_STATUS,
   LAND_HEATING_STATUS, LAND_FORM, IRRIGATION_TYPE, LAND_RELIEF,
@@ -152,9 +152,9 @@ ${selectField('Единица измерения', 'data-land-lease-unit', LEASE
 
 function agriculturalCard(ctx, oi, idx) {
   return `<div class="card t-blue"><div class="card-head"><span class="card-idx">${String(idx).padStart(2, '0')}</span><h3>Сельскохозяйственные характеристики</h3></div><div class="card-pad"><div class="grid g-3">
-${selectField('Категория и разрешенное использование', 'data-land-use', opt('land', 'useCategory', LAND_USE_CATEGORIES), oi.useCategory)}${selectField('Доступность полива', 'data-land-irrigation', opt('land', 'irrigation', IRRIGATION_ACCESS), oi.irrigation)}${selectField('Тип полива', 'data-land-irrigation-type', opt('land', 'irrigationType', IRRIGATION_TYPE), oi.irrigationType)}${selectField('Тип почвы', 'data-land-soil', opt('land', 'soil', LAND_SOIL), oi.soil)}
-<div class="field"><label>Балл бонитета</label><input class="input" data-land-bonitet value="${esc(oi.bonitet || '')}"></div>${selectField('Каменистость', 'data-land-stoniness', opt('land', 'stoniness', LAND_STONINESS), oi.stoniness)}</div>
-<div class="grid g-3" style="margin-top:10px">${utilitiesMS(ctx, oi)}</div>
+${selectField('Категория и разрешенное использование', 'data-land-use', opt('land', 'useCategory', LAND_USE_CATEGORIES), oi.useCategory)}${selectField('Доступность полива', 'data-land-irrigation', opt('land', 'irrigation', IRRIGATION_ACCESS), oi.irrigation)}${selectField('Удалённость полива', 'data-land-irrigation-distance', opt('land', 'irrigationDistance', IRRIGATION_DISTANCE), oi.irrigationDistance)}${selectField('Тип полива', 'data-land-irrigation-type', opt('land', 'irrigationType', IRRIGATION_TYPE), oi.irrigationType)}${selectField('Тип почвы', 'data-land-soil', opt('land', 'soil', LAND_SOIL), oi.soil)}
+<div class="field"><label>Балл бонитета</label><input class="input" data-land-bonitet value="${esc(oi.bonitet || '')}"></div></div>
+<div class="grid g-3" style="margin-top:10px">${selectField('Каменистость', 'data-land-stoniness', opt('land', 'stoniness', LAND_STONINESS), oi.stoniness)}${utilitiesMS(ctx, oi)}</div>
 ${auxBuildingsHTML(ctx, oi)}</div></div>`;
 }
 
