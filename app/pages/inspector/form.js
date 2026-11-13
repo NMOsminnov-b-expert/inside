@@ -22,117 +22,6 @@ import { getValue } from '../../kernel/fieldSchema.js';
 import { optionsFor } from '../../kernel/dicts.js';
 import { LIT_KINDS, LIT_PURPOSES, LIT_SIGNS, OI_NETS, netValue, netsLandOf, tsInspectPlan, BATHROOM, bathroomOf } from '../../kernel/registry.js';
 
-// Ступени износа словами, а не проценты: на осмотре процент не измерить, его
-// считают позже по элементам (III этап ТЗ).
-//
-// Шкала — ОБЩАЯ с карточкой (решение пользователя 08.09.2026): один и тот же
-// элемент не может оцениваться на осмотре одной шкалой, а в карточке другой.
-// Читается из справочника «Износ»; здесь только запасной перечень.
-const WEAR_STEPS = ['Умеренный', 'Значительный'];
-
-// Фундамент — перечень рабочей системы (20 значений)
-const FOUNDATION = [
-  'Асфальт', 'Бетонные столбы', 'Бетонный', 'Блочный',
-  'Бутобетонные столбы', 'Бутобетонный', 'Бутокаменный', 'Дерево',
-  'Деревянные стойки', 'Железобетонный', 'Жжёный кирпич', 'Кирпичный',
-  'Металл', 'Металлическая решётка', 'Металлическая сетка',
-  'Металлические прутья', 'Металлические стойки', 'Прочее (ручной ввод)',
-  'Тесовые', 'Шифер',
-];
-
-// Цоколь — перечень рабочей системы (20 значений)
-const BASEMENT = [
-  'Асфальт', 'Бетонные столбы', 'Бетонный', 'Блочный',
-  'Бутобетонные столбы', 'Бутобетонный', 'Бутокаменный', 'Дерево',
-  'Деревянные стойки', 'Железобетонный', 'Жжёный кирпич', 'Кирпичный',
-  'Металл', 'Металлическая решётка', 'Металлическая сетка',
-  'Металлические прутья', 'Металлические стойки', 'Прочее (ручной ввод)',
-  'Тесовые', 'Шифер',
-];
-
-// Наружные стены — перечень рабочей системы (44 значений)
-const WALLS = [
-  'Бетон', 'Бетонные панели', 'Бетонные плиты', 'Брус цельный',
-  'Бутобетонные', 'Бутокаменные', 'Газобетон', 'Газоблок', 'Глинобитные',
-  'Деревянно-щитовые', 'Деревянные', 'Деревянные столбы', 'Дощатые',
-  'Железобетонные', 'Жжёный кирпич', 'Каркасно-щитовые', 'Каркасные',
-  'Кирпич', 'Клееный брус', 'ЛСТК', 'Металлическая решётка',
-  'Металлическая сетка', 'Металлические', 'Металлические прутья',
-  'Металлические стойки', 'Металлокаркас', 'Остекление', 'Пеноблок',
-  'Пескоблок', 'Пластиковые', 'Полуостеклённые', 'Прочее (ручной ввод)',
-  'Саман', 'Сборно-щитовые', 'Сетка', 'Силикатный кирпич', 'Стойки',
-  'Столбы', 'Сэндвич-панели', 'Тесовые', 'Шифер', 'Шлакоблок', 'Штакетник',
-  'Щитовой',
-];
-
-// Полы — перечень рабочей системы (11 значений)
-const FLOORS = [
-  'Бетонные', 'Глинобитные', 'Деревянные', 'Дощатые', 'Ламинат', 'Линолеум',
-  'Мозаичные', 'Паркетные', 'Плитка', 'Прочее (указать в особенностях)',
-  'Цементные',
-];
-
-// Перекрытия — перечень рабочей системы (8 значений)
-const CEILINGS = [
-  'Деревянные', 'Деревянные балки', 'Железобетонные',
-  'Железобетонные плиты', 'Кирпич', 'Металлические балки', 'Монолит',
-  'Прочее (указать в особенностях)',
-];
-
-// Кровля — перечень рабочей системы (14 значений)
-const ROOF = [
-  'Алюкобонд', 'Асбоцементная', 'Деревянная', 'Железобетонная', 'Металл',
-  'Мягкая', 'Оцинкованная', 'Пластиковая', 'Плоская',
-  'Прочее (ручной ввод)', 'Рубероидная', 'Совмещённая', 'Тесовая', 'Шифер',
-];
-
-// Окна — перечень рабочей системы (11 значений)
-const WINDOWS = [
-  'Алюминиевые', 'Двойное остекление', 'Двустворчатые', 'Деревянные',
-  'Металлопластиковые, одностворчатые', 'Одинарное остекление',
-  'Одностворчатые', 'Одностворчатые деревянные', 'Отсутствуют',
-  'ПВХ (стеклопакет)', 'Простые',
-];
-
-// Двери — перечень рабочей системы (3 значений)
-const DOORS = [
-  'Деревянные', 'Металлические', 'Пластиковые (ПВХ)',
-];
-
-// Отопление — перечень рабочей системы (11 значений)
-const HEATING_EL = [
-  'Водяное', 'Газовое отопление', 'Комбинированное отопление',
-  'Паровое отопление', 'Печное отопление',
-  'Прочее (указать в особенностях)', 'Современные радиаторы',
-  'Тёплый водяной пол', 'Тёплый электрический пол',
-  'Центральное водяное отопление', 'Чугунные радиаторы',
-];
-
-// Значение «Прочее (ручной ввод)» в перечнях рабочей системы обещает поле для
-// ввода — без него выбор ничего не сообщает. Поле появляется только при этом
-// выборе: условная видимость есть у конструктора (kernel/fieldSchema.js).
-// Значения поля: сначала справочник раздела «Справочники», встроенный перечень
-// рабочей системы — запасной. Ровно тот же порядок, что у карточек
-// (modules/*/data/opts.js): правка справочника доходит и до осмотра, а
-// отвязанный справочник не оставляет поле пустым.
-//
-// Тип ОЦ приходит параметром: активного экрана модуля на странице осмотров
-// нет, и activeOcType() там пуст (см. kernel/ocType.js). Чтение — cardDict
-// и landDict ниже.
-
-const OTHER = 'Прочее (ручной ввод)';
-
-const other = (key, label) => ({
-  key: key + 'Other',
-  label,
-  max: 100,
-  placeholder: 'Опишите словами',
-  visible: (values) => [].concat(values[key] || []).includes(OTHER),
-});
-
-// Внутренние стены в рабочей системе — тот же перечень, что наружные.
-const WALLS_INT = WALLS;
-
 // Разделы формы — по виду ОИ, по карточке этого вида (решение пользователя
 // 15.10.2026 по сверке осмотра с карточками: «Полностью синхронизируем.
 // Эталон - ОЦ+ОИ»; состав — «То, что видно на месте»; чек-лист коммуникаций
@@ -155,7 +44,6 @@ export const sections = (typeId, oi) => {
   return buildingSections(typeId, oi);
 };
 
-const CONDITION = ['Отличное', 'Хорошее', 'Удовлетворительное', 'Плохое', 'Аварийное'];
 const NETWORK = ['Подведены', 'Проходят рядом', 'На удалении', 'Отсутствуют в районе'];
 const LAND_FORM = ['Квадратная', 'Прямоугольная', 'Близкая к прямоугольной', 'Трапециевидная', 'Вытянутая прямоугольная',
   'Близкая к Г-образной', 'Г-образная', 'Неправильный многоугольник', 'Неправильный многоугольник с заужением',
@@ -185,10 +73,6 @@ const STRUCT_STRENGTH = ['Облегчённая', 'Усиленная'];
 const APT_SERIES = ['Индивидуальная', 'Серия 97', 'Серия 97А', 'Серия 104', 'Серия 105', 'Серия 106', 'Серия 105/106', 'Серия 111',
   'Хрущёвка', 'Сталинка', 'Барачного типа', 'Гостиничного типа', 'Прочее'];
 const APT_LOCATION = ['Неугловое', 'Угловое', '3 стороны', '4 стороны', 'Прочее'];
-const FINISH = ['Без отделки', 'Вагонка', 'Гипсокартон', 'Декоративная штукатурка', 'Жидкие обои', 'Керамическая плитка',
-  'Обои', 'Панели МДФ', 'Панели ПВХ', 'Побелка', 'Покраска', OTHER, 'Стеновые панели', 'Штукатурка'];
-const INSULATION = ['Без утепления', 'Керамзит', 'Минеральная вата', 'Опилки', 'Пенопласт', 'Пенополистирол (ЭППС)',
-  'Пенополиуретан', OTHER, 'Сэндвич-панели', 'Фольгированный утеплитель', 'Шлак', 'Штукатурка теплоизоляционная', 'Эковата'];
 // Пустое значение справочника («Не выбрано», «Не заполнено») в осмотре — сам
 // пустой выбор списка.
 const clean = (list) => list.filter((v) => !/^не (выбрано|заполнено)$/i.test(v));
@@ -209,57 +93,6 @@ const docOf = (path) => Object.assign((oi) => {
 const isProd = (oi) => !!oi && (oi.litKind === 'prod'
   || (Array.isArray(oi.zones) && oi.zones.some((z) => z && z.litKind === 'prod')));
 
-// Конструктив и износ — строки таблицы карточки (civil/oi/building/view.js,
-// STRUCT_ROWS): материал — мультивыбор, как в карточке, и износ элемента.
-// Ключи прежних полей осмотра сохранены (basement — цоколь, wearRoof и др.).
-const STRUCT_ROWS = [
-  { key: 'foundation', path: 'foundation', label: 'Фундамент', fallback: FOUNDATION },
-  { key: 'basement', path: 'plinth', label: 'Цоколь/подвал', optsKey: 'basement', fallback: BASEMENT },
-  { key: 'wallsExt', path: 'wallsExt', label: 'Наружные стены', fallback: WALLS },
-  { key: 'wallsInt', path: 'wallsInt', label: 'Внутренние стены', optsKey: 'wallsExt', fallback: WALLS_INT },
-  { key: 'ceilings', path: 'ceilings', label: 'Перекрытия', fallback: CEILINGS },
-  { key: 'roof', path: 'roof', label: 'Кровля', fallback: ROOF, wearKey: 'wearRoof' },
-  { key: 'floors', path: 'floors', label: 'Полы', fallback: FLOORS },
-  { key: 'windows', path: 'windows', label: 'Окна', fallback: WINDOWS },
-  { key: 'doors', path: 'doors', label: 'Двери', fallback: DOORS },
-  { key: 'heating', path: 'heating', label: 'Отопление', fallback: HEATING_EL, heating: true },
-  { key: 'finish', path: 'finish', label: 'Отделка', fallback: FINISH, wearKey: 'wearFinish' },
-  { key: 'insulation', path: 'insulation', label: 'Утепление', fallback: INSULATION, wearKey: 'wearInsul' },
-];
-// Самый большой раздел — «по возможности»: он не должен занимать экран
-// прежде того, за чем едут на осмотр (свёрнутым заранее НЕ держим —
-// замечание пользователя 08.09.2026). req — обязательные элементы карточки.
-const structSection = (typeId, card, req = {}) => ({
-  key: 'struct',
-  title: 'Конструктив и износ',
-  short: 'Конструктив',
-  optional: true,
-  fields: STRUCT_ROWS.flatMap((r) => {
-    const opts = r.heating ? cardDict(typeId, card, 'heating', r.fallback) : cardDict(typeId, card, 'struct.' + (r.optsKey || r.key), r.fallback);
-    return [
-      // Отопление карточка хранит у ОИ (heating), а не в конструктиве.
-      { key: r.key, label: r.label, multi: true, req: !!req[r.key], opts, doc: docOf(r.heating ? 'heating' : 'struct.' + r.path) },
-      ...(opts.includes(OTHER) ? [other(r.key, `${r.label} — свой вариант`)] : []),
-      {
-        key: r.wearKey || 'wear' + r.key[0].toUpperCase() + r.key.slice(1),
-        label: `${r.label} — износ`,
-        opts: cardDict(typeId, card, 'wear', WEAR_STEPS),
-        doc: docOf('wear.' + r.path),
-      },
-    ];
-  }),
-});
-
-const stateSection = (typeId, card) => ({
-  key: 'state',
-  title: 'Состояние',
-  fields: [
-    { key: 'condInner', label: 'Внутреннее состояние', req: true, opts: cardDict(typeId, card, 'conditionInner', CONDITION), doc: docOf('conditionInner') },
-    { key: 'condOuter', label: 'Внешнее состояние', req: true, opts: cardDict(typeId, card, 'conditionOuter', CONDITION), doc: docOf('conditionOuter') },
-    { key: 'condTotal', label: 'Итоговое состояние', opts: cardDict(typeId, card, 'conditionTotal', CONDITION), doc: docOf('conditionTotal') },
-  ],
-});
-
 // Тип и класс капитальности — как блок карточки литеры (civil/oi/building,
 // capClass.js; решение пользователя 15.10.2026 «Тип и класс капитальности надо
 // бы включить в осмотры»): тип объекта имущества, назначение по факту и
@@ -269,14 +102,15 @@ const stateSection = (typeId, card) => ({
 // карточке (fieldRules: showOiCategory).
 const kindByLabel = (label) => (LIT_KINDS.find((k) => k.label === label) || {}).key || '';
 const kindLabelOf = (key) => (LIT_KINDS.find((k) => k.key === key) || {}).label || '';
-// У производственно-складского на осмотре — только назначение по факту,
-// кран-балка и полы; конструкция и инженерное оснащение пока спрятаны (решение
-// пользователя 23.10.2026: «Для производственно складской в типе и классе
-// капитальности оставляем назначение по факту, кран балку, полы. Остальное пока
-// прячем»). У гражданского спрятан уровень отделки (23.10.2026: «В типе и классе
-// капитальности в осмотрах гражданских прячем уровень отделки»). Спрятаны, а не
-// удалены: вернуть — убрать ключ из списка.
-const CAP_HIDDEN = { prod: ['frame', 'eng'], civil: ['finish'] };
+// Признаки класса на осмотре — только перечисленные (ключи SIGNS карточки,
+// civil/oi/building/capClass.js). У производственно-складского — кран-балка и
+// полы (решение пользователя 23.10.2026: «Для производственно складской в типе
+// и классе капитальности оставляем назначение по факту, кран балку, полы»); у
+// гражданского — всё, кроме уровня отделки (23.10.2026). Спрятанные прежде
+// признаки удалены из кода 13.11.2026 (решение pwa-osmotr-otdelnyy-modul-so-svoey-
+// kodovoy-bazoy-polya-osmotra-v-maket). Высоты осмотр не замеряет — признака
+// «Высота» в списках нет.
+const CAP_SIGNS = { civil: ['arch', 'constr', 'plan', 'eng'], prod: ['crane', 'floors'] };
 const capClassSection = (oi) => {
   const kindNow = (values) => kindByLabel(values.litKind) || (oi && oi.litKind) || '';
   // «Тип объекта имущества» тоже прячется, если строение производственно-складское
@@ -300,7 +134,7 @@ const capClassSection = (oi) => {
         visible: (values) => kindNow(values) === k.key,
         doc: Object.assign((o) => (own(k.key) ? o.purposeFact || '' : ''), { path: 'purposeFact' }),
       })),
-      ...Object.entries(LIT_SIGNS).flatMap(([kind, signs]) => signs.filter((g) => !g.height && !(CAP_HIDDEN[kind] || []).includes(g.key)).map((g) => ({
+      ...Object.entries(LIT_SIGNS).flatMap(([kind, signs]) => signs.filter((g) => (CAP_SIGNS[kind] || []).includes(g.key)).map((g) => ({
         key: `cap_${kind}_${g.key}`, label: g.label, multi: !!g.multi, opts: g.options.map((o) => o[0]),
         visible: (values) => kindNow(values) === kind,
         doc: signDoc(kind, g.key),
@@ -365,8 +199,7 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
   },
   // Конструктив, износ и состояние осмотрщик не заполняет (решение
   // пользователя 16.10.2026: «осмотрщик конструктив и износ не заполняет…
-  // Состояние тоже»): их определяют по снимкам. structSection и stateSection
-  // остаются в коде — описание полей карточки, понадобятся для сверки.
+  // Состояние тоже»): их определяют по снимкам. Разделы удалены 13.11.2026.
   netsSection(typeId, oi),
   ...(oi && oi.residential ? [] : [capClassSection(oi)]),
   ...(prod ? [{
@@ -531,15 +364,6 @@ function vehicleSections(oi) {
 // (kernel/fieldSchema.js: requiredLeft, filledCount).
 export const allFields = (typeId, oi) => sections(typeId, oi).flatMap((s) => s.fields);
 
-// Что показать рядом с полем замера: значение из данных ЦОД.
-export function tpValue(oi, from) {
-  if (!oi) return '';
-  if (from === 'tp' || from === 'build' || from === 'pud') return (oi.areas || {})[from] || '';
-  if (from === 'heightExt') return (oi.heights || {}).ext || '';
-  if (from === 'heightInt') return (oi.heights || {}).int || '';
-  return '';
-}
-
 // Расхождение замера с документами — то, за чем едут на осмотр. Показываем не
 // нейтральной подсказкой, а сигналом: и значение по документам, и разницу.
 export function mismatchHint(field, values, oi, ctx = {}) {
@@ -568,22 +392,5 @@ export function mismatchHint(field, values, oi, ctx = {}) {
     const same = Array.isArray(own) ? set(own) === set(doc) : norm(own) === norm(doc);
     return same ? `${lbl}: ${doc} — совпадает` : `РАСХОДИТСЯ: ${lbl} ${doc}`;
   }
-  if (!field.tpFrom) return '';
-
-  const doc = tpValue(oi, field.tpFrom);
-  const own = getValue(values, field.path || field.key);
-  const unit = field.unit ? ' ' + field.unit : '';
-  // Обмер ЦОД — не документ: у такого поля подпись «в карточке».
-  const lbl = field.tpLabel || 'по документам';
-
-  if (!doc) return own ? '' : `${lbl}: не заполнено`;
-  if (!own) return `${lbl}: ${doc}${unit}`;
-
-  const a = parseFloat(String(doc).replace(',', '.'));
-  const b = parseFloat(String(own).replace(',', '.'));
-  if (isNaN(a) || isNaN(b) || a === b) return `${lbl}: ${doc}${unit} — совпадает`;
-
-  const d = b - a;
-  const sign = d > 0 ? '+' : '−';
-  return `РАСХОДИТСЯ: ${lbl} ${doc}${unit}, ${sign}${Math.abs(d).toFixed(2)}${unit}`;
+  return '';
 }

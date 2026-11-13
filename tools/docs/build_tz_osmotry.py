@@ -58,7 +58,7 @@ COLLECT = """async () => {
     mech: { card: 'mech', mechanisms: [{ id: 'u', name: 'Единица оборудования (на каждую — свой раздел)', inv: '', params: {} }] } };
   const formOf = (oi) => f.sections('civil', oi).map((s) => ({ title: s.title, optional: !!s.optional,
     fields: s.fields.filter((x) => !x.visible).map((x) => ({ label: x.label, req: !!x.req, multi: !!x.multi, unit: x.unit || '',
-      n: x.opts ? x.opts.length : 0, opts: x.opts && x.opts.length <= 6 ? x.opts : [], doc: !!x.tpFrom || typeof x.doc === 'function', long: !!x.long })) }));
+      n: x.opts ? x.opts.length : 0, opts: x.opts && x.opts.length <= 6 ? x.opts : [], doc: typeof x.doc === 'function', long: !!x.long })) }));
   const forms = Object.fromEntries(Object.entries(STUB).map(([k, oi]) => [k, formOf(oi)]));
   return {
     states: k.ASSIGN_STATES.map(lab), cadKinds: k.CAD_KINDS.map(lab), cadResults: k.CAD_RESULTS.map(lab), cadDocs: k.cadDocs(),

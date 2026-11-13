@@ -87,8 +87,8 @@ INSPECT = r"""async (pairs) => {
             // Поле с условием показа (вариант по виду строения) — видно ли
             // оно этому ОИ при пустом осмотре: вид берётся из записи ОИ.
             shown: typeof f.visible === 'function' ? !!f.visible({}) : true,
-            doc: typeof f.doc === 'function' ? str(f.doc(oi)) : (f.tpFrom ? str(F.tpValue(oi, f.tpFrom)) : null),
-            docPath: typeof f.doc === 'function' ? str(f.doc.path) : (f.tpFrom ? ({ tp: 'areas.tp', pud: 'areas.pud', build: 'areas.build', heightExt: 'heights.ext', heightInt: 'heights.int' })[f.tpFrom] || f.tpFrom : ''),
+            doc: typeof f.doc === 'function' ? str(f.doc(oi)) : null,
+            docPath: typeof f.doc === 'function' ? str(f.doc.path) : '',
           })),
         })),
       });
