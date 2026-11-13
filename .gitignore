@@ -49,10 +49,6 @@ docs/reestr-izmeneniy.xlsx
 # Временные файлы блокировки Office
 ~$*
 
-# Разметка документов (tools/razmetka): результаты сборки .NET
-/tools/razmetka/bin/
-/tools/razmetka/obj/
-/tools/razmetka/dist/
 # Граф проекта (tools/graf): результаты сборки .NET
 /tools/graf/bin/
 /tools/graf/obj/

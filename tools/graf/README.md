@@ -140,8 +140,8 @@ JSON со всеми записями; «Загрузить граф из фай
 
 ## Иконки
 
-`python tools/graf/make_icons.py` рисует `Assets/graf.ico` и
-`tools/razmetka/Assets/razmetka.ico`; после правки — пересобрать обе программы.
+`python tools/graf/make_icons.py` рисует `Assets/graf.ico`; после правки —
+пересобрать программу. Иконка «Разметки документов» — в её репозитории.
 
 ## Проверки
 

@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Иконки программ «Граф проекта» и «Разметка документов».
+"""Иконка программы «Граф проекта».
 
     python tools/graf/make_icons.py
 
-Пишет tools/graf/Assets/graf.ico и tools/razmetka/Assets/razmetka.ico — по
-файлу на программу, в каждом размеры 16–256. Рисуется крупно (1024) и
+Пишет tools/graf/Assets/graf.ico, в файле размеры 16–256. Иконка «Разметки
+документов» — в её репозитории (C:s code
+azmetka, tools/make_icon.py),
+вынесена 13.11.2026. Рисуется крупно (1024) и
 уменьшается: так значок читается и в списке файлов, и на панели задач.
 
 Задача пользователя 28.09.2026: «иконки добавь на приложения, а то теряется в
-списке файлов». Граф — узлы и связи на тёмном поле, как полотно программы;
-разметка — лист документа с рамкой разметки и стрелкой к полю системы.
+списке файлов». Граф — узлы и связи на тёмном поле, как полотно программы.
 """
 import os
 
@@ -45,25 +46,6 @@ def graf():
     return im
 
 
-def razmetka():
-    im = Image.new('RGBA', (BIG, BIG), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    rounded(d, (24, 24, BIG - 24, BIG - 24), 200, (31, 111, 178, 255))
-    # Лист документа с загнутым углом.
-    x0, y0, x1, y1, fold = 170, 120, 690, 900, 150
-    d.polygon([(x0, y0), (x1 - fold, y0), (x1, y0 + fold), (x1, y1), (x0, y1)], fill=(255, 255, 255, 255))
-    d.polygon([(x1 - fold, y0), (x1 - fold, y0 + fold), (x1, y0 + fold)], fill=(205, 219, 234, 255))
-    for i, w in enumerate([380, 300, 340, 260, 320]):
-        y = 300 + i * 110
-        d.rounded_rectangle((x0 + 70, y, x0 + 70 + w, y + 36), radius=18, fill=(170, 188, 208, 255))
-    # Рамка разметки на графе документа.
-    d.rounded_rectangle((x0 + 40, 500, x0 + 420, 640), radius=20, outline=(255, 150, 40, 255), width=34)
-    # Стрелка к полю системы.
-    d.line([(x0 + 420, 570), (820, 570)], fill=(255, 150, 40, 255), width=34)
-    d.polygon([(900, 570), (800, 500), (800, 640)], fill=(255, 150, 40, 255))
-    return im
-
-
 def save(im, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, format='ICO', sizes=[(s, s) for s in SIZES])
@@ -72,4 +54,3 @@ def save(im, path):
 
 if __name__ == '__main__':
     save(graf(), os.path.join(ROOT, 'tools', 'graf', 'Assets', 'graf.ico'))
-    save(razmetka(), os.path.join(ROOT, 'tools', 'razmetka', 'Assets', 'razmetka.ico'))
