@@ -19,6 +19,8 @@ export default [
       'node_modules/**',
       // Вендорный PDF.js — чужой минифицированный код, его не правим.
       'app/vendor/**',
+      // Исходники приложения «Осмотр» — копия своего репозитория (tools/osmotr/sync_pwa.py).
+      'osmotr/**',
       'docs/**',
       'tools/visual-parity/out/**',
       '.claude/**',

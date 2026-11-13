@@ -1,0 +1,12 @@
+# Контекст сборки PWA (deploy/pwa/Dockerfile): только исходники; сборки, Android-SDK и секреты — мимо.
+.git
+**/build
+.gradle
+.kotlin
+local.properties
+*.jks
+*.keystore
+web/node_modules
+installer/target
+iosApp/build
+pwa-dist/**/*.map

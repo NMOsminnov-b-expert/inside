@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-feature android:name="android.hardware.camera.any" android:required="true" />
+    <!-- Своя камера (19.10.2026): кадр — сразу в папку осмотра. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Приложение камеры телефона — для ультраширика, если телефон прячет его от приложений (Android 11+ без этого его не видно). -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+        </intent>
+    </queries>
+    <!-- Папка «Осмотры» в корне памяти: Android 11+ — доступ ко всем файлам, 8–10 — запись. -->
+    <!-- Диктофон: голосовые заметки к папкам и описям. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Геометка адреса ТС: только по кнопке, координаты остаются в файле параметров. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <application
+        android:largeHeap="true"
+        android:name=".OsmotrApplication"
+        android:label="Осмотр"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
+        android:theme="@style/Theme.Osmotr"
+        android:requestLegacyExternalStorage="true"
+        android:supportsRtl="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="fullUser"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|fontScale|density"
+            android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Опись из мессенджера: «Поделиться» → «Осмотр» (один файл или несколько). .xls — чтобы
+                 подсказать пересохранить, а не молча не показаться в списке. -->
+            <intent-filter android:label="Опись или перечень">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.ms-excel" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <!-- Сообщение о выезде (код, учреждение, адрес, лицо, телефоны) текстом — в объект (29.10.2026). -->
+            <intent-filter android:label="Контакт в «Осмотр»">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/x-vcard" />
+                <data android:mimeType="text/vcard" />
+            </intent-filter>
+            <intent-filter android:label="Объект из сообщения">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <!-- Фото из WhatsApp, Telegram, галереи: «Поделиться» → «Осмотр» → выбрать папку (14.10.2026). -->
+            <intent-filter android:label="Добавить фото в «Осмотр»">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <!-- «Открыть с помощью» из файлов и мессенджеров. -->
+            <intent-filter android:label="Добавить опись">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.ms-excel" />
+            </intent-filter>
+        </activity>
+
+        <!-- Своя камера: экран снимков, серия без выхода; портрет — поворот телефона идёт в кадр. -->
+        <activity
+            android:name=".CameraActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Osmotr" />
+
+        <!-- Видео из папки — внутри приложения; поворот не перезапускает проигрыватель. -->
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
+            android:theme="@style/Theme.Osmotr" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

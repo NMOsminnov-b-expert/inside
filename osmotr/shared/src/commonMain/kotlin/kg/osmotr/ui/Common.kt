@@ -1,0 +1,385 @@
+package kg.osmotr.ui
+
+import kg.osmotr.core.Background
+
+import androidx.compose.foundation.verticalScroll
+import kg.osmotr.core.File
+import okio.Path.Companion.toPath
+import okio.buffer
+import okio.use
+import kg.osmotr.core.Inventory
+import kg.osmotr.core.Platform
+import kg.osmotr.core.Search
+import kg.osmotr.core.Store
+import kg.osmotr.core.Journal
+import kg.osmotr.core.Xlsx
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.testTag
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Поле в окне получает фокус само (клавиатура сразу). Тесты экранов (Robolectric) выключают это: окно
+ * с мигающим курсором в своём отдельном окне не даёт тестовой среде «успокоиться».
+ */
+object DialogFocus { var auto = true }
+
+/** Ввод имени папки: клавиатура сразу, «Готово» на клавиатуре — подтверждение. */
+@Composable
+fun NameDialog(title: String, initial: String = "", confirm: String = "Создать", hint: String = "Например, Насос 1",
+               capitals: KeyboardCapitalization = KeyboardCapitalization.Sentences, onDone: (String) -> Unit, onCancel: () -> Unit) {
+    var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length))) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { if (DialogFocus.auto) focus.requestFocus() }
+    val ok = Store.cleanName(value.text).isNotEmpty()
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(title) },
+        text = { DialogBody {
+            OutlinedTextField(
+                value, { value = it }, Modifier.fillMaxWidth().focusRequester(focus), singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = capitals, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { if (ok) onDone(value.text) }),
+                placeholder = { Text(hint) },
+            )
+        } },
+        confirmButton = { TextButton(onClick = { onDone(value.text) }, enabled = ok) { Text(confirm) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Отмена") } },
+    )
+}
+
+/** Комментарий к папке: несколько строк, пусто — убрать. */
+@Composable
+fun NoteDialog(initial: String, onDone: (String) -> Unit, onCancel: () -> Unit) {
+    var value by remember { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { if (DialogFocus.auto) focus.requestFocus() }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Комментарий") },
+        text = { DialogBody {
+            OutlinedTextField(value, { value = it }, Modifier.fillMaxWidth().heightIn(min = 120.dp).focusRequester(focus),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                placeholder = { Text("Например: течь по сальнику, шильдик не читается") })
+        } },
+        confirmButton = { TextButton(onClick = { onDone(value) }) { Text("Готово") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Отмена") } },
+    )
+}
+
+/**
+ * Куда перенести: дерево всех папок разом (путь к [start] раскрыт), касание — выбрать,
+ * «Сюда» — перенести. [moving] — переносимые папки: они и всё внутри них приглушены.
+ */
+@Composable
+fun FolderPicker(title: String, start: File, action: String, onPick: (File) -> Unit, onCancel: () -> Unit, moving: Collection<File> = emptyList()) {
+    var target by remember { mutableStateOf(start) }
+    var creating by remember { mutableStateOf(false) }
+    var asking by remember { mutableStateOf<String?>(null) }
+    // Типы папок (Layout): запрещённое — серым и с причиной, несовпадение типа — с вопросом перед переносом.
+    val verdict: (File) -> kg.osmotr.core.Layout.Verdict = { f ->
+        if (moving.isEmpty()) kg.osmotr.core.Layout.Verdict.Allow else kg.osmotr.core.Layout.checkMoveAll(moving, f)
+    }
+    val blocked: (File) -> Boolean = { f -> moving.any { m -> f == m || f.absolutePath.startsWith(m.absolutePath + File.separator) } ||
+        verdict(f) is kg.osmotr.core.Layout.Verdict.Deny }
+    val here = verdict(target)
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(title) },
+        text = { DialogBody {
+            Column {
+                FolderTree(current = start, highlight = target, onPick = { target = it }, disabled = blocked,
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp))
+                if (here is kg.osmotr.core.Layout.Verdict.Deny && target != start) Text(here.text, color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp).testTag("перенос: нельзя"))
+                if (kg.osmotr.core.Layout.canCreateFolder(target)) Row(Modifier.fillMaxWidth().clickable { creating = true }.padding(vertical = 10.dp, horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(AppIcons.CreateNewFolder, null, tint = MaterialTheme.colorScheme.primary)
+                    Text("Новая папка", color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                }
+            }
+        } },
+        confirmButton = { TextButton(onClick = { (here as? kg.osmotr.core.Layout.Verdict.Warn)?.let { asking = it.text } ?: onPick(target) },
+            enabled = !blocked(target), modifier = Modifier.testTag("перенести сюда")) { Text(action) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Отмена") } },
+    )
+    asking?.let { text ->
+        AlertDialog(onDismissRequest = { asking = null }, title = { Text("Перенести?") },
+            text = { DialogBody { Text(text) } },
+            confirmButton = { TextButton(onClick = { asking = null; onPick(target) }, modifier = Modifier.testTag("перенести всё равно")) { Text("Перенести") } },
+            dismissButton = { TextButton(onClick = { asking = null }) { Text("Отмена") } })
+    }
+    if (creating) NameDialog("Новая папка в «${Store.title(target)}»", hint = kg.osmotr.core.Layout.nameHint(target), onDone = { name ->
+        Store.createFolder(target, name)?.let { target = it }
+        creating = false
+    }, onCancel = { creating = false })
+}
+
+// ---------- Выгрузка без провода ----------
+
+fun sharePhotos(host: Host, photos: List<File>) { if (photos.isNotEmpty()) host.share(photos, "image/jpeg", "Поделиться") }
+
+/**
+ * Папка целиком — ZIP со всей вложенностью, потоком (в память не собирается). Без сжатия:
+ * JPEG уже сжат, а без сжатия архив собирается в разы быстрее. [progress] — доля 0..1.
+ */
+suspend fun zipFolder(host: Host, dir: File, progress: (Float) -> Unit): Zipped =
+    zipItems(host, listOf(dir), dir.parentFile ?: dir, if (dir == Store.root) "Осмотры" else dir.name, progress = progress)
+
+/** Выбранные папки и снимки — одним архивом; пути — от [base]. */
+// Сведения объекта и файлы литеров и участков (Объект.txt, «Литер_А.json») — тоже: без них выгрузка теряла всё,
+// кроме снимков (до 29.10.2026 в архив не шли и PDF с перечнями Excel — см. отбор ниже).
+private fun ours(name: String) = name == kg.osmotr.core.Objects.INFO || (name.endsWith(".json") && !name.startsWith(".")) ||
+    name == Store.NOTE || name == Store.CONTACTS || name == Inventory.MEMBERS || name == Inventory.BROKEN || name == Inventory.REPAIR || name == Inventory.EARLIER || name == Inventory.COLUMNS || name == Journal.FILE ||
+    name.lowercase().endsWith(".m4a") ||
+    ((name.startsWith(Inventory.PREFIX) || name.startsWith("Осмотр — ")) && name.endsWith(".xlsx", true))
+
+/** Готовый архив: файл, сколько в нём снимков и сколько весит. */
+data class Zipped(val file: File, val photos: Int, val bytes: Long)
+
+/** [photosSince] — только снимки новее этого времени (выгрузка «новое с прошлой» и «за сегодня»); прочее наше — всё. */
+suspend fun zipItems(host: Host, items: List<File>, base: File, name: String, photosSince: Long = 0L,
+                     progress: (Float) -> Unit): Zipped = withContext(Background) {
+    // Архив остаётся в «Выгрузках» (не затирается следующим): имя — что и когда выгружено.
+    val out = host.exportsDir.apply { mkdirs() }
+    val stem = Store.cleanName(name).ifEmpty { "Осмотры" } + " " + Platform.format(Platform.nowMs(), "yyyy-MM-dd HH-mm")
+    var zip = File(out, "$stem.zip")
+    var n = 2
+    while (zip.exists()) zip = File(out, "$stem ($n).zip").also { n++ }
+    val tmp = File(out, ".${zip.name}.tmp")
+    // Отчёт осмотра — свежий, в архив.
+    items.forEach { Inventory.refreshReport(it) }
+    // Только снимки осмотра, комментарии, контакты, описи с отчётами и составы папок — ничего постороннего.
+    val photos = items.flatMap { it.walkTopDown().onEnter { d -> !d.name.startsWith(".") || d in items } }
+        .filter { (Store.isPhoto(it) || Store.isVideo(it)) && it.lastModified() > photosSince || (it.isFile && (ours(it.name) || Store.isPdf(it) || kg.osmotr.core.Lists.isList(it))) }.distinct()
+    val total = photos.sumOf { it.length() }.coerceAtLeast(1)
+    var done = 0L
+    // okio `use` — встроенная: внутри можно ждать загрузки снимка (PWA, withContent).
+    kg.osmotr.core.systemFs.sink(tmp.path.toPath()).buffer().use { sink ->
+        val z = kg.osmotr.core.ZipWriter(sink)
+        for (f in photos) kg.osmotr.core.withContent(f) { z.add(f, f.relativeTo(base).path) { n -> done += n; progress(done.toFloat() / total) } }
+        z.finish()
+    }
+    // Проверка готового архива: открыть и сверить с папкой — сколько файлов и байт легло.
+    // Иначе обрыв (кончилось место) выглядел бы как обычный архив поменьше.
+    val expected = photos.sumOf { it.length() }
+    if (done != expected) { tmp.delete(); error("архив неполный: записано ${megabytes(done)} из ${megabytes(expected)}") }
+    // ZipWriter пишет без ZIP64: больше 4 ГБ архив не открылся бы — сказать прямо, а не отдать битый.
+    if (tmp.length() >= 0xFFFFFFFFL) { tmp.delete(); error("архив больше 4 ГБ — выгрузите описи или папки по отдельности") }
+    check(tmp.renameTo(zip)) { "архив не сохранён" }
+    Store.scan(listOf(zip))
+    Zipped(zip, photos.count(Store::isPhoto), zip.length())
+}
+
+/** «256,3 МБ», «1,2 ГБ». */
+fun megabytes(bytes: Long): String {
+    val (v, unit) = if (bytes >= 1L shl 30) bytes / (1L shl 30).toDouble() to "ГБ" else bytes / (1L shl 20).toDouble() to "МБ"
+    val tenths = kotlin.math.round(v * 10).toLong()
+    return "${tenths / 10},${tenths % 10} $unit"
+}
+
+/** Отправить проверенный архив; сколько в нём — видно сразу (не гадать по размеру в мессенджере). */
+fun shareChecked(host: Host, z: Zipped) {
+    host.toast("Архив проверен: ${plural(z.photos, "снимок", "снимка", "снимков")}, ${megabytes(z.bytes)}; сохранён ${host.exportsPlace}", long = true)
+    host.share(listOf(z.file), "application/zip", "Отправить архив")
+}
+
+/** Отправить файлы (отчёт Excel и т. п.). */
+fun shareFiles(host: Host, files: List<File>, type: String) = host.share(files, type)
+
+/** Последнее удалённое — для «Вернуть» внизу экрана (главный экран показывает и возвращает). */
+object Undo {
+    val last = kotlinx.coroutines.flow.MutableStateFlow<Store.Trashed?>(null)
+    /** Не удалилось — сказать прямо, а не молчать. */
+    val failed = kotlinx.coroutines.flow.MutableStateFlow(0)
+    /**
+     * Удаляемое — пути: экраны прячут это сразу по касанию, а корзина работает в фоне (автор,
+     * 14.10.2026: «При удалении фото не сразу обновляются миниатюры» — перенос в корзину с журналом
+     * шёл на главном потоке, а сетка ждала полного пересчёта папки).
+     */
+    val gone = androidx.compose.runtime.mutableStateListOf<String>()
+    private val bg = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
+    fun trash(items: Collection<File>) {
+        val list = items.toList()
+        gone += list.map { it.path }
+        bg.launch {
+            val t = withContext(kg.osmotr.core.Background) { Store.trash(list) }
+            if (t != null) last.value = t
+            else { val paths = list.map { it.path }.toSet(); gone.removeAll(paths); failed.value++ }
+        }
+    }
+    /** «Вернуть» — сразу видно снова, файлы возвращаются в фоне. */
+    fun restore(t: Store.Trashed) {
+        gone.removeAll(t.items.map { it.first.path }.toSet())
+        bg.launch { withContext(kg.osmotr.core.Background) { Store.restore(t) } }
+    }
+}
+
+/** «12 фото», «1 папка», «5 папок». */
+fun plural(n: Int, one: String, few: String, many: String): String {
+    val m10 = n % 10; val m100 = n % 100
+    val w = if (m10 == 1 && m100 != 11) one else if (m10 in 2..4 && m100 !in 12..14) few else many
+    return "$n $w"
+}
+
+/**
+ * Движение интерфейса — одно на всё приложение: появление, исчезновение и сдвиг элементов
+ * списков, рост и сжатие карточек. Коротко и мягко: список не перерисовывается рывком.
+ */
+fun <T> motion(): androidx.compose.animation.core.FiniteAnimationSpec<T> =
+    androidx.compose.animation.core.tween(durationMillis = 220, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+
+/**
+ * Панель — поверхность с тонкой гранью: карточка лежит на фоне, а не сливается с ним (автор о
+ * приложении APCS: «бедно, не хватает граней»). [tint] — своя заливка (опись — оттенком цвета).
+ */
+@Composable
+fun Modifier.panel(shape: androidx.compose.ui.graphics.Shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+                   tint: androidx.compose.ui.graphics.Color? = null): Modifier =
+    this.then(Modifier.clip(shape)).background(tint ?: MaterialTheme.colorScheme.surface)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+
+/** Комментарий папки или описи — карточкой; касание — править. */
+@Composable
+fun NoteCard(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(modifier.fillMaxWidth().testTag("комментарий").panel().clickable(onClick = onClick).padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(AppIcons.Notes, null, tint = MaterialTheme.colorScheme.secondary)
+        Text(text, style = MaterialTheme.typography.bodyMedium, maxLines = 6, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Контакты людей папки или описи — строкой: первый и «ещё N»; касание — все. */
+@Composable
+fun PeopleCard(people: List<Store.Contact>, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(modifier.fillMaxWidth().panel().clickable(onClick = onClick).padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(androidx.compose.material.icons.Icons.Default.Person, null, tint = MaterialTheme.colorScheme.secondary)
+        Text(people.first().let { listOf(it.name, it.phone).filter(String::isNotBlank).joinToString(" · ") } +
+            if (people.size > 1) " · ещё ${people.size - 1}" else "",
+            style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+
+/**
+ * Что экран показывал в последний раз — по ключу (опись, папка). Вернулись на экран — то же
+ * сразу, без пустого кадра. Прежде каждый вход начинался с пустого: строки, шапка и плашки
+ * проявлялись заново, а список прыгал, когда следом подгружались комментарий и контакты (автор,
+ * 14.10.2026: «В интерфейсе куча подёргиваний… Каждое обновление экрана вызывает анимацию
+ * появления»). Свежее приходит следом и подменяет тихо: что не поменялось, не двигается.
+ * Только на главном потоке (композиция и её эффекты).
+ */
+object ScreenCache : kotlinx.atomicfu.locks.SynchronizedObject() {
+    private val map = LinkedHashMap<String, Any?>()
+    // Под замком: продолжение загрузки приходит не всегда на главный поток (тесты экранов ловили
+    // ConcurrentModificationException на вытеснении старого).
+    @Suppress("UNCHECKED_CAST")
+    fun <T> get(key: String): T? = kotlinx.atomicfu.locks.synchronized(this) { map[key] as T? }
+    fun put(key: String, value: Any?) = kotlinx.atomicfu.locks.synchronized(this) {
+        map.remove(key); map[key] = value
+        if (map.size > 300) map.remove(map.keys.first())
+    }
+}
+
+/**
+ * Загрузить в фоне ([load] — на потоке IO) и помнить: первый кадр — прежнее из [ScreenCache]
+ * по [cacheKey], не пустое; [keys] — когда перезагрузить (version, reparse…). То же, что пришло, —
+ * не перерисовывается.
+ */
+@Composable
+fun <T> rememberLoaded(cacheKey: String, vararg keys: Any?, load: suspend () -> T): T? {
+    val state = remember(cacheKey) { mutableStateOf(ScreenCache.get<T>(cacheKey)) }
+    LaunchedEffect(cacheKey, *keys) {
+        val fresh = withContext(Background) { load() }
+        ScreenCache.put(cacheKey, fresh)
+        if (fresh != state.value) state.value = fresh
+    }
+    return state.value
+}
+
+/**
+ * Тело окна — с прокруткой. Без неё на небольшом экране, при крупном шрифте или лёжа длинное
+ * содержимое (потерянные строки при замене описи, путь, варианты выгрузки) обрезалось без
+ * возможности дочитать (15.10.2026, «возможность прокрутки»).
+ */
+@androidx.compose.runtime.Composable
+fun DialogBody(content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) =
+    androidx.compose.foundation.layout.Column(
+        androidx.compose.ui.Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()), content = content)
+
+
+/**
+ * Документ (PDF, книга Excel) — в [dir] под своим именем, потоком: скан на сотни мегабайт не поднимается в
+ * память. Тот же документ уже лежит (прислали второй раз) — не копируется: возвращается лежащий, второй — false.
+ */
+suspend fun addDocument(dir: kg.osmotr.core.File, p: Picked): Pair<kg.osmotr.core.File, Boolean> =
+    p.file?.let { f -> kg.osmotr.core.withContent(f) { placeDocument(dir, p) } } ?: placeDocument(dir, p)
+
+/** Содержимое выбранного уже доступно; проверяется и то, что лежит в папке: в браузере большие файлы читаются по запросу. */
+private suspend fun placeDocument(dir: kg.osmotr.core.File, p: Picked): Pair<kg.osmotr.core.File, Boolean> {
+    val name = p.name.let { n -> if (!p.isPdf || n.endsWith(".pdf", true)) n else "$n.pdf" }
+    dir.listFiles()?.firstOrNull { it.isFile && it.length() == p.size && runCatching { kg.osmotr.core.withContent(it) { p.sameAs(it) } }.getOrDefault(false) }?.let { return it to false }
+    return kg.osmotr.core.Store.addFile(dir, name) { p.writeTo(it) } to true
+}
+
+/**
+ * Разложить разобранное (массовая подгрузка): по каждой папке — снимки снимками ([placePhotos]), PDF — файлом
+ * под своим именем. Временные файлы выбранного — прочь. Сколько легло.
+ */
+suspend fun placeSorted(where: Map<Picked, kg.osmotr.core.File>): Int = where.entries.groupBy({ it.value }, { it.key }).entries.sumOf { (dir, got) ->
+    val (pdfs, photos) = got.partition { it.isDoc }
+    pdfs.forEach { p -> addDocument(dir, p); p.file?.delete() }
+    pdfs.size + (if (photos.isEmpty()) 0 else placePhotos(dir, photos))
+}
+
+/**
+ * Положить присланное в [dir]: из временных файлов — потоком (Android), из памяти — как есть.
+ * Сколько легло — в ответе.
+ */
+fun placePhotos(dir: kg.osmotr.core.File, place: List<Picked>): Int {
+    val (files, mem) = place.partition { it.file != null }
+    val a = if (files.isEmpty()) emptyList() else kg.osmotr.core.Store.addPhotoFiles(dir, files.map { Triple(it.name, it.file!!, it.takenMs) })
+    val b = if (mem.isEmpty()) emptyList() else kg.osmotr.core.Store.addPhotos(dir, mem.map { Triple(it.name, it.bytes, it.takenMs) })
+    kg.osmotr.core.Inventory.refreshReportSoon(dir)
+    return a.size + b.size
+}

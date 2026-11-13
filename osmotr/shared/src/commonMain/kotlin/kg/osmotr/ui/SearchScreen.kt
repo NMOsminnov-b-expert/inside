@@ -1,0 +1,268 @@
+package kg.osmotr.ui
+
+import kg.osmotr.core.Background
+
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.TextButton
+import kg.osmotr.core.File
+import kg.osmotr.core.Inventory
+import kg.osmotr.core.Platform
+import kg.osmotr.core.Search
+import kg.osmotr.core.Store
+import kg.osmotr.core.Xlsx
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
+
+/**
+ * Поиск папок и предметов: поле с клавиатурой сразу, результаты по мере набора; касание — в папку.
+ * Открыт внутри описи — ищет только в ней (автор, 09.10.2026: «поиск работает и по другим описям»);
+ * «Везде» — по всем. С главного — везде.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchScreen(here: File, initial: String = "", open: (File) -> Unit, close: () -> Unit, place: Int? = null, tree: (() -> Unit)? = null,
+                 /** Открыть перечень Excel с этим запросом (найденное в перечнях). */
+                 openList: (File, String) -> Unit = { _, _ -> }) {
+    // [place] — сколько присланных фото кладём (автор, 14.10.2026: «При добавлении нужен поиск по папкам,
+    // инвентарникам… Ибо это может быть и новый инвентарник»): найденное — куда класть; нет в описи —
+    // «Новая папка «…»» в нужной описи; [tree] — выбрать в дереве папок.
+    // Куда кладём — подтвердить, видя весь путь (автор, 14.10.2026: «не совсем понятно, куда фото
+    // улетает»): что показать и как получить папку — заводится только после «Положить».
+    var confirm by remember { mutableStateOf<Pair<String, suspend () -> File?>?>(null) }
+    val objects by produceState(emptyList<File>(), place) {
+        if (place != null) value = withContext(Background) { kg.osmotr.core.Objects.inventories() }
+    }
+    var query by rememberSaveable { mutableStateOf(initial) }
+    val obj by produceState<File?>(null, here) { value = withContext(Background) { if (here == Store.root) null else Inventory.objectOf(here) } }
+    var everywhere by rememberSaveable { mutableStateOf(false) }
+    val scope0 = obj?.takeIf { !everywhere }
+    val index by produceState<List<Search.Entry>?>(null) { value = withContext(Background) { Search.index() } }
+    val itemIndex by produceState<List<Search.ItemEntry>>(emptyList()) {
+        value = withContext(Background) { runCatching { Search.items() }.getOrDefault(emptyList()).also { all -> Search.prepare(all.map { it.item }) } }
+    }
+    val itemHits by produceState(emptyList<Search.ItemEntry>(), itemIndex, query, scope0) {
+        val pool = scope0?.let { o -> itemIndex.filter { it.obj == o } } ?: itemIndex
+        // Раскладка присланного без запроса — все инвентарники сразу, по описи и порядку в ней
+        // (автор, 19.10.2026: «просмотр ВСЕХ инвентарников и в дереве и в списке по умолчанию»).
+        value = if (place != null && query.isBlank()) pool.sortedWith(compareBy({ Store.title(it.obj) }, { it.item.list }, { it.item.row }))
+            else withContext(Dispatchers.Default) { Search.findItems(pool, query) { isActive } }
+    }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val hits by produceState(emptyList<Search.Hit>(), index, query, scope0) {
+        val i = index ?: return@produceState
+        val inside = scope0?.let { it.absolutePath + File.separator }
+        val pool = if (inside == null) i else i.filter { it.dir.absolutePath.startsWith(inside) }
+        value = withContext(Dispatchers.Default) { Search.find(pool, query, here) }
+    }
+    // Перечни Excel (здания и прочее; автор, 29.10.2026: «просмотр и поиск по ним») — в общем поиске тоже: набрал
+    // адрес — нашёл здание в любой присланной книге. Не при раскладке фото: класть в строку книги нельзя.
+    val listHits by produceState(emptyList<Pair<File, kg.osmotr.core.Lists.Hit>>(), query, place) {
+        if (place != null || query.isBlank()) { value = emptyList(); return@produceState }
+        kotlinx.coroutines.delay(150)
+        value = withContext(Background) { runCatching { kg.osmotr.core.Lists.searchAll(query) }.getOrDefault(emptyList()) }
+    }
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // При раскладке главное — список, куда положить: лёжа клавиатура закрывала его целиком.
+    LaunchedEffect(Unit) { if (place == null) focus.requestFocus() }
+
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).statusBarsPadding().imePadding()) {
+        Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = close) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") }
+            // То же поле-капсула, что в описи: инвентарник, название, комментарий, человек, телефон.
+            SearchCapsule(query, { query = it }, focus, onDone = { keyboard?.hide() }, placeholder = "Папка, инв. номер, человек",
+                modifier = Modifier.weight(1f))
+        }
+        if (place != null) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Куда положить: ${plural(place, "фото", "фото", "фото")}", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            tree?.let { t -> TextButton(onClick = t) { Text("Дерево папок") } }
+        }
+        // Внутри описи — где искать: только в ней или везде.
+        obj?.let { o ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(!everywhere, { everywhere = false }, { Text("В описи «${o.name}»", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    Modifier.weight(1f, fill = false), shape = androidx.compose.foundation.shape.CircleShape)
+                FilterChip(everywhere, { everywhere = true }, { Text("Везде") }, shape = androidx.compose.foundation.shape.CircleShape)
+            }
+        }
+        HorizontalDivider()
+        Box(Modifier.fillMaxSize()) {
+            if (place == null && query.isNotBlank() && index != null && hits.isEmpty() && itemHits.isEmpty() && listHits.isEmpty()) Text("Ничего не найдено", Modifier.align(Alignment.TopCenter).padding(24.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            LazyColumn(Modifier.fillMaxSize()) {
+                // Предметы описей — первыми: нашёл — сразу в папку предмета, к снимкам.
+                if (itemHits.isNotEmpty()) item(key = "items-h") { Section("Опись") }
+                items(itemHits, key = { "i:" + it.obj.path + it.item.list + it.item.row }) { e ->
+                    ItemResult(e, query) {
+                        keyboard?.hide()
+                        if (place != null) confirm = ("${Store.title(e.obj)} › предмет ${e.item.inventory.ifEmpty { "№ " + e.item.number }} — ${e.item.name}") to
+                            suspend { withContext(Background) { Inventory.openFolder(e.obj, e.item) } }
+                        else scope.launch { open(withContext(Background) { Inventory.openFolder(e.obj, e.item) }) }
+                    }
+                }
+                if (itemHits.isNotEmpty() && hits.isNotEmpty()) item(key = "folders-h") { Section("Папки") }
+                items(hits, key = { it.entry.dir.path }) { hit -> Result(hit, query) {
+                    keyboard?.hide()
+                    if (place != null) confirm = Store.title(hit.entry.dir) to suspend { hit.entry.dir } else open(hit.entry.dir)
+                } }
+                if (listHits.isNotEmpty()) item(key = "lists-h") { Section("В перечнях") }
+                items(listHits, key = { (f, h) -> "l:" + f.path + ":" + h.sheet + ":" + h.row }) { (f, h) ->
+                    ListResult(f, h) { keyboard?.hide(); openList(f, query) }
+                }
+                // Нового инвентарника нет ни в описи, ни в папках — завести папку с этим названием там, где он стоит.
+                val name = query.trim()
+                if (place != null && name.isNotEmpty()) {
+                    item(key = "new-h") { Section("Новая папка «$name»") }
+                    // Корень — только для объектов (Layout): новая папка — в описи.
+                    items(objects.filter { kg.osmotr.core.Layout.canCreateFolder(it) }, key = { "n:" + it.path }) { parent ->
+                        Row(Modifier.fillMaxWidth().clickable {
+                            keyboard?.hide()
+                            confirm = "${if (parent == Store.root) "Осмотры" else Store.title(parent)} › $name (новая папка)" to suspend {
+                                withContext(Background) { Store.createFolder(parent, name) ?: File(parent, Store.cleanName(name)).takeIf { it.isDirectory } }
+                            }
+                        }.padding(horizontal = 16.dp, vertical = 12.dp).testTag("новая папка"), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(AppIcons.CreateNewFolder, null, tint = MaterialTheme.colorScheme.primary)
+                            Text("  Новая папка «$name» " + if (parent == Store.root) "в «Осмотрах» (без описи)" else "в описи «${parent.name}»",
+                                style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    confirm?.let { (where, resolve) ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirm = null },
+            title = { Text("Положить ${plural(place ?: 0, "фото", "фото", "фото")} сюда?") },
+            text = { DialogBody { Text(where, style = MaterialTheme.typography.bodyLarge) } },
+            confirmButton = { TextButton(onClick = {
+                confirm = null
+                scope.launch { resolve()?.let(open) }
+            }, modifier = Modifier.testTag("положить")) { Text("Положить") } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Назад") } },
+        )
+    }
+}
+
+@Composable
+private fun Result(hit: Search.Hit, query: String, onClick: () -> Unit) {
+    val e = hit.entry
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(AppIcons.Folder, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.secondary)
+        Column(Modifier.weight(1f)) {
+            Text(marked(e.name, query, MaterialTheme.colorScheme.primary), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(listOf(e.where, plural(e.photos, "фото", "фото", "фото")).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                overflow = TextOverflow.StartEllipsis)
+            hit.noteLine?.let { line ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(AppIcons.Notes, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(marked(line, query, MaterialTheme.colorScheme.primary), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+/** Строка перечня: первые значения строки (название, адрес), ниже — книга, лист, строка. */
+@Composable
+private fun ListResult(f: File, h: kg.osmotr.core.Lists.Hit, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp).testTag("найдено в перечне"),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(AppIcons.TableChart, null, tint = DONE_GREEN)
+        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+            Text(h.cells.map { it.second }.filter { v -> v.any { it.isLetter() } }.take(2).joinToString(" · ").ifEmpty { h.cells.firstOrNull()?.second.orEmpty() },
+                style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text("${f.name.substringBeforeLast('.')} · строка ${h.row + 1}", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun Section(title: String) {
+    Text(title, Modifier.padding(start = 16.dp, top = 10.dp, bottom = 2.dp), style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun ItemResult(e: Search.ItemEntry, query: String, onClick: () -> Unit) {
+    val i = e.item
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(AppIcons.Checklist, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f)) {
+            Text(marked("${i.inventory}  ·  № ${i.number}" + if (i.priority.isNotEmpty()) "  ·  П${i.priority}" else "", query, MaterialTheme.colorScheme.primary),
+                style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            Text(marked(i.name, query, MaterialTheme.colorScheme.primary), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(listOfNotNull(Store.title(e.obj), i.list, i.initial?.let { money(it) }).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** Выделить в [text] слова запроса — видно, почему папка нашлась. */
+private fun marked(text: String, query: String, hit: Color): AnnotatedString = buildAnnotatedString {
+    append(text)
+    val low = Search.norm(text)
+    Search.norm(query).split(Regex("""\s+""")).filter { it.isNotEmpty() }.forEach { t ->
+        var i = low.indexOf(t)
+        while (i >= 0) {
+            addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = hit), i, i + t.length)
+            i = low.indexOf(t, i + t.length)
+        }
+    }
+}

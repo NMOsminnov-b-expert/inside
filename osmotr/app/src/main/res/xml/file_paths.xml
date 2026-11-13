@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Всё, что уходит наружу через «Поделиться», должно лежать в одной из этих папок — иначе
+         FileProvider падает «Failed to find configured root» (20.10.2026: выборочные отчёты).
+         Проверяет путь матрицы «выгрузка: отчёты всех видов и диагностика наружу». -->
+    <!-- Архивы для «Поделиться» и снимки из папки «Осмотры». -->
+    <cache-path name="share" path="share/" />
+    <external-path name="osmotr" path="Осмотры/" />
+    <!-- Выгрузки (архивы и их части) — «Загрузки/Осмотр»; без доступа к памяти — у приложения. -->
+    <external-path name="exports" path="Download/Осмотр/" />
+    <files-path name="exports-local" path="exports/" />
+    <!-- Отчёты «осмотренное» / «не осмотренное» — Inventory.reportFor, Store.cacheDir = files/cache. -->
+    <files-path name="reports" path="cache/reports/" />
+    <!-- Бланки инструкций (акт, InfoPC.bat) — InstructionLibrary кладёт их в кэш, «Отправить PDF организации». -->
+    <cache-path name="instructions" path="instructions/" />
+    <!-- Архив диагностики — sendDiagnostics. -->
+    <cache-path name="diagnostics" path="diagnostics/" />
+</paths>

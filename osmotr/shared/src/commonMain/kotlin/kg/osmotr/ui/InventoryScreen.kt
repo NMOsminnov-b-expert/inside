@@ -1,0 +1,919 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
+package kg.osmotr.ui
+
+import kg.osmotr.core.Background
+
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedButton
+import kg.osmotr.core.File
+import kg.osmotr.core.Inventory
+import kg.osmotr.core.Platform
+import kg.osmotr.core.Search
+import kg.osmotr.core.Store
+import kg.osmotr.core.Xlsx
+
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/** Что помнит экран описи объекта, пока приложение открыто: фильтры и место в списке. */
+private class InventoryView {
+    var query by mutableStateOf("")
+    var list by mutableStateOf<String?>(null)
+    var status by mutableStateOf<String?>(null)
+    var priority by mutableStateOf<String?>(null)
+    var onlyLeft by mutableStateOf(false)
+    var onlyBroken by mutableStateOf(false)
+    var more by mutableStateOf(false)
+    var sort by mutableStateOf(Sort.NUMBER)
+    val scroll = LazyListState()
+    /** Сняли из списка — по возвращении поиск снова под пальцем: следующая бирка. */
+    var refocus = false
+    /** Список сам не нашёлся — «Столбцы описи» открывались сами (один раз, не на каждый возврат). */
+    var asked = false
+    /** Плашку «проверьте, как прочитана опись» скрыли — до смены файла или столбцов. */
+    var hiddenWarnings by mutableStateOf<List<String>>(emptyList())
+}
+private val views = HashMap<File, InventoryView>()
+
+private enum class Sort(val title: String) { NUMBER("по №"), PRIORITY("по приоритету"), COST("по стоимости") }
+
+/** «1 044 321,55» — деньги по-русски: тысячи через пробел, два знака после запятой. */
+fun money(v: Double?): String {
+    if (v == null) return ""
+    val cents = kotlin.math.round(kotlin.math.abs(v) * 100).toLong()
+    val int = (cents / 100).toString().reversed().chunked(3).joinToString("\u00A0").reversed()
+    return (if (v < 0) "-" else "") + int + "," + (cents % 100).toString().padStart(2, '0')
+}
+
+/**
+ * Осмотр по описи объекта: ходим по списку и снимаем. Сверху — поиск (набрал номер с бирки —
+ * предмет тут же), сколько осмотрено, фильтры (список, статус, «только неосмотренные»),
+ * порядок (№, приоритет, стоимость). Касание — папка предмета (нет — создаётся) с «Снимать»;
+ * вернулся — тот же список на том же месте, предмет уже отмечен. Зажатие — отметить несколько и
+ * «В одну папку» (похожие предметы — три одинаковых юнита). Нерабочее отмечается в папке предмета,
+ * после снимков; в списке — красная пометка и фильтр «Нерабочие».
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun InventoryScreen(obj: File, into: File? = null, initialQuery: String? = null, openFolder: (File) -> Unit, folders: (File) -> Unit, close: () -> Unit,
+                    picked: (File) -> Unit = {}, contacts: (File) -> Unit = {}) {
+    val host = LocalHost.current
+    val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
+    // Набор в папку — свой список с начала (сверху — что уже в ней), опись помнит своё место.
+    val v = remember(obj, into) { if (into != null) InventoryView() else views.getOrPut(obj) { InventoryView() } }
+    LaunchedEffect(initialQuery) { initialQuery?.let { v.query = it } }
+    val version by Store.version.collectAsStateWithLifecycle()
+    var reparse by remember { mutableStateOf(0) }
+    // previous — есть прежний файл описи (заменили — можно вернуть); warnings — что в прочитанном подозрительно.
+    data class Data(val parsed: List<Inventory.Parsed>, val status: Inventory.Status, val previous: Boolean, val warnings: List<String>)
+    // Прежнее — сразу (вернулись на опись — список на месте, а не проявляется заново), свежее — следом.
+    val data = rememberLoaded("опись|${obj.path}", version, reparse) {
+        // Отчёт — свежий, но в фоне: список не ждёт его секунды.
+        val parsed = Inventory.filesIn(obj).map { Inventory.parse(it) }
+        val items = parsed.flatMap { it.items }
+        Data(parsed, Inventory.status(obj), Inventory.hasPrevious(obj), if (items.isEmpty()) emptyList() else Inventory.itemWarnings(items))
+            .also { Inventory.refreshReportSoon(obj) }
+    }
+    // Поиск — приготовить заранее, пока человек смотрит список.
+    LaunchedEffect(data) {
+        val d = data ?: return@LaunchedEffect
+        withContext(Dispatchers.Default) {
+            val t0 = Platform.nowMs(); val items = d.parsed.flatMap { it.items }
+            Search.prepare(items)
+            kg.osmotr.core.Telemetry.log("поиск готов: ${items.size} предметов, ${Platform.nowMs() - t0} мс")
+        }
+    }
+    fun d0() = data
+    val selected = remember(obj) { mutableStateListOf<Inventory.Item>() }
+    // Акт на группу позиций — у описи учреждения из назначения E•state (у механизмов-ОИ актов нет).
+    val actsOn = remember(obj) {
+        kg.osmotr.core.Estate.of(obj)?.let { (o, b) -> b.inventories.any { it.kind == "inv" && File(o, it.folder).path.trimEnd('/') == obj.path.trimEnd('/') } } == true
+    }
+    val focus = remember { FocusRequester() }
+    val haptic = LocalHapticFeedback.current
+    // Вернулись из камеры, снимали из списка — поиск снова в фокусе, клавиатура открыта: следующая бирка.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (v.refocus) { v.refocus = false; runCatching { focus.requestFocus() }; keyboard?.show() }
+    }
+    var importing by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
+    var newFolder by remember { mutableStateOf<String?>(null) }  // «Не найдено» — своя папка с названием от человека
+    // Корень описи — свой комментарий, голосовые заметки и контакты (автор, 09.10.2026: «не только в
+    // папки добавить, но и в корень описи… через 3 точки»).
+    var editingNote by remember { mutableStateOf(false) }
+    var recording by remember { mutableStateOf(false) }
+    // «Столбцы описи» (ColumnsScreen.kt): открыт ли и потому ли, что список сам не нашёлся.
+    var columns by remember { mutableStateOf<Boolean?>(null) }
+    // Замена файла описи, которая что-то потеряет: книга и что будет (спросить, прежде чем менять).
+    var replaceAsk by remember { mutableStateOf<Pair<Picked, Inventory.ReplaceCheck>?>(null) }
+    // Импорт уже отсмотренного: имя файла и его листы (EarlierImport.kt).
+    var earlier by remember { mutableStateOf<Pair<String, List<kg.osmotr.core.Xlsx.Sheet>>?>(null) }
+    // Комментарий, записи и контакты описи — тоже с прежним сразу: подгружаясь следом, они растили шапку и толкали список.
+    val note = rememberLoaded("комментарий|${obj.path}", version) { Store.note(obj) }
+    val voices = rememberLoaded("записи|${obj.path}", version) { Store.voiceNotes(obj) } ?: emptyList()
+    val people = rememberLoaded("контакты|${obj.path}", version) { Store.contacts(obj) } ?: emptyList()
+
+    BackHandler(enabled = selected.isNotEmpty()) { selected.clear() }
+    // Набор в папку: она переименовывается по составу — держим её текущее имя.
+    var target by remember(into) { mutableStateOf(into) }
+    val inTarget by produceState(emptyList<Inventory.Item>(), target, version) {
+        value = target?.let { t -> withContext(Background) { runCatching { Inventory.itemsIn(t) }.getOrDefault(emptyList()) } }.orEmpty()
+    }
+    val targetKeys = remember(inTarget) { inTarget.map { Search.compact(it.inventory) }.toSet() }
+    fun inHere(i: Inventory.Item) = Search.compact(i.inventory) in targetKeys
+    // Порядок набора — по составу при входе: отмеченная строка остаётся под пальцем, а не улетает вверх.
+    var first by remember(into) { mutableStateOf<List<Inventory.Item>?>(null) }
+    LaunchedEffect(inTarget) { if (first == null && inTarget.isNotEmpty()) first = inTarget }
+    // Отметки копятся и применяются разом («Готово» или «назад»): ключ — инвентарник, значение — быть ли в папке.
+    val pending = remember(into) { androidx.compose.runtime.mutableStateMapOf<String, Pair<Inventory.Item, Boolean>>() }
+    fun wanted(i: Inventory.Item) = pending[Search.compact(i.inventory)]?.second ?: inHere(i)
+    val count = inTarget.size + pending.values.count { (i, on) -> on && !inHere(i) } - pending.values.count { (i, on) -> !on && inHere(i) }
+    fun toggleInTarget(i: Inventory.Item) {
+        if (Inventory.foreign(i)) return  // чужая позиция — только чтение
+        val k = Search.compact(i.inventory); val on = !wanted(i)
+        if (on == inHere(i)) pending.remove(k) else pending[k] = i to on
+    }
+    var applying by remember { mutableStateOf(false) }
+    fun finish() {
+        val t = target ?: return
+        if (pending.isEmpty()) { picked(t); return }
+        if (applying) return
+        applying = true
+        val add = pending.values.filter { it.second }.map { it.first }
+        val drop = pending.values.filterNot { it.second }.map { it.first }
+        scope.launch {
+            val out = withContext(Background) {
+                var dir = if (add.isEmpty()) t else Inventory.addTo(t, add)
+                // Последний предмет папки не убирается (removeFrom сам это стережёт).
+                drop.forEach { dir = Inventory.removeFrom(dir, it) }
+                warmFolder(dir); Inventory.refreshReportSoon(dir); dir
+            }
+            pending.clear(); applying = false; target = out; picked(out)
+        }
+    }
+    BackHandler(enabled = target != null) { finish() }
+
+    // Вернуть файл описи, каким он был до последней замены (нынешний уходит в запас — можно обратно).
+    fun restore() {
+        scope.launch {
+            withContext(Background) { Inventory.restorePrevious(obj); Inventory.refreshReportSoon(obj) }
+            v.hiddenWarnings = emptyList(); reparse++
+            host.toast("Возвращён прежний файл описи")
+        }
+    }
+
+    fun loadEarlier() = host.pickBooks(false) { got ->
+        val book = got.firstOrNull() ?: return@pickBooks
+        scope.launch {
+            val sheets = withContext(Background) { runCatching { kg.osmotr.core.Xlsx.sheets(book.bytes) }.getOrDefault(emptyList()) }
+            if (sheets.isEmpty()) host.toast("${book.name}: не книга Excel (.xlsx) или повреждена", long = true)
+            else earlier = book.name to sheets
+        }
+    }
+
+    fun attach(book: Picked, replacing: Boolean) {
+        importing = true
+        scope.launch {
+            val r = withContext(Background) { runCatching { Inventory.attachBook(book.bytes, book.name, obj).also { Inventory.refreshReportSoon(obj) } } }
+            importing = false
+            r.onFailure { host.toast("${book.name}: ${it.message}", long = true) }
+            r.onSuccess { p ->
+                reparse++; v.hiddenWarnings = emptyList()
+                // Список сам не нашёлся — сразу к столбцам; нашёлся — сказать, сколько.
+                if (p.items.isEmpty()) { v.asked = true; columns = true }
+                else if (replacing) host.toast("Файл описи заменён: ${plural(p.items.size, "предмет", "предмета", "предметов")}. Прежний — в меню «Вернуть прежний файл описи»", long = true)
+            }
+        }
+    }
+
+    // Загрузить или заменить файл описи. Не книга, битый, под паролем — причина, ничего не меняется;
+    // тот же файл — так и сказать; замена, после которой у папок со снимками пропадут предметы
+    // или список не найдётся, — сперва спросить (автор: «подгрузили не тот файл, или битый файл»).
+    fun load() = host.pickBooks(false) { got ->
+        val book = got.firstOrNull() ?: return@pickBooks
+        val replacing = !d0()?.parsed.isNullOrEmpty()
+        scope.launch {
+            val problem = withContext(Background) { Inventory.problemOf(book.bytes) }
+            if (problem != null) { host.toast("${book.name}: $problem", long = true); return@launch }
+            if (replacing) {
+                val ch = withContext(Background) { Inventory.checkReplace(obj, book.bytes) }
+                if (ch.same) { host.toast("Это тот же файл описи — ничего не изменилось"); return@launch }
+                if (ch.items == 0 || ch.lost.isNotEmpty()) { replaceAsk = book to ch; return@launch }
+            }
+            attach(book, replacing)
+        }
+    }
+
+    val d = data
+    val all = d?.parsed?.flatMap { it.items }.orEmpty()
+    val st = d?.status
+    // Спорные столбцы — сразу спросить, а не показывать опись с пустыми местами.
+    // Окно столбцов само не всплывает: подбор решает сам; проверить и исправить — «Проверить опись».
+
+    // Список на экране — в фоне: поиск с опечатками по 5–6 тыс. предметов не должен тормозить ввод.
+    val shownKey = "строки|${obj.path}|${into != null}"
+    val shown by produceState(ScreenCache.get<List<Inventory.Item>>(shownKey) ?: emptyList(), d, v.query, v.list, v.status, v.priority, v.onlyLeft, v.onlyBroken, v.sort, first) {
+        value = withContext(Dispatchers.Default) {
+        val q = v.query.trim()
+        var items = all.asSequence()
+            .filter { v.list == null || it.list == v.list }
+            .filter { v.status == null || it.status == v.status }
+            .filter { v.priority == null || it.priority == v.priority }
+            .filter { !v.onlyLeft || st?.inspected(it) != true }
+            .filter { !v.onlyBroken || st?.broken(it) == true }
+            .toList()
+        if (q.isNotEmpty()) {
+            // Номер с бирки, инвентарник — без разделителей; название и место — по ключевым словам
+            // в любом порядке, с опечатками; точное — первым.
+            // Набрали следующую букву — прежний проход бросить, а не досчитывать рядом с новым.
+            val t0 = Platform.nowMs()
+            val match = Search.matcher(q)
+            items = items.mapNotNull { i -> ensureActive(); match(i).takeIf { it > 0 }?.let { i to it } }
+                .sortedByDescending { it.second }.map { it.first }
+            // Что искали — не пишется (в поиске и люди, и телефоны): только длина запроса.
+            kg.osmotr.core.Telemetry.log("поиск (${q.length} зн.): ${items.size} из ${all.size}, ${Platform.nowMs() - t0} мс")
+        } else items = when (v.sort) {
+            Sort.NUMBER -> items
+            Sort.PRIORITY -> items.sortedWith(compareBy<Inventory.Item> { it.priority.toIntOrNull() ?: Int.MAX_VALUE }.thenBy { it.number.toIntOrNull() ?: 0 })
+            Sort.COST -> items.sortedByDescending { it.initial ?: it.sum ?: 0.0 }
+        }
+        first?.takeIf { target != null && q.isEmpty() }?.let { was ->
+            // Сверху — что уже в папке, за ним — такие же (наименование и цена), потом остальное.
+            val keys = was.map { Search.compact(it.inventory) }.toSet()
+            items = items.sortedBy { i -> if (Search.compact(i.inventory) in keys) 0 else if (was.any { Inventory.isLike(it, i) }) 1 else 2 }
+        }
+        items
+        }
+        // Описи ещё нет (первый кадр) — прежний список не затирать пустым.
+        if (d != null) ScreenCache.put(shownKey, value)
+    }
+
+    Scaffold(
+        topBar = {
+            // Шапка меняется перекрёстно (набор в папку, выделение, обычная), а не подменой за кадр:
+            // прежде выделение долгим нажатием дёргало всю шапку (матрица движения: ЗАМЕНЁН, РЫВОК).
+            val bar = when { target != null -> 0; selected.isNotEmpty() -> 1; else -> 2 }
+            AnimatedContent(bar, transitionSpec = { fadeIn(motion()) togetherWith fadeOut(motion()) }, label = "шапка") { mode ->
+                if (mode == 0) TopAppBar(
+                    modifier = Modifier.testTag("шапка"),
+                    navigationIcon = { IconButton(onClick = ::finish) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Готово") } },
+                    title = { Column {
+                        Text(target!!.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("в папке: $count", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    } },
+                    actions = {
+                        val plus = pending.values.count { it.second }; val minus = pending.size - plus
+                        TextButton(onClick = ::finish, enabled = !applying) {
+                            Text("Готово" + listOfNotNull(plus.takeIf { it > 0 }?.let { " +$it" }, minus.takeIf { it > 0 }?.let { " −$it" }).joinToString(""))
+                        }
+                    },
+                ) else if (mode == 1) TopAppBar(
+                    modifier = Modifier.testTag("шапка"),
+                    navigationIcon = { IconButton(onClick = { selected.clear() }) { Icon(Icons.Default.Close, "Снять выбор") } },
+                    title = { Text("Отмечено: ${selected.size}") },
+                    actions = {
+                        // Отметка «осмотрено» без снимков — поставить разом и снять разом (автор: «как отметить
+                        // невыполненным?», «отметить как осмотренное — нужна»).
+                        fun mark(items: List<Inventory.Item>, on: Boolean) {
+                            selected.clear()
+                            scope.launch {
+                                val n = withContext(Background) { Inventory.setEarlier(obj, items, on).also { Inventory.refreshReportSoon(obj) } }
+                                host.toast((if (on) "Отмечено осмотренными: " else "Снята отметка «осмотрено»: ") + n); reparse++
+                            }
+                        }
+                        val нет = selected.filter { st?.inspected(it) == false && !Inventory.foreign(it) }
+                        val снять = selected.filter { st?.earlier(it) == true && !Inventory.foreign(it) }
+                        if (нет.isNotEmpty()) TextButton(onClick = { mark(нет.toList(), true) }) { Text("Осмотрено (${нет.size})") }
+                        if (снять.isNotEmpty()) TextButton(onClick = { mark(снять.toList(), false) }) { Text("Снять (${снять.size})") }
+                        // Акт на группу позиций (06.11.2026): документ камерой — PDF в «Акты» описи, в систему с инвентарниками позиций.
+                        val mine = selected.filter { !Inventory.foreign(it) }
+                        if (actsOn && mine.isNotEmpty()) TextButton(onClick = {
+                            val ids = mine.map { Inventory.id(it) }
+                            selected.clear()
+                            DocScan.start(host) { pages ->
+                                val f = withContext(Background) { kg.osmotr.core.Estate.addAct(obj, ids, pages) }
+                                "Акт «${f.name}» снят — уйдёт в E•state"
+                            }
+                        }, Modifier.testTag("акт на позиции")) { Text("Акт (${mine.size})") }
+                    },
+                ) else TopAppBar(
+                    modifier = Modifier.testTag("шапка"),
+                    navigationIcon = { IconButton(onClick = close) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
+                    title = { Column { Text(obj.name, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("Опись", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) } },
+                    actions = {
+                        // Выгрузка этой описи — отчёт, всё архивом, новое с прошлой выгрузки, за сегодня.
+                        if (!d?.parsed.isNullOrEmpty()) IconButton(onClick = { exporting = true }) { Icon(Icons.Default.Share, "Выгрузить опись") }
+                        // Папки этой описи — как раньше в «Осмотрах».
+                        IconButton(onClick = { folders(obj) }) { Icon(AppIcons.Folder, "Папки описи") }
+                        Box {
+                            IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Ещё") }
+                            DropdownMenu(menu, { menu = false }) {
+                                DropdownMenuItem({ Text(if (note == null) "Добавить комментарий" else "Комментарий") },
+                                    leadingIcon = { Icon(AppIcons.Notes, null) }, onClick = { menu = false; editingNote = true })
+                                DropdownMenuItem({ Text("Диктофон") }, leadingIcon = { Icon(AppIcons.Mic, null) }, onClick = { menu = false; recording = true })
+                                DropdownMenuItem({ Text("Контакты") }, leadingIcon = { Icon(Icons.Default.Person, null) }, onClick = { menu = false; contacts(obj) })
+                                if (!d?.parsed.isNullOrEmpty()) DropdownMenuItem({ Text("Импорт осмотренного") },
+                                    leadingIcon = { Icon(AppIcons.Checklist, null) }, onClick = { menu = false; loadEarlier() })
+                                DropdownMenuItem({ Text(if (d?.parsed.isNullOrEmpty()) "Загрузить опись" else "Заменить файл описи") },
+                                    leadingIcon = { Icon(AppIcons.UploadFile, null) }, onClick = { menu = false; load() })
+                                // Как прочитан файл описи — и поправить (не тот столбец, не тот лист, шапка не там).
+                                if (!d?.parsed.isNullOrEmpty()) DropdownMenuItem({ Text("Столбцы описи") },
+                                    leadingIcon = { Icon(AppIcons.TableChart, null) }, onClick = { menu = false; columns = false })
+                                if (d?.previous == true) DropdownMenuItem({ Text("Вернуть прежний файл описи") },
+                                    leadingIcon = { Icon(AppIcons.History, null) }, onClick = { menu = false; restore() })
+                            }
+                        }
+                    },
+                )
+            }
+        },
+        floatingActionButton = {
+            if (target == null && selected.size > 1) ExtendedFloatingActionButton(
+                onClick = {
+                    val items = selected.toList(); selected.clear()
+                    scope.launch {
+                        val dir = withContext(Background) { Inventory.group(obj, items).also { warmFolder(it); Inventory.refreshReportSoon(it) } }
+                        openFolder(dir)
+                    }
+                },
+                icon = { Icon(AppIcons.CreateNewFolder, null) }, text = { Text("В одну папку (${selected.size})") },
+                containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.White,
+                modifier = Modifier.voiceLabel("В одну папку (${selected.size})"),
+            )
+        },
+    ) { inner ->
+        Column(Modifier.fillMaxSize().padding(inner)) {
+            when {
+                d == null || importing -> ParseProgress(obj, Modifier.fillMaxSize())
+                d.parsed.isNotEmpty() && d.parsed.all { it.items.isEmpty() } -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
+                    verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Список предметов сам не нашёлся", style = MaterialTheme.typography.titleMedium)
+                    Text("Укажите, в каком столбце инвентарные номера или наименования, — или загрузите другой файл.",
+                        Modifier.padding(top = 8.dp, bottom = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = { columns = true }) { Icon(AppIcons.TableChart, null); Text("  Указать столбцы") }
+                    OutlinedButton(onClick = ::load, Modifier.padding(top = 8.dp)) { Icon(AppIcons.UploadFile, null); Text("  Загрузить другой файл") }
+                    if (d.previous) TextButton(onClick = ::restore, Modifier.padding(top = 8.dp)) { Icon(AppIcons.History, null); Text("  Вернуть прежний файл описи") }
+                }
+                d.parsed.isEmpty() -> Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Описи нет", style = MaterialTheme.typography.titleMedium)
+                    Text("Excel (.xlsx) со списком: инвентарник, наименование, стоимость, приоритет.",
+                        Modifier.padding(top = 8.dp, bottom = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = ::load) { Icon(AppIcons.UploadFile, null); Text("  Загрузить опись") }
+                }
+                else -> {
+                    // Поиск — первым и всегда на месте: номер с бирки набирается сразу.
+                    SearchCapsule(v.query, { v.query = it }, focus, onDone = { keyboard?.hide() })
+                    val scope2 = all.filter { (v.list == null || it.list == v.list) && (v.status == null || it.status == v.status) }
+                    // Ползунок быстрой прокрутки — у правого края, поверх списка (FastScroller).
+                    val byKey = remember(shown) { shown.associateBy { it.list + "|" + it.row } }
+                    Box(Modifier.fillMaxSize()) {
+                    LazyColumn(Modifier.fillMaxSize(), state = v.scroll, contentPadding = PaddingValues(bottom = 96.dp)) {
+                            // Сколько осмотрено и отбор — уезжают вместе со списком, а не держат треть экрана;
+                            // ищут — вместо них одна строка: сколько нашлось.
+                            if (v.query.isBlank()) item(key = "head", contentType = "head") {
+                                Column(Modifier.testTag("сводка описи").animateContentSize(motion())) {
+                                    // Комментарий, голосовые заметки и контакты описи — в самой шапке: отдельной
+                                    // строкой выше неё они появлялись за краем (список держит первую видимую строку).
+                                    if (target == null && (note != null || voices.isNotEmpty() || people.isNotEmpty()))
+                                        Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            note?.let { NoteCard(it, onClick = { editingNote = true }) }
+                                            if (voices.isNotEmpty()) VoiceNotesCard(voices)
+                                            if (people.isNotEmpty()) PeopleCard(people, onClick = { contacts(obj) })
+                                        }
+                                    // Прочитанное подозрительно (инвентарник у малой доли, наименования — числа…) —
+                                    // сказать и дать поправить; скрыли — до смены файла или столбцов.
+                                    val warn = d.warnings.takeIf { it.isNotEmpty() && it != v.hiddenWarnings && target == null }
+                                    // Скрыли — плашка сворачивается, а не пропадает за кадр; что было в ней — помним до конца ухода.
+                                    val lastWarn = remember { mutableStateOf(emptyList<String>()) }
+                                    if (warn != null) lastWarn.value = warn
+                                    AnimatedVisibility(warn != null, enter = fadeIn(motion()) + expandVertically(motion()), exit = fadeOut(motion()) + shrinkVertically(motion())) {
+                                        ReadWarning(lastWarn.value, onColumns = { columns = false }, onHide = { v.hiddenWarnings = lastWarn.value })
+                                    }
+                                    InventoryHead(scope2, st, v, all)
+                                }
+                            } else item(key = "found", contentType = "found") {
+                                Text(if (shown.isEmpty()) "Не найдено" else "Найдено: ${shown.size}", Modifier.animateItem(fadeInSpec = motion(), placementSpec = motion(), fadeOutSpec = motion())
+                                    .padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            // Ищут, а в описи нет (или нашлось не то) — своя папка с названием от человека.
+                            if (target == null && v.query.isNotBlank() && shown.isEmpty()) item(key = "none") {
+                                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("В описи нет «${v.query.trim()}»", style = MaterialTheme.typography.titleMedium)
+                                    Button(onClick = { newFolder = v.query.trim() }, Modifier.padding(top = 16.dp)) {
+                                        Icon(AppIcons.CreateNewFolder, null); Text("  Создать папку")
+                                    }
+                                }
+                            }
+                            items(shown, key = { it.list + "|" + it.row }) { i ->
+                                val n = st?.photosOf(i) ?: 0
+                                val here = target != null && wanted(i)
+                                val picked = i in selected || here
+                                // Деление описи (автор, 06.11.2026): позиция другого осмотрщика — только чтение, система такие отметки отвергает.
+                                val foreign = Inventory.foreign(i)
+                                // В режиме набора — где предмет сейчас, если не здесь (добавление перенесёт его снимки сюда).
+                                val elsewhere = if (target != null && !inHere(i)) st?.folderOf(i)?.takeIf { it.isDirectory } else null
+                                // Отфильтровали, отметили, нашли — строки съезжают на места, а не прыгают.
+                                Row(Modifier.animateItem(fadeInSpec = motion(), placementSpec = motion(), fadeOutSpec = motion()).fillMaxWidth().testTag("строка описи")
+                                    .then(if (foreign) Modifier.alpha(0.6f) else Modifier)
+                                    .background(if (picked) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Transparent)
+                                    .combinedClickable(
+                                        onClick = {
+                                            if (foreign) host.toast("Эту позицию осматривает: ${i.inspector}")
+                                            else if (target != null) toggleInTarget(i)
+                                            else if (selected.isNotEmpty()) { if (picked) selected.remove(i) else selected.add(i) }
+                                            else {
+                                                // Нашёл по номеру — поиск очищается: вернулся и сразу набираешь следующий.
+                                                keyboard?.hide(); val searched = v.query.isNotBlank(); if (searched) v.query = ""
+                                                scope.launch { openFolder(withContext(Background) { Inventory.openFolder(obj, i) }) }
+                                            }
+                                        },
+                                        onLongClick = { if (foreign) Unit else if (target != null) toggleInTarget(i) else if (picked) selected.remove(i) else selected.add(i) },
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // Осмотрено — зелёная отметка с числом снимков; нет — тихая точка (не кружок
+                                    // выбора: тот читался как «отметить»).
+                                    Box(Modifier.size(30.dp), contentAlignment = Alignment.Center) {
+                                        if (target != null) Icon(if (here) AppIcons.CheckBox else AppIcons.CheckBoxOutlineBlank,
+                                            if (here) "В этой папке" else "Не в этой папке",
+                                            tint = if (here) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        else if (n > 0) {
+                                            Icon(Icons.Default.CheckCircle, "Осмотрено", tint = DONE_GREEN, modifier = Modifier.size(24.dp))
+                                            Text("$n", Modifier.align(Alignment.BottomEnd), style = MaterialTheme.typography.labelSmall, color = DONE_GREEN)
+                                        } else if (st?.earlier(i) == true) {
+                                            // Осмотрено раньше, по импорту отметок: снимков в приложении нет — бледнее.
+                                            Icon(Icons.Default.CheckCircle, "Осмотрено", tint = DONE_GREEN.copy(alpha = 0.45f), modifier = Modifier.size(24.dp))
+                                        } else Box(Modifier.size(7.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)))
+                                    }
+                                    Column(Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text(i.number, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(i.inventory.ifEmpty { "без инв. №" }, Modifier.weight(1f, fill = false), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            if (i.priority.isNotEmpty()) Text("П${i.priority}", softWrap = false, maxLines = 1, modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)).padding(horizontal = 6.dp),
+                                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                                            if (foreign) Text("осматривает: ${i.inspector}", Modifier.testTag("метка осматривает").clip(RoundedCornerShape(6.dp))
+                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)).padding(horizontal = 6.dp),
+                                                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            // Метки — проявляются и уходят, а не возникают за кадр (матрица движения: РЫВОК).
+                                            AnimatedVisibility(st?.broken(i) == true, enter = fadeIn(motion()) + expandHorizontally(motion()),
+                                                exit = fadeOut(motion()) + shrinkHorizontally(motion())) { BrokenLabel() }
+                                            AnimatedVisibility(st?.repair(i) == true, enter = fadeIn(motion()) + expandHorizontally(motion()),
+                                                exit = fadeOut(motion()) + shrinkHorizontally(motion())) { RepairLabel() }
+                                            // «Осмотрено» — у любого осмотренного: и отмеченного вручную, и снятого (отзыв
+                                            // 15.10.2026: «когда просто отмечаешь — надпись есть, а когда добавляешь фотки — нет.
+                                            // По логике везде должно быть»). У «нерабочего» и «ремонта» — их метка: отметить
+                                            // их можно только снятое, осмотренность в них уже есть.
+                                            AnimatedVisibility(st?.inspected(i) == true && st.broken(i) != true && st.repair(i) != true,
+                                                enter = fadeIn(motion()) + expandHorizontally(motion()),
+                                                exit = fadeOut(motion()) + shrinkHorizontally(motion())) { EarlierLabel() }
+                                        }
+                                        Text(i.name + (i.qty.toIntOrNull()?.takeIf { it > 1 }?.let { " · $it шт" } ?: ""),
+                                            style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        val where = listOfNotNull(i.place.ifEmpty { null }, i.year.ifEmpty { null }?.let { "$it г." }).joinToString(" · ")
+                                        if (where.isNotEmpty()) Text(where, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        val cost = listOfNotNull(i.initial?.let { "первонач. ${money(it)}" }, i.sum?.takeIf { it != i.initial }?.let { "сумма ${money(it)}" })
+                                        if (cost.isNotEmpty()) Text(cost.joinToString(" · "), style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        elsewhere?.let { Text("сейчас в папке «${it.name}»", style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                    }
+                                    // Снять — сразу в камеру, не заходя в папку: нашёл по бирке — снял — следующая.
+                                    if (target == null && selected.isEmpty() && !foreign) FilledTonalIconButton(onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                                        keyboard?.hide(); if (v.query.isNotBlank()) v.query = ""; v.refocus = true
+                                        scope.launch {
+                                            val dir = withContext(Background) { Inventory.openFolder(obj, i) }
+                                            ShootFrom.list = dir; host.takePhotos(dir)
+                                        }
+                                    }, Modifier.size(48.dp)) { Icon(AppIcons.CameraAlt, "Снять") }
+                                }
+                            }
+                            if (target == null && v.query.isNotBlank() && shown.isNotEmpty()) item(key = "other") {
+                                TextButton(onClick = { newFolder = v.query.trim() }, Modifier.fillMaxWidth().padding(8.dp)) {
+                                    Icon(AppIcons.CreateNewFolder, null); Text("  Нет нужного? Не найдено — создать папку")
+                                }
+                            }
+                        }
+                        FastScroller(v.scroll, Modifier.align(Alignment.TopEnd), label = { k -> byKey[k]?.let { "№ ${it.number}" + if (it.inventory.isNotEmpty()) " · ${it.inventory}" else "" } })
+                    }
+                }
+            }
+        }
+    }
+
+    // Список сам не нашёлся — «Столбцы описи» открываются сами, один раз.
+    LaunchedEffect(d) {
+        if (d != null && !v.asked && d.parsed.isNotEmpty() && d.parsed.all { it.items.isEmpty() }) { v.asked = true; columns = true }
+    }
+    columns?.let { ask ->
+        ColumnsScreen(obj, ask = ask, onClose = { columns = null }, onSaved = { columns = null; v.hiddenWarnings = emptyList(); reparse++ })
+    }
+    replaceAsk?.let { (book, ch) ->
+        AlertDialog(
+            onDismissRequest = { replaceAsk = null },
+            title = { Text("Заменить файл описи?") },
+            text = { DialogBody {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (ch.items == 0) Text("В «${book.name}» список предметов сам не нашёлся — после замены укажете столбцы.")
+                    else Text("В «${book.name}» ${plural(ch.items, "предмет", "предмета", "предметов")}.")
+                    if (ch.lost.isNotEmpty()) Text("Нет ${ch.lost.size} из ${ch.bound} предметов, у которых уже есть папки: " +
+                        ch.lost.take(3).joinToString(", ") + if (ch.lost.size > 3) "…" else "", fontWeight = FontWeight.SemiBold)
+                    if (ch.bound > 0 && ch.lost.size * 2 > ch.bound) Text("Похоже, это другая опись.", color = MaterialTheme.colorScheme.error)
+                    Text("Папки и снимки останутся на месте. Прежний файл можно вернуть: меню ⋮ → «Вернуть прежний файл описи».",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } },
+            confirmButton = { TextButton(onClick = { replaceAsk = null; attach(book, true) }) { Text("Заменить") } },
+            dismissButton = { TextButton(onClick = { replaceAsk = null }) { Text("Отмена") } },
+        )
+    }
+    if (exporting) ExportDialog(obj, onClose = { exporting = false })
+    if (recording) VoiceRecorderDialog(obj, onClose = { recording = false })
+    earlier?.let { (name, sheets) ->
+        EarlierImportScreen(obj, name, sheets, onClose = { earlier = null }, onDone = { n ->
+            earlier = null
+            host.toast(if (n > 0) "Отмечено осмотренными: $n" else "Новых отметок нет")
+            reparse++
+        })
+    }
+    if (editingNote) NoteDialog(note.orEmpty(), onDone = { editingNote = false; Store.setNote(obj, it) }, onCancel = { editingNote = false })
+    newFolder?.let { initial ->
+        NameDialog("Название папки", initial = initial, confirm = "Создать", onDone = { name ->
+            newFolder = null; v.query = ""; keyboard?.hide()
+            scope.launch {
+                val dir = withContext(Background) {
+                    var n = 1; var made: File? = null
+                    while (made == null && n < 100) { made = Store.createFolder(obj, if (n == 1) name else "$name ($n)"); n++ }
+                    made
+                }
+                dir?.let(openFolder)
+            }
+        }, onCancel = { newFolder = null })
+    }
+}
+
+/**
+ * Выгрузка этой описи: отчёт Excel; всё архивом (отчёт, опись, снимки, комментарии); только
+ * новое с прошлой выгрузки — после второго выезда не пересылать всё заново; за сегодня.
+ * Подписи — сколько снимков уйдёт, чтобы было видно до отправки.
+ */
+@Composable
+private fun ExportDialog(obj: File, onClose: () -> Unit) {
+    val host = LocalHost.current
+    val scope = rememberCoroutineScope()
+    data class Counts(val all: Int, val since: Int?, val last: Long?, val today: Int, val journal: kg.osmotr.core.Journal.Check,
+        val items: Int = 0, val inspected: Int = 0)
+    val counts by produceState<Counts?>(null) {
+        value = withContext(Background) {
+            val last = Inventory.lastExport(obj)
+            // Для видов отчёта: есть ли что положить в «осмотренное» и «не осмотренное».
+            val (items, inspected) = Inventory.inspectedCount(obj)
+            Counts(Inventory.photosSince(obj, 0), last?.let { Inventory.photosSince(obj, it) }, last, Inventory.photosSince(obj, Platform.startOfDay()),
+                kg.osmotr.core.Journal.verify(obj),  // при выгрузке — проверка всего журнала, а не только новых строк
+                items, inspected)
+        }
+    }
+    var zipping by remember { mutableStateOf<Float?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    fun zip(since: Long, suffix: String) {
+        zipping = 0f
+        scope.launch {
+            val at = Platform.nowMs()
+            runCatching { zipItems(host, listOf(obj), obj.parentFile ?: obj, obj.name + suffix, photosSince = since) { zipping = it } }
+                .onSuccess { z -> withContext(Background) { Inventory.markExport(obj, at) }; zipping = null; onClose(); shareChecked(host, z) }
+                .onFailure { zipping = null; error = it.message }
+        }
+    }
+    val c = counts
+    AlertDialog(
+        onDismissRequest = { if (zipping == null) onClose() },
+        title = { Text("Выгрузить опись") },
+        text = { DialogBody {
+            Column {
+                when {
+                    zipping != null -> {
+                        Text("Собираем архив… ${((zipping ?: 0f) * 100).toInt()} %")
+                        LinearProgressIndicator(progress = { zipping ?: 0f }, Modifier.fillMaxWidth().padding(top = 8.dp))
+                    }
+                    error != null -> Text("Не получилось: $error", color = MaterialTheme.colorScheme.error)
+                    c == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                    else -> {
+                        // Вариант выгрузки — карточкой: значок, что уйдёт и сколько; касание — отправить.
+                        var nth = 0
+                        @Composable fun option(title: String, sub: String, enabled: Boolean = true, onClick: () -> Unit) {
+                            val icon = when (nth++) { 0 -> AppIcons.UploadFile; 1 -> AppIcons.PhotoLibrary; else -> AppIcons.CameraAlt }
+                            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).panel().clickable(enabled = enabled, onClick = onClick).padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Box(Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center) {
+                                    Icon(icon, null, tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text(title, style = MaterialTheme.typography.titleSmall,
+                                        color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (enabled) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        // Журнал описи — цел или правили руками: видно до отправки.
+                        if (c.journal.count > 0) Text(c.journal.text(), Modifier.padding(bottom = 6.dp), style = MaterialTheme.typography.bodyMedium,
+                            color = if (c.journal.ok) DONE_GREEN else BROKEN_RED, fontWeight = FontWeight.SemiBold)
+                        // Три вида отчёта (автор, 19.10.2026): всё, осмотренное, не осмотренное.
+                        fun report(kind: Inventory.ReportKind) = scope.launch {
+                            val reports = withContext(Background) { Inventory.reportFor(obj, kind) }
+                            onClose(); if (reports.isNotEmpty()) shareFiles(host, reports, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        }
+                        option("Отчёт: всё", "что осмотрено, что нет — все строки описи") { report(Inventory.ReportKind.ALL) }
+                        option("Отчёт: осмотренное", "только осмотренные предметы; итог — по всей описи", enabled = c.inspected > 0) {
+                            report(Inventory.ReportKind.INSPECTED)
+                        }
+                        option("Отчёт: не осмотренное", "только то, что осталось осмотреть", enabled = c.inspected < c.items) {
+                            report(Inventory.ReportKind.NOT_INSPECTED)
+                        }
+                        option("Всё архивом", "отчёт, опись, комментарии и ${plural(c.all, "снимок", "снимка", "снимков")}") { zip(0L, "") }
+                        c.last?.let { last ->
+                            option("Новое с прошлой выгрузки", "с ${WHEN_SHORT.format(last)}: ${plural(c.since ?: 0, "снимок", "снимка", "снимков")} и отчёт",
+                                enabled = (c.since ?: 0) > 0) { zip(last, " — новое") }
+                        }
+                        option("За сегодня", "${plural(c.today, "снимок", "снимка", "снимков")} и отчёт", enabled = c.today > 0) {
+                            zip(Platform.startOfDay(), " — " + DAY_SHORT.format(Platform.nowMs()))
+                        }
+                    }
+                }
+            }
+        } },
+        confirmButton = { if (zipping == null) TextButton(onClick = onClose) { Text("Закрыть") } },
+    )
+}
+
+private object WHEN_SHORT { fun format(ms: Long) = Platform.format(ms, "dd.MM HH:mm") }
+private object DAY_SHORT { fun format(ms: Long) = Platform.format(ms, "dd.MM.yyyy") }
+
+/**
+ * Как идёт разбор описи: шкала, доля и что делается («Читаем лист «Опись»» → «Ищем столбцы» →
+ * «Собираем список»). 5–6 тыс. строк читаются секунды — человек видит, что дело идёт, а не висит.
+ */
+@Composable
+fun ParseProgress(dir: File?, modifier: Modifier = Modifier, compact: Boolean = false, file: File? = null) {
+    val all by Inventory.parsing.collectAsStateWithLifecycle()
+    val mine = file?.let { all[it.absolutePath] } ?: all.values.firstOrNull { file == null && (dir == null || it.file.parentFile == dir) }
+    if (compact) {
+        Column(modifier) {
+            Text(mine?.let { "${it.stage} — ${(it.fraction * 100).toInt()} %" } ?: "Открываем…",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (mine != null) LinearProgressIndicator(progress = { mine.fraction }, Modifier.fillMaxWidth().padding(top = 6.dp))
+            else LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 6.dp))
+        }
+        return
+    }
+    Box(modifier.padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(mine?.stage ?: "Открываем опись…", style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (mine != null) {
+                LinearProgressIndicator(progress = { mine.fraction }, Modifier.fillMaxWidth().padding(vertical = 12.dp))
+                Text("${(mine.fraction * 100).toInt()} %", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 12.dp))
+        }
+    }
+}
+
+
+
+
+
+/** Осмотрено без снимков — отметка импортом или вручную. */
+@Composable
+fun EarlierLabel() = Text("осмотрено", Modifier.testTag("метка осмотрено").clip(RoundedCornerShape(6.dp)).background(DONE_GREEN.copy(alpha = 0.18f)).padding(horizontal = 6.dp),
+    style = MaterialTheme.typography.labelSmall, color = DONE_GREEN, maxLines = 1)
+
+@Composable
+fun BrokenLabel() = Text("нерабочее", Modifier.testTag("метка нерабочее").clip(RoundedCornerShape(6.dp)).background(BROKEN_RED.copy(alpha = 0.2f)).padding(horizontal = 6.dp),
+    style = MaterialTheme.typography.labelSmall, color = BROKEN_RED, maxLines = 1)
+
+/** «В ремонте» (прежде «Требуется ремонт»; в системе — «В ремонте», автор 06.11.2026) — жёлтой меткой рядом с номером, как «нерабочее». */
+@Composable
+fun RepairLabel() = Text("в ремонте", Modifier.testTag("метка ремонт").clip(RoundedCornerShape(6.dp)).background(REPAIR_AMBER.copy(alpha = 0.2f)).padding(horizontal = 6.dp),
+    style = MaterialTheme.typography.labelSmall, color = REPAIR_AMBER, maxLines = 1)
+
+
+/** Сняли из списка описи: в эту папку — по возвращении остаться в списке и сказать, что легло. */
+object ShootFrom { var list: File? = null }
+
+/**
+ * Поиск описи — капсулой: что искать и «очистить». Клавиатура обычная: инвентарник — цифры вместе
+ * с буквами (автор, 09.10.2026: «Инвентарник это номер + буквы... зачем ты поиск разделил»).
+ */
+@Composable
+fun SearchCapsule(query: String, onQuery: (String) -> Unit, focus: FocusRequester, onDone: () -> Unit,
+                  placeholder: String = "Инв. номер или название", modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).height(52.dp)
+        .clip(androidx.compose.foundation.shape.CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)
+        .padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(Modifier.weight(1f).padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
+            if (query.isEmpty()) Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            androidx.compose.foundation.text.BasicTextField(query, onQuery, Modifier.fillMaxWidth().focusRequester(focus)
+                // Подсказка — отдельный текст поверх поля, диктору она не достаётся: поле было «без имени».
+                .voiceLabel(placeholder), singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onDone() }))
+        }
+        AnimatedVisibility(query.isNotEmpty(), enter = fadeIn(motion()) + scaleIn(motion()), exit = fadeOut(motion()) + scaleOut(motion())) {
+            IconButton(onClick = { onQuery("") }) { Icon(Icons.Default.Close, "Очистить") }
+        }
+    }
+}
+
+/**
+ * Шапка описи в самом списке: сколько осмотрено (и сегодня), приоритеты «П1 5/7» и отбор. Ряды —
+ * переносом строк, а не лентой за край (автор: «обрубать интерфейс в никуда — плохая затея»).
+ */
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun InventoryHead(scope2: List<Inventory.Item>, st: Inventory.Status?, v: InventoryView, all: List<Inventory.Item>) {
+    val done = scope2.count { st?.inspected(it) == true }
+    val today = scope2.count { st?.today(it) == true }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("$done", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                Text(" из ${scope2.size} осмотрено", Modifier.weight(1f).padding(bottom = 3.dp), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // «сегодня +N» — целиком, не рвётся на крупном шрифте.
+                if (today > 0) Text("сегодня +$today", Modifier.padding(start = 8.dp, bottom = 3.dp), style = MaterialTheme.typography.labelLarge,
+                    color = DONE_GREEN, softWrap = false, maxLines = 1)
+            }
+            LinearProgressIndicator(progress = { if (scope2.isEmpty()) 0f else done.toFloat() / scope2.size },
+                Modifier.fillMaxWidth().padding(top = 6.dp).height(6.dp).clip(androidx.compose.foundation.shape.CircleShape),
+                color = DONE_GREEN, trackColor = MaterialTheme.colorScheme.surfaceVariant, drawStopIndicator = {})
+        }
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            // По приоритетам: «П1 5/7»; касание — только этот приоритет в списке.
+            scope2.groupBy { it.priority }.filterKeys { it.isNotEmpty() }.entries.sortedWith(compareBy({ it.key.toIntOrNull() ?: Int.MAX_VALUE }, { it.key }))
+                .forEach { (p, items) ->
+                    val ok = items.count { st?.inspected(it) == true }
+                    FilterChip(v.priority == p, { v.priority = if (v.priority == p) null else p }, {
+                        Text("П$p  $ok/${items.size}", color = if (ok == items.size) DONE_GREEN else Color.Unspecified)
+                    }, shape = androidx.compose.foundation.shape.CircleShape)
+                }
+            // Порядок — одной кнопкой: касание — следующий (№ → приоритет → стоимость).
+            FilterChip(true, { v.sort = Sort.entries[(v.sort.ordinal + 1) % Sort.entries.size] }, { Text(v.sort.title) },
+                shape = androidx.compose.foundation.shape.CircleShape)  // стрелку «↕» iPhone рисует смайликом
+            FilterChip(v.onlyLeft, { v.onlyLeft = !v.onlyLeft }, { Text("Не осмотрено") }, shape = androidx.compose.foundation.shape.CircleShape)
+            // Нерабочие — когда есть хоть один (или фильтр уже включён).
+            val brokenHere = scope2.count { st?.broken(it) == true }
+            if (brokenHere > 0 || v.onlyBroken) FilterChip(v.onlyBroken, { v.onlyBroken = !v.onlyBroken }, { Text("Нерабочие $brokenHere", color = BROKEN_RED) },
+                shape = androidx.compose.foundation.shape.CircleShape)
+            // Списки и статусы описи — реже нужны: за «Ещё отбор», иначе шапка в шесть строк.
+            val lists = all.map { it.list }.distinct().takeIf { it.size > 1 }.orEmpty()
+            val statuses = all.filter { v.list == null || it.list == v.list }.map { it.status }.filter { it.isNotEmpty() }.distinct().takeIf { it.size > 1 }.orEmpty()
+            val chosen = listOfNotNull(v.list, v.status).size
+            if (lists.isNotEmpty() || statuses.isNotEmpty()) FilterChip(v.more || chosen > 0, { v.more = !v.more },
+                { Text(if (v.more) "Скрыть" else if (chosen > 0) "Отбор: $chosen" else "Ещё отбор") },
+                trailingIcon = { Icon(if (v.more) AppIcons.UnfoldLess else AppIcons.UnfoldMore, null, Modifier.size(18.dp)) },
+                shape = androidx.compose.foundation.shape.CircleShape)
+        }
+        AnimatedVisibility(v.more, enter = fadeIn(motion()) + expandVertically(motion()), exit = fadeOut(motion()) + shrinkVertically(motion())) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                val lists = all.map { it.list }.distinct().takeIf { it.size > 1 }.orEmpty()
+                val statuses = all.filter { v.list == null || it.list == v.list }.map { it.status }.filter { it.isNotEmpty() }.distinct().takeIf { it.size > 1 }.orEmpty()
+                // «Список» — столбец «Статус» описи («Основной список», «Резерв»…), «Лист» — листы книги
+                // («Опись», «Вынесено») (автор, 09.10.2026: «Там не подразделения, а списки»).
+                if (statuses.isNotEmpty()) MoreGroup("Список") { statuses.forEach { s -> FilterChip(v.status == s, { v.status = if (v.status == s) null else s }, { Text(s) }, shape = androidx.compose.foundation.shape.CircleShape) } }
+                if (lists.isNotEmpty()) MoreGroup("Лист") { lists.forEach { l -> FilterChip(v.list == l, { v.list = if (v.list == l) null else l }, { Text(l) }, shape = androidx.compose.foundation.shape.CircleShape) } }
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun MoreGroup(title: String, chips: @Composable () -> Unit) = Column {
+    Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { chips() }
+}
+
+/** Плашка над списком: прочитанное подозрительно — что именно и куда идти поправить. */
+@Composable
+private fun ReadWarning(warnings: List<String>, onColumns: () -> Unit, onHide: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).panel().padding(12.dp).testTag("проверьте столбцы"),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(AppIcons.Warning, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error)
+            Text("  Проверьте, как прочитана опись", style = MaterialTheme.typography.titleSmall)
+        }
+        warnings.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+        Row {
+            TextButton(onClick = onColumns) { Icon(AppIcons.TableChart, null); Text("  Столбцы описи") }
+            TextButton(onClick = onHide) { Text("Всё верно, скрыть") }
+        }
+    }
+}

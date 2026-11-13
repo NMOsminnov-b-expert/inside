@@ -1,0 +1,8 @@
+*.jks
+.gradle/
+.kotlin/
+build/
+iosApp/*.xcodeproj/
+local.properties
+pwa-dist/
+__pycache__/

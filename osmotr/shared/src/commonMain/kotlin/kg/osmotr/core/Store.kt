@@ -1,0 +1,606 @@
+package kg.osmotr.core
+
+import kotlinx.atomicfu.locks.synchronized
+
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import okio.Path.Companion.toPath
+import okio.buffer
+import okio.use
+
+/**
+ * Хранилище осмотров: папка в приложении — настоящий каталог в `Осмотры/` в корне памяти
+ * телефона (подключил по USB — скопировал, всё разложено). Базы нет: файловая система —
+ * единственный источник правды.
+ *
+ * Миниатюры — во внутренней памяти приложения (повторяют вложенность), чтобы сетка не
+ * декодировала снимки и чтобы в выгружаемую папку не попадало служебное.
+ */
+object Store {
+    lateinit var root: File
+        private set
+    /** Служебное приложения (кэш разбора описей) — не в «Осмотрах». */
+    lateinit var cacheDir: File
+        private set
+    private lateinit var thumbs: File
+    private lateinit var trashRoot: File
+
+    /** Растёт на каждую правку — экраны перечитывают свои папки. */
+    private val _version = MutableStateFlow(0)
+    val version: StateFlow<Int> = _version.asStateFlow()
+    fun changed(structure: Boolean = true) { if (structure) this.structure++; _version.value++ }
+
+    /**
+     * Растёт на каждую правку, которая могла поменять папки (создать, перенести, переименовать,
+     * удалить, сменить состав предмета) — по умолчанию любую. Не растёт только на запись снимков:
+     * по нему Inventory держит «предмет → папка» между нажатиями (Inventory.openFolder), и быстрая
+     * съёмка подряд не обходит заново все папки описи.
+     */
+    @kotlin.concurrent.Volatile var structure = 0L
+        private set
+
+    /** Миниатюры и регистрация файлов — в фоне, одним потоком: съёмка не ждёт. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val bg = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default.limitedParallelism(1))
+    private object background { fun execute(block: () -> Unit) { bg.launch { runCatching(block) } } }
+
+    const val THUMB_PX = 384
+
+    /**
+     * [base] — где лежат «Осмотры» (Android — корень памяти, iPhone — папка приложения, видна в
+     * «Файлах»); [appDir] — служебное приложения (миниатюры, кэш разбора).
+     */
+    fun init(base: File, appDir: File) {
+        root = File(base, "Осмотры")
+        thumbs = File(appDir, "thumbs")
+        cacheDir = File(appDir, "cache")
+        // Корзина — рядом с «Осмотрами», на том же томе: удаление и возврат — переименования,
+        // мгновенно. Не в Android/data приложения: туда Android 11+ не даёт переносить каталоги
+        // со снимками, и папка просто не удалялась. Скрытая и с .nomedia — в галерею не лезет.
+        trashRoot = File(base, ".Осмотры-корзина")
+        if (!trashRoot.exists() && trashRoot.mkdirs()) File(trashRoot, ".nomedia").writeText("")
+        background.execute { purgeTrash() }
+    }
+
+    fun ensureRoot(): Boolean = root.isDirectory || root.mkdirs()
+
+    // ---------- Чтение ----------
+
+    data class FolderTile(val dir: File, val photos: Int, val folders: Int, val cover: File?, val note: String?, val videos: Int = 0)
+    data class Listing(val folders: List<FolderTile>, val photos: List<File>, val videos: List<File> = emptyList(), val pdfs: List<File> = emptyList(),
+                       /** Присланные книги Excel (перечни зданий; [Lists]). */
+                       val lists: List<File> = emptyList(), val docs: List<File> = emptyList())
+
+    /** Снимок — непустой JPEG или HEIC (так по умолчанию пишут многие штатные камеры). */
+    fun isPhoto(f: File) = f.isFile && !f.name.startsWith(".") && f.length() > 0 &&
+        f.extension.lowercase() in PHOTO_EXT
+
+    /** То же по имени и уже прочитанным сведениям — без лишних обращений к диску. */
+    fun isPhoto(name: String, m: okio.FileMetadata) = m.isRegularFile && !name.startsWith(".") && (m.size ?: 0) > 0 &&
+        name.substringAfterLast('.', "").lowercase() in PHOTO_EXT
+
+    // PNG и WebP — из галереи и мессенджеров (снимки экрана, присланное в WhatsApp), 14.10.2026.
+    val PHOTO_EXT = setOf("jpg", "jpeg", "heic", "heif", "png", "webp")
+
+    /** Видео из камеры «Осмотра» и присланное — лежит в папке рядом со снимками (20.10.2026). */
+    val VIDEO_EXT = setOf("mp4", "mov", "3gp", "webm", "mkv")
+    fun isVideo(f: File) = f.isFile && !f.name.startsWith(".") && f.length() > 0 && f.extension.lowercase() in VIDEO_EXT
+    fun isVideo(name: String, m: okio.FileMetadata) = m.isRegularFile && !name.startsWith(".") && (m.size ?: 0) > 0 &&
+        name.substringAfterLast('.', "").lowercase() in VIDEO_EXT
+    fun videosIn(dir: File): List<File> = (dir.listFiles() ?: emptyArray()).filter(::isVideo).sortedWith(NATURAL_FILES.reversed())
+    fun videoTree(dir: File): List<File> = dir.walkTopDown().onEnter { it == dir || !it.name.startsWith(".") }.filter(::isVideo).toList()
+
+    /** Видео легло в папку: регистрация в системе и журнал описи — с отпечатком (в фоне: чтение файла). */
+    fun videoSaved(f: File) {
+        scan(listOf(f))
+        f.parentFile?.let { Journal.add(it, "Видео", relative(f), f) }
+        changed(structure = false)
+    }
+
+    /** Снимки папки — новые первыми, как в галерее: вернулся с камеры — снятое сразу на виду. */
+    /**
+     * PDF — документы недвижимости (к объекту) и ТС (к госномеру); автор, 29.10.2026: «Обязателен просмотр
+     * подгружаемых пдф документов». Лежат файлами в папке, как снимки.
+     */
+    fun isPdf(f: File) = f.isFile && !f.name.startsWith(".") && f.length() > 0 && f.extension.lowercase() == "pdf"
+    fun pdfsIn(dir: File): List<File> = (dir.listFiles() ?: emptyArray()).filter(::isPdf).sortedWith(NATURAL_FILES)
+
+    /**
+     * Поворот снимка или скана четвертями по часовой (автор, 02.11.2026: «Поворот сканов обязателен!») — скрытым файлом рядом:
+     * сам снимок не меняется, он свидетельство осмотра, и его подпись в журнале остаётся верной.
+     */
+    private fun turnMark(f: File) = File(f.parentFile!!, ".${f.name}.поворот")
+
+    fun setTurn(f: File, quarters: Int) { runCatching { turnMark(f).writeText("${quarters % 4}") }; changed() }
+
+    /** Повороты снимков папки: имя файла → четверти. */
+    fun turnsIn(dir: File): Map<String, Int> = (dir.listFiles() ?: emptyArray())
+        .filter { it.name.startsWith(".") && it.name.endsWith(".поворот") }
+        .mapNotNull { m -> runCatching { m.readText().trim().toInt() }.getOrNull()?.let { m.name.removePrefix(".").removeSuffix(".поворот") to it } }
+        .toMap()
+
+    /** Прочие форматы документов (автор, 02.11.2026: «Всех форматов, в которых может быть документ»). */
+    val DOC_EXT = setOf("doc", "docx", "odt", "rtf", "ods", "csv", "ppt", "pptx", "odp", "tif", "tiff", "bmp", "djvu", "txt", "zip", "rar", "7z")
+
+    /** Документы папки, кроме PDF и книг Excel. Текст и таблицы вне «Документов» — служебные файлы папки. */
+    fun docsIn(dir: File): List<File> = (dir.listFiles() ?: emptyArray()).filter { f ->
+        f.isFile && !f.name.startsWith(".") && f.length() > 0 && f.extension.lowercase().let { it in DOC_EXT && (dir.name == "Документы" || it !in setOf("txt", "csv")) }
+    }.sortedWith(NATURAL_FILES)
+
+    /** Файл под именем, как его назвали (без запрещённых знаков); занято — «Имя (2).pdf». */
+    fun addFile(dir: File, name: String, write: (okio.BufferedSink) -> Unit): File {
+        val clean = cleanName(name).ifEmpty { "Документ" }
+        val base = clean.substringBeforeLast('.', clean); val ext = clean.substringAfterLast('.', "").let { if (it.isEmpty()) "" else ".$it" }
+        dir.mkdirs()
+        var f = File(dir, base + ext); var n = 2
+        while (f.exists()) f = File(dir, "$base (${n++})$ext")
+        writeDurably(f, write)
+        scan(listOf(f)); changed(structure = false)
+        return f
+    }
+
+    fun photosIn(dir: File): List<File> =
+        (dir.listFiles() ?: emptyArray()).filter(::isPhoto).sortedWith(NATURAL_FILES.reversed())
+
+    fun foldersIn(dir: File): List<File> =
+        (dir.listFiles() ?: emptyArray()).filter { it.isDirectory && !it.name.startsWith(".") }.sortedWith(NATURAL_FILES)
+
+    /** Содержимое папки: вложенные (с числом снимков всего и обложкой — последним снимком) и снимки. */
+    fun list(dir: File): Listing {
+        val folders = foldersIn(dir).map { d ->
+            var photos = 0
+            var videos = 0
+            var folders = 0
+            var cover: File? = null
+            d.walkTopDown().onEnter { !it.name.startsWith(".") }.forEach { f ->
+                if (f.isDirectory) { if (f != d) folders++ }
+                else if (isVideo(f)) videos++
+                else if (isPhoto(f)) {
+                    photos++
+                    if (cover == null || f.lastModified() > cover!!.lastModified()) cover = f
+                }
+            }
+            FolderTile(d, photos, folders, cover, note(d), videos)
+        }
+        return Listing(folders, photosIn(dir), videosIn(dir), pdfsIn(dir), Lists.listsIn(dir), docsIn(dir))
+    }
+
+    /** Путь от корня: «ТЭЦ-2 › Насос 1»; корень — «Осмотры». */
+    fun title(dir: File): String = relative(dir).ifEmpty { root.name }.replace(File.separator, " › ")
+
+    fun relative(f: File): String = f.absolutePath.removePrefix(root.absolutePath).trimStart(File.separatorChar)
+
+    // ---------- Папки ----------
+
+    /** Имя папки без недопустимых в файловой системе знаков. */
+    fun cleanName(name: String): String = name.trim().replace(Regex("""[\\/:*?"<>|\u0000-\u001F]"""), " ")
+        .replace(Regex("""\s+"""), " ").trim().trimEnd('.')
+
+    /** Новая папка; null — имя пустое или занято. */
+    fun createFolder(parent: File, name: String): File? {
+        val clean = cleanName(name)
+        if (clean.isEmpty()) return null
+        val dir = File(parent, clean)
+        if (dir.exists() || !dir.mkdirs()) return null
+        Journal.add(dir, "Папка создана", relative(dir))
+        changed()
+        return dir
+    }
+
+    fun renameFolder(dir: File, name: String): File? {
+        val clean = cleanName(name)
+        if (clean.isEmpty() || dir == root || Objects.isBase(dir)) return null   // раздел объекта не переименовывается (Layout)
+        val to = File(dir.parentFile, clean)
+        if (to.exists()) return null
+        val before = photoTree(dir)
+        val from = relative(dir)
+        if (!dir.renameTo(to)) return null
+        thumbDir(dir).let { if (it.exists()) it.renameTo(thumbDir(to)) }
+        scan(before + photoTree(to))
+        Journal.add(to, "Папка переименована", "$from → ${relative(to)}")
+        changed()
+        return to
+    }
+
+    /**
+     * Перенести папку в [to]; занято имя — «Имя (2)». В саму себя и во вложенную — нельзя (null).
+     * Для ошибки «создал папку не на том уровне».
+     */
+    fun moveFolder(dir: File, to: File): File? {
+        if (dir == root || to == dir || to.absolutePath.startsWith(dir.absolutePath + File.separator) || to == dir.parentFile) return null
+        // Последний слой защиты структуры: запрещённое не переносится, даже если экран пропустил (Layout).
+        if (Layout.checkMove(dir, to) is Layout.Verdict.Deny) return null
+        to.mkdirs()   // раздел объекта мог ещё не быть на диске (Objects.baseChildren)
+        var target = File(to, dir.name)
+        var n = 2
+        while (target.exists()) target = File(to, "${dir.name} (${n++})")
+        val before = photoTree(dir)
+        val from = relative(dir); val oldParent = dir.parentFile!!
+        if (!dir.renameTo(target)) return null
+        thumbDir(dir).let { if (it.exists()) { thumbDir(target).parentFile?.mkdirs(); it.renameTo(thumbDir(target)) } }
+        scan(before + photoTree(target))
+        val what = "$from → ${relative(target)}"
+        if (Inventory.objectOf(oldParent) == Inventory.objectOf(target)) Journal.add(target, Journal.FOLDER_MOVED, what)
+        else {
+            // Из одной описи в другую: в старой — ушло, в новой — пришло, каждый файл с отпечатком.
+            Journal.add(oldParent, Journal.FOLDER_DELETED, what, File(oldParent, dir.name), gone = true)
+            Journal.tracked(target).forEach { Journal.add(it.parentFile!!, "Перенесено из другой описи", what, it) }
+        }
+        changed()
+        return target
+    }
+
+    // ---------- Голосовые заметки ----------
+    //
+    // Диктофон (автор, 09.10.2026: «Диктофон добавляем»): запись — файлом .m4a прямо в папке,
+    // рядом со снимками и «Комментарий.txt»; видна по USB, уходит в архив. Имя — как у снимков:
+    // папка и время, — по нему понятно, откуда и когда.
+
+    fun isVoice(f: File) = f.isFile && !f.name.startsWith(".") && f.extension.lowercase() == "m4a" && f.length() > 0
+
+    /** Голосовые заметки папки — новые первыми. */
+    fun voiceNotes(dir: File): List<File> = dir.listFiles()?.filter(::isVoice)?.sortedByDescending { it.name }.orEmpty()
+
+    /** Голосовая заметка записана: видна системе, в журнал описи — с отпечатком. */
+    fun voiceSaved(f: File) {
+        scan(listOf(f))
+        f.parentFile?.let { Journal.add(it, "Голосовая заметка", relative(f), f) }
+        changed()
+    }
+
+    /** Файл для новой заметки: «<папка>_голос_ГГГГММДД_ЧЧММСС.m4a». */
+    fun newVoiceFile(dir: File): File =
+        File(dir.also { it.mkdirs() }, cleanName(dir.name).take(60) + "_голос_" + Platform.format(Platform.nowMs(), "yyyyMMdd_HHmmss") + ".m4a")
+
+    // ---------- Комментарий к папке ----------
+
+    /** Комментарий лежит в самой папке обычным файлом — виден и по USB, уходит в архив. */
+    const val NOTE = "Комментарий.txt"
+
+    /** Комментарий папки; у литера и участка — в их файле (Params: «Литер_А.json», поле «note»). */
+    fun note(dir: File): String? =
+        if (Params.formOf(dir) != null) (Params.load(dir)["note"] as? String)?.trim()?.ifEmpty { null }
+        else File(dir, NOTE).takeIf { it.isFile }?.readText()?.trim()?.ifEmpty { null }
+
+    fun setNote(dir: File, text: String) {
+        if (Params.formOf(dir) != null) {
+            val vals = Params.load(dir).toMutableMap()
+            if (text.isBlank()) vals.remove("note") else vals["note"] = text.trim()
+            Params.save(dir, vals)
+            changed()
+            return
+        }
+        val f = File(dir, NOTE)
+        if (text.isBlank()) f.delete() else writeDurably(f, (text.trim() + "\n").encodeToByteArray())
+        scan(listOf(f))
+        Journal.add(dir, "Комментарий", relative(dir) + ": " + text.trim().ifEmpty { "удалён" }.take(300), f, gone = text.isBlank())
+        if (text.isBlank()) pruneEmpty(dir)
+        changed()
+    }
+
+    /**
+     * Записать файл так, чтобы он пережил севшую батарею и перезагрузку: во временный рядом,
+     * сброс на диск (fsync), подмена. Прежде комментарий, записанный обычным writeText,
+     * после резкого выключения оказывался пустым (найдено на эмуляторе, 08.10.2026).
+     */
+    fun writeDurably(f: File, bytes: ByteArray) = writeDurably(f) { it.write(bytes) }
+
+    fun writeDurably(f: File, body: (okio.BufferedSink) -> Unit) {
+        f.parentFile?.mkdirs()   // базовые папки объекта появляются на диске с первым файлом (Objects.baseChildren)
+        // Свой временный на каждую запись: два писателя одного файла с общим временным теряли его
+        // (второй дописывал в уже переименованный и, не найдя своего, удалял готовый).
+        val tmp = File(f.parentFile!!, ".${f.name}.${Platform.nanoTime()}.tmp")
+        try {
+            systemFs.openReadWrite(tmp.path.toPath(), mustCreate = true).use { h ->
+                h.sink().buffer().use { out -> body(out); out.flush() }
+                h.flush()  // сброс на диск (fsync)
+            }
+            if (!tmp.renameTo(f) && tmp.isFile) { f.delete(); check(tmp.renameTo(f)) { "не записан ${f.name}" } }
+        } finally { tmp.delete() }
+    }
+
+    // ---------- Контакты ----------
+
+    /** Контакты людей — книгой Excel в самой папке (автор, 08.10.2026: «контакты человека тоже храним в папке… файлик excel»). */
+    const val CONTACTS = "Контакты.xlsx"
+    val CONTACT_COLUMNS = listOf("ФИО", "Должность", "Телефон", "Почта", "Примечание")
+
+    data class Contact(val name: String = "", val role: String = "", val phone: String = "", val email: String = "", val note: String = "") {
+        val blank get() = listOf(name, role, phone, email, note).all { it.isBlank() }
+        fun cells() = listOf(name, role, phone, email, note).map { it.trim() }
+        /** Для поиска: всё одной строкой. */
+        fun text() = cells().filter { it.isNotEmpty() }.joinToString(" · ")
+    }
+
+    /** Строки книги; первая — заголовки (как ни правили на компьютере, если там «ФИО» — пропускается). */
+    fun contacts(dir: File): List<Contact> {
+        val f = File(dir, CONTACTS)
+        if (!f.isFile) return emptyList()
+        val rows = Xlsx.read(f)
+        val body = if (rows.firstOrNull()?.firstOrNull()?.trim()?.equals("ФИО", ignoreCase = true) == true) rows.drop(1) else rows
+        return body.map { r -> Contact(r.getOrElse(0) { "" }, r.getOrElse(1) { "" }, r.getOrElse(2) { "" }, r.getOrElse(3) { "" }, r.getOrElse(4) { "" }) }
+            .filterNot { it.blank }
+    }
+
+    fun setContacts(dir: File, list: List<Contact>) {
+        val f = File(dir, CONTACTS)
+        val rows = list.filterNot { it.blank }
+        if (rows.isEmpty()) f.delete() else Xlsx.write(f, listOf(CONTACT_COLUMNS) + rows.map { it.cells() })
+        scan(listOf(f))
+        Journal.add(dir, "Контакты", relative(dir) + ": " + rows.joinToString("; ") { listOf(it.name, it.phone).filter(String::isNotBlank).joinToString(" ") }.take(300),
+            f, gone = rows.isEmpty())
+        if (rows.isEmpty()) pruneEmpty(dir)
+        changed()
+    }
+
+    // ---------- Корзина ----------
+
+    /** Удалённое: что куда убрано — для «Вернуть». */
+    data class Trashed(val items: List<Pair<File, File>>, val photos: Int, val folders: Int)
+
+    /**
+     * Удалить снимки и папки — в корзину, не насовсем: по ошибке удалённое возвращается
+     * («Вернуть» внизу экрана). Корзина чистится через сутки.
+     */
+    fun trash(items: Collection<File>): Trashed? {
+        if (items.isEmpty()) return null
+        val bin = File(trashRoot, Platform.nowMs().toString()).apply { mkdirs() }
+        var photos = 0; var folders = 0
+        val gone = mutableListOf<File>()
+        val moved = items.filter { it != root && it.exists() }.mapNotNull { f ->
+            val inside = if (f.isDirectory) photoTree(f) else listOf(f)
+            val dst = File(bin, relative(f))
+            dst.parentFile?.mkdirs()
+            // Переименование не вышло (другой том, запрет системы) — скопировать и удалить.
+            if (!f.renameTo(dst)) {
+                return@mapNotNull null
+            }
+            if (f.isDirectory || dst.isDirectory) { folders++; thumbDir(f).deleteRecursively() } else thumbFile(f).delete()
+            photos += inside.size
+            gone += inside
+            Journal.add(f.parentFile!!, when { dst.isDirectory -> Journal.FOLDER_DELETED; isVoice(dst) -> "Голосовая заметка удалена"; else -> "Снимок удалён" },
+                relative(f), f, gone = true)
+            f to dst
+        }
+        if (moved.isEmpty()) { bin.deleteRecursively(); return null }
+        // Папка, из которой ушло последнее, — туда же, в корзину: «Вернуть» вернёт и её (с привязкой
+        // к предмету). Родитель — раньше ребёнка: он возвращается целиком, вместе со всем внутри.
+        val pruned = moved.mapNotNull { it.first.parentFile }.distinct().flatMap { pruneEmpty(it, bin) }.reversed()
+        scan(gone)
+        changed()
+        return Trashed(pruned + moved, photos, folders)
+    }
+
+    fun restore(t: Trashed) {
+        val back = t.items.mapNotNull { (orig, dst) ->
+            orig.parentFile?.mkdirs()
+            var to = orig
+            var n = 2
+            while (to.exists()) to = File(orig.parentFile, orig.nameWithoutExtension + " (${n++})" + (if (orig.extension.isEmpty()) "" else "." + orig.extension))
+            if (dst.renameTo(to)) to.also { back ->
+                // Папка вернулась — каждый её файл заново в журнал (с отпечатком), снимок — сам.
+                val files = if (back.isDirectory) Journal.tracked(back) else listOf(back)
+                files.forEach { Journal.add(it.parentFile!!, "Возвращено из корзины", relative(it), it) }
+            } else null
+        }
+        scan(back.flatMap { if (it.isDirectory) photoTree(it) else listOf(it) })
+        changed()
+    }
+
+    private fun purgeTrash(maxAgeMs: Long = 24 * 3600 * 1000L) {
+        val now = Platform.nowMs()
+        trashRoot.listFiles()?.forEach { bin -> bin.name.toLongOrNull()?.let { if (now - it > maxAgeMs) bin.deleteRecursively() } }
+    }
+
+    /** Голосовые заметки папки со всей вложенностью. */
+    fun voiceTree(dir: File): List<File> = dir.walkTopDown().onEnter { it == dir || !it.name.startsWith(".") }.filter(::isVoice).toList()
+
+    fun photoTree(dir: File): List<File> = dir.walkTopDown().filter(::isPhoto).toList()
+
+    // ---------- Снимки ----------
+
+    /**
+     * Файл для нового снимка: `<папка>_<ГГГГММДД_ЧЧММСС>_<NNN>.<ext>`, время — съёмки.
+     *
+     * Имя **резервируется** на всё приложение, пока писатель не скажет [releasePhotoName]: файла на
+     * диске ещё нет, пока камера пишет кадр или копируется присланное, а очередей бывает несколько
+     * сразу (дообработка снятого в фоне, второй заход камеры в ту же папку, галерея, «Поделиться» —
+     * автор, 19.10.2026: «проследи, чтобы не было конфликтов, если 3–4 параллельные очереди»).
+     */
+    fun newPhotoFile(dir: File, ext: String = "jpg", takenMs: Long = Platform.nowMs()): File = synchronized(namesLock) {
+        dir.mkdirs()
+        val prefix = (if (dir == root) "Осмотр" else dir.name) + "_" + Platform.format(takenMs, "yyyyMMdd_HHmmss") + "_"
+        val taken = reservedNames.getOrPut(dir.path) { HashSet() }
+        var n = 1
+        var f = File(dir, prefix + "001." + ext)
+        while (f.exists() || f.name in taken) {
+            n++
+            f = File(dir, prefix + n.toString().padStart(3, '0') + "." + ext)
+        }
+        taken.add(f.name)
+        f
+    }
+
+    /** Имя больше не держится: файл записан (теперь его видно на диске) или запись не удалась. */
+    fun releasePhotoName(f: File) = synchronized(namesLock) {
+        val dir = f.parentFile?.path ?: return@synchronized
+        reservedNames[dir]?.let { it.remove(f.name); if (it.isEmpty()) reservedNames.remove(dir) }
+    }
+
+    private val namesLock = kotlinx.atomicfu.locks.SynchronizedObject()
+    private val reservedNames = HashMap<String, MutableSet<String>>()
+
+    /** Снимки легли в папку: миниатюры и регистрация — в фоне, одной пачкой; экран — одно обновление. */
+    fun saved(photos: List<File>, removed: List<File> = emptyList()) {
+        if (photos.isEmpty()) return
+        background.execute {
+            scan(photos + removed)
+            photos.forEach { makeThumb(it) }
+            // В журнал описи — каждый снимок с отпечатком содержимого (в фоне: отпечаток — чтение файла).
+            photos.forEach { p -> p.parentFile?.let { Journal.add(it, "Снимок", relative(p), p) } }
+        }
+        // Первый снимок в папку ТС — место само (автор, 06.11.2026); на потоке вызова: у платформы может быть запрос разрешения.
+        runCatching { Params.placeOnFirstPhoto(photos) }
+        changed(structure = false)
+    }
+    fun saved(photo: File) = saved(listOf(photo))
+
+    /**
+     * Фото со стороны (галерея, «Поделиться» из WhatsApp) — снимками в папку [dir]: имя по тому же
+     * правилу, что у камеры, время — когда снято ([takenMs] из EXIF), иначе — сейчас; в журнал и
+     * миниатюры — как снятое камерой ([saved]). [items] — пары: имя (для расширения), байты, время.
+     */
+    fun addPhotos(dir: File, items: List<Triple<String, ByteArray, Long?>>): List<File> {
+        val out = items.map { (name, bytes, taken) ->
+            val ext = name.substringAfterLast('.', "").lowercase().let { if (it == "jpeg") "jpg" else it }.takeIf { it in PHOTO_EXT } ?: sniff(bytes)
+            val f = newPhotoFile(dir, ext, taken ?: Platform.nowMs())
+            try { writeDurably(f, bytes) } finally { releasePhotoName(f) }
+            f
+        }
+        saved(out)
+        changed(structure = false)
+        return out
+    }
+
+    /**
+     * Снимки из файлов — присланное, которое приложение уже переписало во временные файлы
+     * (Android: «Поделиться», галерея). Потоком, без содержимого в памяти: сотня снимков по 4 МБ
+     * целиком в памяти роняла бы приложение (предел — 256–512 МБ). Временные — удаляются.
+     */
+    fun addPhotoFiles(dir: File, items: List<Triple<String, File, Long?>>): List<File> {
+        val out = items.mapNotNull { (name, src, taken) ->
+            if (!src.isFile) return@mapNotNull null
+            val ext = name.substringAfterLast('.', "").lowercase().let { if (it == "jpeg") "jpg" else it }.takeIf { it in PHOTO_EXT } ?: sniff(head(src))
+            val f = newPhotoFile(dir, ext, taken ?: Platform.nowMs())
+            // Переименование, где можно (PWA: временный и папка — в одном хранилище, содержимое не читается);
+            // нет — потоком, как прежде (Android: временный в памяти приложения, папка — в общей).
+            try { if (!src.renameTo(f)) writeDurably(f) { sink -> systemFs.source(src.path.toPath()).use { sink.writeAll(it) } } } finally { releasePhotoName(f) }
+            src.delete()
+            f
+        }
+        saved(out)
+        changed(structure = false)
+        return out
+    }
+
+    /** Начало файла — для определения вида по содержимому. */
+    fun head(f: File, n: Int = 16): ByteArray = runCatching {
+        systemFs.source(f.path.toPath()).buffer().use { s -> s.request(n.toLong()); s.readByteArray(minOf(n.toLong(), s.buffer.size)) }
+    }.getOrDefault(ByteArray(0))
+
+    /** Расширение по началу файла: имя не сказало (мессенджеры шлют без него). */
+    private fun sniff(b: ByteArray): String = when {
+        b.size > 3 && b[0] == 0x89.toByte() && b[1] == 'P'.code.toByte() -> "png"
+        b.size > 11 && b[8] == 'W'.code.toByte() && b[9] == 'E'.code.toByte() -> "webp"
+        b.size > 11 && b[4] == 'f'.code.toByte() && b[5] == 't'.code.toByte() -> "heic"
+        else -> "jpg"
+    }
+
+    /** Перенести снимки в папку; имя занято — с номером. */
+    fun move(photos: Collection<File>, to: File) {
+        to.mkdirs()
+        val moved = photos.mapNotNull { f ->
+            var target = File(to, f.name)
+            var n = 2
+            while (target.exists()) target = File(to, f.nameWithoutExtension + "_" + n++ + "." + f.extension)
+            val from = relative(f); val oldDir = f.parentFile!!
+            if (!f.renameTo(target)) return@mapNotNull null
+            thumbFile(f).let { t -> if (t.exists()) { thumbFile(target).parentFile?.mkdirs(); t.renameTo(thumbFile(target)) } }
+            val what = "$from → ${relative(target)}"
+            Journal.add(to, Journal.PHOTO_MOVED, what, target)
+            // В другую опись — в старой только «ушёл».
+            if (Inventory.objectOf(oldDir) != Inventory.objectOf(to)) Journal.add(oldDir, "Снимок удалён", what, File(oldDir, f.name), gone = true)
+            target
+        }
+        photos.mapNotNull { it.parentFile }.distinct().forEach { pruneEmpty(it) }
+        scan(photos + moved)
+        changed()
+    }
+
+    // ---------- Опустевшая папка ----------
+
+    /**
+     * Пуста ли папка: ни снимков, ни записей, ни комментария, ни контактов, ни вложенных папок —
+     * разве что «Инвентарники.txt» (привязка к предмету: откроют предмет снова — заведётся
+     * снова). Корень и папка описи пустыми не бывают.
+     */
+    fun isEmptyFolder(dir: File): Boolean {
+        if (dir == root || !dir.isDirectory || Inventory.fileIn(dir) != null) return false
+        return dir.listFiles()?.none { f -> !f.name.startsWith(".") && (f.isDirectory || f.name != Inventory.MEMBERS) } ?: false
+    }
+
+    /**
+     * Папка опустела — убрать её, а за ней и опустевших родителей (автор, 13.10.2026: «Если папка
+     * остаётся пустой, её надо удалить. Например, если из неё все комментарии убрали, записи и
+     * т. д.»). В журнал — «папка удалена». [bin] — корзина действия: оставшееся (привязка к
+     * предмету) уходит туда, и «Вернуть» возвращает папку целиком. Убранные — парами «где была → в корзине».
+     */
+    fun pruneEmpty(dir: File, bin: File? = null): List<Pair<File, File>> {
+        val out = mutableListOf<Pair<File, File>>()
+        var d: File = dir
+        while (isEmptyFolder(d)) {
+            val parent = d.parentFile ?: break
+            Journal.add(parent, Journal.FOLDER_DELETED, relative(d) + ": пустая", d, gone = true)
+            if (bin != null) {
+                val dst = File(bin, relative(d)).apply { mkdirs() }
+                d.listFiles()?.forEach { f -> if (!f.isDirectory) f.renameTo(File(dst, f.name)) }
+                out += d to dst
+            }
+            d.deleteRecursively()
+            thumbDir(d).deleteRecursively()
+            changed()
+            d = parent
+        }
+        return out
+    }
+
+    // ---------- Миниатюры ----------
+
+    private fun thumbDir(dir: File) = File(thumbs, relative(dir))
+    fun thumbFile(photo: File) = File(thumbs, relative(photo))
+    /** Папка [from] (путь от «Осмотров») переехала в [to] — её миниатюры следом (Objects.migrateOnce). */
+    fun movedThumbs(from: String, to: File) {
+        val was = File(thumbs, from)
+        if (was.exists()) { thumbDir(to).parentFile?.mkdirs(); was.renameTo(thumbDir(to)) }
+    }
+
+    /** Миниатюра есть — её; нет — сделать в фоне, а пока показывать сам снимок (Coil уменьшит). */
+    fun thumbOrPhoto(photo: File): File {
+        val t = thumbFile(photo)
+        if (t.isFile && t.lastModified() >= photo.lastModified()) return t
+        background.execute { makeThumb(photo) }
+        return photo
+    }
+
+    /** Миниатюра ~384 px (платформа: уменьшение, поворот по EXIF, JPEG). */
+    fun makeThumb(photo: File): File? {
+        val t = thumbFile(photo)
+        if (t.isFile && t.lastModified() >= photo.lastModified()) return t
+        return if (Platform.makeThumb(photo.path, t.path, THUMB_PX)) t else null
+    }
+
+    // ---------- Система ----------
+
+    /** Зарегистрировать (или снять) файлы в системе: без этого по USB и в галерее их не видно. */
+    fun scan(files: Collection<File>) { if (files.isNotEmpty()) Platform.scan(files.map { it.absolutePath }) }
+
+    /** «Насос 2» раньше «Насос 10»: числа внутри имени сравниваются как числа. */
+    val NATURAL: Comparator<String> = Comparator { a, b ->
+        val ra = Regex("""\d+|\D+""").findAll(a.lowercase()).map { it.value }.toList()
+        val rb = Regex("""\d+|\D+""").findAll(b.lowercase()).map { it.value }.toList()
+        for (i in 0 until minOf(ra.size, rb.size)) {
+            val x = ra[i]; val y = rb[i]
+            // Числа — как числа (без BigInteger: длина без ведущих нулей, потом по цифрам).
+            val c = if (x[0].isDigit() && y[0].isDigit()) {
+                val xs = x.trimStart('0'); val ys = y.trimStart('0')
+                (xs.length.compareTo(ys.length).takeIf { it != 0 } ?: xs.compareTo(ys)).takeIf { it != 0 } ?: x.length.compareTo(y.length)
+            }
+            else x.compareTo(y)
+            if (c != 0) return@Comparator c
+        }
+        ra.size.compareTo(rb.size)
+    }
+    val NATURAL_FILES: Comparator<File> = Comparator { a, b -> NATURAL.compare(a.name, b.name) }
+}
