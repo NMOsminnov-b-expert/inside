@@ -74,13 +74,15 @@ def pre_commit():
 
 
 def pre_push(lines):
-    # Проверяются только коммиты, которых на GitHub ещё нет.
+    # Проверяются только коммиты, которых на GitHub нет ни в одной ветке: уже
+    # лежащее там (например, история ветки «осмотры» при перемотке refactor
+    # 16.11.2026) отправкой не становится — проверять его незачем.
     for line in lines:
         parts = line.split()
         if len(parts) != 4 or parts[1] == ZERO:
             continue
         local, remote = parts[1], parts[3]
-        rng = [local, '--not', '--remotes'] if remote == ZERO else ['%s..%s' % (remote, local)]
+        rng = [local, '--not', '--remotes'] + ([] if remote == ZERO else [remote])
         if forbidden(git_paths('log', '--pretty=format:', '--name-only', '--diff-filter=d', *rng)):
             sys.stderr.write('push остановлен: %s\n' % parts[2])
             return 1
